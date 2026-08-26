@@ -3922,11 +3922,11 @@ function getRecurringScope(root, prefix) {
  * anzubieten - ein Dialog mit nur einer wählbaren Antwort wäre eine Attrappe.
  */
 /**
- * Welche Auskunft trifft auf diese fremde Serie zu?
+ * Die Rückfrage für eine Serie, die einem anderen Kalender gehört (#880).
  *
- * Die drei Fälle sagen VERSCHIEDENE Dinge, weil verschiedene Dinge passieren -
- * und eine Zusage, die nicht hält, ist schlimmer als gar keine, denn sie ist
- * der einzige Grund, überhaupt zu fragen:
+ * Drei Fälle, drei verschiedene Wahrheiten - und eine Zusage, die nicht hält,
+ * ist schlimmer als gar keine, denn sie ist der einzige Grund, überhaupt zu
+ * fragen:
  *
  * - Ein Geburtstagstermin ist das Abbild seines Geburtstags, nicht sein
  *   Original: `syncBirthdayCalendarEvent` legt ihn beim nächsten Abgleich neu
@@ -3934,26 +3934,43 @@ function getRecurringScope(root, prefix) {
  * - Ein Termin aus einem ICS-Abo ist doppelt unlöschbar: `OUTBOUND_SOURCES`
  *   kennt kein `ics`, es wird also nichts an der Quelle gelöscht, und der
  *   nächste Aboabruf legt ihn wieder an (kein Tombstone in ics-subscription.js).
- * - Nur bei Google, CalDAV und Apple greift die Löschung wirklich bis zur
- *   Quelle durch.
+ * - Nur bei Google, CalDAV und Apple greift die Löschung bis zur Quelle durch.
+ *
+ * Die drei Aufrufe stehen ausgeschrieben statt über einen zusammengesetzten
+ * Schlüssel: `jeder als gefaehrlich markierte Dialog nennt seine Folgen`
+ * (test-frontend-audit.js) liest den Schlüssel aus dem Aufruf und wäre an einem
+ * `t(`${prefix}Detail`)` erblindet - bei einem Dialog, dessen ganzer Zweck es
+ * ist, seine Folgen zu benennen, ist das der falsche Handel.
+ *
+ * `birthday_name` ist der etablierte Marker; die Leseroute hängt ihn nur an
+ * Termine, die zu einem Geburtstag gehören.
  */
-function externalSeriesDeletePrompt(event) {
-  // `birthday_name` ist der etablierte Marker; die Leseroute hängt ihn nur an
-  // Termine, die zu einem Geburtstag gehören.
-  if (event.birthday_name)    return 'calendar.deleteBirthdayEvent';
-  if (event.subscription_id)  return 'calendar.deleteSubscribedSeries';
-  return 'calendar.deleteExternalSeries';
+function confirmExternalSeriesDelete(event) {
+  const title = event.title;
+  if (event.birthday_name) {
+    return confirmModal(t('calendar.deleteBirthdayEventTitle'), {
+      detail:       t('calendar.deleteBirthdayEventDetail', { title }),
+      confirmLabel: t('calendar.deleteBirthdayEventConfirm'),
+      danger:       true,
+    });
+  }
+  if (event.subscription_id) {
+    return confirmModal(t('calendar.deleteSubscribedSeriesTitle'), {
+      detail:       t('calendar.deleteSubscribedSeriesDetail', { title }),
+      confirmLabel: t('calendar.deleteSubscribedSeriesConfirm'),
+      danger:       true,
+    });
+  }
+  return confirmModal(t('calendar.deleteExternalSeriesTitle'), {
+    detail:       t('calendar.deleteExternalSeriesDetail', { title }),
+    confirmLabel: t('calendar.deleteExternalSeriesConfirm'),
+    danger:       true,
+  });
 }
 
 async function requestDeleteEvent(event) {
   if (isExternalRecurringSeries(event)) {
-    const prompt = externalSeriesDeletePrompt(event);
-    const ok = await confirmModal(t(`${prompt}Title`), {
-      detail:       t(`${prompt}Detail`, { title: event.title }),
-      confirmLabel: t(`${prompt}Confirm`),
-      danger:       true,
-    });
-    if (ok) await deleteEvent(event.id);
+    if (await confirmExternalSeriesDelete(event)) await deleteEvent(event.id);
     return;
   }
   if (!isLocalRecurringSeries(event)) {

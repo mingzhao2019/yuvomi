@@ -256,13 +256,22 @@ test('requestDeleteEvent prüft zuerst auf eine fremde Serie', () => {
   assert.ok(guard < delete_, 'gelöscht wird, bevor die fremde Serie erkannt ist');
 });
 
-test('Eine fremde Serie wird bestätigt, bevor sie gelöscht wird', () => {
+test('Eine fremde Serie wird nur gelöscht, wenn sie bestätigt wurde', () => {
+  // Nicht die Reihenfolge zweier Aufrufe, sondern die ABHAENGIGKEIT: `await`
+  // vor der Rueckfrage und das Loeschen in ihrem Ergebnis. Ohne das `await`
+  // waere die Zusage ein Promise, immer wahr, und der Dialog reine Zierde -
+  // gelöscht wuerde trotzdem.
   const body = requestDeleteEventBody();
   const branch = body.slice(body.indexOf('isExternalRecurringSeries('));
-  const confirm = branch.indexOf('confirmModal(');
+  const confirm = branch.indexOf('confirmExternalSeriesDelete(');
   const del     = branch.indexOf('deleteEvent(');
-  assert.ok(confirm > 0, 'kein confirmModal im Zweig der fremden Serie - sie verschwindet wortlos');
+  assert.ok(confirm > 0, 'keine Rueckfrage im Zweig der fremden Serie - sie verschwindet wortlos');
   assert.ok(confirm < del, 'gelöscht wird vor der Bestätigung');
+  assert.match(
+    branch.slice(0, del),
+    /if\s*\(\s*await\s+confirmExternalSeriesDelete\(/,
+    'das Löschen haengt nicht am ERGEBNIS der Rueckfrage',
+  );
 });
 
 test('Jede fremde Serie bekommt die Auskunft, die auf sie zutrifft', () => {
@@ -272,28 +281,28 @@ test('Jede fremde Serie bekommt die Auskunft, die auf sie zutrifft', () => {
   // ICS-Abo ist doppelt unloeschbar - `OUTBOUND_SOURCES` kennt kein `ics`, und
   // der naechste Aboabruf legt ihn wieder an. Eine Zusage, die nicht haelt, ist
   // schlimmer als gar keine: sie ist der einzige Grund, ueberhaupt zu fragen.
-  const src = withoutBlockComments(
-    calendarSrc.slice(calendarSrc.indexOf('function externalSeriesDeletePrompt')),
-  );
+  const src = calendarSrc.slice(calendarSrc.indexOf('function confirmExternalSeriesDelete'));
   const chooser = src.slice(0, src.indexOf('\n}'));
   assert.ok(chooser.includes('birthday_name'),
     'der Loeschpfad erkennt keinen Geburtstagstermin');
   assert.ok(chooser.includes('subscription_id'),
     'der Loeschpfad erkennt keinen Termin aus einem ICS-Abo - er verspricht ihm dann eine '
     + 'Loeschung an der Quelle, die es dort gar nicht gibt');
+  for (const n of ['BirthdayEvent', 'SubscribedSeries', 'ExternalSeries']) {
+    assert.ok(chooser.includes(`calendar.delete${n}Detail`), `der Fall ${n} hat keinen eigenen Text`);
+  }
 
   // Und der Loeschpfad muss den Waehler auch BENUTZEN.
   const body = requestDeleteEventBody();
-  assert.ok(body.includes('externalSeriesDeletePrompt('),
+  assert.ok(body.includes('confirmExternalSeriesDelete('),
     'requestDeleteEvent waehlt den Text nicht nach dem Fall aus');
 });
 
-test('Die Rückfrage benennt die Reichweite über i18n-Schlüssel', () => {
-  const body = requestDeleteEventBody();
-  for (const part of ['Title', 'Detail', 'Confirm']) {
-    assert.ok(body.includes(`\${prompt}${part}`), `der Schlüssel ...${part} wird nicht gebildet`);
-  }
-  assert.ok(/danger:\s*true/.test(body), 'die Bestätigung ist nicht als zerstörend ausgewiesen');
+test('Jede Rückfrage ist als zerstörend ausgewiesen', () => {
+  const src = calendarSrc.slice(calendarSrc.indexOf('function confirmExternalSeriesDelete'));
+  const chooser = src.slice(0, src.indexOf('\n}'));
+  assert.equal((chooser.match(/danger:\s*true/g) || []).length, 3,
+    'nicht alle drei Rückfragen sind als zerstörend ausgewiesen');
 });
 
 test('Die Schlüssel beider Rückfragen stehen in allen Locales', () => {
