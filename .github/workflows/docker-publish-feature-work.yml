@@ -1,9 +1,9 @@
-name: Docker Publish (feature-work)
+name: Docker Publish (custom)
 
 on:
   push:
     branches:
-      - codex/feature-work
+      - custom
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -19,7 +19,7 @@ env:
 
 jobs:
   build-and-push:
-    name: Build & Push feature image
+    name: Build & Push custom image
     runs-on: ubuntu-latest
 
     steps:
@@ -38,7 +38,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=feature-work
+            type=raw,value=custom
             type=sha
 
       - name: Set up QEMU

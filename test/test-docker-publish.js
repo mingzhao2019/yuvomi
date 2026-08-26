@@ -19,25 +19,25 @@ test('Docker publish treats the remote build cache as an optional optimization',
   );
 });
 
-test('feature image publish is isolated to codex/feature-work', () => {
+test('custom image publish is isolated to custom', () => {
   assert.match(
     featureWorkflow,
-    /branches:\s*\n\s*- codex\/feature-work/,
-    'The feature image workflow must only run for the custom feature branch'
+    /branches:\s*\n\s*- custom/,
+    'The custom image workflow must only run for the custom branch'
   );
   assert.match(
     featureWorkflow,
-    /type=raw,value=feature-work/,
-    'The feature workflow must publish a stable feature-work image tag'
+    /type=raw,value=custom/,
+    'The custom workflow must publish a stable custom image tag'
   );
   assert.match(
     featureWorkflow,
     /platforms:\s*linux\/amd64,linux\/arm64/,
-    'The feature image must keep the supported multi-architecture build'
+    'The custom image must keep the supported multi-architecture build'
   );
   assert.doesNotMatch(
     featureWorkflow,
     /repository_owner\s*\/\s*oikos/,
-    'The custom feature workflow must not publish the upstream legacy image'
+    'The custom workflow must not publish the upstream legacy image'
   );
 });
