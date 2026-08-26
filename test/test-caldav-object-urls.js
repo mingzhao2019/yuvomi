@@ -135,6 +135,32 @@ test('Die übrigen Client-Methoden bleiben erreichbar', () => {
   assert.ok(typeof client.fetchCalendars === 'function', 'fetchCalendars verloren');
 });
 
+test('Auch Methoden am Prototyp überleben den Wrapper', () => {
+  // Der Fake oben legt seine Methoden als EIGENE Eigenschaften an - genau wie
+  // `createDAVClient` heute, das ein Objektliteral zurückgibt. Damit könnte ein
+  // Wrapper per Spread durchkommen und trotzdem falsch sein: wechselt tsdav auf
+  // die Klassenform, haengen die Methoden am Prototyp und ein Spread liesse sie
+  // fallen - zur Laufzeit, beim ersten `fetchCalendars`. Dieser Fall wird
+  // deshalb eigens gestellt.
+  class DavLike {
+    fetchCalendars() { return 'aus dem Prototyp'; }
+    deleteCalendarObject() { return 'auch aus dem Prototyp'; }
+    fetchCalendarObjects() { return []; }
+  }
+  const client = withCalendarObjectUrlFilter(new DavLike());
+  assert.equal(client.fetchCalendars(), 'aus dem Prototyp', 'fetchCalendars vom Prototyp verloren');
+  assert.equal(client.deleteCalendarObject(), 'auch aus dem Prototyp', 'deleteCalendarObject verloren');
+});
+
+test('Objekt und Collection werden über den vollen Bezeichner getrennt, nicht nur den Pfad', () => {
+  // tsdav adressiert Objekte selbst als `pathname + search`; ein Server darf
+  // Collection und Mitglied ueber den Query unterscheiden. Auf den blossen Pfad
+  // reduziert saehen beide gleich aus, und das Objekt fiele heraus.
+  const keep = calendarObjectUrlFilter('https://mail.example.org/dav/calendar?collection=home');
+  assert.ok(keep('https://mail.example.org/dav/calendar?object=NZtPkIOMoK'), 'Objekt am Query abgewiesen');
+  assert.ok(!keep('https://mail.example.org/dav/calendar?collection=home'), 'Collection durchgelassen');
+});
+
 test('createCalDAVClient reicht seinen Client durch den Wrapper', () => {
   // Der Wrapper ist nur so viel wert wie seine Anwendung: nimmt ihn jemand aus
   // der Factory, greift tsdavs `.ics`-Default wieder, und jeder Test oben bliebe

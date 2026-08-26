@@ -31,7 +31,14 @@ export async function createCalDAVClient(account) {
 function pathOf(url) {
   const raw = String(url ?? '').trim();
   if (!raw) return '';
-  try { return new URL(raw, 'http://caldav.invalid/').pathname; } catch { return raw; }
+  try {
+    const parsed = new URL(raw, 'http://caldav.invalid/');
+    // Mit Query: tsdav adressiert Objekte selbst als `pathname + search`, und
+    // ein Server darf Collection und Mitglied darüber unterscheiden. Wer den
+    // Query wegwirft, hielte beide für dasselbe und filterte das Objekt heraus -
+    // genau die stille Auslassung, gegen die diese Datei geschrieben ist.
+    return `${parsed.pathname}${parsed.search}`;
+  } catch { return raw; }
 }
 
 /**
@@ -72,13 +79,23 @@ export function calendarObjectUrlFilter(collectionUrl) {
  */
 export function withCalendarObjectUrlFilter(client) {
   const fetchCalendarObjects = client.fetchCalendarObjects.bind(client);
-  return {
-    ...client,
-    fetchCalendarObjects: (params = {}) => fetchCalendarObjects({
-      urlFilter: calendarObjectUrlFilter(params?.calendar?.url),
-      ...params,
-    }),
-  };
+  // ÜBER DEN PROTOTYP, NICHT ÜBER SPREAD: `createDAVClient` gibt heute ein
+  // Objektliteral zurück, dessen Methoden alle eigene Eigenschaften sind - ein
+  // Spread käme damit durch. Er käme aber still NICHT durch, sobald tsdav auf
+  // die Klassenform (`new DAVClient()`) wechselt, deren Methoden am Prototyp
+  // hängen: der Wrapper verlöre `fetchCalendars`, `deleteCalendarObject` und
+  // den Rest, und zwar erst zur Laufzeit. Die Delegation kostet hier nichts und
+  // nimmt die Abhängigkeit von einer fremden Rückgabeform ganz weg.
+  return Object.create(Object.getPrototypeOf(client), {
+    ...Object.getOwnPropertyDescriptors(client),
+    fetchCalendarObjects: {
+      value: (params = {}) => fetchCalendarObjects({
+        urlFilter: calendarObjectUrlFilter(params?.calendar?.url),
+        ...params,
+      }),
+      writable: true, enumerable: true, configurable: true,
+    },
+  });
 }
 
 /**
