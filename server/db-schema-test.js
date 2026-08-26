@@ -1085,10 +1085,10 @@ const MIGRATIONS_SQL = {
     CREATE INDEX IF NOT EXISTS idx_microsoft_todo_deletions_account
       ON microsoft_todo_pending_deletions(account_id);
 
-    -- The production migration rebuilds tasks so its external_source CHECK
-    -- accepts Microsoft To Do.  This schema file is an intentionally partial
-    -- test excerpt; reference the table here so the mirror guard keeps the
-    -- migration's ownership visible without pretending to be a full replay.
+    -- The production migration rebuilds tasks to preserve provider values while
+    -- adding Microsoft To Do support. This schema file is an intentionally
+    -- partial test excerpt; reference the table here so the mirror guard keeps
+    -- the migration's ownership visible without pretending to be a full replay.
     UPDATE tasks SET external_source = external_source WHERE 0;
   `,
 };

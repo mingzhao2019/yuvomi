@@ -6579,10 +6579,12 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_microsoft_todo_deletions_account
         ON microsoft_todo_pending_deletions(account_id);
 
-      -- The historical tasks table predates Microsoft To Do and its
-      -- external_source CHECK therefore cannot accept the new provider. SQLite
-      -- has no ALTER CHECK; rebuild the table while preserving every current
-      -- column, identity, index, trigger, and AUTOINCREMENT high-water mark.
+      -- The historical tasks table predates Microsoft To Do. Do not introduce a
+      -- closed external_source CHECK here: older installations may already
+      -- contain compatibility providers added by an extension, and SQLite has
+      -- no ALTER CHECK. Rebuild the table while preserving every current
+      -- column, provider value, identity, index, trigger, and AUTOINCREMENT
+      -- high-water mark.
       CREATE TABLE tasks_new (
         id                      INTEGER PRIMARY KEY AUTOINCREMENT,
         title                   TEXT    NOT NULL,
@@ -6603,8 +6605,7 @@ const MIGRATIONS = [
         updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         start_date              TEXT,
         external_uid            TEXT,
-        external_source         TEXT    NOT NULL DEFAULT 'local'
-                                        CHECK(external_source IN ('local', 'google', 'apple', 'caldav', 'microsoft_todo')),
+        external_source         TEXT    NOT NULL DEFAULT 'local',
         external_account_id     INTEGER,
         points                  INTEGER NOT NULL DEFAULT 0,
         visibility              TEXT    NOT NULL DEFAULT 'all',

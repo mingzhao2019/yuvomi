@@ -250,6 +250,16 @@ test('Task Lists sind eine dauerhafte Navigation statt einer Filter- oder Gruppi
   assert(!source.includes("key: 'task_list_id'"), 'Task List darf kein Filter-Panel-Eintrag sein');
 });
 
+test('Task List Navigation wird erst nach dem Laden der Listen gerendert', () => {
+  const source = readFileSync(new URL('../public/pages/tasks.js', import.meta.url), 'utf8');
+  const loadStart = source.indexOf('export async function render(');
+  const firstRender = source.indexOf('renderTaskLists(container);', loadStart);
+  const listAssignment = source.indexOf('state.taskLists = taskListsData.data ?? [];', loadStart);
+  assert(loadStart >= 0, 'render-Funktion muss existieren');
+  assert(firstRender > listAssignment,
+    'die Navigation darf die gespeicherte Auswahl nicht vor dem Task-List-Ladevorgang normalisieren');
+});
+
 // --------------------------------------------------------
 // Ergebnis
 // --------------------------------------------------------

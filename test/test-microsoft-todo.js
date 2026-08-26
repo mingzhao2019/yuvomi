@@ -6,8 +6,10 @@ process.env.MS_REDIRECT_URI = 'http://localhost/api/v1/calendar/outlook/callback
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
 
-const database = (await import('../server/db.js')).get();
+const dbModule = await import('../server/db.js');
+const database = dbModule.get();
 const todo = await import('../server/services/microsoft-todo.js');
 const outlook = await import('../server/services/outlook-calendar.js');
 
@@ -66,6 +68,20 @@ test('converts To Do due dates through the household timezone and keeps date-onl
       timeZone: 'America/Toronto',
     }, 'America/Toronto'),
     { due_date: '2026-08-30', due_time: null },
+  );
+  assert.deepEqual(
+    todo.__test.dueDateParts({
+      dateTime: '2026-01-15T09:30:00.0000000',
+      timeZone: 'Pacific Standard Time',
+    }, 'UTC'),
+    { due_date: '2026-01-15', due_time: '17:30' },
+  );
+  assert.deepEqual(
+    todo.__test.dueDateParts({
+      dateTime: '2026-01-15T09:30:00.0000000',
+      timeZone: 'W. Europe Standard Time',
+    }, 'UTC'),
+    { due_date: '2026-01-15', due_time: '08:30' },
   );
   assert.equal(
     todo.__test.remoteTaskValues({
@@ -244,6 +260,108 @@ test('serializes concurrent sync calls so a local task is created only once', as
   assert.equal(postCount, 1);
 });
 
+test('preserves a local edit made while the first remote create is in flight', async () => {
+  const ownerId = insertUser('todo-owner-edit-race');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists (name, provider, external_account_id, external_list_id, created_by)
+    VALUES ('Edit race', 'microsoft_todo', ?, 'list-edit-race', ?)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const taskId = database.prepare(`
+    INSERT INTO tasks (title, description, created_by, external_source, task_list_id)
+    VALUES ('Race', 'before', ?, 'local', ?)
+  `).run(ownerId, listId).lastInsertRowid;
+
+  let postBody;
+  let patchBody;
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-edit-race', displayName: 'Edit race' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-edit-race/tasks/delta') {
+      return response(200, {
+        value: [],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-edit-race/tasks/delta?$deltatoken=edit-race',
+      });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-edit-race/tasks' && options.method === 'POST') {
+      postBody = JSON.parse(options.body);
+      const before = database.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+      database.prepare('UPDATE tasks SET description = ? WHERE id = ?').run('edited while pushing', taskId);
+      const after = database.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+      assert.equal(todo.markTaskOutbound(before, after, database), true);
+      return response(201, { id: 'remote-edit-race' });
+    }
+    if (parsed.pathname.endsWith('/tasks/remote-edit-race') && options.method === 'PATCH') {
+      patchBody = JSON.parse(options.body);
+      return response(204, {});
+    }
+    throw new Error(`Unexpected Graph request ${options.method || 'GET'} ${parsed.pathname}`);
+  };
+
+  const first = await todo.sync({ database, fetchImpl });
+  assert.equal(first.created, 1);
+  const afterCreate = database.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+  assert.equal(afterCreate.description, 'edited while pushing');
+  assert.equal(afterCreate.outbound_dirty, 1);
+  assert.equal(postBody.body.content, 'before');
+
+  const second = await todo.sync({ database, fetchImpl });
+  assert.equal(second.failed, 0);
+  assert.equal(patchBody.body.content, 'edited while pushing');
+  assert.equal(database.prepare('SELECT outbound_dirty FROM tasks WHERE id = ?').get(taskId).outbound_dirty, 0);
+});
+
+test('queues a remote deletion when a local task disappears during create', async () => {
+  const ownerId = insertUser('todo-owner-delete-race');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists (name, provider, external_account_id, external_list_id, created_by)
+    VALUES ('Delete race', 'microsoft_todo', ?, 'list-delete-race', ?)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const taskId = database.prepare(`
+    INSERT INTO tasks (title, created_by, external_source, task_list_id)
+    VALUES ('Delete race', ?, 'local', ?)
+  `).run(ownerId, listId).lastInsertRowid;
+
+  let deleteCount = 0;
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-delete-race', displayName: 'Delete race' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-delete-race/tasks/delta') {
+      return response(200, {
+        value: [],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-delete-race/tasks/delta?$deltatoken=delete-race',
+      });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-delete-race/tasks' && options.method === 'POST') {
+      database.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
+      return response(201, { id: 'remote-delete-race' });
+    }
+    if (parsed.pathname.endsWith('/tasks/remote-delete-race') && options.method === 'DELETE') {
+      deleteCount += 1;
+      return response(204, {});
+    }
+    throw new Error(`Unexpected Graph request ${options.method || 'GET'} ${parsed.pathname}`);
+  };
+
+  const first = await todo.sync({ database, fetchImpl });
+  assert.equal(first.created, 1);
+  assert.equal(database.prepare('SELECT 1 FROM tasks WHERE id = ?').get(taskId), undefined);
+  assert.equal(
+    database.prepare('SELECT task_uid FROM microsoft_todo_pending_deletions WHERE account_id = ?').get(accountId).task_uid,
+    'remote-delete-race',
+  );
+
+  const second = await todo.sync({ database, fetchImpl });
+  assert.equal(second.deleted, 1);
+  assert.equal(deleteCount, 1);
+  assert.equal(database.prepare('SELECT COUNT(*) AS n FROM microsoft_todo_pending_deletions').get().n, 0);
+});
+
 test('detaches tasks and removes a list deleted remotely', async () => {
   const ownerId = insertUser('todo-owner-3');
   const accountId = insertAccount(ownerId);
@@ -281,4 +399,71 @@ test('detaches tasks and removes a list deleted remotely', async () => {
   assert.ok(database.prepare(`
     SELECT 1 FROM task_lists WHERE provider = 'microsoft_todo' AND external_list_id = 'list-new'
   `).get());
+});
+
+test('migration v164 preserves provider values from extension-backed installations', () => {
+  const legacy = new DatabaseSync(':memory:');
+  legacy.exec(`
+    PRAGMA foreign_keys = OFF;
+    CREATE TABLE users (id INTEGER PRIMARY KEY);
+    INSERT INTO users (id) VALUES (1);
+    CREATE TABLE outlook_accounts (id INTEGER PRIMARY KEY);
+    CREATE TABLE task_lists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      external_account_id INTEGER,
+      external_list_id TEXT,
+      created_by INTEGER
+    );
+    CREATE TABLE search_index (entity TEXT, entity_id INTEGER, title TEXT, body TEXT);
+    CREATE TABLE task_tags (task_id INTEGER, tag TEXT);
+    CREATE TABLE tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'misc',
+      priority TEXT NOT NULL DEFAULT 'none',
+      status TEXT NOT NULL DEFAULT 'open',
+      due_date TEXT,
+      due_time TEXT,
+      assigned_to INTEGER,
+      created_by INTEGER NOT NULL,
+      is_recurring INTEGER NOT NULL DEFAULT 0,
+      recurrence_rule TEXT,
+      parent_task_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT '2026-01-01T00:00:00Z',
+      updated_at TEXT NOT NULL DEFAULT '2026-01-01T00:00:00Z',
+      start_date TEXT,
+      external_uid TEXT,
+      external_source TEXT NOT NULL DEFAULT 'local',
+      external_account_id INTEGER,
+      points INTEGER NOT NULL DEFAULT 0,
+      visibility TEXT NOT NULL DEFAULT 'all',
+      external_object_url TEXT,
+      outbound_dirty INTEGER NOT NULL DEFAULT 0,
+      outbound_attempts INTEGER NOT NULL DEFAULT 0,
+      recurrence_origin_id INTEGER,
+      recurrence_from_completion INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT,
+      target_caldav_account_id INTEGER,
+      target_caldav_list_url TEXT,
+      countdown INTEGER NOT NULL DEFAULT 0,
+      locked INTEGER NOT NULL DEFAULT 0,
+      task_list_id INTEGER
+    );
+    INSERT INTO tasks (title, created_by, external_source) VALUES ('Extension task', 1, 'notion');
+  `);
+
+  const migration = dbModule.MIGRATIONS.find(({ version }) => version === 164);
+  assert.ok(migration, 'migration v164 must exist');
+  legacy.exec(migration.up);
+
+  assert.equal(
+    legacy.prepare('SELECT external_source FROM tasks WHERE title = ?').get('Extension task').external_source,
+    'notion',
+  );
+  assert.doesNotThrow(() => legacy.prepare(`
+    INSERT INTO tasks (title, created_by, external_source) VALUES ('Another extension task', 1, 'custom_provider')
+  `).run());
 });

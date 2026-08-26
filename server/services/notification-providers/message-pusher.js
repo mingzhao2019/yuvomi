@@ -11,10 +11,10 @@ const METHODS = new Set(['GET', 'POST']);
 const FORMATS = new Set(['json', 'form']);
 const FIELDS = new Set(['content', 'description']);
 
-function responseError(status, message = '') {
+function responseError(status) {
   if (status === 401 || status === 403) return new Error('message-pusher authentication failed.');
   if (status === 404) return new Error('message-pusher endpoint was not found.');
-  return new Error(`message-pusher returned HTTP ${status}${message ? `: ${message}` : ''}`);
+  return new Error(`message-pusher returned HTTP ${status}.`);
 }
 
 function endpointFor(config) {
@@ -96,14 +96,12 @@ export const messagePusherProvider = {
     const response = await fetchImpl(url.toString(), options);
     const data = await readJson(response);
     if (!response.ok) {
-      throw responseError(response.status, typeof data?.message === 'string' ? data.message : '');
+      throw responseError(response.status);
     }
     if (data && (data.success === false || data.success === 'false')) {
-      throw new Error(typeof data.message === 'string' && data.message
-        ? `message-pusher rejected notification: ${data.message}`
-        : 'message-pusher rejected notification.');
+      throw new Error('message-pusher rejected notification.');
     }
-    return { ok: true, status: response.status, message: data?.message || null };
+    return { ok: true, status: response.status };
   },
 };
 

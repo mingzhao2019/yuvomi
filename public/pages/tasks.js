@@ -4506,7 +4506,6 @@ export async function render(container, { user }) {
   `);
 
   if (window.lucide) window.lucide.createIcons({ el: container });
-  renderTaskLists(container);
 
   // Daten laden (Filter-State aus vorheriger Session berücksichtigen)
   try {

@@ -90,13 +90,25 @@ test('POST Form can put token in the URL query', async () => {
 });
 
 test('message-pusher rejects a negative API response and validates configuration', async () => {
+  const echoedToken = 'secret-token-echoed-by-upstream';
   await assert.rejects(
     messagePusherProvider.send({
       channel: channel(),
       payload: { title: 'Title', body: 'Body' },
-      fetchImpl: async () => response(200, { success: false, message: 'bad channel' }),
+      fetchImpl: async () => response(200, { success: false, message: echoedToken }),
     }),
-    /bad channel/,
+    (error) => error.message === 'message-pusher rejected notification.'
+      && !error.message.includes(echoedToken),
+  );
+
+  await assert.rejects(
+    messagePusherProvider.send({
+      channel: channel(),
+      payload: { title: 'Title', body: 'Body' },
+      fetchImpl: async () => response(502, { message: echoedToken }),
+    }),
+    (error) => error.message === 'message-pusher returned HTTP 502.'
+      && !error.message.includes(echoedToken),
   );
 
   assert.throws(() => normalizeChannelInput({

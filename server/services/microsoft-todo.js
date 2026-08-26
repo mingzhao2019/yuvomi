@@ -27,6 +27,142 @@ const log = createLogger('MicrosoftToDo');
 export const MICROSOFT_TODO_PROVIDER = 'microsoft_todo';
 export const MICROSOFT_TODO_SOURCE = 'microsoft_todo';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
+const OUTBOUND_IN_FLIGHT = 2;
+
+// Microsoft Graph returns Windows time-zone names for some tenants, while the
+// shared timezone helpers intentionally accept IANA names. Keep the mapping
+// local so importing a task never silently falls back to UTC and shifts its
+// due date. The aliases below follow Microsoft's Windows time-zone IDs.
+const WINDOWS_TIME_ZONES = new Map(Object.entries({
+  'Dateline Standard Time': 'Etc/GMT+12',
+  'UTC-11': 'Pacific/Pago_Pago',
+  'Aleutian Standard Time': 'America/Adak',
+  'Hawaiian Standard Time': 'Pacific/Honolulu',
+  'Marquesas Standard Time': 'Pacific/Marquesas',
+  'Alaskan Standard Time': 'America/Anchorage',
+  'UTC-09': 'Etc/GMT+9',
+  'Pacific Standard Time (Mexico)': 'America/Tijuana',
+  'UTC-08': 'Etc/GMT+8',
+  'Pacific Standard Time': 'America/Los_Angeles',
+  'US Mountain Standard Time': 'America/Phoenix',
+  'Mountain Standard Time (Mexico)': 'America/Chihuahua',
+  'Mountain Standard Time': 'America/Denver',
+  'Central America Standard Time': 'America/Guatemala',
+  'Central Standard Time (Mexico)': 'America/Mexico_City',
+  'Canada Central Standard Time': 'America/Regina',
+  'Easter Island Standard Time': 'Pacific/Easter',
+  'Central Standard Time': 'America/Chicago',
+  'SA Pacific Standard Time': 'America/Bogota',
+  'Eastern Standard Time (Mexico)': 'America/Cancun',
+  'Haiti Standard Time': 'America/Port-au-Prince',
+  'Cuba Standard Time': 'America/Havana',
+  'US Eastern Standard Time': 'America/Indiana/Indianapolis',
+  'Eastern Standard Time': 'America/New_York',
+  'Turks And Caicos Standard Time': 'America/Grand_Turk',
+  'Paraguay Standard Time': 'America/Asuncion',
+  'Atlantic Standard Time': 'America/Halifax',
+  'Venezuela Standard Time': 'America/Caracas',
+  'Central Brazilian Standard Time': 'America/Cuiaba',
+  'SA Western Standard Time': 'America/La_Paz',
+  'Pacific SA Standard Time': 'America/Santiago',
+  'Newfoundland Standard Time': 'America/St_Johns',
+  'Tocantins Standard Time': 'America/Araguaina',
+  'E. South America Standard Time': 'America/Sao_Paulo',
+  'SA Eastern Standard Time': 'America/Cayenne',
+  'Argentina Standard Time': 'America/Argentina/Buenos_Aires',
+  'Greenland Standard Time': 'America/Godthab',
+  'Montevideo Standard Time': 'America/Montevideo',
+  'Magallanes Standard Time': 'America/Punta_Arenas',
+  'Saint Pierre Standard Time': 'America/Miquelon',
+  'Bahia Standard Time': 'America/Bahia',
+  'UTC-02': 'Etc/GMT+2',
+  'Azores Standard Time': 'Atlantic/Azores',
+  'Cape Verde Standard Time': 'Atlantic/Cape_Verde',
+  'UTC': 'UTC',
+  'Morocco Standard Time': 'Africa/Casablanca',
+  'Sao Tome Standard Time': 'Africa/Sao_Tome',
+  'GMT Standard Time': 'Europe/London',
+  'Greenwich Standard Time': 'Atlantic/Reykjavik',
+  'W. Europe Standard Time': 'Europe/Berlin',
+  'Central Europe Standard Time': 'Europe/Budapest',
+  'Romance Standard Time': 'Europe/Paris',
+  'Central European Standard Time': 'Europe/Warsaw',
+  'W. Central Africa Standard Time': 'Africa/Lagos',
+  'Namibia Standard Time': 'Africa/Windhoek',
+  'South Africa Standard Time': 'Africa/Johannesburg',
+  'South Sudan Standard Time': 'Africa/Juba',
+  'E. Europe Standard Time': 'Europe/Chisinau',
+  'Egypt Standard Time': 'Africa/Cairo',
+  'FLE Standard Time': 'Europe/Kyiv',
+  'GTB Standard Time': 'Europe/Bucharest',
+  'Israel Standard Time': 'Asia/Jerusalem',
+  'Jordan Standard Time': 'Asia/Amman',
+  'Arabic Standard Time': 'Asia/Baghdad',
+  'Arab Standard Time': 'Asia/Riyadh',
+  'Belarus Standard Time': 'Europe/Minsk',
+  'Russian Standard Time': 'Europe/Moscow',
+  'E. Africa Standard Time': 'Africa/Nairobi',
+  'Iran Standard Time': 'Asia/Tehran',
+  'Arabian Standard Time': 'Asia/Dubai',
+  'Astrakhan Standard Time': 'Europe/Astrakhan',
+  'Azerbaijan Standard Time': 'Asia/Baku',
+  'Russia Time Zone 3': 'Europe/Samara',
+  'Mauritius Standard Time': 'Indian/Mauritius',
+  'Georgian Standard Time': 'Asia/Tbilisi',
+  'Caucasus Standard Time': 'Asia/Yerevan',
+  'Afghanistan Standard Time': 'Asia/Kabul',
+  'West Asia Standard Time': 'Asia/Tashkent',
+  'Pakistan Standard Time': 'Asia/Karachi',
+  'India Standard Time': 'Asia/Kolkata',
+  'Sri Lanka Standard Time': 'Asia/Colombo',
+  'Nepal Standard Time': 'Asia/Kathmandu',
+  'Central Asia Standard Time': 'Asia/Almaty',
+  'Bangladesh Standard Time': 'Asia/Dhaka',
+  'Omsk Standard Time': 'Asia/Omsk',
+  'Myanmar Standard Time': 'Asia/Rangoon',
+  'SE Asia Standard Time': 'Asia/Bangkok',
+  'Altai Standard Time': 'Asia/Barnaul',
+  'W. Mongolia Standard Time': 'Asia/Hovd',
+  'North Asia Standard Time': 'Asia/Krasnoyarsk',
+  'N. Central Asia Standard Time': 'Asia/Novosibirsk',
+  'Tomsk Standard Time': 'Asia/Tomsk',
+  'China Standard Time': 'Asia/Shanghai',
+  'North Asia East Standard Time': 'Asia/Irkutsk',
+  'Singapore Standard Time': 'Asia/Singapore',
+  'W. Australia Standard Time': 'Australia/Perth',
+  'Taipei Standard Time': 'Asia/Taipei',
+  'Ulaanbaatar Standard Time': 'Asia/Ulaanbaatar',
+  'North Korea Standard Time': 'Asia/Pyongyang',
+  'Aus Central W. Standard Time': 'Australia/Eucla',
+  'Transbaikal Standard Time': 'Asia/Chita',
+  'Tokyo Standard Time': 'Asia/Tokyo',
+  'Korea Standard Time': 'Asia/Seoul',
+  'Yakutsk Standard Time': 'Asia/Yakutsk',
+  'Cen. Australia Standard Time': 'Australia/Adelaide',
+  'AUS Central Standard Time': 'Australia/Darwin',
+  'E. Australia Standard Time': 'Australia/Brisbane',
+  'AUS Eastern Standard Time': 'Australia/Sydney',
+  'West Pacific Standard Time': 'Pacific/Port_Moresby',
+  'Tasmania Standard Time': 'Australia/Hobart',
+  'Vladivostok Standard Time': 'Asia/Vladivostok',
+  'Lord Howe Standard Time': 'Australia/Lord_Howe',
+  'Bougainville Standard Time': 'Pacific/Bougainville',
+  'Russia Time Zone 10': 'Asia/Srednekolymsk',
+  'Magadan Standard Time': 'Asia/Magadan',
+  'Norfolk Standard Time': 'Pacific/Norfolk',
+  'Sakhalin Standard Time': 'Asia/Sakhalin',
+  'Central Pacific Standard Time': 'Pacific/Guadalcanal',
+  'Russia Time Zone 11': 'Asia/Kamchatka',
+  'New Zealand Standard Time': 'Pacific/Auckland',
+  'UTC+12': 'Etc/GMT-12',
+  'Fiji Standard Time': 'Pacific/Fiji',
+  'Kamchatka Standard Time': 'Asia/Anadyr',
+  'Chatham Islands Standard Time': 'Pacific/Chatham',
+  'UTC+13': 'Etc/GMT-13',
+  'Tonga Standard Time': 'Pacific/Tongatapu',
+  'Samoa Standard Time': 'Pacific/Apia',
+  'Line Islands Standard Time': 'Pacific/Kiritimati',
+}).map(([name, zone]) => [name.toLowerCase(), zone]));
 
 function activeDatabase(database) {
   return database || dbModule.get();
@@ -181,7 +317,8 @@ function plainTextToHtml(value) {
 }
 
 function graphTimeZone(value) {
-  const zone = String(value || 'UTC').trim();
+  const raw = String(value || 'UTC').trim();
+  const zone = WINDOWS_TIME_ZONES.get(raw.toLowerCase()) || raw;
   return isValidTimeZone(zone) ? zone : 'UTC';
 }
 
@@ -445,6 +582,16 @@ function pendingDeletionRows(database) {
   `).all();
 }
 
+function queueRemoteDeletion(database, accountId, listId, taskUid) {
+  if (accountId == null || !listId || !taskUid) return false;
+  database.prepare(`
+    INSERT INTO microsoft_todo_pending_deletions (account_id, list_id, task_uid)
+    VALUES (?, ?, ?)
+    ON CONFLICT(account_id, list_id, task_uid) DO NOTHING
+  `).run(accountId, listId, taskUid);
+  return true;
+}
+
 function markDeletionFailure(database, row, error) {
   database.prepare(`
     UPDATE microsoft_todo_pending_deletions
@@ -479,6 +626,20 @@ async function flushPendingDeletions(account, accessToken, { database, fetchImpl
 
 async function flushOutboundTasks(account, accessToken, { database, fetchImpl }) {
   const timeZone = householdTimeZone(database);
+
+  // A process can disappear after claiming a row. Recover such claims at the
+  // beginning of the next run; a user edit made during a live request is 1 and
+  // therefore remains pending.
+  database.prepare(`
+    UPDATE tasks
+       SET outbound_dirty = CASE WHEN external_source = ? THEN 1 ELSE 0 END
+     WHERE outbound_dirty = ?
+       AND task_list_id IN (
+         SELECT id FROM task_lists
+          WHERE provider = ? AND external_account_id = ?
+       )
+  `).run(MICROSOFT_TODO_SOURCE, OUTBOUND_IN_FLIGHT, MICROSOFT_TODO_PROVIDER, account.id);
+
   const candidates = database.prepare(`
     SELECT t.*, tl.external_list_id, tl.external_account_id
       FROM tasks t
@@ -496,6 +657,18 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
   let updated = 0;
   let failed = 0;
   for (const task of candidates) {
+    const dirtyBefore = task.outbound_dirty === 1 ? 1 : 0;
+    const claim = task.external_source === 'local'
+      ? database.prepare(`
+          UPDATE tasks SET outbound_dirty = ?
+           WHERE id = ? AND external_source = 'local' AND outbound_dirty != ?
+        `).run(OUTBOUND_IN_FLIGHT, task.id, OUTBOUND_IN_FLIGHT)
+      : database.prepare(`
+          UPDATE tasks SET outbound_dirty = ?
+           WHERE id = ? AND external_source = ? AND outbound_dirty = 1
+        `).run(OUTBOUND_IN_FLIGHT, task.id, MICROSOFT_TODO_SOURCE);
+    if (!claim.changes) continue;
+
     try {
       const path = `/me/todo/lists/${encodeURIComponent(task.external_list_id)}/tasks`;
       if (task.external_source === 'local') {
@@ -504,19 +677,27 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
           body: graphTaskPayload(task, timeZone),
         }, fetchImpl);
         if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
-        database.prepare(`
-          UPDATE tasks
-             SET external_uid = ?, external_source = ?, external_account_id = ?,
-                 external_object_url = ?, outbound_dirty = 0, outbound_attempts = 0,
-                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-           WHERE id = ?
-        `).run(
-          String(remote.id),
-          MICROSOFT_TODO_SOURCE,
-          account.id,
-          graphTaskUrl(task.external_list_id, remote.id),
-          task.id,
-        );
+        const current = database.prepare('SELECT task_list_id FROM tasks WHERE id = ?').get(task.id);
+        if (!current || Number(current.task_list_id) !== Number(task.task_list_id)) {
+          queueRemoteDeletion(database, account.id, task.external_list_id, String(remote.id));
+        } else {
+          database.prepare(`
+            UPDATE tasks
+               SET external_uid = ?, external_source = ?, external_account_id = ?,
+                   external_object_url = ?,
+                   outbound_dirty = CASE WHEN outbound_dirty = 1 THEN 1 ELSE 0 END,
+                   outbound_attempts = 0,
+                   updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+             WHERE id = ? AND task_list_id = ?
+          `).run(
+            String(remote.id),
+            MICROSOFT_TODO_SOURCE,
+            account.id,
+            graphTaskUrl(task.external_list_id, remote.id),
+            task.id,
+            task.task_list_id,
+          );
+        }
         created += 1;
       } else {
         try {
@@ -530,25 +711,50 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
           // A remote deletion is not a local list move. Recreate the task so a
           // Yuvomi edit remains durable, matching the existing Outlook push rule.
           if (error.status !== 404) throw error;
+          const current = database.prepare('SELECT * FROM tasks WHERE id = ?').get(task.id);
+          if (!current || Number(current.task_list_id) !== Number(task.task_list_id)) {
+            queueRemoteDeletion(database, account.id, task.external_list_id, task.external_uid);
+            updated += 1;
+            continue;
+          }
           const remote = await graphJson(path, accessToken, {
             method: 'POST',
-            body: graphTaskPayload(task, timeZone),
+            body: graphTaskPayload(current, timeZone),
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
           database.prepare(`
             UPDATE tasks
-               SET external_uid = ?, external_object_url = ?, outbound_dirty = 0,
+             SET external_uid = ?, external_object_url = ?, outbound_dirty =
+                   CASE WHEN outbound_dirty = 1 THEN 1 ELSE 0 END,
                    outbound_attempts = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-             WHERE id = ?
-          `).run(String(remote.id), graphTaskUrl(task.external_list_id, remote.id), task.id);
+           WHERE id = ? AND task_list_id = ?
+          `).run(
+            String(remote.id),
+            graphTaskUrl(task.external_list_id, remote.id),
+            task.id,
+            task.task_list_id,
+          );
         }
-        database.prepare('UPDATE tasks SET outbound_dirty = 0, outbound_attempts = 0 WHERE id = ?')
-          .run(task.id);
+        const current = database.prepare('SELECT task_list_id FROM tasks WHERE id = ?').get(task.id);
+        if (!current || Number(current.task_list_id) !== Number(task.task_list_id)) {
+          queueRemoteDeletion(database, account.id, task.external_list_id, task.external_uid);
+        } else {
+          database.prepare(`
+            UPDATE tasks
+               SET outbound_dirty = CASE WHEN outbound_dirty = 1 THEN 1 ELSE 0 END,
+                   outbound_attempts = 0
+             WHERE id = ? AND task_list_id = ?
+          `).run(task.id, task.task_list_id);
+        }
         updated += 1;
       }
     } catch (error) {
-      database.prepare('UPDATE tasks SET outbound_attempts = outbound_attempts + 1 WHERE id = ?')
-        .run(task.id);
+      database.prepare(`
+        UPDATE tasks
+           SET outbound_dirty = CASE WHEN outbound_dirty = ? THEN ? ELSE outbound_dirty END,
+               outbound_attempts = outbound_attempts + 1
+         WHERE id = ?
+      `).run(OUTBOUND_IN_FLIGHT, dirtyBefore, task.id);
       failed += 1;
       log.error(`Outbound task sync failed for account ${account.id}, task ${task.id}:`, safeError(error));
     }
@@ -558,14 +764,26 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
 
 /** Mark a mirrored Microsoft task for the next outbound PATCH. */
 export function markTaskOutbound(before, after, database) {
-  if (before?.external_source !== MICROSOFT_TODO_SOURCE) return false;
   const changed = ['title', 'description', 'priority', 'status', 'due_date', 'due_time']
     .some((field) => String(before[field] ?? '') !== String(after[field] ?? ''));
   if (!changed) return false;
-  activeDatabase(database).prepare(
-    'UPDATE tasks SET outbound_dirty = 1 WHERE id = ? AND external_source = ?'
-  ).run(after.id ?? before.id, MICROSOFT_TODO_SOURCE);
-  return true;
+  const activeDb = activeDatabase(database);
+  const taskId = after.id ?? before.id;
+  const taskListId = after.task_list_id ?? before.task_list_id;
+  const isNewMicrosoftTarget = before?.external_source === 'local' && taskListId != null
+    && activeDb.prepare(
+      'SELECT 1 FROM task_lists WHERE id = ? AND provider = ?'
+    ).get(taskListId, MICROSOFT_TODO_PROVIDER);
+  if (before?.external_source !== MICROSOFT_TODO_SOURCE && !isNewMicrosoftTarget) return false;
+  return activeDb.prepare(`
+    UPDATE tasks
+       SET outbound_dirty = 1, outbound_attempts = 0
+     WHERE id = ?
+       AND (
+         external_source = ?
+         OR (external_source = 'local' AND task_list_id = ?)
+       )
+  `).run(taskId, MICROSOFT_TODO_SOURCE, taskListId).changes > 0;
 }
 
 /** Preserve a remote identity after the local row is deleted. */
@@ -576,13 +794,12 @@ export function queueTaskDeletion(task, database) {
     SELECT external_account_id, external_list_id
       FROM task_lists WHERE id = ? AND provider = ?
   `).get(task.task_list_id, MICROSOFT_TODO_PROVIDER);
-  if (!list?.external_account_id || !list.external_list_id) return false;
-  activeDb.prepare(`
-    INSERT INTO microsoft_todo_pending_deletions (account_id, list_id, task_uid)
-    VALUES (?, ?, ?)
-    ON CONFLICT(account_id, list_id, task_uid) DO NOTHING
-  `).run(list.external_account_id, list.external_list_id, task.external_uid);
-  return true;
+  return queueRemoteDeletion(
+    activeDb,
+    list?.external_account_id,
+    list?.external_list_id,
+    task.external_uid,
+  );
 }
 
 /**
