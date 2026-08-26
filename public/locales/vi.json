@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Ảnh hưởng đến toàn bộ chuỗi.",
         "detailWhen": "Thời gian",
         "detailCalendar": "Lịch",
-        "colorCurrent": "Màu hiện tại"
+        "colorCurrent": "Màu hiện tại",
+        "deleteExternalSeriesTitle": "Xóa toàn bộ chuỗi?",
+        "deleteExternalSeriesDetail": "\"{{title}}\" đến từ một lịch đã đồng bộ. Không thể loại trừ từng sự kiện riêng lẻ ở đó - toàn bộ chuỗi sẽ bị xóa, cả trong lịch nguồn.",
+        "deleteExternalSeriesConfirm": "Xóa chuỗi"
     },
     "notes": {
         "title": "Bảng ghi chú",

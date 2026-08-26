@@ -907,7 +907,10 @@
         "recurringScopeHintSeries": "시리즈 전체에 적용됩니다.",
         "detailWhen": "시간",
         "detailCalendar": "캘린더",
-        "colorCurrent": "현재 색상"
+        "colorCurrent": "현재 색상",
+        "deleteExternalSeriesTitle": "전체 시리즈를 삭제할까요?",
+        "deleteExternalSeriesDetail": "\"{{title}}\"은(는) 동기화된 캘린더의 일정입니다. 거기서는 개별 일정만 제외할 수 없어 시리즈 전체가 삭제되며, 원본 캘린더에서도 삭제됩니다.",
+        "deleteExternalSeriesConfirm": "시리즈 삭제"
     },
     "notes": {
         "title": "메모",

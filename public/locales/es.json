@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Afecta a toda la serie.",
         "detailWhen": "Hora",
         "detailCalendar": "Calendario",
-        "colorCurrent": "Color actual"
+        "colorCurrent": "Color actual",
+        "deleteExternalSeriesTitle": "¿Eliminar toda la serie?",
+        "deleteExternalSeriesDetail": "«{{title}}» procede de un calendario sincronizado. Allí no se pueden excluir apariciones individuales: se elimina toda la serie, también en el calendario de origen.",
+        "deleteExternalSeriesConfirm": "Eliminar serie"
     },
     "notes": {
         "title": "Notas",

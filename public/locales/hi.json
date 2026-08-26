@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "पूरी शृंखला को प्रभावित करता है।",
         "detailWhen": "समय",
         "detailCalendar": "कैलेंडर",
-        "colorCurrent": "वर्तमान रंग"
+        "colorCurrent": "वर्तमान रंग",
+        "deleteExternalSeriesTitle": "पूरी शृंखला हटाएँ?",
+        "deleteExternalSeriesDetail": "«{{title}}» एक सिंक किए गए कैलेंडर से आता है। वहाँ अलग-अलग घटनाओं को बाहर नहीं रखा जा सकता - पूरी शृंखला हट जाएगी, स्रोत कैलेंडर में भी।",
+        "deleteExternalSeriesConfirm": "शृंखला हटाएँ"
     },
     "notes": {
         "title": "नोट बोर्ड",

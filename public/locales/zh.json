@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "影响整个系列。",
         "detailWhen": "时间",
         "detailCalendar": "日历",
-        "colorCurrent": "当前颜色"
+        "colorCurrent": "当前颜色",
+        "deleteExternalSeriesTitle": "删除整个系列？",
+        "deleteExternalSeriesDetail": "“{{title}}”来自已同步的日历。在那里无法排除单个事件，整个系列都会被删除，同步来源的日历中也会删除。",
+        "deleteExternalSeriesConfirm": "删除系列"
     },
     "notes": {
         "title": "便签板",

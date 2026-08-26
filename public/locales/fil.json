@@ -907,7 +907,10 @@
         "recurringScopeHintSeries": "Naaapektuhan ang buong serye.",
         "detailWhen": "Oras",
         "detailCalendar": "Kalendaryo",
-        "colorCurrent": "Kasalukuyang kulay"
+        "colorCurrent": "Kasalukuyang kulay",
+        "deleteExternalSeriesTitle": "Tanggalin ang buong serye?",
+        "deleteExternalSeriesDetail": "Nagmula ang \"{{title}}\" sa isang naka-sync na kalendaryo. Hindi maibubukod doon ang mga indibidwal na pangyayari - matatanggal ang buong serye, pati na sa pinagmulang kalendaryo.",
+        "deleteExternalSeriesConfirm": "Tanggalin ang serye"
     },
     "notes": {
         "title": "Board",

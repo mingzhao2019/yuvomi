@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Affects the entire series.",
         "detailWhen": "Time",
         "detailCalendar": "Calendar",
-        "colorCurrent": "Current colour"
+        "colorCurrent": "Current colour",
+        "deleteExternalSeriesTitle": "Delete whole series?",
+        "deleteExternalSeriesDetail": "\"{{title}}\" comes from a synced calendar. Individual occurrences cannot be excluded there - the whole series is deleted, in the source calendar too.",
+        "deleteExternalSeriesConfirm": "Delete series"
     },
     "notes": {
         "title": "Board",

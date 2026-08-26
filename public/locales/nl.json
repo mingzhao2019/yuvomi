@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Heeft invloed op de hele reeks.",
         "detailWhen": "Tijd",
         "detailCalendar": "Agenda",
-        "colorCurrent": "Huidige kleur"
+        "colorCurrent": "Huidige kleur",
+        "deleteExternalSeriesTitle": "Hele reeks verwijderen?",
+        "deleteExternalSeriesDetail": "\"{{title}}\" komt uit een gesynchroniseerde agenda. Afzonderlijke afspraken kunnen daar niet worden uitgesloten - de hele reeks wordt verwijderd, ook in de bronagenda.",
+        "deleteExternalSeriesConfirm": "Reeks verwijderen"
     },
     "notes": {
         "title": "Bord",

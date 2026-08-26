@@ -907,7 +907,10 @@
         "recurringScopeHintSeries": "Memengaruhi seluruh seri.",
         "detailWhen": "Waktu",
         "detailCalendar": "Kalender",
-        "colorCurrent": "Warna saat ini"
+        "colorCurrent": "Warna saat ini",
+        "deleteExternalSeriesTitle": "Hapus seluruh rangkaian?",
+        "deleteExternalSeriesDetail": "\"{{title}}\" berasal dari kalender tersinkron. Kemunculan tunggal tidak dapat dikecualikan di sana - seluruh rangkaian akan dihapus, juga di kalender sumber.",
+        "deleteExternalSeriesConfirm": "Hapus rangkaian"
     },
     "notes": {
         "title": "Catatan",

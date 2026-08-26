@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Ovlivní celou sérii.",
         "detailWhen": "Čas",
         "detailCalendar": "Kalendář",
-        "colorCurrent": "Aktuální barva"
+        "colorCurrent": "Aktuální barva",
+        "deleteExternalSeriesTitle": "Odstranit celou sérii?",
+        "deleteExternalSeriesDetail": "„{{title}}\" pochází ze synchronizovaného kalendáře. Jednotlivé výskyty tam nelze vyloučit - odstraní se celá série, i ve zdrojovém kalendáři.",
+        "deleteExternalSeriesConfirm": "Odstranit sérii"
     },
     "notes": {
         "title": "Nástěnka",

@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } from '/rrule-ui.js';
-import { openModal as openSharedModal, closeModal, advancedSection, wireBlurValidation, reportFieldError } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, confirmModal, advancedSection, wireBlurValidation, reportFieldError } from '/components/modal.js';
 import { attachOverlay } from '/utils/overlay-history.js';
 import { openDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete } from '/utils/ux.js';
@@ -15,7 +15,8 @@ import { esc, fmtLocation } from '/utils/html.js';
 import { shiftEndDateKey, isEndBeforeStart, weekStartIndex, weekdayOrder,
          monthPeriodKeys, startOfLocalWeekKey, addLocalDays, defaultDateInPeriod,
          isWeekendKey } from '/utils/date.js';
-import { truncateRuleBefore, shiftSeriesStart, shiftEndForStart } from '/utils/recurrence-scope.js';
+import { truncateRuleBefore, shiftSeriesStart, shiftEndForStart,
+         isLocalRecurringSeries, isExternalRecurringSeries } from '/utils/recurrence-scope.js';
 import { getReadableTextColor } from '/utils/color.js';
 import { refresh as refreshReminders } from '/reminders.js';
 import { parseRemindAtAsUtc } from '/utils/reminder-offset.js';
@@ -3865,17 +3866,6 @@ async function deleteEvent(id) {
 }
 
 /**
- * True für rein lokale, nicht extern synchronisierte Serien. Nur diese erhalten die
- * Scope-Auswahl (#489/#532); Google/Apple/CalDAV/ICS-Serien würden beim nächsten Sync
- * wiederkehren und bleiben deshalb „ganze Serie".
- */
-function isLocalRecurringSeries(event) {
-  return !!event?.recurrence_rule
-    && (event.external_source ?? 'local') === 'local'
-    && !event.calendar_ref_id && !event.subscription_id;
-}
-
-/**
  * Gemeinsame Scope-Auswahl für Serientermine (#532): identisches Control für
  * „Bearbeiten" und „Löschen". Select (App-weites Formular-Vokabular) mit Default
  * „Nur diesen Termin" (least-destructive) plus dynamischem Reichweiten-Hinweis,
@@ -3920,10 +3910,27 @@ function getRecurringScope(root, prefix) {
 
 /**
  * Einstiegspunkt für das Löschen (#489/#532). Lokale Serien fragen „nur dieser
- * Termin" / „dieser und folgende" / „ganze Serie"; alles andere (Einzeltermine,
- * externe Serien) wird direkt gelöscht.
+ * Termin" / „dieser und folgende" / „ganze Serie"; Einzeltermine werden direkt
+ * gelöscht (der Undo-Toast trägt die Rücknahme).
+ *
+ * Externe Serien können die Auswahl nicht anbieten: Yuvomi kann eine Serie, die
+ * einem anderen Kalender gehört, nicht lokal aufteilen - ein ausgenommenes
+ * Vorkommen käme beim nächsten Sync zurück. Gelöscht wird deshalb die ganze
+ * Serie. Das ist richtig, aber es wortlos zu tun war es nicht: wer im Monat auf
+ * einen Termin tippt und löscht, sieht ohne Vorwarnung alle Vorkommen
+ * verschwinden (#880). Die Rückfrage benennt die Reichweite, statt sie
+ * anzubieten - ein Dialog mit nur einer wählbaren Antwort wäre eine Attrappe.
  */
 async function requestDeleteEvent(event) {
+  if (isExternalRecurringSeries(event)) {
+    const ok = await confirmModal(t('calendar.deleteExternalSeriesTitle'), {
+      detail:       t('calendar.deleteExternalSeriesDetail', { title: event.title }),
+      confirmLabel: t('calendar.deleteExternalSeriesConfirm'),
+      danger:       true,
+    });
+    if (ok) await deleteEvent(event.id);
+    return;
+  }
   if (!isLocalRecurringSeries(event)) {
     await deleteEvent(event.id);
     return;

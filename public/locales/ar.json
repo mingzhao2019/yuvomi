@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "يؤثر على السلسلة بأكملها.",
         "detailWhen": "الوقت",
         "detailCalendar": "التقويم",
-        "colorCurrent": "اللون الحالي"
+        "colorCurrent": "اللون الحالي",
+        "deleteExternalSeriesTitle": "حذف السلسلة بأكملها؟",
+        "deleteExternalSeriesDetail": "\"{{title}}\" يأتي من تقويم متزامن. لا يمكن استثناء الأحداث الفردية هناك - سيتم حذف السلسلة بأكملها، وفي التقويم المصدر أيضًا.",
+        "deleteExternalSeriesConfirm": "حذف السلسلة"
     },
     "notes": {
         "title": "لوحة الملاحظات",

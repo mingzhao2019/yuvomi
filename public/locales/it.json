@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Riguarda l'intera serie.",
         "detailWhen": "Ora",
         "detailCalendar": "Calendario",
-        "colorCurrent": "Colore attuale"
+        "colorCurrent": "Colore attuale",
+        "deleteExternalSeriesTitle": "Eliminare l’intera serie?",
+        "deleteExternalSeriesDetail": "«{{title}}» proviene da un calendario sincronizzato. Lì non è possibile escludere singole occorrenze: viene eliminata l’intera serie, anche nel calendario di origine.",
+        "deleteExternalSeriesConfirm": "Elimina serie"
     },
     "notes": {
         "title": "Bacheca",

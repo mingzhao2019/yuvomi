@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "シリーズ全体に影響します。",
         "detailWhen": "時間",
         "detailCalendar": "カレンダー",
-        "colorCurrent": "現在の色"
+        "colorCurrent": "現在の色",
+        "deleteExternalSeriesTitle": "シリーズ全体を削除しますか？",
+        "deleteExternalSeriesDetail": "「{{title}}」は同期されたカレンダーの予定です。そちらでは個々の予定だけを除外できないため、シリーズ全体が削除されます。同期元のカレンダーからも削除されます。",
+        "deleteExternalSeriesConfirm": "シリーズを削除"
     },
     "notes": {
         "title": "メモボード",

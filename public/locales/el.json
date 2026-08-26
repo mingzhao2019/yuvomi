@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Επηρεάζει ολόκληρη τη σειρά.",
         "detailWhen": "Ώρα",
         "detailCalendar": "Ημερολόγιο",
-        "colorCurrent": "Τρέχον χρώμα"
+        "colorCurrent": "Τρέχον χρώμα",
+        "deleteExternalSeriesTitle": "Διαγραφή ολόκληρης της σειράς;",
+        "deleteExternalSeriesDetail": "Το «{{title}}» προέρχεται από συγχρονισμένο ημερολόγιο. Οι μεμονωμένες εμφανίσεις δεν μπορούν να εξαιρεθούν εκεί - διαγράφεται ολόκληρη η σειρά, και στο ημερολόγιο προέλευσης.",
+        "deleteExternalSeriesConfirm": "Διαγραφή σειράς"
     },
     "notes": {
         "title": "Σημειώσεις",

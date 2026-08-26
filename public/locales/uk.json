@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "Стосується всієї серії.",
         "detailWhen": "Час",
         "detailCalendar": "Календар",
-        "colorCurrent": "Поточний колір"
+        "colorCurrent": "Поточний колір",
+        "deleteExternalSeriesTitle": "Видалити всю серію?",
+        "deleteExternalSeriesDetail": "«{{title}}» походить із синхронізованого календаря. Окремі події там виключити неможливо - буде видалено всю серію, зокрема й у вихідному календарі.",
+        "deleteExternalSeriesConfirm": "Видалити серію"
     },
     "notes": {
         "title": "Нотатки",

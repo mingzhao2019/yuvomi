@@ -895,7 +895,10 @@
         "recurringScopeHintSeries": "A teljes sorozatot érinti.",
         "detailWhen": "Időpont",
         "detailCalendar": "Naptár",
-        "colorCurrent": "Jelenlegi szín"
+        "colorCurrent": "Jelenlegi szín",
+        "deleteExternalSeriesTitle": "Törli az egész sorozatot?",
+        "deleteExternalSeriesDetail": "A(z) „{{title}}\" szinkronizált naptárból származik. Ott nem lehet egyes előfordulásokat kihagyni - a teljes sorozat törlődik, a forrásnaptárban is.",
+        "deleteExternalSeriesConfirm": "Sorozat törlése"
     },
     "notes": {
         "title": "Tábla",
