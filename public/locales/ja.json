@@ -898,7 +898,10 @@
         "colorCurrent": "現在の色",
         "deleteExternalSeriesTitle": "シリーズ全体を削除しますか？",
         "deleteExternalSeriesDetail": "「{{title}}」は同期されたカレンダーの予定です。そちらでは個々の予定だけを除外できないため、シリーズ全体が削除されます。同期元のカレンダーからも削除されます。",
-        "deleteExternalSeriesConfirm": "シリーズを削除"
+        "deleteExternalSeriesConfirm": "シリーズを削除",
+        "deleteBirthdayEventTitle": "誕生日の予定を削除しますか？",
+        "deleteBirthdayEventDetail": "「{{title}}」は誕生日の登録を映したものです。予定は消えますが、次回の同期で再び作成されます。完全に削除するには誕生日の登録そのものを変更してください。",
+        "deleteBirthdayEventConfirm": "それでも削除"
     },
     "notes": {
         "title": "メモボード",

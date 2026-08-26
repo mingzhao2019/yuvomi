@@ -898,7 +898,10 @@
         "colorCurrent": "Поточний колір",
         "deleteExternalSeriesTitle": "Видалити всю серію?",
         "deleteExternalSeriesDetail": "«{{title}}» походить із синхронізованого календаря. Окремі події там виключити неможливо - буде видалено всю серію, зокрема й у вихідному календарі.",
-        "deleteExternalSeriesConfirm": "Видалити серію"
+        "deleteExternalSeriesConfirm": "Видалити серію",
+        "deleteBirthdayEventTitle": "Видалити подію дня народження?",
+        "deleteBirthdayEventDetail": "«{{title}}» - це відображення запису про день народження. Подія зникне, але наступна синхронізація створить її знову: остаточно видалити її можна лише через сам день народження.",
+        "deleteBirthdayEventConfirm": "Усе одно видалити"
     },
     "notes": {
         "title": "Нотатки",

@@ -265,6 +265,20 @@ test('Eine fremde Serie wird bestätigt, bevor sie gelöscht wird', () => {
   assert.ok(confirm < del, 'gelöscht wird vor der Bestätigung');
 });
 
+test('Ein Geburtstagstermin bekommt seine eigene, wahre Auskunft', () => {
+  // Ein Geburtstagstermin ist das Abbild seines Geburtstags: `birthdays.js` legt
+  // ihn beim naechsten Abgleich neu an. Ihm die allgemeine Rueckfrage zu stellen
+  // hiesse, eine dauerhafte Loeschung zu versprechen, die nicht eintritt - und
+  // die Zusage ist der einzige Grund, ueberhaupt zu fragen.
+  const body = requestDeleteEventBody();
+  assert.ok(body.includes('birthday_name'),
+    'der Loeschpfad erkennt keinen Geburtstagstermin - er verspricht ihm dann eine Loeschung, '
+    + 'die der naechste Abgleich zuruecknimmt');
+  for (const key of ['calendar.deleteBirthdayEventTitle', 'calendar.deleteBirthdayEventDetail']) {
+    assert.ok(body.includes(key), `${key} fehlt`);
+  }
+});
+
 test('Die Rückfrage benennt die Reichweite über i18n-Schlüssel', () => {
   const body = requestDeleteEventBody();
   for (const key of ['calendar.deleteExternalSeriesTitle', 'calendar.deleteExternalSeriesDetail']) {
@@ -273,16 +287,20 @@ test('Die Rückfrage benennt die Reichweite über i18n-Schlüssel', () => {
   assert.ok(/danger:\s*true/.test(body), 'die Bestätigung ist nicht als zerstörend ausgewiesen');
 });
 
-test('Die drei Schlüssel der Rückfrage stehen in allen Locales', () => {
+test('Die Schlüssel beider Rückfragen stehen in allen Locales', () => {
   const dir = new URL('../public/locales/', import.meta.url);
-  const keys = ['deleteExternalSeriesTitle', 'deleteExternalSeriesDetail', 'deleteExternalSeriesConfirm'];
+  const keys = [
+    'deleteExternalSeriesTitle', 'deleteExternalSeriesDetail', 'deleteExternalSeriesConfirm',
+    'deleteBirthdayEventTitle', 'deleteBirthdayEventDetail', 'deleteBirthdayEventConfirm',
+  ];
   const locales = ['de', 'en', 'fr', 'es', 'uk', 'zh', 'ar', 'ja'];
   for (const loc of locales) {
     const cal = JSON.parse(readFileSync(new URL(`${loc}.json`, dir), 'utf-8')).calendar;
     for (const k of keys) {
       assert.ok(typeof cal?.[k] === 'string' && cal[k].trim(), `${loc}.json: calendar.${k} fehlt oder ist leer`);
     }
-    assert.ok(cal.deleteExternalSeriesDetail.includes('{{title}}'),
-      `${loc}.json: der Detailtext nennt den Termin nicht`);
+    for (const k of ['deleteExternalSeriesDetail', 'deleteBirthdayEventDetail']) {
+      assert.ok(cal[k].includes('{{title}}'), `${loc}.json: ${k} nennt den Termin nicht`);
+    }
   }
 });

@@ -3923,11 +3923,24 @@ function getRecurringScope(root, prefix) {
  */
 async function requestDeleteEvent(event) {
   if (isExternalRecurringSeries(event)) {
-    const ok = await confirmModal(t('calendar.deleteExternalSeriesTitle'), {
-      detail:       t('calendar.deleteExternalSeriesDetail', { title: event.title }),
-      confirmLabel: t('calendar.deleteExternalSeriesConfirm'),
-      danger:       true,
-    });
+    // Ein Geburtstagstermin ist das Abbild seines Geburtstags, nicht sein
+    // Original: `syncBirthdayCalendarEvent` legt ihn beim nächsten Abgleich neu
+    // an und lädt ihn wieder hoch (server/services/birthdays.js). Ihm dieselbe
+    // Rückfrage zu stellen hiesse, eine dauerhafte Löschung zu versprechen, die
+    // nicht eintritt - und die Zusage ist der einzige Grund, überhaupt zu
+    // fragen. `birthday_name` ist der etablierte Marker dafür; die Leseroute
+    // hängt ihn nur an Termine, die zu einem Geburtstag gehören.
+    const isBirthday = !!event.birthday_name;
+    const ok = await confirmModal(
+      t(isBirthday ? 'calendar.deleteBirthdayEventTitle' : 'calendar.deleteExternalSeriesTitle'),
+      {
+        detail: isBirthday
+          ? t('calendar.deleteBirthdayEventDetail', { title: event.title })
+          : t('calendar.deleteExternalSeriesDetail', { title: event.title }),
+        confirmLabel: t(isBirthday ? 'calendar.deleteBirthdayEventConfirm' : 'calendar.deleteExternalSeriesConfirm'),
+        danger:       true,
+      },
+    );
     if (ok) await deleteEvent(event.id);
     return;
   }

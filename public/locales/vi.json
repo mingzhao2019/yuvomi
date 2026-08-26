@@ -898,7 +898,10 @@
         "colorCurrent": "Màu hiện tại",
         "deleteExternalSeriesTitle": "Xóa toàn bộ chuỗi?",
         "deleteExternalSeriesDetail": "\"{{title}}\" đến từ một lịch đã đồng bộ. Không thể loại trừ từng sự kiện riêng lẻ ở đó - toàn bộ chuỗi sẽ bị xóa, cả trong lịch nguồn.",
-        "deleteExternalSeriesConfirm": "Xóa chuỗi"
+        "deleteExternalSeriesConfirm": "Xóa chuỗi",
+        "deleteBirthdayEventTitle": "Xóa sự kiện sinh nhật?",
+        "deleteBirthdayEventDetail": "\"{{title}}\" là bản sao của một mục sinh nhật. Sự kiện sẽ biến mất, nhưng lần đồng bộ tiếp theo sẽ tạo lại - chỉ có thể xóa hẳn thông qua chính mục sinh nhật.",
+        "deleteBirthdayEventConfirm": "Vẫn xóa"
     },
     "notes": {
         "title": "Bảng ghi chú",

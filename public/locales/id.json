@@ -910,7 +910,10 @@
         "colorCurrent": "Warna saat ini",
         "deleteExternalSeriesTitle": "Hapus seluruh rangkaian?",
         "deleteExternalSeriesDetail": "\"{{title}}\" berasal dari kalender tersinkron. Kemunculan tunggal tidak dapat dikecualikan di sana - seluruh rangkaian akan dihapus, juga di kalender sumber.",
-        "deleteExternalSeriesConfirm": "Hapus rangkaian"
+        "deleteExternalSeriesConfirm": "Hapus rangkaian",
+        "deleteBirthdayEventTitle": "Hapus acara ulang tahun?",
+        "deleteBirthdayEventDetail": "\"{{title}}\" adalah cerminan entri ulang tahun. Acara akan hilang, tetapi sinkronisasi berikutnya membuatnya kembali - hanya dapat dihapus permanen melalui ulang tahun itu sendiri.",
+        "deleteBirthdayEventConfirm": "Tetap hapus"
     },
     "notes": {
         "title": "Catatan",

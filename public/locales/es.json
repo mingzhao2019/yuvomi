@@ -898,7 +898,10 @@
         "colorCurrent": "Color actual",
         "deleteExternalSeriesTitle": "¿Eliminar toda la serie?",
         "deleteExternalSeriesDetail": "«{{title}}» procede de un calendario sincronizado. Allí no se pueden excluir apariciones individuales: se elimina toda la serie, también en el calendario de origen.",
-        "deleteExternalSeriesConfirm": "Eliminar serie"
+        "deleteExternalSeriesConfirm": "Eliminar serie",
+        "deleteBirthdayEventTitle": "¿Eliminar el evento de cumpleaños?",
+        "deleteBirthdayEventDetail": "«{{title}}» es el reflejo de un cumpleaños. El evento desaparece, pero la próxima sincronización lo vuelve a crear: solo se elimina de forma definitiva desde el propio cumpleaños.",
+        "deleteBirthdayEventConfirm": "Eliminar de todos modos"
     },
     "notes": {
         "title": "Notas",

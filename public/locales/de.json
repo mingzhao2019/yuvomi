@@ -910,7 +910,10 @@
         "colorCurrent": "Aktuelle Farbe",
         "deleteExternalSeriesTitle": "Ganze Serie löschen?",
         "deleteExternalSeriesDetail": "„{{title}}\" stammt aus einem synchronisierten Kalender. Einzelne Vorkommen lassen sich dort nicht ausnehmen - gelöscht wird die ganze Serie, auch im Quellkalender.",
-        "deleteExternalSeriesConfirm": "Serie löschen"
+        "deleteExternalSeriesConfirm": "Serie löschen",
+        "deleteBirthdayEventTitle": "Geburtstagstermin löschen?",
+        "deleteBirthdayEventDetail": "„{{title}}\" ist das Abbild eines Geburtstags. Der Termin verschwindet, wird beim nächsten Abgleich aber neu angelegt - dauerhaft entfernen lässt er sich nur über den Geburtstag selbst.",
+        "deleteBirthdayEventConfirm": "Trotzdem löschen"
     },
     "notes": {
         "title": "Notizen",

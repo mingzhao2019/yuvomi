@@ -898,7 +898,10 @@
         "colorCurrent": "Nuvarande färg",
         "deleteExternalSeriesTitle": "Ta bort hela serien?",
         "deleteExternalSeriesDetail": "”{{title}}” kommer från en synkroniserad kalender. Enskilda händelser kan inte uteslutas där - hela serien tas bort, även i källkalendern.",
-        "deleteExternalSeriesConfirm": "Ta bort serien"
+        "deleteExternalSeriesConfirm": "Ta bort serien",
+        "deleteBirthdayEventTitle": "Ta bort födelsedagshändelsen?",
+        "deleteBirthdayEventDetail": "”{{title}}” speglar en födelsedagspost. Händelsen försvinner, men nästa synkronisering skapar den igen - permanent tas den bort endast via själva födelsedagen.",
+        "deleteBirthdayEventConfirm": "Ta bort ändå"
     },
     "notes": {
         "title": "Anteckningar",

@@ -910,7 +910,10 @@
         "colorCurrent": "رنگ فعلی",
         "deleteExternalSeriesTitle": "کل مجموعه حذف شود؟",
         "deleteExternalSeriesDetail": "«{{title}}» از یک تقویم همگام‌سازی‌شده می‌آید. رویدادهای منفرد را نمی‌توان در آنجا مستثنا کرد - کل مجموعه حذف می‌شود، در تقویم مبدأ نیز.",
-        "deleteExternalSeriesConfirm": "حذف مجموعه"
+        "deleteExternalSeriesConfirm": "حذف مجموعه",
+        "deleteBirthdayEventTitle": "رویداد تولد حذف شود؟",
+        "deleteBirthdayEventDetail": "«{{title}}» بازتاب یک ورودی تولد است. رویداد ناپدید می‌شود، اما همگام‌سازی بعدی دوباره آن را می‌سازد - حذف دائمی فقط از طریق خود تولد ممکن است.",
+        "deleteBirthdayEventConfirm": "با این حال حذف شود"
     },
     "notes": {
         "title": "یادداشت‌ها",

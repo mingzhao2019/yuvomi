@@ -898,7 +898,10 @@
         "colorCurrent": "当前颜色",
         "deleteExternalSeriesTitle": "删除整个系列？",
         "deleteExternalSeriesDetail": "“{{title}}”来自已同步的日历。在那里无法排除单个事件，整个系列都会被删除，同步来源的日历中也会删除。",
-        "deleteExternalSeriesConfirm": "删除系列"
+        "deleteExternalSeriesConfirm": "删除系列",
+        "deleteBirthdayEventTitle": "删除生日事件？",
+        "deleteBirthdayEventDetail": "“{{title}}”是生日条目的映射。事件会消失，但下次同步时会重新创建，只能通过生日条目本身彻底移除。",
+        "deleteBirthdayEventConfirm": "仍然删除"
     },
     "notes": {
         "title": "便签板",

@@ -898,7 +898,10 @@
         "colorCurrent": "Geçerli renk",
         "deleteExternalSeriesTitle": "Tüm seri silinsin mi?",
         "deleteExternalSeriesDetail": "\"{{title}}\" eşitlenmiş bir takvimden geliyor. Orada tek tek yinelemeler hariç tutulamaz - tüm seri silinir, kaynak takvimde de.",
-        "deleteExternalSeriesConfirm": "Seriyi sil"
+        "deleteExternalSeriesConfirm": "Seriyi sil",
+        "deleteBirthdayEventTitle": "Doğum günü etkinliği silinsin mi?",
+        "deleteBirthdayEventDetail": "\"{{title}}\" bir doğum günü kaydının yansımasıdır. Etkinlik kaybolur, ancak sonraki eşitlemede yeniden oluşturulur - kalıcı olarak yalnızca doğum gününün kendisi üzerinden kaldırılabilir.",
+        "deleteBirthdayEventConfirm": "Yine de sil"
     },
     "notes": {
         "title": "Notlar",

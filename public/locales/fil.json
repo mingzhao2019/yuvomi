@@ -910,7 +910,10 @@
         "colorCurrent": "Kasalukuyang kulay",
         "deleteExternalSeriesTitle": "Tanggalin ang buong serye?",
         "deleteExternalSeriesDetail": "Nagmula ang \"{{title}}\" sa isang naka-sync na kalendaryo. Hindi maibubukod doon ang mga indibidwal na pangyayari - matatanggal ang buong serye, pati na sa pinagmulang kalendaryo.",
-        "deleteExternalSeriesConfirm": "Tanggalin ang serye"
+        "deleteExternalSeriesConfirm": "Tanggalin ang serye",
+        "deleteBirthdayEventTitle": "Tanggalin ang kaganapan ng kaarawan?",
+        "deleteBirthdayEventDetail": "Salamin ng isang kaarawan ang \"{{title}}\". Mawawala ang kaganapan, ngunit muli itong gagawin sa susunod na pag-sync - matatanggal lamang ito nang tuluyan sa pamamagitan ng mismong kaarawan.",
+        "deleteBirthdayEventConfirm": "Tanggalin pa rin"
     },
     "notes": {
         "title": "Board",
