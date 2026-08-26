@@ -127,17 +127,8 @@ function eventCalendars(calendars) {
  */
 async function testConnection(caldavUrl, username, password, { createClient } = {}) {
   try {
-    const client = createClient
-      ? await createClient({ caldav_url: caldavUrl, username, password })
-      : await (async () => {
-        const { createDAVClient } = await import('tsdav');
-        return createDAVClient({
-          serverUrl:          caldavUrl,
-          credentials:        { username, password },
-          authMethod:         'Basic',
-          defaultAccountType: 'caldav',
-        });
-      })();
+    const makeClient = createClient || createCalDAVClient;
+    const client = await makeClient({ caldav_url: caldavUrl, username, password });
 
     const calendars = await client.fetchCalendars();
     if (!calendars.length) {
@@ -650,7 +641,15 @@ async function sync({ createClient } = {}) {
         for (const obj of calObjects) {
           // RECURRENCE-ID-Overrides zusammenführen, sonst überschreibt ein
           // geändertes Einzel-Vorkommen die Serie derselben UID (#549).
-          const parsed = normalizeRecurrenceOverrides(parseICS(obj.data || ''));
+          // Was der Parser verwirft, wird benannt: ein still fehlender Termin
+          // sah bisher aus wie einer, den der Server nie geliefert hat (#883).
+          const parsed = normalizeRecurrenceOverrides(parseICS(obj.data || '', {
+            onSkip: ({ uid, reason }) =>
+              log.warn(`Skipped VEVENT (${reason}) uid=${uid ?? '(none)'} at ${obj.url ?? '(unknown URL)'}`),
+          }));
+          if (!parsed.length && !String(obj.data || '').includes('BEGIN:VEVENT')) {
+            log.warn(`Calendar object without any VEVENT at ${obj.url ?? '(unknown URL)'}`);
+          }
 
           for (const ev of parsed) {
             try {

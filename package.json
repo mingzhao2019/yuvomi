@@ -186,6 +186,7 @@
     "test:caldav-outbound": "node --experimental-sqlite --test test/test-caldav-outbound.js",
     "test:caldav-todo-outbound": "TZ=Europe/Berlin node --experimental-sqlite --test test/test-caldav-todo-outbound.js",
     "test:caldav-reminders": "TZ=Europe/Berlin DB_PATH=:memory: node --experimental-sqlite test/test-caldav-reminders.js",
+    "test:caldav-object-urls": "node --test test/test-caldav-object-urls.js",
     "test:caldav-event-target": "node --experimental-sqlite test/test-caldav-event-target.js",
     "test:outlook-calendar": "node --experimental-sqlite test/test-outlook-calendar.js",
     "test:outlook-event-target": "node --experimental-sqlite test/test-outlook-event-target.js",

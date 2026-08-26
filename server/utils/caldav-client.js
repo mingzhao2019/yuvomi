@@ -14,12 +14,71 @@
  */
 export async function createCalDAVClient(account) {
   const { createDAVClient } = await import('tsdav');
-  return createDAVClient({
+  const client = await createDAVClient({
     serverUrl:          account.caldav_url,
     credentials:        { username: account.username, password: account.password },
     authMethod:         'Basic',
     defaultAccountType: 'caldav',
   });
+  return withCalendarObjectUrlFilter(client);
+}
+
+/**
+ * Pfad einer Objekt-URL, vergleichbar gemacht. Absolute URL und href aus einer
+ * Server-Antwort laufen beide hier durch, damit der Vergleich in
+ * `calendarObjectUrlFilter` nicht an Host oder Schreibweise scheitert.
+ */
+function pathOf(url) {
+  const raw = String(url ?? '').trim();
+  if (!raw) return '';
+  try { return new URL(raw, 'http://caldav.invalid/').pathname; } catch { return raw; }
+}
+
+/**
+ * Welche href aus einer `calendar-query`-Antwort ist ein Kalenderobjekt?
+ *
+ * tsdav filtert hier per Default auf `.ics` im Pfad (`fetchCalendarObjects`,
+ * v2.3.1). Die Endung ist aber reine Konvention: RFC 4791 schreibt keinen
+ * Namen für die Objekt-Ressource vor, und ein Server darf sie frei vergeben.
+ * Stalwart tut das für alles, was über JMAP angelegt wurde ("NZtPkIOMoK"),
+ * während per CalDAV-PUT abgelegte Objekte den Clientnamen `<uid>.ics`
+ * behalten - im selben Kalender fielen deshalb einzelne Termine still aus dem
+ * Sync (#883), ohne dass sie je abgerufen und damit je geloggt wurden.
+ *
+ * Was der Filter wirklich fernhalten muss, ist die Collection selbst: manche
+ * Server liefern sie bei `Depth: 1` mit. Genau so macht es tsdav auf der
+ * CardDAV-Seite (`fetchVCards` filtert `urlEquals(url, addressBook.url)`), nur
+ * auf der CalDAV-Seite eben nicht.
+ *
+ * @param {string} collectionUrl  URL des Kalenders, dessen Objekte geholt werden
+ */
+export function calendarObjectUrlFilter(collectionUrl) {
+  const collection = pathOf(collectionUrl).replace(/\/+$/, '');
+  return (url) => {
+    const path = pathOf(url);
+    if (!path) return false;
+    if (path.endsWith('/')) return false; // Collection, kein Objekt
+    return path.replace(/\/+$/, '') !== collection;
+  };
+}
+
+/**
+ * Hängt `calendarObjectUrlFilter` als Default an `fetchCalendarObjects`.
+ *
+ * Der Filter sitzt am Client statt an den Aufrufstellen, weil er einen
+ * Bibliotheks-Default neutralisiert: fünf Stellen holen Kalenderobjekte, und
+ * eine sechste würde die Regel sonst wieder verlieren. Ein explizit
+ * übergebener `urlFilter` gewinnt weiterhin.
+ */
+export function withCalendarObjectUrlFilter(client) {
+  const fetchCalendarObjects = client.fetchCalendarObjects.bind(client);
+  return {
+    ...client,
+    fetchCalendarObjects: (params = {}) => fetchCalendarObjects({
+      urlFilter: calendarObjectUrlFilter(params?.calendar?.url),
+      ...params,
+    }),
+  };
 }
 
 /**

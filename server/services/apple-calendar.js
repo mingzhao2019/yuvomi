@@ -26,6 +26,7 @@ import { decodeHtmlEntities } from '../utils/html-entities.js';
 import * as outbound from './calendar-outbound.js';
 import { processPendingDeletions, processPendingUpdates, flushAccount } from './caldav-outbound.js';
 import { rruleLine } from './recurrence.js';
+import { createCalDAVClient } from '../utils/caldav-client.js';
 
 const APPLE_COLOR = '#FC3C44';
 
@@ -151,13 +152,7 @@ async function testConnection() {
   const creds = getCredentials();
   if (!creds) throw new Error('[Apple] No credentials configured.');
 
-  const { createDAVClient } = await import('tsdav');
-  const client = await createDAVClient({
-    serverUrl:          creds.url,
-    credentials:        { username: creds.username, password: creds.password },
-    authMethod:         'Basic',
-    defaultAccountType: 'caldav',
-  });
+  const client = await createClient(creds);
 
   const calendars = await client.fetchCalendars();
   if (!calendars.length) throw new Error('[Apple] Connected, but no calendars found.');
@@ -242,15 +237,14 @@ function unescapeICS(str) {
  * Inbound:  iCloud → lokale DB (Upsert via external_calendar_id = UID)
  * Outbound: lokale Termine (external_source='local', external_calendar_id IS NULL) → iCloud
  */
-/** tsdav ist eine optionale Abhängigkeit - dynamischer Import für graceful degradation. */
+/**
+ * tsdav ist eine optionale Abhängigkeit - `createCalDAVClient` importiert sie
+ * dynamisch (graceful degradation) und legt zugleich den `urlFilter` für
+ * Kalenderobjekte an, ohne den tsdav Objekte ohne `.ics`-Namen still
+ * verschluckt (#883).
+ */
 async function createClient(creds) {
-  const { createDAVClient } = await import('tsdav');
-  return createDAVClient({
-    serverUrl:          creds.url,
-    credentials:        { username: creds.username, password: creds.password },
-    authMethod:         'Basic',
-    defaultAccountType: 'caldav',
-  });
+  return createCalDAVClient({ caldav_url: creds.url, username: creds.username, password: creds.password });
 }
 
 /**
@@ -366,8 +360,12 @@ async function runSync() {
 
     for (const obj of calObjects) {
       // RECURRENCE-ID-Overrides zusammenführen, sonst überschreibt ein geändertes
-      // Einzel-Vorkommen die Serie derselben UID (#549).
-      const parsed = normalizeRecurrenceOverrides(parseICS(obj.data || ''));
+      // Einzel-Vorkommen die Serie derselben UID (#549). Was der Parser verwirft,
+      // wird benannt statt still übergangen (#883).
+      const parsed = normalizeRecurrenceOverrides(parseICS(obj.data || '', {
+        onSkip: ({ uid, reason }) =>
+          log.warn(`Skipped VEVENT (${reason}) uid=${uid ?? '(none)'} at ${obj.url ?? '(unknown URL)'}`),
+      }));
       for (const ev of parsed) {
         try {
           calendarUids.add(ev.uid);
