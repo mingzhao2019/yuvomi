@@ -460,6 +460,8 @@
         "syncTargetHint": "Choose a reminder list to write this task to.",
         "syncTargetMirrored": "This task already syncs with a reminder list. The list cannot be changed afterwards.",
         "syncTargetUnavailable": "Previously selected list (no longer available)",
+        "taskListLabel": "Task list",
+        "taskListLocal": "Local",
         "commentsLabel": "Comments",
         "commentsEmpty": "No comments yet.",
         "commentsLoadError": "Comments could not be loaded.",

@@ -460,6 +460,8 @@
         "syncTargetHint": "Kies een herinneringslijst om deze taak naartoe te schrijven.",
         "syncTargetMirrored": "Deze taak wordt al gesynchroniseerd met een herinneringslijst. De lijst kan achteraf niet worden gewijzigd.",
         "syncTargetUnavailable": "Eerder gekozen lijst (niet meer beschikbaar)",
+        "taskListLabel": "Takenlijst",
+        "taskListLocal": "Lokaal",
         "commentsLabel": "Opmerkingen",
         "commentsEmpty": "Nog geen opmerkingen.",
         "commentsLoadError": "Opmerkingen konden niet worden geladen.",

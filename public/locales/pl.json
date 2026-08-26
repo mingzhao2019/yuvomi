@@ -472,6 +472,8 @@
         "syncTargetHint": "Wybierz listę przypomnień, do której ma trafić to zadanie.",
         "syncTargetMirrored": "To zadanie jest już synchronizowane z listą przypomnień. Listy nie można później zmienić.",
         "syncTargetUnavailable": "Ostatnio wybrana lista (już niedostępna)",
+        "taskListLabel": "Lista zadań",
+        "taskListLocal": "Lokalna",
         "commentsLabel": "Komentarze",
         "commentsEmpty": "Jeszcze brak komentarzy.",
         "commentsLoadError": "Nie udało się wczytać komentarzy.",

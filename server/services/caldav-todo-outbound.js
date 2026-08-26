@@ -39,6 +39,9 @@ import { patchICSTodo } from '../utils/ics-patch.js';
 import { createCalDAVClient, collectionUrlOf } from '../utils/caldav-client.js';
 import { householdTimeZone, localToUTC } from '../utils/timezone.js';
 import { loadTags } from '../utils/task-tags.js';
+import {
+  ensureCalDavTaskList, removeCalDavTaskLists, taskListsTableExists,
+} from './task-lists.js';
 
 const log = createLogger('CalDAV-Todo-Outbound');
 
@@ -226,9 +229,13 @@ export function detachAccountRows(accountId) {
              external_object_url = NULL,
              outbound_dirty      = 0,
              outbound_attempts   = 0
-       WHERE external_source = 'caldav' AND external_account_id = ?
+      WHERE external_source = 'caldav' AND external_account_id = ?
     `).run(accountId).changes;
   }
+  // A provider-backed Task List has no meaning once its account is gone. The
+  // FK on tasks.task_list_id turns this into an unassigned local task; older
+  // schemas simply have no task_lists table and are left untouched.
+  removeCalDavTaskLists(accountId);
   return detached;
 }
 
@@ -494,9 +501,16 @@ function accountsWithPendingCreations() {
 }
 
 /** Das Ziel wieder abräumen - nach dem Upload und wenn es unerreichbar ist. */
-function clearCreationTarget(id) {
+function clearCreationTarget(id, { clearTaskList = false } = {}) {
+  // Keep the pre-v163 fallback usable when this helper is called before the
+  // additive migration has reached a drifted database.
+  const listClause = clearTaskList && taskListsTableExists()
+    ? ', task_list_id = NULL' : '';
   db.get().prepare(
-    'UPDATE tasks SET target_caldav_account_id = NULL, target_caldav_list_url = NULL WHERE id = ?'
+    `UPDATE tasks
+        SET target_caldav_account_id = NULL,
+            target_caldav_list_url = NULL${listClause}
+      WHERE id = ?`
   ).run(id);
 }
 
@@ -527,6 +541,32 @@ async function uploadNewTodo(client, collection, module, row, accountId) {
   });
 
   const objectUrl = `${String(collection.url).replace(/\/?$/, '/')}${uid}.ics`;
+  let taskListId = null;
+  if (module === 'tasks') {
+    try {
+      const selection = db.get().prepare(`
+        SELECT list_name
+          FROM caldav_reminder_selection
+         WHERE account_id = ? AND list_url = ?
+      `).get(accountId, collection.url);
+      if (selection) {
+        taskListId = ensureCalDavTaskList({
+          accountId,
+          listUrl: collection.url,
+          listName: selection.list_name,
+        }, row.created_by);
+      }
+    } catch (err) {
+      // The target/list identity is additive. A drifted pre-v163 database can
+      // still complete the upload through the existing external-link path.
+      log.warn(`Could not attach task ${row.id} to its Task List: ${err.message}`);
+    }
+  }
+
+  const listClause = taskListId == null ? '' : ', task_list_id = ?';
+  const params = taskListId == null
+    ? [uid, accountId, objectUrl, row.id]
+    : [uid, accountId, objectUrl, taskListId, row.id];
   db.get().prepare(`
     UPDATE ${def.table}
        SET external_source     = 'caldav',
@@ -534,9 +574,9 @@ async function uploadNewTodo(client, collection, module, row, accountId) {
            external_account_id = ?,
            external_object_url = ?,
            outbound_dirty      = 0,
-           outbound_attempts   = 0
+           outbound_attempts   = 0${listClause}
      WHERE id = ?
-  `).run(uid, accountId, objectUrl, row.id);
+  `).run(...params);
   return true;
 }
 
@@ -561,7 +601,7 @@ export async function processPendingCreations(client, accountId, module, listsBy
       // es bei jedem Lauf erneut zu versuchen; die Aufgabe bleibt lokal, was der
       // Zustand vor #695 war und keine Daten kostet.
       log.warn(`Reminder list ${row.target_caldav_list_url} is not available, keeping task ${row.id} local.`);
-      clearCreationTarget(row.id);
+      clearCreationTarget(row.id, { clearTaskList: true });
       continue;
     }
 
@@ -574,7 +614,7 @@ export async function processPendingCreations(client, accountId, module, listsBy
         done++;
       } else {
         log.error(`Could not build a VTODO for task ${fresh.id}, keeping it local.`);
-        clearCreationTarget(fresh.id);
+        clearCreationTarget(fresh.id, { clearTaskList: true });
       }
     } catch (err) {
       // Kein Zähler und kein Aufgeben: anders als eine Änderung hat ein Upload

@@ -460,6 +460,8 @@
         "syncTargetHint": "اختر قائمة تذكيرات لكتابة هذه المهمة فيها.",
         "syncTargetMirrored": "تتم مزامنة هذه المهمة بالفعل مع قائمة تذكيرات. لا يمكن تغيير القائمة لاحقًا.",
         "syncTargetUnavailable": "القائمة المختارة سابقًا (لم تعد متاحة)",
+        "taskListLabel": "قائمة المهام",
+        "taskListLocal": "محلي",
         "commentsLabel": "التعليقات",
         "commentsEmpty": "لا توجد تعليقات بعد.",
         "commentsLoadError": "تعذّر تحميل التعليقات.",

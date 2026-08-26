@@ -460,6 +460,8 @@
         "syncTargetHint": "Escolhe uma lista de lembretes para escrever esta tarefa.",
         "syncTargetMirrored": "Esta tarefa já sincroniza com uma lista de lembretes. A lista não pode ser alterada depois.",
         "syncTargetUnavailable": "Lista selecionada anteriormente (já não disponível)",
+        "taskListLabel": "Lista de tarefas",
+        "taskListLocal": "Local",
         "commentsLabel": "Comentários",
         "commentsEmpty": "Ainda sem comentários.",
         "commentsLoadError": "Não foi possível carregar os comentários.",

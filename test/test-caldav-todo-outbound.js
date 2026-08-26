@@ -129,12 +129,16 @@ function reloadTask(id) {
 }
 
 /** Attrappe: sammelt die Aufrufe und beantwortet sie nach Skript. */
-function fakeClient({ objects = [], onUpdate = null, onDelete = null, onCreate = null } = {}) {
+function fakeClient({ objects = [], calendars = null, objectsForCalendar = null,
+  onUpdate = null, onDelete = null, onCreate = null } = {}) {
   const calls = { updated: [], deleted: [], fetched: [], created: [] };
   return {
     calls,
-    fetchCalendars: async () => [{ url: LIST_URL, displayName: 'Erinnerungen', components: ['VTODO'] }],
-    fetchCalendarObjects: async (args) => { calls.fetched.push(args); return objects; },
+    fetchCalendars: async () => calendars || [{ url: LIST_URL, displayName: 'Erinnerungen', components: ['VTODO'] }],
+    fetchCalendarObjects: async (args) => {
+      calls.fetched.push(args);
+      return objectsForCalendar ? objectsForCalendar(args) : objects;
+    },
     updateCalendarObject: async (args) => {
       calls.updated.push(args.calendarObject);
       if (onUpdate) return onUpdate(args);
@@ -306,6 +310,54 @@ test('Der Inbound spiegelt CATEGORIES in die Tags der Aufgabe', async () => {
 
   const task = db.prepare("SELECT id FROM tasks WHERE external_uid = 'todo-1@test'").get();
   assert.deepStrictEqual(loadTags(db, task.id), ['Garten', 'Haushalt']);
+});
+
+test('Der Inbound bewahrt die Identitaet mehrerer CalDAV-Task-Listen', async () => {
+  const accountId = reset();
+  enableList(accountId, 'tasks');
+  db.prepare(
+    'UPDATE caldav_reminder_selection SET list_name = \'Work\' WHERE account_id = ? AND list_url = ?'
+  ).run(accountId, LIST_URL);
+  const phdUrl = 'https://dav.example/dav/u/phd/';
+  db.prepare(`
+    INSERT INTO caldav_reminder_selection (account_id, list_url, list_name, target_module, enabled)
+    VALUES (?, ?, 'PhD', 'tasks', 1)
+  `).run(accountId, phdUrl);
+
+  const phdObjectUrl = `${phdUrl}phd-1.ics`;
+  const client = fakeClient({
+    calendars: [
+      { url: LIST_URL, displayName: 'Work', components: ['VTODO'] },
+      { url: phdUrl, displayName: 'PhD', components: ['VTODO'] },
+    ],
+    objectsForCalendar: ({ calendar }) => calendar.url === phdUrl
+      ? [{ url: phdObjectUrl, etag: 'phd-1', data: serverTodo({ uid: 'phd-1@test' }) }]
+      : [{ url: OBJ_URL, etag: 'work-1', data: serverTodo({ uid: 'work-1@test' }) }],
+  });
+
+  await sync({ createClient: async () => client });
+
+  const rows = db.prepare(`
+    SELECT t.external_uid, tl.id AS task_list_id, tl.name, tl.provider, tl.external_list_url
+      FROM tasks t
+      JOIN task_lists tl ON tl.id = t.task_list_id
+     WHERE t.external_account_id = ?
+     ORDER BY t.external_uid
+  `).all(accountId);
+  assert.deepStrictEqual(rows.map((row) => row.name), ['PhD', 'Work']);
+  assert.deepStrictEqual(rows.map((row) => row.provider), ['caldav', 'caldav']);
+  assert.deepStrictEqual(rows.map((row) => row.external_list_url), [phdUrl, LIST_URL]);
+  assert.notEqual(rows[0].task_list_id, rows[1].task_list_id,
+    'zwei Collections duerfen keine gemeinsame Task List bekommen');
+  assert.equal(db.prepare(
+    'SELECT COUNT(*) AS n FROM task_lists WHERE provider = \'caldav\' AND external_account_id = ?'
+  ).get(accountId).n, 2);
+
+  // Die Zuordnung ist stabil und wird beim naechsten Lauf nicht dupliziert.
+  await sync({ createClient: async () => client });
+  assert.equal(db.prepare(
+    'SELECT COUNT(*) AS n FROM task_lists WHERE provider = \'caldav\' AND external_account_id = ?'
+  ).get(accountId).n, 2);
 });
 
 test('Der Server führt die Tags: entfernte CATEGORIES verschwinden auch lokal', async () => {
@@ -865,6 +917,56 @@ test('v123 entkoppelt den Bestand toter Kontokennungen und lässt lebende in Ruh
   assert.strictEqual(live.outbound_attempts, 3);
 
   old.close();
+});
+
+test('v163 migriert bestehende CalDAV-Listen und verknuepft ihre Aufgaben', async () => {
+  const { default: Database } = await import('better-sqlite3-multiple-ciphers');
+  const { MIGRATIONS } = await import('../server/db.js');
+  const apply = (conn, migration) => {
+    if (typeof migration.up === 'function') migration.up(conn);
+    else conn.exec(migration.up);
+    migration.afterUp?.(conn);
+  };
+
+  const old = new Database(':memory:');
+  try {
+    for (const migration of MIGRATIONS.filter((m) => m.version <= 162)) apply(old, migration);
+
+    old.prepare("INSERT INTO users (id, username, display_name, password_hash, role) VALUES (1,'admin','Admin','x','admin')").run();
+    old.prepare(`INSERT INTO caldav_accounts (id, name, caldav_url, username, password)
+                 VALUES (1, 'Radicale', 'https://dav.example/', 'u', 'p')`).run();
+    const listUrl = 'https://dav.example/dav/u/phd/';
+    old.prepare(`INSERT INTO caldav_reminder_selection
+                   (account_id, list_url, list_name, target_module, enabled)
+                 VALUES (1, ?, 'PhD', 'tasks', 1)`).run(listUrl);
+    old.prepare(`INSERT INTO tasks
+                   (id, title, created_by, external_uid, external_source,
+                    external_account_id, external_object_url)
+                 VALUES (7, 'Revise chapter 3', 1, 'phd-1@test', 'caldav', 1, ?)`).run(
+      `${listUrl}phd-1.ics`
+    );
+    old.prepare(`INSERT INTO tasks
+                   (id, title, created_by, external_uid, external_source,
+                    external_account_id, external_object_url)
+                 VALUES (8, 'No URL yet', 1, 'phd-2@test', 'caldav', 1, NULL)`).run();
+
+    apply(old, MIGRATIONS.find((migration) => migration.version === 163));
+
+    const list = old.prepare(`
+      SELECT id, name, provider, external_account_id, external_list_url, created_by
+        FROM task_lists
+       WHERE provider = 'caldav' AND external_account_id = 1
+    `).get();
+    assert.deepStrictEqual(
+      { name: list.name, provider: list.provider, account: list.external_account_id,
+        url: list.external_list_url, createdBy: list.created_by },
+      { name: 'PhD', provider: 'caldav', account: 1, url: listUrl, createdBy: 1 },
+    );
+    assert.equal(old.prepare('SELECT task_list_id FROM tasks WHERE id = 7').get().task_list_id, list.id);
+    assert.equal(old.prepare('SELECT task_list_id FROM tasks WHERE id = 8').get().task_list_id, null);
+  } finally {
+    old.close();
+  }
 });
 
 test('Der Inbound spiegelt CATEGORIES auch in die Tags eines Einkaufspostens', async () => {

@@ -472,6 +472,8 @@
         "syncTargetHint": "Pilih daftar pengingat untuk menulis tugas ini.",
         "syncTargetMirrored": "Tugas ini sudah disinkronkan dengan daftar pengingat. Daftarnya tidak dapat diubah setelahnya.",
         "syncTargetUnavailable": "Daftar yang dipilih sebelumnya (tidak lagi tersedia)",
+        "taskListLabel": "Daftar tugas",
+        "taskListLocal": "Lokal",
         "commentsLabel": "Komentar",
         "commentsEmpty": "Belum ada komentar.",
         "commentsLoadError": "Komentar gagal dimuat.",

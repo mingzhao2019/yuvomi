@@ -472,6 +472,8 @@
         "syncTargetHint": "Pumili ng listahan ng paalala kung saan isusulat ang gawaing ito.",
         "syncTargetMirrored": "Naka-sync na ang gawaing ito sa isang listahan ng paalala. Hindi na mapapalitan ang listahan.",
         "syncTargetUnavailable": "Dating napiling listahan (hindi na available)",
+        "taskListLabel": "Listahan ng gawain",
+        "taskListLocal": "Lokal",
         "commentsLabel": "Mga komento",
         "commentsEmpty": "Wala pang komento.",
         "commentsLoadError": "Hindi na-load ang mga komento.",

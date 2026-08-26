@@ -460,6 +460,8 @@
         "syncTargetHint": "Chọn một danh sách nhắc nhở để ghi nhiệm vụ này vào.",
         "syncTargetMirrored": "Nhiệm vụ này đã đồng bộ với một danh sách nhắc nhở. Không thể đổi danh sách sau đó.",
         "syncTargetUnavailable": "Danh sách đã chọn trước đó (không còn khả dụng)",
+        "taskListLabel": "Danh sách tác vụ",
+        "taskListLocal": "Cục bộ",
         "commentsLabel": "Bình luận",
         "commentsEmpty": "Chưa có bình luận.",
         "commentsLoadError": "Không tải được bình luận.",

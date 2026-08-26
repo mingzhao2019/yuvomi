@@ -17,6 +17,7 @@ export function tasksPaths() {
           { name: 'priority',    in: 'query', required: false, schema: { type: 'string', enum: ['none', 'low', 'medium', 'high', 'urgent'] } },
           { name: 'assigned_to', in: 'query', required: false, schema: { type: 'integer' }, description: 'Family member ID.' },
           { name: 'category',    in: 'query', required: false, schema: { type: 'string' }, description: 'Task category key.' },
+          { name: 'task_list_id', in: 'query', required: false, schema: { type: 'string' }, description: 'Navigation scope; repeatable values are OR-ed. The UI exposes this as a permanent list navigation, not as a filter chip. Use `local` for tasks without a list.' },
           {
             name: 'tag',
             in: 'query',
@@ -32,6 +33,13 @@ export function tasksPaths() {
       post: op({ summary: 'Create task', tag: 'Tasks', stateChanging: true, requestBody: jsonBody(null), description: 'Body accepts `locked: true` to close the task definition to everyone but its creator and administrators (#830). A subtask under a locked parent inherits the lock, and adding one requires the same rights.' }),
     },
     '/api/v1/tasks/meta/options': { get: op({ summary: 'Get task metadata', tag: 'Tasks' }) },
+    '/api/v1/tasks/lists': {
+      get: op({
+        summary: 'List visible Task Lists',
+        tag: 'Tasks',
+        description: 'Read-only Stage 1 view of provider-backed Task List identities. CalDAV collections are created or refreshed by discovery/sync; local tasks created before this model are returned in a null-id `local` compatibility bucket. Moving tasks and local-list CRUD are not part of this endpoint yet.',
+      }),
+    },
     '/api/v1/tasks/completions': {
       get: op({
         summary: 'List completed tasks, newest first',

@@ -509,11 +509,56 @@ test('POST mit Sync-Ziel merkt die Aufgabe fuer den Upload vor', async () => {
   });
   assert.equal(r.status, 201);
 
-  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(r.body.data.id);
+  const taskId = r.body.data.id;
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
   assert.equal(row.target_caldav_account_id, accountId);
   assert.equal(row.target_caldav_list_url, url);
+  assert.ok(row.task_list_id, 'die Aufgabe bekommt die Identitaet ihrer Ziel-Liste');
+  assert.equal(r.body.data.task_list.id, row.task_list_id);
+  assert.equal(r.body.data.task_list.name, 'Inbox');
+  assert.equal(r.body.data.task_list.provider, 'caldav');
+  assert.equal(r.body.data.task_list.external_list_url, url);
   // Sie bleibt bis zum Upload lokal - erst der Sync macht sie zum Spiegel.
   assert.equal(row.external_source, 'local');
+});
+
+test('Task Lists werden als Navigationsbereiche angezeigt und abgefragt', async () => {
+  const admin = { id: ALICE, role: 'admin' };
+  const first = db.prepare(`
+    SELECT t.task_list_id AS id
+      FROM tasks t
+     WHERE t.title = 'Reifen wechseln'
+  `).get();
+  assert.ok(first?.id, 'die vorherige Sync-Ziel-Aufgabe muss eine Task List haben');
+
+  const secondTarget = seedReminderList({
+    url: 'https://dav.example/dav/u/zweite-liste/',
+  });
+  const second = await call('POST', '/', {
+    as: admin,
+    body: { title: 'Zweite Liste', sync_target: `caldav:${secondTarget.accountId}|${secondTarget.url}` },
+  });
+  assert.equal(second.status, 201);
+  const secondListId = second.body.data.task_list.id;
+  assert.notEqual(secondListId, first.id);
+
+  const lists = await call('GET', '/lists', { as: admin });
+  assert.equal(lists.status, 200);
+  const listed = lists.body.data.find((list) => list.id === first.id);
+  assert.equal(listed.name, 'Inbox');
+  assert.equal(listed.provider, 'caldav');
+  assert.equal(listed.task_count, 1);
+
+  const byFirst = await call('GET', `/?task_list_id=${first.id}`, { as: admin });
+  assert.ok(byFirst.body.data.some((task) => task.title === 'Reifen wechseln'));
+  assert.ok(!byFirst.body.data.some((task) => task.title === 'Zweite Liste'));
+
+  const byBoth = await call('GET', `/?task_list_id=${first.id}&task_list_id=${secondListId}`, { as: admin });
+  assert.deepEqual(
+    byBoth.body.data.filter((task) => ['Reifen wechseln', 'Zweite Liste'].includes(task.title))
+      .map((task) => task.title).sort(),
+    ['Reifen wechseln', 'Zweite Liste'],
+  );
 });
 
 test('POST ohne Sync-Ziel laesst die Aufgabe lokal, wie jede bisher', async () => {

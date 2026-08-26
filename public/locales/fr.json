@@ -460,6 +460,8 @@
         "syncTargetHint": "Choisissez une liste de rappels dans laquelle écrire cette tâche.",
         "syncTargetMirrored": "Cette tâche est déjà synchronisée avec une liste de rappels. La liste ne peut plus être modifiée.",
         "syncTargetUnavailable": "Liste sélectionnée précédemment (plus disponible)",
+        "taskListLabel": "Liste de tâches",
+        "taskListLocal": "Local",
         "commentsLabel": "Commentaires",
         "commentsEmpty": "Aucun commentaire pour l'instant.",
         "commentsLoadError": "Impossible de charger les commentaires.",

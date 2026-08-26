@@ -460,6 +460,8 @@
         "syncTargetHint": "Scegli un elenco di promemoria in cui scrivere questa attività.",
         "syncTargetMirrored": "Questa attività è già sincronizzata con un elenco di promemoria. L'elenco non può essere cambiato in seguito.",
         "syncTargetUnavailable": "Elenco selezionato in precedenza (non più disponibile)",
+        "taskListLabel": "Elenco attività",
+        "taskListLocal": "Locale",
         "commentsLabel": "Commenti",
         "commentsEmpty": "Ancora nessun commento.",
         "commentsLoadError": "Impossibile caricare i commenti.",

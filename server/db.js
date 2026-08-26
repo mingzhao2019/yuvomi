@@ -6465,6 +6465,80 @@ const MIGRATIONS = [
         BEGIN UPDATE family_document_folders SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
     `,
   },
+  {
+    version: 165,
+    description: 'First-class task lists for CalDAV VTODO collections',
+    up: `
+      -- A provider-independent identity for the collection that owns a task.
+      -- Remote providers use external_account_id plus either external_list_id or
+      -- external_list_url; local lists do not need an external identity.
+      CREATE TABLE IF NOT EXISTS task_lists (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        name               TEXT    NOT NULL,
+        provider           TEXT    NOT NULL DEFAULT 'local',
+        external_account_id INTEGER,
+        external_list_id   TEXT,
+        external_list_url  TEXT,
+        created_by         INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at         TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at         TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_task_lists_provider
+        ON task_lists(provider, external_account_id);
+
+      -- CalDAV collections are stable by account and URL. The partial index
+      -- leaves room for multiple local lists with no external identity.
+      CREATE UNIQUE INDEX IF NOT EXISTS uniq_task_lists_caldav_url
+        ON task_lists(provider, external_account_id, external_list_url)
+        WHERE provider = 'caldav'
+          AND external_account_id IS NOT NULL
+          AND external_list_url IS NOT NULL;
+
+      ALTER TABLE tasks ADD COLUMN task_list_id INTEGER REFERENCES task_lists(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS idx_tasks_task_list ON tasks(task_list_id);
+
+      -- Preserve the list identity for installations that already have a
+      -- CalDAV task selection. The next sync fills in tasks whose object URL was
+      -- not available when an older version imported them.
+      INSERT INTO task_lists
+        (name, provider, external_account_id, external_list_url, created_by)
+      SELECT s.list_name, 'caldav', s.account_id, s.list_url,
+             (SELECT id FROM users ORDER BY id ASC LIMIT 1)
+        FROM caldav_reminder_selection s
+       WHERE s.target_module = 'tasks'
+         AND NOT EXISTS (
+           SELECT 1 FROM task_lists tl
+            WHERE tl.provider = 'caldav'
+              AND tl.external_account_id = s.account_id
+              AND tl.external_list_url = s.list_url
+         );
+
+      UPDATE tasks
+         SET task_list_id = (
+           SELECT tl.id
+             FROM task_lists tl
+             JOIN caldav_reminder_selection s
+               ON s.account_id = tl.external_account_id
+              AND s.list_url = tl.external_list_url
+            WHERE tl.provider = 'caldav'
+              AND s.target_module = 'tasks'
+              AND tasks.external_source = 'caldav'
+              AND tasks.external_account_id = s.account_id
+            AND tasks.external_object_url IS NOT NULL
+            AND (
+              tasks.external_object_url = s.list_url
+              OR substr(tasks.external_object_url, 1, length(rtrim(s.list_url, '/')) + 1)
+                   = rtrim(s.list_url, '/') || '/'
+            )
+            ORDER BY length(s.list_url) DESC
+            LIMIT 1
+         )
+       WHERE external_source = 'caldav'
+         AND task_list_id IS NULL
+         AND external_object_url IS NOT NULL;
+    `,
+  },
 ];
 
 /**

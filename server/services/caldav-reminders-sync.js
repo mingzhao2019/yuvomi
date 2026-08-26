@@ -17,6 +17,7 @@ import { createCalDAVClient, supportsComponent } from '../utils/caldav-client.js
 import { householdTimeZone, utcToWall } from '../utils/timezone.js';
 import { setItemTags, setTags } from '../utils/task-tags.js';
 import * as todoOutbound from './caldav-todo-outbound.js';
+import { ensureCalDavTaskList } from './task-lists.js';
 
 // --------------------------------------------------------
 // Pure Mapping Helpers
@@ -170,6 +171,13 @@ async function getReminderLists(accountId, { refresh = false, createClient: make
       ON CONFLICT(account_id, list_url) DO UPDATE SET list_name = excluded.list_name
     `).run(accountId, cal.url, name, targetModule, enabled);
 
+    // Discovery already knows the stable remote identity. Creating the Yuvomi
+    // identity here lets the task-list endpoint show an empty list before its
+    // first sync; on old schemas the helper is a no-op.
+    if (targetModule === 'tasks') {
+      ensureCalDavTaskList({ accountId, listUrl: cal.url, listName: name });
+    }
+
     result.push({ listUrl: cal.url, listName: name, targetModule, enabled: enabled === 1 });
   }
 
@@ -221,6 +229,10 @@ function updateReminderSelection(accountId, listUrl, { enabled, targetModule } =
     targetListId = ensureShoppingList(sel);
   }
 
+  if (newModule === 'tasks') {
+    ensureCalDavTaskList({ accountId, listUrl, listName: sel.list_name });
+  }
+
   db.get().prepare(`
     UPDATE caldav_reminder_selection
     SET enabled = ?, target_module = ?, target_list_id = ?
@@ -239,7 +251,7 @@ function updateReminderSelection(accountId, listUrl, { enabled, targetModule } =
 // ein gespiegelter Eintrag für spätere Änderungen und Löschungen unerreichbar
 // (#617). COALESCE, weil ein Abruf ohne URL den gespeicherten Wert nicht
 // entwerten darf.
-function upsertTask(todo, accountId, createdBy, objectUrl = null) {
+function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListId = null) {
   const { date, time } = splitDue(todo.due, householdTimeZone(db.get()));
 
   const existing = db.get().prepare(
@@ -251,21 +263,30 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null) {
 
   let taskId;
   if (existing) {
+    const listClause = taskListId == null ? '' : ', task_list_id = ?';
+    const params = taskListId == null
+      ? [todo.summary, todo.description, priority, status, date, time, objectUrl, existing.id]
+      : [todo.summary, todo.description, priority, status, date, time, objectUrl, taskListId, existing.id];
     db.get().prepare(`
       UPDATE tasks
       SET title = ?, description = ?, priority = ?, status = ?, due_date = ?, due_time = ?,
-          external_object_url = COALESCE(?, external_object_url)
+          external_object_url = COALESCE(?, external_object_url)${listClause}
       WHERE id = ?
-    `).run(todo.summary, todo.description, priority, status, date, time, objectUrl, existing.id);
+    `).run(...params);
     taskId = existing.id;
   } else {
     // category bleibt beim Spalten-Default 'misc' (v114) - VTODO kennt keine
     // Entsprechung, und CATEGORIES ist die Tag-Liste, nicht die Schublade.
+    const listColumns = taskListId == null ? '' : ', task_list_id';
+    const listValues = taskListId == null ? '' : ', ?';
+    const params = taskListId == null
+      ? [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl]
+      : [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl, taskListId];
     const row = db.get().prepare(`
       INSERT INTO tasks
-        (title, description, priority, status, due_date, due_time, created_by, external_uid, external_source, external_account_id, external_object_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'caldav', ?, ?)
-    `).run(todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl);
+        (title, description, priority, status, due_date, due_time, created_by, external_uid, external_source, external_account_id, external_object_url${listColumns})
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'caldav', ?, ?${listValues})
+    `).run(...params);
     taskId = row.lastInsertRowid;
   }
 
@@ -483,6 +504,21 @@ async function sync({ createClient: makeClient } = {}) {
           continue;
         }
 
+        let taskListId = null;
+        if (module === 'tasks') {
+          try {
+            taskListId = ensureCalDavTaskList({
+              accountId: account.id,
+              listUrl: sel.list_url,
+              listName: sel.list_name,
+            }, createdBy);
+          } catch (err) {
+            // Task-list identity is additive; it must not stop the existing
+            // VTODO mirror on a drifted database.
+            log.warn(`Could not ensure Task List for "${sel.list_name}":`, err.message);
+          }
+        }
+
         let objects;
         try {
           objects = await client.fetchCalendarObjects({ calendar: serverCal, filters: VTODO_FILTERS });
@@ -515,7 +551,7 @@ async function sync({ createClient: makeClient } = {}) {
               if (module === 'shopping') {
                 upsertShoppingItem(sel, todo, account.id, obj.url || null);
               } else {
-                const taskId = upsertTask(todo, account.id, createdBy, obj.url || null);
+                const taskId = upsertTask(todo, account.id, createdBy, obj.url || null, taskListId);
                 taskRelations.set(todo.uid, {
                   taskId,
                   parentUid: todo.parentUid || null,

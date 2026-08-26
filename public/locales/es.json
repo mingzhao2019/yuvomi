@@ -460,6 +460,8 @@
         "syncTargetHint": "Elige una lista de recordatorios en la que escribir esta tarea.",
         "syncTargetMirrored": "Esta tarea ya se sincroniza con una lista de recordatorios. La lista no se puede cambiar después.",
         "syncTargetUnavailable": "Lista seleccionada anteriormente (ya no disponible)",
+        "taskListLabel": "Lista de tareas",
+        "taskListLocal": "Local",
         "commentsLabel": "Comentarios",
         "commentsEmpty": "Todavía no hay comentarios.",
         "commentsLoadError": "No se pudieron cargar los comentarios.",

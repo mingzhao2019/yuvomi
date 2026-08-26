@@ -240,6 +240,16 @@ test('Filter-Achsen halten Listen, nicht einzelne Werte', () => {
     '"Alle Filter löschen" muss Listen hinterlassen, keine leeren Strings');
 });
 
+test('Task Lists sind eine dauerhafte Navigation statt einer Filter- oder Gruppierungsachse', () => {
+  const source = readFileSync(new URL('../public/pages/tasks.js', import.meta.url), 'utf8');
+  assert(source.includes('id="task-lists-nav"'), 'die Task-List-Navigation muss im Seitenlayout stehen');
+  assert(source.includes("activeTaskListId: 'all'"), 'Alle Tasks muss der Standardbereich sein');
+  assert(source.includes('restoreActiveTaskList();'), 'der aktive Bereich muss über Seitenwechsel erhalten bleiben');
+  assert(source.includes('function taskListMatches('), 'die Navigation muss den sichtbaren Bereich bestimmen');
+  assert(!source.includes('data-mode="task_list"'), 'Task List darf kein Gruppenmodus sein');
+  assert(!source.includes("key: 'task_list_id'"), 'Task List darf kein Filter-Panel-Eintrag sein');
+});
+
 // --------------------------------------------------------
 // Ergebnis
 // --------------------------------------------------------

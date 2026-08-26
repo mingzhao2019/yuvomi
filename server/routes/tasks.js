@@ -22,6 +22,7 @@ import { parseSyncTargetValue } from '../../public/utils/sync-target.js';
 import { mentionedUserIds } from '../../public/utils/mentions.js';
 import { resolvePermissions } from '../permissions.js';
 import { pushService } from '../services/push.js';
+import { ensureCalDavTaskList, taskListsTableExists } from '../services/task-lists.js';
 import { todayKey } from '../utils/timezone.js';
 import {
   allTags, applyTagChanges, loadTags, loadTagsFor, normalizeTags,
@@ -49,7 +50,7 @@ function pushToCalDAV(what) {
  * Liste richten, und sie bliebe für immer im Wartezustand, ohne dass irgendwo
  * stünde warum.
  *
- * @returns {{ok: true, target: {accountId: number, listUrl: string}|null}
+ * @returns {{ok: true, target: {accountId: number, listUrl: string, listName: string}|null}
  *          |{ok: false, error: string}} target === null heißt "nur lokal".
  */
 function resolveTaskSyncTarget(value) {
@@ -65,13 +66,20 @@ function resolveTaskSyncTarget(value) {
   }
 
   const allowed = db.get().prepare(`
-    SELECT 1 FROM caldav_reminder_selection
+    SELECT list_name FROM caldav_reminder_selection
      WHERE account_id = ? AND list_url = ? AND enabled = 1 AND target_module = 'tasks'
   `).get(parsed.accountId, parsed.calendarUrl);
   if (!allowed) {
     return { ok: false, error: 'sync_target: Diese Erinnerungsliste ist für Aufgaben nicht freigegeben.' };
   }
-  return { ok: true, target: { accountId: parsed.accountId, listUrl: parsed.calendarUrl } };
+  return {
+    ok: true,
+    target: {
+      accountId: parsed.accountId,
+      listUrl: parsed.calendarUrl,
+      listName: allowed.list_name,
+    },
+  };
 }
 
 const router = express.Router();
@@ -197,6 +205,43 @@ const ASSIGNED_USERS_SQL = `(
 function addAssignedUsers(task) {
   task.assigned_users = task.assigned_users_json ? JSON.parse(task.assigned_users_json) : [];
   delete task.assigned_users_json;
+  return task;
+}
+
+// The raw task row keeps task_list_id for filtering and integrations. The
+// joined fields are collapsed into one safe, provider-independent object so the
+// frontend does not need to know the CalDAV storage shape.
+const TASK_LIST_SQL = `
+  tl.name AS task_list_name,
+  tl.provider AS task_list_provider,
+  tl.external_account_id AS task_list_external_account_id,
+  tl.external_list_id AS task_list_external_list_id,
+  tl.external_list_url AS task_list_external_list_url,
+  tla.name AS task_list_account_name
+`;
+
+function attachTaskList(task) {
+  if (!task) return task;
+  const id = task.task_list_id;
+  const name = task.task_list_name;
+  const list = id != null && name != null
+    ? {
+      id,
+      name,
+      provider: task.task_list_provider,
+      external_account_id: task.task_list_external_account_id,
+      external_list_id: task.task_list_external_list_id,
+      external_list_url: task.task_list_external_list_url,
+      account_name: task.task_list_account_name,
+    }
+    : null;
+  delete task.task_list_name;
+  delete task.task_list_provider;
+  delete task.task_list_external_account_id;
+  delete task.task_list_external_list_id;
+  delete task.task_list_external_list_url;
+  delete task.task_list_account_name;
+  task.task_list = list;
   return task;
 }
 
@@ -353,13 +398,15 @@ function loadSubtasks(taskId, me) {
   // Mit den Tags käme deren Freitext dazu.
   const rows = db.get().prepare(`
     SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color,
-      u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}
+      u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}, ${TASK_LIST_SQL}
     FROM tasks t
     LEFT JOIN users u ON t.assigned_to = u.id
+    LEFT JOIN task_lists tl ON tl.id = t.task_list_id
+    LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
     WHERE t.parent_task_id = ?
       AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
     ORDER BY t.created_at ASC
-  `).all(taskId, { me }).map(addAssignedUsers);
+  `).all(taskId, { me }).map(addAssignedUsers).map(attachTaskList);
   // Unteraufgaben sind Aufgaben und können Tags tragen - über den CalDAV-Spiegel
   // bekommen sie welche, ohne dass jemand sie hier vergibt. Ohne das Anhängen
   // wären sie in der Antwort einfach nicht da, und ein PUT auf Basis dieser
@@ -421,6 +468,74 @@ router.get('/categories', (_req, res) => {
   } catch (err) {
     log.error('GET /categories error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// GET /api/v1/tasks/lists
+// First-class Task List identities. Stage 1 is read-only: lists are created by
+// CalDAV discovery/sync, while local list CRUD and moving tasks are deferred.
+// A null id is the compatibility bucket for existing local tasks that predate
+// Task Lists.
+// --------------------------------------------------------
+router.get('/lists', (req, res) => {
+  try {
+    if (!taskListsTableExists()) return res.json({ data: [] });
+
+    const me = req.authUserId || req.session.userId;
+    const visible = visibilityWhere('t', 'task_assignments', 'task_id', '@me');
+    const lists = db.get().prepare(`
+      SELECT tl.id,
+             tl.name,
+             tl.provider,
+             tl.external_account_id,
+             tl.external_list_id,
+             tl.external_list_url,
+             tl.created_by,
+             tl.created_at,
+             tl.updated_at,
+             tla.name AS account_name,
+             COUNT(t.id) AS task_count
+        FROM task_lists tl
+        LEFT JOIN caldav_accounts tla
+          ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
+        LEFT JOIN tasks t
+          ON t.task_list_id = tl.id
+         AND t.parent_task_id IS NULL
+         AND ${visible}
+       GROUP BY tl.id
+       ORDER BY CASE WHEN tl.provider = 'local' THEN 0 ELSE 1 END,
+                COALESCE(tla.name, ''), tl.name COLLATE NOCASE, tl.id
+    `).all({ me });
+
+    const local = db.get().prepare(`
+      SELECT COUNT(*) AS task_count
+        FROM tasks t
+       WHERE t.task_list_id IS NULL
+         AND t.parent_task_id IS NULL
+         AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
+    `).get({ me });
+
+    if (local.task_count > 0) {
+      lists.unshift({
+        id: null,
+        name: null,
+        provider: 'local',
+        external_account_id: null,
+        external_list_id: null,
+        external_list_url: null,
+        created_by: null,
+        created_at: null,
+        updated_at: null,
+        account_name: null,
+        task_count: local.task_count,
+      });
+    }
+
+    res.json({ data: lists });
+  } catch (err) {
+    log.error('GET /lists error:', err);
+    res.status(500).json({ error: 'Failed to list task lists.', code: 500 });
   }
 });
 
@@ -733,12 +848,16 @@ router.delete('/categories/:key', (req, res) => {
 // --------------------------------------------------------
 // GET /api/v1/tasks
 // Listet Top-Level-Aufgaben mit optionalen Filtern.
-// Query-Parameter: status, priority, assigned_to, category, archived
+// Query-Parameter: status, priority, assigned_to, category, tag, task_list_id,
+//                  include_future, archived
 // Response: { data: Task[] }  (jede Task enthält subtask_progress)
 // --------------------------------------------------------
 router.get('/', (req, res) => {
   try {
-    const { status, priority, assigned_to, category, tag, include_future, archived } = req.query;
+    const {
+      status, priority, assigned_to, category, tag, task_list_id,
+      include_future, archived,
+    } = req.query;
 
     let sql = `
       SELECT
@@ -747,6 +866,7 @@ router.get('/', (req, res) => {
         u.avatar_color AS assigned_color,
         u.avatar_data AS assigned_avatar,
         ${ASSIGNED_USERS_SQL},
+        ${TASK_LIST_SQL},
         -- Unteraufgaben tragen eine EIGENE Sichtbarkeit, und diese Liste hing nie
         -- an ihr: unter einer geteilten Elternaufgabe lief eine private
         -- Unteraufgabe samt Titel mit, und Zähler wie Fortschrittsbalken zählten
@@ -763,6 +883,8 @@ router.get('/', (req, res) => {
                  ORDER BY s.created_at ASC) s) AS subtasks
       FROM tasks t
       LEFT JOIN users u ON t.assigned_to = u.id
+      LEFT JOIN task_lists tl ON tl.id = t.task_list_id
+      LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
       WHERE ${taskScopeWhere('t', { includeFuture: !!include_future })}
     `;
     const params = [];
@@ -829,6 +951,24 @@ router.get('/', (req, res) => {
     const categories = normalizeCategoryFilter(category);
     const categoryFragment = taskCategoryWhere('t', categories);
     if (categoryFragment) { sql += ` AND ${categoryFragment}`; params.push(...categories); }
+
+    // A task belongs to at most one list. Repeated values are therefore OR-ed
+    // within this axis, while the list axis remains AND-ed with the others.
+    // `local` is the null-compatible bucket for tasks created before v163.
+    const taskListValues = asList(task_list_id).slice(0, 50);
+    const taskListIds = [...new Set(taskListValues
+      .filter((value) => /^\d+$/.test(String(value)))
+      .map(Number)
+      .filter((value) => value > 0))];
+    const includeLocalTaskList = taskListValues.includes('local');
+    const taskListClauses = [];
+    if (includeLocalTaskList) taskListClauses.push('t.task_list_id IS NULL');
+    if (taskListIds.length) {
+      taskListClauses.push(`t.task_list_id IN (${taskListIds.map(() => '?').join(', ')})`);
+      params.push(...taskListIds);
+    }
+    if (taskListClauses.length) sql += ` AND (${taskListClauses.join(' OR ')})`;
+
     // Tag-Filter ohne Rücksicht auf Groß-/Kleinschreibung: die Werte kommen von
     // fremden Servern, dort ist „Garten" und „garten" dasselbe Etikett.
     //
@@ -867,7 +1007,10 @@ router.get('/', (req, res) => {
         t.created_at DESC
     `;
 
-    const rows = db.get().prepare(sql).all(...params).map(task => ({ ...task, subtasks: JSON.parse(task.subtasks || '[]') })).map(addAssignedUsers);
+    const rows = db.get().prepare(sql).all(...params)
+      .map(task => ({ ...task, subtasks: JSON.parse(task.subtasks || '[]') }))
+      .map(addAssignedUsers)
+      .map(attachTaskList);
     res.json({ data: attachTags(attachDocumentCounts(rows, me)) });
   } catch (err) {
     log.error('GET / error:', err);
@@ -885,9 +1028,11 @@ router.get('/:id', (req, res) => {
     const me = req.authUserId || req.session.userId;
     const task = db.get().prepare(`
       SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color,
-        u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}
+        u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}, ${TASK_LIST_SQL}
       FROM tasks t
       LEFT JOIN users u ON t.assigned_to = u.id
+      LEFT JOIN task_lists tl ON tl.id = t.task_list_id
+      LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
       WHERE t.id = ? AND t.parent_task_id IS NULL
         AND ${visibilityWhere('t', 'task_assignments', 'task_id')}
     `).get(req.params.id, me, me);
@@ -895,6 +1040,7 @@ router.get('/:id', (req, res) => {
     if (!task) return res.status(404).json({ error: 'Task not found.', code: 404 });
 
     addAssignedUsers(task);
+    attachTaskList(task);
     task.subtasks = loadSubtasks(task.id, me);
     attachDocumentCounts([task], me);
     // Die verknüpften Dokumente beim Namen, nicht nur gezählt (#733). Die
@@ -989,21 +1135,30 @@ router.post('/', (req, res) => {
       setAssignments(db.get(), result.lastInsertRowid, userIds);
       if (req.body.tags !== undefined) setTags(db.get(), result.lastInsertRowid, req.body.tags);
       if (syncTarget) {
+        const taskListId = ensureCalDavTaskList({
+          accountId: syncTarget.accountId,
+          listUrl: syncTarget.listUrl,
+          listName: syncTarget.listName,
+        }, req.authUserId || req.session.userId);
         db.get().prepare(
-          'UPDATE tasks SET target_caldav_account_id = ?, target_caldav_list_url = ? WHERE id = ?'
-        ).run(syncTarget.accountId, syncTarget.listUrl, result.lastInsertRowid);
+          'UPDATE tasks SET target_caldav_account_id = ?, target_caldav_list_url = ?, task_list_id = ? WHERE id = ?'
+        ).run(syncTarget.accountId, syncTarget.listUrl, taskListId, result.lastInsertRowid);
       }
       return result.lastInsertRowid;
     })();
 
     const task = db.get().prepare(`
       SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color,
-        u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}
-      FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
+        u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}, ${TASK_LIST_SQL}
+      FROM tasks t
+      LEFT JOIN users u ON t.assigned_to = u.id
+      LEFT JOIN task_lists tl ON tl.id = t.task_list_id
+      LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
       WHERE t.id = ?
     `).get(taskId);
 
     addAssignedUsers(task);
+    attachTaskList(task);
     attachTags([task]);
     res.status(201).json({ data: task });
     if (syncTarget) pushToCalDAV('Neue Aufgabe');
@@ -1155,9 +1310,16 @@ router.put('/:id', (req, res) => {
       setAssignments(db.get(), task.id, userIds);
       if (req.body.tags !== undefined) setTags(db.get(), task.id, req.body.tags);
       if (syncTarget !== undefined) {
+        const taskListId = syncTarget
+          ? ensureCalDavTaskList({
+            accountId: syncTarget.accountId,
+            listUrl: syncTarget.listUrl,
+            listName: syncTarget.listName,
+          }, req.authUserId || req.session.userId)
+          : null;
         db.get().prepare(
-          'UPDATE tasks SET target_caldav_account_id = ?, target_caldav_list_url = ? WHERE id = ?'
-        ).run(syncTarget?.accountId ?? null, syncTarget?.listUrl ?? null, task.id);
+          'UPDATE tasks SET target_caldav_account_id = ?, target_caldav_list_url = ?, task_list_id = ? WHERE id = ?'
+        ).run(syncTarget?.accountId ?? null, syncTarget?.listUrl ?? null, taskListId, task.id);
       }
       if (archiveRequested && !task.archived_at) setArchived(task.id, true);
       syncHousekeepingPaymentStatus(db.get(), req.params.id, status);
@@ -1182,10 +1344,14 @@ router.put('/:id', (req, res) => {
       // nicht über Lesearbeit gehalten wird.
       updated = db.get().prepare(`
         SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color,
-          u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}
-        FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
+          u.avatar_data AS assigned_avatar, ${ASSIGNED_USERS_SQL}, ${TASK_LIST_SQL}
+        FROM tasks t
+        LEFT JOIN users u ON t.assigned_to = u.id
+        LEFT JOIN task_lists tl ON tl.id = t.task_list_id
+        LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
         WHERE t.id = ?
       `).get(req.params.id);
+      attachTaskList(updated);
       attachTags([updated]);
 
       // Änderung an einer gespiegelten Aufgabe auf dem CalDAV-Server nachziehen (#617).

@@ -460,6 +460,8 @@
         "syncTargetHint": "Bu görevin yazılacağı bir anımsatıcı listesi seç.",
         "syncTargetMirrored": "Bu görev zaten bir anımsatıcı listesiyle eşitleniyor. Liste sonradan değiştirilemez.",
         "syncTargetUnavailable": "Daha önce seçilen liste (artık kullanılamıyor)",
+        "taskListLabel": "Görev listesi",
+        "taskListLocal": "Yerel",
         "commentsLabel": "Yorumlar",
         "commentsEmpty": "Henüz yorum yok.",
         "commentsLoadError": "Yorumlar yüklenemedi.",

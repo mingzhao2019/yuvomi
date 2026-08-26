@@ -472,6 +472,8 @@
         "syncTargetHint": "یک فهرست یادآوری انتخاب کن تا این وظیفه در آن نوشته شود.",
         "syncTargetMirrored": "این وظیفه از پیش با یک فهرست یادآوری همگام می‌شود. فهرست را بعداً نمی‌توان تغییر داد.",
         "syncTargetUnavailable": "فهرست انتخاب‌شده پیشین (دیگر در دسترس نیست)",
+        "taskListLabel": "فهرست وظایف",
+        "taskListLocal": "محلی",
         "commentsLabel": "دیدگاه‌ها",
         "commentsEmpty": "هنوز دیدگاهی نیست.",
         "commentsLoadError": "دیدگاه‌ها بارگذاری نشد.",

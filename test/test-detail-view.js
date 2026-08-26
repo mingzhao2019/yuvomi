@@ -36,7 +36,8 @@ const NEW_KEYS = {
   calendar:  ['detailWhen', 'detailCalendar'],
   reminders: ['sectionTitlePlural'],
   rrule:     ['summaryUntil', 'summaryCount', 'summaryCount_one'],
-  tasks:     ['statusLabel', 'detailStart', 'detailFinish', 'detailReopen', 'subtasksLabel', 'swipeView'],
+  tasks:     ['statusLabel', 'detailStart', 'detailFinish', 'detailReopen', 'subtasksLabel', 'swipeView',
+    'taskListLabel', 'taskListLocal'],
 };
 
 // Keys, die mit dem alten Popup bzw. der alten Wisch-Beschriftung entfallen sind.
@@ -372,7 +373,7 @@ test('die Aufgaben-Detailansicht führt die Leseinformationen der Karte', async 
   const src = await tasksJs();
   const fn = src.slice(src.indexOf('function renderTaskDetail'), src.indexOf('function openTaskDetail'));
   for (const key of ['tasks.statusLabel', 'tasks.priorityLabel', 'tasks.dueDateLabel', 'tasks.startDateLabel',
-    'tasks.categoryLabel', 'tasks.pointsLabel', 'tasks.tagsLabel',
+    'tasks.categoryLabel', 'tasks.taskListLabel', 'tasks.pointsLabel', 'tasks.tagsLabel',
     'tasks.subtasksLabel', 'tasks.documentsLabel', 'tasks.descriptionLabel']) {
     assert.match(fn, new RegExp(key.replace('.', '\\.')), `${key} fehlt in der Detailansicht`);
   }

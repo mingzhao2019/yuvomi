@@ -94,6 +94,19 @@ function catLabel(key, categories = state.categories) {
   return c.label_key ? t(c.label_key) : (c.name || c.key);
 }
 
+/** Display label for a provider-independent Task List. */
+function taskListLabel(list) {
+  if (!list) return t('tasks.taskListLocal');
+  const name = list.name || t('tasks.taskListLocal');
+  return list.account_name ? `${list.account_name} · ${name}` : name;
+}
+
+function taskListForTask(task) {
+  if (task?.task_list) return task.task_list;
+  if (task?.task_list_id == null) return null;
+  return state.taskLists.find((list) => Number(list.id) === Number(task.task_list_id)) ?? null;
+}
+
 // DIE REIHENFOLGE DER KATEGORIEN STEHT IN DEN DATEN, NICHT IM ALPHABET (#845).
 //
 // Hier sortierte die Gruppierung `a.localeCompare(b, 'de')` - über den KEY, und
@@ -483,10 +496,28 @@ async function wireSyncTarget(panel, task) {
     select.appendChild(option);
   }
 
-  const wanted = current || (task ? '' : state.defaultSyncTarget);
+  const selectedListTarget = task ? null : selectedTaskListSyncTarget();
+  const wanted = current || (task
+    ? ''
+    : selectedListTarget !== null ? selectedListTarget : state.defaultSyncTarget);
   if (wanted && Array.from(select.options).some((o) => o.value === wanted)) {
     select.value = wanted;
   }
+}
+
+/**
+ * A selected remote list is the natural default for a new task. "All tasks"
+ * keeps the user's personal default, while the local list explicitly means
+ * local-only creation.
+ */
+function selectedTaskListSyncTarget() {
+  if (state.activeTaskListId === 'all') return null;
+  if (state.activeTaskListId === 'local') return '';
+  const list = state.taskLists.find((entry) =>
+    entry.id != null && String(entry.id) === String(state.activeTaskListId));
+  if (!list || list.provider !== 'caldav'
+      || list.external_account_id == null || !list.external_list_url) return null;
+  return 'caldav:' + list.external_account_id + '|' + list.external_list_url;
 }
 
 /**
@@ -510,9 +541,15 @@ async function wireSyncTarget(panel, task) {
  * Zeile, an der eine Anzahl OHNE ihren Gegenstand stand.
  */
 function renderTaskCard(task, opts = {}) {
-  const { expandedSubtasks = false, showCheckbox = false, isChecked = false, showCategory = true } = opts;
+  const {
+    expandedSubtasks = false,
+    showCheckbox = false,
+    isChecked = false,
+    showCategory = true,
+  } = opts;
   const isDone = task.status === 'done';
   const archived = isArchived(task);
+  const list = taskListForTask(task);
   // Gesperrte Aufgabe (#830): abhaken bleibt, umschreiben nicht. Die Knoepfe,
   // die in einem 403 endeten, stehen deshalb gar nicht erst da.
   const canEdit = canEditTaskDefinition(task);
@@ -579,6 +616,7 @@ function renderTaskCard(task, opts = {}) {
             ${task.locked ? `<span class="due-date" role="img" aria-label="${esc(t('tasks.lockedBadge'))}" title="${esc(t('tasks.lockedBadge'))}"><i data-lucide="lock" class="icon-sm" aria-hidden="true"></i></span>` : ''}
             ${renderVisibilityBadge(task.visibility)}
             ${showCategory && task.category !== FALLBACK_CATEGORY ? `<span class="due-date task-card__category">${esc(catLabel(task.category))}</span>` : ''}
+            ${list ? `<span class="due-date task-card__task-list" title="${esc(t('tasks.taskListLabel'))}"><i data-lucide="list" class="icon-sm" aria-hidden="true"></i>${esc(taskListLabel(list))}</span>` : ''}
             ${renderTagBadges(task.tags, ROW_TAG_BADGES_VISIBLE, task.priority)}
           </div>
         </div>
@@ -1185,6 +1223,7 @@ let state = {
   user:            null,
   users:           [],
   categories:      [],
+  taskLists:       [],       // first-class source/local Task Lists (#163)
   allTags:         [],       // [{ tag, count }] für Filterleiste und Vorschläge (#586)
   defaultPoints:   0,        // Haushalt-Standard für neue Aufgaben (#578), 0 = aus
   currentUserId:   null,
@@ -1195,6 +1234,7 @@ let state = {
   // Achse wirken sie ODER, zwischen den Achsen UND. Tags bleiben UND-verknüpft.
   filters:         { status: ['open'], priority: [], assigned_to: [], tags: [] },
   groupMode:       'category',   // 'category' | 'due'
+  activeTaskListId: 'all',       // 'all' | 'local' | persisted Task List id
   viewMode:        'list',       // 'list' | 'kanban' | 'history' (resolved at render time)
   // Der Verlauf (#791) hat einen eigenen Bestand, weil er etwas anderes zeigt
   // als `tasks`: nicht Aufgaben, sondern Vorgänge. Er wird geblättert statt
@@ -1217,15 +1257,23 @@ let state = {
 };
 
 /**
- * Aufgaben nach der Toolbar-Suche gefiltert. Rein clientseitig über Titel und
- * Beschreibung — die Serverfilter (Status/Priorität/Person) laufen weiter über
- * loadTasks(). state.tasks bleibt ungefiltert, damit Zähler wie das
- * Überfällig-Badge die Gesamtlage melden und nicht die Suchtreffer.
+ * Aufgaben nach Task-List-Navigation und Toolbar-Suche gefiltert. Die
+ * Serverfilter (Status/Priorität/Person) laufen weiter über loadTasks(); die
+ * Task-List-Navigation bleibt lokal, damit der Wechsel zwischen Listen sofort
+ * erfolgt und sich wie eine dauerhafte Seitenleiste anfühlt.
  */
+function taskListMatches(task) {
+  if (state.activeTaskListId === 'all') return true;
+  if (state.activeTaskListId === 'local') return task?.task_list_id == null;
+  return task?.task_list_id != null
+    && String(task.task_list_id) === String(state.activeTaskListId);
+}
+
 function filteredTasks() {
   const q = state.searchQuery.trim().toLowerCase();
-  if (!q) return state.tasks;
-  return state.tasks.filter((task) =>
+  const scoped = state.tasks.filter(taskListMatches);
+  if (!q) return scoped;
+  return scoped.filter((task) =>
     (task.title       || '').toLowerCase().includes(q) ||
     (task.description || '').toLowerCase().includes(q) ||
     (task.tags ?? []).some((tag) => tag.toLowerCase().includes(q))
@@ -2073,6 +2121,7 @@ function renderTaskDetail(task, reminders = [], container = null) {
     { icon: 'calendar-clock', label: t('tasks.startDateLabel'), value: task.start_date ? formatDate(task.start_date) : '' },
     recurrenceRow(task.recurrence_rule, { fromCompletion: !!task.recurrence_from_completion }),
     { icon: 'folder', label: t('tasks.categoryLabel'), value: task.category && task.category !== FALLBACK_CATEGORY ? catLabel(task.category) : '' },
+    { icon: 'list', label: t('tasks.taskListLabel'), value: taskListLabel(taskListForTask(task)) },
     assignedRow(task.assigned_users, t('tasks.assignedLabel')),
     { icon: 'award', label: t('tasks.pointsLabel'), value: task.points ? String(task.points) : '' },
     { icon: 'tag', label: t('tasks.tagsLabel'), node: tagChipsNode(task.tags) },
@@ -3631,6 +3680,104 @@ const RECENT_FILTERS_MAX = 3;
 const COLLAPSED_GROUPS_KEY = 'yuvomi:taskCollapsedGroups';
 const SHOW_FUTURE_KEY = 'yuvomi:taskShowFuture';
 const ASSIGNED_TO_ME_KEY = 'yuvomi:taskAssignedToMe';
+const ACTIVE_TASK_LIST_KEY = 'yuvomi:activeTaskList';
+
+function restoreActiveTaskList() {
+  try {
+    const saved = localStorage.getItem(ACTIVE_TASK_LIST_KEY);
+    if (saved) state.activeTaskListId = saved;
+  } catch {}
+}
+
+function normalizeActiveTaskList() {
+  if (state.activeTaskListId === 'all' || state.activeTaskListId === 'local') return;
+  if (state.taskLists.some((list) => list.id != null
+      && String(list.id) === String(state.activeTaskListId))) return;
+  state.activeTaskListId = 'all';
+}
+
+function taskListNavigationItems() {
+  const local = state.taskLists.find((list) => list.id == null);
+  return [
+    { id: 'all', name: t('common.all'), provider: 'all' },
+    { id: 'local', name: local?.name || t('tasks.taskListLocal'), provider: 'local' },
+    ...state.taskLists
+      .filter((list) => list.id != null)
+      .map((list) => ({ ...list, id: String(list.id) })),
+  ];
+}
+
+/** Render the persistent Microsoft To Do-style Task List navigation. */
+function renderTaskLists(container) {
+  const nav = container.querySelector('#task-lists-nav');
+  if (!nav) return;
+  normalizeActiveTaskList();
+  nav.replaceChildren();
+
+  const title = document.createElement('h2');
+  title.className = 'task-lists-sidebar__title';
+  title.id = 'task-lists-title';
+  title.textContent = t('tasks.taskListLabel');
+
+  const items = document.createElement('div');
+  items.className = 'task-lists-sidebar__items';
+
+  for (const item of taskListNavigationItems()) {
+    const button = document.createElement('button');
+    const active = String(item.id) === String(state.activeTaskListId);
+    button.type = 'button';
+    button.className = 'task-list-nav__item'
+      + (active ? ' task-list-nav__item--active' : '');
+    button.dataset.taskListId = item.id;
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-label', item.name);
+
+    const icon = document.createElement('i');
+    icon.setAttribute('data-lucide', item.id === 'all' ? 'inbox' : 'list');
+    icon.className = 'task-list-nav__icon';
+    icon.setAttribute('aria-hidden', 'true');
+
+    const text = document.createElement('span');
+    text.className = 'task-list-nav__text';
+    const label = document.createElement('span');
+    label.className = 'task-list-nav__label';
+    label.textContent = item.name;
+    text.appendChild(label);
+    if (item.account_name) {
+      const account = document.createElement('span');
+      account.className = 'task-list-nav__account';
+      account.textContent = item.account_name;
+      text.appendChild(account);
+    }
+
+    button.append(icon, text);
+    button.addEventListener('click', () => {
+      if (String(item.id) === String(state.activeTaskListId)) return;
+      state.activeTaskListId = String(item.id);
+      try { localStorage.setItem(ACTIVE_TASK_LIST_KEY, state.activeTaskListId); } catch {}
+      state.selectedTaskIds.clear();
+      let switchedFromHistory = false;
+      if (state.viewMode === 'history') {
+        switchedFromHistory = true;
+        state.viewMode = 'list';
+        try { localStorage.setItem('yuvomi-tasks-view', state.viewMode); } catch {}
+        renderFilters(container);
+        syncViewChrome(container);
+      }
+      renderTaskLists(container);
+      if (switchedFromHistory) {
+        loadTasks(container).catch(() => renderTaskList(container));
+      } else {
+        renderTaskList(container);
+      }
+      updateBulkActionsBar(container);
+    });
+    items.appendChild(button);
+  }
+
+  nav.append(title, items);
+  if (window.lucide) window.lucide.createIcons({ el: nav });
+}
 
 // „Mir zugewiesen" ist ein Schnellzugriff auf den assigned_to-Filter mit der
 // eigenen User-ID. Wird pro Gerät gemerkt und beim Laden aus dem gespeicherten
@@ -3710,7 +3857,8 @@ function getRecentFilters() {
 
 function saveRecentFilter(filters) {
   const set = normalizeFilterSet(filters);
-  if (!set.status.length && !set.priority.length && !set.assigned_to.length && !set.tags.length) return;
+  if (!set.status.length && !set.priority.length && !set.assigned_to.length
+      && !set.tags.length) return;
   // Jede Achse gehört mit allen ihren Werten in den Schlüssel: sonst verdrängte
   // „Offen + Garten" den Eintrag „Offen + Haus", weil beide auf dieselbe Kennung
   // fielen - seit #671 gilt dasselbe für zwei Prioritäten statt einer.
@@ -4182,6 +4330,7 @@ function wireTaskList(container) {
 export async function render(container, { user }) {
   state.user = user ?? null;
   state.currentUserId = user?.id ?? null;
+  restoreActiveTaskList();
   loadCollapsedGroups();
   // Die Rolle entscheidet nur darüber, ob ein fremder Kommentar entfernt werden
   // darf (#734) - der Server prüft dieselbe Bedingung noch einmal.
@@ -4212,7 +4361,6 @@ export async function render(container, { user }) {
   // dem Einhängen aus - hier steht bewusst keine zweite Fassung derselben
   // Bedingung. `isHistory` traegt nur den Anfangszustand des Umschalters.
   const isHistory = state.viewMode === 'history';
-
   // Initiales Skeleton (all values are from i18n keys or hardcoded constants, no user data)
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
@@ -4265,6 +4413,9 @@ export async function render(container, { user }) {
       </div>
 
       <div class="tasks-body">
+        <div class="tasks-layout">
+          <nav class="task-lists-sidebar" id="task-lists-nav" aria-labelledby="task-lists-title"></nav>
+          <div class="tasks-main">
         <div class="tasks-filters-row">
           <div class="tasks-filters" id="filter-bar" role="group" aria-label="${t('tasks.filterBtn')}"></div>
           <div class="tasks-filters__end">
@@ -4332,6 +4483,8 @@ export async function render(container, { user }) {
               <div class="skeleton skeleton-line skeleton-line--short" style="height:12px"></div>
             </div>`).join('')}
         </div>
+          </div>
+        </div>
         <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}" data-dock-label="${t('newLabel.tasks')}">
           <i data-lucide="plus" class="icon-xl" aria-hidden="true"></i>
         </button>
@@ -4340,20 +4493,25 @@ export async function render(container, { user }) {
   `);
 
   if (window.lucide) window.lucide.createIcons({ el: container });
+  renderTaskLists(container);
 
   // Daten laden (Filter-State aus vorheriger Session berücksichtigen)
   try {
-    const [tasksData, metaData, preferencesData] = await Promise.all([
+    const [tasksData, metaData, preferencesData, taskListsData] = await Promise.all([
       api.get(`/tasks${taskQuery()}`),
       api.get('/tasks/meta/options'),
       // Reine Anzeigepräferenz: ein Fehler hier darf die Aufgabenliste nicht
       // mit in den Ladefehler ziehen, deshalb eigener Fallback.
       api.get('/preferences').catch(() => ({ data: {} })),
+      // Task Lists are additive to the existing task response. A server without
+      // the new endpoint can still render and edit the ordinary task list.
+      api.get('/tasks/lists').catch(() => ({ data: [] })),
     ]);
     state.loadError = null;
     state.tasks = tasksData.data ?? [];
     state.users = metaData.users ?? [];
     state.categories = metaData.categories ?? [];
+    state.taskLists = taskListsData.data ?? [];
     state.allTags = metaData.tags ?? [];
     state.defaultPoints = Number(metaData.default_points) || 0;
     state.subtasksExpandedByDefault = preferencesData.data?.tasks_subtasks_expanded === true;
@@ -4370,6 +4528,7 @@ export async function render(container, { user }) {
     state.tasks = [];
     state.users = [];
     state.categories = [];
+    state.taskLists = [];
     state.allTags = [];
     state.defaultPoints = 0;
     state.subtasksExpandedByDefault = false;
@@ -4377,6 +4536,7 @@ export async function render(container, { user }) {
   }
 
   // UI verdrahten
+  renderTaskLists(container);
   wireViewToggle(container);
   wireGroupToggle(container);
   wireNewTaskBtn(container);

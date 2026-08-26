@@ -460,6 +460,8 @@
         "syncTargetHint": "Vyber seznam připomínek, do kterého se má tento úkol zapsat.",
         "syncTargetMirrored": "Tento úkol se už synchronizuje se seznamem připomínek. Seznam už nelze změnit.",
         "syncTargetUnavailable": "Naposledy zvolený seznam (již není dostupný)",
+        "taskListLabel": "Seznam úkolů",
+        "taskListLocal": "Lokální",
         "commentsLabel": "Komentáře",
         "commentsEmpty": "Zatím žádné komentáře.",
         "commentsLoadError": "Komentáře se nepodařilo načíst.",

@@ -460,6 +460,8 @@
         "syncTargetHint": "このタスクを書き込むリマインダーリストを選んでください。",
         "syncTargetMirrored": "このタスクはすでにリマインダーリストと同期しています。後からリストを変更することはできません。",
         "syncTargetUnavailable": "以前に選択したリスト（現在は利用できません）",
+        "taskListLabel": "タスクリスト",
+        "taskListLocal": "ローカル",
         "commentsLabel": "コメント",
         "commentsEmpty": "まだコメントはありません。",
         "commentsLoadError": "コメントを読み込めませんでした。",

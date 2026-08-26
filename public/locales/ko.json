@@ -472,6 +472,8 @@
         "syncTargetHint": "이 작업을 기록할 미리 알림 목록을 선택하세요.",
         "syncTargetMirrored": "이 작업은 이미 미리 알림 목록과 동기화됩니다. 목록은 나중에 변경할 수 없습니다.",
         "syncTargetUnavailable": "이전에 선택한 목록 (더 이상 사용할 수 없음)",
+        "taskListLabel": "작업 목록",
+        "taskListLocal": "로컬",
         "commentsLabel": "댓글",
         "commentsEmpty": "아직 댓글이 없습니다.",
         "commentsLoadError": "댓글을 불러오지 못했습니다.",

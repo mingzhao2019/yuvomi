@@ -460,6 +460,8 @@
         "syncTargetHint": "Válassz emlékeztetőlistát, amelybe ez a feladat kerüljön.",
         "syncTargetMirrored": "Ez a feladat már szinkronizálva van egy emlékeztetőlistával. A lista utólag nem módosítható.",
         "syncTargetUnavailable": "Korábban választott lista (már nem érhető el)",
+        "taskListLabel": "Feladatlista",
+        "taskListLocal": "Helyi",
         "commentsLabel": "Hozzászólások",
         "commentsEmpty": "Még nincs hozzászólás.",
         "commentsLoadError": "A hozzászólásokat nem sikerült betölteni.",
