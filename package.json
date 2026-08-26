@@ -136,6 +136,7 @@
     "test:health-cycle": "node --loader ./test/test-browser-loader.mjs --test test/test-health-cycle.js",
     "test:health-export": "node --test test/test-health-export.js",
     "test:health-structure": "DB_PATH=:memory: node --test test/test-health-structure.js",
+    "test:pwa-manifest": "node --test test/test-pwa-manifest.js",
     "test:settings-admin-gate": "node --test test/test-settings-admin-gate.js",
     "test:settings-navigation": "node --loader ./test/test-browser-loader.mjs --test test/test-settings-navigation.js",
     "test:settings-copy": "node --test test/test-settings-copy.js",
