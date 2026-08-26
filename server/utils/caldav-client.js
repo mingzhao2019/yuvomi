@@ -28,17 +28,28 @@ export async function createCalDAVClient(account) {
  * Server-Antwort laufen beide hier durch, damit der Vergleich in
  * `calendarObjectUrlFilter` nicht an Host oder Schreibweise scheitert.
  */
-function pathOf(url) {
+/**
+ * Zerlegt eine Objekt- oder Collection-URL in die zwei Teile, die der Filter
+ * getrennt braucht - er stellt nämlich zwei verschiedene Fragen an sie:
+ *
+ * - WELCHE Ressource ist das? Darüber entscheidet `pathname` PLUS `search`:
+ *   tsdav adressiert Objekte selbst als `pathname + search`, und ein Server
+ *   darf Collection und Mitglied allein über den Query unterscheiden.
+ * - Ist es eine Collection? Darüber entscheidet allein der `pathname`. Ein
+ *   Objektbezeichner im Query darf auf einen Schrägstrich enden
+ *   (`?object=folder/item/`), und der ist keine Collection-Markierung.
+ *
+ * Beides in einen String zu ziehen hiesse, die zweite Frage am Ende des Query
+ * zu beantworten - und ein Objekt, dessen Bezeichner so endet, fiele still
+ * heraus. Genau die Auslassung, gegen die diese Datei geschrieben ist.
+ */
+function urlParts(url) {
   const raw = String(url ?? '').trim();
-  if (!raw) return '';
+  if (!raw) return null;
   try {
     const parsed = new URL(raw, 'http://caldav.invalid/');
-    // Mit Query: tsdav adressiert Objekte selbst als `pathname + search`, und
-    // ein Server darf Collection und Mitglied darüber unterscheiden. Wer den
-    // Query wegwirft, hielte beide für dasselbe und filterte das Objekt heraus -
-    // genau die stille Auslassung, gegen die diese Datei geschrieben ist.
-    return `${parsed.pathname}${parsed.search}`;
-  } catch { return raw; }
+    return { path: parsed.pathname, search: parsed.search };
+  } catch { return { path: raw, search: '' }; }
 }
 
 /**
@@ -60,12 +71,18 @@ function pathOf(url) {
  * @param {string} collectionUrl  URL des Kalenders, dessen Objekte geholt werden
  */
 export function calendarObjectUrlFilter(collectionUrl) {
-  const collection = pathOf(collectionUrl).replace(/\/+$/, '');
+  // Der Schrägstrich am Ende wird nur am PFAD normalisiert - im Query ist er
+  // ein Zeichen des Bezeichners und kein Trennzeichen.
+  const identity = (parts) => `${parts.path.replace(/\/+$/, '')}${parts.search}`;
+  const collectionParts = urlParts(collectionUrl);
+  const collection = collectionParts ? identity(collectionParts) : '';
   return (url) => {
-    const path = pathOf(url);
-    if (!path) return false;
-    if (path.endsWith('/')) return false; // Collection, kein Objekt
-    return path.replace(/\/+$/, '') !== collection;
+    const parts = urlParts(url);
+    if (!parts || !parts.path) return false;
+    // Eine Collection endet im PFAD auf einen Schrägstrich und trägt keinen
+    // Query: `/dav/cal/x/default/` ist eine, `/dav/calendar?object=a/b/` nicht.
+    if (parts.path.endsWith('/') && !parts.search) return false;
+    return identity(parts) !== collection;
   };
 }
 

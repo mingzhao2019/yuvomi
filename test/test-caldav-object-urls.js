@@ -152,6 +152,19 @@ test('Auch Methoden am Prototyp überleben den Wrapper', () => {
   assert.equal(client.deleteCalendarObject(), 'auch aus dem Prototyp', 'deleteCalendarObject verloren');
 });
 
+test('Ein Bezeichner im Query darf auf einen Schrägstrich enden', () => {
+  // Die FORM entscheidet der Pfad, nicht der Query. Zusammengezogen beantwortete
+  // die Collection-Frage das Ende des Query - und ein Objekt, dessen Bezeichner
+  // so endet, fiele still heraus.
+  const keep = calendarObjectUrlFilter('https://mail.example.org/dav/calendar?collection=home');
+  assert.ok(keep('https://mail.example.org/dav/calendar?object=folder/item/'),
+    'Objekt mit Schrägstrich im Query-Bezeichner abgewiesen');
+  assert.ok(keep('https://mail.example.org/dav/calendar/?object=x'),
+    'Objekt hinter einem Collection-Pfad abgewiesen');
+  assert.ok(!keep('https://mail.example.org/dav/cal/x/default/'),
+    'echte Collection ohne Query durchgelassen');
+});
+
 test('Objekt und Collection werden über den vollen Bezeichner getrennt, nicht nur den Pfad', () => {
   // tsdav adressiert Objekte selbst als `pathname + search`; ein Server darf
   // Collection und Mitglied ueber den Query unterscheiden. Auf den blossen Pfad
