@@ -8712,6 +8712,7 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
   const layout = stripCssComments(read('../public/styles/layout.css'));
   const narrowRules = cssRules(read('../public/styles/layout.css'))
     .filter((r) => r.selectors.some((sel) => /\.page-toolbar--narrow(?![\w-])/.test(sel)));
+<<<<<<< HEAD
 
   // Der Abstand ist ein eigener Slot am Ende der Zeile - nicht irgendeine
   // Deklaration, die das Token nur ERWÄHNT. Auf blosse Token-Präsenz geprüft
@@ -8725,6 +8726,20 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
     spacer.length, 1,
     'layout.css: .page-toolbar--narrow::after muss das Ende seiner Zeile als Flex-Slot auf '
     + '--content-max-width-narrow zurückholen (genau eine Regel, gefunden: ' + spacer.length + ')',
+=======
+  assert.ok(
+    narrowRules.some((r) => /var\(--content-max-width-narrow\)/.test(r.body)),
+    'layout.css: .page-toolbar--narrow muss das Ende seiner Zeile auf --content-max-width-narrow zurückholen',
+  );
+  // Und der Rückhalt darf nicht mehr unnachgiebig sein: was das Zeilenende
+  // setzt, muss nachgeben können, sonst steht der Umbruch wieder fest (#882).
+  const holder = narrowRules.find((r) => /var\(--content-max-width-narrow\)/.test(r.body));
+  assert.doesNotMatch(
+    holder.body,
+    /margin-(?:inline-end|right):\s*max\(/,
+    'layout.css: der Lesemaß-Abstand darf keine Marge sein - eine Marge gibt nie nach '
+    + 'und zählt trotzdem in die Flex-Zeilenbelegung (#882)',
+>>>>>>> b7f50292 (fix(ui): der modulkopf traegt wieder eine zeile, nicht zwei (#882))
   );
 
   // Und KEINE der Regeln darf den Rückhalt wieder als Marge setzen. Über ALLE
