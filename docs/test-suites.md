@@ -267,7 +267,7 @@ npm run test:installer-a11y  # Zielgrößen, Kontrast und Fokus des Web-Installe
 ## Dokument-Guards (eigene Kette, von Hand vor dem Release)
 
 ```bash
-npm run test:document-guards   # Guard-Ebene 4: Invarianten, die nur das GERENDERTE Dokument kennt
+npm run test:document-guards   # Guard-Ebene 4: Invarianten, die nur das GERENDERTE Dokument kennt. Seit #882 auch die Zeilenzahl des Modulkopfes in der REGULÄREN Größenklasse (Sonde 19): Sonde 1 misst Kopf-Überlauf, aber nur bei 375px, Sonde 15 zählt Kopf-Zeilen, aber nur in der kompakten Höhe (640x400) - ein Kopf, der auf dem Desktop zwei Zeilen baut, fiel durch beide Raster. Er ist kein Überlauf (nichts ragt hinaus, die Leiste wird nur höher) und keine kompakte Höhe; gefunden hat ihn ein Nutzer, für vier Module, mit Screenshots. Gemessen wird bei 1024px (Kante der Größenklasse), 1280px (Breite der Content-Spalte) und 1960px (die gemeldete Breite - dort war der Kopf zweizeilig, obwohl 660px frei standen), jeweils durch alle Sichten geklickt, weil genau dort der Anlassfall saß: der Kalenderkopf baute in Woche, Tag und Agenda eine Zeile mehr als im Monat, ohne dass ein Element dazukam - nur das Datumslabel wurde länger
 ```
 
 Diese Suite ist die einzige, die **nicht** in der `npm test`-Kette hängt, und das ist Absicht: sie startet einen Serverprozess und einen Browser (Puppeteer, bereits devDependency), während die übrige Infrastruktur netzfrei und serverlos gegen In-Memory-SQLite läuft. `test:suite-chain` kennt die Zweiteilung als **Regel** und nicht als Namensausnahme - eine Suite, deren Datei den Browsertreiber importiert, gehört in diese Kette; jede andere in `npm test`. Wer eine zweite Browser-Suite anlegt, hängt sie an `test:document-guards` an, sonst schlägt der Registry-Guard fehl.

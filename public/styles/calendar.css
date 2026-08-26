@@ -92,8 +92,17 @@
 .cal-toolbar__label {
   font-size: var(--text-base);
   font-weight: var(--font-weight-semibold);
-  flex: 1;
-  min-width: 0;
+  /* `flex: 1` hiess Basis 0: das Label lebte allein vom Wachstum in freien
+   * Raum. In einer Zeile ohne freien Raum blieb es bei 0px und verschwand ganz
+   * (gemessen bei 1024px, nachdem der Kopf nicht mehr umbrach) - ausgerechnet
+   * die Angabe, um die herum die ganze Navigation gebaut ist. Mit Basis `auto`
+   * bringt es seine Textbreite mit und gibt von dort nach, gedeckelt durch die
+   * Ellipse darunter (#882). */
+  flex: 1 1 auto;
+  /* Untergrenze statt 0: gekuerzt darf das Label werden, verschwinden nicht.
+   * 7ch traegt "Aug 2026" - der kuerzeste Stand, aus dem noch hervorgeht, wo
+   * man im Kalender steht. */
+  min-width: 7ch;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -1771,11 +1780,16 @@
 /* --------------------------------------------------------
  * Toolbar holiday layer toggle buttons
  * -------------------------------------------------------- */
+/* Die Gruppe gibt nach, statt den Kopf zu sprengen (#882). Mit `flex-shrink: 0`
+ * standen hier je nach eingeschalteten Ebenen bis zu vier beschriftete Chips
+ * unverrueckbar in der Zeile - gemessen 234px bei zweien, und mit vieren brach
+ * der Kopf schon auf 1960px um. Wie viele Ebenen jemand einschaltet, darf die
+ * Zeilenzahl des Kopfes nicht entscheiden. */
 .cal-toolbar__layers {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .cal-toolbar__layer-btn {
@@ -1795,6 +1809,19 @@
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   white-space: nowrap;
+  /* Der Chip gibt sein Label her, bevor der Kopf umbricht - aber nie sein Ziel:
+   * die Untergrenze ist dieselbe Zielgroesse, die die 640px-Regel weiter unten
+   * setzt, wenn sie das Label ganz entfernt. Ein Label zu verlieren darf ein
+   * Ziel nicht verkleinern (#882). */
+  min-width: var(--target-base);
+  overflow: hidden;
+}
+
+/* Das Label ist der nachgiebige Teil des Chips; Symbol und Punkt bleiben. */
+.cal-toolbar__layer-btn > span:not(.cal-toolbar__layer-dot) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cal-toolbar__layer-btn:hover {

@@ -2208,20 +2208,92 @@ html.fab-anim-done .page-fab {
  * Breite jedes Slots - die Slots sind aber schmaler als das Lesemaß (im Vorrat
  * misst der Aktions-Slot 40px), und `.page-toolbar__actions { margin-left:
  * auto }` schob sie danach unverändert an die äußere Kante. Das Maß ist nicht
- * die Breite der Slots, sondern das ENDE der Zeile: eine Marge am letzten Slot,
- * egal welcher das ist.
+ * die Breite der Slots, sondern das ENDE der Zeile.
  *
  * Das Prozent löst gegen die Content-Box des Kopfes auf und wandert damit von
- * selbst mit der Fensterbreite mit; `max()` nimmt die Marge zurück, sobald die
+ * selbst mit der Fensterbreite mit; `max()` nimmt den Abstand zurück, sobald die
  * Spalte schmaler als das Lesemaß ist. Deshalb ohne Breakpoint - die
  * Vorgängerregeln standen in `@media (min-width: 1024px)` und ließen den
  * Versatz zwischen 720px und 1024px stehen, wo der Körper längst gekappt ist.
  *
  * Der Rail bleibt full-bleed: Hintergrund, Trennlinie und Sticky-Fläche laufen
  * weiter bis zur Shell-Kante, nur die Zeile darin wird kürzer. */
-.page-toolbar--narrow > :last-child {
-  margin-inline-end: max(0px, calc(100% - var(--content-max-width-narrow)));
+
+/* DER ABSTAND IST EIN SLOT, KEINE MARGE - WEIL ER NACHGEBEN MUSS.
+ *
+ * Als `margin-inline-end` am letzten Slot war er unnachgiebig und zaehlte
+ * trotzdem in die ZEILENBELEGUNG des Flex-Containers. Gemessen bei 1960px
+ * Fensterbreite: Kopfzeile innen 1280px, Aktions-Slot 406px Inhalt plus 560px
+ * Marge, verbleibend fuer Siegel, Titel und Suche 315px, gebraucht 441px. Der
+ * Umbruch war damit rechnerisch unvermeidlich statt vom Inhalt abhaengig -
+ * Aufgaben, Kontakte, Budget und die Kalender-Agenda bauten bei JEDER
+ * Fensterbreite zwei Zeilen (#882).
+ *
+ * Als schrumpfbares Flex-Item gibt derselbe Abstand nach, sobald der Inhalt ihn
+ * braucht: `flex-shrink` verteilt den Mangel im Verhaeltnis der Basen, und mit
+ * 560px hat dieser Slot die groesste - er gibt zuerst und am meisten ab. Ist
+ * Platz da, steht er voll und die Aktionen enden exakt am Lesemass, wie zuvor.
+ * Ist keiner da, weicht er ganz, und die Aktionen stehen am Rail-Rand - das ist
+ * der richtige Notausgang, denn die Alternative war ein gekuerzter Seitentitel
+ * ("Budget" auf 8px gemessen), und der Titel ist das Letzte, was gehen darf.
+ *
+ * KEIN ZUSAETZLICHES ELEMENT IM MARKUP: der Slot ist ein Pseudo-Element, damit
+ * die Zeilenordnung eine Entscheidung der Shell bleibt und kein Modul ihn
+ * vergessen oder falsch einsortieren kann. */
+.page-toolbar--narrow::after {
+  content: '';
+  /* Die hohe Schrumpfgewichtung ist der Kern: Flexbox verteilt den Mangel im
+   * Verhaeltnis `basis x shrink`, und mit `shrink: 1` haette dieser Slot ihn
+   * nur ANTEILIG getragen - der Seitentitel gab weiter Zeichen ab (gemessen
+   * "Aufgaben" auf 91 statt 97px). Mit 999 weicht erst der Abstand, ganz, und
+   * die uebrigen Slots kommen erst dran, wenn er bei 0 steht. */
+  flex: 0 999 max(0px, calc(100% - var(--content-max-width-narrow)));
+  min-width: 0;
 }
+
+/* IN DER REGULAEREN GROESSENKLASSE BRICHT DER KOPF NICHT UM.
+ *
+ * Umbrechen und Nachgeben sind zwei Antworten auf dieselbe Enge, und wer beide
+ * gibt, gibt keine: Flexbox teilt die Zeilen nach den HYPOTHETISCHEN Groessen
+ * auf, also bevor irgendein Slot geschrumpft ist. Ein Kopf mit `wrap` bricht
+ * deshalb um, waehrend daneben Slots stehen, die bereitwillig Platz abgegeben
+ * haetten - im Kalender die Ansichts-Umschalter und die Ebenen-Chips, in den
+ * gedeckelten Koepfen der Lesemass-Slot darueber, der dort sogar in voller
+ * Breite auf Zeile zwei gewandert waere (#882).
+ *
+ * Dass die Slots das koennen, ist die Bedingung dieser Regel und keine Annahme:
+ * `__title`, `__center` und `__actions` tragen `min-width: 0`, die Tab-Leisten
+ * `overflow-x: auto`, und der Lesemass-Slot gibt zuerst und ganz nach.
+ *
+ * DIE GRENZE IST DIE GROESSENKLASSE, KEINE LAYOUT-ZAHL. Unterhalb von 1024px
+ * regiert die Large-Title-Zone (die Regel weiter unten), und die setzt den
+ * Umbruch selbst - dort steht der Titel bewusst auf einer eigenen Zeile. */
+@media (min-width: 1024px) {
+  .page-toolbar--wrap {
+    flex-wrap: nowrap;
+  }
+
+  /* DER SEITENTITEL GIBT ZULETZT NACH.
+   *
+   * In einer Zeile, die nicht mehr umbricht, verteilt Flexbox den Mangel auf
+   * alle Slots - und der Titel gab mit ab, obwohl er der einzige ist, der nicht
+   * zurueckkann: eine Tab-Leiste scrollt (`overflow-x: auto`), ein Suchfeld
+   * ist an seinem Symbol erkennbar, ein ellipsierter Seitentitel ist nur noch
+   * Rest ("Budget" auf 45px gemessen). Mit `flex-shrink: 0` steht er, und der
+   * Mangel landet dort, wo er getragen werden kann.
+   *
+   * NUR IN DER ZEILE, DIE NICHT MEHR UMBRICHT, und das ist gemessen: auf JEDEN
+   * Kopf gesetzt lief der Gesundheitskopf bei 1024px um 64px ueber die Kante.
+   * Der bricht nie um und gibt seinen Platz anderswo her; er braucht den Titel
+   * als Reserve. Die Haerte gehoert dorthin, wo der Umbruch abgeschaltet ist.
+   *
+   * Nur ab 1024px: darunter steht der Titel als Large Title auf einer eigenen
+   * Zeile und teilt sie mit niemandem - dort gibt es nichts zu verteilen. */
+  .page-toolbar--wrap > .page-toolbar__title {
+    flex-shrink: 0;
+  }
+}
+
 
 /* --------------------------------------------------------
  * Large-Title-Zone des Modulkopfes (HIG, Redesign Runde 4 / C-1)

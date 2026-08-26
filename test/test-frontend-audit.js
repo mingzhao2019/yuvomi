@@ -8393,13 +8393,32 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
     + '.page-toolbar geändert, oder haben die Küchen-Listen ihre Köpfe alle verloren?',
   );
 
-  // Und die Variante muss das auch tun: Marge am letzten Slot, gegen dasselbe
-  // Token, das .list-scroller kappt.
+  // Und die Variante muss das auch tun: das ENDE der Zeile aufs Lesemaß
+  // zurückholen, gegen dasselbe Token, das .list-scroller kappt.
+  //
+  // GEPRÜFT WIRD DIE ZUSICHERUNG, NICHT DIE SCHREIBWEISE. Bis #882 stand hier
+  // die Regel wörtlich - `margin-inline-end` am `:last-child`, Zeichen für
+  // Zeichen. Genau diese Marge war der Fehler: sie zählte in die
+  // Zeilenbelegung des Flex-Containers und machte den Umbruch rechnerisch
+  // unvermeidlich (gemessen 560px von 1280px, für Titel und Suche blieben
+  // 315px bei 441px Bedarf). Der Abstand ist jetzt ein schrumpfbarer Slot -
+  // dieselbe Zusage, anderes Mittel. Ein Guard, der die Implementierung
+  // festschreibt, hätte hier den Fix blockiert statt den Fehler zu finden.
   const layout = stripCssComments(read('../public/styles/layout.css'));
-  assert.match(
-    layout,
-    /\.page-toolbar--narrow\s*>\s*:last-child\s*\{[^}]*margin-inline-end:\s*max\(\s*0px,\s*calc\(100% - var\(--content-max-width-narrow\)\)\s*\)/,
-    'layout.css: .page-toolbar--narrow muss den letzten Slot auf --content-max-width-narrow zurückholen',
+  const narrowRules = cssRules(read('../public/styles/layout.css'))
+    .filter((r) => r.selectors.some((sel) => /\.page-toolbar--narrow(?![\w-])/.test(sel)));
+  assert.ok(
+    narrowRules.some((r) => /var\(--content-max-width-narrow\)/.test(r.body)),
+    'layout.css: .page-toolbar--narrow muss das Ende seiner Zeile auf --content-max-width-narrow zurückholen',
+  );
+  // Und der Rückhalt darf nicht mehr unnachgiebig sein: was das Zeilenende
+  // setzt, muss nachgeben können, sonst steht der Umbruch wieder fest (#882).
+  const holder = narrowRules.find((r) => /var\(--content-max-width-narrow\)/.test(r.body));
+  assert.doesNotMatch(
+    holder.body,
+    /margin-(?:inline-end|right):\s*max\(/,
+    'layout.css: der Lesemaß-Abstand darf keine Marge sein - eine Marge gibt nie nach '
+    + 'und zählt trotzdem in die Flex-Zeilenbelegung (#882)',
   );
   // Ohne Breakpoint: .list-scroller kappt unbedingt, der Kopf muss das auch.
   // Der Vorgänger stand in `@media (min-width: 1024px)` und ließ den Versatz
