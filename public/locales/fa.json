@@ -913,7 +913,10 @@
         "deleteExternalSeriesConfirm": "حذف مجموعه",
         "deleteBirthdayEventTitle": "رویداد تولد حذف شود؟",
         "deleteBirthdayEventDetail": "«{{title}}» بازتاب یک ورودی تولد است. رویداد ناپدید می‌شود، اما همگام‌سازی بعدی دوباره آن را می‌سازد - حذف دائمی فقط از طریق خود تولد ممکن است.",
-        "deleteBirthdayEventConfirm": "با این حال حذف شود"
+        "deleteBirthdayEventConfirm": "با این حال حذف شود",
+        "deleteSubscribedSeriesTitle": "مجموعه اشتراکی حذف شود؟",
+        "deleteSubscribedSeriesDetail": "«{{title}}» از یک تقویم اشتراکی می‌آید. Yuvomi نمی‌تواند چیزی را آنجا حذف کند - مجموعه فقط تا همگام‌سازی بعدی ناپدید می‌شود؛ برای حذف دائمی، اشتراک را لغو کنید.",
+        "deleteSubscribedSeriesConfirm": "با این حال حذف شود"
     },
     "notes": {
         "title": "یادداشت‌ها",

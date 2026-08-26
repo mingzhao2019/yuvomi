@@ -3921,26 +3921,38 @@ function getRecurringScope(root, prefix) {
  * verschwinden (#880). Die Rückfrage benennt die Reichweite, statt sie
  * anzubieten - ein Dialog mit nur einer wählbaren Antwort wäre eine Attrappe.
  */
+/**
+ * Welche Auskunft trifft auf diese fremde Serie zu?
+ *
+ * Die drei Fälle sagen VERSCHIEDENE Dinge, weil verschiedene Dinge passieren -
+ * und eine Zusage, die nicht hält, ist schlimmer als gar keine, denn sie ist
+ * der einzige Grund, überhaupt zu fragen:
+ *
+ * - Ein Geburtstagstermin ist das Abbild seines Geburtstags, nicht sein
+ *   Original: `syncBirthdayCalendarEvent` legt ihn beim nächsten Abgleich neu
+ *   an und lädt ihn wieder hoch (server/services/birthdays.js).
+ * - Ein Termin aus einem ICS-Abo ist doppelt unlöschbar: `OUTBOUND_SOURCES`
+ *   kennt kein `ics`, es wird also nichts an der Quelle gelöscht, und der
+ *   nächste Aboabruf legt ihn wieder an (kein Tombstone in ics-subscription.js).
+ * - Nur bei Google, CalDAV und Apple greift die Löschung wirklich bis zur
+ *   Quelle durch.
+ */
+function externalSeriesDeletePrompt(event) {
+  // `birthday_name` ist der etablierte Marker; die Leseroute hängt ihn nur an
+  // Termine, die zu einem Geburtstag gehören.
+  if (event.birthday_name)    return 'calendar.deleteBirthdayEvent';
+  if (event.subscription_id)  return 'calendar.deleteSubscribedSeries';
+  return 'calendar.deleteExternalSeries';
+}
+
 async function requestDeleteEvent(event) {
   if (isExternalRecurringSeries(event)) {
-    // Ein Geburtstagstermin ist das Abbild seines Geburtstags, nicht sein
-    // Original: `syncBirthdayCalendarEvent` legt ihn beim nächsten Abgleich neu
-    // an und lädt ihn wieder hoch (server/services/birthdays.js). Ihm dieselbe
-    // Rückfrage zu stellen hiesse, eine dauerhafte Löschung zu versprechen, die
-    // nicht eintritt - und die Zusage ist der einzige Grund, überhaupt zu
-    // fragen. `birthday_name` ist der etablierte Marker dafür; die Leseroute
-    // hängt ihn nur an Termine, die zu einem Geburtstag gehören.
-    const isBirthday = !!event.birthday_name;
-    const ok = await confirmModal(
-      t(isBirthday ? 'calendar.deleteBirthdayEventTitle' : 'calendar.deleteExternalSeriesTitle'),
-      {
-        detail: isBirthday
-          ? t('calendar.deleteBirthdayEventDetail', { title: event.title })
-          : t('calendar.deleteExternalSeriesDetail', { title: event.title }),
-        confirmLabel: t(isBirthday ? 'calendar.deleteBirthdayEventConfirm' : 'calendar.deleteExternalSeriesConfirm'),
-        danger:       true,
-      },
-    );
+    const prompt = externalSeriesDeletePrompt(event);
+    const ok = await confirmModal(t(`${prompt}Title`), {
+      detail:       t(`${prompt}Detail`, { title: event.title }),
+      confirmLabel: t(`${prompt}Confirm`),
+      danger:       true,
+    });
     if (ok) await deleteEvent(event.id);
     return;
   }

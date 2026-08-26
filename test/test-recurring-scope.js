@@ -265,41 +265,52 @@ test('Eine fremde Serie wird bestätigt, bevor sie gelöscht wird', () => {
   assert.ok(confirm < del, 'gelöscht wird vor der Bestätigung');
 });
 
-test('Ein Geburtstagstermin bekommt seine eigene, wahre Auskunft', () => {
-  // Ein Geburtstagstermin ist das Abbild seines Geburtstags: `birthdays.js` legt
-  // ihn beim naechsten Abgleich neu an. Ihm die allgemeine Rueckfrage zu stellen
-  // hiesse, eine dauerhafte Loeschung zu versprechen, die nicht eintritt - und
-  // die Zusage ist der einzige Grund, ueberhaupt zu fragen.
+test('Jede fremde Serie bekommt die Auskunft, die auf sie zutrifft', () => {
+  // Drei Faelle, drei verschiedene Wahrheiten. Nur bei Google, CalDAV und Apple
+  // greift die Loeschung bis zur Quelle durch. Ein Geburtstagstermin ist das
+  // Abbild seines Geburtstags und wird neu angelegt; ein Termin aus einem
+  // ICS-Abo ist doppelt unloeschbar - `OUTBOUND_SOURCES` kennt kein `ics`, und
+  // der naechste Aboabruf legt ihn wieder an. Eine Zusage, die nicht haelt, ist
+  // schlimmer als gar keine: sie ist der einzige Grund, ueberhaupt zu fragen.
+  const src = withoutBlockComments(
+    calendarSrc.slice(calendarSrc.indexOf('function externalSeriesDeletePrompt')),
+  );
+  const chooser = src.slice(0, src.indexOf('\n}'));
+  assert.ok(chooser.includes('birthday_name'),
+    'der Loeschpfad erkennt keinen Geburtstagstermin');
+  assert.ok(chooser.includes('subscription_id'),
+    'der Loeschpfad erkennt keinen Termin aus einem ICS-Abo - er verspricht ihm dann eine '
+    + 'Loeschung an der Quelle, die es dort gar nicht gibt');
+
+  // Und der Loeschpfad muss den Waehler auch BENUTZEN.
   const body = requestDeleteEventBody();
-  assert.ok(body.includes('birthday_name'),
-    'der Loeschpfad erkennt keinen Geburtstagstermin - er verspricht ihm dann eine Loeschung, '
-    + 'die der naechste Abgleich zuruecknimmt');
-  for (const key of ['calendar.deleteBirthdayEventTitle', 'calendar.deleteBirthdayEventDetail']) {
-    assert.ok(body.includes(key), `${key} fehlt`);
-  }
+  assert.ok(body.includes('externalSeriesDeletePrompt('),
+    'requestDeleteEvent waehlt den Text nicht nach dem Fall aus');
 });
 
 test('Die Rückfrage benennt die Reichweite über i18n-Schlüssel', () => {
   const body = requestDeleteEventBody();
-  for (const key of ['calendar.deleteExternalSeriesTitle', 'calendar.deleteExternalSeriesDetail']) {
-    assert.ok(body.includes(key), `${key} fehlt - die Rückfrage sagt nicht, was sie löscht`);
+  for (const part of ['Title', 'Detail', 'Confirm']) {
+    assert.ok(body.includes(`\${prompt}${part}`), `der Schlüssel ...${part} wird nicht gebildet`);
   }
   assert.ok(/danger:\s*true/.test(body), 'die Bestätigung ist nicht als zerstörend ausgewiesen');
 });
 
 test('Die Schlüssel beider Rückfragen stehen in allen Locales', () => {
   const dir = new URL('../public/locales/', import.meta.url);
-  const keys = [
-    'deleteExternalSeriesTitle', 'deleteExternalSeriesDetail', 'deleteExternalSeriesConfirm',
-    'deleteBirthdayEventTitle', 'deleteBirthdayEventDetail', 'deleteBirthdayEventConfirm',
-  ];
+  // Die Schlüssel werden im Code aus einem Präfix ZUSAMMENGESETZT
+  // (`${prompt}Title`), tauchen also nirgends vollständig auf. Ein fehlender
+  // fiele erst im Dialog auf - deshalb hier vollständig aufgeführt.
+  const keys = ['External Series', 'Birthday Event', 'Subscribed Series']
+    .flatMap((n) => ['Title', 'Detail', 'Confirm']
+      .map((part) => `delete${n.replace(/ /g, '')}${part}`));
   const locales = ['de', 'en', 'fr', 'es', 'uk', 'zh', 'ar', 'ja'];
   for (const loc of locales) {
     const cal = JSON.parse(readFileSync(new URL(`${loc}.json`, dir), 'utf-8')).calendar;
     for (const k of keys) {
       assert.ok(typeof cal?.[k] === 'string' && cal[k].trim(), `${loc}.json: calendar.${k} fehlt oder ist leer`);
     }
-    for (const k of ['deleteExternalSeriesDetail', 'deleteBirthdayEventDetail']) {
+    for (const k of ['deleteExternalSeriesDetail', 'deleteBirthdayEventDetail', 'deleteSubscribedSeriesDetail']) {
       assert.ok(cal[k].includes('{{title}}'), `${loc}.json: ${k} nennt den Termin nicht`);
     }
   }

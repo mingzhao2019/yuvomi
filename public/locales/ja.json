@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "シリーズを削除",
         "deleteBirthdayEventTitle": "誕生日の予定を削除しますか？",
         "deleteBirthdayEventDetail": "「{{title}}」は誕生日の登録を映したものです。予定は消えますが、次回の同期で再び作成されます。完全に削除するには誕生日の登録そのものを変更してください。",
-        "deleteBirthdayEventConfirm": "それでも削除"
+        "deleteBirthdayEventConfirm": "それでも削除",
+        "deleteSubscribedSeriesTitle": "購読カレンダーの繰り返しを削除しますか？",
+        "deleteSubscribedSeriesDetail": "「{{title}}」は購読中のカレンダーの予定です。Yuvomi はそちらの予定を削除できないため、次回の同期までしか消えません。完全に消すには購読を解除してください。",
+        "deleteSubscribedSeriesConfirm": "それでも削除"
     },
     "notes": {
         "title": "メモボード",

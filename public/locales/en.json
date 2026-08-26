@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Delete series",
         "deleteBirthdayEventTitle": "Delete birthday event?",
         "deleteBirthdayEventDetail": "\"{{title}}\" mirrors a birthday entry. The event disappears, but the next sync recreates it - it can only be removed for good via the birthday itself.",
-        "deleteBirthdayEventConfirm": "Delete anyway"
+        "deleteBirthdayEventConfirm": "Delete anyway",
+        "deleteSubscribedSeriesTitle": "Delete subscribed series?",
+        "deleteSubscribedSeriesDetail": "\"{{title}}\" comes from a subscribed calendar. Yuvomi cannot delete anything there - the series only disappears until the next sync; to remove it for good, unsubscribe from the calendar.",
+        "deleteSubscribedSeriesConfirm": "Delete anyway"
     },
     "notes": {
         "title": "Board",

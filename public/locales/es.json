@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Eliminar serie",
         "deleteBirthdayEventTitle": "¿Eliminar el evento de cumpleaños?",
         "deleteBirthdayEventDetail": "«{{title}}» es el reflejo de un cumpleaños. El evento desaparece, pero la próxima sincronización lo vuelve a crear: solo se elimina de forma definitiva desde el propio cumpleaños.",
-        "deleteBirthdayEventConfirm": "Eliminar de todos modos"
+        "deleteBirthdayEventConfirm": "Eliminar de todos modos",
+        "deleteSubscribedSeriesTitle": "¿Eliminar la serie suscrita?",
+        "deleteSubscribedSeriesDetail": "«{{title}}» procede de un calendario suscrito. Yuvomi no puede eliminar nada allí: la serie solo desaparece hasta la próxima sincronización; para quitarla definitivamente, cancela la suscripción.",
+        "deleteSubscribedSeriesConfirm": "Eliminar de todos modos"
     },
     "notes": {
         "title": "Notas",

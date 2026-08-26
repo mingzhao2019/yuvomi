@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Διαγραφή σειράς",
         "deleteBirthdayEventTitle": "Διαγραφή συμβάντος γενεθλίων;",
         "deleteBirthdayEventDetail": "Το «{{title}}» είναι αντίγραφο μιας καταχώρισης γενεθλίων. Το συμβάν θα εξαφανιστεί, αλλά ο επόμενος συγχρονισμός θα το δημιουργήσει ξανά - οριστικά αφαιρείται μόνο μέσω των ίδιων των γενεθλίων.",
-        "deleteBirthdayEventConfirm": "Διαγραφή ούτως ή άλλως"
+        "deleteBirthdayEventConfirm": "Διαγραφή ούτως ή άλλως",
+        "deleteSubscribedSeriesTitle": "Διαγραφή συνδρομητικής σειράς;",
+        "deleteSubscribedSeriesDetail": "Το «{{title}}» προέρχεται από ημερολόγιο συνδρομής. Το Yuvomi δεν μπορεί να διαγράψει τίποτα εκεί - η σειρά εξαφανίζεται μόνο μέχρι τον επόμενο συγχρονισμό· για οριστική αφαίρεση, καταργήστε τη συνδρομή.",
+        "deleteSubscribedSeriesConfirm": "Διαγραφή ούτως ή άλλως"
     },
     "notes": {
         "title": "Σημειώσεις",

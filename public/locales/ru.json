@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Удалить серию",
         "deleteBirthdayEventTitle": "Удалить событие дня рождения?",
         "deleteBirthdayEventDetail": "«{{title}}» - это отражение записи о дне рождения. Событие исчезнет, но следующая синхронизация создаст его заново: удалить навсегда можно только через сам день рождения.",
-        "deleteBirthdayEventConfirm": "Всё равно удалить"
+        "deleteBirthdayEventConfirm": "Всё равно удалить",
+        "deleteSubscribedSeriesTitle": "Удалить серию из подписки?",
+        "deleteSubscribedSeriesDetail": "«{{title}}» из календаря по подписке. Yuvomi не может ничего удалить в источнике - серия исчезнет только до следующей синхронизации; чтобы убрать её навсегда, отмените подписку.",
+        "deleteSubscribedSeriesConfirm": "Всё равно удалить"
     },
     "notes": {
         "title": "Заметки",

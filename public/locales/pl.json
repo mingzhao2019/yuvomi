@@ -913,7 +913,10 @@
         "deleteExternalSeriesConfirm": "Usuń serię",
         "deleteBirthdayEventTitle": "Usunąć wydarzenie urodzinowe?",
         "deleteBirthdayEventDetail": "„{{title}}\" jest odbiciem wpisu urodzinowego. Wydarzenie zniknie, ale następna synchronizacja utworzy je ponownie - trwale usunąć można je tylko przez same urodziny.",
-        "deleteBirthdayEventConfirm": "Usuń mimo to"
+        "deleteBirthdayEventConfirm": "Usuń mimo to",
+        "deleteSubscribedSeriesTitle": "Usunąć subskrybowaną serię?",
+        "deleteSubscribedSeriesDetail": "„{{title}}\" pochodzi z subskrybowanego kalendarza. Yuvomi nie może tam nic usunąć - seria zniknie tylko do następnej synchronizacji; trwale usuniesz ją, anulując subskrypcję.",
+        "deleteSubscribedSeriesConfirm": "Usuń mimo to"
     },
     "notes": {
         "title": "Notatki",

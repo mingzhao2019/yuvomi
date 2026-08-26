@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Seriyi sil",
         "deleteBirthdayEventTitle": "Doğum günü etkinliği silinsin mi?",
         "deleteBirthdayEventDetail": "\"{{title}}\" bir doğum günü kaydının yansımasıdır. Etkinlik kaybolur, ancak sonraki eşitlemede yeniden oluşturulur - kalıcı olarak yalnızca doğum gününün kendisi üzerinden kaldırılabilir.",
-        "deleteBirthdayEventConfirm": "Yine de sil"
+        "deleteBirthdayEventConfirm": "Yine de sil",
+        "deleteSubscribedSeriesTitle": "Abone olunan seri silinsin mi?",
+        "deleteSubscribedSeriesDetail": "\"{{title}}\" abone olunan bir takvimden geliyor. Yuvomi orada hiçbir şeyi silemez - seri yalnızca bir sonraki eşitlemeye kadar kaybolur; kalıcı olarak kaldırmak için takvim aboneliğini iptal edin.",
+        "deleteSubscribedSeriesConfirm": "Yine de sil"
     },
     "notes": {
         "title": "Notlar",

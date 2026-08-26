@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Excluir série",
         "deleteBirthdayEventTitle": "Excluir o evento de aniversário?",
         "deleteBirthdayEventDetail": "\"{{title}}\" é o reflexo de um aniversário. O evento desaparece, mas a próxima sincronização o recria - só pode ser removido definitivamente pelo próprio aniversário.",
-        "deleteBirthdayEventConfirm": "Excluir mesmo assim"
+        "deleteBirthdayEventConfirm": "Excluir mesmo assim",
+        "deleteSubscribedSeriesTitle": "Excluir a série assinada?",
+        "deleteSubscribedSeriesDetail": "\"{{title}}\" vem de um calendário assinado. O Yuvomi não pode excluir nada lá - a série só desaparece até a próxima sincronização; para removê-la definitivamente, cancele a assinatura.",
+        "deleteSubscribedSeriesConfirm": "Excluir mesmo assim"
     },
     "notes": {
         "title": "Quadro de notas",

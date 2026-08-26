@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Odstranit sérii",
         "deleteBirthdayEventTitle": "Odstranit narozeninovou událost?",
         "deleteBirthdayEventDetail": "„{{title}}\" je odrazem narozeninového záznamu. Událost zmizí, ale při dalším synchronizování se znovu vytvoří - natrvalo ji lze odstranit jen přes samotné narozeniny.",
-        "deleteBirthdayEventConfirm": "Přesto odstranit"
+        "deleteBirthdayEventConfirm": "Přesto odstranit",
+        "deleteSubscribedSeriesTitle": "Odstranit odebíranou sérii?",
+        "deleteSubscribedSeriesDetail": "„{{title}}\" pochází z odebíraného kalendáře. Yuvomi tam nemůže nic odstranit - série zmizí jen do další synchronizace; natrvalo ji odstraníte zrušením odběru.",
+        "deleteSubscribedSeriesConfirm": "Přesto odstranit"
     },
     "notes": {
         "title": "Nástěnka",

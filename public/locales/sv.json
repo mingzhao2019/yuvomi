@@ -901,7 +901,10 @@
         "deleteExternalSeriesConfirm": "Ta bort serien",
         "deleteBirthdayEventTitle": "Ta bort födelsedagshändelsen?",
         "deleteBirthdayEventDetail": "”{{title}}” speglar en födelsedagspost. Händelsen försvinner, men nästa synkronisering skapar den igen - permanent tas den bort endast via själva födelsedagen.",
-        "deleteBirthdayEventConfirm": "Ta bort ändå"
+        "deleteBirthdayEventConfirm": "Ta bort ändå",
+        "deleteSubscribedSeriesTitle": "Ta bort den prenumererade serien?",
+        "deleteSubscribedSeriesDetail": "”{{title}}” kommer från en prenumererad kalender. Yuvomi kan inte ta bort något där - serien försvinner bara till nästa synkronisering; säg upp prenumerationen för att ta bort den permanent.",
+        "deleteSubscribedSeriesConfirm": "Ta bort ändå"
     },
     "notes": {
         "title": "Anteckningar",

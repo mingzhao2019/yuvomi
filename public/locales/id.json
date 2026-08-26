@@ -913,7 +913,10 @@
         "deleteExternalSeriesConfirm": "Hapus rangkaian",
         "deleteBirthdayEventTitle": "Hapus acara ulang tahun?",
         "deleteBirthdayEventDetail": "\"{{title}}\" adalah cerminan entri ulang tahun. Acara akan hilang, tetapi sinkronisasi berikutnya membuatnya kembali - hanya dapat dihapus permanen melalui ulang tahun itu sendiri.",
-        "deleteBirthdayEventConfirm": "Tetap hapus"
+        "deleteBirthdayEventConfirm": "Tetap hapus",
+        "deleteSubscribedSeriesTitle": "Hapus rangkaian langganan?",
+        "deleteSubscribedSeriesDetail": "\"{{title}}\" berasal dari kalender langganan. Yuvomi tidak dapat menghapus apa pun di sana - rangkaian hanya hilang sampai sinkronisasi berikutnya; untuk menghapusnya permanen, berhenti berlangganan kalender tersebut.",
+        "deleteSubscribedSeriesConfirm": "Tetap hapus"
     },
     "notes": {
         "title": "Catatan",
