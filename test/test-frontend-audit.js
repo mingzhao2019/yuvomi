@@ -195,20 +195,30 @@ function assertRuleUsesToken(css, selector, property, token, file) {
   assert.match(body, new RegExp(`${property}:\\s*var\\(${token}\\)`), `${file} ${selector} ${property} should use ${token}`);
 }
 
-test('audited frontend files do not assign innerHTML', () => {
-  const files = [
-    '../public/components/yuvomi-install-prompt.js',
-    '../public/components/category-manager.js',
-    '../public/pages/notes.js',
-    '../public/pages/meals.js',
-    '../public/pages/contacts.js',
-    '../public/pages/documents.js',
-    '../public/pages/housekeeping.js',
-  ];
+// `innerHTML` ist eine der harten Invarianten, und der Guard dafuer war eine
+// Liste von sieben Dateien: jede NEUE Seite kam ungeprueft durch, und genau die
+// neue ist die, in der es passiert. Der Bestand haelt die Regel ohnehin schon
+// ueberall - die Liste war also nie eine Ausnahmegenehmigung, nur ein zu enger
+// Suchbereich. Vendor-Code ist ausgenommen: der wird von Hand kopiert und nicht
+// nach unseren Regeln geschrieben.
+const VENDOR_PREFIX = '../public/vendor/';
 
-  for (const file of files) {
-    assert.doesNotMatch(read(file), /\.innerHTML\s*=/, `${file} must not assign innerHTML`);
-  }
+test('kein innerHTML-Schreibzugriff irgendwo unter public/ (ausser vendor/)', () => {
+  const files = walkJsFiles('../public/').filter((f) => !f.startsWith(VENDOR_PREFIX));
+  const offenders = files.filter((file) => /\.innerHTML\s*=[^=]/.test(read(file)));
+  assert.deepEqual(offenders, [],
+    'anhaengen mit insertAdjacentHTML oder ueber die DOM-API, User-Daten durch esc()');
+
+  // Ohne diese Schranke waere der Guard auch dann gruen, wenn walkJsFiles nach
+  // einem Umbau eine leere Liste liefert - gruen ueber nichts.
+  assert.ok(files.length >= 100, `nur ${files.length} Frontend-Dateien gefunden - der Scan greift nicht mehr`);
+});
+
+test('der innerHTML-Guard erkennt das Muster, das er verbietet', () => {
+  const pattern = /\.innerHTML\s*=[^=]/;
+  assert.ok(pattern.test('root.innerHTML = `<div>`;'), 'Zuweisung wird nicht erkannt');
+  assert.ok(pattern.test('el.innerHTML=""'), 'Zuweisung ohne Leerzeichen wird nicht erkannt');
+  assert.ok(!pattern.test('if (el.innerHTML === x)'), 'ein Vergleich wird faelschlich beanstandet');
 });
 
 /**
