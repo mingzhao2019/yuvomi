@@ -897,7 +897,7 @@
         "detailCalendar": "Naptár",
         "colorCurrent": "Jelenlegi szín",
         "deleteExternalSeriesTitle": "Törli az egész sorozatot?",
-        "deleteExternalSeriesDetail": "A(z) „{{title}}\" szinkronizált naptárból származik. Ott nem lehet egyes előfordulásokat kihagyni - a teljes sorozat törlődik, a forrásnaptárban is.",
+        "deleteExternalSeriesDetail": "A(z) „{{title}}\" szinkronizált naptárból származik. Ott nem lehet egyes előfordulásokat kihagyni - a teljes sorozat törlődik, minden előfordulásával együtt.",
         "deleteExternalSeriesConfirm": "Sorozat törlése",
         "deleteBirthdayEventTitle": "Törli a születésnapi eseményt?",
         "deleteBirthdayEventDetail": "A(z) „{{title}}\" egy születésnapi bejegyzés tükre. Az esemény eltűnik, de a következő szinkronizálás újra létrehozza - véglegesen csak magánál a születésnapnál távolítható el.",

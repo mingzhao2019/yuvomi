@@ -909,7 +909,7 @@
         "detailCalendar": "Kalendarz",
         "colorCurrent": "Bieżący kolor",
         "deleteExternalSeriesTitle": "Usunąć całą serię?",
-        "deleteExternalSeriesDetail": "„{{title}}\" pochodzi z synchronizowanego kalendarza. Nie można tam wykluczyć pojedynczych wystąpień - usunięta zostanie cała seria, także w kalendarzu źródłowym.",
+        "deleteExternalSeriesDetail": "„{{title}}\" pochodzi z synchronizowanego kalendarza. Nie można tam wykluczyć pojedynczych wystąpień - usunięta zostanie cała seria ze wszystkimi wystąpieniami.",
         "deleteExternalSeriesConfirm": "Usuń serię",
         "deleteBirthdayEventTitle": "Usunąć wydarzenie urodzinowe?",
         "deleteBirthdayEventDetail": "„{{title}}\" jest odbiciem wpisu urodzinowego. Wydarzenie zniknie, ale następna synchronizacja utworzy je ponownie - trwale usunąć można je tylko przez same urodziny.",

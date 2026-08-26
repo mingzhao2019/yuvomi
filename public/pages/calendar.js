@@ -3934,7 +3934,15 @@ function getRecurringScope(root, prefix) {
  * - Ein Termin aus einem ICS-Abo ist doppelt unlöschbar: `OUTBOUND_SOURCES`
  *   kennt kein `ics`, es wird also nichts an der Quelle gelöscht, und der
  *   nächste Aboabruf legt ihn wieder an (kein Tombstone in ics-subscription.js).
- * - Nur bei Google, CalDAV und Apple greift die Löschung bis zur Quelle durch.
+ * - Bei Google, CalDAV und Apple greift die Löschung meistens bis zur Quelle
+ *   durch - aber eben nur meistens: `acceptsOutbound` verlangt eine schreibende
+ *   Verbindung, und ein Google-Konto im Nur-Lesen-Modus oder ein entferntes
+ *   CalDAV-Konto hat keine. Der Dialog sagt deshalb NICHT mehr, dass die Serie
+ *   auch im Quellkalender fällt; er sagt, was Yuvomi garantieren kann - dass
+ *   alle Vorkommen fallen, nicht nur das angetippte. Das ist die Warnung, um
+ *   die es hier geht. Alles Weitere wüsste erst der Server, und dafür eine
+ *   Auskunft durch die Leseroute zu ziehen, wäre für eine Textnuance ein zu
+ *   hoher Preis (heisser Pfad, expandierte Serien).
  *
  * Die drei Aufrufe stehen ausgeschrieben statt über einen zusammengesetzten
  * Schlüssel: `jeder als gefaehrlich markierte Dialog nennt seine Folgen`

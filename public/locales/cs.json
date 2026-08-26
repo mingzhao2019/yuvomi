@@ -897,7 +897,7 @@
         "detailCalendar": "Kalendář",
         "colorCurrent": "Aktuální barva",
         "deleteExternalSeriesTitle": "Odstranit celou sérii?",
-        "deleteExternalSeriesDetail": "„{{title}}\" pochází ze synchronizovaného kalendáře. Jednotlivé výskyty tam nelze vyloučit - odstraní se celá série, i ve zdrojovém kalendáři.",
+        "deleteExternalSeriesDetail": "„{{title}}\" pochází ze synchronizovaného kalendáře. Jednotlivé výskyty tam nelze vyloučit - odstraní se celá série se všemi výskyty.",
         "deleteExternalSeriesConfirm": "Odstranit sérii",
         "deleteBirthdayEventTitle": "Odstranit narozeninovou událost?",
         "deleteBirthdayEventDetail": "„{{title}}\" je odrazem narozeninového záznamu. Událost zmizí, ale při dalším synchronizování se znovu vytvoří - natrvalo ji lze odstranit jen přes samotné narozeniny.",

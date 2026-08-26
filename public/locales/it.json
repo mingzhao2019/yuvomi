@@ -897,7 +897,7 @@
         "detailCalendar": "Calendario",
         "colorCurrent": "Colore attuale",
         "deleteExternalSeriesTitle": "Eliminare l’intera serie?",
-        "deleteExternalSeriesDetail": "«{{title}}» proviene da un calendario sincronizzato. Lì non è possibile escludere singole occorrenze: viene eliminata l’intera serie, anche nel calendario di origine.",
+        "deleteExternalSeriesDetail": "«{{title}}» proviene da un calendario sincronizzato. Lì non è possibile escludere singole occorrenze: viene eliminata l’intera serie, con tutte le sue occorrenze.",
         "deleteExternalSeriesConfirm": "Elimina serie",
         "deleteBirthdayEventTitle": "Eliminare l’evento di compleanno?",
         "deleteBirthdayEventDetail": "«{{title}}» è il riflesso di un compleanno. L’evento scompare, ma la prossima sincronizzazione lo ricrea: si elimina in modo definitivo solo dal compleanno stesso.",

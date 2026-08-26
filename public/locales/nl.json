@@ -897,7 +897,7 @@
         "detailCalendar": "Agenda",
         "colorCurrent": "Huidige kleur",
         "deleteExternalSeriesTitle": "Hele reeks verwijderen?",
-        "deleteExternalSeriesDetail": "\"{{title}}\" komt uit een gesynchroniseerde agenda. Afzonderlijke afspraken kunnen daar niet worden uitgesloten - de hele reeks wordt verwijderd, ook in de bronagenda.",
+        "deleteExternalSeriesDetail": "\"{{title}}\" komt uit een gesynchroniseerde agenda. Afzonderlijke afspraken kunnen daar niet worden uitgesloten - de hele reeks wordt verwijderd, met alle afspraken erin.",
         "deleteExternalSeriesConfirm": "Reeks verwijderen",
         "deleteBirthdayEventTitle": "Verjaardagsafspraak verwijderen?",
         "deleteBirthdayEventDetail": "\"{{title}}\" is de weerspiegeling van een verjaardag. De afspraak verdwijnt, maar de volgende synchronisatie maakt hem opnieuw aan - definitief verwijderen kan alleen via de verjaardag zelf.",

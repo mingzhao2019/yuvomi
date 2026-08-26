@@ -897,7 +897,7 @@
         "detailCalendar": "التقويم",
         "colorCurrent": "اللون الحالي",
         "deleteExternalSeriesTitle": "حذف السلسلة بأكملها؟",
-        "deleteExternalSeriesDetail": "\"{{title}}\" يأتي من تقويم متزامن. لا يمكن استثناء الأحداث الفردية هناك - سيتم حذف السلسلة بأكملها، وفي التقويم المصدر أيضًا.",
+        "deleteExternalSeriesDetail": "\"{{title}}\" يأتي من تقويم متزامن. لا يمكن استثناء الأحداث الفردية هناك - سيتم حذف السلسلة بأكملها بكل تكراراتها.",
         "deleteExternalSeriesConfirm": "حذف السلسلة",
         "deleteBirthdayEventTitle": "حذف حدث عيد الميلاد؟",
         "deleteBirthdayEventDetail": "\"{{title}}\" نسخة من إدخال عيد ميلاد. سيختفي الحدث، لكن المزامنة التالية ستعيد إنشاءه - لا يمكن إزالته نهائيًا إلا عبر عيد الميلاد نفسه.",

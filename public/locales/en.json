@@ -897,7 +897,7 @@
         "detailCalendar": "Calendar",
         "colorCurrent": "Current colour",
         "deleteExternalSeriesTitle": "Delete whole series?",
-        "deleteExternalSeriesDetail": "\"{{title}}\" comes from a synced calendar. Individual occurrences cannot be excluded there - the whole series is deleted, in the source calendar too.",
+        "deleteExternalSeriesDetail": "\"{{title}}\" comes from a synced calendar. Individual occurrences cannot be excluded there - the whole series is deleted, with every occurrence.",
         "deleteExternalSeriesConfirm": "Delete series",
         "deleteBirthdayEventTitle": "Delete birthday event?",
         "deleteBirthdayEventDetail": "\"{{title}}\" mirrors a birthday entry. The event disappears, but the next sync recreates it - it can only be removed for good via the birthday itself.",
