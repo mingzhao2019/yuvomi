@@ -1086,6 +1086,10 @@ function buildOutlookAccountCard(account, refresh, user) {
     syncBtn.disabled = true;
     try {
       await api.post('/calendar/outlook/sync');
+      // Outlook's calendar push and Microsoft To Do use separate sync
+      // endpoints. Keep them sequential: both may refresh the shared OAuth
+      // account token, and this single action promises a full Outlook sync.
+      await api.post('/calendar/outlook/todo/sync');
       showToast(t('settings.syncSuccess', { provider: 'Outlook' }), 'success');
       await refresh();
     } catch (err) {

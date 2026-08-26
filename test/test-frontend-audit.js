@@ -1399,6 +1399,12 @@ test('sync-calendar leaf loads CalDAV, Google, and Apple with independent status
   assert.match(source, /createDisclosure\(/);
   assert.match(source, /settings\.moreProviders/);
 
+  // One Outlook account action must run both the calendar push and the
+  // separate Microsoft To Do import; refreshing list metadata alone is not a
+  // task sync.
+  assert.match(source, /api\.post\('\/calendar\/outlook\/sync'\)/);
+  assert.match(source, /api\.post\('\/calendar\/outlook\/todo\/sync'\)/);
+
   // Google: provider-specific labelled, all endpoints preserved.
   assert.match(source, /settings\.providerSpecific/);
   assert.match(source, /api\.get\('\/calendar\/google\/status'\)/);
