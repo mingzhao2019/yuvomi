@@ -232,7 +232,11 @@ async function collectPages(path, accessToken, fetchImpl) {
 
 async function fetchRemoteLists(accessToken, fetchImpl = fetch) {
   return collectPages(
-    '/me/todo/lists?$select=id,displayName&$top=100',
+    // The To Do list collection rejects `$select` for displayName with an
+    // opaque "Invalid request" response, although the general Graph docs
+    // describe OData query parameters as optional here. Keep `$top` for the
+    // service's paging behaviour and read id/displayName from the full object.
+    '/me/todo/lists?$top=100',
     accessToken,
     fetchImpl,
   );

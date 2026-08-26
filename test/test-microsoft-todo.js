@@ -165,6 +165,7 @@ test('discovers lists, imports delta tasks, and persists the per-list cursor', a
     '/v1.0/me/todo/lists',
     '/v1.0/me/todo/lists/list-work/tasks/delta',
   ]);
+  assert.equal(calls[0].search, '?$top=100');
 });
 
 test('creates local tasks remotely and flushes deletion tombstones', async () => {
