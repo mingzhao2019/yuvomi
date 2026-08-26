@@ -120,7 +120,12 @@ test('discovers lists, imports delta tasks, and persists the per-list cursor', a
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
     const parsed = new URL(url);
-    calls.push({ path: parsed.pathname, search: parsed.search, method: options.method || 'GET' });
+    calls.push({
+      path: parsed.pathname,
+      search: parsed.search,
+      method: options.method || 'GET',
+      headers: options.headers || {},
+    });
     if (parsed.pathname === '/v1.0/me/todo/lists') {
       return response(200, { value: [{ id: 'list-work', displayName: 'Work' }] });
     }
@@ -166,6 +171,43 @@ test('discovers lists, imports delta tasks, and persists the per-list cursor', a
     '/v1.0/me/todo/lists/list-work/tasks/delta',
   ]);
   assert.equal(calls[0].search, '?$top=100');
+  assert.equal(calls[1].search, '');
+  assert.equal(calls[1].headers['Content-Type'], 'application/json');
+});
+
+test('falls back to a full task snapshot when a personal account rejects delta', async () => {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    calls.push({ path: parsed.pathname, search: parsed.search });
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-fallback', displayName: 'Fallback' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-fallback/tasks/delta') {
+      return response(400, { error: { message: 'Invalid request' } });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-fallback/tasks') {
+      return response(200, {
+        value: [{
+          id: 'remote-fallback-1',
+          title: 'Imported through snapshot',
+          body: { content: '', contentType: 'text' },
+          status: 'notStarted',
+          importance: 'normal',
+        }],
+      });
+    }
+    throw new Error(`Unexpected Graph request ${parsed.pathname}${parsed.search}`);
+  };
+
+  const result = await todo.__test.fetchTaskDelta('list-fallback', null, 'access', fetchImpl);
+  assert.deepEqual(calls.map((call) => call.path), [
+    '/v1.0/me/todo/lists/list-fallback/tasks/delta',
+    '/v1.0/me/todo/lists/list-fallback/tasks',
+  ]);
+  assert.equal(result.deltaLink, null);
+  assert.equal(result.fullResync, true);
+  assert.equal(result.tasks[0].title, 'Imported through snapshot');
 });
 
 test('creates local tasks remotely and flushes deletion tombstones', async () => {

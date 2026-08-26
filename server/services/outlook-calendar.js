@@ -380,12 +380,17 @@ async function handleCallback(code, fetchImpl = fetch) {
 // Graph-HTTP-Helfer
 // --------------------------------------------------------
 
-async function graphRequest(path, accessToken, { method = 'GET', body } = {}, fetchImpl = fetch) {
+async function graphRequest(path, accessToken, {
+  method = 'GET',
+  body,
+  headers: extraHeaders = {},
+} = {}, fetchImpl = fetch) {
   const doFetch = () => fetchImpl(`${GRAPH_BASE}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
       ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...extraHeaders,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });

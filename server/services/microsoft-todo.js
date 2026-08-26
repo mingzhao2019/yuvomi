@@ -243,8 +243,15 @@ async function fetchRemoteLists(accessToken, fetchImpl = fetch) {
 }
 
 function initialDeltaPath(listId) {
-  return `/me/todo/lists/${encodeURIComponent(listId)}/tasks/delta`
-    + '?$select=id,title,body,status,importance,dueDateTime,createdDateTime,lastModifiedDateTime&$top=100';
+  // Personal Microsoft accounts currently return "Invalid request" for this
+  // delta endpoint when optional OData parameters are present, even though
+  // the Graph documentation lists $select and $top as supported. Let Graph
+  // choose the page size and consume every returned property instead.
+  return `${taskCollectionPath(listId)}/delta`;
+}
+
+function taskCollectionPath(listId) {
+  return `/me/todo/lists/${encodeURIComponent(listId)}/tasks`;
 }
 
 async function fetchTaskDelta(listId, cursor, accessToken, fetchImpl = fetch, allowFullResync = true) {
@@ -253,7 +260,11 @@ async function fetchTaskDelta(listId, cursor, accessToken, fetchImpl = fetch, al
   let deltaLink = null;
   try {
     while (path) {
-      const data = await graphJson(path, accessToken, {}, fetchImpl);
+      const data = await graphJson(path, accessToken, {
+        // Microsoft Graph documents this header as required for todoTask
+        // delta requests, including GET requests without a body.
+        headers: { 'Content-Type': 'application/json' },
+      }, fetchImpl);
       if (Array.isArray(data.value)) tasks.push(...data.value);
       path = graphPath(data['@odata.nextLink']);
       if (!path) deltaLink = graphPath(data['@odata.deltaLink']);
@@ -264,6 +275,14 @@ async function fetchTaskDelta(listId, cursor, accessToken, fetchImpl = fetch, al
     if (allowFullResync && cursor && [400, 410].includes(error.status)) {
       const full = await fetchTaskDelta(listId, null, accessToken, fetchImpl, false);
       return { ...full, fullResync: true };
+    }
+    // Some personal Microsoft accounts reject the delta route itself with a
+    // generic 400. Fall back to the ordinary task collection so the first
+    // import still works; a full snapshot is authoritative and is reconciled
+    // by applyRemoteTasks(). With no delta cursor, the next run retries delta.
+    if (!cursor && error.status === 400) {
+      const snapshot = await collectPages(taskCollectionPath(listId), accessToken, fetchImpl);
+      return { tasks: snapshot.values, deltaLink: null, fullResync: true };
     }
     throw error;
   }
