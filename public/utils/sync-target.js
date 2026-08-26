@@ -13,6 +13,7 @@
  *   'google:<calendarId>'           Google-Kalender
  *   'caldav:<accountId>|<url>'      CalDAV-Kalender eines Kontos
  *   'outlook:<accountId>|<id>'      Outlook-Kalender eines Kontos (Graph-Id)
+ *   'microsoft_todo:<accountId>|<id>' Microsoft-To-Do-Liste (Graph-Id)
  */
 
 export const SYNC_TARGET_LOCAL = '';
@@ -32,6 +33,11 @@ export function outlookTargetValue(accountId, calendarId) {
   return `outlook:${accountId}|${calendarId}`;
 }
 
+/** @returns {string} Kennung einer Microsoft-To-Do-Liste. */
+export function microsoftTodoTargetValue(accountId, listId) {
+  return `microsoft_todo:${accountId}|${listId}`;
+}
+
 /**
  * Zerlegt eine Kennung in ihre Bestandteile.
  *
@@ -42,6 +48,7 @@ export function outlookTargetValue(accountId, calendarId) {
  *          |{kind: 'google', calendarId: string}
  *          |{kind: 'caldav', accountId: number, calendarUrl: string}
  *          |{kind: 'outlook', accountId: number, calendarId: string}
+ *          |{kind: 'microsoft_todo', accountId: number, listId: string}
  *          |null} null bei unbekanntem Format.
  */
 export function parseSyncTargetValue(value) {
@@ -73,6 +80,16 @@ export function parseSyncTargetValue(value) {
     return { kind: 'outlook', accountId, calendarId };
   }
 
+  if (raw.startsWith('microsoft_todo:')) {
+    const rest = raw.slice('microsoft_todo:'.length);
+    const separator = rest.indexOf('|');
+    if (separator < 1) return null;
+    const accountId = Number(rest.slice(0, separator));
+    const listId = rest.slice(separator + 1);
+    if (!Number.isInteger(accountId) || accountId < 1 || !listId) return null;
+    return { kind: 'microsoft_todo', accountId, listId };
+  }
+
   return null;
 }
 
@@ -84,8 +101,8 @@ export function parseSyncTargetValue(value) {
  * Option nach: sonst zeigte die Oberfläche "Lokal speichern" an, während in der
  * Datenbank etwas anderes steht.
  *
- * @param {{google?: Array, caldav?: Array, outlook?: Array}} targets
- * @param {{local: string, google: string, caldav: string, outlook?: string, unavailable: string}} labels
+ * @param {{google?: Array, caldav?: Array, outlook?: Array, microsoft_todo?: Array}} targets
+ * @param {{local: string, google: string, caldav: string, outlook?: string, microsoftTodo?: string, unavailable: string}} labels
  * @param {string} current
  * @returns {Array<{value: string, label: string, group: string|null}>}
  */
@@ -113,6 +130,14 @@ export function buildSyncTargetOptions(targets, labels, current = '') {
       value: outlookTargetValue(cal.accountId, cal.calendarId),
       label: cal.calendarName || cal.calendarId,
       group: `${labels.outlook ?? 'Outlook'} · ${cal.accountName}`,
+    });
+  }
+
+  for (const list of targets?.microsoft_todo || []) {
+    options.push({
+      value: microsoftTodoTargetValue(list.accountId, list.listId),
+      label: list.listName || list.listId,
+      group: `${labels.microsoftTodo ?? 'Microsoft To Do'} · ${list.accountName}`,
     });
   }
 

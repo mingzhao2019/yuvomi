@@ -24,6 +24,7 @@ import * as inventoryDeadlinesIcs from './services/inventory-deadlines-ics.js';
 import * as caldavReminders from './services/caldav-reminders-sync.js';
 import * as caldavSync from './services/caldav-sync.js';
 import * as outlookCalendar from './services/outlook-calendar.js';
+import * as microsoftTodo from './services/microsoft-todo.js';
 import * as carddavSync from './services/cardav-sync.js';
 import * as holidays from './services/holidays.js';
 import { startScheduler as startBackupScheduler } from './services/backup-scheduler.js';
@@ -562,6 +563,7 @@ async function runSync() {
   // Outlook-Push (Microsoft Graph, one-way): kein Guard nötig — sync() kehrt sofort
   // zurück, wenn keine Konten verbunden sind.
   outlookCalendar.sync().catch((e) => logSync.error('Outlook error:', e.message));
+  microsoftTodo.sync().catch((e) => logSync.error('Microsoft To Do error:', e.message));
 
   // CardDAV Kontakte: kein Guard nötig — sync() kehrt sofort zurück, wenn keine
   // Accounts konfiguriert sind.

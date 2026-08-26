@@ -1,8 +1,11 @@
 # Notification webhooks
 
-Yuvomi can deliver every due reminder to a generic HTTP webhook in addition to
-Web Push, Gotify, and ntfy. Webhook channels use the same per-channel delivery
-tracking, retry, and deduplication flow as the other notification providers.
+Yuvomi can deliver every native server-side notification to a generic HTTP
+webhook or to songquanpeng/message-pusher, in addition to Web Push, Gotify, and
+ntfy. This includes task, calendar, inventory, pantry, subscription, medication,
+and task-comment mention notifications. Reminder notifications use the existing
+delivery tracking, retry, and deduplication flow; immediate medication and
+mention notifications remain best-effort.
 
 ## Configure a channel
 
@@ -17,6 +20,16 @@ Only administrators can manage household notification channels.
 6. Optionally enter a **payload template** if the receiver expects a body of its
    own shape. Leaving it empty sends the default body described below.
 7. Save the channel, enable it, and use **Send test** to verify the endpoint.
+
+For `message-pusher`, choose that provider, enter the message-pusher base URL
+and username, then choose GET or POST. POST JSON is the default and recommended
+format. The adapter sends `title` plus either Markdown `content` or
+`description`, the configured `channel`, and the write-only token.
+
+The message-pusher endpoint is built as `/push/<username>`. GET puts the fields
+in the query string. POST JSON sets `Content-Type: application/json`; POST Form
+uses form encoding. POST can also put `token` in the URL query when explicitly
+selected. This follows the upstream API contract.
 
 The receiver must return a successful HTTP status (`2xx`). Failed deliveries
 are retried by the notification scheduler with the same backoff and attempt
@@ -81,6 +94,22 @@ Notes:
 - Leave the field empty to keep the default body. Existing webhook channels are
   unaffected.
 
+## message-pusher example
+
+With base URL `https://push.example.com`, username `alice`, channel `lark`, and
+POST JSON selected, a delivery is sent to:
+
+```http
+POST https://push.example.com/push/alice
+Content-Type: application/json
+
+{"title":"Tasks","content":"Reply to colleague","channel":"lark","token":"..."}
+```
+
+The token is never returned by the API or included in Yuvomi error messages.
+If message-pusher returns HTTP success with `success: false`, Yuvomi still
+records the delivery as failed.
+
 ## Security notes
 
 - Use HTTPS whenever the endpoint is outside a trusted private network.
@@ -91,4 +120,5 @@ Notes:
   renewal date.
 - Rotate a token by entering a replacement in the channel form. Leaving the
   field empty preserves the stored token.
-
+- Prefer POST JSON for message-pusher. GET and POST query-token modes expose the
+  token to URL logging in reverse proxies and web servers.

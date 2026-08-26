@@ -13,6 +13,7 @@ const DEFAULT_PROVIDERS = [
   { id: 'gotify', name: 'Gotify' },
   { id: 'ntfy', name: 'ntfy' },
   { id: 'webhook', name: 'Webhook' },
+  { id: 'message_pusher', name: 'message-pusher' },
 ];
 
 function selected(value, expected) {
@@ -38,6 +39,18 @@ function channelDefaults(provider = 'gotify') {
       // (Discord, Slack) tragen hier ihre Form ein, statt einen Adapter je Dienst
       // zu brauchen (#692).
       config: { baseUrl: '', payloadTemplate: '' },
+      secretSet: false,
+    };
+  }
+  if (provider === 'message_pusher') {
+    return {
+      provider: 'message_pusher',
+      name: '',
+      enabled: false,
+      config: {
+        baseUrl: '', username: '', method: 'POST', postFormat: 'json',
+        messageField: 'content', channel: '', tokenInQuery: false,
+      },
       secretSet: false,
     };
   }
@@ -126,6 +139,7 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS) {
     const suffix = channel.id ? `existing-${channel.id}` : `new-${index}`;
     const isNtfy = channel.provider === 'ntfy';
     const isWebhook = channel.provider === 'webhook';
+    const isMessagePusher = channel.provider === 'message_pusher';
     list.insertAdjacentHTML('beforeend', `
       <form class="settings-card settings-form notification-channel-form" data-channel-index="${index}" data-channel-id="${esc(channel.id ?? '')}">
         <h3 class="settings-card__title">${esc(channel.name || t('settings.notificationChannelAdd'))}</h3>
@@ -168,6 +182,46 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS) {
             <textarea class="form-input" id="notification-webhook-template-${suffix}" name="webhookTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelWebhookTemplatePlaceholder'))}">${esc(channel.config.payloadTemplate ?? '')}</textarea>
             <p class="form-hint">${t('settings.notificationChannelWebhookTemplateHint')}</p>
           </div>
+        </div>
+        <div class="notification-provider-fields notification-provider-fields--message-pusher${isMessagePusher ? '' : ' settings-card--hidden'}">
+          <div class="form-field">
+            <label class="form-label" for="notification-message-pusher-username-${suffix}">${t('settings.notificationChannelMessagePusherUsername')}</label>
+            <input class="form-input" id="notification-message-pusher-username-${suffix}" name="messagePusherUsername" value="${esc(channel.config.username ?? '')}">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="notification-message-pusher-method-${suffix}">${t('settings.notificationChannelMessagePusherMethod')}</label>
+            <select class="form-input" id="notification-message-pusher-method-${suffix}" name="messagePusherMethod">
+              <option value="POST"${selected(channel.config.method ?? 'POST', 'POST')}>POST</option>
+              <option value="GET"${selected(channel.config.method ?? 'POST', 'GET')}>GET</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="notification-message-pusher-format-${suffix}">${t('settings.notificationChannelMessagePusherFormat')}</label>
+            <select class="form-input" id="notification-message-pusher-format-${suffix}" name="messagePusherFormat">
+              <option value="json"${selected(channel.config.postFormat ?? 'json', 'json')}>JSON</option>
+              <option value="form"${selected(channel.config.postFormat ?? 'json', 'form')}>Form</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="notification-message-pusher-channel-${suffix}">${t('settings.notificationChannelMessagePusherChannel')}</label>
+            <input class="form-input" id="notification-message-pusher-channel-${suffix}" name="messagePusherChannel" value="${esc(channel.config.channel ?? '')}">
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="notification-message-pusher-field-${suffix}">${t('settings.notificationChannelMessagePusherField')}</label>
+            <select class="form-input" id="notification-message-pusher-field-${suffix}" name="messagePusherField">
+              <option value="content"${selected(channel.config.messageField ?? 'content', 'content')}>${t('settings.notificationChannelMessagePusherContent')}</option>
+              <option value="description"${selected(channel.config.messageField ?? 'content', 'description')}>${t('settings.notificationChannelMessagePusherDescription')}</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="notification-message-pusher-token-${suffix}">${t('settings.notificationChannelWebhookToken')}</label>
+            <input class="form-input" id="notification-message-pusher-token-${suffix}" name="messagePusherToken" type="password" autocomplete="new-password" placeholder="${channel.secretSet ? esc(t('settings.notificationChannelSecretKeep')) : ''}">
+          </div>
+          <label class="form-checkbox">
+            <input type="checkbox" name="messagePusherTokenQuery"${channel.config.tokenInQuery ? ' checked' : ''}>
+            <span>${t('settings.notificationChannelMessagePusherTokenQuery')}</span>
+          </label>
+          <p class="form-hint">${t('settings.notificationChannelMessagePusherHint')}</p>
         </div>
         <div class="notification-provider-fields notification-provider-fields--ntfy${isNtfy ? '' : ' settings-card--hidden'}">
           <div class="form-field">
@@ -237,6 +291,14 @@ function readChannelForm(form) {
   } else if (provider === 'webhook') {
     body.config.payloadTemplate = form.elements.webhookTemplate.value.trim();
     if (form.elements.webhookToken.value) body.secrets.token = form.elements.webhookToken.value;
+  } else if (provider === 'message_pusher') {
+    body.config.username = form.elements.messagePusherUsername.value.trim();
+    body.config.method = form.elements.messagePusherMethod.value;
+    body.config.postFormat = form.elements.messagePusherFormat.value;
+    body.config.channel = form.elements.messagePusherChannel.value.trim();
+    body.config.messageField = form.elements.messagePusherField.value;
+    body.config.tokenInQuery = form.elements.messagePusherTokenQuery.checked;
+    if (form.elements.messagePusherToken.value) body.secrets.token = form.elements.messagePusherToken.value;
   } else {
     body.config.priority = Number(form.elements.gotifyPriority.value || 5);
     if (form.elements.gotifyToken.value) body.secrets.appToken = form.elements.gotifyToken.value;
@@ -250,6 +312,7 @@ function updateProviderVisibility(form) {
   form.querySelector('.notification-provider-fields--gotify')?.classList.toggle('settings-card--hidden', provider !== 'gotify');
   form.querySelector('.notification-provider-fields--ntfy')?.classList.toggle('settings-card--hidden', provider !== 'ntfy');
   form.querySelector('.notification-provider-fields--webhook')?.classList.toggle('settings-card--hidden', provider !== 'webhook');
+  form.querySelector('.notification-provider-fields--message-pusher')?.classList.toggle('settings-card--hidden', provider !== 'message_pusher');
   const auth = form.elements.ntfyAuth?.value || 'none';
   form.querySelector('.notification-ntfy-token-field')?.classList.toggle('settings-card--hidden', auth !== 'token');
   form.querySelectorAll('.notification-ntfy-basic-field').forEach((field) => {

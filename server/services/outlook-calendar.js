@@ -25,7 +25,9 @@ import { householdTimeZone } from '../utils/timezone.js';
 const AUTH_BASE  = 'https://login.microsoftonline.com/consumers/oauth2/v2.0';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 // User.Read wird für GET /me (Anzeigename + E-Mail der Konto-Zeile) benötigt.
-const SCOPES = 'offline_access Calendars.ReadWrite User.Read';
+// Tasks.ReadWrite is deliberately added to this existing consent flow so
+// Microsoft To Do does not get a second account table or callback.
+const SCOPES = 'offline_access Calendars.ReadWrite Tasks.ReadWrite User.Read';
 
 // Die Zone, in der Yuvomi seine zonenlosen Wanduhrzeiten meint. Bis v2.27.0 stand
 // hier fest 'Europe/Berlin' - als "Parität mit dem Google-Outbound" begründet,
@@ -43,6 +45,11 @@ class ReauthRequiredError extends Error {
     this.name = 'ReauthRequiredError';
   }
 }
+
+// Outlook Calendar and Microsoft To Do deliberately share one OAuth account.
+// Refresh tokens may rotate, so concurrent scheduler/request refreshes must
+// collapse into one request instead of racing with the same old refresh token.
+const tokenRefreshes = new Map();
 
 function envConfig() {
   return {
@@ -79,8 +86,8 @@ function assertConfigured() {
 // Konten
 // --------------------------------------------------------
 
-function getAccountById(accountId) {
-  return db.get().prepare('SELECT * FROM outlook_accounts WHERE id = ?').get(accountId);
+function getAccountById(accountId, database = db.get()) {
+  return database.prepare('SELECT * FROM outlook_accounts WHERE id = ?').get(accountId);
 }
 
 function getAllAccounts() {
@@ -90,8 +97,8 @@ function getAllAccounts() {
 function listAccounts() {
   // Tokens bewusst NICHT zurückgeben (Muster caldav-sync.listAccounts).
   return db.get().prepare(`
-    SELECT id, name, email, needs_reauth, created_at, last_sync, last_error,
-           auto_sync_calendar_id, owner_user_id
+    SELECT id, name, email, needs_reauth, todo_needs_reauth, created_at,
+           last_sync, last_error, auto_sync_calendar_id, owner_user_id
     FROM outlook_accounts
     ORDER BY created_at DESC
   `).all().map((acc) => ({
@@ -99,6 +106,7 @@ function listAccounts() {
     name: acc.name,
     email: acc.email,
     needsReauth: acc.needs_reauth === 1,
+    todoNeedsReauth: acc.todo_needs_reauth === 1,
     createdAt: acc.created_at,
     lastSync: acc.last_sync,
     lastError: acc.last_error,
@@ -180,6 +188,22 @@ function deleteAccount(accountId) {
     SET target_outlook_account_id = NULL, target_outlook_calendar_id = NULL
     WHERE target_outlook_account_id = ?
   `).run(accountId);
+  // To Do mirrors are household data. Detach them before removing the OAuth
+  // account, just like CalDAV mirrors, so a disconnected account cannot leave
+  // tasks pointing at a provider identity that can no longer be synchronized.
+  db.get().prepare(`
+    UPDATE tasks
+       SET external_source = 'local', external_uid = NULL,
+           external_account_id = NULL, external_object_url = NULL,
+           outbound_dirty = 0, outbound_attempts = 0
+     WHERE external_source = 'microsoft_todo' AND external_account_id = ?
+  `).run(accountId);
+  // To Do list identities belong to this OAuth account. Removing them also
+  // clears the task-list navigation for a deliberately disconnected account;
+  // the FK turns mirrored tasks into unassigned local tasks.
+  db.get().prepare(`
+    DELETE FROM task_lists WHERE provider = 'microsoft_todo' AND external_account_id = ?
+  `).run(accountId);
   // CASCADE räumt outlook_calendar_selection + outlook_event_links auf.
   db.get().prepare('DELETE FROM outlook_accounts WHERE id = ?').run(accountId);
 
@@ -213,15 +237,16 @@ function getAuthUrl(session) {
   return `${AUTH_BASE}/authorize?${params.toString()}`;
 }
 
-async function tokenRequest(bodyParams, fetchImpl = fetch) {
+async function tokenRequest(bodyParams, fetchImpl = fetch, { scope = SCOPES } = {}) {
   const { clientId, clientSecret, redirectUri } = requireConfig();
-  const body = new URLSearchParams({
+  const params = {
     client_id:     clientId,
     client_secret: clientSecret,
     redirect_uri:  redirectUri,
-    scope:         SCOPES,
     ...bodyParams,
-  });
+  };
+  if (scope) params.scope = scope;
+  const body = new URLSearchParams(params);
   const res = await fetchImpl(`${AUTH_BASE}/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -251,32 +276,60 @@ function expiryFromNow(expiresIn) {
  * Bei invalid_grant: needs_reauth=1 setzen und ReauthRequiredError werfen.
  * @returns {Promise<string>} Access-Token
  */
-async function ensureAccessToken(account, fetchImpl = fetch) {
-  const expiry = account.token_expiry ? Date.parse(account.token_expiry) : 0;
-  if (account.access_token && expiry - Date.now() > 5 * 60_000) {
-    return account.access_token;
-  }
-  let data;
-  try {
-    data = await tokenRequest(
-      { grant_type: 'refresh_token', refresh_token: account.refresh_token },
-      fetchImpl
-    );
-  } catch (err) {
-    if (err instanceof ReauthRequiredError) {
-      db.get().prepare(`
-        UPDATE outlook_accounts SET needs_reauth = 1, last_error = ? WHERE id = ?
-      `).run(`Reconnect required: ${err.message}`, account.id);
+async function ensureAccessToken(account, fetchImpl = fetch, database = db.get()) {
+  const accountId = account?.id;
+  const readCurrent = () => (accountId == null
+    ? account
+    : database.prepare('SELECT * FROM outlook_accounts WHERE id = ?').get(accountId) || account);
+  const isValid = (current) => {
+    const expiry = current?.token_expiry ? Date.parse(current.token_expiry) : 0;
+    return !!(current?.access_token && expiry - Date.now() > 5 * 60_000);
+  };
+
+  const current = readCurrent();
+  if (isValid(current)) return current.access_token;
+  if (accountId != null && tokenRefreshes.has(accountId)) return tokenRefreshes.get(accountId);
+
+  const pending = (async () => {
+    // Re-read after acquiring the logical slot: another caller may have
+    // refreshed the account immediately before this promise was registered.
+    const latest = readCurrent();
+    if (isValid(latest)) return latest.access_token;
+
+    let data;
+    try {
+      data = await tokenRequest(
+        { grant_type: 'refresh_token', refresh_token: latest.refresh_token },
+        fetchImpl,
+        // Do not ask legacy Calendar-only grants for the newly added Tasks
+        // scope. Their calendar refresh remains valid; Graph will mark only To
+        // Do as requiring consent until the user reconnects through OAuth.
+        { scope: null },
+      );
+    } catch (err) {
+      if (err instanceof ReauthRequiredError) {
+        database.prepare(`
+          UPDATE outlook_accounts SET needs_reauth = 1, last_error = ? WHERE id = ?
+        `).run(`Reconnect required: ${err.message}`, latest.id);
+      }
+      throw err;
     }
-    throw err;
+    database.prepare(`
+      UPDATE outlook_accounts
+      SET access_token = ?, refresh_token = COALESCE(?, refresh_token),
+          token_expiry = ?, needs_reauth = 0
+      WHERE id = ?
+    `).run(data.access_token, data.refresh_token || null, expiryFromNow(data.expires_in), latest.id);
+    return data.access_token;
+  })();
+
+  if (accountId == null) return pending;
+  tokenRefreshes.set(accountId, pending);
+  try {
+    return await pending;
+  } finally {
+    if (tokenRefreshes.get(accountId) === pending) tokenRefreshes.delete(accountId);
   }
-  db.get().prepare(`
-    UPDATE outlook_accounts
-    SET access_token = ?, refresh_token = COALESCE(?, refresh_token),
-        token_expiry = ?, needs_reauth = 0
-    WHERE id = ?
-  `).run(data.access_token, data.refresh_token || null, expiryFromNow(data.expires_in), account.id);
-  return data.access_token;
 }
 
 /**
@@ -305,7 +358,7 @@ async function handleCallback(code, fetchImpl = fetch) {
     db.get().prepare(`
       UPDATE outlook_accounts
       SET email = ?, access_token = ?, refresh_token = ?, token_expiry = ?,
-          needs_reauth = 0, last_error = NULL
+          needs_reauth = 0, todo_needs_reauth = 0, last_error = NULL
       WHERE id = ?
     `).run(email, tokens.access_token, tokens.refresh_token, expiryFromNow(tokens.expires_in), existing.id);
     accountId = existing.id;
@@ -358,6 +411,35 @@ async function graphJson(path, accessToken, options = {}, fetchImpl = fetch) {
     throw err;
   }
   return data;
+}
+
+/**
+ * Convert a Graph nextLink/deltaLink into the relative path accepted by the
+ * shared Graph helper. Never persist or return the access token from a link.
+ */
+function graphPath(value) {
+  if (!value) return null;
+  const raw = String(value);
+  const apiPath = new URL(GRAPH_BASE).pathname.replace(/\/$/, '');
+  const stripApiPrefix = (pathname, search = '') => {
+    if (pathname === apiPath) return search || '/';
+    if (pathname.startsWith(`${apiPath}/`)) {
+      return `${pathname.slice(apiPath.length)}${search}`;
+    }
+    return `${pathname}${search}`;
+  };
+  try {
+    const url = new URL(raw);
+    if (url.origin !== new URL(GRAPH_BASE).origin) return null;
+    return stripApiPrefix(url.pathname, url.search);
+  } catch {
+    const relative = raw.startsWith('/') ? raw : `/${raw}`;
+    const split = relative.indexOf('?');
+    return stripApiPrefix(
+      split === -1 ? relative : relative.slice(0, split),
+      split === -1 ? '' : relative.slice(split),
+    );
+  }
 }
 
 // --------------------------------------------------------
@@ -868,6 +950,10 @@ export {
   listCalendarSelection,
   setCalendarEnabled,
   assertConfigured,
+  getAccountById,
+  ensureAccessToken,
+  graphJson,
+  graphPath,
 };
 
 export const __test = {
@@ -879,6 +965,8 @@ export const __test = {
   collectCandidates,
   fetchRemoteEventStates,
   ensureAccessToken,
+  graphJson,
+  graphPath,
   refreshCalendarSelection,
   ReauthRequiredError,
 };

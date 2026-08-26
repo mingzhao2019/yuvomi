@@ -10,14 +10,13 @@ import { createLogger } from '../logger.js';
 import * as dbModule from '../db.js';
 import { pushService as defaultPushService } from './push.js';
 import { createNotificationChannelStore } from './notification-channels.js';
-import { defaultProviders } from './notifications.js';
+import { defaultProviders, fanOutNotification } from './notifications.js';
 import { resolveHouseholdLocale, translate } from '../utils/i18n.js';
 
 const log = createLogger('MedicationScheduler');
 const APP_NAME = 'Yuvomi';
 // Fallback-Body, falls der Medikamentenname fehlt: nie den App-Namen wiederholen (#581).
 const FALLBACK_BODY = 'Medication reminder';
-const PROVIDER_TIMEOUT_MS = 8_000;
 
 /** Lokaler Datums-Key (YYYY-MM-DD) ohne UTC-Shift. */
 function localDateKey(d) {
@@ -45,16 +44,6 @@ function scheduleDueOnDate(schedule, dateKey) {
   if (schedule.end_date && dateKey > schedule.end_date) return false;
   if (schedule.days_mask === null || schedule.days_mask === undefined) return true;
   return (schedule.days_mask & (1 << weekdayIndex(dateKey))) !== 0;
-}
-
-async function withTimeout(fn, timeoutMs = PROVIDER_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fn(controller.signal);
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 /**
@@ -127,26 +116,17 @@ export async function processDueMedications({
     };
     counters.notified += 1;
 
-    try {
-      const sent = await pushService.sendPushToUser(dose.ownerId, payload);
-      if (sent > 0) counters.sent += 1;
-    } catch (err) {
-      counters.failed += 1;
-      log.error(`Web Push failed for medication ${dose.medicationId}:`, err?.message || err);
-    }
-
-    const channels = store.listEnabledChannelsForUser(dose.ownerId);
-    for (const channel of channels) {
-      const provider = providers[channel.provider];
-      if (!provider) continue;
-      try {
-        await withTimeout((signal) => provider.send({ channel, payload, fetchImpl, signal }));
-        counters.sent += 1;
-      } catch (err) {
-        counters.failed += 1;
-        log.error(`Channel delivery failed for medication ${dose.medicationId}:`, err?.message || err);
-      }
-    }
+    const fanout = await fanOutNotification({
+      userId: dose.ownerId,
+      payload,
+      database: activeDb,
+      pushService,
+      channelStore: store,
+      providers,
+      fetchImpl,
+    });
+    counters.sent += fanout.sent;
+    counters.failed += fanout.failed;
   }
 
   if (counters.created) log.info(`Created ${counters.created} due medication dose(s).`);

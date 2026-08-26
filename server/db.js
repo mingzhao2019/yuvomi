@@ -6535,8 +6535,184 @@ const MIGRATIONS = [
             LIMIT 1
          )
        WHERE external_source = 'caldav'
-         AND task_list_id IS NULL
+       AND task_list_id IS NULL
          AND external_object_url IS NOT NULL;
+    `,
+  },
+  {
+    version: 166,
+    description: 'Microsoft To Do task lists, delta cursors, and outbound deletion tombstones',
+    foreignKeysOff: true,
+    up: `
+      -- Microsoft To Do reuses outlook_accounts and its delegated Graph token.
+      -- The list row is the durable provider-independent identity exposed by
+      -- the Tasks navigation. enabled is a selection flag; the cursor belongs
+      -- to a list because Graph exposes one delta feed per todo list.
+      ALTER TABLE task_lists ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE task_lists ADD COLUMN sync_cursor TEXT;
+      ALTER TABLE task_lists ADD COLUMN last_sync TEXT;
+      ALTER TABLE task_lists ADD COLUMN last_error TEXT;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS uniq_task_lists_microsoft_todo_id
+        ON task_lists(provider, external_account_id, external_list_id)
+        WHERE provider = 'microsoft_todo'
+          AND external_account_id IS NOT NULL
+          AND external_list_id IS NOT NULL;
+
+      -- Calendar and To Do share the OAuth account, but a missing Tasks.ReadWrite
+      -- consent must not disable an otherwise healthy calendar connection.
+      ALTER TABLE outlook_accounts ADD COLUMN todo_needs_reauth INTEGER NOT NULL DEFAULT 0;
+
+      -- DELETE removes the local task before the next sync. Keep the Graph task
+      -- identity as a tombstone until the remote delete succeeds.
+      CREATE TABLE IF NOT EXISTS microsoft_todo_pending_deletions (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id INTEGER NOT NULL REFERENCES outlook_accounts(id) ON DELETE CASCADE,
+        list_id    TEXT    NOT NULL,
+        task_uid   TEXT    NOT NULL,
+        attempts   INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        UNIQUE(account_id, list_id, task_uid)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_microsoft_todo_deletions_account
+        ON microsoft_todo_pending_deletions(account_id);
+
+      -- The historical tasks table predates Microsoft To Do and its
+      -- external_source CHECK therefore cannot accept the new provider. SQLite
+      -- has no ALTER CHECK; rebuild the table while preserving every current
+      -- column, identity, index, trigger, and AUTOINCREMENT high-water mark.
+      CREATE TABLE tasks_new (
+        id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+        title                   TEXT    NOT NULL,
+        description             TEXT,
+        category                TEXT    NOT NULL DEFAULT 'misc',
+        priority                TEXT    NOT NULL DEFAULT 'none'
+                                        CHECK(priority IN ('none', 'low', 'medium', 'high', 'urgent')),
+        status                  TEXT    NOT NULL DEFAULT 'open'
+                                        CHECK(status IN ('open', 'in_progress', 'done', 'archived')),
+        due_date                TEXT,
+        due_time                TEXT,
+        assigned_to             INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_by              INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        is_recurring            INTEGER NOT NULL DEFAULT 0,
+        recurrence_rule         TEXT,
+        parent_task_id          INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+        created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        start_date              TEXT,
+        external_uid            TEXT,
+        external_source         TEXT    NOT NULL DEFAULT 'local'
+                                        CHECK(external_source IN ('local', 'google', 'apple', 'caldav', 'microsoft_todo')),
+        external_account_id     INTEGER,
+        points                  INTEGER NOT NULL DEFAULT 0,
+        visibility              TEXT    NOT NULL DEFAULT 'all',
+        external_object_url     TEXT,
+        outbound_dirty          INTEGER NOT NULL DEFAULT 0,
+        outbound_attempts       INTEGER NOT NULL DEFAULT 0,
+        recurrence_origin_id    INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+        recurrence_from_completion INTEGER NOT NULL DEFAULT 0,
+        archived_at             TEXT,
+        target_caldav_account_id INTEGER,
+        target_caldav_list_url  TEXT,
+        countdown               INTEGER NOT NULL DEFAULT 0,
+        locked                  INTEGER NOT NULL DEFAULT 0,
+        task_list_id            INTEGER REFERENCES task_lists(id) ON DELETE SET NULL
+      );
+
+      INSERT INTO tasks_new (
+        id, title, description, category, priority, status, due_date, due_time,
+        assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
+        created_at, updated_at, start_date, external_uid, external_source,
+        external_account_id, points, visibility, external_object_url,
+        outbound_dirty, outbound_attempts, recurrence_origin_id,
+        recurrence_from_completion, archived_at, target_caldav_account_id,
+        target_caldav_list_url, countdown, locked, task_list_id
+      )
+      SELECT
+        id, title, description, category, priority, status, due_date, due_time,
+        assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
+        created_at, updated_at, start_date, external_uid, external_source,
+        external_account_id, points, visibility, external_object_url,
+        outbound_dirty, outbound_attempts, recurrence_origin_id,
+        recurrence_from_completion, archived_at, target_caldav_account_id,
+        target_caldav_list_url, countdown, locked, task_list_id
+      FROM tasks;
+
+      CREATE TEMP TABLE _tasks_seq AS
+        SELECT COALESCE((SELECT seq FROM sqlite_sequence WHERE name = 'tasks'), 0) AS seq;
+
+      DROP TRIGGER IF EXISTS trg_tasks_updated_at;
+      DROP TRIGGER IF EXISTS trg_search_tasks_ai;
+      DROP TRIGGER IF EXISTS trg_search_tasks_au;
+      DROP TRIGGER IF EXISTS trg_search_tasks_ad;
+      DROP TRIGGER IF EXISTS trg_search_task_tags_ai;
+      DROP TRIGGER IF EXISTS trg_search_task_tags_ad;
+      DROP TABLE tasks;
+      ALTER TABLE tasks_new RENAME TO tasks;
+
+      UPDATE sqlite_sequence
+         SET seq = (SELECT seq FROM _tasks_seq)
+       WHERE name = 'tasks' AND seq < (SELECT seq FROM _tasks_seq);
+      DROP TABLE _tasks_seq;
+
+      CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+      CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_to);
+      CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
+      CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+      CREATE INDEX IF NOT EXISTS idx_tasks_start_date ON tasks(start_date);
+      CREATE INDEX IF NOT EXISTS idx_tasks_external
+        ON tasks(external_source, external_account_id, external_uid);
+      CREATE INDEX IF NOT EXISTS idx_tasks_recurrence_origin
+        ON tasks(recurrence_origin_id) WHERE recurrence_origin_id IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS idx_tasks_archived ON tasks(archived_at);
+      CREATE INDEX IF NOT EXISTS idx_tasks_target_caldav
+        ON tasks(target_caldav_account_id) WHERE target_caldav_account_id IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS idx_tasks_task_list ON tasks(task_list_id);
+
+      CREATE TRIGGER IF NOT EXISTS trg_tasks_updated_at
+        AFTER UPDATE ON tasks FOR EACH ROW
+        BEGIN UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+
+      CREATE TRIGGER trg_search_tasks_ai AFTER INSERT ON tasks BEGIN
+        INSERT INTO search_index (entity, entity_id, title, body)
+        SELECT 'task', t.id, COALESCE(t.title, ''),
+               TRIM(COALESCE(t.description, '') || ' ' ||
+                    COALESCE((SELECT group_concat(tag, ' ') FROM task_tags WHERE task_id = t.id), ''))
+        FROM tasks t WHERE t.id = NEW.id;
+      END;
+
+      CREATE TRIGGER trg_search_tasks_au AFTER UPDATE ON tasks BEGIN
+        DELETE FROM search_index WHERE entity = 'task' AND entity_id = OLD.id;
+        INSERT INTO search_index (entity, entity_id, title, body)
+        SELECT 'task', t.id, COALESCE(t.title, ''),
+               TRIM(COALESCE(t.description, '') || ' ' ||
+                    COALESCE((SELECT group_concat(tag, ' ') FROM task_tags WHERE task_id = t.id), ''))
+        FROM tasks t WHERE t.id = NEW.id;
+      END;
+
+      CREATE TRIGGER trg_search_tasks_ad AFTER DELETE ON tasks BEGIN
+        DELETE FROM search_index WHERE entity = 'task' AND entity_id = OLD.id;
+      END;
+
+      CREATE TRIGGER trg_search_task_tags_ai AFTER INSERT ON task_tags BEGIN
+        DELETE FROM search_index WHERE entity = 'task' AND entity_id = NEW.task_id;
+        INSERT INTO search_index (entity, entity_id, title, body)
+        SELECT 'task', t.id, COALESCE(t.title, ''),
+               TRIM(COALESCE(t.description, '') || ' ' ||
+                    COALESCE((SELECT group_concat(tag, ' ') FROM task_tags WHERE task_id = t.id), ''))
+        FROM tasks t WHERE t.id = NEW.task_id;
+      END;
+
+      CREATE TRIGGER trg_search_task_tags_ad AFTER DELETE ON task_tags BEGIN
+        DELETE FROM search_index WHERE entity = 'task' AND entity_id = OLD.task_id;
+        INSERT INTO search_index (entity, entity_id, title, body)
+        SELECT 'task', t.id, COALESCE(t.title, ''),
+               TRIM(COALESCE(t.description, '') || ' ' ||
+                    COALESCE((SELECT group_concat(tag, ' ') FROM task_tags WHERE task_id = t.id), ''))
+        FROM tasks t WHERE t.id = OLD.task_id;
+      END;
     `,
   },
 ];

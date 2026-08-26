@@ -561,6 +561,40 @@ test('Task Lists werden als Navigationsbereiche angezeigt und abgefragt', async 
   );
 });
 
+test('Deaktivierte Microsoft-To-Do-Listen sind weder Navigation noch Sync-Ziel', async () => {
+  const admin = { id: ALICE, role: 'admin' };
+  const accountId = db.prepare(`
+    INSERT INTO outlook_accounts
+      (name, ms_user_id, email, access_token, refresh_token, token_expiry, owner_user_id)
+    VALUES (?, ?, ?, 'access', 'refresh', ?, ?)
+  `).run(
+    'Microsoft test',
+    `ms-${randomUUID()}`,
+    `ms-${randomUUID()}@example.test`,
+    new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    ALICE,
+  ).lastInsertRowid;
+  const listId = db.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Disabled To Do', 'microsoft_todo', ?, 'disabled-list', ?, 0)
+  `).run(accountId, ALICE).lastInsertRowid;
+
+  const lists = await call('GET', '/lists', { as: admin });
+  assert.equal(lists.status, 200);
+  assert.ok(!lists.body.data.some((list) => list.id === listId));
+
+  const targets = await call('GET', '/sync-targets', { as: admin });
+  assert.equal(targets.status, 200);
+  assert.ok(!targets.body.data.microsoft_todo.some((list) => list.listId === 'disabled-list'));
+
+  const created = await call('POST', '/', {
+    as: admin,
+    body: { title: 'Disabled target', sync_target: `microsoft_todo:${accountId}|disabled-list` },
+  });
+  assert.equal(created.status, 400);
+});
+
 test('POST ohne Sync-Ziel laesst die Aufgabe lokal, wie jede bisher', async () => {
   const admin = { id: ALICE, role: 'admin' };
   const r = await call('POST', '/', { as: admin, body: { title: 'Nur hier' } });

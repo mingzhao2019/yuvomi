@@ -9,10 +9,10 @@ export const schemas = {
         },
         NotificationChannel: {
           type: 'object',
-          description: 'A Gotify or ntfy notification channel. Secrets are write-only and never returned.',
+          description: 'A Gotify, ntfy, generic Webhook, or message-pusher notification channel. Secrets are write-only and never returned.',
           properties: {
             id: { type: 'integer' },
-            provider: { type: 'string', enum: ['gotify', 'ntfy', 'webhook'] },
+            provider: { type: 'string', enum: ['gotify', 'ntfy', 'webhook', 'message_pusher'] },
             name: { type: 'string' },
             enabled: { type: 'boolean' },
             scope: { type: 'string', enum: ['household', 'user'] },
@@ -30,12 +30,12 @@ export const schemas = {
           type: 'object',
           required: ['provider', 'name', 'config'],
           properties: {
-            provider: { type: 'string', enum: ['gotify', 'ntfy', 'webhook'] },
+            provider: { type: 'string', enum: ['gotify', 'ntfy', 'webhook', 'message_pusher'] },
             name: { type: 'string' },
             enabled: { type: 'boolean' },
             config: {
               type: 'object',
-              description: 'Provider config. Gotify uses baseUrl and priority. ntfy uses baseUrl, topic, priority, and authType.',
+              description: 'Provider config. message_pusher uses baseUrl, username, method, postFormat, messageField, channel, and tokenInQuery.',
               additionalProperties: true,
             },
             secrets: {

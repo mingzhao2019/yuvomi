@@ -10,6 +10,7 @@ import { createNotificationChannelStore } from './notification-channels.js';
 import { gotifyProvider } from './notification-providers/gotify.js';
 import { ntfyProvider } from './notification-providers/ntfy.js';
 import { webhookProvider } from './notification-providers/webhook.js';
+import { messagePusherProvider } from './notification-providers/message-pusher.js';
 import { syncAllBirthdayReminders } from './birthdays.js';
 import { resolveHouseholdLocale, translate } from '../utils/i18n.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
@@ -28,6 +29,7 @@ export const defaultProviders = {
   gotify: gotifyProvider,
   ntfy: ntfyProvider,
   webhook: webhookProvider,
+  message_pusher: messagePusherProvider,
 };
 
 function iso(value) {
@@ -35,7 +37,10 @@ function iso(value) {
 }
 
 function safeError(error) {
-  return String(error?.message || error || 'Notification delivery failed.').slice(0, 500);
+  return String(error?.message || error || 'Notification delivery failed.')
+    .replace(/([?&](?:token|access_token|refresh_token)=)[^&\s]+/gi, '$1[redacted]')
+    .replace(/Bearer\s+[^\s]+/gi, 'Bearer [redacted]')
+    .slice(0, 500);
 }
 
 /**
@@ -254,6 +259,59 @@ async function withTimeout(fn, timeoutMs = PROVIDER_TIMEOUT_MS) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Fan-out for immediate native notifications that do not belong to a reminder
+ * row (for example medication doses and task comment mentions). Reminder
+ * delivery persistence remains in processDueNotifications; this helper only
+ * centralizes the target/provider behavior so every native producer reaches
+ * Web Push and configured channels consistently.
+ */
+export async function fanOutNotification({
+  userId,
+  payload,
+  database,
+  pushService = defaultPushService,
+  channelStore,
+  providers = defaultProviders,
+  fetchImpl = fetch,
+} = {}) {
+  const activeDb = database || dbModule.get();
+  const store = channelStore || createNotificationChannelStore({ db: activeDb });
+  const result = { attempted: 0, sent: 0, failed: 0, skipped: 0 };
+  // Keep the service call unconditional. The real push service already
+  // handles an absent subscription, and this preserves injectable push-service
+  // behavior for medication/mention callers and tests.
+  result.attempted += 1;
+  try {
+    const sent = await pushService.sendPushToUser(userId, payload);
+    if (sent > 0) result.sent += 1;
+    else result.skipped += 1;
+  } catch (err) {
+    result.failed += 1;
+    log.error(`Web Push delivery failed for user ${userId}:`, safeError(err));
+  }
+
+  const channels = store.listEnabledChannelsForUser(userId);
+  for (const channel of channels) {
+    result.attempted += 1;
+    const provider = providers[channel.provider];
+    if (!provider) {
+      result.failed += 1;
+      log.error(`Unknown notification provider ${channel.provider} for channel ${channel.id}.`);
+      continue;
+    }
+    try {
+      await withTimeout((signal) => provider.send({ channel, payload, fetchImpl, signal }));
+      result.sent += 1;
+    } catch (err) {
+      result.failed += 1;
+      log.error(`Notification channel ${channel.id} delivery failed:`, safeError(err));
+    }
+  }
+
+  return result;
 }
 
 export function createNotificationService({ providers = defaultProviders, channelStore } = {}) {

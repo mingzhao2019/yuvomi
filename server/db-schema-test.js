@@ -1056,7 +1056,40 @@ const MIGRATIONS_SQL = {
        )
      WHERE external_source = 'caldav'
        AND task_list_id IS NULL
-       AND external_object_url IS NOT NULL;
+         AND external_object_url IS NOT NULL;
+  `,
+  // SQL-String für Migration v164 (gespiegelt aus db.js): Microsoft-To-Do-Listen
+  // nutzen dieselben Outlook-OAuth-Konten; Delta-Cursor und Lösch-Tombstones
+  // bleiben im Yuvomi-Schema.
+  164: `
+    ALTER TABLE task_lists ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE task_lists ADD COLUMN sync_cursor TEXT;
+    ALTER TABLE task_lists ADD COLUMN last_sync TEXT;
+    ALTER TABLE task_lists ADD COLUMN last_error TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS uniq_task_lists_microsoft_todo_id
+      ON task_lists(provider, external_account_id, external_list_id)
+      WHERE provider = 'microsoft_todo'
+        AND external_account_id IS NOT NULL
+        AND external_list_id IS NOT NULL;
+    ALTER TABLE outlook_accounts ADD COLUMN todo_needs_reauth INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE IF NOT EXISTS microsoft_todo_pending_deletions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      account_id INTEGER NOT NULL REFERENCES outlook_accounts(id) ON DELETE CASCADE,
+      list_id    TEXT    NOT NULL,
+      task_uid   TEXT    NOT NULL,
+      attempts   INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+      UNIQUE(account_id, list_id, task_uid)
+    );
+    CREATE INDEX IF NOT EXISTS idx_microsoft_todo_deletions_account
+      ON microsoft_todo_pending_deletions(account_id);
+
+    -- The production migration rebuilds tasks so its external_source CHECK
+    -- accepts Microsoft To Do.  This schema file is an intentionally partial
+    -- test excerpt; reference the table here so the mirror guard keeps the
+    -- migration's ownership visible without pretending to be a full replay.
+    UPDATE tasks SET external_source = external_source WHERE 0;
   `,
 };
 

@@ -423,7 +423,7 @@ function renderSwipeRow(task, innerHtml) {
 function syncTargetFieldHtml(task) {
   if (task?.parent_task_id) return '';
 
-  if (task?.external_source === 'caldav') {
+  if (['caldav', 'microsoft_todo'].includes(task?.external_source)) {
     return `
       <div class="form-group">
         <span class="label">${t('tasks.syncTargetLabel')}</span>
@@ -462,7 +462,11 @@ async function wireSyncTarget(panel, task) {
   let lists = [];
   try {
     const res = await api.get('/tasks/sync-targets');
-    lists = res.data?.caldav ?? [];
+    const targets = res.data || {};
+    lists = [
+      ...(targets.caldav || []).map((list) => ({ ...list, provider: 'caldav' })),
+      ...(targets.microsoft_todo || []).map((list) => ({ ...list, provider: 'microsoft_todo' })),
+    ];
   } catch (err) {
     console.warn('[Tasks] Sync-Ziele nicht ladbar:', err.message);
   }
@@ -473,8 +477,9 @@ async function wireSyncTarget(panel, task) {
 
   const byAccount = new Map();
   for (const list of lists) {
-    if (!byAccount.has(list.accountName)) byAccount.set(list.accountName, []);
-    byAccount.get(list.accountName).push(list);
+    const groupName = `${list.provider === 'microsoft_todo' ? 'Microsoft To Do' : 'CalDAV'} · ${list.accountName}`;
+    if (!byAccount.has(groupName)) byAccount.set(groupName, []);
+    byAccount.get(groupName).push(list);
   }
 
   for (const [accountName, group] of byAccount) {
@@ -482,8 +487,10 @@ async function wireSyncTarget(panel, task) {
     optgroup.label = accountName;
     for (const list of group) {
       const option = document.createElement('option');
-      option.value = `caldav:${list.accountId}|${list.listUrl}`;
-      option.textContent = list.listName || list.listUrl;
+      option.value = list.provider === 'microsoft_todo'
+        ? `microsoft_todo:${list.accountId}|${list.listId}`
+        : `caldav:${list.accountId}|${list.listUrl}`;
+      option.textContent = list.listName || list.listUrl || list.listId;
       optgroup.appendChild(option);
     }
     select.appendChild(optgroup);
@@ -515,8 +522,12 @@ function selectedTaskListSyncTarget() {
   if (state.activeTaskListId === 'local') return '';
   const list = state.taskLists.find((entry) =>
     entry.id != null && String(entry.id) === String(state.activeTaskListId));
-  if (!list || list.provider !== 'caldav'
-      || list.external_account_id == null || !list.external_list_url) return null;
+  if (!list || list.external_account_id == null) return null;
+  if (list.provider === 'microsoft_todo' && list.enabled === 0) return '';
+  if (list.provider === 'microsoft_todo' && list.external_list_id) {
+    return 'microsoft_todo:' + list.external_account_id + '|' + list.external_list_id;
+  }
+  if (list.provider !== 'caldav' || !list.external_list_url) return null;
   return 'caldav:' + list.external_account_id + '|' + list.external_list_url;
 }
 
@@ -3692,7 +3703,8 @@ function restoreActiveTaskList() {
 function normalizeActiveTaskList() {
   if (state.activeTaskListId === 'all' || state.activeTaskListId === 'local') return;
   if (state.taskLists.some((list) => list.id != null
-      && String(list.id) === String(state.activeTaskListId))) return;
+      && String(list.id) === String(state.activeTaskListId)
+      && !(list.provider === 'microsoft_todo' && list.enabled === 0))) return;
   state.activeTaskListId = 'all';
 }
 
@@ -3703,6 +3715,7 @@ function taskListNavigationItems() {
     { id: 'local', name: local?.name || t('tasks.taskListLocal'), provider: 'local' },
     ...state.taskLists
       .filter((list) => list.id != null)
+      .filter((list) => !(list.provider === 'microsoft_todo' && list.enabled === 0))
       .map((list) => ({ ...list, id: String(list.id) })),
   ];
 }

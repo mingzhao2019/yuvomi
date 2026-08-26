@@ -1,7 +1,7 @@
 import { api } from '/api.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
-import { caldavTargetValue, SYNC_TARGET_LOCAL } from '/utils/sync-target.js';
+import { caldavTargetValue, microsoftTodoTargetValue, SYNC_TARGET_LOCAL } from '/utils/sync-target.js';
 import { getPreferences, savePreferences } from '/settings/preferences-cache.js';
 
 /**
@@ -27,10 +27,13 @@ export function reminderTargetOptions(lists, labels, current = '') {
   const options = [{ value: SYNC_TARGET_LOCAL, label: labels.local, group: null }];
 
   for (const list of lists || []) {
+    const value = list.provider === 'microsoft_todo'
+      ? microsoftTodoTargetValue(list.accountId, list.listId)
+      : caldavTargetValue(list.accountId, list.listUrl);
     options.push({
-      value: caldavTargetValue(list.accountId, list.listUrl),
+      value,
       label: list.listName || list.listUrl,
-      group: list.accountName,
+      group: `${list.provider === 'microsoft_todo' ? 'Microsoft To Do' : 'CalDAV'} · ${list.accountName}`,
     });
   }
 
@@ -121,7 +124,13 @@ export async function render(container, { user }) {
   const [preferences, lists] = await Promise.all([
     getPreferences(),
     api.get('/tasks/sync-targets')
-      .then((res) => res.data?.caldav || [])
+      .then((res) => {
+        const data = res.data || {};
+        return [
+          ...(data.caldav || []).map((list) => ({ ...list, provider: 'caldav' })),
+          ...(data.microsoft_todo || []).map((list) => ({ ...list, provider: 'microsoft_todo' })),
+        ];
+      })
       .catch(() => null),
   ]);
   renderPage(container, preferences, lists);

@@ -16,11 +16,15 @@ import {
   googleTargetValue,
   caldavTargetValue,
   outlookTargetValue,
+  microsoftTodoTargetValue,
   parseSyncTargetValue,
   buildSyncTargetOptions,
 } from '../public/utils/sync-target.js';
 
-const LABELS = { local: 'Lokal', google: 'Google', caldav: 'CalDAV', outlook: 'Outlook', unavailable: 'Nicht verfügbar' };
+const LABELS = {
+  local: 'Lokal', google: 'Google', caldav: 'CalDAV', outlook: 'Outlook',
+  microsoftTodo: 'Microsoft To Do', unavailable: 'Nicht verfügbar',
+};
 
 test('bauen und zerlegen sind zueinander invers', () => {
   const google = googleTargetValue('family@group.calendar.google.com');
@@ -34,6 +38,10 @@ test('bauen und zerlegen sind zueinander invers', () => {
   const outlook = outlookTargetValue(2, 'AQMkADAwATZiZmYAZC00Zg==');
   assert.deepEqual(parseSyncTargetValue(outlook),
     { kind: 'outlook', accountId: 2, calendarId: 'AQMkADAwATZiZmYAZC00Zg==' });
+
+  const microsoftTodo = microsoftTodoTargetValue(3, 'AAMk-list-1');
+  assert.deepEqual(parseSyncTargetValue(microsoftTodo),
+    { kind: 'microsoft_todo', accountId: 3, listId: 'AAMk-list-1' });
 });
 
 test('leerer Wert ist "lokal speichern", kein Fehler', () => {
@@ -51,7 +59,7 @@ test('CalDAV-URL mit Pipe-Zeichen bleibt vollständig', () => {
 });
 
 test('kaputte Kennungen ergeben null statt eines halben Ziels', () => {
-  for (const bad of ['exchange:foo', 'google:', 'caldav:', 'caldav:abc|https://x/', 'caldav:|https://x/', 'caldav:3', 'caldav:0|https://x/', 'caldav:3|', 'outlook:', 'outlook:abc|id', 'outlook:2', 'outlook:2|', 'outlook:0|id']) {
+  for (const bad of ['exchange:foo', 'google:', 'caldav:', 'caldav:abc|https://x/', 'caldav:|https://x/', 'caldav:3', 'caldav:0|https://x/', 'caldav:3|', 'outlook:', 'outlook:abc|id', 'outlook:2', 'outlook:2|', 'outlook:0|id', 'microsoft_todo:', 'microsoft_todo:abc|id', 'microsoft_todo:2', 'microsoft_todo:2|', 'microsoft_todo:0|id']) {
     assert.equal(parseSyncTargetValue(bad), null, `"${bad}" muss null ergeben`);
   }
 });
@@ -61,6 +69,7 @@ test('Optionsliste beginnt mit "lokal" und gruppiert nach Quelle', () => {
     google: [{ id: 'g1', summary: 'Familie' }],
     caldav: [{ accountId: 1, accountName: 'Nextcloud', calendarUrl: 'https://x/c1', calendarName: 'Privat' }],
     outlook: [{ accountId: 2, accountName: 'Papa', calendarId: 'ol1', calendarName: 'Yuvomi' }],
+    microsoft_todo: [{ accountId: 3, accountName: 'Papa', listId: 'todo1', listName: 'Arbeit' }],
   }, LABELS);
 
   assert.equal(options[0].value, SYNC_TARGET_LOCAL);
@@ -71,6 +80,9 @@ test('Optionsliste beginnt mit "lokal" und gruppiert nach Quelle', () => {
   });
   assert.deepEqual(options[3], {
     value: 'outlook:2|ol1', label: 'Yuvomi', group: 'Outlook · Papa',
+  });
+  assert.deepEqual(options[4], {
+    value: 'microsoft_todo:3|todo1', label: 'Arbeit', group: 'Microsoft To Do · Papa',
   });
 });
 

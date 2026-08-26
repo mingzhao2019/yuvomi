@@ -34,6 +34,79 @@ function enabledCalendarCount(calendars) {
   return calendars.filter((cal) => cal.enabled).length;
 }
 
+function buildOutlookTodoLists(account, lists) {
+  const wrap = document.createElement('div');
+  wrap.className = 'form-group';
+
+  const title = document.createElement('h5');
+  title.className = 'form-label';
+  title.textContent = t('settings.outlookTodoLists');
+  wrap.appendChild(title);
+
+  const hint = document.createElement('p');
+  hint.className = 'form-hint';
+  hint.textContent = t('settings.outlookTodoListsHint');
+  wrap.appendChild(hint);
+
+  if (!lists.length) {
+    const empty = document.createElement('p');
+    empty.className = 'form-hint';
+    empty.textContent = t('settings.outlookTodoListsEmpty');
+    wrap.appendChild(empty);
+  }
+
+  const list = document.createElement('div');
+  list.className = 'settings-sync-info';
+  for (const item of lists) {
+    const row = document.createElement('label');
+    row.className = 'settings-sync-info__row';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = item.enabled;
+    input.addEventListener('change', async () => {
+      const wanted = input.checked;
+      input.disabled = true;
+      try {
+        await api.patch(`/calendar/outlook/accounts/${account.id}/todo-lists`, {
+          listId: item.listId,
+          enabled: wanted,
+        });
+      } catch (err) {
+        input.checked = !wanted;
+        showToast(err.message || t('common.errorGeneric'), 'danger');
+      } finally {
+        input.disabled = false;
+      }
+    });
+    const text = document.createElement('span');
+    text.textContent = item.listName;
+    row.append(input, text);
+    list.appendChild(row);
+  }
+  wrap.appendChild(list);
+
+  const actions = document.createElement('div');
+  actions.className = 'settings-form-actions';
+  const refreshBtn = document.createElement('button');
+  refreshBtn.type = 'button';
+  refreshBtn.className = 'btn btn--ghost btn--sm';
+  refreshBtn.textContent = t('settings.outlookTodoRefresh');
+  refreshBtn.addEventListener('click', async () => {
+    refreshBtn.disabled = true;
+    try {
+      await api.get(`/calendar/outlook/accounts/${account.id}/todo-lists?refresh=true`);
+      showToast(t('settings.outlookTodoRefreshed'), 'success');
+      window.yuvomi?.navigate('/settings/sync/calendar');
+    } catch (err) {
+      showToast(err.message || t('common.errorGeneric'), 'danger');
+      refreshBtn.disabled = false;
+    }
+  });
+  actions.appendChild(refreshBtn);
+  wrap.appendChild(actions);
+  return wrap;
+}
+
 function showToast(message, tone = 'default') {
   window.yuvomi?.showToast(message, tone);
 }
@@ -1023,12 +1096,12 @@ function buildOutlookAccountCard(account, refresh, user) {
 
   card.appendChild(createStatusSummary({
     title: account.name,
-    status: account.needsReauth
+    status: (account.needsReauth || account.todoNeedsReauth)
       ? t('settings.outlookReauthRequired')
       : (account.lastSync ? t('settings.connected') : t('settings.notConnected')),
     details,
     action: syncBtn,
-    tone: account.needsReauth ? 'warning' : (account.lastSync ? 'success' : 'neutral'),
+    tone: (account.needsReauth || account.todoNeedsReauth) ? 'warning' : (account.lastSync ? 'success' : 'neutral'),
   }));
 
   (async () => {
@@ -1039,6 +1112,14 @@ function buildOutlookAccountCard(account, refresh, user) {
         card.appendChild(buildOutlookAutoSyncControls(account, calendars));
       }
       card.appendChild(buildOutlookCalendarList(account, calendars, user));
+      if (user?.role === 'admin') {
+        try {
+          const todoRes = await api.get(`/calendar/outlook/accounts/${account.id}/todo-lists?refresh=true`);
+          card.appendChild(buildOutlookTodoLists(account, todoRes.data || []));
+        } catch (todoErr) {
+          card.appendChild(createInlineError(todoErr.message || t('common.errorGeneric')));
+        }
+      }
       window.lucide?.createIcons({ el: card });
     } catch (err) {
       card.appendChild(createInlineError(err.message || t('common.errorGeneric')));
@@ -1066,7 +1147,7 @@ function buildOutlookAccountCard(account, refresh, user) {
     });
     actions.appendChild(refreshBtn);
 
-    if (account.needsReauth) {
+    if (account.needsReauth || account.todoNeedsReauth) {
       const reconnect = document.createElement('a');
       reconnect.href = '/api/v1/calendar/outlook/auth';
       reconnect.className = 'btn btn--primary btn--sm';

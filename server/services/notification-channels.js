@@ -14,6 +14,7 @@ export const NOTIFICATION_PROVIDERS = [
   { id: 'gotify', name: 'Gotify' },
   { id: 'ntfy', name: 'ntfy' },
   { id: 'webhook', name: 'Webhook' },
+  { id: 'message_pusher', name: 'message-pusher' },
 ];
 
 const PROVIDER_IDS = new Set(NOTIFICATION_PROVIDERS.map((p) => p.id));
@@ -159,6 +160,30 @@ function normalizeWebhookSecrets(input = {}) {
   return { token: String(input.token ?? '').trim() };
 }
 
+function normalizeMessagePusherConfig(input = {}) {
+  const method = String(input.method ?? 'POST').trim().toUpperCase();
+  const postFormat = String(input.postFormat ?? 'json').trim().toLowerCase();
+  const messageField = String(input.messageField ?? 'content').trim().toLowerCase();
+  const username = String(input.username ?? '').trim();
+  if (!username) throw new Error('message-pusher username is required.');
+  if (!['GET', 'POST'].includes(method)) throw new Error('Invalid message-pusher request method.');
+  if (!['json', 'form'].includes(postFormat)) throw new Error('Invalid message-pusher POST format.');
+  if (!['content', 'description'].includes(messageField)) throw new Error('Invalid message-pusher message field.');
+  return {
+    baseUrl: normalizeBaseUrl(input.baseUrl, { keepPath: true }),
+    username,
+    method,
+    postFormat,
+    messageField,
+    channel: String(input.channel ?? '').trim(),
+    tokenInQuery: input.tokenInQuery === true,
+  };
+}
+
+function normalizeMessagePusherSecrets(input = {}) {
+  return { token: String(input.token ?? '').trim() };
+}
+
 export function normalizeChannelInput(input = {}, existing = null) {
   const provider = existing?.provider || normalizeProvider(input.provider);
   normalizeProvider(provider);
@@ -179,6 +204,9 @@ export function normalizeChannelInput(input = {}, existing = null) {
     config = normalizeNtfyConfig(mergedConfig);
     secrets = normalizeNtfySecrets(mergedSecrets);
     validateNtfy({ config, secrets, requireSecrets: !existing || input.secrets !== undefined });
+  } else if (provider === 'message_pusher') {
+    config = normalizeMessagePusherConfig(mergedConfig);
+    secrets = normalizeMessagePusherSecrets(mergedSecrets);
   } else {
     config = normalizeWebhookConfig(mergedConfig);
     secrets = normalizeWebhookSecrets(mergedSecrets);

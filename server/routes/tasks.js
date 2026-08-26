@@ -16,12 +16,15 @@ import { normalizeVisibility, visibilityWhere } from '../services/visibility.js'
 import {
   flushOutbound, markTodoOutbound, queueTodoDeletion,
 } from '../services/caldav-todo-outbound.js';
+import {
+  markTaskOutbound, queueTaskDeletion, sync as syncMicrosoftTodo,
+} from '../services/microsoft-todo.js';
 import { uniqueKey } from '../utils/category-slug.js';
 import { toLocalDateKey } from '../../public/utils/date.js';
 import { parseSyncTargetValue } from '../../public/utils/sync-target.js';
 import { mentionedUserIds } from '../../public/utils/mentions.js';
 import { resolvePermissions } from '../permissions.js';
-import { pushService } from '../services/push.js';
+import { fanOutNotification } from '../services/notifications.js';
 import { ensureCalDavTaskList, taskListsTableExists } from '../services/task-lists.js';
 import { todayKey } from '../utils/timezone.js';
 import {
@@ -42,6 +45,10 @@ function pushToCalDAV(what) {
   flushOutbound().catch((err) => log.warn(`${what} vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
 }
 
+function pushToMicrosoftTodo(what) {
+  syncMicrosoftTodo().catch((err) => log.warn(`${what} für Microsoft To Do vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
+}
+
 /**
  * Prüft ein gewünschtes Sync-Ziel gegen die tatsächlich freigegebenen Listen (#695).
  *
@@ -50,19 +57,39 @@ function pushToCalDAV(what) {
  * Liste richten, und sie bliebe für immer im Wartezustand, ohne dass irgendwo
  * stünde warum.
  *
- * @returns {{ok: true, target: {accountId: number, listUrl: string, listName: string}|null}
+ * @returns {{ok: true, target: object|null}
  *          |{ok: false, error: string}} target === null heißt "nur lokal".
  */
 function resolveTaskSyncTarget(value) {
   const parsed = parseSyncTargetValue(value);
   if (parsed === null) {
-    return { ok: false, error: 'sync_target: erwartet "caldav:<kontoId>|<url>" oder einen leeren Wert.' };
+    return { ok: false, error: 'sync_target: erwartet ein gültiges CalDAV- oder Microsoft-To-Do-Ziel oder einen leeren Wert.' };
   }
   if (parsed.kind === 'local') return { ok: true, target: null };
+  if (parsed.kind === 'microsoft_todo') {
+    const allowed = db.get().prepare(`
+      SELECT id, name FROM task_lists
+       WHERE provider = 'microsoft_todo'
+         AND external_account_id = ? AND external_list_id = ? AND enabled = 1
+    `).get(parsed.accountId, parsed.listId);
+    if (!allowed) {
+      return { ok: false, error: 'sync_target: Diese Microsoft-To-Do-Liste ist nicht freigegeben oder nicht vorhanden.' };
+    }
+    return {
+      ok: true,
+      target: {
+        provider: 'microsoft_todo',
+        accountId: parsed.accountId,
+        listId: parsed.listId,
+        listName: allowed.name,
+        taskListId: allowed.id,
+      },
+    };
+  }
   if (parsed.kind !== 'caldav') {
-    // Aufgaben kennen kein Google-Ziel: der VTODO-Abgleich läuft ausschließlich
-    // über CalDAV, ein "google:"-Wert wäre also eine stille Nullaktion.
-    return { ok: false, error: 'sync_target: Aufgaben lassen sich nur mit einer CalDAV-Erinnerungsliste abgleichen.' };
+    // Aufgaben kennen neben CalDAV jetzt Microsoft To Do. Andere Kalenderziele
+    // bleiben unzulässig: ein "google:"-Wert wäre eine stille Nullaktion.
+    return { ok: false, error: 'sync_target: Aufgaben lassen sich nur mit einer freigegebenen Aufgabenliste abgleichen.' };
   }
 
   const allowed = db.get().prepare(`
@@ -75,6 +102,7 @@ function resolveTaskSyncTarget(value) {
   return {
     ok: true,
     target: {
+      provider: 'caldav',
       accountId: parsed.accountId,
       listUrl: parsed.calendarUrl,
       listName: allowed.list_name,
@@ -217,7 +245,7 @@ const TASK_LIST_SQL = `
   tl.external_account_id AS task_list_external_account_id,
   tl.external_list_id AS task_list_external_list_id,
   tl.external_list_url AS task_list_external_list_url,
-  tla.name AS task_list_account_name
+  COALESCE(tla.name, tlo.name) AS task_list_account_name
 `;
 
 function attachTaskList(task) {
@@ -403,6 +431,7 @@ function loadSubtasks(taskId, me) {
     LEFT JOIN users u ON t.assigned_to = u.id
     LEFT JOIN task_lists tl ON tl.id = t.task_list_id
     LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
+    LEFT JOIN outlook_accounts tlo ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
     WHERE t.parent_task_id = ?
       AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
     ORDER BY t.created_at ASC
@@ -491,21 +520,25 @@ router.get('/lists', (req, res) => {
              tl.external_account_id,
              tl.external_list_id,
              tl.external_list_url,
+             tl.enabled,
              tl.created_by,
              tl.created_at,
              tl.updated_at,
-             tla.name AS account_name,
+             COALESCE(tla.name, tlo.name) AS account_name,
              COUNT(t.id) AS task_count
         FROM task_lists tl
         LEFT JOIN caldav_accounts tla
           ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
-        LEFT JOIN tasks t
+        LEFT JOIN outlook_accounts tlo
+          ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
+       LEFT JOIN tasks t
           ON t.task_list_id = tl.id
          AND t.parent_task_id IS NULL
          AND ${visible}
+       WHERE tl.provider <> 'microsoft_todo' OR tl.enabled = 1
        GROUP BY tl.id
        ORDER BY CASE WHEN tl.provider = 'local' THEN 0 ELSE 1 END,
-                COALESCE(tla.name, ''), tl.name COLLATE NOCASE, tl.id
+                COALESCE(tla.name, tlo.name, ''), tl.name COLLATE NOCASE, tl.id
     `).all({ me });
 
     const local = db.get().prepare(`
@@ -524,6 +557,7 @@ router.get('/lists', (req, res) => {
         external_account_id: null,
         external_list_id: null,
         external_list_url: null,
+        enabled: 1,
         created_by: null,
         created_at: null,
         updated_at: null,
@@ -541,7 +575,7 @@ router.get('/lists', (req, res) => {
 
 // --------------------------------------------------------
 // GET /api/v1/tasks/sync-targets (#695)
-// → { data: { caldav: [{ accountId, accountName, listUrl, listName }] } }
+// → { data: { caldav: [...], microsoft_todo: [{ accountId, accountName, listId, listName }] } }
 //
 // Die Auswahlliste des "Sync-Ziel"-Feldes im Aufgaben-Dialog, nach dem Vorbild
 // von /calendar/sync-targets (#618): für ALLE angemeldeten Nutzer, und nur das,
@@ -563,7 +597,19 @@ router.get('/sync-targets', (_req, res) => {
        WHERE s.enabled = 1 AND s.target_module = 'tasks'
        ORDER BY a.name, s.list_name
     `).all();
-    res.json({ data: { caldav } });
+    const microsoftTodo = taskListsTableExists()
+      ? db.get().prepare(`
+          SELECT tl.external_account_id AS accountId,
+                 oa.name AS accountName,
+                 tl.external_list_id AS listId,
+                 tl.name AS listName
+            FROM task_lists tl
+            JOIN outlook_accounts oa ON oa.id = tl.external_account_id
+           WHERE tl.provider = 'microsoft_todo' AND tl.enabled = 1
+           ORDER BY oa.name, tl.name COLLATE NOCASE
+        `).all()
+      : [];
+    res.json({ data: { caldav, microsoft_todo: microsoftTodo } });
   } catch (err) {
     log.error('GET /sync-targets error:', err);
     res.status(500).json({ error: 'Failed to list sync targets.', code: 500 });
@@ -885,6 +931,7 @@ router.get('/', (req, res) => {
       LEFT JOIN users u ON t.assigned_to = u.id
       LEFT JOIN task_lists tl ON tl.id = t.task_list_id
       LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
+      LEFT JOIN outlook_accounts tlo ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
       WHERE ${taskScopeWhere('t', { includeFuture: !!include_future })}
     `;
     const params = [];
@@ -1033,6 +1080,7 @@ router.get('/:id', (req, res) => {
       LEFT JOIN users u ON t.assigned_to = u.id
       LEFT JOIN task_lists tl ON tl.id = t.task_list_id
       LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
+      LEFT JOIN outlook_accounts tlo ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
       WHERE t.id = ? AND t.parent_task_id IS NULL
         AND ${visibilityWhere('t', 'task_assignments', 'task_id')}
     `).get(req.params.id, me, me);
@@ -1135,14 +1183,20 @@ router.post('/', (req, res) => {
       setAssignments(db.get(), result.lastInsertRowid, userIds);
       if (req.body.tags !== undefined) setTags(db.get(), result.lastInsertRowid, req.body.tags);
       if (syncTarget) {
-        const taskListId = ensureCalDavTaskList({
-          accountId: syncTarget.accountId,
-          listUrl: syncTarget.listUrl,
-          listName: syncTarget.listName,
-        }, req.authUserId || req.session.userId);
-        db.get().prepare(
-          'UPDATE tasks SET target_caldav_account_id = ?, target_caldav_list_url = ?, task_list_id = ? WHERE id = ?'
-        ).run(syncTarget.accountId, syncTarget.listUrl, taskListId, result.lastInsertRowid);
+        if (syncTarget.provider === 'caldav') {
+          const taskListId = ensureCalDavTaskList({
+            accountId: syncTarget.accountId,
+            listUrl: syncTarget.listUrl,
+            listName: syncTarget.listName,
+          }, req.authUserId || req.session.userId);
+          db.get().prepare(
+            'UPDATE tasks SET target_caldav_account_id = ?, target_caldav_list_url = ?, task_list_id = ? WHERE id = ?'
+          ).run(syncTarget.accountId, syncTarget.listUrl, taskListId, result.lastInsertRowid);
+        } else {
+          db.get().prepare(
+            'UPDATE tasks SET target_caldav_account_id = NULL, target_caldav_list_url = NULL, task_list_id = ? WHERE id = ?'
+          ).run(syncTarget.taskListId, result.lastInsertRowid);
+        }
       }
       return result.lastInsertRowid;
     })();
@@ -1154,6 +1208,7 @@ router.post('/', (req, res) => {
       LEFT JOIN users u ON t.assigned_to = u.id
       LEFT JOIN task_lists tl ON tl.id = t.task_list_id
       LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
+      LEFT JOIN outlook_accounts tlo ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
       WHERE t.id = ?
     `).get(taskId);
 
@@ -1161,7 +1216,8 @@ router.post('/', (req, res) => {
     attachTaskList(task);
     attachTags([task]);
     res.status(201).json({ data: task });
-    if (syncTarget) pushToCalDAV('Neue Aufgabe');
+    if (syncTarget?.provider === 'microsoft_todo') pushToMicrosoftTodo('Neue Aufgabe');
+    else if (syncTarget) pushToCalDAV('Neue Aufgabe');
   } catch (err) {
     log.error('POST / error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -1237,7 +1293,7 @@ router.put('/:id', (req, res) => {
     // ignoriert statt abgewiesen - der Dialog zeigt es in diesem Zustand als
     // festen Wert, ein 400 träfe also niemanden, der es geändert hätte.
     let syncTarget;
-    const targetEditable = task.external_source !== 'caldav';
+    const targetEditable = !['caldav', 'microsoft_todo'].includes(task.external_source);
     if (req.body.sync_target !== undefined && targetEditable && !task.parent_task_id) {
       const resolved = resolveTaskSyncTarget(req.body.sync_target);
       if (!resolved.ok) return res.status(400).json({ error: resolved.error, code: 400 });
@@ -1266,7 +1322,10 @@ router.put('/:id', (req, res) => {
 
       if (syncTarget !== undefined
           && (!sameFieldValue(syncTarget?.accountId ?? null, task.target_caldav_account_id)
-           || !sameFieldValue(syncTarget?.listUrl   ?? null, task.target_caldav_list_url))) touchesDefinition = true;
+           || !sameFieldValue(syncTarget?.listUrl   ?? null, task.target_caldav_list_url)
+           || (syncTarget?.provider === 'microsoft_todo'
+             && !sameFieldValue(syncTarget.taskListId, task.task_list_id))
+           || (syncTarget === null && task.task_list_id != null))) touchesDefinition = true;
 
       // Ablegen nimmt die Aufgabe allen aus der Ansicht - das ist eine
       // Aenderung an ihr, kein Umgang mit ihr.
@@ -1293,7 +1352,9 @@ router.put('/:id', (req, res) => {
     // gespeicherte Aufgabe ohne die Folgeinstanz, die zu ihr gehört, wäre
     // derselbe stille Serienabbruch, den dieser Weg gerade erst verloren hat.
     let pending = false;
+    let pendingMicrosoft = false;
     let undone  = 0;
+    let undoneMicrosoft = 0;
     let updated;
     db.get().transaction(() => {
       db.get().prepare(`
@@ -1310,16 +1371,23 @@ router.put('/:id', (req, res) => {
       setAssignments(db.get(), task.id, userIds);
       if (req.body.tags !== undefined) setTags(db.get(), task.id, req.body.tags);
       if (syncTarget !== undefined) {
-        const taskListId = syncTarget
-          ? ensureCalDavTaskList({
+        let taskListId = null;
+        let targetAccountId = null;
+        let targetListUrl = null;
+        if (syncTarget?.provider === 'caldav') {
+          taskListId = ensureCalDavTaskList({
             accountId: syncTarget.accountId,
             listUrl: syncTarget.listUrl,
             listName: syncTarget.listName,
-          }, req.authUserId || req.session.userId)
-          : null;
+          }, req.authUserId || req.session.userId);
+          targetAccountId = syncTarget.accountId;
+          targetListUrl = syncTarget.listUrl;
+        } else if (syncTarget?.provider === 'microsoft_todo') {
+          taskListId = syncTarget.taskListId;
+        }
         db.get().prepare(
           'UPDATE tasks SET target_caldav_account_id = ?, target_caldav_list_url = ?, task_list_id = ? WHERE id = ?'
-        ).run(syncTarget?.accountId ?? null, syncTarget?.listUrl ?? null, taskListId, task.id);
+        ).run(targetAccountId, targetListUrl, taskListId, task.id);
       }
       if (archiveRequested && !task.archived_at) setArchived(task.id, true);
       syncHousekeepingPaymentStatus(db.get(), req.params.id, status);
@@ -1335,7 +1403,9 @@ router.put('/:id', (req, res) => {
       // die Folgeinstanz muss dann genauso verschwinden wie beim Klick auf die
       // Checkbox (#650).
       if (task.status === 'done' && status !== 'done') {
-        undone = discardRecurrenceFollowup(task.id);
+        const queuedFollowup = discardRecurrenceFollowup(task.id);
+        undone = queuedFollowup.caldav;
+        undoneMicrosoft = queuedFollowup.microsoftTodo;
       }
 
       // Nur was die Schreibarbeit unten braucht, liegt in der Transaktion: die
@@ -1349,6 +1419,7 @@ router.put('/:id', (req, res) => {
         LEFT JOIN users u ON t.assigned_to = u.id
         LEFT JOIN task_lists tl ON tl.id = t.task_list_id
         LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
+        LEFT JOIN outlook_accounts tlo ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
         WHERE t.id = ?
       `).get(req.params.id);
       attachTaskList(updated);
@@ -1362,6 +1433,7 @@ router.put('/:id', (req, res) => {
         { ...task,    tags_key: tagsKey(tagsBefore) },
         { ...updated, tags_key: tagsKey(updated.tags) },
       );
+      pendingMicrosoft = markTaskOutbound(task, updated, db.get());
 
       // Das Status-Dropdown im Bearbeiten-Formular hakt genauso ab wie die Checkbox -
       // also muss es die Serie genauso weiterschreiben. Grundlage ist die frisch
@@ -1374,7 +1446,10 @@ router.put('/:id', (req, res) => {
 
     res.json({ data: updated });
 
-    if (pending || undone || syncTarget) pushToCalDAV('Änderung');
+    if (pending || undone || (syncTarget?.provider === 'caldav')) pushToCalDAV('Änderung');
+    if (pendingMicrosoft || undoneMicrosoft || syncTarget?.provider === 'microsoft_todo') {
+      pushToMicrosoftTodo('Änderung');
+    }
   } catch (err) {
     log.error('PUT /:id error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -1448,19 +1523,22 @@ function isFollowupSubtasksTouched(followup) {
  * Nur unangetastete Instanzen verschwinden: hat jemand sie selbst erledigt (und
  * damit die Serie weitergeschrieben) oder ihr Unteraufgaben gegeben/erledigt/bearbeitet, steckt dort
  * Arbeit, die ein Klick auf die Vorgängerin nicht wegwerfen darf.
- * Rückgabe: Anzahl vorgemerkter CalDAV-Löschungen.
+ * Rückgabe: Anzahl vorgemerkter Remote-Löschungen.
  */
 function discardRecurrenceFollowup(taskId) {
   const followup = recurrenceFollowupOf(taskId);
-  if (!followup || followup.status !== 'open') return 0;
+  if (!followup || followup.status !== 'open') return { caldav: 0, microsoftTodo: 0 };
 
-  if (isFollowupSubtasksTouched(followup) || recurrenceFollowupOf(followup.id)) return 0;
+  if (isFollowupSubtasksTouched(followup) || recurrenceFollowupOf(followup.id)) {
+    return { caldav: 0, microsoftTodo: 0 };
+  }
 
   // Vor dem DELETE vormerken, wie in DELETE /:id: danach sind UID und Objekt-URL
   // weg. Lokal erzeugte Folgeinstanzen sind nicht gespiegelt, dann ist das ein No-op.
-  const queued = queueTodoDeletion('tasks', followup) ? 1 : 0;
+  const queuedCalDav = queueTodoDeletion('tasks', followup) ? 1 : 0;
+  const queuedMicrosoft = queueTaskDeletion(followup) ? 1 : 0;
   db.get().prepare('DELETE FROM tasks WHERE id = ?').run(followup.id);
-  return queued;
+  return { caldav: queuedCalDav, microsoftTodo: queuedMicrosoft };
 }
 
 /**
@@ -1612,10 +1690,13 @@ router.patch('/:id/status', (req, res) => {
     // gegen die dieser Block gebaut ist. Der Outbound-Marker gehört mit hinein:
     // ohne Statuswechsel gibt es auch nichts zu pushen.
     let pending = false;
+    let pendingMicrosoft = false;
     let undone  = 0;
+    let undoneMicrosoft = 0;
     db.get().transaction(() => {
       db.get().prepare('UPDATE tasks SET status = ? WHERE id = ?').run(status, req.params.id);
       pending = markTodoOutbound('tasks', prev, { ...prev, status });
+      pendingMicrosoft = markTaskOutbound(prev, { ...prev, status }, db.get());
 
       syncHousekeepingPaymentStatus(db.get(), req.params.id, status);
       // Punkte-Gutschrift/Storno an den Aufgaben-Statuswechsel koppeln.
@@ -1628,7 +1709,9 @@ router.patch('/:id/status', (req, res) => {
       // Sonst stünde die beim Erledigen erzeugte nächste Instanz neben der wieder
       // geöffneten Aufgabe - die Serie sähe doppelt aus.
       if (prev.status === 'done' && status !== 'done') {
-        undone = discardRecurrenceFollowup(Number(req.params.id));
+        const queuedFollowup = discardRecurrenceFollowup(Number(req.params.id));
+        undone = queuedFollowup.caldav;
+        undoneMicrosoft = queuedFollowup.microsoftTodo;
       }
 
       // Wiederkehrende Aufgabe: nächste Instanz erstellen wenn erledigt
@@ -1640,6 +1723,7 @@ router.patch('/:id/status', (req, res) => {
     res.json({ data: { id: Number(req.params.id), status, archived_at: prev.archived_at } });
 
     if (pending || undone) pushToCalDAV('Statuswechsel');
+    if (pendingMicrosoft || undoneMicrosoft) pushToMicrosoftTodo('Statuswechsel');
   } catch (err) {
     log.error('PATCH /:id/status error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -1701,16 +1785,24 @@ router.delete('/:id', (req, res) => {
     if (!mayEditTaskDefinition(victim, req)) return res.status(403).json(LOCKED_ERROR);
 
     const doomed = db.get().prepare(
-      `SELECT * FROM tasks WHERE (id = ? OR parent_task_id = ?) AND external_source = 'caldav'`
+      `SELECT * FROM tasks
+        WHERE (id = ? OR parent_task_id = ?)
+          AND external_source IN ('caldav', 'microsoft_todo')`
     ).all(req.params.id, req.params.id);
-    const queued = doomed.reduce((n, row) => n + (queueTodoDeletion('tasks', row) ? 1 : 0), 0);
+    const queuedCalDav = doomed.reduce(
+      (n, row) => n + (queueTodoDeletion('tasks', row) ? 1 : 0), 0,
+    );
+    const queuedMicrosoft = doomed.reduce(
+      (n, row) => n + (queueTaskDeletion(row) ? 1 : 0), 0,
+    );
 
     const result = db.get().prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);
     if (result.changes === 0)
       return res.status(404).json({ error: 'Task not found.', code: 404 });
     res.json({ ok: true });
 
-    if (queued) pushToCalDAV('Löschung');
+    if (queuedCalDav) pushToCalDAV('Löschung');
+    if (queuedMicrosoft) pushToMicrosoftTodo('Löschung');
   } catch (err) {
     log.error('DELETE /:id error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -1888,12 +1980,16 @@ function notifyMentions(task, comment, authorId, previousComment = '') {
     if (!target) continue;
     const perms = resolvePermissions(db.get(), target);
     if (!perms.admin && perms.modules?.tasks === 'none') continue;
-    pushService.sendPushToUser(id, {
-      title: task.title,
-      body: `${author}: ${comment}`.slice(0, 300),
-      url: `/tasks?open=${task.id}`,
-      tag: `task-comment-${task.id}`,
-    }).catch((err) => log.warn('Erwähnungs-Push fehlgeschlagen:', err?.message || err));
+    fanOutNotification({
+      userId: id,
+      payload: {
+        title: task.title,
+        body: `${author}: ${comment}`.slice(0, 300),
+        url: `/tasks?open=${task.id}`,
+        tag: `task-comment-${task.id}`,
+        priority: 'default',
+      },
+    }).catch((err) => log.warn('Erwähnungs-Benachrichtigung fehlgeschlagen:', err?.message || err));
   }
 }
 
