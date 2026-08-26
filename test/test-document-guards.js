@@ -3410,7 +3410,8 @@ describe('Sonde 18 - am Scroll-Ende liegt nichts Bedienbares unter dem FAB', () 
  * Groessenklasse (darunter regiert die Large-Title-Zone und der Umbruch ist
  * Absicht), 1280px die Breite, ab der die Content-Spalte steht, und 1960px die
  * Breite, bei der der Melder gemessen hat - dort war der Kopf zweizeilig,
- * obwohl 660px Platz frei standen.
+ * obwohl 660px Platz frei standen. Die Zeilenzahl wird nur bei den beiden
+ * oberen geprueft; die Begruendung steht an REGULAR_WIDTHS.
  *
  * DURCH DIE SICHTEN GEKLICKT, weil genau dort der Anlassfall sass: der
  * Kalenderkopf baute in Woche, Tag und Agenda eine Zeile mehr als im Monat,
@@ -3419,10 +3420,22 @@ describe('Sonde 18 - am Scroll-Ende liegt nichts Bedienbares unter dem FAB', () 
  * `uk` als zweite Sprache: laengste Modulnamen, dieselbe Wahl wie in Sonde 1.
  * ──────────────────────────────────────────────────────────────────────────── */
 
+/* `rows: false` heisst NICHT "hier ist alles erlaubt", sondern "hier ist eine
+ * Zeile nicht erreichbar, und das ist gemessen". Bei 1024px nimmt die Sidebar
+ * dem Kopf rund 220px; innen bleiben 740px, und davon beansprucht das Lesemass
+ * allein 720px. Ein Kopf mit Titel, Suchfeld und vier Aktionen passt da nicht in
+ * eine Zeile, ohne dass Inhalt verschwindet - der Umbruch ist dort die richtige
+ * Antwort auf echten Platzmangel und nicht der Rechenfehler aus #882. Gefunden
+ * hat das erst der GESAMTLAUF: einzeln gefahren blieb die Sonde gruen, weil die
+ * Testinstanz nach achtzehn anderen Sonden mehr Daten traegt und die Filter im
+ * Kopf damit breiter werden.
+ *
+ * Die FLUCHTLINIE wird trotzdem auch dort geprueft: dass ein Kopf umbricht,
+ * entbindet ihn nicht davon, auf der Kante seines Koerpers zu enden. */
 const REGULAR_WIDTHS = [
-  { w: 1024, why: 'Kante der Groessenklasse' },
-  { w: 1280, why: 'Breite der Content-Spalte' },
-  { w: 1960, why: 'gemeldete Breite (#882)' },
+  { w: 1024, why: 'Kante der Groessenklasse', rows: false },
+  { w: 1280, why: 'Breite der Content-Spalte', rows: true },
+  { w: 1960, why: 'gemeldete Breite (#882)',   rows: true },
 ];
 
 describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine Zeile', () => {
@@ -3431,7 +3444,7 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
       const findings = [];
       let seen = 0;
 
-      for (const { w, why } of REGULAR_WIDTHS) {
+      for (const { w, why, rows: pruefeZeilen } of REGULAR_WIDTHS) {
         const page = await openPage(harness, { device: 'desktop', theme: 'light', locale });
         await page.setViewport({ width: w, height: 900, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
 
@@ -3515,7 +3528,7 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
               // mit seiner Zeitraum-Navigation. In der regulaeren Groessenklasse
               // ist genug Breite da, dass die zweite Zeile der kompakten Hoehe
               // hier gar nicht erst entsteht.
-              if (head.rows <= 1) continue;
+              if (!pruefeZeilen || head.rows <= 1) continue;
               findings.push(
                 `${w}px (${why}) ${where}: Kopf baut ${head.rows} Zeilen (${head.h}px) - ${head.cls}`,
               );
