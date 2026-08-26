@@ -36,7 +36,7 @@
    - 2.13 [Mealie-Rezept-Sync](#213-mealie-rezept-sync)
    - 2.14 [DMS-Anbindung (Paperless-ngx / Papra)](#214-dms-anbindung-paperless-ngx--papra)
    - 2.15 [ICS-Kalender-Abos](#215-ics-kalender-abos)
-   - 2.16 [Outlook-Push (Microsoft Graph)](#216-outlook-push-microsoft-graph)
+   - 2.16 [Outlook und Microsoft To Do (Microsoft Graph)](#216-outlook-und-microsoft-to-do-microsoft-graph)
 3. [Logging und Speicherbegrenzung](#3-logging-und-speicherbegrenzung-art-5-abs-1-lit-e-dsgvo)
 4. [Haushaltsausnahme](#4-haushaltsausnahme-art-2-abs-2-lit-c-dsgvo)
 5. [Verarbeitungsverzeichnis-Vorlage (Art. 30 DSGVO)](#5-verarbeitungsverzeichnis-vorlage-art-30-dsgvo)
@@ -98,7 +98,7 @@ Betreiber daraus resultieren.
 | Mealie-Rezept-Sync | `server/services/mealie/` | nur wenn eine Mealie-Instanz verbunden ist | i. d. R. selbst gehostet | i. d. R. nein (siehe 2.13) |
 | DMS-Anbindung (Paperless-ngx/Papra) | `server/services/dms/` | nur wenn ein DMS verbunden ist | i. d. R. selbst gehostet | i. d. R. nein (siehe 2.14) |
 | ICS-Kalender-Abos | `server/services/ics-subscription.js` | nur wenn ein Nutzer einen Feed abonniert | abhängig vom Feed-Anbieter | nein (siehe 2.15) |
-| Outlook-Push (Microsoft Graph) | `server/services/outlook-calendar.js` | nur wenn alle `MS_*` gesetzt sind **und** ein Konto per OAuth verbunden wurde | USA/Microsoft; DPF-Status prüfen | für private Microsoft-Konten **nicht abschließbar** (siehe 2.16) |
+| Outlook und Microsoft To Do (Microsoft Graph) | `server/services/outlook-calendar.js`, `server/services/microsoft-todo.js` | nur wenn alle `MS_*` gesetzt sind **und** ein Konto per OAuth verbunden wurde | USA/Microsoft; DPF-Status prüfen | für private Microsoft-Konten **nicht abschließbar** (siehe 2.16) |
 
 ### 2.1 Open-Meteo (Wetter-Standard)
 
@@ -436,15 +436,17 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
   Personenbezug genügt der Transparenzhinweis. Feed-URLs mit eingebettetem
   Token wie Zugangsdaten behandeln (sie erlauben jedem den Kalenderabruf).
 
-### 2.16 Outlook-Push (Microsoft Graph)
+### 2.16 Outlook und Microsoft To Do (Microsoft Graph)
 
 - **Code-Stellen:** `server/services/outlook-calendar.js`,
-  `server/routes/calendar/outlook.js`.
-- **Was ist das?** Ein **einseitiger Push Yuvomi → Outlook.com** für private
-  Microsoft-Konten (outlook.com, hotmail.com, M365 Family). Outlook.com bietet
-  kein CalDAV mehr (siehe Abschnitt 2.3), deshalb läuft dieser Weg über die
-  Microsoft-Graph-API. Yuvomi bleibt die führende Quelle: Änderungen in Outlook
-  werden beim nächsten Lauf auf den Yuvomi-Stand zurückgesetzt.
+  `server/services/microsoft-todo.js`, `server/routes/calendar/outlook.js`.
+- **Was ist das?** Ein gemeinsamer OAuth-Kanal für zwei Funktionen für private
+  Microsoft-Konten (outlook.com, hotmail.com, M365 Family). Outlook Calendar ist
+  ein **einseitiger Push Yuvomi → Outlook.com**: Yuvomi bleibt die führende
+  Quelle, Änderungen in Outlook werden beim nächsten Lauf auf den Yuvomi-Stand
+  zurückgesetzt. Microsoft To Do ist davon getrennt und wird **bidirektional**
+  synchronisiert: aktivierte Listen und ihre Aufgaben erscheinen in Yuvomi,
+  und Aufgabenänderungen in beide Richtungen.
 - **Aktiv nur, wenn:** alle drei Variablen `MS_CLIENT_ID`, `MS_CLIENT_SECRET`
   und `MS_REDIRECT_URI` gesetzt sind **und** ein Admin ein Microsoft-Konto per
   OAuth verbunden hat. Fehlt eine der Variablen, ist der Kanal vollständig
@@ -453,8 +455,9 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
   (Authorize/Token) und `graph.microsoft.com/v1.0`. Der `/consumers`-Pfad
   bedeutet: ausschließlich private Microsoft-Konten, keine Arbeits- oder
   Schulkonten.
-- **Scopes:** `offline_access Calendars.ReadWrite User.Read` — kein Zugriff auf
-  Mail, Kontakte oder Dateien.
+- **Scopes:** `offline_access Calendars.ReadWrite Tasks.ReadWrite User.Read` —
+  kein Zugriff auf Mail, Kontakte, Dateien oder nicht ausdrücklich unterstützte
+  gemeinsam genutzte Kalender/Listen.
 
 **Was je Termin an Microsoft übertragen wird:**
 
@@ -466,6 +469,21 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
 | Start/Ende, Ganztags-Kennzeichen, Zeitzone `Europe/Berlin` | ja |
 | Wiederholungsregel | ja, wenn gesetzt |
 | Teilnehmer, Erinnerungen, Anhänge, Farbe, Termin-Icon, Yuvomi-ID | **nein** |
+
+**Was Microsoft To Do an Yuvomi überträgt und von Yuvomi erhält:**
+
+| Feld | Übertragen? |
+|---|---|
+| Listenname und externe Listen-ID | ja |
+| Aufgabentitel, Beschreibung, Status, Priorität und Fälligkeit | ja, in beide Richtungen |
+| Löschung einer synchronisierten Aufgabe | ja, in beide Richtungen |
+| Erstellen, Umbenennen, Löschen oder Verschieben von Listen | **nein** |
+| Verschieben einer bereits synchronisierten Aufgabe zwischen Listen | **nein** |
+
+Nur aktivierte Microsoft-To-Do-Listen werden gespiegelt. Eine lokal neu angelegte
+Aufgabe kann beim Erstellen einer aktivierten To-Do-Liste zugewiesen werden. Die
+Task-List-Struktur bleibt dabei in Yuvomi erhalten; Unteraufgaben werden nicht als
+Microsoft-To-Do-Aufgaben angelegt.
 
 - **Hinweis zu Gesundheitsdaten (Art. 9 DSGVO):** Titel, Beschreibung und Ort
   sind **Freitext**, und im Familienkalender steht dort typischerweise genau
@@ -483,10 +501,12 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
   Microsoft-Konto — eine Übermittlung an Microsoft **und** an den Kontoinhaber.
 - **Was hereinkommt und gespeichert wird:** einmalig beim Verbinden das
   Graph-Profil (`id`, Anzeigename, `mail`/`userPrincipalName`), die Kalenderliste
-  (Id, Name, Farbe, Schreibrecht) und je Zielkalender eine Liste aus Event-Id
-  und `changeKey` zur Drift-Erkennung. **Inhalte fremder Outlook-Termine werden
-  nie abgerufen**, und es gibt keinen Inbound-Sync: nichts aus Outlook wird zu
-  Yuvomi-Termindaten.
+  (Id, Name, Farbe, Schreibrecht), je Zielkalender eine Liste aus Event-Id und
+  `changeKey` zur Drift-Erkennung sowie die Namen und IDs der To-Do-Listen.
+  Aktivierte To-Do-Aufgaben werden mit Titel, Beschreibung, Status, Priorität,
+  Fälligkeit und ihrer externen ID in Yuvomi gespiegelt. **Inhalte fremder
+  Outlook-Termine werden nie abgerufen**; To-Do-Inhalte werden nur für die vom
+  Admin aktivierten Listen gelesen.
 - **Sichtbarkeit:** Der **Auto-Sync** respektiert die In-App-Sichtbarkeit —
   private Termine anderer Personen landen nicht im Postfach des Kontoinhabers.
   Ein **ausdrücklich am einzelnen Termin gesetztes** Outlook-Ziel wird dagegen
@@ -516,10 +536,17 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
      Outlook gelöscht (bis zu `SYNC_INTERVAL_MINUTES` Verzug, Default 15 Minuten).
      Dasselbe gilt, wenn ein Termin die Sichtbarkeit für den Kontoinhaber
      verliert oder sein Ziel verliert.
-  2. **Beim Trennen eines Kontos bleiben bereits gepushte Termine in Outlook
-     stehen.** Wer sie loswerden will, löscht sie **vor** dem Trennen in Yuvomi
-     (oder anschließend von Hand in Outlook).
-  3. Die lokalen Tokens werden beim Trennen gelöscht, **ein Widerruf bei
+  2. Bei einer synchronisierten To-Do-Aufgabe wird eine Löschung in Yuvomi beim
+     nächsten Lauf an Microsoft übertragen; eine Löschung in Microsoft entfernt
+     die lokale Spiegelung. Wird eine Liste in Microsoft gelöscht, werden ihre
+     Yuvomi-Aufgaben als lokale Aufgaben behalten, statt stillschweigend gelöscht
+     zu werden.
+  3. **Beim Trennen eines Kontos bleiben bereits gepushte Termine und To-Do-
+     Aufgaben in Microsoft stehen.** Die To-Do-Aufgaben werden in Yuvomi von der
+     externen Liste gelöst und als lokale Aufgaben behalten. Wer die entfernten
+     Objekte loswerden will, löscht sie vorher in Yuvomi/Microsoft oder danach
+     von Hand in Microsoft.
+  4. Die lokalen Tokens werden beim Trennen gelöscht, **ein Widerruf bei
      Microsoft erfolgt aber nicht**. Entziehe die Freigabe zusätzlich unter
      <https://account.live.com/consent/Manage>, sonst bleibt die erteilte
      Berechtigung dort bestehen.
@@ -527,10 +554,11 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
   15 Minuten), zusätzlich einmal beim Serverstart, direkt nach dem
   OAuth-Callback und über einen manuellen Admin-Trigger.
 - **Empfehlungen:** einen **dedizierten Kalender** in Outlook als Ziel wählen
-  (nicht den Hauptkalender), `DB_ENCRYPTION_KEY` setzen, damit die Tokens nicht
-  im Klartext auf der Platte liegen, und bei Gesundheitsbezug den Freitext knapp
-  halten. Das Client-Secret der Entra-App gehört wie ein Passwort behandelt und
-  läuft nach spätestens 24 Monaten ab.
+  (nicht den Hauptkalender), nur die wirklich benötigten To-Do-Listen aktivieren,
+  `DB_ENCRYPTION_KEY` setzen, damit die Tokens nicht im Klartext auf der Platte
+  liegen, und bei Gesundheitsbezug den Freitext knapp halten. Das Client-Secret
+  der Entra-App gehört wie ein Passwort behandelt und läuft nach spätestens 24
+  Monaten ab.
 
 ---
 
@@ -644,7 +672,7 @@ konkrete Konfiguration ein und ergänze um eigene Verarbeitungen.
 | # | Bezeichnung | Zweck | Rechtsgrundlage | Kategorien Betroffener | Kategorien Daten | Empfänger | Drittland | Löschfrist | TOMs |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | Nutzerkonten / Authentifizierung | Login, Identifizierung | Art. 6 Abs. 1 lit. b | Nutzer der Instanz | E-Mail, Username, Passwort-Hash | <<OIDC-Provider falls aktiv>> | <<EU/Drittland>> | bis Account-Löschung | bcrypt-Hash (Cost 12), HTTPS |
-| 2 | Kalender / Termine | Haushaltskoordination | Art. 6 Abs. 1 lit. b; bei Gesundheitsangaben im Freitext zusätzlich Art. 9 Abs. 2 lit. a | Nutzer, ggf. Eingeladene | Termintitel, Teilnehmer, Ort, Freitext-Notizen (ggf. Gesundheitsangaben) | CalDAV-Server, Google Calendar und/oder Outlook/Microsoft Graph (falls Sync) | <<je nach Anbieter; Google/Microsoft ggf. USA>> | bis Löschung durch Nutzer; Outlook-Push löscht erst im nächsten Sync-Lauf, beim Trennen gar nicht | TLS, AVV (für private Microsoft-Konten nicht abschließbar, siehe 2.16) |
+| 2 | Kalender / Aufgaben | Haushaltskoordination | Art. 6 Abs. 1 lit. b; bei Gesundheitsangaben im Freitext zusätzlich Art. 9 Abs. 2 lit. a | Nutzer, ggf. Eingeladene | Termintitel, Teilnehmer, Ort, Freitext-Notizen, To-Do-Listen und Aufgaben (ggf. Gesundheitsangaben) | CalDAV-Server, Google Calendar und/oder Outlook/Microsoft Graph (falls Sync) | <<je nach Anbieter; Google/Microsoft ggf. USA>> | bis Löschung durch Nutzer; Outlook-/To-Do-Sync löscht beim nächsten Lauf, beim Trennen bleiben Remote-Objekte bestehen | TLS, AVV (für private Microsoft-Konten nicht abschließbar, siehe 2.16) |
 | 3 | Kontakte / CardDAV | Adressbuch | Art. 6 Abs. 1 lit. b/f | Nutzer, Kontakte | Name, Adresse, Telefon, E-Mail | CardDAV-Server (falls Sync) | <<je nach Anbieter>> | bis Löschung | TLS, AVV |
 | 4 | Wetter | Anzeige Vorhersage | Art. 6 Abs. 1 lit. b | Nutzer | Koordinaten/Ortsname | Open-Meteo (CH); ggf. OpenWeather (UK) | CH/UK Angemessenheit | sofort nach Anfrage | TLS |
 | 5 | Backups | Datensicherung | Art. 6 Abs. 1 lit. f | Nutzer und alle Datensubjekte der App | Vollbackup der DB | <<WebDAV-Provider>> | <<je nach Anbieter>> | <<Aufbewahrungs-Konzept, z. B. 30 Tage rollierend>> | Verschlüsselung vor Upload, AVV |
@@ -662,7 +690,7 @@ konkrete Konfiguration ein und ergänze um eigene Verarbeitungen.
 | <<OIDC-Provider>> | Authentifizierung | <<Datum>> | <<EU/USA>> | <<AVV; ggf. DPF + SCCs>> |
 | <<WebDAV-Provider>> | Backup- und/oder Dokument-Storage | <<Datum>> | <<je nach Anbieter>> | <<AVV; Verschlüsselung für Backups; Zugriffsbeschränkung>> |
 | <<Google Ireland/Google LLC>> | Google-Drive-Dokumentspeicher (falls aktiv) | <<Datum>> | EU/USA | <<Google-DPA; DPF-Status; ggf. SCCs/TIA; drive.file>> |
-| <<Microsoft Corp.>> | Outlook-Kalender-Push (falls aktiv) | **entfällt — kein AVV für private Konten** | USA | <<DPF-Status; Microsoft-Servicevertrag statt AVV; außerhalb der Haushaltsausnahme CalDAV-Ziel bevorzugen — siehe 2.16>> |
+| <<Microsoft Corp.>> | Outlook-Kalender- und Microsoft-To-Do-Sync (falls aktiv) | **entfällt — kein AVV für private Konten** | USA | <<DPF-Status; Microsoft-Servicevertrag statt AVV; außerhalb der Haushaltsausnahme CalDAV-Ziel bevorzugen — siehe 2.16>> |
 
 ---
 

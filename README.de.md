@@ -48,7 +48,7 @@ eigenständig - nutze, was passt, und schalte ab, was nicht passt.
 
 | Statt zu jonglieren mit… | gibt dir Yuvomi |
 |---|---|
-| einer To-do- &amp; Aufgaben-App | **Aufgaben** - Kanban, Fristen, Wiederholungen, Mehrfachzuweisung |
+| einer To-do- &amp; Aufgaben-App | **Aufgaben** - Kanban, dauerhafte Aufgabenlisten, Fristen, Wiederholungen, Mehrfachzuweisung |
 | einem Abo für den geteilten Kalender | **Kalender** - Sync, Abos, Sichtbarkeit je Termin |
 | einer App fürs Kostenteilen | **Gemeinsame Ausgaben** - geteilte Kosten mit Schuldenvereinfachung |
 | einer Budget-App | **Budget** - Einnahmen, Ausgaben, Konten, Sparziele |
@@ -74,7 +74,7 @@ Schalte an, was dein Haushalt braucht; der Rest bleibt aus dem Weg.
 
 | Modul | In einer Zeile |
 |---|---|
-| **Aufgaben** | Kanban-Board mit Fristen, Prioritäten, Unteraufgaben, Tags, Wiederholungen und Mehrfachzuweisung. Dokumente anhängen und in Kommentaren besprechen. Ein Verlauf zeigt nach Tagen, was erledigt wurde und wer abgehakt hat - und wann eine wiederkehrende Aufgabe zuletzt dran war. Eine Aufgabe lässt sich sperren, sodass nur Ersteller:in und Admins sie umschreiben, alle anderen sie aber weiter abhaken können. |
+| **Aufgaben** | Kanban-Board mit dauerhaften Aufgabenlisten, Fristen, Prioritäten, Unteraufgaben, Tags, Wiederholungen und Mehrfachzuweisung. Aufgabenlisten und Aufgaben mit CalDAV oder Microsoft To Do synchronisieren. Dokumente anhängen und in Kommentaren besprechen. Ein Verlauf zeigt nach Tagen, was erledigt wurde und wer abgehakt hat - und wann eine wiederkehrende Aufgabe zuletzt dran war. Eine Aufgabe lässt sich sperren, sodass nur Ersteller:in und Admins sie umschreiben, alle anderen sie aber weiter abhaken können. |
 | **Einkauf** | Geteilte Listen nach Gang gruppiert und in der Reihenfolge deines Ladens, mit Wischgesten und Ein-Tipp-Import aus dem Essensplan. |
 | **Mahlzeiten** | Wochenplaner per Drag-and-drop mit Rezept-Seitenleiste und direktem Export in die Einkaufsliste. |
 | **Rezepte** | Rezepte anlegen, duplizieren und skalieren, Mahlzeiten damit vorbelegen oder die Zutaten auf eine Einkaufsliste schicken. Eine Mealie- oder Tandoor-Instanz lässt sich lesend spiegeln. |

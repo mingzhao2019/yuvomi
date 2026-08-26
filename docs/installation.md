@@ -784,9 +784,9 @@ incremental runs. That run also merges appointments that earlier versions had st
 occurrences back into their series; an occurrence you had assigned to someone or given its own
 colour is kept as a separate entry instead.
 
-### Outlook Calendar Push — Microsoft Graph (Optional)
+### Outlook Calendar and Microsoft To Do — Microsoft Graph (Optional)
 
-One-way push **Yuvomi → Outlook.com** for personal Microsoft accounts (outlook.com, hotmail.com, M365 Family). Outlook.com does not support CalDAV, so this provider uses the Microsoft Graph API. Yuvomi stays the source of truth: pushed events are created/updated/deleted in Outlook, and every sync run also checks the pushed events for remote drift (one cheap `changeKey` listing per calendar) — events edited in Outlook are reset to the Yuvomi state, events deleted in Outlook are re-created. Multiple family accounts can be connected.
+This provider uses one Microsoft Graph OAuth connection for both features. Outlook Calendar is a one-way push **Yuvomi → Outlook.com**: Yuvomi stays the source of truth, pushed events are created/updated/deleted in Outlook, and every sync run checks for remote drift. Microsoft To Do is a separate, bidirectional task sync: enabled lists appear in Yuvomi's Tasks sidebar, and task changes flow in both directions. It supports personal Microsoft accounts (outlook.com, hotmail.com, M365 Family). Outlook.com does not support CalDAV, so both features use the Microsoft Graph API. Multiple family accounts can be connected.
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
@@ -799,15 +799,21 @@ One-way push **Yuvomi → Outlook.com** for personal Microsoft accounts (outlook
 > Microsoft has deprecated creating app registrations *outside a directory* — signing in to Entra with a bare personal account shows a blocking notice. You need an Entra tenant to hold the app: sign up for a **free Azure account** (creates a "Default Directory"; identity verification asks for a credit card, but the app registration and Graph calls stay free). The M365 Developer Program alternative is restricted to Visual Studio Professional/Enterprise subscribers and Microsoft partners. Your family's personal accounts do **not** need to join the tenant — it only hosts the app registration.
 
 1. Sign in at [entra.microsoft.com](https://entra.microsoft.com) with the account that owns the tenant → **Identity → Applications → App registrations → New registration**.
-2. Name: e.g. `Yuvomi Calendar Push`. Supported account types: **"Personal Microsoft accounts only"**.
+2. Name: e.g. `Yuvomi Calendar and Tasks`. Supported account types: **"Personal Microsoft accounts only"**.
 3. Platform: **Web**, redirect URI: `https://<YOUR-DOMAIN>/api/v1/calendar/outlook/callback` (must be HTTPS, or `http://localhost:3000/...` for local testing). This must match `MS_REDIRECT_URI` exactly.
 4. After creation, copy the **Application (client) ID** → `MS_CLIENT_ID`.
 5. **Certificates & secrets → New client secret** → copy the secret **Value** (shown only once) → `MS_CLIENT_SECRET`. Note the expiry (max. 24 months) — you must create a new secret before it expires.
-6. API permissions are requested dynamically via OAuth scopes (`Calendars.ReadWrite`, `User.Read`, `offline_access` — delegated); no admin consent is needed for personal accounts.
+6. Under **API permissions**, add Microsoft Graph **Delegated permissions**. The current Yuvomi build needs only these four scopes:
+   - `Calendars.ReadWrite` — read and write the signed-in user's calendars;
+   - `Tasks.ReadWrite` — create, read, update and delete the signed-in user's task lists and tasks;
+   - `User.Read` — read the signed-in profile used to label the connected account;
+   - `offline_access` — keep a refresh token so scheduled sync can continue after the access token expires.
+   `Calendars.Read`, `Calendars.ReadBasic`, `Tasks.Read`, and the `.Shared` variants are not required by the current implementation. Adding them does not enable shared-calendar or shared-task support. All four required delegated permissions are suitable for personal Microsoft accounts and do not require admin consent. See Microsoft's [Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference).
 7. Set the three `MS_*` variables in `.env`, restart Yuvomi, then connect each family member's account under **Settings → Synchronization → More providers → Outlook** (admin only).
 8. After connecting, no calendars are enabled yet. Recommended setup: create a **dedicated calendar in Outlook** (e.g. "Yuvomi"), refresh the calendar list, pick it as the **auto-sync target calendar**, and choose which family member the account belongs to — from then on all Yuvomi events visible to that person are pushed there automatically, with assigned members appended to the title (`Dinner (Anna, Ben)`). Alternatively (or additionally), individual events can pick an explicit Outlook target in the event dialog; an explicit target overrides the auto-sync calendar for that event.
+9. In the same connected-account card, find **Microsoft To Do lists**, click **Refresh To Do lists**, and enable the lists you want. Enabled lists remain visible in the Tasks sidebar and can be selected when creating a task. Imported tasks and tasks created in Yuvomi synchronize title, description, status, priority, due date and deletion in both directions.
 
-**Limitations (one-way push):** recurring events support Yuvomi's RRULE subset only; excluded single occurrences (EXDATE) are not propagated; no attendees, reminders, attachments, or colors. **Times follow the household zone since v2.34.0 (#829)** - until then `Europe/Berlin` was hard-coded here, justified as parity with the Google outbound sync although that one already read the target calendar's own zone and only fell back to `TZ`; a household in Toronto pushed every appointment six hours out. Refresh tokens for personal accounts expire after ~90 days of inactivity — the account then shows a "reconnect" button.
+**Limitations:** Outlook Calendar remains a one-way push: recurring events support Yuvomi's RRULE subset only; excluded single occurrences (EXDATE) are not propagated; no attendees, reminders, attachments, or colors. Microsoft To Do list creation, renaming, deletion and moving an existing task between lists are not managed by Yuvomi yet. **Times follow the household zone since v2.34.0 (#829)** - until then `Europe/Berlin` was hard-coded here, justified as parity with the Google outbound sync although that one already read the target calendar's own zone and only fell back to `TZ`; a household in Toronto pushed every appointment six hours out. Refresh tokens for personal accounts expire after ~90 days of inactivity — the account then shows a "reconnect" button.
 
 ### Apple Calendar Sync — Legacy Single-Account (Optional)
 
@@ -1432,9 +1438,10 @@ Radicale, Baikal) and subscribe to it from the Reminders app's "Other" account r
 </details>
 
 <details>
-<summary>Outlook events are not appearing</summary>
+<summary>Outlook Calendar or Microsoft To Do is not syncing</summary>
 
-Work through this in order — each step rules out one of the four things that stop a push.
+Work through the relevant steps in order — each one rules out a common reason that the
+calendar push or To Do sync is not running.
 
 **1. Is the provider configured at all?** All three of `MS_CLIENT_ID`, `MS_CLIENT_SECRET` and
 `MS_REDIRECT_URI` must be set; with one missing, the Outlook panel stays inactive and nothing is
@@ -1468,6 +1475,13 @@ own state on the next run, and re-creates it if you delete it there. To get rid 
 good, delete it in Yuvomi. Note also that disconnecting an account leaves everything already
 pushed behind in Outlook — clear those events in Yuvomi *before* disconnecting, or delete them by
 hand in Outlook afterwards.
+
+If the calendar connection was created before Microsoft To Do support or before
+`Tasks.ReadWrite` was added to the app registration, reconnect that Microsoft account once.
+The old refresh token cannot grant a newly added delegated scope. After reconnecting, refresh the
+To Do lists in the account card and enable the lists that should appear in Tasks. A task already
+mirrored from Microsoft To Do cannot be moved to another list from Yuvomi yet; create a new task
+with the desired list as its sync target instead.
 
 </details>
 
