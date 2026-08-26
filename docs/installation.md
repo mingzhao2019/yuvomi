@@ -811,7 +811,7 @@ This provider uses one Microsoft Graph OAuth connection for both features. Outlo
    `Calendars.Read`, `Calendars.ReadBasic`, `Tasks.Read`, and the `.Shared` variants are not required by the current implementation. Adding them does not enable shared-calendar or shared-task support. All four required delegated permissions are suitable for personal Microsoft accounts and do not require admin consent. See Microsoft's [Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference).
 7. Set the three `MS_*` variables in `.env`, restart Yuvomi, then connect each family member's account under **Settings → Synchronization → More providers → Outlook** (admin only).
 8. After connecting, no calendars are enabled yet. Recommended setup: create a **dedicated calendar in Outlook** (e.g. "Yuvomi"), refresh the calendar list, pick it as the **auto-sync target calendar**, and choose which family member the account belongs to — from then on all Yuvomi events visible to that person are pushed there automatically, with assigned members appended to the title (`Dinner (Anna, Ben)`). Alternatively (or additionally), individual events can pick an explicit Outlook target in the event dialog; an explicit target overrides the auto-sync calendar for that event.
-9. In the same connected-account card, find **Microsoft To Do lists**, click **Refresh To Do lists**, and enable the lists you want. Enabled lists remain visible in the Tasks sidebar and can be selected when creating a task. Imported tasks and tasks created in Yuvomi synchronize title, description, status, priority, due date and deletion in both directions.
+9. In the same connected-account card, find **Microsoft To Do lists**, click **Refresh To Do lists**, and enable the lists you want. Enabled lists remain visible in the Tasks sidebar and can be selected when creating a task. Imported tasks and tasks created in Yuvomi synchronize title, description, status, priority, due date and deletion in both directions. Normal scheduled runs use Microsoft's Delta feed; each enabled list is fully reconciled at least every six hours, and the manual **Sync now** action always performs a full reconciliation. A full check removes clean Yuvomi mirrors that no longer exist remotely while preserving local changes still waiting to be pushed.
 
 **Limitations:** Outlook Calendar remains a one-way push: recurring events support Yuvomi's RRULE subset only; excluded single occurrences (EXDATE) are not propagated; no attendees, reminders, attachments, or colors. Microsoft To Do list creation, renaming, deletion and moving an existing task between lists are not managed by Yuvomi yet. **Times follow the household zone since v2.34.0 (#829)** - until then `Europe/Berlin` was hard-coded here, justified as parity with the Google outbound sync although that one already read the target calendar's own zone and only fell back to `TZ`; a household in Toronto pushed every appointment six hours out. Refresh tokens for personal accounts expire after ~90 days of inactivity — the account then shows a "reconnect" button.
 
@@ -1467,8 +1467,10 @@ stops working at once and a new secret has to be created in Entra and written to
 `MS_CLIENT_SECRET`.
 
 A push is not immediate: it happens on the shared sync run (`SYNC_INTERVAL_MINUTES`, 15 minutes by
-default), right after connecting, and whenever an admin triggers it manually. The same applies in
-reverse — deleting an event in Yuvomi removes it from Outlook on the *next* run, not instantly.
+default), right after connecting, and whenever an admin triggers it manually. Microsoft To Do uses
+the same scheduler for Delta updates, with a full list reconciliation at least every six hours;
+the manual To Do sync always starts that full check. The same applies in reverse — deleting an event
+in Yuvomi removes it from Outlook on the *next* run, not instantly.
 
 Editing a pushed event in Outlook is pointless: Yuvomi is the source of truth and resets it to its
 own state on the next run, and re-creates it if you delete it there. To get rid of an event for

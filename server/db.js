@@ -6716,6 +6716,16 @@ const MIGRATIONS = [
       END;
     `,
   },
+  {
+    version: 165,
+    description: 'Track Microsoft To Do full consistency checks',
+    up: `
+      -- A full reconciliation is more authoritative than an empty Delta page.
+      -- Persist its checkpoint per list so the periodic safety net survives
+      -- restarts and does not depend on process uptime.
+      ALTER TABLE task_lists ADD COLUMN last_full_sync TEXT;
+    `,
+  },
 ];
 
 /**

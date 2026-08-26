@@ -1091,6 +1091,11 @@ const MIGRATIONS_SQL = {
     -- the migration's ownership visible without pretending to be a full replay.
     UPDATE tasks SET external_source = external_source WHERE 0;
   `,
+  // SQL-String für Migration v165 (gespiegelt aus db.js): persistenter
+  // Checkpoint für die periodische Microsoft-To-Do-Gesamtprüfung.
+  165: `
+    ALTER TABLE task_lists ADD COLUMN last_full_sync TEXT;
+  `,
 };
 
 export { MIGRATIONS_SQL };

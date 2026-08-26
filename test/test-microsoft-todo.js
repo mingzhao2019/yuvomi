@@ -175,6 +175,101 @@ test('discovers lists, imports delta tasks, and persists the per-list cursor', a
   assert.equal(calls[1].headers['Content-Type'], 'application/json');
 });
 
+test('manual sync forces a full reconciliation and removes a stale mirrored task', async () => {
+  const ownerId = insertUser('todo-owner-full');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, sync_cursor, last_full_sync)
+    VALUES ('Full', 'microsoft_todo', ?, 'list-full', ?,
+            '/me/todo/lists/list-full/tasks/delta?$deltatoken=old', ?)
+  `).run(accountId, ownerId, new Date().toISOString()).lastInsertRowid;
+  const staleTaskId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id)
+    VALUES ('Stale remote task', ?, 'microsoft_todo', ?, 'remote-stale', ?)
+  `).run(ownerId, accountId, listId).lastInsertRowid;
+
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    calls.push({ path: parsed.pathname, search: parsed.search, method: options.method || 'GET' });
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-full', displayName: 'Full' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-full/tasks/delta') {
+      assert.equal(parsed.search, '', 'forced full sync must not reuse the saved cursor');
+      return response(200, {
+        value: [{
+          id: 'remote-current',
+          title: 'Current remote task',
+          body: { content: '', contentType: 'text' },
+          status: 'notStarted',
+          importance: 'normal',
+        }],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-full/tasks/delta?$deltatoken=fresh',
+      });
+    }
+    throw new Error(`Unexpected Graph request ${options.method || 'GET'} ${parsed.pathname}${parsed.search}`);
+  };
+
+  const result = await todo.sync({ database, fetchImpl, forceFull: true });
+
+  assert.equal(result.success, true);
+  assert.ok(result.fullResyncLists >= 1);
+  assert.equal(result.deleted, 1);
+  assert.equal(database.prepare('SELECT 1 FROM tasks WHERE id = ?').get(staleTaskId), undefined);
+  assert.equal(
+    database.prepare(`
+      SELECT title FROM tasks
+       WHERE external_source = 'microsoft_todo' AND external_uid = 'remote-current'
+    `).get().title,
+    'Current remote task',
+  );
+  const list = database.prepare('SELECT sync_cursor, last_full_sync FROM task_lists WHERE id = ?').get(listId);
+  assert.equal(list.sync_cursor, '/me/todo/lists/list-full/tasks/delta?$deltatoken=fresh');
+  assert.ok(list.last_full_sync);
+  assert.ok(calls.filter(({ path }) => path === '/v1.0/me/todo/lists').length >= 1);
+  assert.ok(calls.filter(({ path }) => path === '/v1.0/me/todo/lists/list-full/tasks/delta').length >= 1);
+});
+
+test('scheduled sync forces a full reconciliation after the checkpoint interval', async () => {
+  const ownerId = insertUser('todo-owner-periodic-full');
+  const accountId = insertAccount(ownerId);
+  database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, sync_cursor, last_full_sync)
+    VALUES ('Periodic full', 'microsoft_todo', ?, 'list-periodic-full', ?,
+            '/me/todo/lists/list-periodic-full/tasks/delta?$deltatoken=old', ?)
+  `).run(
+    accountId,
+    ownerId,
+    new Date(Date.now() - todo.__test.FULL_RESYNC_INTERVAL_MS - 1000).toISOString(),
+  );
+
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-periodic-full', displayName: 'Periodic full' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-periodic-full/tasks/delta') {
+      assert.equal(parsed.search, '');
+      return response(200, {
+        value: [],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-periodic-full/tasks/delta?$deltatoken=periodic-fresh',
+      });
+    }
+    throw new Error(`Unexpected Graph request ${parsed.pathname}${parsed.search}`);
+  };
+
+  const result = await todo.sync({ database, fetchImpl });
+
+  assert.ok(result.fullResyncLists >= 1);
+  assert.ok(database.prepare(`
+    SELECT last_full_sync FROM task_lists WHERE external_list_id = 'list-periodic-full'
+  `).get().last_full_sync);
+});
+
 test('falls back to a full task snapshot when a personal account rejects delta', async () => {
   const calls = [];
   const fetchImpl = async (url, options = {}) => {

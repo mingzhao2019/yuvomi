@@ -202,7 +202,10 @@ router.patch('/outlook/accounts/:id/todo-lists', requireAdmin, (req, res) => {
 router.post('/outlook/todo/sync', requireAdmin, async (req, res) => {
   try {
     outlookCalendar.assertConfigured();
-    const result = await microsoftTodo.sync();
+    // A user-triggered check must repair missing remote deletions immediately;
+    // scheduled runs use the cheaper delta path and periodically force a full
+    // reconciliation themselves.
+    const result = await microsoftTodo.sync({ forceFull: true });
     res.json({ data: result });
   } catch (err) {
     log.error('', err);

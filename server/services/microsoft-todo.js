@@ -28,6 +28,10 @@ export const MICROSOFT_TODO_PROVIDER = 'microsoft_todo';
 export const MICROSOFT_TODO_SOURCE = 'microsoft_todo';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const OUTBOUND_IN_FLIGHT = 2;
+// Delta is intentionally cheap for normal polling, but it is not sufficient to
+// repair a local mirror when Graph omits or coalesces a deletion event. Keep a
+// persistent full-sync checkpoint per list so the safety net survives restarts.
+const FULL_RESYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 // Microsoft Graph returns Windows time-zone names for some tenants, while the
 // shared timezone helpers intentionally accept IANA names. Keep the mapping
@@ -168,8 +172,14 @@ function activeDatabase(database) {
   return database || dbModule.get();
 }
 
-function nowIso() {
-  return new Date().toISOString();
+function nowIso(now = Date.now()) {
+  return new Date(now).toISOString();
+}
+
+function shouldRunFullResync(lastFullSync, now = Date.now()) {
+  if (!lastFullSync) return true;
+  const timestamp = Date.parse(lastFullSync);
+  return !Number.isFinite(timestamp) || now - timestamp >= FULL_RESYNC_INTERVAL_MS;
 }
 
 function safeError(error) {
@@ -213,6 +223,7 @@ function publicList(row) {
     accountName: row.account_name || null,
     enabled: row.enabled !== 0,
     lastSync: row.last_sync || null,
+    lastFullSync: row.last_full_sync || null,
     lastError: row.last_error || null,
   };
 }
@@ -830,8 +841,9 @@ export function queueTaskDeletion(task, database) {
  * only after its complete delta pages and all task changes succeed.
  */
 let syncInFlight = null;
+let syncInFlightForceFull = false;
 
-async function syncInternal({ database, fetchImpl = fetch } = {}) {
+async function syncInternal({ database, fetchImpl = fetch, forceFull = false } = {}) {
   const activeDb = activeDatabase(database);
   const timeZone = householdTimeZone(activeDb);
   const accounts = activeDb.prepare('SELECT * FROM outlook_accounts ORDER BY id').all();
@@ -842,6 +854,7 @@ async function syncInternal({ database, fetchImpl = fetch } = {}) {
     created: 0,
     updated: 0,
     deleted: 0,
+    fullResyncLists: 0,
     failed: 0,
   };
 
@@ -872,28 +885,38 @@ async function syncInternal({ database, fetchImpl = fetch } = {}) {
       for (const list of discovered.rows) {
         if (!list.enabled || !discovered.remoteIds.has(String(list.external_list_id))) continue;
         try {
+          const runFullResync = forceFull || shouldRunFullResync(list.last_full_sync);
           const changes = await fetchTaskDelta(
             list.external_list_id,
-            list.sync_cursor,
+            runFullResync ? null : list.sync_cursor,
             accessToken,
             fetchImpl,
           );
+          const completedFullResync = runFullResync || changes.fullResync;
+          const syncedAt = nowIso();
           const counts = activeDb.transaction(() => {
             const applied = applyRemoteTasks(activeDb, account, list, changes, timeZone);
             activeDb.prepare(`
               UPDATE task_lists
-                 SET sync_cursor = ?, last_sync = ?, last_error = NULL,
+                 SET sync_cursor = ?, last_sync = ?, last_full_sync = ?, last_error = NULL,
                      updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
                WHERE id = ?
-            `).run(changes.deltaLink, nowIso(), list.id);
+            `).run(
+              changes.deltaLink,
+              syncedAt,
+              completedFullResync ? syncedAt : list.last_full_sync,
+              list.id,
+            );
             return applied;
           })();
           result.created += counts.created;
           result.updated += counts.updated;
           result.deleted += counts.deleted;
+          if (completedFullResync) result.fullResyncLists += 1;
           result.lists += 1;
         } catch (error) {
           accountFailed = true;
+          result.success = false;
           result.failed += 1;
           markListError(activeDb, list.id, error);
           if (isReauthError(error)) setTodoReauth(activeDb, account.id, true);
@@ -913,6 +936,7 @@ async function syncInternal({ database, fetchImpl = fetch } = {}) {
       }
       if (!accountFailed) result.syncedAccounts += 1;
     } catch (error) {
+      result.success = false;
       result.failed += 1;
       if (isReauthError(error)) setTodoReauth(activeDb, account.id, true);
       log.error(`Microsoft To Do sync failed for account ${account.id}:`, safeError(error));
@@ -924,10 +948,40 @@ async function syncInternal({ database, fetchImpl = fetch } = {}) {
 
 /** Serialize scheduler, manual, and OAuth-triggered syncs for shared accounts. */
 export function sync(options = {}) {
-  if (syncInFlight) return syncInFlight;
-  syncInFlight = syncInternal(options).finally(() => {
-    syncInFlight = null;
+  const forceFull = Boolean(options.forceFull);
+  if (syncInFlight) {
+    if (!forceFull || syncInFlightForceFull) return syncInFlight;
+
+    // Do not let a manual full check disappear behind an already-running
+    // scheduler Delta poll. Queue it after the current run, even if that run
+    // fails, so the manual action still gets its authoritative reconciliation.
+    const previous = syncInFlight;
+    const queued = previous.then(
+      () => syncInternal(options),
+      () => syncInternal(options),
+    );
+    let wrapped;
+    wrapped = queued.finally(() => {
+      if (syncInFlight === wrapped) {
+        syncInFlight = null;
+        syncInFlightForceFull = false;
+      }
+    });
+    syncInFlightForceFull = true;
+    syncInFlight = wrapped;
+    return syncInFlight;
+  }
+
+  const running = syncInternal(options);
+  let wrapped;
+  wrapped = running.finally(() => {
+    if (syncInFlight === wrapped) {
+      syncInFlight = null;
+      syncInFlightForceFull = false;
+    }
   });
+  syncInFlightForceFull = forceFull;
+  syncInFlight = wrapped;
   return syncInFlight;
 }
 
@@ -953,6 +1007,8 @@ export const __test = {
   collectPages,
   fetchRemoteLists,
   fetchTaskDelta,
+  shouldRunFullResync,
+  FULL_RESYNC_INTERVAL_MS,
   dueDateParts,
   remoteTaskValues,
   graphTaskPayload,
