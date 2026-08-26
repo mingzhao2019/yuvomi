@@ -29,9 +29,7 @@ const serverSource = fs.readFileSync(SERVER_PATH, 'utf8');
  * Das Objektliteral der `/manifest.webmanifest`-Route als Text.
  *
  * Bewusst statisch statt per Import: server/index.js startet beim Laden den
- * Server samt DB. Fuer die Frage, welche Schluessel dort stehen, reicht der
- * Quelltext - und er faellt auch dann auf, wenn jemand den Wert nur in einem
- * Zweig setzt.
+ * Server samt DB.
  */
 function serverManifestSource() {
   const start = serverSource.indexOf("app.get('/manifest.webmanifest'");
@@ -41,10 +39,22 @@ function serverManifestSource() {
   return serverSource.slice(start, end);
 }
 
-/** Grobwert eines Schluessels aus dem Routen-Literal (String/Array-Literal als Text). */
-function serverValue(key) {
-  const m = serverManifestSource().match(new RegExp(`^\\s*${key}:\\s*(.+?),\\s*$`, 'm'));
-  return m ? m[1].trim() : null;
+/**
+ * Das Manifest der Route als echtes Objekt.
+ *
+ * Ausgewertet statt zeilenweise gelesen: ein Regex ueber `key: wert,` sieht nur
+ * einzeilige Eintraege, und genau daran waere der Guard vorbeigelaufen - ein
+ * ueber drei Zeilen verteiltes Ternaer haette `orientation` klaglos wieder
+ * eingefuehrt. Der Wert wird ausgerechnet, nicht erraten; `appName` ist die
+ * einzige Laufzeit-Groesse und bekommt einen festen Platzhalter.
+ */
+function serverManifest() {
+  const src = serverManifestSource();
+  const objStart = src.indexOf('res.json({');
+  assert.notEqual(objStart, -1, 'res.json({...}) nicht gefunden');
+  const literal = src.slice(objStart + 'res.json('.length).trimEnd().replace(/\);?$/, '');
+  // eslint-disable-next-line no-new-func
+  return new Function('appName', `return ${literal};`)('TEST_APP_NAME');
 }
 
 // --------------------------------------------------------
@@ -57,50 +67,49 @@ test('kein orientation-Schluessel im statischen Manifest (#890)', () => {
 });
 
 test('kein orientation-Schluessel in der Server-Route (#890)', () => {
-  assert.equal(serverValue('orientation'), null,
+  assert.ok(!('orientation' in serverManifest()),
     'orientation sperrt die installierte App auf eine Lage; ohne den Schluessel folgt sie dem Geraet');
+});
+
+// Zweite Klinke am selben Schluessel: die Auswertung oben liefert nur das
+// Ergebnis. Wer `orientation` in einen Zweig legt, den der Testlauf nicht
+// nimmt, faellt hier auf - im Quelltext hat der Schluessel nichts zu suchen.
+test('orientation kommt im Routen-Quelltext gar nicht erst vor (#890)', () => {
+  const code = serverManifestSource().split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+  assert.ok(!/\borientation\s*:/.test(code),
+    'orientation steht wieder in der Route - auch bedingt gesetzt ist es eine Sperre');
 });
 
 // --------------------------------------------------------
 // Die zwei Quellen bleiben zusammen
 // --------------------------------------------------------
 
-// name/short_name stehen bewusst nicht hier: die Server-Route setzt dort den
-// in den Einstellungen gewaehlten App-Namen ein, die statische Datei den
-// Standard. Alles andere muss identisch sein.
-const SHARED_STRING_KEYS = ['description', 'id', 'start_url', 'scope', 'display', 'theme_color', 'background_color', 'lang'];
+// name/short_name stehen bewusst ausserhalb: die Server-Route setzt dort den in
+// den Einstellungen gewaehlten App-Namen ein, die statische Datei den Standard.
+const DYNAMIC_KEYS = ['name', 'short_name'];
 
-for (const key of SHARED_STRING_KEYS) {
-  test(`${key} ist in beiden Manifest-Quellen gleich`, () => {
-    const raw = serverValue(key);
-    assert.notEqual(raw, null, `${key} fehlt in der Server-Route`);
-    assert.equal(raw.replace(/^'|'$/g, ''), String(staticManifest[key]),
-      `${key} ist auseinandergelaufen - eine Quelle wurde ohne die andere geaendert`);
-  });
+/** Alles ausser den beiden namensabhaengigen Feldern. */
+function comparable(manifest) {
+  return Object.fromEntries(Object.entries(manifest).filter(([k]) => !DYNAMIC_KEYS.includes(k)));
 }
 
-test('display_override ist in beiden Quellen gleich', () => {
-  const raw = serverValue('display_override');
-  assert.notEqual(raw, null, 'display_override fehlt in der Server-Route');
-  const parsed = JSON.parse(raw.replace(/'/g, '"'));
-  assert.deepEqual(parsed, staticManifest.display_override);
+// Als Regel und nicht als Liste bekannter Felder: eine Allowlist sagt zu jedem
+// neuen Schluessel ja, und genau der waere dann der, der auseinanderlaeuft.
+test('beide Manifest-Quellen sind Feld fuer Feld gleich (ausser name/short_name)', () => {
+  assert.deepEqual(comparable(serverManifest()), comparable(staticManifest),
+    'die zwei Manifest-Quellen sind auseinandergelaufen - eine wurde ohne die andere geaendert');
 });
 
-test('beide Quellen fuehren dieselben Icons', () => {
-  const src = serverManifestSource();
-  for (const icon of staticManifest.icons) {
-    assert.ok(src.includes(`src: '${icon.src}'`),
-      `${icon.src} fehlt in der Server-Route`);
+test('die namensabhaengigen Felder gibt es in beiden Quellen', () => {
+  const server = serverManifest();
+  for (const key of DYNAMIC_KEYS) {
+    assert.ok(key in server, `${key} fehlt in der Server-Route`);
+    assert.ok(key in staticManifest, `${key} fehlt in der statischen Datei`);
   }
-  const serverIconCount = (src.match(/src: '\/icons\//g) || []).length;
-  assert.equal(serverIconCount, staticManifest.icons.length,
-    'die Server-Route fuehrt eine andere Zahl Icons als die statische Datei');
+  assert.ok(server.name.includes('TEST_APP_NAME'), 'die Route setzt den App-Namen nicht mehr ein');
+  assert.equal(server.short_name, 'TEST_APP_NAME');
 });
 
-// `--neutral-100` ist selbst eine Weiterleitung auf `--_neutral-100`; der
-// Rohwert steht dort und wird im Dark-Theme ueberschrieben. Verglichen wird
-// gegen die erste Definition, also die des hellen `:root` - das ist die Farbe,
-// die die Installations-Huelle traegt.
 test('theme_color folgt dem Rohwert von --_neutral-100 aus tokens.css', () => {
   const tokens = fs.readFileSync(path.join(HERE, '..', 'public', 'styles', 'tokens.css'), 'utf8');
   const m = tokens.match(/--_neutral-100:\s*(#[0-9a-fA-F]{3,8})\s*;/);
@@ -109,9 +118,11 @@ test('theme_color folgt dem Rohwert von --_neutral-100 aus tokens.css', () => {
     'der App-Grund im Manifest ist nicht mehr der Token-Wert');
 });
 
-// Gegenprobe zur Ableitung selbst: findet der Leser den Wert ueberhaupt, oder
-// waeren die Vergleiche oben null gegen null?
-test('serverValue liest die Route wirklich aus', () => {
-  assert.equal(serverValue('display'), "'standalone'");
-  assert.equal(serverValue('nicht_vorhanden'), null);
+// Gegenprobe zur Ableitung selbst: liest der Guard die Route ueberhaupt, oder
+// verglichen die Tests oben ein leeres Objekt mit sich selbst?
+test('die Route wird wirklich ausgelesen', () => {
+  const server = serverManifest();
+  assert.equal(server.display, 'standalone');
+  assert.ok(Object.keys(server).length >= 10, 'die Route liefert auffaellig wenige Schluessel');
+  assert.ok(server.icons.length >= 4, 'die Route fuehrt keine Icons');
 });
