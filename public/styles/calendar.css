@@ -1789,7 +1789,13 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-width: 0;
+  /* OHNE `min-width: 0`, UND DAS IST ABSICHT. Das automatische Flex-Minimum ist
+   * hier genau die richtige Untergrenze: es ist die min-content-Breite der
+   * Gruppe, also die Summe der Chip-Mindestbreiten. Abgeschaltet liesse es die
+   * Gruppe unter diese Summe schrumpfen, waehrend die Chips selbst bei ihrer
+   * Zielgroesse stehenbleiben - sie zeichneten dann ueber die Kante der Gruppe
+   * und in die Nachbarn hinein. Die Labels geben trotzdem nach: das
+   * Nachgiebige sitzt eine Ebene tiefer, am Label des einzelnen Chips. */
 }
 
 .cal-toolbar__layer-btn {

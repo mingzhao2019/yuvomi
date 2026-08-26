@@ -8407,19 +8407,35 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
   const layout = stripCssComments(read('../public/styles/layout.css'));
   const narrowRules = cssRules(read('../public/styles/layout.css'))
     .filter((r) => r.selectors.some((sel) => /\.page-toolbar--narrow(?![\w-])/.test(sel)));
-  assert.ok(
-    narrowRules.some((r) => /var\(--content-max-width-narrow\)/.test(r.body)),
-    'layout.css: .page-toolbar--narrow muss das Ende seiner Zeile auf --content-max-width-narrow zurückholen',
+
+  // Der Abstand ist ein eigener Slot am Ende der Zeile - nicht irgendeine
+  // Deklaration, die das Token nur ERWÄHNT. Auf blosse Token-Präsenz geprüft
+  // ginge auch `.page-toolbar--narrow { max-width: var(--content-max-width-narrow) }`
+  // durch, und genau das schliesst der Kommentarblock in layout.css als
+  // rail-brechend aus.
+  const spacer = narrowRules.filter((r) =>
+    r.selectors.some((sel) => /\.page-toolbar--narrow::after\b/.test(sel))
+    && /flex(?:-basis)?:[^;]*var\(--content-max-width-narrow\)/.test(r.body));
+  assert.equal(
+    spacer.length, 1,
+    'layout.css: .page-toolbar--narrow::after muss das Ende seiner Zeile als Flex-Slot auf '
+    + '--content-max-width-narrow zurückholen (genau eine Regel, gefunden: ' + spacer.length + ')',
   );
-  // Und der Rückhalt darf nicht mehr unnachgiebig sein: was das Zeilenende
-  // setzt, muss nachgeben können, sonst steht der Umbruch wieder fest (#882).
-  const holder = narrowRules.find((r) => /var\(--content-max-width-narrow\)/.test(r.body));
-  assert.doesNotMatch(
-    holder.body,
-    /margin-(?:inline-end|right):\s*max\(/,
-    'layout.css: der Lesemaß-Abstand darf keine Marge sein - eine Marge gibt nie nach '
-    + 'und zählt trotzdem in die Flex-Zeilenbelegung (#882)',
-  );
+
+  // Und KEINE der Regeln darf den Rückhalt wieder als Marge setzen. Über ALLE
+  // statt über die erste: die Prüfung nahm zuerst nur `find()`, und damit wäre
+  // sie grün geblieben, sobald die alte, fehlerhafte Regel NACH der neuen
+  // wieder aufgetaucht wäre - also genau im Wiedereinführungsfall, für den sie
+  // gedacht ist. Eine Marge gibt nie nach und zählt trotzdem in die
+  // Flex-Zeilenbelegung; das war #882.
+  for (const rule of narrowRules) {
+    assert.doesNotMatch(
+      rule.body,
+      /margin-(?:inline-end|right):\s*max\(/,
+      `layout.css: "${rule.selectors.join(', ')}" setzt den Lesemaß-Abstand wieder als Marge - `
+      + 'eine Marge gibt nie nach und zählt trotzdem in die Flex-Zeilenbelegung (#882)',
+    );
+  }
   // Ohne Breakpoint: .list-scroller kappt unbedingt, der Kopf muss das auch.
   // Der Vorgänger stand in `@media (min-width: 1024px)` und ließ den Versatz
   // zwischen 720px und 1024px stehen (gemessen 148px bei 900px Fensterbreite).

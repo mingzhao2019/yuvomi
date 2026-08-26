@@ -3399,6 +3399,13 @@ describe('Sonde 18 - am Scroll-Ende liegt nichts Bedienbares unter dem FAB', () 
  * erste Fassung uebernahm die Zwei-Zeilen-Grenze von Sonde 15 und blieb mit
  * wieder eingebautem Fehler gruen.
  *
+ * ZWEI ZUSICHERUNGEN, WEIL EINE OHNE DIE ANDERE ERKAUFT WERDEN KANN. Einzeilig
+ * zu sein ist wertlos, wenn der Kopf sein Ende dabei verliert - der
+ * Lesemass-Abstand existiert ja gerade, damit Kopf und Koerper dieselbe rechte
+ * Kante haben. Die erste Fassung des Fix liess ihn nachgeben: der Kopf wurde
+ * einzeilig und schob sein Ende um 69 bis 87px ueber die Koerperkante. Kein
+ * Guard sah das, weil keiner die Kante mass; gefunden hat es ein Reviewer.
+ *
  * DREI BREITEN, WEIL DIE ENGE VON DER BREITE ABHAENGT. 1024px ist die Kante der
  * Groessenklasse (darunter regiert die Large-Title-Zone und der Umbruch ist
  * Absicht), 1280px die Breite, ab der die Content-Spalte steht, und 1960px die
@@ -3450,10 +3457,47 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
                   if (top >= end) rows += 1;
                   end = Math.max(end, bottom);
                 }
-                return { rows, h: Math.round(el.getBoundingClientRect().height), cls: el.className };
+                // Wo endet der letzte echte Slot, gemessen ab dem Anfang der
+                // Content-Box? Nur fuer gedeckelte Koepfe - die uebrigen haben
+                // keine Kante, an die sie sich halten muessten.
+                let narrowEnd = null;
+                let measure = null;
+                if (el.classList.contains('page-toolbar--narrow')) {
+                  const cs = getComputedStyle(el);
+                  const contentLeft = el.getBoundingClientRect().left + parseFloat(cs.paddingInlineStart);
+                  const inner = el.clientWidth - parseFloat(cs.paddingInlineStart) - parseFloat(cs.paddingInlineEnd);
+                  measure = parseFloat(getComputedStyle(document.documentElement)
+                    .getPropertyValue('--content-max-width-narrow'));
+                  // Nur pruefen, wo die Spalte ueberhaupt breiter als das
+                  // Lesemass ist - darunter nimmt `max()` den Abstand zurueck
+                  // und der Kopf endet richtigerweise an der Spaltenkante.
+                  if (inner > measure) {
+                    const last = [...el.children]
+                      .filter((c) => getComputedStyle(c).display !== 'none')
+                      .pop();
+                    if (last) narrowEnd = Math.round(last.getBoundingClientRect().right - contentLeft);
+                  }
+                }
+                return {
+                  rows, h: Math.round(el.getBoundingClientRect().height), cls: el.className,
+                  narrowEnd, measure,
+                };
               }));
             for (const head of heads) {
               seen += 1;
+              // DIE FLUCHTLINIE, ZWEITE HAELFTE DERSELBEN FRAGE. Einzeilig zu
+              // sein ist wertlos, wenn der Kopf sein Ende dabei verliert: der
+              // Lesemass-Abstand existiert, damit Kopf und Koerper dieselbe
+              // rechte Kante haben (DESIGN.md, "fuer BEIDE Kanten"). Die erste
+              // Fassung dieses Fix liess ihn nachgeben, blieb einzeilig - und
+              // schob das Kopfende um 69 bis 87px ueber die Koerperkante
+              // hinaus. Kein Guard sah das, weil keiner die Kante mass.
+              if (head.narrowEnd !== null && Math.abs(head.narrowEnd - head.measure) > 1) {
+                findings.push(
+                  `${w}px (${why}) ${where}: Kopfende bei ${head.narrowEnd}px statt `
+                  + `${head.measure}px (Lesemass) - ${head.cls}`,
+                );
+              }
               // EINE ZEILE, UND DAS IST DER UNTERSCHIED ZU SONDE 15. Dort sind
               // zwei erlaubt, weil in der kompakten Hoehe eine Bedienzeile im
               // Kopf legitim ist. Hier waeren zwei die Erlaubnis fuer genau den
@@ -3487,8 +3531,8 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
         + 'die Sonde ihre Routen nicht mehr?');
 
       assert.deepEqual(findings, [],
-        'Ab 1024px ist der Modulkopf einzeilig - eine zweite Zeile entsteht dort nur durch '
-        + 'einen Umbruch, und der war der gemeldete Fehler (#882).\n  ' + findings.join('\n  '));
+        'Ab 1024px ist der Modulkopf einzeilig, und ein gedeckelter Kopf endet auf der Kante '
+        + 'seines Koerpers - beides war in #882 verletzt.\n  ' + findings.join('\n  '));
     });
   }
 });

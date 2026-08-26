@@ -2242,13 +2242,24 @@ html.fab-anim-done .page-fab {
  * vergessen oder falsch einsortieren kann. */
 .page-toolbar--narrow::after {
   content: '';
-  /* Die hohe Schrumpfgewichtung ist der Kern: Flexbox verteilt den Mangel im
-   * Verhaeltnis `basis x shrink`, und mit `shrink: 1` haette dieser Slot ihn
-   * nur ANTEILIG getragen - der Seitentitel gab weiter Zeichen ab (gemessen
-   * "Aufgaben" auf 91 statt 97px). Mit 999 weicht erst der Abstand, ganz, und
-   * die uebrigen Slots kommen erst dran, wenn er bei 0 steht. */
-  flex: 0 999 max(0px, calc(100% - var(--content-max-width-narrow)));
+  /* UNNACHGIEBIG, UND DAS IST DER PUNKT - gemessen an beiden Fassungen. Mit
+   * `flex-shrink` gab dieser Slot als erster nach, weil er die groesste Basis
+   * traegt; der Kopf blieb einzeilig, aber sein Ende lief dem Koerper um 69 bis
+   * 87px davon (je Modul gemessen, Koerperkante 720px). Damit waere die eine
+   * Invariante gegen die andere getauscht: die gemeinsame Fluchtlinie ist der
+   * GRUND, aus dem es diesen Abstand gibt. Er steht deshalb, und der Mangel
+   * landet bei den Slots, die dafuer gebaut sind - Suchfeld und Tab-Leisten
+   * geben nach, der Seitentitel zuletzt (siehe unten). */
+  flex: 0 0 max(0px, calc(100% - var(--content-max-width-narrow)));
   min-width: 0;
+  /* DEN EIGENEN ABSTAND ZURUECKNEHMEN. Als Marge am letzten Slot lag der
+   * Rueckhalt INNERHALB von dessen Box und beruehrte den `gap` der Leiste nie.
+   * Als eigenes Flex-Item bekommt er einen davor - und der schoebe die Aktionen
+   * um genau eine Luecke vor die Koerperkante (gemessen 712 statt 720px, bei
+   * <=640px 4px). Der negative Rand hebt ihn auf und wirkt auch dort noch, wo
+   * `max()` die Basis auf 0 klemmt: sonst verloere die schmale Spalte eine
+   * Luecke Zeilenbreite, die sie vorher nicht verlor. */
+  margin-inline-start: calc(-1 * var(--page-toolbar-gap));
 }
 
 /* IN DER REGULAEREN GROESSENKLASSE BRICHT DER KOPF NICHT UM.
