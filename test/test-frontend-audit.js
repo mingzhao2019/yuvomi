@@ -1417,6 +1417,23 @@ test('sync-calendar leaf loads CalDAV, Google, and Apple with independent status
   assert.match(source, /settings\.outlookFullSyncHint/);
   assert.match(source, /settings-sync-action-with-note/);
 
+  // To-Do bulk selection is a local draft operation. It must not save,
+  // refresh metadata, or start synchronization until the explicit buttons do.
+  const selectAllHandler = source.match(
+    /selectAllBtn\.addEventListener\('click', \(\) => \{([\s\S]*?)\n  \}\);/,
+  );
+  assert.ok(selectAllHandler, 'Microsoft To Do list selection offers a Select all action');
+  assert.match(selectAllHandler[1], /item\.enabled = true/);
+  assert.match(selectAllHandler[1], /inputs\[index\]\.checked = true/);
+  assert.match(selectAllHandler[1], /selection\.markDirty\(\)/);
+  assert.doesNotMatch(selectAllHandler[1], /api\.|refresh|sync/i);
+
+  // Saving remains disabled without changes, but successful saves leave a
+  // persistent, accessible confirmation instead of silently disabling it.
+  assert.match(source, /outlookSelectionSavedShort/);
+  assert.match(source, /selection\.setStatus\(t\('settings\.outlookSelectionSaved'\), 'success'\)/);
+  assert.match(source, /setAttribute\('aria-live', tone === 'danger' \? 'assertive' : 'polite'\)/);
+
   // Google: provider-specific labelled, all endpoints preserved.
   assert.match(source, /settings\.providerSpecific/);
   assert.match(source, /api\.get\('\/calendar\/google\/status'\)/);

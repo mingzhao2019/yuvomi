@@ -138,11 +138,11 @@ test('converts To Do due dates through the household timezone and keeps date-onl
   );
   assert.equal(todo.__test.graphTaskPayload({ priority: 'low' }, 'UTC').importance, 'normal');
   assert.equal(todo.__test.graphTaskPayload({ priority: 'urgent' }, 'UTC').importance, 'high');
-  assert.equal(todo.__test.graphTaskPayload({
+  assert.equal(Object.hasOwn(todo.__test.graphTaskPayload({
     external_source: 'microsoft_todo',
     is_recurring: 0,
     recurrence_rule: null,
-  }, 'UTC').recurrence, null);
+  }, 'UTC', null, { operation: 'update' }), 'recurrence'), false);
   assert.deepEqual(
     todo.__test.graphTaskPayload({
       title: 'Monthly task',
@@ -282,6 +282,14 @@ test('completing a recurring To Do task pushes status before importing the next 
       return response(200, { value: [{ id: 'list-recurring', displayName: 'Recurring' }] });
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring/tasks/remote-current' && method === 'PATCH') {
+      if (Object.hasOwn(calls.at(-1).body, 'recurrence')) {
+        return response(400, {
+          error: {
+            code: 'InvalidRequest',
+            message: 'Invalid JSON, Error converting value "2026-08-15" to type Microsoft.OData.Edm.Date.',
+          },
+        });
+      }
       return response(204);
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring/tasks/delta') {
@@ -321,7 +329,9 @@ test('completing a recurring To Do task pushes status before importing the next 
   assert.equal(result.success, true);
   assert.equal(result.updated, 2, 'one outbound update and one imported completion');
   assert.equal(result.created, 1);
-  assert.equal(calls.find((call) => call.method === 'PATCH').body.status, 'completed');
+  const patchCall = calls.find((call) => call.method === 'PATCH');
+  assert.equal(patchCall.body.status, 'completed');
+  assert.equal(Object.hasOwn(patchCall.body, 'recurrence'), false);
   assert.ok(calls.findIndex((call) => call.method === 'PATCH') < calls.findIndex((call) => call.path.endsWith('/tasks/delta')));
   assert.equal(database.prepare('SELECT status, outbound_dirty FROM tasks WHERE id = ?').get(taskId).status, 'done');
   assert.equal(database.prepare('SELECT outbound_dirty FROM tasks WHERE id = ?').get(taskId).outbound_dirty, 0);
@@ -473,8 +483,9 @@ test('creates local tasks remotely and flushes deletion tombstones', async () =>
     VALUES ('Personal', 'microsoft_todo', ?, 'list-personal', ?)
   `).run(accountId, ownerId).lastInsertRowid;
   const localTaskId = database.prepare(`
-    INSERT INTO tasks (title, created_by, external_source, task_list_id)
-    VALUES ('Renew insurance', ?, 'local', ?)
+    INSERT INTO tasks
+      (title, created_by, external_source, task_list_id, due_date, is_recurring, recurrence_rule)
+    VALUES ('Renew insurance', ?, 'local', ?, '2026-08-30', 1, 'FREQ=MONTHLY')
   `).run(ownerId, listId).lastInsertRowid;
   database.prepare(`
     INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
@@ -515,6 +526,10 @@ test('creates local tasks remotely and flushes deletion tombstones', async () =>
   assert.deepEqual(createBody.reminderDateTime, {
     dateTime: '2026-08-30T01:30:00',
     timeZone: 'UTC',
+  });
+  assert.deepEqual(createBody.recurrence, {
+    pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 30 },
+    range: { type: 'noEnd', startDate: '2026-08-30', recurrenceTimeZone: 'UTC' },
   });
 
   todo.queueTaskDeletion(mirrored, database);

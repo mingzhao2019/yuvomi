@@ -801,7 +801,12 @@ export function setTaskListSelection(accountId, listIds, { database, transaction
   return { success: true };
 }
 
-function graphTaskPayload(task, timeZone = householdTimeZone(null), database = null) {
+function graphTaskPayload(
+  task,
+  timeZone = householdTimeZone(null),
+  database = null,
+  { operation = 'create' } = {},
+) {
   const payload = {
     title: String(task.title || 'Microsoft To Do task'),
     status: task.status === 'done' ? 'completed' : task.status === 'in_progress' ? 'inProgress' : 'notStarted',
@@ -832,14 +837,12 @@ function graphTaskPayload(task, timeZone = householdTimeZone(null), database = n
   payload.reminderDateTime = remindAt
     ? { dateTime: remindAt, timeZone: 'UTC' }
     : null;
-  const recurrenceStart = task.start_date || task.due_date;
-  if (task.is_recurring && task.recurrence_rule && recurrenceStart) {
-    const recurrence = rruleToGraphRecurrence(task.recurrence_rule, recurrenceStart, timeZone);
-    if (recurrence) payload.recurrence = recurrence;
-  } else if (task.external_source === MICROSOFT_TODO_SOURCE) {
-    // A local edit can turn a mirrored series into a one-off task. Explicitly
-    // clear Graph's recurrence or the next inbound sync would restore it.
-    payload.recurrence = null;
+  if (operation === 'create') {
+    const recurrenceStart = task.start_date || task.due_date;
+    if (task.is_recurring && task.recurrence_rule && recurrenceStart) {
+      const recurrence = rruleToGraphRecurrence(task.recurrence_rule, recurrenceStart, timeZone);
+      if (recurrence) payload.recurrence = recurrence;
+    }
   }
   return payload;
 }
@@ -945,7 +948,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
       if (task.external_source === 'local') {
         const remote = await graphJson(path, accessToken, {
           method: 'POST',
-          body: graphTaskPayload(task, timeZone, database),
+          body: graphTaskPayload(task, timeZone, database, { operation: 'create' }),
         }, fetchImpl);
         if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
         const current = database.prepare('SELECT task_list_id FROM tasks WHERE id = ?').get(task.id);
@@ -976,7 +979,13 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
           await graphJson(
             `${path}/${encodeURIComponent(task.external_uid)}`,
             accessToken,
-            { method: 'PATCH', body: graphTaskPayload(task, timeZone, database) },
+            {
+              method: 'PATCH',
+              // Microsoft Graph currently rejects valid recurrence.range.startDate
+              // values on To Do PATCH requests. Preserve the remote series and
+              // update the other fields without recurrence so completion succeeds.
+              body: graphTaskPayload(task, timeZone, database, { operation: 'update' }),
+            },
             fetchImpl,
           );
         } catch (error) {
@@ -991,7 +1000,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
           }
           const remote = await graphJson(path, accessToken, {
             method: 'POST',
-            body: graphTaskPayload(current, timeZone, database),
+            body: graphTaskPayload(current, timeZone, database, { operation: 'create' }),
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
           database.prepare(`

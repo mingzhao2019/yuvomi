@@ -57,6 +57,12 @@ function buildOutlookTodoLists(account, lists, selection) {
 
   const list = document.createElement('div');
   list.className = 'settings-sync-info';
+  const inputs = [];
+  let selectAllBtn = null;
+  const updateSelectAllButton = () => {
+    if (!selectAllBtn) return;
+    selectAllBtn.disabled = !lists.length || lists.every((item) => item.enabled);
+  };
   for (const item of lists) {
     const row = document.createElement('label');
     row.className = 'settings-sync-info__row';
@@ -66,16 +72,31 @@ function buildOutlookTodoLists(account, lists, selection) {
     input.addEventListener('change', () => {
       item.enabled = input.checked;
       selection.markDirty();
+      updateSelectAllButton();
     });
     const text = document.createElement('span');
     text.textContent = item.listName;
     row.append(input, text);
     list.appendChild(row);
+    inputs.push(input);
   }
   wrap.appendChild(list);
 
   const actions = document.createElement('div');
   actions.className = 'settings-form-actions';
+  selectAllBtn = document.createElement('button');
+  selectAllBtn.type = 'button';
+  selectAllBtn.className = 'btn btn--ghost btn--sm';
+  selectAllBtn.textContent = t('settings.outlookTodoSelectAll');
+  selectAllBtn.addEventListener('click', () => {
+    lists.forEach((item, index) => {
+      item.enabled = true;
+      inputs[index].checked = true;
+    });
+    selection.markDirty();
+    updateSelectAllButton();
+  });
+  updateSelectAllButton();
   const refreshBtn = document.createElement('button');
   refreshBtn.type = 'button';
   refreshBtn.className = 'btn btn--ghost btn--sm';
@@ -92,7 +113,7 @@ function buildOutlookTodoLists(account, lists, selection) {
       refreshBtn.disabled = false;
     }
   });
-  actions.appendChild(refreshBtn);
+  actions.append(selectAllBtn, refreshBtn);
   wrap.appendChild(actions);
   return wrap;
 }
@@ -1244,16 +1265,34 @@ function createOutlookSelection(account) {
     ready: false,
     dirty: false,
     saving: false,
+    saved: false,
     saveButton: null,
+    statusElement: null,
+    setStatus(message = '', tone = 'default') {
+      if (!selection.statusElement) return;
+      selection.statusElement.textContent = message;
+      selection.statusElement.hidden = !message;
+      selection.statusElement.className = tone === 'success'
+        ? 'form-hint form-hint--success'
+        : tone === 'danger'
+          ? 'form-hint form-hint--danger'
+          : 'form-hint';
+      selection.statusElement.setAttribute('role', tone === 'danger' ? 'alert' : 'status');
+      selection.statusElement.setAttribute('aria-live', tone === 'danger' ? 'assertive' : 'polite');
+    },
     updateSaveButton() {
       if (!selection.saveButton) return;
       selection.saveButton.disabled = !selection.dirty || selection.saving;
       selection.saveButton.textContent = selection.saving
         ? t('common.saving')
-        : t('common.save');
+        : selection.saved && !selection.dirty
+          ? t('settings.outlookSelectionSavedShort')
+          : t('common.save');
     },
     markDirty() {
       selection.dirty = true;
+      selection.saved = false;
+      selection.setStatus();
       selection.updateSaveButton();
     },
     async save() {
@@ -1266,9 +1305,14 @@ function createOutlookSelection(account) {
           todoListIds: selection.todoLists.filter((list) => list.enabled).map((list) => list.listId),
         });
         selection.dirty = false;
+        selection.saved = true;
+        selection.setStatus(t('settings.outlookSelectionSaved'), 'success');
         showToast(t('settings.outlookSelectionSaved'), 'success');
       } catch (err) {
-        showToast(err.message || t('common.errorGeneric'), 'danger');
+        const message = err.message || t('common.errorGeneric');
+        selection.saved = false;
+        selection.setStatus(message, 'danger');
+        showToast(message, 'danger');
         throw err;
       } finally {
         selection.saving = false;
@@ -1280,6 +1324,7 @@ function createOutlookSelection(account) {
 }
 
 function buildOutlookSelectionActions(selection) {
+  const wrap = document.createElement('div');
   const actions = document.createElement('div');
   actions.className = 'settings-form-actions';
   const saveButton = document.createElement('button');
@@ -1291,7 +1336,14 @@ function buildOutlookSelectionActions(selection) {
     await selection.save().catch(() => {});
   });
   actions.appendChild(saveButton);
-  return actions;
+  const status = document.createElement('p');
+  status.className = 'form-hint';
+  status.hidden = true;
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  selection.statusElement = status;
+  wrap.append(actions, status);
+  return wrap;
 }
 
 function buildOutlookAccountCard(account, refresh, user) {
