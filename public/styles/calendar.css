@@ -1884,6 +1884,14 @@
 }
 
 
+/* Die Feiertags- und Schul-Layer tragen eine NUTZERFARBE und bekommen sie
+   deshalb als Inline-Style aus den Einstellungen. Der Schichtplan hat keine -
+   seine Farbe ist eine Designentscheidung und gehoert damit hierher und nicht
+   ins Markup. */
+.cal-toolbar__layer-btn[data-layer="schedule"] {
+  --layer-color: var(--module-schedule);
+}
+
 .cal-toolbar__schedule-warning {
   display: inline-flex;
   align-items: center;

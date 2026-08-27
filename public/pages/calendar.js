@@ -1283,7 +1283,23 @@ function renderToolbar() {
         </button>
       ` : ''}
       ${showScheduleToggle ? `
-        <button class="cal-toolbar__layer-btn ${state.layerSchedule ? 'cal-toolbar__layer-btn--active' : ''}" data-layer="schedule" title="${t('schedule.overlay')}" style="--layer-color:#6C3AED"><span class="cal-toolbar__layer-dot"></span><span>${t('schedule.overlay')}</span></button><button class="cal-toolbar__layer-btn" data-schedule-display title="${t(state.scheduleDisplay === 'compact' ? 'schedule.fullBlocks' : 'schedule.compactDisplay')}"><span>${t(state.scheduleDisplay === 'compact' ? 'schedule.fullBlocks' : 'schedule.compactDisplay')}</span></button>${state.scheduleWarnings.length ? '<span class="cal-toolbar__schedule-warning" role="status" title="' + esc(t('schedule.overlapWarning', { date: state.scheduleWarnings[0].date_key, user: scheduleOwnerName(state.scheduleWarnings[0]) })) + '"><i data-lucide="triangle-alert" class="icon-sm" aria-hidden="true"></i><span>' + t('schedule.overlapWarningShort') + '</span></span>' : ''}
+        <button class="cal-toolbar__layer-btn ${state.layerSchedule ? 'cal-toolbar__layer-btn--active' : ''}"
+                data-layer="schedule"
+                title="${t('schedule.overlay')}">
+          <span class="cal-toolbar__layer-dot"></span>
+          <span>${t('schedule.overlay')}</span>
+        </button>
+        <button class="cal-toolbar__layer-btn" data-schedule-display
+                title="${t(state.scheduleDisplay === 'compact' ? 'schedule.fullBlocks' : 'schedule.compactDisplay')}">
+          <span>${t(state.scheduleDisplay === 'compact' ? 'schedule.fullBlocks' : 'schedule.compactDisplay')}</span>
+        </button>
+        ${state.scheduleWarnings.length ? `
+          <span class="cal-toolbar__schedule-warning" role="status"
+                title="${esc(t('schedule.overlapWarning', { date: state.scheduleWarnings[0].date_key, user: scheduleOwnerName(state.scheduleWarnings[0]) }))}">
+            <i data-lucide="triangle-alert" class="icon-sm" aria-hidden="true"></i>
+            <span>${t('schedule.overlapWarningShort')}</span>
+          </span>
+        ` : ''}
       ` : ''}
       ${showBirthdayToggle ? `
         <button class="cal-toolbar__layer-btn ${state.layerBirthdays ? 'cal-toolbar__layer-btn--active' : ''}"

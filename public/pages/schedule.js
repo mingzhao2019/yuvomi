@@ -316,7 +316,7 @@ function renderScheduleWarnings() {
  * Builds the toolbar and tab rail ONCE. `renderPage()` below only touches
  * `.schedule-body` on a tab switch, so a FAB the router docks into
  * `.page-toolbar__actions` survives every subsequent tab change instead of
- * being destroyed along with a full-page `innerHTML` reset.
+ * being destroyed along with a full-page reset.
  */
 function renderShell() {
   const tabs = [
@@ -325,7 +325,8 @@ function renderShell() {
     ['overrides', t('schedule.overrides')],
     ['statistics', t('schedule.statistics')],
   ];
-  root.innerHTML = `<div class="schedule-page">
+  root.replaceChildren();
+  root.insertAdjacentHTML('beforeend', `<div class="schedule-page">
     <header class="page-toolbar schedule-toolbar">
       <h1 class="page-toolbar__title">${esc(t('schedule.title'))}</h1>
       <div class="page-toolbar__actions"></div>
@@ -334,7 +335,7 @@ function renderShell() {
       </div>
     </header>
     <div class="schedule-body"></div>
-  </div>`;
+  </div>`);
   root.addEventListener('submit', submitForm);
   root.addEventListener('click', (event) => {
     const tabButton = event.target.closest('[data-tab]');
@@ -358,8 +359,10 @@ function renderPage() {
         ? '<section class="schedule-library schedule-library--overrides"><h2 class="u-section-title">' + esc(t('schedule.overrides')) + '</h2>' + overrideRows() + '</section>'
         : renderStatistics();
   const body = root.querySelector('.schedule-body');
-  body.innerHTML = (activeView === 'statistics' ? '' : '<section class="card card--padded schedule-today"><h2 class="u-section-title">' + esc(t('schedule.today')) + '</h2>' + renderToday() + renderScheduleWarnings() + '</section>')
-    + `<div class="schedule-content">${panel}</div>`;
+  body.replaceChildren();
+  body.insertAdjacentHTML('beforeend',
+    (activeView === 'statistics' ? '' : '<section class="card card--padded schedule-today"><h2 class="u-section-title">' + esc(t('schedule.today')) + '</h2>' + renderToday() + renderScheduleWarnings() + '</section>')
+    + `<div class="schedule-content">${panel}</div>`);
   updateScheduleFab();
   window.lucide?.createIcons({ el: body });
 }
