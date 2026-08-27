@@ -89,6 +89,35 @@ test('POST Form can put token in the URL query', async () => {
   assert.equal(request.body.get('token'), null);
 });
 
+test('message-pusher renders the rich notification template in the selected message field', async () => {
+  let request;
+  await messagePusherProvider.send({
+    channel: channel({
+      config: {
+        messageField: 'description',
+        messageTemplate: '🔔 {{title}}\n📌 {{body}}\n📄 {{description}}\n⏰ {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}',
+      },
+    }),
+    payload: {
+      title: 'Tasks',
+      body: 'Take out the bins',
+      description: 'Put glass in the blue container.',
+      dueDate: '2026-08-27',
+      dueTime: '18:30',
+      startDate: '2026-08-27',
+      startTime: '09:00',
+    },
+    fetchImpl: async (url, options) => {
+      request = { url: new URL(url), options, body: JSON.parse(options.body) };
+      return response(200, { success: true });
+    },
+  });
+
+  assert.equal(request.body.title, 'Tasks');
+  assert.equal(request.body.description, '🔔 Tasks\n📌 Take out the bins\n📄 Put glass in the blue container.\n⏰ 2026-08-27 18:30\n🚀 2026-08-27 09:00');
+  assert.equal(request.body.content, undefined);
+});
+
 test('message-pusher rejects a negative API response and validates configuration', async () => {
   const echoedToken = 'secret-token-echoed-by-upstream';
   await assert.rejects(
@@ -116,4 +145,9 @@ test('message-pusher rejects a negative API response and validates configuration
     name: 'Push',
     config: { baseUrl: 'https://push.example.test', username: '' },
   }), /username is required/);
+  assert.throws(() => normalizeChannelInput({
+    provider: 'message_pusher',
+    name: 'Push',
+    config: { baseUrl: 'https://push.example.test', username: 'alice', messageTemplate: '{{unknown}}' },
+  }), /\{\{unknown\}\}/);
 });

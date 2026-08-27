@@ -9,22 +9,32 @@ mention notifications remain best-effort.
 
 ## Configure a channel
 
-Only administrators can manage household notification channels.
+Open **Settings → Personal → Notifications**. The page has two groups:
 
-1. Open **Settings → Personal → Notifications**.
-2. Under **Household channels**, select **Add channel**.
-3. Choose **Webhook** as the provider and enter a name.
-4. Enter the complete HTTP or HTTPS endpoint URL.
-5. Optionally enter a Bearer token. Yuvomi stores it as a write-only secret and
-   sends it as `Authorization: Bearer <token>`.
-6. Optionally enter a **payload template** if the receiver expects a body of its
-   own shape. Leaving it empty sends the default body described below.
-7. Save the channel, enable it, and use **Send test** to verify the endpoint.
+- **Personal notifications** are visible and manageable by the current user.
+  Personal scope currently allows only Webhook and message-pusher, and a personal
+  endpoint is delivered only to its owner.
+- **Household notifications** are visible and manageable by administrators. They
+  are delivered to every household member who is eligible for the notification.
+  Ordinary users do not see this group.
 
-For `message-pusher`, choose that provider, enter the message-pusher base URL
-and username, then choose GET or POST. POST JSON is the default and recommended
-format. The adapter sends `title` plus either Markdown `content` or
-`description`, the configured `channel`, and the write-only token.
+In either group, select **Add channel**, choose a provider, enter its endpoint and
+credentials, enable it, and use **Send test**. Personal Webhook and message-pusher
+channels can be configured independently from household channels. If an
+administrator enables both a personal and a household channel targeting the same
+destination, two deliveries are expected; Yuvomi does not silently deduplicate
+different configured channels.
+
+For Webhook, enter the complete HTTP or HTTPS endpoint URL. An optional Bearer
+token is stored as a write-only secret and sent as
+`Authorization: Bearer <token>`. An optional payload template lets the receiver
+use its own JSON schema; an empty template keeps the default Yuvomi body.
+
+For `message-pusher`, enter the message-pusher base URL and username, then choose
+GET or POST. POST JSON is the default and recommended format. The adapter sends
+`title` plus either Markdown `content` or `description`, the configured
+`channel`, and the write-only token. Its optional message template controls the
+contents of that selected message field.
 
 The message-pusher endpoint is built as `/push/<username>`. GET puts the fields
 in the query string. POST JSON sets `Content-Type: application/json`; POST Form
@@ -44,19 +54,38 @@ Yuvomi sends an HTTP `POST` with `Content-Type: application/json`:
 {
   "event": "notification",
   "notification": {
-    "title": "Yuvomi",
+    "title": "Tasks",
     "body": "Take out the bins",
-    "url": "/reminders",
+    "description": "Put glass in the blue container.",
+    "details": "category: home\npriority: high\nstatus: open",
+    "entityType": "task",
+    "entityId": 42,
+    "dueDate": "2026-08-27",
+    "dueTime": "18:30",
+    "startDate": "2026-08-27",
+    "startTime": "09:00",
+    "endDate": "",
+    "endTime": "",
+    "remindAt": "2026-08-27T18:00:00.000Z",
+    "sentAt": "2026-08-27T18:00:02.000Z",
+    "url": "/tasks",
     "tag": "reminder-42",
-    "priority": "default"
+    "priority": "default",
+    "category": "home",
+    "taskPriority": "high",
+    "status": "open",
+    "location": "",
+    "allDay": null
   },
   "sentAt": "2026-08-06T20:30:00.000Z"
 }
 ```
 
-`sentAt` is generated for each delivery attempt. The notification `tag`
-identifies the reminder and can be used by receivers for their own
-deduplication. The `url` is relative to the Yuvomi application.
+The outer `sentAt` is generated when the Webhook request is sent. The
+notification's `sentAt` is the scheduler timestamp passed to templates;
+`remindAt` is the reminder time stored by Yuvomi. The `tag` identifies the
+reminder and can be used by receivers for their own deduplication. The `url` is
+relative to the Yuvomi application.
 
 ## Payload template
 
@@ -66,9 +95,25 @@ webhook requires `content` or `embeds` and answers anything else with
 `400 Cannot send an empty message`.
 
 Rather than shipping an adapter per service, the channel takes a template and
-the same generic provider covers all of them. Enter the body the receiver
-expects and use `{{title}}`, `{{body}}`, `{{url}}` and `{{tag}}` where the
-reminder's values belong:
+the same generic provider covers all of them. Enter the JSON body the receiver
+expects and use the fields below where the notification's values belong:
+
+| Field | Meaning |
+|---|---|
+| `{{title}}` | Module/source title, such as Tasks or Calendar |
+| `{{body}}` | Main notification text |
+| `{{description}}` | Task or event description |
+| `{{details}}` | Extra task/event details, one item per line |
+| `{{entityType}}`, `{{entityId}}` | Source type and local record ID |
+| `{{dueDate}}`, `{{dueTime}}` | Task deadline; empty when unavailable |
+| `{{startDate}}`, `{{startTime}}` | Task start or event start |
+| `{{endDate}}`, `{{endTime}}` | Event end |
+| `{{remindAt}}` | Stored reminder time |
+| `{{sentAt}}` | Scheduler timestamp used for this notification |
+| `{{url}}`, `{{tag}}` | Relative Yuvomi target and reminder tag |
+| `{{priority}}` | Notification transport priority |
+| `{{category}}`, `{{taskPriority}}`, `{{status}}` | Task metadata |
+| `{{location}}`, `{{allDay}}` | Event location and all-day flag |
 
 ```json
 {"content": "{{title}} - {{body}}"}
@@ -86,13 +131,23 @@ Notes:
 - A placeholder with no value (for example `{{url}}` on a reminder that carries
   none) becomes an empty string.
 - The template is checked when you save it: it must produce valid JSON, may use
-  only the four placeholders above, and is limited to 4096 characters. A
+  only the fields in the table above, and is limited to 4096 characters. A
   template that would only fail at delivery time is rejected in the form. The
   check looks at anything shaped like a placeholder, so a typo such as
   `{{task-title}}` is caught rather than delivered as literal text.
 - The endpoint URL is used exactly as entered, including a trailing slash.
 - Leave the field empty to keep the default body. Existing webhook channels are
   unaffected.
+
+Use quoted placeholders for text values, for example:
+
+```json
+{"content":"🔔 {{title}}\n📌 {{body}}\n📄 {{description}}\n⏰ Due: {{dueDate}} {{dueTime}}\n🚀 Start: {{startDate}} {{startTime}}"}
+```
+
+The renderer inserts empty strings for unavailable optional values. If a
+receiver's schema needs a number or Boolean rather than text, an unquoted
+placeholder can be used when that value is guaranteed to exist.
 
 ## message-pusher example
 
@@ -109,6 +164,23 @@ Content-Type: application/json
 The token is never returned by the API or included in Yuvomi error messages.
 If message-pusher returns HTTP success with `success: false`, Yuvomi still
 records the delivery as failed.
+
+### message-pusher template
+
+The message-pusher template is plain text, so it uses the same placeholders and
+does not need JSON escaping. A useful default is:
+
+```text
+🔔 {{title}}
+📌 {{body}}
+📄 {{description}}
+⏰ Due: {{dueDate}} {{dueTime}}
+🚀 Start: {{startDate}} {{startTime}}
+🔗 {{url}}
+```
+
+The selected `content` or `description` field receives the rendered result. If
+the template is empty, the existing single-line message behavior is preserved.
 
 ## Security notes
 

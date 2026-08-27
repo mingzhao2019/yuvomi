@@ -1,6 +1,7 @@
 /**
- * Modul: Notification-Routen (Admin)
- * Zweck: Gotify/ntfy Channels verwalten und Testbenachrichtigungen senden.
+ * Modul: Notification-Routen
+ * Zweck: Persönliche und haushaltsweite Notification-Channels verwalten und
+ * Testbenachrichtigungen senden.
  * Abhaengigkeiten: express, notification-channels.js, notifications.js
  */
 import express from 'express';
@@ -25,14 +26,67 @@ export function buildRouter({
   const store = channelStore || createNotificationChannelStore({ db: getDb() });
   const router = express.Router();
 
-  function requireAdmin(req, res, next) {
-    if (req.authRole !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required.', code: 403 });
-    }
-    next();
+  function userId(req) {
+    return req.authUserId ?? req.session?.userId ?? null;
   }
 
-  router.use(requireAdmin);
+  function isAdmin(req) {
+    return req.authRole === 'admin';
+  }
+
+  function permissionError(message = 'Permission denied.') {
+    const error = new Error(message);
+    error.statusCode = 403;
+    return error;
+  }
+
+  function channelIsManageable(req, channel) {
+    if (!channel) return false;
+    if (channel.scope === 'household') return isAdmin(req);
+    return channel.scope === 'user' && channel.userId === userId(req);
+  }
+
+  function channelInputForCreate(req, input) {
+    const requested = input?.scope == null
+      ? (isAdmin(req) ? 'household' : 'user')
+      : String(input.scope).trim();
+    if (!['household', 'user'].includes(requested)) {
+      throw new Error('Invalid notification channel scope.');
+    }
+    if (!isAdmin(req) && requested !== 'user') {
+      throw permissionError('Only administrators can create household notification channels.');
+    }
+
+    const ownerId = userId(req);
+    if (requested === 'user') {
+      if (!ownerId) throw permissionError('A personal notification channel needs an authenticated user.');
+      const requestedOwner = input?.userId ?? input?.user_id;
+      if (requestedOwner != null && Number(requestedOwner) !== Number(ownerId)) {
+        throw permissionError('A personal notification channel can only belong to the current user.');
+      }
+      return { ...input, scope: 'user', userId: ownerId };
+    }
+
+    // A household channel has no personal owner, even if a caller sends a
+    // stale userId from an earlier form version.
+    return { ...input, scope: 'household', userId: null };
+  }
+
+  function channelInputForUpdate(req, input, existing) {
+    if (!channelIsManageable(req, existing)) throw permissionError();
+    // The UI groups channels by scope rather than exposing a second scope
+    // selector. Keep the existing ownership boundary on update as well.
+    return {
+      ...input,
+      scope: existing.scope,
+      userId: existing.scope === 'user' ? existing.userId : null,
+    };
+  }
+
+  function sendError(res, error, fallback, defaultStatus = 400) {
+    const status = Number.isInteger(error?.statusCode) ? error.statusCode : defaultStatus;
+    res.status(status).json({ error: error?.message || fallback, code: status });
+  }
 
   router.get('/providers', (req, res) => {
     try {
@@ -47,20 +101,23 @@ export function buildRouter({
 
   router.get('/channels', (req, res) => {
     try {
-      void req;
-      res.json({ data: store.listChannels() });
+      const currentUserId = userId(req);
+      if (!currentUserId) throw permissionError('Authenticated user is required.');
+      res.json({
+        data: store.listChannelsForUser(currentUserId, { includeHousehold: isAdmin(req) }),
+      });
     } catch (err) {
       log.error('Error reading notification channels:', err.message);
-      res.status(500).json({ error: 'Internal error.', code: 500 });
+      sendError(res, err, 'Internal error.', 500);
     }
   });
 
   router.post('/channels', (req, res) => {
     try {
-      const channel = store.createChannel(req.body || {});
+      const channel = store.createChannel(channelInputForCreate(req, req.body || {}));
       res.status(201).json({ data: channel });
     } catch (err) {
-      res.status(400).json({ error: err.message || 'Invalid notification channel.', code: 400 });
+      sendError(res, err, 'Invalid notification channel.');
     }
   });
 
@@ -68,11 +125,12 @@ export function buildRouter({
     try {
       const id = parseId(req.params.id);
       if (!id) return res.status(400).json({ error: 'Invalid channel id.', code: 400 });
-      const channel = store.updateChannel(id, req.body || {});
-      if (!channel) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
+      const existing = store.getChannel(id);
+      if (!existing) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
+      const channel = store.updateChannel(id, channelInputForUpdate(req, req.body || {}, existing));
       res.json({ data: channel });
     } catch (err) {
-      res.status(400).json({ error: err.message || 'Invalid notification channel.', code: 400 });
+      sendError(res, err, 'Invalid notification channel.');
     }
   });
 
@@ -80,27 +138,49 @@ export function buildRouter({
     try {
       const id = parseId(req.params.id);
       if (!id) return res.status(400).json({ error: 'Invalid channel id.', code: 400 });
+      const existing = store.getChannel(id);
+      if (!existing) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
+      if (!channelIsManageable(req, existing)) throw permissionError();
       const deleted = store.deleteChannel(id);
       if (!deleted) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
       res.json({ data: { deleted: true } });
     } catch (err) {
       log.error('Error deleting notification channel:', err.message);
-      res.status(500).json({ error: 'Internal error.', code: 500 });
+      sendError(res, err, 'Internal error.', 500);
     }
   });
 
   router.post('/channels/:id/test', async (req, res) => {
+    let channel = null;
     try {
       const id = parseId(req.params.id);
       if (!id) return res.status(400).json({ error: 'Invalid channel id.', code: 400 });
-      const channel = store.getChannel(id, { includeSecrets: true });
+      channel = store.getChannel(id, { includeSecrets: true });
       if (!channel) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
+      if (!channelIsManageable(req, channel)) throw permissionError();
       const payload = {
         title: 'Yuvomi',
         body: 'Yuvomi notification test',
+        description: 'This is a notification template test.',
+        details: 'entityType: test\nentityId: 0',
+        entityType: 'test',
+        entityId: 0,
+        dueDate: '',
+        dueTime: '',
+        startDate: '',
+        startTime: '',
+        endDate: '',
+        endTime: '',
+        remindAt: '',
+        sentAt: new Date().toISOString(),
         url: '/settings/personal/notifications',
         tag: `notification-channel-test-${id}`,
         priority: 'default',
+        category: '',
+        taskPriority: '',
+        status: '',
+        location: '',
+        allDay: false,
       };
       const result = await notificationService.testChannel({ channel, payload });
       store.markChannelTestResult(id, { ok: true });
@@ -108,8 +188,10 @@ export function buildRouter({
     } catch (err) {
       log.error('Error testing notification channel:', err.message);
       const id = parseId(req.params.id);
-      if (id) store.markChannelTestResult(id, { ok: false, error: err.message });
-      res.status(500).json({ error: 'Internal error.', code: 500 });
+      if (id && channel && channelIsManageable(req, channel)) {
+        store.markChannelTestResult(id, { ok: false, error: err.message });
+      }
+      sendError(res, err, 'Internal error.', 500);
     }
   });
 

@@ -2002,6 +2002,21 @@ test('notification settings report real delivery and self-heal once', () => {
   assert.match(source, /t\('settings\.pushIosNotInstalled'\)/);
 });
 
+test('notification settings separate personal and household channels and explain templates', () => {
+  const source = read('../public/settings/pages/notifications.js');
+  const styles = read('../public/styles/settings.css');
+
+  assert.match(source, /data-notification-channel-add="user"/);
+  assert.match(source, /data-notification-channel-add="household"/);
+  assert.match(source, /notification-channel-list-user/);
+  assert.match(source, /notification-channel-list-household/);
+  assert.match(source, /\['webhook', 'message_pusher'\]\.includes\(provider\.id\)/);
+  assert.match(source, /messageTemplate/);
+  assert.match(source, /notificationChannelTemplateHelp/);
+  assert.match(styles, /\.notification-template-help:hover[\s\S]*\.notification-template-help:focus-within/);
+  assert.match(styles, /\.notification-template-help__tooltip/);
+});
+
 test('settings shell marks and focuses the active page', () => {
   const source = read('../public/settings/shell.js');
 

@@ -44,15 +44,23 @@ eigenständig - nutze, was passt, und schalte ab, was nicht passt.
 
 ---
 
-## Dieser Fork
+## Custom-Branch und Upstream
 
-Dieser Fork nutzt das Yuvomi-Projekt als Grundlage und führt unsere langfristigen Anpassungen in
-einem eigenen `custom`-Branch.
+Dieses Repository ist kein direkt übernehmbarer Fork des Upstream-Projekts mehr. Der `custom`-Branch
+enthält langfristige, produktspezifische Implementierungen; Datenmodell, Oberfläche und
+Synchronisationsverhalten sind an mehreren Stellen vom [`upstream/main`](https://github.com/ulsklyc/yuvomi)
+abgewichen.
 
-- `main` folgt [`upstream/main`](https://github.com/ulsklyc/yuvomi); der Branch bleibt frei von Fork-spezifischen Commits.
-- `custom` ist der gepflegte Patch-Stack und wird regelmäßig auf den neuesten Upstream-Stand von `main` rebaset.
-- Bei Konflikten gilt die Upstream-Implementierung als Standard; eigene Commits bleiben erhalten, wenn sie noch nicht im Upstream enthaltene Funktionen liefern.
-- Datenbankmigrationen bleiben ausschließlich anfügbar, damit bestehende Installationen zwischen Upstream- und Custom-Builds wechseln können, ohne Migrationsnummern wiederzuverwenden.
+- `main` ist die Upstream-kompatible Basis und bleibt frei von eigenen Produktänderungen.
+- `custom` ist unser eigentlicher Entwicklungs- und Release-Branch.
+- Wir prüfen den Upstream regelmäßig und übernehmen nützliche Fehlerbehebungen oder Funktionen
+  selektiv in `custom`, angepasst an unsere Implementierung. Blindes Rebasen, Fork-Synchronisieren
+  oder ein unveränderter Upstream-PR-Merge ist kein unterstützter Aktualisierungsweg.
+- Datenbankmigrationen bleiben ausschließlich anfügbar, damit die Migrationshistorie bestehender
+  Installationen erhalten bleibt.
+
+Der praktische Ablauf und die Kompatibilitätsgrenzen stehen in
+[`docs/UPSTREAM-SYNC.md`](docs/UPSTREAM-SYNC.md).
 
 ### Eigene Integrationen
 
@@ -60,29 +68,11 @@ Der `custom`-Branch ergänzt derzeit:
 
 - **Dauerhafte Aufgabenlisten** mit einer ständig sichtbaren linken Listen-Navigation, einer Ansicht für alle Aufgaben und erhaltener Listenidentität bei synchronisierten CalDAV-Sammlungen.
 - **Native Microsoft-To-Do-Synchronisierung**, einschließlich Zuordnung von Aufgabenlisten, manueller Synchronisierung, inkrementeller Synchronisierung und vollständigem Konsistenzabgleich.
-- **Native Benachrichtigungs-Webhooks** für alle serverseitigen Benachrichtigungen, einschließlich generischer JSON-Webhooks und `message-pusher` mit GET/POST, JSON/Form, Kanal, Markdown-Inhalt und Token-Optionen.
+- **Native Benachrichtigungskanäle** für alle serverseitigen Benachrichtigungen, einschließlich persönlicher und haushaltsweiter Webhook-/message-pusher-Kanäle, generischer JSON-Vorlagen, ausführlicher Aufgaben-/Termin-Felder, GET/POST, JSON/Form, Kanal, Markdown-Inhalt und Token-Optionen.
 
-Um den Fork nach Upstream-Änderungen zu aktualisieren, den Upstream-Remote einmalig einrichten und
-danach den Custom-Patch-Stack rebasen:
-
-```bash
-git remote add upstream https://github.com/ulsklyc/yuvomi.git
-git fetch upstream
-git switch main
-git merge --ff-only upstream/main
-git switch custom
-git rebase main
-```
-
-Nach der Prüfung des Rebase-Ergebnisses wird der Fork-Branch so aktualisiert:
-
-```bash
-git push --force-with-lease origin custom
-```
-
-Das Upstream-Projekt bleibt die Quelle für die Basisanwendung und ihre Release-Historie. Dieser
-Branch ist für persönliche, langfristige Integrationen gedacht und kann entfallen oder neu auf
-den Upstream-Stand rebaset werden, sobald gleichwertige Funktionen dort verfügbar sind.
+Das Upstream-Projekt bleibt eine Quelle für ausgewählte Verbesserungen und Sicherheitskorrekturen.
+Jede Übernahme wird am eigenen Datenmodell und an der eigenen Oberfläche geprüft, angepasst und
+als eigener Commit eingespielt.
 
 ---
 

@@ -41,11 +41,23 @@ function makeDb({ withNotificationTables = true } = {}) {
     CREATE TABLE tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'misc',
+      priority TEXT NOT NULL DEFAULT 'none',
+      status TEXT NOT NULL DEFAULT 'open',
+      due_date TEXT,
+      due_time TEXT,
+      start_date TEXT,
       created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE TABLE calendar_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL
+      title TEXT NOT NULL,
+      description TEXT,
+      start_datetime TEXT,
+      end_datetime TEXT,
+      all_day INTEGER NOT NULL DEFAULT 0,
+      location TEXT
     );
     CREATE TABLE budget_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,6 +184,30 @@ test('channel store validates providers, URLs, and required secrets', async () =
   assert.throws(() => store.createChannel({ provider: 'gotify', name: 'Bad', config: { baseUrl: 'file:///tmp/x' }, secrets: { appToken: 'x' } }), /scheme/i);
   assert.throws(() => store.createChannel({ provider: 'webhook', name: 'Bad', config: { baseUrl: 'javascript:alert(1)' } }), /scheme/i);
   assert.throws(() => store.createChannel({ provider: 'smtp', name: 'Bad', config: {}, secrets: {} }), /provider/i);
+});
+
+test('channel store validates personal ownership and provider restrictions', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const store = createNotificationChannelStore({ db: makeDb() });
+  const personal = store.createChannel({
+    provider: 'webhook',
+    scope: 'user',
+    userId: 2,
+    name: 'Bob hook',
+    config: { baseUrl: 'https://hooks.test/bob' },
+  });
+  assert.equal(personal.scope, 'user');
+  assert.equal(personal.userId, 2);
+  assert.throws(() => store.createChannel({
+    provider: 'gotify',
+    scope: 'user',
+    userId: 2,
+    name: 'Not personal',
+    config: { baseUrl: 'https://gotify.test' },
+    secrets: { appToken: 'secret' },
+  }), /Only Webhook and message-pusher/i);
+  assert.deepEqual(store.listChannelsForUser(1), []);
+  assert.deepEqual(store.listChannelsForUser(2).map((channel) => channel.id), [personal.id]);
 });
 
 test('channel updates preserve secrets when omitted and clear them explicitly', async () => {
@@ -733,6 +769,77 @@ test('task reminders keep their bare title as body (#581)', async () => {
   assert.equal(payloads[0].body, 'Müll rausbringen');
 });
 
+test('reminder payload exposes task and event template fields', async () => {
+  const { reminderPayload } = await import('../server/services/notifications.js');
+  const task = reminderPayload({
+    id: 7,
+    entity_type: 'task',
+    entity_id: 42,
+    entity_title: 'Take out the bins',
+    entity_description: 'Put glass in the blue container.',
+    task_due_date: '2026-08-27',
+    task_due_time: '18:30',
+    task_start_date: '2026-08-27',
+    task_start_time: '09:00',
+    task_category: 'home',
+    task_priority: 'high',
+    task_status: 'open',
+    remind_at: '2026-08-27T18:00:00.000Z',
+  }, 'en', '2026-08-27T18:00:02.000Z');
+  assert.deepEqual({
+    title: task.title,
+    body: task.body,
+    description: task.description,
+    entityType: task.entityType,
+    entityId: task.entityId,
+    dueDate: task.dueDate,
+    dueTime: task.dueTime,
+    startDate: task.startDate,
+    startTime: task.startTime,
+    endDate: task.endDate,
+    endTime: task.endTime,
+    remindAt: task.remindAt,
+    sentAt: task.sentAt,
+    details: task.details,
+  }, {
+    title: 'Tasks',
+    body: 'Take out the bins',
+    description: 'Put glass in the blue container.',
+    entityType: 'task',
+    entityId: 42,
+    dueDate: '2026-08-27',
+    dueTime: '18:30',
+    startDate: '2026-08-27',
+    startTime: '09:00',
+    endDate: '',
+    endTime: '',
+    remindAt: '2026-08-27T18:00:00.000Z',
+    sentAt: '2026-08-27T18:00:02.000Z',
+    details: 'category: home\npriority: high\nstatus: open',
+  });
+
+  const event = reminderPayload({
+    id: 8,
+    entity_type: 'event',
+    entity_id: 43,
+    entity_title: 'Dentist',
+    entity_description: 'Bring the insurance card.',
+    event_start_datetime: '2026-08-27T10:15:00+02:00',
+    event_end_datetime: '2026-08-27T11:00:00+02:00',
+    event_location: 'Main street 1',
+    event_all_day: 0,
+    remind_at: '2026-08-27T09:15:00.000Z',
+  }, 'en', '2026-08-27T09:15:02.000Z');
+  assert.equal(event.dueDate, '');
+  assert.equal(event.dueTime, '');
+  assert.equal(event.startDate, '2026-08-27');
+  assert.equal(event.startTime, '10:15');
+  assert.equal(event.endDate, '2026-08-27');
+  assert.equal(event.endTime, '11:00');
+  assert.equal(event.location, 'Main street 1');
+  assert.equal(event.description, 'Bring the insurance card.');
+});
+
 test('reminders for deleted entities never send the app name as body (#581)', async () => {
   const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
   const { processDueNotifications } = await import('../server/services/notifications.js');
@@ -798,7 +905,7 @@ test('notification processor retries failed external channels after backoff', as
   assert.notEqual(db.prepare('SELECT pushed_at FROM reminders WHERE id = 1').get().pushed_at, null);
 });
 
-test('admin notification routes manage channels and test sends', async () => {
+test('notification routes separate personal and household channel ownership', async () => {
   const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
   const { buildRouter } = await import('../server/routes/notifications.js');
   const db = makeDb();
@@ -808,6 +915,7 @@ test('admin notification routes manage channels and test sends', async () => {
     gotify: { id: 'gotify', send: async ({ payload }) => { sent.push(payload); return { ok: true, status: 200 }; } },
     ntfy: { id: 'ntfy', send: async () => ({ ok: true, status: 200 }) },
     webhook: { id: 'webhook', send: async () => ({ ok: true, status: 204 }) },
+    message_pusher: { id: 'message_pusher', send: async () => ({ ok: true, status: 200 }) },
   };
   const router = buildRouter({
     database: db,
@@ -820,18 +928,20 @@ test('admin notification routes manage channels and test sends', async () => {
       },
     },
   });
-  const makeApp = (authRole = 'admin') => {
+  const makeApp = (authRole = 'admin', authUserId = 1) => {
     const app = express();
     app.use(express.json());
-    app.use((req, _res, next) => { req.authUserId = 1; req.authRole = authRole; next(); });
+    app.use((req, _res, next) => { req.authUserId = authUserId; req.authRole = authRole; next(); });
     app.use('/notifications', router);
     return app;
   };
-  assert.equal((await call(makeApp('member'), 'GET', '/notifications/channels')).status, 403);
 
-  const providers = await call(makeApp(), 'GET', '/notifications/providers');
+  const providers = await call(makeApp('member', 2), 'GET', '/notifications/providers');
   assert.equal(providers.status, 200);
-  assert.deepEqual(providers.json.data.map((p) => p.id), ['gotify', 'ntfy', 'webhook']);
+  assert.deepEqual(providers.json.data.map((p) => p.id), ['gotify', 'ntfy', 'webhook', 'message_pusher']);
+  const emptyMemberList = await call(makeApp('member', 2), 'GET', '/notifications/channels');
+  assert.equal(emptyMemberList.status, 200);
+  assert.deepEqual(emptyMemberList.json.data, []);
 
   const created = await call(makeApp(), 'POST', '/notifications/channels', {
     provider: 'gotify',
@@ -843,6 +953,51 @@ test('admin notification routes manage channels and test sends', async () => {
   assert.equal(created.status, 201);
   assert.equal(created.json.data.secretSet, true);
   assert.equal(created.json.data.secrets, undefined);
+  assert.equal(created.json.data.scope, 'household');
+  assert.equal(created.json.data.userId, null);
+
+  const adminPersonal = await call(makeApp(), 'POST', '/notifications/channels', {
+    provider: 'webhook',
+    scope: 'user',
+    name: 'Alice personal hook',
+    enabled: true,
+    config: { baseUrl: 'https://alice-hook.test/notify' },
+  });
+  assert.equal(adminPersonal.status, 201);
+  assert.equal(adminPersonal.json.data.scope, 'user');
+  assert.equal(adminPersonal.json.data.userId, 1);
+
+  const memberPersonal = await call(makeApp('member', 2), 'POST', '/notifications/channels', {
+    provider: 'message_pusher',
+    name: 'Bob personal pusher',
+    enabled: true,
+    config: { baseUrl: 'https://push.test', username: 'bob', messageTemplate: '{{title}} — {{body}}' },
+    secrets: { token: 'bob-secret' },
+  });
+  assert.equal(memberPersonal.status, 201);
+  assert.equal(memberPersonal.json.data.scope, 'user');
+  assert.equal(memberPersonal.json.data.userId, 2);
+
+  const adminChannels = await call(makeApp(), 'GET', '/notifications/channels');
+  assert.equal(adminChannels.status, 200);
+  assert.deepEqual(adminChannels.json.data.map((channel) => channel.id).sort((a, b) => a - b), [
+    created.json.data.id,
+    adminPersonal.json.data.id,
+  ].sort((a, b) => a - b));
+  assert.equal(adminChannels.json.data.some((channel) => channel.id === memberPersonal.json.data.id), false);
+
+  const memberChannels = await call(makeApp('member', 2), 'GET', '/notifications/channels');
+  assert.equal(memberChannels.status, 200);
+  assert.deepEqual(memberChannels.json.data.map((channel) => channel.id), [memberPersonal.json.data.id]);
+
+  const memberHouseholdCreate = await call(makeApp('member', 2), 'POST', '/notifications/channels', {
+    provider: 'gotify',
+    scope: 'household',
+    name: 'Not allowed',
+    config: { baseUrl: 'https://gotify.test' },
+    secrets: { appToken: 'secret' },
+  });
+  assert.equal(memberHouseholdCreate.status, 403);
 
   const updated = await call(makeApp(), 'PUT', `/notifications/channels/${created.json.data.id}`, {
     name: 'Gotify renamed',
@@ -852,12 +1007,36 @@ test('admin notification routes manage channels and test sends', async () => {
   assert.equal(updated.json.data.config.priority, 7);
   assert.equal(JSON.parse(db.prepare('SELECT secret_json FROM notification_channels WHERE id = ?').get(created.json.data.id).secret_json).appToken, 'secret');
 
+  const memberHouseholdUpdate = await call(makeApp('member', 2), 'PUT', `/notifications/channels/${created.json.data.id}`, {
+    name: 'Should stay household',
+  });
+  assert.equal(memberHouseholdUpdate.status, 403);
+
   const testSend = await call(makeApp(), 'POST', `/notifications/channels/${created.json.data.id}/test`, {});
   assert.equal(testSend.status, 200);
   assert.equal(sent.length, 1);
   assert.match(sent[0].body, /Yuvomi/);
 
+  const memberHouseholdTest = await call(makeApp('member', 2), 'POST', `/notifications/channels/${created.json.data.id}/test`, {});
+  assert.equal(memberHouseholdTest.status, 403);
+
+  const memberPersonalUpdate = await call(makeApp('member', 2), 'PUT', `/notifications/channels/${memberPersonal.json.data.id}`, {
+    config: { messageTemplate: '{{title}} — {{description}}' },
+  });
+  assert.equal(memberPersonalUpdate.status, 200);
+  assert.equal(memberPersonalUpdate.json.data.config.messageTemplate, '{{title}} — {{description}}');
+
+  const memberPersonalTest = await call(makeApp('member', 2), 'POST', `/notifications/channels/${memberPersonal.json.data.id}/test`, {});
+  assert.equal(memberPersonalTest.status, 200);
+
+  const memberHouseholdDelete = await call(makeApp('member', 2), 'DELETE', `/notifications/channels/${created.json.data.id}`);
+  assert.equal(memberHouseholdDelete.status, 403);
+
+  const memberPersonalDelete = await call(makeApp('member', 2), 'DELETE', `/notifications/channels/${memberPersonal.json.data.id}`);
+  assert.equal(memberPersonalDelete.status, 200);
+
   const deleted = await call(makeApp(), 'DELETE', `/notifications/channels/${created.json.data.id}`);
   assert.equal(deleted.status, 200);
-  assert.equal(db.prepare('SELECT COUNT(*) c FROM notification_channels').get().c, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM notification_channels').get().c, 1);
+  assert.equal(db.prepare('SELECT id FROM notification_channels').get().id, adminPersonal.json.data.id);
 });

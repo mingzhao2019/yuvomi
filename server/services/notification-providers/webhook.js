@@ -9,7 +9,32 @@
  * Anbieter fuer Discord, Slack und alles Weitere zustaendig (#692, #660).
  */
 
-export const WEBHOOK_TEMPLATE_PLACEHOLDERS = Object.freeze(['title', 'body', 'url', 'tag']);
+// The names are shared with message-pusher. Keep the original export name so
+// existing imports remain compatible when the template grows.
+export const WEBHOOK_TEMPLATE_PLACEHOLDERS = Object.freeze([
+  'title',
+  'body',
+  'description',
+  'details',
+  'entityType',
+  'entityId',
+  'dueDate',
+  'dueTime',
+  'startDate',
+  'startTime',
+  'endDate',
+  'endTime',
+  'remindAt',
+  'sentAt',
+  'url',
+  'tag',
+  'priority',
+  'category',
+  'taskPriority',
+  'status',
+  'location',
+  'allDay',
+]);
 
 // ZWEI Muster, absichtlich verschieden weit: ersetzt wird nur, was wir fuellen
 // koennen, geprueft wird ALLES, was wie ein Platzhalter aussieht. Mit einem
@@ -18,6 +43,11 @@ export const WEBHOOK_TEMPLATE_PLACEHOLDERS = Object.freeze(['title', 'body', 'ur
 // beim Speichern zugesagt wird, Unbekanntes abzulehnen.
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
 const PLACEHOLDER_SHAPED_PATTERN = /\{\{([^{}]*)\}\}/g;
+
+function templateValue(payload, key) {
+  const value = payload?.[key];
+  return value === null || value === undefined ? '' : String(value);
+}
 
 /**
  * Setzt die Platzhalter einer Vorlage JSON-sicher ein.
@@ -30,9 +60,15 @@ const PLACEHOLDER_SHAPED_PATTERN = /\{\{([^{}]*)\}\}/g;
 export function renderPayloadTemplate(template, payload = {}) {
   return String(template).replace(PLACEHOLDER_PATTERN, (match, key) => {
     if (!WEBHOOK_TEMPLATE_PLACEHOLDERS.includes(key)) return match;
-    const value = payload?.[key];
-    if (value === null || value === undefined) return '';
-    return JSON.stringify(String(value)).slice(1, -1);
+    return JSON.stringify(templateValue(payload, key)).slice(1, -1);
+  });
+}
+
+/** Render the same placeholders as plain-text providers such as message-pusher. */
+export function renderTextTemplate(template, payload = {}) {
+  return String(template).replace(PLACEHOLDER_PATTERN, (match, key) => {
+    if (!WEBHOOK_TEMPLATE_PLACEHOLDERS.includes(key)) return match;
+    return templateValue(payload, key);
   });
 }
 

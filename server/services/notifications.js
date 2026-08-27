@@ -43,6 +43,41 @@ function safeError(error) {
     .slice(0, 500);
 }
 
+function text(value) {
+  return value === null || value === undefined ? '' : String(value);
+}
+
+function datePart(value) {
+  const raw = text(value).trim();
+  return /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : '';
+}
+
+function timePart(value) {
+  const raw = text(value).trim();
+  if (!raw) return '';
+  const match = raw.match(/(?:T|\s)?(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/);
+  return match?.[1] || '';
+}
+
+function dateTimeParts(value) {
+  return { date: datePart(value), time: timePart(value) };
+}
+
+function reminderDetails(reminder) {
+  const details = [];
+  if (reminder.entity_type === 'task') {
+    if (reminder.task_category) details.push(`category: ${reminder.task_category}`);
+    if (reminder.task_priority && reminder.task_priority !== 'none') {
+      details.push(`priority: ${reminder.task_priority}`);
+    }
+    if (reminder.task_status) details.push(`status: ${reminder.task_status}`);
+  } else if (reminder.entity_type === 'event') {
+    if (reminder.event_location) details.push(`location: ${reminder.event_location}`);
+    if (reminder.event_all_day) details.push('allDay: true');
+  }
+  return details.join('\n');
+}
+
 /**
  * Body einer Abo-Erinnerung: Name, Betrag und Verlaengerungsdatum (#581).
  * Bewusst nur Daten, kein Satzbau - der Server kennt die Sprache des Empfaengers
@@ -140,7 +175,7 @@ function pantryExpiryBody(reminder) {
   return `${reminder.entity_title} - ${reminder.pantry_expires_on}`;
 }
 
-function reminderPayload(reminder, locale) {
+export function reminderPayload(reminder, locale, sentAt = '') {
   const title = reminder.entity_title || FALLBACK_BODY;
   const origin = REMINDER_ORIGINS[reminder.entity_type];
   let body = title;
@@ -153,6 +188,22 @@ function reminderPayload(reminder, locale) {
   } else if (reminder.entity_type === 'pantry_item' && reminder.entity_title) {
     body = pantryExpiryBody(reminder);
   }
+  const eventStart = reminder.entity_type === 'event'
+    ? dateTimeParts(reminder.event_start_datetime)
+    : { date: '', time: '' };
+  const eventEnd = reminder.entity_type === 'event'
+    ? dateTimeParts(reminder.event_end_datetime)
+    : { date: '', time: '' };
+  const dueDate = reminder.entity_type === 'task' ? datePart(reminder.task_due_date) : '';
+  const dueTime = reminder.entity_type === 'task' ? timePart(reminder.task_due_time) : '';
+  const startDate = reminder.entity_type === 'task'
+    ? datePart(reminder.task_start_date)
+    : eventStart.date;
+  // Tasks currently persist a start date but no start time. Keep the field in
+  // the contract so templates work for events now and for task start times if
+  // that data is added later.
+  const startTime = reminder.entity_type === 'task' ? timePart(reminder.task_start_time) : eventStart.time;
+
   return {
     // Ohne bekannte Herkunft bleibt der App-Name: er ist nichtssagend, aber nie
     // falsch - und ein roher `entity_type` im Titel waere beides. Das Ziel
@@ -160,9 +211,26 @@ function reminderPayload(reminder, locale) {
     // die es mit Sicherheit gibt.
     title: origin ? translate(locale, origin.titleKey) : APP_NAME,
     body,
+    description: text(reminder.entity_description),
+    details: reminderDetails(reminder),
+    entityType: text(reminder.entity_type),
+    entityId: reminder.entity_id ?? null,
+    dueDate,
+    dueTime,
+    startDate,
+    startTime,
+    endDate: eventEnd.date,
+    endTime: eventEnd.time,
+    remindAt: text(reminder.remind_at),
+    sentAt: text(sentAt),
     url: origin ? origin.url : '/',
     tag: `reminder-${reminder.id}`,
     priority: 'default',
+    category: text(reminder.task_category),
+    taskPriority: text(reminder.task_priority),
+    status: text(reminder.task_status),
+    location: text(reminder.event_location),
+    allDay: reminder.entity_type === 'event' ? Boolean(reminder.event_all_day) : null,
   };
 }
 
@@ -359,7 +427,7 @@ export async function processDueNotifications({
   }
 
   const due = activeDb.prepare(`
-    SELECT r.id, r.created_by, r.entity_type,
+    SELECT r.id, r.created_by, r.entity_type, r.entity_id, r.remind_at,
       CASE r.entity_type
         WHEN 'task'  THEN (SELECT title FROM tasks           WHERE id = r.entity_id)
         WHEN 'event' THEN (SELECT title FROM calendar_events WHERE id = r.entity_id)
@@ -372,6 +440,31 @@ export async function processDueNotifications({
         )
         WHEN 'pantry_item' THEN (SELECT name FROM pantry_items WHERE id = r.entity_id)
       END AS entity_title,
+      CASE WHEN r.entity_type = 'task'
+        THEN (SELECT description FROM tasks WHERE id = r.entity_id)
+        WHEN r.entity_type = 'event'
+        THEN (SELECT description FROM calendar_events WHERE id = r.entity_id)
+      END AS entity_description,
+      CASE WHEN r.entity_type = 'task'
+        THEN (SELECT due_date FROM tasks WHERE id = r.entity_id) END AS task_due_date,
+      CASE WHEN r.entity_type = 'task'
+        THEN (SELECT due_time FROM tasks WHERE id = r.entity_id) END AS task_due_time,
+      CASE WHEN r.entity_type = 'task'
+        THEN (SELECT start_date FROM tasks WHERE id = r.entity_id) END AS task_start_date,
+      CASE WHEN r.entity_type = 'task'
+        THEN (SELECT category FROM tasks WHERE id = r.entity_id) END AS task_category,
+      CASE WHEN r.entity_type = 'task'
+        THEN (SELECT priority FROM tasks WHERE id = r.entity_id) END AS task_priority,
+      CASE WHEN r.entity_type = 'task'
+        THEN (SELECT status FROM tasks WHERE id = r.entity_id) END AS task_status,
+      CASE WHEN r.entity_type = 'event'
+        THEN (SELECT start_datetime FROM calendar_events WHERE id = r.entity_id) END AS event_start_datetime,
+      CASE WHEN r.entity_type = 'event'
+        THEN (SELECT end_datetime FROM calendar_events WHERE id = r.entity_id) END AS event_end_datetime,
+      CASE WHEN r.entity_type = 'event'
+        THEN (SELECT location FROM calendar_events WHERE id = r.entity_id) END AS event_location,
+      CASE WHEN r.entity_type = 'event'
+        THEN (SELECT all_day FROM calendar_events WHERE id = r.entity_id) END AS event_all_day,
       CASE WHEN r.entity_type = 'inventory_item'
         THEN (SELECT purchase_date FROM inventory_items WHERE id = r.entity_id) END AS inv_purchase_date,
       CASE WHEN r.entity_type = 'inventory_item'
@@ -398,7 +491,7 @@ export async function processDueNotifications({
   const locale = resolveHouseholdLocale(activeDb);
 
   for (const reminder of due) {
-    const payload = reminderPayload(reminder, locale);
+    const payload = reminderPayload(reminder, locale, nowIso);
     const channels = store.listEnabledChannelsForUser(reminder.created_by);
     const pushCount = activeDb.prepare('SELECT COUNT(*) AS c FROM push_subscriptions WHERE user_id = ?').get(reminder.created_by).c;
     const targets = [];

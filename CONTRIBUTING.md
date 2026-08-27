@@ -132,14 +132,17 @@ docs/                  # Product spec, screenshots
 
 Before starting work, check the [existing issues](https://github.com/ulsklyc/yuvomi/issues). For anything beyond a trivial fix, open an issue first to discuss the approach. This avoids wasted effort on changes that conflict with the project's direction.
 
-### 2. Fork and branch
+### 2. Work from the custom branch
+
+This repository's `custom` branch is the development base. It is intentionally not kept as a
+mechanical fork of upstream: task lists, Microsoft To Do synchronization, notifications, and
+other product areas have custom implementations and data contracts.
 
 ```bash
-# Fork on GitHub, then:
-git clone https://github.com/YOUR-USERNAME/yuvomi.git
+git clone <repository-url> yuvomi
 cd yuvomi
-git remote add upstream https://github.com/ulsklyc/yuvomi.git
-git checkout -b feat/your-feature-name
+git switch custom
+git switch -c feat/your-feature-name
 ```
 
 **Branch naming:**
@@ -152,14 +155,15 @@ git checkout -b feat/your-feature-name
 | `docs/` | Documentation only | `docs/improve-setup-guide` |
 | `chore/` | Maintenance, CI, dependencies | `chore/update-helmet` |
 
-### 3. Keep your fork in sync
+### 3. Selectively review upstream changes
 
-```bash
-git fetch upstream
-git rebase upstream/main
-```
+Upstream is a source of candidates, not a branch to merge wholesale. Add the upstream remote if
+needed, inspect the changes on `main`, and port only compatible commits or ideas into a branch based
+on `custom`. Adapt routes, migrations, tests, and UI to the custom contracts instead of resolving a
+large blind rebase conflict at the end. See [`docs/UPSTREAM-SYNC.md`](docs/UPSTREAM-SYNC.md).
 
-Rebase before opening a PR and keep the branch conflict-free.
+Changes intended for this repository can be reviewed and merged here. Open an upstream PR only for
+an isolated change that does not depend on the custom data model or behavior.
 
 ### 4. Commit
 

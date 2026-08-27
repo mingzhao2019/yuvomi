@@ -7,6 +7,8 @@
  * error message or log line.
  */
 
+import { renderTextTemplate } from './webhook.js';
+
 const METHODS = new Set(['GET', 'POST']);
 const FORMATS = new Set(['json', 'form']);
 const FIELDS = new Set(['content', 'description']);
@@ -26,15 +28,18 @@ function endpointFor(config) {
 
 function fieldsFor(channel, payload = {}) {
   const config = channel?.config || {};
+  const template = String(config.messageTemplate ?? '').trim();
   const fields = {
     title: String(payload.title ?? ''),
   };
-  const body = String(payload.body ?? '');
+  const body = template
+    ? renderTextTemplate(template, payload)
+    : String(payload.content ?? payload.body ?? '');
   // message-pusher documents description/content as alternative message
-  // representations for most channels. The setting chooses the one that
-  // receives Yuvomi's notification body, so we never send both at once.
-  if (config.messageField === 'description') fields.description = String(payload.description ?? body);
-  else fields.content = String(payload.content ?? body);
+  // representations for most channels. The setting chooses the field that
+  // receives Yuvomi's rendered notification body; the task/event description
+  // remains available to an explicit {{description}} template placeholder.
+  fields[config.messageField === 'description' ? 'description' : 'content'] = body;
   if (config.channel) fields.channel = String(config.channel);
   if (channel?.secrets?.token) {
     fields.token = String(channel.secrets.token);

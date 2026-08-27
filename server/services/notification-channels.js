@@ -17,9 +17,15 @@ export const NOTIFICATION_PROVIDERS = [
   { id: 'message_pusher', name: 'message-pusher' },
 ];
 
+// Personal external channels are deliberately narrower than household
+// channels. Gotify and ntfy remain household integrations; Webhook and
+// message-pusher can target an individual user's endpoint.
+export const USER_NOTIFICATION_PROVIDERS = Object.freeze(['webhook', 'message_pusher']);
+
 const PROVIDER_IDS = new Set(NOTIFICATION_PROVIDERS.map((p) => p.id));
 const NTFY_PRIORITIES = new Set(['min', 'low', 'default', 'high', 'urgent']);
 const NTFY_AUTH_TYPES = new Set(['none', 'token', 'basic']);
+const USER_NOTIFICATION_PROVIDER_SET = new Set(USER_NOTIFICATION_PROVIDERS);
 
 function parseJson(value, fallback = {}) {
   if (!value) return fallback;
@@ -67,6 +73,15 @@ function normalizeScope(scope) {
   const value = String(scope ?? 'household').trim() || 'household';
   if (!['household', 'user'].includes(value)) throw new Error('Invalid notification channel scope.');
   return value;
+}
+
+function normalizeUserId(value, scope) {
+  if (scope === 'household') return null;
+  const userId = Number(value);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new Error('A valid user is required for a personal notification channel.');
+  }
+  return userId;
 }
 
 function normalizeGotifyConfig(input = {}) {
@@ -127,8 +142,26 @@ const MAX_WEBHOOK_TEMPLATE_LENGTH = 4096;
 const WEBHOOK_TEMPLATE_SAMPLE = Object.freeze({
   title: 'Yuvomi "Test"',
   body: 'Zeile 1\nZeile 2 \\ Ende',
+  description: 'A longer description',
+  details: 'category: misc\npriority: medium',
+  entityType: 'task',
+  entityId: 42,
+  dueDate: '2026-08-27',
+  dueTime: '18:30',
+  startDate: '2026-08-27',
+  startTime: '09:00',
+  endDate: '2026-08-27',
+  endTime: '19:30',
+  remindAt: '2026-08-27T18:00:00.000Z',
+  sentAt: '2026-08-27T18:00:02.000Z',
   url: '/tasks',
   tag: 'reminder-1',
+  priority: 'default',
+  category: 'misc',
+  taskPriority: 'medium',
+  status: 'open',
+  location: 'Kitchen',
+  allDay: false,
 });
 
 function normalizeWebhookConfig(input = {}) {
@@ -164,17 +197,31 @@ function normalizeMessagePusherConfig(input = {}) {
   const method = String(input.method ?? 'POST').trim().toUpperCase();
   const postFormat = String(input.postFormat ?? 'json').trim().toLowerCase();
   const messageField = String(input.messageField ?? 'content').trim().toLowerCase();
+  const messageTemplate = String(input.messageTemplate ?? '').trim();
   const username = String(input.username ?? '').trim();
   if (!username) throw new Error('message-pusher username is required.');
   if (!['GET', 'POST'].includes(method)) throw new Error('Invalid message-pusher request method.');
   if (!['json', 'form'].includes(postFormat)) throw new Error('Invalid message-pusher POST format.');
   if (!['content', 'description'].includes(messageField)) throw new Error('Invalid message-pusher message field.');
+  if (messageTemplate.length > MAX_WEBHOOK_TEMPLATE_LENGTH) {
+    throw new Error(`message-pusher message template must be at most ${MAX_WEBHOOK_TEMPLATE_LENGTH} characters.`);
+  }
+  if (messageTemplate) {
+    const unknown = unknownTemplatePlaceholders(messageTemplate);
+    if (unknown.length) {
+      throw new Error(
+        `Unknown message-pusher placeholder(s): ${unknown.map((k) => `{{${k}}}`).join(', ')}. `
+        + `Available: ${WEBHOOK_TEMPLATE_PLACEHOLDERS.map((k) => `{{${k}}}`).join(', ')}.`,
+      );
+    }
+  }
   return {
     baseUrl: normalizeBaseUrl(input.baseUrl, { keepPath: true }),
     username,
     method,
     postFormat,
     messageField,
+    messageTemplate,
     channel: String(input.channel ?? '').trim(),
     tokenInQuery: input.tokenInQuery === true,
   };
@@ -212,12 +259,20 @@ export function normalizeChannelInput(input = {}, existing = null) {
     secrets = normalizeWebhookSecrets(mergedSecrets);
   }
 
+  const scope = normalizeScope(input.scope ?? existing?.scope ?? 'household');
+  if (scope === 'user' && !USER_NOTIFICATION_PROVIDER_SET.has(provider)) {
+    throw new Error('Only Webhook and message-pusher support personal notification channels.');
+  }
+
   return {
     provider,
     name: String(input.name ?? existing?.name ?? '').trim(),
     enabled: input.enabled === undefined ? Boolean(existing?.enabled) : Boolean(input.enabled),
-    scope: normalizeScope(input.scope ?? existing?.scope ?? 'household'),
-    userId: input.userId ?? input.user_id ?? existing?.userId ?? existing?.user_id ?? null,
+    scope,
+    userId: normalizeUserId(
+      input.userId ?? input.user_id ?? existing?.userId ?? existing?.user_id ?? null,
+      scope,
+    ),
     config,
     secrets,
   };
@@ -265,6 +320,21 @@ export function createNotificationChannelStore({ db } = {}) {
     return getDb().prepare('SELECT * FROM notification_channels ORDER BY provider, name, id')
       .all()
       .map((row) => publicChannel(dbRowToChannel(row)));
+  }
+
+  function listChannelsForUser(userId, { includeHousehold = false } = {}) {
+    const rows = includeHousehold
+      ? getDb().prepare(`
+          SELECT * FROM notification_channels
+          WHERE scope = 'household' OR (scope = 'user' AND user_id = ?)
+          ORDER BY scope, provider, name, id
+        `).all(userId)
+      : getDb().prepare(`
+          SELECT * FROM notification_channels
+          WHERE scope = 'user' AND user_id = ?
+          ORDER BY provider, name, id
+        `).all(userId);
+    return rows.map((row) => publicChannel(dbRowToChannel(row)));
   }
 
   function getChannel(id, options = {}) {
@@ -346,6 +416,7 @@ export function createNotificationChannelStore({ db } = {}) {
 
   return {
     listChannels,
+    listChannelsForUser,
     getChannel,
     createChannel,
     updateChannel,

@@ -1,5 +1,6 @@
 /**
- * Settings-Seite: Push-Benachrichtigungen (pro Gerät) und Admin-Notification-Channels.
+ * Settings-Seite: Push-Benachrichtigungen (pro Gerät) und persönliche bzw.
+ * haushaltsweite Notification-Channels.
  */
 import { t } from '/i18n.js';
 import { pushSupported, pushStatus, enablePush, disablePush, repairPush } from '/push.js';
@@ -20,12 +21,14 @@ function selected(value, expected) {
   return value === expected ? ' selected' : '';
 }
 
-function channelDefaults(provider = 'gotify') {
+function channelDefaults(provider = 'gotify', scope = 'household') {
   if (provider === 'ntfy') {
     return {
       provider: 'ntfy',
       name: '',
       enabled: false,
+      scope,
+      userId: null,
       config: { baseUrl: '', topic: '', priority: 'default', authType: 'none' },
       secretSet: false,
     };
@@ -35,6 +38,8 @@ function channelDefaults(provider = 'gotify') {
       provider: 'webhook',
       name: '',
       enabled: false,
+      scope,
+      userId: null,
       // Leere Vorlage = Yuvomi-Standardbody. Empfaenger mit eigenem Pflichtschema
       // (Discord, Slack) tragen hier ihre Form ein, statt einen Adapter je Dienst
       // zu brauchen (#692).
@@ -47,9 +52,11 @@ function channelDefaults(provider = 'gotify') {
       provider: 'message_pusher',
       name: '',
       enabled: false,
+      scope,
+      userId: null,
       config: {
         baseUrl: '', username: '', method: 'POST', postFormat: 'json',
-        messageField: 'content', channel: '', tokenInQuery: false,
+        messageField: 'content', messageTemplate: '', channel: '', tokenInQuery: false,
       },
       secretSet: false,
     };
@@ -58,6 +65,8 @@ function channelDefaults(provider = 'gotify') {
     provider: 'gotify',
     name: '',
     enabled: false,
+    scope,
+    userId: null,
     config: { baseUrl: '', priority: 5 },
     secretSet: false,
   };
@@ -97,26 +106,30 @@ function renderPage(container, user) {
 function renderChannelShell(container, user) {
   const section = container.querySelector('#notification-channels-section');
   if (!section) return;
-  if (user?.role !== 'admin') {
-    section.replaceChildren();
-    section.insertAdjacentHTML('beforeend', `
-      <h2 class="settings-section__title">${t('settings.notificationChannelsTitle')}</h2>
-      <p class="form-hint">${t('settings.notificationChannelAdminOnlyHint')}</p>
-    `);
-    return;
-  }
+  const isAdmin = user?.role === 'admin';
   section.replaceChildren();
   section.insertAdjacentHTML('beforeend', `
-    <h2 class="settings-section__title">${t('settings.notificationChannelsTitle')}</h2>
-    <p class="form-hint">${t('settings.notificationChannelsDescription')}</p>
+    <h2 class="settings-section__title">${t('settings.notificationPersonalTitle')}</h2>
+    <p class="form-hint">${t('settings.notificationPersonalDescription')}</p>
     <div class="settings-form-actions">
-      <button type="button" class="btn btn--secondary" id="notification-channel-add">
+      <button type="button" class="btn btn--secondary" data-notification-channel-add="user">
         <i data-lucide="plus" aria-hidden="true"></i>
         <span>${t('settings.notificationChannelAdd')}</span>
       </button>
     </div>
     <p class="form-hint" id="notification-channel-status" role="status" aria-live="polite"></p>
-    <div id="notification-channel-list"></div>
+    <div id="notification-channel-list-user"></div>
+    ${isAdmin ? `
+      <h2 class="settings-section__title notification-channel-household-title">${t('settings.notificationHouseholdTitle')}</h2>
+      <p class="form-hint">${t('settings.notificationHouseholdDescription')}</p>
+      <div class="settings-form-actions">
+        <button type="button" class="btn btn--secondary" data-notification-channel-add="household">
+          <i data-lucide="plus" aria-hidden="true"></i>
+          <span>${t('settings.notificationChannelAdd')}</span>
+        </button>
+      </div>
+      <div id="notification-channel-list-household"></div>
+    ` : ''}
   `);
 }
 
@@ -126,27 +139,46 @@ function providerOptions(providers, current) {
   `).join('');
 }
 
-function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS) {
-  const list = container.querySelector('#notification-channel-list');
+function templateHelp(id) {
+  return '<span class="notification-template-help">'
+    + '<button type="button" class="notification-template-help__button"'
+    + ' aria-label="' + esc(t('settings.notificationChannelTemplateHelpLabel')) + '"'
+    + ' aria-describedby="' + esc(id) + '">'
+    + '<i data-lucide="info" aria-hidden="true"></i>'
+    + '</button>'
+    + '<span id="' + esc(id) + '" class="notification-template-help__tooltip" role="tooltip">'
+    + esc(t('settings.notificationChannelTemplateHelp'))
+    + '</span>'
+    + '</span>';
+}
+
+function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, scope = 'household') {
+  const list = container.querySelector('#notification-channel-list-' + scope);
   if (!list) return;
   list.replaceChildren();
+  const availableProviders = scope === 'user'
+    ? providers.filter((provider) => ['webhook', 'message_pusher'].includes(provider.id))
+    : providers;
   if (!channels.length) {
-    list.insertAdjacentHTML('beforeend', `<p class="form-hint">${t('settings.notificationChannelEmpty')}</p>`);
+    const emptyKey = scope === 'user'
+      ? 'settings.notificationChannelPersonalEmpty'
+      : 'settings.notificationChannelEmpty';
+    list.insertAdjacentHTML('beforeend', `<p class="form-hint">${t(emptyKey)}</p>`);
     return;
   }
   channels.forEach((rawChannel, index) => {
-    const channel = { ...channelDefaults(rawChannel.provider), ...rawChannel, config: { ...channelDefaults(rawChannel.provider).config, ...(rawChannel.config || {}) } };
+    const channel = { ...channelDefaults(rawChannel.provider, scope), ...rawChannel, config: { ...channelDefaults(rawChannel.provider, scope).config, ...(rawChannel.config || {}) } };
     const suffix = channel.id ? `existing-${channel.id}` : `new-${index}`;
     const isNtfy = channel.provider === 'ntfy';
     const isWebhook = channel.provider === 'webhook';
     const isMessagePusher = channel.provider === 'message_pusher';
     list.insertAdjacentHTML('beforeend', `
-      <form class="settings-card settings-form notification-channel-form" data-channel-index="${index}" data-channel-id="${esc(channel.id ?? '')}">
+      <form class="settings-card settings-form notification-channel-form" data-channel-index="${index}" data-channel-scope="${scope}" data-channel-id="${esc(channel.id ?? '')}">
         <h3 class="settings-card__title">${esc(channel.name || t('settings.notificationChannelAdd'))}</h3>
         <div class="form-field">
           <label class="form-label" for="notification-provider-${suffix}">${t('settings.notificationChannelProvider')}</label>
           <select class="form-input" id="notification-provider-${suffix}" name="provider">
-            ${providerOptions(providers, channel.provider)}
+            ${providerOptions(availableProviders, channel.provider)}
           </select>
         </div>
         <div class="form-field">
@@ -178,9 +210,12 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS) {
             <input class="form-input" id="notification-webhook-token-${suffix}" name="webhookToken" type="password" autocomplete="new-password" placeholder="${channel.secretSet ? esc(t('settings.notificationChannelSecretKeep')) : ''}">
           </div>
           <div class="form-field">
-            <label class="form-label" for="notification-webhook-template-${suffix}">${t('settings.notificationChannelWebhookTemplate')}</label>
+            <div class="notification-template-label">
+              <label class="form-label" for="notification-webhook-template-${suffix}">${t('settings.notificationChannelWebhookTemplate')}</label>
+              ${templateHelp('notification-webhook-template-help-' + suffix)}
+            </div>
             <textarea class="form-input" id="notification-webhook-template-${suffix}" name="webhookTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelWebhookTemplatePlaceholder'))}">${esc(channel.config.payloadTemplate ?? '')}</textarea>
-            <p class="form-hint">${t('settings.notificationChannelWebhookTemplateHint')}</p>
+            <p class="form-hint">${t('settings.notificationChannelTemplateHint')}</p>
           </div>
         </div>
         <div class="notification-provider-fields notification-provider-fields--message-pusher${isMessagePusher ? '' : ' settings-card--hidden'}">
@@ -212,6 +247,14 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS) {
               <option value="content"${selected(channel.config.messageField ?? 'content', 'content')}>${t('settings.notificationChannelMessagePusherContent')}</option>
               <option value="description"${selected(channel.config.messageField ?? 'content', 'description')}>${t('settings.notificationChannelMessagePusherDescription')}</option>
             </select>
+          </div>
+          <div class="form-field">
+            <div class="notification-template-label">
+              <label class="form-label" for="notification-message-pusher-template-${suffix}">${t('settings.notificationChannelMessagePusherTemplate')}</label>
+              ${templateHelp('notification-message-pusher-template-help-' + suffix)}
+            </div>
+            <textarea class="form-input" id="notification-message-pusher-template-${suffix}" name="messagePusherTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelMessagePusherTemplatePlaceholder'))}">${esc(channel.config.messageTemplate ?? '')}</textarea>
+            <p class="form-hint">${t('settings.notificationChannelMessagePusherTemplateHint')}</p>
           </div>
           <div class="form-field">
             <label class="form-label" for="notification-message-pusher-token-${suffix}">${t('settings.notificationChannelWebhookToken')}</label>
@@ -272,6 +315,7 @@ function readChannelForm(form) {
     provider,
     name: form.elements.name.value.trim(),
     enabled: form.elements.enabled.checked,
+    scope: form.dataset.channelScope || 'household',
     config: {
       baseUrl: form.elements.baseUrl.value.trim(),
     },
@@ -297,6 +341,7 @@ function readChannelForm(form) {
     body.config.postFormat = form.elements.messagePusherFormat.value;
     body.config.channel = form.elements.messagePusherChannel.value.trim();
     body.config.messageField = form.elements.messagePusherField.value;
+    body.config.messageTemplate = form.elements.messagePusherTemplate.value.trim();
     body.config.tokenInQuery = form.elements.messagePusherTokenQuery.checked;
     if (form.elements.messagePusherToken.value) body.secrets.token = form.elements.messagePusherToken.value;
   } else {
@@ -320,10 +365,16 @@ function updateProviderVisibility(form) {
   });
 }
 
-async function setupChannelControls(container, user) {
-  if (user?.role !== 'admin') return;
+function renderChannelLists(container, channelGroups, providers) {
+  renderChannelList(container, channelGroups.user, providers, 'user');
+  if (container.querySelector('#notification-channel-list-household')) {
+    renderChannelList(container, channelGroups.household, providers, 'household');
+  }
+}
+
+async function setupChannelControls(container) {
   const status = container.querySelector('#notification-channel-status');
-  let channels = [];
+  const channelGroups = { user: [], household: [] };
   let providers = DEFAULT_PROVIDERS;
   const setStatus = (message) => { if (status) status.textContent = message; };
   const reload = async () => {
@@ -332,13 +383,21 @@ async function setupChannelControls(container, user) {
       notifications.listChannels(),
     ]);
     providers = providerResponse.data || DEFAULT_PROVIDERS;
-    channels = channelResponse.data || [];
-    renderChannelList(container, channels, providers);
+    const channels = channelResponse.data || [];
+    channelGroups.user = channels.filter((channel) => channel.scope === 'user');
+    channelGroups.household = channels.filter((channel) => channel.scope === 'household');
+    renderChannelLists(container, channelGroups, providers);
   };
 
-  container.querySelector('#notification-channel-add')?.addEventListener('click', () => {
-    channels = [...channels, channelDefaults('gotify')];
-    renderChannelList(container, channels, providers);
+  container.querySelectorAll('[data-notification-channel-add]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const scope = button.dataset.notificationChannelAdd === 'user' ? 'user' : 'household';
+      channelGroups[scope] = [
+        ...channelGroups[scope],
+        channelDefaults(scope === 'user' ? 'webhook' : 'gotify', scope),
+      ];
+      renderChannelLists(container, channelGroups, providers);
+    });
   });
 
   container.addEventListener('change', (event) => {
@@ -346,7 +405,10 @@ async function setupChannelControls(container, user) {
     if (!form) return;
     if (event.target.name === 'provider') {
       const index = Number(form.dataset.channelIndex);
-      if (!form.dataset.channelId) channels[index] = channelDefaults(event.target.value);
+      const scope = form.dataset.channelScope || 'household';
+      if (!form.dataset.channelId) {
+        channelGroups[scope][index] = channelDefaults(event.target.value, scope);
+      }
     }
     updateProviderVisibility(form);
   });
@@ -412,7 +474,7 @@ export async function render(container, { user } = {}) {
   try {
     renderPage(container, user);
     window.lucide?.createIcons({ el: container });
-    await setupChannelControls(container, user);
+    await setupChannelControls(container);
 
     const toggle  = container.querySelector('#push-toggle');
     const status  = container.querySelector('#push-status');

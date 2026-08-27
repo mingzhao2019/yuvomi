@@ -44,15 +44,21 @@ independent, so you use what fits and switch off what doesn't.
 
 ---
 
-## This fork
+## Custom branch and upstream
 
-This fork keeps the upstream Yuvomi project as its base and carries our long-lived customizations
-in a separate `custom` branch.
+This repository is no longer a drop-in fork of upstream Yuvomi. The `custom` branch contains
+long-lived, product-specific implementations whose data model, UI, and synchronization behavior
+have diverged in several places from [`upstream/main`](https://github.com/ulsklyc/yuvomi).
 
-- `main` follows [`upstream/main`](https://github.com/ulsklyc/yuvomi); it is kept free of fork-specific commits.
-- `custom` is the maintained patch stack, rebased onto the latest upstream `main`.
-- Conflicts are resolved with the upstream implementation as the default; custom commits are retained when they provide functionality not yet present upstream.
-- Database migrations remain append-only so existing installations can move between upstream and custom builds without reusing migration numbers.
+- `main` is the upstream-compatible base branch and is kept free of custom product commits.
+- `custom` is our actual development and release branch.
+- We periodically inspect upstream and selectively port useful fixes or features into `custom`,
+  adapting them to our implementation. A blind rebase, fork sync, or upstream PR merge is not a
+  supported update procedure.
+- Database migrations remain append-only so existing installations keep their migration history.
+
+The practical workflow and compatibility boundaries are documented in
+[`docs/UPSTREAM-SYNC.md`](docs/UPSTREAM-SYNC.md).
 
 ### Custom integrations
 
@@ -60,29 +66,10 @@ The `custom` branch currently adds:
 
 - **Persistent task lists** with a permanent left-hand list navigation, an all-tasks view, and preserved list identity for synchronized CalDAV collections.
 - **Native Microsoft To Do synchronization**, including task-list mapping, manual synchronization, incremental sync handling, and full consistency reconciliation.
-- **Native notification webhooks** for all server-side notifications, including generic JSON webhooks and `message-pusher` support with GET/POST, JSON/Form, channel, Markdown content, and token options.
+- **Native notification channels** for all server-side notifications, including personal and household Webhook/message-pusher channels, generic JSON templates, rich task/event fields, GET/POST, JSON/Form, channel, Markdown content, and token options.
 
-To update the fork after upstream changes, configure the upstream remote once and then rebase the
-custom patch stack:
-
-```bash
-git remote add upstream https://github.com/ulsklyc/yuvomi.git
-git fetch upstream
-git switch main
-git merge --ff-only upstream/main
-git switch custom
-git rebase main
-```
-
-After reviewing the rebased result, update the fork branch with:
-
-```bash
-git push --force-with-lease origin custom
-```
-
-The upstream project remains the source of the base application and release history; this branch
-is intended for personal, long-lived integrations and can be dropped or rebased as upstream gains
-equivalent functionality.
+The upstream project remains a source of selected improvements and security fixes. Every imported
+change must be reviewed against the custom data model and UI before it is adapted and committed.
 
 ---
 

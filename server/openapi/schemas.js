@@ -9,15 +9,15 @@ export const schemas = {
         },
         NotificationChannel: {
           type: 'object',
-          description: 'A Gotify, ntfy, generic Webhook, or message-pusher notification channel. Secrets are write-only and never returned.',
+          description: 'A Gotify, ntfy, generic Webhook, or message-pusher notification channel. Household channels are visible to administrators; personal channels are visible only to their owner. Secrets are write-only and never returned.',
           properties: {
             id: { type: 'integer' },
             provider: { type: 'string', enum: ['gotify', 'ntfy', 'webhook', 'message_pusher'] },
             name: { type: 'string' },
             enabled: { type: 'boolean' },
-            scope: { type: 'string', enum: ['household', 'user'] },
-            userId: { type: ['integer', 'null'] },
-            config: { type: 'object', additionalProperties: true },
+            scope: { type: 'string', enum: ['household', 'user'], description: 'household sends to every member; user is a personal channel owned by userId.' },
+            userId: { type: ['integer', 'null'], description: 'Owner of a personal channel. Null for household channels.' },
+            config: { type: 'object', additionalProperties: true, description: 'Provider settings. Webhook supports payloadTemplate; message_pusher supports messageTemplate. Both templates use the documented notification placeholders.' },
             secretSet: { type: 'boolean' },
             lastTestAt: { type: ['string', 'null'], format: 'date-time' },
             lastSuccessAt: { type: ['string', 'null'], format: 'date-time' },
@@ -28,14 +28,17 @@ export const schemas = {
         },
         NotificationChannelInput: {
           type: 'object',
+          description: 'Create or update a notification channel. Members may use scope=user only, and the server assigns the current user as owner. Administrators may create household channels; updates preserve the existing scope and owner.',
           required: ['provider', 'name', 'config'],
           properties: {
             provider: { type: 'string', enum: ['gotify', 'ntfy', 'webhook', 'message_pusher'] },
             name: { type: 'string' },
             enabled: { type: 'boolean' },
+            scope: { type: 'string', enum: ['household', 'user'], description: 'Optional on create. Members default to user; administrators default to household. Personal scope is limited to Webhook and message-pusher.' },
+            userId: { type: 'integer', description: 'Ignored or rejected when it does not match the authenticated user for personal channels.' },
             config: {
               type: 'object',
-              description: 'Provider config. message_pusher uses baseUrl, username, method, postFormat, messageField, channel, and tokenInQuery.',
+              description: 'Provider config. Webhook uses baseUrl and optional payloadTemplate. message_pusher uses baseUrl, username, method, postFormat, messageField, optional messageTemplate, channel, and tokenInQuery. Templates support title, body, description, details, entity/date/time, reminder, delivery, navigation, and status fields.',
               additionalProperties: true,
             },
             secrets: {

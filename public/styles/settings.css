@@ -1175,6 +1175,86 @@
   color: var(--color-text-secondary);
 }
 
+/* Notification template help: a compact info button keeps the form readable,
+   while hover and keyboard focus expose the complete placeholder contract. */
+.notification-template-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.notification-template-label .form-label {
+  margin-bottom: 0;
+}
+
+.notification-template-help {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.notification-template-help__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--target-base);
+  height: var(--target-base);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  background: transparent;
+  cursor: help;
+}
+
+.notification-template-help__button:hover,
+.notification-template-help__button:focus-visible {
+  color: var(--color-accent);
+  background: var(--color-surface-2);
+}
+
+.notification-template-help__button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.notification-template-help__tooltip {
+  position: absolute;
+  z-index: 20;
+  inset-inline-start: 0;
+  top: calc(100% + var(--space-1));
+  width: min(34rem, calc(100vw - var(--space-8)));
+  padding: var(--space-3);
+  border: var(--space-px) solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-primary);
+  background: var(--color-surface-work);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.45;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(calc(var(--space-1) * -1));
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+}
+
+.notification-template-help:hover .notification-template-help__tooltip,
+.notification-template-help:focus-within .notification-template-help__tooltip {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-template-help__tooltip {
+    transition: none;
+  }
+}
+
 /* Tonlagen für Hinweistexte. Vorher setzte `admin-backup.js` die Farbe des
    Verbindungstests inline (`style.color = 'var(--color-success)'`), was den
    Wert am Token vorbei ins Markup schrieb. */
