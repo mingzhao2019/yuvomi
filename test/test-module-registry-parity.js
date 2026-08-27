@@ -217,3 +217,37 @@ test('der README-Leser findet die Tabelle wirklich', () => {
   assert.deepEqual(headings, ['Foo', 'Baz']);
   assert.deepEqual(readmeModuleHeadings('kein Markup'), []);
 });
+
+// --------------------------------------------------------------------------
+// Die Navigation: was rechteverwaltet ist, muss auch erreichbar sein
+//
+// `navItems()` in public/router.js speist Seitenleiste, Mobil-Navigation UND
+// den Modulkatalog. Ein Modul, das dort herausfaellt, ist nur noch ueber die
+// direkt eingetippte Adresse zu erreichen - die Route bleibt ja registriert,
+// deshalb faellt es auch keinem Routing-Test auf. Genau das passierte beim
+// Rebase eines Feature-Branches: die `rewards`-Zeile verschwand still.
+// --------------------------------------------------------------------------
+
+/** Die `module:`-Schluessel aus dem Rueckgabe-Array von navItems(). */
+function navModuleKeys(source) {
+  const start = source.indexOf('function navItems(');
+  assert.notEqual(start, -1, 'navItems() nicht gefunden');
+  const end = source.indexOf('\n}', start);
+  assert.notEqual(end, -1, 'Ende von navItems() nicht gefunden');
+  return [...source.slice(start, end).matchAll(/module:\s*'([a-z-]+)'/g)].map((m) => m[1]);
+}
+
+test('jedes rechteverwaltete Modul hat einen Eintrag in navItems()', () => {
+  const keys = navModuleKeys(read('../public/router.js'));
+  assert.ok(keys.length >= 15, `nur ${keys.length} Nav-Eintraege gefunden - der Leser greift nicht mehr`);
+
+  const missing = PERMISSION_MODULES.map((m) => m.key).filter((key) => !keys.includes(key));
+  assert.deepEqual(missing, [],
+    'Modul ohne Nav-Eintrag: die Route bleibt registriert, aber Seitenleiste, Mobilnavigation und Katalog verlieren es');
+});
+
+// Gegenprobe zur Ableitung: liest der Test die Funktion ueberhaupt aus?
+test('der navItems-Leser findet die Eintraege wirklich', () => {
+  const fake = "function navItems({ x } = {}) {\n  return [\n    { path: '/a', module: 'alpha' },\n    { path: '/b', module: 'beta' },\n  ];\n}\n";
+  assert.deepEqual(navModuleKeys(fake), ['alpha', 'beta']);
+});

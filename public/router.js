@@ -3214,6 +3214,7 @@ function navItems({ catalog = false } = {}) {
     { path: '/housekeeping', label: t('nav.housekeeping'), module: 'housekeeping', section: NAV_SECTION.household },
     { path: '/documents', label: t('nav.documents'), module: 'documents',   section: NAV_SECTION.household },
     { path: '/inventory', label: t('nav.inventory'), module: 'inventory',   section: NAV_SECTION.household },
+    { path: '/rewards',   label: t('nav.rewards'),   module: 'rewards',     section: NAV_SECTION.household },
     // Menschen
     { path: '/contacts',  label: t('nav.contacts'),  module: 'contacts',    section: NAV_SECTION.people },
     { path: '/birthdays', label: t('nav.birthdays'), module: 'birthdays',   section: NAV_SECTION.people },
