@@ -139,7 +139,7 @@ services:
       - GOOGLE_DRIVE_CLIENT_ID=${GOOGLE_DRIVE_CLIENT_ID:-}
       - GOOGLE_DRIVE_CLIENT_SECRET=${GOOGLE_DRIVE_CLIENT_SECRET:-}
       - GOOGLE_DRIVE_REDIRECT_URI=${GOOGLE_DRIVE_REDIRECT_URI:-}
-      # Outlook calendar push via Microsoft Graph (optional)
+      # Outlook calendar sync via Microsoft Graph (optional)
       - MS_CLIENT_ID=${MS_CLIENT_ID:-}
       - MS_CLIENT_SECRET=${MS_CLIENT_SECRET:-}
       - MS_REDIRECT_URI=${MS_REDIRECT_URI:-}

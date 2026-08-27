@@ -3266,11 +3266,9 @@ function wireEventForm(panel, { mode, event = null, reminder = null }) {
   // Load unified sync targets (Google + CalDAV)
   const syncTargetSelect = panel.querySelector('#event-sync-target');
   if (syncTargetSelect) {
-    // Outlook ist der einzige One-way-Push: Aenderungen in Outlook werden beim
-    // naechsten Sync ueberschrieben. Der Hinweis gehoert an die Stelle der
-    // Zielwahl, nicht nur in die Sync-Einstellungen. Erst nach loadSyncTargets
-    // pruefen - die Vorauswahl eines bestehenden Outlook-Ziels setzt das select
-    // asynchron.
+    // Der Hinweis gehoert an die Stelle der Zielwahl, nicht nur in die
+    // Sync-Einstellungen. Erst nach loadSyncTargets pruefen - die Vorauswahl
+    // eines bestehenden Outlook-Ziels setzt das select asynchron.
     const outlookHint = panel.querySelector('#event-sync-target-outlook-hint');
     const syncOutlookHint = () => {
       if (outlookHint) outlookHint.hidden = !syncTargetSelect.value.startsWith('outlook:');

@@ -421,7 +421,7 @@ Add the same environment variables as above. Auto-update then follows `main` on 
 
 All configuration happens in the `.env` file. The container reads these values on startup.
 
-> **Self-hosting under the GDPR?** Several optional integrations below (weather, Google/OIDC SSO, the Outlook push via Microsoft Graph, WebDAV backup, WebDAV document storage) can send data to third parties, some outside the EU/EEA. See [Privacy for self-hosters](PRIVACY-FOR-SELFHOSTERS.md) for per-service third-country assessments, data-processing-agreement notes and log-retention guidance before enabling them. The Outlook push deserves a look before you switch it on: event titles, notes and locations leave the server as free text, assigned members' names travel in the title, and a personal Microsoft account cannot be covered by a data-processing agreement (see section 2.16 there).
+> **Self-hosting under the GDPR?** Several optional integrations below (weather, Google/OIDC SSO, the Outlook sync via Microsoft Graph, WebDAV backup, WebDAV document storage) can send data to third parties, some outside the EU/EEA. See [Privacy for self-hosters](PRIVACY-FOR-SELFHOSTERS.md) for per-service third-country assessments, data-processing-agreement notes and log-retention guidance before enabling them. The Outlook sync deserves a look before you switch it on: event titles, notes and locations leave the server as free text, assigned members' names travel in the title, and a personal Microsoft account cannot be covered by a data-processing agreement (see section 2.16 there).
 
 ### Server
 
@@ -786,7 +786,7 @@ colour is kept as a separate entry instead.
 
 ### Outlook Calendar and Microsoft To Do — Microsoft Graph (Optional)
 
-This provider uses one Microsoft Graph OAuth connection for both features. Outlook Calendar is a one-way push **Yuvomi → Outlook.com**: Yuvomi stays the source of truth, pushed events are created/updated/deleted in Outlook, and every sync run checks for remote drift. Microsoft To Do is a separate, bidirectional task sync: enabled lists appear in Yuvomi's Tasks sidebar, and task changes flow in both directions. It supports personal Microsoft accounts (outlook.com, hotmail.com, M365 Family). Outlook.com does not support CalDAV, so both features use the Microsoft Graph API. Multiple family accounts can be connected.
+This provider uses one Microsoft Graph OAuth connection for both features. Outlook Calendar now synchronizes in both directions: events created or changed in Yuvomi are sent to Outlook, Outlook-only events in enabled calendars are imported, and changes on both sides become an explicit conflict instead of silently overwriting either version. Microsoft To Do is a separate, bidirectional task sync: enabled lists appear in Yuvomi's Tasks sidebar, and task changes flow in both directions. It supports personal Microsoft accounts (outlook.com, hotmail.com, M365 Family). Outlook.com does not support CalDAV, so both features use the Microsoft Graph API. Multiple family accounts can be connected.
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
@@ -813,7 +813,7 @@ This provider uses one Microsoft Graph OAuth connection for both features. Outlo
 8. After connecting, no calendars are enabled yet. Recommended setup: create a **dedicated calendar in Outlook** (e.g. "Yuvomi"), refresh the calendar list, pick it as the **auto-sync target calendar**, and choose which family member the account belongs to — from then on all Yuvomi events visible to that person are pushed there automatically, with assigned members appended to the title (`Dinner (Anna, Ben)`). Alternatively (or additionally), individual events can pick an explicit Outlook target in the event dialog; an explicit target overrides the auto-sync calendar for that event.
 9. In the same connected-account card, find **Microsoft To Do lists**, click **Refresh To Do lists**, and enable the lists you want. Enabled lists remain visible in the Tasks sidebar and can be selected when creating a task. Imported tasks and tasks created in Yuvomi synchronize title, description, status, priority, due date and deletion in both directions. Normal scheduled runs use Microsoft's Delta feed; each enabled list is fully reconciled at least every six hours, and the manual **Sync now** action always performs a full reconciliation. A full check removes clean Yuvomi mirrors that no longer exist remotely while preserving local changes still waiting to be pushed.
 
-**Limitations:** Outlook Calendar remains a one-way push: recurring events support Yuvomi's RRULE subset only; excluded single occurrences (EXDATE) are not propagated; no attendees, reminders, attachments, or colors. Microsoft To Do list creation, renaming, deletion and moving an existing task between lists are not managed by Yuvomi yet. **Times follow the household zone since v2.34.0 (#829)** - until then `Europe/Berlin` was hard-coded here, justified as parity with the Google outbound sync although that one already read the target calendar's own zone and only fell back to `TZ`; a household in Toronto pushed every appointment six hours out. Refresh tokens for personal accounts expire after ~90 days of inactivity — the account then shows a "reconnect" button.
+**Calendar sync details:** each enabled Outlook calendar imports a window beginning six months before today by default. The settings page accepts an absolute start date; changing it resets only that calendar's Graph delta cursor and never deletes or overwrites events already stored in Yuvomi. If both sides changed an event since the last common state, the account card shows both versions and an admin must choose **Keep Yuvomi** or **Use Outlook**. Recurring events support Yuvomi's RRULE subset; unsupported Outlook recurrence patterns are imported as one-off events. Excluded single occurrences (EXDATE) are not propagated; attendees, reminders, attachments and colors are not synchronized. Microsoft To Do list creation, renaming, deletion and moving an existing task between lists are not managed by Yuvomi yet. **Times follow the household zone since v2.34.0 (#829)**. Refresh tokens for personal accounts expire after ~90 days of inactivity — the account then shows a "reconnect" button.
 
 ### Apple Calendar Sync — Legacy Single-Account (Optional)
 
@@ -1454,11 +1454,13 @@ personal main calendar unannounced. Pick an auto-sync target calendar **and** th
 the account belongs to; without both, the automatic push does not run at all. A calendar that
 Microsoft reports as read-only is skipped even when enabled.
 
-**3. Which events are eligible?** Only local events are pushed. Appointments that came in from
-Google, CalDAV, iCloud or an ICS subscription are excluded on purpose — they usually already
-exist in Outlook natively, and pushing them would duplicate them. The auto-sync also honours
-per-event visibility: an event the chosen family member is not allowed to see is not pushed to
-their calendar.
+**3. Which events are eligible?** Local events selected by an explicit Outlook target or auto-sync
+are pushed. Appointments that came in from Google, CalDAV, iCloud or an ICS subscription are still
+excluded on purpose — they usually already exist in Outlook natively, and pushing them would
+duplicate them. Enabled Outlook calendars are imported into Yuvomi from six months before today by
+default; the absolute start date can be changed beside each calendar. Changing that date affects
+future imports only and does not delete existing local events. The auto-sync also honours per-event
+visibility: an event the chosen family member is not allowed to see is not pushed to their calendar.
 
 **4. Has the sign-in expired?** Refresh tokens for personal Microsoft accounts expire after about
 90 days of inactivity, and the client secret of the app registration expires after at most 24
@@ -1466,17 +1468,18 @@ months. In the first case the account shows a "reconnect" button; in the second,
 stops working at once and a new secret has to be created in Entra and written to
 `MS_CLIENT_SECRET`.
 
-A push is not immediate: it happens on the shared sync run (`SYNC_INTERVAL_MINUTES`, 15 minutes by
-default), right after connecting, and whenever an admin triggers it manually. Microsoft To Do uses
-the same scheduler for Delta updates, with a full list reconciliation at least every six hours;
-the manual To Do sync always starts that full check. The same applies in reverse — deleting an event
-in Yuvomi removes it from Outlook on the *next* run, not instantly.
+A calendar sync is not immediate: it happens on the shared sync run (`SYNC_INTERVAL_MINUTES`, 15
+minutes by default), right after connecting, and whenever an admin triggers it manually. Microsoft
+To Do uses the same scheduler for Delta updates, with a full list reconciliation at least every six
+hours; the manual To Do sync always starts that full check. When both Yuvomi and Outlook changed the
+same event, the event is held unchanged until an admin resolves the conflict in the Outlook account
+card. Deleting an event in Yuvomi removes it from Outlook on the *next* run, not instantly.
 
-Editing a pushed event in Outlook is pointless: Yuvomi is the source of truth and resets it to its
-own state on the next run, and re-creates it if you delete it there. To get rid of an event for
-good, delete it in Yuvomi. Note also that disconnecting an account leaves everything already
-pushed behind in Outlook — clear those events in Yuvomi *before* disconnecting, or delete them by
-hand in Outlook afterwards.
+Editing a pushed event in Outlook is supported. If Yuvomi has not changed the same event, the
+Outlook version is imported; if both sides changed it, choose a version in the conflict panel.
+Deleting a remote event is also imported unless the local version changed, in which case it becomes
+a conflict. Disconnecting an account leaves remote objects in Outlook, while imported local mirrors
+are detached; delete remote objects by hand if they should be removed too.
 
 If the calendar connection was created before Microsoft To Do support or before
 `Tasks.ReadWrite` was added to the app registration, reconnect that Microsoft account once.

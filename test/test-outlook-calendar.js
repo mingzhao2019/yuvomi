@@ -1,8 +1,8 @@
 /**
- * Modul: Outlook Calendar Push - Unit- und Sync-Tests
+ * Modul: Outlook Calendar Sync - Unit- und Sync-Tests
  * Zweck: Validiert das RRULE→Graph-Mapping, die Ganztags-/Datetime-Konvertierung
- *        und den One-Way-Push-Algorithmus (Create/No-Op/Update/Move/Delete/
- *        Recreate-nach-Remote-Delete/invalid_grant) mit injiziertem fetch.
+ *        und den bidirektionalen Delta-/Konflikt-Algorithmus mit injiziertem
+ *        fetch.
  * Ausführen: node test/test-outlook-calendar.js
  */
 
@@ -186,227 +186,549 @@ describe('Datums- und Payload-Konvertierung', () => {
 });
 
 // --------------------------------------------------------
-// One-Way-Push (sync mit injiziertem fetch)
+// Bidirektionaler Outlook-Sync (Delta + explizite Konfliktwahl)
 // --------------------------------------------------------
 
-// Antwort der Drift-Erkennung (GET .../events?$select=id,changeKey) aus den
-// aktuellen Link-Zeilen bauen - Default "kein Drift": remote sieht exakt so
-// aus, wie Yuvomi zuletzt geschrieben hat.
-function remoteListFor(calendarId) {
-  return db.prepare(
-    'SELECT outlook_event_id AS id, outlook_change_key AS changeKey FROM outlook_event_links WHERE outlook_calendar_id = ?'
-  ).all(calendarId);
+const DELTA_RE = /\/me\/calendars\/([^/]+)\/calendarView\/delta/;
+let deltaToken = 0;
+
+function answerDelta(call, changesByCalendar = {}) {
+  const match = call.method === 'GET' ? call.url.match(DELTA_RE) : null;
+  if (!match) return null;
+  const calendarId = decodeURIComponent(match[1]);
+  const value = Object.hasOwn(changesByCalendar, calendarId)
+    ? changesByCalendar[calendarId]
+    : [];
+  deltaToken += 1;
+  return jsonRes(200, {
+    value,
+    '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/calendars/'
+      + encodeURIComponent(calendarId)
+      + '/calendarView/delta?token=test-'
+      + deltaToken,
+  });
 }
 
-const DRIFT_LIST_RE = /\/me\/calendars\/([^/]+)\/events\?/;
-
-/** GET-Listing der Drift-Erkennung beantworten; null, wenn der Call keiner ist. */
-function answerDriftList(call, overrides = {}) {
-  const m = call.method === 'GET' ? call.url.match(DRIFT_LIST_RE) : null;
-  if (!m) return null;
-  const calId = decodeURIComponent(m[1]);
-  const value = calId in overrides ? overrides[calId] : remoteListFor(calId);
-  return jsonRes(200, { value });
+function remoteEvent(id, overrides = {}) {
+  return {
+    id,
+    subject: 'Outlook-Termin',
+    body: { contentType: 'text', content: 'Outlook-Beschreibung' },
+    start: { dateTime: '2026-06-10T10:00:00', timeZone: HOUSEHOLD_TZ },
+    end: { dateTime: '2026-06-10T11:00:00', timeZone: HOUSEHOLD_TZ },
+    isAllDay: false,
+    location: { displayName: 'Outlook-Raum' },
+    changeKey: 'remote-1',
+    webLink: 'https://outlook.example/events/' + id,
+    ...overrides,
+  };
 }
 
-describe('Outlook one-way push', () => {
+describe('Outlook bidirectional sync', () => {
   let userId;
   let accountId;
-  let eventId;
+  let localEventId;
   const futureExpiry = new Date(Date.now() + 3600 * 1000).toISOString();
 
-  const linkRow = (id) =>
-    db.prepare('SELECT * FROM outlook_event_links WHERE event_id = ?').get(id);
-  const accountRow = () =>
-    db.prepare('SELECT * FROM outlook_accounts WHERE id = ?').get(accountId);
+  function eventRow(id) {
+    return db.prepare('SELECT * FROM calendar_events WHERE id = ?').get(id);
+  }
+
+  function linkRow(id) {
+    return db.prepare(
+      'SELECT * FROM outlook_event_links WHERE event_id = ? AND account_id = ?'
+    ).get(id, accountId);
+  }
+
+  function accountRow() {
+    return db.prepare('SELECT * FROM outlook_accounts WHERE id = ?').get(accountId);
+  }
+
+  function insertLocalEvent({
+    title,
+    description = null,
+    start = '2026-06-10T10:00',
+    end = '2026-06-10T11:00',
+    source = 'local',
+    target = true,
+  }) {
+    return db.prepare(
+      'INSERT INTO calendar_events '
+      + '(title, description, start_datetime, end_datetime, all_day, location, color, '
+      + 'created_by, external_source, target_outlook_account_id, target_outlook_calendar_id) '
+      + 'VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)'
+    ).run(
+      title,
+      description,
+      start,
+      end,
+      null,
+      '#007AFF',
+      userId,
+      source,
+      target ? accountId : null,
+      target ? 'cal-A' : null,
+    ).lastInsertRowid;
+  }
 
   before(() => {
+    db.prepare('DELETE FROM outlook_calendar_conflicts').run();
+    db.prepare('DELETE FROM outlook_event_links').run();
+    db.prepare('DELETE FROM calendar_events').run();
+    db.prepare('DELETE FROM outlook_calendar_selection').run();
+    db.prepare('DELETE FROM outlook_accounts').run();
+
     userId = db.prepare(
-      `INSERT INTO users (username, display_name, password_hash, role)
-       VALUES ('outlook-tester', 'Tester', 'x', 'admin')`
+      "INSERT INTO users (username, display_name, password_hash, role) "
+      + "VALUES ('outlook-bidirectional-tester', 'Outlook Tester', 'x', 'admin')"
     ).run().lastInsertRowid;
 
     accountId = db.prepare(
-      `INSERT INTO outlook_accounts (name, ms_user_id, email, access_token, refresh_token, token_expiry)
-       VALUES ('Papa', 'ms-user-1', 'papa@example.com', 'access-tok', 'refresh-tok', ?)`
-    ).run(futureExpiry).lastInsertRowid;
+      'INSERT INTO outlook_accounts '
+      + '(name, ms_user_id, email, access_token, refresh_token, token_expiry, owner_user_id) '
+      + "VALUES ('Outlook Tester', 'ms-bidirectional', 'outlook@example.com', "
+      + "'access-tok', 'refresh-tok', ?, ?)"
+    ).run(futureExpiry, userId).lastInsertRowid;
 
-    const insCal = db.prepare(
-      `INSERT INTO outlook_calendar_selection (account_id, calendar_id, calendar_name, can_edit, enabled)
-       VALUES (?, ?, ?, ?, 1)`
-    );
-    insCal.run(accountId, 'cal-A', 'Kalender A', 1);
-    insCal.run(accountId, 'cal-B', 'Kalender B', 1);
-    insCal.run(accountId, 'cal-RO', 'Nur lesen', 0);
+    db.prepare(
+      "INSERT INTO outlook_calendar_selection "
+      + "(account_id, calendar_id, calendar_name, can_edit, enabled) "
+      + "VALUES (?, 'cal-A', 'Kalender A', 1, 1)"
+    ).run(accountId);
 
-    eventId = db.prepare(
-      `INSERT INTO calendar_events
-         (title, start_datetime, end_datetime, color, created_by,
-          target_outlook_account_id, target_outlook_calendar_id)
-       VALUES ('Zahnarzt', '2026-06-10T10:00', '2026-06-10T11:00', '#007AFF', ?, ?, 'cal-A')`
-    ).run(userId, accountId).lastInsertRowid;
+    db.prepare(
+      "INSERT INTO outlook_calendar_selection "
+      + "(account_id, calendar_id, calendar_name, can_edit, enabled) "
+      + "VALUES (?, 'cal-disabled', 'Deaktiviert', 1, 0)"
+    ).run(accountId);
+
+    localEventId = insertLocalEvent({
+      title: 'Lokaler Termin',
+      description: 'Lokale Beschreibung',
+    });
   });
 
-  it('legt neue Events im Zielkalender an und speichert Link + changeKey', async () => {
+  it('保留自动同步候选规则', () => {
+    outlook.updateAccount(accountId, { autoSyncCalendarId: 'cal-A' });
+    const candidates = outlook.__test.collectCandidates(db, accountRow());
+    assert.equal(candidates.get(localEventId).calendarId, 'cal-A');
+    outlook.updateAccount(accountId, { autoSyncCalendarId: null });
+  });
+
+  it('使用 calendarView/delta，推送本地事件并保存游标', async () => {
     const fetchImpl = makeFetch((call) => {
-      if (call.method === 'POST' && call.url.includes('/me/calendars/cal-A/events')) {
-        return jsonRes(201, { id: 'graph-evt-1', changeKey: 'ck-1' });
+      const delta = answerDelta(call);
+      if (delta) return delta;
+      if (call.method === 'POST' && call.url.endsWith('/me/calendars/cal-A/events')) {
+        return jsonRes(201, { id: 'graph-local-1', changeKey: 'local-1' });
       }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
     });
 
     const result = await outlook.sync({ fetchImpl });
     assert.equal(result.pushed, 1);
+    assert.equal(result.imported, 0);
     assert.equal(result.syncedAccounts, 1);
-    // Ohne bestehende Links kein Drift-Listing → genau der eine Create.
+    assert.deepEqual(fetchImpl.calls.map((call) => call.method), ['GET', 'POST']);
+
+    const link = linkRow(localEventId);
+    assert.equal(link.link_type, 'push');
+    assert.equal(link.outlook_event_id, 'graph-local-1');
+    assert.equal(link.outlook_change_key, 'local-1');
+    assert.ok(link.content_hash);
+    assert.equal(link.outbound_dirty, 0);
+
+    const selection = db.prepare(
+      'SELECT sync_range_start, sync_range_end, sync_cursor '
+      + "FROM outlook_calendar_selection WHERE account_id = ? AND calendar_id = 'cal-A'"
+    ).get(accountId);
+    assert.equal(selection.sync_range_start, outlook.__test.defaultSyncStartDate());
+    assert.ok(selection.sync_range_end);
+    assert.match(selection.sync_cursor, /test-/);
+    assert.match(fetchImpl.calls[0].url, /calendarView\/delta/);
+    assert.match(fetchImpl.calls[0].url, /startDateTime=/);
+    assert.equal(
+      db.prepare(
+        'SELECT sync_cursor FROM outlook_calendar_selection '
+        + "WHERE account_id = ? AND calendar_id = 'cal-disabled'"
+      ).get(accountId).sync_cursor,
+      null,
+      '禁用日历不参与导入',
+    );
+  });
+
+  it('没有变化时只消费 delta，不写回 Outlook', async () => {
+    const fetchImpl = makeFetch((call) => {
+      const delta = answerDelta(call);
+      if (delta) return delta;
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+
+    const result = await outlook.sync({ fetchImpl });
+    assert.equal(result.pushed + result.updated + result.deleted + result.imported, 0);
+    assert.deepEqual(fetchImpl.calls.map((call) => call.method), ['GET']);
+  });
+
+  it('本地修改通过 If-Match 回写 Outlook', async () => {
+    const before = eventRow(localEventId);
+    db.prepare('UPDATE calendar_events SET title = ? WHERE id = ?')
+      .run('本地修改', localEventId);
+    const after = eventRow(localEventId);
+    assert.equal(outlook.markEventOutbound(before, after), true);
+
+    const calls = [];
+    const fetchImpl = async (url, options = {}) => {
+      const call = {
+        url,
+        method: options.method || 'GET',
+        body: options.body ? JSON.parse(options.body) : null,
+        headers: options.headers || {},
+      };
+      calls.push(call);
+      if (call.method === 'PATCH' && call.url.endsWith('/me/events/graph-local-1')) {
+        assert.equal(call.body.subject, '本地修改');
+        return jsonRes(200, { id: 'graph-local-1', changeKey: 'local-2' });
+      }
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    };
+
+    const result = await outlook.flushOutbound({ fetchImpl });
+    assert.equal(result.updated, 1);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].headers['If-Match'], 'local-1');
+    assert.equal(linkRow(localEventId).outlook_change_key, 'local-2');
+    assert.equal(linkRow(localEventId).outbound_dirty, 0);
+  });
+
+  it('Outlook 单方面修改时导入 Outlook 版本，不再静默覆盖', async () => {
+    const fetchImpl = makeFetch((call) => {
+      const delta = answerDelta(call, {
+        'cal-A': [remoteEvent('graph-local-1', {
+          subject: 'Outlook 修改',
+          body: { contentType: 'text', content: '远端内容' },
+          location: { displayName: '远端会议室' },
+          changeKey: 'remote-2',
+        })],
+      });
+      if (delta) return delta;
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+
+    const result = await outlook.sync({ fetchImpl });
+    assert.equal(result.updated, 1);
+    assert.equal(result.conflicts, 0);
+    assert.equal(eventRow(localEventId).title, 'Outlook 修改');
+    assert.equal(eventRow(localEventId).description, '远端内容');
+    assert.equal(eventRow(localEventId).location, '远端会议室');
+    assert.equal(linkRow(localEventId).outlook_change_key, 'remote-2');
+    assert.equal(fetchImpl.calls.length, 1, '只读入 delta，不反向 PATCH 自己刚读到的版本');
+  });
+
+  it('远端新事件导入为 Outlook 来源，并允许本地编辑后回写', async () => {
+    const fetchImpl = makeFetch((call) => {
+      const delta = answerDelta(call, {
+        'cal-A': [remoteEvent('graph-inbound-1', {
+          subject: '远端新事件',
+          body: { contentType: 'text', content: '远端说明' },
+          changeKey: 'inbound-1',
+        })],
+      });
+      if (delta) return delta;
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+
+    const result = await outlook.sync({ fetchImpl });
+    assert.equal(result.imported, 1);
+
+    const imported = db.prepare(
+      'SELECT * FROM calendar_events WHERE external_object_url = ?'
+    ).get('https://outlook.example/events/graph-inbound-1');
+    assert.ok(imported);
+    assert.equal(imported.external_source, 'outlook');
+    assert.equal(imported.title, '远端新事件');
+    assert.equal(imported.description, '远端说明');
+    const importedLink = linkRow(imported.id);
+    assert.equal(importedLink.link_type, 'inbound');
+    assert.equal(importedLink.outlook_event_id, 'graph-inbound-1');
+
+    const before = eventRow(imported.id);
+    db.prepare('UPDATE calendar_events SET title = ? WHERE id = ?')
+      .run('本地编辑的远端事件', imported.id);
+    const after = eventRow(imported.id);
+    assert.equal(outlook.markEventOutbound(before, after), true);
+
+    const pushFetch = makeFetch((call) => {
+      if (call.method === 'PATCH' && call.url.endsWith('/me/events/graph-inbound-1')) {
+        assert.equal(call.body.subject, '本地编辑的远端事件');
+        return jsonRes(200, { id: 'graph-inbound-1', changeKey: 'inbound-2' });
+      }
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+    const pushResult = await outlook.flushOutbound({ fetchImpl: pushFetch });
+    assert.equal(pushResult.updated, 1);
+    assert.equal(pushFetch.calls.length, 1);
+    assert.equal(linkRow(imported.id).outbound_dirty, 0);
+  });
+
+  it('双方修改时生成待选择冲突，不自动覆盖或回写', async () => {
+    const before = eventRow(localEventId);
+    db.prepare('UPDATE calendar_events SET title = ? WHERE id = ?')
+      .run('Yuvomi 修改', localEventId);
+    const after = eventRow(localEventId);
+    outlook.markEventOutbound(before, after);
+
+    const fetchImpl = makeFetch((call) => {
+      const delta = answerDelta(call, {
+        'cal-A': [remoteEvent('graph-local-1', {
+          subject: 'Outlook 同时修改',
+          changeKey: 'remote-conflict-1',
+        })],
+      });
+      if (delta) return delta;
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+
+    const result = await outlook.sync({ fetchImpl });
+    assert.equal(result.conflicts, 1);
+    assert.equal(eventRow(localEventId).title, 'Yuvomi 修改');
     assert.equal(fetchImpl.calls.length, 1);
 
-    const link = linkRow(eventId);
-    assert.equal(link.outlook_event_id, 'graph-evt-1');
-    assert.equal(link.outlook_calendar_id, 'cal-A');
-    assert.equal(link.outlook_change_key, 'ck-1');
-    assert.ok(link.content_hash);
-    assert.equal(accountRow().last_error, null);
+    const conflicts = outlook.listConflicts({ accountId, status: 'pending' });
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].eventId, localEventId);
+    assert.equal(conflicts[0].local.title, 'Yuvomi 修改');
+    assert.equal(conflicts[0].remote.title, 'Outlook 同时修改');
   });
 
-  it('unverändertes Event kostet nur das eine Drift-Listing pro Kalender', async () => {
+  it('选择 Outlook 版本后清除冲突且不再产生回写', async () => {
+    const conflict = outlook.listConflicts({ accountId })[0];
+    const resolved = outlook.resolveConflict(conflict.id, 'remote');
+    assert.equal(resolved.resolution, 'remote');
+
     const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call);
-      if (drift) return drift;
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+      throw new Error('Unexpected request after remote resolution: ' + call.method + ' ' + call.url);
     });
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(fetchImpl.calls.length, 1, 'genau ein GET-Listing, keine Schreibzugriffe');
-    assert.equal(fetchImpl.calls[0].method, 'GET');
-    assert.equal(result.pushed + result.updated + result.deleted, 0);
+    const result = await outlook.flushOutbound({ fetchImpl });
+    assert.equal(result.updated, 0);
+    assert.equal(fetchImpl.calls.length, 0);
+    assert.equal(eventRow(localEventId).title, 'Outlook 同时修改');
+    assert.equal(outlook.listConflicts({ accountId }).length, 0);
   });
 
-  it('geändertes Event wird per PATCH aktualisiert und trägt den neuen changeKey', async () => {
-    db.prepare('UPDATE calendar_events SET title = ? WHERE id = ?').run('Zahnarzt (neu)', eventId);
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call);
-      if (drift) return drift;
-      if (call.method === 'PATCH' && call.url.includes('/me/events/graph-evt-1')) {
-        return jsonRes(200, { id: 'graph-evt-1', changeKey: 'ck-2' });
-      }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
+  it('选择 Yuvomi 版本后通过 PATCH 覆盖 Outlook', async () => {
+    const before = eventRow(localEventId);
+    db.prepare('UPDATE calendar_events SET title = ? WHERE id = ?')
+      .run('Yuvomi 最终版本', localEventId);
+    const after = eventRow(localEventId);
+    outlook.markEventOutbound(before, after);
 
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.updated, 1);
-    assert.deepEqual(fetchImpl.calls.map((c) => c.method), ['GET', 'PATCH']);
-    assert.equal(fetchImpl.calls[1].body.subject, 'Zahnarzt (neu)');
-    assert.equal(linkRow(eventId).outlook_change_key, 'ck-2');
-  });
-
-  it('in Outlook veränderter Termin (changeKey-Drift) wird zurückgesetzt', async () => {
-    // Lokal unverändert - nur der remote gemeldete changeKey weicht ab.
     const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call, {
-        'cal-A': [{ id: 'graph-evt-1', changeKey: 'ck-extern' }],
+      const delta = answerDelta(call, {
+        'cal-A': [remoteEvent('graph-local-1', {
+          subject: 'Outlook 再次修改',
+          changeKey: 'remote-conflict-2',
+        })],
       });
-      if (drift) return drift;
-      if (call.method === 'PATCH' && call.url.includes('/me/events/graph-evt-1')) {
-        return jsonRes(200, { id: 'graph-evt-1', changeKey: 'ck-3' });
-      }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+      if (delta) return delta;
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
     });
-
     const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.updated, 1, 'Reassert trotz unverändertem lokalen Hash');
-    assert.equal(fetchImpl.calls[1].body.subject, 'Zahnarzt (neu)', 'Yuvomi-Stand gewinnt');
-    assert.equal(linkRow(eventId).outlook_change_key, 'ck-3');
+    assert.equal(result.conflicts, 1);
+
+    const conflict = outlook.listConflicts({ accountId })[0];
+    outlook.resolveConflict(conflict.id, 'local');
+    assert.equal(linkRow(localEventId).outbound_dirty, 1);
+
+    const pushFetch = makeFetch((call) => {
+      if (call.method === 'PATCH' && call.url.endsWith('/me/events/graph-local-1')) {
+        assert.equal(call.body.subject, 'Yuvomi 最终版本');
+        return jsonRes(200, { id: 'graph-local-1', changeKey: 'local-final' });
+      }
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+    const pushResult = await outlook.flushOutbound({ fetchImpl: pushFetch });
+    assert.equal(pushResult.updated, 1);
+    assert.equal(linkRow(localEventId).outlook_change_key, 'local-final');
+    assert.equal(outlook.listConflicts({ accountId }).length, 0);
   });
 
-  it('Zielkalender-Wechsel löst Delete + Create aus', async () => {
-    db.prepare('UPDATE calendar_events SET target_outlook_calendar_id = ? WHERE id = ?').run('cal-B', eventId);
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call);
-      if (drift) return drift;
-      if (call.method === 'DELETE' && call.url.includes('/me/events/graph-evt-1')) return jsonRes(204);
-      if (call.method === 'POST' && call.url.includes('/me/calendars/cal-B/events')) {
-        return jsonRes(201, { id: 'graph-evt-2', changeKey: 'ck-b1' });
-      }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+  it('远端删除有本地未同步修改的事件时生成删除冲突', async () => {
+    const deletionConflictEventId = insertLocalEvent({
+      title: '待删除冲突',
+      start: '2026-06-12T10:00',
+      end: '2026-06-12T11:00',
     });
+    const createFetch = makeFetch((call) => {
+      const delta = answerDelta(call);
+      if (delta) return delta;
+      if (call.method === 'POST' && call.url.endsWith('/me/calendars/cal-A/events')) {
+        return jsonRes(201, { id: 'graph-delete-conflict', changeKey: 'delete-1' });
+      }
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+    await outlook.sync({ fetchImpl: createFetch });
 
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.updated, 1);
-    assert.deepEqual(fetchImpl.calls.map((c) => c.method), ['GET', 'DELETE', 'POST']);
-    assert.equal(linkRow(eventId).outlook_event_id, 'graph-evt-2');
-    assert.equal(linkRow(eventId).outlook_calendar_id, 'cal-B');
+    const before = eventRow(deletionConflictEventId);
+    db.prepare('UPDATE calendar_events SET title = ? WHERE id = ?')
+      .run('本地保留版本', deletionConflictEventId);
+    outlook.markEventOutbound(before, eventRow(deletionConflictEventId));
+
+    const deleteFetch = makeFetch((call) => {
+      const delta = answerDelta(call, {
+        'cal-A': [{
+          id: 'graph-delete-conflict',
+          '@removed': { reason: 'deleted' },
+        }],
+      });
+      if (delta) return delta;
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+    const result = await outlook.sync({ fetchImpl: deleteFetch });
+    assert.equal(result.conflicts, 1);
+    assert.ok(eventRow(deletionConflictEventId));
+    const conflict = outlook.listConflicts({ accountId })[0];
+    assert.equal(conflict.remote, null);
+
+    // In a true two-way mirror, accepting the remote deletion removes the
+    // local copy as well. A second account link would preserve the shared row.
+    outlook.resolveConflict(conflict.id, 'remote');
+    assert.equal(eventRow(deletionConflictEventId), undefined);
+    assert.equal(linkRow(deletionConflictEventId), undefined);
   });
 
-  it('in Outlook gelöschter Termin wird ohne lokale Änderung neu angelegt', async () => {
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call, { 'cal-B': [] });
-      if (drift) return drift;
-      if (call.method === 'POST' && call.url.includes('/me/calendars/cal-B/events')) {
-        return jsonRes(201, { id: 'graph-evt-3', changeKey: 'ck-b2' });
+  it('本地删除通过墓碑发送 DELETE，成功后才清除远端链接', async () => {
+    const deletionEventId = insertLocalEvent({
+      title: '本地删除',
+      start: '2026-06-13T10:00',
+      end: '2026-06-13T11:00',
+    });
+    const createFetch = makeFetch((call) => {
+      const delta = answerDelta(call);
+      if (delta) return delta;
+      if (call.method === 'POST' && call.url.endsWith('/me/calendars/cal-A/events')) {
+        return jsonRes(201, { id: 'graph-local-delete', changeKey: 'delete-2' });
       }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
     });
+    await outlook.sync({ fetchImpl: createFetch });
 
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.updated, 1);
-    assert.deepEqual(fetchImpl.calls.map((c) => c.method), ['GET', 'POST']);
-    assert.equal(linkRow(eventId).outlook_event_id, 'graph-evt-3');
-  });
+    const event = eventRow(deletionEventId);
+    assert.equal(outlook.queueEventDeletion(event), true);
+    db.prepare('DELETE FROM calendar_events WHERE id = ?').run(deletionEventId);
 
-  it('Fallback ohne Drift-Listing: PATCH-404 legt neu an', async () => {
-    db.prepare('UPDATE calendar_events SET title = ? WHERE id = ?').run('Zahnarzt (v3)', eventId);
-    const fetchImpl = makeFetch((call) => {
-      if (call.method === 'GET' && DRIFT_LIST_RE.test(call.url)) {
-        return jsonRes(500, { error: { message: 'listing down' } });
+    const deleteFetch = makeFetch((call) => {
+      const delta = answerDelta(call, {
+        'cal-A': [remoteEvent('graph-local-delete', { subject: '远端仍存在' })],
+      });
+      if (delta) return delta;
+      if (call.method === 'DELETE' && call.url.endsWith('/me/events/graph-local-delete')) {
+        return jsonRes(204);
       }
-      if (call.method === 'PATCH') return jsonRes(404, { error: { message: 'ErrorItemNotFound' } });
-      if (call.method === 'POST' && call.url.includes('/me/calendars/cal-B/events')) {
-        return jsonRes(201, { id: 'graph-evt-4', changeKey: 'ck-b3' });
-      }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
     });
-
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.updated, 1);
-    assert.equal(linkRow(eventId).outlook_event_id, 'graph-evt-4');
-  });
-
-  it('Events mit Nur-lesen-Ziel werden übersprungen', async () => {
-    const roEventId = db.prepare(
-      `INSERT INTO calendar_events
-         (title, start_datetime, color, created_by, target_outlook_account_id, target_outlook_calendar_id)
-       VALUES ('RO', '2026-06-11T10:00', '#007AFF', ?, ?, 'cal-RO')`
-    ).run(userId, accountId).lastInsertRowid;
-
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call);
-      if (drift) return drift;
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.pushed + result.updated, 0);
-    assert.equal(linkRow(roEventId), undefined);
-    db.prepare('DELETE FROM calendar_events WHERE id = ?').run(roEventId);
-  });
-
-  it('lokal gelöschtes Event: remote schon weg → Tombstone ohne DELETE-Request', async () => {
-    db.prepare('DELETE FROM calendar_events WHERE id = ?').run(eventId);
-    assert.ok(linkRow(eventId), 'Link-Zeile muss das Event-Delete überleben');
-
-    // Listing meldet den Termin als nicht (mehr) vorhanden → kein DELETE nötig.
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call, { 'cal-B': [] });
-      if (drift) return drift;
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
-
-    const result = await outlook.sync({ fetchImpl });
+    // The inbound pass arrives first in a normal sync. The tombstone must keep
+    // this update from resurrecting the locally deleted event.
+    const result = await outlook.sync({ fetchImpl: deleteFetch });
     assert.equal(result.deleted, 1);
-    assert.equal(fetchImpl.calls.length, 1, 'nur das Drift-Listing');
-    assert.equal(linkRow(eventId), undefined);
+    assert.deepEqual(deleteFetch.calls.map((call) => call.method), ['GET', 'DELETE']);
+    assert.equal(eventRow(deletionEventId), undefined);
+    assert.equal(linkRow(deletionEventId), undefined);
   });
 
-  it('invalid_grant beim Token-Refresh setzt needs_reauth und überspringt das Konto (letzter Test dieser Suite)', async () => {
+  it('修改绝对起始日期时只重置游标，不删除既有事件', () => {
+    const eventId = insertLocalEvent({
+      title: '日期窗口测试',
+      start: '2026-06-14T10:00',
+      end: '2026-06-14T11:00',
+    });
+    db.prepare(
+      "UPDATE outlook_calendar_selection SET sync_cursor = 'cursor-before', sync_range_start = '2026-02-01' "
+      + "WHERE account_id = ? AND calendar_id = 'cal-A'"
+    ).run(accountId);
+    const countBefore = db.prepare('SELECT COUNT(*) AS count FROM calendar_events').get().count;
+
+    const selected = outlook.setCalendarSyncStartDate(accountId, 'cal-A', '2025-01-15');
+    assert.equal(selected.customSyncStartDate, '2025-01-15');
+    assert.equal(selected.syncStartDate, '2025-01-15');
+    assert.equal(
+      db.prepare(
+        "SELECT sync_cursor FROM outlook_calendar_selection "
+        + "WHERE account_id = ? AND calendar_id = 'cal-A'"
+      ).get(accountId).sync_cursor,
+      null,
+    );
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM calendar_events').get().count, countBefore);
+    assert.equal(eventRow(eventId).title, '日期窗口测试');
+
+    const reset = outlook.setCalendarSyncStartDate(accountId, 'cal-A', null);
+    assert.equal(reset.customSyncStartDate, null);
+    assert.equal(reset.syncStartDate, outlook.__test.defaultSyncStartDate());
+  });
+
+  it('刷新日历列表时保留同步状态，新日历默认关闭', async () => {
+    const fetchImpl = makeFetch((call) => {
+      if (call.method === 'GET' && call.url.includes('/me/calendars')) {
+        return jsonRes(200, {
+          value: [
+            { id: 'cal-A', name: 'Kalender A', canEdit: true },
+            { id: 'cal-new', name: 'Neu', canEdit: true },
+          ],
+        });
+      }
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+
+    await outlook.__test.refreshCalendarSelection(accountId, 'access-tok', fetchImpl);
+    const rows = Object.fromEntries(
+      db.prepare(
+        'SELECT calendar_id, enabled, sync_start_date, sync_cursor '
+        + 'FROM outlook_calendar_selection WHERE account_id = ?'
+      ).all(accountId).map((row) => [row.calendar_id, row])
+    );
+    assert.equal(rows['cal-A'].enabled, 1);
+    assert.equal(rows['cal-A'].sync_start_date, null);
+    assert.equal(rows['cal-A'].sync_cursor, null);
+    assert.equal(rows['cal-new'].enabled, 0);
+  });
+
+  it('清空本地 Outlook 目标时删除远端副本而不是重新推送', async () => {
+    const eventId = insertLocalEvent({
+      title: '解除目标',
+      start: '2026-06-15T10:00',
+      end: '2026-06-15T11:00',
+    });
+    const createFetch = makeFetch((call) => {
+      const delta = answerDelta(call);
+      if (delta) return delta;
+      if (call.method === 'POST' && call.url.endsWith('/me/calendars/cal-A/events')) {
+        return jsonRes(201, { id: 'graph-target-cleared', changeKey: 'target-1' });
+      }
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+    await outlook.sync({ fetchImpl: createFetch });
+
+    const before = eventRow(eventId);
+    db.prepare(
+      'UPDATE calendar_events SET target_outlook_account_id = NULL, target_outlook_calendar_id = NULL WHERE id = ?'
+    ).run(eventId);
+    const after = eventRow(eventId);
+    assert.equal(outlook.markEventOutbound(before, after), true);
+
+    const deleteFetch = makeFetch((call) => {
+      const delta = answerDelta(call);
+      if (delta) return delta;
+      if (call.method === 'DELETE' && call.url.endsWith('/me/events/graph-target-cleared')) {
+        return jsonRes(204);
+      }
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
+    });
+    const result = await outlook.sync({ fetchImpl: deleteFetch });
+    assert.equal(result.deleted, 1);
+    assert.equal(linkRow(eventId), undefined);
+    assert.ok(eventRow(eventId), '清除同步目标只解除远端关联，不删除本地事件');
+  });
+
+  it('invalid_grant 会要求重新连接，后续同步跳过该账户', async () => {
     db.prepare('UPDATE outlook_accounts SET token_expiry = ? WHERE id = ?')
       .run(new Date(Date.now() - 1000).toISOString(), accountId);
 
@@ -414,7 +736,7 @@ describe('Outlook one-way push', () => {
       if (call.url.includes('login.microsoftonline.com') && call.url.includes('/token')) {
         return jsonRes(400, { error: 'invalid_grant', error_description: 'AADSTS70000: expired' });
       }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
     });
 
     const result = await outlook.sync({ fetchImpl });
@@ -422,232 +744,20 @@ describe('Outlook one-way push', () => {
     assert.equal(accountRow().needs_reauth, 1);
     assert.match(accountRow().last_error, /Reconnect required/);
 
-    // Folge-Sync fasst das Konto nicht mehr an (kein Token-Request).
     const quietFetch = makeFetch((call) => {
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
+      throw new Error('Unexpected request: ' + call.method + ' ' + call.url);
     });
     await outlook.sync({ fetchImpl: quietFetch });
     assert.equal(quietFetch.calls.length, 0);
   });
 });
-// --------------------------------------------------------
-// Auto-Sync (v2): alle für den Konto-Owner sichtbaren lokalen Events
-// --------------------------------------------------------
-
-describe('Outlook auto-sync', () => {
-  let anna;      // Owner von Konto A
-  let ben;       // Owner von Konto B
-  let stranger;  // Dritte Person (private Events)
-  let accountA;
-  let accountB;
-  const futureExpiry = new Date(Date.now() + 3600 * 1000).toISOString();
-
-  const linksFor = (eventId) =>
-    db.prepare('SELECT * FROM outlook_event_links WHERE event_id = ? ORDER BY account_id').all(eventId);
-
-  function insertUser(name) {
-    return db.prepare(
-      `INSERT INTO users (username, display_name, password_hash, role)
-       VALUES (?, ?, 'x', 'member')`
-    ).run(name.toLowerCase(), name).lastInsertRowid;
-  }
-
-  function insertAccount(name, ownerId, autoCalId) {
-    const id = db.prepare(
-      `INSERT INTO outlook_accounts
-         (name, ms_user_id, email, access_token, refresh_token, token_expiry,
-          auto_sync_calendar_id, owner_user_id)
-       VALUES (?, ?, ?, 'tok', 'ref', ?, ?, ?)`
-    ).run(name, `ms-${name}`, `${name.toLowerCase()}@example.com`, futureExpiry, autoCalId, ownerId).lastInsertRowid;
-    db.prepare(
-      `INSERT INTO outlook_calendar_selection (account_id, calendar_id, calendar_name, can_edit, enabled)
-       VALUES (?, ?, 'Yuvomi', 1, 1)`
-    ).run(id, autoCalId);
-    return id;
-  }
-
-  function insertEvent({ title, createdBy, visibility = 'all', source = 'local', assignees = [] }) {
-    const id = db.prepare(
-      `INSERT INTO calendar_events
-         (title, start_datetime, color, created_by, visibility, external_source)
-       VALUES (?, '2026-09-01T10:00', '#007AFF', ?, ?, ?)`
-    ).run(title, createdBy, visibility, source).lastInsertRowid;
-    for (const uid of assignees) {
-      db.prepare('INSERT INTO event_assignments (event_id, user_id) VALUES (?, ?)').run(id, uid);
-    }
-    return id;
-  }
-
-  before(() => {
-    // Saubere Ausgangslage: Events/Links/Konten der vorherigen Suite entfernen,
-    // damit die sichtbarkeitsbasierte Kandidatenmenge deterministisch ist.
-    db.prepare('DELETE FROM calendar_events').run();
-    db.prepare('DELETE FROM outlook_event_links').run();
-    db.prepare('DELETE FROM outlook_calendar_selection').run();
-    db.prepare('DELETE FROM outlook_accounts').run();
-
-    anna = insertUser('Anna');
-    ben = insertUser('Ben');
-    stranger = insertUser('Zoe');
-    accountA = insertAccount('Anna Outlook', anna, 'yuvomi-cal-A');
-    accountB = insertAccount('Ben Outlook', ben, 'yuvomi-cal-B');
-  });
-
-  it('updateAccount validiert den Zielkalender und aktiviert ihn implizit', () => {
-    db.prepare(
-      `INSERT INTO outlook_calendar_selection (account_id, calendar_id, calendar_name, can_edit, enabled)
-       VALUES (?, 'extra-cal', 'Extra', 1, 0)`
-    ).run(accountA);
-
-    outlook.updateAccount(accountA, { autoSyncCalendarId: 'extra-cal' });
-    const row = db.prepare(
-      'SELECT enabled FROM outlook_calendar_selection WHERE account_id = ? AND calendar_id = ?'
-    ).get(accountA, 'extra-cal');
-    assert.equal(row.enabled, 1, 'Auto-Sync-Kalender muss implizit aktiviert werden');
-
-    assert.throws(() => outlook.updateAccount(accountA, { autoSyncCalendarId: 'does-not-exist' }));
-
-    db.prepare(
-      `INSERT INTO outlook_calendar_selection (account_id, calendar_id, calendar_name, can_edit, enabled)
-       VALUES (?, 'ro-cal', 'ReadOnly', 0, 1)`
-    ).run(accountA);
-    assert.throws(() => outlook.updateAccount(accountA, { autoSyncCalendarId: 'ro-cal' }));
-
-    // Zurück auf den eigentlichen Auto-Kalender.
-    outlook.updateAccount(accountA, { autoSyncCalendarId: 'yuvomi-cal-A' });
-  });
-
-  it('collectCandidates: sichtbar-für-Owner, keine externen Events, explizites Ziel gewinnt', () => {
-    const familyEvent  = insertEvent({ title: 'Familienessen', createdBy: anna, assignees: [anna, ben] });
-    const plainEvent   = insertEvent({ title: 'Testtermin', createdBy: ben });
-    const privateEvent = insertEvent({ title: 'Geheim', createdBy: stranger, visibility: 'private' });
-    const icsEvent     = insertEvent({ title: 'Feiertag', createdBy: anna, source: 'ics' });
-    const explicitEvent = insertEvent({ title: 'Explizit', createdBy: anna });
-    db.prepare(
-      'UPDATE calendar_events SET target_outlook_account_id = ?, target_outlook_calendar_id = ? WHERE id = ?'
-    ).run(accountA, 'extra-cal', explicitEvent);
-
-    const account = db.prepare('SELECT * FROM outlook_accounts WHERE id = ?').get(accountA);
-    const candidates = outlook.__test.collectCandidates(db, account);
-
-    assert.ok(candidates.has(familyEvent), 'für alle sichtbares Event ist Kandidat');
-    assert.ok(candidates.has(plainEvent), 'Event ohne Zuweisung ist Kandidat');
-    assert.ok(!candidates.has(privateEvent), 'privates Event einer anderen Person ist KEIN Kandidat');
-    assert.ok(!candidates.has(icsEvent), 'extern synchronisiertes Event ist KEIN Kandidat');
-    assert.equal(candidates.get(familyEvent).calendarId, 'yuvomi-cal-A');
-    assert.equal(candidates.get(explicitEvent).calendarId, 'extra-cal', 'explizites Ziel gewinnt');
-
-    const names = JSON.parse(candidates.get(familyEvent).event.assignee_names_json);
-    assert.deepEqual(names, ['Anna', 'Ben'], 'Zuweisungs-Namen alphabetisch');
-
-    // Aufräumen für die Sync-Tests: nur familyEvent + plainEvent behalten.
-    db.prepare('DELETE FROM calendar_events WHERE id IN (?, ?, ?)').run(privateEvent, icsEvent, explicitEvent);
-  });
-
-  it('pusht in beide Konten mit Titel-Suffix (Composite-PK) bzw. ohne Suffix', async () => {
-    const fetchImpl = makeFetch((call) => {
-      if (call.method === 'POST' && /\/me\/calendars\/yuvomi-cal-[AB]\/events\??$/.test(call.url)) {
-        const side = call.url.includes('cal-A') ? 'A' : 'B';
-        return jsonRes(201, { id: `graph-${side}-${call.body.subject}`, changeKey: `ck-${side}-1` });
-      }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
-
-    const result = await outlook.sync({ fetchImpl });
-    // 2 Events × 2 Konten = 4 Creates.
-    assert.equal(result.pushed, 4);
-    assert.equal(result.syncedAccounts, 2);
-
-    const subjects = fetchImpl.calls.map((c) => c.body.subject).sort();
-    assert.deepEqual(subjects, [
-      'Familienessen (Anna, Ben)', 'Familienessen (Anna, Ben)',
-      'Testtermin', 'Testtermin',
-    ], 'Suffix nur bei Zuweisungen, kein "Synced"-Zusatz');
-
-    const familyEvent = db.prepare(`SELECT id FROM calendar_events WHERE title = 'Familienessen'`).get().id;
-    assert.equal(linksFor(familyEvent).length, 2, 'ein Link je (Event, Konto)');
-  });
-
-  it('Zuweisungs-Änderung ändert den Hash und löst PATCH aus', async () => {
-    const familyEvent = db.prepare(`SELECT id FROM calendar_events WHERE title = 'Familienessen'`).get().id;
-    db.prepare('DELETE FROM event_assignments WHERE event_id = ? AND user_id = ?').run(familyEvent, ben);
-
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call);
-      if (drift) return drift;
-      if (call.method === 'PATCH') return jsonRes(200, { changeKey: 'ck-after-patch' });
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.updated, 2, 'beide Konten patchen');
-    for (const call of fetchImpl.calls.filter((c) => c.method === 'PATCH')) {
-      assert.equal(call.body.subject, 'Familienessen (Anna)');
-    }
-  });
-
-  it('Sichtbarkeits-Verlust entfernt das Remote-Event (Orphan-Pass)', async () => {
-    const familyEvent = db.prepare(`SELECT id FROM calendar_events WHERE title = 'Familienessen'`).get().id;
-    // Nur noch privat für Zoe sichtbar → fällt aus beiden Kandidatenmengen.
-    db.prepare(`UPDATE calendar_events SET visibility = 'private', created_by = ? WHERE id = ?`)
-      .run(stranger, familyEvent);
-    db.prepare('DELETE FROM event_assignments WHERE event_id = ?').run(familyEvent);
-
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call);
-      if (drift) return drift;
-      if (call.method === 'DELETE') return jsonRes(204);
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.deleted, 2, 'Remote-Delete in beiden Konten');
-    assert.equal(linksFor(familyEvent).length, 0, 'Tombstone-Links abgeräumt');
-  });
-
-  it('Auto-Sync-Deaktivierung räumt alle Remote-Events des Kontos ab', async () => {
-    outlook.updateAccount(accountB, { autoSyncCalendarId: null });
-
-    const fetchImpl = makeFetch((call) => {
-      const drift = answerDriftList(call);
-      if (drift) return drift;
-      if (call.method === 'DELETE') return jsonRes(204);
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
-    const result = await outlook.sync({ fetchImpl });
-    assert.equal(result.deleted, 1, 'verbliebenes Testtermin-Event von Konto B entfernt');
-    assert.equal(
-      db.prepare('SELECT COUNT(*) AS c FROM outlook_event_links WHERE account_id = ?').get(accountB).c,
-      0
-    );
-  });
-
-  it('refreshCalendarSelection legt neue Kalender deaktiviert an, bekannte behalten ihren Zustand', async () => {
-    const account = db.prepare('SELECT * FROM outlook_accounts WHERE id = ?').get(accountA);
-    const fetchImpl = makeFetch((call) => {
-      if (call.method === 'GET' && call.url.includes('/me/calendars')) {
-        return jsonRes(200, { value: [
-          { id: 'yuvomi-cal-A', name: 'Yuvomi', canEdit: true },
-          { id: 'brand-new-cal', name: 'Neu', canEdit: true },
-        ] });
-      }
-      throw new Error(`Unexpected request: ${call.method} ${call.url}`);
-    });
-    await outlook.__test.refreshCalendarSelection(account.id, 'tok', fetchImpl);
-
-    const rows = Object.fromEntries(
-      db.prepare('SELECT calendar_id, enabled FROM outlook_calendar_selection WHERE account_id = ?')
-        .all(account.id).map((r) => [r.calendar_id, r.enabled])
-    );
-    assert.equal(rows['yuvomi-cal-A'], 1, 'bekannter aktivierter Kalender bleibt aktiv');
-    assert.equal(rows['brand-new-cal'], 0, 'neuer Kalender startet deaktiviert');
-  });
-});
 
 // --------------------------------------------------------
-// Konfigurations-Guard (Parität zum Google-Verhalten)
+// 配置守卫
 // --------------------------------------------------------
 
 describe('assertConfigured', () => {
-  it('wirft ohne MS_*-Env denselben lauten Konfigurationsfehler wie Google', () => {
+  it('没有 MS_* 环境变量时抛出明确配置错误', () => {
     const saved = process.env.MS_CLIENT_ID;
     delete process.env.MS_CLIENT_ID;
     try {
@@ -657,7 +767,7 @@ describe('assertConfigured', () => {
     }
   });
 
-  it('ist mit gesetzter Konfiguration ein No-Op', () => {
+  it('配置完整时不抛错', () => {
     assert.doesNotThrow(() => outlook.assertConfigured());
   });
 });

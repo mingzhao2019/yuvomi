@@ -6726,6 +6726,165 @@ const MIGRATIONS = [
         BEGIN UPDATE family_document_folders SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
     `,
   },
+  {
+    version: 168,
+    description: 'Outlook Calendar: bidirectional delta sync, date window, and conflict choices',
+    foreignKeysOff: true,
+    up: (database) => {
+      // Graph calendarView/delta tokens are scoped to the exact date window used
+      // to create them. Keep the custom start date, the effective window and the
+      // opaque cursor on each selected calendar so changing the setting can reset
+      // only that feed without touching events already imported locally.
+      database.exec(`
+        ALTER TABLE outlook_calendar_selection ADD COLUMN sync_start_date TEXT;
+        ALTER TABLE outlook_calendar_selection ADD COLUMN sync_range_start TEXT;
+        ALTER TABLE outlook_calendar_selection ADD COLUMN sync_range_end TEXT;
+        ALTER TABLE outlook_calendar_selection ADD COLUMN sync_cursor TEXT;
+        ALTER TABLE outlook_calendar_selection ADD COLUMN last_inbound_sync TEXT;
+        ALTER TABLE outlook_calendar_selection ADD COLUMN sync_error TEXT;
+
+        ALTER TABLE outlook_event_links ADD COLUMN link_type TEXT NOT NULL DEFAULT 'push'
+          CHECK(link_type IN ('push', 'inbound'));
+        ALTER TABLE outlook_event_links ADD COLUMN remote_content_hash TEXT;
+        ALTER TABLE outlook_event_links ADD COLUMN outbound_dirty INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE outlook_event_links ADD COLUMN outbound_attempts INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE outlook_event_links ADD COLUMN pending_delete INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE outlook_event_links ADD COLUMN remote_missing INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE outlook_event_links ADD COLUMN local_snapshot TEXT;
+        ALTER TABLE outlook_event_links ADD COLUMN series_master_id TEXT;
+        ALTER TABLE outlook_event_links ADD COLUMN last_inbound_at TEXT;
+
+        CREATE TABLE outlook_calendar_conflicts (
+          id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_id            INTEGER,
+          account_id          INTEGER NOT NULL REFERENCES outlook_accounts(id) ON DELETE CASCADE,
+          outlook_calendar_id TEXT NOT NULL,
+          outlook_event_id    TEXT NOT NULL,
+          base_snapshot       TEXT,
+          local_snapshot      TEXT NOT NULL,
+          remote_snapshot     TEXT,
+          remote_change_key  TEXT,
+          status              TEXT NOT NULL DEFAULT 'pending'
+                                    CHECK(status IN ('pending', 'resolved')),
+          resolution          TEXT CHECK(resolution IN ('local', 'remote')),
+          created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+          resolved_at         TEXT
+        );
+
+        CREATE UNIQUE INDEX idx_outlook_conflicts_pending
+          ON outlook_calendar_conflicts(account_id, outlook_event_id)
+          WHERE status = 'pending';
+        CREATE INDEX idx_outlook_conflicts_account_status
+          ON outlook_calendar_conflicts(account_id, status, created_at);
+        CREATE INDEX idx_outlook_links_calendar
+          ON outlook_event_links(account_id, outlook_calendar_id, outlook_event_id);
+      `);
+
+      // SQLite cannot alter the external_source CHECK constraint. Rebuild this
+      // table while preserving every current column, row id, index, trigger and
+      // AUTOINCREMENT high-water mark. The dynamic preservation is intentional:
+      // later migrations may add indexes/triggers that this provider must not
+      // silently discard.
+      const tableSql = database.prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'calendar_events'"
+      ).get()?.sql || '';
+      if (!/['\"]outlook['\"]/.test(tableSql)) {
+        const indexes = database.prepare(`
+          SELECT name, sql FROM sqlite_master
+           WHERE type = 'index' AND tbl_name = 'calendar_events' AND sql IS NOT NULL
+           ORDER BY name
+        `).all();
+        const triggers = database.prepare(`
+          SELECT name, sql FROM sqlite_master
+           WHERE type = 'trigger' AND tbl_name = 'calendar_events' AND sql IS NOT NULL
+           ORDER BY name
+        `).all();
+        const sequence = database.prepare(
+          "SELECT seq FROM sqlite_sequence WHERE name = 'calendar_events'"
+        ).get();
+        const quoteIdentifier = (value) => `"${String(value).replaceAll('"', '""')}"`;
+
+        for (const trigger of triggers) {
+          database.exec(`DROP TRIGGER IF EXISTS ${quoteIdentifier(trigger.name)}`);
+        }
+
+        database.exec(`
+          CREATE TABLE calendar_events_new (
+            id                           INTEGER PRIMARY KEY AUTOINCREMENT,
+            title                        TEXT    NOT NULL,
+            description                  TEXT,
+            start_datetime               TEXT    NOT NULL,
+            end_datetime                 TEXT,
+            all_day                      INTEGER NOT NULL DEFAULT 0,
+            location                     TEXT,
+            color                        TEXT    NOT NULL DEFAULT '#007AFF',
+            assigned_to                  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_by                   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            external_calendar_id         TEXT,
+            external_source              TEXT    NOT NULL DEFAULT 'local'
+                                               CHECK(external_source IN ('local', 'google', 'apple', 'ics', 'caldav', 'outlook')),
+            recurrence_rule              TEXT,
+            subscription_id              INTEGER REFERENCES ics_subscriptions(id) ON DELETE CASCADE,
+            user_modified                INTEGER NOT NULL DEFAULT 0,
+            calendar_ref_id              INTEGER REFERENCES external_calendars(id) ON DELETE SET NULL,
+            icon                         TEXT    NOT NULL DEFAULT 'calendar',
+            attachment_name              TEXT,
+            attachment_mime              TEXT,
+            attachment_size              INTEGER,
+            attachment_data              TEXT,
+            target_caldav_account_id     INTEGER,
+            target_caldav_calendar_url   TEXT,
+            created_at                   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            updated_at                   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            attachment_document_id       INTEGER REFERENCES family_documents(id) ON DELETE SET NULL,
+            target_google_calendar_id    TEXT,
+            visibility                   TEXT    NOT NULL DEFAULT 'all',
+            tzid                        TEXT,
+            outbound_dirty               INTEGER NOT NULL DEFAULT 0,
+            outbound_attempts            INTEGER NOT NULL DEFAULT 0,
+            outbound_move_to             TEXT,
+            external_object_url          TEXT,
+            countdown                    INTEGER NOT NULL DEFAULT 0,
+            target_outlook_account_id    INTEGER,
+            target_outlook_calendar_id   TEXT
+          );
+
+          INSERT INTO calendar_events_new (
+            id, title, description, start_datetime, end_datetime, all_day, location, color,
+            assigned_to, created_by, external_calendar_id, external_source, recurrence_rule,
+            subscription_id, user_modified, calendar_ref_id, icon,
+            attachment_name, attachment_mime, attachment_size, attachment_data,
+            target_caldav_account_id, target_caldav_calendar_url, created_at, updated_at,
+            attachment_document_id, target_google_calendar_id, visibility, tzid,
+            outbound_dirty, outbound_attempts, outbound_move_to, external_object_url,
+            countdown, target_outlook_account_id, target_outlook_calendar_id
+          )
+          SELECT
+            id, title, description, start_datetime, end_datetime, all_day, location, color,
+            assigned_to, created_by, external_calendar_id, external_source, recurrence_rule,
+            subscription_id, user_modified, calendar_ref_id, icon,
+            attachment_name, attachment_mime, attachment_size, attachment_data,
+            target_caldav_account_id, target_caldav_calendar_url, created_at, updated_at,
+            attachment_document_id, target_google_calendar_id, visibility, tzid,
+            outbound_dirty, outbound_attempts, outbound_move_to, external_object_url,
+            countdown, target_outlook_account_id, target_outlook_calendar_id
+          FROM calendar_events;
+
+          DROP TABLE calendar_events;
+          ALTER TABLE calendar_events_new RENAME TO calendar_events;
+        `);
+
+        for (const index of indexes) database.exec(index.sql);
+        for (const trigger of triggers) database.exec(trigger.sql);
+
+        if (sequence?.seq != null) {
+          database.prepare(
+            "INSERT OR REPLACE INTO sqlite_sequence(name, seq) VALUES ('calendar_events', ?)"
+          ).run(sequence.seq);
+        }
+      }
+    },
+  },
 
 ];
 

@@ -560,7 +560,7 @@ async function runSync() {
   // zurück, wenn keine aktivierten Reminder-Listen konfiguriert sind.
   caldavReminders.sync().catch((e) => logSync.error('CalDAV reminders error:', e.message));
 
-  // Outlook-Push (Microsoft Graph, one-way): kein Guard nötig — sync() kehrt sofort
+  // Outlook-Sync (Microsoft Graph, bidirektional): kein Guard nötig — sync() kehrt sofort
   // zurück, wenn keine Konten verbunden sind.
   outlookCalendar.sync().catch((e) => logSync.error('Outlook error:', e.message));
   microsoftTodo.sync().catch((e) => logSync.error('Microsoft To Do error:', e.message));

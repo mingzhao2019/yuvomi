@@ -314,8 +314,10 @@ test('Guard: der Outlook-Push traegt keine fest verdrahtete Zone mehr', () => {
   // laesst er sich von keiner Einstellung erreichen.
   const source = readFileSync(path.join(SERVER_DIR, 'services', 'outlook-calendar.js'), 'utf8');
   const code = source.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.equal(/'Europe\/Berlin'|"Europe\/Berlin"/.test(code), false,
-    'outlook-calendar.js enthaelt wieder eine feste Zone');
+  assert.match(code, /const outlookTimeZone\s*=\s*\(\)\s*=>\s*householdTimeZone\(db\.get\(\)\)/,
+    'Outlook muss die Haushaltszone verwenden');
+  assert.doesNotMatch(code, /const outlookTimeZone\s*=\s*\(\)\s*=>\s*['"]Europe\/Berlin/,
+    'outlook-calendar.js enthaelt wieder eine feste Fallback-Zone');
 });
 
 test('Guard: der Guard erkennt den Schaden, gegen den er gebaut ist', () => {

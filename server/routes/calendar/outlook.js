@@ -1,5 +1,5 @@
 /**
- * Modul: Kalender (Calendar) - Outlook-Push (Microsoft Graph, One-Way)
+ * Modul: Kalender (Calendar) - Outlook-Sync (Microsoft Graph, bidirektional)
  * OAuth-Connect, Konten, Kalenderauswahl, manueller Sync, Status.
  *
  * Konten entstehen ausschließlich über den OAuth-Callback (kein POST /accounts).
@@ -135,24 +135,79 @@ router.get('/outlook/accounts/:id/calendars', requireAdmin, async (req, res) => 
 
 /**
  * PATCH /api/v1/calendar/outlook/accounts/:id/calendars
- * Admin only. Kalender als Push-Ziel aktivieren/deaktivieren.
- * Body: { calendarId: string, enabled: boolean }
+ * Admin only. Kalender für den bidirektionalen Sync aktivieren/deaktivieren
+ * und den absoluten Beginn des Importfensters setzen.
+ * Body: { calendarId: string, enabled?: boolean, syncStartDate?: string|null }
  */
 router.patch('/outlook/accounts/:id/calendars', requireAdmin, (req, res) => {
   try {
     const accountId = parseInt(req.params.id, 10);
-    const { calendarId, enabled } = req.body;
+    const { calendarId, enabled, syncStartDate } = req.body;
     if (!calendarId || typeof calendarId !== 'string') {
       return res.status(400).json({ error: 'calendarId fehlt oder ist ungültig.', code: 400 });
     }
-    if (typeof enabled !== 'boolean') {
+    if (enabled !== undefined && typeof enabled !== 'boolean') {
       return res.status(400).json({ error: 'enabled muss ein Boolean sein.', code: 400 });
     }
-    const result = outlookCalendar.setCalendarEnabled(accountId, calendarId, enabled);
+    if (syncStartDate !== undefined
+        && syncStartDate !== null
+        && typeof syncStartDate !== 'string') {
+      return res.status(400).json({ error: 'syncStartDate muss ein Datum oder null sein.', code: 400 });
+    }
+    if (enabled === undefined && syncStartDate === undefined) {
+      return res.status(400).json({ error: 'Keine Kalender-Einstellung angegeben.', code: 400 });
+    }
+    const result = syncStartDate !== undefined
+      ? outlookCalendar.setCalendarSyncStartDate(accountId, calendarId, syncStartDate)
+      : { success: true };
+    if (enabled !== undefined) outlookCalendar.setCalendarEnabled(accountId, calendarId, enabled);
     res.json({ data: result });
   } catch (err) {
     log.error('Outlook calendar selection update failed:', err);
     res.status(500).json({ error: err.message || 'Failed to update calendar selection.', code: 500 });
+  }
+});
+
+/**
+ * GET /api/v1/calendar/outlook/conflicts
+ * Admin only. Liefert ungeklärte Zwei-Wege-Konflikte inklusive lokaler und
+ * Outlook-Version, damit die Settings-Seite eine Auswahl anbieten kann.
+ */
+router.get('/outlook/conflicts', requireAdmin, (req, res) => {
+  try {
+    const status = req.query.status || 'pending';
+    if (!['pending', 'resolved'].includes(status)) {
+      return res.status(400).json({ error: 'status muss pending oder resolved sein.', code: 400 });
+    }
+    res.json({ data: outlookCalendar.listConflicts({ status }) });
+  } catch (err) {
+    log.error('Outlook conflict list failed:', err);
+    res.status(500).json({ error: err.message || 'Failed to list Outlook conflicts.', code: 500 });
+  }
+});
+
+/**
+ * POST /api/v1/calendar/outlook/conflicts/:id/resolve
+ * Admin only. Resolution is deliberately explicit: local or remote wins.
+ */
+router.post('/outlook/conflicts/:id/resolve', requireAdmin, async (req, res) => {
+  try {
+    const conflictId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(conflictId) || conflictId < 1) {
+      return res.status(400).json({ error: 'Ungültige Konflikt-ID.', code: 400 });
+    }
+    const result = outlookCalendar.resolveConflict(conflictId, req.body?.resolution);
+    // A resolution is an explicit user decision. Push it immediately so the
+    // chosen version does not wait for the next scheduled synchronization.
+    const sync = await outlookCalendar.flushOutbound();
+    res.json({ data: { ...result, sync } });
+  } catch (err) {
+    log.error('Outlook conflict resolution failed:', err);
+    const notFound = /not found/i.test(err.message || '');
+    res.status(notFound ? 404 : 400).json({
+      error: err.message || 'Failed to resolve Outlook conflict.',
+      code: notFound ? 404 : 400,
+    });
   }
 });
 
@@ -225,8 +280,8 @@ router.get('/outlook/todo/status', (req, res) => {
 
 /**
  * POST /api/v1/calendar/outlook/sync
- * Admin only. Manueller Push-Trigger.
- * Response: { data: { success, syncedAccounts, pushed, updated, deleted } }
+ * Admin only. Manueller bidirektionaler Sync-Trigger.
+ * Response: { data: { success, syncedAccounts, imported, pushed, updated, deleted, conflicts } }
  */
 router.post('/outlook/sync', requireAdmin, async (req, res) => {
   try {

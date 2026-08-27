@@ -923,15 +923,40 @@ function buildGoogleReadonlyToggle(googleStatus) {
 }
 
 // --------------------------------------------------------------------------
-// Outlook (Microsoft Graph, One-Way-Push Yuvomi → Outlook)
+// Outlook (Microsoft Graph, bidirectional sync)
 // --------------------------------------------------------------------------
+
+function buildOutlookInfoButton(text) {
+  const help = document.createElement('span');
+  help.className = 'notification-template-help';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'notification-template-help__button';
+  button.setAttribute('aria-label', text);
+  button.setAttribute('aria-describedby', `outlook-help-${++calendarListSeq}`);
+  const icon = document.createElement('i');
+  icon.dataset.lucide = 'info';
+  button.appendChild(icon);
+
+  const tooltip = document.createElement('span');
+  tooltip.className = 'notification-template-help__tooltip';
+  tooltip.id = button.getAttribute('aria-describedby');
+  tooltip.setAttribute('role', 'tooltip');
+  tooltip.textContent = text;
+  help.append(button, tooltip);
+  return help;
+}
 
 function buildOutlookCalendarList(account, calendars, user) {
   const list = document.createElement('div');
   list.className = 'caldav-calendars-list';
   for (const cal of calendars) {
-    const label = document.createElement('label');
-    label.className = 'caldav-calendar-item';
+    const row = document.createElement('div');
+    row.className = 'caldav-calendar-item outlook-calendar-item';
+
+    const toggle = document.createElement('label');
+    toggle.className = 'outlook-calendar-item__toggle';
 
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
@@ -947,8 +972,33 @@ function buildOutlookCalendarList(account, calendars, user) {
     name.className = 'caldav-calendar-name';
     name.textContent = cal.calendarName || cal.calendarId;
 
-    label.append(checkbox, color, name);
-    list.appendChild(label);
+    toggle.append(checkbox, color, name);
+
+    const windowField = document.createElement('div');
+    windowField.className = 'outlook-calendar-item__window';
+    const windowLabel = document.createElement('label');
+    windowLabel.className = 'outlook-calendar-item__window-label';
+    windowLabel.textContent = t('settings.outlookSyncStartDate');
+    windowLabel.appendChild(buildOutlookInfoButton(t('settings.outlookSyncStartDateHint')));
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'form-input outlook-calendar-item__date';
+    dateInput.value = cal.syncStartDate || '';
+    dateInput.disabled = user?.role !== 'admin';
+    dateInput.title = t('settings.outlookSyncStartDateHint');
+    dateInput.setAttribute('aria-label', `${t('settings.outlookSyncStartDate')}: ${name.textContent}`);
+    windowField.append(windowLabel, dateInput);
+
+    if (cal.syncError) {
+      const error = document.createElement('span');
+      error.className = 'caldav-calendar-error';
+      error.textContent = cal.syncError;
+      windowField.appendChild(error);
+    }
+
+    row.append(toggle, windowField);
+    list.appendChild(row);
 
     checkbox.addEventListener('change', async () => {
       const enabled = checkbox.checked;
@@ -968,6 +1018,24 @@ function buildOutlookCalendarList(account, calendars, user) {
         }
       });
     });
+
+    dateInput.addEventListener('change', async () => {
+      const previous = cal.syncStartDate || '';
+      await withBusy(dateInput, async () => {
+        try {
+          const result = await api.patch(`/calendar/outlook/accounts/${account.id}/calendars`, {
+            calendarId: cal.calendarId,
+            syncStartDate: dateInput.value || null,
+          });
+          dateInput.value = result.data?.syncStartDate || dateInput.value;
+          cal.syncStartDate = dateInput.value;
+          showToast(t('settings.outlookSyncStartDateSaved'), 'success');
+        } catch (err) {
+          dateInput.value = previous;
+          showToast(err.message || t('common.errorGeneric'), 'danger');
+        }
+      });
+    });
   }
 
   return createDisclosure({
@@ -980,6 +1048,117 @@ function buildOutlookCalendarList(account, calendars, user) {
     expanded: false,
     content: list,
   });
+}
+
+function appendOutlookConflictSnapshot(container, labelText, snapshot, emptyText = null) {
+  const block = document.createElement('div');
+  block.className = 'settings-outlook-conflict__version';
+
+  const label = document.createElement('strong');
+  label.textContent = labelText;
+  block.appendChild(label);
+
+  if (!snapshot) {
+    const empty = document.createElement('p');
+    empty.textContent = emptyText || t('settings.outlookConflictRemoteDeleted');
+    block.appendChild(empty);
+    container.appendChild(block);
+    return;
+  }
+
+  const title = document.createElement('p');
+  title.className = 'settings-outlook-conflict__title';
+  title.textContent = snapshot.title || t('settings.outlookCalendar');
+  block.appendChild(title);
+
+  const range = [snapshot.start_datetime, snapshot.end_datetime]
+    .filter(Boolean)
+    .join(' → ')
+    .replace('T', ' ');
+  if (range) {
+    const time = document.createElement('p');
+    time.textContent = range;
+    block.appendChild(time);
+  }
+  if (snapshot.location) {
+    const location = document.createElement('p');
+    location.textContent = snapshot.location;
+    block.appendChild(location);
+  }
+  if (snapshot.description) {
+    const description = document.createElement('p');
+    description.className = 'settings-outlook-conflict__description';
+    description.textContent = snapshot.description;
+    block.appendChild(description);
+  }
+  container.appendChild(block);
+}
+
+function buildOutlookConflicts(account, conflicts) {
+  const accountConflicts = conflicts.filter((item) => Number(item.accountId) === Number(account.id));
+  if (!accountConflicts.length) return null;
+
+  const wrap = document.createElement('section');
+  wrap.className = 'settings-outlook-conflicts';
+  const title = document.createElement('h5');
+  title.className = 'form-label';
+  title.textContent = t('settings.outlookConflictTitle');
+  wrap.appendChild(title);
+
+  const hint = document.createElement('p');
+  hint.className = 'form-hint';
+  hint.textContent = t('settings.outlookConflictHint');
+  wrap.appendChild(hint);
+
+  const list = document.createElement('div');
+  list.className = 'settings-outlook-conflicts__list';
+  for (const conflict of accountConflicts) {
+    const item = document.createElement('article');
+    item.className = 'settings-outlook-conflict';
+
+    const heading = document.createElement('h6');
+    heading.className = 'settings-outlook-conflict__heading';
+    heading.textContent = conflict.local?.title
+      || conflict.remote?.title
+      || t('settings.outlookConflictRemoteDeleted');
+    item.appendChild(heading);
+
+    const versions = document.createElement('div');
+    versions.className = 'settings-outlook-conflict__versions';
+    appendOutlookConflictSnapshot(versions, t('settings.outlookConflictLocal'), conflict.local);
+    appendOutlookConflictSnapshot(versions, t('settings.outlookConflictRemote'), conflict.remote);
+    item.appendChild(versions);
+
+    const actions = document.createElement('div');
+    actions.className = 'settings-outlook-conflict__actions';
+    const makeChoice = (resolution, labelText) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = resolution === 'remote' ? 'btn btn--secondary btn--sm' : 'btn btn--primary btn--sm';
+      button.textContent = labelText;
+      button.addEventListener('click', async () => {
+        await withBusy(button, async () => {
+          try {
+            await api.post(`/calendar/outlook/conflicts/${conflict.id}/resolve`, { resolution });
+            item.remove();
+            if (!list.children.length) wrap.remove();
+            showToast(t('settings.outlookConflictResolved'), 'success');
+          } catch (err) {
+            showToast(err.message || t('common.errorGeneric'), 'danger');
+          }
+        });
+      });
+      return button;
+    };
+    actions.append(
+      makeChoice('local', t('settings.outlookConflictKeepLocal')),
+      makeChoice('remote', t('settings.outlookConflictUseRemote')),
+    );
+    item.appendChild(actions);
+    list.appendChild(item);
+  }
+  wrap.appendChild(list);
+  return wrap;
 }
 
 /**
@@ -1123,6 +1302,15 @@ function buildOutlookAccountCard(account, refresh, user) {
         card.appendChild(buildOutlookAutoSyncControls(account, calendars));
       }
       card.appendChild(buildOutlookCalendarList(account, calendars, user));
+      if (user?.role === 'admin') {
+        try {
+          const conflictRes = await api.get('/calendar/outlook/conflicts');
+          const conflicts = buildOutlookConflicts(account, conflictRes.data || []);
+          if (conflicts) card.appendChild(conflicts);
+        } catch (conflictErr) {
+          card.appendChild(createInlineError(conflictErr.message || t('common.errorGeneric')));
+        }
+      }
       if (user?.role === 'admin') {
         try {
           const todoRes = await api.get(`/calendar/outlook/accounts/${account.id}/todo-lists?refresh=true`);

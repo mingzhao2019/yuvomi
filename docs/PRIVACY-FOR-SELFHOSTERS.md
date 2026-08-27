@@ -168,12 +168,12 @@ Betreiber daraus resultieren.
   Google-AVV/DPA abschließen) — analog zu Abschnitt 2.7.
 - **Outlook.com spricht kein CalDAV:** Microsoft hat den CalDAV-Zugang für
   Outlook.com abgeschaltet; ein CalDAV-Konto lässt sich dort gar nicht erst
-  einrichten. Yuvomi schreibt stattdessen über die **Microsoft-Graph-API**
-  (`server/services/outlook-calendar.js`) — und zwar nur in eine Richtung,
-  Yuvomi → Outlook. Weil dabei Freitext-Inhalte an ein privates
-  Microsoft-Konto gehen und ein AVV für solche Konten nicht existiert, hat
-  dieser Kanal einen **eigenen Abschnitt 2.16**; die Bewertung in dieser
-  Tabelle greift für ihn nicht.
+  einrichten. Yuvomi synchronisiert den Kalender stattdessen über die
+  **Microsoft-Graph-API** (`server/services/outlook-calendar.js`) in beide
+  Richtungen. Weil dabei Freitext-Inhalte an ein privates Microsoft-Konto gehen
+  und ein AVV für solche Konten nicht existiert, hat dieser Kanal einen
+  **eigenen Abschnitt 2.16**; die Bewertung in dieser Tabelle greift für ihn
+  nicht.
 - **Empfehlung:** Trage die konkret eingerichteten Sync-Endpoints in dein
   Verarbeitungsverzeichnis (Abschnitt 5) ein — Yuvomi kennt sie nicht zentral,
   jeder Nutzer kann andere konfigurieren.
@@ -441,12 +441,14 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
 - **Code-Stellen:** `server/services/outlook-calendar.js`,
   `server/services/microsoft-todo.js`, `server/routes/calendar/outlook.js`.
 - **Was ist das?** Ein gemeinsamer OAuth-Kanal für zwei Funktionen für private
-  Microsoft-Konten (outlook.com, hotmail.com, M365 Family). Outlook Calendar ist
-  ein **einseitiger Push Yuvomi → Outlook.com**: Yuvomi bleibt die führende
-  Quelle, Änderungen in Outlook werden beim nächsten Lauf auf den Yuvomi-Stand
-  zurückgesetzt. Microsoft To Do ist davon getrennt und wird **bidirektional**
-  synchronisiert: aktivierte Listen und ihre Aufgaben erscheinen in Yuvomi,
-  und Aufgabenänderungen in beide Richtungen.
+  Microsoft-Konten (outlook.com, hotmail.com, M365 Family). Outlook Calendar
+  wird **bidirektional** synchronisiert: aktivierte Kalender werden ab dem
+  konfigurierten absoluten Startdatum importiert, lokale Änderungen werden nach
+  Outlook geschrieben, und Änderungen auf beiden Seiten werden als Konflikt
+  gespeichert, bis ein Admin eine Version auswählt. Microsoft To Do ist davon
+  getrennt und wird ebenfalls **bidirektional** synchronisiert: aktivierte
+  Listen und ihre Aufgaben erscheinen in Yuvomi, und Aufgabenänderungen fließen
+  in beide Richtungen.
 - **Aktiv nur, wenn:** alle drei Variablen `MS_CLIENT_ID`, `MS_CLIENT_SECRET`
   und `MS_REDIRECT_URI` gesetzt sind **und** ein Admin ein Microsoft-Konto per
   OAuth verbunden hat. Fehlt eine der Variablen, ist der Kanal vollständig
@@ -466,7 +468,7 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
 | Titel — **einschließlich der Anzeigenamen zugewiesener Mitglieder** (`Abendessen (Anna, Ben)`) | ja |
 | Beschreibung/Notizen, als Klartext-Body | ja |
 | Ort | ja, wenn gesetzt |
-| Start/Ende, Ganztags-Kennzeichen, Zeitzone `Europe/Berlin` | ja |
+| Start/Ende, Ganztags-Kennzeichen, Haushalts-Zeitzone | ja |
 | Wiederholungsregel | ja, wenn gesetzt |
 | Teilnehmer, Erinnerungen, Anhänge, Farbe, Termin-Icon, Yuvomi-ID | **nein** |
 
@@ -501,12 +503,14 @@ Microsoft-To-Do-Aufgaben angelegt.
   Microsoft-Konto — eine Übermittlung an Microsoft **und** an den Kontoinhaber.
 - **Was hereinkommt und gespeichert wird:** einmalig beim Verbinden das
   Graph-Profil (`id`, Anzeigename, `mail`/`userPrincipalName`), die Kalenderliste
-  (Id, Name, Farbe, Schreibrecht), je Zielkalender eine Liste aus Event-Id und
-  `changeKey` zur Drift-Erkennung sowie die Namen und IDs der To-Do-Listen.
-  Aktivierte To-Do-Aufgaben werden mit Titel, Beschreibung, Status, Priorität,
-  Fälligkeit und ihrer externen ID in Yuvomi gespiegelt. **Inhalte fremder
-  Outlook-Termine werden nie abgerufen**; To-Do-Inhalte werden nur für die vom
-  Admin aktivierten Listen gelesen.
+  (Id, Name, Farbe, Schreibrecht), je aktiviertem Kalender ein Bereichs-Cursor
+  und eine Liste aus Event-Id und `changeKey` zur Konflikterkennung sowie die
+  Namen und IDs der To-Do-Listen. Aktivierte Outlook-Termine werden mit Titel,
+  Beschreibung, Ort, Start/Ende, Ganztags-Kennzeichen, Wiederholungsregel,
+  Zeitzone und Web-Link in Yuvomi gespiegelt. Bei einem beidseitigen Konflikt
+  speichert Yuvomi außerdem die lokale und die Outlook-Version, damit der Admin
+  eine Auswahl treffen kann. To-Do-Inhalte werden nur für die vom Admin
+  aktivierten Listen gelesen.
 - **Sichtbarkeit:** Der **Auto-Sync** respektiert die In-App-Sichtbarkeit —
   private Termine anderer Personen landen nicht im Postfach des Kontoinhabers.
   Ein **ausdrücklich am einzelnen Termin gesetztes** Outlook-Ziel wird dagegen
@@ -535,7 +539,9 @@ Microsoft-To-Do-Aufgaben angelegt.
   1. Ein in Yuvomi gelöschter Termin wird erst im **nächsten Sync-Lauf** in
      Outlook gelöscht (bis zu `SYNC_INTERVAL_MINUTES` Verzug, Default 15 Minuten).
      Dasselbe gilt, wenn ein Termin die Sichtbarkeit für den Kontoinhaber
-     verliert oder sein Ziel verliert.
+     verliert oder sein Ziel verliert. Ein remote gelöschter Termin wird lokal
+     gelöscht, sofern es keine unaufgelöste lokale Änderung gibt; andernfalls
+     entsteht ein Konflikt.
   2. Bei einer synchronisierten To-Do-Aufgabe wird eine Löschung in Yuvomi beim
      nächsten Lauf an Microsoft übertragen; eine Löschung in Microsoft entfernt
      die lokale Spiegelung. Wird eine Liste in Microsoft gelöscht, werden ihre

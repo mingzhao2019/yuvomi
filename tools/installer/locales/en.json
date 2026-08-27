@@ -78,7 +78,7 @@
     "outlookLink": "entra.microsoft.com",
     "outlookIdLabel": "Client ID",
     "outlookSecretLabel": "Client Secret",
-    "outlookNote": "One-way push: Yuvomi stays the source of truth - changes made in Outlook are overwritten. Family accounts are connected later in the app settings."
+    "outlookNote": "Two-way sync: enabled Outlook calendars are imported into Yuvomi, and local changes are sent back. If both sides change an event, choose the version in Settings. Family accounts are connected later in the app settings."
   },
   "review": {
     "title": "Review",

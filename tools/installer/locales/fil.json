@@ -78,7 +78,7 @@
     "outlookLink": "entra.microsoft.com",
     "outlookIdLabel": "Client ID",
     "outlookSecretLabel": "Client Secret",
-    "outlookNote": "One-way push: nananatiling pinagmumulan ang Yuvomi - ang mga pagbabagong ginawa sa Outlook ay napapatungan. Ikokonekta ang mga account ng pamilya sa app settings sa ibang pagkakataon."
+    "outlookNote": "Two-way sync: ini-import sa Yuvomi ang mga naka-enable na Outlook calendar at ipinapadala pabalik ang mga lokal na pagbabago. Kung parehong binago ang event, pumili ng bersyon sa Settings. Ikokonekta ang mga account ng pamilya sa app settings sa ibang pagkakataon."
   },
   "advanced": {
     "tag": "Advanced · opsyonal",

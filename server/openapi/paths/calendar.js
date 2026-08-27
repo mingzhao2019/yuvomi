@@ -120,20 +120,26 @@ export function calendarPaths() {
     },
     '/api/v1/calendar/outlook/accounts/{id}/calendars': {
       get: op({ summary: 'List calendars for an Outlook account', tag: 'Calendar', admin: true, params: [idParam()] }),
-      patch: op({ summary: 'Enable or disable an Outlook calendar as push target', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+      patch: op({ summary: 'Configure Outlook calendar sync and import start date', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/outlook/conflicts': {
+      get: op({ summary: 'List Outlook calendar sync conflicts', tag: 'Calendar', admin: true }),
+    },
+    '/api/v1/calendar/outlook/conflicts/{id}/resolve': {
+      post: op({ summary: 'Resolve an Outlook calendar sync conflict', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
     },
     '/api/v1/calendar/outlook/accounts/{id}/todo-lists': {
       get: op({ summary: 'List Microsoft To Do lists for an Outlook account', tag: 'Calendar', admin: true, params: [idParam()] }),
       patch: op({ summary: 'Enable or disable a Microsoft To Do list', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
     },
     '/api/v1/calendar/outlook/sync': {
-      post: op({ summary: 'Run Outlook one-way push', tag: 'Calendar', admin: true, stateChanging: true }),
+      post: op({ summary: 'Run bidirectional Outlook calendar sync', tag: 'Calendar', admin: true, stateChanging: true }),
     },
     '/api/v1/calendar/outlook/todo/sync': {
       post: op({ summary: 'Run Microsoft To Do sync', tag: 'Calendar', admin: true, stateChanging: true }),
     },
     '/api/v1/calendar/outlook/status': {
-      get: op({ summary: 'Get Outlook push status', tag: 'Calendar' }),
+      get: op({ summary: 'Get Outlook calendar sync status', tag: 'Calendar' }),
     },
     '/api/v1/calendar/outlook/todo/status': {
       get: op({ summary: 'Get Microsoft To Do sync status', tag: 'Calendar' }),

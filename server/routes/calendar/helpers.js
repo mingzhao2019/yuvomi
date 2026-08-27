@@ -8,7 +8,7 @@ import { StorageError } from '../../services/document-storage.js';
 import { ensureModuleFolder } from '../../services/document-folders.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '../../utils/upload-limit.js';
 
-export const VALID_SOURCES  = ['local', 'google', 'apple', 'ics'];
+export const VALID_SOURCES  = ['local', 'google', 'apple', 'ics', 'outlook'];
 // Ein Termin-Anhang ist ein Upload wie jeder andere und teilt deshalb die
 // gemeinsame Grenze (#806).
 export const MAX_ATTACHMENT_BYTES = MAX_UPLOAD_BYTES;
@@ -103,7 +103,7 @@ export function caldavTarget(body) {
   return { value: { accountId, calendarUrl }, error: null };
 }
 
-// Outlook-Push-Ziel eines Events validieren (Muster caldavTarget). Leere/fehlende
+// Outlook-Sync-Ziel eines Events validieren (Muster caldavTarget). Leere/fehlende
 // account_id bedeutet "Lokal" (kein Push zu Outlook).
 export function outlookTarget(body) {
   const rawId  = body.target_outlook_account_id;

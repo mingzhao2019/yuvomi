@@ -24,7 +24,7 @@ export const ENV_SCHEMA = [
   { key: 'APPLE_USERNAME',              type: 'user',    label: 'Apple ID (email)',          required: false, group: 'apple',   writeToEnv: true },
   { key: 'APPLE_APP_SPECIFIC_PASSWORD', type: 'user',    label: 'App-Specific Password',    required: false, group: 'apple',   writeToEnv: true },
   { key: 'APPLE_CALDAV_URL',            type: 'default', label: 'CalDAV URL',               default: 'https://caldav.icloud.com', group: 'apple', writeToEnv: true },
-  // Outlook-Push (Microsoft Graph), optional; alle drei zusammen oder keiner.
+  // Outlook-Sync (Microsoft Graph), optional; alle drei zusammen oder keiner.
   // Die Redirect-URI leitet der Wizard aus der geplanten Origin ab
   // (.../api/v1/calendar/outlook/callback), wie bei Google Calendar.
   { key: 'MS_CLIENT_ID',                type: 'user',    label: 'Microsoft Client ID',      required: false, group: 'outlook', writeToEnv: true },

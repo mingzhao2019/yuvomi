@@ -13,6 +13,7 @@ import {
   cleanupStagedUpload,
   stageDocumentUpload,
 } from '../../services/document-storage.js';
+import * as outlookCalendar from '../../services/outlook-calendar.js';
 import { queueEventDeletion, markEventOutbound, flushOutbound } from '../../services/calendar-outbound.js';
 import {
   ASSIGNED_USERS_SQL,
@@ -402,12 +403,17 @@ router.put('/:id', async (req, res) => {
     // Änderung an einem synchronisierten Termin beim Provider nachziehen (#593):
     // geänderte Felder als Patch, ein gewechselter Zielkalender als Umzug.
     // Wie beim Löschen: vormerken, antworten, danach best effort ausführen.
-    const pending = markEventOutbound(event, updated);
+    const genericPending = markEventOutbound(event, updated);
+    const outlookPending = outlookCalendar.markEventOutbound(event, updated);
+    const pending = genericPending || outlookPending;
 
     res.json({ data: serializeEvent(updated) });
 
     if (pending) {
-      flushOutbound()
+      Promise.all([
+        genericPending ? flushOutbound() : null,
+        outlookPending ? outlookCalendar.flushOutbound() : null,
+      ])
         .catch((e) => log.warn('Änderung vorgemerkt, Sofortversuch fehlgeschlagen:', e.message));
     }
   } catch (err) {
@@ -518,7 +524,9 @@ router.delete('/:id', (req, res) => {
   try {
     const id    = parseInt(req.params.id, 10);
     const event = db.get().prepare('SELECT * FROM calendar_events WHERE id = ?').get(id);
-    const queued = event ? queueEventDeletion(event) : false;
+    const genericQueued = event ? queueEventDeletion(event) : false;
+    const outlookQueued = event ? outlookCalendar.queueEventDeletion(event) : false;
+    const queued = genericQueued || outlookQueued;
 
     const result = db.get().prepare('DELETE FROM calendar_events WHERE id = ?').run(id);
     if (result.changes === 0)
@@ -530,7 +538,10 @@ router.delete('/:id', (req, res) => {
     // verzögern noch scheitern lassen. Schlägt er fehl, bleibt der Tombstone
     // liegen und der nächste Sync-Lauf holt die Löschung nach.
     if (queued) {
-      flushOutbound()
+      Promise.all([
+        genericQueued ? flushOutbound() : null,
+        outlookQueued ? outlookCalendar.flushOutbound() : null,
+      ])
         .catch((err) => log.warn('Löschung vorgemerkt, Sofortversuch fehlgeschlagen:', err.message));
     }
   } catch (err) {

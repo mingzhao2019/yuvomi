@@ -743,7 +743,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
           );
         } catch (error) {
           // A remote deletion is not a local list move. Recreate the task so a
-          // Yuvomi edit remains durable, matching the existing Outlook push rule.
+          // Yuvomi edit remains durable, matching the Outlook calendar sync rule.
           if (error.status !== 404) throw error;
           const current = database.prepare('SELECT * FROM tasks WHERE id = ?').get(task.id);
           if (!current || Number(current.task_list_id) !== Number(task.task_list_id)) {

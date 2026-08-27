@@ -161,8 +161,8 @@ function bindEvents(container) {
   const targetSelect = container.querySelector('#calendar-default-target');
   if (targetSelect) {
     let persistedTarget = targetSelect.value;
-    // One-way-Warnung an der Zielwahl: nur Outlook ueberschreibt dort gemachte
-    // Aenderungen beim naechsten Sync.
+    // Der Outlook-Hinweis an der Zielwahl erklärt die Zwei-Wege-Synchronisierung
+    // und die Konfliktwahl direkt an der Stelle, an der das Ziel ausgewählt wird.
     const outlookHint = container.querySelector('#calendar-default-target-outlook-hint');
     const syncOutlookHint = () => {
       if (outlookHint) outlookHint.hidden = !targetSelect.value.startsWith('outlook:');

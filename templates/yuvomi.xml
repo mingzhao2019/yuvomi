@@ -109,9 +109,9 @@ After the container starts, open the WebUI - the first visit guides you through 
   <Config Name="GOOGLE_DRIVE_CLIENT_SECRET" Target="GOOGLE_DRIVE_CLIENT_SECRET" Default="" Mode="" Description="Optional Google Drive OAuth client secret override." Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="GOOGLE_DRIVE_REDIRECT_URI" Target="GOOGLE_DRIVE_REDIRECT_URI" Default="" Mode="" Description="Google Drive Documents callback URL, e.g. https://your-domain.com/api/v1/documents/storage/google-drive/callback" Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
-  <!-- Outlook calendar push via Microsoft Graph (optional - all three values required to enable it) -->
-  <Config Name="MS_CLIENT_ID" Target="MS_CLIENT_ID" Default="" Mode="" Description="Optional. Entra ID application (client) ID for the one-way Outlook calendar push via Microsoft Graph." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="MS_CLIENT_SECRET" Target="MS_CLIENT_SECRET" Default="" Mode="" Description="Optional. Entra ID client secret for the Outlook calendar push." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <!-- Outlook calendar sync via Microsoft Graph (optional - all three values required to enable it) -->
+  <Config Name="MS_CLIENT_ID" Target="MS_CLIENT_ID" Default="" Mode="" Description="Optional. Entra ID application (client) ID for the bidirectional Outlook calendar sync via Microsoft Graph." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="MS_CLIENT_SECRET" Target="MS_CLIENT_SECRET" Default="" Mode="" Description="Optional. Entra ID client secret for the Outlook calendar sync." Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="MS_REDIRECT_URI" Target="MS_REDIRECT_URI" Default="" Mode="" Description="Optional. OAuth callback URL, e.g. https://your-domain.com/api/v1/calendar/outlook/callback" Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
   <!-- OIDC / SSO (optional - all four values required to enable SSO) -->

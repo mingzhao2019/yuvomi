@@ -54,7 +54,7 @@ export function serverTimeZone() {
  * Bestandshaushalt erlebt also keinen stillen Wechsel.
  *
  * Nötig überall dort, wo ein Zeitpunkt ohne eigene Zone auf eine Wanduhrzeit
- * trifft (Google-Outbound ohne Kalenderzone, Outlook-Push, VTODO-Fälligkeiten
+ * trifft (Google-Outbound ohne Kalenderzone, Outlook-Sync, VTODO-Fälligkeiten
  * #617, ICS-Feed #818) und überall dort, wo „heute" gemeint ist (`todayKey`).
  *
  * @param {object|null} database  better-sqlite3-Connection; `null`, wo keine in

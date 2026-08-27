@@ -117,7 +117,7 @@ const EXPECTED = [
   'PATCH /caldav/accounts/:id/reminder-lists',
   'POST /caldav/reminders/sync',
   'GET /caldav/reminders/status',
-  // outlook (Microsoft Graph, one-way push)
+  // outlook (Microsoft Graph, bidirectional sync)
   'GET /outlook/auth',
   'GET /outlook/callback',
   'GET /outlook/accounts',
@@ -125,6 +125,8 @@ const EXPECTED = [
   'DELETE /outlook/accounts/:id',
   'GET /outlook/accounts/:id/calendars',
   'PATCH /outlook/accounts/:id/calendars',
+  'GET /outlook/conflicts',
+  'POST /outlook/conflicts/:id/resolve',
   'GET /outlook/accounts/:id/todo-lists',
   'PATCH /outlook/accounts/:id/todo-lists',
   'POST /outlook/sync',
@@ -133,10 +135,10 @@ const EXPECTED = [
   'GET /outlook/todo/status',
 ];
 
-test('Orchestrator ergibt exakt die erwartete Routentabelle (61 Routen)', () => {
+test('Orchestrator ergibt exakt die erwartete Routentabelle (63 Routen)', () => {
   const actual = collectRoutes(calendarRouter).sort();
   assert.deepEqual(actual, [...EXPECTED].sort());
-  assert.equal(actual.length, 61);
+  assert.equal(actual.length, 63);
 });
 
 test('die Cluster-Router zusammen ergeben genau die Orchestrator-Routen (keine verlorene/doppelte Route)', () => {

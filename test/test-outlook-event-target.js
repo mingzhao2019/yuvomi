@@ -1,5 +1,5 @@
 /**
- * Test: Outlook-Push-Ziel an Events persistieren
+ * Test: Outlook-Sync-Ziel an Events persistieren
  * Zweck: Stellt sicher, dass POST/PUT auf /calendar die Felder
  *        target_outlook_account_id + target_outlook_calendar_id speichern,
  *        leeren können und ungültige Werte mit 400 ablehnen
@@ -19,7 +19,7 @@ import express from 'express';
 const db = await import('../server/db.js');
 const { default: calendarRouter } = await import('../server/routes/calendar.js');
 
-describe('Outlook-Push-Ziel an Events', () => {
+describe('Outlook-Sync-Ziel an Events', () => {
   let server;
   let baseUrl;
   let userId;
