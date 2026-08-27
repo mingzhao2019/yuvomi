@@ -4,6 +4,7 @@ import * as db from '../db.js';
 import { bool, color, collectErrors, date, id, num, str, time } from '../middleware/validate.js';
 import { createLogger } from '../logger.js';
 import { resolveEntries } from '../services/schedule.js';
+import { daysBetweenDateKeys } from '../utils/timezone.js';
 
 const router = express.Router();
 const log = createLogger('Schedule');
@@ -44,6 +45,18 @@ export function isStillReferenced(err) {
 }
 const typeColumns = 'id, name, short_code, start_time, end_time, color, created_by, created_at, updated_at';
 
+// Der Zeitraum von `/entries` muss eine Obergrenze haben: `dateKeysInRange()`
+// baut EINEN String je Tag, und `resolveEntries()` laeuft ihn je Haushaltsmitglied
+// durch. `from=1000-01-01&to=9999-12-31` sind rund 3,3 Millionen Tage - synchron,
+// je Mitglied, bei jedem Aufruf. Ein angemeldetes Mitglied oder ein Token mit
+// `schedule:read` koennte den Server damit anhalten.
+//
+// Zwei Jahre und ein Tag: die Statistik-Ansicht bietet hoechstens ein Jahr an,
+// und ein Jahreswechsel-Zeitraum ueber zwei Kalenderjahre bleibt darin bequem.
+// Wie MAX_ITER in calendar-events.js begrenzt das die ARBEIT und nicht die
+// Gueltigkeit der Eingabe - deshalb 400 mit Begruendung statt stiller Kuerzung.
+const MAX_RANGE_DAYS = 731;
+
 function scheduleData(from, to, userId) {
   const database = db.get();
   const condition = userId ? 'AND user_id = ?' : '';
@@ -73,6 +86,10 @@ router.get('/entries', (req, res) => {
   const requested = req.query.user_id == null ? null : id(req.query.user_id, 'user_id');
   const errors = collectErrors([from, to, requested].filter(Boolean));
   if (errors.length || (from.value && to.value && from.value > to.value)) return fail(res, 400, errors.join(' ') || 'from must be before to.');
+  const span = daysBetweenDateKeys(from.value, to.value);
+  if (span === null || span + 1 > MAX_RANGE_DAYS) {
+    return fail(res, 400, `The range must not exceed ${MAX_RANGE_DAYS} days.`);
+  }
   if (requested && !userExists(requested.value)) return fail(res, 404, 'User not found.');
   try { res.json({ data: scheduleData(from.value, to.value, requested?.value ?? null) }); }
   catch (err) {
@@ -153,7 +170,13 @@ router.put('/shift-types/:id', (req, res) => {
   const shortCode = req.body?.short_code === undefined ? { value: old.short_code } : str(req.body.short_code, 'short_code', { required: false, max: 12 });
   const start = req.body?.start_time === undefined ? { value: old.start_time } : time(req.body.start_time, 'start_time');
   const end = req.body?.end_time === undefined ? { value: old.end_time } : time(req.body.end_time, 'end_time');
-  const shade = req.body?.color === undefined ? { value: old.color } : color(req.body.color, 'color');
+  // `color()` antwortet auf jeden falsy Wert mit {value: null, error: null}, und
+  // die Spalte ist NOT NULL - ein `{"color": ""}` schriebe also NULL und flöge als
+  // roher 500er zurueck. Der Ruecksetzer ist die bestehende Farbe und nicht der
+  // Palettenerste: die Anfrage sagt "nicht anfassen", nicht "auf Anfang".
+  const shade = req.body?.color === undefined || !req.body.color
+    ? { value: old.color, error: null }
+    : color(req.body.color, 'color');
   const errors = collectErrors([name, shortCode, start, end, shade]);
   if ((start.value == null) !== (end.value == null)) errors.push('start_time and end_time must be provided together.');
   if (errors.length) return fail(res, 400, errors.join(' '));

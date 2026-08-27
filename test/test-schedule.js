@@ -119,6 +119,23 @@ test('members may write only themselves while admins may write any household sch
 // but renaming or deleting one is the owner's call, or an admin's. Without this
 // any member could rename the family's early shift, and the delete went through
 // on nothing but a valid id.
+// `dateKeysInRange()` builds one string per day and `resolveEntries()` walks it
+// once per household member, synchronously. `from=1000-01-01&to=9999-12-31` is
+// roughly 3.3 million days - any signed-in member, or a token scoped to
+// schedule:read, could have stalled the server with a single GET.
+test('the entries range is capped, and the cap names itself', async () => {
+  const huge = await call('GET', '/entries?from=1000-01-01&to=9999-12-31', { as: ALICE });
+  assert.equal(huge.status, 400);
+  assert.match(huge.body.error, /731 days/);
+
+  // The boundary itself is inclusive on both ends: 731 keys, not 732.
+  const atCap = await call('GET', '/entries?from=2026-01-01&to=2028-01-01', { as: ALICE });
+  assert.equal(atCap.status, 200, '731 days must still be allowed');
+
+  const overCap = await call('GET', '/entries?from=2026-01-01&to=2028-01-02', { as: ALICE });
+  assert.equal(overCap.status, 400, '732 days must not');
+});
+
 test('a shift type may be added by anyone but only changed by its creator or an admin', async () => {
   const created = await call('POST', '/shift-types', { as: ALICE, body: { name: 'Standby', start_time: '18:00', end_time: '20:00' } });
   assert.equal(created.status, 201, 'every member may add a shift type');
@@ -143,6 +160,27 @@ test('a shift type may be added by anyone but only changed by its creator or an 
 // has to come from THAT and not from any error at all - the branch used to
 // catch everything and blame the same cause, so a broken statement would have
 // told the caller the type was still in use.
+// `color()` in validate.js answers a falsy input with {value: null, error: null},
+// so an empty string passes validation and reaches the UPDATE - where the column
+// is NOT NULL. The default does not apply to an explicitly bound NULL, so this
+// used to surface as an unhandled constraint error and a bare 500. The POST
+// handler sidesteps it with a default; PUT had no equivalent.
+test('an empty color on PUT keeps the stored one instead of writing NULL', async () => {
+  const created = await call('POST', '/shift-types', { as: ALICE, body: { name: 'Late', color: '#123456' } });
+  const shiftId = created.body.data.id;
+
+  for (const value of ['', null]) {
+    const res = await call('PUT', `/shift-types/${shiftId}`, { as: ALICE, body: { color: value } });
+    assert.equal(res.status, 200, `color: ${JSON.stringify(value)} must not blow up`);
+    assert.equal(res.body.data.color, '#123456', 'the stored colour survives');
+  }
+
+  const bad = await call('PUT', `/shift-types/${shiftId}`, { as: ALICE, body: { color: 'rebeccapurple' } });
+  assert.equal(bad.status, 400, 'a malformed colour is still rejected');
+
+  await call('DELETE', `/shift-types/${shiftId}`, { as: ADMIN });
+});
+
 test('deleting a shift type that is still in use answers 409, and 404 stays 404', async () => {
   const inUse = await call('DELETE', `/shift-types/${typeId}`, { as: ADMIN });
   assert.equal(inUse.status, 409);
