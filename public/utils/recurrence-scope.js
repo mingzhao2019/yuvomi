@@ -12,6 +12,19 @@ import { parseLocalDateKey, addLocalDays } from './date.js';
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}/;
 
 /**
+ * A locally-created event can still be attached to a remote calendar through
+ * an explicit outbound target. Such a series cannot be split locally because
+ * the exception would not be propagated to the provider.
+ */
+function hasOutboundCalendarTarget(event) {
+  return event?.target_google_calendar_id != null
+    || event?.target_caldav_account_id != null
+    || !!event?.target_caldav_calendar_url
+    || event?.target_outlook_account_id != null
+    || !!event?.target_outlook_calendar_id;
+}
+
+/**
  * Trägt eine Serie Yuvomi selbst, oder gehört sie einem anderen Kalender?
  *
  * Die Frage entscheidet über den Löschumfang, deshalb steht sie hier neben der
@@ -26,7 +39,8 @@ const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}/;
 export function isLocalRecurringSeries(event) {
   return !!event?.recurrence_rule
     && (event.external_source ?? 'local') === 'local'
-    && !event.calendar_ref_id && !event.subscription_id;
+    && !event.calendar_ref_id && !event.subscription_id
+    && !hasOutboundCalendarTarget(event);
 }
 
 /**

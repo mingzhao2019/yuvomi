@@ -715,6 +715,14 @@ test('POST /:id/exceptions — 404 + 400 keine Serie + 400 extern', async () => 
   assert.equal((await call('POST', `/${single}/exceptions`, { body: { date: '2042-02-03' } })).status, 400, 'keine Serie');
   const extern = insertEvent({ title: 'EXC-EXT', start_datetime: '2042-02-04T09:00', recurrence_rule: 'FREQ=DAILY', calendar_ref_id: 1 });
   assert.equal((await call('POST', `/${extern}/exceptions`, { body: { date: '2042-02-04' } })).status, 400, 'externe Serie gesperrt');
+  const targeted = insertEvent({ title: 'EXC-OUTLOOK', start_datetime: '2042-02-05T09:00', recurrence_rule: 'FREQ=DAILY' });
+  db.prepare('UPDATE calendar_events SET target_outlook_account_id = 7, target_outlook_calendar_id = ? WHERE id = ?')
+    .run('calendar-a', targeted);
+  assert.equal(
+    (await call('POST', `/${targeted}/exceptions`, { body: { date: '2042-02-05' } })).status,
+    400,
+    'lokale Serien mit Outlook-Ziel sind für EXDATE ebenfalls gesperrt',
+  );
 });
 
 test('POST /:id/exceptions — 403 fremd + 201 EXDATE angelegt', async () => {

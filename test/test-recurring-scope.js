@@ -176,6 +176,21 @@ test('isLocalRecurringSeries: ein Kalenderbezug schließt aus, auch bei source=l
   assert.equal(isLocalRecurringSeries({ recurrence_rule: RULE, external_source: 'local', subscription_id: 3 }), false);
 });
 
+test('isLocalRecurringSeries: ein explizites Provider-Ziel schließt aus', () => {
+  const targets = [
+    { target_google_calendar_id: 'google-calendar' },
+    { target_caldav_account_id: 7, target_caldav_calendar_url: 'https://dav.example/calendar/' },
+    { target_outlook_account_id: 8, target_outlook_calendar_id: 'outlook-calendar' },
+  ];
+  for (const target of targets) {
+    assert.equal(
+      isLocalRecurringSeries({ recurrence_rule: RULE, external_source: 'local', ...target }),
+      false,
+      `Provider-Ziel gilt fälschlich als lokale Serie: ${JSON.stringify(target)}`,
+    );
+  }
+});
+
 test('isExternalRecurringSeries ist das Gegenstück, nicht die Verneinung', () => {
   // Der Unterschied ist der Einzeltermin: er ist nicht lokal-wiederkehrend,
   // aber auch nicht extern-wiederkehrend - er darf keine Rückfrage auslösen.
@@ -195,6 +210,7 @@ test('Die beiden Fälle überschneiden sich nie', () => {
     { recurrence_rule: RULE, external_source: 'google' },
     { recurrence_rule: RULE, external_source: 'local', calendar_ref_id: 1 },
     { recurrence_rule: RULE, external_source: 'local', subscription_id: 1 },
+    { recurrence_rule: RULE, external_source: 'local', target_outlook_account_id: 8, target_outlook_calendar_id: 'outlook-calendar' },
     { external_source: 'google', calendar_ref_id: 1 },
   ];
   for (const ev of cases) {
@@ -212,6 +228,7 @@ test('Jede Serie fällt in genau einen der beiden Fälle', () => {
     { recurrence_rule: RULE, external_source: 'local' },
     { recurrence_rule: RULE, external_source: 'caldav', calendar_ref_id: 4 },
     { recurrence_rule: RULE, subscription_id: 9 },
+    { recurrence_rule: RULE, external_source: 'local', target_outlook_account_id: 8, target_outlook_calendar_id: 'outlook-calendar' },
     { recurrence_rule: RULE },
   ];
   for (const ev of series) {

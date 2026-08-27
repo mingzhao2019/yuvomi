@@ -491,10 +491,16 @@ router.post('/:id/exceptions', (req, res) => {
     if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
     if (!event.recurrence_rule)
       return res.status(400).json({ error: 'Termin ist keine Serie.', code: 400 });
-    // Nur rein lokale Serien: extern synchronisierte (Google/Apple/CalDAV via
-    // calendar_ref_id, ICS-Abo via subscription_id) würden beim nächsten Sync
-    // wiederkehren; deren EXDATE-Propagierung ist bewusst out of scope (#489).
-    if (event.external_source !== 'local' || event.calendar_ref_id || event.subscription_id)
+    // Nur rein lokale Serien: extern synchronisierte Events sowie lokale Events
+    // mit einem expliziten Provider-Ziel würden beim nächsten Sync wiederkehren;
+    // deren EXDATE-Propagierung ist bewusst out of scope (#489).
+    const hasOutboundTarget = event.target_google_calendar_id != null
+      || event.target_caldav_account_id != null
+      || !!event.target_caldav_calendar_url
+      || event.target_outlook_account_id != null
+      || !!event.target_outlook_calendar_id;
+    if (event.external_source !== 'local'
+        || event.calendar_ref_id || event.subscription_id || hasOutboundTarget)
       return res.status(400).json({ error: 'Externe Serien können nicht einzeln ausgenommen werden.', code: 400 });
 
     const userId  = getUserId(req);
