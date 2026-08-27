@@ -1888,6 +1888,17 @@
    deshalb als Inline-Style aus den Einstellungen. Der Schichtplan hat keine -
    seine Farbe ist eine Designentscheidung und gehoert damit hierher und nicht
    ins Markup. */
+/* Der Schichtblock ist HINTERGRUND, kein Termin. Er erbt Groesse und Lage von
+   .week-event/.day-event, faellt aber in beiden Sichten vor die Termine ins
+   Markup, damit die darueber malen. `pointer-events: none` haelt die Spalte
+   klickbar: der Block trug sonst die volle Spaltenbreite und verdeckte einen
+   Termin nicht nur optisch, sondern nahm ihm auch den Klick - die Handler
+   steigen auf `.schedule-time-block` bewusst aus. */
+.schedule-time-block {
+  pointer-events: none;
+  z-index: 0;
+}
+
 .cal-toolbar__layer-btn[data-layer="schedule"] {
   --layer-color: var(--module-schedule);
 }

@@ -1951,8 +1951,8 @@ function renderWeekView(container) {
                 ${Array.from({ length: 24 }, (_, h) => `
                   <div class="week-view__hour-line" style="top:${hourOffset(h * 60)};"></div>
                 `).join('')}
-                ${timedEvs[i].map((ev) => renderWeekEvent(ev, layouts[i].get(ev.id))).join('')}
                 ${scheduleBlocks[i].map((entry) => renderScheduleTimeBlock(entry, 'week-event')).join('')}
+                ${timedEvs[i].map((ev) => renderWeekEvent(ev, layouts[i].get(ev.id))).join('')}
                 ${d === state.today ? `<div class="week-view__now-line" id="now-line" style="top:${hourOffset(nowMinutes())};"></div>` : ''}
               </div>
             `).join('')}
@@ -2182,8 +2182,8 @@ function renderDayView(container) {
             ${Array.from({ length: 24 }, (_, h) => `
               <div class="week-view__hour-line" style="top:${hourOffset(h * 60)};"></div>
             `).join('')}
-            ${timed.map((ev) => renderDayEvent(ev, layout.get(ev.id))).join('')}
             ${scheduleBlocks.map((entry) => renderScheduleTimeBlock(entry, 'day-event')).join('')}
+            ${timed.map((ev) => renderDayEvent(ev, layout.get(ev.id))).join('')}
             ${dayEvs.length === 0 && schedule.length === 0 ? `<div class="day-view__empty-hint" style="top:calc(${hourOffset(state.cursor === state.today ? nowMinutes() : 9 * 60)} + 16px)">${t('calendar.dayEmptyHint')}</div>` : ''}
           </div>
           ${state.cursor === state.today ? `
