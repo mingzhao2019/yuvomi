@@ -422,7 +422,12 @@ function dueDateParts(dueDateTime, targetTimeZone = householdTimeZone(null)) {
   const value = typeof dueDateTime?.dateTime === 'string' ? dueDateTime.dateTime : '';
   const match = /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2})(?::\d{2})?)?/.exec(value);
   if (!match) return { due_date: null, due_time: null };
-  if (!match[2]) return { due_date: match[1], due_time: null };
+  // Graph has no date-only flag. Microsoft To Do represents a due date without
+  // a time as midnight; treating that midnight as an instant would turn
+  // 2026-08-30 into 03:00 (or even the previous/next date) in another zone.
+  // Preserve the provider's date before any timezone conversion. A real
+  // midnight time is indistinguishable in Graph and follows the same safe rule.
+  if (!match[2] || match[2] === '00:00') return { due_date: match[1], due_time: null };
 
   const explicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
   let utc;
@@ -443,9 +448,6 @@ function dueDateParts(dueDateTime, targetTimeZone = householdTimeZone(null)) {
   const wall = utcToWall(utc, targetTimeZone);
   if (!wall) return { due_date: match[1], due_time: match[2] === '00:00' ? null : match[2] };
 
-  // Microsoft Graph has no date-only flag for To Do dueDateTime. Yuvomi uses
-  // midnight in the household zone for a date-only task, and strips that
-  // implementation detail again on import.
   return { due_date: wall.date, due_time: wall.time.slice(0, 5) === '00:00' ? null : wall.time.slice(0, 5) };
 }
 
@@ -760,6 +762,13 @@ function graphTaskPayload(task, timeZone = householdTimeZone(null), database = n
   payload.body = { content: plainTextToHtml(description), contentType: 'html' };
   if (!task.due_date) {
     payload.dueDateTime = null;
+  } else if (!task.due_time) {
+    // Date-only values must stay date-only across zones. Sending UTC midnight
+    // would move a Helsinki date to the previous UTC date on the next import.
+    payload.dueDateTime = {
+      dateTime: `${task.due_date}T00:00:00`,
+      timeZone,
+    };
   } else {
     const local = `${task.due_date}T${task.due_time || '00:00'}:00`;
     const utc = localToUTC(local, timeZone);

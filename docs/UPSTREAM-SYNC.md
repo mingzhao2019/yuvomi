@@ -74,3 +74,7 @@ If `upstream` already exists, fetch it instead of adding it again.
 
 The goal is a deliberate, reviewable flow of selected upstream improvements while keeping the
 custom branch's contracts and existing installations stable.
+
+## Microsoft To Do compatibility boundary
+
+Microsoft To Do `steps`/`checklistItems` are intentionally not imported or exported as Yuvomi subtasks. A To Do step is a nested checklist entry without its own task identity, visibility, permissions, or parent-task relationship; Yuvomi subtasks are real tasks and participate in those models. Any upstream change that assumes the two are interchangeable must therefore be adapted or skipped during selective synchronization.

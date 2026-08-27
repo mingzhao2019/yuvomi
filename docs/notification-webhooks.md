@@ -115,13 +115,24 @@ expects and use the fields below where the notification's values belong:
 | `{{category}}`, `{{taskPriority}}`, `{{status}}` | Task metadata |
 | `{{location}}`, `{{allDay}}` | Event location and all-day flag |
 
-```json
-{"content": "{{title}} - {{body}}"}
-```
+Use quoted placeholders for text values. The settings page shows a copyable
+example for each scope. Personal channels use a compact task/event message:
 
 ```json
-{"text": "{{title}}: {{body}}", "unfurl_links": false}
+{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🔗 {{url}}"}
 ```
+
+Household channels receive notifications from every module, so their example
+also includes the generic system context and delivery fields:
+
+```json
+{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🧩 {{entityType}} #{{entityId}}\n📝 {{details}}\n⏰ {{remindAt}}\n📤 {{sentAt}}\n🔗 {{url}}"}
+```
+
+The examples remain in the input placeholder so an empty template still keeps
+Yuvomi's default body. Since a placeholder cannot be selected with the mouse
+or keyboard, **Copy example** beside either template field copies the complete
+visible example, including Emoji characters, ready to paste into the field.
 
 Notes:
 
@@ -138,21 +149,6 @@ Notes:
 - The endpoint URL is used exactly as entered, including a trailing slash.
 - Leave the field empty to keep the default body. Existing webhook channels are
   unaffected.
-
-Use quoted placeholders for text values, for example:
-
-```json
-{"content":"🔔 {{title}}\n📌 {{body}}\n📄 {{description}}\n⏰ Due: {{dueDate}} {{dueTime}}\n🚀 Start: {{startDate}} {{startTime}}"}
-```
-
-The settings page keeps these Emoji examples in the input placeholder. Since a
-placeholder cannot be selected with the mouse or keyboard, use **Copy example**
-beside either template field to copy the current template, or the visible
-example when the field is empty.
-
-The renderer inserts empty strings for unavailable optional values. If a
-receiver's schema needs a number or Boolean rather than text, an unquoted
-placeholder can be used when that value is guaranteed to exist.
 
 ## message-pusher example
 

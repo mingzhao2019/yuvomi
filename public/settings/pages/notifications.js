@@ -17,8 +17,41 @@ const DEFAULT_PROVIDERS = [
   { id: 'message_pusher', name: 'message-pusher' },
 ];
 
+// Die Beispiele bleiben absichtlich in der Seite und nicht nur im Tooltip:
+// Ein HTML-placeholder ist sichtbar, aber nicht mit der Maus markierbar. Der
+// Kopierknopf liest deshalb genau diese Werte aus. Persönliche Meldungen
+// konzentrieren sich auf den Inhalt; der Haushalt empfängt zusätzlich die
+// technische Herkunft und Zustellungsdaten aller Module.
+const TEMPLATE_EXAMPLES = Object.freeze({
+  user: Object.freeze({
+    webhook: String.raw`{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🔗 {{url}}"}`,
+    message_pusher: `🔔 {{title}} — {{body}}
+📄 {{description}}
+📅 {{dueDate}} {{dueTime}}
+🚀 {{startDate}} {{startTime}}
+🔗 {{url}}`,
+  }),
+  household: Object.freeze({
+    webhook: String.raw`{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🧩 {{entityType}} #{{entityId}}\n📝 {{details}}\n⏰ {{remindAt}}\n📤 {{sentAt}}\n🔗 {{url}}"}`,
+    message_pusher: `🔔 {{title}} — {{body}}
+📄 {{description}}
+📅 {{dueDate}} {{dueTime}}
+🚀 {{startDate}} {{startTime}}
+🧩 {{entityType}} #{{entityId}}
+📝 {{details}}
+⏰ {{remindAt}}
+📤 {{sentAt}}
+🔗 {{url}}`,
+  }),
+});
+
 function selected(value, expected) {
   return value === expected ? ' selected' : '';
+}
+
+function templateExample(provider, scope) {
+  const group = scope === 'user' ? TEMPLATE_EXAMPLES.user : TEMPLATE_EXAMPLES.household;
+  return group[provider] || '';
 }
 
 function channelDefaults(provider = 'gotify', scope = 'household') {
@@ -203,6 +236,8 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
     const isNtfy = channel.provider === 'ntfy';
     const isWebhook = channel.provider === 'webhook';
     const isMessagePusher = channel.provider === 'message_pusher';
+    const webhookExample = templateExample('webhook', scope);
+    const messagePusherExample = templateExample('message_pusher', scope);
     list.insertAdjacentHTML('beforeend', `
       <form class="settings-card settings-form notification-channel-form" data-channel-index="${index}" data-channel-scope="${scope}" data-channel-id="${esc(channel.id ?? '')}">
         <h3 class="settings-card__title">${esc(channel.name || t('settings.notificationChannelAdd'))}</h3>
@@ -246,7 +281,7 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
               ${templateHelp('notification-webhook-template-help-' + suffix)}
             </div>
             <div class="notification-template-input">
-              <textarea class="form-input" id="notification-webhook-template-${suffix}" name="webhookTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelWebhookTemplatePlaceholder'))}">${esc(channel.config.payloadTemplate ?? '')}</textarea>
+              <textarea class="form-input" id="notification-webhook-template-${suffix}" name="webhookTemplate" rows="3" spellcheck="false" placeholder="${esc(webhookExample)}">${esc(channel.config.payloadTemplate ?? '')}</textarea>
               ${templateCopyButton()}
             </div>
             <p class="form-hint">${t('settings.notificationChannelTemplateHint')}</p>
@@ -288,7 +323,7 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
               ${templateHelp('notification-message-pusher-template-help-' + suffix)}
             </div>
             <div class="notification-template-input">
-              <textarea class="form-input" id="notification-message-pusher-template-${suffix}" name="messagePusherTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelMessagePusherTemplatePlaceholder'))}">${esc(channel.config.messageTemplate ?? '')}</textarea>
+              <textarea class="form-input" id="notification-message-pusher-template-${suffix}" name="messagePusherTemplate" rows="3" spellcheck="false" placeholder="${esc(messagePusherExample)}">${esc(channel.config.messageTemplate ?? '')}</textarea>
               ${templateCopyButton()}
             </div>
             <p class="form-hint">${t('settings.notificationChannelMessagePusherTemplateHint')}</p>
@@ -400,6 +435,13 @@ function updateProviderVisibility(form) {
   form.querySelectorAll('.notification-ntfy-basic-field').forEach((field) => {
     field.classList.toggle('settings-card--hidden', auth !== 'basic');
   });
+  const scope = form.dataset.channelScope || 'household';
+  if (form.elements.webhookTemplate) {
+    form.elements.webhookTemplate.placeholder = templateExample('webhook', scope);
+  }
+  if (form.elements.messagePusherTemplate) {
+    form.elements.messagePusherTemplate.placeholder = templateExample('message_pusher', scope);
+  }
 }
 
 function renderChannelLists(container, channelGroups, providers) {

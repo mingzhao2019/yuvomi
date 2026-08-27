@@ -1016,6 +1016,11 @@ test('notification routes separate personal and household channel ownership', as
   assert.equal(testSend.status, 200);
   assert.equal(sent.length, 1);
   assert.match(sent[0].body, /Yuvomi/);
+  assert.equal(sent[0].entityType, 'task');
+  assert.equal(sent[0].dueDate, '2026-08-27');
+  assert.equal(sent[0].startTime, '09:00');
+  assert.equal(sent[0].taskPriority, 'high');
+  assert.match(sent[0].details, /priority: high/);
 
   const memberHouseholdTest = await call(makeApp('member', 2), 'POST', `/notifications/channels/${created.json.data.id}/test`, {});
   assert.equal(memberHouseholdTest.status, 403);

@@ -44,8 +44,7 @@ const PRIORITIES = () => [
 const PRIO_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
 const TASK_LIST_SOURCE_SCOPE_PREFIX = 'source:';
-const TASK_LIST_ALL_OPTION = '__all__';
-const TASK_LIST_SOURCE_ORDER = ['local', 'caldav', 'microsoft_todo'];
+const TASK_LIST_SOURCE_ORDER = ['local', 'microsoft_todo', 'caldav'];
 
 // Die Zustände, die eine Aufgabe im Lauf durchläuft. Das Archiv steht seit #688
 // NICHT mehr darunter: Ablegen und Erledigen sind zwei Aussagen, und solange sie
@@ -300,34 +299,6 @@ function loadCollapsedGroups() {
   } catch {
     state.collapsedGroups = new Set();
   }
-}
-
-function loadCollapsedTaskSources() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(COLLAPSED_TASK_SOURCES_KEY) ?? '[]');
-    state.collapsedTaskSources = new Set(
-      Array.isArray(raw) ? raw.filter((key) => typeof key === 'string') : [],
-    );
-  } catch {
-    state.collapsedTaskSources = new Set();
-  }
-}
-
-function isTaskSourceCollapsed(source) {
-  return state.collapsedTaskSources.has(String(source));
-}
-
-function toggleTaskSource(source, container) {
-  const key = String(source);
-  if (state.collapsedTaskSources.has(key)) state.collapsedTaskSources.delete(key);
-  else state.collapsedTaskSources.add(key);
-  try {
-    localStorage.setItem(
-      COLLAPSED_TASK_SOURCES_KEY,
-      JSON.stringify([...state.collapsedTaskSources]),
-    );
-  } catch { /* Privatmodus/Quota: der Zustand gilt dann nur fuer diese Sitzung */ }
-  renderTaskLists(container);
 }
 
 function groupBy(tasks, mode, categories = state.categories) {
@@ -1289,7 +1260,7 @@ let state = {
   // Achse wirken sie ODER, zwischen den Achsen UND. Tags bleiben UND-verknüpft.
   filters:         { status: ['open'], priority: [], assigned_to: [], tags: [] },
   groupMode:       'category',   // 'category' | 'due'
-  activeTaskListId: 'all',       // 'all' | 'local' | 'source:<provider>' | persisted Task List id
+  activeTaskListId: 'all',       // 'all' | 'source:<provider>' | 'local' | concrete Task List id
   viewMode:        'list',       // 'list' | 'kanban' | 'history' (resolved at render time)
   // Der Verlauf (#791) hat einen eigenen Bestand, weil er etwas anderes zeigt
   // als `tasks`: nicht Aufgaben, sondern Vorgänge. Er wird geblättert statt
@@ -1304,9 +1275,6 @@ let state = {
   // Eingeklappte Gruppen (#812), als "<modus>:<gruppen-id>" - derselbe Name
   // kann in beiden Gruppierungen vorkommen und meint dort Verschiedenes.
   collapsedGroups: new Set(),
-  // Eingeklappte Quellen der Desktop-Navigation. Mobile bleibt bewusst eine
-  // zweistufige Auswahl aus Quellenleiste und Select.
-  collapsedTaskSources: new Set(),
   dragTaskId:      null,
   filterPanelOpen: false,
   bulkSelectMode:  false,
@@ -3809,21 +3777,18 @@ function renderFilters(container) {
 const RECENT_FILTERS_KEY = 'yuvomi:recentTaskFilters';
 const RECENT_FILTERS_MAX = 3;
 const COLLAPSED_GROUPS_KEY = 'yuvomi:taskCollapsedGroups';
-const COLLAPSED_TASK_SOURCES_KEY = 'yuvomi:taskCollapsedSources';
 const SHOW_FUTURE_KEY = 'yuvomi:taskShowFuture';
 const ASSIGNED_TO_ME_KEY = 'yuvomi:taskAssignedToMe';
 const ACTIVE_TASK_LIST_KEY = 'yuvomi:activeTaskList';
+const TASK_LIST_SIDEBAR_WIDTH_KEY = 'yuvomi:taskListSidebarWidth';
+const TASK_LIST_SIDEBAR_MIN = 208;
+const TASK_LIST_SIDEBAR_MAX = 420;
 
 function restoreActiveTaskList() {
   try {
     const saved = localStorage.getItem(ACTIVE_TASK_LIST_KEY);
     if (saved) state.activeTaskListId = saved;
   } catch {}
-}
-
-function taskListSourceScope(source) {
-  if (source === 'all' || source === 'local') return source;
-  return TASK_LIST_SOURCE_SCOPE_PREFIX + source;
 }
 
 /**
@@ -3888,7 +3853,11 @@ function normalizeActiveTaskList() {
   if (scope === 'all' || scope === 'local') return;
   if (scope.startsWith(TASK_LIST_SOURCE_SCOPE_PREFIX)) {
     const source = scope.slice(TASK_LIST_SOURCE_SCOPE_PREFIX.length);
-    if (taskListSourceGroups().some((group) => group.key === source)) return;
+    const group = taskListSourceGroups().find((entry) => entry.key === source);
+    // A source is a real first-level scope: it shows that provider's tasks while
+    // exposing its concrete lists below. There is deliberately no extra
+    // provider-specific “All” child in the navigation.
+    if (group?.lists?.length) return;
     state.activeTaskListId = 'all';
     return;
   }
@@ -3926,6 +3895,16 @@ function activateTaskListScope(scope, container) {
     renderTaskList(container);
   }
   updateBulkActionsBar(container);
+}
+
+function activateTaskListSource(source, container) {
+  if (source.key === 'all') {
+    activateTaskListScope('all', container);
+    return;
+  }
+  if (source.lists?.length) {
+    activateTaskListScope(`${TASK_LIST_SOURCE_SCOPE_PREFIX}${source.key}`, container);
+  }
 }
 
 function isConcreteTaskList(item) {
@@ -4016,15 +3995,11 @@ async function handleDeleteTaskList(item, container) {
   }
 }
 
-function sourceChildrenId(source) {
-  return `task-list-source-children-${encodeURIComponent(String(source)).replaceAll('%', '-')}`;
-}
-
 function appendTaskListNavButton(
   parent,
   item,
   container,
-  { source = false, collapsible = false, childrenId = '', collapsed = false } = {},
+  { source = false } = {},
 ) {
   const active = source
     ? taskListSourceKeyForScope() === item.key
@@ -4065,36 +4040,9 @@ function appendTaskListNavButton(
 
   button.append(icon, text);
   button.addEventListener('click', () => {
-    activateTaskListScope(source ? taskListSourceScope(item.key) : item.id, container);
+    if (source) activateTaskListSource(item, container);
+    else activateTaskListScope(item.id, container);
   });
-  if (source && collapsible) {
-    const row = document.createElement('div');
-    row.className = 'task-list-nav__source-row';
-    button.classList.add('task-list-nav__source-select');
-    row.appendChild(button);
-
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'task-list-nav__collapse';
-    toggle.dataset.taskSourceToggle = item.key;
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('aria-controls', childrenId);
-    toggle.setAttribute('aria-label', `${item.name} · ${t('tasks.taskListLabel')}`);
-    toggle.title = `${item.name} · ${t('tasks.taskListLabel')}`;
-    const chevron = document.createElement('i');
-    chevron.setAttribute('data-lucide', collapsed ? 'chevron-right' : 'chevron-down');
-    chevron.className = 'icon-md';
-    chevron.setAttribute('aria-hidden', 'true');
-    toggle.appendChild(chevron);
-    toggle.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      toggleTaskSource(item.key, container);
-    });
-    row.appendChild(toggle);
-    parent.appendChild(row);
-    return;
-  }
   if (!source && isConcreteTaskList(item)) {
     const row = document.createElement('div');
     row.className = 'task-list-nav__item-row';
@@ -4131,13 +4079,6 @@ function renderMobileTaskListNav(parent, groups, container) {
     select.className = 'form-input task-list-nav__select';
     select.setAttribute('aria-label', `${t('tasks.taskListLabel')}: ${group.name}`);
 
-    const allowSourceWide = group.key !== 'local';
-    if (allowSourceWide) {
-      const all = document.createElement('option');
-      all.value = TASK_LIST_ALL_OPTION;
-      all.textContent = t('common.all');
-      select.appendChild(all);
-    }
     for (const item of group.lists) {
       const option = document.createElement('option');
       option.value = String(item.id);
@@ -4146,19 +4087,13 @@ function renderMobileTaskListNav(parent, groups, container) {
     }
 
     const scope = String(state.activeTaskListId);
-    if (allowSourceWide && scope === taskListSourceScope(group.key)) {
-      select.value = TASK_LIST_ALL_OPTION;
-    } else if (group.lists.some((item) => String(item.id) === scope)) {
+    if (group.lists.some((item) => String(item.id) === scope)) {
       select.value = scope;
-    } else if (allowSourceWide) {
-      select.value = TASK_LIST_ALL_OPTION;
+    } else if (group.lists[0]) {
+      select.value = String(group.lists[0].id);
     }
     select.addEventListener('change', (event) => {
-      const value = event.target.value;
-      activateTaskListScope(
-        value === TASK_LIST_ALL_OPTION ? taskListSourceScope(group.key) : value,
-        container,
-      );
+      activateTaskListScope(event.target.value, container);
     });
     field.append(label, select);
     const selectedList = group.lists.find((item) => String(item.id) === String(select.value));
@@ -4188,22 +4123,17 @@ function renderTaskLists(container) {
   const groups = taskListSourceGroups();
   const desktop = document.createElement('div');
   desktop.className = 'task-list-nav__desktop';
+  const activeScope = String(state.activeTaskListId);
+  const focusedSource = activeScope === 'all' ? 'all' : taskListSourceKeyForScope(activeScope);
   for (const group of groups) {
     const groupEl = document.createElement('div');
     groupEl.className = 'task-list-nav__group';
-    const collapsed = group.lists.length > 0 && isTaskSourceCollapsed(group.key);
-    const childrenId = group.lists.length ? sourceChildrenId(group.key) : '';
-    appendTaskListNavButton(groupEl, group, container, {
-      source: true,
-      collapsible: group.lists.length > 0,
-      childrenId,
-      collapsed,
-    });
-    if (group.lists.length) {
+    appendTaskListNavButton(groupEl, group, container, { source: true });
+    const showChildren = group.lists.length > 0
+      && (focusedSource === 'all' || focusedSource === group.key);
+    if (showChildren) {
       const children = document.createElement('div');
       children.className = 'task-list-nav__children';
-      children.id = childrenId;
-      children.hidden = collapsed;
       for (const item of group.lists) appendTaskListNavButton(children, item, container);
       groupEl.appendChild(children);
     }
@@ -4213,6 +4143,75 @@ function renderTaskLists(container) {
   nav.append(title, desktop);
   renderMobileTaskListNav(nav, groups, container);
   if (window.lucide) window.lucide.createIcons({ el: nav });
+}
+
+function clampTaskListSidebarWidth(value) {
+  return Math.max(TASK_LIST_SIDEBAR_MIN, Math.min(TASK_LIST_SIDEBAR_MAX, Math.round(value)));
+}
+
+function setTaskListSidebarWidth(layout, width, { persist = false } = {}) {
+  const next = clampTaskListSidebarWidth(width);
+  layout.style.setProperty('--task-list-sidebar-width', `${next}px`);
+  const resizer = layout.querySelector('#task-list-resizer');
+  resizer?.setAttribute('aria-valuenow', String(next));
+  if (persist) {
+    try { localStorage.setItem(TASK_LIST_SIDEBAR_WIDTH_KEY, String(next)); } catch {}
+  }
+  return next;
+}
+
+function restoreTaskListSidebarWidth(layout) {
+  let saved = null;
+  try { saved = Number(localStorage.getItem(TASK_LIST_SIDEBAR_WIDTH_KEY)); } catch {}
+  if (Number.isFinite(saved) && saved > 0) setTaskListSidebarWidth(layout, saved);
+  else setTaskListSidebarWidth(layout, 288);
+}
+
+function wireTaskListResizer(container) {
+  const layout = container.querySelector('.tasks-layout');
+  const resizer = container.querySelector('#task-list-resizer');
+  if (!layout || !resizer || resizer.dataset.wired === 'true') return;
+  resizer.dataset.wired = 'true';
+  restoreTaskListSidebarWidth(layout);
+
+  let dragging = false;
+  const move = (event) => {
+    if (!dragging) return;
+    const rect = layout.getBoundingClientRect();
+    setTaskListSidebarWidth(layout, event.clientX - rect.left);
+  };
+  const stop = () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.classList.remove('task-list-resizing');
+    setTaskListSidebarWidth(
+      layout,
+      parseFloat(getComputedStyle(layout).getPropertyValue('--task-list-sidebar-width')),
+      { persist: true },
+    );
+  };
+
+  resizer.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    dragging = true;
+    document.body.classList.add('task-list-resizing');
+    resizer.setPointerCapture?.(event.pointerId);
+  });
+  resizer.addEventListener('pointermove', move);
+  resizer.addEventListener('pointerup', stop);
+  resizer.addEventListener('pointercancel', stop);
+  resizer.addEventListener('keydown', (event) => {
+    const current = parseFloat(getComputedStyle(layout).getPropertyValue('--task-list-sidebar-width')) || 288;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      setTaskListSidebarWidth(layout, current + (event.key === 'ArrowRight' ? 16 : -16), { persist: true });
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      setTaskListSidebarWidth(layout, event.key === 'End' ? TASK_LIST_SIDEBAR_MAX : TASK_LIST_SIDEBAR_MIN, { persist: true });
+    }
+  });
 }
 
 // „Mir zugewiesen" ist ein Schnellzugriff auf den assigned_to-Filter mit der
@@ -4796,7 +4795,6 @@ export async function render(container, { user }) {
   state.currentUserId = user?.id ?? null;
   restoreActiveTaskList();
   loadCollapsedGroups();
-  loadCollapsedTaskSources();
   // Die Rolle entscheidet nur darüber, ob ein fremder Kommentar entfernt werden
   // darf (#734) - der Server prüft dieselbe Bedingung noch einmal.
   state.isAdmin = user?.role === 'admin';
@@ -4880,6 +4878,9 @@ export async function render(container, { user }) {
       <div class="tasks-body">
         <div class="tasks-layout">
           <nav class="task-lists-sidebar" id="task-lists-nav" aria-labelledby="task-lists-title"></nav>
+          <div class="task-list-resizer" id="task-list-resizer" role="separator"
+               aria-orientation="vertical" aria-valuemin="208" aria-valuemax="420"
+               aria-label="${t('tasks.taskListLabel')}" tabindex="0"></div>
           <div class="tasks-main">
         <div class="tasks-filters-row">
           <div class="tasks-filters" id="filter-bar" role="group" aria-label="${t('tasks.filterBtn')}"></div>
@@ -5005,6 +5006,7 @@ export async function render(container, { user }) {
 
   // UI verdrahten
   renderTaskLists(container);
+  wireTaskListResizer(container);
   wireViewToggle(container);
   wireGroupToggle(container);
   wireNewTaskBtn(container);

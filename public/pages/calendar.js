@@ -955,13 +955,14 @@ function agendaSegmentKind(ev, dayStr) {
 }
 
 /**
- * Filtert Tasks: nur open/in_progress mit due_date werden angezeigt.
- * Abgelegte bleiben draußen - der Server liefert sie hier ohnehin nicht mehr mit
- * (#688), die Prüfung steht als Rückfalllinie für vorgefüllte Listen.
+ * Filtert Tasks für den Kalender. Erledigte Aufgaben bleiben sichtbar, damit
+ * ihr Zustand im Kalender über die Checkbox erkennbar bleibt und nicht nur
+ * durch das Verschwinden des Eintrags „erledigt“ bedeutet.
+ * Abgelegte Aufgaben bleiben draußen (#688).
  */
 function filterTasksForCalendar(tasks) {
   return tasks.filter(
-    (t) => t.due_date && t.status !== 'done' && !t.archived_at
+    (t) => t.due_date && !t.archived_at
   );
 }
 
@@ -984,20 +985,26 @@ function holidaysOnDay(dateStr) {
   });
 }
 
-/** Rendert einen read-only Task-Chip für Kalenderansichten. In der Monatsansicht
- *  (interactive:false) ist die Tageszelle selbst der Drill-in-Button; die Chips
- *  sind dort nur visuelles Signal und dürfen kein eigenes role/tabindex tragen -
- *  sonst entsteht ein fokussierbarer Button im Zellen-Button (Audit P1).
- *  icon:false lässt das check-square-Icon in kompakten Sonderkontexten weg;
- *  die Monatsansicht aktiviert es bewusst als Aufgabenmarker, Woche/Tag/Agenda
- *  behalten es ebenfalls als Termin/Aufgabe-Unterscheidung. */
-function renderTaskChip(task, { interactive = true, icon = true } = {}) {
+/** Rendert einen Task-Chip mit einem echten, direkt bedienbaren Statusknopf.
+ * In der Monatsansicht (interactive:false) bleibt die Tageszelle selbst das
+ * Drill-in-Ziel; der Statusknopf ist trotzdem ein eigenes Ziel und stoppt die
+ * Zellaktion in der Delegation.
+ */
+function renderTaskChip(task, { interactive = true } = {}) {
   const priority = task.priority || 'none';
+  const done     = task.status === 'done';
   const label    = esc(task.title);
   const timeStr  = task.due_time ? ` · ${task.due_time.slice(0, 5)}` : '';
   const button   = interactive
     ? ` role="button" tabindex="0" aria-label="${esc(t('calendar.taskChipAriaLabel', { title: task.title }))}"`
     : '';
+  const toggleLabel = t(done ? 'tasks.markOpen' : 'tasks.markDone', { title: task.title });
+  const check = `<button type="button"
+      class="cal-task-chip__check${done ? ' cal-task-chip__check--done' : ''}"
+      data-calendar-task-action="toggle"
+      aria-pressed="${String(done)}"
+      aria-label="${esc(toggleLabel)}"
+      title="${esc(toggleLabel)}">${done ? '<i data-lucide="check" aria-hidden="true"></i>' : ''}</button>`;
   // Die Prioritaet steht als Rangmarke im Punkt (list-row.css), nicht mehr als
   // getoentes Feld mit getoenter Schrift: dieselbe Stufe, die die Aufgabenliste
   // seit v2.23.0 so zeigt. „Ohne" bekommt keinen Punkt - eine Marke fuer eine
@@ -1005,13 +1012,69 @@ function renderTaskChip(task, { interactive = true, icon = true } = {}) {
   const dot = priority !== 'none'
     ? `<span class="priority-dot priority-dot--${priority}" aria-hidden="true"></span>`
     : '';
-  return `<div class="cal-task-chip cal-task-chip--${priority}"
+  return `<div class="cal-task-chip cal-task-chip--${priority}${done ? ' cal-task-chip--done' : ''}"
                data-task-id="${task.id}"${button}
                title="${label}${esc(timeStr)}">
-    ${icon ? '<i data-lucide="check-square" class="icon-sm" aria-hidden="true"></i>' : ''}
+    ${check}
     ${dot}
-    <span>${label}${esc(timeStr)}</span>
+    <span class="cal-task-chip__label">${label}${esc(timeStr)}</span>
   </div>`;
+}
+
+function updateCalendarTaskChipState(taskId, status) {
+  const done = status === 'done';
+  const label = state.tasks.find((task) => String(task.id) === String(taskId))?.title || '';
+  const toggleLabel = t(done ? 'tasks.markOpen' : 'tasks.markDone', { title: label });
+  [...(_container?.querySelectorAll('.cal-task-chip') ?? [])]
+    .filter((chip) => String(chip.dataset.taskId) === String(taskId))
+    .forEach((chip) => {
+    chip.classList.toggle('cal-task-chip--done', done);
+    const check = chip.querySelector('.cal-task-chip__check');
+    if (!check) return;
+    check.classList.toggle('cal-task-chip__check--done', done);
+    check.setAttribute('aria-pressed', String(done));
+    check.setAttribute('aria-label', toggleLabel);
+    check.title = toggleLabel;
+    check.replaceChildren();
+    if (done) check.insertAdjacentHTML('beforeend', '<i data-lucide="check" aria-hidden="true"></i>');
+    });
+  if (window.lucide && _container) window.lucide.createIcons({ el: _container });
+}
+
+async function toggleCalendarTaskStatus(taskId, control) {
+  const task = state.tasks.find((item) => String(item.id) === String(taskId));
+  if (!task || control?.disabled) return;
+  const previous = task.status;
+  const next = previous === 'done' ? 'open' : 'done';
+  if (control) control.disabled = true;
+  task.status = next;
+  updateCalendarTaskChipState(taskId, next);
+  try {
+    await api.patch(`/tasks/${encodeURIComponent(taskId)}/status`, { status: next });
+    refreshReminders();
+    if (state.rangeFrom && state.rangeTo) {
+      await loadRange(state.rangeFrom, state.rangeTo);
+      renderView();
+    }
+  } catch (err) {
+    task.status = previous;
+    updateCalendarTaskChipState(taskId, previous);
+    window.yuvomi?.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+  } finally {
+    const current = [...(_container?.querySelectorAll('.cal-task-chip') ?? [])]
+      .find((chip) => String(chip.dataset.taskId) === String(taskId))
+      ?.querySelector('.cal-task-chip__check');
+    if (current) current.disabled = false;
+  }
+}
+
+function handleCalendarTaskToggle(event) {
+  const control = event.target.closest('[data-calendar-task-action="toggle"]');
+  if (!control) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  toggleCalendarTaskStatus(control.closest('.cal-task-chip')?.dataset.taskId, control);
+  return true;
 }
 
 // --------------------------------------------------------
@@ -1685,6 +1748,8 @@ function renderMonthView(container) {
     const dayEl = e.target.closest('.month-day');
     if (!dayEl) return;
 
+    if (handleCalendarTaskToggle(e)) return;
+
     // Mobil ist die ganze Zelle EIN Drill-in-Ziel: die Chips sind dort zu
     // Punkten reduziert (reines "etwas ist los"-Signal), ein Tap darf nie in
     // einem Event-Popup enden statt in der handlungsfähigen Tagesansicht (P1).
@@ -1781,10 +1846,9 @@ function renderMonthDay(date, inMonth) {
     ><span>${esc(ev.title)}</span></div>
   `).join('');
 
-  // The month cell owns the click target, so the chip stays non-interactive;
-  // it still gets the shared task marker so tasks are distinguishable from
-  // event bars at a glance.
-  const taskHtml = taskShown.map((tk) => renderTaskChip(tk, { interactive: false, icon: true })).join('');
+  // The month cell owns the navigation target; the chip itself stays
+  // non-navigational, while its status button remains directly actionable.
+  const taskHtml = taskShown.map((tk) => renderTaskChip(tk, { interactive: false })).join('');
 
   return `
     <div class="${classes}" data-date="${date}" data-total="${total}"
@@ -1980,6 +2044,7 @@ function renderWeekView(container) {
   });
 
   container.querySelector('.allday-row').addEventListener('click', (e) => {
+    if (handleCalendarTaskToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
       window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
@@ -2192,6 +2257,7 @@ function renderDayView(container) {
   `);
 
   container.querySelector('.allday-row')?.addEventListener('click', (e) => {
+    if (handleCalendarTaskToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
       window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
@@ -2298,7 +2364,7 @@ function renderAgendaView(container) {
               </div>`).join('')}</div>` : ''}
             ${schedule.length ? `<div class="agenda-holidays">${schedule.map((entry) => renderScheduleChip(entry, 'agenda-holiday')).join('')}</div>` : ''}
             ${events.length ? `<div class="list-rows">${events.map((ev) => renderAgendaEvent(ev, date)).join('')}</div>` : ''}
-            ${tasks.length ? `<div class="agenda-tasks">${tasks.map(renderTaskChip).join('')}</div>` : ''}
+            ${tasks.length ? `<div class="list-rows agenda-tasks">${tasks.map(renderTaskChip).join('')}</div>` : ''}
           </div>
         `).join('')
       }
@@ -2312,6 +2378,7 @@ function renderAgendaView(container) {
       openEventModal({ mode: 'create', date: newEventDate() });
       return;
     }
+    if (handleCalendarTaskToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
       window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
@@ -2327,6 +2394,12 @@ function renderAgendaView(container) {
   // Tastaturaktivierung der als role="button" ausgezeichneten Zeilen (Enter/Space).
   container.querySelector('#agenda-view').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
+    const taskChip = e.target.closest('.cal-task-chip');
+    if (taskChip && e.target === taskChip && taskChip.getAttribute('role') === 'button') {
+      e.preventDefault();
+      window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
+      return;
+    }
     const evEl = e.target.closest('.agenda-event');
     if (!evEl) return;
     e.preventDefault();

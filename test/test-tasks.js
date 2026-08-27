@@ -250,10 +250,12 @@ test('Task Lists sind eine dauerhafte Navigation statt einer Filter- oder Gruppi
   assert(source.includes('function taskListMatches('), 'die Navigation muss den sichtbaren Bereich bestimmen');
   assert(source.includes('function taskListSourceGroups('), 'die Navigation muss Quellen als erste Ebene gruppieren');
   assert(source.includes('task-list-nav__desktop'), 'die Desktop-Navigation muss die Quellen und ihre Listen verschachteln');
-  assert(source.includes('COLLAPSED_TASK_SOURCES_KEY'), 'Quellen müssen ihren eingeklappten Zustand behalten');
-  assert(source.includes('taskSourceToggle'), 'Desktop-Quellen brauchen einen eigenen Auf-/Zu-Klapp-Schalter');
-  assert(source.includes('aria-expanded'), 'der Quellen-Schalter muss seinen Zustand ansagen');
-  assert(source.includes('children.hidden = collapsed'), 'eingeklappte Listen dürfen nicht nur optisch versteckt werden');
+  assert(source.includes('function activateTaskListSource('), 'Quellen müssen als eigener Navigationsbereich wählbar sein');
+  assert(source.includes('focusedSource === group.key'), 'Desktop zeigt nach der Quellenwahl nur deren konkrete Listen');
+  assert(source.includes("key: 'all', provider: 'all'"), 'es gibt genau einen globalen Alle-Bereich');
+  assert(!source.includes('COLLAPSED_TASK_SOURCES_KEY'), 'pro Quelle darf kein separater Klappzustand zurückbleiben');
+  assert(!source.includes('taskSourceToggle'), 'Quellen brauchen keinen zusätzlichen Klappknopf');
+  assert(!source.includes('TASK_LIST_ALL_OPTION'), 'provider-spezifische Alle-Optionen dürfen nicht zurückkehren');
   assert(source.includes('task-list-nav__mobile'), 'die mobile Navigation muss eine eigene Darstellung rendern');
   assert(source.includes('task-list-mobile-select'), 'mobile Listen müssen über ein Select gewählt werden');
   assert(source.includes('task-list-nav__delete'), 'konkrete Listen müssen eine Löschaktion anbieten');

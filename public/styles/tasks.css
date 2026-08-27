@@ -46,8 +46,8 @@
  * -------------------------------------------------------- */
 .tasks-layout {
   display: grid;
-  grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
-  gap: var(--space-6);
+  grid-template-columns: minmax(13rem, var(--task-list-sidebar-width, 18rem)) var(--space-2) minmax(0, 1fr);
+  gap: var(--space-3);
   align-items: start;
 }
 
@@ -72,6 +72,35 @@
   text-transform: uppercase;
 }
 
+.task-list-resizer {
+  position: relative;
+  align-self: stretch;
+  min-height: var(--target-lg);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.task-list-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.task-list-resizer:hover::before,
+.task-list-resizer:focus-visible::before {
+  background: var(--module-accent, var(--color-accent));
+  transform: scaleX(1.5);
+}
+
+body.task-list-resizing,
+body.task-list-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 .task-list-nav__desktop {
   display: grid;
   gap: var(--space-2);
@@ -80,39 +109,6 @@
 .task-list-nav__group {
   display: grid;
   gap: var(--space-1);
-}
-
-.task-list-nav__source-row {
-  display: flex;
-  min-width: 0;
-  align-items: stretch;
-  gap: var(--space-1);
-}
-
-.task-list-nav__source-select {
-  width: auto;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.task-list-nav__collapse {
-  display: grid;
-  width: var(--target-lg);
-  min-width: var(--target-lg);
-  min-height: var(--target-lg);
-  place-items: center;
-  padding: var(--space-2);
-  border: var(--space-px) solid transparent;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.task-list-nav__collapse:hover,
-.task-list-nav__collapse:focus-visible {
-  background-color: var(--color-surface-2);
-  color: var(--color-text-primary);
 }
 
 .task-list-nav__children {
@@ -247,6 +243,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+  }
+
+  .task-list-resizer {
+    display: none;
   }
 
   .task-lists-sidebar {

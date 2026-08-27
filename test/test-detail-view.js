@@ -266,8 +266,12 @@ test('ein Task-Deep-Link wird nach dem ersten Öffnen aus der URL entfernt', asy
 
 test('Kalender-Monatsaufgaben tragen einen sichtbaren Aufgabenmarker', async () => {
   const src = await calendarJs();
-  assert.match(src, /renderTaskChip\(tk, \{ interactive: false, icon: true \}\)/,
-    'Monatsansicht muss den Check-Kreis/Task-Marker rendern');
+  assert.match(src, /class="cal-task-chip__check/,
+    'Monatsansicht muss einen echten Aufgaben-Check-Kreis rendern');
+  assert.match(src, /data-calendar-task-action="toggle"/,
+    'der Aufgabenmarker muss in der Kalenderansicht bedienbar sein');
+  assert.match(src, /renderTaskChip\(tk, \{ interactive: false \}\)/,
+    'Monatsansicht muss den Task-Chip mit Statusmarker rendern');
 });
 
 test('das Formular wartet auf die Erinnerungen, die Leseansicht nicht', async () => {

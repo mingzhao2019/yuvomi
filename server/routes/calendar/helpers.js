@@ -258,9 +258,16 @@ export function serializeEvent(event, database = null) {
   // birthday_name (Issue #524).
   const { assigned_users_json, birthday_name, birthday_date, ...rest } = event;
   const source = event.outlook_source || outlookSource(database, event);
+  // Inbound-Outlook-Events haben keinen `calendar_ref_id`, deshalb bleibt
+  // `rest.cal_name` bei ihnen leer. Die Oberfläche verwendet `cal_name` als
+  // gemeinsame Anzeige für alle Kalenderquellen; die technische Outlook-
+  // Verknüpfung allein reicht dort nicht. Den Namen hier zu normalisieren
+  // hält GET /, GET /:id und alle daraus gespeisten Detailansichten gleich.
+  const calendarName = rest.cal_name || source?.calendar_name || source?.calendar_id || null;
   const documentId = event.attachment_document_id ?? null;
   return {
     ...rest,
+    cal_name: calendarName,
     ...(birthday_name ? { birthday_name, birthday_date: birthday_date ?? null } : {}),
     outlook_source: source
       ? {

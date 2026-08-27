@@ -1553,7 +1553,7 @@
 }
 
 /* --------------------------------------------------------
- * Task-Chips im Kalender (read-only)
+ * Task-Chips im Kalender
  * -------------------------------------------------------- */
 
 .cal-task-chip {
@@ -1598,6 +1598,48 @@
   color: var(--color-text-primary);
 }
 
+.cal-task-chip__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  padding: 0;
+  flex: 0 0 var(--space-5);
+  border: 2px solid var(--color-text-tertiary);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-ink-on-vivid);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.cal-task-chip__check:hover,
+.cal-task-chip__check:focus-visible {
+  border-color: var(--module-accent, var(--color-accent));
+}
+
+.cal-task-chip__check:active {
+  transform: scale(0.92);
+}
+
+.cal-task-chip__check--done {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+.cal-task-chip__check svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+
+.cal-task-chip--done .cal-task-chip__label {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 .cal-task-chip:hover,
 .cal-task-chip:focus-visible {
   filter: brightness(0.9);
@@ -1626,27 +1668,29 @@
 .cal-task-chip--medium { --prio-color: var(--color-priority-medium); }
 .cal-task-chip--low    { --prio-color: var(--color-priority-low); }
 
-/* Im Monatsgrid werden auch Aufgaben-Chips zu flachen Bars nach Kanon: die
- * currentColor-Tönung bleibt, Border und Schatten entfallen; das check-square-
- * Icon markiert den Eintrag als Aufgabe, ohne ein zweites Klickziel einzuführen.
- * Padding fluchtet mit den Event-Bars. Die mobilen Punkt-Overrides weiter
- * unten gewinnen per Quellreihenfolge bei gleicher Spezifität. */
+/* Im Monatsgrid bleiben Aufgaben-Chips flache Bars; der kleine Statusknopf ist
+ * das einzige zusätzliche Ziel und stoppt den Drill-in der Tageszelle. */
 .month-day .cal-task-chip {
   border: none;
   box-shadow: none;
   padding: var(--space-0h) var(--space-1);
 }
 
-/* Aufgaben-Sektion in Agenda-Ansicht */
+/* Aufgaben-Sektion in Agenda-Ansicht: derselbe Zeilen-Träger wie Termine. */
 .agenda-tasks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .agenda-tasks .cal-task-chip {
+  min-height: var(--target-lg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0;
   margin-bottom: 0;
+  font-size: var(--text-sm);
+}
+
+.agenda-tasks .cal-task-chip + .cal-task-chip {
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 /* --------------------------------------------------------
@@ -1734,6 +1778,20 @@
   .month-day .cal-task-chip > *,
   .month-day .month-day__holiday > * {
     display: none;
+  }
+
+  .month-day .cal-task-chip > .cal-task-chip__check {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+  }
+
+  .month-day .cal-task-chip > .cal-task-chip__check--done {
+    background: var(--color-success);
   }
 
   .month-day .month-day__more {

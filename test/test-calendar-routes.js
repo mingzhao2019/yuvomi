@@ -535,6 +535,43 @@ test('GET /:id — liefert Termin + serialisiert', async () => {
   assert.ok(Array.isArray(res.body.data.assigned_users));
 });
 
+test('GET /:id — Outlook-Inbound-Quelle wird als Kalendername serialisiert', async () => {
+  const id = insertEvent({
+    title: 'OUTLOOK-SOURCE-GET',
+    start_datetime: '2036-01-03T09:00',
+    external_source: 'outlook',
+  });
+  const accountId = db.prepare(`
+    INSERT INTO outlook_accounts (name, access_token, refresh_token)
+    VALUES ('Source test account', 'access', 'refresh')
+  `).run().lastInsertRowid;
+  db.prepare(`
+    INSERT INTO outlook_calendar_selection
+      (account_id, calendar_id, calendar_name, enabled)
+    VALUES (?, 'calendar-source-test', 'Outlook Arbeit', 1)
+  `).run(accountId);
+  db.prepare(`
+    INSERT INTO outlook_event_links
+      (event_id, account_id, outlook_calendar_id, outlook_event_id, link_type)
+    VALUES (?, ?, 'calendar-source-test', 'event-source-test', 'inbound')
+  `).run(id, accountId);
+
+  try {
+    const res = await call('GET', `/${id}`, { actor: ADMIN });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.data.cal_name, 'Outlook Arbeit');
+    assert.deepEqual(res.body.data.outlook_source, {
+      account_id: accountId,
+      account_name: 'Source test account',
+      calendar_id: 'calendar-source-test',
+      calendar_name: 'Outlook Arbeit',
+    });
+  } finally {
+    db.prepare('DELETE FROM outlook_accounts WHERE id = ?').run(accountId);
+    db.prepare('DELETE FROM calendar_events WHERE id = ?').run(id);
+  }
+});
+
 test('GET /:id — privat: fremd 404, auch Admin (kein Bypass)', async () => {
   const id = insertEvent({ title: 'PRIV-SINGLE', start_datetime: '2036-01-02T09:00', created_by: TOM.id, visibility: 'private' });
   assert.equal((await call('GET', `/${id}`, { actor: MARIA })).status, 404);

@@ -361,7 +361,7 @@ test('filterTasksForCalendar: Tasks ohne due_date werden gefiltert', () => {
   assert(result[0].id === 2, 'Task B muss enthalten sein');
 });
 
-test('filterTasksForCalendar: done- und abgelegte Tasks werden gefiltert', () => {
+test('filterTasksForCalendar: erledigte Tasks bleiben für die Checkbox sichtbar', () => {
   // Abgelegt ist seit #688 kein Status, sondern archived_at - eine abgelegte
   // Aufgabe steht weiter auf 'open' und darf trotzdem keinen Chip bekommen.
   const tasks = [
@@ -370,8 +370,8 @@ test('filterTasksForCalendar: done- und abgelegte Tasks werden gefiltert', () =>
     { id: 3, title: 'C', due_date: '2026-06-17', status: 'open', archived_at: '2026-06-01T10:00:00Z' },
   ];
   const result = ftc(tasks);
-  assert(result.length === 1, 'Nur 1 Task erwartet');
-  assert(result[0].id === 2, 'Nur offener Task erwartet');
+  assert(result.length === 2, 'Offener und erledigter Task erwartet');
+  assert(result.map((task) => task.id).join(',') === '1,2', 'Archivierter Task bleibt draußen');
 });
 
 test('filterTasksForCalendar: in_progress-Tasks werden behalten', () => {

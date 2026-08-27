@@ -71,6 +71,14 @@ test('converts To Do due dates through the household timezone and keeps date-onl
   );
   assert.deepEqual(
     todo.__test.dueDateParts({
+      dateTime: '2026-08-30T00:00:00.0000000',
+      timeZone: 'UTC',
+    }, 'Europe/Helsinki'),
+    { due_date: '2026-08-30', due_time: null },
+    'date-only midnight must not become a Helsinki 03:00 task',
+  );
+  assert.deepEqual(
+    todo.__test.dueDateParts({
       dateTime: '2026-01-15T09:30:00.0000000',
       timeZone: 'Pacific Standard Time',
     }, 'UTC'),
@@ -168,6 +176,11 @@ test('converts To Do due dates through the household timezone and keeps date-onl
       isReminderOn: false,
       reminderDateTime: null,
     },
+  );
+  assert.deepEqual(
+    todo.__test.graphTaskPayload({ due_date: '2026-08-30' }, 'Europe/Helsinki').dueDateTime,
+    { dateTime: '2026-08-30T00:00:00', timeZone: 'Europe/Helsinki' },
+    'date-only outbound values retain the selected household date',
   );
 });
 
@@ -617,6 +630,27 @@ test('detaches tasks and removes a list deleted remotely', async () => {
   assert.ok(database.prepare(`
     SELECT 1 FROM task_lists WHERE provider = 'microsoft_todo' AND external_list_id = 'list-new'
   `).get());
+});
+
+test('retains a disabled Microsoft To Do list after list discovery refresh', async () => {
+  const ownerId = insertUser('todo-owner-disabled-list');
+  const accountId = insertAccount(ownerId);
+  database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Old name', 'microsoft_todo', ?, 'list-disabled', ?, 0)
+  `).run(accountId, ownerId);
+
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    assert.equal(parsed.pathname, '/v1.0/me/todo/lists');
+    return response(200, { value: [{ id: 'list-disabled', displayName: 'Renamed remotely' }] });
+  };
+
+  const lists = await todo.listTaskLists(accountId, { refresh: true, database, fetchImpl });
+  assert.equal(lists.length, 1);
+  assert.equal(lists[0].listName, 'Renamed remotely');
+  assert.equal(lists[0].enabled, false, 'refresh must not re-enable a manually disabled list');
 });
 
 test('migration v164 preserves provider values from extension-backed installations', () => {
