@@ -151,6 +151,16 @@ function usesInheritedSubscriptionColor(event) {
 }
 
 /**
+ * Der Wert des Erben-Swatch: "dieser Termin hat keine eigene Farbe".
+ *
+ * Der Leerstring, nicht `null`, weil er aus `dataset.color` kommt - ein
+ * data-Attribut kennt keinen Nullwert, und ein fehlendes Attribut waere
+ * `undefined` und damit nicht mehr von "gar kein Swatch aktiv" zu
+ * unterscheiden. Genau diese Unterscheidung traegt die Regel unten.
+ */
+const COLOR_INHERIT = '';
+
+/**
  * Welche Farbe ein Speichern schreibt.
  *
  * Die Regel dahinter ist eine einzige: ein Speichern, bei dem niemand die Farbe

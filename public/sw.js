@@ -120,6 +120,7 @@ const APP_SHELL = [
   '/utils/calendar-delete.js',
   '/utils/document-folder-delete.js',
   '/utils/document-preview.js',
+  '/utils/event-color.js',
   '/utils/empty-state.js',
   '/utils/extension-i18n.js',
   '/utils/extension-widgets.js',

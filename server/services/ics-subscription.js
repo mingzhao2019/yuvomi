@@ -364,6 +364,11 @@ async function importToLocal(userId, { ics, url, color } = {}) {
   // Einzel-Vorkommen werden eigenständige Termine statt die Serie zu killen (#549).
   rawEvents = normalizeRecurrenceOverrides(rawEvents);
 
+  // HIER bleibt der Fallback bewusst stehen, anders als im Abo-Sync oben (#891).
+  // Ein einmaliger Import macht aus den Terminen LOKALE Termine ohne Quelle -
+  // sie haben danach keinen Kalender mehr, von dem sie eine Farbe erben koennten,
+  // und `color` ist der Wert, den der Nutzer fuer genau diesen Import angegeben
+  // hat. Das ist eine Wahl und gehoert deshalb in die Eigenfarb-Spalte.
   const fallbackColor = color || '#007AFF';
   const insert = db.get().prepare(`
     INSERT INTO calendar_events
