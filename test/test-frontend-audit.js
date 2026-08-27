@@ -5857,13 +5857,15 @@ test('Notes keeps user colours off the reading surface', () => {
   );
 });
 
-test('phase 3 Tasks bulk actions stay de-emphasized until tasks are selected', () => {
+test('phase 3 Tasks bulk actions stay disabled until tasks are selected and offer select-all', () => {
   const tasksPage = read('../public/pages/tasks.js');
   const tasksCss = read('../public/styles/tasks.css');
 
-  assert.match(tasksPage, /bar\.hidden\s*=\s*!\(state\.bulkSelectMode && selected > 0\)/);
+  assert.match(tasksPage, /bar\.hidden\s*=\s*!state\.bulkSelectMode/);
   assert.match(tasksPage, /bar\.classList\.toggle\('bulk-actions-bar--active',\s*selected > 0\)/);
   assert.match(tasksPage, /toggleBtn\.setAttribute\('aria-pressed',\s*String\(state\.bulkSelectMode\)\)/);
+  assert.match(tasksPage, /id="bulk-select-all"/);
+  assert.match(tasksPage, /function wireBulkSelectAll\(/);
   assert.match(tasksCss, /\.bulk-actions-bar\[hidden\]\s*\{[\s\S]*display:\s*none/);
   assert.match(tasksCss, /\.bulk-actions-bar--active\s*\{/);
 });

@@ -90,6 +90,45 @@
   border-inline-start: var(--space-px) solid var(--color-border-subtle);
 }
 
+.task-list-nav__item-row {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.task-list-nav__item-row .task-list-nav__item {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.task-list-nav__delete {
+  display: grid;
+  width: var(--target-lg);
+  min-width: var(--target-lg);
+  min-height: var(--target-lg);
+  flex: 0 0 var(--target-lg);
+  place-items: center;
+  padding: var(--space-2);
+  border: var(--space-px) solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.task-list-nav__delete:hover:not(:disabled) {
+  background: var(--color-danger-light);
+  border-color: var(--color-danger);
+  color: var(--color-danger-ink);
+}
+
+.task-list-nav__delete:disabled {
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .task-list-nav__mobile {
   display: none;
 }
@@ -163,6 +202,12 @@
   font-weight: var(--font-weight-regular);
 }
 
+.task-list-nav__status {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-regular);
+}
+
 @media (max-width: 767px) {
   .tasks-layout {
     display: flex;
@@ -220,6 +265,12 @@
   .task-list-nav__select {
     width: 100%;
     min-width: 0;
+  }
+
+  .task-list-nav__mobile-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .task-list-nav__account {
@@ -1585,6 +1636,27 @@
 .bulk-actions-bar__count {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
+}
+
+.bulk-actions-bar__select-all {
+  display: flex;
+  min-height: var(--target-base);
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.bulk-actions-bar__select-all input {
+  width: var(--target-base);
+  height: var(--target-base);
+  margin: 0;
+  cursor: pointer;
+}
+
+.bulk-actions-bar__select-all input:disabled {
+  cursor: not-allowed;
 }
 
 .bulk-actions-bar__actions {

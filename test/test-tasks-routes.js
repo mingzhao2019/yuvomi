@@ -561,7 +561,7 @@ test('Task Lists werden als Navigationsbereiche angezeigt und abgefragt', async 
   );
 });
 
-test('Deaktivierte Microsoft-To-Do-Listen sind weder Navigation noch Sync-Ziel', async () => {
+test('Deaktivierte Microsoft-To-Do-Listen bleiben fuer die lokale Verwaltung sichtbar', async () => {
   const admin = { id: ALICE, role: 'admin' };
   const accountId = db.prepare(`
     INSERT INTO outlook_accounts
@@ -582,7 +582,9 @@ test('Deaktivierte Microsoft-To-Do-Listen sind weder Navigation noch Sync-Ziel',
 
   const lists = await call('GET', '/lists', { as: admin });
   assert.equal(lists.status, 200);
-  assert.ok(!lists.body.data.some((list) => list.id === listId));
+  const listed = lists.body.data.find((list) => list.id === listId);
+  assert.ok(listed, 'Eine deaktivierte Liste muss zum lokalen Loeschen sichtbar bleiben');
+  assert.equal(listed.sync_enabled, 0);
 
   const targets = await call('GET', '/sync-targets', { as: admin });
   assert.equal(targets.status, 200);
@@ -593,6 +595,134 @@ test('Deaktivierte Microsoft-To-Do-Listen sind weder Navigation noch Sync-Ziel',
     body: { title: 'Disabled target', sync_target: `microsoft_todo:${accountId}|disabled-list` },
   });
   assert.equal(created.status, 400);
+});
+
+function seedDisabledCaldavTaskList(name = 'Delete me') {
+  const target = seedReminderList({
+    enabled: 0,
+    url: `https://dav.example/dav/u/${randomUUID()}/`,
+  });
+  const listId = db.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_url, created_by, enabled)
+    VALUES (?, 'caldav', ?, ?, ?, 1)
+  `).run(name, target.accountId, target.url, ALICE).lastInsertRowid;
+  return { ...target, listId };
+}
+
+function insertListTask({
+  listId,
+  title,
+  createdBy = ALICE,
+  visibility = 'all',
+  locked = 0,
+  parentTaskId = null,
+  externalSource = 'local',
+  externalAccountId = null,
+  externalUid = null,
+}) {
+  return db.prepare(`
+    INSERT INTO tasks
+      (title, created_by, visibility, locked, parent_task_id, task_list_id,
+       external_source, external_account_id, external_uid)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    title, createdBy, visibility, locked, parentTaskId, listId,
+    externalSource, externalAccountId, externalUid,
+  ).lastInsertRowid;
+}
+
+test('DELETE /lists/:id: aktive Synchronisierung blockiert die lokale Loeschung', async () => {
+  const target = seedReminderList({ url: `https://dav.example/dav/u/${randomUUID()}/` });
+  const listId = db.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_url, created_by)
+    VALUES ('Noch synchronisiert', 'caldav', ?, ?, ?)
+  `).run(target.accountId, target.url, ALICE).lastInsertRowid;
+
+  const r = await call('DELETE', `/lists/${listId}`, { as: { id: BOB, role: 'member' } });
+  assert.equal(r.status, 409);
+  assert.equal(r.body.reason, 'task_list_sync_active');
+  assert.ok(db.prepare('SELECT 1 FROM task_lists WHERE id = ?').get(listId));
+});
+
+test('DELETE /lists/:id: Mitglied loescht eine freigegebene Liste atomar samt Unteraufgaben und Erinnerungen', async () => {
+  const target = seedDisabledCaldavTaskList('Komplett loeschen');
+  const rootId = insertListTask({
+    listId: target.listId,
+    title: 'Remote root',
+    externalSource: 'caldav',
+    externalAccountId: target.accountId,
+    externalUid: 'remote-root',
+  });
+  const childId = insertListTask({
+    listId: null,
+    parentTaskId: rootId,
+    title: 'Unteraufgabe mit eigener Erinnerung',
+  });
+
+  db.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2030-01-01T09:00:00Z', ?),
+           ('task', ?, '2030-01-02T09:00:00Z', ?)
+  `).run(rootId, ALICE, childId, ALICE);
+  db.prepare('INSERT INTO task_assignments (task_id, user_id) VALUES (?, ?)').run(rootId, BOB);
+  db.prepare('INSERT INTO task_tags (task_id, tag, tag_key) VALUES (?, ?, ?)')
+    .run(rootId, 'Wichtig', 'wichtig');
+  db.prepare('INSERT INTO task_comments (task_id, user_id, comment) VALUES (?, ?, ?)')
+    .run(rootId, ALICE, 'Kommentar bleibt nicht ohne Aufgabe');
+  db.prepare('INSERT INTO task_completions (task_id, series_id, user_id) VALUES (?, ?, ?)')
+    .run(rootId, rootId, ALICE);
+  db.prepare(`
+    INSERT INTO reward_ledger (user_id, delta, type, reason, task_id, created_by)
+    VALUES (?, 3, 'earn', 'Testbuchung', ?, ?)
+  `).run(ALICE, rootId, ALICE);
+  db.prepare(`
+    INSERT INTO caldav_todo_pending_deletions (account_id, module, uid)
+    VALUES (?, 'tasks', 'remote-root')
+  `).run(target.accountId);
+
+  // BOB ist bewusst nur Mitglied: Listenloeschung darf nicht pauschal admin-only sein.
+  const r = await call('DELETE', `/lists/${target.listId}`, { as: { id: BOB, role: 'member' } });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.ok, true);
+  assert.equal(r.body.deleted_tasks, 2);
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM task_lists WHERE id = ?').get(target.listId).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE id IN (?, ?)').get(rootId, childId).n, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reminders WHERE entity_type = 'task' AND entity_id IN (?, ?)").get(rootId, childId).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM task_assignments WHERE task_id = ?').get(rootId).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM task_tags WHERE task_id = ?').get(rootId).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM task_comments WHERE task_id = ?').get(rootId).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM task_completions WHERE task_id = ?').get(rootId).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM caldav_todo_pending_deletions WHERE uid = ?').get('remote-root').n, 0);
+  assert.equal(db.prepare('SELECT task_id FROM reward_ledger WHERE reason = ?').get('Testbuchung').task_id, null,
+    'Reward-Historie bleibt erhalten und verliert nur die Task-Verknuepfung');
+  assert.ok(db.prepare('SELECT 1 FROM caldav_reminder_selection WHERE account_id = ? AND enabled = 0').get(target.accountId),
+    'Die deaktivierte Remote-Auswahl bleibt unveraendert');
+});
+
+test('DELETE /lists/:id: ein nicht loeschbares Task blockiert die gesamte Liste', async () => {
+  const target = seedDisabledCaldavTaskList('Gemischte Berechtigungen');
+  const allowedId = insertListTask({ listId: target.listId, title: 'Loeschbar' });
+  const forbiddenId = insertListTask({
+    listId: target.listId,
+    title: 'Gesperrt',
+    locked: 1,
+  });
+  db.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2030-02-01T09:00:00Z', ?),
+           ('task', ?, '2030-02-02T09:00:00Z', ?)
+  `).run(allowedId, ALICE, forbiddenId, ALICE);
+
+  const r = await call('DELETE', `/lists/${target.listId}`, { as: { id: BOB, role: 'member' } });
+  assert.equal(r.status, 403);
+  assert.equal(r.body.reason, 'task_list_tasks_not_deletable');
+  assert.ok(db.prepare('SELECT 1 FROM task_lists WHERE id = ?').get(target.listId));
+  assert.ok(db.prepare('SELECT 1 FROM tasks WHERE id = ?').get(allowedId), 'Loeschbarer Task darf nicht vorab verschwinden');
+  assert.ok(db.prepare('SELECT 1 FROM tasks WHERE id = ?').get(forbiddenId));
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reminders WHERE entity_type = 'task' AND entity_id IN (?, ?)").get(allowedId, forbiddenId).n, 2);
 });
 
 test('POST ohne Sync-Ziel laesst die Aufgabe lokal, wie jede bisher', async () => {

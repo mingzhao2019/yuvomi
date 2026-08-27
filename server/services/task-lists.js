@@ -2,7 +2,8 @@
  * Task-list identity shared by task routes and CalDAV VTODO sync.
  *
  * Stage 1 deliberately keeps this service small: it creates or refreshes the
- * provider-backed identity and leaves list CRUD/moving tasks for a later stage.
+ * provider-backed identity. List deletion is owned by the task route, while
+ * list creation and moving tasks remain outside this service for now.
  */
 
 import * as db from '../db.js';

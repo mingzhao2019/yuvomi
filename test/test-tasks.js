@@ -39,10 +39,12 @@ const in3days  = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
 
 console.log('\n[Tasks-Test] CRUD + Filter + Subtasks\n');
 
-test('Bulk-Aktionsleiste ist standardmäßig verborgen und zeigt Nullauswahl nur im Bulk-Modus', () => {
+test('Bulk-Aktionsleiste ist standardmäßig verborgen und bietet die Auswahl aller sichtbaren Aufgaben', () => {
   const source = readFileSync(new URL('../public/pages/tasks.js', import.meta.url), 'utf8');
   assert(source.includes('id="bulk-actions-bar" hidden'), 'Bulk-Leiste muss initial hidden gerendert werden');
-  assert(/bar\.hidden\s*=\s*!\(state\.bulkSelectMode && selected > 0\)/.test(source), 'Bulk-Leiste darf erst bei aktiver Auswahl sichtbar werden');
+  assert(/bar\.hidden\s*=\s*!state\.bulkSelectMode/.test(source), 'Bulk-Leiste muss im Bulk-Modus auch ohne Einzelauswahl sichtbar sein');
+  assert(source.includes('id="bulk-select-all"'), 'Bulk-Leiste muss eine Alles-auswählen-Checkbox enthalten');
+  assert(source.includes('function wireBulkSelectAll('), 'Alles-auswählen muss verdrahtet sein');
   assert(/button\.disabled\s*=\s*selected\s*===\s*0/.test(source), 'Bulk-Buttons müssen bei 0 Auswahl deaktiviert sein');
 });
 
@@ -250,6 +252,8 @@ test('Task Lists sind eine dauerhafte Navigation statt einer Filter- oder Gruppi
   assert(source.includes('task-list-nav__desktop'), 'die Desktop-Navigation muss die Quellen und ihre Listen verschachteln');
   assert(source.includes('task-list-nav__mobile'), 'die mobile Navigation muss eine eigene Darstellung rendern');
   assert(source.includes('task-list-mobile-select'), 'mobile Listen müssen über ein Select gewählt werden');
+  assert(source.includes('task-list-nav__delete'), 'konkrete Listen müssen eine Löschaktion anbieten');
+  assert(source.includes('function handleDeleteTaskList('), 'die Listenlöschung muss einen eigenen Handler haben');
   assert(source.includes("const TASK_LIST_SOURCE_SCOPE_PREFIX = 'source:'"),
     'eine Quelle muss von einer konkreten Liste unterscheidbar sein');
   assert(!source.includes('data-mode="task_list"'), 'Task List darf kein Gruppenmodus sein');

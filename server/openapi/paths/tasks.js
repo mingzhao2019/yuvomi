@@ -37,7 +37,16 @@ export function tasksPaths() {
       get: op({
         summary: 'List visible Task Lists',
         tag: 'Tasks',
-        description: 'Read-only Stage 1 view of provider-backed Task List identities. CalDAV collections are created or refreshed by discovery/sync; local tasks created before this model are returned in a null-id `local` compatibility bucket. Moving tasks and local-list CRUD are not part of this endpoint yet.',
+        description: 'Lists are provider-backed identities. CalDAV and Microsoft To Do list rows include `sync_enabled`; the null-id `local` row is the compatibility bucket for tasks created before Task Lists.',
+      }),
+    },
+    '/api/v1/tasks/lists/{id}': {
+      delete: op({
+        summary: 'Delete a Task List and its local tasks',
+        tag: 'Tasks',
+        params: [idParam()],
+        stateChanging: true,
+        description: 'The list must be disconnected from synchronization first. The endpoint checks the existing visibility and locked-task deletion rules for every task and descendant; if any task is not deletable, no task or list is removed. It deletes local tasks, subtasks, reminders, and task links, but never deletes the remote provider list or tasks, so a later sync may import them again.',
       }),
     },
     '/api/v1/tasks/completions': {

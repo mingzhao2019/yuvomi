@@ -1313,6 +1313,20 @@ function filteredTasks() {
   );
 }
 
+function selectableTaskIds() {
+  return filteredTasks()
+    .map((task) => Number(task.id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+/** Keep a selection tied to the currently visible list/search result. */
+function reconcileSelectedTaskIds() {
+  const visible = new Set(selectableTaskIds());
+  for (const id of state.selectedTaskIds) {
+    if (!visible.has(Number(id))) state.selectedTaskIds.delete(id);
+  }
+}
+
 // --------------------------------------------------------
 // API-Aktionen
 // --------------------------------------------------------
@@ -1349,6 +1363,12 @@ async function loadTasks(container) {
   const data  = await api.get(`/tasks${taskQuery()}`);
   state.tasks = data.data ?? [];
   renderTaskList(container);
+}
+
+async function loadTaskLists(container) {
+  const data = await api.get('/tasks/lists');
+  state.taskLists = data.data ?? [];
+  renderTaskLists(container);
 }
 
 /**
@@ -3413,6 +3433,7 @@ function renderTaskList(container) {
   }
   const listEl = container.querySelector('#task-list');
   if (!listEl) return;
+  reconcileSelectedTaskIds();
   listEl.replaceChildren();
   listEl.insertAdjacentHTML('beforeend', renderTaskGroups(filteredTasks(), state.groupMode));
   if (window.lucide) window.lucide.createIcons({ el: listEl });
@@ -3745,6 +3766,7 @@ function taskListSourceGroups() {
         name: local?.name || t('tasks.taskListLocal'),
         provider: 'local',
         account_name: null,
+        sync_enabled: 0,
         task_count: local?.task_count ?? 0,
       }],
     },
@@ -3753,7 +3775,6 @@ function taskListSourceGroups() {
   const byProvider = new Map();
   for (const rawList of state.taskLists ?? []) {
     if (rawList.id == null || rawList.provider === 'local') continue;
-    if (rawList.provider === 'microsoft_todo' && rawList.enabled === 0) continue;
     const provider = String(rawList.provider || 'unknown');
     if (!byProvider.has(provider)) byProvider.set(provider, []);
     byProvider.get(provider).push({ ...rawList, id: String(rawList.id) });
@@ -3794,8 +3815,7 @@ function normalizeActiveTaskList() {
     return;
   }
   if (state.taskLists.some((list) => list.id != null
-      && String(list.id) === scope
-      && !(list.provider === 'microsoft_todo' && list.enabled === 0))) return;
+      && String(list.id) === scope)) return;
   state.activeTaskListId = 'all';
 }
 
@@ -3830,6 +3850,94 @@ function activateTaskListScope(scope, container) {
   updateBulkActionsBar(container);
 }
 
+function isConcreteTaskList(item) {
+  return item?.id != null && item.provider !== 'local';
+}
+
+function taskListIsDisconnected(item) {
+  // An unknown state is intentionally treated as connected. A stale client
+  // must never turn an unavailable sync guard into a destructive action.
+  return Number(item?.sync_enabled) === 0;
+}
+
+function taskListOptionLabel(item) {
+  const label = taskListLabel(item);
+  return isConcreteTaskList(item) && taskListIsDisconnected(item)
+    ? `${label} · ${t('tasks.taskListSyncDisabled')}`
+    : label;
+}
+
+function makeTaskListDeleteButton(item, container) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'task-list-nav__delete';
+  button.disabled = !taskListIsDisconnected(item);
+  button.title = button.disabled
+    ? t('tasks.taskListSyncRequired')
+    : t('tasks.taskListDelete');
+  button.setAttribute('aria-label', `${t('tasks.taskListDelete')}: ${taskListLabel(item)}`);
+
+  const icon = document.createElement('i');
+  icon.setAttribute('data-lucide', 'trash-2');
+  icon.className = 'icon-md';
+  icon.setAttribute('aria-hidden', 'true');
+  button.appendChild(icon);
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleDeleteTaskList(item, container);
+  });
+  return button;
+}
+
+async function handleDeleteTaskList(item, container) {
+  if (!isConcreteTaskList(item)) return;
+  if (!taskListIsDisconnected(item)) {
+    window.yuvomi.showToast(t('tasks.taskListSyncRequired'), 'warning');
+    return;
+  }
+
+  const ok = await confirmModal(t('tasks.taskListDeleteConfirm', {
+    name: taskListLabel(item),
+  }), {
+    confirmLabel: t('common.delete'),
+    danger: true,
+    detail: t('tasks.taskListDeleteDetail'),
+  });
+  if (!ok) return;
+
+  const wasActive = String(state.activeTaskListId) === String(item.id);
+  try {
+    await api.delete(`/tasks/lists/${encodeURIComponent(item.id)}`);
+
+    state.taskLists = state.taskLists.filter((list) => String(list.id) !== String(item.id));
+    if (wasActive) {
+      state.activeTaskListId = 'all';
+      try { localStorage.setItem(ACTIVE_TASK_LIST_KEY, state.activeTaskListId); } catch {}
+    }
+    state.selectedTaskIds.clear();
+    renderTaskLists(container);
+
+    // The list endpoint is the source of truth after a delete. The local
+    // removal above keeps the page coherent even if this refresh is offline.
+    await loadTaskLists(container).catch(() => {});
+    await loadTasks(container).catch(() => renderTaskList(container));
+    refreshReminders();
+    window.yuvomi.showToast(t('tasks.taskListDeleted'), 'success');
+  } catch (err) {
+    if (err?.data?.reason === 'task_list_sync_active') {
+      await loadTaskLists(container).catch(() => {});
+      window.yuvomi.showToast(t('tasks.taskListSyncRequired'), 'warning');
+      return;
+    }
+    if (err?.data?.reason === 'task_list_tasks_not_deletable') {
+      window.yuvomi.showToast(t('tasks.taskListTasksNotDeletable'), 'danger');
+      return;
+    }
+    window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+  }
+}
+
 function appendTaskListNavButton(parent, item, container, { source = false } = {}) {
   const active = source
     ? taskListSourceKeyForScope() === item.key
@@ -3860,12 +3968,26 @@ function appendTaskListNavButton(parent, item, container, { source = false } = {
     account.textContent = item.account_name;
     text.appendChild(account);
   }
+  if (!source && isConcreteTaskList(item) && taskListIsDisconnected(item)) {
+    const syncState = document.createElement('span');
+    syncState.className = 'task-list-nav__status';
+    syncState.textContent = t('tasks.taskListSyncDisabled');
+    text.appendChild(syncState);
+    button.setAttribute('aria-label', `${taskListLabel(item)} · ${t('tasks.taskListSyncDisabled')}`);
+  }
 
   button.append(icon, text);
   button.addEventListener('click', () => {
     activateTaskListScope(source ? taskListSourceScope(item.key) : item.id, container);
   });
-  parent.appendChild(button);
+  if (!source && isConcreteTaskList(item)) {
+    const row = document.createElement('div');
+    row.className = 'task-list-nav__item-row';
+    row.append(button, makeTaskListDeleteButton(item, container));
+    parent.appendChild(row);
+  } else {
+    parent.appendChild(button);
+  }
 }
 
 function renderMobileTaskListNav(parent, groups, container) {
@@ -3904,7 +4026,7 @@ function renderMobileTaskListNav(parent, groups, container) {
     for (const item of group.lists) {
       const option = document.createElement('option');
       option.value = String(item.id);
-      option.textContent = taskListLabel(item);
+      option.textContent = taskListOptionLabel(item);
       select.appendChild(option);
     }
 
@@ -3924,6 +4046,13 @@ function renderMobileTaskListNav(parent, groups, container) {
       );
     });
     field.append(label, select);
+    const selectedList = group.lists.find((item) => String(item.id) === String(select.value));
+    if (selectedList && isConcreteTaskList(selectedList)) {
+      const actions = document.createElement('div');
+      actions.className = 'task-list-nav__mobile-actions';
+      actions.appendChild(makeTaskListDeleteButton(selectedList, container));
+      field.appendChild(actions);
+    }
     mobile.appendChild(field);
   }
   parent.appendChild(mobile);
@@ -4306,14 +4435,27 @@ function updateBulkActionsBar(container) {
   const count = container.querySelector('#bulk-count');
   if (!bar) return;
 
+  reconcileSelectedTaskIds();
   const selected = state.selectedTaskIds.size;
   const buttons = bar.querySelectorAll('button[id^="bulk-"]');
+  const selectAll = bar.querySelector('#bulk-select-all');
+  const visibleIds = state.viewMode === 'list' ? selectableTaskIds() : [];
+  const selectedVisible = visibleIds.filter((id) => state.selectedTaskIds.has(id)).length;
 
-  bar.hidden = !(state.bulkSelectMode && selected > 0);
+  bar.hidden = !state.bulkSelectMode;
   bar.classList.toggle('bulk-actions-bar--active', selected > 0);
   buttons.forEach((button) => {
     button.disabled = selected === 0;
   });
+
+  if (selectAll) {
+    selectAll.disabled = visibleIds.length === 0;
+    selectAll.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
+    selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
+    selectAll.setAttribute('aria-label', selectAll.checked
+      ? t('tasks.bulkClearSelection')
+      : t('tasks.bulkSelectAll'));
+  }
 
   if (count) {
     count.textContent = t('tasks.bulkSelectedCount', { count: selected });
@@ -4350,6 +4492,21 @@ function wireBulkCheckboxes(container) {
       state.selectedTaskIds.delete(taskId);
     }
     updateBulkActionsBar(container);
+  });
+}
+
+function wireBulkSelectAll(container) {
+  const selectAll = container.querySelector('#bulk-select-all');
+  if (!selectAll) return;
+
+  selectAll.addEventListener('change', () => {
+    const ids = selectableTaskIds();
+    if (selectAll.checked) {
+      ids.forEach((id) => state.selectedTaskIds.add(id));
+    } else {
+      ids.forEach((id) => state.selectedTaskIds.delete(id));
+    }
+    renderTaskList(container);
   });
 }
 
@@ -4625,6 +4782,10 @@ export async function render(container, { user }) {
         </div>
         <div class="filter-panel" id="filter-panel" hidden></div>
         <div class="bulk-actions-bar" id="bulk-actions-bar" hidden>
+          <label class="bulk-actions-bar__select-all">
+            <input type="checkbox" id="bulk-select-all" aria-label="${t('tasks.bulkSelectAll')}" />
+            <span>${t('tasks.bulkSelectAll')}</span>
+          </label>
           <span class="bulk-actions-bar__count" id="bulk-count"></span>
           <div class="bulk-actions-bar__actions">
             <button class="btn btn--secondary btn--sm" id="bulk-mark-done" data-status="done">
@@ -4725,6 +4886,7 @@ export async function render(container, { user }) {
   wireTaskList(container);
   wireBulkSelect(container);
   wireBulkCheckboxes(container);
+  wireBulkSelectAll(container);
   wireBulkActions(container);
   wireTagBadgeFilter(container);
   container.querySelector('#btn-manage-categories')

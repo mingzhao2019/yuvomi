@@ -394,6 +394,86 @@ function mayEditTaskDefinition(task, req) {
 
 const LOCKED_ERROR = { error: 'This task is locked; only its creator and administrators can change it.', code: 403 };
 
+class TaskListDeleteError extends Error {
+  constructor(status, message, reason) {
+    super(message);
+    this.statusCode = status;
+    this.reason = reason;
+  }
+}
+
+function tableExists(database, name) {
+  return !!database.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
+  ).get(name);
+}
+
+/** A disabled provider list can be removed locally and rediscovered later. */
+function taskListSyncEnabled(database, list) {
+  if (list.provider === 'microsoft_todo') return Number(list.enabled) === 1;
+  if (list.provider !== 'caldav') return false;
+  return !!database.prepare(`
+    SELECT 1
+      FROM caldav_reminder_selection
+     WHERE account_id = ?
+       AND list_url = ?
+       AND enabled = 1
+       AND target_module = 'tasks'
+  `).get(list.external_account_id, list.external_list_url);
+}
+
+/**
+ * All rows removed by a list delete, including descendants of a parent that
+ * belongs to the list. The recursive set mirrors the tasks FK cascade, while
+ * also covering a child whose own task_list_id is NULL or points elsewhere.
+ */
+function loadTaskListTaskRows(database, listId) {
+  return database.prepare(`
+    WITH RECURSIVE task_tree(id) AS (
+      SELECT id FROM tasks WHERE task_list_id = ?
+      UNION
+      SELECT child.id
+        FROM tasks child
+        JOIN task_tree parent ON parent.id = child.parent_task_id
+    )
+    SELECT t.*
+      FROM tasks t
+      JOIN task_tree tree ON tree.id = t.id
+     ORDER BY t.id
+  `).all(listId);
+}
+
+/**
+ * A list delete must not leave an old outbound tombstone behind: the remote
+ * list remains untouched and a later sync is allowed to import it again.
+ */
+function clearTaskListPendingDeletions(database, list, tasks) {
+  if (tableExists(database, 'caldav_todo_pending_deletions')) {
+    const clearCalDav = database.prepare(`
+      DELETE FROM caldav_todo_pending_deletions
+       WHERE account_id = ? AND module = 'tasks' AND uid = ?
+    `);
+    for (const task of tasks) {
+      if (task.external_source !== 'caldav'
+          || task.external_account_id == null || !task.external_uid) continue;
+      clearCalDav.run(task.external_account_id, task.external_uid);
+    }
+  }
+
+  if (tableExists(database, 'microsoft_todo_pending_deletions')) {
+    const clearMicrosoft = database.prepare(`
+      DELETE FROM microsoft_todo_pending_deletions
+       WHERE account_id = ? AND list_id = ? AND task_uid = ?
+    `);
+    for (const task of tasks) {
+      if (task.external_source !== 'microsoft_todo'
+          || task.external_account_id == null || !task.external_uid
+          || !list.external_list_id) continue;
+      clearMicrosoft.run(task.external_account_id, list.external_list_id, task.external_uid);
+    }
+  }
+}
+
 /**
  * Aufgaben-IDs, deren Definition diese Person anfassen darf - fuer die
  * Sammeloperationen, die nicht eine Aufgabe meinen, sondern viele (#830).
@@ -502,10 +582,8 @@ router.get('/categories', (_req, res) => {
 
 // --------------------------------------------------------
 // GET /api/v1/tasks/lists
-// First-class Task List identities. Stage 1 is read-only: lists are created by
-// CalDAV discovery/sync, while local list CRUD and moving tasks are deferred.
-// A null id is the compatibility bucket for existing local tasks that predate
-// Task Lists.
+// First-class Task List identities. A null id is the compatibility bucket for
+// existing local tasks that predate Task Lists.
 // --------------------------------------------------------
 router.get('/lists', (req, res) => {
   try {
@@ -525,6 +603,18 @@ router.get('/lists', (req, res) => {
              tl.created_at,
              tl.updated_at,
              COALESCE(tla.name, tlo.name) AS account_name,
+             CASE
+               WHEN tl.provider = 'microsoft_todo' THEN COALESCE(tl.enabled, 0)
+               WHEN tl.provider = 'caldav' THEN EXISTS (
+                 SELECT 1
+                   FROM caldav_reminder_selection s
+                  WHERE s.account_id = tl.external_account_id
+                    AND s.list_url = tl.external_list_url
+                    AND s.enabled = 1
+                    AND s.target_module = 'tasks'
+               )
+               ELSE 0
+             END AS sync_enabled,
              COUNT(t.id) AS task_count
         FROM task_lists tl
         LEFT JOIN caldav_accounts tla
@@ -535,7 +625,6 @@ router.get('/lists', (req, res) => {
           ON t.task_list_id = tl.id
          AND t.parent_task_id IS NULL
          AND ${visible}
-       WHERE tl.provider <> 'microsoft_todo' OR tl.enabled = 1
        GROUP BY tl.id
        ORDER BY CASE WHEN tl.provider = 'local' THEN 0 ELSE 1 END,
                 COALESCE(tla.name, tlo.name, ''), tl.name COLLATE NOCASE, tl.id
@@ -562,6 +651,7 @@ router.get('/lists', (req, res) => {
         created_at: null,
         updated_at: null,
         account_name: null,
+        sync_enabled: 0,
         task_count: local.task_count,
       });
     }
@@ -570,6 +660,76 @@ router.get('/lists', (req, res) => {
   } catch (err) {
     log.error('GET /lists error:', err);
     res.status(500).json({ error: 'Failed to list task lists.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// DELETE /api/v1/tasks/lists/:id
+// Remove one concrete list and all of its local tasks. The provider data is
+// deliberately left alone so a later sync can rediscover and import it.
+// --------------------------------------------------------
+router.delete('/lists/:id', (req, res) => {
+  const listId = Number(req.params.id);
+  if (!Number.isInteger(listId) || listId <= 0) {
+    return res.status(400).json({ error: 'Task list id must be a positive integer.', code: 400 });
+  }
+
+  try {
+    if (!taskListsTableExists()) {
+      return res.status(404).json({ error: 'Task list not found.', code: 404 });
+    }
+
+    const result = db.get().transaction(() => {
+      const database = db.get();
+      const list = database.prepare('SELECT * FROM task_lists WHERE id = ?').get(listId);
+      if (!list) throw new TaskListDeleteError(404, 'Task list not found.', 'task_list_not_found');
+
+      if (taskListSyncEnabled(database, list)) {
+        throw new TaskListDeleteError(
+          409,
+          'Disconnect task-list synchronization before deleting it.',
+          'task_list_sync_active',
+        );
+      }
+
+      const tasks = loadTaskListTaskRows(database, listId);
+      const me = req.authUserId || req.session.userId;
+      const hasForbiddenTask = tasks.some((task) =>
+        !mayAccessTask(task, me) || !mayEditTaskDefinition(task, req));
+      if (hasForbiddenTask) {
+        throw new TaskListDeleteError(
+          403,
+          'You cannot delete every task in this list.',
+          'task_list_tasks_not_deletable',
+        );
+      }
+
+      clearTaskListPendingDeletions(database, list, tasks);
+
+      if (tasks.length) {
+        const ids = tasks.map((task) => task.id);
+        const placeholders = ids.map(() => '?').join(', ');
+        database.prepare(`
+          DELETE FROM reminders
+           WHERE entity_type = 'task' AND entity_id IN (${placeholders})
+        `).run(...ids);
+        database.prepare(`DELETE FROM tasks WHERE id IN (${placeholders})`).run(...ids);
+      }
+
+      const deletedList = database.prepare('DELETE FROM task_lists WHERE id = ?').run(listId);
+      if (deletedList.changes === 0) {
+        throw new TaskListDeleteError(404, 'Task list not found.', 'task_list_not_found');
+      }
+      return { deletedTasks: tasks.length };
+    })();
+
+    return res.json({ ok: true, deleted_tasks: result.deletedTasks });
+  } catch (err) {
+    if (err instanceof TaskListDeleteError) {
+      return res.status(err.statusCode).json({ error: err.message, code: err.statusCode, reason: err.reason });
+    }
+    log.error('DELETE /lists/:id error:', err);
+    return res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
