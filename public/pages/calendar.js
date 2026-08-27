@@ -1070,7 +1070,9 @@ async function loadRange(from, to) {
       api.get(calPath),
       api.get("/tasks?include_future=1").catch((err) => { console.warn("[Calendar] Tasks fetch failed:", err); return { data: [] }; }),
       api.get(`/calendar/holidays?from=${from}&to=${to}`).catch(() => ({ data: [] })),
-      api.get(`/schedule/entries?from=${from}&to=${to}`).catch(() => ({ data: { entries: [] } })),
+      scheduleEnabled()
+        ? api.get(`/schedule/entries?from=${from}&to=${to}`).catch(() => ({ data: { entries: [] } }))
+        : Promise.resolve({ data: { entries: [] } }),
     ]);
     state.loadError = null;
     state.events = (evRes.data ?? []).map(localizeBirthdayEvent);
@@ -1260,7 +1262,12 @@ function renderToolbar() {
   // Weg zurueck: ohne sichtbare Geburtstage verschwaende der Knopf, der sie
   // wieder einschaltet.
   const showBirthdayToggle = hasBirthdayEvents() || !state.layerBirthdays;
-  const showScheduleToggle = state.scheduleEntries.length > 0 || !state.layerSchedule;
+  // Der zweite Zweig haelt den Knopf sichtbar, wenn die Ebene ausgeschaltet ist -
+  // sonst gaebe es keinen Weg zurueck. Er darf aber nicht ueber ein
+  // abgeschaltetes Modul hinweghelfen, sonst bliebe der Schalter stehen, wenn
+  // gerade niemand mehr etwas einschalten kann.
+  const showScheduleToggle = scheduleEnabled()
+    && (state.scheduleEntries.length > 0 || !state.layerSchedule);
 
   const holidayToggleHtml = (showHolidayToggle || showSchoolToggle || showBirthdayToggle || showScheduleToggle) ? `
     <div class="cal-toolbar__layers">
@@ -1823,6 +1830,17 @@ function scheduleEntriesOnDay(date) {
     ? state.scheduleEntries.filter((entry) => entry.date_key === date && entry.shift_type)
     : [];
 }
+
+/**
+ * Ist der Schichtplan im Haushalt ueberhaupt eingeschaltet?
+ *
+ * `disabled_modules` heisst "dieses Modul gibt es hier nicht". Der Routen-Guard
+ * schuetzt `/schedule` - der Kalender ist aber eine MISCHSTELLE: sein Pfad nennt
+ * ein Modul, sein Inhalt kommt aus mehreren. Ohne diese Frage laedt und zeigt er
+ * die Schichten eines abgeschalteten Moduls weiter, samt Ebenen-Knopf. Dasselbe
+ * Muster wie in dashboard.js und recipes.js.
+ */
+function scheduleEnabled() { return !window.yuvomi?.isModuleDisabled?.('schedule'); }
 
 function scheduleHasTimes(entry) { return Boolean(entry.shift_type?.start_time && entry.shift_type?.end_time); }
 
