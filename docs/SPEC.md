@@ -2368,6 +2368,74 @@ fans out via Web Push and the household channels (Gotify, ntfy, webhook). Medica
 (`type`, `note`) are indexed in the FTS5 `search_index` (migration 66) with the same
 owner-or-`family` visibility scoping applied at query time.
 
+### Schedule (migration 165, #786)
+
+Rotating shift patterns and fixed weekly timetables. **One cycle model, not two features:** a
+"week A / week B" timetable is a 14-day cycle, so it and an eight-day rotation share the same
+arithmetic instead of duplicating it. A pattern is not calendar recurrence — a rotation is a
+repeating sequence of *different* entries, which an RRULE cannot express without splitting it into
+several unrelated series.
+
+**Entries are computed on read, never materialized.** Nothing is copied into Calendar Events, so
+editing a pattern cannot leave stale appointments behind, and a two-year rotation costs one row
+instead of ~700. Resolution priority per day: an override beats the newest applicable pattern (by
+`valid_from`) beats nothing. A `NULL` override is an explicit free day, not a missing one.
+
+The module ships **disabled by default**, the same way Inventory does.
+
+#### Schedule Shift Types
+
+Reusable shifts belonging to the household, not to a person — they appear in every member's
+patterns. Any member may add one; renaming or deleting one is the creator's call, or an admin's
+(`created_by`). A type left orphaned by `ON DELETE SET NULL` falls to the admins.
+
+| Column | Type | Constraint |
+|--------|------|-----------|
+| name | TEXT | NOT NULL |
+| short_code | TEXT | optional, max 12 chars — the compact calendar strip shows this |
+| start_time / end_time | TEXT | HH:MM, both or neither (`CHECK`). `end <= start` means the shift crosses midnight; it stays on its start day |
+| color | TEXT | NOT NULL (default `#6C3AED`) |
+| created_by | INTEGER | FK → Users (SET NULL) — decides who may change it |
+| created_at / updated_at | TEXT | ISO 8601 |
+
+#### Schedule Patterns
+
+| Column | Type | Constraint |
+|--------|------|-----------|
+| user_id | INTEGER | NOT NULL, FK → Users (CASCADE) |
+| name | TEXT | NOT NULL |
+| anchor_date | TEXT | NOT NULL — day zero of the cycle; positions before it wrap backwards |
+| cycle_length | INTEGER | NOT NULL, `CHECK` 1–366 |
+| valid_from / valid_until | TEXT | optional bounds; NULL means open-ended |
+| is_active | INTEGER | NOT NULL (default 1) |
+| created_at / updated_at | TEXT | ISO 8601 |
+
+Overlapping patterns are not rejected — the newest `valid_from` wins and the response carries a
+`warnings[]` entry naming the date and the patterns, which the calendar surfaces as a chip. A hard
+rejection would block the ordinary case of a pattern that starts before the previous one is
+formally closed.
+
+#### Schedule Pattern Days
+
+| Column | Type | Constraint |
+|--------|------|-----------|
+| pattern_id | INTEGER | NOT NULL, FK → Schedule Patterns (CASCADE) |
+| position | INTEGER | NOT NULL, `CHECK >= 0`, `UNIQUE (pattern_id, position)` — 0 … cycle_length-1 |
+| shift_type_id | INTEGER | FK → Schedule Shift Types (RESTRICT) — NULL is a free day within the cycle |
+
+Shortening a pattern is refused while days sit beyond the new length, rather than silently dropping
+them.
+
+#### Schedule Overrides
+
+| Column | Type | Constraint |
+|--------|------|-----------|
+| user_id | INTEGER | NOT NULL, FK → Users (CASCADE), `UNIQUE (user_id, date_key)` |
+| date_key | TEXT | NOT NULL, YYYY-MM-DD |
+| shift_type_id | INTEGER | FK → Schedule Shift Types (RESTRICT) — **NULL is an explicit free day**, which is why deleting the override is the only way back to the pattern |
+| note | TEXT | optional |
+| created_at | TEXT | ISO 8601 |
+
 ### Access Permissions (migration v74)
 
 Role- and member-based access control for interactive users (#467). Governs which modules a
@@ -2847,6 +2915,26 @@ One page module with six deep-link routes (pattern like Settings, not like the K
 - **Search & shortcuts:** medications and activities appear in global search (FTS5) with the same visibility scoping and deep-link to the Meds/Activity tab; the `g h` keyboard shortcut jumps to the last-visited Health tab.
 - **Accessibility:** sub-tab bar and person/range chip rows expose `role="tablist"`/`tab` with arrow-key navigation and roving tabindex; SVG charts carry `role="img"` + `aria-label`; take/skip/save actions announce via the polite/assertive live regions; modals trap focus and restore it on close.
 - **API:** `GET/POST/PATCH/DELETE /api/v1/health/{vitals,medications,labs,activities}` (+ nested `…/medications/:id/schedules|logs`, `…/logs/:id/take|skip`, lab results), cycle endpoints `…/cycle/periods`, `…/cycle/logs` (upsert per day), `GET/PUT …/cycle/settings`, and `GET /api/v1/health/export/{vitals,activities,labs,meds-logs,cycle}` (text/csv). All handlers apply `user_id` scoping and `visibility` filtering.
+
+### Schedule (`/schedule`)
+
+Off by default. Four tabs (shift types, patterns, overrides, statistics) plus a "today" card.
+
+- **Scoping:** every household member may *read* the whole overlay — the family mostly needs to know
+  that one person is unavailable on Tuesday evening. A member writes only their own schedule; an
+  admin writes for anyone. Shift types are the exception, because they are shared: anyone may add
+  one, only the creator or an admin may change or remove it.
+- **Calendar overlay:** a separate, explicitly toggleable, **read-only** layer — never ordinary
+  editable events. It defaults to a compact strip rather than a full block, and the choice persists
+  per browser. Its colour comes from `--module-schedule` in `tokens.css`, not from the markup: the
+  holiday layers next to it carry an inline value because theirs is a *user setting*, and this one
+  is not.
+- **Overnight shifts** stay on their start day, so a night shift does not smear across two calendar
+  days. `end_time <= start_time` is what marks one; `end == start` is a 24-hour shift.
+- **API:** `GET /api/v1/schedule/entries?from=&to=&user_id=`, `GET/POST/PUT/DELETE
+  /api/v1/schedule/shift-types[/:id]`, `GET/POST/PUT/DELETE /api/v1/schedule/patterns[/:id]`,
+  `GET/PUT /api/v1/schedule/patterns/:id/days[/:position]`, `GET /api/v1/schedule/overrides`,
+  `PUT/DELETE /api/v1/schedule/overrides/:dateKey`.
 
 ### Rewards (`/rewards`)
 
