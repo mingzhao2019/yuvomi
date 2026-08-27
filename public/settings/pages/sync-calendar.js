@@ -34,7 +34,7 @@ function enabledCalendarCount(calendars) {
   return calendars.filter((cal) => cal.enabled).length;
 }
 
-function buildOutlookTodoLists(account, lists) {
+function buildOutlookTodoLists(account, lists, selection) {
   const wrap = document.createElement('div');
   wrap.className = 'form-group';
 
@@ -63,20 +63,9 @@ function buildOutlookTodoLists(account, lists) {
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.checked = item.enabled;
-    input.addEventListener('change', async () => {
-      const wanted = input.checked;
-      input.disabled = true;
-      try {
-        await api.patch(`/calendar/outlook/accounts/${account.id}/todo-lists`, {
-          listId: item.listId,
-          enabled: wanted,
-        });
-      } catch (err) {
-        input.checked = !wanted;
-        showToast(err.message || t('common.errorGeneric'), 'danger');
-      } finally {
-        input.disabled = false;
-      }
+    input.addEventListener('change', () => {
+      item.enabled = input.checked;
+      selection.markDirty();
     });
     const text = document.createElement('span');
     text.textContent = item.listName;
@@ -94,6 +83,7 @@ function buildOutlookTodoLists(account, lists) {
   refreshBtn.addEventListener('click', async () => {
     refreshBtn.disabled = true;
     try {
+      if (selection.dirty) await selection.save();
       await api.get(`/calendar/outlook/accounts/${account.id}/todo-lists?refresh=true`);
       showToast(t('settings.outlookTodoRefreshed'), 'success');
       window.yuvomi?.navigate('/settings/sync/calendar');
@@ -948,7 +938,7 @@ function buildOutlookInfoButton(text) {
   return help;
 }
 
-function buildOutlookCalendarList(account, calendars, user) {
+function buildOutlookCalendarList(account, calendars, user, selection) {
   const list = document.createElement('div');
   list.className = 'caldav-calendars-list';
   for (const cal of calendars) {
@@ -1000,23 +990,13 @@ function buildOutlookCalendarList(account, calendars, user) {
     row.append(toggle, windowField);
     list.appendChild(row);
 
-    checkbox.addEventListener('change', async () => {
-      const enabled = checkbox.checked;
-      await withBusy(checkbox, async () => {
-        try {
-          await api.patch(`/calendar/outlook/accounts/${account.id}/calendars`, {
-            calendarId: cal.calendarId,
-            enabled,
-          });
-          showToast(
-            enabled ? t('settings.calendarEnabled') : t('settings.calendarDisabled'),
-            'success',
-          );
-        } catch (err) {
-          checkbox.checked = !enabled;
-          showToast(err.message || t('common.errorGeneric'), 'danger');
-        }
-      });
+    checkbox.addEventListener('change', () => {
+      if (!checkbox.checked && account.autoSyncCalendarId === cal.calendarId) {
+        checkbox.checked = true;
+        return;
+      }
+      cal.enabled = checkbox.checked;
+      selection.markDirty();
     });
 
     dateInput.addEventListener('change', async () => {
@@ -1167,7 +1147,7 @@ function buildOutlookConflicts(account, conflicts) {
  * Termine automatisch gepusht werden. Beides admin-only, Partial-Update via
  * PUT /calendar/outlook/accounts/:id.
  */
-function buildOutlookAutoSyncControls(account, calendars) {
+function buildOutlookAutoSyncControls(account, calendars, selection) {
   const wrap = document.createElement('div');
   wrap.className = 'form-group';
 
@@ -1180,6 +1160,15 @@ function buildOutlookAutoSyncControls(account, calendars) {
     selectEl.disabled = true;
     try {
       await api.put(`/calendar/outlook/accounts/${account.id}`, payload);
+      if (Object.prototype.hasOwnProperty.call(payload, 'autoSyncCalendarId')) {
+        account.autoSyncCalendarId = payload.autoSyncCalendarId || null;
+      }
+      if (payload.autoSyncCalendarId) {
+        const selected = selection?.calendars.find(
+          (calendar) => calendar.calendarId === payload.autoSyncCalendarId,
+        );
+        if (selected) selected.enabled = true;
+      }
       showToast(t('settings.ics.updatedToast'), 'success');
     } catch (err) {
       selectEl.value = revertValue;
@@ -1248,6 +1237,63 @@ function buildOutlookAutoSyncControls(account, calendars) {
   return wrap;
 }
 
+function createOutlookSelection(account) {
+  const selection = {
+    calendars: [],
+    todoLists: [],
+    ready: false,
+    dirty: false,
+    saving: false,
+    saveButton: null,
+    updateSaveButton() {
+      if (!selection.saveButton) return;
+      selection.saveButton.disabled = !selection.dirty || selection.saving;
+      selection.saveButton.textContent = selection.saving
+        ? t('common.saving')
+        : t('common.save');
+    },
+    markDirty() {
+      selection.dirty = true;
+      selection.updateSaveButton();
+    },
+    async save() {
+      if (!selection.ready || !selection.dirty || selection.saving) return;
+      selection.saving = true;
+      selection.updateSaveButton();
+      try {
+        await api.put(`/calendar/outlook/accounts/${account.id}/selections`, {
+          calendarIds: selection.calendars.filter((cal) => cal.enabled).map((cal) => cal.calendarId),
+          todoListIds: selection.todoLists.filter((list) => list.enabled).map((list) => list.listId),
+        });
+        selection.dirty = false;
+        showToast(t('settings.outlookSelectionSaved'), 'success');
+      } catch (err) {
+        showToast(err.message || t('common.errorGeneric'), 'danger');
+        throw err;
+      } finally {
+        selection.saving = false;
+        selection.updateSaveButton();
+      }
+    },
+  };
+  return selection;
+}
+
+function buildOutlookSelectionActions(selection) {
+  const actions = document.createElement('div');
+  actions.className = 'settings-form-actions';
+  const saveButton = document.createElement('button');
+  saveButton.type = 'button';
+  saveButton.className = 'btn btn--primary btn--sm';
+  selection.saveButton = saveButton;
+  selection.updateSaveButton();
+  saveButton.addEventListener('click', async () => {
+    await selection.save().catch(() => {});
+  });
+  actions.appendChild(saveButton);
+  return actions;
+}
+
 function buildOutlookAccountCard(account, refresh, user) {
   const card = document.createElement('article');
   card.className = 'caldav-account-item';
@@ -1288,20 +1334,22 @@ function buildOutlookAccountCard(account, refresh, user) {
     title: account.name,
     status: (account.needsReauth || account.todoNeedsReauth)
       ? t('settings.outlookReauthRequired')
-      : (account.lastSync ? t('settings.connected') : t('settings.notConnected')),
+      : t('settings.connected'),
     details,
     action: syncAction,
-    tone: (account.needsReauth || account.todoNeedsReauth) ? 'warning' : (account.lastSync ? 'success' : 'neutral'),
+    tone: (account.needsReauth || account.todoNeedsReauth) ? 'warning' : 'success',
   }));
 
+  const selection = createOutlookSelection(account);
   (async () => {
     try {
       const calRes = await api.get(`/calendar/outlook/accounts/${account.id}/calendars`);
       const calendars = calRes.data || [];
+      selection.calendars = calendars;
       if (user?.role === 'admin') {
-        card.appendChild(buildOutlookAutoSyncControls(account, calendars));
+        card.appendChild(buildOutlookAutoSyncControls(account, calendars, selection));
       }
-      card.appendChild(buildOutlookCalendarList(account, calendars, user));
+      card.appendChild(buildOutlookCalendarList(account, calendars, user, selection));
       if (user?.role === 'admin') {
         try {
           const conflictRes = await api.get('/calendar/outlook/conflicts');
@@ -1314,7 +1362,10 @@ function buildOutlookAccountCard(account, refresh, user) {
       if (user?.role === 'admin') {
         try {
           const todoRes = await api.get(`/calendar/outlook/accounts/${account.id}/todo-lists?refresh=true`);
-          card.appendChild(buildOutlookTodoLists(account, todoRes.data || []));
+          selection.todoLists = todoRes.data || [];
+          selection.ready = true;
+          card.appendChild(buildOutlookTodoLists(account, selection.todoLists, selection));
+          card.appendChild(buildOutlookSelectionActions(selection));
         } catch (todoErr) {
           card.appendChild(createInlineError(todoErr.message || t('common.errorGeneric')));
         }
@@ -1336,6 +1387,7 @@ function buildOutlookAccountCard(account, refresh, user) {
     refreshBtn.addEventListener('click', async () => {
       refreshBtn.disabled = true;
       try {
+        if (selection.ready && selection.dirty) await selection.save();
         await api.get(`/calendar/outlook/accounts/${account.id}/calendars?refresh=true`);
         showToast(t('settings.calendarsRefreshed'), 'success');
         await refresh();

@@ -2,7 +2,7 @@
  * Calendar structure guard.
  *
  * Sichert die modulare Aufteilung von server/routes/calendar.js: der Orchestrator
- * muss dieselbe {Methode, Pfad}-Routentabelle wie vor dem Split ergeben (61
+ * muss dieselbe {Methode, Pfad}-Routentabelle wie vor dem Split ergeben (64
  * Routen), und die Cluster-Router müssen zusammen exakt diese Routen ergeben
  * (keine verlorene/doppelte Route). Zusätzlich wird die extern konsumierte
  * Re-Export-Fläche (__test.googleTarget, genutzt von test:google-multi) gepinnt.
@@ -129,16 +129,17 @@ const EXPECTED = [
   'POST /outlook/conflicts/:id/resolve',
   'GET /outlook/accounts/:id/todo-lists',
   'PATCH /outlook/accounts/:id/todo-lists',
+  'PUT /outlook/accounts/:id/selections',
   'POST /outlook/sync',
   'POST /outlook/todo/sync',
   'GET /outlook/status',
   'GET /outlook/todo/status',
 ];
 
-test('Orchestrator ergibt exakt die erwartete Routentabelle (63 Routen)', () => {
+test('Orchestrator ergibt exakt die erwartete Routentabelle (64 Routen)', () => {
   const actual = collectRoutes(calendarRouter).sort();
   assert.deepEqual(actual, [...EXPECTED].sort());
-  assert.equal(actual.length, 63);
+  assert.equal(actual.length, 64);
 });
 
 test('die Cluster-Router zusammen ergeben genau die Orchestrator-Routen (keine verlorene/doppelte Route)', () => {

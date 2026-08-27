@@ -664,6 +664,48 @@ function setCalendarEnabled(accountId, calendarId, enabled) {
 }
 
 /**
+ * Atomically replace the selected Outlook calendars for an account. The UI
+ * submits the complete selection after the user has finished choosing; this
+ * avoids losing the last few checkbox changes during page navigation.
+ */
+function setCalendarSelection(accountId, calendarIds, database = db.get(), { transactional = true } = {}) {
+  const ids = [...new Set(calendarIds)];
+  const known = database.prepare(
+    'SELECT calendar_id FROM outlook_calendar_selection WHERE account_id = ?'
+  ).all(accountId).map((row) => row.calendar_id);
+  const knownIds = new Set(known);
+  if (ids.some((id) => !knownIds.has(id))) {
+    throw new Error(`Calendar not found for account ${accountId}.`);
+  }
+
+  const apply = () => {
+    database.prepare(
+      'UPDATE outlook_calendar_selection SET enabled = 0 WHERE account_id = ?'
+    ).run(accountId);
+    if (ids.length) {
+      database.prepare(`
+        UPDATE outlook_calendar_selection SET enabled = 1
+        WHERE account_id = ? AND calendar_id IN (${ids.map(() => '?').join(', ')})
+      `).run(accountId, ...ids);
+    }
+    // The auto-sync target is an implicit selection. Keep it enabled even
+    // when a stale settings page submits a batch captured before the target
+    // was changed.
+    database.prepare(`
+      UPDATE outlook_calendar_selection
+         SET enabled = 1
+       WHERE account_id = ?
+         AND calendar_id = (
+           SELECT auto_sync_calendar_id FROM outlook_accounts WHERE id = ?
+         )
+    `).run(accountId, accountId);
+  };
+  if (transactional) database.transaction(apply)();
+  else apply();
+  return { success: true };
+}
+
+/**
  * Setzt den Beginn des Importfensters als absolutes Datum. `null` bedeutet
  * wieder „heute minus sechs Monate“. Bereits importierte Events bleiben dabei
  * unverändert; nur der Graph-Cursor dieses Kalenders wird neu aufgebaut.
@@ -2242,6 +2284,7 @@ export {
   listCalendars,
   listCalendarSelection,
   setCalendarEnabled,
+  setCalendarSelection,
   setCalendarSyncStartDate,
   listConflicts,
   resolveConflict,

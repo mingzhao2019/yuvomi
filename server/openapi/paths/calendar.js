@@ -132,6 +132,9 @@ export function calendarPaths() {
       get: op({ summary: 'List Microsoft To Do lists for an Outlook account', tag: 'Calendar', admin: true, params: [idParam()] }),
       patch: op({ summary: 'Enable or disable a Microsoft To Do list', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
     },
+    '/api/v1/calendar/outlook/accounts/{id}/selections': {
+      put: op({ summary: 'Replace Outlook calendar and To Do selections', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+    },
     '/api/v1/calendar/outlook/sync': {
       post: op({ summary: 'Run bidirectional Outlook calendar sync', tag: 'Calendar', admin: true, stateChanging: true }),
     },

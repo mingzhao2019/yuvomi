@@ -554,7 +554,14 @@ function deleteTaskReminderTree(database, taskId) {
   `).run(taskId);
 }
 
-function applyRemoteTasks(database, account, list, changes, timeZone = householdTimeZone(database)) {
+function applyRemoteTasks(
+  database,
+  account,
+  list,
+  changes,
+  timeZone = householdTimeZone(database),
+  { preserveTaskIds = new Set() } = {},
+) {
   const ownerId = accountOwner(database, account);
   const existing = database.prepare(`
     SELECT * FROM tasks
@@ -643,9 +650,15 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
   }
 
   // A full feed is authoritative for this list. Prune remote tasks absent from
-  // it, but leave dirty rows for the next outbound attempt.
+  // it, but leave dirty rows and tasks created in this same sync for the next
+  // delta. Graph may not expose a just-created task in the immediate snapshot.
   if (changes.fullResync) {
-    const stale = existing.filter((row) => row.external_uid && !seen.has(row.external_uid) && !row.outbound_dirty);
+    const stale = existing.filter((row) => (
+      row.external_uid
+      && !seen.has(row.external_uid)
+      && !row.outbound_dirty
+      && !preserveTaskIds.has(Number(row.id))
+    ));
     const deleteStale = database.prepare('DELETE FROM tasks WHERE id = ?');
     for (const row of stale) {
       deleteTaskReminderTree(database, row.id);
@@ -672,7 +685,7 @@ function upsertRemoteLists(database, accountId, remoteLists, ownerId) {
   const insert = database.prepare(`
     INSERT INTO task_lists
       (name, provider, external_account_id, external_list_id, created_by, enabled)
-    VALUES (?, ?, ?, ?, ?, 1)
+    VALUES (?, ?, ?, ?, ?, 0)
   `);
   const update = database.prepare(`
     UPDATE task_lists
@@ -749,6 +762,42 @@ export function setTaskListEnabled(accountId, listId, enabled, { database } = {}
      WHERE provider = ? AND external_account_id = ? AND external_list_id = ?
   `).run(enabled ? 1 : 0, MICROSOFT_TODO_PROVIDER, accountId, listId);
   if (!result.changes) throw new Error(`Microsoft To Do list not found for account ${accountId}.`);
+  return { success: true };
+}
+
+/**
+ * Atomically replace the selected Microsoft To Do lists for an account. New
+ * lists start disabled and only the explicit selection submitted by the user
+ * participates in a later sync.
+ */
+export function setTaskListSelection(accountId, listIds, { database, transactional = true } = {}) {
+  const activeDb = activeDatabase(database);
+  const ids = [...new Set(listIds)];
+  const known = activeDb.prepare(`
+    SELECT external_list_id
+      FROM task_lists
+     WHERE provider = ? AND external_account_id = ?
+  `).all(MICROSOFT_TODO_PROVIDER, accountId).map((row) => row.external_list_id);
+  const knownIds = new Set(known);
+  if (ids.some((id) => !knownIds.has(id))) {
+    throw new Error(`Microsoft To Do list not found for account ${accountId}.`);
+  }
+
+  const apply = () => {
+    activeDb.prepare(`
+      UPDATE task_lists SET enabled = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+       WHERE provider = ? AND external_account_id = ?
+    `).run(MICROSOFT_TODO_PROVIDER, accountId);
+    if (!ids.length) return;
+    activeDb.prepare(`
+      UPDATE task_lists
+         SET enabled = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+       WHERE provider = ? AND external_account_id = ?
+         AND external_list_id IN (${ids.map(() => '?').join(', ')})
+    `).run(MICROSOFT_TODO_PROVIDER, accountId, ...ids);
+  };
+  if (transactional) activeDb.transaction(apply)();
+  else apply();
   return { success: true };
 }
 
@@ -877,6 +926,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
   let created = 0;
   let updated = 0;
   let failed = 0;
+  const createdTaskIds = [];
   for (const task of candidates) {
     const dirtyBefore = task.outbound_dirty === 1 ? 1 : 0;
     const claim = task.external_source === 'local'
@@ -918,6 +968,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
             task.id,
             task.task_list_id,
           );
+          createdTaskIds.push(Number(task.id));
         }
         created += 1;
       } else {
@@ -976,11 +1027,13 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
                outbound_attempts = outbound_attempts + 1
          WHERE id = ?
       `).run(OUTBOUND_IN_FLIGHT, dirtyBefore, task.id);
+      database.prepare('UPDATE task_lists SET last_error = ? WHERE id = ?')
+        .run(safeError(error), task.task_list_id);
       failed += 1;
       log.error(`Outbound task sync failed for account ${account.id}, task ${task.id}:`, safeError(error));
     }
   }
-  return { created, updated, failed };
+  return { created, updated, failed, createdTaskIds };
 }
 
 /** Mark a mirrored Microsoft task for the next outbound PATCH. */
@@ -1093,6 +1146,21 @@ async function syncInternal({ database, fetchImpl = fetch, forceFull = false } =
       });
       setTodoReauth(activeDb, account.id, false);
 
+      // Push local edits before reading each remote delta. Completing a
+      // recurring task in Yuvomi must reach Graph before the next occurrence
+      // is discovered.
+      const outbound = await flushOutboundTasks(account, accessToken, {
+        database: activeDb,
+        fetchImpl,
+      });
+      result.created += outbound.created;
+      result.updated += outbound.updated;
+      result.failed += outbound.failed;
+      if (outbound.failed) {
+        accountFailed = true;
+        result.success = false;
+      }
+
       for (const list of discovered.rows) {
         if (!list.enabled || !discovered.remoteIds.has(String(list.external_list_id))) continue;
         try {
@@ -1106,7 +1174,9 @@ async function syncInternal({ database, fetchImpl = fetch, forceFull = false } =
           const completedFullResync = runFullResync || changes.fullResync;
           const syncedAt = nowIso();
           const counts = activeDb.transaction(() => {
-            const applied = applyRemoteTasks(activeDb, account, list, changes, timeZone);
+            const applied = applyRemoteTasks(activeDb, account, list, changes, timeZone, {
+              preserveTaskIds: new Set(outbound.createdTaskIds),
+            });
             activeDb.prepare(`
               UPDATE task_lists
                  SET sync_cursor = ?, last_sync = ?, last_full_sync = ?, last_error = NULL,
@@ -1135,16 +1205,6 @@ async function syncInternal({ database, fetchImpl = fetch, forceFull = false } =
         }
       }
 
-      if (!accountFailed) {
-        const outbound = await flushOutboundTasks(account, accessToken, {
-          database: activeDb,
-          fetchImpl,
-        });
-        result.created += outbound.created;
-        result.updated += outbound.updated;
-        result.failed += outbound.failed;
-        if (outbound.failed) accountFailed = true;
-      }
       if (!accountFailed) result.syncedAccounts += 1;
     } catch (error) {
       result.success = false;

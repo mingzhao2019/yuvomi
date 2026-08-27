@@ -116,23 +116,27 @@ expects and use the fields below where the notification's values belong:
 | `{{location}}`, `{{allDay}}` | Event location and all-day flag |
 
 Use quoted placeholders for text values. The settings page shows a copyable
-example for each scope. Personal channels use a compact task/event message:
+example for each scope. Personal channels use the same Yuvomi envelope with
+the task/event fields most often needed by an individual:
 
 ```json
-{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🔗 {{url}}"}
+{"event":"notification","notification":{"title":"🔔 {{title}}","body":"📌 {{body}}","description":"📄 {{description}}","dueDate":"📅 {{dueDate}}","dueTime":"{{dueTime}}","startDate":"🚀 {{startDate}}","startTime":"{{startTime}}","endDate":"🏁 {{endDate}}","endTime":"{{endTime}}","url":"🔗 {{url}}"},"sentAt":"{{sentAt}}"}
 ```
 
 Household channels receive notifications from every module, so their example
-also includes the generic system context and delivery fields:
+uses the same envelope and also includes the generic system context and
+delivery fields:
 
 ```json
-{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🧩 {{entityType}} #{{entityId}}\n📝 {{details}}\n⏰ {{remindAt}}\n📤 {{sentAt}}\n🔗 {{url}}"}
+{"event":"notification","notification":{"title":"🔔 {{title}}","body":"📌 {{body}}","description":"📄 {{description}}","details":"📝 {{details}}","entityType":"🧩 {{entityType}}","entityId":"{{entityId}}","dueDate":"📅 {{dueDate}}","dueTime":"{{dueTime}}","startDate":"🚀 {{startDate}}","startTime":"{{startTime}}","endDate":"🏁 {{endDate}}","endTime":"{{endTime}}","remindAt":"⏰ {{remindAt}}","url":"🔗 {{url}}","tag":"{{tag}}","priority":"{{priority}}","category":"{{category}}","taskPriority":"{{taskPriority}}","status":"{{status}}","location":"{{location}}","allDay":"{{allDay}}"},"sentAt":"📤 {{sentAt}}"}
 ```
 
-The examples remain in the input placeholder so an empty template still keeps
-Yuvomi's default body. Since a placeholder cannot be selected with the mouse
-or keyboard, **Copy example** beside either template field copies the complete
-visible example, including Emoji characters, ready to paste into the field.
+The settings page shows these examples in the template placeholder; an empty
+template still keeps Yuvomi's default body. Both scopes use the same event →
+notification → fields shape; the household example simply exposes more system
+context. Since a placeholder cannot be selected with the mouse or keyboard,
+**Copy example** beside either template field copies the complete visible
+example, including Emoji characters, ready to paste into the field.
 
 Notes:
 

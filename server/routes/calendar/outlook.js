@@ -13,6 +13,7 @@ import express from 'express';
 import * as outlookCalendar from '../../services/outlook-calendar.js';
 import * as microsoftTodo from '../../services/microsoft-todo.js';
 import { requireAdmin } from '../../auth.js';
+import * as db from '../../db.js';
 
 const log = createLogger('Calendar');
 const router = express.Router();
@@ -33,8 +34,8 @@ router.get('/outlook/auth', requireAdmin, (req, res) => {
 
 /**
  * GET /api/v1/calendar/outlook/callback
- * OAuth-Callback von Microsoft. Tauscht Code gegen Tokens, lädt die Kalender
- * und stößt einen initialen Push an.
+ * OAuth-Callback von Microsoft. Tauscht Code gegen Tokens und lädt nur die
+ * Auswahl-Metadaten. Ein Daten-Sync beginnt erst nach der Benutzer-Auswahl.
  * Query: ?code=...&state=...
  */
 router.get('/outlook/callback', async (req, res) => {
@@ -51,8 +52,6 @@ router.get('/outlook/callback', async (req, res) => {
     delete req.session.outlookOAuthState;
 
     await outlookCalendar.handleCallback(code);
-    await outlookCalendar.sync();
-    await microsoftTodo.sync();
 
     res.redirect('/settings?sync_ok=outlook');
   } catch (err) {
@@ -250,6 +249,41 @@ router.patch('/outlook/accounts/:id/todo-lists', requireAdmin, (req, res) => {
   } catch (err) {
     log.error('Microsoft To Do list selection update failed:', err);
     res.status(500).json({ error: err.message || 'Failed to update Microsoft To Do list.', code: 500 });
+  }
+});
+
+/**
+ * PUT /api/v1/calendar/outlook/accounts/:id/selections
+ * Admin only. Replace the complete calendar and To Do selection atomically.
+ * Body: { calendarIds: string[], todoListIds: string[] }
+ */
+router.put('/outlook/accounts/:id/selections', requireAdmin, (req, res) => {
+  try {
+    const accountId = parseInt(req.params.id, 10);
+    const { calendarIds, todoListIds } = req.body || {};
+    const validIds = (value) => Array.isArray(value)
+      && value.every((id) => typeof id === 'string' && id.length > 0);
+    if (!validIds(calendarIds) || !validIds(todoListIds)) {
+      return res.status(400).json({
+        error: 'calendarIds und todoListIds müssen Arrays nichtleerer Strings sein.',
+        code: 400,
+      });
+    }
+
+    // Both services use the same SQLite connection. Validate all identifiers
+    // before changing either table, then commit both selections together.
+    const connection = db.get();
+    connection.transaction(() => {
+      outlookCalendar.setCalendarSelection(accountId, calendarIds, connection, { transactional: false });
+      microsoftTodo.setTaskListSelection(accountId, todoListIds, {
+        database: connection,
+        transactional: false,
+      });
+    })();
+    res.json({ data: { success: true } });
+  } catch (err) {
+    log.error('Outlook selection update failed:', err);
+    res.status(400).json({ error: err.message || 'Failed to save Outlook selections.', code: 400 });
   }
 });
 

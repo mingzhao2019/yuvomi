@@ -3818,6 +3818,12 @@ function taskListSourceGroups() {
   const byProvider = new Map();
   for (const rawList of state.taskLists ?? []) {
     if (rawList.id == null || rawList.provider === 'local') continue;
+    // The API also serves disconnected lists so the user can delete them
+    // locally. A newly discovered, empty Microsoft list is not a navigation
+    // target until it has been selected or imported.
+    if (rawList.provider === 'microsoft_todo'
+        && Number(rawList.enabled) !== 1
+        && Number(rawList.task_count) === 0) continue;
     const provider = String(rawList.provider || 'unknown');
     if (!byProvider.has(provider)) byProvider.set(provider, []);
     byProvider.get(provider).push({ ...rawList, id: String(rawList.id) });

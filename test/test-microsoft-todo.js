@@ -187,6 +187,11 @@ test('converts To Do due dates through the household timezone and keeps date-onl
 test('discovers lists, imports delta tasks, and persists the per-list cursor', async () => {
   const ownerId = insertUser();
   const accountId = insertAccount(ownerId);
+  database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Work', 'microsoft_todo', ?, 'list-work', ?, 1)
+  `).run(accountId, ownerId);
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
     const parsed = new URL(url);
@@ -250,6 +255,79 @@ test('discovers lists, imports delta tasks, and persists the per-list cursor', a
   assert.equal(calls[0].search, '?$top=100');
   assert.equal(calls[1].search, '');
   assert.equal(calls[1].headers['Content-Type'], 'application/json');
+});
+
+test('completing a recurring To Do task pushes status before importing the next occurrence', async () => {
+  const ownerId = insertUser('todo-owner-recurring-completion');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Recurring', 'microsoft_todo', ?, 'list-recurring', ?, 1)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const taskId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, due_date, is_recurring, recurrence_rule, outbound_dirty)
+    VALUES ('Monthly task', ?, 'microsoft_todo', ?, 'remote-current', ?,
+            'done', '2026-08-15', 1, 'FREQ=MONTHLY', 1)
+  `).run(ownerId, accountId, listId).lastInsertRowid;
+
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const method = options.method || 'GET';
+    calls.push({ path: parsed.pathname, method, body: options.body ? JSON.parse(options.body) : null });
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-recurring', displayName: 'Recurring' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring/tasks/remote-current' && method === 'PATCH') {
+      return response(204);
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring/tasks/delta') {
+      return response(200, {
+        value: [
+          {
+            id: 'remote-current',
+            title: 'Monthly task',
+            status: 'completed',
+            importance: 'normal',
+            dueDateTime: { dateTime: '2026-08-15T00:00:00.0000000', timeZone: 'UTC' },
+            recurrence: {
+              pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+              range: { type: 'noEnd', startDate: '2026-08-15' },
+            },
+          },
+          {
+            id: 'remote-next',
+            title: 'Monthly task',
+            status: 'notStarted',
+            importance: 'normal',
+            dueDateTime: { dateTime: '2026-09-15T00:00:00.0000000', timeZone: 'UTC' },
+            recurrence: {
+              pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+              range: { type: 'noEnd', startDate: '2026-08-15' },
+            },
+          },
+        ],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-recurring/tasks/delta?$deltatoken=next-occurrence',
+      });
+    }
+    throw new Error('Unexpected Graph request ' + method + ' ' + parsed.pathname + parsed.search);
+  };
+
+  const result = await todo.sync({ database, fetchImpl });
+
+  assert.equal(result.success, true);
+  assert.equal(result.updated, 2, 'one outbound update and one imported completion');
+  assert.equal(result.created, 1);
+  assert.equal(calls.find((call) => call.method === 'PATCH').body.status, 'completed');
+  assert.ok(calls.findIndex((call) => call.method === 'PATCH') < calls.findIndex((call) => call.path.endsWith('/tasks/delta')));
+  assert.equal(database.prepare('SELECT status, outbound_dirty FROM tasks WHERE id = ?').get(taskId).status, 'done');
+  assert.equal(database.prepare('SELECT outbound_dirty FROM tasks WHERE id = ?').get(taskId).outbound_dirty, 0);
+  const next = database.prepare(`SELECT status, due_date FROM tasks WHERE external_uid = 'remote-next'`).get();
+  assert.deepEqual(next, { status: 'open', due_date: '2026-09-15' });
+  assert.equal(database.prepare(`SELECT COUNT(*) AS n FROM tasks WHERE external_uid = 'remote-current'`).get().n, 1);
 });
 
 test('manual sync forces a full reconciliation and removes a stale mirrored task', async () => {
@@ -651,6 +729,25 @@ test('retains a disabled Microsoft To Do list after list discovery refresh', asy
   assert.equal(lists.length, 1);
   assert.equal(lists[0].listName, 'Renamed remotely');
   assert.equal(lists[0].enabled, false, 'refresh must not re-enable a manually disabled list');
+});
+
+test('new Microsoft To Do lists stay disabled until explicitly selected', async () => {
+  const ownerId = insertUser('todo-owner-new-list');
+  const accountId = insertAccount(ownerId);
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    assert.equal(parsed.pathname, '/v1.0/me/todo/lists');
+    return response(200, { value: [{ id: 'list-new-disabled', displayName: 'New list' }] });
+  };
+
+  const lists = await todo.listTaskLists(accountId, { refresh: true, database, fetchImpl });
+  assert.equal(lists.length, 1);
+  assert.equal(lists[0].enabled, false, 'a newly discovered list must not import before selection');
+
+  todo.setTaskListSelection(accountId, ['list-new-disabled'], { database });
+  assert.equal(database.prepare('SELECT enabled FROM task_lists WHERE external_list_id = ?').get('list-new-disabled').enabled, 1);
+  todo.setTaskListSelection(accountId, [], { database });
+  assert.equal(database.prepare('SELECT enabled FROM task_lists WHERE external_list_id = ?').get('list-new-disabled').enabled, 0);
 });
 
 test('migration v164 preserves provider values from extension-backed installations', () => {

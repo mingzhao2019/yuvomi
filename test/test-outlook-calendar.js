@@ -350,6 +350,27 @@ describe('Outlook bidirectional sync', () => {
     outlook.updateAccount(accountId, { autoSyncCalendarId: null });
   });
 
+  it('一次性替换日历选择并保留未选择项为关闭', () => {
+    assert.deepEqual(outlook.setCalendarSelection(accountId, ['cal-disabled'], db), { success: true });
+    const rows = db.prepare(
+      'SELECT calendar_id, enabled FROM outlook_calendar_selection WHERE account_id = ? ORDER BY calendar_id'
+    ).all(accountId);
+    assert.deepEqual(rows, [
+      { calendar_id: 'cal-A', enabled: 0 },
+      { calendar_id: 'cal-disabled', enabled: 1 },
+    ]);
+    outlook.setCalendarSelection(accountId, ['cal-A'], db);
+    outlook.updateAccount(accountId, { autoSyncCalendarId: 'cal-A' });
+    outlook.setCalendarSelection(accountId, [], db);
+    assert.equal(
+      db.prepare(
+        "SELECT enabled FROM outlook_calendar_selection WHERE account_id = ? AND calendar_id = 'cal-A'"
+      ).get(accountId).enabled,
+      1,
+    );
+    outlook.updateAccount(accountId, { autoSyncCalendarId: null });
+  });
+
   it('使用 calendarView/delta，推送本地事件并保存游标', async () => {
     const fetchImpl = makeFetch((call) => {
       const delta = answerDelta(call);

@@ -19,12 +19,12 @@ const DEFAULT_PROVIDERS = [
 
 // Die Beispiele bleiben absichtlich in der Seite und nicht nur im Tooltip:
 // Ein HTML-placeholder ist sichtbar, aber nicht mit der Maus markierbar. Der
-// Kopierknopf liest deshalb genau diese Werte aus. Persönliche Meldungen
-// konzentrieren sich auf den Inhalt; der Haushalt empfängt zusätzlich die
+// Kopierknopf liest deshalb genau diese Werte aus. Beide Bereiche verwenden
+// denselben Yuvomi-Webhookschema; der Haushaltskanal zeigt zusätzlich die
 // technische Herkunft und Zustellungsdaten aller Module.
 const TEMPLATE_EXAMPLES = Object.freeze({
   user: Object.freeze({
-    webhook: String.raw`{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🔗 {{url}}"}`,
+    webhook: String.raw`{"event":"notification","notification":{"title":"🔔 {{title}}","body":"📌 {{body}}","description":"📄 {{description}}","dueDate":"📅 {{dueDate}}","dueTime":"{{dueTime}}","startDate":"🚀 {{startDate}}","startTime":"{{startTime}}","endDate":"🏁 {{endDate}}","endTime":"{{endTime}}","url":"🔗 {{url}}"},"sentAt":"{{sentAt}}"}`,
     message_pusher: `🔔 {{title}} — {{body}}
 📄 {{description}}
 📅 {{dueDate}} {{dueTime}}
@@ -32,7 +32,7 @@ const TEMPLATE_EXAMPLES = Object.freeze({
 🔗 {{url}}`,
   }),
   household: Object.freeze({
-    webhook: String.raw`{"content":"🔔 {{title}} — {{body}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n🚀 {{startDate}} {{startTime}}\n🧩 {{entityType}} #{{entityId}}\n📝 {{details}}\n⏰ {{remindAt}}\n📤 {{sentAt}}\n🔗 {{url}}"}`,
+    webhook: String.raw`{"event":"notification","notification":{"title":"🔔 {{title}}","body":"📌 {{body}}","description":"📄 {{description}}","details":"📝 {{details}}","entityType":"🧩 {{entityType}}","entityId":"{{entityId}}","dueDate":"📅 {{dueDate}}","dueTime":"{{dueTime}}","startDate":"🚀 {{startDate}}","startTime":"{{startTime}}","endDate":"🏁 {{endDate}}","endTime":"{{endTime}}","remindAt":"⏰ {{remindAt}}","url":"🔗 {{url}}","tag":"{{tag}}","priority":"{{priority}}","category":"{{category}}","taskPriority":"{{taskPriority}}","status":"{{status}}","location":"{{location}}","allDay":"{{allDay}}"},"sentAt":"📤 {{sentAt}}"}`,
     message_pusher: `🔔 {{title}} — {{body}}
 📄 {{description}}
 📅 {{dueDate}} {{dueTime}}
