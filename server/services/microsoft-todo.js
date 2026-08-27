@@ -302,8 +302,11 @@ async function fetchTaskDelta(listId, cursor, accessToken, fetchImpl = fetch, al
 
 function importanceToPriority(importance) {
   if (importance === 'high') return 'high';
-  if (importance === 'low') return 'low';
-  return 'medium';
+  // Microsoft To Do presents importance as a star: an unstarred task is
+  // ordinary for this integration. Graph exposes a `low` enum as well, but it
+  // has no separate To Do UI state and must not turn an ordinary task into a
+  // Yuvomi low-priority task.
+  return 'none';
 }
 
 function statusToLocal(status) {
@@ -351,9 +354,51 @@ function plainTextToHtml(value) {
 }
 
 function graphTimeZone(value) {
-  const raw = String(value || 'UTC').trim();
+  const raw = String(value || '').trim();
+  if (!raw) return 'UTC';
   const zone = WINDOWS_TIME_ZONES.get(raw.toLowerCase()) || raw;
-  return isValidTimeZone(zone) ? zone : 'UTC';
+  return isValidTimeZone(zone) ? zone : null;
+}
+
+function graphDateTimeToUtc(dateTime) {
+  const value = typeof dateTime?.dateTime === 'string' ? dateTime.dateTime.trim() : '';
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/.exec(value);
+  if (!match) return null;
+
+  const local = `${match[1]}T${match[2]}:${match[3] || '00'}`;
+  const explicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  const sourceTimeZone = graphTimeZone(dateTime?.timeZone);
+  // An unknown provider zone is not permission to reinterpret the wall clock
+  // as UTC. Preserve the existing local reminder until Graph supplies a zone
+  // we can resolve; otherwise a provider-side rename would move the reminder.
+  if (!explicitZone && !sourceTimeZone) return null;
+  const utc = explicitZone ? value : localToUTC(local, sourceTimeZone);
+  const parsed = new Date(utc);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function storedUtcValue(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const parsed = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw}Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 19);
+}
+
+function remoteReminderState(remote) {
+  const hasReminderFields = Object.prototype.hasOwnProperty.call(remote || {}, 'isReminderOn')
+    || Object.prototype.hasOwnProperty.call(remote || {}, 'reminderDateTime');
+  if (!hasReminderFields) return { known: false, remind_at: null };
+  if (remote?.isReminderOn === false || (!remote?.isReminderOn && !remote?.reminderDateTime)) {
+    return { known: true, remind_at: null };
+  }
+  if (remote?.isReminderOn === true && !remote?.reminderDateTime) {
+    return { known: true, remind_at: null, invalid: true };
+  }
+  const utc = graphDateTimeToUtc(remote.reminderDateTime);
+  // Do not erase an existing reminder when Graph sends an enabled but malformed
+  // timestamp. The next sync can repair it once the provider returns a valid
+  // value.
+  return { known: true, remind_at: utc ? utc.slice(0, 19) : null, invalid: !utc };
 }
 
 function dueDateParts(dueDateTime, targetTimeZone = householdTimeZone(null)) {
@@ -371,7 +416,12 @@ function dueDateParts(dueDateTime, targetTimeZone = householdTimeZone(null)) {
     }
     utc = parsed.toISOString();
   } else {
-    utc = localToUTC(`${match[1]}T${match[2]}:00`, graphTimeZone(dueDateTime?.timeZone));
+    const sourceTimeZone = graphTimeZone(dueDateTime?.timeZone);
+    // Keep an unresolved provider wall clock intact rather than silently
+    // shifting it through UTC. Known Microsoft Windows IDs and IANA IDs take
+    // the normal conversion path above.
+    if (!sourceTimeZone) return { due_date: match[1], due_time: match[2] === '00:00' ? null : match[2] };
+    utc = localToUTC(`${match[1]}T${match[2]}:00`, sourceTimeZone);
   }
   const wall = utcToWall(utc, targetTimeZone);
   if (!wall) return { due_date: match[1], due_time: match[2] === '00:00' ? null : match[2] };
@@ -384,6 +434,7 @@ function dueDateParts(dueDateTime, targetTimeZone = householdTimeZone(null)) {
 
 function remoteTaskValues(remote, timeZone = householdTimeZone(null)) {
   const due = dueDateParts(remote.dueDateTime, timeZone);
+  const reminder = remoteReminderState(remote);
   return {
     title: String(remote.title || 'Microsoft To Do task').trim() || 'Microsoft To Do task',
     description: graphBodyText(remote.body),
@@ -391,11 +442,77 @@ function remoteTaskValues(remote, timeZone = householdTimeZone(null)) {
     status: statusToLocal(remote.status),
     due_date: due.due_date,
     due_time: due.due_time,
+    remind_at: reminder.remind_at,
   };
 }
 
 function graphTaskUrl(listId, taskId) {
   return `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(taskId)}`;
+}
+
+function taskReminder(database, task) {
+  if (!database || !task?.id) return null;
+  return database.prepare(`
+    SELECT * FROM reminders
+     WHERE entity_type = 'task' AND entity_id = ? AND created_by = ?
+     ORDER BY created_at DESC, id DESC
+     LIMIT 1
+  `).get(task.id, task.created_by);
+}
+
+function applyRemoteReminder(database, taskId, ownerId, remote) {
+  if (ownerId == null) return;
+  const state = remoteReminderState(remote);
+  if (!state.known || state.invalid) return;
+
+  const existing = database.prepare(`
+    SELECT * FROM reminders
+     WHERE entity_type = 'task' AND entity_id = ? AND created_by = ?
+     ORDER BY created_at DESC, id DESC
+     LIMIT 1
+  `).get(taskId, ownerId);
+
+  if (!state.remind_at) {
+    database.prepare(`
+      DELETE FROM reminders
+       WHERE entity_type = 'task' AND entity_id = ? AND created_by = ?
+    `).run(taskId, ownerId);
+    return;
+  }
+
+  // Keep a locally dismissed reminder dismissed while the remote instant is
+  // unchanged. Dismissal is a local acknowledgement, not a request to disable
+  // the Microsoft reminder.
+  if (existing?.remind_at === state.remind_at) {
+    database.prepare(`
+      DELETE FROM reminders
+       WHERE entity_type = 'task' AND entity_id = ? AND created_by = ? AND id != ?
+    `).run(taskId, ownerId, existing.id);
+    return;
+  }
+
+  database.prepare(`
+    DELETE FROM reminders
+     WHERE entity_type = 'task' AND entity_id = ? AND created_by = ?
+  `).run(taskId, ownerId);
+  database.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, ?, ?)
+  `).run(taskId, state.remind_at, ownerId);
+}
+
+function deleteTaskReminderTree(database, taskId) {
+  database.prepare(`
+    WITH RECURSIVE descendants(id) AS (
+      SELECT id FROM tasks WHERE id = ?
+      UNION ALL
+      SELECT child.id
+        FROM tasks child
+        JOIN descendants parent ON child.parent_task_id = parent.id
+    )
+    DELETE FROM reminders
+     WHERE entity_type = 'task' AND entity_id IN (SELECT id FROM descendants)
+  `).run(taskId);
 }
 
 function applyRemoteTasks(database, account, list, changes, timeZone = householdTimeZone(database)) {
@@ -438,6 +555,7 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
       // that its previous remote object disappeared. Deleting the dirty row
       // here would lose the user's edit before the 404->POST recovery runs.
       if (old?.outbound_dirty) continue;
+      if (old) deleteTaskReminderTree(database, old.id);
       if (remove.run(MICROSOFT_TODO_SOURCE, account.id, uid, list.id).changes) deleted += 1;
       continue;
     }
@@ -458,9 +576,10 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
         list.id,
         old.id,
       );
+      applyRemoteReminder(database, old.id, ownerId, remote);
       updated += 1;
     } else {
-      insert.run(
+      const result = insert.run(
         values.title,
         values.description,
         values.priority,
@@ -474,6 +593,7 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
         graphTaskUrl(list.external_list_id, uid),
         list.id,
       );
+      applyRemoteReminder(database, Number(result.lastInsertRowid), ownerId, remote);
       created += 1;
     }
   }
@@ -484,6 +604,7 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
     const stale = existing.filter((row) => row.external_uid && !seen.has(row.external_uid) && !row.outbound_dirty);
     const deleteStale = database.prepare('DELETE FROM tasks WHERE id = ?');
     for (const row of stale) {
+      deleteTaskReminderTree(database, row.id);
       if (deleteStale.run(row.id).changes) deleted += 1;
     }
   }
@@ -587,11 +708,11 @@ export function setTaskListEnabled(accountId, listId, enabled, { database } = {}
   return { success: true };
 }
 
-function graphTaskPayload(task, timeZone = householdTimeZone(null)) {
+function graphTaskPayload(task, timeZone = householdTimeZone(null), database = null) {
   const payload = {
     title: String(task.title || 'Microsoft To Do task'),
     status: task.status === 'done' ? 'completed' : task.status === 'in_progress' ? 'inProgress' : 'notStarted',
-    importance: ['high', 'urgent'].includes(task.priority) ? 'high' : task.priority === 'low' ? 'low' : 'normal',
+    importance: ['high', 'urgent'].includes(task.priority) ? 'high' : 'normal',
   };
   const description = String(task.description || '');
   payload.body = { content: plainTextToHtml(description), contentType: 'html' };
@@ -605,6 +726,12 @@ function graphTaskPayload(task, timeZone = householdTimeZone(null)) {
       ? { dateTime: local, timeZone }
       : { dateTime: parsed.toISOString().slice(0, 19), timeZone: 'UTC' };
   }
+  const reminder = taskReminder(database, task);
+  const remindAt = storedUtcValue(reminder?.remind_at);
+  payload.isReminderOn = !!remindAt;
+  payload.reminderDateTime = remindAt
+    ? { dateTime: remindAt, timeZone: 'UTC' }
+    : null;
   return payload;
 }
 
@@ -708,7 +835,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
       if (task.external_source === 'local') {
         const remote = await graphJson(path, accessToken, {
           method: 'POST',
-          body: graphTaskPayload(task, timeZone),
+          body: graphTaskPayload(task, timeZone, database),
         }, fetchImpl);
         if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
         const current = database.prepare('SELECT task_list_id FROM tasks WHERE id = ?').get(task.id);
@@ -738,7 +865,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
           await graphJson(
             `${path}/${encodeURIComponent(task.external_uid)}`,
             accessToken,
-            { method: 'PATCH', body: graphTaskPayload(task, timeZone) },
+            { method: 'PATCH', body: graphTaskPayload(task, timeZone, database) },
             fetchImpl,
           );
         } catch (error) {
@@ -753,7 +880,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
           }
           const remote = await graphJson(path, accessToken, {
             method: 'POST',
-            body: graphTaskPayload(current, timeZone),
+            body: graphTaskPayload(current, timeZone, database),
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
           database.prepare(`
@@ -818,6 +945,29 @@ export function markTaskOutbound(before, after, database) {
          OR (external_source = 'local' AND task_list_id = ?)
        )
   `).run(taskId, MICROSOFT_TODO_SOURCE, taskListId).changes > 0;
+}
+
+/** Mark the task when its creator changes the personal reminder. */
+export function markTaskReminderOutbound(taskId, userId, database) {
+  const activeDb = activeDatabase(database);
+  const task = activeDb.prepare(`
+    SELECT t.id, t.created_by, t.external_source, t.task_list_id
+      FROM tasks t
+     WHERE t.id = ?
+  `).get(taskId);
+  if (!task || (userId != null && Number(task.created_by) !== Number(userId))) return false;
+
+  const isMicrosoftTarget = task.external_source === MICROSOFT_TODO_SOURCE
+    || (task.external_source === 'local' && task.task_list_id != null && activeDb.prepare(
+      'SELECT 1 FROM task_lists WHERE id = ? AND provider = ?'
+    ).get(task.task_list_id, MICROSOFT_TODO_PROVIDER));
+  if (!isMicrosoftTarget) return false;
+
+  return activeDb.prepare(`
+    UPDATE tasks
+       SET outbound_dirty = 1, outbound_attempts = 0
+     WHERE id = ?
+  `).run(task.id).changes > 0;
 }
 
 /** Preserve a remote identity after the local row is deleted. */

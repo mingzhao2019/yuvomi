@@ -92,6 +92,17 @@ test('converts To Do due dates through the household timezone and keeps date-onl
     }, 'UTC').description,
     'Line & one\nLine two',
   );
+  assert.equal(todo.__test.remoteTaskValues({ importance: 'normal' }, 'UTC').priority, 'none');
+  assert.equal(todo.__test.remoteTaskValues({ importance: 'low' }, 'UTC').priority, 'none');
+  assert.equal(
+    todo.__test.remoteTaskValues({
+      isReminderOn: true,
+      reminderDateTime: { dateTime: '2026-01-15T09:30:00.0000000', timeZone: 'W. Europe Standard Time' },
+    }, 'UTC').remind_at,
+    '2026-01-15T08:30:00',
+  );
+  assert.equal(todo.__test.graphTaskPayload({ priority: 'low' }, 'UTC').importance, 'normal');
+  assert.equal(todo.__test.graphTaskPayload({ priority: 'urgent' }, 'UTC').importance, 'high');
   assert.deepEqual(
     todo.__test.graphTaskPayload({
       title: 'Write',
@@ -110,6 +121,8 @@ test('converts To Do due dates through the household timezone and keeps date-onl
         dateTime: '2026-08-30T07:30:00',
         timeZone: 'UTC',
       },
+      isReminderOn: false,
+      reminderDateTime: null,
     },
   );
 });
@@ -138,6 +151,9 @@ test('discovers lists, imports delta tasks, and persists the per-list cursor', a
           importance: 'high',
           status: 'notStarted',
           dueDateTime: { dateTime: '2026-08-30T09:30:00.0000000', timeZone: 'UTC' },
+          isReminderOn: true,
+          reminderDateTime: { dateTime: '2026-08-30T08:30:00.0000000', timeZone: 'UTC' },
+          checklistItems: [{ id: 'step-1', displayName: 'Bring card', isChecked: false }],
         }],
         '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-work/tasks/delta?$deltatoken=cursor-1',
       });
@@ -166,6 +182,10 @@ test('discovers lists, imports delta tasks, and persists the per-list cursor', a
   assert.equal(task.due_date, '2026-08-30');
   assert.equal(task.due_time, '09:30');
   assert.equal(task.task_list_id, list.id);
+  assert.equal(database.prepare(`
+    SELECT remind_at FROM reminders WHERE entity_type = 'task' AND entity_id = ? AND created_by = ?
+  `).get(task.id, ownerId).remind_at, '2026-08-30T08:30:00');
+  assert.equal(database.prepare('SELECT COUNT(*) AS n FROM tasks WHERE parent_task_id = ?').get(task.id).n, 0);
   assert.deepEqual(calls.map((call) => call.path), [
     '/v1.0/me/todo/lists',
     '/v1.0/me/todo/lists/list-work/tasks/delta',
@@ -189,6 +209,10 @@ test('manual sync forces a full reconciliation and removes a stale mirrored task
       (title, created_by, external_source, external_account_id, external_uid, task_list_id)
     VALUES ('Stale remote task', ?, 'microsoft_todo', ?, 'remote-stale', ?)
   `).run(ownerId, accountId, listId).lastInsertRowid;
+  database.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2026-08-30T01:30:00', ?)
+  `).run(staleTaskId, ownerId);
 
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
@@ -219,6 +243,7 @@ test('manual sync forces a full reconciliation and removes a stale mirrored task
   assert.ok(result.fullResyncLists >= 1);
   assert.equal(result.deleted, 1);
   assert.equal(database.prepare('SELECT 1 FROM tasks WHERE id = ?').get(staleTaskId), undefined);
+  assert.equal(database.prepare('SELECT 1 FROM reminders WHERE entity_type = \'task\' AND entity_id = ?').get(staleTaskId), undefined);
   assert.equal(
     database.prepare(`
       SELECT title FROM tasks
@@ -316,8 +341,13 @@ test('creates local tasks remotely and flushes deletion tombstones', async () =>
     INSERT INTO tasks (title, created_by, external_source, task_list_id)
     VALUES ('Renew insurance', ?, 'local', ?)
   `).run(ownerId, listId).lastInsertRowid;
+  database.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2026-08-30T01:30:00', ?)
+  `).run(localTaskId, ownerId);
 
   const calls = [];
+  let createBody;
   const fetchImpl = async (url, options = {}) => {
     const parsed = new URL(url);
     const body = options.body ? JSON.parse(options.body) : null;
@@ -332,6 +362,7 @@ test('creates local tasks remotely and flushes deletion tombstones', async () =>
       });
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-personal/tasks' && options.method === 'POST') {
+      createBody = body;
       return response(201, { id: 'remote-created' });
     }
     if (parsed.pathname.endsWith('/tasks/remote-created') && options.method === 'DELETE') {
@@ -345,6 +376,11 @@ test('creates local tasks remotely and flushes deletion tombstones', async () =>
   const mirrored = database.prepare('SELECT * FROM tasks WHERE id = ?').get(localTaskId);
   assert.equal(mirrored.external_source, 'microsoft_todo');
   assert.equal(mirrored.external_uid, 'remote-created');
+  assert.equal(createBody.isReminderOn, true);
+  assert.deepEqual(createBody.reminderDateTime, {
+    dateTime: '2026-08-30T01:30:00',
+    timeZone: 'UTC',
+  });
 
   todo.queueTaskDeletion(mirrored, database);
   database.prepare('DELETE FROM tasks WHERE id = ?').run(localTaskId);

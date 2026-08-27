@@ -9,6 +9,7 @@ import express from 'express';
 import * as db from '../db.js';
 import * as v from '../middleware/validate.js';
 import { syncAllBirthdayReminders } from '../services/birthdays.js';
+import { markTaskReminderOutbound } from '../services/microsoft-todo.js';
 import { deniedModules } from '../permissions.js';
 import { tokenAllows } from '../scopes.js';
 
@@ -257,6 +258,7 @@ router.post('/', (req, res) => {
     `).run(entity_type, entityId, remind_at, userId);
 
     const row = db.get().prepare('SELECT * FROM reminders WHERE id = ?').get(result.lastInsertRowid);
+    if (entity_type === 'task') markTaskReminderOutbound(entityId, userId, db.get());
     res.status(201).json({ data: row });
   } catch (err) {
     log.error('Error creating reminder:', err.message);
@@ -327,6 +329,8 @@ router.put('/', (req, res) => {
       ORDER BY remind_at ASC
     `).all(entityType, entityId, userId);
 
+    if (entityType === 'task') markTaskReminderOutbound(entityId, userId, db.get());
+
     res.json({ data: rows });
   } catch (err) {
     log.error('Error setting reminders:', err.message);
@@ -385,7 +389,7 @@ router.delete('/:id', (req, res) => {
     }
 
     const reminder = db.get().prepare(
-      'SELECT id, entity_type FROM reminders WHERE id = ? AND created_by = ?'
+      'SELECT id, entity_type, entity_id FROM reminders WHERE id = ? AND created_by = ?'
     ).get(reminderId, userId);
 
     if (!reminder) {
@@ -401,6 +405,7 @@ router.delete('/:id', (req, res) => {
     }
 
     db.get().prepare('DELETE FROM reminders WHERE id = ?').run(reminderId);
+    if (reminder.entity_type === 'task') markTaskReminderOutbound(reminder.entity_id, userId, db.get());
     res.status(204).end();
   } catch (err) {
     log.error('Error deleting reminder:', err.message);
@@ -439,6 +444,8 @@ router.delete('/', (req, res) => {
       DELETE FROM reminders
       WHERE entity_type = ? AND entity_id = ? AND created_by = ?
     `).run(entityType, entityId, userId);
+
+    if (entityType === 'task') markTaskReminderOutbound(entityId, userId, db.get());
 
     res.status(204).end();
   } catch (err) {

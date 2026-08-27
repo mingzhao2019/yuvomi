@@ -14,7 +14,12 @@ process.env.TZ = 'Asia/Yekaterinburg'; // UTC+5, fester DST-freier Offset
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { parseOffsetMsFromReminder, resolveReminderPreset } = await import('../public/utils/reminder-offset.js');
+const {
+  parseOffsetMsFromReminder,
+  resolveReminderPreset,
+  wallTimeToStoredUtc,
+} = await import('../public/utils/reminder-offset.js');
+const { setDisplayTimeZone } = await import('../public/utils/timezone.js');
 
 // Bildet die Speicherlogik aus tasks.js nach: remind_at = (due - offset) als UTC.
 function saveReminder(task, offsetMs) {
@@ -77,4 +82,32 @@ test('remind_at mit explizitem Z wird ebenfalls als UTC gelesen', () => {
 test('Fehlende Daten ergeben das Default-Preset', () => {
   assert.equal(parseOffsetMsFromReminder(null, null), null);
   assert.deepEqual(resolveReminderPreset({ due_date: '2026-06-12' }, null), { preset: 'offset_15m', amount: '15', unit: 'minutes' });
+});
+
+test('household timezone is used when saving an absolute reminder', () => {
+  setDisplayTimeZone('Asia/Shanghai');
+  assert.equal(wallTimeToStoredUtc('2026-01-15', '09:30'), '2026-01-15T01:30:00');
+  assert.equal(
+    parseOffsetMsFromReminder(
+      { due_date: '2026-01-15', due_time: '09:30' },
+      { remind_at: '2026-01-15T01:30:00' },
+    ),
+    0,
+  );
+  setDisplayTimeZone(null);
+});
+
+test('a reminder without due date is represented as an absolute UI value', () => {
+  setDisplayTimeZone('Asia/Shanghai');
+  assert.deepEqual(
+    resolveReminderPreset(null, { remind_at: '2026-01-15T01:30:00' }),
+    {
+      preset: 'offset_absolute',
+      amount: '',
+      unit: '',
+      date: '2026-01-15',
+      time: '09:30',
+    },
+  );
+  setDisplayTimeZone(null);
 });

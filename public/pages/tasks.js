@@ -15,7 +15,7 @@ import { esc, renderMarkdownLight } from '/utils/html.js';
 import { renderMarkdownToolbar, wireMarkdownToolbar } from '/utils/markdown-toolbar.js';
 import { refresh as refreshReminders } from '/reminders.js';
 import { renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect, renderAvatarStack } from '/components/user-multi-select.js';
-import { resolveReminderPreset, parseRemindAtAsUtc } from '/utils/reminder-offset.js';
+import { resolveReminderPreset, parseRemindAtAsUtc, wallTimeToInstant, wallTimeToStoredUtc } from '/utils/reminder-offset.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { isPreviewable } from '/utils/document-preview.js';
 import { renderDocumentAttachField, bindDocumentAttachField } from '/components/document-attach.js';
@@ -1417,6 +1417,7 @@ function renderReminderSection(task = null, reminder = null) {
   const hasReminder = !!reminder;
   const resolved = resolveReminderPreset(task, reminder);
   const showCustom = hasReminder && resolved.preset === 'offset_custom';
+  const showAbsolute = hasReminder && resolved.preset === 'offset_absolute';
 
   return `
     <div class="reminder-section">
@@ -1440,6 +1441,7 @@ function renderReminderSection(task = null, reminder = null) {
             <option value="offset_1w" ${resolved.preset === 'offset_1w' ? 'selected' : ''}>${t('reminders.offset1week')}</option>
             <option value="offset_2w" ${resolved.preset === 'offset_2w' ? 'selected' : ''}>${t('reminders.offset2weeks')}</option>
             <option value="offset_custom" ${resolved.preset === 'offset_custom' ? 'selected' : ''}>${t('reminders.offsetCustom')}</option>
+            <option value="offset_absolute" ${showAbsolute ? 'selected' : ''}>${t('reminders.dateLabel')} / ${t('reminders.timeLabel')}</option>
           </select>
         </div>
         <div class="modal-grid modal-grid--2" id="reminder-custom-fields" style="${showCustom ? '' : 'display:none'};margin-top:var(--space-3)">
@@ -1455,6 +1457,16 @@ function renderReminderSection(task = null, reminder = null) {
               <option value="days" ${resolved.unit === 'days' ? 'selected' : ''}>${t('reminders.customDays')}</option>
               <option value="weeks" ${resolved.unit === 'weeks' ? 'selected' : ''}>${t('reminders.customWeeks')}</option>
             </select>
+          </div>
+        </div>
+        <div class="modal-grid modal-grid--2" id="reminder-absolute-fields" style="${showAbsolute ? '' : 'display:none'};margin-top:var(--space-3)">
+          <div class="form-group" style="margin:0">
+            <label class="label" for="reminder-absolute-date">${t('reminders.dateLabel')}</label>
+            <yuvomi-datepicker type="date" id="reminder-absolute-date" value="${esc(resolved.date || '')}"></yuvomi-datepicker>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="label" for="reminder-absolute-time">${t('reminders.timeLabel')}</label>
+            <yuvomi-datepicker type="time" id="reminder-absolute-time" value="${esc(resolved.time || '')}"></yuvomi-datepicker>
           </div>
         </div>
       </div>
@@ -1612,12 +1624,13 @@ function wireTaskForm(panel, { task = null, container }) {
   const fields = panel.querySelector('#reminder-fields');
   const offset = panel.querySelector('#reminder-offset');
   const customFields = panel.querySelector('#reminder-custom-fields');
+  const absoluteFields = panel.querySelector('#reminder-absolute-fields');
   toggle?.addEventListener('change', () => {
     fields.style.display = toggle.checked ? '' : 'none';
   });
   offset?.addEventListener('change', () => {
-    if (!customFields) return;
-    customFields.style.display = offset.value === 'offset_custom' ? '' : 'none';
+    if (customFields) customFields.style.display = offset.value === 'offset_custom' ? '' : 'none';
+    if (absoluteFields) absoluteFields.style.display = offset.value === 'offset_absolute' ? '' : 'none';
   });
   // Form-Events
   panel.querySelector('#task-form')
@@ -2555,25 +2568,41 @@ async function handleFormSubmit(e, container) {
   const wantsReminder = !!reminderToggle?.checked;
   let remindAt = null;
   if (wantsReminder) {
-    if (!dueDate) { resetSubmit(t('tasks.reminderNeedsDueDate')); return; }
     const offsetPreset = form.querySelector('#reminder-offset')?.value || 'offset_none';
     if (offsetPreset === 'offset_none') { resetSubmit(t('tasks.reminderNeedsDueDate')); return; }
-    let offsetMs = 0;
-    if (offsetPreset === 'offset_15m') offsetMs = 15 * 60 * 1000;
-    else if (offsetPreset === 'offset_1h') offsetMs = 60 * 60 * 1000;
-    else if (offsetPreset === 'offset_1d') offsetMs = 24 * 60 * 60 * 1000;
-    else if (offsetPreset === 'offset_2d') offsetMs = 2 * 24 * 60 * 60 * 1000;
-    else if (offsetPreset === 'offset_1w') offsetMs = 7 * 24 * 60 * 60 * 1000;
-    else if (offsetPreset === 'offset_2w') offsetMs = 14 * 24 * 60 * 60 * 1000;
-    else if (offsetPreset === 'offset_custom') {
-      const customAmount = Number(form.querySelector('#reminder-custom-amount')?.value || 0);
-      const customUnit = form.querySelector('#reminder-custom-unit')?.value || 'days';
-      if (!Number.isFinite(customAmount) || customAmount <= 0) { resetSubmit(t('common.invalidInput')); return; }
-      const unitFactor = customUnit === 'minutes' ? 60000 : customUnit === 'hours' ? 3600000 : customUnit === 'days' ? 86400000 : 604800000;
-      offsetMs = customAmount * unitFactor;
+    if (offsetPreset === 'offset_absolute') {
+      const absoluteDateRaw = form.querySelector('#reminder-absolute-date')?.value || '';
+      const absoluteDate = parseDateInput(absoluteDateRaw);
+      const absoluteTimeRaw = form.querySelector('#reminder-absolute-time')?.value || '';
+      const absoluteTime = parseTimeInput(absoluteTimeRaw);
+      if (!absoluteDate || !isDateInputValid(absoluteDateRaw) || !absoluteTime) {
+        resetSubmit(t('common.invalidInput'));
+        return;
+      }
+      remindAt = wallTimeToStoredUtc(absoluteDate, absoluteTime);
+      if (!remindAt) { resetSubmit(t('common.invalidInput')); return; }
+    } else {
+      if (!dueDate) { resetSubmit(t('tasks.reminderNeedsDueDate')); return; }
+      let offsetMs = 0;
+      if (offsetPreset === 'offset_15m') offsetMs = 15 * 60 * 1000;
+      else if (offsetPreset === 'offset_1h') offsetMs = 60 * 60 * 1000;
+      else if (offsetPreset === 'offset_1d') offsetMs = 24 * 60 * 60 * 1000;
+      else if (offsetPreset === 'offset_2d') offsetMs = 2 * 24 * 60 * 60 * 1000;
+      else if (offsetPreset === 'offset_1w') offsetMs = 7 * 24 * 60 * 60 * 1000;
+      else if (offsetPreset === 'offset_2w') offsetMs = 14 * 24 * 60 * 60 * 1000;
+      else if (offsetPreset === 'offset_custom') {
+        const customAmount = Number(form.querySelector('#reminder-custom-amount')?.value || 0);
+        const customUnit = form.querySelector('#reminder-custom-unit')?.value || 'days';
+        if (!Number.isFinite(customAmount) || customAmount <= 0) { resetSubmit(t('common.invalidInput')); return; }
+        const unitFactor = customUnit === 'minutes' ? 60000 : customUnit === 'hours' ? 3600000 : customUnit === 'days' ? 86400000 : 604800000;
+        offsetMs = customAmount * unitFactor;
+      }
+      const dueDateTime = body.due_time
+        ? wallTimeToInstant(`${dueDate}T${body.due_time}`)
+        : wallTimeToInstant(`${dueDate}T23:59:59`);
+      if (Number.isNaN(dueDateTime.getTime())) { resetSubmit(t('common.invalidInput')); return; }
+      remindAt = new Date(dueDateTime.getTime() - offsetMs).toISOString().slice(0, 19);
     }
-    const dueDateTime = body.due_time ? new Date(`${dueDate}T${body.due_time}`) : new Date(`${dueDate}T23:59:59`);
-    remindAt = new Date(dueDateTime.getTime() - offsetMs).toISOString().slice(0, 19);
   }
 
   // Wartende Uploads VOR dem Speichern der Aufgabe (#733): scheitert der

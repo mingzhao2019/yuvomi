@@ -344,6 +344,23 @@ test('DELETE /:id löscht eigene Erinnerung dauerhaft (204)', async () => {
   assert.equal(db.prepare('SELECT id FROM reminders WHERE id = ?').get(rid), undefined);
 });
 
+test('DELETE einer To-Do-Erinnerung markiert die Aufgabe für den Rückkanal', async () => {
+  const owner = freshUser();
+  currentUid = owner;
+  const taskId = makeTask(owner, 'Microsoft-Aufgabe');
+  db.prepare(`
+    UPDATE tasks
+       SET external_source = 'microsoft_todo', external_uid = 'remote-reminder-delete',
+           outbound_dirty = 0
+     WHERE id = ?
+  `).run(taskId);
+  const rid = insertReminder(owner, 'task', taskId, PAST);
+
+  const res = await call('DELETE', `/${rid}`);
+  assert.equal(res.status, 204);
+  assert.equal(db.prepare('SELECT outbound_dirty FROM tasks WHERE id = ?').get(taskId).outbound_dirty, 1);
+});
+
 // --------------------------------------------------------
 // DELETE /?entity - Massenlöschung je Entität + Isolation
 // --------------------------------------------------------

@@ -470,22 +470,30 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
 | Ort | ja, wenn gesetzt |
 | Start/Ende, Ganztags-Kennzeichen, Haushalts-Zeitzone | ja |
 | Wiederholungsregel | ja, wenn gesetzt |
-| Teilnehmer, Erinnerungen, Anhänge, Farbe, Termin-Icon, Yuvomi-ID | **nein** |
+| Teilnehmer, Outlook-Kalender-Erinnerungen, Anhänge, Farbe, Termin-Icon, Yuvomi-ID | **nein** |
 
 **Was Microsoft To Do an Yuvomi überträgt und von Yuvomi erhält:**
 
 | Feld | Übertragen? |
 |---|---|
 | Listenname und externe Listen-ID | ja |
-| Aufgabentitel, Beschreibung, Status, Priorität und Fälligkeit | ja, in beide Richtungen |
+| Aufgabentitel, Beschreibung, Status, Wichtigkeit, Fälligkeit und Erinnerung | ja, in beide Richtungen |
+| Wichtigkeit: Microsoft-Stern ↔ Yuvomi `high`; ohne Stern ↔ Yuvomi `none` | ja, als binäre Abbildung |
 | Löschung einer synchronisierten Aufgabe | ja, in beide Richtungen |
 | Erstellen, Umbenennen, Löschen oder Verschieben von Listen | **nein** |
 | Verschieben einer bereits synchronisierten Aufgabe zwischen Listen | **nein** |
+| Microsoft-To-Do-Schritte/`checklistItems` | **nein, absichtlich** |
 
 Nur aktivierte Microsoft-To-Do-Listen werden gespiegelt. Eine lokal neu angelegte
 Aufgabe kann beim Erstellen einer aktivierten To-Do-Liste zugewiesen werden. Die
-Task-List-Struktur bleibt dabei in Yuvomi erhalten; Unteraufgaben werden nicht als
-Microsoft-To-Do-Aufgaben angelegt.
+Task-List-Struktur bleibt dabei in Yuvomi erhalten; Microsoft-To-Do-Schritte werden
+nicht als Yuvomi-Aufgaben oder Unteraufgaben angelegt und Yuvomi-Unteraufgaben werden
+nicht als Microsoft-To-Do-Schritte angelegt. To-Do-Erinnerungen werden als persönliche
+Erinnerung des Aufgabenerstellers gespiegelt. Die von Microsoft gelieferte
+`dateTimeTimeZone`-Angabe wird anhand ihrer Provider-Zeitzone in den Zeitpunkt der
+Haushaltszeitzone überführt; Yuvomi kann den Zeitpunkt intern in UTC speichern und
+für den Provider explizit als UTC übertragen, ohne die sichtbare Haushaltszeit zu
+ändern.
 
 - **Hinweis zu Gesundheitsdaten (Art. 9 DSGVO):** Titel, Beschreibung und Ort
   sind **Freitext**, und im Familienkalender steht dort typischerweise genau
