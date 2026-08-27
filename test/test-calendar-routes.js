@@ -670,6 +670,50 @@ test('Farbe: nicht angefasst, gesetzt und geleert bleiben unterscheidbar', async
   assert.equal(restored.body.data.color_modified, 1);
 });
 
+test('ein PUT ohne assigned_to laesst die primaere Zuweisung stehen (#891)', async () => {
+  // `assigned_to` ist die PRIMAERE Zuweisung, nicht irgendeine: das Formular
+  // schickt seine Reihenfolge mit, und die Route legt `userIds[0]` dort ab.
+  // Beim Nachladen gibt es diese Reihenfolge nicht mehr - `SELECT user_id FROM
+  // event_assignments` hat kein ORDER BY und laeuft ueber den Primaerschluessel,
+  // kommt also nach user_id sortiert zurueck. Ein PUT, das `assigned_to` gar
+  // nicht mitschickt, wuerde die primaere Zuweisung deshalb neu wuerfeln.
+  //
+  // Seit #891 ist das sichtbar statt nur unsauber: die geliehene Farbe folgt
+  // `assigned_to`, ein Termin ohne eigene Farbe wechselt also seine Farbe, ohne
+  // dass jemand die Zuweisung angefasst hat. Der Serien-Split schickt genau so
+  // ein PUT (nur `recurrence_rule`).
+  const created = await call('POST', '/', { actor: ADMIN, body: {
+    title: 'Zwei Zustaendige', start_datetime: '2040-05-01T09:00',
+    assigned_to: [3, 2],   // 3 ist die PRIMAERE - und die hoehere Id
+  } });
+  assert.equal(created.status, 201);
+  const id = created.body.data.id;
+  assert.equal(created.body.data.assigned_to, 3, 'die erste des Formulars wird die primaere');
+
+  // Vorbedingung, ohne die der Test nichts misst: die nachgeladene Reihenfolge
+  // weicht von der des Formulars ab.
+  const nachgeladen = db.prepare('SELECT user_id FROM event_assignments WHERE event_id = ?')
+    .all(id).map((r) => r.user_id);
+  assert.deepEqual(nachgeladen, [2, 3],
+    'die Abfrage ohne ORDER BY liefert nach user_id - sonst prueft dieser Test nichts');
+
+  // Ein PUT, das die Zuweisung nicht erwaehnt.
+  const res = await call('PUT', `/${id}`, { actor: ADMIN, body: {
+    title: 'Zwei Zustaendige', start_datetime: '2040-05-01T09:00',
+    recurrence_rule: 'FREQ=WEEKLY;COUNT=3',
+  } });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.data.assigned_to, 3,
+    'die primaere Zuweisung darf ein PUT, das sie nicht nennt, nicht umlegen');
+  assert.equal(res.body.data.assigned_users.length, 2, 'und beide Zuweisungen bleiben');
+
+  // Wer sie ausdruecklich aendert, bekommt die Aenderung natuerlich.
+  const geaendert = await call('PUT', `/${id}`, { actor: ADMIN, body: {
+    title: 'Zwei Zustaendige', start_datetime: '2040-05-01T09:00', assigned_to: [2, 3],
+  } });
+  assert.equal(geaendert.body.data.assigned_to, 2, 'ein ausdrueckliches assigned_to gilt');
+});
+
 test('POST / — mit Zuweisungen, Serie und Sichtbarkeit', async () => {
   const res = await call('POST', '/', { actor: ADMIN, body: {
     title: 'Team-Serie', start_datetime: '2040-03-01T09:00',

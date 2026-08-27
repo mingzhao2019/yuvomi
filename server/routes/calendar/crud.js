@@ -320,6 +320,19 @@ router.put('/:id', async (req, res) => {
       ? parseAssignedTo(req.body.assigned_to)
       : db.get().prepare('SELECT user_id FROM event_assignments WHERE event_id = ?')
           .all(id).map((r) => r.user_id);
+
+    // `assigned_to` ist die PRIMAERE Zuweisung, nicht bloss die erste Zeile: das
+    // Formular schickt seine Reihenfolge mit, und `userIds[0]` traegt sie. Beim
+    // Nachladen oben gibt es diese Reihenfolge aber nicht - die Abfrage hat kein
+    // `ORDER BY`, ihre Reihenfolge ist die der `event_assignments`-Zeilen. Ein
+    // PUT, das `assigned_to` gar nicht mitschickt (der Serien-Split etwa sendet
+    // nur `recurrence_rule`), wuerde die primaere Zuweisung sonst auf gut Glueck
+    // neu bestimmen und dabei still auf ein anderes Mitglied umlegen.
+    //
+    // Seit #891 ist das sichtbar: `resolveEventColor()` nimmt die Farbe der in
+    // `assigned_to` genannten Person, ein Termin ohne eigene Farbe wechselt also
+    // die Farbe, ohne dass jemand die Zuweisung angefasst hat. Dieselbe Regel wie
+    // bei `color`: nicht mitgeschickt heisst nicht angefasst.
     const firstUid = assignedTouched
       ? (userIds[0] ?? null)
       : (userIds.includes(event.assigned_to) ? event.assigned_to : (userIds[0] ?? null));

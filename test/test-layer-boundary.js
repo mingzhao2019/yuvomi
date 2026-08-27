@@ -47,6 +47,15 @@ const SHARED_ISOMORPHIC = new Set([
   // was Event-Modal und Einstellungen bauen - zwei Definitionen desselben
   // Formats würden sich unbemerkt auseinanderentwickeln.
   'public/utils/sync-target.js',
+  // #891: Wie ein Termin zu seiner Farbe kommt - eigene Farbe, sonst die der
+  // PRIMAEREN zugewiesenen Person, sonst die des Kalenders. Der Browser malt
+  // damit Kalender und Uebersicht, der Server beantwortet damit die
+  // Countdown-Kachel, die ihre Zeilen fertig ausliefert statt die Rohfelder.
+  // Zwei Fassungen liefen genau dort auseinander, wo es niemandem auffaellt:
+  // derselbe Termin traegt in der einen Kachel die Farbe der Person und in der
+  // anderen den Modulton - und vor #891 war der Unterschied unsichtbar, weil
+  // die Spalte NOT NULL war und die Rangfolge nie ueber ihr erstes Glied kam.
+  'public/utils/event-color.js',
   // #734: Wie ein Kommentartext gegen die Mitgliederliste gelesen wird. Der
   // Browser hebt damit hervor, der Server wählt damit die Empfänger der
   // Benachrichtigung. Zwei Fassungen hieße: ein Name steht farbig da, und
