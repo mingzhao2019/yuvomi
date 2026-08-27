@@ -1024,6 +1024,36 @@ test('ICS-Subscription-Farbe ist Standard, manuelle Event-Farbe bleibt erhalten'
     'die dauerhafte subscription_id muss die ICS-Abofarbe ebenfalls aktivieren');
 });
 
+test('die geerbte Farbe gehoert der PRIMAEREN Zuweisung, nicht der ersten Zeile', () => {
+  // `assigned_users` kommt aus einem `json_group_array` OHNE `ORDER BY`: seine
+  // Reihenfolge ist die der `event_assignments`-Zeilen, nicht die des Formulars.
+  // Die primaere Zuweisung steht ausdruecklich in `assigned_to`. Ohne die
+  // Unterscheidung traegt ein Termin mit mehreren Zugewiesenen die Farbe eines
+  // ANDEREN Mitglieds - und kann sie beim Neuladen wechseln, ohne dass jemand
+  // etwas geaendert hat. Solange die Spalte NOT NULL war, war der Zweig tot und
+  // der Fehler unsichtbar (#891).
+  const { resolveEventColor } = calendarHelpers;
+  const ev = {
+    color: null,
+    assigned_to: 7,
+    assigned_users: [{ id: 3, color: '#3CA368' }, { id: 7, color: '#CE5053' }],
+  };
+  assert(resolveEventColor(ev) === '#CE5053',
+    'die Farbe muss der in assigned_to genannten Person gehoeren');
+
+  // Gegenprobe: die naive Fassung greift daneben - ohne diese Zeile waere der
+  // Test auch dann gruen, wenn beide Personen dieselbe Farbe traegen.
+  assert(ev.assigned_users[0].color === '#3CA368',
+    'die erste Zeile traegt eine ANDERE Farbe - sonst prueft der Test nichts');
+
+  // Faellt assigned_to aus (Altbestand, geloeschtes Mitglied), bleibt die erste
+  // Zeile die beste verfuegbare Auskunft.
+  assert(resolveEventColor({ color: null, assigned_to: null, assigned_users: [{ id: 3, color: '#3CA368' }] }) === '#3CA368',
+    'ohne assigned_to gilt die erste Zeile');
+  assert(resolveEventColor({ color: null, assigned_to: 99, assigned_users: [{ id: 3, color: '#3CA368' }] }) === '#3CA368',
+    'zeigt assigned_to auf niemanden in der Liste, ebenso');
+});
+
 test('eine Zuweisung ohne eigene Farbe faellt nicht auf die Kalenderfarbe durch', () => {
   // Ein Mitglied ohne gesetzte Avatar-Farbe bekommt das neutrale Grau, nicht die
   // Kalenderfarbe: sonst saehe ein zugewiesener Termin aus wie ein nicht

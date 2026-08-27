@@ -1176,6 +1176,21 @@ function localEventToGoogle(event, colorMap = {}, timeZone = householdTimeZone(n
   // Event-Farbe verlustbehaftet auf die nächste der 11 Google-colorIds mappen.
   // Ohne verfügbare Palette (colors.get fehlgeschlagen) bleibt colorId ungesetzt,
   // dann erbt das Event in Google die Kalenderfarbe.
+  //
+  // NULL STATT WEGLASSEN, wenn der Termin keine eigene Farbe (mehr) hat (#891).
+  // Der Unterschied zählt nur beim Update, und dort entscheidet er alles: der
+  // Push ist ein `events.patch`, und ein PATCH fasst genau die Felder an, die im
+  // Body STEHEN. Ein fehlendes `colorId` heißt also "nicht anfassen", nicht
+  // "löschen" - Google behielte seine alte Farbe, während Yuvomi die der
+  // zugewiesenen Person zeigt. Weil dieselbe Bearbeitung `user_modified = 1`
+  // setzt, holt auch kein Inbound-Lauf die beiden je wieder zusammen: die zwei
+  // Seiten blieben dauerhaft verschieden. Vor #891 war das folgenlos, weil
+  // `color` NOT NULL war und dieser Zweig für Updates nie erreicht wurde.
+  //
+  // ABER NUR DANN. Eine fehlende Palette ist etwas anderes als eine fehlende
+  // Farbe: dann trägt der Termin sehr wohl eine, wir können sie nur nicht auf
+  // eine colorId abbilden. Dort ist "nicht anfassen" richtig, und ein Nullwert
+  // würde eine in Google gesetzte Farbe löschen, obwohl niemand das wollte.
   if (event.color) {
     const colorId = nearestColorId(event.color, colorMap);
     if (colorId) gEvent.colorId = colorId;
