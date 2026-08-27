@@ -713,3 +713,33 @@ test('ein geloeschtes primaeres Mitglied laesst die Kachel nicht farblos zurueck
     .find((item) => item.title === 'Orphaned');
   assert.equal(row.color, '#D8B349');
 });
+
+test('ein geloeschtes primaeres Mitglied laesst die Kachel nicht farblos zurueck', () => {
+  // Der Fremdschluessel setzt `assigned_to` auf NULL und nimmt die Zuweisungs-
+  // zeile des Geloeschten mit; die uebrigen Zugewiesenen bleiben. Der Kalender
+  // faellt dann auf den ersten verbliebenen zurueck. Ohne dieselbe Ruecknahme
+  // waere die Kachel die EINZIGE Stelle, die hier den Modulton zeigt - genau
+  // die Art Abweichung, die #891 an drei Stellen aufgeraeumt hat.
+  reset();
+  const geht  = seedUser('geht', 'member');
+  const bleibt = seedUser('bleibt', 'member');
+  get().prepare('UPDATE users SET avatar_color = ? WHERE id = ?').run('#587DCE', geht);
+  get().prepare('UPDATE users SET avatar_color = ? WHERE id = ?').run('#D8B349', bleibt);
+
+  const id = seedEvent({ title: 'Verwaist', start: '2026-09-10', color: null, assignedTo: geht });
+  get().prepare('INSERT INTO event_assignments (event_id, user_id) VALUES (?, ?)').run(id, geht);
+  get().prepare('INSERT INTO event_assignments (event_id, user_id) VALUES (?, ?)').run(id, bleibt);
+
+  get().prepare('DELETE FROM users WHERE id = ?').run(geht);
+
+  // Vorbedingung, sonst prueft der Test etwas anderes als er behauptet.
+  const nachher = get().prepare('SELECT assigned_to FROM calendar_events WHERE id = ?').get(id);
+  assert.equal(nachher.assigned_to, null, 'das Loeschen muss assigned_to geleert haben');
+  const rest = get().prepare('SELECT user_id FROM event_assignments WHERE event_id = ?').all(id);
+  assert.deepEqual(rest.map((r) => r.user_id), [bleibt], 'und nur die Zeile des Geloeschten mitnehmen');
+
+  const zeile = getCountdowns(get(), { userId: ALICE, todayKey: '2026-08-27' })
+    .items.find((c) => c.title === 'Verwaist');
+  assert.equal(zeile.color, '#D8B349',
+    'die Kachel faellt auf den verbliebenen Zugewiesenen zurueck, nicht auf den Modulton');
+});
