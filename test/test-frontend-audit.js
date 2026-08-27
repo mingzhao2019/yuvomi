@@ -2023,8 +2023,12 @@ test('notification settings separate personal and household channels and explain
   assert.match(source, /\['webhook', 'message_pusher'\]\.includes\(provider\.id\)/);
   assert.match(source, /messageTemplate/);
   assert.match(source, /notificationChannelTemplateHelp/);
+  assert.match(source, /data-action="copy-template"/);
+  assert.match(source, /copyTemplateText/);
+  assert.match(source, /textarea\?\.value \|\| textarea\?\.placeholder/);
   assert.match(styles, /\.notification-template-help:hover[\s\S]*\.notification-template-help:focus-within/);
   assert.match(styles, /\.notification-template-help__tooltip/);
+  assert.match(styles, /\.notification-template-input/);
 });
 
 test('settings shell marks and focuses the active page', () => {

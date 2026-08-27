@@ -1,4 +1,4 @@
-<!-- version: 2.46.0 -->
+<!-- version: 2.50.0 -->
 Document folders can now live inside document folders. Until this version they were flat, and next to them sat a second flat row of categories - two ways of narrowing the same list, with nothing showing how they relate. They don't relate: a folder like "Apartment" holds documents filed under home, insurance and legal at the same time. So the hierarchy has moved to where it belongs. The sidebar is a real tree you can expand, with the path shown above the list, and folders can be created inside one another, renamed and moved. Categories stay what they always were - a label on the document that filters across the whole tree.
 
 Opening a folder now also shows what lies beneath it. Before, a folder whose documents all sat in a subfolder looked empty, and the count beside it said zero. Both answer the same question now. Deleting a folder still costs you no document - they fall back to "no folder", exactly as before - but the confirmation tells you how many subfolders are going along, because the sidebar only shows the collapsed top level.
@@ -11,4 +11,4 @@ On the overview, the key dates tile handles repeating appointments correctly aga
 
 Nothing needs configuring and there is nothing to do after the update. Two database changes are applied automatically on first start; the folder one rebuilds the folder table to allow nesting and carries every existing folder over unchanged.
 
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.46.0
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.50.0

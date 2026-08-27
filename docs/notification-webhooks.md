@@ -145,6 +145,11 @@ Use quoted placeholders for text values, for example:
 {"content":"🔔 {{title}}\n📌 {{body}}\n📄 {{description}}\n⏰ Due: {{dueDate}} {{dueTime}}\n🚀 Start: {{startDate}} {{startTime}}"}
 ```
 
+The settings page keeps these Emoji examples in the input placeholder. Since a
+placeholder cannot be selected with the mouse or keyboard, use **Copy example**
+beside either template field to copy the current template, or the visible
+example when the field is empty.
+
 The renderer inserts empty strings for unavailable optional values. If a
 receiver's schema needs a number or Boolean rather than text, an unquoted
 placeholder can be used when that value is guaranteed to exist.

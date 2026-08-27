@@ -63,7 +63,7 @@ router.get('/:id', (req, res) => {
     `).get(id, getUserId(req), getUserId(req));
 
     if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
-    res.json({ data: serializeEvent(event) });
+    res.json({ data: serializeEvent(event, db.get()) });
   } catch (err) {
     log.error('', err);
     res.status(500).json({ error: 'Interner Fehler', code: 500 });
@@ -178,7 +178,7 @@ router.post('/', async (req, res) => {
       WHERE e.id = ?
     `).get(eventId);
 
-    res.status(201).json({ data: serializeEvent(event) });
+    res.status(201).json({ data: serializeEvent(event, db.get()) });
   } catch (err) {
     if (err instanceof StorageError && !stagedUpload) {
       log.error('POST / storage error:', err);
@@ -426,7 +426,7 @@ router.put('/:id', async (req, res) => {
     const outlookPending = outlookCalendar.markEventOutbound(event, updated);
     const pending = genericPending || outlookPending;
 
-    res.json({ data: serializeEvent(updated) });
+    res.json({ data: serializeEvent(updated, db.get()) });
 
     if (pending) {
       Promise.all([

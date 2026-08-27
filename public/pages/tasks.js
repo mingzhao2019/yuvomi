@@ -302,6 +302,34 @@ function loadCollapsedGroups() {
   }
 }
 
+function loadCollapsedTaskSources() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COLLAPSED_TASK_SOURCES_KEY) ?? '[]');
+    state.collapsedTaskSources = new Set(
+      Array.isArray(raw) ? raw.filter((key) => typeof key === 'string') : [],
+    );
+  } catch {
+    state.collapsedTaskSources = new Set();
+  }
+}
+
+function isTaskSourceCollapsed(source) {
+  return state.collapsedTaskSources.has(String(source));
+}
+
+function toggleTaskSource(source, container) {
+  const key = String(source);
+  if (state.collapsedTaskSources.has(key)) state.collapsedTaskSources.delete(key);
+  else state.collapsedTaskSources.add(key);
+  try {
+    localStorage.setItem(
+      COLLAPSED_TASK_SOURCES_KEY,
+      JSON.stringify([...state.collapsedTaskSources]),
+    );
+  } catch { /* Privatmodus/Quota: der Zustand gilt dann nur fuer diese Sitzung */ }
+  renderTaskLists(container);
+}
+
 function groupBy(tasks, mode, categories = state.categories) {
   const groups = {};
 
@@ -1276,6 +1304,9 @@ let state = {
   // Eingeklappte Gruppen (#812), als "<modus>:<gruppen-id>" - derselbe Name
   // kann in beiden Gruppierungen vorkommen und meint dort Verschiedenes.
   collapsedGroups: new Set(),
+  // Eingeklappte Quellen der Desktop-Navigation. Mobile bleibt bewusst eine
+  // zweistufige Auswahl aus Quellenleiste und Select.
+  collapsedTaskSources: new Set(),
   dragTaskId:      null,
   filterPanelOpen: false,
   bulkSelectMode:  false,
@@ -1402,6 +1433,23 @@ async function toggleSubtaskStatus(id, currentStatus) {
 async function loadTaskForEdit(id) {
   const data = await api.get(`/tasks/${id}`);
   return data.data;
+}
+
+/**
+ * A deep link is an instruction for the first render, not persistent page
+ * state. Keeping `open` in the address bar made a closed task detail reopen on
+ * every reload (and even after restarting the browser). Replace the current
+ * history entry so Back does not gain an artificial extra step.
+ */
+function consumeTaskOpenParameter() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('open')) return;
+  url.searchParams.delete('open');
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${url.pathname}${url.search}${url.hash}`,
+  );
 }
 
 async function loadReminderForTask(taskId) {
@@ -3761,6 +3809,7 @@ function renderFilters(container) {
 const RECENT_FILTERS_KEY = 'yuvomi:recentTaskFilters';
 const RECENT_FILTERS_MAX = 3;
 const COLLAPSED_GROUPS_KEY = 'yuvomi:taskCollapsedGroups';
+const COLLAPSED_TASK_SOURCES_KEY = 'yuvomi:taskCollapsedSources';
 const SHOW_FUTURE_KEY = 'yuvomi:taskShowFuture';
 const ASSIGNED_TO_ME_KEY = 'yuvomi:taskAssignedToMe';
 const ACTIVE_TASK_LIST_KEY = 'yuvomi:activeTaskList';
@@ -3967,7 +4016,16 @@ async function handleDeleteTaskList(item, container) {
   }
 }
 
-function appendTaskListNavButton(parent, item, container, { source = false } = {}) {
+function sourceChildrenId(source) {
+  return `task-list-source-children-${encodeURIComponent(String(source)).replaceAll('%', '-')}`;
+}
+
+function appendTaskListNavButton(
+  parent,
+  item,
+  container,
+  { source = false, collapsible = false, childrenId = '', collapsed = false } = {},
+) {
   const active = source
     ? taskListSourceKeyForScope() === item.key
     : String(item.id) === String(state.activeTaskListId);
@@ -4009,6 +4067,34 @@ function appendTaskListNavButton(parent, item, container, { source = false } = {
   button.addEventListener('click', () => {
     activateTaskListScope(source ? taskListSourceScope(item.key) : item.id, container);
   });
+  if (source && collapsible) {
+    const row = document.createElement('div');
+    row.className = 'task-list-nav__source-row';
+    button.classList.add('task-list-nav__source-select');
+    row.appendChild(button);
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'task-list-nav__collapse';
+    toggle.dataset.taskSourceToggle = item.key;
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-controls', childrenId);
+    toggle.setAttribute('aria-label', `${item.name} · ${t('tasks.taskListLabel')}`);
+    toggle.title = `${item.name} · ${t('tasks.taskListLabel')}`;
+    const chevron = document.createElement('i');
+    chevron.setAttribute('data-lucide', collapsed ? 'chevron-right' : 'chevron-down');
+    chevron.className = 'icon-md';
+    chevron.setAttribute('aria-hidden', 'true');
+    toggle.appendChild(chevron);
+    toggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleTaskSource(item.key, container);
+    });
+    row.appendChild(toggle);
+    parent.appendChild(row);
+    return;
+  }
   if (!source && isConcreteTaskList(item)) {
     const row = document.createElement('div');
     row.className = 'task-list-nav__item-row';
@@ -4105,10 +4191,19 @@ function renderTaskLists(container) {
   for (const group of groups) {
     const groupEl = document.createElement('div');
     groupEl.className = 'task-list-nav__group';
-    appendTaskListNavButton(groupEl, group, container, { source: true });
+    const collapsed = group.lists.length > 0 && isTaskSourceCollapsed(group.key);
+    const childrenId = group.lists.length ? sourceChildrenId(group.key) : '';
+    appendTaskListNavButton(groupEl, group, container, {
+      source: true,
+      collapsible: group.lists.length > 0,
+      childrenId,
+      collapsed,
+    });
     if (group.lists.length) {
       const children = document.createElement('div');
       children.className = 'task-list-nav__children';
+      children.id = childrenId;
+      children.hidden = collapsed;
       for (const item of group.lists) appendTaskListNavButton(children, item, container);
       groupEl.appendChild(children);
     }
@@ -4701,6 +4796,7 @@ export async function render(container, { user }) {
   state.currentUserId = user?.id ?? null;
   restoreActiveTaskList();
   loadCollapsedGroups();
+  loadCollapsedTaskSources();
   // Die Rolle entscheidet nur darüber, ob ein fremder Kommentar entfernt werden
   // darf (#734) - der Server prüft dieselbe Bedingung noch einmal.
   state.isAdmin = user?.role === 'admin';
@@ -4945,6 +5041,9 @@ export async function render(container, { user }) {
       ]);
       openTaskDetail({ task, users: state.users, reminder }, container);
     } catch { /* Task existiert nicht oder kein Zugriff */ }
+    finally {
+      consumeTaskOpenParameter();
+    }
   }
 }
 

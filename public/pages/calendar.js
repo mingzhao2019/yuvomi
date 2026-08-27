@@ -988,8 +988,9 @@ function holidaysOnDay(dateStr) {
  *  (interactive:false) ist die Tageszelle selbst der Drill-in-Button; die Chips
  *  sind dort nur visuelles Signal und dürfen kein eigenes role/tabindex tragen -
  *  sonst entsteht ein fokussierbarer Button im Zellen-Button (Audit P1).
- *  icon:false lässt das check-square-Icon weg: die Monats-Bars sind nach Kanon
- *  icon-frei, Woche/Tag/Agenda behalten es als Termin/Aufgabe-Unterscheidung. */
+ *  icon:false lässt das check-square-Icon in kompakten Sonderkontexten weg;
+ *  die Monatsansicht aktiviert es bewusst als Aufgabenmarker, Woche/Tag/Agenda
+ *  behalten es ebenfalls als Termin/Aufgabe-Unterscheidung. */
 function renderTaskChip(task, { interactive = true, icon = true } = {}) {
   const priority = task.priority || 'none';
   const label    = esc(task.title);
@@ -1780,7 +1781,10 @@ function renderMonthDay(date, inMonth) {
     ><span>${esc(ev.title)}</span></div>
   `).join('');
 
-  const taskHtml = taskShown.map((tk) => renderTaskChip(tk, { interactive: false, icon: false })).join('');
+  // The month cell owns the click target, so the chip stays non-interactive;
+  // it still gets the shared task marker so tasks are distinguishable from
+  // event bars at a glance.
+  const taskHtml = taskShown.map((tk) => renderTaskChip(tk, { interactive: false, icon: true })).join('');
 
   return `
     <div class="${classes}" data-date="${date}" data-total="${total}"
@@ -3102,6 +3106,25 @@ async function loadSyncTargets(selectElement, currentEvent = null) {
     outlookGroup.appendChild(option);
   }
 
+  // Ein importiertes Outlook-Event hat keinen Outbound-Target-Wert: seine
+  // bidirektionale Verbindung lebt in outlook_event_links. Zeige diese Quelle
+  // trotzdem im selben Feld an, damit ein bestehendes Event nicht fälschlich als
+  // „nur lokal“ erscheint. Der eigene Quelleneintrag ist nur eine Darstellung;
+  // beim Speichern darf er nicht als neuer Outbound-Target behandelt werden.
+  const outlookSource = currentEvent?.outlook_source;
+  if (outlookSource?.account_id && outlookSource?.calendar_id
+      && !currentEvent?.target_outlook_account_id) {
+    const sourceGroup = document.createElement('optgroup');
+    sourceGroup.className = 'js-outlook-source';
+    sourceGroup.label = `${t('calendar.syncTargetOutlookGroup')} · ${outlookSource.account_name || ''}`.replace(/ · $/, '');
+    const sourceOption = document.createElement('option');
+    sourceOption.value = `outlook-source:${outlookSource.account_id}|${outlookSource.calendar_id}`;
+    sourceOption.textContent = outlookSource.calendar_name || outlookSource.calendar_id;
+    sourceGroup.appendChild(sourceOption);
+    selectElement.appendChild(sourceGroup);
+    selectElement.value = sourceOption.value;
+  }
+
   // Pre-select the editing event's existing target
   if (currentEvent?.target_google_calendar_id) {
     const value = googleTargetValue(currentEvent.target_google_calendar_id);
@@ -3801,6 +3824,10 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
         target_caldav_account_id = parseInt(accountId, 10);
         target_caldav_calendar_url = calendarUrl;
       }
+    } else if (syncTargetValue.startsWith('outlook-source:')) {
+      // Imported Outlook events are already linked through outlook_event_links.
+      // Leave target_* out of the PUT so this display-only source association is
+      // not mistaken for a new outbound target.
     } else if (syncTargetValue.startsWith('outlook:')) {
       const [accountId, calendarId] = syncTargetValue.slice('outlook:'.length).split('|');
       if (accountId && calendarId) {
@@ -3816,12 +3843,22 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
       visibility: overlay.querySelector('#modal-visibility')?.value || 'all',
       countdown: overlay.querySelector('#modal-countdown')?.checked ? 1 : 0,
       recurrence_rule: rrule.recurrence_rule,
-      target_google_calendar_id,
-      target_caldav_account_id,
-      target_caldav_calendar_url,
-      target_outlook_account_id,
-      target_outlook_calendar_id,
     };
+    // An imported Outlook event has its source association in the link table,
+    // not in target_outlook_*. Sending nulls here would be misleading and would
+    // make this UI unable to distinguish “already synced” from “local only”.
+    const preservesOutlookSource = mode === 'edit'
+      && event?.external_source === 'outlook'
+      && syncTargetValue.startsWith('outlook-source:');
+    if (!preservesOutlookSource) {
+      Object.assign(body, {
+        target_google_calendar_id,
+        target_caldav_account_id,
+        target_caldav_calendar_url,
+        target_outlook_account_id,
+        target_outlook_calendar_id,
+      });
+    }
     if (attachmentPayload) {
       Object.assign(body, {
         attachment_name: attachmentPayload.name,

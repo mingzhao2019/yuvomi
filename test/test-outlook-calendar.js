@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 const db = (await import('../server/db.js')).get();
 const outlook = await import('../server/services/outlook-calendar.js');
 const { rruleToGraphRecurrence, allDayEndToExclusive, toGraphDateTime,
-        localEventToGraph, contentHash } = outlook.__test;
+        localEventToGraph, contentHash, graphDateTimeValue, remoteEventSnapshot } = outlook.__test;
 
 // Die Haushaltszone EXPLIZIT setzen (#829). Bis v2.27.0 stand im Push fest
 // 'Europe/Berlin', und die Tests prueften genau diesen Literalwert - eine
@@ -143,6 +143,41 @@ describe('Datums- und Payload-Konvertierung', () => {
   it('toGraphDateTime normalisiert Z-Zeiten nach UTC', () => {
     assert.deepEqual(toGraphDateTime('2026-06-10T10:00:00Z'),
       { dateTime: '2026-06-10T10:00:00', timeZone: 'UTC' });
+  });
+
+  it('normalisiert Outlook-Zeiten genau einmal in die Haushalts-Wanduhr', () => {
+    assert.deepEqual(
+      graphDateTimeValue({
+        dateTime: '2026-06-10T17:00:00.0000000',
+        timeZone: 'FLE Standard Time',
+      }, { fallbackTimeZone: 'Europe/Helsinki' }),
+      { value: '2026-06-10T17:00', timeZone: null },
+    );
+    assert.deepEqual(
+      graphDateTimeValue({
+        dateTime: '2026-06-10T17:00:00.0000000Z',
+      }, { fallbackTimeZone: 'Europe/Helsinki' }),
+      { value: '2026-06-10T20:00', timeZone: null },
+    );
+    assert.deepEqual(
+      remoteEventSnapshot({
+        id: 'finnish-1',
+        subject: 'Finnish event',
+        start: { dateTime: '2026-06-10T17:00:00', timeZone: 'FLE Standard Time' },
+        end: { dateTime: '2026-06-10T18:00:00', timeZone: 'FLE Standard Time' },
+      }, 'Europe/Helsinki'),
+      {
+        title: 'Finnish event',
+        description: null,
+        location: null,
+        start_datetime: '2026-06-10T17:00',
+        end_datetime: '2026-06-10T18:00',
+        all_day: 0,
+        recurrence_rule: null,
+        tzid: null,
+        external_object_url: 'https://graph.microsoft.com/v1.0/me/events/finnish-1',
+      },
+    );
   });
 
   it('localEventToGraph baut getimte Events mit Ort und Beschreibung', () => {

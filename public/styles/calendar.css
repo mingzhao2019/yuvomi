@@ -1628,7 +1628,7 @@
 
 /* Im Monatsgrid werden auch Aufgaben-Chips zu flachen Bars nach Kanon: die
  * currentColor-Tönung bleibt, Border und Schatten entfallen; das check-square-
- * Icon rendert calendar.js dort gar nicht erst (renderTaskChip icon:false).
+ * Icon markiert den Eintrag als Aufgabe, ohne ein zweites Klickziel einzuführen.
  * Padding fluchtet mit den Event-Bars. Die mobilen Punkt-Overrides weiter
  * unten gewinnen per Quellreihenfolge bei gleicher Spezifität. */
 .month-day .cal-task-chip {

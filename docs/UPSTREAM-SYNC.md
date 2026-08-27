@@ -11,6 +11,17 @@ not safe to update by replacing files with their upstream versions.
 - `custom` is the branch used for our development and releases.
 - `upstream` points to the public Yuvomi repository and is used for review only.
 
+## Release version rule
+
+`custom` follows the current version of the local `main` branch after an upstream
+sync. Read the version from `main:package.json` and keep the root version in
+`package.json`, the two root package entries in `package-lock.json`, and
+`public/sw.js`'s `APP_RELEASE` identical. Current baseline: `2.50.0`.
+
+Update current-release references in installation/landing metadata as part of
+the same change, but keep historical `CHANGELOG.md` entries unchanged. A
+version mismatch is a release defect, not a browser-cache issue.
+
 Keep the remote configured once:
 
 ```bash

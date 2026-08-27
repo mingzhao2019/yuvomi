@@ -152,6 +152,37 @@ function templateHelp(id) {
     + '</span>';
 }
 
+async function copyTemplateText(value) {
+  const text = String(value ?? '');
+  if (!text) return false;
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch { /* insecure context/permission: try the legacy fallback below */ }
+  }
+  if (typeof document === 'undefined' || typeof document.execCommand !== 'function') return false;
+  const helper = document.createElement('textarea');
+  helper.value = text;
+  helper.setAttribute('readonly', '');
+  helper.style.position = 'fixed';
+  helper.style.insetInlineStart = '-9999px';
+  document.body.appendChild(helper);
+  helper.select();
+  try {
+    return document.execCommand('copy');
+  } finally {
+    helper.remove();
+  }
+}
+
+function templateCopyButton() {
+  const label = t('settings.notificationChannelTemplateCopy');
+  return '<button type="button" class="btn btn--secondary notification-template-copy"'
+    + ' data-action="copy-template" aria-label="' + esc(label) + '" title="' + esc(label) + '"'
+    + '><i data-lucide="copy" aria-hidden="true"></i><span>' + esc(label) + '</span></button>';
+}
+
 function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, scope = 'household') {
   const list = container.querySelector('#notification-channel-list-' + scope);
   if (!list) return;
@@ -214,7 +245,10 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
               <label class="form-label" for="notification-webhook-template-${suffix}">${t('settings.notificationChannelWebhookTemplate')}</label>
               ${templateHelp('notification-webhook-template-help-' + suffix)}
             </div>
-            <textarea class="form-input" id="notification-webhook-template-${suffix}" name="webhookTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelWebhookTemplatePlaceholder'))}">${esc(channel.config.payloadTemplate ?? '')}</textarea>
+            <div class="notification-template-input">
+              <textarea class="form-input" id="notification-webhook-template-${suffix}" name="webhookTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelWebhookTemplatePlaceholder'))}">${esc(channel.config.payloadTemplate ?? '')}</textarea>
+              ${templateCopyButton()}
+            </div>
             <p class="form-hint">${t('settings.notificationChannelTemplateHint')}</p>
           </div>
         </div>
@@ -253,7 +287,10 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
               <label class="form-label" for="notification-message-pusher-template-${suffix}">${t('settings.notificationChannelMessagePusherTemplate')}</label>
               ${templateHelp('notification-message-pusher-template-help-' + suffix)}
             </div>
-            <textarea class="form-input" id="notification-message-pusher-template-${suffix}" name="messagePusherTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelMessagePusherTemplatePlaceholder'))}">${esc(channel.config.messageTemplate ?? '')}</textarea>
+            <div class="notification-template-input">
+              <textarea class="form-input" id="notification-message-pusher-template-${suffix}" name="messagePusherTemplate" rows="3" spellcheck="false" placeholder="${esc(t('settings.notificationChannelMessagePusherTemplatePlaceholder'))}">${esc(channel.config.messageTemplate ?? '')}</textarea>
+              ${templateCopyButton()}
+            </div>
             <p class="form-hint">${t('settings.notificationChannelMessagePusherTemplateHint')}</p>
           </div>
           <div class="form-field">
@@ -433,6 +470,17 @@ async function setupChannelControls(container) {
     const button = event.target.closest?.('button[data-action]');
     if (!button) return;
     const form = button.closest('.notification-channel-form');
+    if (button.dataset.action === 'copy-template') {
+      const textarea = button.closest('.notification-template-input')?.querySelector('textarea');
+      const value = textarea?.value || textarea?.placeholder || '';
+      try {
+        if (!await copyTemplateText(value)) throw new Error('clipboard unavailable');
+        setStatus(t('settings.notificationChannelTemplateCopied'));
+      } catch {
+        setStatus(t('settings.notificationChannelTemplateCopyFailed'));
+      }
+      return;
+    }
     const id = form?.dataset.channelId;
     if (!id) return;
     if (button.dataset.action === 'test') {

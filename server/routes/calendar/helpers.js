@@ -232,7 +232,24 @@ export function setEventAssignments(d, eventId, userIds) {
   );
 }
 
-export function serializeEvent(event) {
+function outlookSource(database, event) {
+  if (!database || event?.external_source !== 'outlook' || !event?.id) return null;
+  return database.prepare(`
+    SELECT l.account_id,
+           l.outlook_calendar_id AS calendar_id,
+           s.calendar_name,
+           a.name AS account_name
+      FROM outlook_event_links l
+      LEFT JOIN outlook_calendar_selection s
+        ON s.account_id = l.account_id AND s.calendar_id = l.outlook_calendar_id
+      LEFT JOIN outlook_accounts a ON a.id = l.account_id
+     WHERE l.event_id = ? AND l.link_type = 'inbound'
+     ORDER BY l.account_id, l.outlook_calendar_id
+     LIMIT 1
+  `).get(event.id) || null;
+}
+
+export function serializeEvent(event, database = null) {
   if (!event) return event;
   const assigned_users = event.assigned_users_json ? JSON.parse(event.assigned_users_json) : [];
   // birthday_name/birthday_date stammen aus dem LEFT JOIN auf birthdays und sind
@@ -240,10 +257,19 @@ export function serializeEvent(event) {
   // bisherige Objektform; der Client lokalisiert Titel/Beschreibung anhand von
   // birthday_name (Issue #524).
   const { assigned_users_json, birthday_name, birthday_date, ...rest } = event;
+  const source = event.outlook_source || outlookSource(database, event);
   const documentId = event.attachment_document_id ?? null;
   return {
     ...rest,
     ...(birthday_name ? { birthday_name, birthday_date: birthday_date ?? null } : {}),
+    outlook_source: source
+      ? {
+          account_id: source.account_id,
+          account_name: source.account_name || null,
+          calendar_id: source.calendar_id,
+          calendar_name: source.calendar_name || source.calendar_id,
+        }
+      : null,
     assigned_users,
     attachment_document_id: documentId,
     attachment_data: documentId ? null : attachmentDataUrl(event),

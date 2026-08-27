@@ -257,6 +257,19 @@ test('jeder Weg zu einem Termin führt in die Detailansicht', async () => {
   assert.match(src, /standalone:\s*async\s*\(\)\s*=>\s*\{[\s\S]*?openEventModal\(/, 'und zwar als edit.standalone');
 });
 
+test('ein Task-Deep-Link wird nach dem ersten Öffnen aus der URL entfernt', async () => {
+  const src = await tasksJs();
+  assert.match(src, /function consumeTaskOpenParameter\(\)/, 'Deep-Link-Verbrauch muss zentral erfolgen');
+  assert.match(src, /window\.history\.replaceState\(/, 'das Schließen darf beim Reload nicht erneut öffnen');
+  assert.match(src, /finally\s*\{\s*consumeTaskOpenParameter\(\);/, 'auch ein fehlender oder nicht zugänglicher Task darf nicht hängen bleiben');
+});
+
+test('Kalender-Monatsaufgaben tragen einen sichtbaren Aufgabenmarker', async () => {
+  const src = await calendarJs();
+  assert.match(src, /renderTaskChip\(tk, \{ interactive: false, icon: true \}\)/,
+    'Monatsansicht muss den Check-Kreis/Task-Marker rendern');
+});
+
 test('das Formular wartet auf die Erinnerungen, die Leseansicht nicht', async () => {
   const src = await calendarJs();
   const fn = src.slice(src.indexOf('async function openEventDetail'), src.indexOf('async function loadReminderForEvent'));

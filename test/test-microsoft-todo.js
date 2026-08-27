@@ -83,6 +83,13 @@ test('converts To Do due dates through the household timezone and keeps date-onl
     }, 'UTC'),
     { due_date: '2026-01-15', due_time: '08:30' },
   );
+  assert.deepEqual(
+    todo.__test.dueDateParts({
+      dateTime: '2026-01-15T09:30:00.0000000',
+      timeZone: 'FLE Standard Time',
+    }, 'Europe/Helsinki'),
+    { due_date: '2026-01-15', due_time: '09:30' },
+  );
   assert.equal(
     todo.__test.remoteTaskValues({
       title: 'HTML task',
@@ -94,15 +101,52 @@ test('converts To Do due dates through the household timezone and keeps date-onl
   );
   assert.equal(todo.__test.remoteTaskValues({ importance: 'normal' }, 'UTC').priority, 'none');
   assert.equal(todo.__test.remoteTaskValues({ importance: 'low' }, 'UTC').priority, 'none');
+  assert.deepEqual(
+    todo.__test.remoteTaskValues({
+      dueDateTime: { dateTime: '2026-08-15T00:00:00.0000000', timeZone: 'UTC' },
+      recurrence: {
+        pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+        range: { type: 'noEnd', startDate: '2026-08-15' },
+      },
+    }, 'UTC'),
+    {
+      title: 'Microsoft To Do task',
+      description: null,
+      priority: 'none',
+      status: 'open',
+      due_date: '2026-08-15',
+      due_time: null,
+      remind_at: null,
+      is_recurring: 1,
+      recurrence_rule: 'FREQ=MONTHLY',
+    },
+  );
   assert.equal(
     todo.__test.remoteTaskValues({
       isReminderOn: true,
-      reminderDateTime: { dateTime: '2026-01-15T09:30:00.0000000', timeZone: 'W. Europe Standard Time' },
+      reminderDateTime: { dateTime: '2026-01-15T09:30:00.0000000Z' },
     }, 'UTC').remind_at,
-    '2026-01-15T08:30:00',
+    '2026-01-15T09:30:00',
   );
   assert.equal(todo.__test.graphTaskPayload({ priority: 'low' }, 'UTC').importance, 'normal');
   assert.equal(todo.__test.graphTaskPayload({ priority: 'urgent' }, 'UTC').importance, 'high');
+  assert.equal(todo.__test.graphTaskPayload({
+    external_source: 'microsoft_todo',
+    is_recurring: 0,
+    recurrence_rule: null,
+  }, 'UTC').recurrence, null);
+  assert.deepEqual(
+    todo.__test.graphTaskPayload({
+      title: 'Monthly task',
+      is_recurring: 1,
+      recurrence_rule: 'FREQ=MONTHLY',
+      due_date: '2026-08-15',
+    }, 'Europe/Helsinki').recurrence,
+    {
+      pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+      range: { type: 'noEnd', startDate: '2026-08-15', recurrenceTimeZone: 'Europe/Helsinki' },
+    },
+  );
   assert.deepEqual(
     todo.__test.graphTaskPayload({
       title: 'Write',

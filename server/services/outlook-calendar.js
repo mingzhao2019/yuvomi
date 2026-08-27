@@ -24,6 +24,7 @@ import {
   localToUTC,
   shiftDateKey,
   todayKey,
+  utcToWall,
 } from '../utils/timezone.js';
 
 // /consumers statt /common: die Entra-App ist für "Personal Microsoft accounts
@@ -45,7 +46,10 @@ const MICROSOFT_TIME_ZONES = new Map(Object.entries({
   'Romance Standard Time': 'Europe/Paris',
   'Central European Standard Time': 'Europe/Warsaw',
   'E. Europe Standard Time': 'Europe/Chisinau',
-  'FLE Standard Time': 'Europe/Kyiv',
+  // Microsoft groups Helsinki/Kyiv/Riga/Sofia/Tallinn/Vilnius under one
+  // Windows ID. Helsinki is the closest IANA representative for Yuvomi's
+  // household-timezone semantics and avoids labelling Finnish imports as Kyiv.
+  'FLE Standard Time': 'Europe/Helsinki',
   'GTB Standard Time': 'Europe/Bucharest',
   'Eastern Standard Time': 'America/New_York',
   'Central Standard Time': 'America/Chicago',
@@ -818,16 +822,43 @@ function graphDateTimeValue(value, { allDay = false, fallbackTimeZone = outlookT
   if (!raw) return { value: null, timeZone: null };
   if (allDay || value.date) return { value: raw.slice(0, 10), timeZone: null };
 
+  const parts = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/.exec(raw);
+  if (!parts) return { value: null, timeZone: null };
+  const wall = `${parts[1]}T${parts[2]}:${parts[3] || '00'}`;
   const explicit = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  let instant = null;
+
   if (explicit) {
-    const parsed = new Date(raw);
-    return Number.isNaN(parsed.getTime())
-      ? { value: raw.slice(0, 19), timeZone: 'UTC' }
-      : { value: parsed.toISOString().replace('.000Z', 'Z'), timeZone: 'UTC' };
+    // Graph sometimes emits seven fractional digits. ECMAScript Date accepts
+    // milliseconds, so trim only excess precision before parsing the instant.
+    const parseable = raw.replace(/\.(\d+)(?=(?:Z|[+-]\d{2}:?\d{2})$)/, (_match, fraction) =>
+      `.${fraction.slice(0, 3).padEnd(3, '0')}`
+    );
+    const parsed = new Date(parseable);
+    if (!Number.isNaN(parsed.getTime())) instant = parsed.toISOString();
+  } else {
+    const sourceTimeZone = graphTimeZone(value.timeZone, null);
+    if (sourceTimeZone) instant = localToUTC(wall, sourceTimeZone);
   }
+
+  if (instant) {
+    const householdWall = utcToWall(instant, fallbackTimeZone);
+    if (householdWall) {
+      // calendar_events uses a zoneless household wall clock for values edited
+      // in Yuvomi. The provider's zone has already been used exactly once to
+      // resolve the Graph instant; do not store UTC and make the browser guess.
+      return {
+        value: `${householdWall.date}T${householdWall.time.slice(0, 5)}`,
+        timeZone: null,
+      };
+    }
+  }
+
+  // If Graph sends an unknown zone, keep the provider wall clock rather than
+  // inventing a UTC offset. Known Windows/IANA zones take the conversion path.
   return {
-    value: raw.slice(0, 16),
-    timeZone: graphTimeZone(value.timeZone, fallbackTimeZone),
+    value: wall.slice(0, 16),
+    timeZone: null,
   };
 }
 
@@ -2222,6 +2253,8 @@ export {
   ensureAccessToken,
   graphJson,
   graphPath,
+  rruleToGraphRecurrence,
+  graphRecurrenceToRRule,
 };
 
 export const __test = {
@@ -2236,6 +2269,7 @@ export const __test = {
   graphCalendarViewDeltaPath,
   defaultSyncStartDate,
   defaultSyncEndDate,
+  graphDateTimeValue,
   remoteEventSnapshot,
   graphRecurrenceToRRule,
   applyRemoteChanges,

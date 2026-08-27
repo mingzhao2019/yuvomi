@@ -1735,6 +1735,14 @@ function shiftedStartDate(startDate, dueDate, nextDue) {
  */
 function spawnRecurrenceFollowup(task) {
   if (!task?.is_recurring || !task.recurrence_rule || task.parent_task_id) return;
+  // Microsoft To Do owns the continuation of its recurring tasks: completing
+  // the current item causes Graph/To Do to create the next remote item. A
+  // local follow-up here would later be imported beside it as a duplicate.
+  const microsoftTodoTarget = task.external_source === 'microsoft_todo'
+    || (task.task_list_id != null && db.get().prepare(
+      'SELECT 1 FROM task_lists WHERE id = ? AND provider = ?'
+    ).get(task.task_list_id, 'microsoft_todo'));
+  if (microsoftTodoTarget) return;
   // Höchstens eine Folgeinstanz je Erledigung - sonst legt doppeltes Abhaken nach.
   if (recurrenceFollowupOf(task.id)) return;
 

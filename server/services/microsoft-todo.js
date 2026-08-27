@@ -14,6 +14,8 @@ import {
   getStatus as getOutlookStatus,
   graphJson,
   graphPath,
+  graphRecurrenceToRRule,
+  rruleToGraphRecurrence,
 } from './outlook-calendar.js';
 import {
   householdTimeZone,
@@ -32,6 +34,7 @@ const OUTBOUND_IN_FLIGHT = 2;
 // repair a local mirror when Graph omits or coalesces a deletion event. Keep a
 // persistent full-sync checkpoint per list so the safety net survives restarts.
 const FULL_RESYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Microsoft Graph returns Windows time-zone names for some tenants, while the
 // shared timezone helpers intentionally accept IANA names. Keep the mapping
@@ -97,7 +100,10 @@ const WINDOWS_TIME_ZONES = new Map(Object.entries({
   'South Sudan Standard Time': 'Africa/Juba',
   'E. Europe Standard Time': 'Europe/Chisinau',
   'Egypt Standard Time': 'Africa/Cairo',
-  'FLE Standard Time': 'Europe/Kyiv',
+  // Microsoft groups Helsinki/Kyiv/Riga/Sofia/Tallinn/Vilnius under one
+  // Windows ID. Helsinki is the closest IANA representative for Yuvomi's
+  // household-timezone semantics and avoids labelling Finnish imports as Kyiv.
+  'FLE Standard Time': 'Europe/Helsinki',
   'GTB Standard Time': 'Europe/Bucharest',
   'Israel Standard Time': 'Asia/Jerusalem',
   'Jordan Standard Time': 'Asia/Amman',
@@ -360,6 +366,17 @@ function graphTimeZone(value) {
   return isValidTimeZone(zone) ? zone : null;
 }
 
+/** Parse Graph's ISO values, including its seven-digit fractional seconds. */
+function parseGraphInstant(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const parseable = raw.replace(/\.(\d+)(?=(?:Z|[+-]\d{2}:?\d{2})$)/, (_match, fraction) =>
+    `.${fraction.slice(0, 3).padEnd(3, '0')}`
+  );
+  const parsed = new Date(parseable);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function graphDateTimeToUtc(dateTime) {
   const value = typeof dateTime?.dateTime === 'string' ? dateTime.dateTime.trim() : '';
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?/.exec(value);
@@ -373,8 +390,8 @@ function graphDateTimeToUtc(dateTime) {
   // we can resolve; otherwise a provider-side rename would move the reminder.
   if (!explicitZone && !sourceTimeZone) return null;
   const utc = explicitZone ? value : localToUTC(local, sourceTimeZone);
-  const parsed = new Date(utc);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  const parsed = parseGraphInstant(utc);
+  return parsed ? parsed.toISOString() : null;
 }
 
 function storedUtcValue(value) {
@@ -410,8 +427,8 @@ function dueDateParts(dueDateTime, targetTimeZone = householdTimeZone(null)) {
   const explicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
   let utc;
   if (explicitZone) {
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
+    const parsed = parseGraphInstant(value);
+    if (!parsed) {
       return { due_date: match[1], due_time: match[2] === '00:00' ? null : match[2] };
     }
     utc = parsed.toISOString();
@@ -432,9 +449,27 @@ function dueDateParts(dueDateTime, targetTimeZone = householdTimeZone(null)) {
   return { due_date: wall.date, due_time: wall.time.slice(0, 5) === '00:00' ? null : wall.time.slice(0, 5) };
 }
 
+function recurrenceStartDate(remote, dueDate) {
+  const rangeStart = remote?.recurrence?.range?.startDate;
+  if (DATE_ONLY_RE.test(String(rangeStart || ''))) return rangeStart;
+  return DATE_ONLY_RE.test(String(dueDate || '')) ? dueDate : null;
+}
+
+function remoteTaskRecurrence(remote, dueDate) {
+  if (!remote?.recurrence) return { is_recurring: 0, recurrence_rule: null };
+  const rule = graphRecurrenceToRRule(remote.recurrence, recurrenceStartDate(remote, dueDate));
+  // Relative monthly/yearly patterns and malformed provider data do not have a
+  // faithful representation in Yuvomi's deliberately small RRULE subset. Do
+  // not invent a different series; the task stays a one-off local mirror.
+  return rule
+    ? { is_recurring: 1, recurrence_rule: rule }
+    : { is_recurring: 0, recurrence_rule: null };
+}
+
 function remoteTaskValues(remote, timeZone = householdTimeZone(null)) {
   const due = dueDateParts(remote.dueDateTime, timeZone);
   const reminder = remoteReminderState(remote);
+  const recurrence = remoteTaskRecurrence(remote, due.due_date);
   return {
     title: String(remote.title || 'Microsoft To Do task').trim() || 'Microsoft To Do task',
     description: graphBodyText(remote.body),
@@ -443,6 +478,8 @@ function remoteTaskValues(remote, timeZone = householdTimeZone(null)) {
     due_date: due.due_date,
     due_time: due.due_time,
     remind_at: reminder.remind_at,
+    is_recurring: recurrence.is_recurring,
+    recurrence_rule: recurrence.recurrence_rule,
   };
 }
 
@@ -530,13 +567,14 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
   const insert = database.prepare(`
     INSERT INTO tasks
       (title, description, category, priority, status, due_date, due_time,
-       created_by, visibility, external_uid, external_source, external_account_id,
+       is_recurring, recurrence_rule, created_by, visibility, external_uid, external_source, external_account_id,
        external_object_url, outbound_dirty, outbound_attempts, task_list_id)
-    VALUES (?, ?, 'misc', ?, ?, ?, ?, ?, 'all', ?, ?, ?, ?, 0, 0, ?)
+    VALUES (?, ?, 'misc', ?, ?, ?, ?, ?, ?, ?, 'all', ?, ?, ?, ?, 0, 0, ?)
   `);
   const update = database.prepare(`
     UPDATE tasks
        SET title = ?, description = ?, priority = ?, status = ?, due_date = ?, due_time = ?,
+           is_recurring = ?, recurrence_rule = ?,
            external_object_url = ?, task_list_id = ?, outbound_dirty = 0,
            outbound_attempts = 0, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
      WHERE id = ?
@@ -572,6 +610,8 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
         values.status,
         values.due_date,
         values.due_time,
+        values.is_recurring,
+        values.recurrence_rule,
         graphTaskUrl(list.external_list_id, uid),
         list.id,
         old.id,
@@ -586,6 +626,8 @@ function applyRemoteTasks(database, account, list, changes, timeZone = household
         values.status,
         values.due_date,
         values.due_time,
+        values.is_recurring,
+        values.recurrence_rule,
         ownerId,
         uid,
         MICROSOFT_TODO_SOURCE,
@@ -732,6 +774,15 @@ function graphTaskPayload(task, timeZone = householdTimeZone(null), database = n
   payload.reminderDateTime = remindAt
     ? { dateTime: remindAt, timeZone: 'UTC' }
     : null;
+  const recurrenceStart = task.start_date || task.due_date;
+  if (task.is_recurring && task.recurrence_rule && recurrenceStart) {
+    const recurrence = rruleToGraphRecurrence(task.recurrence_rule, recurrenceStart, timeZone);
+    if (recurrence) payload.recurrence = recurrence;
+  } else if (task.external_source === MICROSOFT_TODO_SOURCE) {
+    // A local edit can turn a mirrored series into a one-off task. Explicitly
+    // clear Graph's recurrence or the next inbound sync would restore it.
+    payload.recurrence = null;
+  }
   return payload;
 }
 
@@ -925,7 +976,8 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
 
 /** Mark a mirrored Microsoft task for the next outbound PATCH. */
 export function markTaskOutbound(before, after, database) {
-  const changed = ['title', 'description', 'priority', 'status', 'due_date', 'due_time']
+  const changed = ['title', 'description', 'priority', 'status', 'due_date', 'due_time',
+    'is_recurring', 'recurrence_rule']
     .some((field) => String(before[field] ?? '') !== String(after[field] ?? ''));
   if (!changed) return false;
   const activeDb = activeDatabase(database);
@@ -1160,6 +1212,7 @@ export const __test = {
   shouldRunFullResync,
   FULL_RESYNC_INTERVAL_MS,
   dueDateParts,
+  remoteTaskRecurrence,
   remoteTaskValues,
   graphTaskPayload,
   publicList,
