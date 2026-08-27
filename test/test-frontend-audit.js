@@ -1404,6 +1404,8 @@ test('sync-calendar leaf loads CalDAV, Google, and Apple with independent status
   // task sync.
   assert.match(source, /api\.post\('\/calendar\/outlook\/sync'\)/);
   assert.match(source, /api\.post\('\/calendar\/outlook\/todo\/sync'\)/);
+  assert.match(source, /settings\.outlookFullSyncHint/);
+  assert.match(source, /settings-sync-action-with-note/);
 
   // Google: provider-specific labelled, all endpoints preserved.
   assert.match(source, /settings\.providerSpecific/);

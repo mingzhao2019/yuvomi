@@ -246,6 +246,12 @@ test('Task Lists sind eine dauerhafte Navigation statt einer Filter- oder Gruppi
   assert(source.includes("activeTaskListId: 'all'"), 'Alle Tasks muss der Standardbereich sein');
   assert(source.includes('restoreActiveTaskList();'), 'der aktive Bereich muss über Seitenwechsel erhalten bleiben');
   assert(source.includes('function taskListMatches('), 'die Navigation muss den sichtbaren Bereich bestimmen');
+  assert(source.includes('function taskListSourceGroups('), 'die Navigation muss Quellen als erste Ebene gruppieren');
+  assert(source.includes('task-list-nav__desktop'), 'die Desktop-Navigation muss die Quellen und ihre Listen verschachteln');
+  assert(source.includes('task-list-nav__mobile'), 'die mobile Navigation muss eine eigene Darstellung rendern');
+  assert(source.includes('task-list-mobile-select'), 'mobile Listen müssen über ein Select gewählt werden');
+  assert(source.includes("const TASK_LIST_SOURCE_SCOPE_PREFIX = 'source:'"),
+    'eine Quelle muss von einer konkreten Liste unterscheidbar sein');
   assert(!source.includes('data-mode="task_list"'), 'Task List darf kein Gruppenmodus sein');
   assert(!source.includes("key: 'task_list_id'"), 'Task List darf kein Filter-Panel-Eintrag sein');
 });

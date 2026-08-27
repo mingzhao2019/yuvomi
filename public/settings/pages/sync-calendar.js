@@ -1098,13 +1098,20 @@ function buildOutlookAccountCard(account, refresh, user) {
     }
   });
 
+  const syncAction = document.createElement('div');
+  syncAction.className = 'settings-sync-action-with-note';
+  const syncNote = document.createElement('span');
+  syncNote.className = 'settings-sync-action__note';
+  syncNote.textContent = t('settings.outlookFullSyncHint');
+  syncAction.append(syncBtn, syncNote);
+
   card.appendChild(createStatusSummary({
     title: account.name,
     status: (account.needsReauth || account.todoNeedsReauth)
       ? t('settings.outlookReauthRequired')
       : (account.lastSync ? t('settings.connected') : t('settings.notConnected')),
     details,
-    action: syncBtn,
+    action: syncAction,
     tone: (account.needsReauth || account.todoNeedsReauth) ? 'warning' : (account.lastSync ? 'success' : 'neutral'),
   }));
 

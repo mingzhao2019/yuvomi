@@ -1529,6 +1529,7 @@
         "outlookOwnerNone": "- 选择人员 -",
         "outlookTodoLists": "Microsoft To Do 列表",
         "outlookTodoListsHint": "启用的列表会显示在 Tasks 左侧，并参与双向同步。",
+        "outlookFullSyncHint": "全量同步：Outlook 日历和 Microsoft To Do",
         "outlookTodoListsEmpty": "尚未发现 Microsoft To Do 列表。",
         "outlookTodoRefresh": "刷新 To Do 列表",
         "outlookTodoRefreshed": "To Do 列表已刷新。",

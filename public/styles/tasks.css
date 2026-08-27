@@ -39,11 +39,10 @@
 /* --------------------------------------------------------
  * Task-List-Navigation
  *
- * Task Lists sind eine eigene Navigation, keine weitere Filterachse: Alle
- * Listen bleiben sichtbar, und der Wechsel blendet nur den Aufgabenbestand
- * rechts um. Auf kleinen Bildschirmen wird dieselbe Navigation horizontal
- * scrollbar, damit sie ihren dauerhaften Charakter behält, ohne den Inhalt
- * unter eine zweite lange Spalte zu drücken.
+ * Task Lists sind eine eigene Navigation, keine weitere Filterachse: Die erste
+ * Ebene gruppiert nach Quelle, die zweite zeigt die Listen dieser Quelle. Auf
+ * kleinen Bildschirmen bleibt nur die kurze Quellenleiste horizontal; die
+ * konkrete Liste wird anschließend als einzelnes Select gewählt.
  * -------------------------------------------------------- */
 .tasks-layout {
   display: grid;
@@ -73,11 +72,29 @@
   text-transform: uppercase;
 }
 
-.task-lists-sidebar__items {
+.task-list-nav__desktop {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.task-list-nav__group {
   display: grid;
   gap: var(--space-1);
 }
 
+.task-list-nav__children {
+  display: grid;
+  gap: var(--space-1);
+  margin-inline-start: var(--space-4);
+  padding-inline-start: var(--space-2);
+  border-inline-start: var(--space-px) solid var(--color-border-subtle);
+}
+
+.task-list-nav__mobile {
+  display: none;
+}
+
+.task-list-nav__source,
 .task-list-nav__item {
   display: flex;
   align-items: center;
@@ -95,11 +112,18 @@
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
+.task-list-nav__source {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.task-list-nav__source:hover,
 .task-list-nav__item:hover {
   background-color: var(--color-surface-2);
   color: var(--color-text-primary);
 }
 
+.task-list-nav__source--active,
 .task-list-nav__item--active {
   background-color: var(--color-surface-2);
   border-color: var(--module-accent, var(--color-accent));
@@ -107,6 +131,7 @@
   font-weight: var(--font-weight-medium);
 }
 
+.task-list-nav__source--active:hover,
 .task-list-nav__item--active:hover {
   background-color: var(--color-surface-2);
 }
@@ -152,7 +177,16 @@
     overflow: visible;
   }
 
-  .task-lists-sidebar__items {
+  .task-list-nav__desktop {
+    display: none;
+  }
+
+  .task-list-nav__mobile {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .task-list-nav__sources {
     display: flex;
     gap: var(--space-1);
     overflow-x: auto;
@@ -160,14 +194,32 @@
     scrollbar-width: none;
   }
 
-  .task-lists-sidebar__items::-webkit-scrollbar {
+  .task-list-nav__sources::-webkit-scrollbar {
     display: none;
   }
 
-  .task-list-nav__item {
+  .task-list-nav__sources .task-list-nav__source {
     width: auto;
     min-width: 8rem;
     flex: 0 0 auto;
+  }
+
+  .task-list-nav__mobile-select {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .task-list-nav__select-label {
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  .task-list-nav__select {
+    width: 100%;
+    min-width: 0;
   }
 
   .task-list-nav__account {

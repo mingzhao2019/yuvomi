@@ -1546,6 +1546,7 @@
         "outlookOwnerNone": "- select person -",
         "outlookTodoLists": "Microsoft To Do lists",
         "outlookTodoListsHint": "Enabled lists appear in the Tasks sidebar and participate in two-way sync.",
+        "outlookFullSyncHint": "Full sync: Outlook Calendar and Microsoft To Do",
         "outlookTodoListsEmpty": "No Microsoft To Do lists discovered yet.",
         "outlookTodoRefresh": "Refresh To Do lists",
         "outlookTodoRefreshed": "To Do lists refreshed.",

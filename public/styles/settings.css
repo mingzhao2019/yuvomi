@@ -602,6 +602,18 @@
   margin-top: var(--space-2);
 }
 
+.settings-sync-action-with-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.settings-sync-action__note {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
 /* `-ink`, nicht `--color-danger`: der Fehlertext steht auf --color-danger-light
    und traf dort 4,45:1 - unter AA, gemessen von Sonde 2 (light/mobile). Die
    Signalfarbe ist für die FLÄCHE gebaut, das Ink-Token für den Text darauf

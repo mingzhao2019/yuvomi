@@ -2364,6 +2364,7 @@
         "notificationChannelMessagePusherHint": "POST + JSON wird empfohlen. GET oder URL-Tokens können in Proxy- und Server-Logs auftauchen.",
         "outlookTodoLists": "Microsoft-To-Do-Listen",
         "outlookTodoListsHint": "Aktivierte Listen erscheinen in der Aufgaben-Seitenleiste und werden bidirektional synchronisiert.",
+        "outlookFullSyncHint": "Vollständige Synchronisierung: Outlook-Kalender und Microsoft To Do",
         "outlookTodoListsEmpty": "Noch keine Microsoft-To-Do-Listen gefunden.",
         "outlookTodoRefresh": "To-Do-Listen aktualisieren",
         "outlookTodoRefreshed": "To-Do-Listen aktualisiert.",

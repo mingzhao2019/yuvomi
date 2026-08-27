@@ -43,6 +43,10 @@ const PRIORITIES = () => [
 
 const PRIO_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
+const TASK_LIST_SOURCE_SCOPE_PREFIX = 'source:';
+const TASK_LIST_ALL_OPTION = '__all__';
+const TASK_LIST_SOURCE_ORDER = ['local', 'caldav', 'microsoft_todo'];
+
 // Die Zustände, die eine Aufgabe im Lauf durchläuft. Das Archiv steht seit #688
 // NICHT mehr darunter: Ablegen und Erledigen sind zwei Aussagen, und solange sie
 // sich ein Feld teilten, löschte das Ablegen das Erledigt-Sein.
@@ -99,6 +103,14 @@ function taskListLabel(list) {
   if (!list) return t('tasks.taskListLocal');
   const name = list.name || t('tasks.taskListLocal');
   return list.account_name ? `${list.account_name} · ${name}` : name;
+}
+
+/** Display label for the first level of the Task List navigation. */
+function taskListSourceLabel(provider) {
+  if (provider === 'local') return t('tasks.taskListLocal');
+  if (provider === 'caldav') return 'CalDAV';
+  if (provider === 'microsoft_todo') return 'Microsoft To Do';
+  return provider || t('tasks.taskListLabel');
 }
 
 function taskListForTask(task) {
@@ -518,10 +530,14 @@ async function wireSyncTarget(panel, task) {
  * local-only creation.
  */
 function selectedTaskListSyncTarget() {
-  if (state.activeTaskListId === 'all') return null;
-  if (state.activeTaskListId === 'local') return '';
+  const scope = String(state.activeTaskListId);
+  if (scope === 'all') return null;
+  if (scope === 'local') return '';
+  // A source-wide view does not identify one remote list. Keep the personal
+  // default in the new-task modal until the user chooses a concrete list.
+  if (scope.startsWith(TASK_LIST_SOURCE_SCOPE_PREFIX)) return null;
   const list = state.taskLists.find((entry) =>
-    entry.id != null && String(entry.id) === String(state.activeTaskListId));
+    entry.id != null && String(entry.id) === scope);
   if (!list || list.external_account_id == null) return null;
   if (list.provider === 'microsoft_todo' && list.enabled === 0) return '';
   if (list.provider === 'microsoft_todo' && list.external_list_id) {
@@ -1245,7 +1261,7 @@ let state = {
   // Achse wirken sie ODER, zwischen den Achsen UND. Tags bleiben UND-verknüpft.
   filters:         { status: ['open'], priority: [], assigned_to: [], tags: [] },
   groupMode:       'category',   // 'category' | 'due'
-  activeTaskListId: 'all',       // 'all' | 'local' | persisted Task List id
+  activeTaskListId: 'all',       // 'all' | 'local' | 'source:<provider>' | persisted Task List id
   viewMode:        'list',       // 'list' | 'kanban' | 'history' (resolved at render time)
   // Der Verlauf (#791) hat einen eigenen Bestand, weil er etwas anderes zeigt
   // als `tasks`: nicht Aufgaben, sondern Vorgänge. Er wird geblättert statt
@@ -1274,10 +1290,16 @@ let state = {
  * erfolgt und sich wie eine dauerhafte Seitenleiste anfühlt.
  */
 function taskListMatches(task) {
-  if (state.activeTaskListId === 'all') return true;
-  if (state.activeTaskListId === 'local') return task?.task_list_id == null;
+  const scope = String(state.activeTaskListId);
+  if (scope === 'all') return true;
+  if (scope === 'local') return task?.task_list_id == null;
+  if (scope.startsWith(TASK_LIST_SOURCE_SCOPE_PREFIX)) {
+    const provider = scope.slice(TASK_LIST_SOURCE_SCOPE_PREFIX.length);
+    if (provider === 'local') return task?.task_list_id == null;
+    return taskListForTask(task)?.provider === provider;
+  }
   return task?.task_list_id != null
-    && String(task.task_list_id) === String(state.activeTaskListId);
+    && String(task.task_list_id) === scope;
 }
 
 function filteredTasks() {
@@ -3700,27 +3722,214 @@ function restoreActiveTaskList() {
   } catch {}
 }
 
+function taskListSourceScope(source) {
+  if (source === 'all' || source === 'local') return source;
+  return TASK_LIST_SOURCE_SCOPE_PREFIX + source;
+}
+
+/**
+ * The first navigation level is the provider, the second one its lists.
+ * Local tasks predate the provider-backed list table, so they keep their
+ * compatibility bucket as the one local child.
+ */
+function taskListSourceGroups() {
+  const local = state.taskLists.find((list) => list.id == null);
+  const groups = [
+    { key: 'all', provider: 'all', name: t('common.all'), lists: [] },
+    {
+      key: 'local',
+      provider: 'local',
+      name: taskListSourceLabel('local'),
+      lists: [{
+        id: 'local',
+        name: local?.name || t('tasks.taskListLocal'),
+        provider: 'local',
+        account_name: null,
+        task_count: local?.task_count ?? 0,
+      }],
+    },
+  ];
+
+  const byProvider = new Map();
+  for (const rawList of state.taskLists ?? []) {
+    if (rawList.id == null || rawList.provider === 'local') continue;
+    if (rawList.provider === 'microsoft_todo' && rawList.enabled === 0) continue;
+    const provider = String(rawList.provider || 'unknown');
+    if (!byProvider.has(provider)) byProvider.set(provider, []);
+    byProvider.get(provider).push({ ...rawList, id: String(rawList.id) });
+  }
+
+  const sourceOrder = (provider) => {
+    const index = TASK_LIST_SOURCE_ORDER.indexOf(provider);
+    return index === -1 ? TASK_LIST_SOURCE_ORDER.length : index;
+  };
+  for (const provider of [...byProvider.keys()].sort((a, b) =>
+    sourceOrder(a) - sourceOrder(b) || a.localeCompare(b))) {
+    groups.push({
+      key: provider,
+      provider,
+      name: taskListSourceLabel(provider),
+      lists: byProvider.get(provider),
+    });
+  }
+  return groups;
+}
+
+function taskListSourceKeyForScope(scope = state.activeTaskListId) {
+  const value = String(scope);
+  if (value === 'all' || value === 'local') return value;
+  if (value.startsWith(TASK_LIST_SOURCE_SCOPE_PREFIX)) {
+    return value.slice(TASK_LIST_SOURCE_SCOPE_PREFIX.length);
+  }
+  return state.taskLists.find((list) => list.id != null && String(list.id) === value)?.provider || 'all';
+}
+
 function normalizeActiveTaskList() {
-  if (state.activeTaskListId === 'all' || state.activeTaskListId === 'local') return;
+  const scope = String(state.activeTaskListId);
+  if (scope === 'all' || scope === 'local') return;
+  if (scope.startsWith(TASK_LIST_SOURCE_SCOPE_PREFIX)) {
+    const source = scope.slice(TASK_LIST_SOURCE_SCOPE_PREFIX.length);
+    if (taskListSourceGroups().some((group) => group.key === source)) return;
+    state.activeTaskListId = 'all';
+    return;
+  }
   if (state.taskLists.some((list) => list.id != null
-      && String(list.id) === String(state.activeTaskListId)
+      && String(list.id) === scope
       && !(list.provider === 'microsoft_todo' && list.enabled === 0))) return;
   state.activeTaskListId = 'all';
 }
 
-function taskListNavigationItems() {
-  const local = state.taskLists.find((list) => list.id == null);
-  return [
-    { id: 'all', name: t('common.all'), provider: 'all' },
-    { id: 'local', name: local?.name || t('tasks.taskListLocal'), provider: 'local' },
-    ...state.taskLists
-      .filter((list) => list.id != null)
-      .filter((list) => !(list.provider === 'microsoft_todo' && list.enabled === 0))
-      .map((list) => ({ ...list, id: String(list.id) })),
-  ];
+function taskListSourceIcon(provider) {
+  if (provider === 'all') return 'inbox';
+  if (provider === 'local') return 'hard-drive';
+  if (provider === 'microsoft_todo') return 'list-checks';
+  if (provider === 'caldav') return 'cloud';
+  return 'list';
 }
 
-/** Render the persistent Microsoft To Do-style Task List navigation. */
+function activateTaskListScope(scope, container) {
+  const next = String(scope);
+  if (next === String(state.activeTaskListId)) return;
+  state.activeTaskListId = next;
+  try { localStorage.setItem(ACTIVE_TASK_LIST_KEY, state.activeTaskListId); } catch {}
+  state.selectedTaskIds.clear();
+  let switchedFromHistory = false;
+  if (state.viewMode === 'history') {
+    switchedFromHistory = true;
+    state.viewMode = 'list';
+    try { localStorage.setItem('yuvomi-tasks-view', state.viewMode); } catch {}
+    renderFilters(container);
+    syncViewChrome(container);
+  }
+  renderTaskLists(container);
+  if (switchedFromHistory) {
+    loadTasks(container).catch(() => renderTaskList(container));
+  } else {
+    renderTaskList(container);
+  }
+  updateBulkActionsBar(container);
+}
+
+function appendTaskListNavButton(parent, item, container, { source = false } = {}) {
+  const active = source
+    ? taskListSourceKeyForScope() === item.key
+    : String(item.id) === String(state.activeTaskListId);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = source ? 'task-list-nav__source' : 'task-list-nav__item';
+  if (active) button.classList.add(source ? 'task-list-nav__source--active' : 'task-list-nav__item--active');
+  if (source) button.dataset.taskSource = item.key;
+  else button.dataset.taskListId = item.id;
+  button.setAttribute('aria-pressed', String(active));
+  button.setAttribute('aria-label', source ? item.name : taskListLabel(item));
+
+  const icon = document.createElement('i');
+  icon.setAttribute('data-lucide', source ? taskListSourceIcon(item.provider) : 'list');
+  icon.className = 'task-list-nav__icon';
+  icon.setAttribute('aria-hidden', 'true');
+
+  const text = document.createElement('span');
+  text.className = 'task-list-nav__text';
+  const label = document.createElement('span');
+  label.className = 'task-list-nav__label';
+  label.textContent = source ? item.name : (item.name || t('tasks.taskListLocal'));
+  text.appendChild(label);
+  if (!source && item.account_name) {
+    const account = document.createElement('span');
+    account.className = 'task-list-nav__account';
+    account.textContent = item.account_name;
+    text.appendChild(account);
+  }
+
+  button.append(icon, text);
+  button.addEventListener('click', () => {
+    activateTaskListScope(source ? taskListSourceScope(item.key) : item.id, container);
+  });
+  parent.appendChild(button);
+}
+
+function renderMobileTaskListNav(parent, groups, container) {
+  const mobile = document.createElement('div');
+  mobile.className = 'task-list-nav__mobile';
+
+  const sourceBar = document.createElement('div');
+  sourceBar.className = 'task-list-nav__sources';
+  sourceBar.setAttribute('role', 'group');
+  sourceBar.setAttribute('aria-label', t('tasks.taskListLabel'));
+  for (const group of groups) appendTaskListNavButton(sourceBar, group, container, { source: true });
+  mobile.appendChild(sourceBar);
+
+  const activeSource = taskListSourceKeyForScope();
+  const group = groups.find((entry) => entry.key === activeSource);
+  if (group && group.key !== 'all') {
+    const field = document.createElement('div');
+    field.className = 'task-list-nav__mobile-select';
+    const label = document.createElement('label');
+    label.className = 'task-list-nav__select-label';
+    label.htmlFor = 'task-list-mobile-select';
+    label.textContent = t('tasks.taskListLabel');
+
+    const select = document.createElement('select');
+    select.id = 'task-list-mobile-select';
+    select.className = 'form-input task-list-nav__select';
+    select.setAttribute('aria-label', `${t('tasks.taskListLabel')}: ${group.name}`);
+
+    const allowSourceWide = group.key !== 'local';
+    if (allowSourceWide) {
+      const all = document.createElement('option');
+      all.value = TASK_LIST_ALL_OPTION;
+      all.textContent = t('common.all');
+      select.appendChild(all);
+    }
+    for (const item of group.lists) {
+      const option = document.createElement('option');
+      option.value = String(item.id);
+      option.textContent = taskListLabel(item);
+      select.appendChild(option);
+    }
+
+    const scope = String(state.activeTaskListId);
+    if (allowSourceWide && scope === taskListSourceScope(group.key)) {
+      select.value = TASK_LIST_ALL_OPTION;
+    } else if (group.lists.some((item) => String(item.id) === scope)) {
+      select.value = scope;
+    } else if (allowSourceWide) {
+      select.value = TASK_LIST_ALL_OPTION;
+    }
+    select.addEventListener('change', (event) => {
+      const value = event.target.value;
+      activateTaskListScope(
+        value === TASK_LIST_ALL_OPTION ? taskListSourceScope(group.key) : value,
+        container,
+      );
+    });
+    field.append(label, select);
+    mobile.appendChild(field);
+  }
+  parent.appendChild(mobile);
+}
+
+/** Render the two-level Task List navigation for desktop and mobile. */
 function renderTaskLists(container) {
   const nav = container.querySelector('#task-lists-nav');
   if (!nav) return;
@@ -3732,63 +3941,24 @@ function renderTaskLists(container) {
   title.id = 'task-lists-title';
   title.textContent = t('tasks.taskListLabel');
 
-  const items = document.createElement('div');
-  items.className = 'task-lists-sidebar__items';
-
-  for (const item of taskListNavigationItems()) {
-    const button = document.createElement('button');
-    const active = String(item.id) === String(state.activeTaskListId);
-    button.type = 'button';
-    button.className = 'task-list-nav__item'
-      + (active ? ' task-list-nav__item--active' : '');
-    button.dataset.taskListId = item.id;
-    button.setAttribute('aria-pressed', String(active));
-    button.setAttribute('aria-label', item.name);
-
-    const icon = document.createElement('i');
-    icon.setAttribute('data-lucide', item.id === 'all' ? 'inbox' : 'list');
-    icon.className = 'task-list-nav__icon';
-    icon.setAttribute('aria-hidden', 'true');
-
-    const text = document.createElement('span');
-    text.className = 'task-list-nav__text';
-    const label = document.createElement('span');
-    label.className = 'task-list-nav__label';
-    label.textContent = item.name;
-    text.appendChild(label);
-    if (item.account_name) {
-      const account = document.createElement('span');
-      account.className = 'task-list-nav__account';
-      account.textContent = item.account_name;
-      text.appendChild(account);
+  const groups = taskListSourceGroups();
+  const desktop = document.createElement('div');
+  desktop.className = 'task-list-nav__desktop';
+  for (const group of groups) {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'task-list-nav__group';
+    appendTaskListNavButton(groupEl, group, container, { source: true });
+    if (group.lists.length) {
+      const children = document.createElement('div');
+      children.className = 'task-list-nav__children';
+      for (const item of group.lists) appendTaskListNavButton(children, item, container);
+      groupEl.appendChild(children);
     }
-
-    button.append(icon, text);
-    button.addEventListener('click', () => {
-      if (String(item.id) === String(state.activeTaskListId)) return;
-      state.activeTaskListId = String(item.id);
-      try { localStorage.setItem(ACTIVE_TASK_LIST_KEY, state.activeTaskListId); } catch {}
-      state.selectedTaskIds.clear();
-      let switchedFromHistory = false;
-      if (state.viewMode === 'history') {
-        switchedFromHistory = true;
-        state.viewMode = 'list';
-        try { localStorage.setItem('yuvomi-tasks-view', state.viewMode); } catch {}
-        renderFilters(container);
-        syncViewChrome(container);
-      }
-      renderTaskLists(container);
-      if (switchedFromHistory) {
-        loadTasks(container).catch(() => renderTaskList(container));
-      } else {
-        renderTaskList(container);
-      }
-      updateBulkActionsBar(container);
-    });
-    items.appendChild(button);
+    desktop.appendChild(groupEl);
   }
 
-  nav.append(title, items);
+  nav.append(title, desktop);
+  renderMobileTaskListNav(nav, groups, container);
   if (window.lucide) window.lucide.createIcons({ el: nav });
 }
 
