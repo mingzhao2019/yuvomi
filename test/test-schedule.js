@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import express from 'express';
 import { get } from '../server/db.js';
-import scheduleRouter from '../server/routes/schedule.js';
+import scheduleRouter, { isStillReferenced } from '../server/routes/schedule.js';
 import { cyclePosition, resolveEntries } from '../server/services/schedule.js';
 
 const database = get();
@@ -112,6 +112,61 @@ test('members may write only themselves while admins may write any household sch
   assert.equal(self.status, 200);
   const foreign = await call('PUT', '/overrides/2026-11-03', { as: ALICE, body: { user_id: BOB.id, shift_type_id: null } });
   assert.equal(foreign.status, 403);
+});
+
+// A shift type belongs to the household, not to a person: it shows up in every
+// member's pattern. Anyone may add one - that takes nothing away from anybody -
+// but renaming or deleting one is the owner's call, or an admin's. Without this
+// any member could rename the family's early shift, and the delete went through
+// on nothing but a valid id.
+test('a shift type may be added by anyone but only changed by its creator or an admin', async () => {
+  const created = await call('POST', '/shift-types', { as: ALICE, body: { name: 'Standby', start_time: '18:00', end_time: '20:00' } });
+  assert.equal(created.status, 201, 'every member may add a shift type');
+  const shiftId = created.body.data.id;
+  assert.equal(created.body.data.created_by, ALICE.id, 'the creator is recorded');
+
+  const foreignRename = await call('PUT', `/shift-types/${shiftId}`, { as: BOB, body: { name: 'Renamed by Bob' } });
+  assert.equal(foreignRename.status, 403, 'a member does not rename the household shift type');
+
+  const foreignDelete = await call('DELETE', `/shift-types/${shiftId}`, { as: BOB });
+  assert.equal(foreignDelete.status, 403, 'nor delete it');
+
+  const ownRename = await call('PUT', `/shift-types/${shiftId}`, { as: ALICE, body: { name: 'Standby late' } });
+  assert.equal(ownRename.status, 200);
+  assert.equal(ownRename.body.data.name, 'Standby late');
+
+  const adminDelete = await call('DELETE', `/shift-types/${shiftId}`, { as: ADMIN });
+  assert.equal(adminDelete.status, 204, 'an admin may clean up any shift type');
+});
+
+// A type still referenced by a pattern day is held by the foreign key. The 409
+// has to come from THAT and not from any error at all - the branch used to
+// catch everything and blame the same cause, so a broken statement would have
+// told the caller the type was still in use.
+test('deleting a shift type that is still in use answers 409, and 404 stays 404', async () => {
+  const inUse = await call('DELETE', `/shift-types/${typeId}`, { as: ADMIN });
+  assert.equal(inUse.status, 409);
+  assert.match(inUse.body.error, /in use/);
+  assert.equal(database.prepare('SELECT count(*) AS count FROM schedule_pattern_days WHERE shift_type_id = ?').get(typeId).count, 1,
+    'the refusal left the pattern day alone');
+
+  const missing = await call('DELETE', '/shift-types/999999', { as: ADMIN });
+  assert.equal(missing.status, 404, 'an unknown id is not "in use"');
+});
+
+// The status-code test above stays green either way - it measures the outcome,
+// not the reason. This one asks the rule directly, so a catch-all can't pass
+// itself off as a foreign-key check.
+test('only a foreign-key refusal counts as "still in use"', () => {
+  // Measured, not guessed: a refused ON DELETE RESTRICT arrives as
+  // SQLITE_CONSTRAINT_TRIGGER even though its message says "FOREIGN KEY
+  // constraint failed". A check for _FOREIGNKEY alone would miss every one.
+  assert.equal(isStillReferenced({ code: 'SQLITE_CONSTRAINT_TRIGGER' }), true);
+  assert.equal(isStillReferenced({ code: 'SQLITE_CONSTRAINT_FOREIGNKEY' }), true);
+  assert.equal(isStillReferenced({ code: 'SQLITE_CONSTRAINT' }), true);
+  assert.equal(isStillReferenced({ code: 'SQLITE_ERROR' }), false, 'a broken statement is not a reference');
+  assert.equal(isStillReferenced(new TypeError('undefined is not a function')), false);
+  assert.equal(isStillReferenced(undefined), false);
 });
 
 test('schedule routes reject invalid shift times and return data envelopes', async () => {

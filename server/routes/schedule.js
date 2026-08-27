@@ -2,15 +2,46 @@
 import express from 'express';
 import * as db from '../db.js';
 import { bool, color, collectErrors, date, id, num, str, time } from '../middleware/validate.js';
+import { createLogger } from '../logger.js';
 import { resolveEntries } from '../services/schedule.js';
 
 const router = express.Router();
+const log = createLogger('Schedule');
 const actorId = (req) => req.authUserId || req.session?.userId;
 const isAdmin = (req) => req.authRole === 'admin' || req.session?.role === 'admin';
 const fail = (res, code, error) => res.status(code).json({ error, code });
 const userExists = (value) => !!db.get().prepare('SELECT 1 FROM users WHERE id = ?').get(value);
 const typeExists = (value) => !!db.get().prepare('SELECT 1 FROM schedule_shift_types WHERE id = ?').get(value);
 const mineOrAdmin = (req, userId) => isAdmin(req) || actorId(req) === userId;
+
+/**
+ * Ein Schichttyp gehoert dem Haushalt, nicht einer Person: er taucht in den
+ * Mustern aller Mitglieder auf. Anlegen darf ihn deshalb jeder - das nimmt
+ * niemandem etwas weg -, aendern und loeschen nur, wer ihn angelegt hat, oder
+ * ein Admin. Sonst benennt ein Mitglied die Fruehschicht der ganzen Familie um.
+ *
+ * `created_by` ist `ON DELETE SET NULL`: ein Typ, dessen Ersteller nicht mehr
+ * da ist, wird verwaist und liegt damit bei den Admins - nicht bei allen.
+ */
+const ownTypeOrAdmin = (req, type) => isAdmin(req) || (type.created_by != null && type.created_by === actorId(req));
+
+/**
+ * Hat SQLite das Loeschen wegen einer bestehenden Referenz abgelehnt?
+ *
+ * Steht als benannte Funktion hier und nicht als Ausdruck im Handler, damit ein
+ * Test sie direkt befragen kann: der Handler antwortete vorher auf JEDEN Fehler
+ * mit "noch in Benutzung", und ein Test auf den Statuscode allein bleibt dabei
+ * gruen - er misst das Ergebnis, nicht den Grund.
+ *
+ * Gemessen und nicht geraten: ein abgelehntes `ON DELETE RESTRICT` kommt als
+ * `SQLITE_CONSTRAINT_TRIGGER` an, NICHT als `_FOREIGNKEY` - die Meldung lautet
+ * "FOREIGN KEY constraint failed", der Code sagt etwas anderes. Deshalb das
+ * Praefix ueber alle Constraint-Varianten; ein DELETE kann ohnehin keinen
+ * UNIQUE- oder CHECK-Verstoss ausloesen.
+ */
+export function isStillReferenced(err) {
+  return String(err?.code || '').startsWith('SQLITE_CONSTRAINT');
+}
 const typeColumns = 'id, name, short_code, start_time, end_time, color, created_by, created_at, updated_at';
 
 function scheduleData(from, to, userId) {
@@ -44,7 +75,10 @@ router.get('/entries', (req, res) => {
   if (errors.length || (from.value && to.value && from.value > to.value)) return fail(res, 400, errors.join(' ') || 'from must be before to.');
   if (requested && !userExists(requested.value)) return fail(res, 404, 'User not found.');
   try { res.json({ data: scheduleData(from.value, to.value, requested?.value ?? null) }); }
-  catch (err) { res.status(500).json({ error: 'Schedule entries could not be resolved.', code: 500 }); }
+  catch (err) {
+    log.error('Error resolving schedule entries:', err.message);
+    return fail(res, 500, 'Schedule entries could not be resolved.');
+  }
 });
 
 router.get('/shift-types', (_req, res) => res.json({ data: db.get().prepare(`SELECT ${typeColumns} FROM schedule_shift_types ORDER BY name COLLATE NOCASE`).all() }));
@@ -58,9 +92,22 @@ router.post('/shift-types', (req, res) => {
   res.status(201).json({ data: db.get().prepare(`SELECT ${typeColumns} FROM schedule_shift_types WHERE id = ?`).get(result.lastInsertRowid) });
 });
 router.delete('/shift-types/:id', (req, res) => {
-  const shiftType = id(req.params.id, 'id'); if (shiftType.error) return res.status(400).json({ error: shiftType.error, code: 400 });
-  try { const result = db.get().prepare('DELETE FROM schedule_shift_types WHERE id = ?').run(shiftType.value); return result.changes ? res.status(204).end() : res.status(404).json({ error: 'Shift type not found.', code: 404 }); }
-  catch { return res.status(409).json({ error: 'Shift type is in use.', code: 409 }); }
+  const shiftType = id(req.params.id, 'id');
+  if (shiftType.error) return fail(res, 400, shiftType.error);
+  const existing = db.get().prepare('SELECT id, created_by FROM schedule_shift_types WHERE id = ?').get(shiftType.value);
+  if (!existing) return fail(res, 404, 'Shift type not found.');
+  if (!ownTypeOrAdmin(req, existing)) return fail(res, 403, 'Forbidden.');
+  try {
+    db.get().prepare('DELETE FROM schedule_shift_types WHERE id = ?').run(existing.id);
+    return res.status(204).end();
+  } catch (err) {
+    // Nur der Fremdschluessel wird als "in Benutzung" gedeutet. Vorher fing der
+    // Zweig JEDEN Fehler und nannte denselben Grund - ein Schreibfehler im SQL
+    // haette dem Aufrufer erzaehlt, der Typ sei noch im Einsatz.
+    if (isStillReferenced(err)) return fail(res, 409, 'Shift type is in use.');
+    log.error('Error deleting shift type:', err.message);
+    return fail(res, 500, 'Internal error.');
+  }
 });
 
 router.get('/patterns', (req, res) => {
@@ -101,6 +148,7 @@ router.put('/shift-types/:id', (req, res) => {
   const key = id(req.params.id, 'id'); if (key.error) return fail(res, 400, key.error);
   const old = db.get().prepare(`SELECT ${typeColumns} FROM schedule_shift_types WHERE id = ?`).get(key.value);
   if (!old) return fail(res, 404, 'Shift type not found.');
+  if (!ownTypeOrAdmin(req, old)) return fail(res, 403, 'Forbidden.');
   const name = req.body?.name === undefined ? { value: old.name } : str(req.body.name, 'name');
   const shortCode = req.body?.short_code === undefined ? { value: old.short_code } : str(req.body.short_code, 'short_code', { required: false, max: 12 });
   const start = req.body?.start_time === undefined ? { value: old.start_time } : time(req.body.start_time, 'start_time');
