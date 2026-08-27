@@ -201,6 +201,8 @@
     "test:search": "node --experimental-sqlite test/test-search.js",
     "test:calendar-search": "node --experimental-sqlite test/test-calendar-search.js",
     "test:calendar-exceptions": "node --experimental-sqlite --test test/test-calendar-exceptions.js",
+    "test:schedule": "DB_PATH=:memory: node --test test/test-schedule.js",
+    "test:schedule-default-off-migration": "node --experimental-sqlite --test test/test-schedule-default-off-migration.js",
     "test:recurring-scope": "node --experimental-sqlite test/test-recurring-scope.js",
     "test:rrule-ui": "node --loader ./test/test-browser-loader.mjs --test test/test-rrule-ui.js",
     "test:calendar-defaults": "node --experimental-sqlite --test test/test-calendar-defaults.js",
