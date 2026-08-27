@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Ta bort ändå",
         "deleteSubscribedSeriesTitle": "Ta bort den prenumererade serien?",
         "deleteSubscribedSeriesDetail": "”{{title}}” kommer från en prenumererad kalender. Yuvomi kan inte ta bort något där - serien försvinner bara till nästa synkronisering; säg upp prenumerationen för att ta bort den permanent.",
-        "deleteSubscribedSeriesConfirm": "Ta bort ändå"
+        "deleteSubscribedSeriesConfirm": "Ta bort ändå",
+        "colorInherit": "Färg för den tilldelade personen",
+        "colorInheritHint": "Händelsen får ingen egen färg utan tar den tilldelade personens. Om ingen är tilldelad gäller kalenderns färg."
     },
     "notes": {
         "title": "Anteckningar",

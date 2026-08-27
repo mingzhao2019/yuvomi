@@ -40,6 +40,7 @@ import { nextOccurrenceAfter } from './recurrence.js';
 import { loadEventExceptions } from './calendar-events.js';
 import { visibilityWhere } from './visibility.js';
 import { householdTimeZone, utcToWall } from '../utils/timezone.js';
+import { resolveEventColorOrNull } from '../../public/utils/event-color.js';
 
 // So viele Countdowns liefert der Server. Die Kachel entscheidet wie überall
 // selbst, wie viele davon sie zeigt (`listRowCap` in pages/dashboard.js) - der
@@ -253,8 +254,20 @@ function eventCountdowns(d, userId, todayKey) {
   // sich innerhalb eines Requests nicht.
   const tz = householdTimeZone(d);
   const rows = d.prepare(`
-    SELECT e.id, e.title, e.start_datetime, e.recurrence_rule, e.icon, e.color, e.all_day
+    SELECT e.id, e.title, e.start_datetime, e.recurrence_rule, e.icon, e.color, e.all_day,
+           e.assigned_to,
+           COALESCE(u.avatar_color, (
+             SELECT u2.avatar_color FROM event_assignments ea
+             JOIN users u2 ON u2.id = ea.user_id
+             WHERE ea.event_id = e.id
+             ORDER BY ea.user_id
+             LIMIT 1
+           )) AS assigned_color,
+           COALESCE(ec.color, isub.color) AS cal_color
     FROM calendar_events e
+    LEFT JOIN users u ON u.id = e.assigned_to
+    LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
+    LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
     WHERE e.countdown = 1
       AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
   `).all(userId, userId);
@@ -282,7 +295,14 @@ function eventCountdowns(d, userId, todayKey) {
       date,
       days_until: days,
       icon: row.icon || 'calendar',
-      color: row.color || null,
+      color: resolveEventColorOrNull({
+        color: row.color,
+        assigned_to: row.assigned_to,
+        assigned_users: row.assigned_color
+          ? [{ id: row.assigned_to, color: row.assigned_color }]
+          : [],
+        cal_color: row.cal_color,
+      }),
       recurring: Boolean(row.recurrence_rule),
     });
   }

@@ -219,8 +219,9 @@ async function syncOne(sub) {
     db.get().transaction(() => {
       for (const ev of flatEvents) {
         try {
-          // Event-Eigenfarbe (RFC 7986) hat Vorrang, sonst die Abo-Farbe.
-          const color    = ev.color || sub.color;
+          // The subscription color is inherited metadata, not the event's own
+          // choice. Keep the event column NULL when the feed has no COLOR.
+          const color    = ev.color ?? null;
           const existing = findExisting.get(sub.id, ev.uid);
           if (existing) {
             // Dieselben Werte binden die SET-Liste und den Vergleich.

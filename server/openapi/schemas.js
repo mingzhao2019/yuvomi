@@ -361,6 +361,14 @@ export const schemas = {
           properties: {
             id: { type: 'integer' },
             title: { type: 'string' },
+            color: {
+              type: ['string', 'null'],
+              description: 'The event own colour as #RRGGBB, or null when it has none. On PUT, omit the field to leave it untouched and send null to deliberately clear it.',
+            },
+            cal_color: {
+              type: ['string', 'null'],
+              description: 'Read-only inherited colour of the source calendar or ICS subscription.',
+            },
             attachment_name: { type: ['string', 'null'] },
             attachment_mime: { type: ['string', 'null'] },
             attachment_size: { type: ['integer', 'null'] },

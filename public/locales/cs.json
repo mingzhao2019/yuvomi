@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Přesto odstranit",
         "deleteSubscribedSeriesTitle": "Odstranit odebíranou sérii?",
         "deleteSubscribedSeriesDetail": "„{{title}}\" pochází z odebíraného kalendáře. Yuvomi tam nemůže nic odstranit - série zmizí jen do další synchronizace; natrvalo ji odstraníte zrušením odběru.",
-        "deleteSubscribedSeriesConfirm": "Přesto odstranit"
+        "deleteSubscribedSeriesConfirm": "Přesto odstranit",
+        "colorInherit": "Barva přiřazené osoby",
+        "colorInheritHint": "Událost nemá vlastní barvu a přebírá barvu přiřazené osoby. Pokud není nikdo přiřazen, platí barva kalendáře."
     },
     "notes": {
         "title": "Nástěnka",

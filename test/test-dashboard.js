@@ -1219,7 +1219,7 @@ cdb.exec(`
   );
   CREATE TABLE ics_subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL, shared INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL, color TEXT, shared INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER REFERENCES users(id) ON DELETE CASCADE
   );
   CREATE TABLE calendar_events (
@@ -1454,7 +1454,7 @@ test('getUpcomingEvents: private ICS-Termine fremder User werden ausgeblendet', 
     );
     CREATE TABLE ics_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL, shared INTEGER NOT NULL DEFAULT 0,
+      name TEXT NOT NULL, color TEXT, shared INTEGER NOT NULL DEFAULT 0,
       created_by INTEGER REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE TABLE reminders (

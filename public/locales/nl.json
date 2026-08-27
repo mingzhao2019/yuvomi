@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Toch verwijderen",
         "deleteSubscribedSeriesTitle": "Geabonneerde reeks verwijderen?",
         "deleteSubscribedSeriesDetail": "\"{{title}}\" komt uit een geabonneerde agenda. Yuvomi kan daar niets verwijderen - de reeks verdwijnt alleen tot de volgende synchronisatie; opzeggen van het abonnement verwijdert hem definitief.",
-        "deleteSubscribedSeriesConfirm": "Toch verwijderen"
+        "deleteSubscribedSeriesConfirm": "Toch verwijderen",
+        "colorInherit": "Kleur van de toegewezen persoon",
+        "colorInheritHint": "De afspraak krijgt geen eigen kleur en neemt die van de toegewezen persoon over. Is er niemand toegewezen, dan geldt de kleur van de agenda."
     },
     "notes": {
         "title": "Bord",

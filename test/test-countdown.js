@@ -71,13 +71,14 @@ function seedUser(prefix, role) {
 
 function seedEvent({
   title = `Event-${randomUUID()}`, start, rule = null, countdown = 1,
-  createdBy = ALICE, visibility = 'all',
+  createdBy = ALICE, visibility = 'all', color = null, assignedTo = null,
 } = {}) {
   return get().prepare(`
     INSERT INTO calendar_events
-      (title, start_datetime, all_day, recurrence_rule, created_by, visibility, countdown)
-    VALUES (?, ?, 1, ?, ?, ?, ?)
-  `).run(title, start, rule, createdBy, visibility, countdown).lastInsertRowid;
+      (title, start_datetime, all_day, recurrence_rule, created_by, visibility, countdown,
+       color, assigned_to)
+    VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?)
+  `).run(title, start, rule, createdBy, visibility, countdown, color, assignedTo).lastInsertRowid;
 }
 
 function seedTask({
@@ -621,4 +622,60 @@ test('der Sprung beim Aufholen liefert dasselbe wie das Zaehlen (#877)', () => {
     assert.equal(mitSprung, langsam(start, rule, HEUTE),
       `${rule} ab ${start}: der Sprung weicht vom Zaehlen ab`);
   }
+});
+
+test('ein Countdown ohne eigene Farbe erbt die Farbe der primären Zuweisung', () => {
+  reset();
+  const member = seedUser('colored', 'member');
+  get().prepare('UPDATE users SET avatar_color = ? WHERE id = ?').run('#EC4899', member);
+  const id = seedEvent({ title: 'Inherited', start: '2026-09-10', assignedTo: member });
+  get().prepare('INSERT INTO event_assignments (event_id, user_id) VALUES (?, ?)').run(id, member);
+
+  const row = getCountdowns(get(), { userId: ALICE, todayKey: '2026-08-27' }).items
+    .find((item) => item.title === 'Inherited');
+  assert.equal(row.color, '#EC4899');
+});
+
+test('eine eigene Countdown-Farbe schlägt die geerbte Farbe', () => {
+  reset();
+  const member = seedUser('colored-own', 'member');
+  get().prepare('UPDATE users SET avatar_color = ? WHERE id = ?').run('#EC4899', member);
+  const id = seedEvent({ title: 'Own', start: '2026-09-10', assignedTo: member, color: '#3CA368' });
+  get().prepare('INSERT INTO event_assignments (event_id, user_id) VALUES (?, ?)').run(id, member);
+
+  const row = getCountdowns(get(), { userId: ALICE, todayKey: '2026-08-27' }).items
+    .find((item) => item.title === 'Own');
+  assert.equal(row.color, '#3CA368');
+});
+
+test('ein nicht zugewiesener Countdown fällt auf die Kalenderfarbe zurück', () => {
+  reset();
+  const calendar = get().prepare(
+    "INSERT INTO external_calendars (source, external_id, name, color) VALUES ('caldav', 'countdown-cal', 'Calendar', '#0000FF')"
+  ).run().lastInsertRowid;
+  const id = seedEvent({ title: 'Calendar fallback', start: '2026-09-10' });
+  get().prepare('UPDATE calendar_events SET calendar_ref_id = ? WHERE id = ?').run(calendar, id);
+
+  const row = getCountdowns(get(), { userId: ALICE, todayKey: '2026-08-27' }).items
+    .find((item) => item.title === 'Calendar fallback');
+  assert.equal(row.color, '#0000FF');
+});
+
+test('ein geloeschtes primaeres Mitglied laesst die Kachel nicht farblos zurueck', () => {
+  reset();
+  const removed = seedUser('removed', 'member');
+  const remaining = seedUser('remaining', 'member');
+  get().prepare('UPDATE users SET avatar_color = ? WHERE id = ?').run('#587DCE', removed);
+  get().prepare('UPDATE users SET avatar_color = ? WHERE id = ?').run('#D8B349', remaining);
+
+  const id = seedEvent({ title: 'Orphaned', start: '2026-09-10', assignedTo: removed });
+  get().prepare('INSERT INTO event_assignments (event_id, user_id) VALUES (?, ?)').run(id, removed);
+  get().prepare('INSERT INTO event_assignments (event_id, user_id) VALUES (?, ?)').run(id, remaining);
+  get().prepare('DELETE FROM users WHERE id = ?').run(removed);
+
+  const event = get().prepare('SELECT assigned_to FROM calendar_events WHERE id = ?').get(id);
+  assert.equal(event.assigned_to, null);
+  const row = getCountdowns(get(), { userId: ALICE, todayKey: '2026-08-27' }).items
+    .find((item) => item.title === 'Orphaned');
+  assert.equal(row.color, '#D8B349');
 });

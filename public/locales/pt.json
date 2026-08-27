@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Excluir mesmo assim",
         "deleteSubscribedSeriesTitle": "Excluir a série assinada?",
         "deleteSubscribedSeriesDetail": "\"{{title}}\" vem de um calendário assinado. O Yuvomi não pode excluir nada lá - a série só desaparece até a próxima sincronização; para removê-la definitivamente, cancele a assinatura.",
-        "deleteSubscribedSeriesConfirm": "Excluir mesmo assim"
+        "deleteSubscribedSeriesConfirm": "Excluir mesmo assim",
+        "colorInherit": "Cor da pessoa atribuída",
+        "colorInheritHint": "O evento não recebe cor própria e assume a da pessoa atribuída. Se não houver ninguém atribuído, aplica-se a cor do calendário."
     },
     "notes": {
         "title": "Quadro de notas",

@@ -6961,6 +6961,122 @@ const MIGRATIONS = [
       database.prepare("INSERT INTO sync_config (key, value) VALUES ('disabled_modules', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')").run(JSON.stringify(disabled));
     },
   },
+  {
+    version: 170,
+    description: 'Calendar: allow events to inherit a color from their assignee or calendar',
+    foreignKeysOff: true,
+    up(database) {
+      // SQLite cannot drop NOT NULL from calendar_events.color. Rebuild the
+      // custom table while retaining every Outlook, CalDAV, search, attachment,
+      // and recurring-event field introduced before this migration.
+      const columns = new Set(
+        database.prepare('PRAGMA table_info(calendar_events)').all().map((column) => column.name),
+      );
+      if (!columns.has('tzid')) database.exec('ALTER TABLE calendar_events ADD COLUMN tzid TEXT');
+
+      const indexes = database.prepare(`
+        SELECT name, sql FROM sqlite_master
+         WHERE type = 'index' AND tbl_name = 'calendar_events' AND sql IS NOT NULL
+         ORDER BY name
+      `).all();
+      const triggers = database.prepare(`
+        SELECT name, sql FROM sqlite_master
+         WHERE type = 'trigger' AND tbl_name = 'calendar_events' AND sql IS NOT NULL
+         ORDER BY name
+      `).all();
+      const sequence = database.prepare(
+        "SELECT seq FROM sqlite_sequence WHERE name = 'calendar_events'"
+      ).get();
+      const quoteIdentifier = (value) => `"${String(value).replaceAll('"', '""')}"`;
+
+      for (const trigger of triggers) {
+        database.exec(`DROP TRIGGER IF EXISTS ${quoteIdentifier(trigger.name)}`);
+      }
+
+      database.exec(`
+        CREATE TABLE calendar_events_new (
+          id                           INTEGER PRIMARY KEY AUTOINCREMENT,
+          title                        TEXT    NOT NULL,
+          description                  TEXT,
+          start_datetime               TEXT    NOT NULL,
+          end_datetime                 TEXT,
+          all_day                      INTEGER NOT NULL DEFAULT 0,
+          location                     TEXT,
+          color                        TEXT,
+          assigned_to                  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_by                   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          external_calendar_id         TEXT,
+          external_source              TEXT    NOT NULL DEFAULT 'local'
+                                               CHECK(external_source IN ('local', 'google', 'apple', 'ics', 'caldav', 'outlook')),
+          recurrence_rule              TEXT,
+          subscription_id              INTEGER REFERENCES ics_subscriptions(id) ON DELETE CASCADE,
+          user_modified                INTEGER NOT NULL DEFAULT 0,
+          calendar_ref_id              INTEGER REFERENCES external_calendars(id) ON DELETE SET NULL,
+          icon                         TEXT    NOT NULL DEFAULT 'calendar',
+          attachment_name              TEXT,
+          attachment_mime              TEXT,
+          attachment_size              INTEGER,
+          attachment_data              TEXT,
+          target_caldav_account_id     INTEGER,
+          target_caldav_calendar_url   TEXT,
+          created_at                   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+          updated_at                   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+          attachment_document_id       INTEGER REFERENCES family_documents(id) ON DELETE SET NULL,
+          target_google_calendar_id    TEXT,
+          visibility                   TEXT    NOT NULL DEFAULT 'all',
+          tzid                        TEXT,
+          outbound_dirty               INTEGER NOT NULL DEFAULT 0,
+          outbound_attempts            INTEGER NOT NULL DEFAULT 0,
+          outbound_move_to             TEXT,
+          external_object_url          TEXT,
+          countdown                    INTEGER NOT NULL DEFAULT 0,
+          target_outlook_account_id    INTEGER,
+          target_outlook_calendar_id   TEXT
+        );
+
+        INSERT INTO calendar_events_new (
+          id, title, description, start_datetime, end_datetime, all_day, location, color,
+          assigned_to, created_by, external_calendar_id, external_source, recurrence_rule,
+          subscription_id, user_modified, calendar_ref_id, icon,
+          attachment_name, attachment_mime, attachment_size, attachment_data,
+          target_caldav_account_id, target_caldav_calendar_url, created_at, updated_at,
+          attachment_document_id, target_google_calendar_id, visibility, tzid,
+          outbound_dirty, outbound_attempts, outbound_move_to, external_object_url,
+          countdown, target_outlook_account_id, target_outlook_calendar_id
+        )
+        SELECT
+          id, title, description, start_datetime, end_datetime, all_day, location, color,
+          assigned_to, created_by, external_calendar_id, external_source, recurrence_rule,
+          subscription_id, user_modified, calendar_ref_id, icon,
+          attachment_name, attachment_mime, attachment_size, attachment_data,
+          target_caldav_account_id, target_caldav_calendar_url, created_at, updated_at,
+          attachment_document_id, target_google_calendar_id, visibility, tzid,
+          outbound_dirty, outbound_attempts, outbound_move_to, external_object_url,
+          countdown, target_outlook_account_id, target_outlook_calendar_id
+        FROM calendar_events;
+
+        DROP TABLE calendar_events;
+        ALTER TABLE calendar_events_new RENAME TO calendar_events;
+      `);
+
+      for (const index of indexes) database.exec(index.sql);
+      for (const trigger of triggers) database.exec(trigger.sql);
+
+      if (sequence?.seq != null) {
+        database.prepare(
+          "INSERT OR REPLACE INTO sqlite_sequence(name, seq) VALUES ('calendar_events', ?)"
+        ).run(sequence.seq);
+      }
+    },
+  },
+  {
+    version: 171,
+    description: 'Calendar: track explicit event color changes',
+    up: `
+      ALTER TABLE calendar_events ADD COLUMN color_modified INTEGER NOT NULL DEFAULT 0;
+      UPDATE calendar_events SET color_modified = user_modified;
+    `,
+  },
 
 ];
 
@@ -7041,6 +7157,9 @@ const CRITICAL_COLUMNS = [
   // #549: v97 trägt calendar_events.tzid nach; ohne die Spalte scheitert der
   // Sync-Upsert (schreibt tzid) still und die Kalender-Expansion driftet über DST.
   { table: 'calendar_events', column: 'tzid', type: 'TEXT' },
+  // #899: die Farb-Syncs gattern auf dem eigenen Farbzustand; ohne ihn scheitert
+  // jeder Provider-Upsert mit "no such column" statt nur die Farbe zu verlieren.
+  { table: 'calendar_events', column: 'color_modified', type: 'INTEGER NOT NULL DEFAULT 0' },
 ];
 
 /**

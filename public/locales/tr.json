@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Yine de sil",
         "deleteSubscribedSeriesTitle": "Abone olunan seri silinsin mi?",
         "deleteSubscribedSeriesDetail": "\"{{title}}\" abone olunan bir takvimden geliyor. Yuvomi orada hiçbir şeyi silemez - seri yalnızca bir sonraki eşitlemeye kadar kaybolur; kalıcı olarak kaldırmak için takvim aboneliğini iptal edin.",
-        "deleteSubscribedSeriesConfirm": "Yine de sil"
+        "deleteSubscribedSeriesConfirm": "Yine de sil",
+        "colorInherit": "Atanan kişinin rengi",
+        "colorInheritHint": "Etkinliğin kendi rengi olmaz, atandığı kişinin rengini alır. Kimseye atanmamışsa takvimin rengi geçerlidir."
     },
     "notes": {
         "title": "Notlar",

@@ -27,6 +27,7 @@ import * as outbound from './calendar-outbound.js';
 import { processPendingDeletions, processPendingUpdates, flushAccount } from './caldav-outbound.js';
 import { rruleLine } from './recurrence.js';
 import { createCalDAVClient } from '../utils/caldav-client.js';
+import { nearestIcalColorName } from '../utils/ical-color.js';
 
 const APPLE_COLOR = '#FC3C44';
 
@@ -203,6 +204,8 @@ function buildICS(event) {
 
   if (event.description) lines.push(`DESCRIPTION:${escapeICS(event.description)}`);
   if (event.location)    lines.push(`LOCATION:${escapeICS(event.location)}`);
+  const colorName = nearestIcalColorName(event.color);
+  if (colorName) lines.push(`COLOR:${colorName}`);
   // Beide Schreibweisen kommen vor: eingelesene Serien tragen die volle
   // ICS-Zeile, lokal angelegte nur den Regelkörper (#756). Roh übernommen ergab
   // letzteres eine Zeile ohne Property-Namen - ein VEVENT, das kein Server als
@@ -377,8 +380,9 @@ async function runSync() {
               url: obj.url, etag: obj.etag, data: obj.data, calendarUrl: cal.url,
             });
           }
-          // Event-Eigenfarbe (RFC 7986) hat Vorrang, sonst Kalenderfarbe.
-          const evColor = ev.color || calColor;
+          // The calendar color is inherited metadata, not the event's own
+          // choice. Keep the event column NULL when the provider has no COLOR.
+          const evColor = ev.color ?? null;
 
           // Vom Nutzer gelöscht und noch nicht auf dem Server: nicht wieder
           // anlegen, sonst kehrt der Termin bei jedem Sync zurück (#593).
@@ -395,12 +399,12 @@ async function runSync() {
           let eventId;
           if (existing) {
             // color nur überschreiben, solange der Nutzer nicht lokal umgefärbt
-            // hat (user_modified = 0); Titel/Zeit bleiben remote-geführt.
+            // hat (color_modified = 0); Titel/Zeit bleiben remote-geführt.
             db.get().prepare(`
               UPDATE calendar_events
               SET title = ?, description = ?, start_datetime = ?, end_datetime = ?,
                   all_day = ?, location = ?, recurrence_rule = ?, tzid = ?,
-                  color = CASE WHEN user_modified = 0 THEN ? ELSE color END,
+                  color = CASE WHEN color_modified = 0 THEN ? ELSE color END,
                   calendar_ref_id = ?,
                   external_object_url = COALESCE(?, external_object_url)
               WHERE id = ?
@@ -508,7 +512,8 @@ async function runSync() {
       db.get().prepare(`
         UPDATE calendar_events
         SET external_calendar_id = ?, external_source = 'apple',
-            external_object_url = ?, calendar_ref_id = ?
+            external_object_url = ?, calendar_ref_id = ?,
+            color_modified = CASE WHEN color IS NOT NULL THEN 1 ELSE color_modified END
         WHERE id = ?
       `).run(uid, objectUrl, calRefId, event.id);
     } catch (err) {
@@ -525,3 +530,5 @@ async function runSync() {
 
 export { sync, flushOutbound, getStatus, saveCredentials, clearCredentials,
          clearMirroredEvents, testConnection };
+
+export const __test = { buildICS };

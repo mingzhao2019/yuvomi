@@ -322,6 +322,7 @@ function updateVisitLinks(database, session, worker, checkIn, dailyRate, extras,
           end_datetime = NULL,
           all_day = 1,
           color = ?,
+          color_modified = 1,
           icon = ?
       WHERE id = ?
     `).run(

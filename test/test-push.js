@@ -25,8 +25,12 @@ function makeDb() {
       resource_key TEXT NOT NULL, access TEXT NOT NULL,
       PRIMARY KEY (subject_type, subject_id, resource_type, resource_key));
     CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+      description TEXT, due_date TEXT, due_time TEXT, start_date TEXT,
+      category TEXT, priority TEXT, status TEXT,
       created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE);
-    CREATE TABLE calendar_events (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL);
+    CREATE TABLE calendar_events (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+      description TEXT, start_datetime TEXT, end_datetime TEXT, location TEXT,
+      all_day INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE budget_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
       amount REAL, currency TEXT, next_payment_date TEXT);
     CREATE TABLE inventory_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,

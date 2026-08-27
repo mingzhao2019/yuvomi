@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "حذف على أي حال",
         "deleteSubscribedSeriesTitle": "حذف السلسلة المشتركة؟",
         "deleteSubscribedSeriesDetail": "\"{{title}}\" يأتي من تقويم مشترَك. لا يمكن لـ Yuvomi حذف أي شيء هناك - ستختفي السلسلة حتى المزامنة التالية فقط؛ لإزالتها نهائيًا، ألغِ الاشتراك في التقويم.",
-        "deleteSubscribedSeriesConfirm": "حذف على أي حال"
+        "deleteSubscribedSeriesConfirm": "حذف على أي حال",
+        "colorInherit": "لون الشخص المُسند إليه",
+        "colorInheritHint": "لا يحصل الموعد على لون خاص به بل يأخذ لون الشخص المُسند إليه. وإذا لم يُسند إلى أحد، فيُطبَّق لون التقويم."
     },
     "notes": {
         "title": "لوحة الملاحظات",

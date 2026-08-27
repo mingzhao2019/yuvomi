@@ -17,6 +17,7 @@ import { detachAccountRows } from './caldav-todo-outbound.js';
 import { toICSDatetime, escapeICSText } from '../utils/ics-format.js';
 import { createCalDAVClient, supportsComponent } from '../utils/caldav-client.js';
 import { rruleLine } from './recurrence.js';
+import { nearestIcalColorName } from '../utils/ical-color.js';
 
 // Reused functions from apple-calendar.js
 import {
@@ -59,6 +60,8 @@ function buildCalDAVICS(event) {
 
   if (event.description)     lines.push(`DESCRIPTION:${escapeICSText(event.description)}`);
   if (event.location)        lines.push(`LOCATION:${escapeICSText(event.location)}`);
+  const colorName = nearestIcalColorName(event.color);
+  if (colorName) lines.push(`COLOR:${colorName}`);
   if (event.recurrence_rule) {
     lines.push(rruleLine(event.recurrence_rule));
   }
@@ -511,13 +514,13 @@ async function sync({ createClient } = {}) {
   // Normalfall (nichts hat sich geändert) erzeugt keine WAL-Writes mehr.
   // `IS NOT` statt `<>`, weil der Vergleich NULL-sicher sein muss, und die
   // beiden abgeleiteten Spalten wiederholen ihren SET-Ausdruck, damit eine
-  // lokale Umfärbung (user_modified) bzw. ein fehlendes obj.url nicht als
+  // lokale Umfärbung (color_modified) bzw. ein fehlendes obj.url nicht als
   // Unterschied zählt. Die Bindings der SET-Liste kommen dafür ein zweites Mal.
   const updEvent = conn.prepare(`
     UPDATE calendar_events
     SET title = ?, description = ?, start_datetime = ?, end_datetime = ?,
         all_day = ?, location = ?, recurrence_rule = ?, tzid = ?,
-        color = CASE WHEN user_modified = 0 THEN ? ELSE color END,
+        color = CASE WHEN color_modified = 0 THEN ? ELSE color END,
         calendar_ref_id = ?,
         external_object_url = COALESCE(?, external_object_url)
     WHERE id = ?
@@ -529,7 +532,7 @@ async function sync({ createClient } = {}) {
            OR location            IS NOT ?
            OR recurrence_rule     IS NOT ?
            OR tzid                IS NOT ?
-           OR color               IS NOT CASE WHEN user_modified = 0 THEN ? ELSE color END
+           OR color               IS NOT CASE WHEN color_modified = 0 THEN ? ELSE color END
            OR calendar_ref_id     IS NOT ?
            OR external_object_url IS NOT COALESCE(?, external_object_url)
           )
@@ -662,8 +665,9 @@ async function sync({ createClient } = {}) {
                   url: obj.url, etag: obj.etag, data: obj.data, calendarUrl: selCal.calendar_url,
                 });
               }
-              // Event-Eigenfarbe (RFC 7986) hat Vorrang, sonst Kalenderfarbe.
-              const evColor = ev.color || selCal.calendar_color;
+              // The calendar color is inherited metadata, not the event's own
+              // choice. Keep the event column NULL when the provider has no COLOR.
+              const evColor = ev.color ?? null;
 
               // Vom Nutzer gelöscht und noch nicht auf dem Server: nicht wieder
               // anlegen, sonst kehrt der Termin bei jedem Sync zurück (#593).
@@ -684,7 +688,7 @@ async function sync({ createClient } = {}) {
               let changed = false;
               if (existing) {
                 // Update: color nur überschreiben, solange der Nutzer nicht lokal
-                // umgefärbt hat (user_modified = 0); Titel/Zeit bleiben remote-geführt.
+                // umgefärbt hat (color_modified = 0); Titel/Zeit bleiben remote-geführt.
                 // Dieselben Werte binden die SET-Liste und den Vergleich in der
                 // WHERE-Klausel, weshalb sie zweimal übergeben werden.
                 const values = [
@@ -798,7 +802,8 @@ async function sync({ createClient } = {}) {
           db.get().prepare(`
             UPDATE calendar_events
             SET external_source = 'caldav', external_calendar_id = ?,
-                external_object_url = ?, calendar_ref_id = ?
+                external_object_url = ?, calendar_ref_id = ?,
+                color_modified = CASE WHEN color IS NOT NULL THEN 1 ELSE color_modified END
             WHERE id = ?
           `).run(uid, objectUrl, calRefId, event.id);
 
@@ -958,3 +963,5 @@ export {
   flushOutbound,
   getStatus
 };
+
+export const __test = { buildCalDAVICS };

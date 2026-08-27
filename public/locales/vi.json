@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Vẫn xóa",
         "deleteSubscribedSeriesTitle": "Xóa chuỗi đã đăng ký?",
         "deleteSubscribedSeriesDetail": "\"{{title}}\" đến từ một lịch đã đăng ký. Yuvomi không thể xóa gì ở đó - chuỗi chỉ biến mất cho đến lần đồng bộ tiếp theo; để xóa hẳn, hãy hủy đăng ký lịch đó.",
-        "deleteSubscribedSeriesConfirm": "Vẫn xóa"
+        "deleteSubscribedSeriesConfirm": "Vẫn xóa",
+        "colorInherit": "Màu của người được giao",
+        "colorInheritHint": "Sự kiện không có màu riêng mà lấy màu của người được giao. Nếu không giao cho ai, màu của lịch sẽ được áp dụng."
     },
     "notes": {
         "title": "Bảng ghi chú",

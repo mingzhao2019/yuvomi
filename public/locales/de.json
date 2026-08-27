@@ -917,7 +917,9 @@
         "deleteBirthdayEventConfirm": "Trotzdem löschen",
         "deleteSubscribedSeriesTitle": "Abo-Serie löschen?",
         "deleteSubscribedSeriesDetail": "„{{title}}\" stammt aus einem abonnierten Kalender. Yuvomi kann dort nichts löschen - die Serie verschwindet nur bis zum nächsten Abgleich; dauerhaft wird sie erst, wenn du das Abo abbestellst.",
-        "deleteSubscribedSeriesConfirm": "Trotzdem löschen"
+        "deleteSubscribedSeriesConfirm": "Trotzdem löschen",
+        "colorInherit": "Farbe der zugewiesenen Person",
+        "colorInheritHint": "Der Termin bekommt keine eigene Farbe und übernimmt die der zugewiesenen Person. Ist niemand zugewiesen, gilt die Farbe des Kalenders."
     },
     "notes": {
         "title": "Notizen",

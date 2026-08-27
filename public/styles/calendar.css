@@ -1422,6 +1422,27 @@
   transform: scale(1.1);
 }
 
+/* The event has no own color and inherits it from its assignee or calendar. */
+.color-swatch--inherit {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+  display: grid;
+  place-items: center;
+}
+
+.color-swatch--inherit::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: conic-gradient(
+    var(--color-accent) 0turn 0.25turn,
+    var(--color-surface-2) 0.25turn 0.5turn,
+    var(--color-accent) 0.5turn 0.75turn,
+    var(--color-surface-2) 0.75turn 1turn
+  );
+}
+
 .reminder-section__group {
   margin: 0;
 }

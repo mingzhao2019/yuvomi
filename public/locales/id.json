@@ -917,7 +917,9 @@
         "deleteBirthdayEventConfirm": "Tetap hapus",
         "deleteSubscribedSeriesTitle": "Hapus rangkaian langganan?",
         "deleteSubscribedSeriesDetail": "\"{{title}}\" berasal dari kalender langganan. Yuvomi tidak dapat menghapus apa pun di sana - rangkaian hanya hilang sampai sinkronisasi berikutnya; untuk menghapusnya permanen, berhenti berlangganan kalender tersebut.",
-        "deleteSubscribedSeriesConfirm": "Tetap hapus"
+        "deleteSubscribedSeriesConfirm": "Tetap hapus",
+        "colorInherit": "Warna orang yang ditugaskan",
+        "colorInheritHint": "Acara tidak mendapat warna sendiri dan mengambil warna orang yang ditugaskan. Jika tidak ada yang ditugaskan, warna kalender yang berlaku."
     },
     "notes": {
         "title": "Catatan",

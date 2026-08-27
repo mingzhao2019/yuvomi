@@ -85,6 +85,9 @@ const SHARED_ISOMORPHIC = new Set([
   // formuliert sein: die eine Fassung ist die Grenze, die andere waere ein
   // Vorschlag. Reine Funktionen ueber eine Ordnerliste, kein DOM, kein Node.
   'public/utils/folder-tree.js',
+  // #899: Die Farb-Hierarchie wird im Kalender, Dashboard und Countdown gleich
+  // aufgelöst; das Modul ist rein und DOM-frei.
+  'public/utils/event-color.js',
 ]);
 
 const SOURCE_EXT = /\.(js|mjs)$/;

@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Всё равно удалить",
         "deleteSubscribedSeriesTitle": "Удалить серию из подписки?",
         "deleteSubscribedSeriesDetail": "«{{title}}» из календаря по подписке. Yuvomi не может ничего удалить в источнике - серия исчезнет только до следующей синхронизации; чтобы убрать её навсегда, отмените подписку.",
-        "deleteSubscribedSeriesConfirm": "Всё равно удалить"
+        "deleteSubscribedSeriesConfirm": "Всё равно удалить",
+        "colorInherit": "Цвет назначенного человека",
+        "colorInheritHint": "Событие не получает собственный цвет и перенимает цвет назначенного человека. Если никто не назначен, действует цвет календаря."
     },
     "notes": {
         "title": "Заметки",

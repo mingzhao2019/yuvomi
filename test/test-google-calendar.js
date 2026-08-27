@@ -348,16 +348,34 @@ test('localEventToGoogle: ohne Palette bleibt colorId ungesetzt', () => {
   assertEqual(g.colorId, undefined);
 });
 
-test('localEventToGoogle: ohne event.color bleibt colorId ungesetzt', () => {
+test('localEventToGoogle: eine GELEERTE Farbe wird ausdrücklich geleert', () => {
   const g = localEventToGoogle(
-    { title: 'Farblos', all_day: 1, start_datetime: '2026-06-03' },
+    { title: 'Farblos', all_day: 1, start_datetime: '2026-06-03', color_modified: 1 },
     GOOGLE_EVENT_PALETTE
   );
+  assertEqual(g.colorId, null);
+  assertEqual('colorId' in g, true, 'das Feld muss im PATCH-Body stehen');
+});
+
+test('localEventToGoogle: eine nie gesetzte Farbe lässt colorId ungesetzt', () => {
+  const g = localEventToGoogle(
+    { title: 'Nie gefärbt', all_day: 1, start_datetime: '2026-06-03', color_modified: 0 },
+    GOOGLE_EVENT_PALETTE
+  );
+  assertEqual('colorId' in g, false, 'nie gesetzt darf Googles Farbe nicht löschen');
+});
+
+test('localEventToGoogle: unabbildbare Eigenfarbe lässt colorId ungesetzt', () => {
+  const g = localEventToGoogle(
+    { title: 'Rot', all_day: 1, start_datetime: '2026-06-03', color: '#FF0000' },
+    {}
+  );
   assertEqual(g.colorId, undefined);
+  assertEqual('colorId' in g, false, 'ohne Palette darf die Farbe nicht gelöscht werden');
 });
 
 // --------------------------------------------------------
-// upsertGoogleEvents – Event-Farbsync + user_modified-Gate (Issue #219, #427)
+// upsertGoogleEvents – Event-Farbsync + color_modified-Gate (Issue #219, #427, #899)
 // --------------------------------------------------------
 console.log('\n[Google Calendar Test] upsertGoogleEvents – Farbsync\n');
 
@@ -378,13 +396,14 @@ const gEvent = {
   end:   { dateTime: '2026-06-03T11:00:00Z' },
 };
 
-test('Erst-Import ohne colorId setzt die Kalenderfarbe als Default', () => {
+test('Erst-Import ohne colorId schreibt KEINE Eigenfarbe', () => {
   const calRefId = upsertExternalCalendar('google', 'primary', 'Mein Kalender', '#FF0000');
   upsertGoogleEvents([gEvent], calRefId, '#FF0000', COLOR_MAP);
   const row = db.prepare(
-    'SELECT color FROM calendar_events WHERE external_calendar_id = ?'
+    'SELECT color, calendar_ref_id FROM calendar_events WHERE external_calendar_id = ?'
   ).get(gEvent.id);
-  assertEqual(row.color, '#FF0000');
+  assertEqual(row.color, null);
+  assertEqual(row.calendar_ref_id, calRefId);
 });
 
 test('colorId wird zur Event-Eigenfarbe aufgelöst (#427)', () => {
@@ -397,17 +416,17 @@ test('colorId wird zur Event-Eigenfarbe aufgelöst (#427)', () => {
   assertEqual(row.color, '#FFA500', 'colorId 6 muss auf den Paletten-Hex gemappt werden');
 });
 
-test('Unbekannte colorId fällt auf die Kalenderfarbe zurück', () => {
+test('Unbekannte colorId schreibt ebenfalls keine Eigenfarbe', () => {
   const colored = { ...gEvent, id: 'evt-colorid-unknown', colorId: '99' };
   const calRefId = upsertExternalCalendar('google', 'primary', 'Mein Kalender', '#FF0000');
   upsertGoogleEvents([colored], calRefId, '#FF0000', COLOR_MAP);
   const row = db.prepare(
     'SELECT color FROM calendar_events WHERE external_calendar_id = ?'
   ).get('evt-colorid-unknown');
-  assertEqual(row.color, '#FF0000');
+  assertEqual(row.color, null);
 });
 
-test('Re-Sync übernimmt geänderte Google-Farbe, solange user_modified = 0', () => {
+test('Re-Sync übernimmt geänderte Google-Farbe, solange color_modified = 0', () => {
   const recolored = { ...gEvent, colorId: '10' };
   const calRefId = upsertExternalCalendar('google', 'primary', 'Mein Kalender', '#FF0000');
   upsertGoogleEvents([recolored], calRefId, '#FF0000', COLOR_MAP);
@@ -417,9 +436,9 @@ test('Re-Sync übernimmt geänderte Google-Farbe, solange user_modified = 0', ()
   assertEqual(row.color, '#00FF00', 'Remote-Farbänderung muss ohne lokalen Override durchkommen');
 });
 
-test('Re-Sync überschreibt Farbe NICHT nach lokalem Umfärben (user_modified = 1)', () => {
-  // Nutzer ändert die Event-Farbe – die App setzt dabei user_modified = 1.
-  db.prepare('UPDATE calendar_events SET color = ?, user_modified = 1 WHERE external_calendar_id = ?')
+test('Re-Sync überschreibt Farbe NICHT nach lokalem Umfärben (color_modified = 1)', () => {
+  // Nutzer ändert die Event-Farbe – die App setzt dabei color_modified = 1.
+  db.prepare('UPDATE calendar_events SET color = ?, user_modified = 1, color_modified = 1 WHERE external_calendar_id = ?')
     .run('#0000FF', gEvent.id);
   const calRefId = upsertExternalCalendar('google', 'primary', 'Mein Kalender', '#FF0000');
   upsertGoogleEvents([gEvent], calRefId, '#FF0000', COLOR_MAP);
@@ -429,7 +448,24 @@ test('Re-Sync überschreibt Farbe NICHT nach lokalem Umfärben (user_modified = 
   assertEqual(row.color, '#0000FF', 'Benutzerfarbe muss über den Sync hinweg erhalten bleiben');
 });
 
-test('Re-Sync aktualisiert übrige Felder, Farbschutz bei user_modified = 1 bleibt', () => {
+test('Eine Titeländerung friert die Farbe NICHT ein', () => {
+  // Ein lokaler Titel-Edit setzt user_modified, darf aber die später gesetzte
+  // Google-Farbe nicht blockieren, solange color_modified noch 0 ist.
+  const fresh = { ...gEvent, id: 'evt-title-edit' };
+  const calRefId = upsertExternalCalendar('google', 'primary', 'Mein Kalender', '#FF0000');
+  upsertGoogleEvents([fresh], calRefId, '#FF0000', COLOR_MAP);
+  db.prepare('UPDATE calendar_events SET title = ?, user_modified = 1 WHERE external_calendar_id = ?')
+    .run('Team-Meeting (verschoben)', fresh.id);
+
+  upsertGoogleEvents([{ ...fresh, colorId: '6' }], calRefId, '#FF0000', COLOR_MAP);
+  const row = db.prepare(
+    'SELECT color, user_modified FROM calendar_events WHERE external_calendar_id = ?'
+  ).get(fresh.id);
+  assertEqual(row.color, '#FFA500', 'die Farbe aus Google muss trotz Titelbearbeitung ankommen');
+  assertEqual(row.user_modified, 1, 'die lokale Bearbeitung bleibt vermerkt');
+});
+
+test('Re-Sync aktualisiert übrige Felder, Farbschutz bei color_modified = 1 bleibt', () => {
   const updated = { ...gEvent, summary: 'Team-Meeting (verschoben)' };
   const calRefId = upsertExternalCalendar('google', 'primary', 'Mein Kalender', '#FF0000');
   upsertGoogleEvents([updated], calRefId, '#FF0000', COLOR_MAP);

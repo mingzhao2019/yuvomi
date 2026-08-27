@@ -47,6 +47,7 @@ router.get('/:id', (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
+             COALESCE(ec.color, isub.color) AS cal_color,
              bd.name       AS birthday_name,
              bd.birth_date AS birthday_date,
              ${ASSIGNED_USERS_SQL},
@@ -54,6 +55,8 @@ router.get('/:id', (req, res) => {
       FROM calendar_events e
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
       LEFT JOIN users u_created  ON u_created.id  = e.created_by
+      LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
+      LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
       LEFT JOIN birthdays bd ON bd.calendar_event_id = e.id
       WHERE e.id = ?
         AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
@@ -93,7 +96,7 @@ router.post('/', async (req, res) => {
     const vDesc  = str(req.body.description, 'Beschreibung', { max: MAX_TEXT, required: false });
     const vStart = datetime(req.body.start_datetime, 'Startdatum', true);
     const vEnd   = datetime(req.body.end_datetime, 'Enddatum');
-    const vColor = color(req.body.color || '#007AFF', 'Farbe');
+    const vColor = color(req.body.color, 'Farbe');
     const vIcon  = eventIcon(req.body.icon);
     const vLoc   = str(req.body.location, 'Ort', { max: MAX_TITLE, required: false });
     const vRrule = rrule(req.body.recurrence_rule, 'Wiederholung');
@@ -165,10 +168,13 @@ router.post('/', async (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
+             COALESCE(ec.color, isub.color) AS cal_color,
              ${ASSIGNED_USERS_SQL}
       FROM calendar_events e
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
       LEFT JOIN users u_created  ON u_created.id  = e.created_by
+      LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
+      LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
       WHERE e.id = ?
     `).get(eventId);
 
@@ -282,13 +288,21 @@ router.put('/:id', async (req, res) => {
       all_day, location, color: colorVal, recurrence_rule,
     } = req.body;
 
-    const userIds  = req.body.assigned_to !== undefined
+    const colorTouched = Object.hasOwn(req.body, 'color');
+    const assignedTouched = req.body.assigned_to !== undefined;
+    const userIds  = assignedTouched
       ? parseAssignedTo(req.body.assigned_to)
       : db.get().prepare('SELECT user_id FROM event_assignments WHERE event_id = ?')
           .all(id).map((r) => r.user_id);
-    const firstUid = userIds[0] ?? null;
+    const firstUid = assignedTouched
+      ? (userIds[0] ?? null)
+      : (userIds.includes(event.assigned_to) ? event.assigned_to : (userIds[0] ?? null));
 
     const userModified = event.external_source !== 'local' ? 1 : event.user_modified;
+    const asColorKey = (value) => (value == null ? null : String(value).toLowerCase());
+    const colorModified = (colorTouched && asColorKey(colorVal) !== asColorKey(event.color))
+      ? 1
+      : event.color_modified;
 
     const caldavAccountId = vCaldav ? vCaldav.value.accountId : event.target_caldav_account_id;
     const caldavCalendarUrl = vCaldav ? vCaldav.value.calendarUrl : event.target_caldav_calendar_url;
@@ -334,7 +348,7 @@ router.put('/:id', async (req, res) => {
             end_datetime    = ?,
             all_day         = COALESCE(?, all_day),
             location        = ?,
-            color           = COALESCE(?, color),
+            color           = CASE WHEN ? THEN ? ELSE color END,
             icon            = COALESCE(?, icon),
             assigned_to     = ?,
             recurrence_rule = ?,
@@ -355,7 +369,8 @@ router.put('/:id', async (req, res) => {
             -- das PUT eines Clients, der das Feld nicht kennt (Modul, ältere
             -- App), darf eine gesetzte Markierung nicht stillschweigend löschen.
             countdown       = ?,
-            user_modified   = ?
+            user_modified   = ?,
+            color_modified  = ?
         WHERE id = ?
       `).run(
         title?.trim()  ?? null,
@@ -364,7 +379,7 @@ router.put('/:id', async (req, res) => {
         end_datetime !== undefined ? (end_datetime || null) : event.end_datetime,
         all_day !== undefined ? (all_day ? 1 : 0) : null,
         location !== undefined ? (location || null) : event.location,
-        colorVal ?? null,
+        colorTouched ? 1 : 0, colorVal ?? null,
         req.body.icon !== undefined ? vIcon : null,
         firstUid !== undefined ? firstUid : event.assigned_to,
         recurrence_rule !== undefined ? (recurrence_rule || null) : event.recurrence_rule,
@@ -383,6 +398,7 @@ router.put('/:id', async (req, res) => {
           : event.visibility,
         req.body.countdown !== undefined ? (req.body.countdown ? 1 : 0) : event.countdown,
         userModified,
+        colorModified,
         id
       );
       setEventAssignments(db.get(), id, userIds);
@@ -393,10 +409,13 @@ router.put('/:id', async (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
+             COALESCE(ec.color, isub.color) AS cal_color,
              ${ASSIGNED_USERS_SQL}
       FROM calendar_events e
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
       LEFT JOIN users u_created  ON u_created.id  = e.created_by
+      LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
+      LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
       WHERE e.id = ?
     `).get(id);
 
@@ -463,7 +482,7 @@ router.post('/:id/reset', (req, res) => {
     if (!isAdmin && event.created_by !== userId && event.sub_created_by !== userId)
       return res.status(403).json({ error: 'Nicht autorisiert.', code: 403 });
 
-    db.get().prepare('UPDATE calendar_events SET user_modified = 0 WHERE id = ?').run(id);
+    db.get().prepare('UPDATE calendar_events SET user_modified = 0, color_modified = 0 WHERE id = ?').run(id);
     res.json({ data: { reset: true } });
   } catch (err) {
     log.error('', err);

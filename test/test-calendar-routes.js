@@ -567,10 +567,40 @@ test('POST / — legt minimalen Termin an (Defaults)', async () => {
   const res = await call('POST', '/', { actor: ADMIN, body: { title: 'Neuer Termin', start_datetime: '2040-02-01T09:00' } });
   assert.equal(res.status, 201);
   assert.equal(res.body.data.title, 'Neuer Termin');
-  assert.equal(res.body.data.color, '#007AFF', 'Default-Farbe');
+  assert.equal(res.body.data.color, null, 'ohne Farbauswahl bleibt die Eigenfarbe leer');
   assert.equal(res.body.data.icon, 'calendar');
   assert.equal(res.body.data.created_by, ADMIN.id);
   assert.equal(res.body.data.visibility, 'all');
+});
+
+test('Farbe: nicht angefasst, gesetzt und geleert bleiben unterscheidbar', async () => {
+  const created = await call('POST', '/', { actor: ADMIN, body: {
+    title: 'Farbtest', start_datetime: '2040-02-02T09:00', color: '#8156C0',
+  } });
+  assert.equal(created.status, 201);
+  const id = created.body.data.id;
+  assert.equal(created.body.data.color_modified, 0);
+
+  const untouched = await call('PUT', `/${id}`, { actor: ADMIN, body: {
+    title: 'Farbtest umbenannt', start_datetime: '2040-02-02T09:00',
+  } });
+  assert.equal(untouched.status, 200);
+  assert.equal(untouched.body.data.color, '#8156C0');
+  assert.equal(untouched.body.data.color_modified, 0);
+
+  const cleared = await call('PUT', `/${id}`, { actor: ADMIN, body: {
+    title: 'Farbtest umbenannt', start_datetime: '2040-02-02T09:00', color: null,
+  } });
+  assert.equal(cleared.status, 200);
+  assert.equal(cleared.body.data.color, null);
+  assert.equal(cleared.body.data.color_modified, 1);
+
+  const restored = await call('PUT', `/${id}`, { actor: ADMIN, body: {
+    title: 'Farbtest umbenannt', start_datetime: '2040-02-02T09:00', color: '#3CA368',
+  } });
+  assert.equal(restored.status, 200);
+  assert.equal(restored.body.data.color, '#3CA368');
+  assert.equal(restored.body.data.color_modified, 1);
 });
 
 test('POST / — mit Zuweisungen, Serie und Sichtbarkeit', async () => {

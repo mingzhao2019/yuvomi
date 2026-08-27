@@ -15,6 +15,7 @@ import { createLogger } from '../logger.js';
 import * as outbound from './calendar-outbound.js';
 import { patchICSEvent } from '../utils/ics-patch.js';
 import { toICSDatetime } from '../utils/ics-format.js';
+import { nearestIcalColorName } from '../utils/ical-color.js';
 
 const log = createLogger('CalDAVOutbound');
 
@@ -44,7 +45,7 @@ export function icsFieldsForEvent(event) {
     end   = { value: toICSDatetime(event.end_datetime || event.start_datetime), params: tzParam };
   }
 
-  return {
+  const fields = {
     SUMMARY:     event.title,
     DESCRIPTION: event.description || null,
     LOCATION:    event.location || null,
@@ -52,6 +53,12 @@ export function icsFieldsForEvent(event) {
     DTSTART:     start,
     DTEND:       end,
   };
+
+  const colorName = nearestIcalColorName(event.color);
+  if (colorName) fields.COLOR = colorName;
+  else if (!event.color && event.color_modified) fields.COLOR = null;
+
+  return fields;
 }
 
 /** Dateiname eines Kalenderobjekts aus seiner URL, ersatzweise aus der UID. */

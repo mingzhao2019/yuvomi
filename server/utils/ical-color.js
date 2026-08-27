@@ -87,6 +87,13 @@ export function resolveIcalColor(raw) {
   return CSS_COLOR_NAMES[value] || null;
 }
 
+// RFC 7986 §5.9 verweist beim COLOR-Wert auf CSS Color Level 3. `rebeccapurple`
+// bleibt beim Lesen erlaubt, gehört aber nicht in den ausgehenden Wert eines
+// strengen Servers; es kam erst mit Level 4 hinzu.
+const OUTBOUND_COLOR_NAMES = Object.fromEntries(
+  Object.entries(CSS_COLOR_NAMES).filter(([name]) => name !== 'rebeccapurple'),
+);
+
 /** Zerlegt `#RRGGBB` in {r,g,b}; null bei ungültigem Wert. */
 function hexToRgb(hex) {
   const m = /^#([0-9a-fA-F]{6})$/.exec(String(hex ?? '').trim());
@@ -133,4 +140,9 @@ export function nearestColorId(hex, paletteMap) {
   return bestId;
 }
 
-export const __test = { CSS_COLOR_NAMES, hexToRgb };
+/** Mappt eine Yuvomi-Hexfarbe auf den nächsten gültigen CSS3-Namen. */
+export function nearestIcalColorName(hex) {
+  return nearestColorId(hex, OUTBOUND_COLOR_NAMES);
+}
+
+export const __test = { CSS_COLOR_NAMES, OUTBOUND_COLOR_NAMES, hexToRgb };

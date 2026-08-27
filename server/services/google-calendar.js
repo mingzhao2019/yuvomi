@@ -686,7 +686,8 @@ async function runSync() {
         const calRefId = meta.refId;
         db.get().prepare(`
           UPDATE calendar_events
-          SET external_calendar_id = ?, external_source = 'google', calendar_ref_id = ?
+          SET external_calendar_id = ?, external_source = 'google', calendar_ref_id = ?,
+              color_modified = CASE WHEN color IS NOT NULL THEN 1 ELSE color_modified END
           WHERE id = ?
         `).run(created.data.id, calRefId, event.id);
       } catch (err) {
@@ -894,9 +895,9 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
     // steht ein EXDATE vorn, landete es sonst als Wiederholungsregel in der DB.
     const rrule       = recurrenceRuleOf(item);
 
-    // Event-Eigenfarbe aus colorId auflösen (Google liefert nur die Paletten-ID),
-    // sonst Kalenderfarbe als Default.
-    const evColor = (item.colorId && colorMap[item.colorId]) || calColor;
+    // Google uses the calendar color as an inherited default. Store only an
+    // explicit event color; the read path supplies the calendar color as metadata.
+    const evColor = (item.colorId && colorMap[item.colorId]) || null;
 
     const existing = db.get().prepare(
       'SELECT id, outbound_dirty FROM calendar_events WHERE external_calendar_id = ? AND external_source = ?'
@@ -910,7 +911,7 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
 
     if (existing) {
       // color nur überschreiben, solange der Nutzer nicht lokal umgefärbt hat
-      // (user_modified = 0). Dadurch bleiben benutzerdefinierte Event-Farben über
+      // (color_modified = 0). Dadurch bleiben benutzerdefinierte Event-Farben über
       // Syncs hinweg erhalten (Issue #219), während echte Google-Farbänderungen
       // weiterhin durchkommen. Titel/Zeit bleiben unverändert remote-geführt.
       // Der Vergleich in der WHERE-Klausel hält Schreibvorgänge ab, die nichts
@@ -918,7 +919,7 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
       // Kalender erneut, und ohne den Vergleich würde jede Zeile davon neu
       // geschrieben. `IS NOT` statt `<>`, weil der Vergleich NULL-sicher sein
       // muss; die Farbspalte wiederholt ihren SET-Ausdruck, damit eine lokale
-      // Umfärbung (user_modified) nicht als Unterschied zählt. Die Bindings der
+      // Umfärbung (color_modified) nicht als Unterschied zählt. Die Bindings der
       // SET-Liste kommen dafür ein zweites Mal.
       const values = [
         title, description, startDt, endDt, allDay ? 1 : 0, location, rrule, tzid, evColor, calRefId,
@@ -927,7 +928,7 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
         UPDATE calendar_events
         SET title = ?, description = ?, start_datetime = ?, end_datetime = ?,
             all_day = ?, location = ?, recurrence_rule = ?, tzid = ?,
-            color = CASE WHEN user_modified = 0 THEN ? ELSE color END,
+            color = CASE WHEN color_modified = 0 THEN ? ELSE color END,
             calendar_ref_id = ?
         WHERE id = ?
           AND (   title           IS NOT ?
@@ -938,7 +939,7 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
                OR location        IS NOT ?
                OR recurrence_rule IS NOT ?
                OR tzid            IS NOT ?
-               OR color           IS NOT CASE WHEN user_modified = 0 THEN ? ELSE color END
+               OR color           IS NOT CASE WHEN color_modified = 0 THEN ? ELSE color END
                OR calendar_ref_id IS NOT ?
               )
       `).run(...values, existing.id, ...values);
@@ -1101,6 +1102,8 @@ function localEventToGoogle(event, colorMap = {}, timeZone = householdTimeZone(n
   if (event.color) {
     const colorId = nearestColorId(event.color, colorMap);
     if (colorId) gEvent.colorId = colorId;
+  } else if (event.color_modified) {
+    gEvent.colorId = null;
   }
 
   if (allDay) {

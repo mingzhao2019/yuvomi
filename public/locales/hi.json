@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "फिर भी हटाएँ",
         "deleteSubscribedSeriesTitle": "सदस्यता वाली शृंखला हटाएँ?",
         "deleteSubscribedSeriesDetail": "«{{title}}» एक सब्सक्राइब किए गए कैलेंडर से आता है। Yuvomi वहाँ कुछ नहीं हटा सकता - शृंखला केवल अगले सिंक तक गायब रहेगी; इसे स्थायी रूप से हटाने के लिए कैलेंडर की सदस्यता समाप्त करें।",
-        "deleteSubscribedSeriesConfirm": "फिर भी हटाएँ"
+        "deleteSubscribedSeriesConfirm": "फिर भी हटाएँ",
+        "colorInherit": "असाइन किए गए व्यक्ति का रंग",
+        "colorInheritHint": "कार्यक्रम को अपना कोई रंग नहीं मिलता और वह असाइन किए गए व्यक्ति का रंग ले लेता है। यदि कोई असाइन नहीं है, तो कैलेंडर का रंग लागू होता है।"
     },
     "notes": {
         "title": "नोट बोर्ड",

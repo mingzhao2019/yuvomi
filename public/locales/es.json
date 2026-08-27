@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Eliminar de todos modos",
         "deleteSubscribedSeriesTitle": "¿Eliminar la serie suscrita?",
         "deleteSubscribedSeriesDetail": "«{{title}}» procede de un calendario suscrito. Yuvomi no puede eliminar nada allí: la serie solo desaparece hasta la próxima sincronización; para quitarla definitivamente, cancela la suscripción.",
-        "deleteSubscribedSeriesConfirm": "Eliminar de todos modos"
+        "deleteSubscribedSeriesConfirm": "Eliminar de todos modos",
+        "colorInherit": "Color de la persona asignada",
+        "colorInheritHint": "El evento no tiene color propio y toma el de la persona asignada. Si no hay nadie asignado, se aplica el color del calendario."
     },
     "notes": {
         "title": "Notas",

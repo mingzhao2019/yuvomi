@@ -115,7 +115,7 @@ const MIGRATIONS_SQL = {
       end_datetime         TEXT,
       all_day              INTEGER NOT NULL DEFAULT 0,
       location             TEXT,
-      color                TEXT    NOT NULL DEFAULT '#007AFF',
+      color                TEXT,
       icon                 TEXT    NOT NULL DEFAULT 'calendar',
       assigned_to          INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_by           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -358,7 +358,7 @@ const MIGRATIONS_SQL = {
       end_datetime         TEXT,
       all_day              INTEGER NOT NULL DEFAULT 0,
       location             TEXT,
-      color                TEXT    NOT NULL DEFAULT '#007AFF',
+      color                TEXT,
       icon                 TEXT    NOT NULL DEFAULT 'calendar',
       assigned_to          INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_by           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -368,6 +368,7 @@ const MIGRATIONS_SQL = {
       recurrence_rule      TEXT,
       subscription_id      INTEGER REFERENCES ics_subscriptions(id) ON DELETE CASCADE,
       user_modified        INTEGER NOT NULL DEFAULT 0,
+      color_modified       INTEGER NOT NULL DEFAULT 0,
       created_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
       updated_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );

@@ -917,7 +917,9 @@
         "deleteBirthdayEventConfirm": "با این حال حذف شود",
         "deleteSubscribedSeriesTitle": "مجموعه اشتراکی حذف شود؟",
         "deleteSubscribedSeriesDetail": "«{{title}}» از یک تقویم اشتراکی می‌آید. Yuvomi نمی‌تواند چیزی را آنجا حذف کند - مجموعه فقط تا همگام‌سازی بعدی ناپدید می‌شود؛ برای حذف دائمی، اشتراک را لغو کنید.",
-        "deleteSubscribedSeriesConfirm": "با این حال حذف شود"
+        "deleteSubscribedSeriesConfirm": "با این حال حذف شود",
+        "colorInherit": "رنگ شخص واگذارشده",
+        "colorInheritHint": "رویداد رنگ مخصوص خود را نمی‌گیرد و رنگ شخصی را که به او واگذار شده است می‌پذیرد. اگر به کسی واگذار نشده باشد، رنگ تقویم اعمال می‌شود."
     },
     "notes": {
         "title": "یادداشت‌ها",

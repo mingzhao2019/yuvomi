@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "Mégis törlöm",
         "deleteSubscribedSeriesTitle": "Törli a feliratkozott sorozatot?",
         "deleteSubscribedSeriesDetail": "A(z) „{{title}}\" egy feliratkozott naptárból származik. A Yuvomi ott semmit sem tud törölni - a sorozat csak a következő szinkronizálásig tűnik el; végleges eltávolításhoz mondja le a feliratkozást.",
-        "deleteSubscribedSeriesConfirm": "Mégis törlöm"
+        "deleteSubscribedSeriesConfirm": "Mégis törlöm",
+        "colorInherit": "A hozzárendelt személy színe",
+        "colorInheritHint": "Az esemény nem kap saját színt, hanem a hozzárendelt személyét veszi át. Ha senki sincs hozzárendelve, a naptár színe érvényes."
     },
     "notes": {
         "title": "Tábla",

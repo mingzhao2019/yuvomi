@@ -32,6 +32,9 @@ const { processPendingDeletions, processPendingUpdates, icsFieldsForEvent, filen
   await import('../server/services/caldav-outbound.js');
 const { patchICSEvent, countVEvents, unfoldICS, foldICSLine } =
   await import('../server/utils/ics-patch.js');
+const { nearestIcalColorName, resolveIcalColor } = await import('../server/utils/ical-color.js');
+const { __test: caldavSyncTest } = await import('../server/services/caldav-sync.js');
+const { __test: appleSyncTest } = await import('../server/services/apple-calendar.js');
 
 db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('admin','Admin','x','admin')").run();
 
@@ -253,6 +256,45 @@ test('ein ganztägiger Termin nutzt VALUE=DATE mit exklusivem Ende', () => {
   });
   assert.deepEqual(fields.DTSTART, { value: '20350701', params: ';VALUE=DATE' });
   assert.deepEqual(fields.DTEND,   { value: '20350704', params: ';VALUE=DATE' }, 'RFC 5545: DTEND ist exklusiv');
+});
+
+test('Eigenfarben gehen als CSS3-Name hinaus', () => {
+  const fields = icsFieldsForEvent({
+    title: 'X', start_datetime: '2035-03-10T09:00', end_datetime: '2035-03-10T10:00',
+    color: '#CE5053',
+  });
+  assert.equal(fields.COLOR, nearestIcalColorName('#CE5053'));
+  assert.equal(resolveIcalColor(fields.COLOR), '#CD5C5C');
+  assert.doesNotMatch(fields.COLOR, /^#/);
+});
+
+test('unbekannte oder nie gelernte Farben werden beim CalDAV-Patch nicht angefasst', () => {
+  const neverLearned = icsFieldsForEvent({
+    title: 'X', start_datetime: '2035-03-10T09:00', end_datetime: '2035-03-10T10:00',
+    color: null, color_modified: 0,
+  });
+  assert.equal(Object.hasOwn(neverLearned, 'COLOR'), false);
+
+  const cleared = icsFieldsForEvent({
+    title: 'X', start_datetime: '2035-03-10T09:00', end_datetime: '2035-03-10T10:00',
+    color: null, color_modified: 1,
+  });
+  assert.equal(cleared.COLOR, null);
+
+  const unknown = icsFieldsForEvent({
+    title: 'X', start_datetime: '2035-03-10T09:00', end_datetime: '2035-03-10T10:00',
+    color: 'not-a-hex', color_modified: 1,
+  });
+  assert.equal(Object.hasOwn(unknown, 'COLOR'), false);
+});
+
+test('CalDAV 和 Apple 的新建 ICS 都带上事件自己的颜色', () => {
+  const event = {
+    id: 7, title: 'X', start_datetime: '2035-03-10T09:00', end_datetime: '2035-03-10T10:00',
+    color: '#CE5053', all_day: 0,
+  };
+  assert.match(caldavSyncTest.buildCalDAVICS(event), /^COLOR:.*$/m);
+  assert.match(appleSyncTest.buildICS(event), /^COLOR:.*$/m);
 });
 
 test('filenameFromUrl nimmt den Dateinamen der URL, sonst die UID', () => {

@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "それでも削除",
         "deleteSubscribedSeriesTitle": "購読カレンダーの繰り返しを削除しますか？",
         "deleteSubscribedSeriesDetail": "「{{title}}」は購読中のカレンダーの予定です。Yuvomi はそちらの予定を削除できないため、次回の同期までしか消えません。完全に消すには購読を解除してください。",
-        "deleteSubscribedSeriesConfirm": "それでも削除"
+        "deleteSubscribedSeriesConfirm": "それでも削除",
+        "colorInherit": "担当者の色",
+        "colorInheritHint": "予定は独自の色を持たず、担当者の色を引き継ぎます。担当者がいない場合はカレンダーの色が適用されます。"
     },
     "notes": {
         "title": "メモボード",

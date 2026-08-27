@@ -905,7 +905,9 @@
         "deleteBirthdayEventConfirm": "仍然删除",
         "deleteSubscribedSeriesTitle": "删除订阅系列？",
         "deleteSubscribedSeriesDetail": "“{{title}}”来自已订阅的日历。Yuvomi 无法删除源端内容，该系列只会消失到下次同步为止；要彻底移除，请取消订阅该日历。",
-        "deleteSubscribedSeriesConfirm": "仍然删除"
+        "deleteSubscribedSeriesConfirm": "仍然删除",
+        "colorInherit": "指派人的颜色",
+        "colorInheritHint": "该日程不使用自己的颜色，而采用指派人的颜色。若未指派任何人，则使用日历的颜色。"
     },
     "notes": {
         "title": "便签板",

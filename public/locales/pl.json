@@ -917,7 +917,9 @@
         "deleteBirthdayEventConfirm": "Usuń mimo to",
         "deleteSubscribedSeriesTitle": "Usunąć subskrybowaną serię?",
         "deleteSubscribedSeriesDetail": "„{{title}}\" pochodzi z subskrybowanego kalendarza. Yuvomi nie może tam nic usunąć - seria zniknie tylko do następnej synchronizacji; trwale usuniesz ją, anulując subskrypcję.",
-        "deleteSubscribedSeriesConfirm": "Usuń mimo to"
+        "deleteSubscribedSeriesConfirm": "Usuń mimo to",
+        "colorInherit": "Kolor przypisanej osoby",
+        "colorInheritHint": "Wydarzenie nie ma własnego koloru i przejmuje kolor przypisanej osoby. Jeśli nikt nie jest przypisany, obowiązuje kolor kalendarza."
     },
     "notes": {
         "title": "Notatki",

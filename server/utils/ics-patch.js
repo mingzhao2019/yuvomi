@@ -12,7 +12,9 @@
 import { rruleLine } from '../services/recurrence.js';
 
 // Properties, die Yuvomi verwaltet und daher ersetzen darf - je Komponente.
-const MANAGED_VEVENT = new Set(['SUMMARY', 'DESCRIPTION', 'LOCATION', 'DTSTART', 'DTEND', 'RRULE']);
+const MANAGED_VEVENT = new Set([
+  'SUMMARY', 'DESCRIPTION', 'LOCATION', 'DTSTART', 'DTEND', 'RRULE', 'COLOR',
+]);
 // VTODO (#617): STATUS, COMPLETED und PERCENT-COMPLETE gehören zusammen - Clients
 // lesen den Erledigt-Zustand mal am einen, mal am anderen ab.
 //
