@@ -4581,6 +4581,11 @@
         "noStatistics": "No schedule entries in the selected period.",
         "statisticsFor": "{{user}} · {{from}} to {{to}}",
         "hoursValue": "{{value}} h",
-        "invalidRange": "Choose a valid period."
+        "invalidRange": "Choose a valid period.",
+        "typeOwnedBy": "Created by {{user}} - only they or an administrator can change it.",
+        "typeOrphaned": "Its creator has left the household - only an administrator can change this shift type.",
+        "deletePatternTitle": "Delete pattern \"{{name}}\"?",
+        "deletePatternDetail": "Its {{count}} cycle days go with it. This cannot be undone.",
+        "deletePatternDetail_one": "Its one cycle day goes with it. This cannot be undone."
     }
 }

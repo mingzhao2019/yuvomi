@@ -2,7 +2,7 @@ import { api } from '/api.js';
 import { t, formatDate } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { todayKey } from '/utils/date.js';
-import { openModal, closeModal } from '/components/modal.js';
+import { openModal, closeModal, confirmModal } from '/components/modal.js';
 import { createPageFab, setPageFabAction } from '/utils/fab.js';
 import { emptyStateHTML } from '/utils/empty-state.js';
 
@@ -31,6 +31,14 @@ const userName = (id) => state.users.find((user) => Number(user.id) === Number(i
   || String(id);
 const selectedOwner = () => currentUserId ?? state.users[0]?.id ?? '';
 const canWrite = (userId) => canManageOthers || Number(userId) === Number(currentUserId);
+
+// Ein Schichttyp gehoert dem Haushalt und nicht einer Person: jeder darf einen
+// anlegen, aendern und loeschen nur der Ersteller oder ein Admin. Ein Typ, dessen
+// Ersteller nicht mehr da ist, traegt `created_by = null` und liegt bei den Admins.
+// Ohne diese Pruefung stuenden Formular und Loeschknopf bei jedem - und endeten
+// verlaesslich in 403.
+const canEditType = (type) => canManageOthers
+  || (type?.created_by != null && Number(type.created_by) === Number(currentUserId));
 const clockLabel = (shiftType) => {
   if (!shiftType?.start_time || !shiftType?.end_time) return t('schedule.allDay');
   const crossesDay = shiftType.end_time <= shiftType.start_time;
@@ -222,8 +230,14 @@ function patternFields(pattern = {}) {
 }
 
 function shiftTypeCard(type) {
+  const editable = canEditType(type);
+  const body = editable
+    ? `<form class="schedule-form" data-form="shift-update" data-id="${type.id}">${shiftFields(type)}<div class="schedule-actions"><button class="btn btn--secondary">${esc(t('schedule.save'))}</button><button type="button" class="btn btn--danger" data-action="delete-shift" data-id="${type.id}">${esc(t('schedule.delete'))}</button></div></form>`
+    : `<p class="schedule-readonly">${esc(type?.created_by == null
+        ? t('schedule.typeOrphaned')
+        : t('schedule.typeOwnedBy', { user: userName(type.created_by) }))}</p>`;
   return `<details class="card schedule-details"><summary><span class="schedule-swatch" style="--schedule-color:${esc(type.color)}"></span><span class="u-card-title u-compact">${esc(type.short_code ? `${type.short_code} · ${type.name}` : type.name)}</span> <small>${esc(clockLabel(type))}</small></summary>
-    <form class="schedule-form" data-form="shift-update" data-id="${type.id}">${shiftFields(type)}<div class="schedule-actions"><button class="btn btn--secondary">${esc(t('schedule.save'))}</button><button type="button" class="btn btn--danger" data-action="delete-shift" data-id="${type.id}">${esc(t('schedule.delete'))}</button></div></form>
+    ${body}
   </details>`;
 }
 
@@ -267,9 +281,16 @@ function renderStatistics() {
       ? formField(t('schedule.validFrom'), '<yuvomi-datepicker required name="from" type="date" label="' + esc(t('schedule.validFrom')) + '" value="' + esc(statistics.from || bounds?.from || todayKey()) + '"></yuvomi-datepicker>')
         + formField(t('schedule.validUntil'), '<yuvomi-datepicker required name="to" type="date" label="' + esc(t('schedule.validUntil')) + '" value="' + esc(statistics.to || bounds?.to || todayKey()) + '"></yuvomi-datepicker>')
       : '';
+  // Ohne `bounds` gibt es keine Auswertung, sondern einen ungueltigen Zeitraum:
+  // `statisticBounds()` antwortet mit null, `refreshStatistics()` wirft, und der
+  // catch-Zweig rendert genau hierher zurueck. Vorher stand da `bounds.from` -
+  // ein TypeError, noch bevor der Fehler-Toast lief. Die Seite blieb auf dem
+  // vorigen Ergebnis stehen und sagte nichts.
   const results = statistics.loading
     ? '<div class="card card--padded schedule-stat-loading" role="status" aria-live="polite">' + esc(t('common.loading')) + '</div>'
-    : '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: formatDate(bounds.from), to: formatDate(bounds.to) })) + '</p>'
+    : !bounds
+      ? '<p class="card card--padded schedule-stat-empty" role="status">' + esc(t('schedule.invalidRange')) + '</p>'
+      : '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: formatDate(bounds.from), to: formatDate(bounds.to) })) + '</p>'
       + '<div class="metric-grid schedule-stat-metrics">'
       + '<article class="metric-card"><div class="metric-card__label">' + esc(t('schedule.shiftCounts')) + '</div><div class="metric-card__value">' + esc(String(summary.totalCount)) + '</div><div class="metric-card__note">' + esc(t('schedule.shifts')) + '</div></article>'
       + '<article class="metric-card"><div class="metric-card__label">' + esc(t('schedule.workedHours')) + '</div><div class="metric-card__value">' + esc(formatHours(summary.totalMinutes)) + '</div><div class="metric-card__note">' + esc(t('schedule.total')) + '</div></article>'
@@ -548,7 +569,23 @@ async function action(event) {
       return;
     }
     if (button.dataset.action === 'delete-shift') await api.delete(`/schedule/shift-types/${button.dataset.id}`);
-    if (button.dataset.action === 'delete-pattern') await api.delete(`/schedule/patterns/${button.dataset.id}`);
+    // Ein Muster loeschen nimmt seine Zyklustage mit (ON DELETE CASCADE): eine
+    // Achttage-Rotation ist mit einem Fingertipp weg, und es gibt keinen Weg
+    // zurueck. Deshalb fragt genau DIESE Loeschung nach und nennt dabei, was
+    // dranhaengt - die anderen beiden sind je eine Zeile und ohne Nachfrage.
+    if (button.dataset.action === 'delete-pattern') {
+      const pattern = state.patterns.find((item) => Number(item.id) === Number(button.dataset.id));
+      const confirmed = await confirmModal(
+        t('schedule.deletePatternTitle', { name: pattern?.name ?? '' }),
+        {
+          danger: true,
+          confirmLabel: t('schedule.delete'),
+          detail: t('schedule.deletePatternDetail', { count: pattern?.cycle_length ?? 0 }),
+        },
+      );
+      if (!confirmed) return;
+      await api.delete(`/schedule/patterns/${button.dataset.id}`);
+    }
     if (button.dataset.action === 'delete-override') await api.delete(`/schedule/overrides/${button.dataset.date}?user_id=${button.dataset.userId}`);
     if (button.dataset.action === 'save-days') {
       const details = button.closest('[data-pattern]');

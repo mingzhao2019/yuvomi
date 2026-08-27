@@ -4581,6 +4581,11 @@
         "noStatistics": "Keine Schichteinträge im gewählten Zeitraum.",
         "statisticsFor": "{{user}} · {{from}} bis {{to}}",
         "hoursValue": "{{value}} h",
-        "invalidRange": "Bitte wähle einen gültigen Zeitraum."
+        "invalidRange": "Bitte wähle einen gültigen Zeitraum.",
+        "typeOwnedBy": "Angelegt von {{user}} - nur diese Person oder ein Admin kann ihn ändern.",
+        "typeOrphaned": "Der Ersteller ist nicht mehr im Haushalt - nur ein Admin kann diesen Schichttyp ändern.",
+        "deletePatternTitle": "Muster „{{name}}\" löschen?",
+        "deletePatternDetail": "Die {{count}} Zyklustage dieses Musters gehen mit verloren. Das lässt sich nicht rückgängig machen.",
+        "deletePatternDetail_one": "Der eine Zyklustag dieses Musters geht mit verloren. Das lässt sich nicht rückgängig machen."
     }
 }

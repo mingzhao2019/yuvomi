@@ -347,6 +347,14 @@
   color: var(--color-text-secondary);
 }
 
+/* Nur-Lese-Hinweis auf einer fremden Schichttyp-Karte: derselbe gedaempfte Ton
+   wie die Leer- und Ladezustaende darueber, damit die Karte nicht so wirkt, als
+   sei etwas schiefgegangen - es ist bloss nicht die eigene. */
+.schedule-readonly {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
 .schedule-stat-metrics {
   --summary-cards: 2;
 }
