@@ -482,6 +482,13 @@ export async function processDueNotifications({
         END AS sub_next_payment_date
     FROM reminders r
     WHERE r.dismissed = 0 AND r.pushed_at IS NULL AND r.remind_at <= ?
+      AND NOT (
+        r.entity_type = 'task'
+        AND EXISTS (
+          SELECT 1 FROM tasks completed_task
+           WHERE completed_task.id = r.entity_id AND completed_task.status = 'done'
+        )
+      )
     ORDER BY r.remind_at ASC
   `).all(nowIso);
 

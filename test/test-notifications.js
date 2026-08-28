@@ -492,6 +492,110 @@ test('notification processor fans out and deduplicates reminder deliveries', asy
   assert.deepEqual(calls, { webpush: 1, gotify: 1, ntfy: 1 });
 });
 
+test('completed recurring task suppresses its reminder while the next open instance still sends', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const { processDueNotifications } = await import('../server/services/notifications.js');
+  const db = makeDb();
+  const store = createNotificationChannelStore({ db });
+  store.createChannel({
+    provider: 'ntfy',
+    name: 'ntfy',
+    enabled: true,
+    config: { baseUrl: 'https://ntfy.test', topic: 'family' },
+    secrets: {},
+  });
+  db.prepare("INSERT INTO tasks (id, title, status, created_by) VALUES (1, 'August task', 'done', 1)").run();
+  db.prepare("INSERT INTO tasks (id, title, status, created_by) VALUES (2, 'September task', 'open', 1)").run();
+  db.prepare("INSERT INTO reminders (id, entity_type, entity_id, remind_at, created_by) VALUES (1, 'task', 1, ?, 1)")
+    .run('2026-08-28T09:45:00.000Z');
+  db.prepare("INSERT INTO reminders (id, entity_type, entity_id, remind_at, created_by) VALUES (2, 'task', 2, ?, 1)")
+    .run('2026-08-28T09:45:00.000Z');
+  const payloads = [];
+  const providers = {
+    ntfy: {
+      id: 'ntfy',
+      send: async ({ payload }) => {
+        payloads.push(payload);
+        return { ok: true, status: 200 };
+      },
+    },
+  };
+
+  const first = await processDueNotifications({
+    database: db,
+    channelStore: store,
+    pushService: { sendPushToUser: async () => 0 },
+    providers,
+    now: new Date('2026-08-28T09:46:00.000Z'),
+  });
+  assert.deepEqual(first, { due: 1, attempted: 1, sent: 1, failed: 0, skipped: 0 });
+  assert.deepEqual(payloads.map((payload) => payload.body), ['September task']);
+  assert.equal(db.prepare('SELECT pushed_at FROM reminders WHERE id = 1').get().pushed_at, null);
+  assert.equal(db.prepare('SELECT COUNT(*) AS c FROM notification_deliveries WHERE reminder_id = 1').get().c, 0);
+
+  // Suppression is non-destructive: undoing completion restores the original
+  // reminder and follows the existing overdue-reminder behavior.
+  db.prepare("UPDATE tasks SET status = 'open' WHERE id = 1").run();
+  const reopened = await processDueNotifications({
+    database: db,
+    channelStore: store,
+    pushService: { sendPushToUser: async () => 0 },
+    providers,
+    now: new Date('2026-08-28T09:47:00.000Z'),
+  });
+  assert.equal(reopened.due, 1);
+  assert.deepEqual(payloads.map((payload) => payload.body), ['September task', 'August task']);
+});
+
+test('completing a task stops retries for an already failed reminder delivery', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const { processDueNotifications } = await import('../server/services/notifications.js');
+  const db = makeDb();
+  const store = createNotificationChannelStore({ db });
+  store.createChannel({
+    provider: 'ntfy',
+    name: 'ntfy',
+    enabled: true,
+    config: { baseUrl: 'https://ntfy.test', topic: 'family' },
+    secrets: {},
+  });
+  db.prepare("INSERT INTO tasks (id, title, status, created_by) VALUES (1, 'Task', 'open', 1)").run();
+  db.prepare("INSERT INTO reminders (id, entity_type, entity_id, remind_at, created_by) VALUES (1, 'task', 1, ?, 1)")
+    .run('2026-08-28T09:45:00.000Z');
+  let attempts = 0;
+  const providers = {
+    ntfy: {
+      id: 'ntfy',
+      send: async () => {
+        attempts += 1;
+        throw new Error('offline');
+      },
+    },
+  };
+
+  const first = await processDueNotifications({
+    database: db,
+    channelStore: store,
+    pushService: { sendPushToUser: async () => 0 },
+    providers,
+    now: new Date('2026-08-28T09:46:00.000Z'),
+  });
+  assert.equal(first.failed, 1);
+  assert.equal(attempts, 1);
+
+  db.prepare("UPDATE tasks SET status = 'done' WHERE id = 1").run();
+  const afterCompletion = await processDueNotifications({
+    database: db,
+    channelStore: store,
+    pushService: { sendPushToUser: async () => 0 },
+    providers,
+    now: new Date('2026-08-28T10:00:00.000Z'),
+  });
+  assert.equal(afterCompletion.due, 0);
+  assert.equal(attempts, 1);
+  assert.equal(db.prepare('SELECT attempt_count FROM notification_deliveries').get().attempt_count, 1);
+});
+
 test('subscription reminders carry name, amount and renewal date as body (#581)', async () => {
   const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
   const { processDueNotifications } = await import('../server/services/notifications.js');

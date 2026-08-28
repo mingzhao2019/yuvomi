@@ -137,6 +137,13 @@ router.get('/pending', (req, res) => {
         AND r.dismissed   = 0
         AND r.remind_at  <= ?
         AND r.entity_type IN (${origins.map(() => '?').join(', ')})
+        AND NOT (
+          r.entity_type = 'task'
+          AND EXISTS (
+            SELECT 1 FROM tasks completed_task
+             WHERE completed_task.id = r.entity_id AND completed_task.status = 'done'
+          )
+        )
       ORDER BY r.remind_at ASC
     `).all(userId, now, ...origins);
 

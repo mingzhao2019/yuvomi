@@ -162,6 +162,26 @@ test('GET /pending schließt zukünftige und verworfene Erinnerungen aus', async
   assert.equal(res.body.data[0].entity_id, t);
 });
 
+test('GET /pending unterdrückt erledigte Aufgaben, aber nicht die nächste offene Serieninstanz', async () => {
+  const owner = freshUser();
+  currentUid = owner;
+
+  const completed = makeTask(owner, 'August task');
+  const next = makeTask(owner, 'September task');
+  db.prepare("UPDATE tasks SET status = 'done' WHERE id = ?").run(completed);
+  insertReminder(owner, 'task', completed, PAST);
+  insertReminder(owner, 'task', next, PAST);
+
+  const suppressed = await call('GET', '/pending');
+  assert.equal(suppressed.status, 200);
+  assert.deepEqual(suppressed.body.data.map((row) => row.entity_id), [next]);
+
+  db.prepare("UPDATE tasks SET status = 'open' WHERE id = ?").run(completed);
+  const reopened = await call('GET', '/pending');
+  assert.equal(reopened.status, 200);
+  assert.deepEqual(new Set(reopened.body.data.map((row) => row.entity_id)), new Set([completed, next]));
+});
+
 test('GET /pending ist sortiert nach remind_at aufsteigend', async () => {
   const owner = freshUser();
   currentUid = owner;
