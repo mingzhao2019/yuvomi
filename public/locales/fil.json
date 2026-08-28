@@ -3609,7 +3609,8 @@
         "completed": "Natapos",
         "completedOn": "Natapos noong {{date}}",
         "completedToast": "Natapos ang subscription.",
-        "endsAfter": "{{count}} bayad na lang ang natitira"
+        "endsAfter": "{{count}} bayad na lang ang natitira",
+        "logoTypeError": "Gumamit ng larawang PNG, JPEG, WebP o SVG."
     },
     "health": {
         "tabs": {
@@ -4457,7 +4458,8 @@
         "icsWarrantySummary": "Warranty ends: {{name}}",
         "icsTrackedDateSummary": "{{label}}: {{name}}",
         "icsCalendarName": "Yuvomi Inventory",
-        "removeBookingAction": "Remove \"{{title}}\""
+        "removeBookingAction": "Remove \"{{title}}\"",
+        "photoTooLarge": "Masyado pa ring malaki ang larawan pagkatapos bawasan ang laki."
     },
     "documentAttach": {
         "label": "Mga kalakip",
