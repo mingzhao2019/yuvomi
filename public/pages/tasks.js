@@ -5554,18 +5554,36 @@ export async function render(container, { user }) {
           className: 'tasks-toolbar__search page-toolbar__center',
         })}
         <div class="page-toolbar__actions">
+          <!-- ICON PLUS LABEL, wie beim Geschwister-Umschalter in der Filterreihe
+               (#group-mode-toggle, ~60 Zeilen tiefer). tasks.css:143 sagt ueber
+               den Label-Verlust ausdruecklich „Der Ansichts-Umschalter im Kopf
+               bekommt sie mit; er ist dasselbe Bauteil" - nur trug er gar kein
+               Label, das haette fallen koennen. Die Regel lief hier ins Leere,
+               und uebrig blieben drei stumme Glyphen (Critique 2026-08-28, P1:
+               ein Kanban-Rechteck und ein Verlaufs-Pfeil sind kein geteiltes
+               Vokabular). Unter 640px faellt das Label ueber die vorhandene
+               Regel weg, mobil bleibt also die Icon-Form - iOS-Kanon.
+               Die drei EINZELNEN Knoepfe daneben behalten ihre reine Icon-Form:
+               ihre Namen sind Verben („Kategorien verwalten"), und ein
+               aria-label als sichtbaren Text weiterzureichen verbietet
+               DESIGN.md. Damit trennt jetzt auch der Text, was vorher nur die
+               Behaelterform andeutete: benannte Ansichten in der Gruppe,
+               unbenannte Werkzeuge daneben. -->
           <div class="group-toggle group-toggle--icons" id="view-toggle" role="group" aria-label="${t('tasks.viewToggleLabel')}">
             <button type="button" class="group-toggle__btn ${isKanban || isHistory ? '' : 'group-toggle__btn--active'}" data-view="list"
                     title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}" aria-pressed="${!isKanban && !isHistory}">
-              <i data-lucide="list" class="icon-md" aria-hidden="true"></i>
+              <i data-lucide="list" class="icon-md group-toggle__icon" aria-hidden="true"></i>
+              <span class="group-toggle__label">${t('tasks.listView')}</span>
             </button>
             <button type="button" class="group-toggle__btn ${isKanban ? 'group-toggle__btn--active' : ''}" data-view="kanban"
                     title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}" aria-pressed="${isKanban}">
-              <i data-lucide="columns" class="icon-md" aria-hidden="true"></i>
+              <i data-lucide="columns" class="icon-md group-toggle__icon" aria-hidden="true"></i>
+              <span class="group-toggle__label">${t('tasks.kanbanView')}</span>
             </button>
             <button type="button" class="group-toggle__btn ${isHistory ? 'group-toggle__btn--active' : ''}" data-view="history"
                     title="${t('tasks.historyView')}" aria-label="${t('tasks.historyView')}" aria-pressed="${isHistory}">
-              <i data-lucide="history" class="icon-md" aria-hidden="true"></i>
+              <i data-lucide="history" class="icon-md group-toggle__icon" aria-hidden="true"></i>
+              <span class="group-toggle__label">${t('tasks.historyView')}</span>
             </button>
           </div>
           <button class="btn btn--ghost btn--icon" id="btn-bulk-select"
