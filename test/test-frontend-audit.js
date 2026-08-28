@@ -577,6 +577,61 @@ test('kein endlos animiertes Element traegt in derselben Regel einen filter', ()
 });
 
 /**
+ * Eine Bewegung nennt ihre Kurve aus einem Token.
+ *
+ * DIE REGEL, NICHT DIE LISTE: geprueft wird die BAUART - eine `cubic-bezier(`-
+ * Klammer in einem Stylesheet ausserhalb von tokens.css. Eine Allowlist der
+ * bekannten Suender waere hier der falsche Bau gewesen: sie sagt zu jeder
+ * NEUEN Datei ja, und genau so sind die drei Treffer entstanden, die diesen
+ * Guard ausgeloest haben (Critique 2026-08-28).
+ *
+ * DER ANLASS: `rewards.css:250` fuehrte `cubic-bezier(0.22, 1, 0.36, 1)` - eine
+ * VIERTE Kurve, die tokens.css nicht kennt und die niemand entschieden hat.
+ * `layout.css:4909` und `settings.css:2985` schrieben dagegen `--ease-glass`
+ * bzw. `--ease-out` woertlich aus: derselbe Wert, am Token vorbei. Der
+ * Unterschied ist unsichtbar, solange niemand die Kurve aendert - und genau
+ * dann faellt er auf, weil zwei Elemente der Aenderung nicht folgen.
+ *
+ * `tokens.css` ist ausgenommen, weil dort die Kurven DEFINIERT werden. Die drei
+ * Namen (`--ease-out`, `--ease-glass`, `--ease-sidebar-glide`) sind die
+ * vollstaendige Liste; wer eine vierte braucht, gibt ihr dort einen Namen und
+ * einen Grund, statt sie in ein Bauteil zu schreiben.
+ */
+test('keine Bewegungskurve steht ausserhalb von tokens.css als Literal', () => {
+  const styleDir = new URL('../public/styles/', import.meta.url);
+  const offenders = [];
+  let seenCurveTokens = 0;
+
+  for (const { selector, body, at } of eachRule(read('../public/styles/tokens.css'))) {
+    seenCurveTokens += (body.match(/--ease-[a-z-]+\s*:/g) || []).length;
+  }
+
+  for (const file of readdirSync(styleDir).filter((f) => f.endsWith('.css'))) {
+    if (file === 'tokens.css') continue;
+    for (const { selector, body, at } of eachRule(read(`../public/styles/${file}`))) {
+      if (!/cubic-bezier\s*\(/.test(body)) continue;
+      const m = body.match(/[^;{]*cubic-bezier\s*\([^)]*\)[^;}]*/);
+      offenders.push(`${file}${at.length ? ` [${at.join(' ')}]` : ''}: ${selector} -> ${(m ? m[0] : '').trim()}`);
+    }
+  }
+
+  // Eine leere Liste ist keine Zusicherung: faende der Scanner tokens.css nicht
+  // mehr, waere dieser Guard gruen, waehrend er nichts mehr liest.
+  assert.ok(seenCurveTokens >= 3,
+    `Nur ${seenCurveTokens} --ease-*-Definitionen in tokens.css gefunden - der Scanner `
+    + 'liest die Token-Datei nicht mehr, statt nichts zu beanstanden.');
+
+  assert.deepEqual(offenders.sort(), [],
+    'Eine Bewegungskurve steht als Literal in einem Bauteil statt als Token. Wer '
+    + '`--ease-out` oder `--ease-glass` woertlich ausschreibt, folgt einer spaeteren '
+    + 'Aenderung des Tokens nicht mehr; wer eine unbekannte Kurve schreibt, fuehrt eine '
+    + 'vierte Bewegungssprache ohne Entscheidung ein. Kurven werden in tokens.css '
+    + `benannt und hier nur benutzt.\n${offenders.join('\n')}`);
+});
+
+
+
+/**
  * Das Wetter-Vokabular haelt an vier Enden zusammen.
  *
  * DIE LAGEN UND BAENDER STEHEN NICHT ALS LISTE HIER, sondern werden aus

@@ -4906,7 +4906,7 @@ textarea::placeholder {
 }
 
 .toggle input:checked + .toggle__track::after {
-  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform var(--duration-xl) var(--ease-glass);
 }
 
 .toggle input:checked + .toggle__track::after {
