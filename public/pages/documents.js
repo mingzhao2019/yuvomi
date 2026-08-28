@@ -376,7 +376,22 @@ function bindPageEvents() {
   });
   // Rand-Fade der Kategorie-Chips: geteiltes Utility (Audit F-06) — deckt
   // anders als der frühere Scroll-Listener auch Resize und Re-Render ab.
+  //
+  // ZWEI KANDIDATEN, WEIL DER SCROLLER MIT DER BREITE WECHSELT: unterhalb des
+  // Breakpoints scrollt nicht die Chip-Reihe, sondern die ganze Bedienzeile
+  // (documents.css: `.documents-filters { overflow-x: auto }`), und
+  // `#documents-category` berechnet dort `overflow-x: visible`. Der Fade hing
+  // bis zum Critique 2026-08-28 allein am inneren Element und war damit genau
+  // dort weg, wo er gebraucht wird: gemessen 1246px Inhalt auf 390px Viewport
+  // ohne jedes Signal, dass es seitlich weitergeht. Auf /contacts liegt
+  // dieselbe Konstruktion richtig herum - dort IST die Filterzeile der
+  // Scroller, und sie trägt den Helfer.
+  //
+  // Beide zu verdrahten ist gefahrlos: `update()` vergleicht scrollWidth gegen
+  // clientWidth, und ein Element, das nicht überläuft, bekommt keine
+  // `has-fade-*`-Klasse. Es gewinnt also immer der, der gerade scrollt.
   wireScrollFade(_container.querySelector('#documents-category'));
+  wireScrollFade(_container.querySelector('.documents-filters'));
   _container.querySelector('#documents-sort')?.addEventListener('change', (e) => {
     state.sort = SORTS.includes(e.target.value) ? e.target.value : 'updated';
     localStorage.setItem('yuvomi-documents-sort', state.sort);
