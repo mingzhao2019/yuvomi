@@ -41,6 +41,48 @@ export function vibrate(pattern) {
   navigator.vibrate(pattern);
 }
 
+/**
+ * Wartet, bis eine Quittungs-Animation auf `el` ausgespielt ist.
+ *
+ * DER ANLASS (Critique 2026-08-28, P0): das Abhaken einer Aufgabe zeigte nie
+ * eine Quittung, obwohl `check-pop` an `.task-status-btn--done` verdrahtet ist
+ * (tasks.css:703). Gemessen feuerte sie in 0 von 6 Versuchen. Der Grund war
+ * kein fehlendes Bauteil, sondern ein WETTLAUF: die Klasse wurde gesetzt, und
+ * der Re-Render der Liste ersetzte das Element, bevor die 200ms einen Frame
+ * bekamen. Eine gebaute Animation, die nie zu sehen ist, ist teurer als keine -
+ * sie sieht im Stylesheet nach erledigter Arbeit aus.
+ *
+ * DER FALLBACK IST PFLICHT, NICHT VORSICHT: unter `prefers-reduced-motion`
+ * feuert `animationend` NIE, weil es gar keine Animation gibt (dieselbe Lehre
+ * wie bei `transitionend` in detail-view.js:250 und router.js:1554). Ohne den
+ * Timer bliebe der Aufrufer dort für immer hängen.
+ *
+ * Der Rückgabewert ist bewusst ein Promise und kein Callback: der Aufrufer
+ * startet ihn VOR seinem Server-Roundtrip und wartet danach auf beides. So
+ * kostet die Quittung keine zusätzliche Zeit, solange das Netz langsamer ist
+ * als sie - und sie bleibt sichtbar, wenn es schneller ist.
+ *
+ * @param {Element} el                 - Element, das die Animation trägt
+ * @param {Object} [opts]
+ * @param {number} [opts.fallback=260] - ms, nach denen ohne Event aufgelöst wird
+ * @returns {Promise<void>}
+ */
+export function animationSettled(el, { fallback = 260 } = {}) {
+  if (!el) return Promise.resolve();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.removeEventListener('animationend', finish);
+      resolve();
+    };
+    el.addEventListener('animationend', finish, { once: true });
+    setTimeout(finish, fallback);
+  });
+}
+
 // --------------------------------------------------------
 // Verzögertes Löschen mit Undo-Fenster (kanonisches Muster, Audit F-13)
 // --------------------------------------------------------

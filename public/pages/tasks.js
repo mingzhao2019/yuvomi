@@ -8,7 +8,7 @@ import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } from '/rrule-ui.js';
 import { openModal as openSharedModal, closeModal, wireBlurValidation, validateAll, btnSuccess, btnError, btnLoading, promptModal, confirmModal, advancedSection } from '/components/modal.js';
 import { openDetailView, closeDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
-import { stagger, vibrate, scheduleUndoableDelete } from '/utils/ux.js';
+import { stagger, vibrate, scheduleUndoableDelete, animationSettled } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
 import { t, getLocale, formatDate, formatDayMonth, formatTime, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { esc, renderMarkdownLight } from '/utils/html.js';
@@ -5403,12 +5403,44 @@ function wireTaskList(container) {
 
     if (action === 'toggle-status') {
       const status = target.dataset.status;
+      const nextStatus = status === 'done' ? 'open' : 'done';
       vibrate(15);
-      target.classList.toggle('task-status-btn--done', status !== 'done');
-      target.closest('.task-card')?.classList.toggle('task-card--done', status !== 'done');
+      // Beide Zustandsklassen führen, nicht nur die neue anhängen: der Knopf
+      // trug sonst `--open` UND `--done` gleichzeitig (gemessen 2026-08-28),
+      // und die Regel, die zuletzt im Stylesheet steht, gewann das Aussehen.
+      target.classList.toggle('task-status-btn--done', nextStatus === 'done');
+      target.classList.toggle('task-status-btn--open', nextStatus !== 'done');
+      target.closest('.task-card')?.classList.toggle('task-card--done', nextStatus === 'done');
+      // Die Quittung startet JETZT und läuft neben dem Roundtrip, nicht danach:
+      // `loadTasks()` ersetzt den Knopf, und ohne dieses Warten war `check-pop`
+      // (tasks.css:703) in 0 von 6 Messungen zu sehen. Siehe animationSettled().
+      const settled = animationSettled(target);
       try {
         await toggleTaskStatus(id, status);
+        await settled;
         await loadTasks(container);
+        // Derselbe Rückweg wie beim Wischen. Die Geste hatte hier zwei
+        // Endpunkte mit zwei Antworten: der Wisch bot Undo an, der Tipp - die
+        // häufigere Bedienung - liess den Eintrag kommentarlos aus dem
+        // gefilterten Bild verschwinden.
+        //
+        // Die Schlüssel heissen weiter `swiped*`: ihr TEXT ist gestenneutral
+        // ("Als erledigt markiert."), nur der Name nennt die Wischgeste. Ein
+        // Rename kostet 24 Locale-Dateien für eine Namensschuld, die kein
+        // Nutzer sieht - vermerkt statt bezahlt.
+        window.yuvomi.showToast(
+          t(nextStatus === 'done' ? 'tasks.swipedDoneToast' : 'tasks.swipedOpenToast'),
+          'default',
+          5000,
+          async () => {
+            try {
+              await toggleTaskStatus(id, nextStatus);
+              await loadTasks(container);
+            } catch (err) {
+              window.yuvomi.showToast(err.message, 'danger');
+            }
+          },
+        );
       } catch (err) {
         window.yuvomi.showToast(err.message, 'danger');
         await loadTasks(container);
