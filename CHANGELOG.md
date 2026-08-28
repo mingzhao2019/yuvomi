@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.50.2] - 2026-08-27
+
+### Fixed
+
+- **The Budget summary no longer clips the transaction list on short desktop windows** (#904). The
+  fixed part of the tab - summary cards plus the category chart - grows with the number of
+  categories; on a short viewport the transaction section collapsed to its header line, and since
+  the panel itself did not scroll, nothing could reach the list. The section now keeps a usable
+  minimum height (three rows plus a cut-off fourth as a scroll cue, capped at the panel's own
+  height on very short windows), and once that minimum makes the panel overflow, the whole tab
+  scrolls - summary and chart move along, with the same thin module scrollbar the loans tab
+  already had. On tall windows nothing changes: the summary stays put and only the list scrolls.
+
+- **A birthday photo now opens the same crop-and-zoom dialog as a profile picture** (#901). The
+  dialog existed, but every module had built its own way from the file to the stored image, and
+  the birthday path had no type check, no size check, no crop and a hardcoded English error
+  message. All five paths - profile picture, family member, housekeeping staff, quick-link tile,
+  birthday - now run through one shared picker; a birthday photo is stored as a cropped 256 × 256
+  JPEG (about 5 KB instead of the raw file). Along the way: choosing the same file twice in a row
+  works again everywhere (previously "crop it differently" with the same file did nothing), the
+  housekeeping module reports read errors instead of swallowing them in an empty `catch`, and an
+  image file that cannot be decoded shows the read-error message instead of silently doing
+  nothing.
+
+- **A test suite that throws can no longer hang `npm test` forever** (#903). The CalDAV sync
+  suite's tick counter kept the event loop alive when `sync()` threw: the failure printed, the
+  process never exited, and in CI the run sat "in progress" for the six-hour default instead of
+  turning red. The ticker now stops in a `finally` and no longer holds the process open, and every
+  workflow job carries an explicit `timeout-minutes` cap - a new guard ensures the next workflow
+  cannot arrive without one.
+
+### Changed
+
+- **An inventory item photo now goes through the same crop dialog, and the subscription logo
+  picker checks its file itself** (#901). The inventory photo path used to read the raw file with
+  no type check, no size check and an untranslated error message; it now runs through the shared
+  picker and is stored as a cropped 256 × 256 JPEG. The subscription logo keeps its raw path on
+  purpose - SVG and transparency would not survive a JPEG crop - but now rejects wrong types and
+  oversized files with translated messages instead of failing silently or in English.
+
+- **GIF is no longer offered when picking a birthday or inventory photo** (#901). The crop dialog
+  always returns a JPEG, so an animated GIF would silently have become a still image; a readable
+  rejection beats a result that differs from the upload. The server API accepts GIF unchanged.
+
 ## [2.50.1] - 2026-08-27
 
 ### Fixed

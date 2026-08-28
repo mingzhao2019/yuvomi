@@ -1,8 +1,8 @@
-<!-- version: 2.50.1 -->
-A small hardening release, with nothing to do by hand after the update.
+<!-- version: 2.50.2 -->
+A bugfix release, with nothing to do by hand after the update.
 
-The setup wizard no longer accepts a public address without an http:// or https:// scheme. An address typed as "yuvomi.example.com" used to be written to the configuration exactly like that, which quietly broke password-reset emails and the sign-in addresses shown for Google and Microsoft. Until a full address is entered, the wizard now keeps the one it derives from host and port. Running installations only meet this when the wizard is re-run.
+The Budget summary works again on smaller desktop windows. With many spending categories the transaction list used to be squeezed out of view with no way to scroll to it; the tab now scrolls as a whole once the summary and the category chart take more room than the window offers.
 
-The rest resolves the findings of an automated security review of the code: a server-side address check that could be made needlessly slow now runs in plain steps, and several internal checks match precisely instead of loosely.
+Photos across the app now go through the same crop-and-zoom dialog you know from profile pictures. Birthday and inventory photos gain the missing cropping step and are stored as small square images instead of the raw file, choosing the same file twice in a row works again everywhere, and a broken image file now shows an error message instead of doing nothing. Animated GIFs are no longer offered for these photos, because the crop would silently turn them into a still image.
 
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.50.1
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.50.2
