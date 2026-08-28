@@ -1066,9 +1066,17 @@ async function deleteFolder(folder) {
 // führt (Listenzeile) — sonst stünde sie doppelt in derselben Zeile.
 function renderMeta(doc, { showSize = true } = {}) {
   const labels = categoryLabels();
+  const categoryLabel = labels[doc.category] || doc.category;
+  // Der Ordner-Chip entfaellt, wenn der Ordner woertlich wie die Kategorie
+  // heisst: „Schule · Schule" sagte dasselbe zweimal auf jeder Karte
+  // (Critique 2026-08-27, P3). Nur exakte Gleichheit - ein Ordner
+  // „Versicherungen" unter der Kategorie „Versicherung" ist eine
+  // Nutzerentscheidung und bleibt sichtbar.
+  const folderDuplicatesCategory = doc.folder_name
+    && doc.folder_name.trim().toLowerCase() === String(categoryLabel).trim().toLowerCase();
   return `
-    <span><i data-lucide="${CATEGORY_ICONS[doc.category] || 'folder'}" aria-hidden="true"></i>${labels[doc.category] || doc.category}</span>
-    ${doc.folder_name ? `<span><i data-lucide="folder" aria-hidden="true"></i>${esc(doc.folder_name)}</span>` : ''}
+    <span><i data-lucide="${CATEGORY_ICONS[doc.category] || 'folder'}" aria-hidden="true"></i>${categoryLabel}</span>
+    ${doc.folder_name && !folderDuplicatesCategory ? `<span><i data-lucide="folder" aria-hidden="true"></i>${esc(doc.folder_name)}</span>` : ''}
     ${isSoloHousehold() ? '' : `<span><i data-lucide="${doc.visibility === 'family' ? 'users' : doc.visibility === 'private' ? 'lock' : 'user-check'}" aria-hidden="true"></i>${t(`documents.visibility.${doc.visibility}`)}</span>`}
     ${showSize ? `<span>${formatFileSize(doc.file_size)}</span>` : ''}
     ${storageBadgeHtml(doc)}

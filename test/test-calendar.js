@@ -756,17 +756,27 @@ test('Monatsraster: die Tönung folgt dem Wochentag, nicht der Spaltenposition',
 });
 
 test('Monatsraster: das CSS hängt die Tönung an die Klasse, nicht an nth-child', () => {
+  // Der Filter fragt die ZUSICHERUNG ab (eine Wochenend-Zelle wird ueber ihre
+  // Klasse gemalt), nicht die Farbquelle: bis 2026-08-27 suchte er
+  // `--module-accent` im Regelkoerper und haette den Wechsel der Toenung auf
+  // den neutralen Well (Herkunfts-Regel: „Wochenende" ist keine
+  // Herkunftsaussage) als „verschwunden" gemeldet, obwohl die Regel steht.
   const tint = [...eachRule(calendarCss)]
-    .filter((r) => /--module-accent/.test(r.body) && /background-color/.test(r.body))
-    .filter((r) => r.selector.includes('.month-day'));
+    .filter((r) => /background-color/.test(r.body))
+    .filter((r) => r.selector.includes('.month-day--weekend'));
   assert(tint.length > 0, 'die Wochenend-Tönung im Monatsraster ist verschwunden');
   for (const rule of tint) {
-    assert(rule.selector.includes('month-day--weekend'),
-      `getönte Monatszellen müssen über .month-day--weekend adressiert werden, gefunden: ${rule.selector}`);
     assert(!/nth-child/.test(rule.selector),
       `die Tönung darf nicht an der Spaltenposition hängen (${rule.selector}): die Spalte sagt nur `
       + 'bei Wochenstart Montag den Wochentag');
   }
+  // Die Gegenrichtung, seit dem Quellen-Wechsel ausdruecklich: KEINE Regel
+  // malt eine Monatszelle ueber ihre Spaltenposition (#780).
+  const positional = [...eachRule(calendarCss)]
+    .filter((r) => r.selector.includes('.month-day') && /nth-child/.test(r.selector)
+      && /background-color/.test(r.body));
+  assert(positional.length === 0,
+    `eine Monatszelle wird ueber nth-child gemalt: ${positional.map((r) => r.selector).join(', ')}`);
 });
 
 // --------------------------------------------------------

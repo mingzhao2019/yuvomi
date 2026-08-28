@@ -265,8 +265,10 @@ function computeMetrics(items) {
  * geladenen Item-Liste berechnet, keine eigene Abfrage.
  */
 function updateAttentionBadge() {
+  // Ablaufende Frist = Warnung, nicht Alarm (Valenz siehe nav-badges.js).
   setNavBadge('/inventory', countUpcomingDeadlines(state.items),
-    (count) => (count > 0 ? t('inventory.navLabelAttention', { count }) : t('nav.inventory')));
+    (count) => (count > 0 ? t('inventory.navLabelAttention', { count }) : t('nav.inventory')),
+    'warning');
 }
 
 function renderMetrics() {

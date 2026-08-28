@@ -265,7 +265,12 @@
    * (budget/dashboard/tasks), vom frontend-audit erzwungen. */
   height: 100%;
   border-radius: inherit;
-  background: var(--color-accent);
+  /* Serie 1 statt der Stimme: der Balken ist eine DATENREIHE (Zahlungen in
+   * Euro), und Datenreihen nehmen die Chart-Palette - die Stimme sagt „was
+   * tut das hier", nicht „wieviel wurde gezahlt" (Chart-Serien-Regel,
+   * DESIGN.md; Critique 2026-08-27, P3). Serie 1 heisst in der
+   * Kontofarben-Wahl bewusst „Violett" - die Naehe ist dort die Zusage. */
+  background: var(--chart-series-1);
   transform-origin: bottom center;
   transform: scaleY(var(--bar-scale, 0));
 }

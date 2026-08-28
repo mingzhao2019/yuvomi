@@ -1301,9 +1301,11 @@ Zielgroessen-Regel halten (**Ebene 3**, `die Groesse des Icon-Knopfs gehoert der
 
 ### Chips
 - **Form:** Kapsel (`--radius-full`), Kante wie ein Bedienelement. Kalender-Layer-Chips
-  tragen die User-Farbe als Border mit ~60 % Deckung (>=3:1), nie als Textfarbe; nur der
-  Mir-zugewiesen-Chip traegt sein Label in der Layer-Farbe (AA-verifiziert),
-  Feiertags-Chips bleiben Sekundaertext. Ein aktiver Filter-Chip traegt den Ton als
+  tragen die User-Farbe als Border mit ~60 % Deckung (>=3:1), nie als Textfarbe; alle
+  Labels stehen inaktiv in Sekundaertext - auch der Mir-zugewiesen-Chip (Beschluss
+  2026-08-17, umgesetzt 2026-08-27: seine dauerhaft getoente Schrift las sich als
+  „Filter ist an"; die Farbe erscheint erst mit der Aktivierung). Ein aktiver
+  Filter-Chip traegt den Ton als
   getoente FLAECHE (`--tint-state` Grund, `--tint-hint` Kante, `--tint-ink` Tinte) - das
   ist die andere Haelfte der Regel „eine Behandlung pro Kontrolltyp" und ausdruecklich
   NICHT die Segment-Pille. Scrollende Chip-Reihen bekommen die Fade-Mask (siehe Layout).

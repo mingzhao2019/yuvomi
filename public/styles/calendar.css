@@ -267,7 +267,14 @@
  * `:nth-child(7n)`/`7n-1` traf nur bei Wochenstart Montag Sa/So, bei Sonntag-
  * oder Samstag-Start färbte es Fr/Sa bzw. Do/Fr (#780). */
 .month-day--weekend:not(.month-day--outside) {
-  background-color: color-mix(in srgb, var(--module-accent) var(--tint-wash), var(--color-surface-work));
+  /* NEUTRAL statt Modul-Waschung (Critique 2026-08-27, P3): „Wochenende" ist
+   * ein Kalender-Zustand, keine Herkunftsaussage - die frühere
+   * --module-accent-Waschung war Modulton als Dauer-Dekor im eigenen Modul
+   * (Herkunfts-Regel) und legte acht kühle Blaufelder auf die warme Bühne.
+   * --color-fill-well ist die dokumentierte leise Abstufung (1,20:1 light /
+   * 1,16:1 dark gegen die Fläche, AA für Text darauf gemessen), warm in
+   * beiden Themes - dieselbe Antwort wie bei Apples grauem Wochenende. */
+  background-color: var(--color-fill-well);
 }
 
 .month-day__number {
@@ -1920,13 +1927,13 @@
   border-color: color-mix(in srgb, var(--layer-color) var(--tint-hint), transparent);
 }
 
-/* Nur der Mir-zugewiesen-Chip traegt sein Label in der Layer-Farbe: sie ist
- * dort der AA-verifizierte Kalender-Tint (dark #A78BFA 7.2:1, light #6D28D9
- * 6.4:1). Die Feiertags-Chips behalten text-secondary - ihre --layer-color
- * ist benutzerkonfigurierbar und als Textfarbe nicht AA-garantiert. */
-.cal-toolbar__mine-btn:not(.cal-toolbar__layer-btn--active) {
-  color: var(--layer-color);
-}
+/* Der Mir-zugewiesen-Chip ist inaktiv NEUTRAL wie seine Nachbarn - die Farbe
+ * erscheint erst mit der Aktivierung (Beschluss 2026-08-17, umgesetzt
+ * 2026-08-27). Vorher trug er sein Label dauerhaft in der Layer-Farbe, und
+ * zwei Personas lasen den Ruhezustand als „Filter ist an" - ein Chip, der
+ * inaktiv schon farbig spricht, hat keinen sichtbaren Aktivwechsel mehr.
+ * Die AA-Messung des Tints (dark #A78BFA 7.2:1, light #6D28D9 6.4:1) bleibt
+ * fuer den AKTIVEN Zustand dokumentiert. */
 
 .cal-toolbar__layer-dot {
   width: 8px;

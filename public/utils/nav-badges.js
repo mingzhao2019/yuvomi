@@ -114,7 +114,13 @@ function paint(route, entry) {
     if (!entry || !(entry.count > 0)) return;
 
     const badge = document.createElement('span');
-    badge.className = 'nav-badge';
+    // Die VALENZ gehoert zur Zahl (Critique 2026-08-27): Danger ist der
+    // Default und meint eine gerissene Frist (ueberfaellige Aufgaben).
+    // Ein anstehender Geburtstag ist eine Nachricht (accent, dieselbe
+    // Begruendung wie der Update-Punkt: „eine Nachricht, kein Alarm"), eine
+    // ablaufende Inventar-Frist eine Warnung. Drei Aussagen in einem
+    // Alarm-Rot erzogen dazu, das Rot zu ueberblaettern.
+    badge.className = `nav-badge${entry.tone ? ` nav-badge--${entry.tone}` : ''}`;
     // Die Ansage steht im Namen des Ziels - siehe Modulkopf.
     badge.setAttribute('aria-hidden', 'true');
     badge.textContent = entry.count > MAX_VISIBLE ? `${MAX_VISIBLE}+` : String(entry.count);
@@ -131,9 +137,12 @@ function paint(route, entry) {
  *   ZIELS (nicht des Badges), als Funktion: er haengt an der Sprache und wird
  *   bei jedem Zeichnen neu ausgewertet. Er bekommt die Zahl uebergeben, damit
  *   dieselbe Funktion den leeren Fall mit beantworten kann.
+ * @param {'accent'|'warning'} [tone] - die Valenz der Zahl. Ohne Angabe Danger
+ *   (gerissene Frist); 'warning' fuer eine ablaufende Frist, 'accent' fuer
+ *   eine Nachricht (Geburtstag - siehe paint()).
  */
-export function setNavBadge(route, count, label) {
-  const entry = { count: Number(count) || 0, label };
+export function setNavBadge(route, count, label, tone) {
+  const entry = { count: Number(count) || 0, label, tone };
   badges.set(route, entry);
   paint(route, entry);
 }

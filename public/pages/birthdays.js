@@ -156,7 +156,8 @@ export function countBirthdaysSoon(birthdays) {
 }
 
 function updateBirthdayBadge() {
-  setNavBadge('/birthdays', countBirthdaysSoon(state.birthdays));
+  // Nachricht, kein Alarm (Valenz siehe nav-badges.js).
+  setNavBadge('/birthdays', countBirthdaysSoon(state.birthdays), undefined, 'accent');
 }
 
 function birthdayItemHtml(birthday) {

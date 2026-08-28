@@ -1143,7 +1143,9 @@ function primeNavBadges(data) {
   const counts = navBadgeCountsFrom(data);
   setNavBadge('/tasks', counts['/tasks'],
     (count) => (count > 0 ? t('tasks.navLabelOverdue', { count }) : t('tasks.title')));
-  setNavBadge('/birthdays', counts['/birthdays']);
+  // Ein anstehender Geburtstag ist eine Nachricht, kein Alarm (Valenz siehe
+  // nav-badges.js).
+  setNavBadge('/birthdays', counts['/birthdays'], undefined, 'accent');
 }
 
 /**
