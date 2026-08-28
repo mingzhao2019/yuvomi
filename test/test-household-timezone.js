@@ -282,20 +282,34 @@ test('Guard: der null-Rueckfall steht nur als Default-Parameter', () => {
   // ist sichtbar: ein Default steht in einer Parameterliste, ein Rumpf-Aufruf
   // in einer Anweisung.
   //
-  // Geprueft wird "die Zeile deklariert eine Funktion" und nicht "hinter dem
-  // Wert steht ein =". Das war der erste Versuch, und er war blind: in
-  // `const tz = householdTimeZone(null);` steht auch ein '='. Die Grenze dieser
-  // Fassung ist eine Signatur ueber mehrere Zeilen - dann steht der Default
-  // nicht neben dem `function`. Alle neun heutigen Vorkommen stehen einzeilig;
-  // wer das aendert, bekommt hier einen Fehlalarm und keinen blinden Fleck,
-  // und das ist die richtige Richtung fuer einen Irrtum.
+  // Geprueft wird, ob der Aufruf in einer Funktionssignatur steht, und nicht,
+  // ob hinter dem Wert ein '=' steht. Das war der erste Versuch, und er war
+  // blind: in `const tz = householdTimeZone(null);` steht auch ein '='. Die
+  // Signatur darf dabei ueber mehrere Zeilen laufen; das ist bei den
+  // To-Do-Generatoren der custom-Integration der Fall.
   const CALL = /(?:householdTimeZone|todayKey)\s*\(\s*null\s*\)/;
   const DECLARES_FN = /\bfunction\b|=>/;
   const offenders = [];
   for (const file of serverFiles()) {
     if (file.endsWith(path.join('utils', 'timezone.js'))) continue;
+    let signatureDepth = 0;
+    let inFunctionSignature = false;
     readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-      if (CALL.test(line) && !DECLARES_FN.test(line)) offenders.push(`${rel(file)}:${i + 1}`);
+      if (!inFunctionSignature && /\bfunction\b/.test(line) && line.includes('(')) {
+        inFunctionSignature = true;
+      }
+
+      const isAllowedDefault = inFunctionSignature || DECLARES_FN.test(line);
+      if (CALL.test(line) && !isAllowedDefault) offenders.push(`${rel(file)}:${i + 1}`);
+
+      if (inFunctionSignature) {
+        signatureDepth += (line.match(/\(/g) || []).length;
+        signatureDepth -= (line.match(/\)/g) || []).length;
+        if (signatureDepth <= 0) {
+          signatureDepth = 0;
+          inFunctionSignature = false;
+        }
+      }
     });
   }
   assert.deepEqual(offenders, [],
