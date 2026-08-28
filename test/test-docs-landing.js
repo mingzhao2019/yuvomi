@@ -458,13 +458,17 @@ function maskNonMarkup(html) {
   const blank = (m) => m.replace(/[^\n]/g, ' ');
   // Bis zum Fixpunkt: die Maskierung ist idempotent (sie zerstoert ihr eigenes
   // Muster), aber erst die Schleife belegt das auch fuer verschraenkte Faelle.
+  // Der $-Ersatz danach frisst einen UNTERMINIERTEN Kommentar: den matcht die
+  // COMMENT-Regex nie, und im Browser waere ab dort ohnehin alles Kommentar.
+  // End-Tags duerfen Attribute tragen (</script bar> schliesst) - daher [^>]*.
   let out = html, prev;
   do {
     prev = out;
     out = out
       .replace(COMMENT, blank)
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, blank)
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, blank);
+      .replace(/<!--[\s\S]*$/, blank)
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, blank)
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, blank);
   } while (out !== prev);
   return out;
 }
