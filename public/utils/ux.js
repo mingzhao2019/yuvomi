@@ -175,6 +175,9 @@ export function wireScrollFade(el, { axis = 'x' } = {}) {
   // trug trotzdem keinen End-Fade (Sonde 20). 2px decken Rundung; ein
   // Ueberlauf darueber ist Inhalt, kein Offset.
   const eps = 2;
+  // Sub-Pixel-Schwelle fuer die POSITION. Sie ist bewusst kleiner als `eps`:
+  // siehe die Trennung der beiden Fragen im `update` darunter.
+  const posEps = 0.5;
   const update = () => {
     // `Math.abs` wegen RTL: in `ar` und `fa` setzt die App `dir=rtl`, und dort
     // steht `scrollLeft` nach CSSOM am Anfang auf 0 und laeuft beim Scrollen ins
@@ -185,8 +188,32 @@ export function wireScrollFade(el, { axis = 'x' } = {}) {
     const max = axis === 'y'
       ? el.scrollHeight - el.clientHeight
       : el.scrollWidth - el.clientWidth;
-    el.classList.toggle('has-fade-start', pos > eps);
-    el.classList.toggle('has-fade-end', pos < max - eps);
+
+    // ZWEI FRAGEN, ZWEI SCHWELLEN - und die Vermischung war der Fehler.
+    //
+    // `eps` beantwortet „laeuft die Leiste UEBERHAUPT ueber?"; das ist die
+    // Frage, fuer die eine Rundungstoleranz gedacht ist. Wurde sie mit Ja
+    // beantwortet, entscheidet die POSITION, welche Seite noch etwas verbirgt -
+    // und dort ist dieselbe Toleranz falsch, weil sie von BEIDEN Seiten
+    // abgezogen wird.
+    //
+    // GEMESSEN, und der Fall stand schon einmal im Kommentar darueber, ohne
+    // behoben zu sein: das Kalender-Segment laeuft in `uk` bei 375px 4px ueber
+    // und stand bei `scrollLeft` 2 (die Tablist scrollt ihr aktives Element in
+    // den Blick). Damit war `pos > eps` falsch (2 > 2) UND `pos < max - eps`
+    // falsch (2 < 2) - die Leiste galt gleichzeitig als „am Anfang" und „am
+    // Ende" und trug keinen einzigen Fade, obwohl links wie rechts je 2px
+    // verborgen waren. Bei jedem Ueberlauf bis 2*eps passiert das; die
+    // Korrektur von 8 auf 2 hat das Fenster nur verkleinert, nicht geschlossen.
+    //
+    // Sonde 20 verlangt genau diese Invariante: laeuft eine Kopf-Leiste ueber,
+    // traegt sie mindestens einen Fade.
+    if (max <= eps) {
+      el.classList.remove('has-fade-start', 'has-fade-end');
+      return;
+    }
+    el.classList.toggle('has-fade-start', pos > posEps);
+    el.classList.toggle('has-fade-end', max - pos > posEps);
   };
   el.addEventListener('scroll', update, { passive: true });
   const ro = new ResizeObserver(update);
