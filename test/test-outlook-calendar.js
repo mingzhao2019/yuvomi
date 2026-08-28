@@ -789,7 +789,7 @@ describe('Outlook bidirectional sync', () => {
       .run(new Date(Date.now() - 1000).toISOString(), accountId);
 
     const fetchImpl = makeFetch((call) => {
-      if (call.url.includes('login.microsoftonline.com') && call.url.includes('/token')) {
+      if (call.url.startsWith('https://login.microsoftonline.com/') && call.url.includes('/token')) {
         return jsonRes(400, { error: 'invalid_grant', error_description: 'AADSTS70000: expired' });
       }
       throw new Error('Unexpected request: ' + call.method + ' ' + call.url);

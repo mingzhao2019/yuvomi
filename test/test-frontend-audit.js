@@ -13595,7 +13595,7 @@ test('ein Formularfeld traegt nur form-Klassen, die ein Stylesheet kennt', () =>
       const cls = attrs.match(/class="([^"${}]*)"/)?.[1];
       if (!cls) continue;
       for (const name of cls.split(/\s+/).filter((c) => c.startsWith('form-'))) {
-        if (!defined.has(name)) offenders.push(`${path.replace('../', '')}: <${tag} class="${name}">`);
+        if (!defined.has(name)) offenders.push(`${path.startsWith('../') ? path.slice(3) : path}: <${tag} class="${name}">`);
       }
     }
   }

@@ -456,10 +456,17 @@ for (const page of ['index.html', 'install.html']) {
  */
 function maskNonMarkup(html) {
   const blank = (m) => m.replace(/[^\n]/g, ' ');
-  return html
-    .replace(COMMENT, blank)
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, blank)
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, blank);
+  // Bis zum Fixpunkt: die Maskierung ist idempotent (sie zerstoert ihr eigenes
+  // Muster), aber erst die Schleife belegt das auch fuer verschraenkte Faelle.
+  let out = html, prev;
+  do {
+    prev = out;
+    out = out
+      .replace(COMMENT, blank)
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, blank)
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, blank);
+  } while (out !== prev);
+  return out;
 }
 
 const classOf = (tag) => (tag.match(/class="([^"]*)"/) || [])[1] || '(ohne class)';
