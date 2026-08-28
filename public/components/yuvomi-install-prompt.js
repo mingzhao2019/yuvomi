@@ -19,7 +19,10 @@ import {
 } from '/utils/pwa-install.js';
 
 const DISMISS_KEY = 'yuvomi-install-dismissed';
-const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 Tage
+// 30 Tage statt 7 (Critique 2026-08-27): wer bewusst im Browser bleibt, sah
+// das Banner sonst ~4x im Monat neu - fuer eine Familien-App ist ein ruhiger
+// Monatstakt die passendere Erinnerung als ein Wochentakt.
+const DISMISS_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage
 
 const INTERACTION_KEY = 'yuvomi-install-interactions';
 const INTERACTION_THRESHOLD = 2;

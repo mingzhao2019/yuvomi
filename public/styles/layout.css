@@ -471,10 +471,21 @@
  * Overlay — regulären Modals (.modal-overlay: Hilfe, Änderungen, Löschdialoge,
  * Formulare …), dem More-Sheet und dem Such-Overlay — statt deren Inhalt zu
  * überlagern. Deklarativ via :has() (im Projekt etabliert: auth.css,
- * user-multi-select.css); reaktiv beim Ein-/Ausblenden, ohne JS-Hooks. */
+ * user-multi-select.css); reaktiv beim Ein-/Ausblenden, ohne JS-Hooks.
+ *
+ * SEIT 2026-08-27 WEICHT ER AUCH DEN BEIDEN HANDLUNGS-ZUSTAENDEN DER
+ * BOTTOM-ZONE (Critique 2026-08-27, P1; Backlog-P1 vom 17.08.): dem offenen
+ * FAB-Speed-Dial (.fab-actions--visible - „Einkauf" und „Notiz" lagen mobil
+ * hinter dem Banner, Screenshot-Beleg) und der Sammelaktions-Pille
+ * (.list-bulkbar - „In den Vorrat / Löschen" war halb verdeckt, das
+ * Vorrats-Killer-Feature unsichtbar). Ein Banner, das die App bewirbt, darf
+ * nicht die Handlung verdecken, fuer die Casey sie gerade geoeffnet hat; es
+ * kehrt zurueck, sobald der Zustand endet. */
 html:has(.modal-overlay) yuvomi-install-prompt,
 html:has(.more-sheet[aria-hidden="false"]) yuvomi-install-prompt,
-html:has(.search-overlay--visible) yuvomi-install-prompt {
+html:has(.search-overlay--visible) yuvomi-install-prompt,
+html:has(.fab-actions--visible) yuvomi-install-prompt,
+html:has(.list-bulkbar) yuvomi-install-prompt {
   display: none;
 }
 
