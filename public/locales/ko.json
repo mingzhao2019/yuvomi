@@ -59,7 +59,8 @@
             "private": "나만",
             "hint": "Yuvomi에서 이 항목을 볼 수 있는 사람을 설정합니다.",
             "assigneesNobodyHint": "아무도 지정하지 않으면 이 항목은 나만 볼 수 있습니다."
-        }
+        },
+        "toShoppingListNamed": "{{title}} 장보기 목록에 추가"
     },
     "kitchen": {
         "noShoppingLists": "아직 장보기 목록이 없습니다.",
@@ -681,7 +682,9 @@
         "deleteScopeFuture": "이 항목과 이후 모두",
         "deleteScopeSeries": "전체 시리즈(모든 주)",
         "seriesEndedToast": "이 날짜부터 시리즈를 종료했습니다.",
-        "seriesDeletedToast": "시리즈가 삭제되었습니다."
+        "seriesDeletedToast": "시리즈가 삭제되었습니다.",
+        "deleteMealNamed": "{{title}} 삭제",
+        "openRecipeNamed": "{{title}} 레시피 열기"
     },
     "calendar": {
         "searchOpen": "일정 검색",
@@ -2780,7 +2783,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "기본",
         "sourceAll": "전체",
-        "sourceFilterLabel": "출처별로 필터링"
+        "sourceFilterLabel": "출처별로 필터링",
+        "plannedThisWeek": "이번 주에 계획됨"
     },
     "onboarding": {
         "step1Title": "{{name}}에 오신 것을 환영합니다",
@@ -2793,7 +2797,8 @@
         "done": "시작하기",
         "skip": "건너뛰기",
         "step2BodyDesktop": "왼쪽 사이드바에서 모든 모듈로 이동할 수 있습니다 - 캘린더와 할 일부터 주방, 문서, 설정까지.",
-        "step3BodyDesktop": "하단의 + 버튼으로 어디서든 새 항목을 만들 수 있습니다."
+        "step3BodyDesktop": "하단의 + 버튼으로 어디서든 새 항목을 만들 수 있습니다.",
+        "stepProgress": "{{total}}단계 중 {{current}}단계"
     },
     "offline": {
         "banner": "오프라인 - 연결을 복구하는 중…",

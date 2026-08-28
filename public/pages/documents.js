@@ -68,7 +68,13 @@ let state = {
   members: [],
   dmsAccounts: [],
   activeUploadBackend: 'local',
-  view: localStorage.getItem('yuvomi-documents-view') || 'grid',
+  // Mobil ist die kompakte LISTE der Default: die Grid-Karte kostet bei 375px
+  // ~260px je Dokument (~1,5 Dokumente je Schirm), die Listenzeile traegt
+  // dieselben Angaben auf einem Bruchteil (Critique 2026-08-27, P2). Die
+  // gespeicherte Wahl gewinnt auf jedem Geraet; 640px ist die kanonische
+  // Mobile-Grenze (tokens.css §11c).
+  view: localStorage.getItem('yuvomi-documents-view')
+    || (typeof matchMedia !== 'undefined' && matchMedia('(max-width: 640px)').matches ? 'list' : 'grid'),
   sort: SORTS.includes(localStorage.getItem('yuvomi-documents-sort'))
     ? localStorage.getItem('yuvomi-documents-sort')
     : 'updated',

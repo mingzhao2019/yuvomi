@@ -59,7 +59,8 @@
             "private": "Only me",
             "hint": "Controls who can see this entry in Yuvomi.",
             "assigneesNobodyHint": "With no one assigned, only you can see this entry."
-        }
+        },
+        "toShoppingListNamed": "Add {{title}} to the shopping list"
     },
     "kitchen": {
         "noShoppingLists": "There is no shopping list yet.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "This and all following",
         "deleteScopeSeries": "Whole series (all weeks)",
         "seriesEndedToast": "Series ended from this date.",
-        "seriesDeletedToast": "Series deleted."
+        "seriesDeletedToast": "Series deleted.",
+        "deleteMealNamed": "Delete {{title}}",
+        "openRecipeNamed": "Open recipe for {{title}}"
     },
     "calendar": {
         "searchOpen": "Search events",
@@ -2768,7 +2771,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Native",
         "sourceAll": "All",
-        "sourceFilterLabel": "Filter by source"
+        "sourceFilterLabel": "Filter by source",
+        "plannedThisWeek": "Planned this week"
     },
     "search": {
         "emptyHint": "Type at least 2 characters to search tasks, events, notes, contacts, shopping and health.",
@@ -2793,7 +2797,8 @@
         "done": "Get started",
         "skip": "Skip",
         "step2BodyDesktop": "The sidebar on the left takes you to every module - from calendar and tasks to kitchen, documents and settings.",
-        "step3BodyDesktop": "The + button in the bottom corner creates new entries anywhere."
+        "step3BodyDesktop": "The + button in the bottom corner creates new entries anywhere.",
+        "stepProgress": "Step {{current}} of {{total}}"
     },
     "offline": {
         "banner": "Offline - reconnecting…",

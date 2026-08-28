@@ -5137,16 +5137,23 @@ test('die Küche benutzt ein Vokabular für eine Sache', () => {
   const pages = Object.fromEntries(['meals', 'recipes', 'shopping', 'pantry']
     .map((p) => [p, read(`../public/pages/${p}.js`)]));
 
-  // EIN Transfer-Label und EIN „auf welche Liste?" für alle vier Tabs.
-  assertKeysExistInEveryLocale(['common.toShoppingList', 'common.toShoppingListWhich']);
-  for (const dead of ['meals.transferToShoppingList', 'recipes.toShoppingList', 'recipes.toShoppingListTitle', 'pantry.toShopping', 'pantry.chooseList']) {
+  // EIN Transfer-Label und EIN „auf welche Liste?" für alle vier Tabs. Die
+  // BENANNTE Fassung („{{title}} auf die Einkaufsliste setzen", seit 2026-08-27
+  // fuer aria-labels der Mahlzeitkarten) gehoert zur selben Familie und lebt
+  // deshalb ebenfalls unter common - ein meals-eigener Named-Key waere der
+  // Anfang genau der Drift, die dieser Test beendet hat.
+  assertKeysExistInEveryLocale(['common.toShoppingList', 'common.toShoppingListWhich', 'common.toShoppingListNamed']);
+  for (const dead of ['meals.transferToShoppingList', 'meals.toShoppingListNamed', 'recipes.toShoppingList', 'recipes.toShoppingListTitle', 'pantry.toShopping', 'pantry.chooseList']) {
     const [block, key] = dead.split('.');
     assert.equal(de[block]?.[key], undefined,
-      `${dead} ist durch common.toShoppingList ersetzt - zwei Keys für ein Label laufen auseinander (auf Englisch war das schon passiert)`);
+      `${dead} ist durch common.toShoppingList(Named) ersetzt - zwei Keys für ein Label laufen auseinander (auf Englisch war das schon passiert)`);
   }
   for (const page of ['meals', 'recipes', 'pantry']) {
-    assert.ok(pages[page].includes("t('common.toShoppingList')"),
-      `${page}.js muss das geteilte Transfer-Label nutzen`);
+    assert.ok(
+      pages[page].includes("t('common.toShoppingList')")
+        || pages[page].includes("t('common.toShoppingListNamed'"),
+      `${page}.js muss das geteilte Transfer-Label nutzen (common.toShoppingList oder die benannte Fassung)`,
+    );
   }
 
   // Jeder Transfer-Toast nennt sein ZIEL.
@@ -8202,20 +8209,17 @@ const ALLOWED_INLINE = /^(0|0px|var\(--page-inline-pad\))$/;
 
 // Dokumentierte Ausnahmen. Bewusst als Liste MIT Begründung statt als stille
 // Lücke im Scan: wer hier etwas einträgt, muss den Grund hinschreiben.
-const RAIL_PAD_EXCEPTIONS = [
-  {
-    file: 'kitchen-tabs.css',
-    selector: '.kitchen-tabs-bar .sub-tab',
-    // Der Tab-Button liegt IN der Rail, er ist nicht die Rail: sein
-    // padding-inline ist Innenabstand zwischen Icon und Pill-Rand, nicht die
-    // Einrückung der Content-Spalte. Vorher stand hier die Rail selbst
-    // (.kitchen-tabs-bar mit padding-inline: var(--space-2)) und deckte diesen
-    // Selektor per Substring-Match versehentlich mit ab. Seit der Modultitel
-    // mobil entfällt (Critique 2026-07-29), braucht die Rail keinen Override
-    // mehr und erbt --page-inline-pad - der 8px-Versatz zum Body ist damit weg.
-    reason: 'Button-Innenabstand des Tabs, keine Rail-Einrückung',
-  },
-];
+//
+// Der kitchen-tabs-Eintrag („.kitchen-tabs-bar .sub-tab: Button-Innenabstand
+// des Tabs, keine Rail-Einrückung") ist 2026-08-27 entfallen - nicht weil die
+// Begründung falsch war, sondern weil sie zur REGEL geworden ist: der Scan
+// prüft seither das Selektor-SUBJEKT (siehe hitsRail unten). Ein Selektor,
+// dessen letztes Compound nicht die Rail ist, polstert ein KIND der Rail, und
+// Kind-Innenabstände waren nie Gegenstand von #577. Der zweite Fall derselben
+// Bauart (.page-toolbar__bar .sub-tab, Werkzeugzeilen-Regel) hätte sonst den
+// zweiten Listeneintrag verlangt - ein Guard über eine Namensliste deckt keine
+// Regel ab, sondern N Einträge.
+const RAIL_PAD_EXCEPTIONS = [];
 
 const isException = (file, selector) => RAIL_PAD_EXCEPTIONS.some(
   (e) => file === e.file && selector.includes(e.selector),
@@ -8303,12 +8307,20 @@ test('page-inline-pad contract holds across every stylesheet (#577)', () => {
     .filter((f) => f.endsWith('.css'));
 
   // (1) Kein Stylesheet darf ein Rail horizontal umpolstern - egal welche Datei,
-  //     welcher Breakpoint, welche Spezifität.
+  //     welcher Breakpoint, welche Spezifität. Geprüft wird das SUBJEKT des
+  //     Selektors (sein letztes Compound): nur wer die Rail SELBST stylt, kann
+  //     ihre Einrückung verschieben. Ein Nachfahren-Selektor mit der Rail als
+  //     Kontext (.page-toolbar__bar .sub-tab) polstert einen Button IN der
+  //     Rail - das ist Innenabstand, keine Rail-Einrückung, und war vorher ein
+  //     dokumentierter Ausnahme-Eintrag je Fundstelle.
   for (const file of styleFiles) {
     for (const rule of cssRules(read(`../public/styles/${file}`))) {
-      const hitsRail = rule.selectors.some((sel) => [...rails].some(
-        (rail) => new RegExp(`${rail.replace('.', '\\.')}(?![\\w-])`).test(sel),
-      ));
+      const hitsRail = rule.selectors.some((sel) => {
+        const subject = sel.trim().split(/[\s>+~]+/).filter(Boolean).pop() ?? '';
+        return [...rails].some(
+          (rail) => new RegExp(`${rail.replace('.', '\\.')}(?![\\w-])`).test(subject),
+        );
+      });
       if (!hitsRail) continue;
       for (const value of horizontalPaddings(rule.body)) {
         if (isException(file, rule.selectors.join(', '))) continue;
@@ -14203,4 +14215,45 @@ test('die Zaehler-Meldung haengt am Schreiben, nicht am Rendern (#868)', () => {
   assert.doesNotMatch(tasks, /invalidateModuleCounts/,
     'das Aufgabenmodul meldet wieder selbst - dann haengt die Meldung am '
     + 'Rendern und feuert bei jedem Tastenanschlag in der Suche');
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Der schmale Zustand der Kueche steht HINTER seinem Bauteil
+ *
+ * Zweimal dieselbe Falle in derselben Datei: `display: none` fuer die leeren
+ * Slots stand im fruehen 640px-Block, die `.meal-slot`-Basisregel
+ * (display: flex) kam spaeter - bei gleicher Spezifitaet gewinnt die spaetere
+ * Regel, und der gestrichelte Slot stand mobil wieder neben dem .day-add.
+ * Etappe E (v2.24.1) hat den Fall fuer flex-direction/add-more-btn behoben
+ * und als Don't in DESIGN.md dokumentiert; die empty-Slot-Ausblendung kehrte
+ * trotzdem in den fruehen Block zurueck (Critique 2026-08-27, gemessen:
+ * 1 leerer Slot sichtbar bei 375px). Ein Fehler, der zweimal kam, kommt
+ * dreimal - deshalb hier die REIHENFOLGE als Zusicherung, ueber eachRule()
+ * statt Zeilennummern: die letzte display-Regel, die einen leeren Slot
+ * treffen kann, muss die Ausblendung sein.
+ * ──────────────────────────────────────────────────────────────────────────── */
+test('der schmale Zustand der Kueche steht hinter seinem Bauteil', () => {
+  const css = read('../public/styles/meals.css');
+  let lastEmptyNone = -1;
+  let lastSlotDisplay = -1;
+  let i = 0;
+  for (const rule of eachRule(css)) {
+    i += 1;
+    if (!/display\s*:/.test(rule.body ?? rule.declarations ?? '')) continue;
+    const sels = String(rule.selector).split(',').map((s) => s.trim());
+    if (sels.some((s) => /\.meal-slot--empty(?![\w-])/.test(s))
+      && /display\s*:\s*none/.test(rule.body ?? rule.declarations ?? '')) {
+      lastEmptyNone = i;
+    } else if (sels.some((s) => /\.meal-slot(?![\w-])/.test(s))) {
+      lastSlotDisplay = i;
+    }
+  }
+  assert.ok(lastEmptyNone > -1, 'meals.css blendet die leeren Slots nicht mehr aus '
+    + '(.meal-slot--empty { display: none } fehlt) - mobil stapeln sich dann wieder '
+    + 'bis zu 28 gestrichelte Anlege-Boxen neben dem .day-add');
+  assert.ok(lastSlotDisplay === -1 || lastEmptyNone > lastSlotDisplay,
+    'die Ausblendung der leeren Slots steht VOR einer spaeteren .meal-slot-display-Regel '
+    + `(Regel ${lastEmptyNone} vs. ${lastSlotDisplay}) - bei gleicher Spezifitaet gewinnt `
+    + 'die spaetere Regel, und der leere Slot ist mobil wieder sichtbar (DESIGN.md, Don\'t '
+    + '"eine Regel in einen Media-Block schreiben, der VOR den Bauteilen steht")');
 });

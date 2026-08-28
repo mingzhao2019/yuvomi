@@ -59,7 +59,8 @@
             "private": "Apenas eu",
             "hint": "Controla quem pode ver esta entrada no Yuvomi.",
             "assigneesNobodyHint": "Sem ninguém atribuído, só você vê esta entrada."
-        }
+        },
+        "toShoppingListNamed": "Adicionar {{title}} à lista de compras"
     },
     "kitchen": {
         "noShoppingLists": "Ainda não existe lista de compras.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "Esta e todas as seguintes",
         "deleteScopeSeries": "Toda a série (todas as semanas)",
         "seriesEndedToast": "Série encerrada a partir desta data.",
-        "seriesDeletedToast": "Série excluída."
+        "seriesDeletedToast": "Série excluída.",
+        "deleteMealNamed": "Excluir {{title}}",
+        "openRecipeNamed": "Abrir a receita de {{title}}"
     },
     "calendar": {
         "searchOpen": "Pesquisar eventos",
@@ -2690,7 +2693,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Nativa",
         "sourceAll": "Todas",
-        "sourceFilterLabel": "Filtrar por origem"
+        "sourceFilterLabel": "Filtrar por origem",
+        "plannedThisWeek": "Planejado para esta semana"
     },
     "search": {
         "emptyHint": "Digita pelo menos 2 caracteres para pesquisar tarefas, eventos, notas, contactos, compras e saúde.",
@@ -2793,7 +2797,8 @@
         "done": "Começar",
         "skip": "Pular",
         "step2BodyDesktop": "A barra lateral à esquerda leva-te a todos os módulos - do calendário e das tarefas à cozinha, aos documentos e às definições.",
-        "step3BodyDesktop": "Com o botão + no canto inferior crias novas entradas em qualquer lugar."
+        "step3BodyDesktop": "Com o botão + no canto inferior crias novas entradas em qualquer lugar.",
+        "stepProgress": "Etapa {{current}} de {{total}}"
     },
     "offline": {
         "banner": "Offline - reconectando…",

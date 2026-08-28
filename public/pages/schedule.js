@@ -5,6 +5,7 @@ import { todayKey } from '/utils/date.js';
 import { openModal, closeModal, confirmModal } from '/components/modal.js';
 import { createPageFab, setPageFabAction } from '/utils/fab.js';
 import { emptyStateHTML } from '/utils/empty-state.js';
+import { wireScrollFade } from '/utils/ux.js';
 
 // ZWEISPALTIG: Schedule is a full-width responsive library and statistics view;
 // constraining its row lists to the narrow reading measure would recreate the
@@ -17,13 +18,21 @@ let canManageOthers = false;
 let activeView = 'patterns';
 let state = { users: [], types: [], patterns: [], overrides: [], entries: [], warnings: [] };
 let statistics = { userId: null, range: 'current', monthFrom: '', monthTo: '', from: '', to: '', entries: [], bounds: null, loading: false };
+// Schichtfarben sind NUTZERFARBEN (freier Waehler im Formular); die Presets
+// sind nur Startwerte. Eine Grenze gilt trotzdem: keine davon darf die STIMME
+// imitieren. „Spaet" trug #7C3AED - eine Ziffer neben der Marke #6C3AED - und
+// der Waehler-Default war die Marke selbst: eine Schicht im Quasi-Markenviolett
+// liest sich im Kalender als Systemzustand statt als Inhalt (Eine-Stimme-Regel;
+// Critique 2026-08-27 + Detektor design-system-color). Jetzt Magenta fuer die
+// Abendschicht, und neue Typen starten auf dem Fruehschicht-Cyan.
 const SHIFT_PRESETS = Object.freeze([
   { key: 'early', shortCode: 'E', startTime: '06:00', endTime: '14:00', color: '#0E7490' },
-  { key: 'late', shortCode: 'L', startTime: '14:00', endTime: '22:00', color: '#7C3AED' },
+  { key: 'late', shortCode: 'L', startTime: '14:00', endTime: '22:00', color: '#A21CAF' },
   { key: 'night', shortCode: 'N', startTime: '22:00', endTime: '06:00', color: '#4338CA' },
   { key: 'day', shortCode: 'D', startTime: '08:00', endTime: '16:00', color: '#15803D' },
   { key: 'fullDay', shortCode: '24', startTime: '10:00', endTime: '10:00', color: '#A16207' },
 ]);
+const SHIFT_COLOR_FALLBACK = SHIFT_PRESETS[0].color;
 
 const option = (value, label, selected = false) => `<option value="${esc(String(value ?? ''))}"${selected ? ' selected' : ''}>${esc(label)}</option>`;
 const userName = (id) => state.users.find((user) => Number(user.id) === Number(id))?.display_name
@@ -211,7 +220,7 @@ function shiftFields(type = {}) {
   return [
     formField(t('schedule.name'), '<input class="input" required name="name" maxlength="200" value="' + esc(type.name ?? '') + '">'),
     formField(t('schedule.shortCode'), '<input class="input" name="short_code" maxlength="12" value="' + esc(type.short_code ?? '') + '">'),
-    formField(t('schedule.color'), '<input class="input form-input--color" required name="color" type="color" value="' + esc(type.color ?? '#6C3AED') + '">', 'schedule-color-field'),
+    formField(t('schedule.color'), '<input class="input form-input--color" required name="color" type="color" value="' + esc(type.color ?? SHIFT_COLOR_FALLBACK) + '">', 'schedule-color-field'),
     formField(t('schedule.startTime'), '<yuvomi-datepicker name="start_time" type="time" label="' + esc(t('schedule.startTime')) + '" value="' + esc(type.start_time ?? '') + '"></yuvomi-datepicker>'),
     formField(t('schedule.endTime'), '<yuvomi-datepicker name="end_time" type="time" label="' + esc(t('schedule.endTime')) + '" value="' + esc(type.end_time ?? '') + '"></yuvomi-datepicker>'),
   ].join('');
@@ -351,12 +360,14 @@ function renderShell() {
     <header class="page-toolbar schedule-toolbar">
       <h1 class="page-toolbar__title">${esc(t('schedule.title'))}</h1>
       <div class="page-toolbar__actions"></div>
-      <div class="sub-tabs-bar schedule-tabs" role="tablist" aria-label="${esc(t('schedule.title'))}">
+      <div class="sub-tabs-bar schedule-tabs page-toolbar__bar" role="tablist" aria-label="${esc(t('schedule.title'))}">
         ${tabs.map(([id, label]) => `<button class="sub-tab" type="button" role="tab" data-tab="${id}">${esc(label)}</button>`).join('')}
       </div>
     </header>
     <div class="schedule-body"></div>
   </div>`);
+  // Scroll-Affordanz der Bar-Zeile (geteilter Peek-Fade, .page-toolbar__bar).
+  wireScrollFade(root.querySelector('.schedule-tabs'));
   root.addEventListener('submit', submitForm);
   root.addEventListener('click', (event) => {
     const tabButton = event.target.closest('[data-tab]');
@@ -381,8 +392,15 @@ function renderPage() {
         : renderStatistics();
   const body = root.querySelector('.schedule-body');
   body.replaceChildren();
+  // Die Heute-Karte erst, wenn das Modul in Betrieb ist: ein frischer Haushalt
+  // sah sonst ZWEI Leerzustaende uebereinander („Noch keine Schichteintraege."
+  // + „Noch kein Schichtplan") - zwei Meldungen fuer eine Tatsache, und die
+  // Onboarding-Anleitung des Panels stand erst an zweiter Stelle
+  // (Critique 2026-08-27, P2).
+  const inUse = state.types.length || state.patterns.length
+    || state.overrides.length || state.entries.length;
   body.insertAdjacentHTML('beforeend',
-    (activeView === 'statistics' ? '' : '<section class="card card--padded schedule-today"><h2 class="u-section-title">' + esc(t('schedule.today')) + '</h2>' + renderToday() + renderScheduleWarnings() + '</section>')
+    (activeView === 'statistics' || !inUse ? '' : '<section class="card card--padded schedule-today"><h2 class="u-section-title">' + esc(t('schedule.today')) + '</h2>' + renderToday() + renderScheduleWarnings() + '</section>')
     + `<div class="schedule-content">${panel}</div>`);
   updateScheduleFab();
   window.lucide?.createIcons({ el: body });

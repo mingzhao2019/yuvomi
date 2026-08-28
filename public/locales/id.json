@@ -59,7 +59,8 @@
             "private": "Hanya saya",
             "hint": "Menentukan siapa yang dapat melihat entri ini di Yuvomi.",
             "assigneesNobodyHint": "Tanpa penerima tugas, hanya kamu yang melihat entri ini."
-        }
+        },
+        "toShoppingListNamed": "Tambahkan {{title}} ke daftar belanja"
     },
     "kitchen": {
         "noShoppingLists": "Belum ada daftar belanja.",
@@ -681,7 +682,9 @@
         "deleteScopeFuture": "Ini dan semua berikutnya",
         "deleteScopeSeries": "Seluruh rangkaian (semua minggu)",
         "seriesEndedToast": "Seri diakhiri mulai tanggal ini.",
-        "seriesDeletedToast": "Seri dihapus."
+        "seriesDeletedToast": "Seri dihapus.",
+        "deleteMealNamed": "Hapus {{title}}",
+        "openRecipeNamed": "Buka resep {{title}}"
     },
     "calendar": {
         "searchOpen": "Cari acara",
@@ -2780,7 +2783,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Asli",
         "sourceAll": "Semua",
-        "sourceFilterLabel": "Filter menurut sumber"
+        "sourceFilterLabel": "Filter menurut sumber",
+        "plannedThisWeek": "Direncanakan minggu ini"
     },
     "onboarding": {
         "step1Title": "Selamat datang di {{name}}",
@@ -2793,7 +2797,8 @@
         "done": "Mulai",
         "skip": "Lewati",
         "step2BodyDesktop": "Bilah samping di kiri membawamu ke semua modul - dari kalender dan tugas hingga dapur, dokumen, dan pengaturan.",
-        "step3BodyDesktop": "Tombol + di sudut bawah membuat entri baru di mana saja."
+        "step3BodyDesktop": "Tombol + di sudut bawah membuat entri baru di mana saja.",
+        "stepProgress": "Langkah {{current}} dari {{total}}"
     },
     "offline": {
         "banner": "Offline - memulihkan koneksi…",

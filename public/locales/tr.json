@@ -59,7 +59,8 @@
             "private": "Yalnızca ben",
             "hint": "Bu kaydı Yuvomi’de kimin görebileceğini belirler.",
             "assigneesNobodyHint": "Kimse atanmazsa bu kaydı yalnızca sen görürsün."
-        }
+        },
+        "toShoppingListNamed": "{{title}} yemeğini alışveriş listesine ekle"
     },
     "kitchen": {
         "noShoppingLists": "Henüz alışveriş listesi yok.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "Bu ve sonraki tüm tarihler",
         "deleteScopeSeries": "Tüm seri (tüm haftalar)",
         "seriesEndedToast": "Seri bu tarihten itibaren sonlandırıldı.",
-        "seriesDeletedToast": "Seri silindi."
+        "seriesDeletedToast": "Seri silindi.",
+        "deleteMealNamed": "{{title}} yemeğini sil",
+        "openRecipeNamed": "{{title}} tarifini aç"
     },
     "calendar": {
         "searchOpen": "Etkinlik ara",
@@ -2690,7 +2693,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Yerel",
         "sourceAll": "Tümü",
-        "sourceFilterLabel": "Kaynağa göre filtrele"
+        "sourceFilterLabel": "Kaynağa göre filtrele",
+        "plannedThisWeek": "Bu hafta planlandı"
     },
     "search": {
         "emptyHint": "Görevler, etkinlikler, notlar, kişiler, alışveriş ve sağlıkta aramak için en az 2 karakter yaz.",
@@ -2793,7 +2797,8 @@
         "done": "Başla",
         "skip": "Atla",
         "step2BodyDesktop": "Soldaki kenar çubuğu seni tüm modüllere götürür - takvim ve görevlerden mutfağa, belgelere ve ayarlara.",
-        "step3BodyDesktop": "Alt köşedeki + düğmesiyle her yerde yeni kayıt oluşturursun."
+        "step3BodyDesktop": "Alt köşedeki + düğmesiyle her yerde yeni kayıt oluşturursun.",
+        "stepProgress": "Adım {{current}}/{{total}}"
     },
     "offline": {
         "banner": "Çevrimdışı - yeniden bağlanılıyor…",

@@ -59,7 +59,8 @@
             "private": "自分のみ",
             "hint": "この項目を Yuvomi 内で見られる人を設定します。",
             "assigneesNobodyHint": "誰も割り当てないと、この項目はあなたにしか表示されません。"
-        }
+        },
+        "toShoppingListNamed": "{{title}}を買い物リストへ追加"
     },
     "kitchen": {
         "noShoppingLists": "買い物リストがまだありません。",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "この日以降のすべて",
         "deleteScopeSeries": "シリーズ全体（毎週）",
         "seriesEndedToast": "この日でシリーズを終了しました。",
-        "seriesDeletedToast": "シリーズを削除しました。"
+        "seriesDeletedToast": "シリーズを削除しました。",
+        "deleteMealNamed": "{{title}}を削除",
+        "openRecipeNamed": "{{title}}のレシピを開く"
     },
     "calendar": {
         "searchOpen": "予定を検索",
@@ -2690,7 +2693,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "ネイティブ",
         "sourceAll": "すべて",
-        "sourceFilterLabel": "ソースで絞り込み"
+        "sourceFilterLabel": "ソースで絞り込み",
+        "plannedThisWeek": "今週の予定あり"
     },
     "search": {
         "emptyHint": "2文字以上入力すると、タスク・予定・メモ・連絡先・買い物・健康を検索できます。",
@@ -2793,7 +2797,8 @@
         "done": "はじめる",
         "skip": "スキップ",
         "step2BodyDesktop": "左のサイドバーからすべてのモジュールに移動できます。カレンダーやタスクからキッチン、書類、設定まで。",
-        "step3BodyDesktop": "右下の＋ボタンでどこでも新しい項目を作成できます。"
+        "step3BodyDesktop": "右下の＋ボタンでどこでも新しい項目を作成できます。",
+        "stepProgress": "ステップ {{current}}/{{total}}"
     },
     "offline": {
         "banner": "オフライン - 再接続しています…",

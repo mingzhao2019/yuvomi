@@ -59,7 +59,8 @@
             "private": "Ako lamang",
             "hint": "Kinokontrol kung sino ang makakakita ng entry na ito sa Yuvomi.",
             "assigneesNobodyHint": "Kung walang naatasan, ikaw lang ang makakakita ng entry na ito."
-        }
+        },
+        "toShoppingListNamed": "Idagdag ang {{title}} sa listahan ng pamimili"
     },
     "kitchen": {
         "noShoppingLists": "Wala pang listahan ng pamimili.",
@@ -681,7 +682,9 @@
         "deleteScopeFuture": "Ito at lahat ng kasunod",
         "deleteScopeSeries": "Buong serye (lahat ng linggo)",
         "seriesEndedToast": "Natapos ang serye mula sa petsang ito.",
-        "seriesDeletedToast": "Natanggal ang serye."
+        "seriesDeletedToast": "Natanggal ang serye.",
+        "deleteMealNamed": "Tanggalin ang {{title}}",
+        "openRecipeNamed": "Buksan ang resipe ng {{title}}"
     },
     "calendar": {
         "searchOpen": "Maghanap ng kaganapan",
@@ -2780,7 +2783,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Katutubo",
         "sourceAll": "Lahat",
-        "sourceFilterLabel": "I-filter ayon sa pinagmulan"
+        "sourceFilterLabel": "I-filter ayon sa pinagmulan",
+        "plannedThisWeek": "Nakaplano ngayong linggo"
     },
     "onboarding": {
         "step1Title": "Maligayang pagdating sa {{name}}",
@@ -2793,7 +2797,8 @@
         "done": "Magsimula",
         "skip": "Laktawan",
         "step2BodyDesktop": "Ang sidebar sa kaliwa ang magdadala sa iyo sa bawat module - mula sa kalendaryo at mga gawain hanggang sa kusina, mga dokumento at mga setting.",
-        "step3BodyDesktop": "Ang + na button sa ibabang sulok ay gumagawa ng bagong entry kahit saan."
+        "step3BodyDesktop": "Ang + na button sa ibabang sulok ay gumagawa ng bagong entry kahit saan.",
+        "stepProgress": "Hakbang {{current}} ng {{total}}"
     },
     "offline": {
         "banner": "Offline - muling kumokonekta…",

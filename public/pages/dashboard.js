@@ -159,13 +159,21 @@ function showOnboarding(appContainer, onDone) {
     body.className = 'onboarding-body';
     body.textContent = step.body;
 
+    // Die Punkte sind reine Dekoration und fuer Screenreader unsichtbar; die
+    // Fortschrittsansage traegt ein sr-only-Text daneben - vorher hoerte ein
+    // Screenreader gar nicht, an welchem der drei Schritte er steht
+    // (Critique 2026-08-27, Persona Sam).
     const dots = document.createElement('div');
     dots.className = 'onboarding-dots';
+    dots.setAttribute('aria-hidden', 'true');
     steps.forEach((_, i) => {
       const dot = document.createElement('span');
       dot.className = `onboarding-dot${i === current ? ' onboarding-dot--active' : ''}`;
       dots.appendChild(dot);
     });
+    const progress = document.createElement('p');
+    progress.className = 'sr-only';
+    progress.textContent = t('onboarding.stepProgress', { current: current + 1, total: steps.length });
 
     const actions = document.createElement('div');
     actions.className = 'onboarding-actions';
@@ -192,6 +200,7 @@ function showOnboarding(appContainer, onDone) {
     card.appendChild(title);
     card.appendChild(body);
     card.appendChild(dots);
+    card.appendChild(progress);
     card.appendChild(actions);
     overlay.appendChild(card);
 

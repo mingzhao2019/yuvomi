@@ -59,7 +59,8 @@
             "private": "Лише я",
             "hint": "Визначає, хто бачить цей запис у Yuvomi.",
             "assigneesNobodyHint": "Без призначення цей запис бачите лише ви."
-        }
+        },
+        "toShoppingListNamed": "Додати {{title}} до списку покупок"
     },
     "kitchen": {
         "noShoppingLists": "Списку покупок ще немає.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "Це та всі наступні",
         "deleteScopeSeries": "Уся серія (усі тижні)",
         "seriesEndedToast": "Серію завершено з цієї дати.",
-        "seriesDeletedToast": "Серію видалено."
+        "seriesDeletedToast": "Серію видалено.",
+        "deleteMealNamed": "Видалити {{title}}",
+        "openRecipeNamed": "Відкрити рецепт {{title}}"
     },
     "calendar": {
         "searchOpen": "Пошук подій",
@@ -2724,7 +2727,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Локальний",
         "sourceAll": "Усі",
-        "sourceFilterLabel": "Фільтр за джерелом"
+        "sourceFilterLabel": "Фільтр за джерелом",
+        "plannedThisWeek": "Заплановано на цей тиждень"
     },
     "search": {
         "emptyHint": "Введіть щонайменше 2 символи для пошуку в завданнях, подіях, нотатках, контактах, покупках і здоров'ї.",
@@ -2793,7 +2797,8 @@
         "done": "Почніть роботу",
         "skip": "Пропустити",
         "step2BodyDesktop": "Бічна панель ліворуч веде до всіх модулів - від календаря й завдань до кухні, документів і налаштувань.",
-        "step3BodyDesktop": "Кнопка + в нижньому куті створює нові записи будь-де."
+        "step3BodyDesktop": "Кнопка + в нижньому куті створює нові записи будь-де.",
+        "stepProgress": "Крок {{current}} з {{total}}"
     },
     "offline": {
         "banner": "Офлайн - повторне підключення…",

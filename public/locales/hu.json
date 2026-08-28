@@ -59,7 +59,8 @@
             "private": "Csak én",
             "hint": "Meghatározza, ki láthatja ezt a bejegyzést a Yuvomiban.",
             "assigneesNobodyHint": "Hozzárendelés nélkül csak te látod ezt a bejegyzést."
-        }
+        },
+        "toShoppingListNamed": "{{title}} hozzáadása a bevásárlólistához"
     },
     "kitchen": {
         "noShoppingLists": "Még nincs bevásárlólista.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "Ez és az összes következő",
         "deleteScopeSeries": "Teljes sorozat (minden hét)",
         "seriesEndedToast": "A sorozat ettől a dátumtól véget ér.",
-        "seriesDeletedToast": "Sorozat törölve."
+        "seriesDeletedToast": "Sorozat törölve.",
+        "deleteMealNamed": "{{title}} törlése",
+        "openRecipeNamed": "{{title}} receptjének megnyitása"
     },
     "calendar": {
         "searchOpen": "Események keresése",
@@ -2768,7 +2771,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Natív",
         "sourceAll": "Összes",
-        "sourceFilterLabel": "Szűrés forrás szerint"
+        "sourceFilterLabel": "Szűrés forrás szerint",
+        "plannedThisWeek": "Erre a hétre betervezve"
     },
     "search": {
         "emptyHint": "Írj be legalább 2 karaktert a feladatok, események, jegyzetek, névjegyek, bevásárlás és egészség kereséséhez.",
@@ -2793,7 +2797,8 @@
         "done": "Kezdés",
         "skip": "Kihagyás",
         "step2BodyDesktop": "A bal oldali oldalsáv minden modulhoz elvezet - a naptártól és a feladatoktól a konyháig, a dokumentumokig és a beállításokig.",
-        "step3BodyDesktop": "A jobb alsó + gombbal bárhol új bejegyzést hozhatsz létre."
+        "step3BodyDesktop": "A jobb alsó + gombbal bárhol új bejegyzést hozhatsz létre.",
+        "stepProgress": "{{current}}. lépés a(z) {{total}}-ból"
     },
     "offline": {
         "banner": "Offline - újracsatlakozás…",

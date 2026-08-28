@@ -59,7 +59,8 @@
             "private": "Endast jag",
             "hint": "Styr vem som kan se den här posten i Yuvomi.",
             "assigneesNobodyHint": "Utan tilldelning ser bara du den här posten."
-        }
+        },
+        "toShoppingListNamed": "Lägg till {{title}} i inköpslistan"
     },
     "kitchen": {
         "noShoppingLists": "Det finns ingen inköpslista än.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "Denna och alla följande",
         "deleteScopeSeries": "Hela serien (alla veckor)",
         "seriesEndedToast": "Serien avslutad från detta datum.",
-        "seriesDeletedToast": "Serie borttagen."
+        "seriesDeletedToast": "Serie borttagen.",
+        "deleteMealNamed": "Ta bort {{title}}",
+        "openRecipeNamed": "Öppna receptet för {{title}}"
     },
     "calendar": {
         "searchOpen": "Sök händelser",
@@ -2690,7 +2693,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Egna",
         "sourceAll": "Alla",
-        "sourceFilterLabel": "Filtrera efter källa"
+        "sourceFilterLabel": "Filtrera efter källa",
+        "plannedThisWeek": "Planerad denna vecka"
     },
     "search": {
         "emptyHint": "Skriv minst 2 tecken för att söka bland uppgifter, händelser, anteckningar, kontakter, inköp och hälsa.",
@@ -2793,7 +2797,8 @@
         "done": "Kom igång",
         "skip": "Skippa",
         "step2BodyDesktop": "Sidofältet till vänster tar dig till alla moduler - från kalender och uppgifter till kök, dokument och inställningar.",
-        "step3BodyDesktop": "Med +-knappen i nedre hörnet skapar du nya poster överallt."
+        "step3BodyDesktop": "Med +-knappen i nedre hörnet skapar du nya poster överallt.",
+        "stepProgress": "Steg {{current}} av {{total}}"
     },
     "offline": {
         "banner": "Offline - återansluter…",

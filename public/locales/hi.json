@@ -59,7 +59,8 @@
             "private": "केवल मैं",
             "hint": "नियंत्रित करता है कि Yuvomi में इस प्रविष्टि को कौन देख सकता है।",
             "assigneesNobodyHint": "किसी को असाइन न करने पर यह प्रविष्टि केवल आप देख सकते हैं।"
-        }
+        },
+        "toShoppingListNamed": "{{title}} खरीदारी सूची में जोड़ें"
     },
     "kitchen": {
         "noShoppingLists": "अभी कोई खरीद सूची नहीं है.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "यह और आगे के सभी",
         "deleteScopeSeries": "पूरी शृंखला (सभी सप्ताह)",
         "seriesEndedToast": "श्रृंखला इस तारीख से समाप्त कर दी गई।",
-        "seriesDeletedToast": "श्रृंखला हटाई गई।"
+        "seriesDeletedToast": "श्रृंखला हटाई गई।",
+        "deleteMealNamed": "{{title}} हटाएं",
+        "openRecipeNamed": "{{title}} की रेसिपी खोलें"
     },
     "calendar": {
         "searchOpen": "इवेंट खोजें",
@@ -2690,7 +2693,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "मूल",
         "sourceAll": "सभी",
-        "sourceFilterLabel": "स्रोत के अनुसार फ़िल्टर करें"
+        "sourceFilterLabel": "स्रोत के अनुसार फ़िल्टर करें",
+        "plannedThisWeek": "इस सप्ताह नियोजित"
     },
     "search": {
         "emptyHint": "कार्य, ईवेंट, नोट्स, संपर्क, खरीदारी और स्वास्थ्य में खोजने के लिए कम से कम 2 अक्षर लिखें।",
@@ -2793,7 +2797,8 @@
         "done": "शुरू करें",
         "skip": "छोड़ें",
         "step2BodyDesktop": "बाईं ओर का साइडबार आपको हर मॉड्यूल तक ले जाता है - कैलेंडर और कार्यों से लेकर रसोई, दस्तावेज़ और सेटिंग्स तक।",
-        "step3BodyDesktop": "निचले कोने का + बटन कहीं भी नई प्रविष्टि बनाता है।"
+        "step3BodyDesktop": "निचले कोने का + बटन कहीं भी नई प्रविष्टि बनाता है।",
+        "stepProgress": "चरण {{current}} / {{total}}"
     },
     "offline": {
         "banner": "ऑफ़लाइन - फिर से कनेक्ट किया जा रहा है…",

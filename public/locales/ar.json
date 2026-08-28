@@ -59,7 +59,8 @@
             "private": "أنا فقط",
             "hint": "يحدّد من يمكنه رؤية هذا العنصر في Yuvomi.",
             "assigneesNobodyHint": "بدون إسناد، لا يرى هذا العنصر سواك."
-        }
+        },
+        "toShoppingListNamed": "إضافة {{title}} إلى قائمة التسوق"
     },
     "kitchen": {
         "noShoppingLists": "لا توجد قائمة مشتريات بعد.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "هذا وكل ما يليه",
         "deleteScopeSeries": "السلسلة كاملة (كل الأسابيع)",
         "seriesEndedToast": "تم إنهاء السلسلة من هذا التاريخ.",
-        "seriesDeletedToast": "تم حذف السلسلة."
+        "seriesDeletedToast": "تم حذف السلسلة.",
+        "deleteMealNamed": "حذف {{title}}",
+        "openRecipeNamed": "فتح وصفة {{title}}"
     },
     "calendar": {
         "searchOpen": "البحث عن المواعيد",
@@ -2690,7 +2693,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "محلي",
         "sourceAll": "الكل",
-        "sourceFilterLabel": "التصفية حسب المصدر"
+        "sourceFilterLabel": "التصفية حسب المصدر",
+        "plannedThisWeek": "مخطط لهذا الأسبوع"
     },
     "search": {
         "emptyHint": "اكتب حرفين على الأقل للبحث في المهام والمواعيد والملاحظات وجهات الاتصال والتسوق والصحة.",
@@ -2793,7 +2797,8 @@
         "done": "لنبدأ",
         "skip": "تخطي",
         "step2BodyDesktop": "الشريط الجانبي على اليسار يقودك إلى كل الوحدات - من التقويم والمهام إلى المطبخ والمستندات والإعدادات.",
-        "step3BodyDesktop": "زر + في الزاوية السفلية ينشئ إدخالات جديدة في أي مكان."
+        "step3BodyDesktop": "زر + في الزاوية السفلية ينشئ إدخالات جديدة في أي مكان.",
+        "stepProgress": "الخطوة {{current}} من {{total}}"
     },
     "offline": {
         "banner": "غير متصل - تتم إعادة الاتصال…",

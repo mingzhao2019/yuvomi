@@ -59,7 +59,8 @@
             "private": "Tylko ja",
             "hint": "Określa, kto może zobaczyć ten wpis w Yuvomi.",
             "assigneesNobodyHint": "Bez przypisania widzisz ten wpis tylko ty."
-        }
+        },
+        "toShoppingListNamed": "Dodaj {{title}} na listę zakupów"
     },
     "kitchen": {
         "noShoppingLists": "Nie ma jeszcze listy zakupów.",
@@ -681,7 +682,9 @@
         "deleteScopeFuture": "Ten i wszystkie następne",
         "deleteScopeSeries": "Cała seria (wszystkie tygodnie)",
         "seriesEndedToast": "Seria zakończona od tej daty.",
-        "seriesDeletedToast": "Seria usunięta."
+        "seriesDeletedToast": "Seria usunięta.",
+        "deleteMealNamed": "Usuń {{title}}",
+        "openRecipeNamed": "Otwórz przepis na {{title}}"
     },
     "calendar": {
         "searchOpen": "Szukaj wydarzeń",
@@ -2780,7 +2783,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Lokalny",
         "sourceAll": "Wszystkie",
-        "sourceFilterLabel": "Filtruj według źródła"
+        "sourceFilterLabel": "Filtruj według źródła",
+        "plannedThisWeek": "Zaplanowane na ten tydzień"
     },
     "onboarding": {
         "step1Title": "Witaj w {{name}}",
@@ -2793,7 +2797,8 @@
         "done": "Zaczynamy",
         "skip": "Pomiń",
         "step2BodyDesktop": "Pasek boczny po lewej prowadzi do wszystkich modułów - od kalendarza i zadań po kuchnię, dokumenty i ustawienia.",
-        "step3BodyDesktop": "Przycisk + w dolnym rogu tworzy nowe wpisy w każdym miejscu."
+        "step3BodyDesktop": "Przycisk + w dolnym rogu tworzy nowe wpisy w każdym miejscu.",
+        "stepProgress": "Krok {{current}} z {{total}}"
     },
     "offline": {
         "banner": "Offline - przywracanie połączenia…",

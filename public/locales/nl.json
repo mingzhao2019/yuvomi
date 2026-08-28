@@ -59,7 +59,8 @@
             "private": "Alleen ik",
             "hint": "Bepaalt wie dit item in Yuvomi kan zien.",
             "assigneesNobodyHint": "Zonder toewijzing zie alleen jij dit item."
-        }
+        },
+        "toShoppingListNamed": "{{title}} op de boodschappenlijst zetten"
     },
     "kitchen": {
         "noShoppingLists": "Er is nog geen boodschappenlijst.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "Deze en alle volgende",
         "deleteScopeSeries": "Hele reeks (alle weken)",
         "seriesEndedToast": "Reeks vanaf deze datum beëindigd.",
-        "seriesDeletedToast": "Reeks verwijderd."
+        "seriesDeletedToast": "Reeks verwijderd.",
+        "deleteMealNamed": "{{title}} verwijderen",
+        "openRecipeNamed": "Recept voor {{title}} openen"
     },
     "calendar": {
         "searchOpen": "Afspraken zoeken",
@@ -2768,7 +2771,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Eigen",
         "sourceAll": "Alle",
-        "sourceFilterLabel": "Filter op bron"
+        "sourceFilterLabel": "Filter op bron",
+        "plannedThisWeek": "Deze week gepland"
     },
     "search": {
         "emptyHint": "Typ minstens 2 tekens om te zoeken in taken, afspraken, notities, contacten, boodschappen en gezondheid.",
@@ -2793,7 +2797,8 @@
         "done": "Aan de slag",
         "skip": "Overslaan",
         "step2BodyDesktop": "De zijbalk links brengt je naar alle modules - van agenda en taken tot keuken, documenten en instellingen.",
-        "step3BodyDesktop": "Met de +-knop rechtsonder maak je overal nieuwe items aan."
+        "step3BodyDesktop": "Met de +-knop rechtsonder maak je overal nieuwe items aan.",
+        "stepProgress": "Stap {{current}} van {{total}}"
     },
     "offline": {
         "banner": "Offline - opnieuw verbinden…",

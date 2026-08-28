@@ -59,7 +59,8 @@
             "private": "فقط من",
             "hint": "تعیین می‌کند چه کسی این مورد را در Yuvomi می‌بیند.",
             "assigneesNobodyHint": "بدون واگذاری، فقط خودت این مورد را می‌بینی."
-        }
+        },
+        "toShoppingListNamed": "افزودن {{title}} به فهرست خرید"
     },
     "kitchen": {
         "noShoppingLists": "هنوز فهرست خریدی وجود ندارد.",
@@ -681,7 +682,9 @@
         "deleteScopeFuture": "این و همه موارد بعدی",
         "deleteScopeSeries": "کل مجموعه (همه هفته‌ها)",
         "seriesEndedToast": "سری از این تاریخ پایان یافت.",
-        "seriesDeletedToast": "سری حذف شد."
+        "seriesDeletedToast": "سری حذف شد.",
+        "deleteMealNamed": "حذف {{title}}",
+        "openRecipeNamed": "باز کردن دستور غذای {{title}}"
     },
     "calendar": {
         "searchOpen": "جستجوی رویدادها",
@@ -2780,7 +2783,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "بومی",
         "sourceAll": "همه",
-        "sourceFilterLabel": "فیلتر بر اساس منبع"
+        "sourceFilterLabel": "فیلتر بر اساس منبع",
+        "plannedThisWeek": "برنامه‌ریزی‌شده برای این هفته"
     },
     "onboarding": {
         "step1Title": "به {{name}} خوش آمدید",
@@ -2793,7 +2797,8 @@
         "done": "شروع",
         "skip": "رد کردن",
         "step2BodyDesktop": "نوار کناری سمت چپ تو را به همه بخش‌ها می‌برد - از تقویم و وظایف تا آشپزخانه، اسناد و تنظیمات.",
-        "step3BodyDesktop": "با دکمه + در گوشه پایین در همه‌جا مورد تازه می‌سازی."
+        "step3BodyDesktop": "با دکمه + در گوشه پایین در همه‌جا مورد تازه می‌سازی.",
+        "stepProgress": "مرحله {{current}} از {{total}}"
     },
     "offline": {
         "banner": "آفلاین - در حال بازیابی اتصال…",

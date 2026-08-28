@@ -59,7 +59,8 @@
             "private": "Nur ich",
             "hint": "Legt fest, wer diesen Eintrag in Yuvomi sieht.",
             "assigneesNobodyHint": "Ohne Zuweisung sieht diesen Eintrag nur du."
-        }
+        },
+        "toShoppingListNamed": "{{title}} auf die Einkaufsliste setzen"
     },
     "kitchen": {
         "noShoppingLists": "Es gibt noch keine Einkaufsliste.",
@@ -113,7 +114,7 @@
         "rewards": "Belohnungen",
         "pantry": "Vorrat",
         "inventory": "Inventar",
-        "schedule": "Dienstplan"
+        "schedule": "Schichtplan"
     },
     "search": {
         "emptyHint": "Ab 2 Zeichen durchsuchst du Aufgaben, Termine, Notizen, Kontakte, Einkauf und Gesundheit.",
@@ -681,7 +682,9 @@
         "deleteScopeFuture": "Dieses und alle folgenden",
         "deleteScopeSeries": "Ganze Serie (alle Wochen)",
         "seriesEndedToast": "Serie ab diesem Datum beendet.",
-        "seriesDeletedToast": "Serie gelöscht."
+        "seriesDeletedToast": "Serie gelöscht.",
+        "deleteMealNamed": "{{title}} löschen",
+        "openRecipeNamed": "Rezept zu {{title}} öffnen"
     },
     "calendar": {
         "searchOpen": "Termine suchen",
@@ -1781,7 +1784,7 @@
             "shopping": "Einkauf",
             "meals": "Mahlzeiten",
             "calendar": "Kalender",
-            "schedule": "Dienstplan",
+            "schedule": "Schichtplan",
             "notes": "Notizen",
             "contacts": "Kontakte",
             "budget": "Budget",
@@ -2780,7 +2783,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Nativ",
         "sourceAll": "Alle",
-        "sourceFilterLabel": "Nach Quelle filtern"
+        "sourceFilterLabel": "Nach Quelle filtern",
+        "plannedThisWeek": "Diese Woche geplant"
     },
     "onboarding": {
         "step1Title": "Willkommen bei {{name}}",
@@ -2793,7 +2797,8 @@
         "done": "Loslegen",
         "skip": "Überspringen",
         "step2BodyDesktop": "Links in der Seitenleiste erreichst du alle Module - von Kalender und Aufgaben bis Küche, Dokumente und Einstellungen.",
-        "step3BodyDesktop": "Mit dem +-Knopf unten rechts erstellst du überall neue Einträge."
+        "step3BodyDesktop": "Mit dem +-Knopf unten rechts erstellst du überall neue Einträge.",
+        "stepProgress": "Schritt {{current}} von {{total}}"
     },
     "offline": {
         "banner": "Offline - Verbindung wird wiederhergestellt…",

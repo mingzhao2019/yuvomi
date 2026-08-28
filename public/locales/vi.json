@@ -59,7 +59,8 @@
             "private": "Chỉ mình tôi",
             "hint": "Kiểm soát ai có thể xem mục này trong Yuvomi.",
             "assigneesNobodyHint": "Nếu không giao cho ai, chỉ bạn thấy mục này."
-        }
+        },
+        "toShoppingListNamed": "Thêm {{title}} vào danh sách mua sắm"
     },
     "kitchen": {
         "noShoppingLists": "Chưa có danh sách mua sắm.",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "Mục này và tất cả các mục sau",
         "deleteScopeSeries": "Toàn bộ chuỗi (tất cả các tuần)",
         "seriesEndedToast": "Đã kết thúc chuỗi từ ngày này.",
-        "seriesDeletedToast": "Đã xóa chuỗi."
+        "seriesDeletedToast": "Đã xóa chuỗi.",
+        "deleteMealNamed": "Xóa {{title}}",
+        "openRecipeNamed": "Mở công thức {{title}}"
     },
     "calendar": {
         "searchOpen": "Tìm sự kiện",
@@ -2768,7 +2771,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "Gốc",
         "sourceAll": "Tất cả",
-        "sourceFilterLabel": "Lọc theo nguồn"
+        "sourceFilterLabel": "Lọc theo nguồn",
+        "plannedThisWeek": "Đã lên kế hoạch tuần này"
     },
     "search": {
         "emptyHint": "Nhập ít nhất 2 ký tự để tìm trong công việc, sự kiện, ghi chú, danh bạ, mua sắm và sức khỏe.",
@@ -2793,7 +2797,8 @@
         "done": "Bắt đầu",
         "skip": "Bỏ qua",
         "step2BodyDesktop": "Thanh bên trái đưa bạn đến mọi phân hệ - từ lịch và công việc đến bếp, tài liệu và cài đặt.",
-        "step3BodyDesktop": "Nút + ở góc dưới tạo mục mới ở mọi nơi."
+        "step3BodyDesktop": "Nút + ở góc dưới tạo mục mới ở mọi nơi.",
+        "stepProgress": "Bước {{current}}/{{total}}"
     },
     "offline": {
         "banner": "Ngoại tuyến - đang kết nối lại…",

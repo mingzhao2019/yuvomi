@@ -59,7 +59,8 @@
             "private": "仅自己",
             "hint": "控制谁可以在 Yuvomi 中看到此条目。",
             "assigneesNobodyHint": "未指定任何人时，只有你能看到此条目。"
-        }
+        },
+        "toShoppingListNamed": "将{{title}}加入购物清单"
     },
     "kitchen": {
         "noShoppingLists": "还没有购物清单。",
@@ -669,7 +670,9 @@
         "deleteScopeFuture": "此项及之后全部",
         "deleteScopeSeries": "整个系列（所有周）",
         "seriesEndedToast": "已从该日期结束该系列。",
-        "seriesDeletedToast": "已删除该系列。"
+        "seriesDeletedToast": "已删除该系列。",
+        "deleteMealNamed": "删除{{title}}",
+        "openRecipeNamed": "打开{{title}}的食谱"
     },
     "calendar": {
         "searchOpen": "搜索日程",
@@ -2690,7 +2693,8 @@
         "sourceTandoor": "Tandoor",
         "sourceNative": "本地",
         "sourceAll": "全部",
-        "sourceFilterLabel": "按来源筛选"
+        "sourceFilterLabel": "按来源筛选",
+        "plannedThisWeek": "本周已安排"
     },
     "search": {
         "emptyHint": "输入至少 2 个字符即可搜索任务、日程、便签、联系人、购物和健康。",
@@ -2793,7 +2797,8 @@
         "done": "开始使用",
         "skip": "跳过",
         "step2BodyDesktop": "左侧边栏可进入所有模块：日历、任务、厨房、文档和设置。",
-        "step3BodyDesktop": "右下角的 + 按钮可随处创建新条目。"
+        "step3BodyDesktop": "右下角的 + 按钮可随处创建新条目。",
+        "stepProgress": "第{{current}}步，共{{total}}步"
     },
     "offline": {
         "banner": "离线 - 正在重新连接…",
