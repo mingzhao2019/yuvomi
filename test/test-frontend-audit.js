@@ -8219,7 +8219,20 @@ const ALLOWED_INLINE = /^(0|0px|var\(--page-inline-pad\))$/;
 // Bauart (.page-toolbar__bar .sub-tab, Werkzeugzeilen-Regel) hätte sonst den
 // zweiten Listeneintrag verlangt - ein Guard über eine Namensliste deckt keine
 // Regel ab, sondern N Einträge.
-const RAIL_PAD_EXCEPTIONS = [];
+const RAIL_PAD_EXCEPTIONS = [
+  {
+    file: 'layout.css',
+    selector: '.page-toolbar--narrow:has(> .page-toolbar__bar)',
+    // Dieses Padding IST die Fluchtlinie, nicht ihre Verletzung: ein
+    // gedeckelter Kopf MIT Bar-Zeile deckelt beide Zeilen ueber
+    // padding-inline-end auf das Lesemass, weil der ::after-Rest-Slot nur
+    // EINE Flex-Zeile fuellen kann - im Wrap-Kopf schwamm er in die Bar-Zeile
+    // und schob die Tab-Leiste rechtsbuendig an die Kopf-Kante (Sonde 19,
+    // Kopfende 996 statt 720). Gemessen wird die Zusage von #577 (Kopf endet
+    // auf der Koerperkante) dort weiter, am gerenderten Dokument.
+    reason: 'Lesemass-Deckelung beider Kopfzeilen; der ::after-Slot deckt nur eine',
+  },
+];
 
 const isException = (file, selector) => RAIL_PAD_EXCEPTIONS.some(
   (e) => file === e.file && selector.includes(e.selector),
@@ -8413,6 +8426,17 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
 
   for (const file of pages) {
     const src = read(file);
+    // EIN KOPF, EINE BREITE - die bewusste Gegenform (2026-08-27): wer sein
+    // Lesemass je SICHT am Koerper toggelt (page-measure--narrow), den Kopf
+    // aber konstant laesst, hat gemischte Koerperbreiten und haelt die Kante
+    // seines BREITESTEN Koerpers. Heute ist das der Kalender: drei Flaechen,
+    // eine Lesebahn - und seit die Ansichts-Umschalter in der Bar-Zeile
+    // wohnen, kann seine volle Titelzeile im 720er-Deckel nicht einzeilig
+    // wohnen (Sonde 19). Der Verzicht ist an der BAUART ablesbar, nicht an
+    // einem Dateinamen; wer BEIDE toggelt (tasks: Liste gegen Kanban), wird
+    // weiter geprueft.
+    if (/classList\.toggle\(\s*'page-measure--narrow'/.test(src)
+      && !/classList\.toggle\(\s*'page-toolbar--narrow'/.test(src)) continue;
     // Jeder Kopf dieser Seite, egal ob als Template-Literal oder über className.
     const heads = [
       ...src.matchAll(/class="([^"]*\bpage-toolbar\b[^"]*)"/g),

@@ -1680,11 +1680,18 @@ function renderView() {
    * Monatsgitter ist eine Flaeche und will die ganze Content-Spalte. Ein
    * fester Modifier stimmte in genau einer der vier Ansichten - dieselbe
    * Kopplung wie auf /tasks (Liste gegen Kanban), und derselbe Guard prueft
-   * sie (Critique 2026-08-13, zweite Runde). */
+   * sie (Critique 2026-08-13, zweite Runde).
+   *
+   * DER KOPF TOGGELT NICHT MEHR MIT (2026-08-27): er steht ueber vier
+   * Koerpern, drei davon full-bleed, und seit die Ansichts-Umschalter in der
+   * Bar-Zeile wohnen (Werkzeugzeilen-Regel) kann seine volle Titelzeile im
+   * 720er-Deckel der Agenda nicht einzeilig wohnen (Sonde 19: zwei Zeilen
+   * bei 1280px). EIN Kopf, EINE Breite - er haelt die Kante seines
+   * breitesten Koerpers; die Agenda-LISTE behaelt ihre Lesebahn. Der
+   * Kanten-Guard kennt diese Bauart (test-frontend-audit: Lesemass-Toggle
+   * am Koerper ohne Kopf-Toggle). */
   _container.querySelector('#calendar-page')
     ?.classList.toggle('page-measure--narrow', state.view === 'agenda');
-  _container.querySelector('.cal-toolbar')
-    ?.classList.toggle('page-toolbar--narrow', state.view === 'agenda');
   // Monats-Resize-Observer lösen, bevor das alte #month-grid detached wird;
   // nur die Monatsansicht setzt ihn danach wieder auf.
   _monthGridResizeObserver?.disconnect();

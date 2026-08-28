@@ -2091,6 +2091,25 @@ html.fab-anim-done .page-fab {
   gap: var(--space-1);
 }
 
+/* EIN GEDECKELTER KOPF MIT BAR-ZEILE DECKELT UEBER SEIN PADDING, nicht ueber
+ * den ::after-Rest-Slot (siehe .page-toolbar--narrow::after weiter unten):
+ * der Slot kann nur EINE Zeile fuellen, und im Wrap-Kopf schwamm er in die
+ * Bar-Zeile und schob die Tab-Leiste rechtsbuendig an die Kopf-Kante
+ * (Sonde 19: Kopfende 996px statt 720px Lesemass, bei 1960px sogar 1280px).
+ * Das Padding deckelt BEIDE Zeilen zugleich - Titelzeile und Bar enden auf
+ * derselben Fluchtlinie wie der Koerper -, das Chrome (Grund, Linie, Sticky)
+ * bleibt full-bleed, und die ::after-Basis faellt rechnerisch auf 0.
+ * Prozent-Padding liest die Breite des Containing Blocks (der Kopf ist
+ * full-bleed, also die Shell-Spalte); die Formel zieht deshalb beide
+ * Innenabstaende ab, und max() haelt den regulaeren Abstand, wo die Spalte
+ * schmaler als das Lesemass ist. */
+.page-toolbar--narrow:has(> .page-toolbar__bar) {
+  padding-inline-end: max(
+    var(--page-inline-pad),
+    calc(100% - var(--content-max-width-narrow) - var(--page-inline-pad))
+  );
+}
+
 /* Scroll-Snap der Bar-Leisten: gemeinsame Bauart, vorher Budget-privat. */
 .page-toolbar__bar[role="tablist"],
 .page-toolbar__bar [role="tablist"] {
@@ -2388,6 +2407,22 @@ html.fab-anim-done .page-fab {
    * Zeile und teilt sie mit niemandem - dort gibt es nichts zu verteilen. */
   .page-toolbar--wrap > .page-toolbar__title {
     flex-shrink: 0;
+  }
+
+  /* IM BAR-KOPF BLEIBT DER KOPF WRAP (die Bar ist seine zweite Zeile) - die
+   * TITELZEILE darf trotzdem nicht brechen. Flexbox teilt Zeilen nach den
+   * HYPOTHETISCHEN Groessen (siehe oben), und der Center-Slot (Monats-/
+   * Datums-Navigation) meldet als einziger eine grosse: mit Basis 0 bleibt
+   * er hypothetisch klein, waechst real per flex-grow in allen Restplatz der
+   * Zeile, und die Titelzeile bleibt die eine Zeile, die #882 verlangt
+   * (gemessen am Kalender: 1049px hypothetisch gegen 996px Innenraum bei
+   * 1280 - die Aktionen brachen unter das Datum). Das Label-Verschwinden von
+   * damals („flex:1 hiess Basis 0", #882) betraf ein Label in einer Zeile
+   * OHNE freien Raum; hier ist der Center der einzige Wachser seiner Zeile.
+   * Bei 1024px darf der Kopf weiter brechen (Sonde 19, rows: false) - dort
+   * ist der Platzmangel echt. */
+  .page-toolbar:has(> .page-toolbar__bar) > .page-toolbar__center {
+    flex-basis: 0;
   }
 }
 

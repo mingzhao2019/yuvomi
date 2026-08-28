@@ -3600,11 +3600,21 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
  *
  * ZWEI ZUSICHERUNGEN JE UEBERLAUFENDER LEISTE:
  *   1. Sie traegt has-fade-start/-end - wireScrollFade ist verdrahtet. Eine
- *      Leiste ohne den Helfer scrollt stumm.
- *   2. Am Ende der sichtbaren Flaeche ist ein Kind ANGESCHNITTEN (>= 4px
- *      sichtbar): wer buendig endet, macht die verborgenen Werkzeuge
- *      unauffindbar. Ein Treffer in der Gap-Luecke zaehlt als buendig - auch
- *      dann ist kein Anschnitt zu sehen, und das ist der Befund.
+ *      Leiste ohne den Helfer scrollt stumm. (Die erste Fassung dieser Sonde
+ *      fand hier sofort einen Treffer: die eps-Toleranz des Helfers stand auf
+ *      8px und schluckte einen echten 4px-Ueberlauf des Kalender-Segments in
+ *      `uk` - kein Fade trotz abgeschnittenem Wort.)
+ *   2. Die letzte sichtbare Werkzeugkante liegt IN der Fade-Zone (12px,
+ *      filter-chip.css) oder ein Kind ist geometrisch angeschnitten. Die
+ *      Maske schneidet auch einen zufaellig buendig endenden Tab sichtbar an -
+ *      das Signal ist da. Schlecht ist nur LEERRAUM vor der Kante, der
+ *      breiter ist als der Fade: dann faded die Maske Leere, und das naechste
+ *      Werkzeug ist unauffindbar (der Ur-Befund aus Audit P2, wo der breite
+ *      24px-Fade einen 9px-Anschnitt komplett verdeckte). Die erste Fassung
+ *      verlangte den GEOMETRISCHEN Anschnitt hart - und meldete in `uk` eine
+ *      Gesundheit-Leiste, deren Tab-Kante zufaellig buendig fiel, obwohl die
+ *      Maske sie laengst anschnitt. Tab-Breiten sind Inhalt; eine Zusicherung
+ *      darf nicht an der Zufallslage einer Wortgrenze haengen.
  *
  * GEMESSEN WIRD DER INITIALZUSTAND jeder Route (nach Load, ohne Nutzer-Scroll,
  * inkl. scrollActiveIntoView der Seite selbst) - er ist deterministisch, und
@@ -3638,26 +3648,30 @@ describe('Sonde 20 - ein Werkzeug des Kopfs ist sichtbar oder sichtbar angeschni
               .map((el) => {
                 const r = el.getBoundingClientRect();
                 const overflow = el.scrollWidth - el.clientWidth;
-                // Anschnitt nur an einer Kante bewerten, hinter der wirklich
-                // Inhalt verborgen liegt (am Initialstand ist das die Endkante,
+                // Nur an einer Kante bewerten, hinter der wirklich Inhalt
+                // verborgen liegt (am Initialstand ist das die Endkante,
                 // solange die Leiste nicht schon ans Ende gescrollt wurde).
-                let peek = null;
+                // `gapAtEdge` ist der Leerraum zwischen der letzten sichtbaren
+                // Werkzeugkante und der Leisten-Endkante: liegt er innerhalb
+                // der 12px-Fade-Zone, schneidet die Maske das letzte Werkzeug
+                // sichtbar an - auch wenn keine Kind-Box die Kante geometrisch
+                // kreuzt.
+                let gapAtEdge = null;
                 if (overflow > 1 && el.scrollLeft < overflow - 1) {
                   const edge = r.left + el.clientWidth;
-                  peek = 0;
+                  let lastEnd = r.left;
                   for (const child of el.children) {
                     const cr = child.getBoundingClientRect();
                     if (cr.width <= 0) continue;
-                    if (cr.left < edge - 1 && cr.right > edge + 1) {
-                      peek = Math.max(peek, edge - cr.left);
-                    }
+                    if (cr.left < edge) lastEnd = Math.max(lastEnd, Math.min(cr.right, edge));
                   }
+                  gapAtEdge = edge - lastEnd;
                 }
                 return {
                   cls: el.className,
                   overflow: Math.round(overflow),
                   fade: el.classList.contains('has-fade-end') || el.classList.contains('has-fade-start'),
-                  peek: peek === null ? null : Math.round(peek),
+                  gapAtEdge: gapAtEdge === null ? null : Math.round(gapAtEdge),
                 };
               });
           });
@@ -3668,11 +3682,11 @@ describe('Sonde 20 - ein Werkzeug des Kopfs ist sichtbar oder sichtbar angeschni
             overflowed += 1;
             if (!bar.fade) {
               findings.push(`${w}px ${name}: Leiste laeuft ${bar.overflow}px ueber, traegt aber `
-                + `keinen Scroll-Fade (wireScrollFade nicht verdrahtet) - ${bar.cls}`);
+                + `keinen Scroll-Fade (wireScrollFade nicht verdrahtet oder eps zu grob) - ${bar.cls}`);
             }
-            if (bar.peek !== null && bar.peek < 4) {
-              findings.push(`${w}px ${name}: Leiste endet buendig (Anschnitt ${bar.peek}px) - `
-                + `verborgene Werkzeuge sind unauffindbar - ${bar.cls}`);
+            if (bar.gapAtEdge !== null && bar.gapAtEdge > 12) {
+              findings.push(`${w}px ${name}: ${bar.gapAtEdge}px Leerraum vor der Endkante - der `
+                + `12px-Fade faded Leere, das naechste Werkzeug ist unauffindbar - ${bar.cls}`);
             }
           }
         }

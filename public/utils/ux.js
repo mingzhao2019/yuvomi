@@ -127,7 +127,12 @@ export function wireScrollFade(el, { axis = 'x' } = {}) {
   // jedem Modul-CSS, damit die Regel jede Leiste erfasst, die diesen Helfer
   // nutzt - auch die, die es noch nicht gibt.
   el.classList.add('u-scroll-fade');
-  const eps = 8; // Toleranz: kein Fade bei minimalem Sub-Pixel-Offset
+  // Toleranz gegen Sub-Pixel und DPR-Rundung. Sie stand auf 8 und schluckte
+  // damit ECHTE 1-8px-Ueberlaeufe: das Kalender-Segment lief in `uk` bei
+  // 375px 4px ueber - vom letzten Wort war der Abschluss weg, und die Leiste
+  // trug trotzdem keinen End-Fade (Sonde 20). 2px decken Rundung; ein
+  // Ueberlauf darueber ist Inhalt, kein Offset.
+  const eps = 2;
   const update = () => {
     // `Math.abs` wegen RTL: in `ar` und `fa` setzt die App `dir=rtl`, und dort
     // steht `scrollLeft` nach CSSOM am Anfang auf 0 und laeuft beim Scrollen ins

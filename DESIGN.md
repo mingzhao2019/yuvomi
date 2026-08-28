@@ -1503,12 +1503,15 @@ seiner 7ch-Untergrenze ellipsiert); mobil zeigte Gesundheit 3 von 6, die Haushal
    zaehlt Titel- und Bar-Zeile getrennt; Sonde 15 erlaubte die Bar-Zeile der kompakten
    Hoehe schon immer - neu ist, dass sie eine Eigenschaft des KOPFES ist, keiner
    Groessenklasse).
-2. **Eine ueberlaufende Leiste zeigt ihre Fortsetzung**: Scroll-Fade (wireScrollFade) plus
-   sichtbar angeschnittenes naechstes Werkzeug. Die scharfe Tab-Leisten-Maske (12px statt
-   der 24px der Chip-Reihen) steht bei der Masken-Familie in filter-chip.css und gilt auch
-   der Kuechen-Rail - der breite Fade verdeckte dort das angeschnittene „Vorrat 10"-Badge
-   komplett, und eine buendig endende Leiste sieht aus wie eine vollstaendige.
-   Pruefebene: Dokument (Sonde 20: Fade verdrahtet UND Anschnitt >= 4px sichtbar).
+2. **Eine ueberlaufende Leiste zeigt ihre Fortsetzung**: Scroll-Fade (wireScrollFade; die
+   eps-Toleranz des Helfers steht seit 2026-08-27 auf 2px - bei 8px schluckte sie einen
+   echten 4px-Ueberlauf des uk-Kalender-Segments) plus ein Ende IN der Fade-Zone: die
+   scharfe Tab-Leisten-Maske (12px statt der 24px der Chip-Reihen, Masken-Familie in
+   filter-chip.css, gilt auch der Kuechen-Rail) schneidet das letzte Werkzeug sichtbar an -
+   auch eines, dessen Kante zufaellig buendig faellt. Der Befund ist LEERRAUM vor der
+   Endkante, der breiter ist als der Fade: dann faded die Maske Leere, und das naechste
+   Werkzeug ist unauffindbar (so verdeckte der breite Fade das „Vorrat 10"-Badge komplett).
+   Pruefebene: Dokument (Sonde 20: Fade verdrahtet UND Leerraum an der Endkante <= 12px).
 3. **Ein Scope-Schalter ist keine Werkzeug-Leiste.** Die zwei Pillen „Mein Budget /
    Haushalt" beantworten „wessen Zahlen", nicht „welcher Bereich", und bleiben in der
    Titelzeile - eine Zwei-Optionen-Wippe auf eigener Zeile waere Zeilenverbrauch ohne
