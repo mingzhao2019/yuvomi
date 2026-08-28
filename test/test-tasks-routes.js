@@ -622,6 +622,32 @@ test('PATCH /lists/reorder: speichert persoenliche Quellen- und Listenreihenfolg
   assert.equal(listOrder.status, 200);
   assert.deepEqual(listOrder.body.data.lists.caldav.slice(0, 2), [beta.listId, alpha.listId]);
 
+  const alphabetical = await call('PATCH', '/lists/reorder', {
+    as: member,
+    body: {
+      provider: 'caldav',
+      order: [alpha.listId, beta.listId],
+      alphabetical: true,
+      manualOrder: [beta.listId, alpha.listId],
+    },
+  });
+  assert.equal(alphabetical.status, 200);
+  assert.deepEqual(alphabetical.body.data.alphabetical.caldav, [beta.listId, alpha.listId]);
+
+  const alphabeticalReload = await call('GET', '/lists', { as: member });
+  assert.deepEqual(
+    alphabeticalReload.body.order.alphabetical.caldav,
+    [beta.listId, alpha.listId],
+    'Der Sortiermodus und seine manuelle Rueckfallreihenfolge muessen einen Reload ueberleben',
+  );
+
+  const restored = await call('PATCH', '/lists/reorder', {
+    as: member,
+    body: { provider: 'caldav', order: [beta.listId, alpha.listId], alphabetical: false },
+  });
+  assert.equal(restored.status, 200);
+  assert.equal(restored.body.data.alphabetical.caldav, undefined);
+
   const memberLists = await call('GET', '/lists', { as: member });
   const memberCaldav = memberLists.body.data
     .filter((list) => list.provider === 'caldav')

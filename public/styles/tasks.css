@@ -42,7 +42,7 @@
  * Task Lists sind eine eigene Navigation, keine weitere Filterachse: Die erste
  * Ebene gruppiert nach Quelle, die zweite zeigt die Listen dieser Quelle. Auf
  * kleinen Bildschirmen werden Quelle und konkrete Liste als kompakte,
- * eigene Dropdowns nebeneinander angeboten.
+ * eigene Dropdowns untereinander angeboten.
  * -------------------------------------------------------- */
 .tasks-layout {
   display: grid;
@@ -83,16 +83,19 @@
 .task-list-resizer::before {
   content: '';
   position: absolute;
-  inset: 0 var(--space-1);
+  inset-block: 0;
+  left: 50%;
+  width: var(--space-px);
   border-radius: var(--radius-full);
   background: var(--color-border);
+  transform: translateX(-50%);
   transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .task-list-resizer:hover::before,
 .task-list-resizer:focus-visible::before {
   background: var(--module-accent, var(--color-accent));
-  transform: scaleX(1.5);
+  transform: translateX(-50%) scaleX(2);
 }
 
 body.task-list-resizing,
@@ -191,6 +194,12 @@ body.task-list-resizing * {
 .task-list-nav__sort:hover,
 .task-list-nav__sort:focus-visible {
   border-color: var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--module-accent, var(--color-accent));
+}
+
+.task-list-nav__sort--active {
+  border-color: var(--module-accent, var(--color-accent));
   background: var(--color-surface-2);
   color: var(--module-accent, var(--color-accent));
 }
@@ -327,6 +336,10 @@ body.task-list-resizing * {
     overflow: visible;
   }
 
+  .task-lists-sidebar__title {
+    display: none;
+  }
+
   .task-list-nav__desktop {
     display: none;
   }
@@ -338,9 +351,8 @@ body.task-list-resizing * {
 
   .task-list-nav__mobile-fields {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2);
-    align-items: end;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 
   .task-list-nav__mobile-field {

@@ -1271,7 +1271,7 @@ let state = {
   users:           [],
   categories:      [],
   taskLists:       [],       // first-class source/local Task Lists (#163)
-  taskListOrder:   { sources: [], lists: {} },
+  taskListOrder:   { sources: [], lists: {}, alphabetical: {} },
   allTags:         [],       // [{ tag, count }] für Filterleiste und Vorschläge (#586)
   defaultPoints:   0,        // Haushalt-Standard für neue Aufgaben (#578), 0 = aus
   currentUserId:   null,
@@ -3819,7 +3819,39 @@ function normalizeTaskListOrder(order) {
       lists[provider] = [...new Set(ids.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))];
     }
   }
-  return { sources, lists };
+  const alphabetical = {};
+  if (order?.alphabetical && typeof order.alphabetical === 'object' && !Array.isArray(order.alphabetical)) {
+    for (const [provider, ids] of Object.entries(order.alphabetical)) {
+      if (!Array.isArray(ids)) continue;
+      alphabetical[provider] = [...new Set(ids.map(Number)
+        .filter((id) => Number.isSafeInteger(id) && id > 0))];
+    }
+  }
+  return { sources, lists, alphabetical };
+}
+
+/**
+ * List names often start with an emoji used as a visual marker. Alphabetical
+ * order follows the first actual letter/number, so "📥 Inbox" belongs under I
+ * instead of being grouped by the emoji's code point.
+ */
+function taskListAlphabeticalKey(value) {
+  const normalized = String(value ?? '').normalize('NFKC').trim();
+  const withoutDecoration = normalized.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  return withoutDecoration || normalized;
+}
+
+function taskListNameComparator(locale = getLocale()) {
+  const collator = new Intl.Collator(locale, {
+    sensitivity: 'base',
+    numeric: true,
+    ignorePunctuation: true,
+  });
+  return (a, b) =>
+    collator.compare(taskListAlphabeticalKey(a?.name), taskListAlphabeticalKey(b?.name))
+    || collator.compare(String(a?.name || ''), String(b?.name || ''))
+    || collator.compare(String(a?.account_name || ''), String(b?.account_name || ''))
+    || String(a?.id).localeCompare(String(b?.id));
 }
 
 /**
@@ -3863,12 +3895,15 @@ function taskListSourceGroups() {
     return index === -1 ? preferredSources.length : index;
   };
   const orderLists = (provider, lists) => {
+    const compareNames = taskListNameComparator();
+    if (Object.prototype.hasOwnProperty.call(state.taskListOrder?.alphabetical ?? {}, provider)) {
+      return lists.slice().sort(compareNames);
+    }
     const preferred = state.taskListOrder?.lists?.[provider] ?? [];
     const ranks = new Map(preferred.map((id, index) => [String(id), index]));
     return lists.slice().sort((a, b) =>
       (ranks.get(String(a.id)) ?? ranks.size) - (ranks.get(String(b.id)) ?? ranks.size)
-      || String(a.name || '').localeCompare(String(b.name || ''), getLocale(), { sensitivity: 'base', numeric: true })
-      || String(a.id).localeCompare(String(b.id)));
+      || compareNames(a, b));
   };
 
   const groups = [{ key: 'all', provider: 'all', name: t('common.all'), lists: [] }];
@@ -3998,6 +4033,9 @@ function cloneTaskListOrder(order = state.taskListOrder) {
     lists: Object.fromEntries(
       Object.entries(order?.lists ?? {}).map(([provider, ids]) => [provider, [...ids]]),
     ),
+    alphabetical: Object.fromEntries(
+      Object.entries(order?.alphabetical ?? {}).map(([provider, ids]) => [provider, [...ids]]),
+    ),
   };
 }
 
@@ -4024,10 +4062,21 @@ function restoreTaskListOrderScope(scope, order) {
   } else {
     delete state.taskListOrder.lists[scope];
   }
+  if (Object.prototype.hasOwnProperty.call(order?.alphabetical ?? {}, scope)) {
+    state.taskListOrder.alphabetical[scope] = [...order.alphabetical[scope]];
+  } else {
+    delete state.taskListOrder.alphabetical[scope];
+  }
 }
 
 /** Send one order at a time; a quick second move is folded into the next run. */
-function persistTaskListOrder(container, scope, readOrder, rollbackOrder = cloneTaskListOrder()) {
+function persistTaskListOrder(
+  container,
+  scope,
+  readOrder,
+  rollbackOrder = cloneTaskListOrder(),
+  extraPayload = {},
+) {
   const key = taskListOrderKey(scope);
   const running = taskListOrderRuns.get(key);
   if (running) {
@@ -4036,10 +4085,11 @@ function persistTaskListOrder(container, scope, readOrder, rollbackOrder = clone
     // save is in flight. Keep the newest reader so the folded request reads
     // the current menu instead of an orphaned element.
     running.readOrder = readOrder;
+    running.extraPayload = extraPayload;
     return;
   }
 
-  const run = { again: false, rollback: rollbackOrder, readOrder };
+  const run = { again: false, rollback: rollbackOrder, readOrder, extraPayload };
   taskListOrderRuns.set(key, run);
   (async () => {
     try {
@@ -4050,6 +4100,7 @@ function persistTaskListOrder(container, scope, readOrder, rollbackOrder = clone
         const data = await api.patch('/tasks/lists/reorder', {
           provider: scope === 'sources' ? 'sources' : scope,
           order,
+          ...run.extraPayload,
         });
         // If another move happened while this request was in flight, keep the
         // newer client order for the next folded request instead of replacing
@@ -4057,7 +4108,14 @@ function persistTaskListOrder(container, scope, readOrder, rollbackOrder = clone
         if (data?.data && !run.again) {
           const saved = normalizeTaskListOrder(data.data);
           if (scope === 'sources') state.taskListOrder.sources = saved.sources;
-          else state.taskListOrder.lists[scope] = saved.lists[scope] ?? [];
+          else {
+            state.taskListOrder.lists[scope] = saved.lists[scope] ?? [];
+            if (Object.prototype.hasOwnProperty.call(saved.alphabetical, scope)) {
+              state.taskListOrder.alphabetical[scope] = saved.alphabetical[scope];
+            } else {
+              delete state.taskListOrder.alphabetical[scope];
+            }
+          }
         }
       } while (run.again);
     } catch (err) {
@@ -4126,6 +4184,7 @@ function moveTaskListElement(element, delta, container) {
   const readOrder = () => taskListOrderFromElements(element.parentElement, selector, attribute)
     .map((value) => isSource ? value : Number(value));
   const rollback = cloneTaskListOrder();
+  if (!isSource) disableTaskListAlphabeticalMode(scope, container);
   const position = taskListOrderElements(element.parentElement, selector).indexOf(element) + 1;
   announceTaskListMove(container, element, position, siblings.length);
   element.querySelector('.task-list-nav__drag-handle')?.focus();
@@ -4153,9 +4212,16 @@ function makeTaskListDragHandle(name, kind, provider = '') {
 function makeTaskListSortButton(group, container) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'task-list-nav__sort';
-  button.title = t('tasks.taskListSortAlphabetical');
-  button.setAttribute('aria-label', `${t('tasks.taskListSortAlphabetical')}: ${group.name}`);
+  const active = Object.prototype.hasOwnProperty.call(
+    state.taskListOrder?.alphabetical ?? {}, group.key,
+  );
+  button.className = `task-list-nav__sort${active ? ' task-list-nav__sort--active' : ''}`;
+  button.dataset.taskListProvider = group.key;
+  button.title = t(active
+    ? 'tasks.taskListSortAlphabeticalDisable'
+    : 'tasks.taskListSortAlphabetical');
+  button.setAttribute('aria-label', `${button.title}: ${group.name}`);
+  button.setAttribute('aria-pressed', String(active));
   const icon = document.createElement('i');
   icon.setAttribute('data-lucide', 'arrow-down-a-z');
   icon.className = 'icon-sm';
@@ -4169,20 +4235,57 @@ function makeTaskListSortButton(group, container) {
   return button;
 }
 
+function disableTaskListAlphabeticalMode(provider, container) {
+  if (!Object.prototype.hasOwnProperty.call(
+    state.taskListOrder?.alphabetical ?? {}, provider,
+  )) return;
+  delete state.taskListOrder.alphabetical[provider];
+  container.querySelectorAll('.task-list-nav__sort').forEach((button) => {
+    if (button.dataset.taskListProvider !== provider) return;
+    button.classList.remove('task-list-nav__sort--active');
+    button.setAttribute('aria-pressed', 'false');
+    button.title = t('tasks.taskListSortAlphabetical');
+    button.setAttribute('aria-label', `${button.title}: ${taskListSourceLabel(provider)}`);
+  });
+}
+
 function sortTaskListGroup(group, container) {
   if (!group || group.key === 'local') return;
-  const collator = new Intl.Collator(getLocale(), { sensitivity: 'base', numeric: true });
-  const sorted = group.lists.slice().sort((a, b) =>
-    collator.compare(String(a.name || ''), String(b.name || ''))
-    || collator.compare(String(a.account_name || ''), String(b.account_name || ''))
-    || String(a.id).localeCompare(String(b.id)));
-  const order = sorted.filter(isConcreteTaskList).map((item) => Number(item.id));
-  const current = state.taskListOrder?.lists?.[group.key] ?? [];
-  if (order.length === current.length && order.every((id, index) => Number(current[index]) === id)) return;
   const rollback = cloneTaskListOrder();
+  const alphabetical = Object.prototype.hasOwnProperty.call(
+    state.taskListOrder?.alphabetical ?? {}, group.key,
+  );
+  const visibleOrder = group.lists.filter(isConcreteTaskList).map((item) => Number(item.id));
+  let order;
+  let extraPayload;
+
+  if (alphabetical) {
+    const savedManual = state.taskListOrder.alphabetical[group.key] ?? [];
+    const visibleIds = new Set(visibleOrder);
+    order = [
+      ...savedManual.filter((id) => visibleIds.has(Number(id))).map(Number),
+      ...visibleOrder.filter((id) => !savedManual.some((savedId) => Number(savedId) === id)),
+    ];
+    delete state.taskListOrder.alphabetical[group.key];
+    extraPayload = { alphabetical: false };
+  } else {
+    order = group.lists.slice().sort(taskListNameComparator())
+      .filter(isConcreteTaskList).map((item) => Number(item.id));
+    state.taskListOrder.alphabetical[group.key] = visibleOrder;
+    extraPayload = { alphabetical: true, manualOrder: visibleOrder };
+  }
   setTaskListOrder(group.key, order);
   renderTaskLists(container);
-  persistTaskListOrder(container, group.key, () => state.taskListOrder.lists[group.key], rollback);
+  persistTaskListOrder(
+    container,
+    group.key,
+    () => state.taskListOrder.lists[group.key],
+    rollback,
+    extraPayload,
+  );
+  window.yuvomi.showToast(t(alphabetical
+    ? 'tasks.taskListSortAlphabeticalOff'
+    : 'tasks.taskListSortAlphabeticalOn'), 'success');
 }
 
 async function handleDeleteTaskList(item, container) {
@@ -4613,6 +4716,7 @@ function wireTaskListReorder(container) {
           const element = event?.item;
           const siblings = taskListOrderElements(children, '.task-list-nav__item-row[data-task-list-id]');
           const rollback = cloneTaskListOrder();
+          disableTaskListAlphabeticalMode(provider, container);
           announceTaskListMove(container, element, siblings.indexOf(element) + 1, siblings.length);
           persistTaskListOrder(
             container,
@@ -4659,6 +4763,7 @@ function wireTaskListReorder(container) {
           const element = event?.item;
           const siblings = taskListOrderElements(menuList, selector);
           const rollback = cloneTaskListOrder();
+          disableTaskListAlphabeticalMode(provider, container);
           announceTaskListMove(container, element, siblings.indexOf(element) + 1, siblings.length);
           persistTaskListOrder(container, provider, () => taskListOrderFromElements(
             menuList, selector, 'taskListId',
@@ -4689,6 +4794,10 @@ function clampTaskListSidebarWidth(value) {
   return Math.max(TASK_LIST_SIDEBAR_MIN, Math.min(TASK_LIST_SIDEBAR_MAX, Math.round(value)));
 }
 
+function taskListSidebarWidthFromDrag(startWidth, startClientX, currentClientX) {
+  return clampTaskListSidebarWidth(startWidth + currentClientX - startClientX);
+}
+
 function setTaskListSidebarWidth(layout, width, { persist = false } = {}) {
   const next = clampTaskListSidebarWidth(width);
   layout.style.setProperty('--task-list-sidebar-width', `${next}px`);
@@ -4715,10 +4824,14 @@ function wireTaskListResizer(container) {
   restoreTaskListSidebarWidth(layout);
 
   let dragging = false;
+  let dragStartX = 0;
+  let dragStartWidth = 0;
   const move = (event) => {
     if (!dragging) return;
-    const rect = layout.getBoundingClientRect();
-    setTaskListSidebarWidth(layout, event.clientX - rect.left);
+    setTaskListSidebarWidth(
+      layout,
+      taskListSidebarWidthFromDrag(dragStartWidth, dragStartX, event.clientX),
+    );
   };
   const stop = () => {
     if (!dragging) return;
@@ -4735,6 +4848,10 @@ function wireTaskListResizer(container) {
     if (event.button !== 0) return;
     event.preventDefault();
     dragging = true;
+    dragStartX = event.clientX;
+    dragStartWidth = parseFloat(
+      getComputedStyle(layout).getPropertyValue('--task-list-sidebar-width'),
+    ) || 288;
     document.body.classList.add('task-list-resizing');
     resizer.setPointerCapture?.(event.pointerId);
   });
@@ -5540,7 +5657,7 @@ export async function render(container, { user }) {
     state.users = [];
     state.categories = [];
     state.taskLists = [];
-    state.taskListOrder = { sources: [], lists: {} };
+    state.taskListOrder = { sources: [], lists: {}, alphabetical: {} };
     state.allTags = [];
     state.defaultPoints = 0;
     state.subtasksExpandedByDefault = false;
@@ -5593,4 +5710,11 @@ export async function render(container, { user }) {
 }
 
 // Testfläche: nur reine Funktionen, deren Vertrag außerhalb dieser Datei zählt.
-export const __test = { groupBy, groupKey, formatDueDate };
+export const __test = {
+  groupBy,
+  groupKey,
+  formatDueDate,
+  taskListAlphabeticalKey,
+  taskListNameComparator,
+  taskListSidebarWidthFromDrag,
+};

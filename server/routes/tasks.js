@@ -416,7 +416,7 @@ function taskListOrderKey(userId) {
  * preference storage without adding a second table just for navigation.
  */
 function loadTaskListOrder(database, userId) {
-  const fallback = { sources: [], lists: {} };
+  const fallback = { sources: [], lists: {}, alphabetical: {} };
   if (!userId) return fallback;
   const row = database.prepare('SELECT value FROM sync_config WHERE key = ?').get(taskListOrderKey(userId));
   if (!row?.value) return fallback;
@@ -434,7 +434,17 @@ function loadTaskListOrder(database, userId) {
           .filter((id) => Number.isSafeInteger(id) && id > 0))];
       }
     }
-    return { sources: [...new Set(sources)], lists };
+    const alphabetical = {};
+    if (parsed?.alphabetical && typeof parsed.alphabetical === 'object'
+        && !Array.isArray(parsed.alphabetical)) {
+      for (const [provider, ids] of Object.entries(parsed.alphabetical)) {
+        if (!TASK_LIST_PROVIDER_RE.test(provider) || !Array.isArray(ids)) continue;
+        alphabetical[provider] = [...new Set(ids
+          .map(Number)
+          .filter((id) => Number.isSafeInteger(id) && id > 0))];
+      }
+    }
+    return { sources: [...new Set(sources)], lists, alphabetical };
   } catch {
     return fallback;
   }
@@ -761,7 +771,7 @@ router.patch('/lists/reorder', (req, res) => {
   const userId = req.authUserId || req.session?.userId;
   if (!userId) return res.status(401).json({ error: 'Authentication required.', code: 401 });
 
-  const { provider, order } = req.body ?? {};
+  const { provider, order, alphabetical, manualOrder } = req.body ?? {};
   if (typeof provider !== 'string' || !TASK_LIST_PROVIDER_RE.test(provider)) {
     return res.status(400).json({ error: 'A valid task-list provider is required.', code: 400 });
   }
@@ -806,6 +816,19 @@ router.patch('/lists/reorder', (req, res) => {
         return res.status(400).json({ error: 'Task-list order contains a list from another provider.', code: 400 });
       }
       saved.lists[provider] = listIds;
+      if (alphabetical === true) {
+        if (!Array.isArray(manualOrder) || manualOrder.length > 500) {
+          return res.status(400).json({ error: 'Manual task-list order must be an array of at most 500 items.', code: 400 });
+        }
+        const manualIds = manualOrder.map(Number);
+        if (manualIds.some((id) => !Number.isSafeInteger(id) || id <= 0 || !validIds.has(id))
+            || new Set(manualIds).size !== manualIds.length) {
+          return res.status(400).json({ error: 'Manual task-list order contains an invalid id.', code: 400 });
+        }
+        saved.alphabetical[provider] = manualIds;
+      } else {
+        delete saved.alphabetical[provider];
+      }
     }
 
     saveTaskListOrder(database, userId, saved);

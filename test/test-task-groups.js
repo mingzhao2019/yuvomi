@@ -131,6 +131,31 @@ test('der Speicher-Schlüssel trennt die beiden Gruppierungen', () => {
   assert.equal(tasks.groupKey('due', 'overdue'), 'due:overdue');
 });
 
+test('Task-Listen sortieren nach dem Namen statt nach einem führenden Emoji', () => {
+  const lists = [
+    { id: 1, name: '✨ Wishlist' },
+    { id: 2, name: '📥 Inbox' },
+    { id: 3, name: 'Tasks' },
+    { id: 4, name: '⏳ TBD' },
+    { id: 5, name: '💡 Academic Idea' },
+    { id: 6, name: '♻️ Loop' },
+  ];
+
+  assert.equal(tasks.taskListAlphabeticalKey('📥 Inbox'), 'Inbox');
+  assert.equal(tasks.taskListAlphabeticalKey('  ✨ 愿望清单'), '愿望清单');
+  assert.deepEqual(
+    lists.sort(tasks.taskListNameComparator('en')).map((list) => list.name),
+    ['💡 Academic Idea', '📥 Inbox', '♻️ Loop', 'Tasks', '⏳ TBD', '✨ Wishlist'],
+  );
+});
+
+test('die Breite der Task-Listen-Seitenleiste folgt nur der Ziehstrecke', () => {
+  assert.equal(tasks.taskListSidebarWidthFromDrag(288, 500, 540), 328);
+  assert.equal(tasks.taskListSidebarWidthFromDrag(288, 500, 460), 248);
+  assert.equal(tasks.taskListSidebarWidthFromDrag(208, 500, 450), 208);
+  assert.equal(tasks.taskListSidebarWidthFromDrag(420, 500, 550), 420);
+});
+
 test('die Faelligkeits-Rechnung vergleicht Kalendertage, keine Zeitpunkte', () => {
   // Der Fall oben faengt den Fehler NUR in Zonen ab +12 Stunden: dort rundet
   // ein halber Tag Differenz auf einen ganzen auf, und eine heute faellige
