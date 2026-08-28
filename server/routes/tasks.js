@@ -402,6 +402,93 @@ class TaskListDeleteError extends Error {
   }
 }
 
+const TASK_LIST_ORDER_KEY = 'task_lists_order';
+const TASK_LIST_DEFAULT_SOURCE_ORDER = ['local', 'microsoft_todo', 'caldav'];
+const TASK_LIST_PROVIDER_RE = /^[a-z][a-z0-9_-]{0,63}$/;
+
+function taskListOrderKey(userId) {
+  return `${TASK_LIST_ORDER_KEY}:user:${Number(userId)}`;
+}
+
+/**
+ * A task-list order is a per-user display preference, not a property of the
+ * remote list. Keeping it in sync_config follows the existing personal
+ * preference storage without adding a second table just for navigation.
+ */
+function loadTaskListOrder(database, userId) {
+  const fallback = { sources: [], lists: {} };
+  if (!userId) return fallback;
+  const row = database.prepare('SELECT value FROM sync_config WHERE key = ?').get(taskListOrderKey(userId));
+  if (!row?.value) return fallback;
+  try {
+    const parsed = JSON.parse(row.value);
+    const sources = Array.isArray(parsed?.sources)
+      ? parsed.sources.filter((value) => typeof value === 'string' && TASK_LIST_PROVIDER_RE.test(value))
+      : [];
+    const lists = {};
+    if (parsed?.lists && typeof parsed.lists === 'object' && !Array.isArray(parsed.lists)) {
+      for (const [provider, ids] of Object.entries(parsed.lists)) {
+        if (!TASK_LIST_PROVIDER_RE.test(provider) || !Array.isArray(ids)) continue;
+        lists[provider] = [...new Set(ids
+          .map(Number)
+          .filter((id) => Number.isSafeInteger(id) && id > 0))];
+      }
+    }
+    return { sources: [...new Set(sources)], lists };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveTaskListOrder(database, userId, order) {
+  database.prepare(`
+    INSERT INTO sync_config (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value,
+                                   updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+  `).run(taskListOrderKey(userId), JSON.stringify(order));
+}
+
+function taskListProviderOrder(order, providers) {
+  const preferred = [...new Set([
+    ...(order.sources ?? []),
+    ...TASK_LIST_DEFAULT_SOURCE_ORDER,
+  ])];
+  const fallback = new Map(preferred.map((provider, index) => [provider, index]));
+  return [...providers].sort((a, b) =>
+    (fallback.get(a) ?? fallback.size) - (fallback.get(b) ?? fallback.size)
+    || a.localeCompare(b));
+}
+
+function orderTaskLists(database, lists, userId) {
+  const saved = loadTaskListOrder(database, userId);
+  const baseIndexes = new Map(lists.map((list, index) => [String(list.id), index]));
+  const providers = [...new Set(lists.map((list) => String(list.provider || 'unknown')))];
+  const providerRank = new Map(taskListProviderOrder(saved, providers).map((provider, index) => [provider, index]));
+  const listRanks = new Map(
+    Object.entries(saved.lists ?? {}).map(([provider, ids]) => [
+      provider,
+      new Map(ids.map((id, index) => [String(id), index])),
+    ]),
+  );
+
+  return lists.slice().sort((a, b) => {
+    const providerA = String(a.provider || 'unknown');
+    const providerB = String(b.provider || 'unknown');
+    const providerDelta = (providerRank.get(providerA) ?? providerRank.size)
+      - (providerRank.get(providerB) ?? providerRank.size);
+    if (providerDelta) return providerDelta;
+
+    const ranks = listRanks.get(providerA) ?? new Map();
+    const rankA = ranks.get(String(a.id));
+    const rankB = ranks.get(String(b.id));
+    if (rankA != null || rankB != null) {
+      return (rankA ?? ranks.size) - (rankB ?? ranks.size);
+    }
+    return (baseIndexes.get(String(a.id)) ?? 0) - (baseIndexes.get(String(b.id)) ?? 0);
+  });
+}
+
 function tableExists(database, name) {
   return !!database.prepare(
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
@@ -656,10 +743,76 @@ router.get('/lists', (req, res) => {
       });
     }
 
-    res.json({ data: lists });
+    const userId = req.authUserId || req.session?.userId;
+    const order = loadTaskListOrder(db.get(), userId);
+    res.json({ data: orderTaskLists(db.get(), lists, userId), order });
   } catch (err) {
     log.error('GET /lists error:', err);
     res.status(500).json({ error: 'Failed to list task lists.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// PATCH /api/v1/tasks/lists/reorder
+// Store the user's source order or the list order within one source. The
+// provider data itself is never changed; this is only navigation preference.
+// --------------------------------------------------------
+router.patch('/lists/reorder', (req, res) => {
+  const userId = req.authUserId || req.session?.userId;
+  if (!userId) return res.status(401).json({ error: 'Authentication required.', code: 401 });
+
+  const { provider, order } = req.body ?? {};
+  if (typeof provider !== 'string' || !TASK_LIST_PROVIDER_RE.test(provider)) {
+    return res.status(400).json({ error: 'A valid task-list provider is required.', code: 400 });
+  }
+  if (!Array.isArray(order) || order.length > 500) {
+    return res.status(400).json({ error: 'Task-list order must be an array of at most 500 items.', code: 400 });
+  }
+
+  try {
+    const database = db.get();
+    const saved = loadTaskListOrder(database, userId);
+
+    if (provider === 'sources') {
+      const sourceOrder = order.map(String);
+      if (sourceOrder.some((value) => !TASK_LIST_PROVIDER_RE.test(value))) {
+        return res.status(400).json({ error: 'Source order contains an invalid provider.', code: 400 });
+      }
+      if (new Set(sourceOrder).size !== sourceOrder.length) {
+        return res.status(400).json({ error: 'Source order cannot contain duplicates.', code: 400 });
+      }
+
+      const knownProviders = new Set([
+        ...TASK_LIST_DEFAULT_SOURCE_ORDER,
+        ...database.prepare('SELECT DISTINCT provider FROM task_lists WHERE provider IS NOT NULL').all()
+          .map((row) => String(row.provider)),
+      ]);
+      if (sourceOrder.some((value) => !knownProviders.has(value))) {
+        return res.status(400).json({ error: 'Source order contains an unknown provider.', code: 400 });
+      }
+      saved.sources = sourceOrder;
+    } else {
+      const listIds = order.map(Number);
+      if (listIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+        return res.status(400).json({ error: 'Task-list order contains an invalid id.', code: 400 });
+      }
+      if (new Set(listIds).size !== listIds.length) {
+        return res.status(400).json({ error: 'Task-list order cannot contain duplicates.', code: 400 });
+      }
+      const validIds = new Set(database.prepare(
+        'SELECT id FROM task_lists WHERE provider = ?'
+      ).all(provider).map((row) => Number(row.id)));
+      if (listIds.some((id) => !validIds.has(id))) {
+        return res.status(400).json({ error: 'Task-list order contains a list from another provider.', code: 400 });
+      }
+      saved.lists[provider] = listIds;
+    }
+
+    saveTaskListOrder(database, userId, saved);
+    return res.json({ data: saved });
+  } catch (err) {
+    log.error('PATCH /lists/reorder error:', err);
+    return res.status(500).json({ error: 'Failed to save task-list order.', code: 500 });
   }
 });
 

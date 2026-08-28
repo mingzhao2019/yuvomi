@@ -610,6 +610,45 @@ function seedDisabledCaldavTaskList(name = 'Delete me') {
   return { ...target, listId };
 }
 
+test('PATCH /lists/reorder: speichert persoenliche Quellen- und Listenreihenfolge', async () => {
+  const alpha = seedDisabledCaldavTaskList('Order alpha');
+  const beta = seedDisabledCaldavTaskList('Order beta');
+  const member = { id: BOB, role: 'member' };
+
+  const listOrder = await call('PATCH', '/lists/reorder', {
+    as: member,
+    body: { provider: 'caldav', order: [beta.listId, alpha.listId] },
+  });
+  assert.equal(listOrder.status, 200);
+  assert.deepEqual(listOrder.body.data.lists.caldav.slice(0, 2), [beta.listId, alpha.listId]);
+
+  const memberLists = await call('GET', '/lists', { as: member });
+  const memberCaldav = memberLists.body.data
+    .filter((list) => list.provider === 'caldav')
+    .map((list) => list.id);
+  assert.ok(memberCaldav.indexOf(beta.listId) < memberCaldav.indexOf(alpha.listId));
+
+  // ALICE hat keine BOB-Präferenz und erhält die natürliche Reihenfolge.
+  const adminLists = await call('GET', '/lists', { as: { id: ALICE, role: 'admin' } });
+  const adminCaldav = adminLists.body.data
+    .filter((list) => list.provider === 'caldav')
+    .map((list) => list.id);
+  assert.ok(adminCaldav.indexOf(alpha.listId) < adminCaldav.indexOf(beta.listId));
+
+  const sourceOrder = await call('PATCH', '/lists/reorder', {
+    as: member,
+    body: { provider: 'sources', order: ['caldav', 'local', 'microsoft_todo'] },
+  });
+  assert.equal(sourceOrder.status, 200);
+  assert.deepEqual(sourceOrder.body.data.sources, ['caldav', 'local', 'microsoft_todo']);
+
+  const invalid = await call('PATCH', '/lists/reorder', {
+    as: member,
+    body: { provider: 'caldav', order: [alpha.listId, alpha.listId] },
+  });
+  assert.equal(invalid.status, 400);
+});
+
 function insertListTask({
   listId,
   title,

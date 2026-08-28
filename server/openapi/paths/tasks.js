@@ -40,6 +40,15 @@ export function tasksPaths() {
         description: 'Lists are provider-backed identities. CalDAV and Microsoft To Do list rows include `sync_enabled`; the null-id `local` row is the compatibility bucket for tasks created before Task Lists.',
       }),
     },
+    '/api/v1/tasks/lists/reorder': {
+      patch: op({
+        summary: 'Save the current user’s Task List navigation order',
+        tag: 'Tasks',
+        stateChanging: true,
+        requestBody: jsonBody(null),
+        description: 'Body: `{ provider: "sources", order: ["caldav", ...] }` stores source order, or `{ provider: "caldav", order: [12, ...] }` stores the order of concrete lists within one provider. This changes only the signed-in user’s navigation preference, not a remote list or its tasks.',
+      }),
+    },
     '/api/v1/tasks/lists/{id}': {
       delete: op({
         summary: 'Delete a Task List and its local tasks',

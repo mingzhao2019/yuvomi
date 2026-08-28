@@ -41,8 +41,8 @@
  *
  * Task Lists sind eine eigene Navigation, keine weitere Filterachse: Die erste
  * Ebene gruppiert nach Quelle, die zweite zeigt die Listen dieser Quelle. Auf
- * kleinen Bildschirmen bleibt nur die kurze Quellenleiste horizontal; die
- * konkrete Liste wird anschließend als einzelnes Select gewählt.
+ * kleinen Bildschirmen werden Quelle und konkrete Liste als kompakte,
+ * eigene Dropdowns nebeneinander angeboten.
  * -------------------------------------------------------- */
 .tasks-layout {
   display: grid;
@@ -111,6 +111,18 @@ body.task-list-resizing * {
   gap: var(--space-1);
 }
 
+.task-list-nav__source-row {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.task-list-nav__source-row > .task-list-nav__source {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .task-list-nav__children {
   display: grid;
   gap: var(--space-1);
@@ -156,6 +168,65 @@ body.task-list-resizing * {
   color: var(--color-text-tertiary);
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.task-list-nav__sort,
+.task-list-nav__drag-handle {
+  display: grid;
+  flex: 0 0 var(--target-lg);
+  width: var(--target-lg);
+  min-height: var(--target-lg);
+  place-items: center;
+  padding: var(--space-2);
+  border: var(--space-px) solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-tertiary);
+}
+
+.task-list-nav__sort {
+  cursor: pointer;
+}
+
+.task-list-nav__sort:hover,
+.task-list-nav__sort:focus-visible {
+  border-color: var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--module-accent, var(--color-accent));
+}
+
+.task-list-nav__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.task-list-nav__drag-handle:hover,
+.task-list-nav__drag-handle:focus-visible {
+  border-color: var(--color-border);
+  color: var(--module-accent, var(--color-accent));
+  outline: none;
+}
+
+.task-list-nav__drag-handle:active {
+  cursor: grabbing;
+}
+
+.task-list-nav__item-row.sortable-chosen,
+.task-list-nav__group.sortable-chosen,
+.task-list-nav__menu-row.sortable-chosen {
+  opacity: 0.8;
+}
+
+.task-list-nav__item-row.sortable-ghost,
+.task-list-nav__group.sortable-ghost,
+.task-list-nav__menu-row.sortable-ghost {
+  opacity: 0.35;
+}
+
+.task-list-nav__item-row.sortable-drag,
+.task-list-nav__group.sortable-drag,
+.task-list-nav__menu-row.sortable-drag {
+  box-shadow: var(--shadow-md);
 }
 
 .task-list-nav__mobile {
@@ -265,32 +336,17 @@ body.task-list-resizing * {
     gap: var(--space-3);
   }
 
-  .task-list-nav__sources {
-    display: flex;
-    gap: var(--space-1);
-    overflow-x: auto;
-    padding-bottom: var(--space-1);
-    scrollbar-width: none;
-  }
-
-  .task-list-nav__sources::-webkit-scrollbar {
-    display: none;
-  }
-
-  .task-list-nav__sources .task-list-nav__source {
-    width: auto;
-    min-width: 8rem;
-    flex: 0 0 auto;
-  }
-
-  .task-list-nav__sources .task-list-nav__label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .task-list-nav__mobile-select {
+  .task-list-nav__mobile-fields {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    align-items: end;
+  }
+
+  .task-list-nav__mobile-field {
+    position: relative;
+    display: grid;
+    min-width: 0;
     gap: var(--space-1);
   }
 
@@ -302,15 +358,98 @@ body.task-list-resizing * {
     text-transform: uppercase;
   }
 
-  .task-list-nav__select {
-    width: 100%;
+  .task-list-nav__mobile-select-controls {
+    display: flex;
     min-width: 0;
+    align-items: stretch;
+    gap: var(--space-1);
   }
 
-  .task-list-nav__mobile-actions {
+  .task-list-nav__select-trigger {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    overflow: hidden;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .task-list-nav__select-trigger:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  .task-list-nav__select-trigger-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .task-list-nav__dropdown-menu {
+    position: absolute;
+    z-index: var(--z-dropdown);
+    inset-inline: 0;
+    top: calc(100% + var(--space-1));
+    max-height: min(60dvh, 22rem);
+    overflow-y: auto;
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-md);
+  }
+
+  .task-list-nav__menu-list {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .task-list-nav__menu-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .task-list-nav__menu-option {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-primary);
+    font: inherit;
+    text-align: start;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+
+  .task-list-nav__menu-option:hover,
+  .task-list-nav__menu-option:focus-visible {
+    border-color: var(--color-border);
+    background: var(--color-surface-2);
+    outline: none;
+  }
+
+  .task-list-nav__menu-row .task-list-nav__drag-handle,
+  .task-list-nav__menu-row .task-list-nav__delete {
+    flex: 0 0 var(--target-lg);
+  }
+
+  .task-list-nav__mobile .task-list-nav__sort {
+    flex: 0 0 var(--target-lg);
+  }
+
+  .task-list-nav__mobile .task-list-nav__delete {
+    width: var(--target-lg);
+    min-width: var(--target-lg);
+    min-height: var(--target-lg);
+    padding: var(--space-2);
   }
 
   .task-list-nav__account {
@@ -331,6 +470,41 @@ body.task-list-resizing * {
  * eigene, immer sichtbare Filterzeile darunter. */
 .tasks-toolbar__search {
   max-width: 320px;
+}
+
+/* Mobile tasks keep the search entry beside the large title. The shared
+ * toolbar otherwise places an empty search in its own line. */
+@media (max-width: 767px) {
+  .tasks-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title) {
+    align-items: center;
+  }
+
+  .tasks-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .page-toolbar__title {
+    flex: 1 1 auto;
+    flex-basis: auto;
+  }
+
+  .tasks-toolbar > .page-search {
+    order: 0;
+    flex: 0 0 var(--target-base);
+    width: var(--target-base);
+    min-width: var(--target-base);
+    max-width: var(--target-base);
+  }
+
+  .tasks-toolbar > .page-search:focus-within {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .tasks-toolbar > .page-toolbar__actions {
+    flex-basis: 100%;
+    order: 2;
+    margin-inline-start: 0;
+  }
 }
 
 /* Hier stand ein Override auf --target-base. Er hat die Shell repariert, nicht

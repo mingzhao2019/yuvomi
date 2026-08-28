@@ -21,6 +21,7 @@ import { isPreviewable } from '/utils/document-preview.js';
 import { renderDocumentAttachField, bindDocumentAttachField } from '/components/document-attach.js';
 import { splitMentions, applyMention } from '/utils/mentions.js';
 import { emptyStateHTML, mountLoadError } from '/utils/empty-state.js';
+import { makeSortable } from '/utils/sortable.js';
 import '/components/category-manager.js';
 import '/components/tag-manager.js';
 import { findPageFab } from '/utils/fab.js';
@@ -44,7 +45,6 @@ const PRIORITIES = () => [
 const PRIO_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
 const TASK_LIST_SOURCE_SCOPE_PREFIX = 'source:';
-const TASK_LIST_SOURCE_ORDER = ['local', 'microsoft_todo', 'caldav'];
 
 // Die Zustände, die eine Aufgabe im Lauf durchläuft. Das Archiv steht seit #688
 // NICHT mehr darunter: Ablegen und Erledigen sind zwei Aussagen, und solange sie
@@ -98,10 +98,31 @@ function catLabel(key, categories = state.categories) {
 }
 
 /** Display label for a provider-independent Task List. */
+function taskListAccountKey(list) {
+  return list?.external_account_id != null
+    ? `id:${list.external_account_id}`
+    : list?.account_name ? `name:${list.account_name}` : null;
+}
+
+function taskListProviderAccountCount(provider) {
+  if (!provider || provider === 'local') return 0;
+  const accounts = new Set(
+    (state.taskLists ?? [])
+      .filter((list) => list?.provider === provider)
+      .map(taskListAccountKey)
+      .filter(Boolean),
+  );
+  return accounts.size;
+}
+
+function shouldShowTaskListAccount(list) {
+  return !!list?.account_name && taskListProviderAccountCount(list.provider) > 1;
+}
+
 function taskListLabel(list) {
   if (!list) return t('tasks.taskListLocal');
   const name = list.name || t('tasks.taskListLocal');
-  return list.account_name ? `${list.account_name} · ${name}` : name;
+  return shouldShowTaskListAccount(list) ? `${list.account_name} · ${name}` : name;
 }
 
 /** Display label for the first level of the Task List navigation. */
@@ -1250,6 +1271,7 @@ let state = {
   users:           [],
   categories:      [],
   taskLists:       [],       // first-class source/local Task Lists (#163)
+  taskListOrder:   { sources: [], lists: {} },
   allTags:         [],       // [{ tag, count }] für Filterleiste und Vorschläge (#586)
   defaultPoints:   0,        // Haushalt-Standard für neue Aufgaben (#578), 0 = aus
   currentUserId:   null,
@@ -1367,6 +1389,7 @@ async function loadTasks(container) {
 async function loadTaskLists(container) {
   const data = await api.get('/tasks/lists');
   state.taskLists = data.data ?? [];
+  state.taskListOrder = normalizeTaskListOrder(data.order);
   renderTaskLists(container);
 }
 
@@ -3539,7 +3562,8 @@ function renderFilters(container) {
   const activeCount    = (state.viewMode === 'kanban' ? 0 : state.filters.status.length)
     + state.filters.priority.length
     + state.filters.assigned_to.length
-    + state.filters.tags.length;
+    + state.filters.tags.length
+    + (state.showFuture ? 1 : 0);
 
   // ---- Chip-Leiste: nur aktive Filter + Toggle-Button ----
   bar.replaceChildren();
@@ -3600,21 +3624,6 @@ function renderFilters(container) {
     if (meActive) meChip.appendChild(makeRemoveSpan());
     bar.appendChild(meChip);
   }
-
-  // "Geplante anzeigen" Toggle-Chip — Icon+Label wie „Mir zugewiesen" (beide Toggles).
-  const futureChip = makeChip({ label: null, active: state.showFuture, extraClass: 'filter-chip--toggle' });
-  futureChip.id = 'filter-show-future';
-  const futureIcon = document.createElement('i');
-  futureIcon.setAttribute('data-lucide', 'calendar-clock');
-  futureIcon.className = 'icon-sm';
-  futureIcon.setAttribute('aria-hidden', 'true');
-  const futureLabel = document.createElement('span');
-  futureLabel.textContent = t('tasks.showFuture');
-  futureChip.append(futureIcon, futureLabel);
-  if (state.showFuture) {
-    futureChip.appendChild(makeRemoveSpan());
-  }
-  bar.appendChild(futureChip);
 
   const toggleBtn = document.createElement('button');
   toggleBtn.id = 'filter-toggle-btn';
@@ -3691,6 +3700,11 @@ function renderFilters(container) {
         label: t('tasks.filterGroupPriority'),
         items: PRIORITIES().map((p) => ({ value: p.value, label: p.label })),
       },
+      {
+        key: 'show_future',
+        label: t('tasks.filterGroupSchedule'),
+        items: [{ value: '1', label: t('tasks.includeFuture') }],
+      },
     ];
     if (state.users.length > 1) {
       groups.push({
@@ -3728,7 +3742,7 @@ function renderFilters(container) {
         // sich nur darin, dass ihre Zugehörigkeit die Schreibweise ignoriert.
         const isActive = group.key === 'tag'
           ? hasTagFilter(item.value)
-          : hasFilter(group.key, item.value);
+          : group.key === 'show_future' ? state.showFuture : hasFilter(group.key, item.value);
         const chip = makeChip({ label: item.label, active: isActive, withRemove: isActive });
         chip.dataset.filter = group.key;
         chip.dataset.value = item.value;
@@ -3783,12 +3797,29 @@ const ACTIVE_TASK_LIST_KEY = 'yuvomi:activeTaskList';
 const TASK_LIST_SIDEBAR_WIDTH_KEY = 'yuvomi:taskListSidebarWidth';
 const TASK_LIST_SIDEBAR_MIN = 208;
 const TASK_LIST_SIDEBAR_MAX = 420;
+const TASK_LIST_DEFAULT_SOURCE_ORDER = ['local', 'microsoft_todo', 'caldav'];
+let taskListSortables = [];
+const taskListOrderRuns = new Map();
 
 function restoreActiveTaskList() {
   try {
     const saved = localStorage.getItem(ACTIVE_TASK_LIST_KEY);
     if (saved) state.activeTaskListId = saved;
   } catch {}
+}
+
+function normalizeTaskListOrder(order) {
+  const sources = Array.isArray(order?.sources)
+    ? [...new Set(order.sources.filter((value) => typeof value === 'string'))]
+    : [];
+  const lists = {};
+  if (order?.lists && typeof order.lists === 'object' && !Array.isArray(order.lists)) {
+    for (const [provider, ids] of Object.entries(order.lists)) {
+      if (!Array.isArray(ids)) continue;
+      lists[provider] = [...new Set(ids.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))];
+    }
+  }
+  return { sources, lists };
 }
 
 /**
@@ -3798,24 +3829,17 @@ function restoreActiveTaskList() {
  */
 function taskListSourceGroups() {
   const local = state.taskLists.find((list) => list.id == null);
-  const groups = [
-    { key: 'all', provider: 'all', name: t('common.all'), lists: [] },
-    {
-      key: 'local',
+  const byProvider = new Map([
+    ['local', [{
+      id: 'local',
+      name: local?.name || t('tasks.taskListLocal'),
       provider: 'local',
-      name: taskListSourceLabel('local'),
-      lists: [{
-        id: 'local',
-        name: local?.name || t('tasks.taskListLocal'),
-        provider: 'local',
-        account_name: null,
-        sync_enabled: 0,
-        task_count: local?.task_count ?? 0,
-      }],
-    },
-  ];
+      account_name: null,
+      sync_enabled: 0,
+      task_count: local?.task_count ?? 0,
+    }]],
+  ]);
 
-  const byProvider = new Map();
   for (const rawList of state.taskLists ?? []) {
     if (rawList.id == null || rawList.provider === 'local') continue;
     // The API also serves disconnected lists so the user can delete them
@@ -3829,17 +3853,32 @@ function taskListSourceGroups() {
     byProvider.get(provider).push({ ...rawList, id: String(rawList.id) });
   }
 
-  const sourceOrder = (provider) => {
-    const index = TASK_LIST_SOURCE_ORDER.indexOf(provider);
-    return index === -1 ? TASK_LIST_SOURCE_ORDER.length : index;
+  const savedSourceOrder = state.taskListOrder?.sources ?? [];
+  const preferredSources = [...new Set([
+    ...savedSourceOrder,
+    ...TASK_LIST_DEFAULT_SOURCE_ORDER,
+  ])];
+  const sourceRank = (provider) => {
+    const index = preferredSources.indexOf(provider);
+    return index === -1 ? preferredSources.length : index;
   };
+  const orderLists = (provider, lists) => {
+    const preferred = state.taskListOrder?.lists?.[provider] ?? [];
+    const ranks = new Map(preferred.map((id, index) => [String(id), index]));
+    return lists.slice().sort((a, b) =>
+      (ranks.get(String(a.id)) ?? ranks.size) - (ranks.get(String(b.id)) ?? ranks.size)
+      || String(a.name || '').localeCompare(String(b.name || ''), getLocale(), { sensitivity: 'base', numeric: true })
+      || String(a.id).localeCompare(String(b.id)));
+  };
+
+  const groups = [{ key: 'all', provider: 'all', name: t('common.all'), lists: [] }];
   for (const provider of [...byProvider.keys()].sort((a, b) =>
-    sourceOrder(a) - sourceOrder(b) || a.localeCompare(b))) {
+    sourceRank(a) - sourceRank(b) || a.localeCompare(b))) {
     groups.push({
       key: provider,
       provider,
       name: taskListSourceLabel(provider),
-      lists: byProvider.get(provider),
+      lists: orderLists(provider, byProvider.get(provider)),
     });
   }
   return groups;
@@ -3953,6 +3992,199 @@ function makeTaskListDeleteButton(item, container) {
   return button;
 }
 
+function cloneTaskListOrder(order = state.taskListOrder) {
+  return {
+    sources: [...(order?.sources ?? [])],
+    lists: Object.fromEntries(
+      Object.entries(order?.lists ?? {}).map(([provider, ids]) => [provider, [...ids]]),
+    ),
+  };
+}
+
+function setTaskListOrder(scope, order) {
+  if (scope === 'sources') {
+    state.taskListOrder.sources = [...new Set(order.map(String))];
+    return;
+  }
+  state.taskListOrder.lists[scope] = [...new Set(order.map(Number))]
+    .filter((id) => Number.isSafeInteger(id) && id > 0);
+}
+
+function taskListOrderKey(scope) {
+  return scope === 'sources' ? 'sources' : `lists:${scope}`;
+}
+
+function restoreTaskListOrderScope(scope, order) {
+  if (scope === 'sources') {
+    state.taskListOrder.sources = [...(order?.sources ?? [])];
+    return;
+  }
+  if (Object.prototype.hasOwnProperty.call(order?.lists ?? {}, scope)) {
+    state.taskListOrder.lists[scope] = [...order.lists[scope]];
+  } else {
+    delete state.taskListOrder.lists[scope];
+  }
+}
+
+/** Send one order at a time; a quick second move is folded into the next run. */
+function persistTaskListOrder(container, scope, readOrder, rollbackOrder = cloneTaskListOrder()) {
+  const key = taskListOrderKey(scope);
+  const running = taskListOrderRuns.get(key);
+  if (running) {
+    running.again = true;
+    // The original DOM can be detached when the user changes source while a
+    // save is in flight. Keep the newest reader so the folded request reads
+    // the current menu instead of an orphaned element.
+    running.readOrder = readOrder;
+    return;
+  }
+
+  const run = { again: false, rollback: rollbackOrder, readOrder };
+  taskListOrderRuns.set(key, run);
+  (async () => {
+    try {
+      do {
+        run.again = false;
+        const order = run.readOrder();
+        setTaskListOrder(scope, order);
+        const data = await api.patch('/tasks/lists/reorder', {
+          provider: scope === 'sources' ? 'sources' : scope,
+          order,
+        });
+        // If another move happened while this request was in flight, keep the
+        // newer client order for the next folded request instead of replacing
+        // it with this response.
+        if (data?.data && !run.again) {
+          const saved = normalizeTaskListOrder(data.data);
+          if (scope === 'sources') state.taskListOrder.sources = saved.sources;
+          else state.taskListOrder.lists[scope] = saved.lists[scope] ?? [];
+        }
+      } while (run.again);
+    } catch (err) {
+      // Preserve a successful reorder from another source/list scope that may
+      // have completed while this request was in flight.
+      restoreTaskListOrderScope(scope, run.rollback);
+      renderTaskLists(container);
+      window.yuvomi.showToast(err.data?.error ?? t('tasks.taskListOrderSaveError'), 'danger');
+    } finally {
+      taskListOrderRuns.delete(key);
+    }
+  })();
+}
+
+function destroyTaskListSortables() {
+  taskListSortables.forEach((sortable) => {
+    try { sortable.destroy(); } catch { /* the old DOM may already be gone */ }
+  });
+  taskListSortables = [];
+}
+
+function taskListOrderElements(parent, selector) {
+  return [...(parent?.children ?? [])].filter((element) => element.matches(selector));
+}
+
+function taskListOrderFromElements(parent, selector, attribute) {
+  return taskListOrderElements(parent, selector)
+    .map((element) => element.dataset[attribute])
+    .filter((value) => value != null);
+}
+
+function announceTaskListMove(container, element, position, total) {
+  const live = container?.querySelector('#task-list-reorder-announce');
+  if (!live || !element) return;
+  const name = element.dataset.taskSource
+    ? element.querySelector('.task-list-nav__label')?.textContent?.trim()
+    : taskListLabel(state.taskLists.find((list) => String(list.id) === String(element.dataset.taskListId)));
+  live.textContent = t('tasks.taskListReorderAnnounce', {
+    name: name || t('tasks.taskListLabel'),
+    position,
+    total,
+  });
+}
+
+function moveTaskListElement(element, delta, container) {
+  if (!element) return;
+  const isSource = element.dataset.reorderKind === 'source';
+  const isDesktopSource = element.classList.contains('task-list-nav__group');
+  const selector = isSource
+    ? (isDesktopSource
+      ? '.task-list-nav__group[data-task-source]:not([data-task-source="all"])'
+      : '.task-list-nav__menu-row[data-task-source]:not([data-task-source="all"])')
+    : (element.classList.contains('task-list-nav__item-row')
+      ? '.task-list-nav__item-row[data-task-list-id]'
+      : '.task-list-nav__menu-row[data-task-list-id][data-sortable="true"]');
+  const siblings = taskListOrderElements(element.parentElement, selector);
+  const index = siblings.indexOf(element);
+  const targetIndex = index + delta;
+  if (index < 0 || targetIndex < 0 || targetIndex >= siblings.length) return;
+
+  if (delta < 0) element.parentElement.insertBefore(element, siblings[targetIndex]);
+  else element.parentElement.insertBefore(element, siblings[targetIndex].nextSibling);
+
+  const scope = isSource ? 'sources' : element.dataset.taskListProvider;
+  const attribute = isSource ? 'taskSource' : 'taskListId';
+  const readOrder = () => taskListOrderFromElements(element.parentElement, selector, attribute)
+    .map((value) => isSource ? value : Number(value));
+  const rollback = cloneTaskListOrder();
+  const position = taskListOrderElements(element.parentElement, selector).indexOf(element) + 1;
+  announceTaskListMove(container, element, position, siblings.length);
+  element.querySelector('.task-list-nav__drag-handle')?.focus();
+  if (scope) persistTaskListOrder(container, scope, readOrder, rollback);
+}
+
+function makeTaskListDragHandle(name, kind, provider = '') {
+  const handle = document.createElement('span');
+  handle.className = 'task-list-nav__drag-handle';
+  handle.dataset.reorderKind = kind;
+  if (provider) handle.dataset.taskListProvider = provider;
+  handle.tabIndex = 0;
+  handle.setAttribute('role', 'button');
+  handle.setAttribute('aria-label', t('tasks.taskListReorderHandle', { name }));
+  handle.title = t('tasks.taskListReorderHint');
+  const icon = document.createElement('i');
+  icon.setAttribute('data-lucide', 'grip-vertical');
+  icon.className = 'icon-sm';
+  icon.setAttribute('aria-hidden', 'true');
+  handle.appendChild(icon);
+  handle.addEventListener('click', (event) => event.stopPropagation());
+  return handle;
+}
+
+function makeTaskListSortButton(group, container) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'task-list-nav__sort';
+  button.title = t('tasks.taskListSortAlphabetical');
+  button.setAttribute('aria-label', `${t('tasks.taskListSortAlphabetical')}: ${group.name}`);
+  const icon = document.createElement('i');
+  icon.setAttribute('data-lucide', 'arrow-down-a-z');
+  icon.className = 'icon-sm';
+  icon.setAttribute('aria-hidden', 'true');
+  button.appendChild(icon);
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    sortTaskListGroup(group, container);
+  });
+  return button;
+}
+
+function sortTaskListGroup(group, container) {
+  if (!group || group.key === 'local') return;
+  const collator = new Intl.Collator(getLocale(), { sensitivity: 'base', numeric: true });
+  const sorted = group.lists.slice().sort((a, b) =>
+    collator.compare(String(a.name || ''), String(b.name || ''))
+    || collator.compare(String(a.account_name || ''), String(b.account_name || ''))
+    || String(a.id).localeCompare(String(b.id)));
+  const order = sorted.filter(isConcreteTaskList).map((item) => Number(item.id));
+  const current = state.taskListOrder?.lists?.[group.key] ?? [];
+  if (order.length === current.length && order.every((id, index) => Number(current[index]) === id)) return;
+  const rollback = cloneTaskListOrder();
+  setTaskListOrder(group.key, order);
+  renderTaskLists(container);
+  persistTaskListOrder(container, group.key, () => state.taskListOrder.lists[group.key], rollback);
+}
+
 async function handleDeleteTaskList(item, container) {
   if (!isConcreteTaskList(item)) return;
   if (!taskListIsDisconnected(item)) {
@@ -4005,7 +4237,7 @@ function appendTaskListNavButton(
   parent,
   item,
   container,
-  { source = false } = {},
+  { source = false, draggable = false } = {},
 ) {
   const active = source
     ? taskListSourceKeyForScope() === item.key
@@ -4030,7 +4262,7 @@ function appendTaskListNavButton(
   label.className = 'task-list-nav__label';
   label.textContent = source ? item.name : (item.name || t('tasks.taskListLocal'));
   text.appendChild(label);
-  if (!source && item.account_name) {
+  if (!source && shouldShowTaskListAccount(item)) {
     const account = document.createElement('span');
     account.className = 'task-list-nav__account';
     account.textContent = item.account_name;
@@ -4045,6 +4277,11 @@ function appendTaskListNavButton(
   }
 
   button.append(icon, text);
+  const dragHandle = draggable ? makeTaskListDragHandle(
+    source ? item.name : taskListLabel(item),
+    source ? 'source' : 'list',
+    source ? '' : item.provider,
+  ) : null;
   button.addEventListener('click', () => {
     if (source) activateTaskListSource(item, container);
     else activateTaskListScope(item.id, container);
@@ -4052,65 +4289,226 @@ function appendTaskListNavButton(
   if (!source && isConcreteTaskList(item)) {
     const row = document.createElement('div');
     row.className = 'task-list-nav__item-row';
-    row.append(button, makeTaskListDeleteButton(item, container));
+    row.dataset.taskListId = String(item.id);
+    row.dataset.taskListProvider = item.provider;
+    row.append(button);
+    if (dragHandle) row.append(dragHandle);
+    row.append(makeTaskListDeleteButton(item, container));
     parent.appendChild(row);
   } else {
-    parent.appendChild(button);
+    parent.append(button);
+    if (dragHandle) parent.append(dragHandle);
   }
+}
+
+function makeTaskListDropdownField({
+  id,
+  label,
+  value,
+  options,
+  disabled = false,
+  placeholder,
+  container,
+  kind,
+  provider = '',
+  sortGroup = null,
+}) {
+  const field = document.createElement('div');
+  field.className = 'task-list-nav__mobile-field';
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'task-list-nav__select-label';
+  labelEl.id = `${id}-label`;
+  labelEl.textContent = label;
+
+  const controls = document.createElement('div');
+  controls.className = 'task-list-nav__mobile-select-controls';
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'form-input task-list-nav__select-trigger';
+  trigger.id = id;
+  trigger.disabled = disabled;
+  trigger.setAttribute('aria-labelledby', labelEl.id);
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-controls', `${id}-menu`);
+  trigger.setAttribute('aria-expanded', 'false');
+
+  const triggerText = document.createElement('span');
+  triggerText.className = 'task-list-nav__select-trigger-text';
+  triggerText.textContent = options.find((option) => String(option.value) === String(value))?.label || placeholder;
+  const triggerIcon = document.createElement('i');
+  triggerIcon.setAttribute('data-lucide', 'chevron-down');
+  triggerIcon.className = 'icon-sm';
+  triggerIcon.setAttribute('aria-hidden', 'true');
+  trigger.append(triggerText, triggerIcon);
+
+  const menu = document.createElement('div');
+  menu.className = 'task-list-nav__dropdown-menu';
+  menu.id = `${id}-menu`;
+  menu.hidden = true;
+  menu.setAttribute('role', 'listbox');
+  menu.setAttribute('aria-labelledby', labelEl.id);
+  menu.dataset.reorderKind = kind;
+  if (provider) menu.dataset.taskListProvider = provider;
+
+  const menuRows = document.createElement('div');
+  menuRows.className = 'task-list-nav__menu-list';
+  for (const option of options) {
+    const row = document.createElement('div');
+    row.className = 'task-list-nav__menu-row';
+    if (kind === 'source') row.dataset.taskSource = option.value;
+    else {
+      row.dataset.taskListId = String(option.value);
+      row.dataset.taskListProvider = provider;
+      if (isConcreteTaskList(option.item)) row.dataset.sortable = 'true';
+    }
+    row.dataset.reorderKind = kind;
+
+    const optionButton = document.createElement('button');
+    optionButton.type = 'button';
+    optionButton.className = 'task-list-nav__menu-option';
+    optionButton.setAttribute('role', 'option');
+    optionButton.setAttribute('aria-selected', String(String(option.value) === String(value)));
+    optionButton.textContent = option.label;
+    optionButton.addEventListener('click', () => {
+      if (kind === 'source') activateTaskListSource(option.item, container);
+      else activateTaskListScope(option.value, container);
+      close();
+    });
+    row.appendChild(optionButton);
+
+    if (option.draggable) {
+      row.appendChild(makeTaskListDragHandle(option.label, kind, provider));
+    }
+    if (option.item && isConcreteTaskList(option.item)) {
+      row.appendChild(makeTaskListDeleteButton(option.item, container));
+    }
+    menuRows.appendChild(row);
+  }
+  menu.appendChild(menuRows);
+
+  let isOpen = false;
+  let cleanup = null;
+  const close = ({ focus = false } = {}) => {
+    if (!isOpen) return;
+    isOpen = false;
+    menu.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    cleanup?.();
+    cleanup = null;
+    if (focus) trigger.focus();
+  };
+  const open = () => {
+    if (disabled || isOpen) return;
+    closeTaskListDropdowns();
+    isOpen = true;
+    menu.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    const outside = (event) => {
+      if (!field.contains(event.target)) close();
+    };
+    const escape = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close({ focus: true });
+      }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    cleanup = () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+      const index = taskListDropdownCleanups.indexOf(close);
+      if (index >= 0) taskListDropdownCleanups.splice(index, 1);
+    };
+    taskListDropdownCleanups.push(close);
+    menu.querySelector('[role="option"]')?.focus();
+  };
+  trigger.addEventListener('click', () => (isOpen ? close() : open()));
+  trigger.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    open();
+  });
+  menu.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close({ focus: true });
+      return;
+    }
+    if (!event.target.matches?.('[role="option"]')) return;
+    const options = [...menu.querySelectorAll('[role="option"]')];
+    const index = options.indexOf(event.target);
+    if (!options.length || index < 0) return;
+    let nextIndex = null;
+    if (event.key === 'ArrowDown') nextIndex = Math.min(index + 1, options.length - 1);
+    if (event.key === 'ArrowUp') nextIndex = Math.max(index - 1, 0);
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = options.length - 1;
+    if (nextIndex != null) {
+      event.preventDefault();
+      options[nextIndex].focus();
+    }
+  });
+
+  controls.append(trigger);
+  if (sortGroup) controls.appendChild(makeTaskListSortButton(sortGroup, container));
+  field.append(labelEl, controls, menu);
+  return field;
+}
+
+const taskListDropdownCleanups = [];
+
+function closeTaskListDropdowns() {
+  [...taskListDropdownCleanups].forEach((close) => close());
 }
 
 function renderMobileTaskListNav(parent, groups, container) {
   const mobile = document.createElement('div');
   mobile.className = 'task-list-nav__mobile';
 
-  const sourceBar = document.createElement('div');
-  sourceBar.className = 'task-list-nav__sources';
-  sourceBar.setAttribute('role', 'group');
-  sourceBar.setAttribute('aria-label', t('tasks.taskListLabel'));
-  for (const group of groups) appendTaskListNavButton(sourceBar, group, container, { source: true });
-  mobile.appendChild(sourceBar);
-
+  const fields = document.createElement('div');
+  fields.className = 'task-list-nav__mobile-fields';
   const activeSource = taskListSourceKeyForScope();
   const group = groups.find((entry) => entry.key === activeSource);
-  if (group && group.key !== 'all') {
-    const field = document.createElement('div');
-    field.className = 'task-list-nav__mobile-select';
-    const label = document.createElement('label');
-    label.className = 'task-list-nav__select-label';
-    label.htmlFor = 'task-list-mobile-select';
-    label.textContent = t('tasks.taskListLabel');
+  const sourceOptions = groups.map((entry) => ({
+    value: entry.key,
+    label: entry.name,
+    item: entry,
+    draggable: entry.key !== 'all',
+  }));
+  fields.appendChild(makeTaskListDropdownField({
+    id: 'task-source-mobile-select',
+    label: t('tasks.taskSourceLabel'),
+    value: activeSource,
+    options: sourceOptions,
+    placeholder: t('tasks.taskSourceSelect'),
+    container,
+    kind: 'source',
+  }));
 
-    const select = document.createElement('select');
-    select.id = 'task-list-mobile-select';
-    select.className = 'form-input task-list-nav__select';
-    select.setAttribute('aria-label', `${t('tasks.taskListLabel')}: ${group.name}`);
-
-    for (const item of group.lists) {
-      const option = document.createElement('option');
-      option.value = String(item.id);
-      option.textContent = taskListOptionLabel(item);
-      select.appendChild(option);
-    }
-
-    const scope = String(state.activeTaskListId);
-    if (group.lists.some((item) => String(item.id) === scope)) {
-      select.value = scope;
-    } else if (group.lists[0]) {
-      select.value = String(group.lists[0].id);
-    }
-    select.addEventListener('change', (event) => {
-      activateTaskListScope(event.target.value, container);
-    });
-    field.append(label, select);
-    const selectedList = group.lists.find((item) => String(item.id) === String(select.value));
-    if (selectedList && isConcreteTaskList(selectedList)) {
-      const actions = document.createElement('div');
-      actions.className = 'task-list-nav__mobile-actions';
-      actions.appendChild(makeTaskListDeleteButton(selectedList, container));
-      field.appendChild(actions);
-    }
-    mobile.appendChild(field);
-  }
+  const listOptions = group?.key !== 'all'
+    ? group?.lists.map((item) => ({
+      value: item.id,
+      label: taskListOptionLabel(item),
+      item,
+      draggable: isConcreteTaskList(item),
+    })) ?? []
+    : [];
+  const selectedList = listOptions.find((option) => String(option.value) === String(state.activeTaskListId));
+  fields.appendChild(makeTaskListDropdownField({
+    id: 'task-list-mobile-select',
+    label: t('tasks.taskListShortLabel'),
+    value: selectedList?.value ?? '',
+    options: listOptions,
+    disabled: group?.key === 'all',
+    placeholder: group?.key === 'all' ? t('tasks.taskListSelectSource') : t('tasks.taskListSelect'),
+    container,
+    kind: 'list',
+    provider: group?.key ?? '',
+    sortGroup: group && group.lists.filter(isConcreteTaskList).length > 1 ? group : null,
+  }));
+  mobile.appendChild(fields);
   parent.appendChild(mobile);
 }
 
@@ -4118,37 +4516,173 @@ function renderMobileTaskListNav(parent, groups, container) {
 function renderTaskLists(container) {
   const nav = container.querySelector('#task-lists-nav');
   if (!nav) return;
+  closeTaskListDropdowns();
+  destroyTaskListSortables();
   normalizeActiveTaskList();
   nav.replaceChildren();
 
   const title = document.createElement('h2');
   title.className = 'task-lists-sidebar__title';
   title.id = 'task-lists-title';
-  title.textContent = t('tasks.taskListLabel');
+  title.textContent = t('tasks.taskSourceLabel');
 
   const groups = taskListSourceGroups();
   const desktop = document.createElement('div');
   desktop.className = 'task-list-nav__desktop';
+  const draggableSourceCount = groups.filter((group) => group.key !== 'all').length;
   const activeScope = String(state.activeTaskListId);
   const focusedSource = activeScope === 'all' ? 'all' : taskListSourceKeyForScope(activeScope);
   for (const group of groups) {
     const groupEl = document.createElement('div');
     groupEl.className = 'task-list-nav__group';
-    appendTaskListNavButton(groupEl, group, container, { source: true });
+    groupEl.dataset.taskSource = group.key;
+    groupEl.dataset.reorderKind = 'source';
+    const sourceRow = document.createElement('div');
+    sourceRow.className = 'task-list-nav__source-row';
+    appendTaskListNavButton(sourceRow, group, container, {
+      source: true,
+      draggable: group.key !== 'all' && draggableSourceCount > 1,
+    });
+    if (group.key !== 'all' && group.lists.filter(isConcreteTaskList).length > 1) {
+      sourceRow.appendChild(makeTaskListSortButton(group, container));
+    }
+    groupEl.appendChild(sourceRow);
     const showChildren = group.lists.length > 0
       && (focusedSource === 'all' || focusedSource === group.key);
     if (showChildren) {
       const children = document.createElement('div');
       children.className = 'task-list-nav__children';
-      for (const item of group.lists) appendTaskListNavButton(children, item, container);
+      children.dataset.taskListProvider = group.key;
+      for (const item of group.lists) {
+        appendTaskListNavButton(children, item, container, {
+          draggable: isConcreteTaskList(item),
+        });
+      }
       groupEl.appendChild(children);
     }
     desktop.appendChild(groupEl);
   }
 
-  nav.append(title, desktop);
+  const live = document.createElement('div');
+  live.className = 'sr-only';
+  live.id = 'task-list-reorder-announce';
+  live.setAttribute('role', 'status');
+  live.setAttribute('aria-live', 'polite');
+  nav.append(title, desktop, live);
   renderMobileTaskListNav(nav, groups, container);
   if (window.lucide) window.lucide.createIcons({ el: nav });
+  wireTaskListReorder(container);
+}
+
+function wireTaskListReorder(container) {
+  const nav = container.querySelector('#task-lists-nav');
+  if (!nav) return;
+  const desktop = nav.querySelector('.task-list-nav__desktop');
+  if (desktop) {
+    makeSortable(desktop, {
+      handle: '.task-list-nav__drag-handle',
+      draggable: '.task-list-nav__group[data-task-source]:not([data-task-source="all"])',
+      onEnd: (event) => {
+        const element = event?.item;
+        const siblings = taskListOrderElements(desktop,
+          '.task-list-nav__group[data-task-source]:not([data-task-source="all"])');
+        const rollback = cloneTaskListOrder();
+        announceTaskListMove(container, element, siblings.indexOf(element) + 1, siblings.length);
+        persistTaskListOrder(
+          container,
+          'sources',
+          () => taskListOrderFromElements(
+            desktop,
+            '.task-list-nav__group[data-task-source]:not([data-task-source="all"])',
+            'taskSource',
+          ),
+          rollback,
+        );
+      },
+    }).then((sortable) => {
+      if (sortable && desktop.isConnected) taskListSortables.push(sortable);
+      else sortable?.destroy();
+    }).catch(() => {});
+
+    desktop.querySelectorAll('.task-list-nav__children[data-task-list-provider]').forEach((children) => {
+      const provider = children.dataset.taskListProvider;
+      makeSortable(children, {
+        handle: '.task-list-nav__drag-handle',
+        draggable: '.task-list-nav__item-row[data-task-list-id]',
+        onEnd: (event) => {
+          const element = event?.item;
+          const siblings = taskListOrderElements(children, '.task-list-nav__item-row[data-task-list-id]');
+          const rollback = cloneTaskListOrder();
+          announceTaskListMove(container, element, siblings.indexOf(element) + 1, siblings.length);
+          persistTaskListOrder(
+            container,
+            provider,
+            () => taskListOrderFromElements(children, '.task-list-nav__item-row[data-task-list-id]', 'taskListId')
+              .map(Number),
+            rollback,
+          );
+        },
+      }).then((sortable) => {
+        if (sortable && children.isConnected) taskListSortables.push(sortable);
+        else sortable?.destroy();
+      }).catch(() => {});
+    });
+  }
+
+  nav.querySelectorAll('.task-list-nav__menu-list').forEach((menuList) => {
+    const kind = menuList.closest('.task-list-nav__dropdown-menu')?.dataset.reorderKind;
+    const provider = menuList.closest('.task-list-nav__dropdown-menu')?.dataset.taskListProvider || '';
+    if (kind === 'source') {
+      makeSortable(menuList, {
+        handle: '.task-list-nav__drag-handle',
+        draggable: '.task-list-nav__menu-row[data-task-source]:not([data-task-source="all"])',
+        onEnd: (event) => {
+          const element = event?.item;
+          const selector = '.task-list-nav__menu-row[data-task-source]:not([data-task-source="all"])';
+          const siblings = taskListOrderElements(menuList, selector);
+          const rollback = cloneTaskListOrder();
+          announceTaskListMove(container, element, siblings.indexOf(element) + 1, siblings.length);
+          persistTaskListOrder(container, 'sources', () => taskListOrderFromElements(
+            menuList, selector, 'taskSource',
+          ), rollback);
+        },
+      }).then((sortable) => {
+        if (sortable && menuList.isConnected) taskListSortables.push(sortable);
+        else sortable?.destroy();
+      }).catch(() => {});
+    } else if (kind === 'list' && provider) {
+      const selector = '.task-list-nav__menu-row[data-task-list-id][data-sortable="true"]';
+      makeSortable(menuList, {
+        handle: '.task-list-nav__drag-handle',
+        draggable: selector,
+        onEnd: (event) => {
+          const element = event?.item;
+          const siblings = taskListOrderElements(menuList, selector);
+          const rollback = cloneTaskListOrder();
+          announceTaskListMove(container, element, siblings.indexOf(element) + 1, siblings.length);
+          persistTaskListOrder(container, provider, () => taskListOrderFromElements(
+            menuList, selector, 'taskListId',
+          ).map(Number), rollback);
+        },
+      }).then((sortable) => {
+        if (sortable && menuList.isConnected) taskListSortables.push(sortable);
+        else sortable?.destroy();
+      }).catch(() => {});
+    }
+  });
+
+  if (nav.dataset.reorderWired === 'true') return;
+  nav.dataset.reorderWired = 'true';
+  nav.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    const handle = event.target.closest?.('.task-list-nav__drag-handle');
+    if (!handle || !nav.contains(handle)) return;
+    event.preventDefault();
+    const element = handle.dataset.reorderKind === 'source'
+      ? handle.closest('.task-list-nav__group[data-task-source], .task-list-nav__menu-row[data-task-source]')
+      : handle.closest('.task-list-nav__item-row[data-task-list-id], .task-list-nav__menu-row[data-task-list-id]');
+    moveTaskListElement(element, event.key === 'ArrowUp' ? -1 : 1, container);
+  });
 }
 
 function clampTaskListSidebarWidth(value) {
@@ -4387,14 +4921,8 @@ function wireFilterChips(container) {
   // Alle Filter zurücksetzen
   container.querySelector('#filter-clear-all')?.addEventListener('click', async () => {
     state.filters = { status: [], priority: [], assigned_to: [], tags: [] };
-    renderFilters(container);
-    await loadTasks(container);
-  });
-
-  // "Geplante anzeigen" Toggle
-  container.querySelector('#filter-show-future')?.addEventListener('click', async () => {
-    state.showFuture = !state.showFuture;
-    try { localStorage.setItem(SHOW_FUTURE_KEY, state.showFuture ? '1' : '0'); } catch {}
+    state.showFuture = false;
+    try { localStorage.setItem(SHOW_FUTURE_KEY, '0'); } catch {}
     renderFilters(container);
     await loadTasks(container);
   });
@@ -4410,6 +4938,13 @@ function wireFilterChips(container) {
   container.querySelectorAll('[data-filter]').forEach((chip) => {
     chip.addEventListener('click', async () => {
       const filter = chip.dataset.filter;
+      if (filter === 'show_future') {
+        state.showFuture = !state.showFuture;
+        try { localStorage.setItem(SHOW_FUTURE_KEY, state.showFuture ? '1' : '0'); } catch {}
+        renderFilters(container);
+        await loadTasks(container);
+        return;
+      }
       if (filter === 'tag') {
         await toggleTagFilter(chip.dataset.value, container);
         return;
@@ -4886,7 +5421,7 @@ export async function render(container, { user }) {
           <nav class="task-lists-sidebar" id="task-lists-nav" aria-labelledby="task-lists-title"></nav>
           <div class="task-list-resizer" id="task-list-resizer" role="separator"
                aria-orientation="vertical" aria-valuemin="208" aria-valuemax="420"
-               aria-label="${t('tasks.taskListLabel')}" tabindex="0"></div>
+               aria-label="${t('tasks.taskSourceLabel')}" tabindex="0"></div>
           <div class="tasks-main">
         <div class="tasks-filters-row">
           <div class="tasks-filters" id="filter-bar" role="group" aria-label="${t('tasks.filterBtn')}"></div>
@@ -4987,6 +5522,7 @@ export async function render(container, { user }) {
     state.users = metaData.users ?? [];
     state.categories = metaData.categories ?? [];
     state.taskLists = taskListsData.data ?? [];
+    state.taskListOrder = normalizeTaskListOrder(taskListsData.order);
     state.allTags = metaData.tags ?? [];
     state.defaultPoints = Number(metaData.default_points) || 0;
     state.subtasksExpandedByDefault = preferencesData.data?.tasks_subtasks_expanded === true;
@@ -5004,6 +5540,7 @@ export async function render(container, { user }) {
     state.users = [];
     state.categories = [];
     state.taskLists = [];
+    state.taskListOrder = { sources: [], lists: {} };
     state.allTags = [];
     state.defaultPoints = 0;
     state.subtasksExpandedByDefault = false;
