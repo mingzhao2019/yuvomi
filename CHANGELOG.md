@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.50.3] - 2026-08-27
+
+### Added
+
+- **Recipes show "Planned this week"** on every recipe that appears in the current week's meal
+  plan, next to the ingredient count. The recipe list finally shows its own connection to the
+  plan — derived from the plan itself, no schema change.
+- **The tappable note checklist confirms a check** with the same check-pop the shopping list and
+  the tasks already use, and the checked text steps back softly instead of jumping.
+- **Screen readers hear which meal an action belongs to** ("Delete Fluffy pancakes" instead of
+  25 identical "Delete meal" buttons) and where they stand in the onboarding ("Step 2 of 3").
+
+### Changed
+
+- **Module headers grew a dedicated tool row.** Tab bars and view switchers used to share one
+  line with the title, month navigation and actions — on a 1280px desktop the Budget header had
+  138px for its 606px of tabs (one of seven visible), the calendar's "Agenda" switch was hidden
+  behind a fade and the month label truncated; on phones Health showed three of six tabs. Every
+  toolbar tab bar now lives on its own full-width row under the title line, on every viewport,
+  and both rows end on the same reading-measure edge as the content below. An overflowing bar
+  shows a sharp 12px peek fade that leaves the next tool visibly cut instead of swallowing it —
+  also on the kitchen rail, where the wide fade used to hide the "Pantry 10" badge completely.
+- **The calendar header keeps one width across all four views.** It used to jump to the agenda's
+  reading measure and back; the agenda list keeps its reading column.
+- **The install banner steps aside from actions.** With the FAB speed dial open, "Shopping" and
+  "Note" sat behind it; on the shopping list it overlapped the bulk pill ("To pantry / Delete").
+  It now yields to both states and returns when they end; a dismissal lasts 30 days instead of 7.
+- **Phones get their viewport back.** Documents open in the compact list view by default on
+  phones (the saved choice still wins; the grid card spent ~260px per document). The last card of
+  an odd metric row — the Budget balance — spans the full row instead of standing next to an
+  empty cell.
+- **Navigation badges carry their meaning.** Overdue tasks stay red, inventory deadlines are
+  amber, and an upcoming birthday uses the accent — a birthday is news, not an alarm. The More
+  sheet counted the same number neutrally all along.
+- **The schedule module speaks one language.** The navigation called it "Dienstplan" while the
+  page said "Schichtplan" (German); the "late" shift preset and the color-picker default no
+  longer imitate the brand violet; and a fresh household sees a single empty state instead of
+  two stacked "nothing here" messages.
+- **Small consistencies across the app:** deleting a shopping item uses the trash icon like
+  every other module (the cross means "close" app-wide); the housekeeping payments bar uses the
+  shared chart palette; the weekend tint in the month grid is the neutral well instead of a cool
+  module wash on the warm stage; the "Assigned to me" calendar chip is neutral while inactive so
+  its color states the activation (decided 2026-08-17); contact rows drop the truncated e-mail
+  on narrow phones; document cards no longer repeat "School · School" when folder and category
+  share a name.
+
+### Fixed
+
+- **Medication names wrap instead of vanishing.** "Eisen (Eisen…" next to free space is now a
+  two-line name with the take button fixed to the right (health overview and due list), and the
+  "as needed" lead no longer paints under the take button — it shrinks with an ellipsis and, in
+  the ready state, yields entirely to the primary button that says the same thing.
+- **The empty meal slot stays hidden on phones again.** Its hiding rule sat before the slot's
+  base rule and lost the cascade — the same trap v2.24.1 documented, returned silently; a guard
+  now pins the rule order.
+- **Scroll fades appear for real 1-8px overflows.** The fade helper's tolerance swallowed them;
+  a 4px-clipped view switcher showed no hint that it scrolls.
+
 ## [2.50.2] - 2026-08-27
 
 ### Fixed
