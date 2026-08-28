@@ -1,14 +1,8 @@
-<!-- version: 2.50.0 -->
-Document folders can now live inside document folders. Until this version they were flat, and next to them sat a second flat row of categories - two ways of narrowing the same list, with nothing showing how they relate. They don't relate: a folder like "Apartment" holds documents filed under home, insurance and legal at the same time. So the hierarchy has moved to where it belongs. The sidebar is a real tree you can expand, with the path shown above the list, and folders can be created inside one another, renamed and moved. Categories stay what they always were - a label on the document that filters across the whole tree.
+<!-- version: 2.50.1 -->
+A small hardening release, with nothing to do by hand after the update.
 
-Opening a folder now also shows what lies beneath it. Before, a folder whose documents all sat in a subfolder looked empty, and the count beside it said zero. Both answer the same question now. Deleting a folder still costs you no document - they fall back to "no folder", exactly as before - but the confirmation tells you how many subfolders are going along, because the sidebar only shows the collapsed top level.
+The setup wizard no longer accepts a public address without an http:// or https:// scheme. An address typed as "yuvomi.example.com" used to be written to the configuration exactly like that, which quietly broke password-reset emails and the sign-in addresses shown for Google and Microsoft. Until a full address is entered, the wizard now keeps the one it derives from host and port. Running installations only meet this when the wizard is re-run.
 
-The quick links on the overview can wear a built-in symbol instead of a picture you have to find and upload. Yuvomi already carried a set of about 1700 symbols, because the whole app is drawn with them; all that was missing was a way to pick one. Tap the tile preview when adding or editing a link and search for what the service does - "film", "server", "cloud". The search runs on English words, and the field says so. Uploading your own picture works exactly as it did, and an existing tile keeps whatever it has.
+The rest resolves the findings of an automated security review of the code: a server-side address check that could be made needlessly slow now runs in plain steps, and several internal checks match precisely instead of loosely.
 
-Several things that went wrong on phones are fixed. The back gesture - swiping in from the left, which is how most people leave a screen - used to change the page underneath an open dialog and leave the dialog standing; it now closes the dialog, as it should. The badge counting overdue tasks appears right after signing in instead of only once you had opened the tasks module. And a row of buttons in a dialog now wraps instead of growing past its frame and having the ends cut off.
-
-On the overview, the key dates tile handles repeating appointments correctly again. An appointment set to end after a fixed number of occurrences used to keep counting long after it had run out, and could even show a date in the future; a long-running series, such as something weekly that started years ago, could disappear from the tile entirely although it still takes place. Both are corrected. Dates that have passed still stay for a week on purpose - a countdown that stops the moment it matters leaves you alone in exactly the situation you set it for.
-
-Nothing needs configuring and there is nothing to do after the update. Two database changes are applied automatically on first start; the folder one rebuilds the folder table to allow nesting and carries every existing folder over unchanged.
-
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.50.0
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.50.1

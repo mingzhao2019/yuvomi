@@ -7,6 +7,272 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.50.1] - 2026-08-27
+
+### Fixed
+
+- **A public address typed without a scheme no longer poisons the installer's derived settings.**
+  The advanced step's address field is free text; an entry like `yuvomi.example.com` was taken as
+  is and ended up scheme-less in the `.env` as `BASE_URL` and in every displayed OAuth redirect
+  URI. The field now only wins over the derivation from host and port when it names a full
+  `http://` or `https://` origin.
+
+### Security
+
+- **Resolved all open code-scanning findings.** The screensaver settings trim trailing slashes off
+  the Immich URL without a regular expression that backtracks on adversarial input, the calendar
+  stores its birthday-layer visibility toggle as a plain literal (the value was never more than a
+  toggle), and five test-suite checks now match URLs and markup exactly instead of by substring.
+
+## [2.50.0] - 2026-08-27
+
+### Fixed
+
+- **A colour set on a CalDAV or Apple appointment now reaches the server** (#897). `color` has
+  always been one of the mirrored fields, so recolouring an appointment marked it for an outbound
+  push - but `COLOR` appeared exactly once in the whole server, in `ics-parser.js`, where it is
+  *read*. Nothing ever wrote it. Every recolouring therefore cost a full `PUT` round trip that
+  changed nothing on the server, and the field list claimed a mirroring that did not happen for two
+  of the three outbound providers. This was the promise from #815 that never got a thread of its own.
+
+  Yuvomi now writes `COLOR` (RFC 7986), the same property its parser already reads. **The value is a
+  CSS3 colour name, not a hex code** - §5.9 allows nothing else, and a strict server may reject a hex
+  value - so a stored `#RRGGBB` is mapped to the nearest of the 147 CSS3 names by the same
+  perceptual redmean distance that already maps colours onto Google's eleven `colorId`s. The loss is
+  small (the largest deviation across Yuvomi's own palette is 28 of 255 in a single channel) and it
+  stays on the wire: recolouring sets `color_modified = 1` (#899), and an inbound run writes `color`
+  only while that is `0`, so the neighbouring value read back on the next sync never overwrites the
+  choice.
+
+  `COLOR` is now a *managed* property of the ICS patcher - without that it may be written but not
+  replaced, and an emitted value would not have survived the patch. Freshly uploaded appointments
+  carry their colour from the start too, so one created in Yuvomi no longer arrives at the server
+  colourless.
+
+  **An appointment whose colour was never learned sends no `COLOR` field at all** - "leave it alone",
+  not "remove it". A `null` there would let a mere title change strip a colour somebody else chose on
+  the server. Telling that state apart from a *deliberately cleared* colour is what #899 below is
+  for; with it, clearing a colour reaches the provider as well.
+
+- **A title edit no longer freezes an appointment's colour, and a cleared colour now reaches the
+  provider** (#899, migration 167). `user_modified` means "something about this appointment was
+  edited locally" - it is set on **any** edit to a mirrored appointment. All three inbound syncs read
+  it as "the colour is managed locally" and wrote `color` only while it was `0`. Renaming an
+  appointment was therefore enough to freeze its colour column forever: if somebody coloured that
+  same appointment in Nextcloud, Apple Calendar or Google afterwards, Yuvomi never found out.
+
+  The colour now carries a state of its own, `calendar_events.color_modified`, set only when the
+  colour actually changes - re-sending the unchanged value with the rest of a form is not a
+  recolouring. Three things follow. Inbound gates on it, so an edit to any other field leaves the
+  colour open to the provider again. `color IS NULL AND color_modified = 1` is unambiguously
+  *cleared*, so the CalDAV/Apple outbound may remove the `COLOR` property and Google's `colorId: null`
+  now goes out only for a colour somebody really cleared, rather than for every appointment without
+  one. And the upload paths record the flag when the appointment carries a colour, so the next
+  inbound run no longer replaces the chosen hex with the mapped one - both mappings are lossy (a
+  CSS3 name, or one of Google's eleven `colorId`s), and every colour in Yuvomi's palette maps to a
+  different hex.
+
+  **The backfill is deliberately conservative:** `color_modified = user_modified` for existing rows.
+  Every colour protected today stays protected. A blanket `0` would undo exactly the bug described
+  here, but it would also let the next sync overwrite a colour somebody set on purpose - and in
+  existing data the two are indistinguishable. Resetting an ICS appointment to its original clears
+  both flags: the feed manages it again, colour included.
+
+## [2.49.1] - 2026-08-27
+
+### Changed
+
+- **The repeat menu says that its intervals are adjustable** (#862). The four options - daily,
+  weekly, monthly, yearly - read like fixed values, because the field that turns them into `every 2
+  weeks` or `every 3 months` lives in a block that stays hidden until one of them is picked. A
+  reporter opened a thread asking for custom intervals and found them himself a few days later,
+  by picking a frequency on the off chance: *"sorry for opening a topic about an already built-in
+  feature, could have searched a little longer"*. He had not searched too little; the menu had
+  answered the wrong question.
+
+  A line under the menu now says the interval is free to set, and names two examples. It is shown
+  in exactly the state where the misreading is possible and goes away with it - the hint and the
+  detail block are complements, never both there and never both gone. The select's
+  `aria-describedby` is removed along with the hint rather than merely hidden, because a directly
+  referenced node counts towards the accessible description even while hidden - otherwise a
+  screen-reader user would keep hearing the hint that answers the question they just answered. Task
+  and appointment forms share the field, so both get it.
+
+## [2.49.0] - 2026-08-27
+
+### Fixed
+
+- **An appointment nobody picked a colour for lends the colour of the person it belongs to**
+  (#891). Since v2.36.0 every appointment looked as though someone had chosen its colour, so the
+  assigned member's colour never showed - the reporter saw the avatar next to an appointment that no
+  longer matched it.
+
+  **It was a missing state, not a wrong rule.** `calendar_events.color` was `NOT NULL` and rejected
+  the empty string, so there was no way to say *this appointment has no colour of its own*: the
+  dialog wrote the first palette entry into every new appointment and the sync wrote the calendar's
+  colour into every imported one. Both are inherited values, and once stored they were
+  indistinguishable from a deliberate choice - which is why they outranked the person's colour, the
+  rule from #815 being that an explicit value beats a derived one. That rule stands; a never-made
+  choice simply is not an explicit value.
+
+  The column may now be `NULL`, the import paths of all four sync providers stop copying the
+  inherited calendar colour into it, and the event dialog gains a first swatch, **"colour of the
+  assigned person"**, which is where a new appointment starts. Choosing a colour still keeps it, for
+  the appointment and across syncs.
+
+  **Existing appointments are left untouched.** `#007AFF` looks like an old default - no current
+  palette contains it - but it was the first entry of the event palette before the OKLCH switch, so
+  an appointment from the v1 era may well carry it on purpose. A migration cannot tell the two apart,
+  and discarding a real choice is worse than changing nothing: synced appointments normalise
+  themselves on the next sync, local ones through the dialog.
+
+  **Clearing a colour reaches Google too.** The outbound push is an `events.patch`, and a PATCH
+  touches exactly the fields present in the body - so omitting `colorId` means "leave it alone",
+  not "clear it". Google would have kept the old colour while Yuvomi showed the assignee's, and
+  because the same edit sets `user_modified = 1`, no inbound run would ever have reconciled the
+  two again. The payload now carries an explicit null. Not when the colour merely cannot be
+  mapped, though: a missing palette is not a missing colour, and a null there would throw away a
+  colour nobody asked to remove.
+
+  **The inherited colour belongs to the primary assignee**, the one named in `assigned_to` - not
+  to whichever row the assignment query happens to return first, since it aggregates without an
+  `ORDER BY`. With several people on an appointment the colour could otherwise belong to a
+  different member than the assignment means, and change between reloads without anyone touching
+  it.
+
+  **The countdown tile borrows the colour too.** It read `color` straight off the event and fell
+  back to the module tone - fine while every event carried a colour, but the same appointment would
+  now have shown the assignee's colour in the calendar and a generic tone on the tile right next to
+  it. It resolves through the shared rule as well; only when *no* source has anything does it keep
+  falling back to the module tone, which says more than a neutral grey.
+
+  **A `PUT` that does not mention `assigned_to` no longer re-picks the primary assignee.** The route
+  reloaded the assignment ids and wrote the first one back - but that query has no `ORDER BY`, so it
+  returns them by user id rather than in the order the form sent. With the borrowed colour following
+  `assigned_to`, an appointment could change colour because someone split a series (that request
+  carries only `recurrence_rule`). Same rule as for the colour itself: not sent means not touched.
+
+  **A deleted member no longer leaves a countdown colourless.** When the primary assignee is
+  deleted, the foreign key clears `assigned_to` and takes that one assignment row with it while the
+  others stay. The calendar falls back to the first remaining assignee; without the same step the
+  tile would have been the only place showing a generic tone.
+
+  Two more things surfaced while building it. The overview resolved event colours **on its own**
+  (`color || cal_color`, without the assignee branch) - harmless while every appointment carried a
+  colour, but two visibly different answers to one question as soon as one might not; both pages now
+  read the same rule from `public/utils/event-color.js`. And an ICS subscription has no
+  `external_calendars` row, so its colour had to reach the display over its own path - it is now read
+  from `ics_subscriptions`, and appointments from a subscription keep their feed's colour.
+
+
+## [2.48.0] - 2026-08-27
+
+### Added
+
+- **Schedule turns a rotation into one repeating cycle instead of a wall of appointments** (#786,
+  contributed by @mclgoerg). Define reusable shift types, lay them onto the days of a cycle, and
+  replace a single date with a different shift or an explicit day off. A fixed weekly timetable and a
+  rotating shift pattern share the same arithmetic - a "week A / week B" plan is a 14-day cycle, so
+  there is one model rather than two features.
+
+  **A pattern is not calendar recurrence**, and that is the reason it is its own module: a rotation is
+  a repeating sequence of *different* entries, which an RRULE cannot express without splitting it into
+  several unrelated series that then drift apart.
+
+  Entries are **computed when read**, never copied into the calendar. Changing a pattern therefore
+  cannot leave stale appointments behind, and a two-year rotation costs one row instead of roughly
+  seven hundred. The calendar shows them as an explicitly toggleable, read-only layer - a compact
+  strip by default, full blocks on request - and never as ordinary editable events.
+
+  Every household member can read the overlay, because the everyday question is "is Anna free on
+  Tuesday evening". A member writes only their own schedule; administrators write for anyone. Shift
+  types belong to the household rather than to a person: anyone may add one, and only its creator or
+  an administrator may rename or remove it. The module ships **switched off**, the way Inventory does.
+
+### Fixed
+
+- **Recording someone else's medication works in both directions again** (#884). A parent looking
+  after a child could create a medication schedule and a dose entry, but not delete the schedule or
+  tick the dose off - the answer was "not found" for something they had just entered themselves.
+
+  A schedule and a dose entry have no owner of their own; they hang off the medication and inherit its
+  scope. In four places that inheritance was spelled out by hand, and the hand-written version quietly
+  left out the caregiver relationship. Lab results had the same gap, just nobody had run into it.
+
+  **Why it looked random rather than broken:** as long as the caregiver ticks a dose themselves, the
+  request goes through the medication and works. Once the reminder job has created the entry ahead of
+  time, the same button takes a different route - and only that one was closed. Same dose, working one
+  day and refusing the next.
+
+- **The installed app follows the tablet again instead of pinning itself upright** (#890). The web app
+  manifest carried an orientation lock, so a Galaxy Tab held sideways still showed a narrow portrait
+  strip even though the layout has always been responsive well past that width. The lock is gone
+  rather than widened: the app now follows the device, and the rotation lock its owner set.
+
+- **A malformed time is rejected instead of stored.** Time fields validated only the shape `dd:dd`, so
+  an API client could store `99:99` as a reminder or a shift boundary. The check now reads the value
+  as a clock time.
+
+## [2.47.0] - 2026-08-27
+
+### Fixed
+
+- **A calendar event's object name no longer decides whether it arrives** (#883). A CalDAV event was
+  never picked up: no error, no warning, the sync reported success with an unchanged event count. The
+  report pointed at the iCal parser - `DURATION` instead of `DTEND`, a `TZID` without an inline
+  `VTIMEZONE`. The parser handles both, and the reproduction from the report now ships as a test so
+  the false trail does not come back.
+
+  **The cause sat one layer above it.** tsdav filters the hrefs of a `calendar-query` response on
+  `.ics` in the path by default, but the extension is pure convention - RFC 4791 prescribes no name
+  for the object resource, and a server may assign its own. Stalwart does exactly that for everything
+  created over JMAP (`NZtPkIOMoK`), while objects written by a CalDAV `PUT` keep the client-chosen
+  `<uid>.ics`. In the same calendar part of the events synced and part did not - and because the
+  filtered-out ones were never fetched, no log line could mention them. The two conspicuous
+  properties and the object name all come from the same JMAP origin; that is what the diagnosis
+  tripped over.
+
+  Yuvomi now uses the rule tsdav itself applies on the CardDAV side - let everything through except
+  the collection itself - and applies it at the **client** rather than at the call sites, since five
+  places fetch calendar objects and a sixth would lose the rule again. Two files that were building
+  their own CalDAV client turned up in the process and are now held by a guard. The same filter also
+  covers the outbound path, where the same objects were being dropped a second time.
+
+  **Per-event visibility comes with it**, as the report asked: anything the parser discards is now
+  reported with its UID and the reason instead of being swallowed. A skipped event was
+  indistinguishable from one the server never sent, and that is precisely what made this impossible
+  to diagnose from the outside.
+
+- **Deleting a series from a synced calendar says so first** (#880). Tapping one occurrence in the
+  month view and pressing delete made every occurrence disappear without a word. The scope was right
+  - Yuvomi cannot split a series that belongs to another calendar, an excluded occurrence would come
+  back on the next sync - but doing it silently was not.
+
+  A foreign series now asks first, and the question **names** the reach rather than offering a choice;
+  a dialog with only one selectable answer would be a prop. The wording follows what actually
+  happens, because a promise that does not hold is worse than none: a **birthday event** mirrors a
+  birthday entry and is recreated on the next run, so it points at the birthday itself; an **ICS
+  subscription** event cannot be deleted at the source at all and returns with the next fetch;
+  everything else is told that the whole series falls, with all its occurrences. Single events are
+  unchanged - the undo toast carries those.
+
+- **The module head is one row again on desktop** (#882). Tasks, Contacts, Budget and Birthdays broke
+  their head onto two rows, the Calendar in its week, day and agenda views. The rule that pulls the
+  end of the head row back to the reading measure did it with a margin on the last slot - and a
+  margin counts towards the flex container's *line occupancy* while never yielding. Measured at
+  1960px: the actions slot claimed 406px of content plus 560px of margin out of a 1280px row, leaving
+  315px for seal, title and search where they needed 441px. The wrap was arithmetically unavoidable
+  rather than content-dependent.
+
+  That offset is now a shrinkable slot, and from 1024px up a head no longer wraps: flex splits rows by
+  the *hypothetical* sizes, i.e. before anything has shrunk, so the head broke while yielding slots
+  stood right next to it. The page title is the last to give way, being the only one that cannot come
+  back. The Calendar's layer chips give up their label before the head wraps, but never their tap
+  target - until now, how many layers you had switched on decided how many rows your calendar head
+  had. At exactly 1024px the head still wraps, and deliberately so: the sidebar leaves it 740px of
+  inner width, of which the reading measure alone claims 720px.
+
+
 ## [2.46.0] - 2026-08-26
 
 ### Added
