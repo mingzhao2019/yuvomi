@@ -1392,6 +1392,17 @@ function renderToolbar() {
               aria-expanded="false">
         <i data-lucide="search" aria-hidden="true"></i>
       </button>
+      <button class="btn btn--primary toolbar-new-btn" id="cal-add" aria-label="${t('calendar.addEvent')}">
+        <i data-lucide="plus" aria-hidden="true"></i>
+        <span class="toolbar-new-btn__label">${t('newLabel.calendar')}</span>
+      </button>
+    </div>
+    <!-- Bar-Zeile des Kopfs (Werkzeugzeilen-Regel, layout.css): das Ansichts-
+         Segment hatte im Actions-Slot bei 1280px 212px fuer 245px Inhalt -
+         "Agenda" lag hinter dem Fade und das Monatslabel daneben ellipsierte
+         auf seine 7ch-Untergrenze. Der neutrale Wrapper haelt das Well des
+         Segments auf intrinsischer Breite; die Zeile gehoert trotzdem ihm. -->
+    <div class="page-toolbar__bar">
       <div class="cal-toolbar__views" role="tablist" aria-label="${t('nav.calendar')}">
         ${VIEWS.map((v) => `
           <button class="cal-toolbar__view-btn ${v === state.view ? 'cal-toolbar__view-btn--active' : ''}"
@@ -1399,14 +1410,15 @@ function renderToolbar() {
                   tabindex="${v === state.view ? '0' : '-1'}">${VIEW_LABELS()[v]}</button>
         `).join('')}
       </div>
-      <button class="btn btn--primary toolbar-new-btn" id="cal-add" aria-label="${t('calendar.addEvent')}">
-        <i data-lucide="plus" aria-hidden="true"></i>
-        <span class="toolbar-new-btn__label">${t('newLabel.calendar')}</span>
-      </button>
     </div>
   `);
 
   if (window.lucide) lucide.createIcons({ el: bar });
+
+  // Scroll-Affordanz der Bar-Zeile: das Segment passt auf 375px komplett,
+  // aber 320px-Geraete und lange Locales scrollen - dann zeigt der geteilte
+  // Peek-Fade (.page-toolbar__bar, layout.css) den Anschnitt.
+  wireScrollFade(bar.querySelector('.cal-toolbar__views'));
 
   updateLabel();
 

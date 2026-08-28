@@ -63,6 +63,10 @@ const LEAVES_SKIPPED = new Map([
     + 'Modulkopf, die Blaetter darunter sind Detailseiten. Die Sonde faende dort null '
     + 'Leisten und meldete 69 gruene Zustaende, die nie gemessen wurden. Den '
     + 'Dokument-Ueberlauf der Blaetter misst Sonde 10, und die faehrt sie.'],
+  ['Sonde 20', 'misst Kopf-Tablists (`.page-toolbar [role="tablist"]`) und die Kuechen-Rail '
+    + '(`.sub-tabs-bar`). Ein Settings-Blatt traegt keine `.page-toolbar` (siehe Sonde 1), und '
+    + '`.sub-tabs-bar` kommt in `public/settings/**` nicht vor (geprueft, 0 Treffer). Die Sonde '
+    + 'faende dort null Leisten und kostete 23 Blaetter Ladezeit fuer nichts.'],
   ['Sonde 19', 'misst `.page-toolbar` und zaehlt ihre Zeilen. Ein Settings-Blatt traegt '
     + 'keine - derselbe Grund wie bei Sonde 1, und dieselbe Folge: 23 Blaetter mal zwei '
     + 'Sprachen mal drei Breiten waeren 138 Zustaende ohne eine einzige Messung, die '
@@ -3395,9 +3399,23 @@ describe('Sonde 18 - am Scroll-Ende liegt nichts Bedienbares unter dem FAB', () 
  * den Umbruch, und zusammen beanspruchte der Aktions-Slot 966px einer 1280px
  * breiten Zeile. Ein Quelltext-Guard haette beide Regeln einzeln gebilligt.
  *
- * EINE ZEILE, NICHT ZWEI - siehe die Begruendung an der Schwelle unten. Die
- * erste Fassung uebernahm die Zwei-Zeilen-Grenze von Sonde 15 und blieb mit
- * wieder eingebautem Fehler gruen.
+ * EINE TITELZEILE, PLUS HOECHSTENS DIE BAR-ZEILE (Neufassung 2026-08-27,
+ * Werkzeugzeilen-Regel). Die erste Fassung dieser Sonde verlangte EINE Zeile
+ * fuer den ganzen Kopf - und zwang damit jede Tab-Leiste in die Titelzeile,
+ * wo sie ihre eigenen Module versteckte: die Budget-Tabs hatten bei 1280px
+ * 138px clientWidth fuer 606px Inhalt (1 von 7 Tabs sichtbar), das
+ * Kalender-Segment 212px fuer 245px („Agenda" unsichtbar). Seither gilt:
+ * die NICHT-Bar-Kinder (Titel, Center, Aktionen) bilden weiterhin genau eine
+ * Zeile - das ist der #882-Fall, und er bleibt rot -, und die Bar-Zeile
+ * (.page-toolbar__bar) ist die eine erlaubte zweite, selbst einzeilig.
+ * Dieselbe Rollenteilung, die Sonde 15 in der kompakten Hoehe schon immer
+ * erlaubt („die zweite hat einen Namen: eine Tab-Leiste IM Kopf").
+ *
+ * Die Vorgaenger-Fassung dieser Passage - „EINE ZEILE, NICHT ZWEI; die erste
+ * Fassung uebernahm die Zwei-Zeilen-Grenze von Sonde 15 und blieb mit wieder
+ * eingebautem Fehler gruen" - bleibt als Warnung stehen: ein pauschales <= 2
+ * ueber ALLE Kinder liesse #882 wieder durch. Deshalb zaehlt die Sonde jetzt
+ * getrennt statt milder.
  *
  * ZWEI ZUSICHERUNGEN, WEIL EINE OHNE DIE ANDERE ERKAUFT WERDEN KANN. Einzeilig
  * zu sein ist wertlos, wenn der Kopf sein Ende dabei verliert - der
@@ -3459,17 +3477,26 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
                 // mittig ausgerichtete Slots unterschiedlicher Hoehe beginnen
                 // auseinander, ein Zaehler ueber Oberkanten meldete sonst fuer
                 // einen einzeiligen Kopf vier "Zeilen".
-                const spans = [...el.children]
-                  .map((c) => ({ r: c.getBoundingClientRect(), cs: getComputedStyle(c) }))
-                  .filter((x) => x.r.height > 0 && x.cs.display !== 'none' && x.cs.visibility !== 'hidden')
-                  .map((x) => [x.r.top, x.r.bottom])
-                  .sort((a, b) => a[0] - b[0]);
-                let rows = 0;
-                let end = -Infinity;
-                for (const [top, bottom] of spans) {
-                  if (top >= end) rows += 1;
-                  end = Math.max(end, bottom);
-                }
+                //
+                // GETRENNT GEZAEHLT wird die Bar-Zeile (.page-toolbar__bar,
+                // Werkzeugzeilen-Regel): sie ist die eine erlaubte zweite Zeile
+                // und darf selbst nicht umbrechen. Alle uebrigen Kinder bilden
+                // die Titelzeile - und fuer die gilt #882 unveraendert.
+                const kids = [...el.children]
+                  .map((c) => ({ c, r: c.getBoundingClientRect(), cs: getComputedStyle(c) }))
+                  .filter((x) => x.r.height > 0 && x.cs.display !== 'none' && x.cs.visibility !== 'hidden');
+                const clusters = (items) => {
+                  const spans = items.map((x) => [x.r.top, x.r.bottom]).sort((a, b) => a[0] - b[0]);
+                  let n = 0;
+                  let end = -Infinity;
+                  for (const [top, bottom] of spans) {
+                    if (top >= end) n += 1;
+                    end = Math.max(end, bottom);
+                  }
+                  return n;
+                };
+                const rows = clusters(kids.filter((x) => !x.c.classList.contains('page-toolbar__bar')));
+                const barRows = clusters(kids.filter((x) => x.c.classList.contains('page-toolbar__bar')));
                 // Wo endet der letzte echte Slot, gemessen ab dem Anfang der
                 // Content-Box? Nur fuer gedeckelte Koepfe - die uebrigen haben
                 // keine Kante, an die sie sich halten muessten.
@@ -3492,7 +3519,7 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
                   }
                 }
                 return {
-                  rows, h: Math.round(el.getBoundingClientRect().height), cls: el.className,
+                  rows, barRows, h: Math.round(el.getBoundingClientRect().height), cls: el.className,
                   narrowEnd, measure,
                 };
               }));
@@ -3511,27 +3538,28 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
                   + `${head.measure}px (Lesemass) - ${head.cls}`,
                 );
               }
-              // EINE ZEILE, UND DAS IST DER UNTERSCHIED ZU SONDE 15. Dort sind
-              // zwei erlaubt, weil in der kompakten Hoehe eine Bedienzeile im
-              // Kopf legitim ist. Hier waeren zwei die Erlaubnis fuer genau den
-              // gemeldeten Zustand: #882 IST "zwei Zeilen statt einer".
-              //
-              // Das steht hier, weil die erste Fassung dieser Sonde mit `<= 2`
-              // lief - und die Gegenprobe blieb GRUEN, mit wieder eingebautem
-              // Fehler. Eine Sonde, die ihren Anlassfall durchlaesst, misst
-              // nichts; die Zahl aus einer Nachbarsonde zu uebernehmen war
-              // bequem und falsch.
-              //
-              // Ohne Ausnahmeliste, und das ist gemessen: bei 1024, 1280 und
-              // 1960px baut JEDER Kopf eine Zeile - auch die mit Tab-Leiste
-              // (Gesundheit, Belohnungen, Hauswirtschaft) und der Essensplan
-              // mit seiner Zeitraum-Navigation. In der regulaeren Groessenklasse
-              // ist genug Breite da, dass die zweite Zeile der kompakten Hoehe
-              // hier gar nicht erst entsteht.
-              if (!pruefeZeilen || head.rows <= 1) continue;
-              findings.push(
-                `${w}px (${why}) ${where}: Kopf baut ${head.rows} Zeilen (${head.h}px) - ${head.cls}`,
-              );
+              // EINE TITELZEILE, UND DAS IST WEITER DER #882-FALL: die
+              // Nicht-Bar-Kinder (Titel, Center, Aktionen) duerfen nicht
+              // umbrechen - ihr Umbruch war der gemeldete Zustand, und ein
+              // pauschales <= 2 ueber ALLE Kinder hatte ihn in der ersten
+              // Fassung dieser Sonde durchgelassen (die Gegenprobe blieb GRUEN
+              // mit wieder eingebautem Fehler). Die Bar-Zeile
+              // (.page-toolbar__bar) wird deshalb GETRENNT gezaehlt: sie ist
+              // seit der Werkzeugzeilen-Regel (2026-08-27) die eine erlaubte
+              // zweite Zeile - eine Tab-Leiste in der Titelzeile versteckte
+              // ihre eigenen Module (Budget: 1 von 7 Tabs bei 1280px) - und
+              // sie selbst darf ebenfalls nicht umbrechen (sie scrollt).
+              if (!pruefeZeilen) continue;
+              if (head.rows > 1) {
+                findings.push(
+                  `${w}px (${why}) ${where}: Titelzeile baut ${head.rows} Zeilen (${head.h}px) - ${head.cls}`,
+                );
+              }
+              if (head.barRows > 1) {
+                findings.push(
+                  `${w}px (${why}) ${where}: Bar-Zeile baut ${head.barRows} Zeilen statt zu scrollen - ${head.cls}`,
+                );
+              }
             }
           });
         }
@@ -3544,8 +3572,131 @@ describe('Sonde 19 - in der regulaeren Groessenklasse traegt der Modulkopf eine 
         + 'die Sonde ihre Routen nicht mehr?');
 
       assert.deepEqual(findings, [],
-        'Ab 1024px ist der Modulkopf einzeilig, und ein gedeckelter Kopf endet auf der Kante '
-        + 'seines Koerpers - beides war in #882 verletzt.\n  ' + findings.join('\n  '));
+        'Ab 1024px traegt der Modulkopf eine einzeilige Titelzeile plus hoechstens die '
+        + 'scrollende Bar-Zeile (Werkzeugzeilen-Regel), und ein gedeckelter Kopf endet auf '
+        + 'der Kante seines Koerpers - der Titelzeilen-Umbruch war #882.\n  '
+        + findings.join('\n  '));
+    });
+  }
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Sonde 20 - ein Werkzeug des Kopfs ist sichtbar oder sichtbar angeschnitten
+ *
+ * DIE REGEL (Werkzeugzeilen-Regel, DESIGN.md 2026-08-27): eine Tab-Leiste, die
+ * ueberlaeuft, zeigt ihre Fortsetzung - als Scroll-Fade UND als sichtbar
+ * angeschnittenes naechstes Werkzeug. Der Anlass war die Kehrseite der alten
+ * Einzeilen-Doktrin: die Budget-Tabs zeigten bei 1280px 1 von 7 Tabs,
+ * Gesundheit mobil 3 von 6, die Haushaltshilfe 3 von 4 - und das einzige
+ * Existenzsignal der verborgenen Werkzeuge war ein 26px-Fade, der den mageren
+ * Anschnitt komplett verdeckte. Eine Leiste, die BUENDIG endet, sieht aus wie
+ * eine vollstaendige Leiste (Critique 2026-08-27, P1).
+ *
+ * WARUM AM DOKUMENT UND NICHT IM QUELLTEXT: ob eine Leiste ueberlaeuft,
+ * entscheidet die Summe aus Tabzahl, Locale, Badge-Breite und Viewport - in
+ * keinem Stylesheet steht das. Und ob der Anschnitt SICHTBAR ist, haengt an
+ * der Maskenbreite gegen die zufaellige Lage der Tab-Kanten: genau das kann
+ * nur Geometrie beantworten.
+ *
+ * ZWEI ZUSICHERUNGEN JE UEBERLAUFENDER LEISTE:
+ *   1. Sie traegt has-fade-start/-end - wireScrollFade ist verdrahtet. Eine
+ *      Leiste ohne den Helfer scrollt stumm.
+ *   2. Am Ende der sichtbaren Flaeche ist ein Kind ANGESCHNITTEN (>= 4px
+ *      sichtbar): wer buendig endet, macht die verborgenen Werkzeuge
+ *      unauffindbar. Ein Treffer in der Gap-Luecke zaehlt als buendig - auch
+ *      dann ist kein Anschnitt zu sehen, und das ist der Befund.
+ *
+ * GEMESSEN WIRD DER INITIALZUSTAND jeder Route (nach Load, ohne Nutzer-Scroll,
+ * inkl. scrollActiveIntoView der Seite selbst) - er ist deterministisch, und
+ * er ist der Zustand, in dem ein Nutzer die Leiste zum ersten Mal liest.
+ * Beide LTR-Messlocales (de als Referenz, uk mit den laengsten Namen); die
+ * RTL-Spiegelung der Masken prueft test:frontend-audit ueber die Regelpaare.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+describe('Sonde 20 - ein Werkzeug des Kopfs ist sichtbar oder sichtbar angeschnitten', () => {
+  for (const locale of ['de', 'uk']) {
+    test(`Locale ${locale}`, async () => {
+      const findings = [];
+      let seen = 0;
+      let overflowed = 0;
+
+      for (const { device, w } of [{ device: 'mobile', w: 375 }, { device: 'desktop', w: 1280 }]) {
+        const page = await openPage(harness, { device, theme: 'light', locale });
+        if (device === 'desktop') {
+          await page.setViewport({ width: w, height: 900, deviceScaleFactor: 1, isMobile: false, hasTouch: false });
+        }
+
+        for (const name of sweep('Sonde 20')) {
+          await gotoRoute(page, ALL_ROUTES[name]);
+          const bars = await page.evaluate(() => {
+            const lists = new Set([
+              ...document.querySelectorAll('.page-toolbar [role="tablist"]'),
+              ...document.querySelectorAll('.sub-tabs-bar[role="tablist"], nav.sub-tabs-bar'),
+            ]);
+            return [...lists]
+              .filter((el) => el.getBoundingClientRect().width > 0)
+              .map((el) => {
+                const r = el.getBoundingClientRect();
+                const overflow = el.scrollWidth - el.clientWidth;
+                // Anschnitt nur an einer Kante bewerten, hinter der wirklich
+                // Inhalt verborgen liegt (am Initialstand ist das die Endkante,
+                // solange die Leiste nicht schon ans Ende gescrollt wurde).
+                let peek = null;
+                if (overflow > 1 && el.scrollLeft < overflow - 1) {
+                  const edge = r.left + el.clientWidth;
+                  peek = 0;
+                  for (const child of el.children) {
+                    const cr = child.getBoundingClientRect();
+                    if (cr.width <= 0) continue;
+                    if (cr.left < edge - 1 && cr.right > edge + 1) {
+                      peek = Math.max(peek, edge - cr.left);
+                    }
+                  }
+                }
+                return {
+                  cls: el.className,
+                  overflow: Math.round(overflow),
+                  fade: el.classList.contains('has-fade-end') || el.classList.contains('has-fade-start'),
+                  peek: peek === null ? null : Math.round(peek),
+                };
+              });
+          });
+
+          for (const bar of bars) {
+            seen += 1;
+            if (bar.overflow <= 1) continue;
+            overflowed += 1;
+            if (!bar.fade) {
+              findings.push(`${w}px ${name}: Leiste laeuft ${bar.overflow}px ueber, traegt aber `
+                + `keinen Scroll-Fade (wireScrollFade nicht verdrahtet) - ${bar.cls}`);
+            }
+            if (bar.peek !== null && bar.peek < 4) {
+              findings.push(`${w}px ${name}: Leiste endet buendig (Anschnitt ${bar.peek}px) - `
+                + `verborgene Werkzeuge sind unauffindbar - ${bar.cls}`);
+            }
+          }
+        }
+        await page.close();
+      }
+
+      // Eine Sonde, die nichts gemessen hat, darf nicht urteilen (Muster
+      // Sonde 15): gezaehlt werden GEFUNDENE Leisten ueber beide Breiten.
+      assert.ok(seen >= 14,
+        `Nur ${seen} Kopf-Leisten gefunden - erwartet sind mindestens 14 (sieben Leisten `
+        + 'mal zwei Breiten). Hat sich die Schreibweise der Tablists geaendert?');
+
+      // Und die Gegenrichtung: mindestens eine Leiste MUSS bei 375px
+      // ueberlaufen (die Budget-Tabs tragen 600px Inhalt) - findet die Sonde
+      // keinen einzigen Ueberlauf, misst sie den Anschnitt an nichts und die
+      // zweite Zusicherung ist leer.
+      assert.ok(overflowed > 0,
+        'Keine einzige ueberlaufende Kopf-Leiste gefunden - die Anschnitt-Zusicherung '
+        + 'hat nichts gemessen. Rendert der Seed noch alle Budget-Tabs?');
+
+      assert.deepEqual(findings, [],
+        'Eine ueberlaufende Kopf-Leiste zeigt ihre Fortsetzung: Scroll-Fade plus sichtbar '
+        + 'angeschnittenes naechstes Werkzeug (Werkzeugzeilen-Regel).\n  '
+        + findings.join('\n  '));
     });
   }
 });

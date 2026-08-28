@@ -460,26 +460,29 @@ export async function render(container, { user }) {
           }).join('')}
         </div>` : ''}
         <div class="page-toolbar__actions">
-          <div class="budget-tabs" role="tablist" aria-label="${t('budget.tabsLabel')}">
-            ${[
-              ...(user?.access_scope === 'split_guest' ? [] : [
-                ['budget',        t('budget.budgetTab')],
-                ['accounts',      t('budget.accountsTab')],
-                ['plan',          t('budget.planTab')],
-                ['subscriptions', t('subscriptions.tabLabel')],
-                ['loans',         t('budget.loansTab')],
-                ['reports',       t('budget.reportsTab')],
-              ]),
-              ['split-expenses',  t('splitExpenses.tabLabel')],
-            ].map(([id, label]) => {
-              const on = id === state.activeTab;
-              return `<button class="sub-tab${on ? ' sub-tab--active' : ''}" id="budget-tab-${id}" type="button" role="tab" data-tab-id="${id}" aria-controls="budget-body" aria-selected="${on ? 'true' : 'false'}" tabindex="${on ? '0' : '-1'}"><span class="sub-tab__label">${label}</span></button>`;
-            }).join('')}
-          </div>
           <button class="btn btn--primary toolbar-new-btn" id="budget-add" aria-label="${t('budget.addEntryLabel')}">
             <i data-lucide="plus" aria-hidden="true"></i>
             <span class="toolbar-new-btn__label">${t('newLabel.budget')}</span>
           </button>
+        </div>
+        <!-- Bar-Zeile des Kopfs (Werkzeugzeilen-Regel): die 7 Tabs teilten sich
+             den Actions-Slot mit dem Primaerknopf und hatten bei 1280px 138px
+             fuer 606px Inhalt - 1 von 7 Tabs sichtbar. -->
+        <div class="budget-tabs page-toolbar__bar" role="tablist" aria-label="${t('budget.tabsLabel')}">
+          ${[
+            ...(user?.access_scope === 'split_guest' ? [] : [
+              ['budget',        t('budget.budgetTab')],
+              ['accounts',      t('budget.accountsTab')],
+              ['plan',          t('budget.planTab')],
+              ['subscriptions', t('subscriptions.tabLabel')],
+              ['loans',         t('budget.loansTab')],
+              ['reports',       t('budget.reportsTab')],
+            ]),
+            ['split-expenses',  t('splitExpenses.tabLabel')],
+          ].map(([id, label]) => {
+            const on = id === state.activeTab;
+            return `<button class="sub-tab${on ? ' sub-tab--active' : ''}" id="budget-tab-${id}" type="button" role="tab" data-tab-id="${id}" aria-controls="budget-body" aria-selected="${on ? 'true' : 'false'}" tabindex="${on ? '0' : '-1'}"><span class="sub-tab__label">${label}</span></button>`;
+          }).join('')}
         </div>
       </div>
       <div id="budget-body" role="tabpanel" tabindex="0" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">

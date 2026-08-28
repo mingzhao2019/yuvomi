@@ -2031,6 +2031,66 @@ html.fab-anim-done .page-fab {
   display: none;
 }
 
+/* --------------------------------------------------------
+ * Die Bar-Zeile des Modulkopfs (Werkzeugzeilen-Regel, 2026-08-27)
+ *
+ * Der Kommentar oben versprach seit Runde 6 "eine Tab-Leiste im Kopf ist eine
+ * eigene, horizontal scrollende Zeile" - die Regel darunter gab aber nur das
+ * Scrollen, nie die Zeile. Jede Modulnavigation quetschte sich deshalb in die
+ * Titelzeile: die Budget-Tabs hatten bei 1280px 138px clientWidth fuer 606px
+ * Inhalt (1 von 7 Tabs sichtbar), das Kalender-Segment 212px fuer 245px
+ * ("Agenda" unsichtbar, das Monatslabel ellipsiert), Gesundheit zeigte mobil
+ * 3 von 6, die Haushaltshilfe 3 von 4 Tabs. Die Modulstruktur musste ERINNERT
+ * statt gesehen werden (Critique 2026-08-27, P1).
+ *
+ * `.page-toolbar__bar` ist der vierte Slot des Canonical Page Head: die volle
+ * Zeile UNTER Titel/Center/Aktionen, in der die Werkzeug-Leiste des Moduls
+ * wohnt. Die Klasse sitzt direkt an einer Pillen-Leiste (budget-tabs,
+ * sub-tabs-bar, housekeeping-tabs, rewards-tabs) oder als neutraler Wrapper
+ * um einen Segment-Traeger, dessen Well nicht die ganze Zeile faerben darf
+ * (Kalender-Views). `order: 4` stellt sie hinter den mobilen Center-Slot
+ * (order: 3 in .page-toolbar--wrap); das :has() erspart jedem Kopf das
+ * --wrap-Opt-in, sobald er eine Bar-Zeile traegt.
+ * -------------------------------------------------------- */
+.page-toolbar:has(> .page-toolbar__bar) {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+
+.page-toolbar__bar {
+  flex-basis: 100%;
+  order: 4;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Scroll-Snap der Bar-Leisten: gemeinsame Bauart, vorher Budget-privat. */
+.page-toolbar__bar[role="tablist"],
+.page-toolbar__bar [role="tablist"] {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.page-toolbar__bar .sub-tab {
+  scroll-snap-align: start;
+}
+
+/* Scroll-Affordanz der Bar-Zeile: wenn sie doch ueberlaeuft (schmale Geraete,
+ * lange Locales), zeigt sie den Anschnitt statt ihn zu schlucken - die scharfe
+ * Tab-Leisten-Maske steht bei der Masken-Familie in filter-chip.css
+ * (.page-toolbar__bar / .sub-tabs-bar, inkl. RTL). Hier nur die engeren
+ * Tab-Polster unter 640px, die mehr Tabs in den Viewport lassen (Bauart aus
+ * budget.css, Audit P2 - jetzt geteilt, weil dieselbe Leiste in sechs
+ * Moduldateien lebt). */
+@media (max-width: 640px) {
+  .page-toolbar__bar .sub-tab {
+    padding: 0 var(--space-2);
+  }
+}
+
 /* Center-Slot des Canonical Page Head: wachsende Mitte (Suche, Datums-Nav).
  * flex:1 schiebt die Aktionen via deren margin-left:auto an den Rand. Auf
  * schmalen Viewports darf der Kopf umbrechen — der Center-Slot nimmt dann

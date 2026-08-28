@@ -12,6 +12,7 @@ import { emptyStateHTML, mountLoadError } from '/utils/empty-state.js';
 import { openModal, closeModal, confirmModal } from '/components/modal.js';
 import { createPageFab, setPageFabAction } from '/utils/fab.js';
 import { wireTablist } from '/utils/tablist.js';
+import { wireScrollFade } from '/utils/ux.js';
 import { amountPlaceholder, amountStep, amountIsSavable, smallestUnitLabel } from '/utils/money.js';
 import { maxUploadBytes, maxUploadMb } from '/utils/upload-limit.js';
 
@@ -168,7 +169,7 @@ function renderShell(container) {
     <section class="housekeeping-page page-measure--narrow" aria-labelledby="housekeeping-title">
       <header class="page-toolbar page-toolbar--narrow housekeeping-toolbar">
         <h1 class="page-toolbar__title" id="housekeeping-title">${esc(t('housekeeping.title'))}</h1>
-        <nav class="housekeeping-tabs" role="tablist" aria-label="${esc(t('housekeeping.bottomNav'))}">
+        <nav class="housekeeping-tabs page-toolbar__bar" role="tablist" aria-label="${esc(t('housekeeping.bottomNav'))}">
           ${renderTabButton('dashboard', 'layout-dashboard', t('housekeeping.dashboard'))}
           ${renderTabButton('tasks', 'list-checks', t('housekeeping.tasks'))}
           ${renderTabButton('reports', 'file-text', t('housekeeping.reports'))}
@@ -186,6 +187,10 @@ function renderShell(container) {
     activeId: state.tab,
     onChange: (id) => { state.tab = id; renderCurrentTab(container); },
   });
+  // Scroll-Affordanz der Bar-Zeile: laeuft die Leiste ueber (schmale Geraete,
+  // lange Locales), zeigt der geteilte Peek-Fade (.page-toolbar__bar) den
+  // Anschnitt statt Tabs stumm zu verstecken.
+  wireScrollFade(container.querySelector('.housekeeping-tabs'));
   renderCurrentTab(container);
 }
 
