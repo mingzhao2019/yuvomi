@@ -59,12 +59,17 @@ export function extensionModuleForWidget(id) {
   return meta?.permissionModuleKey || null;
 }
 
+// Same rule as dashboard-widgets.js defaultInsertIndex: follow the predecessor
+// in widgetIdOrder; if none is present, insert at 0 — never append. Appending
+// made every stored layout read as user-ordered and dropped the grid out of
+// dense (audit A1-03). Returning ordered.length here would disagree with core
+// the day a visible widget sits first in the merged list.
 function defaultInsertIndex(ordered, missingId, widgetIdOrder) {
   for (let i = widgetIdOrder.indexOf(missingId) - 1; i >= 0; i--) {
     const at = ordered.findIndex((w) => w.id === widgetIdOrder[i]);
     if (at !== -1) return at + 1;
   }
-  return ordered.length;
+  return 0;
 }
 
 export function defaultExtensionWidgetVisible(id) {
