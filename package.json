@@ -106,6 +106,7 @@
     "test:ssrf": "node --test test/test-ssrf.js",
     "test:http": "node --test test/test-http.js",
     "test:ux-utils": "node test/test-ux-utils.js",
+    "test:page-search": "node --loader ./test/test-browser-loader.mjs --test test/test-page-search.js",
     "test:skeleton-utils": "node test/test-skeleton-utils.js",
     "test:date-utils": "node test/test-date-utils.js",
     "test:time-input": "node --test test/test-time-input.js",

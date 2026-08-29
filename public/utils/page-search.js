@@ -61,6 +61,17 @@ export function wirePageSearch(container, { id, onQuery, delay = 200 } = {}) {
   const clearBtn = control?.querySelector('[data-page-search-clear]');
   const syncClear = () => { if (clearBtn) clearBtn.hidden = !input.value; };
   let timer;
+  input.addEventListener('pointerdown', (event) => {
+    if (!input.value || document.activeElement === input) return;
+    // Re-entering an existing search should continue at the end of the query.
+    // Prevent the browser's default pointer placement from moving the caret to
+    // the tapped position before we focus the field ourselves. Once focused,
+    // regular pointer placement remains available for editing the middle.
+    event.preventDefault();
+    input.focus({ preventScroll: true });
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  });
   input.addEventListener('input', () => {
     syncClear();
     if (delay > 0) {
