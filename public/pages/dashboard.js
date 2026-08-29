@@ -2470,7 +2470,7 @@ async function openExtensionWidgetOptions(id, meta, current = {}) {
       size: 'sm',
       content: `
         <form id="widget-options-form" class="widget-options">
-          ${fields || `<p class="widget-options__hint">${t('dashboard.optionTaskCategoriesEmpty')}</p>`}
+          ${fields || `<p class="widget-options__hint">${t('dashboard.optionExtensionEmpty')}</p>`}
           <div class="modal-actions">
             <button type="button" class="btn btn--secondary" data-action="cancel">${t('common.cancel')}</button>
             <button type="submit" class="btn btn--primary">${t('common.save')}</button>
