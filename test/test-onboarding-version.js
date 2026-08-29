@@ -23,7 +23,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 const dbmod = await import('../server/db.js');
 const db = dbmod.get();
-const migration = dbmod.MIGRATIONS.find((m) => m.description.startsWith('Users: onboarding'));
+const migration = dbmod.MIGRATIONS.find((m) => m.version === 172);
 
 // --------------------------------------------------------------------------
 // Migration, isoliert (wie test-inventory-default-off-migration.js): eine
