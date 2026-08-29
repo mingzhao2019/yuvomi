@@ -5589,11 +5589,33 @@ test('Tasks toolbar keeps secondary controls visible instead of an overflow slid
   // Ansichtswechsel bleibt im Kopf, Gruppierung wandert in die Filterzeile.
   assert.match(tasksPage, /<div class="page-toolbar__actions">[\s\S]*id="view-toggle"[\s\S]*id="btn-bulk-select"/);
   assert.match(tasksPage, /<div class="tasks-filters-row">[\s\S]*id="filter-bar"[\s\S]*id="group-mode-toggle"/);
+  assert.match(tasksPage, /class="tasks-toolbar__views"[\s\S]*id="view-toggle"/);
+  assert.match(tasksPage, /class="tasks-toolbar__tools"[\s\S]*id="btn-new-task"/);
   assert.match(tasksCss, /\.tasks-filters-row\s*\{[\s\S]*display:\s*flex/);
 
   // [hidden] muss gegen display:flex/inline-flex gewinnen, sonst bleiben die in
   // der Kanban-Ansicht ausgeblendeten Controls sichtbar.
   assert.match(tasksCss, /\.tasks-filters-row \[hidden\]\s*\{[\s\S]*display:\s*none/);
+});
+
+test('Tasks view switch keeps one horizontal desktop position in every view', () => {
+  const tasksPage = read('../public/pages/tasks.js');
+  const tasksCss = read('../public/styles/tasks.css');
+
+  assert.doesNotMatch(tasksPage, /classList\.toggle\(\s*'page-toolbar--narrow'/);
+  assert.match(
+    tasksPage,
+    /search\.classList\.toggle\(\s*'tasks-toolbar__search--inactive',\s*isHistory\s*\)/,
+  );
+  assert.doesNotMatch(tasksPage, /search\.hidden\s*=\s*isHistory/);
+
+  assert.match(tasksCss, /\.tasks-toolbar\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:/);
+  assert.match(tasksCss, /\.tasks-toolbar\s*>\s*\.page-toolbar__actions\s*\{[^}]*display:\s*grid/);
+  assert.match(tasksCss, /\.tasks-toolbar__search--inactive\s*\{[^}]*visibility:\s*hidden/);
+  assert.match(
+    tasksCss,
+    /\.tasks-toolbar #view-toggle \.group-toggle__label\s*\{[^}]*white-space:\s*nowrap/,
+  );
 });
 
 test('Tasks and Notes expose every click target as a real control', () => {

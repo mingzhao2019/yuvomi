@@ -61,14 +61,21 @@ export function wirePageSearch(container, { id, onQuery, delay = 200 } = {}) {
   const clearBtn = control?.querySelector('[data-page-search-clear]');
   const syncClear = () => { if (clearBtn) clearBtn.hidden = !input.value; };
   let timer;
-  input.addEventListener('pointerdown', (event) => {
-    if (!input.value || document.activeElement === input) return;
-    // Re-entering an existing search should continue at the end of the query.
-    // Prevent the browser's default pointer placement from moving the caret to
-    // the tapped position before we focus the field ourselves. Once focused,
-    // regular pointer placement remains available for editing the middle.
-    event.preventDefault();
-    input.focus({ preventScroll: true });
+  let moveCaretAfterNativeFocus = false;
+  input.addEventListener('pointerdown', () => {
+    // Remember the state BEFORE the browser performs its native pointer focus.
+    // Do not prevent that default: on iOS a programmatic focus from a cancelled
+    // pointerdown briefly opens the keyboard and then closes it again.
+    moveCaretAfterNativeFocus = !!input.value && document.activeElement !== input;
+  });
+  input.addEventListener('pointercancel', () => {
+    moveCaretAfterNativeFocus = false;
+  });
+  input.addEventListener('click', () => {
+    if (!moveCaretAfterNativeFocus) return;
+    moveCaretAfterNativeFocus = false;
+    // Native click has focused the field and opened the software keyboard.
+    // Only adjust selection; an already focused field keeps normal tap editing.
     const end = input.value.length;
     input.setSelectionRange(end, end);
   });

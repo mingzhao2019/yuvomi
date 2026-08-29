@@ -488,6 +488,77 @@ body.task-list-resizing * {
   max-width: 320px;
 }
 
+/* Der Verlauf hat keine Aufgabensuche. Mobil verschwindet sie wie bisher; auf
+ * dem Desktop bleibt ihre Rasterspalte als Reserve stehen, damit die drei
+ * Ansichten beim Wechsel nicht an ihre Stelle springen. */
+.tasks-toolbar__search--inactive {
+  display: none;
+}
+
+.tasks-toolbar__views,
+.tasks-toolbar__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Desktop nutzt die ganze Kopfzeile: Titel und Suche links, der stabile
+ * Ansichts-Umschalter danach, Werkzeuge rechts. Die freie Rasterspalte dazwischen
+ * nimmt den vorhandenen Platz auf, statt alle Controls in 720px zu pressen. */
+@media (min-width: 1024px) {
+  .tasks-toolbar {
+    display: grid;
+    grid-template-columns:
+      max-content
+      minmax(180px, 320px)
+      minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .tasks-toolbar > .page-toolbar__title {
+    grid-column: 1;
+  }
+
+  .tasks-toolbar__search {
+    grid-column: 2;
+    width: 100%;
+    min-width: 180px;
+    max-width: none;
+  }
+
+  .tasks-toolbar__search--inactive {
+    display: grid;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .tasks-toolbar > .page-toolbar__actions {
+    grid-column: 3;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    width: 100%;
+    margin-left: 0;
+    margin-inline-start: 0;
+  }
+
+  .tasks-toolbar__views {
+    grid-column: 1;
+  }
+
+  .tasks-toolbar__tools {
+    grid-column: 3;
+  }
+
+  .tasks-toolbar #view-toggle,
+  .tasks-toolbar #view-toggle .group-toggle__btn {
+    flex-shrink: 0;
+  }
+
+  .tasks-toolbar #view-toggle .group-toggle__label {
+    white-space: nowrap;
+  }
+}
+
 /* Mobile tasks keep the search entry beside the large title. The shared
  * toolbar otherwise places an empty search in its own line. */
 @media (max-width: 767px) {

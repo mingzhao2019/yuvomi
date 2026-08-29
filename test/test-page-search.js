@@ -39,9 +39,14 @@ test('re-entering a populated search places the caret at the end', () => {
   global.document.activeElement = { tagName: 'BODY' };
   let prevented = false;
   search.dispatch('pointerdown', { preventDefault() { prevented = true; } });
-  assert.equal(prevented, true);
+  assert.equal(prevented, false, 'native pointer focus must stay intact for the mobile keyboard');
+  assert.equal(search.selection, null, 'selection waits until native focus has completed');
+  assert.equal(search.focusOptions, null, 'the handler must not replace native focus');
+
+  // Browser default action between pointerdown and click.
+  global.document.activeElement = search.input;
+  search.dispatch('click', {});
   assert.deepEqual(search.selection, [3, 3]);
-  assert.deepEqual(search.focusOptions, { preventScroll: true });
   assert.equal(global.document.activeElement, search.input);
 });
 
@@ -50,6 +55,17 @@ test('an already focused search still allows normal caret placement', () => {
   global.document.activeElement = search.input;
   let prevented = false;
   search.dispatch('pointerdown', { preventDefault() { prevented = true; } });
+  search.dispatch('click', {});
   assert.equal(prevented, false);
+  assert.equal(search.selection, null);
+});
+
+test('a cancelled pointer does not move the caret on a later click', () => {
+  const search = makeSearch('task');
+  global.document.activeElement = { tagName: 'BODY' };
+  search.dispatch('pointerdown', {});
+  search.dispatch('pointercancel', {});
+  global.document.activeElement = search.input;
+  search.dispatch('click', {});
   assert.equal(search.selection, null);
 });

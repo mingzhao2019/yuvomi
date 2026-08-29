@@ -5245,18 +5245,19 @@ function syncViewChrome(container) {
     b.setAttribute('aria-pressed', String(on));
   });
 
-  // Der Kopf fluchtet mit dem Koerper, den er ueberschreibt - und der wechselt
-  // hier die Breite. Liste und Verlauf sind aufs Lesemass gekappt (720px), das
-  // Kanban-Board nimmt die volle Content-Spalte (gemessen 1156px bei 1440px
-  // Fensterbreite); ein fester Modifier im Markup stimmte in genau einer der
-  // Ansichten (Critique 2026-08-13).
-  container.querySelector('.tasks-toolbar')?.classList.toggle('page-toolbar--narrow', !isKanbanMode());
-
   // Suche, Filterleiste, Gruppierung und Sammelauswahl fragen alle nach
   // AUFGABEN. Der Verlauf zeigt Vorgaenge - ein Statusfilter darueber waere
-  // eine Auswahl, die nichts veraendern kann.
+  // eine Auswahl, die nichts veraendern kann. Auf dem Desktop bleibt ihr Slot
+  // geometrisch stehen: sonst rueckt der Ansichts-Umschalter beim Wechsel in
+  // den Verlauf an ihre Stelle. inert und aria-hidden nehmen den unsichtbaren
+  // Slot zugleich aus Fokus- und Accessibility-Reihenfolge.
   const search = container.querySelector('.tasks-toolbar__search');
-  if (search) search.hidden = isHistory;
+  if (search) {
+    search.classList.toggle('tasks-toolbar__search--inactive', isHistory);
+    search.toggleAttribute('inert', isHistory);
+    if (isHistory) search.setAttribute('aria-hidden', 'true');
+    else search.removeAttribute('aria-hidden');
+  }
   const filtersRow = container.querySelector('.tasks-filters-row');
   if (filtersRow) filtersRow.hidden = isHistory;
   // Das aufgeklappte Filter-Panel ist ein GESCHWISTER der Zeile, kein Kind -
@@ -5281,11 +5282,6 @@ function syncViewChrome(container) {
   // „Als erledigt markieren / Ablegen / Loeschen" ueber dem Verlauf stehen -
   // mit leerer Auswahl, also Knoepfe ohne Gegenstand.
   updateBulkActionsBar(container);
-}
-
-/** Nimmt die Ansicht die volle Content-Spalte ein? */
-function isKanbanMode() {
-  return state.viewMode === 'kanban';
 }
 
 function wireViewToggle(container) {
@@ -5669,6 +5665,7 @@ export async function render(container, { user }) {
           className: 'tasks-toolbar__search page-toolbar__center',
         })}
         <div class="page-toolbar__actions">
+          <div class="tasks-toolbar__views">
           <!-- ICON PLUS LABEL, wie beim Geschwister-Umschalter in der Filterreihe
                (#group-mode-toggle, ~60 Zeilen tiefer). tasks.css:143 sagt ueber
                den Label-Verlust ausdruecklich „Der Ansichts-Umschalter im Kopf
@@ -5701,6 +5698,8 @@ export async function render(container, { user }) {
               <span class="group-toggle__label">${t('tasks.historyView')}</span>
             </button>
           </div>
+          </div>
+          <div class="tasks-toolbar__tools">
           <button class="btn btn--ghost btn--icon" id="btn-bulk-select"
                   title="${t('tasks.bulkSelect')}" aria-label="${t('tasks.bulkSelect')}" aria-pressed="false">
             <i data-lucide="list-checks" class="icon-lg" aria-hidden="true"></i>
@@ -5720,6 +5719,7 @@ export async function render(container, { user }) {
                   aria-label="${t('tasks.newTask')}">
             <i data-lucide="plus" class="icon-lg" aria-hidden="true"></i> <span class="toolbar-new-btn__label">${t('newLabel.tasks')}</span>
           </button>
+          </div>
         </div>
       </div>
 
@@ -5811,6 +5811,11 @@ export async function render(container, { user }) {
   `);
 
   if (window.lucide) window.lucide.createIcons({ el: container });
+  // Gespeicherte Ansichten muessen bereits vor dem ersten Datenabruf dieselbe
+  // Kopfgeometrie haben wie nach dem Verdrahten. Sonst erscheint etwa im
+  // Verlauf die Suche waehrend des Ladens kurz und verschiebt den Umschalter,
+  // bevor wireViewToggle() den Zustand nachtraeglich korrigiert.
+  syncViewChrome(container);
 
   // Daten laden (Filter-State aus vorheriger Session berücksichtigen)
   try {
