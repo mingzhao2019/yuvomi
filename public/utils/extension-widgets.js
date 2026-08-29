@@ -22,6 +22,13 @@ export function getExtensionModules() {
   return _extensionModules;
 }
 
+/** A failed /modules fetch is not a claim that no modules exist. */
+export function selectThirdPartyModuleList(previous, { ok, data } = {}) {
+  const prev = Array.isArray(previous) ? previous : [];
+  if (!ok) return prev;
+  return Array.isArray(data) ? data : prev;
+}
+
 export function isExtensionWidget(id) {
   return typeof id === 'string' && id.includes(':');
 }
@@ -104,7 +111,7 @@ export function normalizeDashboardConfigWithExtensions(input) {
 
   const valid = Array.isArray(input)
     ? input
-      .filter((w) => w && typeof w === 'object' && knownIds.has(w.id))
+      .filter((w) => w && typeof w === 'object' && (knownIds.has(w.id) || isExtensionWidget(w.id)))
       .map((w, i) => ({
         id: w.id,
         visible: w.visible !== false,
