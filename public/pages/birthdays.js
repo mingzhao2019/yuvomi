@@ -14,6 +14,12 @@ import { findPageFab } from '/utils/fab.js';
 // Gross-Schreibung unterscheiden, waeren im Modul nicht auseinanderzuhalten.
 import { emptyStateHTML as sharedEmptyStateHTML, emptyHintHTML } from '/utils/empty-state.js';
 import { getReadableTextColor, AVATAR_FALLBACK_COLOR } from '/utils/color.js';
+import {
+  renderAppPage,
+  renderPageHeader,
+  renderPageTitle,
+  renderPageBody,
+} from '/utils/page-layout.js';
 
 let state = {
   birthdays: [],
@@ -349,30 +355,41 @@ function wireBirthdaySwipe(host) {
 
 function renderPage() {
   _container.replaceChildren();
-  _container.insertAdjacentHTML('beforeend', `
-    <div class="birthdays-page page-measure--narrow">
-      <div class="page-toolbar page-toolbar--wrap page-toolbar--narrow birthdays-toolbar">
-        <h1 class="page-toolbar__title">${t('birthdays.title')}</h1>
-        ${renderPageSearch({ id: 'birthdays-search', label: t('birthdays.searchPlaceholder'), placeholder: t('birthdays.searchPlaceholder'), value: state.query, clearLabel: t('common.searchClear'), className: 'birthdays-toolbar__search page-toolbar__center' })}
-        <!-- Der Aktions-Slot des Modulkopfs. Der Import-Knopf stand direkt in der
-             Leiste; die Shell dockt hier auf dem Desktop den Primärknopf an
-             (dockFabIntoToolbar in router.js), und der braucht einen Ort. -->
-        <div class="page-toolbar__actions">
+  _container.insertAdjacentHTML('beforeend', renderAppPage({
+    mode: 'reading',
+    className: 'birthdays-page',
+    header: renderPageHeader({
+      wrap: true,
+      narrow: true,
+      className: 'birthdays-toolbar',
+      title: renderPageTitle(t('birthdays.title')),
+      center: renderPageSearch({
+        id: 'birthdays-search',
+        label: t('birthdays.searchPlaceholder'),
+        placeholder: t('birthdays.searchPlaceholder'),
+        value: state.query,
+        clearLabel: t('common.searchClear'),
+        className: 'birthdays-toolbar__search page-toolbar__center',
+      }),
+      // Der Aktions-Slot des Modulkopfs. Der Import-Knopf stand direkt in der
+      // Leiste; die Shell dockt hier auf dem Desktop den Primärknopf an
+      // (dockFabIntoToolbar in router.js), und der braucht einen Ort.
+      actions: `<div class="page-toolbar__actions">
           <button class="btn btn--secondary birthdays-toolbar__import" id="birthdays-import-btn" type="button" aria-label="${t('birthdays.importButton')}">
             <i data-lucide="download" aria-hidden="true"></i><span>${t('birthdays.importButton')}</span>
           </button>
-        </div>
-      </div>
-
+        </div>`,
+    }),
+    body: renderPageBody({
+      content: `
       <p class="birthdays-hint">${t('birthdays.calendarHint')}</p>
-
-      <div class="row-carrier birthdays-list" id="birthdays-list"></div>
-
+      <div class="row-carrier birthdays-list" id="birthdays-list"></div>`,
+    }),
+    trailing: `
       <button class="page-fab" id="fab-new-birthday" aria-label="${t('birthdays.addButton')}" data-dock-label="${t('newLabel.birthdays')}">
         <i data-lucide="plus" class="icon-xl" aria-hidden="true"></i>
-      </button>
-    </div>
-  `);
+      </button>`,
+  }));
 
   renderList();
   if (window.lucide) window.lucide.createIcons({ el: _container });

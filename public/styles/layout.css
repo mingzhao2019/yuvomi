@@ -2167,6 +2167,86 @@ html.fab-anim-done .page-fab {
 }
 
 /* --------------------------------------------------------
+ * PAGE COMPOSITION SYSTEM (PAGE-COMPOSITION.md)
+ *
+ * Modules declare a composition mode on `.app-page`; geometry lives here,
+ * not in module CSS. See public/utils/page-layout.js for markup helpers.
+ * -------------------------------------------------------- */
+.app-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  width: 100%;
+}
+
+.app-page__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.app-page--reading,
+.app-page--form,
+.page-measure--narrow {
+  --page-measure: var(--layout-reading);
+}
+
+.app-page--data {
+  --page-measure: var(--layout-content);
+}
+
+.app-page--dashboard {
+  --page-measure: var(--layout-wide);
+}
+
+.app-page--split,
+.app-page--full {
+  --page-measure: none;
+}
+
+/* Calendar agenda (and similar): temporarily adopt reading measure without
+ * switching composition mode declaration (PAGE-001). */
+.app-page.is-reading-measure {
+  --page-measure: var(--layout-reading);
+}
+
+.page-measure {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--page-measure, none);
+  margin-inline: auto;
+}
+
+.page-section {
+  min-width: 0;
+}
+
+.page-section--bleed {
+  margin-inline: calc(-1 * var(--page-inline-pad));
+  padding-inline: var(--page-inline-pad);
+}
+
+@media (min-width: 1024px) {
+  .app-page--split {
+    display: grid;
+    grid-template-columns: minmax(0, var(--layout-reading)) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-page--split {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+}
+
+/* --------------------------------------------------------
  * DAS LESEMASS IST EINE EIGENSCHAFT DER SEITE, NICHT DES TRAEGERS
  * (Critique 2026-08-13, zweite Runde)
  *
@@ -2188,9 +2268,6 @@ html.fab-anim-done .page-fab {
  * die mitfluchten muss, liest dieselbe Variable. Wer sie nicht liest, faellt auf
  * `none` zurueck und ist damit ausdruecklich full-bleed, nicht versehentlich.
  * -------------------------------------------------------- */
-.page-measure--narrow {
-  --page-measure: var(--content-max-width-narrow);
-}
 
 /* Die Bedienzeilen und Inhaltsbloecke einer solchen Seite. Sie stehen zwischen
  * Kopf und Koerper oder ueber ihm und wirken auf ihn, also enden sie mit ihm.
@@ -2248,7 +2325,19 @@ html.fab-anim-done .page-fab {
   /* Der Diagrammabschnitt steht ueber der Buchungsliste und ist selbst eine
    * Zeilenfolge (Kategoriezeilen), also gilt dasselbe Mass. */
   .budget-chart-section,
+  /* Kennzahlenband teilt die Lesebahn mit Kopf und Liste (PAGE-002). */
+  .metric-grid,
   /* Die Mitarbeiterleiste ueber den Karten der Hauswirtschaft. */
+  .housekeeping-worker-strip
+),
+.app-page :is(
+  .tasks-filters-row,
+  .rewards-tabs,
+  .housekeeping-card,
+  .contact-group__header,
+  .rw-pending-panel,
+  .budget-chart-section,
+  .metric-grid,
   .housekeeping-worker-strip
 ) {
   max-width: var(--page-measure, none);
@@ -2262,7 +2351,7 @@ html.fab-anim-done .page-fab {
  * Marge wie das letzte Kind, damit sein Bezugsrahmen die Lesebahn wird statt
  * der Rail. */
 .page-measure--narrow .page-toolbar .budget-nav__month {
-  margin-inline-end: max(0px, calc(100% - var(--page-measure, var(--content-max-width-narrow))));
+  margin-inline-end: max(0px, calc(100% - var(--page-measure, var(--layout-reading))));
 }
 
 /* Opt-in: der Kopf sitzt UNTER einer Tab-Gruppenleiste (.sub-tabs-bar).
@@ -2355,7 +2444,7 @@ html.fab-anim-done .page-fab {
    * GRUND, aus dem es diesen Abstand gibt. Er steht deshalb, und der Mangel
    * landet bei den Slots, die dafuer gebaut sind - Suchfeld und Tab-Leisten
    * geben nach, der Seitentitel zuletzt (siehe unten). */
-  flex: 0 0 max(0px, calc(100% - var(--content-max-width-narrow)));
+  flex: 0 0 max(0px, calc(100% - var(--page-measure, var(--layout-reading))));
   min-width: 0;
   /* DEN EIGENEN ABSTAND ZURUECKNEHMEN. Als Marge am letzten Slot lag der
    * Rueckhalt INNERHALB von dessen Box und beruehrte den `gap` der Leiste nie.
@@ -5329,7 +5418,7 @@ textarea::placeholder {
  * Ideal für Settings, Formulare, Einzelansichten.
  */
 .layout-center {
-  max-width: 720px;
+  max-width: var(--layout-reading);
   margin: 0 auto;
 }
 
@@ -5346,7 +5435,7 @@ textarea::placeholder {
  * Text-Content mit optimaler Lesebreite.
  */
 .prose {
-  max-width: 720px;
+  max-width: var(--layout-reading);
 }
 
 /* ── Sticky-Header (Modul-Toolbars) ──

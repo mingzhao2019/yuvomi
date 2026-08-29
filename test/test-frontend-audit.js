@@ -3601,7 +3601,7 @@ test('das Lesemass haengt an der Seite, nicht am Traeger', () => {
   const layout = read('../public/styles/layout.css');
   const shared = read('../public/styles/list-row.css');
 
-  assert.match(layout, /\.page-measure--narrow\s*\{[\s\S]*?--page-measure:\s*var\(--content-max-width-narrow\)/,
+  assert.match(layout, /\.(?:page-measure--narrow|app-page--reading)\s*\{[\s\S]*?--page-measure:\s*var\(--layout-reading\)/,
     'die Rolle muss die Variable setzen - sonst liest der Rest hier nichts');
 
   // Die Traeger lesen die Variable, mit der alten Konstante als Rueckfall.
@@ -3622,7 +3622,9 @@ test('das Lesemass haengt an der Seite, nicht am Traeger', () => {
     const src = read(page);
     if (!/class="[^"]*\blist-row\b/.test(src)) continue;
     if (ZWEISPALTIG.test(src)) continue;
-    assert.match(src, /page-measure--narrow/,
+    // Calendar agenda toggles reading measure per view (is-reading-measure).
+    if (/is-reading-measure/.test(src) && /app-page--full|data-composition="full"/.test(src)) continue;
+    assert.match(src, /page-measure--narrow|app-page--(?:reading|data|dashboard|form)|data-composition="(?:reading|data|dashboard|form)"|mode:\s*'(?:reading|data|dashboard|form)'|renderAppPage\s*\(/,
       `${page}: zeigt eine Zeilenliste, traegt das Lesemass der Seite aber nicht - `
       + 'Kopf und Bedienzeilen enden dann neben ihrem eigenen Koerper');
   }
@@ -8280,7 +8282,7 @@ test('birthday and navigation headings keep a sequential hierarchy', () => {
   const birthdays = read('../public/pages/birthdays.js');
   const navigation = read('../public/settings/pages/modules-navigation.js');
 
-  assert.match(birthdays, /<h1 class="page-toolbar__title">/);
+  assert.match(birthdays, /<h1 class="page-toolbar__title">|renderPageTitle\s*\(/);
   assert.doesNotMatch(birthdays, /<h3>/);
   assert.match(navigation, /<h2 class="settings-navigation-panel__title"/);
   assert.match(navigation, /<h3 class="settings-navigation-group__title"/);
@@ -8665,7 +8667,7 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
   for (const file of pages) {
     const src = read(file);
     // EIN KOPF, EINE BREITE - die bewusste Gegenform (2026-08-27): wer sein
-    // Lesemass je SICHT am Koerper toggelt (page-measure--narrow), den Kopf
+    // Lesemass je SICHT am Koerper toggelt (page-measure--narrow / is-reading-measure), den Kopf
     // aber konstant laesst, hat gemischte Koerperbreiten und haelt die Kante
     // seines BREITESTEN Koerpers. Heute ist das der Kalender: drei Flaechen,
     // eine Lesebahn - und seit die Ansichts-Umschalter in der Bar-Zeile
@@ -8673,7 +8675,7 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
     // wohnen (Sonde 19). Der Verzicht ist an der BAUART ablesbar, nicht an
     // einem Dateinamen; wer BEIDE toggelt (tasks: Liste gegen Kanban), wird
     // weiter geprueft.
-    if (/classList\.toggle\(\s*'page-measure--narrow'/.test(src)
+    if (/classList\.toggle\(\s*'(?:page-measure--narrow|is-reading-measure)'/.test(src)
       && !/classList\.toggle\(\s*'page-toolbar--narrow'/.test(src)) continue;
     // Jeder Kopf dieser Seite, egal ob als Template-Literal oder über className.
     const heads = [
@@ -8719,11 +8721,11 @@ test('wer seinen Körper aufs Lesemaß kappt, kappt auch seinen Kopf', () => {
   // rail-brechend aus.
   const spacer = narrowRules.filter((r) =>
     r.selectors.some((sel) => /\.page-toolbar--narrow::after\b/.test(sel))
-    && /flex(?:-basis)?:[^;]*var\(--content-max-width-narrow\)/.test(r.body));
+    && /flex(?:-basis)?:[^;]*var\(--page-measure,\s*var\(--layout-reading\)\)|flex(?:-basis)?:[^;]*var\(--layout-reading\)/.test(r.body));
   assert.equal(
     spacer.length, 1,
     'layout.css: .page-toolbar--narrow::after muss das Ende seiner Zeile als Flex-Slot auf '
-    + '--content-max-width-narrow zurückholen (genau eine Regel, gefunden: ' + spacer.length + ')',
+    + '--page-measure/--layout-reading zurückholen (genau eine Regel, gefunden: ' + spacer.length + ')',
   );
 
   // Und KEINE der Regeln darf den Rückhalt wieder als Marge setzen. Über ALLE
