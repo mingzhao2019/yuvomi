@@ -1,122 +1,145 @@
 /**
- * Tests: shared page-search caret behaviour.
+ * Tests: shared page-search wiring and compact reveal behaviour.
  * Ausführen: node --loader ./test-browser-loader.mjs --test test-page-search.js
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 global.document = { activeElement: null };
-const animationFrames = [];
-global.requestAnimationFrame = (callback) => { animationFrames.push(callback); };
-const { wirePageSearch } = await import('../public/utils/page-search.js');
-
-function flushAnimationFrames() {
-  while (animationFrames.length) animationFrames.shift()();
-}
+const { wirePageSearch, wirePageSearchReveal } = await import('../public/utils/page-search.js');
 
 function makeSearch(value) {
   const inputListeners = new Map();
   const controlListeners = new Map();
+  const searchRootListeners = new Map();
+  const triggerListeners = new Map();
+  const rootClasses = new Set();
+  const triggerAttributes = new Map();
   let selection = null;
   let focusOptions = null;
-  const clearButton = {
-    hidden: !value,
-    addEventListener() {},
-    contains(target) { return target === this || target === this.icon; },
+  let input;
+  let clearButton;
+  const root = {
+    classList: {
+      toggle(name, on) {
+        if (on) rootClasses.add(name);
+        else rootClasses.delete(name);
+      },
+    },
   };
-  clearButton.icon = { parent: clearButton };
+  const searchRoot = {
+    addEventListener(type, handler) { searchRootListeners.set(type, handler); },
+    contains(target) { return target === input || target === clearButton; },
+  };
+  clearButton = {
+    hidden: !value,
+    listeners: new Map(),
+    addEventListener(type, handler) { this.listeners.set(type, handler); },
+  };
   const control = {
     addEventListener(type, handler) { controlListeners.set(type, handler); },
     querySelector: () => clearButton,
   };
-  const input = {
+  input = {
     value,
     addEventListener(type, handler) { inputListeners.set(type, handler); },
-    closest: () => control,
+    closest(selector) {
+      if (selector === '.page-search__control') return control;
+      if (selector === '.page-search') return searchRoot;
+      return null;
+    },
     focus(options) {
       focusOptions = options;
       global.document.activeElement = input;
     },
     setSelectionRange(start, end) { selection = [start, end]; },
   };
+  const trigger = {
+    addEventListener(type, handler) { triggerListeners.set(type, handler); },
+    setAttribute(name, valueToSet) { triggerAttributes.set(name, valueToSet); },
+  };
   const container = { querySelector: () => input };
-  wirePageSearch(container, { id: 'task-search', onQuery: () => {}, delay: 0 });
+  const queries = [];
+  const wired = wirePageSearch(container, {
+    id: 'task-search',
+    onQuery: (query) => queries.push(query),
+    delay: 0,
+  });
+  const reveal = wirePageSearchReveal({
+    input: wired.input,
+    trigger,
+    root,
+    openClass: 'toolbar--search-open',
+  });
   return {
     input,
-    icon: { parent: control },
     clearButton,
-    dispatchInput(type, event) { inputListeners.get(type)?.(event); },
-    dispatchControl(type, event) { controlListeners.get(type)?.(event); },
+    controlListeners,
+    queries,
+    reveal,
+    clickTrigger() { triggerListeners.get('click')?.(); },
+    focusOut() { searchRootListeners.get('focusout')?.(); },
+    dispatchInput() { inputListeners.get('input')?.(); },
+    clickClear() { clearButton.listeners.get('click')?.(); },
+    hasRootClass(name) { return rootClasses.has(name); },
+    triggerAttribute(name) { return triggerAttributes.get(name); },
     get selection() { return selection; },
     get focusOptions() { return focusOptions; },
   };
 }
 
-test('re-entering a populated search places the caret at the end', () => {
+test('a separate trigger reveals the input and places a populated query caret at the end', () => {
   const search = makeSearch('找任务');
   global.document.activeElement = { tagName: 'BODY' };
-  let prevented = false;
-  search.dispatchControl('pointerdown', {
-    target: search.input,
-    preventDefault() { prevented = true; },
-  });
-  assert.equal(prevented, false, 'native pointer focus must stay intact for the mobile keyboard');
-  assert.equal(search.selection, null, 'selection waits until native focus has completed');
-  assert.equal(search.focusOptions, null, 'the handler must not replace native focus');
+  search.clickTrigger();
 
-  // Browser default action between pointerdown and click.
-  global.document.activeElement = search.input;
-  search.dispatchControl('click', { target: search.input });
-  assert.equal(search.selection, null, 'native click placement must finish before selection changes');
-  flushAnimationFrames();
+  assert.equal(search.hasRootClass('toolbar--search-open'), true);
+  assert.equal(search.triggerAttribute('aria-expanded'), 'true');
+  assert.deepEqual(search.focusOptions, { preventScroll: true });
   assert.deepEqual(search.selection, [3, 3]);
   assert.equal(global.document.activeElement, search.input);
 });
 
-test('tapping the search icon also re-enters a populated search at the end', () => {
-  const search = makeSearch('ab');
-  global.document.activeElement = { tagName: 'BODY' };
-  search.dispatchControl('pointerdown', { target: search.icon });
-  // The click listener runs before the label's native activation focuses its
-  // associated input. The deferred selection must survive that exact order.
-  search.dispatchControl('click', { target: search.icon });
-  assert.equal(search.selection, null);
-  global.document.activeElement = search.input;
-  flushAnimationFrames();
-  assert.deepEqual(search.selection, [2, 2]);
+test('generic search wiring leaves direct input pointer placement native', () => {
+  const search = makeSearch('task');
+  assert.equal(search.controlListeners.has('pointerdown'), false);
+  assert.equal(search.controlListeners.has('pointercancel'), false);
+  assert.equal(search.controlListeners.has('click'), false);
 });
 
-test('an already focused search still allows normal caret placement', () => {
+test('leaving the revealed search collapses it after focus settles', async () => {
   const search = makeSearch('task');
-  global.document.activeElement = search.input;
-  let prevented = false;
-  search.dispatchControl('pointerdown', {
-    target: search.input,
-    preventDefault() { prevented = true; },
-  });
-  search.dispatchControl('click', { target: search.input });
-  flushAnimationFrames();
-  assert.equal(prevented, false);
-  assert.equal(search.selection, null);
+  search.clickTrigger();
+  global.document.activeElement = { tagName: 'BODY' };
+  search.focusOut();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  assert.equal(search.hasRootClass('toolbar--search-open'), false);
+  assert.equal(search.triggerAttribute('aria-expanded'), 'false');
 });
 
-test('a cancelled pointer does not move the caret on a later click', () => {
+test('clear-button focus handoff keeps the revealed search open', async () => {
   const search = makeSearch('task');
-  global.document.activeElement = { tagName: 'BODY' };
-  search.dispatchControl('pointerdown', { target: search.input });
-  search.dispatchControl('pointercancel', { target: search.input });
-  global.document.activeElement = search.input;
-  search.dispatchControl('click', { target: search.input });
-  flushAnimationFrames();
-  assert.equal(search.selection, null);
+  search.clickTrigger();
+  global.document.activeElement = search.clearButton;
+  search.focusOut();
+  search.clickClear();
+  await new Promise((resolve) => setTimeout(resolve, 5));
+
+  assert.equal(search.input.value, '');
+  assert.deepEqual(search.queries, ['']);
+  assert.equal(global.document.activeElement, search.input);
+  assert.equal(search.hasRootClass('toolbar--search-open'), true);
 });
 
-test('the clear affordance never schedules a stale caret move', () => {
-  const search = makeSearch('task');
-  global.document.activeElement = { tagName: 'BODY' };
-  search.dispatchControl('pointerdown', { target: search.clearButton.icon });
-  global.document.activeElement = search.input;
-  search.dispatchControl('click', { target: search.clearButton.icon });
-  flushAnimationFrames();
-  assert.equal(search.selection, null);
+test('typing still updates the shared query callback', () => {
+  const search = makeSearch('');
+  search.input.value = 'ab';
+  search.dispatchInput();
+  assert.deepEqual(search.queries, ['ab']);
+  assert.equal(search.clearButton.hidden, false);
+});
+
+test('reveal wiring safely ignores incomplete markup', () => {
+  assert.equal(wirePageSearchReveal({}), null);
 });

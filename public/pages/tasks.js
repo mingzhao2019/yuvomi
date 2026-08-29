@@ -17,7 +17,7 @@ import { renderMarkdownToolbar, wireMarkdownToolbar } from '/utils/markdown-tool
 import { refresh as refreshReminders } from '/reminders.js';
 import { renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect, renderAvatarStack } from '/components/user-multi-select.js';
 import { resolveReminderPreset, parseRemindAtAsUtc, wallTimeToInstant, wallTimeToStoredUtc } from '/utils/reminder-offset.js';
-import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
+import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/page-search.js';
 import { isPreviewable } from '/utils/document-preview.js';
 import { renderDocumentAttachField, bindDocumentAttachField } from '/components/document-attach.js';
 import { splitMentions, applyMention } from '/utils/mentions.js';
@@ -5258,6 +5258,14 @@ function syncViewChrome(container) {
     if (isHistory) search.setAttribute('aria-hidden', 'true');
     else search.removeAttribute('aria-hidden');
   }
+  const searchTrigger = container.querySelector('#tasks-search-trigger');
+  if (searchTrigger) {
+    searchTrigger.hidden = isHistory;
+    if (isHistory) {
+      container.querySelector('.tasks-toolbar')?.classList.remove('tasks-toolbar--search-open');
+      searchTrigger.setAttribute('aria-expanded', 'false');
+    }
+  }
   const filtersRow = container.querySelector('.tasks-filters-row');
   if (filtersRow) filtersRow.hidden = isHistory;
   // Das aufgeklappte Filter-Panel ist ein GESCHWISTER der Zeile, kein Kind -
@@ -5656,6 +5664,11 @@ export async function render(container, { user }) {
     <div class="tasks-page page-measure--narrow">
       <div class="page-toolbar page-toolbar--wrap tasks-toolbar">
         <h1 class="page-toolbar__title">${t('tasks.title')}</h1>
+        <button type="button" class="btn btn--ghost btn--icon tasks-toolbar__search-trigger"
+                id="tasks-search-trigger" aria-controls="tasks-search" aria-expanded="false"
+                aria-label="${t('tasks.searchPlaceholder')}" title="${t('tasks.searchPlaceholder')}">
+          <i data-lucide="search" class="icon-lg" aria-hidden="true"></i>
+        </button>
         ${renderPageSearch({
           id: 'tasks-search',
           label: t('tasks.searchPlaceholder'),
@@ -5880,12 +5893,18 @@ export async function render(container, { user }) {
   // `/tasks`, und sein Ladefehler ist ein eigener.
   renderTaskList(container);
 
-  wirePageSearch(container, {
+  const taskSearch = wirePageSearch(container, {
     id: 'tasks-search',
     onQuery: (value) => {
       state.searchQuery = value;
       renderTaskList(container);
     },
+  });
+  wirePageSearchReveal({
+    input: taskSearch?.input,
+    trigger: container.querySelector('#tasks-search-trigger'),
+    root: container.querySelector('.tasks-toolbar'),
+    openClass: 'tasks-toolbar--search-open',
   });
 
   // Deep-Link: ?open=<id> öffnet die Detailansicht

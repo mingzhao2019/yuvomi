@@ -60,39 +60,7 @@ export function wirePageSearch(container, { id, onQuery, delay = 200 } = {}) {
   const control = input.closest('.page-search__control');
   const clearBtn = control?.querySelector('[data-page-search-clear]');
   const syncClear = () => { if (clearBtn) clearBtn.hidden = !input.value; };
-  const hitsClear = (target) => !!clearBtn
-    && (target === clearBtn || clearBtn.contains(target));
   let timer;
-  let moveCaretAfterNativeFocus = false;
-  control?.addEventListener('pointerdown', (event) => {
-    if (hitsClear(event.target)) {
-      moveCaretAfterNativeFocus = false;
-      return;
-    }
-    // Remember the state BEFORE the browser performs its native pointer focus.
-    // Do not prevent that default: on iOS a programmatic focus from a cancelled
-    // pointerdown briefly opens the keyboard and then closes it again. Listen
-    // on the whole control because tapping its search icon focuses the label's
-    // input without ever dispatching pointerdown on the input itself.
-    moveCaretAfterNativeFocus = !!input.value && document.activeElement !== input;
-  });
-  control?.addEventListener('pointercancel', () => {
-    moveCaretAfterNativeFocus = false;
-  });
-  control?.addEventListener('click', (event) => {
-    if (hitsClear(event.target)) return;
-    if (!moveCaretAfterNativeFocus) return;
-    moveCaretAfterNativeFocus = false;
-    // The label/input native click focuses the field and opens the software
-    // keyboard. Safari may place its own caret only after click listeners have
-    // run, so move ours on the next frame, after that default action. This does
-    // not refocus the field and therefore cannot dismiss the keyboard.
-    requestAnimationFrame(() => {
-      if (document.activeElement !== input) return;
-      const end = input.value.length;
-      input.setSelectionRange(end, end);
-    });
-  });
   input.addEventListener('input', () => {
     syncClear();
     if (delay > 0) {
@@ -113,4 +81,52 @@ export function wirePageSearch(container, { id, onQuery, delay = 200 } = {}) {
     setValue(v) { input.value = v; syncClear(); },
     clear() { input.value = ''; syncClear(); },
   };
+}
+
+/**
+ * Reveal a page-search input from a separate compact trigger.
+ *
+ * On iOS, shrinking the input itself to an icon-sized target means a tap on
+ * that target is still a tap at the input's left edge. WebKit can apply that
+ * native touch selection after script handlers run and move a populated
+ * query's caret back to position zero. A real sibling button avoids creating
+ * any native input touch selection: its trusted click reveals and focuses the
+ * input, then places the caret at the end.
+ *
+ * @param {object} opts
+ * @param {HTMLInputElement} opts.input
+ * @param {HTMLButtonElement} opts.trigger
+ * @param {HTMLElement} opts.root
+ * @param {string} opts.openClass
+ * @returns {{open: () => void, close: () => void} | null}
+ */
+export function wirePageSearchReveal({ input, trigger, root, openClass } = {}) {
+  if (!input || !trigger || !root || !openClass) return null;
+  const searchRoot = input.closest('.page-search');
+  if (!searchRoot) return null;
+
+  const setOpen = (open) => {
+    root.classList.toggle(openClass, open);
+    trigger.setAttribute('aria-expanded', String(open));
+  };
+  const open = () => {
+    setOpen(true);
+    // This stays inside the trigger's trusted click, so iOS may open its
+    // software keyboard. Since the click was not on the input, no later native
+    // touch coordinate remains to overwrite this selection.
+    input.focus({ preventScroll: true });
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  };
+  const close = () => setOpen(false);
+
+  trigger.addEventListener('click', open);
+  searchRoot.addEventListener('focusout', () => {
+    // The clear button briefly moves focus within this root. Let its click
+    // return focus to the input before deciding whether to collapse.
+    setTimeout(() => {
+      if (!searchRoot.contains(document.activeElement)) close();
+    }, 0);
+  });
+  return { open, close };
 }

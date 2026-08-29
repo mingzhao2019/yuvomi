@@ -5598,6 +5598,22 @@ test('Tasks toolbar keeps secondary controls visible instead of an overflow slid
   assert.match(tasksCss, /\.tasks-filters-row \[hidden\]\s*\{[\s\S]*display:\s*none/);
 });
 
+test('Tasks mobile search reveals a real input from a separate button', () => {
+  const tasksPage = read('../public/pages/tasks.js');
+  const tasksCss = read('../public/styles/tasks.css');
+  const pageSearch = read('../public/utils/page-search.js');
+
+  assert.match(tasksPage, /<button[^>]*id="tasks-search-trigger"[^>]*aria-controls="tasks-search"/);
+  assert.match(
+    tasksPage,
+    /wirePageSearchReveal\(\{[\s\S]*openClass:\s*'tasks-toolbar--search-open'/,
+  );
+  assert.match(tasksCss, /\.tasks-toolbar\s*>\s*\.page-search\s*\{[\s\S]*display:\s*none/);
+  assert.match(tasksCss, /\.tasks-toolbar--search-open\s*>\s*\.page-search\s*\{[\s\S]*display:\s*grid/);
+  assert.doesNotMatch(pageSearch, /addEventListener\('pointerdown'/);
+  assert.doesNotMatch(pageSearch, /preventDefault\(\)/);
+});
+
 test('Tasks view switch keeps one horizontal desktop position in every view', () => {
   const tasksPage = read('../public/pages/tasks.js');
   const tasksCss = read('../public/styles/tasks.css');
