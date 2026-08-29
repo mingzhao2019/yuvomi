@@ -8588,6 +8588,13 @@ test('page-inline-pad contract holds across every stylesheet (#577)', () => {
 
   // (2) Wer die Content-Spalte trägt, darf sie nirgends mit einem Festwert
   //     überschreiben - auch nicht in einem späteren @media-Block derselben Datei.
+  //
+  // Composition pages may move the gutter to `.app-page__body` in layout.css
+  // (PAGE-COMPOSITION.md). That counts as the carrier when the page root uses
+  // `.app-page` / `renderAppPage` and the module CSS no longer repeats the pad.
+  const layoutCss = read('../public/styles/layout.css');
+  const compositionBodyOwnsPad = /\.app-page--(?:reading|form|data|dashboard)\s*>\s*\.app-page__body[\s\S]{0,200}?padding-inline:\s*var\(--page-inline-pad\)/.test(layoutCss);
+
   for (const mod of bleedModules) {
     const css = read(`../public/styles/${mod}.css`);
     const rules = cssRules(css);
@@ -8595,7 +8602,11 @@ test('page-inline-pad contract holds across every stylesheet (#577)', () => {
       rules.filter((r) => /padding-inline:\s*var\(--page-inline-pad\)|margin-inline:\s*var\(--page-inline-pad\)/.test(r.body))
         .flatMap((r) => r.selectors),
     );
-    assert.ok(carriers.size > 0, `${mod}: kein Träger der Content-Spalte (--page-inline-pad) gefunden (#577)`);
+    const pageFile = `../public/pages/${mod}.js`;
+    const pageSrc = existsSync(new URL(pageFile, import.meta.url)) ? read(pageFile) : '';
+    const usesCompositionBody = /app-page|renderAppPage/.test(pageSrc) && compositionBodyOwnsPad;
+    assert.ok(carriers.size > 0 || usesCompositionBody,
+      `${mod}: kein Träger der Content-Spalte (--page-inline-pad) gefunden (#577)`);
 
     for (const rule of rules) {
       for (const sel of rule.selectors.filter((s) => carriers.has(s))) {

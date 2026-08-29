@@ -19,6 +19,9 @@ import {
   renderPageHeader,
   renderPageTitle,
   renderPageBody,
+  renderPageActions,
+  renderPageSection,
+  renderListSection,
 } from '/utils/page-layout.js';
 
 let state = {
@@ -354,12 +357,19 @@ function wireBirthdaySwipe(host) {
 }
 
 function renderPage() {
+  // Reference page for PAGE-COMPOSITION.md: geometry only via page-layout helpers.
+  // Header rail + body sections share --layout-reading (PAGE-002).
   _container.replaceChildren();
   _container.insertAdjacentHTML('beforeend', renderAppPage({
     mode: 'reading',
     className: 'birthdays-page',
+    legacyAlias: false,
+    attrs: {
+      'data-composition-reference': 'true',
+    },
     header: renderPageHeader({
       wrap: true,
+      measured: true,
       narrow: true,
       className: 'birthdays-toolbar',
       title: renderPageTitle(t('birthdays.title')),
@@ -371,19 +381,23 @@ function renderPage() {
         clearLabel: t('common.searchClear'),
         className: 'birthdays-toolbar__search page-toolbar__center',
       }),
-      // Der Aktions-Slot des Modulkopfs. Der Import-Knopf stand direkt in der
-      // Leiste; die Shell dockt hier auf dem Desktop den Primärknopf an
-      // (dockFabIntoToolbar in router.js), und der braucht einen Ort.
-      actions: `<div class="page-toolbar__actions">
+      // Actions slot: Import + desktop-docked primary (dockFabIntoToolbar).
+      actions: renderPageActions(`
           <button class="btn btn--secondary birthdays-toolbar__import" id="birthdays-import-btn" type="button" aria-label="${t('birthdays.importButton')}">
             <i data-lucide="download" aria-hidden="true"></i><span>${t('birthdays.importButton')}</span>
-          </button>
-        </div>`,
+          </button>`),
     }),
     body: renderPageBody({
-      content: `
-      <p class="birthdays-hint">${t('birthdays.calendarHint')}</p>
-      <div class="row-carrier birthdays-list" id="birthdays-list"></div>`,
+      content: [
+        renderPageSection({
+          className: 'birthdays-hint-section',
+          content: `<p class="birthdays-hint">${t('birthdays.calendarHint')}</p>`,
+        }),
+        renderListSection({
+          className: 'birthdays-list-section',
+          content: `<div class="row-carrier birthdays-list" id="birthdays-list"></div>`,
+        }),
+      ].join('\n'),
     }),
     trailing: `
       <button class="page-fab" id="fab-new-birthday" aria-label="${t('birthdays.addButton')}" data-dock-label="${t('newLabel.birthdays')}">

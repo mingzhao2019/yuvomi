@@ -142,10 +142,11 @@ Defined in [`public/styles/layout.css`](public/styles/layout.css):
 |-------|------|
 | `.app-page` | page root; no module geometry |
 | `.app-page--reading\|data\|dashboard\|form\|split\|full` | composition mode; sets `--page-measure` |
-| `.app-page__body` | page body slot |
-| `.page-measure` | caps width to `--page-measure` |
+| `.app-page__body` | page body slot (mode-owned gutters) |
+| `.page-measure` | caps width to `--page-measure` (left-aligned) |
 | `.page-section` | semantic section; no page geometry |
 | `.page-section--bleed` | explicit full-bleed band |
+| `.page-toolbar--measured` + `.page-toolbar__rail` | header slots grouped for the measure axis |
 
 Mode modifiers set `--page-measure`:
 
@@ -161,11 +162,13 @@ Mode modifiers set `--page-measure`:
 | Export | Role |
 |--------|------|
 | `renderAppPage` | page root with mode + `data-composition` |
-| `renderPageHeader` | canonical `.page-toolbar` wrapper |
+| `renderPageHeader` | canonical `.page-toolbar` (+ optional measured rail) |
 | `renderPageTitle` | `.page-toolbar__title` |
+| `renderPageActions` | `.page-toolbar__actions` |
 | `renderPageBody` | `.app-page__body` |
-| `renderPageSection` | `.page-section` (+ optional bleed / measure) |
+| `renderPageSection` | `.page-section` (+ measure by default) |
 | `renderListSection` | list section with measure cap |
+| `renderMetricBand` | KPI band on the page measure |
 
 Modules must not set page width, gutters, or breakpoints. They pass content into these helpers.
 
@@ -175,9 +178,9 @@ Modules must not set page width, gutters, or breakpoints. They pass content into
 |--------|-------------|
 | `.page-measure--narrow` | `.app-page--reading` |
 | `.budget-list-section` | `.page-section` |
-| `.page-toolbar--narrow::after` as primary alignment | inner `.page-measure` in header where needed |
+| `.page-toolbar--narrow::after` as *sole* alignment story | `.page-toolbar--measured` + `__rail` (narrow may remain until Large-Title selectors accept the rail) |
 
-New code must not introduce legacy aliases.
+New code must not introduce legacy aliases. Reference page already omits `.page-measure--narrow`.
 
 ### Audit invariants
 
@@ -191,30 +194,64 @@ Enforced in [`test/test-frontend-audit.js`](test/test-frontend-audit.js):
 | PAGE-004 | Page-level spacing uses layout tokens |
 | PAGE-005 | Page does not define local breakpoints (allowlisted exceptions) |
 | PAGE-006 | Page-level negative margins are prohibited |
-| PAGE-007 | Extension modules use only approved layout primitives |
+| PAGE-007 | Helpers export the approved layout surface |
 | PAGE-008 | Primary content edges align with declared grid |
 | PAGE-009 | Responsive transformation follows composition mode |
 | PAGE-010 | Full-bleed regions are explicitly declared (`--bleed`) |
 
-Legacy pages remain on an allowlist until their migration wave lands. Migrated pages and new files are strict.
+**Strictness in this PR:** the **reference page** (`birthdays.js`) is audited end-to-end against helpers + no page geometry in module CSS. Other pages are **declaration-first** (mode on root); deep helper migration follows in stacked PRs.
 
-### Reference page
+### Reference / demo page
 
-[`public/pages/birthdays.js`](public/pages/birthdays.js) is the visual gold standard: 100% contract via `page-layout.js`, Header/Body same width ±2px at 1440/1920.
+[`public/pages/birthdays.js`](public/pages/birthdays.js) is the **visual and structural gold standard** for this PR (`data-composition-reference="true"`).
+
+Open **`/birthdays`** on a wide desktop (1440 / 1920) to demo the concept:
+
+```text
+.app-page--reading
+├── .page-toolbar.page-toolbar--measured.page-toolbar--narrow
+│   └── .page-toolbar__rail → title · search · actions   ← same --page-measure
+└── .app-page__body
+    ├── .page-section.page-measure          ← hint
+    └── .page-section--list.page-measure    ← .row-carrier list
+```
+
+**Acceptance (reference):**
+
+- [ ] Markup built only via `page-layout.js` helpers (no hand-rolled page width)
+- [ ] `data-composition="reading"` and `data-composition-reference="true"`
+- [ ] No `.page-measure--narrow` compat class on the root
+- [ ] `birthdays.css` has no page-level `max-width` / page gutters / negative margins
+- [ ] Header rail and list share one primary edge (±2px) at 1440 and 1920
 
 ### Visual regression (phase 2+)
 
-Viewports **390 / 768 / 1024 / 1440 / 1920** — screenshot + width/alignment/overflow checks. Not a v1 gate.
+Viewports **390 / 768 / 1024 / 1440 / 1920** — screenshot + width/alignment/overflow checks. Not a merge gate for this PR beyond the reference checklist above.
+
+---
+
+## FAQ — closed requirements
+
+| Question | Answer |
+|----------|--------|
+| Is Budget the layout reference? | **No.** Budget is an offender; birthdays is the reference. |
+| Must every page use `page-layout.js` in this PR? | **Reference must.** Others declare `data-composition` / `.app-page--*`; helper deep-migration is follow-up. |
+| Why still `page-toolbar--narrow`? | Large-Title / wrap CSS still keys off direct toolbar children. Measured rail uses `display: contents` with narrow so the edge stays correct without rewriting every selector. |
+| Why `--layout-*` and `--content-max-width-narrow`? | `--layout-*` is the contract; narrow is a one-cycle alias. |
+| Can extensions invent width? | **No.** Declare `page.composition` and use helpers / `.app-page--*`. |
+| What about shopping / meals / settings / auth? | Documented v1 exceptions — do not force composition modes yet. |
+| How do I review this PR visually? | Open `/birthdays` at 1920px: one reading column, header actions flush with list edge. |
 
 ---
 
 ## Migration checklist
 
-| Wave | Mode | Modules |
-|------|------|---------|
-| A | `reading` | contacts, notes, rewards, pantry, recipes |
-| B | `data` | inventory, schedule, documents, housekeeping |
-| C | budget family | budget + stats/plans/subscriptions/split — declare mode, fix PAGE-002 |
-| D | `dashboard` / `split` / `full` | calendar, tasks, health, dashboard |
+| Wave | Mode | Modules | Status in this PR |
+|------|------|---------|-------------------|
+| Reference | `reading` | **birthdays** | **Done (helpers + CSS)** |
+| A | `reading` | contacts, notes, rewards, pantry, recipes | Mode declared |
+| B | `data` | inventory, schedule, documents, housekeeping | Mode declared |
+| C | budget family | budget + stats/plans/subscriptions/split | Mode declared; metric-grid on measure |
+| D | `dashboard` / `full` | calendar, tasks, health, dashboard | Mode declared |
 
 After v1, every layout question becomes: *which composition mode, and which contract clause is violated?*

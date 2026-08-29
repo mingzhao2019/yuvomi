@@ -2216,7 +2216,55 @@ html.fab-anim-done .page-fab {
   box-sizing: border-box;
   width: 100%;
   max-width: var(--page-measure, none);
-  margin-inline: auto;
+  /* Left-aligned with the reading/data column (not centered): matches
+   * .row-carrier / historical page-measure--narrow behaviour. */
+}
+
+/* Measured toolbar rail (PAGE-COMPOSITION.md).
+ *
+ * With .page-toolbar--narrow: rail is display:contents so title/center/actions
+ * stay direct flex participants for Large-Title / wrap rules; ::after still
+ * owns the primary edge.
+ *
+ * Without --narrow (new pages once selectors are migrated): rail is a real
+ * flex box capped to --page-measure. */
+.page-toolbar--measured:not(.page-toolbar--narrow)::after {
+  content: none;
+  display: none;
+  flex: 0 0 0;
+  margin: 0;
+}
+
+.page-toolbar--measured > .page-toolbar__rail {
+  display: contents;
+}
+
+.page-toolbar--measured:not(.page-toolbar--narrow) > .page-toolbar__rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--page-toolbar-gap, var(--space-2));
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--page-measure, none);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.page-toolbar--measured:not(.page-toolbar--narrow) > .page-toolbar__bar {
+  flex: 1 1 100%;
+}
+
+.app-page--reading > .app-page__body,
+.app-page--form > .app-page__body,
+.app-page--data > .app-page__body {
+  padding-inline: var(--page-inline-pad);
+  gap: var(--space-3);
+}
+
+.app-page--dashboard > .app-page__body {
+  padding-inline: var(--page-inline-pad);
+  gap: var(--space-4);
 }
 
 .page-section {
