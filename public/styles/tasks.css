@@ -174,6 +174,7 @@ body.task-list-resizing * {
 }
 
 .task-list-nav__sort,
+.task-list-nav__reset,
 .task-list-nav__drag-handle {
   display: grid;
   flex: 0 0 var(--target-lg);
@@ -187,12 +188,15 @@ body.task-list-resizing * {
   color: var(--color-text-tertiary);
 }
 
-.task-list-nav__sort {
+.task-list-nav__sort,
+.task-list-nav__reset {
   cursor: pointer;
 }
 
 .task-list-nav__sort:hover,
-.task-list-nav__sort:focus-visible {
+.task-list-nav__sort:focus-visible,
+.task-list-nav__reset:hover,
+.task-list-nav__reset:focus-visible {
   border-color: var(--color-border);
   background: var(--color-surface-2);
   color: var(--module-accent, var(--color-accent));

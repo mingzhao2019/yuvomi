@@ -482,6 +482,7 @@
         "taskListShortLabel": "Liste",
         "taskListSelect": "Liste wählen",
         "taskListSelectSource": "Zuerst eine Quelle wählen",
+        "taskListResetToSource": "Alle Aufgaben dieser Quelle anzeigen",
         "taskListSortAlphabetical": "Listen nach Namen sortieren",
         "taskListSortAlphabeticalDisable": "Manuelle Reihenfolge wiederherstellen",
         "taskListSortAlphabeticalOn": "Listen nach Namen sortiert.",

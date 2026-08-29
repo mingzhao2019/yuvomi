@@ -4235,6 +4235,25 @@ function makeTaskListSortButton(group, container) {
   return button;
 }
 
+function makeTaskListResetButton(provider, container) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'task-list-nav__reset';
+  button.title = t('tasks.taskListResetToSource');
+  button.setAttribute('aria-label', `${button.title}: ${taskListSourceLabel(provider)}`);
+  const icon = document.createElement('i');
+  icon.setAttribute('data-lucide', 'rotate-ccw');
+  icon.className = 'icon-sm';
+  icon.setAttribute('aria-hidden', 'true');
+  button.appendChild(icon);
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    activateTaskListScope(`${TASK_LIST_SOURCE_SCOPE_PREFIX}${provider}`, container);
+  });
+  return button;
+}
+
 function disableTaskListAlphabeticalMode(provider, container) {
   if (!Object.prototype.hasOwnProperty.call(
     state.taskListOrder?.alphabetical ?? {}, provider,
@@ -4414,6 +4433,7 @@ function makeTaskListDropdownField({
   container,
   kind,
   provider = '',
+  resetProvider = '',
   sortGroup = null,
 }) {
   const field = document.createElement('div');
@@ -4555,6 +4575,7 @@ function makeTaskListDropdownField({
   });
 
   controls.append(trigger);
+  if (resetProvider) controls.appendChild(makeTaskListResetButton(resetProvider, container));
   if (sortGroup) controls.appendChild(makeTaskListSortButton(sortGroup, container));
   field.append(labelEl, controls, menu);
   return field;
@@ -4599,6 +4620,9 @@ function renderMobileTaskListNav(parent, groups, container) {
     })) ?? []
     : [];
   const selectedList = listOptions.find((option) => String(option.value) === String(state.activeTaskListId));
+  const resetProvider = selectedList?.item && isConcreteTaskList(selectedList.item)
+    ? group?.key ?? ''
+    : '';
   fields.appendChild(makeTaskListDropdownField({
     id: 'task-list-mobile-select',
     label: t('tasks.taskListShortLabel'),
@@ -4609,6 +4633,7 @@ function renderMobileTaskListNav(parent, groups, container) {
     container,
     kind: 'list',
     provider: group?.key ?? '',
+    resetProvider,
     sortGroup: group && group.lists.filter(isConcreteTaskList).length > 1 ? group : null,
   }));
   mobile.appendChild(fields);

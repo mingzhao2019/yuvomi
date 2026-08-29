@@ -260,6 +260,8 @@ test('Task Lists sind eine dauerhafte Navigation statt einer Filter- oder Gruppi
   assert(source.includes('task-list-mobile-select'), 'mobile Listen müssen über ein Select gewählt werden');
   assert(source.includes('task-list-nav__delete'), 'konkrete Listen müssen eine Löschaktion anbieten');
   assert(source.includes('function handleDeleteTaskList('), 'die Listenlöschung muss einen eigenen Handler haben');
+  assert(source.includes('function makeTaskListResetButton('), 'mobile Listen brauchen einen Reset auf den Quellenbereich');
+  assert(source.includes('resetProvider'), 'der Reset darf nur bei einer konkreten Liste erscheinen');
   assert(source.includes("const TASK_LIST_SOURCE_SCOPE_PREFIX = 'source:'"),
     'eine Quelle muss von einer konkreten Liste unterscheidbar sein');
   assert(!source.includes('data-mode="task_list"'), 'Task List darf kein Gruppenmodus sein');

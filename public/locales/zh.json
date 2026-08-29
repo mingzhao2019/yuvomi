@@ -470,6 +470,7 @@
         "taskListShortLabel": "列表",
         "taskListSelect": "选择列表",
         "taskListSelectSource": "请先选择来源",
+        "taskListResetToSource": "显示此来源的所有任务",
         "taskListSortAlphabetical": "按名称排序",
         "taskListSortAlphabeticalDisable": "恢复手动顺序",
         "taskListSortAlphabeticalOn": "已按名称排序。",

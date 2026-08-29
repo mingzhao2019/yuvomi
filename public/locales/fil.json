@@ -482,6 +482,7 @@
         "taskListShortLabel": "List",
         "taskListSelect": "Select list",
         "taskListSelectSource": "Select a source first",
+        "taskListResetToSource": "Show all tasks from this source",
         "taskListSortAlphabetical": "Sort lists by name",
         "taskListSortAlphabeticalDisable": "Restore manual order",
         "taskListSortAlphabeticalOn": "Lists sorted by name.",
