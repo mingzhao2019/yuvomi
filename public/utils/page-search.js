@@ -60,24 +60,38 @@ export function wirePageSearch(container, { id, onQuery, delay = 200 } = {}) {
   const control = input.closest('.page-search__control');
   const clearBtn = control?.querySelector('[data-page-search-clear]');
   const syncClear = () => { if (clearBtn) clearBtn.hidden = !input.value; };
+  const hitsClear = (target) => !!clearBtn
+    && (target === clearBtn || clearBtn.contains(target));
   let timer;
   let moveCaretAfterNativeFocus = false;
-  input.addEventListener('pointerdown', () => {
+  control?.addEventListener('pointerdown', (event) => {
+    if (hitsClear(event.target)) {
+      moveCaretAfterNativeFocus = false;
+      return;
+    }
     // Remember the state BEFORE the browser performs its native pointer focus.
     // Do not prevent that default: on iOS a programmatic focus from a cancelled
-    // pointerdown briefly opens the keyboard and then closes it again.
+    // pointerdown briefly opens the keyboard and then closes it again. Listen
+    // on the whole control because tapping its search icon focuses the label's
+    // input without ever dispatching pointerdown on the input itself.
     moveCaretAfterNativeFocus = !!input.value && document.activeElement !== input;
   });
-  input.addEventListener('pointercancel', () => {
+  control?.addEventListener('pointercancel', () => {
     moveCaretAfterNativeFocus = false;
   });
-  input.addEventListener('click', () => {
+  control?.addEventListener('click', (event) => {
+    if (hitsClear(event.target)) return;
     if (!moveCaretAfterNativeFocus) return;
     moveCaretAfterNativeFocus = false;
-    // Native click has focused the field and opened the software keyboard.
-    // Only adjust selection; an already focused field keeps normal tap editing.
-    const end = input.value.length;
-    input.setSelectionRange(end, end);
+    // The label/input native click focuses the field and opens the software
+    // keyboard. Safari may place its own caret only after click listeners have
+    // run, so move ours on the next frame, after that default action. This does
+    // not refocus the field and therefore cannot dismiss the keyboard.
+    requestAnimationFrame(() => {
+      if (document.activeElement !== input) return;
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+    });
   });
   input.addEventListener('input', () => {
     syncClear();
