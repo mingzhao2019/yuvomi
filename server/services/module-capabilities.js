@@ -166,14 +166,15 @@ export async function normalizeCapabilities(raw, moduleId, basePath, publicUrl, 
   let apiPrefix = null;
   let scopeKey = permissionModuleKey;
   if (apiBlock) {
-    const prefix = String(apiBlock.prefix || '').trim();
-    if (!prefix.startsWith('/api/')) {
-      throw new Error('capabilities.api.prefix must start with /api/.');
+    // Anchored to this module's id so an extension cannot claim a core
+    // prefix (e.g. /api/tasks) and overwrite PREFIX_TO_MODULE. Trailing
+    // slashes are stripped; anything other than the exact path is rejected.
+    const expected = `/api/extensions/${moduleId}`;
+    const prefix = String(apiBlock.prefix || '').trim().replace(/\/+$/, '');
+    if (prefix !== expected) {
+      throw new Error(`capabilities.api.prefix must be ${expected}.`);
     }
-    if (prefix.includes('..') || prefix.includes(' ')) {
-      throw new Error('capabilities.api.prefix is invalid.');
-    }
-    apiPrefix = prefix.replace(/\/+$/, '') || prefix;
+    apiPrefix = prefix;
     if (apiBlock.scopeKey) {
       const custom = String(apiBlock.scopeKey).trim();
       if (custom !== extensionPermissionKey(moduleId)) {
