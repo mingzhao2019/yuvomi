@@ -115,3 +115,34 @@ test('jede test/test-*.js-Datei hat ein npm-Script', () => {
     `Testdateien ohne test:-Script - anlegen und in die Kette einhängen: ${orphans.join(', ')}`,
   );
 });
+
+/* EINE DATEI-DATENBANK IM TEMP-ORDNER IST EINE FALLE, WENN SIE LIEGEN BLEIBT.
+ *
+ * Neun Suiten legen ihre Datenbank als `<name>-${process.pid}.db` ab. Wer erst
+ * am ENDE aufraeumt, raeumt genau dann nicht auf, wenn es zaehlt: bricht ein
+ * Lauf ab, bleibt die Datei stehen. Betriebssysteme vergeben PIDs wieder, und
+ * irgendwann oeffnet ein neuer Lauf die volle Datenbank eines alten - er
+ * migriert sie, findet Bestandsdaten und scheitert an einem UNIQUE-Constraint,
+ * den sein eigener Code nie verletzt haette.
+ *
+ * Gemessen am 2026-08-29: 182 verwaiste Dateien, aelteste vier Tage alt, und
+ * ein roter Lauf, der isoliert nicht zu reproduzieren war. Das ist die teuerste
+ * Sorte Fehlschlag - er zeigt auf die Aenderung, die gerade entsteht.
+ *
+ * Der Guard prueft die REIHENFOLGE-REGEL, nicht eine Liste von Dateinamen:
+ * wer `DB_PATH` auf den Temp-Ordner setzt, tut das ueber `freshTestDbPath()`,
+ * und die raeumt VOR dem Oeffnen weg. */
+test('keine Suite baut ihren Temp-DB-Pfad von Hand zusammen', () => {
+  const offenders = readdirSync(new URL('../test', import.meta.url))
+    .filter((f) => f.startsWith('test-') && f.endsWith('.js'))
+    .filter((f) => {
+      const src = readFileSync(new URL(`../test/${f}`, import.meta.url), 'utf8');
+      return /process\.env\.DB_PATH\s*=\s*path\.join\(os\.tmpdir\(\)/.test(src);
+    });
+  assert.deepEqual(
+    offenders,
+    [],
+    'DB_PATH im Temp-Ordner gehoert ueber freshTestDbPath() aus test/tmp-db.js - '
+    + `sonst erbt ein Lauf die Datei eines abgebrochenen mit derselben PID: ${offenders.join(', ')}`,
+  );
+});
