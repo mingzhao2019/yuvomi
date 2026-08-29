@@ -300,7 +300,8 @@
         "memberOpenTasks_one": "할 일 {{count}}개",
         "manage": "관리",
         "todayNothingElseTomorrow": "오늘은 더 이상 일정이 없습니다. 내일: {{title}}",
-        "weatherHighLow": "최고 {{max}}°, 최저 {{min}}°"
+        "weatherHighLow": "최고 {{max}}°, 최저 {{min}}°",
+        "optionCalendarBirthdaysHint": "체크를 해제하면 이 타일에 생일이 표시되지 않습니다. 캘린더에는 그대로 남습니다."
     },
     "tasks": {
         "manageCategories": "카테고리 관리",
@@ -940,7 +941,9 @@
         "deleteSubscribedSeriesDetail": "\"{{title}}\"은(는) 구독 중인 캘린더의 일정입니다. Yuvomi는 원본에서 삭제할 수 없어 다음 동기화 전까지만 사라집니다. 완전히 없애려면 캘린더 구독을 해지하세요.",
         "deleteSubscribedSeriesConfirm": "그래도 삭제",
         "colorInherit": "담당자 색상",
-        "colorInheritHint": "일정은 자체 색상을 갖지 않고 담당자의 색상을 따릅니다. 담당자가 없으면 캘린더 색상이 적용됩니다."
+        "colorInheritHint": "일정은 자체 색상을 갖지 않고 담당자의 색상을 따릅니다. 담당자가 없으면 캘린더 색상이 적용됩니다.",
+        "filtersLayers": "레이어",
+        "agendaDayEmpty": "예정된 일정 없음"
     },
     "notes": {
         "title": "메모",

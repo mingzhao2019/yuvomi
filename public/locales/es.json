@@ -288,7 +288,8 @@
         "memberOpenTasks_one": "{{count}} tarea",
         "manage": "Gestionar",
         "todayNothingElseTomorrow": "Nada más por hoy - mañana: {{title}}",
-        "weatherHighLow": "Máxima {{max}}°, mínima {{min}}°"
+        "weatherHighLow": "Máxima {{max}}°, mínima {{min}}°",
+        "optionCalendarBirthdaysHint": "Sin marcar, los cumpleaños no aparecen en esta tarjeta; en el calendario siguen estando."
     },
     "tasks": {
         "manageCategories": "Gestionar categorías",
@@ -928,7 +929,9 @@
         "deleteSubscribedSeriesDetail": "«{{title}}» procede de un calendario suscrito. Yuvomi no puede eliminar nada allí: la serie solo desaparece hasta la próxima sincronización; para quitarla definitivamente, cancela la suscripción.",
         "deleteSubscribedSeriesConfirm": "Eliminar de todos modos",
         "colorInherit": "Color de la persona asignada",
-        "colorInheritHint": "El evento no tiene color propio y toma el de la persona asignada. Si no hay nadie asignado, se aplica el color del calendario."
+        "colorInheritHint": "El evento no tiene color propio y toma el de la persona asignada. Si no hay nadie asignado, se aplica el color del calendario.",
+        "filtersLayers": "Capas",
+        "agendaDayEmpty": "Nada planeado"
     },
     "notes": {
         "title": "Notas",

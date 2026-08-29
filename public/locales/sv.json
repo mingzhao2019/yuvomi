@@ -288,7 +288,8 @@
         "memberOpenTasks_one": "{{count}} uppgift",
         "manage": "Hantera",
         "todayNothingElseTomorrow": "Inget mer idag - imorgon: {{title}}",
-        "weatherHighLow": "Högsta {{max}}°, lägsta {{min}}°"
+        "weatherHighLow": "Högsta {{max}}°, lägsta {{min}}°",
+        "optionCalendarBirthdaysHint": "Utan bock hålls födelsedagar utanför den här rutan - i kalendern står de kvar."
     },
     "tasks": {
         "manageCategories": "Hantera kategorier",
@@ -928,7 +929,9 @@
         "deleteSubscribedSeriesDetail": "”{{title}}” kommer från en prenumererad kalender. Yuvomi kan inte ta bort något där - serien försvinner bara till nästa synkronisering; säg upp prenumerationen för att ta bort den permanent.",
         "deleteSubscribedSeriesConfirm": "Ta bort ändå",
         "colorInherit": "Färg för den tilldelade personen",
-        "colorInheritHint": "Händelsen får ingen egen färg utan tar den tilldelade personens. Om ingen är tilldelad gäller kalenderns färg."
+        "colorInheritHint": "Händelsen får ingen egen färg utan tar den tilldelade personens. Om ingen är tilldelad gäller kalenderns färg.",
+        "filtersLayers": "Lager",
+        "agendaDayEmpty": "Inget planerat"
     },
     "notes": {
         "title": "Anteckningar",

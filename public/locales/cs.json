@@ -288,7 +288,8 @@
         "memberOpenTasks_one": "{{count}} úkol",
         "manage": "Spravovat",
         "todayNothingElseTomorrow": "Dnes už nic dalšího - zítra: {{title}}",
-        "weatherHighLow": "Nejvyšší {{max}}°, nejnižší {{min}}°"
+        "weatherHighLow": "Nejvyšší {{max}}°, nejnižší {{min}}°",
+        "optionCalendarBirthdaysHint": "Bez zaškrtnutí narozeniny z této dlaždice zmizí, v kalendáři zůstanou."
     },
     "tasks": {
         "manageCategories": "Spravovat kategorie",
@@ -928,7 +929,9 @@
         "deleteSubscribedSeriesDetail": "„{{title}}\" pochází z odebíraného kalendáře. Yuvomi tam nemůže nic odstranit - série zmizí jen do další synchronizace; natrvalo ji odstraníte zrušením odběru.",
         "deleteSubscribedSeriesConfirm": "Přesto odstranit",
         "colorInherit": "Barva přiřazené osoby",
-        "colorInheritHint": "Událost nemá vlastní barvu a přebírá barvu přiřazené osoby. Pokud není nikdo přiřazen, platí barva kalendáře."
+        "colorInheritHint": "Událost nemá vlastní barvu a přebírá barvu přiřazené osoby. Pokud není nikdo přiřazen, platí barva kalendáře.",
+        "filtersLayers": "Vrstvy",
+        "agendaDayEmpty": "Nic naplánováno"
     },
     "notes": {
         "title": "Nástěnka",

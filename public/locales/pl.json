@@ -300,7 +300,8 @@
         "memberOpenTasks_one": "{{count}} zadanie",
         "manage": "Zarządzaj",
         "todayNothingElseTomorrow": "Nic więcej na dziś - jutro: {{title}}",
-        "weatherHighLow": "Najwyższa {{max}}°, najniższa {{min}}°"
+        "weatherHighLow": "Najwyższa {{max}}°, najniższa {{min}}°",
+        "optionCalendarBirthdaysHint": "Bez zaznaczenia urodziny nie pojawiają się na tym kaflu - w kalendarzu zostają."
     },
     "tasks": {
         "manageCategories": "Zarządzaj kategoriami",
@@ -940,7 +941,9 @@
         "deleteSubscribedSeriesDetail": "„{{title}}\" pochodzi z subskrybowanego kalendarza. Yuvomi nie może tam nic usunąć - seria zniknie tylko do następnej synchronizacji; trwale usuniesz ją, anulując subskrypcję.",
         "deleteSubscribedSeriesConfirm": "Usuń mimo to",
         "colorInherit": "Kolor przypisanej osoby",
-        "colorInheritHint": "Wydarzenie nie ma własnego koloru i przejmuje kolor przypisanej osoby. Jeśli nikt nie jest przypisany, obowiązuje kolor kalendarza."
+        "colorInheritHint": "Wydarzenie nie ma własnego koloru i przejmuje kolor przypisanej osoby. Jeśli nikt nie jest przypisany, obowiązuje kolor kalendarza.",
+        "filtersLayers": "Warstwy",
+        "agendaDayEmpty": "Nic zaplanowane"
     },
     "notes": {
         "title": "Notatki",

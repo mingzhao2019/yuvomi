@@ -288,7 +288,8 @@
         "memberOpenTasks_one": "{{count}} attività",
         "manage": "Gestisci",
         "todayNothingElseTomorrow": "Nient'altro per oggi - domani: {{title}}",
-        "weatherHighLow": "Massima {{max}}°, minima {{min}}°"
+        "weatherHighLow": "Massima {{max}}°, minima {{min}}°",
+        "optionCalendarBirthdaysHint": "Senza spunta i compleanni restano fuori da questa scheda; nel calendario ci sono ancora."
     },
     "tasks": {
         "manageCategories": "Gestisci categorie",
@@ -928,7 +929,9 @@
         "deleteSubscribedSeriesDetail": "«{{title}}» proviene da un calendario sottoscritto. Yuvomi non può eliminare nulla lì: la serie scompare solo fino alla prossima sincronizzazione; per rimuoverla definitivamente, annulla la sottoscrizione.",
         "deleteSubscribedSeriesConfirm": "Elimina comunque",
         "colorInherit": "Colore della persona assegnata",
-        "colorInheritHint": "L'evento non ha un colore proprio e assume quello della persona assegnata. Se non è assegnato a nessuno, vale il colore del calendario."
+        "colorInheritHint": "L'evento non ha un colore proprio e assume quello della persona assegnata. Se non è assegnato a nessuno, vale il colore del calendario.",
+        "filtersLayers": "Livelli",
+        "agendaDayEmpty": "Niente in programma"
     },
     "notes": {
         "title": "Bacheca",

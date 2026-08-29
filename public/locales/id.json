@@ -300,7 +300,8 @@
         "memberOpenTasks_one": "{{count}} tugas",
         "manage": "Kelola",
         "todayNothingElseTomorrow": "Tidak ada lagi hari ini - besok: {{title}}",
-        "weatherHighLow": "Tertinggi {{max}}°, terendah {{min}}°"
+        "weatherHighLow": "Tertinggi {{max}}°, terendah {{min}}°",
+        "optionCalendarBirthdaysHint": "Tanpa centang, ulang tahun tidak muncul di kartu ini - di kalender tetap ada."
     },
     "tasks": {
         "manageCategories": "Kelola kategori",
@@ -940,7 +941,9 @@
         "deleteSubscribedSeriesDetail": "\"{{title}}\" berasal dari kalender langganan. Yuvomi tidak dapat menghapus apa pun di sana - rangkaian hanya hilang sampai sinkronisasi berikutnya; untuk menghapusnya permanen, berhenti berlangganan kalender tersebut.",
         "deleteSubscribedSeriesConfirm": "Tetap hapus",
         "colorInherit": "Warna orang yang ditugaskan",
-        "colorInheritHint": "Acara tidak mendapat warna sendiri dan mengambil warna orang yang ditugaskan. Jika tidak ada yang ditugaskan, warna kalender yang berlaku."
+        "colorInheritHint": "Acara tidak mendapat warna sendiri dan mengambil warna orang yang ditugaskan. Jika tidak ada yang ditugaskan, warna kalender yang berlaku.",
+        "filtersLayers": "Lapisan",
+        "agendaDayEmpty": "Tidak ada rencana"
     },
     "notes": {
         "title": "Catatan",

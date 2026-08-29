@@ -288,7 +288,8 @@
         "memberOpenTasks_one": "{{count}} görev",
         "manage": "Yönet",
         "todayNothingElseTomorrow": "Bugün başka bir şey yok - yarın: {{title}}",
-        "weatherHighLow": "En yüksek {{max}}°, en düşük {{min}}°"
+        "weatherHighLow": "En yüksek {{max}}°, en düşük {{min}}°",
+        "optionCalendarBirthdaysHint": "İşaret kaldırılınca doğum günleri bu kartta görünmez, takvimde kalmaya devam eder."
     },
     "tasks": {
         "manageCategories": "Kategorileri yönet",
@@ -928,7 +929,9 @@
         "deleteSubscribedSeriesDetail": "\"{{title}}\" abone olunan bir takvimden geliyor. Yuvomi orada hiçbir şeyi silemez - seri yalnızca bir sonraki eşitlemeye kadar kaybolur; kalıcı olarak kaldırmak için takvim aboneliğini iptal edin.",
         "deleteSubscribedSeriesConfirm": "Yine de sil",
         "colorInherit": "Atanan kişinin rengi",
-        "colorInheritHint": "Etkinliğin kendi rengi olmaz, atandığı kişinin rengini alır. Kimseye atanmamışsa takvimin rengi geçerlidir."
+        "colorInheritHint": "Etkinliğin kendi rengi olmaz, atandığı kişinin rengini alır. Kimseye atanmamışsa takvimin rengi geçerlidir.",
+        "filtersLayers": "Katmanlar",
+        "agendaDayEmpty": "Planlanmış bir şey yok"
     },
     "notes": {
         "title": "Notlar",
