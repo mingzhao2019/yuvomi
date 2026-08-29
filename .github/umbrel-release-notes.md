@@ -1,10 +1,8 @@
-<!-- version: 2.50.3 -->
-A design and usability release, with nothing to do by hand after the update.
+<!-- version: 2.54.0 -->
+The Calendar tile on the Overview can now leave birthdays out. If your household keeps the Birthdays tile there as well, every birthday was showing up twice - once under Birthdays, once among the next appointments - and hiding the birthday layer inside the Calendar module did nothing about it. Open Customise on the Overview, press the sliders button on the Calendar tile, and the same "Birthdays" switch you know from the calendar's filter sheet is there. Birthdays stay in unless you take them out, and taking them out fills the freed rows with your next real appointments rather than leaving a shorter list. It is a setting of your own account, so the wall tablet in the kitchen and the phone in your pocket can each show what suits them.
 
-Module headers across the app now keep every tool in reach. Tab bars and view switchers used to squeeze into the title line — on desktop windows the Budget header could show just one of its seven tabs, and the calendar's Agenda switch hid behind a fade. Each of these bars now sits on its own full-width row, and when one still overflows on a small phone, the next tab stays visibly cut at the edge instead of disappearing.
+The Notes tile now shows as many notes as it has room for. It was capped at three regardless of how large you had made it, so at its normal size roughly a third of the card sat empty - and a household with five pinned notes saw three of them, while the figure next to it said five. It now fills the space it has: five notes when the tile is tall, three when it is flat.
 
-The install banner no longer covers what you are trying to tap: it steps aside while the quick-add menu or the shopping bulk actions are open, and once dismissed it stays away for a month instead of a week.
+Nothing to do after the update - no migration, and no settings changed.
 
-Phones gain room where it counts. Documents open in the compact list view by default, medication names in Health wrap to a second line instead of being cut off next to their button, and the empty meal slots stay hidden in the week plan again. Recipes now show a small "Planned this week" note when they appear in the current meal plan, and navigation badges tell their kind apart — an upcoming birthday is no longer painted in the same alarm red as an overdue task.
-
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.50.3
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.54.0
