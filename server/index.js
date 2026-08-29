@@ -66,6 +66,7 @@ import familyRouter from './routes/family.js';
 import backupRouter from './routes/backup.js';
 import housekeepingRouter from './routes/housekeeping.js';
 import modulesRouter from './routes/modules.js';
+import { listModules } from './services/modules.js';
 import pushRouter from './routes/push.js';
 import emailRouter from './routes/email.js';
 import notificationsRouter from './routes/notifications.js';
@@ -626,6 +627,10 @@ async function runSync() {
 app.listen(PORT, () => {
   logYuvomi.info(`Server running on port ${PORT} | Version ${APP_VERSION}`);
   logYuvomi.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  listModules({ admin: true }).catch((err) => {
+    log.warn('Initial module registry scan failed:', err.message);
+  });
 
   // Ein Sicherheitsschalter, der still nicht greift, ist schlimmer als keiner:
   // der Betreiber glaubt, das Anmeldeformular sei zu (#847). Beide Fail-open-

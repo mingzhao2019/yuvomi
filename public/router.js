@@ -5,7 +5,9 @@
  */
 
 import { api, auth } from '/api.js';
-import { canAccessNavModule, navModuleAccess } from '/permissions.js';
+import { canAccessNavModule, navModuleAccess, setExtensionNavMap } from '/permissions.js';
+import { setExtensionModules } from '/utils/extension-widgets.js';
+import { initExtensionI18n, moduleDisplayLabel, reloadExtensionLocales } from '/utils/extension-i18n.js';
 import { clearApiCache } from '/sw-register.js';
 import { forgetLayoutHint } from '/utils/dashboard-layout-hint.js';
 import { initI18n, getLocale, t, formatDate, formatTime } from '/i18n.js';
@@ -509,8 +511,8 @@ function routeTitle(path) {
 
   // Dritt-Module bringen ihren Titel im eigenen Manifest mit; sie stehen nicht
   // in ROUTES, sondern kommen zur Laufzeit dazu.
-  const thirdParty = _thirdPartyModules.find((module) => module.route?.path === path)?.menu?.label;
-  if (thirdParty) return thirdParty;
+  const thirdParty = _thirdPartyModules.find((module) => module.route?.path === path);
+  if (thirdParty) return moduleDisplayLabel(thirdParty);
 
   // Unbekannter Pfad oder eine der beiden erklärt titellosen Routen
   // (/login, /setup): der App-Name ist dort der Titel.
@@ -926,6 +928,9 @@ async function syncThirdPartyModules() {
   } catch {
     _thirdPartyModules = [];
   }
+  setExtensionModules(_thirdPartyModules);
+  setExtensionNavMap(_thirdPartyModules);
+  await reloadExtensionLocales(_thirdPartyModules);
 }
 
 function moduleSnapshot() {
@@ -3233,7 +3238,7 @@ function navItems({ catalog = false } = {}) {
     .filter((module) => module.enabled && module.status === 'enabled' && module.menu?.show && module.route?.path)
     .map((module) => ({
       path: module.route.path,
-      label: module.menu.label || module.name,
+      label: moduleDisplayLabel(module),
       icon: module.menu.icon || module.icon || 'box',
       module: `third-party-${module.id}`,
       accent: module.accent,
@@ -4438,6 +4443,7 @@ if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
     });
 
     await initI18n();
+    initExtensionI18n();
     try {
       const v = await api.get('/version');
       _setupRequired = v?.setup_required === true;
