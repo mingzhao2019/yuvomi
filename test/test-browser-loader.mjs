@@ -96,6 +96,8 @@ const STUBS = {
     export const vibrate = () => {};
     export const wireScrollFade = () => ({ update: () => {}, destroy: () => {} });
     export const scheduleUndoableDelete = () => {};
+    // 测试环境没有可播放的动画，调用方等待后应立即继续。
+    export const animationSettled = () => Promise.resolve();
   `,
   '/utils/html.js': `
     export const esc = (value) => String(value ?? '')

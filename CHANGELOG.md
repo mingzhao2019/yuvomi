@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.54.0] - 2026-08-29
+
+### Changed
+
+- **Selected upstream dashboard fixes are included.** The Overview can hide birthdays without reducing the appointment rows shown, and the notes tile uses the space available in its current size.
+
+## [2.53.0] - 2026-08-29
+
+### Note
+
+- **The upstream task-detail refactor was reviewed but not selected for the custom branch.** The custom shared detail view and provider-specific task contracts remain in place.
+
+## [2.52.1] - 2026-08-29
+
+### Fixed
+
+- **The first subtask can be added on a phone.** The empty subtask section now exposes the same entry point as a task that already has subtasks.
+
+## [2.52.0] - 2026-08-29
+
+### Added
+
+- **Onboarding dismissal is remembered per account.** A later device no longer shows the same walkthrough just because its local storage is empty.
+- **Reminders on shared events fan out to assignees.** Each person receives an independent reminder without overwriting their own setting.
+- **Task-description checkboxes can be ticked in the reading view.** The server changes only the selected Markdown source line.
+
+### Fixed
+
+- **Selected calendar layout fixes keep headers, all-day labels, and hourly columns aligned.**
+
+## [2.51.2] - 2026-08-29
+
+### Note
+
+- **No additional upstream application change from this release was selected for the custom branch.**
+
+## [2.51.1] - 2026-08-29
+
+### Fixed
+
+- **The agenda keeps today visible when it is empty.** Other empty days remain omitted from the compact agenda.
+- **Calendar view tabs expose their panel relationship to assistive technology.**
+- **The empty-day message no longer sits under an hour line.**
+
+## [2.51.0] - 2026-08-28
+
+### Changed
+
+- **Selected calendar header, overflow, and all-day alignment fixes are included.**
+
+### Fixed
+
+- **The install banner cleans up after dismissal and the calendar handles the 640px boundary consistently.**
+
+## [2.50.4] - 2026-08-28
+
+### Added
+
+- **Task view buttons name their views on wide screens.**
+
+### Fixed
+
+- **Completing a task confirms the action and can be undone.**
+- **The documents filter fade follows the element that actually scrolls.**
+
+### Changed
+
+- **Motion durations use shared design tokens.**
+
+
 ## [2.50.3] - 2026-08-27
 
 ### Added
