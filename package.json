@@ -192,6 +192,7 @@
     "test:reminders-routes": "node --test test/test-reminders-routes.js",
     "test:reminder-offset": "node test/test-reminder-offset.js",
     "test:api": "node --loader ./test/test-browser-loader.mjs test/test-api.js",
+    "test:openapi-coverage": "node --test test/test-openapi-coverage.js",
     "test:openapi-structure": "node --test test/test-openapi-structure.js",
     "test:auth-userid": "node --test test/test-auth-userid.js",
     "test:onboarding-version": "node --experimental-sqlite --test test/test-onboarding-version.js",

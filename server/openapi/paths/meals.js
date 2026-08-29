@@ -24,5 +24,8 @@ export function mealsPaths() {
     '/api/v1/meals/week-to-shopping-list': {
       post: op({ summary: 'Transfer weekly meal ingredients to shopping list', tag: 'Meals', stateChanging: true, requestBody: jsonBody(null) }),
     },
+    '/api/v1/meals/apply-plan': {
+      post: op({ summary: 'Apply a set of planned meals at once', tag: 'Meals', stateChanging: true, requestBody: jsonBody(null), description: 'Body: { assignments, replace_existing? }. Writes several day/meal-type assignments in one call; `replace_existing: true` overwrites what is already planned on those slots instead of skipping them.' }),
+    },
   };
 }

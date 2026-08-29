@@ -72,7 +72,6 @@ export function permissionsPaths() {
         stateChanging: true,
         params: [userIdParam],
         requestBody: jsonBody(null),
-        description: `${BODY} Each empty map means "inherit from the role" for that axis. To remove every override, send { modules: {}, widgets: {}, capabilities: {} }.`,
       }),
     },
   };

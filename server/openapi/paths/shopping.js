@@ -77,5 +77,11 @@ export function shoppingPaths() {
     '/api/v1/shopping/{listId}/items/checked': {
       delete: op({ summary: 'Delete checked shopping items', tag: 'Shopping', params: [idParam('listId', 'List ID')], stateChanging: true }),
     },
+    '/api/v1/shopping/{listId}/items/reorder': {
+      patch: op({ summary: 'Reorder the items of one category', tag: 'Shopping', stateChanging: true, params: [idParam('listId', 'Shopping list ID')], requestBody: jsonBody(null), description: 'Per category rather than across the whole list: the category order is already its own handle and models the route through the shop; a second, list-wide rank beside it would make two statements about the same order. The request must name EVERY item of the category - a subset would let the ranks of the omitted ones collide with the newly assigned ones, and creation time would decide again.' }),
+    },
+    '/api/v1/shopping/{listId}/import-meal-plan': {
+      post: op({ summary: 'Import ingredients from the meal plan into a list', tag: 'Shopping', stateChanging: true, params: [idParam('listId', 'Shopping list ID')], requestBody: jsonBody(null), description: 'Body: { from, to, preview? }. With `preview: true` nothing is written - it only counts, for the "X ingredients from Y meals" line in the import dialog.' }),
+    },
   };
 }

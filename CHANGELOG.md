@@ -51,6 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overdue items sort to the top of the tile, a household that wanted to see fewer of them had no way
   to shorten that window. It's now configurable (0-90 days, default 7 so existing installs see no
   change).
+### Changed
+
+- **Forty routes that existed only in the code now exist in the API specification too.** `/api/v1`
+  has been a documented surface since v2.7.1, and what is not in the specification does not exist
+  for anyone integrating against it. Four whole modules had never had a line of it: quick links, the
+  screensaver, recipe providers, and the permissions endpoints behind the rights matrix. Nothing was
+  broken, and nothing reported it either - the existing guard checks that the specification's own
+  files are wired up correctly, never that they match the routers. A new one now compares the two in
+  both directions, so neither a route without documentation nor a documented route without a route
+  handler can appear again.
+
+### Fixed
 
 - **Deleting a document folder can now either keep its documents unfiled or delete the confirmed
   subtree together with its documents.** The dialog previews exact folder and document counts and
