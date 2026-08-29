@@ -507,7 +507,9 @@
         "lockedDetail": "Chỉ người tạo và quản trị viên",
         "tagsSkippedLocked": "Đã bỏ qua {{count}} công việc bị khoá.",
         "tagsSkippedLocked_one": "Đã bỏ qua {{count}} công việc bị khoá.",
-        "listLoadError": "Không thể tải nhiệm vụ."
+        "listLoadError": "Không thể tải nhiệm vụ.",
+        "checklistToggle": "Đánh dấu mục",
+        "checkConflict": "Công việc đã thay đổi trong lúc này. Vui lòng mở lại."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} bữa ăn",

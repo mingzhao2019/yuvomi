@@ -507,7 +507,9 @@
         "lockedDetail": "Endast skaparen och administratörer",
         "tagsSkippedLocked": "{{count}} låsta uppgifter hoppades över.",
         "tagsSkippedLocked_one": "{{count}} låst uppgift hoppades över.",
-        "listLoadError": "Uppgifter kunde inte laddas."
+        "listLoadError": "Uppgifter kunde inte laddas.",
+        "checklistToggle": "Bocka av post",
+        "checkConflict": "Uppgiften har ändrats under tiden. Öppna den igen."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} måltider",

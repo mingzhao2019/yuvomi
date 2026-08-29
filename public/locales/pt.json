@@ -507,7 +507,9 @@
         "lockedDetail": "Apenas o criador e os administradores",
         "tagsSkippedLocked": "{{count}} tarefas bloqueadas ignoradas.",
         "tagsSkippedLocked_one": "{{count}} tarefa bloqueada ignorada.",
-        "listLoadError": "Não foi possível carregar as tarefas."
+        "listLoadError": "Não foi possível carregar as tarefas.",
+        "checklistToggle": "Marcar item",
+        "checkConflict": "A tarefa foi alterada entretanto. Abra-a novamente."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} refeições",

@@ -288,7 +288,8 @@
         "memberOpenTasks_one": "{{count}} task",
         "manage": "Manage",
         "todayNothingElseTomorrow": "Nothing else today - tomorrow: {{title}}",
-        "weatherHighLow": "High {{max}}°, low {{min}}°"
+        "weatherHighLow": "High {{max}}°, low {{min}}°",
+        "optionCalendarBirthdaysHint": "Unchecked, birthdays stay out of this tile - the calendar still shows them."
     },
     "tasks": {
         "manageCategories": "Manage categories",
@@ -507,7 +508,9 @@
         "lockedDetail": "Creator and administrators only",
         "tagsSkippedLocked": "{{count}} locked tasks skipped.",
         "tagsSkippedLocked_one": "{{count}} locked task skipped.",
-        "listLoadError": "Tasks could not be loaded."
+        "listLoadError": "Tasks could not be loaded.",
+        "checklistToggle": "Tick item",
+        "checkConflict": "The task has changed in the meantime. Please open it again."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} meals",
@@ -900,6 +903,7 @@
         "attachmentDocumentName": "{{title}} - {{name}}",
         "attachmentDocumentDescription": "Attachment uploaded for calendar event \"{{title}}\".",
         "agendaEmpty": "No events in the selected range",
+        "agendaDayEmpty": "Nothing planned",
         "taskChipAriaLabel": "Task: {{title}}",
         "toggleHolidays": "Public Holidays",
         "toggleSchool": "School Holidays",

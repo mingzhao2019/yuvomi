@@ -272,7 +272,7 @@
   --bulk-pill-tail: 0px;
 }
 
-:root:has(yuvomi-install-prompt) {
+:root:has(yuvomi-install-prompt[data-shown]) {
   --install-prompt-tail: calc(var(--install-prompt-height, 89px) + var(--space-4));
 }
 

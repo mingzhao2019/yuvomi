@@ -507,7 +507,9 @@
         "lockedDetail": "المنشئ والمسؤولون فقط",
         "tagsSkippedLocked": "تم تخطي {{count}} مهام مقفلة.",
         "tagsSkippedLocked_one": "تم تخطي مهمة {{count}} مقفلة.",
-        "listLoadError": "تعذر تحميل المهام."
+        "listLoadError": "تعذر تحميل المهام.",
+        "checklistToggle": "شطب العنصر",
+        "checkConflict": "تم تغيير المهمة في هذه الأثناء. يرجى فتحها من جديد."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وجبات",

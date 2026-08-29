@@ -507,7 +507,9 @@
         "lockedDetail": "Yalnızca oluşturan kişi ve yöneticiler",
         "tagsSkippedLocked": "{{count}} kilitli görev atlandı.",
         "tagsSkippedLocked_one": "{{count}} kilitli görev atlandı.",
-        "listLoadError": "Görevler yüklenemedi."
+        "listLoadError": "Görevler yüklenemedi.",
+        "checklistToggle": "Öğeyi işaretle",
+        "checkConflict": "Görev bu arada değişti. Lütfen yeniden açın."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} öğünden",

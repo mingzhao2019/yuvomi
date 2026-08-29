@@ -10,6 +10,7 @@ import * as db from '../db.js';
 import * as v from '../middleware/validate.js';
 import { syncAllBirthdayReminders } from '../services/birthdays.js';
 import { markTaskReminderOutbound } from '../services/microsoft-todo.js';
+import { fanOutEventReminders, eventAuthorId } from '../services/event-reminder-fanout.js';
 import { deniedModules } from '../permissions.js';
 import { tokenAllows } from '../scopes.js';
 
@@ -17,6 +18,32 @@ const log    = createLogger('Reminders');
 const router = express.Router();
 
 const VALID_ENTITY_TYPES = ['task', 'event', 'subscription', 'inventory_item', 'inventory_tracked_date', 'pantry_item'];
+
+/**
+ * Nach jedem Schreibvorgang an den Erinnerungen eines Termins: die Zugewiesenen
+ * nachziehen (#921).
+ *
+ * EINE ZEILE HINTER JEDEM DER VIER WEGE, weil die Regel dieselbe ist. Setzen,
+ * Ersetzen, einzeln Loeschen und Alles-Loeschen enden alle hier, und
+ * `fanOutEventReminders` liest die Vorlage jedes Mal frisch: nach einem
+ * Loeschen ist sie leer, und dann raeumt derselbe Aufruf die geerbten Zeilen
+ * ab, statt Meldungen stehen zu lassen, die der Ersteller gerade abgeschafft
+ * hat. Verteilt wird nur, wenn der Aufrufer den Termin ANGELEGT hat - wer sich
+ * sonst eine Erinnerung setzt, setzt sie fuer sich.
+ */
+function syncEventFanout(entityType, entityId, userId) {
+  if (entityType !== 'event') return;
+  try {
+    if (eventAuthorId(db.get(), entityId) !== userId) return;
+    fanOutEventReminders(db.get(), entityId, userId);
+  } catch (err) {
+    // Bewusst nicht durchgereicht: die eigene Erinnerung des Aufrufers steht
+    // bereits, und sie darf nicht daran scheitern, dass das Nachziehen fuer
+    // jemand anderen schiefging. Stumm bleibt es trotzdem nicht (#... siehe
+    // das stille catch, das monatelang einen ReferenceError verdeckt hat).
+    log.error('Error fanning out event reminders:', err.message);
+  }
+}
 
 /**
  * HERKÜNFTE, DIE EIN LAUF LAUFEND HERSTELLT und die deshalb keine Handeingabe
@@ -264,6 +291,8 @@ router.post('/', (req, res) => {
       VALUES (?, ?, ?, ?)
     `).run(entity_type, entityId, remind_at, userId);
 
+    syncEventFanout(entity_type, entityId, userId);
+
     const row = db.get().prepare('SELECT * FROM reminders WHERE id = ?').get(result.lastInsertRowid);
     if (entity_type === 'task') markTaskReminderOutbound(entityId, userId, db.get());
     res.status(201).json({ data: row });
@@ -329,6 +358,7 @@ router.put('/', (req, res) => {
       }
     });
     replace(unique);
+    syncEventFanout(entityType, entityId, userId);
 
     const rows = db.get().prepare(`
       SELECT * FROM reminders
@@ -413,6 +443,7 @@ router.delete('/:id', (req, res) => {
 
     db.get().prepare('DELETE FROM reminders WHERE id = ?').run(reminderId);
     if (reminder.entity_type === 'task') markTaskReminderOutbound(reminder.entity_id, userId, db.get());
+    syncEventFanout(reminder.entity_type, reminder.entity_id, userId);
     res.status(204).end();
   } catch (err) {
     log.error('Error deleting reminder:', err.message);
@@ -451,6 +482,7 @@ router.delete('/', (req, res) => {
       DELETE FROM reminders
       WHERE entity_type = ? AND entity_id = ? AND created_by = ?
     `).run(entityType, entityId, userId);
+    syncEventFanout(entityType, entityId, userId);
 
     if (entityType === 'task') markTaskReminderOutbound(entityId, userId, db.get());
 

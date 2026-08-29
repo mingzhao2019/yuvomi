@@ -507,7 +507,9 @@
         "lockedDetail": "Лише автор і адміністратори",
         "tagsSkippedLocked": "Пропущено заблокованих завдань: {{count}}.",
         "tagsSkippedLocked_one": "Пропущено {{count}} заблоковане завдання.",
-        "listLoadError": "Не вдалося завантажити завдання."
+        "listLoadError": "Не вдалося завантажити завдання.",
+        "checklistToggle": "Позначити пункт",
+        "checkConflict": "Завдання тим часом змінено. Відкрийте його ще раз."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} прийоми їжі",

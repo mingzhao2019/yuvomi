@@ -507,7 +507,9 @@
         "lockedDetail": "Только автор и администраторы",
         "tagsSkippedLocked": "Пропущено заблокированных задач: {{count}}.",
         "tagsSkippedLocked_one": "Пропущена {{count}} заблокированная задача.",
-        "listLoadError": "Не удалось загрузить задачи."
+        "listLoadError": "Не удалось загрузить задачи.",
+        "checklistToggle": "Отметить пункт",
+        "checkConflict": "Задача была изменена. Откройте её заново."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} приёма пищи",

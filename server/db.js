@@ -7077,6 +7077,25 @@ const MIGRATIONS = [
       UPDATE calendar_events SET color_modified = user_modified;
     `,
   },
+  {
+    version: 172,
+    description: 'Users: remember onboarding walkthrough per account',
+    // The walkthrough used to live only in localStorage. Existing accounts
+    // have already seen it in the browser-based implementation; new accounts
+    // start at zero and are shown the current version once.
+    up: `
+      ALTER TABLE users ADD COLUMN onboarding_version INTEGER NOT NULL DEFAULT 0;
+      UPDATE users SET onboarding_version = 1;
+    `,
+  },
+  {
+    version: 173,
+    description: 'Reminders: inherit shared event reminders for assignees',
+    up: `
+      ALTER TABLE reminders ADD COLUMN assigned_from INTEGER REFERENCES users(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS idx_reminders_assigned_from ON reminders(assigned_from);
+    `,
+  },
 
 ];
 

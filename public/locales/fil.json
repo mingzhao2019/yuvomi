@@ -519,7 +519,9 @@
         "lockedDetail": "Tagalikha at mga administrator lamang",
         "tagsSkippedLocked": "{{count}} naka-lock na gawain ang nilaktawan.",
         "tagsSkippedLocked_one": "{{count}} naka-lock na gawain ang nilaktawan.",
-        "listLoadError": "Hindi ma-load ang mga gawain."
+        "listLoadError": "Hindi ma-load ang mga gawain.",
+        "checklistToggle": "Markahan ang item",
+        "checkConflict": "Nabago ang gawain samantala. Pakibuksan itong muli."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} na (mga) pagkain",

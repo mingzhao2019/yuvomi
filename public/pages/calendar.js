@@ -286,6 +286,7 @@ const CUSTOM_EVENT_ICONS = new Set(['tooth']);
 
 const ATTACHMENT_IMAGE_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const CALENDAR_VIEW_STORAGE_KEY = 'yuvomi:calendar:view';
+const MOBILE_MEDIA_QUERY = '(max-width: 640px)';
 const LEGACY_CALENDAR_VIEW_STORAGE_KEY = 'yuvomi-calendar-view';
 const LAYER_HOLIDAYS_KEY = 'yuvomi:calendar:layer:holidays';
 const LAYER_SCHOOL_KEY    = 'yuvomi:calendar:layer:school';
@@ -1406,7 +1407,8 @@ function renderToolbar() {
       <div class="cal-toolbar__views" role="tablist" aria-label="${t('nav.calendar')}">
         ${VIEWS.map((v) => `
           <button class="cal-toolbar__view-btn ${v === state.view ? 'cal-toolbar__view-btn--active' : ''}"
-                  role="tab" data-tab-id="${v}" aria-selected="${v === state.view ? 'true' : 'false'}"
+                  role="tab" id="cal-view-tab-${v}" data-tab-id="${v}" aria-selected="${v === state.view ? 'true' : 'false'}"
+                  ${v === state.view ? 'aria-controls="cal-body"' : ''}
                   tabindex="${v === state.view ? '0' : '-1'}">${VIEW_LABELS()[v]}</button>
         `).join('')}
       </div>
@@ -1499,12 +1501,26 @@ function updateLabel() {
     // Mobil zeigt die "Woche" ein 3-Tage-Fenster um den Cursor (renderWeekView);
     // ein "KW 30"-Label würde dann einen Bereich behaupten, der nicht zu sehen
     // ist (Audit A1-19). Das Label nennt stattdessen den sichtbaren Bereich.
-    lbl.textContent = window.matchMedia('(max-width: 639px)').matches
+    lbl.textContent = window.matchMedia(MOBILE_MEDIA_QUERY).matches
       ? t('calendar.dayRangeLabel', { from: formatDayMonth(addDays(state.cursor, -1)), to: formatPreferredDate(addDays(state.cursor, 1)) })
       : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon, year });
   }
   if (state.view === 'day')    lbl.textContent = formatDate(state.cursor, { weekday: true, long: true });
   if (state.view === 'agenda') lbl.textContent = t('calendar.agendaFrom', { date: formatDate(state.cursor) });
+  syncViewPanel();
+}
+
+/** Keep the one rendered calendar body associated with the active view tab. */
+function syncViewPanel() {
+  const body = _container?.querySelector('#cal-body');
+  if (!body) return;
+  body.setAttribute('role', 'tabpanel');
+  body.setAttribute('aria-labelledby', `cal-view-tab-${state.view}`);
+
+  for (const btn of _container.querySelectorAll('.cal-toolbar__view-btn')) {
+    if (btn.dataset.tabId === state.view) btn.setAttribute('aria-controls', 'cal-body');
+    else btn.removeAttribute('aria-controls');
+  }
 }
 
 function getWeekNumber(dateStr) {
@@ -1526,7 +1542,7 @@ async function navigate(dir) {
   if (state.view === 'month') {
     state.cursor = addMonths(state.cursor, dir);
   } else if (state.view === 'week') {
-    const isMobile = window.matchMedia('(max-width: 639px)').matches;
+    const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches;
     state.cursor = addDays(state.cursor, dir * (isMobile ? 3 : 7));
   } else if (state.view === 'day') {
     state.cursor = addDays(state.cursor, dir);
@@ -1775,7 +1791,7 @@ function renderMonthView(container) {
     // Punkten reduziert (reines "etwas ist los"-Signal), ein Tap darf nie in
     // einem Event-Popup enden statt in der handlungsfähigen Tagesansicht (P1).
     // Desktop behält die feinere Interaktion: Chip -> Ziel, Zelle -> Tag.
-    const isMobile = window.matchMedia('(max-width: 639px)').matches;
+    const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches;
     if (!isMobile) {
       const taskChip = e.target.closest('.cal-task-chip');
       if (taskChip) {
@@ -1961,7 +1977,7 @@ function monthDayAriaLabel(date, total) {
 // --------------------------------------------------------
 
 function renderWeekView(container) {
-  const isMobile = window.matchMedia('(max-width: 639px)').matches;
+  const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches;
   // Auf Mobile: 3-Tage-Fenster zentriert um state.cursor statt vollem Mo–So
   const days = isMobile
     ? Array.from({ length: 3 }, (_, i) => addDays(state.cursor, i - 1))
@@ -1986,7 +2002,7 @@ function renderWeekView(container) {
   container.insertAdjacentHTML('beforeend', `
     <div class="week-view">
       <div class="week-view__header" id="week-header"
-           style="display:grid;grid-template-columns:var(--space-12) repeat(${colCount},1fr);">
+           style="display:grid;grid-template-columns:var(--cal-gutter-width) repeat(${colCount},1fr);">
         <div class="week-view__time-gutter"></div>
         ${days.map((d) => {
           const dt = new Date(d + 'T00:00:00');
@@ -1997,7 +2013,7 @@ function renderWeekView(container) {
         }).join('')}
       </div>
       <!-- Ganztägige Ereignisse -->
-      <div class="allday-row" style="display:grid;grid-template-columns:var(--space-12) repeat(${colCount},1fr);">
+      <div class="allday-row" style="display:grid;grid-template-columns:var(--cal-gutter-width) repeat(${colCount},1fr);">
         <div class="calendar-all-day-label">${t('calendar.allDayShort')}</div>
         ${days.map((d, i) => `
           <div class="allday-cell">
@@ -2357,9 +2373,12 @@ function renderAgendaView(container) {
   const { from, to } = getAgendaRange(state.cursor);
   const days = Array.from({ length: 31 }, (_, i) => addDays(from, i));
 
+  const todayInRange = state.today >= from && state.today <= to;
+
   const groups = days
     .map((d) => ({ date: d, events: eventsOnDay(d), tasks: tasksOnDay(d), holidays: holidaysOnDay(d), schedule: scheduleEntriesOnDay(d) }))
-    .filter((g) => g.events.length > 0 || g.tasks.length > 0 || g.holidays.length > 0 || g.schedule.length > 0);
+    .filter((g) => g.events.length > 0 || g.tasks.length > 0 || g.holidays.length > 0 || g.schedule.length > 0
+      || (todayInRange && g.date === state.today));
 
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
@@ -2386,6 +2405,8 @@ function renderAgendaView(container) {
             ${schedule.length ? `<div class="agenda-holidays">${schedule.map((entry) => renderScheduleChip(entry, 'agenda-holiday')).join('')}</div>` : ''}
             ${events.length ? `<div class="list-rows">${events.map((ev) => renderAgendaEvent(ev, date)).join('')}</div>` : ''}
             ${tasks.length ? `<div class="list-rows agenda-tasks">${tasks.map(renderTaskChip).join('')}</div>` : ''}
+            ${(!events.length && !tasks.length && !holidays.length && !schedule.length)
+              ? `<p class="agenda-day__empty">${t('calendar.agendaDayEmpty')}</p>` : ''}
           </div>
         `).join('')
       }

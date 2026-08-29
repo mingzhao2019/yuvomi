@@ -507,7 +507,9 @@
         "lockedDetail": "Solo il creatore e gli amministratori",
         "tagsSkippedLocked": "{{count}} attività bloccate ignorate.",
         "tagsSkippedLocked_one": "{{count}} attività bloccata ignorata.",
-        "listLoadError": "Impossibile caricare i compiti."
+        "listLoadError": "Impossibile caricare i compiti.",
+        "checklistToggle": "Spunta elemento",
+        "checkConflict": "L’attività è stata modificata nel frattempo. Riaprila."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} pasti",

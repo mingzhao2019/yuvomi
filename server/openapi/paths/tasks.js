@@ -116,6 +116,21 @@ export function tasksPaths() {
     '/api/v1/tasks/{id}/archive': {
       patch: op({ summary: 'Archive or restore a task', tag: 'Tasks', params: [idParam()], stateChanging: true, requestBody: jsonBody(null), description: 'Archives the task by default. Send `{ "archived": false }` to bring it back. The status is left untouched: a task that was done stays done, and no reward booking changes. Filing a task removes it from everyone\'s view, so on a locked task this is the creator and administrators only.' }),
     },
+    '/api/v1/tasks/{id}/check': {
+      patch: op({
+        summary: 'Tick one checklist item in the description, addressed by its source line',
+        tag: 'Tasks',
+        params: [idParam()],
+        stateChanging: true,
+        requestBody: jsonBody(null),
+        description: 'Body: { line, checked, expect? }. Rewrites exactly the one `- [ ]` / `- [x]` line at '
+          + '`line` in the description and leaves the rest of the text byte for byte, so two members ticking '
+          + 'different items at the same time do not overwrite each other - which PUT would do. `expect` is the '
+          + 'line as the caller saw it; if it no longer matches, the answer is 409 rather than a tick on the '
+          + 'wrong line. Deliberately open on a locked task, for the same reason PATCH /status is: the lock '
+          + 'covers what the task is, not how far it has come.',
+      }),
+    },
     '/api/v1/tasks/{id}/documents': {
       get: op({ summary: 'List documents linked to a task', tag: 'Tasks', params: [idParam()], description: 'Returns family documents linked to the task that are visible to the current user.' }),
       put: op({ summary: 'Set documents linked to a task', tag: 'Tasks', params: [idParam()], stateChanging: true, requestBody: jsonBody(null), description: 'Replace-set of document_ids; only documents visible to the user are linked. Attachments are part of the task definition, so a locked task answers 403 for anyone but its creator and administrators.' }),

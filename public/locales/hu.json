@@ -507,7 +507,9 @@
         "lockedDetail": "Csak a létrehozó és az adminisztrátorok",
         "tagsSkippedLocked": "{{count}} zárolt feladat kihagyva.",
         "tagsSkippedLocked_one": "{{count}} zárolt feladat kihagyva.",
-        "listLoadError": "A feladatok betöltése sikertelen."
+        "listLoadError": "A feladatok betöltése sikertelen.",
+        "checklistToggle": "Elem kipipálása",
+        "checkConflict": "A feladat időközben megváltozott. Nyissa meg újra."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} étkezésből",

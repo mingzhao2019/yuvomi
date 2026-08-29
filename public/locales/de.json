@@ -519,7 +519,9 @@
         "lockedDetail": "Nur Ersteller:in und Administratoren",
         "tagsSkippedLocked": "{{count}} gesperrte Aufgaben übersprungen.",
         "tagsSkippedLocked_one": "{{count}} gesperrte Aufgabe übersprungen.",
-        "listLoadError": "Aufgaben konnten nicht geladen werden."
+        "listLoadError": "Aufgaben konnten nicht geladen werden.",
+        "checklistToggle": "Eintrag abhaken",
+        "checkConflict": "Die Aufgabe wurde inzwischen geändert. Bitte erneut öffnen."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} Mahlzeiten",

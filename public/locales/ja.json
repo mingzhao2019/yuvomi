@@ -507,7 +507,9 @@
         "lockedDetail": "作成者と管理者のみ",
         "tagsSkippedLocked": "ロックされた {{count}} 件のタスクをスキップしました。",
         "tagsSkippedLocked_one": "ロックされた {{count}} 件のタスクをスキップしました。",
-        "listLoadError": "タスクを読み込めませんでした。"
+        "listLoadError": "タスクを読み込めませんでした。",
+        "checklistToggle": "項目にチェックを入れる",
+        "checkConflict": "タスクはその間に変更されました。もう一度開いてください。"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}}件の食事",

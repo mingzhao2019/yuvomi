@@ -507,7 +507,9 @@
         "lockedDetail": "Μόνο ο δημιουργός και οι διαχειριστές",
         "tagsSkippedLocked": "Παραλείφθηκαν {{count}} κλειδωμένες εργασίες.",
         "tagsSkippedLocked_one": "Παραλείφθηκε {{count}} κλειδωμένη εργασία.",
-        "listLoadError": "Δεν ήταν δυνατή η φόρτωση των εργασιών."
+        "listLoadError": "Δεν ήταν δυνατή η φόρτωση των εργασιών.",
+        "checklistToggle": "Σημείωση στοιχείου",
+        "checkConflict": "Η εργασία άλλαξε στο μεταξύ. Ανοίξτε την ξανά."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} γεύματα",

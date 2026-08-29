@@ -446,6 +446,12 @@ export const schemas = {
             phone: { type: ['string', 'null'] },
             email: { type: ['string', 'null'] },
             birth_date: { type: ['string', 'null'], format: 'date' },
+            onboarding_pending: {
+              type: 'boolean',
+              description: 'Whether this account still needs the onboarding walkthrough. Derived from '
+                + 'the account, not from the browser, so a new device does not repeat it. '
+                + 'POST /auth/onboarding-seen clears it.',
+            },
             sso_only: {
               type: 'boolean',
               description: 'Only present on GET /auth/users for administrators: the account carries no '

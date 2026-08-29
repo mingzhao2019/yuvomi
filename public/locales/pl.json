@@ -519,7 +519,9 @@
         "lockedDetail": "Tylko autor i administratorzy",
         "tagsSkippedLocked": "Pominięto {{count}} zablokowanych zadań.",
         "tagsSkippedLocked_one": "Pominięto {{count}} zablokowane zadanie.",
-        "listLoadError": "Nie udało się załadować zadań."
+        "listLoadError": "Nie udało się załadować zadań.",
+        "checklistToggle": "Odhacz pozycję",
+        "checkConflict": "Zadanie zostało w międzyczasie zmienione. Otwórz je ponownie."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} posiłki",

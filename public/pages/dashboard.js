@@ -4,7 +4,7 @@
  * Abhängigkeiten: /api.js
  */
 
-import { api } from '/api.js';
+import { api, auth } from '/api.js';
 import { canSeeWidget } from '/permissions.js';
 import { t, formatDate, formatTime, timeSuffix, getLocale, getNumberFormat } from '/i18n.js';
 import { getReadableTextColor, AVATAR_FALLBACK_COLOR } from '/utils/color.js';
@@ -214,6 +214,12 @@ function showOnboarding(appContainer, onDone) {
     finished = true;
     document.removeEventListener('keydown', onKeydown);
     localStorage.setItem(ONBOARDING_KEY, '1');
+    // Am Konto vermerken, nicht nur am Geraet: sonst zeigt ein neues Geraet
+    // oder ein privates Fenster den Rundgang erneut, obwohl das Konto ihn
+    // schon gesehen hat. Bewusst fire-and-forget - ein Netzwerkfehler hier
+    // darf den Dialog nicht am Schliessen hindern; der lokale Merker faengt
+    // den aktuellen Browser ohnehin ab.
+    auth.markOnboardingSeen().catch(() => {});
     // Fokus dorthin zurückgeben, wo er vor dem Dialog lag (sonst neutral auf
     // den Body), damit Tastatur-/SR-Nutzer nicht im entfernten Overlay hängen.
     const restoreTarget = (previouslyFocused && document.contains(previouslyFocused))
@@ -1157,7 +1163,16 @@ function renderTodayMeals(meals, visibleMealTypes = MEAL_ORDER) {
   </div>`;
 }
 
-function renderPinnedNotes(notes) {
+function renderPinnedNotes(allNotes, size) {
+  /* WIE VIELE ZEILEN, ENTSCHEIDET DIE KACHEL - wie bei jeder anderen
+   * Listenkachel (`listRowCap`). Die Notizen waren die einzige, die ihre Groesse
+   * gar nicht las: der Server schnitt bei drei, und drei war damit die
+   * Obergrenze fuer jede Fassung. Ab Werk steht die Kachel auf 1x2, also hoch -
+   * unter drei Zeilen blieb rund ein Drittel der Karte leer, und wer fuenf
+   * Notizen angepinnt hatte, sah drei davon und keinen Hinweis auf die
+   * uebrigen (#928). Dieselbe Korrektur haben die Geburtstage schon bekommen;
+   * die Notizen wurden dabei uebersehen. */
+  const notes = allNotes.slice(0, listRowCap(size));
   if (!notes.length) {
     return `<div class="widget widget--notes">
       ${widgetHeader('notes', t('nav.notes'), 0, '/notes')}
@@ -2365,6 +2380,14 @@ async function openWidgetOptions(id, current = {}) {
           <input type="radio" name="cal-scope" value="mine" ${options.scope === 'mine' ? 'checked' : ''}>
           <span>${t('calendar.assignedToMe')}</span>
         </label>
+      </fieldset>
+      <fieldset class="form-group widget-options__group">
+        <legend class="form-label">${t('calendar.filtersLayers')}</legend>
+        <p class="widget-options__hint">${t('dashboard.optionCalendarBirthdaysHint')}</p>
+        <label class="widget-options__choice">
+          <input type="checkbox" name="cal-birthdays" ${options.birthdays === 'hide' ? '' : 'checked'}>
+          <span>${t('calendar.toggleBirthdays')}</span>
+        </label>
       </fieldset>`
     : `
       <fieldset class="form-group widget-options__group">
@@ -2408,6 +2431,9 @@ async function openWidgetOptions(id, current = {}) {
             // nicht gespeichert - sonst stuende in jedem Layout ein Feld, das
             // den Auslieferungszustand wiederholt.
             if (scope === 'mine') next.scope = 'mine';
+            // Dasselbe eine Zeile tiefer, nur andersherum notiert: gespeichert
+            // wird das ABWAEHLEN, nicht das Haekchen (#927).
+            if (!panel.querySelector('input[name="cal-birthdays"]')?.checked) next.birthdays = 'hide';
           } else {
             const picked = [...panel.querySelectorAll('input[name="task-category"]:checked')].map((el) => el.value);
             // Keine Auswahl heisst „alle" - eine leere Liste als Filter waere
@@ -2531,7 +2557,7 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     housekeeping: () => renderHousekeepingWidget(data.housekeeping ?? {}, currency),
     family: () => renderFamilyWidget(data.users ?? [], data),
     meals: () => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes),
-    notes: () => renderPinnedNotes(data.pinnedNotes ?? []),
+    notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size),
     shopping: () => renderShoppingLists(data.shoppingLists ?? []),
     weather: () => (weather ? renderWeatherWidget(weather) : ''),
     clock: () => renderClockWidget(),
@@ -4335,7 +4361,13 @@ export async function render(container, { user }) {
   // Einfuehrung dann, wenn sie ihm etwas nuetzt.
   if (wallMode) return;
 
-  if (!localStorage.getItem(ONBOARDING_KEY)) {
+  // Das Konto entscheidet (onboarding_pending aus /auth/me), nicht mehr allein
+  // das Geraet - sonst zeigt ein neues Geraet oder ein privates Fenster den
+  // Rundgang erneut, obwohl das Konto ihn schon gesehen hat. Der lokale
+  // Schluessel bleibt eine ZUSAETZLICHE Bedingung statt zu entfallen: er ist
+  // der Weg, mit dem Test-Faelle (document-guards-harness.js) den Dialog
+  // gezielt unterdruecken, ohne einen Testnutzer am Server zu markieren.
+  if (user?.onboarding_pending && !localStorage.getItem(ONBOARDING_KEY)) {
     setTimeout(() => showOnboarding(container, () => maybeHintCustomize(container)), 400);
   } else {
     maybeHintCustomize(container);

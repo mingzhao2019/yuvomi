@@ -6402,7 +6402,7 @@ test('phase 7 calendar inline polish keeps icons and all-day labels tokenized', 
   assert.match(source, /class="calendar-all-day-label"/, 'all-day gutter labels should use the shared label class');
   assert.match(allDayLabel, /font-size:\s*var\(--text-xs\)/, 'all-day labels should use a text token');
   assert.match(allDayLabel, /color:\s*var\(--color-text-secondary\)/, 'all-day labels should use readable secondary text');
-  assert.match(allDayLabel, /width:\s*var\(--space-12\)/, 'all-day gutter width should use a spacing token');
+  assert.match(allDayLabel, /width:\s*var\(--cal-gutter-width\)/, 'all-day gutter width should use a spacing token');
 });
 
 test('phase 7 Budget row actions stay touch-safe on mobile', () => {
@@ -14335,4 +14335,110 @@ test('der schmale Zustand der Kueche steht hinter seinem Bauteil', () => {
     + `(Regel ${lastEmptyNone} vs. ${lastSlotDisplay}) - bei gleicher Spezifitaet gewinnt `
     + 'die spaetere Regel, und der leere Slot ist mobil wieder sichtbar (DESIGN.md, Don\'t '
     + '"eine Regel in einen Media-Block schreiben, der VOR den Bauteilen steht")');
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * WER EINEN WEG SCHLIESST, MUSS DEN ERSATZWEG NACHWEISEN (#925)
+ *
+ * tasks.css blendet `.task-card__inline-action` unter 640px aus - mit guter
+ * Begruendung (HIG-Dichte: drei 44px-Knoepfe quetschten den Titel zweizeilig).
+ * Der gedachte Ersatz stand im Kommentar daneben: "Tippen oeffnet die
+ * Lese-Ansicht (mit allen Aktionen)". Nur stimmte das nicht fuer alle: die
+ * Leseansicht rendert ihren Unteraufgaben-Abschnitt bis v2.52.0 nur, wenn es
+ * schon Unteraufgaben GAB. Der Knopf fuer die ERSTE hing damit ausschliesslich
+ * an der Karte - und die blendet ihn auf dem Telefon aus. Auf dem iPad ging es,
+ * auf dem iPhone nicht, und jede weitere Unteraufgabe ging wieder (#925).
+ *
+ * Der Guard prueft die Kopplung, nicht die Schreibweise: er liest die Aktionen
+ * aus dem KARTEN-Markup, nicht aus einer Liste hier, und verlangt fuer jede
+ * einen Aufruf im Detail-Pfad. Eine vierte Inline-Aktion faellt hier auf,
+ * solange sie keinen Touch-Weg mitbringt - und die Zuordnung darunter muss sie
+ * benennen, sonst ist der Test rot, statt sie stillschweigend durchzulassen.
+ *
+ * Guard-Ebene: Struktur (aus Quelltext und Stylesheet gelesen).
+ * ──────────────────────────────────────────────────────────────────────────── */
+test('jede auf Touch ausgeblendete Karten-Aktion hat einen Weg in der Leseansicht (#925)', () => {
+  const page = read('../public/pages/tasks.js');
+  const css  = read('../public/styles/tasks.css');
+
+  // 1. Blendet das Stylesheet die Inline-Aktionen ueberhaupt aus? Nur dann
+  //    entsteht die Luecke - faellt die Regel weg, ist der Guard gegenstandslos
+  //    und sagt das, statt eine Zusicherung ueber nichts zu geben.
+  const hidesOnNarrow = [...eachRule(css)].some(({ selector, body, at }) =>
+    /\.task-card__inline-action(?![\w-])/.test(selector)
+    && /display\s*:\s*none/.test(body)
+    && at.some((pre) => /max-width\s*:\s*640px/.test(pre)));
+  assert.ok(hidesOnNarrow,
+    'tasks.css blendet .task-card__inline-action nicht mehr unter 640px aus - '
+    + 'entweder ist die Regel umgezogen (dann muss dieser Guard mit) oder die '
+    + 'Karte zeigt ihre Aktionen jetzt auch auf dem Telefon');
+
+  // 2. Welche Aktionen bietet die Karte inline an? Aus dem Markup gelesen.
+  //    Der Ablage-Knopf traegt seine beiden Namen in einem Template-Ausdruck
+  //    (`${archived ? 'unarchive-task' : 'archive-task'}`), deshalb wird der
+  //    Attributwert nach Literalen abgesucht statt als eines genommen - ein
+  //    Muster, das nur nackte Werte kennt, uebersaehe genau die zwei.
+  const actions = new Set(
+    [...page.matchAll(/task-card__inline-action[^>]*?data-action="([^"]+)"/g)]
+      .flatMap((m) => (m[1].includes('${')
+        ? [...m[1].matchAll(/'([a-z][a-z-]*)'/g)].map((lit) => lit[1])
+        : [m[1]])),
+  );
+  assert.ok(actions.size >= 3,
+    `nur ${actions.size} Inline-Aktionen gefunden - das Muster im Guard passt nicht mehr `
+    + 'auf das Karten-Markup und wuerde jede Luecke uebersehen');
+
+  // 3. Und wo faengt die Leseansicht sie auf? Der Wert ist der Aufruf, der die
+  //    Handlung im Detail-Pfad ausloest.
+  const TOUCH_PATH = {
+    'add-subtask':     'handleAddSubtask(',
+    'edit-task':       'wireTaskForm(',
+    'archive-task':    'toggleTaskArchive(',
+    'unarchive-task':  'toggleTaskArchive(',
+  };
+
+  // Der Detail-Pfad: die Ansicht selbst und die Knoten, die sie baut. Ab
+  // `function subtaskListNode` bis zum Ende von `openTaskDetail` liegen beide.
+  const detailStart = page.indexOf('function subtaskListNode(');
+  const detailEnd   = page.indexOf('async function advanceTaskStatus(');
+  assert.ok(detailStart > -1 && detailEnd > detailStart,
+    'der Detail-Pfad (subtaskListNode ... openTaskDetail) ist nicht mehr auffindbar - '
+    + 'der Guard misst sonst die falsche Datei-Haelfte');
+  const detailPath = page.slice(detailStart, detailEnd);
+
+  for (const action of actions) {
+    const call = TOUCH_PATH[action];
+    assert.ok(call,
+      `die Karte bietet "${action}" inline an, und dieser Guard kennt den Ersatzweg nicht. `
+      + 'Unter 640px ist der Knopf weg: entweder traegt die Leseansicht die Handlung mit '
+      + '(dann gehoert sie in TOUCH_PATH) oder es gibt sie auf dem Telefon nicht');
+    assert.ok(detailPath.includes(call),
+      `"${action}" verschwindet unter 640px, und der Detail-Pfad ruft ${call} nicht - `
+      + 'auf dem Telefon gibt es dann keinen Weg zu dieser Handlung (genau #925)');
+  }
+
+  // 4. Und der Aufruf muss ERREICHBAR sein, nicht bloss dastehen. Die erste
+  //    Fassung dieses Guards endete bei Schritt 3 und blieb gruen, als die
+  //    Gegenprobe den Abschnitt wieder auf `if (!task.subtasks?.length) return
+  //    null` zurueckdrehte: der Add-Block stand noch im Quelltext, nur lief er
+  //    nie. Genau der Zustand von #925 - der Weg existiert und ist zu.
+  //
+  //    Messbar ist die Regel dahinter: ein Abschnitt darf nur wegfallen, wenn
+  //    er auch nichts ANZUBIETEN hat. Die Bedingung, die den Add-Knopf gattert,
+  //    muss deshalb im Frueh-Ausstieg mitgelesen werden.
+  const nodeFn = /function subtaskListNode\([\s\S]*?\n\}/.exec(page);
+  assert.ok(nodeFn, 'subtaskListNode ist nicht mehr auffindbar');
+  const gate = /^\s*const (\w+) = [^\n]*canEditTaskDefinition\(task\)/m.exec(nodeFn[0]);
+  assert.ok(gate,
+    'subtaskListNode gattert den Anlege-Weg nicht mehr an canEditTaskDefinition - '
+    + 'entweder darf jetzt jeder anlegen, oder der Knopf ist weg (#925)');
+  const bail = /if \([^)]*\)\s*return null;/.exec(nodeFn[0]);
+  assert.ok(bail, 'der Frueh-Ausstieg von subtaskListNode ist nicht mehr auffindbar');
+  assert.ok(bail[0].includes(gate[1]),
+    `der Abschnitt steigt bei leerer Liste aus, ohne "${gate[1]}" zu lesen - dann faellt er `
+    + 'auch dann weg, wenn er den Anlege-Knopf zu zeigen haette, und auf dem Telefon '
+    + 'gibt es keinen Weg zur ERSTEN Unteraufgabe (#925)');
+  assert.ok(new RegExp(`if \\(${gate[1]}\\)`).test(nodeFn[0]),
+    `der Anlege-Knopf haengt nicht mehr an "${gate[1]}" - der Guard misst dann eine `
+    + 'Bedingung, die den Knopf gar nicht mehr gattert');
 });

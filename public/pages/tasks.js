@@ -12,6 +12,7 @@ import { stagger, vibrate, scheduleUndoableDelete, animationSettled } from '/uti
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
 import { t, getLocale, formatDate, formatDayMonth, formatTime, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { esc, renderMarkdownLight } from '/utils/html.js';
+import { splitKeepingLineEndings } from '/utils/markdown-checklist.js';
 import { renderMarkdownToolbar, wireMarkdownToolbar } from '/utils/markdown-toolbar.js';
 import { refresh as refreshReminders } from '/reminders.js';
 import { renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect, renderAvatarStack } from '/components/user-multi-select.js';
@@ -1734,9 +1735,19 @@ function tagChipsNode(tags) {
  * Der Klick-Handler des Seiten-Containers greift hier nicht: Die Detailansicht
  * rendert in den Top-Layer, außerhalb von `container`. Deshalb hängt die
  * Delegation am Wrapper selbst.
+ *
+ * Der Abschnitt bleibt auch leer stehen, solange er etwas anzubieten hat -
+ * dieselbe Regel wie bei der Unterhaltung ganz unten, und hier aus einem
+ * gemessenen Grund: die Karte blendet ihre Inline-Aktionen unter 640px aus
+ * (tasks.css, HIG-Dichte), und der erste Teilschritt hängt genau an dem Knopf,
+ * den sie dabei mitnimmt. Der gedachte Ersatzweg war diese Ansicht - nur bot
+ * sie den Einstieg nie an, weil sie ohne Teilaufgaben gar nicht erst erschien.
+ * Auf dem iPhone gab es damit keinen Weg zur ERSTEN Teilaufgabe, während jede
+ * weitere über die aufgeklappte Liste ging (#925).
  */
 function subtaskListNode(task, container) {
-  if (!task.subtasks?.length) return null;
+  const mayAdd = canEditTaskDefinition(task) && !isArchived(task) && !task.parent_task_id;
+  if (!task.subtasks?.length && !mayAdd) return null;
   const wrap = document.createElement('div');
   wrap.className = 'detail-subtasks';
 
@@ -1755,7 +1766,7 @@ function subtaskListNode(task, container) {
     if (window.lucide) window.lucide.createIcons({ el: row });
   };
 
-  task.subtasks.forEach((s) => {
+  const appendRow = (s) => {
     const row = document.createElement('button');
     row.type = 'button';
     row.dataset.subtaskId = String(s.id);
@@ -1780,7 +1791,42 @@ function subtaskListNode(task, container) {
     });
 
     wrap.appendChild(row);
-  });
+    return row;
+  };
+
+  (task.subtasks ?? []).forEach(appendRow);
+
+  if (mayAdd) {
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'detail-subtask detail-subtask--add';
+    const icon = document.createElement('i');
+    icon.dataset.lucide = 'plus';
+    icon.className = 'icon-sm';
+    icon.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.textContent = t('tasks.subtaskAdd');
+    add.replaceChildren(icon, label);
+    if (window.lucide) window.lucide.createIcons({ el: add });
+
+    add.addEventListener('click', async () => {
+      add.disabled = true;
+      try {
+        // Derselbe Weg wie in der Liste, nicht ein zweiter: handleAddSubtask
+        // stellt die Frage, legt an und lädt die Karten nach. Neu ist nur, dass
+        // sie die angelegte Teilaufgabe zurückgibt - ohne die müsste diese
+        // Ansicht sich schließen, um den neuen Schritt zu zeigen.
+        const created = await handleAddSubtask(task.id, container);
+        if (!created) return;
+        task.subtasks = [...(task.subtasks ?? []), created];
+        wrap.insertBefore(appendRow(created), add);
+      } finally {
+        add.disabled = false;
+      }
+    });
+
+    wrap.appendChild(add);
+  }
   return wrap;
 }
 
@@ -2244,7 +2290,7 @@ function renderTaskDetail(task, reminders = [], container = null) {
     // Riegel im Formular, weil sie den Irrtum bestätigt statt ihn zu verhindern.
     // Der Riegel steht jetzt trotzdem auch dort (`wireCountdownGate`).
     { icon: 'hourglass', label: t('dashboard.countdownTitle'), value: task.countdown && task.due_date ? t('tasks.countdownDetail') : '' },
-    { icon: 'align-left', label: t('tasks.descriptionLabel'), node: descriptionNode(task.description), multiline: true },
+    { icon: 'align-left', label: t('tasks.descriptionLabel'), node: descriptionNode(task), multiline: true },
     // „Wann war das zuletzt dran" - nur bei wiederkehrenden Aufgaben (#791).
     // Eine einmalige Aufgabe beantwortet die Frage schon mit ihrem Status: sie
     // ist erledigt oder nicht, und ein Verlauf mit genau einer Zeile darin
@@ -2270,13 +2316,70 @@ function renderTaskDetail(task, reminders = [], container = null) {
  * Der Renderer maskiert selbst, deshalb ist insertAdjacentHTML hier zulaessig -
  * dieselbe Zusicherung, auf der notes.js und dashboard.js bereits stehen.
  */
-function descriptionNode(description) {
-  const text = (description ?? '').trim();
+function descriptionNode(task) {
+  const text = (task.description ?? '').trim();
   if (!text) return null;
   const box = document.createElement('div');
   box.className = 'task-detail__note';
-  box.insertAdjacentHTML('beforeend', renderMarkdownLight(text));
+  // Interaktiv, weil diese Ansicht beides kann, was der Renderer dafür
+  // verlangt: sie zeigt den VOLLSTÄNDIGEN Text (die Zeilennummern am Kästchen
+  // sind also die der Aufgabe) und sie kennt die Aufgaben-Id. Das Dashboard und
+  // die Kalender-Chips bekommen diese Optionen deshalb ausdrücklich nicht.
+  box.insertAdjacentHTML('beforeend', renderMarkdownLight(text, {
+    checklist: { interactive: true, toggleLabel: t('tasks.checklistToggle') },
+  }));
+  box.addEventListener('click', (e) => {
+    const hit = e.target.closest('.note-md-box[data-md-line]');
+    if (hit) toggleDescriptionCheck(task, hit);
+  });
   return box;
+}
+
+/**
+ * Einen Haken in der Beschreibung setzen oder lösen (#917).
+ *
+ * Optimistisch wie bei den Notizen und bei den Teilaufgaben: ein Abhaken, das
+ * erst nach der Antwort reagiert, fühlt sich wie ein verschluckter Tap an - und
+ * genau auf dem Wandtablett ist das die ganze Interaktion.
+ *
+ * `expect` ist die Gegenprobe zum Zeilenindex: hat jemand den Text inzwischen
+ * bearbeitet, zeigt der Index woanders hin, und ein Haken in der falschen Zeile
+ * wäre schlimmer als eine Fehlermeldung. Der Server antwortet dann mit 409.
+ *
+ * Der lokale Stand wird aus der ANTWORT nachgezogen, nicht selbst gerechnet:
+ * sonst liefe `expect` beim zweiten Tap gegen einen Text, den nur der Client
+ * kennt.
+ */
+async function toggleDescriptionCheck(task, box) {
+  const line    = parseInt(box.dataset.mdLine, 10);
+  const checked = box.dataset.mdChecked !== '1';
+  const expect  = splitKeepingLineEndings(task.description)[line * 2];
+
+  // Der eigene Stand kennt die angetippte Zeile gar nicht mehr - dasselbe
+  // Ergebnis wie ein 409, nur ohne den Umweg über den Server. Ausdrücklich
+  // nicht stilles Nichtstun, sonst täte ein Tap einfach nichts.
+  if (expect === undefined) {
+    window.yuvomi?.showToast(t('tasks.checkConflict'), 'danger');
+    return;
+  }
+
+  const paint = (on) => {
+    box.setAttribute('aria-checked', String(on));
+    box.dataset.mdChecked = on ? '1' : '0';
+    box.closest('.note-md-check')?.classList.toggle('is-checked', on);
+  };
+
+  paint(checked);
+  try {
+    const res = await api.patch(`/tasks/${task.id}/check`, { line, checked, expect });
+    task.description = res.data.description;
+  } catch (err) {
+    paint(!checked);
+    window.yuvomi?.showToast(
+      err.status === 409 ? t('tasks.checkConflict') : (err.data?.error ?? t('common.unknownError')),
+      'danger',
+    );
+  }
 }
 
 /**
@@ -2743,14 +2846,26 @@ async function handleDeleteTask(id, container) {
   });
 }
 
+/**
+ * Teilaufgabe anlegen - der eine Weg für Liste und Leseansicht.
+ *
+ * Gibt die angelegte Teilaufgabe zurück (oder null bei Abbruch und Fehler):
+ * die Leseansicht hängt sie sich damit selbst an, statt sich zum Nachladen
+ * schließen zu müssen (#925). Die Liste ignoriert den Rückgabewert.
+ */
 async function handleAddSubtask(parentId, container) {
   const title = await promptModal(t('tasks.subtaskPrompt'));
-  if (!title) return;
+  if (!title) return null;
   try {
-    await api.post('/tasks', { title, parent_task_id: parentId });
-    await loadTasks(container);
+    const res = await api.post('/tasks', { title, parent_task_id: parentId });
+    // Wie beim Abhaken daneben: die Liste trägt den Fortschrittsbalken der
+    // Elternkarte, aber sie muss nicht dasein. Die Leseansicht kann ohne sie
+    // geöffnet worden sein.
+    if (container) await loadTasks(container);
+    return res.data ?? null;
   } catch (err) {
     window.yuvomi.showToast(err.message, 'danger');
+    return null;
   }
 }
 

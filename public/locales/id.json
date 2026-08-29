@@ -519,7 +519,9 @@
         "lockedDetail": "Hanya pembuat dan administrator",
         "tagsSkippedLocked": "{{count}} tugas terkunci dilewati.",
         "tagsSkippedLocked_one": "{{count}} tugas terkunci dilewati.",
-        "listLoadError": "Tugas tidak dapat dimuat."
+        "listLoadError": "Tugas tidak dapat dimuat.",
+        "checklistToggle": "Centang item",
+        "checkConflict": "Tugas telah berubah sementara itu. Silakan buka kembali."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} hidangan",

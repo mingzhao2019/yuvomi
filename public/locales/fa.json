@@ -519,7 +519,9 @@
         "lockedDetail": "فقط سازنده و مدیران",
         "tagsSkippedLocked": "{{count}} وظیفهٔ قفل‌شده رد شد.",
         "tagsSkippedLocked_one": "{{count}} وظیفهٔ قفل‌شده رد شد.",
-        "listLoadError": "کارها بارگذاری نشدند."
+        "listLoadError": "کارها بارگذاری نشدند.",
+        "checklistToggle": "علامت‌زدن مورد",
+        "checkConflict": "وظیفه در این میان تغییر کرده است. لطفاً دوباره آن را باز کنید."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وعده",
