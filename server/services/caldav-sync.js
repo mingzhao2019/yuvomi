@@ -15,6 +15,9 @@ import * as outbound from './calendar-outbound.js';
 import { processPendingDeletions, processPendingUpdates, flushAccount } from './caldav-outbound.js';
 import { detachAccountRows } from './caldav-todo-outbound.js';
 import { toICSDatetime, escapeICSText } from '../utils/ics-format.js';
+import { eventDateTimeFields } from '../utils/ics-datetime.js';
+import { vtimezoneFor } from '../utils/vtimezone.js';
+import { householdTimeZone } from '../utils/timezone.js';
 import { createCalDAVClient, supportsComponent } from '../utils/caldav-client.js';
 import { rruleLine } from './recurrence.js';
 import { nearestIcalColorName } from '../utils/ical-color.js';
@@ -32,31 +35,29 @@ import {
 // hält die bestehenden Importpfade (Tests, ics-Export) gültig.
 export { toICSDatetime };
 
-function buildCalDAVICS(event) {
+function buildCalDAVICS(event, householdZone = null) {
   const uid  = `oikos-${event.id}@oikos.local`;
   const now  = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  // Die Zeiten und ihre Zone bestimmt eventDateTimeFields; bis #938 stand hier
+  // ein blankes `DTSTART:20260830T100000`, das keinen Zeitpunkt bezeichnet,
+  // sondern eine Uhrzeit ohne Uhr.
+  const when = eventDateTimeFields(event, householdZone);
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Yuvomi//CalDAV Sync//EN',
+  ];
+  // RFC 5545: ein TZID-Parameter braucht sein VTIMEZONE im selben VCALENDAR,
+  // und zwar bevor es benutzt wird.
+  if (when.tzid) lines.push(...vtimezoneFor(when.tzid, Number(String(event.start_datetime).slice(0, 4))));
+  lines.push(
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${now}`,
     `SUMMARY:${escapeICSText(event.title)}`,
-  ];
-
-  if (event.all_day) {
-    const startDate = event.start_datetime.slice(0, 10).replace(/-/g, '');
-    const endSrc    = (event.end_datetime || event.start_datetime).slice(0, 10);
-    const endD      = new Date(endSrc + 'T00:00:00');
-    endD.setDate(endD.getDate() + 1);
-    const endDate = `${endD.getFullYear()}${String(endD.getMonth() + 1).padStart(2, '0')}${String(endD.getDate()).padStart(2, '0')}`;
-    lines.push(`DTSTART;VALUE=DATE:${startDate}`);
-    lines.push(`DTEND;VALUE=DATE:${endDate}`);
-  } else {
-    lines.push(`DTSTART:${toICSDatetime(event.start_datetime)}`);
-    lines.push(`DTEND:${toICSDatetime(event.end_datetime || event.start_datetime)}`);
-  }
+    `DTSTART${when.dtstart.params}:${when.dtstart.value}`,
+    `DTEND${when.dtend.params}:${when.dtend.value}`,
+  );
 
   if (event.description)     lines.push(`DESCRIPTION:${escapeICSText(event.description)}`);
   if (event.location)        lines.push(`LOCATION:${escapeICSText(event.location)}`);
@@ -771,6 +772,9 @@ async function sync({ createClient } = {}) {
         WHERE external_source = 'local' AND target_caldav_account_id = ?
       `).all(account.id);
 
+      // Einmal je Lauf: die Zone, an der naive Zeiten haengen (#938).
+      const householdZone = householdTimeZone(db.get());
+
       for (const event of localEvents) {
         try {
           // Find target calendar
@@ -782,7 +786,7 @@ async function sync({ createClient } = {}) {
           }
 
           const uid     = `oikos-${event.id}@oikos.local`;
-          const icsData = buildCalDAVICS(event);
+          const icsData = buildCalDAVICS(event, householdZone);
 
           // Upload to CalDAV
           await client.createCalendarObject({

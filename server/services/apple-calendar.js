@@ -26,6 +26,9 @@ import { decodeHtmlEntities } from '../utils/html-entities.js';
 import * as outbound from './calendar-outbound.js';
 import { processPendingDeletions, processPendingUpdates, flushAccount } from './caldav-outbound.js';
 import { rruleLine } from './recurrence.js';
+import { eventDateTimeFields } from '../utils/ics-datetime.js';
+import { vtimezoneFor } from '../utils/vtimezone.js';
+import { householdTimeZone } from '../utils/timezone.js';
 import { createCalDAVClient } from '../utils/caldav-client.js';
 import { nearestIcalColorName } from '../utils/ical-color.js';
 
@@ -169,38 +172,32 @@ async function testConnection() {
  * @param {{ id, title, description, start_datetime, end_datetime, all_day, location, recurrence_rule }} event
  * @returns {string}
  */
-function buildICS(event) {
+function buildICS(event, householdZone = null) {
   // UID-Format bewusst auf `oikos-…@oikos.local` belassen (kein Rebrand):
   // bereits synchronisierte Events tragen diese UID auf dem entfernten CalDAV-Server
   // und in external_calendar_id. Eine Änderung würde beim nächsten Sync Duplikate
   // bzw. verwaiste Remote-Objekte erzeugen.
   const uid   = `oikos-${event.id}@oikos.local`;
   const now   = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  // Zeiten samt Zone zentral (#938). Vorher schnitt dieser Pfad die Trennzeichen
+  // aus dem gespeicherten Wert und schickte die Ziffern ohne Zonenangabe los -
+  // 10 Uhr auf wessen Uhr auch immer.
+  const when = eventDateTimeFields(event, householdZone);
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Yuvomi//Familienplaner//DE',
+  ];
+  // Ein TZID ohne sein VTIMEZONE ist laut RFC 5545 ungueltig.
+  if (when.tzid) lines.push(...vtimezoneFor(when.tzid, Number(String(event.start_datetime).slice(0, 4))));
+  lines.push(
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${now}`,
     `SUMMARY:${escapeICS(event.title)}`,
-  ];
-
-  if (event.all_day) {
-    const startDate = event.start_datetime.slice(0, 10).replace(/-/g, '');
-    // RFC 5545: DTEND for VALUE=DATE is exclusive - add one day
-    const endSrc = (event.end_datetime || event.start_datetime).slice(0, 10);
-    const endD   = new Date(endSrc + 'T00:00:00');
-    endD.setDate(endD.getDate() + 1);
-    const endDate = `${endD.getFullYear()}${String(endD.getMonth() + 1).padStart(2, '0')}${String(endD.getDate()).padStart(2, '0')}`;
-    lines.push(`DTSTART;VALUE=DATE:${startDate}`);
-    lines.push(`DTEND;VALUE=DATE:${endDate}`);
-  } else {
-    const startDt = event.start_datetime.replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    const endDt   = (event.end_datetime || event.start_datetime).replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    lines.push(`DTSTART:${startDt}`);
-    lines.push(`DTEND:${endDt}`);
-  }
+    `DTSTART${when.dtstart.params}:${when.dtstart.value}`,
+    `DTEND${when.dtend.params}:${when.dtend.value}`,
+  );
 
   if (event.description) lines.push(`DESCRIPTION:${escapeICS(event.description)}`);
   if (event.location)    lines.push(`LOCATION:${escapeICS(event.location)}`);
@@ -489,9 +486,12 @@ async function runSync() {
     WHERE external_source = 'local' AND external_calendar_id IS NULL
   `).all();
 
+  // Einmal je Lauf: die Zone, an der naive Zeiten haengen (#938).
+  const householdZone = householdTimeZone(db.get());
+
   for (const event of localEvents) {
     try {
-      const icsData  = buildICS(event);
+      const icsData  = buildICS(event, householdZone);
       const uid      = `oikos-${event.id}@oikos.local`;
       const filename = `${uid}.ics`;
 

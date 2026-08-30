@@ -10,6 +10,7 @@
 // --------------------------------------------------------
 
 import { rruleLine } from '../services/recurrence.js';
+import { vtimezoneFor } from './vtimezone.js';
 
 // Properties, die Yuvomi verwaltet und daher ersetzen darf - je Komponente.
 const MANAGED_VEVENT = new Set([
@@ -213,11 +214,70 @@ function patchICSComponent(icsText, uid, fields, component, managed) {
 }
 
 /**
- * Ersetzt die verwalteten Properties eines VEVENT (#593).
- * @param {object} fields { SUMMARY, DESCRIPTION, LOCATION, DTSTART, DTEND, RRULE }
+ * Sorgt dafuer, dass das VCALENDAR ein VTIMEZONE fuer `tzid` enthaelt.
+ *
+ * RFC 5545 §3.2.19 laesst einen TZID-Parameter nur zu, wenn im selben VCALENDAR
+ * ein VTIMEZONE mit dieser Kennung steht. Yuvomi schrieb sein `;TZID=` fuer
+ * wiederkehrende Serien bereits vorher, den Block aber nie (#938) - iOS und eM
+ * Client verzeihen das, ein strenger Server darf das Objekt zurueckweisen.
+ *
+ * Der Block kommt VOR die erste Komponente. Das verlangt der Standard nicht,
+ * aber Parser, die einmal von vorn lesen, brauchen die Zone, bevor das erste
+ * DTSTART sie benutzt.
+ *
+ * @param {string} icsText
+ * @param {string|null} tzid  IANA-Zone; null/leer laesst den Text unveraendert
+ * @returns {string}
  */
-export function patchICSEvent(icsText, uid, fields = {}) {
-  return patchICSComponent(icsText, uid, fields, 'VEVENT', MANAGED_VEVENT);
+export function ensureVTimezone(icsText, tzid) {
+  if (!tzid) return String(icsText);
+  const lines = unfoldICS(icsText).split('\n');
+
+  // Schon vorhanden? Ein zweiter Block mit derselben TZID waere ein Fehler,
+  // kein Zusatz. Verglichen wird der Wert der TZID-Zeile innerhalb eines
+  // VTIMEZONE - ein `TZID=` als Parameter an einem DTSTART zaehlt nicht.
+  let inVTimezone = false;
+  for (const line of lines) {
+    const upper = line.trim().toUpperCase();
+    if (upper === 'BEGIN:VTIMEZONE') { inVTimezone = true; continue; }
+    if (upper === 'END:VTIMEZONE') { inVTimezone = false; continue; }
+    if (inVTimezone && upper.startsWith('TZID:')
+      && line.trim().slice(5).trim() === tzid) return String(icsText);
+  }
+
+  // Das Jahr, fuer das die Uebergaenge gerechnet werden. Die erzeugten Regeln
+  // sind RRULE-basiert und gelten damit auch fuer spaetere Jahre; das Jahr des
+  // Termins trifft nur die Feinheit, welche historische Regel gilt.
+  const dtstart = lines.find((l) => /^DTSTART[;:]/i.test(l.trim()));
+  const yearMatch = dtstart && /:(\d{4})/.exec(dtstart);
+  const year = yearMatch ? Number(yearMatch[1]) : new Date().getUTCFullYear();
+
+  const block = vtimezoneFor(tzid, year).map(foldICSLine);
+
+  // Einfuegepunkt: vor der ersten Komponente im VCALENDAR.
+  let at = lines.findIndex((l) => /^BEGIN:(?!VCALENDAR)/i.test(l.trim()));
+  if (at < 0) at = Math.max(lines.length - 1, 0); // nur END:VCALENDAR uebrig
+
+  return [...lines.slice(0, at), ...block, ...lines.slice(at)]
+    .map(foldICSLine).join('\r\n');
+}
+
+/**
+ * Ersetzt die verwalteten Properties eines VEVENT (#593).
+ *
+ * @param {string} icsText
+ * @param {string} uid
+ * @param {object} fields { SUMMARY, DESCRIPTION, LOCATION, DTSTART, DTEND, RRULE }
+ * @param {object} [options]
+ * @param {string|null} [options.tzid] Zone, die DTSTART/DTEND per TZID nennen.
+ *        Ihr VTIMEZONE wird mitgeschrieben, falls es fehlt - die beiden gehoeren
+ *        zusammen, und getrennt vergisst ein Aufrufer frueher oder spaeter das
+ *        zweite (#938).
+ */
+export function patchICSEvent(icsText, uid, fields = {}, { tzid = null } = {}) {
+  const patched = patchICSComponent(icsText, uid, fields, 'VEVENT', MANAGED_VEVENT);
+  if (patched === null) return null;
+  return ensureVTimezone(patched, tzid);
 }
 
 /**

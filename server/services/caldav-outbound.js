@@ -14,7 +14,9 @@
 import { createLogger } from '../logger.js';
 import * as outbound from './calendar-outbound.js';
 import { patchICSEvent } from '../utils/ics-patch.js';
-import { toICSDatetime } from '../utils/ics-format.js';
+import { eventDateTimeFields } from '../utils/ics-datetime.js';
+import { householdTimeZone } from '../utils/timezone.js';
+import * as db from '../db.js';
 import { nearestIcalColorName } from '../utils/ical-color.js';
 
 const log = createLogger('CalDAVOutbound');
@@ -23,42 +25,40 @@ const label = (source) => (source === 'apple' ? 'Apple' : 'CalDAV');
 
 /**
  * Kalender-Properties eines lokalen Termins für patchICSEvent.
- * Ganztägig → VALUE=DATE mit exklusivem DTEND (RFC 5545), sonst Wanduhrzeit mit
- * der Zone des Termins, damit ein importierter Termin seine TZID behält.
+ *
+ * Die Zeitangaben kommen seit #938 aus `eventDateTimeFields`: der Fall, den es
+ * hier gab und der hier nicht auffiel, ist der lokal angelegte Termin. Er hat
+ * kein `tzid`, also stand ein `DTSTART:20260830T100000` ohne jede Zone im PUT -
+ * floating time, die iOS richtig raet und ein DAViCal-Backend gar nicht erst
+ * anzeigt. Jetzt traegt er die Zone des Haushalts.
+ *
+ * Zurueck kommt das Feld-Objekt UND die Zone, deren VTIMEZONE mitgeschickt
+ * werden muss - zusammen, weil ein TZID ohne seinen Block ein ungueltiges
+ * Objekt ergibt und getrennte Rueckgabewerte den Aufrufer einladen, das zweite
+ * zu vergessen.
+ *
+ * @param {object} event
+ * @param {string|null} householdZone Zone des Haushalts; ohne sie bleibt es beim
+ *        UTC-Suffix - eindeutig, aber ohne Zonenbezug.
+ * @returns {{ fields: object, tzid: string|null }}
  */
-export function icsFieldsForEvent(event) {
-  const hasZoneInValue = /Z$|[+-]\d{2}:?\d{2}$/.test(event.start_datetime || '');
-  const tzParam = (event.tzid && !hasZoneInValue) ? `;TZID=${event.tzid}` : '';
-
-  let start;
-  let end;
-  if (event.all_day) {
-    const startDate = event.start_datetime.slice(0, 10).replace(/-/g, '');
-    const endSrc    = (event.end_datetime || event.start_datetime).slice(0, 10);
-    const endD      = new Date(endSrc + 'T00:00:00');
-    endD.setDate(endD.getDate() + 1);
-    const endDate = `${endD.getFullYear()}${String(endD.getMonth() + 1).padStart(2, '0')}${String(endD.getDate()).padStart(2, '0')}`;
-    start = { value: startDate, params: ';VALUE=DATE' };
-    end   = { value: endDate,   params: ';VALUE=DATE' };
-  } else {
-    start = { value: toICSDatetime(event.start_datetime), params: tzParam };
-    end   = { value: toICSDatetime(event.end_datetime || event.start_datetime), params: tzParam };
-  }
+export function icsFieldsForEvent(event, householdZone = null) {
+  const when = eventDateTimeFields(event, householdZone);
 
   const fields = {
     SUMMARY:     event.title,
     DESCRIPTION: event.description || null,
     LOCATION:    event.location || null,
     RRULE:       event.recurrence_rule || null,
-    DTSTART:     start,
-    DTEND:       end,
+    DTSTART:     when.dtstart,
+    DTEND:       when.dtend,
   };
 
   const colorName = nearestIcalColorName(event.color);
   if (colorName) fields.COLOR = colorName;
   else if (!event.color && event.color_modified) fields.COLOR = null;
 
-  return fields;
+  return { fields, tzid: when.tzid };
 }
 
 /** Dateiname eines Kalenderobjekts aus seiner URL, ersatzweise aus der UID. */
@@ -206,6 +206,10 @@ export async function processPendingUpdates(client, source, objectIndex, calenda
   const events = outbound.pendingUpdates(source);
   if (events.length === 0) return 0;
 
+  // Einmal je Lauf, nicht je Termin: die Zone steht in sync_config und aendert
+  // sich waehrend eines Sync-Durchlaufs nicht.
+  const zone = householdTimeZone(db.get());
+
   let done = 0;
   for (const event of events) {
     const known = objectIndex.get(event.external_calendar_id);
@@ -227,7 +231,8 @@ export async function processPendingUpdates(client, source, objectIndex, calenda
     const fresh = outbound.reloadEvent(event.id);
     if (!fresh) continue; // parallel gelöscht - der Tombstone-Pfad übernimmt
 
-    const patched = patchICSEvent(known.data, event.external_calendar_id, icsFieldsForEvent(fresh));
+    const { fields, tzid } = icsFieldsForEvent(fresh, zone);
+    const patched = patchICSEvent(known.data, event.external_calendar_id, fields, { tzid });
     if (!patched) {
       log.warn(`[${label(source)}] Event ${event.external_calendar_id} has no editable VEVENT in its calendar object, dropping its update.`);
       outbound.clearOutbound(event.id);
