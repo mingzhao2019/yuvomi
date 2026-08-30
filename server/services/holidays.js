@@ -430,7 +430,13 @@ async function sync(force = false) {
     forget.run('holiday_language_retry_for');
   }
 
-  log.info(`Holiday sync complete: ${total} entries for ${country}${subdivision ? '/' + subdivision : ''}`);
+  // "complete" nur, wenn es das war. Genau diese Zeile hat der Melder von #946
+  // zitiert, um zu zeigen, dass die Synchronisierung durchgelaufen sei - eine
+  // Erfolgsmeldung ueber einem halb geholten Bestand haette ihn ein zweites Mal
+  // in die Irre gefuehrt.
+  const scope = `${country}${subdivision ? '/' + subdivision : ''}`;
+  if (anyFailed) log.warn(`Holiday sync INCOMPLETE: ${total} entries for ${scope} - some requests failed, the next run retries`);
+  else log.info(`Holiday sync complete: ${total} entries for ${scope}`);
   return { synced: total, lastSync: now, incomplete: anyFailed };
 }
 

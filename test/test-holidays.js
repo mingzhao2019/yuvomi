@@ -729,6 +729,27 @@ test('sync: ein geglueckter LEERER Abruf laesst nichts Altes stehen (#946)', asy
     'und darf deshalb den Sprach-Merker setzen - es steht ja nichts Fremdsprachiges mehr da');
 });
 
+test('sync: ein unvollstaendiger Lauf meldet sich nicht als "complete" (#946)', async () => {
+  // Genau diese Logzeile hat der Melder von #946 zitiert, um zu zeigen, dass
+  // die Synchronisierung durchgelaufen sei ("Holiday sync complete: 35 entries
+  // for ES/ES-CT"). Eine Erfolgsmeldung ueber einem halb geholten Bestand
+  // haette ihn ein zweites Mal in die Irre gefuehrt - und der Log ist bei einem
+  // selbstgehosteten Server oft die einzige Auskunft.
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'en' });
+  __setFetchImpl(makeApiMock());
+  const gut = await captureConsole(() => sync(true));
+  assert.ok(gut.info.some((l) => /complete/i.test(l)), 'ein geglueckter Lauf meldet sich als complete');
+  assert.ok(!gut.info.some((l) => /INCOMPLETE/.test(l)));
+
+  setConfig({ language: 'de' });
+  __setFetchImpl(async () => { throw new Error('network down'); });
+  const schlecht = await captureConsole(() => sync(true));
+  assert.ok(!schlecht.info.some((l) => /complete/i.test(l)),
+    'ein Lauf mit gescheiterten Abrufen darf sich nicht als complete melden');
+  assert.ok(schlecht.warn.some((l) => /INCOMPLETE/.test(l)),
+    'er muss stattdessen sagen, dass etwas fehlt - sonst sucht der naechste Melder an der falschen Stelle');
+});
+
 test('sync: die Wartemarke bremst nur die Sprache, bei der es schiefging (#946)', async () => {
   // GEFUNDEN IN DER PR-DURCHSICHT. Die Marke trug zuerst nur einen Zeitpunkt -
   // und bremste damit auch eine INZWISCHEN ANDERS gewaehlte Sprache aus, obwohl
