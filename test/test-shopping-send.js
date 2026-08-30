@@ -34,8 +34,21 @@ const OHNE_MAIL = db.prepare(
   "INSERT INTO users (username, display_name, password_hash, role) VALUES ('kid','Kind','x','member')"
 ).run().lastInsertRowid;
 
+// Zwei Konten, die KEINE Haushaltsmitglieder sind, aber beide einen Kontakt
+// mit Adresse tragen - genau daran scheiterte die erste Fassung.
+const GAST = db.prepare(
+  "INSERT INTO users (username, display_name, password_hash, role) VALUES ('gast','Externer Gast','x','member')"
+).run().lastInsertRowid;
+const PERSONAL = db.prepare(
+  "INSERT INTO users (username, display_name, password_hash, role) VALUES ('putz','Putzhilfe','x','member')"
+).run().lastInsertRowid;
+
 db.prepare("INSERT INTO contacts (name, first_name, email, family_user_id) VALUES ('Oma','Oma','oma@example.org',?)").run(OMA);
 db.prepare("INSERT INTO contacts (name, first_name, email, family_user_id) VALUES ('Ulas','Ulas','ulas@example.org',?)").run(SENDER);
+db.prepare("INSERT INTO contacts (name, first_name, email, family_user_id) VALUES ('Gast','Gast','gast@fremd.example',?)").run(GAST);
+db.prepare("INSERT INTO contacts (name, first_name, email, family_user_id) VALUES ('Putz','Putz','putz@example.org',?)").run(PERSONAL);
+db.prepare('INSERT INTO split_expense_guest_users (user_id) VALUES (?)').run(GAST);
+db.prepare('INSERT INTO housekeeping_workers (user_id) VALUES (?)').run(PERSONAL);
 
 let mailer = null;
 /**
@@ -290,6 +303,85 @@ test('die Versandschranke greift, bevor ein Postfach zugeschuettet wird (#944)',
   assert.ok(codes.includes(429), `keine Schranke gegriffen: ${codes.join(',')}`);
   assert.ok(mailer.sent.length < 14, 'abgewiesene Anfragen duerfen keine Mail ausloesen');
   resetLimiter();
+});
+
+test('ein Externer bekommt die Liste nicht, auch nicht ueber die API (#944)', async () => {
+  resetMailer();
+  const listId = seedList();
+  // EIN KONTO IST NICHT DASSELBE WIE EIN HAUSHALTSMITGLIED. Ein
+  // Geteilte-Ausgaben-Gast ist ausdruecklich ein Externer - index.js sperrt ihn
+  // aus jeder anderen /api/v1-Route -, und trotzdem legt der Gast-Sync ihm
+  // einen Kontakt mit Adresse an. Hauspersonal hat ein Konto, damit es seine
+  // eigenen Aufgaben sieht, nicht damit es den Einkauf des Haushalts mitliest.
+  // Wer nur "gibt es diese users-Zeile" fragt, haelt beide fuer erreichbar.
+  for (const [wer, id] of [['Gast', GAST], ['Hauspersonal', PERSONAL]]) {
+    const res = await call('POST', `/${listId}/send`, { userId: id });
+    assert.equal(res.status, 404, `${wer} darf die Liste nicht bekommen`);
+    // Dieselbe Antwort wie fuer ein unbekanntes Konto: aus ihr soll sich nicht
+    // ablesen lassen, welche Konten existieren.
+    assert.match(res.body.error, /not found/i);
+    resetLimiter();
+  }
+  assert.equal(mailer.sent.length, 0);
+});
+
+test('die Auswahl zeigt genau die, die der Versand akzeptiert (#944)', async () => {
+  // Waeren es zwei Quellen, koennte die Auswahl jemanden anbieten, den die
+  // Route ablehnt - oder schlimmer: jemanden verbergen, den sie annimmt. Die
+  // erste Fassung speiste sie aus `/family/members`, und der kennt keine
+  // Gaeste-Ausnahme.
+  const res = await call('GET', '/send-recipients');
+  assert.equal(res.status, 200);
+  const ids = res.body.data.map((m) => m.id);
+  assert.deepEqual([...ids].sort(), [SENDER, OMA].sort());
+  assert.equal(ids.includes(GAST), false, 'kein externer Gast in der Auswahl');
+  assert.equal(ids.includes(PERSONAL), false, 'kein Hauspersonal in der Auswahl');
+  assert.equal(ids.includes(OHNE_MAIL), false, 'niemand ohne Adresse');
+  // Die Adressen bleiben beim Server: fuer die Auswahl reicht der Name.
+  assert.equal(res.body.data.every((m) => m.email === undefined), true,
+    'der Endpunkt gibt keine Adressen heraus');
+
+  // Und die Gegenrichtung: jeder Angebotene wird auch wirklich angenommen.
+  resetMailer();
+  const listId = seedList();
+  for (const id of ids) {
+    const send = await call('POST', `/${listId}/send`, { userId: id });
+    assert.equal(send.status, 200, `Empfaenger ${id} steht zur Wahl, wird aber abgelehnt`);
+    resetLimiter();
+  }
+});
+
+test('eine Adressliste im Kontakt macht niemanden erreichbar (#944)', async () => {
+  const { memberEmail, listEmailableMembers } = await import('../server/services/member-email.js');
+  const MULTI = db.prepare(
+    "INSERT INTO users (username, display_name, password_hash, role) VALUES ('multi','Zwei Adressen','x','member')"
+  ).run().lastInsertRowid;
+  // Der Kontakt MUSS hier stehen. Ohne ihn liefert memberEmail() ohnehin null,
+  // und der Test waere gruen, ohne je eine Adressliste geprueft zu haben.
+  db.prepare("INSERT INTO contacts (name, first_name, email, family_user_id) VALUES ('Multi','Multi','x@example.org',?)").run(MULTI);
+  assert.equal(memberEmail(MULTI, { db }), 'x@example.org', 'Ausgangslage: erreichbar');
+
+  // `contacts.email` ist Freitext und kommt teils aus CardDAV. nodemailer liest
+  // `to` als LISTE - der Haushaltsinhalt ginge an ein zweites, fremdes Postfach.
+  for (const wert of ['a@example.org,fremd@example.com', 'a@example.org; b@example.org', 'a@example.org fremd@x.de']) {
+    db.prepare('UPDATE contacts SET email = ? WHERE family_user_id = ?').run(wert, MULTI);
+    assert.equal(memberEmail(MULTI, { db }), null, `${wert} darf keine Adresse ergeben`);
+    assert.equal(listEmailableMembers({ db }).some((m) => m.id === MULTI), false,
+      `${wert} darf niemanden in die Auswahl bringen`);
+
+    resetMailer();
+    const listId = seedList();
+    const res = await call('POST', `/${listId}/send`, { userId: MULTI });
+    assert.equal(res.status, 422);
+    assert.equal(res.body.reason, 'recipient_no_email');
+    assert.equal(mailer.sent.length, 0);
+    resetLimiter();
+  }
+
+  // Eine gewoehnliche Adresse bleibt selbstverstaendlich erreichbar.
+  db.prepare('UPDATE contacts SET email = ? WHERE family_user_id = ?').run('einzeln@example.org', MULTI);
+  assert.equal(memberEmail(MULTI, { db }), 'einzeln@example.org');
+  db.prepare('DELETE FROM users WHERE id = ?').run(MULTI);
 });
 
 test.after(() => server.close());

@@ -18,7 +18,7 @@ import {
 } from '../services/caldav-todo-outbound.js';
 import rateLimit from 'express-rate-limit';
 import { emailService as defaultEmailService } from '../services/email.js';
-import { memberEmail } from '../services/member-email.js';
+import { memberEmail, isHouseholdMember, listEmailableMembers } from '../services/member-email.js';
 import { buildShoppingListMail } from '../services/shopping-mail.js';
 import { householdTimeZone, utcToWall } from '../utils/timezone.js';
 
@@ -272,6 +272,33 @@ router.patch('/categories/reorder', (req, res) => {
     res.json({ data: loadCategories() });
   } catch (err) {
     log.error('PATCH /categories/reorder error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// GET /api/v1/shopping/send-recipients
+// Wer die Einkaufsliste per Mail bekommen kann (#944).
+// Response: { data: [{ id, display_name }] }
+//
+// EIGENER ENDPUNKT STATT `/family/members`. Der zeigt alle Konten ausser
+// Hauspersonal - also auch Geteilte-Ausgaben-Gaeste, die Externe sind. Wer die
+// Auswahl von dort speist, bietet einen Empfaenger an, den die Versandroute
+// zurueckweist; und stuende dort einmal jemand, den sie NICHT zurueckweist,
+// waere die Grenze nur in der Oberflaeche gezogen. Auswahl und Route fragen
+// deshalb dieselbe Funktion.
+//
+// Die Adressen bleiben hier: fuer die Auswahl reicht der Name, und wer sie
+// nicht herausgibt, kann sie auch nicht versehentlich anzeigen.
+// --------------------------------------------------------
+router.get('/send-recipients', (req, res) => {
+  try {
+    void req;
+    const members = listEmailableMembers({ db: db.get() })
+      .map(({ id, display_name }) => ({ id, display_name }));
+    res.json({ data: members });
+  } catch (err) {
+    log.error('GET /send-recipients error:', err.message);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
@@ -718,8 +745,18 @@ router.post('/:listId/send', sendListLimiter, async (req, res) => {
     // Einrichtung, dann der Inhalt. Jede Meldung nennt genau eine Ursache und
     // die naechste Handlung - "es ging nicht" waere hier dreimal dasselbe Wort
     // fuer drei verschiedene Aufgaben.
+    // NICHT einfach "gibt es diese users-Zeile": Hauspersonal und
+    // Geteilte-Ausgaben-Gaeste haben ebenfalls ein Konto und einen Kontakt mit
+    // Adresse, sind aber keine Haushaltsmitglieder - ein Gast ist ausdruecklich
+    // ein Externer, den index.js aus jeder anderen /api/v1-Route aussperrt. Die
+    // Auswahl im Dialog zeigt beide nicht; sie hier trotzdem anzunehmen hiesse,
+    // die Grenze nur zu verstecken statt sie zu ziehen. Dieselbe Antwort wie
+    // fuer ein unbekanntes Konto, damit sich aus ihr nicht ablesen laesst,
+    // welche Konten es gibt.
+    if (!isHouseholdMember(userId, { db: db.get() })) {
+      return res.status(404).json({ error: 'Recipient not found.', code: 404 });
+    }
     const recipient = db.get().prepare('SELECT id, display_name FROM users WHERE id = ?').get(userId);
-    if (!recipient) return res.status(404).json({ error: 'Recipient not found.', code: 404 });
 
     // `reason` neben der Meldung: die drei Absagen sind alle 422, und der Text
     // ist englisch wie jede Server-Meldung hier. Ohne eine maschinenlesbare

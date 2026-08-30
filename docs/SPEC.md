@@ -2701,8 +2701,24 @@ The surface carries four things, in this order: **the time**, large (this is whe
   address from that member's contact - the same source the password reset uses (`services/member-email.js`,
   shared with `auth.js` so "how do I reach this member" has exactly one answer). Accepting an address
   from the request body would turn the instance into an open mail relay for any signed-in user.
-  Sending to yourself is allowed and drops the "X sent you this list" line. Only members with an
-  address on file appear in the picker; the route rejects the same case again. Requires the app-wide
+  Sending to yourself is allowed and drops the "X sent you this list" line.
+
+  **A `users` row is not the same as a household member,** and that distinction is the security boundary
+  here. Two kinds of account sit beside the household and both carry a contact with an address:
+  housekeeping staff (an account so they see their own chores, not so they read the household's
+  shopping) and shared-expense guests, who are external - `server/index.js` blocks them from every
+  `/api/v1/*` route except `/split-expenses`, yet the guest sync gives them a contact row. Asking only
+  "does this users row exist" treats both as reachable. The predicate therefore lives once in
+  `member-email.js` (`isHouseholdMember`) and serves both the picker
+  (`GET /api/v1/shopping/send-recipients`) and the route's own check, so the picker cannot offer someone
+  the server rejects nor hide someone it accepts - a boundary drawn only in the interface is no boundary.
+  It is deliberately *not* folded into `memberEmail()`: the password reset uses that same lookup and
+  applies expressly to shared-expense guests too (`auth.js` names `isSplitExpenseGuest` as its own
+  reason to send), so a guest must keep the route back into their own account. Callers needing both
+  ask both. The picker endpoint returns names without
+  addresses. `contacts.email` is free text and partly comes from CardDAV, so a value holding a list
+  (`a@x,b@y`) makes a member *unreachable* rather than reaching both: nodemailer would treat `to` as a
+  recipient list, and a password reset can be redone while a sent mail cannot be recalled. Requires the app-wide
   SMTP access (see [Email channel](#notification-channels)), and carries its own rate limit of 10 per
   minute per IP - the general API limit of 300 is right for reading and ticking off, and far too
   generous for something that puts mail in someone's inbox. Three distinguishable refusals rather

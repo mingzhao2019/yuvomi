@@ -49,6 +49,16 @@ export function shoppingPaths() {
         requestBody: jsonBody(null),
       }),
     },
+    '/api/v1/shopping/send-recipients': {
+      get: op({
+        summary: 'Household members who can receive a shopping list by email',
+        description: 'Names only, no addresses - the picker needs a name, and what is not handed out cannot be shown by accident. '
+          + 'Deliberately not `/family/members`: that lists every account except housekeeping staff, so it includes '
+          + 'shared-expense guests, who are external. This endpoint and the send route ask the same function, so the '
+          + 'picker cannot offer a recipient the server rejects, nor hide one it accepts.',
+        tag: 'Shopping',
+      }),
+    },
     '/api/v1/shopping/{listId}/send': {
       post: op({
         summary: 'Email the open items of a list to a household member',

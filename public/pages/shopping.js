@@ -237,16 +237,28 @@ async function openSendListDialog(container) {
 
   let members = [];
   try {
-    const res = await api.get('/family/members');
+    // Nicht `/family/members`: der zeigt alle Konten ausser Hauspersonal, also
+    // auch Geteilte-Ausgaben-Gaeste, die Externe sind. Dieser Endpunkt fragt
+    // dieselbe Funktion wie die Versandroute, damit die Auswahl niemanden
+    // anbietet, den der Server ablehnt - und umgekehrt.
+    //
     // Sich selbst einzuschliessen ist Absicht: "schick mir die Liste aufs
     // Handy" ist derselbe Wunsch wie "schick sie meiner Mutter", und wer sie
     // sich selbst schickt, bekommt den Absendersatz nicht vorgesetzt (die
     // Route laesst ihn dann weg).
-    members = (res.data || []).filter((m) => String(m.email || '').trim());
+    const res = await api.get('/shopping/send-recipients');
+    members = res.data || [];
   } catch {
     window.yuvomi.showToast(t('common.errorGeneric'), 'danger');
     return;
   }
+
+  // WAEHREND DES LADENS KANN DIE LISTE GEWECHSELT HABEN. Der Dialog haelt
+  // `listId` und die Artikelzahl von vorhin fest, sagt aber nirgends, welche
+  // Liste er meint - er wuerde also die alte verschicken, waehrend auf dem
+  // Bildschirm die neue steht. Bei etwas, das sich nicht zuruecknehmen laesst,
+  // ist das der teuerste Fehler dieser Funktion.
+  if (state.activeListId !== listId) return;
 
   if (!members.length) {
     window.yuvomi.showToast(t('shopping.sendListNoRecipients'), 'warning');
