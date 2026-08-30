@@ -7,6 +7,7 @@
 import { StorageError } from '../../services/document-storage.js';
 import { ensureModuleFolder } from '../../services/document-folders.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '../../utils/upload-limit.js';
+import { contentMatchesMime } from '../../utils/file-signature.js';
 import {
   fanOutEventReminders, dropInheritedEventReminders, eventAuthorId,
 } from '../../services/event-reminder-fanout.js';
@@ -80,6 +81,8 @@ export function parseAttachment(dataUrl) {
   const buffer = Buffer.from(base64, 'base64');
   if (!buffer.length) throw new Error('attachment_data: Datei ist leer.');
   if (buffer.length > MAX_ATTACHMENT_BYTES) throw new Error(`attachment_data: Datei darf höchstens ${MAX_UPLOAD_MB} MB groß sein.`);
+  // Bis hier war nur geprueft, was der Absender BEHAUPTET (#937).
+  if (!contentMatchesMime(buffer, mime)) throw new Error('attachment_data: Inhalt passt nicht zum angegebenen Dateityp.');
   return { mime, size: buffer.length, buffer };
 }
 

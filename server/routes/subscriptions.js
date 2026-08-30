@@ -203,11 +203,15 @@ function validatePayload(body, { partial = false } = {}) {
   if (body.website_url && !URL_RE.test(body.website_url)) errors.push('Website URL must use HTTP or HTTPS.');
   if (body.logo_data && (!String(body.logo_data).startsWith('data:image/') || String(body.logo_data).length > 700000)) {
     errors.push('Logo must be an image data URL smaller than 500 KB.');
-  } else if (body.logo_data && String(body.logo_data).includes(';base64,')
+  } else if (body.logo_data && /;base64,/i.test(String(body.logo_data))
     && !dataUrlContentMatches(body.logo_data)) {
     // Der Typ steht im Praefix und kommt aus dem Browser des Absenders; hier
     // wird geprueft, ob der Inhalt ihn traegt (#937). Nicht-base64-Bilder haben
     // keinen Kopf zum Vergleichen und bleiben bei der bisherigen Pruefung.
+    //
+    // Case-insensitiv, weil ein data-URL-Leser `;BASE64,` genauso dekodiert:
+    // ein exakter Substring-Test haette sich mit einer Grossschreibung umgehen
+    // lassen, und zwar genau von dem, der etwas zu verbergen hat.
     errors.push('Logo content does not match its image type.');
   }
   for (const key of ['category_id', 'payment_method_id']) {

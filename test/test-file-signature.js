@@ -84,6 +84,57 @@ test('PDF mit Vorlauf wird erkannt, PDF ohne Kennung nicht', () => {
   assert.equal(contentMatchesMime(tooFar, 'application/pdf'), false);
 });
 
+test('PDF: der Marker darf am Rand des Fensters stehen', () => {
+  // Die erste Fassung schnitt bei genau 1024 und zerteilte damit einen Marker,
+  // der bei Byte 1020 beginnt - also ausgerechnet die Dateien, fuer die die
+  // Toleranz da ist. Der Rand wird deshalb einzeln geprueft.
+  const at = (n) => Buffer.concat([Buffer.alloc(n, 0x20), Buffer.from('%PDF-1.4')]);
+  for (const n of [0, 600, 1019, 1020, 1023, 1024]) {
+    assert.equal(contentMatchesMime(at(n), 'application/pdf'), true, `Versatz ${n} abgelehnt`);
+  }
+  for (const n of [1025, 1200]) {
+    assert.equal(contentMatchesMime(at(n), 'application/pdf'), false, `Versatz ${n} akzeptiert`);
+  }
+});
+
+test('SVG wird auf seine Form geprueft, nicht durchgewunken', () => {
+  // SVG ist Text und hat keine Magic Bytes, steht aber im `accept` des
+  // Abo-Logos. Ohne eigene Pruefung fiele es unter "unbekannter Typ" und damit
+  // unter das absichtliche `true` - HTML als SVG deklariert waere gespeichert
+  // worden.
+  const ok = [
+    '<svg xmlns="http://www.w3.org/2000/svg"/>',
+    '<?xml version="1.0"?>\n<svg viewBox="0 0 1 1"></svg>',
+    '\uFEFF  \n<svg />',
+    '<!-- (c) 2026 -->\n<svg></svg>',
+    '<!DOCTYPE svg PUBLIC "x"><svg></svg>',
+  ];
+  for (const src of ok) {
+    assert.equal(contentMatchesMime(Buffer.from(src), 'image/svg+xml'), true, src.slice(0, 30));
+  }
+  const nope = [
+    '<html><script>alert(1)</script></html>',
+    '<!DOCTYPE html><html><body></body></html>',
+    'nur text, kein markup',
+    '<?xml version="1.0"?><rss></rss>',
+  ];
+  for (const src of nope) {
+    assert.equal(contentMatchesMime(Buffer.from(src), 'image/svg+xml'), false, src.slice(0, 30));
+  }
+});
+
+test('dataUrlContentMatches liest den base64-Flag case-insensitiv', () => {
+  // Ein data-URL-Leser dekodiert `;BASE64,` genauso. Ein exakter Test haette
+  // sich mit einer Grossschreibung umgehen lassen - von genau dem, der etwas
+  // zu verbergen hat.
+  const png = 'iVBORw0KGgo=';
+  assert.equal(dataUrlContentMatches(`data:image/png;BASE64,${png}`), true);
+  assert.equal(dataUrlContentMatches(`data:image/png;Base64,${png}`), true);
+  const html = Buffer.from('<html>').toString('base64');
+  assert.equal(dataUrlContentMatches(`data:image/png;BASE64,${html}`), false,
+    'Grossschreibung darf die Pruefung nicht umgehen');
+});
+
 test('leerer Inhalt erfüllt keine Signatur', () => {
   assert.equal(contentMatchesMime(Buffer.alloc(0), 'image/png'), false);
   assert.equal(contentMatchesMime(null, 'image/png'), false);
@@ -147,23 +198,46 @@ import { fileURLToPath } from 'node:url';
 
 const ROUTES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'server', 'routes');
 
+/** Alle .js unter server/routes/, auch in Unterordnern. */
+function routeFiles(dir = ROUTES_DIR) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return routeFiles(full);
+    return entry.name.endsWith('.js') ? [path.relative(ROUTES_DIR, full)] : [];
+  });
+}
+
 // Nimmt diese Datei Dateiinhalt als data-URL entgegen? Erkannt am Merkmal, das
 // alle fuenf teilen: sie pruefen ein `data:`-Praefix oder eine MIME-Allowlist.
 const ACCEPTS_UPLOAD = /data:image\/|data:\(\[\^|ALLOWED_MIME|;base64,/;
-const CHECKS_CONTENT = /contentMatchesMime|dataUrlContentMatches/;
+
+// Der AUFRUF, nicht der Name. Die erste Fassung suchte den blossen Bezeichner
+// und zaehlte damit die Import-Zeile als Beleg: die Gegenprobe - Aufruf raus,
+// Import stehen lassen - blieb gruen, also genau im Fehlerzustand. Gesucht wird
+// deshalb `name(` mit einem Argument, und Import-Zeilen fallen vorher weg.
+const CHECKS_CONTENT = /\b(?:contentMatchesMime|dataUrlContentMatches)\s*\([^)]/;
+const withoutImports = (src) => src.replace(/^\s*import\s[^;]*;/gm, '');
 
 test('jede Route, die eine data-URL annimmt, prueft auch deren Inhalt', () => {
   const offenders = [];
   let checked = 0;
-  for (const file of fs.readdirSync(ROUTES_DIR).filter((f) => f.endsWith('.js'))) {
+  for (const file of routeFiles()) {
     const src = fs.readFileSync(path.join(ROUTES_DIR, file), 'utf8');
     if (!ACCEPTS_UPLOAD.test(src)) continue;
     checked++;
-    if (!CHECKS_CONTENT.test(src)) offenders.push(file);
+    if (!CHECKS_CONTENT.test(withoutImports(src))) offenders.push(file);
   }
   // Die Zahl steht hier, weil eine leere Liste zweierlei heissen kann: alles
   // sauber, oder der Sucher findet nichts mehr. Sie darf steigen (neue
-  // Upload-Route), aber nicht unter die fuenf aus #937 fallen.
-  assert.ok(checked >= 5, `nur ${checked} Upload-Routen gefunden - der Sucher greift nicht mehr`);
+  // Upload-Route), aber nicht unter die sieben fallen, die es gibt.
+  //
+  // Sie stand auf fuenf, und das war die Zahl, die der Sucher SAH: er las nur
+  // die unmittelbaren Kinder von server/routes/. Zwei Upload-Pfade liegen aber
+  // eine Ebene tiefer - `inventory/items.js` (Inventarfoto) und
+  // `calendar/helpers.js` (Termin-Anhang) -, und beide nahmen ihre data-URL
+  // ungeprueft entgegen, waehrend dieser Test gruen behauptete, es gebe keine
+  // solche Stelle mehr. Eine Zahl, die aus derselben blinden Quelle kommt wie
+  // die Pruefung, bestaetigt nur deren blinden Fleck.
+  assert.ok(checked >= 7, `nur ${checked} Upload-Routen gefunden - der Sucher greift nicht mehr`);
   assert.deepEqual(offenders, [], `Upload-Routen ohne Inhaltspruefung: ${offenders.join(', ')}`);
 });

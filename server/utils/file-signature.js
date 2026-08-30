@@ -36,7 +36,17 @@ const ascii = (text, offset = 0) => prefix([...text].map((c) => c.charCodeAt(0))
 // Ein PDF darf laut Adobes eigener Auslegung bis zu 1024 Bytes Vorlauf haben
 // (Mailer und Scanner haengen gern etwas davor). Wer strikt auf Byte 0 prueft,
 // lehnt reale, in jedem Reader funktionierende Dateien ab.
-const pdfHeader = (buf) => buf.subarray(0, 1024).includes('%PDF-');
+//
+// Das Fenster ist um die Markerlaenge groesser als der erlaubte Versatz und der
+// Fund wird danach separat begrenzt. Ein Schnitt bei genau 1024 haette einen
+// Marker, der bei Byte 1020 beginnt, mitten durchtrennt - also ausgerechnet die
+// Dateien abgelehnt, fuer die die Toleranz da ist.
+const PDF_MARKER = '%PDF-';
+const PDF_MAX_OFFSET = 1024;
+const pdfHeader = (buf) => {
+  const at = buf.subarray(0, PDF_MAX_OFFSET + PDF_MARKER.length).indexOf(PDF_MARKER);
+  return at >= 0 && at <= PDF_MAX_OFFSET;
+};
 
 // ZIP-Container. Office-Formate ab 2007 sind ZIPs; `PK\x03\x04` ist der Anfang
 // des ersten Eintrags und bei einem Dokument mit Inhalt immer der Start.
@@ -46,6 +56,24 @@ const zipHeader = prefix([0x50, 0x4b, 0x03, 0x04]);
 const oleHeader = prefix([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
 
 const webpHeader = (buf) => ascii('RIFF')(buf) && ascii('WEBP', 8)(buf);
+
+// SVG ist Text und hat keine Magic Bytes - aber es hat eine Form. Ein Dokument
+// beginnt (nach BOM und Leerraum) mit der XML-Deklaration, einem Kommentar,
+// einem SVG-Doctype oder direkt mit `<svg`, und irgendwo im Kopf steht dieses
+// `<svg`.
+//
+// Die Pruefung steht hier, weil das Abo-Logo SVG ausdruecklich anbietet
+// (`accept="...image/svg+xml"`). Sie einfach von der Allowlist zu nehmen waere
+// die bequeme Loesung und ein Funktionsverlust: Firmenlogos sind oft SVG. Ohne
+// sie passierte dagegen jeder Inhalt, der sich als SVG ausgab - `contentMatchesMime`
+// laesst unbekannte Typen absichtlich durch, und "unbekannt" hiess fuer SVG
+// bisher "ungeprueft".
+const SVG_HEAD_BYTES = 1024;
+const svgHeader = (buf) => {
+  const head = buf.subarray(0, SVG_HEAD_BYTES).toString('utf8').replace(/^\uFEFF/, '').trimStart();
+  if (!/^(<\?xml|<!--|<!DOCTYPE\s+svg|<svg)/i.test(head)) return false;
+  return /<svg[\s>]/i.test(head);
+};
 
 const gifHeader = (buf) => ascii('GIF87a')(buf) || ascii('GIF89a')(buf);
 
@@ -60,6 +88,7 @@ const SIGNATURES = new Map([
   ['image/jpeg', prefix([0xff, 0xd8, 0xff])],
   ['image/webp', webpHeader],
   ['image/gif', gifHeader],
+  ['image/svg+xml', svgHeader],
   ['application/msword', oleHeader],
   ['application/vnd.ms-excel', oleHeader],
   ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', zipHeader],
@@ -120,7 +149,10 @@ const HEAD_B64_CHARS = 2048;
  * @returns {boolean} false nur, wenn eine bekannte Signatur widerlegt wurde
  */
 export function dataUrlContentMatches(dataUrl) {
-  const match = /^data:([^;,]+);base64,([\s\S]*)$/.exec(String(dataUrl || ''));
+  // `;base64,` case-insensitiv: ein data-URL-Leser dekodiert `;BASE64,` genauso,
+  // also darf die Pruefung dort nicht aussteigen und den Wert unbesehen passieren
+  // lassen.
+  const match = /^data:([^;,]+);base64,([\s\S]*)$/i.exec(String(dataUrl || ''));
   if (!match) return false;
   const mime = match[1].toLowerCase();
   if (!hasSignature(mime)) return true;
