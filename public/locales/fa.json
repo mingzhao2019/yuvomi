@@ -476,6 +476,7 @@
         "syncTargetLocal": "فقط ذخیره محلی",
         "syncTargetHint": "یک فهرست یادآوری انتخاب کن تا این وظیفه در آن نوشته شود.",
         "syncTargetMirrored": "این وظیفه از پیش با یک فهرست یادآوری همگام می‌شود. فهرست را بعداً نمی‌توان تغییر داد.",
+        "todoRecurrenceEditHint": "Microsoft To Do قانون تکرار این وظیفه را مدیریت می‌کند. آن را در Microsoft To Do تغییر بده یا لغو کن.",
         "syncTargetUnavailable": "فهرست انتخاب‌شده پیشین (دیگر در دسترس نیست)",
         "taskListLabel": "فهرست وظایف",
         "taskSourceLabel": "Source",

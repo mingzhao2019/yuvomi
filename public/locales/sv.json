@@ -464,6 +464,7 @@
         "syncTargetLocal": "Spara endast lokalt",
         "syncTargetHint": "Välj en påminnelselista att skriva den här uppgiften till.",
         "syncTargetMirrored": "Den här uppgiften synkroniseras redan med en påminnelselista. Listan kan inte ändras i efterhand.",
+        "todoRecurrenceEditHint": "Microsoft To Do hanterar den här uppgiftens upprepningsregel. Ändra eller ta bort den i Microsoft To Do.",
         "syncTargetUnavailable": "Tidigare vald lista (inte längre tillgänglig)",
         "taskListLabel": "Uppgiftslista",
         "taskSourceLabel": "Source",

@@ -464,6 +464,7 @@
         "syncTargetLocal": "Yalnızca yerel olarak kaydet",
         "syncTargetHint": "Bu görevin yazılacağı bir anımsatıcı listesi seç.",
         "syncTargetMirrored": "Bu görev zaten bir anımsatıcı listesiyle eşitleniyor. Liste sonradan değiştirilemez.",
+        "todoRecurrenceEditHint": "Bu görevin yinelenme kuralını Microsoft To Do yönetir. Kuralı Microsoft To Do'da değiştirin veya kaldırın.",
         "syncTargetUnavailable": "Daha önce seçilen liste (artık kullanılamıyor)",
         "taskListLabel": "Görev listesi",
         "taskSourceLabel": "Source",

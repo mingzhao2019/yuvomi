@@ -464,6 +464,7 @@
         "syncTargetLocal": "ローカルにのみ保存",
         "syncTargetHint": "このタスクを書き込むリマインダーリストを選んでください。",
         "syncTargetMirrored": "このタスクはすでにリマインダーリストと同期しています。後からリストを変更することはできません。",
+        "todoRecurrenceEditHint": "このタスクの繰り返しルールは Microsoft To Do が管理します。Microsoft To Do で変更または解除してください。",
         "syncTargetUnavailable": "以前に選択したリスト（現在は利用できません）",
         "taskListLabel": "タスクリスト",
         "taskSourceLabel": "Source",

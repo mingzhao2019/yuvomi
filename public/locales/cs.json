@@ -464,6 +464,7 @@
         "syncTargetLocal": "Uložit pouze lokálně",
         "syncTargetHint": "Vyber seznam připomínek, do kterého se má tento úkol zapsat.",
         "syncTargetMirrored": "Tento úkol se už synchronizuje se seznamem připomínek. Seznam už nelze změnit.",
+        "todoRecurrenceEditHint": "Pravidlo opakování tohoto úkolu spravuje Microsoft To Do. Změňte nebo zrušte ho v Microsoft To Do.",
         "syncTargetUnavailable": "Naposledy zvolený seznam (již není dostupný)",
         "taskListLabel": "Seznam úkolů",
         "taskSourceLabel": "Source",

@@ -992,6 +992,10 @@ function wireTagBadgeFilter(container) {
 
 function renderModalContent({ task = null, users = [], reminder = null } = {}) {
   const isEdit = !!task;
+  // Microsoft Graph rejects recurrence changes on an existing To Do task.
+  // Keep the remote rule visible, but make its ownership explicit in the form:
+  // new/local tasks remain fully editable and other providers are unaffected.
+  const todoRecurrenceLocked = isEdit && task?.external_source === 'microsoft_todo';
 
   const selectedIds = task?.assigned_users?.map((u) => u.id) ?? (task?.assigned_to ? [task.assigned_to] : []);
   const visibility  = task?.visibility || 'all';
@@ -1233,7 +1237,13 @@ ${syncTargetFieldHtml(task)}
       ${renderRRuleFields('task', task?.recurrence_rule, {
         allowFromCompletion: true,
         fromCompletion: !!task?.recurrence_from_completion,
+        disabled: todoRecurrenceLocked,
       })}
+      ${todoRecurrenceLocked ? `
+        <p class="task-field-hint field-hint--warn task-recurrence-lock-hint" role="note">
+          <i data-lucide="info" aria-hidden="true"></i>
+          <span>${t('tasks.todoRecurrenceEditHint')}</span>
+        </p>` : ''}
 
       ${renderReminderSection(task, reminder)}
 

@@ -464,6 +464,7 @@
         "syncTargetLocal": "Сохранять только локально",
         "syncTargetHint": "Выбери список напоминаний, в который будет записана эта задача.",
         "syncTargetMirrored": "Эта задача уже синхронизируется со списком напоминаний. Список нельзя изменить задним числом.",
+        "todoRecurrenceEditHint": "Правилом повторения этой задачи управляет Microsoft To Do. Измените или отмените его в Microsoft To Do.",
         "syncTargetUnavailable": "Ранее выбранный список (больше недоступен)",
         "taskListLabel": "Список задач",
         "taskSourceLabel": "Source",

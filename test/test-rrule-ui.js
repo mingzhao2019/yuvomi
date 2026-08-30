@@ -55,11 +55,17 @@ function formRoot(html) {
   // Aktive Wochentagsknöpfe, die einzige Sammelabfrage.
   const activeDays = [...html.matchAll(/<button[^>]*class="rrule-day rrule-day--active"[^>]*data-day="([A-Z]{2})"/g)]
     .map((m) => ({ dataset: { day: m[1] } }));
+  const readOnly = /data-rrule-readonly="true"/.test(html);
 
   return {
     querySelector(selector) {
-      if (!values.has(selector)) return null;
-      return { value: values.get(selector), checked: false };
+      if (values.has(selector)) {
+        return { value: values.get(selector), checked: false };
+      }
+      if (readOnly && selector.endsWith('-rrule-fields')) {
+        return { dataset: { rruleReadonly: 'true' } };
+      }
+      return null;
     },
     querySelectorAll(selector) {
       return selector.includes('rrule-day--active') ? activeDays : [];
@@ -104,6 +110,46 @@ test('das Formular zeigt eine eingelesene Serie als Wiederholung an', () => {
   const html = renderRRuleFields('event', 'RRULE:FREQ=WEEKLY;BYDAY=WE', { allowCount: true });
   assert.match(html, /<option value="WEEKLY" selected>/, 'die Frequenz muss vorausgewählt sein');
   assert.doesNotMatch(html, /id="event-rrule-details"[^>]*hidden/, 'die Detailfelder dürfen nicht verborgen sein');
+});
+
+test('ein deaktiviertes Wiederholungsformular zeigt die Regel nur lesbar an', () => {
+  const html = renderRRuleFields('task', 'FREQ=MONTHLY;INTERVAL=3', {
+    allowCount: true,
+    allowFromCompletion: true,
+    disabled: true,
+  });
+
+  assert.match(html, /class="rrule-fields rrule-fields--disabled"/);
+  assert.match(html, /aria-disabled="true"/);
+  assert.match(html, /data-rrule-readonly="true"/);
+
+  for (const id of [
+    'task-rrule-freq',
+    'task-rrule-interval',
+    'task-rrule-end',
+    'task-rrule-until',
+    'task-rrule-count',
+    'task-rrule-from-completion',
+  ]) {
+    assert.match(html, new RegExp('id="' + id + '"[^>]*disabled'), id + ' muss deaktiviert sein');
+  }
+  assert.match(html, /class="rrule-day[^"]*"[^>]*disabled/);
+
+  const normal = renderRRuleFields('task', 'FREQ=MONTHLY;INTERVAL=3', { allowFromCompletion: true });
+  assert.doesNotMatch(normal, /id="task-rrule-freq"[^>]*disabled/);
+  assert.doesNotMatch(normal, /id="task-rrule-until"[^>]*disabled/);
+});
+
+test('ein deaktiviertes Wiederholungsformular bewahrt die fremde Regel wortgetreu', () => {
+  const root = formRoot(renderRRuleFields(
+    'task',
+    'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=28;WKST=MO',
+    { allowFromCompletion: true, disabled: true },
+  ));
+
+  const values = getRRuleValues(root, 'task');
+  assert.equal(values.recurrence_rule, 'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=28;WKST=MO');
+  assert.equal(values.is_recurring, true);
 });
 
 // --------------------------------------------------------

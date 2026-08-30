@@ -476,6 +476,7 @@
         "syncTargetLocal": "Nur lokal speichern",
         "syncTargetHint": "Wähle eine Erinnerungsliste, in die diese Aufgabe geschrieben wird.",
         "syncTargetMirrored": "Diese Aufgabe wird bereits mit einer Erinnerungsliste abgeglichen. Die Liste lässt sich nachträglich nicht wechseln.",
+        "todoRecurrenceEditHint": "Microsoft To Do verwaltet die Wiederholungsregel dieser Aufgabe. Ändere oder entferne sie in Microsoft To Do.",
         "syncTargetUnavailable": "Zuletzt gewählte Liste (nicht mehr verfügbar)",
         "taskListLabel": "Aufgabenliste",
         "taskSourceLabel": "Quelle",

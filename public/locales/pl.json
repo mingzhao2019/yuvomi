@@ -476,6 +476,7 @@
         "syncTargetLocal": "Zapisz tylko lokalnie",
         "syncTargetHint": "Wybierz listę przypomnień, do której ma trafić to zadanie.",
         "syncTargetMirrored": "To zadanie jest już synchronizowane z listą przypomnień. Listy nie można później zmienić.",
+        "todoRecurrenceEditHint": "Regułą powtarzania tego zadania zarządza Microsoft To Do. Zmień ją lub anuluj w Microsoft To Do.",
         "syncTargetUnavailable": "Ostatnio wybrana lista (już niedostępna)",
         "taskListLabel": "Lista zadań",
         "taskSourceLabel": "Source",

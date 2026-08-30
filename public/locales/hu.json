@@ -464,6 +464,7 @@
         "syncTargetLocal": "Csak helyben mentés",
         "syncTargetHint": "Válassz emlékeztetőlistát, amelybe ez a feladat kerüljön.",
         "syncTargetMirrored": "Ez a feladat már szinkronizálva van egy emlékeztetőlistával. A lista utólag nem módosítható.",
+        "todoRecurrenceEditHint": "Ennek a feladatnak az ismétlődési szabályát a Microsoft To Do kezeli. A Microsoft To Do-ban módosíthatod vagy törölheted.",
         "syncTargetUnavailable": "Korábban választott lista (már nem érhető el)",
         "taskListLabel": "Feladatlista",
         "taskSourceLabel": "Source",

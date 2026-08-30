@@ -464,6 +464,7 @@
         "syncTargetLocal": "Enregistrer localement uniquement",
         "syncTargetHint": "Choisissez une liste de rappels dans laquelle écrire cette tâche.",
         "syncTargetMirrored": "Cette tâche est déjà synchronisée avec une liste de rappels. La liste ne peut plus être modifiée.",
+        "todoRecurrenceEditHint": "Microsoft To Do gère la règle de répétition de cette tâche. Modifiez-la ou supprimez-la dans Microsoft To Do.",
         "syncTargetUnavailable": "Liste sélectionnée précédemment (plus disponible)",
         "taskListLabel": "Liste de tâches",
         "taskSourceLabel": "Source",

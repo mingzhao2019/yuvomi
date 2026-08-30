@@ -464,6 +464,7 @@
         "syncTargetLocal": "الحفظ محليًا فقط",
         "syncTargetHint": "اختر قائمة تذكيرات لكتابة هذه المهمة فيها.",
         "syncTargetMirrored": "تتم مزامنة هذه المهمة بالفعل مع قائمة تذكيرات. لا يمكن تغيير القائمة لاحقًا.",
+        "todoRecurrenceEditHint": "يدير Microsoft To Do قاعدة تكرار هذه المهمة. غيّرها أو ألغِها في Microsoft To Do.",
         "syncTargetUnavailable": "القائمة المختارة سابقًا (لم تعد متاحة)",
         "taskListLabel": "قائمة المهام",
         "taskSourceLabel": "Source",

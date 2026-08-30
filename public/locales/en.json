@@ -464,6 +464,7 @@
         "syncTargetLocal": "Store locally only",
         "syncTargetHint": "Choose a reminder list to write this task to.",
         "syncTargetMirrored": "This task already syncs with a reminder list. The list cannot be changed afterwards.",
+        "todoRecurrenceEditHint": "Microsoft To Do manages this task's repeat rule. Change or remove it in Microsoft To Do.",
         "syncTargetUnavailable": "Previously selected list (no longer available)",
         "taskListLabel": "Task list",
         "taskSourceLabel": "Source",

@@ -2026,6 +2026,10 @@ body.task-list-resizing * {
   color: var(--color-text-tertiary);
 }
 
+.task-recurrence-lock-hint {
+  margin-top: var(--space-2);
+}
+
 /* Verknüpfte Dokumente in der LESEANSICHT (#503, #733).
  *
  * Im Formular steht seit #733 das geteilte Beleg-Feld (document-attach.css) -

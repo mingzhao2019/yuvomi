@@ -464,6 +464,7 @@
         "syncTargetLocal": "Salva solo in locale",
         "syncTargetHint": "Scegli un elenco di promemoria in cui scrivere questa attività.",
         "syncTargetMirrored": "Questa attività è già sincronizzata con un elenco di promemoria. L'elenco non può essere cambiato in seguito.",
+        "todoRecurrenceEditHint": "Microsoft To Do gestisce la regola di ripetizione di questa attività. Modificala o annullala in Microsoft To Do.",
         "syncTargetUnavailable": "Elenco selezionato in precedenza (non più disponibile)",
         "taskListLabel": "Elenco attività",
         "taskSourceLabel": "Source",

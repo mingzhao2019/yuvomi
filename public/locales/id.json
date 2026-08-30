@@ -476,6 +476,7 @@
         "syncTargetLocal": "Simpan hanya secara lokal",
         "syncTargetHint": "Pilih daftar pengingat untuk menulis tugas ini.",
         "syncTargetMirrored": "Tugas ini sudah disinkronkan dengan daftar pengingat. Daftarnya tidak dapat diubah setelahnya.",
+        "todoRecurrenceEditHint": "Microsoft To Do mengelola aturan pengulangan tugas ini. Ubah atau batalkan di Microsoft To Do.",
         "syncTargetUnavailable": "Daftar yang dipilih sebelumnya (tidak lagi tersedia)",
         "taskListLabel": "Daftar tugas",
         "taskSourceLabel": "Source",

@@ -464,6 +464,7 @@
         "syncTargetLocal": "Guardar apenas localmente",
         "syncTargetHint": "Escolhe uma lista de lembretes para escrever esta tarefa.",
         "syncTargetMirrored": "Esta tarefa já sincroniza com uma lista de lembretes. A lista não pode ser alterada depois.",
+        "todoRecurrenceEditHint": "O Microsoft To Do gere a regra de repetição desta tarefa. Altera-a ou cancela-a no Microsoft To Do.",
         "syncTargetUnavailable": "Lista selecionada anteriormente (já não disponível)",
         "taskListLabel": "Lista de tarefas",
         "taskSourceLabel": "Source",

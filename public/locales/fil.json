@@ -476,6 +476,7 @@
         "syncTargetLocal": "I-save lang nang lokal",
         "syncTargetHint": "Pumili ng listahan ng paalala kung saan isusulat ang gawaing ito.",
         "syncTargetMirrored": "Naka-sync na ang gawaing ito sa isang listahan ng paalala. Hindi na mapapalitan ang listahan.",
+        "todoRecurrenceEditHint": "Ang Microsoft To Do ang namamahala sa repeat rule ng gawaing ito. Baguhin o alisin ito sa Microsoft To Do.",
         "syncTargetUnavailable": "Dating napiling listahan (hindi na available)",
         "taskListLabel": "Listahan ng gawain",
         "taskSourceLabel": "Source",

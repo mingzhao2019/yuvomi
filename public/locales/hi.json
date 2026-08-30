@@ -464,6 +464,7 @@
         "syncTargetLocal": "केवल स्थानीय रूप से सहेजें",
         "syncTargetHint": "एक अनुस्मारक सूची चुनें जिसमें यह कार्य लिखा जाएगा।",
         "syncTargetMirrored": "यह कार्य पहले से ही एक अनुस्मारक सूची के साथ सिंक होता है। सूची बाद में नहीं बदली जा सकती।",
+        "todoRecurrenceEditHint": "Microsoft To Do इस कार्य के दोहराव नियम को प्रबंधित करता है। इसे Microsoft To Do में बदलें या रद्द करें।",
         "syncTargetUnavailable": "पहले चुनी गई सूची (अब उपलब्ध नहीं)",
         "taskListLabel": "कार्य सूची",
         "taskSourceLabel": "Source",

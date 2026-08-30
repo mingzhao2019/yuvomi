@@ -464,6 +464,7 @@
         "syncTargetLocal": "仅保存在本地",
         "syncTargetHint": "选择一个提醒列表，用于写入此任务。",
         "syncTargetMirrored": "此任务已与某个提醒列表同步，之后无法更换列表。",
+        "todoRecurrenceEditHint": "此任务的重复规则由 Microsoft To Do 管理。请在 Microsoft To Do 中修改或取消重复。",
         "syncTargetUnavailable": "先前选择的列表（已不可用）",
         "taskListLabel": "任务列表",
         "taskSourceLabel": "来源",

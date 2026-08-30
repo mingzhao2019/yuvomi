@@ -91,7 +91,7 @@ export function buildRRule({ freq, interval, byday, until, count = null }) {
  * Rendert das HTML für die Wiederholungs-Felder.
  * @param {string} prefix - ID-Prefix (z.B. "task" oder "event")
  * @param {string|null} existingRule - bestehende RRULE oder null
- * @param {{ allowCount?: boolean, allowFromCompletion?: boolean, fromCompletion?: boolean }} [opts]
+ * @param {{ allowCount?: boolean, allowFromCompletion?: boolean, fromCompletion?: boolean, disabled?: boolean }} [opts]
  *        allowCount aktiviert die "Nach N Terminen"-Endebedingung (COUNT). Nur
  *        für Kontexte mit startverankerter Expansion (Kalender). Aufgaben sind
  *        abschluss-getrieben und kennen keine COUNT-Semantik (#513).
@@ -104,6 +104,8 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
   const allowCount = !!opts.allowCount;
   const allowFromCompletion = !!opts.allowFromCompletion;
   const fromCompletion = !!opts.fromCompletion;
+  const disabled = !!opts.disabled;
+  const disabledAttr = disabled ? ' disabled' : '';
   const parsed = parseRRule(existingRule);
 
   // aria-describedby haengt am SELBEN Zustand wie der Hinweis, nicht nur dessen
@@ -121,7 +123,7 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
 
   const dayBtns = WEEKDAYS().map(d =>
     `<button type="button" class="rrule-day ${parsed.byday.includes(d.value) ? 'rrule-day--active' : ''}"
-             data-day="${d.value}" aria-label="${d.label}" aria-pressed="${parsed.byday.includes(d.value)}">${d.label}</button>`
+             data-day="${d.value}" aria-label="${d.label}" aria-pressed="${parsed.byday.includes(d.value)}"${disabledAttr}>${d.label}</button>`
   ).join('');
 
   // Endebedingung: Nie / Am Datum (UNTIL) / Nach N Terminen (COUNT). COUNT und
@@ -145,11 +147,11 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
     : '';
 
   return `
-    <div class="rrule-fields" id="${prefix}-rrule-fields">
+    <div class="rrule-fields${disabled ? ' rrule-fields--disabled' : ''}" id="${prefix}-rrule-fields"${disabled ? ' aria-disabled="true" data-rrule-readonly="true"' : ''}>
       ${sourceRule}
       <div class="form-group">
         <label class="label form-label" for="${prefix}-rrule-freq">${t('rrule.labelRepeat')}</label>
-        <select class="input form-input" id="${prefix}-rrule-freq"${hintRef}>
+        <select class="input form-input" id="${prefix}-rrule-freq"${hintRef}${disabledAttr}>
           ${freqOpts}
         </select>
         <p class="rrule-hint" id="${prefix}-rrule-hint" ${parsed.freq ? 'hidden' : ''}>${t('rrule.intervalHint')}</p>
@@ -161,13 +163,13 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
             <label class="label form-label" for="${prefix}-rrule-interval">${t('rrule.labelEvery')}</label>
             <div class="rrule-interval-wrap">
               <input class="input form-input" type="number" id="${prefix}-rrule-interval"
-                     min="1" max="99" value="${parsed.interval}" inputmode="numeric" style="width:64px;text-align:center">
+                     min="1" max="99" value="${parsed.interval}" inputmode="numeric" style="width:64px;text-align:center"${disabledAttr}>
               <span class="rrule-interval-unit" id="${prefix}-rrule-unit">${intervalUnitLabel(parsed.freq, parsed.interval)}</span>
             </div>
           </div>
           <div class="form-group" style="margin-bottom:0">
             <label class="label form-label" for="${prefix}-rrule-end">${t('rrule.labelEnds')}</label>
-            <select class="input form-input" id="${prefix}-rrule-end">
+            <select class="input form-input" id="${prefix}-rrule-end"${disabledAttr}>
               ${endOpts}
             </select>
           </div>
@@ -177,13 +179,13 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
           <div class="form-group rrule-until-field" id="${prefix}-rrule-until-wrap" ${endType === 'until' ? '' : 'hidden'} style="margin-bottom:0">
             <label class="label form-label" for="${prefix}-rrule-until">${t('rrule.labelUntil')}</label>
             <yuvomi-datepicker type="date" id="${prefix}-rrule-until"
-                   value="${formatDateInput(parsed.until)}"></yuvomi-datepicker>
+                   value="${formatDateInput(parsed.until)}"${disabledAttr}></yuvomi-datepicker>
           </div>
           ${allowCount ? `<div class="form-group rrule-count-field" id="${prefix}-rrule-count-wrap" ${endType === 'count' ? '' : 'hidden'} style="margin-bottom:0">
             <label class="label form-label" for="${prefix}-rrule-count">${t('rrule.labelCount')}</label>
             <div class="rrule-interval-wrap">
               <input class="input form-input" type="number" id="${prefix}-rrule-count"
-                     min="1" max="999" value="${parsed.count || 10}" inputmode="numeric" style="width:64px;text-align:center">
+                     min="1" max="999" value="${parsed.count || 10}" inputmode="numeric" style="width:64px;text-align:center"${disabledAttr}>
               <span class="rrule-interval-unit">${t('rrule.unitOccurrences')}</span>
             </div>
           </div>` : ''}
@@ -197,7 +199,7 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
         ${allowFromCompletion ? `
         <div class="rrule-anchor">
           <label class="toggle" style="margin:0">
-            <input type="checkbox" id="${prefix}-rrule-from-completion" ${fromCompletion ? 'checked' : ''}>
+            <input type="checkbox" id="${prefix}-rrule-from-completion" ${fromCompletion ? 'checked' : ''}${disabledAttr}>
             <span class="toggle__track"></span>
             <span>${t('rrule.fromCompletionLabel')}</span>
           </label>
@@ -383,7 +385,14 @@ export function getRRuleValues(root, prefix) {
   // Wiederholung gedreht - dann geht die Regel im Wortlaut zurück.
   // Eine bewusst geleerte Wiederholung (built === null) fällt nicht darunter.
   const source = root.querySelector(`#${prefix}-rrule-source`)?.value || '';
-  const rule = (built && source && buildRRule(parseRRule(source)) === built) ? source : built;
+  const readOnly = root.querySelector(`#${prefix}-rrule-fields`)?.dataset.rruleReadonly === 'true';
+  // A provider-owned rule is deliberately not editable here. Return its exact
+  // source text instead of translating it through the subset this UI supports.
+  // This preserves details such as BYMONTHDAY/BYSETPOS while other task fields
+  // are saved.
+  const rule = (readOnly && source)
+    ? source
+    : ((built && source && buildRRule(parseRRule(source)) === built) ? source : built);
 
   // Ohne Regel ist der Anker bedeutungslos: sonst bliebe der Schalter an einer
   // Aufgabe hängen, die gar nicht mehr wiederkehrt, und käme beim nächsten

@@ -464,6 +464,7 @@
         "syncTargetLocal": "Alleen lokaal opslaan",
         "syncTargetHint": "Kies een herinneringslijst om deze taak naartoe te schrijven.",
         "syncTargetMirrored": "Deze taak wordt al gesynchroniseerd met een herinneringslijst. De lijst kan achteraf niet worden gewijzigd.",
+        "todoRecurrenceEditHint": "Microsoft To Do beheert de herhalingsregel van deze taak. Wijzig of annuleer deze in Microsoft To Do.",
         "syncTargetUnavailable": "Eerder gekozen lijst (niet meer beschikbaar)",
         "taskListLabel": "Takenlijst",
         "taskSourceLabel": "Source",

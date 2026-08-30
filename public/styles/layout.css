@@ -5713,6 +5713,11 @@ textarea::placeholder {
   padding-top: var(--space-4);
 }
 
+.rrule-fields--disabled .rrule-day {
+  cursor: not-allowed;
+  opacity: .65;
+}
+
 .rrule-details {
   display: flex;
   flex-direction: column;

@@ -464,6 +464,7 @@
         "syncTargetLocal": "Chỉ lưu cục bộ",
         "syncTargetHint": "Chọn một danh sách nhắc nhở để ghi nhiệm vụ này vào.",
         "syncTargetMirrored": "Nhiệm vụ này đã đồng bộ với một danh sách nhắc nhở. Không thể đổi danh sách sau đó.",
+        "todoRecurrenceEditHint": "Microsoft To Do quản lý quy tắc lặp lại của tác vụ này. Hãy thay đổi hoặc hủy quy tắc trong Microsoft To Do.",
         "syncTargetUnavailable": "Danh sách đã chọn trước đó (không còn khả dụng)",
         "taskListLabel": "Danh sách tác vụ",
         "taskSourceLabel": "Source",
