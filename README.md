@@ -104,7 +104,7 @@ Turn on what your household needs; the rest stays out of the way.
 | Module | In one line |
 |---|---|
 | **Tasks** | Kanban board with persistent task lists, deadlines, priorities, subtasks, tags, recurring schedules and multi-member assignment. Sync task lists and tasks with CalDAV or Microsoft To Do. Attach documents and discuss a task in comments. A history view shows what was completed, grouped by day, with who ticked it off - and when a recurring chore was last done. Lock a task so only its creator and admins can redefine it, while everyone else can still tick it off. |
-| **Shopping** | Shared lists grouped by aisle and ordered to match your shop, with swipe gestures and one-tap import from the meal plan. |
+| **Shopping** | Shared lists grouped by aisle and ordered to match your shop, with swipe gestures, one-tap import from the meal plan, and optional email delivery to a household member. |
 | **Meals** | Weekly drag-and-drop planner with a recipe sidebar and direct export to the shopping list. |
 | **Recipes** | Create, duplicate and scale recipes, then pre-fill meal slots or send the ingredients to a shopping list. A Mealie or Tandoor instance can be mirrored read-only. |
 | **Pantry** | What is actually in the house: amount, storage location and best-before date, with expiry and low-stock filters and a notification before a date is reached. |

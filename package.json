@@ -45,6 +45,7 @@
     "test:reward-icon-null-migration": "node --experimental-sqlite --test test/test-reward-icon-null-migration.js",
     "test:shopping": "node --experimental-sqlite test/test-shopping.js",
     "test:shopping-routes": "node --experimental-sqlite --test test/test-shopping-routes.js",
+    "test:shopping-send": "node --experimental-sqlite --test test/test-shopping-send.js",
     "test:shopping-order-migration": "node --experimental-sqlite --test test/test-shopping-order-migration.js",
     "test:meals": "node --loader ./test/test-browser-loader.mjs --experimental-sqlite test/test-meals.js",
     "test:meals-routes": "node --experimental-sqlite --test test/test-meals-routes.js",

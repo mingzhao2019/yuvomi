@@ -12,6 +12,7 @@ import * as db from './db.js';
 import { generateToken, csrfMiddleware } from './middleware/csrf.js';
 import { collectErrors, date as validateDate, str, MAX_SHORT, MAX_TITLE } from './middleware/validate.js';
 import { createLogger } from './logger.js';
+import { memberEmail } from './services/member-email.js';
 import { deleteBirthdayArtifacts, syncBirthdayArtifacts } from './services/birthdays.js';
 import * as oidcClient from 'openid-client';
 import {
@@ -1098,12 +1099,10 @@ export function buildResetRoutes(targetRouter, {
     return !!row && !isSsoOnlyAccount(row.password_hash);
   }
 
-  function emailFor(userId) {
-    const row = getDb().prepare(
-      'SELECT email FROM contacts WHERE family_user_id = ? AND email IS NOT NULL AND email != \'\' LIMIT 1'
-    ).get(userId);
-    return row?.email ?? null;
-  }
+  // Seit #944 fragt auch der Versand der Einkaufsliste danach. Beide gehen
+  // durch dieselbe Funktion, damit "wie erreiche ich dieses Mitglied" genau
+  // eine Antwort behaelt.
+  const emailFor = (userId) => memberEmail(userId, { db: getDb() });
 
   targetRouter.post('/forgot-password', limiter, async (req, res) => {
     try {

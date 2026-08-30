@@ -2690,6 +2690,23 @@ The surface carries four things, in this order: **the time**, large (this is whe
 - **Bulk import from meal plan (v1.3.0):** a "From meal plan" action (in the list header until v2.2.3, since then in the chip row's overflow menu) opens a date-range dialog (defaults to the next 7 days) and imports the ingredients of every planned meal in that range into the active list. Repeated ingredients are aggregated before insertion — numeric quantities with a matching unit are summed, purely textual quantities collapse to a `N × …` note. Already-transferred ingredients are skipped via the existing `on_shopping_list` flag (`POST /api/v1/shopping/:listId/import-meal-plan`).
 - Checked items shown with strikethrough + moved to bottom
 - **Manual item order within an aisle (v1.87.0, #678):** every row carries a drag handle next to its edit and delete actions. Dragging reorders within the category group only — a drag across groups would be a category change, which the item dialog already does, and ranks are per category anyway. The handle is a real button and takes ArrowUp/ArrowDown once focused, sharing one persistence path with the drag; that keyboard route is required of every `makeSortable` caller (see the header of `public/utils/sortable.js`) and is guarded in `test:frontend-audit`. Its `aria-label` carries the position, and a `role="status"` live region announces each move, reusing `category.reorderAnnounce`. Checked rows are filtered out of the drag and their handle is disabled — they sort last in their group regardless of rank. A category holding a single row hides its handle via `:only-child`. `PATCH /api/v1/shopping/:listId/items/reorder` takes `{ category, order }` and requires the **complete** group: a partial list would leave the omitted ranks colliding with the newly assigned ones. Requests are serialised per category with at most one follow-up queued, so rapid moves settle in the order they were made instead of letting the arrival order at the server decide; the follow-up reads the DOM when it starts, so any number of moves costs two requests. The list id is captured when a move is queued, so switching lists mid-flight neither misroutes the write nor overwrites the new list's state.
+- **Send the list to a member by email (#944):** an entry in the overflow menu mails the list's open
+  items to one household member, grouped by category in the same shop order the screen shows.
+  Deliberately a **snapshot and not an access route**: no link, no token, nothing that outlives the
+  message. A read-only share URL would have been the first unauthenticated HTML view of household
+  data in Yuvomi, and a leaked link stays leaked; someone who needs the list continuously is a member
+  and already has the app. The mail says which moment it captured, because whoever carries it around
+  the shop cannot see what is being ticked off at home.
+  The recipient is a `userId`, never an address. `POST /api/v1/shopping/:listId/send` resolves the
+  address from that member's contact - the same source the password reset uses (`services/member-email.js`,
+  shared with `auth.js` so "how do I reach this member" has exactly one answer). Accepting an address
+  from the request body would turn the instance into an open mail relay for any signed-in user.
+  Sending to yourself is allowed and drops the "X sent you this list" line. Only members with an
+  address on file appear in the picker; the route rejects the same case again. Requires the app-wide
+  SMTP access (see [Email channel](#notification-channels)), and carries its own rate limit of 10 per
+  minute per IP - the general API limit of 300 is right for reading and ticking off, and far too
+  generous for something that puts mail in someone's inbox. Three distinguishable refusals rather
+  than one "it failed": no address on the member, SMTP unconfigured, nothing open to send.
 - "Clear list" = remove checked items only
 - Autocomplete from previous entries (local)
 - **Category management lives in Shopping** (no longer in Settings): a "Manage categories" action opens the shared `yuvomi-category-manager` modal (also reachable directly via `/shopping?manage=categories`) for add, rename, reorder, and delete - the same component as Tasks, Contacts and Budget, resolving default category names through their localization and preserving the API's last-category-deletion guard. The legacy Settings → Shopping tab redirects here.
