@@ -619,6 +619,91 @@ test('sync: ein Sprachwechsel bricht die 30-Tage-Sperre (#946)', async () => {
   );
 });
 
+test('sync: ein gescheiterter Lauf schreibt die Sprache NICHT fest (#946)', async () => {
+  // GEFUNDEN VON CODEX UND claude-review, unabhaengig voneinander. Der
+  // Sprach-Merker stand unbedingt nach der Schleife: schlug auch nur ein Jahr
+  // fehl, blieb dieser Bereich in der alten Sprache - verbucht wurde der Lauf
+  // trotzdem als erledigt, und die 30-Tage-Sperre schrieb den halb
+  // uebersetzten Cache fuer einen Monat fest. Dieselbe Sorte Fehler wie ein
+  // Sync-Cursor, der ueber einen Fehlschlag hinweglaeuft (#839).
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'en' });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value, 'EN');
+
+  // Sprachwechsel, aber die API antwortet nicht mehr.
+  setConfig({ language: 'de' });
+  const kaputt = async () => { throw new Error('network down'); };
+  kaputt.calls = [];
+  __setFetchImpl(kaputt);
+  await captureConsole(() => sync(true));
+
+  assert.equal(
+    db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value,
+    'EN',
+    'ein unvollstaendiger Lauf darf die neue Sprache nicht als erledigt verbuchen',
+  );
+
+  // Und der naechste Lauf holt es nach, sobald die API wieder da ist.
+  db.prepare("DELETE FROM sync_config WHERE key='holiday_language_retry_after'").run();
+  __setFetchImpl(makeApiMock());
+  const res = await sync(false);
+  assert.ok(res.synced > 0, 'der offene Sprachwechsel muss beim naechsten Lauf greifen');
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value, 'DE');
+});
+
+test('sync: nach einem Fehlschlag wird der Nachlauf gebremst, nicht wiederholt gehaemmert (#946)', async () => {
+  // Der Scheduler laeuft alle 15 Minuten (SYNC_INTERVAL_MINUTES). Bliebe der
+  // Sprach-Merker offen UND ungebremst, liefe bei einem Ausfall der Fremd-API
+  // rund um die Uhr alle 15 Minuten ein neuer Anlauf gegen einen kostenlosen
+  // Fremddienst. Gebremst wird NUR der Wiederholungsversuch - ein frischer
+  // Sprachwechsel wirkt weiterhin sofort, sonst waere die Bremse genau die
+  // Verzoegerung, die dieser Nachlauf abschaffen sollte.
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'en' });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+
+  setConfig({ language: 'de' });
+  const kaputt = async () => { throw new Error('network down'); };
+  __setFetchImpl(kaputt);
+  await captureConsole(() => sync(true));
+
+  const gebremstBis = db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value;
+  assert.ok(gebremstBis, 'ein Fehlschlag muss eine Wartemarke hinterlassen');
+  assert.ok(new Date(gebremstBis).getTime() > Date.now(), 'die Wartemarke liegt in der Zukunft');
+
+  const mock = makeApiMock();
+  __setFetchImpl(mock);
+  assert.deepEqual(await sync(false), { synced: 0 }, 'solange die Wartemarke gilt, wird nicht erneut gefetcht');
+  assert.equal(mock.calls.length, 0);
+
+  // Von Hand ausgeloest (Knopf "Jetzt synchronisieren") gilt die Bremse nicht.
+  const res = await sync(true);
+  assert.ok(res.synced > 0, 'force muss die Wartemarke uebergehen');
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value, undefined,
+    'ein geglueckter Lauf raeumt die Wartemarke weg');
+});
+
+test('sync: der Brasilien-Ersatz folgt derselben Kaskade wie die API-Namen (#946)', async () => {
+  // Die Ersatzliste kennt nur PT und EN. Ihr Rueckfall stand auf PT - was fuer
+  // einen brasilianischen Haushalt richtig aussieht, aber der Zusage
+  // widerspricht, die dieser PR aufstellt: ein deutscher Haushalt bekam
+  // Portugiesisch, obwohl eine englische Fassung danebenlag.
+  __setFetchImpl(makeApiMock());
+  setConfig({ holiday_country: 'BR', holiday_show_public: '1', holiday_show_school: '0', language: 'de' });
+
+  await sync(true);
+
+  const currentYear = new Date().getFullYear();
+  const namen = db.prepare(
+    "SELECT name FROM holiday_cache WHERE country='BR' AND type='public' AND year=?"
+  ).all(currentYear).map((r) => r.name);
+  assert.ok(namen.length > 0, 'ohne gespeicherte Zeile prueft die Zusicherung darunter nichts');
+  assert.ok(namen.includes('Christmas Day'),
+    `keine deutsche Fassung, aber eine englische → Englisch, nicht Portugiesisch. Bekam: ${namen.join(', ')}`);
+  assert.ok(!namen.includes('Natal'));
+});
+
 // ---- getCountries / getSubdivisions -----------------------------------------
 
 test('getCountries: prefers EN names and sorts alphabetically', async () => {

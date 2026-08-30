@@ -17,6 +17,12 @@ const BASE_URL          = 'https://openholidaysapi.org';
 const FETCH_TIMEOUT_MS  = 15_000;
 const SYNC_YEARS_BACK   = 1;
 const SYNC_YEARS_AHEAD  = 2;
+const THROTTLE_MS       = 30 * 24 * 60 * 60 * 1000;
+// WARTEZEIT NACH EINEM GESCHEITERTEN SPRACH-NACHLAUF. Ein Sprachwechsel wirkt
+// sofort - aber wenn der Abruf scheitert, bleibt der Merker offen, und ohne
+// diese Bremse liefe bei einem Ausfall der Fremd-API alle
+// SYNC_INTERVAL_MINUTES (Voreinstellung 15) ein neuer Anlauf.
+const LANGUAGE_RETRY_MS = 60 * 60 * 1000;
 
 // Injizierbare fetch-Implementierung (Default: node-fetch). Nur Tests
 // überschreiben dies via __setFetchImpl, um die OpenHolidays-API zu mocken.
@@ -158,8 +164,14 @@ function localizedBrazilHolidayName(key, langCode) {
     blackConsciousness:   { PT: 'Dia Nacional de Zumbi e da Consciência Negra', EN: 'National Zumbi and Black Consciousness Day' },
     christmas:            { PT: 'Natal', EN: 'Christmas Day' },
   };
+  // DIESELBE KASKADE WIE resolveName: Wunschsprache, sonst Englisch, sonst was
+  // da ist. Der Rueckfall stand auf PT - was fuer einen brasilianischen
+  // Haushalt richtig aussah, aber der Zusage aus #946 widerspricht: ein
+  // deutscher Haushalt bekam Portugiesisch, obwohl eine englische Fassung
+  // danebenlag. Die Ersatzliste kennt nur PT und EN; welche der beiden gilt,
+  // entscheidet damit dieselbe Regel wie bei den Namen aus der API.
   const lang = String(langCode || '').toUpperCase();
-  return names[key]?.[lang] ?? names[key]?.PT ?? key;
+  return names[key]?.[lang] ?? names[key]?.EN ?? names[key]?.PT ?? key;
 }
 
 function brazilPublicHolidays(year, langCode) {
@@ -197,9 +209,15 @@ function localHolidayFallback(country, type, year, langCode) {
 
 /**
  * Ein Jahr eines Typs holen und in den Cache legen.
+ *
  * @param {string} langCode Sprachcode in GROSSBUCHSTABEN, wie OpenHolidays ihn
  *   im `name`-Array fuehrt ('ES', 'EN'). Aufrufer normalisieren, nicht diese
  *   Funktion - sonst stuende dieselbe Umwandlung an zwei Stellen.
+ * @returns {Promise<{count: number, failed: boolean}>} `failed` heisst: der
+ *   Abruf ist GESCHEITERT und kein lokaler Ersatz sprang ein. Das ist etwas
+ *   anderes als `count: 0` - manche Laender fuehren schlicht keine Schulferien,
+ *   und diese beiden Faelle auseinanderzuhalten ist der ganze Punkt: nur der
+ *   erste darf den Sprach-Merker unten zurueckhalten.
  */
 async function syncYearAndType(country, subdivision, year, type, langCode) {
   const from = `${year}-01-01`;
@@ -219,17 +237,21 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
   if (subdivision) params += `&subdivisionCode=${encodeURIComponent(subdivision)}`;
 
   let holidays;
+  let fetchFailed = false;
   try {
     holidays = await apiFetch(`/${endpoint}?${params}`);
   } catch (err) {
     log.warn(`Fetch ${endpoint} ${country}/${subdivision ?? '-'}/${year}: ${err.message}`);
+    fetchFailed = true;
     holidays = localHolidayFallback(country, type, year, langCode);
   }
 
   if (!Array.isArray(holidays) || holidays.length === 0) {
     holidays = localHolidayFallback(country, type, year, langCode);
   }
-  if (!Array.isArray(holidays) || holidays.length === 0) return 0;
+  // Ein gescheiterter Abruf OHNE Ersatz laesst den bisherigen Cache-Inhalt
+  // unangetastet - dieser Bereich steht danach weiter in der alten Sprache.
+  if (!Array.isArray(holidays) || holidays.length === 0) return { count: 0, failed: fetchFailed };
 
   // OpenHolidays liefert für Sub-Regionen abweichende Varianten desselben
   // Feiertags/derselben Ferien als eigene, mit "Exception" getaggte Einträge
@@ -240,7 +262,7 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
   // Für einen Familienkalender ist der reguläre Regions-Eintrag maßgeblich; die
   // Insel-Ausnahmen werden verworfen. (#434)
   holidays = holidays.filter((h) => !(Array.isArray(h.tags) && h.tags.includes('Exception')));
-  if (holidays.length === 0) return 0;
+  if (holidays.length === 0) return { count: 0, failed: fetchFailed };
 
   const insert = db.get().prepare(`
     INSERT INTO holiday_cache (type, country, subdivision, start_date, end_date, name, year, group_code)
@@ -271,7 +293,7 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
   ).run(type, country, year);
 
   insertAll(holidays);
-  return holidays.length;
+  return { count: holidays.length, failed: false };
 }
 
 /**
@@ -314,12 +336,25 @@ async function sync(force = false) {
   const lastSyncLang = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value ?? null;
   const languageChanged = lastSyncLang !== langCode;
 
+  // NACH EINEM GESCHEITERTEN NACHLAUF WIRD GEWARTET, SONST NICHT. Ein
+  // Sprachwechsel soll sofort wirken - eine Bremse im Normalfall waere genau
+  // der Monat Verzoegerung, den dieser Nachlauf abschaffen sollte, nur kuerzer.
+  // Gebremst wird deshalb ausschliesslich der Wiederholungsversuch, und der
+  // Merker dafuer entsteht nur, wenn wirklich etwas schiefging.
+  const retryAfterStr = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value;
+  if (!force && languageChanged && retryAfterStr) {
+    const retryAfter = new Date(retryAfterStr);
+    if (!Number.isNaN(retryAfter.getTime()) && Date.now() < retryAfter.getTime()) {
+      log.debug('Holiday language retry is still on hold – skipping automatic sync.');
+      return { synced: 0 };
+    }
+  }
+
   const lastSyncStr = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync'").get()?.value;
   if (!force && !languageChanged && lastSyncStr) {
     const lastSyncDate = new Date(lastSyncStr);
     if (!Number.isNaN(lastSyncDate.getTime())) {
-      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-      if (Date.now() - lastSyncDate.getTime() < thirtyDaysMs) {
+      if (Date.now() - lastSyncDate.getTime() < THROTTLE_MS) {
         log.debug('Holidays synced recently – skipping automatic sync.');
         return { synced: 0 };
       }
@@ -333,9 +368,13 @@ async function sync(force = false) {
   }
 
   let total = 0;
+  let anyFailed = false;
   for (const year of years) {
-    if (showPublic) total += await syncYearAndType(country, subdivision, year, 'public', langCode);
-    if (showSchool) total += await syncYearAndType(country, subdivision, year, 'school', langCode);
+    for (const type of [showPublic && 'public', showSchool && 'school'].filter(Boolean)) {
+      const res = await syncYearAndType(country, subdivision, year, type, langCode);
+      total += res.count;
+      anyFailed ||= res.failed;
+    }
   }
 
   const now = new Date().toISOString();
@@ -346,10 +385,23 @@ async function sync(force = false) {
                                    updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
   `);
   remember.run('holiday_last_sync', now);
-  remember.run('holiday_last_sync_language', langCode);
+  // DER SPRACH-MERKER ERST NACH EINEM VOLLSTAENDIGEN LAUF. Scheitert auch nur
+  // ein Jahr, steht dieser Bereich weiter in der alten Sprache - ihn trotzdem
+  // als erledigt zu verbuchen hiesse, einen halb uebersetzten Cache fuer die
+  // naechsten 30 Tage festzuschreiben. Genau die Sorte Fehler, bei der ein
+  // Cursor ueber einen Fehlschlag hinweglaeuft und die Luecke nie wieder
+  // zugeht (#839).
+  const forget = db.get().prepare('DELETE FROM sync_config WHERE key = ?');
+  if (anyFailed) {
+    remember.run('holiday_language_retry_after', new Date(Date.now() + LANGUAGE_RETRY_MS).toISOString());
+    log.warn(`Holiday sync incomplete for ${country} - the language marker stays open so the next run retries.`);
+  } else {
+    remember.run('holiday_last_sync_language', langCode);
+    forget.run('holiday_language_retry_after');
+  }
 
   log.info(`Holiday sync complete: ${total} entries for ${country}${subdivision ? '/' + subdivision : ''}`);
-  return { synced: total, lastSync: now };
+  return { synced: total, lastSync: now, incomplete: anyFailed };
 }
 
 /**
