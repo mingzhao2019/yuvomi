@@ -1135,6 +1135,26 @@ test('#934: die Waehrung steht ausserhalb der ausblendbaren Formatkarte', () => 
   // Die Sichtbarkeit haengt an EINER Regel, nicht an drei Handlern: ausser der
   // Helferfunktion setzt niemand mehr `hidden` an dieser Karte.
   assert.equal([...source.matchAll(/customBlock\.hidden/g)].length, 1);
+
+  // ...aber sie darf nicht zuschlagen, waehrend jemand IN der Karte arbeitet.
+  // Wer ein eigenes Format zusammenstellt, laeuft durch Zwischenstaende, und
+  // einer davon trifft leicht ein Preset: `EUR/mdy/24h` auf `EUR/dmy/12h` geht
+  // ueber `EUR/dmy/24h`, also durch `de-DE`. Die Karte waere nach dem ersten
+  // Schritt verschwunden, mitsamt dem Feld, in dem der Fokus stand.
+  assert.equal([...source.matchAll(/syncRegionSelect\(container, \{ mayHide: false \}\)/g)].length, 2,
+    'Datum und Uhrzeit muessen ihre eigene Karte offenhalten');
+
+  // Und eine Waehrungsaenderung darf die Region nicht WECHSELN. `detectRegion`
+  // liest die Waehrung mit, also traf ein de-DE-Haushalt mit CHF formal `de-CH` -
+  // und die Betraege sprangen von deutscher auf Schweizer Gruppierung. Das ist
+  // das Gegenteil dessen, was das Feld verspricht.
+  assert.match(source, /derived === regionBefore \? regionBefore : CUSTOM_REGION/,
+    'die Herleitung darf die Region bestaetigen, nicht wechseln');
+
+  // Zwei unabhaengige PUTs auf dasselbe Feld: waehrend der Regionswechsel
+  // laeuft, ist die Waehrung gesperrt.
+  assert.match(source, /currencyDuringRegion\.disabled = true/);
+  assert.match(source, /currencyDuringRegion\?\.isConnected\) currencyDuringRegion\.disabled = false/);
 });
 
 test('personal appearance leaf owns theme, locale, and regional preferences', () => {
