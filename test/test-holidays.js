@@ -37,6 +37,11 @@ _setTestDatabase(db);
 
 function resetState() {
   db.prepare("DELETE FROM sync_config WHERE key LIKE 'holiday_%'").run();
+  // AUCH DIE DATENSPRACHE, und das ist keine Kosmetik: seit #946 entscheidet
+  // sie, in welcher Sprache die Namen im Cache landen. Bliebe sie zwischen
+  // zwei Tests stehen, haetten die Erwartungen des einen die Voraussetzung des
+  // naechsten gesetzt - der ganze Rest der Suite haenge dann an der Reihenfolge.
+  db.prepare("DELETE FROM sync_config WHERE key IN ('language', 'region')").run();
   db.prepare('DELETE FROM holiday_cache').run();
 }
 
@@ -85,6 +90,36 @@ function makeApiMock() {
     const country = new URL(s).searchParams.get('countryIsoCode');
     if (path === '/PublicHolidays') {
       if (country === 'BR') return okJson([]);
+      // Spanien wie in #946: die Landessprache steht ZUERST im Array, Englisch
+      // weiter hinten - und "Reyes" fuehrt die API nur auf Spanisch und
+      // Katalanisch. So laesst sich beides pruefen: die Wahl der Wunschsprache
+      // und der Rueckfall, wenn es sie nicht gibt.
+      if (country === 'ES') {
+        return okJson([
+          { startDate: '2026-12-25', endDate: '2026-12-25',
+            name: [
+              { language: 'ES', text: 'Navidad' },
+              { language: 'CA', text: 'Nadal' },
+              { language: 'EN', text: 'Christmas Day' },
+              { language: 'DE', text: 'Weihnachtstag' },
+            ] },
+          { startDate: '2026-01-06', endDate: '2026-01-06',
+            name: [
+              { language: 'ES', text: 'Reyes' },
+              { language: 'CA', text: 'Reis' },
+            ] },
+          // Weder Deutsch noch die Landessprache zuerst-genommen: dieser
+          // Eintrag trennt die mittlere Stufe der Kaskade (Englisch) von der
+          // letzten (die erste angebotene). Ohne ihn waeren beide Fassungen
+          // gleich und ein Test darueber bewiese nichts.
+          { startDate: '2026-05-01', endDate: '2026-05-01',
+            name: [
+              { language: 'ES', text: 'Fiesta del Trabajo' },
+              { language: 'CA', text: 'Festa del Treball' },
+              { language: 'EN', text: 'Labour Day' },
+            ] },
+        ]);
+      }
       return okJson([{ startDate: '2026-01-01', endDate: '2026-01-01',
         name: [{ language: 'DE', text: 'Neujahr' }, { language: 'EN', text: "New Year's Day" }] }]);
     }
@@ -340,6 +375,10 @@ test('sync: throttled run → schweigt im Standard-Log-Level', async () => {
   setConfig({
     holiday_country: 'DE', holiday_show_public: '1', holiday_show_school: '0',
     holiday_last_sync: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    // Seit #946 gilt die Sperre nur, solange die Sprache dieselbe ist wie beim
+    // letzten Lauf. Ohne diese Zeile HAETTE der Lauf zu recht gefetcht - der
+    // Cache stuende dann in einer anderen Sprache als der eingestellten.
+    holiday_last_sync_language: 'EN',
   });
   const lines = await captureConsole(() => sync());
   assert.equal(mock.calls.length, 0, 'throttled run darf nicht fetchen');
@@ -349,7 +388,9 @@ test('sync: throttled run → schweigt im Standard-Log-Level', async () => {
 test('sync: public-only fetches PublicHolidays per year, caches them, sets last_sync', async () => {
   const mock = makeApiMock();
   __setFetchImpl(mock);
-  setConfig({ holiday_country: 'DE', holiday_show_public: '1', holiday_show_school: '0' });
+  // Die Datensprache steht ausdruecklich da: sie - nicht das Land - entscheidet
+  // seit #946, welcher Name im Cache landet.
+  setConfig({ holiday_country: 'DE', holiday_show_public: '1', holiday_show_school: '0', language: 'de' });
 
   const res = await sync(true);
 
@@ -359,7 +400,7 @@ test('sync: public-only fetches PublicHolidays per year, caches them, sets last_
 
   const pub = db.prepare("SELECT COUNT(*) c FROM holiday_cache WHERE type='public'").get().c;
   assert.equal(pub, SYNC_YEAR_SPAN);
-  // German locale name is resolved and stored
+  // Deutsche Datensprache → deutscher Name aus dem name-Array
   assert.equal(db.prepare('SELECT name FROM holiday_cache LIMIT 1').get().name, 'Neujahr');
   // last_sync persisted
   assert.ok(db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync'").get()?.value);
@@ -418,24 +459,33 @@ test('sync: drops "Exception"-tagged sub-regional holiday variants – no duplic
   assert.deepEqual(ends, ['2026-08-30']); // nur das reguläre Enddatum, nicht 2026-08-23
 });
 
-test('sync: Brazil public holidays use PT and local fallback when OpenHolidays has no rows', async () => {
+test('sync: Brazil local fallback follows the data language, not the country', async () => {
   const mock = makeApiMock();
   __setFetchImpl(mock);
-  setConfig({ holiday_country: 'BR', holiday_show_public: '1', holiday_show_school: '0' });
+  setConfig({ holiday_country: 'BR', holiday_show_public: '1', holiday_show_school: '0', language: 'pt' });
 
   const res = await sync(true);
 
   assert.equal(res.synced, SYNC_YEAR_SPAN * BRAZIL_PUBLIC_HOLIDAYS_PER_YEAR);
   assert.ok(mock.calls.every((url) => url.includes('countryIsoCode=BR')));
-  assert.ok(mock.calls.every((url) => url.includes('languageIsoCode=PT')));
 
   const currentYear = new Date().getFullYear();
-  const names = db.prepare(
+  const namesOf = () => db.prepare(
     "SELECT name FROM holiday_cache WHERE country='BR' AND type='public' AND year=? ORDER BY start_date"
   ).all(currentYear).map((row) => row.name);
+  let names = namesOf();
   assert.ok(names.includes('Tiradentes'));
   assert.ok(names.includes('Dia Nacional de Zumbi e da Consciência Negra'));
   assert.ok(names.includes('Natal'));
+
+  // Derselbe Haushalt, dieselbe Ortsliste - nur die Datensprache wechselt. Der
+  // Fallback kennt beide Fassungen; vorher entschied das LAND und Englisch war
+  // unerreichbar (#946).
+  setConfig({ language: 'en' });
+  await sync(true);
+  names = namesOf();
+  assert.ok(names.includes('Christmas Day'), `EN-Fassung erwartet, bekam: ${names.join(', ')}`);
+  assert.ok(!names.includes('Natal'));
 });
 
 test('sync: throttles automatic sync if executed within 30 days', async () => {
@@ -458,6 +508,115 @@ test('sync: throttles automatic sync if executed within 30 days', async () => {
   const res3 = await sync(true);
   assert.equal(res3.synced, SYNC_YEAR_SPAN);
   assert.equal(mock.calls.length, firstCallCount * 2); // new API calls made
+});
+
+// ---- Sprache der gespeicherten Eintraege (#946) ------------------------------
+
+test('sync: die Namen folgen der Datensprache, nicht dem Land (#946)', async () => {
+  const mock = makeApiMock();
+  __setFetchImpl(mock);
+  // Der gemeldete Fall: Land Spanien, Region Katalonien, Datensprache Englisch.
+  // Vorher leitete der Dienst die Sprache aus dem LAND ab und speicherte
+  // "Navidad" - auch fuer einen Haushalt, der ausdruecklich Englisch gewaehlt
+  // hatte und dem der Hinweis unter dem Feld Wirkung auf die Synchronisierung
+  // zusagt.
+  setConfig({
+    holiday_country: 'ES', holiday_subdivision: 'ES-CT',
+    holiday_show_public: '1', holiday_show_school: '0', language: 'en',
+  });
+
+  await sync(true);
+
+  const namen = db.prepare("SELECT name FROM holiday_cache WHERE country='ES' AND start_date LIKE '%-12-25'").all().map((r) => r.name);
+  assert.ok(namen.length > 0, 'ohne gespeicherte Zeile prueft die Zusicherung darunter nichts');
+  assert.deepEqual([...new Set(namen)], ['Christmas Day'],
+    'die eingestellte Datensprache entscheidet, nicht das Land');
+});
+
+test('sync: eine deutsche Datensprache bekommt denselben Feiertag auf Deutsch (#946)', async () => {
+  __setFetchImpl(makeApiMock());
+  // Die Gegenprobe zum Test darueber: dasselbe Land, dieselbe Region, nur eine
+  // andere Datensprache. Ohne sie belegte der Test oben genauso gut einen
+  // Dienst, der IMMER Englisch speichert.
+  setConfig({
+    holiday_country: 'ES', holiday_subdivision: 'ES-CT',
+    holiday_show_public: '1', holiday_show_school: '0', language: 'de',
+  });
+
+  await sync(true);
+
+  const namen = db.prepare("SELECT name FROM holiday_cache WHERE country='ES' AND start_date LIKE '%-12-25'").all().map((r) => r.name);
+  assert.deepEqual([...new Set(namen)], ['Weihnachtstag']);
+});
+
+test('sync: fehlt die Wunschsprache, gilt Englisch vor der ersten angebotenen (#946)', async () => {
+  __setFetchImpl(makeApiMock());
+  // Der 1. Mai steht im Mock auf Spanisch, Katalanisch und Englisch - nicht auf
+  // Deutsch. Die alte Kaskade hiess "Wunsch, sonst die ERSTE", und die erste
+  // ist die Landessprache: ein deutscher Haushalt bekam "Fiesta del Trabajo"
+  // untergeschoben, obwohl eine englische Fassung danebenlag. Englisch fuehrt
+  // OpenHolidays fuer nahezu jedes Land mit und ist damit die bessere Auskunft
+  // als "was der Server zufaellig zuerst nennt".
+  setConfig({
+    holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'de',
+  });
+
+  await sync(true);
+
+  const mai = db.prepare("SELECT name FROM holiday_cache WHERE country='ES' AND start_date LIKE '%-05-01'").all().map((r) => r.name);
+  assert.ok(mai.length > 0, 'ohne gespeicherte Zeile prueft die Zusicherung darunter nichts');
+  assert.deepEqual([...new Set(mai)], ['Labour Day'],
+    'keine deutsche Fassung, aber eine englische → Englisch, nicht die Landessprache');
+
+  // Und wo es auch kein Englisch gibt, bleibt die erste angebotene der letzte
+  // Halt - sonst stuende die Zeile leer da.
+  const reyes = db.prepare("SELECT name FROM holiday_cache WHERE country='ES' AND start_date LIKE '%-01-06'").all().map((r) => r.name);
+  assert.deepEqual([...new Set(reyes)], ['Reyes']);
+});
+
+test('sync: fragt ohne languageIsoCode, damit die Wahl hier faellt (#946)', async () => {
+  const mock = makeApiMock();
+  __setFetchImpl(mock);
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'en' });
+
+  await sync(true);
+
+  assert.ok(mock.calls.length > 0, 'ohne Abruf prueft die Zusicherung darunter nichts');
+  const mitFilter = mock.calls.filter((url) => url.includes('languageIsoCode'));
+  assert.deepEqual(mitFilter, [],
+    'Mit languageIsoCode liefert OpenHolidays je Feiertag nur EINEN Namen - und wenn es\n'
+    + 'den in der gefragten Sprache nicht gibt, den der Landessprache. Die Kaskade in\n'
+    + 'resolveName laeuft dann ueber ein einelementiges Array und kann nichts mehr waehlen.');
+});
+
+test('sync: ein Sprachwechsel bricht die 30-Tage-Sperre (#946)', async () => {
+  const mock = makeApiMock();
+  __setFetchImpl(mock);
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'en' });
+
+  await sync(true);
+  const nachErstem = mock.calls.length;
+  assert.ok(nachErstem > 0);
+
+  // Gleiche Sprache: die Sperre greift wie bisher.
+  assert.deepEqual(await sync(false), { synced: 0 });
+  assert.equal(mock.calls.length, nachErstem, 'ohne Sprachwechsel bleibt es beim Bestand');
+
+  // Andere Sprache: die Namen im Cache stehen in der falschen Sprache, also
+  // muss der Lauf durch. Sonst saehe der Haushalt bis zu einen Monat lang
+  // weiter die alten Namen und meldete den Fehler zu recht erneut.
+  setConfig({ language: 'de' });
+  const res = await sync(false);
+  assert.ok(res.synced > 0, 'ein Sprachwechsel muss den Bestand erneuern');
+  assert.ok(mock.calls.length > nachErstem);
+
+  const namen = db.prepare("SELECT name FROM holiday_cache WHERE country='ES' AND start_date LIKE '%-12-25'").all().map((r) => r.name);
+  assert.deepEqual([...new Set(namen)], ['Weihnachtstag']);
+  assert.equal(
+    db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value,
+    'DE',
+    'die benutzte Sprache steht neben dem Zeitstempel, sonst laeuft jeder Lauf erneut durch',
+  );
 });
 
 // ---- getCountries / getSubdivisions -----------------------------------------

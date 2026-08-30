@@ -9,6 +9,7 @@
 import nodeFetch from 'node-fetch';
 import { createLogger } from '../logger.js';
 import * as db from '../db.js';
+import { resolveHouseholdLocale } from '../utils/i18n.js';
 
 const log = createLogger('Holidays');
 
@@ -92,14 +93,24 @@ async function getGroups(countryIsoCode, subdivisionCode) {
 }
 
 /**
- * Gibt den Anzeigenamen aus dem name-Array zurück (bevorzugt EN, sonst erstes).
+ * Den Anzeigenamen aus dem name-Array waehlen: Wunschsprache, sonst Englisch,
+ * sonst die erste angebotene.
+ *
+ * DIE ZWEITE STUFE IST DER PUNKT. Vorher hiess die Kaskade "Wunsch, sonst die
+ * erste" - und was OpenHolidays als erste liefert, ist die Landessprache. Ein
+ * englischsprachiger Haushalt in Katalonien bekam damit fuer jeden Feiertag,
+ * den die API nicht auf Englisch fuehrt, den spanischen Namen, ohne dass das
+ * irgendwo zu sehen gewesen waere. Englisch ist die Sprache, die OpenHolidays
+ * fuer nahezu jedes Land mitliefert; sie ist die bessere Auskunft als "was der
+ * Server zufaellig zuerst nennt". Die erste bleibt als letzter Halt.
+ *
  * @param {Array<{language, text}>} nameArr
- * @param {string} [preferLang='EN']
+ * @param {string} [preferLang='EN'] Sprachcode in Grossbuchstaben
  */
 function resolveName(nameArr, preferLang = 'EN') {
   if (!Array.isArray(nameArr) || nameArr.length === 0) return '';
-  const preferred = nameArr.find((n) => n.language === preferLang);
-  return (preferred ?? nameArr[0]).text ?? '';
+  const pick = (lang) => nameArr.find((n) => n.language === lang);
+  return (pick(preferLang) ?? pick('EN') ?? nameArr[0]).text ?? '';
 }
 
 function formatIsoDate(date) {
@@ -184,12 +195,27 @@ function localHolidayFallback(country, type, year, langCode) {
 // Sync-Logik
 // --------------------------------------------------------
 
+/**
+ * Ein Jahr eines Typs holen und in den Cache legen.
+ * @param {string} langCode Sprachcode in GROSSBUCHSTABEN, wie OpenHolidays ihn
+ *   im `name`-Array fuehrt ('ES', 'EN'). Aufrufer normalisieren, nicht diese
+ *   Funktion - sonst stuende dieselbe Umwandlung an zwei Stellen.
+ */
 async function syncYearAndType(country, subdivision, year, type, langCode) {
   const from = `${year}-01-01`;
   const to   = `${year}-12-31`;
   const endpoint = type === 'public' ? 'PublicHolidays' : 'SchoolHolidays';
 
-  let params = `countryIsoCode=${encodeURIComponent(country)}&languageIsoCode=${encodeURIComponent(langCode)}&validFrom=${from}&validTo=${to}`;
+  // OHNE languageIsoCode, UND DAS IST DER FIX ZU #946. Mit dem Parameter
+  // liefert OpenHolidays je Feiertag nur EINEN Namen - und wenn es den in der
+  // gefragten Sprache nicht gibt, den der Landessprache. Die Kaskade in
+  // resolveName (Wunsch, sonst Englisch, sonst die erste) laeuft dann ueber ein
+  // einelementiges Array und kann nichts mehr waehlen: sie bekam "Navidad"
+  // gereicht und hatte keine Alternative danebenliegen. Ohne den Parameter
+  // kommt das vollstaendige name-Array, und die Wahl faellt hier - wo bekannt
+  // ist, welche Sprache der Haushalt lesen will. Der Preis ist eine groessere
+  // Antwort fuer ein paar Dutzend Eintraege im Jahr.
+  let params = `countryIsoCode=${encodeURIComponent(country)}&validFrom=${from}&validTo=${to}`;
   if (subdivision) params += `&subdivisionCode=${encodeURIComponent(subdivision)}`;
 
   let holidays;
@@ -225,7 +251,7 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
     for (const h of rows) {
       const name = typeof h.name === 'string'
         ? h.name
-        : resolveName(h.name, langCode.toUpperCase());
+        : resolveName(h.name, langCode);
       // Schulferien-Gruppe (z. B. CH-BE-VS), falls die Subdivision mehrere
       // Regime kennt. Öffentliche Feiertage tragen i. d. R. keine Gruppe → NULL,
       // gilt dann für die gesamte Subdivision. (#434)
@@ -268,8 +294,28 @@ async function sync(force = false) {
     return { synced: 0 };
   }
 
+  // DIE SPRACHE KOMMT AUS DER EINSTELLUNG, NICHT AUS DEM LAND. Hier stand eine
+  // Karte von Land auf Sprache: wer Spanien waehlte, bekam spanische Namen -
+  // auch wenn "Sprache gespeicherter Eintraege" auf Englisch stand und der
+  // Hinweis darunter ausdruecklich "Wirkt auf API, Kalender-Feed und
+  // Synchronisierung" verspricht (#946). Feiertage SIND selbst erzeugte
+  // Eintraege; sie fallen unter genau diese Zusage, und `resolveHouseholdLocale`
+  // ist die eine Stelle, die sie beantwortet - dieselbe, aus der Geburtstage,
+  // Darlehensraten und Benachrichtigungen ihre Sprache holen.
+  const langCode = resolveHouseholdLocale(db.get()).toUpperCase();
+
+  // EIN SPRACHWECHSEL MUSS DEN BESTAND ERNEUERN. Die Namen liegen uebersetzt im
+  // Cache, nicht als Schluessel - eine geaenderte Datensprache aendert also
+  // nichts, solange die 30-Tage-Sperre unten greift. Wer die Einstellung
+  // umstellt, saehe bis zu einen Monat lang weiter die alten Namen und haette
+  // allen Grund, den Fehler erneut zu melden. Die zuletzt benutzte Sprache
+  // steht deshalb neben dem Zeitstempel; weicht sie ab, zaehlt der Lauf wie ein
+  // erzwungener.
+  const lastSyncLang = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value ?? null;
+  const languageChanged = lastSyncLang !== langCode;
+
   const lastSyncStr = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync'").get()?.value;
-  if (!force && lastSyncStr) {
+  if (!force && !languageChanged && lastSyncStr) {
     const lastSyncDate = new Date(lastSyncStr);
     if (!Number.isNaN(lastSyncDate.getTime())) {
       const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
@@ -279,16 +325,6 @@ async function sync(force = false) {
       }
     }
   }
-
-  // Sprache aus Land ableiten (Fallback EN)
-  const langMap = {
-    BR: 'PT',
-    DE: 'DE', AT: 'DE', CH: 'DE', FR: 'FR', ES: 'ES', IT: 'IT',
-    NL: 'NL', PL: 'PL', PT: 'PT', RU: 'RU', TR: 'TR', CZ: 'CS',
-    SE: 'SV', NO: 'NO', DK: 'DA', FI: 'FI', HU: 'HU', RO: 'RO',
-    GR: 'EL', SK: 'SK', HR: 'HR', BG: 'BG', RS: 'SR', SI: 'SL',
-  };
-  const langCode = langMap[country] ?? 'EN';
 
   const currentYear = new Date().getFullYear();
   const years = [];
@@ -303,12 +339,14 @@ async function sync(force = false) {
   }
 
   const now = new Date().toISOString();
-  db.get().prepare(`
+  const remember = db.get().prepare(`
     INSERT INTO sync_config (key, value)
-    VALUES ('holiday_last_sync', ?)
+    VALUES (?, ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value,
                                    updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-  `).run(now);
+  `);
+  remember.run('holiday_last_sync', now);
+  remember.run('holiday_last_sync_language', langCode);
 
   log.info(`Holiday sync complete: ${total} entries for ${country}${subdivision ? '/' + subdivision : ''}`);
   return { synced: total, lastSync: now };

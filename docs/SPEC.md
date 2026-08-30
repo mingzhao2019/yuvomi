@@ -652,6 +652,8 @@ by the auto-sync scheduler (covers previous, current, and next two years). Displ
 overlay in the calendar; layer visibility is toggled client-side. Outbound requests carry only the
 country/subdivision code — no household data leaves the server.
 
+**Names follow the data language, not the country (v2.57.0, #946).** A holiday is content Yuvomi stores itself, so it falls under the "language of stored entries" setting (`resolveHouseholdLocale`) - the same source birthdays, loan instalments and notifications use. Previously the service derived the language from the *country*: picking Spain stored "Navidad" even for a household that had explicitly chosen English, while the hint under the setting promises it affects "the API, calendar feed and synchronisation". The request deliberately omits `languageIsoCode`: with it, OpenHolidays returns exactly one name per holiday and falls back to the country language when the requested one is missing, leaving nothing to choose from. Without it the full `name` array arrives and the cascade runs here - requested language, else English (which OpenHolidays carries for nearly every country), else the first offered. `sync_config.holiday_last_sync_language` records the language of the last run; a change to the data language counts as a forced sync, because the cache holds translated names rather than keys and would otherwise keep the old wording for up to 30 days.
+
 Some multilingual subdivisions (e.g. the Swiss canton `CH-BE`) run more than one school-holiday
 regime with differing dates, distinguished only by an OpenHolidays *group* (`CH-BE-VS` German-speaking
 vs. `CH-BE-EO` French-speaking Bernese Jura). When such a subdivision is configured, the settings page
@@ -672,7 +674,7 @@ the calendar shows the correct dates instead of the union of both.
 
 Indexes: `idx_holiday_cache_dates (start_date, end_date)`, `idx_holiday_cache_lookup (type, country, subdivision, year)`.
 Configuration lives in `sync_config`: `holiday_country`, `holiday_subdivision`, `holiday_group`, `holiday_show_public`,
-`holiday_show_school`, `holiday_public_color`, `holiday_school_color`, `holiday_last_sync` (all admin-only).
+`holiday_show_school`, `holiday_public_color`, `holiday_school_color`, `holiday_last_sync`, `holiday_last_sync_language` (all admin-only).
 
 ### CalDAV Accounts
 Multi-account CalDAV integration. Stores credentials for CalDAV servers (iCloud, Nextcloud, Radicale, Baikal, etc.).
