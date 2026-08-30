@@ -12,6 +12,7 @@ import * as db from '../db.js';
 import { normalizeAvatarData, syncFamilyMemberArtifacts } from '../auth.js';
 import { collectErrors, color, date, datetime, month, num, oneOf, str, id as validateId, MAX_SHORT, MAX_TEXT, MAX_TITLE } from '../middleware/validate.js';
 import { minutesBetween, computeHourlyAmount } from '../services/housekeeping-billing.js';
+import { dataUrlContentMatches } from '../utils/file-signature.js';
 import {
   formatDateKey,
   formatMoney,
@@ -180,6 +181,8 @@ function validatePhotoUrl(value) {
   const trimmed = value.trim();
   if (trimmed.length > MAX_PHOTO_DATA_LENGTH) return { value: null, error: 'Photo is too large.' };
   if (!IMAGE_DATA_RE.test(trimmed)) return { value: null, error: 'Photo must be PNG, JPEG, or WebP.' };
+  // Der Regex prueft die Deklaration, diese Zeile den Inhalt (#937).
+  if (!dataUrlContentMatches(trimmed)) return { value: null, error: 'Photo content does not match its image type.' };
   return { value: trimmed, error: null };
 }
 

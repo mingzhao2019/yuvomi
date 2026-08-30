@@ -264,7 +264,10 @@ test('PUT /:id: ungültiges Foto → 400 (Bestand unverändert)', async () => {
 test('PUT /:id: gültiges Foto ersetzt Bestand; leeres Foto → NULL', async () => {
   const base = await call('POST', '/', { name: 'FotoSwap', birth_date: '1995-03-03' });
   const id = base.body.data.id;
-  const newPhoto = 'data:image/webp;base64,UklGRg==';
+  // Ein echter WebP-Kopf: 'RIFF' + Groesse + 'WEBP'. Vorher stand hier nur
+  // 'UklGRg==' ('RIFF'), was ein gueltiger String, aber nie ein gueltiges Bild
+  // war - seit #937 prueft der Upload den Inhalt und nicht nur die Deklaration.
+  const newPhoto = 'data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA==';
   const put = await call('PUT', `/${id}`, { photo_data: newPhoto });
   assert.equal(put.status, 200);
   assert.equal(db.prepare('SELECT photo_data FROM birthdays WHERE id = ?').get(id).photo_data, newPhoto);

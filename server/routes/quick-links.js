@@ -22,6 +22,7 @@ import express from 'express';
 import * as db from '../db.js';
 import { str, color, collectErrors, MAX_SHORT } from '../middleware/validate.js';
 import { normalizeQuickLinkUrl } from '../../public/utils/quick-link-url.js';
+import { dataUrlContentMatches } from '../utils/file-signature.js';
 
 const log = createLogger('QuickLinks');
 
@@ -78,6 +79,8 @@ function iconData(value) {
   if (typeof value !== 'string') return { value: null, error: 'Icon must be a data URL string.' };
   if (value.length > MAX_ICON_DATA_LENGTH) return { value: null, error: 'Icon image is too large.' };
   if (!ICON_DATA_RE.test(value)) return { value: null, error: 'Icon must be PNG, JPEG, or WebP.' };
+  // Der Regex prueft die Deklaration, diese Zeile den Inhalt (#937).
+  if (!dataUrlContentMatches(value)) return { value: null, error: 'Icon content does not match its image type.' };
   return { value, error: null };
 }
 

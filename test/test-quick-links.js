@@ -421,7 +421,9 @@ test('Symbol und Bild dürfen nebeneinander stehen - die Anzeige entscheidet', a
   as(ALICE);
   // Das Schema verbietet es bewusst nicht (Migration v163): ein CHECK machte
   // aus jedem Wechsel zwischen den Gesichtern zwei Schreibvorgänge.
-  const png = `data:image/png;base64,${'A'.repeat(40)}`;
+  // Ein echter PNG-Kopf statt Fuellzeichen: seit #937 prueft der Upload den
+  // Inhalt, und 40 mal 'A' war nie ein Bild.
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
   const res = await call('POST', '/', { name: 'X', url: 'x.example', icon_name: 'server', icon_data: png });
   assert.equal(res.status, 201);
   assert.equal(res.body.data.icon_name, 'server');

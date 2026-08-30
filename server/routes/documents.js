@@ -34,6 +34,7 @@ import {
   verifyExistingWebdavDocument,
 } from '../services/document-storage.js';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '../utils/upload-limit.js';
+import { contentMatchesMime } from '../utils/file-signature.js';
 
 let dmsAdapterFactory = defaultGetDmsAdapter;
 export function _setDmsAdapterFactory(fn) { dmsAdapterFactory = fn || defaultGetDmsAdapter; }
@@ -134,6 +135,13 @@ function parseDataUrl(dataUrl) {
   const buffer = Buffer.from(base64, 'base64');
   if (!buffer.length) return { error: 'File content is empty.' };
   if (buffer.length > MAX_FILE_BYTES) return { error: `File may be at most ${MAX_UPLOAD_MB} MB.` };
+  // Bis hier war nur GEPRUEFT, was der Absender BEHAUPTET: der Typ steht im
+  // data-URL-Praefix und kommt aus seinem Browser. Ein Dokument, das sich als
+  // PDF ausgibt und keins ist, faellt sonst erst auf, wenn es jemand braucht
+  // (#937). Typen ohne Signatur - text/plain, text/csv - passieren weiter.
+  if (!contentMatchesMime(buffer, mime)) {
+    return { error: 'File content does not match its declared type.' };
+  }
   return { mime, base64, size: buffer.length, buffer };
 }
 

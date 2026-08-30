@@ -17,6 +17,7 @@ import {
 import { getRates } from '../services/subscription-rates.js';
 import { findLogoOptions } from '../services/subscription-logo.js';
 import { normalizeObjectVisibility, budgetVisibilityWhere, canEditEntry, resolveBudgetMode } from '../services/budget-visibility.js';
+import { dataUrlContentMatches } from '../utils/file-signature.js';
 
 const log = createLogger('Subscriptions');
 const router = express.Router();
@@ -202,6 +203,12 @@ function validatePayload(body, { partial = false } = {}) {
   if (body.website_url && !URL_RE.test(body.website_url)) errors.push('Website URL must use HTTP or HTTPS.');
   if (body.logo_data && (!String(body.logo_data).startsWith('data:image/') || String(body.logo_data).length > 700000)) {
     errors.push('Logo must be an image data URL smaller than 500 KB.');
+  } else if (body.logo_data && String(body.logo_data).includes(';base64,')
+    && !dataUrlContentMatches(body.logo_data)) {
+    // Der Typ steht im Praefix und kommt aus dem Browser des Absenders; hier
+    // wird geprueft, ob der Inhalt ihn traegt (#937). Nicht-base64-Bilder haben
+    // keinen Kopf zum Vergleichen und bleiben bei der bisherigen Pruefung.
+    errors.push('Logo content does not match its image type.');
   }
   for (const key of ['category_id', 'payment_method_id']) {
     if (body[key] !== undefined && body[key] !== null && (!Number.isInteger(Number(body[key])) || Number(body[key]) < 1)) {

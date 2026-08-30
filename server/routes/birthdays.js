@@ -2,6 +2,7 @@ import express from 'express';
 import { createLogger } from '../logger.js';
 import * as db from '../db.js';
 import { collectErrors, date as validateDate, str, MAX_SHORT, MAX_TEXT, MAX_TITLE } from '../middleware/validate.js';
+import { dataUrlContentMatches } from '../utils/file-signature.js';
 import {
   deleteBirthdayArtifacts,
   hydrateBirthday,
@@ -22,6 +23,8 @@ function validatePhotoData(val) {
   const s = String(val).trim();
   if (s.length > MAX_PHOTO_LENGTH) return { value: null, error: 'Profile picture is too large.' };
   if (!PHOTO_RE.test(s)) return { value: null, error: 'Profile picture must be a valid image data URL.' };
+  // Der Regex prueft die Deklaration, diese Zeile den Inhalt (#937).
+  if (!dataUrlContentMatches(s)) return { value: null, error: 'Profile picture content does not match its image type.' };
   return { value: s, error: null };
 }
 
