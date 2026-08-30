@@ -88,6 +88,9 @@ const SHARED_ISOMORPHIC = new Set([
   // #899: Die Farb-Hierarchie wird im Kalender, Dashboard und Countdown gleich
   // aufgelöst; das Modul ist rein und DOM-frei.
   'public/utils/event-color.js',
+  // #944: HTML-Escaping wird vom Browser und dem E-Mail-Provider gemeinsam
+  // verwendet; die Funktion ist rein und absichtlich ohne DOM-Abhängigkeit.
+  'public/utils/html-escape.js',
 ]);
 
 const SOURCE_EXT = /\.(js|mjs)$/;

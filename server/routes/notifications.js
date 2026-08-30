@@ -91,7 +91,19 @@ export function buildRouter({
   router.get('/providers', (req, res) => {
     try {
       void req;
-      const available = NOTIFICATION_PROVIDERS.filter((provider) => notificationService.providers?.[provider.id]);
+      const available = NOTIFICATION_PROVIDERS
+        .filter((provider) => notificationService.providers?.[provider.id])
+        .map((provider) => {
+          const adapter = notificationService.providers[provider.id];
+          if (typeof adapter.isAvailable !== 'function') return provider;
+          let ready = false;
+          try {
+            ready = adapter.isAvailable() === true;
+          } catch (err) {
+            log.warn(`Provider ${provider.id} availability check failed:`, err.message);
+          }
+          return { ...provider, ready };
+        });
       res.json({ data: available });
     } catch (err) {
       log.error('Error reading notification providers:', err.message);

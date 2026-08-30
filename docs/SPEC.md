@@ -1429,7 +1429,7 @@ enabled or disabled without changing device subscriptions.
 
 | Column | Type | Constraint |
 |--------|------|-----------|
-| provider | TEXT | Provider ID such as `gotify`, `ntfy` or `webhook`, validated in the service layer |
+| provider | TEXT | Provider ID such as `gotify`, `ntfy`, `webhook` or `email`, validated in the service layer |
 | name | TEXT | Admin-facing channel name, NOT NULL |
 | enabled | INTEGER | 0/1, default 0 |
 | scope | TEXT | `household` by default; future user-scoped channels can set `user` |
@@ -1445,6 +1445,7 @@ Provider config uses JSON so future providers can be added without a schema chan
 `topic`, `priority`, and `authType` in `config_json`, with token/basic credentials in `secret_json`.
 The generic **webhook** provider stores `baseUrl` and an optional `payloadTemplate` in `config_json`,
 with an optional bearer `token` in `secret_json`.
+The **email** provider stores only `toAddress` in `config_json` and nothing in `secret_json`.
 Secrets are accepted by the API on create/update but never returned to clients.
 
 **Webhook payload template.** An empty template sends Yuvomi's own body shape, which suits receivers
@@ -1460,6 +1461,24 @@ the well-formed names, so a typo like `{{task-title}}` is rejected instead of be
 verbatim. Unlike Gotify and ntfy, whose `baseUrl` is a base the provider appends its own path to, a
 webhook URL is the complete endpoint and keeps a trailing slash if one was entered.
 
+**Email channel (#944).** Unlike the other three, an email channel carries no endpoint and no
+credentials of its own - only `toAddress`. The SMTP access is app-wide (Settings → Email, or
+`EMAIL_SMTP_*`) and already carries password resets and invitations; a second set per channel would
+be a second spelling of the same thing, with two places to update on a server change and one of them
+forgotten. The channel is therefore a *transport*, not a second addressing model: who receives a
+reminder is still answered by `scope` (`household` vs. a user-scoped channel), exactly as for the
+other providers. One address per channel, so each can be disabled and tested on its own.
+
+Because the recipient's inbox shows only the subject line, the mail puts both origin and subject
+there (`Calendar: Dentist`), where Web Push splits them across title and body. Reminder titles are
+user data, so the HTML part escapes them. The link needs an absolute origin: it is built from
+`BASE_URL` and omitted entirely when that is unset, rather than shipping a dead relative path - the
+request Host is deliberately not consulted (there is no request during a background run). Since
+nodemailer honours no `AbortSignal`, the provider races its send against the orchestrator's timeout,
+so one unresponsive SMTP server cannot stall a run that processes every due reminder in sequence.
+`GET /api/v1/notifications/providers` reports `ready: false` for email while SMTP is unconfigured, so
+the settings form can say so before a test send fails behind a generic error.
+
 ### Notification Deliveries
 
 Durable per-reminder delivery state for Web Push and external channels.
@@ -1467,7 +1486,7 @@ Durable per-reminder delivery state for Web Push and external channels.
 | Column | Type | Constraint |
 |--------|------|-----------|
 | reminder_id | INTEGER | FK → Reminders (CASCADE delete), NOT NULL |
-| provider | TEXT | `webpush`, `gotify`, `ntfy`, `webhook`, or future provider ID |
+| provider | TEXT | `webpush`, `gotify`, `ntfy`, `webhook`, `email`, or future provider ID |
 | channel_id | INTEGER | Optional FK → Notification Channels (SET NULL on delete) |
 | target_key | TEXT | Stable target key, unique with reminder/provider |
 | status | TEXT | `pending`, `sent`, `failed`, or `skipped` |
@@ -2365,7 +2384,7 @@ is writable by anyone for themselves.
 
 Medication reminders reuse the existing push/notification-channel layer (no dedicated reminder
 table): `server/services/medication-scheduler.js` turns due schedule slots into `pending` logs and
-fans out via Web Push and the household channels (Gotify, ntfy, webhook). Medications (`name`, `dosage_text`) and activities
+fans out via Web Push and the household channels (Gotify, ntfy, webhook, email). Medications (`name`, `dosage_text`) and activities
 (`type`, `note`) are indexed in the FTS5 `search_index` (migration 66) with the same
 owner-or-`family` visibility scoping applied at query time.
 
@@ -3198,7 +3217,7 @@ Time-based reminders attached to tasks, calendar events, subscriptions, or inven
 - Dismissing a reminder marks it `dismissed = 1`; dismissed reminders are not shown again
 - API: `GET /api/v1/reminders/pending`, `GET /api/v1/reminders?entity_type=&entity_id=` (single), `GET /api/v1/reminders/all?entity_type=&entity_id=` (full list for multi-reminder entities), `POST /api/v1/reminders` (upsert one), `PUT /api/v1/reminders?entity_type=&entity_id=` with `{ remind_ats: [...] }` (replace-set, deduplicated, max 5), `PATCH /api/v1/reminders/:id/dismiss`, `DELETE /api/v1/reminders/:id`, `DELETE /api/v1/reminders?entity_type=&entity_id=` (all of one entity)
 - **Web Push (PWA):** when a device opts in via Settings → Personal → Notifications, a service-worker push handler shows due reminders as system notifications even while the app is closed. The foreground in-app toast still runs; only the in-page `Notification(...)` is suppressed on devices with an active push subscription (push takes over). **Requires HTTPS** (service workers + Push API). API: `GET /api/v1/push/vapid-public-key`, `POST /api/v1/push/subscribe`, `POST /api/v1/push/unsubscribe`, `POST /api/v1/push/test`
-- **Household notification channels:** admins can add Gotify, ntfy and generic HTTP webhook channels under Settings → Personal → Notifications. A 60-second server-side scheduler (`server/services/push-scheduler.js`, backed by `server/services/notifications.js`) fans out due, undismissed reminders to Web Push plus every enabled household channel. Delivery state is tracked in `notification_deliveries` for duplicate protection and bounded retries; `reminders.pushed_at` is still set once the active targets are complete or exhausted. API: `GET /api/v1/notifications/providers`, `GET/POST /api/v1/notifications/channels`, `PUT/DELETE /api/v1/notifications/channels/:id`, `POST /api/v1/notifications/channels/:id/test`
+- **Household notification channels:** admins can add Gotify, ntfy, generic HTTP webhook and email channels under Settings → Personal → Notifications. A 60-second server-side scheduler (`server/services/push-scheduler.js`, backed by `server/services/notifications.js`) fans out due, undismissed reminders to Web Push plus every enabled household channel. Delivery state is tracked in `notification_deliveries` for duplicate protection and bounded retries; `reminders.pushed_at` is still set once the active targets are complete or exhausted. API: `GET /api/v1/notifications/providers`, `GET/POST /api/v1/notifications/channels`, `PUT/DELETE /api/v1/notifications/channels/:id`, `POST /api/v1/notifications/channels/:id/test`
 
 ### Third-Party Modules (`/modules/<id>`)
 

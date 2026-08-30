@@ -92,7 +92,7 @@ Betreiber daraus resultieren.
 | Abonnement-Integrationen | `server/services/subscription-*` | nur wenn konfiguriert/ausgelöst | abhängig von Fixer, Benachrichtigungs- oder KI-Provider | abhängig vom Provider (siehe 2.8) |
 | MCP-Endpoint (KI-/Agent-Zugriff) | `server/index.js` (Mount `/mcp`), `server/mcp/*` | nur wenn Nutzer ein API-Token erstellt und einen MCP-Client anbindet | **lokaler Client: nein** · Cloud-Client: abhängig vom Anbieter | lokaler Client: nein · Cloud-Client: ggf. gegenüber dem Anbieter (siehe 2.9) |
 | Web Push | `server/services/push.js` | nur wenn ein Nutzer Push auf einem Gerät aktiviert | Push-Dienst des jeweiligen Browsers (Google/Apple/Mozilla) — USA möglich; Inhalte verschlüsselt | nein (siehe 2.10) |
-| Benachrichtigungs-Kanäle (Gotify/ntfy …) | `server/services/notification-channels.js`, `server/services/notification-providers/` | nur wenn ein Admin einen Kanal konfiguriert | abhängig vom Ziel (meist selbst gehostet) | i. d. R. nein (siehe 2.10) |
+| Benachrichtigungs-Kanäle (Gotify/ntfy/E-Mail …) | `server/services/notification-channels.js`, `server/services/notification-providers/` | nur wenn ein Admin einen Kanal konfiguriert | abhängig vom Ziel (meist selbst gehostet) | i. d. R. nein (siehe 2.10) |
 | E-Mail-Versand (SMTP) | `server/services/email.js` | nur wenn SMTP konfiguriert | abhängig vom Provider | ja, bei kommerziellen Anbietern (siehe 2.11) |
 | Versions-/Changelog-Abruf | `server/routes/changelog.js` | ja — beim Öffnen des Änderungsverlaufs bzw. der Versionsprüfung (30-Min-Server-Cache) | USA — GitHub/Microsoft, DPF | nein (siehe 2.12) |
 | Mealie-Rezept-Sync | `server/services/mealie/` | nur wenn eine Mealie-Instanz verbunden ist | i. d. R. selbst gehostet | i. d. R. nein (siehe 2.13) |
@@ -293,7 +293,9 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
   ausgeführt.
 - **Benachrichtigungsdienste:** Je nach Agent werden Name, Betrag, Währung und
   Fälligkeitsdatum eines Abonnements an SMTP, Discord, Telegram, Pushover,
-  Gotify, Serverchan, Ntfy oder einen Webhook übertragen. Für private/LAN-Ziele
+  Gotify, Serverchan, Ntfy oder einen Webhook übertragen. Seit #944 kann auch
+  ein Haushalts-Kanal selbst per E-Mail zustellen; er nutzt denselben
+  SMTP-Zugang wie Passwort-Reset und Einladungen (Abschnitt 2.11). Für private/LAN-Ziele
   ist eine ausdrückliche Deployment-Freigabe erforderlich. Dieselben Kanäle
   transportieren auch andere Erinnerungen der App — einschließlich
   Medikamenten-Erinnerungen, siehe Abschnitt 2.10.
@@ -357,6 +359,14 @@ Konfiguration so, dass du auf einen EU-Provider umstellen könntest.
   bei dir; bei einem fremdbetriebenen Ziel (z. B. ntfy.sh) ist der Betreiber
   Empfänger von Gesundheitsdaten (Art. 9 DSGVO) — dann nur mit ausdrücklicher
   Einwilligung aller Betroffenen und AVV, besser: selbst hosten.
+- **Besonderheit E-Mail-Kanal:** Ein Kanal vom Typ *email* stellt dieselben
+  Inhalte per SMTP zu, und der **Betreff trägt sie ebenfalls** („Gesundheit:
+  <Medikament>"). Betreffzeilen sind auf dem Transportweg auch dann sichtbar,
+  wenn der Körper der Nachricht verschlüsselt wäre, und sie stehen dauerhaft im
+  Postfach des Empfängers. Wer einen fremden Mail-Anbieter nutzt, macht ihn
+  damit zum Empfänger von Gesundheitsdaten; für Medikamenten-Erinnerungen
+  gelten dieselben Anforderungen wie oben (Einwilligung + AVV), und der eigene
+  Mailserver ist die datensparsamere Wahl.
 - **AVV:** Für die Browser-Push-Dienste nicht abschließbar (Infrastruktur des
   Browser-Herstellers); Transparenzhinweis in der Datenschutzerklärung genügt
   nach h. M., da Inhalte verschlüsselt sind. Für fremdbetriebene

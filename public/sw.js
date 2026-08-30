@@ -124,6 +124,7 @@ const APP_SHELL = [
   '/utils/health-vitals.js',
   '/utils/help.js',
   '/utils/household.js',
+  '/utils/html-escape.js',
   '/utils/html.js',
   '/utils/ingredient-row.js',
   '/utils/inventory-warranty.js',
@@ -245,6 +246,10 @@ const PAGE_MODULES = [
   '/vendor/libphonenumber/metadata.min.json',
   '/settings/registry.js',
   '/settings/shell.js',
+  // Die Shell importiert ihn beim Laden. Fehlte er hier, brach die
+  // Einstellungsseite offline komplett - der Precache-Guard sah relative
+  // Specifier bis dahin nicht und blieb dabei gruen.
+  '/settings/dirty-guard.js',
   '/settings/components.js',
   '/settings/module-order.js',
   '/settings/cron-label.js',

@@ -459,10 +459,16 @@ is closed. **Requires HTTPS** (the Push API and service workers only work over a
 see [HTTPS / Reverse Proxy](#https--reverse-proxy-nginx)). Each device opts in under
 Settings → Personal → Notifications.
 
-Admins can also add household Gotify, ntfy or generic HTTP webhook channels on the same settings
-page. These channels are configured in the UI and do not require environment variables. The Yuvomi
-backend container or host must be able to reach the configured base URL. HTTPS is recommended; HTTP
-is accepted for trusted internal networks such as a private LAN or container network.
+Admins can also add household Gotify, ntfy, generic HTTP webhook or email channels on the same
+settings page. These channels are configured in the UI and do not require environment variables. The
+Yuvomi backend container or host must be able to reach the configured base URL. HTTPS is recommended;
+HTTP is accepted for trusted internal networks such as a private LAN or container network.
+
+An **email** channel is the exception: it has no base URL and no credentials of its own. It reuses
+the app-wide SMTP access that already sends password resets and invitations, so configure
+Settings → Email (or `EMAIL_SMTP_*`) first - the provider list marks email as not ready until you
+have. Each channel holds one recipient address; add a second channel for a second recipient. Set
+`BASE_URL` if you want the reminder mails to carry a link back into the app.
 
 A webhook channel posts JSON to any endpoint, with an optional write-only Bearer token. If the
 receiver expects a body of its own shape - Discord and Slack do - a payload template produces it

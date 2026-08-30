@@ -15,6 +15,7 @@ const DEFAULT_PROVIDERS = [
   { id: 'ntfy', name: 'ntfy' },
   { id: 'webhook', name: 'Webhook' },
   { id: 'message_pusher', name: 'message-pusher' },
+  { id: 'email', name: 'Email' },
 ];
 
 // Die Beispiele bleiben absichtlich in der Seite und nicht nur im Tooltip:
@@ -91,6 +92,17 @@ function channelDefaults(provider = 'gotify', scope = 'household') {
         baseUrl: '', username: '', method: 'POST', postFormat: 'json',
         messageField: 'content', messageTemplate: '', channel: '', tokenInQuery: false,
       },
+      secretSet: false,
+    };
+  }
+  if (provider === 'email') {
+    return {
+      provider: 'email',
+      name: '',
+      enabled: false,
+      scope,
+      userId: null,
+      config: { toAddress: '' },
       secretSet: false,
     };
   }
@@ -236,6 +248,7 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
     const isNtfy = channel.provider === 'ntfy';
     const isWebhook = channel.provider === 'webhook';
     const isMessagePusher = channel.provider === 'message_pusher';
+    const isEmail = channel.provider === 'email';
     const webhookExample = templateExample('webhook', scope);
     const messagePusherExample = templateExample('message_pusher', scope);
     list.insertAdjacentHTML('beforeend', `
@@ -256,9 +269,9 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
           checked: !!channel.enabled,
           attrs: { name: 'enabled' },
         })}
-        <div class="form-field">
+        <div class="form-field notification-base-url-field${isEmail ? ' settings-card--hidden' : ''}">
           <label class="form-label" for="notification-base-url-${suffix}">${t('settings.notificationChannelBaseUrl')}</label>
-          <input class="form-input" id="notification-base-url-${suffix}" name="baseUrl" value="${esc(channel.config.baseUrl)}" required>
+          <input class="form-input" id="notification-base-url-${suffix}" name="baseUrl" value="${esc(channel.config.baseUrl ?? '')}"${isEmail ? '' : ' required'}>
         </div>
         <div class="notification-provider-fields notification-provider-fields--gotify${channel.provider === 'gotify' ? '' : ' settings-card--hidden'}">
           <div class="form-field">
@@ -338,6 +351,13 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
           </label>
           <p class="form-hint">${t('settings.notificationChannelMessagePusherHint')}</p>
         </div>
+        <div class="notification-provider-fields notification-provider-fields--email${isEmail ? '' : ' settings-card--hidden'}">
+          <div class="form-field">
+            <label class="form-label" for="notification-email-to-${suffix}">${t('settings.notificationChannelEmailTo')}</label>
+            <input class="form-input" id="notification-email-to-${suffix}" name="emailTo" type="email" autocomplete="email" value="${esc(channel.config.toAddress ?? '')}" required>
+            <p class="form-hint">${t('settings.notificationChannelEmailToHint')}</p>
+          </div>
+        </div>
         <div class="notification-provider-fields notification-provider-fields--ntfy${isNtfy ? '' : ' settings-card--hidden'}">
           <div class="form-field">
             <label class="form-label" for="notification-ntfy-topic-${suffix}">${t('settings.notificationChannelNtfyTopic')}</label>
@@ -388,12 +408,13 @@ function readChannelForm(form) {
     name: form.elements.name.value.trim(),
     enabled: form.elements.enabled.checked,
     scope: form.dataset.channelScope || 'household',
-    config: {
-      baseUrl: form.elements.baseUrl.value.trim(),
-    },
+    config: {},
     secrets: {},
   };
-  if (provider === 'ntfy') {
+  if (provider !== 'email') body.config.baseUrl = form.elements.baseUrl.value.trim();
+  if (provider === 'email') {
+    body.config.toAddress = form.elements.emailTo.value.trim();
+  } else if (provider === 'ntfy') {
     body.config.topic = form.elements.ntfyTopic.value.trim();
     body.config.priority = form.elements.ntfyPriority.value;
     body.config.authType = form.elements.ntfyAuth.value;
@@ -430,6 +451,11 @@ function updateProviderVisibility(form) {
   form.querySelector('.notification-provider-fields--ntfy')?.classList.toggle('settings-card--hidden', provider !== 'ntfy');
   form.querySelector('.notification-provider-fields--webhook')?.classList.toggle('settings-card--hidden', provider !== 'webhook');
   form.querySelector('.notification-provider-fields--message-pusher')?.classList.toggle('settings-card--hidden', provider !== 'message_pusher');
+  form.querySelector('.notification-provider-fields--email')?.classList.toggle('settings-card--hidden', provider !== 'email');
+  const baseUrlField = form.elements.baseUrl;
+  const showBaseUrl = provider !== 'email';
+  form.querySelector('.notification-base-url-field')?.classList.toggle('settings-card--hidden', !showBaseUrl);
+  if (baseUrlField) baseUrlField.required = showBaseUrl;
   const auth = form.elements.ntfyAuth?.value || 'none';
   form.querySelector('.notification-ntfy-token-field')?.classList.toggle('settings-card--hidden', auth !== 'token');
   form.querySelectorAll('.notification-ntfy-basic-field').forEach((field) => {

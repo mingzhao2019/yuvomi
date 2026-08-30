@@ -11,6 +11,7 @@ import { gotifyProvider } from './notification-providers/gotify.js';
 import { ntfyProvider } from './notification-providers/ntfy.js';
 import { webhookProvider } from './notification-providers/webhook.js';
 import { messagePusherProvider } from './notification-providers/message-pusher.js';
+import { emailProvider } from './notification-providers/email.js';
 import { syncAllBirthdayReminders } from './birthdays.js';
 import { resolveHouseholdLocale, translate } from '../utils/i18n.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
@@ -30,6 +31,7 @@ export const defaultProviders = {
   ntfy: ntfyProvider,
   webhook: webhookProvider,
   message_pusher: messagePusherProvider,
+  email: emailProvider,
 };
 
 function iso(value) {

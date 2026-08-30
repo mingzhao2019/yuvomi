@@ -1,7 +1,7 @@
 # Notification webhooks
 
 Yuvomi can deliver every native server-side notification to a generic HTTP
-webhook or to songquanpeng/message-pusher, in addition to Web Push, Gotify, and
+webhook, songquanpeng/message-pusher, or email, in addition to Web Push, Gotify, and
 ntfy. This includes task, calendar, inventory, pantry, subscription, medication,
 and task-comment mention notifications. Reminder notifications use the existing
 delivery tracking, retry, and deduplication flow; immediate medication and
@@ -19,7 +19,8 @@ Open **Settings → Personal → Notifications**. The page has two groups:
   Ordinary users do not see this group.
 
 In either group, select **Add channel**, choose a provider, enter its endpoint and
-credentials, enable it, and use **Send test**. Personal Webhook and message-pusher
+credentials, enable it, and use **Send test**. Email uses the SMTP configuration under
+Settings → Email (SMTP) and stores only one recipient address per channel. Personal Webhook and message-pusher
 channels can be configured independently from household channels. If an
 administrator enables both a personal and a household channel targeting the same
 destination, two deliveries are expected; Yuvomi does not silently deduplicate

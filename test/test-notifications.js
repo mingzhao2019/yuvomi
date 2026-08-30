@@ -1149,3 +1149,199 @@ test('notification routes separate personal and household channel ownership', as
   assert.equal(db.prepare('SELECT COUNT(*) c FROM notification_channels').get().c, 1);
   assert.equal(db.prepare('SELECT id FROM notification_channels').get().id, adminPersonal.json.data.id);
 });
+
+/* ------------------------------------------------------------------ *
+ * E-Mail als vierter Kanal (#944)
+ *
+ * Der Kanal traegt NUR sein Ziel. Der SMTP-Zugang steht app-weit in
+ * services/email.js und traegt schon Passwort-Reset und Einladungen; ein
+ * zweiter Satz Zugangsdaten je Kanal waere eine zweite Schreibweise fuer
+ * dieselbe Sache.
+ * ------------------------------------------------------------------ */
+
+function fakeMailer({ configured = true } = {}) {
+  const sent = [];
+  return {
+    sent,
+    isConfigured: () => configured,
+    sendMail: async (message) => { sent.push(message); return { messageId: 'x' }; },
+  };
+}
+
+test('ein Mail-Kanal traegt nur sein Ziel - keine Basis-URL, keine Geheimnisse (#944)', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const db = makeDb();
+  const store = createNotificationChannelStore({ db });
+  const created = store.createChannel({
+    provider: 'email',
+    name: 'Oma',
+    enabled: true,
+    config: { toAddress: '  oma@example.org  ' },
+  });
+  assert.deepEqual(created.config, { toAddress: 'oma@example.org' }, 'nur die Adresse, getrimmt');
+  assert.equal(created.secretSet, false, 'ein Mail-Kanal haelt kein eigenes Geheimnis');
+  assert.deepEqual(
+    JSON.parse(db.prepare('SELECT secret_json FROM notification_channels WHERE id = ?').get(created.id).secret_json),
+    {},
+    'und legt auch keines an - sonst waere das SMTP-Passwort an zwei Orten'
+  );
+});
+
+test('eine unbrauchbare Empfaengeradresse wird beim Speichern abgelehnt, nicht beim Senden (#944)', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const store = createNotificationChannelStore({ db: makeDb() });
+  const reject = (toAddress, why) => assert.throws(
+    () => store.createChannel({ provider: 'email', name: 'Bad', config: { toAddress } }),
+    /recipient email address/i,
+    why
+  );
+  reject('', 'leer');
+  reject('kein-at', 'ohne @');
+  reject('a@b', 'ohne Punkt in der Domain');
+  reject('a b@c.de', 'mit Leerzeichen');
+  // Der teuerste Fall: ein Zeilenumbruch im Empfaenger-Header macht aus einer
+  // Adresse zwei Header. Er darf gar nicht erst in die Datenbank.
+  reject('a@c.de\nBcc: fremd@example.org', 'mit Zeilenumbruch (Header-Injection)');
+  reject('a@c.de\r\nBcc: fremd@example.org', 'mit CRLF (Header-Injection)');
+});
+
+test('eine Erinnerungsmail escapet die Nutzerdaten, die sie traegt (#944)', async () => {
+  const { emailProvider } = await import('../server/services/notification-providers/email.js');
+  const mailer = fakeMailer();
+  await emailProvider.send({
+    channel: { config: { toAddress: 'oma@example.org' } },
+    // Ein Terminname ist Nutzereingabe. In einer HTML-Mail ist er genauso
+    // gefaehrlich wie im DOM - manche Clients rendern grosszuegig.
+    payload: { title: 'Kalender', body: 'Zahnarzt <img src=x onerror=alert(1)> & Co', url: '/calendar' },
+    emailService: mailer,
+    env: { BASE_URL: 'https://haus.example' },
+  });
+  const mail = mailer.sent[0];
+  assert.doesNotMatch(mail.html, /<img/, 'kein durchgereichtes Markup');
+  assert.match(mail.html, /&lt;img src=x onerror=alert\(1\)&gt;/, 'sondern escaped');
+  assert.match(mail.html, /&amp; Co/, 'auch das kaufmaennische Und');
+  assert.match(mail.text, /Zahnarzt <img src=x onerror=alert\(1\)> & Co/, 'die Textfassung bleibt roh');
+});
+
+test('der Betreff nennt Herkunft UND Sache - im Posteingang ist nur er sichtbar (#944)', async () => {
+  const { emailProvider } = await import('../server/services/notification-providers/email.js');
+  const mailer = fakeMailer();
+  const send = (payload) => emailProvider.send({
+    channel: { config: { toAddress: 'oma@example.org' } }, payload, emailService: mailer, env: {},
+  });
+  await send({ title: 'Kalender', body: 'Zahnarzt' });
+  assert.equal(mailer.sent.at(-1).subject, 'Kalender: Zahnarzt');
+  // Gleicher Titel und Body: nicht doppeln.
+  await send({ title: 'Yuvomi', body: 'Yuvomi' });
+  assert.equal(mailer.sent.at(-1).subject, 'Yuvomi');
+  // Ein Zeilenumbruch im Titel darf keinen weiteren Header oeffnen.
+  await send({ title: 'Aufgaben', body: 'Milch\nBcc: fremd@example.org' });
+  assert.doesNotMatch(mailer.sent.at(-1).subject, /[\r\n]/, 'der Betreff bleibt einzeilig');
+});
+
+test('ohne BASE_URL traegt die Mail keinen Link statt eines kaputten (#944)', async () => {
+  const { emailProvider } = await import('../server/services/notification-providers/email.js');
+  const mailer = fakeMailer();
+  const base = { channel: { config: { toAddress: 'oma@example.org' } }, emailService: mailer };
+  const payload = { title: 'Kalender', body: 'Zahnarzt', url: '/calendar' };
+
+  await emailProvider.send({ ...base, payload, env: { BASE_URL: 'https://haus.example/' } });
+  assert.match(mailer.sent.at(-1).html, /href="https:\/\/haus\.example\/calendar"/, 'der Schraegstrich am Ende verdoppelt sich nicht');
+  assert.match(mailer.sent.at(-1).text, /https:\/\/haus\.example\/calendar/);
+
+  // `/calendar` allein ist in einer Mail kein Ziel. Der Request-Host wird hier
+  // bewusst nicht herangezogen - beim Versand kommt gar keiner vorbei.
+  await emailProvider.send({ ...base, payload, env: {} });
+  assert.doesNotMatch(mailer.sent.at(-1).html, /href=/, 'lieber kein Link als ein toter');
+  assert.doesNotMatch(mailer.sent.at(-1).text, /calendar/);
+});
+
+test('ohne SMTP nennt der Mail-Kanal den Grund, statt still zu scheitern (#944)', async () => {
+  const { emailProvider } = await import('../server/services/notification-providers/email.js');
+  const mailer = fakeMailer({ configured: false });
+  await assert.rejects(
+    () => emailProvider.send({ channel: { config: { toAddress: 'a@b.de' } }, payload: { title: 'x', body: 'y' }, emailService: mailer }),
+    /SMTP/i,
+    'die Meldung muss sagen, was zu tun ist'
+  );
+  assert.equal(mailer.sent.length, 0);
+  assert.equal(emailProvider.isAvailable({ emailService: mailer }), false);
+  assert.equal(emailProvider.isAvailable({ emailService: fakeMailer() }), true);
+});
+
+test('die Kanalliste meldet einen Anbieter als nicht einsatzbereit, bevor ein Test scheitert (#944)', async () => {
+  const { buildRouter } = await import('../server/routes/notifications.js');
+  const db = makeDb();
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  // Die Test-Route beantwortet einen Fehlschlag mit generischem "Internal
+  // error" - der eine Satz, der weiterhilft, geht dabei verloren. Deshalb muss
+  // die Liste den Zustand schon vorher tragen.
+  const router = buildRouter({
+    database: db,
+    channelStore: createNotificationChannelStore({ db }),
+    notificationService: {
+      providers: {
+        gotify: { id: 'gotify', send: async () => ({ ok: true }) },
+        email: { id: 'email', isAvailable: () => false, send: async () => ({ ok: true }) },
+      },
+      testChannel: async () => ({ ok: true }),
+    },
+  });
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => { req.authUserId = 1; req.authRole = 'admin'; next(); });
+  app.use('/notifications', router);
+
+  const res = await call(app, 'GET', '/notifications/providers');
+  assert.equal(res.status, 200);
+  const byId = Object.fromEntries(res.json.data.map((p) => [p.id, p]));
+  assert.equal(byId.email.ready, false, 'Mail ohne SMTP ist nicht einsatzbereit');
+  assert.equal('ready' in byId.gotify, false, 'wer keine Voraussetzung hat, bleibt unveraendert');
+});
+
+test('der Erinnerungslauf stellt ueber einen Mail-Kanal zu (#944)', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const { processDueNotifications } = await import('../server/services/notifications.js');
+  const { emailProvider } = await import('../server/services/notification-providers/email.js');
+  const db = makeDb();
+  const store = createNotificationChannelStore({ db });
+  store.createChannel({ provider: 'email', name: 'Oma', enabled: true, config: { toAddress: 'oma@example.org' } });
+  db.prepare("INSERT INTO tasks (id, title, created_by) VALUES (1, 'Müll rausbringen', 1)").run();
+  db.prepare("INSERT INTO reminders (id, entity_type, entity_id, remind_at, created_by) VALUES (1, 'task', 1, ?, 1)")
+    .run('2026-06-19T09:59:00.000Z');
+  const mailer = fakeMailer();
+  const providers = {
+    email: { id: 'email', send: (args) => emailProvider.send({ ...args, emailService: mailer, env: {} }) },
+  };
+  const pushService = { sendPushToUser: async () => 0 };
+
+  const first = await processDueNotifications({ database: db, channelStore: store, pushService, providers, now: new Date() });
+  assert.deepEqual(first, { due: 1, attempted: 1, sent: 1, failed: 0, skipped: 0 });
+  assert.equal(mailer.sent.length, 1);
+  assert.equal(mailer.sent[0].to, 'oma@example.org');
+  assert.match(mailer.sent[0].subject, /Müll rausbringen/);
+
+  // Zweiter Lauf: dieselbe Erinnerung darf nicht erneut zugestellt werden.
+  const second = await processDueNotifications({ database: db, channelStore: store, pushService, providers, now: new Date() });
+  assert.equal(second.due, 0);
+  assert.equal(mailer.sent.length, 1, 'keine zweite Mail fuer dieselbe Erinnerung');
+});
+
+// Eigenes Zeitlimit: faellt das Rennen im Provider weg, HAENGT dieser Test
+// sonst, statt rot zu werden - und ein haengender Lauf blockiert die CI, statt
+// sie zu warnen (dieselbe Falle wie in der caldav-sync-Suite, #903).
+test('ein haengender SMTP-Server blockiert den Erinnerungslauf nicht (#944)', { timeout: 5000 }, async () => {
+  const { emailProvider } = await import('../server/services/notification-providers/email.js');
+  // nodemailer kennt kein AbortSignal. Ohne das Rennen im Provider wartet der
+  // Lauf hier ewig - und er arbeitet ALLE faelligen Erinnerungen nacheinander ab.
+  const controller = new AbortController();
+  const hanging = { isConfigured: () => true, sendMail: () => new Promise(() => {}) };
+  const pending = emailProvider.send({
+    channel: { config: { toAddress: 'a@b.de' } },
+    payload: { title: 'x', body: 'y' },
+    emailService: hanging,
+    signal: controller.signal,
+  });
+  controller.abort();
+  await assert.rejects(() => pending, /timed out/i);
+});

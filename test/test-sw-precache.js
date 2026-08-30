@@ -37,6 +37,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
+import { posix } from 'node:path';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 const SRC = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
@@ -85,11 +86,27 @@ function loadSwLists() {
 
 const { APP_SHELL, PAGE_MODULES, APP_LOCALES, PAGE_MODULE_SET } = loadSwLists();
 
-/** Statische `from '/pfad'`-Importe einer Datei. Dynamische Importe stehen bewusst außen vor: sie sind zur Laufzeit auflösbar und blockieren keinen Modulgraph. */
+/**
+ * Statische Importe einer Datei, als absolute Pfade.
+ *
+ * RELATIVE SPECIFIER ZAEHLEN MIT. Der Ausdruck sah lange nur `from '/pfad'` -
+ * ein `from './nachbar.js'` blieb unsichtbar, obwohl der Browser es genauso
+ * laedt. Damit konnte eine precachte Datei auf eine nicht precachte zeigen und
+ * der Guard blieb gruen: online faellt das nie auf, offline scheitert der
+ * Import und mit ihm alles, was von der Datei abhaengt.
+ *
+ * Dynamische Importe stehen weiter bewusst aussen vor: sie sind zur Laufzeit
+ * aufloesbar und blockieren keinen Modulgraph.
+ */
 function staticImports(pathname) {
   const file = PUBLIC_DIR + pathname.replace(/^\//, '');
   if (!existsSync(file)) return [];
-  return [...readFileSync(file, 'utf8').matchAll(/from\s+'(\/[^']+)'/g)].map((m) => m[1]);
+  const code = readFileSync(file, 'utf8');
+  const dir = posix.dirname(pathname);
+  return [...code.matchAll(/from\s+'([^']+)'/g)]
+    .map((m) => m[1])
+    .filter((spec) => spec.startsWith('/') || spec.startsWith('.'))
+    .map((spec) => (spec.startsWith('/') ? spec : posix.resolve(dir, spec)));
 }
 
 const precached = new Set([...APP_SHELL, ...PAGE_MODULES, ...APP_LOCALES]);

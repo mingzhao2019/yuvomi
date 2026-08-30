@@ -15,6 +15,7 @@ export const NOTIFICATION_PROVIDERS = [
   { id: 'ntfy', name: 'ntfy' },
   { id: 'webhook', name: 'Webhook' },
   { id: 'message_pusher', name: 'message-pusher' },
+  { id: 'email', name: 'Email' },
 ];
 
 // Personal external channels are deliberately narrower than household
@@ -231,6 +232,24 @@ function normalizeMessagePusherSecrets(input = {}) {
   return { token: String(input.token ?? '').trim() };
 }
 
+const MAX_EMAIL_LENGTH = 254;
+
+function normalizeEmailAddress(value) {
+  const raw = String(value ?? '').trim();
+  const invalid = () => new Error('A valid recipient email address is required.');
+  if (!raw || raw.length > MAX_EMAIL_LENGTH || /[\s,;]/.test(raw)) throw invalid();
+  const at = raw.indexOf('@');
+  if (at <= 0 || raw.indexOf('@', at + 1) !== -1) throw invalid();
+  const domain = raw.slice(at + 1);
+  const dot = domain.indexOf('.');
+  if (dot <= 0 || dot === domain.length - 1) throw invalid();
+  return raw;
+}
+
+function normalizeEmailConfig(input = {}) {
+  return { toAddress: normalizeEmailAddress(input.toAddress) };
+}
+
 export function normalizeChannelInput(input = {}, existing = null) {
   const provider = existing?.provider || normalizeProvider(input.provider);
   normalizeProvider(provider);
@@ -254,6 +273,9 @@ export function normalizeChannelInput(input = {}, existing = null) {
   } else if (provider === 'message_pusher') {
     config = normalizeMessagePusherConfig(mergedConfig);
     secrets = normalizeMessagePusherSecrets(mergedSecrets);
+  } else if (provider === 'email') {
+    config = normalizeEmailConfig(mergedConfig);
+    secrets = {};
   } else {
     config = normalizeWebhookConfig(mergedConfig);
     secrets = normalizeWebhookSecrets(mergedSecrets);
