@@ -704,6 +704,61 @@ test('sync: der Brasilien-Ersatz folgt derselben Kaskade wie die API-Namen (#946
   assert.ok(!namen.includes('Natal'));
 });
 
+test('sync: ein geglueckter LEERER Abruf laesst nichts Altes stehen (#946)', async () => {
+  // GEFUNDEN IN DER PR-DURCHSICHT, als zweite Fassung des Fehlers darueber: die
+  // HTTP-erfolgreiche Leerantwort nimmt einen eigenen Weg, den der Fix fuer den
+  // FEHLER-Fall nicht mit abdeckte. Sie meldete `failed: false`, ohne die alten
+  // Zeilen anzufassen - ausgerechnet dieser Bereich behielt seine
+  // fremdsprachigen Namen, waehrend der Lauf als vollstaendig verbucht wurde.
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'es' });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+  const vorher = db.prepare("SELECT COUNT(*) c FROM holiday_cache WHERE country='ES'").get().c;
+  assert.ok(vorher > 0, 'ohne Bestand prueft die Zusicherung darunter nichts');
+
+  // Dieselbe Quelle, aber sie kennt jetzt nichts mehr - mit HTTP 200.
+  const leer = async () => ({ ok: true, json: async () => [] });
+  __setFetchImpl(leer);
+  setConfig({ language: 'de' });
+  const res = await sync(true);
+
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM holiday_cache WHERE country='ES'").get().c, 0,
+    'ein geglueckter leerer Abruf ist eine Auskunft - der Cache spiegelt sie, statt Altes zu behalten');
+  assert.equal(res.incomplete, false, 'eine Leerantwort ist kein Fehlschlag');
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value, 'DE',
+    'und darf deshalb den Sprach-Merker setzen - es steht ja nichts Fremdsprachiges mehr da');
+});
+
+test('sync: die Wartemarke bremst nur die Sprache, bei der es schiefging (#946)', async () => {
+  // GEFUNDEN IN DER PR-DURCHSICHT. Die Marke trug zuerst nur einen Zeitpunkt -
+  // und bremste damit auch eine INZWISCHEN ANDERS gewaehlte Sprache aus, obwohl
+  // deren Versuch neu ist und noch nie gescheitert war.
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'en' });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+
+  // Nachlauf auf DE scheitert → Marke fuer DE.
+  setConfig({ language: 'de' });
+  __setFetchImpl(async () => { throw new Error('network down'); });
+  await captureConsole(() => sync(true));
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_for'").get()?.value, 'DE');
+
+  // Derselbe Wunsch DE wird gebremst ...
+  const mockDe = makeApiMock();
+  __setFetchImpl(mockDe);
+  assert.deepEqual(await sync(false), { synced: 0 });
+  assert.equal(mockDe.calls.length, 0);
+
+  // ... eine FRISCH gewaehlte Sprache nicht.
+  setConfig({ language: 'es' });
+  const mockEs = makeApiMock();
+  __setFetchImpl(mockEs);
+  const res = await sync(false);
+  assert.ok(res.synced > 0, 'ein neuer Sprachwunsch darf nicht an der Marke der alten haengenbleiben');
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_for'").get()?.value, undefined,
+    'ein geglueckter Lauf raeumt die Marke weg');
+});
+
 // ---- getCountries / getSubdivisions -----------------------------------------
 
 test('getCountries: prefers EN names and sorts alphabetically', async () => {

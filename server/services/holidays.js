@@ -208,6 +208,29 @@ function localHolidayFallback(country, type, year, langCode) {
 // --------------------------------------------------------
 
 /**
+ * Ein Bereich, fuer den nichts zu speichern ist - und die beiden Faelle darin
+ * gehen VERSCHIEDEN aus.
+ *
+ * Ein GESCHEITERTER Abruf sagt nichts ueber den Bestand: der bleibt liegen,
+ * dieser Bereich steht danach weiter in der alten Sprache, und `failed` haelt
+ * den Sprach-Merker offen.
+ *
+ * Ein GEGLUECKTER Abruf mit leerem Ergebnis ist dagegen eine Auskunft: hier
+ * gibt es nichts. Dann muss auch nichts liegenbleiben - sonst behielte
+ * ausgerechnet dieser Bereich seine alten, fremdsprachigen Zeilen, waehrend der
+ * Lauf als vollstaendig verbucht wird (gefunden in der PR-Durchsicht: die
+ * HTTP-erfolgreiche Leerantwort nimmt einen eigenen Weg, den der Fix fuer den
+ * Fehlerfall nicht mit abdeckte). Der Cache spiegelt die API, auch wenn sie
+ * "nichts" sagt.
+ */
+function finishEmpty(fetchFailed, country, type, year) {
+  if (fetchFailed) return { count: 0, failed: true };
+  db.get().prepare('DELETE FROM holiday_cache WHERE type = ? AND country = ? AND year = ?')
+    .run(type, country, year);
+  return { count: 0, failed: false };
+}
+
+/**
  * Ein Jahr eines Typs holen und in den Cache legen.
  *
  * @param {string} langCode Sprachcode in GROSSBUCHSTABEN, wie OpenHolidays ihn
@@ -249,9 +272,7 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
   if (!Array.isArray(holidays) || holidays.length === 0) {
     holidays = localHolidayFallback(country, type, year, langCode);
   }
-  // Ein gescheiterter Abruf OHNE Ersatz laesst den bisherigen Cache-Inhalt
-  // unangetastet - dieser Bereich steht danach weiter in der alten Sprache.
-  if (!Array.isArray(holidays) || holidays.length === 0) return { count: 0, failed: fetchFailed };
+  if (!Array.isArray(holidays) || holidays.length === 0) return finishEmpty(fetchFailed, country, type, year);
 
   // OpenHolidays liefert für Sub-Regionen abweichende Varianten desselben
   // Feiertags/derselben Ferien als eigene, mit "Exception" getaggte Einträge
@@ -262,7 +283,7 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
   // Für einen Familienkalender ist der reguläre Regions-Eintrag maßgeblich; die
   // Insel-Ausnahmen werden verworfen. (#434)
   holidays = holidays.filter((h) => !(Array.isArray(h.tags) && h.tags.includes('Exception')));
-  if (holidays.length === 0) return { count: 0, failed: fetchFailed };
+  if (holidays.length === 0) return finishEmpty(fetchFailed, country, type, year);
 
   const insert = db.get().prepare(`
     INSERT INTO holiday_cache (type, country, subdivision, start_date, end_date, name, year, group_code)
@@ -341,8 +362,15 @@ async function sync(force = false) {
   // der Monat Verzoegerung, den dieser Nachlauf abschaffen sollte, nur kuerzer.
   // Gebremst wird deshalb ausschliesslich der Wiederholungsversuch, und der
   // Merker dafuer entsteht nur, wenn wirklich etwas schiefging.
-  const retryAfterStr = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value;
-  if (!force && languageChanged && retryAfterStr) {
+  // DIE WARTEMARKE GILT FUER GENAU DIE SPRACHE, BEI DER ES SCHIEFGING. Sie
+  // trug zuerst nur einen Zeitpunkt - und bremste damit auch eine INZWISCHEN
+  // ANDERS gewaehlte Sprache aus, obwohl deren Versuch neu ist und noch nie
+  // gescheitert war (gefunden in der PR-Durchsicht). Zwei Zeilen statt eines
+  // zusammengesetzten Werts: eine Spalte mit zwei Bedeutungen waere teurer als
+  // der zweite Schluessel.
+  const retryAfterStr  = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value;
+  const retryForLang   = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_for'").get()?.value;
+  if (!force && languageChanged && retryAfterStr && retryForLang === langCode) {
     const retryAfter = new Date(retryAfterStr);
     if (!Number.isNaN(retryAfter.getTime()) && Date.now() < retryAfter.getTime()) {
       log.debug('Holiday language retry is still on hold – skipping automatic sync.');
@@ -394,10 +422,12 @@ async function sync(force = false) {
   const forget = db.get().prepare('DELETE FROM sync_config WHERE key = ?');
   if (anyFailed) {
     remember.run('holiday_language_retry_after', new Date(Date.now() + LANGUAGE_RETRY_MS).toISOString());
+    remember.run('holiday_language_retry_for', langCode);
     log.warn(`Holiday sync incomplete for ${country} - the language marker stays open so the next run retries.`);
   } else {
     remember.run('holiday_last_sync_language', langCode);
     forget.run('holiday_language_retry_after');
+    forget.run('holiday_language_retry_for');
   }
 
   log.info(`Holiday sync complete: ${total} entries for ${country}${subdivision ? '/' + subdivision : ''}`);
