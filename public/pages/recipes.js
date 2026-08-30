@@ -202,6 +202,17 @@ function openRecipeFromQuery() {
 export async function render(container) {
   _container = container;
 
+  // `state` ueberlebt den Seitenwechsel. Wer zuletzt nach "Suppe" gesucht oder
+  // auf Mealie gefiltert hat, kaeme sonst per Deep-Link auf eine Liste zurueck,
+  // in der das verlangte Rezept gar nicht steht - und der Sprung endete
+  // wortlos im Nichts. Ein benanntes Ziel schlaegt einen alten Filter, also
+  // faellt der weg, und zwar VOR dem Bau des Suchfelds, damit die Zeile darueber
+  // nicht einen Begriff zeigt, nach dem die Liste nicht mehr filtert (#936).
+  if (new URLSearchParams(window.location.search).has('open')) {
+    state.query = '';
+    state.sourceFilter = 'all';
+  }
+
   const page = document.createElement('div');
   page.className = 'recipes-page';
 

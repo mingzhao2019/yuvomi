@@ -584,6 +584,18 @@ function renderRecipeSidebar() {
   sidebar.appendChild(list);
 }
 
+/**
+ * Ist das Rezeptmodul fuer diesen Haushalt ueberhaupt erreichbar?
+ *
+ * Ein Admin kann Rezepte abschalten und Mahlzeiten anlassen; bestehende Essen
+ * behalten ihre `recipe_id`, aber `/recipes` leitet dann auf die Startseite um.
+ * Ein Knopf, der dorthin zeigt, waere ein Versprechen ins Leere - und weil er
+ * dem externen Link vorgeht, naehme er auch den noch mit (#936).
+ */
+function recipesReachable() {
+  return !window.yuvomi?.isModuleDisabled?.('recipes');
+}
+
 function renderSlot(date, type, mealsForDay, dayCol, typeRow) {
   const meals = mealsForDay.filter((m) => m.meal_type === type.key);
   // Explizite Grid-Platzierung fürs Desktop-Board (day-column/day-slots werden
@@ -644,7 +656,7 @@ function renderSlot(date, type, mealsForDay, dayCol, typeRow) {
           </span>` : ''}
         </button>
         <div class="meal-card__actions">
-          ${meal.recipe_id ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
+          ${meal.recipe_id && recipesReachable() ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
             data-action="open-linked-recipe"
             href="/recipes?open=${encodeURIComponent(meal.recipe_id)}"
             aria-label="${esc(t('meals.viewRecipeNamed', { title: meal.title }))}"
@@ -957,7 +969,12 @@ function wireDragDrop(grid) {
   grid.addEventListener('pointerdown', (e) => {
     const card = e.target.closest('.meal-card');
     if (!card) return;
-    if (e.target.closest('[data-action="delete-meal"], [data-action="transfer-meal"], [data-action="open-recipe"]')) return;
+    // Die Aktionsleiste ist kein Drag-Griff. Hier standen drei Aktionen
+    // namentlich, und die vierte (`open-linked-recipe`, #936) fehlte prompt:
+    // ihr `pointerdown` startete ein Ziehen, das Loslassen verschob das Essen
+    // in einen anderen Slot und verschluckte den Klick. Eine Liste vergisst den
+    // naechsten Knopf genauso - der Container ist die Regel.
+    if (e.target.closest('.meal-card__actions')) return;
 
     const slot = card.closest('.meal-slot');
     if (!slot) return;
