@@ -21,6 +21,67 @@ import zlib from 'node:zlib';
 
 const DEFAULT_MAX_REDIRECTS = 5;
 
+// Ein Redirect fuehrt die Anfrage woanders hin, als der Aufrufer geprueft hat.
+// Der DNS-Hook (`lookup`) reist mit und haelt private Netze weiter draußen, aber
+// zwei Dinge kann er nicht sehen, weil sie nicht an der IP haengen:
+//
+//   1. Das Schema. `new URL(location, url)` nimmt jedes an; ohne Pruefung faellt
+//      alles ausser https: auf den http-Transport - ein `file:`-Redirect wuerde
+//      als HTTP-Anfrage an den Host `file` enden, und ein https: → http: als
+//      stilles Abstreifen von TLS. Der Aufrufer hat https gewaehlt, also bleibt
+//      es dabei; ein Downgrade ist ein Fehler, keine Weiterleitung.
+//   2. Wer die Header zu sehen bekommt. `headers` traegt bei CalDAV/WebDAV/DMS
+//      ein Authorization mit Klartext-Passwort. Bis hier reichte safeRequest es
+//      unveraendert ans Redirect-Ziel weiter: ein boesartiger oder uebernommener
+//      Kalenderserver bekam die Zugangsdaten seines Opfers mit einem einzigen
+//      302 auf einen fremden Host. Browser und curl entfernen sie deshalb beim
+//      Origin-Wechsel - hier jetzt auch.
+const ALLOWED_PROTOCOLS = new Set(['https:', 'http:']);
+
+// Header, die nur dem urspruenglichen Origin gelten. Beim Origin-Wechsel fallen
+// sie weg; innerhalb desselben Origins (typisch: ein Server, der /cal auf
+// /cal/ umleitet) bleiben sie, sonst braeche jeder WebDAV-Sync.
+const ORIGIN_BOUND_HEADERS = new Set(['authorization', 'cookie', 'proxy-authorization']);
+
+/**
+ * Ziel-URL eines Redirects, oder ein Fehler. Ausgelagert und exportiert, weil
+ * sich die Regel sonst nur ueber einen echten TLS-Server pruefen liesse - ein
+ * Test, der stattdessen auf "irgendein Fehler" prueft, waere auch ohne den
+ * Downgrade-Zweig gruen.
+ *
+ * @param {URL} from        URL, die den Redirect geliefert hat
+ * @param {string} location Wert des Location-Headers (relativ erlaubt)
+ * @returns {URL}
+ */
+export function resolveRedirect(from, location) {
+  let next;
+  try {
+    next = new URL(location, from);
+  } catch {
+    throw new Error('Invalid redirect location');
+  }
+  if (!ALLOWED_PROTOCOLS.has(next.protocol)) {
+    throw new Error(`Redirect to unsupported protocol: ${next.protocol}`);
+  }
+  if (from.protocol === 'https:' && next.protocol === 'http:') {
+    throw new Error('Redirect downgrades https to http');
+  }
+  return next;
+}
+
+/**
+ * Header fuer das Redirect-Ziel. Gleicher Origin (Schema + Host + Port) → alles
+ * unveraendert; sonst ohne die origin-gebundenen Zugangsdaten.
+ */
+export function headersForRedirect(headers, from, to) {
+  if (from.origin === to.origin) return headers;
+  const out = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (!ORIGIN_BOUND_HEADERS.has(name.toLowerCase())) out[name] = value;
+  }
+  return out;
+}
+
 // node:http sendet standardmäßig KEINEN User-Agent/Accept/Accept-Encoding-Header;
 // node-fetch tat das (`User-Agent: node-fetch`, `Accept: */*`, `Accept-Encoding:
 // gzip, deflate, br`) und dekomprimierte transparent. Diese Defaults halten das
@@ -143,9 +204,21 @@ export function safeRequest(rawUrl, {
           reject(new Error('Too many redirects'));
           return;
         }
-        const next = new URL(res.headers.location, url).href;
-        resolve(safeRequest(next, {
-          method, headers, body, lookup, signal, redirect, maxRedirects: maxRedirects - 1,
+        let next;
+        try {
+          next = resolveRedirect(url, res.headers.location);
+        } catch (err) {
+          reject(err);
+          return;
+        }
+        resolve(safeRequest(next.href, {
+          method,
+          headers: headersForRedirect(headers, url, next),
+          body,
+          lookup,
+          signal,
+          redirect,
+          maxRedirects: maxRedirects - 1,
         }));
         return;
       }

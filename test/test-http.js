@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import zlib from 'node:zlib';
 
-import { safeRequest } from '../server/utils/http.js';
+import { safeRequest, resolveRedirect, headersForRedirect } from '../server/utils/http.js';
 
 function startServer(handler) {
   const server = http.createServer(handler);
@@ -241,6 +241,122 @@ test('Redirect-Cap: zu viele Redirects → Fehler', async () => {
       () => safeRequest(`${base}/loop`, { maxRedirects: 2 }),
       /redirect/i,
     );
+  } finally {
+    await close();
+  }
+});
+
+// --------------------------------------------------------
+// Redirect-Haertung (#937)
+// --------------------------------------------------------
+// Der DNS-Hook sieht nur IPs. Schema-Wechsel und Empfaengerwechsel der Header
+// muessen deshalb hier geprueft werden - beides kann ein Ziel-Server ausloesen.
+
+test('Redirect auf ein fremdes Protokoll wird abgelehnt', async () => {
+  const { base, close } = await startServer((req, res) => {
+    res.writeHead(302, { Location: 'file:///etc/passwd' });
+    res.end();
+  });
+  try {
+    await assert.rejects(
+      () => safeRequest(`${base}/start`),
+      /unsupported protocol/i,
+    );
+  } finally {
+    await close();
+  }
+});
+
+test('resolveRedirect: https → http wird abgelehnt (kein stilles TLS-Downgrade)', () => {
+  const from = new URL('https://cal.example/dav/');
+  assert.throws(() => resolveRedirect(from, 'http://cal.example/dav/'), /downgrade/i);
+  assert.throws(() => resolveRedirect(from, 'http://anderswo.example/'), /downgrade/i);
+});
+
+test('resolveRedirect: erlaubte Wechsel bleiben erlaubt', () => {
+  // http → https ist ein Upgrade, http → http der Normalfall, und ein relatives
+  // Location erbt sein Schema von der Quelle.
+  assert.equal(
+    resolveRedirect(new URL('http://cal.example/a'), 'https://cal.example/b').href,
+    'https://cal.example/b',
+  );
+  assert.equal(
+    resolveRedirect(new URL('http://cal.example/a'), 'http://cal.example/b').href,
+    'http://cal.example/b',
+  );
+  assert.equal(
+    resolveRedirect(new URL('https://cal.example/a'), '/b').href,
+    'https://cal.example/b',
+  );
+});
+
+test('resolveRedirect: fremde Protokolle und unlesbare Ziele werfen', () => {
+  const from = new URL('https://cal.example/a');
+  assert.throws(() => resolveRedirect(from, 'file:///etc/passwd'), /unsupported protocol/i);
+  assert.throws(() => resolveRedirect(from, 'ftp://cal.example/x'), /unsupported protocol/i);
+  assert.throws(() => resolveRedirect(from, 'http://['), /invalid redirect/i);
+});
+
+test('headersForRedirect: Origin entscheidet ueber die Zugangsdaten', () => {
+  const headers = { Authorization: 'Basic x', Cookie: 'sid=1', 'User-Agent': 'Yuvomi' };
+  const from = new URL('https://cal.example/a');
+
+  // Gleicher Origin: unveraendert (dieselbe Referenz, kein Kopieraufwand).
+  assert.equal(headersForRedirect(headers, from, new URL('https://cal.example/b')), headers);
+
+  // Anderer Port und anderes Schema sind eigene Origins, nicht nur ein anderer Host.
+  for (const target of ['https://boese.example/', 'https://cal.example:8443/', 'http://cal.example/']) {
+    const out = headersForRedirect(headers, from, new URL(target));
+    assert.deepEqual(out, { 'User-Agent': 'Yuvomi' }, `Zugangsdaten an ${target} durchgereicht`);
+  }
+});
+
+test('Redirect auf fremden Origin entfernt Authorization und Cookie', async () => {
+  let seen = null;
+  const target = await startServer((req, res) => {
+    seen = req.headers;
+    res.writeHead(200);
+    res.end('ziel');
+  });
+  // Zweiter Server = zweiter Port = fremder Origin.
+  const source = await startServer((req, res) => {
+    res.writeHead(302, { Location: `${target.base}/final` });
+    res.end();
+  });
+  try {
+    const resp = await safeRequest(`${source.base}/start`, {
+      headers: { Authorization: 'Basic Z2VoZWlt', Cookie: 'sid=abc', 'X-Harmlos': 'ja' },
+    });
+    assert.equal(resp.status, 200);
+    assert.equal(seen.authorization, undefined, 'Authorization darf den Origin nicht verlassen');
+    assert.equal(seen.cookie, undefined, 'Cookie darf den Origin nicht verlassen');
+    assert.equal(seen['x-harmlos'], 'ja', 'sonstige Header bleiben erhalten');
+  } finally {
+    await source.close();
+    await target.close();
+  }
+});
+
+test('Redirect innerhalb desselben Origins behaelt Authorization', async () => {
+  let seen = null;
+  const { base, close } = await startServer((req, res) => {
+    if (req.url === '/start') {
+      res.writeHead(302, { Location: '/final' });
+      res.end();
+      return;
+    }
+    seen = req.headers;
+    res.writeHead(200);
+    res.end('ziel');
+  });
+  try {
+    // Der Normalfall jedes WebDAV-Servers, der /cal auf /cal/ umleitet: ohne die
+    // Zugangsdaten braeche der Sync mit 401 ab.
+    const resp = await safeRequest(`${base}/start`, {
+      headers: { Authorization: 'Basic Z2VoZWlt' },
+    });
+    assert.equal(resp.status, 200);
+    assert.equal(seen.authorization, 'Basic Z2VoZWlt');
   } finally {
     await close();
   }
