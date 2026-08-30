@@ -92,6 +92,10 @@ const APP_SHELL = [
   // Dateisystem; Fetch-Routing für diese Pfade → SHELL_CACHE (isMutableAppResource).
   '/nav-icons.js',
   '/permissions.js',
+  // Der Router laedt ihn als Seiteneffekt (`import '/components/datepicker.js'`),
+  // also gehoert er in die Shell, nicht zu den Seitenmodulen. Der
+  // Precache-Guard sah diese Import-Form bis #944 nicht.
+  '/components/datepicker.js',
   '/components/detail-view.js',
   '/components/document-attach.js',
   '/components/modal.js',

@@ -1216,6 +1216,69 @@ test('eine unbrauchbare Empfaengeradresse wird beim Speichern abgelehnt, nicht b
   );
 });
 
+test('eine Adressliste wird abgelehnt - ein Kanal, ein Ziel (#944)', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const store = createNotificationChannelStore({ db: makeDb() });
+  // nodemailer liest `to` als LISTE. "a@example.com,postmaster" waeren zwei
+  // Empfaenger im Umschlag - die Zusage "eine Adresse je Kanal" waere gebrochen
+  // und der Zustellstatus des Kanals truege zwei Wahrheiten. Die Zaehlung der
+  // @ allein faengt das nicht: der zweite Eintrag braucht gar keines.
+  for (const listy of ['a@example.com,postmaster', 'a@example.com,b@example.com', 'a@example.com;b@example.com']) {
+    assert.throws(
+      () => store.createChannel({ provider: 'email', name: 'Liste', config: { toAddress: listy } }),
+      /email address/i,
+      `${listy} muss abgelehnt werden`
+    );
+  }
+});
+
+test('der Betreff einer Erinnerungsmail bleibt aus dem Log (#944)', async () => {
+  const { emailProvider } = await import('../server/services/notification-providers/email.js');
+  // `emailService.sendMail` schreibt Empfaenger und Betreff auf info. Solange
+  // dort nur Passwort-Reset und Einladung liefen, war der Betreff fest. Eine
+  // Erinnerung traegt darin den Aufgaben- oder Terminnamen - bei einer
+  // Medikamenten-Erinnerung einen Gesundheitsdatensatz, der sonst dauerhaft
+  // auf stdout des Containers liegt.
+  const mailer = fakeMailer();
+  await emailProvider.send({
+    channel: { config: { toAddress: 'oma@example.org' } },
+    payload: { title: 'Gesundheit', body: 'Metformin 500mg' },
+    emailService: mailer,
+    env: {},
+  });
+  const mail = mailer.sent[0];
+  assert.match(mail.subject, /Metformin/, 'in der Mail steht er - dafuer ist sie da');
+  assert.ok(mail.logLabel, 'aber fuers Log gibt der Aufrufer eine Gattung an');
+  assert.doesNotMatch(mail.logLabel, /Metformin/);
+  assert.doesNotMatch(mail.logLabel, /Gesundheit/);
+});
+
+test('der Mail-Transport gibt vor dem Aufrufer auf (#944)', async () => {
+  // Reihenfolge der Zeitschranken, und sie ist der ganze Punkt: gibt der
+  // Transport zuerst auf, ist die Verbindung zu und ein erneuter Versuch
+  // redlich. Gaebe der Aufrufer zuerst auf, liefe der Versand darunter weiter -
+  // die Zustellung gaelte als gescheitert, wuerde wiederholt, und die Mail kaeme
+  // womoeglich zweimal an.
+  const { createEmailService } = await import('../server/services/email.js');
+  const db = makeDb();
+  db.prepare("INSERT INTO sync_config (key, value) VALUES ('email_smtp_host', 'smtp.example.test')").run();
+  db.prepare("INSERT INTO sync_config (key, value) VALUES ('email_from_address', 'yuvomi@example.test')").run();
+  let opts = null;
+  const service = createEmailService({
+    db,
+    env: {},
+    nodemailer: { createTransport: (o) => { opts = o; return { sendMail: async () => ({ messageId: 'x' }) }; } },
+  });
+  await service.sendMail({ to: 'a@b.de', subject: 's', text: 't', html: '<p>t</p>' });
+
+  const { PROVIDER_TIMEOUT_MS } = await import('../server/services/notifications.js');
+  for (const key of ['connectionTimeout', 'greetingTimeout', 'socketTimeout']) {
+    assert.ok(Number.isFinite(opts[key]), `${key} muss gesetzt sein - sonst wartet nodemailer unbegrenzt`);
+    assert.ok(opts[key] < PROVIDER_TIMEOUT_MS,
+      `${key} (${opts[key]}) muss unter dem Abbruch des Aufrufers (${PROVIDER_TIMEOUT_MS}) liegen`);
+  }
+});
+
 test('eine pathologische Adresse prallt ab, statt den Server anzuhalten (#944)', async () => {
   const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
   const store = createNotificationChannelStore({ db: makeDb() });

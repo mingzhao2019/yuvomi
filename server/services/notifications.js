@@ -24,7 +24,10 @@ const APP_NAME = 'Yuvomi';
 const FALLBACK_BODY = 'Reminder';
 const RETRY_DELAY_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
-const PROVIDER_TIMEOUT_MS = 8_000;
+// Exportiert, damit die Zeitschranken des Mail-Transports (services/email.js)
+// dagegen gepruefte werden koennen statt gegen eine abgeschriebene Zahl: die
+// Staffelung ist die Zusicherung, nicht der einzelne Wert.
+export const PROVIDER_TIMEOUT_MS = 8_000;
 
 export const defaultProviders = {
   gotify: gotifyProvider,

@@ -107,12 +107,22 @@ export const emailProvider = {
       subject: subjectFor(payload),
       text: renderText(payload, link),
       html: renderHtml(payload, link),
+      // Der Betreff traegt hier Nutzerdaten - bei einer Medikamenten-Erinnerung
+      // einen Gesundheitsdatensatz. Er gehoert in die Mail, nicht ins Log.
+      logLabel: 'reminder notification',
     });
 
-    // NODEMAILER KENNT KEIN AbortSignal. Ohne dieses Rennen haengt der ganze
-    // Erinnerungslauf an einem SMTP-Server, der die Verbindung offen laesst -
-    // und der Lauf arbeitet alle faelligen Erinnerungen nacheinander ab. Die
-    // Verbindung selbst bricht dadurch nicht ab; was abbricht, ist das Warten.
+    // NODEMAILER KENNT KEIN AbortSignal, deshalb dieses Rennen - aber es ist das
+    // ZWEITE Netz, nicht das erste. Das erste sind die Zeitschranken am
+    // Transport (services/email.js): sie sind knapper gesetzt als der Abbruch
+    // des Aufrufers, damit im Regelfall nodemailer selbst aufgibt und die
+    // Verbindung wirklich zu ist. Nur dann ist ein erneuter Versuch redlich.
+    //
+    // Greift trotzdem das Rennen hier, laeuft der Versand darunter weiter: die
+    // Zustellung gilt als gescheitert, wird wiederholt, und die Mail kann
+    // zweimal ankommen. Das ist bewusst der guenstigere Fehler. Die Alternative
+    // waere ein Lauf, der an einem stummen Server haengt - und der haelt nicht
+    // eine Meldung auf, sondern alle, fuer alle, bei jedem Weckruf erneut.
     if (!signal) return send.then(() => ({ ok: true }));
     if (signal.aborted) throw new Error('Email delivery timed out.');
     return Promise.race([
