@@ -1089,6 +1089,54 @@ test('personal account leaf preserves self-profile, password, and logout contrac
   assert.match(source, /role="alert"[^>]*>\$\{t\('settings\.loadError'\)\}/);
 });
 
+test('#934: die Waehrung steht ausserhalb der ausblendbaren Formatkarte', () => {
+  // DIE FALLE. Die Formatkarte traegt `${customHidden ? ' hidden' : ''}`, und
+  // customHidden ist wahr, solange eine Region-Voreinstellung EXAKT auf die
+  // gespeicherten Werte passt. Solange die Waehrung dort drin lag, hiess das:
+  // sichtbar wurde sie erst, WENN man sie schon einmal geaendert hatte - denn
+  // dann passt kein Preset mehr und die Karte klappt auf. Wer sie suchte, fand
+  // sie nie; der Wegweiser aus den Modul-Optionen fuehrte auf eine leere Stelle.
+  //
+  // Geprueft wird die Reihenfolge im Quelltext, weil die Sichtbarkeit an der
+  // Kartenzugehoerigkeit haengt: das Select muss VOR dem oeffnenden Tag der
+  // Formatkarte stehen, also ausserhalb von ihr.
+  const source = read('../public/settings/pages/personal-appearance.js');
+
+  const currencyAt = source.indexOf('id="currency-select"');
+  const customAt   = source.indexOf('id="custom-formats"');
+  assert.ok(currencyAt > 0, 'das Waehrungsfeld existiert');
+  assert.ok(customAt > 0, 'die ausblendbare Formatkarte existiert');
+  assert.ok(currencyAt < customAt,
+    'das Waehrungsfeld liegt in der ausblendbaren Formatkarte - genau der Zustand aus #934');
+
+  // Und die Karte blendet weiterhin aus, was zu ihr gehoert: Datum und Uhrzeit
+  // sagen, WIE ein Wert dasteht, und folgen dem Preset. Ohne diese Zusicherung
+  // liesse sich #934 auch dadurch "loesen", dass gar nichts mehr ausblendet.
+  assert.match(source, /id="custom-formats"\$\{customHidden \? ' hidden' : ''\}/);
+  assert.ok(source.indexOf('id="date-format-select"') > customAt,
+    'das Datumsformat gehoert weiterhin in die ausblendbare Karte');
+  assert.ok(source.indexOf('id="time-format-select"') > customAt,
+    'das Zeitformat gehoert weiterhin in die ausblendbare Karte');
+
+  // Und die Folge daraus: eine Waehrungsaenderung kann die Region auf
+  // "Benutzerdefiniert" schieben, ohne dass der Nutzer die Formatkarte je
+  // gesehen hat. Stuende sie dann weiter auf `hidden`, behauptete der
+  // Region-Select etwas, das die Seite nicht zeigt - deshalb zieht
+  // syncRegionSelect die Sichtbarkeit mit.
+  // Der Rumpf wird ausgeschnitten, nicht ueberspannt: ein `[\s\S]*?` ab
+  // `function syncRegionSelect(` findet den naechsten Aufruf irgendwo in der
+  // Datei und bleibt gruen, wenn der IN der Funktion fehlt. Genau das ist der
+  // ersten Fassung dieser Zusicherung passiert.
+  const syncStart = source.indexOf('function syncRegionSelect(');
+  assert.ok(syncStart > 0, 'syncRegionSelect existiert');
+  const syncBody = source.slice(syncStart, source.indexOf('\n}', syncStart));
+  assert.match(syncBody, /applyCustomVisibility\(container, regionSelect\.value\)/,
+    'syncRegionSelect zieht die Sichtbarkeit der Formatkarte nicht mit');
+  // Die Sichtbarkeit haengt an EINER Regel, nicht an drei Handlern: ausser der
+  // Helferfunktion setzt niemand mehr `hidden` an dieser Karte.
+  assert.equal([...source.matchAll(/customBlock\.hidden/g)].length, 1);
+});
+
 test('personal appearance leaf owns theme, locale, and regional preferences', () => {
   const source = read('../public/settings/pages/personal-appearance.js');
 

@@ -292,6 +292,26 @@ function renderPage(container, preferences, isAdmin) {
           </select>
         </div>
         <div id="region-error" class="form-error" role="alert" hidden></div>
+        <!-- Die Waehrung stand bis #934 in der Formatkarte darunter, die
+             ausgeblendet ist, solange eine Region-Voreinstellung genau passt.
+             Das ergab eine Falle mit Ansage: sichtbar wurde das Feld erst, WENN
+             man die Waehrung schon einmal geaendert hatte (dann passt kein
+             Preset mehr und die Karte klappt auf) - wer sie suchte, fand sie
+             also nie. Der Wegweiser aus den Modul-Optionen fuehrte genau
+             dorthin, wo nichts zu sehen war.
+
+             Sie steht jetzt hier, weil sie kein Format ist: Datum und Uhrzeit
+             sagen, WIE ein Wert dasteht, und folgen dem Ort. Die Waehrung folgt
+             dem Geld, und das ist nicht dasselbe - ein Haushalt kann sehr wohl
+             deutsche Formate und ein Konto in Dollar haben. Die Region belegt
+             sie weiterhin vor; das bleibt der bequeme Weg, nur nicht mehr der
+             einzige. -->
+        <div class="form-group">
+          <label class="form-label" for="currency-select">${t('settings.currencyLabel')}</label>
+          <select class="form-input" id="currency-select" aria-describedby="currency-hint currency-error"></select>
+        </div>
+        <p class="form-hint" id="currency-hint">${t('settings.currencyHint')}</p>
+        <div id="currency-error" class="form-error" role="alert" hidden></div>
       </div>` : `
       <div class="settings-card">
         <p class="form-hint">${t('settings.regionAdminOnly')}</p>
@@ -315,12 +335,6 @@ function renderPage(container, preferences, isAdmin) {
         <p class="form-hint">${esc(t('settings.timezoneAuto', { zone: preferences.timezone_effective || 'UTC' }))}</p>`}
       </div>
       <div class="settings-card" id="custom-formats"${customHidden ? ' hidden' : ''}>
-        ${isAdmin ? `
-        <div class="form-group">
-          <label class="form-label" for="currency-select">${t('settings.currencyLabel')}</label>
-          <select class="form-input" id="currency-select" aria-describedby="currency-error"></select>
-        </div>
-        <div id="currency-error" class="form-error" role="alert" hidden></div>` : ''}
         <p class="form-hint" id="formats-household-hint">${t('settings.formatsHouseholdHint')}</p>
         <div class="form-group">
           <label class="form-label" for="date-format-select">${t('settings.dateFormatLabel')}</label>
@@ -384,6 +398,20 @@ function readFormatState(container) {
 
 // Hält den Region-Dropdown mit den drei Einzel-Selects synchron (Preset oder
 // "Benutzerdefiniert"), nachdem ein Einzelwert manuell geändert wurde.
+/**
+ * Blendet die Formatkarte passend zur aufgeloesten Region ein oder aus.
+ *
+ * Eine eigene Funktion, weil zwei verschiedene Wege hier hineinfuehren und nur
+ * einer von beiden `detectRegion` benutzen darf: der Regionswechsel kennt die
+ * gewaehlte Region und muss sie behalten (sonst springt der Select auf die
+ * erste Region mit gleichem Format-Triple, #486), waehrend eine Aenderung an
+ * einem Einzelfeld die Region erst herleiten muss.
+ */
+function applyCustomVisibility(container, region) {
+  const customBlock = container.querySelector('#custom-formats');
+  if (customBlock) customBlock.hidden = region !== CUSTOM_REGION;
+}
+
 function syncRegionSelect(container) {
   const regionSelect = container.querySelector('#region-select');
   if (!regionSelect) return;
@@ -392,6 +420,11 @@ function syncRegionSelect(container) {
     date_format: container.querySelector('#date-format-select')?.value,
     time_format: container.querySelector('#time-format-select')?.value,
   });
+  // Die Karte muss der Anzeige folgen. Seit die Waehrung ausserhalb von ihr
+  // steht (#934), kann eine Aenderung die Region auf "Benutzerdefiniert"
+  // schieben, ohne dass der Nutzer die Karte je gesehen hat - stuende sie dann
+  // weiter auf `hidden`, behauptete der Select etwas, das die Seite nicht zeigt.
+  applyCustomVisibility(container, regionSelect.value);
 }
 
 /**
@@ -521,9 +554,8 @@ function bindEvents(container, user) {
 
   const regionSelect = container.querySelector('#region-select');
   regionSelect?.addEventListener('change', async () => {
-    const customBlock = container.querySelector('#custom-formats');
     if (regionSelect.value === CUSTOM_REGION) {
-      if (customBlock) customBlock.hidden = false;
+      applyCustomVisibility(container, CUSTOM_REGION);
       return;
     }
     const preset = REGION_PRESETS[regionSelect.value];
@@ -560,7 +592,7 @@ function bindEvents(container, user) {
       window.dispatchEvent(new CustomEvent('time-format-changed', {
         detail: { timeFormat: preset.time_format },
       }));
-      if (customBlock) customBlock.hidden = true;
+      applyCustomVisibility(container, regionSelect.value);
       // Scheitert das Nachladen, bleibt nur das Automatik-Label stale - kein
       // Grund, den erfolgreichen Regionswechsel als Fehler zu melden.
       await refreshDataLanguageOptions(container).catch(() => {});
