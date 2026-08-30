@@ -1203,6 +1203,43 @@ test('eine unbrauchbare Empfaengeradresse wird beim Speichern abgelehnt, nicht b
   // Adresse zwei Header. Er darf gar nicht erst in die Datenbank.
   reject('a@c.de\nBcc: fremd@example.org', 'mit Zeilenumbruch (Header-Injection)');
   reject('a@c.de\r\nBcc: fremd@example.org', 'mit CRLF (Header-Injection)');
+  reject('a@.de', 'Punkt direkt hinter dem @');
+  reject('a@de.', 'Punkt am Ende der Domain');
+  reject('@example.org', 'nichts vor dem @');
+  reject('a@b@c.de', 'zwei @');
+  reject(`${'a'.repeat(250)}@example.org`, 'laenger als RFC 5321 erlaubt');
+  // Und die Gegenprobe, damit die Pruefung nicht einfach alles ablehnt:
+  assert.equal(
+    store.createChannel({ provider: 'email', name: 'Ok', config: { toAddress: 'vor.name+tag@sub.example.co.uk' } }).config.toAddress,
+    'vor.name+tag@sub.example.co.uk',
+    'eine gewoehnliche Adresse mit Punkt, Plus und Subdomain geht durch'
+  );
+});
+
+test('eine pathologische Adresse prallt ab, statt den Server anzuhalten (#944)', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const store = createNotificationChannelStore({ db: makeDb() });
+  // DIE ERSTE FASSUNG PRUEFTE MIT `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`. Deren beide
+  // Teile hinter dem @ ueberlappen sich - `[^\s@]` deckt auch den Punkt -, also
+  // probiert die Engine bei einer langen Eingabe OHNE Treffer jede Aufteilung
+  // von "Domain.TLD" durch. Sauber quadratisch: 1 kB kostete 1 ms, 8 kB schon
+  // 53 ms, die 80 kB hier gut fuenf Sekunden. Node arbeitet einaedrig - der
+  // ganze Server steht so lange.
+  //
+  // DAS SCHLUSS-@ IST DIE POINTE, nicht Beiwerk. Der erste Anlauf haengte ein
+  // Leerzeichen an; `trim()` nahm es weg, und was blieb, war eine GUELTIGE
+  // Adresse. Der Test wurde damals rot, weil kein Fehler kam - nicht wegen der
+  // Zeit. Er haette einen Rueckfall nicht bemerkt. Ein `@` ist von `[^\s@]`
+  // ausgeschlossen und ueberlebt das Trimmen, also scheitert der Match wirklich
+  // und die Engine backtrackt sich durch die ganze Laenge.
+  const evil = `a@${'!.'.repeat(40_000)}@`;
+  const started = process.hrtime.bigint();
+  assert.throws(() => store.createChannel({ provider: 'email', name: 'Evil', config: { toAddress: evil } }), /email address/i);
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+  // Grosszuegig: die lineare Fassung liegt unter einer Millisekunde, die
+  // backtrackende bei dieser Laenge um das Tausendfache darueber. Zwischen
+  // beiden ist so viel Platz, dass die Schranke auf keiner Maschine wackelt.
+  assert.ok(elapsedMs < 250, `Die Pruefung brauchte ${elapsedMs.toFixed(0)} ms - das riecht nach Backtracking`);
 });
 
 test('eine Erinnerungsmail escapet die Nutzerdaten, die sie traegt (#944)', async () => {
