@@ -469,7 +469,11 @@ async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
 
   try {
-    const response = await fetch(request);
+    // Revalidate the browser HTTP cache as well as Cache Storage. Custom builds
+    // can change shared modules without changing the upstream app version; a
+    // default-cache fetch could otherwise combine a fresh page module with an
+    // older shared dependency until the HTTP cache expired.
+    const response = await fetch(new Request(request, { cache: 'no-cache' }));
     if (response.ok && response.type === 'basic') {
       cache.put(request, response.clone());
     }

@@ -54,6 +54,34 @@ test('normalizes Graph pagination links before calling the v1.0 helper', () => {
   assert.equal(outlook.__test.graphPath('https://evil.example/v1.0/me'), null);
 });
 
+test('existing To Do recurrence is provider-owned while unrelated fields remain editable', () => {
+  const task = {
+    external_source: 'microsoft_todo',
+    is_recurring: 1,
+    recurrence_rule: 'FREQ=MONTHLY;INTERVAL=3',
+    recurrence_from_completion: 0,
+  };
+
+  assert.equal(todo.changesMicrosoftTodoRecurrence(task, { title: 'Renamed' }), false);
+  assert.equal(todo.changesMicrosoftTodoRecurrence(task, {
+    is_recurring: 1,
+    recurrence_rule: 'FREQ=MONTHLY;INTERVAL=3',
+    recurrence_from_completion: 0,
+    description: 'Still editable',
+  }), false);
+  assert.equal(todo.changesMicrosoftTodoRecurrence(task, {
+    recurrence_rule: 'FREQ=MONTHLY;INTERVAL=4',
+  }), true);
+  assert.equal(todo.changesMicrosoftTodoRecurrence(task, {
+    is_recurring: 0,
+    recurrence_rule: null,
+  }), true);
+  assert.equal(todo.changesMicrosoftTodoRecurrence(
+    { ...task, external_source: 'local' },
+    { recurrence_rule: 'FREQ=MONTHLY;INTERVAL=4' },
+  ), false);
+});
+
 test('converts To Do due dates through the household timezone and keeps date-only values', () => {
   assert.deepEqual(
     todo.__test.dueDateParts({

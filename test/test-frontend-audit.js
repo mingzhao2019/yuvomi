@@ -5636,11 +5636,18 @@ test('Tasks view switch keeps one horizontal desktop position in every view', ()
 
 test('synced Microsoft To Do tasks keep recurrence editing in To Do', () => {
   const tasksPage = read('../public/pages/tasks.js');
+  const tasksRoute = read('../server/routes/tasks.js');
 
   assert.match(tasksPage, /const todoRecurrenceLocked = isEdit && task[?][.]external_source === 'microsoft_todo'/);
   assert.match(tasksPage, /disabled: todoRecurrenceLocked/);
   assert.match(tasksPage, /tasks.todoRecurrenceEditHint/);
   assert.match(tasksPage, /task-recurrence-lock-hint/);
+  assert.match(tasksPage, /function enforceMicrosoftTodoRecurrenceLock\(/);
+  assert.match(tasksPage, /control[.]disabled = true/);
+  assert.match(tasksPage, /microsoft_todo_recurrence_managed/);
+  assert.match(tasksRoute, /changesMicrosoftTodoRecurrence\(task, req[.]body\)/);
+  assert.match(tasksRoute, /status\(409\)/);
+  assert.match(tasksRoute, /reason: 'microsoft_todo_recurrence_managed'/);
 });
 
 test('Tasks and Notes expose every click target as a real control', () => {

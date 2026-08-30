@@ -64,9 +64,13 @@ class MockRequest {
     if (input instanceof MockRequest) {
       this.url = input.url;
       this.method = init.method || input.method;
+      this.mode = init.mode || input.mode;
+      this.cache = init.cache || input.cache;
     } else {
       this.url = String(input);
       this.method = init.method || 'GET';
+      this.mode = init.mode;
+      this.cache = init.cache;
     }
   }
 }
@@ -150,6 +154,22 @@ async function dispatchMessage(env, data) {
 async function apiCacheName(env) {
   return (await env.caches.keys()).find((n) => n.startsWith('yuvomi-api-'));
 }
+
+test('mutable app resources revalidate the browser HTTP cache', async () => {
+  let fetched;
+  const env = loadSw({
+    fetchImpl: async (request) => {
+      fetched = request;
+      return new MockResponse('export const fresh = true;', { status: 200 });
+    },
+  });
+  const req = new MockRequest(`${ORIGIN}/rrule-ui.js`, { method: 'GET' });
+
+  const { responded, result } = dispatchFetch(env, req);
+  assert.equal(responded, true);
+  await result;
+  assert.equal(fetched.cache, 'no-cache');
+});
 
 // --------------------------------------------------------
 // Tests

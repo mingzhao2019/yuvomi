@@ -1577,6 +1577,23 @@ function wireCountdownGate(panel) {
   update();
 }
 
+function enforceMicrosoftTodoRecurrenceLock(panel, task) {
+  if (task?.external_source !== 'microsoft_todo') return;
+  const fields = panel.querySelector('#task-rrule-fields');
+  if (!fields) return;
+
+  // Apply the lock to the mounted controls as well as to generated HTML. This
+  // keeps the form safe if a same-release PWA briefly combines a fresh tasks
+  // page with an older shared recurrence module.
+  fields.classList.add('rrule-fields--disabled');
+  fields.setAttribute('aria-disabled', 'true');
+  fields.dataset.rruleReadonly = 'true';
+  fields.querySelectorAll('input:not([type="hidden"]), select, button, yuvomi-datepicker').forEach((control) => {
+    control.disabled = true;
+    control.setAttribute('disabled', '');
+  });
+}
+
 function openTaskModal({ task = null, users = [], reminder = null } = {}, container) {
   const isEdit = !!task;
   // Working-Set VOR dem Rendern setzen: renderTagChips liest ihn direkt danach.
@@ -1614,6 +1631,7 @@ function taskDocumentVisibility(panel) {
 
 function wireTaskForm(panel, { task = null, container }) {
   panel.querySelector('.modal-panel__body')?.classList.add('modal-panel__body--tasks-fit');
+  enforceMicrosoftTodoRecurrenceLock(panel, task);
   // RRULE-Events binden
   bindRRuleEvents(document, 'task');
   bindUserMultiSelect(panel, 'task_assigned');
@@ -2829,7 +2847,11 @@ async function handleFormSubmit(e, container) {
     await refreshTags();
     await loadTasks(container);
   } catch (err) {
-    resetSubmit(err.message);
+    resetSubmit(
+      err?.data?.reason === 'microsoft_todo_recurrence_managed'
+        ? t('tasks.todoRecurrenceEditHint')
+        : err.message,
+    );
     btnError(submitBtn);
   }
 }

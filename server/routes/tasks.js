@@ -17,7 +17,7 @@ import {
   flushOutbound, markTodoOutbound, queueTodoDeletion,
 } from '../services/caldav-todo-outbound.js';
 import {
-  markTaskOutbound, queueTaskDeletion, sync as syncMicrosoftTodo,
+  changesMicrosoftTodoRecurrence, markTaskOutbound, queueTaskDeletion, sync as syncMicrosoftTodo,
 } from '../services/microsoft-todo.js';
 import { uniqueKey } from '../utils/category-slug.js';
 import { toLocalDateKey } from '../../public/utils/date.js';
@@ -1576,6 +1576,17 @@ router.put('/:id', (req, res) => {
     // 404 statt 403: ob es die Aufgabe gibt, ist selbst schon eine Auskunft.
     if (!mayAccessTask(task, req.authUserId || req.session.userId)) {
       return res.status(404).json({ error: 'Task not found.', code: 404 });
+    }
+
+    // Graph rejects recurrence PATCHes for existing To Do tasks. Reject the
+    // impossible local-only edit instead of reporting success and letting the
+    // next Delta sync silently restore Microsoft's old rule.
+    if (changesMicrosoftTodoRecurrence(task, req.body)) {
+      return res.status(409).json({
+        error: 'Microsoft To Do manages this task recurrence. Change it in Microsoft To Do.',
+        code: 409,
+        reason: 'microsoft_todo_recurrence_managed',
+      });
     }
 
     const errors = validateTaskInput(req.body, false, task.recurrence_rule);

@@ -28,6 +28,23 @@ const log = createLogger('MicrosoftToDo');
 
 export const MICROSOFT_TODO_PROVIDER = 'microsoft_todo';
 export const MICROSOFT_TODO_SOURCE = 'microsoft_todo';
+
+/**
+ * Existing Microsoft To Do recurrence is provider-owned because Graph rejects
+ * recurrence PATCHes. A stale or custom client must not be allowed to persist
+ * a local-only rule that the next Delta pass will silently overwrite.
+ */
+export function changesMicrosoftTodoRecurrence(task, input = {}) {
+  if (task?.external_source !== MICROSOFT_TODO_SOURCE) return false;
+  const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
+  const flag = (value) => Number(value) === 1 ? 1 : 0;
+  const rule = (value) => String(value ?? '');
+  return (has('is_recurring') && flag(input.is_recurring) !== flag(task.is_recurring))
+    || (has('recurrence_rule') && rule(input.recurrence_rule) !== rule(task.recurrence_rule))
+    || (has('recurrence_from_completion')
+      && flag(input.recurrence_from_completion) !== flag(task.recurrence_from_completion));
+}
+
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const OUTBOUND_IN_FLIGHT = 2;
 // Delta is intentionally cheap for normal polling, but it is not sufficient to
