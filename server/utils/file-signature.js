@@ -84,7 +84,17 @@ SIGNATURES.set('image/jpg', SIGNATURES.get('image/jpeg'));
  */
 export function contentMatchesMime(buffer, mime) {
   const check = SIGNATURES.get(String(mime || '').toLowerCase());
-  if (!check) return true;
+  // `typeof` statt eines blossen Wahrheitstests: `mime` kommt vom Absender, und
+  // eine Nachschlagetabelle, die mit einem fremden Schluessel etwas anderes als
+  // die eigenen Werte herausgibt, ist die Wurzel der Prototype-Pollution. Eine
+  // `Map` hat dieses Loch nicht - `SIGNATURES.get('toString')` ist `undefined`,
+  // wo ein Objektliteral `Object.prototype.toString` geliefert haette, und genau
+  // deshalb steht hier eine. Die Pruefung ist damit redundant; sie bleibt, weil
+  // sie die Zusicherung an der Stelle festhaelt, an der sie gilt, statt in der
+  // Wahl der Datenstruktur zu verschwinden - und weil CodeQL den Unterschied
+  // zwischen Map und Objekt nicht sieht und den Aufruf sonst als
+  // `js/unvalidated-dynamic-method-call` meldet.
+  if (typeof check !== 'function') return true;
   if (!buffer || !buffer.length) return false;
   return check(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer));
 }
