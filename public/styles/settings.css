@@ -2765,6 +2765,16 @@
   --seal-accent: var(--module-row-accent, var(--color-accent));
 }
 
+/* Das Zeichen fuellt die Scheibe - es TAT das schon, aber aus Versehen: das
+ * SVG hatte kein eigenes Mass und nahm deshalb die Breite dieser Box. Seit
+ * #949 bringt jedes Modulzeichen sein Grundmass mit (24, wie der
+ * Lucide-Rueckfall), damit es in einer flexiblen Zeile nicht mehr ausufert.
+ * Diese Zeile schreibt fest, was hier vorher zufaellig herauskam. */
+.settings-module-row__icon .module-glyph {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
 .settings-module-row__body {
   min-width: 0;
 }

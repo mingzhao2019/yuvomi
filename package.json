@@ -72,6 +72,7 @@
     "test:tasks-checklist": "node --experimental-sqlite --test test/test-tasks-checklist.js",
     "test:markdown-toolbar": "node --loader ./test/test-browser-loader.mjs --test test/test-markdown-toolbar.js",
     "test:lucide-icons": "node --test test/test-lucide-icons.js",
+    "test:module-icon-size": "node --test test/test-module-icon-size.js",
     "test:budget-recurrence": "DB_PATH=:memory: node --experimental-sqlite test/test-budget-recurrence.js",
     "test:budget-stats": "DB_PATH=:memory: node --experimental-sqlite test/test-budget-stats.js",
     "test:budget-accounts": "node --experimental-sqlite --test test/test-budget-accounts.js",

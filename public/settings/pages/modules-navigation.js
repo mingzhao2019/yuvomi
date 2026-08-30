@@ -259,8 +259,8 @@ function kitchenRowHtml(row) {
           ${statusChipHtml(row)}
         </div>
         <button type="button" class="settings-disclosure__trigger settings-module-kitchen__trigger" aria-expanded="false" data-kitchen-expand>
-          <i data-lucide="chevron-down" class="settings-disclosure__icon" aria-hidden="true"></i>
           <span>${t('settings.kitchenActiveCount', { count: row.enabledChildren })}</span>
+          <i data-lucide="chevron-down" class="settings-disclosure__icon" aria-hidden="true"></i>
         </button>
         <div class="settings-disclosure__panel settings-module-kitchen__children" data-kitchen-children hidden>
           ${row.children.map((child) => `

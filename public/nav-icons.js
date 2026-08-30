@@ -28,9 +28,22 @@ const NS = 'http://www.w3.org/2000/svg';
 /* Die Wurzelattribute jedes Zeichens. Die Strichstärke steht hier als
  * Zeichen-Voreinstellung; was am Bildschirm ankommt, entscheidet
  * `--icon-stroke` (tokens.css) — CSS schlägt das Präsentationsattribut, und nur
- * so gilt EINE Strichstärke auch für die Lucide-Rückfälle. */
+ * so gilt EINE Strichstärke auch für die Lucide-Rückfälle.
+ *
+ * `width`/`height` STEHEN AUS DEMSELBEN GRUND HIER, und sie sind es, die #949
+ * geschlossen haben. Der Satz gab sein SVG ohne Grundmass aus; ein SVG mit
+ * viewBox, aber ohne Mass hat kein eigenes, sondern nimmt die Breite seines
+ * Kastens. In einer Box mit fester Groesse (Leiste, Siegel, Modul-Scheibe) fiel
+ * das nie auf - in einer flexiblen Zeile wurden aus 20px 489px: die vier
+ * Kuechen-Kinder in den Einstellungen (drei Stellen, eine Ursache). Der
+ * Lucide-Rueckfall hatte das Mass die ganze Zeit, weil `lucide.createIcons()`
+ * width/height setzt; damit sagte derselbe Name je nach Hand etwas anderes.
+ * Als PRAESENTATIONSATTRIBUT unterliegt es jeder CSS-Regel, die einen Ort
+ * bemisst - es aendert also nur die Orte, die bisher gar kein Mass hatten. */
 const ROOT_ATTRS = {
   viewBox: '0 0 24 24',
+  width: '24',
+  height: '24',
   fill: 'none',
   stroke: 'currentColor',
   'stroke-width': '1.6',
