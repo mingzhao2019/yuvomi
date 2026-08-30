@@ -485,6 +485,88 @@ test('#938: der Patch-Pfad schreibt das VTIMEZONE nach, wenn es fehlt', () => {
   assert.match(out, /ATTENDEE;CN=Maria/, 'und der Rest des fremden Objekts bleibt stehen');
 });
 
+test('#938: das VTIMEZONE-Jahr kommt vom Termin, nicht aus einem fremden Block', () => {
+  // Ein Objekt kann schon ein VTIMEZONE fuer eine ANDERE Zone tragen, und die
+  // sind ueblicherweise auf 1970 datiert. Wer das Jahr aus der ersten
+  // DTSTART-Zeile des Textes liest, trifft dessen Onset - und fuer 1970 kennt
+  // Europe/Berlin keine Sommerzeit. Herausgekommen waere ein fester
+  // +0100-Block, unter dem jeder Sommertermin eine Stunde zu spaet gelesen wird.
+  const foreign = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Fremd//EN',
+    'BEGIN:VTIMEZONE', 'TZID:America/New_York',
+    'BEGIN:STANDARD', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500',
+    'DTSTART:19701101T020000', 'END:STANDARD', 'END:VTIMEZONE',
+    'BEGIN:VEVENT', 'UID:yr@t', 'DTSTAMP:20260101T000000Z',
+    'SUMMARY:Alt', 'DTSTART:20350830T100000', 'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+
+  const { fields, tzid } = icsFieldsForEvent({
+    title: 'Neu', start_datetime: '2035-08-30T10:00', end_datetime: '2035-08-30T11:00',
+    tzid: null, all_day: 0,
+  }, 'Europe/Berlin');
+  const out = unfoldICS(patchICSEvent(foreign, 'yr@t', fields, { tzid }));
+
+  const berlin = out.split('BEGIN:VTIMEZONE').find((b) => b.includes('TZID:Europe/Berlin'));
+  assert.ok(berlin, 'der Berlin-Block fehlt');
+  assert.match(berlin, /BEGIN:DAYLIGHT/, 'ein Sommerzeit-loser Block heisst: falsches Jahr gerechnet');
+  // 2035 unterscheidet DREI Faelle, die sonst zusammenfallen: das Jahr des
+  // Termins (richtig), 1970 aus dem fremden Block (der Fehler) und das laufende
+  // Jahr (der Rueckfall). Mit einem Termin im laufenden Jahr waere der letzte
+  // vom richtigen nicht zu unterscheiden - und die erste Fassung dieser
+  // Gegenprobe blieb genau deshalb gruen.
+  assert.match(berlin, /DTSTART:2035\d{4}T\d{6}/, 'die Onsets muessen aus dem Jahr des Termins stammen');
+  // Der fremde Block bleibt unangetastet daneben stehen.
+  assert.match(out, /TZID:America\/New_York/);
+});
+
+test('#938: Ausnahmen und Ueberschreibungen bekommen dieselbe Zone wie der Master', () => {
+  // Ein Vorkommen wird ueber seinen ZEITWERT identifiziert. Hebt man nur den
+  // Master von floating auf TZID, zeigen EXDATE und RECURRENCE-ID ins Leere:
+  // der gestrichene Termin taucht wieder auf, der bearbeitete loest sich von
+  // seiner Serie - beides durch eine Aenderung, die mit Serien nichts zu tun hat.
+  const series = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Fremd//EN',
+    'BEGIN:VEVENT', 'UID:ser@t', 'DTSTAMP:20260101T000000Z', 'SUMMARY:Alt',
+    'DTSTART:20260830T100000', 'DTEND:20260830T110000', 'RRULE:FREQ=WEEKLY',
+    'EXDATE:20260906T100000', 'END:VEVENT',
+    'BEGIN:VEVENT', 'UID:ser@t', 'RECURRENCE-ID:20260913T100000',
+    'DTSTART:20260913T140000', 'DTEND:20260913T150000', 'SUMMARY:Ausnahme', 'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const { fields, tzid } = icsFieldsForEvent({
+    title: 'Neu', start_datetime: '2026-08-30T10:00', end_datetime: '2026-08-30T11:00',
+    tzid: null, all_day: 0, recurrence_rule: 'FREQ=WEEKLY',
+  }, 'Europe/Berlin');
+  const out = unfoldICS(patchICSEvent(series, 'ser@t', fields, { tzid }));
+
+  assert.match(out, /^EXDATE;TZID=Europe\/Berlin:20260906T100000$/m);
+  assert.match(out, /^RECURRENCE-ID;TZID=Europe\/Berlin:20260913T100000$/m);
+});
+
+test('#938: was seinen Bezug schon hat, wird nicht angefasst', () => {
+  // Ein EXDATE mit eigenem TZID oder einem Z ist bereits eindeutig. Ein zweiter
+  // Parameter daneben ergaebe eine ungueltige Zeile.
+  const mixed = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Fremd//EN',
+    'BEGIN:VEVENT', 'UID:mix@t', 'DTSTAMP:20260101T000000Z', 'SUMMARY:Alt',
+    'DTSTART:20260830T100000', 'RRULE:FREQ=WEEKLY',
+    'EXDATE;TZID=America/New_York:20260906T100000',
+    'EXDATE:20260920T080000Z',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+
+  const { fields, tzid } = icsFieldsForEvent({
+    title: 'Neu', start_datetime: '2026-08-30T10:00', tzid: null, all_day: 0,
+    recurrence_rule: 'FREQ=WEEKLY',
+  }, 'Europe/Berlin');
+  const out = unfoldICS(patchICSEvent(mixed, 'mix@t', fields, { tzid }));
+
+  assert.match(out, /^EXDATE;TZID=America\/New_York:20260906T100000$/m, 'fremde Zone ueberschrieben');
+  assert.match(out, /^EXDATE:20260920T080000Z$/m, 'ein UTC-Wert braucht keine Zone');
+  assert.doesNotMatch(out, /TZID=[^:]*TZID=/, 'kein doppelter Parameter');
+});
+
 test('#938: ein vorhandenes VTIMEZONE wird nicht verdoppelt', () => {
   // Jeder Sync-Lauf patcht dasselbe Objekt erneut. Ein Block je Durchgang waere
   // ein Wachstum ohne Ende.

@@ -90,6 +90,20 @@ function bydayOf(d) {
 }
 
 // VTIMEZONE-Block für eine IANA-Zone, RRULE-basiert (extrapoliert für offene Serien).
+//
+// BEKANNTE GRENZE. Die Regeln eines Jahres werden per RRULE unbegrenzt
+// fortgeschrieben. Für die meisten Zonen stimmt das - Europa und Nordamerika
+// schalten nach festen Wochentagsregeln -, aber nicht für alle: Africa/Casablanca
+// verschiebt seine Umstellungen mit dem Ramadan, also jährlich. Ein aus 2026
+// gebauter Block (Februar 3SU, März 4SU) liegt dort 2027 (1SU, 2SU) für ein paar
+// Wochen eine Stunde daneben.
+//
+// Das bleibt vorerst so, und zwar bewusst: der Block ist seit #549 in Gebrauch,
+// die Alternative sind aufgezählte RDATEs über N Jahre - eine andere Bauart, kein
+// Zusatz -, und der Fehler betrifft eine Handvoll Zonen für wenige Wochen im
+// Jahr. Gegenüber dem Zustand davor ist es trotzdem ein Gewinn: der ausgehende
+// CalDAV-Weg trug vorher GAR KEINE Zone (#938), und ein Termin ohne Zone ist in
+// jeder Woche des Jahres unbestimmt, nicht nur in dreien.
 function buildVTimezone(tzid, year) {
   const transitions = findTransitions(year, tzid);
   const lines = ['BEGIN:VTIMEZONE', `TZID:${tzid}`];

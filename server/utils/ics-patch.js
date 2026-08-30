@@ -214,6 +214,57 @@ function patchICSComponent(icsText, uid, fields, component, managed) {
 }
 
 /**
+ * Haengt floating EXDATE- und RECURRENCE-ID-Werten dieselbe Zone an wie dem Master.
+ *
+ * WARUM DAS ZUSAMMENGEHOERT (#938). Ein Vorkommen wird ueber seinen Zeitwert
+ * identifiziert, nicht ueber einen Index: `EXDATE:20260906T100000` streicht das
+ * Vorkommen, das genau diesen Wert hat, und ein `RECURRENCE-ID` mit demselben
+ * Wert bindet einen Ausnahmetermin an dieses Vorkommen. Beide Werte muessen im
+ * selben Bezugssystem stehen wie das DTSTART der Serie.
+ *
+ * Hebt man nur den Master von floating auf `;TZID=`, zeigen die Bezeichner ins
+ * Leere: der gestrichene Termin taucht wieder auf, und der bearbeitete
+ * Einzeltermin loest sich von seiner Serie - beides ausgeloest von einer
+ * Aenderung, die mit Serien nichts zu tun hatte.
+ *
+ * Angefasst wird nur, was floating IST. Ein Wert mit eigenem `TZID`, einem `Z`
+ * oder `VALUE=DATE` trug seinen Bezug schon vorher und behaelt ihn.
+ *
+ * @param {string[]} lines Entfaltete Zeilen des ganzen Objekts
+ * @param {string} uid     UID, deren Komponenten angefasst werden
+ * @param {string} tzid    Zone, die der Master bekommen hat
+ * @returns {string[]}
+ */
+function anchorFloatingOccurrenceIds(lines, uid, tzid) {
+  const isFloating = (line) => {
+    const head = line.slice(0, line.indexOf(':'));
+    if (/TZID=/i.test(head) || /VALUE=DATE/i.test(head)) return false;
+    // Ein Z am Ende irgendeines Wertes heisst UTC - dann ist der Wert eindeutig.
+    return !/Z(?:,|$)/.test(line.slice(line.indexOf(':') + 1).trim());
+  };
+
+  const out = [...lines];
+  let start = -1;
+  let uidMatch = false;
+  lines.forEach((line, i) => {
+    const trimmed = line.trim().toUpperCase();
+    if (trimmed === 'BEGIN:VEVENT') { start = i; uidMatch = false; return; }
+    if (start < 0) return;
+    if (propertyName(line) === 'UID') {
+      uidMatch = line.slice(line.indexOf(':') + 1).trim() === uid;
+      return;
+    }
+    if (trimmed === 'END:VEVENT') { start = -1; return; }
+    const name = propertyName(line);
+    if (!uidMatch || (name !== 'EXDATE' && name !== 'RECURRENCE-ID')) return;
+    if (!isFloating(line)) return;
+    const colon = line.indexOf(':');
+    out[i] = `${line.slice(0, colon)};TZID=${tzid}${line.slice(colon)}`;
+  });
+  return out;
+}
+
+/**
  * Sorgt dafuer, dass das VCALENDAR ein VTIMEZONE fuer `tzid` enthaelt.
  *
  * RFC 5545 §3.2.19 laesst einen TZID-Parameter nur zu, wenn im selben VCALENDAR
@@ -229,7 +280,7 @@ function patchICSComponent(icsText, uid, fields, component, managed) {
  * @param {string|null} tzid  IANA-Zone; null/leer laesst den Text unveraendert
  * @returns {string}
  */
-export function ensureVTimezone(icsText, tzid) {
+export function ensureVTimezone(icsText, tzid, year = null) {
   if (!tzid) return String(icsText);
   const lines = unfoldICS(icsText).split('\n');
 
@@ -248,11 +299,18 @@ export function ensureVTimezone(icsText, tzid) {
   // Das Jahr, fuer das die Uebergaenge gerechnet werden. Die erzeugten Regeln
   // sind RRULE-basiert und gelten damit auch fuer spaetere Jahre; das Jahr des
   // Termins trifft nur die Feinheit, welche historische Regel gilt.
-  const dtstart = lines.find((l) => /^DTSTART[;:]/i.test(l.trim()));
-  const yearMatch = dtstart && /:(\d{4})/.exec(dtstart);
-  const year = yearMatch ? Number(yearMatch[1]) : new Date().getUTCFullYear();
+  //
+  // Es kommt vom AUFRUFER, aus dem Wert, den er gerade schreibt. Die erste
+  // Fassung suchte stattdessen die erste `DTSTART`-Zeile im Text - und traf
+  // damit den Onset eines schon vorhandenen VTIMEZONE, wenn eins dastand. Die
+  // sind ueblicherweise auf 1970 datiert, und fuer 1970 kennt Europe/Berlin
+  // keine Sommerzeit: herausgekommen waere ein fester +0100-Block, unter dem
+  // jeder Sommertermin eine Stunde zu spaet gelesen wird. Genau dieser Griff
+  // ins falsche DTSTART ist der Testfassung dieses Fixes schon einmal
+  // passiert; im Produktivcode blieb er stehen.
+  const resolvedYear = Number.isInteger(year) ? year : new Date().getUTCFullYear();
 
-  const block = vtimezoneFor(tzid, year).map(foldICSLine);
+  const block = vtimezoneFor(tzid, resolvedYear).map(foldICSLine);
 
   // Einfuegepunkt: vor der ersten Komponente im VCALENDAR.
   let at = lines.findIndex((l) => /^BEGIN:(?!VCALENDAR)/i.test(l.trim()));
@@ -277,7 +335,19 @@ export function ensureVTimezone(icsText, tzid) {
 export function patchICSEvent(icsText, uid, fields = {}, { tzid = null } = {}) {
   const patched = patchICSComponent(icsText, uid, fields, 'VEVENT', MANAGED_VEVENT);
   if (patched === null) return null;
-  return ensureVTimezone(patched, tzid);
+
+  // Ausnahmen und Ueberschreibungen bezeichnen ihr Vorkommen ueber den Zeitwert.
+  // Bekommt der Master eine Zone, muessen sie mitgehen, sonst treffen sie nichts
+  // mehr (#938).
+  const anchored = tzid
+    ? anchorFloatingOccurrenceIds(unfoldICS(patched).split('\n'), uid, tzid)
+      .map(foldICSLine).join('\r\n')
+    : patched;
+
+  // Das Jahr aus dem Wert, den wir gerade geschrieben haben - die einzige
+  // eindeutige Quelle. Im Text danach zu suchen trifft fremde VTIMEZONE-Onsets.
+  const year = Number.parseInt(String(fields?.DTSTART?.value || '').slice(0, 4), 10);
+  return ensureVTimezone(anchored, tzid, Number.isInteger(year) ? year : null);
 }
 
 /**

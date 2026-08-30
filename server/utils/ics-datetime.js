@@ -95,15 +95,35 @@ export function eventDateTimeFields(event, householdZone = null) {
   const zoneOfEvent = anchorZone(event.tzid);
   const naive = !hasExplicitOffset(event.start_datetime);
 
+  // JEDER ENDPUNKT FUER SICH. Start und Ende koennen unterschiedlich gespeichert
+  // sein - die optionale PUT-API laesst eine importierte, zonierte Serie mit
+  // einem neuen, naiven `end_datetime` zurueck, waehrend der Start sein `Z`
+  // behaelt. Wer beide nach dem Start klassifiziert, schickt den naiven Wert
+  // durch `formatWall`, das einen UTC-Instant erwartet: auf einem UTC-Server
+  // wird aus einem gemeinten 11:00 in Berlin ein 13:00.
+  //
+  // Ein Wert mit Offset ist ein Zeitpunkt und wird in die Zone gerechnet; ein
+  // naiver Wert IST bereits Wanduhrzeit und wird nur formatiert.
+  const wallIn = (zone) => (value) => (hasExplicitOffset(value)
+    ? formatWall(value, zone)
+    : toICSDatetime(value));
+
+  // Dasselbe fuer den UTC-Pfad: ein naiver Wert neben einem Instant ist als UTC
+  // gemeint (das sagt der Zweig, in dem er steht) und braucht sein eigenes Z.
+  const utc = (value) => (hasExplicitOffset(value)
+    ? toICSDatetime(value)
+    : `${toICSDatetime(value)}Z`);
+
   // 2. Serie mit eigener Zone: lokale Wanduhrzeit + TZID, damit der Empfaenger
   //    jedes Vorkommen selbst DST-korrekt rechnet. Ein fixes UTC-Suffix liesse
   //    eine woechentliche Serie beim Zeitumstellungswochenende um eine Stunde
   //    springen (#549) - der Fehler, den der ICS-Feed schon hinter sich hat.
   if (zoneOfEvent && event.recurrence_rule && !naive) {
     const params = `;TZID=${zoneOfEvent}`;
+    const wall = wallIn(zoneOfEvent);
     return {
-      dtstart: { value: formatWall(event.start_datetime, zoneOfEvent), params },
-      dtend:   { value: formatWall(endSource, zoneOfEvent),            params },
+      dtstart: { value: wall(event.start_datetime), params },
+      dtend:   { value: wall(endSource),            params },
       tzid: zoneOfEvent,
     };
   }
@@ -112,8 +132,8 @@ export function eventDateTimeFields(event, householdZone = null) {
   //    Ein Einzeltermin braucht keine Zone, nur einen Zeitpunkt.
   if (!naive) {
     return {
-      dtstart: { value: toICSDatetime(event.start_datetime), params: '' },
-      dtend:   { value: toICSDatetime(endSource),            params: '' },
+      dtstart: { value: utc(event.start_datetime), params: '' },
+      dtend:   { value: utc(endSource),            params: '' },
       tzid: null,
     };
   }
