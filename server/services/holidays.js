@@ -362,15 +362,21 @@ async function sync(force = false) {
   // der Monat Verzoegerung, den dieser Nachlauf abschaffen sollte, nur kuerzer.
   // Gebremst wird deshalb ausschliesslich der Wiederholungsversuch, und der
   // Merker dafuer entsteht nur, wenn wirklich etwas schiefging.
-  // DIE WARTEMARKE GILT FUER GENAU DIE SPRACHE, BEI DER ES SCHIEFGING. Sie
-  // trug zuerst nur einen Zeitpunkt - und bremste damit auch eine INZWISCHEN
-  // ANDERS gewaehlte Sprache aus, obwohl deren Versuch neu ist und noch nie
-  // gescheitert war (gefunden in der PR-Durchsicht). Zwei Zeilen statt eines
-  // zusammengesetzten Werts: eine Spalte mit zwei Bedeutungen waere teurer als
-  // der zweite Schluessel.
-  const retryAfterStr  = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value;
-  const retryForLang   = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_for'").get()?.value;
-  if (!force && languageChanged && retryAfterStr && retryForLang === langCode) {
+  // DIE WARTEMARKE GILT FUER GENAU DEN VERSUCH, DER SCHIEFGING - und der ist
+  // mehr als seine Sprache. Sie trug zuerst nur einen Zeitpunkt und bremste
+  // damit auch eine inzwischen ANDERS gewaehlte Sprache aus; danach trug sie
+  // die Sprache und bremste immer noch ein inzwischen anderes LAND aus, dessen
+  // Abruf noch nie versucht worden war. Beides kam aus der PR-Durchsicht, das
+  // zweite erst, nachdem das erste behoben war.
+  //
+  // Sie traegt deshalb die vollstaendige Identitaet dessen, was versucht wurde:
+  // Sprache, Land, Region und die aktiven Ebenen. Aendert der Haushalt eines
+  // davon, ist es ein neuer Versuch und wird nicht gebremst. Das ist EIN
+  // Begriff in einem Wert, keine Spalte mit zwei Bedeutungen.
+  const retryScope     = [langCode, country, subdivision ?? '', showPublic ? 'P' : '', showSchool ? 'S' : ''].join('|');
+  const retryAfterStr  = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_retry_after'").get()?.value;
+  const retryForScope  = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_retry_scope'").get()?.value;
+  if (!force && languageChanged && retryAfterStr && retryForScope === retryScope) {
     const retryAfter = new Date(retryAfterStr);
     if (!Number.isNaN(retryAfter.getTime()) && Date.now() < retryAfter.getTime()) {
       log.debug('Holiday language retry is still on hold – skipping automatic sync.');
@@ -421,13 +427,12 @@ async function sync(force = false) {
   // zugeht (#839).
   const forget = db.get().prepare('DELETE FROM sync_config WHERE key = ?');
   if (anyFailed) {
-    remember.run('holiday_language_retry_after', new Date(Date.now() + LANGUAGE_RETRY_MS).toISOString());
-    remember.run('holiday_language_retry_for', langCode);
-    log.warn(`Holiday sync incomplete for ${country} - the language marker stays open so the next run retries.`);
+    remember.run('holiday_retry_after', new Date(Date.now() + LANGUAGE_RETRY_MS).toISOString());
+    remember.run('holiday_retry_scope', retryScope);
   } else {
     remember.run('holiday_last_sync_language', langCode);
-    forget.run('holiday_language_retry_after');
-    forget.run('holiday_language_retry_for');
+    forget.run('holiday_retry_after');
+    forget.run('holiday_retry_scope');
   }
 
   // "complete" nur, wenn es das war. Genau diese Zeile hat der Melder von #946

@@ -645,7 +645,7 @@ test('sync: ein gescheiterter Lauf schreibt die Sprache NICHT fest (#946)', asyn
   );
 
   // Und der naechste Lauf holt es nach, sobald die API wieder da ist.
-  db.prepare("DELETE FROM sync_config WHERE key='holiday_language_retry_after'").run();
+  db.prepare("DELETE FROM sync_config WHERE key='holiday_retry_after'").run();
   __setFetchImpl(makeApiMock());
   const res = await sync(false);
   assert.ok(res.synced > 0, 'der offene Sprachwechsel muss beim naechsten Lauf greifen');
@@ -668,7 +668,7 @@ test('sync: nach einem Fehlschlag wird der Nachlauf gebremst, nicht wiederholt g
   __setFetchImpl(kaputt);
   await captureConsole(() => sync(true));
 
-  const gebremstBis = db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value;
+  const gebremstBis = db.prepare("SELECT value FROM sync_config WHERE key='holiday_retry_after'").get()?.value;
   assert.ok(gebremstBis, 'ein Fehlschlag muss eine Wartemarke hinterlassen');
   assert.ok(new Date(gebremstBis).getTime() > Date.now(), 'die Wartemarke liegt in der Zukunft');
 
@@ -680,7 +680,7 @@ test('sync: nach einem Fehlschlag wird der Nachlauf gebremst, nicht wiederholt g
   // Von Hand ausgeloest (Knopf "Jetzt synchronisieren") gilt die Bremse nicht.
   const res = await sync(true);
   assert.ok(res.synced > 0, 'force muss die Wartemarke uebergehen');
-  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_after'").get()?.value, undefined,
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_retry_after'").get()?.value, undefined,
     'ein geglueckter Lauf raeumt die Wartemarke weg');
 });
 
@@ -729,6 +729,42 @@ test('sync: ein geglueckter LEERER Abruf laesst nichts Altes stehen (#946)', asy
     'und darf deshalb den Sprach-Merker setzen - es steht ja nichts Fremdsprachiges mehr da');
 });
 
+test('sync: die Wartemarke bremst keinen NEUEN Bereich (#946)', async () => {
+  // GEFUNDEN IN DER PR-DURCHSICHT, nachdem die Marke die Sprache trug: sie
+  // bremste immer noch ein inzwischen anderes LAND aus, dessen Abruf noch nie
+  // versucht worden war. Der Speichern-Weg in den Einstellungen schreibt nur
+  // die neue Auswahl - der naechste Scheduler-Lauf kaeme mit derselben Sprache
+  // und derselben offenen Marke hier an und wartet bis zu einer Stunde auf
+  // etwas, das mit dem Fehlschlag nichts zu tun hat.
+  setConfig({
+    holiday_country: 'ES', holiday_subdivision: 'ES-CT',
+    holiday_show_public: '1', holiday_show_school: '0', language: 'en',
+  });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+
+  // Nachlauf auf DE fuer ES/ES-CT scheitert.
+  setConfig({ language: 'de' });
+  __setFetchImpl(async () => { throw new Error('network down'); });
+  await captureConsole(() => sync(true));
+  const marke = db.prepare("SELECT value FROM sync_config WHERE key='holiday_retry_scope'").get()?.value;
+  assert.ok(marke?.startsWith('DE|ES|ES-CT'), `Marke traegt den gescheiterten Bereich, war: ${marke}`);
+
+  // Derselbe Bereich wird gebremst ...
+  const gleich = makeApiMock();
+  __setFetchImpl(gleich);
+  assert.deepEqual(await sync(false), { synced: 0 });
+  assert.equal(gleich.calls.length, 0);
+
+  // ... ein anderes LAND bei gleicher Sprache nicht.
+  setConfig({ holiday_country: 'DE', holiday_subdivision: 'DE-BY' });
+  const anderes = makeApiMock();
+  __setFetchImpl(anderes);
+  const res = await sync(false);
+  assert.ok(res.synced > 0, 'ein neuer Bereich darf nicht an der Marke des alten haengenbleiben');
+  assert.ok(anderes.calls.some((u) => u.includes('countryIsoCode=DE')));
+});
+
 test('sync: ein unvollstaendiger Lauf meldet sich nicht als "complete" (#946)', async () => {
   // Genau diese Logzeile hat der Melder von #946 zitiert, um zu zeigen, dass
   // die Synchronisierung durchgelaufen sei ("Holiday sync complete: 35 entries
@@ -762,7 +798,8 @@ test('sync: die Wartemarke bremst nur die Sprache, bei der es schiefging (#946)'
   setConfig({ language: 'de' });
   __setFetchImpl(async () => { throw new Error('network down'); });
   await captureConsole(() => sync(true));
-  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_for'").get()?.value, 'DE');
+  assert.ok(db.prepare("SELECT value FROM sync_config WHERE key='holiday_retry_scope'").get()?.value?.startsWith('DE|ES|'),
+    'die Marke traegt die volle Identitaet des Versuchs: Sprache, Land, Region, Ebenen');
 
   // Derselbe Wunsch DE wird gebremst ...
   const mockDe = makeApiMock();
@@ -776,7 +813,7 @@ test('sync: die Wartemarke bremst nur die Sprache, bei der es schiefging (#946)'
   __setFetchImpl(mockEs);
   const res = await sync(false);
   assert.ok(res.synced > 0, 'ein neuer Sprachwunsch darf nicht an der Marke der alten haengenbleiben');
-  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_language_retry_for'").get()?.value, undefined,
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_retry_scope'").get()?.value, undefined,
     'ein geglueckter Lauf raeumt die Marke weg');
 });
 
