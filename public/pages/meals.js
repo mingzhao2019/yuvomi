@@ -644,7 +644,12 @@ function renderSlot(date, type, mealsForDay, dayCol, typeRow) {
           </span>` : ''}
         </button>
         <div class="meal-card__actions">
-          ${meal.recipe_url ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
+          ${meal.recipe_id ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
+            data-action="open-linked-recipe"
+            href="/recipes?open=${encodeURIComponent(meal.recipe_id)}"
+            aria-label="${esc(t('meals.viewRecipeNamed', { title: meal.title }))}"
+          ><i data-lucide="chef-hat" class="icon-sm" aria-hidden="true"></i></a>`
+          : meal.recipe_url ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
             data-action="open-recipe"
             href="${esc(meal.recipe_url)}"
             target="_blank"
@@ -737,6 +742,20 @@ function wireGrid(grid) {
     if (action === 'open-recipe') {
       // Link öffnet sich nativ - nur Bubbling stoppen damit kein Edit-Modal aufgeht
       e.stopPropagation();
+      return;
+    }
+
+    // Sprung ins eigene Rezept (#936). Ein `<a href>` und kein Knopf, aus dem
+    // Grund, den der Dashboard-Kopf schon nennt: ein Knopf, der navigiert,
+    // nimmt dem Nutzer Cmd-Klick, Mittelklick und "Link kopieren". Deshalb
+    // faengt der Handler den Klick nur ab, wenn der Browser ihn nicht selbst
+    // besser bedient - sonst waere der href ein Versprechen, das der Handler
+    // bricht.
+    if (action === 'open-linked-recipe') {
+      e.stopPropagation();
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      window.yuvomi?.navigate(btn.getAttribute('href'));
       return;
     }
 

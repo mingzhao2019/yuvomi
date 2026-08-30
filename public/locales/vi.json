@@ -693,7 +693,8 @@
         "seriesEndedToast": "Đã kết thúc chuỗi từ ngày này.",
         "seriesDeletedToast": "Đã xóa chuỗi.",
         "deleteMealNamed": "Xóa {{title}}",
-        "openRecipeNamed": "Mở công thức {{title}}"
+        "openRecipeNamed": "Mở công thức {{title}}",
+        "viewRecipeNamed": "Xem công thức {{title}}"
     },
     "calendar": {
         "searchOpen": "Tìm sự kiện",

@@ -1157,6 +1157,19 @@ test('#934: die Waehrung steht ausserhalb der ausblendbaren Formatkarte', () => 
   assert.match(source, /currencyDuringRegion\?\.isConnected\) currencyDuringRegion\.disabled = false/);
 });
 
+test('#936: a linked recipe has an actionable deep link from the meal card', () => {
+  const meals = read('../public/pages/meals.js');
+  const recipes = read('../public/pages/recipes.js');
+
+  assert.match(meals, /data-action="open-linked-recipe"/);
+  assert.match(meals, /href="\/recipes\?open=\$\{encodeURIComponent\(meal\.recipe_id\)\}"/);
+  assert.match(recipes, /new URLSearchParams\(window\.location\.search\)\.get\('open'\)/);
+
+  const renderAt = recipes.indexOf('export async function render(container)');
+  assert.ok(renderAt > 0, 'recipe render function exists');
+  assert.match(recipes.slice(renderAt), /renderRecipeList\(\);[\s\S]*openRecipeFromQuery\(\);/);
+});
+
 test('personal appearance leaf owns theme, locale, and regional preferences', () => {
   const source = read('../public/settings/pages/personal-appearance.js');
 

@@ -705,7 +705,8 @@
         "seriesEndedToast": "سری از این تاریخ پایان یافت.",
         "seriesDeletedToast": "سری حذف شد.",
         "deleteMealNamed": "حذف {{title}}",
-        "openRecipeNamed": "باز کردن دستور غذای {{title}}"
+        "openRecipeNamed": "باز کردن دستور غذای {{title}}",
+        "viewRecipeNamed": "مشاهده دستور غذای {{title}}"
     },
     "calendar": {
         "searchOpen": "جستجوی رویدادها",

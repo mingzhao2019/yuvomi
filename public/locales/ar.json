@@ -693,7 +693,8 @@
         "seriesEndedToast": "تم إنهاء السلسلة من هذا التاريخ.",
         "seriesDeletedToast": "تم حذف السلسلة.",
         "deleteMealNamed": "حذف {{title}}",
-        "openRecipeNamed": "فتح وصفة {{title}}"
+        "openRecipeNamed": "فتح وصفة {{title}}",
+        "viewRecipeNamed": "عرض وصفة {{title}}"
     },
     "calendar": {
         "searchOpen": "البحث عن المواعيد",

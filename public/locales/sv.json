@@ -693,7 +693,8 @@
         "seriesEndedToast": "Serien avslutad från detta datum.",
         "seriesDeletedToast": "Serie borttagen.",
         "deleteMealNamed": "Ta bort {{title}}",
-        "openRecipeNamed": "Öppna receptet för {{title}}"
+        "openRecipeNamed": "Öppna receptet för {{title}}",
+        "viewRecipeNamed": "Visa receptet för {{title}}"
     },
     "calendar": {
         "searchOpen": "Sök händelser",

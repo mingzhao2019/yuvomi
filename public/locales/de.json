@@ -705,7 +705,8 @@
         "seriesEndedToast": "Serie ab diesem Datum beendet.",
         "seriesDeletedToast": "Serie gelöscht.",
         "deleteMealNamed": "{{title}} löschen",
-        "openRecipeNamed": "Rezept zu {{title}} öffnen"
+        "openRecipeNamed": "Rezept zu {{title}} öffnen",
+        "viewRecipeNamed": "Rezept zu {{title}} ansehen"
     },
     "calendar": {
         "searchOpen": "Termine suchen",

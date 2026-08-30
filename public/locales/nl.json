@@ -693,7 +693,8 @@
         "seriesEndedToast": "Reeks vanaf deze datum beëindigd.",
         "seriesDeletedToast": "Reeks verwijderd.",
         "deleteMealNamed": "{{title}} verwijderen",
-        "openRecipeNamed": "Recept voor {{title}} openen"
+        "openRecipeNamed": "Recept voor {{title}} openen",
+        "viewRecipeNamed": "Recept voor {{title}} bekijken"
     },
     "calendar": {
         "searchOpen": "Afspraken zoeken",

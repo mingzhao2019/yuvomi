@@ -705,7 +705,8 @@
         "seriesEndedToast": "Seri diakhiri mulai tanggal ini.",
         "seriesDeletedToast": "Seri dihapus.",
         "deleteMealNamed": "Hapus {{title}}",
-        "openRecipeNamed": "Buka resep {{title}}"
+        "openRecipeNamed": "Buka resep {{title}}",
+        "viewRecipeNamed": "Lihat resep {{title}}"
     },
     "calendar": {
         "searchOpen": "Cari acara",

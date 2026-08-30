@@ -705,7 +705,8 @@
         "seriesEndedToast": "Natapos ang serye mula sa petsang ito.",
         "seriesDeletedToast": "Natanggal ang serye.",
         "deleteMealNamed": "Tanggalin ang {{title}}",
-        "openRecipeNamed": "Buksan ang resipe ng {{title}}"
+        "openRecipeNamed": "Buksan ang resipe ng {{title}}",
+        "viewRecipeNamed": "Tingnan ang resipe ng {{title}}"
     },
     "calendar": {
         "searchOpen": "Maghanap ng kaganapan",

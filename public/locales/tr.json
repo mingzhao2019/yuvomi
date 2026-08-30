@@ -693,7 +693,8 @@
         "seriesEndedToast": "Seri bu tarihten itibaren sonlandırıldı.",
         "seriesDeletedToast": "Seri silindi.",
         "deleteMealNamed": "{{title}} yemeğini sil",
-        "openRecipeNamed": "{{title}} tarifini aç"
+        "openRecipeNamed": "{{title}} tarifini aç",
+        "viewRecipeNamed": "{{title}} tarifini görüntüle"
     },
     "calendar": {
         "searchOpen": "Etkinlik ara",

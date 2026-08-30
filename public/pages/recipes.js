@@ -172,6 +172,33 @@ async function loadPlannedRecipes() {
   }
 }
 
+/**
+ * Oeffnet das per ?open=<id> benannte Rezept, wenn es in der geladenen Liste steht.
+ *
+ * Aufklappen statt Bearbeiten: wer aus dem Essensplan kommt, will kochen, nicht
+ * aendern - dieselbe Entscheidung wie beim Antippen einer Zeile.
+ *
+ * Ein Rezept ohne Detailinhalt (keine Zutaten, keine Notiz, keine Quelle) hat
+ * gar kein Aufklapp-Panel. Dann bleibt das Scrollen als das, was zu holen ist:
+ * die Zeile zeigen, statt still nichts zu tun.
+ */
+function openRecipeFromQuery() {
+  const raw = new URLSearchParams(window.location.search).get('open');
+  const id = Number.parseInt(raw ?? '', 10);
+  if (!Number.isInteger(id)) return;
+
+  const row = _container?.querySelector(`.recipe-row-item[data-id="${id}"]`);
+  if (!row) return;
+
+  const toggle = row.querySelector('[data-action="toggle-detail"]');
+  const panel = _container.querySelector(`#recipe-detail-${id}`);
+  if (toggle && panel) {
+    toggle.setAttribute('aria-expanded', 'true');
+    panel.hidden = false;
+  }
+  row.scrollIntoView({ block: 'nearest' });
+}
+
 export async function render(container) {
   _container = container;
 
@@ -262,6 +289,16 @@ export async function render(container) {
   await Promise.all([loadRecipes(), loadCategories(), loadShoppingLists(), loadPlannedRecipes()]);
   renderSourceFilter();
   renderRecipeList();
+
+  // Deep-Link: ?open=<id> klappt das Rezept auf und scrollt es ins Bild.
+  // Dieselbe Schreibweise wie in Kontakten und auf der Startseite, damit nicht
+  // jedes Modul seinen eigenen Parameter erfindet.
+  //
+  // Gebraucht wird er von den Essenskarten (#936): ein Essen liess sich mit
+  // einem Rezept verknuepfen, aber die Verknuepfung hatte keinen Ausgang - der
+  // Aktionsknopf gab es nur fuer eine externe `recipe_url`, nicht fuer ein
+  // Rezept aus dem eigenen Haus.
+  openRecipeFromQuery();
 
   fab.addEventListener('click', () => openRecipeModal('create'));
 

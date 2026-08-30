@@ -693,7 +693,8 @@
         "seriesEndedToast": "A sorozat ettől a dátumtól véget ér.",
         "seriesDeletedToast": "Sorozat törölve.",
         "deleteMealNamed": "{{title}} törlése",
-        "openRecipeNamed": "{{title}} receptjének megnyitása"
+        "openRecipeNamed": "{{title}} receptjének megnyitása",
+        "viewRecipeNamed": "{{title}} receptjének megtekintése"
     },
     "calendar": {
         "searchOpen": "Események keresése",
