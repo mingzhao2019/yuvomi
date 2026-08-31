@@ -1446,8 +1446,8 @@ router.get('/:id', (req, res) => {
 // --------------------------------------------------------
 // POST /api/v1/tasks
 // Neue Aufgabe erstellen.
-// Body: { title, description?, category?, tags?, priority?, status?, due_date?,
-//         due_time?, assigned_to?, parent_task_id? }
+// Body: { title, description?, category?, tags?, priority?, due_date?, due_time?,
+//         assigned_to?, parent_task_id? }
 // Response: { data: Task }
 // --------------------------------------------------------
 router.post('/', (req, res) => {
@@ -1460,7 +1460,6 @@ router.post('/', (req, res) => {
       description     = null,
       category        = FALLBACK_CATEGORY,
       priority        = 'none',
-      status          = 'open',
       start_date      = null,
       due_date        = null,
       due_time        = null,
@@ -1508,12 +1507,12 @@ router.post('/', (req, res) => {
     const taskId = db.get().transaction(() => {
       const result = db.get().prepare(`
         INSERT INTO tasks
-          (title, description, category, priority, status, start_date, due_date, due_time,
+          (title, description, category, priority, start_date, due_date, due_time,
            assigned_to, created_by, parent_task_id, is_recurring, recurrence_rule,
            recurrence_from_completion, points, visibility, countdown, locked)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        title.trim(), description, category, priority, status,
+        title.trim(), description, category, priority,
         start_date, due_date, due_time, firstUid, req.authUserId || req.session.userId, parent_task_id,
         is_recurring ? 1 : 0, recurrence_rule, recurrence_from_completion ? 1 : 0, points, visibility,
         countdown ? 1 : 0, req.body.locked ? 1 : 0
@@ -1536,13 +1535,6 @@ router.post('/', (req, res) => {
           ).run(syncTarget.taskListId, result.lastInsertRowid);
         }
       }
-      syncTaskCompletion(
-        db.get(),
-        result.lastInsertRowid,
-        'open',
-        status,
-        req.authUserId || req.session.userId,
-      );
       return result.lastInsertRowid;
     })();
 
@@ -1560,14 +1552,8 @@ router.post('/', (req, res) => {
     addAssignedUsers(task);
     attachTaskList(task);
     attachTags([task]);
-    if (status === 'done') spawnRecurrenceFollowup(task);
     res.status(201).json({ data: task });
-    if (syncTarget?.provider === 'microsoft_todo') {
-      const microsoftSyncOptions = status === 'done'
-        ? { queueIfRunning: true, completionTaskIds: [Number(taskId)] }
-        : {};
-      pushToMicrosoftTodo('Neue Aufgabe', microsoftSyncOptions);
-    }
+    if (syncTarget?.provider === 'microsoft_todo') pushToMicrosoftTodo('Neue Aufgabe');
     else if (syncTarget) pushToCalDAV('Neue Aufgabe');
   } catch (err) {
     log.error('POST / error:', err);

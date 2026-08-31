@@ -522,51 +522,6 @@ test('POST mit Sync-Ziel merkt die Aufgabe fuer den Upload vor', async () => {
   assert.equal(row.external_source, 'local');
 });
 
-test('POST mit Microsoft-To-Do-Ziel kann eine wiederkehrende Aufgabe direkt erledigt anlegen', async () => {
-  const admin = { id: ALICE, role: 'admin' };
-  const accountId = db.prepare(`
-    INSERT INTO outlook_accounts
-      (name, ms_user_id, email, access_token, refresh_token, token_expiry, owner_user_id)
-    VALUES (?, ?, ?, 'access', 'refresh', ?, ?)
-  `).run(
-    'Microsoft completed create',
-    `ms-${randomUUID()}`,
-    `ms-${randomUUID()}@example.test`,
-    new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    ALICE,
-  ).lastInsertRowid;
-  const externalListId = `completed-create-${randomUUID()}`;
-  const listId = db.prepare(`
-    INSERT INTO task_lists
-      (name, provider, external_account_id, external_list_id, created_by, enabled)
-    VALUES (?, 'microsoft_todo', ?, ?, ?, 1)
-  `).run('Microsoft completed create', accountId, externalListId, ALICE).lastInsertRowid;
-
-  const r = await call('POST', '/', {
-    as: admin,
-    body: {
-      title: 'Directly completed To Do task',
-      status: 'done',
-      due_date: '2026-08-15',
-      is_recurring: 1,
-      recurrence_rule: 'FREQ=MONTHLY',
-      sync_target: `microsoft_todo:${accountId}|${externalListId}`,
-    },
-  });
-  assert.equal(r.status, 201);
-
-  const taskId = r.body.data.id;
-  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-  assert.equal(task.task_list_id, listId);
-  assert.equal(task.status, 'done');
-  assert.equal(task.external_source, 'local');
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM task_completions WHERE task_id = ?').get(taskId).n, 1);
-  assert.equal(db.prepare(
-    'SELECT state FROM microsoft_todo_completion_intents WHERE task_id = ?'
-  ).get(taskId).state, 'patch');
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE recurrence_origin_id = ?').get(taskId).n, 0);
-});
-
 test('Task Lists werden als Navigationsbereiche angezeigt und abgefragt', async () => {
   const admin = { id: ALICE, role: 'admin' };
   const first = db.prepare(`

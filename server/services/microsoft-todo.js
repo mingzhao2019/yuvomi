@@ -452,7 +452,11 @@ function completionIntentFor(database, task) {
 }
 
 function completionIntentEntry(task, intent) {
-  if (!intent || task.status !== 'done' || !task.is_recurring || !task.recurrence_rule) return null;
+  // The intent is created only for a Microsoft To Do recurring completion.
+  // Keep using that durable fact after Delta has cleared or normalized the
+  // current task's recurrence fields; otherwise a successful PATCH could leave
+  // the successor reconciliation permanently stranded.
+  if (!intent || task.status !== 'done') return null;
   return {
     taskId: Number(task.id),
     completionId: Number(intent.completion_id),
@@ -786,9 +790,18 @@ function upsertRemoteLists(database, accountId, remoteLists, ownerId) {
            outbound_dirty = 0, outbound_attempts = 0
      WHERE external_source = ? AND task_list_id = ?
   `);
+  const clearCompletionIntents = database.prepare(`
+    DELETE FROM microsoft_todo_completion_intents
+    WHERE task_id IN (
+       SELECT id FROM tasks WHERE task_list_id = ?
+     )
+  `);
   const remove = database.prepare('DELETE FROM task_lists WHERE id = ?');
   for (const row of known.values()) {
     if (row.external_list_id && !remoteIds.has(String(row.external_list_id))) {
+      // There is no remaining remote list/cursor from which a successor can be
+      // discovered, so do not retain a completion intent for detached tasks.
+      clearCompletionIntents.run(row.id);
       detach.run(MICROSOFT_TODO_SOURCE, row.id);
       remove.run(row.id);
     }
@@ -879,7 +892,7 @@ function graphTaskPayload(
   task,
   timeZone = householdTimeZone(null),
   database = null,
-  { operation = 'create' } = {},
+  { operation = 'create', includeCompletion = false } = {},
 ) {
   const payload = {
     title: String(task.title || 'Microsoft To Do task'),
@@ -911,7 +924,7 @@ function graphTaskPayload(
   payload.reminderDateTime = remindAt
     ? { dateTime: remindAt, timeZone: 'UTC' }
     : null;
-  if (operation === 'update' && task.status === 'done') {
+  if (operation === 'update' && includeCompletion && task.status === 'done') {
     const completedAt = completionUtcValue(database, task);
     if (completedAt) payload.completedDateTime = { dateTime: completedAt, timeZone: 'UTC' };
   }
@@ -1062,8 +1075,7 @@ async function flushOutboundTasks(
     // PATCH, unless a normal edit has independently made the row dirty.
     if (!claimed && !completionIntent) continue;
     if (!claimed) {
-      if (completionMarked && task.status === 'done'
-        && task.is_recurring && task.recurrence_rule) {
+      if (completionMarked && task.status === 'done') {
         recurringPatchedListIds.add(Number(task.task_list_id));
         addCompletionIntentEntry(completionIntentsByList, task, completionIntent);
       }
@@ -1099,8 +1111,7 @@ async function flushOutboundTasks(
             task.task_list_id,
           );
           createdTaskIds.push(Number(task.id));
-          if (completionMarked && current.status === 'done'
-            && current.is_recurring && current.recurrence_rule) {
+          if (completionMarked && current.status === 'done') {
             recurringPatchedListIds.add(Number(task.task_list_id));
             addCompletionIntentEntry(completionIntentsByList, current, completionIntent);
             if (completionIntent) {
@@ -1117,7 +1128,10 @@ async function flushOutboundTasks(
         let updatePayload;
         let completionOutboundAccepted = false;
         try {
-          updatePayload = graphTaskPayload(task, timeZone, database, { operation: 'update' });
+          updatePayload = graphTaskPayload(task, timeZone, database, {
+            operation: 'update',
+            includeCompletion: completionMarked,
+          });
           await graphJson(
             `${path}/${encodeURIComponent(task.external_uid)}`,
             accessToken,
@@ -1179,8 +1193,7 @@ async function flushOutboundTasks(
               completionIntent.completion_id,
             );
           }
-          if (completionMarked && current.status === 'done'
-            && current.is_recurring && current.recurrence_rule) {
+          if (completionMarked && current.status === 'done') {
             recurringPatchedListIds.add(Number(task.task_list_id));
             addCompletionIntentEntry(completionIntentsByList, current, completionIntent);
           }

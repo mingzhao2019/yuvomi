@@ -179,7 +179,7 @@ test('converts To Do due dates through the household timezone and keeps date-onl
     { id: completionTaskId, title: 'Completed payload', status: 'done' },
     'Europe/Helsinki',
     database,
-    { operation: 'update' },
+    { operation: 'update', includeCompletion: true },
   );
   assert.deepEqual(completedPayload.completedDateTime, {
     dateTime: '2026-08-31T12:34:56',
@@ -538,11 +538,17 @@ test('remote reopening revokes the old completion before a later local completio
   ).get(taskId);
   assert.notEqual(newIntent.completion_id, oldCompletionId);
   assert.equal(newIntent.state, 'patch');
-  assert.deepEqual(todo.__test.graphTaskPayload(
+  assert.equal(Object.hasOwn(todo.__test.graphTaskPayload(
     { id: taskId, title: 'Reopen me', status: 'done' },
     'Europe/Helsinki',
     database,
     { operation: 'update' },
+  ), 'completedDateTime'), false);
+  assert.deepEqual(todo.__test.graphTaskPayload(
+    { id: taskId, title: 'Reopen me', status: 'done' },
+    'Europe/Helsinki',
+    database,
+    { operation: 'update', includeCompletion: true },
   ).completedDateTime, {
     dateTime: newCompletion.slice(0, 19),
     timeZone: 'UTC',
@@ -591,10 +597,7 @@ test('ordinary edits to an already completed recurring task do not trigger succe
       return response(200, { value: [{ id: 'list-recurring-edit', displayName: 'Recurring edit' }] });
     }
     if (parsed.pathname.endsWith('/tasks/remote-edit') && method === 'PATCH') {
-      assert.deepEqual(body.completedDateTime, {
-        dateTime: sameSecond.slice(0, 19),
-        timeZone: 'UTC',
-      });
+      assert.equal(Object.hasOwn(body, 'completedDateTime'), false);
       assert.deepEqual(body.reminderDateTime, {
         dateTime: '2026-08-21T10:30:00',
         timeZone: 'UTC',
@@ -639,6 +642,109 @@ test('ordinary edits to an already completed recurring task do not trigger succe
   assert.equal(
     database.prepare('SELECT sync_cursor FROM task_lists WHERE id = ?').get(listId).sync_cursor,
     '/me/todo/lists/list-recurring-edit/tasks/delta?$deltatoken=edit-1',
+  );
+});
+
+test('keeps successor reconciliation when Delta clears the current recurrence fields', async () => {
+  const ownerId = insertUser('todo-owner-recurrence-cleared');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Recurrence cleared', 'microsoft_todo', ?, 'list-recurrence-cleared', ?, 1)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const taskId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, due_date, is_recurring, recurrence_rule, outbound_dirty)
+    VALUES ('Cleared current', ?, 'microsoft_todo', ?, 'remote-cleared-current', ?,
+            'done', '2026-08-15', 1, 'FREQ=MONTHLY', 0)
+  `).run(ownerId, accountId, listId).lastInsertRowid;
+  database.prepare(`
+    INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
+    VALUES (?, ?, ?, '2026-08-31T12:34:56Z')
+  `).run(taskId, taskId, ownerId);
+  assert.equal(completions.markMicrosoftTodoCompletionIntent(database, taskId), true);
+  assert.equal(
+    completions.markMicrosoftTodoCompletionIntentReconciled(
+      database,
+      taskId,
+      database.prepare('SELECT id FROM task_completions WHERE task_id = ?').get(taskId).id,
+    ),
+    true,
+  );
+
+  const deltaTokens = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const method = options.method || 'GET';
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-recurrence-cleared', displayName: 'Recurrence cleared' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-recurrence-cleared/tasks/delta') {
+      const token = parsed.searchParams.get('$deltatoken');
+      deltaTokens.push(token || 'initial');
+      const link = (nextToken) => (
+        `https://graph.microsoft.com/v1.0/me/todo/lists/list-recurrence-cleared/tasks/delta?$deltatoken=${nextToken}`
+      );
+      if (!token) {
+        return response(200, {
+          value: [{
+            id: 'remote-cleared-current',
+            title: 'Cleared current',
+            status: 'completed',
+            dueDateTime: { dateTime: '2026-08-15T00:00:00.0000000', timeZone: 'UTC' },
+          }],
+          '@odata.deltaLink': link('cleared-c1'),
+        });
+      }
+      if (token === 'cleared-c1') {
+        return response(200, { value: [], '@odata.deltaLink': link('cleared-c2') });
+      }
+      if (token === 'cleared-c2') {
+        return response(200, {
+          value: [{
+            id: 'remote-cleared-next',
+            title: 'Cleared current',
+            status: 'notStarted',
+            dueDateTime: { dateTime: '2026-09-15T00:00:00.0000000', timeZone: 'UTC' },
+            recurrence: {
+              pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+              range: { type: 'noEnd', startDate: '2026-08-15' },
+            },
+          }],
+          '@odata.deltaLink': link('cleared-c3'),
+        });
+      }
+      if (token === 'cleared-c3') {
+        return response(200, { value: [], '@odata.deltaLink': link('cleared-c4') });
+      }
+    }
+    throw new Error(`Unexpected Graph request ${method} ${parsed.pathname}${parsed.search}`);
+  };
+
+  const waits = [];
+  const result = await todo.sync({
+    database,
+    fetchImpl,
+    waitForSuccessor: async (delayMs) => waits.push(delayMs),
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(deltaTokens, ['initial', 'cleared-c1', 'cleared-c2']);
+  assert.deepEqual(waits, [1000, 3000]);
+  assert.equal(database.prepare('SELECT is_recurring, recurrence_rule FROM tasks WHERE id = ?').get(taskId).is_recurring, 0);
+  assert.equal(
+    database.prepare("SELECT COUNT(*) AS n FROM tasks WHERE external_uid = 'remote-cleared-next'").get().n,
+    1,
+  );
+  assert.equal(
+    database.prepare('SELECT 1 FROM microsoft_todo_completion_intents WHERE task_id = ?').get(taskId),
+    undefined,
+  );
+  assert.equal(
+    database.prepare('SELECT COUNT(*) AS n FROM tasks WHERE recurrence_origin_id IS NOT NULL').get().n,
+    0,
   );
 });
 
@@ -1747,9 +1853,16 @@ test('detaches tasks and removes a list deleted remotely', async () => {
   `).run(accountId, ownerId).lastInsertRowid;
   const taskId = database.prepare(`
     INSERT INTO tasks
-      (title, created_by, external_source, external_account_id, external_uid, task_list_id)
-    VALUES ('Keep locally', ?, 'microsoft_todo', ?, 'remote-old', ?)
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, due_date, is_recurring, recurrence_rule)
+    VALUES ('Keep locally', ?, 'microsoft_todo', ?, 'remote-old', ?,
+            'done', '2026-08-15', 1, 'FREQ=MONTHLY')
   `).run(ownerId, accountId, staleListId).lastInsertRowid;
+  database.prepare(`
+    INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
+    VALUES (?, ?, ?, '2026-08-31T12:34:56Z')
+  `).run(taskId, taskId, ownerId);
+  assert.equal(completions.markMicrosoftTodoCompletionIntent(database, taskId), true);
 
   const fetchImpl = async (url) => {
     const parsed = new URL(url);
@@ -1772,6 +1885,10 @@ test('detaches tasks and removes a list deleted remotely', async () => {
   assert.equal(task.external_source, 'local');
   assert.equal(task.external_uid, null);
   assert.equal(task.task_list_id, null);
+  assert.equal(
+    database.prepare('SELECT 1 FROM microsoft_todo_completion_intents WHERE task_id = ?').get(taskId),
+    undefined,
+  );
   assert.ok(database.prepare(`
     SELECT 1 FROM task_lists WHERE provider = 'microsoft_todo' AND external_list_id = 'list-new'
   `).get());
