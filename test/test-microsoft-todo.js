@@ -431,7 +431,10 @@ test('completing a recurring To Do task pushes status before importing the next 
   const patchCalls = calls.filter((call) => call.method === 'PATCH');
   assert.equal(patchCalls.length, 2);
   assert.equal(Object.hasOwn(patchCalls[0].body, 'status'), false);
-  assert.deepEqual(patchCalls[1].body, { status: 'completed' });
+  assert.deepEqual(patchCalls[1].body, {
+    status: 'completed',
+    completedDateTime: { dateTime: '2026-08-31T12:34:56', timeZone: 'UTC' },
+  });
   assert.equal(Object.hasOwn(patchCalls[0].body, 'recurrence'), false);
   assert.ok(calls.findIndex((call) => call.method === 'PATCH') < calls.findIndex((call) => call.path.endsWith('/tasks/delta')));
   assert.deepEqual(waits, [1000, 3000]);
@@ -672,7 +675,10 @@ test('recreated completed recurring tasks also reconcile a delayed successor', a
       return response(201, { id: 'remote-recreated' });
     }
     if (parsed.pathname.endsWith('/tasks/remote-recreated') && method === 'PATCH') {
-      assert.deepEqual(body, { status: 'completed' });
+      assert.deepEqual(body, {
+        status: 'completed',
+        completedDateTime: { dateTime: '2026-08-31T12:34:56', timeZone: 'UTC' },
+      });
       return response(204);
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring-recreate/tasks/delta') {
@@ -883,17 +889,57 @@ test('keeps the last successful cursor and counts two failed refills once', asyn
   assert.equal(completions.markMicrosoftTodoCompletionIntent(database, taskId), true);
 
   const refillAttempts = [];
+  const recoveryPatches = [];
+  const recoveryDeltaTokens = [];
+  let recovery = false;
   const fetchImpl = async (url, options = {}) => {
     const parsed = new URL(url);
     const method = options.method || 'GET';
+    const body = options.body ? JSON.parse(options.body) : null;
     if (parsed.pathname === '/v1.0/me/todo/lists') {
       return response(200, { value: [{ id: 'list-recurring-refill-failure', displayName: 'Refill failure' }] });
     }
+    if (recovery && parsed.pathname.endsWith('/tasks/remote-refill-current') && method === 'GET') {
+      return response(200, {
+        id: 'remote-refill-current',
+        title: 'Refill failure task',
+        status: 'completed',
+        dueDateTime: { dateTime: '2026-08-15T00:00:00.0000000', timeZone: 'UTC' },
+        recurrence: {
+          pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+          range: { type: 'noEnd', startDate: '2026-08-15' },
+        },
+      });
+    }
     if (parsed.pathname.endsWith('/tasks/remote-refill-current') && method === 'PATCH') {
+      if (recovery) recoveryPatches.push(body);
       return response(204);
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring-refill-failure/tasks/delta') {
       const token = parsed.searchParams.get('$deltatoken');
+      if (recovery) {
+        recoveryDeltaTokens.push(token);
+        if (token === 'refill-c1') {
+          return response(200, {
+            value: [{
+              id: 'remote-refill-current',
+              title: 'Refill failure task',
+              status: 'notStarted',
+              dueDateTime: { dateTime: '2026-09-15T00:00:00.0000000', timeZone: 'UTC' },
+              recurrence: {
+                pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+                range: { type: 'noEnd', startDate: '2026-08-15' },
+              },
+            }],
+            '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-recurring-refill-failure/tasks/delta?$deltatoken=refill-c2',
+          });
+        }
+        const next = token === 'refill-c2' ? 'refill-c3' : 'refill-c4';
+        return response(200, {
+          value: [],
+          '@odata.deltaLink': `https://graph.microsoft.com/v1.0/me/todo/lists/list-recurring-refill-failure/tasks/delta?$deltatoken=${next}`,
+        });
+      }
       if (!token) {
         return response(200, {
           value: [{
@@ -940,6 +986,26 @@ test('keeps the last successful cursor and counts two failed refills once', asyn
     SELECT COUNT(*) AS n FROM tasks WHERE task_list_id = ? AND recurrence_origin_id IS NOT NULL
   `).get(listId).n, 0);
   assert.ok(database.prepare('SELECT last_error FROM task_lists WHERE id = ?').get(listId).last_error);
+
+  recovery = true;
+  const recovered = await todo.sync({ database, fetchImpl, waitForSuccessor: async () => {} });
+  assert.equal(recovered.success, true);
+  assert.equal(recoveryPatches.length, 3);
+  assert.equal(Object.hasOwn(recoveryPatches[0], 'status'), false);
+  assert.deepEqual(recoveryPatches[1], { status: 'notStarted' });
+  assert.deepEqual(recoveryPatches[2], {
+    status: 'completed',
+    completedDateTime: { dateTime: '2026-08-31T12:34:56', timeZone: 'UTC' },
+  });
+  assert.deepEqual(recoveryDeltaTokens, ['refill-c1', 'refill-c2', 'refill-c3']);
+  assert.deepEqual(
+    database.prepare('SELECT status, due_date FROM tasks WHERE id = ?').get(taskId),
+    { status: 'open', due_date: '2026-09-15' },
+  );
+  assert.equal(
+    database.prepare('SELECT 1 FROM microsoft_todo_completion_intents WHERE task_id = ?').get(taskId),
+    undefined,
+  );
 });
 
 test('keeps a completion intent after PATCH failure and recovers it on the next sync', async () => {
@@ -1105,7 +1171,9 @@ test('creates a completed recurring local To Do task and reconciles its delayed 
       return response(201, { id: 'remote-local-completed-current' });
     }
     if (parsed.pathname.endsWith('/tasks/remote-local-completed-current') && method === 'PATCH') {
-      assert.deepEqual(body, { status: 'completed' });
+      assert.equal(body.status, 'completed');
+      assert.equal(body.completedDateTime.timeZone, 'UTC');
+      assert.match(body.completedDateTime.dateTime, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
       return response(204);
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-local-completed-create/tasks/delta') {

@@ -54,6 +54,7 @@ export function changesMicrosoftTodoRecurrence(task, input = {}) {
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const OUTBOUND_IN_FLIGHT = 2;
 const SUCCESSOR_DELTA_DELAYS_MS = Object.freeze([1000, 3000]);
+const COMPLETION_RECOVERY_DELAY_MS = 30 * 1000;
 // Delta is intentionally cheap for normal polling, but it is not sufficient to
 // repair a local mirror when Graph omits or coalesces a deletion event. Keep a
 // persistent full-sync checkpoint per list so the safety net survives restarts.
@@ -449,6 +450,21 @@ function completionIntentFor(database, task) {
   const intent = microsoftTodoCompletionIntent(database, task.id);
   if (!intent || !completionUtcValue(database, task)) return null;
   return intent;
+}
+
+function completionPayload(database, task) {
+  const completedAt = completionUtcValue(database, task);
+  if (!completedAt) return { status: 'completed' };
+  return {
+    status: 'completed',
+    completedDateTime: { dateTime: completedAt, timeZone: 'UTC' },
+  };
+}
+
+function completionRecoveryDue(intent, now = Date.now()) {
+  if (intent?.state !== 'delta') return false;
+  const completedAt = Date.parse(intent.completed_at || '');
+  return Number.isFinite(completedAt) && now - completedAt >= COMPLETION_RECOVERY_DELAY_MS;
 }
 
 function completionIntentEntry(task, intent) {
@@ -1046,10 +1062,14 @@ async function flushOutboundTasks(
     const recurringCompletion = completionMarked
       && task.status === 'done'
       && Boolean(task.is_recurring && task.recurrence_rule);
+    const recoverCompletion = recurringCompletion && completionRecoveryDue(completionIntent);
+    const sendCompletionTransition = recurringCompletion
+      && (completionIntent?.state !== 'delta' || recoverCompletion);
     const dirtyBefore = task.outbound_dirty === 1 ? 1 : 0;
     const needsPatch = task.external_source === 'local'
       || dirtyBefore === 1
-      || completionIntent?.state === 'patch';
+      || completionIntent?.state === 'patch'
+      || recoverCompletion;
     let claimed = false;
     if (needsPatch) {
       const claim = task.external_source === 'local'
@@ -1062,9 +1082,14 @@ async function flushOutboundTasks(
              WHERE id = ? AND external_source = ?
                AND (outbound_dirty = 1 OR EXISTS (
                  SELECT 1 FROM microsoft_todo_completion_intents i
-                  WHERE i.task_id = tasks.id AND i.state = 'patch'
+                  WHERE i.task_id = tasks.id AND i.state = ?
                ))
-          `).run(OUTBOUND_IN_FLIGHT, task.id, MICROSOFT_TODO_SOURCE);
+          `).run(
+            OUTBOUND_IN_FLIGHT,
+            task.id,
+            MICROSOFT_TODO_SOURCE,
+            recoverCompletion ? 'delta' : 'patch',
+          );
       if (!claim.changes) continue;
       claimed = true;
     }
@@ -1100,7 +1125,7 @@ async function flushOutboundTasks(
           );
           await graphJson(`${path}/${encodeURIComponent(remote.id)}`, accessToken, {
             method: 'PATCH',
-            body: { status: 'completed' },
+            body: completionPayload(database, task),
           }, fetchImpl);
           log.info(
             `Recurring completion accepted: account=${account.id} list=${task.task_list_id} task=${task.id}`,
@@ -1148,26 +1173,51 @@ async function flushOutboundTasks(
           const taskPath = `${path}/${encodeURIComponent(task.external_uid)}`;
           const updatePayload = graphTaskPayload(task, timeZone, database, { operation: 'update' });
           if (recurringCompletion) {
+            let remoteBefore = null;
+            let successorAlreadyActive = false;
+            if (recoverCompletion) {
+              remoteBefore = await graphJson(taskPath, accessToken, {}, fetchImpl);
+              if (remoteBefore?.status !== 'completed') {
+                const remoteDue = remoteTaskValues(remoteBefore, timeZone).due_date;
+                successorAlreadyActive = Boolean(remoteDue && task.due_date && remoteDue !== task.due_date);
+              }
+            }
             // Completion is an action in Microsoft To Do, not an ordinary field
             // edit. Keep the definition update separate so Graph receives the
             // same unambiguous status transition as the To Do client.
             delete updatePayload.status;
-            await graphJson(taskPath, accessToken, {
-              method: 'PATCH',
-              body: updatePayload,
-            }, fetchImpl);
-            log.info(
-              `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
-              + `task=${task.id} action=complete`,
-            );
-            await graphJson(taskPath, accessToken, {
-              method: 'PATCH',
-              body: { status: 'completed' },
-            }, fetchImpl);
-            completionOutboundAccepted = true;
-            log.info(
-              `Recurring completion accepted: account=${account.id} list=${task.task_list_id} task=${task.id}`,
-            );
+            if (!successorAlreadyActive) {
+              await graphJson(taskPath, accessToken, {
+                method: 'PATCH',
+                body: updatePayload,
+              }, fetchImpl);
+              if (recoverCompletion && remoteBefore?.status === 'completed') {
+                log.info(
+                  `Recurring completion recovery: account=${account.id} list=${task.task_list_id} `
+                  + `task=${task.id} action=rearm`,
+                );
+                await graphJson(taskPath, accessToken, {
+                  method: 'PATCH',
+                  body: { status: 'notStarted' },
+                }, fetchImpl);
+              }
+              if (sendCompletionTransition) {
+                log.info(
+                  `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
+                  + `task=${task.id} action=complete`,
+                );
+                await graphJson(taskPath, accessToken, {
+                  method: 'PATCH',
+                  body: completionPayload(database, task),
+                }, fetchImpl);
+              }
+            }
+            completionOutboundAccepted = sendCompletionTransition || successorAlreadyActive;
+            if (sendCompletionTransition && !successorAlreadyActive) {
+              log.info(
+                `Recurring completion accepted: account=${account.id} list=${task.task_list_id} task=${task.id}`,
+              );
+            }
           } else {
             await graphJson(taskPath, accessToken, {
               method: 'PATCH',
@@ -1201,7 +1251,7 @@ async function flushOutboundTasks(
             );
             await graphJson(`${path}/${encodeURIComponent(remote.id)}`, accessToken, {
               method: 'PATCH',
-              body: { status: 'completed' },
+              body: completionPayload(database, current),
             }, fetchImpl);
             completionOutboundAccepted = true;
             log.info(
