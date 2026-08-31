@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The remaining principal of an interest loan follows the money you booked, not the calendar**
+  (#954, reported in #935). Loan payments always carried a free amount - paying 500 instead of the
+  planned 300 was accepted and stored - but the displayed remaining principal was read off the
+  original amortization schedule at position *n*: whoever paid extra saw none of it, and the number
+  on screen was wrong, not merely incomplete. It now replays the recorded payments (interest share
+  per installment at that installment's phase rate, the rest amortizes), so an extra payment lowers
+  the balance one to one and a short payment - honestly - does not count as a full installment.
+  Paying exactly the annuity yields the same figures as before. The forecast figures next to it
+  (monthly payment, total interest, remaining term) deliberately stay plan-based: they describe the
+  contract, not the account balance.
+
+## [2.57.0] - 2026-08-31
+
+### Fixed
+
+- **Public and school holidays are stored in the language you picked, not the one the country
+  speaks.** A household in Catalonia with "Language of stored entries" set to English got
+  "Navidad" (#946). The service derived the language from the *country* - a map from `ES` to `ES` -
+  while the hint under that setting promises it affects the API, the calendar feed and
+  synchronisation. A holiday is content Yuvomi stores itself, so it falls under that promise; the
+  language now comes from the same place birthdays, loan instalments and notifications take theirs.
+
+  The request no longer asks OpenHolidays to pre-filter by language. With that parameter it returns
+  exactly one name per holiday and falls back to the country language when the requested one is
+  missing - there was nothing left to choose from. Without it the full set of names arrives and the
+  choice happens here: requested language, else English (which OpenHolidays carries for nearly
+  every country), else whatever is offered.
+
+  Changing the setting now takes effect on the next scheduler pass instead of up to 30 days later,
+  because the cache holds translated names rather than keys. The same applies to changing country,
+  region, or switching a holiday layer back on: each of the four decides what ends up in the cache,
+  so each of them triggers a refresh, and years still cached from earlier runs come along rather
+  than keeping their old names forever.
+
+  **Existing installations fetch their holidays once after the update.** That is what corrects the
+  stored names.
+
+- **Subscription categories and payment methods speak the reader's language.** In "Manage categories
+  and payment methods" the categories read Spanish while the payment methods next to them read
+  English - the same dialogue in two languages (#950). Both lists store their defaults as English
+  text; the categories had a translation table in the frontend, the payment methods had none. So it
+  was never a missing second translation, it was the first one in the wrong place - and a table
+  keyed on names cannot tell a default apart from a row a household created under the same name.
+
+  Both now carry a translation key on the row itself, the way task, contact and inventory categories
+  have for a while. Renaming one clears that key, so a name you typed stays the name you typed.
+
+  The cost breakdown no longer invents English words either: it used to label the catch-all bucket
+  "Unspecified" inside the data, which no client could translate.
+
+- **Module icons no longer blow up in the settings lists.** The four kitchen modules under Settings →
+  Modules and under Settings → Navigation were drawn several hundred pixels wide (#949). Yuvomi's own
+  icons carried no intrinsic size, and an SVG without one takes the width of its box - which never
+  showed inside a fixed-size box like the nav rail or a module disc, and ran away inside a flexible
+  row. The Lucide fallback had carried that size all along, so the same icon name meant one thing
+  from one hand and another from the other.
+
+  Two places were reported; there were three. The settings overview had it too.
+
+### Changed
+
+- **The subscription cost breakdown returns rows instead of labels.** `by_category` and
+  `by_payment_method` in `GET /api/v1/budget/subscriptions` now carry `{ id, name, label_key,
+  amount }` per entry rather than `{ name, amount }`, and the catch-all bucket for subscriptions
+  without a category or payment method has `id: null` with `name` and `label_key` unset, where it
+  previously carried the literal string `"Uncategorized"` or `"Unspecified"`. Subscription objects
+  gained `category_label_key` and `payment_method_label_key` alongside the existing name fields.
+  Resolve a label as `label_key ? t(label_key) : name`.
+
+## [2.56.0] - 2026-08-30
+
 ### Added
 
 - **Reminders can be delivered by email.** Households without a native app fell back to keeping a
