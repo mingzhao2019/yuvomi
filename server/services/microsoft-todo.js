@@ -452,14 +452,11 @@ function completionIntentFor(database, task) {
 }
 
 function completionIntentEntry(task, intent) {
-  // The intent is created only for a Microsoft To Do recurring completion.
-  // Keep using that durable fact after Delta has cleared or normalized the
-  // current task's recurrence fields; otherwise a successful PATCH could leave
-  // the successor reconciliation permanently stranded.
-  if (!intent || task.status !== 'done') return null;
+  if (!intent || task.status !== 'done' || !task.is_recurring || !task.recurrence_rule) return null;
   return {
     taskId: Number(task.id),
     completionId: Number(intent.completion_id),
+    remoteUid: String(task.external_uid || ''),
   };
 }
 
@@ -472,6 +469,17 @@ function addCompletionIntentEntry(entriesByList, task, intent) {
     entries.push(entry);
     entriesByList.set(listId, entries);
   }
+}
+
+function completionSuccessor(database, listId, intent) {
+  if (!intent?.remoteUid) return null;
+  const task = database.prepare(`
+    SELECT id, status, due_date, is_recurring, external_uid
+      FROM tasks
+     WHERE task_list_id = ? AND external_source = ? AND external_uid = ?
+  `).get(listId, MICROSOFT_TODO_SOURCE, intent.remoteUid);
+  if (!task || task.status === 'done' || !task.is_recurring) return null;
+  return task;
 }
 
 function remoteReminderState(remote) {
@@ -790,18 +798,9 @@ function upsertRemoteLists(database, accountId, remoteLists, ownerId) {
            outbound_dirty = 0, outbound_attempts = 0
      WHERE external_source = ? AND task_list_id = ?
   `);
-  const clearCompletionIntents = database.prepare(`
-    DELETE FROM microsoft_todo_completion_intents
-    WHERE task_id IN (
-       SELECT id FROM tasks WHERE task_list_id = ?
-     )
-  `);
   const remove = database.prepare('DELETE FROM task_lists WHERE id = ?');
   for (const row of known.values()) {
     if (row.external_list_id && !remoteIds.has(String(row.external_list_id))) {
-      // There is no remaining remote list/cursor from which a successor can be
-      // discovered, so do not retain a completion intent for detached tasks.
-      clearCompletionIntents.run(row.id);
       detach.run(MICROSOFT_TODO_SOURCE, row.id);
       remove.run(row.id);
     }
@@ -892,7 +891,7 @@ function graphTaskPayload(
   task,
   timeZone = householdTimeZone(null),
   database = null,
-  { operation = 'create', includeCompletion = false } = {},
+  { operation = 'create' } = {},
 ) {
   const payload = {
     title: String(task.title || 'Microsoft To Do task'),
@@ -924,10 +923,6 @@ function graphTaskPayload(
   payload.reminderDateTime = remindAt
     ? { dateTime: remindAt, timeZone: 'UTC' }
     : null;
-  if (operation === 'update' && includeCompletion && task.status === 'done') {
-    const completedAt = completionUtcValue(database, task);
-    if (completedAt) payload.completedDateTime = { dateTime: completedAt, timeZone: 'UTC' };
-  }
   if (operation === 'create') {
     const recurrenceStart = task.start_date || task.due_date;
     if (task.is_recurring && task.recurrence_rule && recurrenceStart) {
@@ -1038,6 +1033,7 @@ async function flushOutboundTasks(
   let failed = 0;
   const createdTaskIds = [];
   const recurringPatchedListIds = new Set();
+  const recurringPatchedTaskIds = new Set();
   const completionIntentsByList = new Map();
   for (const task of candidates) {
     const completionIntent = completionIntentFor(database, task);
@@ -1047,6 +1043,9 @@ async function flushOutboundTasks(
     // driven only by completionIntentFor(), never by a timestamp heuristic.
     const completionMarked = Boolean(completionIntent)
       || (completionHints.has(Number(task.id)) && Boolean(completionAt));
+    const recurringCompletion = completionMarked
+      && task.status === 'done'
+      && Boolean(task.is_recurring && task.recurrence_rule);
     const dirtyBefore = task.outbound_dirty === 1 ? 1 : 0;
     const needsPatch = task.external_source === 'local'
       || dirtyBefore === 1
@@ -1075,8 +1074,10 @@ async function flushOutboundTasks(
     // PATCH, unless a normal edit has independently made the row dirty.
     if (!claimed && !completionIntent) continue;
     if (!claimed) {
-      if (completionMarked && task.status === 'done') {
+      if (completionMarked && task.status === 'done'
+        && task.is_recurring && task.recurrence_rule) {
         recurringPatchedListIds.add(Number(task.task_list_id));
+        recurringPatchedTaskIds.add(Number(task.id));
         addCompletionIntentEntry(completionIntentsByList, task, completionIntent);
       }
       continue;
@@ -1085,11 +1086,26 @@ async function flushOutboundTasks(
     try {
       const path = `/me/todo/lists/${encodeURIComponent(task.external_list_id)}/tasks`;
       if (task.external_source === 'local') {
+        const createPayload = graphTaskPayload(task, timeZone, database, { operation: 'create' });
+        if (recurringCompletion) createPayload.status = 'notStarted';
         const remote = await graphJson(path, accessToken, {
           method: 'POST',
-          body: graphTaskPayload(task, timeZone, database, { operation: 'create' }),
+          body: createPayload,
         }, fetchImpl);
         if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
+        if (recurringCompletion) {
+          log.info(
+            `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
+            + `task=${task.id} action=complete`,
+          );
+          await graphJson(`${path}/${encodeURIComponent(remote.id)}`, accessToken, {
+            method: 'PATCH',
+            body: { status: 'completed' },
+          }, fetchImpl);
+          log.info(
+            `Recurring completion accepted: account=${account.id} list=${task.task_list_id} task=${task.id}`,
+          );
+        }
         const current = database.prepare('SELECT * FROM tasks WHERE id = ?').get(task.id);
         if (!current || Number(current.task_list_id) !== Number(task.task_list_id)) {
           queueRemoteDeletion(database, account.id, task.external_list_id, String(remote.id));
@@ -1111,8 +1127,10 @@ async function flushOutboundTasks(
             task.task_list_id,
           );
           createdTaskIds.push(Number(task.id));
-          if (completionMarked && current.status === 'done') {
+          if (completionMarked && current.status === 'done'
+            && current.is_recurring && current.recurrence_rule) {
             recurringPatchedListIds.add(Number(task.task_list_id));
+            recurringPatchedTaskIds.add(Number(task.id));
             addCompletionIntentEntry(completionIntentsByList, current, completionIntent);
             if (completionIntent) {
               markMicrosoftTodoCompletionIntentReconciled(
@@ -1125,26 +1143,40 @@ async function flushOutboundTasks(
         }
         created += 1;
       } else {
-        let updatePayload;
         let completionOutboundAccepted = false;
         try {
-          updatePayload = graphTaskPayload(task, timeZone, database, {
-            operation: 'update',
-            includeCompletion: completionMarked,
-          });
-          await graphJson(
-            `${path}/${encodeURIComponent(task.external_uid)}`,
-            accessToken,
-            {
+          const taskPath = `${path}/${encodeURIComponent(task.external_uid)}`;
+          const updatePayload = graphTaskPayload(task, timeZone, database, { operation: 'update' });
+          if (recurringCompletion) {
+            // Completion is an action in Microsoft To Do, not an ordinary field
+            // edit. Keep the definition update separate so Graph receives the
+            // same unambiguous status transition as the To Do client.
+            delete updatePayload.status;
+            await graphJson(taskPath, accessToken, {
+              method: 'PATCH',
+              body: updatePayload,
+            }, fetchImpl);
+            log.info(
+              `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
+              + `task=${task.id} action=complete`,
+            );
+            await graphJson(taskPath, accessToken, {
+              method: 'PATCH',
+              body: { status: 'completed' },
+            }, fetchImpl);
+            completionOutboundAccepted = true;
+            log.info(
+              `Recurring completion accepted: account=${account.id} list=${task.task_list_id} task=${task.id}`,
+            );
+          } else {
+            await graphJson(taskPath, accessToken, {
               method: 'PATCH',
               // Microsoft Graph currently rejects valid recurrence.range.startDate
               // values on To Do PATCH requests. Preserve the remote series and
-              // update the other fields without recurrence so completion succeeds.
+              // update the other fields without recurrence.
               body: updatePayload,
-            },
-            fetchImpl,
-          );
-          completionOutboundAccepted = completionMarked && Boolean(updatePayload.completedDateTime);
+            }, fetchImpl);
+          }
         } catch (error) {
           // A remote deletion is not a local list move. Recreate the task so a
           // Yuvomi edit remains durable, matching the Outlook calendar sync rule.
@@ -1155,14 +1187,27 @@ async function flushOutboundTasks(
             updated += 1;
             continue;
           }
+          const recreatePayload = graphTaskPayload(current, timeZone, database, { operation: 'create' });
+          if (recurringCompletion) recreatePayload.status = 'notStarted';
           const remote = await graphJson(path, accessToken, {
             method: 'POST',
-            body: graphTaskPayload(current, timeZone, database, { operation: 'create' }),
+            body: recreatePayload,
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
-          completionOutboundAccepted = completionMarked
-            && current.status === 'done'
-            && Boolean(completionUtcValue(database, current));
+          if (recurringCompletion) {
+            log.info(
+              `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
+              + `task=${task.id} action=complete-recreated`,
+            );
+            await graphJson(`${path}/${encodeURIComponent(remote.id)}`, accessToken, {
+              method: 'PATCH',
+              body: { status: 'completed' },
+            }, fetchImpl);
+            completionOutboundAccepted = true;
+            log.info(
+              `Recurring completion accepted: account=${account.id} list=${task.task_list_id} task=${task.id}`,
+            );
+          }
           database.prepare(`
             UPDATE tasks
              SET external_uid = ?, external_object_url = ?, outbound_dirty =
@@ -1193,8 +1238,10 @@ async function flushOutboundTasks(
               completionIntent.completion_id,
             );
           }
-          if (completionMarked && current.status === 'done') {
+          if (completionMarked && current.status === 'done'
+            && current.is_recurring && current.recurrence_rule) {
             recurringPatchedListIds.add(Number(task.task_list_id));
+            recurringPatchedTaskIds.add(Number(task.id));
             addCompletionIntentEntry(completionIntentsByList, current, completionIntent);
           }
         }
@@ -1219,6 +1266,7 @@ async function flushOutboundTasks(
     failed,
     createdTaskIds,
     recurringPatchedListIds,
+    recurringPatchedTaskIds,
     completionIntentsByList,
   };
 }
@@ -1414,7 +1462,13 @@ async function syncInternal(options = {}) {
         if (!list.enabled || !discovered.remoteIds.has(String(list.external_list_id))) continue;
         try {
           const runFullResync = forceFull || shouldRunFullResync(list.last_full_sync);
-          const preserveTaskIds = new Set(outbound.createdTaskIds);
+          // Graph may expose the completed archive before it exposes the next
+          // active occurrence. A full snapshot in that gap must not prune the
+          // local task whose remote id is about to become the successor.
+          const preserveTaskIds = new Set([
+            ...outbound.createdTaskIds,
+            ...outbound.recurringPatchedTaskIds,
+          ]);
           const initial = await applyTaskDeltaRound({
             database: activeDb,
             account,
@@ -1435,8 +1489,21 @@ async function syncInternal(options = {}) {
 
           if (outbound.recurringPatchedListIds.has(Number(list.id))) {
             const completionIntents = outbound.completionIntentsByList.get(Number(list.id)) || [];
+            const observedCompletionIds = new Set();
+            const observeSuccessors = () => {
+              for (const intent of completionIntents) {
+                const successor = completionSuccessor(activeDb, list.id, intent);
+                if (!successor || observedCompletionIds.has(intent.completionId)) continue;
+                observedCompletionIds.add(intent.completionId);
+                log.info(
+                  `Recurring successor observed: account=${account.id} list=${list.id} `
+                  + `task=${intent.taskId} successorTask=${successor.id} due=${successor.due_date || 'none'}`,
+                );
+              }
+            };
             let cursor = initial.cursor;
             let lastRefillError = null;
+            observeSuccessors();
             for (const delayMs of SUCCESSOR_DELTA_DELAYS_MS) {
               try {
                 await waitForSuccessor(delayMs);
@@ -1458,6 +1525,7 @@ async function syncInternal(options = {}) {
                 result.deleted += refill.deleted;
                 if (refill.fullResync) result.fullResyncLists += 1;
                 lastRefillError = null;
+                observeSuccessors();
               } catch (error) {
                 lastRefillError = error;
               }
@@ -1475,9 +1543,10 @@ async function syncInternal(options = {}) {
                 `To Do successor reconciliation failed for account ${account.id}, list ${list.id}:`,
                 safeError(lastRefillError),
               );
-            } else if (completionIntents.length) {
+            } else if (observedCompletionIds.size) {
               activeDb.transaction(() => {
                 for (const intent of completionIntents) {
+                  if (!observedCompletionIds.has(intent.completionId)) continue;
                   clearMicrosoftTodoCompletionIntent(
                     activeDb,
                     intent.taskId,
@@ -1485,6 +1554,13 @@ async function syncInternal(options = {}) {
                   );
                 }
               })();
+            }
+            for (const intent of completionIntents) {
+              if (observedCompletionIds.has(intent.completionId)) continue;
+              log.warn(
+                `Recurring successor not observed: account=${account.id} list=${list.id} `
+                + `task=${intent.taskId}; completion remains pending`,
+              );
             }
           }
         } catch (error) {
