@@ -12,6 +12,7 @@ const dbModule = await import('../server/db.js');
 const database = dbModule.get();
 const todo = await import('../server/services/microsoft-todo.js');
 const outlook = await import('../server/services/outlook-calendar.js');
+const completions = await import('../server/services/task-completions.js');
 
 function response(status, data = {}) {
   return {
@@ -452,6 +453,253 @@ test('completing a recurring To Do task pushes status before importing the next 
   assert.equal(database.prepare(`
     SELECT COUNT(*) AS n FROM tasks WHERE task_list_id = ? AND recurrence_origin_id IS NOT NULL
   `).get(listId).n, 0);
+});
+
+test('remote reopening revokes the old completion before a later local completion', async () => {
+  const ownerId = insertUser('todo-owner-remote-reopen');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Remote reopen', 'microsoft_todo', ?, 'list-remote-reopen', ?, 1)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const taskId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, outbound_dirty)
+    VALUES ('Reopen me', ?, 'microsoft_todo', ?, 'remote-reopen', ?, 'done', 0)
+  `).run(ownerId, accountId, listId).lastInsertRowid;
+  const oldCompletion = '2026-08-01T10:20:30Z';
+  database.prepare(`
+    INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
+    VALUES (?, ?, ?, ?)
+  `).run(taskId, taskId, ownerId, oldCompletion);
+
+  const fetchImpl = async (url) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-remote-reopen', displayName: 'Remote reopen' }] });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-remote-reopen/tasks/delta') {
+      return response(200, {
+        value: [
+          { id: 'remote-reopen', title: 'Reopen me', status: 'notStarted' },
+          { id: 'remote-completed-import', title: 'Imported complete', status: 'completed' },
+        ],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-remote-reopen/tasks/delta?$deltatoken=reopen-1',
+      });
+    }
+    throw new Error(`Unexpected Graph request ${parsed.pathname}${parsed.search}`);
+  };
+
+  const result = await todo.sync({ database, fetchImpl });
+  assert.equal(result.success, true);
+  assert.equal(database.prepare('SELECT status FROM tasks WHERE id = ?').get(taskId).status, 'open');
+  assert.equal(
+    database.prepare('SELECT 1 FROM task_completions WHERE task_id = ?').get(taskId),
+    undefined,
+  );
+  const imported = database.prepare(
+    "SELECT id, status FROM tasks WHERE external_uid = 'remote-completed-import'"
+  ).get();
+  assert.deepEqual(imported && { status: imported.status }, { status: 'done' });
+  assert.equal(
+    database.prepare('SELECT 1 FROM task_completions WHERE task_id = ?').get(imported.id),
+    undefined,
+  );
+
+  database.prepare('UPDATE tasks SET status = ? WHERE id = ?').run('done', taskId);
+  completions.syncTaskCompletion(database, taskId, 'open', 'done', ownerId);
+  const newCompletion = database.prepare(
+    'SELECT completed_at FROM task_completions WHERE task_id = ?'
+  ).get(taskId).completed_at;
+  assert.notEqual(newCompletion, oldCompletion);
+  assert.deepEqual(todo.__test.graphTaskPayload(
+    { id: taskId, title: 'Reopen me', status: 'done' },
+    'Europe/Helsinki',
+    database,
+    { operation: 'update' },
+  ).completedDateTime, {
+    dateTime: newCompletion.slice(0, 19),
+    timeZone: 'UTC',
+  });
+});
+
+test('ordinary recurring edits do not trigger successor reconciliation', async () => {
+  const ownerId = insertUser('todo-owner-recurring-edit');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Recurring edit', 'microsoft_todo', ?, 'list-recurring-edit', ?, 1)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const taskId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, due_date, is_recurring, recurrence_rule, outbound_dirty)
+    VALUES ('Edit me', ?, 'microsoft_todo', ?, 'remote-edit', ?,
+            'open', '2026-08-15', 1, 'FREQ=MONTHLY', 1)
+  `).run(ownerId, accountId, listId).lastInsertRowid;
+
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const method = options.method || 'GET';
+    const body = options.body ? JSON.parse(options.body) : null;
+    calls.push({ path: parsed.pathname, search: parsed.search, method, body });
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-recurring-edit', displayName: 'Recurring edit' }] });
+    }
+    if (parsed.pathname.endsWith('/tasks/remote-edit') && method === 'PATCH') {
+      assert.equal(Object.hasOwn(body, 'completedDateTime'), false);
+      assert.equal(Object.hasOwn(body, 'recurrence'), false);
+      return response(204);
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring-edit/tasks/delta') {
+      return response(200, {
+        value: [{
+          id: 'remote-edit',
+          title: 'Edit me',
+          status: 'notStarted',
+          dueDateTime: { dateTime: '2026-08-15T00:00:00.0000000', timeZone: 'UTC' },
+          recurrence: {
+            pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+            range: { type: 'noEnd', startDate: '2026-08-15' },
+          },
+        }],
+        '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-recurring-edit/tasks/delta?$deltatoken=edit-1',
+      });
+    }
+    throw new Error(`Unexpected Graph request ${method} ${parsed.pathname}${parsed.search}`);
+  };
+
+  const waits = [];
+  const result = await todo.sync({
+    database,
+    fetchImpl,
+    waitForSuccessor: async (delayMs) => waits.push(delayMs),
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(waits, []);
+  assert.equal(calls.filter((call) => call.path.endsWith('/tasks/delta')).length, 1);
+  assert.equal(database.prepare('SELECT outbound_dirty FROM tasks WHERE id = ?').get(taskId).outbound_dirty, 0);
+  assert.equal(
+    database.prepare('SELECT sync_cursor FROM task_lists WHERE id = ?').get(listId).sync_cursor,
+    '/me/todo/lists/list-recurring-edit/tasks/delta?$deltatoken=edit-1',
+  );
+});
+
+test('recreated completed recurring tasks also reconcile a delayed successor', async () => {
+  const ownerId = insertUser('todo-owner-recurring-recreate');
+  const accountId = insertAccount(ownerId);
+  const listId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Recurring recreate', 'microsoft_todo', ?, 'list-recurring-recreate', ?, 1)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const taskId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, due_date, is_recurring, recurrence_rule, outbound_dirty)
+    VALUES ('Recreate me', ?, 'microsoft_todo', ?, 'remote-missing', ?,
+            'done', '2026-08-15', 1, 'FREQ=MONTHLY', 1)
+  `).run(ownerId, accountId, listId).lastInsertRowid;
+  database.prepare(`
+    INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
+    VALUES (?, ?, ?, '2026-08-31T12:34:56Z')
+  `).run(taskId, taskId, ownerId);
+
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const method = options.method || 'GET';
+    const body = options.body ? JSON.parse(options.body) : null;
+    calls.push({ path: parsed.pathname, search: parsed.search, method, body });
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      return response(200, { value: [{ id: 'list-recurring-recreate', displayName: 'Recurring recreate' }] });
+    }
+    if (parsed.pathname.endsWith('/tasks/remote-missing') && method === 'PATCH') {
+      return response(404, { error: { message: 'task disappeared' } });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring-recreate/tasks' && method === 'POST') {
+      return response(201, { id: 'remote-recreated' });
+    }
+    if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring-recreate/tasks/delta') {
+      const token = parsed.searchParams.get('$deltatoken');
+      if (!token) {
+        return response(200, {
+          value: [{
+            id: 'remote-recreated',
+            title: 'Recreate me',
+            status: 'completed',
+            dueDateTime: { dateTime: '2026-08-15T00:00:00.0000000', timeZone: 'UTC' },
+            recurrence: {
+              pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+              range: { type: 'noEnd', startDate: '2026-08-15' },
+            },
+          }],
+          '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-recurring-recreate/tasks/delta?$deltatoken=recreate-1',
+        });
+      }
+      if (token === 'recreate-1') {
+        return response(200, {
+          value: [],
+          '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-recurring-recreate/tasks/delta?$deltatoken=recreate-2',
+        });
+      }
+      if (token === 'recreate-2') {
+        return response(200, {
+          value: [{
+            id: 'remote-recreated-next',
+            title: 'Recreate me',
+            status: 'notStarted',
+            dueDateTime: { dateTime: '2026-09-15T00:00:00.0000000', timeZone: 'UTC' },
+            recurrence: {
+              pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+              range: { type: 'noEnd', startDate: '2026-08-15' },
+            },
+          }],
+          '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/todo/lists/list-recurring-recreate/tasks/delta?$deltatoken=recreate-3',
+        });
+      }
+    }
+    throw new Error(`Unexpected Graph request ${method} ${parsed.pathname}${parsed.search}`);
+  };
+
+  const waits = [];
+  const result = await todo.sync({
+    database,
+    fetchImpl,
+    waitForSuccessor: async (delayMs) => waits.push(delayMs),
+  });
+
+  assert.equal(result.success, true);
+  const postCall = calls.find((call) => call.method === 'POST');
+  assert.deepEqual(postCall.body.recurrence, {
+    pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
+    range: { type: 'noEnd', startDate: '2026-08-15', recurrenceTimeZone: 'UTC' },
+  });
+  assert.equal(Object.hasOwn(postCall.body, 'completedDateTime'), false);
+  assert.ok(calls.findIndex((call) => call.method === 'PATCH') < calls.findIndex((call) => call.method === 'POST'));
+  assert.ok(calls.findIndex((call) => call.method === 'POST') < calls.findIndex((call) => call.path.endsWith('/tasks/delta')));
+  assert.deepEqual(waits, [1000, 3000]);
+  assert.deepEqual(
+    calls.filter((call) => call.path.endsWith('/tasks/delta')).map((call) => call.search),
+    ['', '?$deltatoken=recreate-1', '?$deltatoken=recreate-2'],
+  );
+  assert.equal(
+    database.prepare('SELECT external_uid, outbound_dirty FROM tasks WHERE id = ?').get(taskId).external_uid,
+    'remote-recreated',
+  );
+  assert.equal(database.prepare('SELECT COUNT(*) AS n FROM tasks WHERE external_uid = ?').get('remote-recreated-next').n, 1);
+  assert.equal(database.prepare(`
+    SELECT COUNT(*) AS n FROM tasks WHERE task_list_id = ? AND recurrence_origin_id IS NOT NULL
+  `).get(listId).n, 0);
+  assert.equal(
+    database.prepare('SELECT sync_cursor FROM task_lists WHERE id = ?').get(listId).sync_cursor,
+    '/me/todo/lists/list-recurring-recreate/tasks/delta?$deltatoken=recreate-3',
+  );
 });
 
 test('retries a failed successor Delta from the last committed cursor', async () => {

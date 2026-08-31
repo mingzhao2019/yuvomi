@@ -23,6 +23,7 @@ import {
   localToUTC,
   utcToWall,
 } from '../utils/timezone.js';
+import { revokeCompletion } from './task-completions.js';
 
 const log = createLogger('MicrosoftToDo');
 
@@ -655,6 +656,11 @@ function applyRemoteTasks(
         list.id,
         old.id,
       );
+      if (Object.prototype.hasOwnProperty.call(remote, 'status')
+        && old.status === 'done'
+        && values.status !== 'done') {
+        revokeCompletion(database, old.id);
+      }
       applyRemoteReminder(database, old.id, ownerId, remote);
       updated += 1;
     } else {
@@ -1010,7 +1016,9 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
         }
         created += 1;
       } else {
+        let updatePayload;
         try {
+          updatePayload = graphTaskPayload(task, timeZone, database, { operation: 'update' });
           await graphJson(
             `${path}/${encodeURIComponent(task.external_uid)}`,
             accessToken,
@@ -1019,11 +1027,14 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
               // Microsoft Graph currently rejects valid recurrence.range.startDate
               // values on To Do PATCH requests. Preserve the remote series and
               // update the other fields without recurrence so completion succeeds.
-              body: graphTaskPayload(task, timeZone, database, { operation: 'update' }),
+              body: updatePayload,
             },
             fetchImpl,
           );
-          if (task.is_recurring && task.recurrence_rule) {
+          if (task.status === 'done'
+            && task.is_recurring
+            && task.recurrence_rule
+            && updatePayload.completedDateTime) {
             recurringPatchedListIds.add(Number(task.task_list_id));
           }
         } catch (error) {
@@ -1041,6 +1052,12 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
             body: graphTaskPayload(current, timeZone, database, { operation: 'create' }),
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
+          if (current.status === 'done'
+            && current.is_recurring
+            && current.recurrence_rule
+            && completionUtcValue(database, current)) {
+            recurringPatchedListIds.add(Number(current.task_list_id));
+          }
           database.prepare(`
             UPDATE tasks
              SET external_uid = ?, external_object_url = ?, outbound_dirty =
