@@ -47,6 +47,7 @@ export function changesMicrosoftTodoRecurrence(task, input = {}) {
 
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const OUTBOUND_IN_FLIGHT = 2;
+const SUCCESSOR_DELTA_DELAYS_MS = Object.freeze([1000, 3000]);
 // Delta is intentionally cheap for normal polling, but it is not sufficient to
 // repair a local mirror when Graph omits or coalesces a deletion event. Keep a
 // persistent full-sync checkpoint per list so the safety net survives restarts.
@@ -416,6 +417,18 @@ function storedUtcValue(value) {
   if (!raw) return null;
   const parsed = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw}Z`);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 19);
+}
+
+function completionUtcValue(database, task) {
+  if (!database || !task?.id) return null;
+  const raw = String(database.prepare(
+    'SELECT completed_at FROM task_completions WHERE task_id = ?'
+  ).get(task.id)?.completed_at || '').trim();
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?Z$/i.exec(raw);
+  if (!match) return null;
+  const parsed = new Date(`${match[1]}Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 19) !== match[1]) return null;
+  return match[1];
 }
 
 function remoteReminderState(remote) {
@@ -854,6 +867,10 @@ function graphTaskPayload(
   payload.reminderDateTime = remindAt
     ? { dateTime: remindAt, timeZone: 'UTC' }
     : null;
+  if (operation === 'update' && task.status === 'done') {
+    const completedAt = completionUtcValue(database, task);
+    if (completedAt) payload.completedDateTime = { dateTime: completedAt, timeZone: 'UTC' };
+  }
   if (operation === 'create') {
     const recurrenceStart = task.start_date || task.due_date;
     if (task.is_recurring && task.recurrence_rule && recurrenceStart) {
@@ -947,6 +964,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
   let updated = 0;
   let failed = 0;
   const createdTaskIds = [];
+  const recurringPatchedListIds = new Set();
   for (const task of candidates) {
     const dirtyBefore = task.outbound_dirty === 1 ? 1 : 0;
     const claim = task.external_source === 'local'
@@ -1005,6 +1023,9 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
             },
             fetchImpl,
           );
+          if (task.is_recurring && task.recurrence_rule) {
+            recurringPatchedListIds.add(Number(task.task_list_id));
+          }
         } catch (error) {
           // A remote deletion is not a local list move. Recreate the task so a
           // Yuvomi edit remains durable, matching the Outlook calendar sync rule.
@@ -1059,7 +1080,13 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
       log.error(`Outbound task sync failed for account ${account.id}, task ${task.id}:`, safeError(error));
     }
   }
-  return { created, updated, failed, createdTaskIds };
+  return {
+    created,
+    updated,
+    failed,
+    createdTaskIds,
+    recurringPatchedListIds,
+  };
 }
 
 /** Mark a mirrored Microsoft task for the next outbound PATCH. */
@@ -1126,16 +1153,76 @@ export function queueTaskDeletion(task, database) {
   );
 }
 
+async function applyTaskDeltaRound({
+  database,
+  account,
+  list,
+  cursor,
+  accessToken,
+  fetchImpl,
+  timeZone,
+  preserveTaskIds,
+  lastFullSync = list.last_full_sync,
+  startFresh = false,
+}) {
+  const changes = await fetchTaskDelta(
+    list.external_list_id,
+    startFresh ? null : cursor,
+    accessToken,
+    fetchImpl,
+  );
+  const completedFullResync = startFresh || changes.fullResync;
+  const syncedAt = nowIso();
+  const nextLastFullSync = completedFullResync ? syncedAt : lastFullSync;
+  const counts = database.transaction(() => {
+    const applied = applyRemoteTasks(database, account, list, changes, timeZone, {
+      preserveTaskIds,
+    });
+    database.prepare(`
+      UPDATE task_lists
+         SET sync_cursor = ?, last_sync = ?, last_full_sync = ?, last_error = NULL,
+             updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+       WHERE id = ?
+    `).run(
+      changes.deltaLink,
+      syncedAt,
+      nextLastFullSync,
+      list.id,
+    );
+    return applied;
+  })();
+  return {
+    ...counts,
+    cursor: changes.deltaLink,
+    fullResync: completedFullResync,
+    lastFullSync: nextLastFullSync,
+  };
+}
+
+function defaultSuccessorWait(delayMs) {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+function resolveSuccessorWait(options = {}) {
+  return [options.waitForSuccessor, options.successorWait, options.waitImpl]
+    .find((candidate) => typeof candidate === 'function') || defaultSuccessorWait;
+}
+
 /**
  * Synchronize all connected Outlook accounts. Each list's cursor is persisted
  * only after its complete delta pages and all task changes succeed.
  */
-let syncInFlight = null;
-let syncInFlightForceFull = false;
+let syncState = null;
 
-async function syncInternal({ database, fetchImpl = fetch, forceFull = false } = {}) {
+async function syncInternal(options = {}) {
+  const {
+    database,
+    fetchImpl = fetch,
+    forceFull = false,
+  } = options;
   const activeDb = activeDatabase(database);
   const timeZone = householdTimeZone(activeDb);
+  const waitForSuccessor = resolveSuccessorWait(options);
   const accounts = activeDb.prepare('SELECT * FROM outlook_accounts ORDER BY id').all();
   const result = {
     success: true,
@@ -1191,36 +1278,68 @@ async function syncInternal({ database, fetchImpl = fetch, forceFull = false } =
         if (!list.enabled || !discovered.remoteIds.has(String(list.external_list_id))) continue;
         try {
           const runFullResync = forceFull || shouldRunFullResync(list.last_full_sync);
-          const changes = await fetchTaskDelta(
-            list.external_list_id,
-            runFullResync ? null : list.sync_cursor,
+          const preserveTaskIds = new Set(outbound.createdTaskIds);
+          const initial = await applyTaskDeltaRound({
+            database: activeDb,
+            account,
+            list,
+            cursor: list.sync_cursor,
             accessToken,
             fetchImpl,
-          );
-          const completedFullResync = runFullResync || changes.fullResync;
-          const syncedAt = nowIso();
-          const counts = activeDb.transaction(() => {
-            const applied = applyRemoteTasks(activeDb, account, list, changes, timeZone, {
-              preserveTaskIds: new Set(outbound.createdTaskIds),
-            });
-            activeDb.prepare(`
-              UPDATE task_lists
-                 SET sync_cursor = ?, last_sync = ?, last_full_sync = ?, last_error = NULL,
-                     updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
-               WHERE id = ?
-            `).run(
-              changes.deltaLink,
-              syncedAt,
-              completedFullResync ? syncedAt : list.last_full_sync,
-              list.id,
-            );
-            return applied;
-          })();
-          result.created += counts.created;
-          result.updated += counts.updated;
-          result.deleted += counts.deleted;
-          if (completedFullResync) result.fullResyncLists += 1;
+            timeZone,
+            preserveTaskIds,
+            startFresh: runFullResync,
+          });
+          let lastFullSync = initial.lastFullSync;
+          result.created += initial.created;
+          result.updated += initial.updated;
+          result.deleted += initial.deleted;
+          if (initial.fullResync) result.fullResyncLists += 1;
           result.lists += 1;
+
+          if (outbound.recurringPatchedListIds.has(Number(list.id))) {
+            let cursor = initial.cursor;
+            let lastRefillError = null;
+            for (const delayMs of SUCCESSOR_DELTA_DELAYS_MS) {
+              try {
+                await waitForSuccessor(delayMs);
+                const refill = await applyTaskDeltaRound({
+                  database: activeDb,
+                  account,
+                  list,
+                  cursor,
+                  accessToken,
+                  fetchImpl,
+                  timeZone,
+                  preserveTaskIds,
+                  lastFullSync,
+                });
+                cursor = refill.cursor;
+                lastFullSync = refill.lastFullSync;
+                result.created += refill.created;
+                result.updated += refill.updated;
+                result.deleted += refill.deleted;
+                if (refill.fullResync) result.fullResyncLists += 1;
+                lastRefillError = null;
+              } catch (error) {
+                lastRefillError = error;
+              }
+            }
+            // A failed intermediate attempt is harmless when a later attempt
+            // commits a newer cursor. Only an unsuccessful final attempt makes
+            // this list run fail, and it is counted once.
+            if (lastRefillError) {
+              accountFailed = true;
+              result.success = false;
+              result.failed += 1;
+              markListError(activeDb, list.id, lastRefillError);
+              if (isReauthError(lastRefillError)) setTodoReauth(activeDb, account.id, true);
+              log.error(
+                `To Do successor reconciliation failed for account ${account.id}, list ${list.id}:`,
+                safeError(lastRefillError),
+              );
+            }
+          }
         } catch (error) {
           accountFailed = true;
           result.success = false;
@@ -1243,43 +1362,66 @@ async function syncInternal({ database, fetchImpl = fetch, forceFull = false } =
   return result;
 }
 
+function startSync(options, state = {
+  activePromise: null,
+  activeForceFull: false,
+  queued: null,
+  publicPromise: null,
+}) {
+  let wrapped;
+  const running = syncInternal(options);
+  wrapped = running.finally(() => {
+    if (syncState === state && state.activePromise === wrapped && !state.queued) syncState = null;
+  });
+  state.activePromise = wrapped;
+  state.activeForceFull = Boolean(options.forceFull);
+  state.publicPromise = wrapped;
+  if (!syncState) syncState = state;
+  return wrapped;
+}
+
+function queueSync(state, options) {
+  if (state.queued) {
+    state.queued.options = {
+      ...state.queued.options,
+      ...options,
+      forceFull: Boolean(state.queued.options.forceFull || options.forceFull),
+    };
+    return state.queued.promise;
+  }
+
+  const entry = {
+    options: { ...options, forceFull: Boolean(options.forceFull) },
+    promise: null,
+  };
+  const previous = state.activePromise;
+  const runQueued = () => {
+    state.queued = null;
+    state.activePromise = entry.promise;
+    state.activeForceFull = Boolean(entry.options.forceFull);
+    return syncInternal(entry.options);
+  };
+  const chained = previous.then(runQueued, runQueued);
+  entry.promise = chained.finally(() => {
+    if (syncState === state && state.activePromise === entry.promise && !state.queued) syncState = null;
+  });
+  state.queued = entry;
+  state.publicPromise = entry.promise;
+  return entry.promise;
+}
+
 /** Serialize scheduler, manual, and OAuth-triggered syncs for shared accounts. */
 export function sync(options = {}) {
   const forceFull = Boolean(options.forceFull);
-  if (syncInFlight) {
-    if (!forceFull || syncInFlightForceFull) return syncInFlight;
+  const queueIfRunning = Boolean(options.queueIfRunning);
+  if (!syncState) return startSync(options);
 
-    // Do not let a manual full check disappear behind an already-running
-    // scheduler Delta poll. Queue it after the current run, even if that run
-    // fails, so the manual action still gets its authoritative reconciliation.
-    const previous = syncInFlight;
-    const queued = previous.then(
-      () => syncInternal(options),
-      () => syncInternal(options),
-    );
-    let wrapped;
-    wrapped = queued.finally(() => {
-      if (syncInFlight === wrapped) {
-        syncInFlight = null;
-        syncInFlightForceFull = false;
-      }
-    });
-    syncInFlightForceFull = true;
-    syncInFlight = wrapped;
-    return syncInFlight;
-  }
-
-  const running = syncInternal(options);
-  let wrapped;
-  wrapped = running.finally(() => {
-    if (syncInFlight === wrapped) {
-      syncInFlight = null;
-      syncInFlightForceFull = false;
-    }
-  });
-  syncInFlightForceFull = forceFull;
-  syncInFlight = wrapped;
-  return syncInFlight;
+  // Completion/edit triggers need one trailing run even when the active run is
+  // already a full sync. Ordinary callers retain the historical shared-Promise
+  // behaviour unless they explicitly request a queued force-full run.
+  if (queueIfRunning) return queueSync(syncState, options);
+  if (forceFull && (!syncState.activeForceFull || syncState.queued)) return queueSync(syncState, options);
+  return syncState.publicPromise;
 }
 
 export function getStatus({ database } = {}) {
@@ -1306,6 +1448,7 @@ export const __test = {
   fetchTaskDelta,
   shouldRunFullResync,
   FULL_RESYNC_INTERVAL_MS,
+  SUCCESSOR_DELTA_DELAYS_MS,
   dueDateParts,
   remoteTaskRecurrence,
   remoteTaskValues,

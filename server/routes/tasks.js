@@ -46,8 +46,8 @@ function pushToCalDAV(what) {
   flushOutbound().catch((err) => log.warn(`${what} vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
 }
 
-function pushToMicrosoftTodo(what) {
-  syncMicrosoftTodo().catch((err) => log.warn(`${what} für Microsoft To Do vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
+function pushToMicrosoftTodo(what, options = {}) {
+  syncMicrosoftTodo(options).catch((err) => log.warn(`${what} für Microsoft To Do vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
 }
 
 /**
@@ -1796,7 +1796,7 @@ router.put('/:id', (req, res) => {
 
     if (pending || undone || (syncTarget?.provider === 'caldav')) pushToCalDAV('Änderung');
     if (pendingMicrosoft || undoneMicrosoft || syncTarget?.provider === 'microsoft_todo') {
-      pushToMicrosoftTodo('Änderung');
+      pushToMicrosoftTodo('Änderung', { queueIfRunning: true });
     }
   } catch (err) {
     log.error('PUT /:id error:', err);
@@ -2079,7 +2079,9 @@ router.patch('/:id/status', (req, res) => {
     res.json({ data: { id: Number(req.params.id), status, archived_at: prev.archived_at } });
 
     if (pending || undone) pushToCalDAV('Statuswechsel');
-    if (pendingMicrosoft || undoneMicrosoft) pushToMicrosoftTodo('Statuswechsel');
+    if (pendingMicrosoft || undoneMicrosoft) {
+      pushToMicrosoftTodo('Statuswechsel', { queueIfRunning: true });
+    }
   } catch (err) {
     log.error('PATCH /:id/status error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
