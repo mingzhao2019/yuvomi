@@ -7096,6 +7096,27 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_reminders_assigned_from ON reminders(assigned_from);
     `,
   },
+  {
+    version: 174,
+    description: 'Persist Microsoft To Do completion reconciliation intents',
+    up: `
+      -- A completion is a durable provider operation, not an in-memory hint.
+      -- Keep the task-completion event as the source of its timestamp and tie
+      -- the reconciliation row to that event so reopening (which deletes the
+      -- event) cannot leave an old intent behind for a later completion.
+      CREATE TABLE IF NOT EXISTS microsoft_todo_completion_intents (
+        task_id       INTEGER PRIMARY KEY REFERENCES tasks(id) ON DELETE CASCADE,
+        completion_id INTEGER NOT NULL REFERENCES task_completions(id) ON DELETE CASCADE,
+        state         TEXT    NOT NULL DEFAULT 'patch'
+                              CHECK(state IN ('patch', 'delta')),
+        created_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        UNIQUE(completion_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_microsoft_todo_completion_intents_state
+        ON microsoft_todo_completion_intents(state);
+    `,
+  },
 
 ];
 

@@ -23,7 +23,12 @@ import {
   localToUTC,
   utcToWall,
 } from '../utils/timezone.js';
-import { revokeCompletion } from './task-completions.js';
+import {
+  clearMicrosoftTodoCompletionIntent,
+  markMicrosoftTodoCompletionIntentReconciled,
+  microsoftTodoCompletionIntent,
+  revokeCompletion,
+} from './task-completions.js';
 
 const log = createLogger('MicrosoftToDo');
 
@@ -432,15 +437,6 @@ function completionUtcValue(database, task) {
   return match[1];
 }
 
-function taskUpdatedUtcValue(task) {
-  const raw = String(task?.updated_at || '').trim();
-  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?Z$/i.exec(raw);
-  if (!match) return null;
-  const parsed = new Date(`${match[1]}Z`);
-  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 19) !== match[1]) return null;
-  return match[1];
-}
-
 function normalizeCompletionTaskIds(value) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value
@@ -448,19 +444,30 @@ function normalizeCompletionTaskIds(value) {
     .filter((id) => Number.isInteger(id) && id > 0))];
 }
 
-function isCurrentCompletionCandidate(database, task, completionTaskIds) {
-  if (task?.status !== 'done') return false;
-  const completedAt = completionUtcValue(database, task);
-  if (!completedAt) return false;
+function completionIntentFor(database, task) {
+  if (task?.status !== 'done' || !task?.id) return null;
+  const intent = microsoftTodoCompletionIntent(database, task.id);
+  if (!intent || !completionUtcValue(database, task)) return null;
+  return intent;
+}
 
-  // The route marker is authoritative for a real local done transition. The
-  // timestamp fallback is deliberately narrow: it lets a later run recover a
-  // completion whose marker was lost on an immediate sync failure or restart,
-  // while a subsequent ordinary edit advances updated_at and suppresses the
-  // successor refill. Evaluate this before claiming outbound_dirty.
-  if (completionTaskIds.has(Number(task.id))) return true;
-  const updatedAt = taskUpdatedUtcValue(task);
-  return Boolean(updatedAt && completedAt >= updatedAt);
+function completionIntentEntry(task, intent) {
+  if (!intent || task.status !== 'done' || !task.is_recurring || !task.recurrence_rule) return null;
+  return {
+    taskId: Number(task.id),
+    completionId: Number(intent.completion_id),
+  };
+}
+
+function addCompletionIntentEntry(entriesByList, task, intent) {
+  const entry = completionIntentEntry(task, intent);
+  if (!entry) return;
+  const listId = Number(task.task_list_id);
+  const entries = entriesByList.get(listId) || [];
+  if (!entries.some((item) => item.taskId === entry.taskId && item.completionId === entry.completionId)) {
+    entries.push(entry);
+    entriesByList.set(listId, entries);
+  }
 }
 
 function remoteReminderState(remote) {
@@ -974,7 +981,10 @@ async function flushOutboundTasks(
   { database, fetchImpl, completionTaskIds = [] },
 ) {
   const timeZone = householdTimeZone(database);
-  const completionIds = new Set(normalizeCompletionTaskIds(completionTaskIds));
+  // This option is a current-request hint for callers that already recorded a
+  // durable intent. It remains useful for the immediate run and for queue
+  // merging, but never replaces the persisted intent below.
+  const completionHints = new Set(normalizeCompletionTaskIds(completionTaskIds));
 
   // A process can disappear after claiming a row. Recover such claims at the
   // beginning of the next run; a user edit made during a live request is 1 and
@@ -997,7 +1007,15 @@ async function flushOutboundTasks(
        AND t.parent_task_id IS NULL
        AND (
          t.external_source = 'local'
-         OR (t.external_source = ? AND t.outbound_dirty = 1)
+         OR (t.external_source = ? AND (
+           t.outbound_dirty = 1
+           OR EXISTS (
+             SELECT 1
+               FROM microsoft_todo_completion_intents i
+               JOIN task_completions c ON c.id = i.completion_id
+              WHERE i.task_id = t.id
+           )
+         ))
        )
      ORDER BY t.id
   `).all(MICROSOFT_TODO_PROVIDER, account.id, MICROSOFT_TODO_SOURCE);
@@ -1007,19 +1025,50 @@ async function flushOutboundTasks(
   let failed = 0;
   const createdTaskIds = [];
   const recurringPatchedListIds = new Set();
+  const completionIntentsByList = new Map();
   for (const task of candidates) {
-    const completionMarked = isCurrentCompletionCandidate(database, task, completionIds);
+    const completionIntent = completionIntentFor(database, task);
+    const completionAt = task.status === 'done' ? completionUtcValue(database, task) : null;
+    // The marker can cover a caller that is completing through an older or
+    // non-route entry point for this one run. Any recovery after this run is
+    // driven only by completionIntentFor(), never by a timestamp heuristic.
+    const completionMarked = Boolean(completionIntent)
+      || (completionHints.has(Number(task.id)) && Boolean(completionAt));
     const dirtyBefore = task.outbound_dirty === 1 ? 1 : 0;
-    const claim = task.external_source === 'local'
-      ? database.prepare(`
-          UPDATE tasks SET outbound_dirty = ?
-           WHERE id = ? AND external_source = 'local' AND outbound_dirty != ?
-        `).run(OUTBOUND_IN_FLIGHT, task.id, OUTBOUND_IN_FLIGHT)
-      : database.prepare(`
-          UPDATE tasks SET outbound_dirty = ?
-           WHERE id = ? AND external_source = ? AND outbound_dirty = 1
-        `).run(OUTBOUND_IN_FLIGHT, task.id, MICROSOFT_TODO_SOURCE);
-    if (!claim.changes) continue;
+    const needsPatch = task.external_source === 'local'
+      || dirtyBefore === 1
+      || completionIntent?.state === 'patch';
+    let claimed = false;
+    if (needsPatch) {
+      const claim = task.external_source === 'local'
+        ? database.prepare(`
+            UPDATE tasks SET outbound_dirty = ?
+             WHERE id = ? AND external_source = 'local' AND outbound_dirty != ?
+          `).run(OUTBOUND_IN_FLIGHT, task.id, OUTBOUND_IN_FLIGHT)
+        : database.prepare(`
+            UPDATE tasks SET outbound_dirty = ?
+             WHERE id = ? AND external_source = ?
+               AND (outbound_dirty = 1 OR EXISTS (
+                 SELECT 1 FROM microsoft_todo_completion_intents i
+                  WHERE i.task_id = tasks.id AND i.state = 'patch'
+               ))
+          `).run(OUTBOUND_IN_FLIGHT, task.id, MICROSOFT_TODO_SOURCE);
+      if (!claim.changes) continue;
+      claimed = true;
+    }
+
+    // A process may have persisted the Graph-successful phase and died before
+    // the refill. Reconcile it from the last cursor without sending a second
+    // PATCH, unless a normal edit has independently made the row dirty.
+    if (!claimed && !completionIntent) continue;
+    if (!claimed) {
+      if (completionMarked && task.status === 'done'
+        && task.is_recurring && task.recurrence_rule) {
+        recurringPatchedListIds.add(Number(task.task_list_id));
+        addCompletionIntentEntry(completionIntentsByList, task, completionIntent);
+      }
+      continue;
+    }
 
     try {
       const path = `/me/todo/lists/${encodeURIComponent(task.external_list_id)}/tasks`;
@@ -1029,7 +1078,7 @@ async function flushOutboundTasks(
           body: graphTaskPayload(task, timeZone, database, { operation: 'create' }),
         }, fetchImpl);
         if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
-        const current = database.prepare('SELECT task_list_id FROM tasks WHERE id = ?').get(task.id);
+        const current = database.prepare('SELECT * FROM tasks WHERE id = ?').get(task.id);
         if (!current || Number(current.task_list_id) !== Number(task.task_list_id)) {
           queueRemoteDeletion(database, account.id, task.external_list_id, String(remote.id));
         } else {
@@ -1050,10 +1099,23 @@ async function flushOutboundTasks(
             task.task_list_id,
           );
           createdTaskIds.push(Number(task.id));
+          if (completionMarked && current.status === 'done'
+            && current.is_recurring && current.recurrence_rule) {
+            recurringPatchedListIds.add(Number(task.task_list_id));
+            addCompletionIntentEntry(completionIntentsByList, current, completionIntent);
+            if (completionIntent) {
+              markMicrosoftTodoCompletionIntentReconciled(
+                database,
+                task.id,
+                completionIntent.completion_id,
+              );
+            }
+          }
         }
         created += 1;
       } else {
         let updatePayload;
+        let completionOutboundAccepted = false;
         try {
           updatePayload = graphTaskPayload(task, timeZone, database, { operation: 'update' });
           await graphJson(
@@ -1068,12 +1130,7 @@ async function flushOutboundTasks(
             },
             fetchImpl,
           );
-          if (completionMarked
-            && task.is_recurring
-            && task.recurrence_rule
-            && updatePayload.completedDateTime) {
-            recurringPatchedListIds.add(Number(task.task_list_id));
-          }
+          completionOutboundAccepted = completionMarked && Boolean(updatePayload.completedDateTime);
         } catch (error) {
           // A remote deletion is not a local list move. Recreate the task so a
           // Yuvomi edit remains durable, matching the Outlook calendar sync rule.
@@ -1089,13 +1146,9 @@ async function flushOutboundTasks(
             body: graphTaskPayload(current, timeZone, database, { operation: 'create' }),
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
-          if (completionMarked
+          completionOutboundAccepted = completionMarked
             && current.status === 'done'
-            && current.is_recurring
-            && current.recurrence_rule
-            && completionUtcValue(database, current)) {
-            recurringPatchedListIds.add(Number(current.task_list_id));
-          }
+            && Boolean(completionUtcValue(database, current));
           database.prepare(`
             UPDATE tasks
              SET external_uid = ?, external_object_url = ?, outbound_dirty =
@@ -1109,7 +1162,7 @@ async function flushOutboundTasks(
             task.task_list_id,
           );
         }
-        const current = database.prepare('SELECT task_list_id FROM tasks WHERE id = ?').get(task.id);
+        const current = database.prepare('SELECT * FROM tasks WHERE id = ?').get(task.id);
         if (!current || Number(current.task_list_id) !== Number(task.task_list_id)) {
           queueRemoteDeletion(database, account.id, task.external_list_id, task.external_uid);
         } else {
@@ -1119,6 +1172,18 @@ async function flushOutboundTasks(
                    outbound_attempts = 0
              WHERE id = ? AND task_list_id = ?
           `).run(task.id, task.task_list_id);
+          if (completionOutboundAccepted && completionIntent) {
+            markMicrosoftTodoCompletionIntentReconciled(
+              database,
+              task.id,
+              completionIntent.completion_id,
+            );
+          }
+          if (completionMarked && current.status === 'done'
+            && current.is_recurring && current.recurrence_rule) {
+            recurringPatchedListIds.add(Number(task.task_list_id));
+            addCompletionIntentEntry(completionIntentsByList, current, completionIntent);
+          }
         }
         updated += 1;
       }
@@ -1141,6 +1206,7 @@ async function flushOutboundTasks(
     failed,
     createdTaskIds,
     recurringPatchedListIds,
+    completionIntentsByList,
   };
 }
 
@@ -1355,6 +1421,7 @@ async function syncInternal(options = {}) {
           result.lists += 1;
 
           if (outbound.recurringPatchedListIds.has(Number(list.id))) {
+            const completionIntents = outbound.completionIntentsByList.get(Number(list.id)) || [];
             let cursor = initial.cursor;
             let lastRefillError = null;
             for (const delayMs of SUCCESSOR_DELTA_DELAYS_MS) {
@@ -1395,6 +1462,16 @@ async function syncInternal(options = {}) {
                 `To Do successor reconciliation failed for account ${account.id}, list ${list.id}:`,
                 safeError(lastRefillError),
               );
+            } else if (completionIntents.length) {
+              activeDb.transaction(() => {
+                for (const intent of completionIntents) {
+                  clearMicrosoftTodoCompletionIntent(
+                    activeDb,
+                    intent.taskId,
+                    intent.completionId,
+                  );
+                }
+              })();
             }
           }
         } catch (error) {

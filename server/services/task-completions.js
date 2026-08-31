@@ -24,6 +24,65 @@
 
 import { visibilityWhere } from './visibility.js';
 
+const MICROSOFT_TODO_PROVIDER = 'microsoft_todo';
+
+/**
+ * The completion event owns the timestamp; this row only says that Graph
+ * still needs the completion's successor reconciliation. Keeping the event id
+ * rather than copying its timestamp makes a reopen/recomplete pair naturally
+ * distinct and lets ON DELETE CASCADE remove stale intent rows.
+ */
+export function microsoftTodoCompletionIntent(d, taskId) {
+  return d.prepare(`
+    SELECT i.task_id, i.completion_id, i.state, c.completed_at
+      FROM microsoft_todo_completion_intents i
+      JOIN task_completions c ON c.id = i.completion_id
+     WHERE i.task_id = ?
+  `).get(taskId) ?? null;
+}
+
+/** Mark the newly recorded Microsoft To Do recurring completion as pending. */
+export function markMicrosoftTodoCompletionIntent(d, taskId) {
+  const task = d.prepare(`
+    SELECT t.id, t.is_recurring, t.recurrence_rule, t.external_source,
+           tl.provider
+      FROM tasks t
+      LEFT JOIN task_lists tl ON tl.id = t.task_list_id
+     WHERE t.id = ?
+  `).get(taskId);
+  if (!task || (!task.is_recurring || !task.recurrence_rule)
+      || (task.provider !== MICROSOFT_TODO_PROVIDER
+        && task.external_source !== MICROSOFT_TODO_PROVIDER)) return false;
+
+  const completion = d.prepare(
+    'SELECT id FROM task_completions WHERE task_id = ?'
+  ).get(taskId);
+  if (!completion) return false;
+
+  return d.prepare(`
+    INSERT OR IGNORE INTO microsoft_todo_completion_intents
+      (task_id, completion_id, state)
+    VALUES (?, ?, 'patch')
+  `).run(taskId, completion.id).changes > 0;
+}
+
+/** Record that Graph accepted the completion and only Delta reconciliation remains. */
+export function markMicrosoftTodoCompletionIntentReconciled(d, taskId, completionId) {
+  return d.prepare(`
+    UPDATE microsoft_todo_completion_intents
+       SET state = 'delta'
+     WHERE task_id = ? AND completion_id = ? AND state = 'patch'
+  `).run(taskId, completionId).changes > 0;
+}
+
+/** Remove an intent only after its complete successor reconciliation succeeds. */
+export function clearMicrosoftTodoCompletionIntent(d, taskId, completionId) {
+  return d.prepare(`
+    DELETE FROM microsoft_todo_completion_intents
+     WHERE task_id = ? AND completion_id = ?
+  `).run(taskId, completionId).changes > 0;
+}
+
 /**
  * Die Wurzel der Wiederholungskette, in der diese Aufgabe steht - oder ihre
  * eigene ID, wenn sie keiner angehört.
@@ -67,7 +126,14 @@ export function seriesRootOf(d, taskId) {
  * @param {number|null} actingUserId  wer abgehakt hat
  */
 export function recordCompletion(d, taskId, actingUserId) {
-  const task = d.prepare('SELECT id, parent_task_id, recurrence_origin_id FROM tasks WHERE id = ?').get(taskId);
+  const task = d.prepare(`
+    SELECT t.id, t.parent_task_id, t.recurrence_origin_id,
+           t.is_recurring, t.recurrence_rule, t.external_source,
+           tl.provider
+      FROM tasks t
+      LEFT JOIN task_lists tl ON tl.id = t.task_list_id
+     WHERE t.id = ?
+  `).get(taskId);
   if (!task || task.parent_task_id) return;
 
   // Die Serie wird vom direkten Vorgänger GEERBT, wenn der schon einen Eintrag
@@ -85,6 +151,8 @@ export function recordCompletion(d, taskId, actingUserId) {
     INSERT OR IGNORE INTO task_completions (task_id, series_id, user_id)
     VALUES (?, ?, ?)
   `).run(taskId, inherited?.series_id ?? seriesRootOf(d, taskId), actingUserId || null);
+
+  markMicrosoftTodoCompletionIntent(d, taskId);
 }
 
 /**
@@ -93,6 +161,7 @@ export function recordCompletion(d, taskId, actingUserId) {
  * wie reverseTaskEarnings).
  */
 export function revokeCompletion(d, taskId) {
+  d.prepare('DELETE FROM microsoft_todo_completion_intents WHERE task_id = ?').run(taskId);
   d.prepare('DELETE FROM task_completions WHERE task_id = ?').run(taskId);
 }
 
