@@ -131,6 +131,7 @@
     "test:sw-api-cache": "node --test test/test-sw-api-cache.js test/test-service-worker-build-revision.js",
     "test:sw-precache": "node --test test/test-sw-precache.js",
     "test:modal-utils": "node --loader ./test/test-browser-loader.mjs test/test-modal-utils.js",
+    "test:popover-menu": "node --loader ./test/test-browser-loader.mjs --test test/test-popover-menu.js",
     "test:detail-view": "node --test test/test-detail-view.js",
     "test:overlay-history": "node --test test/test-overlay-history.js",
     "test:nav-badges": "node --test test/test-nav-badges.js",
