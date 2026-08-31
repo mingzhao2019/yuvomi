@@ -1261,7 +1261,7 @@ ${syncTargetFieldHtml(task)}
         label: t('tasks.documentsLabel'),
       })}
 
-      <div id="task-form-error" class="form-error" hidden></div>
+      <div id="task-form-error" class="form-error" role="alert" hidden></div>
 
       <div class="modal-panel__footer modal-panel__footer--plain">
         ${isEdit ? `

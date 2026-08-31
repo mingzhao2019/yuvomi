@@ -146,7 +146,7 @@ function rowHtml(row) {
           ${row.type === 'third-party' ? `<span class="settings-module-origin">${esc(t('settings.modulesExternalBadge'))}</span>` : ''}
           ${statusChipHtml(row)}
         </div>
-        ${row.error ? `<p class="form-error">${esc(row.error)}</p>` : ''}
+        ${row.error ? `<p class="form-error" role="alert">${esc(row.error)}</p>` : ''}
         ${kitchenPanel}
       </div>
       ${row.type === 'kitchen' ? '' : toggleRowHtml({
@@ -266,7 +266,7 @@ export async function render(container, { user }) {
     thirdPartyModules = Array.isArray(modules) ? modules : [];
   } catch (error) {
     container.insertAdjacentHTML('beforeend',
-      `<p class="form-error">${esc(error.message ?? t('common.errorGeneric'))}</p>`);
+      `<p class="form-error" role="alert">${esc(error.message ?? t('common.errorGeneric'))}</p>`);
     return;
   }
 
