@@ -656,6 +656,8 @@ country/subdivision code — no household data leaves the server.
 
 A run that fails any fetch **deletes** the marker rather than leaving the old one: a partial run leaves the cache *mixed*, and keeping the previous scope would make switching back to it look unchanged, freezing the already-converted parts for a month. With no marker every scope counts as new until one run completes. Against a runaway loop, a failed run writes `holiday_retry_after` (one hour out) with `holiday_retry_scope`, which throttles **only that exact attempt** - any other scope proceeds immediately, and the scheduler runs every `SYNC_INTERVAL_MINUTES` (15 by default), so an outage of the free upstream API must not trigger a fresh attempt each pass.
 
+Syncs are **serialized** inside the service: the scheduler and the manual "sync now" route both call in without coordination, and across the await points of the year loop an older run could overwrite years a newer one had already converted while the newer one recorded its scope as complete - a two-language cache treated as current for 30 days. A second caller waits and then runs itself rather than receiving the first one's result, so it reads its configuration when its turn comes and sees the current selection.
+
 Some multilingual subdivisions (e.g. the Swiss canton `CH-BE`) run more than one school-holiday
 regime with differing dates, distinguished only by an OpenHolidays *group* (`CH-BE-VS` German-speaking
 vs. `CH-BE-EO` French-speaking Bernese Jura). When such a subdivision is configured, the settings page

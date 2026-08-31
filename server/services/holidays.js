@@ -332,7 +332,34 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
  * Sync Feiertage und/oder Schulferien für das konfigurierte Land/Region.
  * Wird vom Auto-Scheduler und manuell aus den Settings aufgerufen.
  */
+/**
+ * ZWEI LAEUFE DUERFEN SICH NICHT VERSCHRAENKEN. Der Scheduler ruft `sync()`
+ * alle SYNC_INTERVAL_MINUTES, der Knopf "Jetzt synchronisieren" ruft
+ * `sync(true)` - beide ohne Absprache. Ueber die await-Punkte im Jahres-Loop
+ * konnten sie sich mischen: der aeltere Lauf (alte Sprache) ueberschreibt
+ * Jahre, die der neuere schon umgestellt hat, und der neuere verbucht am Ende
+ * SEINEN Scope als vollstaendig. Der Cache steht dann zweisprachig da und gilt
+ * fuer 30 Tage als aktuell (gefunden in der PR-Durchsicht).
+ *
+ * Vorher war dasselbe Rennen harmlos - es holte hoechstens ein Jahr doppelt.
+ * Erst der Merker macht daraus einen festgeschriebenen Mischzustand.
+ *
+ * Der zweite Aufruf WARTET und laeuft dann selbst, statt das Ergebnis des
+ * ersten zu bekommen: er liest seine Konfiguration erst, wenn er dran ist,
+ * sieht also den neuen Stand - und stellt fest, dass nichts mehr zu tun ist,
+ * wenn der erste schon alles erledigt hat.
+ */
+let laufenderSync = Promise.resolve();
+
 async function sync(force = false) {
+  const dran = laufenderSync.then(() => syncNow(force), () => syncNow(force));
+  // Der Fehler gehoert dem Aufrufer, nicht der Warteschlange - sonst risse ein
+  // gescheiterter Lauf alle nachfolgenden mit.
+  laufenderSync = dran.then(() => {}, () => {});
+  return dran;
+}
+
+async function syncNow(force = false) {
   const country     = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_country'").get()?.value;
   const subdivision = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_subdivision'").get()?.value ?? null;
   const showPublic  = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_show_public'").get()?.value === '1';

@@ -980,6 +980,59 @@ test('sync: eine unerwartete Antwortform raeumt den Cache NICHT (#946)', async (
     'und der Log sagt, was er nicht verstanden hat');
 });
 
+test('sync: zwei Laeufe verschraenken sich nicht (#946)', async () => {
+  // GEFUNDEN IN DER PR-DURCHSICHT. Der Scheduler ruft sync() alle
+  // SYNC_INTERVAL_MINUTES, der Knopf "Jetzt synchronisieren" ruft sync(true) -
+  // beide ohne Absprache. Ueber die await-Punkte im Jahres-Loop konnten sie
+  // sich mischen: der aeltere Lauf ueberschreibt Jahre, die der neuere schon
+  // umgestellt hat, und der neuere verbucht am Ende SEINEN Scope als
+  // vollstaendig. Vorher war dasselbe Rennen harmlos - es holte hoechstens ein
+  // Jahr doppelt; erst der Merker macht daraus einen festgeschriebenen
+  // Mischzustand.
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'de' });
+
+  let drin = 0;
+  let maxDrin = 0;
+  const langsam = async (url) => {
+    drin += 1;
+    maxDrin = Math.max(maxDrin, drin);
+    await new Promise((r) => setTimeout(r, 5));
+    drin -= 1;
+    return makeApiMock()(url);
+  };
+  __setFetchImpl(langsam);
+
+  await Promise.all([sync(true), sync(true)]);
+
+  assert.equal(maxDrin, 1,
+    `zwei Laeufe waren gleichzeitig im Abruf (${maxDrin}) - sie koennen sich gegenseitig ueberschreiben`);
+
+  // Und das Ergebnis ist einsprachig, nicht gemischt.
+  const namen = db.prepare("SELECT DISTINCT name FROM holiday_cache WHERE country='ES' AND start_date LIKE '%-12-25'").all().map((r) => r.name);
+  assert.deepEqual(namen, ['Weihnachtstag']);
+});
+
+test('sync: der wartende Lauf sieht den NEUEN Stand, nicht den alten (#946)', async () => {
+  // Der zweite Aufruf bekommt nicht das Ergebnis des ersten gereicht, sondern
+  // laeuft selbst - und liest seine Konfiguration erst, wenn er dran ist. Nur
+  // so kann ein Sprachwechsel, der WAEHREND eines laufenden Syncs gespeichert
+  // wird, ueberhaupt ankommen.
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'de' });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+
+  const ersterLauf = sync(true);
+  // Waehrend der erste laeuft, wechselt die Sprache.
+  setConfig({ language: 'en' });
+  const zweiterLauf = sync(true);
+  await Promise.all([ersterLauf, zweiterLauf]);
+
+  const namen = db.prepare("SELECT DISTINCT name FROM holiday_cache WHERE country='ES' AND start_date LIKE '%-12-25'").all().map((r) => r.name);
+  assert.deepEqual(namen, ['Christmas Day'],
+    'der zuletzt gestartete Lauf gibt den Ausschlag, und zwar vollstaendig - nicht halb');
+  assert.ok(db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_scope'").get()?.value?.startsWith('EN|'));
+});
+
 // ---- getCountries / getSubdivisions -----------------------------------------
 
 test('getCountries: prefers EN names and sorts alphabetically', async () => {
