@@ -423,6 +423,7 @@ test('completing a recurring To Do task pushes status before importing the next 
   const result = await todo.sync({
     database,
     fetchImpl,
+    completionTaskIds: [taskId],
     waitForSuccessor: async (delayMs) => waits.push(delayMs),
   });
 
@@ -525,7 +526,7 @@ test('remote reopening revokes the old completion before a later local completio
   });
 });
 
-test('ordinary recurring edits do not trigger successor reconciliation', async () => {
+test('ordinary edits to an already completed recurring task do not trigger successor reconciliation', async () => {
   const ownerId = insertUser('todo-owner-recurring-edit');
   const accountId = insertAccount(ownerId);
   const listId = database.prepare(`
@@ -538,8 +539,12 @@ test('ordinary recurring edits do not trigger successor reconciliation', async (
       (title, created_by, external_source, external_account_id, external_uid, task_list_id,
        status, due_date, is_recurring, recurrence_rule, outbound_dirty)
     VALUES ('Edit me', ?, 'microsoft_todo', ?, 'remote-edit', ?,
-            'open', '2026-08-15', 1, 'FREQ=MONTHLY', 1)
+            'done', '2026-08-15', 1, 'FREQ=MONTHLY', 1)
   `).run(ownerId, accountId, listId).lastInsertRowid;
+  database.prepare(`
+    INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
+    VALUES (?, ?, ?, '2026-08-01T12:34:56Z')
+  `).run(taskId, taskId, ownerId);
 
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
@@ -551,7 +556,10 @@ test('ordinary recurring edits do not trigger successor reconciliation', async (
       return response(200, { value: [{ id: 'list-recurring-edit', displayName: 'Recurring edit' }] });
     }
     if (parsed.pathname.endsWith('/tasks/remote-edit') && method === 'PATCH') {
-      assert.equal(Object.hasOwn(body, 'completedDateTime'), false);
+      assert.deepEqual(body.completedDateTime, {
+        dateTime: '2026-08-01T12:34:56',
+        timeZone: 'UTC',
+      });
       assert.equal(Object.hasOwn(body, 'recurrence'), false);
       return response(204);
     }
@@ -560,7 +568,7 @@ test('ordinary recurring edits do not trigger successor reconciliation', async (
         value: [{
           id: 'remote-edit',
           title: 'Edit me',
-          status: 'notStarted',
+          status: 'completed',
           dueDateTime: { dateTime: '2026-08-15T00:00:00.0000000', timeZone: 'UTC' },
           recurrence: {
             pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
@@ -583,6 +591,7 @@ test('ordinary recurring edits do not trigger successor reconciliation', async (
   assert.equal(result.success, true);
   assert.deepEqual(waits, []);
   assert.equal(calls.filter((call) => call.path.endsWith('/tasks/delta')).length, 1);
+  assert.equal(database.prepare('SELECT status FROM tasks WHERE id = ?').get(taskId).status, 'done');
   assert.equal(database.prepare('SELECT outbound_dirty FROM tasks WHERE id = ?').get(taskId).outbound_dirty, 0);
   assert.equal(
     database.prepare('SELECT sync_cursor FROM task_lists WHERE id = ?').get(listId).sync_cursor,
@@ -671,6 +680,7 @@ test('recreated completed recurring tasks also reconcile a delayed successor', a
   const result = await todo.sync({
     database,
     fetchImpl,
+    completionTaskIds: [taskId],
     waitForSuccessor: async (delayMs) => waits.push(delayMs),
   });
 
@@ -778,6 +788,7 @@ test('retries a failed successor Delta from the last committed cursor', async ()
   const result = await todo.sync({
     database,
     fetchImpl,
+    completionTaskIds: [taskId],
     waitForSuccessor: async () => {},
   });
 
@@ -852,6 +863,7 @@ test('keeps the last successful cursor and counts two failed refills once', asyn
   const result = await todo.sync({
     database,
     fetchImpl,
+    completionTaskIds: [taskId],
     waitForSuccessor: async () => {},
   });
 
@@ -1182,6 +1194,159 @@ test('merges one trailing sync and lets forceFull upgrade its queued options', a
     database.prepare('SELECT sync_cursor FROM task_lists WHERE id = ?').get(listId).sync_cursor,
     '/me/todo/lists/list-trailing/tasks/delta?$deltatoken=after-full',
   );
+});
+
+test('merges completion markers from multiple trailing completion triggers', async () => {
+  const ownerId = insertUser('todo-owner-trailing-completions');
+  const accountId = insertAccount(ownerId);
+  const listAId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Multi A', 'microsoft_todo', ?, 'list-multi-a', ?, 1)
+  `).run(accountId, ownerId).lastInsertRowid;
+  const listBId = database.prepare(`
+    INSERT INTO task_lists
+      (name, provider, external_account_id, external_list_id, created_by, enabled)
+    VALUES ('Multi B', 'microsoft_todo', ?, 'list-multi-b', ?, 1)
+  `).run(accountId, ownerId).lastInsertRowid;
+
+  let releaseFirst;
+  let firstDeltaStarted;
+  const firstDeltaReady = new Promise((resolve) => { firstDeltaStarted = resolve; });
+  const firstDeltaGate = new Promise((resolve) => { releaseFirst = resolve; });
+  const deltaSearches = [];
+  const patchBodies = [];
+  let listFetches = 0;
+  let targetListFetches = 0;
+  const eligibleAccountCount = database.prepare(`
+    SELECT COUNT(*) AS n FROM outlook_accounts WHERE COALESCE(todo_needs_reauth, 0) = 0
+  `).get().n;
+
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const method = options.method || 'GET';
+    if (parsed.pathname === '/v1.0/me/todo/lists') {
+      listFetches += 1;
+      const isTargetAccount = listFetches % eligibleAccountCount === 0;
+      if (isTargetAccount) targetListFetches += 1;
+      return response(200, {
+        value: isTargetAccount ? [
+          { id: 'list-multi-a', displayName: 'Multi A' },
+          { id: 'list-multi-b', displayName: 'Multi B' },
+        ] : [],
+      });
+    }
+
+    const listKey = parsed.pathname.includes('/list-multi-a/') ? 'a' : 'b';
+    const currentUid = `remote-multi-${listKey}`;
+    if (parsed.pathname.endsWith(`/tasks/${currentUid}`) && method === 'PATCH') {
+      patchBodies.push({ listKey, body: JSON.parse(options.body) });
+      return response(204);
+    }
+
+    if (parsed.pathname.endsWith('/tasks/delta')) {
+      const token = parsed.searchParams.get('$deltatoken');
+      deltaSearches.push(`${listKey}:${token || 'initial'}`);
+      const deltaLink = (nextToken) => (
+        `https://graph.microsoft.com/v1.0/me/todo/lists/list-multi-${listKey}/tasks/delta?$deltatoken=${nextToken}`
+      );
+      if (!token) {
+        if (listKey === 'a') {
+          firstDeltaStarted();
+          await firstDeltaGate;
+        }
+        return response(200, { value: [], '@odata.deltaLink': deltaLink(`${listKey}-1`) });
+      }
+      if (token === `${listKey}-1`) {
+        const dueDate = listKey === 'a' ? '2026-09-01' : '2026-09-02';
+        return response(200, {
+          value: [{
+            id: currentUid,
+            title: `Multi ${listKey}`,
+            status: 'completed',
+            dueDateTime: { dateTime: `${dueDate}T00:00:00.0000000`, timeZone: 'UTC' },
+            recurrence: {
+              pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 1 },
+              range: { type: 'noEnd', startDate: dueDate },
+            },
+          }],
+          '@odata.deltaLink': deltaLink(`${listKey}-2`),
+        });
+      }
+      if (token === `${listKey}-2`) {
+        return response(200, { value: [], '@odata.deltaLink': deltaLink(`${listKey}-3`) });
+      }
+      if (token === `${listKey}-3`) {
+        return response(200, { value: [], '@odata.deltaLink': deltaLink(`${listKey}-4`) });
+      }
+    }
+    throw new Error(`Unexpected Graph request ${method} ${parsed.pathname}${parsed.search}`);
+  };
+
+  const first = todo.sync({ database, fetchImpl });
+  await firstDeltaReady;
+  const taskAId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, due_date, is_recurring, recurrence_rule, outbound_dirty)
+    VALUES ('Multi a', ?, 'microsoft_todo', ?, 'remote-multi-a', ?,
+            'done', '2026-08-15', 1, 'FREQ=MONTHLY', 1)
+  `).run(ownerId, accountId, listAId).lastInsertRowid;
+  const taskBId = database.prepare(`
+    INSERT INTO tasks
+      (title, created_by, external_source, external_account_id, external_uid, task_list_id,
+       status, due_date, is_recurring, recurrence_rule, outbound_dirty)
+    VALUES ('Multi b', ?, 'microsoft_todo', ?, 'remote-multi-b', ?,
+            'done', '2026-08-15', 1, 'FREQ=MONTHLY', 1)
+  `).run(ownerId, accountId, listBId).lastInsertRowid;
+  database.prepare(`
+    INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
+    VALUES (?, ?, ?, '2026-08-01T12:34:56Z'), (?, ?, ?, '2026-08-01T12:34:57Z')
+  `).run(taskAId, taskAId, ownerId, taskBId, taskBId, ownerId);
+  const waits = [];
+  const waitForSuccessor = async (delayMs) => waits.push(delayMs);
+  const trailingA = todo.sync({
+    database,
+    fetchImpl,
+    queueIfRunning: true,
+    completionTaskIds: [taskAId],
+    waitForSuccessor,
+  });
+  const trailingB = todo.sync({
+    database,
+    fetchImpl,
+    queueIfRunning: true,
+    completionTaskIds: [taskBId],
+    waitForSuccessor,
+  });
+  assert.strictEqual(trailingA, trailingB, 'multiple completion triggers share one trailing run');
+
+  releaseFirst();
+  const [firstResult, trailingResult] = await Promise.all([first, trailingA]);
+  assert.equal(firstResult.success, true);
+  assert.equal(trailingResult.success, true);
+  assert.equal(targetListFetches, 2, 'completion triggers must not create more than one trailing run');
+  assert.deepEqual(patchBodies.map(({ listKey }) => listKey), ['a', 'b']);
+  assert.deepEqual(waits, [1000, 3000, 1000, 3000], 'both completion markers must survive queue merging');
+  assert.deepEqual(deltaSearches, [
+    'a:initial',
+    'b:initial',
+    'a:a-1',
+    'a:a-2',
+    'a:a-3',
+    'b:b-1',
+    'b:b-2',
+    'b:b-3',
+  ]);
+  assert.equal(
+    database.prepare('SELECT sync_cursor FROM task_lists WHERE id = ?').get(listAId).sync_cursor,
+    '/me/todo/lists/list-multi-a/tasks/delta?$deltatoken=a-4',
+  );
+  assert.equal(
+    database.prepare('SELECT sync_cursor FROM task_lists WHERE id = ?').get(listBId).sync_cursor,
+    '/me/todo/lists/list-multi-b/tasks/delta?$deltatoken=b-4',
+  );
+  assert.equal(database.prepare('SELECT COUNT(*) AS n FROM tasks WHERE recurrence_origin_id IS NOT NULL').get().n, 0);
 });
 
 test('preserves a local edit made while the first remote create is in flight', async () => {

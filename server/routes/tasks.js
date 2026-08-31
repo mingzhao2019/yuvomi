@@ -1796,7 +1796,11 @@ router.put('/:id', (req, res) => {
 
     if (pending || undone || (syncTarget?.provider === 'caldav')) pushToCalDAV('Änderung');
     if (pendingMicrosoft || undoneMicrosoft || syncTarget?.provider === 'microsoft_todo') {
-      pushToMicrosoftTodo('Änderung', { queueIfRunning: true });
+      const microsoftSyncOptions = { queueIfRunning: true };
+      if (status === 'done' && task.status !== 'done') {
+        microsoftSyncOptions.completionTaskIds = [Number(task.id)];
+      }
+      pushToMicrosoftTodo('Änderung', microsoftSyncOptions);
     }
   } catch (err) {
     log.error('PUT /:id error:', err);
@@ -2080,7 +2084,11 @@ router.patch('/:id/status', (req, res) => {
 
     if (pending || undone) pushToCalDAV('Statuswechsel');
     if (pendingMicrosoft || undoneMicrosoft) {
-      pushToMicrosoftTodo('Statuswechsel', { queueIfRunning: true });
+      const microsoftSyncOptions = { queueIfRunning: true };
+      if (status === 'done' && prev.status !== 'done') {
+        microsoftSyncOptions.completionTaskIds = [Number(prev.id)];
+      }
+      pushToMicrosoftTodo('Statuswechsel', microsoftSyncOptions);
     }
   } catch (err) {
     log.error('PATCH /:id/status error:', err);

@@ -432,6 +432,37 @@ function completionUtcValue(database, task) {
   return match[1];
 }
 
+function taskUpdatedUtcValue(task) {
+  const raw = String(task?.updated_at || '').trim();
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?Z$/i.exec(raw);
+  if (!match) return null;
+  const parsed = new Date(`${match[1]}Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 19) !== match[1]) return null;
+  return match[1];
+}
+
+function normalizeCompletionTaskIds(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value
+    .map((id) => Number(id))
+    .filter((id) => Number.isInteger(id) && id > 0))];
+}
+
+function isCurrentCompletionCandidate(database, task, completionTaskIds) {
+  if (task?.status !== 'done') return false;
+  const completedAt = completionUtcValue(database, task);
+  if (!completedAt) return false;
+
+  // The route marker is authoritative for a real local done transition. The
+  // timestamp fallback is deliberately narrow: it lets a later run recover a
+  // completion whose marker was lost on an immediate sync failure or restart,
+  // while a subsequent ordinary edit advances updated_at and suppresses the
+  // successor refill. Evaluate this before claiming outbound_dirty.
+  if (completionTaskIds.has(Number(task.id))) return true;
+  const updatedAt = taskUpdatedUtcValue(task);
+  return Boolean(updatedAt && completedAt >= updatedAt);
+}
+
 function remoteReminderState(remote) {
   const hasReminderFields = Object.prototype.hasOwnProperty.call(remote || {}, 'isReminderOn')
     || Object.prototype.hasOwnProperty.call(remote || {}, 'reminderDateTime');
@@ -937,8 +968,13 @@ async function flushPendingDeletions(account, accessToken, { database, fetchImpl
   return deleted;
 }
 
-async function flushOutboundTasks(account, accessToken, { database, fetchImpl }) {
+async function flushOutboundTasks(
+  account,
+  accessToken,
+  { database, fetchImpl, completionTaskIds = [] },
+) {
   const timeZone = householdTimeZone(database);
+  const completionIds = new Set(normalizeCompletionTaskIds(completionTaskIds));
 
   // A process can disappear after claiming a row. Recover such claims at the
   // beginning of the next run; a user edit made during a live request is 1 and
@@ -972,6 +1008,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
   const createdTaskIds = [];
   const recurringPatchedListIds = new Set();
   for (const task of candidates) {
+    const completionMarked = isCurrentCompletionCandidate(database, task, completionIds);
     const dirtyBefore = task.outbound_dirty === 1 ? 1 : 0;
     const claim = task.external_source === 'local'
       ? database.prepare(`
@@ -1031,7 +1068,7 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
             },
             fetchImpl,
           );
-          if (task.status === 'done'
+          if (completionMarked
             && task.is_recurring
             && task.recurrence_rule
             && updatePayload.completedDateTime) {
@@ -1052,7 +1089,8 @@ async function flushOutboundTasks(account, accessToken, { database, fetchImpl })
             body: graphTaskPayload(current, timeZone, database, { operation: 'create' }),
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
-          if (current.status === 'done'
+          if (completionMarked
+            && current.status === 'done'
             && current.is_recurring
             && current.recurrence_rule
             && completionUtcValue(database, current)) {
@@ -1236,6 +1274,7 @@ async function syncInternal(options = {}) {
     database,
     fetchImpl = fetch,
     forceFull = false,
+    completionTaskIds = [],
   } = options;
   const activeDb = activeDatabase(database);
   const timeZone = householdTimeZone(activeDb);
@@ -1282,6 +1321,7 @@ async function syncInternal(options = {}) {
       const outbound = await flushOutboundTasks(account, accessToken, {
         database: activeDb,
         fetchImpl,
+        completionTaskIds,
       });
       result.created += outbound.created;
       result.updated += outbound.updated;
@@ -1385,13 +1425,17 @@ function startSync(options, state = {
   queued: null,
   publicPromise: null,
 }) {
+  const normalizedOptions = {
+    ...options,
+    completionTaskIds: normalizeCompletionTaskIds(options.completionTaskIds),
+  };
   let wrapped;
-  const running = syncInternal(options);
+  const running = syncInternal(normalizedOptions);
   wrapped = running.finally(() => {
     if (syncState === state && state.activePromise === wrapped && !state.queued) syncState = null;
   });
   state.activePromise = wrapped;
-  state.activeForceFull = Boolean(options.forceFull);
+  state.activeForceFull = Boolean(normalizedOptions.forceFull);
   state.publicPromise = wrapped;
   if (!syncState) syncState = state;
   return wrapped;
@@ -1399,16 +1443,25 @@ function startSync(options, state = {
 
 function queueSync(state, options) {
   if (state.queued) {
+    const completionTaskIds = normalizeCompletionTaskIds([
+      ...normalizeCompletionTaskIds(state.queued.options.completionTaskIds),
+      ...normalizeCompletionTaskIds(options.completionTaskIds),
+    ]);
     state.queued.options = {
       ...state.queued.options,
       ...options,
       forceFull: Boolean(state.queued.options.forceFull || options.forceFull),
+      completionTaskIds,
     };
     return state.queued.promise;
   }
 
   const entry = {
-    options: { ...options, forceFull: Boolean(options.forceFull) },
+    options: {
+      ...options,
+      forceFull: Boolean(options.forceFull),
+      completionTaskIds: normalizeCompletionTaskIds(options.completionTaskIds),
+    },
     promise: null,
   };
   const previous = state.activePromise;
