@@ -2097,7 +2097,7 @@ svg.weather-forecast__icon {
   .onboarding-dot { transition: none; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .onboarding-overlay {
     align-items: flex-start;
     padding: var(--space-4);
@@ -4069,7 +4069,7 @@ svg.weather-forecast__icon {
   flex-shrink: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .dashboard {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
