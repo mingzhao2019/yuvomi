@@ -188,7 +188,7 @@
         "wallTimerCancel": "Batalkan pengatur waktu",
         "wallTimerAcknowledge": "Matikan pengatur waktu",
         "wallTimerDone": "Selesai",
-        "wallExited": "Mode dinding mati. Aktifkan lagi di {{settings}} › {{page}}.",
+        "wallExited": "Mode dinding nonaktif. Kembali lewat “{{action}}” di header halaman.",
         "wallOffline": "Tidak ada koneksi",
         "wallOfflineHint": "Layar terus mencoba.",
         "familyMembers": "Anggota keluarga",

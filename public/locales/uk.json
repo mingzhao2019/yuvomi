@@ -176,7 +176,7 @@
         "wallTimerCancel": "Скасувати таймер",
         "wallTimerAcknowledge": "Вимкнути таймер",
         "wallTimerDone": "Готово",
-        "wallExited": "Настінний режим вимкнено. Знову увімкнути: {{settings}} › {{page}}.",
+        "wallExited": "Настінний режим вимкнено. Повернутися можна через «{{action}}» у шапці сторінки.",
         "wallOffline": "Немає зʼєднання",
         "wallOfflineHint": "Екран продовжує спроби.",
         "familyMembers": "Члени родини",

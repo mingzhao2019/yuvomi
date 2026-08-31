@@ -188,7 +188,7 @@
         "wallTimerCancel": "لغو تایمر",
         "wallTimerAcknowledge": "خاموش کردن تایمر",
         "wallTimerDone": "تمام",
-        "wallExited": "حالت دیواری خاموش شد. دوباره از {{settings}} › {{page}} روشنش کنید.",
+        "wallExited": "حالت دیواری پایان یافت. با «{{action}}» در سربرگ صفحه برگردید.",
         "wallOffline": "بدون اتصال",
         "wallOfflineHint": "صفحه به تلاش ادامه می‌دهد.",
         "familyMembers": "اعضای خانواده",

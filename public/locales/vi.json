@@ -176,7 +176,7 @@
         "wallTimerCancel": "Huỷ hẹn giờ",
         "wallTimerAcknowledge": "Tắt hẹn giờ",
         "wallTimerDone": "Xong",
-        "wallExited": "Đã tắt chế độ treo tường. Bật lại trong {{settings}} › {{page}}.",
+        "wallExited": "Đã tắt chế độ treo tường. Quay lại bằng “{{action}}” ở đầu trang.",
         "wallOffline": "Không có kết nối",
         "wallOfflineHint": "Màn hình vẫn đang thử lại.",
         "familyMembers": "Thành viên gia đình",

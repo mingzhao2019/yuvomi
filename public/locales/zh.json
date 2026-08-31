@@ -176,7 +176,7 @@
         "wallTimerCancel": "取消定时器",
         "wallTimerAcknowledge": "关闭定时器",
         "wallTimerDone": "完成",
-        "wallExited": "已退出壁挂模式。可在{{settings}} › {{page}}中重新开启。",
+        "wallExited": "已退出壁挂模式。可通过页首的「{{action}}」返回。",
         "wallOffline": "没有连接",
         "wallOfflineHint": "屏幕会继续重试。",
         "familyMembers": "家庭成员",

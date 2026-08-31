@@ -176,7 +176,7 @@
         "wallTimerCancel": "Отменить таймер",
         "wallTimerAcknowledge": "Выключить таймер",
         "wallTimerDone": "Готово",
-        "wallExited": "Настенный режим выключен. Снова включить: {{settings}} › {{page}}.",
+        "wallExited": "Настенный режим выключен. Вернуться можно через «{{action}}» в шапке страницы.",
         "wallOffline": "Нет соединения",
         "wallOfflineHint": "Экран продолжает попытки.",
         "familyMembers": "Члены семьи",

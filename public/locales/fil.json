@@ -188,7 +188,7 @@
         "wallTimerCancel": "Kanselahin ang timer",
         "wallTimerAcknowledge": "I-off ang timer",
         "wallTimerDone": "Tapos na",
-        "wallExited": "Naka-off ang wall mode. I-on ulit sa {{settings}} › {{page}}.",
+        "wallExited": "Naka-off ang wall mode. Bumalik sa pamamagitan ng “{{action}}” sa header ng pahina.",
         "wallOffline": "Walang koneksyon",
         "wallOfflineHint": "Patuloy na sumusubok ang screen.",
         "familyMembers": "Mga miyembro ng pamilya",

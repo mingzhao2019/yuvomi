@@ -176,7 +176,7 @@
         "wallTimerCancel": "タイマーを中止",
         "wallTimerAcknowledge": "タイマーを止める",
         "wallTimerDone": "完了",
-        "wallExited": "ウォールモードを終了しました。{{settings}} › {{page}} から再びオンにできます。",
+        "wallExited": "ウォールモードを終了しました。ページ上部の「{{action}}」で戻れます。",
         "wallOffline": "接続がありません",
         "wallOfflineHint": "画面は再試行を続けます。",
         "familyMembers": "家族メンバー",

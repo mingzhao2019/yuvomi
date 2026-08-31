@@ -176,7 +176,7 @@
         "wallTimerCancel": "Zamanlayıcıyı iptal et",
         "wallTimerAcknowledge": "Zamanlayıcıyı kapat",
         "wallTimerDone": "Bitti",
-        "wallExited": "Duvar modu kapatıldı. Yeniden açmak için: {{settings}} › {{page}}.",
+        "wallExited": "Duvar modu kapatıldı. Sayfa başlığındaki “{{action}}” ile geri dönebilirsiniz.",
         "wallOffline": "Bağlantı yok",
         "wallOfflineHint": "Ekran denemeye devam ediyor.",
         "familyMembers": "Aile üyeleri",

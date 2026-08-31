@@ -176,7 +176,7 @@
         "wallTimerCancel": "Avbryt timern",
         "wallTimerAcknowledge": "Stäng av timern",
         "wallTimerDone": "Klart",
-        "wallExited": "Väggläget av. Slå på det igen under {{settings}} › {{page}}.",
+        "wallExited": "Väggläget avstängt. Gå tillbaka via ”{{action}}” i sidhuvudet.",
         "wallOffline": "Ingen anslutning",
         "wallOfflineHint": "Skärmen fortsätter försöka.",
         "familyMembers": "Familjemedlemmar",

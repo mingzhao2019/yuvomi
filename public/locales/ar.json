@@ -176,7 +176,7 @@
         "wallTimerCancel": "إلغاء المؤقت",
         "wallTimerAcknowledge": "إيقاف المؤقت",
         "wallTimerDone": "انتهى",
-        "wallExited": "تم إيقاف وضع الحائط. أعِد تشغيله من {{settings}} › {{page}}.",
+        "wallExited": "تم إنهاء وضع الحائط. للعودة استخدم «{{action}}» في أعلى الصفحة.",
         "wallOffline": "لا يوجد اتصال",
         "wallOfflineHint": "تواصل الشاشة المحاولة.",
         "familyMembers": "أفراد العائلة",

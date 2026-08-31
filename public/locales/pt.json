@@ -176,7 +176,7 @@
         "wallTimerCancel": "Cancelar temporizador",
         "wallTimerAcknowledge": "Desligar temporizador",
         "wallTimerDone": "Pronto",
-        "wallExited": "Modo parede desativado. Volte a ativá-lo em {{settings}} › {{page}}.",
+        "wallExited": "Modo parede desativado. Volte por «{{action}}» no cabeçalho.",
         "wallOffline": "Sem ligação",
         "wallOfflineHint": "O ecrã continua a tentar.",
         "familyMembers": "Membros da família",

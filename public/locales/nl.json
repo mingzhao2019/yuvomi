@@ -176,7 +176,7 @@
         "wallTimerCancel": "Timer annuleren",
         "wallTimerAcknowledge": "Timer uitzetten",
         "wallTimerDone": "Klaar",
-        "wallExited": "Wandmodus uit. Weer aanzetten bij {{settings}} › {{page}}.",
+        "wallExited": "Wandmodus uit. Ga terug via ‘{{action}}’ in de paginakop.",
         "wallOffline": "Geen verbinding",
         "wallOfflineHint": "Het scherm blijft het proberen.",
         "familyMembers": "Gezinsleden",
