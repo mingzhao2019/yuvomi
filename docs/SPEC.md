@@ -648,7 +648,7 @@ Display metadata (name, color) for synced Google/CalDAV calendars. Populated aut
 ### Holiday Cache
 Cached public holidays and school holidays from the free [OpenHolidays API](https://openholidaysapi.org)
 (no API key). Populated by an admin-configured country/subdivision in Settings → Modules → Calendar and refreshed
-by the auto-sync scheduler (covers previous, current, and next two years). Displayed as a read-only
+by the auto-sync scheduler (covers previous, current, and next two years - plus, whenever the scope changes, any further year still sitting in the cache from an earlier run, since `getForRange()` has no window and would otherwise keep showing those in the old language forever). Displayed as a read-only
 overlay in the calendar; layer visibility is toggled client-side. Outbound requests carry only the
 country/subdivision code — no household data leaves the server.
 

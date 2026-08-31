@@ -401,6 +401,26 @@ async function sync(force = false) {
     years.push(y);
   }
 
+  // JAHRE, DIE NUR NOCH IM CACHE LIEGEN, KOMMEN BEI EINEM SCOPE-WECHSEL MIT.
+  // Das Fenster wandert (currentYear-1 .. +2), der Cache nicht: eine
+  // Installation, die 2025 lief, hat Zeilen fuer 2024 liegen, und die faellt
+  // 2027 aus dem Fenster. `getForRange()` kennt keine Fenstergrenze und zeigt
+  // sie beim Zurueckblaettern weiter - nach einem Sprachwechsel also in der
+  // alten Sprache, unbegrenzt lange (gefunden in der PR-Durchsicht).
+  //
+  // Sie zu loeschen waere konsistent gewesen, haette aber alte Jahre leer
+  // gelassen; sie stehen zu lassen heisst, dass der Kalender zwei Sprachen
+  // zeigt. Beides unnoetig: es sind wenige Jahre, sie sind bei OpenHolidays
+  // abrufbar, und der Zusatzaufwand faellt nur an, wenn sich wirklich etwas
+  // geaendert hat. Liefert die Quelle fuer so ein Jahr nichts mehr, raeumt
+  // `finishEmpty` es weg - auch dann bleibt nichts Fremdsprachiges stehen.
+  if (scopeChanged) {
+    const imCache = db.get().prepare('SELECT DISTINCT year FROM holiday_cache WHERE country = ? ORDER BY year').all(country);
+    for (const { year } of imCache) {
+      if (!years.includes(year)) years.push(year);
+    }
+  }
+
   let total = 0;
   let anyFailed = false;
   for (const year of years) {

@@ -910,6 +910,47 @@ test('sync: ein Fehlschlag wird wiederholt, ohne dass der Haushalt etwas aendert
   assert.ok(mock.calls.length > 0);
 });
 
+test('sync: ein Sprachwechsel holt auch Jahre ausserhalb des Fensters nach (#946)', async () => {
+  // GEFUNDEN IN DER PR-DURCHSICHT. Das Fenster wandert (currentYear-1 .. +2),
+  // der Cache nicht: eine Installation, die 2025 lief, hat Zeilen fuer 2024
+  // liegen, und die faellt spaeter heraus. `getForRange()` kennt keine
+  // Fenstergrenze und zeigt sie beim Zurueckblaettern weiter - nach einem
+  // Sprachwechsel also unbegrenzt lange in der alten Sprache.
+  //
+  // Sie zu loeschen waere konsistent gewesen, haette aber alte Jahre leer
+  // gelassen. Sie werden stattdessen MITGEHOLT: es sind wenige, sie sind
+  // abrufbar, und der Aufwand faellt nur bei einem echten Wechsel an.
+  const altesJahr = new Date().getFullYear() - 5;
+  setConfig({ holiday_country: 'DE', holiday_show_public: '1', holiday_show_school: '0', language: 'de' });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+
+  // Eine Zeile aus einem laengst herausgefallenen Jahr, wie sie ein alter
+  // Betrieb hinterlaesst.
+  seedHoliday({ type: 'public', country: 'DE', start: `${altesJahr}-01-01`, end: `${altesJahr}-01-01`, name: 'Neujahr', year: altesJahr });
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM holiday_cache WHERE year = ?').get(altesJahr).c, 1);
+
+  // Sprachwechsel: das alte Jahr muss mit abgefragt werden.
+  setConfig({ language: 'en' });
+  const mock = makeApiMock();
+  __setFetchImpl(mock);
+  await sync(true);
+
+  assert.ok(mock.calls.some((u) => u.includes(`validFrom=${altesJahr}-01-01`)),
+    `das Jahr ${altesJahr} liegt im Cache und muss beim Wechsel mit abgefragt werden`);
+  const alt = db.prepare('SELECT name FROM holiday_cache WHERE year = ?').all(altesJahr).map((r) => r.name);
+  assert.ok(!alt.includes('Neujahr'),
+    `im Cache stand nach dem Wechsel weiter der deutsche Name: ${alt.join(', ') || '(nichts)'}`);
+
+  // Ohne Wechsel bleibt es beim Fenster - der Zusatzaufwand faellt nur an,
+  // wenn sich wirklich etwas geaendert hat.
+  const ohneWechsel = makeApiMock();
+  __setFetchImpl(ohneWechsel);
+  await sync(true);
+  assert.ok(!ohneWechsel.calls.some((u) => u.includes(`validFrom=${altesJahr}-01-01`)),
+    'ohne Scope-Wechsel wird das Fenster nicht ausgeweitet');
+});
+
 // ---- getCountries / getSubdivisions -----------------------------------------
 
 test('getCountries: prefers EN names and sorts alphabetically', async () => {
