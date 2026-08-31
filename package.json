@@ -137,6 +137,7 @@
     "test:nav-badges": "node --test test/test-nav-badges.js",
     "test:category-manager": "node --experimental-sqlite test/test-category-manager.js",
     "test:sortable-reorder": "node --test test/test-sortable-reorder.js",
+    "test:wall-timer": "node --test test/test-wall-timer.js",
     "test:datepicker": "node test/test-datepicker.js",
     "test:kitchen-permissions": "node --experimental-sqlite --test test/test-kitchen-permissions.js",
     "test:kitchen-tabs": "node --loader ./test/test-browser-loader.mjs test/test-kitchen-tabs.js",
