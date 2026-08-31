@@ -951,6 +951,35 @@ test('sync: ein Sprachwechsel holt auch Jahre ausserhalb des Fensters nach (#946
     'ohne Scope-Wechsel wird das Fenster nicht ausgeweitet');
 });
 
+test('sync: eine unerwartete Antwortform raeumt den Cache NICHT (#946)', async () => {
+  // GEFUNDEN IN DER PR-DURCHSICHT, als Folgefehler der Aenderung darueber. Seit
+  // ein geglueckter LEERER Abruf den Bereich raeumt, entscheidet die Form der
+  // Antwort ueber Bestand oder Verlust: ein HTTP 200 mit einem Fehlerobjekt
+  // eines vorgeschalteten Proxys oder einer geaenderten Antwortform haette den
+  // Cache geloescht UND den Scope als vollstaendig verbucht - die Feiertage
+  // waeren 30 Tage lang weg gewesen. Nur ein echtes leeres Array ist eine
+  // Auskunft.
+  setConfig({ holiday_country: 'ES', holiday_show_public: '1', holiday_show_school: '0', language: 'es' });
+  __setFetchImpl(makeApiMock());
+  await sync(true);
+  const vorher = db.prepare("SELECT COUNT(*) c FROM holiday_cache WHERE country='ES'").get().c;
+  assert.ok(vorher > 0, 'ohne Bestand prueft die Zusicherung darunter nichts');
+
+  // HTTP 200, aber kein Array - so sieht ein Proxy-Fehler aus.
+  __setFetchImpl(async () => ({ ok: true, json: async () => ({ error: 'upstream unavailable' }) }));
+  setConfig({ language: 'de' });
+  const res = await captureConsole(() => sync(true));
+
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM holiday_cache WHERE country='ES'").get().c, vorher,
+    'eine unverstandene Antwort darf keinen Bestand loeschen');
+  assert.equal(db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_scope'").get()?.value, undefined,
+    'und sie darf den Lauf nicht als vollstaendig verbuchen');
+  assert.ok(db.prepare("SELECT value FROM sync_config WHERE key='holiday_retry_after'").get()?.value,
+    'stattdessen bleibt eine Reparaturmarke offen');
+  assert.ok(res.warn.some((l) => /unexpected response shape/.test(l)),
+    'und der Log sagt, was er nicht verstanden hat');
+});
+
 // ---- getCountries / getSubdivisions -----------------------------------------
 
 test('getCountries: prefers EN names and sorts alphabetically', async () => {

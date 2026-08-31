@@ -263,6 +263,17 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
   let fetchFailed = false;
   try {
     holidays = await apiFetch(`/${endpoint}?${params}`);
+    // NUR EIN ECHTES LEERES ARRAY IST EINE AUSKUNFT. Ein HTTP 200 mit einem
+    // anderen Rumpf - ein Fehlerobjekt eines vorgeschalteten Proxys, eine
+    // geaenderte Antwortform - sagt gar nichts, und seit `finishEmpty` einen
+    // leeren Bereich RAEUMT, waere daraus Datenverlust geworden: der Cache
+    // gelöscht, der Scope als vollstaendig verbucht, und die Feiertage 30 Tage
+    // lang weg. Ein Nicht-Array zaehlt deshalb wie ein gescheiterter Abruf
+    // (gefunden in der PR-Durchsicht, als Folgefehler genau dieser Aenderung).
+    if (!Array.isArray(holidays)) {
+      log.warn(`Fetch ${endpoint} ${country}/${subdivision ?? '-'}/${year}: unexpected response shape (${typeof holidays})`);
+      fetchFailed = true;
+    }
   } catch (err) {
     log.warn(`Fetch ${endpoint} ${country}/${subdivision ?? '-'}/${year}: ${err.message}`);
     fetchFailed = true;
