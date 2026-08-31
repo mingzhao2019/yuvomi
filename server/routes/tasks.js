@@ -1468,7 +1468,6 @@ router.post('/', (req, res) => {
       description     = null,
       category        = FALLBACK_CATEGORY,
       priority        = 'none',
-      status          = 'open',
       start_date      = null,
       due_date        = null,
       due_time        = null,
@@ -1485,6 +1484,27 @@ router.post('/', (req, res) => {
       ? defaultTaskPoints()
       : clampPoints(req.body.points);
     const visibility = normalizeVisibility(req.body.visibility);
+
+    // Status beim Anlegen (#807). Das Feld stand im Dialog nur im
+    // Bearbeiten-Zweig, und hier lag der zweite Halt: validiert wurde ein
+    // mitgeschickter Status schon immer, geschrieben nie - er fiel still weg.
+    // Wer etwas notiert, das er laengst angefangen hat, brauchte deshalb zwei
+    // Schritte.
+    //
+    // 'archived' faellt auf den Anfangsstatus zurueck, statt abzulegen: das
+    // Archiv ist seit #688 eine eigene Achse (archived_at), und eine Aufgabe
+    // anzulegen, um sie im selben Zug wegzuraeumen, ist kein Anlegen. PUT deutet
+    // den Wert fuer Bestandsclients als "ablegen"; beim Anlegen gibt es nichts,
+    // was abzulegen waere.
+    //
+    // `!req.body.status` statt `=== undefined`: `v.oneOf` laesst `null` und `''`
+    // als "nicht angegeben" durch, ohne einen Fehler zu melden. Ein Client, der
+    // ein leeres Auswahlfeld mitschickt, haette den Wert damit bis ins INSERT
+    // getragen - gegen eine NOT-NULL-Spalte mit CHECK, also als 500 auf eine
+    // Eingabe, die der eigene Validator eben noch akzeptiert hat.
+    const status = (!req.body.status || req.body.status === ARCHIVE_STATUS)
+      ? 'open'
+      : req.body.status;
 
     const userIds  = parseAssignedTo(req.body.assigned_to);
     const firstUid = userIds[0] ?? null;
