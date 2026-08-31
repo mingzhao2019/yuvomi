@@ -347,51 +347,51 @@ async function sync(force = false) {
   // Darlehensraten und Benachrichtigungen ihre Sprache holen.
   const langCode = resolveHouseholdLocale(db.get()).toUpperCase();
 
-  // EIN SPRACHWECHSEL MUSS DEN BESTAND ERNEUERN. Die Namen liegen uebersetzt im
-  // Cache, nicht als Schluessel - eine geaenderte Datensprache aendert also
-  // nichts, solange die 30-Tage-Sperre unten greift. Wer die Einstellung
-  // umstellt, saehe bis zu einen Monat lang weiter die alten Namen und haette
-  // allen Grund, den Fehler erneut zu melden. Die zuletzt benutzte Sprache
-  // steht deshalb neben dem Zeitstempel; weicht sie ab, zaehlt der Lauf wie ein
-  // erzwungener.
-  const lastSyncLang = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_language'").get()?.value ?? null;
-  const languageChanged = lastSyncLang !== langCode;
-
-  // NACH EINEM GESCHEITERTEN NACHLAUF WIRD GEWARTET, SONST NICHT. Ein
-  // Sprachwechsel soll sofort wirken - eine Bremse im Normalfall waere genau
-  // der Monat Verzoegerung, den dieser Nachlauf abschaffen sollte, nur kuerzer.
-  // Gebremst wird deshalb ausschliesslich der Wiederholungsversuch, und der
-  // Merker dafuer entsteht nur, wenn wirklich etwas schiefging.
-  // DIE WARTEMARKE GILT FUER GENAU DEN VERSUCH, DER SCHIEFGING - und der ist
-  // mehr als seine Sprache. Sie trug zuerst nur einen Zeitpunkt und bremste
-  // damit auch eine inzwischen ANDERS gewaehlte Sprache aus; danach trug sie
-  // die Sprache und bremste immer noch ein inzwischen anderes LAND aus, dessen
-  // Abruf noch nie versucht worden war. Beides kam aus der PR-Durchsicht, das
-  // zweite erst, nachdem das erste behoben war.
+  // WAS DEN INHALT DES CACHES BESTIMMT, IST MEHR ALS DIE SPRACHE: Sprache,
+  // Land, Region und welche Ebenen ueberhaupt geholt werden. Genau diese vier
+  // bilden den SCOPE, und der steht neben dem Zeitstempel.
   //
-  // Sie traegt deshalb die vollstaendige Identitaet dessen, was versucht wurde:
-  // Sprache, Land, Region und die aktiven Ebenen. Aendert der Haushalt eines
-  // davon, ist es ein neuer Versuch und wird nicht gebremst. Das ist EIN
-  // Begriff in einem Wert, keine Spalte mit zwei Bedeutungen.
-  const retryScope     = [langCode, country, subdivision ?? '', showPublic ? 'P' : '', showSchool ? 'S' : ''].join('|');
-  const retryAfterStr  = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_retry_after'").get()?.value;
-  const retryForScope  = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_retry_scope'").get()?.value;
-  if (!force && languageChanged && retryAfterStr && retryForScope === retryScope) {
+  // Der Merker trug zuerst nur die Sprache, und daran hingen drei Befunde aus
+  // der PR-Durchsicht, die alle dieselbe Wurzel hatten: eine abgeschaltete
+  // Ebene wurde beim Sprachwechsel nicht mitgeholt, aber als erledigt verbucht
+  // (beim Wiedereinschalten blieben ihre alten Namen stehen); ein Wechsel des
+  // Landes lief in dieselbe Falle; und ein Fehlschlag OHNE Sprachwechsel wurde
+  // gar nicht wiederholt, weil die Reparatur an `languageChanged` hing.
+  const scope = [langCode, country, subdivision ?? '', showPublic ? 'P' : '', showSchool ? 'S' : ''].join('|');
+  const lastScope = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_scope'").get()?.value ?? null;
+  const scopeChanged = lastScope !== scope;
+
+  // EINE OFFENE REPARATUR GILT UNABHAENGIG DAVON, OB SICH ETWAS GEAENDERT HAT.
+  // Sie entsteht nur nach einem gescheiterten Abruf und traegt den Scope, bei
+  // dem es schiefging: derselbe Scope wird eine Stunde lang nicht erneut
+  // versucht (der Scheduler laeuft alle SYNC_INTERVAL_MINUTES, Voreinstellung
+  // 15 - ein Ausfall der Fremd-API darf keine Dauerschleife werden), danach
+  // schon, und zwar OHNE auf die 30-Tage-Sperre zu warten.
+  const retryAfterStr = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_retry_after'").get()?.value;
+  const retryScope    = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_retry_scope'").get()?.value;
+  const repairOpen    = Boolean(retryAfterStr) && retryScope === scope;
+  if (!force && repairOpen) {
     const retryAfter = new Date(retryAfterStr);
     if (!Number.isNaN(retryAfter.getTime()) && Date.now() < retryAfter.getTime()) {
-      log.debug('Holiday language retry is still on hold – skipping automatic sync.');
+      log.debug('Holiday repair is still on hold – skipping automatic sync.');
       return { synced: 0 };
     }
   }
 
+  // Der normale Auffrischungstakt gilt nur, wenn nichts Neues gewaehlt wurde.
+  //
+  // EINE OFFENE REPARATUR MUSS HIER NICHT NOCHMAL GEPRUEFT WERDEN, und das ist
+  // kein Zufall, sondern der Grund, warum ein Fehlschlag den Merker LOESCHT
+  // statt ihn nur nicht zu setzen: danach gilt jeder Scope als neu, also ist
+  // `scopeChanged` ohnehin wahr. Eine zusaetzliche `!repairOpen`-Bedingung stand
+  // hier kurz und war toter Code - sie sah aus wie ein Schutz und konnte nie
+  // greifen, weil Merker und Reparaturmarke sich gegenseitig ausschliessen.
   const lastSyncStr = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync'").get()?.value;
-  if (!force && !languageChanged && lastSyncStr) {
+  if (!force && !scopeChanged && lastSyncStr) {
     const lastSyncDate = new Date(lastSyncStr);
-    if (!Number.isNaN(lastSyncDate.getTime())) {
-      if (Date.now() - lastSyncDate.getTime() < THROTTLE_MS) {
-        log.debug('Holidays synced recently – skipping automatic sync.');
-        return { synced: 0 };
-      }
+    if (!Number.isNaN(lastSyncDate.getTime()) && Date.now() - lastSyncDate.getTime() < THROTTLE_MS) {
+      log.debug('Holidays synced recently – skipping automatic sync.');
+      return { synced: 0 };
     }
   }
 
@@ -427,10 +427,18 @@ async function sync(force = false) {
   // zugeht (#839).
   const forget = db.get().prepare('DELETE FROM sync_config WHERE key = ?');
   if (anyFailed) {
+    // DER MERKER WIRD GELOESCHT, NICHT BLOSS NICHT GESETZT. Nach einem
+    // Teilfehlschlag steht der Cache GEMISCHT da - einige Bereiche neu, andere
+    // alt. Bliebe der alte Scope stehen, waere ein Zurueckwechseln auf ihn
+    // "unveraendert", die 30-Tage-Sperre griffe, und die bereits umgestellten
+    // Bereiche behielten ihre neuen Namen fuer einen Monat. Ohne Merker gilt
+    // jeder Scope als neu, bis einer vollstaendig durchgelaufen ist; gegen die
+    // Dauerschleife steht die Reparaturmarke.
+    forget.run('holiday_last_sync_scope');
     remember.run('holiday_retry_after', new Date(Date.now() + LANGUAGE_RETRY_MS).toISOString());
-    remember.run('holiday_retry_scope', retryScope);
+    remember.run('holiday_retry_scope', scope);
   } else {
-    remember.run('holiday_last_sync_language', langCode);
+    remember.run('holiday_last_sync_scope', scope);
     forget.run('holiday_retry_after');
     forget.run('holiday_retry_scope');
   }
@@ -439,9 +447,9 @@ async function sync(force = false) {
   // zitiert, um zu zeigen, dass die Synchronisierung durchgelaufen sei - eine
   // Erfolgsmeldung ueber einem halb geholten Bestand haette ihn ein zweites Mal
   // in die Irre gefuehrt.
-  const scope = `${country}${subdivision ? '/' + subdivision : ''}`;
-  if (anyFailed) log.warn(`Holiday sync INCOMPLETE: ${total} entries for ${scope} - some requests failed, the next run retries`);
-  else log.info(`Holiday sync complete: ${total} entries for ${scope}`);
+  const wo = `${country}${subdivision ? '/' + subdivision : ''}`;
+  if (anyFailed) log.warn(`Holiday sync INCOMPLETE: ${total} entries for ${wo} - some requests failed, the next run retries`);
+  else log.info(`Holiday sync complete: ${total} entries for ${wo}`);
   return { synced: total, lastSync: now, incomplete: anyFailed };
 }
 
