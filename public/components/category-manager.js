@@ -6,7 +6,7 @@
  *
  * Verhalten:
  *   - configure({ basePath, groups, supportsSubcategories, labelResolver, titleKey, hintKey,
- *                 deleteDetailKey, subDeleteDetailKey })
+ *                 deleteDetailKey, subDeleteDetailKey, errorKeyMap })
  *   - Lädt via api.get(basePath); mutiert über post/put/patch/delete relativ zu basePath
  *   - Dispatcht nach jeder Mutation `category-manager-changed`
  *   - Zeigt Server-Guard-Fehler (in-use/last) als Toast
@@ -59,6 +59,7 @@ class CategoryManagerElement extends HTMLElement {
     // Platzhalter oben, nur folgenreicher.
     this._deleteDetailKey = 'category.deleteConfirmDetail';
     this._subDeleteDetailKey = 'category.deleteSubConfirmDetail';
+    this._errorKeyMap = {};
     // OPT-IN: nur wer eine Palette mitgibt, bekommt die Farbwahl. Fuenf der
     // sechs Aufrufer zeigen ihre Kategorien nirgends als farbige Marke - dort
     // waere ein Farbknopf eine Einstellung ohne Wirkung.
@@ -80,6 +81,8 @@ class CategoryManagerElement extends HTMLElement {
     if (Array.isArray(opts.colors)) this._colors = opts.colors;
     if (opts.deleteDetailKey) this._deleteDetailKey = opts.deleteDetailKey;
     if (opts.subDeleteDetailKey) this._subDeleteDetailKey = opts.subDeleteDetailKey;
+    this._errorKeyMap = opts.errorKeyMap && typeof opts.errorKeyMap === 'object'
+      ? opts.errorKeyMap : {};
     this._renderShell();
     this._load();
   }
@@ -490,6 +493,9 @@ class CategoryManagerElement extends HTMLElement {
   _errMsg(err) {
     const reason = err?.data?.reason;
     const count = err?.data?.count;
+    if (reason && this._errorKeyMap[reason]) {
+      return t(this._errorKeyMap[reason], { count });
+    }
     switch (reason) {
       case 'category_in_use':    return t('category.errorInUse', { count });
       case 'category_last':      return t('category.errorLast');

@@ -18,6 +18,7 @@ import { parseSyncTargetValue } from '../../public/utils/sync-target.js';
 // Der Vorrat waehlbarer Waehrungen - eine Liste fuer Server und Browser
 // (#841, Allowlist in test/test-layer-boundary.js).
 import { CURRENCY_CODES } from '../../public/utils/currency-codes.js';
+import { validateAssignedUserIds } from './inventory/access.js';
 
 const log = createLogger('Preferences');
 
@@ -159,6 +160,11 @@ const MAX_WIDGET_OPTION_KEYS = 8;
 const MAX_WIDGET_OPTION_VALUES = 50;
 const MAX_WIDGET_OPTION_LENGTH = 64;
 
+const ASSET_DEFAULT_SCOPES = ['family', 'personal'];
+const ASSET_DEFAULT_VISIBILITIES = ['all', 'assignees', 'private'];
+const ASSET_COST_METRICS = ['current', 'target'];
+const ASSET_SUMMARY_THEMES = ['aurora', 'ocean', 'sunset', 'neutral'];
+
 // Modul-Slugs, die per Settings deaktiviert werden können.
 // Dashboard und Settings sind absichtlich nicht enthalten — sie sind essentiell.
 const TOGGLEABLE_MODULES = [
@@ -213,6 +219,42 @@ function cfgUserSet(key, userId, value) {
 function cfgUserDelete(key, userId) {
   if (!userId) return;
   cfgDelete(userCfgKey(key, userId));
+}
+
+function parseJsonIds(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const ids = [...new Set(parsed.map(Number))]
+      .filter((id) => Number.isInteger(id) && id > 0);
+    if (!ids.length) return [];
+    const placeholders = ids.map(() => '?').join(',');
+    const found = db.get().prepare(`SELECT id FROM users WHERE id IN (${placeholders})`).all(...ids);
+    const valid = new Set(found.map((row) => row.id));
+    return ids.filter((id) => valid.has(id));
+  } catch {
+    return [];
+  }
+}
+
+function assetPersonalDefaults(userId, role) {
+  const storedScope = cfgUserGet('asset_default_scope', userId);
+  const scope = ASSET_DEFAULT_SCOPES.includes(storedScope) ? storedScope : 'personal';
+  const safeScope = scope === 'family' && role !== 'admin' ? 'personal' : scope;
+  const storedVisibility = cfgUserGet('asset_default_visibility', userId);
+  const visibility = ASSET_DEFAULT_VISIBILITIES.includes(storedVisibility)
+    ? storedVisibility
+    : (safeScope === 'family' ? 'all' : 'private');
+  return {
+    asset_default_scope: safeScope,
+    asset_default_visibility: visibility,
+    asset_default_assignee_ids: parseJsonIds(cfgUserGet('asset_default_assignee_ids', userId)),
+    asset_cost_metric: ASSET_COST_METRICS.includes(cfgUserGet('asset_cost_metric', userId))
+      ? cfgUserGet('asset_cost_metric', userId) : 'current',
+    asset_summary_theme: ASSET_SUMMARY_THEMES.includes(cfgUserGet('asset_summary_theme', userId))
+      ? cfgUserGet('asset_summary_theme', userId) : 'aurora',
+  };
 }
 
 // Drei Sichten auf den Zyklus-Tab (#760), nach demselben Muster wie `language`:
@@ -527,6 +569,7 @@ router.get('/', (req, res) => {
         holiday_public_color:  cfgGet('holiday_public_color')  ?? '#FF3B30',
         holiday_school_color:  cfgGet('holiday_school_color')  ?? '#34C759',
         holiday_last_sync:     cfgGet('holiday_last_sync')     ?? null,
+        ...assetPersonalDefaults(req.authUserId, req.authRole),
       },
     });
   } catch (err) {
@@ -544,7 +587,53 @@ router.get('/', (req, res) => {
 
 router.put('/', (req, res) => {
   try {
-    const { visible_meal_types, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_assign_me, calendar_default_target, health_cycle_enabled, health_cycle_enabled_user, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color } = req.body;
+    const { visible_meal_types, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_assign_me, calendar_default_target, health_cycle_enabled, health_cycle_enabled_user, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color, asset_default_scope, asset_default_visibility, asset_default_assignee_ids, asset_cost_metric, asset_summary_theme } = req.body;
+
+    // Asset page defaults are personal preferences.  Keep the allowlist here
+    // instead of trusting the module UI: these values are also consumed by a
+    // new client after a deployment and must remain safe when the endpoint is
+    // called directly.
+    let normalizedAssetAssigneeIds;
+    if (
+      asset_default_scope !== undefined
+      || asset_default_visibility !== undefined
+      || asset_default_assignee_ids !== undefined
+      || asset_cost_metric !== undefined
+      || asset_summary_theme !== undefined
+    ) {
+      if (!req.authUserId) {
+        return res.status(401).json({ error: 'Authentifizierung erforderlich.', code: 401 });
+      }
+      if (asset_default_scope !== undefined) {
+        if (!ASSET_DEFAULT_SCOPES.includes(asset_default_scope)) {
+          return res.status(400).json({ error: 'Ungültiger Standard-Asset-Typ.', reason: 'asset_default_scope_invalid', code: 400 });
+        }
+        if (asset_default_scope === 'family' && req.authRole !== 'admin') {
+          return res.status(403).json({ error: 'Admin access required.', reason: 'asset_default_scope_forbidden', code: 403 });
+        }
+      }
+      if (asset_default_visibility !== undefined && !ASSET_DEFAULT_VISIBILITIES.includes(asset_default_visibility)) {
+        return res.status(400).json({ error: 'Ungültige Standard-Sichtbarkeit.', reason: 'asset_default_visibility_invalid', code: 400 });
+      }
+      if (asset_default_assignee_ids !== undefined) {
+        const assigned = validateAssignedUserIds(asset_default_assignee_ids === null ? [] : asset_default_assignee_ids);
+        if (assigned.error) {
+          return res.status(400).json({ error: assigned.error, reason: 'asset_default_assignees_invalid', code: 400 });
+        }
+        normalizedAssetAssigneeIds = assigned.value;
+      }
+      if (asset_cost_metric !== undefined && !ASSET_COST_METRICS.includes(asset_cost_metric)) {
+        return res.status(400).json({ error: 'Ungültige Kostenansicht.', reason: 'asset_cost_metric_invalid', code: 400 });
+      }
+      if (asset_summary_theme !== undefined && !ASSET_SUMMARY_THEMES.includes(asset_summary_theme)) {
+        return res.status(400).json({ error: 'Ungültiges Übersichtsdesign.', reason: 'asset_summary_theme_invalid', code: 400 });
+      }
+      if (asset_default_scope !== undefined) cfgUserSet('asset_default_scope', req.authUserId, asset_default_scope);
+      if (asset_default_visibility !== undefined) cfgUserSet('asset_default_visibility', req.authUserId, asset_default_visibility);
+      if (asset_default_assignee_ids !== undefined) cfgUserSet('asset_default_assignee_ids', req.authUserId, JSON.stringify(normalizedAssetAssigneeIds));
+      if (asset_cost_metric !== undefined) cfgUserSet('asset_cost_metric', req.authUserId, asset_cost_metric);
+      if (asset_summary_theme !== undefined) cfgUserSet('asset_summary_theme', req.authUserId, asset_summary_theme);
+    }
 
     if (visible_meal_types !== undefined) {
       if (!Array.isArray(visible_meal_types)) {
@@ -1160,6 +1249,7 @@ router.put('/', (req, res) => {
         holiday_public_color:  cfgGet('holiday_public_color')  ?? '#FF3B30',
         holiday_school_color:  cfgGet('holiday_school_color')  ?? '#34C759',
         holiday_last_sync:     cfgGet('holiday_last_sync')     ?? null,
+        ...assetPersonalDefaults(req.authUserId, req.authRole),
       },
     });
   } catch (err) {

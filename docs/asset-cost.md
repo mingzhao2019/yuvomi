@@ -1,4 +1,4 @@
-# Asset Cost 模块
+# Assets 模块
 
 `asset-cost` 是 custom 镜像内置、可在“设置 → 启用模块”中开关的原生页面，用来计算资产的使用天数、日均成本和出售后的净日均成本。它复用 Inventory，不创建第二套资产表，也不直接从前端访问 `yuvomi.db`。
 
@@ -14,7 +14,7 @@
 - 选中的图片先通过安全预览代理下载，再由浏览器裁剪为本地 `photo_data`；
 - 不保存第三方图片 URL。
 
-Google Custom Search JSON API 目前只对已有客户开放，并计划在 2027-01-01 停止服务。因此图片搜索实现保留了 provider 适配边界，后续可替换为其他具有 API 的全网图片搜索服务，不需要修改 Asset Cost 的页面结构。
+Google Custom Search JSON API 目前只对已有客户开放，并计划在 2027-01-01 停止服务。因此图片搜索实现保留了 provider 适配边界，后续可替换为其他具有 API 的全网图片搜索服务，不需要修改 Assets 页面的结构。
 
 在 `.env` 中只填写服务端配置（不要放进模块或浏览器代码）：
 

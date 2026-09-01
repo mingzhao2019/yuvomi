@@ -25,6 +25,11 @@ const db = dbmod.get();
 const holidays = await import('../server/services/holidays.js');
 const { default: preferencesRouter } = await import('../server/routes/preferences.js');
 
+db.prepare(`INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, ?)`)
+  .run('preferences-admin', 'Preferences Admin', 'x', 'admin');
+db.prepare(`INSERT INTO users (username, display_name, password_hash, role) VALUES (?, ?, ?, ?)`)
+  .run('preferences-member', 'Preferences Member', 'x', 'member');
+
 // Modulweiter Akteur; die Middleware liest ihn zur Request-Zeit.
 const actor = { userId: 1, role: 'admin' };
 const app = express();
@@ -88,6 +93,42 @@ test('GET / liefert die dokumentierten Defaults', async () => {
   assert.equal(body.data.health_cycle_enabled, true);
   assert.equal(body.data.rewards_require_approval, true);
   assert.equal(body.data.tasks_subtasks_expanded, false);
+  assert.equal(body.data.asset_default_scope, 'personal');
+  assert.equal(body.data.asset_default_visibility, 'private');
+  assert.deepEqual(body.data.asset_default_assignee_ids, []);
+  assert.equal(body.data.asset_cost_metric, 'current');
+  assert.equal(body.data.asset_summary_theme, 'aurora');
+});
+
+test('Asset-Ansicht und neue Asset-Defaults werden pro Nutzer gespeichert', async () => {
+  const saved = await put({
+    asset_default_scope: 'family',
+    asset_default_visibility: 'assignees',
+    asset_default_assignee_ids: [1, 2, 2],
+    asset_cost_metric: 'target',
+    asset_summary_theme: 'ocean',
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.data.asset_default_scope, 'family');
+  assert.equal(saved.body.data.asset_default_visibility, 'assignees');
+  assert.deepEqual(saved.body.data.asset_default_assignee_ids, [1, 2]);
+  assert.equal(saved.body.data.asset_cost_metric, 'target');
+  assert.equal(saved.body.data.asset_summary_theme, 'ocean');
+
+  const member = await get({ role: 'member', userId: 2 });
+  assert.equal(member.body.data.asset_default_scope, 'personal');
+  assert.equal(member.body.data.asset_default_visibility, 'private');
+  assert.equal((await put({ asset_default_scope: 'family' }, { role: 'member', userId: 2 })).status, 403);
+  assert.equal((await put({ asset_cost_metric: 'unsupported' })).status, 400);
+  assert.equal((await put({ asset_summary_theme: 'unsupported' })).status, 400);
+
+  for (const key of [
+    'asset_default_scope:user:1',
+    'asset_default_visibility:user:1',
+    'asset_default_assignee_ids:user:1',
+    'asset_cost_metric:user:1',
+    'asset_summary_theme:user:1',
+  ]) cfgDelete(key);
 });
 
 // --------------------------------------------------------

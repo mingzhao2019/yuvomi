@@ -15,6 +15,8 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_SYMBOLS = { CNY: '¥', EUR: '€', USD: '$' };
+const ASSET_COST_METRICS = new Set(['current', 'target']);
+const ASSET_SUMMARY_THEMES = new Set(['aurora', 'ocean', 'sunset', 'neutral']);
 const SORTS = [
   ['cost-desc', 'sortCostDesc'],
   ['cost-asc', 'sortCostAsc'],
@@ -38,6 +40,11 @@ const state = {
   text: {},
   members: [],
   currentUser: null,
+  assetDefaultScope: 'personal',
+  assetDefaultVisibility: 'private',
+  assetDefaultAssigneeIds: [],
+  metric: 'current',
+  summaryTheme: 'aurora',
 };
 
 function tr(key, vars = {}) {
@@ -104,7 +111,7 @@ function formatMoney(value, currency) {
 }
 
 function categoryName(category) {
-  return category?.name || category?.key || tr('unknownCategory');
+  return category?.label_key ? t(category.label_key) : (category?.name || category?.key || tr('unknownCategory'));
 }
 
 function statusGroup(status) {
@@ -133,7 +140,8 @@ function derive(item) {
   const netCost = status === 'sold' && purchasePrice != null ? purchasePrice - soldPrice : purchasePrice;
   const costPerDay = netCost != null && daysUsed ? netCost / daysUsed : null;
   const targetDays = item.target_days == null ? null : Number(item.target_days);
-  const progress = targetDays && daysUsed ? Math.min(1, daysUsed / targetDays) : null;
+  const targetCostPerDay = netCost != null && targetDays > 0 ? netCost / targetDays : null;
+  const progress = targetDays > 0 && daysUsed != null ? Math.min(1, daysUsed / targetDays) : null;
   return {
     ...item,
     status,
@@ -144,6 +152,8 @@ function derive(item) {
     soldPrice,
     netCost,
     costPerDay,
+    targetCostPerDay,
+    displayCost: state.metric === 'target' ? targetCostPerDay : costPerDay,
     targetDays,
     progress,
   };
@@ -177,11 +187,12 @@ function currentItems() {
     return (a - b) * direction;
   };
   result.sort((a, b) => {
-    if (state.sort === 'cost-desc') return compareNullable(a.costPerDay, b.costPerDay, -1) || a.name.localeCompare(b.name);
-    if (state.sort === 'cost-asc') return compareNullable(a.costPerDay, b.costPerDay, 1) || a.name.localeCompare(b.name);
-    if (state.sort === 'price-desc') return compareNullable(a.purchasePrice, b.purchasePrice, -1) || a.name.localeCompare(b.name);
-    if (state.sort === 'days-desc') return compareNullable(a.daysUsed, b.daysUsed, -1) || a.name.localeCompare(b.name);
-    return String(b.purchase_date || '').localeCompare(String(a.purchase_date || '')) || a.name.localeCompare(b.name);
+    const nameCompare = String(a.name || '').localeCompare(String(b.name || ''));
+    if (state.sort === 'cost-desc') return compareNullable(a.displayCost, b.displayCost, -1) || nameCompare;
+    if (state.sort === 'cost-asc') return compareNullable(a.displayCost, b.displayCost, 1) || nameCompare;
+    if (state.sort === 'price-desc') return compareNullable(a.purchasePrice, b.purchasePrice, -1) || nameCompare;
+    if (state.sort === 'days-desc') return compareNullable(a.daysUsed, b.daysUsed, -1) || nameCompare;
+    return String(b.purchase_date || '').localeCompare(String(a.purchase_date || '')) || nameCompare;
   });
   return result;
 }
@@ -193,7 +204,13 @@ function imageHtml(item) {
   return '<span class="asset-cost-card__image-fallback"><i data-lucide="image" aria-hidden="true"></i></span>';
 }
 
+function metricLabel(metric = state.metric) {
+  return metric === 'target' ? tr('targetDailyCost') : tr('currentDailyCost');
+}
+
 function cardHtml(item) {
+  const dailyValue = item.displayCost == null && state.metric === 'target' && item.targetDays == null
+    ? tr('noTargetCost') : formatMoney(item.displayCost, currencyCode(item));
   const goal = item.progress == null ? '' : `
     <div class="asset-cost-card__goal">
       <div class="asset-cost-card__progress" data-progress="${item.progress * 100}"><span></span></div>
@@ -213,7 +230,7 @@ function cardHtml(item) {
         <span>${esc(formatMoney(item.purchasePrice, currencyCode(item)))}</span>
         <span>${item.daysUsed == null ? '—' : `${item.daysUsed} ${esc(tr('days'))}`}</span>
       </div>
-      <div class="asset-cost-card__daily">${esc(formatMoney(item.costPerDay, currencyCode(item)))}<small>${esc(tr('perDay'))}</small></div>
+      <div class="asset-cost-card__daily">${esc(dailyValue)}<small>${esc(tr('perDay'))}</small><em>${esc(metricLabel())}</em></div>
       ${goal}
     </article>`;
 }
@@ -222,7 +239,9 @@ function summaryHtml(items) {
   const currency = state.summaryCurrency;
   const currencyItems = items.filter((item) => currencyCode(item) === currency);
   const totalPrice = currencyItems.reduce((sum, item) => sum + (item.purchasePrice ?? 0), 0);
-  const dailyCost = currencyItems.reduce((sum, item) => sum + (item.costPerDay ?? 0), 0);
+  const metricItems = currencyItems.filter((item) => item.displayCost != null);
+  const dailyCost = metricItems.reduce((sum, item) => sum + item.displayCost, 0);
+  const summaryCost = state.metric === 'target' && !metricItems.length ? null : dailyCost;
   const active = items.filter((item) => item.statusGroup === 'active').length;
   const retired = items.filter((item) => item.statusGroup === 'retired').length;
   const sold = items.filter((item) => item.statusGroup === 'sold').length;
@@ -233,14 +252,28 @@ function summaryHtml(items) {
     ['sold', sold, 'asset-cost-summary__bar--sold'],
   ];
   return `
-    <section class="asset-cost-summary" aria-label="${esc(tr('overview'))}">
+    <section class="asset-cost-summary asset-cost-summary--${state.summaryTheme}" aria-label="${esc(tr('overview'))}">
       <div class="asset-cost-summary__heading">
-        <h2>${esc(tr('overview'))}</h2>
-        <span>${items.length}/${state.items.length}</span>
+        <div class="asset-cost-summary__heading-title"><h2>${esc(tr('overview'))}</h2><span>${items.length}/${state.items.length}</span></div>
+        <div class="asset-cost-summary__actions">
+          <div class="asset-cost-metric-toggle" role="group" aria-label="${esc(tr('costMetric'))}">
+            <button type="button" class="${state.metric === 'current' ? 'is-selected' : ''}" data-cost-metric="current">${esc(tr('currentMetric'))}</button>
+            <button type="button" class="${state.metric === 'target' ? 'is-selected' : ''}" data-cost-metric="target">${esc(tr('targetMetric'))}</button>
+          </div>
+          <button type="button" class="asset-cost-theme-toggle" data-summary-theme-toggle aria-expanded="false" aria-label="${esc(tr('summaryTheme'))}"><i data-lucide="palette" aria-hidden="true"></i></button>
+        </div>
+      </div>
+      <div class="asset-cost-theme-menu" data-summary-theme-menu hidden>
+        ${[
+          ['aurora', 'themeAurora'],
+          ['ocean', 'themeOcean'],
+          ['sunset', 'themeSunset'],
+          ['neutral', 'themeNeutral'],
+        ].map(([value, label]) => `<button type="button" class="${state.summaryTheme === value ? 'is-selected' : ''}" data-theme-choice="${value}">${esc(tr(label))}</button>`).join('')}
       </div>
       <div class="asset-cost-summary__metrics">
         <div><span>${esc(tr('totalAssets'))}</span><strong>${esc(formatMoney(totalPrice, currency))}</strong></div>
-        <div><span>${esc(tr('dailyCost'))}</span><strong>${esc(formatMoney(dailyCost, currency))}</strong></div>
+        <div><span>${esc(metricLabel(state.metric))}</span><strong>${esc(formatMoney(summaryCost, currency))}</strong></div>
       </div>
       <div class="asset-cost-summary__status">
         ${stats.map(([key, count, className]) => `
@@ -256,12 +289,15 @@ function summaryHtml(items) {
 function controlsHtml(items) {
   const currencies = availableCurrencies(items);
   const selectedCategory = state.category;
+  const canManageCategories = state.currentUser?.role === 'admin';
   return `
-    <div class="asset-cost-categories" role="tablist" aria-label="${esc(tr('categories'))}">
-      ${allCategories().map((category) => `
-        <button type="button" role="tab" aria-selected="${selectedCategory === category.key}" class="asset-cost-category ${selectedCategory === category.key ? 'is-selected' : ''}" data-category="${esc(category.key)}">
-          ${esc(categoryName(category))}
-        </button>`).join('')}
+    <div class="asset-cost-categories-row">
+      <div class="asset-cost-categories" role="tablist" aria-label="${esc(tr('categories'))}">
+        ${allCategories().map((category) => `
+          <button type="button" role="tab" aria-selected="${selectedCategory === category.key}" class="asset-cost-category ${selectedCategory === category.key ? 'is-selected' : ''}" data-category="${esc(category.key)}">
+            ${esc(categoryName(category))}</button>`).join('')}
+      </div>
+      ${canManageCategories ? `<button type="button" class="asset-cost-category asset-cost-category--manage" data-manage-categories><i data-lucide="settings-2" aria-hidden="true"></i>${esc(tr('manageCategories'))}</button>` : ''}
     </div>
     <div class="asset-cost-controls">
       <div class="asset-cost-status-filter" role="group" aria-label="${esc(tr('status'))}">
@@ -277,6 +313,51 @@ function controlsHtml(items) {
         <label class="asset-cost-select-label"><span>${esc(tr('sort'))}</span><select data-sort>${SORTS.map(([value, label]) => `<option value="${value}" ${value === state.sort ? 'selected' : ''}>${esc(tr(label))}</option>`).join('')}</select></label>
       </div>
     </div>`;
+}
+
+async function openCategoryManager() {
+  if (state.currentUser?.role !== 'admin') return;
+  await import('/components/category-manager.js');
+
+  let changed = false;
+  const onChanged = async () => {
+    changed = true;
+    try {
+      const response = await api.get('/inventory/categories');
+      state.categories = response.data || [];
+      renderBody();
+    } catch {
+      // The manager displays the mutation error; keep the current page usable.
+    }
+  };
+  let manager = null;
+  openModal({
+    title: t('inventory.manageCategories'),
+    size: 'lg',
+    content: '<yuvomi-category-manager></yuvomi-category-manager>',
+    onSave: (panel) => {
+      manager = panel.querySelector('yuvomi-category-manager');
+      manager.addEventListener('category-manager-changed', onChanged);
+      manager.configure({
+        basePath: '/inventory/categories',
+        groups: [{ key: '', labelKey: '', addLabelKey: 'inventory.addCategory' }],
+        labelResolver: categoryName,
+        titleKey: 'inventory.manageCategories',
+        hintKey: 'inventory.manageCategoriesHint',
+        addPlaceholderKey: 'inventory.addCategory',
+        deleteDetailKey: 'inventory.categoryDeleteConfirmDetail',
+        errorKeyMap: { category_protected: 'inventory.categoryOtherNotDeletable' },
+      });
+    },
+    onClose: async () => {
+      manager?.removeEventListener('category-manager-changed', onChanged);
+      manager = null;
+      if (changed) {
+        await loadData();
+        renderBody();
+      }
+    },
+  });
 }
 
 function renderBody() {
@@ -302,8 +383,60 @@ function renderBody() {
   if (window.lucide) window.lucide.createIcons({ el: state.body });
 }
 
+let preferenceWrite = Promise.resolve();
+
+function saveAssetPreferences(values) {
+  preferenceWrite = preferenceWrite
+    .catch(() => {})
+    .then(() => api.put('/preferences', values));
+  return preferenceWrite;
+}
+
 function bindBody() {
   state.body.addEventListener('click', (event) => {
+    const metric = event.target.closest('[data-cost-metric]');
+    if (metric) {
+      const next = metric.dataset.costMetric;
+      if (!ASSET_COST_METRICS.has(next) || next === state.metric) return;
+      const previous = state.metric;
+      state.metric = next;
+      renderBody();
+      saveAssetPreferences({ asset_cost_metric: next }).catch(() => {
+        state.metric = previous;
+        renderBody();
+        window.yuvomi?.showToast(tr('defaultsSaveFailed'), 'danger');
+      });
+      return;
+    }
+    const themeToggle = event.target.closest('[data-summary-theme-toggle]');
+    if (themeToggle) {
+      const menu = state.body.querySelector('[data-summary-theme-menu]');
+      if (menu) {
+        menu.hidden = !menu.hidden;
+        themeToggle.setAttribute('aria-expanded', String(!menu.hidden));
+      }
+      return;
+    }
+    const themeChoice = event.target.closest('[data-theme-choice]');
+    if (themeChoice) {
+      const next = themeChoice.dataset.themeChoice;
+      if (!ASSET_SUMMARY_THEMES.has(next) || next === state.summaryTheme) return;
+      const previous = state.summaryTheme;
+      state.summaryTheme = next;
+      renderBody();
+      saveAssetPreferences({ asset_summary_theme: next }).catch(() => {
+        state.summaryTheme = previous;
+        renderBody();
+        window.yuvomi?.showToast(tr('defaultsSaveFailed'), 'danger');
+      });
+      return;
+    }
+    const manageCategories = event.target.closest('[data-manage-categories]');
+    if (manageCategories) {
+      event.stopPropagation();
+      openCategoryManager();
+      return;
+    }
     const category = event.target.closest('[data-category]');
     if (category) {
       state.category = category.dataset.category;
@@ -357,9 +490,11 @@ function categoryOptions(selected) {
 function formContent(item) {
   const currentStatus = item?.status || 'active';
   const admin = state.currentUser?.role === 'admin';
-  const scope = item?.asset_scope || (admin ? 'family' : 'personal');
-  const visibility = item?.visibility || (scope === 'family' ? 'all' : 'private');
-  const selectedIds = item?.assigned_user_ids || item?.assigned_users?.map((user) => user.id) || [];
+  const preferredScope = admin && state.assetDefaultScope === 'family' ? 'family' : 'personal';
+  const scope = item?.asset_scope || preferredScope;
+  const visibility = item?.visibility || state.assetDefaultVisibility || (scope === 'family' ? 'all' : 'private');
+  const selectedIds = item?.assigned_user_ids || item?.assigned_users?.map((user) => user.id) || state.assetDefaultAssigneeIds;
+  const imageQuery = item?.name || '';
   return `
     <div class="asset-cost-form">
       ${item && !item.can_edit ? `<p class="asset-cost-readonly"><i data-lucide="eye" aria-hidden="true"></i>${esc(tr('sharedReadOnly'))}</p>` : ''}
@@ -398,7 +533,7 @@ function formContent(item) {
         </select></div>
       </div>
       <div class="asset-cost-form__row">
-        <div class="form-group"><label class="form-label" for="asset-cost-purchase-date">${esc(tr('purchaseDate'))}</label><input id="asset-cost-purchase-date" class="form-input" type="date" required value="${esc(item?.purchase_date || '')}"></div>
+        <div class="form-group"><label class="form-label" for="asset-cost-purchase-date">${esc(tr('purchaseDate'))}</label><yuvomi-datepicker id="asset-cost-purchase-date" type="date" required label="${esc(tr('purchaseDate'))}" value="${esc(item?.purchase_date || '')}"></yuvomi-datepicker></div>
         <div class="form-group"><label class="form-label" for="asset-cost-purchase-price">${esc(tr('purchasePrice'))}</label><input id="asset-cost-purchase-price" class="form-input" type="number" min="0" step="0.01" inputmode="decimal" required value="${item?.purchase_price == null ? '' : esc(item.purchase_price)}"></div>
       </div>
       <div class="asset-cost-form__row">
@@ -407,13 +542,17 @@ function formContent(item) {
       </div>
       <details class="asset-cost-form__advanced" ${item?.sold_date || item?.sold_price != null || item?.retired_date ? 'open' : ''}>
         <summary>${esc(tr('advanced'))}</summary>
-        <div class="asset-cost-form__row"><div class="form-group"><label class="form-label" for="asset-cost-sold-date">${esc(tr('soldDate'))}</label><input id="asset-cost-sold-date" class="form-input" type="date" value="${esc(item?.sold_date || '')}"></div>
+        <div class="asset-cost-form__row"><div class="form-group"><label class="form-label" for="asset-cost-sold-date">${esc(tr('soldDate'))}</label><yuvomi-datepicker id="asset-cost-sold-date" type="date" label="${esc(tr('soldDate'))}" value="${esc(item?.sold_date || '')}"></yuvomi-datepicker></div>
         <div class="form-group"><label class="form-label" for="asset-cost-sold-price">${esc(tr('soldPrice'))}</label><input id="asset-cost-sold-price" class="form-input" type="number" min="0" step="0.01" inputmode="decimal" value="${item?.sold_price == null ? '' : esc(item.sold_price)}"></div></div>
-        <div class="form-group"><label class="form-label" for="asset-cost-retired-date">${esc(tr('retiredDate'))}</label><input id="asset-cost-retired-date" class="form-input" type="date" value="${esc(item?.retired_date || '')}"></div>
+        <div class="form-group"><label class="form-label" for="asset-cost-retired-date">${esc(tr('retiredDate'))}</label><yuvomi-datepicker id="asset-cost-retired-date" type="date" label="${esc(tr('retiredDate'))}" value="${esc(item?.retired_date || '')}"></yuvomi-datepicker></div>
       </details>
       <div class="form-group"><label class="form-label" for="asset-cost-notes">${esc(tr('notes'))}</label><textarea id="asset-cost-notes" class="form-input" rows="3">${esc(item?.notes || '')}</textarea></div>
       <div class="asset-cost-image-search" data-image-search hidden>
-        <div class="asset-cost-image-search__bar"><input class="form-input" type="search" data-image-query placeholder="${esc(tr('imageQuery'))}" value="${esc(item?.name || '')}"><button type="button" class="btn btn--primary btn--sm" data-search-images>${esc(tr('searchImages'))}</button></div>
+        <div class="asset-cost-image-search__bar"><span>${esc(tr('imageSearchByName', { name: imageQuery }))}</span><button type="button" class="btn btn--primary btn--sm" data-search-images>${esc(tr('searchImages'))}</button></div>
+        <details class="asset-cost-image-search__custom">
+          <summary>${esc(tr('customImageQuery'))}</summary>
+          <div class="asset-cost-image-search__bar"><input class="form-input" type="search" data-image-query placeholder="${esc(tr('imageQuery'))}" value=""><button type="button" class="btn btn--secondary btn--sm" data-search-images-custom>${esc(tr('searchImages'))}</button></div>
+        </details>
         <p class="asset-cost-image-search__hint">${esc(tr('imageSearchHint'))}</p>
         <div class="asset-cost-image-results" data-image-results></div>
       </div>
@@ -457,9 +596,12 @@ function renderImageResults(panel, results) {
   target._assetResults = results;
 }
 
-async function searchImages(panel) {
-  const query = panel.querySelector('[data-image-query]').value.trim() || panel.querySelector('#asset-cost-name').value.trim();
-  if (!query) return;
+async function searchImages(panel, requestedQuery = '') {
+  const query = requestedQuery.trim() || panel.querySelector('#asset-cost-name').value.trim();
+  if (!query) {
+    window.yuvomi?.showToast(tr('nameRequired'), 'danger');
+    return;
+  }
   const button = panel.querySelector('[data-search-images]');
   const target = panel.querySelector('[data-image-results]');
   button.disabled = true;
@@ -492,6 +634,10 @@ async function chooseImage(panel, result, setPhoto) {
   }
 }
 
+function controlValue(panel, selector) {
+  return panel.querySelector(selector)?.value || '';
+}
+
 function buildPayload(panel, item, photoData) {
   const optionalNumber = (selector) => {
     const value = panel.querySelector(selector).value.trim();
@@ -500,14 +646,14 @@ function buildPayload(panel, item, photoData) {
   const payload = {
     name: panel.querySelector('#asset-cost-name').value.trim(),
     category: panel.querySelector('#asset-cost-category').value,
-    purchase_date: panel.querySelector('#asset-cost-purchase-date').value || null,
+    purchase_date: controlValue(panel, '#asset-cost-purchase-date') || null,
     purchase_price: optionalNumber('#asset-cost-purchase-price'),
     currency: panel.querySelector('#asset-cost-currency').value.trim().toUpperCase(),
     status: panel.querySelector('#asset-cost-status').value,
     target_days: optionalNumber('#asset-cost-target-days'),
-    sold_date: panel.querySelector('#asset-cost-sold-date').value || null,
+    sold_date: controlValue(panel, '#asset-cost-sold-date') || null,
     sold_price: optionalNumber('#asset-cost-sold-price'),
-    retired_date: panel.querySelector('#asset-cost-retired-date').value || null,
+    retired_date: controlValue(panel, '#asset-cost-retired-date') || null,
     notes: panel.querySelector('#asset-cost-notes').value.trim() || null,
     photo_data: photoData || null,
     asset_scope: item?.asset_scope || panel.querySelector('#asset-cost-scope').value,
@@ -555,7 +701,7 @@ function openAssetModal(item = null) {
         assignees.hidden = visibilitySelect.value !== 'assignees';
       });
       if (item && !item.can_edit) {
-        panel.querySelectorAll('.asset-cost-form input, .asset-cost-form select, .asset-cost-form textarea').forEach((control) => { control.disabled = true; });
+        panel.querySelectorAll('.asset-cost-form input, .asset-cost-form select, .asset-cost-form textarea, .asset-cost-form yuvomi-datepicker').forEach((control) => { control.disabled = true; });
         panel.querySelectorAll('[data-choose-photo], [data-open-image-search], #asset-cost-save').forEach((control) => { control.hidden = true; });
         if (window.lucide) window.lucide.createIcons({ el: panel });
         return;
@@ -582,12 +728,13 @@ function openAssetModal(item = null) {
         }
       });
       panel.querySelector('[data-open-image-search]').addEventListener('click', () => {
-        searchPanel.hidden = !searchPanel.hidden;
-        if (!searchPanel.hidden) panel.querySelector('[data-image-query]').focus();
+        searchPanel.hidden = false;
+        searchImages(panel);
       });
       panel.querySelector('[data-search-images]').addEventListener('click', () => searchImages(panel));
+      panel.querySelector('[data-search-images-custom]').addEventListener('click', () => searchImages(panel, controlValue(panel, '[data-image-query]')));
       panel.querySelector('[data-image-query]').addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') searchImages(panel);
+        if (event.key === 'Enter') searchImages(panel, controlValue(panel, '[data-image-query]'));
       });
       panel.querySelector('[data-image-results]').addEventListener('click', (event) => {
         const resultButton = event.target.closest('[data-image-result]');
@@ -603,7 +750,7 @@ function openAssetModal(item = null) {
 
 async function saveAsset(panel, item, photoData) {
   const name = panel.querySelector('#asset-cost-name').value.trim();
-  const purchaseDate = panel.querySelector('#asset-cost-purchase-date').value;
+  const purchaseDate = controlValue(panel, '#asset-cost-purchase-date');
   const purchasePrice = panel.querySelector('#asset-cost-purchase-price').value.trim();
   const currency = panel.querySelector('#asset-cost-currency').value.trim();
   if (!name) return window.yuvomi?.showToast(tr('nameRequired'), 'danger');
@@ -612,10 +759,34 @@ async function saveAsset(panel, item, photoData) {
   const payload = buildPayload(panel, item, photoData);
   const saveButton = panel.querySelector('#asset-cost-save');
   if (saveButton) saveButton.disabled = true;
+  let createdDefaults = null;
   try {
     if (item) await api.put(`/inventory/items/${item.id}`, payload);
-    else await api.post('/inventory/items', payload);
+    else {
+      await api.post('/inventory/items', payload);
+      createdDefaults = {
+        scope: payload.asset_scope,
+        visibility: payload.visibility,
+        assigneeIds: payload.assigned_user_ids,
+      };
+    }
+    try {
+      await saveAssetPreferences({
+        asset_default_scope: payload.asset_scope,
+        asset_default_visibility: payload.visibility,
+        asset_default_assignee_ids: payload.assigned_user_ids,
+      });
+    } catch {
+      // The asset was already saved. Keep the current session defaults and
+      // report only the optional preference failure to avoid duplicate saves.
+      window.yuvomi?.showToast(tr('defaultsSaveFailed'), 'danger');
+    }
     await loadData();
+    if (createdDefaults) {
+      state.assetDefaultScope = createdDefaults.scope;
+      state.assetDefaultVisibility = createdDefaults.visibility;
+      state.assetDefaultAssigneeIds = createdDefaults.assigneeIds;
+    }
     await closeModal({ force: true });
     renderBody();
     window.yuvomi?.showToast(item ? tr('updated') : tr('created'), 'success');
@@ -650,7 +821,16 @@ async function loadData() {
   ]);
   state.items = items.data || [];
   state.categories = categories.data || [];
-  state.householdCurrency = String(preferences.data?.currency || 'EUR').toUpperCase();
+  const prefData = preferences.data || {};
+  const admin = state.currentUser?.role === 'admin';
+  state.assetDefaultScope = admin && prefData.asset_default_scope === 'family' ? 'family' : 'personal';
+  state.assetDefaultVisibility = ['all', 'assignees', 'private'].includes(prefData.asset_default_visibility)
+    ? prefData.asset_default_visibility : (state.assetDefaultScope === 'family' ? 'all' : 'private');
+  state.assetDefaultAssigneeIds = Array.isArray(prefData.asset_default_assignee_ids)
+    ? prefData.asset_default_assignee_ids : [];
+  state.metric = ASSET_COST_METRICS.has(prefData.asset_cost_metric) ? prefData.asset_cost_metric : 'current';
+  state.summaryTheme = ASSET_SUMMARY_THEMES.has(prefData.asset_summary_theme) ? prefData.asset_summary_theme : 'aurora';
+  state.householdCurrency = String(prefData.currency || 'EUR').toUpperCase();
   state.members = members.data || [];
   const currencies = availableCurrencies(state.items);
   if (!currencies.includes(state.summaryCurrency)) state.summaryCurrency = currencies.includes(state.householdCurrency) ? state.householdCurrency : (currencies[0] || state.householdCurrency);

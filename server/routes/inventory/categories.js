@@ -15,11 +15,21 @@ import * as db from '../../db.js';
 import { createLogger } from '../../logger.js';
 import { str, MAX_SHORT } from '../../middleware/validate.js';
 import { uniqueKey } from './helpers.js';
+import { isAdmin } from './access.js';
 
 const log = createLogger('Inventory');
 const router = express.Router();
 
 const PROTECTED_KEY = 'other';
+
+function requireAdmin(req, res, next) {
+  if (!isAdmin(req)) {
+    return res.status(403).json({
+      error: 'Admin access required.', reason: 'admin_required', code: 403,
+    });
+  }
+  return next();
+}
 
 function loadCategories() {
   return db.get().prepare('SELECT * FROM inventory_categories ORDER BY sort_order ASC, COALESCE(name, key) COLLATE NOCASE ASC').all();
@@ -40,13 +50,15 @@ router.get('/', (_req, res) => {
 // --------------------------------------------------------
 // POST /api/v1/inventory/categories   Body: { name, icon? }
 // --------------------------------------------------------
-router.post('/', (req, res) => {
+router.post('/', requireAdmin, (req, res) => {
   try {
     const vName = str(req.body.name, 'Name', { max: MAX_SHORT });
     if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
 
     const conflict = db.get().prepare('SELECT id FROM inventory_categories WHERE COALESCE(name, key) = ? COLLATE NOCASE').get(vName.value);
-    if (conflict) return res.status(409).json({ error: 'Category already exists.', code: 409 });
+    if (conflict) return res.status(409).json({
+      error: 'Category already exists.', reason: 'category_exists', code: 409,
+    });
 
     const vIcon = str(req.body.icon, 'Icon', { max: MAX_SHORT, required: false });
     if (vIcon.error) return res.status(400).json({ error: vIcon.error, code: 400 });
@@ -68,7 +80,7 @@ router.post('/', (req, res) => {
 // --------------------------------------------------------
 // PUT /api/v1/inventory/categories/:key   Body: { name?, icon? }
 // --------------------------------------------------------
-router.put('/:key', (req, res) => {
+router.put('/:key', requireAdmin, (req, res) => {
   try {
     const cat = db.get().prepare('SELECT * FROM inventory_categories WHERE key = ?').get(req.params.key);
     if (!cat) return res.status(404).json({ error: 'Category not found.', code: 404 });
@@ -81,7 +93,9 @@ router.put('/:key', (req, res) => {
     const conflict = db.get().prepare(`
       SELECT id FROM inventory_categories WHERE COALESCE(name, key) = ? COLLATE NOCASE AND key != ?
     `).get(vName.value, cat.key);
-    if (conflict) return res.status(409).json({ error: 'Category already exists.', code: 409 });
+    if (conflict) return res.status(409).json({
+      error: 'Category already exists.', reason: 'category_exists', code: 409,
+    });
 
     // Umbenennen macht eine Seed-Kategorie effektiv custom: label_key faellt weg,
     // sonst ueberschriebe der naechste Sprachwechsel den getippten Namen wieder
@@ -101,10 +115,14 @@ router.put('/:key', (req, res) => {
 // 'other' ist geschuetzt. Betroffene Gegenstaende fallen auf 'other' zurueck.
 // Response: { ok: true, reassigned: number }
 // --------------------------------------------------------
-router.delete('/:key', (req, res) => {
+router.delete('/:key', requireAdmin, (req, res) => {
   try {
     if (req.params.key === PROTECTED_KEY) {
-      return res.status(400).json({ error: "The 'other' category cannot be deleted.", code: 400 });
+      return res.status(400).json({
+        error: "The 'other' category cannot be deleted.",
+        reason: 'category_protected',
+        code: 400,
+      });
     }
     const cat = db.get().prepare('SELECT * FROM inventory_categories WHERE key = ?').get(req.params.key);
     if (!cat) return res.status(404).json({ error: 'Category not found.', code: 404 });
@@ -127,7 +145,7 @@ router.delete('/:key', (req, res) => {
 // --------------------------------------------------------
 // PATCH /api/v1/inventory/categories/reorder   Body: { order: string[] }  (Keys)
 // --------------------------------------------------------
-router.patch('/reorder', (req, res) => {
+router.patch('/reorder', requireAdmin, (req, res) => {
   try {
     const order = Array.isArray(req.body.order) ? req.body.order : [];
     if (!order.length) return res.status(400).json({ error: 'order must be a non-empty array of keys.', code: 400 });

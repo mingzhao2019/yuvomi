@@ -20,6 +20,7 @@ console.log('\n[yuvomi-datepicker-Test]\n');
 
 const comp = readFileSync(new URL('../public/components/datepicker.js', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../public/styles/datepicker.css', import.meta.url), 'utf8');
+const assetPage = readFileSync(new URL('../public/pages/asset-cost.js', import.meta.url), 'utf8');
 
 // ── Struktur & Registrierung ────────────────────────────────────────────
 test('Definiert das Custom Element yuvomi-datepicker', () => {
@@ -46,6 +47,14 @@ test('datetime kombiniert Datum und Zeit als YYYY-MM-DDTHH:MM', () => {
 test('Nutzt die zentralen i18n-Parser/Formatter (kein eigenes Datumsparsing)', () => {
   assert(/parseDateInput/.test(comp) && /parseTimeInput/.test(comp), 'Muss parseDateInput/parseTimeInput nutzen');
   assert(/formatDateInput/.test(comp) && /formatTimeInput/.test(comp), 'Muss formatDateInput/formatTimeInput nutzen');
+});
+test('Asset-Formular nutzt den stabilen Text-Datepicker fuer das Jahr 2025', () => {
+  for (const field of ['purchase', 'sold', 'retired']) {
+    assert(new RegExp(`<yuvomi-datepicker id="asset-cost-${field}-date" type="date"`).test(assetPage),
+      `${field}: gemeinsamer Datepicker fehlt`);
+    assert(!new RegExp(`<input[^>]+id="asset-cost-${field}-date"[^>]+type="date"`).test(assetPage),
+      `${field}: natives segmentiertes Datumsfeld darf nicht verwendet werden`);
+  }
 });
 
 // ── Interaktion & Plattform ─────────────────────────────────────────────

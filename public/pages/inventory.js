@@ -43,6 +43,7 @@ const state = {
   filterAttention: false,
   view: 'browse',        // 'browse' | 'category'
   activeCategory: null,  // category key, when view === 'category'
+  currentUser: null,
 };
 
 async function loadLocations() {
@@ -122,6 +123,7 @@ async function openCategoryManager() {
         hintKey: 'inventory.manageCategoriesHint',
         addPlaceholderKey: 'inventory.addCategory',
         deleteDetailKey: 'inventory.categoryDeleteConfirmDetail',
+        errorKeyMap: { category_protected: 'inventory.categoryOtherNotDeletable' },
       });
     },
     onClose: async () => {
@@ -1504,8 +1506,9 @@ async function removeItem(item) {
   }
 }
 
-export async function render(container) {
+export async function render(container, { user } = {}) {
   _container = container;
+  state.currentUser = user || null;
 
   const page = document.createElement('div');
   // page-measure--narrow: die Seite setzt das Lesemass, die Zeilentraeger lesen
@@ -1574,7 +1577,9 @@ export async function render(container) {
   if (window.lucide) window.lucide.createIcons({ el: container });
 
   toolbar.querySelector('[data-action="manage-locations"]').addEventListener('click', openLocationManager);
-  toolbar.querySelector('[data-action="manage-categories"]').addEventListener('click', openCategoryManager);
+  const manageCategories = toolbar.querySelector('[data-action="manage-categories"]');
+  if (state.currentUser?.role === 'admin') manageCategories.addEventListener('click', openCategoryManager);
+  else manageCategories.hidden = true;
 
   _search = wirePageSearch(toolbar, {
     id: 'inventory-search',

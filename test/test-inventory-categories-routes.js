@@ -20,6 +20,11 @@ const db = dbmod.get();
 
 const app = express();
 app.use(express.json());
+app.use((req, _res, next) => {
+  req.authUserId = 1;
+  req.authRole = req.headers['x-test-role'] || 'admin';
+  next();
+});
 app.use('/categories', categoriesRouter);
 const server = app.listen(0);
 const baseUrl = await new Promise((r) => server.on('listening', () => r(`http://127.0.0.1:${server.address().port}`)));
@@ -35,6 +40,33 @@ async function call(method, path, body) {
   try { json = await res.json(); } catch { /* 204/leer */ }
   return { status: res.status, body: json };
 }
+
+async function callAsMember(method, path, body) {
+  const res = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      'x-test-role': 'member',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let json = null;
+  try { json = await res.json(); } catch { /* 204/leer */ }
+  return { status: res.status, body: json };
+}
+
+test('POST/PUT/DELETE/PATCH /categories: Nicht-Admin darf Kategorien nicht verwalten', async () => {
+  for (const [method, path, body] of [
+    ['POST', '/categories', { name: 'Mitglied' }],
+    ['PUT', '/categories/electronics', { name: 'Elektronik' }],
+    ['DELETE', '/categories/electronics'],
+    ['PATCH', '/categories/reorder', { order: ['electronics'] }],
+  ]) {
+    const r = await callAsMember(method, path, body);
+    assert.equal(r.status, 403);
+    assert.equal(r.body.reason, 'admin_required');
+  }
+});
 
 test('GET /categories: fuenf Seed-Kategorien in Sortierreihenfolge', async () => {
   const r = await call('GET', '/categories');
