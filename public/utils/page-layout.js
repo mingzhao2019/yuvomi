@@ -74,8 +74,9 @@ ${header}${body}${trailing}
  * @param {string} [opts.actions='']
  * @param {string} [opts.bar='']
  * @param {boolean} [opts.wrap=false]
- * @param {boolean} [opts.narrow=false] — legacy ::after spacer; prefer measured
- * @param {boolean} [opts.measured=true] — wrap primary slots in .page-toolbar__rail
+ * @param {boolean} [opts.narrow=true] - ::after spacer pulls the row end to --page-measure;
+ *   a no-op in `full`/`split` (their measure is 100%), so the default is safe there
+ * @param {boolean} [opts.measured=false] - without narrow: wrap primary slots in .page-toolbar__rail
  * @param {boolean} [opts.inGroup=false]
  * @param {boolean} [opts.capped=false]
  * @param {boolean} [opts.stacked=false]

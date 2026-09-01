@@ -62,9 +62,15 @@ Optional fields:
   opens your page. Pick a tone that reads against both a light and a dark surface: the mark is
   filled with it and carries a light or dark glyph on top.
 - `page.composition`: one of `reading` | `data` | `dashboard` | `form` | `split` | `full`
-  (see [`docs/PAGE-COMPOSITION.md`](docs/PAGE-COMPOSITION.md)). Declare intent; do not invent page width,
-  gutters, or breakpoints. Use `/utils/page-layout.js` and `.app-page--*` primitives.
-- `page.width`: semantic width (`reading` | `content` | `wide`); defaults from composition.
+  (see [`docs/PAGE-COMPOSITION.md`](docs/PAGE-COMPOSITION.md)). The app applies it: the
+  `container` your `render()` receives is the `.app-page--<composition>` root, with the page
+  measure set. Declare intent; do not invent page width, gutters, or breakpoints. Build the
+  header and body with `/utils/page-layout.js`.
+- `page.width`: semantic width (`reading` | `content` | `wide`); defaults from composition and
+  refines the measure inside `reading`, `form`, `data` and `dashboard`. `split` and `full` own
+  their width and ignore it. In `split`, the first two children of the body are the master and
+  detail rails from 1024px (stacked below); `full` and `split` roots take the shell height, so
+  a body section can scroll internally without your CSS sizing the page.
 - `page.navigation` / `page.responsive`: currently `standard` only.
 
 ## Client Entry
