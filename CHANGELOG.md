@@ -12,6 +12,572 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The `allowScripts` pins are checked against the installed dependency versions.** A dependency
   bump can otherwise leave an exact install-script permission pointing at a package version that
   is no longer installed. The guard also rejects pins for packages that are no longer dependencies.
+### Added
+
+- **A third-party module now declares which manifest format it is written in** (`manifestVersion`),
+  and Yuvomi refuses one it cannot read instead of reading it in part. The extension surface from
+  #919 - widgets, `ext:<module-id>` permissions, an API prefix, a locale chain - is a promise made
+  to code nobody here can see: `modules/` is gitignored, modules arrive at runtime. Without a format
+  number, renaming a field later would have been a silent break, where the module still loads, the
+  field is gone, and the household notices a widget that stopped doing anything.
+
+  Omitting the field means 1, so manifests written before it keep working. A manifest declaring a
+  higher version is rejected outright, and the error names both numbers, because loading it halfway
+  would silently ignore fields it considers essential.
+
+  **New optional fields never require a bump**; the number moves only when one is removed or
+  renamed, and then the older format stays readable. A guard drives a manifest carrying every
+  promised field through the real normaliser, so dropping one turns the suite red rather than
+  turning somebody's widget blank.
+- **Third-party modules can declare capabilities in `module.json`** for dashboard widgets, household permissions (`ext:<module-id>`), and API token scopes - the same surfaces core modules use, without changing core application code.
+- **The dashboard dynamically loads third-party widget entry points** (`renderWidget`) from protected module assets, with per-widget error isolation and an optional generic options dialog driven by `optionsSchema`.
+- **Third-party modules can ship UI translations** in `locales/{locale}.json` with manifest `i18n.defaultLocale`, `labelKey` / `titleKey`, and the same 24 core languages as Yuvomi.
+- **OpenAPI now documents extension module capabilities** and module i18n metadata.
+- **A person can now have an optional name day beside their birthday.** The advanced section of the
+  birthday form stores a month and day without inventing a year; leaving it empty keeps the existing
+  behaviour. A saved name day becomes its own yearly entry in the birthday calendar layer, uses the
+  birthday's existing reminder lead time and appears as a separately labelled row in the dashboard
+  widget. The navigation badge counts both kinds of upcoming occasion, while the main Birthdays list
+  remains one row per person. Name-day labels, validation and calendar text are included in all 24
+  supported interface languages.
+
+### Changed
+
+- **`GET /api/v1/modules` includes normalized `capabilities` and `i18n` metadata** (widgets, permission module metadata, API prefix, available locale files) for each installed extension module.
+- **Dashboard widgets, navigation, route guards, and admin permissions merge extension entries at runtime** from enabled modules, so third-party widget ids (`<module-id>:<widget-id>`) and `ext:<module-id>` permission keys behave like core modules.
+- **API token and MCP scope pickers include extension modules** from the live permissions catalog instead of a fixed core-only list.
+- **Extension `capabilities.api.prefix` must be exactly `/api/extensions/<module-id>`** — any other prefix, including a core path such as `/api/tasks`, is rejected so an installed module cannot take over a core token scope.
+- **Extension UI labels resolve through a locale fallback chain** (UI language, module default, `en`, `de`, then static manifest labels) in navigation, Settings, permissions admin, and the dashboard widget chrome.
+
+### Fixed
+
+- **A failed `GET /modules` no longer wipes the household's extension widget layout.** A network hiccup, a server restart, or the `/api/` rate limit used to empty the in-memory module list; the next dashboard save then persisted a config with every `ext` tile gone. On recovery the widget came back as a newcomer: default size, default position, options lost. A failed fetch now keeps the previous list, and stored `<module-id>:<widget-id>` entries survive normalize even while the module is disabled or the catalog is empty.
+- **The extension permission catalog is scanned before the server accepts requests.** Starting the scan inside the `app.listen` callback left a window where stored `ext:<module-id> → none` rows were dropped and the deny-list treated a missing key as allow.
+- **Extension locale lookup no longer throws for module ids that collide with `Object.prototype`.** `constructor` (and `toString`) pass the module-id regex; looking them up on a plain `{}` store made `t()` throw instead of returning the key.
+- **The empty options dialog for a third-party widget no longer quotes the task-categories copy.** It has its own string.
+
+## [2.62.0] - 2026-09-01
+
+### Added
+
+- **An invitation now carries the permissions the new member starts with, and the preselection is
+  the narrow one** (#869). Until now a newly invited member could see every module at first login,
+  and an admin could only take things away afterwards. That was never decided for invitations: it
+  was inherited from migration v74, where storing permissions sparsely - no row means full access -
+  was the right call so that existing households behaved exactly as before after the update. The
+  reporter supplied the sentence that settles it for the other case: permissions can be opened
+  later, but somebody who has already seen private information cannot un-see it.
+
+  The invite form has a new **starting permissions** field with two templates. *Without personal
+  areas* is preselected and locks Health, Budget and Documents; *As the role profile* is the old
+  behaviour. Underneath, the form says what the choice means right now - which modules the template
+  locks, or, for a role, which ones that role already restricts, read from the stored profile
+  rather than described in the abstract.
+
+  **The default itself is untouched, and that is the point.** Nothing changes for existing
+  households, existing accounts or invitations already sent: what changed is the preselected value
+  of a form, not the stored default. Turning the default around would have locked out exactly the
+  households v74 set out to protect. The resolved set is stored with the invitation, so what the
+  admin saw when sending it is what applies at first login, even if the role profile changes in
+  between.
+
+  Which three modules, and why not fewer: the line is not "as little as possible" but *whose data
+  it is*. Health, Budget and Documents hold what belongs to a person; Calendar, Tasks and Shopping
+  are what somebody is invited for. Locking those would produce an empty app and a phone call, not
+  privacy. The templates stack with the role profile rather than replacing it - a role that
+  restricts more stays stricter.
+
+  There is deliberately no "full access" template. Sparse storage means a member override cannot
+  *widen* a role profile: a stored `write` does not exist, so no row can overrule a restricting
+  role. That has been true since v74; a template promising full access that quietly does nothing
+  would be a promise that does not hold. To give everyone in a role more, change the role profile.
+
+- **Each person chooses what their new health entries start as, per measurement** (#958). @cmjmmrp-byte
+  asked for blood pressure to default to family-visible, so that in an emergency somebody knows the
+  usual values. The shipped default stays `private`, and the choice moves to the household instead.
+
+  Flipping the shipped default would have been the small change and the wrong one. Stored entries
+  carry their own visibility, so nothing would have leaked retroactively - but somebody who learned
+  that health readings are private would, after an update, record one and share it without doing
+  anything. An opening nobody triggered is the one kind of privacy change that cannot be taken back:
+  the default reverts in a line, the rows written in the meantime do not.
+
+  The answer already existed inside the module. The cycle tab has had a personal default visibility
+  since v1.53.0, plus a switch that moves the existing entries along. The most sensitive area had it
+  and the other four did not, and that inconsistency - not the value of the default - was the actual
+  gap. Settings, Health now carries the same choice for vitals, medications, lab reports and
+  activities, and after a change it offers to move that area's existing entries too.
+
+  **Per metric for vitals, not per area.** Somebody who shares their blood pressure is not thereby
+  sharing their mood, and both live in the same list. A single "vitals" default would have produced
+  exactly the conflation the shipped default was defending against. Medications, lab reports and
+  activities get one each, because each is one kind of entry.
+
+  Two details worth stating: when a caregiver (#584) records for somebody else, the **owner's**
+  choice applies, since the row belongs to them - and the entry form still offers private/family on
+  every single entry, so the default is a starting point, never a decision made for you.
+
+- **The changelog now opens with what changed in YOUR app since you last looked** (#496). The most
+  supported open request in the project is not a feature: it says releases come fast enough that
+  keeping track is work. @raninehme put it most precisely - a partner still learning the app finds
+  things moving while she is practising. The answer given at the time was honest and was not an
+  answer.
+
+  Batching releases onto a fixed cadence would solve it by removing the property this project gets
+  thanked for most often, so the cost moved elsewhere: keeping up should not require a trip to a
+  changelog. Two pieces were already in place and had never been connected. Since v1.84.0 the app
+  knows when a newer release exists and remembers which version you last opened (#490). Since
+  v2.41.0 every changelog entry opens with a bolded sentence naming the change, enforced by a test
+  (#850, @mariojg-dev). What was missing is that the view threw the second one away: the route
+  stripped the emphasis and merged the follow-up lines back into prose.
+
+  Entries now arrive as a lead sentence plus its reasoning, and the view shows a **"New in your
+  app"** block at the top - the lead sentences as a scannable list, each one expandable for the
+  story underneath. Nobody has to read 91 releases; they read the handful of lines that changed
+  something since they last looked.
+
+  **Two boundaries make it honest.** It counts only releases this instance actually runs: a
+  household on 2.55 does not read what 2.61 brought, because for them none of it happened - that is
+  a different question from the update dot, which asks whether something newer exists out there.
+  And on a first look the block stays away entirely: with no earlier mark there is nothing somebody
+  can have missed, and showing everything would claim they missed everything. Long gaps are capped
+  at twelve lines with the remainder counted out loud rather than silently dropped.
+
+  **What "last looked" means lives on the account, not in the browser.** Both marks moved into
+  `users` (migration 173): the installed version at your last look, which drives the list, and the
+  last known published version, which drives the dot. Before, reading the changes on the desktop
+  left the tablet showing the same dot and the same list again - the exact complaint migration 168
+  answered for the onboarding walkthrough. What stays local is the cached GitHub answer and the time
+  of the last check: a scratchpad for something the server said, not a state belonging to a person.
+
+  The `/api/v1/changelog` payload keeps `items` exactly as it was and carries the split as
+  `entries` beside it - a promised surface does not change shape because the UI wants a nicer one.
+
+- **Yuvomi links to a user guide, and says whose it is** (#799). @Kyrodan built a documentation site
+  because the answers exist but are scattered across closed discussions. It stays in his repository
+  under his own hand, and the app, the README and yuvomi.cloud now point at it. The decision was not
+  the no-bundlers rule - there is no guard that covers `docs/`, so Docusaurus here would have been a
+  choice rather than a violation. It was maintenance: at 91 releases across 21 days, documentation
+  in this repository is documentation I owe at that cadence, and drifted documentation is worse than
+  none because people trust it. Every link therefore says "community-maintained" in its own text
+  rather than in a footnote, so nobody mistakes a lag for an official statement.
+
+### Changed
+
+- **The page layout rules are now written where contributors can read them** (#929). They existed
+  and were enforced - the reading measure that hangs on the page, the scroll clearance that belongs
+  to whatever actually scrolls, one page stylesheet per route - but only in guards and in a file
+  that is not in this repository. From the outside a page composition system looked unwritten. It
+  was not; it was invisible, and a contributor proposing one was answering a real gap. CONTRIBUTING
+  now has a **Page layout** section that says what the guards check and names them as the authority.
+
+## [2.61.0] - 2026-09-01
+
+### Added
+
+- **Monthly series can repeat on the last day of the month** (#960). @PapaZhans asked for it, and
+  until now it could only be approximated: a series begun on 31 January *looked* like "the last
+  day" and lost that the first time it met a short month. The repetition form has a new choice
+  under "monthly", and it is the only one of its kind - a start date can express "on the 15th" all
+  by itself, but "on the last day" means a different day every month and has to live in the rule.
+
+  **Only that one value is accepted, and only under "monthly".** Reading the wider RFC range was
+  tried during review and taken back: accepting values the recurrence engine does not implement
+  opened a failure case for each one. `BYMONTHDAY=31` is supposed to be *omitted* in February
+  rather than moved to the 28th, `1,15` means two days a month, the same component under a yearly
+  rule means twelve occurrences a year rather than one, and under daily or weekly rules it filters
+  days instead of setting them. A value that is read but computed wrongly moves appointments
+  silently; one that is ignored leaves the series where it was. Rules from other calendars
+  therefore keep behaving exactly as before, and an edit hands them back word for word (#756).
+
+  The choice survives the places a rule gets rebuilt: cutting a series with "this and all
+  following" keeps it, and a one-time ICS import carries it through. It is **not** pushed to
+  Outlook, because Microsoft Graph has no equivalent - and the obvious substitute is not one, since
+  a "last weekday of the month" pattern selects the first day matching it rather than the month's
+  end. Such a series is sent without its recurrence rather than with a different one, and the
+  recurrence is cleared explicitly so an update cannot leave the remote copy on its old schedule.
+
+### Fixed
+
+- **A monthly series on the last day of the month no longer skips its first month** (#960, follow-up).
+  A series created on 15 January with "on the last day of the month" showed 15 January as its first
+  appointment - a date the rule does not contain - and 31 January was never produced at all. The
+  expansion filter only ever checked the weekday component, so the unmatched start passed as an
+  occurrence, and the next date always jumped to the following month. Both halves are fixed: a date
+  is an occurrence only if it satisfies *every* part of the rule, and the next occurrence may fall
+  in the same month when the month end is still ahead.
+
+  **The stored date stays what you entered.** Moving it onto the first occurrence when saving was
+  tried and taken back: the reminder, the lead time, the follow-up instance and the list all read
+  that column directly, and none of them learn that the server changed it afterwards. A start date
+  that does not sit on its own rule therefore still goes out verbatim to foreign calendars, where
+  RFC 5545 leaves the result undefined - that belongs in the export path and is tracked separately.
+
+  Two smaller consequences of the same distinction: in the calendar a rule with no occurrence at
+  all (a month-end rule whose end date falls before the first month end) is rejected instead of
+  stored as a series nobody will ever see, and the countdown no longer announces a date the
+  calendar does not show. A task is the opposite case and takes no such check: its list reads the
+  due date directly, so a task due on the 15th under a rule that ends on the 20th is due on the
+  15th and then finished - a valid finite task, not an empty series. The hint under the switch now
+  says what the module it stands in actually does: the calendar computes the series from the start
+  date and shows 31 January, a task stays due on the date you entered and only its *next* run falls
+  on the month end.
+
+- **"This and all following" no longer empties a series when used on its first appointment.** If a
+  series starts on a day its own rule does not contain - a weekly "Mondays only" beginning on a
+  Saturday, which is how some calendars serialise it (#549) - the first appointment shown is not
+  the stored date. Choosing "this and all following" there cut the rule to the day before that
+  first appointment, which leaves a series with nothing in it: the appointment disappeared from the
+  calendar while its record stayed behind with its assignments and exceptions. At the beginning of
+  a series that choice means the whole series, and it is now treated as such - deleting removes it,
+  editing changes it, and neither shortens the rule.
+
+- **A yearly series on 29 February comes back in the next leap year** (#978). It used to fall to
+  the 28th after the first non-leap year and stay there - 2024-02-29, then 2025-02-28, and 2028
+  never returned to the 29th. The cause was the same one behind the monthly clamp fixed in v2.60.0:
+  the intended day was derived from the *previous* occurrence, so a clamp in a short month wrote
+  itself down permanently. Wherever the series start is known - the calendar, the ICS parser, the
+  series arithmetic - it is now carried along as an anchor. A birthday on 29 February is the case
+  where being one day off is noticed.
+
+  Task series are the exception and keep their previous behaviour: a repeating task is a chain of
+  separate rows with no memory of its origin. Nothing existing is migrated.
+
+- **A finite series with weekday restrictions no longer ends early.** `FREQ=MONTHLY;BYDAY=MO` with
+  a count of two returned a *single* appointment: the second count was spent on a Wednesday that
+  was filtered out and never shown. A day outside the weekday pattern is not an occurrence of the
+  series and must not count against the limit - while a date removed by an exception *is* one and
+  still counts, as the spec requires. The two had been sharing one condition. This is older than
+  the last-day work above and affected any counted series with a weekday restriction.
+
+## [2.60.0] - 2026-09-01
+
+### Added
+
+- **The status is available when creating a task, not just when editing one** (#807). @thesoundhead
+  pointed out that the new-task dialog offers no status, although what people write down is often
+  something they have already started. The field was not forgotten - it sat behind the edit branch.
+
+  **The second half of the problem was on the server, and it was the more unpleasant one.** `POST
+  /tasks` has validated a supplied status against the allowed values since forever, and never wrote
+  it. A value that is checked and then silently discarded is the worse half of both: opening up the
+  form alone would have changed nothing, and nothing anywhere would have said so.
+
+  Creating with a status *is* a status change - it merely starts from `open` instead of from a
+  stored value. It therefore runs through the same transition handling as editing and ticking off:
+  reward ledger, completion history, and the follow-up instance of a recurring series. Filling only
+  the column would have given the point ledger and the history two sets of books, where the same
+  finished task counted differently depending on whether it was created done or ticked off done.
+  Sending `archived` on creation falls back to the first status rather than filing the task away:
+  the archive has been its own axis since #688, and creating a task in order to put it away in the
+  same breath is not creating a task.
+
+- **The wall mode can be started where it ends** (#915). It could only be switched on under
+  Settings, Personal, Appearance - but it was left on the overview. You walked out where you could
+  not walk in. The entry point now sits in the overview toolbar as an icon button, the literal
+  counterpart to the exit on the wall surface. The settings route stays: it is the long way with an
+  explanation beside it, this is the short one at the place where it takes effect.
+
+  There is deliberately no switch governing whether that button appears. It would sit in the same
+  settings the mode itself already lives in - two switches for one thing, and you would have to find
+  the second one to be rid of the first. There is no device-shape rule either: a wrongly hidden
+  entry point is unfindable again and would only move the problem. The exit toast, which used to
+  point into the settings because that was the only way back, now names the button instead.
+
+- **A kitchen timer on the wall** (#844). @Gensokian asked for a timer plus a cross-device
+  notification and then scaled the wish back himself: "honestly just the timer on the wall". That
+  notification is precisely what would have forced a server-side timer, because a phone suspends the
+  page as soon as the screen locks. What remains runs in the browser of the device that hangs on the
+  wall anyway and does not go to sleep: no endpoint, no table, no migration. Five presets, no number
+  field - from two metres a keypad is not operable - and a chime built from three synthesised tones
+  rather than an audio file that would have to be vendored, served and cached.
+
+  **The screensaver had to come along.** It covers the surface after five idle minutes, and a
+  countdown that expires behind a photo is not a timer. It now reads the same attribute the timer
+  sets, one source and two readers; the attribute drops the moment the timer rings, so an
+  unacknowledged timer cannot disable the screensaver for good.
+
+  The mode was built as a display-only surface, and that promise turns out to be narrower than its
+  name: the exit has been there since day one, so it was never button-free - it leads nowhere and
+  changes nothing in the household. The timer does not break that, it marks its edge. `wall-mode.js`
+  therefore gained an admission rule rather than a named exception - a control may go on the wall
+  when it does not navigate, changes nothing server-side, stays on this device, and is operable from
+  two metres - because an expiry date on something meant to stay would be a lie in a comment.
+
+### Fixed
+
+- **A monthly series on the 29th to 31st no longer skips a month.** Found while looking into a
+  request for "last day of the month", and it is not the bug the request suggested. The clamp that
+  was supposed to move a 31 March onto 30 April never took effect: `setUTCMonth()` had already
+  rolled over on a date still carrying the 31st - a 31 February silently becomes 3 March in
+  JavaScript - and the last-day correction was then computed for the month the overflow had landed
+  in.
+
+  So the short month did not fall back to its last day. **It fell out entirely.** A monthly task on
+  the 31st arrived in seven months out of twelve; on the 30th and the 29th, February was missing.
+  With an interval of two months the rhythm broke on top of that, because the skipped month shifted
+  it: from 31 July it went three months on instead of two. It affected tasks and calendar events
+  alike, since both walk the same function occurrence by occurrence.
+
+  Existing series need no migration and compute correctly from their next occurrence onwards. This
+  does move dates in existing installations, in the direction the user meant. What it does not fix,
+  and what now says so in the code: because the next occurrence is computed from the clamped date, a
+  series begun on 31 January stays on the 28th from February onwards, and a yearly series on 29
+  February never returns to the 29th (#978). For that the rule itself would have to carry the
+  intended day.
+
+- **Scrolling the task board on a phone no longer drags cards along** (#808). @thesoundhead
+  suggested distinguishing a long press from a short one - which is exactly what the app's shared
+  drag wrapper has done all along for the shopping list and the category manager. The board did not
+  use it: it carried two drag implementations of its own, native drag-and-drop for the mouse and a
+  hand-written touch simulation beside it. The touch half did have a threshold, just the wrong kind:
+  eight pixels of distance and no time at all. Anyone scrolling had those eight pixels within a
+  blink, and the gesture then lost its scrolling. Both are gone; holding picks a card up, swiping
+  stays scrolling, and the mouse still drags immediately.
+
+  The advance-status button on each card is excluded from dragging - it was excluded in the old
+  touch handler too, and that single line was the easiest thing to lose in the switch. Of everything
+  on a card it can least afford to become a drag surface, because it is also the board's keyboard
+  path.
+
+## [2.59.0] - 2026-08-31
+
+### Added
+
+- **Greek, Hungarian and Vietnamese get a region preset - and Vietnamese gets its currency back**
+  (#297). VND had been in the currency picker since June and disappeared in #340, when four literal
+  copies of the currency list were consolidated into one shared list. The consolidation was right -
+  adding a currency is one line today - but the surviving guards compare that list against *itself*,
+  so a dropped code was invisible. Meanwhile `vi.json` kept shipping: a Vietnamese household could
+  run the whole app in its own language and not pick its own currency. Two months passed before
+  anyone said so, and the report arrived as a comment in a discussion that had been closed since
+  July.
+
+  **The tell was in the code the entire time.** `services/split-expenses.js` still listed `VND` among
+  the currencies with no decimal places. The app knew how to *calculate* in dong and refused to let
+  anyone *choose* it.
+
+  **Asking why nothing caught it found the larger gap.** Of 24 shipped languages, three had no region
+  preset at all - Greek, Hungarian, Vietnamese. A region preset sets currency, date format and time
+  format together; without one those languages always landed on "Custom" and left people to guess
+  all three. Hungarian was the sharpest case, because HUF sat in the currency list the whole time
+  with nowhere to select it from. The three new presets take their values from each locale's CLDR
+  default rather than from assumption, which is how `el-GR` ended up on a 12-hour clock while the
+  countries around it write 24h, and `hu-HU` on a year-first date - the first region in the app to
+  use that format.
+
+  **The guard is a rule over the codebase, not a list of files:** every locale under
+  `public/locales/` must have at least one region preset. Together with the check that already
+  existed - every preset names a selectable currency - it closes the loop this fell through: a
+  language with no region could not demand a currency, so nobody noticed its currency was gone.
+
+### Fixed
+
+- **The guest sign-in only appears where the household actually has guests** (#962). Setting
+  `AUTH_ALLOW_PASSWORD_LOGIN=false` to make SSO the only way in still left a "guest sign-in with
+  password" button on the login page. The exemption behind it is deliberate and stays: shared
+  expenses can involve people who are not in the household - a neighbour settling a bill - and an
+  admin creates those accounts with a password, because they have no entry in the household identity
+  provider (#847). Without the exemption, switching on SSO-only would have silently bricked every
+  existing guest account.
+
+  **Showing it unconditionally was the bug.** The page never asked whether the household *has* such a
+  guest; it saw "password login is off" and offered the route regardless. A household with no shared
+  expenses was looking at an entrance nobody can walk through - and from the outside that is
+  indistinguishable from an open one, which is why it was reported as a hole in the bolt the operator
+  had just closed.
+
+  `GET /api/v1/auth/oidc/config` now answers the question the page failed to ask. Two properties of
+  that answer are deliberate: it is **one bit** - "there are guests", never who or how many - and it
+  is **short-circuited**, so where password login is open the question is moot and the guest table is
+  never read. On a normal installation the public endpoint therefore reveals nothing it did not
+  already reveal.
+
+## [2.58.0] - 2026-08-31
+
+### Added
+
+- **Two more keyboard chords: `g b` jumps to the budget, `g e` to the settings.** They follow the
+  kitchen chords and take their labels straight from the navigation, so there is no second set of
+  translations to keep in step. Only these two targets got a letter: contacts, documents, the shift
+  planner, housekeeping, rewards and birthdays all have candidates that read well in one language
+  and arbitrarily in the next, and a mnemonic scheme that nobody can remember is worse than no
+  scheme. Those letters are a decision for the operator, not something to settle by alphabet.
+
+### Changed
+
+- **The health module switches people through one avatar button instead of a permanent row of
+  pills.** All six views carried the same 48-pixel strip above their content, so a household of
+  four met ten choices - six view tabs plus four people - before the first piece of information.
+  The active person now sits on a single button that opens the shared popover menu, the same
+  vocabulary and the same single-select check mark as the recipe source filter. Recognising beats
+  remembering: the person you are looking at stays readable on the closed button. Households with
+  only one visible person get no switcher at all, because a menu with one entry is chrome that
+  answers nothing.
+- **The new-task dialog no longer opens at full length.** Status, sync target, visibility, lock and
+  attachments were laid out as open field groups *after* the "more settings" disclosure, which made
+  the disclosure look like the end of the form when it was the middle of it. They now sit inside it,
+  and any value you have set is named in its summary line, so nothing hides silently. The form went
+  from 1422 to 938 pixels. The three documented counter-decisions stayed untouched: the note field
+  keeps its place next to the title (#731), the countdown stays visible (#647), and recurrence
+  stays outside the disclosure, as in the calendar.
+- **The install banner shows once a day instead of once per navigation.** It is a persistent
+  element, so gating it on mount never worked in a single-page app: it reappeared on every route,
+  over the thumb zone and the floating action button. Any real appearance now starts a 24-hour
+  quiet period, and the banner hides itself after 15 seconds - enough to read the iOS instructions,
+  short enough not to sit in the way. Dismissing it explicitly still buys 30 days.
+- **Icon rendering is scoped for real.** Around 230 call sites pass `createIcons({ el })` and assume
+  only that subtree is touched; the bundled Lucide build does not know the parameter and scanned the
+  whole document each time, so every partial re-render paid for a full-document query. A small patch
+  file next to the bundle now implements the scoping and mirrors the bundle's own replacement
+  semantics, including that an unknown icon name warns without breaking anything. The month grid
+  also measures its day cells in three phases rather than alternating reads and writes across up to
+  42 cells, which costs one reflow instead of many.
+
+### Fixed
+
+- **Section headings in the health module were set in the module-header role.** Eight of them drew
+  the sticky toolbar's 22/700 instead of the 20/600 every other section heading in the app uses -
+  the only place where the type hierarchy broke. The utility class that made the header role freely
+  addressable is gone; its one legitimate user is named directly in the role layer, so the role
+  cannot be borrowed by accident again.
+- **An accessibility batch that had been left half-finished in several places.** The split-expense
+  search field was the last input whose focus outline was removed without a replacement (WCAG
+  2.4.7); module dialogs now announce their errors with `role="alert"` the way the auth pages
+  already did; counters no longer glue themselves onto the name of their target, which a screen
+  reader read as "Rewards1" and now reads as "Rewards, 1 open"; the quaternary text tone and the
+  drag handles moved up to the tertiary tone to clear 3:1; the date picker's focus glow, which sat
+  at roughly 1.05:1 against its surroundings, was replaced by the global focus ring; and the
+  discard button in the unsaved-changes guard is now styled as the destructive action it is.
+- **The browser's font-size setting now affects the app.** The root carried a hard `font-size: 16px`,
+  which pins the rem scale to the page zoom and ignores the setting itself (WCAG 1.4.4). It is
+  `100%` now; the default is still 16 pixels, so nothing about the standard rendering changes.
+- **Layout and behaviour disagreed at exactly 640 pixels.** Downward media queries were written on
+  the breakpoint value rather than one below it, so at that one width both sides of the pair applied
+  at once - mobile compaction and the three-column board together. The boundary now belongs to the
+  larger side throughout (`min-width: 640px` upward, `max-width: 639px` downward). The same fix had
+  to reach the JavaScript: the calendar, the meal planner and the documents view ask `matchMedia`
+  themselves, and at 640 pixels the CSS had already switched to its mobile shape while the scripts
+  still ran the desktop logic - in the calendar that meant a tap had to land on a 10-pixel dot
+  instead of the whole day cell. The guard that is supposed to hold the two sides together compared
+  bare numbers and was satisfied by a `min-width: 640px` elsewhere; it compares thresholds and their
+  direction now, and reports all four call sites.
+- **Overflow and select menus can be operated from the keyboard.** They announce themselves as
+  menus, but the popover API only supplies the top layer, light dismiss and Escape - not the
+  behaviour the role promises. Opening one now moves focus into it, onto the active choice in a
+  single-select menu; the arrow keys walk the entries and wrap at both ends, Home and End jump to
+  the edges, disabled entries are skipped, and Tab leaves the menu rather than walking through it.
+  Escape, Tab and Enter are left alone, because dismissal and focus return depend on them. Choosing
+  a person in the health module re-renders the view, so focus is handed back to the freshly drawn
+  button instead of falling to the document.
+- **`f` outside the calendar did nothing.** It opened the calendar search only when you already were
+  in the calendar; it now takes you there first.
+- **The tasks toolbar stood a row and a half tall.** The extra 55 pixels were not spacing but the
+  "board view" label wrapping onto a second line; it no longer wraps and appears only at the width
+  where it fits, so the bar matches the 44-pixel silhouette of its neighbours.
+- **The task field labelled "sync target" now says what it is.** It picks a reminder list, and it
+  says so, in all 24 languages.
+- **The phone mockups on the project website were not phone-shaped.** Four places draw the same
+  device frame, and two of them stood on invented crops: the four feature cards and the row of
+  module thumbnails below them cut roughly a third off the bottom of every capture, while the
+  hero's floating phone and the narrow gallery frame right next to them carried the real
+  proportion. The same object spoke two languages on one page, and the two wrong boxes turned a
+  19.5:9 phone into a squat tablet - 200x270 pixels instead of 200x434 in the feature cards. It
+  survived because a crop is not a distortion: the screenshot inside stayed correct, only the
+  frame around it lied, and no contrast, overflow or layout-balance check asks about that. Two
+  heuristic review runs over the same page did not see it either; a person did, at a glance. The
+  crop had been meant to save vertical space and saved none - the text column drives the height of
+  a feature card anyway, so the honest phone fits underneath it and the grid measures exactly the
+  same as before. Only the thumbnail row grew, which is what five phones that look like phones
+  cost. The proportion now has a single name in the site's tokens, next to the device corner
+  radius that had drifted the same way once before, and the landing-page suite holds both halves
+  of the coupling: no portrait aspect ratio may be written as a literal, and that one name has to
+  keep matching the dimensions of the screenshots it frames.
+
+### Removed
+
+- **Dead CSS and dead markup hooks.** A layout-primitives block that nothing referenced, the
+  outbound page-transition variants together with their keyframes, and four unused health add
+  buttons among others - each verified unreferenced before removal.
+
+## [2.57.4] - 2026-08-31
+
+### Fixed
+
+- **Deep links no longer fail when the app lives under a dot-directory.** Opening a page directly
+  (a bookmark or hard reload on `/calendar`, for instance) returned HTTP 500 whenever the
+  installation path contained a dot segment (such as `/opt/.apps/yuvomi`): Express' `sendFile`
+  checks every segment of an absolute path against its dotfile policy, so the server-controlled
+  checkout path itself tripped the guard. The SPA fallback and third-party module assets now serve
+  relative to an explicit root, so only the request-derived part of the path is checked. A new
+  path-independent suite (`test:sendfile-dotpath`) rebuilds the condition in a temp directory and
+  pins the `send` behavior the fix relies on.
+
+## [2.57.3] - 2026-08-31
+
+### Added
+
+- **The web installer validates the two remaining silent late-failures: timezone and SMTP port.**
+  A typo like `Europe/Berln` used to fall back to UTC without a word - the backup cron and the
+  household-timezone default then ran on the wrong clock; an SMTP port of `70000` surfaced weeks
+  later at the first password reset. Both are now checked on the spot (the timezone against the
+  browser's IANA table), with the message bound to the offending field. The timezone message is
+  new in all 24 installer languages.
+- **The three home-network permissions explain themselves.** Their per-toggle hints - naming
+  Mealie, Tandoor and Nextcloud as the tools they exist for - had been translated into all 24
+  languages but were never rendered; they now sit beneath their checkboxes.
+- **The security-keys warning names the way out.** Alongside "there is no reset" it now says the
+  finished `.env` file, including both keys, can be downloaded at the end of setup (all 24
+  languages) - so nobody transcribes two 64-character keys by hand out of fear.
+- **`BACKUP_UPLOAD_LIMIT` is documented in `.env.example`** and listed in the installer's
+  exception map. The server read it and the installation guide described it, but the example file
+  never carried it - the one variable for which no decision had ever been recorded.
+
+### Changed
+
+- **Arming "Save & Start" is now visible, audible and double-click-proof.** The two-click
+  confirmation on both setup paths only swapped the button label: a literal double-click passed
+  both stages in one gesture, and screen-reader users heard nothing at all. The armed state now
+  carries an accent ring, is announced via a live region, and ignores clicks for a short cooldown
+  after arming.
+- **One vocabulary per screen.** German no longer mixes "Sicherungen" and "Backups" on the storage
+  step or "Heimnetz" and "eigenes Netz" on the advanced step; the review page names the keys
+  exactly like the key step (in English too); and untouched defaults read "not enabled" instead of
+  posing as a decision ("disabled").
+
+### Fixed
+
+- **A reload no longer discards the whole setup silently.** Reloading or closing the tab midway
+  through the wizard threw away every entered value, pasted OAuth secrets included - while,
+  ironically, the language choice survived. The browser now asks first, from the first step up to
+  (but not including) the finish screen.
+- **Switching the language on the review page translated the labels but not the values.** "Neu
+  erzeugt" and "Direkt / HTTP" stayed German under English labels - on the one screen whose job is
+  to be read carefully before the irreversible click. The review now re-renders on every language
+  switch.
+- **Validation errors are visible and bound to their field.** The error banner lived at the end of
+  the step and could sit below the viewport: sighted users saw a red border with no reason, only
+  screen readers got the text. The banner now moves directly beneath the offending field and is
+  linked to it via `aria-describedby`; raw server error details are wrapped in a translated
+  message instead of appearing in English across all 24 languages.
+- **The review page no longer scrolls the whole page sideways on phones.** A realistic public
+  address or WebDAV URL pushed the page to 534px at a 375px viewport (WCAG 1.4.10); the value
+  column now shrinks and wraps. The redirect URIs in the calendar and storage steps wrap too
+  instead of being clipped by their card - they are the one value copied character-for-character
+  into a provider console.
+- **Smaller accessibility and theming debts of the installer.** The language selector's chevron
+  was a hard-coded color below the 3:1 threshold in dark mode and now follows the theme token; the
+  container log is keyboard-focusable and scrollable; the step counter is announced together with
+  the step heading; the admin fields are marked required; dark-mode card shadows carry the app's
+  1px edge ring - and the fallback-token parity guard now compares non-hex values, so this class
+  of drift can no longer pass silently.
+- **Landing page copy tightened** after the 2026-08-31 critique run: one verb family for
+  installing, the hero's solo promise carried through the feature copy, and the no-JS page no
+  longer shows dead language and theme controls.
+
+## [2.57.2] - 2026-08-31
+
+### Fixed
 
 - **The remaining principal of an interest loan follows the money you booked, not the calendar**
   (#954, reported in #935). Loan payments always carried a free amount - paying 500 instead of the

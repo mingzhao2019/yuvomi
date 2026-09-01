@@ -285,7 +285,14 @@ export function serializeEvent(event, database = null) {
   // nur bei Geburtstags-Terminen gesetzt. Nicht-Geburtstage behalten so ihre
   // bisherige Objektform; der Client lokalisiert Titel/Beschreibung anhand von
   // birthday_name (Issue #524).
-  const { assigned_users_json, birthday_name, birthday_date, ...rest } = event;
+  const {
+    assigned_users_json,
+    birthday_name,
+    birthday_date,
+    birthday_event_kind,
+    name_day,
+    ...rest
+  } = event;
   const source = event.outlook_source || outlookSource(database, event);
   // Inbound-Outlook-Events haben keinen `calendar_ref_id`, deshalb bleibt
   // `rest.cal_name` bei ihnen leer. Die Oberfläche verwendet `cal_name` als
@@ -297,7 +304,12 @@ export function serializeEvent(event, database = null) {
   return {
     ...rest,
     cal_name: calendarName,
-    ...(birthday_name ? { birthday_name, birthday_date: birthday_date ?? null } : {}),
+    ...(birthday_name ? {
+      birthday_name,
+      birthday_date: birthday_date ?? null,
+      birthday_event_kind: birthday_event_kind ?? 'birthday',
+      name_day: name_day ?? null,
+    } : {}),
     outlook_source: source
       ? {
           account_id: source.account_id,

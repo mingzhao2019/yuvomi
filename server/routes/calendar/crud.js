@@ -50,8 +50,11 @@ router.get('/:id', (req, res) => {
              u_created.display_name  AS creator_name,
              COALESCE(isub.name, ec.name) AS cal_name,
              COALESCE(isub.color, ec.color) AS cal_color,
-             bd.name       AS birthday_name,
+             COALESCE(bd.name, nd.name) AS birthday_name,
              bd.birth_date AS birthday_date,
+             nd.name_day   AS name_day,
+             CASE WHEN nd.id IS NOT NULL THEN 'name_day'
+                  WHEN bd.id IS NOT NULL THEN 'birthday' END AS birthday_event_kind,
              ${ASSIGNED_USERS_SQL},
              (SELECT hws.id FROM housekeeping_work_sessions hws WHERE hws.calendar_event_id = e.id LIMIT 1) AS housekeeping_visit_id
       FROM calendar_events e
@@ -60,6 +63,7 @@ router.get('/:id', (req, res) => {
       LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
       LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
       LEFT JOIN birthdays bd ON bd.calendar_event_id = e.id
+      LEFT JOIN birthdays nd ON nd.name_day_calendar_event_id = e.id
       WHERE e.id = ?
         AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
     `).get(id, getUserId(req), getUserId(req));

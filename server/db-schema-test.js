@@ -1134,6 +1134,17 @@ const MIGRATIONS_SQL = {
      WHERE entity_type = 'event'
        AND datetime(remind_at) <= datetime(created_at);
   `,
+
+  // SQL-String für Migration v179 (gespiegelt aus db.js MIGRATIONS):
+  // Optionaler Namenstag und eigener generierter Kalendertermin.
+  179: `
+    ALTER TABLE birthdays ADD COLUMN name_day TEXT;
+    ALTER TABLE birthdays ADD COLUMN name_day_calendar_event_id INTEGER
+      REFERENCES calendar_events(id) ON DELETE SET NULL;
+    CREATE INDEX IF NOT EXISTS idx_birthdays_name_day ON birthdays(name_day);
+    CREATE INDEX IF NOT EXISTS idx_birthdays_name_day_calendar_ref
+      ON birthdays(name_day_calendar_event_id);
+  `,
 };
 
 export { MIGRATIONS_SQL };
