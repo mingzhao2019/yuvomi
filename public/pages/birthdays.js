@@ -364,9 +364,6 @@ function renderPage() {
     mode: 'reading',
     className: 'birthdays-page',
     legacyAlias: false,
-    attrs: {
-      'data-composition-reference': 'true',
-    },
     header: renderPageHeader({
       wrap: true,
       measured: true,

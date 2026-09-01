@@ -506,6 +506,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Every page behind the app shell is now held to one page composition contract** (#929).
+  Layout primitives (`.app-page--*`, `page-measure`, the bleed section), the `--layout-*` width
+  tokens and the `page-layout.js` helpers arrive together with an audit that enforces them. The
+  audit derives its scope from `router.js` rather than from a list: a route with
+  `requiresAuth: false` renders without navigation and is outside the contract, everything else
+  is inside it, and a page added tomorrow is covered the day it gets a route. Three pages that
+  predate the contract are named in the guard, and a second test fails if that list grows, so
+  migrating a page is a deletion rather than a table somebody has to keep honest. The first draft
+  marked one reference page in the production markup instead; that attribute shipped to every
+  visitor and said nothing about the other thirty pages, so the guarantee moved into the guard.
+  The spec lives at `docs/PAGE-COMPOSITION.md`.
+
 - **A written scope: what Yuvomi will not become.** [`docs/SCOPE.md`](docs/SCOPE.md) names three
   boundaries that used to be re-argued in every second thread - direct bank connections, third-party
   services in the core, and the dependency rule - and says for each one what is ruled out, what is
