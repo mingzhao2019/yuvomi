@@ -66,7 +66,7 @@
     "test:calendar-inherited-color": "node --test test/test-calendar-inherited-color.js",
     "test:ncb": "DB_PATH=:memory: node --experimental-sqlite test/test-notes-contacts-budget.js",
     "test:notes-reader": "node --test test/test-notes-reader.js",
-    "test:notes-routes": "node --experimental-sqlite --test test/test-notes-routes.js",
+    "test:notes-routes": "node --experimental-sqlite --test test/test-notes-routes.js test/test-note-categories.js",
     "test:notes-checklist": "node --experimental-sqlite --test test/test-notes-checklist.js",
     "test:tasks-checklist": "node --experimental-sqlite --test test/test-tasks-checklist.js",
     "test:markdown-toolbar": "node --loader ./test/test-browser-loader.mjs --test test/test-markdown-toolbar.js",
