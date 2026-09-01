@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shared `.list-scroller` styling that comes with them - a thin, module-tinted scrollbar in place
   of the platform default - is visible in Shopping, Pantry, and Recipes as well, since those
   modules use the same scroll container.
-
 - **Destructive folder deletion can now be undone for five seconds.** The folder subtree and its
   currently visible documents disappear immediately, while the server operation waits behind the
   standard Undo toast. Undo restores only the affected entries and preserves other navigation or
