@@ -33,7 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of reopening the deletion dialog after the delay. Partial server results are reconciled
   even after navigation, and a failed page-exit request restores the optimistic state if the
   browser later revives the page from its cache.
-
 - **The month view on a phone can now show event titles instead of coloured dots.** Below 640px
   every entry in a month cell was reduced to a 10px dot - a reliable "something is happening"
   signal, but one that makes reading the month itself a day-by-day affair. A new "Event titles"
@@ -64,7 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   uploads their files sequentially. Before writing anything, the dialog previews the planned tree,
   conflicts and rejected files. Existing folders may be merged or duplicated with a timestamped
   suffix, while file conflicts can be skipped or uploaded under a timestamped name.
-
   Validation follows the server's file-size, MIME-type, path and depth limits. Safe folder paths are
   still created when their own files are rejected, while a failed parent blocks only its descendants
   and does not stop sibling branches. If the server's request limit is reached, the upload waits for

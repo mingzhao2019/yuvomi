@@ -7758,6 +7758,17 @@ const MIGRATIONS = [
         );
     `,
   },
+  {
+    version: 196,
+    description: 'Users: remember changelog marks per account instead of per browser (#496)',
+    // These account markers complement onboarding_version. NULL means that
+    // the account has not opened the changelog yet; do not backfill it with
+    // the current version during migration.
+    up: `
+      ALTER TABLE users ADD COLUMN changelog_seen_version TEXT;
+      ALTER TABLE users ADD COLUMN changelog_seen_latest TEXT;
+    `,
+  },
 ];
 
 /**
