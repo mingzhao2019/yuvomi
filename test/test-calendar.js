@@ -1163,6 +1163,61 @@ test('ein Extra-Eintrag traegt eine eigene Kennzeichnung im Kalender-Chip und in
 // Monatszelle am Telefon: Punkte oder Titelzeilen (Schalter im Filter-Blatt)
 // --------------------------------------------------------
 
+/** Die naechsten n Vorkommen ab (ausschliesslich) `start`. */
+function occurrences(start, rule, n, opts = undefined) {
+  const out = [];
+  let d = start;
+  for (let i = 0; i < n; i++) {
+    d = nextOccurrence(d, rule, opts);
+    if (!d) break;
+    out.push(d);
+  }
+  return out;
+}
+
+/** Fortlaufender Monatsindex - macht den Jahreswechsel zu einem Schritt. */
+function monthIndex(dateKey) {
+  return Number(dateKey.slice(0, 4)) * 12 + Number(dateKey.slice(5, 7));
+}
+
+test('nextOccurrence: MONTHLY laesst keinen Monat aus, egal an welchem Tag die Serie haengt', () => {
+  for (const day of ['28', '29', '30', '31']) {
+    const start = `2026-01-${day}`;
+    const list = occurrences(start, 'FREQ=MONTHLY', 12);
+    assert(list.length === 12, `am ${day}.: zwoelf Vorkommen erwartet, bekommen ${list.length}`);
+    const steps = [start, ...list].map(monthIndex);
+    for (let i = 1; i < steps.length; i++) {
+      assert(steps[i] - steps[i - 1] === 1,
+        `am ${day}.: Sprung von ${[start, ...list][i - 1]} nach ${[start, ...list][i]} ueberspringt einen Monat`);
+    }
+  }
+});
+
+test('nextOccurrence: MONTHLY klemmt auf den letzten Tag des kurzen Monats', () => {
+  assert(nextOccurrence('2026-01-31', 'FREQ=MONTHLY') === '2026-02-28');
+  assert(nextOccurrence('2024-01-31', 'FREQ=MONTHLY') === '2024-02-29');
+  assert(nextOccurrence('2026-03-31', 'FREQ=MONTHLY') === '2026-04-30');
+});
+
+test('nextOccurrence: MONTHLY haelt seinen Takt auch ueber kurze Monate', () => {
+  const list = occurrences('2026-01-31', 'FREQ=MONTHLY;INTERVAL=2', 5);
+  assert(list.map((d) => Number(d.slice(5, 7))).join(',') === '3,5,7,9,11');
+});
+
+test('nextOccurrence: MONTHLY rechnet ueber den Jahreswechsel', () => {
+  assert(nextOccurrence('2026-12-31', 'FREQ=MONTHLY') === '2027-01-31');
+  assert(nextOccurrence('2026-11-30', 'FREQ=MONTHLY;INTERVAL=3') === '2027-02-28');
+});
+
+test('nextOccurrence: BYMONTHDAY=-1 trifft in jedem Monat dessen letzten Tag', () => {
+  const list = occurrences('2026-01-31', 'FREQ=MONTHLY;BYMONTHDAY=-1', 12);
+  assert(list.length === 12);
+  for (const d of list) {
+    const [y, m, day] = d.split('-').map(Number);
+    assert(day === new Date(Date.UTC(y, m, 0)).getUTCDate(), `${d} ist nicht Monatsletzter`);
+  }
+});
+
 test('Monatsflaeche traegt die Titel-Modifier-Klasse nur, wenn der Schalter an ist', () => {
   assert(calendarHelpers.monthViewClasses(false) === 'month-view',
     'aus heisst: keine zweite Klasse, also exakt die Basisfassung');
@@ -1889,6 +1944,60 @@ test('renderDayView: zwei ueberlappende Schichten am selben Tag bekommen untersc
       `renderDayView() muss das berechnete Layout an renderScheduleTimeBlock() weiterreichen, sonst liegen `
       + `beide Bloecke deckungsgleich uebereinander (#1043): ${lefts}`);
   });
+});
+
+// --------------------------------------------------------
+// BYMONTHDAY=-1 und der Anker (#960, #978)
+//
+// Beide Faelle haben dieselbe Ursache: der gemeinte Tag wurde aus dem VORIGEN
+// Vorkommen abgeleitet, und weil ein kurzer Monat ihn klemmt, war er danach ein
+// anderer. Zwei Wege heraus - die Regel traegt ihn, oder der Aufrufer.
+// --------------------------------------------------------
+
+test('nextOccurrence: BYMONTHDAY=-1 trifft in jedem Monat dessen letzten Tag', () => {
+  const rule = 'FREQ=MONTHLY;BYMONTHDAY=-1';
+  const list = occurrences('2026-01-31', rule, 12);
+  assert(list.length === 12, `zwoelf Vorkommen erwartet, bekommen ${list.length}`);
+  for (const d of list) {
+    const [y, m, day] = d.split('-').map(Number);
+    const letzter = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    assert(day === letzter, `${d} ist nicht der letzte Tag des Monats (${letzter}.)`);
+  }
+});
+
+test('nextOccurrence: BYMONTHDAY=-1 gilt auch, wenn die Serie mitten im Monat beginnt', () => {
+  // Die Regel ist eine Aussage, kein Nebenprodukt des Startdatums: wer sie
+  // setzt, meint den letzten Tag, auch wenn er am 15. angelegt hat.
+  assert(nextOccurrence('2026-01-15', 'FREQ=MONTHLY;BYMONTHDAY=-1') === '2026-02-28');
+});
+
+test('nextOccurrence: der Anker haelt den gemeinten Tag ueber kurze Monate hinweg', () => {
+  // Ohne Anker schreibt die Klemmung sich fest - das ist der Rest, den der
+  // Monatsfix in v2.60.0 stehen liess.
+  const ohne = occurrences('2026-01-31', 'FREQ=MONTHLY', 6);
+  const mit  = occurrences('2026-01-31', 'FREQ=MONTHLY', 6, { anchor: '2026-01-31' });
+  // occurrences() liefert die Vorkommen NACH dem Start: [0] ist der Februar.
+  assert(ohne[0] === '2026-02-28' && mit[0] === '2026-02-28',
+    'der kurze Monat wird in beiden Faellen geklemmt, nicht uebersprungen');
+  assert(ohne[1] === '2026-03-28', `ohne Anker bleibt die Klemmung: ${ohne[1]}`);
+  assert(mit[1] === '2026-03-31', `mit Anker kehrt der 31. zurueck: ${mit[1]}`);
+});
+
+test('nextOccurrence: eine jaehrliche Serie am 29. Februar kehrt im Schaltjahr zurueck (#978)', () => {
+  const mit = occurrences('2024-02-29', 'FREQ=YEARLY', 4, { anchor: '2024-02-29' });
+  assert(mit[0] === '2025-02-28', 'im Nicht-Schaltjahr geklemmt');
+  assert(mit[3] === '2028-02-29', `2028 ist ein Schaltjahr, bekommen ${mit[3]}`);
+
+  // Ohne Anker bleibt es beim bisherigen Verhalten - Aufgabenserien kennen
+  // ihren Ursprung nicht und duerfen sich davon nicht aendern.
+  const ohne = occurrences('2024-02-29', 'FREQ=YEARLY', 4);
+  assert(ohne[3] === '2028-02-28', `ohne Anker unveraendert, bekommen ${ohne[3]}`);
+});
+
+test('nextOccurrence: ein unlesbarer Anker aendert nichts', () => {
+  const ohne = nextOccurrence('2026-01-31', 'FREQ=MONTHLY');
+  assert(nextOccurrence('2026-01-31', 'FREQ=MONTHLY', { anchor: 'gestern' }) === ohne,
+    'ein kaputter Anker faellt auf das bisherige Verhalten zurueck, statt NaN zu liefern');
 });
 
 // --------------------------------------------------------
