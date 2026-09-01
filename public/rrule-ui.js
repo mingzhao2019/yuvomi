@@ -383,6 +383,13 @@ export function describeRRule(rule, opts = {}) {
     if (days.length) parts.push(`(${days.join(', ')})`);
   }
 
+  // Der letzte Tag gehört in die Zusammenfassung, sonst liest sich eine am 15.
+  // begonnene Serie wie „monatlich" und sieht damit aus wie eine, die auch am
+  // 15. wiederkommt - während ihr nächstes Vorkommen der 28. Februar ist. Die
+  // Angabe steht in der Klammer, wo bei WEEKLY die Wochentage stehen: beide
+  // beantworten dieselbe Frage.
+  if (p.freq === 'MONTHLY' && p.lastDay) parts.push(`(${t('rrule.lastDayOfMonth')})`);
+
   // Die Endebedingung ist eine eigene Aussage und bekommt einen Trenner:
   // „Alle 2 Monate 5 Termine" las sich wie ein verunglückter Satz.
   let rhythm = parts.join(' ');
