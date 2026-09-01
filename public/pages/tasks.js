@@ -1241,6 +1241,12 @@ ${syncTargetFieldHtml(task)}
         allowFromCompletion: true,
         fromCompletion: !!task?.recurrence_from_completion,
         disabled: todoRecurrenceLocked,
+        // AUSDRUECKLICH FALSE, nicht weggelassen (#960). Eine Aufgabe ist eine
+        // Zeile mit einem Faelligkeitsdatum, das Liste, Ueberfaelligkeit und
+        // Countdown direkt lesen - sie wird nicht wie eine Kalenderserie vom
+        // Startdatum aus expandiert. Der Monatsletzten-Hinweis muss das sagen,
+        // sonst verspricht er einen Termin, den es hier nicht gibt.
+        expandsFromStart: false,
       })}
       ${todoRecurrenceLocked ? `
         <p class="task-field-hint field-hint--warn task-recurrence-lock-hint" role="note">

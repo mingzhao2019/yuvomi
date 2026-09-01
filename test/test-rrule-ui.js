@@ -463,7 +463,7 @@ test('der Hinweis nennt in jeder Sprache dieselbe Richtung (#960)', async () => 
   }
 });
 
-test('Vorschau und Serienmarke sind in allen unterstützten Sprachen vollständig (#975)', async () => {
+ test('Vorschau und Serienmarke sind in allen unterstützten Sprachen vollständig (#975)', async () => {
   const { readFileSync, readdirSync } = await import('node:fs');
   const dir = new URL('../public/locales/', import.meta.url);
   const sprachen = readdirSync(dir).filter((f) => f.endsWith('.json'));
@@ -513,7 +513,7 @@ test('der Monatsletzten-Hinweis sagt in jedem Modul, was dort passiert (#960)', 
   assert.ok(!aufgabe.includes(KAL), 'und nicht beides');
 });
 
-test('der Kalender nennt den eingegebenen Tag und den ersten echten Monatsletzten (#975)', () => {
+ test('der Kalender nennt den eingegebenen Tag und den ersten echten Monatsletzten (#975)', () => {
   assert.equal(
     monthEndHintText('2026-09-15', { expandsFromStart: true }),
     'rrule.lastDayOfMonthHintOverride{"startDate":"2026-09-15","firstDate":"2026-09-30"}',

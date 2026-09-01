@@ -184,6 +184,13 @@ export function monthEndHintText(startDate, { expandsFromStart = false, rule = n
 
 export function renderRRuleFields(prefix, existingRule, opts = {}) {
   const allowCount = !!opts.allowCount;
+  // NICHT AN `allowCount` GEHAENGT, obwohl beide heute denselben Wert haben.
+  // Sie beantworten verschiedene Fragen: `allowCount` fragt, ob "endet nach N
+  // Malen" angeboten wird, diese hier, ob das Modul die Regel ueberhaupt vom
+  // Startdatum aus ausrechnet. Der Kalender tut es, die Aufgabe nicht - sie ist
+  // eine Zeile mit einem Faelligkeitsdatum, das die Liste direkt liest. Wer die
+  // beiden koppelt, bekommt beim naechsten Modul den falschen Hinweis.
+  const expandsFromStart = !!opts.expandsFromStart;
   const allowFromCompletion = !!opts.allowFromCompletion;
   const fromCompletion = !!opts.fromCompletion;
   const disabled = !!opts.disabled;
