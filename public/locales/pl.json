@@ -114,6 +114,7 @@
         "rewards": "Nagrody",
         "pantry": "Spiżarnia",
         "inventory": "Inventory",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "search": {
@@ -4534,6 +4535,7 @@
         "contacts": "Kontakt",
         "documents": "Dokument",
         "inventory": "Przedmiot",
+        "assetCost": "Asset",
         "meals": "Posiłek",
         "pantry": "Artykuł",
         "recipes": "Przepis",

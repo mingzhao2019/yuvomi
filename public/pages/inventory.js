@@ -769,7 +769,7 @@ function openItemDetail(item) {
     accentColor: 'var(--module-inventory)',
     size: 'md',
     sections: renderItemDetail(item),
-    actions: [{
+    actions: item.can_delete ? [{
       id: 'inventory-detail-delete',
       label: t('common.delete'),
       variant: 'danger-ghost',
@@ -779,8 +779,8 @@ function openItemDetail(item) {
         await close({ force: true });
         await removeItem(item);
       },
-    }],
-    edit: {
+    }] : [],
+    edit: item.can_edit ? {
       label: t('common.edit'),
       title: t('common.editItem'),
       mount: (panel, pane) => {
@@ -788,7 +788,7 @@ function openItemDetail(item) {
         pane.insertAdjacentHTML('beforeend', form.content);
         form.wire(panel);
       },
-    },
+    } : null,
   });
 }
 

@@ -114,6 +114,7 @@
         "rewards": "المكافآت",
         "pantry": "المؤن",
         "inventory": "Inventory",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "dashboard": {
@@ -4534,6 +4535,7 @@
         "contacts": "جهة اتصال",
         "documents": "مستند",
         "inventory": "غرض",
+        "assetCost": "Asset",
         "meals": "وجبة",
         "pantry": "عنصر",
         "recipes": "وصفة",

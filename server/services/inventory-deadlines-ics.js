@@ -10,13 +10,9 @@
  *        selbst ist auf calendar_events zugeschnitten (Wiederholungen, TZID) und
  *        für einen einmaligen Termin unnötig.
  *
- * Token liegt pro Nutzer auf der users-Zeile, gleiches Muster wie
- * calendar_feed_token (Migration 61, server/services/ics-export.js). Der
- * *Inhalt* des Feeds ist weiterhin haushaltweit - Inventar-Gegenstände haben
- * keinen Eigentümer und keine Sichtbarkeitsspalte -, das Token ist es nicht:
- * ein haushaltweites Token lässt sich nicht einzeln zurückziehen, wer einmal
- * abonniert hat, behielte Zugriff, bis er allen genommen wird. Pro Nutzer
- * kostet ein Rückzug genau ein Token.
+ * Token und Inhalt sind nutzerbezogen: der Feed enthält dieselben Familien-,
+ * persönlichen und freigegebenen Assets, die der Token-Besitzer in der App
+ * sehen darf. So verrät ein persönlicher Kalender-Feed keine privaten Assets.
  */
 
 import { randomBytes } from 'node:crypto';
@@ -24,6 +20,7 @@ import { createLogger } from '../logger.js';
 import { resolveHouseholdFormats, translate } from '../utils/i18n.js';
 import { escapeICSText, foldLine } from './ics-export.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
+import { visibilityWhere } from './visibility.js';
 
 const log = createLogger('InventoryDeadlinesICS');
 
@@ -71,20 +68,29 @@ function buildTrackedDateVEvent(row, dtstamp, locale) {
   return lines.map(foldLine);
 }
 
-function buildInventoryDeadlinesFeed(conn, now = new Date()) {
+function buildInventoryDeadlinesFeed(conn, userId = null, now = new Date()) {
+  // userId bleibt optional, damit der reine Generator in isolierten Tests und
+  // Wartungswerkzeugen weiterhin einen vollständigen Export erzeugen kann.
+  const role = userId ? conn.prepare('SELECT role FROM users WHERE id = ?').get(userId)?.role : null;
+  const access = userId
+    ? `AND ${role === 'admin' ? `(ii.asset_scope = 'family' OR ${visibilityWhere('ii', 'inventory_item_assignments', 'item_id', '@me')})` : visibilityWhere('ii', 'inventory_item_assignments', 'item_id', '@me')}`
+    : '';
+  const params = userId ? { me: userId } : {};
   const rows = conn.prepare(`
-    SELECT id, name, purchase_date, warranty_months
-    FROM inventory_items
-    WHERE purchase_date IS NOT NULL AND warranty_months IS NOT NULL
+    SELECT ii.id, ii.name, ii.purchase_date, ii.warranty_months
+    FROM inventory_items ii
+    WHERE ii.purchase_date IS NOT NULL AND ii.warranty_months IS NOT NULL
+      ${access}
     ORDER BY id ASC
-  `).all();
+  `).all(params);
 
   const trackedDateRows = conn.prepare(`
     SELECT d.id, d.label, d.date, ii.name AS item_name
     FROM inventory_item_dates d
     JOIN inventory_items ii ON ii.id = d.item_id
+    WHERE 1 = 1 ${access}
     ORDER BY d.id ASC
-  `).all();
+  `).all(params);
 
   // Serverseitig erzeugter Kalendertext folgt der Datensprache des Haushalts,
   // genau wie die Geburtstags-Termine (server/services/birthdays.js): der
@@ -142,10 +148,7 @@ function clearFeedToken(conn, userId) {
     .run(userId);
 }
 
-// Löst das Token auf seinen Besitzer auf statt nur "gültig/ungültig" zu sagen -
-// so trifft ein Rückzug genau ein Abo. Der aufgelöste Nutzer geht bewusst
-// *nicht* in buildInventoryDeadlinesFeed: der Feed-Inhalt ist haushaltweit
-// (siehe Modulkopf), nur der Zugang ist personengebunden.
+// Löst das Token auf seinen Besitzer auf statt nur "gültig/ungültig" zu sagen.
 function findUserIdByFeedToken(conn, token) {
   if (!token) return null;
   const row = conn.prepare(

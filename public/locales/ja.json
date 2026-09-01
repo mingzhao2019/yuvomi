@@ -114,6 +114,7 @@
         "rewards": "ごほうび",
         "pantry": "在庫",
         "inventory": "Inventory",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "dashboard": {
@@ -4534,6 +4535,7 @@
         "contacts": "連絡先",
         "documents": "書類",
         "inventory": "持ち物",
+        "assetCost": "Asset",
         "meals": "食事",
         "pantry": "商品",
         "recipes": "レシピ",

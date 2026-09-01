@@ -29,6 +29,7 @@ export const BUILT_IN_MODULES = Object.freeze([
   { id: 'budget', labelKey: 'nav.budget' },
   { id: 'documents', labelKey: 'nav.documents' },
   { id: 'inventory', labelKey: 'nav.inventory' },
+  { id: 'asset-cost', labelKey: 'nav.assetCost' },
   { id: 'housekeeping', labelKey: 'nav.housekeeping' },
   { id: 'rewards', labelKey: 'nav.rewards' },
   { id: 'health', labelKey: 'nav.health' },
@@ -82,7 +83,7 @@ const KITCHEN_CHILD_ID_SET = new Set(KITCHEN_CHILD_IDS);
 const PLAN_MODULE_IDS = new Set(['calendar', 'schedule', 'tasks', 'notes']);
 // Ehemals ein einziger „Zuhause"-Sammeltopf (8 Module) — aufgeteilt in semantische
 // Gruppen ≤5, damit die Sidebar-Sektion eine Bedeutung trägt statt „nicht Plan/Übersicht".
-const HOUSEHOLD_MODULE_IDS = new Set(['kitchen', 'meals', 'recipes', 'shopping', 'housekeeping', 'documents', 'inventory', 'rewards']);
+const HOUSEHOLD_MODULE_IDS = new Set(['kitchen', 'meals', 'recipes', 'shopping', 'housekeeping', 'documents', 'inventory', 'asset-cost', 'rewards']);
 const PEOPLE_MODULE_IDS = new Set(['contacts', 'birthdays', 'health']);
 const FINANCE_MODULE_IDS = new Set(['budget']);
 const MOBILE_NAV_ID_RE = /^[a-z0-9][a-z0-9-]*$/;

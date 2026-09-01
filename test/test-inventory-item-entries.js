@@ -26,8 +26,8 @@ const { default: itemsRouter } = await import('../server/routes/inventory/items.
 const { default: entriesRouter } = await import('../server/routes/inventory/entries.js');
 const db = dbmod.get();
 
-const A = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('a','A','x','member')").run().lastInsertRowid;
-const B = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('b','B','x','member')").run().lastInsertRowid;
+const A = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('a','A','x','admin')").run().lastInsertRowid;
+const B = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('b','B','x','admin')").run().lastInsertRowid;
 
 function setMode(mode) {
   db.prepare(`INSERT INTO sync_config (key, value) VALUES ('budget_mode', ?)
@@ -35,10 +35,15 @@ function setMode(mode) {
 }
 setMode('shared');
 
-let actor = { id: A };
+let actor = { id: A, role: 'admin' };
 const app = express();
 app.use(express.json());
-app.use((req, _res, next) => { req.authUserId = actor.id; req.session = { userId: actor.id }; next(); });
+app.use((req, _res, next) => {
+  req.authUserId = actor.id;
+  req.authRole = actor.role;
+  req.session = { userId: actor.id, role: actor.role };
+  next();
+});
 app.use('/items', itemsRouter);
 app.use('/entries', entriesRouter);
 const server = app.listen(0);
@@ -46,8 +51,8 @@ const baseUrl = await new Promise((r) => server.on('listening', () => r(`http://
 test.after(() => server.close());
 test.afterEach(() => setMode('shared'));
 
-async function call(method, path, { as = { id: A }, body } = {}) {
-  actor = as;
+async function call(method, path, { as = { id: A, role: 'admin' }, body } = {}) {
+  actor = { role: 'admin', ...as };
   const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,

@@ -55,6 +55,12 @@ export function inventoryPaths() {
       put: op({ summary: 'Replace an inventory item (`attachment_document_ids` replaces the document links, omit to leave untouched; `tracked_dates` replaces the whole set of custom tracked dates, omit to leave untouched)', tag: 'Inventory', params: [idParam('id', 'Item ID')], stateChanging: true, requestBody: jsonBody(null) }),
       delete: op({ summary: 'Delete an inventory item', tag: 'Inventory', params: [idParam('id', 'Item ID')], stateChanging: true }),
     },
+    '/api/v1/inventory/image-search': {
+      get: op({ summary: 'Search the configured web image providers for an inventory photo', description: 'Uses Google Programmable Search when ASSET_COST_GOOGLE_API_KEY and ASSET_COST_GOOGLE_CSE_ID are configured; falls back to Openverse. The API key is never returned to the browser.', tag: 'Inventory' }),
+    },
+    '/api/v1/inventory/image-search/preview': {
+      get: op({ summary: 'Proxy a selected inventory image through the SSRF-guarded downloader', tag: 'Inventory' }),
+    },
     '/api/v1/inventory/items/{id}/entries': {
       post: op({
         summary: "Link a budget entry to an inventory item (role defaults to 'purchase')",

@@ -384,12 +384,10 @@ app.get('/feed/calendar/:token.ics', feedLimiter, (req, res) => {
 // Haushaltskalender-Feed oben, siehe server/services/inventory-deadlines-ics.js.
 app.get('/feed/inventory-deadlines/:token.ics', feedLimiter, (req, res) => {
   try {
-    // Auflösen statt nur prüfen, wie beim Kalender-Feed oben: das Token gehört
-    // einem Nutzer, damit es einzeln zurückziehbar ist. In den Feed-Inhalt geht
-    // die Id nicht ein - Inventar ist Haushaltseigentum ohne Sichtbarkeitsachse.
+    // Token-Besitzer bestimmt sowohl Widerruf als auch sichtbaren Feed-Inhalt.
     const userId = inventoryDeadlinesIcs.findUserIdByFeedToken(db.get(), req.params.token);
     if (!userId) return res.status(404).type('text/plain').send('Not found');
-    const ics = inventoryDeadlinesIcs.buildInventoryDeadlinesFeed(db.get());
+    const ics = inventoryDeadlinesIcs.buildInventoryDeadlinesFeed(db.get(), userId);
     res.set('Cache-Control', 'private, no-store');
     res.set('Content-Disposition', 'inline; filename="yuvomi-inventory-deadlines.ics"');
     res.type('text/calendar; charset=utf-8').send(ics);

@@ -3,8 +3,10 @@
  * Zweck: CRUD + Liste + Dokument-/Buchungsverknuepfung (Stufen 1-3). Keine
  *        Abo-Verknuepfung, die kommt in einer spaeteren Stufe.
  *
- * Kein Eigentuemer-Gate: Inventar ist Haushaltseigentum wie der Vorrat.
- * created_by bleibt als Herkunftsnachweis (nullable, ON DELETE SET NULL).
+ * Familienobjekte werden von Admins verwaltet; persoenliche Objekte von ihrer
+ * Erstellerin bzw. ihrem Ersteller. Sichtbarkeit und Freigaben entsprechen dem
+ * Aufgaben-/Kalender-Modell, werden aber fuer jeden Lesepfad serverseitig
+ * durchgesetzt.
  */
 
 import express from 'express';
@@ -22,6 +24,10 @@ import { warrantyEndDate, reminderDateForWarranty } from '../../services/invento
 import {
   validateTrackedDatesInput, writeTrackedDates, removeTrackedDateReminders, loadTrackedDates, loadTrackedDatesForItems,
 } from './item-dates.js';
+import {
+  ASSET_SCOPES, actorId, isAdmin, inventoryVisibilityWhere, canReadItem, canEditItem,
+  loadAssignedUsers, validateAssignedUserIds, replaceAssignments, normalizeAssetVisibility,
+} from './access.js';
 
 const log = createLogger('Inventory');
 const router = express.Router();
@@ -97,50 +103,62 @@ function locationPath(locationId) {
   return parent ? `${parent.name} · ${loc.name}` : loc.name;
 }
 
-function loadItem(id, userId) {
-  const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(id);
-  if (!item) return null;
-  const category = db.get().prepare('SELECT name, icon, label_key FROM inventory_categories WHERE key = ?').get(item.category);
-  const linkedEntries = loadLinkedEntries(item.id, userId);
+function decorateItem(item, userId, admin, assignedUsers, linkedEntries) {
   return {
     ...item,
+    assigned_users: assignedUsers,
+    assigned_user_ids: assignedUsers.map((user) => user.id),
+    is_owner: Number(item.created_by) === Number(userId),
+    can_edit: canEditItem(item, userId, admin),
+    can_delete: canEditItem(item, userId, admin),
+    linked_entries: linkedEntries,
+    linked_entries_total: computeTotal(linkedEntries),
+  };
+}
+
+function loadItem(id, userId, admin = false) {
+  const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(id);
+  if (!item || !canReadItem(item, userId, admin)) return null;
+  const category = db.get().prepare('SELECT name, icon, label_key FROM inventory_categories WHERE key = ?').get(item.category);
+  const assignedUsers = loadAssignedUsers([item.id]).get(item.id) || [];
+  const linkedEntries = loadLinkedEntries(item.id, userId);
+  return {
+    ...decorateItem(item, userId, admin, assignedUsers, linkedEntries),
     category_name: category?.name ?? item.category,
     category_icon: category?.icon ?? 'package',
     category_label_key: category?.label_key ?? null,
     location_path: locationPath(item.location_id),
     attachments: documentLinksFor(db.get(), { ...DOCS, ownerId: item.id, userId }),
-    linked_entries: linkedEntries,
-    linked_entries_total: computeTotal(linkedEntries),
     tracked_dates: loadTrackedDates(item.id),
   };
 }
 
-function loadItems({ category, locationId, status, q } = {}, userId) {
-  const clauses = [];
-  const params = [];
-  if (category !== undefined) { clauses.push('ii.category = ?'); params.push(category); }
-  if (locationId !== undefined) { clauses.push('ii.location_id = ?'); params.push(locationId); }
-  if (status !== undefined) { clauses.push('ii.status = ?'); params.push(status); }
+function loadItems({ category, locationId, status, q } = {}, userId, admin = false) {
+  const clauses = [inventoryVisibilityWhere('ii', '@me', admin)];
+  const params = { me: userId };
+  if (category !== undefined) { clauses.push('ii.category = @category'); params.category = category; }
+  if (locationId !== undefined) { clauses.push('ii.location_id = @locationId'); params.locationId = locationId; }
+  if (status !== undefined) { clauses.push('ii.status = @status'); params.status = status; }
   if (q) {
-    clauses.push('(ii.name LIKE ? OR ii.brand LIKE ? OR ii.model LIKE ? OR ii.serial_number LIKE ?)');
-    const like = `%${q}%`;
-    params.push(like, like, like, like);
+    clauses.push('(ii.name LIKE @q OR ii.brand LIKE @q OR ii.model LIKE @q OR ii.serial_number LIKE @q)');
+    params.q = `%${q}%`;
   }
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const where = `WHERE ${clauses.join(' AND ')}`;
   const rows = db.get().prepare(`
     SELECT ii.*, ic.name AS category_name, ic.icon AS category_icon, ic.label_key AS category_label_key
     FROM inventory_items ii
     LEFT JOIN inventory_categories ic ON ic.key = ii.category
     ${where}
     ORDER BY ii.name COLLATE NOCASE ASC
-  `).all(...params);
+  `).all(params);
   const byItem = loadDocumentLinks(db.get(), { ...DOCS, ownerIds: rows.map((r) => r.id), userId });
   const entriesByItem = loadLinkedEntriesForItems(rows.map((r) => r.id), userId);
   const datesByItem = loadTrackedDatesForItems(rows.map((r) => r.id));
+  const assignedByItem = loadAssignedUsers(rows.map((r) => r.id));
   return rows.map((row) => {
     const linkedEntries = entriesByItem.get(row.id) || [];
     return {
-      ...row,
+      ...decorateItem(row, userId, admin, assignedByItem.get(row.id) || [], linkedEntries),
       location_path: locationPath(row.location_id),
       attachments: byItem.get(row.id) || [],
       linked_entries: linkedEntries,
@@ -197,6 +215,14 @@ function validateItemFields(body) {
   results.push(vPurchaseDate);
   values.purchase_date = vPurchaseDate.value;
 
+  const vSoldDate = date(body.sold_date, 'Verkaufsdatum');
+  results.push(vSoldDate);
+  values.sold_date = vSoldDate.value;
+
+  const vRetiredDate = date(body.retired_date, 'Stilllegungsdatum');
+  results.push(vRetiredDate);
+  values.retired_date = vRetiredDate.value;
+
   if (body.purchase_price === null || body.purchase_price === '' || body.purchase_price === undefined) {
     values.purchase_price = null;
   } else {
@@ -204,6 +230,29 @@ function validateItemFields(body) {
     results.push(vPrice);
     if (vPrice.value !== null && vPrice.value < 0) results.push({ error: 'Kaufpreis darf nicht negativ sein.' });
     values.purchase_price = vPrice.value;
+  }
+
+  if (body.sold_price === null || body.sold_price === '' || body.sold_price === undefined) {
+    values.sold_price = null;
+  } else {
+    const vSoldPrice = num(body.sold_price, 'Verkaufspreis');
+    results.push(vSoldPrice);
+    if (vSoldPrice.value !== null && vSoldPrice.value < 0) {
+      results.push({ error: 'Verkaufspreis darf nicht negativ sein.' });
+    }
+    values.sold_price = vSoldPrice.value;
+  }
+
+  if (body.target_days === null || body.target_days === '' || body.target_days === undefined) {
+    values.target_days = null;
+  } else {
+    const vTargetDays = num(body.target_days, 'Zielnutzungstage');
+    results.push(vTargetDays);
+    if (vTargetDays.value !== null
+      && (!Number.isInteger(vTargetDays.value) || vTargetDays.value <= 0)) {
+      results.push({ error: 'Zielnutzungstage muss eine positive ganze Zahl sein.' });
+    }
+    values.target_days = vTargetDays.value;
   }
 
   if (body.currency === null || body.currency === '' || body.currency === undefined) {
@@ -265,9 +314,9 @@ router.get('/', (req, res) => {
     }
     const status = typeof req.query.status === 'string' && STATUSES.includes(req.query.status) ? req.query.status : undefined;
     const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : undefined;
-    const userId = req.authUserId || req.session.userId;
+    const userId = actorId(req);
 
-    res.json({ data: loadItems({ category, locationId, status, q }, userId) });
+    res.json({ data: loadItems({ category, locationId, status, q }, userId, isAdmin(req)) });
   } catch (err) {
     log.error('GET / error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -281,8 +330,8 @@ router.get('/:id', (req, res) => {
   try {
     const vId = idParam(req.params.id, 'Gegenstand-ID');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
-    const userId = req.authUserId || req.session.userId;
-    const item = loadItem(vId.value, userId);
+    const userId = actorId(req);
+    const item = loadItem(vId.value, userId, isAdmin(req));
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
     res.json({ data: item });
   } catch (err) {
@@ -296,7 +345,17 @@ router.get('/:id', (req, res) => {
 // --------------------------------------------------------
 router.post('/', (req, res) => {
   try {
-    const userId = req.authUserId || req.session.userId;
+    const userId = actorId(req);
+    const admin = isAdmin(req);
+    const assetScope = ASSET_SCOPES.includes(req.body.asset_scope)
+      ? req.body.asset_scope
+      : (admin ? 'family' : 'personal');
+    if (assetScope === 'family' && !admin) {
+      return res.status(403).json({ error: 'Only administrators can create family assets.', code: 403 });
+    }
+    const visibility = normalizeAssetVisibility(assetScope, req.body.visibility);
+    const assigned = validateAssignedUserIds(req.body.assigned_user_ids ?? []);
+    if (assigned.error) return res.status(400).json({ error: assigned.error, code: 400 });
 
     // Kaufpreis-Vorbelegung (Design-Doc §5.6): entry_id wird VOR dem Insert
     // geprueft, damit eine ungueltige Buchung nie einen verwaisten Gegenstand
@@ -333,15 +392,19 @@ router.post('/', (req, res) => {
       const inserted = db.get().prepare(`
         INSERT INTO inventory_items
           (name, brand, model, serial_number, category, location_id, purchase_date,
-           purchase_price, currency, vendor, warranty_months, condition,
-           status, notes, photo_data, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           purchase_price, sold_date, sold_price, retired_date, target_days,
+           currency, vendor, warranty_months, condition, status, notes,
+           photo_data, created_by, asset_scope, visibility)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         values.name, values.brand, values.model, values.serial_number, values.category,
-        values.location_id, values.purchase_date, values.purchase_price,
-        values.currency, values.vendor, values.warranty_months, values.condition, values.status,
-        values.notes, values.photo_data, userId,
+        values.location_id, values.purchase_date, values.purchase_price, values.sold_date,
+        values.sold_price, values.retired_date, values.target_days, values.currency,
+        values.vendor, values.warranty_months, values.condition, values.status, values.notes,
+        values.photo_data, userId, assetScope, visibility,
       );
+
+      replaceAssignments(inserted.lastInsertRowid, assigned.value);
 
       syncReminder({
         id: inserted.lastInsertRowid,
@@ -365,7 +428,7 @@ router.post('/', (req, res) => {
       linkEntry({ itemId: result.lastInsertRowid, entryId: entry.id, role: 'purchase', amountShare: null, userId });
     }
 
-    res.status(201).json({ data: loadItem(result.lastInsertRowid, userId) });
+    res.status(201).json({ data: loadItem(result.lastInsertRowid, userId, admin) });
   } catch (err) {
     log.error('POST / error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -379,8 +442,20 @@ router.put('/:id', (req, res) => {
   try {
     const vId = idParam(req.params.id, 'Gegenstand-ID');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
-    const item = db.get().prepare('SELECT id, created_by FROM inventory_items WHERE id = ?').get(vId.value);
+    const userId = actorId(req);
+    const admin = isAdmin(req);
+    const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    if (req.body.asset_scope !== undefined && req.body.asset_scope !== item.asset_scope) {
+      return res.status(400).json({ error: 'Asset scope cannot be changed after creation.', code: 400 });
+    }
+    const visibility = req.body.visibility === undefined
+      ? item.visibility
+      : normalizeAssetVisibility(item.asset_scope, req.body.visibility);
+    const assigned = validateAssignedUserIds(req.body.assigned_user_ids);
+    if (assigned.error) return res.status(400).json({ error: assigned.error, code: 400 });
 
     const { values, errors } = validateItemFields(req.body);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
@@ -398,15 +473,19 @@ router.put('/:id', (req, res) => {
       db.get().prepare(`
         UPDATE inventory_items
         SET name = ?, brand = ?, model = ?, serial_number = ?, category = ?, location_id = ?,
-            purchase_date = ?, purchase_price = ?, currency = ?, vendor = ?,
-            warranty_months = ?, condition = ?, status = ?, notes = ?, photo_data = ?
+            purchase_date = ?, purchase_price = ?, sold_date = ?, sold_price = ?,
+            retired_date = ?, target_days = ?, currency = ?, vendor = ?,
+            warranty_months = ?, condition = ?, status = ?, notes = ?, photo_data = ?, visibility = ?
         WHERE id = ?
       `).run(
         values.name, values.brand, values.model, values.serial_number, values.category,
-        values.location_id, values.purchase_date, values.purchase_price,
-        values.currency, values.vendor, values.warranty_months, values.condition, values.status,
-        values.notes, values.photo_data, item.id,
+        values.location_id, values.purchase_date, values.purchase_price, values.sold_date,
+        values.sold_price, values.retired_date, values.target_days, values.currency,
+        values.vendor, values.warranty_months, values.condition, values.status, values.notes,
+        values.photo_data, visibility, item.id,
       );
+
+      if (assigned.value !== undefined) replaceAssignments(item.id, assigned.value);
 
       syncReminder({
         id: item.id,
@@ -420,7 +499,6 @@ router.put('/:id', (req, res) => {
       }
     })();
 
-    const userId = req.authUserId || req.session.userId;
     // Belege nur anfassen, wenn das Feld mitkommt - ein PUT, das nur einen
     // Wert korrigiert, darf angehaengte Belege nicht stillschweigend abraeumen
     // (gleiches Muster wie server/routes/budget/entries.js#PUT /:id).
@@ -430,7 +508,7 @@ router.put('/:id', (req, res) => {
       });
     }
 
-    res.json({ data: loadItem(item.id, userId) });
+    res.json({ data: loadItem(item.id, userId, admin) });
   } catch (err) {
     log.error('PUT /:id error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -444,8 +522,12 @@ router.post('/:id/entries', (req, res) => {
   try {
     const vId = idParam(req.params.id, 'Gegenstand-ID');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
-    const item = db.get().prepare('SELECT id FROM inventory_items WHERE id = ?').get(vId.value);
+    const userId = actorId(req);
+    const admin = isAdmin(req);
+    const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
 
     const vEntryId = idParam(req.body.entry_id, 'Buchung');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
@@ -463,11 +545,10 @@ router.post('/:id/entries', (req, res) => {
       amountShare = vShare.value;
     }
 
-    const userId = req.authUserId || req.session.userId;
     const result = linkEntry({ itemId: item.id, entryId: vEntryId.value, role: vRole.value, amountShare, userId });
     if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
 
-    res.status(201).json({ data: loadItem(item.id, userId) });
+    res.status(201).json({ data: loadItem(item.id, userId, admin) });
   } catch (err) {
     log.error('POST /:id/entries error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -482,17 +563,20 @@ router.delete('/:id/entries/:entryId', (req, res) => {
   try {
     const vId = idParam(req.params.id, 'Gegenstand-ID');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
-    const item = db.get().prepare('SELECT id FROM inventory_items WHERE id = ?').get(vId.value);
+    const userId = actorId(req);
+    const admin = isAdmin(req);
+    const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
 
     const vEntryId = idParam(req.params.entryId, 'Buchung-ID');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
 
-    const userId = req.authUserId || req.session.userId;
     const result = unlinkEntry({ itemId: item.id, entryId: vEntryId.value, userId });
     if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
 
-    res.json({ data: loadItem(item.id, userId) });
+    res.json({ data: loadItem(item.id, userId, admin) });
   } catch (err) {
     log.error('DELETE /:id/entries/:entryId error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -506,6 +590,15 @@ router.delete('/:id', (req, res) => {
   try {
     const vId = idParam(req.params.id, 'Gegenstand-ID');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
+    const userId = actorId(req);
+    const admin = isAdmin(req);
+    const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
+    if (!item || !canReadItem(item, userId, admin)) {
+      return res.status(404).json({ error: 'Item not found.', code: 404 });
+    }
+    if (!canEditItem(item, userId, admin)) {
+      return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    }
 
     const deleted = db.get().transaction(() => {
       db.get().prepare("DELETE FROM reminders WHERE entity_type = 'inventory_item' AND entity_id = ?").run(vId.value);

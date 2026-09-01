@@ -114,6 +114,7 @@
         "rewards": "Нагороди",
         "pantry": "Запаси",
         "inventory": "Inventory",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "dashboard": {
@@ -4534,6 +4535,7 @@
         "contacts": "Контакт",
         "documents": "Документ",
         "inventory": "Річ",
+        "assetCost": "Asset",
         "meals": "Прийом їжі",
         "pantry": "Товар",
         "recipes": "Рецепт",

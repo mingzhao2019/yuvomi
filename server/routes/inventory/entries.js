@@ -12,6 +12,7 @@ import * as db from '../../db.js';
 import { createLogger } from '../../logger.js';
 import { id as idParam } from '../../middleware/validate.js';
 import { visibleEntry } from './entry-links.js';
+import { isAdmin, inventoryVisibilityWhere } from './access.js';
 
 const log = createLogger('Inventory');
 const router = express.Router();
@@ -31,9 +32,10 @@ router.get('/:entryId/items', (req, res) => {
       SELECT ii.id, ii.name, iie.role
       FROM inventory_item_entries iie
       JOIN inventory_items ii ON ii.id = iie.item_id
-      WHERE iie.entry_id = ?
+      WHERE iie.entry_id = @entryId
+        AND ${inventoryVisibilityWhere('ii', '@me', isAdmin(req))}
       ORDER BY ii.name COLLATE NOCASE ASC
-    `).all(vEntryId.value);
+    `).all({ entryId: vEntryId.value, me: userId });
 
     res.json({ data: items });
   } catch (err) {

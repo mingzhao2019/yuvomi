@@ -7117,6 +7117,36 @@ const MIGRATIONS = [
         ON microsoft_todo_completion_intents(state);
     `,
   },
+  {
+    version: 175,
+    description: 'Inventory: store asset cost lifecycle fields',
+    up: `
+      ALTER TABLE inventory_items ADD COLUMN sold_date TEXT;
+      ALTER TABLE inventory_items ADD COLUMN sold_price REAL
+        CHECK (sold_price IS NULL OR sold_price >= 0);
+      ALTER TABLE inventory_items ADD COLUMN retired_date TEXT;
+      ALTER TABLE inventory_items ADD COLUMN target_days INTEGER
+        CHECK (target_days IS NULL OR target_days > 0);
+    `,
+  },
+  {
+    version: 176,
+    description: 'Inventory: add family and personal asset visibility',
+    up: `
+      ALTER TABLE inventory_items ADD COLUMN asset_scope TEXT NOT NULL DEFAULT 'family'
+        CHECK(asset_scope IN ('family', 'personal'));
+      ALTER TABLE inventory_items ADD COLUMN visibility TEXT NOT NULL DEFAULT 'all'
+        CHECK(visibility IN ('all', 'assignees', 'private'));
+
+      CREATE TABLE inventory_item_assignments (
+        item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        PRIMARY KEY (item_id, user_id)
+      );
+      CREATE INDEX idx_inventory_item_assignments_user
+        ON inventory_item_assignments(user_id);
+    `,
+  },
 
 ];
 

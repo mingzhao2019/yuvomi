@@ -111,6 +111,45 @@ test('POST /items: ungueltige Waehrung -> 400, gueltige wird gross geschrieben u
   assert.equal(r.body.data.currency, 'CHF');
 });
 
+test('POST /items: Asset-Cost-Felder werden gespeichert und zurueckgegeben', async () => {
+  const r = await call('POST', '/items', {
+    name: 'Asset Cost Laptop',
+    purchase_date: '2024-01-15',
+    purchase_price: 9499,
+    target_days: 1000,
+    retired_date: '2025-01-15',
+  });
+  assert.equal(r.status, 201);
+  assert.equal(r.body.data.sold_date, null);
+  assert.equal(r.body.data.sold_price, null);
+  assert.equal(r.body.data.retired_date, '2025-01-15');
+  assert.equal(r.body.data.target_days, 1000);
+});
+
+test('PUT /items/:id: Asset-Cost-Felder koennen fuer einen Verkauf aktualisiert werden', async () => {
+  const created = await call('POST', '/items', { name: 'Verkauftes Asset' });
+  const r = await call('PUT', `/items/${created.body.data.id}`, {
+    name: 'Verkauftes Asset',
+    status: 'sold',
+    purchase_date: '2023-01-01',
+    purchase_price: 1000,
+    sold_date: '2024-01-01',
+    sold_price: 250,
+    target_days: 365,
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.data.status, 'sold');
+  assert.equal(r.body.data.sold_date, '2024-01-01');
+  assert.equal(r.body.data.sold_price, 250);
+  assert.equal(r.body.data.target_days, 365);
+});
+
+test('POST /items: Asset-Cost-Felder lehnen negative Preise und ungueltige Ziele ab', async () => {
+  assert.equal((await call('POST', '/items', { name: 'X', sold_price: -1 })).status, 400);
+  assert.equal((await call('POST', '/items', { name: 'Y', target_days: 0 })).status, 400);
+  assert.equal((await call('POST', '/items', { name: 'Z', target_days: 1.5 })).status, 400);
+});
+
 test('PUT /items/:id: volles Replace - weggelassene Felder werden NICHT beibehalten', async () => {
   const created = await call('POST', '/items', {
     name: 'Espressomaschine', category: 'household', vendor: 'DeLonghi',

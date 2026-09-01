@@ -114,6 +114,7 @@
         "rewards": "Επιβραβεύσεις",
         "pantry": "Απόθεμα",
         "inventory": "Inventory",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "dashboard": {
@@ -4534,6 +4535,7 @@
         "contacts": "Επαφή",
         "documents": "Έγγραφο",
         "inventory": "Αντικείμενο",
+        "assetCost": "Asset",
         "meals": "Γεύμα",
         "pantry": "Είδος",
         "recipes": "Συνταγή",

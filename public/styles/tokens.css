@@ -551,6 +551,10 @@
    * Unterscheidung ueber das Siegel-Icon, nicht ueber den Ton (wie jede
    * andere Familie). */
   --module-inventory: var(--_family-records);
+  --module-asset-cost: var(--_family-money);
+  /* Asset Cost 总览保持固定深色；与主题反转的 neutral 阶梯不同。 */
+  --asset-cost-summary-bg: #181817;
+  --asset-cost-summary-text: #ffffff;
   /* Zyklus-Phasenfarben — nur im Zyklus-Tab (/health/cycle). Getrennt vom Modul-
      Akzent und vom semantischen --color-danger der Lab-Flags. */
   --cycle-period:    #C81E5A;   /* Menstruation/Blutung — Rosé-Rot (~5.0:1 auf weiß) */

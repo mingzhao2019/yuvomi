@@ -114,6 +114,7 @@
         "rewards": "Belohnungen",
         "pantry": "Vorrat",
         "inventory": "Inventar",
+        "assetCost": "Asset-Kosten",
         "schedule": "Schichtplan"
     },
     "search": {
@@ -4534,6 +4535,7 @@
         "contacts": "Kontakt",
         "documents": "Dokument",
         "inventory": "Gegenstand",
+        "assetCost": "Vermögenswert",
         "meals": "Mahlzeit",
         "pantry": "Artikel",
         "recipes": "Rezept",

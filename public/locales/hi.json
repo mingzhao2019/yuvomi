@@ -114,6 +114,7 @@
         "rewards": "पुरस्कार",
         "pantry": "भंडार",
         "inventory": "Inventory",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "dashboard": {
@@ -4534,6 +4535,7 @@
         "contacts": "संपर्क",
         "documents": "दस्तावेज़",
         "inventory": "वस्तु",
+        "assetCost": "Asset",
         "meals": "भोजन",
         "pantry": "आइटम",
         "recipes": "रेसिपी",

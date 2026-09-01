@@ -114,6 +114,7 @@
         "rewards": "Odměny",
         "pantry": "Spíž",
         "inventory": "Inventory",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "dashboard": {
@@ -4534,6 +4535,7 @@
         "contacts": "Kontakt",
         "documents": "Dokument",
         "inventory": "Předmět",
+        "assetCost": "Asset",
         "meals": "Jídlo",
         "pantry": "Položka",
         "recipes": "Recept",

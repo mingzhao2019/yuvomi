@@ -114,6 +114,7 @@
         "rewards": "Mga Gantimpala",
         "pantry": "Paminggalan",
         "inventory": "Imbentaryo",
+        "assetCost": "Asset Cost",
         "schedule": "Schedule"
     },
     "search": {
@@ -4534,6 +4535,7 @@
         "contacts": "Kontak",
         "documents": "Dokumento",
         "inventory": "Bagay",
+        "assetCost": "Asset",
         "meals": "Pagkain",
         "pantry": "Item",
         "recipes": "Resipe",

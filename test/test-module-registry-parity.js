@@ -38,7 +38,8 @@ function arrayLiteral(source, name) {
 function objectKeys(source, name) {
   const match = source.match(new RegExp(`${name}\\s*=\\s*(?:Object\\.freeze\\()?\\{([\\s\\S]*?)\\}`));
   assert.ok(match, `${name} nicht gefunden`);
-  return [...match[1].matchAll(/^\s*([A-Za-z_][\w-]*)\s*:/gm)].map((m) => m[1]);
+  return [...match[1].matchAll(/^\s*(?:['"]([^'"]+)['"]|([A-Za-z_][\w-]*))\s*:/gm)]
+    .map((m) => m[1] || m[2]);
 }
 
 // --------------------------------------------------------------------------

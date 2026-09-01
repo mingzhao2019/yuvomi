@@ -315,6 +315,7 @@ export const MODULE_ICON = {
   housekeeping:     'paintbrush',
   documents:        'folder-lock',
   inventory:        'package',
+  'asset-cost':     'calculator',
   rewards:          'award',
   contacts:         'book-user',
   birthdays:        'cake',

@@ -114,6 +114,7 @@
         "rewards": "奖励",
         "pantry": "库存",
         "inventory": "Inventory",
+        "assetCost": "资产成本",
         "schedule": "Schedule"
     },
     "dashboard": {
@@ -4534,6 +4535,7 @@
         "contacts": "联系人",
         "documents": "文档",
         "inventory": "物品",
+        "assetCost": "资产",
         "meals": "餐食",
         "pantry": "商品",
         "recipes": "食谱",

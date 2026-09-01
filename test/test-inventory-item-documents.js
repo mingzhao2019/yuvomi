@@ -26,20 +26,25 @@ const dbmod = await import('../server/db.js');
 const { default: itemsRouter } = await import('../server/routes/inventory/items.js');
 const db = dbmod.get();
 
-const A = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('a','A','x','member')").run().lastInsertRowid;
-const B = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('b','B','x','member')").run().lastInsertRowid;
+const A = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('a','A','x','admin')").run().lastInsertRowid;
+const B = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('b','B','x','admin')").run().lastInsertRowid;
 
-let actor = { id: A };
+let actor = { id: A, role: 'admin' };
 const app = express();
 app.use(express.json());
-app.use((req, _res, next) => { req.authUserId = actor.id; req.session = { userId: actor.id }; next(); });
+app.use((req, _res, next) => {
+  req.authUserId = actor.id;
+  req.authRole = actor.role;
+  req.session = { userId: actor.id, role: actor.role };
+  next();
+});
 app.use('/items', itemsRouter);
 const server = app.listen(0);
 const baseUrl = await new Promise((r) => server.on('listening', () => r(`http://127.0.0.1:${server.address().port}`)));
 test.after(() => server.close());
 
-async function call(method, path, { as = { id: A }, body } = {}) {
-  actor = as;
+async function call(method, path, { as = { id: A, role: 'admin' }, body } = {}) {
+  actor = { role: 'admin', ...as };
   const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
