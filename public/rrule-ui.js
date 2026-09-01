@@ -469,6 +469,9 @@ export function bindRRuleEvents(root, prefix, opts = {}) {
     if (details)  details.hidden  = !freq;
     if (weekdays) weekdays.hidden = freq !== 'WEEKLY';
     if (monthday) monthday.hidden = freq !== 'MONTHLY';
+    // Beim Wechsel weg von "monatlich" verliert die Wahl ihre Bedeutung. Der
+    // Haken bleibt gesetzt, damit ein versehentlicher Wechsel und zurueck ihn
+    // nicht verschluckt - buildRRule schreibt ihn ohnehin nur bei MONTHLY.
     // Der Hinweis ist die Umkehrung des Detailbereichs: er beantwortet die Frage
     // "sind das die einzigen vier Takte?", und sobald der Takt sichtbar danebensteht,
     // hat sie sich erledigt (#862). Die Beschreibung des Auswahlfelds geht mit -
@@ -540,6 +543,7 @@ export function getRRuleValues(root, prefix) {
   });
 
   const lastDay = !!root.querySelector(`#${prefix}-rrule-last-day`)?.checked;
+
 
   const built = buildRRule({ freq, interval, byday, until, count, lastDay });
 
