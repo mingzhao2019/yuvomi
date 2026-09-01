@@ -15,6 +15,7 @@
  *   cycle.js        Zyklus (Perioden/Tages-Logs/Einstellungen) + Zyklus-Export
  *   cycle-feed.js   Zyklus: Token-Verwaltung fuer den vorhergesagten ICS-Feed
  *   caregivers.js   Betreuung: wer darf fuer wen eintragen (#584)
+ *   visibility-defaults.js  persoenliche Standard-Sichtbarkeit je Bereich (#958)
  *
  * Scoping/Visibility-Modell (siehe ./health/helpers.js):
  *   - Jede Zeile gehört einem Nutzer (`user_id`, "Eigentümer").
@@ -36,6 +37,7 @@ import exportRouter from './health/export.js';
 import cycleRouter from './health/cycle.js';
 import cycleFeedRouter from './health/cycle-feed.js';
 import caregiversRouter from './health/caregivers.js';
+import visibilityDefaultsRouter from './health/visibility-defaults.js';
 
 const router = express.Router();
 
@@ -50,5 +52,6 @@ router.use(exportRouter);
 router.use(cycleRouter);
 router.use(cycleFeedRouter);
 router.use(caregiversRouter);
+router.use(visibilityDefaultsRouter);
 
 export default router;
