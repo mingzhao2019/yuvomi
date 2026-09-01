@@ -2753,6 +2753,7 @@
         "nameLabel": "Tên",
         "birthDateLabel": "Ngày sinh",
         "nameDay": "Ngày tên thánh",
+        "celebratesNameDay": "mừng ngày tên thánh",
         "nameDayLabel": "Ngày tên thánh (không bắt buộc)",
         "nameDayMonthLabel": "Tháng của ngày tên thánh",
         "nameDayDayLabel": "Ngày của ngày tên thánh",

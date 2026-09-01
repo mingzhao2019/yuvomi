@@ -2765,6 +2765,7 @@
         "nameLabel": "Name",
         "birthDateLabel": "Geburtsdatum",
         "nameDay": "Namenstag",
+        "celebratesNameDay": "feiert Namenstag",
         "nameDayLabel": "Namenstag (optional)",
         "nameDayMonthLabel": "Monat des Namenstags",
         "nameDayDayLabel": "Tag des Namenstags",

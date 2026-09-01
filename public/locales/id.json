@@ -2765,6 +2765,7 @@
         "nameLabel": "Nama",
         "birthDateLabel": "Tanggal lahir",
         "nameDay": "Hari nama",
+        "celebratesNameDay": "merayakan hari nama",
         "nameDayLabel": "Hari nama (opsional)",
         "nameDayMonthLabel": "Bulan hari nama",
         "nameDayDayLabel": "Tanggal hari nama",

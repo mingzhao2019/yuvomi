@@ -2765,6 +2765,7 @@
         "nameLabel": "Pangalan",
         "birthDateLabel": "Petsa ng kapanganakan",
         "nameDay": "Araw ng pangalan",
+        "celebratesNameDay": "ipinagdiriwang ang araw ng pangalan",
         "nameDayLabel": "Araw ng pangalan (opsyonal)",
         "nameDayMonthLabel": "Buwan ng araw ng pangalan",
         "nameDayDayLabel": "Petsa ng araw ng pangalan",

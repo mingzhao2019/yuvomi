@@ -2772,6 +2772,7 @@
         "nameLabel": "Namn",
         "birthDateLabel": "Födelsedatum",
         "nameDay": "Namnsdag",
+        "celebratesNameDay": "firar namnsdag",
         "nameDayLabel": "Namnsdag (valfritt)",
         "nameDayMonthLabel": "Månad för namnsdagen",
         "nameDayDayLabel": "Dag för namnsdagen",

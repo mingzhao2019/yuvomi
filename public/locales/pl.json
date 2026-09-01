@@ -2765,6 +2765,7 @@
         "nameLabel": "Imię",
         "birthDateLabel": "Data urodzin",
         "nameDay": "Imieniny",
+        "celebratesNameDay": "obchodzi imieniny",
         "nameDayLabel": "Imieniny (opcjonalnie)",
         "nameDayMonthLabel": "Miesiąc imienin",
         "nameDayDayLabel": "Dzień imienin",
