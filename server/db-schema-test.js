@@ -1222,6 +1222,14 @@ const MIGRATIONS_SQL = {
       WHERE id = NEW.id;
     END;
   `,
+
+  // SQL-String für Migration v197 (gespiegelt aus db.js MIGRATIONS):
+  // Startrechte einer Einladung (#869). Die Upstream-Version 171 ist im
+  // benutzerdefinierten Schema bereits belegt; die Migration wird deshalb
+  // append-only unter der nächsten freien Versionsnummer gespiegelt.
+  197: `
+    ALTER TABLE invites ADD COLUMN permissions TEXT;
+  `,
 };
 
 export { MIGRATIONS_SQL };

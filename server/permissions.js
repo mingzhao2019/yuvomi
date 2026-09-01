@@ -487,6 +487,35 @@ export function writeSubjectPermissions(database, subjectType, subjectId, input)
   for (const r of rows) ins.run(subjectType, String(subjectId), r.resource_type, r.resource_key, r.access);
   return rows.length;
 }
+
+/**
+ * Loest eine Einladungs-Vorlage zu dem Rechte-Set auf, das beim ersten Login
+ * gilt.
+ *
+ * `null` heisst ausdruecklich "nichts eigenes schreiben": bei 'role' soll das
+ * Rollenprofil greifen, und das tut es von selbst, weil `resolvePermissions()`
+ * es vor dem Mitglied-Override anwendet. Eine Kopie des Profils als
+ * user-Zeilen zu schreiben waere eine zweite Wahrheit - sie wuerde bei jeder
+ * spaeteren Aenderung des Profils zurueckbleiben, ohne dass jemand sie
+ * angelegt haben wollte.
+ *
+ * 'restricted' schreibt dagegen echte Mitglied-Zeilen. Sie kommen ZUSAETZLICH
+ * zum Rollenprofil zur Wirkung: das Profil laeuft zuerst, diese drei Module
+ * gewinnen danach. Eine Rolle, die ohnehin mehr sperrt, bleibt also strenger.
+ *
+ * @param {'restricted'|'role'} preset
+ * @returns {{ modules: Record<string,string>, widgets: Record<string,string> }|null}
+ */
+export function invitePresetPermissions(preset) {
+  if (preset !== 'restricted') return null;
+  const modules = {};
+  for (const key of INVITE_RESTRICTED_MODULES) modules[key] = 'none';
+  return { modules, widgets: {} };
+}
+
+export function isValidInvitePreset(preset) {
+  return INVITE_PRESETS.includes(preset);
+}
 export function isValidFamilyRole(role) {
   return FAMILY_ROLE_SET.has(role);
 }
