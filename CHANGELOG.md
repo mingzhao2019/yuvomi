@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+<!-- retain the existing custom changelog history -->
 - **Folder uploads now handle server rate limits and cancellation cleanly.** A directory upload
   waits for the server's advertised retry window when a write is rate-limited, retries only the
   rate-limited operation with a bounded backoff, and reports a stable failure reason when retries
@@ -794,29 +795,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.61.0] - 2026-09-01
 
 ### Added
-
-- **Monthly series can repeat on the last day of the month** (#960). @PapaZhans asked for it, and
-  until now it could only be approximated: a series begun on 31 January *looked* like "the last
-  day" and lost that the first time it met a short month. The repetition form has a new choice
-  under "monthly", and it is the only one of its kind - a start date can express "on the 15th" all
-  by itself, but "on the last day" means a different day every month and has to live in the rule.
-
-  **Only that one value is accepted, and only under "monthly".** Reading the wider RFC range was
-  tried during review and taken back: accepting values the recurrence engine does not implement
-  opened a failure case for each one. `BYMONTHDAY=31` is supposed to be *omitted* in February
-  rather than moved to the 28th, `1,15` means two days a month, the same component under a yearly
-  rule means twelve occurrences a year rather than one, and under daily or weekly rules it filters
-  days instead of setting them. A value that is read but computed wrongly moves appointments
-  silently; one that is ignored leaves the series where it was. Rules from other calendars
-  therefore keep behaving exactly as before, and an edit hands them back word for word (#756).
-
-  The choice survives the places a rule gets rebuilt: cutting a series with "this and all
-  following" keeps it, and a one-time ICS import carries it through. It is **not** pushed to
-  Outlook, because Microsoft Graph has no equivalent - and the obvious substitute is not one, since
-  a "last weekday of the month" pattern selects the first day matching it rather than the month's
-  end. Such a series is sent without its recurrence rather than with a different one, and the
-  recurrence is cleared explicitly so an update cannot leave the remote copy on its old schedule.
-
 ### Fixed
 
 - **A monthly series on the last day of the month no longer skips its first month** (#960, follow-up).
