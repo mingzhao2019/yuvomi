@@ -544,7 +544,6 @@ export function getRRuleValues(root, prefix) {
 
   const lastDay = !!root.querySelector(`#${prefix}-rrule-last-day`)?.checked;
 
-
   const built = buildRRule({ freq, interval, byday, until, count, lastDay });
 
   // WER NICHTS ÄNDERT, ÄNDERT NICHTS: Dieses Formular kennt nur einen Ausschnitt
