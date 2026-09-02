@@ -5993,6 +5993,7 @@ const MIGRATIONS = [
           "Inventory", // ar, cs, el, en, es, fa, fil, fr, hi, hu, id, it, ja, ko, nl, pl, pt, ru, sv, tr, uk, vi, zh
           "Imbentaryo", // fil
           "Inventar", // de
+          "物品", // zh (custom locale)
         ]],
         ['housekeeping', [
           // Der Ordner hiess in ZWOELF von vierundzwanzig Sprachen anders als
