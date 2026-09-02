@@ -1,6 +1,6 @@
 {
   "name": "yuvomi",
-  "version": "2.54.0",
+  "version": "2.62.0",
   "description": "Self-hosted family planner - calendar, tasks, shopping, meal planning, budget and more. Private, open-source, no subscription.",
   "main": "server/index.js",
   "type": "module",
@@ -299,9 +299,9 @@
     "express-rate-limit": "^8.6.2",
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
-    "libphonenumber-js": "^1.13.11",
+    "libphonenumber-js": "^1.13.12",
     "node-cron": "^4.6.0",
-    "nodemailer": "^9.0.5",
+    "nodemailer": "^9.0.6",
     "openid-client": "^6.8.7",
     "web-push": "^3.6.7"
   },
@@ -311,12 +311,12 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "puppeteer": "^25.8.0",
-    "sharp": "^0.35.3"
+    "puppeteer": "^25.9.0",
+    "sharp": "^0.35.4"
   },
   "allowScripts": {
     "better-sqlite3-multiple-ciphers@13.0.3": true,
     "bcrypt@6.0.0": true,
-    "puppeteer@25.8.0": true
+    "puppeteer@25.9.0": true
   }
 }
