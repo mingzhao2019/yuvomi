@@ -18,6 +18,7 @@ import { resolveHouseholdLocale, translate } from '../utils/i18n.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
 import { syncAllPantryExpiryReminders } from './pantry-reminders.js';
 import { householdTimeZone, utcToWall } from '../utils/timezone.js';
+import { syncAllCycleReminders } from './cycle-reminders.js';
 
 const log = createLogger('Notifications');
 const APP_NAME = 'Yuvomi';
@@ -144,6 +145,11 @@ const REMINDER_ORIGINS = {
   inventory_item:         { titleKey: 'nav.inventory',          url: '/inventory' },
   inventory_tracked_date: { titleKey: 'nav.inventory',          url: '/inventory' },
   pantry_item:            { titleKey: 'nav.pantry',             url: '/pantry' },
+  // Beide Zyklus-Herkuenfte teilen sich denselben Titel/Ziel - gleiches
+  // Vorbild wie schedule_entry/schedule_extra_entry (Schedule v3), zwei
+  // entity_type fuer zwei Sync-Quellen, eine Modul-Beschriftung.
+  cycle_period:           { titleKey: 'health.cycle.title',     url: '/health' },
+  cycle_log_nudge:        { titleKey: 'health.cycle.title',     url: '/health' },
 };
 
 /**
@@ -469,6 +475,14 @@ export async function processDueNotifications({
     log.error('Pantry expiry sync failed:', err?.message || err);
   }
 
+  // Gleiche Stelle, gleiche Bauart: ein rollierendes Fenster je Nutzer statt
+  // haushaltweit, weil der Zyklus (anders als der Vorrat) persoenlich ist.
+  try {
+    syncAllCycleReminders(activeDb, now);
+  } catch (err) {
+    log.error('Cycle reminder sync failed:', err?.message || err);
+  }
+
   const due = activeDb.prepare(`
     SELECT r.id, r.created_by, r.entity_type, r.entity_id, r.remind_at,
       CASE r.entity_type
@@ -482,6 +496,8 @@ export async function processDueNotifications({
           WHERE d.id = r.entity_id
         )
         WHEN 'pantry_item' THEN (SELECT name FROM pantry_items WHERE id = r.entity_id)
+        WHEN 'cycle_period' THEN (SELECT anchor_date FROM cycle_reminder_anchors WHERE id = r.entity_id)
+        WHEN 'cycle_log_nudge' THEN (SELECT anchor_date FROM cycle_reminder_anchors WHERE id = r.entity_id)
       END AS entity_title,
       CASE WHEN r.entity_type = 'task'
         THEN (SELECT description FROM tasks WHERE id = r.entity_id)

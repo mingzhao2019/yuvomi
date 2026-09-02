@@ -91,6 +91,14 @@ const SHARED_ISOMORPHIC = new Set([
   // #944: HTML-Escaping wird vom Browser und dem E-Mail-Provider gemeinsam
   // verwendet; die Funktion ist rein und absichtlich ohne DOM-Abhängigkeit.
   'public/utils/html-escape.js',
+  // Zyklus-Vorhersage (Health, Phase 1 der Cycle-Roadmap): nächster
+  // Periodenbeginn, Eisprung, fruchtbares Fenster. Der Zyklus-Tab zeichnet
+  // damit den Ring und den Kalender, server/services/cycle-reminders.js
+  // berechnet damit den Zeitpunkt der Erinnerung. Zwei Fassungen liefen genau
+  // dort auseinander, wo es niemandem auffiele: eine Erinnerung, die einen
+  // anderen Tag nennt als der Ring zeigt. Rein, ohne DOM/Node - der einzige
+  // Import (date.js) steht selbst schon in dieser Liste.
+  'public/utils/health-cycle.js',
 ]);
 
 const SOURCE_EXT = /\.(js|mjs)$/;
