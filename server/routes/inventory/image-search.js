@@ -19,13 +19,14 @@ import {
   isBlockedHostname,
   normalizeHostname,
 } from '../../utils/ssrf.js';
+import { MAX_UPLOAD_BYTES } from '../../utils/upload-limit.js';
 
 const log = createLogger('InventoryImageSearch');
 const router = express.Router();
 
 const MAX_QUERY_LENGTH = 120;
 const MAX_PREVIEW_URL_LENGTH = 2048;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = MAX_UPLOAD_BYTES;
 const SEARCH_TIMEOUT_MS = 8000;
 const PREVIEW_TIMEOUT_MS = 10000;
 const GOOGLE_ENDPOINT = 'https://www.googleapis.com/customsearch/v1';
