@@ -15,6 +15,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const chain = pkg.scripts.test;
+// custom 保留一条包含定制模块测试的独立链；上游的根 test 链不应把这些
+// 已经由 test:custom 覆盖的套件误报为“未接入”。两条链仍共用同一套
+// browser/文件引用规则，避免为了兼容分支结构复制检查逻辑。
+const testChains = [pkg.scripts.test, pkg.scripts['test:custom']].filter(Boolean);
 const suiteScripts = Object.keys(pkg.scripts).filter((k) => k.startsWith('test:'));
 
 const suiteFile = (name) => pkg.scripts[name].match(/test\/[\w.-]+\.js/)?.[0];
@@ -52,10 +56,10 @@ function needsBrowser(name) {
   return imports.some((spec) => spec === 'puppeteer' || spec.includes('document-guards-harness'));
 }
 
-const runsIn = (script, name) => {
-  if (script.includes(`npm run ${name}`)) return true;
+const runsIn = (name) => {
+  if (testChains.some((script) => script.includes(`npm run ${name}`))) return true;
   const file = suiteFile(name);
-  return Boolean(file && script.includes(file));
+  return Boolean(file && testChains.some((script) => script.includes(file)));
 };
 
 test('jedes test:*-Script hängt in genau einer Kette', () => {
@@ -65,7 +69,7 @@ test('jedes test:*-Script hängt in genau einer Kette', () => {
   for (const name of suiteScripts) {
     if (name === BROWSER_CHAIN) continue; // die Kette selbst, siehe oben
     const browser = needsBrowser(name);
-    const inChain = runsIn(chain, name);
+    const inChain = runsIn(name);
     if (browser && inChain) {
       wrong.push(`${name} fährt einen Browser und hängt trotzdem in npm test - dort ist kein Server`);
     }
@@ -90,7 +94,7 @@ test('die Browser-Suiten laufen unter test:document-guards', () => {
   // Falschmeldung statt eines Befunds.
   assert.ok(needsBrowser(BROWSER_CHAIN),
     'needsBrowser() erkennt den Browserbedarf nicht mehr - ab hier prueft dieser Test nichts');
-  const missing = browserSuites.filter((n) => !runsIn(entry, n));
+  const missing = browserSuites.filter((n) => !entry.includes(`npm run ${n}`));
   assert.deepEqual(
     missing,
     [],
