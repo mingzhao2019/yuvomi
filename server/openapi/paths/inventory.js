@@ -56,7 +56,7 @@ export function inventoryPaths() {
       delete: op({ summary: 'Delete an inventory item', tag: 'Inventory', params: [idParam('id', 'Item ID')], stateChanging: true }),
     },
     '/api/v1/inventory/image-search': {
-      get: op({ summary: 'Search the configured web image providers for an inventory photo', description: 'Uses Google Programmable Search when ASSET_COST_GOOGLE_API_KEY and ASSET_COST_GOOGLE_CSE_ID are configured; falls back to Openverse. The API key is never returned to the browser.', tag: 'Inventory' }),
+      get: op({ summary: 'Search web image providers for an inventory photo', description: 'Searches the configured Google Programmable Search plus DuckDuckGo Images, Brave Images, and Openverse in parallel. The response keeps a backwards-compatible flat `results` array and also returns provider-grouped `sources`; one provider failure does not discard other results. The Google API key is never returned to the browser.', tag: 'Inventory' }),
     },
     '/api/v1/inventory/image-search/preview': {
       get: op({ summary: 'Proxy a selected inventory image through the SSRF-guarded downloader', tag: 'Inventory' }),

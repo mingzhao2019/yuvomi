@@ -12,11 +12,19 @@ import {
   getSelectedUserIds,
   bindUserMultiSelect,
 } from '/components/user-multi-select.js';
+import { attachOverlay } from '/utils/overlay-history.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_SYMBOLS = { CNY: '¥', EUR: '€', USD: '$' };
 const ASSET_COST_METRICS = new Set(['current', 'target']);
 const ASSET_SUMMARY_THEMES = new Set(['aurora', 'ocean', 'sunset', 'neutral']);
+const IMAGE_SOURCE_ORDER = ['google', 'duckduckgo', 'brave', 'openverse'];
+const IMAGE_SOURCE_LABEL_KEYS = {
+  google: 'imageSearchProviderGoogle',
+  duckduckgo: 'imageSearchProviderDuckDuckGo',
+  brave: 'imageSearchProviderBrave',
+  openverse: 'imageSearchProviderOpenverse',
+};
 const SORTS = [
   ['cost-desc', 'sortCostDesc'],
   ['cost-asc', 'sortCostAsc'],
@@ -512,6 +520,12 @@ function formContent(item) {
       <div data-asset-assignees ${visibility === 'assignees' ? '' : 'hidden'}>
         ${renderUserMultiSelect(state.members, selectedIds, 'asset_assigned', 'common.visibility.assignees')}
       </div>
+      <div class="asset-cost-form__name-row">
+        <div class="form-group"><label class="form-label" for="asset-cost-name">${esc(tr('name'))}</label><input id="asset-cost-name" class="form-input" type="text" required value="${esc(imageQuery)}"></div>
+        <button type="button" class="asset-cost-image-search-trigger btn btn--secondary" data-open-image-search ${imageQuery.trim() ? '' : 'disabled'} title="${esc(tr('searchImages'))}" aria-label="${esc(tr('searchImages'))}">
+          <i data-lucide="search" aria-hidden="true"></i>
+        </button>
+      </div>
       <div class="asset-cost-form__photo">
         <button type="button" class="asset-cost-form__photo-preview" data-photo-preview aria-label="${esc(tr('choosePhoto'))}">
           ${item?.photo_data ? `<img src="${esc(item.photo_data)}" alt="">` : '<i data-lucide="image" aria-hidden="true"></i>'}
@@ -519,10 +533,8 @@ function formContent(item) {
         <div class="asset-cost-form__photo-actions">
           <input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" data-photo-file>
           <button type="button" class="btn btn--secondary btn--sm" data-choose-photo>${esc(tr('choosePhoto'))}</button>
-          <button type="button" class="btn btn--secondary btn--sm" data-open-image-search>${esc(tr('searchImages'))}</button>
         </div>
       </div>
-      <div class="form-group"><label class="form-label" for="asset-cost-name">${esc(tr('name'))}</label><input id="asset-cost-name" class="form-input" type="text" required value="${esc(item?.name || '')}"></div>
       <div class="asset-cost-form__row">
         <div class="form-group"><label class="form-label" for="asset-cost-category">${esc(tr('category'))}</label><select id="asset-cost-category" class="form-input">${categoryOptions(item?.category || state.categories[0]?.key || 'other')}</select></div>
         <div class="form-group"><label class="form-label" for="asset-cost-status">${esc(tr('statusField'))}</label><select id="asset-cost-status" class="form-input">
@@ -547,15 +559,6 @@ function formContent(item) {
         <div class="form-group"><label class="form-label" for="asset-cost-retired-date">${esc(tr('retiredDate'))}</label><yuvomi-datepicker id="asset-cost-retired-date" type="date" label="${esc(tr('retiredDate'))}" value="${esc(item?.retired_date || '')}"></yuvomi-datepicker></div>
       </details>
       <div class="form-group"><label class="form-label" for="asset-cost-notes">${esc(tr('notes'))}</label><textarea id="asset-cost-notes" class="form-input" rows="3">${esc(item?.notes || '')}</textarea></div>
-      <div class="asset-cost-image-search" data-image-search hidden>
-        <div class="asset-cost-image-search__bar"><span>${esc(tr('imageSearchByName', { name: imageQuery }))}</span><button type="button" class="btn btn--primary btn--sm" data-search-images>${esc(tr('searchImages'))}</button></div>
-        <details class="asset-cost-image-search__custom">
-          <summary>${esc(tr('customImageQuery'))}</summary>
-          <div class="asset-cost-image-search__bar"><input class="form-input" type="search" data-image-query placeholder="${esc(tr('imageQuery'))}" value=""><button type="button" class="btn btn--secondary btn--sm" data-search-images-custom>${esc(tr('searchImages'))}</button></div>
-        </details>
-        <p class="asset-cost-image-search__hint">${esc(tr('imageSearchHint'))}</p>
-        <div class="asset-cost-image-results" data-image-results></div>
-      </div>
       <div class="modal-panel__footer modal-panel__footer--plain">
         <button type="button" class="btn btn--secondary" data-action="close-modal">${esc(tr('cancel'))}</button>
         <button type="button" class="btn btn--primary" id="asset-cost-save">${esc(tr('save'))}</button>
@@ -579,59 +582,245 @@ async function cropFile(file) {
   });
 }
 
-function renderImageResults(panel, results) {
-  const target = panel.querySelector('[data-image-results]');
-  if (!results?.length) {
+function imageSourceLabel(provider) {
+  return tr(IMAGE_SOURCE_LABEL_KEYS[provider] || provider);
+}
+
+function normalizeImageSources(data) {
+  if (Array.isArray(data?.sources)) {
+    return data.sources
+      .filter((source) => source && typeof source.provider === 'string')
+      .map((source) => ({
+        provider: source.provider,
+        status: source.status || (source.results?.length ? 'ok' : 'empty'),
+        results: Array.isArray(source.results) ? source.results : [],
+      }));
+  }
+  if (data?.provider && Array.isArray(data.results)) {
+    return [{ provider: data.provider, status: data.results.length ? 'ok' : 'empty', results: data.results }];
+  }
+  return [];
+}
+
+function orderedImageSources(sources) {
+  return [...sources].sort((a, b) => {
+    const left = IMAGE_SOURCE_ORDER.indexOf(a.provider);
+    const right = IMAGE_SOURCE_ORDER.indexOf(b.provider);
+    return (left === -1 ? IMAGE_SOURCE_ORDER.length : left) - (right === -1 ? IMAGE_SOURCE_ORDER.length : right);
+  });
+}
+
+function flattenedImageResults(sources) {
+  const results = [];
+  const seen = new Set();
+  for (const source of orderedImageSources(sources)) {
+    for (const result of source.results) {
+      const key = result.image_url || result.thumbnail_url || result.preview_url;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      results.push(result);
+    }
+  }
+  return results;
+}
+
+function renderImageSearchResults(dialog, sources, selectedProvider, { loading = false, error = false } = {}) {
+  const tabs = dialog.querySelector('[data-image-search-sources]');
+  const target = dialog.querySelector('[data-image-search-results]');
+  const ordered = orderedImageSources(sources);
+  tabs.replaceChildren();
+  tabs.insertAdjacentHTML('beforeend', `
+    <button type="button" class="asset-cost-image-search-dialog__source is-selected" data-image-search-source="all" role="tab" aria-selected="true">
+      ${esc(tr('imageSearchAll'))}
+    </button>
+    ${ordered.map((source) => `
+      <button type="button" class="asset-cost-image-search-dialog__source" data-image-search-source="${esc(source.provider)}" role="tab" aria-selected="false">
+        ${esc(imageSourceLabel(source.provider))}${source.status === 'error' ? ` · ${esc(tr('imageSearchProviderErrorShort'))}` : ''}
+      </button>`).join('')}`);
+
+  tabs.querySelectorAll('[data-image-search-source]').forEach((button) => {
+    const active = button.dataset.imageSearchSource === selectedProvider;
+    button.classList.toggle('is-selected', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+
+  if (loading) {
     target.replaceChildren();
-    target.insertAdjacentHTML('beforeend', `<p class="asset-cost-image-results__empty">${esc(tr('noImageResults'))}</p>`);
+    target.insertAdjacentHTML('beforeend', `<p class="asset-cost-image-search-dialog__state">${esc(tr('searching'))}</p>`);
+    target._assetResults = [];
     return;
   }
+
+  const selected = selectedProvider === 'all'
+    ? null
+    : ordered.find((source) => source.provider === selectedProvider);
+  const results = selected ? selected.results : flattenedImageResults(sources);
+  const stateMessage = error || selected?.status === 'error'
+    ? tr('imageSearchProviderError')
+    : tr('noImageResults');
+  if (!results.length) {
+    target.replaceChildren();
+    target.insertAdjacentHTML('beforeend', `<p class="asset-cost-image-search-dialog__state">${esc(stateMessage)}</p>`);
+    target._assetResults = [];
+    return;
+  }
+
   target.replaceChildren();
   target.insertAdjacentHTML('beforeend', results.map((result, index) => `
-    <button type="button" class="asset-cost-image-result" data-image-result="${index}">
-      <img src="${esc(result.preview_url)}" alt="">
+    <button type="button" class="asset-cost-image-result" data-image-result="${index}" aria-label="${esc(result.title || tr('photo'))}">
+      <img src="${esc(result.thumbnail_preview_url || result.preview_url)}" loading="lazy" alt="">
       <span>${esc(result.title || tr('photo'))}</span>
-      <small>${esc(result.provider)}${result.license ? ` · ${esc(result.license)}` : ''}</small>
+      <small>${esc(imageSourceLabel(result.provider))}${result.license ? ` · ${esc(result.license)}` : ''}</small>
     </button>`).join(''));
   target._assetResults = results;
+  target.querySelectorAll('img').forEach((image) => {
+    image.addEventListener('error', () => image.closest('.asset-cost-image-result')?.classList.add('is-unavailable'), { once: true });
+  });
 }
 
-async function searchImages(panel, requestedQuery = '') {
-  const query = requestedQuery.trim() || panel.querySelector('#asset-cost-name').value.trim();
-  if (!query) {
-    window.yuvomi?.showToast(tr('nameRequired'), 'danger');
-    return;
+async function fetchImageBlob(result) {
+  const urls = [...new Set([result.preview_url, result.thumbnail_preview_url].filter(Boolean))];
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error(tr('loadError'));
+      const blob = await response.blob();
+      if (!blob.size) throw new Error(tr('loadError'));
+      return blob;
+    } catch (err) {
+      lastError = err;
+    }
   }
-  const button = panel.querySelector('[data-search-images]');
-  const target = panel.querySelector('[data-image-results]');
-  button.disabled = true;
-  target.replaceChildren();
-  target.insertAdjacentHTML('beforeend', `<p class="asset-cost-image-results__empty">${esc(tr('searching'))}</p>`);
-  try {
-    const response = await api.get(`/inventory/image-search?q=${encodeURIComponent(query)}`);
-    renderImageResults(panel, response.data?.results || []);
-  } catch (err) {
-    target.replaceChildren();
-    target.insertAdjacentHTML('beforeend', `<p class="asset-cost-image-results__empty">${esc(err.data?.error || tr('loadError'))}</p>`);
-  } finally {
-    button.disabled = false;
-  }
+  throw lastError || new Error(tr('loadError'));
 }
 
-async function chooseImage(panel, result, setPhoto) {
+async function chooseImage(result, setPhoto, resultButton, closeSearch, isClosed) {
+  resultButton.disabled = true;
   try {
-    const response = await fetch(result.preview_url, { credentials: 'same-origin', cache: 'no-store' });
-    if (!response.ok) throw new Error(tr('loadError'));
-    const blob = await response.blob();
+    const blob = await fetchImageBlob(result);
     const file = new File([blob], 'asset-search-image', { type: blob.type || 'image/jpeg' });
     const cropped = await cropFile(file);
-    if (cropped !== undefined) {
+    if (cropped !== undefined && !isClosed()) {
       setPhoto(cropped);
+      closeSearch();
       window.yuvomi?.showToast(tr('photoSelected'), 'success');
     }
   } catch (err) {
-    window.yuvomi?.showToast(err.message || tr('loadError'), 'danger');
+    if (!isClosed()) window.yuvomi?.showToast(err.message || tr('loadError'), 'danger');
+  } finally {
+    resultButton.disabled = false;
   }
+}
+
+function openImageSearchDialog(formPanel, setPhoto) {
+  const initialQuery = formPanel.querySelector('#asset-cost-name')?.value.trim() || '';
+  if (!initialQuery) {
+    window.yuvomi?.showToast(tr('nameRequired'), 'danger');
+    formPanel.querySelector('#asset-cost-name')?.focus();
+    return;
+  }
+
+  const dialog = document.createElement('dialog');
+  dialog.className = 'asset-cost-image-search-dialog';
+  dialog.setAttribute('aria-labelledby', 'asset-cost-image-search-title');
+  dialog.insertAdjacentHTML('beforeend', `
+    <div class="asset-cost-image-search-dialog__body">
+      <header class="asset-cost-image-search-dialog__header">
+        <h2 id="asset-cost-image-search-title">${esc(tr('imageSearchTitle'))}</h2>
+        <button type="button" class="btn btn--ghost" data-image-search-close aria-label="${esc(tr('imageSearchClose'))}">
+          <i data-lucide="x" aria-hidden="true"></i>
+        </button>
+      </header>
+      <div class="asset-cost-image-search-dialog__query">
+        <label class="sr-only" for="asset-cost-image-search-query">${esc(tr('imageSearchQueryLabel'))}</label>
+        <input id="asset-cost-image-search-query" class="form-input" type="search" autocomplete="off" inputmode="search" value="${esc(initialQuery)}" placeholder="${esc(tr('imageQuery'))}">
+        <button type="button" class="btn btn--primary" data-image-search-submit aria-label="${esc(tr('imageSearchSubmit'))}">
+          <i data-lucide="search" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="asset-cost-image-search-dialog__sources" data-image-search-sources role="tablist" aria-label="${esc(tr('imageSource'))}"></div>
+      <div class="asset-cost-image-results" data-image-search-results aria-live="polite"></div>
+    </div>`);
+
+  let closed = false;
+  let sources = [];
+  let selectedProvider = 'all';
+  let requestSequence = 0;
+  const queryInput = dialog.querySelector('#asset-cost-image-search-query');
+  const submitButton = dialog.querySelector('[data-image-search-submit]');
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    if (dialog.open) dialog.close();
+    dialog.remove();
+  };
+  const runSearch = async () => {
+    const query = queryInput.value.trim();
+    if (!query) {
+      queryInput.focus();
+      return;
+    }
+    const sequence = ++requestSequence;
+    submitButton.disabled = true;
+    renderImageSearchResults(dialog, [], 'all', { loading: true });
+    try {
+      const response = await api.get(`/inventory/image-search?q=${encodeURIComponent(query)}`);
+      if (closed || sequence !== requestSequence) return;
+      sources = normalizeImageSources(response.data);
+      selectedProvider = 'all';
+      renderImageSearchResults(dialog, sources, selectedProvider);
+    } catch (err) {
+      if (closed || sequence !== requestSequence) return;
+      sources = [];
+      selectedProvider = 'all';
+      renderImageSearchResults(dialog, sources, selectedProvider, { error: true });
+    } finally {
+      if (!closed && sequence === requestSequence) submitButton.disabled = false;
+    }
+  };
+
+  dialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    close();
+  });
+  // The asset editor has a document-level Escape handler. Keep the nested
+  // image picker on top so Escape closes only this dialog, not both layers.
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') event.stopPropagation();
+  });
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) close();
+  });
+  dialog.querySelector('[data-image-search-close]').addEventListener('click', close);
+  submitButton.addEventListener('click', runSearch);
+  queryInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      runSearch();
+    }
+  });
+  dialog.querySelector('[data-image-search-sources]').addEventListener('click', (event) => {
+    const sourceButton = event.target.closest('[data-image-search-source]');
+    if (!sourceButton || submitButton.disabled) return;
+    selectedProvider = sourceButton.dataset.imageSearchSource;
+    renderImageSearchResults(dialog, sources, selectedProvider);
+  });
+  dialog.querySelector('[data-image-search-results]').addEventListener('click', (event) => {
+    const resultButton = event.target.closest('[data-image-result]');
+    if (!resultButton) return;
+    const result = dialog.querySelector('[data-image-search-results]')._assetResults?.[Number(resultButton.dataset.imageResult)];
+    if (result) chooseImage(result, setPhoto, resultButton, close, () => closed);
+  });
+
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  attachOverlay(dialog, close);
+  if (window.lucide) window.lucide.createIcons({ el: dialog });
+  queryInput.focus();
+  queryInput.setSelectionRange(queryInput.value.length, queryInput.value.length);
+  runSearch();
 }
 
 function controlValue(panel, selector) {
@@ -708,7 +897,8 @@ function openAssetModal(item = null) {
       }
       const fileInput = panel.querySelector('[data-photo-file]');
       const photoPreview = panel.querySelector('[data-photo-preview]');
-      const searchPanel = panel.querySelector('[data-image-search]');
+      const nameInput = panel.querySelector('#asset-cost-name');
+      const imageSearchTrigger = panel.querySelector('[data-open-image-search]');
       const setPhoto = (value) => {
         photoData = value;
         setFormPhoto(panel, photoData);
@@ -727,21 +917,12 @@ function openAssetModal(item = null) {
           window.yuvomi?.showToast(err.message, 'danger');
         }
       });
-      panel.querySelector('[data-open-image-search]').addEventListener('click', () => {
-        searchPanel.hidden = false;
-        searchImages(panel);
-      });
-      panel.querySelector('[data-search-images]').addEventListener('click', () => searchImages(panel));
-      panel.querySelector('[data-search-images-custom]').addEventListener('click', () => searchImages(panel, controlValue(panel, '[data-image-query]')));
-      panel.querySelector('[data-image-query]').addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') searchImages(panel, controlValue(panel, '[data-image-query]'));
-      });
-      panel.querySelector('[data-image-results]').addEventListener('click', (event) => {
-        const resultButton = event.target.closest('[data-image-result]');
-        if (!resultButton) return;
-        const result = panel.querySelector('[data-image-results]')._assetResults?.[Number(resultButton.dataset.imageResult)];
-        if (result) chooseImage(panel, result, setPhoto);
-      });
+      const updateImageSearchStatus = () => {
+        if (imageSearchTrigger) imageSearchTrigger.disabled = !nameInput?.value.trim();
+      };
+      nameInput?.addEventListener('input', updateImageSearchStatus);
+      updateImageSearchStatus();
+      imageSearchTrigger?.addEventListener('click', () => openImageSearchDialog(panel, setPhoto));
       panel.querySelector('#asset-cost-save')?.addEventListener('click', () => saveAsset(panel, item, photoData));
       if (window.lucide) window.lucide.createIcons({ el: panel });
     },

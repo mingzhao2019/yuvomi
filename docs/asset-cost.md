@@ -6,11 +6,15 @@
 
 ## 图片搜索
 
-图片搜索通过 Yuvomi 的同源 API 完成：
+图片搜索从资产名称旁边的搜索按钮打开独立弹窗，默认直接使用资产名称搜索；搜索词可以在弹窗内修改。结果通过 Yuvomi 的同源 API 返回：
 
-- 配置 `ASSET_COST_GOOGLE_API_KEY` 和 `ASSET_COST_GOOGLE_CSE_ID` 时，优先调用 Google Programmable Search 的图片搜索；
-- 未配置或 Google 暂时不可用时，回退到 Openverse 的开放图片结果；
+- Google Programmable Search（配置 `ASSET_COST_GOOGLE_API_KEY` 和 `ASSET_COST_GOOGLE_CSE_ID` 时）；
+- DuckDuckGo Images；
+- Brave Images；
+- Openverse 的开放图片结果；
+- 各来源并行查询，单个来源失败不会阻止其他来源显示；
 - API key 只在服务端使用，不会返回给浏览器；
+- 搜索结果按来源分组，可在弹窗内切换来源；
 - 选中的图片先通过安全预览代理下载，再由浏览器裁剪为本地 `photo_data`；
 - 不保存第三方图片 URL。
 
@@ -23,7 +27,7 @@ ASSET_COST_GOOGLE_API_KEY=your-server-side-key
 ASSET_COST_GOOGLE_CSE_ID=your-search-engine-id
 ```
 
-Google CSE 未配置时，Openverse 回退搜索仍可用；它的结果可能不包含某些精确商品型号。
+Google CSE 未配置时，DuckDuckGo、Brave 和 Openverse 仍可用。不同来源的结果质量和可用性会随商品型号、地区、网络和第三方限流变化；因此弹窗保留来源切换和修改搜索词的入口。
 
 搜索不到精确商品型号时，可以继续使用上传图片。
 
