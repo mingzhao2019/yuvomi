@@ -695,7 +695,7 @@
 .asset-cost-image-result span,
 .asset-cost-image-result small { display: block; overflow: hidden; padding-inline: var(--space-1); text-overflow: ellipsis; white-space: nowrap; }
 .asset-cost-image-result span { padding-top: var(--space-1); font-size: var(--text-xs); }
-.asset-cost-image-result small { padding-bottom: var(--space-1); color: var(--color-text-secondary); font-size: 0.68rem; }
+.asset-cost-image-result small { padding-bottom: var(--space-1); color: var(--color-text-secondary); font-size: var(--text-2xs); }
 .asset-cost-image-search-dialog__state { grid-column: 1 / -1; margin: var(--space-3) 0; color: var(--color-text-secondary); text-align: center; }
 
 @media (max-width: 1023px) {
