@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The `allowScripts` pins are checked against the installed dependency versions.** A dependency
+  bump can otherwise leave an exact install-script permission pointing at a package version that
+  is no longer installed. The guard also rejects pins for packages that are no longer dependencies.
+
 - **The remaining principal of an interest loan follows the money you booked, not the calendar**
   (#954, reported in #935). Loan payments always carried a free amount - paying 500 instead of the
   planned 300 was accepted and stored - but the displayed remaining principal was read off the
