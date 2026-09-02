@@ -278,6 +278,7 @@
 .widget--health   { --widget-accent: var(--module-health); }
 .widget--housekeeping { --widget-accent: var(--module-housekeeping); }
 .widget--assets { --widget-accent: var(--module-asset-cost); }
+.widget--schedule { --widget-accent: var(--module-schedule); }
 /* Wie das Wetter: eine Kachel, die keinem Modul gehoert, traegt den Ton der
  * Seite. Der Countdown (#647) sammelt aus Kalender UND Aufgaben ein - jeder
  * der beiden Toene waere fuer die andere Haelfte der Liste falsch. Ohne diese
@@ -3763,8 +3764,8 @@ svg.weather-forecast__icon {
 
 .schedule-widget-row__dot {
   display: inline-block;
-  width: .6rem;
-  height: .6rem;
+  width: .7rem;
+  height: .7rem;
   border-radius: 50%;
   background: var(--schedule-color);
   flex: 0 0 auto;
