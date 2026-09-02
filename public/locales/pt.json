@@ -4257,6 +4257,7 @@
         "loadError": "Não foi possível carregar as recompensas.",
         "remainingToReward": "Faltam {{points}} para “{{reward}}”",
         "canRedeemNow": "Pronto para resgatar",
+        "progressLabel": "Progresso para a próxima recompensa",
         "noRewardsYet": "Ainda não há prêmios",
         "redeem": "Resgatar",
         "confirmRedeem": "Resgatar",
