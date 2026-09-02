@@ -1,6 +1,7 @@
 import { api } from '/api.js';
 import { getLocale, t } from '/i18n.js';
 import { esc } from '/utils/html.js';
+import { todayKey } from '/utils/timezone.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import {
   openModal,
@@ -75,15 +76,6 @@ async function loadLocale() {
     // The page remains usable with translation keys if a module asset is
     // temporarily unavailable during a live module reload.
   }
-}
-
-function pad(value) {
-  return String(value).padStart(2, '0');
-}
-
-function todayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 function dateToUtc(key) {
