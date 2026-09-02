@@ -522,7 +522,7 @@ function updateProviderVisibility(form, providers = DEFAULT_PROVIDERS) {
   form.querySelectorAll('.notification-ntfy-basic-field').forEach((field) => {
     setBlockActive(field, isNtfy && auth === 'basic');
   });
-  const scope = form.dataset.channelScope || 'household';
+  const scope = form.dataset?.channelScope || 'household';
   if (form.elements.webhookTemplate) {
     form.elements.webhookTemplate.placeholder = templateExample('webhook', scope);
   }
