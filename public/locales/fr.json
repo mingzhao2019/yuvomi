@@ -4228,6 +4228,13 @@
                 "empty": "Aucune période enregistrée pour l’instant.",
                 "cycleLength": "Cycle {{value}} jours"
             },
+            "trends": {
+                "title": "Trends",
+                "date": "Date",
+                "cycleLength": "Cycle length",
+                "symptomFrequency": "Symptom frequency",
+                "phaseOther": "Other"
+            },
             "flow": {
                 "label": "Flux",
                 "none": "Aucune",

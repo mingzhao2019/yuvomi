@@ -4228,6 +4228,13 @@
                 "empty": "Nie zapisano jeszcze miesiączek.",
                 "cycleLength": "Cykl {{value}} dni"
             },
+            "trends": {
+                "title": "Trends",
+                "date": "Date",
+                "cycleLength": "Cycle length",
+                "symptomFrequency": "Symptom frequency",
+                "phaseOther": "Other"
+            },
             "flow": {
                 "label": "Intensywność krwawienia",
                 "none": "Brak",
