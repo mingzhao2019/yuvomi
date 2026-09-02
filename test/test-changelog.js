@@ -364,13 +364,16 @@ test('jeder getaggte Release hat einen CHANGELOG-Eintrag, keine Version doppelt'
   // Einträge - bei spaeteren Release-Läufen still verloren gegangen. Der Guard
   // beißt beim lokalen release-prep (voller Clone); in CI ohne Tags
   // (checkout mit depth 1, ohne fetch-tags) skippt er sichtbar statt leer zu
-  // bestehen. Die Gegenrichtung (Eintrag ohne Tag) bleibt bewusst ungeprüft:
-  // [0.71.9]/[0.76.0] sind dokumentierte Altfälle, und beim Release liegt der
-  // neue Eintrag naturgemäß vor dem Tag.
+  // bestehen. Ein custom checkout kann zusätzlich Tags des upstream-Remotes
+  // kennen, deren Release-Commit bewusst nicht in custom übernommen wurde; nur
+  // erreichbare Tags gehören deshalb zu diesem Branch. Die Gegenrichtung
+  // (Eintrag ohne Tag) bleibt bewusst ungeprüft: [0.71.9]/[0.76.0] sind
+  // dokumentierte Altfälle, und beim Release liegt der neue Eintrag naturgemäß
+  // vor dem Tag.
   const repoRoot = fileURLToPath(new URL('..', import.meta.url));
   let tags;
   try {
-    tags = execSync('git tag', { cwd: repoRoot, encoding: 'utf8' })
+    tags = execSync('git tag --merged HEAD', { cwd: repoRoot, encoding: 'utf8' })
       .split('\n')
       .filter((l) => /^v\d+\.\d+\.\d+$/.test(l))
       .map((l) => l.slice(1));
