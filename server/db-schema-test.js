@@ -1141,7 +1141,6 @@ const MIGRATIONS_SQL = {
     ALTER TABLE birthdays ADD COLUMN name_day TEXT;
     ALTER TABLE birthdays ADD COLUMN name_day_calendar_event_id INTEGER
       REFERENCES calendar_events(id) ON DELETE SET NULL;
-    CREATE INDEX IF NOT EXISTS idx_birthdays_name_day ON birthdays(name_day);
     CREATE INDEX IF NOT EXISTS idx_birthdays_name_day_calendar_ref
       ON birthdays(name_day_calendar_event_id);
   `,
