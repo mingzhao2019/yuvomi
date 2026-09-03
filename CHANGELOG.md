@@ -147,6 +147,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   translated. The translated inventory copy already lives in custom, so this merge keeps those
   established custom word choices while adding the upstream regression guard and its baseline.
 
+- **The Schedule module now has translated copy in all 24 supported languages.** The translation
+  pass also restores the locale key order and covers the new schedule controls rather than only
+  the original fourteen labels; the translated-copy guard and baseline track the reduced number of
+  English fallbacks.
+
 ### Fixed
 
 - **The cycle-length trend chart's bars sat flush against the plot edges, with no date under most of
