@@ -204,28 +204,32 @@ function init({ plaintextBackup = true } = {}) {
   migrate();
   reconcileCriticalSchema();
 
-  // A newer Yuvomi may have written migrations this build does not know. An
-  // older process must not continue writing against that schema: its writes
-  // could be lost when the newer version is installed again. Operators can
-  // explicitly opt in for emergency recovery, but the warning remains visible.
+  // Ältere App auf neuerer Datenbank: nicht starten. Die Gefahr ist nicht,
+  // dass diese Version scheitert, sondern was sie zwischendurch schreibt -
+  // Daten in einer Form, die eine schon angewendete Migration verlassen hat
+  // und die nach dem erneuten Update nie nachgezogen werden, weil die
+  // Migration als erledigt gilt. Der Rückweg ist das Backup vor dem Update
+  // (docs/installation.md, "Going back"). DB_ALLOW_NEWER_SCHEMA=1 ist der
+  // ausdrückliche Notfallschalter und wird bei jedem Start als Warnung
+  // genannt, damit er kein Dauerzustand wird.
   const unknown = unknownMigrationVersions(db);
   if (unknown.length > 0) {
     const detail =
-      `This database was written by a newer Yuvomi: it carries migration ${unknown.join(', ')} `
-      + `and this build knows up to v${latestKnownVersion()}.`;
+      `This database was written by a newer Yuvomi: it carries migration ${unknown.join(', ')} ` +
+      `and this build knows up to v${latestKnownVersion()}.`;
     if (!allowNewerSchema()) {
       db.close();
       db = null;
       throw new Error(
-        `[DB] ${detail} Running an older version on a newer database is not supported: what it `
-        + 'writes in the meantime can be lost on the next update. Update Yuvomi to the version '
-        + 'that wrote this database, or restore the backup taken before that update. To start '
-        + 'anyway, at your own risk, set DB_ALLOW_NEWER_SCHEMA=1.'
+        `[DB] ${detail} Running an older version on a newer database is not supported: what it ` +
+        'writes in the meantime can be lost on the next update. Update Yuvomi to the version ' +
+        'that wrote this database, or restore the backup taken before that update. To start ' +
+        'anyway, at your own risk, set DB_ALLOW_NEWER_SCHEMA=1.'
       );
     }
     log.warn(
-      `${detail} Started anyway because DB_ALLOW_NEWER_SCHEMA is set. What this version writes `
-      + 'can be lost on the next update: take a backup now and update as soon as you can.'
+      `${detail} Started anyway because DB_ALLOW_NEWER_SCHEMA is set. What this version writes ` +
+      'can be lost on the next update: take a backup now and update as soon as you can.'
     );
   }
 
