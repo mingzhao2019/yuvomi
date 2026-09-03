@@ -231,6 +231,36 @@ test('die DMS-Verknüpfung erbt nicht stillschweigend das aktive Filter-Chip', (
   assert.doesNotMatch(linkCall, /state\.category/);
 });
 
+test('Ordnerlöschung bietet Behalten oder Mitlöschen mit exakten Server-Zahlen an', () => {
+  const block = page.slice(page.indexOf('function folderDeleteChoice('), page.indexOf('// `showSize`'));
+  assert.match(block, /delete-impact/);
+  assert.match(block, /modal-actions modal-actions--stack/);
+  assert.match(block, /documents-folder-delete-unfile/);
+  assert.match(block, /documents-folder-delete-documents/);
+  assert.match(block, /can_delete_documents/);
+  assert.match(block, /documents=\$\{choice\}/);
+  assert.match(block, /expected_documents=\$\{impact\.documents\}/);
+  assert.match(block, /expected_folders=\$\{impact\.removed_folders\}/);
+  assert.match(block, /expected_snapshot=\$\{encodeURIComponent\(impact\.snapshot\)\}/);
+  assert.match(block, /FOLDER_CONTENT_CHANGED[\s\S]*await deleteFolder\(folder\)/);
+  assert.match(block, /FOLDER_DELETE_IN_PROGRESS[\s\S]*folderDeleteInProgressToast/);
+  assert.match(block, /result\.contents_changed[\s\S]*folderDeleteContentsChangedToast/);
+  assert.match(block, /linked_records/);
+  for (const key of ['nav.calendar', 'nav.housekeeping', 'splitExpenses.title', 'nav.tasks', 'nav.budget', 'nav.inventory']) {
+    assert.ok(block.includes(`t('${key}')`), `linked-record module label ${key} is missing`);
+  }
+  assert.ok(block.includes("t('documents.deleteFolderKeepDocuments'"));
+  assert.ok(block.includes("t('documents.deleteFolderWithDocuments'"));
+});
+
+test('ein leerer Ordner bestätigt den exakten Null-Dokumente-Impact', () => {
+  const start = page.indexOf('if (impact.documents > 0)');
+  const branch = page.slice(start, page.indexOf('if (!choice)', start));
+  assert.match(branch, /deleteFolderImpact/);
+  assert.match(branch, /documents:\s*0/);
+  assert.doesNotMatch(branch, /deleteFolderConfirmDetail|deleteFolderSubtreeDetail/);
+});
+
 test('die DMS-Vorschau ist groß genug zum Erkennen und lässt sich vergrößern (#536)', () => {
   // 40x40 zeigte nur einen grauen Fleck: die Kachel steht jetzt im Seitenformat
   // und der Seitenkopf bleibt sichtbar, statt mittig weggeschnitten zu werden.
@@ -419,5 +449,38 @@ test('folder-upload count labels have singular forms in every supported locale',
       assert.equal(typeof strings[`${key}_one`], 'string', `${file}: ${key}_one is missing`);
       assert.notEqual(strings[`${key}_one`].trim(), '', `${file}: ${key}_one is empty`);
     }
+  }
+});
+
+test('alle unterstützten Sprachen enthalten die Optionen für die Ordnerlöschung', () => {
+  const localeDir = resolve(HERE, '../public/locales');
+  const files = readdirSync(localeDir).filter((file) => file.endsWith('.json'));
+  const keys = [
+    'deleteFolderImpact',
+    'deleteFolderKeepDocuments',
+    'deleteFolderKeepDocuments_one',
+    'deleteFolderWithDocuments',
+    'deleteFolderWithDocuments_one',
+    'deleteFolderDocumentsUnavailable',
+    'deleteFolderLinkedRecords',
+    'folderDeletedWithDocumentsToast',
+    'folderDeletedWithDocumentsToast_one',
+    'folderDeletePartialToast',
+    'folderDeleteContentsChangedToast',
+    'folderDeleteInProgressToast',
+  ];
+
+  for (const file of files) {
+    const documents = JSON.parse(read(`../public/locales/${file}`)).documents;
+    for (const key of keys) {
+      assert.equal(typeof documents?.[key], 'string', `${file}: ${key} fehlt`);
+      assert.notEqual(documents[key].trim(), '', `${file}: ${key} ist leer`);
+    }
+    assert.equal('deleteFolderConfirmDetail' in documents, false,
+      `${file}: deleteFolderConfirmDetail wird nicht mehr verwendet`);
+    assert.equal('deleteFolderSubtreeDetail' in documents, false,
+      `${file}: deleteFolderSubtreeDetail wird nicht mehr verwendet`);
+    assert.equal('deleteFolderSubtreeDetail_one' in documents, false,
+      `${file}: deleteFolderSubtreeDetail_one wird nicht mehr verwendet`);
   }
 });
