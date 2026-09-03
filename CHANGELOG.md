@@ -15,6 +15,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are exhausted. Cancelling during a retry wait stops queued work while preserving folders and
   files that were already created.
 
+- **Destructive folder deletion can now be undone for five seconds.** The folder subtree and its
+  currently visible documents disappear immediately, while the server operation waits behind the
+  standard Undo toast. Undo restores only the affected entries and preserves other navigation or
+  data changes made during that window. Leaving the page safely flushes the pending delete.
+
+- **Deleting a document folder can now either keep its documents unfiled or delete the confirmed
+  subtree together with its documents.** The dialog previews exact folder and document counts and
+  offers destructive deletion only when the user may delete every affected document. The server
+  binds confirmation to the previewed identities, locks them against concurrent moves while
+  external storage is changing, and preserves the folder structure when storage deletion fails.
+
+- **Complete directory trees can now be uploaded in one operation.** Selecting a directory keeps
+  that directory as the new root below the chosen destination, recreates supported descendants and
+  uploads their files sequentially. Before writing anything, the dialog previews the planned tree,
+  conflicts and rejected files. Existing folders may be merged or duplicated with a timestamped
+  suffix, while file conflicts can be skipped or uploaded under a timestamped name.
+
+  Validation follows the server's file-size, MIME-type, path and depth limits. Safe folder paths are
+  still created when their own files are rejected, while a failed parent blocks only its descendants
+  and does not stop sibling branches. If the server's request limit is reached, the upload waits for
+  its advertised retry window and resumes automatically. Cancelling stops queued work but keeps
+  folders and files that were already created.
+
 - **The Schedule module gained a quick-start for shift types, a range fill for overrides, grouped
   range display and editing, and a "who's working today" dashboard widget.** A household with no
   shift types yet can create seven common presets (Early/Late/Night/Day/24-hour, plus Vacation and
