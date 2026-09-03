@@ -19,9 +19,16 @@ import { findPageFab } from '/utils/fab.js';
 // Wert, es ist nur `hidden`: der Absende-Pfad liest es unveraendert, und kommt
 // ein zweites Mitglied dazu, steht es wieder da.
 import { isSoloHousehold } from '/utils/household.js';
-import { maxUploadBytes, maxUploadMb } from '/utils/upload-limit.js';
+import { maxUploadBytes } from '/utils/upload-limit.js';
 import { mountEmptyState } from '/utils/empty-state.js';
 import { subtreeIds, folderPath, flattenFolderTree } from '/utils/folder-tree.js';
+import {
+  buildFolderUploadPlan,
+  executeFolderUploadPlan,
+  formatFolderUploadTimestamp,
+  folderUploadOutcome,
+  supportsDirectoryUpload,
+} from '/utils/folder-upload.js';
 
 const CATEGORIES = ['medical', 'school', 'identity', 'insurance', 'finance', 'home', 'vehicle', 'legal', 'travel', 'pets', 'warranty', 'taxes', 'work', 'other'];
 
@@ -121,6 +128,7 @@ let _search = null;
 
 export async function render(container) {
   _container = container;
+  const directoryUploadSupported = canPickDirectory();
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
     <div class="documents-page">
@@ -141,6 +149,11 @@ export async function render(container) {
               <i data-lucide="list" aria-hidden="true"></i>
             </button>
           </div>
+          ${directoryUploadSupported ? `<button class="btn btn--secondary documents-upload-folder-btn" id="documents-upload-folder" type="button"
+                  title="${t('documents.folderUpload.openAction')}" aria-label="${t('documents.folderUpload.openAction')}">
+            <i data-lucide="folder-up" class="icon-md" aria-hidden="true"></i>
+            <span class="documents-upload-folder-btn__label">${t('documents.folderUpload.openAction')}</span>
+          </button>` : ''}
         </div>
       </div>
       <div class="documents-selectbar" id="documents-selectbar" role="toolbar" aria-label="${t('documents.selectLabel')}" hidden>
@@ -351,6 +364,7 @@ function applyFilters() {
 
 function bindPageEvents() {
   _container.querySelector('#documents-folder-add')?.addEventListener('click', () => openFolderModal());
+  _container.querySelector('#documents-upload-folder')?.addEventListener('click', () => openDocumentModal(null, { initialUpload: 'folder' }));
   findPageFab('fab-new-document')?.addEventListener('click', () => openDocumentModal());
 
   _search = wirePageSearch(_container, {
@@ -1581,8 +1595,9 @@ function memberOptions(selected = []) {
   `).join('');
 }
 
-function openDocumentModal(doc = null) {
+function openDocumentModal(doc = null, { initialUpload = 'files' } = {}) {
   const isEdit = !!doc;
+  let modalPanel = null;
 
   // Kontextbezogener Upload: ist im Browser ein echter Ordner gewählt, wird er
   // im Modal vorausgewählt (weiterhin änderbar). „Alle Ordner"/„Kein Ordner"
@@ -1614,6 +1629,18 @@ function openDocumentModal(doc = null) {
   const fileFieldHtml = `
         <div class="form-group">
           <label class="label" for="document-file">${t('documents.fileLabel')}</label>
+          <div class="document-upload-choices" role="group" aria-label="${esc(t('documents.folderUpload.choiceLabel'))}">
+            <label class="btn btn--secondary document-upload-choice" for="document-file">
+              <i data-lucide="files" aria-hidden="true"></i>
+              <span>${t('documents.folderUpload.chooseFiles')}</span>
+            </label>
+            <label class="btn btn--secondary document-upload-choice" id="document-folder-choice" for="document-folder-input">
+              <i data-lucide="folder-up" aria-hidden="true"></i>
+              <span>${t('documents.folderUpload.chooseFolder')}</span>
+            </label>
+            <input class="sr-only" id="document-folder-input" type="file" webkitdirectory>
+          </div>
+          <p class="document-form__hint" id="document-folder-unsupported" hidden>${t('documents.folderUpload.unsupportedBrowser')}</p>
           <label class="document-dropzone" id="document-dropzone" for="document-file">
             <input class="sr-only" id="document-file" type="file" multiple
                    ${state.allowedMimeTypes?.length ? `accept="${esc(state.allowedMimeTypes.join(','))}"` : ''}>
@@ -1624,7 +1651,8 @@ function openDocumentModal(doc = null) {
             <span class="document-dropzone__hint">${t('documents.dropzoneHint')}</span>
             <span class="document-dropzone__file" id="document-selected-file" hidden></span>
           </label>
-          <p class="document-form__hint">${t('documents.fileHint', { size: maxUploadMb() })}</p>
+          <p class="document-form__hint">${t('documents.fileHint', { size: effectiveUploadMb() })}</p>
+          <p class="document-form__hint">${t('documents.folderUpload.limitHint', { size: effectiveUploadMb() })}</p>
           <p class="document-storage-target">
             <i data-lucide="${uploadTargetIcon(state.activeUploadBackend)}" aria-hidden="true"></i>
             <span>${t('documents.activeUploadTarget', {
@@ -1632,6 +1660,7 @@ function openDocumentModal(doc = null) {
             })}</span>
             ${state.isAdmin ? `<a class="document-storage-target__link" href="/settings/sync/storage" data-nav>${t('documents.storageSettingsLink')}</a>` : ''}
           </p>
+          <section class="folder-upload-preview" id="document-folder-upload-preview" aria-live="polite" hidden></section>
         </div>`;
 
   openSharedModal({
@@ -1680,7 +1709,11 @@ function openDocumentModal(doc = null) {
         </div>
       </form>
     `,
+    onClose() {
+      requestFolderUploadCancel(modalPanel);
+    },
     onSave(panel) {
+      modalPanel = panel;
       const form = panel.querySelector('#document-form');
       const visibility = panel.querySelector('#document-visibility');
       const picker = panel.querySelector('#document-member-picker');
@@ -1688,7 +1721,15 @@ function openDocumentModal(doc = null) {
       visibility.addEventListener('change', syncVisibility);
       syncVisibility();
       bindDropzone(panel);
+      const directorySupported = bindFolderUpload(panel);
       form.addEventListener('submit', (event) => saveDocument(event, doc, panel));
+      // Die sichtbare Seitenaktion „Ordner hochladen" bewahrt die direkte
+      // Nutzeraktivierung bis zum nativen Verzeichnis-Picker. Kein Timeout:
+      // Browser dürfen einen verzögerten programmatic click als Popup blockieren.
+      if (!isEdit && initialUpload === 'folder' && directorySupported) {
+        const folderInput = panel.querySelector('#document-folder-input');
+        folderInput.click();
+      }
     },
   });
 }
@@ -1728,6 +1769,7 @@ function bindDropzone(panel) {
     });
   });
   dropzone.addEventListener('drop', (event) => {
+    if (input.disabled) return;
     const files = Array.from(event.dataTransfer?.files || []);
     if (!files.length) return;
     const transfer = new DataTransfer();
@@ -1897,18 +1939,44 @@ function renderFolderUploadPreview(panel) {
   return plan;
 }
 
-function supportsDirectoryUpload() {
+function canPickDirectory() {
   const input = document.createElement('input');
   input.type = 'file';
-  if (!('webkitdirectory' in input)) return false;
-  input.webkitdirectory = true;
-  const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || '';
-  const isIOS = /iPad|iPhone|iPod|iOS/.test(platform)
-    || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  // A property probe cannot prove that iOS Safari presents a usable directory
-  // picker. Keep the affordance hidden there until a browser-level capability
-  // signal exists.
-  return input.webkitdirectory === true && !isIOS;
+  const hasWebkitDirectory = 'webkitdirectory' in input;
+  if (hasWebkitDirectory) input.webkitdirectory = true;
+  return supportsDirectoryUpload({
+    hasWebkitDirectory: hasWebkitDirectory && input.webkitdirectory === true,
+    platform: navigator.userAgentData?.platform || navigator.platform || '',
+    userAgent: navigator.userAgent || '',
+    maxTouchPoints: navigator.maxTouchPoints || 0,
+  });
+}
+
+function setFolderUploadControlsDisabled(panel, disabled) {
+  for (const selector of [
+    '#document-file',
+    '#document-folder-input',
+    '#document-folder',
+    '[data-folder-conflict-default]',
+    '[data-file-conflict-default]',
+    '[data-folder-conflict-key]',
+  ]) {
+    panel.querySelectorAll(selector).forEach((control) => {
+      control.disabled = disabled;
+    });
+  }
+}
+
+function requestFolderUploadCancel(panel) {
+  const upload = panel?._folderUpload;
+  if (!upload?.running || upload.cancelled) return false;
+  upload.cancelled = true;
+  const cancel = panel.querySelector('[data-folder-upload-cancel]');
+  if (cancel) {
+    cancel.disabled = true;
+    cancel.setAttribute('aria-disabled', 'true');
+  }
+  return true;
 }
 
 function bindFolderUpload(panel) {
@@ -1936,13 +2004,14 @@ function bindFolderUpload(panel) {
     completed: false,
   };
 
-  const directorySupported = supportsDirectoryUpload();
+  const directorySupported = canPickDirectory();
   folderInput.disabled = !directorySupported;
   folderChoice?.classList.toggle('is-disabled', !directorySupported);
   folderChoice?.setAttribute('aria-disabled', String(!directorySupported));
   if (unsupported) unsupported.hidden = directorySupported;
 
   fileInput.addEventListener('change', () => {
+    if (panel._folderUpload.running) return;
     if (!fileInput.files?.length) return;
     folderInput.value = '';
     panel._folderUpload.files = [];
@@ -1950,10 +2019,14 @@ function bindFolderUpload(panel) {
     panel._folderUpload.ready = false;
     preview.hidden = true;
     const submit = panel.querySelector('#document-submit');
-    if (submit) submit.disabled = false;
+    if (submit) {
+      submit.disabled = false;
+      submit.textContent = t('documents.uploadAction');
+    }
   });
 
   folderInput.addEventListener('change', async () => {
+    if (panel._folderUpload.running) return;
     const files = Array.from(folderInput.files || []);
     if (!files.length) return;
     fileInput.value = '';
@@ -1983,10 +2056,12 @@ function bindFolderUpload(panel) {
   });
 
   form.querySelector('#document-folder')?.addEventListener('change', () => {
+    if (panel._folderUpload.running) return;
     if (panel._folderUpload.files.length) renderFolderUploadPreview(panel);
   });
 
   preview.addEventListener('change', (event) => {
+    if (panel._folderUpload.running) return;
     const target = event.target;
     if (target.matches('[data-folder-conflict-default]')) {
       panel._folderUpload.folderDefault = target.value;
@@ -2004,10 +2079,7 @@ function bindFolderUpload(panel) {
   preview.addEventListener('click', (event) => {
     if (event.target.closest('[data-folder-upload-close]')) closeModal({ force: true });
     const cancel = event.target.closest('[data-folder-upload-cancel]');
-    if (cancel && panel._folderUpload.running) {
-      panel._folderUpload.cancelled = true;
-      cancel.disabled = true;
-    }
+    if (cancel) requestFolderUploadCancel(panel);
   });
 
   return directorySupported;
@@ -2027,10 +2099,16 @@ function renderFolderUploadResult(panel, plan, result) {
   const host = panel.querySelector('#document-folder-upload-preview');
   if (!host) return;
   const failures = result.failed || [];
+  const outcome = folderUploadOutcome(result);
+  const heading = outcome.heading === 'cancelled'
+    ? t('documents.folderUpload.cancelled')
+    : outcome.heading === 'completedWithErrors'
+      ? t('documents.folderUpload.completedWithErrors')
+      : t('documents.folderUpload.completed');
   host.replaceChildren();
   host.insertAdjacentHTML('beforeend', `
     <div class="folder-upload-result" role="status">
-      <h3>${failures.length ? t('documents.folderUpload.completedWithErrors') : t('documents.folderUpload.completed')}</h3>
+      <h3>${heading}</h3>
       <p>${t('documents.folderUpload.resultCounts', {
         uploaded: result.uploaded.length,
         skipped: result.skipped.length,
@@ -2061,6 +2139,7 @@ async function saveFolderUpload(panel, payload) {
   }
   upload.running = true;
   upload.cancelled = false;
+  setFolderUploadControlsDisabled(panel, true);
   const cancel = panel.querySelector('[data-folder-upload-cancel]');
   if (cancel) {
     cancel.hidden = false;
@@ -2069,31 +2148,41 @@ async function saveFolderUpload(panel, payload) {
   const total = plan.counts.createFolders + plan.counts.upload;
   let completed = 0;
 
-  const result = await executeFolderUploadPlan(plan, {
-    createFolder: async ({ name, parentId }) => {
-      const response = await api.post('/documents/folders', { name, parent_id: parentId });
-      return response.data;
-    },
-    uploadFile: async ({ file, folderId, name, originalName }) => api.post('/documents', {
-      ...payload,
-      folder_id: folderId,
-      name,
-      original_name: originalName,
-      content_data: await readFileAsDataUrl(file),
-    }),
-    onProgress: (event) => {
-      if (event.status === 'succeeded' || event.status === 'failed') completed += 1;
-      updateFolderUploadProgress(panel, event, completed, total);
-    },
-    shouldCancel: () => upload.cancelled,
-  });
+  let result;
+  try {
+    result = await executeFolderUploadPlan(plan, {
+      createFolder: async ({ name, parentId }) => {
+        const response = await api.post('/documents/folders', { name, parent_id: parentId });
+        return response.data;
+      },
+      uploadFile: async ({ file, folderId, name, originalName }) => api.post('/documents', {
+        ...payload,
+        folder_id: folderId,
+        name,
+        original_name: originalName,
+        content_data: await readFileAsDataUrl(file),
+      }),
+      onProgress: (event) => {
+        if (event.status === 'succeeded' || event.status === 'failed') completed += 1;
+        updateFolderUploadProgress(panel, event, completed, total);
+      },
+      shouldCancel: () => upload.cancelled,
+    });
+  } finally {
+    upload.running = false;
+  }
 
-  upload.running = false;
   upload.completed = true;
   renderFolderUploadResult(panel, plan, result);
   await Promise.all([loadFolders(), loadDocuments()]);
   renderAll();
-  window.yuvomi?.showToast(t('documents.folderUpload.uploadedToast', { count: result.uploaded.length }), 'success');
+  const outcome = folderUploadOutcome(result);
+  const toast = outcome.toast === 'cancelled'
+    ? t('documents.folderUpload.cancelled')
+    : outcome.toast === 'completedWithErrors'
+      ? t('documents.folderUpload.completedWithErrors')
+      : t('documents.folderUpload.uploadedToast', { count: result.uploaded.length });
+  window.yuvomi?.showToast(toast, outcome.tone);
   return result;
 }
 async function saveDocument(event, doc, panel) {

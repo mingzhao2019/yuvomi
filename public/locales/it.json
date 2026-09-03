@@ -3074,6 +3074,7 @@
             "progress": "{{current}} di {{total}} · {{name}}",
             "completedWithErrors": "Caricamento completato con errori",
             "completed": "Cartella caricata",
+            "cancelled": "Caricamento annullato",
             "resultCounts": "{{uploaded}} caricati · {{skipped}} saltati · {{rejected}} rifiutati · {{failed}} non riusciti",
             "failedTitle": "Elementi non riusciti",
             "noUploadableFiles": "Questa cartella non contiene file caricabili.",

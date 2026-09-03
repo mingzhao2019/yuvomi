@@ -3074,6 +3074,7 @@
             "progress": "{{current}} من {{total}} · {{name}}",
             "completedWithErrors": "اكتمل الرفع مع وجود أخطاء",
             "completed": "تم رفع المجلد",
+            "cancelled": "تم إلغاء التحميل",
             "resultCounts": "تم رفع {{uploaded}} · تخطي {{skipped}} · رفض {{rejected}} · فشل {{failed}}",
             "failedTitle": "العناصر التي فشلت",
             "noUploadableFiles": "لا يحتوي هذا المجلد على ملفات قابلة للرفع.",
