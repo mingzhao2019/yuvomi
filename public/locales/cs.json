@@ -3303,7 +3303,12 @@
             "reasonNameTooLong": "Název souboru nebo složky je příliš dlouhý.",
             "reasonTooDeep": "Cesta překračuje limit pěti úrovní složek.",
             "reasonParentFailed": "Nadřazenou složku se nepodařilo vytvořit."
-        }
+        },
+        "shareAction": "Sdílet",
+        "sharePreparing": "Připravuje se …",
+        "shareUnsupportedType": "Tento typ souboru nelze sdílet přes nabídku sdílení zařízení. Místo toho soubor stáhněte.",
+        "shareUnavailable": "Nabídka sdílení zařízení není v tomto prohlížeči k dispozici nebo vyžaduje zabezpečené připojení (HTTPS). Místo toho soubor stáhněte.",
+        "shareFailed": "Sdílení se nezdařilo. Místo toho soubor stáhněte."
     },
     "reminders": {
         "sectionTitle": "Připomínka",

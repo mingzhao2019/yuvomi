@@ -3168,7 +3168,12 @@
             "reasonNameTooLong": "Egy fájl- vagy mappanév túl hosszú.",
             "reasonTooDeep": "Az elérési út meghaladja az öt mappaszint korlátját.",
             "reasonParentFailed": "A szülőmappát nem sikerült létrehozni."
-        }
+        },
+        "shareAction": "Megosztás",
+        "sharePreparing": "Előkészítés …",
+        "shareUnsupportedType": "Ez a fájltípus nem osztható meg az eszköz megosztási menüjén keresztül. Töltse le helyette a fájlt.",
+        "shareUnavailable": "Az eszköz megosztási menüje ebben a böngészőben nem érhető el, vagy biztonságos kapcsolatot (HTTPS) igényel. Töltse le helyette a fájlt.",
+        "shareFailed": "A megosztás nem sikerült. Töltse le helyette a fájlt."
     },
     "housekeeping": {
         "title": "Háztartás",

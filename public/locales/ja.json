@@ -3111,7 +3111,12 @@
             "reasonNameTooLong": "ファイル名またはフォルダー名が長すぎます。",
             "reasonTooDeep": "パスがフォルダー5階層の上限を超えています。",
             "reasonParentFailed": "親フォルダーを作成できませんでした。"
-        }
+        },
+        "shareAction": "共有",
+        "sharePreparing": "準備中 …",
+        "shareUnsupportedType": "このファイル形式はデバイスの共有メニューから共有できません。代わりにファイルをダウンロードしてください。",
+        "shareUnavailable": "デバイスの共有メニューはこのブラウザでは利用できないか、安全な接続（HTTPS）が必要です。代わりにファイルをダウンロードしてください。",
+        "shareFailed": "共有できませんでした。代わりにファイルをダウンロードしてください。"
     },
     "shortcuts": {
         "goKitchen": "キッチン",

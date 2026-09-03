@@ -3168,7 +3168,12 @@
             "reasonNameTooLong": "Tên tệp hoặc thư mục quá dài.",
             "reasonTooDeep": "Đường dẫn vượt quá giới hạn năm cấp thư mục.",
             "reasonParentFailed": "Không thể tạo thư mục cha."
-        }
+        },
+        "shareAction": "Chia sẻ",
+        "sharePreparing": "Đang chuẩn bị …",
+        "shareUnsupportedType": "Không thể chia sẻ loại tệp này qua menu chia sẻ của thiết bị. Hãy tải tệp xuống thay thế.",
+        "shareUnavailable": "Menu chia sẻ của thiết bị không khả dụng trong trình duyệt này hoặc cần kết nối an toàn (HTTPS). Hãy tải tệp xuống thay thế.",
+        "shareFailed": "Chia sẻ không thành công. Hãy tải tệp xuống thay thế."
     },
     "housekeeping": {
         "title": "Dọn dẹp",

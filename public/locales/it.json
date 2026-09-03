@@ -3111,7 +3111,12 @@
             "reasonNameTooLong": "Il nome di un file o di una cartella è troppo lungo.",
             "reasonTooDeep": "Il percorso supera il limite di cinque livelli di cartelle.",
             "reasonParentFailed": "Non è stato possibile creare la cartella superiore."
-        }
+        },
+        "shareAction": "Condividi",
+        "sharePreparing": "Preparazione …",
+        "shareUnsupportedType": "Questo tipo di file non può essere condiviso tramite il menu di condivisione del dispositivo. Scarica invece il file.",
+        "shareUnavailable": "Il menu di condivisione del dispositivo non è disponibile in questo browser oppure richiede una connessione sicura (HTTPS). Scarica invece il file.",
+        "shareFailed": "La condivisione non è riuscita. Scarica invece il file."
     },
     "shortcuts": {
         "goKitchen": "Cucina",

@@ -135,6 +135,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page that caps something at a measure has to show that measure in its head; the page had to stop
   being a reading page first.
 
+- **Documents can be shared from the viewer through the device's native share sheet** (#1014).
+  The action is offered only when the browser can share the file type in a secure context; the
+  viewer prepares the file in the background so the click can open the share sheet immediately.
+  Unsupported types and browsers get a clear explanation, while Download remains available.
+
 ### Fixed
 
 - **The cycle-length trend chart's bars sat flush against the plot edges, with no date under most of

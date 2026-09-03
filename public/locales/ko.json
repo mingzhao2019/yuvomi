@@ -3168,7 +3168,12 @@
             "reasonNameTooLong": "파일 또는 폴더 이름이 너무 깁니다.",
             "reasonTooDeep": "경로가 폴더 5단계 제한을 초과합니다.",
             "reasonParentFailed": "상위 폴더를 만들 수 없습니다."
-        }
+        },
+        "shareAction": "공유",
+        "sharePreparing": "준비 중 …",
+        "shareUnsupportedType": "이 파일 형식은 기기의 공유 메뉴를 통해 공유할 수 없습니다. 대신 파일을 다운로드하세요.",
+        "shareUnavailable": "기기의 공유 메뉴를 이 브라우저에서 사용할 수 없거나 보안 연결(HTTPS)이 필요합니다. 대신 파일을 다운로드하세요.",
+        "shareFailed": "공유하지 못했습니다. 대신 파일을 다운로드하세요."
     },
     "userMultiSelect": {
         "nobody": "- 없음 -",

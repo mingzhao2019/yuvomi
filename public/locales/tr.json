@@ -3111,7 +3111,12 @@
             "reasonNameTooLong": "Bir dosya veya klasör adı çok uzun.",
             "reasonTooDeep": "Yol beş klasör düzeyi sınırını aşıyor.",
             "reasonParentFailed": "Üst klasör oluşturulamadı."
-        }
+        },
+        "shareAction": "Paylaş",
+        "sharePreparing": "Hazırlanıyor …",
+        "shareUnsupportedType": "Bu dosya türü cihazın paylaşım menüsü üzerinden paylaşılamaz. Bunun yerine dosyayı indirin.",
+        "shareUnavailable": "Cihazın paylaşım menüsü bu tarayıcıda kullanılamıyor veya güvenli bir bağlantı (HTTPS) gerektiriyor. Bunun yerine dosyayı indirin.",
+        "shareFailed": "Paylaşım gerçekleşmedi. Bunun yerine dosyayı indirin."
     },
     "shortcuts": {
         "goKitchen": "Mutfak",

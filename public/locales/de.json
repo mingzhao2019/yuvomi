@@ -3168,7 +3168,12 @@
             "reasonNameTooLong": "Ein Datei- oder Ordnername ist zu lang.",
             "reasonTooDeep": "Der Pfad überschreitet das Limit von fünf Ordnerebenen.",
             "reasonParentFailed": "Der übergeordnete Ordner konnte nicht erstellt werden."
-        }
+        },
+        "shareAction": "Teilen",
+        "sharePreparing": "Wird vorbereitet …",
+        "shareUnsupportedType": "Dieser Dateityp lässt sich nicht über das Teilen-Menü des Geräts weitergeben. Lade die Datei stattdessen herunter.",
+        "shareUnavailable": "Das Teilen-Menü des Geräts steht in diesem Browser nicht zur Verfügung oder braucht eine sichere Verbindung (HTTPS). Lade die Datei stattdessen herunter.",
+        "shareFailed": "Teilen hat nicht geklappt. Lade die Datei stattdessen herunter."
     },
     "userMultiSelect": {
         "nobody": "- Niemand -",

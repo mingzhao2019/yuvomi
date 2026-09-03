@@ -3168,7 +3168,12 @@
             "reasonNameTooLong": "Nazwa pliku lub folderu jest za długa.",
             "reasonTooDeep": "Ścieżka przekracza limit pięciu poziomów folderów.",
             "reasonParentFailed": "Nie udało się utworzyć folderu nadrzędnego."
-        }
+        },
+        "shareAction": "Udostępnij",
+        "sharePreparing": "Przygotowywanie …",
+        "shareUnsupportedType": "Tego typu pliku nie można udostępnić przez menu udostępniania urządzenia. Zamiast tego pobierz plik.",
+        "shareUnavailable": "Menu udostępniania urządzenia nie jest dostępne w tej przeglądarce lub wymaga bezpiecznego połączenia (HTTPS). Zamiast tego pobierz plik.",
+        "shareFailed": "Udostępnianie się nie powiodło. Zamiast tego pobierz plik."
     },
     "userMultiSelect": {
         "nobody": "– Nikt –",

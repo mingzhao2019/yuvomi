@@ -3168,7 +3168,12 @@
             "reasonNameTooLong": "Masyadong mahaba ang pangalan ng file o folder.",
             "reasonTooDeep": "Lampas ang path sa limang antas ng folder.",
             "reasonParentFailed": "Hindi magawa ang parent folder."
-        }
+        },
+        "shareAction": "Ibahagi",
+        "sharePreparing": "Inihahanda …",
+        "shareUnsupportedType": "Hindi maibabahagi ang uri ng file na ito sa pamamagitan ng share sheet ng device. I-download na lang ang file.",
+        "shareUnavailable": "Hindi available ang share sheet ng device sa browser na ito, o kailangan nito ng secure na koneksyon (HTTPS). I-download na lang ang file.",
+        "shareFailed": "Hindi gumana ang pagbabahagi. I-download na lang ang file."
     },
     "userMultiSelect": {
         "nobody": "- Wala -",

@@ -3111,7 +3111,12 @@
             "reasonNameTooLong": "El nombre de un archivo o carpeta es demasiado largo.",
             "reasonTooDeep": "La ruta supera el límite de cinco niveles de carpetas.",
             "reasonParentFailed": "No se pudo crear la carpeta superior."
-        }
+        },
+        "shareAction": "Compartir",
+        "sharePreparing": "Preparando …",
+        "shareUnsupportedType": "Este tipo de archivo no se puede compartir a través del menú de compartir del dispositivo. Descarga el archivo en su lugar.",
+        "shareUnavailable": "El menú de compartir del dispositivo no está disponible en este navegador o necesita una conexión segura (HTTPS). Descarga el archivo en su lugar.",
+        "shareFailed": "No se pudo compartir. Descarga el archivo en su lugar."
     },
     "shortcuts": {
         "goKitchen": "Cocina",
