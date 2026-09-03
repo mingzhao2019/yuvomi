@@ -5284,6 +5284,18 @@ function syncViewChrome(container) {
     b.setAttribute('aria-pressed', String(on));
   });
 
+  // EIN KOPF, EINE BREITE (#1012, nach der Kalender-Entscheidung vom
+  // 2026-08-27): der Kopf steht ueber drei Koerpern und haelt die Kante des
+  // breitesten, des Kanban-Boards. Bis dahin toggelte der Kopf seinen
+  // Lesemass-Modifier mit der Ansicht (Critique 2026-08-13) und sprang beim
+  // Wechsel - genau das, was @Kyrodan gemeldet hat. Das Lesemass haengt jetzt
+  // wie im Kalender an der SEITE: die Wurzel ist `app-page--full` (kein Mass),
+  // Liste und Verlauf holen sich die Lesebahn per `is-reading-measure` zurueck,
+  // ihre Zeilen und die Filterzeile kappen sich selbst daran (layout.css,
+  // `.app-page :is(.tasks-filters-row, ...)`), das Board bleibt ungekappt.
+  // Die Gegenrichtung - Seite auf Lesemass, Kopf freigeben - gibt es nicht:
+  // PAGE-016 verlangt, dass ein Mass, das etwas kappt, im Kopf sichtbar ist.
+  container.querySelector('.tasks-page')?.classList.toggle('is-reading-measure', !isKanbanMode());
   // Suche, Filterleiste, Gruppierung und Sammelauswahl fragen alle nach
   // AUFGABEN. Der Verlauf zeigt Vorgaenge - ein Statusfilter darueber waere
   // eine Auswahl, die nichts veraendern kann. Auf dem Desktop bleibt ihr Slot
@@ -5329,6 +5341,11 @@ function syncViewChrome(container) {
   // „Als erledigt markieren / Ablegen / Loeschen" ueber dem Verlauf stehen -
   // mit leerer Auswahl, also Knoepfe ohne Gegenstand.
   updateBulkActionsBar(container);
+}
+
+/** Nimmt die Ansicht die volle Content-Spalte ein? */
+function isKanbanMode() {
+  return state.viewMode === 'kanban';
 }
 
 function wireViewToggle(container) {
@@ -5700,7 +5717,7 @@ export async function render(container, { user }) {
   // Initiales Skeleton (all values are from i18n keys or hardcoded constants, no user data)
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
-    <div class="tasks-page page-measure--narrow">
+    <div class="tasks-page app-page app-page--full" data-composition="full">
       <div class="page-toolbar page-toolbar--wrap tasks-toolbar">
         <h1 class="page-toolbar__title">${t('tasks.title')}</h1>
         <button type="button" class="btn btn--ghost btn--icon tasks-toolbar__search-trigger"

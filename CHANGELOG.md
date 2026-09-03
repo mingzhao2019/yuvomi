@@ -123,6 +123,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them. Linked from the README, the scope page and the
   contributing guide.
 
+- **The Tasks header holds one width across List, Board and History** (#1012). It used to jump on
+  every view switch: List and History narrowed the head to the 720px reading measure, the Board let it
+  run the full content column, and the actions on the right moved 354px back and forth (measured at
+  1358px). That was the coupling the calendar dropped on 27 August, and Tasks had not followed. Now
+  the page is built the calendar's way - the root carries no measure, List and History take the
+  reading lane back for their rows and filter row, the Board stays uncapped - and the head keeps the
+  edge of its widest body in all three views. The bodies are unchanged: the task rows still end at
+  720px, exactly as the reporter asked. The one-line version of this fix does not exist, because a
+  page that caps something at a measure has to show that measure in its head; the page had to stop
+  being a reading page first.
+
 ### Fixed
 
 - **The cycle-length trend chart's bars sat flush against the plot edges, with no date under most of
