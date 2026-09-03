@@ -4176,7 +4176,7 @@
                 "ovulationConfirmed": "Eisprung bestätigt",
                 "avgCycle": "Ø Zykluslänge",
                 "avgPeriod": "Ø Periodenlänge",
-                "regularity": "Regelmäßigkeit",
+                "cycleVariation": "Zyklusschwankung",
                 "regular": "Regelmäßig",
                 "irregular": "Unregelmäßig",
                 "notEnoughData": "Zu wenig Daten",
@@ -4239,6 +4239,9 @@
                 "cyclePattern": "Zyklustag-Muster",
                 "cyclePatternSentence": "Du hast {{symptom}} in {{occurred}} von {{total}} letzten Zyklen während {{phase}} eingetragen.",
                 "cyclePatternNone": "{{symptom}} kam in deinen letzten {{total}} Zyklen nicht wieder vor.",
+                "typical": "Typisch",
+                "atypical": "Untypisch",
+                "typicalRangeLabel": "Allgemein üblicher Bereich: {{min}}–{{max}} Tage",
                 "phaseOther": "Sonstige"
             },
             "flow": {
