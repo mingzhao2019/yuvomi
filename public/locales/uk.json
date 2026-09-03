@@ -4156,6 +4156,7 @@
             "ring": {
                 "label": "Кільце циклу",
                 "cycleDay": "День циклу {{day}}",
+                "dayBadge": "День {{day}}",
                 "of": "з {{total}}"
             },
             "phase": {
@@ -4233,6 +4234,8 @@
                 "date": "Date",
                 "cycleLength": "Cycle length",
                 "symptomFrequency": "Symptom frequency",
+                "severity": "Severity",
+                "severityTrend": "Severity trend",
                 "phaseOther": "Other"
             },
             "flow": {

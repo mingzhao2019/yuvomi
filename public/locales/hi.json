@@ -4156,6 +4156,7 @@
             "ring": {
                 "label": "चक्र वलय",
                 "cycleDay": "चक्र दिन {{day}}",
+                "dayBadge": "दिन {{day}}",
                 "of": "{{total}} में से"
             },
             "phase": {
@@ -4233,6 +4234,8 @@
                 "date": "Date",
                 "cycleLength": "Cycle length",
                 "symptomFrequency": "Symptom frequency",
+                "severity": "Severity",
+                "severityTrend": "Severity trend",
                 "phaseOther": "Other"
             },
             "flow": {

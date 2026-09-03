@@ -4156,6 +4156,7 @@
             "ring": {
                 "label": "حلقة الدورة",
                 "cycleDay": "يوم الدورة {{day}}",
+                "dayBadge": "يوم {{day}}",
                 "of": "من {{total}}"
             },
             "phase": {
@@ -4233,6 +4234,8 @@
                 "date": "Date",
                 "cycleLength": "Cycle length",
                 "symptomFrequency": "Symptom frequency",
+                "severity": "Severity",
+                "severityTrend": "Severity trend",
                 "phaseOther": "Other"
             },
             "flow": {

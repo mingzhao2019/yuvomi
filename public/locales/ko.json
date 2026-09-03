@@ -4156,6 +4156,7 @@
             "ring": {
                 "label": "주기 링",
                 "cycleDay": "주기 {{day}}일차",
+                "dayBadge": "{{day}}일차",
                 "of": "{{total}} 중"
             },
             "phase": {
@@ -4233,6 +4234,8 @@
                 "date": "Date",
                 "cycleLength": "Cycle length",
                 "symptomFrequency": "Symptom frequency",
+                "severity": "Severity",
+                "severityTrend": "Severity trend",
                 "phaseOther": "Other"
             },
             "flow": {

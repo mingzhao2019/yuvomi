@@ -4156,6 +4156,7 @@
             "ring": {
                 "label": "Cycle ring",
                 "cycleDay": "Cycle day {{day}}",
+                "dayBadge": "Day {{day}}",
                 "of": "of {{total}}"
             },
             "phase": {
@@ -4233,6 +4234,8 @@
                 "date": "Date",
                 "cycleLength": "Cycle length",
                 "symptomFrequency": "Symptom frequency",
+                "severity": "Severity",
+                "severityTrend": "Severity trend",
                 "phaseOther": "Other"
             },
             "flow": {
