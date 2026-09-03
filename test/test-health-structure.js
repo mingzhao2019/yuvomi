@@ -33,6 +33,7 @@ import labsRouter from '../server/routes/health/labs.js';
 import activitiesRouter from '../server/routes/health/activities.js';
 import exportRouter from '../server/routes/health/export.js';
 import cycleRouter from '../server/routes/health/cycle.js';
+import cycleFeedRouter from '../server/routes/health/cycle-feed.js';
 import caregiversRouter from '../server/routes/health/caregivers.js';
 
 /** Sammelt rekursiv alle {METHOD path}-Paare eines Express-Routers (inkl. gemounteter Sub-Router). */
@@ -109,6 +110,10 @@ const EXPECTED = [
   'PUT /cycle/settings',
   'PATCH /cycle/visibility',
   'GET /export/cycle',
+  // Zyklus-ICS-Feed-Token (Migration 178)
+  'GET /cycle/feed',
+  'POST /cycle/feed/regenerate',
+  'DELETE /cycle/feed',
   // Betreuung (#584): wer darf fuer wen eintragen
   'GET /caregivers/me',
   'GET /caregivers',
@@ -124,7 +129,7 @@ test('Orchestrator ergibt exakt die erwartete Routentabelle (47 Routen)', () => 
 test('die Cluster-Router zusammen ergeben genau die Orchestrator-Routen (keine verlorene/doppelte Route)', () => {
   const perModule = [
     vitalsRouter, medicationsRouter, labsRouter, activitiesRouter, exportRouter, cycleRouter,
-    caregiversRouter,
+    cycleFeedRouter, caregiversRouter,
   ].flatMap(collectRoutes);
   // keine Route kommt in mehr als einem Cluster-Router vor
   const seen = new Set();
