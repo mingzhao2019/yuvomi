@@ -41,3 +41,28 @@ test('falls back to the app version and forbids caching the rendered response', 
     cloudflareCdnCacheControl: 'no-store',
   });
 });
+
+test('rejects unsafe APP_BUILD_REVISION values with the variable name and allowed format', () => {
+  for (const value of [
+    "a'; fetch('//evil')//",
+    'a\\',
+    'a\nb',
+    '</script>',
+    'a'.repeat(81),
+    '',
+  ]) {
+    assert.throws(
+      () => serviceWorkerModule.renderServiceWorkerSource('revision: __YUVOMI_BUILD_REVISION__', value),
+      /\[SW\] APP_BUILD_REVISION must match \/\^\[A-Za-z0-9\._-\]\{1,80\}\$\//,
+    );
+  }
+});
+
+test('falls back to the app version when APP_BUILD_REVISION is blank after trimming', () => {
+  const response = serviceWorkerModule.buildServiceWorkerResponse(
+    "globalThis.cacheRevision = '__YUVOMI_BUILD_REVISION__';",
+    { appVersion: '2.59.0', buildRevision: '   ' },
+  );
+
+  assert.equal(response.body, "globalThis.cacheRevision = '2.59.0';");
+});

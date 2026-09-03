@@ -1,5 +1,5 @@
 /**
- * Service-Worker-Antwort erzeugen.
+ * Modul: Service-Worker-Antwort erzeugen
  * Zweck: Eine deployment-spezifische, scriptsichere Cache-Revision in sw.js einsetzen.
  */
 

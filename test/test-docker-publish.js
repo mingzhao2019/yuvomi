@@ -10,6 +10,7 @@ const featureWorkflow = readFileSync(
   new URL('../.github/workflows/docker-publish-feature-work.yml', import.meta.url),
   'utf8'
 );
+const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
 
 test('Docker publish treats the remote build cache as an optional optimization', () => {
   assert.match(
@@ -39,5 +40,14 @@ test('custom image publish is isolated to custom', () => {
     featureWorkflow,
     /repository_owner\s*\/\s*oikos/,
     'The custom workflow must not publish the upstream legacy image'
+  );
+});
+
+test('Docker publishing injects the immutable Git revision into the image', () => {
+  assert.match(dockerfile, /^ARG APP_BUILD_REVISION$/m);
+  assert.match(dockerfile, /^ENV APP_BUILD_REVISION=\$\{APP_BUILD_REVISION\}$/m);
+  assert.match(
+    workflow,
+    /build-args:\s*\|\s*APP_BUILD_REVISION=\$\{\{ github\.sha \}\}/,
   );
 });
