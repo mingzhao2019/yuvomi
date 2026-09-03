@@ -124,6 +124,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them. Linked from the README, the scope page and the
   contributing guide.
 
+- **An older Yuvomi on a newer database now says so, and a backup from a newer version is
+  refused.** Migrations only run forward, but nothing checked the other direction: after an image
+  rollback on Umbrel or Unraid the older version started silently on a database carrying
+  migrations it did not know, and a restore accepted any file that had a `schema_migrations`
+  table. Now an older version refuses to start on such a database and says which migration numbers
+  it does not know, which version it knows, and the way out; `DB_ALLOW_NEWER_SCHEMA=1` starts it
+  anyway for the emergency case, with a warning on every start, because what an older version
+  writes in the meantime can be lost on the next update. A restore of a newer backup is refused
+  before anything is copied, with the message to update first. The three sentences operators asked for stand in the installation guide under Updates:
+  migrations are one-way, any older backup restores into any newer version, and the way back is
+  the backup from before the update, not an older image.
+
+- **Tasks can be filtered by category, on the Board as well as in the List** (D#1017, asked by
+  @radicchiodev). The filter panel offered status, priority, person and tags, and the List could
+  group by category, but nothing filtered by it - and the Board cannot group at all, because its
+  columns are already the status. The server had accepted `?category=` since #825; the panel simply
+  never got the group. It has it now, in both views, with the same label the task form uses, and a
+  chosen category shows in the chip row and in the remembered filter sets like every other axis.
+
+### Changed
+
+- **Two promises that existed only in threads are written where people look.** The contributing
+  guide says what happens if the maintainer stops: nobody inherits repository rights, MIT allows
+  any fork at any time, and after a year without a release, a commit or a reply the fork may carry
+  the name. MODULES.md says how long `/api/v1` holds: an operation is named as deprecated in the
+  CHANGELOG and keeps working for at least 90 days after that release, and a `/api/v2` would keep
+  `/api/v1` served for twelve months.
+
+### Fixed
+
+- **Inventory and Schedule speak all 24 languages, and a guard now notices when a module does
+  not.** Inventory shipped on 15 August and Schedule on 27 August with their texts copied from
+  English into the other 22 locales - navigation labels, forms, presets, the deadline feed settings,
+  everything - and the locale test stayed green, because it checks that every key exists, not that
+  any value was ever translated. All 222 of those texts are translated now, with one vocabulary per
+  language for each module: the shift presets say early, late and night shift the way that language
+  says it, and the module has a name of its own in every navigation. To keep it from happening to the
+  next module, a new suite counts, per locale, the texts that are still word-for-word English while
+  German is not, and holds that number against a baseline that may only fall.
+
+- **The add-subtask button stays on the task card after the first subtask** (D#1017). It used to
+  disappear as soon as a task had one, and the only other entry sat at the bottom of the subtask
+  list, which is collapsed until the progress bar is clicked - so the module read as "one subtask
+  per task" to someone who had just added one. There was never a limit; the way in was hidden. The
+  button on the card now stays, and the one at the end of the open list remains as well.
+
 - **The Tasks header holds one width across List, Board and History** (#1012). It used to jump on
   every view switch: List and History narrowed the head to the 720px reading measure, the Board let it
   run the full content column, and the actions on the right moved 354px back and forth (measured at

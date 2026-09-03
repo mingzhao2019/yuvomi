@@ -671,7 +671,10 @@ function renderTaskCard(task, opts = {}) {
 
         ${renderAvatarStack(task.assigned_users ?? [], { size: 28 })}
 
-        ${canEdit && !(task.subtask_total > 0) && !archived && !task.parent_task_id ? `
+        ${/* Bleibt auch mit vorhandenen Unteraufgaben: bis D#1017 verschwand der
+              Einstieg nach der ersten, und der zweite Einstieg lag am Ende der
+              eingeklappten Liste - gelesen als "nur eine Unteraufgabe je Aufgabe". */ ''}
+        ${canEdit && !archived && !task.parent_task_id ? `
         <button class="btn btn--ghost btn--icon btn--icon-sm task-card__inline-action" data-action="add-subtask" data-parent="${task.id}"
                 aria-label="${t('tasks.subtaskAdd')}" title="${t('tasks.subtaskAdd')}">
           <i data-lucide="list-plus" class="icon-md" aria-hidden="true"></i>
@@ -1291,7 +1294,7 @@ let state = {
   // wie jeder andere Filter in dieser Leiste auch (#586).
   // Status, Priorität und Person halten mehrere Werte (#671); innerhalb einer
   // Achse wirken sie ODER, zwischen den Achsen UND. Tags bleiben UND-verknüpft.
-  filters:         { status: ['open'], priority: [], assigned_to: [], tags: [] },
+  filters:         { status: ['open'], priority: [], assigned_to: [], category: [], tags: [] },
   groupMode:       'category',   // 'category' | 'due'
   activeTaskListId: 'all',       // 'all' | 'source:<provider>' | 'local' | concrete Task List id
   viewMode:        'list',       // 'list' | 'kanban' | 'history' (resolved at render time)
@@ -1385,6 +1388,9 @@ function taskQuery() {
   else params.set('archived', '1');
   state.filters.priority.forEach((v) => params.append('priority', v));
   state.filters.assigned_to.forEach((v) => params.append('assigned_to', v));
+  // Der Server kannte die Achse schon (normalizeCategoryFilter, mehrere Werte
+  // ODER-verknuepft); nur das Panel hatte sie nie angeboten (D#1017).
+  state.filters.category.forEach((v) => params.append('category', v));
   state.filters.tags.forEach((tag) => params.append('tag', tag));
   if (state.showFuture)          params.set('include_future', '1');
   return params.toString() ? `?${params}` : '';
@@ -3716,6 +3722,7 @@ function renderFilters(container) {
   const activeCount    = (state.viewMode === 'kanban' ? 0 : state.filters.status.length)
     + state.filters.priority.length
     + state.filters.assigned_to.length
+    + state.filters.category.length
     + state.filters.tags.length
     + (state.showFuture ? 1 : 0);
 
@@ -3755,6 +3762,12 @@ function renderFilters(container) {
   });
   // Ein Chip je gewähltem Tag. Jeder trägt seinen eigenen Wert, damit das
   // Entfernen genau diesen einen löst und nicht die ganze Auswahl.
+  state.filters.category.forEach((value) => {
+    const chip = makeChip({ label: catLabel(value), active: true, withRemove: true });
+    chip.dataset.filter = 'category';
+    chip.dataset.value = value;
+    bar.appendChild(chip);
+  });
   state.filters.tags.forEach((tag) => {
     const chip = makeChip({ label: tag, active: true, withRemove: true });
     chip.dataset.filter = 'tag';
@@ -3823,6 +3836,7 @@ function renderFilters(container) {
       const u = state.users.find((user) => user.id === Number(v));
       if (u) parts.push(u.display_name);
     });
+    f.category.forEach((v) => parts.push(catLabel(v)));
     // Die Tags gehören in die Beschriftung, weil der Chip sie beim Klick
     // mitsetzt: ohne sie hieße ein Chip „Offen" und schaltete zusätzlich
     // Tag-Filter, die niemand am Chip ablesen kann (#586).
@@ -3865,6 +3879,16 @@ function renderFilters(container) {
         key: 'assigned_to',
         label: t('tasks.filterGroupPerson'),
         items: state.users.map((u) => ({ value: String(u.id), label: u.display_name })),
+      });
+    }
+    // Kategorie in beiden Ansichten: die Liste kann danach gruppieren, das
+    // Board nicht, weil seine Spalten schon der Status sind (D#1017). Die
+    // Beschriftung ist dieselbe wie im Formular, nicht ein fuenfter Wortlaut.
+    if (state.categories.length) {
+      groups.push({
+        key: 'category',
+        label: t('tasks.categoryLabel'),
+        items: state.categories.map((c) => ({ value: c.key, label: catLabel(c.key) })),
       });
     }
     // Tags nur anbieten, wenn welche vergeben sind — ohne CalDAV-Spiegel und ohne
@@ -5096,6 +5120,7 @@ function normalizeFilterSet(f = {}) {
     status:      asList(f.status),
     priority:    asList(f.priority),
     assigned_to: asList(f.assigned_to),
+    category:    asList(f.category),
     tags:        asList(Array.isArray(f.tags) ? f.tags : (f.tag ? [f.tag] : [])),
   };
 }
@@ -5129,12 +5154,12 @@ function getRecentFilters() {
 function saveRecentFilter(filters) {
   const set = normalizeFilterSet(filters);
   if (!set.status.length && !set.priority.length && !set.assigned_to.length
-      && !set.tags.length) return;
+      && !set.category.length && !set.tags.length) return;
   // Jede Achse gehört mit allen ihren Werten in den Schlüssel: sonst verdrängte
   // „Offen + Garten" den Eintrag „Offen + Haus", weil beide auf dieselbe Kennung
   // fielen - seit #671 gilt dasselbe für zwei Prioritäten statt einer.
   const axis = (values) => [...values].map((v) => String(v).toLowerCase()).sort().join(',');
-  const keyOf = (f) => [f.status, f.priority, f.assigned_to, f.tags].map(axis).join('|');
+  const keyOf = (f) => [f.status, f.priority, f.assigned_to, f.category, f.tags].map(axis).join('|');
   const key = keyOf(set);
   const recent = getRecentFilters().filter((f) => keyOf(f) !== key);
   recent.unshift(set);
@@ -5216,9 +5241,17 @@ function wireFilterChips(container) {
 
   // Alle Filter zurücksetzen
   container.querySelector('#filter-clear-all')?.addEventListener('click', async () => {
-    state.filters = { status: [], priority: [], assigned_to: [], tags: [] };
+    state.filters = { status: [], priority: [], assigned_to: [], category: [], tags: [] };
     state.showFuture = false;
     try { localStorage.setItem(SHOW_FUTURE_KEY, '0'); } catch {}
+    renderFilters(container);
+    await loadTasks(container);
+  });
+
+  // "Geplante anzeigen" Toggle
+  container.querySelector('#filter-show-future')?.addEventListener('click', async () => {
+    state.showFuture = !state.showFuture;
+    try { localStorage.setItem(SHOW_FUTURE_KEY, state.showFuture ? '1' : '0'); } catch {}
     renderFilters(container);
     await loadTasks(container);
   });
@@ -5984,6 +6017,9 @@ export const __test = {
   groupBy,
   groupKey,
   formatDueDate,
+  normalizeFilterSet,
+  taskQuery,
+  state,
   taskListAlphabeticalKey,
   taskListNameComparator,
   taskListSidebarWidthFromDrag,
