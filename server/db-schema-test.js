@@ -1144,6 +1144,28 @@ const MIGRATIONS_SQL = {
     CREATE INDEX IF NOT EXISTS idx_birthdays_name_day_calendar_ref
       ON birthdays(name_day_calendar_event_id);
   `,
+  // SQL-String für Migration v180 (gespiegelt aus db.js MIGRATIONS):
+  // Die upstream v174 ist im custom Schema bereits für To Do belegt; die
+  // Capability-Rebuild-Operation wird deshalb append-only als v180 ausgeführt.
+  180: `
+    CREATE TABLE access_permissions_capability_new (
+      subject_type  TEXT NOT NULL CHECK(subject_type IN ('role', 'user')),
+      subject_id    TEXT NOT NULL,
+      resource_type TEXT NOT NULL CHECK(resource_type IN ('module', 'widget', 'capability')),
+      resource_key  TEXT NOT NULL,
+      access        TEXT NOT NULL CHECK(access IN ('none', 'read', 'write', 'allow')),
+      updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+      PRIMARY KEY (subject_type, subject_id, resource_type, resource_key)
+    );
+    INSERT INTO access_permissions_capability_new
+      (subject_type, subject_id, resource_type, resource_key, access, updated_at)
+    SELECT subject_type, subject_id, resource_type, resource_key, access, updated_at
+    FROM access_permissions;
+    DROP TABLE access_permissions;
+    ALTER TABLE access_permissions_capability_new RENAME TO access_permissions;
+    CREATE INDEX IF NOT EXISTS idx_access_permissions_subject
+      ON access_permissions(subject_type, subject_id);
+  `,
 };
 
 export { MIGRATIONS_SQL };

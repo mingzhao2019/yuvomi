@@ -7207,7 +7207,7 @@ const MIGRATIONS = [
          AND datetime(remind_at) <= datetime(created_at);
     `,
   },
-
+  {
     version: 179,
     description: 'Birthdays: optional name day with its own generated calendar event',
     // A name day is an anniversary, not a birth date. Inventing a year would
@@ -7220,6 +7220,32 @@ const MIGRATIONS = [
         REFERENCES calendar_events(id) ON DELETE SET NULL;
       CREATE INDEX IF NOT EXISTS idx_birthdays_name_day_calendar_ref
         ON birthdays(name_day_calendar_event_id);
+    `,
+  },
+  {
+    version: 180,
+    description: 'Permissions: allow fine-grained capability resources',
+    // The upstream v174 slot is occupied by the custom Microsoft To Do
+    // completion-intent migration. Append this schema change rather than
+    // rewriting either historical migration.
+    up: `
+      CREATE TABLE access_permissions_capability_new (
+        subject_type  TEXT NOT NULL CHECK(subject_type IN ('role', 'user')),
+        subject_id    TEXT NOT NULL,
+        resource_type TEXT NOT NULL CHECK(resource_type IN ('module', 'widget', 'capability')),
+        resource_key  TEXT NOT NULL,
+        access        TEXT NOT NULL CHECK(access IN ('none', 'read', 'write', 'allow')),
+        updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        PRIMARY KEY (subject_type, subject_id, resource_type, resource_key)
+      );
+      INSERT INTO access_permissions_capability_new
+        (subject_type, subject_id, resource_type, resource_key, access, updated_at)
+      SELECT subject_type, subject_id, resource_type, resource_key, access, updated_at
+      FROM access_permissions;
+      DROP TABLE access_permissions;
+      ALTER TABLE access_permissions_capability_new RENAME TO access_permissions;
+      CREATE INDEX IF NOT EXISTS idx_access_permissions_subject
+        ON access_permissions(subject_type, subject_id);
     `,
   },
 ];
