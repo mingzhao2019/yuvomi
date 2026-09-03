@@ -111,6 +111,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tracked), never a household-wide view, keeping cycle data out of the caregiver-sharing system the
   same way the rest of this module already does. Manage it from Settings → Personal → Feeds,
   alongside the other two feeds already there.
+- **Decisions made once now have a page of their own.** [`docs/DECISIONS.md`](docs/DECISIONS.md)
+  is the counterpart to the scope page: not what Yuvomi will not become, but how something it
+  does build was decided, so that the next thread reaching the same point gets the answer instead
+  of the argument. The first entry is the one that was reached three times from three modules -
+  privacy beats admin convenience: a member's private data is never opened by a role or by an
+  update, only per person and on purpose (#584, #869, #989). Each entry names the rule, the
+  reason, the code path that enforces it and what would reopen it, and points to the thread and
+  the release rather than restating them. Linked from the README, the scope page and the
+  contributing guide.
 
 ### Fixed
 
