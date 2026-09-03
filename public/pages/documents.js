@@ -1638,10 +1638,369 @@ function bindDropzone(panel) {
     const transfer = new DataTransfer();
     files.forEach((file) => transfer.items.add(file));
     input.files = transfer.files;
-    syncSelectedFile();
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 }
 
+const FOLDER_UPLOAD_REASON_KEYS = {
+  'missing-relative-path': 'documents.folderUpload.reasonMissingPath',
+  'unsafe-path': 'documents.folderUpload.reasonUnsafePath',
+  'empty-file': 'documents.folderUpload.reasonEmptyFile',
+  'unsupported-type': 'documents.folderUpload.reasonUnsupportedType',
+  'too-large': 'documents.folderUpload.reasonTooLarge',
+  'name-too-long': 'documents.folderUpload.reasonNameTooLong',
+  'too-deep': 'documents.folderUpload.reasonTooDeep',
+  'parent-failed': 'documents.folderUpload.reasonParentFailed',
+};
+
+function folderUploadReason(reason) {
+  const key = FOLDER_UPLOAD_REASON_KEYS[reason];
+  return key ? t(key) : (reason || t('common.unknownError'));
+}
+
+async function loadUploadConflictDocuments() {
+  const counterpartStatus = state.status === 'active' ? 'archived' : 'active';
+  const counterpart = await api.get(`/documents?status=${counterpartStatus}`);
+  const byId = new Map();
+  for (const doc of [...state.allDocuments, ...(counterpart.data || [])]) byId.set(doc.id, doc);
+  return [...byId.values()];
+}
+
+function folderUploadTargetId(form) {
+  const value = Number(form.querySelector('#document-folder')?.value);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function effectiveUploadMb() {
+  return Math.max(1, Math.floor((state.maxFileSize || maxUploadBytes()) / (1024 * 1024)));
+}
+
+function folderUploadChoiceOptions(value, firstValue, firstLabel, secondValue, secondLabel) {
+  return `
+    <option value="${firstValue}" ${value === firstValue ? 'selected' : ''}>${firstLabel}</option>
+    <option value="${secondValue}" ${value === secondValue ? 'selected' : ''}>${secondLabel}</option>`;
+}
+
+function folderUploadTreeHtml(plan) {
+  const rows = [
+    ...plan.folders.map((folder) => ({
+      path: folder.key,
+      depth: folder.key.split('/').length,
+      icon: folder.action === 'reuse' ? 'folder-check' : 'folder-plus',
+      label: folder.name,
+      status: folder.action === 'reuse' ? t('documents.folderUpload.willMerge') : t('documents.folderUpload.willCreate'),
+      kind: 'folder',
+    })),
+    ...plan.files.filter((file) => file.action !== 'reject').map((file) => ({
+      path: file.relativePath,
+      depth: file.relativePath.split('/').length,
+      icon: file.action === 'skip' ? 'file-x' : 'file-up',
+      label: file.uploadOriginalName,
+      status: file.action === 'skip' ? t('documents.folderUpload.willSkip') : t('documents.folderUpload.willUpload'),
+      kind: 'file',
+    })),
+  ].sort((a, b) => a.path.localeCompare(b.path, getLocale()) || (a.kind === 'folder' ? -1 : 1));
+
+  return `<ul class="folder-upload-tree" role="list" aria-label="${esc(t('documents.folderUpload.treeLabel'))}">
+    ${rows.map((row) => `
+      <li class="folder-upload-tree__item folder-upload-tree__item--${row.kind}" role="listitem"
+          style="--folder-upload-depth:${Math.min(row.depth - 1, 4)}"
+          data-upload-path="${esc(row.path)}">
+        <i data-lucide="${row.icon}" aria-hidden="true"></i>
+        <span class="folder-upload-tree__name">${esc(row.label)}</span>
+        <span class="folder-upload-tree__status">${esc(row.status)}</span>
+      </li>`).join('')}
+  </ul>`;
+}
+
+function renderFolderUploadPreview(panel) {
+  const upload = panel._folderUpload;
+  const form = panel.querySelector('#document-form');
+  const host = panel.querySelector('#document-folder-upload-preview');
+  if (!upload?.files?.length || !form || !host) {
+    if (host) host.hidden = true;
+    return null;
+  }
+
+  const plan = buildFolderUploadPlan(upload.files, {
+    folders: state.folders,
+    documents: upload.documents,
+    targetFolderId: folderUploadTargetId(form),
+    maxFileSize: state.maxFileSize || maxUploadBytes(),
+    allowedMimeTypes: state.allowedMimeTypes || [],
+    timestamp: upload.timestamp,
+    folderDefault: upload.folderDefault,
+    fileDefault: upload.fileDefault,
+    folderOverrides: upload.folderOverrides,
+  });
+  upload.plan = plan;
+  host.hidden = false;
+  host.replaceChildren();
+  host.insertAdjacentHTML('beforeend', `
+    <div class="folder-upload-preview__summary">
+      <strong>${esc(t('documents.folderUpload.previewTitle', { name: plan.rootName }))}</strong>
+      <span>${esc(t('documents.folderUpload.previewCounts', {
+        files: plan.counts.upload,
+        folders: plan.counts.createFolders,
+        rejected: plan.counts.rejected,
+      }))}</span>
+    </div>
+    ${folderUploadTreeHtml(plan)}
+    ${plan.folderConflicts.length ? `
+      <details class="folder-upload-preview__section" open>
+        <summary>${t('documents.folderUpload.folderConflictsTitle', { count: plan.folderConflicts.length })}</summary>
+        <label class="folder-upload-conflict__default">
+          <span>${t('documents.folderUpload.defaultResolution')}</span>
+          <select class="input" data-folder-conflict-default>
+            ${folderUploadChoiceOptions(upload.folderDefault, 'merge', t('documents.folderUpload.merge'), 'duplicate', t('documents.folderUpload.duplicate'))}
+          </select>
+        </label>
+        <div class="folder-upload-conflicts">
+          ${plan.folderConflicts.map((folder) => `
+            <label class="folder-upload-conflict">
+              <span>${esc(folder.key)}</span>
+              <select class="input" data-folder-conflict-key="${esc(folder.key)}">
+                ${folderUploadChoiceOptions(folder.resolution, 'merge', t('documents.folderUpload.merge'), 'duplicate', t('documents.folderUpload.duplicate'))}
+              </select>
+            </label>`).join('')}
+        </div>
+      </details>` : ''}
+    ${plan.fileConflicts.length ? `
+      <details class="folder-upload-preview__section" open>
+        <summary>${t('documents.folderUpload.fileConflictsTitle', { count: plan.fileConflicts.length })}</summary>
+        <label class="folder-upload-conflict__default">
+          <span>${t('documents.folderUpload.defaultResolution')}</span>
+          <select class="input" data-file-conflict-default>
+            ${folderUploadChoiceOptions(upload.fileDefault, 'skip', t('documents.folderUpload.skip'), 'duplicate', t('documents.folderUpload.duplicate'))}
+          </select>
+        </label>
+        <div class="folder-upload-conflicts">
+          ${plan.fileConflicts.map((file) => `
+            <div class="folder-upload-conflict">
+              <span>${esc(file.relativePath)}</span>
+              <span>${esc(file.resolution === 'skip'
+                ? t('documents.folderUpload.willSkip')
+                : t('documents.folderUpload.willUpload'))}</span>
+            </div>`).join('')}
+        </div>
+      </details>` : ''}
+    ${plan.rejected.length ? `
+      <details class="folder-upload-preview__section folder-upload-rejected" open>
+        <summary>${t('documents.folderUpload.rejectedTitle', { count: plan.rejected.length })}</summary>
+        <ul>
+          ${plan.rejected.map((file) => `<li><span>${esc(file.relativePath)}</span><span>${esc(folderUploadReason(file.reason))}</span></li>`).join('')}
+        </ul>
+      </details>` : ''}
+    <p class="folder-upload-preview__limit">${esc(t('documents.folderUpload.adminLimitHint', { size: effectiveUploadMb() }))}</p>
+    <div class="folder-upload-progress" id="folder-upload-progress" aria-live="polite"></div>
+    <button class="btn btn--secondary" type="button" data-folder-upload-cancel hidden>${t('common.cancel')}</button>
+  `);
+  if (window.lucide) lucide.createIcons({ el: host });
+
+  const submit = panel.querySelector('#document-submit');
+  if (submit) submit.textContent = t('documents.folderUpload.uploadAction', { count: plan.counts.upload });
+  return plan;
+}
+
+function supportsDirectoryUpload() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  if (!('webkitdirectory' in input)) return false;
+  input.webkitdirectory = true;
+  const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod|iOS/.test(platform)
+    || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // A property probe cannot prove that iOS Safari presents a usable directory
+  // picker. Keep the affordance hidden there until a browser-level capability
+  // signal exists.
+  return input.webkitdirectory === true && !isIOS;
+}
+
+function bindFolderUpload(panel) {
+  const form = panel.querySelector('#document-form');
+  const fileInput = panel.querySelector('#document-file');
+  const folderInput = panel.querySelector('#document-folder-input');
+  const folderChoice = panel.querySelector('#document-folder-choice');
+  const unsupported = panel.querySelector('#document-folder-unsupported');
+  const preview = panel.querySelector('#document-folder-upload-preview');
+  const selected = panel.querySelector('#document-selected-file');
+  const nameGroup = panel.querySelector('#document-name')?.closest('.form-group');
+  if (!form || !fileInput || !folderInput || !preview) return false;
+
+  panel._folderUpload = {
+    files: [],
+    documents: [],
+    timestamp: formatFolderUploadTimestamp(),
+    folderDefault: 'merge',
+    fileDefault: 'skip',
+    folderOverrides: {},
+    plan: null,
+    ready: false,
+    running: false,
+    cancelled: false,
+    completed: false,
+  };
+
+  const directorySupported = supportsDirectoryUpload();
+  folderInput.disabled = !directorySupported;
+  folderChoice?.classList.toggle('is-disabled', !directorySupported);
+  folderChoice?.setAttribute('aria-disabled', String(!directorySupported));
+  if (unsupported) unsupported.hidden = directorySupported;
+
+  fileInput.addEventListener('change', () => {
+    if (!fileInput.files?.length) return;
+    folderInput.value = '';
+    panel._folderUpload.files = [];
+    panel._folderUpload.plan = null;
+    panel._folderUpload.ready = false;
+    preview.hidden = true;
+    const submit = panel.querySelector('#document-submit');
+    if (submit) submit.disabled = false;
+  });
+
+  folderInput.addEventListener('change', async () => {
+    const files = Array.from(folderInput.files || []);
+    if (!files.length) return;
+    fileInput.value = '';
+    panel._folderUpload.files = files;
+    panel._folderUpload.timestamp = formatFolderUploadTimestamp();
+    panel._folderUpload.folderOverrides = {};
+    panel._folderUpload.ready = false;
+    panel._folderUpload.completed = false;
+    const submit = panel.querySelector('#document-submit');
+    if (submit) submit.disabled = true;
+    if (nameGroup) nameGroup.hidden = true;
+    if (selected) {
+      const root = String(files[0].webkitRelativePath || '').split('/')[0];
+      selected.hidden = false;
+      selected.textContent = t('documents.folderUpload.selectedFolder', { name: root, count: files.length });
+    }
+    try {
+      panel._folderUpload.documents = await loadUploadConflictDocuments();
+      panel._folderUpload.ready = true;
+      renderFolderUploadPreview(panel);
+      if (submit) submit.disabled = false;
+    } catch (error) {
+      const formError = form.querySelector('#document-error');
+      formError.textContent = friendlyError(error);
+      formError.hidden = false;
+    }
+  });
+
+  form.querySelector('#document-folder')?.addEventListener('change', () => {
+    if (panel._folderUpload.files.length) renderFolderUploadPreview(panel);
+  });
+
+  preview.addEventListener('change', (event) => {
+    const target = event.target;
+    if (target.matches('[data-folder-conflict-default]')) {
+      panel._folderUpload.folderDefault = target.value;
+      panel._folderUpload.folderOverrides = {};
+    } else if (target.matches('[data-file-conflict-default]')) {
+      panel._folderUpload.fileDefault = target.value;
+    } else if (target.matches('[data-folder-conflict-key]')) {
+      panel._folderUpload.folderOverrides[target.dataset.folderConflictKey] = target.value;
+    } else {
+      return;
+    }
+    renderFolderUploadPreview(panel);
+  });
+
+  preview.addEventListener('click', (event) => {
+    if (event.target.closest('[data-folder-upload-close]')) closeModal({ force: true });
+    const cancel = event.target.closest('[data-folder-upload-cancel]');
+    if (cancel && panel._folderUpload.running) {
+      panel._folderUpload.cancelled = true;
+      cancel.disabled = true;
+    }
+  });
+
+  return directorySupported;
+}
+
+function updateFolderUploadProgress(panel, event, completed, total) {
+  const host = panel.querySelector('#folder-upload-progress');
+  if (!host) return;
+  const path = event.item?.relativePath || event.item?.key || event.item?.name || '';
+  host.textContent = t('documents.folderUpload.progress', { current: completed, total, name: path });
+  const row = Array.from(panel.querySelectorAll('[data-upload-path]'))
+    .find((item) => item.dataset.uploadPath === path);
+  if (row) row.dataset.uploadStatus = event.status;
+}
+
+function renderFolderUploadResult(panel, plan, result) {
+  const host = panel.querySelector('#document-folder-upload-preview');
+  if (!host) return;
+  const failures = result.failed || [];
+  host.replaceChildren();
+  host.insertAdjacentHTML('beforeend', `
+    <div class="folder-upload-result" role="status">
+      <h3>${failures.length ? t('documents.folderUpload.completedWithErrors') : t('documents.folderUpload.completed')}</h3>
+      <p>${t('documents.folderUpload.resultCounts', {
+        uploaded: result.uploaded.length,
+        skipped: result.skipped.length,
+        rejected: result.rejected.length,
+        failed: failures.length,
+      })}</p>
+      ${failures.length ? `
+        <section class="folder-upload-result__failures">
+          <h4>${t('documents.folderUpload.failedTitle')}</h4>
+          <ul>${failures.map((failure) => `
+            <li><span>${esc(failure.item?.relativePath || failure.item?.key || '')}</span><span>${esc(folderUploadReason(failure.reason))}</span></li>`).join('')}</ul>
+        </section>` : ''}
+      ${plan.rejected.length ? `
+        <section class="folder-upload-result__failures">
+          <h4>${t('documents.folderUpload.rejectedTitle', { count: plan.rejected.length })}</h4>
+          <ul>${plan.rejected.map((file) => `<li><span>${esc(file.relativePath)}</span><span>${esc(folderUploadReason(file.reason))}</span></li>`).join('')}</ul>
+        </section>` : ''}
+      <button class="btn btn--primary" type="button" data-folder-upload-close>${t('common.close')}</button>
+    </div>`);
+}
+
+async function saveFolderUpload(panel, payload) {
+  const upload = panel._folderUpload;
+  if (!upload?.ready) throw new Error(t('common.unknownError'));
+  const plan = renderFolderUploadPreview(panel);
+  if (!plan || (plan.counts.upload < 1 && plan.counts.createFolders < 1)) {
+    throw new Error(t('documents.folderUpload.noUploadableFiles'));
+  }
+  upload.running = true;
+  upload.cancelled = false;
+  const cancel = panel.querySelector('[data-folder-upload-cancel]');
+  if (cancel) {
+    cancel.hidden = false;
+    cancel.disabled = false;
+  }
+  const total = plan.counts.createFolders + plan.counts.upload;
+  let completed = 0;
+
+  const result = await executeFolderUploadPlan(plan, {
+    createFolder: async ({ name, parentId }) => {
+      const response = await api.post('/documents/folders', { name, parent_id: parentId });
+      return response.data;
+    },
+    uploadFile: async ({ file, folderId, name, originalName }) => api.post('/documents', {
+      ...payload,
+      folder_id: folderId,
+      name,
+      original_name: originalName,
+      content_data: await readFileAsDataUrl(file),
+    }),
+    onProgress: (event) => {
+      if (event.status === 'succeeded' || event.status === 'failed') completed += 1;
+      updateFolderUploadProgress(panel, event, completed, total);
+    },
+    shouldCancel: () => upload.cancelled,
+  });
+
+  upload.running = false;
+  upload.completed = true;
+  renderFolderUploadResult(panel, plan, result);
+  await Promise.all([loadFolders(), loadDocuments()]);
+  renderAll();
+  window.yuvomi?.showToast(t('documents.folderUpload.uploadedToast', { count: result.uploaded.length }), 'success');
+  return result;
+}
 async function saveDocument(event, doc, panel) {
   event.preventDefault();
   const form = event.target;
