@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The Schedule module gained a quick-start for shift types, a range fill for overrides, grouped
+  range display and editing, and a "who's working today" dashboard widget.** A household with no
+  shift types yet can create seven common presets (Early/Late/Night/Day/24-hour, plus Vacation and
+  Sick - both without a start/end time, since an absence is already a valid "all day" shift type,
+  not a new concept) in one click instead of one at a time. Marking a whole date range as free (or
+  on a specific shift) - a vacation, a temporary reassignment - now takes one action instead of one
+  per day, capped separately from the read-side range limit since a fill writes real rows rather
+  than computing them on read. The Overrides tab groups consecutive same-type days into a single row
+  instead of one per day, and editing a group's From/To reconciles the change automatically - no more
+  deleting fourteen rows one at a time to adjust a two-week range. An opt-in dashboard widget shows
+  who has a shift or is free today, off by default like the module itself.
+
+- **A person can now have an optional name day beside their birthday.** The advanced section of the
+  birthday form stores a month and day without inventing a year; leaving it empty keeps the existing
+  behaviour. A saved name day becomes its own yearly entry in the birthday calendar layer, uses the
+  birthday's existing reminder lead time and appears as a separately labelled row in the dashboard
+  widget. The navigation badge counts both kinds of upcoming occasion, while the main Birthdays list
+  remains one row per person. Name-day labels, validation and calendar text are included in all 24
+  supported interface languages.
+
+### Fixed
+
+- **The shift-type colour picker no longer spans the full row on a phone.** `width: 100%` stretched
+  the native colour input to fill its grid cell; on the mobile layout, where the two-column form
+  collapses to one, that cell is the whole form width. It now carries a fixed size, matching the
+  compact colour swatches used elsewhere in the app.
+
+- **Clearing a birthday reminder no longer leaves its reminder row behind.** Setting
+  `reminder_offset` to empty deleted the generated calendar event but not the reminder that
+  hung off it, so the household kept getting notified for an event that no longer existed. The
+  orphan is now removed with the event.
+
+- **An extension module's access level can be saved again** (#1009). Changing the access level for
+  a third-party module under Settings → Administration → Roles & permissions failed with
+  `Unknown module: ext`, and extension widget permissions failed the same way. The server was
+  right to refuse: the permissions page labels each control with `module:<key>`, and because a
+  third-party module's key is itself `ext:<moduleId>`, splitting that label on every colon kept
+  only `ext`. It now splits at the first colon, so the rest of the key survives - which also
+  repairs the second, silent consequence, where the widget list of an extension module was rebuilt
+  under a key that matched nothing. A shared helper carries the rule, and a guard keeps the call
+  site from parsing the label itself again.
+
 ## [2.64.0] - 2026-09-02
 
 ### Added
