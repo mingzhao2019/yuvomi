@@ -1128,7 +1128,7 @@ async function deleteFolder(folder) {
   }
 
   let choice;
-  if (impact.documents > 0) {
+  if (impact.documents > 0 || !impact.can_delete_documents) {
     choice = await folderDeleteChoice(folder, impact);
   } else {
     const descendants = Math.max(0, Number(impact.removed_folders) - 1);
@@ -1152,7 +1152,11 @@ async function deleteFolder(folder) {
       + `&expected_snapshot=${encodeURIComponent(impact.snapshot)}`,
     );
     const result = response.data;
-    if (result.folder_deleted === false && result.contents_changed) {
+    const hasNonConcurrencyFailure = result.failed_documents
+      ?.some((failure) => failure.failure_stage !== 'concurrency');
+    if (result.folder_deleted === false && result.contents_changed && hasNonConcurrencyFailure) {
+      window.yuvomi?.showToast(t('documents.folderDeleteContentsChangedWithFailuresToast'), 'warning');
+    } else if (result.folder_deleted === false && result.contents_changed) {
       window.yuvomi?.showToast(t('documents.folderDeleteContentsChangedToast', {
         deleted: result.deleted_documents,
       }), 'warning');
