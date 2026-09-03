@@ -475,6 +475,13 @@ router.put('/:id', (req, res) => {
       trackedDateValues = result.values;
     }
 
+    // A rejected in-flight attachment must not leave the item fields or its
+    // reminders half-updated.
+    const userId = req.authUserId || req.session.userId;
+    if (req.body.attachment_document_ids !== undefined) {
+      assertDocumentLinkTargetsAvailable(db.get(), req.body.attachment_document_ids, userId);
+    }
+
     // Update und Erinnerungs-Sync in einer Transaktion, gleiche Begruendung wie
     // im POST-Handler: kein halb geschriebener Zustand, wenn syncReminder wirft.
     db.get().transaction(() => {
@@ -511,7 +518,6 @@ router.put('/:id', (req, res) => {
     // Wert korrigiert, darf angehaengte Belege nicht stillschweigend abraeumen
     // (gleiches Muster wie server/routes/budget/entries.js#PUT /:id).
     if (req.body.attachment_document_ids !== undefined) {
-      assertDocumentLinkTargetsAvailable(db.get(), req.body.attachment_document_ids, userId);
       replaceDocumentLinks(db.get(), {
         ...DOCS, ownerId: item.id, documentIds: req.body.attachment_document_ids, userId,
       });
