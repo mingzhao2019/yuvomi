@@ -13,6 +13,7 @@
  *   activities.js   Aktivitäten
  *   export.js       CSV-Übersichts-Exporte (vitals/activities/labs/meds-logs)
  *   cycle.js        Zyklus (Perioden/Tages-Logs/Einstellungen) + Zyklus-Export
+ *   cycle-feed.js   Zyklus: Token-Verwaltung fuer den vorhergesagten ICS-Feed
  *   caregivers.js   Betreuung: wer darf fuer wen eintragen (#584)
  *
  * Scoping/Visibility-Modell (siehe ./health/helpers.js):
@@ -33,6 +34,7 @@ import labsRouter from './health/labs.js';
 import activitiesRouter from './health/activities.js';
 import exportRouter from './health/export.js';
 import cycleRouter from './health/cycle.js';
+import cycleFeedRouter from './health/cycle-feed.js';
 import caregiversRouter from './health/caregivers.js';
 
 const router = express.Router();
@@ -46,6 +48,7 @@ router.use(labsRouter);
 router.use(activitiesRouter);
 router.use(exportRouter);
 router.use(cycleRouter);
+router.use(cycleFeedRouter);
 router.use(caregiversRouter);
 
 export default router;
