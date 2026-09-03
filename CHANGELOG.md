@@ -140,6 +140,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   viewer prepares the file in the background so the click can open the share sheet immediately.
   Unsupported types and browsers get a clear explanation, while Download remains available.
 
+- **The Inventory module speaks all 24 languages, and a guard now notices when a module does not.**
+  Inventory shipped on 15 August with its 128 texts copied from English into the other 22
+  locales - the navigation label, the item form, the deadline feed settings, everything - and the
+  locale test stayed green, because it checks that every key exists, not that any value was ever
+  translated. The translated inventory copy already lives in custom, so this merge keeps those
+  established custom word choices while adding the upstream regression guard and its baseline.
+
 ### Fixed
 
 - **The cycle-length trend chart's bars sat flush against the plot edges, with no date under most of
