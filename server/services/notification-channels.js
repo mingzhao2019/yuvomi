@@ -1,7 +1,7 @@
 /**
  * Modul: Notification-Channel-Store
  * Zweck: CRUD, Validierung und write-only Secret-Handhabung fuer externe Notification-Provider.
- * Abhaengigkeiten: server/db.js
+ * Abhaengigkeiten: server/db.js, utils/ssrf.js, notification-providers/guarded-fetch.js
  */
 import { isIP } from 'node:net';
 import * as dbModule from '../db.js';

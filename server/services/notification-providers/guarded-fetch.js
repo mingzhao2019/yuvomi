@@ -52,7 +52,6 @@ export async function guardedFetch(url, {
     const hasType = Object.keys(outHeaders).some((h) => h.toLowerCase() === 'content-type');
     if (!hasType) outHeaders['content-type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
   }
-
   const options = { method, headers: outHeaders, body: outBody, signal };
   if (lookup) options.lookup = lookup;
   else if (!isPrivateNetworkAllowed()) options.lookup = createGuardedLookup();
