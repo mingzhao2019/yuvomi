@@ -1023,7 +1023,7 @@ hand.
 | pinned | INTEGER | 0/1 |
 | created_by | INTEGER | FK → Users, NOT NULL |
 
-#### Note Categories (migration v176)
+#### Note Categories (migration v186)
 
 The catalog starts empty. A personal category belongs to one user and is visible only to that
 user; a household category is visible to everyone. Every member may manage their own personal
@@ -1042,7 +1042,7 @@ and `scope` (`personal` or `household`) as the single catalog discriminator.
 | sort_order | INTEGER | NOT NULL DEFAULT 0 |
 | created_at / updated_at | TEXT | ISO 8601 |
 
-#### Note Category Assignments (migration v176)
+#### Note Category Assignments (migration v186)
 
 A note may have any number of categories or none. Household assignments are visible to all
 members; a personal assignment is visible only to that category's owner. Deleting a category
