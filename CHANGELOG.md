@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Folder uploads now handle server rate limits and cancellation cleanly.** A directory upload
+  waits for the server's advertised retry window when a write is rate-limited, retries only the
+  rate-limited operation with a bounded backoff, and reports a stable failure reason when retries
+  are exhausted. Cancelling during a retry wait stops queued work while preserving folders and
+  files that were already created.
+
 - **The Schedule module gained a quick-start for shift types, a range fill for overrides, grouped
   range display and editing, and a "who's working today" dashboard widget.** A household with no
   shift types yet can create seven common presets (Early/Late/Night/Day/24-hour, plus Vacation and
@@ -283,8 +289,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The `allowScripts` pins are checked against the installed dependency versions.** A dependency
   bump can otherwise leave an exact install-script permission pointing at a package version that
   is no longer installed. The guard also rejects pins for packages that are no longer dependencies.
-### Added
-
 - **A third-party module now declares which manifest format it is written in** (`manifestVersion`),
   and Yuvomi refuses one it cannot read instead of reading it in part. The extension surface from
   #919 - widgets, `ext:<module-id>` permissions, an API prefix, a locale chain - is a promise made

@@ -1793,6 +1793,7 @@ const FOLDER_UPLOAD_REASON_KEYS = {
   'name-too-long': 'documents.folderUpload.reasonNameTooLong',
   'too-deep': 'documents.folderUpload.reasonTooDeep',
   'parent-failed': 'documents.folderUpload.reasonParentFailed',
+  'rate-limited': 'documents.folderUpload.reasonRateLimited',
 };
 
 function folderUploadReason(reason) {
@@ -2120,6 +2121,7 @@ function renderFolderUploadResult(panel, plan, result) {
         rejected: result.rejected.length,
         failed: failures.length,
       })}</p>
+      ${result.cancelled ? `<p>${t('documents.folderUpload.cancelledDetail')}</p>` : ''}
       ${failures.length ? `
         <section class="folder-upload-result__failures">
           <h4>${t('documents.folderUpload.failedTitle')}</h4>
