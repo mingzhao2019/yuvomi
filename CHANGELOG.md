@@ -263,6 +263,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repairs the second, silent consequence, where the widget list of an extension module was rebuilt
   under a key that matched nothing. A shared helper carries the rule, and a guard keeps the call
   site from parsing the label itself again.
+## [2.64.1] - 2026-09-04
+
 ### Security
 
 - **A member can no longer edit, un-hide or delete another member's private calendar event
