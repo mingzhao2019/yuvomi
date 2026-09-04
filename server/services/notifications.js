@@ -19,6 +19,7 @@ import { warrantyEndDate } from './inventory-deadlines.js';
 import { syncAllPantryExpiryReminders } from './pantry-reminders.js';
 import { householdTimeZone, utcToWall } from '../utils/timezone.js';
 import { syncAllCycleReminders } from './cycle-reminders.js';
+import { syncAllScheduleReminders } from './schedule-reminders.js';
 
 const log = createLogger('Notifications');
 const APP_NAME = 'Yuvomi';
@@ -150,6 +151,8 @@ const REMINDER_ORIGINS = {
   // entity_type fuer zwei Sync-Quellen, eine Modul-Beschriftung.
   cycle_period:           { titleKey: 'health.cycle.title',     url: '/health' },
   cycle_log_nudge:        { titleKey: 'health.cycle.title',     url: '/health' },
+  schedule_entry:         { titleKey: 'nav.schedule',           url: '/schedule' },
+  schedule_extra_entry:   { titleKey: 'nav.schedule',           url: '/schedule' },
 };
 
 /**
@@ -198,6 +201,11 @@ export function formatNotificationWallTime(value, timeZone) {
   return wall ? `${wall.date} ${wall.time}` : '';
 }
 
+function scheduleEntryBody(reminder) {
+  if (!reminder.schedule_start_time) return reminder.entity_title;
+  return `${reminder.entity_title} - ${reminder.schedule_start_time}`;
+}
+
 export function reminderPayload(reminder, locale, sentAt = '', timeZone = 'UTC') {
   const title = reminder.entity_title || FALLBACK_BODY;
   const origin = REMINDER_ORIGINS[reminder.entity_type];
@@ -210,6 +218,8 @@ export function reminderPayload(reminder, locale, sentAt = '', timeZone = 'UTC')
     body = trackedDateBody(reminder);
   } else if (reminder.entity_type === 'pantry_item' && reminder.entity_title) {
     body = pantryExpiryBody(reminder);
+  } else if ((reminder.entity_type === 'schedule_entry' || reminder.entity_type === 'schedule_extra_entry') && reminder.entity_title) {
+    body = scheduleEntryBody(reminder);
   }
   const eventStart = reminder.entity_type === 'event'
     ? dateTimeParts(reminder.event_start_datetime)
@@ -483,6 +493,13 @@ export async function processDueNotifications({
     log.error('Cycle reminder sync failed:', err?.message || err);
   }
 
+  // haushaltweit, weil der Schichtplan (anders als der Vorrat) persoenlich ist.
+  try {
+    syncAllScheduleReminders(activeDb, now);
+  } catch (err) {
+    log.error('Schedule reminder sync failed:', err?.message || err);
+  }
+
   const due = activeDb.prepare(`
     SELECT r.id, r.created_by, r.entity_type, r.entity_id, r.remind_at,
       CASE r.entity_type
@@ -498,6 +515,14 @@ export async function processDueNotifications({
         WHEN 'pantry_item' THEN (SELECT name FROM pantry_items WHERE id = r.entity_id)
         WHEN 'cycle_period' THEN (SELECT anchor_date FROM cycle_reminder_anchors WHERE id = r.entity_id)
         WHEN 'cycle_log_nudge' THEN (SELECT anchor_date FROM cycle_reminder_anchors WHERE id = r.entity_id)
+        WHEN 'schedule_entry' THEN (
+          SELECT t.name FROM schedule_reminder_entries e JOIN schedule_shift_types t ON t.id = e.shift_type_id
+          WHERE e.id = r.entity_id
+        )
+        WHEN 'schedule_extra_entry' THEN (
+          SELECT t.name FROM schedule_extra_shifts e JOIN schedule_shift_types t ON t.id = e.shift_type_id
+          WHERE e.id = r.entity_id
+        )
       END AS entity_title,
       CASE WHEN r.entity_type = 'task'
         THEN (SELECT description FROM tasks WHERE id = r.entity_id)
@@ -532,6 +557,16 @@ export async function processDueNotifications({
         THEN (SELECT date FROM inventory_item_dates WHERE id = r.entity_id) END AS inv_tracked_date,
       CASE WHEN r.entity_type = 'pantry_item'
         THEN (SELECT expires_on FROM pantry_items WHERE id = r.entity_id) END AS pantry_expires_on,
+      CASE
+        WHEN r.entity_type = 'schedule_entry' THEN (
+          SELECT t.start_time FROM schedule_reminder_entries e JOIN schedule_shift_types t ON t.id = e.shift_type_id
+          WHERE e.id = r.entity_id
+        )
+        WHEN r.entity_type = 'schedule_extra_entry' THEN (
+          SELECT t.start_time FROM schedule_extra_shifts e JOIN schedule_shift_types t ON t.id = e.shift_type_id
+          WHERE e.id = r.entity_id
+        )
+      END AS schedule_start_time,
       CASE WHEN r.entity_type = 'subscription'
         THEN (SELECT amount FROM budget_subscriptions WHERE id = r.entity_id) END AS sub_amount,
       CASE WHEN r.entity_type = 'subscription'

@@ -296,7 +296,15 @@
         "manage": "Manage",
         "todayNothingElseTomorrow": "Nothing else today - tomorrow: {{title}}",
         "weatherHighLow": "High {{max}}°, low {{min}}°",
-        "optionCalendarBirthdaysHint": "Unchecked, birthdays stay out of this tile - the calendar still shows them."
+        "optionCalendarBirthdaysHint": "Unchecked, birthdays stay out of this tile - the calendar still shows them.",
+        "wallEnter": "Start wall mode",
+        "wallTimerLabel": "Kitchen timer",
+        "wallTimerMinutes": "{{count}} min",
+        "wallTimerMinutes_one": "{{count}} min",
+        "wallTimerCancel": "Cancel timer",
+        "wallTimerAcknowledge": "Turn timer off",
+        "wallTimerDone": "Done",
+        "optionExtensionEmpty": "This widget has no options."
     },
     "tasks": {
         "manageCategories": "Manage categories",
@@ -956,7 +964,14 @@
         "deleteSubscribedSeriesConfirm": "Delete anyway",
         "colorInherit": "Colour of the assigned person",
         "colorInheritHint": "The event gets no colour of its own and takes the one of the person it is assigned to. With nobody assigned, the calendar's colour applies.",
-        "filtersLayers": "Layers"
+        "filtersLayers": "Layers",
+        "filters": "Filters",
+        "filtersOpen": "Open filters",
+        "filtersPeople": "People",
+        "filtersActive": "{{count}} filters active",
+        "filtersActive_one": "1 filter active",
+        "filtersReset": "Clear all filters",
+        "filtersDisplay": "Display"
     },
     "noteCategories": {
         "permissionLabel": "Manage household note categories"
@@ -2553,7 +2568,14 @@
             "revokeConfirm": "Revoke this invitation? The link stops working.",
             "revoked": "The invitation was revoked.",
             "created": "The invitation was created.",
-            "revokeConfirmDetail": "A link you already sent or copied stops working immediately. The invited person can no longer create an account with it; you would have to invite them again."
+            "revokeConfirmDetail": "A link you already sent or copied stops working immediately. The invited person can no longer create an account with it; you would have to invite them again.",
+            "presetLabel": "Starting permissions",
+            "presetRestricted": "Without personal areas",
+            "presetRole": "As the role profile",
+            "presetHintRestricted": "{{modules}} stay locked. You can open them any time under Roles & permissions.",
+            "presetHintRoleOpen": "The {{role}} role restricts nothing - the member sees every module.",
+            "presetHintRoleLimited": "The {{role}} role locks: {{modules}}.",
+            "presetHintUnavailable": "The exact effect cannot be shown right now. The template still applies."
         },
         "healthCaregiversLabel": "May record health data",
         "healthCaregiversHint": "These people may record vitals, medications, lab results and activities for this member, and see their private entries while doing so. The cycle diary stays excluded.",
@@ -2620,7 +2642,25 @@
         "healthVisibilityApply": "Move existing entries too",
         "healthVisibilityApplyHint": "Saved. Should the existing entries under {{area}} be changed as well?",
         "healthVisibilityApplied": "{{count}} entries changed.",
-        "healthVisibilityApplied_one": "One entry changed."
+        "healthVisibilityApplied_one": "One entry changed.",
+        "scheduleFeedTitle": "Export schedule",
+        "scheduleFeedDescription": "Subscribe to your own upcoming shifts read-only in Apple Calendar, Google Calendar, or Thunderbird.",
+        "scheduleFeedInactive": "The export feed is disabled.",
+        "scheduleFeedActivate": "Activate feed",
+        "scheduleFeedUrlLabel": "Feed address",
+        "scheduleFeedCopy": "Copy address",
+        "scheduleFeedCopied": "Address copied",
+        "scheduleFeedSubscribe": "Subscribe in calendar app",
+        "scheduleFeedRegenerate": "Generate new link",
+        "scheduleFeedDisable": "Disable feed",
+        "scheduleFeedRegenerateConfirm": "Generate a new link? The old link will stop working.",
+        "scheduleFeedRegenerateConfirmDetail": "Devices and services using the old link stop receiving updates and, depending on the app, either keep showing their last state or show nothing until the new address is entered there.",
+        "scheduleFeedDisableConfirm": "Disable the feed? Existing subscriptions will no longer receive updates.",
+        "scheduleFeedDisableConfirmDetail": "The link stops delivering anything immediately. Turning it back on later creates a new address that every subscriber has to enter by hand.",
+        "scheduleFeedHint": "Anyone who knows this link can see your own upcoming shifts. Only share it with your own devices.",
+        "scheduleTemplatesTitle": "Quickstart templates",
+        "scheduleTemplatesHint": "Which templates the shift-type quickstart offers. Shift types already created stay untouched either way, and can always be renamed or deleted.",
+        "scheduleTemplatesSaved": "Quickstart templates saved."
     },
     "login": {
         "tagline": "Welcome back to your family planner.",
@@ -2729,7 +2769,10 @@
         "fromCompletionLabel": "Repeat from completion",
         "fromCompletionHint": "The interval starts on the day you tick the task off, not on its due date.",
         "summaryFromCompletion": "from completion",
-        "intervalHint": "Once you pick one, the interval is yours to set - every 2 weeks, or every 3 months."
+        "intervalHint": "Once you pick one, the interval is yours to set - every 2 weeks, or every 3 months.",
+        "lastDayOfMonth": "On the last day of the month",
+        "lastDayOfMonthHint": "The series starts on the first month end on or after the start date.",
+        "lastDayOfMonthHintNext": "This task stays due on the date you entered; the next run falls on the month end."
     },
     "reminders": {
         "sectionTitle": "Reminder",
@@ -2764,7 +2807,8 @@
         "customHours": "Hours",
         "customDays": "Days",
         "customWeeks": "Weeks",
-        "sectionTitlePlural": "Reminders"
+        "sectionTitlePlural": "Reminders",
+        "sharedWithAssignees": "Anyone assigned to this event gets this reminder too."
     },
     "birthdays": {
         "inDays": "in {{days}} days",
@@ -3518,7 +3562,9 @@
         "mobileNavigate": "Use the bar at the bottom and “More” to navigate.",
         "mobileCreate": "Create new items with the + button at the bottom right.",
         "mobileSearch": "Open search via “More” → Search.",
-        "mobileSettings": "Find settings under “More”."
+        "mobileSettings": "Find settings under “More”.",
+        "guideLink": "User guide",
+        "guideHint": "Community-maintained, in its own repository - it can lag behind a release."
     },
     "changelog": {
         "title": "Changelog",
@@ -3535,7 +3581,11 @@
         "offlineNotice": "GitHub could not be reached. Showing the history bundled with this version.",
         "unknownVersion": "Unknown",
         "changes": "Changes",
-        "noReleaseNotes": "No release notes for this version."
+        "noReleaseNotes": "No release notes for this version.",
+        "whatsNewTitle": "New in your app",
+        "whatsNewSince": "Since version {{version}}, the one you last saw.",
+        "whatsNewMore": "{{count}} more changes are in the list below.",
+        "whatsNewMore_one": "One more change is in the list below."
     },
     "forgotPassword": {
         "title": "Reset password",
@@ -3766,7 +3816,14 @@
         "completedOn": "Completed on {{date}}",
         "completedToast": "Subscription completed.",
         "endsAfter": "{{count}} payments left",
-        "logoTypeError": "Use a PNG, JPEG, WebP or SVG image."
+        "logoTypeError": "Use a PNG, JPEG, WebP or SVG image.",
+        "paymentMethodCreditCard": "Credit card",
+        "paymentMethodDebitCard": "Debit card",
+        "paymentMethodPaypal": "PayPal",
+        "paymentMethodApplePay": "Apple Pay",
+        "paymentMethodGooglePay": "Google Pay",
+        "paymentMethodBankTransfer": "Bank transfer",
+        "paymentMethodOther": "Other"
     },
     "health": {
         "tabs": {
@@ -4212,7 +4269,8 @@
                 "regular": "Regular",
                 "irregular": "Irregular",
                 "notEnoughData": "Not enough data",
-                "noPrediction": "Log a period to see predictions."
+                "noPrediction": "Log a period to see predictions.",
+                "regularity": "Regularity"
             },
             "stats": {
                 "source": {
@@ -4798,7 +4856,15 @@
             "day": "Day shift",
             "fullDay": "24-hour shift",
             "vacation": "Vacation",
-            "sick": "Sick"
+            "sick": "Sick",
+            "period1": "Period 1",
+            "period2": "Period 2",
+            "period3": "Period 3",
+            "period4": "Period 4",
+            "exam": "Exam",
+            "lecture": "Lecture",
+            "seminar": "Seminar",
+            "lab": "Lab"
         },
         "overlapWarning": "Overlapping schedules on {{date}} for {{user}}; the newer pattern is shown.",
         "overlapWarningShort": "Overlapping schedules",
@@ -4833,6 +4899,46 @@
         "typeOrphaned": "Its creator has left the household - only an administrator can change this shift type.",
         "deletePatternTitle": "Delete pattern \"{{name}}\"?",
         "deletePatternDetail": "Its {{count}} cycle days go with it. This cannot be undone.",
-        "deletePatternDetail_one": "Its one cycle day goes with it. This cannot be undone."
+        "deletePatternDetail_one": "Its one cycle day goes with it. This cannot be undone.",
+        "customFields": "Custom fields",
+        "createCustomField": "Create field",
+        "editCustomField": "Edit field",
+        "fieldName": "Field name",
+        "emptyCustomFieldsTitle": "No custom fields yet",
+        "emptyCustomFieldsDescription": "Define a field once - like Room or Instructor - and attach it to whichever shift types need it.",
+        "deleteCustomFieldTitle": "Delete field \"{{name}}\"?",
+        "deleteCustomFieldDetail": "It's currently attached to {{count}} shift types. Any values already recorded for it go with it. This cannot be undone.",
+        "deleteCustomFieldDetail_one": "It's currently attached to one shift type. Any values already recorded for it go with it. This cannot be undone.",
+        "attachedFields": "Custom fields",
+        "showInOverlay": "Show on calendar",
+        "noFieldsAttached": "No custom fields attached.",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "icon": "Icon",
+        "chooseIcon": "Choose icon",
+        "print": "Print",
+        "overtime": "Overtime",
+        "overtimeNote": "Above {{hours}} h/week for this range",
+        "reminderToggle": "Remind me before my shift starts",
+        "reminderHint": "A push notification before each upcoming shift with a start time. Vacation, sick days, and other all-day entries have no start time to remind you of.",
+        "reminderAtStart": "At start time",
+        "reminderMinutesBefore": "{{minutes}} min before",
+        "mySettings": "My settings",
+        "weeklyHoursLabel": "Weekly hours (for the overtime flag)",
+        "weeklyHoursHint": "Your own full-time target. The Statistics tab flags a selected range as overtime once its total exceeds this, scaled to the number of days in the range.",
+        "extraShifts": "Extra shifts",
+        "addExtraShift": "Add extra shift",
+        "editExtraShift": "Edit extra shift",
+        "emptyExtraShiftsTitle": "No extra shifts yet",
+        "emptyExtraShiftsDescription": "Add an extra shift for a day that already has one - on-call alongside a regular shift, for example.",
+        "extraReminderOffset": "Remind me before this shift",
+        "extraBadgeLabel": "Extra",
+        "recurring": "Recurring",
+        "replaceExisting": "Replace what's scheduled",
+        "planning": "Planning",
+        "addEntry": "Add entry",
+        "templateWork": "Work",
+        "templateSchool": "School",
+        "templateUniversity": "University"
     }
 }

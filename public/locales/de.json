@@ -308,7 +308,15 @@
         "manage": "Verwalten",
         "todayNothingElseTomorrow": "Danach steht heute nichts mehr an - morgen: {{title}}",
         "weatherHighLow": "Höchstwert {{max}}°, Tiefstwert {{min}}°",
-        "optionCalendarBirthdaysHint": "Ohne Haken bleiben Geburtstage aus dieser Kachel - im Kalender stehen sie weiter."
+        "optionCalendarBirthdaysHint": "Ohne Haken bleiben Geburtstage aus dieser Kachel - im Kalender stehen sie weiter.",
+        "wallEnter": "Wand-Modus starten",
+        "wallTimerLabel": "Küchentimer",
+        "wallTimerMinutes": "{{count}} Min",
+        "wallTimerMinutes_one": "{{count}} Min",
+        "wallTimerCancel": "Timer abbrechen",
+        "wallTimerAcknowledge": "Timer aus",
+        "wallTimerDone": "Fertig",
+        "optionExtensionEmpty": "Dieses Widget hat keine Optionen."
     },
     "tasks": {
         "manageCategories": "Kategorien verwalten",
@@ -968,7 +976,14 @@
         "colorInherit": "Farbe der zugewiesenen Person",
         "colorInheritHint": "Der Termin bekommt keine eigene Farbe und übernimmt die der zugewiesenen Person. Ist niemand zugewiesen, gilt die Farbe des Kalenders.",
         "filtersLayers": "Ebenen",
-        "agendaDayEmpty": "Nichts geplant"
+        "agendaDayEmpty": "Nichts geplant",
+        "filters": "Filter",
+        "filtersOpen": "Filter öffnen",
+        "filtersPeople": "Personen",
+        "filtersActive": "{{count}} Filter aktiv",
+        "filtersActive_one": "1 Filter aktiv",
+        "filtersReset": "Alle Filter aufheben",
+        "filtersDisplay": "Darstellung"
     },
     "noteCategories": {
         "permissionLabel": "Gemeinsame Notizkategorien verwalten"
@@ -2565,7 +2580,14 @@
             "revokeConfirm": "Diese Einladung widerrufen? Der Link wird damit ungültig.",
             "revoked": "Die Einladung wurde widerrufen.",
             "created": "Die Einladung wurde erstellt.",
-            "revokeConfirmDetail": "Ein bereits verschickter oder kopierter Link hört sofort auf zu funktionieren. Die eingeladene Person kann damit kein Konto mehr anlegen; dafür musst du sie erneut einladen."
+            "revokeConfirmDetail": "Ein bereits verschickter oder kopierter Link hört sofort auf zu funktionieren. Die eingeladene Person kann damit kein Konto mehr anlegen; dafür musst du sie erneut einladen.",
+            "presetLabel": "Startrechte",
+            "presetRestricted": "Ohne persönliche Bereiche",
+            "presetRole": "Wie das Rollenprofil",
+            "presetHintRestricted": "{{modules}} bleiben gesperrt. Freigeben kannst du sie jederzeit unter Rollen und Rechte.",
+            "presetHintRoleOpen": "Die Rolle {{role}} schränkt nichts ein - das Mitglied sieht alle Module.",
+            "presetHintRoleLimited": "Die Rolle {{role}} sperrt: {{modules}}.",
+            "presetHintUnavailable": "Die genaue Wirkung lässt sich gerade nicht anzeigen. Die Vorlage gilt trotzdem."
         },
         "healthCaregiversLabel": "Darf Gesundheitsdaten eintragen",
         "healthCaregiversHint": "Diese Personen dürfen für dieses Mitglied Vitalwerte, Medikamente, Laborwerte und Aktivitäten eintragen und dabei auch dessen private Einträge sehen. Das Zyklus-Tagebuch bleibt ausgenommen.",
@@ -2632,7 +2654,25 @@
         "healthVisibilityApply": "Bestehende Einträge mitziehen",
         "healthVisibilityApplyHint": "Gespeichert. Sollen die vorhandenen Einträge unter {{area}} auch umgestellt werden?",
         "healthVisibilityApplied": "{{count}} Einträge umgestellt.",
-        "healthVisibilityApplied_one": "Ein Eintrag umgestellt."
+        "healthVisibilityApplied_one": "Ein Eintrag umgestellt.",
+        "scheduleTemplatesTitle": "Quickstart-Vorlagen",
+        "scheduleTemplatesHint": "Welche Vorlagen der Schnellstart bei den Schichtarten anbietet. Angelegte Schichtarten bleiben unabhängig davon bestehen und lassen sich jederzeit umbenennen oder löschen.",
+        "scheduleTemplatesSaved": "Quickstart-Vorlagen gespeichert.",
+        "scheduleFeedTitle": "Schichtplan exportieren",
+        "scheduleFeedDescription": "Abonniere deine eigenen anstehenden Schichten schreibgeschützt in Apple Kalender, Google Kalender oder Thunderbird.",
+        "scheduleFeedInactive": "Der Export-Feed ist deaktiviert.",
+        "scheduleFeedActivate": "Feed aktivieren",
+        "scheduleFeedUrlLabel": "Feed-Adresse",
+        "scheduleFeedCopy": "Adresse kopieren",
+        "scheduleFeedCopied": "Adresse kopiert",
+        "scheduleFeedSubscribe": "In Kalender-App abonnieren",
+        "scheduleFeedRegenerate": "Neuen Link erzeugen",
+        "scheduleFeedDisable": "Feed deaktivieren",
+        "scheduleFeedRegenerateConfirm": "Neuen Link erzeugen? Der alte Link funktioniert danach nicht mehr.",
+        "scheduleFeedRegenerateConfirmDetail": "Geräte und Dienste, die den alten Link nutzen, erhalten keine Aktualisierungen mehr und zeigen je nach App entweder den letzten Stand oder nichts an, bis dort die neue Adresse eingetragen wird.",
+        "scheduleFeedDisableConfirm": "Feed deaktivieren? Bestehende Abos erhalten dann keine Aktualisierungen mehr.",
+        "scheduleFeedDisableConfirmDetail": "Der Link liefert sofort nichts mehr. Wird der Feed später wieder aktiviert, entsteht eine neue Adresse, die jeder Abonnent von Hand neu eintragen muss.",
+        "scheduleFeedHint": "Wer diesen Link kennt, kann deine eigenen anstehenden Schichten sehen. Nur mit eigenen Geräten teilen."
     },
     "login": {
         "tagline": "Willkommen zurück bei deinem Familienplaner.",
@@ -2741,7 +2781,10 @@
         "fromCompletionLabel": "Ab Erledigung wiederholen",
         "fromCompletionHint": "Das Intervall beginnt an dem Tag, an dem du die Aufgabe abhakst - nicht am Fälligkeitsdatum.",
         "summaryFromCompletion": "ab Erledigung",
-        "intervalHint": "Nach der Auswahl lässt sich der Takt frei einstellen - etwa alle 2 Wochen oder alle 3 Monate."
+        "intervalHint": "Nach der Auswahl lässt sich der Takt frei einstellen - etwa alle 2 Wochen oder alle 3 Monate.",
+        "lastDayOfMonth": "Am letzten Tag des Monats",
+        "lastDayOfMonthHint": "Die Serie beginnt am ersten Monatsletzten ab dem Startdatum.",
+        "lastDayOfMonthHintNext": "Diese Aufgabe bleibt am eingetragenen Datum fällig; erst der nächste Durchlauf fällt auf den Monatsletzten."
     },
     "reminders": {
         "sectionTitle": "Erinnerung",
@@ -2776,7 +2819,8 @@
         "customHours": "Stunden",
         "customDays": "Tage",
         "customWeeks": "Wochen",
-        "sectionTitlePlural": "Erinnerungen"
+        "sectionTitlePlural": "Erinnerungen",
+        "sharedWithAssignees": "Wer diesem Termin zugewiesen ist, bekommt diese Erinnerung ebenfalls."
     },
     "birthdays": {
         "inDays": "in {{days}} Tagen",
@@ -3518,7 +3562,9 @@
         "mobileNavigate": "Navigiere über die Leiste unten und „Mehr“.",
         "mobileCreate": "Mit dem +-Knopf unten rechts legst du Neues an.",
         "mobileSearch": "Suche öffnest du über „Mehr“ → Suchen.",
-        "mobileSettings": "Einstellungen findest du unter „Mehr“."
+        "mobileSettings": "Einstellungen findest du unter „Mehr“.",
+        "guideLink": "Nutzerhandbuch",
+        "guideHint": "Aus der Community, in einem eigenen Repository - kann hinter einem Release zurückliegen."
     },
     "changelog": {
         "title": "Änderungsverlauf",
@@ -3535,7 +3581,11 @@
         "offlineNotice": "GitHub war nicht erreichbar. Angezeigt wird der mit dieser Version ausgelieferte Verlauf.",
         "unknownVersion": "Unbekannt",
         "changes": "Änderungen",
-        "noReleaseNotes": "Für diese Version gibt es keine Versionshinweise."
+        "noReleaseNotes": "Für diese Version gibt es keine Versionshinweise.",
+        "whatsNewTitle": "Neu in deiner App",
+        "whatsNewSince": "Seit Version {{version}}, die du zuletzt gesehen hast.",
+        "whatsNewMore": "{{count}} weitere Änderungen stehen unten in der Liste.",
+        "whatsNewMore_one": "Eine weitere Änderung steht unten in der Liste."
     },
     "forgotPassword": {
         "title": "Passwort zurücksetzen",
@@ -3766,7 +3816,14 @@
         "completedOn": "Abgeschlossen am {{date}}",
         "completedToast": "Abo abgeschlossen.",
         "endsAfter": "Noch {{count}} Zahlungen",
-        "logoTypeError": "Bitte ein PNG-, JPEG-, WebP- oder SVG-Bild verwenden."
+        "logoTypeError": "Bitte ein PNG-, JPEG-, WebP- oder SVG-Bild verwenden.",
+        "paymentMethodCreditCard": "Kreditkarte",
+        "paymentMethodDebitCard": "Debitkarte",
+        "paymentMethodPaypal": "PayPal",
+        "paymentMethodApplePay": "Apple Pay",
+        "paymentMethodGooglePay": "Google Pay",
+        "paymentMethodBankTransfer": "Banküberweisung",
+        "paymentMethodOther": "Sonstiges"
     },
     "health": {
         "tabs": {
@@ -4212,7 +4269,8 @@
                 "regular": "Regelmäßig",
                 "irregular": "Unregelmäßig",
                 "notEnoughData": "Zu wenig Daten",
-                "noPrediction": "Erfasse eine Periode für Vorhersagen."
+                "noPrediction": "Erfasse eine Periode für Vorhersagen.",
+                "regularity": "Regelmäßigkeit"
             },
             "stats": {
                 "source": {
@@ -4798,7 +4856,15 @@
             "day": "Tagschicht",
             "fullDay": "24-Stunden-Schicht",
             "vacation": "Urlaub",
-            "sick": "Krank"
+            "sick": "Krank",
+            "period1": "1. Stunde",
+            "period2": "2. Stunde",
+            "period3": "3. Stunde",
+            "period4": "4. Stunde",
+            "exam": "Prüfung",
+            "lecture": "Vorlesung",
+            "seminar": "Seminar",
+            "lab": "Praktikum"
         },
         "overlapWarning": "Überlappende Schichtpläne am {{date}} für {{user}}; der neuere Plan wird angezeigt.",
         "overlapWarningShort": "Überlappende Schichtpläne",
@@ -4833,6 +4899,46 @@
         "typeOrphaned": "Der Ersteller ist nicht mehr im Haushalt - nur ein Admin kann diesen Schichttyp ändern.",
         "deletePatternTitle": "Muster „{{name}}\" löschen?",
         "deletePatternDetail": "Die {{count}} Zyklustage dieses Musters gehen mit verloren. Das lässt sich nicht rückgängig machen.",
-        "deletePatternDetail_one": "Der eine Zyklustag dieses Musters geht mit verloren. Das lässt sich nicht rückgängig machen."
+        "deletePatternDetail_one": "Der eine Zyklustag dieses Musters geht mit verloren. Das lässt sich nicht rückgängig machen.",
+        "customFields": "Eigene Felder",
+        "createCustomField": "Feld anlegen",
+        "editCustomField": "Feld bearbeiten",
+        "fieldName": "Feldname",
+        "emptyCustomFieldsTitle": "Noch keine eigenen Felder",
+        "emptyCustomFieldsDescription": "Definiere ein Feld einmal - z. B. Raum oder Lehrkraft - und hänge es an die Schichtarten an, die es brauchen.",
+        "deleteCustomFieldTitle": "Feld „{{name}}\" löschen?",
+        "deleteCustomFieldDetail": "Es hängt gerade an {{count}} Schichtarten. Bereits erfasste Werte dafür gehen mit verloren. Das lässt sich nicht rückgängig machen.",
+        "deleteCustomFieldDetail_one": "Es hängt gerade an einer Schichtart. Bereits erfasste Werte dafür gehen mit verloren. Das lässt sich nicht rückgängig machen.",
+        "attachedFields": "Eigene Felder",
+        "showInOverlay": "Im Kalender anzeigen",
+        "noFieldsAttached": "Keine eigenen Felder angehängt.",
+        "moveUp": "Nach oben",
+        "moveDown": "Nach unten",
+        "icon": "Symbol",
+        "chooseIcon": "Symbol wählen",
+        "print": "Drucken",
+        "overtime": "Überstunden",
+        "overtimeNote": "Über {{hours}} Std./Woche für diesen Zeitraum",
+        "reminderToggle": "Vor Schichtbeginn erinnern",
+        "reminderHint": "Eine Push-Benachrichtigung vor jeder anstehenden Schicht mit Startzeit. Urlaub, Krankheit und andere ganztägige Einträge haben keine Startzeit, an die erinnert werden könnte.",
+        "reminderAtStart": "Zum Schichtbeginn",
+        "reminderMinutesBefore": "{{minutes}} Min. vorher",
+        "mySettings": "Meine Einstellungen",
+        "weeklyHoursLabel": "Wochenstunden (für die Überstunden-Markierung)",
+        "weeklyHoursHint": "Dein eigener Vollzeit-Richtwert. Die Statistik markiert einen gewählten Zeitraum als Überstunden, sobald die Gesamtzeit diesen Wert übersteigt, skaliert auf die Anzahl Tage im Zeitraum.",
+        "extraShifts": "Zusatzschichten",
+        "addExtraShift": "Zusatzschicht hinzufügen",
+        "editExtraShift": "Zusatzschicht bearbeiten",
+        "emptyExtraShiftsTitle": "Noch keine Zusatzschichten",
+        "emptyExtraShiftsDescription": "Füge einer Schicht, die es schon gibt, eine Zusatzschicht hinzu - zum Beispiel Bereitschaft neben einer regulären Schicht.",
+        "extraReminderOffset": "Vor dieser Schicht erinnern",
+        "extraBadgeLabel": "Zusatz",
+        "recurring": "Wiederkehrend",
+        "replaceExisting": "Ersetzt den bestehenden Eintrag",
+        "planning": "Planung",
+        "addEntry": "Eintrag hinzufügen",
+        "templateWork": "Arbeit",
+        "templateSchool": "Schule",
+        "templateUniversity": "Universität"
     }
 }
