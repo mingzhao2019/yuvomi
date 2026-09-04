@@ -973,6 +973,9 @@
         "filtersReset": "Rensa alla filter",
         "filtersDisplay": "Visning"
     },
+    "noteCategories": {
+        "permissionLabel": "Hantera hushållets anteckningskategorier"
+    },
     "notes": {
         "title": "Anteckningar",
         "newNote": "Ny anteckning",

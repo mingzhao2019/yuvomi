@@ -973,6 +973,9 @@
         "filtersReset": "Limpar todos os filtros",
         "filtersDisplay": "Apresentação"
     },
+    "noteCategories": {
+        "permissionLabel": "Gerir categorias de notas do agregado familiar"
+    },
     "notes": {
         "title": "Quadro de notas",
         "newNote": "Nova nota",

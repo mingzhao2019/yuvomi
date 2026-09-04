@@ -985,6 +985,9 @@
         "filtersReset": "برداشتن همه فیلترها",
         "filtersDisplay": "نمایش"
     },
+    "noteCategories": {
+        "permissionLabel": "مدیریت دسته‌بندی‌های یادداشت خانوادگی"
+    },
     "notes": {
         "title": "یادداشت‌ها",
         "newNote": "یادداشت جدید",

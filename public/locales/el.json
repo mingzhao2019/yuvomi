@@ -973,6 +973,9 @@
         "filtersReset": "Κατάργηση όλων των φίλτρων",
         "filtersDisplay": "Εμφάνιση"
     },
+    "noteCategories": {
+        "permissionLabel": "Διαχείριση κοινόχρηστων κατηγοριών σημειώσεων"
+    },
     "notes": {
         "title": "Σημειώσεις",
         "newNote": "Νέα σημείωση",

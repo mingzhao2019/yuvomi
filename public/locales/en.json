@@ -958,6 +958,9 @@
         "colorInheritHint": "The event gets no colour of its own and takes the one of the person it is assigned to. With nobody assigned, the calendar's colour applies.",
         "filtersLayers": "Layers"
     },
+    "noteCategories": {
+        "permissionLabel": "Manage household note categories"
+    },
     "notes": {
         "title": "Board",
         "newNote": "New Note",

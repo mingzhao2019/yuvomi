@@ -973,6 +973,9 @@
         "filtersReset": "Alle filters wissen",
         "filtersDisplay": "Weergave"
     },
+    "noteCategories": {
+        "permissionLabel": "Notitiecategorieën voor het huishouden beheren"
+    },
     "notes": {
         "title": "Bord",
         "newNote": "Nieuwe notitie",

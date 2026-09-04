@@ -985,6 +985,9 @@
         "filtersReset": "Wyczyść wszystkie filtry",
         "filtersDisplay": "Wyświetlanie"
     },
+    "noteCategories": {
+        "permissionLabel": "Zarządzaj domowymi kategoriami notatek"
+    },
     "notes": {
         "title": "Notatki",
         "newNote": "Nowa notatka",

@@ -973,6 +973,9 @@
         "filtersReset": "Xóa tất cả bộ lọc",
         "filtersDisplay": "Hiển thị"
     },
+    "noteCategories": {
+        "permissionLabel": "Quản lý danh mục ghi chú gia đình"
+    },
     "notes": {
         "title": "Bảng ghi chú",
         "newNote": "Ghi chú mới",

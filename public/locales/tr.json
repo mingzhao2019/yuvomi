@@ -973,6 +973,9 @@
         "filtersReset": "Tüm filtreleri kaldır",
         "filtersDisplay": "Görünüm"
     },
+    "noteCategories": {
+        "permissionLabel": "Ev notu kategorilerini yönet"
+    },
     "notes": {
         "title": "Notlar",
         "newNote": "Yeni Not",

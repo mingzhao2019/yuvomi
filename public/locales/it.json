@@ -973,6 +973,9 @@
         "filtersReset": "Rimuovi tutti i filtri",
         "filtersDisplay": "Visualizzazione"
     },
+    "noteCategories": {
+        "permissionLabel": "Gestisci le categorie delle note di casa"
+    },
     "notes": {
         "title": "Bacheca",
         "newNote": "Nuova nota",

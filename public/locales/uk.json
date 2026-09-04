@@ -973,6 +973,9 @@
         "filtersReset": "Зняти всі фільтри",
         "filtersDisplay": "Відображення"
     },
+    "noteCategories": {
+        "permissionLabel": "Керувати сімейними категоріями нотаток"
+    },
     "notes": {
         "title": "Нотатки",
         "newNote": "Нова нотатка",

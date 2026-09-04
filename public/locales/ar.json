@@ -973,6 +973,9 @@
         "filtersReset": "إزالة كل عوامل التصفية",
         "filtersDisplay": "العرض"
     },
+    "noteCategories": {
+        "permissionLabel": "إدارة فئات ملاحظات الأسرة"
+    },
     "notes": {
         "title": "لوحة الملاحظات",
         "newNote": "ملاحظة جديدة",

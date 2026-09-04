@@ -973,6 +973,9 @@
         "filtersReset": "Zrušit všechny filtry",
         "filtersDisplay": "Zobrazení"
     },
+    "noteCategories": {
+        "permissionLabel": "Spravovat domácí kategorie poznámek"
+    },
     "notes": {
         "title": "Nástěnka",
         "newNote": "Nová poznámka",

@@ -973,6 +973,9 @@
         "filtersReset": "Összes szűrő törlése",
         "filtersDisplay": "Megjelenítés"
     },
+    "noteCategories": {
+        "permissionLabel": "Háztartási jegyzetkategóriák kezelése"
+    },
     "notes": {
         "title": "Tábla",
         "newNote": "Új jegyzet",

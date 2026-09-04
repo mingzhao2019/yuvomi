@@ -973,6 +973,9 @@
         "filtersReset": "Снять все фильтры",
         "filtersDisplay": "Отображение"
     },
+    "noteCategories": {
+        "permissionLabel": "Управлять семейными категориями заметок"
+    },
     "notes": {
         "title": "Заметки",
         "newNote": "Новая заметка",

@@ -973,6 +973,9 @@
         "filtersReset": "Effacer tous les filtres",
         "filtersDisplay": "Affichage"
     },
+    "noteCategories": {
+        "permissionLabel": "Gérer les catégories de notes du foyer"
+    },
     "notes": {
         "title": "Notes",
         "newNote": "Nouvelle note",

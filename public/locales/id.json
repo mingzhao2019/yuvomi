@@ -985,6 +985,9 @@
         "filtersReset": "Hapus semua filter",
         "filtersDisplay": "Tampilan"
     },
+    "noteCategories": {
+        "permissionLabel": "Kelola kategori catatan rumah tangga"
+    },
     "notes": {
         "title": "Catatan",
         "newNote": "Catatan baru",
