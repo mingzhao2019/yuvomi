@@ -13,7 +13,13 @@ Include:
 - Potential impact
 - Suggested fix (if you have one)
 
-You should typically receive an acknowledgment within a few days (this is a solo-maintained project). Fixes for confirmed vulnerabilities will be released as soon as possible.
+What you can expect, in days rather than "soon", because a report that sits unanswered is the one failure a solo-maintained project cannot see from the inside:
+
+- an **acknowledgment within 7 days**;
+- a **classification within 14 days** - confirmed, duplicate of an existing advisory, or outside the [scope](#scope) below - with the reasoning, and a correction where the report's severity does not match the code;
+- for a confirmed finding of high severity, a **fix within 30 days**, shipped as its own patch release cut from the last tag rather than from the head of `main`, so it carries the fix, its tests and its documentation and nothing else. The steps are in [docs/RELEASING.md](docs/RELEASING.md).
+
+Every advisory that is published gets a CVE requested through GitHub and names the reporter and the fixed version. These numbers were set on 4 September 2026, the day one report was answered after 99 days; they are commitments, not estimates, and the advisory list under [Security](https://github.com/ulsklyc/yuvomi/security/advisories) shows whether they hold.
 
 ## Scope
 
@@ -78,4 +84,4 @@ Two rules that a create path enforced and its edit path had lost were restored u
 
 ## Supported Versions
 
-Only the latest version on `main` receives security updates. There are no LTS branches.
+Only the latest release receives security updates, and a fix reaches it as a patch release cut from that release's tag, so that an installation updating for the fix gets nothing else (see the [release cadence](CONTRIBUTING.md#release-cadence)). There are no LTS branches, and there will not be while there is one maintainer; section 4 of [docs/SCOPE.md](docs/SCOPE.md) says why and what would change it.
