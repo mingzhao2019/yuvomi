@@ -216,6 +216,8 @@ router.post('/', async (req, res) => {
 // auch zum Ändern und Löschen nicht. PUT/DELETE müssen dieselbe Sichtbarkeit
 // wie GET verwenden, damit eine private Zeile weder geleakt noch eingeblendet
 // oder gelöscht werden kann.
+// Die Antwort ist bewusst 404 wie bei GET und Aufgaben, damit eine fremde
+// private Zeile weder geleakt noch eingeblendet oder gelöscht werden kann.
 function loadVisibleEvent(id, req) {
   const me = getUserId(req);
   return db.get().prepare(`
