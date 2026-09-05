@@ -1226,6 +1226,232 @@ test('getRangeForView: Der echte Week-Aufrufer liest matchMedia und reicht mobil
   }
 });
 
+test('nextOccurrence: das naechste Vorkommen kann im SELBEN Monat liegen', () => {
+  // Die Regel ist eine Aussage, kein Nebenprodukt des Startdatums: wer sie
+  // setzt, meint den letzten Tag, auch wenn er am 15. angelegt hat.
+  //
+  // DIESER TEST HIELT DAS FALSCHE ERGEBNIS FEST. Er erwartete den 28. Februar
+  // und beschrieb damit genau den Fehler: vom 15. Januar aus ist das naechste
+  // Vorkommen der 31. Januar, nicht der Monatsletzte des Folgemonats. So fiel
+  // der 31. Januar ganz aus, sobald DTSTART nicht selbst auf der Regel lag.
+  assert(nextOccurrence('2026-01-15', 'FREQ=MONTHLY;BYMONTHDAY=-1') === '2026-01-31',
+    'der Monatsletzte des BASISMONATS, solange er noch bevorsteht');
+  assert(nextOccurrence('2026-01-31', 'FREQ=MONTHLY;BYMONTHDAY=-1') === '2026-02-28',
+    'steht er schon hinter uns, kommt der naechste Monat');
+  // Mit Intervall bleibt der Sprung erhalten, sobald der Basismonat erledigt ist.
+  assert(nextOccurrence('2026-01-31', 'FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=-1') === '2026-04-30');
+});
+
+test('nextOccurrence: der Anker haelt den gemeinten Tag ueber kurze Monate hinweg', () => {
+  // Ohne Anker schreibt die Klemmung sich fest - das ist der Rest, den der
+  // Monatsfix in v2.60.0 stehen liess.
+  const ohne = occurrences('2026-01-31', 'FREQ=MONTHLY', 6);
+  const mit  = occurrences('2026-01-31', 'FREQ=MONTHLY', 6, { anchor: '2026-01-31' });
+  // occurrences() liefert die Vorkommen NACH dem Start: [0] ist der Februar.
+  assert(ohne[0] === '2026-02-28' && mit[0] === '2026-02-28',
+    'der kurze Monat wird in beiden Faellen geklemmt, nicht uebersprungen');
+  assert(ohne[1] === '2026-03-28', `ohne Anker bleibt die Klemmung: ${ohne[1]}`);
+  assert(mit[1] === '2026-03-31', `mit Anker kehrt der 31. zurueck: ${mit[1]}`);
+});
+
+test('nextOccurrence: eine jaehrliche Serie am 29. Februar kehrt im Schaltjahr zurueck (#978)', () => {
+  const mit = occurrences('2024-02-29', 'FREQ=YEARLY', 4, { anchor: '2024-02-29' });
+  assert(mit[0] === '2025-02-28', 'im Nicht-Schaltjahr geklemmt');
+  assert(mit[3] === '2028-02-29', `2028 ist ein Schaltjahr, bekommen ${mit[3]}`);
+
+  // Ohne Anker bleibt es beim bisherigen Verhalten - Aufgabenserien kennen
+  // ihren Ursprung nicht und duerfen sich davon nicht aendern.
+  const ohne = occurrences('2024-02-29', 'FREQ=YEARLY', 4);
+  assert(ohne[3] === '2028-02-28', `ohne Anker unveraendert, bekommen ${ohne[3]}`);
+});
+
+test('nextOccurrence: ein unlesbarer Anker aendert nichts', () => {
+  const ohne = nextOccurrence('2026-01-31', 'FREQ=MONTHLY');
+  assert(nextOccurrence('2026-01-31', 'FREQ=MONTHLY', { anchor: 'gestern' }) === ohne,
+    'ein kaputter Anker faellt auf das bisherige Verhalten zurueck, statt NaN zu liefern');
+});
+
+// --------------------------------------------------------
+// Was der Review zu #960 gefunden hat
+// --------------------------------------------------------
+
+test('nextOccurrence: gelesen wird NUR -1 bei MONTHLY, alles andere bleibt unbedient', () => {
+  // DIE ERSTE FASSUNG LAS DEN GANZEN RFC-BEREICH, "weil Fremdkalender ihn
+  // liefern" - und machte damit sieben Fehlerfaelle auf, die sie nicht bedienen
+  // konnte. `BYMONTHDAY=31` muesste im Februar AUSFALLEN statt zu klemmen,
+  // `1,15` meint zwei Tage im Monat, `FREQ=YEARLY;BYMONTHDAY=-1` meint zwoelf
+  // Vorkommen im Jahr, und bei DAILY/WEEKLY filtert es Tage statt sie zu
+  // setzen. Was diese Funktion nicht ausdruecken kann, nimmt sie nicht an: eine
+  // ignorierte Angabe laesst die Serie auf ihrem DTSTART-Tag, eine falsch
+  // gerechnete verschiebt jeden Termin.
+  const ohneRegel = nextOccurrence('2026-01-15', 'FREQ=MONTHLY');
+  for (const wert of ['-2', '-31', '15', '31', '1,15', '0']) {
+    assert(nextOccurrence('2026-01-15', `FREQ=MONTHLY;BYMONTHDAY=${wert}`) === ohneRegel,
+      `BYMONTHDAY=${wert} muss unbedient bleiben, nicht still gerechnet werden`);
+  }
+  // Und nur bei MONTHLY bedeutet die Angabe ueberhaupt etwas.
+  assert(nextOccurrence('2026-01-15', 'FREQ=YEARLY;BYMONTHDAY=-1')
+    === nextOccurrence('2026-01-15', 'FREQ=YEARLY'), 'jaehrlich meint etwas anderes');
+  assert(nextOccurrence('2026-01-15', 'FREQ=WEEKLY;BYMONTHDAY=-1')
+    === nextOccurrence('2026-01-15', 'FREQ=WEEKLY'), 'woechentlich erst recht');
+
+  // Reichweite: die eine unterstuetzte Form wirkt.
+  assert(nextOccurrence('2026-01-15', 'FREQ=MONTHLY;BYMONTHDAY=-1') === '2026-01-31');
+});
+
+test('nextOccurrenceAfter: COUNT gilt fuer eine -1-Serie, ohne sie abzuschneiden', () => {
+  // Die Grenze GANZ abzuschalten war die falsche Antwort auf den Abschneide-
+  // Fehler: dann lief eine Serie mit COUNT=1 fuer immer weiter.
+  const q = (rule, ab) => nextOccurrenceAfter('2026-01-15', rule, ab, { seriesStart: '2026-01-15' });
+  assert(q('FREQ=MONTHLY;BYMONTHDAY=-1;COUNT=3', '2026-03-01') === '2026-03-31',
+    'das letzte Vorkommen bleibt erhalten');
+  assert(q('FREQ=MONTHLY;BYMONTHDAY=-1;COUNT=3', '2026-04-01') === null,
+    'danach ist die Serie vorbei');
+  assert(q('FREQ=MONTHLY;BYMONTHDAY=-1;COUNT=1', '2027-01-01') === null,
+    'DTSTART ist Vorkommen 1 - eine Serie mit COUNT=1 ist danach zu Ende');
+  assert(q('FREQ=MONTHLY;BYMONTHDAY=-1', '2027-01-01') === '2027-01-31',
+    'ohne COUNT laeuft sie weiter');
+});
+
+test('nextOccurrence: ein unlesbarer Anker wirft auch bei YEARLY nicht', () => {
+  // Eine Invalid Date ist ein truthy Objekt: der YEARLY-Zweig nahm sie als
+  // Anker, `getUTCMonth()` ergab NaN, und `toISOString()` brach mit RangeError
+  // ab - genau das, was der Guard verhindern soll. Der vorige Fallback-Test
+  // deckte nur MONTHLY.
+  const ohne = nextOccurrence('2024-02-29', 'FREQ=YEARLY');
+  assert(nextOccurrence('2024-02-29', 'FREQ=YEARLY', { anchor: 'gestern' }) === ohne,
+    'faellt auf das bisherige Verhalten zurueck');
+  assert(nextOccurrence('2024-02-29', 'FREQ=YEARLY', { anchor: '' }) === ohne);
+});
+
+// --------------------------------------------------------
+// Das erste Vorkommen einer Regel finden (#960)
+//
+// LESEND. `seriesStartFor` beantwortet, welcher Tag der erste ist - es
+// korrigiert kein gespeichertes Datum. Wer den Beweis fuer die Schreibrouten
+// sucht, findet ihn in test-calendar-routes.js und test-tasks-routes.js.
+// --------------------------------------------------------
+
+test('seriesStartFor findet das erste Vorkommen', () => {
+  const R = 'FREQ=MONTHLY;BYMONTHDAY=-1';
+  assert(seriesStartFor('2026-01-15', R) === '2026-01-31', 'der erste Treffer ab dem 15. ist der Monatsletzte');
+  assert(seriesStartFor('2026-01-31', R) === '2026-01-31', 'wer schon passt, bleibt');
+  // Die Uhrzeit bleibt Wanduhrzeit - nur der Tag wandert.
+  assert(seriesStartFor('2026-01-15T09:30:00', R) === '2026-01-31T09:30:00');
+});
+
+test('seriesStartFor laesst alles andere in Ruhe', () => {
+  // BYDAY ist ausdruecklich ausgenommen: Apple serialisiert "jeden Werktag" als
+  // Serie, deren Start auf ein Wochenende fallen kann, und die Expansion
+  // ueberspringt ihn (#549). Diese Entscheidung ist aelter und gilt weiter.
+  assert(seriesStartFor('2026-05-09', 'FREQ=WEEKLY;BYDAY=MO') === '2026-05-09');
+  assert(seriesStartFor('2026-01-15', 'FREQ=MONTHLY') === '2026-01-15', 'ohne die Angabe nichts');
+  assert(seriesStartFor('2026-01-15', null) === '2026-01-15', 'ohne Regel nichts');
+  assert(seriesStartFor(null, 'FREQ=MONTHLY;BYMONTHDAY=-1') === null, 'ohne Datum nichts');
+  assert(seriesStartFor('kaputt', 'FREQ=MONTHLY;BYMONTHDAY=-1') === 'kaputt', 'unlesbar bleibt unlesbar');
+});
+
+test('lastOccurrenceOf: COUNT=1 bezieht sich auf das erste VORKOMMEN, nicht auf DTSTART', () => {
+  // DTSTART ist nur dann Vorkommen 1, wenn es auf der Regel liegt. Bei einem
+  // unsynchronisierten Start (15. Januar) ist das erste Vorkommen der 31., und
+  // eine Grenze auf dem 15. wies genau dieses eine ab: eine Serie mit COUNT=1
+  // verschwand, sobald DTSTART vorbei war, obwohl die Expansion sie lieferte.
+  const q = (ab) => nextOccurrenceAfter('2026-01-15', 'FREQ=MONTHLY;BYMONTHDAY=-1;COUNT=1', ab,
+    { seriesStart: '2026-01-15' });
+  assert(q('2026-01-20') === '2026-01-31', `das eine Vorkommen bleibt: ${q('2026-01-20')}`);
+  assert(q('2026-02-05') === null, 'danach ist die Serie vorbei');
+});
+
+test('seriesStartFor sucht weiter, bis ALLE Filter passen', () => {
+  // `BYMONTHDAY=-1` mit `BYDAY=MO` ist gueltig und meint die Schnittmenge: der
+  // erste Monatsletzte kann ein Samstag sein. Ein einzelner Schritt lieferte
+  // wieder ein Datum, das seine eigene Regel verfehlt - derselbe Fehler, gegen
+  // den diese Funktion gebaut ist, nur eine Runde spaeter.
+  const treffer = seriesStartFor('2026-01-15', 'FREQ=MONTHLY;BYDAY=MO;BYMONTHDAY=-1');
+  const d = new Date(`${treffer}T00:00:00Z`);
+  assert(d.getUTCDay() === 1, `${treffer} muss ein Montag sein`);
+  const letzter = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  assert(d.getUTCDate() === letzter, `${treffer} muss der Monatsletzte sein`);
+});
+
+test('nextOccurrenceAfter holt auf, bis ALLE Filter passen', () => {
+  // GEGENSTUECK ZUM TEST DARUEBER, UND ZWAR DAS NOETIGE: `seriesStartFor` fand
+  // den ersten Treffer bereits richtig - direkt danach verlor der Countdown den
+  // BYDAY-Filter wieder, weil `nextOccurrence` bei `BYMONTHDAY=-1` nur von
+  // Monatsletztem zu Monatsletztem springt. Die Kalender-Expansion filtert
+  // zusaetzlich, der Countdown nicht: dieselbe Serie, zwei Antworten.
+  const R = 'FREQ=MONTHLY;BYDAY=MO;BYMONTHDAY=-1';
+  const start = '2026-01-15';
+  const erster = seriesStartFor(start, R);
+  const treffer = nextOccurrenceAfter(erster, R, '2026-09-01', { seriesStart: start });
+  assert(treffer, 'die Serie laeuft weiter');
+  const d = new Date(`${treffer}T00:00:00Z`);
+  assert(d.getUTCDay() === 1, `${treffer} muss ein Montag sein`);
+  const letzter = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  assert(d.getUTCDate() === letzter, `${treffer} muss der Monatsletzte sein`);
+  // UND DIESELBE ANTWORT WIE DIE EXPANSION. Der eigentliche Schaden war nicht
+  // das falsche Datum an sich, sondern dass Kachel und Kalender auseinanderliefen.
+  let lauf = erster;
+  let expandiert = null;
+  for (let i = 0; i < 60; i++) {
+    const n = nextOccurrence(lauf, R);
+    if (!n || n <= lauf) break;
+    lauf = n;
+    if (lauf >= '2026-09-01' && matchesRRuleByday(lauf, R)) { expandiert = lauf; break; }
+  }
+  assert(treffer === expandiert,
+    `Countdown ${treffer} muss der Expansion ${expandiert} folgen`);
+});
+
+test('matchesRRuleByday filtert nicht, wo UTC- und Ortsdatum auseinanderfallen', () => {
+  // Ein Termin am 31. Januar um 20:00 New Yorker Zeit liegt in UTC schon am
+  // 1. Februar. Die Pruefung saehe dort den ersten statt des letzten Tages und
+  // wuerfe das Vorkommen still weg.
+  const R = 'FREQ=MONTHLY;BYMONTHDAY=-1';
+  assert(matchesRRuleByday('2026-02-01', R) === false, 'ohne Zonenhinweis wird gefiltert');
+  assert(matchesRRuleByday('2026-02-01', R, { utcDiffersFromLocal: true }) === true,
+    'mit Zonenhinweis nicht - lieber ein Vorkommen zu viel als eines lautlos verloren');
+});
+
+test('scheduleEntriesOnDay() respektiert den Personenfilter und den "Mir zugewiesen"-Filter wie Termine/Aufgaben (#1018)', () => {
+  const { scheduleEntriesOnDay, state } = calendarHelpers;
+  const savedEntries = state.scheduleEntries;
+  const savedLayer = state.layerSchedule;
+  const savedPeople = state.people;
+  const savedAssignedToMe = state.assignedToMe;
+  const savedCurrentUserId = state.currentUserId;
+  try {
+    state.layerSchedule = true;
+    state.scheduleEntries = [
+      { date_key: '2026-09-10', shift_type: { name: 'Fruehschicht' }, user_id: 1 },
+      { date_key: '2026-09-10', shift_type: { name: 'Spaetschicht' }, user_id: 2 },
+    ];
+
+    state.people = new Set();
+    state.assignedToMe = false;
+    assert(scheduleEntriesOnDay('2026-09-10').length === 2,
+      'ohne aktiven Filter zeigt der Kalender beide Personen');
+
+    state.people = new Set([1]);
+    assert(scheduleEntriesOnDay('2026-09-10').length === 1
+      && scheduleEntriesOnDay('2026-09-10')[0].user_id === 1,
+      'Personenfilter auf Person 1 muss Person 2s Schicht ausblenden - vorher zeigte der Schichtplan trotz aktivem Filter alle Personen');
+
+    state.people = new Set();
+    state.assignedToMe = true;
+    state.currentUserId = 2;
+    assert(scheduleEntriesOnDay('2026-09-10').length === 1
+      && scheduleEntriesOnDay('2026-09-10')[0].user_id === 2,
+      '"Mir zugewiesen" muss auch fuer den Schichtplan gelten, nicht nur fuer Termine/Aufgaben');
+  } finally {
+    state.scheduleEntries = savedEntries;
+    state.layerSchedule = savedLayer;
+    state.people = savedPeople;
+    state.assignedToMe = savedAssignedToMe;
+    state.currentUserId = savedCurrentUserId;
+  }
+});
+
 // --------------------------------------------------------
 // Ergebnis
 // --------------------------------------------------------
