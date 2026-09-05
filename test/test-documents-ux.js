@@ -243,6 +243,10 @@ test('Ordnerlöschung bietet Behalten oder Mitlöschen mit exakten Server-Zahlen
   assert.match(block, /expected_folders=\$\{impact\.removed_folders\}/);
   assert.match(block, /choice === 'delete'[\s\S]*expected_snapshot=\$\{encodeURIComponent\(impact\.snapshot\)\}/);
   assert.match(block, /FOLDER_CONTENT_CHANGED[\s\S]*await deleteFolder\(folder\)/);
+  assert.match(block, /const expectedSnapshot = choice === 'delete'[\s\S]*: '';/);
+  assert.match(block, /handleError: \(err\) => handleDelayedFolderDeleteError\(err, folder\)/);
+  assert.match(block, /FOLDER_CONTENT_CHANGED[\s\S]{0,180}await deleteFolder\(folder\)/);
+  assert.match(block, /function handleDelayedFolderDeleteError[\s\S]{0,180}delayedFolderDeleteErrorToast\(err\)/);
   assert.match(block, /FOLDER_DELETE_IN_PROGRESS[\s\S]*folderDeleteInProgressToast/);
   assert.match(block, /result\.contents_changed[\s\S]*folderDeleteContentsChangedToast/);
   assert.match(block, /failed_documents[\s\S]*failure_stage !== 'concurrency'/);
@@ -355,6 +359,45 @@ test('das Speichern referenziert den Submit-Button am Panel, nicht am Formular (
   // Der Submit-Handler reicht das Panel an saveDocument durch.
   assert.match(page, /saveDocument\(event, doc, panel\)/);
 });
+
+test('alle unterstützten Sprachen enthalten die Optionen für die Ordnerlöschung', () => {
+  const localeDir = resolve(HERE, '../public/locales');
+  const files = readdirSync(localeDir).filter((file) => file.endsWith('.json'));
+  const keys = [
+    'deleteFolderImpact',
+    'deleteFolderKeepDocuments',
+    'deleteFolderKeepDocuments_one',
+    'deleteFolderWithDocuments',
+    'deleteFolderWithDocuments_one',
+    'deleteFolderDocumentsUnavailable',
+    'deleteFolderLinkedRecords',
+    'folderDeletedWithDocumentsToast',
+    'folderDeletedWithDocumentsToast_one',
+    'folderDeletePartialToast',
+    'folderDeleteContentsChangedBeforeCommitToast',
+    'folderDeleteContentsChangedToast',
+    'folderDeleteContentsChangedWithFailuresToast',
+    'folderDeleteInProgressToast',
+  ];
+
+  for (const file of files) {
+    const documents = JSON.parse(read(`../public/locales/${file}`)).documents;
+    for (const key of keys) {
+      assert.equal(typeof documents?.[key], 'string', `${file}: ${key} fehlt`);
+      assert.notEqual(documents[key].trim(), '', `${file}: ${key} ist leer`);
+    }
+    assert.equal('deleteFolderConfirmDetail' in documents, false,
+      `${file}: deleteFolderConfirmDetail wird nicht mehr verwendet`);
+    assert.equal('deleteFolderSubtreeDetail' in documents, false,
+      `${file}: deleteFolderSubtreeDetail wird nicht mehr verwendet`);
+    assert.equal('deleteFolderSubtreeDetail_one' in documents, false,
+      `${file}: deleteFolderSubtreeDetail_one wird nicht mehr verwendet`);
+  }
+
+  const english = JSON.parse(read('../public/locales/en.json')).documents;
+  assert.match(english.deleteFolderLinkedRecords, /^If you also delete the documents,/);
+});
+
 // --------------------------------------------------------
 // Folder tree upload
 // --------------------------------------------------------
