@@ -229,7 +229,7 @@ test('scheduleUndoableDelete: ohne Undo läuft der Delete nach dem Fenster', asy
   assert.equal(keepaliveFlag, false, 'der reguläre Commit läuft ohne keepalive');
 });
 
-test('scheduleUndoableDelete: pagehide-Fehler kann den optimistischen Zustand einmalig zurücksetzen', async () => {
+test('scheduleUndoableDelete: pagehide-Fehler kann den optimistischen Zustand einmalig zurücksetzen', { timeout: 5000 }, async () => {
   const previousWindow = global.window;
   const listeners = new Map();
   let capturedUndo = null;
@@ -278,7 +278,7 @@ test('scheduleUndoableDelete: pagehide-Fehler kann den optimistischen Zustand ei
   }
 });
 
-test('scheduleUndoableDelete: regulärer Commit-Fehler wird einmalig zurückgesetzt und gemeldet', async () => {
+test('scheduleUndoableDelete: regulärer Commit-Fehler wird einmalig zurückgesetzt und gemeldet', { timeout: 5000 }, async () => {
   const previousWindow = global.window;
   const listeners = new Map();
   let capturedUndo = null;
