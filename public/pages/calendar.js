@@ -329,7 +329,16 @@ const LAYER_SCHOOL_KEY    = 'yuvomi:calendar:layer:school';
 const LAYER_BIRTHDAYS_KEY = 'yuvomi:calendar:layer:birthdays';
 const LAYER_SCHEDULE_KEY = 'yuvomi:calendar:layer:schedule';
 const SCHEDULE_DISPLAY_KEY = 'yuvomi:calendar:schedule-display';
+// Monatszelle am Telefon: Titelzeilen statt Punkte. GERAETEWEIT, nicht pro
+// Haushalt - die Frage, die der Schalter beantwortet ("passt ein Titel auf
+// diesen Schirm?"), ist eine des Geraets, und dieselbe Person liest denselben
+// Kalender abends am 27-Zoll-Monitor. Damit steht er neben scheduleDisplay in
+// localStorage und nicht in den Haushaltseinstellungen.
+const MONTH_TITLES_KEY = 'yuvomi:calendar:month-titles';
 const ASSIGNED_TO_ME_KEY  = 'yuvomi:calendar:assignedToMe';
+const PEOPLE_FILTER_KEY   = 'yuvomi:calendar:people';
+const HOLIDAY_PUBLIC_FALLBACK = '#FF3B30';
+const HOLIDAY_SCHOOL_FALLBACK = '#34C759';
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /* DIE STUNDENHOEHE STEHT IN tokens.css UND NUR DORT.
@@ -534,6 +543,11 @@ let state = {
   layerSchool:   true,     // toggle for school holiday layer
   layerBirthdays: true,    // toggle for the birthday layer (#778)
   layerSchedule: true,     // computed schedule overlay
+  // AUS ist die Vorgabe, und das ist eine Zusage an den Bestand: die Punkte
+  // sind die gemessene Fassung (siehe den Block in calendar.css), und ein
+  // Update, das die Monatsansicht jedes Telefons ungefragt umbaut, waere die
+  // falsche Art, eine zweite Lesart anzubieten.
+  monthTitles: false,      // Monat am Telefon: Titelzeilen statt Punkte
   scheduleDisplay: 'compact',
   offlineSince:  null,     // Date des letzten Cache-Stands, wenn offline bedient
   defaultDuration: 60,     // Standard-Termindauer (Minuten) aus den Präferenzen
@@ -1405,6 +1419,9 @@ export async function render(container, { user }) {
   state.layerBirthdays = localStorage.getItem(LAYER_BIRTHDAYS_KEY) !== 'false';
   state.layerSchedule = localStorage.getItem(LAYER_SCHEDULE_KEY) !== 'false';
   state.scheduleDisplay = localStorage.getItem(SCHEDULE_DISPLAY_KEY) === 'blocks' ? 'blocks' : 'compact';
+  // Gegen 'true' geprueft, nicht gegen 'false' wie die Ebenen darueber: die
+  // Ebenen sind AN, solange nichts anderes dasteht, dieser Schalter ist AUS.
+  state.monthTitles = localStorage.getItem(MONTH_TITLES_KEY) === 'true';
   state.currentUserId = user?.id ?? null;
   state.assignedToMe  = localStorage.getItem(ASSIGNED_TO_ME_KEY) === '1';
 
@@ -1768,6 +1785,20 @@ function updateOfflineNotice() {
 // extrem vollen Tagen (>14 Items) - "+N" zählt via data-total trotzdem korrekt.
 const MONTH_DAY_MAX_CHIPS = 14;
 
+/**
+ * Den Deckel aus dem gelesenen Custom-Property-Wert bestimmen.
+ *
+ * Eigene Funktion, weil hier drei Werte dasselbe bedeuten muessen: der leere
+ * String (Property nirgends gesetzt), '0' (Basiswert von .month-grid) und
+ * alles Unlesbare - alle drei heissen "kein Deckel". Als Ausdruck inline stand
+ * das dreimal nicht da, und `parseInt('') > 0` ist NaN > 0, also genau der
+ * stille Fall, der ohne diese Funktion niemand pruefen kann.
+ */
+function monthDayVisibleCap(raw) {
+  const n = parseInt(raw, 10);
+  return n > 0 ? n : Infinity;
+}
+
 let _monthGridResizeObserver = null;
 let _monthFitRaf = 0;
 
@@ -1778,37 +1809,67 @@ let _monthFitRaf = 0;
 // damit nie ein Chip mittig abschneidet (vorher: festes Budget=3 clippte still).
 function fitMonthDayCells(grid) {
   if (!grid) return;
-  grid.querySelectorAll('.month-day').forEach((cell) => {
+
+  // DREI PHASEN STATT EINER SCHLEIFE MIT LESE-/SCHREIB-WECHSEL. Vorher lief je
+  // Zelle Schreiben → Messen → Schreiben → Messen, über bis zu 42 Zellen also
+  // mehrere erzwungene Reflows pro Durchlauf (Audit 2026-08-31, der eine
+  // Thrash-Kandidat der Codebase). Jetzt schreiben alle Zellen zuerst ihren
+  // Messzustand, dann misst EIN Layoutlauf alles, dann fallen die
+  // Entscheidungen. Die "+N"-Zeile darf dafür vorab sichtbar sein: sie steht
+  // NACH den Chips und verschiebt deren Unterkanten nicht, und ihre Höhe ist
+  // einzeilig textunabhängig - die Endzustände sind mit der alten Fassung
+  // identisch (leer/fitsAll → Zeile versteckt und geleert).
+  const cells = [];
+  for (const cell of grid.querySelectorAll('.month-day')) {
     const chips   = [...cell.querySelectorAll('.month-day__holiday, .month-day__event, .cal-task-chip')];
     const moreRow = cell.querySelector('.month-day__more');
-    if (!moreRow) return;
+    if (!moreRow) continue;
     const total = Number(cell.dataset.total) || chips.length;
 
     // Reset auf vollständig sichtbar für eine stabile Messung.
     chips.forEach((c) => c.classList.remove('is-clipped'));
-    moreRow.hidden = true;
-    moreRow.textContent = '';
-    if (!chips.length) return;
+    moreRow.hidden = !chips.length;
+    moreRow.textContent = chips.length ? t('calendar.moreEvents', { count: total }) : '';
+    if (chips.length) cells.push({ cell, chips, moreRow, total });
+  }
 
-    const cs         = getComputedStyle(cell);
-    const cellBottom = cell.getBoundingClientRect().bottom - parseFloat(cs.paddingBottom);
+  // Der Deckel kommt aus dem Stylesheet, nicht aus einer zweiten Breitenabfrage
+  // hier: in der Titelfassung stehen hoechstens vier Zeilen, sonst entscheidet
+  // weiter allein die Zellhoehe (0/leer = kein Deckel). Wo die Grenze liegt,
+  // weiss die Media Query, die auch die Zeilenhoehe setzt - ein zweites
+  // `matchMedia` daneben waere dieselbe Zahl an einer zweiten Stelle. EIN
+  // Lesezugriff fuers ganze Gitter, in der Messphase: er teilt sich den
+  // erzwungenen Reflow mit den Zellmessungen darunter.
+  const maxVisible = monthDayVisibleCap(getComputedStyle(grid).getPropertyValue('--month-day-max-visible'));
 
-    // Passt alles rein (inkl. evtl. nicht gerenderter Überzähliger)? Dann fertig.
-    const fitsAll = total <= chips.length
-      && chips[chips.length - 1].getBoundingClientRect().bottom <= cellBottom;
-    if (fitsAll) return;
+  // Messphase: der erste Zugriff erzwingt EINEN Reflow, der Rest liest mit.
+  for (const item of cells) {
+    const cs        = getComputedStyle(item.cell);
+    item.cellBottom = item.cell.getBoundingClientRect().bottom - parseFloat(cs.paddingBottom);
+    item.reserved   = item.cellBottom - item.moreRow.getBoundingClientRect().height;
+    item.bottoms    = item.chips.map((c) => c.getBoundingClientRect().bottom);
+  }
+
+  for (const { chips, moreRow, total, bottoms, cellBottom, reserved } of cells) {
+    // Passt alles rein (inkl. evtl. nicht gerenderter Überzähliger) UND unter den
+    // Deckel? Dann fertig. Ohne die zweite Frage traete der Fall "fuenf Termine,
+    // Zelle hoch genug fuer fuenf" hier durch und zeigte fuenf Zeilen ohne "+N" -
+    // der Deckel muss auf BEIDEN Wegen greifen, nicht nur im Klipp-Zweig.
+    const fitsAll = total <= chips.length && total <= maxVisible
+      && bottoms[bottoms.length - 1] <= cellBottom;
+    if (fitsAll) {
+      moreRow.hidden = true;
+      moreRow.textContent = '';
+      continue;
+    }
 
     // Platz für die "+N"-Zeile freihalten (einzeilig, Höhe unabhängig von N).
-    moreRow.hidden = false;
-    moreRow.textContent = t('calendar.moreEvents', { count: total });
-    const reserved = cellBottom - moreRow.getBoundingClientRect().height;
-
     let visible = 0;
-    for (const chip of chips) {
-      if (chip.getBoundingClientRect().bottom <= reserved) visible += 1;
+    for (const bottom of bottoms) {
+      if (bottom <= reserved) visible += 1;
       else break;
     }
-    visible = Math.max(1, visible); // nie ganz leer wirken lassen
+    visible = Math.max(1, Math.min(visible, maxVisible)); // nie ganz leer wirken lassen
 
     chips.forEach((chip, i) => chip.classList.toggle('is-clipped', i >= visible));
     const hiddenCount = total - visible;
@@ -1818,7 +1879,7 @@ function fitMonthDayCells(grid) {
       moreRow.hidden = true;
       moreRow.textContent = '';
     }
-  });
+  }
 }
 
 // Neurechnung per rAF drosseln: der ResizeObserver kann beim Fensterziehen
@@ -1913,7 +1974,7 @@ function renderMonthView(container) {
 
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
-    <div class="month-view">
+    <div class="${monthViewClasses(state.monthTitles)}">
       <div class="month-weekdays">
         ${weekdayOrder(state.weekStart).map((idx) => `<div class="month-weekday">${DAY_NAMES_SHORT()[idx]}</div>`).join('')}
       </div>
@@ -1930,9 +1991,13 @@ function renderMonthView(container) {
 
     if (handleCalendarTaskToggle(e)) return;
 
-    // Mobil ist die ganze Zelle EIN Drill-in-Ziel: die Chips sind dort zu
-    // Punkten reduziert (reines "etwas ist los"-Signal), ein Tap darf nie in
-    // einem Event-Popup enden statt in der handlungsfähigen Tagesansicht (P1).
+    // Mobil ist die ganze Zelle EIN Drill-in-Ziel, und das bleibt es auch mit
+    // Titelzeilen. DER GRUND IST DIE TAP-GROESSE, nicht die Chip-Form: hier
+    // stand "die Chips sind dort zu Punkten reduziert", was ab dem
+    // Titel-Schalter nur noch die halbe Wahrheit waere - eine 13px hohe
+    // Titelzeile ist genauso weit unter den 44px, die ein Ziel am Finger
+    // braucht, wie es der 10px-Punkt war. Ein Tap darf nie in einem
+    // Event-Popup enden statt in der handlungsfaehigen Tagesansicht (P1).
     // Desktop behält die feinere Interaktion: Chip -> Ziel, Zelle -> Tag.
     const isMobile = window.matchMedia(MOBILE_MEDIA_QUERY).matches;
     if (!isMobile) {
@@ -1978,6 +2043,22 @@ function renderMonthView(container) {
  * Wochenend-Tönung hing früher an `:nth-child(7n)`/`7n-1` im CSS, was nur bei
  * Wochenstart Montag Sa/So traf: bei Sonntag-Start färbte sie Fr/Sa (#780).
  */
+/**
+ * Klassen der Monatsflaeche. Eigene Funktion aus demselben Grund wie
+ * `monthDayClasses` daneben: die Entscheidung ist damit ohne DOM pruefbar
+ * (`__test`), statt nur als Teilstring einer Template-Zeile zu existieren.
+ *
+ * Die Modifier-Klasse steht auf ALLEN Breiten, wenn der Schalter an ist - was
+ * sie bewirkt, entscheidet allein das Stylesheet, und dort wohnt sie in der
+ * 639er-Query. Sie hier zusaetzlich an ein `matchMedia` zu haengen, hiesse die
+ * Schwelle ein zweites Mal zu fuehren; beim naechsten Breakpoint-Umbau liefen
+ * die beiden auseinander, und genau diese Doppelung hat der Kalender 2026-08
+ * schon einmal bezahlt (siehe MOBILE_MEDIA_QUERY).
+ */
+function monthViewClasses(monthTitles) {
+  return ['month-view', monthTitles ? 'month-view--titles' : ''].filter(Boolean).join(' ');
+}
+
 function monthDayClasses(date, inMonth, todayKey = state.today) {
   return [
     'month-day',
@@ -2644,6 +2725,263 @@ function renderAgendaView(container) {
 // (Vergangenheit + Zukunft) mit „Heute"-Anker. Klick öffnet den Termin im Kontext.
 // --------------------------------------------------------
 
+// --------------------------------------------------------
+// Filter-Blatt
+//
+// DER ORT, AN DEM DIE EBENEN WOHNEN - und der Grund, warum sie umgezogen sind.
+//
+// Bis 2026-08-28 standen bis zu fuenf Ebenen-Schalter als Chips im Modulkopf.
+// Gemessen kostete das eine eigene Kopfzeile (56px = 6,6% der Viewporthoehe
+// auf 390px), und unter 640px verloren die Chips ihr Label: uebrig blieben
+// 48px-Kreise, von denen einer nur einen 8px-Punkt enthielt. Ihr An/Aus-
+// Zustand war eine Flaeche von 1,085:1 in Light - die `--active`-Regel, die
+// ihn tragen sollte, setzte dieselbe Kante wie der Ruhezustand und war damit
+// ein No-op. Vier der fuenf hatten kein `aria-pressed`; fuer einen
+// Screenreader war die Ebene zustandslos.
+//
+// Ein Blatt loest alle drei Befunde mit einem Bauteil: die Schalter bekommen
+// ihre Beschriftung zurueck, ihr Zustand ist eine echte Checkbox statt einer
+// Waschung, und der Kopf gibt eine Zeile her.
+//
+// WAS ES NICHT IST: eine FARBLEGENDE. Die Farbe eines Termins kommt aus drei
+// Quellen in Rangfolge (`resolveEventColor`, utils/event-color.js) - eigene
+// Farbe, primaere zugewiesene Person, Kalender. Eine Legende „diese Farbe =
+// jener Kalender" waere bei jedem Termin falsch, der eine der ersten beiden
+// Quellen nutzt. Die Person ist die einzige Achse, die eindeutig ist, und in
+// einem Familienplaner ist sie auch die gefragte.
+// --------------------------------------------------------
+
+/** Die Ebenen, die es im aktuellen Zustand ueberhaupt gibt. */
+function availableLayers() {
+  const hp = state.holidayPrefs ?? {};
+  const rows = [];
+  if (hp.holiday_show_public) {
+    rows.push({
+      key: 'holidays', label: t('calendar.toggleHolidays'),
+      checked: state.layerHolidays, color: hp.holiday_public_color ?? HOLIDAY_PUBLIC_FALLBACK,
+    });
+  }
+  if (hp.holiday_show_school) {
+    rows.push({
+      key: 'school', label: t('calendar.toggleSchool'),
+      checked: state.layerSchool, color: hp.holiday_school_color ?? HOLIDAY_SCHOOL_FALLBACK,
+    });
+  }
+  if (scheduleEnabled()) {
+    rows.push({
+      key: 'schedule', label: t('schedule.overlay'),
+      checked: state.layerSchedule, color: null,
+    });
+  }
+  // Der Geburtstags-Schalter braucht hier keine „gibt es welche?"-Bedingung
+  // mehr: im Blatt kostet eine Zeile keine Kopfzeile, und ein Schalter, der
+  // je nach Datenlage verschwindet, ist im Blatt schwerer zu finden als eine
+  // Zeile, die immer an derselben Stelle steht.
+  rows.push({
+    key: 'birthdays', label: t('calendar.toggleBirthdays'),
+    checked: state.layerBirthdays, color: null,
+  });
+  return rows;
+}
+
+/** Initialen einer Person - dieselbe Bildung wie im Avatar-Stack. */
+function personInitials(name) {
+  return String(name ?? '')
+    .split(' ')
+    .map((w) => w[0] ?? '')
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function openCalendarFilters() {
+  const layers = availableLayers();
+  const people = state.users ?? [];
+
+  const layerRows = layers.map((row) => toggleRowHtml({
+    label: row.label,
+    checked: row.checked,
+    swatchColor: row.color,
+    attrs: { 'data-filter-layer': row.key },
+  })).join('');
+
+  // Der Anzeigemodus des Schichtplans ist KEIN Filter - er nimmt nichts weg,
+  // er zeigt dasselbe anders. Er steht trotzdem hier, weil er im Kopf als
+  // Text-Chip neben den Ebenen hing und dort dieselbe Zeile kostete; im Blatt
+  // hat er als beschrifteter Schalter zum ersten Mal einen Zustand, den man
+  // ablesen kann statt ihn aus der Knopfbeschriftung zu erschliessen (der
+  // Chip hiess „Volle Bloecke", wenn er sie NICHT zeigte).
+  const scheduleDisplayRow = scheduleEnabled() ? toggleRowHtml({
+    label: t('schedule.fullBlocks'),
+    checked: state.scheduleDisplay === 'blocks',
+    attrs: { 'data-filter-schedule-display': 'true' },
+  }) : '';
+
+  // NUR AM TELEFON, denn nur dort gibt es die zweite Fassung: ab 640px zeigt
+  // die Monatszelle ohnehin Titel, und der Schalter waere ein Bedienelement
+  // ohne Wirkung - die Zeile wuerde etwas versprechen, das die Ansicht schon
+  // tut. Das Blatt wird beim Oeffnen gebaut, die Zeile richtet sich also nach
+  // der Breite in diesem Moment; wer waehrend des offenen Blattes dreht,
+  // sieht sie beim naechsten Oeffnen.
+  const monthTitlesRow = window.matchMedia(MOBILE_MEDIA_QUERY).matches ? toggleRowHtml({
+    label: t('calendar.toggleMonthTitles'),
+    checked: state.monthTitles,
+    attrs: { 'data-filter-month-titles': 'true' },
+  }) : '';
+
+  const meRow = (people.length > 1 && state.currentUserId != null)
+    ? toggleRowHtml({
+      label: t('calendar.assignedToMe'),
+      checked: state.assignedToMe,
+      attrs: { 'data-filter-mine': 'true' },
+    })
+    : '';
+
+  const personRows = people.map((u) => toggleRowHtml({
+    label: u.display_name ?? '',
+    // Leeres Set heisst ALLE - die Haekchen stehen dann auf „an", weil genau
+    // das der sichtbare Zustand ist. Wer das erste abwaehlt, waehlt damit die
+    // uebrigen aus; das ist die Lesart, die Apple in derselben Liste hat.
+    checked: state.people.size === 0 || state.people.has(u.id),
+    // ZWEI NAMEN FUER DIESELBE FARBE, und das ist kein Tippfehler in einer
+    // der beiden Quellen: `/auth/users` liefert die Spalte roh als
+    // `avatar_color`, waehrend `assigned_users` sie im JSON auf `color`
+    // umbenennt (services/calendar-events.js:17). Wer nur einen der beiden
+    // Namen liest, bekommt an einer der beiden Stellen `undefined` - hier
+    // stand zuerst `u.color` und die Scheiben blieben in jeder Zeile leer.
+    swatchColor: u.avatar_color ?? u.color ?? null,
+    swatchLabel: personInitials(u.display_name),
+    attrs: { 'data-filter-person': String(u.id) },
+  })).join('');
+
+  const content = `
+    <div class="cal-filters">
+      ${layerRows ? `
+        <section class="cal-filters__group">
+          <h3 class="cal-filters__heading">${t('calendar.filtersLayers')}</h3>
+          ${layerRows}
+        </section>
+      ` : ''}
+      ${(meRow || personRows) ? `
+        <section class="cal-filters__group">
+          <h3 class="cal-filters__heading">${t('calendar.filtersPeople')}</h3>
+          ${meRow}
+          ${personRows}
+        </section>
+      ` : ''}
+      ${(scheduleDisplayRow || monthTitlesRow) ? `
+        <section class="cal-filters__group">
+          <h3 class="cal-filters__heading">${t('calendar.filtersDisplay')}</h3>
+          ${scheduleDisplayRow}
+          ${monthTitlesRow}
+        </section>
+      ` : ''}
+      <button type="button" class="btn btn--secondary cal-filters__reset" id="cal-filters-reset">
+        ${t('calendar.filtersReset')}
+      </button>
+    </div>
+  `;
+
+  openSharedModal({ title: t('calendar.filters'), content, size: 'sm', initialFocus: 'none' });
+
+  const panel = document.querySelector('#shared-modal-overlay .modal-panel');
+  if (!panel) return;
+
+  const LAYER_STATE = {
+    holidays:  ['layerHolidays',  LAYER_HOLIDAYS_KEY],
+    school:    ['layerSchool',    LAYER_SCHOOL_KEY],
+    schedule:  ['layerSchedule',  LAYER_SCHEDULE_KEY],
+    birthdays: ['layerBirthdays', LAYER_BIRTHDAYS_KEY],
+  };
+
+  panel.addEventListener('change', (e) => {
+    const input = e.target;
+    if (!(input instanceof HTMLInputElement)) return;
+
+    const layerKey = input.dataset.filterLayer;
+    if (layerKey && LAYER_STATE[layerKey]) {
+      const [field, storageKey] = LAYER_STATE[layerKey];
+      state[field] = input.checked;
+      try { localStorage.setItem(storageKey, input.checked ? 'true' : 'false'); } catch {}
+    } else if (input.dataset.filterScheduleDisplay) {
+      state.scheduleDisplay = input.checked ? 'blocks' : 'compact';
+      try { localStorage.setItem(SCHEDULE_DISPLAY_KEY, state.scheduleDisplay); } catch {}
+    } else if (input.dataset.filterMonthTitles) {
+      state.monthTitles = input.checked;
+      try { localStorage.setItem(MONTH_TITLES_KEY, input.checked ? 'true' : 'false'); } catch {}
+    } else if (input.dataset.filterMine) {
+      state.assignedToMe = input.checked;
+      try { localStorage.setItem(ASSIGNED_TO_ME_KEY, input.checked ? '1' : '0'); } catch {}
+    } else if (input.dataset.filterPerson) {
+      const id = Number(input.dataset.filterPerson);
+      // Der Sprung aus „alle" heraus: das erste Abwaehlen macht aus dem leeren
+      // Set die Menge der UEBRIGEN. Ohne diesen Schritt haette ein Klick auf
+      // ein Haekchen, das „alle" bedeutet, gar nichts getan.
+      if (state.people.size === 0) {
+        for (const u of state.users ?? []) state.people.add(u.id);
+      }
+      if (input.checked) state.people.add(id);
+      else state.people.delete(id);
+      // Wieder ALLE gewaehlt heisst wieder „kein Filter" - sonst bliebe ein
+      // Filter aktiv, der nichts wegnimmt, und der Zaehler am Knopf loege.
+      if (state.people.size === (state.users ?? []).length) state.people.clear();
+      persistPeopleFilter();
+    } else {
+      return;
+    }
+
+    renderToolbar();
+    renderView();
+  });
+
+  panel.querySelector('#cal-filters-reset')?.addEventListener('click', () => {
+    state.layerHolidays = true;
+    state.layerSchool = true;
+    state.layerSchedule = true;
+    state.layerBirthdays = true;
+    state.assignedToMe = false;
+    state.people.clear();
+    try {
+      localStorage.setItem(LAYER_HOLIDAYS_KEY, 'true');
+      localStorage.setItem(LAYER_SCHOOL_KEY, 'true');
+      localStorage.setItem(LAYER_SCHEDULE_KEY, 'true');
+      localStorage.setItem(LAYER_BIRTHDAYS_KEY, 'true');
+      localStorage.setItem(ASSIGNED_TO_ME_KEY, '0');
+    } catch {}
+    persistPeopleFilter();
+    closeModal({ force: true });
+    renderToolbar();
+    renderView();
+  });
+}
+
+/**
+ * Der gespeicherte Personenfilter, GEGEN DEN HAUSHALT GEPRUEFT.
+ *
+ * Eine gespeicherte ID, die es nicht mehr gibt (Mitglied entfernt), waere ein
+ * Filter, den kein Haekchen im Blatt mehr zurueckstellen kann: der Kalender
+ * bliebe leer, das Blatt zeigte lauter aktive Haekchen, und der Zaehler am
+ * Knopf naennte einen Filter ohne sichtbare Ursache. Deshalb faellt jede
+ * unbekannte ID beim Laden weg - und wenn danach alle oder keine uebrig sind,
+ * ist es wieder „alle", also gar kein Filter.
+ */
+function restorePeopleFilter(users) {
+  const known = new Set((users ?? []).map((u) => u.id));
+  let stored;
+  try { stored = JSON.parse(localStorage.getItem(PEOPLE_FILTER_KEY) ?? '[]'); } catch { stored = []; }
+  if (!Array.isArray(stored)) return new Set();
+  const valid = stored.map(Number).filter((id) => known.has(id));
+  if (valid.length === 0 || valid.length === known.size) return new Set();
+  return new Set(valid);
+}
+
+function persistPeopleFilter() {
+  try {
+    if (state.people.size === 0) localStorage.removeItem(PEOPLE_FILTER_KEY);
+    else localStorage.setItem(PEOPLE_FILTER_KEY, JSON.stringify([...state.people]));
+  } catch {}
+}
+
 function openCalendarSearch() {
   if (searchActive) {
     _container.querySelector('#cal-search-input')?.focus();
@@ -2899,6 +3237,8 @@ export const __test = {
   clickedTime,
   hourOffset,
   monthDayClasses,
+  monthViewClasses,
+  monthDayVisibleCap,
   pickerColors,
   colorToSave,
   isIcsSubscriptionEvent,
