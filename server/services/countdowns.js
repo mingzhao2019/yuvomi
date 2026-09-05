@@ -49,14 +49,14 @@ const DEFAULT_LIMIT = 5;
 
 /**
  * So viele Tage bleibt ein abgelaufener Countdown stehen, bevor er still
- * herausfällt.
+ * herausfällt - solange der Haushalt nichts anderes einstellt (#969).
  *
  * Sieben, weil die Nachfrist eine Woche Alltag abdecken soll: wer freitags nicht
  * hinsieht, findet den verpassten Stichtag am Montag noch vor. Länger wäre keine
  * Nachfrist mehr, sondern eine zweite Aufgabenliste - und diese Kachel ist
  * ausdrücklich keine.
  */
-const OVERDUE_GRACE_DAYS = 7;
+const DEFAULT_OVERDUE_GRACE_DAYS = 7;
 
 // Sicherheitsgrenze beim Aufholen einer Serie über ausgenommene Vorkommen
 // (EXDATE, #489). Eine Serie, die mehr als das an aufeinanderfolgenden
@@ -180,6 +180,17 @@ function disabledModules(d) {
 }
 
 /**
+ * Die haushaltweite Nachfrist in Tagen (#969) - `Number.isInteger`, nicht `||`,
+ * damit ein bewusst gesetztes `0` ("keine Nachfrist") nicht auf den Standard
+ * zurückfällt.
+ */
+function overdueGraceDays(d) {
+  const row = d.prepare("SELECT value FROM sync_config WHERE key = 'countdown_grace_days'").get();
+  const parsed = Number(row?.value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : DEFAULT_OVERDUE_GRACE_DAYS;
+}
+
+/**
  * Alle für `userId` sichtbaren Countdowns, nach Nähe sortiert.
  *
  * @param {object} d            Offene DB-Verbindung
@@ -224,9 +235,10 @@ export function getCountdowns(d, {
    * einem Set und nicht in zwei nacheinander angewandten Filtern. Der
    * Unterschied wäre sonst wieder `total`: zwei Schnitte, zwei Wahrheiten. */
   const hidden = new Set([...disabledModules(d), ...(hiddenModules ?? [])]);
+  const graceDays = overdueGraceDays(d);
   const items = [
-    ...(hidden.has('calendar') ? [] : eventCountdowns(d, userId, todayKey)),
-    ...(hidden.has('tasks') ? [] : taskCountdowns(d, userId, todayKey)),
+    ...(hidden.has('calendar') ? [] : eventCountdowns(d, userId, todayKey, graceDays)),
+    ...(hidden.has('tasks') ? [] : taskCountdowns(d, userId, todayKey, graceDays)),
   ];
 
   const sorted = items
@@ -249,7 +261,7 @@ export function getCountdowns(d, {
   return { items: sorted.slice(0, limit), total: sorted.length };
 }
 
-function eventCountdowns(d, userId, todayKey) {
+function eventCountdowns(d, userId, todayKey, graceDays) {
   // Einmal je Lauf statt je Termin: die Zone steht in sync_config und aendert
   // sich innerhalb eines Requests nicht.
   const tz = householdTimeZone(d);
@@ -281,14 +293,14 @@ function eventCountdowns(d, userId, todayKey) {
   const out = [];
   for (const row of rows) {
     const date = nextEventDate(row, todayKey, exceptionsByEvent.get(row.id) ?? null, {
-      graceDays: OVERDUE_GRACE_DAYS, tz,
+      graceDays, tz,
     });
     if (!date) continue;
     const days = daysBetween(todayKey, date);
     // Negativ ist jetzt erlaubt - `nextEventDate` hat die Nachfrist schon
     // durchgesetzt, und ein zweiter Riegel hier hätte sie stillschweigend
     // wieder aufgehoben.
-    if (days === null || days < -OVERDUE_GRACE_DAYS) continue;
+    if (days === null || days < -graceDays) continue;
     out.push({
       source: 'event',
       id: row.id,
@@ -313,7 +325,7 @@ function eventCountdowns(d, userId, todayKey) {
   return out;
 }
 
-function taskCountdowns(d, userId, todayKey) {
+function taskCountdowns(d, userId, todayKey, graceDays) {
   // Eine erledigte oder abgelegte Aufgabe zählt nicht mehr herunter: bei einer
   // wiederkehrenden hat das Abhaken die NÄCHSTE Instanz schon erzeugt (die dann
   // ihrerseits hier steht), und eine abgelegte ist aus dem Lauf genommen -
@@ -323,7 +335,7 @@ function taskCountdowns(d, userId, todayKey) {
   // gestern fällig war, ist genau der Moment, für den jemand sie markiert hat.
   // Wiederkehrende sind ausgenommen - für sie hat das Abhaken ein nächstes Mal,
   // sie laufen nicht ab.
-  const floor = shiftKey(todayKey, -OVERDUE_GRACE_DAYS) ?? todayKey;
+  const floor = shiftKey(todayKey, -graceDays) ?? todayKey;
   const rows = d.prepare(`
     SELECT t.id, t.title, t.due_date, t.is_recurring, t.recurrence_from_completion
     FROM tasks t
@@ -338,7 +350,7 @@ function taskCountdowns(d, userId, todayKey) {
   const out = [];
   for (const row of rows) {
     const days = daysBetween(todayKey, row.due_date);
-    if (days === null || days < -OVERDUE_GRACE_DAYS) continue;
+    if (days === null || days < -graceDays) continue;
     out.push({
       source: 'task',
       id: row.id,
