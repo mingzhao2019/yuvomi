@@ -251,7 +251,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its normal work, so the entry appeared to vanish. Both halves are fixed, and the series route
   now follows the same convention as the single entry - omitted leaves the account alone, `null`
   clears it. It does not reach back into past occurrences: unlike visibility, where a stale wider
-  value is a leak, an account is a fact about a booking that already happened.
+  value is a leak, an account is a fact about a booking that already happened. Making that promise
+  hold moved the cutoff for *future* occurrences from the first of the month to today. A weekly
+  series has several bookings in one month, and the ones already behind us were being deleted and
+  regenerated along with the rest - which, now that the account travels with them, would have moved
+  a completed debit to another account and skewed that balance. Their attachments survive the edit
+  as well.
 
 - **The desktop sidebar has a scrollbar again** (#970). It was deliberately hidden at
   `min-width: 1024px`, with a soft fade at the edges standing in for it. The fade answers "is
