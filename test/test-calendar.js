@@ -1501,6 +1501,274 @@ test('scheduleEntriesOnDay() respektiert den Personenfilter und den "Mir zugewie
   }
 });
 
+test('getWeekRange: Desktop bleibt beim reinen 7-Tage-Raster (#1006)', () => {
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-11', { weekStart: 1, mobile: false });
+  assert(from === '2026-03-09' && to === '2026-03-15',
+    `Desktop-Woche darf sich nicht erweitern: ${from}..${to}`);
+});
+
+test('getWeekRange: Mobile mitten in der Woche erweitert das Ladefenster nicht unnötig (#1006)', () => {
+  // Mittwoch: das 3-Tage-Fenster (Di-Do) liegt vollständig innerhalb der
+  // Montag-Woche - die Vereinigung darf hier gleich dem Desktop-Raster bleiben.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-11', { weekStart: 1, mobile: true });
+  assert(from === '2026-03-09' && to === '2026-03-15',
+    `Ein Mittwochs-Cursor braucht keine Erweiterung: ${from}..${to}`);
+});
+
+test('getWeekRange: Montag-Woche + Sonntags-Cursor schliesst den folgenden Montag ein (#1006)', () => {
+  // Sonntag ist der letzte Tag der Montag-Woche; das Mobile-Fenster (Sa-Mo)
+  // ragt einen Tag darüber hinaus - genau der Tag, den buildDayIndex() vorher
+  // stillschweigend wegklammerte.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-15', { weekStart: 1, mobile: true });
+  assert(from === '2026-03-09' && to === '2026-03-16',
+    `Der folgende Montag muss mitgeladen werden: ${from}..${to}`);
+});
+
+test('getWeekRange: Sonntag-Woche + Samstags-Cursor schliesst den folgenden Sonntag ein (#1006)', () => {
+  // Dieselbe Randsituation am anderen Wochenstart: Samstag ist hier der
+  // letzte Tag, das Mobile-Fenster ragt in den folgenden Sonntag hinein.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-14', { weekStart: 0, mobile: true });
+  assert(from === '2026-03-08' && to === '2026-03-15',
+    `Der folgende Sonntag muss mitgeladen werden: ${from}..${to}`);
+});
+
+test('getWeekRange: Montag-Woche + Montags-Cursor schliesst den vorherigen Sonntag ein (#1006)', () => {
+  // Symmetrischer Fall am linken Rand: Montag ist der erste Tag der Woche,
+  // das Mobile-Fenster ragt einen Tag in die vorherige Woche hinein.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-09', { weekStart: 1, mobile: true });
+  assert(from === '2026-03-08' && to === '2026-03-15',
+    `Der vorherige Sonntag muss mitgeladen werden: ${from}..${to}`);
+});
+
+test('getRangeForView: Der echte Week-Aufrufer liest matchMedia und reicht mobile weiter (#1030)', () => {
+  // Die fünf getWeekRange()-Tests oben beweisen nur die Arithmetik, nachdem
+  // `mobile` schon feststeht. Wenn der echte Aufrufer aufhört, das Flag zu
+  // liefern (z.B. `return getWeekRange(cursor)` ohne Optionen), blieben sie
+  // trotzdem grün - dieser Test prüft die fehlende Verbindung.
+  const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, 'window');
+  const previousWindow = globalThis.window;
+  try {
+    globalThis.window = { matchMedia: () => ({ matches: true }) };
+    const mobile = calendarHelpers.getRangeForView('week', '2026-03-15');
+    assert(mobile.from === '2026-03-09' && mobile.to === '2026-03-16',
+      `Mobile-Aufrufer muss das erweiterte Fenster laden: ${mobile.from}..${mobile.to}`);
+
+    globalThis.window = { matchMedia: () => ({ matches: false }) };
+    const desktop = calendarHelpers.getRangeForView('week', '2026-03-15');
+    assert(desktop.from === '2026-03-09' && desktop.to === '2026-03-15',
+      `Desktop-Aufrufer darf sich nicht erweitern: ${desktop.from}..${desktop.to}`);
+  } finally {
+    if (hadWindow) globalThis.window = previousWindow;
+    else delete globalThis.window;
+  }
+});
+
+// --------------------------------------------------------
+// Monatszelle am Telefon: Punkte oder Titelzeilen (Schalter im Filter-Blatt)
+// --------------------------------------------------------
+
+test('Monatsflaeche traegt die Titel-Modifier-Klasse nur, wenn der Schalter an ist', () => {
+  assert(calendarHelpers.monthViewClasses(false) === 'month-view',
+    'aus heisst: keine zweite Klasse, also exakt die Basisfassung');
+  assert(calendarHelpers.monthViewClasses(true).split(' ').includes('month-view--titles'),
+    'an heisst: die Modifier-Klasse, an der die 639er-Query haengt');
+  assert(calendarHelpers.monthViewClasses(true).split(' ').includes('month-view'),
+    'die Basisklasse bleibt - sie traegt Flex-Richtung und Ueberlauf der Flaeche');
+});
+
+// DER LEERE STRING IST DER FALL, DER ZAEHLT: getPropertyValue() liefert ihn,
+// wo die Property nirgends gesetzt ist, und `parseInt('') > 0` ist NaN > 0.
+// Ohne diese Umsetzung stuende dort still `NaN` als Deckel, und Math.min(x, NaN)
+// ist NaN - jede Zelle haette am Ende keinen einzigen Chip gezeigt.
+test('Der Sichtbarkeits-Deckel liest 0, leer und Unfug alle als "kein Deckel"', () => {
+  const { monthDayVisibleCap } = calendarHelpers;
+  for (const raw of ['', ' ', '0', 'auto', 'none', '-3']) {
+    assert(monthDayVisibleCap(raw) === Infinity,
+      `${JSON.stringify(raw)} muss "kein Deckel" heissen, war ${monthDayVisibleCap(raw)}`);
+  }
+  assert(monthDayVisibleCap('4') === 4, 'die gesetzte Zahl gilt');
+  assert(monthDayVisibleCap(' 4 ') === 4, 'getPropertyValue liefert den Wert mit Rand-Leerraum');
+});
+
+test('Die Titelfassung wohnt in derselben Query wie die Punktfassung', () => {
+  const rules = [...eachRule(calendarCss)].filter((r) => r.selector.includes('.month-view--titles'));
+  assert(rules.length > 0, '.month-view--titles hat keine einzige Regel - der Schalter waere folgenlos');
+  for (const rule of rules) {
+    assert(rule.at.some((a) => /max-width:\s*639px/.test(a)),
+      `${rule.selector.trim()} steht ausserhalb der 639er-Query - auf dem Desktop zeigt die `
+      + 'Monatszelle ohnehin Titel, eine Regel dort aendert nur, was schon stimmt');
+  }
+});
+
+// Die Punktfassung ist die VORGABE und muss es bleiben: waere sie unbedingt
+// geschnitten, gaebe der Schalter die Titelzeilen nie frei; waere sie ganz weg,
+// haette das Update jedes Telefon ungefragt umgebaut.
+test('Die Punktfassung gilt genau dann, wenn die Titelfassung nicht gewaehlt ist', () => {
+  const dotRules = [...eachRule(calendarCss)].filter((r) =>
+    /border-radius:\s*var\(--radius-full\)/.test(r.body)
+    && r.selector.includes('.month-day')
+    && r.at.some((a) => /max-width:\s*639px/.test(a)));
+  assert(dotRules.length > 0, 'die Punktgeometrie der Monatszelle ist verschwunden');
+  for (const rule of dotRules) {
+    assert(rule.selector.includes(':not(.month-view--titles)'),
+      `${rule.selector.trim()} macht Punkte ohne die Bedingung - der Schalter kaeme nie gegen sie an`);
+  }
+});
+
+// Der Klipp-Guard MUSS jede Fassungsregel ueberwiegen, die `display` setzt.
+// Bei Gleichstand gewinnt die spaetere Regel, und die Fassungen stehen weiter
+// unten in der Datei - ein geklippter Chip waere wieder sichtbar, waehrend das
+// "+N" darunter ihn weiterzaehlt. Genau so ist es beim Bau dieses Schalters
+// passiert: `:not(.month-view--titles)` zaehlt sein Argument mit, und mit dem
+// urspruenglichen `.month-day` davor stand die Punktfassung selbst auf vier.
+//
+// GEZAEHLT WIRD NUR, WER `display` SETZT. Die erste Fassung dieses Guards nahm
+// jede Regel mit der Modifier-Klasse und stolperte ueber
+// `.month-view--titles .cal-task-chip .priority-dot` - vier Klassen, aber sie
+// setzt eine Breite auf einem ANDEREN Element und kann mit dem Klipp-Guard nie
+// kollidieren. Ein Guard, der solche Regeln mitzaehlt, erzwingt eine
+// Spezifitaets-Ruestung gegen einen Konflikt, den es nicht gibt.
+test('Der Klipp-Guard steht ueber jeder Fassungsregel, die display setzt', () => {
+  const clip = [...eachRule(calendarCss)].find((r) => r.selector.includes('.is-clipped')
+    && r.selector.includes('.month-day'));
+  assert(clip, 'die .is-clipped-Regel des Monatsrasters fehlt');
+  // Spezifitaet zaehlt das :not()-Argument mit - deshalb einfach alle
+  // Klassen-Token des Selektors, inklusive derer in der Klammer.
+  const classes = (sel) => (sel.split(',')[0].match(/\.[a-zA-Z][\w-]*/g) ?? []).length;
+  const variant = [...eachRule(calendarCss)].filter((r) =>
+    (r.selector.includes('.month-view--titles') || r.selector.includes(':not(.month-view--titles)'))
+    && /(?:^|;)\s*display\s*:/.test(r.body));
+  assert(variant.length > 0, 'keine Fassungsregel setzt display - dann prueft dieser Guard nichts');
+  for (const rule of variant) {
+    assert(classes(clip.selector) > classes(rule.selector),
+      `.is-clipped traegt ${classes(clip.selector)} Klassen, ${rule.selector.trim()} `
+      + `traegt ${classes(rule.selector)} - bei Gleichstand gewinnt die spaetere Regel, `
+      + 'und das ist die Fassung');
+  }
+});
+
+// Schichtplan-Bloecke im Zeitraster: Ueberlappungs-Layout (#1043)
+//
+// Vorher bekam JEDER Schichtplan-Block dieselben festen Aussenraender
+// (renderScheduleTimeBlock() kannte gar kein Layout) - zwei Schichten mit
+// gleichem oder ueberlappendem Zeitfenster lagen deckungsgleich uebereinander,
+// und nur die spaeter gerenderte war ueberhaupt zu sehen/anzuklicken. Diese
+// Tests pruefen dieselbe Ueberlappungs-Arithmetik, die gewoehnliche Termine
+// laengst ueber layoutOverlaps() bekommen, jetzt auch fuer Schichtplan-Bloecke
+// (layoutScheduleBlocks()) - inklusive des Falls, dass zwei Eintraege
+// inhaltlich identisch sind (derselbe Schichttyp, dieselbe Zeit), aber zwei
+// verschiedene sichtbare Instanzen bleiben (Muster + Extra-Schicht, #1043).
+// --------------------------------------------------------
+
+function scheduleEntry({ start, end, name = 'Schicht', color = '#3B82F6' } = {}) {
+  return {
+    user_id: null,
+    date_key: '2026-09-06',
+    source: 'pattern',
+    shift_type_id: 1,
+    shift_type: { id: 1, name, short_code: null, start_time: start, end_time: end, color },
+  };
+}
+
+test('scheduleBlockTimeRange: eine Nachtschicht laeuft bis Tagesende', () => {
+  const overnight = scheduleEntry({ start: '22:00', end: '06:00' });
+  const range = calendarHelpers.scheduleBlockTimeRange(overnight);
+  assert(range.start === 22 * 60 && range.end === 24 * 60,
+    `Nachtschicht muss am Tagesende enden, nicht rueckwaerts laufen: ${JSON.stringify(range)}`);
+});
+
+test('layoutScheduleBlocks: gleicher Start, unterschiedliches Ende bekommt zwei Spalten (#1043)', () => {
+  const basti = scheduleEntry({ start: '08:00', end: '12:00', name: 'Schultag Basti' });
+  const emma = scheduleEntry({ start: '08:00', end: '12:45', name: 'Schultag Emma' });
+  const layout = calendarHelpers.layoutScheduleBlocks([basti, emma]);
+  const a = layout.get(basti);
+  const b = layout.get(emma);
+  assert(a && b, 'beide Eintraege muessen ein Layout bekommen');
+  assert(a.totalCols === 2 && b.totalCols === 2,
+    `der gemeldete Fall (08:00-12:00 / 08:00-12:45) muss zwei Spalten teilen: ${a.totalCols}/${b.totalCols}`);
+  assert(a.colIndex !== b.colIndex, 'gleich startende, ueberlappende Bloecke duerfen keine gemeinsame Spalte bekommen');
+});
+
+test('layoutScheduleBlocks: ein Block, der endet, wo der naechste beginnt, teilt sich eine Spalte (halboffenes Intervall)', () => {
+  const first = scheduleEntry({ start: '08:00', end: '10:00' });
+  const second = scheduleEntry({ start: '10:00', end: '12:00' });
+  const layout = calendarHelpers.layoutScheduleBlocks([first, second]);
+  assert(layout.get(first).totalCols === 1 && layout.get(second).totalCols === 1,
+    'sich beruehrende, aber nicht ueberlappende Bloecke muessen die volle Breite behalten koennen');
+});
+
+test('layoutScheduleBlocks: teilweise ueberlappende Bloecke teilen sich eine Gruppe', () => {
+  const first = scheduleEntry({ start: '08:00', end: '10:00' });
+  const second = scheduleEntry({ start: '09:00', end: '11:00' });
+  const layout = calendarHelpers.layoutScheduleBlocks([first, second]);
+  assert(layout.get(first).totalCols === 2 && layout.get(second).totalCols === 2,
+    'schon eine Stunde Ueberschneidung reicht fuer eine gemeinsame Gruppe');
+  assert(layout.get(first).colIndex !== layout.get(second).colIndex);
+});
+
+test('layoutScheduleBlocks: drei gleichzeitige Schichten bekommen stabile, kollisionsfreie Plaetze', () => {
+  const a = scheduleEntry({ start: '08:00', end: '12:00' });
+  const b = scheduleEntry({ start: '08:00', end: '11:00' });
+  const c = scheduleEntry({ start: '09:00', end: '13:00' });
+  const layout = calendarHelpers.layoutScheduleBlocks([a, b, c]);
+  const cols = [layout.get(a).colIndex, layout.get(b).colIndex, layout.get(c).colIndex];
+  assert(layout.get(a).totalCols === 3 && layout.get(b).totalCols === 3 && layout.get(c).totalCols === 3,
+    `drei sich ueberlappende Eintraege muessen sich drei Spalten teilen: ${layout.get(a).totalCols}`);
+  assert(new Set(cols).size === 3, `alle drei Spaltenindizes muessen verschieden sein: ${cols}`);
+});
+
+test('layoutScheduleBlocks: gleicher Schichttyp und gleiche Zeit bleiben zwei eigene Instanzen (Muster + Extra-Schicht, #1043)', () => {
+  const pattern = scheduleEntry({ start: '08:00', end: '12:00' });
+  const extra = scheduleEntry({ start: '08:00', end: '12:00' });
+  extra.source = 'extra';
+  const layout = calendarHelpers.layoutScheduleBlocks([pattern, extra]);
+  assert(layout.get(pattern) && layout.get(extra), 'beide Objekte muessen unabhaengig voneinander auffindbar sein');
+  assert(layout.get(pattern).colIndex !== layout.get(extra).colIndex,
+    'inhaltsgleiche Eintraege (gleicher Typ, gleiche Zeit, verschiedene Quelle) duerfen sich trotzdem nicht ueberdecken');
+});
+
+test('renderScheduleTimeBlock: ohne Layout bleibt der bisherige volle Balken erhalten (Wochenansicht)', () => {
+  const html = calendarHelpers.renderScheduleTimeBlock(scheduleEntry({ start: '08:00', end: '12:00' }), 'week-event');
+  assert(html.includes('left:calc(0% + 2px)') && html.includes('width:calc(100% - 4px)'),
+    `ein einzelner Block muss die alten Aussenraender behalten: ${html}`);
+});
+
+test('renderScheduleTimeBlock: ohne Layout bleibt der bisherige volle Balken erhalten (Tagesansicht)', () => {
+  const html = calendarHelpers.renderScheduleTimeBlock(scheduleEntry({ start: '08:00', end: '12:00' }), 'day-event');
+  assert(html.includes('left:calc(0% + 4px)') && html.includes('width:calc(100% - 14px)'),
+    `ein einzelner Block muss die alten Aussenraender behalten: ${html}`);
+});
+
+test('renderScheduleTimeBlock: mit berechnetem Layout bekommt jeder Block seine eigene Spalte (Wochenansicht, #1043)', () => {
+  const basti = scheduleEntry({ start: '08:00', end: '12:00' });
+  const emma = scheduleEntry({ start: '08:00', end: '12:45' });
+  const layout = calendarHelpers.layoutScheduleBlocks([basti, emma]);
+  const htmlA = calendarHelpers.renderScheduleTimeBlock(basti, 'week-event', layout.get(basti));
+  const htmlB = calendarHelpers.renderScheduleTimeBlock(emma, 'week-event', layout.get(emma));
+  assert(!htmlA.includes('width:calc(100% - 4px)') && !htmlB.includes('width:calc(100% - 4px)'),
+    'ueberlappende Bloecke duerfen nicht mehr die volle Spaltenbreite bekommen (das war der Bug)');
+  assert(htmlA.includes('width:calc(50% - 4px)') && htmlB.includes('width:calc(50% - 4px)'),
+    `zwei ueberlappende Bloecke teilen sich je die Haelfte: ${htmlA} / ${htmlB}`);
+  const leftA = htmlA.match(/left:calc\(([\d.]+)% \+ 2px\)/)?.[1];
+  const leftB = htmlB.match(/left:calc\(([\d.]+)% \+ 2px\)/)?.[1];
+  assert(leftA !== undefined && leftB !== undefined && leftA !== leftB,
+    `beide Bloecke muessen an unterschiedlicher Stelle beginnen, damit keiner den anderen verdeckt: ${leftA} vs ${leftB}`);
+});
+
+test('renderScheduleTimeBlock: mit berechnetem Layout bekommt jeder Block seine eigene Spalte (Tagesansicht, #1043)', () => {
+  const basti = scheduleEntry({ start: '08:00', end: '12:00' });
+  const emma = scheduleEntry({ start: '08:00', end: '12:45' });
+  const layout = calendarHelpers.layoutScheduleBlocks([basti, emma]);
+  const htmlA = calendarHelpers.renderScheduleTimeBlock(basti, 'day-event', layout.get(basti));
+  const htmlB = calendarHelpers.renderScheduleTimeBlock(emma, 'day-event', layout.get(emma));
+  assert(!htmlA.includes('width:calc(100% - 14px)') && !htmlB.includes('width:calc(100% - 14px)'),
+    'ueberlappende Bloecke duerfen nicht mehr die volle Spaltenbreite bekommen (das war der Bug)');
+  const leftA = htmlA.match(/left:calc\(([\d.]+)% \+ 4px\)/)?.[1];
+  const leftB = htmlB.match(/left:calc\(([\d.]+)% \+ 4px\)/)?.[1];
+  assert(leftA !== undefined && leftB !== undefined && leftA !== leftB,
+    `beide Bloecke muessen an unterschiedlicher Stelle beginnen, damit keiner den anderen verdeckt: ${leftA} vs ${leftB}`);
+});
+
 // --------------------------------------------------------
 // Ergebnis
 // --------------------------------------------------------
