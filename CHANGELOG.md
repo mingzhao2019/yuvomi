@@ -226,6 +226,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an inconsistent Sunday. The loaded range now covers the union of the desktop week and the mobile
   window whenever they diverge; Month, Day and Agenda are unaffected.
 
+- **Authorized caregivers can now correct a cared-for person's medication log entries** (#999).
+  The log row now follows the same explicit care grant as recording, taking and skipping a dose;
+  other family members still see it read-only, and scheduled entries keep their existing
+  pending-instead-of-delete rule.
+
 - **A same-version deployment now invalidates the installed PWA shell.** The served service worker
   receives a build-specific revision, so acceptance builds and rebuilt images no longer reuse an
   older cache merely because the application version has not changed.
