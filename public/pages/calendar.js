@@ -2234,7 +2234,7 @@ function renderMonthDay(date, inMonth) {
   return `
     <div class="${classes}" data-date="${date}" data-total="${total}"
          role="button" tabindex="0"
-         aria-label="${esc(monthDayAriaLabel(date, total))}"${isToday ? ' aria-current="date"' : ''}>
+         aria-label="${esc(monthDayAriaLabel(date, total, evs))}"${isToday ? ' aria-current="date"' : ''}>
       <div class="month-day__number">${new Date(date + 'T00:00:00').getDate()}</div>
       ${holHtml}
       ${scheduleHtml}
@@ -2357,9 +2357,21 @@ function renderScheduleTimeBlock(entry, className) {
   return `<div class="${className} schedule-time-block" style="top:${hourOffset(start)};height:calc(${hourOffset(duration)} - 4px);${bounds}--ev-color:${esc(type.color)}" title="${esc(scheduleEntryTitle(entry))}"><span class="schedule-time-block__title">${esc(scheduleEntryLabel(entry))}${scheduleEntryExtraBadge(entry)}</span><small class="schedule-time-block__time">${timeLine}</small></div>`;
 }
 
-function monthDayAriaLabel(date, total) {
+// aria-label der Tageszelle: lokalisiertes Datum + (falls vorhanden) Zahl der
+// Einträge und die Serieninformation, die das Label sonst an seinen als
+// praesentational behandelten Kind-Chips verschlucken würde. Leere Tage tragen
+// nur das Datum (die role sagt "Schaltfläche"). P1.
+function monthDayAriaLabel(date, total, events = []) {
   const d = formatPreferredDate(date);
-  return total > 0 ? `${d}, ${t('calendar.monthDayEntries', { count: total })}` : d;
+  const recurringTitles = events
+    .filter((event) => event?.recurrence_rule || event?.is_recurring_instance)
+    .map((event) => event.title)
+    .filter(Boolean);
+  return [
+    d,
+    total > 0 ? t('calendar.monthDayEntries', { count: total }) : '',
+    ...recurringTitles.map((title) => `${t('calendar.recurringEvent')}: ${title}`),
+  ].filter(Boolean).join(', ');
 }
 
 // --------------------------------------------------------
@@ -3370,6 +3382,7 @@ export const __test = {
   attachmentUrls,
   agendaEventAriaLabel,
   calendarRepeatIconHtml,
+  monthDayAriaLabel,
   clickedTime,
   hourOffset,
   monthDayClasses,
@@ -4055,6 +4068,7 @@ function wireEventForm(panel, { mode, event = null, reminder = null }) {
   // Baustein in fremdem DOM nach einem geratenen Selektor sucht (#975).
   const recurrenceBinding = bindRRuleEvents(panel, 'event', {
     expandsFromStart: true,
+    rule: event?.recurrence_rule ?? null,
     getStartDate: () => readDateInput(
       panel,
       panel.querySelector('#modal-allday')?.checked ? '#modal-allday-start' : '#modal-start-date',

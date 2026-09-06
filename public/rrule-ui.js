@@ -106,7 +106,32 @@ export function buildRRule({ freq, interval, byday, until, count = null }) {
  *        kanonischer Datums-Key für die konkrete Kalender-Vorschau.
  * @returns {string} HTML-String
  */
-export function monthEndHintText(startDate, { expandsFromStart = false } = {}) {
+function canShowConcreteMonthEnd(rule, firstDate) {
+  if (!rule) return true;
+
+  // Eingelesene Regeln koennen mehr ausdruecken als dieses Formular. Ein
+  // BYDAY-Filter macht aus "Monatsletzter" z.B. "Monatsletzter, falls Montag";
+  // dann waere das rechnerische Monatsende nicht zwingend ein Vorkommen. Statt
+  // im Browser eine zweite RRULE-Engine anzufangen, bleibt die Vorschau fuer
+  // alles ausser dem vom Formular selbst schreibbaren Subset bewusst allgemein.
+  const allowed = new Set(['FREQ', 'INTERVAL', 'BYMONTHDAY', 'UNTIL', 'COUNT']);
+  let until = null;
+  for (const segment of String(rule).replace(/^RRULE:/i, '').split(';')) {
+    const eq = segment.indexOf('=');
+    if (eq === -1) return false;
+    const key = segment.slice(0, eq).toUpperCase();
+    const value = segment.slice(eq + 1);
+    if (!allowed.has(key)) return false;
+    if (key === 'UNTIL') {
+      const match = /^(\d{4})(\d{2})(\d{2})(?:T\d{6}Z?)?$/.exec(value);
+      if (!match) return false;
+      until = `${match[1]}-${match[2]}-${match[3]}`;
+    }
+  }
+  return !until || until >= firstDate;
+}
+
+export function monthEndHintText(startDate, { expandsFromStart = false, rule = null } = {}) {
   if (!expandsFromStart) return t('rrule.lastDayOfMonthHintNext');
 
   // Der Aufrufer liefert einen kanonischen Datums-Key. parseDateInput erlaubt
@@ -134,6 +159,10 @@ export function monthEndHintText(startDate, { expandsFromStart = false } = {}) {
     String(monthEnd.getUTCMonth() + 1).padStart(2, '0'),
     String(monthEnd.getUTCDate()).padStart(2, '0'),
   ].join('-');
+
+  if (!canShowConcreteMonthEnd(rule, firstDate)) {
+    return t('rrule.lastDayOfMonthHint');
+  }
 
   if (dateKey === firstDate) {
     return t('rrule.lastDayOfMonthHintSame', { date: formatDate(dateKey) });
@@ -269,7 +298,7 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
                einem Startdatum-Feld: Kalender und Aufgaben benennen es anders,
                und im Kalender wechselt es zusätzlich mit „ganztägig". -->
           <p class="rrule-anchor__hint" id="${prefix}-rrule-monthday-hint"${parsed.lastDay ? '' : ' hidden'}>${
-            monthEndHintText(opts.startDate, { expandsFromStart })
+            monthEndHintText(opts.startDate, { expandsFromStart, rule: existingRule })
           }</p>
         </div>
 
@@ -373,7 +402,7 @@ export function recurrenceRow(rule, opts = {}) {
  * Bindet Events an die RRULE-Felder (Freq-Change, Day-Toggle, etc.)
  * @param {HTMLElement} root - Container-Element
  * @param {string} prefix - ID-Prefix
- * @param {{ expandsFromStart?: boolean, getStartDate?: () => string }} [opts]
+ * @param {{ expandsFromStart?: boolean, getStartDate?: () => string, rule?: string|null }} [opts]
  *        Das aufrufende Modul liefert bei Bedarf sein aktuelles Startdatum;
  *        der RRULE-Baustein kennt keine fremden Feldselektoren.
  * @returns {{ refreshMonthdayHint: () => void }}
@@ -395,6 +424,7 @@ export function bindRRuleEvents(root, prefix, opts = {}) {
     if (!monthdayHint || typeof opts.getStartDate !== 'function') return;
     monthdayHint.textContent = monthEndHintText(opts.getStartDate(), {
       expandsFromStart: !!opts.expandsFromStart,
+      rule: opts.rule ?? null,
     });
   };
 
