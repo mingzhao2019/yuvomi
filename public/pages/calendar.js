@@ -3324,6 +3324,7 @@ async function openFoundEvent(ev) {
 export const __test = {
   fetchWindow,
   getWeekRange,
+  getRangeForView,
   resolveEventColor,
   isVisibleLayer,
   normalizeCalendarView,
