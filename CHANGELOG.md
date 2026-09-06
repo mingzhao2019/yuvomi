@@ -243,7 +243,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   delete reloads the visible range so an older in-flight response cannot bring the event back.
   Calendar loads now share one ordering guard, including quick out-and-back navigation, and
   concurrent deletes of one series reach the server in user-action order. This covers one event,
-  one recurring occurrence, this-and-following, and whole-series deletion.
+  one recurring occurrence, this-and-following, and whole-series deletion. A failed range load
+  also clears schedule warnings from the previous range instead of leaving stale warnings visible.
 - **The calendar's person filter and "assigned to me" filter now also apply to Schedule
   entries** (#1018). Both filters already narrowed events and tasks to the chosen people; Schedule's
   shifts ignored them and kept showing every household member's entries regardless of who was
