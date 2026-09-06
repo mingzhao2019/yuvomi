@@ -117,6 +117,7 @@ const APP_SHELL = [
   '/utils/dashboard-widgets.js',
   '/utils/date.js',
   '/utils/currency-codes.js',
+  '/utils/calendar-delete.js',
   '/utils/document-folder-delete.js',
   '/utils/document-preview.js',
   '/utils/empty-state.js',
