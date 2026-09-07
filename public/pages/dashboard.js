@@ -268,7 +268,7 @@ function maybeHintCustomize(container) {
 // Widget → Modul-Slug für die „Modul deaktiviert?"-Prüfung. Widgets ohne Eintrag
 // (family, weather) sind immer verfügbar. Modulweit, damit Grid-Filter und
 // Wieder-Einblenden-Leiste dieselbe Sichtbarkeitsregel teilen.
-const MODULE_FOR_WIDGET = { tasks: 'tasks', calendar: 'calendar', shopping: 'shopping', meals: 'meals', notes: 'notes', birthdays: 'birthdays', assets: 'inventory', budget: 'budget', rewards: 'rewards', health: 'health', cycle: 'health', housekeeping: 'housekeeping' };
+const MODULE_FOR_WIDGET = { tasks: 'tasks', calendar: 'calendar', shopping: 'shopping', meals: 'meals', notes: 'notes', birthdays: 'birthdays', assets: 'asset-cost', budget: 'budget', rewards: 'rewards', health: 'health', cycle: 'health', housekeeping: 'housekeeping' };
 
 /* DER COUNTDOWN IST EIN WIDGET, DAS ES ERST GIBT, WENN JEMAND ETWAS MARKIERT
  * HAT (#647). Er hat keine eigene Seite und keinen eigenen Bestand: seine
@@ -2708,7 +2708,7 @@ function renderAssetsWidget(summary = {}, currency = 'EUR') {
   };
   const share = (value) => total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
   return `<div class="widget widget--assets">
-    ${widgetHeader('assets', t('nav.assetCost'), total, '/asset-cost', null, 'inventory')}
+    ${widgetHeader('assets', t('nav.assetCost'), total, '/asset-cost', null, 'asset-cost')}
     <div class="assets-widget__body">
       <div class="assets-widget__metrics">
         <div class="assets-widget__metric">

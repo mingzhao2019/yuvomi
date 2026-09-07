@@ -2,7 +2,7 @@ import { api } from '/api.js';
 import { getLocale, t } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { todayKey } from '/utils/timezone.js';
-import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
+import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/page-search.js';
 import {
   openModal,
   closeModal,
@@ -1015,13 +1015,19 @@ function buildPage(container) {
   page.insertAdjacentHTML('beforeend', `
     <div class="asset-cost-toolbar page-toolbar page-toolbar--wrap">
       <h1 class="page-toolbar__title">${esc(tr('title'))}</h1>
-      <div class="asset-cost-toolbar__search">${renderPageSearch({
+      <button type="button" class="btn btn--ghost btn--icon asset-cost-toolbar__search-trigger"
+              id="asset-cost-search-trigger" aria-controls="asset-cost-search" aria-expanded="false"
+              aria-label="${esc(tr('search'))}" title="${esc(tr('search'))}">
+        <i data-lucide="search" class="icon-lg" aria-hidden="true"></i>
+      </button>
+      ${renderPageSearch({
         id: 'asset-cost-search',
         label: tr('search'),
         placeholder: tr('search'),
         value: state.query,
-        className: 'asset-cost-search',
-      })}</div>
+        clearLabel: t('common.searchClear'),
+        className: 'asset-cost-toolbar__search page-toolbar__center',
+      })}
     </div>
     <main class="asset-cost-body"></main>`);
   const fab = document.createElement('button');
@@ -1034,12 +1040,18 @@ function buildPage(container) {
   container.replaceChildren(page);
   state.body = page.querySelector('.asset-cost-body');
   state.body.setAttribute('aria-label', tr('title'));
-  wirePageSearch(page, {
+  const assetSearch = wirePageSearch(page, {
     id: 'asset-cost-search',
     onQuery: (value) => {
       state.query = value;
       renderBody();
     },
+  });
+  wirePageSearchReveal({
+    input: assetSearch?.input,
+    trigger: page.querySelector('#asset-cost-search-trigger'),
+    root: page.querySelector('.asset-cost-toolbar'),
+    openClass: 'asset-cost-toolbar--search-open',
   });
   fab.addEventListener('click', () => openAssetModal());
   bindBody();

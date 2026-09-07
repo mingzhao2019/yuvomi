@@ -20,31 +20,10 @@
 }
 
 .asset-cost-toolbar__search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: min(30rem, 100%);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-sm);
+  max-width: 320px;
 }
 
-.asset-cost-toolbar__search svg {
-  color: var(--color-text-secondary);
-  flex: 0 0 auto;
-}
-
-.asset-cost-toolbar__search input {
-  min-width: 0;
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
-}
+.asset-cost-toolbar__search-trigger { display: none; }
 
 .asset-cost-body {
   display: grid;
@@ -704,17 +683,30 @@
 
 @media (max-width: 767px) {
   .asset-cost-page { width: min(100% - var(--space-3), 40rem); padding-top: var(--space-2); }
-  .asset-cost-toolbar { align-items: flex-start; }
-  /* Shell 会把模块图标插在标题之前。资产页的移动头部应与任务页一致：
-   * 图标和标题共享第一行，搜索字段再占下一行；不能让全局 Large Title
-   * 的整行 basis 把图标单独挤到标题上方。紧凑高度模式仍由 Shell 的
-   * nowrap 规则接管，不改变横屏头部的单行约束。 */
+  /* 移动端与任务/日历统一：标题旁只保留搜索图标，点击后在同一槽位展开
+   * 输入框。输入框本身不承担首次点击，避免 iOS 将已有查询的光标放到开头。 */
+  .asset-cost-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group) { align-items: center; }
   .asset-cost-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
     > .page-toolbar__title {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     flex-basis: auto;
   }
-  .asset-cost-toolbar__search { min-width: 0; width: 100%; }
+  .asset-cost-toolbar > .asset-cost-toolbar__search-trigger {
+    display: inline-flex;
+    order: 0;
+  }
+  .asset-cost-toolbar > .page-search {
+    display: none;
+    order: 0;
+  }
+  .asset-cost-toolbar--search-open > .asset-cost-toolbar__search-trigger { display: none; }
+  .asset-cost-toolbar--search-open > .page-search {
+    display: grid;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
   .asset-cost-summary__heading,
   .asset-cost-summary__metrics,
   .asset-cost-summary__status,

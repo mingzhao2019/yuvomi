@@ -277,7 +277,7 @@
 .widget--rewards  { --widget-accent: var(--module-rewards); }
 .widget--health   { --widget-accent: var(--module-health); }
 .widget--housekeeping { --widget-accent: var(--module-housekeeping); }
-.widget--assets { --widget-accent: var(--module-inventory); }
+.widget--assets { --widget-accent: var(--module-asset-cost); }
 /* Wie das Wetter: eine Kachel, die keinem Modul gehoert, traegt den Ton der
  * Seite. Der Countdown (#647) sammelt aus Kalender UND Aufgaben ein - jeder
  * der beiden Toene waere fuer die andere Haelfte der Liste falsch. Ohne diese
