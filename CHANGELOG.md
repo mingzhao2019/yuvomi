@@ -248,7 +248,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one recurring occurrence, this-and-following, and whole-series deletion. A failed range load
   also clears schedule warnings from the previous range instead of leaving stale warnings visible.
 - **The calendar's person filter and "assigned to me" filter now also apply to Schedule
-  entries** (#1018). Both filters already narrowed events and tasks to the chosen people; Schedule's
+  entries** (#1018). Found by @matthiasNX while testing this module against his own timetable
+  work, which he then withdrew in favour of it. Both filters already narrowed events and tasks
+  to the chosen people; Schedule's
   shifts ignored them and kept showing every household member's entries regardless of who was
   selected, which read as the filter silently not working for a module that has a single, well-defined
   owner per entry. Month, week and day views are affected equally, since all three read from the same
