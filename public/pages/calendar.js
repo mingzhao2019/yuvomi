@@ -3463,6 +3463,8 @@ export const __test = {
   layoutScheduleBlocks,
   scheduleBlockTimeRange,
   renderScheduleTimeBlock,
+  renderWeekView,
+  renderDayView,
 };
 
 function renderAgendaEntry(entry, dayStr) {
