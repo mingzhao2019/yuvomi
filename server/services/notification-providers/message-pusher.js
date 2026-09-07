@@ -8,6 +8,7 @@
  */
 
 import { renderTextTemplate } from './webhook.js';
+import { guardedFetch } from './guarded-fetch.js';
 
 const METHODS = new Set(['GET', 'POST']);
 const FORMATS = new Set(['json', 'form']);
@@ -97,7 +98,7 @@ async function readJson(response) {
 export const messagePusherProvider = {
   id: 'message_pusher',
 
-  async send({ channel, payload, fetchImpl = fetch, signal, env = process.env } = {}) {
+  async send({ channel, payload, fetchImpl = guardedFetch, signal, env = process.env } = {}) {
     const config = channel?.config || {};
     const method = String(config.method || 'POST').toUpperCase();
     const format = String(config.postFormat || 'json').toLowerCase();

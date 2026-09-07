@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
+import http from 'node:http';
 import express from 'express';
 import { MIGRATIONS } from '../server/db.js';
 
@@ -461,6 +462,40 @@ test('providers throw sanitized HTTP errors', async () => {
     assert.doesNotMatch(err.message, /secret-token/);
     return true;
   });
+});
+
+test('notification targets use the SSRF guard and allow an explicit LAN opt-in', async () => {
+  const { guardedFetch } = await import('../server/services/notification-providers/guarded-fetch.js');
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const server = http.createServer((_req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end('{"ok":true}');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const previous = process.env.NOTIFICATION_ALLOW_PRIVATE_NETWORK;
+  try {
+    delete process.env.NOTIFICATION_ALLOW_PRIVATE_NETWORK;
+    const store = createNotificationChannelStore({ db: makeDb() });
+    assert.throws(
+      () => store.createChannel({ provider: 'webhook', name: 'LAN', config: { baseUrl: `${baseUrl}/hook` } }),
+      /private or local network/i,
+    );
+    await assert.rejects(() => guardedFetch(baseUrl), /private IP/i);
+
+    process.env.NOTIFICATION_ALLOW_PRIVATE_NETWORK = '1';
+    const response = await guardedFetch(baseUrl);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true });
+    const channel = store.createChannel({
+      provider: 'webhook', name: 'LAN', config: { baseUrl: `${baseUrl}/hook` },
+    });
+    assert.equal(channel.config.baseUrl, `${baseUrl}/hook`);
+  } finally {
+    if (previous === undefined) delete process.env.NOTIFICATION_ALLOW_PRIVATE_NETWORK;
+    else process.env.NOTIFICATION_ALLOW_PRIVATE_NETWORK = previous;
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 test('notification processor fans out and deduplicates reminder deliveries', async () => {

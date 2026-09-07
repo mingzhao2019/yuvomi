@@ -78,6 +78,7 @@ import scheduleRouter from './routes/schedule.js';
 import { moduleForPath, requiredAccess, tokenAllows } from './scopes.js';
 import { moduleAccessVerdict, MODULE_ACCESS_DENIED, MODULE_ACCESS_READ_ONLY } from './permissions.js';
 import { BODY_LIMIT, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from './utils/upload-limit.js';
+import { createServiceWorkerResponseLoader } from './utils/service-worker.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
@@ -86,6 +87,19 @@ const logYuvomi = createLogger('Yuvomi');
 const { version: APP_VERSION } = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf-8')
 );
+const SERVICE_WORKER_PATH = new URL('../public/sw.js', import.meta.url);
+const SERVICE_WORKER_OPTIONS = {
+  appVersion: APP_VERSION,
+  buildRevision: process.env.APP_BUILD_REVISION,
+};
+const getServiceWorkerResponse = createServiceWorkerResponseLoader(
+  SERVICE_WORKER_PATH,
+  SERVICE_WORKER_OPTIONS,
+);
+
+// Prüft die Build-Revision bereits beim Start; in der Entwicklung wird eine
+// nachträgliche Änderung von sw.js beim nächsten Request neu geladen.
+getServiceWorkerResponse();
 const DEFAULT_APP_NAME = 'Yuvomi';
 
 const app  = express();
@@ -197,8 +211,18 @@ if (process.env.NODE_ENV === 'production' && process.env.ENABLE_API_DOCS !== 'tr
 // HTML + JS + CSS: no-cache (Browser revalidiert via ETag/304, kein stale Content
 //   nach Deployment). Bei unverändertem File → 304 Not Modified ohne Übertragung.
 // Bilder + Icons + Fonts: 30 Tage immutable (ändern sich praktisch nie).
-// manifest.json + sw.js: no-cache (PWA-Updates sollen sofort greifen).
+// manifest.json: no-cache (PWA-Updates sollen sofort greifen).
+// /sw.js wird direkt darunter als no-store-Antwort gerendert.
 // --------------------------------------------------------
+app.get('/sw.js', (_req, res) => {
+  const response = getServiceWorkerResponse();
+  res.type(response.contentType);
+  res.setHeader('Cache-Control', response.cacheControl);
+  res.setHeader('CDN-Cache-Control', response.cdnCacheControl);
+  res.setHeader('Cloudflare-CDN-Cache-Control', response.cloudflareCdnCacheControl);
+  res.send(response.body);
+});
+
 app.use(express.static(path.join(import.meta.dirname, '..', 'public'), {
   etag: true,
   lastModified: true,
@@ -215,7 +239,7 @@ app.use(express.static(path.join(import.meta.dirname, '..', 'public'), {
     } else if (['.png', '.jpg', '.jpeg', '.ico', '.svg', '.webp', '.woff2', '.woff'].includes(ext)) {
       res.setHeader('Cache-Control', 'public, max-age=2592000, immutable'); // 30 Tage
     } else {
-      // HTML, JS, CSS, JSON, manifest, sw - immer revalidieren
+      // HTML, JS, CSS, JSON und manifest immer revalidieren.
       res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     }
     // manifest.json: korrekter MIME-Type für PWA-Erkennung durch Chrome/Android

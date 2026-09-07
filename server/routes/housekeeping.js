@@ -491,6 +491,16 @@ function assertAdmin(req, res) {
   return false;
 }
 
+// Ein bezahlter Besuch ist abgerechnet: der Betrag ist an eine reale Person
+// geflossen. Bis zur Bezahlung darf jedes Mitglied Datum, Satz und Extras
+// pflegen - wer die Hilfe ein- und auscheckt, korrigiert auch den Zettel.
+// Danach gilt dieselbe Grenze wie beim Anlegen des Arbeitsverhältnisses:
+// nur ein Admin ändert, löscht oder bucht einen bezahlten Besuch erneut.
+function assertMayTouchSettled(existing, req, res) {
+  if (!existing.paid_at) return true;
+  return assertAdmin(req, res);
+}
+
 async function createWorkerUser({ username, displayName, avatarColor, avatarData, actorUserId }) {
   const finalUsername = username || `housekeeper_${Date.now()}`;
   const password = crypto.randomBytes(24).toString('base64url');
@@ -839,6 +849,7 @@ router.put('/visits/:id', (req, res) => {
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const existing = db.get().prepare('SELECT * FROM housekeeping_work_sessions WHERE id = ?').get(vId.value);
     if (!existing) return res.status(404).json({ error: 'Visit not found.', code: 404 });
+    if (!assertMayTouchSettled(existing, req, res)) return;
 
     const vDate = date(req.body.date, 'date', true);
     const isHourly = existing.rate_type === 'hourly';
@@ -908,6 +919,7 @@ router.post('/visits/:id/pay', (req, res) => {
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const existing = db.get().prepare('SELECT * FROM housekeeping_work_sessions WHERE id = ?').get(vId.value);
     if (!existing) return res.status(404).json({ error: 'Visit not found.', code: 404 });
+    if (!assertMayTouchSettled(existing, req, res)) return;
     const paidAt = nowIso();
     db.get().transaction(() => {
       db.get().prepare('UPDATE housekeeping_work_sessions SET paid_at = ? WHERE id = ?').run(paidAt, existing.id);
@@ -929,6 +941,7 @@ router.delete('/visits/:id', (req, res) => {
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const existing = db.get().prepare('SELECT * FROM housekeeping_work_sessions WHERE id = ?').get(vId.value);
     if (!existing) return res.status(404).json({ error: 'Visit not found.', code: 404 });
+    if (!assertMayTouchSettled(existing, req, res)) return;
     db.get().transaction(() => {
       deleteVisitLinks(db.get(), existing);
       db.get().prepare('DELETE FROM housekeeping_work_sessions WHERE id = ?').run(existing.id);

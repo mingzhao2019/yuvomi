@@ -2251,7 +2251,7 @@
         "pageCalendarModule": "Kalender",
         "pageCalendarModuleDescription": "Feiertage, Wochenstart und Standard-Termindauer festlegen.",
         "pageSyncCalendar": "Provider-Synchronisation",
-        "pageSyncCalendarDescription": "Google, Microsoft/Outlook und CalDAV/iCloud verbinden sowie Kalender und Aufgaben-/Erinnerungslisten konfigurieren. ICS/WebCal-Abos bleiben in den persönlichen Einstellungen und sind schreibgeschützt.",
+        "pageSyncCalendarDescription": "Google, Microsoft/Outlook und CalDAV/iCloud verbinden sowie Kalender und Aufgaben-/Erinnerungslisten konfigurieren. ICS/WebCal-Abos gehören zur persönlichen Kalenderverwaltung und sind schreibgeschützt.",
         "pageSyncContacts": "Kontakt-Synchronisation",
         "pageSyncContactsDescription": "CardDAV-Konten und Adressbücher verwalten.",
         "pageSyncReminders": "Erinnerungs-Synchronisation",

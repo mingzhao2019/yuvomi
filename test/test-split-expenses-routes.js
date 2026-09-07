@@ -168,6 +168,23 @@ test('loadExpense-Sichtbarkeit: Aussenstehender sieht Ausgabe nicht -> 404', asy
   assert.equal(r.status, 404);
 });
 
+test('PUT /expenses/:id — Nicht-Mitglied als Zahler oder Beteiligter -> 400, Salden unverändert', async () => {
+  const before = await netByUser(GROUP);
+  const payer = await call('PUT', `/expenses/${EXPENSE}`, {
+    actor: { id: OWNER, role: 'member' },
+    body: { title: 'Einkauf', amount: '30.00', currency: 'EUR', split_method: 'equal', payer_id: OUTSIDER, participants: [OWNER, MGR], expense_date: '2026-05-10' },
+  });
+  assert.equal(payer.status, 400, `erwartet 400, bekommen ${payer.status}`);
+  const participant = await call('PUT', `/expenses/${EXPENSE}`, {
+    actor: { id: OWNER, role: 'member' },
+    body: { title: 'Einkauf', amount: '30.00', currency: 'EUR', split_method: 'equal', payer_id: OWNER, participants: [OWNER, OUTSIDER], expense_date: '2026-05-10' },
+  });
+  assert.equal(participant.status, 400, `erwartet 400, bekommen ${participant.status}`);
+  const after = await netByUser(GROUP);
+  assert.deepEqual([...after.entries()], [...before.entries()], 'kein Saldo für den Außenstehenden, keine Verschiebung');
+  assert.equal(after.has(OUTSIDER), false);
+});
+
 // --------------------------------------------------------------------------
 // Geld: Edit ersetzt Splits ohne Doppelbuchung
 // --------------------------------------------------------------------------

@@ -842,3 +842,31 @@ test('DELETE /:id — 404 + 204', async () => {
   assert.equal((await call('DELETE', `/${id}`)).status, 204);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM calendar_events WHERE id=?').get(id).n, 0);
 });
+
+test('PUT/DELETE /:id — fremder privater Termin bleibt verborgen und unverändert', async () => {
+  const id = insertEvent({
+    title: 'PRIVATE-TOM',
+    start_datetime: '2043-02-01T09:00',
+    created_by: TOM.id,
+    visibility: 'private',
+  });
+  db.prepare('UPDATE calendar_events SET description = ? WHERE id = ?').run('GEHEIM', id);
+
+  const put = await call('PUT', `/${id}`, {
+    actor: MARIA,
+    body: { title: 'Von Maria', start_datetime: '2043-02-01T09:00', visibility: 'all' },
+  });
+  assert.equal(put.status, 404);
+  const del = await call('DELETE', `/${id}`, { actor: MARIA });
+  assert.equal(del.status, 404);
+  assert.deepEqual(
+    db.prepare('SELECT title, visibility, description FROM calendar_events WHERE id = ?').get(id),
+    { title: 'PRIVATE-TOM', visibility: 'private', description: 'GEHEIM' },
+  );
+
+  assert.equal(
+    (await call('PUT', `/${id}`, { actor: TOM, body: { title: 'Tom neu' } })).status,
+    200,
+    'Ersteller darf weiter ändern',
+  );
+});

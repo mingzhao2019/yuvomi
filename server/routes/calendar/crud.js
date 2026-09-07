@@ -208,6 +208,19 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Ein Termin, den die aufrufende Person nicht sehen darf, existiert für sie
+// auch zum Ändern und Löschen nicht. PUT/DELETE müssen dieselbe Sichtbarkeit
+// wie GET verwenden, damit eine private Zeile weder geleakt noch eingeblendet
+// oder gelöscht werden kann.
+function loadVisibleEvent(id, req) {
+  const me = getUserId(req);
+  return db.get().prepare(`
+    SELECT e.* FROM calendar_events e
+    WHERE e.id = ?
+      AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
+  `).get(id, me, me);
+}
+
 // --------------------------------------------------------
 // PUT /api/v1/calendar/:id
 // Termin vollständig aktualisieren.
@@ -218,7 +231,7 @@ router.put('/:id', async (req, res) => {
   let stagedUpload;
   try {
     const id    = parseInt(req.params.id, 10);
-    const event = db.get().prepare('SELECT * FROM calendar_events WHERE id = ?').get(id);
+    const event = loadVisibleEvent(id, req);
     if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
 
     const checks = [];
@@ -578,9 +591,10 @@ router.post('/:id/exceptions', (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const id    = parseInt(req.params.id, 10);
-    const event = db.get().prepare('SELECT * FROM calendar_events WHERE id = ?').get(id);
-    const genericQueued = event ? queueEventDeletion(event) : false;
-    const outlookQueued = event ? outlookCalendar.queueEventDeletion(event) : false;
+    const event = loadVisibleEvent(id, req);
+    if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
+    const genericQueued = queueEventDeletion(event);
+    const outlookQueued = outlookCalendar.queueEventDeletion(event);
     const queued = genericQueued || outlookQueued;
 
     const result = db.get().prepare('DELETE FROM calendar_events WHERE id = ?').run(id);

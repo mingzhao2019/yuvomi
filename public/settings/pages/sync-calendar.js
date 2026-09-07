@@ -150,11 +150,6 @@ function renderPage(container, user) {
     <div id="sync-calendar-banner"></div>
 
     <section class="settings-section">
-      <h2 class="settings-section__title">${t('settings.pageSyncCalendar')}</h2>
-      <p class="settings-section-description">${t('settings.pageSyncCalendarDescription')}</p>
-    </section>
-
-    <section class="settings-section">
       <h2 class="settings-section__title">${t('settings.caldavTitle')}</h2>
       <div class="settings-card">
         <p class="settings-card-description">${t('settings.caldavDescription')}</p>

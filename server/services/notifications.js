@@ -12,6 +12,7 @@ import { ntfyProvider } from './notification-providers/ntfy.js';
 import { webhookProvider } from './notification-providers/webhook.js';
 import { messagePusherProvider } from './notification-providers/message-pusher.js';
 import { emailProvider } from './notification-providers/email.js';
+import { guardedFetch } from './notification-providers/guarded-fetch.js';
 import { syncAllBirthdayReminders } from './birthdays.js';
 import { resolveHouseholdLocale, translate } from '../utils/i18n.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
@@ -378,7 +379,7 @@ export async function fanOutNotification({
   pushService = defaultPushService,
   channelStore,
   providers = defaultProviders,
-  fetchImpl = fetch,
+  fetchImpl = guardedFetch,
 } = {}) {
   const activeDb = database || dbModule.get();
   const store = channelStore || createNotificationChannelStore({ db: activeDb });
@@ -425,7 +426,7 @@ export async function fanOutNotification({
 }
 
 export function createNotificationService({ providers = defaultProviders, channelStore } = {}) {
-  async function testChannel({ channel, payload, fetchImpl = fetch } = {}) {
+  async function testChannel({ channel, payload, fetchImpl = guardedFetch } = {}) {
     const provider = providers[channel?.provider];
     if (!provider) throw new Error('Unknown notification provider.');
     return withTimeout((signal) => provider.send({ channel, payload, fetchImpl, signal }));
@@ -440,7 +441,7 @@ export async function processDueNotifications({
   channelStore,
   providers = defaultProviders,
   now = new Date(),
-  fetchImpl = fetch,
+  fetchImpl = guardedFetch,
 } = {}) {
   const getDb = () => (database || dbModule.get());
   const activeDb = getDb();

@@ -239,9 +239,9 @@ docker compose up -d
 Docker pulls `ghcr.io/ulsklyc/yuvomi:latest` automatically. No build step, no Node.js installation needed.
 
 > **Pinning a version.** Every release is also published under immutable tags:
-> `2.62.0` (exact version), `2.62` (latest patch of that minor), plus a moving `main`
+> `2.64.1` (exact version), `2.64` (latest patch of that minor), plus a moving `main`
 > tag for the current development state. To pin production to a known-good release,
-> set `image: ghcr.io/ulsklyc/yuvomi:2.62.0` in your compose file and bump it
+> set `image: ghcr.io/ulsklyc/yuvomi:2.64.1` in your compose file and bump it
 > deliberately; `latest` always points at the newest release.
 
 Continue with [Step 4 — Verify](#4-verify-the-container-is-running).
@@ -287,7 +287,7 @@ docker compose logs -f
 You should see output like:
 
 ```
-yuvomi  | [Yuvomi] Server running on port 3000 | Version 2.62.0
+yuvomi  | [Yuvomi] Server running on port 3000 | Version 2.64.1
 yuvomi  | [Yuvomi] Environment: production
 yuvomi  | [Sync] Auto-sync active every 15 minutes.
 ```
@@ -574,6 +574,7 @@ security, and troubleshooting.
 |----------|-------------|---------|----------|
 | `DB_PATH` | Path to the SQLite database file inside the container | `/data/yuvomi.db` | No |
 | `DB_ENCRYPTION_KEY` | SQLCipher AES-256 key for encryption at rest. Leave it empty and the database stays unencrypted. Once set there is no way back: it cannot be recovered and cannot be changed on an existing database. The placeholder that `.env.example` ships (`REPLACE_WITH_...`) is refused on a fresh install, because it is printed in this repository and would protect nothing. | - | No, but strongly recommended |
+| `DB_ALLOW_NEWER_SCHEMA` | Emergency switch, normally unset. An older Yuvomi refuses to start on a database a newer version has opened; `1` starts it anyway, at your own risk, with a warning on every start. | - | No |
 | `DATA_DIR` | Host directory mounted at `/data` inside the container (set in `.env` or `docker-compose.yml`). | `./data` | No |
 | `MODULES_DIR` | Host directory mounted at `/app/modules` inside the container - the drop-in folder for [third-party modules](../MODULES.md). | `./modules` | No |
 
@@ -759,6 +760,7 @@ it in controlled environments.
 |----------|-------------|---------|----------|
 | `ICS_SUBSCRIPTION_ALLOW_PRIVATE_NETWORK` | Allow `http://` and private/local network ICS feeds; lifts SSRF protection (`true`/`false`) | `false` | No |
 | `RECIPE_PROVIDER_ALLOW_PRIVATE_NETWORK` | Allow `http://` and private/local network recipe provider (Mealie/Tandoor) targets; lifts SSRF protection (`true`/`false`) | `false` | No |
+| `NOTIFICATION_ALLOW_PRIVATE_NETWORK` | Allow private/local network notification channel targets (Webhook, Gotify, ntfy, message-pusher); lifts SSRF protection (`true`/`false`) | `false` | No |
 | `DMS_ALLOW_PRIVATE_NETWORK` | Allow private/local network document management targets (Paperless-ngx, Papra); `false` enforces SSRF protection (`true`/`false`) | `true` | No |
 
 > **Note the inverted default.** `DMS_ALLOW_PRIVATE_NETWORK` is the only switch in this family that

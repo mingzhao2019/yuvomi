@@ -130,6 +130,12 @@ const INTENTIONALLY_NOT_IN_INSTALLER = {
     + 'Wert, den der Wizard setzen wuerde. Wer ihn umdreht, HAERTET bewusst und fasst die .env '
     + 'ohnehin von Hand an. Eine Checkbox waere hier ausserdem invertiert beschriftet ("private '
     + 'Ziele SPERREN") und damit die einzige im Wizard, die man rueckwaerts liest.',
+  DB_ALLOW_NEWER_SCHEMA:
+    'Notfall-Schalter fuer einen bewusst geduldeten Downgrade; der Installer darf keine '
+    + 'potenziell datenverlusttraechtige Schemaentscheidung vorwegnehmen.',
+  NOTIFICATION_ALLOW_PRIVATE_NETWORK:
+    'Sicherheitsausnahme fuer selbst gehostete Benachrichtigungsziele im LAN; sie gehoert in '
+    + 'die manuell verwaltete Betriebsumgebung und nicht in den Erstinstallationsassistenten.',
 
   // Werden zur Laufzeit erzeugt und in der Datenbank abgelegt.
   VAPID_PUBLIC_KEY: 'Wird bei Erstnutzung automatisch erzeugt; nur VAPID_SUBJECT ist konfigurierbar.',
