@@ -1014,7 +1014,7 @@ function buildPage(container) {
   page.className = 'asset-cost-page page';
   page.insertAdjacentHTML('beforeend', `
     <div class="asset-cost-toolbar page-toolbar page-toolbar--wrap">
-      <h1 class="page-toolbar__title"><i data-lucide="calculator" aria-hidden="true"></i>${esc(tr('title'))}</h1>
+      <h1 class="page-toolbar__title">${esc(tr('title'))}</h1>
       <div class="asset-cost-toolbar__search">${renderPageSearch({
         id: 'asset-cost-search',
         label: tr('search'),

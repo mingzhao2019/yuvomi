@@ -586,6 +586,21 @@ function localTime(str) {
   return zonedTimeKey(str);
 }
 
+/**
+ * Reminder timestamps use the legacy UTC-without-Z storage form. Keep their
+ * date semantics in one helper so indexing and rendering cannot disagree.
+ */
+function taskReminderInstant(task) {
+  if (!task?.remind_at) return null;
+  const instant = parseRemindAtAsUtc(task.remind_at);
+  return Number.isNaN(instant.getTime()) ? null : instant;
+}
+
+function taskReminderDate(task) {
+  const instant = taskReminderInstant(task);
+  return instant ? localDate(instant) : '';
+}
+
 function addMonths(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setMonth(d.getMonth() + n);
@@ -848,10 +863,11 @@ function buildDayIndex() {
 
   const taskMap = new Map();
   for (const t of state.tasks) {
-    if (!t.due_date) continue;
-    const bucket = taskMap.get(t.due_date);
+    const day = t.due_date || taskReminderDate(t);
+    if (!day) continue;
+    const bucket = taskMap.get(day);
     if (bucket) bucket.push(t);
-    else taskMap.set(t.due_date, [t]);
+    else taskMap.set(day, [t]);
   }
 
   _dayIndex.events = evMap;
@@ -963,7 +979,7 @@ function agendaSegmentKind(ev, dayStr) {
  */
 function filterTasksForCalendar(tasks) {
   return tasks.filter(
-    (t) => t.due_date && !t.archived_at
+    (t) => (t.due_date || t.remind_at) && !t.archived_at
   );
 }
 
@@ -971,7 +987,7 @@ function filterTasksForCalendar(tasks) {
 function tasksOnDay(dateStr) {
   const list = _dayIndex.active
     ? (_dayIndex.tasks.get(dateStr) ?? [])
-    : state.tasks.filter((t) => t.due_date === dateStr);
+    : state.tasks.filter((t) => (t.due_date || taskReminderDate(t)) === dateStr);
   return state.assignedToMe ? list.filter(belongsToMe) : list;
 }
 
@@ -995,7 +1011,22 @@ function renderTaskChip(task, { interactive = true } = {}) {
   const priority = task.priority || 'none';
   const done     = task.status === 'done';
   const label    = esc(task.title);
-  const timeStr  = task.due_time ? ` · ${task.due_time.slice(0, 5)}` : '';
+  const dueTime = task.due_time ? formatTime(task.due_time) : '';
+  // `remind_at` is stored as UTC without a trailing Z for compatibility with
+  // the existing reminder-offset helpers. Parse it as an instant before
+  // applying the household display zone; treating it as wall-clock text would
+  // show UTC rather than the configured local reminder time.
+  const reminderInstant = taskReminderInstant(task);
+  const reminderDate = taskReminderDate(task);
+  const reminderTime = reminderInstant && !Number.isNaN(reminderInstant.getTime())
+    ? formatTime(reminderInstant) : '';
+  const reminderText = [
+    reminderDate ? formatPreferredDate(reminderDate) : '',
+    reminderTime,
+  ].filter(Boolean).join(' ');
+  const dueSuffix = dueTime ? ` · ${dueTime}` : '';
+  const reminderSuffix = reminderText ? ` · 🔔 ${reminderText}` : '';
+  const detailStr = `${dueSuffix}${reminderSuffix}`;
   const button   = interactive
     ? ` role="button" tabindex="0" aria-label="${esc(t('calendar.taskChipAriaLabel', { title: task.title }))}"`
     : '';
@@ -1015,10 +1046,10 @@ function renderTaskChip(task, { interactive = true } = {}) {
     : '';
   return `<div class="cal-task-chip cal-task-chip--${priority}${done ? ' cal-task-chip--done' : ''}"
                data-task-id="${task.id}"${button}
-               title="${label}${esc(timeStr)}">
+               title="${label}${esc(detailStr)}">
     ${check}
     ${dot}
-    <span class="cal-task-chip__label">${label}${esc(timeStr)}</span>
+    <span class="cal-task-chip__label">${label}${esc(dueSuffix)}${reminderText ? `<span class="cal-task-chip__reminder" aria-label="${esc(reminderText)}">🔔 ${esc(reminderText)}</span>` : ''}</span>
   </div>`;
 }
 
@@ -1362,6 +1393,11 @@ function renderToolbar() {
   bar.replaceChildren();
   bar.insertAdjacentHTML('beforeend', `
     <h1 class="page-toolbar__title">${t('calendar.title')}</h1>
+    <button class="btn btn--icon cal-toolbar__search-btn cal-toolbar__search-trigger" id="cal-search"
+            aria-label="${t('calendar.searchOpen')}" title="${t('calendar.searchOpen')}"
+            aria-expanded="false">
+      <i data-lucide="search" aria-hidden="true"></i>
+    </button>
     <div class="page-toolbar__center cal-toolbar__month">
       <button class="btn btn--secondary cal-toolbar__today" id="cal-today">${t('calendar.today')}</button>
       <button class="btn btn--icon" id="cal-prev" aria-label="${t('calendar.back')}">
@@ -1382,17 +1418,6 @@ function renderToolbar() {
           <span>${t('calendar.assignedToMe')}</span>
         </button>
       ` : ''}
-      <!-- KEIN aria-controls im geschlossenen Zustand: die Suchleiste entsteht
-           erst beim Öffnen (openCalendarSearch), und ein Verweis auf eine ID, die
-           es noch nicht gibt, kündigt einem Screenreader ein Ziel an, das nicht
-           existiert. Gesetzt wird es dort, wo die Leiste entsteht, und beim
-           Schließen wieder entfernt - dieselbe Regel wie in utils/sub-tabs.js:
-           ohne aufgelöstes Ziel bleibt das Attribut weg. -->
-      <button class="btn btn--icon cal-toolbar__search-btn" id="cal-search"
-              aria-label="${t('calendar.searchOpen')}" title="${t('calendar.searchOpen')}"
-              aria-expanded="false">
-        <i data-lucide="search" aria-hidden="true"></i>
-      </button>
       <button class="btn btn--primary toolbar-new-btn" id="cal-add" aria-label="${t('calendar.addEvent')}">
         <i data-lucide="plus" aria-hidden="true"></i>
         <span class="toolbar-new-btn__label">${t('newLabel.calendar')}</span>
@@ -2693,6 +2718,9 @@ export const __test = {
   defaultCalendarViewFromState,
   newEventDefaultDate,
   filterTasksForCalendar,
+  taskReminderInstant,
+  taskReminderDate,
+  renderTaskChip,
   tasksOnDay,
   eventEndDate,
   isMultiDayEvent,
@@ -3632,6 +3660,20 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
     : (state.defaultAssignMe && state.currentUserId != null ? [state.currentUserId] : []);
   const visibility = (isEdit ? event.visibility : null) || 'all';
 
+  // 订阅事件的“来源”与“同步目标”是两个不同概念：ICS 只负责从远端
+  // 拉取，事件仍可按“仅本地保存”处理。把来源单独显示，避免编辑时把
+  // 正确的本地目标误读成订阅来源。
+  const subscriptionSourceHtml = isEdit
+    && event?.external_source === 'ics'
+    && event?.cal_name
+    ? `
+    <div class="form-group">
+      <label class="form-label" for="event-subscription-source">${t('calendar.detailCalendar')}</label>
+      <input class="form-input" id="event-subscription-source" type="text" readonly
+             aria-readonly="true" value="${esc(event.cal_name)}">
+    </div>`
+    : '';
+
   // Sekundärfelder: wandern hinter „Weitere Einstellungen". Beim Bearbeiten
   // automatisch geöffnet, falls bereits Werte gesetzt sind. Der Ort steht als
   // Alltagsfeld im Hauptbereich (Audit A1-11), nicht mehr hier.
@@ -3809,8 +3851,10 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
            Die uebrigen fuenf form-hint dieses Dialogs haben dasselbe Problem und
            app-weit noch 34 weitere in elf Modulen - das ist ein eigener Umzug
            und keine Beifang-Aenderung dieses Features. -->
-      <p class="cal-field-hint" id="modal-countdown-hint">${t('calendar.countdownHint')}</p>
+    <p class="cal-field-hint" id="modal-countdown-hint">${t('calendar.countdownHint')}</p>
     </div>
+
+    ${subscriptionSourceHtml}
 
     ${advancedSection(advancedFieldsHtml, { open: advancedFieldsOpen })}
 

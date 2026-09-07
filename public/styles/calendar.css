@@ -76,9 +76,10 @@
 /* --------------------------------------------------------
  * Kalender-Toolbar (Navigation + Ansichts-Umschalter)
  * -------------------------------------------------------- */
-/* Gerüst (Shell) jetzt geteilt via .page-toolbar in layout.css. Der Kalender hat
- * keinen Titel — er füllt das Shell mit Monats-Navigation (cal-toolbar__* unten).
- * Die Mobile-Wrap-Regeln weiter unten bleiben kalender-spezifisch. */
+/* Gerüst (Shell) jetzt geteilt via .page-toolbar in layout.css. Der Kalender
+ * verwendet den kanonischen Titel-Slot, die Datums-Navigation liegt im Center-
+ * Slot und die Ansichtsumschaltung in der eigenen Bar-Zeile. Die Mobile-Wrap-
+ * Regeln weiter unten bleiben kalender-spezifisch. */
 .cal-toolbar__nav {
   display: flex;
   align-items: center;
@@ -126,6 +127,22 @@
   padding: var(--space-0h);
 }
 
+/* 搜索入口是头部的固定槽位：日历的搜索结果栏仍然在打开后插到
+ * toolbar 下方，但入口本身不能跟随图层/新增按钮掉到另一行。这样桌面
+ * 和移动端都与任务页保持同一套“标题旁的搜索入口”结构。 */
+.cal-toolbar__search-trigger {
+  flex: 0 0 auto;
+}
+
+@media (min-width: 1024px) {
+  /* Desktop keeps the date navigator as the growing middle slot and places
+   * search immediately before the right-side actions. It remains one stable
+   * header row instead of depending on the number of layer buttons. */
+  .cal-toolbar > .page-toolbar__center { order: 1; }
+  .cal-toolbar > .cal-toolbar__search-trigger { order: 2; }
+  .cal-toolbar > .page-toolbar__actions { order: 3; }
+}
+
 .cal-toolbar__view-btn {
   font-size: var(--type-secondary);
   font-weight: var(--font-weight-medium);
@@ -157,9 +174,9 @@
   color: color-mix(in srgb, var(--module-accent, var(--color-accent)) var(--tint-ink), var(--color-text-primary));
 }
 
-/* Mobiles Umbrechen kommt jetzt aus .page-toolbar--wrap (layout.css): die
- * Datums-Navigation (.cal-toolbar__month = Center-Slot) rutscht als Gruppe auf
- * Zeile 2, Titel + Ansichts-Umschalter bleiben auf Zeile 1.
+/* Mobiles Umbrechen kommt jetzt aus .page-toolbar--wrap (layout.css): Titel und
+ * Suche teilen die erste Zeile, die Datums-Navigation (.cal-toolbar__month =
+ * Center-Slot) folgt als eigene Zeile, danach kommen Aktionen und Ansicht.
  *
  * Das Scrollen der Ansichts-Leiste stand hier als Modul-Rezept - ohne
  * `min-width: 0`, also scrollte sie zwar, schrumpfte aber nie: in `uk` lief der
@@ -167,9 +184,64 @@
  * Shell-Regel „Tab-Leiste im Modulkopf" (layout.css), die über `[role=tablist]`
  * greift und deshalb jede Leiste erfasst, nicht die vier bekannten. */
 @media (max-width: 767px) {
+  /* Large Title 与搜索入口共享第一行；日期导航、图层操作和视图栏各自
+   * 保留明确的槽位。搜索从 actions 中移出后不会再单独占一行。 */
+  .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .page-toolbar__title {
+    flex: 1 1 auto;
+    flex-basis: auto;
+  }
+
+  .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .cal-toolbar__search-trigger {
+    order: 0;
+  }
+
+  .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .page-toolbar__center {
+    order: 1;
+    flex: 0 0 100%;
+  }
+
+  .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .page-toolbar__actions {
+    order: 2;
+    flex: 0 0 100%;
+    width: 100%;
+    margin-inline-start: 0;
+    overflow-x: auto;
+  }
+
+  .cal-toolbar > .page-toolbar__bar {
+    order: 3;
+  }
+
   .cal-toolbar__view-btn {
     flex: 0 0 auto;
     min-height: var(--target-base);
+  }
+}
+
+/* 紧凑高度（例如手机横屏）由 Shell 强制保持单行。上面的纵向槽位只
+ * 适用于有足够高度的移动端；这里撤回 100% 基础，避免把日期导航和
+ * actions 挤出横向滚动区，同时保留标题右侧的搜索入口。 */
+@media (max-width: 767px) and (max-height: 499px) {
+  .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .page-toolbar__center {
+    order: 0;
+    flex: 1 1 auto;
+  }
+
+  .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .page-toolbar__actions {
+    order: 0;
+    flex: 0 1 auto;
+    width: auto;
+    overflow-x: visible;
+  }
+
+  .cal-toolbar > .page-toolbar__bar {
+    order: 4;
   }
 }
 
@@ -1696,6 +1768,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cal-task-chip__reminder {
+  margin-left: var(--space-1);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
 }
 
 /* Die vier Prioritätsvarianten standen hier als TEXTFARBEN - der zweite Kanal

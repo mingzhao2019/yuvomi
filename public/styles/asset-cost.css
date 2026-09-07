@@ -713,8 +713,11 @@
   .asset-cost-summary__metrics { gap: var(--space-3); }
   .asset-cost-summary__status { gap: var(--space-2); }
   .asset-cost-summary__status-item > span { font-size: var(--text-xs); }
-  .asset-cost-summary__heading { align-items: flex-start; }
-  .asset-cost-summary__actions { align-items: flex-end; flex-direction: column; }
+  /* 指标切换和主题入口都属于总览卡的标题行；不要在移动端把主题
+   * 挤到第二个竖向槽位，导致用户误以为它不是总览控制。必要时标题行
+   * 整体换行，但操作组始终保持横向且位于指标上方。 */
+  .asset-cost-summary__heading { align-items: center; flex-wrap: wrap; }
+  .asset-cost-summary__actions { align-items: center; flex-direction: row; flex-shrink: 0; margin-inline-start: auto; }
   .asset-cost-theme-menu { padding-inline: var(--space-4); }
   .asset-cost-controls { align-items: stretch; }
   .asset-cost-status-filter { width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
