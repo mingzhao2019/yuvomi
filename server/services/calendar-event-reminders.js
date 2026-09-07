@@ -71,6 +71,14 @@ function reminderInstantMs(value) {
   return instant.getTime();
 }
 
+function futureReminderAts(values, nowMs = Date.now()) {
+  return [...new Set((Array.isArray(values) ? values : [])
+    .map((value) => String(value).trim())
+    .filter((value) => value && reminderInstantMs(value) > nowMs))]
+    .sort()
+    .slice(0, MAX_EVENT_REMINDERS);
+}
+
 function escapeIcalText(value) {
   return String(value ?? '')
     .replace(/\\/g, '\\\\')
@@ -350,6 +358,7 @@ export function applyRemoteEventReminders(
     explicit = false,
     preserveSuppressed = true,
     explicitClearsSuppression = true,
+    nowMs = Date.now(),
   } = {},
 ) {
   if (!event?.id || !event.created_by) return false;
@@ -362,19 +371,23 @@ export function applyRemoteEventReminders(
     if (preserveSuppressed && current.reminder_suppressed === 1 && !explicitClearsSuppression) {
       return false;
     }
-    const desired = [...new Set((Array.isArray(remoteReminderAts) ? remoteReminderAts : [])
-      .map((value) => String(value).trim()).filter(Boolean))].sort().slice(0, MAX_EVENT_REMINDERS);
+    // A provider resync may legitimately return months-old events and their
+    // alarms. Those alarm instants are historical data, not fresh due work.
+    const desired = futureReminderAts(remoteReminderAts, nowMs);
     if (current.reminder_suppressed !== 1
         && JSON.stringify(ownerReminderRows(database, event.id, event.created_by)) === JSON.stringify(desired)) {
       return false;
     }
-    replaceOwnerEventReminders(database, event.id, event.created_by, remoteReminderAts, {
+    replaceOwnerEventReminders(database, event.id, event.created_by, desired, {
       suppressed: false,
     });
     return true;
   }
   if (preserveSuppressed && current.reminder_suppressed === 1) return false;
-  const defaults = defaultReminderAts(current, database, current.created_by);
+  const defaults = futureReminderAts(
+    defaultReminderAts(current, database, current.created_by),
+    nowMs,
+  );
   if (current.reminder_suppressed !== 1
       && JSON.stringify(ownerReminderRows(database, event.id, current.created_by)) === JSON.stringify(defaults)) {
     return false;
@@ -386,17 +399,12 @@ export function applyRemoteEventReminders(
 }
 
 /** Add defaults to a future event only when it has no owner reminder yet. */
-export function ensureDefaultEventReminders(database, event, { onlyFuture = false, nowMs = Date.now() } = {}) {
+export function ensureDefaultEventReminders(database, event, { onlyFuture = true, nowMs = Date.now() } = {}) {
   if (!event?.id || !event.created_by || event.reminder_suppressed === 1) return false;
   if (!tableExists(database, 'reminders')) return false;
   if (ownerReminderRows(database, event.id, event.created_by).length) return false;
   let values = defaultReminderAts(event, database, event.created_by);
-  if (onlyFuture) {
-    values = values.filter((value) => {
-      const ms = new Date(`${value}Z`).getTime();
-      return Number.isFinite(ms) && ms > nowMs;
-    });
-  }
+  if (onlyFuture) values = futureReminderAts(values, nowMs);
   if (!values.length) return false;
   replaceOwnerEventReminders(database, event.id, event.created_by, values, { suppressed: false });
   return true;
@@ -450,6 +458,7 @@ export const __test = {
   defaultReminderAts,
   eventEndInstantMs,
   eventStartInstantMs,
+  futureReminderAts,
   normalizeReminderAt,
   ownerEventReminderAts,
   primaryProviderReminderOffset,

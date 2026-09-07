@@ -7167,6 +7167,21 @@ const MIGRATIONS = [
          SET etag = NULL, last_modified = NULL;
     `,
   },
+  {
+    version: 178,
+    description: 'Calendar: remove stale reminders imported after their trigger time',
+    up: `
+      -- Migration 177 forced provider reminder resyncs. The first implementation
+      -- inserted historical alarms as new reminder rows, so both the server
+      -- dispatcher and the browser treated months-old alarms as immediately due.
+      -- Rows created at or after their own trigger could never have represented
+      -- a reminder scheduled in advance and are safe to discard. Delivery rows
+      -- follow through their existing ON DELETE CASCADE relationship.
+      DELETE FROM reminders
+       WHERE entity_type = 'event'
+         AND datetime(remind_at) <= datetime(created_at);
+    `,
+  },
 
 ];
 

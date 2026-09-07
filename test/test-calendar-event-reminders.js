@@ -154,6 +154,40 @@ test('backfill runs once, only creates future reminders, and leaves past events 
   );
 });
 
+test('local default completion does not create an already elapsed reminder', () => {
+  const event = insertEvent();
+  const nowMs = new Date('2030-06-10T13:50:00Z').getTime();
+  assert.equal(policy.ensureDefaultEventReminders(db, event, { nowMs }), false);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM reminders').get().count, 0);
+});
+
+test('provider imports keep only reminder triggers that are still in the future', () => {
+  const event = insertEvent();
+  const nowMs = new Date('2030-06-10T13:40:00Z').getTime();
+  assert.equal(policy.applyRemoteEventReminders(
+    db,
+    event,
+    ['2030-06-10T13:30:00', '2030-06-10T13:50:00'],
+    { explicit: true, nowMs },
+  ), true);
+  assert.deepEqual(
+    policy.__test.ownerEventReminderAts(db, event),
+    ['2030-06-10T13:50:00'],
+  );
+});
+
+test('an elapsed explicit provider reminder does not fall back to a personal default', () => {
+  const event = insertEvent();
+  const nowMs = new Date('2030-06-10T13:40:00Z').getTime();
+  assert.equal(policy.applyRemoteEventReminders(
+    db,
+    event,
+    ['2030-06-10T13:30:00'],
+    { explicit: true, nowMs },
+  ), false);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM reminders').get().count, 0);
+});
+
 test('iCalendar relative and absolute alarms become absolute UTC reminder rows', () => {
   const event = insertEvent();
   assert.deepEqual(

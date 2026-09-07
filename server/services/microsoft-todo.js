@@ -426,6 +426,13 @@ function storedUtcValue(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 19);
 }
 
+function reminderHasElapsed(value, nowMs = Date.now()) {
+  const utc = storedUtcValue(value);
+  if (!utc) return false;
+  const instant = Date.parse(`${utc}Z`);
+  return Number.isFinite(instant) && instant <= nowMs;
+}
+
 function completionUtcValue(database, task) {
   if (!database || !task?.id) return null;
   const raw = String(database.prepare(
@@ -907,7 +914,7 @@ function graphTaskPayload(
   task,
   timeZone = householdTimeZone(null),
   database = null,
-  { operation = 'create' } = {},
+  { operation = 'create', omitElapsedReminder = false, nowMs = Date.now() } = {},
 ) {
   const payload = {
     title: String(task.title || 'Microsoft To Do task'),
@@ -935,10 +942,17 @@ function graphTaskPayload(
   }
   const reminder = taskReminder(database, task);
   const remindAt = storedUtcValue(reminder?.remind_at);
-  payload.isReminderOn = !!remindAt;
-  payload.reminderDateTime = remindAt
-    ? { dateTime: remindAt, timeZone: 'UTC' }
-    : null;
+  // Completing a recurring To Do task is a provider action that creates its
+  // successor. Re-enabling an already elapsed reminder in the preceding
+  // definition update can make Graph reject that update and prevent the
+  // completion action from ever being sent. Omitting both fields preserves
+  // Microsoft's series reminder while the completion proceeds.
+  if (!(omitElapsedReminder && reminderHasElapsed(remindAt, nowMs))) {
+    payload.isReminderOn = !!remindAt;
+    payload.reminderDateTime = remindAt
+      ? { dateTime: remindAt, timeZone: 'UTC' }
+      : null;
+  }
   if (operation === 'create') {
     const recurrenceStart = task.start_date || task.due_date;
     if (task.is_recurring && task.recurrence_rule && recurrenceStart) {
@@ -1002,7 +1016,7 @@ async function flushPendingDeletions(account, accessToken, { database, fetchImpl
 async function flushOutboundTasks(
   account,
   accessToken,
-  { database, fetchImpl, completionTaskIds = [] },
+  { database, fetchImpl, completionTaskIds = [], nowMs = Date.now() },
 ) {
   const timeZone = householdTimeZone(database);
   // This option is a current-request hint for callers that already recorded a
@@ -1108,17 +1122,24 @@ async function flushOutboundTasks(
       continue;
     }
 
+    let outboundPhase = 'prepare';
     try {
       const path = `/me/todo/lists/${encodeURIComponent(task.external_list_id)}/tasks`;
       if (task.external_source === 'local') {
-        const createPayload = graphTaskPayload(task, timeZone, database, { operation: 'create' });
+        const createPayload = graphTaskPayload(task, timeZone, database, {
+          operation: 'create',
+          omitElapsedReminder: recurringCompletion,
+          nowMs,
+        });
         if (recurringCompletion) createPayload.status = 'notStarted';
+        outboundPhase = 'definition-create';
         const remote = await graphJson(path, accessToken, {
           method: 'POST',
           body: createPayload,
         }, fetchImpl);
         if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
         if (recurringCompletion) {
+          outboundPhase = 'completion';
           log.info(
             `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
             + `task=${task.id} action=complete`,
@@ -1171,11 +1192,16 @@ async function flushOutboundTasks(
         let completionOutboundAccepted = false;
         try {
           const taskPath = `${path}/${encodeURIComponent(task.external_uid)}`;
-          const updatePayload = graphTaskPayload(task, timeZone, database, { operation: 'update' });
+          const updatePayload = graphTaskPayload(task, timeZone, database, {
+            operation: 'update',
+            omitElapsedReminder: recurringCompletion,
+            nowMs,
+          });
           if (recurringCompletion) {
             let remoteBefore = null;
             let successorAlreadyActive = false;
             if (recoverCompletion) {
+              outboundPhase = 'completion-recovery-read';
               remoteBefore = await graphJson(taskPath, accessToken, {}, fetchImpl);
               if (remoteBefore?.status !== 'completed') {
                 const remoteDue = remoteTaskValues(remoteBefore, timeZone).due_date;
@@ -1187,6 +1213,7 @@ async function flushOutboundTasks(
             // same unambiguous status transition as the To Do client.
             delete updatePayload.status;
             if (!successorAlreadyActive) {
+              outboundPhase = 'definition-update';
               await graphJson(taskPath, accessToken, {
                 method: 'PATCH',
                 body: updatePayload,
@@ -1196,6 +1223,7 @@ async function flushOutboundTasks(
                   `Recurring completion recovery: account=${account.id} list=${task.task_list_id} `
                   + `task=${task.id} action=rearm`,
                 );
+                outboundPhase = 'completion-rearm';
                 await graphJson(taskPath, accessToken, {
                   method: 'PATCH',
                   body: { status: 'notStarted' },
@@ -1206,6 +1234,7 @@ async function flushOutboundTasks(
                   `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
                   + `task=${task.id} action=complete`,
                 );
+                outboundPhase = 'completion';
                 await graphJson(taskPath, accessToken, {
                   method: 'PATCH',
                   body: completionPayload(database, task),
@@ -1219,6 +1248,7 @@ async function flushOutboundTasks(
               );
             }
           } else {
+            outboundPhase = 'definition-update';
             await graphJson(taskPath, accessToken, {
               method: 'PATCH',
               // Microsoft Graph currently rejects valid recurrence.range.startDate
@@ -1237,14 +1267,20 @@ async function flushOutboundTasks(
             updated += 1;
             continue;
           }
-          const recreatePayload = graphTaskPayload(current, timeZone, database, { operation: 'create' });
+          const recreatePayload = graphTaskPayload(current, timeZone, database, {
+            operation: 'create',
+            omitElapsedReminder: recurringCompletion,
+            nowMs,
+          });
           if (recurringCompletion) recreatePayload.status = 'notStarted';
+          outboundPhase = 'definition-recreate';
           const remote = await graphJson(path, accessToken, {
             method: 'POST',
             body: recreatePayload,
           }, fetchImpl);
           if (!remote?.id) throw new Error('Microsoft To Do did not return a task id.');
           if (recurringCompletion) {
+            outboundPhase = 'completion-recreated';
             log.info(
               `Recurring completion outbound: account=${account.id} list=${task.task_list_id} `
               + `task=${task.id} action=complete-recreated`,
@@ -1304,10 +1340,16 @@ async function flushOutboundTasks(
                outbound_attempts = outbound_attempts + 1
          WHERE id = ?
       `).run(OUTBOUND_IN_FLIGHT, dirtyBefore, task.id);
+      const status = Number.isInteger(error?.status) ? ` status=${error.status}` : '';
+      const failure = `phase=${outboundPhase}${status} ${safeError(error)}`;
       database.prepare('UPDATE task_lists SET last_error = ? WHERE id = ?')
-        .run(safeError(error), task.task_list_id);
+        .run(failure.slice(0, 500), task.task_list_id);
       failed += 1;
-      log.error(`Outbound task sync failed for account ${account.id}, task ${task.id}:`, safeError(error));
+      log.error(
+        `Outbound task sync failed: account=${account.id} list=${task.task_list_id} `
+        + `task=${task.id} phase=${outboundPhase}${status}:`,
+        safeError(error),
+      );
     }
   }
   return {
@@ -1499,6 +1541,7 @@ async function syncInternal(options = {}) {
         database: activeDb,
         fetchImpl,
         completionTaskIds,
+        nowMs: options.nowMs,
       });
       result.created += outbound.created;
       result.updated += outbound.updated;
@@ -1739,6 +1782,7 @@ export const __test = {
   remoteTaskRecurrence,
   remoteTaskValues,
   graphTaskPayload,
+  reminderHasElapsed,
   publicList,
   graphTaskUrl,
 };

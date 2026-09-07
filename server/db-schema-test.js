@@ -1129,6 +1129,11 @@ const MIGRATIONS_SQL = {
     UPDATE ics_subscriptions
        SET etag = NULL, last_modified = NULL;
   `,
+  178: `
+    DELETE FROM reminders
+     WHERE entity_type = 'event'
+       AND datetime(remind_at) <= datetime(created_at);
+  `,
 };
 
 export { MIGRATIONS_SQL };

@@ -45,6 +45,9 @@
 - 已存在的 Microsoft 重复任务更新时不发送 `recurrence`，避免 Graph 的 PATCH 限制；
   这不禁止标题、描述、日期、提醒和完成状态更新。重复规则的修改/取消仍由 Microsoft
   端负责，直到同步协议另行解决。
+- 完成 Microsoft 重复任务时，若本地提醒时间已经过去，完成前的任务字段更新不得重新
+  发送该过期提醒，以免阻断完成动作和下一实例生成；未来提醒仍正常双向同步，普通编辑
+  和用户明确关闭提醒仍沿用现有同步语义。
 - Microsoft `steps`/`checklistItems` 不映射为 Yuvomi 子任务。Yuvomi 子任务是真实任务，
   有独立 ID、可见性、权限和父子关系；To Do step 没有这些语义。
 - Yuvomi 任务描述中的 Markdown `- [ ]` 清单是另一项原生能力：清单项可以直接点击，
@@ -62,11 +65,14 @@
   不因提醒自动广播给整个家庭。
 - 本地创建、Provider 导入和旧数据校准使用同一套提醒规则：远程明确提醒优先，没有远程
   提醒才补个人默认值；用户删除某事件的全部提醒会记录事件级抑制，后续入站同步不得
-  静默补回，重新添加提醒才解除抑制。已有未来事件只在一次版本化校准中补提醒，不创建
-  已经过期的通知。
+  静默补回，重新添加提醒才解除抑制。无论提醒来自远程还是个人默认值，只有触发时间仍
+  在未来时才允许自动创建；同步窗口中的历史事件不能把已过期提醒重新变成待发送通知。
+  已有未来事件只在一次版本化校准中补提醒。
 - Provider 设置页 `/settings/sync/calendar` 的用户可见名称是“Provider 同步”，其中
   分为 Provider 账户（Google、Microsoft/Outlook、CalDAV/iCloud）、日历选择/读写/同步、
-  以及 Microsoft To Do 和 CalDAV VTODO 任务/提醒列表。VTODO 列表提醒不是日历事件提醒；
+  以及 Microsoft To Do 和 CalDAV VTODO 任务/提醒列表。CalDAV 日历和 VTODO 区域连续显示，
+  “更多提供商”放在页面最后；其中已有配置的 Provider 默认展开，Provider 标题只显示
+  Google、Outlook、Apple 或 CalDAV。VTODO 列表提醒不是日历事件提醒；
   旧 `/settings/sync/reminders` 路径只重定向到 Provider 页面。ICS/WebCal 订阅仍在个人
   日历订阅页，严格只读，只解析 `VALARM`，没有 `VALARM` 时仅本地补默认提醒，绝不入出站队列。
 - Outlook 只支持一个远程提醒，因此本地多条提醒保留在 Yuvomi，回写最早触发的一条，并

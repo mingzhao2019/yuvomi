@@ -167,15 +167,12 @@ function renderPage(container, user) {
           </div>
         ` : ''}
       </div>
+      <div id="provider-reminder-lists"></div>
     </section>
-
-
 
     <section class="settings-section">
       <div id="sync-more-providers-container"></div>
     </section>
-
-    <div id="provider-reminder-lists"></div>
   `);
 }
 
@@ -605,7 +602,7 @@ function bindCalDAVAddButton(container, user) {
 }
 
 // --------------------------------------------------------------------------
-// More providers (Google · Apple)
+// More providers (Google · Outlook · Apple)
 // --------------------------------------------------------------------------
 
 function buildGoogleProvider(googleStatus, user) {
@@ -1714,7 +1711,12 @@ async function renderMoreProviders(container, user) {
   const disclosure = createDisclosure({
     id: MORE_PROVIDERS_ID,
     summary: t('settings.moreProviders'),
-    expanded: false,
+    expanded: Boolean(
+      googleStatus?.configured
+      || appleStatus?.configured
+      || outlookStatus?.configured
+      || outlookStatus?.accounts?.length,
+    ),
     content: panel,
   });
   host.replaceChildren(disclosure);
@@ -1793,8 +1795,8 @@ export async function render(container, { user, query } = {}) {
   bindCalDAVAddButton(container, user);
 
   await loadCalDAVAccounts(container, user);
-  await renderMoreProviders(container, user);
   await renderReminderSyncSection(container.querySelector('#provider-reminder-lists'));
+  await renderMoreProviders(container, user);
 
   handleOAuthCallback(container, query);
 

@@ -255,6 +255,51 @@ test('converts To Do due dates through the household timezone and keeps date-onl
   );
 });
 
+test('recurring completion omits elapsed reminder fields but keeps future reminders', () => {
+  const ownerId = insertUser('todo-owner-elapsed-reminder-payload');
+  const taskId = database.prepare(`
+    INSERT INTO tasks (title, created_by, status, due_date, is_recurring, recurrence_rule)
+    VALUES ('Elapsed reminder', ?, 'done', '2030-06-20', 1, 'FREQ=DAILY')
+  `).run(ownerId).lastInsertRowid;
+  const reminderId = database.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2030-06-09T08:00:00', ?)
+  `).run(taskId, ownerId).lastInsertRowid;
+  const task = database.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+  const nowMs = Date.parse('2030-06-10T12:00:00Z');
+
+  const completionDefinition = todo.__test.graphTaskPayload(task, 'UTC', database, {
+    operation: 'update',
+    omitElapsedReminder: true,
+    nowMs,
+  });
+  assert.equal(Object.hasOwn(completionDefinition, 'isReminderOn'), false);
+  assert.equal(Object.hasOwn(completionDefinition, 'reminderDateTime'), false);
+
+  const ordinaryEdit = todo.__test.graphTaskPayload(task, 'UTC', database, {
+    operation: 'update',
+    nowMs,
+  });
+  assert.equal(ordinaryEdit.isReminderOn, true);
+  assert.deepEqual(ordinaryEdit.reminderDateTime, {
+    dateTime: '2030-06-09T08:00:00',
+    timeZone: 'UTC',
+  });
+
+  database.prepare('UPDATE reminders SET remind_at = ? WHERE id = ?')
+    .run('2030-06-11T08:00:00', reminderId);
+  const futureReminder = todo.__test.graphTaskPayload(task, 'UTC', database, {
+    operation: 'update',
+    omitElapsedReminder: true,
+    nowMs,
+  });
+  assert.equal(futureReminder.isReminderOn, true);
+  assert.deepEqual(futureReminder.reminderDateTime, {
+    dateTime: '2030-06-11T08:00:00',
+    timeZone: 'UTC',
+  });
+});
+
 test('discovers lists, imports delta tasks, and persists the per-list cursor', async () => {
   const ownerId = insertUser();
   const accountId = insertAccount(ownerId);
@@ -347,6 +392,10 @@ test('completing a recurring To Do task pushes status before importing the next 
     INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
     VALUES (?, ?, ?, '2026-08-31T12:34:56Z')
   `).run(taskId, taskId, ownerId);
+  database.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2026-08-14T08:00:00', ?)
+  `).run(taskId, ownerId);
   assert.equal(completions.markMicrosoftTodoCompletionIntent(database, taskId), true);
 
   const calls = [];
@@ -363,6 +412,13 @@ test('completing a recurring To Do task pushes status before importing the next 
       return response(200, { value: [{ id: 'list-recurring', displayName: 'Recurring' }] });
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring/tasks/remote-current' && method === 'PATCH') {
+      if (!Object.hasOwn(calls.at(-1).body, 'status')
+          && (Object.hasOwn(calls.at(-1).body, 'isReminderOn')
+            || Object.hasOwn(calls.at(-1).body, 'reminderDateTime'))) {
+        return response(400, {
+          error: { code: 'InvalidRequest', message: 'An elapsed reminder cannot be re-enabled.' },
+        });
+      }
       if (Object.hasOwn(calls.at(-1).body, 'recurrence')) {
         return response(400, {
           error: {
@@ -422,6 +478,7 @@ test('completing a recurring To Do task pushes status before importing the next 
     database,
     fetchImpl,
     completionTaskIds: [taskId],
+    nowMs: Date.parse('2026-09-01T00:00:00Z'),
     waitForSuccessor: async (delayMs) => waits.push(delayMs),
   });
 
@@ -431,6 +488,8 @@ test('completing a recurring To Do task pushes status before importing the next 
   const patchCalls = calls.filter((call) => call.method === 'PATCH');
   assert.equal(patchCalls.length, 2);
   assert.equal(Object.hasOwn(patchCalls[0].body, 'status'), false);
+  assert.equal(Object.hasOwn(patchCalls[0].body, 'isReminderOn'), false);
+  assert.equal(Object.hasOwn(patchCalls[0].body, 'reminderDateTime'), false);
   assert.deepEqual(patchCalls[1].body, {
     status: 'completed',
     completedDateTime: { dateTime: '2026-08-31T12:34:56', timeZone: 'UTC' },
@@ -656,6 +715,10 @@ test('recreated completed recurring tasks also reconcile a delayed successor', a
     INSERT INTO task_completions (task_id, series_id, user_id, completed_at)
     VALUES (?, ?, ?, '2026-08-31T12:34:56Z')
   `).run(taskId, taskId, ownerId);
+  database.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2026-08-14T08:00:00', ?)
+  `).run(taskId, ownerId);
   assert.equal(completions.markMicrosoftTodoCompletionIntent(database, taskId), true);
 
   const calls = [];
@@ -672,6 +735,8 @@ test('recreated completed recurring tasks also reconcile a delayed successor', a
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-recurring-recreate/tasks' && method === 'POST') {
       assert.equal(body.status, 'notStarted');
+      assert.equal(Object.hasOwn(body, 'isReminderOn'), false);
+      assert.equal(Object.hasOwn(body, 'reminderDateTime'), false);
       return response(201, { id: 'remote-recreated' });
     }
     if (parsed.pathname.endsWith('/tasks/remote-recreated') && method === 'PATCH') {
@@ -728,6 +793,7 @@ test('recreated completed recurring tasks also reconcile a delayed successor', a
     database,
     fetchImpl,
     completionTaskIds: [taskId],
+    nowMs: Date.parse('2026-09-01T00:00:00Z'),
     waitForSuccessor: async (delayMs) => waits.push(delayMs),
   });
 
@@ -1148,6 +1214,10 @@ test('creates a completed recurring local To Do task and reconciles its delayed 
             1, 'FREQ=MONTHLY', 0)
   `).run(ownerId, listId).lastInsertRowid;
   completions.syncTaskCompletion(database, taskId, 'open', 'done', ownerId);
+  database.prepare(`
+    INSERT INTO reminders (entity_type, entity_id, remind_at, created_by)
+    VALUES ('task', ?, '2026-08-14T08:00:00', ?)
+  `).run(taskId, ownerId);
   assert.ok(database.prepare(
     'SELECT 1 FROM microsoft_todo_completion_intents WHERE task_id = ?'
   ).get(taskId));
@@ -1163,6 +1233,8 @@ test('creates a completed recurring local To Do task and reconciles its delayed 
     }
     if (parsed.pathname === '/v1.0/me/todo/lists/list-local-completed-create/tasks' && method === 'POST') {
       assert.equal(body.status, 'notStarted');
+      assert.equal(Object.hasOwn(body, 'isReminderOn'), false);
+      assert.equal(Object.hasOwn(body, 'reminderDateTime'), false);
       assert.deepEqual(body.recurrence, {
         pattern: { type: 'absoluteMonthly', interval: 1, dayOfMonth: 15 },
         range: { type: 'noEnd', startDate: '2026-08-15', recurrenceTimeZone: 'UTC' },
@@ -1222,6 +1294,7 @@ test('creates a completed recurring local To Do task and reconciles its delayed 
   const result = await todo.sync({
     database,
     fetchImpl,
+    nowMs: Date.parse('2026-09-01T00:00:00Z'),
     waitForSuccessor: async (delayMs) => waits.push(delayMs),
   });
   assert.equal(result.success, true);
