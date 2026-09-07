@@ -15,7 +15,8 @@ import { listQuickLinksFor } from './quick-links.js';
 import { visibilityWhere } from '../services/visibility.js';
 import { resolveBudgetMode } from '../services/budget-visibility.js';
 import { deniedModules } from '../permissions.js';
-import { householdTimeZone, utcToWall } from '../utils/timezone.js';
+import { daysBetweenDateKeys, householdTimeZone, utcToWall } from '../utils/timezone.js';
+import { inventoryVisibilityWhere } from './inventory/access.js';
 
 const log = createLogger('Dashboard');
 
@@ -75,6 +76,7 @@ const DENIED_PAYLOAD = Object.freeze({
       visitsThisMonth: 0, unpaidAmount: 0, lastVisit: null,
     },
   }),
+  inventory: () => ({ assets: emptyAssetSummary() }),
 });
 
 function emptyBudget(month) {
@@ -88,6 +90,50 @@ function emptyBudget(month) {
     topExpenseAmount: 0,
     savingsGoal: null,
   };
+}
+
+function emptyAssetSummary() {
+  return { total: 0, active: 0, retired: 0, sold: 0, currencies: [] };
+}
+
+function finiteAssetAmount(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+/** Summarize visible inventory rows without storing derived cost fields. */
+export function summarizeAssets(rows = [], today = '', defaultCurrency = 'EUR') {
+  const summary = emptyAssetSummary();
+  const byCurrency = new Map();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    summary.total += 1;
+    const status = String(row?.status || 'active');
+    if (status === 'active') summary.active += 1;
+    else if (status === 'sold') summary.sold += 1;
+    else summary.retired += 1;
+
+    const currency = String(row?.currency || defaultCurrency || 'EUR').trim().toUpperCase();
+    if (!byCurrency.has(currency)) byCurrency.set(currency, { currency, purchaseTotal: 0, currentDailyCost: 0 });
+    const bucket = byCurrency.get(currency);
+    const purchasePrice = finiteAssetAmount(row?.purchase_price);
+    if (purchasePrice !== null) bucket.purchaseTotal += purchasePrice;
+
+    const endDate = status === 'sold'
+      ? (row?.sold_date || today)
+      : status === 'active'
+        ? today
+        : (row?.retired_date || today);
+    const days = daysBetweenDateKeys(row?.purchase_date, endDate);
+    if (purchasePrice === null || days === null) continue;
+    const soldPrice = row?.sold_price == null ? 0 : finiteAssetAmount(row.sold_price);
+    const netCost = status === 'sold'
+      ? (soldPrice === null ? null : purchasePrice - soldPrice)
+      : purchasePrice;
+    if (netCost !== null) bucket.currentDailyCost += netCost / Math.max(1, days);
+  }
+  summary.currencies = [...byCurrency.values()].sort((a, b) => a.currency.localeCompare(b.currency));
+  return summary;
 }
 
 const ASSIGNED_USERS_SQL = `(
@@ -123,6 +169,7 @@ const router = express.Router();
  *   tasksDoneToday: number,            // Heute fällige, bereits erledigte Aufgaben
  *   countdowns:     Countdown[]        // Als Countdown markierte Termine + Aufgaben (#647)
  *   quicklinks:      QuickLink[]        // Haushaltslinks der Kachelreihe (#469)
+ *   assets:          AssetSummary       // Sichtbare Inventar-Kennzahlen
  * }
  */
 router.get('/', (req, res) => {
@@ -130,6 +177,7 @@ router.get('/', (req, res) => {
   const d = db.get();
   const result = {};
   const userId = req.authUserId || req.session.userId;
+  const admin = req.authRole === 'admin' || req.session?.role === 'admin';
 
   /* WIDGET-OPTIONEN KOMMEN ALS QUERY-PARAMETER, NICHT AUS DEM GESPEICHERTEN
    * LAYOUT (#814). Der Server kennt die Widget-Ids bewusst nicht - sie gehören
@@ -398,6 +446,24 @@ router.get('/', (req, res) => {
   } catch (err) {
     log.error('shoppingLists error:', err.message);
     result.shoppingLists = [];
+  }
+
+  // Inventar-Überblick: dieselbe Sichtbarkeitsregel wie die Inventarseite,
+  // aber nur die für die Kennzahlen nötigen Felder. Der Dashboard-Request
+  // bleibt additive: fehlt die Tabelle in einer Legacy-DB, bleiben die
+  // übrigen Widgets nutzbar.
+  if (allows('inventory')) try {
+    const rows = d.prepare(`
+      SELECT ii.status, ii.purchase_date, ii.purchase_price, ii.currency,
+             ii.sold_date, ii.sold_price, ii.retired_date
+      FROM inventory_items ii
+      WHERE ${inventoryVisibilityWhere('ii', '@me', admin)}
+    `).all({ me: userId });
+    const currency = d.prepare("SELECT value FROM sync_config WHERE key = 'currency'").get()?.value || 'EUR';
+    result.assets = summarizeAssets(rows, todayLocalKey, currency);
+  } catch (err) {
+    log.error('assets error:', err.message);
+    result.assets = emptyAssetSummary();
   }
 
   // Alle User (für Avatar-Farben in Widgets)

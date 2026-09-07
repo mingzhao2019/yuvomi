@@ -705,6 +705,15 @@
 @media (max-width: 767px) {
   .asset-cost-page { width: min(100% - var(--space-3), 40rem); padding-top: var(--space-2); }
   .asset-cost-toolbar { align-items: flex-start; }
+  /* Shell 会把模块图标插在标题之前。资产页的移动头部应与任务页一致：
+   * 图标和标题共享第一行，搜索字段再占下一行；不能让全局 Large Title
+   * 的整行 basis 把图标单独挤到标题上方。紧凑高度模式仍由 Shell 的
+   * nowrap 规则接管，不改变横屏头部的单行约束。 */
+  .asset-cost-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .page-toolbar__title {
+    flex: 0 1 auto;
+    flex-basis: auto;
+  }
   .asset-cost-toolbar__search { min-width: 0; width: 100%; }
   .asset-cost-summary__heading,
   .asset-cost-summary__metrics,

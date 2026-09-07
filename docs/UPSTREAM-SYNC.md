@@ -5,6 +5,10 @@ base, but several important areas have different data models, routes, synchroniz
 and UI implementations. In particular, task lists, Microsoft To Do, and notification channels are
 not safe to update by replacing files with their upstream versions.
 
+The maintained inventory of custom behaviour and preservation boundaries is in
+[`docs/CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md). Use it as the checklist when
+reviewing an upstream change.
+
 ## Branch roles
 
 - `main` is the upstream-compatible base branch.

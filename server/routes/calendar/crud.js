@@ -47,7 +47,8 @@ router.get('/:id', (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
-             COALESCE(ec.color, isub.color) AS cal_color,
+             COALESCE(isub.name, ec.name) AS cal_name,
+             COALESCE(isub.color, ec.color) AS cal_color,
              bd.name       AS birthday_name,
              bd.birth_date AS birthday_date,
              ${ASSIGNED_USERS_SQL},
@@ -168,7 +169,8 @@ router.post('/', async (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
-             COALESCE(ec.color, isub.color) AS cal_color,
+             COALESCE(isub.name, ec.name) AS cal_name,
+             COALESCE(isub.color, ec.color) AS cal_color,
              ${ASSIGNED_USERS_SQL}
       FROM calendar_events e
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
@@ -409,7 +411,8 @@ router.put('/:id', async (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
-             COALESCE(ec.color, isub.color) AS cal_color,
+             COALESCE(isub.name, ec.name) AS cal_name,
+             COALESCE(isub.color, ec.color) AS cal_color,
              ${ASSIGNED_USERS_SQL}
       FROM calendar_events e
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to

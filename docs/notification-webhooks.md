@@ -182,11 +182,35 @@ does not need JSON escaping. A useful default is:
 📄 {{description}}
 ⏰ Due: {{dueDate}} {{dueTime}}
 🚀 Start: {{startDate}} {{startTime}}
-🔗 {{url}}
 ```
 
 The selected `content` or `description` field receives the rendered result. If
 the template is empty, the existing single-line message behavior is preserved.
+When every placeholder on a line is empty, that complete line is omitted; this
+keeps optional descriptions and dates from leaving empty labels in a push.
+
+For message-pusher only, `{{remindAt}}` and `{{sentAt}}` are formatted in the
+household time zone as `YYYY-MM-DD HH:mm:ss` (without `Z` or milliseconds).
+`{{url}}` is rendered as an absolute Yuvomi URL only when `BASE_URL` is a valid
+HTTP(S) public origin; otherwise the value is empty and its line is omitted.
+The generic Webhook provider keeps its existing contract: raw ISO timestamps
+and the relative path are still available there.
+
+For a household channel, a more detailed template can add:
+
+```text
+🔔 {{title}} — {{body}}
+📄 {{description}}
+📅 {{dueDate}} {{dueTime}}
+🚀 {{startDate}} {{startTime}}
+🧩 {{entityType}} #{{entityId}}
+📝 {{details}}
+🏷️ {{category}}
+⭐ {{taskPriority}}
+📌 {{status}}
+⏰ {{remindAt}}
+📤 {{sentAt}}
+```
 
 ## Security notes
 

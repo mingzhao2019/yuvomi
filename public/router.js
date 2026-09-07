@@ -1047,6 +1047,21 @@ function sidebarActionEl({ labelKey, icon, className, onClick }) {
   return button;
 }
 
+// The global search is a real sidebar item, immediately after Overview. Keep
+// its construction in one place so a navigation rebuild (language/module
+// changes) cannot silently drop or reorder it.
+function sidebarSearchEl() {
+  const search = sidebarActionEl({
+    labelKey: 'nav.search',
+    icon: 'search',
+    className: 'nav-item--search',
+    onClick: () => _openSearch?.(),
+  });
+  search.setAttribute('aria-keyshortcuts', '/');
+  search.setAttribute('title', t('nav.search') + ' (/)');
+  return search;
+}
+
 // System-/Utility-Zeilen unter dem App-Launcher-Grid: Einstellungen (Route),
 // Hilfe und Änderungen (Overlays). Vollbreite Listenzeilen — der ruhige,
 // monochrome System-Cluster, klar abgesetzt vom farbigen Modul-Grid.
@@ -1742,7 +1757,7 @@ function renderAppShell(container) {
   // nicht weg. Strukturell ist das ohnehin der richtige Ort - die Einstellungen
   // sind Systemebene, kein Modul unter Modulen.
   const pinnedSidebarItems = [];
-  sidebarNavItems().forEach((item) => {
+  sidebarNavItemsWithSearch().forEach((item) => {
     if (item.classList?.contains('nav-item--pinned-end')) pinnedSidebarItems.push(item);
     else sidebarItems.appendChild(item);
   });
@@ -1805,20 +1820,6 @@ function renderAppShell(container) {
 
   sidebar.appendChild(sidebarLogo);
   sidebar.appendChild(sidebarToggle);
-
-  // Sichtbarer Desktop-Einstieg in die globale Suche (Audit R2, A1-01): vor den
-  // Modul-Items, bleibt im eingeklappten Modus als Lupe erreichbar. Kein
-  // data-route, damit Delegation/Indikator das Item ignorieren.
-  const sidebarSearch = sidebarActionEl({
-    labelKey: 'nav.search',
-    icon: 'search',
-    className: 'nav-item--search',
-    onClick: () => _openSearch?.(),
-  });
-  sidebarSearch.setAttribute('aria-keyshortcuts', '/');
-  sidebarSearch.setAttribute('title', `${t('nav.search')} (/)`);
-  sidebar.appendChild(sidebarSearch);
-
   sidebar.appendChild(sidebarItems);
 
   // Der gepinnte Eintrag steht zwischen Liste und Fuss-Aktionen: er IST eine
@@ -3401,6 +3402,21 @@ function sidebarNavItems() {
   return elements;
 }
 
+function sidebarNavItemsWithSearch() {
+  const elements = sidebarNavItems();
+  const search = sidebarSearchEl();
+  const overviewIndex = elements.findIndex((item) =>
+    item.matches?.('.nav-item[data-route="/"]'));
+  // The normal signed-in navigation has Overview. Keep a sensible fallback
+  // for the restricted split-guest navigation: after the two decorative rail
+  // layers, before the first real destination.
+  const insertAt = overviewIndex >= 0
+    ? overviewIndex + 1
+    : Math.min(2, elements.length);
+  elements.splice(insertAt, 0, search);
+  return elements;
+}
+
 function isModuleDisabled(moduleName) {
   return _disabledModules.has(moduleName);
 }
@@ -4192,7 +4208,7 @@ function rebuildNavigation({ updateLabels = true } = {}) {
     // Auto-Scroll unten riss sie sofort wieder zum aktiven Item — sichtbar als
     // Springen zwischen erstem und letztem Eintrag.
     const previousScrollTop = navSidebarItems.scrollTop;
-    const sidebarEls = sidebarNavItems();
+    const sidebarEls = sidebarNavItemsWithSearch();
     navSidebarItems.replaceChildren(...sidebarEls);
     if (window.lucide) window.lucide.createIcons({ el: navSidebarItems });
     requestAnimationFrame(() => {

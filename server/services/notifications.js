@@ -16,6 +16,7 @@ import { syncAllBirthdayReminders } from './birthdays.js';
 import { resolveHouseholdLocale, translate } from '../utils/i18n.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
 import { syncAllPantryExpiryReminders } from './pantry-reminders.js';
+import { householdTimeZone, utcToWall } from '../utils/timezone.js';
 
 const log = createLogger('Notifications');
 const APP_NAME = 'Yuvomi';
@@ -180,7 +181,17 @@ function pantryExpiryBody(reminder) {
   return `${reminder.entity_title} - ${reminder.pantry_expires_on}`;
 }
 
-export function reminderPayload(reminder, locale, sentAt = '') {
+export function formatNotificationWallTime(value, timeZone) {
+  const raw = text(value).trim();
+  if (!raw) return '';
+  // Reminder timestamps are stored as UTC instants. Older rows may omit the
+  // trailing Z, so make that meaning explicit before converting to wall time.
+  const instant = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw}Z`;
+  const wall = utcToWall(instant, timeZone);
+  return wall ? `${wall.date} ${wall.time}` : '';
+}
+
+export function reminderPayload(reminder, locale, sentAt = '', timeZone = 'UTC') {
   const title = reminder.entity_title || FALLBACK_BODY;
   const origin = REMINDER_ORIGINS[reminder.entity_type];
   let body = title;
@@ -236,6 +247,10 @@ export function reminderPayload(reminder, locale, sentAt = '') {
     status: text(reminder.task_status),
     location: text(reminder.event_location),
     allDay: reminder.entity_type === 'event' ? Boolean(reminder.event_all_day) : null,
+    // Raw values remain part of the Webhook contract. These aliases are
+    // consumed only by message-pusher, which expects household wall time.
+    remindAtLocal: formatNotificationWallTime(reminder.remind_at, timeZone),
+    sentAtLocal: formatNotificationWallTime(sentAt, timeZone),
   };
 }
 
@@ -334,6 +349,21 @@ async function withTimeout(fn, timeoutMs = PROVIDER_TIMEOUT_MS) {
   }
 }
 
+function messagePusherPayload(payload, timeZone) {
+  const normalized = { ...(payload || {}) };
+  // Immediate notifications (mentions and medication doses) do not pass
+  // through reminderPayload(), but personal and household message-pusher
+  // channels still need the same wall-clock contract. Only derive aliases
+  // that are absent; an explicit empty value must remain an intentional
+  // omission. Other providers keep the original payload contract below.
+  for (const [rawKey, localKey] of [['remindAt', 'remindAtLocal'], ['sentAt', 'sentAtLocal']]) {
+    if (Object.hasOwn(normalized, rawKey) && !Object.hasOwn(normalized, localKey)) {
+      normalized[localKey] = formatNotificationWallTime(normalized[rawKey], timeZone);
+    }
+  }
+  return normalized;
+}
+
 /**
  * Fan-out for immediate native notifications that do not belong to a reminder
  * row (for example medication doses and task comment mentions). Reminder
@@ -367,6 +397,8 @@ export async function fanOutNotification({
   }
 
   const channels = store.listEnabledChannelsForUser(userId);
+  const timeZone = householdTimeZone(activeDb);
+  let localMessagePusherPayload = null;
   for (const channel of channels) {
     result.attempted += 1;
     const provider = providers[channel.provider];
@@ -376,7 +408,12 @@ export async function fanOutNotification({
       continue;
     }
     try {
-      await withTimeout((signal) => provider.send({ channel, payload, fetchImpl, signal }));
+      const providerPayload = channel.provider === 'message_pusher'
+        ? (localMessagePusherPayload ??= messagePusherPayload(payload, timeZone))
+        : payload;
+      await withTimeout((signal) => provider.send({
+        channel, payload: providerPayload, fetchImpl, signal,
+      }));
       result.sent += 1;
     } catch (err) {
       result.failed += 1;
@@ -501,9 +538,10 @@ export async function processDueNotifications({
   const markPushed = activeDb.prepare('UPDATE reminders SET pushed_at = ? WHERE id = ?');
   // Einmal je Lauf, nicht je Meldung: die Datensprache gehoert dem Haushalt.
   const locale = resolveHouseholdLocale(activeDb);
+  const timeZone = householdTimeZone(activeDb);
 
   for (const reminder of due) {
-    const payload = reminderPayload(reminder, locale, nowIso);
+    const payload = reminderPayload(reminder, locale, nowIso, timeZone);
     const channels = store.listEnabledChannelsForUser(reminder.created_by);
     const pushCount = activeDb.prepare('SELECT COUNT(*) AS c FROM push_subscriptions WHERE user_id = ?').get(reminder.created_by).c;
     const targets = [];

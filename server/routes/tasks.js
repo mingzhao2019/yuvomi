@@ -1250,6 +1250,14 @@ router.get('/', (req, res) => {
         u.avatar_data AS assigned_avatar,
         ${ASSIGNED_USERS_SQL},
         ${TASK_LIST_SQL},
+        (SELECT r.remind_at
+           FROM reminders r
+          WHERE r.entity_type = 'task'
+            AND r.entity_id = t.id
+            AND r.created_by = ?
+            AND r.dismissed = 0
+          ORDER BY r.remind_at ASC
+          LIMIT 1) AS remind_at,
         -- Unteraufgaben tragen eine EIGENE Sichtbarkeit, und diese Liste hing nie
         -- an ihr: unter einer geteilten Elternaufgabe lief eine private
         -- Unteraufgabe samt Titel mit, und Zähler wie Fortschrittsbalken zählten
@@ -1275,7 +1283,7 @@ router.get('/', (req, res) => {
 
     // DER TAGESSCHLÜSSEL MUSS ALS ERSTER PARAMETER STEHEN: das Scope-Fragment
     // sitzt am Anfang der WHERE-Klausel, also vor jedem Filter unten. Die
-    // SELECT-Klausel bindet ihre sechs `me` erst am Ende per unshift davor.
+    // SELECT-Klausel bindet ihre sieben `me` erst am Ende per unshift davor.
     if (taskScopeNeedsToday({ includeFuture: !!include_future })) params.push(toLocalDateKey());
 
     // Status, Priorität und Person nehmen mehrere Werte entgegen und verknüpfen
@@ -1375,12 +1383,11 @@ router.get('/', (req, res) => {
     sql += ` AND ${visibilityWhere('t', 'task_assignments', 'task_id')}`;
     params.push(me, me);
 
-    // Die drei Unteraufgaben-Subqueries oben tragen dieselbe Bedingung und damit
-    // je zwei Platzhalter. Sie stehen in der SELECT-Klausel, also VOR jedem
-    // anderen Platzhalter dieser Anfrage - deshalb unshift und nicht push. Die
-    // SELECT-Klausel bindet sonst nichts; wer dort einen Platzhalter ergänzt,
-    // muss diese Reihenfolge mitziehen.
-    params.unshift(me, me, me, me, me, me);
+    // Die Reminder- und Unteraufgaben-Subqueries oben stehen in der
+    // SELECT-Klausel, also VOR jedem anderen Platzhalter dieser Anfrage -
+    // deshalb unshift und nicht push. Die Reminder-Abfrage bindet `me` einmal,
+    // die drei Unteraufgaben-Subqueries je zweimal.
+    params.unshift(me, me, me, me, me, me, me);
 
     sql += `
       ORDER BY

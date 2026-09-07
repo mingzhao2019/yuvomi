@@ -552,7 +552,7 @@ them with 400 (see the Reminders section), because the run would recreate them w
 | end_datetime | TEXT | DATETIME |
 | all_day | INTEGER | 0/1 |
 | location | TEXT | |
-| color | TEXT | nullable HEX (`#RRGGBB`) — the event's explicit colour. `NULL` means the event inherits its primary assignee's colour, then its source calendar's colour, then the neutral fallback |
+| color | TEXT | nullable HEX (`#RRGGBB`) — the event's explicit colour. For an ICS subscription with `color_modified = 0`, the subscription colour is used by default; a manually selected event colour wins. Other providers use the primary assignee's colour, then the source calendar's colour, then the neutral fallback |
 | icon | TEXT | Lucide icon name, default 'calendar' |
 | assigned_to | INTEGER | FK → Users (legacy single-user field, kept for backwards compat) |
 | created_by | INTEGER | FK → Users, NOT NULL |

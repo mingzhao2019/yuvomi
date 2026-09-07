@@ -572,6 +572,36 @@ test('GET /:id — Outlook-Inbound-Quelle wird als Kalendername serialisiert', a
   }
 });
 
+test('GET /:id — ICS-Abonnement wird als Kalendername und Farbe serialisiert', async () => {
+  const subId = db.prepare(`
+    INSERT INTO ics_subscriptions (name, url, color, shared, created_by)
+    VALUES ('Urlaub订阅', 'https://example.test/urlaub.ics', '#123456', 1, ?)
+  `).run(ADMIN.id).lastInsertRowid;
+  const externalCalendarId = db.prepare(`
+    INSERT INTO external_calendars (source, external_id, name, color)
+    VALUES ('caldav', 'same-event-ref', '错误的外部日历', '#654321')
+  `).run().lastInsertRowid;
+  const id = insertEvent({
+    title: 'ICS-SOURCE-GET',
+    start_datetime: '2036-01-04T09:00',
+    external_source: 'ics',
+    subscription_id: subId,
+    calendar_ref_id: externalCalendarId,
+    color: null,
+  });
+
+  try {
+    const res = await call('GET', `/${id}`, { actor: ADMIN });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.data.cal_name, 'Urlaub订阅');
+    assert.equal(res.body.data.cal_color, '#123456');
+  } finally {
+    db.prepare('DELETE FROM calendar_events WHERE id = ?').run(id);
+    db.prepare('DELETE FROM external_calendars WHERE id = ?').run(externalCalendarId);
+    db.prepare('DELETE FROM ics_subscriptions WHERE id = ?').run(subId);
+  }
+});
+
 test('GET /:id — privat: fremd 404, auch Admin (kein Bypass)', async () => {
   const id = insertEvent({ title: 'PRIV-SINGLE', start_datetime: '2036-01-02T09:00', created_by: TOM.id, visibility: 'private' });
   assert.equal((await call('GET', `/${id}`, { actor: MARIA })).status, 404);

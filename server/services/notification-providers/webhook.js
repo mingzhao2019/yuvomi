@@ -66,10 +66,31 @@ export function renderPayloadTemplate(template, payload = {}) {
 
 /** Render the same placeholders as plain-text providers such as message-pusher. */
 export function renderTextTemplate(template, payload = {}) {
-  return String(template).replace(PLACEHOLDER_PATTERN, (match, key) => {
-    if (!WEBHOOK_TEMPLATE_PLACEHOLDERS.includes(key)) return match;
-    return templateValue(payload, key);
-  });
+  return String(template)
+    .split(/\r?\n/)
+    .map((line) => {
+      const values = [];
+      for (const [, key] of line.matchAll(PLACEHOLDER_PATTERN)) {
+        if (WEBHOOK_TEMPLATE_PLACEHOLDERS.includes(key)) values.push(templateValue(payload, key));
+      }
+
+      const rendered = line.replace(PLACEHOLDER_PATTERN, (match, key) => {
+        if (!WEBHOOK_TEMPLATE_PLACEHOLDERS.includes(key)) return match;
+        return templateValue(payload, key);
+      });
+
+      // A template line is normally a label plus one or more fields. Keeping
+      // the label after all of its fields disappear produces misleading empty
+      // rows (especially for due/reminder times), so omit the complete line.
+      // Unknown placeholders are retained literally as a defensive fallback;
+      // they are rejected by channel validation before normal delivery.
+      const hasUnknown = [...rendered.matchAll(PLACEHOLDER_SHAPED_PATTERN)]
+        .some(([, key]) => !WEBHOOK_TEMPLATE_PLACEHOLDERS.includes(key));
+      if (values.length && values.every((value) => !String(value).trim()) && !hasUnknown) return null;
+      return rendered.trim() ? rendered : null;
+    })
+    .filter((line) => line !== null)
+    .join('\n');
 }
 
 /**

@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { MIGRATIONS_SQL } from '../server/db-schema-test.js';
 import { eachRule } from './css-rules.js';
 const { __test: calendarHelpers } = await import('../public/pages/calendar.js');
+const { setDisplayTimeZone } = await import('../public/utils/timezone.js');
 
 let passed = 0;
 let failed = 0;
@@ -361,6 +362,28 @@ test('filterTasksForCalendar: Tasks ohne due_date werden gefiltert', () => {
   assert(result[0].id === 2, 'Task B muss enthalten sein');
 });
 
+test('filterTasksForCalendar: Tasks mit Erinnerung ohne due_date werden angezeigt', () => {
+  const tasks = [
+    { id: 1, title: 'Reminder', due_date: null, remind_at: '2026-06-15T08:00:00Z', status: 'open' },
+    { id: 2, title: 'Neither', due_date: null, remind_at: null, status: 'open' },
+  ];
+  const result = ftc(tasks);
+  assert(result.length === 1 && result[0].id === 1, 'Nur der Task mit Erinnerung erwartet');
+});
+
+test('Task-Erinnerung wird als UTC-Instant in der Anzeigezone indiziert', () => {
+  setDisplayTimeZone('Europe/Helsinki');
+  try {
+    const task = { remind_at: '2026-09-01T22:15:00' };
+    assert(calendarHelpers.taskReminderInstant(task)?.toISOString() === '2026-09-01T22:15:00.000Z',
+      'remind_at darf nicht als lokale Wanduhrzeit umgedeutet werden');
+    assert(calendarHelpers.taskReminderDate(task) === '2026-09-02',
+      'die Erinnerung muss in der konfigurierten Anzeigezone am 2. September liegen');
+  } finally {
+    setDisplayTimeZone(null);
+  }
+});
+
 test('filterTasksForCalendar: erledigte Tasks bleiben für die Checkbox sichtbar', () => {
   // Abgelegt ist seit #688 kein Status, sondern archived_at - eine abgelegte
   // Aufgabe steht weiter auf 'open' und darf trotzdem keinen Chip bekommen.
@@ -389,7 +412,14 @@ test('filterTasksForCalendar: leeres Array gibt leeres Array zurück', () => {
 // --------------------------------------------------------
 // Mehrtägige Events (#225)
 // --------------------------------------------------------
-const { isMultiDayEvent, isAllDayLike, agendaSegmentKind } = calendarHelpers;
+const {
+  isMultiDayEvent,
+  isAllDayLike,
+  agendaSegmentKind,
+  agendaEventSortMinutes,
+  taskAgendaSortMinutes,
+  sortAgendaEntries,
+} = calendarHelpers;
 
 test('isMultiDayEvent: gleicher Tag ist nicht mehrtägig', () => {
   assert(isMultiDayEvent({ start_datetime: '2026-06-14T03:00', end_datetime: '2026-06-14T08:05' }) === false,
@@ -436,6 +466,54 @@ test('agendaSegmentKind: eintägiges Zeit-Event ist single', () => {
 test('agendaSegmentKind: Ganztags-Event ist all-day', () => {
   const ev = { start_datetime: '2026-06-14', end_datetime: '2026-06-14', all_day: 1 };
   assert(agendaSegmentKind(ev, '2026-06-14') === 'all-day', 'Ganztägig → all-day');
+});
+
+test('Agenda: Events und Tasks werden innerhalb eines Tages nach der frühesten Uhrzeit gemischt', () => {
+  const day = '2026-09-28';
+  setDisplayTimeZone('UTC');
+  try {
+    const allDay = {
+      id: 'all-day', start_datetime: day, end_datetime: day, all_day: 1,
+    };
+    const event = {
+      id: 'event', start_datetime: `${day}T12:15`, end_datetime: `${day}T14:00`, all_day: 0,
+    };
+    const task = {
+      id: 'task', due_date: day, due_time: '09:45', remind_at: `${day}T05:00:00Z`,
+    };
+    const entries = sortAgendaEntries([
+      { type: 'event', item: event, sortMinutes: agendaEventSortMinutes(event, day) },
+      { type: 'task', item: task, sortMinutes: taskAgendaSortMinutes(task, day) },
+      { type: 'event', item: allDay, sortMinutes: agendaEventSortMinutes(allDay, day) },
+    ]);
+    assert(entries.map((entry) => entry.item.id).join(',') === 'all-day,task,event',
+      '全天项目、05:00提醒任务、12:15事件的顺序必须稳定');
+    assert(taskAgendaSortMinutes(task, day) === 5 * 60,
+      '任务应按提醒时间排序，而不是按较晚的截止时间排序');
+  } finally {
+    setDisplayTimeZone(null);
+  }
+});
+
+test('Agenda: Task chip 显示截止时间和提醒时间', () => {
+  const day = '2026-09-28';
+  setDisplayTimeZone('UTC');
+  try {
+    const html = calendarHelpers.renderTaskChip({
+      id: 1,
+      title: '招商银行信用卡，充话费（中银）',
+      due_date: day,
+      due_time: '09:45',
+      remind_at: `${day}T05:00:00Z`,
+      status: 'open',
+    }, { agenda: true, agendaDate: day });
+    assert(html.includes('cal-task-chip__meta'), '议程任务应有独立的时间元数据行');
+    assert(html.includes('⏰') && html.includes('🔔'), '截止时间和提醒时间都应有明确标记');
+    assert(/(?:^|[^0-9])0?9:45/.test(html), '截止时间 09:45 必须出现在议程任务中');
+    assert(/(?:^|[^0-9])0?5:00/.test(html), '提醒时间 05:00 必须出现在议程任务中');
+  } finally {
+    setDisplayTimeZone(null);
+  }
 });
 
 // --------------------------------------------------------
@@ -875,6 +953,26 @@ test('die eigene Terminfarbe schlaegt die Farbe der zugewiesenen Person', () => 
     'ohne Zuweisung bleibt die Kalenderfarbe');
   assert(resolveEventColor({}) === '#8E8E93',
     'ohne alles bleibt das neutrale Grau');
+});
+
+test('ICS-Subscription-Farbe ist Standard, manuelle Event-Farbe bleibt erhalten', () => {
+  const { resolveEventColor, isIcsSubscriptionEvent, usesInheritedSubscriptionColor } = calendarHelpers;
+  assert(isIcsSubscriptionEvent({ external_source: 'ics' }) === true,
+    'ICS external_source muss als Subscription erkannt werden');
+  assert(isIcsSubscriptionEvent({ subscription_id: 42 }) === true,
+    'subscription_id muss als dauerhafte Subscription-Verknüpfung erkannt werden');
+  assert(usesInheritedSubscriptionColor({ external_source: 'ics', color_modified: 0 }) === true,
+    'unveränderte ICS-Termine müssen die Abofarbe erben');
+  assert(usesInheritedSubscriptionColor({ external_source: 'ics', color_modified: 1 }) === false,
+    'manuell umgefärbte ICS-Termine dürfen nicht als geerbt gelten');
+  assert(resolveEventColor({ external_source: 'ics', color: '#00FF00', color_modified: 0, cal_color: '#0000FF' }) === '#0000FF',
+    'ICS ohne manuelle Änderung muss die Abofarbe verwenden');
+  assert(resolveEventColor({ external_source: 'ics', color: '#00FF00', color_modified: 1, cal_color: '#0000FF' }) === '#00FF00',
+    'manuelle ICS-Farbe muss Vorrang behalten');
+  assert(resolveEventColor({ external_source: 'ics', color: '#00FF00', color_modified: 0, cal_color: null }) === '#00FF00',
+    'ohne Abofarbe darf die vorhandene Eventfarbe nicht verloren gehen');
+  assert(resolveEventColor({ subscription_id: 42, color: '#00FF00', color_modified: 0, cal_color: '#0000FF' }) === '#0000FF',
+    'die dauerhafte subscription_id muss die ICS-Abofarbe ebenfalls aktivieren');
 });
 
 test('eine Zuweisung ohne eigene Farbe faellt nicht auf die Kalenderfarbe durch', () => {

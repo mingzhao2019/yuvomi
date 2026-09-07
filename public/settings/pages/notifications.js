@@ -29,8 +29,7 @@ const TEMPLATE_EXAMPLES = Object.freeze({
     message_pusher: `🔔 {{title}} — {{body}}
 📄 {{description}}
 📅 {{dueDate}} {{dueTime}}
-🚀 {{startDate}} {{startTime}}
-🔗 {{url}}`,
+🚀 {{startDate}} {{startTime}}`,
   }),
   household: Object.freeze({
     webhook: String.raw`{"event":"notification","notification":{"title":"🔔 {{title}}","body":"📌 {{body}}","description":"📄 {{description}}","details":"📝 {{details}}","entityType":"🧩 {{entityType}}","entityId":"{{entityId}}","dueDate":"📅 {{dueDate}}","dueTime":"{{dueTime}}","startDate":"🚀 {{startDate}}","startTime":"{{startTime}}","endDate":"🏁 {{endDate}}","endTime":"{{endTime}}","remindAt":"⏰ {{remindAt}}","url":"🔗 {{url}}","tag":"{{tag}}","priority":"{{priority}}","category":"{{category}}","taskPriority":"{{taskPriority}}","status":"{{status}}","location":"{{location}}","allDay":"{{allDay}}"},"sentAt":"📤 {{sentAt}}"}`,
@@ -40,9 +39,11 @@ const TEMPLATE_EXAMPLES = Object.freeze({
 🚀 {{startDate}} {{startTime}}
 🧩 {{entityType}} #{{entityId}}
 📝 {{details}}
+🏷️ {{category}}
+⭐ {{taskPriority}}
+📌 {{status}}
 ⏰ {{remindAt}}
-📤 {{sentAt}}
-🔗 {{url}}`,
+📤 {{sentAt}}`,
   }),
 });
 

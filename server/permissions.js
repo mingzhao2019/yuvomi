@@ -64,6 +64,7 @@ export const PERMISSION_WIDGETS = Object.freeze([
   { id: 'meals',        module: 'meals' },
   { id: 'shopping',     module: 'shopping' },
   { id: 'birthdays',    module: 'calendar' },
+  { id: 'assets',        module: 'inventory' },
   { id: 'budget',       module: 'budget' },
   { id: 'rewards',      module: 'rewards' },
   { id: 'health',       module: 'health' },

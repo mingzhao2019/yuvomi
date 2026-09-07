@@ -944,6 +944,76 @@ test('reminder payload exposes task and event template fields', async () => {
   assert.equal(event.description, 'Bring the insurance card.');
 });
 
+test('notification timestamps use the household wall clock for message-pusher', async () => {
+  const { formatNotificationWallTime } = await import('../server/services/notifications.js');
+  assert.equal(
+    formatNotificationWallTime('2026-08-28T09:45:00.000Z', 'Europe/Helsinki'),
+    '2026-08-28 12:45:00',
+  );
+  assert.equal(
+    formatNotificationWallTime('2026-08-28T09:45:00', 'Europe/Helsinki'),
+    '2026-08-28 12:45:00',
+  );
+  assert.equal(formatNotificationWallTime('', 'Europe/Helsinki'), '');
+});
+
+test('immediate message-pusher notifications use the household wall clock for both scopes', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const { fanOutNotification } = await import('../server/services/notifications.js');
+  const db = makeDb();
+  db.prepare('INSERT INTO sync_config (key, value) VALUES (?, ?)')
+    .run('household_timezone', 'Europe/Helsinki');
+  const store = createNotificationChannelStore({ db });
+  for (const [scope, name] of [['household', 'Household'], ['user', 'Personal']]) {
+    store.createChannel({
+      provider: 'message_pusher',
+      scope,
+      ...(scope === 'user' ? { userId: 1 } : {}),
+      name,
+      enabled: true,
+      config: {
+        baseUrl: 'https://push.example.test',
+        username: name.toLowerCase(),
+      },
+      secrets: { token: 'test-token' },
+    });
+  }
+  const payloads = [];
+  const providers = {
+    message_pusher: {
+      id: 'message_pusher',
+      send: async ({ payload, channel }) => {
+        payloads.push({ payload, scope: channel.scope });
+        return { ok: true, status: 200 };
+      },
+    },
+  };
+
+  const result = await fanOutNotification({
+    userId: 1,
+    payload: {
+      title: 'Tasks',
+      body: 'Task comment',
+      remindAt: '2026-08-28T09:45:00.000Z',
+      sentAt: '2026-08-28T09:45:24.648Z',
+      url: '/tasks',
+    },
+    database: db,
+    channelStore: store,
+    pushService: { sendPushToUser: async () => 0 },
+    providers,
+  });
+
+  assert.equal(result.sent, 2);
+  assert.deepEqual(payloads.map(({ scope }) => scope).sort(), ['household', 'user']);
+  for (const { payload } of payloads) {
+    assert.equal(payload.remindAtLocal, '2026-08-28 12:45:00');
+    assert.equal(payload.sentAtLocal, '2026-08-28 12:45:24');
+    assert.equal(payload.remindAt, '2026-08-28T09:45:00.000Z');
+    assert.equal(payload.url, '/tasks');
+  }
+});
+
 test('reminders for deleted entities never send the app name as body (#581)', async () => {
   const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
   const { processDueNotifications } = await import('../server/services/notifications.js');

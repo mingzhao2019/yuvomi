@@ -255,6 +255,7 @@ function eventCountdowns(d, userId, todayKey) {
   const tz = householdTimeZone(d);
   const rows = d.prepare(`
     SELECT e.id, e.title, e.start_datetime, e.recurrence_rule, e.icon, e.color, e.all_day,
+           e.external_source, e.subscription_id, e.color_modified,
            e.assigned_to,
            COALESCE(u.avatar_color, (
              SELECT u2.avatar_color FROM event_assignments ea
@@ -263,7 +264,7 @@ function eventCountdowns(d, userId, todayKey) {
              ORDER BY ea.user_id
              LIMIT 1
            )) AS assigned_color,
-           COALESCE(ec.color, isub.color) AS cal_color
+           COALESCE(isub.color, ec.color) AS cal_color
     FROM calendar_events e
     LEFT JOIN users u ON u.id = e.assigned_to
     LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
@@ -297,6 +298,9 @@ function eventCountdowns(d, userId, todayKey) {
       icon: row.icon || 'calendar',
       color: resolveEventColorOrNull({
         color: row.color,
+        external_source: row.external_source,
+        subscription_id: row.subscription_id,
+        color_modified: row.color_modified,
         assigned_to: row.assigned_to,
         assigned_users: row.assigned_color
           ? [{ id: row.assigned_to, color: row.assigned_color }]

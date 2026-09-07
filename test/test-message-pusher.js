@@ -118,6 +118,77 @@ test('message-pusher renders the rich notification template in the selected mess
   assert.equal(request.body.content, undefined);
 });
 
+test('message-pusher omits empty template lines and formats optional links locally', async () => {
+  let request;
+  await messagePusherProvider.send({
+    channel: channel({
+      config: {
+        messageTemplate: '🔔 {{title}}\n📄 {{description}}\n📅 {{dueDate}} {{dueTime}}\n⏰ {{remindAt}}\n📤 {{sentAt}}\n🔗 {{url}}',
+      },
+    }),
+    payload: {
+      title: 'Tasks',
+      description: '',
+      dueDate: '',
+      dueTime: '',
+      remindAt: '2026-09-07T12:15:00.000Z',
+      remindAtLocal: '2026-09-07 15:15:00',
+      sentAt: '2026-09-07T12:15:24.648Z',
+      sentAtLocal: '2026-09-07 15:15:24',
+      url: '/tasks',
+    },
+    env: { BASE_URL: 'https://app.example.test/' },
+    fetchImpl: async (url, options) => {
+      request = { url: new URL(url), options, body: JSON.parse(options.body) };
+      return response(200, { success: true });
+    },
+  });
+
+  assert.equal(request.body.content, '🔔 Tasks\n⏰ 2026-09-07 15:15:00\n📤 2026-09-07 15:15:24\n🔗 https://app.example.test/tasks');
+  assert.doesNotMatch(request.body.content, /T\d{2}:\d{2}:\d{2}/);
+});
+
+test('message-pusher omits the URL line when BASE_URL is not a valid app URL', async () => {
+  let request;
+  await messagePusherProvider.send({
+    channel: channel({ config: { messageTemplate: '🔔 {{title}}\n🔗 {{url}}' } }),
+    payload: { title: 'Tasks', url: '/tasks' },
+    env: { BASE_URL: 'not-a-url' },
+    fetchImpl: async (url, options) => {
+      request = { url: new URL(url), options, body: JSON.parse(options.body) };
+      return response(200, { success: true });
+    },
+  });
+
+  assert.equal(request.body.content, '🔔 Tasks');
+});
+
+test('message-pusher never leaks raw UTC timestamps without a local-time alias', async () => {
+  let request;
+  await messagePusherProvider.send({
+    channel: channel({
+      config: {
+        messageTemplate: '🔔 {{title}}\n⏰ {{remindAt}}\n📤 {{sentAt}}\n🔗 {{url}}',
+      },
+    }),
+    payload: {
+      title: 'Tasks',
+      remindAt: '2026-09-07T12:15:00.000Z',
+      sentAt: '2026-09-07T12:15:24.648Z',
+      url: '/tasks',
+    },
+    env: { BASE_URL: '' },
+    fetchImpl: async (url, options) => {
+      request = { url: new URL(url), options, body: JSON.parse(options.body) };
+      return response(200, { success: true });
+    },
+  });
+
+  assert.equal(request.body.content, '🔔 Tasks');
+  assert.doesNotMatch(request.body.content, /2026-09-07T12:15/);
+  assert.doesNotMatch(request.body.content, /\/tasks/);
+});
+
 test('message-pusher rejects a negative API response and validates configuration', async () => {
   const echoedToken = 'secret-token-echoed-by-upstream';
   await assert.rejects(

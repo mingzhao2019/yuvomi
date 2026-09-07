@@ -41,6 +41,7 @@ const WIDGET_LABEL_KEYS = {
   calendar: 'nav.calendar',
   meals: 'nav.meals',
   shopping: 'nav.shopping',
+  assets: 'nav.assetCost',
   birthdays: 'nav.birthdays',
   budget: 'nav.budget',
   rewards: 'nav.rewards',

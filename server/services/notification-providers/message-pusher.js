@@ -26,15 +26,41 @@ function endpointFor(config) {
   return url;
 }
 
-function fieldsFor(channel, payload = {}) {
+function absoluteAppUrl(path, env = process.env) {
+  const base = String(env?.BASE_URL ?? '').trim();
+  const relativePath = String(path ?? '').trim();
+  if (!base || !relativePath.startsWith('/') || relativePath.startsWith('//')) return '';
+  try {
+    const baseUrl = new URL(base);
+    if (!['http:', 'https:'].includes(baseUrl.protocol)) return '';
+    return new URL(relativePath, baseUrl.origin).toString();
+  } catch {
+    return '';
+  }
+}
+
+function pusherPayload(payload = {}, env = process.env) {
+  return {
+    ...payload,
+    // Raw timestamps are UTC storage values. If the notification path did not
+    // provide a household-local alias, omit them rather than leaking an ISO
+    // value with a misleading timezone into a human-facing message.
+    remindAt: Object.hasOwn(payload, 'remindAtLocal') ? (payload.remindAtLocal ?? '') : '',
+    sentAt: Object.hasOwn(payload, 'sentAtLocal') ? (payload.sentAtLocal ?? '') : '',
+    url: absoluteAppUrl(payload.url, env),
+  };
+}
+
+function fieldsFor(channel, payload = {}, env = process.env) {
   const config = channel?.config || {};
+  const renderedPayload = pusherPayload(payload, env);
   const template = String(config.messageTemplate ?? '').trim();
   const fields = {
-    title: String(payload.title ?? ''),
+    title: String(renderedPayload.title ?? ''),
   };
   const body = template
-    ? renderTextTemplate(template, payload)
-    : String(payload.content ?? payload.body ?? '');
+    ? renderTextTemplate(template, renderedPayload)
+    : String(renderedPayload.content ?? renderedPayload.body ?? '');
   // message-pusher documents description/content as alternative message
   // representations for most channels. The setting chooses the field that
   // receives Yuvomi's rendered notification body; the task/event description
@@ -71,7 +97,7 @@ async function readJson(response) {
 export const messagePusherProvider = {
   id: 'message_pusher',
 
-  async send({ channel, payload, fetchImpl = fetch, signal } = {}) {
+  async send({ channel, payload, fetchImpl = fetch, signal, env = process.env } = {}) {
     const config = channel?.config || {};
     const method = String(config.method || 'POST').toUpperCase();
     const format = String(config.postFormat || 'json').toLowerCase();
@@ -81,7 +107,7 @@ export const messagePusherProvider = {
     if (!FIELDS.has(messageField)) throw new Error('Invalid message-pusher message field.');
 
     const url = endpointFor(config);
-    const fields = fieldsFor({ ...channel, config: { ...config, messageField } }, payload);
+    const fields = fieldsFor({ ...channel, config: { ...config, messageField } }, payload, env);
     const tokenInQuery = method === 'GET' || config.tokenInQuery === true;
     const headers = {};
     const options = { method, headers, signal };
@@ -110,6 +136,6 @@ export const messagePusherProvider = {
   },
 };
 
-export const __test = { endpointFor, fieldsFor };
+export const __test = { endpointFor, fieldsFor, absoluteAppUrl, pusherPayload };
 
 export default messagePusherProvider;

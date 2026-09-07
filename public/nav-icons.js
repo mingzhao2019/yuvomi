@@ -331,6 +331,7 @@ export const MODULE_ICON = {
   metrics:          'layout-grid',
   countdown:        'hourglass',
   quicklinks:        'compass',
+  assets:            'package',
 };
 
 /**

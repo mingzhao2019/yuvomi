@@ -277,6 +277,7 @@
 .widget--rewards  { --widget-accent: var(--module-rewards); }
 .widget--health   { --widget-accent: var(--module-health); }
 .widget--housekeeping { --widget-accent: var(--module-housekeeping); }
+.widget--assets { --widget-accent: var(--module-inventory); }
 /* Wie das Wetter: eine Kachel, die keinem Modul gehoert, traegt den Ton der
  * Seite. Der Countdown (#647) sammelt aus Kalender UND Aufgaben ein - jeder
  * der beiden Toene waere fuer die andere Haelfte der Liste falsch. Ohne diese
@@ -432,6 +433,71 @@
    * naturally; .widget already has overflow:hidden for rounded-corner clipping. */
   overflow: visible;
 }
+
+.assets-widget__body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+.assets-widget__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.assets-widget__metric {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.assets-widget__metric-label {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.assets-widget__metric-value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assets-widget__statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.assets-widget__status {
+  white-space: nowrap;
+}
+
+.assets-widget__bars {
+  display: flex;
+  min-width: 0;
+  gap: 2px;
+  block-size: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-3);
+}
+
+.assets-widget__bar {
+  flex: 0 0 calc(var(--asset-share, 0) * 100%);
+  min-inline-size: 0;
+  block-size: 100%;
+}
+
+.assets-widget__bar--active { background: var(--color-success); }
+.assets-widget__bar--retired { background: var(--color-text-tertiary); }
+.assets-widget__bar--sold { background: var(--color-accent); }
 
 .widget__empty {
   padding: var(--space-3) var(--space-4);

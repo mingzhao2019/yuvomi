@@ -268,7 +268,7 @@ function maybeHintCustomize(container) {
 // Widget → Modul-Slug für die „Modul deaktiviert?"-Prüfung. Widgets ohne Eintrag
 // (family, weather) sind immer verfügbar. Modulweit, damit Grid-Filter und
 // Wieder-Einblenden-Leiste dieselbe Sichtbarkeitsregel teilen.
-const MODULE_FOR_WIDGET = { tasks: 'tasks', calendar: 'calendar', shopping: 'shopping', meals: 'meals', notes: 'notes', birthdays: 'birthdays', budget: 'budget', rewards: 'rewards', health: 'health', cycle: 'health', housekeeping: 'housekeeping' };
+const MODULE_FOR_WIDGET = { tasks: 'tasks', calendar: 'calendar', shopping: 'shopping', meals: 'meals', notes: 'notes', birthdays: 'birthdays', assets: 'inventory', budget: 'budget', rewards: 'rewards', health: 'health', cycle: 'health', housekeeping: 'housekeeping' };
 
 /* DER COUNTDOWN IST EIN WIDGET, DAS ES ERST GIBT, WENN JEMAND ETWAS MARKIERT
  * HAT (#647). Er hat keine eigene Seite und keinen eigenen Bestand: seine
@@ -355,6 +355,7 @@ function widgetLabel(id) {
     metrics:  () => t('dashboard.metrics'),
     countdown: () => t('dashboard.countdownTitle'),
     quicklinks: () => t('dashboard.quickLinksTitle'),
+    assets:   () => t('nav.assetCost'),
   };
   return (map[id] ?? (() => id))();
 }
@@ -2559,6 +2560,7 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     meals: () => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes),
     notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size),
     shopping: () => renderShoppingLists(data.shoppingLists ?? []),
+    assets: () => renderAssetsWidget(data.assets ?? {}, currency),
     weather: () => (weather ? renderWeatherWidget(weather) : ''),
     clock: () => renderClockWidget(),
     quicklinks: () => renderQuickLinks(data.quicklinks ?? []),
@@ -2684,6 +2686,50 @@ function renderWidgetError(id) {
         <i data-lucide="refresh-cw" aria-hidden="true"></i>
         ${t('common.retry')}
       </button>
+    </div>
+  </div>`;
+}
+
+// --------------------------------------------------------
+// Assets-Widget
+// --------------------------------------------------------
+
+function renderAssetsWidget(summary = {}, currency = 'EUR') {
+  const total = Number(summary?.total) || 0;
+  const rows = Array.isArray(summary?.currencies) ? summary.currencies : [];
+  const selected = rows.find((row) => String(row.currency).toUpperCase() === String(currency).toUpperCase());
+  const money = (value) => value == null || !Number.isFinite(Number(value))
+    ? '—'
+    : formatCurrency(Number(value), currency);
+  const counts = {
+    active: Number(summary?.active) || 0,
+    retired: Number(summary?.retired) || 0,
+    sold: Number(summary?.sold) || 0,
+  };
+  const share = (value) => total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
+  return `<div class="widget widget--assets">
+    ${widgetHeader('assets', t('nav.assetCost'), total, '/asset-cost', null, 'inventory')}
+    <div class="assets-widget__body">
+      <div class="assets-widget__metrics">
+        <div class="assets-widget__metric">
+          <span class="assets-widget__metric-label">${esc(t('dashboard.assetsPurchaseTotal'))}</span>
+          <strong class="assets-widget__metric-value">${esc(money(selected?.purchaseTotal))}</strong>
+        </div>
+        <div class="assets-widget__metric">
+          <span class="assets-widget__metric-label">${esc(t('dashboard.assetsCurrentDailyCost'))}</span>
+          <strong class="assets-widget__metric-value">${esc(money(selected?.currentDailyCost))}</strong>
+        </div>
+      </div>
+      <div class="assets-widget__statuses" aria-label="${esc(t('nav.assetCost'))}">
+        <span class="assets-widget__status">${esc(t('dashboard.assetsActive'))} ${counts.active}</span>
+        <span class="assets-widget__status">${esc(t('dashboard.assetsRetired'))} ${counts.retired}</span>
+        <span class="assets-widget__status">${esc(t('dashboard.assetsSold'))} ${counts.sold}</span>
+      </div>
+      <div class="assets-widget__bars" aria-hidden="true">
+        <span class="assets-widget__bar assets-widget__bar--active" style="--asset-share:${share(counts.active)}"></span>
+        <span class="assets-widget__bar assets-widget__bar--retired" style="--asset-share:${share(counts.retired)}"></span>
+        <span class="assets-widget__bar assets-widget__bar--sold" style="--asset-share:${share(counts.sold)}"></span>
+      </div>
     </div>
   </div>`;
 }
@@ -3735,7 +3781,7 @@ export async function render(container, { user }) {
     ${wallMode ? '' : renderFab()}
   `);
 
-  let data         = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], shoppingLists: [], birthdays: [], countdowns: [], users: [], budget: {}, rewards: {}, health: {}, housekeeping: {} };
+  let data         = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], shoppingLists: [], birthdays: [], countdowns: [], users: [], budget: {}, rewards: {}, health: {}, housekeeping: {}, assets: {} };
   // Ein Stand von vorhin darf keine Kachel versprechen: erst nach dem Laden
   // wieder wahr (siehe die Notiz an `countdownAvailable`).
   setCountdownAvailability([]);
@@ -4374,7 +4420,7 @@ export async function render(container, { user }) {
   }
 }
 
-export const __test = { buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderFamilyWidget, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel };
+export const __test = { buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderFamilyWidget, renderAssetsWidget, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel };
 
 function wireWeatherRefresh(container, onUpdated = null) {
   const refreshBtn = container.querySelector('#weather-refresh-btn');

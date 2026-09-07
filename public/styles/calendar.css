@@ -1554,6 +1554,11 @@
   );
 }
 
+/* Show the actual inherited ICS subscription colour in the editor. */
+.color-swatch--inherit[data-inherited-color]::after {
+  background: var(--inherit-color);
+}
+
 .reminder-section__group {
   margin: 0;
 }
@@ -1799,12 +1804,13 @@
   padding: var(--space-0h) var(--space-1);
 }
 
-/* Aufgaben-Sektion in Agenda-Ansicht: derselbe Zeilen-Träger wie Termine. */
-.agenda-tasks {
+/* Gemischte Event-/Aufgaben-Sektion in der Agenda: ein gemeinsamer Träger
+ * sorgt dafür, dass beide Typen nach ihrer Tageszeit sortiert erscheinen. */
+.agenda-entries {
   margin-top: var(--space-2);
 }
 
-.agenda-tasks .cal-task-chip {
+.agenda-entries .cal-task-chip {
   min-height: var(--target-lg);
   padding: var(--space-2) var(--space-3);
   border-radius: 0;
@@ -1812,8 +1818,33 @@
   font-size: var(--text-sm);
 }
 
-.agenda-tasks .cal-task-chip + .cal-task-chip {
-  border-top: 1px solid var(--color-border-subtle);
+/* Agenda tasks keep the title and their due/reminder times in separate rows.
+ * The generic chip span rule is intentionally single-line for month/day chips;
+ * these scoped overrides prevent a long title from hiding the time row. */
+.agenda-entries .cal-task-chip__label {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.agenda-entries .cal-task-chip__title,
+.agenda-entries .cal-task-chip__meta {
+  display: block;
+  max-width: 100%;
+}
+
+.agenda-entries .cal-task-chip__meta {
+  margin-top: var(--space-0h);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* --------------------------------------------------------

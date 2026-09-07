@@ -1778,6 +1778,25 @@ test('Wand-Modus: das Nachtfenster läuft über Mitternacht (22:00 bis 06:00)', 
 
 const widgets = await import('../public/utils/dashboard-widgets.js');
 
+test('Asset dashboard summary keeps cost totals separate by currency', async () => {
+  const { summarizeAssets } = await import('../server/routes/dashboard.js');
+  const summary = summarizeAssets([
+    { status: 'active', purchase_date: '2026-09-01', purchase_price: 100, currency: 'EUR' },
+    { status: 'sold', purchase_date: '2026-08-23', sold_date: '2026-09-02', purchase_price: 200, sold_price: 50, currency: 'EUR' },
+    { status: 'disposed', purchase_date: '2026-09-01', retired_date: '2026-09-02', purchase_price: 30, currency: 'EUR' },
+    { status: 'active', purchase_date: '2026-09-01', purchase_price: 10, currency: 'USD' },
+  ], '2026-09-02', 'EUR');
+
+  nodeAssert.equal(summary.total, 4);
+  nodeAssert.equal(summary.active, 2);
+  nodeAssert.equal(summary.retired, 1);
+  nodeAssert.equal(summary.sold, 1);
+  nodeAssert.deepEqual(summary.currencies, [
+    { currency: 'EUR', purchaseTotal: 330, currentDailyCost: 145 },
+    { currency: 'USD', purchaseTotal: 10, currentDailyCost: 10 },
+  ]);
+});
+
 // Ein Bestandslayout, dem genau `missing` fehlt - sonst der unveraenderte
 // Default, so wie es ein Haushalt gespeichert hat, bevor es diese Id gab.
 function layoutOhne(missing) {
@@ -1790,9 +1809,9 @@ test('Widget-Merge: eine fehlende Id landet an ihrer Default-Position, nicht hin
   // Die Zahl steht hier fest und wird bei jedem neuen Widget von Hand
   // nachgezogen - das ist der Zweck: ein Selektor, der aus derselben Liste
   // abgeleitet waere, koennte nie melden, dass die Liste sich geaendert hat.
-  // Zuletzt nachgezogen fuer `quicklinks` (#469).
+  // Zuletzt nachgezogen fuer `assets` (Inventar-Ueberblick).
   const geprueft = widgets.WIDGET_IDS.length;
-  assert(geprueft === 17, `Reichweite: ${geprueft} Ids geprueft, nicht die erwarteten 17`);
+  assert(geprueft === 18, `Reichweite: ${geprueft} Ids geprueft, nicht die erwarteten 18`);
   const falsch = widgets.WIDGET_IDS.filter((id) => {
     const merged = widgets.normalizeDashboardConfig(layoutOhne(id));
     return merged.map((w) => w.id).join(',') !== widgets.WIDGET_IDS.join(',');
@@ -1843,7 +1862,7 @@ test('Widget-Merge: ein umsortiertes Layout laesst den Neuzugang seinem Vorgaeng
   // `countdown` ist der zweite Neuzugang in diesem Layout (#647) und belegt
   // dieselbe Zusicherung ein zweites Mal: sein Vorgaenger in WIDGET_IDS ist
   // `birthdays`, und dorthin gehoert er - nicht ans Ende.
-  assert(sichtbar.join(',') === 'weather,metrics,family,budget,birthdays,countdown,rewards,notes',
+  assert(sichtbar.join(',') === 'weather,metrics,family,budget,birthdays,countdown,rewards,notes,assets',
     `Neuzugang an unerwarteter Stelle: ${sichtbar.join(',')}`);
   assert(widgets.isUserOrderedConfig(merged),
     'ein echt umsortiertes Layout muss umsortiert bleiben - sonst packt dense es um');

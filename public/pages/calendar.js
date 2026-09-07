@@ -124,6 +124,20 @@ function pickerColors(event) {
 // active swatch still means that an edit did not touch the color field.
 const COLOR_INHERIT = '';
 
+function isIcsSubscriptionEvent(event) {
+  return event?.external_source === 'ics' || event?.subscription_id != null;
+}
+
+/**
+ * An imported ICS event normally inherits the subscription colour. The feed
+ * may still have an old/own `color` value in the row, so the editor must not
+ * present that value as the active choice unless the user explicitly changed
+ * the event colour.
+ */
+function usesInheritedSubscriptionColor(event) {
+  return isIcsSubscriptionEvent(event) && Number(event?.color_modified ?? 0) !== 1;
+}
+
 /**
  * Welche Farbe ein Speichern schreibt.
  *
@@ -972,6 +986,72 @@ function agendaSegmentKind(ev, dayStr) {
 }
 
 /**
+ * Sortierzeit eines Terminsegments in der Agenda.
+ * Ganztägige und mittlere Segmente haben bewusst keine Uhrzeit und stehen vor
+ * den zeitgebundenen Einträgen. Am Endtag eines mehrtägigen Termins zählt die
+ * Endzeit, weil genau diese im Segment angezeigt wird.
+ */
+function agendaEventSortMinutes(ev, dayStr) {
+  const kind = agendaSegmentKind(ev, dayStr ?? localDate(ev.start_datetime));
+  if (kind === 'all-day' || kind === 'middle') return null;
+  const value = kind === 'end' ? ev.end_datetime : ev.start_datetime;
+  const time = localTime(value);
+  return time ? timeToMinutes(time) : null;
+}
+
+/**
+ * Sortierzeit einer Aufgabe in der Agenda.
+ * Eine Aufgabe kann am selben Tag sowohl eine Erinnerung als auch eine
+ * Fälligkeit haben; für die Reihenfolge zählt der frühere Zeitpunkt. Die
+ * Erinnerung wird erst als Instant in die Anzeigezone umgerechnet und danach
+ * als Wanduhrzeit verglichen.
+ */
+function taskAgendaSortMinutes(task, dayStr) {
+  const times = [];
+  if (task?.due_date === dayStr && task.due_time) {
+    const due = timeToMinutes(task.due_time);
+    if (Number.isFinite(due)) times.push(due);
+  }
+
+  const reminder = taskReminderInstant(task);
+  if (reminder && taskReminderDate(task) === dayStr) {
+    const reminderTime = zonedTimeKey(reminder);
+    if (reminderTime) {
+      const minutes = timeToMinutes(reminderTime);
+      if (Number.isFinite(minutes)) times.push(minutes);
+    }
+  }
+
+  return times.length ? Math.min(...times) : null;
+}
+
+/** Stable sort for the mixed event/task rows in one agenda day. */
+function sortAgendaEntries(entries) {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const aTime = Number.isFinite(a.entry.sortMinutes) ? a.entry.sortMinutes : null;
+      const bTime = Number.isFinite(b.entry.sortMinutes) ? b.entry.sortMinutes : null;
+      // All-day/no-time entries use the conventional agenda position first.
+      if (aTime === null && bTime !== null) return -1;
+      if (aTime !== null && bTime === null) return 1;
+      return (aTime ?? 0) - (bTime ?? 0) || a.index - b.index;
+    })
+    .map(({ entry }) => entry);
+}
+
+function agendaEntriesForDay(date, events, tasks) {
+  return sortAgendaEntries([
+    ...events.map((item) => ({
+      type: 'event', item, sortMinutes: agendaEventSortMinutes(item, date),
+    })),
+    ...tasks.map((item) => ({
+      type: 'task', item, sortMinutes: taskAgendaSortMinutes(item, date),
+    })),
+  ]);
+}
+
+/**
  * Filtert Tasks für den Kalender. Erledigte Aufgaben bleiben sichtbar, damit
  * ihr Zustand im Kalender über die Checkbox erkennbar bleibt und nicht nur
  * durch das Verschwinden des Eintrags „erledigt“ bedeutet.
@@ -1007,7 +1087,7 @@ function holidaysOnDay(dateStr) {
  * Drill-in-Ziel; der Statusknopf ist trotzdem ein eigenes Ziel und stoppt die
  * Zellaktion in der Delegation.
  */
-function renderTaskChip(task, { interactive = true } = {}) {
+function renderTaskChip(task, { interactive = true, agenda = false, agendaDate = '' } = {}) {
   const priority = task.priority || 'none';
   const done     = task.status === 'done';
   const label    = esc(task.title);
@@ -1027,6 +1107,16 @@ function renderTaskChip(task, { interactive = true } = {}) {
   const dueSuffix = dueTime ? ` · ${dueTime}` : '';
   const reminderSuffix = reminderText ? ` · 🔔 ${reminderText}` : '';
   const detailStr = `${dueSuffix}${reminderSuffix}`;
+  const agendaReminderText = reminderTime
+    ? `${agendaDate && reminderDate === agendaDate ? '' : reminderDate ? `${formatPreferredDate(reminderDate)} ` : ''}${reminderTime}`.trim()
+    : '';
+  const agendaMeta = [
+    dueTime ? `⏰ ${dueTime}` : '',
+    agendaReminderText ? `🔔 ${agendaReminderText}` : '',
+  ].filter(Boolean).join(' · ');
+  const taskContent = agenda
+    ? `<span class="cal-task-chip__title">${label}</span>${agendaMeta ? `<span class="cal-task-chip__meta">${esc(agendaMeta)}</span>` : ''}`
+    : `${label}${esc(dueSuffix)}${reminderText ? `<span class="cal-task-chip__reminder" aria-label="${esc(reminderText)}">🔔 ${esc(reminderText)}</span>` : ''}`;
   const button   = interactive
     ? ` role="button" tabindex="0" aria-label="${esc(t('calendar.taskChipAriaLabel', { title: task.title }))}"`
     : '';
@@ -1049,7 +1139,7 @@ function renderTaskChip(task, { interactive = true } = {}) {
                title="${label}${esc(detailStr)}">
     ${check}
     ${dot}
-    <span class="cal-task-chip__label">${label}${esc(dueSuffix)}${reminderText ? `<span class="cal-task-chip__reminder" aria-label="${esc(reminderText)}">🔔 ${esc(reminderText)}</span>` : ''}</span>
+    <span class="cal-task-chip__label">${taskContent}</span>
   </div>`;
 }
 
@@ -2401,7 +2491,18 @@ function renderAgendaView(container) {
   const todayInRange = state.today >= from && state.today <= to;
 
   const groups = days
-    .map((d) => ({ date: d, events: eventsOnDay(d), tasks: tasksOnDay(d), holidays: holidaysOnDay(d), schedule: scheduleEntriesOnDay(d) }))
+    .map((d) => {
+      const events = eventsOnDay(d);
+      const tasks = tasksOnDay(d);
+      return {
+        date: d,
+        events,
+        tasks,
+        entries: agendaEntriesForDay(d, events, tasks),
+        holidays: holidaysOnDay(d),
+        schedule: scheduleEntriesOnDay(d),
+      };
+    })
     .filter((g) => g.events.length > 0 || g.tasks.length > 0 || g.holidays.length > 0 || g.schedule.length > 0
       || (todayInRange && g.date === state.today));
 
@@ -2414,7 +2515,7 @@ function renderAgendaView(container) {
           title: t('calendar.agendaEmpty'),
           action: { label: t('calendar.newEvent'), attrs: { id: 'agenda-empty-cta' } },
         })
-        : groups.map(({ date, events, tasks, holidays, schedule }) => `
+        : groups.map(({ date, events, tasks, entries, holidays, schedule }) => `
           <div class="agenda-day">
             <!-- Tageskopf als echte Ueberschrift (Critique 2026-08-10):
                  /calendar hatte genau EIN h-Element im ganzen Dokument. -->
@@ -2428,8 +2529,7 @@ function renderAgendaView(container) {
                 <span>${esc(h.name)}</span>
               </div>`).join('')}</div>` : ''}
             ${schedule.length ? `<div class="agenda-holidays">${schedule.map((entry) => renderScheduleChip(entry, 'agenda-holiday')).join('')}</div>` : ''}
-            ${events.length ? `<div class="list-rows">${events.map((ev) => renderAgendaEvent(ev, date)).join('')}</div>` : ''}
-            ${tasks.length ? `<div class="list-rows agenda-tasks">${tasks.map(renderTaskChip).join('')}</div>` : ''}
+            ${entries.length ? `<div class="list-rows agenda-entries">${entries.map((entry) => renderAgendaEntry(entry, date)).join('')}</div>` : ''}
             ${(!events.length && !tasks.length && !holidays.length && !schedule.length)
               ? `<p class="agenda-day__empty">${t('calendar.agendaDayEmpty')}</p>` : ''}
           </div>
@@ -2726,6 +2826,9 @@ export const __test = {
   isMultiDayEvent,
   isAllDayLike,
   agendaSegmentKind,
+  agendaEventSortMinutes,
+  taskAgendaSortMinutes,
+  sortAgendaEntries,
   deepLinkTargetDate,
   findDeepLinkedOccurrence,
   validDateParam,
@@ -2736,9 +2839,17 @@ export const __test = {
   monthDayClasses,
   pickerColors,
   colorToSave,
+  isIcsSubscriptionEvent,
+  usesInheritedSubscriptionColor,
   sameColor,
   EVENT_COLORS,
 };
+
+function renderAgendaEntry(entry, dayStr) {
+  return entry.type === 'task'
+    ? renderTaskChip(entry.item, { agenda: true, agendaDate: dayStr })
+    : renderAgendaEvent(entry.item, dayStr);
+}
 
 function renderAgendaEvent(ev, dayStr) {
   const kind = agendaSegmentKind(ev, dayStr ?? localDate(ev.start_datetime));
@@ -3368,9 +3479,16 @@ function wireEventForm(panel, { mode, event = null, reminder = null }) {
   bindUserMultiSelect(panel, 'cal_assigned');
   wireVisibilityWarning(panel, '#modal-visibility', 'cal_assigned', '#modal-visibility-warning');
 
-  // New events and events without an own color start on the inherit swatch.
-  // The assignee or source calendar then supplies the visible color.
-  const selectedColor = isEdit ? (event?.color || COLOR_INHERIT) : COLOR_INHERIT;
+  // New events and unmodified ICS events start on the inherit swatch. The
+  // source calendar then supplies the visible color. A separate touched bit is
+  // important: an inherited swatch is a real, explicit choice only after the
+  // user clicks it; merely opening and saving must not mark an imported event's
+  // old feed color as a manual override.
+  const selectedColor = isEdit && !usesInheritedSubscriptionColor(event)
+    ? (event?.color || COLOR_INHERIT)
+    : COLOR_INHERIT;
+  panel.dataset.eventColorTouched = '0';
+  const markColorTouched = () => { panel.dataset.eventColorTouched = '1'; };
 
   // Farb-Auswahl: Auswahl + ARIA + Keyboard (Roving Tabindex)
   function selectSwatch(target) {
@@ -3385,20 +3503,23 @@ function wireEventForm(panel, { mode, event = null, reminder = null }) {
   }
   panel.querySelectorAll('.color-swatch').forEach((sw) => {
     if (sameColor(sw.dataset.color, selectedColor)) selectSwatch(sw);
-    sw.addEventListener('click', () => { selectSwatch(sw); sw.focus(); });
+    sw.addEventListener('click', () => { markColorTouched(); selectSwatch(sw); sw.focus(); });
     sw.addEventListener('keydown', (e) => {
       const swatches = [...panel.querySelectorAll('.color-swatch')];
       const idx = swatches.indexOf(sw);
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
         const next = swatches[(idx + 1) % swatches.length];
+        markColorTouched();
         selectSwatch(next); next.focus();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         const prev = swatches[(idx - 1 + swatches.length) % swatches.length];
+        markColorTouched();
         selectSwatch(prev); prev.focus();
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        markColorTouched();
         selectSwatch(sw);
       }
     });
@@ -3663,14 +3784,18 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
   // 订阅事件的“来源”与“同步目标”是两个不同概念：ICS 只负责从远端
   // 拉取，事件仍可按“仅本地保存”处理。把来源单独显示，避免编辑时把
   // 正确的本地目标误读成订阅来源。
+  const isIcsSubscription = isIcsSubscriptionEvent(event);
+  const inheritedColor = usesInheritedSubscriptionColor(event)
+    && HEX_COLOR_RE.test(event?.cal_color || '')
+    ? event.cal_color
+    : null;
   const subscriptionSourceHtml = isEdit
-    && event?.external_source === 'ics'
-    && event?.cal_name
+    && isIcsSubscription
     ? `
     <div class="form-group">
-      <label class="form-label" for="event-subscription-source">${t('calendar.detailCalendar')}</label>
+      <label class="form-label" for="event-subscription-source">${t('calendar.detailCalendar')} · ICS</label>
       <input class="form-input" id="event-subscription-source" type="text" readonly
-             aria-readonly="true" value="${esc(event.cal_name)}">
+             aria-readonly="true" value="${esc(event.cal_name || 'ICS')}">
     </div>`
     : '';
 
@@ -3684,7 +3809,9 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
     <div class="form-group">
       <label class="form-label" id="event-color-label">${t('calendar.colorLabel')}</label>
       <div class="color-picker" id="event-color-picker" role="radiogroup" aria-labelledby="event-color-label">
-        <div class="color-swatch color-swatch--inherit" data-color=""
+        <div class="color-swatch color-swatch--inherit" data-color=""${inheritedColor
+          ? ` data-inherited-color="true" style="--inherit-color:${esc(inheritedColor)};"`
+          : ''}
              role="radio" tabindex="0" aria-checked="false"
              aria-label="${esc(t('calendar.colorInherit'))}"
              title="${esc(t('calendar.colorInheritHint'))}"></div>
@@ -3888,7 +4015,11 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
   }
 
   const allday  = overlay.querySelector('#modal-allday').checked;
-  const color   = colorToSave(overlay.querySelector('.color-swatch--active')?.dataset.color, event);
+  const activeColor = overlay.querySelector('.color-swatch--active')?.dataset.color;
+  const colorTouched = overlay.dataset.eventColorTouched === '1';
+  const color = colorTouched
+    ? colorToSave(activeColor, event)
+    : (mode === 'edit' ? (event?.color ?? null) : colorToSave(activeColor, event));
   const icon    = eventIconName(overlay.querySelector('#modal-icon')?.value);
   const location    = overlay.querySelector('#modal-location').value.trim() || null;
   const assigned_to = getSelectedUserIds(overlay, 'cal_assigned');
@@ -3998,11 +4129,15 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
     const body = {
       title, description, start_datetime, end_datetime,
       all_day: allday ? 1 : 0,
-      location, color, icon, assigned_to,
+      location, icon, assigned_to,
       visibility: overlay.querySelector('#modal-visibility')?.value || 'all',
       countdown: overlay.querySelector('#modal-countdown')?.checked ? 1 : 0,
       recurrence_rule: rrule.recurrence_rule,
     };
+    // Do not send the inherited/legacy colour when the user did not touch the
+    // picker. This keeps the server's color_modified flag intact, especially
+    // for old ICS rows whose feed colour is still stored in `event.color`.
+    if (mode === 'create' || colorTouched) body.color = color;
     // An imported Outlook event has its source association in the link table,
     // not in target_outlook_*. Sending nulls here would be misleading and would
     // make this UI unable to distinguish “already synced” from “local only”.

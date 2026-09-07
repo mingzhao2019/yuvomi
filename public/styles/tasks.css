@@ -327,6 +327,33 @@ body.task-list-resizing * {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
+    /* The desktop grid intentionally aligns its tracks at the start. Once
+     * this becomes a column, that value is the horizontal cross-axis and can
+     * shrink-wrap the history rail to its longest unbroken child. Stretch the
+     * column itself so a history title never becomes one character per line. */
+    align-items: stretch;
+  }
+
+  /* tasks-layout aligns its children to start on desktop. In the mobile
+   * column that is the horizontal axis, so tasks-main otherwise shrinks to
+   * the history row's min-content width. Long titles then turn into one
+   * character per line and the history card looks like a narrow vertical
+   * strip. Keep the main content on the full mobile rail. */
+  .tasks-main {
+    align-self: stretch;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* list-group/list-rows carry a desktop reading measure. On mobile the
+   * history view is the task page's main rail, not a narrow intrinsic-sized
+   * reading column. Keep every level of that chain at the available width;
+   * the title can then wrap naturally instead of forcing a vertical strip. */
+  #task-list,
+  #task-list > .list-group,
+  #task-list > .list-group > .list-rows {
+    width: 100%;
+    min-width: 0;
   }
 
   .task-list-resizer {
@@ -2375,6 +2402,44 @@ body.task-list-resizing * {
   color: var(--color-text-tertiary);
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
+}
+
+/* Mobile history keeps the avatar, task text and completion time on one
+ * compact row. The title may wrap to two lines, but the metadata remains a
+ * single ellipsized line so one history entry does not consume half the
+ * viewport. Desktop keeps the shared list-row layout above unchanged. */
+@media (max-width: 767px) {
+  .history-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    min-height: var(--target-base);
+    min-width: 0;
+  }
+
+  .history-row__main {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .history-row .list-row__name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .history-row .list-row__meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .history-row__time {
+    white-space: nowrap;
+  }
 }
 
 /* Die Personenauswahl steht ueber der Liste und traegt deren Lesemass - sonst

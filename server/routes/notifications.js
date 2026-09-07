@@ -8,7 +8,8 @@ import express from 'express';
 import * as db from '../db.js';
 import { createLogger } from '../logger.js';
 import { createNotificationChannelStore, NOTIFICATION_PROVIDERS } from '../services/notification-channels.js';
-import { notificationService as defaultNotificationService } from '../services/notifications.js';
+import { notificationService as defaultNotificationService, formatNotificationWallTime } from '../services/notifications.js';
+import { householdTimeZone } from '../utils/timezone.js';
 
 const log = createLogger('NotificationRoutes');
 
@@ -195,6 +196,9 @@ export function buildRouter({
         location: '',
         allDay: false,
       };
+      const timeZone = householdTimeZone(getDb());
+      payload.remindAtLocal = formatNotificationWallTime(payload.remindAt, timeZone);
+      payload.sentAtLocal = formatNotificationWallTime(payload.sentAt, timeZone);
       const result = await notificationService.testChannel({ channel, payload });
       store.markChannelTestResult(id, { ok: true });
       res.json({ data: result });
