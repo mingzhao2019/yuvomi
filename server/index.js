@@ -24,6 +24,7 @@ import * as inventoryDeadlinesIcs from './services/inventory-deadlines-ics.js';
 import * as caldavReminders from './services/caldav-reminders-sync.js';
 import * as caldavSync from './services/caldav-sync.js';
 import * as outlookCalendar from './services/outlook-calendar.js';
+import { backfillCalendarEventReminders } from './services/calendar-event-reminders.js';
 import * as microsoftTodo from './services/microsoft-todo.js';
 import * as carddavSync from './services/cardav-sync.js';
 import * as holidays from './services/holidays.js';
@@ -547,6 +548,18 @@ app.use((err, req, res, _next) => {
 // --------------------------------------------------------
 
 const SYNC_INTERVAL_MS = (parseInt(process.env.SYNC_INTERVAL_MINUTES, 10) || 15) * 60_000;
+
+// Versioned once-only upgrade: seed only future local reminders before the
+// first provider run. Migration 177 reset the provider cursors so inbound sync
+// can replace these temporary values with explicit remote alarms.
+try {
+  const result = backfillCalendarEventReminders(db.get());
+  if (result.ran && result.updated) {
+    logYuvomi.info(`Calendar reminder defaults backfilled for ${result.updated} event(s).`);
+  }
+} catch (err) {
+  logYuvomi.error('Calendar reminder backfill failed:', err.message);
+}
 
 async function runSync() {
   const { connected: googleConnected } = googleCalendar.getStatus();

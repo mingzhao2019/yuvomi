@@ -1118,6 +1118,17 @@ const MIGRATIONS_SQL = {
     CREATE INDEX idx_inventory_item_assignments_user
       ON inventory_item_assignments(user_id);
   `,
+  177: `
+    ALTER TABLE calendar_events ADD COLUMN reminder_suppressed INTEGER NOT NULL DEFAULT 0;
+    UPDATE google_calendar_selection
+       SET sync_token = NULL, last_sync = NULL;
+    UPDATE outlook_calendar_selection
+       SET sync_cursor = NULL, last_inbound_sync = NULL, sync_error = NULL;
+    UPDATE outlook_event_links
+       SET content_hash = NULL, remote_content_hash = NULL;
+    UPDATE ics_subscriptions
+       SET etag = NULL, last_modified = NULL;
+  `,
 };
 
 export { MIGRATIONS_SQL };

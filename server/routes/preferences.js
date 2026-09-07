@@ -19,6 +19,11 @@ import { parseSyncTargetValue } from '../../public/utils/sync-target.js';
 // (#841, Allowlist in test/test-layer-boundary.js).
 import { CURRENCY_CODES } from '../../public/utils/currency-codes.js';
 import { validateAssignedUserIds } from './inventory/access.js';
+import {
+  DEFAULT_ALL_DAY_REMINDER_TIME,
+  DEFAULT_EVENT_REMINDER_OFFSET,
+  VALID_EVENT_REMINDER_OFFSETS,
+} from '../services/calendar-event-reminders.js';
 
 const log = createLogger('Preferences');
 
@@ -89,11 +94,11 @@ const DEFAULT_CALENDAR_DURATION = 60;
 const MIN_CALENDAR_DURATION = 5;
 const MAX_CALENDAR_DURATION = 1440;
 
-// Standard-Erinnerungen für neue Termine (#497, per-user): erlaubte Offsets in
-// Minuten vor Terminbeginn (deckt sich mit den Presets im Event-Modal). Cap = 5,
-// analog MAX_REMINDERS_PER_ENTITY in server/routes/reminders.js.
-const VALID_REMINDER_OFFSETS = [0, 15, 60, 1440, 2880, 10080, 20160];
+// Standard-Erinnerungen für Kalendertermine (#497, per-user): erlaubte Offsets
+// in Minuten vor Terminbeginn (deckt sich mit den Presets im Event-Modal). Cap
+// = 5, analog MAX_REMINDERS_PER_ENTITY in server/routes/reminders.js.
 const MAX_DEFAULT_REMINDERS = 5;
+const ALL_DAY_REMINDER_TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
 // Standard-Sync-Ziel für eigene neue Termine (#620, per-user). Gespeichert wird
 // exakt die Kennung, die das Event-Modal ohnehin führt: '' (lokal speichern),
@@ -120,17 +125,25 @@ const MAX_CALENDAR_TARGET_LENGTH = 500;
 const DEFAULT_TASK_POINTS = 0;
 const MAX_TASK_POINTS = 10000;
 
-// Persistierte Default-Reminder als sortiertes Zahlen-Array lesen (leer = keine).
+// Persistierte Default-Reminder als sortiertes Zahlen-Array lesen. Ein fehlender
+// Key ist der neue Standard [15]; ein gespeichertes [] bleibt die ausdrückliche
+// Entscheidung, Defaults abzuschalten.
 function parseDefaultReminders(raw) {
-  if (!raw) return [];
+  if (raw === null || raw === undefined) return [DEFAULT_EVENT_REMINDER_OFFSET];
   try {
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
-    return [...new Set(arr.map(Number).filter((n) => VALID_REMINDER_OFFSETS.includes(n)))]
+    return [...new Set(arr.map(Number).filter((n) => VALID_EVENT_REMINDER_OFFSETS.includes(n)))]
       .sort((a, b) => a - b);
   } catch {
     return [];
   }
+}
+
+function parseAllDayReminderTime(raw) {
+  return ALL_DAY_REMINDER_TIME_RE.test(String(raw || ''))
+    ? raw
+    : DEFAULT_ALL_DAY_REMINDER_TIME;
 }
 
 /** Persistierten Standard-Punktwert als ganze Zahl im gültigen Bereich lesen. */
@@ -540,8 +553,11 @@ router.get('/', (req, res) => {
         housekeeping_payment_tasks: cfgGet('housekeeping_payment_tasks') === '1',
         budget_mode: VALID_BUDGET_MODES.includes(cfgGet('budget_mode')) ? cfgGet('budget_mode') : DEFAULT_BUDGET_MODE,
         calendar_default_duration: Number(cfgGet('calendar_default_duration')) || DEFAULT_CALENDAR_DURATION,
-        // Standardwerte für neue Termine (per-user, #497/#498).
+        // Standardwerte für Kalendertermine (per-user, #497/#498).
         calendar_default_reminders: parseDefaultReminders(cfgUserGet('calendar_default_reminders', req.authUserId)),
+        calendar_default_all_day_reminder_time: parseAllDayReminderTime(
+          cfgUserGet('calendar_default_all_day_reminder_time', req.authUserId)
+        ),
         calendar_default_assign_me: cfgUserGet('calendar_default_assign_me', req.authUserId) === '1',
         calendar_default_target: cfgUserGet('calendar_default_target', req.authUserId) || '',
         // Modul-Feature-Schalter (haushaltweit). Default an: fehlender Wert =>
@@ -587,7 +603,7 @@ router.get('/', (req, res) => {
 
 router.put('/', (req, res) => {
   try {
-    const { visible_meal_types, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_assign_me, calendar_default_target, health_cycle_enabled, health_cycle_enabled_user, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color, asset_default_scope, asset_default_visibility, asset_default_assignee_ids, asset_cost_metric, asset_summary_theme } = req.body;
+    const { visible_meal_types, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_all_day_reminder_time, calendar_default_assign_me, calendar_default_target, health_cycle_enabled, health_cycle_enabled_user, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color, asset_default_scope, asset_default_visibility, asset_default_assignee_ids, asset_cost_metric, asset_summary_theme } = req.body;
 
     // Asset page defaults are personal preferences.  Keep the allowlist here
     // instead of trusting the module UI: these values are also consumed by a
@@ -895,20 +911,35 @@ router.put('/', (req, res) => {
       cfgSet('calendar_default_duration', String(minutes));
     }
 
-    // Standard-Erinnerungen für neue Termine (#497, per-user).
+    // Standard-Erinnerungen für Kalendertermine (#497, per-user).
     if (calendar_default_reminders !== undefined) {
       if (!Array.isArray(calendar_default_reminders)) {
         return res.status(400).json({ error: 'calendar_default_reminders muss ein Array sein', code: 400 });
       }
       const nums = calendar_default_reminders.map(Number);
-      if (nums.some((n) => !VALID_REMINDER_OFFSETS.includes(n))) {
-        return res.status(400).json({ error: `calendar_default_reminders: erlaubte Offsets (Minuten): ${VALID_REMINDER_OFFSETS.join(', ')}`, code: 400 });
+      if (nums.some((n) => !VALID_EVENT_REMINDER_OFFSETS.includes(n))) {
+        return res.status(400).json({ error: `calendar_default_reminders: erlaubte Offsets (Minuten): ${VALID_EVENT_REMINDER_OFFSETS.join(', ')}`, code: 400 });
       }
       const unique = [...new Set(nums)].sort((a, b) => a - b);
       if (unique.length > MAX_DEFAULT_REMINDERS) {
         return res.status(400).json({ error: `Maximal ${MAX_DEFAULT_REMINDERS} Standard-Erinnerungen.`, code: 400 });
       }
       cfgUserSet('calendar_default_reminders', req.authUserId, JSON.stringify(unique));
+    }
+
+    if (calendar_default_all_day_reminder_time !== undefined) {
+      if (typeof calendar_default_all_day_reminder_time !== 'string'
+          || !ALL_DAY_REMINDER_TIME_RE.test(calendar_default_all_day_reminder_time)) {
+        return res.status(400).json({
+          error: 'calendar_default_all_day_reminder_time muss eine Uhrzeit im Format HH:MM sein',
+          code: 400,
+        });
+      }
+      cfgUserSet(
+        'calendar_default_all_day_reminder_time',
+        req.authUserId,
+        calendar_default_all_day_reminder_time,
+      );
     }
 
     // Neue Termine standardmäßig mir zuweisen (#498, per-user).
@@ -1224,6 +1255,9 @@ router.put('/', (req, res) => {
         budget_mode: VALID_BUDGET_MODES.includes(cfgGet('budget_mode')) ? cfgGet('budget_mode') : DEFAULT_BUDGET_MODE,
         calendar_default_duration: Number(cfgGet('calendar_default_duration')) || DEFAULT_CALENDAR_DURATION,
         calendar_default_reminders: parseDefaultReminders(cfgUserGet('calendar_default_reminders', req.authUserId)),
+        calendar_default_all_day_reminder_time: parseAllDayReminderTime(
+          cfgUserGet('calendar_default_all_day_reminder_time', req.authUserId)
+        ),
         calendar_default_assign_me: cfgUserGet('calendar_default_assign_me', req.authUserId) === '1',
         calendar_default_target: cfgUserGet('calendar_default_target', req.authUserId) || '',
         ...healthCycleViews(req.authUserId),

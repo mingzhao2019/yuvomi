@@ -26,6 +26,12 @@ import {
   todayKey,
   utcToWall,
 } from '../utils/timezone.js';
+import {
+  applyRemoteEventReminders,
+  reminderAtsFromOffsets,
+  ownerEventReminderAts,
+  primaryProviderReminderOffset,
+} from './calendar-event-reminders.js';
 
 // /consumers statt /common: die Entra-App ist für "Personal Microsoft accounts
 // only" registriert; so kann sich kein Organisations-Konto versehentlich anmelden.
@@ -813,7 +819,8 @@ function toGraphDateTime(dt, tz = outlookTimeZone()) {
  * Zugewiesene Personen erscheinen als Titel-Suffix "Titel (A, B)" — gleiche
  * Konvention wie der ICS-Export-Feed (#482). Da die Namen Teil des Payloads
  * sind, löst eine Zuweisungs-Änderung über den Content-Hash ein PATCH aus.
- * Kein Teilnehmer-/Reminder-/Farb-Mapping (PoC-Umfang).
+ * Outlook exposes one reminder only; Yuvomi keeps all local rows and sends the
+ * earliest trigger that Graph can represent.
  */
 function localEventToGraph(event, assigneeNames = [], tz = outlookTimeZone()) {
   const allDay = !!event.all_day;
@@ -824,6 +831,15 @@ function localEventToGraph(event, assigneeNames = [], tz = outlookTimeZone()) {
     subject,
     body: { contentType: 'text', content: event.description || '' },
   };
+  const hasSnapshotReminder = Object.hasOwn(event || {}, 'reminder_minutes_before_start')
+    && event.reminder_minutes_before_start !== null
+    && event.reminder_minutes_before_start !== '';
+  const reminderOffset = hasSnapshotReminder
+    ? (Number.isFinite(Number(event.reminder_minutes_before_start))
+      ? Number(event.reminder_minutes_before_start) : null)
+    : primaryProviderReminderOffset(event, db.get());
+  payload.isReminderOn = reminderOffset !== null;
+  payload.reminderMinutesBeforeStart = reminderOffset ?? 0;
   if (event.location) payload.location = { displayName: event.location };
 
   if (allDay) {
@@ -966,8 +982,18 @@ function remoteEventSnapshot(remote, fallbackTimeZone = outlookTimeZone(), { exc
     all_day: allDay ? 1 : 0,
     recurrence_rule: exception ? null : graphRecurrenceToRRule(remote.recurrence, start.value.slice(0, 10)),
     tzid: allDay ? null : start.timeZone,
+    reminder_minutes_before_start: remote.isReminderOn === true
+      && Number.isFinite(Number(remote.reminderMinutesBeforeStart))
+      ? Number(remote.reminderMinutesBeforeStart)
+      : null,
     external_object_url: remote.webLink || `${GRAPH_BASE}/me/events/${encodeURIComponent(remote.id)}`,
   };
+}
+
+function outlookReminderAts(snapshot, event, database) {
+  const offset = snapshot?.reminder_minutes_before_start;
+  if (!Number.isFinite(Number(offset))) return [];
+  return reminderAtsFromOffsets(event, [Number(offset)], database, { allDayTime: '00:00' });
 }
 
 function snapshotToGraphPayload(snapshot, calendarId = '') {
@@ -990,6 +1016,7 @@ function localEventSnapshot(event) {
     all_day: event.all_day ? 1 : 0,
     recurrence_rule: event.recurrence_rule || null,
     tzid: event.tzid || null,
+    reminder_minutes_before_start: primaryProviderReminderOffset(event, db.get()),
   };
 }
 
@@ -1482,16 +1509,28 @@ function applyRemoteEvent(database, account, selection, remote, timeZone) {
       snapshot.tzid,
       snapshot.external_object_url,
     );
+    let event = eventForSync(database, result.lastInsertRowid);
+    const remoteReminderAts = outlookReminderAts(snapshot, event, database);
+    const explicitRemoteReminder = remoteReminderAts.length > 0;
+    applyRemoteEventReminders(database, event, remoteReminderAts, {
+      explicit: explicitRemoteReminder,
+    });
+    event = eventForSync(database, event.id);
+    const defaultReminderNeedsPush = !explicitRemoteReminder
+      && event?.reminder_suppressed !== 1
+      && ownerEventReminderAts(database, event).length > 0;
+    const localHash = localEventHash(event, selection.calendar_id);
     upsertLink(database, {
-      eventId: result.lastInsertRowid,
+      eventId: event.id,
       accountId: account.id,
       calendarId: selection.calendar_id,
       remoteEventId: remoteId,
-      contentHash: remoteHash,
+      contentHash: localHash,
       remoteContentHash: remoteHash,
       changeKey: remote.changeKey || null,
       linkType: 'inbound',
-      localSnapshot: snapshot,
+      dirty: defaultReminderNeedsPush ? 1 : 0,
+      localSnapshot: localEventSnapshot(event),
       seriesMasterId: remote.seriesMasterId || null,
       lastInboundAt: isoNow(),
     });
@@ -1517,14 +1556,16 @@ function applyRemoteEvent(database, account, selection, remote, timeZone) {
   if (link.pending_delete) return { created: 0, updated: 0, conflicts: 0 };
 
   const localHash = localEventHash(event, selection.calendar_id);
-  const localChanged = link.outbound_dirty === 1 || localHash !== link.content_hash;
+  const hasBaseline = link.content_hash != null || link.remote_content_hash != null;
+  const localChanged = link.outbound_dirty === 1
+    || (hasBaseline && localHash !== link.content_hash);
   const keyChanged = link.outlook_change_key && remote.changeKey
     ? link.outlook_change_key !== remote.changeKey
     : false;
   const hashChanged = link.remote_content_hash
     ? link.remote_content_hash !== remoteHash
     : link.content_hash !== remoteHash;
-  const remoteChanged = keyChanged || hashChanged;
+  const remoteChanged = !hasBaseline || keyChanged || hashChanged;
 
   if (remoteChanged && localChanged) {
     recordConflict(database, {
@@ -1538,15 +1579,29 @@ function applyRemoteEvent(database, account, selection, remote, timeZone) {
     return { created: 0, updated: 0, conflicts: 1 };
   }
 
+  let reminderNeedsPush = false;
   if (remoteChanged) {
     applyRemoteSnapshot(database, event, snapshot);
     event = eventForSync(database, event.id);
+    const remoteReminderAts = outlookReminderAts(snapshot, event, database);
+    const explicitRemoteReminder = remoteReminderAts.length > 0;
+    const reminderApplied = applyRemoteEventReminders(
+      database,
+      event,
+      remoteReminderAts,
+      { explicit: explicitRemoteReminder },
+    );
+    event = eventForSync(database, event.id);
+    reminderNeedsPush = reminderApplied
+      && !explicitRemoteReminder
+      && event?.reminder_suppressed !== 1
+      && ownerEventReminderAts(database, event).length > 0;
   }
   const nextLocalHash = remoteChanged ? localEventHash(event, selection.calendar_id) : localHash;
   database.prepare(`
     UPDATE outlook_event_links
        SET content_hash = ?, remote_content_hash = ?, outlook_change_key = ?,
-           outbound_dirty = CASE WHEN ? THEN outbound_dirty ELSE 0 END,
+           outbound_dirty = CASE WHEN ? THEN 1 ELSE 0 END,
            outbound_attempts = CASE WHEN ? THEN outbound_attempts ELSE 0 END,
            remote_missing = 0, last_error = NULL, last_inbound_at = ?, series_master_id = ?
      WHERE event_id = ? AND account_id = ?
@@ -1554,8 +1609,8 @@ function applyRemoteEvent(database, account, selection, remote, timeZone) {
     localChanged && !remoteChanged ? localHash : nextLocalHash,
     remoteHash,
     remote.changeKey || link.outlook_change_key || null,
-    localChanged ? 1 : 0,
-    localChanged ? 1 : 0,
+    localChanged || reminderNeedsPush ? 1 : 0,
+    localChanged || reminderNeedsPush ? 1 : 0,
     isoNow(),
     remote.seriesMasterId || link.series_master_id || null,
     link.event_id,
@@ -2057,6 +2112,23 @@ function markEventOutbound(before, after) {
   return true;
 }
 
+/** Mark only the owner reminder change dirty for every Outlook mirror. */
+function markReminderOutbound(event) {
+  if (!event?.id) return false;
+  const database = db.get();
+  const links = database.prepare(
+    'SELECT * FROM outlook_event_links WHERE event_id = ?'
+  ).all(event.id);
+  if (!links.length) return false;
+  database.prepare(`
+    UPDATE outlook_event_links
+       SET outbound_dirty = 1, outbound_attempts = 0,
+           local_snapshot = ?, last_error = NULL
+     WHERE event_id = ?
+  `).run(JSON.stringify(localEventSnapshot(event)), event.id);
+  return true;
+}
+
 /**
  * Saves the local snapshot before a calendar row is deleted. The link remains
  * as a tombstone until Graph confirms the DELETE, so a network failure cannot
@@ -2141,6 +2213,11 @@ function resolveConflict(conflictId, resolution) {
       if (remote && event) {
         applyRemoteSnapshot(database, event, remote);
         event = eventForSync(database, event.id);
+        const remoteReminderAts = outlookReminderAts(remote, event, database);
+        applyRemoteEventReminders(database, event, remoteReminderAts, {
+          explicit: remoteReminderAts.length > 0,
+        });
+        event = eventForSync(database, event.id);
         const hash = localEventHash(event, link.outlook_calendar_id);
         database.prepare(`
           UPDATE outlook_event_links
@@ -2182,6 +2259,11 @@ function resolveConflict(conflictId, resolution) {
           remote.external_object_url,
         );
         event = eventForSync(database, result.lastInsertRowid);
+        const remoteReminderAts = outlookReminderAts(remote, event, database);
+        applyRemoteEventReminders(database, event, remoteReminderAts, {
+          explicit: remoteReminderAts.length > 0,
+        });
+        event = eventForSync(database, event.id);
         const hash = localEventHash(event, conflict.outlook_calendar_id);
         database.prepare(`
           UPDATE outlook_event_links
@@ -2289,6 +2371,7 @@ export {
   listConflicts,
   resolveConflict,
   markEventOutbound,
+  markReminderOutbound,
   queueEventDeletion,
   flushOutbound,
   assertConfigured,
@@ -2314,6 +2397,7 @@ export const __test = {
   defaultSyncEndDate,
   graphDateTimeValue,
   remoteEventSnapshot,
+  markReminderOutbound,
   graphRecurrenceToRRule,
   applyRemoteChanges,
   ensureAccessToken,

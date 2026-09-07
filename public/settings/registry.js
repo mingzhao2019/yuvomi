@@ -69,7 +69,7 @@ export const SETTINGS_LEAVES = freezeEntries([
   {
     // `tasks_default_target` schreibt per `cfgUserSet` pro Nutzer. Welche
     // Erinnerungslisten der Haushalt abgleicht, entscheidet der Admin in
-    // `sync-reminders`; in welche davon MEINE neuen Aufgaben laufen, entscheide
+    // Provider-Blatt; in welche davon MEINE neuen Aufgaben laufen, entscheide
     // ich - und dieses Blatt darf deshalb nicht adminOnly sein (#695).
     id: 'personal-tasks',
     domainId: 'personal',
@@ -240,17 +240,6 @@ export const SETTINGS_LEAVES = freezeEntries([
     loader: () => import('/settings/pages/sync-contacts.js'),
   },
   {
-    id: 'sync-reminders',
-    domainId: 'sync',
-    path: '/settings/sync/reminders',
-    labelKey: 'settings.pageSyncReminders',
-    descriptionKey: 'settings.pageSyncRemindersDescription',
-    icon: 'list-checks',
-    module: 'tasks',
-    adminOnly: true,
-    loader: () => import('/settings/pages/sync-reminders.js'),
-  },
-  {
     // Dateiname und ID bleiben `documents-*`: interne Bezeichner, die sonst den
     // sw.js-Precache und zwei Test-Dateien mitziehen. Nutzersichtbar ist die
     // Domäne, und externe Dienste anzubinden ist Synchronisation.
@@ -394,6 +383,7 @@ const RENAMED_SETTINGS_PATHS = Object.freeze({
   '/settings/modules/budget': '/settings/modules/options',
   '/settings/modules/health': '/settings/modules/options',
   '/settings/modules/housekeeping': '/settings/modules/options',
+  '/settings/sync/reminders': '/settings/sync/calendar',
 });
 
 export function filterSettingsDomains(user) {

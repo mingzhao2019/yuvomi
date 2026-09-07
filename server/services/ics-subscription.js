@@ -13,6 +13,10 @@ import { createLogger } from '../logger.js';
 import * as db from '../db.js';
 import { assignDefaultToEvent } from './sync-assignment.js';
 import { parseICS, expandRRULE, normalizeRecurrenceOverrides } from './ics-parser.js';
+import {
+  applyRemoteEventReminders,
+  reminderAtsFromIcalAlarms,
+} from './calendar-event-reminders.js';
 import { isBlockedAddress, readPrivateNetworkOptIn, createGuardedLookup } from '../utils/ssrf.js';
 import { safeRequest } from '../utils/http.js';
 
@@ -223,18 +227,36 @@ async function syncOne(sub) {
           // choice. Keep the event column NULL when the feed has no COLOR.
           const color    = ev.color ?? null;
           const existing = findExisting.get(sub.id, ev.uid);
+          let eventId;
           if (existing) {
             // Dieselben Werte binden die SET-Liste und den Vergleich.
             const values = [
               ev.summary, ev.description, ev.dtstart, ev.dtend,
               ev.allDay ? 1 : 0, ev.location, color,
             ];
+            eventId = existing.id;
             changedEvents += updateEvent.run(...values, existing.id, ...values).changes;
           } else {
-            insertEvent.run(ev.summary, ev.description, ev.dtstart, ev.dtend,
+            const result = insertEvent.run(ev.summary, ev.description, ev.dtstart, ev.dtend,
               ev.allDay ? 1 : 0, ev.location, color, ev.uid, sub.id, ev.rrule, createdBy);
+            eventId = Number(result.lastInsertRowid);
             changedEvents++;
           }
+
+          const reminderEvent = db.get().prepare(
+            'SELECT * FROM calendar_events WHERE id = ?'
+          ).get(eventId);
+          const remoteReminderAts = reminderAtsFromIcalAlarms(
+            reminderEvent,
+            ev.alarms,
+            db.get(),
+          );
+          const explicitRemoteReminder = remoteReminderAts.length > 0;
+          applyRemoteEventReminders(
+            db.get(), reminderEvent, remoteReminderAts,
+            { explicit: explicitRemoteReminder, explicitClearsSuppression: false },
+          );
+          // local fallback only; ICS has no outbound path
         } catch (err) { log.error(`Upsert UID ${ev.uid}: ${err.message}`); }
       }
       changedEvents += deleteStale.run(sub.id, JSON.stringify([...seenUids])).changes;
@@ -376,9 +398,23 @@ async function importToLocal(userId, { ics, url, color } = {}) {
           ev.allDay ? 1 : 0, ev.location, ev.color || fallbackColor,
           ev.uid || null, localRule, userId,
         );
+        const eventId = Number(info.lastInsertRowid);
+        const reminderEvent = db.get().prepare(
+          'SELECT * FROM calendar_events WHERE id = ?'
+        ).get(eventId);
+        const remoteReminderAts = reminderAtsFromIcalAlarms(
+          reminderEvent,
+          ev.alarms,
+          db.get(),
+        );
+        applyRemoteEventReminders(
+          db.get(),
+          reminderEvent,
+          remoteReminderAts,
+          { explicit: remoteReminderAts.length > 0, explicitClearsSuppression: false },
+        );
         // EXDATE nur übernehmen, wenn die Serie erhalten blieb (localRule != null).
         if (localRule && Array.isArray(ev.exdates) && ev.exdates.length) {
-          const eventId = Number(info.lastInsertRowid);
           for (const exDate of ev.exdates) insertException.run(eventId, exDate);
         }
         imported++;

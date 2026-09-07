@@ -7148,6 +7148,25 @@ const MIGRATIONS = [
         ON inventory_item_assignments(user_id);
     `,
   },
+  {
+    version: 177,
+    description: 'Calendar: persist reminder suppression and refresh provider reminder state',
+    up: `
+      ALTER TABLE calendar_events ADD COLUMN reminder_suppressed INTEGER NOT NULL DEFAULT 0;
+
+      -- Existing provider cursors were created before event reminders were
+      -- imported. Clear only the incremental state; the next normal sync
+      -- rereads the provider's existing synchronization window.
+      UPDATE google_calendar_selection
+         SET sync_token = NULL, last_sync = NULL;
+      UPDATE outlook_calendar_selection
+         SET sync_cursor = NULL, last_inbound_sync = NULL, sync_error = NULL;
+      UPDATE outlook_event_links
+         SET content_hash = NULL, remote_content_hash = NULL;
+      UPDATE ics_subscriptions
+         SET etag = NULL, last_modified = NULL;
+    `,
+  },
 
 ];
 
@@ -7231,6 +7250,9 @@ const CRITICAL_COLUMNS = [
   // #899: die Farb-Syncs gattern auf dem eigenen Farbzustand; ohne ihn scheitert
   // jeder Provider-Upsert mit "no such column" statt nur die Farbe zu verlieren.
   { table: 'calendar_events', column: 'color_modified', type: 'INTEGER NOT NULL DEFAULT 0' },
+  // Calendar reminder imports and the event-reminder API use this suppression
+  // bit to distinguish an explicit empty reminder set from a missing one.
+  { table: 'calendar_events', column: 'reminder_suppressed', type: 'INTEGER NOT NULL DEFAULT 0' },
 ];
 
 /**

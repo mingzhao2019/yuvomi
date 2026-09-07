@@ -110,6 +110,60 @@ function parseRelations(block) {
   return { parentUid, childUids };
 }
 
+/** Parse the DISPLAY alarms supported by Yuvomi's calendar model. */
+function parseValarms(block) {
+  const alarms = [];
+  const alarmRe = /BEGIN:VALARM([\s\S]*?)END:VALARM/gi;
+  let match;
+  while ((match = alarmRe.exec(block)) !== null) {
+    const alarmBlock = match[1];
+    const get = (prop) => {
+      const found = new RegExp(`^${prop}(?:;[^:]*)?:(.*)$`, 'im').exec(alarmBlock);
+      return found ? found[1].trim() : null;
+    };
+    if (String(get('ACTION') || 'DISPLAY').toUpperCase() !== 'DISPLAY') continue;
+    const triggerMatch = /^TRIGGER((?:;[^:;]*)*):(.*)$/im.exec(alarmBlock);
+    if (!triggerMatch) continue;
+    const params = triggerMatch[1] || '';
+    const value = triggerMatch[2].trim();
+    if (!value) continue;
+    const related = (/;RELATED=([^;:]+)/i.exec(params)?.[1] || 'START').trim().toUpperCase() === 'END'
+      ? 'END'
+      : 'START';
+
+    const tzMatch = /;TZID=([^;:]+)/i.exec(params);
+    const isAbsolute = /;VALUE=DATE-TIME/i.test(params)
+      || /^\d{8}T\d{6}(?:Z)?$/i.test(value);
+    if (isAbsolute) {
+      const at = formatICSDate(value, false, tzMatch?.[1]?.trim() || null);
+      if (at) alarms.push({
+        action: 'DISPLAY', triggerType: 'absolute', at,
+        tzid: tzMatch?.[1]?.trim() || null,
+      });
+      continue;
+    }
+
+    // Positive triggers occur after DTSTART and are not a "before start"
+    // reminder, so keep them out of the local reminder model.
+    const duration = /^([+-])?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/i.exec(value);
+    if (!duration || duration[1] === '+') continue;
+    const total = (
+      Number(duration[2] || 0) * 7 * 24 * 60
+      + Number(duration[3] || 0) * 24 * 60
+      + Number(duration[4] || 0) * 60
+      + Number(duration[5] || 0)
+      + Math.ceil(Number(duration[6] || 0) / 60)
+    );
+    alarms.push({
+      action: 'DISPLAY',
+      triggerType: 'relative',
+      minutesBeforeStart: total,
+      related,
+    });
+  }
+  return alarms;
+}
+
 /**
  * @param {string} ics
  * @param {{onSkip?: (info: {uid: string|null, reason: string, summary: string|null}) => void}} [opts]
@@ -198,7 +252,8 @@ function parseICS(ics, { onSkip } = {}) {
     // TZID des Serien-Starts merken (nur zeitgebunden): erlaubt DST-korrekte
     // Expansion, die die lokale Uhrzeit über die Sommer-/Winterzeit hält (#549).
     const tzid = (!allDay && dtStartLine.tzid) ? dtStartLine.tzid : null;
-    events.push({ uid, summary, description, location, dtstart, dtend, rrule, allDay, color, exdates, recurrenceId, tzid });
+    const alarms = parseValarms(block);
+    events.push({ uid, summary, description, location, dtstart, dtend, rrule, allDay, color, exdates, recurrenceId, tzid, alarms });
   }
   return events;
 }
@@ -372,7 +427,7 @@ function expandRRULE(vevent, windowStart, windowEnd) {
         uid: `${vevent.uid}__${current}`, summary: vevent.summary,
         description: vevent.description, location: vevent.location,
         dtstart: occStart, dtend: occEnd, rrule: null, allDay: vevent.allDay,
-        color: vevent.color,
+        color: vevent.color, alarms: vevent.alarms || [],
       });
     }
     const next = nextOccurrence(current, vevent.rrule);

@@ -168,6 +168,42 @@ test('alles, was Yuvomi nicht kennt, überlebt den Patch', () => {
   assert.match(out, /TRIGGER:-PT15M/);
 });
 
+test('DISPLAY-Alarme mit Parametern werden beim Ersetzen ebenfalls erkannt', () => {
+  const original = serverObject('b-params@t').replace(
+    'ACTION:DISPLAY',
+    'ACTION;X-CLIENT=legacy:DISPLAY',
+  );
+  const out = patchICSEvent(original, 'b-params@t', {
+    VALARMS: ['BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-PT30M', 'END:VALARM'],
+  });
+
+  assert.doesNotMatch(out, /ACTION;X-CLIENT=legacy:DISPLAY/);
+  assert.match(out, /TRIGGER:-PT30M/);
+  assert.doesNotMatch(out, /TRIGGER:-PT15M/);
+});
+
+test('lange neue VALARM-Zeilen werden nur einmal gefaltet', () => {
+  const title = '提醒'.repeat(120);
+  const out = patchICSEvent(serverObject('b-long-alarm@t'), 'b-long-alarm@t', {
+    VALARMS: [
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${title}`,
+      'TRIGGER:-PT30M',
+      'END:VALARM',
+    ],
+  });
+
+  for (const line of out.split('\r\n')) {
+    assert.ok(Buffer.byteLength(line) <= 75, `Zeile zu lang: ${line.slice(0, 30)}…`);
+  }
+  assert.equal(out.replace(/\r\n/g, '').includes('\r'), false, 'kein loses CR');
+  assert.equal(out.replace(/\r\n/g, '').includes('\n'), false, 'kein loses LF');
+  assert.match(unfoldICS(out), new RegExp(`DESCRIPTION:${title}`));
+  assert.match(out, /TRIGGER:-PT30M/);
+  assert.doesNotMatch(out, /TRIGGER:-PT15M/);
+});
+
 test('ein Ausnahme-Vorkommen derselben UID bleibt unangetastet', () => {
   const out = patchICSEvent(serverObject('c@t', { withOverride: true }), 'c@t', {
     SUMMARY: 'Neu',

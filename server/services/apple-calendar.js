@@ -31,6 +31,11 @@ import { vtimezoneFor } from '../utils/vtimezone.js';
 import { householdTimeZone } from '../utils/timezone.js';
 import { createCalDAVClient } from '../utils/caldav-client.js';
 import { nearestIcalColorName } from '../utils/ical-color.js';
+import {
+  applyRemoteEventReminders,
+  icalAlarmLinesForEvent,
+  reminderAtsFromIcalAlarms,
+} from './calendar-event-reminders.js';
 
 const APPLE_COLOR = '#FC3C44';
 
@@ -210,6 +215,7 @@ function buildICS(event, householdZone = null) {
   if (event.recurrence_rule) {
     lines.push(rruleLine(event.recurrence_rule));
   }
+  lines.push(...icalAlarmLinesForEvent(event, db.get()));
 
   lines.push('END:VEVENT', 'END:VCALENDAR');
   return lines.join('\r\n');
@@ -426,6 +432,30 @@ async function runSync() {
             eventId = Number(inserted.lastInsertRowid);
             // Standard-Zuweisung dieses Kalenders (#459) auf den neuen Termin.
             assignDefaultToEvent(db.get(), eventId, calDefaultAssignee);
+          }
+
+          const reminderEvent = db.get().prepare(
+            'SELECT * FROM calendar_events WHERE id = ?'
+          ).get(eventId);
+          const remoteReminderAts = reminderAtsFromIcalAlarms(
+            reminderEvent,
+            ev.alarms,
+            db.get(),
+            { fallbackZone: ev.tzid || householdTimeZone(db.get()) },
+          );
+          const explicitRemoteReminder = remoteReminderAts.length > 0;
+          const reminderApplied = applyRemoteEventReminders(
+            db.get(), reminderEvent, remoteReminderAts,
+            { explicit: explicitRemoteReminder },
+          );
+          if (reminderApplied && !explicitRemoteReminder
+              && reminderEvent?.reminder_suppressed !== 1) {
+            const refreshed = db.get().prepare(
+              'SELECT * FROM calendar_events WHERE id = ?'
+            ).get(eventId);
+            if (outbound.markReminderOutbound(refreshed)) {
+              // The shared outbound pass below will write the VALARM back.
+            }
           }
 
           // EXDATE + ersetzte Override-Termine als Instanz-Ausnahmen ablegen,

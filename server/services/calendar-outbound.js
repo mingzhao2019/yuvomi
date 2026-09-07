@@ -374,6 +374,19 @@ export function markEventOutbound(before, after) {
 }
 
 /**
+ * Merkt eine Änderung an der Eigentümer-Erinnerung vor.
+ * Erinnerungen liegen in einer eigenen Tabelle und können deshalb nicht über
+ * `mirroredFieldsChanged()` erkannt werden. ICS-Abos bleiben ausgeschlossen:
+ * sie sind read-only und dürfen niemals in die Outbound-Warteschlange gelangen.
+ */
+export function markReminderOutbound(event, { writable = true } = {}) {
+  if (!event || !OUTBOUND_SOURCES.includes(event.external_source)) return false;
+  if (!writable) return false;
+  if (!event.external_calendar_id || !acceptsOutbound(event.external_source)) return false;
+  return markOutbound(event.id, { dirty: true });
+}
+
+/**
  * Sofortiger Best-Effort-Durchlauf direkt nach einer lokalen Änderung oder
  * Löschung, damit der Provider nicht erst beim nächsten Sync-Intervall nachzieht.
  * Fehler sind unkritisch - die Vormerkung bleibt stehen und der Sync holt nach.

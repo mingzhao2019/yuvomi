@@ -20,14 +20,21 @@ import { truncateRuleBefore, shiftSeriesStart, shiftEndForStart,
 import { getReadableTextColor } from '/utils/color.js';
 import { resolveEventColor } from '/utils/event-color.js';
 import { refresh as refreshReminders } from '/reminders.js';
-import { parseRemindAtAsUtc } from '/utils/reminder-offset.js';
+import { parseRemindAtAsUtc, wallTimeToInstant } from '/utils/reminder-offset.js';
 import { renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect, renderAvatarStack } from '/components/user-multi-select.js';
 import { wireTablist } from '/utils/tablist.js';
 import { localizeBirthdayEvent } from '/utils/birthday-event.js';
 import { googleTargetValue, caldavTargetValue, outlookTargetValue } from '/utils/sync-target.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
 import { findPageFab } from '/utils/fab.js';
-import { nowFields, todayKey, zonedDateKey, zonedTimeKey } from '/utils/timezone.js';
+import {
+  displayTimeZone,
+  hasExplicitZone,
+  nowFields,
+  todayKey,
+  zonedDateKey,
+  zonedTimeKey,
+} from '/utils/timezone.js';
 import { maxUploadBytes, maxUploadMb } from '/utils/upload-limit.js';
 import { emptyStateHTML, emptyHintHTML, mountLoadError } from '/utils/empty-state.js';
 
@@ -515,6 +522,8 @@ let state = {
   scheduleDisplay: 'compact',
   offlineSince:  null,     // Date des letzten Cache-Stands, wenn offline bedient
   defaultDuration: 60,     // Standard-Termindauer (Minuten) aus den Präferenzen
+  defaultReminders: [],    // persönliche Standard-Erinnerungen
+  defaultAllDayReminderTime: '09:00',
   currentUserId: null,     // eigene User-ID für „Mir zugewiesen"-Filter
   assignedToMe:  false,    // nur Termine/Aufgaben zeigen, die mir zugewiesen sind
 };
@@ -1367,7 +1376,10 @@ export async function render(container, { user }) {
   // Standardwerte für neue Termine (#497/#498).
   state.defaultReminders = Array.isArray(prefsRes.data?.calendar_default_reminders)
     ? prefsRes.data.calendar_default_reminders.map(Number)
-    : [];
+    : [15];
+  state.defaultAllDayReminderTime = /^\d{2}:\d{2}$/.test(
+    prefsRes.data?.calendar_default_all_day_reminder_time || '',
+  ) ? prefsRes.data.calendar_default_all_day_reminder_time : '09:00';
   state.defaultAssignMe  = !!prefsRes.data?.calendar_default_assign_me;
   // Standard-Sync-Ziel für eigene neue Termine (#620).
   state.defaultSyncTarget = prefsRes.data?.calendar_default_target || '';
@@ -3041,7 +3053,7 @@ async function openEventDetail(ev, anchor = null) {
 
   // ICS-Abos: Ein lokal geänderter Termin lässt sich auf das Original
   // zurücksetzen. Die Aktion gehört zum Objekt, also in die Fußzeile.
-  if (ev.external_source === 'ics' && ev.user_modified === 1) {
+  if (ev.external_source === 'ics' && (ev.user_modified === 1 || ev.reminder_suppressed === 1)) {
     actions.push({
       id: 'detail-ics-reset',
       label: t('calendar.ics.reset'),
@@ -3119,6 +3131,7 @@ const REMINDER_OFFSETS = () => [
   { value: '',     label: t('reminders.offsetNone')   },
   { value: '0',    label: t('reminders.offsetAtTime') },
   { value: '15',   label: t('reminders.offset15min')  },
+  { value: '30',   label: t('reminders.offset30min')  },
   { value: '60',   label: t('reminders.offset1hour')  },
   { value: '1440', label: t('reminders.offset1day')   },
   { value: '2880', label: t('reminders.offset2days')  },
@@ -3127,12 +3140,19 @@ const REMINDER_OFFSETS = () => [
   { value: 'custom', label: t('reminders.offsetCustom') },
 ];
 
+function reminderStartInstant(startDatetime, event = null) {
+  const value = reminderStartValue(startDatetime);
+  return hasExplicitZone(value)
+    ? new Date(value)
+    : wallTimeToInstant(value, event?.tzid || displayTimeZone());
+}
+
 function reminderOffsetFromEvent(event, reminder) {
   if (!reminder || !event?.start_datetime) return '';
   const remindMs = parseRemindAtAsUtc(reminder.remind_at).getTime();
-  const startMs  = new Date(reminderStartValue(event.start_datetime)).getTime();
+  const startMs  = reminderStartInstant(event.start_datetime, event).getTime();
   const diffMin  = Math.round((startMs - remindMs) / 60000);
-  const opts = [0, 15, 60, 1440, 2880, 10080, 20160];
+  const opts = [0, 15, 30, 60, 1440, 2880, 10080, 20160];
   const match = opts.find((o) => o === diffMin);
   return match !== undefined ? String(match) : 'custom';
 }
@@ -3141,7 +3161,7 @@ function customReminderFromEvent(event, reminder) {
   const fallback = { amount: 1, unit: 'days' };
   if (!reminder || !event?.start_datetime) return fallback;
   const diffMin = Math.max(0, Math.round(
-    (new Date(reminderStartValue(event.start_datetime)).getTime() - parseRemindAtAsUtc(reminder.remind_at).getTime()) / 60000
+    (reminderStartInstant(event.start_datetime, event).getTime() - parseRemindAtAsUtc(reminder.remind_at).getTime()) / 60000
   ));
   if (diffMin % 10080 === 0 && diffMin >= 10080) return { amount: diffMin / 10080, unit: 'weeks' };
   if (diffMin % 1440 === 0 && diffMin >= 1440) return { amount: diffMin / 1440, unit: 'days' };
@@ -3157,8 +3177,8 @@ function customReminderMinutes(amount, unit) {
   return value;
 }
 
-function reminderStartValue(startDatetime) {
-  return startDatetime?.includes('T') ? startDatetime : `${startDatetime}T09:00`;
+function reminderStartValue(startDatetime, allDayTime = state.defaultAllDayReminderTime || '09:00') {
+  return startDatetime?.includes('T') ? startDatetime : `${startDatetime}T${allDayTime}`;
 }
 
 /**
@@ -3206,7 +3226,9 @@ function renderCalendarReminderSection(reminders = [], event = null, defaultOffs
   // Neue Termine ohne bestehende Erinnerung: Standard-Erinnerungen vorbelegen (#497).
   // Die Default-Offsets decken sich mit den Preset-Werten des Offset-Selects.
   if (rows.length === 0 && Array.isArray(defaultOffsets) && defaultOffsets.length) {
-    rows = defaultOffsets.map((min) => ({ offset: String(min), amount: 1, unit: 'days' }));
+    rows = event?.all_day
+      ? [{ offset: '0', amount: 1, unit: 'days' }]
+      : defaultOffsets.map((min) => ({ offset: String(min), amount: 1, unit: 'days' }));
   }
   const enabled = rows.length > 0;
   const rowsHtml = (enabled ? rows : [{ offset: '0', amount: 1, unit: 'days' }])
@@ -3243,6 +3265,13 @@ function wireReminderRows(panel) {
   const addBtn = panel.querySelector('#modal-reminder-add');
   if (!rowsEl) return;
 
+  // A form save with no reminder rows is not automatically an explicit
+  // per-event opt-out: an event may simply have been imported without a
+  // reminder, or the user's personal defaults may be empty. The save path uses
+  // this bit together with the initial row count before setting suppression.
+  panel.dataset.reminderTouched = '0';
+  const markReminderTouched = () => { panel.dataset.reminderTouched = '1'; };
+
   const rowCount = () => rowsEl.querySelectorAll('[data-reminder-row]').length;
   const syncAddState = () => {
     if (addBtn) addBtn.disabled = rowCount() >= MAX_CALENDAR_REMINDERS;
@@ -3259,6 +3288,7 @@ function wireReminderRows(panel) {
   rowsEl.addEventListener('change', (e) => {
     const sel = e.target.closest('.js-reminder-offset');
     if (!sel) return;
+    markReminderTouched();
     const custom = sel.closest('[data-reminder-row]')?.querySelector('.js-reminder-custom');
     if (custom) custom.hidden = sel.value !== 'custom';
   });
@@ -3267,16 +3297,19 @@ function wireReminderRows(panel) {
   rowsEl.addEventListener('click', (e) => {
     const rm = e.target.closest('.js-reminder-remove');
     if (!rm) return;
+    markReminderTouched();
     rm.closest('[data-reminder-row]')?.remove();
     syncAddState();
   });
 
   addBtn?.addEventListener('click', () => {
     if (rowCount() >= MAX_CALENDAR_REMINDERS) return;
+    markReminderTouched();
     appendRow();
   });
 
   toggle?.addEventListener('change', () => {
+    markReminderTouched();
     const on = toggle.checked;
     if (fields) fields.style.display = on ? '' : 'none';
     if (on && rowCount() === 0) appendRow();
@@ -4227,7 +4260,11 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
     if (savedEventId) {
       const reminderOn = overlay.querySelector('#modal-reminder-toggle')?.checked;
       const rowsEl     = overlay.querySelector('#modal-reminder-rows');
-      const startMs    = new Date(reminderStartValue(reminderBaseStart)).getTime();
+      const startMs    = reminderStartInstant(reminderBaseStart, event).getTime();
+      const initialReminderCount = Array.isArray(existingReminder)
+        ? existingReminder.length
+        : (existingReminder ? 1 : 0);
+      const reminderTouched = overlay.dataset.reminderTouched === '1';
       let remindAts = [];
 
       if (reminderOn && rowsEl) {
@@ -4247,7 +4284,7 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
 
       if (remindAts.length) {
         await api.put(`/reminders?entity_type=event&entity_id=${savedEventId}`, { remind_ats: remindAts });
-      } else {
+      } else if (initialReminderCount > 0 || reminderTouched) {
         await api.delete(`/reminders?entity_type=event&entity_id=${savedEventId}`).catch(() => {});
       }
       refreshReminders();

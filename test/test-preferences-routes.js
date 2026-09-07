@@ -336,8 +336,12 @@ test('PUT calendar_default_reminders: Validierung + dedup/sort persist', async (
   assert.equal((await put({ calendar_default_reminders: 'x' })).status, 400);
   assert.equal((await put({ calendar_default_reminders: [7] })).status, 400);            // ungültiger Offset
   assert.equal((await put({ calendar_default_reminders: [0, 15, 60, 1440, 2880, 10080] })).status, 400); // > 5
-  const ok = await put({ calendar_default_reminders: [60, 0, 60] });
-  assert.deepEqual(ok.body.data.calendar_default_reminders, [0, 60]);
+  const ok = await put({ calendar_default_reminders: [60, 30, 0, 60] });
+  assert.deepEqual(ok.body.data.calendar_default_reminders, [0, 30, 60]);
+});
+test('PUT calendar_default_all_day_reminder_time: strict HH:MM', async () => {
+  assert.equal((await put({ calendar_default_all_day_reminder_time: '24:00' })).status, 400);
+  assert.equal((await put({ calendar_default_all_day_reminder_time: '08:45' })).body.data.calendar_default_all_day_reminder_time, '08:45');
 });
 test('PUT calendar_default_assign_me: Boolean -> per-user persist', async () => {
   assert.equal((await put({ calendar_default_assign_me: true })).body.data.calendar_default_assign_me, true);

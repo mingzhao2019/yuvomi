@@ -1,8 +1,9 @@
 /**
- * Test: Standardwerte für neue Termine (#497/#498)
+ * Test: Standardwerte für Kalendertermine (#497/#498)
  * Zweck: Per-User-Preferences calendar_default_reminders (Offset-Liste, Cap,
- *        Validierung) und calendar_default_assign_me (Boolean). Prüft GET-Defaults,
- *        PUT-Roundtrip, ungültige Offsets/Cap → 400 und Per-User-Isolation.
+ *        Validierung),全天 reminder time und calendar_default_assign_me. Prüft
+ *        den ersten Default [15], explizites [] als Opt-out, 30 Minuten,
+ *        ungültige Werte und Per-User-Isolation.
  * Ausführen: node --experimental-sqlite --test test/test-calendar-defaults.js
  */
 
@@ -35,12 +36,13 @@ const putPrefs = (baseUrl, body) => fetch(`${baseUrl}/`, {
   method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
 });
 
-test('GET: calendar defaults start empty/false', async () => {
+test('GET: unconfigured calendar defaults are 15 minutes and 09:00', async () => {
   currentUserId = 1;
   const { baseUrl, close } = await startApp();
   try {
     const { data } = await getPrefs(baseUrl);
-    assert.deepEqual(data.calendar_default_reminders, []);
+    assert.deepEqual(data.calendar_default_reminders, [15]);
+    assert.equal(data.calendar_default_all_day_reminder_time, '09:00');
     assert.equal(data.calendar_default_assign_me, false);
   } finally { await close(); }
 });
@@ -49,13 +51,33 @@ test('PUT: saves and normalizes default reminders (dedup + sort)', async () => {
   currentUserId = 1;
   const { baseUrl, close } = await startApp();
   try {
-    const put = await putPrefs(baseUrl, { calendar_default_reminders: [1440, 15, 1440, 0] });
+    const put = await putPrefs(baseUrl, { calendar_default_reminders: [1440, 30, 15, 1440, 0] });
     const body = await put.json();
     assert.equal(put.status, 200);
-    assert.deepEqual(body.data.calendar_default_reminders, [0, 15, 1440]);
+    assert.deepEqual(body.data.calendar_default_reminders, [0, 15, 30, 1440]);
 
     const { data } = await getPrefs(baseUrl);
-    assert.deepEqual(data.calendar_default_reminders, [0, 15, 1440], 'survives round-trip');
+    assert.deepEqual(data.calendar_default_reminders, [0, 15, 30, 1440], 'survives round-trip');
+  } finally { await close(); }
+});
+
+test('PUT: explicit empty list disables default reminders', async () => {
+  currentUserId = 1;
+  const { baseUrl, close } = await startApp();
+  try {
+    const res = await putPrefs(baseUrl, { calendar_default_reminders: [] });
+    assert.equal(res.status, 200);
+    assert.deepEqual((await getPrefs(baseUrl)).data.calendar_default_reminders, []);
+  } finally { await close(); }
+});
+
+test('PUT: validates all-day reminder time strictly', async () => {
+  currentUserId = 1;
+  const { baseUrl, close } = await startApp();
+  try {
+    assert.equal((await putPrefs(baseUrl, { calendar_default_all_day_reminder_time: '25:00' })).status, 400);
+    assert.equal((await putPrefs(baseUrl, { calendar_default_all_day_reminder_time: '09:30' })).status, 200);
+    assert.equal((await getPrefs(baseUrl)).data.calendar_default_all_day_reminder_time, '09:30');
   } finally { await close(); }
 });
 
@@ -101,18 +123,24 @@ test('per-user isolation: user 2 keeps its own defaults', async () => {
   const { baseUrl, close } = await startApp();
   try {
     currentUserId = 1;
-    await putPrefs(baseUrl, { calendar_default_reminders: [15], calendar_default_assign_me: true });
+    await putPrefs(baseUrl, {
+      calendar_default_reminders: [15],
+      calendar_default_all_day_reminder_time: '08:00',
+      calendar_default_assign_me: true,
+    });
     currentUserId = 2;
     await putPrefs(baseUrl, { calendar_default_reminders: [1440], calendar_default_assign_me: false });
 
     currentUserId = 1;
     const u1 = (await getPrefs(baseUrl)).data;
     assert.deepEqual(u1.calendar_default_reminders, [15]);
+    assert.equal(u1.calendar_default_all_day_reminder_time, '08:00');
     assert.equal(u1.calendar_default_assign_me, true);
 
     currentUserId = 2;
     const u2 = (await getPrefs(baseUrl)).data;
     assert.deepEqual(u2.calendar_default_reminders, [1440]);
+    assert.equal(u2.calendar_default_all_day_reminder_time, '09:00');
     assert.equal(u2.calendar_default_assign_me, false);
   } finally { await close(); }
 });

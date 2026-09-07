@@ -175,6 +175,7 @@ describe('Datums- und Payload-Konvertierung', () => {
         all_day: 0,
         recurrence_rule: null,
         tzid: null,
+        reminder_minutes_before_start: null,
         external_object_url: 'https://graph.microsoft.com/v1.0/me/events/finnish-1',
       },
     );

@@ -15,6 +15,7 @@ import {
 } from '../../services/document-storage.js';
 import * as outlookCalendar from '../../services/outlook-calendar.js';
 import { queueEventDeletion, markEventOutbound, flushOutbound } from '../../services/calendar-outbound.js';
+import { ensureDefaultEventReminders, clearReminderSuppression } from '../../services/calendar-event-reminders.js';
 import {
   ASSIGNED_USERS_SQL,
   getUserId,
@@ -161,6 +162,10 @@ router.post('/', async (req, res) => {
         req.body.countdown ? 1 : 0
       );
       setEventAssignments(db.get(), result.lastInsertRowid, userIds);
+      // Apply the same personal default as provider imports. The client may
+      // immediately replace this set when the modal contains a custom choice.
+      const created = db.get().prepare('SELECT * FROM calendar_events WHERE id = ?').get(result.lastInsertRowid);
+      ensureDefaultEventReminders(db.get(), created);
       return result.lastInsertRowid;
     })();
 
@@ -404,6 +409,15 @@ router.put('/:id', async (req, res) => {
         id
       );
       setEventAssignments(db.get(), id, userIds);
+      // A direct API update that changes an event's start/date must not leave a
+      // missing default reminder behind. The UI still owns explicit reminder
+      // edits through /api/v1/reminders.
+      const changedEvent = db.get().prepare('SELECT * FROM calendar_events WHERE id = ?').get(id);
+      if (changedEvent?.reminder_suppressed !== 1) {
+        // Do not manufacture a second reminder when an owner reminder already
+        // exists; its timestamp is an explicit event-level choice.
+        ensureDefaultEventReminders(db.get(), changedEvent);
+      }
     })();
 
     const updated = db.get().prepare(`
@@ -485,7 +499,20 @@ router.post('/:id/reset', (req, res) => {
     if (!isAdmin && event.created_by !== userId && event.sub_created_by !== userId)
       return res.status(403).json({ error: 'Nicht autorisiert.', code: 403 });
 
-    db.get().prepare('UPDATE calendar_events SET user_modified = 0, color_modified = 0 WHERE id = ?').run(id);
+    db.get().transaction(() => {
+      db.get().prepare('UPDATE calendar_events SET user_modified = 0, color_modified = 0 WHERE id = ?').run(id);
+      clearReminderSuppression(db.get(), id);
+      // A 304 after reset would otherwise leave the local reminder override in
+      // place forever. Drop the validators so the next subscription run reads
+      // the source VALARM (or its absence) again.
+      if (event.subscription_id) {
+        db.get().prepare(`
+          UPDATE ics_subscriptions
+             SET etag = NULL, last_modified = NULL
+           WHERE id = ?
+        `).run(event.subscription_id);
+      }
+    })();
     res.json({ data: { reset: true } });
   } catch (err) {
     log.error('', err);

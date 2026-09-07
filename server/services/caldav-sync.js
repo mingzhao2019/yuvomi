@@ -21,6 +21,11 @@ import { householdTimeZone } from '../utils/timezone.js';
 import { createCalDAVClient, supportsComponent } from '../utils/caldav-client.js';
 import { rruleLine } from './recurrence.js';
 import { nearestIcalColorName } from '../utils/ical-color.js';
+import {
+  applyRemoteEventReminders,
+  icalAlarmLinesForEvent,
+  reminderAtsFromIcalAlarms,
+} from './calendar-event-reminders.js';
 
 // Reused functions from apple-calendar.js
 import {
@@ -66,6 +71,7 @@ function buildCalDAVICS(event, householdZone = null) {
   if (event.recurrence_rule) {
     lines.push(rruleLine(event.recurrence_rule));
   }
+  lines.push(...icalAlarmLinesForEvent(event, db.get()));
 
   lines.push('END:VEVENT', 'END:VCALENDAR');
   return lines.join('\r\n');
@@ -710,6 +716,31 @@ async function sync({ createClient } = {}) {
                 changed = true;
                 // Standard-Zuweisung dieses Kalenders (#459) auf den neuen Termin.
                 assignDefaultToEvent(db.get(), eventId, calDefaultAssignee);
+              }
+
+              // VALARM is the provider's event-level reminder source. If it is
+              // absent, apply the owner's personal default; writable CalDAV
+              // objects are queued so the remote copy converges too.
+              const reminderEvent = db.get().prepare(
+                'SELECT * FROM calendar_events WHERE id = ?'
+              ).get(eventId);
+              const remoteReminderAts = reminderAtsFromIcalAlarms(
+                reminderEvent,
+                ev.alarms,
+                db.get(),
+                { fallbackZone: ev.tzid || householdTimeZone(db.get()) },
+              );
+              const explicitRemoteReminder = remoteReminderAts.length > 0;
+              const reminderApplied = applyRemoteEventReminders(
+                db.get(), reminderEvent, remoteReminderAts,
+                { explicit: explicitRemoteReminder },
+              );
+              if (reminderApplied && !explicitRemoteReminder
+                  && reminderEvent?.reminder_suppressed !== 1) {
+                const refreshed = db.get().prepare(
+                  'SELECT * FROM calendar_events WHERE id = ?'
+                ).get(eventId);
+                if (outbound.markReminderOutbound(refreshed)) changed = true;
               }
 
               // EXDATE + ersetzte Override-Termine als Instanz-Ausnahmen ablegen,

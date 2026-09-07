@@ -11,6 +11,9 @@ import * as v from '../middleware/validate.js';
 import { syncAllBirthdayReminders } from '../services/birthdays.js';
 import { markTaskReminderOutbound } from '../services/microsoft-todo.js';
 import { fanOutEventReminders, eventAuthorId } from '../services/event-reminder-fanout.js';
+import * as calendarOutbound from '../services/calendar-outbound.js';
+import * as outlookCalendar from '../services/outlook-calendar.js';
+import { recordManualOwnerReminderChange } from '../services/calendar-event-reminders.js';
 import { deniedModules } from '../permissions.js';
 import { tokenAllows } from '../scopes.js';
 
@@ -43,6 +46,25 @@ function syncEventFanout(entityType, entityId, userId) {
     // das stille catch, das monatelang einen ReferenceError verdeckt hat).
     log.error('Error fanning out event reminders:', err.message);
   }
+}
+
+/**
+ * Owner reminder edits are mirrored to writable calendar providers. A reminder
+ * set by an assignee remains personal and must not alter the remote event.
+ */
+function syncCalendarReminderOutbound(entityType, entityId, userId, hasReminders) {
+  if (entityType !== 'event') return;
+  const event = recordManualOwnerReminderChange(db.get(), entityId, userId, hasReminders);
+  if (!event) return;
+
+  const genericPending = calendarOutbound.markReminderOutbound(event);
+  const outlookPending = outlookCalendar.markReminderOutbound(event);
+  if (!genericPending && !outlookPending) return;
+
+  Promise.all([
+    genericPending ? calendarOutbound.flushOutbound() : null,
+    outlookPending ? outlookCalendar.flushOutbound() : null,
+  ]).catch((err) => log.warn('Event reminder change queued, immediate push failed:', err.message));
 }
 
 /**
@@ -292,6 +314,7 @@ router.post('/', (req, res) => {
     `).run(entity_type, entityId, remind_at, userId);
 
     syncEventFanout(entity_type, entityId, userId);
+    syncCalendarReminderOutbound(entity_type, entityId, userId, true);
 
     const row = db.get().prepare('SELECT * FROM reminders WHERE id = ?').get(result.lastInsertRowid);
     if (entity_type === 'task') markTaskReminderOutbound(entityId, userId, db.get());
@@ -359,6 +382,7 @@ router.put('/', (req, res) => {
     });
     replace(unique);
     syncEventFanout(entityType, entityId, userId);
+    syncCalendarReminderOutbound(entityType, entityId, userId, unique.length > 0);
 
     const rows = db.get().prepare(`
       SELECT * FROM reminders
@@ -444,6 +468,14 @@ router.delete('/:id', (req, res) => {
     db.get().prepare('DELETE FROM reminders WHERE id = ?').run(reminderId);
     if (reminder.entity_type === 'task') markTaskReminderOutbound(reminder.entity_id, userId, db.get());
     syncEventFanout(reminder.entity_type, reminder.entity_id, userId);
+    if (reminder.entity_type === 'event') {
+      const hasReminders = !!db.get().prepare(`
+        SELECT 1 FROM reminders
+         WHERE entity_type = 'event' AND entity_id = ? AND created_by = ?
+         LIMIT 1
+      `).get(reminder.entity_id, userId);
+      syncCalendarReminderOutbound(reminder.entity_type, reminder.entity_id, userId, hasReminders);
+    }
     res.status(204).end();
   } catch (err) {
     log.error('Error deleting reminder:', err.message);
@@ -483,6 +515,7 @@ router.delete('/', (req, res) => {
       WHERE entity_type = ? AND entity_id = ? AND created_by = ?
     `).run(entityType, entityId, userId);
     syncEventFanout(entityType, entityId, userId);
+    syncCalendarReminderOutbound(entityType, entityId, userId, false);
 
     if (entityType === 'task') markTaskReminderOutbound(entityId, userId, db.get());
 

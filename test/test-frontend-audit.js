@@ -1537,6 +1537,7 @@ test('das Kopfband faehrt im selben Anpassen-Zyklus wie die Kacheln (#740)', () 
 
 test('sync-calendar leaf loads CalDAV, Google, and Apple with independent status', () => {
   const source = read('../public/settings/pages/sync-calendar.js');
+  const reminderSource = read('../public/settings/pages/sync-reminders.js');
 
   // CalDAV calendar account management + status before forms.
   assert.match(source, /api\.get\('\/calendar\/caldav\/accounts'\)/);
@@ -1570,9 +1571,11 @@ test('sync-calendar leaf loads CalDAV, Google, and Apple with independent status
   // Independent fetches so one failure does not hide the others.
   assert.match(source, /Promise\.allSettled/);
 
-  // Reminder-list collections must NOT leak into the calendar leaf.
-  assert.doesNotMatch(source, /reminder-lists/);
-  assert.doesNotMatch(source, /\/calendar\/caldav\/reminders\/sync/);
+  // CalDAV VTODO collections live in the combined Provider page, but remain
+  // visibly separate from calendar-event reminders and keep their old API.
+  assert.match(source, /renderReminderSyncSection/);
+  assert.match(source, /provider-reminder-lists/);
+  assert.match(reminderSource, /api\.post\('\/calendar\/caldav\/reminders\/sync'\)/);
 
   // Google + Apple live behind one accessible "More providers" disclosure.
   assert.match(source, /createDisclosure\(/);

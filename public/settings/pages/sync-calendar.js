@@ -10,6 +10,7 @@ import {
 } from '/settings/components.js';
 import { withBusy } from '/utils/ux.js';
 import { loadFamilyUsers } from '/settings/family-users.js';
+import { renderReminderSyncSection } from '/settings/pages/sync-reminders.js';
 
 const MORE_PROVIDERS_ID = 'sync-more-providers';
 const GOOGLE_PROVIDER_ID = 'sync-provider-google';
@@ -149,6 +150,11 @@ function renderPage(container, user) {
     <div id="sync-calendar-banner"></div>
 
     <section class="settings-section">
+      <h2 class="settings-section__title">${t('settings.pageSyncCalendar')}</h2>
+      <p class="settings-section-description">${t('settings.pageSyncCalendarDescription')}</p>
+    </section>
+
+    <section class="settings-section">
       <h2 class="settings-section__title">${t('settings.caldavTitle')}</h2>
       <div class="settings-card">
         <p class="settings-card-description">${t('settings.caldavDescription')}</p>
@@ -168,6 +174,8 @@ function renderPage(container, user) {
     <section class="settings-section">
       <div id="sync-more-providers-container"></div>
     </section>
+
+    <div id="provider-reminder-lists"></div>
   `);
 }
 
@@ -1786,6 +1794,7 @@ export async function render(container, { user, query } = {}) {
 
   await loadCalDAVAccounts(container, user);
   await renderMoreProviders(container, user);
+  await renderReminderSyncSection(container.querySelector('#provider-reminder-lists'));
 
   handleOAuthCallback(container, query);
 

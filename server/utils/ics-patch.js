@@ -213,6 +213,62 @@ function patchICSComponent(icsText, uid, fields, component, managed) {
   return out.map(foldICSLine).join('\r\n');
 }
 
+/** Replace Yuvomi-owned DISPLAY alarms while preserving other alarm actions. */
+function patchICSAlarms(icsText, uid, alarmLines = []) {
+  const lines = unfoldICS(icsText).split('\n');
+  const begin = 'BEGIN:VEVENT';
+  const end = 'END:VEVENT';
+  const blocks = [];
+  let current = null;
+  lines.forEach((line, index) => {
+    const trimmed = line.trim().toUpperCase();
+    if (trimmed === begin) current = { start: index, end: -1 };
+    else if (trimmed === end && current) {
+      current.end = index;
+      blocks.push(current);
+      current = null;
+    }
+  });
+  const target = blocks.find((block) => {
+    let uidMatch = false;
+    let isOverride = false;
+    for (let i = block.start + 1; i < block.end; i++) {
+      const name = propertyName(lines[i]);
+      if (name === 'UID' && lines[i].slice(lines[i].indexOf(':') + 1).trim() === uid) uidMatch = true;
+      if (name === 'RECURRENCE-ID') isOverride = true;
+    }
+    return uidMatch && !isOverride;
+  });
+  if (!target) return null;
+
+  const remove = new Set();
+  for (let i = target.start + 1; i < target.end; i++) {
+    if (lines[i].trim().toUpperCase() !== 'BEGIN:VALARM') continue;
+    let alarmEnd = i + 1;
+    while (alarmEnd < target.end && lines[alarmEnd].trim().toUpperCase() !== 'END:VALARM') alarmEnd++;
+    const display = lines.slice(i + 1, alarmEnd).some((line) => {
+      if (propertyName(line) !== 'ACTION') return false;
+      const colon = line.indexOf(':');
+      return colon >= 0 && line.slice(colon + 1).trim().toUpperCase() === 'DISPLAY';
+    });
+    if (display && alarmEnd < target.end) {
+      for (let j = i; j <= alarmEnd; j++) remove.add(j);
+      i = alarmEnd;
+    }
+  }
+
+  // Keep replacement lines unfolded here. The final pass below folds every
+  // output line exactly once; folding first and then folding the complete
+  // output again treats the embedded CRLF as payload and corrupts long lines.
+  const replacement = Array.isArray(alarmLines) ? alarmLines : [];
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (i === target.end) out.push(...replacement);
+    if (!remove.has(i)) out.push(lines[i]);
+  }
+  return out.map(foldICSLine).join('\r\n');
+}
+
 /**
  * Haengt floating EXDATE- und RECURRENCE-ID-Werten dieselbe Zone an wie dem Master.
  *
@@ -343,11 +399,14 @@ export function patchICSEvent(icsText, uid, fields = {}, { tzid = null } = {}) {
     ? anchorFloatingOccurrenceIds(unfoldICS(patched).split('\n'), uid, tzid)
       .map(foldICSLine).join('\r\n')
     : patched;
+  const withAlarms = Object.hasOwn(fields, 'VALARMS')
+    ? patchICSAlarms(anchored, uid, fields.VALARMS)
+    : anchored;
 
   // Das Jahr aus dem Wert, den wir gerade geschrieben haben - die einzige
   // eindeutige Quelle. Im Text danach zu suchen trifft fremde VTIMEZONE-Onsets.
   const year = Number.parseInt(String(fields?.DTSTART?.value || '').slice(0, 4), 10);
-  return ensureVTimezone(anchored, tzid, Number.isInteger(year) ? year : null);
+  return ensureVTimezone(withAlarms, tzid, Number.isInteger(year) ? year : null);
 }
 
 /**

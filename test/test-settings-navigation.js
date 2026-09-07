@@ -131,7 +131,7 @@ test('die Blätter verteilen sich wie beschlossen auf die vier Domänen', () => 
   // Zugangsdaten des Haushalts.
   const perDomain = {};
   for (const leaf of SETTINGS_LEAVES) perDomain[leaf.domainId] = (perDomain[leaf.domainId] ?? 0) + 1;
-  assert.deepEqual(perDomain, { personal: 11, modules: 5, sync: 5, admin: 8 });
+  assert.deepEqual(perDomain, { personal: 11, modules: 5, sync: 4, admin: 8 });
   // Jedes Blatt hängt an einer existierenden Domäne.
   const domainIds = new Set(SETTINGS_DOMAINS.map((domain) => domain.id));
   for (const leaf of SETTINGS_LEAVES) {

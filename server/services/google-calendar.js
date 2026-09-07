@@ -29,6 +29,12 @@ import { assignDefaultToEvent } from './sync-assignment.js';
 import { countSourceEvents, deleteSourceEvents } from './calendar-prune.js';
 import { readSyncOutcome, withSyncOutcome } from './sync-outcome.js';
 import { rruleValue } from './recurrence.js';
+import {
+  applyRemoteEventReminders,
+  reminderAtsFromOffsets,
+  reminderOffsetMinutes,
+  ownerEventReminderAts,
+} from './calendar-event-reminders.js';
 
 const GOOGLE_COLOR = '#4285F4';
 
@@ -116,7 +122,7 @@ function isConnected() {
  * Kalender-Metadaten (Rolle, Zeitzone, Name, Farbe) einmal je Sync-Lauf holen.
  * Inbound braucht Name/Farbe, Outbound Rolle/Zeitzone - beides steckt in
  * derselben calendarList.get-Antwort.
- * @returns {Promise<{role:string|null,timeZone:string|null,name:string,color:string,refId:number}|null>}
+ * @returns {Promise<{role:string|null,timeZone:string|null,name:string,color:string,refId:number,defaultReminders:object[]}|null>}
  *          null, wenn der Kalender nicht (mehr) zugänglich ist.
  */
 async function loadCalendarMeta(calendar, calendarId, cache) {
@@ -131,6 +137,9 @@ async function loadCalendarMeta(calendar, calendarId, cache) {
       timeZone: meta.data.timeZone || null,
       name,
       color,
+      defaultReminders: Array.isArray(meta.data.defaultReminders)
+        ? meta.data.defaultReminders
+        : [],
       refId:    upsertExternalCalendar('google', calendarId, name, color),
     };
   } catch (err) {
@@ -422,6 +431,7 @@ async function listCalendars() {
         enabled:         enabledSet.has(cal.id),
         accessRole:      cal.accessRole ?? null,
         writable:        isWritableRole(cal.accessRole),
+        defaultReminders: Array.isArray(cal.defaultReminders) ? cal.defaultReminders : [],
         default_assignee_user_id: assigneeMap.get(cal.id) ?? null,
         synced:          assigneeMap.has(cal.id),
       });
@@ -645,7 +655,12 @@ async function runSync() {
       }
 
       upsertGoogleEvents(response.data.items || [], calRefId, calColor, eventColorMap,
-        { fullResync: !syncToken, calTimeZone: meta?.timeZone ?? null });
+        {
+          fullResync: !syncToken,
+          calTimeZone: meta?.timeZone ?? null,
+          calDefaultReminders: meta?.defaultReminders || [],
+          calWritable: isWritableRole(meta?.role ?? null) && !isReadonly(),
+        });
       pageToken    = response.data.nextPageToken;
       newSyncToken = response.data.nextSyncToken || newSyncToken;
     } while (pageToken);
@@ -798,7 +813,28 @@ function originalStartDate(item) {
   return raw ? String(raw).slice(0, 10) : null;
 }
 
-function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, colorMap = {}, { fullResync = false, calTimeZone = null } = {}) {
+function googleReminderOffsets(item, calendarDefaultReminders = []) {
+  const reminders = item?.reminders;
+  if (!reminders) return [];
+  if (Array.isArray(reminders.overrides) && reminders.overrides.length) {
+    return [...new Set(reminders.overrides
+      .map((override) => Number(override?.minutes))
+      .filter((minutes) => Number.isFinite(minutes) && minutes >= 0))];
+  }
+  if (reminders.useDefault === true && Array.isArray(calendarDefaultReminders)) {
+    return [...new Set(calendarDefaultReminders
+      .map((reminder) => Number(reminder?.minutes))
+      .filter((minutes) => Number.isFinite(minutes) && minutes >= 0))];
+  }
+  return [];
+}
+
+function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, colorMap = {}, {
+  fullResync = false,
+  calTimeZone = null,
+  calDefaultReminders = [],
+  calWritable = false,
+} = {}) {
   // Auf den meldenden Kalender eingegrenzt: wird ein Event in Google von Kalender
   // A nach B verschoben, meldet A es als 'cancelled', während B es als aktiv
   // liefert - bei beiden dieselbe Event-ID. Ein ID-only-DELETE löscht dann je
@@ -957,6 +993,33 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
       assignDefaultToEvent(db.get(), inserted.lastInsertRowid, defaultAssignee);
     }
 
+    const reminderEvent = db.get().prepare(
+      'SELECT * FROM calendar_events WHERE id = ?'
+    ).get(existing?.id || db.get().prepare(
+      "SELECT id FROM calendar_events WHERE external_calendar_id = ? AND external_source = 'google'"
+    ).get(item.id)?.id);
+    const remoteOffsets = googleReminderOffsets(item, calDefaultReminders);
+    const remoteReminderAts = reminderAtsFromOffsets(
+      reminderEvent,
+      remoteOffsets,
+      db.get(),
+      { allDayTime: '00:00' },
+    );
+    const explicitRemoteReminder = remoteReminderAts.length > 0;
+    const reminderApplied = applyRemoteEventReminders(
+      db.get(),
+      reminderEvent,
+      remoteReminderAts,
+      { explicit: explicitRemoteReminder },
+    );
+    if (reminderApplied && !explicitRemoteReminder
+        && reminderEvent?.reminder_suppressed !== 1 && calWritable) {
+      const refreshed = db.get().prepare(
+        'SELECT * FROM calendar_events WHERE id = ?'
+      ).get(reminderEvent.id);
+      outbound.markReminderOutbound(refreshed, { writable: calWritable });
+    }
+
     // EXDATEs, die Google an der Serie selbst führt, als Ausnahmen ablegen.
     if (rrule) {
       const row = findLocal.get(item.id);
@@ -1081,6 +1144,16 @@ function normalizeRecurrenceUntil(rule, allDay) {
   }).join(';');
 }
 
+function googleReminderOverrides(event) {
+  if (Array.isArray(event?.reminder_overrides)) return event.reminder_overrides;
+  if (!event?.id) return [];
+  return ownerEventReminderAts(db.get(), event)
+    .map((remindAt) => reminderOffsetMinutes(event, remindAt, db.get(), { allDayTime: '00:00' }))
+    .filter((minutes) => Number.isFinite(minutes) && minutes >= 0)
+    .slice(0, 5)
+    .map((minutes) => ({ method: 'popup', minutes }));
+}
+
 /**
  * Lokales Event → Google-Event-Body.
  * @param {object} event
@@ -1094,6 +1167,10 @@ function localEventToGoogle(event, colorMap = {}, timeZone = householdTimeZone(n
     summary:     event.title,
     description: event.description || undefined,
     location:    event.location    || undefined,
+    reminders: {
+      useDefault: false,
+      overrides: googleReminderOverrides(event),
+    },
   };
 
   // Event-Farbe verlustbehaftet auf die nächste der 11 Google-colorIds mappen.

@@ -6,7 +6,7 @@ import { toggleRowHtml } from '/settings/components.js';
 import { getPreferences, savePreferences } from '/settings/preferences-cache.js';
 
 /**
- * Standardwerte, die nur für die eigenen neuen Termine gelten. `preferences.js`
+ * Standardwerte für die eigenen Kalender-Termine. `preferences.js`
  * schreibt beide Keys per `cfgUserSet` ausdrücklich pro Nutzer, das Blatt lag
  * aber im adminOnly-`modules-calendar` - 5 von 6 Familienmitgliedern kamen nie
  * an ihre eigenen Vorgaben (Critique 2026-07-27). Haushaltweites (Wochenstart,
@@ -17,6 +17,7 @@ import { getPreferences, savePreferences } from '/settings/preferences-cache.js'
 const DEFAULT_REMINDER_OPTIONS = [
   { value: 0,     labelKey: 'reminders.offsetAtTime' },
   { value: 15,    labelKey: 'reminders.offset15min' },
+  { value: 30,    labelKey: 'reminders.offset30min' },
   { value: 60,    labelKey: 'reminders.offset1hour' },
   { value: 1440,  labelKey: 'reminders.offset1day' },
   { value: 2880,  labelKey: 'reminders.offset2days' },
@@ -88,6 +89,9 @@ function renderPage(container, preferences, syncTargets = null) {
       : [],
   );
   const assignMe = !!preferences.calendar_default_assign_me;
+  const allDayTime = /^\d{2}:\d{2}$/.test(preferences.calendar_default_all_day_reminder_time || '')
+    ? preferences.calendar_default_all_day_reminder_time
+    : '09:00';
   // Das Ziel-Feld erscheint nur, wenn es etwas zu wählen gibt: ohne verbundenen
   // Google-, CalDAV- oder Outlook-Kalender bliebe ein Dropdown mit der einzigen
   // Option "Lokal speichern". Sobald ein Ziel gespeichert ist, trägt es
@@ -131,6 +135,12 @@ ${targetField}
           <div id="calendar-default-reminders" class="reminder-preset-group" role="group" aria-labelledby="calendar-default-reminders-label">
             ${checkboxes}
           </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="calendar-default-all-day-time">${t('settings.calendarDefaultAllDayReminderTimeLabel')}</label>
+          <input class="form-input" type="time" id="calendar-default-all-day-time" value="${esc(allDayTime)}" step="60">
+          <p class="form-hint">${t('settings.calendarDefaultAllDayReminderTimeHint')}</p>
         </div>
 
         <p class="form-hint">${t('settings.calendarDefaultsScopeHint')}</p>
@@ -186,8 +196,27 @@ function bindEvents(container) {
   }
 
   const remindersBox = container.querySelector('#calendar-default-reminders');
+  const allDayTimeInput = container.querySelector('#calendar-default-all-day-time');
+  let persisted = remindersBox ? collectDefaultReminders(remindersBox) : [];
+  let persistedAllDayTime = allDayTimeInput?.value || '09:00';
+
+  allDayTimeInput?.addEventListener('change', async () => {
+    const value = allDayTimeInput.value;
+    if (!/^\d{2}:\d{2}$/.test(value)) return;
+    allDayTimeInput.disabled = true;
+    try {
+      await savePreferences({ calendar_default_all_day_reminder_time: value });
+      persistedAllDayTime = value;
+      window.yuvomi?.showToast(t('settings.calendarDefaultsSaved'), 'success');
+    } catch (error) {
+      allDayTimeInput.value = persistedAllDayTime;
+      window.yuvomi?.showToast(error.message || t('common.errorGeneric'), 'danger');
+    } finally {
+      if (allDayTimeInput.isConnected) allDayTimeInput.disabled = false;
+    }
+  });
+
   if (!remindersBox) return;
-  let persisted = collectDefaultReminders(remindersBox);
 
   // Debounced: schnelle Mehrfach-Auswahl erzeugt EIN Speichern + EINEN Toast,
   // statt einen pro Klick. Rollback auf den letzten persistierten Stand bei Fehler.

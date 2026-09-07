@@ -18,6 +18,7 @@ import { eventDateTimeFields } from '../utils/ics-datetime.js';
 import { householdTimeZone } from '../utils/timezone.js';
 import * as db from '../db.js';
 import { nearestIcalColorName } from '../utils/ical-color.js';
+import { icalAlarmLinesForEvent } from './calendar-event-reminders.js';
 
 const log = createLogger('CalDAVOutbound');
 
@@ -52,6 +53,7 @@ export function icsFieldsForEvent(event, householdZone = null) {
     RRULE:       event.recurrence_rule || null,
     DTSTART:     when.dtstart,
     DTEND:       when.dtend,
+    VALARMS:     icalAlarmLinesForEvent(event, db.get()),
   };
 
   const colorName = nearestIcalColorName(event.color);

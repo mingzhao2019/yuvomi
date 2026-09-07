@@ -37,6 +37,35 @@ test('parseICS: UTC datetime', () => {
   assert(ev.allDay  === false, 'allDay');
 });
 
+test('parseICS: DISPLAY VALARM relativ und absolut', () => {
+  const ics = [
+    'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:alarm@x', 'SUMMARY:Meeting',
+    'DTSTART;TZID=Europe/Berlin:20260615T140000',
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:-PT15M', 'END:VALARM',
+    'BEGIN:VALARM', 'ACTION:DISPLAY',
+    'TRIGGER;VALUE=DATE-TIME:20260615T120000Z', 'END:VALARM',
+    'BEGIN:VALARM', 'ACTION:EMAIL', 'TRIGGER:-PT5M', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+  const [ev] = parseICS(ics);
+  assert(ev.alarms.length === 2, `alarms: ${JSON.stringify(ev.alarms)}`);
+  assert(ev.alarms[0].triggerType === 'relative' && ev.alarms[0].minutesBeforeStart === 15, 'relative alarm');
+  assert(ev.alarms[1].triggerType === 'absolute' && ev.alarms[1].at === '2026-06-15T12:00:00Z', 'absolute alarm');
+});
+
+test('parseICS: RELATED=END bleibt am relativen VALARM erhalten', () => {
+  const ics = [
+    'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:end-alarm@x', 'SUMMARY:Meeting',
+    'DTSTART:20260615T140000Z', 'DTEND:20260615T150000Z',
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER;RELATED=END:-PT15M', 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+  const [ev] = parseICS(ics);
+  assert(ev.alarms.length === 1, `alarms: ${JSON.stringify(ev.alarms)}`);
+  assert(ev.alarms[0].related === 'END', `related: ${ev.alarms[0].related}`);
+  assert(ev.alarms[0].minutesBeforeStart === 15, 'relative alarm offset');
+});
+
 test('expandRRULE: WEEKLY 3-Wochen-Fenster', () => {
   const vevent = {
     uid: 'weekly@x', summary: 'Wöchentlich', description: null, location: null,

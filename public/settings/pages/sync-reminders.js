@@ -52,22 +52,26 @@ function showToast(message, tone = 'default') {
   window.yuvomi?.showToast(message, tone);
 }
 
-function renderPage(container) {
-  container.replaceChildren();
-  container.insertAdjacentHTML('beforeend', `
-    <section class="settings-section">
-      <h2 class="settings-section__title">${t('settings.caldavRemindersToggle')}</h2>
-      <div class="settings-card">
-        <p class="settings-card-description">${t('settings.caldavRemindersHint')}</p>
-        <div class="settings-form-actions">
-          <button type="button" class="btn btn--primary" id="reminders-sync-btn">
-            ${t('settings.caldavSyncReminders')}
-          </button>
-        </div>
-        <div id="reminders-accounts" class="settings-sync-accounts"></div>
+function buildReminderSection() {
+  const section = document.createElement('section');
+  section.className = 'settings-section';
+  section.insertAdjacentHTML('beforeend', `
+    <h2 class="settings-section__title">${t('settings.caldavRemindersToggle')}</h2>
+    <div class="settings-card">
+      <p class="settings-card-description">${t('settings.caldavRemindersHint')}</p>
+      <div class="settings-form-actions">
+        <button type="button" class="btn btn--primary" id="reminders-sync-btn">
+          ${t('settings.caldavSyncReminders')}
+        </button>
       </div>
-    </section>
+      <div id="reminders-accounts" class="settings-sync-accounts"></div>
+    </div>
   `);
+  return section;
+}
+
+function renderPage(container) {
+  container.replaceChildren(buildReminderSection());
 }
 
 function buildTargetSelect(account, list) {
@@ -275,6 +279,15 @@ function bindSyncButton(container) {
       syncBtn.disabled = false;
     }
   });
+}
+
+/** Mount the CalDAV VTODO part inside the combined Provider settings page. */
+export async function renderReminderSyncSection(container) {
+  const section = buildReminderSection();
+  container.appendChild(section);
+  bindSyncButton(section);
+  await loadAccounts(section);
+  window.lucide?.createIcons({ el: section });
 }
 
 export async function render(container, { user }) {
