@@ -445,6 +445,20 @@ test('page.composition wird normalisiert und page.width folgt dem Modus', () => 
   assert.equal(norm({ navigation: 'standard', responsive: 'standard' }).navigation, 'standard', 'standard bleibt standard');
 });
 
+test('Manifestformat: fehlende Version bleibt kompatibel, zukünftige Versionen werden abgewiesen', () => {
+  const norm = (manifest) => svc.normalizeManifest({ id: 'x-mod', entry: 'index.js', ...manifest }, 'x-mod');
+  assert.equal(norm({}).manifestVersion, SUPPORTED_MANIFEST_VERSION);
+  assert.throws(
+    () => norm({ manifestVersion: SUPPORTED_MANIFEST_VERSION + 1 }),
+    (err) => /manifestVersion/.test(err.message)
+      && err.message.includes(String(SUPPORTED_MANIFEST_VERSION + 1))
+      && err.message.includes(String(SUPPORTED_MANIFEST_VERSION)),
+  );
+  for (const value of ['two', 0, -1, 1.5]) {
+    assert.throws(() => norm({ manifestVersion: value }), /manifestVersion/);
+  }
+});
+
 // ── Die Speicherform einer Widget-Id (#1013) ─────────────────────────────────
 //
 // DER EIGENTLICHE GUARD IST DER ERSTE: was `fullWidgetId()` baut, muss

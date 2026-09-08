@@ -73,11 +73,30 @@ function modulePublicUrl(id, relPath) {
   return `/api/v1/modules/assets/${encodeURIComponent(id)}/${relPath.split('/').map(encodeURIComponent).join('/')}`;
 }
 
-function normalizeManifest(raw, folderName) {
+// Exportiert fuer test/test-modules.js: der Formatvertrag wird an DIESER
+// Funktion geprueft, nicht ueber den Umweg des Dateisystems.
+export function normalizeManifest(raw, folderName) {
   const manifest = raw && typeof raw === 'object' ? raw : {};
   const id = String(manifest.id || folderName || '').trim();
   if (!ID_RE.test(id)) throw new Error('module.json must define a lowercase id using letters, numbers and hyphens.');
   if (id !== folderName) throw new Error('module id must match the folder name.');
+
+  // `manifestVersion` beschreibt das Manifestformat, nicht die Modulversion.
+  // Fehlende Angaben bleiben mit dem bisher unterstützten Format kompatibel;
+  // unbekannte oder zukünftige Formate werden dagegen nicht halb geladen.
+  const rawManifestVersion = manifest.manifestVersion;
+  const manifestVersion = rawManifestVersion === undefined || rawManifestVersion === null
+    ? SUPPORTED_MANIFEST_VERSION
+    : Number(rawManifestVersion);
+  if (!Number.isInteger(manifestVersion) || manifestVersion < 1) {
+    throw new Error('module.json manifestVersion must be a positive integer.');
+  }
+  if (manifestVersion > SUPPORTED_MANIFEST_VERSION) {
+    throw new Error(
+      `module.json declares manifestVersion ${manifestVersion}, but this Yuvomi supports up to `
+      + `${SUPPORTED_MANIFEST_VERSION}. Update Yuvomi, or use a build of the module for this version.`,
+    );
+  }
 
   const entry = String(manifest.entry || '').trim();
   if (!isSafeRelativeFile(entry) || !entry.endsWith('.js')) {
@@ -133,6 +152,7 @@ function normalizeManifest(raw, folderName) {
     id,
     name,
     version,
+    manifestVersion,
     description,
     icon,
     accent,
