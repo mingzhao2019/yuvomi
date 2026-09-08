@@ -558,8 +558,12 @@ let state = {
   defaultDuration: 60,     // Standard-Termindauer (Minuten) aus den Präferenzen
   defaultReminders: [],    // persönliche Standard-Erinnerungen
   defaultAllDayReminderTime: '09:00',
-  currentUserId: null,     // eigene User-ID für „Mir zugewiesen"-Filter
+  currentUserId: null,     // eigene User-ID für „Mir zugewiesen“-Filter
   assignedToMe:  false,    // nur Termine/Aufgaben zeigen, die mir zugewiesen sind
+  // Leeres Set bedeutet „alle Personen“; sonst werden nur ausgewählte
+  // Zuweisungen angezeigt. Der Zustand wird im persönlichen Kalenderfilter
+  // gespeichert und darf deshalb nicht erst beim Öffnen des Blatts entstehen.
+  people:        new Set(),
 };
 let _container = null;
 const calendarLoads = createCalendarLoadCoordinator();
@@ -966,6 +970,15 @@ function belongsToMe(item) {
   return (item.assigned_users ?? []).some((u) => u.id === state.currentUserId);
 }
 
+function matchesPeopleFilter(item) {
+  if (state.people.size === 0) return true;
+  return (item.assigned_users ?? []).some((u) => state.people.has(Number(u.id)));
+}
+
+function passesPersonFilters(item) {
+  return belongsToMe(item) && matchesPeopleFilter(item);
+}
+
 /**
  * True, solange die Ebene sichtbar ist, zu der ein Termin gehoert (#778).
  *
@@ -996,7 +1009,7 @@ function eventsOnDay(dateStr) {
         return start <= dateStr && end >= dateStr;
       });
   const layered = state.layerBirthdays ? list : list.filter(isVisibleLayer);
-  return state.assignedToMe ? layered.filter(belongsToMe) : layered;
+  return layered.filter(passesPersonFilters);
 }
 
 /**
@@ -1136,7 +1149,7 @@ function tasksOnDay(dateStr) {
   const list = _dayIndex.active
     ? (_dayIndex.tasks.get(dateStr) ?? [])
     : state.tasks.filter((t) => (t.due_date || taskReminderDate(t)) === dateStr);
-  return state.assignedToMe ? list.filter(belongsToMe) : list;
+  return list.filter(passesPersonFilters);
 }
 
 /** Holiday entries that overlap a given date (respects layer toggles). */
@@ -1541,6 +1554,7 @@ export async function render(container, { user }) {
   state.monthTitles = localStorage.getItem(MONTH_TITLES_KEY) === 'true';
   state.currentUserId = user?.id ?? null;
   state.assignedToMe  = localStorage.getItem(ASSIGNED_TO_ME_KEY) === '1';
+  state.people = restorePeopleFilter(state.users);
 
   renderToolbar();
   renderView();
