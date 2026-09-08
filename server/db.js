@@ -7341,7 +7341,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 176,
+    version: 183,
     description: 'Health: optional basal body temperature per day log, for temperature-shift ovulation confirmation',
     // Ein Skalarwert je Tag wie flow/mood - keine eigene Tabelle noetig, die
     // Zeile existiert schon. Kein CHECK auf basal_temp_unit: dieselbe
