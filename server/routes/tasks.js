@@ -1872,7 +1872,9 @@ router.put('/:id', (req, res) => {
  */
 function recurrenceFollowupOf(taskId) {
   return db.get().prepare(
-    'SELECT * FROM tasks WHERE recurrence_origin_id = ? ORDER BY id LIMIT 1'
+    `SELECT * FROM tasks
+      WHERE recurrence_origin_id = ? AND parent_task_id IS NULL
+      ORDER BY id LIMIT 1`
   ).get(taskId) ?? null;
 }
 
