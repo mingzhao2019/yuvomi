@@ -3842,7 +3842,9 @@
         "paymentMethodApplePay": "Apple Pay",
         "paymentMethodGooglePay": "Google Pay",
         "paymentMethodBankTransfer": "Bank transfer",
-        "paymentMethodOther": "Other"
+        "paymentMethodOther": "Other",
+        "accountUsernameLabel": "Registered under",
+        "accountUsernameHint": "E-mail address or username. Not a password field - Yuvomi does not store passwords."
     },
     "health": {
         "tabs": {
@@ -4760,7 +4762,9 @@
         "icsTrackedDateSummary": "{{label}}: {{name}}",
         "icsCalendarName": "Yuvomi Inventory",
         "removeBookingAction": "Remove \"{{title}}\"",
-        "photoTooLarge": "Photo is still too large after resizing."
+        "photoTooLarge": "Photo is still too large after resizing.",
+        "accountUsernameLabel": "Registered under",
+        "accountUsernameHint": "E-mail address or username. Not a password field - Yuvomi does not store passwords."
     },
     "documentAttach": {
         "label": "Attachments",

@@ -146,7 +146,7 @@ function loadItems({ category, locationId, status, q } = {}, userId, admin = fal
   if (locationId !== undefined) { clauses.push('ii.location_id = @locationId'); params.locationId = locationId; }
   if (status !== undefined) { clauses.push('ii.status = @status'); params.status = status; }
   if (q) {
-    clauses.push('(ii.name LIKE @q OR ii.brand LIKE @q OR ii.model LIKE @q OR ii.serial_number LIKE @q)');
+    clauses.push('(ii.name LIKE @q OR ii.brand LIKE @q OR ii.model LIKE @q OR ii.serial_number LIKE @q OR ii.account_username LIKE @q)');
     params.q = `%${q}%`;
   }
   const where = `WHERE ${clauses.join(' AND ')}`;
@@ -272,6 +272,16 @@ function validateItemFields(body) {
   const vVendor = str(body.vendor, 'Haendler', { max: MAX_SHORT, required: false });
   results.push(vVendor);
   values.vendor = vVendor.value;
+
+  // Unter welchem Konto der Gegenstand registriert ist (#1004) - eine Adresse
+  // oder ein Benutzername, KEIN Passwort. Deshalb steht das Feld hier bei den
+  // gewoehnlichen Textspalten und nicht in einem eigenen, verschluesselten
+  // Topf: ein Benutzername ohne sein Passwort ist ein Telefonbucheintrag.
+  // Haushaltsweit sichtbar wie jede andere Spalte dieser Tabelle - inventory_items
+  // hat weder owner_id noch visibility (#467, Entscheidung in #1004).
+  const vAccount = str(body.account_username, 'Konto', { max: MAX_SHORT, required: false });
+  results.push(vAccount);
+  values.account_username = vAccount.value;
 
   if (body.warranty_months === null || body.warranty_months === '' || body.warranty_months === undefined) {
     values.warranty_months = null;
@@ -401,14 +411,14 @@ router.post('/', (req, res) => {
           (name, brand, model, serial_number, category, location_id, purchase_date,
            purchase_price, sold_date, sold_price, retired_date, target_days,
            currency, vendor, warranty_months, condition, status, notes,
-           photo_data, created_by, asset_scope, visibility)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           photo_data, account_username, created_by, asset_scope, visibility)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         values.name, values.brand, values.model, values.serial_number, values.category,
         values.location_id, values.purchase_date, values.purchase_price, values.sold_date,
         values.sold_price, values.retired_date, values.target_days, values.currency,
         values.vendor, values.warranty_months, values.condition, values.status, values.notes,
-        values.photo_data, userId, assetScope, visibility,
+        values.photo_data, values.account_username, userId, assetScope, visibility,
       );
 
       replaceAssignments(inserted.lastInsertRowid, assigned.value);
@@ -489,14 +499,14 @@ router.put('/:id', (req, res) => {
         SET name = ?, brand = ?, model = ?, serial_number = ?, category = ?, location_id = ?,
             purchase_date = ?, purchase_price = ?, sold_date = ?, sold_price = ?,
             retired_date = ?, target_days = ?, currency = ?, vendor = ?,
-            warranty_months = ?, condition = ?, status = ?, notes = ?, photo_data = ?, visibility = ?
+            warranty_months = ?, condition = ?, status = ?, notes = ?, photo_data = ?, account_username = ?, visibility = ?
         WHERE id = ?
       `).run(
         values.name, values.brand, values.model, values.serial_number, values.category,
         values.location_id, values.purchase_date, values.purchase_price, values.sold_date,
         values.sold_price, values.retired_date, values.target_days, values.currency,
         values.vendor, values.warranty_months, values.condition, values.status, values.notes,
-        values.photo_data, visibility, item.id,
+        values.photo_data, values.account_username, visibility, item.id,
       );
 
       if (assigned.value !== undefined) replaceAssignments(item.id, assigned.value);

@@ -7801,6 +7801,14 @@ const MIGRATIONS = [
       ALTER TABLE invites ADD COLUMN permissions TEXT;
     `,
   },
+  {
+    version: 198,
+    description: 'Inventory and subscriptions: store the account username',
+    up: `
+      ALTER TABLE inventory_items ADD COLUMN account_username TEXT;
+      ALTER TABLE budget_subscriptions ADD COLUMN account_username TEXT;
+    `,
+  },
 ];
 
 /**
