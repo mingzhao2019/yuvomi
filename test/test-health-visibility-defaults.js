@@ -82,7 +82,7 @@ async function postVital(type, extra = {}) {
 
 // ── Der Bestandsfall ────────────────────────────────────────────────────────
 
-test('ohne jede Wahl bleibt alles privat - wie vor Migration 172', async () => {
+test('ohne jede Wahl bleibt alles privat - wie vor Migration 185', async () => {
   asA();
   assert.equal((await postVital('bp')).visibility, 'private');
   assert.equal((await postVital('mood')).visibility, 'private');

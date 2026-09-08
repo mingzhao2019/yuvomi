@@ -1167,9 +1167,9 @@ const MIGRATIONS_SQL = {
       ON access_permissions(subject_type, subject_id);
   `,
 
-  // SQL-String für Migration v172 (gespiegelt aus db.js MIGRATIONS):
+  // SQL-String für Migration v185 (gespiegelt aus db.js MIGRATIONS):
   // Persoenliche Standard-Sichtbarkeit je Gesundheitsbereich (#958).
-  172: `
+  185: `
     CREATE TABLE IF NOT EXISTS health_visibility_defaults (
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       scope_key  TEXT    NOT NULL,

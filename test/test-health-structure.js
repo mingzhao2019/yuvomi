@@ -111,7 +111,7 @@ const EXPECTED = [
   'PUT /cycle/settings',
   'PATCH /cycle/visibility',
   'GET /export/cycle',
-  // Zyklus-ICS-Feed-Token (Migration 178)
+  // Zyklus-ICS-Feed-Token (Migration 184)
   'GET /cycle/feed',
   'POST /cycle/feed/regenerate',
   'DELETE /cycle/feed',
