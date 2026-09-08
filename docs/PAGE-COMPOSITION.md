@@ -2,7 +2,7 @@
 
 Spatial composition standard for Yuvomi application pages and third-party extension modules.
 
-**Visual language** lives in [`DESIGN.md`](DESIGN.md) and [`public/styles/tokens.css`](public/styles/tokens.css).  
+**Visual language** lives in [`DESIGN.md`](DESIGN.md) and [`public/styles/tokens.css`](public/styles/tokens.css).
 **Spatial composition** lives here, in layout primitives, and in [`public/utils/page-layout.js`](public/utils/page-layout.js).
 
 ```text
