@@ -477,7 +477,6 @@ router.put('/:id', (req, res) => {
 
     // A rejected in-flight attachment must not leave the item fields or its
     // reminders half-updated.
-    const userId = req.authUserId || req.session.userId;
     if (req.body.attachment_document_ids !== undefined) {
       assertDocumentLinkTargetsAvailable(db.get(), req.body.attachment_document_ids, userId);
     }
