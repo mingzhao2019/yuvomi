@@ -5,6 +5,7 @@
  */
 
 import { api, auth } from '/api.js';
+import { createPageController } from '/utils/page-lifecycle.js';
 import { canSeeWidget, moduleAccess } from '/permissions.js';
 import { t, formatDate, formatTime, timeSuffix, getLocale, getNumberFormat } from '/i18n.js';
 import { getReadableTextColor, AVATAR_FALLBACK_COLOR } from '/utils/color.js';
@@ -4045,9 +4046,18 @@ export async function maybeUpdateAutoLocation({ autoLocateEnabled, geolocation, 
   }
 }
 
-export async function render(container, { user }) {
+export async function render(container, { user, signal: routeSignal = null } = {}) {
   _fabController?.abort();
-  _fabController = new AbortController();
+  // Zwei Achsen, ein Controller (#976/#977): das Router-Signal faellt beim
+  // Verlassen der Seite, der eigene Controller beim naechsten eigenen Aufbau.
+  // Alles, was dieser Aufbau verdrahtet, haengt an `signal` - nicht am
+  // Modul-Feld, sonst registrierte ein ueberholter Aufbau seine Timer am
+  // Controller des neueren. Ein verspaeteter Neuaufbau nach dem Verlassen
+  // zeichnet gar nichts mehr.
+  if (routeSignal?.aborted) return;
+  const controller = createPageController(routeSignal);
+  _fabController = controller;
+  const { signal } = controller;
 
   // Der Wand-Modus ist ein Zustand DIESER Seite, kein zweiter Ort: die Route,
   // die Daten, der stille Refresh und die Echo-Regel bleiben dieselben - nur
@@ -4065,7 +4075,7 @@ export async function render(container, { user }) {
     ${wallMode ? '' : renderFab()}
   `);
 
-  const rerender = () => render(container, { user });
+  const rerender = () => render(container, { user, signal: routeSignal });
 
   // DER TIMER HAENGT NICHT AN DEN DATEN (Review zu #844). Die Wandflaeche wird
   // erst verdrahtet, wenn das Dashboard geladen hat - der Timer aber ist von
@@ -4078,11 +4088,11 @@ export async function render(container, { user }) {
   // nach dem Laden bleibt und ersetzt diesen hier - `wireWallTimer` raeumt
   // seinen vorigen Takt selbst ab.
   if (wallMode) {
-    wireWallTimer(container.querySelector('.wall'), rerender, _fabController.signal);
+    wireWallTimer(container.querySelector('.wall'), rerender, signal);
     // Der Ausstieg gehoert zur selben Sorte: er haengt an nichts, was geladen
     // wird. Einmal verdrahtet, ueber den Container - er ueberlebt das zweite
     // Rendern und braucht keinen zweiten Aufruf.
-    wireWallExit(container, rerender, _fabController.signal);
+    wireWallExit(container, rerender, signal);
   }
 
   let data         = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], shoppingLists: [], birthdays: [], countdowns: [], users: [], budget: {}, rewards: {}, health: {}, housekeeping: {}, assets: {} };
@@ -4121,6 +4131,9 @@ export async function render(container, { user }) {
       api.get(`/weather?lang=${encodeURIComponent(getLocale())}`).catch(() => ({ data: null })),
       api.get('/preferences').catch(() => ({ data: {} })),
     ]);
+    // Ueberholt oder verlassen, waehrend die Antworten unterwegs waren (#977):
+    // dieser Aufbau gehoert niemandem mehr und faesst die Flaeche nicht an.
+    if (signal.aborted) return;
     data         = dashRes;
     /* Die Zahlen an den Nav-Zielen und Modulkacheln kommen aus derselben
      * Antwort (#868). Sie hier hereinzureichen spart die zweite Aggregation,
@@ -4155,6 +4168,7 @@ export async function render(container, { user }) {
     if (dashboardQuery(widgetConfig) !== layoutHintQuery('/dashboard')) {
       try {
         const filtered = await api.get(dashboardQuery(widgetConfig));
+        if (signal.aborted) return;
         if (Array.isArray(filtered?.upcomingEvents)) {
           filtered.upcomingEvents = filtered.upcomingEvents.map(localizeBirthdayEvent);
         }
@@ -4224,6 +4238,9 @@ export async function render(container, { user }) {
   if (!loadFailed && widgetConfig.some((w) => w.id === 'schedule' && w.visible)) {
     await ensureScheduleSlice();
   }
+  // Auch die Nachlade-Runden koennen von einem Verlassen oder Neuaufbau
+  // ueberholt worden sein (#977).
+  if (signal.aborted) return;
 
 
   // Einziger Persist-Pfad für Inline- UND Modal-Speichern. Legt vor dem Schreiben
@@ -4557,12 +4574,17 @@ export async function render(container, { user }) {
   }
 
   function rebuildDashboard(cfg) {
+    // Der eine Engpass fuer jeden verspaeteten Neuaufbau (#977): eine Antwort,
+    // die nach dem Verlassen der Seite oder nach dem naechsten render()
+    // eintrifft, darf die Flaeche nicht mehr anfassen - sonst ueberschreibt der
+    // aeltere Stand den neueren.
+    if (signal.aborted) return;
     const shell = container.querySelector('#dashboard-shell');
     if (!shell) return;
     if (wallMode) {
       setHtml(shell, renderWallSurface(data, weather, { failed: loadFailed, updatedAt: lastLoadedAt }));
       if (window.lucide) window.lucide.createIcons({ el: shell });
-      wireWallSurface(container, rerender, _fabController.signal);
+      wireWallSurface(container, rerender, signal);
       return;
     }
     if (loadFailed) {
@@ -4571,7 +4593,7 @@ export async function render(container, { user }) {
         ${renderDashboardError(loadErrorStatus)}
       `);
       if (window.lucide) window.lucide.createIcons({ el: shell });
-      container.querySelector('#dashboard-retry')?.addEventListener('click', rerender, { signal: _fabController.signal });
+      container.querySelector('#dashboard-retry')?.addEventListener('click', rerender, { signal: signal });
       return;
     }
     // Signature-„Heute"-Masthead: Begrüßung und Glance-Cockpit teilen sich EIN
@@ -4596,16 +4618,16 @@ export async function render(container, { user }) {
     // Retry einer isolierten Widget-Fehlerkachel: da /dashboard aggregiert lädt,
     // ist „erneut versuchen" ein voller Neuaufbau (wie der Page-Level-Retry).
     container.querySelectorAll('[data-widget-retry]').forEach((btn) =>
-      btn.addEventListener('click', rerender, { signal: _fabController.signal }));
+      btn.addEventListener('click', rerender, { signal: signal }));
     if (window.lucide) window.lucide.createIcons({ el: shell });
     wireWeatherRefresh(container, (updatedWeather) => {
       weather = updatedWeather;
       rebuildDashboard(cfg);
-    });
+    }, signal);
     container.querySelector('#dashboard-wall-enter')?.addEventListener('click', () => {
       enterWallMode();
       rerender();
-    }, { signal: _fabController.signal });
+    }, { signal: signal });
     container.querySelector('#dashboard-customize-btn')?.addEventListener('click', () => {
       isCustomizing = !isCustomizing;
       if (!isCustomizing) {
@@ -4613,11 +4635,11 @@ export async function render(container, { user }) {
         return;
       }
       rebuildDashboard(widgetConfig);
-    }, { signal: _fabController.signal });
-    container.querySelector('#dashboard-customize-save')?.addEventListener('click', saveDashboardConfig, { signal: _fabController.signal });
-    container.querySelector('#dashboard-customize-cancel')?.addEventListener('click', cancelDashboardConfig, { signal: _fabController.signal });
-    container.querySelector('#dashboard-customize-reset')?.addEventListener('click', resetDashboardConfig, { signal: _fabController.signal });
-    container.querySelector('#dashboard-customize-publish')?.addEventListener('click', publishHouseholdDefault, { signal: _fabController.signal });
+    }, { signal: signal });
+    container.querySelector('#dashboard-customize-save')?.addEventListener('click', saveDashboardConfig, { signal: signal });
+    container.querySelector('#dashboard-customize-cancel')?.addEventListener('click', cancelDashboardConfig, { signal: signal });
+    container.querySelector('#dashboard-customize-reset')?.addEventListener('click', resetDashboardConfig, { signal: signal });
+    container.querySelector('#dashboard-customize-publish')?.addEventListener('click', publishHouseholdDefault, { signal: signal });
     wireDashboardEditMode();
     void mountExtensionWidgets(shell, cfg, user);
   }
@@ -4641,7 +4663,7 @@ export async function render(container, { user }) {
     // test-frontend-audit.js).
     findPageFab('fab-main')?.closest('.page-fab-group')?.remove();
   } else {
-    initFab(_fabController.signal);
+    initFab(signal);
   }
 
   // SELBSTHEILUNG STATT RETRY-KNOPF. Am Wandtablet drueckt niemand auf
@@ -4650,7 +4672,7 @@ export async function render(container, { user }) {
   // der Wand eine Viertelstunde Falschauskunft.
   if (wallMode && loadFailed) {
     const healTimerId = setTimeout(rerender, WALL_HEAL_MS);
-    _fabController.signal.addEventListener('abort', () => clearTimeout(healTimerId));
+    signal.addEventListener('abort', () => clearTimeout(healTimerId));
   }
 
   // Stiller Daten-Refresh (Paket 2, Critique P4): Inhaltsdaten veralteten sonst
@@ -4666,6 +4688,7 @@ export async function render(container, { user }) {
     refreshInFlight = true;
     try {
       const fresh = await api.get(dashboardQuery(widgetConfig));
+      if (signal.aborted) return;
       if (Array.isArray(fresh?.upcomingEvents)) {
         fresh.upcomingEvents = fresh.upcomingEvents.map(localizeBirthdayEvent);
       }
@@ -4684,7 +4707,7 @@ export async function render(container, { user }) {
   const refreshTimerId = setInterval(() => {
     if (!document.hidden) refreshDashboardData();
   }, 15 * 60 * 1000);
-  _fabController.signal.addEventListener('abort', () => clearInterval(refreshTimerId));
+  signal.addEventListener('abort', () => clearInterval(refreshTimerId));
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
@@ -4708,13 +4731,13 @@ export async function render(container, { user }) {
     updateClockWidget(container);
     // Inhalte ziehen nach, nicht nur Gruß/Datum/Uhr (Paket 2).
     refreshDashboardData();
-  }, { signal: _fabController.signal });
+  }, { signal: signal });
 
   // Der Minutentakt der Uhr traegt die Nachtabsenkung mit: um 22:00 und um
   // 06:00 muss die Flaeche umschalten, wenn es so weit ist - nicht erst beim
   // naechsten Laden. Ein zweiter Timer nur dafuer waere ein zweiter Takt fuer
   // dieselbe Minute.
-  startClockTicker(container, _fabController.signal, wallMode ? () => syncWallMode(location.pathname) : null);
+  startClockTicker(container, signal, wallMode ? () => syncWallMode(location.pathname) : null);
 
   // 30-Minuten Auto-Refresh für Wetter (inkl. optionaler Standort-Aktualisierung).
   // Anker ist der Datensatz, nicht der Karten-Button: seit dem Masthead-Umzug
@@ -4729,13 +4752,14 @@ export async function render(container, { user }) {
           putPreferences: (body) => api.put('/preferences', body),
         });
         const res = await api.get(`/weather?lang=${encodeURIComponent(getLocale())}`).catch(() => ({ data: null }));
+        if (signal.aborted) return;
         weather = res.data ?? null;
         rebuildDashboard(widgetConfig);
       } catch { /* Hintergrund-Timer: bewusst still — der Nutzer hat nichts
                    angestoßen, ein Toast alle 30 Min wäre reiner Lärm. */ }
     };
     const timerId = setInterval(doAutoRefresh, 30 * 60 * 1000);
-    _fabController.signal.addEventListener('abort', () => clearInterval(timerId));
+    signal.addEventListener('abort', () => clearInterval(timerId));
     if (weatherAutoLocate) doAutoRefresh();
   }
 
@@ -4760,7 +4784,12 @@ export async function render(container, { user }) {
 
 export const __test = { buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderFamilyWidget, renderAssetsWidget, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel };
 
-function wireWeatherRefresh(container, onUpdated = null) {
+// `signal` ist der Controller des Aufbaus, der die Wetterkarte gezeichnet hat
+// (#976/#977). Vorher las diese Funktion das Modul-Feld `_fabController` -
+// ein ueberholter Aufbau haengte seinen Klick damit an den Controller des
+// neueren, und der Rauchtest im Browser fand den Zugriff als ReferenceError,
+// nachdem das Feld aus render() verschwunden war. Der Aufrufer reicht es herein.
+function wireWeatherRefresh(container, onUpdated = null, signal) {
   const refreshBtn = container.querySelector('#weather-refresh-btn');
   if (!refreshBtn) return;
   const doWeatherRefresh = async () => {
@@ -4768,6 +4797,7 @@ function wireWeatherRefresh(container, onUpdated = null) {
     refreshBtn.classList.add('weather-widget__refresh--spinning');
     try {
       const res = await api.get(`/weather?lang=${encodeURIComponent(getLocale())}`).catch(() => ({ data: null }));
+      if (signal.aborted) return;
       // Manuelle Aktion: ein Fehlschlag darf nicht still als Erfolg quittiert
       // werden (sonst wirkt der Button tot). Kein Datensatz → Fehler-Toast.
       if (!res.data) {
@@ -4795,7 +4825,7 @@ function wireWeatherRefresh(container, onUpdated = null) {
       refreshBtn.classList.remove('weather-widget__refresh--spinning');
     }
   };
-  refreshBtn.addEventListener('click', doWeatherRefresh, { signal: _fabController.signal });
+  refreshBtn.addEventListener('click', doWeatherRefresh, { signal: signal });
 }
 
 // HIER STAND `wireFabAutoHide()` - der Speed-Dial wich beim Runterscrollen nach
