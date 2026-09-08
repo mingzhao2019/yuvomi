@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Thời gian nhắc cho sự kiện cả ngày",
-        "calendarDefaultAllDayReminderTimeHint": "Khi sự kiện cả ngày không có lời nhắc từ xa, hãy nhắc vào giờ địa phương này trong ngày diễn ra sự kiện."
+        "calendarDefaultAllDayReminderTimeHint": "Khi sự kiện cả ngày không có lời nhắc từ xa, hãy nhắc vào giờ địa phương này trong ngày diễn ra sự kiện.",
+        "mealTypeNamesLabel": "Tên riêng của bạn",
+        "mealTypeNamesHint": "Gia đình bạn gọi bốn bữa ăn là gì. Để trống để dùng tên mặc định. Tên hiển thị giống nhau trong mọi ngôn ngữ.",
+        "mealTypeNamesSaved": "Đã lưu tên."
     },
     "login": {
         "tagline": "Chào mừng bạn trở lại trình lập kế hoạch gia đình.",

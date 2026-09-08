@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Ώρα υπενθύμισης ολοήμερου συμβάντος",
-        "calendarDefaultAllDayReminderTimeHint": "Όταν ένα ολοήμερο συμβάν δεν έχει απομακρυσμένη υπενθύμιση, η ειδοποίηση γίνεται αυτή την τοπική ώρα την ημέρα του συμβάντος."
+        "calendarDefaultAllDayReminderTimeHint": "Όταν ένα ολοήμερο συμβάν δεν έχει απομακρυσμένη υπενθύμιση, η ειδοποίηση γίνεται αυτή την τοπική ώρα την ημέρα του συμβάντος.",
+        "mealTypeNamesLabel": "Δικά σας ονόματα",
+        "mealTypeNamesHint": "Πώς ονομάζει το νοικοκυριό σας τα τέσσερα γεύματα. Αφήστε το κενό για το ενσωματωμένο όνομα. Το όνομα εμφανίζεται ίδιο σε κάθε γλώσσα.",
+        "mealTypeNamesSaved": "Τα ονόματα αποθηκεύτηκαν."
     },
     "login": {
         "tagline": "Καλώς ήρθατε ξανά στον οικογενειακό σας οργανωτή.",

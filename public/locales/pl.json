@@ -2682,7 +2682,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Godzina przypomnienia wydarzeń całodniowych",
-        "calendarDefaultAllDayReminderTimeHint": "Jeśli wydarzenie całodniowe nie ma zdalnego przypomnienia, powiadom o tej lokalnej godzinie w dniu wydarzenia."
+        "calendarDefaultAllDayReminderTimeHint": "Jeśli wydarzenie całodniowe nie ma zdalnego przypomnienia, powiadom o tej lokalnej godzinie w dniu wydarzenia.",
+        "mealTypeNamesLabel": "Własne nazwy",
+        "mealTypeNamesHint": "Jak twoje gospodarstwo domowe nazywa cztery posiłki. Pozostaw puste, aby użyć nazwy wbudowanej. Nazwa wyświetla się tak samo we wszystkich językach.",
+        "mealTypeNamesSaved": "Nazwy zapisane."
     },
     "login": {
         "tagline": "Witaj ponownie w swoim planerze rodzinnym.",

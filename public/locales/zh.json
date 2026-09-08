@@ -2670,7 +2670,10 @@
         "notificationChannelMessagePusherTokenQuery": "将 token 放入 URL 查询参数",
         "notificationChannelMessagePusherHint": "默认推荐 POST + JSON。GET 或 URL token 可能会把 token 写入代理和服务器日志。",
         "calendarDefaultAllDayReminderTimeLabel": "全天事件提醒时间",
-        "calendarDefaultAllDayReminderTimeHint": "全天事件没有远程提醒时，在事件当天此本地时间提醒。"
+        "calendarDefaultAllDayReminderTimeHint": "全天事件没有远程提醒时，在事件当天此本地时间提醒。",
+        "mealTypeNamesLabel": "自定义名称",
+        "mealTypeNamesHint": "你家对这四餐的称呼。留空则使用内置名称。名称在所有语言中都按你输入的样子显示。",
+        "mealTypeNamesSaved": "名称已保存。"
     },
     "login": {
         "tagline": "欢迎回到您的家庭计划工具。",

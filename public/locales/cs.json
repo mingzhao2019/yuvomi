@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Čas připomenutí celodenní události",
-        "calendarDefaultAllDayReminderTimeHint": "Pokud celodenní událost nemá vzdálené připomenutí, upozornit v tento místní čas v den události."
+        "calendarDefaultAllDayReminderTimeHint": "Pokud celodenní událost nemá vzdálené připomenutí, upozornit v tento místní čas v den události.",
+        "mealTypeNamesLabel": "Vlastní názvy",
+        "mealTypeNamesHint": "Jak vaše domácnost nazývá čtyři jídla. Ponechte prázdné pro vestavěný název. Název se ve všech jazycích zobrazí přesně tak, jak jej napíšete.",
+        "mealTypeNamesSaved": "Názvy uloženy."
     },
     "login": {
         "tagline": "Vítejte zpět ve svém rodinném plánovači.",

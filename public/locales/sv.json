@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Påminnelsetid för heldagshändelser",
-        "calendarDefaultAllDayReminderTimeHint": "Om en heldagshändelse saknar fjärrpåminnelse, påminn vid denna lokala tid på händelsedagen."
+        "calendarDefaultAllDayReminderTimeHint": "Om en heldagshändelse saknar fjärrpåminnelse, påminn vid denna lokala tid på händelsedagen.",
+        "mealTypeNamesLabel": "Egna namn",
+        "mealTypeNamesHint": "Vad ditt hushåll kallar de fyra måltiderna. Lämna tomt för det inbyggda namnet. Namnet visas likadant på alla språk.",
+        "mealTypeNamesSaved": "Namnen har sparats."
     },
     "login": {
         "tagline": "Välkommen tillbaka till din familjeplanerare.",

@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Час нагадування для подій на весь день",
-        "calendarDefaultAllDayReminderTimeHint": "Якщо подія на весь день не має віддаленого нагадування, нагадайте в цей місцевий час у день події."
+        "calendarDefaultAllDayReminderTimeHint": "Якщо подія на весь день не має віддаленого нагадування, нагадайте в цей місцевий час у день події.",
+        "mealTypeNamesLabel": "Власні назви",
+        "mealTypeNamesHint": "Як ваша родина називає чотири прийоми їжі. Залиште порожнім для вбудованої назви. Назва відображається однаково всіма мовами.",
+        "mealTypeNamesSaved": "Назви збережено."
     },
     "login": {
         "tagline": "З поверненням до вашого сімейного планувальника.",

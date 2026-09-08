@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Tüm gün etkinliği hatırlatma saati",
-        "calendarDefaultAllDayReminderTimeHint": "Tüm gün etkinliğinde uzak bir hatırlatıcı yoksa etkinlik gününde bu yerel saatte bildirim gönderilir."
+        "calendarDefaultAllDayReminderTimeHint": "Tüm gün etkinliğinde uzak bir hatırlatıcı yoksa etkinlik gününde bu yerel saatte bildirim gönderilir.",
+        "mealTypeNamesLabel": "Kendi adlarınız",
+        "mealTypeNamesHint": "Haneniz dört öğünü nasıl adlandırıyor. Yerleşik ad için boş bırakın. Ad, her dilde yazdığınız gibi görünür.",
+        "mealTypeNamesSaved": "Adlar kaydedildi."
     },
     "login": {
         "tagline": "Aile planlayıcına tekrar hoş geldin.",

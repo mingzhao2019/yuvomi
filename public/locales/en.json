@@ -2670,7 +2670,10 @@
         "scheduleFeedHint": "Anyone who knows this link can see your own upcoming shifts. Only share it with your own devices.",
         "scheduleTemplatesTitle": "Quickstart templates",
         "scheduleTemplatesHint": "Which templates the shift-type quickstart offers. Shift types already created stay untouched either way, and can always be renamed or deleted.",
-        "scheduleTemplatesSaved": "Quickstart templates saved."
+        "scheduleTemplatesSaved": "Quickstart templates saved.",
+        "mealTypeNamesLabel": "Your own names",
+        "mealTypeNamesHint": "What your household calls the four meals. Leave empty for the built-in name. The name shows in every language exactly as you type it.",
+        "mealTypeNamesSaved": "Names saved."
     },
     "login": {
         "tagline": "Welcome back to your family planner.",

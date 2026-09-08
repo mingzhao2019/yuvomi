@@ -2682,7 +2682,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "زمان یادآور رویداد تمام‌روزه",
-        "calendarDefaultAllDayReminderTimeHint": "اگر رویداد تمام‌روزه یادآور دوردست نداشته باشد، در این زمان محلی در روز رویداد یادآوری شود."
+        "calendarDefaultAllDayReminderTimeHint": "اگر رویداد تمام‌روزه یادآور دوردست نداشته باشد، در این زمان محلی در روز رویداد یادآوری شود.",
+        "mealTypeNamesLabel": "نام‌های دلخواه",
+        "mealTypeNamesHint": "خانواده شما چهار وعده را چه می‌نامد. برای نام پیش‌فرض خالی بگذارید. نام در همه زبان‌ها دقیقاً همان‌طور که می‌نویسید نمایش داده می‌شود.",
+        "mealTypeNamesSaved": "نام‌ها ذخیره شد."
     },
     "login": {
         "tagline": "دوباره به برنامه‌ریز خانوادگی‌تان خوش آمدید.",

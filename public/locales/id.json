@@ -2682,7 +2682,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Waktu pengingat acara sepanjang hari",
-        "calendarDefaultAllDayReminderTimeHint": "Jika acara sepanjang hari tidak memiliki pengingat jarak jauh, beri tahu pada waktu lokal ini di tanggal acara."
+        "calendarDefaultAllDayReminderTimeHint": "Jika acara sepanjang hari tidak memiliki pengingat jarak jauh, beri tahu pada waktu lokal ini di tanggal acara.",
+        "mealTypeNamesLabel": "Nama sendiri",
+        "mealTypeNamesHint": "Sebutan rumah tangga Anda untuk keempat waktu makan. Biarkan kosong untuk nama bawaan. Nama tampil sama persis di semua bahasa.",
+        "mealTypeNamesSaved": "Nama disimpan."
     },
     "login": {
         "tagline": "Selamat datang kembali di perencana keluarga Anda.",

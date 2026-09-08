@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Hora del recordatorio de eventos de todo el día",
-        "calendarDefaultAllDayReminderTimeHint": "Si un evento de todo el día no tiene un recordatorio remoto, avisa a esta hora local el día del evento."
+        "calendarDefaultAllDayReminderTimeHint": "Si un evento de todo el día no tiene un recordatorio remoto, avisa a esta hora local el día del evento.",
+        "mealTypeNamesLabel": "Nombres propios",
+        "mealTypeNamesHint": "Cómo llama tu hogar a las cuatro comidas. Déjalo vacío para el nombre integrado. El nombre se muestra igual en todos los idiomas.",
+        "mealTypeNamesSaved": "Nombres guardados."
     },
     "login": {
         "tagline": "Bienvenido de nuevo a tu planificador familiar.",

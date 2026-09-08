@@ -2682,7 +2682,10 @@
         "scheduleFeedRegenerateConfirmDetail": "Geräte und Dienste, die den alten Link nutzen, erhalten keine Aktualisierungen mehr und zeigen je nach App entweder den letzten Stand oder nichts an, bis dort die neue Adresse eingetragen wird.",
         "scheduleFeedDisableConfirm": "Feed deaktivieren? Bestehende Abos erhalten dann keine Aktualisierungen mehr.",
         "scheduleFeedDisableConfirmDetail": "Der Link liefert sofort nichts mehr. Wird der Feed später wieder aktiviert, entsteht eine neue Adresse, die jeder Abonnent von Hand neu eintragen muss.",
-        "scheduleFeedHint": "Wer diesen Link kennt, kann deine eigenen anstehenden Schichten sehen. Nur mit eigenen Geräten teilen."
+        "scheduleFeedHint": "Wer diesen Link kennt, kann deine eigenen anstehenden Schichten sehen. Nur mit eigenen Geräten teilen.",
+        "mealTypeNamesLabel": "Eigene Namen",
+        "mealTypeNamesHint": "Wie dein Haushalt die vier Mahlzeiten nennt. Leer lassen für den eingebauten Namen. Der Name gilt in jeder Sprache so, wie du ihn eintippst.",
+        "mealTypeNamesSaved": "Namen gespeichert."
     },
     "login": {
         "tagline": "Willkommen zurück bei deinem Familienplaner.",

@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "وقت تذكير الأحداث طوال اليوم",
-        "calendarDefaultAllDayReminderTimeHint": "عندما لا يوجد تذكير بعيد لحدث طوال اليوم، أرسل التذكير في هذا الوقت المحلي من يوم الحدث."
+        "calendarDefaultAllDayReminderTimeHint": "عندما لا يوجد تذكير بعيد لحدث طوال اليوم، أرسل التذكير في هذا الوقت المحلي من يوم الحدث.",
+        "mealTypeNamesLabel": "أسماؤك الخاصة",
+        "mealTypeNamesHint": "ما تسميه أسرتك للوجبات الأربع. اتركه فارغًا لاستخدام الاسم المدمج. يظهر الاسم كما تكتبه في كل اللغات.",
+        "mealTypeNamesSaved": "تم حفظ الأسماء."
     },
     "login": {
         "tagline": "مرحبًا بعودتك إلى منظّم عائلتك.",

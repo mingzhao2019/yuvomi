@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Egész napos esemény emlékeztetési ideje",
-        "calendarDefaultAllDayReminderTimeHint": "Ha egy egész napos eseményhez nincs távoli emlékeztető, ezen a helyi időn küldjön értesítést az esemény napján."
+        "calendarDefaultAllDayReminderTimeHint": "Ha egy egész napos eseményhez nincs távoli emlékeztető, ezen a helyi időn küldjön értesítést az esemény napján.",
+        "mealTypeNamesLabel": "Saját elnevezések",
+        "mealTypeNamesHint": "Hogyan hívja a háztartásod a négy étkezést. Hagyd üresen a beépített névhez. A név minden nyelven pontosan úgy jelenik meg, ahogy beírod.",
+        "mealTypeNamesSaved": "Elnevezések elmentve."
     },
     "login": {
         "tagline": "Üdv újra a családi tervezőben.",

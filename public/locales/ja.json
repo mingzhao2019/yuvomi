@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "終日のイベントのリマインダー時刻",
-        "calendarDefaultAllDayReminderTimeHint": "終日のイベントにリモートのリマインダーがない場合、イベント当日のこの現地時刻に通知します。"
+        "calendarDefaultAllDayReminderTimeHint": "終日のイベントにリモートのリマインダーがない場合、イベント当日のこの現地時刻に通知します。",
+        "mealTypeNamesLabel": "独自の名前",
+        "mealTypeNamesHint": "この家庭で四つの食事を何と呼ぶか。空欄にすると既定の名前を使います。名前は入力したまま、すべての言語で表示されます。",
+        "mealTypeNamesSaved": "名前を保存しました。"
     },
     "login": {
         "tagline": "家族のプランナーへおかえりなさい。",

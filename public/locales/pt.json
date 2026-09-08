@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Hora do lembrete de eventos de dia inteiro",
-        "calendarDefaultAllDayReminderTimeHint": "Quando um evento de dia inteiro não tiver lembrete remoto, avise neste horário local no dia do evento."
+        "calendarDefaultAllDayReminderTimeHint": "Quando um evento de dia inteiro não tiver lembrete remoto, avise neste horário local no dia do evento.",
+        "mealTypeNamesLabel": "Nomes próprios",
+        "mealTypeNamesHint": "Como o seu agregado chama as quatro refeições. Deixe vazio para o nome integrado. O nome aparece igual em todos os idiomas.",
+        "mealTypeNamesSaved": "Nomes guardados."
     },
     "login": {
         "tagline": "Bem-vindo de volta ao teu planeador familiar.",

@@ -2670,7 +2670,10 @@
         "outlookSelectionSaved": "Calendar and To Do selections saved.",
         "outlookSelectionSavedShort": "✓ Saved",
         "calendarDefaultAllDayReminderTimeLabel": "Herinneringstijd voor afspraken die de hele dag duren",
-        "calendarDefaultAllDayReminderTimeHint": "Als een afspraak de hele dag duurt en geen externe herinnering heeft, herinner dan op deze lokale tijd op de dag van de afspraak."
+        "calendarDefaultAllDayReminderTimeHint": "Als een afspraak de hele dag duurt en geen externe herinnering heeft, herinner dan op deze lokale tijd op de dag van de afspraak.",
+        "mealTypeNamesLabel": "Eigen namen",
+        "mealTypeNamesHint": "Hoe jouw huishouden de vier maaltijden noemt. Laat leeg voor de ingebouwde naam. De naam verschijnt in elke taal precies zoals je hem typt.",
+        "mealTypeNamesSaved": "Namen opgeslagen."
     },
     "login": {
         "tagline": "Welkom terug bij je gezinsplanner.",
