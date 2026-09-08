@@ -17,6 +17,7 @@ const log = createLogger('Outlook');
 import crypto from 'node:crypto';
 import * as db from '../db.js';
 import { parseRRule } from './recurrence.js';
+import { outboundEvent } from './outbound-dtstart.js';
 import { visibilityWhere } from './visibility.js';
 import {
   householdTimeZone,
@@ -832,7 +833,10 @@ function toGraphDateTime(dt, tz = outlookTimeZone()) {
  * Outlook exposes one reminder only; Yuvomi keeps all local rows and sends the
  * earliest trigger that Graph can represent.
  */
-function localEventToGraph(event, assigneeNames = [], tz = outlookTimeZone()) {
+function localEventToGraph(rawEvent, assigneeNames = [], tz = outlookTimeZone()) {
+  // Wie bei Google (#986): erst begradigen, dann ableiten - der Anker fuer
+  // rruleToGraphRecurrence haengt am selben Startdatum.
+  const event = outboundEvent(rawEvent);
   const allDay = !!event.all_day;
   const subject = assigneeNames.length
     ? `${event.title} (${assigneeNames.join(', ')})`
