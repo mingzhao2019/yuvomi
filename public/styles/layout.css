@@ -2161,6 +2161,14 @@ html.fab-anim-done .page-fab {
   flex: 1;
 }
 
+/* Kopf-Koerper-Rhythmus gehoert der Seite, nicht dem Modul: Leiste und
+ * .app-page__body sind Geschwister auf .app-page, und ihr Abstand wohnt hier.
+ * Die Begrenzung auf Wurzeln mit einem Body verhindert Doppelabstände bei
+ * bestehenden Seiten, die ihren Rhythmus noch selbst tragen. */
+.app-page:has(> .app-page__body) {
+  gap: var(--space-3);
+}
+
 .app-page--reading,
 .app-page--form,
 .page-measure--narrow {
@@ -2187,6 +2195,20 @@ html.fab-anim-done .page-fab {
 .app-page--split,
 .app-page--full {
   --page-measure: 100%;
+}
+
+/* `page.width` from an extension manifest refines the measure inside a
+ * measured mode. Split/full intentionally remain full width. */
+.app-page:is(.app-page--reading, .app-page--form, .app-page--data, .app-page--dashboard)[data-page-width="reading"] {
+  --page-measure: var(--layout-reading);
+}
+
+.app-page:is(.app-page--reading, .app-page--form, .app-page--data, .app-page--dashboard)[data-page-width="content"] {
+  --page-measure: var(--layout-content);
+}
+
+.app-page:is(.app-page--reading, .app-page--form, .app-page--data, .app-page--dashboard)[data-page-width="wide"] {
+  --page-measure: var(--layout-wide);
 }
 
 /* Calendar agenda (and similar): temporarily adopt reading measure without

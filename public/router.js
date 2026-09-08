@@ -26,6 +26,7 @@ import { getLastHealthRoute, HEALTH_ROUTES } from '/utils/health-tabs.js';
 import { activityType } from '/utils/health-activity.js';
 import { buildHelpRows } from '/utils/help.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
+import { COMPOSITION_MODES } from '/utils/page-layout.js';
 import {
   handleBackNavigation, closeAllOverlays, consumeOverlayMarker,
   pushOverlay, dropOverlay, attachOverlay,
@@ -1562,7 +1563,13 @@ async function renderPage(route, previousPath = null, scrollTarget = 0) {
     // der Wrapper war zuvor bis zur vollständigen Auflösung von render() opak-0,
     // wodurch jedes vor dem Daten-await geseedete Skeleton beim Erstladen nie
     // erschien). Der Rest von render() (Daten + Verdrahtung) wird danach abgewartet.
-    const renderPromise = module.render(pageWrapper, { user: currentUser });
+    const target = route.thirdPartyModule
+      ? mountExtensionPage(pageWrapper, route.thirdPartyModule)
+      : pageWrapper;
+    const context = route.thirdPartyModule
+      ? { user: currentUser, page: { ...route.thirdPartyModule.page } }
+      : { user: currentUser };
+    const renderPromise = module.render(target, context);
 
     // Schon jetzt umziehen, nicht erst nach den Daten: die meisten Seiten legen
     // ihren FAB im synchronen Teil an, und er soll gar nicht erst im Scrollport
@@ -3336,6 +3343,21 @@ function renderSearchResults(container, data, onClose) {
   window.lucide?.createIcons({ el: container });
 
   return total;
+}
+
+/**
+ * Die Seitenwurzel eines Erweiterungsmoduls: `.app-page` im erklärten Modus,
+ * mit `page.width` als Verfeinerung für die gemessenen Layouts.
+ */
+function mountExtensionPage(wrapper, thirdPartyModule) {
+  const page = thirdPartyModule?.page || {};
+  const mode = COMPOSITION_MODES.includes(page.composition) ? page.composition : 'reading';
+  const root = document.createElement('div');
+  root.className = `app-page app-page--${mode} extension-page`;
+  root.dataset.composition = mode;
+  if (page.width) root.dataset.pageWidth = String(page.width);
+  wrapper.appendChild(root);
+  return root;
 }
 
 // Read-only-Modus für ein Modul anwenden (#467): FAB via <html data-module-readonly>

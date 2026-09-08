@@ -2,8 +2,8 @@
 
 Spatial composition standard for Yuvomi application pages and third-party extension modules.
 
-**Visual language** lives in [`DESIGN.md`](DESIGN.md) and [`public/styles/tokens.css`](public/styles/tokens.css).
-**Spatial composition** lives here, in layout primitives, and in [`public/utils/page-layout.js`](public/utils/page-layout.js).
+**Visual language** lives in [`DESIGN.md`](../DESIGN.md) and [`public/styles/tokens.css`](../public/styles/tokens.css).
+**Spatial composition** lives here, in layout primitives, and in [`public/utils/page-layout.js`](../public/utils/page-layout.js).
 
 ```text
 DESIGN SYSTEM
@@ -91,6 +91,12 @@ Third-party modules declare intent; they do not implement geometry:
 }
 ```
 
+The router applies the declaration (`mountExtensionPage` in `../public/router.js`): the
+`container` handed to the module's `render()` is the `.app-page--<composition>` root,
+`data-page-width` refines `--page-measure` inside the measured modes, and `context.page`
+carries the normalized values. A module renders header and body into that root; it does not
+create a second one.
+
 ### Blacklist
 
 ```text
@@ -121,7 +127,7 @@ Documented exceptions - not forced through composition modes in v1:
 
 ### Layout width tokens
 
-Defined in [`public/styles/tokens.css`](public/styles/tokens.css):
+Defined in [`public/styles/tokens.css`](../public/styles/tokens.css):
 
 | Token | Default | Role |
 |-------|---------|------|
@@ -136,7 +142,7 @@ Legacy aliases remain for one release cycle:
 
 ### CSS primitives
 
-Defined in [`public/styles/layout.css`](public/styles/layout.css):
+Defined in [`public/styles/layout.css`](../public/styles/layout.css):
 
 | Class | Role |
 |-------|------|
@@ -172,7 +178,7 @@ module CSS sizing the page.
 
 ### JavaScript helpers
 
-[`public/utils/page-layout.js`](public/utils/page-layout.js):
+[`public/utils/page-layout.js`](../public/utils/page-layout.js):
 
 | Export | Role |
 |--------|------|
@@ -198,7 +204,7 @@ New code must not introduce legacy aliases. Reference page already omits `.page-
 
 ### Audit invariants
 
-Enforced in [`test/test-frontend-audit.js`](test/test-frontend-audit.js):
+Enforced in [`test/test-frontend-audit.js`](../test/test-frontend-audit.js):
 
 | ID | Invariant |
 |----|-----------|

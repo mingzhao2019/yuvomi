@@ -1011,7 +1011,8 @@ async function loadData() {
 
 function buildPage(container) {
   const page = document.createElement('div');
-  page.className = 'asset-cost-page page';
+  page.className = 'asset-cost-page app-page app-page--data page';
+  page.dataset.composition = 'data';
   page.insertAdjacentHTML('beforeend', `
     <div class="asset-cost-toolbar page-toolbar page-toolbar--wrap">
       <h1 class="page-toolbar__title">${esc(tr('title'))}</h1>
