@@ -263,4 +263,3 @@ export function remainingInstallmentsForBalance({
   }
   return rest > 0.005 ? null : raten;
 }
-
