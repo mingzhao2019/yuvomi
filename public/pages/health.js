@@ -5515,7 +5515,6 @@ function openCycleSettingsModal() {
           showBulk(false);
           window.yuvomi?.showToast(t('health.cycle.settings.applyToAllDone', { count }), 'success');
           await reloadCycle();
-          refocusAfterRender();
         } catch (err) {
           console.error('[Health] cycle bulk visibility error:', err);
           window.yuvomi?.showToast(err?.data?.error || t('health.cycle.saveError'), 'danger');
