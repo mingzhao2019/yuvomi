@@ -1174,6 +1174,102 @@ function holidaysOnDay(dateStr) {
   });
 }
 
+function eventCompletionKey(event) {
+  if (!event?.recurrence_rule) return 'single';
+  return String(event.completion_key || event.start_datetime || '').slice(0, 10);
+}
+
+function eventCompletionClass(event) {
+  return event?.completed ? ' cal-event--done' : '';
+}
+
+function calendarCompletionEvents(eventId, completionKey) {
+  return [state.events, searchResults]
+    .flatMap((events) => events)
+    .filter((event) => String(event?.id) === String(eventId)
+      && eventCompletionKey(event) === String(completionKey));
+}
+
+function renderEventCompletionControl(event, extraClass = '') {
+  const done = !!event?.completed;
+  const title = t(done ? 'calendar.markIncomplete' : 'calendar.markComplete', { title: event?.title || '' });
+  return `<button type="button"
+      class="cal-event__check${done ? ' cal-event__check--done' : ''}${extraClass ? ` ${extraClass}` : ''}"
+      data-calendar-event-action="toggle"
+      data-event-id="${esc(event?.id)}"
+      data-completion-key="${esc(eventCompletionKey(event))}"
+      aria-pressed="${String(done)}"
+      aria-label="${esc(title)}"
+      title="${esc(title)}">${done ? '<i data-lucide="check" aria-hidden="true"></i>' : ''}</button>`;
+}
+
+function updateCalendarEventCompletionState(eventId, completionKey, completed) {
+  const selector = `[data-calendar-event-action="toggle"][data-event-id="${CSS.escape(String(eventId))}"][data-completion-key="${CSS.escape(String(completionKey))}"]`;
+  const controls = [...(_container?.querySelectorAll(selector) ?? [])];
+  const event = calendarCompletionEvents(eventId, completionKey)[0];
+  const title = t(completed ? 'calendar.markIncomplete' : 'calendar.markComplete', { title: event?.title || '' });
+  controls.forEach((control) => {
+    control.classList.toggle('cal-event__check--done', completed);
+    control.setAttribute('aria-pressed', String(completed));
+    control.setAttribute('aria-label', title);
+    control.title = title;
+    control.replaceChildren();
+    if (completed) control.insertAdjacentHTML('beforeend', '<i data-lucide="check" aria-hidden="true"></i>');
+    control.closest('[data-calendar-event]')?.classList.toggle('cal-event--done', completed);
+  });
+  if (window.lucide && _container) window.lucide.createIcons({ el: _container });
+}
+
+async function toggleCalendarEventCompletion(eventId, completionKey, control) {
+  const events = calendarCompletionEvents(eventId, completionKey);
+  const event = events[0];
+  if (!event || control?.disabled) return;
+  const previous = !!event.completed;
+  const previousCompletedAt = event.completed_at ?? null;
+  const next = !previous;
+  if (control) control.disabled = true;
+  const optimisticCompletedAt = next ? new Date().toISOString() : null;
+  events.forEach((item) => {
+    item.completed = next;
+    item.completed_at = optimisticCompletedAt;
+  });
+  updateCalendarEventCompletionState(eventId, completionKey, next);
+  try {
+    const response = await api.patch(`/calendar/${encodeURIComponent(eventId)}/completion`, {
+      completed: next,
+      occurrence_key: completionKey,
+    });
+    if (response?.data) {
+      const completed = !!response.data.completed;
+      const completedAt = response.data.completed_at ?? null;
+      events.forEach((item) => {
+        item.completed = completed;
+        item.completed_at = completedAt;
+      });
+      updateCalendarEventCompletionState(eventId, completionKey, completed);
+    }
+  } catch (err) {
+    events.forEach((item) => {
+      item.completed = previous;
+      item.completed_at = previousCompletedAt;
+    });
+    updateCalendarEventCompletionState(eventId, completionKey, previous);
+    window.yuvomi?.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+  } finally {
+    const selector = `[data-calendar-event-action="toggle"][data-event-id="${CSS.escape(String(eventId))}"][data-completion-key="${CSS.escape(String(completionKey))}"]`;
+    [...(_container?.querySelectorAll(selector) ?? [])].forEach((item) => { item.disabled = false; });
+  }
+}
+
+function handleCalendarEventToggle(event) {
+  const control = event.target.closest('[data-calendar-event-action="toggle"]');
+  if (!control) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  toggleCalendarEventCompletion(control.dataset.eventId, control.dataset.completionKey, control);
+  return true;
+}
+
 /** Rendert einen Task-Chip mit einem echten, direkt bedienbaren Statusknopf.
  * In der Monatsansicht (interactive:false) bleibt die Tageszelle selbst das
  * Drill-in-Ziel; der Statusknopf ist trotzdem ein eigenes Ziel und stoppt die
@@ -2135,6 +2231,7 @@ function renderMonthView(container) {
     if (!dayEl) return;
 
     if (handleCalendarTaskToggle(e)) return;
+    if (handleCalendarEventToggle(e)) return;
 
     // Mobil ist die ganze Zelle EIN Drill-in-Ziel, und das bleibt es auch mit
     // Titelzeilen. DER GRUND IST DIE TAP-GROESSE, nicht die Chip-Form: hier
@@ -2245,11 +2342,11 @@ function renderMonthDay(date, inMonth) {
   // dem Titel. Icon und Avatar-Stack leben in der Tages-/Detailansicht; die
   // "Wer"-Information bleibt für Tooltip/Screenreader im title-Attribut erhalten.
   const evHtml = evShown.map((ev) => `
-    <div class="month-day__event"
+    <div class="month-day__event${eventCompletionClass(ev)}" data-calendar-event
          data-id="${ev.id}"
          style="${eventSurfaceStyle(ev)}"
          title="${esc(ev.title)}${ev.cal_name ? ' · ' + esc(ev.cal_name) : ''}${chipAssigneeTitleSuffix(ev)}"
-    >${calendarRepeatIconHtml(ev)}<span>${esc(ev.title)}</span></div>
+    >${renderEventCompletionControl(ev)}${calendarRepeatIconHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span></div>
   `).join('');
 
   // The month cell owns the navigation target; the chip itself stays
@@ -2484,9 +2581,9 @@ function renderWeekView(container) {
             `).join('')}
             ${scheduleChips[i].map((entry) => renderScheduleChip(entry)).join('')}
             ${alldayEvs[i].map((ev) => `
-              <div class="allday-event" data-id="${ev.id}"
+              <div class="allday-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}"
                    style="${eventSurfaceStyle(ev)}"
-                   title="${esc(ev.title)}${ev.cal_name ? ' · ' + ev.cal_name : ''}${chipAssigneeTitleSuffix(ev)}">${eventIconHtml(ev.icon, 'event-icon event-icon--compact')}${calendarRepeatIconHtml(ev)}<span>${esc(ev.title)}</span>${chipAssigneeStack(ev, { size: 16, maxVisible: 3 })}</div>
+                   title="${esc(ev.title)}${ev.cal_name ? ' · ' + ev.cal_name : ''}${chipAssigneeTitleSuffix(ev)}">${renderEventCompletionControl(ev)}${eventIconHtml(ev.icon, 'event-icon event-icon--compact')}${calendarRepeatIconHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span>${chipAssigneeStack(ev, { size: 16, maxVisible: 3 })}</div>
             `).join('')}
             ${tasksOnDay(d).map(renderTaskChip).join('')}
           </div>
@@ -2527,6 +2624,7 @@ function renderWeekView(container) {
 
   container.querySelector('#week-cols').addEventListener('click', (e) => {
     if (e.target.closest('.schedule-time-block')) return;
+    if (handleCalendarEventToggle(e)) return;
     const evEl = e.target.closest('.week-event');
     if (evEl) {
       const ev = state.events.find((ev) => ev.id === parseInt(evEl.dataset.id, 10));
@@ -2542,6 +2640,7 @@ function renderWeekView(container) {
 
   container.querySelector('.allday-row').addEventListener('click', (e) => {
     if (handleCalendarTaskToggle(e)) return;
+    if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
       window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
@@ -2578,10 +2677,10 @@ function renderWeekEvent(ev, layout = null) {
   const width = layout ? `calc(${100 / layout.totalCols}% - 4px)` : 'auto';
 
   return `
-    <div class="week-event" data-id="${ev.id}"
+    <div class="week-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}"
          style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}"
          title="${esc(ev.title)}${chipAssigneeTitleSuffix(ev)}">
-      <div class="week-event__title">${eventIconHtml(ev.icon, 'event-icon event-icon--compact')}${calendarRepeatIconHtml(ev)}<span>${esc(ev.title)}</span>${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</div>
+      <div class="week-event__title">${renderEventCompletionControl(ev)}${eventIconHtml(ev.icon, 'event-icon event-icon--compact')}${calendarRepeatIconHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span>${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</div>
       <div class="week-event__time">${formatTime(ev.start_datetime)}${ev.end_datetime ? '–' + formatTime(ev.end_datetime) : ''}</div>
     </div>
   `;
@@ -2747,9 +2846,9 @@ function renderDayView(container) {
           `).join('')}
           ${scheduleChips.map((entry) => renderScheduleChip(entry)).join('')}
           ${allday.map((ev) => `
-            <div class="allday-event" data-id="${ev.id}"
+            <div class="allday-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}"
                  style="${eventSurfaceStyle(ev)}"
-                 title="${esc(ev.title)}${ev.cal_name ? ' · ' + ev.cal_name : ''}${chipAssigneeTitleSuffix(ev)}">${eventIconHtml(ev.icon, 'event-icon event-icon--compact')}${calendarRepeatIconHtml(ev)}<span>${esc(ev.title)}</span>${chipAssigneeStack(ev, { size: 16, maxVisible: 3 })}</div>`).join('')}
+                 title="${esc(ev.title)}${ev.cal_name ? ' · ' + ev.cal_name : ''}${chipAssigneeTitleSuffix(ev)}">${renderEventCompletionControl(ev)}${eventIconHtml(ev.icon, 'event-icon event-icon--compact')}${calendarRepeatIconHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span>${chipAssigneeStack(ev, { size: 16, maxVisible: 3 })}</div>`).join('')}
           ${tasksOnDay(state.cursor).map(renderTaskChip).join('')}
         </div>
       </div>` : ''}
@@ -2781,6 +2880,7 @@ function renderDayView(container) {
 
   container.querySelector('.allday-row')?.addEventListener('click', (e) => {
     if (handleCalendarTaskToggle(e)) return;
+    if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
       window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
@@ -2795,6 +2895,7 @@ function renderDayView(container) {
 
   container.querySelector('#day-col').addEventListener('click', (e) => {
     if (e.target.closest('.schedule-time-block')) return;
+    if (handleCalendarEventToggle(e)) return;
     const evEl = e.target.closest('.day-event');
     if (evEl) {
       const ev = state.events.find((ev) => ev.id === parseInt(evEl.dataset.id, 10));
@@ -2838,12 +2939,12 @@ function renderDayEvent(ev, layout = null) {
   const timeText = `${formatTime(ev.start_datetime)}${ev.end_datetime ? '–' + formatTime(ev.end_datetime) : ''}`;
 
   return `
-    <div class="day-event${roomy ? '' : ' day-event--tight'}" data-id="${ev.id}"
+    <div class="day-event${roomy ? '' : ' day-event--tight'}${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}"
          style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}"
          title="${esc(ev.title)}${ev.location ? ' · ' + esc(fmtLocation(ev.location)) : ''}${chipAssigneeTitleSuffix(ev)}">
       <span class="day-event__spine" aria-hidden="true"></span>
       <span class="day-event__text">
-        <span class="day-event__title">${hasEventIcon(ev.icon) ? eventIconHtml(ev.icon, 'event-icon event-icon--compact') : ''}${calendarRepeatIconHtml(ev)}<span class="day-event__name">${esc(ev.title)}</span></span>
+        <span class="day-event__title">${renderEventCompletionControl(ev)}${hasEventIcon(ev.icon) ? eventIconHtml(ev.icon, 'event-icon event-icon--compact') : ''}${calendarRepeatIconHtml(ev)}<span class="day-event__name cal-event__title">${esc(ev.title)}</span></span>
         ${roomy ? `<span class="day-event__meta">${timeText}${place}</span>` : ''}
       </span>
       ${roomy ? chipAssigneeStack(ev, { size: 20, maxVisible: 2 }) : ''}
@@ -2917,6 +3018,7 @@ function renderAgendaView(container) {
       return;
     }
     if (handleCalendarTaskToggle(e)) return;
+    if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
       window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
@@ -2932,6 +3034,15 @@ function renderAgendaView(container) {
   // Tastaturaktivierung der als role="button" ausgezeichneten Zeilen (Enter/Space).
   container.querySelector('#agenda-view').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
+    const openTarget = e.target.closest('.agenda-event__open');
+    if (openTarget) {
+      e.preventDefault();
+      const evEl = openTarget.closest('.agenda-event');
+      const ev = state.events.find((x) => x.id === parseInt(evEl?.dataset.id, 10));
+      if (ev) openEventDetail(ev, evEl);
+      return;
+    }
+    if (e.target.closest('.cal-event__check')) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip && e.target === taskChip && taskChip.getAttribute('role') === 'button') {
       e.preventDefault();
@@ -3401,11 +3512,19 @@ function renderCalendarSearchResults(body) {
     if (ev) openFoundEvent(ev);
   };
   results.addEventListener('click', (e) => {
+    if (handleCalendarEventToggle(e)) return;
     const evEl = e.target.closest('.agenda-event');
     if (evEl) activateResult(evEl);
   });
   results.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
+    const openTarget = e.target.closest('.agenda-event__open');
+    if (openTarget) {
+      e.preventDefault();
+      activateResult(openTarget.closest('.agenda-event'));
+      return;
+    }
+    if (e.target.closest('.cal-event__check')) return;
     const evEl = e.target.closest('.agenda-event');
     if (!evEl) return;
     e.preventDefault();
@@ -3480,6 +3599,9 @@ export const __test = {
   usesInheritedSubscriptionColor,
   eventIconName,
   eventIconHtml,
+  eventCompletionKey,
+  eventCompletionClass,
+  renderEventCompletionControl,
   sameColor,
   EVENT_COLORS,
   renderScheduleChip,
@@ -3521,18 +3643,21 @@ function renderAgendaEvent(ev, dayStr) {
 
   const displayBg     = resolveEventBackground(ev);
   const assignedUsers = ev.assigned_users ?? [];
+  const ariaLabel = agendaEventAriaLabel(ev, timeStr);
   return `
-    <div class="list-row agenda-event" data-id="${ev.id}" role="button" tabindex="0"
-         aria-label="${esc(agendaEventAriaLabel(ev, timeStr))}">
-      <div class="agenda-event__color" style="background:${esc(displayBg)};"></div>
-      <div class="agenda-event__body">
-        <div class="agenda-event__title">${eventIconHtml(ev.icon)}${calendarRepeatIconHtml(ev)}<span>${esc(ev.title)}</span></div>
-        <div class="agenda-event__meta">
-          <span class="calendar-meta-item calendar-meta-item--time">${calendarMetaIconHtml('clock')}<span>${esc(timeStr)}</span></span>
-          ${ev.location ? `<span class="calendar-meta-item calendar-meta-item--place">${calendarMetaIconHtml('map-pin')}<span>${esc(fmtLocation(ev.location))}</span></span>` : ''}
-          ${ev.cal_name ? `<span class="calendar-meta-item calendar-meta-item--cal">${calendarMetaIconHtml('calendar-days')}<span>${esc(ev.cal_name)}</span></span>` : ''}
-          ${eventVisibilityMeta(ev.visibility)}
-          ${assignedUsers.length ? `<span class="agenda-event__assigned">${renderAvatarStack(assignedUsers, { size: 20, maxVisible: 3 })}</span>` : ''}
+    <div class="list-row agenda-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}">
+      ${renderEventCompletionControl(ev)}
+      <div class="agenda-event__open" role="button" tabindex="0" aria-label="${esc(ariaLabel)}">
+        <div class="agenda-event__color" style="background:${esc(displayBg)};"></div>
+        <div class="agenda-event__body">
+          <div class="agenda-event__title">${eventIconHtml(ev.icon)}${calendarRepeatIconHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span></div>
+          <div class="agenda-event__meta">
+            <span class="calendar-meta-item calendar-meta-item--time">${calendarMetaIconHtml('clock')}<span>${esc(timeStr)}</span></span>
+            ${ev.location ? `<span class="calendar-meta-item calendar-meta-item--place">${calendarMetaIconHtml('map-pin')}<span>${esc(fmtLocation(ev.location))}</span></span>` : ''}
+            ${ev.cal_name ? `<span class="calendar-meta-item calendar-meta-item--cal">${calendarMetaIconHtml('calendar-days')}<span>${esc(ev.cal_name)}</span></span>` : ''}
+            ${eventVisibilityMeta(ev.visibility)}
+            ${assignedUsers.length ? `<span class="agenda-event__assigned">${renderAvatarStack(assignedUsers, { size: 20, maxVisible: 3 })}</span>` : ''}
+          </div>
         </div>
       </div>
     </div>

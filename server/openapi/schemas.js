@@ -475,6 +475,19 @@ export const schemas = {
               type: ['string', 'null'],
               description: 'Legacy attachment data URL. Null for attachments linked through attachment_document_id.',
             },
+            completion_key: {
+              type: 'string',
+              description: 'Personal completion identity: `single` for a one-off event or the rule-local occurrence date (`YYYY-MM-DD`) for a recurring event.',
+            },
+            completed: {
+              type: 'boolean',
+              description: 'Whether the authenticated user marked this event occurrence complete in Yuvomi.',
+            },
+            completed_at: {
+              type: ['string', 'null'],
+              format: 'date-time',
+              description: 'When the authenticated user marked this occurrence complete; null when it is open.',
+            },
           },
           required: [
             'id',

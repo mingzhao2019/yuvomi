@@ -78,7 +78,7 @@ export function calendarPaths() {
       get: op({
         summary: 'List selectable sync targets for the event editor',
         tag: 'Calendar',
-        description: 'Available to every authenticated user (#618). Returns `{ data: { google: [{ id, summary }], caldav: [{ accountId, accountName, calendarUrl, calendarName }] } }`, pre-filtered to enabled (and, for Google, writable) calendars. Carries no credentials, server URLs, or usernames - account management stays admin-only. A provider that cannot be reached yields an empty list instead of failing the request.',
+        description: 'Available to every authenticated user (#618). Returns `{ data: { google: [{ id, summary }], caldav: [{ accountId, accountName, calendarUrl, calendarName }], outlook: [{ accountId, accountName, calendarId, calendarName }] } }`, pre-filtered to enabled and writable calendars. Carries no credentials, server URLs, or usernames - account management stays admin-only. A provider that cannot be reached yields an empty list instead of failing the request.',
       }),
     },
     '/api/v1/calendar/caldav/accounts': {
@@ -174,6 +174,21 @@ export function calendarPaths() {
             description: 'Calendar event updated',
             content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarEventResponse' } } },
           },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          404: { description: 'Calendar event not found' },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      patch: op({
+        summary: 'Set personal calendar event completion',
+        tag: 'Calendar',
+        params: [idParam()],
+        stateChanging: true,
+        description: 'Stores a personal, Yuvomi-only completion mark for one event occurrence. Use `occurrence_key: single` for a non-recurring event or the occurrence date (`YYYY-MM-DD`) for a recurring event. This state is not sent to Google, Outlook, CalDAV, Apple, or ICS providers and does not change reminders.',
+        requestBody: jsonBody(null, 'JSON body: { completed: boolean, occurrence_key: "single" or "YYYY-MM-DD" }'),
+        responses: {
+          200: { description: 'Completion state', content: { 'application/json': { schema: { type: 'object' } } } },
           400: { $ref: '#/components/responses/BadRequest' },
           401: { $ref: '#/components/responses/Unauthorized' },
           404: { description: 'Calendar event not found' },

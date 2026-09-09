@@ -716,10 +716,34 @@
 }
 
 .event-item__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.event-item--done .event-item__title {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.event-item__completion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--color-success);
+  text-decoration: none;
+}
+
+.event-item__completion svg {
+  width: var(--space-4);
+  height: var(--space-4);
+  stroke-width: 3;
 }
 
 .event-item__time {
@@ -2286,6 +2310,12 @@ svg.weather-forecast__icon {
   hyphens: manual;
 }
 
+.today-cockpit-card__value--done {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 /* Modul-Label als ruhiger Untertitel (Footnote, Sekundaerfarbe) - nie versal,
  * nie ueber dem Titel (Craft-Floor-Bann Eyebrow). */
 .today-cockpit-card__sub {
@@ -2302,6 +2332,28 @@ svg.weather-forecast__icon {
   font-size: var(--type-caption);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.today-cockpit-card__trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.today-cockpit-card__completion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--color-success);
+}
+
+.today-cockpit-card__completion svg {
+  width: var(--space-4);
+  height: var(--space-4);
+  stroke-width: 3;
 }
 
 /* Ueberfaellig spricht in der Ink-Stufe der Gefahrfarbe (AA auf Surface in

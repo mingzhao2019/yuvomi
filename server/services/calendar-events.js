@@ -7,6 +7,7 @@
 
 import { nextOccurrence, parseRRule, matchesRRuleByday } from './recurrence.js';
 import { visibilityWhere } from './visibility.js';
+import { decorateEventCompletions } from './calendar-event-completions.js';
 import {
   householdTimeZone, localToUTC, shiftDateKey, storedToInstantMs, todayKey, utcToWall,
 } from '../utils/timezone.js';
@@ -202,6 +203,10 @@ export function expandRecurringEvents(events, from, to, exceptionsByEvent = null
           ...event,
           start_datetime:       newStart,
           end_datetime:         newEnd,
+          // The rule-local date is stable across DST changes and independent
+          // of the displayed instant. It is the identity used by the personal
+          // completion table for this virtual occurrence.
+          completion_key:       currentDate,
           is_recurring_instance: utcTagFuer(currentDate) !== seriesStartUtc ? 1 : 0,
           // "IST DAS DER ERSTE TERMIN DER SERIE?" IST NICHT "WEICHT ER VOM
           // GESPEICHERTEN DATUM AB?" - seit ein Start auf der Regel liegen darf,
@@ -304,7 +309,7 @@ export function getUpcomingEvents(d, {
   const recurringIds = rawEvents.filter((e) => e.recurrence_rule).map((e) => e.id);
   const exceptions   = loadEventExceptions(d, recurringIds);
 
-  return expandRecurringEvents(rawEvents, sqlFrom, future, exceptions)
+  return decorateEventCompletions(d, expandRecurringEvents(rawEvents, sqlFrom, future, exceptions), userId)
     .filter((e) => {
       // Verglichen werden ZEITPUNKTE, nicht Strings. In start_datetime liegen
       // zwei Formen nebeneinander - zonenlose Wanduhrzeit (lokal angelegt) und

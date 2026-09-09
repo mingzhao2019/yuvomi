@@ -533,6 +533,60 @@ test('GET /:id — liefert Termin + serialisiert', async () => {
   assert.equal(res.status, 200);
   assert.equal(res.body.data.title, 'SINGLE-GET');
   assert.ok(Array.isArray(res.body.data.assigned_users));
+  assert.equal(res.body.data.completion_key, 'single');
+  assert.equal(res.body.data.completed, false);
+});
+
+test('Kalendertermin abschließen — persönlich, sichtbar in allen Ansichten und nicht für andere Nutzer', async () => {
+  const id = insertEvent({ title: 'PERSONAL-COMPLETION', start_datetime: '2036-02-10T09:00' });
+  const done = await call('PATCH', `/${id}/completion`, {
+    actor: MARIA,
+    body: { completed: true, occurrence_key: 'single' },
+  });
+  assert.equal(done.status, 200);
+  assert.equal(done.body.data.event_id, id);
+  assert.equal(done.body.data.completion_key, 'single');
+  assert.equal(done.body.data.completed, true);
+
+  const maria = await call('GET', '/?from=2036-02-01&to=2036-02-28', { actor: MARIA });
+  const mariaEvent = maria.body.data.find((event) => event.id === id);
+  assert.equal(mariaEvent.completed, true);
+  assert.ok(mariaEvent.completed_at);
+
+  const tom = await call('GET', '/?from=2036-02-01&to=2036-02-28', { actor: TOM });
+  const tomEvent = tom.body.data.find((event) => event.id === id);
+  assert.equal(tomEvent.completed, false);
+
+  const reopened = await call('PATCH', `/${id}/completion`, {
+    actor: MARIA,
+    body: { completed: false, occurrence_key: 'single' },
+  });
+  assert.equal(reopened.status, 200);
+  assert.equal(reopened.body.data.completed, false);
+});
+
+test('Wiederkehrenden Kalendertermin je Occurrence abschließen', async () => {
+  const id = insertEvent({
+    title: 'RECURRING-COMPLETION',
+    start_datetime: '2036-02-02T09:00',
+    recurrence_rule: 'FREQ=WEEKLY;INTERVAL=1',
+  });
+  const done = await call('PATCH', `/${id}/completion`, {
+    actor: MARIA,
+    body: { completed: true, occurrence_key: '2036-02-09' },
+  });
+  assert.equal(done.status, 200);
+
+  const listed = await call('GET', '/?from=2036-02-01&to=2036-02-23', { actor: MARIA });
+  const occurrences = listed.body.data.filter((event) => event.id === id);
+  assert.ok(occurrences.some((event) => event.completion_key === '2036-02-09' && event.completed));
+  assert.ok(occurrences.some((event) => event.completion_key === '2036-02-16' && !event.completed));
+
+  const invalid = await call('PATCH', `/${id}/completion`, {
+    actor: MARIA,
+    body: { completed: true, occurrence_key: '2036-02-10' },
+  });
+  assert.equal(invalid.status, 400);
 });
 
 test('GET /:id — Outlook-Inbound-Quelle wird als Kalendername serialisiert', async () => {

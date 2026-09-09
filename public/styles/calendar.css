@@ -428,6 +428,56 @@
   background: color-mix(in srgb, var(--ev-color) var(--tint-raised), var(--color-surface-work));
 }
 
+/* Personal completion control. The event itself remains the detail target;
+ * this sibling button is the only control that changes completion state. */
+.cal-event__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  min-width: var(--space-5);
+  padding: 0;
+  flex: 0 0 var(--space-5);
+  border: 2px solid var(--color-text-tertiary);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-ink-on-vivid);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.cal-event__check:hover,
+.cal-event__check:focus-visible {
+  border-color: var(--module-accent, var(--color-accent));
+}
+
+.cal-event__check:active {
+  transform: scale(0.92);
+}
+
+.cal-event__check:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.cal-event__check--done {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+.cal-event__check svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+
+.cal-event--done .cal-event__title {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 /* Voll gesättigtes Icon trägt das Farbsignal (der "Dot") in Woche/Tag, während
  * der Titel in ruhiger, lesbarer Tinte bleibt. Die Monats-Bars sind nach Kanon
  * icon-frei; dort trägt die Tönung selbst die Farbfamilie. */
@@ -495,7 +545,7 @@
  * [hidden], weil die Chip-Basisregeln display:flex/inline-flex tragen und das
  * UA-[hidden] überstimmen würden.
  *
- * VIERFACH (0,4,0) SEIT DEM TITEL-SCHALTER, und die Sprosse ist gekauft, nicht
+ * FÜNFFACH (0,5,0) SEIT DEM TITEL-SCHALTER, und die Sprosse ist gekauft, nicht
  * geschenkt: die Punktfassung traegt `:not(.month-view--titles)`, und ein
  * `:not()` zaehlt sein Argument mit. Mit dem urspruenglichen `.month-day`
  * davor stand sie damit selbst auf 0,4,0 - Gleichstand mit dieser Regel, und
@@ -503,9 +553,9 @@
  * geklippte Chip war wieder da, und das "+N" zaehlte ihn trotzdem mit.
  * Deshalb sind beide Fassungen auf hoechstens drei Klassen geschnitten und
  * diese Regel auf vier; test:calendar prueft genau diesen Abstand. */
-.month-grid .month-day .month-day__event.is-clipped,
-.month-grid .month-day .cal-task-chip.is-clipped,
-.month-grid .month-day .month-day__holiday.is-clipped {
+.month-view .month-grid .month-day .month-day__event.is-clipped,
+.month-view .month-grid .month-day .cal-task-chip.is-clipped,
+.month-view .month-grid .month-day .month-day__holiday.is-clipped {
   display: none;
 }
 
@@ -1187,7 +1237,27 @@
 .agenda-event {
   align-items: stretch;
   gap: var(--space-2);
+  cursor: default;
+}
+
+.agenda-event__open {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+}
+
+.agenda-event__open:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset-inset);
 }
 
 /* DER KALENDERNAME IST ZURUECK, MIT DEM RANG DES ORTES (Critique 2026-08-13, P1).
@@ -1997,6 +2067,25 @@
     display: none;
   }
 
+  .month-view:not(.month-view--titles) .month-day__event > .cal-event__check {
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+  }
+
+  .month-view:not(.month-view--titles) .month-day__event > .cal-event__check--done {
+    background: var(--color-success);
+  }
+
+  .month-view:not(.month-view--titles) .month-day__event > .cal-event__check svg {
+    display: none;
+  }
+
   .month-day .cal-task-chip > .cal-task-chip__check {
     display: block;
     width: 100%;
@@ -2077,6 +2166,19 @@
    * der Ellipsis. Sie bleibt die Kante, nicht ein Rahmen. */
   .month-view--titles .month-day .month-day__event {
     border-inline-start-width: var(--space-0h);
+  }
+
+  .month-view--titles .month-day .month-day__event > .cal-event__check {
+    width: var(--space-4);
+    height: var(--space-4);
+    min-width: var(--space-4);
+    flex: 0 0 var(--space-4);
+    border-width: 1px;
+  }
+
+  .month-view--titles .month-day .month-day__event > .cal-event__check svg {
+    width: 10px;
+    height: 10px;
   }
 
   /* Der Prioritaetspunkt bleibt die Rangmarke der Aufgabe (Skalen-Regel), nur

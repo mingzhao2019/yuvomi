@@ -255,7 +255,11 @@ export async function render(container, { user }) {
   const [preferences, syncTargets] = await Promise.all([
     getPreferences(),
     api.get('/calendar/sync-targets')
-      .then((res) => ({ google: res.data?.google || [], caldav: res.data?.caldav || [] }))
+      .then((res) => ({
+        google: res.data?.google || [],
+        caldav: res.data?.caldav || [],
+        outlook: res.data?.outlook || [],
+      }))
       .catch(() => null),
   ]);
   renderPage(container, preferences, syncTargets);

@@ -9,7 +9,14 @@ import * as db from '../../db.js';
 import { str, color, datetime, rrule, collectErrors, MAX_TITLE, MAX_TEXT, DATE_RE } from '../../middleware/validate.js';
 import { normalizeVisibility, visibilityWhere } from '../../services/visibility.js';
 import { hasAnyOccurrence } from '../../services/recurrence.js';
-import { utcToWall } from '../../utils/timezone.js';
+import { expandRecurringEvents, loadEventExceptions } from '../../services/calendar-events.js';
+import {
+  RECURRENCE_OCCURRENCE_KEY_RE,
+  SINGLE_EVENT_OCCURRENCE_KEY,
+  decorateEventCompletions,
+  setEventCompletion,
+} from '../../services/calendar-event-completions.js';
+import { shiftDateKey, utcToWall } from '../../utils/timezone.js';
 import {
   StorageError,
   cleanupStagedUpload,
@@ -71,7 +78,8 @@ router.get('/:id', (req, res) => {
     `).get(id, getUserId(req), getUserId(req));
 
     if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
-    res.json({ data: serializeEvent(event, db.get()) });
+    const [decorated] = decorateEventCompletions(db.get(), [event], getUserId(req));
+    res.json({ data: serializeEvent(decorated, db.get()) });
   } catch (err) {
     log.error('', err);
     res.status(500).json({ error: 'Interner Fehler', code: 500 });
@@ -210,7 +218,8 @@ router.post('/', async (req, res) => {
       WHERE e.id = ?
     `).get(eventId);
 
-    res.status(201).json({ data: serializeEvent(event, db.get()) });
+    const [decorated] = decorateEventCompletions(db.get(), [event], userId);
+    res.status(201).json({ data: serializeEvent(decorated, db.get()) });
   } catch (err) {
     if (err instanceof StorageError && !stagedUpload) {
       log.error('POST / storage error:', err);
@@ -247,6 +256,60 @@ function loadVisibleEvent(id, req) {
       AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
   `).get(id, me, me);
 }
+
+function completionOccurrenceExists(event, occurrenceKey) {
+  if (!event.recurrence_rule) return occurrenceKey === SINGLE_EVENT_OCCURRENCE_KEY;
+  if (!RECURRENCE_OCCURRENCE_KEY_RE.test(occurrenceKey)) return false;
+
+  // The expansion may calculate an occurrence in the rule's local zone while
+  // the displayed UTC instant lands on the previous/next day. A one-day guard
+  // on both sides covers that boundary without creating a second recurrence
+  // validation implementation.
+  const exceptions = loadEventExceptions(db.get(), [event.id]);
+  const from = shiftDateKey(occurrenceKey, -1);
+  const to = shiftDateKey(occurrenceKey, 1);
+  return expandRecurringEvents([event], from, to, exceptions)
+    .some((occurrence) => occurrence.completion_key === occurrenceKey);
+}
+
+// --------------------------------------------------------
+// PATCH /api/v1/calendar/:id/completion
+// Persönliche Abschlussmarkierung einer einzelnen Termininstanz.
+// Body: { completed: boolean, occurrence_key: 'single'|'YYYY-MM-DD' }
+// --------------------------------------------------------
+router.patch('/:id/completion', (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated.', code: 401 });
+
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id < 1)
+      return res.status(400).json({ error: 'Ungültige ID.', code: 400 });
+    if (typeof req.body?.completed !== 'boolean')
+      return res.status(400).json({ error: 'completed muss ein Boolean sein.', code: 400 });
+
+    const event = loadVisibleEvent(id, req);
+    if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
+
+    const occurrenceKey = typeof req.body.occurrence_key === 'string'
+      ? req.body.occurrence_key.trim()
+      : '';
+    if (!completionOccurrenceExists(event, occurrenceKey)) {
+      return res.status(400).json({ error: 'occurrence_key gehört nicht zu diesem Termin.', code: 400 });
+    }
+
+    const completion = setEventCompletion(db.get(), {
+      eventId: id,
+      occurrenceKey,
+      userId,
+      completed: req.body.completed,
+    });
+    res.json({ data: completion });
+  } catch (err) {
+    log.error('', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
 
 // --------------------------------------------------------
 // PUT /api/v1/calendar/:id
@@ -551,7 +614,8 @@ router.put('/:id', async (req, res) => {
     const outlookPending = outlookCalendar.markEventOutbound(event, updated);
     const pending = genericPending || outlookPending;
 
-    res.json({ data: serializeEvent(updated, db.get()) });
+    const [decorated] = decorateEventCompletions(db.get(), [updated], getUserId(req));
+    res.json({ data: serializeEvent(decorated, db.get()) });
 
     if (pending) {
       Promise.all([

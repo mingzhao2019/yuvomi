@@ -873,6 +873,7 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
       rows.push({
         kind: 'event',
         objectId: event.id,
+        completed: !!event.completed,
         sortKey: timed ? `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}` : '00:01',
         timeLabel: timed ? formatTime(start) : t('dashboard.allDay'),
         title: event.title,
@@ -1020,10 +1021,10 @@ function renderUpcomingEvents(events) {
     const _suffix = timeSuffix();
     const timeStr = e.all_day ? t('dashboard.allDay') : `${formatTime(d)}${_suffix ? ' ' + _suffix : ''}`.trim();
     return `
-      <div class="event-item" data-route="${esc(calendarEventRoute(e))}" role="button" tabindex="0">
+      <div class="event-item${e.completed ? ' event-item--done' : ''}" data-route="${esc(calendarEventRoute(e))}" role="button" tabindex="0">
         <div class="event-item__bar" style="background-color:${esc(resolveEventColor(e))}"></div>
         <div class="event-item__content">
-          <div class="event-item__title">${esc(e.title)}</div>
+          <div class="event-item__title">${e.completed ? `<span class="event-item__completion" title="${esc(t('calendar.completed'))}" aria-label="${esc(t('calendar.completed'))}"><i data-lucide="check" aria-hidden="true"></i></span>` : ''}${esc(e.title)}</div>
           <div class="event-item__time">
             <span class="event-time-badge ${isToday ? 'event-time-badge--today' : ''}">${isToday ? t('common.today') : relativeDateLabel(dayKey)}</span>
             ${timeStr}
@@ -2186,6 +2187,12 @@ function renderTodayRow(row) {
   const time = row.timeLabel
     ? `<span class="today-cockpit-card__time${row.overdue ? ' today-cockpit-card__time--overdue' : ''}">${esc(row.timeLabel)}</span>`
     : '';
+  const completion = row.kind === 'event' && row.completed
+    ? `<span class="today-cockpit-card__completion" title="${esc(t('calendar.completed'))}" aria-label="${esc(t('calendar.completed'))}"><i data-lucide="check" aria-hidden="true"></i></span>`
+    : '';
+  const trailing = completion || time
+    ? `<span class="today-cockpit-card__trailing">${completion}${time}</span>`
+    : '';
   // Objekt-Anker für die Objekt-Deep-Links (Paket 2): die Zeile weiß bereits,
   // WOVON sie spricht - nur das Ziel bleibt vorerst die Modul-Route.
   const objectAttrs = row.objectId != null
@@ -2211,10 +2218,10 @@ function renderTodayRow(row) {
   const inner = `
       <span class="${mark ? 'seal-pair' : ''}"><span class="module-seal today-cockpit-card__icon">${moduleIconHTML(row.icon)}</span>${mark}</span>
       <span class="today-cockpit-card__body">
-        <strong class="today-cockpit-card__value">${esc(row.title)}</strong>
+        <strong class="today-cockpit-card__value${row.completed ? ' today-cockpit-card__value--done' : ''}">${esc(row.title)}</strong>
         <span class="today-cockpit-card__sub">${esc(row.sub)}</span>
       </span>
-      ${time}
+      ${trailing}
   `;
   const attrs = `class="today-cockpit-card today-cockpit-card--${row.tone}" data-route="${esc(row.route)}"${objectAttrs}`;
   return opensModal

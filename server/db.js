@@ -7897,6 +7897,27 @@ const MIGRATIONS = [
       CREATE INDEX idx_shopping_items_store ON shopping_items(store_id);
     `,
   },
+  {
+    version: 202,
+    description: 'personal completion state for calendar event occurrences',
+    up: `
+      -- A calendar event is shared, but completion is a personal acknowledgement:
+      -- one member checking an appointment must not check it for everybody else.
+      -- Recurring events are expanded in memory, so the occurrence key belongs
+      -- here instead of on calendar_events; otherwise checking one occurrence
+      -- would mark the complete series.
+      CREATE TABLE calendar_event_completions (
+        event_id       INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
+        occurrence_key TEXT    NOT NULL,
+        user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        completed_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        PRIMARY KEY (event_id, occurrence_key, user_id)
+      );
+
+      CREATE INDEX idx_calendar_event_completions_user_event
+        ON calendar_event_completions(user_id, event_id, occurrence_key);
+    `,
+  },
 ];
 
 /**

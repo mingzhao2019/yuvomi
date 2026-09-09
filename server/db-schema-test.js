@@ -1230,6 +1230,21 @@ const MIGRATIONS_SQL = {
   197: `
     ALTER TABLE invites ADD COLUMN permissions TEXT;
   `,
+
+  // SQL-String für Migration v202 (gespiegelt aus db.js): persönliche
+  // Abschlussmarkierung je Kalender-Event-Occurrence.
+  202: `
+    CREATE TABLE calendar_event_completions (
+      event_id       INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
+      occurrence_key TEXT    NOT NULL,
+      user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      completed_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+      PRIMARY KEY (event_id, occurrence_key, user_id)
+    );
+
+    CREATE INDEX idx_calendar_event_completions_user_event
+      ON calendar_event_completions(user_id, event_id, occurrence_key);
+  `,
 };
 
 export { MIGRATIONS_SQL };

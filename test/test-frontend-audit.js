@@ -2091,6 +2091,7 @@ test('personal-calendar leaf owns only the per-user event defaults', () => {
   assert.match(source, /id="calendar-default-reminders"/);
   assert.match(source, /savePreferences\(\{ calendar_default_assign_me: value \}\)/);
   assert.match(source, /savePreferences\(\{ calendar_default_reminders: selected \}\)/);
+  assert.match(source, /outlook: res\.data\?\.outlook \|\| \[\]/);
   // Die Grenze muss auf dem Blatt stehen, sonst erklärt nichts, warum
   // Standarddauer und Wochenstart hier fehlen.
   assert.match(source, /settings\.calendarDefaultsScopeHint/);

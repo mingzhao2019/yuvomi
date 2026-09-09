@@ -366,6 +366,24 @@ test('Wiederholungsmarke steht vor dem Titel in allen Kalenderansichten mit ausg
   }
 });
 
+test('Kalendertermine haben eine persönliche Abschlussmarkierung pro Occurrence', () => {
+  const open = calendarHelpers.renderEventCompletionControl({ id: 7, title: 'Besprechung' });
+  assert(open.includes('data-event-id="7"'), 'die Markierung trägt die Event-ID');
+  assert(open.includes('data-completion-key="single"'), 'Einzeltermine verwenden den single-Schlüssel');
+  assert(open.includes('aria-pressed="false"'), 'offener Termin ist zugänglich als offen markiert');
+
+  const done = calendarHelpers.renderEventCompletionControl({
+    id: 8,
+    title: 'Serientermin',
+    recurrence_rule: 'FREQ=WEEKLY',
+    completion_key: '2026-09-14',
+    completed: true,
+  });
+  assert(done.includes('data-completion-key="2026-09-14"'), 'Serie verwendet das Occurrence-Datum');
+  assert(done.includes('cal-event__check--done'), 'erledigter Termin erhält den sichtbaren Zustand');
+  assert(done.includes('aria-pressed="true"'), 'erledigter Termin ist zugänglich als erledigt markiert');
+});
+
 // --------------------------------------------------------
 // nextOccurrence: INTERVAL-Korrektheit mit BYDAY
 // --------------------------------------------------------
