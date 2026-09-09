@@ -399,11 +399,14 @@ test('#805: .modal-panel ist auf jeder Breite der Containing Block', () => {
 
 /** Element-Attrappe: genau das, was rememberFocus() liest. */
 function makeNode(tag, {
-  id = '', cls = null, data = {}, connected = true, attrs = {},
+  id = '', cls = null, data = {}, row = null, connected = true, attrs = {},
 } = {}) {
   return {
     tagName: tag.toUpperCase(), id, isConnected: connected, dataset: { ...data },
     getAttribute: (name) => (name === 'class' ? cls : null),
+    closest: (selector) => selector === '[data-id]' && row != null
+      ? { dataset: { id: String(row) } }
+      : null,
     _attrs: { ...attrs },
     hasAttribute(n) { return n in this._attrs; },
     setAttribute(n, v) { this._attrs[n] = String(v); },
@@ -722,4 +725,38 @@ test('ein verbundenes, aber unbedienbares Ziel beendet den Lauf nicht', () => {
     + 'ob das Ziel den Fokus auch haelt');
   assert.match(wachen, /document\.activeElement === ziel/,
     'geprueft gehoert der Fokusbesitz');
+});
+
+/* REVIEW ZU #1070: nicht jedes data-Feld traegt Identitaet.
+ *
+ * Der Umbenennen-Knopf einer Teilaufgabe fuehrt `data-action` und `data-id` -
+ * aber auch `data-title`, und genau das aendert sich beim Umbenennen. Ein
+ * Vergleich auf Gleichheit ALLER Felder findet den neu gebauten Knopf danach
+ * nie wieder und faellt auf die Wurzel zurueck: die Funktion waere in genau dem
+ * Fall unwirksam, fuer den sie gebaut ist.
+ */
+test('ein geaendertes Nutzlast-Feld verhindert das Wiederfinden nicht', () => {
+  const gemeinsam = { cls: 'subtask-item__action' };
+  const alt = makeNode('button', { ...gemeinsam, data: { action: 'rename-subtask', id: '7', title: 'Alt' }, connected: false });
+  const neu = makeNode('button', { ...gemeinsam, data: { action: 'rename-subtask', id: '7', title: 'Neu' } });
+  const wurzel = makeNode('main', { id: 'main-content' });
+  withDom({ byTag: { BUTTON: [neu] }, byId: { 'main-content': wurzel } }, () => {
+    assert.equal(focusRestoreTarget(rememberFocus(alt)), neu,
+      'die Identitaet steht in action und id - ein geaenderter Titel darf den Knopf nicht verstecken');
+  });
+});
+
+/* Der zweite Anlauf besteht weiter auf Eindeutigkeit: zwei Teilaufgaben mit
+ * derselben action, aber verschiedenen ids bleiben unterscheidbar, und wo die
+ * identitaetstragenden Felder selbst mehrdeutig sind, wird nichts geraten. */
+test('der zweite Anlauf raet nicht - Mehrdeutigkeit bleibt Mehrdeutigkeit', () => {
+  const gemeinsam = { cls: 'subtask-item__action' };
+  const alt = makeNode('button', { ...gemeinsam, data: { action: 'rename-subtask', title: 'Alt' }, connected: false });
+  const a = makeNode('button', { ...gemeinsam, data: { action: 'rename-subtask', title: 'X' } });
+  const b = makeNode('button', { ...gemeinsam, data: { action: 'rename-subtask', title: 'Y' } });
+  const wurzel = makeNode('main', { id: 'main-content' });
+  withDom({ byTag: { BUTTON: [a, b] }, byId: { 'main-content': wurzel } }, () => {
+    assert.equal(focusRestoreTarget(rememberFocus(alt)), wurzel,
+      'ohne unterscheidende id bleiben zwei Kandidaten - dann die Wurzel statt der falschen');
+  });
 });

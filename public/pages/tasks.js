@@ -2516,6 +2516,7 @@ async function advanceTaskStatus(task, status, button, container) {
     // an, etwas rückgängig zu machen, was gar nicht mehr aussteht (#625).
     await closeDetailView({ force: true });
     await loadTasks(container);
+    refocusAfterRender();
   } catch (err) {
     task.status = previous;
     stop();
@@ -2539,6 +2540,7 @@ async function toggleTaskArchive(task, button, container) {
     await closeDetailView({ force: true });
     window.yuvomi.showToast(archived ? t('tasks.unarchivedToast') : t('tasks.archivedToast'), 'success');
     await loadTasks(container);
+    refocusAfterRender();
   } catch (err) {
     stop();
     window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
