@@ -320,6 +320,14 @@ test('Guard: der null-Rueckfall steht nur als Default-Parameter', () => {
   assert.ok(CALL.test(bad) && !DECLARES_FN.test(bad), 'ein Rumpf-Aufruf muss auffallen');
   const good = 'function dueField(date, time, tz = householdTimeZone(null)) {';
   assert.ok(CALL.test(good) && DECLARES_FN.test(good), 'ein Default darf durchgehen');
+
+  // Und die zweiargumentige Form, ohne die das `[,)]` oben nur eine Behauptung
+  // waere: die beiden Zeilen darueber matchen auch die alte, auf `\)` endende
+  // Fassung, die Schaerfung selbst bliebe also ungeprueft. Gemessen: mit dieser
+  // Zeile faellt das Zurueckdrehen auf `\)` auf, ohne sie nicht.
+  const badTwoArg = 'const key = todayKey(null, from);';
+  assert.ok(CALL.test(badTwoArg) && !DECLARES_FN.test(badTwoArg),
+    'auch zweiargumentig muss ein Rumpf-Aufruf auffallen');
 });
 
 test('Guard: der Outlook-Push traegt keine fest verdrahtete Zone mehr', () => {
