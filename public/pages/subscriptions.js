@@ -4,7 +4,7 @@
  */
 
 import { api } from '/api.js';
-import { closeModal, confirmModal, confirmOverModal, openModal, advancedSection, reportFieldError } from '/components/modal.js';
+import { closeModal, confirmModal, confirmOverModal, openModal, advancedSection, reportFieldError, refocusAfterRender } from '/components/modal.js';
 import {
   formatDate,
   getLocale,
@@ -1211,6 +1211,7 @@ async function saveSubscription(panel, existing, searchedLogoData = null) {
     else await api.post('/budget/subscriptions', payload);
     await closeModal({ force: true });
     await reload();
+    refocusAfterRender();
     window.yuvomi?.showToast(t(existing ? 'subscriptions.savedToast' : 'subscriptions.addedToast'), 'success');
   } catch (err) {
     window.yuvomi?.showToast(err.data?.error || err.message || t('common.unknownError'), 'danger');
@@ -1400,6 +1401,7 @@ async function openSettingsModal() {
           });
           await closeModal({ force: true });
           await reload({ refreshRates: true });
+          refocusAfterRender();
           window.yuvomi?.showToast(t('subscriptions.settingsSaved'), 'success');
         } catch (err) {
           window.yuvomi?.showToast(err.data?.error || t('common.unknownError'), 'danger');
@@ -1489,6 +1491,7 @@ function openMetadataModal() {
         });
         await closeModal({ force: true });
         await reload();
+        refocusAfterRender();
         openMetadataModal();
       });
       panel.querySelector('#subscription-add-method').addEventListener('click', async () => {
@@ -1497,6 +1500,7 @@ function openMetadataModal() {
         await api.post('/budget/subscriptions/payment-methods', { name });
         await closeModal({ force: true });
         await reload();
+        refocusAfterRender();
         openMetadataModal();
       });
       panel.querySelectorAll('[data-move]').forEach((button) => {
@@ -1513,6 +1517,7 @@ function openMetadataModal() {
           await api.put('/budget/subscriptions/meta/order', { [key]: rows.map((row) => Number(row.dataset.id)) });
           await closeModal({ force: true });
           await reload();
+          refocusAfterRender();
           openMetadataModal();
         });
       });
@@ -1577,6 +1582,7 @@ function openMetadataModal() {
             }
             await closeModal({ force: true });
             await reload();
+            refocusAfterRender();
             openMetadataModal();
             window.yuvomi?.showToast(t('subscriptions.metaSavedToast'), 'success');
           } catch (err) {
