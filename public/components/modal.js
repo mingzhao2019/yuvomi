@@ -773,31 +773,14 @@ function _refocusIfDropped(memo, ziel) {
  */
 export function refocusAfterRender() {
   if (!_lastRestore) return;
-  _tryRefocus(_lastRestore.memo, _lastRestore.ziel);
+  // Der Merker gehoert zu genau einem Schliessen und wird dabei verbraucht.
+  // So kann ein spaeterer Aufruf nicht versehentlich das Fokusziel eines
+  // bereits abgeschlossenen Dialogs erneut verwenden.
+  const merker = _lastRestore;
+  _lastRestore = null;
+  _tryRefocus(merker.memo, merker.ziel);
 }
 
-/**
- * Ein Fokusziel, das den Fokus auch ANNIMMT.
- *
- * Betrifft genau ein Element: die Seitenwurzel. Alles andere, was diese Weiche
- * zurueckgibt, ist ein Knopf oder eine Zeile und damit von Natur aus
- * fokussierbar.
- *
- * `renderAppShell()` in router.js setzt `tabIndex = -1` - aber nur fuer die
- * Routen mit App-Shell. Die fuenf Auth-Seiten (login, setup, join,
- * forgot-password, reset-password) rendern ihr eigenes
- * `<main id="main-content">` ohne das Attribut, und dort ist `.focus()` ein
- * No-op: gemessen faellt der Fokus auf `document.body` - genau der stille
- * Ausfall, den diese Weiche verhindern soll, nur eine Route weiter.
- *
- * Erreichbar ist das ueber ein Sitzungsende bei offenem Dialog:
- * `closeAllOverlays()` schliesst mit `force`, und auf Mobil haengt `_doClose`
- * an `animationend` beziehungsweise einem 400-ms-Timer - es kann also laufen,
- * nachdem `/login` schon gerendert hat.
- *
- * `hasAttribute` und nicht `el.tabIndex`: das Property liest auch ohne Attribut
- * `-1` und kann die beiden Faelle gar nicht unterscheiden (gemessen).
- */
 function _focusable(el) {
   if (el && el.id === PAGE_ROOT_ID && !el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
   return el;
