@@ -10,6 +10,7 @@ import express from 'express';
 import { buildRouter } from '../server/routes/push.js';
 import { processDuePushes } from '../server/services/push-scheduler.js';
 import { MIGRATIONS } from '../server/db.js';
+import { fetchRetry } from './fetch-retry.js';
 
 // --- Minimal-Schema -------------------------------------------------------
 function makeDb() {
@@ -280,7 +281,7 @@ async function startApp(db, webpush, userId = 1) {
 test('GET /vapid-public-key returns the key', async () => {
   const db = makeDb();
   const app = await startApp(db, makeWebpushMock());
-  const res = await fetch(`${app.baseUrl}/vapid-public-key`);
+  const res = await fetchRetry(`${app.baseUrl}/vapid-public-key`);
   const json = await res.json();
   assert.equal(res.status, 200);
   assert.equal(json.data.key, 'PUB_GEN');
@@ -290,9 +291,9 @@ test('POST /subscribe inserts then upserts the subscription', async () => {
   const db = makeDb();
   const app = await startApp(db, makeWebpushMock());
   const body = { endpoint: 'https://push/x', keys: { p256dh: 'PP', auth: 'AA' } };
-  let res = await fetch(`${app.baseUrl}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  let res = await fetchRetry(`${app.baseUrl}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   assert.equal(res.status, 201);
-  res = await fetch(`${app.baseUrl}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, keys: { p256dh: 'PP2', auth: 'AA2' } }) });
+  res = await fetchRetry(`${app.baseUrl}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, keys: { p256dh: 'PP2', auth: 'AA2' } }) });
   assert.equal(res.status, 201);
   const rows = db.prepare('SELECT p256dh FROM push_subscriptions WHERE endpoint = ?').all('https://push/x');
   assert.equal(rows.length, 1);
@@ -302,7 +303,7 @@ test('POST /subscribe inserts then upserts the subscription', async () => {
 test('POST /subscribe rejects missing keys', async () => {
   const db = makeDb();
   const app = await startApp(db, makeWebpushMock());
-  const res = await fetch(`${app.baseUrl}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: 'https://push/x' }) });
+  const res = await fetchRetry(`${app.baseUrl}/subscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: 'https://push/x' }) });
   assert.equal(res.status, 400);
 });
 
@@ -310,7 +311,7 @@ test('POST /unsubscribe removes the subscription', async () => {
   const db = makeDb();
   db.prepare("INSERT INTO push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (1,'https://push/x','p','a')").run();
   const app = await startApp(db, makeWebpushMock());
-  const res = await fetch(`${app.baseUrl}/unsubscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: 'https://push/x' }) });
+  const res = await fetchRetry(`${app.baseUrl}/unsubscribe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: 'https://push/x' }) });
   assert.equal(res.status, 204);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM push_subscriptions').get().c, 0);
 });
@@ -320,7 +321,7 @@ test('POST /test forwards client-provided localized text', async () => {
   const webpush = makeWebpushMock();
   db.prepare("INSERT INTO push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (1,'https://push/x','p','a')").run();
   const app = await startApp(db, webpush);
-  const res = await fetch(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Titel', body: 'Inhalt' }) });
+  const res = await fetchRetry(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Titel', body: 'Inhalt' }) });
   const json = await res.json();
   assert.equal(res.status, 200);
   assert.equal(json.data.sent, 1);
@@ -331,7 +332,7 @@ test('POST /test forwards client-provided localized text', async () => {
 test('POST /test reports sent 0 / devices 0 when nothing is registered', async () => {
   const db = makeDb();
   const app = await startApp(db, makeWebpushMock());
-  const res = await fetch(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
+  const res = await fetchRetry(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
   const json = await res.json();
   assert.equal(res.status, 200);
   assert.equal(json.data.sent, 0);
@@ -342,7 +343,7 @@ test('POST /test reports sent 0 but devices 1 when the subscription is gone', as
   const db = makeDb();
   db.prepare("INSERT INTO push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (1,'https://push/gone','p','a')").run();
   const app = await startApp(db, makeWebpushMock());
-  const res = await fetch(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
+  const res = await fetchRetry(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
   const json = await res.json();
   assert.equal(res.status, 200);
   assert.equal(json.data.sent, 0);
@@ -355,7 +356,7 @@ test('POST /test only counts the current user devices', async () => {
   const db = makeDb();
   db.prepare("INSERT INTO push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (2,'https://push/bob','p','a')").run();
   const app = await startApp(db, makeWebpushMock(), 1);
-  const res = await fetch(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
+  const res = await fetchRetry(`${app.baseUrl}/test`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
   const json = await res.json();
   assert.equal(json.data.devices, 0);
 });
