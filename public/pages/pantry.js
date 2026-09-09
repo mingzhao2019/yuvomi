@@ -1190,6 +1190,7 @@ function openItemModal(mode, item = null) {
       panel.querySelector('#pantry-delete')?.addEventListener('click', async () => {
         closeSharedModal({ force: true });
         await removeItem(item);
+        refocusAfterRender();
       });
 
       wireBlurValidation(panel);
