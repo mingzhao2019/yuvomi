@@ -287,7 +287,7 @@ test('Guard: der null-Rueckfall steht nur als Default-Parameter', () => {
   // blind: in `const tz = householdTimeZone(null);` steht auch ein '='. Die
   // Signatur darf dabei ueber mehrere Zeilen laufen; das ist bei den
   // To-Do-Generatoren der custom-Integration der Fall.
-  const CALL = /(?:householdTimeZone|todayKey)\s*\(\s*null\s*\)/;
+  const CALL = /(?:householdTimeZone|todayKey)\s*\(\s*null\s*[,)]/;
   const DECLARES_FN = /\bfunction\b|=>/;
   const offenders = [];
   for (const file of serverFiles()) {
