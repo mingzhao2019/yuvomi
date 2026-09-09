@@ -35,6 +35,7 @@
     "test:tasks-routes": "node --test test/test-tasks-routes.js",
     "test:task-default-points": "node --test test/test-task-default-points.js",
     "test:task-groups": "node --loader ./test/test-browser-loader.mjs --test test/test-task-groups.js",
+    "test:task-filters": "node --loader ./test/test-browser-loader.mjs --test test/test-task-filters.js",
     "test:task-lock": "node --test test/test-task-lock.js",
     "test:task-scope": "node --test test/test-task-scope.js",
     "test:task-categories": "node --experimental-sqlite test/test-task-categories.js",
