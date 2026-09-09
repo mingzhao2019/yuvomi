@@ -7841,7 +7841,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 192,
+    version: 200,
     description: 'own image for recipes typed into yuvomi',
     up: `
       -- EIN BILD JE REZEPT (#1059, Schritt 2).
