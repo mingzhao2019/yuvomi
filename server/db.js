@@ -7810,7 +7810,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 191,
+    version: 199,
     description: 'responsible members per budget entry',
     up: `
       -- WER SICH UM EINE BUCHUNG KUEMMERT (#1057) - ein Etikett, das kein Geld
