@@ -172,6 +172,7 @@
     "test:region-presets": "node --test test/test-region-presets.js",
     "test:docker-publish": "node --test test/test-docker-publish.js",
     "test:claude-review-workflow": "node --test test/test-claude-review-workflow.js",
+    "test:review-proof": "node --test test/test-review-proof.js",
     "test:workflow-timeouts": "node --test test/test-workflow-timeouts.js",
     "test:push": "DB_PATH=:memory: node --experimental-sqlite test/test-push.js",
     "test:notifications": "DB_PATH=:memory: node --experimental-sqlite test/test-notifications.js",
