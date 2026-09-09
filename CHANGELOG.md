@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 <!-- retain the existing custom changelog history -->
+- **Medication reminders now reach the person's caregivers too, and say whose dose it is** (D#1041,
+  asked by @ElHado). The scheduler used to send a due-dose reminder to exactly one account, the
+  person the medication belongs to - for a child without a device that reminder went quietly
+  nowhere. It now also delivers to every caregiver an admin has granted for that person under
+  Settings → Family (the same explicit grant that lets a caregiver record and correct doses), over
+  Web Push and each caregiver's own notification channels. The person's copy is unchanged; a
+  caregiver's copy carries the person's name in front of the medication ("Anna: Ibuprofen"), so it
+  is clear at a glance who the reminder is about. Nothing is derived from a family role: no grant,
+  no reminder.
 - **Folder uploads now handle server rate limits and cancellation cleanly.** A directory upload
   waits for the server's advertised retry window when a write is rate-limited, retries only the
   rate-limited operation with a bounded backoff, and reports a stable failure reason when retries
