@@ -398,10 +398,15 @@ test('#805: .modal-panel ist auf jeder Breite der Containing Block', () => {
  */
 
 /** Element-Attrappe: genau das, was rememberFocus() liest. */
-function makeNode(tag, { id = '', cls = null, data = {}, connected = true } = {}) {
+function makeNode(tag, {
+  id = '', cls = null, data = {}, connected = true, attrs = {},
+} = {}) {
   return {
     tagName: tag.toUpperCase(), id, isConnected: connected, dataset: { ...data },
     getAttribute: (name) => (name === 'class' ? cls : null),
+    _attrs: { ...attrs },
+    hasAttribute(n) { return n in this._attrs; },
+    setAttribute(n, v) { this._attrs[n] = String(v); },
     focus() { this._focused = true; },
   };
 }
@@ -416,6 +421,11 @@ function withDom({ byId = {}, byTag = {} }, fn) {
     global.document.getElementById = vorherId;
     global.document.getElementsByTagName = vorherTag;
   }
+}
+
+// 上游新增的页面根节点探针使用这个更窄的别名；共用同一套 DOM 替身。
+function withElements(byId, fn) {
+  return withDom({ byId }, fn);
 }
 
 test('der Fokus geht auf den Ausloeser zurueck, solange er im Dokument haengt', () => {
@@ -555,3 +565,43 @@ test('_doClose fasst nach, und das Nachfassen behaelt seine drei Wachen', () => 
     'der oeffentliche Griff muss durch dieselben Wachen wie das automatische Nachfassen - '
     + 'sonst darf eine Seite den Fokus aus einem offenen Dialog reissen');
 });
+
+/* DER REVIEW-BEFUND ZU #1069: die Wurzel ist nicht ueberall fokussierbar.
+ *
+ * `renderAppShell()` setzt `tabIndex = -1`, laeuft aber nur fuer Routen mit
+ * App-Shell. Die fuenf Auth-Seiten (login, setup, join, forgot-password,
+ * reset-password) rendern ihr eigenes `<main id="main-content">` ohne das
+ * Attribut. Im Browser gemessen (Chrome 152): `.focus()` darauf ist ein No-op,
+ * der Fokus faellt auf `document.body` - genau der stille Ausfall, den diese
+ * Weiche verhindern soll.
+ *
+ * `el.tabIndex` taugt nicht zur Pruefung: es liest auch ohne Attribut `-1`,
+ * ebenfalls gemessen. Deshalb `hasAttribute`.
+ *
+ * GEGENPROBE: die Zeile in `_pageRoot` tot stellen, dann faellt die erste der
+ * beiden Sonden.
+ */
+test('eine Seitenwurzel ohne tabindex wird fokussierbar gemacht', () => {
+  const alt = makeNode('irgendwas', { connected: false });
+  const wurzel = makeNode('main-content');            // wie auf den Auth-Seiten: kein tabindex
+  withElements({ 'main-content': wurzel }, () => {
+    const ziel = focusRestoreTarget(alt);
+    assert.equal(ziel, wurzel, 'die Wurzel bleibt das Ziel');
+    assert.equal(ziel.hasAttribute('tabindex'), true,
+      'ohne tabindex nimmt <main> keinen Fokus an - `.focus()` waere ein stiller No-op, '
+      + 'und der Fokus fiele auf document.body. Genau der Fehler, den diese Weiche verhindert.');
+    assert.equal(ziel._attrs.tabindex, '-1',
+      'tabindex="-1" macht sie programmatisch fokussierbar, ohne sie in die Tab-Reihenfolge zu haengen');
+  });
+});
+
+test('ein vorhandenes tabindex wird nicht ueberschrieben', () => {
+  const alt = makeNode('irgendwas', { connected: false });
+  const wurzel = makeNode('main-content', { attrs: { tabindex: '0' } });
+  withElements({ 'main-content': wurzel }, () => {
+    focusRestoreTarget(alt);
+    assert.equal(wurzel._attrs.tabindex, '0',
+      'eine Seite, die ihrer Wurzel bewusst ein anderes tabindex gibt, behaelt es');
+  });
+});
+ 
