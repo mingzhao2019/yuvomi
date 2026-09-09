@@ -541,29 +541,39 @@ test('_doClose fokussiert das Ergebnis des Rueckfalls, nicht den gemerkten Zeige
     + 'genau dieser Aufruf ist auf einem abgehaengten Knoten ein stiller No-op');
 });
 
-test('_doClose fasst nach, und das Nachfassen behaelt seine drei Wachen', () => {
+test('_doClose fasst nach, und das Nachfassen behaelt seine Wachen', () => {
   const src = readFileSync(new URL('../public/components/modal.js', import.meta.url), 'utf8');
   const doClose = src.match(/function _doClose\([\s\S]*?\n\}/)?.[0] ?? '';
-  assert.match(doClose, /_refocusIfDropped\(merkzettel, restoreTarget\)/,
-    '_doClose muss nachfassen - 30 Stellen rendern erst NACH dem Schliessen neu');
+  assert.match(doClose, /_refocusIfDropped\(merkzettel, gesetzt\)/,
+    '_doClose muss nachfassen - und zwar auf dem TATSAECHLICH gesetzten Ziel');
+  assert.match(doClose, /_fokussiereMitRueckfall\(restoreTarget\)/,
+    'nimmt der Ersatz den Fokus nicht an, muss _doClose auf die Wurzel ausweichen');
 
   // Die Wachen sitzen in `_tryRefocus`, das sich beide Wege teilen: das
   // automatische Nachfassen und der oeffentliche `refocusAfterRender()`. Eine
   // zweite Kopie waere die Stelle, an der sie auseinanderlaufen.
   const wachen = src.match(/function _tryRefocus\([\s\S]*?\n\}/)?.[0] ?? '';
   assert.ok(wachen, '_tryRefocus nicht gefunden');
-  assert.match(wachen, /if \(ziel\.isConnected\) return;/,
-    'ohne diese Wache liefe das Nachfassen auch dann, wenn gar nichts kaputtging');
-  assert.match(wachen, /document\.activeElement !== document\.body/,
-    'hat die Seite selbst etwas fokussiert, ist ihre Wahl die bessere - das Nachfassen darf sie nicht ueberschreiben');
+  assert.match(wachen, /ziel\.isConnected && !istRueckfall/,
+    'ein lebendes Ziel beendet den Lauf - ausser es ist unser eigener Rueckfall, den ein '
+    + 'spaeterer Neuaufbau ersetzen darf');
+  assert.match(wachen, /document\.activeElement === document\.body/,
+    'hat die Seite selbst etwas fokussiert, ist ihre Wahl die bessere');
   assert.match(wachen, /if \(activeOverlay\) return;/,
     'sonst risse das Nachfassen den Fokus aus einem Modal, das in derselben Geste aufgegangen ist');
+  assert.match(wachen, /ersatz === ziel/,
+    'findet der zweite Lauf nichts Besseres, darf er den Fokus nicht erneut bewegen');
 
   const oeffentlich = src.match(/export function refocusAfterRender\([\s\S]*?\n\}/)?.[0] ?? '';
-  assert.ok(oeffentlich, 'refocusAfterRender nicht gefunden');
   assert.match(oeffentlich, /_tryRefocus\(/,
     'der oeffentliche Griff muss durch dieselben Wachen wie das automatische Nachfassen - '
     + 'sonst darf eine Seite den Fokus aus einem offenen Dialog reissen');
+
+  // Die Wirkungspruefung ist der Kern: `.focus()` meldet nicht, ob es griff.
+  const fok = src.match(/function _fokussiere\([\s\S]*?\n\}/)?.[0] ?? '';
+  assert.match(fok, /return document\.activeElement === el;/,
+    '_fokussiere muss zurueckmelden, OB der Fokus angekommen ist - ein disabled oder '
+    + 'ausgeblendeter Ersatz nimmt ihn nicht an, und genau das ist der stille Ausfall');
 });
 
 /* DER REVIEW-BEFUND ZU #1069: die Wurzel ist nicht ueberall fokussierbar.
@@ -623,4 +633,74 @@ test('auch ein Ersatz, der selbst die Seitenwurzel ist, wird fokussierbar gemach
       'die id-Suche darf nicht am Fokussierbar-Machen vorbeifuehren - sonst ist `.focus()` '
       + 'auf der Auth-Seite wieder ein stiller No-op');
   });
+});
+
+/* REVIEW-BEFUND ZU #1070: bei Listenzeilen traegt der Knopf keine Identitaet.
+ *
+ * `<div class="list-row" data-id="42"><button class="list-row__main"
+ * data-action="open-detail">` - so bauen inventory und pantry ihre Zeilen. Tag,
+ * Klasse und `data-action` sind bei JEDER Zeile gleich; nur der Vorfahre
+ * unterscheidet sie. Ohne den Anker gewann der erste Treffer, und der Fokus
+ * landete nach dem Speichern zuverlaessig auf Zeile eins statt auf der Zeile,
+ * aus der der Dialog kam.
+ */
+test('eine Zeile wird ueber ihren Vorfahren unterschieden, nicht ueber den Knopf allein', () => {
+  const opts = { cls: 'list-row__main', data: { action: 'open-detail' } };
+  const alt   = makeNode('button', { ...opts, row: '42', connected: false });
+  const zeile1 = makeNode('button', { ...opts, row: '7' });
+  const zeile42 = makeNode('button', { ...opts, row: '42' });
+  withDom({ byTag: { BUTTON: [zeile1, zeile42] }, byId: { 'main-content': makeNode('main', { id: 'main-content' }) } }, () => {
+    assert.equal(focusRestoreTarget(rememberFocus(alt)), zeile42,
+      'der Fokus gehoert der Zeile, aus der der Dialog kam - nicht der ersten der Liste');
+  });
+});
+
+/* Bleiben mehrere Kandidaten, ist keiner nachweislich der gesuchte. Dann ist
+ * die Wurzel die ehrlichere Antwort: ein falsches Fokusziel setzt den Nutzer an
+ * eine Stelle, die er nicht gewaehlt hat. */
+test('mehrdeutige Treffer werden abgelehnt statt geraten', () => {
+  const opts = { cls: 'list-row__main', data: { action: 'open-detail' } };
+  const alt = makeNode('button', { ...opts, connected: false });   // kein row-Anker
+  const a = makeNode('button', opts);
+  const b = makeNode('button', opts);
+  const wurzel = makeNode('main', { id: 'main-content' });
+  withDom({ byTag: { BUTTON: [a, b] }, byId: { 'main-content': wurzel } }, () => {
+    assert.equal(focusRestoreTarget(rememberFocus(alt)), wurzel,
+      'zwei gleich aussehende Zeilen: lieber die Wurzel als die falsche');
+  });
+});
+
+/* REVIEW ZU #1070, RUNDE 5. Zwei Faelle, in denen `.focus()` wieder still
+ * fehlschlaegt oder ein Fokus an falscher Stelle haengen bleibt.
+ */
+
+/* Ein neu gebauter Knopf kann DEAKTIVIERT sein - in rewards wird der
+ * Einloesen-Knopf es, sobald die Punkte nicht mehr reichen. Er ist dann der
+ * eindeutige Treffer und nimmt den Fokus trotzdem nicht an. Ohne Rueckmeldung
+ * bliebe der Fokus auf `body`, und die Wache `ziel.isConnected` haette jeden
+ * weiteren Versuch abgewiesen. */
+test('_fokussiere meldet, ob der Fokus wirklich angekommen ist', () => {
+  const src = readFileSync(new URL('../public/components/modal.js', import.meta.url), 'utf8');
+  const fok = src.match(/function _fokussiere\([\s\S]*?\n\}/)?.[0] ?? '';
+  assert.ok(fok, '_fokussiere nicht gefunden');
+  assert.match(fok, /return document\.activeElement === el;/,
+    '`.focus()` meldet nichts - erst der Vergleich mit activeElement zeigt, ob es griff');
+  const mit = src.match(/function _fokussiereMitRueckfall\([\s\S]*?\n\}/)?.[0] ?? '';
+  assert.ok(mit, '_fokussiereMitRueckfall nicht gefunden');
+  assert.match(mit, /PAGE_ROOT_ID/,
+    'griff der Fokus nicht, muss auf die Seitenwurzel ausgewichen werden - sonst bleibt er auf body');
+});
+
+/* Ein Loader, der den Ausloeser sofort gegen ein Skelett tauscht und ihn erst
+ * nach der Abfrage neu baut, laesst den Frame-Lauf auf der Wurzel landen. Ohne
+ * die Ausnahme fuer den eigenen Rueckfall haetten `isConnected` und
+ * `activeElement` danach jeden weiteren Versuch abgewiesen. */
+test('ein Fokus auf der Seitenwurzel darf spaeter vom echten Ziel abgeloest werden', () => {
+  const src = readFileSync(new URL('../public/components/modal.js', import.meta.url), 'utf8');
+  const wachen = src.match(/function _tryRefocus\([\s\S]*?\n\}/)?.[0] ?? '';
+  assert.match(wachen, /const istRueckfall = ziel\.id === PAGE_ROOT_ID;/,
+    'der eigene Rueckfall muss als solcher erkannt werden');
+  assert.match(wachen, /istRueckfall && document\.activeElement === ziel/,
+    'liegt der Fokus auf unserem eigenen Rueckfall, gilt das als "noch niemand hat gewaehlt" - '
+    + 'sonst bliebe er an der Seitenwurzel haengen, obwohl der Knopf laengst wieder da ist');
 });

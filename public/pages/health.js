@@ -1150,9 +1150,8 @@ function openVitalModal(opts = {}) {
           closeModal({ force: true });
           window.yuvomi?.showToast(t('health.vitals.saved'), 'success');
           await reloadAfterSave(body.type);
-          refocusAfterRender();
-          refocusAfterRender();
           await opts.onSaved?.();
+          refocusAfterRender();
         } catch (err) {
           console.error('[Health] vitals save error:', err);
           submitBtn.disabled = false;
@@ -2942,7 +2941,6 @@ function openLabModal(report) {
           window.yuvomi?.showToast(t('health.labs.saved'), 'success');
           await reloadLabs();
           refocusAfterRender();
-          refocusAfterRender();
         } catch (err) {
           console.error('[Health] lab save error:', err);
           submitBtn.disabled = false;
@@ -3520,9 +3518,8 @@ function openActivityModal(row, opts = {}) {
           closeModal({ force: true });
           window.yuvomi?.showToast(t('health.activity.saved'), 'success');
           await reloadActivity();
-          refocusAfterRender();
-          refocusAfterRender();
           await opts.onSaved?.();
+          refocusAfterRender();
         } catch (err) {
           console.error('[Health] activity save error:', err);
           submitBtn.disabled = false;
@@ -5209,7 +5206,6 @@ function openPeriodModal(period) {
           window.yuvomi?.showToast(t('health.cycle.saved'), 'success');
           await reloadCycle();
           refocusAfterRender();
-          refocusAfterRender();
         } catch (err) {
           console.error('[Health] cycle period save error:', err);
           submitBtn.disabled = false;
@@ -5362,7 +5358,6 @@ function openDayLogModal(dateKey) {
           closeModal({ force: true });
           window.yuvomi?.showToast(t('health.cycle.saved'), 'success');
           await reloadCycle();
-          refocusAfterRender();
           refocusAfterRender();
         } catch (err) {
           console.error('[Health] cycle log save error:', err);
