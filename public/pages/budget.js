@@ -1481,6 +1481,7 @@ function openAccountModal(account = null) {
           await api.delete(`/budget/accounts/${account.id}`);
           await loadMonth(state.month);
           renderBody();
+          refocusAfterRender();
           window.yuvomi?.showToast(t('budget.accountDeletedToast'), 'success');
         } catch (err) {
           window.yuvomi?.showToast(err.data?.error ?? t('common.unknownError'), 'danger');
@@ -2048,6 +2049,7 @@ function openCategoryManager() {
     // das Nachfassen faellt er beim Austausch auf `document.body`.
     const hadFocus = document.activeElement === _container?.querySelector('#budget-manage-categories');
     renderBody();
+    refocusAfterRender();
     if (hadFocus) _container?.querySelector('#budget-manage-categories')?.focus();
   };
   openSharedModal({
@@ -2601,6 +2603,7 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
             }
             await loadMonth(state.month);
             renderBody();
+            refocusAfterRender();
           } else {
             const res = await api.put(`/budget/${entry.id}`, await withReceipts());
             const idx = state.entries.findIndex((e) => e.id === entry.id);

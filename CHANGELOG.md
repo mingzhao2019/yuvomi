@@ -216,6 +216,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unreadable. "1,5 kg", "250 g" and "6 x 1 l" keep reading exactly as they
   did.
 
+- **Closing a dialog no longer drops keyboard focus when the button that opened it was re-rendered
+  meanwhile**. The shared modal layer remembers the element that opened it and hands focus back on
+  close. If the page had swapped that button out in the meantime - the category manager re-renders
+  its section after every rename, reorder or new entry, while the dialog is still open - the
+  remembered pointer referred to a node no longer in the document. Calling `focus()` on it does
+  nothing at all, silently: focus fell to `document.body`, and anyone working by keyboard or screen
+  reader lost their place in the page and had to tab in from the top.
+
+  The layer now checks whether the remembered element is still connected, and falls back in two
+  steps: it looks for a live element under the same id, which finds the button that was rebuilt in
+  the same spot, and otherwise puts focus on the page root - the same target the skip link uses. Not
+  a good place, but a place inside the page, which `document.body` is not.
+
+  The same break has a second, more common shape: a handler that re-renders **after** the dialog
+  closed - `closeModal()` and `renderGrid()` on the next line. There the restore was correct and got
+  re-rendered away a moment later, which no check at close time can see. Measured: 30 such places,
+  and the typical trigger there is not a toolbar button but a **list row** - a note card, a meal
+  cell - which carries `data-id` or `data-action` rather than an id. The layer now looks the element
+  up again by those attributes, and where the target is destroyed right after the restore it takes a
+  second pass on the next frame: only if the target really vanished, only if focus actually fell to
+  `document.body`, and only if no dialog has opened in the meantime. Where nothing broke, nothing
+  moves - the common path is unchanged.
+
+  Eleven of those places re-render after an `await`, which is past that frame. There only the page
+  knows when it is done, so it says so: `refocusAfterRender()` runs the same three checks and does
+  nothing where nothing broke. A scanner in the test suite finds the pattern rather than a list of
+  files, so a new place that re-renders after an `await` is caught without anyone editing the test.
+
+  A third shape hides between the two and was found in review: a handler that re-renders
+  asynchronously **while the dialog is still open** - `await loadBudgetMeta(); renderBody();` in the
+  category manager. Close the dialog while that request is in flight and the opening button is still
+  connected, so the restore correctly lands on it and the re-render detaches it a moment later.
+  Measured in the browser, focus ends up on `document.body` again. Eleven handlers of that shape now
+  pull focus across their own re-render, with a second scanner holding the line.
+
+  Measured across the seven callers of the category manager, exactly one - the budget page - puts
+  its button inside the very section it re-renders while the dialog is open. The others keep theirs
+  in a toolbar their handler does not touch, and the shopping menu turned out to be a non-case: the
+  popover hands focus back to its trigger before the page handler even runs.
+
 - **Paying extra on a loan now shortens the remaining term, not only the balance** (#964). Since
   #954 the remaining principal follows the money you actually paid, but the remaining term beside it
   stayed plan-based and still said 100 installments after you had doubled a payment - the exact
