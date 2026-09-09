@@ -207,6 +207,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its button inside the very section it re-renders while the dialog is open. The others keep theirs
   in a toolbar their handler does not touch, and the shopping menu turned out to be a non-case: the
   popover hands focus back to its trigger before the page handler even runs.
+- **A fractional ingredient quantity with a stray separator is no longer scaled into a wrong
+  number.** Scaling a recipe reads a leading fraction like "1 1/2 cups" as well as a plain amount.
+  Where a denominator ran straight into a separator - "1/2,5 cup" - only the "1/2" was read, the
+  result was multiplied, and the leftover ",5 cup" was appended, so doubling it produced "1,5 cup":
+  a quantity that looks deliberate and is wrong. The check that already refused this for plain
+  amounts now covers the fraction forms too, and such a line is left exactly as written.
+
 - **Scaling a recipe now reads and writes ingredient quantities in the region that is actually
   set.** Applying a recipe to a meal and changing the servings factor rescales every ingredient, and
   that step parsed the number itself with the comma hard-wired as a decimal point. Under a region
