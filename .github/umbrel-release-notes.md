@@ -1,4 +1,4 @@
-<!-- version: 2.65.0 -->
+<!-- version: 2.65.1 -->
 This is the first of the Tuesday interface releases, and it is a large one: everything the interface gathered over the last week ships together here. Take a backup before you update. On its first start the app may run pending database migrations; let it finish on its own and wait until it answers again before you open it. Migrations only run forward, so the way back is the backup you took before the update, not an older image.
 
 The Schedule module grew the most. A shift type can carry its own icon and custom fields such as a room or a client, a member can be on call alongside a regular shift, a weekly-hours target flags overtime and prints, a personal read-only calendar feed lets you subscribe to your own shifts from any calendar app, and an optional reminder can fire before a shift starts. A new Overview tab puts several household members side by side for a week or a day, and the quick start now offers work, school and university templates, which an admin can hide per household.
@@ -9,4 +9,4 @@ Around the house: the shopping list is more compact and its categories fold away
 
 Two fixes are worth knowing about if you use the budget: a recurring entry now keeps its account from the second month on, and months you already opened are repaired once during this update; editing a series for all future occurrences updates them in place instead of rebuilding them. The desktop sidebar has its scrollbar back, Inventory and Schedule are properly translated in all 24 languages, and an older Yuvomi started on a newer database now says so instead of running silently.
 
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.65.0
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.65.1

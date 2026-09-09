@@ -338,8 +338,8 @@ Points-and-rewards system. A member earns a task's `points` when the task is mar
 | notes | TEXT | Optional free-text note (brand, size, instructions); searchable |
 | url | TEXT | Optional http(s) product/store link (scheme-validated) |
 | sort_order | INTEGER | NOT NULL DEFAULT 0 — manual rank **within (list, category)** (migration v133, #678) |
-| price_cents | INTEGER | Optional price in whole minor units of the household currency (migration v193, #1003) |
-| store_id | INTEGER | FK → Shopping Stores, nullable, ON DELETE SET NULL (migration v193, #1003) |
+| price_cents | INTEGER | Optional price in whole minor units of the household currency (migration v201, #1003) |
+| store_id | INTEGER | FK → Shopping Stores, nullable, ON DELETE SET NULL (migration v201, #1003) |
 
 Notes and links are edited in a per-item detail drawer (progressive disclosure); the quick-add row
 stays name/quantity/category only. A subtle inline icon marks items that carry a note or link. The
@@ -368,7 +368,7 @@ Custom, household-wide category list for shopping items. Replaces the old hardco
 | sort_order | INTEGER | NOT NULL DEFAULT 0 |
 | created_at | TEXT | |
 
-### Shopping Stores (migration v193, #1003)
+### Shopping Stores (migration v201, #1003)
 Household-wide list of the shops the household buys at. Managed with the shared category-manager
 component under "Manage shops" in the list menu; the item dialog offers it as a combobox, where a
 name that is not on the list yet is created on save. The UNIQUE constraint on `name` is
@@ -455,7 +455,7 @@ Reusable recipe cards that can be pre-filled into meal slots.
 | provider_updated_at | TEXT | nullable (the provider's `updatedAt`; unchanged recipes are skipped, migration v118, renamed v134) |
 | provider_slug | TEXT | nullable, adapter-defined (Mealie: its recipe slug, for rebuilding `recipe_url` without a re-fetch; Tandoor: the relative image path, for the thumbnail proxy; migration v120, renamed v134) |
 | provider_has_image | INTEGER | 0/1, NOT NULL default 0 (migration v120, renamed v134) |
-| image_data | TEXT | nullable (migration v192, #1059) — the picture of a recipe typed into Yuvomi as a Base64 data URL, same storage pattern as `inventory_items.photo_data`; server-validated MIME type, content checked against the declared type, and a length cap. Served by `GET /recipes/:id/image`; the list and detail responses never carry the value, they expose `has_own_image` instead. A mirrored recipe keeps using the provider thumbnail |
+| image_data | TEXT | nullable (migration v200, #1059) — the picture of a recipe typed into Yuvomi as a Base64 data URL, same storage pattern as `inventory_items.photo_data`; server-validated MIME type, content checked against the declared type, and a length cap. Served by `GET /recipes/:id/image`; the list and detail responses never carry the value, they expose `has_own_image` instead. A mirrored recipe keeps using the provider thumbnail |
 
 UNIQUE partial index on `(provider_account_id, provider_recipe_id)` where `provider_account_id IS NOT NULL`.
 
@@ -1324,7 +1324,7 @@ The distinction runs through **every** read path, and the two questions need dif
 
 **Deliberately not a household setting.** That would have been much cheaper - one config value, private amounts count everywhere - and it was rejected for a specific reason: whoever flips it removes the guarantee for *everyone* in the household, including members who wanted it, and an admin could do so unilaterally. A privacy promise a third party can switch off is not one. Keeping the choice per entry leaves it with the person whose privacy it is.
 
-### Budget Entry Responsibles (migration v191, #1057)
+### Budget Entry Responsibles (migration v199, #1057)
 Which household members look after an entry - "who handles the water bill". Its own table, because
 several people can share one entry.
 
@@ -1437,7 +1437,7 @@ Recurring service and payment records shown in Budget → Subscriptions.
 | created_by | INTEGER | FK → Users (CASCADE delete), NOT NULL |
 | owner_id | INTEGER | FK → Users, nullable (ON DELETE SET NULL) — owner, fixed to creator (migration v88) |
 | visibility | TEXT | NOT NULL DEFAULT `shared` — `private` \| `shared` (migration v88); the linked Budget expense inherits both |
-| account_username | TEXT | nullable (migration v190, #1004) — the e-mail address or username the service runs on. A note, not a credential: never a password, and it is not used to authenticate anywhere |
+| account_username | TEXT | nullable (migration v198, #1004) — the e-mail address or username the service runs on. A note, not a credential: never a password, and it is not used to authenticate anywhere |
 
 **Optional end condition (migration v107 · #594):** a subscription can define when it ends via an *Ends: Never / On a date / After N payments* selector (mirroring the calendar's finite-recurrence control). Renewing advances to the next cycle until the end is reached — the payment on the end date (or the `occurrence_count`-th payment) is the last — after which the subscription is **marked completed** (`completed_at` set, `enabled` cleared): it drops out of the monthly total, its linked Budget expense and renewal reminder are removed, and it stays visible with a distinct "Completed" state instead of looking manually paused. The 6-month renewal forecast only counts occurrences up to the end. Re-enabling a completed subscription clears the completion; an exhausted *after N payments* subscription can only be reactivated by raising `occurrence_count`. Existing subscriptions default to `never` and behave unchanged.
 
@@ -2033,7 +2033,7 @@ One row per owned belonging.
 | notes | TEXT | nullable |
 | photo_data | TEXT | nullable (v141) — a single Base64 data URL, same storage pattern as `birthdays.photo_data`; server-validated MIME type and a ~5 MB cap (`server/routes/inventory/items.js`). The UI sends a 256 × 256 JPEG via `pickCroppedImage()`; the wider server cap keeps accepting larger legacy values and API writes |
 | created_by | INTEGER | FK → Users (**SET NULL**) — inventory is household property like the pantry; unlike `pantry_items` (which needed a follow-up migration, v109, to fix this) it starts SET NULL from the beginning |
-| account_username | TEXT | nullable (migration v190, #1004) — the e-mail address or username a device is registered under. A note, not a credential |
+| account_username | TEXT | nullable (migration v198, #1004) — the e-mail address or username a device is registered under. A note, not a credential |
 | created_at / updated_at | TEXT | ISO 8601 |
 
 `GET /api/v1/inventory/items` supports filtering by `category`, `location_id`, `status`, and a
