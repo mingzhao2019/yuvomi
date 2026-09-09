@@ -49,7 +49,7 @@ function scheduleDueOnDate(schedule, dateKey) {
 /**
  * Verarbeitet fällige Medikamenten-Dosen: legt fehlende pending-Logs an und
  * fan-outet je neuer Dosis eine Erinnerung an Web Push + aktive Kanäle des
- * Medikament-Eigentümers.
+ * Medikament-Eigentümers und seiner eingetragenen Betreuer.
  *
  * @param {Object} [opts]
  * @param {import('better-sqlite3-multiple-ciphers').Database} [opts.database]
@@ -74,11 +74,17 @@ export async function processDueMedications({
   const nowTime = localTime(now);
 
   const schedules = activeDb.prepare(`
-    SELECT s.*, m.user_id AS owner_id, m.name AS med_name
+    SELECT s.*, m.user_id AS owner_id, m.name AS med_name,
+           COALESCE(NULLIF(u.display_name, ''), u.username) AS owner_name
     FROM medication_schedules s
     JOIN medications m ON m.id = s.medication_id
+    JOIN users u ON u.id = m.user_id
     WHERE s.active = 1 AND m.active = 1
   `).all();
+
+  const caregiversOf = activeDb.prepare(
+    'SELECT caregiver_id FROM health_care_grants WHERE subject_id = ? ORDER BY caregiver_id'
+  );
 
   const findLog = activeDb.prepare(
     'SELECT id FROM medication_logs WHERE medication_id = ? AND schedule_id = ? AND scheduled_at = ?'
@@ -98,7 +104,13 @@ export async function processDueMedications({
     if (findLog.get(s.medication_id, s.id, scheduledAt)) continue; // schon erzeugt
     insertLog.run(s.medication_id, s.id, scheduledAt, 'pending', s.dose_qty ?? null);
     counters.created += 1;
-    newlyDue.push({ ownerId: s.owner_id, medName: s.med_name, medicationId: s.medication_id, scheduledAt });
+    newlyDue.push({
+      ownerId: s.owner_id,
+      ownerName: s.owner_name,
+      medName: s.med_name,
+      medicationId: s.medication_id,
+      scheduledAt,
+    });
   }
 
   // Herkunft im Titel statt des App-Namens - Begruendung bei REMINDER_TITLE_KEYS
@@ -107,26 +119,34 @@ export async function processDueMedications({
   const originTitle = translate(resolveHouseholdLocale(activeDb), 'health.tabs.meds');
 
   for (const dose of newlyDue) {
-    const payload = {
-      title: originTitle || APP_NAME,
-      body: dose.medName || FALLBACK_BODY,
-      url: '/health/meds',
-      tag: `medication-${dose.medicationId}-${dose.scheduledAt}`,
-      priority: 'default',
-    };
+    const medBody = dose.medName || FALLBACK_BODY;
+    const recipients = [{ userId: dose.ownerId, body: medBody }];
+    for (const { caregiver_id: caregiverId } of caregiversOf.all(dose.ownerId)) {
+      if (Number(caregiverId) === Number(dose.ownerId)) continue;
+      recipients.push({ userId: caregiverId, body: `${dose.ownerName}: ${medBody}` });
+    }
     counters.notified += 1;
 
-    const fanout = await fanOutNotification({
-      userId: dose.ownerId,
-      payload,
-      database: activeDb,
-      pushService,
-      channelStore: store,
-      providers,
-      fetchImpl,
-    });
-    counters.sent += fanout.sent;
-    counters.failed += fanout.failed;
+    for (const recipient of recipients) {
+      const payload = {
+        title: originTitle || APP_NAME,
+        body: recipient.body,
+        url: '/health/meds',
+        tag: `medication-${dose.medicationId}-${dose.scheduledAt}`,
+        priority: 'default',
+      };
+      const fanout = await fanOutNotification({
+        userId: recipient.userId,
+        payload,
+        database: activeDb,
+        pushService,
+        channelStore: store,
+        providers,
+        fetchImpl,
+      });
+      counters.sent += fanout.sent;
+      counters.failed += fanout.failed;
+    }
   }
 
   if (counters.created) log.info(`Created ${counters.created} due medication dose(s).`);
