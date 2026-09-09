@@ -48,6 +48,7 @@
     "test:rewards-routes": "node --experimental-sqlite --test test/test-rewards-routes.js",
     "test:reward-icon-null-migration": "node --experimental-sqlite --test test/test-reward-icon-null-migration.js",
     "test:shopping": "node --experimental-sqlite test/test-shopping.js",
+    "test:server-digits": "node --test test/test-server-digits.js",
     "test:shopping-ux": "node --loader ./test/test-browser-loader.mjs --test test/test-shopping-ux.js",
     "test:money-utils": "node --loader ./test/test-browser-loader.mjs --test test/test-money-utils.js",
     "test:shopping-routes": "node --experimental-sqlite --test test/test-shopping-routes.js",
