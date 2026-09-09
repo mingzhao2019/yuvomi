@@ -57,6 +57,7 @@
     "test:recipes-routes": "node --experimental-sqlite --test test/test-recipes-routes.js",
     "test:pantry-routes": "node --experimental-sqlite --test test/test-pantry-routes.js",
     "test:pantry-status": "node --loader ./test/test-browser-loader.mjs --test test/test-pantry-status.js",
+    "test:pantry-ux": "node --loader ./test/test-browser-loader.mjs --test test/test-pantry-ux.js",
     "test:pantry-ownership-migration": "node --experimental-sqlite --test test/test-pantry-ownership-migration.js",
     "test:module-registry-parity": "node --test test/test-module-registry-parity.js",
     "test:suite-chain": "node --test test/test-suite-chain.js",

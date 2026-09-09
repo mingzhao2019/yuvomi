@@ -604,4 +604,3 @@ test('ein vorhandenes tabindex wird nicht ueberschrieben', () => {
       'eine Seite, die ihrer Wurzel bewusst ein anderes tabindex gibt, behaelt es');
   });
 });
- 
