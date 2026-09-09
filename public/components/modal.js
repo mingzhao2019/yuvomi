@@ -623,7 +623,7 @@ function _findAgain(memo) {
 export function focusRestoreTarget(memo) {
   if (!memo) return null;
   if (memo.el?.isConnected) return memo.el;
-  return _findAgain(memo) ?? _pageRoot();
+  return _focusable(_findAgain(memo) ?? document.getElementById(PAGE_ROOT_ID));
 }
 
 /**
@@ -689,7 +689,11 @@ export function refocusAfterRender() {
 }
 
 /**
- * Die Seitenwurzel, und zwar eine, die den Fokus auch ANNIMMT.
+ * Ein Fokusziel, das den Fokus auch ANNIMMT.
+ *
+ * Betrifft genau ein Element: die Seitenwurzel. Alles andere, was diese Weiche
+ * zurueckgibt, ist ein Knopf oder eine Zeile und damit von Natur aus
+ * fokussierbar.
  *
  * `renderAppShell()` in router.js setzt `tabIndex = -1` - aber nur fuer die
  * Routen mit App-Shell. Die fuenf Auth-Seiten (login, setup, join,
@@ -706,10 +710,9 @@ export function refocusAfterRender() {
  * `hasAttribute` und nicht `el.tabIndex`: das Property liest auch ohne Attribut
  * `-1` und kann die beiden Faelle gar nicht unterscheiden (gemessen).
  */
-function _pageRoot() {
-  const root = document.getElementById(PAGE_ROOT_ID);
-  if (root && !root.hasAttribute('tabindex')) root.setAttribute('tabindex', '-1');
-  return root;
+function _focusable(el) {
+  if (el && el.id === PAGE_ROOT_ID && !el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+  return el;
 }
 
 function _doClose(overlayEl) {
