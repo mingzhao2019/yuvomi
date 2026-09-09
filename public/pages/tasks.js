@@ -1293,12 +1293,19 @@ let state = {
   taskLists:       [],       // first-class source/local Task Lists (#163)
   taskListOrder:   { sources: [], lists: {}, alphabetical: {} },
   allTags:         [],       // [{ tag, count }] für Filterleiste und Vorschläge (#586)
-  /** Kamen `users`/`categories`/`allTags` aus dem Offline-Cache des Service
-   *  Workers? `/tasks` steht in dessen `API_CACHE_WHITELIST`, also auch
-   *  `/tasks/meta/options` - und `networkFirstApi` antwortet bei Netzfehler mit
-   *  dem Cache und Status 200. Diese Referenzlisten sind dann beliebig alt, und
-   *  eine Filterentscheidung darauf ist keine. Siehe `getRecentFilters`. */
-  metaFromCache:   false,
+  /** Sind `users`/`categories`/`allTags` gerade NICHT nachweislich frisch?
+   *
+   *  Zwei Wege dorthin, und beide enden gleich. Erstens der Offline-Cache:
+   *  `/tasks` steht in `API_CACHE_WHITELIST` (sw.js), also auch
+   *  `/tasks/meta/options`, `/tasks/tags` und `/tasks/categories` - und
+   *  `networkFirstApi` antwortet bei Netzfehler mit dem Cache und Status 200.
+   *  Zweitens eine fehlgeschlagene Auffrischung, die die alte Liste stehen
+   *  laesst (`refreshTags`). In beiden Faellen sind die Listen beliebig alt,
+   *  und eine Filterentscheidung darauf ist keine. Siehe `getRecentFilters`.
+   *
+   *  Deshalb heisst das Feld nicht `metaFromCache`: der Cache ist nur der
+   *  haeufigere der beiden Wege. */
+  metaStale:       false,
   defaultPoints:   0,        // Haushalt-Standard für neue Aufgaben (#578), 0 = aus
   currentUserId:   null,
   isAdmin:         false,    // darf fremde Kommentare entfernen (#734)
@@ -1430,9 +1437,14 @@ async function loadTaskLists(container) {
  */
 async function refreshTags() {
   try {
-    const res = await api.get('/tasks/tags');
-    state.allTags = res.data ?? [];
-  } catch { /* alte Liste behalten */ }
+    const { data, fromCache } = await api.getWithSource('/tasks/tags');
+    state.allTags = data.data ?? [];
+    state.metaStale = fromCache === true;
+  } catch {
+    // Alte Liste behalten - aber sie ist ab jetzt nicht mehr nachweislich
+    // frisch, und `getRecentFilters` darf nicht mehr dagegen beschneiden.
+    state.metaStale = true;
+  }
 }
 
 async function toggleTaskStatus(id, currentStatus) {
@@ -2658,8 +2670,9 @@ function openTaskCategoryManager(container) {
   // (siehe `_notifyChanged` in components/category-manager.js).
   const onChanged = async () => {
     try {
-      const res = await api.get('/tasks/categories');
-      state.categories = res.data ?? [];
+      const { data, fromCache } = await api.getWithSource('/tasks/categories');
+      state.categories = data.data ?? [];
+      state.metaStale = fromCache === true;
       // Loeschbar ist die UNBENUTZTE Kategorie, also gerade die, nach der jemand
       // gefiltert haben kann. Bliebe ihr Key in `state.filters.category`, fragte
       // die Seite den Server weiter nach einer Kategorie, die es nicht mehr
@@ -5229,12 +5242,13 @@ function getRecentFilters() {
   // und ein Serverfehler naehme dem Nutzer seine gemerkten Filter weg - genau
   // die Verwechslung aus dem Leer-Zweig, die der Ladefehler-Zustand behebt.
   //
-  // Und ebenso wenig gegen Referenzlisten aus dem Offline-Cache: die koennen
-  // beliebig alt sein. Vor dem Cache-Zeitpunkt angelegte Werte fehlten dort und
+  // Und ebenso wenig gegen Referenzlisten, die nicht nachweislich frisch sind -
+  // aus dem Offline-Cache oder von einer fehlgeschlagenen Auffrischung: die
+  // koennen beliebig alt sein. Vor dem Cache-Zeitpunkt angelegte Werte fehlten dort und
   // versteckten ein gueltiges Chip; danach geloeschte staenden noch drin und
   // boeten weiter einen toten an. Offline gilt dasselbe wie beim Ladefehler -
   // nichts wegnehmen, was jemand gespeichert hat.
-  if (state.loadError || state.metaFromCache) return sets;
+  if (state.loadError || state.metaStale) return sets;
 
   const knownCategories = new Set(state.categories.map((c) => c.key));
   const knownTags       = new Set(state.allTags.map((entry) => entry.tag.toLowerCase()));
@@ -6038,7 +6052,7 @@ export async function render(container, { user }) {
     state.loadError = null;
     // `metaData` traegt jetzt `{ data, fromCache }` - der Rumpf steht in `.data`.
     const meta = metaData.data ?? {};
-    state.metaFromCache = metaData.fromCache === true;
+    state.metaStale = metaData.fromCache === true;
     state.tasks = tasksData.data ?? [];
     state.users = meta.users ?? [];
     state.categories = meta.categories ?? [];
@@ -6063,7 +6077,7 @@ export async function render(container, { user }) {
     state.taskLists = [];
     state.taskListOrder = { sources: [], lists: {}, alphabetical: {} };
     state.allTags = [];
-    state.metaFromCache = false;
+    state.metaStale = false;
     state.defaultPoints = 0;
     state.subtasksExpandedByDefault = false;
     state.defaultSyncTarget = '';
@@ -6134,4 +6148,7 @@ export const __test = {
   // Gemerkte Filter: der Vertrag ist, dass Lesen und Schreiben AUSEINANDER
   // gehen - sonst schriebe das Bereinigen sich fest (siehe getRecentFilters).
   getRecentFilters, storedRecentFilters, saveRecentFilter,
+  // Die Frische der Referenzlisten ist nur verhaltensgetrieben pruefbar: sie
+  // haengt daran, WIE die Antwort kam, nicht daran, dass eine kam.
+  refreshTags,
 };
