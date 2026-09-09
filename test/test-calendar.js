@@ -368,9 +368,12 @@ test('Wiederholungsmarke steht vor dem Titel in allen Kalenderansichten mit ausg
 
 test('Kalendertermine haben eine persönliche Abschlussmarkierung pro Occurrence', () => {
   const open = calendarHelpers.renderEventCompletionControl({ id: 7, title: 'Besprechung' });
+  assert(open.includes('cal-event__archive'), 'offener Termin verwendet das Archivsymbol statt einer Checkbox');
+  assert(open.includes('data-lucide="archive"'), 'offener Termin zeigt das Archivsymbol');
   assert(open.includes('data-event-id="7"'), 'die Markierung trägt die Event-ID');
   assert(open.includes('data-completion-key="single"'), 'Einzeltermine verwenden den single-Schlüssel');
   assert(open.includes('aria-pressed="false"'), 'offener Termin ist zugänglich als offen markiert');
+  assert(!open.includes('cal-event__check'), 'das alte Checkbox-Design ist vollständig entfernt');
 
   const done = calendarHelpers.renderEventCompletionControl({
     id: 8,
@@ -380,7 +383,8 @@ test('Kalendertermine haben eine persönliche Abschlussmarkierung pro Occurrence
     completed: true,
   });
   assert(done.includes('data-completion-key="2026-09-14"'), 'Serie verwendet das Occurrence-Datum');
-  assert(done.includes('cal-event__check--done'), 'erledigter Termin erhält den sichtbaren Zustand');
+  assert(done.includes('cal-event__archive--done'), 'erledigter Termin erhält den sichtbaren Zustand');
+  assert(done.includes('data-lucide="archive-restore"'), 'erledigter Termin zeigt das Wiederherstellen-Symbol');
   assert(done.includes('aria-pressed="true"'), 'erledigter Termin ist zugänglich als erledigt markiert');
 });
 
@@ -719,6 +723,22 @@ test('clickedTime: eine Spalte ohne messbare Höhe legt nichts Falsches an', () 
  * Geprüft wird über eachRule() (der EINE Regelscanner), nicht über ein eigenes
  * Regex: das alte Muster war dreimal blind und jedes Mal war der Guard grün. */
 const calendarCss = readFileSync(new URL('../public/styles/calendar.css', import.meta.url), 'utf8');
+
+test('Kalender-Abschlussaktion bleibt randlos und macht alle Eventtypen neutral', () => {
+  const control = [...eachRule(calendarCss)].find((rule) => rule.selector.trim() === '.cal-event__archive');
+  assert(control, 'das randlose Archivsymbol fehlt');
+  assert(/border:\s*0/.test(control.body), 'Archivsymbol darf keinen sichtbaren Rahmen haben');
+  assert(/border-radius:\s*0/.test(control.body), 'Archivsymbol darf keine Kapsel sein');
+  assert(/background:\s*transparent/.test(control.body), 'Archivsymbol darf keine sichtbare Fläche haben');
+  assert(!/cal-event__check/.test(calendarCss), 'das alte Checkbox-Design ist aus dem CSS entfernt');
+  assert(/\.month-day__event\.cal-event--done[\s\S]*?background:\s*var\(--color-surface-2\)/.test(calendarCss), 'Monatsereignisse werden neutral');
+  assert(/\.allday-event\.cal-event--done/.test(calendarCss), 'Ganztagsereignisse haben den Abschlusszustand');
+  assert(/\.week-event\.cal-event--done/.test(calendarCss), 'Wochenereignisse haben den Abschlusszustand');
+  assert(/\.day-event\.cal-event--done/.test(calendarCss), 'Tagesereignisse haben den Abschlusszustand');
+  assert(/\.agenda-event\.cal-event--done/.test(calendarCss), 'Agendaereignisse haben den Abschlusszustand');
+  assert(/\.cal-event--done \.cal-event__title[\s\S]*?text-decoration:\s*line-through/.test(calendarCss), 'abgeschlossene Titel werden durchgestrichen');
+  assert(/\.month-view:not\(\.month-view--titles\) \.month-day__event > \.cal-event__archive[\s\S]*?display:\s*inline-flex/.test(calendarCss), 'die kompakte Monatsansicht zeigt das Archivsymbol');
+});
 
 test('Wochenraster: Kopf, Ganztagszeile und Stunden verwenden dieselbe Zeitspaltenbreite', () => {
   const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');

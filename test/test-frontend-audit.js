@@ -11100,6 +11100,7 @@ test('ein quadratischer Icon-Knopf ist ein Kreis', () => {
     ['.rrule-day', 'Zustandsschalter: Wochentagswaehler der Wiederholung'],
     ['.health-weekday', 'Zustandsschalter: Wochentagswaehler der Gesundheit'],
     ['.document-select', 'Zustandsschalter: Traeger der Auswahl-Checkbox'],
+    ['.cal-event__archive', 'Zustandsschalter: persoenlicher Kalender-Abschluss'],
     // 3. Zellen eines Rasters
     ['.ydp-cal__day', 'Rasterzelle: Tag im Datepicker-Monat'],
     ['.cycle-cal__day', 'Rasterzelle: Tag im Zyklus-Monat'],

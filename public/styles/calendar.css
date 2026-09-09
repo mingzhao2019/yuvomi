@@ -417,8 +417,8 @@
    *
    * ES GIBT JETZT ZWEI FORMEN FUER EINE EREIGNISFARBE, nicht vier: die Kante am
    * BALKEN (Woche, Tag, Ganztag, Monat) und den 8px-Punkt an der ZEILE
-   * (.agenda-event__color). Auf der Mobil-Monatszelle wird der Balken selbst
-   * zum Punkt - die Regel bleibt dieselbe, nur der Traeger wechselt. */
+   * (.agenda-event__color). Auf der Mobil-Monatszelle bleibt nur das kleine
+   * Archivsymbol als direkter Abschluss-Trigger sichtbar. */
   border-inline-start: 3px solid var(--ev-color);
   transition: background-color var(--transition-fast);
 }
@@ -429,8 +429,11 @@
 }
 
 /* Personal completion control. The event itself remains the detail target;
- * this sibling button is the only control that changes completion state. */
-.cal-event__check {
+ * this sibling archive icon is the only control that changes completion state.
+ * Its hit area is still a button, but no border, fill, or radius communicates
+ * a second checkbox-like visual language next to task chips. */
+.cal-event__archive {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -439,48 +442,45 @@
   min-width: var(--space-5);
   padding: 0;
   flex: 0 0 var(--space-5);
-  border: 2px solid var(--color-text-tertiary);
-  border-radius: var(--radius-full);
+  border: 0;
+  border-radius: 0;
   background: transparent;
-  color: var(--color-ink-on-vivid);
+  color: var(--ev-color, var(--color-text-tertiary));
   cursor: pointer;
-  transition: border-color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+  transition: color var(--transition-fast), transform var(--transition-fast);
 }
 
-.cal-event__check:hover,
-.cal-event__check:focus-visible {
-  border-color: var(--module-accent, var(--color-accent));
+.cal-event__archive:hover {
+  color: var(--module-accent, var(--color-accent));
 }
 
-.cal-event__check:active {
+.cal-event__archive:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset-inset);
+}
+
+.cal-event__archive:active {
   transform: scale(0.92);
 }
 
-.cal-event__check:disabled {
+.cal-event__archive:disabled {
   cursor: wait;
   opacity: 0.7;
 }
 
-.cal-event__check--done {
-  border-color: var(--color-success);
-  background: var(--color-success);
-}
-
-.cal-event__check svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 3;
+.cal-event__archive svg {
+  width: var(--space-4);
+  height: var(--space-4);
+  stroke-width: 1.8;
 }
 
 .cal-event--done .cal-event__title {
-  color: var(--color-text-secondary);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
 
-/* Voll gesättigtes Icon trägt das Farbsignal (der "Dot") in Woche/Tag, während
- * der Titel in ruhiger, lesbarer Tinte bleibt. Die Monats-Bars sind nach Kanon
- * icon-frei; dort trägt die Tönung selbst die Farbfamilie. */
+/* Das Archivsymbol trägt in den Rasteransichten die Kalenderfarbe; nach dem
+ * Abschluss übernimmt die neutrale .cal-event--done-Regel die Darstellung. */
 .allday-event .event-icon,
 .week-event .event-icon {
   color: var(--ev-color);
@@ -1737,6 +1737,44 @@
   background: color-mix(in srgb, var(--ev-color) var(--tint-raised), var(--color-surface-work));
 }
 
+/* Completed events stay visible, but leave the active calendar-color grammar
+ * behind: neutral surfaces and metadata make the personal completion state
+ * legible without turning it into the green checkbox used by task lists. */
+.month-day__event.cal-event--done,
+.allday-event.cal-event--done,
+.week-event.cal-event--done,
+.day-event.cal-event--done {
+  --ev-color: var(--color-text-tertiary) !important;
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-subtle);
+  border-inline-start-color: var(--color-border-strong);
+}
+
+.agenda-event.cal-event--done {
+  color: var(--color-text-secondary);
+}
+
+.agenda-event.cal-event--done:hover {
+  background: var(--color-surface-2);
+}
+
+.cal-event--done .cal-event__archive,
+.cal-event--done .event-icon,
+.cal-event--done .calendar-repeat-icon {
+  color: var(--color-text-tertiary);
+}
+
+.cal-event--done .week-event__time,
+.cal-event--done .day-event__meta,
+.cal-event--done .agenda-event__meta {
+  color: var(--color-text-tertiary);
+}
+
+.agenda-event.cal-event--done .agenda-event__color {
+  background: var(--color-text-tertiary);
+}
+
 @media (max-width: 639px) {
   .event-title-picker {
     grid-template-columns: 1fr;
@@ -1972,24 +2010,16 @@
  * Monat auf Mobile: ZWEI FASSUNGEN, und der Schalter dazwischen wohnt im
  * Filter-Blatt (Darstellung -> "Termintitel", calendar.js).
  *
- * PUNKTE sind die Vorgabe und bleiben unveraendert: unlesbare
- * 1-Buchstaben-Chips waren die Alternative, gegen die sie gebaut wurden, und
- * ihr WCAG-1.4.11-Ring ist nachgemessen (Begruendung an der Regel selbst).
+ * Die kompakte Fassung zeigt pro Termin ein kleines, randloses Archivsymbol.
+ * Der Klickbereich bleibt direkt am Termin, aber weder ein Kreis noch ein
+ * Rahmen wird als Abschlusszustand missverstanden.
  *
  * TITELZEILEN sind die zweite Lesart, fuer den Haushalt, der den Monat
  * ueberfliegen will statt ihn Tag fuer Tag aufzuklappen: derselbe Chip, nur
- * auf --text-2xs (10px) geschrumpft und mit Ellipsis. "Zahnarzt" steht dann
- * als "Zahnar…", und das ist mehr als ein blauer Punkt.
+ * auf --text-2xs (10px) geschrumpft und mit Ellipsis.
  *
- * DIE PUNKT-REGELN SIND GEGEN `:not(.month-view--titles)` GESCHNITTEN,
- * statt in der Titelfassung einzeln zurueckgenommen zu werden. Der Unterschied
- * ist nicht Geschmack: die Punktregel ersetzt Flaeche UND Tinte
- * (`background: var(--ev-color)` statt des color-mix-Rezepts der Basisregel),
- * ein Ueberschreiben haette also das Kontrastrezept ein zweites Mal
- * hingeschrieben - zwei Orte, an denen dieselbe nachgemessene Zusage steht,
- * und einer davon faellt beim naechsten Mal hinten runter. So erbt die
- * Titelfassung schlicht die Basisregel, und diese Datei fuehrt das Rezept
- * genau einmal.
+ * Die beiden Fassungen bleiben gegen `:not(.month-view--titles)` getrennt,
+ * damit die kompakte Symbolgeometrie die lesbare Titelfassung nicht veraendert.
  * -------------------------------------------------------- */
 @media (max-width: 639px) {
   .month-day {
@@ -1997,65 +2027,46 @@
     padding: var(--space-0h);
   }
 
-  /* 10px STATT 8px, UND DER GRUND IST DER RING DARUNTER (2026-08-28).
-   *
-   * Ein Punkt, der seine Abgrenzung von einem 1px-Ring bekommt, verliert
-   * davon ein Viertel seiner Flaeche - bei 8px blieben 6px Farbe uebrig, und
-   * die Farbe ist hier die einzige Unterscheidung zwischen zwei Terminen.
-   * 10px ist der kleinste Wert der Skala, bei dem Ring UND Farbe zusammen
-   * lesbar bleiben. */
+  /* Kompakte Trefferflaeche fuer das Archivsymbol, ohne sichtbare Kapsel. */
   .month-view:not(.month-view--titles) .month-day__event,
   .month-view:not(.month-view--titles) .cal-task-chip,
   .month-view:not(.month-view--titles) .month-day__holiday {
     display: inline-flex;
-    width: var(--space-2);
-    height: var(--space-2);
-    min-width: var(--space-2);
+    width: var(--space-4);
+    height: var(--space-4);
+    min-width: var(--space-4);
     padding: 0;
     margin: 0 var(--space-0h) var(--space-0h) 0;
     border: none;
     box-shadow: none;
-    border-radius: var(--radius-full);
+    border-radius: 0;
     vertical-align: middle;
+    overflow: visible;
+  }
+
+  /* Aufgaben- und Feiertagsmarken behalten ihre eigenstaendige Punktform; nur
+   * Kalendertermine wechseln auf das randlose Archivsymbol. */
+  .month-view:not(.month-view--titles) .cal-task-chip,
+  .month-view:not(.month-view--titles) .month-day__holiday {
+    width: var(--space-2);
+    height: var(--space-2);
+    min-width: var(--space-2);
+    border-radius: var(--radius-full);
     overflow: hidden;
   }
 
-  /* DER PUNKT IST HIER DER EINZIGE INFORMATIONSTRAEGER - also muss ER die
-   * 3:1 aus WCAG 1.4.11 halten, nicht die Farbe darin.
-   *
-   * Gemessen an den neun Seed-Terminfarben gegen die helle Arbeitsflaeche:
-   * FUENF fielen durch - Amber 2,15:1, Cyan 2,43:1, Teal 2,49:1, Gruen
-   * 2,54:1, Orange 2,80:1; gegen die Wochenendflaeche riss zusaetzlich Rot
-   * (3,13:1 -> darunter). Im Dark bestanden alle. Eine Invariante, die nur in
-   * einem Theme haelt, ist keine.
-   *
-   * DIE FARBE WIRD NICHT VERBOGEN, DER RING TRAEGT. Sie ist eine freie
-   * Nutzerfarbe, und die User-Farben-Regel laesst sie ausdruecklich zu - sie
-   * nachzudunkeln hiesse, dem Haushalt seine Wahl zu nehmen. Der Ring in
-   * `--color-text-tertiary` haelt die Abgrenzung stattdessen selbst:
-   * light #6B675F 5,64:1 auf Weiss und 4,74:1 auf der Wochenendflaeche,
-   * dark #A9A39A 5,88:1 auf der Kartenflaeche. Damit ist der Punkt in JEDER
-   * Farbe sichtbar, und die Farbe unterscheidet nur noch, welcher.
-   *
-   * NICHT `--color-border-strong`, obwohl der Name danach klingt: er ist fuer
-   * feine Linien gebaut und misst gegen Weiss 1,65:1 - er haette genau den
-   * Fehler wiederholt, den er beheben soll. */
+  /* Farbe bleibt die Kalenderzuordnung des offenen Symbols; der abgeschlossene
+   * Zustand wird durch neutrale Farbe und archive-restore ausgedrueckt. */
   .month-view:not(.month-view--titles) .month-day__event {
-    background: var(--ev-color);
+    background: transparent;
   }
 
   .month-view:not(.month-view--titles) .month-day__holiday {
     background: var(--holi-color, var(--color-text-secondary));
   }
 
-  /* HIER IST DER CHIP DER PUNKT - also trägt er die Stufe im Vollton, genau wie
-   * die Termin-Bar darüber ihre --ev-color. Die neutrale Bar-Fläche der großen
-   * Ansicht wäre hier ein Informationsverlust: vier Prioritäten sähen als vier
-   * graue Punkte gleich aus. Der eingelegte Punkt aus dem Markup ist auf dieser
-   * Größe ausgeblendet (`> * { display: none }` oben), seine Aufgabe übernimmt
-   * die Fläche.
-   *
-   * Der dünne Ring bleibt: er unterscheidet Aufgaben- von Terminpunkten. */
+  /* Aufgaben behalten ihre eigene Punktgrammatik; sie sind nicht Teil der
+   * persoenlichen Kalender-Abschlussaktion. */
   .month-view:not(.month-view--titles) .cal-task-chip {
     background: var(--prio-color, var(--color-text-secondary));
     box-shadow: inset 0 0 0 var(--space-px) var(--color-surface-work);
@@ -2067,23 +2078,26 @@
     display: none;
   }
 
-  .month-view:not(.month-view--titles) .month-day__event > .cal-event__check {
+  .month-view:not(.month-view--titles) .month-day__event > .cal-event__archive {
     display: inline-flex;
     width: 100%;
     height: 100%;
     min-width: 0;
     flex: 1 1 100%;
     border: 0;
-    border-radius: inherit;
+    border-radius: 0;
     background: transparent;
+    color: var(--ev-color, var(--color-text-tertiary));
   }
 
-  .month-view:not(.month-view--titles) .month-day__event > .cal-event__check--done {
-    background: var(--color-success);
+  .month-view:not(.month-view--titles) .month-day__event > .cal-event__archive--done {
+    color: var(--color-text-tertiary);
   }
 
-  .month-view:not(.month-view--titles) .month-day__event > .cal-event__check svg {
-    display: none;
+  .month-view:not(.month-view--titles) .month-day__event > .cal-event__archive svg {
+    display: block;
+    width: var(--space-3);
+    height: var(--space-3);
   }
 
   .month-day .cal-task-chip > .cal-task-chip__check {
@@ -2110,9 +2124,8 @@
    * Sie schreibt nur GEOMETRIE. Flaeche, Tinte und Farbkante kommen
    * unveraendert aus den Basisregeln oben - damit gilt das dort nachgemessene
    * Kontrastrezept (7,2-9,5:1 light / 7,8-8,9:1 dark) hier unveraendert
-   * weiter, und der Ring, den die Punktfassung braucht, ist gegenstandslos:
-   * nicht mehr die Farbflaeche allein traegt die Information, sondern der
-   * Text darauf. */
+   * weiter; das Archivsymbol bleibt dieselbe randlose Aktion, nur die
+   * Titelzeile bekommt zusaetzlich Platz fuer den Ereignistitel. */
 
   .month-view--titles .month-grid {
     --month-day-max-visible: 4;
@@ -2168,15 +2181,16 @@
     border-inline-start-width: var(--space-0h);
   }
 
-  .month-view--titles .month-day .month-day__event > .cal-event__check {
+  .month-view--titles .month-day .month-day__event > .cal-event__archive {
     width: var(--space-4);
     height: var(--space-4);
     min-width: var(--space-4);
     flex: 0 0 var(--space-4);
-    border-width: 1px;
+    border: 0;
+    border-radius: 0;
   }
 
-  .month-view--titles .month-day .month-day__event > .cal-event__check svg {
+  .month-view--titles .month-day .month-day__event > .cal-event__archive svg {
     width: 10px;
     height: 10px;
   }

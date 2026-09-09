@@ -334,7 +334,7 @@ const LAYER_SCHOOL_KEY    = 'yuvomi:calendar:layer:school';
 const LAYER_BIRTHDAYS_KEY = 'yuvomi:calendar:layer:birthdays';
 const LAYER_SCHEDULE_KEY = 'yuvomi:calendar:layer:schedule';
 const SCHEDULE_DISPLAY_KEY = 'yuvomi:calendar:schedule-display';
-// Monatszelle am Telefon: Titelzeilen statt Punkte. GERAETEWEIT, nicht pro
+// Monatszelle am Telefon: Titelzeilen statt kompakter Symbole. GERAETEWEIT, nicht pro
 // Haushalt - die Frage, die der Schalter beantwortet ("passt ein Titel auf
 // diesen Schirm?"), ist eine des Geraets, und dieselbe Person liest denselben
 // Kalender abends am 27-Zoll-Monitor. Damit steht er neben scheduleDisplay in
@@ -548,11 +548,10 @@ let state = {
   layerSchool:   true,     // toggle for school holiday layer
   layerBirthdays: true,    // toggle for the birthday layer (#778)
   layerSchedule: true,     // computed schedule overlay
-  // AUS ist die Vorgabe, und das ist eine Zusage an den Bestand: die Punkte
-  // sind die gemessene Fassung (siehe den Block in calendar.css), und ein
-  // Update, das die Monatsansicht jedes Telefons ungefragt umbaut, waere die
-  // falsche Art, eine zweite Lesart anzubieten.
-  monthTitles: false,      // Monat am Telefon: Titelzeilen statt Punkte
+  // AUS ist die Vorgabe, und das ist eine Zusage an den Bestand: die kompakte
+  // Symbolfassung bleibt die Standardansicht; Titelzeilen sind die zweite
+  // Lesart und werden nicht ungefragt auf jedem Telefon aktiviert.
+  monthTitles: false,      // Monat am Telefon: Titelzeilen statt Symbole
   scheduleDisplay: 'compact',
   offlineSince:  null,     // Date des letzten Cache-Stands, wenn offline bedient
   defaultDuration: 60,     // Standard-Termindauer (Minuten) aus den Präferenzen
@@ -1193,14 +1192,15 @@ function calendarCompletionEvents(eventId, completionKey) {
 function renderEventCompletionControl(event, extraClass = '') {
   const done = !!event?.completed;
   const title = t(done ? 'calendar.markIncomplete' : 'calendar.markComplete', { title: event?.title || '' });
+  const icon = done ? 'archive-restore' : 'archive';
   return `<button type="button"
-      class="cal-event__check${done ? ' cal-event__check--done' : ''}${extraClass ? ` ${extraClass}` : ''}"
+      class="cal-event__archive${done ? ' cal-event__archive--done' : ''}${extraClass ? ` ${extraClass}` : ''}"
       data-calendar-event-action="toggle"
       data-event-id="${esc(event?.id)}"
       data-completion-key="${esc(eventCompletionKey(event))}"
       aria-pressed="${String(done)}"
       aria-label="${esc(title)}"
-      title="${esc(title)}">${done ? '<i data-lucide="check" aria-hidden="true"></i>' : ''}</button>`;
+      title="${esc(title)}"><i data-lucide="${icon}" aria-hidden="true"></i></button>`;
 }
 
 function updateCalendarEventCompletionState(eventId, completionKey, completed) {
@@ -1209,12 +1209,12 @@ function updateCalendarEventCompletionState(eventId, completionKey, completed) {
   const event = calendarCompletionEvents(eventId, completionKey)[0];
   const title = t(completed ? 'calendar.markIncomplete' : 'calendar.markComplete', { title: event?.title || '' });
   controls.forEach((control) => {
-    control.classList.toggle('cal-event__check--done', completed);
+    control.classList.toggle('cal-event__archive--done', completed);
     control.setAttribute('aria-pressed', String(completed));
     control.setAttribute('aria-label', title);
     control.title = title;
     control.replaceChildren();
-    if (completed) control.insertAdjacentHTML('beforeend', '<i data-lucide="check" aria-hidden="true"></i>');
+    control.insertAdjacentHTML('beforeend', `<i data-lucide="${completed ? 'archive-restore' : 'archive'}" aria-hidden="true"></i>`);
     control.closest('[data-calendar-event]')?.classList.toggle('cal-event--done', completed);
   });
   if (window.lucide && _container) window.lucide.createIcons({ el: _container });
@@ -3042,7 +3042,7 @@ function renderAgendaView(container) {
       if (ev) openEventDetail(ev, evEl);
       return;
     }
-    if (e.target.closest('.cal-event__check')) return;
+    if (e.target.closest('.cal-event__archive')) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip && e.target === taskChip && taskChip.getAttribute('role') === 'button') {
       e.preventDefault();
@@ -3524,7 +3524,7 @@ function renderCalendarSearchResults(body) {
       activateResult(openTarget.closest('.agenda-event'));
       return;
     }
-    if (e.target.closest('.cal-event__check')) return;
+    if (e.target.closest('.cal-event__archive')) return;
     const evEl = e.target.closest('.agenda-event');
     if (!evEl) return;
     e.preventDefault();
