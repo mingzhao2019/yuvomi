@@ -1293,6 +1293,12 @@ let state = {
   taskLists:       [],       // first-class source/local Task Lists (#163)
   taskListOrder:   { sources: [], lists: {}, alphabetical: {} },
   allTags:         [],       // [{ tag, count }] für Filterleiste und Vorschläge (#586)
+  /** Kamen `users`/`categories`/`allTags` aus dem Offline-Cache des Service
+   *  Workers? `/tasks` steht in dessen `API_CACHE_WHITELIST`, also auch
+   *  `/tasks/meta/options` - und `networkFirstApi` antwortet bei Netzfehler mit
+   *  dem Cache und Status 200. Diese Referenzlisten sind dann beliebig alt, und
+   *  eine Filterentscheidung darauf ist keine. Siehe `getRecentFilters`. */
+  metaFromCache:   false,
   defaultPoints:   0,        // Haushalt-Standard für neue Aufgaben (#578), 0 = aus
   currentUserId:   null,
   isAdmin:         false,    // darf fremde Kommentare entfernen (#734)
@@ -5220,7 +5226,13 @@ function getRecentFilters() {
   // (siehe den catch-Zweig in render()). „Leer" hiesse dann „gibt es nicht",
   // und ein Serverfehler naehme dem Nutzer seine gemerkten Filter weg - genau
   // die Verwechslung aus dem Leer-Zweig, die der Ladefehler-Zustand behebt.
-  if (state.loadError) return sets;
+  //
+  // Und ebenso wenig gegen Referenzlisten aus dem Offline-Cache: die koennen
+  // beliebig alt sein. Vor dem Cache-Zeitpunkt angelegte Werte fehlten dort und
+  // versteckten ein gueltiges Chip; danach geloeschte staenden noch drin und
+  // boeten weiter einen toten an. Offline gilt dasselbe wie beim Ladefehler -
+  // nichts wegnehmen, was jemand gespeichert hat.
+  if (state.loadError || state.metaFromCache) return sets;
 
   const knownCategories = new Set(state.categories.map((c) => c.key));
   const knownTags       = new Set(state.allTags.map((entry) => entry.tag.toLowerCase()));
@@ -6013,7 +6025,7 @@ export async function render(container, { user }) {
   try {
     const [tasksData, metaData, preferencesData, taskListsData] = await Promise.all([
       api.get(`/tasks${taskQuery()}`),
-      api.get('/tasks/meta/options'),
+      api.getWithSource('/tasks/meta/options'),
       // Reine Anzeigepräferenz: ein Fehler hier darf die Aufgabenliste nicht
       // mit in den Ladefehler ziehen, deshalb eigener Fallback.
       api.get('/preferences').catch(() => ({ data: {} })),
@@ -6022,13 +6034,16 @@ export async function render(container, { user }) {
       api.get('/tasks/lists').catch(() => ({ data: [] })),
     ]);
     state.loadError = null;
+    // `metaData` traegt jetzt `{ data, fromCache }` - der Rumpf steht in `.data`.
+    const meta = metaData.data ?? {};
+    state.metaFromCache = metaData.fromCache === true;
     state.tasks = tasksData.data ?? [];
-    state.users = metaData.users ?? [];
-    state.categories = metaData.categories ?? [];
+    state.users = meta.users ?? [];
+    state.categories = meta.categories ?? [];
     state.taskLists = taskListsData.data ?? [];
     state.taskListOrder = normalizeTaskListOrder(taskListsData.order);
-    state.allTags = metaData.tags ?? [];
-    state.defaultPoints = Number(metaData.default_points) || 0;
+    state.allTags = meta.tags ?? [];
+    state.defaultPoints = Number(meta.default_points) || 0;
     state.subtasksExpandedByDefault = preferencesData.data?.tasks_subtasks_expanded === true;
     state.defaultSyncTarget = preferencesData.data?.tasks_default_target || '';
   } catch (err) {
@@ -6046,6 +6061,7 @@ export async function render(container, { user }) {
     state.taskLists = [];
     state.taskListOrder = { sources: [], lists: {}, alphabetical: {} };
     state.allTags = [];
+    state.metaFromCache = false;
     state.defaultPoints = 0;
     state.subtasksExpandedByDefault = false;
     state.defaultSyncTarget = '';

@@ -170,7 +170,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another device. A set that has nothing left to offer disappears from the bar. Nothing is rewritten
   in storage, so a category that comes back brings its chip back with it, and a load error - where
   the app has no reliable list to compare against - leaves every chip alone rather than sweeping
-  them away.
+  them away. Offline counts as such a case: the list of categories, tags and members can itself come
+  from the offline cache and be arbitrarily old, which would hide a chip that is still valid just as
+  readily as it would keep a dead one.
 - **An ingredient written in the household's own digits now counts towards the shopping list.**
   Moving a meal plan to the shopping list adds up the same ingredient across meals. The server read
   the quantity with an ASCII-only pattern, so a Persian, Arabic, Hindi or Thai amount - "۲۵۰ g" -
