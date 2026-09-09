@@ -2908,7 +2908,6 @@ async function handleFormSubmit(e, container) {
     // sofort in Filterleiste und Vorschlägen stehen (#586).
     await refreshTags();
     await loadTasks(container);
-    refocusAfterRender();
   } catch (err) {
     resetSubmit(
       err?.data?.reason === 'microsoft_todo_recurrence_managed'
