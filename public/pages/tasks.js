@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } from '/rrule-ui.js';
-import { openModal as openSharedModal, closeModal, wireBlurValidation, validateAll, btnSuccess, btnError, btnLoading, promptModal, confirmModal, advancedSection } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, wireBlurValidation, validateAll, btnSuccess, btnError, btnLoading, promptModal, confirmModal, advancedSection, refocusAfterRender } from '/components/modal.js';
 import { openDetailView, closeDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { stagger, vibrate, scheduleUndoableDelete, animationSettled } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
@@ -2631,6 +2631,7 @@ function openBulkTagDialog(taskIds, mode, container) {
           updateBulkActionsBar(container);
           renderFilters(container);
           await loadTasks(container);
+          refocusAfterRender();
         } catch (err) {
           window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
         }
