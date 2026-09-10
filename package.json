@@ -197,7 +197,7 @@
     "test:router-guest-guard": "node --test test/test-router-guest-guard.js",
     "test:email": "DB_PATH=:memory: node --experimental-sqlite test/test-email.js",
     "test:password-reset": "DB_PATH=:memory: node --experimental-sqlite test/test-password-reset.js",
-    "test:password-normalization": "node --experimental-sqlite --test test/test-password-normalization.js",
+    "test:password-normalization": "DB_PATH=:memory: node --experimental-sqlite --test test/test-password-normalization.js",
     "test:invites": "DB_PATH=:memory: node --experimental-sqlite test/test-invites.js",
     "test:reminders": "node --experimental-sqlite test/test-reminders.js",
     "test:multi-reminders": "node --test test/test-multi-reminders.js",

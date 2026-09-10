@@ -10,8 +10,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcrypt';
-import { listenOnFreePort } from './server-ready.js';
-
 import { hashPassword, normalizePassword, verifyPassword } from '../server/utils/password.js';
 import { startTestServer, cookieHeader } from './server-ready.js';
 
