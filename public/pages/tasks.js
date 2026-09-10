@@ -5310,7 +5310,7 @@ function getRecentFilters() {
   const knownTags       = stale.tags       ? null : new Set(state.allTags.map((entry) => entry.tag.toLowerCase()));
   const knownUsers      = stale.users      ? null : new Set(state.users.map((u) => String(u.id)));
 
-  return sets
+  const beschnitten = sets
     .map((f) => ({
       ...f,
       assigned_to: knownUsers ? f.assigned_to.filter((id) => knownUsers.has(String(id))) : f.assigned_to,
@@ -5323,6 +5323,61 @@ function getRecentFilters() {
     // sonst als leere Pille stehen und setzte beim Klick alle Filter zurueck.
     .filter((f) => f.status.length || f.priority.length || f.assigned_to.length
       || f.category.length || f.tags.length);
+
+  // Und was nach dem Beschneiden gleich AUSSIEHT, ist auch gleich: „Offen +
+  // Garten" faellt mit „Offen" zusammen, sobald es Garten nicht mehr gibt.
+  // Zwei sicht- und verhaltensgleiche Pillen nebeneinander sind keine Auswahl.
+  // `saveRecentFilter` kann die Dublette nicht verdraengen - es vergleicht die
+  // UNGEFILTERTEN Schluessel, und die gehen ja gerade noch auseinander.
+  // Entdoppelt wird deshalb die ANSICHT, nicht der Speicher: kommt Garten
+  // zurueck, sind es wieder zwei verschiedene Sets.
+  const gesehen = new Set();
+  return beschnitten.filter((f) => {
+    const key = recentFilterKey(f);
+    if (gesehen.has(key)) return false;
+    gesehen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Kennung eines Filter-Sets.
+ *
+ * Jede Achse gehört mit allen ihren Werten hinein: sonst verdrängte
+ * „Offen + Garten" den Eintrag „Offen + Haus", weil beide auf dieselbe Kennung
+ * fielen - seit #671 gilt dasselbe für zwei Prioritäten statt einer.
+ *
+ * EINE Formel für zwei Verwendungen: `saveRecentFilter` verdrängt damit den
+ * gleichen Eintrag im Speicher, `getRecentFilters` entdoppelt damit die
+ * Ansicht. Zwei Kopien davon liefen genau dann auseinander, wenn eine neue
+ * Achse dazukommt - und dann still.
+ */
+function recentFilterKey(f) {
+  // STRUKTURELL KODIERT, NICHT MIT TRENNZEICHEN VERKETTET.
+  //
+  // Hier stand `join(',')` INNERHALB einer Achse, und das Komma darf in einem
+  // Wert vorkommen: `normalizeTags` splittet nur eine STRING-Eingabe an
+  // Kommas, ein Array-Element behaelt seines (`normalizeTags(['a,b'])` ->
+  // `['a,b']`), und die Route nimmt Arrays. Damit ergaben der eine Tag `a,b`
+  // und die zwei Tags `a` und `b` denselben Schluessel: `getRecentFilters`
+  // verbarg den einen Chip als Dublette, und `saveRecentFilter` verdraengte
+  // beim Speichern den jeweils anderen.
+  //
+  // Das `join('|')` DARUEBER war dagegen in Ordnung, auch wenn ein Tag ein
+  // `|` tragen darf: die Achsenzahl ist fest, also bleibt jede Position
+  // eindeutig. Eine Probe dafuer stand hier kurz und wurde wieder entfernt -
+  // sie blieb gruen, wenn man den alten Trenner zuruecknahm, und maass damit
+  // nichts. Ersetzt wird er trotzdem mit, weil eine Formel mit zwei Regeln
+  // schwerer zu halten ist als eine ohne.
+  //
+  // Der Server hat dieselbe Frage schon beantwortet und begruendet
+  // (`tagsKey` in server/utils/task-tags.js trennt mit U+0000, "weil ein Tag
+  // Leerzeichen enthalten darf"). JSON braucht die Frage gar nicht erst zu
+  // stellen: es kodiert die Achsen als Struktur, also kann kein Wert seinen
+  // eigenen Trenner tragen. Der Schluessel wird bei jedem Aufruf neu gerechnet
+  // und nirgends gespeichert - die geaenderte Form braucht keine Migration.
+  const axis = (values) => [...values].map((v) => String(v).toLowerCase()).sort();
+  return JSON.stringify([f.status, f.priority, f.assigned_to, f.category, f.tags].map(axis));
 }
 
 function saveRecentFilter(filters) {
@@ -5332,10 +5387,8 @@ function saveRecentFilter(filters) {
   // Jede Achse gehört mit allen ihren Werten in den Schlüssel: sonst verdrängte
   // „Offen + Garten" den Eintrag „Offen + Haus", weil beide auf dieselbe Kennung
   // fielen - seit #671 gilt dasselbe für zwei Prioritäten statt einer.
-  const axis = (values) => [...values].map((v) => String(v).toLowerCase()).sort().join(',');
-  const keyOf = (f) => [f.status, f.priority, f.assigned_to, f.category, f.tags].map(axis).join('|');
-  const key = keyOf(set);
-  const recent = storedRecentFilters().filter((f) => keyOf(f) !== key);
+  const key = recentFilterKey(set);
+  const recent = storedRecentFilters().filter((f) => recentFilterKey(f) !== key);
   recent.unshift(set);
   try { localStorage.setItem(RECENT_FILTERS_KEY, JSON.stringify(recent.slice(0, RECENT_FILTERS_MAX))); } catch {}
 }
