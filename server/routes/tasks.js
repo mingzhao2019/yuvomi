@@ -1578,6 +1578,14 @@ router.post('/', (req, res) => {
           ).run(syncTarget.taskListId, result.lastInsertRowid);
         }
       }
+      // An explicitly completed task starts with the same status transition
+      // as one completed through PUT/PATCH. The assignments already exist at
+      // this point, so rewardTargets() can award the configured points to the
+      // right members without waiting for a later status change.
+      if (status !== 'open') {
+        const actingUserId = req.authUserId || req.session.userId;
+        syncTaskRewards(db.get(), result.lastInsertRowid, 'open', status, actingUserId);
+      }
       syncTaskCompletion(
         db.get(),
         result.lastInsertRowid,
