@@ -120,6 +120,7 @@ const APP_SHELL = [
   '/utils/dashboard-layout-hint.js',
   '/utils/dashboard-widgets.js',
   '/utils/date.js',
+  '/utils/lunar.js',
   '/utils/currency-codes.js',
   '/utils/calendar-delete.js',
   '/utils/document-folder-delete.js',

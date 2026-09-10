@@ -32,6 +32,7 @@ import {
   applyHolidaySubdivisionSelection,
   ensureHolidayLayerSelection,
   isHolidayCountryResolved,
+  resolveHolidayGroup,
   resolveHolidayLocation,
   runHolidayDiscovery,
   shouldApplySubdivisionResponse,
@@ -871,6 +872,27 @@ test('holiday location preserves persisted values until discovery is ready', () 
     country: 'DE',
     subdivision: 'DE-BY',
   });
+});
+
+test('holiday group preserves persisted value until subdivision discovery is ready', () => {
+  assert.equal(resolveHolidayGroup({
+    subdivision: 'DE-BY',
+    subdivisionReady: false,
+    selectedGroup: '',
+    persistedGroup: 'DE-BY-CATHOLIC',
+  }), 'DE-BY-CATHOLIC');
+  assert.equal(resolveHolidayGroup({
+    subdivision: 'DE-BY',
+    subdivisionReady: true,
+    selectedGroup: 'DE-BY-NEW',
+    persistedGroup: 'DE-BY-CATHOLIC',
+  }), 'DE-BY-NEW');
+  assert.equal(resolveHolidayGroup({
+    subdivision: null,
+    subdivisionReady: false,
+    selectedGroup: '',
+    persistedGroup: 'DE-BY-CATHOLIC',
+  }), null);
 });
 
 test('holiday sync enables public holidays when every layer is disabled', () => {

@@ -61,6 +61,7 @@
 
   .week-view__day-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
@@ -377,6 +378,17 @@
   margin-bottom: var(--space-1);
 }
 
+.month-day__lunar {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: -2px 0 var(--space-1);
+}
+
 /* "Heute" nach Monatsgrid-Kanon (Apple Kalender): NUR die Ziffer im gefüllten
  * Akzent-Kreis; die Zelle selbst bekommt weder eigene Füllung noch Rahmen. */
 .month-day--today .month-day__number {
@@ -611,6 +623,16 @@
   justify-content: center;
   border-radius: var(--radius-full);
   margin: 0 auto;
+}
+
+.week-view__day-lunar {
+  flex-basis: 100%;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-2xs);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .week-view__day-num--today {
@@ -1208,6 +1230,12 @@
 .agenda-day__weekday {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
+}
+
+.agenda-day__lunar {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
 }
 
 .agenda-day__header--today .agenda-day__date {
@@ -2162,6 +2190,11 @@
     width: var(--space-5);
     height: var(--space-5);
     margin-bottom: var(--space-0h);
+  }
+
+  .month-view--titles .month-day__lunar {
+    margin: 0 0 var(--space-0h);
+    font-size: var(--text-2xs);
   }
 
   .month-view--titles .month-day .month-day__event,

@@ -120,6 +120,7 @@
     "test:page-lifecycle": "node --test test/test-page-lifecycle.js",
     "test:skeleton-utils": "node test/test-skeleton-utils.js",
     "test:date-utils": "node test/test-date-utils.js",
+    "test:lunar": "node --test test/test-lunar.js",
     "test:time-input": "node --test test/test-time-input.js",
     "test:html-entities": "node test/test-html-entities.js",
     "test:help": "node test/test-help.js",

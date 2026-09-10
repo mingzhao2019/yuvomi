@@ -11,7 +11,8 @@ import assert from 'node:assert/strict';
 import test, { beforeEach } from 'node:test';
 import Database from 'better-sqlite3-multiple-ciphers';
 import { MIGRATIONS, _setTestDatabase, _resetTestDatabase } from '../server/db.js';
-import { sync, getForRange, getCountries, getSubdivisions, getGroups, __setFetchImpl } from '../server/services/holidays.js';
+import { sync, getCountryCatalog, getForRange, getCountries, getSubdivisions, getGroups, __setFetchImpl } from '../server/services/holidays.js';
+import { CHINA_HOLIDAY_DATA_VERSION, chinaPublicHolidays, chinaMakeUpWorkdays } from '../server/services/china-holidays.js';
 
 // In-Memory-DB mit allen Migrationen (inkl. v49 holiday_cache) aufbauen.
 function buildTestDb() {
@@ -441,6 +442,60 @@ test('sync: both layers enabled caches public and school entries', async () => {
   assert.equal(res.synced, SYNC_YEAR_SPAN * 2);
   assert.equal(db.prepare("SELECT COUNT(*) c FROM holiday_cache WHERE type='public'").get().c, SYNC_YEAR_SPAN);
   assert.equal(db.prepare("SELECT COUNT(*) c FROM holiday_cache WHERE type='school'").get().c, SYNC_YEAR_SPAN);
+});
+
+test('sync: China uses bundled public holidays and never fetches OpenHolidays', async () => {
+  const calls = [];
+  __setFetchImpl(async (url) => {
+    calls.push(String(url));
+    throw new Error('OpenHolidays must not be called for CN');
+  });
+  setConfig({ holiday_country: 'CN', holiday_show_public: '1', holiday_show_school: '0', language: 'zh' });
+
+  const res = await sync(true);
+
+  assert.equal(calls.length, 0);
+  assert.equal(res.incomplete, false);
+  const spring = db.prepare(`
+    SELECT start_date, end_date, name
+    FROM holiday_cache
+    WHERE country = 'CN' AND type = 'public' AND start_date = '2026-02-15'
+  `).get();
+  assert.deepEqual(spring, {
+    start_date: '2026-02-15',
+    end_date: '2026-02-23',
+    name: '春节',
+  });
+  assert.deepEqual(getForRange('2026-02-16', '2026-02-16').map((row) => row.name), ['春节']);
+  assert.deepEqual(chinaPublicHolidays(2026, 'zh')[0], {
+    startDate: '2026-01-01', endDate: '2026-01-03', name: '元旦',
+  });
+  assert.deepEqual(chinaMakeUpWorkdays(2026), [
+    '2026-01-04', '2026-02-14', '2026-02-28', '2026-05-09', '2026-09-20', '2026-10-10',
+  ]);
+  assert.match(
+    db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_scope'").get()?.value ?? '',
+    new RegExp(`builtin-cn:${CHINA_HOLIDAY_DATA_VERSION.replaceAll('.', '\\.')}$`),
+  );
+});
+
+test('sync: a new bundled China data version bypasses the 30-day throttle', async () => {
+  __setFetchImpl(async () => { throw new Error('OpenHolidays must not be called for CN'); });
+  setConfig({
+    holiday_country: 'CN',
+    holiday_show_public: '1',
+    holiday_show_school: '0',
+    holiday_last_sync: new Date().toISOString(),
+    holiday_last_sync_scope: 'ZH|CN||P||builtin-cn:old',
+  });
+
+  const result = await sync(false);
+
+  assert.ok(result.synced > 0);
+  assert.match(
+    db.prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_scope'").get()?.value ?? '',
+    new RegExp(`builtin-cn:${CHINA_HOLIDAY_DATA_VERSION.replaceAll('.', '\\.')}$`),
+  );
 });
 
 test('sync: drops "Exception"-tagged sub-regional holiday variants – no duplicate school breaks (#434)', async () => {
@@ -1039,9 +1094,19 @@ test('getCountries: prefers EN names and sorts alphabetically', async () => {
   __setFetchImpl(makeApiMock());
   const list = await getCountries();
   assert.deepEqual(list, [
+    { isoCode: 'CN', name: 'China' },
     { isoCode: 'FR', name: 'France' },
     { isoCode: 'DE', name: 'Germany' },
   ]);
+});
+
+test('getCountries: keeps the built-in China option when OpenHolidays is unavailable', async () => {
+  __setFetchImpl(async () => { throw new Error('network down'); });
+  assert.deepEqual(await getCountries(), [{ isoCode: 'CN', name: 'China' }]);
+  assert.deepEqual(await getCountryCatalog(), {
+    countries: [{ isoCode: 'CN', name: 'China' }],
+    partial: true,
+  });
 });
 
 test('getSubdivisions: maps code/name, falls back to shortName, sorts', async () => {
@@ -1051,6 +1116,14 @@ test('getSubdivisions: maps code/name, falls back to shortName, sorts', async ()
     { isoCode: 'DE-BY', name: 'Bavaria' },
     { isoCode: 'DE-BW', name: 'BW' },
   ]);
+});
+
+test('getSubdivisions/getGroups: China has no remote subdivision lookup', async () => {
+  let calls = 0;
+  __setFetchImpl(async () => { calls += 1; throw new Error('must not fetch CN subdivisions'); });
+  assert.deepEqual(await getSubdivisions('CN'), []);
+  assert.deepEqual(await getGroups('CN', 'CN-BJ'), []);
+  assert.equal(calls, 0);
 });
 
 test('teardown: restore real database', () => {

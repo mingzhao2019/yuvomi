@@ -1,8 +1,8 @@
 /**
  * Modul: Feiertage & Schulferien (Holidays)
- * Zweck: Fetch von der OpenHolidays API, Caching in holiday_cache-Tabelle,
- *        periodischer Sync. Kein API-Key erforderlich.
- * Quelle: https://openholidaysapi.org (open source, kostenlos)
+ * Zweck: China-Daten aus dem eingebauten Jahresdatensatz, andere Länder von
+ *        OpenHolidays; Caching in holiday_cache und periodischer Sync.
+ * Quelle extern: https://openholidaysapi.org (open source, kostenlos)
  * Abhängigkeiten: node-fetch, server/db.js
  */
 
@@ -10,6 +10,7 @@ import nodeFetch from 'node-fetch';
 import { createLogger } from '../logger.js';
 import * as db from '../db.js';
 import { resolveHouseholdLocale } from '../utils/i18n.js';
+import { CHINA_HOLIDAY_DATA_VERSION, chinaPublicHolidays } from './china-holidays.js';
 
 const log = createLogger('Holidays');
 
@@ -23,6 +24,7 @@ const THROTTLE_MS       = 30 * 24 * 60 * 60 * 1000;
 // diese Bremse liefe bei einem Ausfall der Fremd-API alle
 // SYNC_INTERVAL_MINUTES (Voreinstellung 15) ein neuer Anlauf.
 const LANGUAGE_RETRY_MS = 60 * 60 * 1000;
+const BUILTIN_COUNTRIES = [{ isoCode: 'CN', name: 'China' }];
 
 // Injizierbare fetch-Implementierung (Default: node-fetch). Nur Tests
 // überschreiben dies via __setFetchImpl, um die OpenHolidays-API zu mocken.
@@ -50,14 +52,40 @@ async function apiFetch(path) {
 
 /**
  * Alle verfügbaren Länder abrufen.
- * @returns {Promise<Array<{isoCode: string, name: string}>>}
+ * @returns {Promise<{countries: Array<{isoCode: string, name: string}>, partial: boolean}>}
  */
-async function getCountries() {
-  const raw = await apiFetch('/Countries');
-  return (raw ?? []).map((c) => ({
+async function getCountryCatalog() {
+  let raw = [];
+  let partial = false;
+  try {
+    raw = await apiFetch('/Countries');
+    if (!Array.isArray(raw)) {
+      log.warn('Fetch Countries: unexpected response shape');
+      raw = [];
+      partial = true;
+    }
+  } catch (err) {
+    // 中国法定节假日由镜像内置，不应因为 OpenHolidays 暂时不可用而让
+    // 设置页失去可用的中国选项。其它国家仍会在实际同步时按原策略重试。
+    log.warn(`Fetch Countries failed: ${err.message}`);
+    partial = true;
+  }
+  const countries = raw.map((c) => ({
     isoCode: c.isoCode,
     name: resolveName(c.name),
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  }));
+  const byCode = new Map(countries.filter((c) => c.isoCode).map((c) => [c.isoCode, c]));
+  for (const country of BUILTIN_COUNTRIES) {
+    if (!byCode.has(country.isoCode)) byCode.set(country.isoCode, country);
+  }
+  return {
+    countries: [...byCode.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    partial,
+  };
+}
+
+async function getCountries() {
+  return (await getCountryCatalog()).countries;
 }
 
 /**
@@ -66,6 +94,7 @@ async function getCountries() {
  * @returns {Promise<Array<{isoCode: string, name: string}>>}
  */
 async function getSubdivisions(countryIsoCode) {
+  if (countryIsoCode === 'CN') return [];
   const raw = await apiFetch(`/Subdivisions?countryIsoCode=${encodeURIComponent(countryIsoCode)}`);
   return (raw ?? []).map((s) => ({
     isoCode: s.isoCode ?? s.code,
@@ -86,6 +115,7 @@ async function getSubdivisions(countryIsoCode) {
  * @returns {Promise<Array<{code: string, name: string}>>}
  */
 async function getGroups(countryIsoCode, subdivisionCode) {
+  if (countryIsoCode === 'CN') return [];
   const raw = await apiFetch(`/Subdivisions?countryIsoCode=${encodeURIComponent(countryIsoCode)}`);
   const match = (raw ?? []).find((s) => (s.code ?? s.isoCode) === subdivisionCode);
   const groups = Array.isArray(match?.groups) ? match.groups : [];
@@ -199,6 +229,7 @@ function brazilPublicHolidays(year, langCode) {
 }
 
 function localHolidayFallback(country, type, year, langCode) {
+  if (country === 'CN' && type === 'public') return chinaPublicHolidays(year, langCode);
   if (country === 'BR' && type === 'public') return brazilPublicHolidays(year, langCode);
   return [];
 }
@@ -261,23 +292,29 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
 
   let holidays;
   let fetchFailed = false;
-  try {
-    holidays = await apiFetch(`/${endpoint}?${params}`);
-    // NUR EIN ECHTES LEERES ARRAY IST EINE AUSKUNFT. Ein HTTP 200 mit einem
-    // anderen Rumpf - ein Fehlerobjekt eines vorgeschalteten Proxys, eine
-    // geaenderte Antwortform - sagt gar nichts, und seit `finishEmpty` einen
-    // leeren Bereich RAEUMT, waere daraus Datenverlust geworden: der Cache
-    // gelöscht, der Scope als vollstaendig verbucht, und die Feiertage 30 Tage
-    // lang weg. Ein Nicht-Array zaehlt deshalb wie ein gescheiterter Abruf
-    // (gefunden in der PR-Durchsicht, als Folgefehler genau dieser Aenderung).
-    if (!Array.isArray(holidays)) {
-      log.warn(`Fetch ${endpoint} ${country}/${subdivision ?? '-'}/${year}: unexpected response shape (${typeof holidays})`);
-      fetchFailed = true;
-    }
-  } catch (err) {
-    log.warn(`Fetch ${endpoint} ${country}/${subdivision ?? '-'}/${year}: ${err.message}`);
-    fetchFailed = true;
+  if (country === 'CN') {
+    // 中国年度安排是随镜像发布的离线数据；不能调用 OpenHolidays 猜测或
+    // 用其它国家的节假日替代。未覆盖的年份明确返回空，不制造假数据。
     holidays = localHolidayFallback(country, type, year, langCode);
+  } else {
+    try {
+      holidays = await apiFetch(`/${endpoint}?${params}`);
+      // NUR EIN ECHTES LEERES ARRAY IST EINE AUSKUNFT. Ein HTTP 200 mit einem
+      // anderen Rumpf - ein Fehlerobjekt eines vorgeschalteten Proxys, eine
+      // geaenderte Antwortform - sagt gar nichts, und seit `finishEmpty` einen
+      // leeren Bereich RAEUMT, waere daraus Datenverlust geworden: der Cache
+      // gelöscht, der Scope als vollstaendig verbucht, und die Feiertage 30 Tage
+      // lang weg. Ein Nicht-Array zaehlt deshalb wie ein gescheiterter Abruf
+      // (gefunden in der PR-Durchsicht, als Folgefehler genau dieser Aenderung).
+      if (!Array.isArray(holidays)) {
+        log.warn(`Fetch ${endpoint} ${country}/${subdivision ?? '-'}/${year}: unexpected response shape (${typeof holidays})`);
+        fetchFailed = true;
+      }
+    } catch (err) {
+      log.warn(`Fetch ${endpoint} ${country}/${subdivision ?? '-'}/${year}: ${err.message}`);
+      fetchFailed = true;
+      holidays = localHolidayFallback(country, type, year, langCode);
+    }
   }
 
   if (!Array.isArray(holidays) || holidays.length === 0) {
@@ -395,7 +432,12 @@ async function syncNow(force = false) {
   // (beim Wiedereinschalten blieben ihre alten Namen stehen); ein Wechsel des
   // Landes lief in dieselbe Falle; und ein Fehlschlag OHNE Sprachwechsel wurde
   // gar nicht wiederholt, weil die Reparatur an `languageChanged` hing.
-  const scope = [langCode, country, subdivision ?? '', showPublic ? 'P' : '', showSchool ? 'S' : ''].join('|');
+  const scopeParts = [langCode, country, subdivision ?? '', showPublic ? 'P' : '', showSchool ? 'S' : ''];
+  // OpenHolidays 数据会按时间再次获取；镜像内置的中国年度安排只会随版本
+  // 更新，因此必须把数据版本纳入 scope。否则新增下一年度后，最近同步过的
+  // 安装仍会被 30 天节流挡住。
+  if (country === 'CN') scopeParts.push(`builtin-cn:${CHINA_HOLIDAY_DATA_VERSION}`);
+  const scope = scopeParts.join('|');
   const lastScope = db.get().prepare("SELECT value FROM sync_config WHERE key='holiday_last_sync_scope'").get()?.value ?? null;
   const scopeChanged = lastScope !== scope;
 
@@ -613,4 +655,4 @@ function getForRange(from, to) {
   }));
 }
 
-export { sync, getCountries, getSubdivisions, getGroups, getForRange, __setFetchImpl };
+export { sync, getCountryCatalog, getCountries, getSubdivisions, getGroups, getForRange, __setFetchImpl };

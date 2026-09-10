@@ -10,7 +10,7 @@ import { openModal as openSharedModal, closeModal, confirmModal, advancedSection
 import { attachOverlay } from '/utils/overlay-history.js';
 import { openDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete } from '/utils/ux.js';
-import { t, formatDate as formatPreferredDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
+import { t, formatDate as formatPreferredDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput, getLocale } from '/i18n.js';
 import { esc, fmtLocation } from '/utils/html.js';
 import { shiftEndDateKey, isEndBeforeStart, weekStartIndex, weekdayOrder,
          monthPeriodKeys, startOfLocalWeekKey, addLocalDays, defaultDateInPeriod,
@@ -37,6 +37,7 @@ import {
 } from '/utils/timezone.js';
 import { maxUploadBytes, maxUploadMb } from '/utils/upload-limit.js';
 import { emptyStateHTML, emptyHintHTML, mountLoadError } from '/utils/empty-state.js';
+import { formatChineseLunarDate, shouldDisplayChineseLunar } from '/utils/lunar.js';
 import {
   applyPendingCalendarDeleteOverlay,
   createCalendarLoadCoordinator,
@@ -557,6 +558,7 @@ let state = {
   defaultDuration: 60,     // Standard-Termindauer (Minuten) aus den Präferenzen
   defaultReminders: [],    // persönliche Standard-Erinnerungen
   defaultAllDayReminderTime: '09:00',
+  showLunar:    false,        // persönliche chinesische Kalenderanzeige
   currentUserId: null,     // eigene User-ID für „Mir zugewiesen“-Filter
   assignedToMe:  false,    // nur Termine/Aufgaben zeigen, die mir zugewiesen sind
   // Leeres Set bedeutet „alle Personen“; sonst werden nur ausgewählte
@@ -693,6 +695,16 @@ function formatDate(dateStr, { long = false, weekday = false } = {}) {
     return `${wd}, ${formatPreferredDate(dateStr)}`;
   }
   return formatPreferredDate(dateStr);
+}
+
+function calendarLunarDate(dateStr) {
+  return state.showLunar ? formatChineseLunarDate(dateStr) : '';
+}
+
+function formatCalendarDate(dateStr, options = {}) {
+  const base = formatDate(dateStr, options);
+  const lunar = calendarLunarDate(dateStr);
+  return lunar ? `${base} · ${lunar}` : base;
 }
 
 function formatDateTime(datetimeStr) {
@@ -1587,6 +1599,7 @@ async function loadUsers() {
 
 export async function render(container, { user }) {
   _container = container;
+  state.showLunar = false;
   // Die Uhr des Haushalts: state.today markiert die Heute-Zelle, die Jetzt-Linie
   // und den Vorschlag fuer einen neuen Termin - alle drei muessen denselben Tag
   // meinen wie die Termine daneben (#829 Teil 3).
@@ -1647,6 +1660,11 @@ export async function render(container, { user }) {
   state.defaultAllDayReminderTime = /^\d{2}:\d{2}$/.test(
     prefsRes.data?.calendar_default_all_day_reminder_time || '',
   ) ? prefsRes.data.calendar_default_all_day_reminder_time : '09:00';
+  state.showLunar = shouldDisplayChineseLunar({
+    enabled: prefsRes.data?.calendar_show_lunar,
+    region: prefsRes.data?.region,
+    locale: getLocale(),
+  });
   state.defaultAssignMe  = !!prefsRes.data?.calendar_default_assign_me;
   // Standard-Sync-Ziel für eigene neue Termine (#620).
   state.defaultSyncTarget = prefsRes.data?.calendar_default_target || '';
@@ -1903,8 +1921,8 @@ function updateLabel() {
       ? t('calendar.dayRangeLabel', { from: formatDayMonth(addDays(state.cursor, -1)), to: formatPreferredDate(addDays(state.cursor, 1)) })
       : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon, year });
   }
-  if (state.view === 'day')    lbl.textContent = formatDate(state.cursor, { weekday: true, long: true });
-  if (state.view === 'agenda') lbl.textContent = t('calendar.agendaFrom', { date: formatDate(state.cursor) });
+  if (state.view === 'day')    lbl.textContent = formatCalendarDate(state.cursor, { weekday: true, long: true });
+  if (state.view === 'agenda') lbl.textContent = t('calendar.agendaFrom', { date: formatCalendarDate(state.cursor) });
   syncViewPanel();
 }
 
@@ -2358,6 +2376,7 @@ function renderMonthDay(date, inMonth) {
          role="button" tabindex="0"
          aria-label="${esc(monthDayAriaLabel(date, total, evs))}"${isToday ? ' aria-current="date"' : ''}>
       <div class="month-day__number">${new Date(date + 'T00:00:00').getDate()}</div>
+      ${calendarLunarDate(date) ? `<div class="month-day__lunar">${esc(calendarLunarDate(date))}</div>` : ''}
       ${holHtml}
       ${scheduleHtml}
       ${evHtml}
@@ -2566,6 +2585,7 @@ function renderWeekView(container) {
           return `<div class="week-view__day-header" data-date="${d}">
             <div class="week-view__day-name">${DAY_NAMES_SHORT()[dt.getDay()]}</div>
             <div class="week-view__day-num ${d === state.today ? 'week-view__day-num--today' : ''}">${dt.getDate()}</div>
+            ${calendarLunarDate(d) ? `<div class="week-view__day-lunar">${esc(calendarLunarDate(d))}</div>` : ''}
           </div>`;
         }).join('')}
       </div>
@@ -2994,6 +3014,7 @@ function renderAgendaView(container) {
             <h2 class="agenda-day__header ${date === state.today ? 'agenda-day__header--today' : ''}">
               <span class="agenda-day__date">${formatDate(date)}</span>
               <span class="agenda-day__weekday">${DAY_NAMES_LONG()[new Date(date + 'T00:00:00').getDay()]}</span>
+              ${calendarLunarDate(date) ? `<span class="agenda-day__lunar">${esc(calendarLunarDate(date))}</span>` : ''}
             </h2>
             ${holidays.length ? `<div class="agenda-holidays">${holidays.map((h) => `
               <div class="agenda-holiday" style="--holi-color:${esc(h.color)}">
@@ -3497,6 +3518,7 @@ function renderCalendarSearchResults(body) {
           <h2 class="agenda-day__header ${date === state.today ? 'agenda-day__header--today' : ''}">
             <span class="agenda-day__date">${formatDate(date, { long: true })}</span>
             <span class="agenda-day__weekday">${DAY_NAMES_LONG()[new Date(date + 'T00:00:00').getDay()]}</span>
+            ${calendarLunarDate(date) ? `<span class="agenda-day__lunar">${esc(calendarLunarDate(date))}</span>` : ''}
           </h2>
           <div class="list-rows">${events.map((ev) => renderAgendaEvent(ev, date)).join('')}</div>
         </div>

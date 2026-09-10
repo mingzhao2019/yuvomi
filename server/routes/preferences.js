@@ -635,6 +635,7 @@ router.get('/', (req, res) => {
         ),
         calendar_default_assign_me: cfgUserGet('calendar_default_assign_me', req.authUserId) === '1',
         calendar_default_target: cfgUserGet('calendar_default_target', req.authUserId) || '',
+        calendar_show_lunar: cfgUserGet('calendar_show_lunar', req.authUserId) === '1',
         // Modul-Feature-Schalter (haushaltweit). Default an: fehlender Wert =>
         // Feature aktiv, damit Bestandshaushalte ihr Verhalten behalten.
         ...healthCycleViews(req.authUserId),
@@ -680,7 +681,7 @@ router.get('/', (req, res) => {
 
 router.put('/', (req, res) => {
   try {
-    const { visible_meal_types, meal_type_names, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_all_day_reminder_time, calendar_default_assign_me, calendar_default_target, health_cycle_enabled, health_cycle_enabled_user, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, schedule_hidden_templates, countdown_grace_days, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color, asset_default_scope, asset_default_visibility, asset_default_assignee_ids, asset_cost_metric, asset_summary_theme } = req.body;
+    const { visible_meal_types, meal_type_names, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_all_day_reminder_time, calendar_default_assign_me, calendar_default_target, calendar_show_lunar, health_cycle_enabled, health_cycle_enabled_user, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, schedule_hidden_templates, countdown_grace_days, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color, asset_default_scope, asset_default_visibility, asset_default_assignee_ids, asset_cost_metric, asset_summary_theme } = req.body;
 
     // Asset page defaults are personal preferences.  Keep the allowlist here
     // instead of trusting the module UI: these values are also consumed by a
@@ -1070,6 +1071,18 @@ router.put('/', (req, res) => {
       cfgUserSet('calendar_default_target', req.authUserId, target);
     }
 
+    // 中国农历是个人显示偏好：它只影响当前用户的首页和日历，不改变
+    // 家庭数据语言、节假日缓存或其它成员的日期显示。
+    if (calendar_show_lunar !== undefined) {
+      if (calendar_show_lunar === null) {
+        cfgUserDelete('calendar_show_lunar', req.authUserId);
+      } else if (typeof calendar_show_lunar !== 'boolean') {
+        return res.status(400).json({ error: 'calendar_show_lunar muss ein Boolean sein', code: 400 });
+      } else {
+        cfgUserSet('calendar_show_lunar', req.authUserId, calendar_show_lunar ? '1' : '0');
+      }
+    }
+
     // Standard-Erinnerungsliste für eigene neue Aufgaben (#695, per-user).
     // Geprüft wird nur die Form; ob die Liste noch freigegeben ist, entscheidet
     // die Aufgaben-Route beim Anlegen. Ein Ziel hier hart abzuweisen, weil eine
@@ -1398,6 +1411,7 @@ router.put('/', (req, res) => {
         ),
         calendar_default_assign_me: cfgUserGet('calendar_default_assign_me', req.authUserId) === '1',
         calendar_default_target: cfgUserGet('calendar_default_target', req.authUserId) || '',
+        calendar_show_lunar: cfgUserGet('calendar_show_lunar', req.authUserId) === '1',
         ...healthCycleViews(req.authUserId),
         rewards_require_approval: cfgGet('rewards_require_approval') !== '0',
         tasks_subtasks_expanded: cfgGet('tasks_subtasks_expanded') === '1',
@@ -1457,8 +1471,16 @@ router.put('/', (req, res) => {
 // GET /api/v1/preferences/holidays/countries
 router.get('/holidays/countries', async (_req, res) => {
   try {
-    const countries = await holidays.getCountries();
-    res.json({ data: countries });
+    const catalog = await holidays.getCountryCatalog();
+    const countries = [...catalog.countries];
+    const configuredCountry = cfgGet('holiday_country');
+    // 部分结果仍要如实显示当前配置，不能让一个已配置 DE 的家庭在 API
+    // 故障时看起来像“未选择国家”。名称未知时显示稳定的 ISO 代码。
+    if (catalog.partial && configuredCountry && !countries.some((entry) => entry.isoCode === configuredCountry)) {
+      countries.push({ isoCode: configuredCountry, name: configuredCountry });
+      countries.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    res.json({ data: countries, partial: catalog.partial });
   } catch (err) {
     log.error('GET /holidays/countries', err);
     res.status(502).json({ error: 'Fehler beim Abrufen der Länderliste.', code: 502 });

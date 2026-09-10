@@ -225,6 +225,18 @@ export function resolveHolidayLocation({
   return { country, subdivision };
 }
 
+export function resolveHolidayGroup({
+  subdivision,
+  subdivisionReady,
+  selectedGroup,
+  persistedGroup,
+}) {
+  if (!subdivision) return null;
+  return subdivisionReady
+    ? selectedGroup || null
+    : persistedGroup || null;
+}
+
 export async function runHolidayDiscovery(load, onError) {
   try {
     return { ok: true, value: await load() };
@@ -248,6 +260,10 @@ async function loadSubdivisions(
   select.replaceChildren(noneOption);
   select.disabled = true;
   if (!countryCode) return { selectedResolved: true };
+  // 中国内置数据按全国年度安排提供，不存在 OpenHolidays 的省级选择。
+  // 直接完成发现流程，避免每次打开设置页都对不存在的 CN subdivision
+  // endpoint 发请求。
+  if (countryCode === 'CN') return { selectedResolved: true };
 
   try {
     const response = await api.get(`/preferences/holidays/subdivisions/${countryCode}`);
@@ -300,7 +316,7 @@ async function loadGroups(
   select.disabled = true;
   groupContainer.hidden = true;
 
-  if (!countryCode || !subdivisionCode) return;
+  if (!countryCode || countryCode === 'CN' || !subdivisionCode) return;
 
   try {
     const response = await api.get(
@@ -341,8 +357,14 @@ function holidayPreferenceData(container, discoveryState) {
   return {
     holiday_country: location.country,
     holiday_subdivision: location.subdivision,
-    // Ohne Subdivision kann es keine Gruppe geben.
-    holiday_group: location.subdivision ? (groupEl?.value || null) : null,
+    // Solange die Remote-Erkennung unvollständig ist, darf ein unsichtbarer,
+    // noch nicht geladener Gruppen-Picker die gespeicherte Auswahl nicht löschen.
+    holiday_group: resolveHolidayGroup({
+      subdivision: location.subdivision,
+      subdivisionReady: discoveryState.subdivisionReady,
+      selectedGroup: groupEl?.value || '',
+      persistedGroup: discoveryState.persistedGroup,
+    }),
     holiday_show_public: container.querySelector('#holiday-show-public')?.checked ?? false,
     holiday_show_school: container.querySelector('#holiday-show-school')?.checked ?? false,
     holiday_public_color: container.querySelector('#holiday-public-color').value,
@@ -589,10 +611,19 @@ async function bindEvents(container, preferences) {
     preferences.holiday_country || '',
   );
   countrySelect.disabled = false;
-  discoveryState.countryReady = isHolidayCountryResolved(
+  const countryListPartial = countriesResult.value?.partial === true;
+  discoveryState.countryReady = !countryListPartial && isHolidayCountryResolved(
     countries,
     preferences.holiday_country,
   );
+
+  if (countryListPartial) {
+    // 这是可用但不完整的结果：CN 仍能配置，当前远程国家也由服务端补回。
+    // 保持 countryReady=false，使未触碰表单时继续使用持久化值，而不是把
+    // 暂时缺失的 subdivision/group 清空。
+    errorElement.textContent = t('settings.holidayCountryListPartial');
+    errorElement.hidden = false;
+  }
 
   if (!preferences.holiday_country) {
     discoveryState.subdivisionReady = true;

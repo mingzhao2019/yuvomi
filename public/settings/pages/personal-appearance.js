@@ -10,6 +10,7 @@ import { getPreferences, savePreferences } from '/settings/preferences-cache.js'
 import { toggleRowHtml } from '/settings/components.js';
 import { isWallModeEnabled, setWallModeEnabled } from '/utils/wall-mode.js';
 import { setDisplayTimeZone } from '/utils/timezone.js';
+import { isChineseLunarContext, isChineseLunarSupported } from '/utils/lunar.js';
 import {
   CUSTOM_REGION,
   REGION_CODES,
@@ -172,6 +173,12 @@ function dataLanguageOptions(selected, auto_) {
   ].join('');
 }
 
+function updateLunarVisibility(container, region = container.querySelector('#region-select')?.value) {
+  const card = container.querySelector('#lunar-calendar-setting');
+  if (!card) return;
+  card.hidden = !isChineseLunarSupported() || !isChineseLunarContext(region, getLocale());
+}
+
 function showError(element, message) {
   if (!element) return;
   element.textContent = message || t('common.errorGeneric');
@@ -249,6 +256,15 @@ function renderPage(container, preferences, isAdmin) {
           attrs: { id: 'wall-mode-toggle', 'aria-describedby': 'wall-mode-hint' },
         })}
         <p class="form-hint" id="wall-mode-hint">${t('settings.wallModeHint')}</p>
+      </div>
+      <div class="settings-card" id="lunar-calendar-setting">
+        <h3 class="settings-card__title">${t('settings.lunarCalendarTitle')}</h3>
+        ${toggleRowHtml({
+          label: t('settings.lunarCalendarLabel'),
+          checked: !!preferences.calendar_show_lunar,
+          attrs: { id: 'calendar-show-lunar', 'aria-describedby': 'lunar-calendar-hint' },
+        })}
+        <p class="form-hint" id="lunar-calendar-hint">${t('settings.lunarCalendarHint')}</p>
       </div>
     </section>
 
@@ -354,6 +370,7 @@ function renderPage(container, preferences, isAdmin) {
       </div>
     </section>
   `);
+  updateLunarVisibility(container, activeRegion);
 }
 
 function applyTheme(value) {
@@ -441,6 +458,7 @@ function syncRegionSelect(container, { mayHide = true, region = null } = {}) {
   if (mayHide || regionSelect.value === CUSTOM_REGION) {
     applyCustomVisibility(container, regionSelect.value);
   }
+  updateLunarVisibility(container, regionSelect.value);
 }
 
 /**
@@ -486,6 +504,24 @@ function bindEvents(container, user) {
         : t('settings.wallModeOff'),
       'success',
     );
+  });
+
+  const lunarToggle = container.querySelector('#calendar-show-lunar');
+  lunarToggle?.addEventListener('change', async () => {
+    const value = lunarToggle.checked;
+    lunarToggle.disabled = true;
+    try {
+      await savePreferences({ calendar_show_lunar: value });
+      window.dispatchEvent(new CustomEvent('calendar-show-lunar-changed', {
+        detail: { enabled: value },
+      }));
+      window.yuvomi?.showToast(t('settings.lunarCalendarSaved'), 'success');
+    } catch (error) {
+      lunarToggle.checked = !value;
+      window.yuvomi?.showToast(error.message || t('common.errorGeneric'), 'danger');
+    } finally {
+      if (lunarToggle.isConnected) lunarToggle.disabled = false;
+    }
   });
 
   const localeSelect = container.querySelector('#locale-select');
@@ -572,6 +608,7 @@ function bindEvents(container, user) {
   regionSelect?.addEventListener('change', async () => {
     if (regionSelect.value === CUSTOM_REGION) {
       applyCustomVisibility(container, CUSTOM_REGION);
+      updateLunarVisibility(container, CUSTOM_REGION);
       return;
     }
     const preset = REGION_PRESETS[regionSelect.value];
@@ -617,6 +654,7 @@ function bindEvents(container, user) {
         detail: { timeFormat: preset.time_format },
       }));
       applyCustomVisibility(container, regionSelect.value);
+      updateLunarVisibility(container, regionSelect.value);
       // Scheitert das Nachladen, bleibt nur das Automatik-Label stale - kein
       // Grund, den erfolgreichen Regionswechsel als Fehler zu melden.
       await refreshDataLanguageOptions(container).catch(() => {});
@@ -726,6 +764,7 @@ export async function render(container, { user }) {
       // die Zone WAR gesetzt, das Formular zeigte sie nur nicht.
       timezone: loaded.timezone || null,
       timezone_effective: loaded.timezone_effective || null,
+      calendar_show_lunar: loaded.calendar_show_lunar === true,
     };
 
     safeStorageSet('yuvomi-date-format', preferences.date_format);

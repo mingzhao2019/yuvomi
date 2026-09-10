@@ -15,6 +15,7 @@ import { esc, fmtLocation, renderMarkdownLight } from '/utils/html.js';
 // Bezugstag traegt - der Import kommt deshalb unter eigenem Namen herein.
 import { toLocalDateKey, parseLocalDateKey, addLocalDays, todayKey as householdToday } from '/utils/date.js';
 import { nowFields, zonedUTCProxy, zonedDateKey, zonedTimeKey } from '/utils/timezone.js';
+import { formatChineseLunarDate, shouldDisplayChineseLunar } from '/utils/lunar.js';
 import { predictCycle, PHASE } from '/utils/health-cycle.js';
 import { localizeBirthdayEvent } from '/utils/birthday-event.js';
 import { countdownPhrase, countdownRank } from '/utils/countdown.js';
@@ -52,6 +53,7 @@ import { recipeThumbHtml, wireRecipeThumbs } from '/utils/recipe-thumb.js';
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
+let calendarShowLunar = false;
 
 
 // ── Onboarding ──────────────────────────────────────────────────────────────
@@ -498,9 +500,19 @@ function greetingPeriod() {
 // (.dashboard-overview__date, text-transform). Bewusst lokales new Date()
 // (reines Anzeige-Datum, keine ISO-Konvertierung - Zeitzonen-Falle).
 function mastheadDateLabel(now = new Date()) {
-  return new Intl.DateTimeFormat(getLocale(), {
+  const label = new Intl.DateTimeFormat(getLocale(), {
     weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC',
   }).format(zonedUTCProxy(now));
+  const lunar = lunarDateForNow(now);
+  return lunar ? `${label} · 农历${lunar}` : label;
+}
+
+function lunarDateForNow(now = new Date()) {
+  if (!calendarShowLunar) return '';
+  const fields = nowFields(now);
+  if (!fields) return '';
+  const dateKey = `${fields.year}-${String(fields.month).padStart(2, '0')}-${String(fields.day).padStart(2, '0')}`;
+  return formatChineseLunarDate(dateKey);
 }
 
 // Relatives Datumslabel: „Heute"/„Morgen", sonst das locale-formatierte Datum.
@@ -3386,9 +3398,10 @@ function clockWidgetParts(now = new Date()) {
   const weekday = new Intl.DateTimeFormat(getLocale(), {
     weekday: 'long', timeZone: 'UTC',
   }).format(zonedUTCProxy(now));
+  const lunar = lunarDateForNow(now);
   return {
     time: formatTime(now),
-    date: `${weekday}, ${formatDate(now)}`,
+    date: `${weekday}, ${formatDate(now)}${lunar ? ` · 农历${lunar}` : ''}`,
     machineTime: `${String(f.hour).padStart(2, '0')}:${String(f.minute).padStart(2, '0')}`,
   };
 }
@@ -4069,6 +4082,7 @@ export async function maybeUpdateAutoLocation({ autoLocateEnabled, geolocation, 
 
 export async function render(container, { user, signal: routeSignal = null } = {}) {
   _fabController?.abort();
+  calendarShowLunar = false;
   // Zwei Achsen, ein Controller (#976/#977): das Router-Signal faellt beim
   // Verlassen der Seite, der eigene Controller beim naechsten eigenen Aufbau.
   // Alles, was dieser Aufbau verdrahtet, haengt an `signal` - nicht am
@@ -4174,6 +4188,11 @@ export async function render(container, { user, signal: routeSignal = null } = {
     setCountdownAvailability(data?.countdowns);
     weather      = weatherRes.data ?? null;
     weatherAutoLocate = Boolean(prefsRes.data?.weather_user?.auto_locate ?? prefsRes.data?.weather_auto_locate);
+    calendarShowLunar = shouldDisplayChineseLunar({
+      enabled: prefsRes.data?.calendar_show_lunar,
+      region: prefsRes.data?.region,
+      locale: getLocale(),
+    });
     widgetConfig = normalizeDashboardConfigWithExtensions(prefsRes.data?.dashboard_widgets ?? buildDefaultWidgetConfig());
     savedWidgetConfig = widgetConfig.map((w) => ({ ...w }));
     /* WIDGET-OPTIONEN KOMMEN EINEN SCHRITT ZU SPAET (#814): die Uebersicht und

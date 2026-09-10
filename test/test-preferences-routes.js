@@ -88,6 +88,7 @@ test('GET / liefert die dokumentierten Defaults', async () => {
   assert.equal(body.data.app_name, 'Yuvomi');
   assert.equal(body.data.budget_mode, 'shared');
   assert.equal(body.data.calendar_default_duration, 60);
+  assert.equal(body.data.calendar_show_lunar, false);
   assert.deepEqual(body.data.visible_meal_types, ['breakfast', 'lunch', 'dinner', 'snack']);
   // Feature-Schalter default an (fehlender Wert => aktiv).
   assert.equal(body.data.health_cycle_enabled, true);
@@ -393,6 +394,16 @@ test('PUT calendar_default_assign_me: Boolean -> per-user persist', async () => 
   assert.equal((await put({ calendar_default_assign_me: true })).body.data.calendar_default_assign_me, true);
   assert.equal((await put({ calendar_default_assign_me: false })).body.data.calendar_default_assign_me, false);
 });
+test('PUT calendar_show_lunar: strict Boolean + per-user isolation', async () => {
+  cfgDelete('calendar_show_lunar:user:1');
+  cfgDelete('calendar_show_lunar:user:2');
+  assert.equal((await put({ calendar_show_lunar: 'yes' })).status, 400);
+  assert.equal((await put({ calendar_show_lunar: true }, { role: 'member', userId: 2 })).body.data.calendar_show_lunar, true);
+  assert.equal((await get({ role: 'admin', userId: 1 })).body.data.calendar_show_lunar, false);
+  assert.equal((await put({ calendar_show_lunar: false }, { role: 'admin', userId: 1 })).body.data.calendar_show_lunar, false);
+  assert.equal((await get({ role: 'member', userId: 2 })).body.data.calendar_show_lunar, true);
+  assert.equal((await put({ calendar_show_lunar: null }, { role: 'member', userId: 2 })).body.data.calendar_show_lunar, false);
+});
 
 test('PUT module_order: Nicht-Array -> 400, gültige Liste -> per-user round-trip', async () => {
   assert.equal((await put({ module_order: 'tasks' })).status, 400);
@@ -597,12 +608,21 @@ test('GET /holidays/countries: gestubbte API -> 200 mit sortierter Liste', async
   }));
   const res = await raw('GET', '/holidays/countries');
   assert.equal(res.status, 200);
-  assert.deepEqual(res.body.data.map((c) => c.isoCode), ['AT', 'DE']); // nach name sortiert
+  assert.equal(res.body.partial, false);
+  assert.deepEqual(res.body.data.map((c) => c.isoCode), ['AT', 'CN', 'DE']); // nach name sortiert
   holidays.__setFetchImpl(null);
 });
-test('GET /holidays/countries: API-Fehler -> 502', async () => {
+test('GET /holidays/countries: API-Fehler lässt die eingebaute China-Liste verfügbar', async () => {
+  cfgSet('holiday_country', 'DE');
   holidays.__setFetchImpl(async () => { throw new Error('network down'); });
-  assert.equal((await raw('GET', '/holidays/countries')).status, 502);
+  const res = await raw('GET', '/holidays/countries');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.partial, true);
+  assert.deepEqual(res.body.data, [
+    { isoCode: 'CN', name: 'China' },
+    { isoCode: 'DE', name: 'DE' },
+  ]);
+  cfgDelete('holiday_country');
   holidays.__setFetchImpl(null);
 });
 test('GET /holidays/subdivisions/:cc: ungültiger Code -> 400', async () => {
