@@ -146,6 +146,7 @@ npm run test:multi-reminders   # multiple reminders per calendar event: GET /rem
 npm run test:reminders-routes  # Reminders-Routen: HTTP-Schicht gegen den echten Router; dazu die MISCHSTELLEN-Regel: der Router-Pfad löst auf `calendar` auf, seine Zeilen stammen aus sechs Modulen - `/pending` filtert nach lesbaren Herkünften (Token-Scopes UND `access_permissions`), die typbezogenen Wege antworten 403, und ein Aufrufer ohne jeden lesbaren Scope bekommt eine leere Liste statt eines SQL-Fehlers
 npm run test:reminder-offset   # reminder remind_at offset calculation
 npm run test:push           # Web Push: VAPID resolution, subscribe/unsubscribe routes, delivery, scheduler
+npm run test:fetch-retry    # Der Wiederholer um `fetch` in den Test-Suiten (`test/fetch-retry.js`, #1092): er uebersteht NUR Ressourcenfehler des Hosts nach einer Allowlist (etwa `EADDRNOTAVAIL`, wenn der Kette die ephemeren Ports ausgehen), mit Backoff 25/50/100 ms. Der Wert liegt in den NEGATIVEN Faellen: `ECONNREFUSED` (kein Server) fliegt sofort, eine HTTP-Antwort wie ein 500er wird nie wiederholt, und ein unbekannter Code wird nicht als voruebergehend gedeutet - ein Wiederholer, der zu viel schluckt, macht aus einem echten Fehlschlag einen gruenen Lauf
 npm run test:email          # SMTP-Service: config/env resolution, masking, sendMail/sendTest, admin routes
 npm run test:password-reset # Reset tokens: create/verify/consume/cleanup + forgot/reset-password routes
 npm run test:admin-password-reset # PATCH /auth/users/:id password field: admin sets existing member's password (#372)
