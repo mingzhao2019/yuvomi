@@ -7,6 +7,7 @@ import {
   openModal,
   closeModal,
   confirmModal,
+  refocusAfterRender,
 } from '/components/modal.js';
 import {
   renderUserMultiSelect,
@@ -326,8 +327,11 @@ async function openCategoryManager() {
       const response = await api.get('/inventory/categories');
       state.categories = response.data || [];
       renderBody();
-    } catch {
-      // The manager displays the mutation error; keep the current page usable.
+      refocusAfterRender();
+    } catch (err) {
+      // The manager displays the mutation error; this is a separate refresh
+      // request and must remain visible if it fails.
+      window.yuvomi?.showToast(err.data?.error ?? t('common.errorGeneric'), 'danger');
     }
   };
   let manager = null;
@@ -350,11 +354,11 @@ async function openCategoryManager() {
       });
     },
     onClose: async () => {
-      manager?.removeEventListener('category-manager-changed', onChanged);
       manager = null;
       if (changed) {
         await loadData();
         renderBody();
+        refocusAfterRender();
       }
     },
   });

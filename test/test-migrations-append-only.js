@@ -182,6 +182,21 @@ function resolveBase() {
   }
 
   if (noRepo) return { skip: `${noRepo} - ohne git keine Basis fuer den Vergleich bestehender Migrationen` };
+
+  // The custom branch intentionally has a different migration history from
+  // upstream/main. Comparing it with merge-base HEAD/origin/main would reach
+  // an upstream db.js before the custom migration labels and report an
+  // intentional custom change as a rewrite. When the custom remote ref is
+  // available, it is the correct append-only baseline for both the final
+  // branch and its temporary selective-sync branch.
+  const branch = git('branch', '--show-current');
+  const branchName = branch.ok ? branch.out.trim() : '';
+  const isCustomBranch = branchName === 'custom'
+    || branchName.startsWith('custom-upstream-selective-');
+  if (isCustomBranch && git('rev-parse', '--verify', '--quiet', 'origin/custom^{commit}').ok) {
+    return { sha: git('rev-parse', '--verify', '--quiet', 'origin/custom^{commit}').out.trim(), label: 'origin/custom' };
+  }
+
   if (!git('rev-parse', '--verify', '--quiet', 'origin/main^{commit}').ok) {
     return { skip: 'origin/main fehlt in diesem Klon - ohne sie keine Basis fuer den Vergleich bestehender Migrationen' };
   }
