@@ -7,7 +7,12 @@ import { createLogger } from '../../logger.js';
 import express from 'express';
 import * as db from '../../db.js';
 import { DATE_RE } from '../../middleware/validate.js';
-import { expandRecurringEvents, getUpcomingEvents, loadEventExceptions } from '../../services/calendar-events.js';
+import {
+  expandRecurringEvents,
+  getUpcomingEvents,
+  loadEventExceptions,
+  SOURCE_CALENDAR_REF_SQL,
+} from '../../services/calendar-events.js';
 import { decorateEventCompletions } from '../../services/calendar-event-completions.js';
 import { buildMatchQuery } from '../../services/search.js';
 import { visibilityWhere } from '../../services/visibility.js';
@@ -44,6 +49,7 @@ router.get('/', (req, res) => {
              u_created.display_name  AS creator_name,
              COALESCE(isub.name, ec.name) AS cal_name,
              COALESCE(isub.color, ec.color) AS cal_color,
+             ${SOURCE_CALENDAR_REF_SQL},
              COALESCE(bd.name, nd.name) AS birthday_name,
              bd.birth_date AS birthday_date,
              nd.name_day   AS name_day,
@@ -166,6 +172,7 @@ router.get('/search', (req, res) => {
              u_created.display_name  AS creator_name,
              COALESCE(isub.name, ec.name) AS cal_name,
              COALESCE(isub.color, ec.color) AS cal_color,
+             ${SOURCE_CALENDAR_REF_SQL},
              COALESCE(bd.name, nd.name) AS birthday_name,
              bd.birth_date AS birthday_date,
              nd.name_day   AS name_day,
