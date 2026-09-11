@@ -194,9 +194,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Where a dialog appears on only some paths - rejecting a reward redemption asks, fulfilling it does
   not - focus is pulled back only on the path that asked. Otherwise it would land on the trigger of
   some earlier, unrelated dialog. The guard that holds all of this learned three shapes it could not
- see: dialogs that deliver their answer after closing (`confirmModal`, `promptModal`, `selectModal`,
- `confirmOverModal`), a reload inside a `try` block or after an `if`, and a callback handed in as a
- parameter.
+  see: dialogs that deliver their answer after closing (`confirmModal`, `promptModal`, `selectModal`,
+  `confirmOverModal`), a reload inside a `try` block or after an `if`, and a callback handed in as a
+  parameter.
+
+- **An edit or a move made while a change is still on its way to Google is no longer dropped**
+  (#593). A change to a synced Google event is sent in the background. If the event was edited
+  again, or moved to another calendar, while that request was still under way, finishing it cleared
+  the note that more was waiting: Google kept the older version, and the next sync could write it
+  back over the newer edit. A second move made during a move was lost the same way. Only what
+  actually reached Google now counts as done, and anything newer stays queued for the next attempt.
+  An edit made while the event is being moved goes to its new calendar in the same run instead of
+  waiting for the next sync.
+
+- **A review run that stopped at its gate is named as such, even when it first denied having
+  reviewed** (#1101). The check behind the automated review reads the run's closing text to say
+  why a silent run went red. It only looked at the first mention of "already reviewed", so a text
+  that negated it once and then affirmed it ("has not already reviewed this HEAD ... has already
+  reviewed this PR, so I should stop here") was diagnosed as unknown, pointing at a missing post
+  instead of the gate. Every mention now counts, the way every "stop" already did. The check was
+  red either way; only its message changes. The one exception that can turn it green still reads
+  the narrower way.
 
 - **The event detail names the day a multi-day event ends** (#1102). The "When" row showed the
   start date and, of the end, only the time: an event from 10 September 14:00 to 12 September 11:00
