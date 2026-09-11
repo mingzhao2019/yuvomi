@@ -596,6 +596,20 @@ router.put('/:id', async (req, res) => {
       }
     })();
 
+    // Änderung an einem synchronisierten Termin beim Provider nachziehen (#593):
+    // geänderte Felder als Patch, ein gewechselter Zielkalender als Umzug.
+    // Wie beim Löschen: vormerken, antworten, danach best effort ausführen.
+    // Vorgemerkt wird VOR dem Lesen der Antwort: deren Quelle folgt einem
+    // anstehenden Umzug, und ohne ihn filterte die Seite den Termin bis zum
+    // nächsten Laden weiter als Teil des alten Kalenders (#1064).
+    const outboundEvent = db.get().prepare('SELECT * FROM calendar_events WHERE id = ?').get(id);
+    const genericPending = markEventOutbound(
+      event,
+      outboundEvent,
+    );
+    const outlookPending = outlookCalendar.markEventOutbound(event, outboundEvent);
+    const pending = genericPending || outlookPending;
+
     const updated = db.get().prepare(`
       SELECT e.*,
              u_assigned.display_name AS assigned_name,
@@ -613,13 +627,6 @@ router.put('/:id', async (req, res) => {
       LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
       WHERE e.id = ?
     `).get(id);
-
-    // Änderung an einem synchronisierten Termin beim Provider nachziehen (#593):
-    // geänderte Felder als Patch, ein gewechselter Zielkalender als Umzug.
-    // Wie beim Löschen: vormerken, antworten, danach best effort ausführen.
-    const genericPending = markEventOutbound(event, updated);
-    const outlookPending = outlookCalendar.markEventOutbound(event, updated);
-    const pending = genericPending || outlookPending;
 
     const [decorated] = decorateEventCompletions(db.get(), [updated], getUserId(req));
     res.json({ data: serializeEvent(decorated, db.get()) });
