@@ -101,16 +101,78 @@ test('mindestens die drei bekannten Seiten mit lokalisierten Kategorien werden e
  * <option> und meldete die neue Seite als "Muster greift nicht mehr": richtig
  * alarmiert, falsch begruendet.
  *
- * Gesucht wird deshalb der TRAEGER DES SCHLUESSELS - `value="${esc(x.key)}"` -
- * und die Beschriftung bis zum Ende seines Elements. Das deckt <option> wie
- * <label> ab und faellt beim naechsten Tag nicht wieder um. */
-const CATEGORY_CONTROL_RE = /value="\$\{esc\((\w+)\.key\)\}"([\s\S]*?)<\/(?:option|label)>/g;
+ * Gesucht wird deshalb der TRAEGER DES SCHLUESSELS und die Beschriftung bis zum
+ * Ende seines Elements. Das deckt <option> wie <label> ab und faellt beim
+ * naechsten Tag nicht wieder um.
+ *
+ * DER TRAEGER IST NICHT IMMER `.key` (#950). Die Abo-Kategorien und
+ * -Zahlungsarten sind AUTOINCREMENT-Zeilen; ihre Auswahl schreibt
+ * `value="${item.id}"`. Als subscriptions.js seinen Label-Resolver bekam, fiel
+ * die Datei in den Erfassungsbereich dieses Guards - und er meldete "das Muster
+ * greift nicht mehr", weil er dort keine einzige Auswahl fand. Wieder richtig
+ * alarmiert; die Regel gilt fuer beide Schluesselarten. */
+const CATEGORY_CONTROL_RE = /value="\$\{(?:esc\((\w+)\.key\)|(\w+)\.id)\}"([\s\S]*?)<\/(?:option|label)>/g;
+
+/* WAS EINE KATEGORIE-AUSWAHL IST, WIRD ABGELEITET - aus den Tabellen in
+ * server/db.js, die eine `label_key`-Spalte fuehren. Ohne diese Einschraenkung
+ * traefe das erweiterte `.id`-Muster auch die Lagerort-Auswahl im Inventar
+ * (`inventory_locations`), deren `name` NOT NULL ist und die gar keinen
+ * Schluessel kennt: ein Fehlalarm, der den Guard nur muerbe machen wuerde.
+ *
+ * Abgeleitet wird der Sammelname, unter dem das Frontend die Liste fuehrt -
+ * `subscription_payment_methods` → `payment_methods`, `task_categories` →
+ * `categories`. Ein neues Modul mit lokalisierten Kategorien faellt damit
+ * automatisch darunter, statt an einer Allowlist vorbeizulaufen. */
+function labelKeyCollections() {
+  const dbSrc = readFileSync(new URL('../server/db.js', import.meta.url), 'utf8');
+  const namen = new Set();
+  for (const m of dbSrc.matchAll(/CREATE TABLE IF NOT EXISTS (\w+) \(([\s\S]*?)\n\s*\);/g)) {
+    if (!/^\s*label_key\s/m.test(m[2])) continue;
+    namen.add(m[1].replace(/^(?:task|contact|inventory|subscription|budget)_/, ''));
+  }
+  for (const m of dbSrc.matchAll(/ALTER TABLE (\w+)\s+ADD COLUMN label_key\b/g)) {
+    namen.add(m[1].replace(/^(?:task|contact|inventory|subscription|budget)_/, ''));
+  }
+  return [...namen];
+}
+
+const LABEL_KEY_COLLECTIONS = labelKeyCollections();
+
+test('die label_key-Sammlungen werden aus server/db.js abgeleitet', () => {
+  // Ohne diese Probe liefe der Guard darunter ueber eine leere Menge und waere
+  // gruen, ohne noch irgendetwas zu pruefen.
+  for (const erwartet of ['categories', 'payment_methods']) {
+    assert.ok(LABEL_KEY_COLLECTIONS.includes(erwartet),
+      `"${erwartet}" fehlt in der Ableitung aus db.js - greift das Tabellen-Muster noch? `
+      + `gefunden: ${LABEL_KEY_COLLECTIONS.join(', ') || '(nichts)'}`);
+  }
+});
 
 for (const { file, src } of localizedPages) {
   test(`${file}: kein Kategorie-Label kommt roh aus .name`, () => {
-    const controls = [...src.matchAll(CATEGORY_CONTROL_RE)];
+    const controls = [...src.matchAll(CATEGORY_CONTROL_RE)]
+      // Nur Auswahlen ueber eine Liste, die ueberhaupt label_key fuehren kann.
+      // Massgeblich ist die QUELLE DER ITERATIONSVARIABLEN, nicht was zufaellig
+      // in der Naehe steht: im Gegenstands-Formular des Inventars steht die
+      // Kategorie-Auswahl zwei Zeilen ueber der Lagerort-Auswahl, und ein Blick
+      // auf die letzten 200 Zeichen haelt deshalb `root` faelschlich fuer eine
+      // Kategorie. Gesucht wird die naechstgelegene Bindung dieser Variablen -
+      // `<quelle>.map((<var>` oder `for (const <var> of <quelle>)`.
+      .filter((m) => {
+        const variable = m[1] ?? m[2];
+        const vorlauf = src.slice(0, m.index);
+        const bindungen = [
+          ...vorlauf.matchAll(new RegExp(`([\\w.]+)\\s*\\.\\s*map\\(\\(${variable}\\b`, 'g')),
+          ...vorlauf.matchAll(new RegExp(`for \\(const ${variable} of ([\\w.]+)`, 'g')),
+        ];
+        if (bindungen.length === 0) return false;
+        const naechste = bindungen.reduce((a, b) => (a.index > b.index ? a : b));
+        return LABEL_KEY_COLLECTIONS.some((c) => new RegExp(`\\b${c}$`).test(naechste[1]));
+      });
     assert.ok(controls.length > 0, `keine Kategorie-Auswahl in ${file} gefunden - das Muster greift nicht mehr`);
-    for (const [, variable, label] of controls) {
+    for (const m of controls) {
+      const variable = m[1] ?? m[2];
+      const label = m[3];
       assert.ok(!new RegExp(`\\b${variable}\\.name\\b`).test(label),
         `${file}: die Auswahl liest ihr Label direkt aus ${variable}.name - bei einer Seed-Kategorie `
         + 'ist name NULL und die Beschriftung bleibt leer (#783). Ueber den Label-Resolver gehen.');

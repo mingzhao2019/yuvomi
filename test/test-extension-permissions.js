@@ -50,6 +50,16 @@ writeModule('demo-ext', {
   'widgets/summary.js': 'export async function renderWidget() {}\n',
 });
 
+writeModule('taskextras', {
+  id: 'taskextras',
+  name: 'Task Extras',
+  entry: 'index.js',
+  capabilities: {
+    permissions: { module: { label: 'Task Extras', icon: 'box' } },
+    api: { prefix: '/api/tasks' },
+  },
+}, { 'index.js': 'export async function render() {}\n' });
+
 const dbmod = await import('../server/db.js');
 const svc = await import('../server/services/modules.js');
 const {
@@ -57,8 +67,12 @@ const {
   permissionCatalog,
   normalizePermissionInput,
   replaceSubjectPermissions,
+  setExtensionPermissionCatalog,
+  buildSessionModuleAccess,
+  moduleAccessVerdict,
 } = await import('../server/permissions.js');
-const { extensionPermissionKey } = await import('../server/services/module-capabilities.js');
+const { extensionPermissionKey, normalizeCapabilities } = await import('../server/services/module-capabilities.js');
+const { moduleForPath, setExtensionScopeModules } = await import('../server/scopes.js');
 
 const db = dbmod.get();
 

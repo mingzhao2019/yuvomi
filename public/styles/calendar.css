@@ -2390,7 +2390,7 @@
  * Ein Label zu verlieren darf ein Ziel nie verkleinern. Den Zustand tragen
  * weiterhin die getönte Fläche (`--active`) und das gefüllte Icon bzw. der
  * volldeckende Punkt - nie die Kante allein. */
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .cal-toolbar__layer-btn span:not(.cal-toolbar__layer-dot) {
     display: none;
   }

@@ -180,6 +180,15 @@ export function calendarPaths() {
           500: { $ref: '#/components/responses/InternalServerError' },
         },
       }),
+      delete: op({
+        summary: 'Delete calendar event',
+        tag: 'Calendar',
+        params: [idParam()],
+        stateChanging: true,
+        description: 'An event mirrored to Google Calendar is deleted there as well. The remote call runs after the response; if it fails, the next sync run retries it.',
+      }),
+    },
+    '/api/v1/calendar/{id}/completion': {
       patch: op({
         summary: 'Set personal calendar event completion',
         tag: 'Calendar',
@@ -194,13 +203,6 @@ export function calendarPaths() {
           404: { description: 'Calendar event not found' },
           500: { $ref: '#/components/responses/InternalServerError' },
         },
-      }),
-      delete: op({
-        summary: 'Delete calendar event',
-        tag: 'Calendar',
-        params: [idParam()],
-        stateChanging: true,
-        description: 'An event mirrored to Google Calendar is deleted there as well. The remote call runs after the response; if it fails, the next sync run retries it.',
       }),
     },
     '/api/v1/calendar/{id}/reset': {

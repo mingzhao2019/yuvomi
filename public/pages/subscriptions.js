@@ -35,14 +35,6 @@ let state = {
   user: null,
 };
 let container = null;
-const DEFAULT_CATEGORY_LABELS = {
-  Entertainment: 'budget.subcatSubscriptionEntertainment',
-  Productivity: 'budget.subcatSubscriptionProductivity',
-  Utilities: 'budget.subcatSubscriptionUtilities',
-  Health: 'budget.subcatSubscriptionHealth',
-  Education: 'budget.subcatSubscriptionEducation',
-  Other: 'budget.subcatSubscriptionOther',
-};
 
 function setHtml(element, html) {
   element.replaceChildren();
@@ -58,9 +50,25 @@ function money(amount, currency = state.summary?.base_currency || state.settings
   return formatMoney(amount, currency);
 }
 
+function metaLabel(item, emptyKey) {
+  if (item?.label_key) return t(item.label_key);
+  return item?.name || t(emptyKey);
+}
+
 function categoryLabel(category) {
-  const name = typeof category === 'object' ? category?.name : category;
-  return DEFAULT_CATEGORY_LABELS[name] ? t(DEFAULT_CATEGORY_LABELS[name]) : (name || t('subscriptions.uncategorized'));
+  return metaLabel(typeof category === 'object' ? category : { name: category }, 'subscriptions.uncategorized');
+}
+
+function paymentMethodLabel(method) {
+  return metaLabel(typeof method === 'object' ? method : { name: method }, 'subscriptions.unspecified');
+}
+
+function rowCategoryLabel(row) {
+  return categoryLabel({ name: row?.category_name, label_key: row?.category_label_key });
+}
+
+function rowPaymentMethodLabel(row) {
+  return paymentMethodLabel({ name: row?.payment_method_name, label_key: row?.payment_method_label_key });
 }
 
 function addMonths(date, count) {
@@ -248,7 +256,7 @@ function renderFilters() {
   `);
   setHtml(method, `
     <option value="">${t('common.all')}</option>
-    ${state.meta.payment_methods.map((item) => `<option value="${item.id}">${esc(item.name)}</option>`).join('')}
+    ${state.meta.payment_methods.map((item) => `<option value="${item.id}">${esc(paymentMethodLabel(item))}</option>`).join('')}
   `);
   category.value = state.categoryId;
   method.value = state.paymentMethodId;
@@ -414,7 +422,7 @@ function renderSummary() {
 
 function renderAnalytics() {
   const categories = amountRows(state.summary?.by_category || [], categoryLabel);
-  const methods = amountRows(state.summary?.by_payment_method || []);
+  const methods = amountRows(state.summary?.by_payment_method || [], paymentMethodLabel);
   const forecast = renewalForecast();
   return `
     <section class="subscriptions-analytics">
@@ -425,9 +433,9 @@ function renderAnalytics() {
   `;
 }
 
-function amountRows(rows, labelFor = (name) => name) {
+function amountRows(rows, labelFor) {
   return rows
-    .map((row) => ({ ...row, label: labelFor(row.name), amount: Number(row.amount || 0) }))
+    .map((row) => ({ ...row, label: labelFor(row), amount: Number(row.amount || 0) }))
     .filter((row) => row.amount > 0)
     .sort((a, b) => b.amount - a.amount);
 }
@@ -617,7 +625,7 @@ function renderCard(subscription) {
           <span class="subscription-card__title-row">
             <span>
               <span class="subscription-card__name">${esc(subscription.name)}</span>
-              <span class="subscription-card__desc">${esc(subscription.description || categoryLabel(subscription.category_name))}</span>
+              <span class="subscription-card__desc">${esc(subscription.description || rowCategoryLabel(subscription))}</span>
             </span>
             <span class="subscription-status ${status.badgeClass}">
               ${status.label}
@@ -626,7 +634,7 @@ function renderCard(subscription) {
           <span class="subscription-card__meta">
             <span><i data-lucide="calendar-clock" aria-hidden="true"></i>${formatDate(subscription.next_payment_date)} · ${dueLabel(subscription)}</span>
             <span><i data-lucide="repeat-2" aria-hidden="true"></i>${cycleLabel(subscription)}</span>
-            <span><i data-lucide="wallet-cards" aria-hidden="true"></i>${esc(subscription.payment_method_name || t('subscriptions.unspecified'))}</span>
+            <span><i data-lucide="wallet-cards" aria-hidden="true"></i>${esc(rowPaymentMethodLabel(subscription))}</span>
             <span><i data-lucide="bell" aria-hidden="true"></i>${t('subscriptions.reminderMeta', { count: subscription.reminder_days })}</span>
             ${endInfo ? `<span><i data-lucide="${endInfo.icon}" aria-hidden="true"></i>${esc(endInfo.text)}</span>` : ''}
           </span>
@@ -877,7 +885,7 @@ export function openSubscriptionModal(subscription = null) {
   ];
   const methodItems = [
     { value: '', label: t('subscriptions.unspecified') },
-    ...state.meta.payment_methods.map((item) => ({ value: item.id, label: item.name })),
+    ...state.meta.payment_methods.map((item) => ({ value: item.id, label: paymentMethodLabel(item) })),
   ];
   const initialLogo = subscription?.logo_data || '';
   const initialName = subscription?.name || '';
@@ -1419,7 +1427,7 @@ function metadataRows(items, kind) {
     <li data-id="${item.id}" data-kind="${kind}">
       <div class="subscriptions-metadata-row__view">
         ${isCat ? `<i style="background:${esc(item.color)}"></i>` : '<i data-lucide="credit-card" aria-hidden="true"></i>'}
-        <span>${esc(isCat ? categoryLabel(item) : item.name)}</span>
+        <span>${esc(isCat ? categoryLabel(item) : paymentMethodLabel(item))}</span>
         <div class="subscriptions-metadata-row__actions">
           <button class="btn btn--icon" data-move="-1" ${index === 0 ? 'aria-disabled="true"' : ''} aria-label="${t('subscriptions.moveUp')}">
             <i data-lucide="chevron-up" aria-hidden="true"></i>
@@ -1436,7 +1444,7 @@ function metadataRows(items, kind) {
         </div>
       </div>
       <div class="subscriptions-metadata-row__edit" hidden>
-        <input class="form-input subscriptions-metadata-edit-name" value="${esc(isCat ? categoryLabel(item) : item.name)}" data-original-name="${esc(item.name)}" maxlength="100" aria-label="${editLabel}">
+        <input class="form-input subscriptions-metadata-edit-name" value="${esc(isCat ? categoryLabel(item) : paymentMethodLabel(item))}" data-original-name="${esc(item.name ?? '')}" maxlength="100" aria-label="${editLabel}">
         ${isCat ? `<input class="form-input form-input--color subscriptions-metadata-edit-color" type="color" value="${esc(item.color)}" aria-label="${t('subscriptions.brandColorLabel')}">` : ''}
         <div class="subscriptions-metadata-row__actions">
           <button class="btn btn--icon" data-act="save" aria-label="${t('common.save')}">
@@ -1597,7 +1605,7 @@ function openMetadataModal() {
           const isCat = li.dataset.kind === 'categories';
           const item = state.meta[isCat ? 'categories' : 'payment_methods'].find((row) => row.id === id);
           const inUse = item?.usage_count || 0;
-          const name = item ? (isCat ? categoryLabel(item) : item.name) : '';
+          const name = item ? (isCat ? categoryLabel(item) : paymentMethodLabel(item)) : '';
           // confirmOverModal parkt das Verwalten-Modal, statt es zu ersetzen:
           // „Abbrechen" gibt es mitsamt Scrollposition und Fokus zurück. Nur
           // nach echtem Löschen wird es neu aufgebaut - die Liste hat sich

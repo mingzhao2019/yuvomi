@@ -2813,10 +2813,7 @@
         "fromCompletionLabel": "Repeat from completion",
         "fromCompletionHint": "The interval starts on the day you tick the task off, not on its due date.",
         "summaryFromCompletion": "from completion",
-        "intervalHint": "Once you pick one, the interval is yours to set - every 2 weeks, or every 3 months.",
-        "lastDayOfMonth": "On the last day of the month",
-        "lastDayOfMonthHint": "The series starts on the first month end on or after the start date.",
-        "lastDayOfMonthHintNext": "This task stays due on the date you entered; the next run falls on the month end."
+        "intervalHint": "Once you pick one, the interval is yours to set - every 2 weeks, or every 3 months."
     },
     "reminders": {
         "sectionTitle": "Reminder",

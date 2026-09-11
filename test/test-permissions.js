@@ -35,7 +35,9 @@ function freshDb() {
   const db = new DatabaseSync(':memory:');
   db.exec(MIGRATIONS_SQL[1]);   // users
   db.exec(MIGRATIONS_SQL[74]);  // access_permissions
-  db.exec(MIGRATIONS_SQL[175]); // capability resource type
+  // Upstream v175 is occupied by custom asset fields; capability resources
+  // are the append-only custom v180 migration.
+  db.exec(MIGRATIONS_SQL[180]); // capability resource type
   return db;
 }
 
@@ -239,7 +241,7 @@ test('replaceSubjectPermissions ersetzt atomar (kein Merge)', () => {
 
 test('replaceSubjectPermissions erhält Capability-Zeilen beim Speichern von Modulen', () => {
   const db = freshDb();
-  db.exec(MIGRATIONS_SQL[174]);
+  db.exec(MIGRATIONS_SQL[180]);
   db.prepare(`
     INSERT INTO access_permissions (subject_type, subject_id, resource_type, resource_key, access)
     VALUES ('role', 'child', 'capability', 'notes.categories', 'allow')

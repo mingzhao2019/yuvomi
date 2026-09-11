@@ -7918,6 +7918,38 @@ const MIGRATIONS = [
         ON calendar_event_completions(user_id, event_id, occurrence_key);
     `,
   },
+  {
+    version: 203,
+    description: 'Subscriptions: preserve translated labels for seeded metadata',
+    up: `
+      ALTER TABLE subscription_categories ADD COLUMN label_key TEXT;
+      ALTER TABLE subscription_payment_methods ADD COLUMN label_key TEXT;
+
+      UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionEntertainment'
+        WHERE budget_subcategory_key = 'subscription_entertainment' AND name = 'Entertainment';
+      UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionProductivity'
+        WHERE budget_subcategory_key = 'subscription_productivity' AND name = 'Productivity';
+      UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionUtilities'
+        WHERE budget_subcategory_key = 'subscription_utilities' AND name = 'Utilities';
+      UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionHealth'
+        WHERE budget_subcategory_key = 'subscription_health' AND name = 'Health';
+      UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionEducation'
+        WHERE budget_subcategory_key = 'subscription_education' AND name = 'Education';
+      UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionOther'
+        WHERE budget_subcategory_key = 'subscription_other' AND name = 'Other';
+
+      UPDATE subscription_payment_methods SET label_key = CASE name
+        WHEN 'Credit Card' THEN 'subscriptions.paymentMethodCreditCard'
+        WHEN 'Debit Card' THEN 'subscriptions.paymentMethodDebitCard'
+        WHEN 'PayPal' THEN 'subscriptions.paymentMethodPaypal'
+        WHEN 'Apple Pay' THEN 'subscriptions.paymentMethodApplePay'
+        WHEN 'Google Pay' THEN 'subscriptions.paymentMethodGooglePay'
+        WHEN 'Bank Transfer' THEN 'subscriptions.paymentMethodBankTransfer'
+        WHEN 'Other' THEN 'subscriptions.paymentMethodOther'
+      END
+      WHERE name IN ('Credit Card', 'Debit Card', 'PayPal', 'Apple Pay', 'Google Pay', 'Bank Transfer', 'Other');
+    `,
+  },
 ];
 
 /**

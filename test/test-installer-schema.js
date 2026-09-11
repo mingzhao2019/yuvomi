@@ -164,6 +164,10 @@ const INTENTIONALLY_NOT_IN_INSTALLER = {
   MCP_INTERNAL_BASE_URL: 'Betriebs-Feinjustage.',
   RATE_LIMIT_WINDOW_MS: 'Betriebs-Feinjustage.',
   RATE_LIMIT_MAX_ATTEMPTS: 'Betriebs-Feinjustage.',
+  ASSET_COST_GOOGLE_API_KEY:
+    'Optionaler serverseitiger Bildsuchdienst; wird nach der Installation manuell in .env konfiguriert.',
+  ASSET_COST_GOOGLE_CSE_ID:
+    'Optionaler serverseitiger Google-Suchmaschinenbezeichner; wird nach der Installation manuell in .env konfiguriert.',
   BACKUP_UPLOAD_LIMIT:
     'Betriebs-Feinjustage: Body-Limit fuer den Restore-Upload im Admin-UI, nur beim '
     + 'Zurueckspielen einer ueberdimensionierten Datenbank relevant.',

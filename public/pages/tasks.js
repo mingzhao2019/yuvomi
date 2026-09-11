@@ -27,8 +27,9 @@ import '/components/category-manager.js';
 import '/components/tag-manager.js';
 import { findPageFab } from '/utils/fab.js';
 import { isSoloHousehold } from '/utils/household.js';
-import { todayKey, parseLocalDateKey, addLocalDays } from '/utils/date.js';
-import { nowFields, zonedDateKey, zonedUTCProxy } from '/utils/timezone.js';
+import { todayKey, parseLocalDateKey } from '/utils/date.js';
+import { nowFields, zonedDateKey } from '/utils/timezone.js';
+import { historyDayLabel } from '/utils/day-label.js';
 import { isNavModuleReadOnly } from '/permissions.js';
 
 // --------------------------------------------------------
@@ -3397,36 +3398,6 @@ function wireKanbanTouch(container) {
 // „nichts erledigt" zu behaupten - das wäre für einen Haushalt, der seit Monaten
 // Aufgaben abhakt, schlicht gelogen.
 // --------------------------------------------------------
-
-/**
- * Die Tages-Überschrift zu einem Datums-Key der Anzeigezone.
- *
- * DREI FALLEN AUF ENGEM RAUM, jede davon hier einmal eingebaut gewesen:
- *
- * 1. „Gestern" kommt aus `addLocalDays(today, -1)`, also aus Arithmetik auf dem
- *    KEY. Ein `Date` minus 86400000 ms trifft an der Sommerzeitgrenze den
- *    vorletzten Tag - und sobald die Anzeigezone von der des Browsers abweicht,
- *    liegt es ohnehin daneben, weil `parseLocalDateKey` seine Mitternacht in
- *    der Browserzone baut.
- * 2. Der Key geht ROH an `formatDate`. Ein Umweg über ein `Date` macht aus dem
- *    zonenlosen Kalendertag einen Zeitpunkt, den die Anzeigezone anschließend
- *    wieder umrechnet - und die Überschrift kann auf dem Nachbartag landen,
- *    während die Zeilen darunter alle vom richtigen stammen.
- * 3. `formatDate` nimmt genau EIN Argument (public/i18n.js). Ein
- *    Optionsobjekt daneben wird stillschweigend verworfen, und die als
- *    „Montag, 24. August" gedachte Zeile stand als „24.08.2026" da. Der
- *    Wochentag kommt deshalb über den `zonedUTCProxy`-Weg, wie im Dashboard.
- */
-function historyDayLabel(dayKey) {
-  const today = todayKey();
-  if (dayKey === today) return t('common.today');
-  if (dayKey === addLocalDays(today, -1)) return t('common.yesterday');
-  const proxy = zonedUTCProxy(`${dayKey}T12:00:00`);
-  if (!proxy) return formatDate(dayKey);
-  return new Intl.DateTimeFormat(getLocale(), {
-    weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC',
-  }).format(proxy);
-}
 
 /**
  * Einträge nach dem Kalendertag der Anzeigezone bündeln.

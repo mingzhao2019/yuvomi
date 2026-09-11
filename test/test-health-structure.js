@@ -125,10 +125,10 @@ const EXPECTED = [
   'PATCH /visibility-defaults/apply',
 ];
 
-test('Orchestrator ergibt exakt die erwartete Routentabelle (50 Routen)', () => {
+test('Orchestrator ergibt exakt die erwartete Routentabelle (53 Routen)', () => {
   const actual = collectRoutes(healthRouter).sort();
   assert.deepEqual(actual, [...EXPECTED].sort());
-  assert.equal(actual.length, 50);
+  assert.equal(actual.length, 53);
 });
 
 test('die Cluster-Router zusammen ergeben genau die Orchestrator-Routen (keine verlorene/doppelte Route)', () => {

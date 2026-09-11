@@ -699,10 +699,6 @@ const server = app.listen(PORT, () => {
   logYuvomi.info(`Server running on port ${server.address()?.port ?? PORT} | Version ${APP_VERSION}`);
   logYuvomi.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
-  listModules({ admin: true }).catch((err) => {
-    log.warn('Initial module registry scan failed:', err.message);
-  });
-
   // Ein Sicherheitsschalter, der still nicht greift, ist schlimmer als keiner:
   // der Betreiber glaubt, das Anmeldeformular sei zu (#847). Beide Fail-open-
   // Zustaende melden sich, auch der erwartete einer frischen Installation.

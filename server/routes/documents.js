@@ -680,6 +680,9 @@ router.post('/folders', (req, res) => {
     if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
     const vParent = parentId(req.body.parent_id);
     if (vParent.error) return res.status(400).json({ error: vParent.error, code: 400 });
+    if (vParent.value !== null && activeFolderTreeDeletes.has(vParent.value)) {
+      return deletionInProgress(res);
+    }
 
     const moveError = folderMoveError(null, vParent.value);
     if (moveError) return res.status(400).json({ error: moveError, code: 400 });
@@ -706,6 +709,7 @@ router.put('/folders/:id', (req, res) => {
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'Invalid folder id.', code: 400 });
     }
+    if (activeFolderTreeDeletes.has(id)) return deletionInProgress(res);
     const existing = db.get().prepare('SELECT id, name, parent_id FROM family_document_folders WHERE id = ?').get(id);
     if (!existing) return res.status(404).json({ error: 'Folder not found.', code: 404 });
 

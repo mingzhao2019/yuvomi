@@ -30,17 +30,21 @@ export function buildServiceWorkerResponse(source, { appVersion, buildRevision }
 }
 
 export function createServiceWorkerResponseLoader(sourcePath, options) {
-  let cachedMtimeMs;
+  let cachedSignature;
   let cachedResponse;
 
   return function loadServiceWorkerResponse() {
-    const mtimeMs = statSync(sourcePath).mtimeMs;
-    if (cachedMtimeMs !== mtimeMs) {
+    // A rapid rewrite can keep mtimeMs unchanged on filesystems with coarse
+    // timestamp resolution. Include nanosecond mtime/ctime and size so an
+    // edited source is never served from the previous in-process response.
+    const stat = statSync(sourcePath, { bigint: true });
+    const signature = `${stat.mtimeNs}:${stat.ctimeNs}:${stat.size}`;
+    if (cachedSignature !== signature) {
       cachedResponse = buildServiceWorkerResponse(
         readFileSync(sourcePath, 'utf8'),
         options,
       );
-      cachedMtimeMs = mtimeMs;
+      cachedSignature = signature;
     }
     return cachedResponse;
   };

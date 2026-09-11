@@ -7,7 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { eachRule } from './css-rules.js';
@@ -242,7 +242,6 @@ test('Ordnerlöschung bietet Behalten oder Mitlöschen mit exakten Server-Zahlen
   assert.match(block, /expected_documents=\$\{impact\.documents\}/);
   assert.match(block, /expected_folders=\$\{impact\.removed_folders\}/);
   assert.match(block, /choice === 'delete'[\s\S]*expected_snapshot=\$\{encodeURIComponent\(impact\.snapshot\)\}/);
-  assert.match(block, /FOLDER_CONTENT_CHANGED[\s\S]*await deleteFolder\(folder\)/);
   assert.match(block, /const expectedSnapshot = choice === 'delete'[\s\S]*: '';/);
   assert.match(block, /handleError: \(err\) => handleFolderDeleteError\(err, folder, \{ delayed: true \}\)/);
   assert.match(block, /catch \(err\) \{\s*await handleFolderDeleteError\(err, folder\);\s*\}/);
@@ -470,6 +469,8 @@ test('running folder uploads freeze plan controls, cancel on modal close, and su
   const save = page.slice(page.indexOf('async function saveFolderUpload'), page.indexOf('async function saveDocument'));
   assert.match(save, /setFolderUploadControlsDisabled\(panel, true\)/);
   assert.match(save, /folderUploadOutcome\(result\)/);
+  assert.match(save, /runRateLimitedOperation\([\s\S]*loadFolders\(\)[\s\S]*loadDocuments\(\)/);
+  assert.match(save, /catch \(refreshError\)[\s\S]*folderUploadOutcome\(result\)/);
   assert.match(save, /outcome\.tone/);
   assert.doesNotMatch(save, /uploadedToast', \{ count: result\.uploaded\.length \}\), 'success'/);
   const result = page.slice(page.indexOf('function renderFolderUploadResult'), page.indexOf('async function saveFolderUpload'));

@@ -65,8 +65,8 @@ function formRoot(html) {
       if (values.has(selector)) {
         return { value: values.get(selector), checked: false };
       }
-      if (readOnly && selector.endsWith('-rrule-fields')) {
-        return { dataset: { rruleReadonly: 'true' } };
+      if (selector.endsWith('-rrule-fields')) {
+        return { dataset: { rruleReadonly: readOnly ? 'true' : 'false' } };
       }
       return null;
     },
@@ -178,6 +178,7 @@ function eventRoot(html) {
     nodes.set(`#${id}`, {
       tagName: tag, id, hidden: /\shidden(?=[\s>])/.test(chunk),
       checked: /\schecked(?=[\s>])/.test(chunk), value: decode(attrs.get('value') ?? ''),
+      dataset: { rruleReadonly: attrs.get('data-rrule-readonly') ?? 'false' },
       listeners: {},
       addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); },
       fire(type) { for (const fn of this.listeners[type] ?? []) fn(); },

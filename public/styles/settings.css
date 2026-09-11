@@ -1260,7 +1260,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639px) {
   .notification-template-input {
     grid-template-columns: minmax(0, 1fr);
   }

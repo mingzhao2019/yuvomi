@@ -23,8 +23,10 @@ function database() {
   db.exec(MIGRATIONS_SQL[1]);
   db.exec(MIGRATIONS_SQL[2]);
   db.exec(MIGRATIONS_SQL[74]);
-  db.exec(MIGRATIONS_SQL[175]);
-  db.exec(MIGRATIONS_SQL[176]);
+  // Custom migration numbering keeps the upstream note-category schema at
+  // v186; v175/v176 are reserved for the asset lifecycle and visibility
+  // migrations and are unrelated to this fixture.
+  db.exec(MIGRATIONS_SQL[186]);
   return db;
 }
 

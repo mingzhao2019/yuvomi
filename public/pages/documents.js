@@ -28,6 +28,7 @@ import {
   executeFolderUploadPlan,
   formatFolderUploadTimestamp,
   folderUploadOutcome,
+  runRateLimitedOperation,
   supportsDirectoryUpload,
 } from '/utils/folder-upload.js';
 import {
@@ -2246,8 +2247,16 @@ async function saveFolderUpload(panel, payload) {
 
   upload.completed = true;
   renderFolderUploadResult(panel, plan, result);
-  await Promise.all([loadFolders(), loadDocuments()]);
-  renderAll();
+  try {
+    await runRateLimitedOperation(
+      () => Promise.all([loadFolders(), loadDocuments()]),
+    );
+    renderAll();
+  } catch (refreshError) {
+    // The writes have already completed. A failed refresh must not turn a
+    // persisted upload into a reported upload failure.
+    console.warn('[Documents] Folder upload refresh failed:', refreshError);
+  }
   const outcome = folderUploadOutcome(result);
   const toast = outcome.toast === 'cancelled'
     ? t('documents.folderUpload.cancelled')
@@ -2287,6 +2296,11 @@ async function saveDocument(event, doc, panel) {
       await api.put(`/documents/${doc.id}`, payload);
       window.yuvomi?.showToast(t('documents.savedToast'), 'success');
     } else {
+      const folderFiles = Array.from(form.querySelector('#document-folder-input')?.files || []);
+      if (folderFiles.length) {
+        await saveFolderUpload(panel, payload);
+        return;
+      }
       const files = Array.from(form.querySelector('#document-file').files || []);
       if (!files.length) throw new Error(t('documents.fileRequired'));
       const maxSize = state.maxFileSize || maxUploadBytes();
@@ -2329,7 +2343,7 @@ async function saveDocument(event, doc, panel) {
     error.textContent = friendlyError(err);
     error.hidden = false;
   } finally {
-    submit.disabled = false;
+    submit.disabled = panel._folderUpload?.completed === true;
   }
 }
 

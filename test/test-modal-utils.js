@@ -397,20 +397,23 @@ test('#805: .modal-panel ist auf jeder Breite der Containing Block', () => {
  * Zahlen stehen bei den jeweiligen Sonden.
  */
 
-/** Element-Attrappe: genau das, was rememberFocus() liest. */
-function makeNode(tag, {
-  id = '', cls = null, data = {}, row = null, connected = true, attrs = {},
-} = {}) {
+/**
+ * Element-Attrappe: was `rememberFocus()` liest - plus die Attribute.
+ *
+ * `attrs` beginnt LEER, seit der Review zu #1069 zeigte, dass die Seitenwurzel
+ * nicht ueberall fokussierbar ist: eine Attrappe, die ein tabindex immer zu
+ * haben scheint, kann den Fall nie sehen - wie das `<main>` der Auth-Seiten.
+ */
+function makeNode(tag, { id = '', cls = null, data = {}, connected = true, attrs = {}, row = null } = {}) {
   return {
     tagName: tag.toUpperCase(), id, isConnected: connected, dataset: { ...data },
-    getAttribute: (name) => (name === 'class' ? cls : null),
-    closest: (selector) => selector === '[data-id]' && row != null
-      ? { dataset: { id: String(row) } }
-      : null,
     _attrs: { ...attrs },
+    getAttribute: (name) => (name === 'class' ? cls : null),
+    // Der Zeilen-Vorfahre: bei Listenzeilen traegt er die Identitaet, nicht der
+    // Knopf. `row` ist dessen data-id, oder null wenn es keinen gibt.
+    closest: (sel) => (sel === '[data-id]' && row !== null ? { dataset: { id: row } } : null),
     hasAttribute(n) { return n in this._attrs; },
-    setAttribute(n, v) { this._attrs[n] = String(v); },
-    focus() { this._focused = true; },
+    setAttribute(n, v) { this._attrs[n] = String(v); },    focus() { this._focused = true; },
   };
 }
 
@@ -424,11 +427,6 @@ function withDom({ byId = {}, byTag = {} }, fn) {
     global.document.getElementById = vorherId;
     global.document.getElementsByTagName = vorherTag;
   }
-}
-
-// 上游新增的页面根节点探针使用这个更窄的别名；共用同一套 DOM 替身。
-function withElements(byId, fn) {
-  return withDom({ byId }, fn);
 }
 
 test('der Fokus geht auf den Ausloeser zurueck, solange er im Dokument haengt', () => {
@@ -584,8 +582,7 @@ test('_doClose fasst nach, und das Nachfassen behaelt seine Wachen', () => {
 
   const oeffentlich = src.match(/export function refocusAfterRender\([\s\S]*?\n\}/)?.[0] ?? '';
   assert.match(oeffentlich, /_tryRefocus\(/,
-    'der oeffentliche Griff muss durch dieselben Wachen wie das automatische Nachfassen - '
-    + 'sonst darf eine Seite den Fokus aus einem offenen Dialog reissen');
+    'der oeffentliche Griff muss durch dieselben Wachen wie das automatische Nachfassen');
 
   // Die Wirkungspruefung ist der Kern: `.focus()` meldet nicht, ob es griff.
   const fok = src.match(/function _fokussiere\([\s\S]*?\n\}/)?.[0] ?? '';
@@ -594,40 +591,11 @@ test('_doClose fasst nach, und das Nachfassen behaelt seine Wachen', () => {
     + 'ausgeblendeter Ersatz nimmt ihn nicht an, und genau das ist der stille Ausfall');
 });
 
-/* DER REVIEW-BEFUND ZU #1069: die Wurzel ist nicht ueberall fokussierbar.
- *
- * `renderAppShell()` setzt `tabIndex = -1`, laeuft aber nur fuer Routen mit
- * App-Shell. Die fuenf Auth-Seiten (login, setup, join, forgot-password,
- * reset-password) rendern ihr eigenes `<main id="main-content">` ohne das
- * Attribut. Im Browser gemessen (Chrome 152): `.focus()` darauf ist ein No-op,
- * der Fokus faellt auf `document.body` - genau der stille Ausfall, den diese
- * Weiche verhindern soll.
- *
- * `el.tabIndex` taugt nicht zur Pruefung: es liest auch ohne Attribut `-1`,
- * ebenfalls gemessen. Deshalb `hasAttribute`.
- *
- * GEGENPROBE: die Zeile in `_focusable` tot stellen, dann fallen die erste und
- * die dritte Sonde.
- */
-test('eine Seitenwurzel ohne tabindex wird fokussierbar gemacht', () => {
-  const alt = makeNode('irgendwas', { connected: false });
-  const wurzel = makeNode('main-content');            // wie auf den Auth-Seiten: kein tabindex
-  withElements({ 'main-content': wurzel }, () => {
-    const ziel = focusRestoreTarget(alt);
-    assert.equal(ziel, wurzel, 'die Wurzel bleibt das Ziel');
-    assert.equal(ziel.hasAttribute('tabindex'), true,
-      'ohne tabindex nimmt <main> keinen Fokus an - `.focus()` waere ein stiller No-op, '
-      + 'und der Fokus fiele auf document.body. Genau der Fehler, den diese Weiche verhindert.');
-    assert.equal(ziel._attrs.tabindex, '-1',
-      'tabindex="-1" macht sie programmatisch fokussierbar, ohne sie in die Tab-Reihenfolge zu haengen');
-  });
-});
-
 test('ein vorhandenes tabindex wird nicht ueberschrieben', () => {
-  const alt = makeNode('irgendwas', { connected: false });
-  const wurzel = makeNode('main-content', { attrs: { tabindex: '0' } });
-  withElements({ 'main-content': wurzel }, () => {
-    focusRestoreTarget(alt);
+  const alt = makeNode('button', { id: 'irgendwas', connected: false });
+  const wurzel = makeNode('main', { id: 'main-content', attrs: { tabindex: '0' } });
+  withDom({ byId: { 'main-content': wurzel } }, () => {
+    focusRestoreTarget(rememberFocus(alt));
     assert.equal(wurzel._attrs.tabindex, '0',
       'eine Seite, die ihrer Wurzel bewusst ein anderes tabindex gibt, behaelt es');
   });
@@ -642,10 +610,10 @@ test('ein vorhandenes tabindex wird nicht ueberschrieben', () => {
  * das wieder ein `<main>` ohne tabindex und `.focus()` wieder ein No-op.
  */
 test('auch ein Ersatz, der selbst die Seitenwurzel ist, wird fokussierbar gemacht', () => {
-  const alt = makeNode('main-content', { connected: false });
-  const neueWurzel = makeNode('main-content');        // Auth-Seite: kein tabindex
-  withElements({ 'main-content': neueWurzel }, () => {
-    const ziel = focusRestoreTarget(alt);
+  const alt = makeNode('main', { id: 'main-content', connected: false });
+  const neueWurzel = makeNode('main', { id: 'main-content' });        // Auth-Seite: kein tabindex
+  withDom({ byId: { 'main-content': neueWurzel } }, () => {
+    const ziel = focusRestoreTarget(rememberFocus(alt));
     assert.equal(ziel, neueWurzel, 'die neue Wurzel ist das Ziel');
     assert.equal(ziel.hasAttribute('tabindex'), true,
       'die id-Suche darf nicht am Fokussierbar-Machen vorbeifuehren - sonst ist `.focus()` '

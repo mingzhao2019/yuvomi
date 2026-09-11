@@ -2825,10 +2825,7 @@
         "fromCompletionLabel": "Ab Erledigung wiederholen",
         "fromCompletionHint": "Das Intervall beginnt an dem Tag, an dem du die Aufgabe abhakst - nicht am Fälligkeitsdatum.",
         "summaryFromCompletion": "ab Erledigung",
-        "intervalHint": "Nach der Auswahl lässt sich der Takt frei einstellen - etwa alle 2 Wochen oder alle 3 Monate.",
-        "lastDayOfMonth": "Am letzten Tag des Monats",
-        "lastDayOfMonthHint": "Die Serie beginnt am ersten Monatsletzten ab dem Startdatum.",
-        "lastDayOfMonthHintNext": "Diese Aufgabe bleibt am eingetragenen Datum fällig; erst der nächste Durchlauf fällt auf den Monatsletzten."
+        "intervalHint": "Nach der Auswahl lässt sich der Takt frei einstellen - etwa alle 2 Wochen oder alle 3 Monate."
     },
     "reminders": {
         "sectionTitle": "Erinnerung",

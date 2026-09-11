@@ -1,5 +1,5 @@
 /**
- * Test: Serien-Instanzen erben das Konto nach (Migration v181, #973)
+ * Test: Serien-Instanzen erben das Konto nach (Migration #973)
  * Zweck: Der Code-Fix greift nur bei NEUEN Zeilen. Jeder Monat, der vor dem
  *        Update einmal geoeffnet wurde, traegt seine Instanz bereits mit
  *        account_id NULL, und die Materialisierung ueberspringt vorhandene
@@ -23,7 +23,11 @@ process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret';
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'yuvomi-accmig-')), 'unused.db');
 const { MIGRATIONS } = await import('../server/db.js');
 
-const V181 = MIGRATIONS.find((m) => m.version === 181);
+// Custom keeps migrations append-only and already uses v181 for health. Locate
+// the behavior by its stable description so the fixture follows either layout.
+const ACCOUNT_INHERIT_MIGRATION = MIGRATIONS.find((m) =>
+  /materialisierte Serien-Instanzen erben das Konto/i.test(m.description),
+);
 
 /** Minimaler Stand von budget_entries, wie er vor v181 aussah. */
 function seed() {
@@ -67,34 +71,34 @@ function seed() {
 const accountOf = (db, id) =>
   db.prepare('SELECT account_id FROM budget_entries WHERE id = ?').get(id).account_id;
 
-test('v181 traegt das Serien-Konto an kontolosen Instanzen nach', () => {
+test('die Kontomigration traegt das Serien-Konto an kontolosen Instanzen nach', () => {
   const db = seed();
-  db.exec(V181.up);
+  db.exec(ACCOUNT_INHERIT_MIGRATION.up);
   assert.equal(accountOf(db, 2), 7, 'Februar-Instanz erbt das Konto der Serie');
   assert.equal(accountOf(db, 3), 7, 'Maerz-Instanz ebenso');
   db.close();
 });
 
-test('v181 ueberschreibt kein abweichend gesetztes Konto', () => {
+test('die Kontomigration ueberschreibt kein abweichend gesetztes Konto', () => {
   const db = seed();
-  db.exec(V181.up);
+  db.exec(ACCOUNT_INHERIT_MIGRATION.up);
   assert.equal(accountOf(db, 4), 9,
     'ein bewusst anderes Konto an einer Instanz ist eine Entscheidung, keine Luecke');
   db.close();
 });
 
-test('v181 laesst virtuelle Serien in Ruhe', () => {
+test('die Kontomigration laesst virtuelle Serien in Ruhe', () => {
   const db = seed();
-  db.exec(V181.up);
+  db.exec(ACCOUNT_INHERIT_MIGRATION.up);
   assert.equal(accountOf(db, 8), null,
     'ein geglaetteter Planwert darf keinen Kontosaldo bewegen');
   assert.equal(accountOf(db, 7), 7, 'die virtuelle Serie selbst behaelt ihres');
   db.close();
 });
 
-test('v181 fasst weder Originale noch Einzelbuchungen an', () => {
+test('die Kontomigration fasst weder Originale noch Einzelbuchungen an', () => {
   const db = seed();
-  db.exec(V181.up);
+  db.exec(ACCOUNT_INHERIT_MIGRATION.up);
   assert.equal(accountOf(db, 1), 7, 'das Serien-Original behaelt sein Konto');
   assert.equal(accountOf(db, 5), null, 'eine Serie ohne Konto bekommt keines angedichtet');
   assert.equal(accountOf(db, 6), null, 'ihre Instanz auch nicht - es gibt nichts zu erben');
@@ -102,14 +106,14 @@ test('v181 fasst weder Originale noch Einzelbuchungen an', () => {
   db.close();
 });
 
-test('v181 ist idempotent', () => {
+test('die Kontomigration ist idempotent', () => {
   // Migrationen laufen einmal, aber ein zweiter Lauf darf nichts kaputt machen -
   // und der Test kostet nichts, waehrend ein UPDATE mit Unterabfrage genau die
   // Stelle ist, an der ein zweiter Durchgang etwas anderes tun koennte.
   const db = seed();
-  db.exec(V181.up);
+  db.exec(ACCOUNT_INHERIT_MIGRATION.up);
   const nach1 = db.prepare('SELECT id, account_id FROM budget_entries ORDER BY id').all();
-  db.exec(V181.up);
+  db.exec(ACCOUNT_INHERIT_MIGRATION.up);
   const nach2 = db.prepare('SELECT id, account_id FROM budget_entries ORDER BY id').all();
   assert.deepEqual(nach2, nach1);
   db.close();

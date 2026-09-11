@@ -30,7 +30,9 @@ import { DatabaseSync } from 'node:sqlite';
 
 const dbmod = await import('../server/db.js');
 const db = dbmod.get();
-const migration = dbmod.MIGRATIONS.find((m) => m.description.startsWith('Users: the changelog marks'));
+const migration = dbmod.MIGRATIONS.find((m) =>
+  /changelog marks.*per account|changelog.*remembered per account/i.test(m.description)
+);
 
 const { version: APP_VERSION } = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf-8'),
