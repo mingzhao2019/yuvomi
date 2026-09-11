@@ -987,7 +987,8 @@
         "agendaDayEmpty": "Niente in programma",
         "openInMap": "Apri in Maps",
         "filtersSources": "Calendari",
-        "filterUnassigned": "Non assegnati"
+        "filterUnassigned": "Non assegnati",
+        "syncTargetAssigneeAmbiguous": "Più calendari hanno questa persona come assegnazione predefinita. Scegli tu la destinazione."
     },
     "noteCategories": {
         "permissionLabel": "Gestisci le categorie delle note di casa"
@@ -2481,7 +2482,8 @@
         "sync": {
             "defaultAssignee": "Assegnazione predefinita",
             "defaultAssigneeNone": "Nessuno",
-            "defaultAssigneeHint": "Gli eventi appena sincronizzati vengono assegnati automaticamente a questa persona."
+            "defaultAssigneeHint": "Gli eventi appena sincronizzati vengono assegnati automaticamente a questa persona.",
+            "defaultAssigneeRoutingHint": "Assegnazione predefinita: gli eventi di un calendario ricevono la persona scelta lì, e un nuovo evento assegnato solo a quella persona viene creato in quel calendario. Vale per i calendari Google e CalDAV, non per Apple o Outlook."
         },
         "calendarDefaultsTitle": "Valori predefiniti degli eventi del calendario",
         "calendarDefaultsDescription": "Si applica agli eventi locali nuovi, alle importazioni sincronizzate e agli eventi futuri già esistenti.",

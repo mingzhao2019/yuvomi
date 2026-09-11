@@ -987,7 +987,8 @@
         "agendaDayEmpty": "Rien de prévu",
         "openInMap": "Ouvrir dans Maps",
         "filtersSources": "Calendriers",
-        "filterUnassigned": "Non attribués"
+        "filterUnassigned": "Non attribués",
+        "syncTargetAssigneeAmbiguous": "Plusieurs calendriers ont cette personne comme attribution par défaut. Choisis toi-même la destination."
     },
     "noteCategories": {
         "permissionLabel": "Gérer les catégories de notes du foyer"
@@ -2481,7 +2482,8 @@
         "sync": {
             "defaultAssignee": "Attribution par défaut",
             "defaultAssigneeNone": "Aucune",
-            "defaultAssigneeHint": "Les événements nouvellement synchronisés sont automatiquement attribués à cette personne."
+            "defaultAssigneeHint": "Les événements nouvellement synchronisés sont automatiquement attribués à cette personne.",
+            "defaultAssigneeRoutingHint": "Attribution par défaut: les événements d'un calendrier reçoivent la personne choisie pour lui, et un nouvel événement attribué uniquement à cette personne est créé dans ce calendrier. Cela vaut pour les calendriers Google et CalDAV, pas pour Apple ni Outlook."
         },
         "calendarDefaultsTitle": "Valeurs par défaut des événements du calendrier",
         "calendarDefaultsDescription": "S’applique aux événements locaux, aux imports synchronisés et aux événements futurs existants.",

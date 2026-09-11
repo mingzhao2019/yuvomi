@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back on. The person axis gains "Unassigned": on its own it shows only the events and tasks nobody
   is assigned to, together with people it adds them. A person filter saved before this update keeps
   its behaviour - it does not contain the new entry, so unassigned events stay out, as they did.
+- **A new event goes to the calendar of the person it is assigned to** (#1060). A Google or CalDAV
+  calendar that names a default assignee in the sync settings now works in both directions: events
+  imported from it get that person, and a new event assigned to exactly that person gets that
+  calendar as its target in the event dialog. Your own choice in the dialog always wins, and
+  without a match the personal default target from Settings applies as before. Nothing is picked
+  when two people are assigned, or when two calendars name the same person - the dialog says so
+  instead of guessing. Existing events are never moved on their own, and Apple and Outlook
+  calendars are not chosen this way; the sync settings say both where the default assignee is set.
 
 - **An event's location opens in a map** (#1110, from discussion #1047). The event detail carries
   an "Open in Maps" action whenever the event has a location; it opens an OpenStreetMap search for

@@ -987,7 +987,8 @@
         "agendaDayEmpty": "कुछ भी नियोजित नहीं",
         "openInMap": "मानचित्र में खोलें",
         "filtersSources": "कैलेंडर",
-        "filterUnassigned": "किसी को नहीं सौंपे गए"
+        "filterUnassigned": "किसी को नहीं सौंपे गए",
+        "syncTargetAssigneeAmbiguous": "कई कैलेंडर में यह व्यक्ति डिफ़ॉल्ट असाइनमेंट है। लक्ष्य स्वयं चुनें।"
     },
     "noteCategories": {
         "permissionLabel": "घर की नोट श्रेणियाँ प्रबंधित करें"
@@ -2481,7 +2482,8 @@
         "sync": {
             "defaultAssignee": "डिफ़ॉल्ट असाइनमेंट",
             "defaultAssigneeNone": "कोई नहीं",
-            "defaultAssigneeHint": "नई सिंक की गई घटनाएँ स्वचालित रूप से इस व्यक्ति को सौंपी जाती हैं।"
+            "defaultAssigneeHint": "नई सिंक की गई घटनाएँ स्वचालित रूप से इस व्यक्ति को सौंपी जाती हैं।",
+            "defaultAssigneeRoutingHint": "डिफ़ॉल्ट असाइनमेंट: किसी कैलेंडर के इवेंट वहाँ चुने गए व्यक्ति को सौंपे जाते हैं, और केवल उसी व्यक्ति को सौंपा गया नया इवेंट उसी कैलेंडर में बनाया जाता है। यह Google और CalDAV कैलेंडर पर लागू होता है, Apple या Outlook पर नहीं।"
         },
         "calendarDefaultsTitle": "कैलेंडर ईवेंट डिफ़ॉल्ट",
         "calendarDefaultsDescription": "स्थानीय रूप से बनाए गए ईवेंट, सिंक किए गए आयात और मौजूदा भविष्य के ईवेंट पर लागू होता है।",

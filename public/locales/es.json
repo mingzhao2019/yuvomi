@@ -987,7 +987,8 @@
         "agendaDayEmpty": "Nada planeado",
         "openInMap": "Abrir en Maps",
         "filtersSources": "Calendarios",
-        "filterUnassigned": "Sin asignar"
+        "filterUnassigned": "Sin asignar",
+        "syncTargetAssigneeAmbiguous": "Varios calendarios tienen a esta persona como asignación predeterminada. Elige tú el destino."
     },
     "noteCategories": {
         "permissionLabel": "Gestionar categorías de notas del hogar"
@@ -2481,7 +2482,8 @@
         "sync": {
             "defaultAssignee": "Asignación predeterminada",
             "defaultAssigneeNone": "Ninguno",
-            "defaultAssigneeHint": "Los eventos recién sincronizados se asignan automáticamente a esta persona."
+            "defaultAssigneeHint": "Los eventos recién sincronizados se asignan automáticamente a esta persona.",
+            "defaultAssigneeRoutingHint": "Asignación predeterminada: los eventos de un calendario reciben a la persona elegida allí, y un evento nuevo asignado solo a esa persona se crea en ese calendario. Se aplica a calendarios de Google y CalDAV, no a Apple ni Outlook."
         },
         "calendarDefaultsTitle": "Valores predeterminados de eventos de calendario",
         "calendarDefaultsDescription": "Se aplica a eventos locales nuevos, importaciones sincronizadas y eventos futuros existentes.",
