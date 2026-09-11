@@ -2985,6 +2985,7 @@ async function handleRenameSubtask(id, currentTitle, container) {
   try {
     await api.put(`/tasks/${id}`, { title: title.trim() });
     await loadTasks(container);
+    refocusAfterRender();
   } catch (err) {
     window.yuvomi.showToast(err.message, 'danger');
   }
@@ -3002,6 +3003,7 @@ async function handleDeleteSubtask(id, title, container) {
   try {
     await api.delete(`/tasks/${id}`);
     await loadTasks(container);
+    refocusAfterRender();
   } catch (err) {
     window.yuvomi.showToast(err.message, 'danger');
   }

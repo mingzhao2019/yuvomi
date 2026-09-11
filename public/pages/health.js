@@ -1701,7 +1701,8 @@ async function handlePrnDose(btn) {
   // Beipackzettel, kein Schloss - und wer eine Dosis wirklich frueher nimmt,
   // soll sie eintragen koennen, statt sie zu verschweigen. Der Dialog nennt
   // den Zeitpunkt, um den es geht.
-  if (!state.allowed && state.nextAllowedAt) {
+  const fruehGefragt = Boolean(!state.allowed && state.nextAllowedAt);
+  if (fruehGefragt) {
     const ok = await confirmModal(t('health.meds.prn.earlyConfirm'), {
       detail: t('health.meds.prn.earlyDetail', {
         time: prnWhenLabel(state.nextAllowedAt),
@@ -1760,6 +1761,10 @@ async function handlePrnDose(btn) {
   // Seitenaufbau.
   await reloadMedViews();
   setDoseBusy(medId, false);
+  // Nur nach der Rueckfrage: ohne sie wurde auf diesem Weg kein Dialog
+  // geschlossen, und das Nachfassen griffe auf den Merker eines frueheren zurueck
+  // (#1083). Nach `setDoseBusy`, sonst traefe es den noch gesperrten Knopf.
+  if (fruehGefragt) refocusAfterRender();
 }
 
 /**
@@ -2341,6 +2346,7 @@ async function deleteMed(med) {
     await api.delete(`/health/medications/${med.id}`);
     window.yuvomi?.showToast(t('health.meds.deleted'), 'success');
     await reloadMedViews();
+    refocusAfterRender();
   } catch (err) {
     console.error('[Health] med delete error:', err);
     window.yuvomi?.showToast(err?.data?.error || t('health.meds.deleteError'), 'danger');
@@ -2975,6 +2981,7 @@ async function deleteLabReport(report) {
     window.yuvomi?.showToast(t('health.labs.deleted'), 'success');
     if (labs.selectedReportId === report.id) labs.selectedReportId = null;
     await reloadLabs();
+    refocusAfterRender();
   } catch (err) {
     console.error('[Health] lab delete error:', err);
     window.yuvomi?.showToast(err?.data?.error || t('health.labs.deleteError'), 'danger');
@@ -3579,6 +3586,7 @@ async function deleteActivity(row) {
     await api.delete(`/health/activities/${row.id}`);
     window.yuvomi?.showToast(t('health.activity.deleted'), 'success');
     await reloadActivity();
+    refocusAfterRender();
   } catch (err) {
     console.error('[Health] activity delete error:', err);
     window.yuvomi?.showToast(err?.data?.error || t('health.activity.deleteError'), 'danger');
@@ -5229,6 +5237,7 @@ async function deletePeriod(period) {
     await api.delete(`/health/cycle/periods/${period.id}`);
     window.yuvomi?.showToast(t('health.cycle.deleted'), 'success');
     await reloadCycle();
+    refocusAfterRender();
   } catch (err) {
     console.error('[Health] cycle period delete error:', err);
     window.yuvomi?.showToast(err?.data?.error || t('health.cycle.deleteError'), 'danger');
@@ -5380,6 +5389,7 @@ async function deleteDayLog(log) {
     await api.delete(`/health/cycle/logs/${log.id}`);
     window.yuvomi?.showToast(t('health.cycle.deleted'), 'success');
     await reloadCycle();
+    refocusAfterRender();
   } catch (err) {
     console.error('[Health] cycle log delete error:', err);
     window.yuvomi?.showToast(err?.data?.error || t('health.cycle.deleteError'), 'danger');

@@ -457,6 +457,7 @@ function renderCalDAVAccount(container, account, calendars, refresh, user) {
           'success',
         );
         await refresh();
+        refocusAfterRender();
       } catch (err) {
         showToast(err.message || t('common.errorGeneric'), 'danger');
       }
@@ -1477,6 +1478,7 @@ function buildOutlookAccountCard(account, refresh, user) {
         await api.delete(`/calendar/outlook/accounts/${account.id}`);
         showToast(t('settings.disconnectedToast', { provider: 'Outlook' }), 'default');
         await refresh();
+        refocusAfterRender();
       } catch (err) {
         showToast(err.message || t('common.errorGeneric'), 'danger');
       }
