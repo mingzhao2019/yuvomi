@@ -984,7 +984,9 @@
         "filtersActive": "{{count}} filters active",
         "filtersActive_one": "1 filter active",
         "filtersReset": "Clear all filters",
-        "filtersDisplay": "Display"
+        "filtersDisplay": "Display",
+        "agendaDayEmpty": "Nothing planned",
+        "openInMap": "Open in Maps"
     },
     "noteCategories": {
         "permissionLabel": "Manage household note categories"

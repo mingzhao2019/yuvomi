@@ -996,7 +996,8 @@
         "filtersActive": "{{count}} Filter aktiv",
         "filtersActive_one": "1 Filter aktiv",
         "filtersReset": "Alle Filter aufheben",
-        "filtersDisplay": "Darstellung"
+        "filtersDisplay": "Darstellung",
+        "openInMap": "In Maps öffnen"
     },
     "noteCategories": {
         "permissionLabel": "Gemeinsame Notizkategorien verwalten"
