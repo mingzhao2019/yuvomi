@@ -966,6 +966,7 @@ async function saveAsset(panel, item, photoData) {
     }
     await closeModal({ force: true });
     renderBody();
+    refocusAfterRender();
     window.yuvomi?.showToast(item ? tr('updated') : tr('created'), 'success');
   } catch (err) {
     if (saveButton) saveButton.disabled = false;
@@ -983,6 +984,7 @@ async function removeAsset(item) {
     await api.delete(`/inventory/items/${item.id}`);
     await loadData();
     renderBody();
+    refocusAfterRender();
     window.yuvomi?.showToast(tr('deleted'), 'success');
   } catch (err) {
     window.yuvomi?.showToast(err.data?.error || tr('loadError'), 'danger');

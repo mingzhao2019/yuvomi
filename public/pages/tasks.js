@@ -2966,7 +2966,10 @@ async function handleAddSubtask(parentId, container) {
     // Wie beim Abhaken daneben: die Liste trägt den Fortschrittsbalken der
     // Elternkarte, aber sie muss nicht dasein. Die Leseansicht kann ohne sie
     // geöffnet worden sein.
-    if (container) await loadTasks(container);
+    if (container) {
+      await loadTasks(container);
+      refocusAfterRender();
+    }
     return res.data ?? null;
   } catch (err) {
     window.yuvomi.showToast(err.message, 'danger');
@@ -4600,6 +4603,7 @@ async function handleDeleteTaskList(item, container) {
     // removal above keeps the page coherent even if this refresh is offline.
     await loadTaskLists(container).catch(() => {});
     await loadTasks(container).catch(() => renderTaskList(container));
+    refocusAfterRender();
     refreshReminders();
     window.yuvomi.showToast(t('tasks.taskListDeleted'), 'success');
   } catch (err) {
