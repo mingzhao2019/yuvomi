@@ -181,6 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+<<<<<<< HEAD
 - **A review run that stopped at its gate is named as such, even when it first denied having
   reviewed** (#1101). The check behind the automated review reads the run's closing text to say
   why a silent run went red. It only looked at the first mention of "already reviewed", so a text
@@ -189,6 +190,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of the gate. Every mention now counts, the way every "stop" already did. The check was
   red either way; only its message changes. The one exception that can turn it green still reads
   the narrower way.
+=======
+- **A housekeeper can check out again, and work a second session on the same day** (#1133, #1138).
+  The one button that carries both directions was disabled while someone was checked in, and it is
+  the only thing that triggers the check-out path - so that path was unreachable: a household could
+  check a housekeeper in and never close the session from the app. The button now offers "Check
+  out" in that state. Behind it, two answers had collapsed into one: a worker's "currently working"
+  and "was here today" both reported the last session of the day, so someone stayed "checked in"
+  after checking out. They are separate again. The check-in route matched the same mistake and
+  refused a second check-in for the rest of the day, which made split shifts, a break with resumed
+  work, and two separate visits impossible; it now only refuses while a session is actually open.
+  Overlapping sessions stay blocked, and each session keeps its own rate, calendar event and
+  payment task. The line under the name still shows today's visit once it is closed.
+
+>>>>>>> beb8e84c (fix(housekeeping): reach check-out, allow a second session (#1133))
 - **The formatting toolbar over a task's note shows its icons again** (#1141). Switching a task's
   detail view into edit mode builds that form only then, but the icon-replacing pass over the whole
   overlay had already run before the form existed, so the 13 buttons of the markdown toolbar (bold,
