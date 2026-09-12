@@ -168,6 +168,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of the gate. Every mention now counts, the way every "stop" already did. The check was
   red either way; only its message changes. The one exception that can turn it green still reads
   the narrower way.
+- **The formatting toolbar over a task's note shows its icons again** (#1141). Switching a task's
+  detail view into edit mode builds that form only then, but the icon-replacing pass over the whole
+  overlay had already run before the form existed, so the 13 buttons of the markdown toolbar (bold,
+  list, link, and so on) stayed blank. The edit form now gets its own icon pass right after it is
+  built.
 
 - **An event moved to another CalDAV calendar can be deleted or edited right away** (#593). A move
   creates the event in the new calendar and removes it from the old one, but until the next sync
