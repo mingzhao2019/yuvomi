@@ -721,6 +721,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their unrestricted future horizon while recurrence generation stops at the requested result count.
   ICS deletion exceptions keep the series' local time across daylight-saving changes even when
   the stored UTC day differs; each exception needs at most three local-date candidates, not a series scan.
+### Security
+
+- **A household member can no longer take back a paid housekeeping visit through its payment
+  task.** Since v2.64.1 a paid visit can only be changed, deleted or paid again by an admin
+  (GHSA-4p5w-5346-8598). That boundary covered the visit but not the payment task linked to it:
+  reopening the task in Tasks marked the visit unpaid again, and from there a member could change
+  its amount or delete it. Moving the payment task of a paid visit out of done now needs an admin
+  as well, whether from the task form, the checkbox, a swipe or a bulk action. Ticking the task
+  off stays open to members, as paying the visit does. A member who used to correct an accidental
+  tick by unticking the payment task now gets "Permission denied" and has to ask an admin.
 
 ## [2.65.2] - 2026-09-11
 

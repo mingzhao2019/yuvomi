@@ -17,6 +17,7 @@ import express from 'express';
 
 const dbmod = await import('../server/db.js');
 const { default: housekeepingRouter } = await import('../server/routes/housekeeping.js');
+const { default: tasksRouter } = await import('../server/routes/tasks.js');
 const { computeHourlyAmount } = await import('../server/services/housekeeping-billing.js');
 const db = dbmod.get();
 
@@ -32,6 +33,9 @@ app.use((req, _res, next) => {
   req.session = { userId: actor.id, role: actor.role };
   next();
 });
+// Die Zahlungsaufgabe ist ein zweiter Weg an den bezahlten Besuch, deshalb
+// haengt der Aufgaben-Router mit im selben Server (GHSA-4p5w-5346-8598).
+app.use('/tasks-api', tasksRouter);
 app.use('/', housekeepingRouter);
 const server = app.listen(0);
 const baseUrl = await new Promise((r) => server.on('listening', () => r(`http://127.0.0.1:${server.address().port}`)));
@@ -631,6 +635,89 @@ test('ein rein lokaler Besuch merkt nichts beim Provider vor', async () => {
     before,
     'ohne Provider-Zuordnung gibt es dort nichts zu löschen',
   );
+});
+
+// ---------------------------------------------------------------------------
+// Die Zahlungsaufgabe als zweiter Weg (GHSA-4p5w-5346-8598). Verliess die Aufgabe
+// eines BEZAHLTEN Besuchs 'done', setzte syncHousekeepingPaymentStatus paid_at
+// zurueck, und danach waren Aendern und Loeschen des Besuchs wieder
+// Mitgliedssache. Beide Aufgaben-Wege - Formular (PUT) und Status (PATCH, auch
+// Checkbox, Swipe, Sammelaktion) - halten jetzt dieselbe Grenze wie die
+// Besuchsrouten. Beide Rollen im Test, sonst waere auch ein Total-Gate gruen.
+// ---------------------------------------------------------------------------
+
+async function paidVisitWithTask(name, localDate) {
+  setConfig('housekeeping_payment_tasks', '1');
+  const workerId = await freshWorker(name);
+  const created = await call('POST', '/work-sessions/check-in', {
+    as: ADM,
+    body: { worker_id: workerId, daily_rate: 40, local_date: localDate },
+  });
+  assert.equal(created.status, 201, `Fixture: Check-in ${created.status} ${JSON.stringify(created.body)}`);
+  const visitId = created.body.data.id;
+  const paid = await call('POST', `/visits/${visitId}/pay`, { as: ADM });
+  assert.equal(paid.status, 200);
+  const row = db.prepare('SELECT paid_at, payment_task_id FROM housekeeping_work_sessions WHERE id = ?').get(visitId);
+  assert.ok(row.paid_at, 'Fixture: der Besuch ist bezahlt');
+  assert.ok(row.payment_task_id, 'Fixture: der Besuch hat eine Zahlungsaufgabe');
+  return { visitId, taskId: row.payment_task_id };
+}
+
+const visitRow = (id) => db.prepare('SELECT paid_at, daily_rate, extras FROM housekeeping_work_sessions WHERE id = ?').get(id);
+const taskStatus = (id) => db.prepare('SELECT status FROM tasks WHERE id = ?').get(id).status;
+
+test('bezahlter Besuch: Mitglied oeffnet die Zahlungsaufgabe nicht wieder (PATCH status) -> 403', async () => {
+  const { visitId, taskId } = await paidVisitWithTask('Pia', '2025-07-01');
+  const before = visitRow(visitId);
+
+  const r = await call('PATCH', `/tasks-api/${taskId}/status`, { as: MEM, body: { status: 'open' } });
+  assert.equal(r.status, 403, `erwartet 403, bekommen ${r.status} ${JSON.stringify(r.body)}`);
+  assert.equal(taskStatus(taskId), 'done', 'die Aufgabe bleibt erledigt');
+  assert.deepEqual(visitRow(visitId), before, 'der Besuch bleibt bezahlt und unveraendert');
+
+  // Der eigentliche Schaden: ohne die Grenze gingen danach Aendern und Loeschen durch.
+  const put = await call('PUT', `/visits/${visitId}`, { as: MEM, body: { date: '2025-07-01', daily_rate: 99999, extras: 0 } });
+  assert.equal(put.status, 403);
+  const del = await call('DELETE', `/visits/${visitId}`, { as: MEM });
+  assert.equal(del.status, 403);
+  assert.deepEqual(visitRow(visitId), before);
+});
+
+test('bezahlter Besuch: Mitglied oeffnet die Zahlungsaufgabe nicht ueber das Formular (PUT) -> 403', async () => {
+  const { visitId, taskId } = await paidVisitWithTask('Rosa', '2025-07-02');
+  const before = visitRow(visitId);
+
+  const r = await call('PUT', `/tasks-api/${taskId}`, { as: MEM, body: { status: 'in_progress' } });
+  assert.equal(r.status, 403, `erwartet 403, bekommen ${r.status} ${JSON.stringify(r.body)}`);
+  assert.equal(taskStatus(taskId), 'done');
+  assert.deepEqual(visitRow(visitId), before);
+});
+
+test('bezahlter Besuch: ein Admin darf die Zahlungsaufgabe wieder oeffnen', async () => {
+  const { visitId, taskId } = await paidVisitWithTask('Sara', '2025-07-03');
+
+  const r = await call('PATCH', `/tasks-api/${taskId}/status`, { as: ADM, body: { status: 'open' } });
+  assert.equal(r.status, 200, `erwartet 200, bekommen ${r.status} ${JSON.stringify(r.body)}`);
+  assert.equal(taskStatus(taskId), 'open');
+  assert.equal(visitRow(visitId).paid_at, null, 'der Admin nimmt die Zahlung damit zurueck');
+});
+
+test('unbezahlter Besuch: Mitglied bewegt die Zahlungsaufgabe weiter frei', async () => {
+  setConfig('housekeeping_payment_tasks', '1');
+  const workerId = await freshWorker('Tina');
+  const created = await call('POST', '/work-sessions/check-in', {
+    as: ADM,
+    body: { worker_id: workerId, daily_rate: 40, local_date: '2025-07-04' },
+  });
+  const visitId = created.body.data.id;
+  const { payment_task_id: taskId } = db.prepare('SELECT payment_task_id FROM housekeeping_work_sessions WHERE id = ?').get(visitId);
+  assert.ok(taskId, 'Fixture: der Besuch hat eine Zahlungsaufgabe');
+
+  const progress = await call('PATCH', `/tasks-api/${taskId}/status`, { as: MEM, body: { status: 'in_progress' } });
+  assert.equal(progress.status, 200, `erwartet 200, bekommen ${progress.status} ${JSON.stringify(progress.body)}`);
+  const done = await call('PATCH', `/tasks-api/${taskId}/status`, { as: MEM, body: { status: 'done' } });
+  assert.equal(done.status, 200, 'abhaken bleibt Mitgliedssache - es ist dasselbe wie Bezahlen');
+  assert.ok(visitRow(visitId).paid_at, 'abgehakt heisst bezahlt');
 });
 
 test('teardown: Server schließen', async () => {
