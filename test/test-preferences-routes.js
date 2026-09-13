@@ -642,7 +642,8 @@ test('GET /holidays/countries: gestubbte API -> 200 mit sortierter Liste', async
   const res = await raw('GET', '/holidays/countries');
   assert.equal(res.status, 200);
   assert.equal(res.body.partial, false);
-  assert.deepEqual(res.body.data.map((c) => c.isoCode), ['AT', 'CN', 'DE']); // nach name sortiert
+  assert.deepEqual(res.body.data.map((c) => c.isoCode),
+    ['AU', 'AT', 'BR', 'CA', 'CN', 'DE', 'NZ', 'GB', 'US']); // nach name sortiert
   holidays.__setFetchImpl(null);
 });
 test('GET /holidays/countries: API-Fehler lässt die eingebaute China-Liste verfügbar', async () => {
@@ -652,8 +653,14 @@ test('GET /holidays/countries: API-Fehler lässt die eingebaute China-Liste verf
   assert.equal(res.status, 200);
   assert.equal(res.body.partial, true);
   assert.deepEqual(res.body.data, [
+    { isoCode: 'AU', name: 'Australia', schoolHolidays: false },
+    { isoCode: 'BR', name: 'Brazil', schoolHolidays: false },
+    { isoCode: 'CA', name: 'Canada', schoolHolidays: false },
     { isoCode: 'CN', name: 'China' },
     { isoCode: 'DE', name: 'DE' },
+    { isoCode: 'NZ', name: 'New Zealand', schoolHolidays: false },
+    { isoCode: 'GB', name: 'United Kingdom', schoolHolidays: false },
+    { isoCode: 'US', name: 'United States', schoolHolidays: false },
   ]);
   cfgDelete('holiday_country');
   holidays.__setFetchImpl(null);

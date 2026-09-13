@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The holiday country list now includes the United States, Canada, the United Kingdom, Australia
+  and New Zealand** (#965). OpenHolidays, the free API behind Settings → Calendar's holiday sync,
+  doesn't cover these five - their public holidays are computed locally instead (fixed dates,
+  n-th-weekday rules, Easter offsets, and each country's own documented weekend-observance rule),
+  the same approach already used for Brazil. The United Kingdom is offered as three regions -
+  England & Wales, Scotland, and Northern Ireland - since their holidays genuinely differ, not just
+  their names. None of the five has school-holiday data available, so the school-holiday toggle is
+  disabled with an explanation when one of them is selected, rather than silently syncing nothing.
+  For any other country not covered by OpenHolidays or this local list, an ordinary ICS calendar
+  subscription (Settings → Personal → Calendar subscriptions) can still bring in its public
+  holidays - now mentioned there directly.
 - **The calendar filter can hide a connected calendar or subscription, and show the events nobody
   is assigned to** (#1064). The filter sheet lists every calendar and ICS subscription with events
   in the loaded range, each with its colour and a switch. Hiding one removes its events from all
