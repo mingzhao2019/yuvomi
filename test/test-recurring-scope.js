@@ -266,6 +266,13 @@ test('isLocalRecurringSeries: client does not override a negative server capabil
     is_local_recurring_series: true,
     can_override_occurrence: false,
   }), true);
+  assert.equal(isLocalRecurringSeries({
+    recurrence_rule: RULE,
+    external_source: 'local',
+    is_local_recurring_series: true,
+    target_outlook_account_id: 8,
+    target_outlook_calendar_id: 'outlook-calendar',
+  }), false);
 });
 
 test('canOverrideCalendarOccurrence remains actor-specific for a non-owner local series', () => {

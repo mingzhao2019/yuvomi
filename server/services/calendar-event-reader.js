@@ -33,6 +33,7 @@ export const BODY_FREE_EVENT_COLUMNS = Object.freeze([
   'target_caldav_account_id', 'target_caldav_calendar_url', 'created_at',
   'updated_at', 'target_google_calendar_id', 'outbound_dirty',
   'outbound_attempts', 'outbound_move_to', 'external_object_url',
+  'reminder_suppressed',
   'target_outlook_account_id', 'target_outlook_calendar_id', 'color_modified',
 ]);
 

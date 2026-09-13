@@ -39,6 +39,10 @@ function hasOutboundCalendarTarget(event) {
  * fängt eine Antwort ab, die die Spalte gar nicht mitliefert.
  */
 export function isLocalRecurringSeries(event) {
+  // The server keeps local origin separate from provider eligibility so it can
+  // explain the whole-series boundary. An explicit outbound target still must
+  // never re-enable the legacy EXDATE workflow in the client.
+  if (hasOutboundCalendarTarget(event)) return false;
   if (typeof event?.is_local_recurring_series === 'boolean') {
     return event.is_local_recurring_series;
   }

@@ -1457,7 +1457,10 @@ router.post('/:id/reset', (req, res) => {
 // POST /api/v1/calendar/:id/exceptions
 // Nimmt ein einzelnes Vorkommen einer lokalen Serie aus (EXDATE, #489).
 // Body: { date: 'YYYY-MM-DD' } — Start-Datum der auszunehmenden Instanz.
-// Nur lokale (nicht extern synchronisierte) wiederkehrende Termine.
+// Lokale Serien mit generiertem Besitzer behalten den alten detach-Pfad, solange
+// sie noch keine verknüpften Einzelausnahmen haben (#975). Ein explizites
+// Provider-Ziel bleibt dagegen eine externe Grenze: EXDATE wird nicht an den
+// Anbieter propagiert und ist deshalb auch für diese lokalen Zeilen gesperrt.
 // Response: 201 { data: { event_id, exception_date } }
 // --------------------------------------------------------
 router.post('/:id/exceptions', (req, res) => {
@@ -1473,29 +1476,37 @@ router.post('/:id/exceptions', (req, res) => {
     if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
     if (!event.recurrence_rule)
       return res.status(400).json({ error: 'Termin ist keine Serie.', code: 400 });
-    // Nur rein lokale Serien: extern synchronisierte Events sowie lokale Events
-    // mit einem expliziten Provider-Ziel würden beim nächsten Sync wiederkehren;
-    // deren EXDATE-Propagierung ist bewusst out of scope (#489).
     const hasOutboundTarget = event.target_google_calendar_id != null
       || event.target_caldav_account_id != null
       || !!event.target_caldav_calendar_url
       || event.target_outlook_account_id != null
       || !!event.target_outlook_calendar_id;
     if (event.external_source !== 'local'
-        || event.calendar_ref_id || event.subscription_id || hasOutboundTarget)
+        || event.calendar_ref_id || event.subscription_id || hasOutboundTarget) {
       return res.status(400).json({ error: 'Externe Serien können nicht einzeln ausgenommen werden.', code: 400 });
+    }
 
-    const userId  = getUserId(req);
+    const userId = getUserId(req);
     const isAdmin = isAdminUser(req);
-    if (!isAdmin && event.created_by !== userId)
+    if (!isAdmin && Number(event.created_by) !== Number(userId)) {
       return res.status(403).json({ error: 'Nicht autorisiert.', code: 403 });
+    }
+    if (!isLocallyOwnedSeries(db.get(), event)) {
+      return res.status(400).json({ error: 'Externe Serien können nicht einzeln ausgenommen werden.', code: 400 });
+    }
+
+    // A legacy EXDATE can coexist with a local outbound target or generated
+    // owner, but once linked children exist the old path would create a second
+    // representation of the same occurrence. Keep the linked route authoritative
+    // in that case instead of silently mixing both models.
+    const hasLinkedOverrides = db.get().prepare(
+      'SELECT 1 FROM calendar_events WHERE recurrence_parent_id = ? LIMIT 1'
+    ).get(id);
     const eligibility = isEligibleLocalSeries(db.get(), event, userId);
-    if (!isLocallyOwnedSeries(db.get(), event) || !eligibility.eligible) {
-      return res.status(eligibility.reason === 'not_authorized' ? 403 : 400).json({
-        error: eligibility.reason === 'not_authorized'
-          ? 'Nicht autorisiert.'
-          : 'Diese Serie kann keine einzelnen Ausnahmen verwenden.',
-        code: eligibility.reason === 'not_authorized' ? 403 : 400,
+    if (!eligibility.eligible && hasLinkedOverrides) {
+      return res.status(400).json({
+        error: 'Diese Serie kann keine einzelnen Ausnahmen verwenden.',
+        code: 400,
         reason: eligibility.reason,
       });
     }

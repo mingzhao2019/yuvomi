@@ -8,7 +8,12 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { MIGRATIONS_SQL } from '../server/db-schema-test.js';
-import { assignDefaultToEvent } from '../server/services/sync-assignment.js';
+
+// sync-assignment.js imports setEventAssignments(), which loads server/db.js
+// during module initialization. Keep this focused unit test from creating a
+// repository database before its own in-memory schema is built.
+process.env.DB_PATH = ':memory:';
+const { assignDefaultToEvent } = await import('../server/services/sync-assignment.js');
 
 let passed = 0, failed = 0;
 function test(name, fn) {

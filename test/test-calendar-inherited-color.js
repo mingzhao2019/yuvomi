@@ -238,7 +238,8 @@ test('der Lesepfad speist cal_color aus beiden Toepfen', () => {
     const quelle = readFileSync(new URL(`../${datei}`, import.meta.url), 'utf8');
     const anzahl = (quelle.match(/AS cal_color/g) || []).length;
     assert.ok(anzahl > 0, `${datei}: liefert kein cal_color`);
-    assert.equal((quelle.match(/COALESCE\(ec\.color,\s*isub\.color\) AS cal_color/g) || []).length, anzahl,
+    const fallbacks = quelle.match(/COALESCE\((?:ec\.color,\s*isub\.color|isub\.color,\s*ec\.color)\) AS cal_color/g) || [];
+    assert.equal(fallbacks.length, anzahl,
       `${datei}: jedes cal_color muss beide Quellen lesen, sonst verlieren Abo-Termine ihre Farbe`);
     assert.ok(/LEFT JOIN ics_subscriptions isub ON isub\.id = e\.subscription_id/.test(quelle),
       `${datei}: der Join auf ics_subscriptions fehlt`);

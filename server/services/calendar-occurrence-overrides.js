@@ -597,6 +597,7 @@ export function buildRecurrenceCapabilityMap(database, events, {
       canOverrideOccurrence: classification.eligible
         && actorCanSeeSeries(database, master, actorId),
       canDetachOccurrence: classification.local === true && !classification.eligible
+        && !hasOutboundTarget(master)
         && !linkedParents.has(seriesId)
         && actorCanSeeSeries(database, master, actorId),
     });
