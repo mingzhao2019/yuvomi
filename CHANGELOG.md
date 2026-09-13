@@ -667,6 +667,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   direction. Putting the custom field on a third line of its own, as the report asked, would need
   about 51px per block and therefore a taller hour scale - that is a change to the scale, not to
   the block, and is not part of this fix.
+- **Editing one occurrence of a local recurring event now keeps it linked to its series** (#975).
+  The edited occurrence keeps all three series scopes when reopened, follows later series changes
+  for fields that were not deliberately changed, and keeps its original recurrence slot even when
+  moved to another date. The replacement and its skipped original slot are saved atomically, and
+  the read-only ICS feed now exports the replacement with standard `RECURRENCE-ID` semantics.
+  Imported series keep their existing whole-series behavior. Generated local series and local
+  series targeted for outbound sync retain their previous standalone-edit and deletion scopes.
+  Historic detached edits are left unchanged rather than guessed back into a series. iCloud auto-sync excludes
+  linked replacements and their masters, without excluding ordinary deletion-only exceptions.
+  Detaching a linked replacement retains its original-slot exception, so outbound targeting or a
+  recurrence-rule round trip cannot resurrect a duplicate master occurrence. Changing a whole-series
+  recurrence rule no longer forgets previously deleted occurrences. Truncating a series likewise
+  retains later exclusions, and splitting a linked series transfers every later exclusion except the
+  new anchor even when the successor rule cannot currently reach it, so a later extension cannot
+  resurrect a deleted slot or duplicate a detached replacement. A no-difference only-this save
+  removes an exclusion only when it also removes the linked replacement that owned that exclusion.
+  Save confirmations preserve entered values on validation or server errors. Outlook checks actual
+  writable push targets before accepting linked-series auto-sync, and MCP upcoming results retain
+  their unrestricted future horizon while recurrence generation stops at the requested result count.
+  ICS deletion exceptions keep the series' local time across daylight-saving changes even when
+  the stored UTC day differs; each exception needs at most three local-date candidates, not a series scan.
+
+## [2.65.2] - 2026-09-11
+
 ### Security
 
 - **A scoped API token no longer reads other modules through global search or the dashboard

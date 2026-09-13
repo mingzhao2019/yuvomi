@@ -38,6 +38,7 @@
 
 import { hasAnyOccurrence, nextOccurrenceAfter, seriesStartFor } from './recurrence.js';
 import { loadEventExceptions } from './calendar-events.js';
+import { eventProjectionSql, resolveProjectedEventRows } from './calendar-event-reader.js';
 import { visibilityWhere } from './visibility.js';
 import { householdTimeZone, utcToWall } from '../utils/timezone.js';
 import { resolveEventColorOrNull } from '../../public/utils/event-color.js';
@@ -294,14 +295,17 @@ function eventCountdowns(d, userId, todayKey, graceDays) {
   // sich innerhalb eines Requests nicht.
   const tz = householdTimeZone(d);
   const rows = d.prepare(`
-    SELECT e.id, e.title, e.start_datetime, e.recurrence_rule, e.icon, e.color, e.all_day,
-           e.external_source, e.subscription_id, e.color_modified,
-           -- tzid gehoert zur Frage "welcher Kalendertag ist das?": ohne die
-           -- Spalte kann nextEventDate die Zonenruecknahme nicht treffen und
-           -- verschweigt Termine, die der Kalender zeigt. (Keine Backticks in
-           -- diesem Kommentar - er steht in einem Template-Literal.)
-           e.tzid,
-           e.assigned_to,
+    SELECT ${eventProjectionSql(d)},
+           -- Die geliehene Farbe braucht dieselben drei Quellen wie im Kalender
+           -- (#891). Hier reicht EINE Person statt des ganzen Avatar-Stacks: die
+           -- Kachel zeigt eine Kante, keine Personenliste.
+           --
+           -- Der COALESCE ist der Fall "primaeres Mitglied geloescht": dann
+           -- setzt der Fremdschluessel assigned_to auf NULL und nimmt dessen
+           -- Zuweisungszeile mit, waehrend die uebrigen Zugewiesenen bleiben.
+           -- Der Kalender faellt dort auf den ersten verbliebenen zurueck
+           -- (assignees.find(...) ?? assignees[0]); ohne dieselbe Ruecknahme
+           -- zeigte die Kachel als einzige Stelle den Modulton.
            COALESCE(u.avatar_color, (
              SELECT u2.avatar_color FROM event_assignments ea
              JOIN users u2 ON u2.id = ea.user_id
@@ -322,10 +326,17 @@ function eventCountdowns(d, userId, todayKey, graceDays) {
     d,
     rows.filter((e) => e.recurrence_rule).map((e) => e.id),
   );
+  const resolvedRows = resolveProjectedEventRows(d, rows, { lightweight: true });
 
   const out = [];
-  for (const row of rows) {
-    const date = nextEventDate(row, todayKey, exceptionsByEvent.get(row.id) ?? null, {
+  for (const row of resolvedRows) {
+    // A linked replacement is one concrete displayed occurrence. Resolution
+    // intentionally inherits the master's RRULE for identity and presentation,
+    // but the countdown must not expand that rule again from the moved DTSTART.
+    const countdownEvent = row.is_occurrence_override
+      ? { ...row, recurrence_rule: null }
+      : row;
+    const date = nextEventDate(countdownEvent, todayKey, exceptionsByEvent.get(row.id) ?? null, {
       graceDays, tz,
     });
     if (!date) continue;
@@ -353,6 +364,15 @@ function eventCountdowns(d, userId, todayKey, graceDays) {
         cal_color: row.cal_color,
       }),
       recurring: Boolean(row.recurrence_rule),
+      ...(row.is_occurrence_override ? {
+        series_id: row.series_id,
+        recurrence_id: row.recurrence_id,
+        is_occurrence_override: true,
+        assignment_owner_id: row.assignment_owner_id,
+        attachment_owner_id: row.attachment_owner_id,
+        reminder_owner_id: row.reminder_owner_id,
+        reminder_anchor_start: row.reminder_anchor_start,
+      } : {}),
     });
   }
   return out;

@@ -1245,6 +1245,124 @@ const MIGRATIONS_SQL = {
     CREATE INDEX idx_calendar_event_completions_user_event
       ON calendar_event_completions(user_id, event_id, occurrence_key);
   `,
+  // SQL-String für Migration v203 (gespiegelt aus db.js MIGRATIONS):
+  // Übersetzte Labels für die vorgefertigten Abo-Metadaten.
+  203: `
+    ALTER TABLE subscription_categories ADD COLUMN label_key TEXT;
+    ALTER TABLE subscription_payment_methods ADD COLUMN label_key TEXT;
+
+    UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionEntertainment'
+      WHERE budget_subcategory_key = 'subscription_entertainment' AND name = 'Entertainment';
+    UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionProductivity'
+      WHERE budget_subcategory_key = 'subscription_productivity' AND name = 'Productivity';
+    UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionUtilities'
+      WHERE budget_subcategory_key = 'subscription_utilities' AND name = 'Utilities';
+    UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionHealth'
+      WHERE budget_subcategory_key = 'subscription_health' AND name = 'Health';
+    UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionEducation'
+      WHERE budget_subcategory_key = 'subscription_education' AND name = 'Education';
+    UPDATE subscription_categories SET label_key = 'budget.subcatSubscriptionOther'
+      WHERE budget_subcategory_key = 'subscription_other' AND name = 'Other';
+
+    UPDATE subscription_payment_methods SET label_key = CASE name
+      WHEN 'Credit Card' THEN 'subscriptions.paymentMethodCreditCard'
+      WHEN 'Debit Card' THEN 'subscriptions.paymentMethodDebitCard'
+      WHEN 'PayPal' THEN 'subscriptions.paymentMethodPaypal'
+      WHEN 'Apple Pay' THEN 'subscriptions.paymentMethodApplePay'
+      WHEN 'Google Pay' THEN 'subscriptions.paymentMethodGooglePay'
+      WHEN 'Bank Transfer' THEN 'subscriptions.paymentMethodBankTransfer'
+      WHEN 'Other' THEN 'subscriptions.paymentMethodOther'
+    END
+    WHERE name IN ('Credit Card', 'Debit Card', 'PayPal', 'Apple Pay', 'Google Pay', 'Bank Transfer', 'Other');
+  `,
+
+  // SQL for migration v204 (mirrored from db.js MIGRATIONS):
+  // Linked replacements keep their original recurrence slot identity.
+  204: `
+    ALTER TABLE calendar_events ADD COLUMN recurrence_parent_id INTEGER
+      REFERENCES calendar_events(id) ON DELETE CASCADE;
+    ALTER TABLE calendar_events ADD COLUMN recurrence_id TEXT;
+    ALTER TABLE calendar_events ADD COLUMN overridden_fields TEXT;
+    CREATE UNIQUE INDEX idx_calendar_occurrence_override_slot
+      ON calendar_events(recurrence_parent_id, recurrence_id)
+      WHERE recurrence_parent_id IS NOT NULL;
+    CREATE INDEX idx_calendar_occurrence_override_range
+      ON calendar_events(recurrence_parent_id, start_datetime)
+      WHERE recurrence_parent_id IS NOT NULL;
+    DROP TRIGGER IF EXISTS trg_search_events_ai;
+    DROP TRIGGER IF EXISTS trg_search_events_au;
+    DROP TRIGGER IF EXISTS trg_search_events_ad;
+    CREATE TRIGGER trg_search_events_ai AFTER INSERT ON calendar_events BEGIN
+      INSERT INTO search_index (entity, entity_id, title, body)
+      VALUES ('event', NEW.id,
+        CASE WHEN NEW.recurrence_parent_id IS NULL
+               OR EXISTS (SELECT 1 FROM json_each(
+                 CASE WHEN json_valid(NEW.overridden_fields) THEN
+                   CASE WHEN json_type(NEW.overridden_fields) = 'array' THEN NEW.overridden_fields END
+                 END) WHERE type = 'text' AND value = 'title')
+             THEN COALESCE(NEW.title, '') ELSE '' END,
+        TRIM(CASE WHEN NEW.recurrence_parent_id IS NULL
+                    OR EXISTS (SELECT 1 FROM json_each(
+                      CASE WHEN json_valid(NEW.overridden_fields) THEN
+                        CASE WHEN json_type(NEW.overridden_fields) = 'array' THEN NEW.overridden_fields END
+                      END) WHERE type = 'text' AND value = 'description')
+                  THEN COALESCE(NEW.description, '') ELSE '' END || ' ' ||
+             CASE WHEN NEW.recurrence_parent_id IS NULL
+                    OR EXISTS (SELECT 1 FROM json_each(
+                      CASE WHEN json_valid(NEW.overridden_fields) THEN
+                        CASE WHEN json_type(NEW.overridden_fields) = 'array' THEN NEW.overridden_fields END
+                      END) WHERE type = 'text' AND value = 'location')
+                  THEN COALESCE(NEW.location, '') ELSE '' END));
+    END;
+    CREATE TRIGGER trg_search_events_au AFTER UPDATE ON calendar_events BEGIN
+      DELETE FROM search_index WHERE entity = 'event' AND entity_id = OLD.id;
+      INSERT INTO search_index (entity, entity_id, title, body)
+      VALUES ('event', NEW.id,
+        CASE WHEN NEW.recurrence_parent_id IS NULL
+               OR EXISTS (SELECT 1 FROM json_each(
+                 CASE WHEN json_valid(NEW.overridden_fields) THEN
+                   CASE WHEN json_type(NEW.overridden_fields) = 'array' THEN NEW.overridden_fields END
+                 END) WHERE type = 'text' AND value = 'title')
+             THEN COALESCE(NEW.title, '') ELSE '' END,
+        TRIM(CASE WHEN NEW.recurrence_parent_id IS NULL
+                    OR EXISTS (SELECT 1 FROM json_each(
+                      CASE WHEN json_valid(NEW.overridden_fields) THEN
+                        CASE WHEN json_type(NEW.overridden_fields) = 'array' THEN NEW.overridden_fields END
+                      END) WHERE type = 'text' AND value = 'description')
+                  THEN COALESCE(NEW.description, '') ELSE '' END || ' ' ||
+             CASE WHEN NEW.recurrence_parent_id IS NULL
+                    OR EXISTS (SELECT 1 FROM json_each(
+                      CASE WHEN json_valid(NEW.overridden_fields) THEN
+                        CASE WHEN json_type(NEW.overridden_fields) = 'array' THEN NEW.overridden_fields END
+                      END) WHERE type = 'text' AND value = 'location')
+                  THEN COALESCE(NEW.location, '') ELSE '' END));
+    END;
+    CREATE TRIGGER trg_search_events_ad AFTER DELETE ON calendar_events BEGIN
+      DELETE FROM search_index WHERE entity = 'event' AND entity_id = OLD.id;
+    END;
+    DELETE FROM search_index WHERE entity = 'event';
+    INSERT INTO search_index (entity, entity_id, title, body)
+    SELECT 'event', id,
+      CASE WHEN recurrence_parent_id IS NULL
+             OR EXISTS (SELECT 1 FROM json_each(
+               CASE WHEN json_valid(overridden_fields) THEN
+                 CASE WHEN json_type(overridden_fields) = 'array' THEN overridden_fields END
+               END) WHERE type = 'text' AND value = 'title')
+           THEN COALESCE(title, '') ELSE '' END,
+      TRIM(CASE WHEN recurrence_parent_id IS NULL
+                  OR EXISTS (SELECT 1 FROM json_each(
+                    CASE WHEN json_valid(overridden_fields) THEN
+                      CASE WHEN json_type(overridden_fields) = 'array' THEN overridden_fields END
+                    END) WHERE type = 'text' AND value = 'description')
+                THEN COALESCE(description, '') ELSE '' END || ' ' ||
+           CASE WHEN recurrence_parent_id IS NULL
+                  OR EXISTS (SELECT 1 FROM json_each(
+                    CASE WHEN json_valid(overridden_fields) THEN
+                      CASE WHEN json_type(overridden_fields) = 'array' THEN overridden_fields END
+                    END) WHERE type = 'text' AND value = 'location')
+                THEN COALESCE(location, '') ELSE '' END)
+    FROM calendar_events;
+  `,
 };
 
 export { MIGRATIONS_SQL };

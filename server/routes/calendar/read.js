@@ -8,16 +8,15 @@ import express from 'express';
 import * as db from '../../db.js';
 import { DATE_RE } from '../../middleware/validate.js';
 import {
-  expandRecurringEvents,
-  getUpcomingEvents,
-  loadEventExceptions,
-  SOURCE_CALENDAR_COLUMNS,
-  SOURCE_CALENDAR_JOIN,
-} from '../../services/calendar-events.js';
+  expandAndResolveEventRows, getUpcomingEvents, hydrateEventAttachmentBodies,
+} from '../../services/calendar-event-reader.js';
+import { SOURCE_CALENDAR_COLUMNS, SOURCE_CALENDAR_JOIN } from '../../services/calendar-events.js';
 import { decorateEventCompletions } from '../../services/calendar-event-completions.js';
-import { buildMatchQuery } from '../../services/search.js';
+import { buildMatchQuery, resolveEventSearchRows } from '../../services/search.js';
 import { visibilityWhere } from '../../services/visibility.js';
-import { VALID_SOURCES, ASSIGNED_USERS_SQL, getUserId, serializeEvent } from './helpers.js';
+import {
+  VALID_SOURCES, ASSIGNED_USERS_SQL, getUserId, isAdminUser, serializeEvents,
+} from './helpers.js';
 import { shiftDateKey, todayKey } from '../../utils/timezone.js';
 
 const log = createLogger('Calendar');
@@ -97,15 +96,18 @@ router.get('/', (req, res) => {
 
     sql += ' ORDER BY e.start_datetime ASC, e.all_day DESC';
 
-    const rawEvents  = db.get().prepare(sql).all(...params);
-    const recurringIds = rawEvents.filter((e) => e.recurrence_rule).map((e) => e.id);
-    const exceptions   = loadEventExceptions(db.get(), recurringIds);
-    const events    = decorateEventCompletions(
-      db.get(),
-      expandRecurringEvents(rawEvents, from, to, exceptions),
-      getUserId(req),
-    )
-      .map((event) => serializeEvent(event, db.get()));
+    const database = db.get();
+    const rawEvents = database.prepare(sql).all(...params);
+    const serialization = {
+      database,
+      actorId: getUserId(req),
+      isAdmin: isAdminUser(req),
+    };
+    const expanded = expandAndResolveEventRows(database, rawEvents, from, to);
+    const events = serializeEvents(
+      decorateEventCompletions(database, expanded, getUserId(req)),
+      serialization,
+    );
     res.json({ data: events, from, to });
   } catch (err) {
     log.error('', err);
@@ -122,8 +124,20 @@ router.get('/', (req, res) => {
 router.get('/upcoming', (req, res) => {
   try {
     const limit    = Math.min(parseInt(req.query.limit, 10) || 5, 20);
-    const expanded = getUpcomingEvents(db.get(), { userId: getUserId(req), limit })
-      .map((event) => serializeEvent(event, db.get()));
+    const database = db.get();
+    const upcoming = hydrateEventAttachmentBodies(
+      database,
+      getUpcomingEvents(database, { userId: getUserId(req), limit }),
+    );
+    const expanded = serializeEvents(decorateEventCompletions(
+      database,
+      upcoming,
+      getUserId(req),
+    ), {
+      database,
+      actorId: getUserId(req),
+      isAdmin: isAdminUser(req),
+    });
 
     res.json({ data: expanded });
   } catch (err) {
@@ -202,20 +216,19 @@ router.get('/search', (req, res) => {
     // 2-Jahres-Fenster: fängt auch Serien, deren nächste Instanz mehr als ein Jahr
     // voraus liegt (z. B. mehrjährige Intervalle). Findet sich keine, bleibt der Master.
     const future = shiftDateKey(today, 730);
-    const searchExceptions = loadEventExceptions(
-      db.get(), rows.filter((r) => r.recurrence_rule).map((r) => r.id)
-    );
-    const resolved = rows.map((row) => {
-      if (!row.recurrence_rule) return row;
-      return expandRecurringEvents([row], today, future, searchExceptions)[0] || row;
-    });
+    const database = db.get();
+    const resolved = resolveEventSearchRows(database, rows, today, future);
+
     // Nach der Auflösung neu chronologisch sortieren, damit die Frontend-Gruppierung
     // die tatsächlichen (nicht die Master-)Daten in Reihenfolge zeigt.
     resolved.sort((a, b) => String(a.start_datetime).localeCompare(String(b.start_datetime)));
 
     res.json({
-      data: decorateEventCompletions(db.get(), resolved, userId)
-        .map((event) => serializeEvent(event, db.get())),
+      data: serializeEvents(decorateEventCompletions(database, resolved, userId), {
+        database,
+        actorId: userId,
+        isAdmin: isAdminUser(req),
+      }),
       total,
     });
   } catch (err) {

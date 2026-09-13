@@ -102,9 +102,13 @@ const EXPECTED = [
   'POST /',
   'PATCH /:id/completion',
   'PUT /:id',
+  'PUT /:seriesId/occurrences/:recurrenceId',
+  'PUT /:seriesId/occurrences/:recurrenceId/following',
   'POST /:id/reset',
   'POST /:id/exceptions',
   'DELETE /:id',
+  'DELETE /:seriesId/occurrences/:recurrenceId',
+  'DELETE /:seriesId/occurrences/:recurrenceId/following',
   // caldav (events + reminders)
   'POST /caldav/accounts',
   'GET /caldav/accounts',
@@ -137,7 +141,7 @@ const EXPECTED = [
   'GET /outlook/todo/status',
 ];
 
-test('Orchestrator ergibt exakt die erwartete Routentabelle (64 Routen)', () => {
+test('Orchestrator ergibt exakt die erwartete Routentabelle (65 Routen)', () => {
   const actual = collectRoutes(calendarRouter).sort();
   assert.deepEqual(actual, [...EXPECTED].sort());
   assert.equal(actual.length, 65);

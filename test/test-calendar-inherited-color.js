@@ -210,3 +210,37 @@ test('三个 inbound 提供方都用 color_modified 保护颜色', () => {
   }
   assert.ok(count >= 5, `预期至少 5 个颜色保护表达式，实际 ${count}`);
 });
+
+test('provider color fallbacks remain read-time only', () => {
+  const files = [
+    'server/services/caldav-sync.js',
+    'server/services/apple-calendar.js',
+    'server/services/google-calendar.js',
+    'server/services/calendar-event-reader.js',
+  ];
+  const FALLBACK_RE = /\.color\s*\|\|\s*[A-Za-z_$][\w$.]*(?:[Cc]olor|COLOR)/g;
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const matches = [...source.matchAll(FALLBACK_RE)].map((match) => match[0]);
+    assert.deepEqual(matches, [],
+      `${file}: inherited color must not be written into calendar_events.color`);
+  }
+});
+
+test('der Lesepfad speist cal_color aus beiden Toepfen', () => {
+  const LESEPFADE = [
+    'server/routes/calendar/read.js',
+    'server/routes/calendar/crud.js',
+    'server/services/calendar-event-reader.js',
+  ];
+  for (const datei of LESEPFADE) {
+    const quelle = readFileSync(new URL(`../${datei}`, import.meta.url), 'utf8');
+    const anzahl = (quelle.match(/AS cal_color/g) || []).length;
+    assert.ok(anzahl > 0, `${datei}: liefert kein cal_color`);
+    assert.equal((quelle.match(/COALESCE\(ec\.color,\s*isub\.color\) AS cal_color/g) || []).length, anzahl,
+      `${datei}: jedes cal_color muss beide Quellen lesen, sonst verlieren Abo-Termine ihre Farbe`);
+    assert.ok(/LEFT JOIN ics_subscriptions isub ON isub\.id = e\.subscription_id/.test(quelle),
+      `${datei}: der Join auf ics_subscriptions fehlt`);
+  }
+});

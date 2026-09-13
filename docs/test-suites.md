@@ -320,6 +320,25 @@ npm run test:installer-a11y  # Zielgrößen, Kontrast und Fokus des Web-Installe
 # Ganztagsdatum, live UNTIL sowie die zugänglichen Monats-/Agenda-Namen nach Lucide.
 ```
 
+## Focused linked occurrence suite
+
+Run `npm run test:calendar-occurrence-overrides`
+for migration 194, original-slot identity, inheritance and owner resolution,
+atomic edit/delete/split operations, bounded exact-count orphan handling,
+visibility-equivalent mutation rights, provider outbound exclusion, nested
+savepoint fallback, projection caching, and cross-reader degradation contracts. The suite sets a fresh temporary
+`DB_PATH` before importing the route serializer, whose dependency graph
+initializes `server/db.js`, and removes that database and its SQLite sidecars at
+process exit. Its dedicated script runs directly in the root `npm test`
+chain and CI, alongside `test:calendar`; no recursive suite-chain exception is needed.
+The suite-chain guard matches suite names at word boundaries rather than prefixes;
+`test:search` is explicitly chained, not inferred from `test:search-diacritics`.
+Calendar route and recurring-scope suites cover local outbound legacy scopes;
+dashboard and MCP suites cover limit-aware future expansion without a two-year
+cutoff. Calendar search covers JSON-escaped field names and malformed metadata.
+The browser document guards exercise save-confirmation preservation of the same
+editor, while the ICS suite checks actual EXDATE output across both midnight offsets.
+
 ## Dokument-Guards (eigene Kette, von Hand vor dem Release)
 
 ```bash
