@@ -447,7 +447,7 @@ All configuration happens in the `.env` file. The container reads these values o
 | `PORT` | Port the Express server listens on **inside the container** (rarely changed) | `3000` | No |
 | `OIKOS_HTTP_PORT` | Host port that the compose file maps to the container's port 3000. Change this to expose Yuvomi on a different host port; the app inside the container always listens on 3000. | `3000` | No |
 | `OIKOS_HTTP_BIND` | Host bind address for the published port (`podman-compose.yml` only). Set to `127.0.0.1` for rootless Podman behind a reverse proxy on the same host. | `0.0.0.0` | No |
-| `TZ` | Container timezone (e.g. `Europe/Berlin`). Affects log timestamps and the automated-backup schedule, and is the **default** for the household zone. Since v2.34.0 the household zone is a setting of its own (Settings → Personal → Appearance → Region), and where both exist the setting wins: `TZ` lives in the compose file, which is out of reach on Umbrel, TrueNAS and Unraid, and it also drives things that have nothing to do with the family calendar. Whichever applies is the zone used wherever a time carries none of its own: the calendar day server-side jobs call "today" (upcoming events, countdowns, recurring split expenses, birthdays), events pushed to Google Calendar when the target calendar reports no zone, events pushed to Outlook, the due times of CalDAV reminders synced into Tasks, and the times in the exported calendar feed (`/feed/calendar/<token>.ics`), which subscribers read in this zone - a wrong zone shifts every appointment for everyone subscribed. **Since v2.36.0 the app's own display follows it too**, so a device travelling in another zone shows the household's clock rather than its own; that half applies only when the setting is set, since `TZ` alone leaves the display on the browser as before. | `UTC` | No |
+| `TZ` | Container timezone (e.g. `Europe/Berlin`). Affects log timestamps and the automated-backup schedule, and is the **default** for the household zone. Since v2.34.0 the household zone is a setting of its own (Settings → Personal → Appearance → Region), and where both exist the setting wins: `TZ` lives in the compose file, which is out of reach on Umbrel, TrueNAS and Unraid, and it also drives things that have nothing to do with the family calendar. Whichever applies is the zone used wherever a time carries none of its own: the calendar day server-side jobs call "today" (upcoming events, countdowns, recurring split expenses, birthdays), events pushed to Google Calendar when the target calendar reports no zone, events pushed to Outlook, events pushed to a CalDAV server (#938 - before that they carried no zone at all, leaving every server free to read them on its own clock), the due times of CalDAV reminders synced into Tasks, and the times in the exported calendar feed (`/feed/calendar/<token>.ics`), which subscribers read in this zone - a wrong zone shifts every appointment for everyone subscribed. **Since v2.36.0 the app's own display follows it too**, so a device travelling in another zone shows the household's clock rather than its own; that half applies only when the setting is set, since `TZ` alone leaves the display on the browser as before. | `UTC` | No |
 | `NODE_ENV` | Runtime environment | `production` | No |
 | `LOG_LEVEL` | Lowest severity written to the container log (`debug`, `info`, `warn`, `error`). Set to `debug` to see the per-run detail of the calendar, contact and holiday sync, which stays quiet at `info` when a run has nothing to do. | `info` | No |
 | `TRUST_PROXY` | Number of reverse-proxy hops to trust, or a subnet string (e.g. `1`, `172.16.0.0/12`, `loopback`). The default already trusts a single hop, so `req.ip` returns the real client IP behind one Caddy/Nginx/Traefik proxy without any configuration. Set to `loopback` for direct, proxy-less deployments, or to a subnet/higher hop count behind multiple proxy layers. Numeric values are treated as a hop count; named values (`loopback`, `linklocal`, `uniquelocal`) work as expected. | `1` | No |
@@ -538,9 +538,13 @@ every start, and the test button re-registers and retries once before reporting 
 
 ### Email / SMTP (Optional)
 
-Configuring an outgoing SMTP server enables the self-service **"Forgot password"** flow on the
-login page. Without it, only an admin can reset another user's password. Can also be configured
-in Settings → Administration → Email. Precedence is per field, like WebDAV document storage
+Configuring an outgoing SMTP server enables three things: the self-service **"Forgot password"**
+flow on the login page (without it, only an admin can reset another user's password), **email as a
+household notification channel** next to Gotify, ntfy and webhooks, and **sending a shopping list**
+to whichever household member is doing the run. All three share one SMTP configuration - there is
+no second set of credentials per channel. Set `BASE_URL` as well if you want reminder mails to
+carry a link back into the app; without it they arrive without one rather than with a dead one.
+Can also be configured in Settings → Administration → Email. Precedence is per field, like WebDAV document storage
 below: every non-empty environment value overrides only its corresponding database value and
 makes exactly that field read-only in the settings UI; empty values fall back to the database.
 
@@ -894,6 +898,8 @@ If codes are rejected on a device whose clock drifts, sync the clock rather than
 
 Enable single sign-on via any OpenID Connect provider (Authentik, Keycloak, Google, Microsoft Entra, etc.).
 
+Pocket ID documents Yuvomi as one of its [client examples](https://pocket-id.org/docs/client-examples/yuvomi), which is a working set of values for the four variables below if you run that provider.
+
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `OIDC_ISSUER` | OIDC provider issuer URL (e.g. `https://authentik.example.com/application/o/yuvomi/`) | - | No |
@@ -908,7 +914,7 @@ When all four OIDC variables are set, a **"Sign in with SSO"** button appears on
 
 **Who gets an account.** By default every identity your provider accepts gets one on first sign-in - convenient for a provider you run for this household alone, but a directory is a list of people, not a list of household members. Set `OIDC_ALLOW_SIGNUP=false` and provisioning stops: an unknown identity is turned away with "There is no account here yet for this SSO sign-in" instead of the generic SSO error, while known accounts sign in as before. Linking still happens too, which is what makes the switch usable: create the account under **Settings → Administration → Family** with the member's email address, and their first SSO sign-in binds the two together (the provider must report `email_verified: true`, or the account owner links it themselves under **Settings → Account → Single sign-on**).
 
-**Making SSO the only way in.** Even with SSO configured, Yuvomi keeps a second door open: the login form stays, password reset stays, and every account carries a password hash. Set `AUTH_ALLOW_PASSWORD_LOGIN=false` and that door closes - the login page shows nothing but the SSO button, `POST /auth/login` is refused outright (the rule sits on the route, not just on the page), and password reset disappears with it rather than staying as a route that can still send mail.
+**Making SSO the only way in.** Even with SSO configured, Yuvomi keeps a second door open: the login form stays, password reset stays, and every account carries a password hash. Set `AUTH_ALLOW_PASSWORD_LOGIN=false` and that door closes - the login page shows nothing but the SSO button, `POST /auth/login` is refused outright (the rule sits on the route, not just on the page), and password reset disappears with it rather than staying as a route that can still send mail. **One exception is offered, and only where it applies (#962):** guests of shared expenses stay exempt from the switch, because they are external people with no entry in your identity provider, so a household that has such guests keeps a second button for them. A household that has none sees no second button - it used to appear regardless, which looked like a hole in the bolt you had just closed.
 
 Three things are deliberate:
 
@@ -1524,6 +1530,24 @@ The old refresh token cannot grant a newly added delegated scope. After reconnec
 To Do lists in the account card and enable the lists that should appear in Tasks. A task already
 mirrored from Microsoft To Do cannot be moved to another list from Yuvomi yet; create a new task
 with the desired list as its sync target instead.
+
+</details>
+
+<details>
+<summary>Single CalDAV events never show up, and nothing is logged</summary>
+
+Fixed in v2.47.0 (#883). Update and run a sync; the missing events arrive on the next pass.
+
+Before that, Yuvomi discarded any calendar object whose URL did not contain `.ics`. That extension
+is pure convention - RFC 4791 prescribes no name for the object resource, and a server is free to
+assign its own. Stalwart, for instance, does so for everything created over JMAP (`NZtPkIOMoK`),
+while objects written by a CalDAV `PUT` keep the client-chosen `<uid>.ics`. In the same calendar,
+part of the events synced and part did not - and because the discarded ones were never fetched, no
+log line could name them: the sync reported success with a plausible event count.
+
+If events are still missing after the update, the server log now names them. Anything the parser
+rejects is reported at warn level with its UID and the reason, so a report can point at a concrete
+event instead of an absence.
 
 </details>
 

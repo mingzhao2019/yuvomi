@@ -409,6 +409,14 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
             <input class="form-input" id="notification-ntfy-password-${suffix}" name="ntfyPassword" type="password" autocomplete="new-password" placeholder="${channel.secretSet ? esc(t('settings.notificationChannelSecretKeep')) : ''}">
           </div>
         </div>
+        <div class="notification-provider-fields notification-provider-fields--email${isEmail ? '' : ' settings-card--hidden'}">
+          <div class="form-field">
+            <label class="form-label" for="notification-email-to-${suffix}">${t('settings.notificationChannelEmailTo')}</label>
+            <input class="form-input" id="notification-email-to-${suffix}" name="emailTo" type="email" autocomplete="email" value="${esc(channel.config.toAddress ?? '')}">
+            <p class="form-hint">${t('settings.notificationChannelEmailToHint')}</p>
+          </div>
+          <p class="form-hint notification-email-not-ready${notReady ? '' : ' settings-card--hidden'}">${t('settings.notificationChannelEmailNotConfigured')}</p>
+        </div>
         <div class="settings-form-actions">
           <button type="submit" class="btn btn--primary">${t('settings.notificationChannelSave')}</button>
           ${channel.id ? `<button type="button" class="btn btn--secondary" data-action="test">${t('settings.notificationChannelTest')}</button>` : ''}

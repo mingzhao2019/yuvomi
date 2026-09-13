@@ -6,7 +6,7 @@
 
 import { api, auth } from '/api.js';
 import { canAccessNavModule, navModuleAccess, setExtensionNavMap } from '/permissions.js';
-import { setExtensionModules } from '/utils/extension-widgets.js';
+import { setExtensionModules, selectThirdPartyModuleList } from '/utils/extension-widgets.js';
 import { initExtensionI18n, moduleDisplayLabel, reloadExtensionLocales } from '/utils/extension-i18n.js';
 import { clearApiCache } from '/sw-register.js';
 import { forgetLayoutHint } from '/utils/dashboard-layout-hint.js';
@@ -16,6 +16,7 @@ import { emptyHintEl, emptyStateEl } from '/utils/empty-state.js';
 import { wireScrollFade, wireCollapsingHeader, wireSwipeToDismiss } from '/utils/ux.js';
 import { TOAST_SURFACES, toastSurface } from '/utils/toast-surface.js';
 import { BULK_PILL_LAYER, clearBulkPill } from '/utils/bulk-pill.js';
+import { COMPOSITION_MODES } from '/utils/page-layout.js';
 import { init as initReminders, stop as stopReminders } from '/reminders.js';
 import { initPush, stopPush } from '/push.js';
 import { numberLocaleFor } from '/settings/region-presets.js';
@@ -26,7 +27,6 @@ import { getLastHealthRoute, HEALTH_ROUTES } from '/utils/health-tabs.js';
 import { activityType } from '/utils/health-activity.js';
 import { buildHelpRows } from '/utils/help.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
-import { COMPOSITION_MODES } from '/utils/page-layout.js';
 import {
   handleBackNavigation, closeAllOverlays, consumeOverlayMarker,
   pushOverlay, dropOverlay, attachOverlay,
@@ -927,9 +927,9 @@ async function syncPreferencesOnce() {
 async function syncThirdPartyModules() {
   try {
     const res = await api.get('/modules');
-    _thirdPartyModules = Array.isArray(res?.data) ? res.data : [];
+    _thirdPartyModules = selectThirdPartyModuleList(_thirdPartyModules, { ok: true, data: res?.data });
   } catch {
-    _thirdPartyModules = [];
+    _thirdPartyModules = selectThirdPartyModuleList(_thirdPartyModules, { ok: false });
   }
   setExtensionModules(_thirdPartyModules);
   setExtensionNavMap(_thirdPartyModules);

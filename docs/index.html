@@ -141,6 +141,11 @@
     .nav-jump a { display: block; padding: 9px 12px; border-radius: var(--r-sm); min-height: 44px;
       display: flex; align-items: center; color: var(--text-2); font-size: 0.88rem; font-weight: 500; text-decoration: none; }
     .nav-jump a:hover, .nav-jump a:focus-visible { background: var(--bg-alt); color: var(--text-1); }
+    /* Die Fortschrittslinie sagt "wie weit", das Menue sagte nicht "wo". Der
+       aktive Eintrag traegt aria-current="location" (per Scroll-Spy) und die
+       Akzent-Toenung - dieselben zwei Werte, die .plat-badge--start benutzt,
+       AA-gemessen als --accent-on-soft auf --accent-soft in beiden Themes. */
+    .nav-jump a[aria-current] { background: var(--accent-soft); color: var(--accent-on-soft); font-weight: 600; }
     /* Unter 700px traegt die Leiste schon Logo, Sprache, Theme und GitHub. Das
        Menue faellt dort weg - die Sticky-Pille am Daumen ist der mobile Weg zum
        Ziel, und eine sechste Schaltflaeche in einer 390px-Leiste ist keine. */
@@ -183,6 +188,12 @@
     .nav-gh { background: var(--text-1); color: var(--bg); border-color: var(--text-1); }
     .nav-gh:hover { background: var(--text-1); color: var(--bg); opacity: 0.86; }
     #gh-stars-nav:not(:empty) { font-variant-numeric: tabular-nums; }
+    /* Ohne JS sind Sprach- und Theme-Knopf tote Bedienelemente mit englischen
+       aria-Labels (die uebersetzten setzt applyLang() zur Laufzeit). Ein Knopf,
+       der nichts tut, verschwindet - Theme folgt dann prefers-color-scheme,
+       Sprache bleibt die englische Dokumentfassung. Gleiches Muster wie der
+       .reveal-No-JS-Fallback. */
+    html:not(.js) #langBtn, html:not(.js) #themeBtn { display: none; }
 
     /* ===== Buttons ===== */
     .btn {
@@ -278,7 +289,7 @@
       border-radius: var(--r-phone); border: 4px solid var(--surface); box-shadow: var(--shadow-xl);
       z-index: 2; overflow: hidden; background: var(--surface);
     }
-    .hero-float img { width: 100%; display: block; aspect-ratio: 1320 / 2867; }
+    .hero-float img { width: 100%; display: block; aspect-ratio: var(--ar-phone); }
 
     /* ===== Proof bar ===== */
     .proof { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg-alt); }
@@ -354,9 +365,14 @@
     .swap-close span { color: var(--accent); }
     /* Same break as .ho-flow, and deliberately the same one: both are an "A leads
        to B" row, so they must not fold differently. Three columns at 390px would
-       leave 110px for the left label. */
+       leave 110px for the left label.
+       text-align gehoert mit in den Break: gestapelt behielt .swap-from sein
+       Desktop-`text-align: right` und stand rechtsbuendig UEBER dem linksbuendigen
+       Pfeil - zehnmal Rechts-links-Sprung pro Liste. .ho-flow faltet komplett
+       linksbuendig, also faltet das hier genauso. */
     @media (max-width: 700px) {
       .swap-row { grid-template-columns: 1fr; gap: 5px; padding: 13px 4px; }
+      .swap-from { text-align: left; }
       .swap-from, .swap-to { font-size: 0.94rem; }
       .swap-arrow { transform: rotate(90deg); margin-left: 2px; width: 15px; height: 15px; }
     }
@@ -436,7 +452,16 @@
       background: radial-gradient(60% 60% at 50% 40%, color-mix(in srgb, var(--m) 18%, transparent), transparent 75%);
       filter: blur(26px);
     }
-    .feat-phone { display: block; width: 100%; aspect-ratio: 1320 / 1780;
+    /* Volles Geraetemass, nicht 1320/1780. Der erfundene Zuschnitt sparte
+       Hoehe, die diese Spalte gar nicht braucht: die Textspalte fuehrt die
+       Zeile mit 447px bzw. 485px Inhalt, das Telefon kommt bei 200px Breite
+       auf 434px und bleibt darunter - das Raster ist nach der Korrektur
+       gemessene 1.062px hoch, also exakt so hoch wie vorher. Bezahlt wurde
+       dafuer nur die Form, und die war der ganze Punkt des Rahmens.
+       `object-fit` bleibt als Wache stehen: waere hier je eine Aufnahme im
+       falschen Format, zeigte `cover` deren oberen Ausschnitt statt eines
+       Zerrbilds - dieselbe Begruendung wie am schmalen Galerierahmen. */
+    .feat-phone { display: block; width: 100%; aspect-ratio: var(--ar-phone);
       object-fit: cover; object-position: top center;
       border-radius: var(--r-phone) !important; border: 4px solid var(--surface);
       box-shadow: var(--shadow-lg); position: relative; z-index: 2; }
@@ -447,14 +472,17 @@
        Telefon unter ~150px zeigt nichts mehr. */
     .mod-shots { display: flex; flex-wrap: wrap; justify-content: center; gap: 26px 22px; margin-top: 52px; }
     .mod-shot { width: 176px; }
-    .mod-shot img { width: 100%; aspect-ratio: 1320 / 1900; object-fit: cover; object-position: top center;
+    .mod-shot img { width: 100%; aspect-ratio: var(--ar-phone); object-fit: cover; object-position: top center;
       border-radius: var(--r-phone);
       border: 4px solid var(--surface); box-shadow: var(--shadow-lg); display: block; }
     .mod-shot figcaption { margin-top: 12px; text-align: center; font-size: 0.82rem; font-weight: 600; color: var(--text-3); }
-    /* 176px breite Telefone brechen bei 390px auf drei Reihen um und kosten dort
-       1.539px - mehr als das Karussell, das diese Reihe ersetzt hat. Bei 104px
-       passen drei nebeneinander, es bleiben zwei Reihen. Auf Daumennagelgroesse
-       ist das der Beleg, dass es das Modul gibt, und mehr soll es hier nicht sein.
+    /* 176px breite Telefone brechen bei 390px auf fuenf Reihen um und kosten dort
+       2.129px - weit mehr als das Karussell, das diese Reihe ersetzt hat. Bei
+       104px passen drei nebeneinander, es bleiben zwei Reihen und 527px. Auf
+       Daumennagelgroesse ist das der Beleg, dass es das Modul gibt, und mehr soll
+       es hier nicht sein. (Gemessen nach der Ratio-Korrektur: mit dem alten
+       1320/1900-Zuschnitt sah dieselbe Rechnung um ein Drittel guenstiger aus,
+       weil jedes Telefon 129px seiner eigenen Hoehe verschwieg.)
        Steht bewusst HINTER der Basisregel: gleiche Spezifitaet, es entscheidet
        die Quellreihenfolge. */
     @media (max-width: 700px) {
@@ -483,6 +511,25 @@
     .mod-ico svg { width: 23px; height: 23px; }
     .mod-card h3 { font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 7px; }
     .mod-card p { font-size: 0.875rem; color: var(--text-2); line-height: 1.6; }
+    /* Mobile Progressive Disclosure fuer die 15 Karten: einspaltig liefen sie
+       ~7.300px, also 8,7 Bildschirme Inventar ZWISCHEN den Handoffs und dem
+       Vertrauens-Peak (Longevity). Desktop hat zwei Stufen (vier ausfuehrlich,
+       Rest als Karte), mobil zahlte man den vollen Preis linear. Sechs Karten
+       bleiben stehen, der Rest kommt per Knopf - und ohne JS steht wie beim
+       .reveal-Fallback alles da, weil dieses Publikum JS gern abschaltet. */
+    .mod-toggle { display: none; }
+    @media (max-width: 700px) {
+      html.js .mod-grid:not(.expanded) .mod-card:nth-child(n+7) { display: none; }
+      /* display: flex (nicht inline-flex): nur ein Block-Level-Element laesst
+         sich mit margin: auto auf der Zeile zentrieren. */
+      html.js .mod-toggle { display: flex; align-items: center; justify-content: center; gap: 8px;
+        margin: 18px auto 0; min-height: 44px; padding: 0 22px; width: max-content;
+        background: var(--surface); color: var(--text-1); border: 1px solid var(--border);
+        border-radius: var(--r-full); box-shadow: var(--shadow-sm);
+        font-family: var(--ff); font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+      html.js .mod-toggle svg { width: 16px; height: 16px; color: var(--accent); }
+      html.js .mod-grid.expanded ~ .mod-toggle { display: none; }
+    }
 
 
     /* ===== Platform / Install anywhere ===== */
@@ -535,8 +582,7 @@
 
     /* Die 760px-Deckelung liess in einer 1.152px-Spalte 440px totes Gutter
        rechts vom wichtigsten Block der Seite stehen, waehrend das Plattformraster
-       darueber die volle Breite nutzte. Drei Laeufe lang gemeldet. Die Trust-Bar
-       darin geht damit von 3+2 auf 5 Spalten, also eine Zeile. */
+       darueber die volle Breite nutzte. Drei Laeufe lang gemeldet. */
     .quick-docker { margin-top: 44px; }
     .code-block { background: var(--code-bg); color: var(--code-text); border-radius: var(--r-lg); padding: 22px 26px;
       font-family: var(--ff-mono); font-size: 0.84rem; line-height: 1.9; overflow-x: auto; box-shadow: var(--shadow-lg); border: 1px solid rgba(255,255,255,0.06);
@@ -554,6 +600,16 @@
        readable width at 390px and 23% at 320px, on every block. A reserved row
        costs 32px of height and cannot be scrolled under. */
     .code-wrap:has(> .copy-btn) .code-block { padding-top: 54px; }
+    /* Der Einzeiler (`docker compose up -d`) braucht das reservierte Band
+       nicht: sein Befehl ist auf jedem Viewport kuerzer als die Platte minus
+       Knopf, kann also nie unter den Knopf scrollen - das Band liess die
+       Platte ausgerechnet am finalen Befehl halb leer wirken. Der Knopf sitzt
+       stattdessen vertikal zentriert. Wer hier je einen laengeren Befehl
+       eintraegt, entfernt die Klasse am Wrapper und bekommt das Band zurueck.
+       Gleiche Spezifitaet wie die Regel darueber; die Quellreihenfolge
+       entscheidet, deshalb steht sie danach. */
+    .code-wrap--single:has(> .copy-btn) .code-block { padding-top: 22px; }
+    .code-wrap--single .copy-btn { top: 50%; transform: translateY(-50%); }
     .copy-btn { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
       background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); color: var(--code-text); cursor: pointer;
       padding: 7px 11px; min-height: 44px; border-radius: var(--r-sm); font-family: var(--ff); font-size: 0.75rem; font-weight: 600; transition: all .15s; }
@@ -572,8 +628,20 @@
     /* Above the command, not below it. It sat underneath, so the eye reached the
        copy button and `docker compose up -d` first and the answer to "what does
        this do to my machine" arrived after the decision was already made. */
-    .trust-bar { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+    /* Kein auto-fit mehr: `repeat(auto-fit, minmax(196px, 1fr))` ergab bei
+       1440px fuenf 211px-Spalten, und die DEUTSCHE "Nach aussen"-Zelle lief
+       darin 13 Zeilen - alle fuenf Zellen standen auf 289px, vier davon zu
+       zwei Dritteln leer, und die Beleg-Links brachen dreizeilig. Der alte
+       Kommentar ("5 Spalten, also eine Zeile") stimmte nur fuer Englisch.
+       Jetzt tragen die drei kurzen Fakten die Spaltenzeile und die zwei
+       satzlangen (Eure Daten, Nach aussen) je eine volle Zeile - gemessen
+       gegen die deutsche Textlaenge, nicht die englische. */
+    .trust-bar { list-style: none; display: grid; grid-template-columns: 1fr;
       gap: 10px 24px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+    @media (min-width: 640px) {
+      .trust-bar { grid-template-columns: repeat(3, 1fr); }
+      .trust-bar .tb-wide { grid-column: 1 / -1; }
+    }
     .trust-bar li { font-size: 0.86rem; color: var(--text-2); line-height: 1.5; display: flex; gap: 8px; }
     .trust-bar b { color: var(--text-1); font-weight: 600; flex-shrink: 0; }
         /* `anywhere` brach den Image-Tag mitten im Namen ("ghcr.io/ulsklyc/yuvo" /
@@ -622,7 +690,11 @@
        selbst als Entscheidungspunkt fuehrt, acht Pixel Luft nach unten. */
     .longevity { padding: 96px 0; }
     .long-list { margin-top: 44px; display: grid; gap: 20px; }
-    .long-item { padding: 26px 28px; border-radius: var(--r-lg); background: var(--surface);
+    /* Auf --m-read gedeckelt wie der lead-Kopf darueber: ungedeckelt liefen die
+       Karten 1152px, waehrend ihr dd bei --m-prose endet - dreimal gestapelt
+       ~40% leere Flaeche rechts, ausgerechnet im emotionalen Kernmoment der
+       Seite. Buendig unter der Kapitelmarke liest die Spalte als EIN Lauf. */
+    .long-item { max-width: var(--m-read); padding: 26px 28px; border-radius: var(--r-lg); background: var(--surface);
       border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
     .long-item dt { font-size: 1.08rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 9px; color: var(--text-1); }
     .long-item dd { margin: 0; max-width: var(--m-prose); font-size: 1rem; color: var(--text-2); line-height: 1.65; }
@@ -731,12 +803,23 @@
       .gal-cap { gap: 10px; margin-bottom: 12px; }
       /* applyShots() swaps in the phone capture at this width, so the frame has
          to follow it: portrait ratio, phone-sized, and centred in the column. */
-      .gal-frame img { aspect-ratio: 1320 / 2867; max-width: 300px; margin: 0 auto;
+      /* object-fit gehoert zur erzwungenen Ratio dazu: die Regel unterstellt die
+         Hochkant-Aufnahme, aber der JS-Tausch liefert sie erst nach dem Laden -
+         bis dahin (oder wenn eine -m-Variante fehlt) steckt die 4:3-Aufnahme im
+         1320/2867-Rahmen und `fill` verzerrt sie auf 300x652. `cover` zeigt in
+         dem Fall den oberen Ausschnitt statt eines Zerrbilds. */
+      .gal-frame img { aspect-ratio: var(--ar-phone); max-width: 300px; margin: 0 auto;
+        object-fit: cover; object-position: top center;
         border-radius: var(--r-phone); border-width: 4px; border-color: var(--surface); }
       .gal-frame::before { inset: -4% 14%; }
     }
     @media (max-width: 600px) {
       .hero { padding: 120px 0 56px; }
+      /* Das Handy-Float verdeckte bei 390px rund 40% der Dashboard-Aufnahme -
+         ausgerechnet deren rechte Spalte - und zeigte dieselbe Aufgaben-Ansicht,
+         die 2.000px tiefer die erste Feature-Karte traegt. Auf dem Telefon ist
+         der eine Beweis mehr wert als die Collage. */
+      .hero-float { display: none; }
       .gallery { padding: 64px 0 16px; }
       .gal-cap p { font-size: 0.95rem; }
       .cta-box { padding: 52px 24px; }
@@ -1247,6 +1330,13 @@
         <h3 data-t="m_sched_t">Schedule</h3><p data-t="m_sched_d">Rotating shift patterns and fixed weekly timetables from a single cycle model, with per-day exceptions and an explicit day off. The calendar shows them as a read-only layer computed on read, so changing a pattern leaves no stale appointments behind.</p>
       </div>
     </div>
+    <!-- Nur auf dem Telefon sichtbar (CSS oben): klappt die Karten 7-15 auf.
+         Ohne Zahl im Label - "Die uebrigen fuenfzehn" im Vorspann driftet schon
+         als bekanntes Muster, eine zweite Zahl driftet doppelt. -->
+    <button class="mod-toggle" type="button" id="modToggle" aria-expanded="false">
+      <span data-t="mods_more">Show all modules</span>
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
     <!-- Anyone already running a home server asks the same two questions before
          they ask anything else: what does this not do, and will it fight what I
          already have. A wall of module cards answers neither.
@@ -1378,8 +1468,8 @@
         <li><b data-t="tb_image_k">Image</b> <span><code>ghcr.io/ulsklyc/<wbr>yuvomi:latest</code>, <span data-t="tb_image_v">about 500 MB</span></span></li>
         <li><b data-t="tb_needs_k">Needs</b> <span data-t="tb_needs_v">256 MB RAM and one port, 3000 by default.</span></li>
         <li><b data-t="tb_writes_k">Writes</b> <span data-t="tb_writes_v">Four volumes you own: data, backups, modules, documents.</span></li>
-        <li><b data-t="tb_out_k">Outbound</b> <span><span data-t="tb_out_v">One update check against the GitHub releases API, nothing else. Weather, calendar sync and WebDAV backup are all off until you fill in credentials.</span> <a class="tb-proof" href="privacy.html" data-href-en="privacy.html" data-href-de="datenschutz.html" data-t="tb_out_proof">What the site itself stores</a><span class="tb-sep" aria-hidden="true"> · </span><a class="tb-proof" href="https://github.com/ulsklyc/yuvomi/blob/main/server/routes/changelog.js" data-t="tb_out_code">Read the server source</a></span></li>
-        <li><b data-t="tb_data_k">Your data</b> <span><span data-t="tb_data_v">One SQLite file at</span> <code>/data/yuvomi.db</code>. <span data-t="tb_data_v2">Copying it is the whole export, unless documents live outside the database.</span></span></li>
+        <li class="tb-wide"><b data-t="tb_data_k">Your data</b> <span><span data-t="tb_data_v">One SQLite file at</span> <code>/data/yuvomi.db</code>. <span data-t="tb_data_v2">Copying it is the whole export, unless documents live outside the database.</span></span></li>
+        <li class="tb-wide"><b data-t="tb_out_k">Outbound</b> <span><span data-t="tb_out_v">One update check against the GitHub releases API, nothing else. Weather, calendar sync and WebDAV backup are all off until you fill in credentials.</span> <a class="tb-proof" href="privacy.html" data-href-en="privacy.html" data-href-de="datenschutz.html" data-t="tb_out_proof">What the site itself stores</a><span class="tb-sep" aria-hidden="true"> · </span><a class="tb-proof" href="https://github.com/ulsklyc/yuvomi/blob/main/server/routes/changelog.js" data-t="tb_out_code">Read the server source</a></span></li>
       </ul>
       <div class="code-wrap"><div class="code-block"><span class="c" data-t="qs_c1"># Pre-built image - Docker</span>
 curl -O https://raw.githubusercontent.com/ulsklyc/yuvomi/main/docker-compose.yml
@@ -1398,7 +1488,7 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span data-t="quick_warn"><b>Now open <code>.env</code> and replace both <code>REPLACE_WITH_…</code> placeholders</b> with the two values you just generated. Leave <code>DB_ENCRYPTION_KEY</code> on its placeholder and your database is encrypted with a key that is printed on this page. Once a database is encrypted, a lost or changed key never opens it again, not by you and not by us, so write the value down. To run without encryption, clear the line instead of filling it.</span>
       </p>
-      <div class="code-wrap"><div class="code-block"><span class="h">docker compose up -d</span></div><button class="copy-btn" type="button" data-copy="docker compose up -d"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span data-t="copy">Copy</span></button></div>
+      <div class="code-wrap code-wrap--single"><div class="code-block"><span class="h">docker compose up -d</span></div><button class="copy-btn" type="button" data-copy="docker compose up -d"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span data-t="copy">Copy</span></button></div>
       <p class="quick-note" data-t="quick_note">Then open <code>http://localhost:3000</code>. The first visit walks you through creating your admin account. Prefer a guided setup? The <a href="install.html">step-by-step installer</a> handles HTTPS, SSO and backups for you.</p>
     </div>
   </div>
@@ -1412,7 +1502,7 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       <h2 data-t="cta_title">Take back control of <em>your own data.</em></h2>
       <p data-t="cta_desc">You install it once and it is yours after that. No account with us, no subscription, and nothing of ours between your household and its data.</p>
       <div class="cta-actions">
-        <a href="install.html" class="btn btn-primary"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span data-t="cta_install">Get started</span></a>
+        <a href="install.html" class="btn btn-primary"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span data-t="cta_install">Install Yuvomi</span></a>
         <a href="https://github.com/ulsklyc/yuvomi" class="btn btn-secondary" target="_blank" rel="noopener"><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg><span data-t="cta_gh">View on GitHub</span></a>
       </div>
     </div>
@@ -1492,6 +1582,7 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       jump_label:'Jump to', jump_aria:'Jump to a section',
       jump_screens:'See it first', jump_swap:'What it replaces', jump_handoff:'How it fits together',
       jump_modules:'All the modules', jump_longevity:'Before you commit', jump_install:'Install it',
+      mods_more:'Show all modules',
       swap_rel:'is replaced by',
       swap_eyebrow:'What it replaces', swap_title:'Ten apps, <em>one place.</em>',
       swap_desc:'Ten apps a household pays for separately, and the one place that does all of it on a server you own. Nothing here is a plan or a roadmap: every line is built and shipping today.',
@@ -1577,7 +1668,10 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       plat_oneclick:'1-click', plat_start:'Start here', plat_guide:'Guide', to_top:'Back to top',
       quick_warn:'<b>Now open <code>.env</code> and replace both <code>REPLACE_WITH_…</code> placeholders</b> with the two values you just generated. Leave <code>DB_ENCRYPTION_KEY</code> on its placeholder and your database is encrypted with a key that is printed on this page. Once a database is encrypted, a lost or changed key never opens it again, not by you and not by us, so write the value down. To run without encryption, clear the line instead of filling it.',
       quick_note:'Then open <code>http://localhost:3000</code>. The first visit walks you through creating your admin account. Prefer a guided setup? The <a href="install.html">step-by-step installer</a> handles HTTPS, SSO and backups for you.', cta_title:'Take back control of <em>your own data.</em>', cta_desc:'You install it once and it is yours after that. No account with us, no subscription, and nothing of ours between your household and its data.',
-      cta_install:'Get started', cta_gh:'View on GitHub',
+      /* "Get started" brach als einziger CTA die Installieren-Verbfamilie
+         (nav, hero, Sprungmenue sagen alle "Install") - gleiches Ziel, gleiches
+         Icon, also auch dasselbe Verb. */
+      cta_install:'Install Yuvomi', cta_gh:'View on GitHub',
       footer_heart:'Built with care for households who value privacy and simplicity.',
       foot_product:'Product', foot_screens:'Screenshots', foot_install:'Install', foot_docs:'Docs & spec',
       foot_guide:'User guide (community)',
@@ -1601,6 +1695,7 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       jump_label:'Springen zu', jump_aria:'Springen zu einem Abschnitt',
       jump_screens:'Erst sehen', jump_swap:'Was es ersetzt', jump_handoff:'Wie es zusammenspielt',
       jump_modules:'Alle Module', jump_longevity:'Bevor ihr euch festlegt', jump_install:'Installieren',
+      mods_more:'Alle Module anzeigen',
       swap_rel:'wird ersetzt durch',
       swap_eyebrow:'Was es ersetzt', swap_title:'Zehn Apps, <em>ein Ort.</em>',
       swap_desc:'Zehn Apps, die ein Haushalt einzeln bezahlt, und der eine Ort, der das alles auf einem Server erledigt, der euch gehört. Nichts davon ist angekündigt oder geplant: jede Zeile ist gebaut und ausgeliefert.',
@@ -1686,7 +1781,7 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       plat_oneclick:'1 Klick', plat_start:'Fangt hier an', plat_guide:'Anleitung', to_top:'Nach oben',
       quick_warn:'<b>Öffnet jetzt <code>.env</code> und ersetzt beide <code>REPLACE_WITH_…</code>-Platzhalter</b> durch die zwei eben erzeugten Werte. Bleibt <code>DB_ENCRYPTION_KEY</code> auf seinem Platzhalter, wird eure Datenbank mit einem Schlüssel verschlüsselt, der auf dieser Seite abgedruckt ist. Sobald eine Datenbank verschlüsselt ist, öffnet ein verlorener oder geänderter Schlüssel sie nie wieder, weder für euch noch für uns - schreibt den Wert also auf. Wer ohne Verschlüsselung fahren will, leert die Zeile, statt sie zu füllen.',
       quick_note:'Dann <code>http://localhost:3000</code> öffnen. Beim ersten Aufruf legt ihr euer Admin-Konto an. Lieber geführt? Der <a href="install.html">schrittweise Installer</a> kümmert sich um HTTPS, SSO und Backups.', cta_title:'Holt euch die Kontrolle über <em>eure Daten</em> zurück.', cta_desc:'Ihr installiert es einmal, danach gehört es euch. Kein Konto bei uns, kein Abo, und nichts von uns zwischen eurem Haushalt und seinen Daten.',
-      cta_install:'Jetzt starten', cta_gh:'Auf GitHub ansehen',
+      cta_install:'Yuvomi installieren', cta_gh:'Auf GitHub ansehen',
       footer_heart:'Mit Sorgfalt gebaut für Haushalte, die Privatsphäre und Einfachheit schätzen.',
       foot_product:'Produkt', foot_screens:'Screenshots', foot_install:'Installieren', foot_docs:'Doku & Spec',
       foot_guide:'Nutzerhandbuch (Community)',
@@ -1971,6 +2066,48 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       }
     }
     addEventListener('scroll', sync, { passive: true }); sync();
+  })();
+  /* Mobile Modulliste aufklappen. Der Knopf verschwindet danach (CSS), also
+     wandert der Fokus auf die erste neu sichtbare Karte, damit ein
+     Tastatur-Nutzer nicht im Nichts steht. */
+  (function(){
+    var btn = document.getElementById('modToggle'); if (!btn) return;
+    btn.addEventListener('click', function(){
+      var grid = document.querySelector('.mod-grid'); if (!grid) return;
+      grid.classList.add('expanded');
+      btn.setAttribute('aria-expanded', 'true');
+      var first = grid.querySelector('.mod-card:nth-child(7)');
+      if (first) { first.setAttribute('tabindex', '-1'); first.focus({ preventScroll: false }); }
+    });
+  })();
+  /* Scroll-Spy fuers Sprungmenue: die Linie sagt "wie weit", das hier sagt
+     "wo". Positionen werden gecacht und nur bei resize neu gemessen - ein
+     offsetTop-Read pro Scroll-Event waere ein erzwungener Reflow. */
+  (function(){
+    var links = Array.prototype.slice.call(document.querySelectorAll('.nav-jump a[href^="#"]'));
+    if (!links.length) return;
+    var marks = [];
+    function measure(){
+      marks = links.map(function(a){
+        var sec = document.getElementById(a.getAttribute('href').slice(1));
+        return sec ? { a: a, top: sec.getBoundingClientRect().top + scrollY } : null;
+      }).filter(Boolean);
+    }
+    var current = null;
+    function sync(){
+      var y = scrollY + 120; /* Topbar + etwas Vorlauf */
+      var hit = null;
+      for (var i = 0; i < marks.length; i++) { if (marks[i].top <= y) hit = marks[i].a; }
+      if (hit === current) return;
+      if (current) current.removeAttribute('aria-current');
+      if (hit) hit.setAttribute('aria-current', 'location');
+      current = hit;
+    }
+    addEventListener('resize', function(){ measure(); sync(); });
+    addEventListener('scroll', sync, { passive: true });
+    /* Nach applyShots/Reveals verschieben sich Hoehen; einmal spaet nachmessen. */
+    addEventListener('load', function(){ measure(); sync(); });
+    measure(); sync();
   })();
   // GitHub star count is injected at build time into [data-gh-stars] elements
   // (see scripts/update-gh-stars.mjs). No request to api.github.com is made in

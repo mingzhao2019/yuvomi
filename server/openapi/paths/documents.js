@@ -137,7 +137,19 @@ export function documentsPaths() {
     },
     '/api/v1/documents/folders': {
       get: op({ summary: 'List document folders', tag: 'Documents' }),
-      post: op({ summary: 'Create document folder', tag: 'Documents', stateChanging: true, requestBody: jsonBody(null) }),
+      post: op({
+        summary: 'Create document folder',
+        tag: 'Documents',
+        stateChanging: true,
+        requestBody: jsonBody(null),
+        responses: {
+          201: { description: 'Document folder created' },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          409: { description: 'Sibling name conflict or the parent folder is in an active deletion batch' },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
     },
     '/api/v1/documents/folders/{id}': {
       put: op({
@@ -282,6 +294,7 @@ export function documentsPaths() {
           401: { $ref: '#/components/responses/Unauthorized' },
           403: { $ref: '#/components/responses/Forbidden' },
           404: { description: 'Document not found' },
+          409: { description: 'Document is part of an active folder deletion batch' },
           500: { $ref: '#/components/responses/InternalServerError' },
         },
       }),
@@ -296,6 +309,7 @@ export function documentsPaths() {
           401: { $ref: '#/components/responses/Unauthorized' },
           403: { $ref: '#/components/responses/Forbidden' },
           404: { description: 'Document not found' },
+          409: { description: 'Document is part of an active folder deletion batch' },
           502: { description: 'Remote document deletion failed; the database row remains', content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } } },
           500: { $ref: '#/components/responses/InternalServerError' },
         },

@@ -322,6 +322,91 @@
   outline: none;
 }
 
+/* --------------------------------------------------------
+ * DIE SCHALTERZEILE - EINE FORM, APP-WEIT
+ *
+ * Sie stand bis 2026-08-28 in `settings.css`, weil dort ihr Anlass lag: vier
+ * Schalterformen nebeneinander fuer dieselbe Boolean-Entscheidung (Critique
+ * 2026-07-27). Der Ort war trotzdem falsch, und das ist gemessen aufgefallen,
+ * nicht vermutet: `settings.css` laedt nur auf der Einstellungsroute (eine
+ * Page-CSS je Seite). Als das Filter-Blatt des Kalenders `toggleRowHtml()`
+ * benutzte, kam sein Markup ohne Regeln an - neun Zeilen liefen inline
+ * ineinander, die Farbscheiben hatten keine Groesse.
+ *
+ * Eine geteilte Form, deren Regeln in einem Modul-Stylesheet wohnen, ist nur
+ * in diesem Modul eine Form. Hier gilt sie ueberall.
+ * -------------------------------------------------------- */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  min-height: var(--target-lg);
+}
+
+.toggle-row:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.toggle-row:focus-within {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-row span {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+/* DIE FARBSCHEIBE EINER ZEILE, DEREN GEGENSTAND EINE EIGENE FARBE HAT
+   (eine Person, eine Kalenderebene).
+
+   Sie ist der Dot der User-Farben-Regel in seiner groessten Form: die Farbe
+   steht NEBEN dem Text, nie als Flaeche darunter. Auf einer frei gewaehlten
+   Helligkeit gibt es keine Tinte, die traegt - ein schwarzer Termin lag
+   gemessen bei 1,22:1.
+
+   DER RING IST DER EIGENTLICHE PUNKT DIESER REGEL, und er ist gemessen: eine
+   freie Farbe schafft ihre eigenen 3:1 (WCAG 1.4.11) nicht zuverlaessig. Von
+   den neun Seed-Terminfarben fielen FUENF gegen die helle Arbeitsflaeche
+   durch - Amber 2,15:1, Cyan 2,43:1, Teal 2,49:1, Gruen 2,54:1, Orange
+   2,80:1. Der Ring in --color-border-strong traegt die Abgrenzung deshalb
+   selbst; die Farbe muss sie nicht mehr leisten, und keine Nutzerfarbe wird
+   dafuer verbogen. Dieselbe Bauart wie am Aufgaben-Chip des Kalenders.
+
+   Die Initialen erscheinen erst ab 20px (Initialen-Schwelle-Regel); diese
+   Scheibe ist 24px und traegt sie deshalb. */
+.toggle-row__swatch {
+  inline-size: var(--space-6);
+  block-size: var(--space-6);
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background-color: var(--swatch-color);
+  box-shadow: inset 0 0 0 var(--space-px) var(--color-border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
+  /* Die Tinte kommt per Inline-Style aus getReadableTextColor() - siehe
+     toggleRowHtml(). Hier steht nur der Notnagel fuer eine Scheibe ohne
+     berechnete Tinte. */
+  color: var(--color-ink-on-vivid);
+  overflow: hidden;
+}
+
 /* Sidebar auf Mobile verstecken */
 .nav-sidebar {
   display: none;
@@ -1579,7 +1664,6 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 .documents-view-toggle__btn--active svg,
 .segmented__item.is-active svg,
 .cal-toolbar__view-btn--active svg,
-.cal-toolbar__layer-btn--active svg,
 .cal-toolbar__search-btn--active svg,
 .theme-toggle__btn--active svg,
 .perm-modeswitch__btn.is-active svg,
@@ -2131,6 +2215,66 @@ html.fab-anim-done .page-fab {
 .page-toolbar--wrap .page-toolbar__center {
   flex-basis: 100%;
   order: 3;
+}
+
+/* EIN BAR-KOPF TEILT SEINE TITELZEILE, STATT EINE VIERTE ZU OEFFNEN.
+ *
+ * `flex-basis: 100%` daueber gibt dem Center-Slot eine eigene Zeile - und zwar
+ * unabhaengig davon, wie wenig darin steht. Gemessen am Kalender: nachdem
+ * seine fuenf Ebenen-Chips ins Filter-Blatt gezogen waren, blieben im
+ * Aktions-Slot 100px uebrig, und der Kopf stand trotzdem unveraendert bei
+ * 230,1px auf 390px - 27,3 % der Viewporthoehe, waehrend 258px der Zeile
+ * daneben leer waren.
+ *
+ * `flex-basis: 0` ist dieselbe Antwort, die dieser Kopf ab 1024px schon gibt
+ * (Regel weiter unten, mit derselben Begruendung): mit Basis 0 meldet der Slot
+ * eine kleine HYPOTHETISCHE Groesse, bleibt damit in der Zeile und waechst per
+ * `flex-grow` real in allen Restplatz. Gemessen ueber acht Module bei 390px
+ * und 767px: Kalender 230,1 -> 174,1px, Budget 178,1 -> 170,1px, die sechs
+ * uebrigen unveraendert, kein horizontaler Overflow.
+ *
+ * NUR FUER KOEPFE MIT BAR-ZEILE, und das ist keine Vorsicht, sondern die
+ * Bedingung: wo keine Bar liegt, ist die Zeile des Centers ohnehin die letzte,
+ * und ein Zusammenruecken spart dort nichts, waehrend es Platz kostet.
+ *
+ * DER PREIS IST GEMESSEN UND BEZAHLT: ohne Gegenmassnahme kappt der engere
+ * Slot das Zeitraum-Label auf seine 7ch-Untergrenze („August 2026" auf 75 von
+ * 98px). Die Gegenmassnahme ist der kontextabhaengige „Heute"-Knopf in
+ * calendar.js - er gibt genau die 66px frei, die dem Label fehlen. Wer diese
+ * Regel auf einen weiteren Kopf zieht, braucht dort dieselbe Rechnung. */
+/* NUR IM AUSGEKLAPPTEN ZUSTAND, und das ist gemessen worden, nicht vermutet.
+ *
+ * Der eingeklappte Kopf (`is-collapsed`) hat eine ANDERE Zeilenordnung: der
+ * Titel steht wieder neben den Slots, und der Rechtsschub der Basisregel gilt.
+ * Mit Basis 0 wurden Center und Aktionen dort in eine Zeile gepresst, in die
+ * sie nicht passen - und sie brachen nicht um, sie ueberlappten: bei 390px lag
+ * der Filterknopf (274-322) auf dem Weiter-Chevron (276-324), bei 320px ragte
+ * der Chevron mit r=324 ueber den 320px-Viewport hinaus. Aufgefallen ist es
+ * nicht am Aussehen, sondern daran, dass ein Klick auf den Chevron nicht mehr
+ * ankam („subtree intercepts pointer events") - eine Ueberlappung, die ein
+ * Screenshot nicht zeigt und eine Box-Messung erst, wenn man nach ihr sucht.
+ *
+ * Die drei Nachbarregeln weiter unten unterscheiden dieselben zwei Zustaende
+ * schon; diese hier tat es als einzige nicht. */
+@media (max-width: 767px) {
+  .page-toolbar--wrap:has(> .page-toolbar__bar) > .page-toolbar__center {
+    flex-basis: 0;
+    /* `min-content` STATT DES GEERBTEN `min-width: 0` - DAS IST DIE ZEILE, DIE
+     * DIE UEBERLAPPUNG VERHINDERT.
+     *
+     * Mit Basis 0 UND `min-width: 0` darf der Slot schmaler werden als sein
+     * eigener Inhalt; die Knoepfe darin schrumpfen aber nicht mit, sondern
+     * laufen ueber ihn hinaus. Im eingeklappten Kopf lag der Filterknopf
+     * dadurch auf dem Weiter-Chevron (390px: 274-322 ueber 276-324), bei 320px
+     * ragte der Chevron mit r=324 ueber den Viewport. Sichtbar wurde es nicht
+     * am Aussehen, sondern daran, dass der Klick nicht mehr ankam.
+     *
+     * `min-content` ist die Breite, unter die der Slot nicht darf. Reicht der
+     * Platz nicht, bricht die Flex-ZEILE um - der Kopf wird eine Zeile hoeher,
+     * statt seine eigenen Bedienelemente uebereinanderzulegen. Eine Zeile mehr
+     * ist ein Preis, eine unklickbare Schaltflaeche ist ein Defekt. */
+    min-width: min-content;
+  }
 }
 
 @media (min-width: 768px) {

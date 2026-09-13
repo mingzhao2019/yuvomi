@@ -808,6 +808,60 @@ test('schreibt die Änderung als PUT auf die Objekt-URL zurück', async () => {
   assert.equal(reload(event.id).outbound_dirty, 0);
 });
 
+test('eine Umfaerbung erreicht den Server, statt einen leeren PUT zu kosten', async () => {
+  reset();
+  const event = seedDirty('c1@t', { color: '#3CA368' });
+
+  const client = fakeClient();
+  assert.equal(await processPendingUpdates(client, 'caldav', indexFor('c1@t', {
+    url: `${CAL_URL}c1@t.ics`, data: serverObject('c1@t', { extra: ['COLOR:tomato'] }),
+  })), 1);
+
+  assert.match(client.updates[0].calendarObject.data, /^COLOR:mediumseagreen$/m);
+  assert.equal(reload(event.id).outbound_dirty, 0);
+});
+
+test('eine Bearbeitung ohne Farbwahl laesst die des Servers stehen', async () => {
+  // Der Repro aus der Review von #898: ein Termin kommt ohne COLOR herein (lokal
+  // null), der Nutzer aendert nur den TITEL, und danach faerbt ein anderer
+  // Client ihn auf dem Server ein. Yuvomi erfaehrt davon zwischen Bearbeitung
+  // und Push nichts. Ginge hier ein pauschales null hinaus, raeumte die
+  // Titelaenderung eine fremde Farbe ab - vor #899 sogar dauerhaft, weil das
+  // Gatter des Inbound an user_modified hing und sie nie zurueckholte.
+  reset();
+  const event = seedDirty('c2@t', { color: null, title: 'Neuer Titel' });
+  assert.equal(reload(event.id).color_modified, 0, 'Vorbedingung: hier wurde keine Farbe gewaehlt');
+
+  const client = fakeClient();
+  assert.equal(await processPendingUpdates(client, 'caldav', indexFor('c2@t', {
+    url: `${CAL_URL}c2@t.ics`, data: serverObject('c2@t', { extra: ['COLOR:tomato'] }),
+  })), 1);
+
+  const sent = client.updates[0].calendarObject.data;
+  assert.match(sent, /^COLOR:tomato$/m, 'die fremde Farbe ueberlebt die Bearbeitung');
+  assert.match(sent, /SUMMARY:Neuer Titel/, 'und die Bearbeitung selbst kommt an');
+  assert.equal(reload(event.id).outbound_dirty, 0);
+});
+
+test('ein geleertes Feld raeumt die Farbe beim Server ab (#899)', async () => {
+  // Die Gegenprobe zum Test darueber und der Fall, den #898 zurueckbekommt:
+  // dieselbe Ausgangslage, nur hat der Nutzer die Farbe hier wirklich geleert.
+  // Ohne diesen Test waere der Test darueber auch dann gruen, wenn der Ausgang
+  // ueberhaupt keine Farbe mehr entfernen koennte.
+  reset();
+  const event = seedDirty('c3@t', { color: null, color_modified: 1 });
+
+  const client = fakeClient();
+  assert.equal(await processPendingUpdates(client, 'caldav', indexFor('c3@t', {
+    url: `${CAL_URL}c3@t.ics`, data: serverObject('c3@t', { extra: ['COLOR:tomato'] }),
+  })), 1);
+
+  const sent = client.updates[0].calendarObject.data;
+  assert.doesNotMatch(sent, /^COLOR:/m, 'die geleerte Farbe muss auch drueben verschwinden');
+  assert.match(sent, /ATTENDEE;CN=Maria/, 'und nur sie - der Rest des Objekts bleibt unangetastet');
+  assert.equal(reload(event.id).outbound_dirty, 0);
+});
+
 test('ohne das Originalobjekt wird nichts geschrieben, sondern vertagt', async () => {
   reset();
   const event = seedDirty('u2@t', { title: 'Neu' });

@@ -122,15 +122,15 @@ Schalte an, was dein Haushalt braucht; der Rest bleibt aus dem Weg.
 | **Notizen &amp; Kontakte** | Farbige Markdown-Haftnotizen mit Checklisten, die man antippt statt zu bearbeiten, plus ein Kontaktverzeichnis mit CardDAV-Sync und vCard-Import/-Export. |
 | **Geburtstage** | Geburtstagsliste mit optionalen Namenstagen, automatischen Kalendereinträgen, Altersanzeige und Erinnerungen. |
 | **Familie** | Mitgliedsprofile mit Rollen, Fotos und Kontaktdaten. Neue Mitglieder kommen über einen Einladungslink und wählen ihr Passwort selbst. |
-| **Erinnerungen** | Erinnerungen an Aufgaben, Termine, Abo-Verlängerungen, Garantien, Inventar-Fristen und Mindesthaltbarkeit, per In-App-Kennzeichen, optionalem Push und Gotify-, ntfy- oder Webhook-Kanälen des Haushalts. |
+| **Erinnerungen** | Erinnerungen an Aufgaben, Termine, Abo-Verlängerungen, Garantien, Inventar-Fristen und Mindesthaltbarkeit, per In-App-Kennzeichen, optionalem Push und Gotify-, ntfy-, Webhook- oder E-Mail-Kanälen des Haushalts. Eine Erinnerung an einem geteilten Termin erreicht alle Zugewiesenen, jeden mit einer eigenen Kopie zum Verschieben oder Verwerfen. |
 | **API-Token** | Bearer- / X-API-Key-Token mit OpenAPI-3.0-Spezifikation und eingebautem MCP-Endpunkt für KI-Agenten. Schreibende Aufrufe sind über einen optionalen `Idempotency-Key`-Header wiederholbar. |
 | **Backup** | Manuelle und geplante Sicherung und Wiederherstellung mit Rollback davor und optionalem Cloud-Upload. |
 
 Zwei Dinge gibt es nur auf dem eigenen Server: der **Wandmodus** macht aus dem Küchen-Tablet eine
 Anzeige, die man quer durch den Raum liest, und ein **Immich-Bildschirmschoner** lässt die eigenen
 Fotos laufen, wenn der Bildschirm still steht. Jedes Modul im Detail steht in der
-[Spezifikation](docs/SPEC.md); wie du ein eigenes Modul einhängst, steht im
-[Modulhandbuch](MODULES.md).
+[Spezifikation](docs/SPEC.md); wie du ein eigenes Modul einhängst - mit eigenen
+Dashboard-Widgets, Rechten und Übersetzungen -, steht im [Modulhandbuch](MODULES.md).
 
 ---
 

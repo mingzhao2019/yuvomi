@@ -10,7 +10,10 @@
  * ist — dann fällt der Aufrufer bewusst auf die Kalenderfarbe zurück.
  *
  * Die Tabelle deckt die vollständige CSS-Color-Module-Level-3-Namensliste ab
- * (inkl. der grey/gray- und aqua/cyan-Synonyme).
+ * (inkl. der grey/gray- und aqua/cyan-Synonyme) und zusätzlich `rebeccapurple`,
+ * das erst mit Level 4 dazukam. Beim LESEN ist diese Großzügigkeit richtig - wer
+ * den Namen schickt, meint eine gültige Farbe. Beim SCHREIBEN nicht: siehe
+ * `OUTBOUND_COLOR_NAMES`.
  */
 
 const CSS_COLOR_NAMES = {

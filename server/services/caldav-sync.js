@@ -522,6 +522,11 @@ async function runSync({ createClient } = {}) {
   // beiden abgeleiteten Spalten wiederholen ihren SET-Ausdruck, damit eine
   // lokale Umfärbung (color_modified) bzw. ein fehlendes obj.url nicht als
   // Unterschied zählt. Die Bindings der SET-Liste kommen dafür ein zweites Mal.
+  //
+  // Die Farbe gattert auf `color_modified`, NICHT auf `user_modified` (#899):
+  // letzteres wird bei jeder Bearbeitung gesetzt, eine Titeländerung hätte die
+  // Farbspalte also für immer eingefroren und eine Umfärbung auf dem Server
+  // wäre nie mehr angekommen.
   const updEvent = conn.prepare(`
     UPDATE calendar_events
     SET title = ?, description = ?, start_datetime = ?, end_datetime = ?,
@@ -833,6 +838,13 @@ async function runSync({ createClient } = {}) {
             'caldav', event.target_caldav_calendar_url,
             targetCal.displayName || event.target_caldav_calendar_url, null
           );
+          // `color_modified` mit hoch: die Farbe, die gerade als CSS3-Name
+          // hinausging, ist unsere. Der Name ist eine verlustbehaftete Abbildung
+          // des Hex-Werts, und ohne das Flag holte der nächste Inbound-Lauf
+          // genau ihn zurück und überschriebe den exakten Wert mit dem
+          // gerundeten (#899). Ein Termin, der gar keine eigene Farbe trägt,
+          // behält seinen Zustand - dann ist nichts hinausgegangen, was wir
+          // verteidigen müssten.
           db.get().prepare(`
             UPDATE calendar_events
             SET external_source = 'caldav', external_calendar_id = ?,

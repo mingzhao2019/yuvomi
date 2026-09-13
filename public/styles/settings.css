@@ -1757,19 +1757,20 @@
   gap: var(--space-2);
 }
 
-.toggle-row {
+/* Die Haushaltsnamen der vier Slots (#1058) - zweiter Block derselben Karte,
+   weil "welche Slots" und "wie sie heissen" eine Einstellung sind.
+   Der Titel darueber braucht einen eigenen Abstand: `.settings-card__title`
+   traegt `margin: 0 0 space-3` und ist auf den ERSTEN Titel einer Karte
+   gerechnet. Als zweiter sass er sonst buendig auf der letzten Schalterzeile
+   (gemessen: 0px Luecke). */
+.meal-type-names {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-  min-height: var(--target-lg);
 }
 
-.toggle-row:hover {
-  background-color: var(--color-surface-hover);
+.meal-type-toggles + .settings-card__title {
+  margin-top: var(--space-5);
 }
 
 .toggle-row:focus-within {

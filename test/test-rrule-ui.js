@@ -278,6 +278,85 @@ test('die Auswahl einer Frequenz nimmt den Hinweis weg und holt den Takt hervor'
   assert.equal(details.hidden, true);
 });
 
+
+test('ohne gewaehlte Wiederholung sagt das Formular, dass der Takt einstellbar ist', () => {
+  const html = renderRRuleFields('event', null, { allowCount: true });
+  assert.match(html, /id="event-rrule-hint"/, 'der Hinweis fehlt ganz');
+  assert.doesNotMatch(html, /id="event-rrule-hint"[^>]*hidden/,
+    'genau hier ist der Irrtum moeglich - der Hinweis muss sichtbar sein');
+  assert.match(html, /rrule\.intervalHint/, 'der Text kommt aus der Uebersetzung, nicht aus dem Markup');
+});
+
+test('Hinweis und Detailbereich sind komplementaer, nie beide da und nie beide weg', () => {
+  // Das ist die Regel, nicht die Beobachtung: der Hinweis beantwortet die Frage
+  // "sind das die einzigen vier Takte?", und sobald der Takt sichtbar
+  // danebensteht, hat sie sich erledigt. Zwei Zustaende, nie ein dritter.
+  for (const [label, rule] of [['ohne Regel', null], ['mit Regel', 'RRULE:FREQ=WEEKLY;INTERVAL=2']]) {
+    const html = renderRRuleFields('event', rule, { allowCount: true });
+    const hintHidden    = /id="event-rrule-hint"[^>]*hidden/.test(html);
+    const detailsHidden = /id="event-rrule-details"[^>]*hidden/.test(html);
+    assert.notEqual(hintHidden, detailsHidden, `${label}: beide ${hintHidden ? 'verborgen' : 'sichtbar'}`);
+  }
+});
+
+test('die Beschreibung des Auswahlfelds folgt dem Hinweis, nicht nur sein hidden', () => {
+  // Ein per aria-describedby DIREKT referenzierter Knoten zaehlt zur Beschreibung,
+  // auch wenn er verborgen ist (accname 1.2 §4.3.1 nimmt genau die direkt
+  // Referenzierten von der Verborgen-Regel aus). Bliebe die Referenz stehen,
+  // hoerte ein Screenreader-Nutzer den Hinweis weiter, den Sehende nicht mehr
+  // sehen - beide Modalitaeten muessen denselben Zustand zeigen.
+  // GEPRUEFT WIRD DAS AUSWAHLFELD, NICHT DIE GANZE AUSGABE. Die erste Fassung
+  // suchte `aria-describedby` im gesamten Markup und wurde rot, als der
+  // Monatsletzten-Schalter seinen EIGENEN, dauerhaft gueltigen Hinweis bekam
+  // (#960) - ein anderer Knoten mit einer anderen Aussage. Die Regel gilt dem
+  // Frequenz-Feld: seine Erklaerung ist beantwortet, sobald eine Wiederholung
+  // gewaehlt ist.
+  const freqTag = (html) => html.slice(html.indexOf('id="task-rrule-freq"') - 200,
+    html.indexOf('id="task-rrule-freq"') + 200);
+  assert.match(freqTag(renderRRuleFields('task', null, {})), /aria-describedby="task-rrule-hint"/,
+    'ohne Wiederholung: ohne die Zuordnung liest ein Screenreader die Auswahl ohne ihre Erklaerung vor');
+  assert.doesNotMatch(freqTag(renderRRuleFields('task', 'FREQ=WEEKLY', {})), /aria-describedby/,
+    'mit Wiederholung: der Hinweis ist beantwortet und darf auch nicht mehr vorgelesen werden');
+});
+
+test('die Referenz wird beim Umschalten mitgefuehrt, nicht nur beim Rendern', () => {
+  const root = eventRoot(renderRRuleFields('event', null, { allowCount: true }));
+  const freq = root.get('#event-rrule-freq');
+
+  bindRRuleEvents(root, 'event');
+  assert.equal(freq.getAttribute('aria-describedby'), 'event-rrule-hint', 'Ausgangslage');
+
+  freq.value = 'MONTHLY'; freq.fire('change');
+  assert.equal(freq.getAttribute('aria-describedby'), null, 'gewaehlt: Beschreibung weg');
+
+  freq.value = ''; freq.fire('change');
+  assert.equal(freq.getAttribute('aria-describedby'), 'event-rrule-hint', 'abgewaehlt: wieder da');
+});
+
+test('die Auswahl einer Frequenz nimmt den Hinweis weg und holt den Takt hervor', () => {
+  const html = renderRRuleFields('event', null, { allowCount: true });
+  const root = eventRoot(html);
+  const freq = root.get('#event-rrule-freq');
+  const hint = root.get('#event-rrule-hint');
+  const details = root.get('#event-rrule-details');
+
+  assert.equal(hint.hidden, false, 'Ausgangslage');
+  assert.equal(details.hidden, true, 'Ausgangslage');
+
+  bindRRuleEvents(root, 'event');
+  freq.value = 'MONTHLY';
+  freq.fire('change');
+
+  assert.equal(hint.hidden, true, 'beantwortet, also weg');
+  assert.equal(details.hidden, false, 'und der Takt steht jetzt da');
+
+  // Und zurueck: wer die Wiederholung wieder abwaehlt, bekommt den Hinweis wieder.
+  freq.value = '';
+  freq.fire('change');
+  assert.equal(hint.hidden, false);
+  assert.equal(details.hidden, true);
+});
+
 // --------------------------------------------------------
 // 2. Wer nichts ändert, ändert nichts
 // --------------------------------------------------------

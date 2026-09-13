@@ -18,6 +18,7 @@ The folder name must match the manifest `id`.
 
 ```json
 {
+  "manifestVersion": 1,
   "id": "example-module",
   "name": "Example Module",
   "version": "1.0.0",
@@ -83,6 +84,10 @@ import { esc } from '/utils/html.js';
 import { renderAppPage, renderPageHeader, renderPageTitle, renderPageBody } from '/utils/page-layout.js';
 
 export async function render(container, context) {
+  // `container` already is your page root: the app has wrapped it in the
+  // composition you declared in module.json (`.app-page.app-page--reading`,
+  // `--page-measure` set). Render the header and the body into it; do not
+  // call renderAppPage() yourself, that would nest a second page root.
   const me = await api.get('/auth/me');
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', renderAppPage({
@@ -115,7 +120,7 @@ Modules must follow the same frontend security rules as core Yuvomi:
 
 A module page is browser code with no server of its own. When a module needs stored state, scheduled work, or a third-party credential, run that as a separate service beside Yuvomi rather than as a patch to core, and leave Yuvomi on its official image. What follows is what such a module needs in order to survive a Yuvomi upgrade.
 
-Serve the service from the same origin under an `/api/` path; `/api/extensions/<module-id>/` is a reasonable convention. Browser requests then carry the Yuvomi session cookie, and the service worker leaves them alone. The stale-cache trap described above applies to any dynamic path outside `/api/`.
+Serve the service from the same origin under `/api/extensions/<module-id>/`. That path is required, not a convention: `capabilities.api.prefix` is rejected unless it is exactly `/api/extensions/<module-id>`, so an extension cannot take over a core API prefix. Browser requests then carry the Yuvomi session cookie, and the service worker leaves them alone. The stale-cache trap described above applies to any dynamic path outside `/api/`.
 
 Do not open `yuvomi.db`. It is core's private storage: the schema changes between releases without notice, and a second writer breaks Yuvomi's own migrations. Read and write through `/api/v1` instead. If the data a module needs is not reachable through the API, that is a missing endpoint worth an issue, not a reason to reach for the file.
 

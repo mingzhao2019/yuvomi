@@ -547,6 +547,12 @@ router.get('/', async (req, res) => {
     const enabledRows = converted.rows.filter((row) => row.enabled);
     const completedCount = converted.rows.filter((row) => row.status === 'completed').length;
     const monthlyTotal = enabledRows.reduce((sum, row) => sum + (row.monthly_base || 0), 0);
+    // GRUPPIERT WIRD NACH DER ZEILE, NICHT NACH IHREM ANZEIGETEXT. Hier stand
+    // `row.category_name || 'Uncategorized'`, und damit erfand die Antwort zwei
+    // englische Woerter, die kein Klient uebersetzen konnte - eine Sammelposition
+    // hiess auch in einer spanischen Oberflaeche "Unspecified" (#950). Sie traegt
+    // jetzt `id: null` und ueberlaesst das Wort dem Leser; eine Vorgabezeile
+    // reicht ihren `label_key` durch, eine eigene ihren Namen.
     const byCategory = new Map();
     const byPaymentMethod = new Map();
     const bucket = (map, id, name, labelKey, amount) => {

@@ -1895,6 +1895,15 @@ router.put('/:id', (req, res) => {
  * Die Folgeinstanz, die beim Erledigen dieser Aufgabe entstanden ist (#650) -
  * oder null. Es gibt höchstens eine: der Spawn legt nur an, wenn hier nichts
  * steht.
+ *
+ * `parent_task_id IS NULL` ist keine Beschleunigung, sondern die Bedingung
+ * selbst: `recurrence_origin_id` trägt seit #742 zwei Bedeutungen. An einer
+ * Wurzelaufgabe heißt es "ich bin der nächste Durchlauf von X", an einer
+ * Unteraufgabe nur "ich bin die Kopie von Y in diesem Durchlauf". Ohne die
+ * Einschränkung fand das Enthaken einer Unteraufgabe der erledigten Instanz
+ * deren Kopie im neuen Durchlauf, hielt sie für die Folgeinstanz und löschte
+ * sie - die nächste Instanz verlor lautlos eine Unteraufgabe (#924). Nur die
+ * erste Bedeutung ist eine Folgeinstanz.
  */
 function recurrenceFollowupOf(taskId) {
   return db.get().prepare(

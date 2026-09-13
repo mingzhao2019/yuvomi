@@ -260,6 +260,98 @@ export function calendarPaths() {
         },
       }),
     },
+    '/api/v1/calendar/{seriesId}/occurrences/{recurrenceId}': {
+      put: op({
+        summary: 'Update one recurring calendar occurrence',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Creates or updates a linked replacement for one original slot of an eligible local-only series. Scalar fields, assignments, attachments, and `reminder_offsets` are compared with the expanded series defaults. Saving no actual difference restores the normal series occurrence only when a linked replacement existed for that slot; a slot excluded by a deletion or detached replacement remains excluded.',
+        requestBody: jsonBody('#/components/schemas/CalendarOccurrenceOnlyMutation'),
+        responses: {
+          200: {
+            description: 'Resolved calendar occurrence',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOccurrenceResponse' } } },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      delete: op({
+        summary: 'Delete one recurring calendar occurrence',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Deletes a linked replacement when present and keeps an EXDATE on the master so the original slot remains suppressed.',
+        responses: {
+          204: { description: 'Occurrence deleted' },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+    },
+    '/api/v1/calendar/{seriesId}/occurrences/{recurrenceId}/following': {
+      put: op({
+        summary: 'Split a recurring calendar series',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Truncates the original series before the selected original slot, creates a successor series, transfers every later exclusion except the selected slot, and reparents later linked replacements atomically.',
+        requestBody: jsonBody('#/components/schemas/CalendarOccurrenceFollowingMutation'),
+        responses: {
+          200: {
+            description: 'First occurrence updated as the whole series',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOccurrenceResponse' } } },
+          },
+          201: {
+            description: 'Successor calendar series created',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOccurrenceResponse' } } },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          409: {
+            description: 'Linked occurrence replacements require exact-count orphan confirmation',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOverrideOrphanConflict' } } },
+          },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      delete: op({
+        summary: 'Delete this and following recurring occurrences',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Truncates immediately before the selected original slot, removes later linked replacements, and preserves later exclusions. Selecting the first slot deletes the whole series.',
+        responses: {
+          204: { description: 'Selected and following occurrences deleted' },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+    },
     '/api/v1/calendar/{id}': {
       get: op({
         summary: 'Get calendar event',

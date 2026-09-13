@@ -4,6 +4,8 @@
  *        stellt eine Erinnerung über den BESTEHENDEN Push-/Notification-Channel-
  *        Layer zu (Web Push + Gotify/ntfy) — analog zu push-scheduler.js /
  *        notifications.js, ohne Delivery-Logik zu duplizieren.
+ *        Empfänger sind die betroffene Person UND jede Person, die ein Admin
+ *        als Betreuer eingetragen hat (health_care_grants, #584, D#1041).
  * Abhängigkeiten: server/db.js, push.js, notification-channels.js, notifications.js.
  */
 import { createLogger } from '../logger.js';

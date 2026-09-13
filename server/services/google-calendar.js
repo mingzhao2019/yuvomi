@@ -724,6 +724,10 @@ async function runSync() {
         // refId aus den Metadaten: trägt Name und Farbe des Kalenders statt der
         // rohen ID als Notnamen.
         const calRefId = meta.refId;
+        // `color_modified` mit hoch: die gerade hinausgegangene Farbe ist unsere.
+        // Die elf `colorId`s sind eine verlustbehaftete Abbildung des Hex-Werts -
+        // ohne das Flag holte der nächste Inbound-Lauf die gemappte Farbe zurück
+        // und ersetzte damit die gewählte (#899).
         db.get().prepare(`
           UPDATE calendar_events
           SET external_calendar_id = ?, external_source = 'google', calendar_ref_id = ?,
@@ -975,6 +979,10 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
       // (color_modified = 0). Dadurch bleiben benutzerdefinierte Event-Farben über
       // Syncs hinweg erhalten (Issue #219), während echte Google-Farbänderungen
       // weiterhin durchkommen. Titel/Zeit bleiben unverändert remote-geführt.
+      //
+      // Das Gatter hing bis #899 an `user_modified`, das JEDE Bearbeitung setzt:
+      // wer den Titel änderte, fror die Farbspalte für immer ein und erfuhr von
+      // einer Umfärbung in Google nie mehr etwas.
       // Der Vergleich in der WHERE-Klausel hält Schreibvorgänge ab, die nichts
       // ändern: ein Full-Resync (abgelaufener syncToken) liefert den kompletten
       // Kalender erneut, und ohne den Vergleich würde jede Zeile davon neu

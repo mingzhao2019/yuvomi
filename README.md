@@ -119,14 +119,15 @@ Turn on what your household needs; the rest stays out of the way.
 | **Notes &amp; Contacts** | Colored Markdown sticky notes with checklists you tick off by tapping them, plus a contact directory with CardDAV sync and vCard import/export. |
 | **Birthdays** | Birthday and optional name-day tracker with automatic calendar events, age display and reminders. |
 | **Family** | Member profiles with roles, photos and contact details. New members join through an invite link and pick their own password. |
-| **Reminders** | Reminders on tasks, events, subscription renewals, warranties, inventory deadlines and best-before dates, via in-app badges, opt-in push, and household Gotify, ntfy or webhook channels. |
+| **Reminders** | Reminders on tasks, events, subscription renewals, warranties, inventory deadlines and best-before dates, via in-app badges, opt-in push, and household Gotify, ntfy, webhook or email channels. A reminder on a shared event reaches everyone assigned to it, each with their own copy to move or dismiss. |
 | **API Tokens** | Bearer / X-API-Key tokens with an OpenAPI 3.0 spec and a built-in MCP endpoint for AI agents. Writes are retry-safe via an optional `Idempotency-Key` header. |
 | **Backup** | Manual and scheduled backup/restore with pre-restore rollback and optional cloud upload. |
 
 Two more things you only get on your own server: **wall mode** turns the kitchen tablet into a
 readable-from-across-the-room display, and an **Immich screensaver** rotates your own photos when
 the screen goes idle. Every module in full detail is in the [spec](docs/SPEC.md); building your own
-drop-in module is covered in the [module guide](MODULES.md).
+drop-in module - with its own dashboard widgets, permissions and translations - is covered in the
+[module guide](MODULES.md).
 
 ---
 

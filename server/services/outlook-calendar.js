@@ -168,6 +168,7 @@ class OutlookAutoSyncOverrideError extends Error {
 // collapse into one request instead of racing with the same old refresh token.
 const tokenRefreshes = new Map();
 
+
 function envConfig() {
   return {
     clientId:     process.env.MS_CLIENT_ID,
@@ -232,8 +233,8 @@ function listAccounts() {
   }));
 }
 function assertSyncTargetsSafe(conn, account, candidates = collectCandidates(conn, account)) {
-  // Use the same effective candidates as the push pass: an explicit event
-  // target wins over auto-sync, and only enabled writable calendars matter.
+  // Dieselbe Kandidatenmenge wie beim Push: ein explizites Ziel dieses Kontos
+  // gewinnt vor Auto-Sync, und nur aktivierte, beschreibbare Ziele werden gepusht.
   const writableCalendars = new Set(conn.prepare(`
     SELECT calendar_id FROM outlook_calendar_selection
     WHERE account_id = ? AND enabled = 1 AND can_edit = 1
@@ -515,7 +516,11 @@ async function handleCallback(code, fetchImpl = fetch) {
   const name  = me.displayName || email || 'Outlook';
 
   const existing = me.id
-    ? db.get().prepare('SELECT id FROM outlook_accounts WHERE ms_user_id = ?').get(me.id)
+    ? db.get().prepare(`
+        SELECT id
+        FROM outlook_accounts
+        WHERE ms_user_id = ?
+      `).get(me.id)
     : null;
 
   let accountId;

@@ -777,6 +777,7 @@ router.put('/:id', async (req, res) => {
       ? 1
       : event.color_modified;
 
+
     const caldavAccountId = vCaldav ? vCaldav.value.accountId : event.target_caldav_account_id;
     const caldavCalendarUrl = vCaldav ? vCaldav.value.calendarUrl : event.target_caldav_calendar_url;
     const googleTargetId = vGoogle ? vGoogle.value : event.target_google_calendar_id;

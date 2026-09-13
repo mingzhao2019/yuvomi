@@ -165,6 +165,11 @@ export async function render(container, { user, signal }) {
   state.user = user;
 
   container.replaceChildren();
+  // Modus `full`, nicht `reading`: das Masonry-Raster reflowt nach seinem
+  // EIGENEN Platz (bis fuenf Spalten ab 1200px Container, notes.css) und ist
+  // die Seite. Ein Lesemass wuerde entweder den Kopf bei 720px enden lassen,
+  // waehrend das Raster daneben weiterlaeuft, oder das Raster auf zwei bis drei
+  // Spalten stutzen. Kopf und Koerper enden deshalb beide an der Nutzbreite.
   container.insertAdjacentHTML('beforeend', `
     <div class="notes-page app-page app-page--reading page-measure--narrow" data-composition="reading">
       <div class="page-toolbar page-toolbar--narrow notes-toolbar">

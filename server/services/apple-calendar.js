@@ -556,6 +556,10 @@ async function runSync() {
         'apple', defaultCal.url, defaultCal.displayName || 'Apple Calendar',
         normalizeCalColor(defaultCal.calendarColor) || APPLE_COLOR
       );
+      // `color_modified` mit hoch: die gerade hinausgegangene Farbe ist unsere.
+      // Der CSS3-Name ist eine verlustbehaftete Abbildung des Hex-Werts - ohne
+      // das Flag holte der nächste Inbound-Lauf ihn zurück und ersetzte den
+      // exakten Wert durch den gerundeten (#899).
       db.get().prepare(`
         UPDATE calendar_events
         SET external_calendar_id = ?, external_source = 'apple',

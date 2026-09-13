@@ -35,6 +35,13 @@ import { refresh as refreshReminders } from '/reminders.js';
 import { parseRemindAtAsUtc, wallTimeToInstant } from '/utils/reminder-offset.js';
 import { renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect, renderAvatarStack } from '/components/user-multi-select.js';
 import { wireTablist } from '/utils/tablist.js';
+// EINE Schalterform, auch hier. Das Primitiv liegt unter `/settings/`, weil
+// dort sein Anlass lag (vier Schalterformen nebeneinander, Critique
+// 2026-07-27) - die Funktion selbst ist geteiltes UI-Vokabular und kein
+// Einstellungs-Bauteil. Eine Kopie im Kalender waeren zwei Wahrheiten ueber
+// dieselbe Form; der Umzug nach `/utils/` beruehrt zehn Blaetter und gehoert
+// in eine eigene Runde. Der Import benennt die Schuld, statt sie zu umgehen.
+import { toggleRowHtml } from '/settings/components.js';
 import { localizeBirthdayEvent } from '/utils/birthday-event.js';
 import { googleTargetValue, caldavTargetValue, outlookTargetValue, assigneeSyncTarget } from '/utils/sync-target.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
@@ -162,6 +169,7 @@ function isIcsSubscriptionEvent(event) {
 function usesInheritedSubscriptionColor(event) {
   return isIcsSubscriptionEvent(event) && Number(event?.color_modified ?? 0) !== 1;
 }
+
 
 /**
  * Welche Farbe ein Speichern schreibt.
@@ -1799,6 +1807,7 @@ export async function render(container, { user }) {
   // Ebenen sind AN, solange nichts anderes dasteht, dieser Schalter ist AUS.
   state.monthTitles = localStorage.getItem(MONTH_TITLES_KEY) === 'true';
   state.currentUserId = user?.id ?? null;
+  state.user          = user ?? null;
   state.assignedToMe  = localStorage.getItem(ASSIGNED_TO_ME_KEY) === '1';
   state.people = restorePeopleFilter(state.users);
   state.hiddenSources = restoreHiddenSources(state.user?.id);
@@ -1836,9 +1845,16 @@ function renderToolbar() {
   const bar = _container.querySelector('#cal-toolbar');
   if (!bar) return;
 
-  const hp = state.holidayPrefs ?? {};
-  const showHolidayToggle = hp.holiday_show_public;
-  const showSchoolToggle  = hp.holiday_show_school;
+  // DIE EBENEN WOHNEN IM BLATT, NICHT IM KOPF (2026-08-28).
+  //
+  // Hier standen bis zu fuenf Chips plus den „Mir zugewiesen"-Schalter und
+  // belegten damit eine eigene Kopfzeile - gemessen 56px auf 390px, also
+  // 6,6% der Viewporthoehe, fuer Bedienelemente, die unter 640px ihr Label
+  // verloren und deren An/Aus-Zustand eine Flaeche von 1,085:1 war. Was hier
+  // bleibt, ist ein Knopf mit der ZAHL der aktiven Filter: er beantwortet die
+  // einzige Frage, die der Kopf beantworten muss („nehme ich gerade etwas
+  // weg?"), und der Rest steht beschriftet im Blatt (openCalendarFilters).
+  const filterCount = activeFilterCount();
 
   // Der Geburtstags-Schalter erscheint nur, wenn im geladenen Bereich wirklich
   // Geburtstage liegen - oder wenn die Ebene aus ist, denn sonst gaebe es keinen
@@ -1902,6 +1918,16 @@ function renderToolbar() {
       ` : ''}
     </div>
   ` : '';
+
+  const filterBtnHtml = `
+    ${scheduleWarningHtml}
+    <button class="btn btn--icon cal-toolbar__filter-btn ${filterCount ? 'cal-toolbar__filter-btn--active' : ''}"
+            id="cal-filters" aria-label="${filterCount ? esc(t('calendar.filtersActive', { count: filterCount })) : t('calendar.filtersOpen')}"
+            title="${t('calendar.filters')}" aria-haspopup="dialog">
+      <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+      ${filterCount ? `<span class="cal-toolbar__filter-count" aria-hidden="true">${filterCount}</span>` : ''}
+    </button>
+  `;
 
   bar.replaceChildren();
   bar.insertAdjacentHTML('beforeend', `
@@ -1967,6 +1993,7 @@ function renderToolbar() {
   bar.querySelector('#cal-today').addEventListener('click', goToday);
   bar.querySelector('#cal-add').addEventListener('click', () => openEventModal({ mode: 'create', date: newEventDate() }));
   bar.querySelector('#cal-search').addEventListener('click', openCalendarSearch);
+  bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters);
 
   bar.querySelector('#cal-assigned-me')?.addEventListener('click', (e) => {
     state.assignedToMe = !state.assignedToMe;
@@ -2100,10 +2127,23 @@ async function goToday() {
   renderView();
 }
 
+/**
+ * Drill-in aus einer Tageszelle - EINE NAVIGATION, KEINE EINSTELLUNG.
+ *
+ * Hier stand `setSavedCalendarView('day')`. Eine Geste, die „zeig mir diesen
+ * Tag" meint, schrieb damit still die STANDARDANSICHT des Kalenders um: wer
+ * dreimal auf eine Monatszelle tippte, oeffnete den Kalender fortan in der
+ * Tagesansicht und bekam dafuer weder eine Rueckmeldung noch einen Rueckweg -
+ * verifiziert, `yuvomi:calendar:view` stand nach einem Tap auf `"day"` und
+ * ueberlebte den Reload.
+ *
+ * `state.view` und `viewTabs.sync` wechseln die Ansicht fuer die Sitzung, und
+ * genau das ist gemeint. Gespeichert wird die Ansicht nur dort, wo der Nutzer
+ * sie WAEHLT: im `onChange` der Tablist.
+ */
 async function switchToDayView(date) {
   state.cursor = date;
   state.view = 'day';
-  setSavedCalendarView('day');
   viewTabs?.sync('day');
   await reloadForView();
   updateLabel();
@@ -2386,7 +2426,7 @@ function renderMonthView(container) {
       const taskChip = e.target.closest('.cal-task-chip');
       if (taskChip) {
         e.stopPropagation();
-        window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
+        openTaskFromCalendar(taskChip.dataset.taskId);
         return;
       }
       const evEl = e.target.closest('.month-day__event');
@@ -2508,6 +2548,30 @@ function renderMonthDay(date, inMonth) {
   `;
 }
 
+/**
+ * Schichtplan-Eintraege tragen eine einzelne `user_id` statt `assigned_users` -
+ * dieser Adapter spiegelt sie in dieselbe Form, damit `passesPersonFilters()`
+ * (Termine, Aufgaben) unveraendert wiederverwendet werden kann, statt eine
+ * zweite Personen-Filter-Logik nur fuer den Schichtplan zu pflegen.
+ */
+/**
+ * Ist der Schichtplan im Haushalt ueberhaupt eingeschaltet?
+ *
+ * `disabled_modules` heisst "dieses Modul gibt es hier nicht". Der Routen-Guard
+ * schuetzt `/schedule` - der Kalender ist aber eine MISCHSTELLE: sein Pfad nennt
+ * ein Modul, sein Inhalt kommt aus mehreren. Ohne diese Frage laedt und zeigt er
+ * die Schichten eines abgeschalteten Moduls weiter, samt Ebenen-Knopf. Dasselbe
+ * Muster wie in dashboard.js und recipes.js.
+ */
+// Note plus jedes ueberlagerungssichtbare eigene Feld mit einem Wert (Migration
+// 181) - dieselbe Berechnung wie schedule.js' overlayMeta(), hier eigenstaendig
+// nachgebaut statt importiert: diese Datei haelt schon fuer jede andere
+// Schichtplan-Anzeigeformel (scheduleTimeLabel, scheduleEntryLabel, ...) eine
+// eigene, unabhaengige Kopie statt schedule.js komplett zu importieren.
+// Additiv zu Muster/Override, nie ein Ersatz (server/routes/schedule-extras.js)
+// - dieselbe Kennzeichnung wie in schedule.js/dashboard.js, damit Bereitschaft
+// neben einer regulaeren Schicht auch in der Kalender-Ueberlagerung als
+// ZUSAETZLICH erkennbar bleibt.
 // aria-label der Tageszelle: lokalisiertes Datum + (falls vorhanden) Zahl der
 // Einträge, damit Tastatur/Screenreader den Tag vor dem Drill-in einordnen
 // können. Leere Tage tragen nur das Datum (die role sagt "Schaltfläche"). P1.
@@ -2785,7 +2849,7 @@ function renderWeekView(container) {
     if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
-      window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
+      openTaskFromCalendar(taskChip.dataset.taskId);
       return;
     }
     const evEl = e.target.closest('.allday-event');
@@ -3025,7 +3089,7 @@ function renderDayView(container) {
     if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
-      window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
+      openTaskFromCalendar(taskChip.dataset.taskId);
       return;
     }
     const evEl = e.target.closest('.allday-event');
@@ -3164,7 +3228,7 @@ function renderAgendaView(container) {
     if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
-      window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
+      openTaskFromCalendar(taskChip.dataset.taskId);
       return;
     }
     const evEl = e.target.closest('.agenda-event');
@@ -3189,7 +3253,7 @@ function renderAgendaView(container) {
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip && e.target === taskChip && taskChip.getAttribute('role') === 'button') {
       e.preventDefault();
-      window.yuvomi.navigate(`/tasks?open=${taskChip.dataset.taskId}`);
+      openTaskFromCalendar(taskChip.dataset.taskId);
       return;
     }
     const evEl = e.target.closest('.agenda-event');
@@ -4347,6 +4411,12 @@ function renderCalendarReminderSection(reminders = [], event = null, defaultOffs
   const enabled = rows.length > 0;
   const rowsHtml = (enabled ? rows : [{ offset: '0', amount: 1, unit: 'days' }])
     .map((r) => reminderRowHtml(r)).join('');
+  /* NUR WER DEN TERMIN ANGELEGT HAT, TEILT SEINE ERINNERUNG (#921) - und nur
+   * der bekommt den Hinweis. Fuer alle anderen waere er unwahr: wer sich an
+   * einem fremden Termin einen Merker setzt, setzt ihn fuer sich, damit nicht
+   * der halbe Haushalt eine Meldung bekommt, weil ein Einzelner sich etwas
+   * notiert hat. Ein neuer Termin gehoert dem, der ihn gerade anlegt. */
+  const sharesReminder = !event || event.created_by === state.currentUserId;
   return `
     <div class="reminder-section">
       <div class="reminder-section__header">
@@ -4364,6 +4434,7 @@ function renderCalendarReminderSection(reminders = [], event = null, defaultOffs
           <i data-lucide="plus" class="icon-sm" aria-hidden="true"></i>
           ${t('reminders.addReminder')}
         </button>
+        ${sharesReminder ? `<p class="form-hint">${t('reminders.sharedWithAssignees')}</p>` : ''}
       </div>
     </div>`;
 }
