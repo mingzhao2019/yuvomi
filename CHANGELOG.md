@@ -200,6 +200,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of the gate. Every mention now counts, the way every "stop" already did. The check was
   red either way; only its message changes. The one exception that can turn it green still reads
   the narrower way.
+- **Split Expenses no longer shows three ways to add an expense at once, or a second page title
+  under Budget's own heading.** Viewed as Budget's Split Expenses tab, the tab used to offer its own
+  header button and its own floating button for adding an expense, on top of Budget's own generic
+  toolbar button and FAB - both of the latter only ever repeated the tab's own button under the
+  hood. Budget's generic add action is now switched off for this tab, the same way it already is for
+  Reports; the tab's own floating button is the one primary action, and its header button steps back
+  to a secondary one. The tab's own `<h1>` - a second page title stacked under Budget's - is now a
+  section heading instead, matching how it already looked in a lighter type size. Deleting a group
+  now gets the same restrained red treatment used for a destructive action elsewhere in the app,
+  instead of looking identical to editing or archiving it.
+
 - **The demo data's birthday reminders now come days ahead, not minutes before noon on the day.**
   The demo seed wrote reminder lead times as `1d`, `3d` and `1w`, while Yuvomi stores them as
   minutes and reads only the leading digits, so they became one minute, three minutes and one
