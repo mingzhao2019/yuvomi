@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   offers the visit report instead and says that only an admin can change it. A calendar link to
   such a visit opens the report rather than a form that cannot be saved.
 
+- **Household members and guests created as contacts now show the translated "Other" category
+  instead of the German "Sonstiges"** (#1140). The contact that is mirrored when a household member
+  or a split-expenses guest is created carried the raw German word instead of the category key, so
+  every non-German household saw it untranslated on the contacts page. New contacts get the proper
+  key, and existing ones are corrected when the app updates.
+
 - **Notes gain category management, a category picker and an AND filter.** Manage personal
   categories and, when permitted, household categories on the Notes board, then select several
   categories to show notes that belong to every selection. Household categories remain assignable
