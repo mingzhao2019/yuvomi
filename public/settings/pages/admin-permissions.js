@@ -53,6 +53,7 @@ const WIDGET_LABEL_KEYS = {
   budget: 'nav.budget',
   rewards: 'nav.rewards',
   health: 'nav.health',
+  fasting: 'health.fasting.title',
   cycle: 'settings.permWidgetCycle',
   housekeeping: 'nav.housekeeping',
   schedule: 'nav.schedule',
