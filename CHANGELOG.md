@@ -39,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every non-German household saw it untranslated on the contacts page. New contacts get the proper
   key, and existing ones are corrected when the app updates.
 
+- **Opening Housekeeping with a broken visit deep link now says so** (#1139). Tapping a
+  housekeeping visit in the calendar opens Housekeeping through an `?editVisit=<id>` link; when
+  that visit has been deleted or the link is malformed, it used to fail silently and land on the
+  ordinary dashboard, with nothing to tell a stale link apart from a working one. It now shows a
+  localized message - a missing or invalid visit says so without a retry, while a server error, a
+  network problem or rate limiting offers to try again. The broken link is cleared from the
+  address bar right away - only that parameter, the rest of the URL stays - so a reload or going
+  back does not repeat the failed request.
+
 - **Notes gain category management, a category picker and an AND filter.** Manage personal
   categories and, when permitted, household categories on the Notes board, then select several
   categories to show notes that belong to every selection. Household categories remain assignable
