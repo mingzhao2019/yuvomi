@@ -181,7 +181,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-<<<<<<< HEAD
 - **A review run that stopped at its gate is named as such, even when it first denied having
   reviewed** (#1101). The check behind the automated review reads the run's closing text to say
   why a silent run went red. It only looked at the first mention of "already reviewed", so a text
@@ -190,7 +189,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of the gate. Every mention now counts, the way every "stop" already did. The check was
   red either way; only its message changes. The one exception that can turn it green still reads
   the narrower way.
-=======
 - **A housekeeper can check out again, and work a second session on the same day** (#1133, #1138).
   The one button that carries both directions was disabled while someone was checked in, and it is
   the only thing that triggers the check-out path - so that path was unreachable: a household could
@@ -203,7 +201,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Overlapping sessions stay blocked, and each session keeps its own rate, calendar event and
   payment task. The line under the name still shows today's visit once it is closed.
 
->>>>>>> beb8e84c (fix(housekeeping): reach check-out, allow a second session (#1133))
 - **The formatting toolbar over a task's note shows its icons again** (#1141). Switching a task's
   detail view into edit mode builds that form only then, but the icon-replacing pass over the whole
   overlay had already run before the form existed, so the 13 buttons of the markdown toolbar (bold,
