@@ -269,6 +269,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   element now keeps focus across the redraw. Pressing Undo from the keyboard lost focus the same
   way, because the notice removes its button before the event comes back; focus now lands on the
   restored event.
+- **A dialog no longer moves keyboard focus into its first field after you have already moved on**
+  (#1156). Opening a form puts focus into its first field a moment later. On a slow or busy device
+  that moment could arrive after you had already acted, for example after answering a save
+  confirmation, which hands focus back to the Save button: focus then jumped to the first field
+  instead, and nothing brought it back. The same could pull focus out of an open date picker. The
+  first field now stays out of the way once focus has moved inside the dialog or into something on
+  top of it, such as a date picker; focus that lands on the page behind the dialog still moves in.
+
 ## [2.66.0] - 2026-09-13
 
 ### Added
