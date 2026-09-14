@@ -109,7 +109,7 @@ public/
   api.js               # Fetch wrapper (auth, CSRF, error handling)
   styles/
     tokens.css         # Design tokens - all colors, radii, shadows, fonts
-  components/          # Reusable Web Components (yuvomi-* prefix)
+  components/          # Reusable UI building blocks (modal, pickers, detail views); the Web Components among them use the yuvomi-* prefix
   pages/               # Page modules - each exports a render() function
   sw.js                # Service worker
   offline.html         # Offline fallback page (served by service worker)
@@ -316,7 +316,7 @@ without this repository's private tooling.
 
 ### Frontend
 
-- Web Component prefix: `yuvomi-` (one component per file)
+- Web Component prefix: `yuvomi-` (one component per file). Not every file in `public/components/` is a Web Component: most are ES modules that export functions, such as `openModal`, `openDetailView` or `renderUserMultiSelect`.
 - All UI text via i18n keys (`t('key')`) - never hardcode text in components. German (`de`) is the reference locale.
 - **Adding a new i18n key:** add it to **all** files in `public/locales/` (24 languages; a
   non-German value may start as the English text). The JSON files are 4-space indented
@@ -401,7 +401,7 @@ Otherwise: user-oriented language, and `-` rather than `—` or `–`. An entry 
 
 ## Release cadence
 
-Yuvomi releases on two tracks. The rule exists because of [#496](https://github.com/ulsklyc/yuvomi/discussions/496): between 13 August and 2 September 2026 there were 92 releases across 19 active days, and **72 of them changed the interface** - roughly three and a half times a day. The complaint was never "too many tags". It was that somebody learning the app watched it move while they were still learning it.
+Yuvomi releases on two tracks. The rule exists because of [#496](https://github.com/ulsklyc/yuvomi/discussions/496): between 13 August and 2 September 2026 there were 92 releases across 19 active days, and **75 of them changed the interface** - roughly three and a half times a day. The complaint was never "too many tags". It was that somebody learning the app watched it move while they were still learning it.
 
 So the limit is on the interface, not on the release count:
 
