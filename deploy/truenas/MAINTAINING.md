@@ -30,6 +30,17 @@ Nach einer Strukturänderung an `questions.yaml` verlangt deren Anleitung
 zusätzlich `app_migrations.yaml` plus Migrationsskript, damit Bestandsinstallationen
 ihre Werte behalten.
 
+## Bekannte Abweichung vom Upstream
+
+Gemessen am 2026-09-14 unterscheidet sich der Spiegel in genau einer Zeile von
+`ix-dev/community/yuvomi/`: `questions.yaml` trägt lokal eine `description` zur
+Zeitzonen-Frage (die Haushaltszone in der App gewinnt), die mit dem Release-Commit
+von v2.34.0 hinzukam und Upstream nie erreicht hat. Entweder mit den Maintainern
+klären oder zurücknehmen; bis dahin ist sie beim `diff` die erwartete Abweichung.
+Der `modules`-Speicher (`/app/modules`), den Upstream längst trägt, fehlte hier bis
+zum selben Tag und ist nachgezogen, zusammen mit zwei Tippfehler-Korrekturen aus
+Upstream.
+
 ## Namensraum: `yuvomi`, nicht `oikos`
 
 Anders als beim ghcr-Image, dem Quadlet und der Datenbank ist der TrueNAS-Eintrag
