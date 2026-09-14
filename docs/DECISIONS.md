@@ -228,8 +228,9 @@ in this schema points at `users.id`, and a second table would make every new fea
   the route.
 - `server/auth.js` - `access_scope`, resolved per account to `family` or `split_guest` by a
   `CASE` over `split_expense_guest_users`.
-- `server/routes/family.js` (`GET /members`) and `server/routes/two-factor.js` - the member
-  list and the household-wide 2FA requirement, both excluding staff with the same clause.
+- `server/routes/family.js` (`GET /members`) and `server/services/two-factor.js`
+  (`householdOverview()`) - the member list and the household-wide 2FA overview, both
+  excluding staff with the same clause.
 - `server/routes/housekeeping.js` (`createWorkerUser`) - a worker is a `users` row with a
   random password, role `member`, family role `other`.
 - `server/services/oidc.js` - the `$oidc$` placeholder: "this account has no password" is a
@@ -315,8 +316,8 @@ this week A or B?" - the user picked it from a dropdown, which is a label rather
 recurrence. Every entry then stored its own subject, times and colour, which forced a
 `POST /copy` endpoint that Schedule does not need, because a second pattern there points at the
 same shift types. What was genuinely new in it - room, instructor, period number, and more than
-one block per cycle day - was a change to the existing tables, and that is the shape being
-built in #1022.
+one block per cycle day - was a change to the existing tables, and that is the shape #1022
+built.
 
 The same thread reached the rule a third time the following day, and that is the part worth
 keeping. @mclgoerg asked, before building, where a side-by-side timetable overview should live:

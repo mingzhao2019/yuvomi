@@ -31,8 +31,8 @@ colors:
   # keine Zahl - sie ist schon einmal gedriftet (CLAUDE.md, „Kanonische
   # Quellen"). Quelle der Wahrheit und Modul-Zuordnung:
   # public/styles/tokens.css, Abschnitt 4.
-  # overview: dashboard - time: calendar, reminders - work: tasks,
-  # housekeeping, rewards - kitchen: meals, recipes, shopping, pantry -
+  # overview: dashboard - time: calendar, schedule, reminders - work: tasks,
+  # housekeeping, waste, rewards - kitchen: meals, recipes, shopping, pantry -
   # money: budget, split-expenses - people: contacts, birthdays -
   # health: health - records: documents, notes, inventory - neutral: settings
   family-overview: "#6C3AED"

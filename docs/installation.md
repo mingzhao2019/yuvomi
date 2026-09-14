@@ -179,12 +179,12 @@ node tools/installer/install-server.js
 
 Open your browser and navigate to **http://localhost:8090**. The wizard detects your browser language (24 languages supported), verifies that a container engine is available (Docker with Compose v2, or Podman with `podman compose` / `podman-compose`), and reports an existing `.env` file as well as a running container before you start. When it finds one, the **simple setup is disabled** and you continue with the advanced setup: the simple path writes fixed values for host, port, `SESSION_SECURE` and `TRUST_PROXY`, which would silently downgrade an installation that already runs behind a reverse proxy. The wizard then guides you through:
 
-- Basics — domain/IP, HTTP host port (`OIKOS_HTTP_PORT`), timezone (`TZ`, which pre-sets the household zone; that one is changeable later under Settings → Personal → Appearance → Region), how Yuvomi is exposed (`SESSION_SECURE`, `TRUST_PROXY`) and the public address (`BASE_URL`). The exposure choice follows the host you enter, and the wizard rejects an `http://` address combined with enforced secure cookies — nobody could sign in to that combination. A typed public address only counts once it names a full `http://` or `https://` origin; until then the wizard keeps the address it derives from host and port
+- Basics - domain/IP, HTTP host port (`OIKOS_HTTP_PORT`), timezone (`TZ`, which pre-sets the household zone; that one is changeable later under Settings → Personal → Appearance → Region), how Yuvomi is exposed (`SESSION_SECURE`, `TRUST_PROXY`) and the public address (`BASE_URL`). The exposure choice follows the host you enter, and the wizard rejects an `http://` address combined with enforced secure cookies - nobody could sign in to that combination. A typed public address only counts once it names a full `http://` or `https://` origin; until then the wizard keeps the address it derives from host and port. A timezone the browser does not recognise (`Europe/Berln`) is refused on the spot instead of silently falling back to UTC
 - Security key generation (`SESSION_SECRET`, `DB_ENCRYPTION_KEY`) — on a re-run, keys already present in your `.env` are kept rather than regenerated, so running the wizard again on a live installation cannot lock you out of your encrypted database
 - Optional integrations (weather, Google Calendar, Apple CalDAV)
 - Email/SMTP for the "forgot password" flow (`EMAIL_SMTP_*`, `EMAIL_FROM_*`)
 - Storage & backups — the host data folder (`DATA_DIR`), automatic backups, off-site WebDAV backups and the three document storage options. Everything that decides where data lives
-- Advanced settings — Single Sign-On (OIDC), the three home-network permissions (they lift the SSRF protection and are asked as one group), the calendar sync interval, live currency rates and the Web-Push contact. Everything that decides what Yuvomi connects to
+- Advanced settings - Single Sign-On (OIDC), the four home-network permissions for calendar subscriptions, recipe mirrors, waste collection feeds and a WebDAV target (they lift the SSRF protection and are asked as one group), the calendar sync interval, live currency rates and the Web-Push contact. Everything that decides what Yuvomi connects to
 - Writing your `.env` file (an existing `.env` is backed up to `.env.bak-<timestamp>` first)
 - Starting the container (via Docker or Podman, whichever was detected)
 - Creating your admin account
@@ -485,7 +485,15 @@ Settings → Personal → Notifications.
 Admins can also add household Gotify, ntfy, generic HTTP webhook or email channels on the same
 settings page. These channels are configured in the UI and do not require environment variables. The
 Yuvomi backend container or host must be able to reach the configured base URL. HTTPS is recommended;
-HTTP is accepted for trusted internal networks such as a private LAN or container network.
+HTTP is accepted as well.
+
+Since v2.64.1 a channel URL must also resolve to a public address, like every other outbound
+integration. A private or local target - a Gotify or ntfy container in the same Docker network, a
+Home Assistant webhook in the LAN - is refused when the channel is saved, with a message naming the
+switch that allows it: `NOTIFICATION_ALLOW_PRIVATE_NETWORK=true` (see
+[the private-network switches](#calendar-subscriptions--ics-feeds-optional)). Delivery repeats the
+check for every connection it opens, redirects included. A LAN channel created before that release
+stops delivering until the switch is set, and records the reason on the channel.
 
 An **email** channel is the exception: it has no base URL and no credentials of its own. It reuses
 the app-wide SMTP access that already sends password resets and invitations, so configure
@@ -557,7 +565,7 @@ makes exactly that field read-only in the settings UI; empty values fall back to
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `EMAIL_SMTP_HOST` | SMTP server hostname. | - | No |
-| `EMAIL_SMTP_PORT` | SMTP server port. | `587` | No |
+| `EMAIL_SMTP_PORT` | SMTP server port. | `587` (`465` with `ssl`) | No |
 | `EMAIL_SMTP_SECURE` | Connection security: `ssl`, `starttls`, or `none`. | `starttls` | No |
 | `EMAIL_SMTP_USER` | SMTP auth username. | - | No |
 | `EMAIL_SMTP_PASS` | SMTP auth password. | - | No |
@@ -621,7 +629,6 @@ security, and troubleshooting.
 > ```
 >
 > The same applies to the module drop-in folder at `/app/modules`.
-| `BACKUP_DIR` | In `.env`/`docker-compose.yml`: the **host** directory mounted at `/backups`. Inside the container the app reads the same name as the **container** path it writes to — the compose files pin it to `/backups`, and the image defaults to `/backups` as well. Only override it inside the container if you mount your backup volume somewhere else. | `./backups` (host) / `/backups` (container) | No |
 
 Generate a secure `DB_ENCRYPTION_KEY`:
 
@@ -782,12 +789,14 @@ ICS calendar subscriptions are added in the UI. For SSRF protection, feed URLs m
 and resolve only to public network addresses; `http://`, private, loopback, link-local, and internal
 DNS targets are rejected. To subscribe to a feed on your local network (e.g. Sonarr/Radarr/Home
 Assistant, or a self-hosted calendar behind an internal DNS name), set the opt-in below. Only enable
-it in controlled environments.
+it in controlled environments. The other integrations that reach a URL you enter carry a switch of
+the same kind, listed in the same table.
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `ICS_SUBSCRIPTION_ALLOW_PRIVATE_NETWORK` | Allow `http://` and private/local network ICS feeds; lifts SSRF protection (`true`/`false`) | `false` | No |
-| `RECIPE_PROVIDER_ALLOW_PRIVATE_NETWORK` | Allow `http://` and private/local network recipe provider (Mealie/Tandoor) targets; lifts SSRF protection (`true`/`false`) | `false` | No |
+| `RECIPE_PROVIDER_ALLOW_PRIVATE_NETWORK` | Allow private/local network recipe provider (Mealie/Tandoor) targets, including a base URL that is itself a private IP such as `http://192.168.x.x` (needed for those since v2.64.1); lifts SSRF protection (`true`/`false`). A plain `http://` base URL is accepted without it | `false` | No |
+| `WASTE_SOURCE_ALLOW_PRIVATE_NETWORK` | Allow `http://` and private/local network waste collection URL sources; lifts SSRF protection (`true`/`false`). Without it a source URL must use `https://` and resolve to a public address | `false` | No |
 | `NOTIFICATION_ALLOW_PRIVATE_NETWORK` | Allow private/local network notification channel targets (Webhook, Gotify, ntfy, message-pusher); lifts SSRF protection (`true`/`false`) | `false` | No |
 | `DMS_ALLOW_PRIVATE_NETWORK` | Allow private/local network document management targets (Paperless-ngx, Papra); `false` enforces SSRF protection (`true`/`false`) | `true` | No |
 
@@ -915,7 +924,7 @@ Pocket ID documents Yuvomi as one of its [client examples](https://pocket-id.org
 | `OIDC_REDIRECT_URI` | OAuth callback URL — must be registered with the provider (e.g. `https://yuvomi.example.com/api/v1/auth/oidc/callback`) | - | No |
 | `OIDC_TRUST_EMAIL_WITHOUT_VERIFIED_CLAIM` | Set to `true` to allow account linking when the IdP omits the `email_verified` claim entirely. Only enable for IdPs fully under your control that never issue unverified addresses (e.g. older Authentik without an explicit `email_verified` property mapping). | - | No |
 | `OIDC_ALLOW_SIGNUP` | Set to `false` so an SSO sign-in never provisions a new account. Sign-in and account linking are unaffected, so the admin creates the account and the user signs in with SSO. Use this when your identity provider serves more people than this household. | `true` | No |
-| `AUTH_ALLOW_PASSWORD_LOGIN` | Set to `false` to make SSO the only way in: the login form, password login and password reset are all switched off. Ignored until all four OIDC variables are set **and** at least one account is linked to the provider, so a typo - or a fresh install - can never lock everyone out. | `true` | No |
+| `AUTH_ALLOW_PASSWORD_LOGIN` | Set to `false` to make SSO the only way in: the login form, password login and password reset are all switched off. Ignored until all four OIDC variables are set **and** at least one administrator account is linked to the provider, so a typo - or a fresh install - can never lock everyone out. | `true` | No |
 
 When all four OIDC variables are set, a **"Sign in with SSO"** button appears on the login page. The flow uses Authorization Code + PKCE (S256) with a nonce. On first login, the user is matched by their OIDC `sub`. If no match exists, an existing local account is linked automatically **only when the provider reports a verified email (`email_verified: true`) and exactly one local account holds that email address**; otherwise a new account is provisioned. Unverified or ambiguous emails never take over an existing account. If your provider omits the `email_verified` claim, set `OIDC_TRUST_EMAIL_WITHOUT_VERIFIED_CLAIM=true` to enable linking.
 
@@ -925,7 +934,7 @@ When all four OIDC variables are set, a **"Sign in with SSO"** button appears on
 
 Three things are deliberate:
 
-- **The switch only takes effect once somebody can actually get in through SSO.** Two conditions: all four OIDC variables set, and at least one account already linked to the provider. Until then password login stays on and the server says so on startup. The second condition is what makes a fresh install work - it creates its first administrator through `/setup` with a password, and that account would otherwise be dead the moment it was created, with `/setup` closed behind it. Sign in once through SSO to link the admin account, and the switch takes hold from then on.
+- **The switch only takes effect once somebody can actually get in through SSO.** Two conditions: all four OIDC variables set, and at least one administrator account already linked to the provider. Until then password login stays on and the server says so on startup. The second condition is what makes a fresh install work - it creates its first administrator through `/setup` with a password, and that account would otherwise be dead the moment it was created, with `/setup` closed behind it. Sign in once through SSO to link the admin account, and the switch takes hold from then on.
 - **Invitations adapt.** While the switch is in effect, accepting an invitation creates an account with no password, linked on first SSO sign-in through the invitation's email address. An invitation without an email address is refused rather than consumed into an account nobody can reach.
 - **Existing passwords are not touched.** Setting the variable back to `true` restores the form exactly as it was. Removing a password is a per-account decision instead: **Settings → Administration → Family** offers "SSO sign-in only" both when creating a member and when editing one. An account switched this way carries a placeholder no password can ever match; switching it back requires setting a new password in the same step, so the account is never left with no way in at all.
 - **Recovery is a documented `.env` change.** If the identity provider becomes unreachable, remove the line and restart. A break-glass admin account with a password would defeat the point of the switch, so there is none.

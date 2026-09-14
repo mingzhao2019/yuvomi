@@ -49,6 +49,9 @@ Volume=%h/.local/share/oikos/data:/data:Z
 Volume=%h/.local/share/oikos/backups:/backups:Z
 Volume=%h/.local/share/oikos/modules:/app/modules:Z
 # Optionaler lokaler Dokumentspeicher (nur genutzt, wenn DOCUMENT_STORAGE_LOCAL_ENABLED=true in der .env).
+# Das Ziel muss DOCUMENT_STORAGE_LOCAL_PATH entsprechen (Default /documents). Quadlet
+# interpoliert nicht: wer den Pfad in der .env ändert, zieht ihn hier von Hand nach,
+# sonst landen Uploads im Container-Overlay und sind beim nächsten Pull weg.
 Volume=%h/.local/share/oikos/documents:/documents:Z
 
 # Healthcheck identisch zum Compose-Manifest.

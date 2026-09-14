@@ -1295,11 +1295,11 @@
       </div>
       <div class="mod-card reveal" style="--m: var(--m-notes)">
         <div class="mod-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></div>
-        <h3 data-t="m_notes_t">Notes &amp; Contacts</h3><p data-t="m_notes_d">Colored Markdown sticky notes for recipes, memos and quick reminders, with checklists you tick off by tapping them. Plus a shared contact directory with CardDAV sync and vCard import/export.</p>
+        <h3 data-t="m_notes_t">Notes &amp; Contacts</h3><p data-t="m_notes_d">Colored Markdown sticky notes for recipes, memos and quick reminders, sorted into personal or household categories, with checklists you tick off by tapping them. Plus a shared contact directory with CardDAV sync and vCard import/export.</p>
       </div>
       <div class="mod-card reveal d1" style="--m: var(--m-birthdays)">
         <div class="mod-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v3M12 8v3M17 8v3M7 4h.01M12 3h.01M17 4h.01"/></svg></div>
-        <h3 data-t="m_bday_t">Birthdays</h3><p data-t="m_bday_d">Birthday tracker with automatic annual calendar events, age display and custom reminders.</p>
+        <h3 data-t="m_bday_t">Birthdays</h3><p data-t="m_bday_d">Birthday tracker with optional name days, automatic annual calendar events, age display and custom reminders.</p>
       </div>
       <div class="mod-card reveal d2" style="--m: var(--m-contacts)">
         <div class="mod-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
@@ -1307,7 +1307,7 @@
       </div>
       <div class="mod-card reveal" style="--m: var(--m-calendar)">
         <div class="mod-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
-        <h3 data-t="m_rem_t">Reminders</h3><p data-t="m_rem_d">Reminders on tasks and calendar events with an in-app badge, plus opt-in push notifications that reach you even when the app is closed.</p>
+        <h3 data-t="m_rem_t">Reminders</h3><p data-t="m_rem_d">Reminders on tasks, events, shifts, subscription renewals, warranties, best-before dates and waste pickups, with an in-app badge, opt-in push notifications and household Gotify, ntfy, webhook or email channels.</p>
       </div>
       <div class="mod-card reveal d1" style="--m: var(--m-infra)">
         <div class="mod-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
@@ -1331,7 +1331,7 @@
       </div>
       <div class="mod-card reveal" style="--m: var(--m-waste)">
         <div class="mod-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
-        <h3 data-t="m_waste_t">Waste collection</h3><p data-t="m_waste_d">Manual pickup rhythms or an imported municipal ICS calendar, per-occurrence moves and skips, a Dashboard widget and a switchable Calendar layer. Off by default; households turn it on.</p>
+        <h3 data-t="m_waste_t">Waste collection</h3><p data-t="m_waste_d">Weekly, monthly or nth-weekday pickup rhythms, or a municipal ICS calendar imported once or subscribed by URL, with per-occurrence moves and skips, personal reminders, a Dashboard widget and a switchable Calendar layer. Off by default; households turn it on.</p>
       </div>
     </div>
     <!-- Nur auf dem Telefon sichtbar (CSS oben): klappt die Karten 7-15 auf.
@@ -1400,7 +1400,7 @@
       </div>
       <div class="long-item reveal">
         <dt data-t="long_q2">What if I want my data somewhere else?</dt>
-        <dd data-t="long_a2"><b>Copying one file is the whole export.</b> Everything lives in a single SQLite file on your own disk. Scheduled backups write a restorable archive on top of that, and the documented API plus the MCP endpoint pull anything out in whatever shape you need.</dd>
+        <dd data-t="long_a2"><b>Copying one file is the whole export.</b> Everything lives in a single SQLite file on your own disk, unless you moved documents to a folder, WebDAV or Google Drive; those files need their own backup. Scheduled backups write a restorable archive on top of that, and the documented API plus the MCP endpoint pull anything out in whatever shape you need.</dd>
       </div>
       <div class="long-item reveal">
         <dt data-t="long_q3">What if I lose the encryption key?</dt>
@@ -1574,7 +1574,7 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       ho_4_a:'The last jar goes out of the pantry', ho_4_b:'It is already on the shopping list',
       ho_4_d:'Pantry keeps amounts and best-before dates - and speaks up before one of them is reached. What runs low or runs out moves to the shared list with one tap, and buying it puts it back in stock. Household of five or household of one, the loop is the same.',
       long_q1:'What if this project stops?', long_a1:'<b>Nothing changes on your machine.</b> It is MIT-licensed and self-hosted, there is no server of ours anywhere in the path, and the only thing that leaves your machine is a version check against the GitHub releases API. The container you already pulled keeps running exactly as it does today, with or without us.',
-      long_q2:'What if I want my data somewhere else?', long_a2:'<b>Copying one file is the whole export.</b> Everything lives in a single SQLite file on your own disk. Scheduled backups write a restorable archive on top of that, and the documented API plus the MCP endpoint pull anything out in whatever shape you need.',
+      long_q2:'What if I want my data somewhere else?', long_a2:'<b>Copying one file is the whole export.</b> Everything lives in a single SQLite file on your own disk, unless you moved documents to a folder, WebDAV or Google Drive; those files need their own backup. Scheduled backups write a restorable archive on top of that, and the documented API plus the MCP endpoint pull anything out in whatever shape you need.',
       long_q3:'What if I lose the encryption key?', long_a3:'<b>Then the database is gone, and we cannot help you.</b> That is the honest answer: SQLCipher has no recovery path and no back door, which is the entire point of it. Store the key the way you store the ones that matter. Encryption is optional; if you would rather not carry that risk, leave it off and the file stays readable.',
       long_title:'The three questions worth asking first',
       alt_c_cal:'Calendar',
@@ -1652,19 +1652,19 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       f_health_k:'Health', f_health_t:'Health that stays in the family.', f_health_d:'Vitals, medications, lab results, activity and cycles, tracked per member, private by default, and never leaving your server.',
       f_health_l1:'Cycle ring with period & fertile-window predictions', f_health_l2:'Medication reminders with refill alerts', f_health_l3:'Per-entry visibility: private or shared', f_health_l4:'Parents can record a child\u2019s fever and medication',
       m_sched_t:'Schedule', m_sched_d:'Rotating shift patterns and fixed weekly timetables from a single cycle model, with per-day exceptions and an explicit day off. The calendar shows them as a read-only layer computed on read, so changing a pattern leaves no stale appointments behind.',
-      m_waste_t:'Waste collection', m_waste_d:'Manual pickup rhythms or an imported municipal ICS calendar, per-occurrence moves and skips, a Dashboard widget and a switchable Calendar layer. Off by default; households turn it on.',
+      m_waste_t:'Waste collection', m_waste_d:'Weekly, monthly or nth-weekday pickup rhythms, or a municipal ICS calendar imported once or subscribed by URL, with per-occurrence moves and skips, personal reminders, a Dashboard widget and a switchable Calendar layer. Off by default; households turn it on.',
       more_desc:'The other sixteen, each one independent. Turn on what fits your household; the rest stays out of the way.',
       mods_more:'Show all modules',
       m_docs_t:'Documents', m_docs_d:'Family files with previews, folders, visibility controls and bulk actions. Storage on a local folder, WebDAV or Google Drive; Paperless-ngx and Papra optional.',
-      m_notes_t:'Notes & Contacts', m_notes_d:'Colored Markdown sticky notes for recipes, memos and quick reminders, with checklists you tick off by tapping them. Plus a shared contact directory with CardDAV sync and vCard import/export.',
-      m_cal_t:'Calendar', m_cal_d:'Two-way sync with Google, CalDAV and Outlook.com via Microsoft Graph, explicit conflict choices, public ICS subscriptions, recurring events, holiday overlays and per-event visibility.',
+      m_notes_t:'Notes & Contacts', m_notes_d:'Colored Markdown sticky notes for recipes, memos and quick reminders, sorted into personal or household categories, with checklists you tick off by tapping them. Plus a shared contact directory with CardDAV sync and vCard import/export.',
+      m_cal_t:'Calendar', m_cal_d:'Two-way sync with Google, CalDAV and Outlook.com via Microsoft Graph, explicit conflict choices, public ICS subscriptions, recurring events, holiday overlays, filtering by person and per-event visibility.',
       m_shop_t:'Shopping', m_shop_d:'Collaborative lists grouped by aisle and ordered to match your shop, with swipe gestures and one-tap import from the meal plan.',
-      m_bday_t:'Birthdays', m_bday_d:'Birthday tracker with automatic annual calendar events, age display and custom reminders.',
+      m_bday_t:'Birthdays', m_bday_d:'Birthday tracker with optional name days, automatic annual calendar events, age display and custom reminders.',
       m_house_t:'Housekeeping', m_house_d:'Manage household staff: schedules, check-in/out, daily or hourly billing, chores and supplies.',
       m_inv_t:'Inventory', m_inv_d:'What you own: brand, model, serial number, storage location, purchase price, warranty and condition, with linked receipts and bookings. Off by default; households turn it on.',
       m_rewards_t:'Rewards', m_rewards_d:'Points on tasks credit the assigned member, with a configurable default for new tasks, a parent-approved catalog and an auditable ledger.',
       m_recipes_t:'Recipes', m_recipes_d:'Create, duplicate and scale reusable recipes, then pre-fill meal slots or send the ingredients to a shopping list. A self-hosted Mealie or Tandoor instance can be mirrored read-only.',
-      m_rem_t:'Reminders', m_rem_d:'Reminders on tasks and calendar events with an in-app badge, plus opt-in push notifications that reach you even when the app is closed.',
+      m_rem_t:'Reminders', m_rem_d:'Reminders on tasks, events, shifts, subscription renewals, warranties, best-before dates and waste pickups, with an in-app badge, opt-in push notifications and household Gotify, ntfy, webhook or email channels.',
       m_backup_t:'Backup', m_backup_d:'Scheduled backups with pre-restore rollback, optional WebDAV cloud upload (Nextcloud, ownCloud, Hetzner, etc.).', plat_title:'Runs on <em>your</em> hardware',
       plat_desc:"A Docker or Podman container that drops onto any home server or NAS. Or install it in a couple of clicks from your platform's app store.",
       plat_docker:'Pre-built image, one <code>compose</code> command - or rootless with Podman on RHEL, Fedora and CentOS Stream.',
@@ -1692,7 +1692,7 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       ho_4_a:'Das letzte Glas geht aus dem Vorrat', ho_4_b:'Es steht schon auf der Einkaufsliste',
       ho_4_d:'Der Vorrat kennt Mengen und Mindesthaltbarkeit - und meldet sich, bevor eines davon erreicht ist. Was knapp wird oder ausgeht, wandert mit einem Tipp auf die geteilte Liste, und der Einkauf bucht es zurück in den Bestand. Haushalt zu fünft oder Haushalt zu einem, die Schleife ist dieselbe.',
       long_q1:'Was, wenn dieses Projekt aufhört?', long_a1:'<b>Auf eurer Maschine ändert sich nichts.</b> Es ist MIT-lizenziert und selbstgehostet, es steht nirgends ein Server von uns dazwischen, und das Einzige, was eure Maschine verlässt, ist eine Versionsprüfung gegen die GitHub-Releases-API. Der Container, den ihr längst geladen habt, läuft genau so weiter wie heute, mit uns oder ohne uns.',
-      long_q2:'Was, wenn ich meine Daten woanders hin will?', long_a2:'<b>Eine Datei kopieren ist der ganze Export.</b> Alles liegt in einer einzigen SQLite-Datei auf eurer eigenen Platte. Geplante Backups schreiben darüber hinaus ein wiederherstellbares Archiv, und die dokumentierte API samt MCP-Endpunkt holt alles in der Form heraus, die ihr braucht.',
+      long_q2:'Was, wenn ich meine Daten woanders hin will?', long_a2:'<b>Eine Datei kopieren ist der ganze Export.</b> Alles liegt in einer einzigen SQLite-Datei auf eurer eigenen Platte, außer ihr habt die Dokumente in einen Ordner, auf WebDAV oder in Google Drive ausgelagert; diese Dateien brauchen eine eigene Sicherung. Geplante Backups schreiben darüber hinaus ein wiederherstellbares Archiv, und die dokumentierte API samt MCP-Endpunkt holt alles in der Form heraus, die ihr braucht.',
       long_q3:'Was, wenn ich den Verschlüsselungsschlüssel verliere?', long_a3:'<b>Dann ist die Datenbank weg, und wir können euch nicht helfen.</b> Das ist die ehrliche Antwort: SQLCipher hat keinen Wiederherstellungsweg und keine Hintertür, und genau das ist der Sinn der Sache. Verwahrt den Schlüssel wie die, auf die es ankommt. Die Verschlüsselung ist optional; wer dieses Risiko nicht tragen will, lässt sie aus, dann bleibt die Datei lesbar.',
       long_title:'Die drei Fragen, die man vorher stellen sollte',
       alt_c_cal:'Kalender',
@@ -1767,19 +1767,19 @@ openssl rand -hex 32</div><button class="copy-btn" type="button" data-copy="curl
       f_health_k:'Gesundheit', f_health_t:'Gesundheit, die in der Familie bleibt.', f_health_d:'Vitalwerte, Medikamente, Laborwerte, Aktivität und Zyklen, pro Mitglied erfasst, standardmäßig privat und ohne euren Server zu verlassen.',
       f_health_l1:'Zyklus-Ring mit Perioden- & fruchtbare-Tage-Prognose', f_health_l2:'Medikamenten-Erinnerungen mit Nachfüll-Warnung', f_health_l3:'Sichtbarkeit pro Eintrag: privat oder geteilt', f_health_l4:'Eltern tragen Fieber und Medikamente ihres Kindes ein',
       m_sched_t:'Schichtplan', m_sched_d:'Rotierende Schichtmuster und feste Wochenpläne aus einem Zyklusmodell, mit Ausnahmen je Tag und einem ausdrücklichen freien Tag. Der Kalender zeigt sie als schreibgeschützte Ebene, beim Lesen berechnet - eine Musteränderung lässt keine veralteten Termine zurück.',
-      m_waste_t:'Entsorgung', m_waste_d:'Manuelle Abholrhythmen oder ein importierter kommunaler ICS-Kalender, Verschieben/Ausfallenlassen je Termin, ein Dashboard-Widget und eine schaltbare Kalender-Ebene. Standardmäßig aus; Haushalte schalten es ein.',
+      m_waste_t:'Entsorgung', m_waste_d:'Wöchentliche, monatliche oder Wochentag-Abholrhythmen oder ein kommunaler ICS-Kalender, einmal importiert oder per URL abonniert, mit Verschieben/Ausfallenlassen je Termin, persönlichen Erinnerungen, einem Dashboard-Widget und einer schaltbaren Kalender-Ebene. Standardmäßig aus; Haushalte schalten es ein.',
       more_desc:'Die übrigen sechzehn, jedes eigenständig. Schaltet ein, was zu eurem Haushalt passt; der Rest bleibt aus dem Weg.',
       mods_more:'Alle Module zeigen',
       m_docs_t:'Dokumente', m_docs_d:'Familiendateien mit Vorschau, Ordnern, Sichtbarkeitsregeln und Stapelaktionen. Ablage lokal, per WebDAV oder Google Drive; Paperless-ngx und Papra optional.',
-      m_notes_t:'Notizen & Kontakte', m_notes_d:'Farbige Markdown-Haftnotizen für Rezepte, Memos und schnelle Erinnerungen, mit Checklisten, die man antippt statt zu bearbeiten. Dazu ein geteiltes Kontaktverzeichnis mit CardDAV-Sync und vCard-Import/-Export.',
-      m_cal_t:'Kalender', m_cal_d:'Sync in beide Richtungen mit Google, CalDAV und Outlook.com via Microsoft Graph, ausdrückliche Konfliktentscheidungen, öffentliche ICS-Abos, wiederkehrende Termine, Feiertags-Overlays und Sichtbarkeit pro Termin.',
+      m_notes_t:'Notizen & Kontakte', m_notes_d:'Farbige Markdown-Haftnotizen für Rezepte, Memos und schnelle Erinnerungen, in persönlichen oder Haushalts-Kategorien, mit Checklisten, die man antippt statt zu bearbeiten. Dazu ein geteiltes Kontaktverzeichnis mit CardDAV-Sync und vCard-Import/-Export.',
+      m_cal_t:'Kalender', m_cal_d:'Sync in beide Richtungen mit Google, CalDAV und Outlook.com via Microsoft Graph, ausdrückliche Konfliktentscheidungen, öffentliche ICS-Abos, wiederkehrende Termine, Feiertags-Overlays, Filter nach Person und Sichtbarkeit pro Termin.',
       m_shop_t:'Einkauf', m_shop_d:'Gemeinsame Listen nach Gang gruppiert und passend zum eigenen Laden sortiert, mit Wischgesten und Ein-Tipp-Import aus dem Essensplan.',
-      m_bday_t:'Geburtstage', m_bday_d:'Geburtstags-Tracker mit automatischen jährlichen Kalendereinträgen, Altersanzeige und Erinnerungen.',
+      m_bday_t:'Geburtstage', m_bday_d:'Geburtstags-Tracker mit optionalen Namenstagen, automatischen jährlichen Kalendereinträgen, Altersanzeige und Erinnerungen.',
       m_house_t:'Haushaltshilfe', m_house_d:'Haushaltspersonal verwalten: Pläne, Ein-/Ausstempeln, Tages- oder Stundenabrechnung, Chores und Bedarf.',
       m_inv_t:'Inventar', m_inv_d:'Was ihr besitzt: Marke, Modell, Seriennummer, Lagerort, Kaufpreis, Garantie und Zustand, mit verknüpften Belegen und Buchungen. Standardmäßig aus; Haushalte schalten es ein.',
       m_rewards_t:'Belohnungen', m_rewards_d:'Punkte auf Aufgaben werden dem zuständigen Mitglied gutgeschrieben, mit einstellbarem Standardwert für neue Aufgaben, Prämien-Katalog mit Eltern-Freigabe und vollständigem Punkte-Ledger.',
       m_recipes_t:'Rezepte', m_recipes_d:'Wiederverwendbare Rezepte erstellen, duplizieren und skalieren, dann Mahlzeiten vorausfüllen oder die Zutaten auf die Einkaufsliste schicken. Eine selbst gehostete Mealie- oder Tandoor-Instanz lässt sich nur lesend daneben spiegeln.',
-      m_rem_t:'Erinnerungen', m_rem_d:'Erinnerungen für Aufgaben und Termine mit In-App-Badge, dazu optionale Push-Benachrichtigungen, die dich auch bei geschlossener App erreichen.',
+      m_rem_t:'Erinnerungen', m_rem_d:'Erinnerungen für Aufgaben, Termine, Schichten, Abo-Verlängerungen, Garantien, Mindesthaltbarkeit und Abfuhrtermine, mit In-App-Badge, optionalen Push-Benachrichtigungen und Gotify-, ntfy-, Webhook- oder E-Mail-Kanälen des Haushalts.',
       m_backup_t:'Backup', m_backup_d:'Geplante Backups mit Vor-Wiederherstellungs-Rollback, optionalem WebDAV-Cloud-Upload (Nextcloud, ownCloud, Hetzner\xa0usw.).', plat_title:'Läuft auf <em>eurer</em> Hardware',
       plat_desc:'Ein Docker- oder Podman-Container, der auf jeden Heimserver oder jedes NAS passt. Oder in wenigen Klicks aus dem App-Store eurer Plattform.',
       plat_docker:'Fertiges Image, ein <code>compose</code>-Befehl - oder rootless mit Podman auf RHEL, Fedora und CentOS Stream.',

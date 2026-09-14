@@ -117,7 +117,8 @@ services:
       # links accounts that already exist.
       - OIDC_ALLOW_SIGNUP=${OIDC_ALLOW_SIGNUP:-true}
       # Set to false to make SSO the only way in: no login form, no password
-      # reset. Ignored unless all four OIDC values above are set.
+      # reset. Ignored unless all four OIDC values above are set and an
+      # administrator account is already linked to the provider.
       - AUTH_ALLOW_PASSWORD_LOGIN=${AUTH_ALLOW_PASSWORD_LOGIN:-true}
       # Scheduled local backups into the /backups volume above.
       - BACKUP_ENABLED=${BACKUP_ENABLED:-true}

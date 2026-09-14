@@ -393,7 +393,7 @@ User-facing changes should be reflected in [`CHANGELOG.md`](CHANGELOG.md). If yo
 
 `npm run test:changelog` enforces the bolded lead-in for `[Unreleased]` and every version from 2.41.0 on. Earlier entries are left as they are: a published changelog does not get rewritten.
 
-It also checks that no released section `## [x.y.z]` changed since its tag. If it fails on your branch after a rebase onto a new release, git has most likely merged your entry into the section that was just published - move it back under `[Unreleased]`.
+It also checks that no released section `## [x.y.z]` changed since its tag. If it fails on your branch after a rebase onto a new release, git has most likely merged your entry into the section that was just published - move it back under `[Unreleased]`. A new version heading is only accepted from a release, which bumps `package.json` first: an entry filed under a version heading of its own, with `[Unreleased]` left empty, fails as well.
 
 Otherwise: user-oriented language, and `-` rather than `—` or `–`. An entry does not stay in this file - it ships as the GitHub release notes and feeds the app store listings.
 

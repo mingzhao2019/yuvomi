@@ -28,21 +28,37 @@ durch die WebP-Quellen ersetzt.
 
 ## Wer aktualisiert den Store
 
-Zwei Wege, und sie laufen parallel:
+Gemessen am 2026-09-14 läuft der Store über genau einen Weg, unseren Workflow:
 
-- **Umbrel selbst.** Ein Maintainer pflegt den Eintrag direkt auf `master`, ohne PR
-  und meist innerhalb eines Tages nach einem Yuvomi-Release (zuletzt v1.77.0 am
-  2026-08-04). Der ältere Merker „Umbrel hat keinen Auto-Update-Bot, wir ersetzen
-  ihn" beschreibt die Lage nicht mehr.
 - **Unser Workflow.** `.github/workflows/umbrel-publish.yml` läuft auf
-  `release: published`, löst den Multi-Arch-Index-Digest auf und hält einen
-  rollierenden `yuvomi-update`-PR aktuell. Er bearbeitet die Upstream-Dateien **in
-  place** (`version`, `releaseNotes`, `@sha256`), damit Review-Anpassungen erhalten
-  bleiben. Braucht das Secret `UMBREL_FORK_TOKEN` (classic PAT mit `repo`-Scope).
+  `release: published`, löst den Multi-Arch-Index-Digest auf und bearbeitet die
+  Upstream-Dateien **in place** (`version`, `releaseNotes`, `@sha256`), damit
+  Review-Anpassungen erhalten bleiben. Das Ergebnis landet per Force-Push auf einem
+  langlebigen Branch im Fork. Ist dazu schon ein PR offen, zieht der Lauf nur Titel
+  und Body nach (`gh pr edit`); erst wenn Umbrel ihn gemergt hat, öffnet der nächste
+  Lauf einen neuen. Die PR-Nummer ist deshalb nicht stabil - suchen statt annehmen:
+  `gh pr list --repo getumbrel/umbrel-apps --search yuvomi --state all`. Braucht das
+  Secret `UMBREL_FORK_TOKEN` (classic PAT mit `repo`-Scope).
+- **Umbrel selbst** hat den Eintrag bis v1.77.0 (2026-08-04) direkt auf `master`
+  gebumpt, ohne PR. Seitdem nicht mehr: alle 17 Upstream-Commits an
+  `yuvomi/umbrel-app.yml` vom 2026-08-11 bis 2026-09-12 sind gesquashte Merges
+  unserer Workflow-PRs (#5972 bis #6079), nachzuzählen mit
+  `gh api "repos/getumbrel/umbrel-apps/commits?path=yuvomi/umbrel-app.yml&since=2026-08-10T00:00:00Z"`.
 
-Der Workflow ist damit eher Absicherung als Notwendigkeit. Manueller Fallback:
+Der Workflow ist damit der Kanal, nicht die Absicherung. Ein nachgetragenes altes
+Release schiebt den Store nicht zurück: der Schritt „Refuse to walk the store
+backwards" vergleicht beim `release`-Ereignis mit dem höchsten veröffentlichten
+stabilen Release und überspringt ältere Versionen. Manueller Fallback, auch für
+einen gewollten Rückschritt:
 `workflow_dispatch` (optionaler `version`-Input), oder Digest von Hand über
 `docker buildx imagetools inspect ghcr.io/ulsklyc/yuvomi:<version>` holen.
+
+**Drei Felder dieses Spiegels laufen zwangsläufig hinterher.** Der Workflow schreibt
+nur Upstream, nie diesen Ordner. `version`, das Image-Tag samt Digest und
+`releaseNotes` stehen hier deshalb auf dem Stand des letzten Handabgleichs, Upstream
+auf dem letzten gemergten Bump; ein `diff` zeigt dort immer Abweichung. Aussagekräftig
+sind die übrigen Zeilen (Volumes, Environment, `app_proxy`, `port`, `backupIgnore`):
+dort war der Abstand zu Upstream am 2026-09-14 null.
 
 ## Warum das Paket so aussieht
 

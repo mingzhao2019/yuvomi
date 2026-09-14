@@ -95,9 +95,9 @@ A week is not seven equal days for everyone: week views in blocks (#435), a week
 
 - **Decided.** Timetables live in the Schedule module as several blocks per cycle day, not as
   a twentieth module - [entry 6](DECISIONS.md#6-one-model-not-two), from #786 and #1018.
-- **Open.** The blocks-per-cycle-day change itself, in #1022; the side-by-side view of
-  several members' timetables, decided in #1018 as a tab in Schedule rather than a mode in
-  the calendar, and still to build.
+  Both halves have shipped with #1022: a cycle day carries more than one block, and the
+  side-by-side view of several members' timetables is an Overview tab in Schedule rather
+  than a mode in the calendar.
 
 ---
 
@@ -123,4 +123,4 @@ this list.
 
 Already tickets, since 2 September 2026: bank export import with a saved mapping (#1000),
 per-month budget plans (#1001), the health change feed (#1002), a price on a shopping item
-(#1003), account metadata without the secret (#1004).
+(#1003).
