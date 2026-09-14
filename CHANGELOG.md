@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **A member's module permissions now hold for every letter case of an API path
+  (GHSA-cvwj-hx37-3r7m).** The API routes `/api/v1/Notes` to the same place as `/api/v1/notes`,
+  but the check that enforces per-member module access compared the path letter for letter, found
+  no module for the capitalised spelling and let the request through. A member set to "no access"
+  for a module could read it that way, and a member with read-only access could write to it. This
+  affected every module since per-member module access arrived in v1.4.0; admins and members
+  without restrictions were never limited by it. Scoped API tokens were never let through, but were
+  refused for a capitalised path to a module they may use - that now works as well.
+
 ## [2.66.0] - 2026-09-13
 
 ### Added
