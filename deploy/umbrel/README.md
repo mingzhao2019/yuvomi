@@ -68,6 +68,12 @@ Der Workflow ist damit eher Absicherung als Notwendigkeit. Manueller Fallback:
   direkt - die Pfade wurden nach der Ersteinreichung umgebaut. Eine Änderung daran
   braucht laut Umbrels Update-Regeln einen idempotenten `hooks/pre-start`, sonst
   starten Bestandsinstallationen auf einem leeren Verzeichnis.
+- **Kein Modul-Ordner** (`/app/modules`) - bewusst, entschieden am 2026-09-14. Alle
+  anderen Ziele mounten ihn, dieses Paket und Upstream nicht. Ihn nachzutragen hieße
+  eine Compose-Änderung mit eigenem Versions-Bump neben dem rollierenden Workflow-PR,
+  und nach Drittmodulen auf Umbrel hat niemand gefragt. Drittmodule gibt es auf Umbrel
+  deshalb nicht; das steht auch in `MODULES.md` und `docs/installation.md` (Option E).
+  Beim `diff` gegen Upstream also keine Drift, die zu beheben wäre.
 - **Kein `user:`-Override** - der Entrypoint läuft nur zum Chown als root und wechselt
   per gosu auf den unprivilegierten `node`-User. Der Linter meldet das als Info.
 - **`SESSION_SECURE=false`** - Umbrel liefert Apps im LAN über einfaches HTTP aus.

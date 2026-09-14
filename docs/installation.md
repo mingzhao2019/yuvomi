@@ -10,7 +10,7 @@ node tools/installer/install-server.js
 # Open http://localhost:8090
 ```
 
-Requires Node.js 18+ on the host. The browser-based wizard is fully localized (24 languages, auto-detected from your browser), detects your container engine (Docker or Podman) first, then configures your `.env` — including optional reverse-proxy/HTTPS, Single Sign-On (OIDC), and automatic backups — starts the container, and creates your admin account. The engine still runs the app itself.
+Requires Node.js 22+ on the host. The browser-based wizard is fully localized (24 languages, auto-detected from your browser), detects your container engine (Docker or Podman) first, then configures your `.env` - including optional reverse-proxy/HTTPS, Single Sign-On (OIDC), and automatic backups - starts the container, and creates your admin account. The engine still runs the app itself.
 
 ### Option B — CLI Installer (Linux / macOS)
 
@@ -160,7 +160,7 @@ There are seven ways to get Yuvomi running. **Option A** (web installer) is reco
 
 ### Option A — Web Installer (Recommended)
 
-Requires Node.js 18+ and Docker on the host.
+Requires Node.js 22+ and Docker on the host.
 
 #### 1. Clone the Repository
 
@@ -383,6 +383,8 @@ Launch Yuvomi from your Umbrel home screen. The first visit guides you through c
 
 > **Finish setup right away.** When Umbrel's reverse-proxy authentication is disabled, the unauthenticated first-run setup endpoint is reachable on your LAN until you create the admin account. Complete the first-run setup immediately after installing.
 
+> **No third-party modules on Umbrel.** The store package mounts no modules folder, so the drop-in [modules](../MODULES.md) are not available on this path. Every other install option supports them.
+
 ---
 
 ### Option F — Unraid (Community Apps)
@@ -404,6 +406,10 @@ Click **Install**. In the template, set:
 #### 3. Apply and Open
 
 Click **Apply**. Once the container is running, click the Yuvomi icon → **WebUI**. The first visit guides you through creating your admin account in the browser.
+
+#### Fields locked in Settings
+
+A variable filled in on the template wins over the matching setting in the app: the email and WebDAV document-storage fields show it locked under **Settings**, and the WebDAV backup path and retention use it without saying so. Until 14 September 2026 the template shipped values for seven of these variables (`EMAIL_SMTP_PORT`, `EMAIL_SMTP_SECURE`, `EMAIL_FROM_NAME`, `WEBDAV_BACKUP_PATH`, `WEBDAV_BACKUP_KEEP`, `DOCUMENT_STORAGE_WEBDAV_ENABLED`, `DOCUMENT_STORAGE_WEBDAV_PATH`), so a container created from an older template can carry them although nobody chose them. To manage such a setting in the app again, open the container's **Edit** page, clear the variable and click **Apply**.
 
 ---
 
@@ -597,7 +603,8 @@ security, and troubleshooting.
 | `DB_ENCRYPTION_KEY` | SQLCipher AES-256 key for encryption at rest. Leave it empty and the database stays unencrypted. Once set there is no way back: it cannot be recovered and cannot be changed on an existing database. The placeholder that `.env.example` ships (`REPLACE_WITH_...`) is refused on a fresh install, because it is printed in this repository and would protect nothing. | - | No, but strongly recommended |
 | `DB_ALLOW_NEWER_SCHEMA` | Emergency switch, normally unset. An older Yuvomi refuses to start on a database a newer version has opened (see [Going back](#going-back)); `1` starts it anyway, at your own risk, with a warning on every start. | - | No |
 | `DATA_DIR` | Host directory mounted at `/data` inside the container (set in `.env` or `docker-compose.yml`). | `./data` | No |
-| `MODULES_DIR` | Host directory mounted at `/app/modules` inside the container - the drop-in folder for [third-party modules](../MODULES.md). | `./modules` | No |
+| `MODULES_DIR` | Host directory mounted at `/app/modules` inside the container - the drop-in folder for [third-party modules](../MODULES.md). Like `BACKUP_DIR`, the app also reads this name itself as the directory *inside* the container, which is why `docker-compose.yml`, `podman-compose.yml` and the Quadlet pin it to `/app/modules` there. With Compose the value in `.env` therefore only moves the mount source; the Quadlet keeps its host folder in the unit file, and Portainer uses a named volume. | `./modules` | No |
+| `BACKUP_DIR` | In `.env`/`docker-compose.yml`: the **host** directory mounted at `/backups`. Inside the container the app reads the same name as the **container** path it writes to - the compose files pin it to `/backups`, and the image defaults to `/backups` as well. Only override it inside the container if you mount your backup volume somewhere else. | `./backups` (host) / `/backups` (container) | No |
 
 > **Where the backups go.** There is no `BACKUP_DIR` in the setup wizard, and that is deliberate.
 > Unlike `DATA_DIR`, which exists only as a Compose substitution for the mount source, `BACKUP_DIR`
