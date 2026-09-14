@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } from '/rrule-ui.js';
-import { openModal as openSharedModal, closeModal, confirmModal, confirmOverModal, advancedSection, wireBlurValidation, reportFieldError, refocusAfterRender } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, confirmModal, confirmOverModal, advancedSection, wireBlurValidation, reportFieldError, refocusAfterRender, renderKeepingFocus } from '/components/modal.js';
 import { attachOverlay } from '/utils/overlay-history.js';
 import { openDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete } from '/utils/ux.js';
@@ -4293,10 +4293,14 @@ function renderAgendaEvent(ev, dayStr) {
   const displayBg     = resolveEventBackground(ev);
   const assignedUsers = ev.assigned_users ?? [];
   const ariaLabel = agendaEventAriaLabel(ev, timeStr);
+  const agendaDate = dayStr ?? localDate(ev.start_datetime);
+  // A recurring or multi-day event can share its id across several agenda
+  // rows. Keep the rendered date on both the row and its focusable opener so
+  // focus restoration can identify the same occurrence after a redraw.
   return `
-    <div class="list-row agenda-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}">
+    <div class="list-row agenda-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}" data-date="${esc(agendaDate)}">
       ${renderEventCompletionControl(ev)}
-      <div class="agenda-event__open" role="button" tabindex="0" aria-label="${esc(ariaLabel)}">
+      <div class="agenda-event__open" data-date="${esc(agendaDate)}" role="button" tabindex="0" aria-label="${esc(ariaLabel)}">
         <div class="agenda-event__color" style="background:${esc(displayBg)};"></div>
         <div class="agenda-event__body">
           <div class="agenda-event__title">${eventIconHtml(ev.icon)}${calendarRepeatIconHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span></div>
@@ -5964,6 +5968,8 @@ async function deleteEvent(event) {
     },
     isViewActive: () => Boolean(_container?.isConnected),
     reloadEvents: reloadCalendarRangeAfterDelete,
+    keepFocus: renderKeepingFocus,
+    refocusAfterUndo: refocusAfterRender,
     handleError: (err) => window.yuvomi?.showToast(
       err.data?.error ?? t('calendar.deleteError'),
       'danger',
@@ -6165,6 +6171,8 @@ async function deleteThisAndFollowing(event) {
     }),
     isViewActive: () => Boolean(_container?.isConnected),
     reloadEvents: reloadCalendarRangeAfterDelete,
+    keepFocus: renderKeepingFocus,
+    refocusAfterUndo: refocusAfterRender,
     handleError: (err) => window.yuvomi?.showToast(
       err.data?.error ?? t('calendar.deleteError'),
       'danger',
@@ -6193,6 +6201,8 @@ async function deleteSingleOccurrence(event) {
     }),
     isViewActive: () => Boolean(_container?.isConnected),
     reloadEvents: reloadCalendarRangeAfterDelete,
+    keepFocus: renderKeepingFocus,
+    refocusAfterUndo: refocusAfterRender,
     handleError: (err) => window.yuvomi?.showToast(
       err.data?.error ?? t('calendar.deleteError'),
       'danger',
