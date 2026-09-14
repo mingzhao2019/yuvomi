@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Keine passende Art in diesem Haushalt",
         "mappingProfileStatusAmbiguousType": "Mehrdeutig - mehrere Typen tragen diesen Namen",
         "icsCalendarName": "Abfuhrtermine",
-        "icsPickupSummary": "Abholung: {{name}}"
+        "icsPickupSummary": "Abholung: {{name}}",
+        "colorGray": "Grau",
+        "colorBlue": "Blau",
+        "colorGreen": "Grün",
+        "colorOcher": "Ocker",
+        "colorTeal": "Türkis",
+        "colorViolet": "Violett",
+        "colorRed": "Rot",
+        "colorCyan": "Cyan",
+        "colorOrange": "Orange",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Aktuelle Farbe"
     }
 }

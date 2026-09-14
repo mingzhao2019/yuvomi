@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "No matching type in this household",
         "mappingProfileStatusAmbiguousType": "Ambiguous - multiple types share this name",
         "icsCalendarName": "Waste pickups",
-        "icsPickupSummary": "{{name}} pickup"
+        "icsPickupSummary": "{{name}} pickup",
+        "colorGray": "Gray",
+        "colorBlue": "Blue",
+        "colorGreen": "Green",
+        "colorOcher": "Ochre",
+        "colorTeal": "Teal",
+        "colorViolet": "Violet",
+        "colorRed": "Red",
+        "colorCyan": "Cyan",
+        "colorOrange": "Orange",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Current color"
     }
 }

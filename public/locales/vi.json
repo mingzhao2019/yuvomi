@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Không có loại khớp trong hộ gia đình này",
         "mappingProfileStatusAmbiguousType": "Không rõ ràng - nhiều loại có cùng tên",
         "icsCalendarName": "Thu gom rác",
-        "icsPickupSummary": "Thu gom: {{name}}"
+        "icsPickupSummary": "Thu gom: {{name}}",
+        "colorGray": "Xám",
+        "colorBlue": "Xanh dương",
+        "colorGreen": "Xanh lá cây",
+        "colorOcher": "Vàng đất",
+        "colorTeal": "Mòng két",
+        "colorViolet": "Tím",
+        "colorRed": "Đỏ",
+        "colorCyan": "Xanh lơ",
+        "colorOrange": "Cam",
+        "colorMagenta": "Hồng sen",
+        "colorCurrent": "Màu hiện tại"
     }
 }

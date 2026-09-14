@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "لا يوجد نوع مطابق في هذه الأسرة",
         "mappingProfileStatusAmbiguousType": "غامض - عدة أنواع تشترك في هذا الاسم",
         "icsCalendarName": "مواعيد جمع النفايات",
-        "icsPickupSummary": "جمع {{name}}"
+        "icsPickupSummary": "جمع {{name}}",
+        "colorGray": "رمادي",
+        "colorBlue": "أزرق",
+        "colorGreen": "أخضر",
+        "colorOcher": "مغرة",
+        "colorTeal": "أخضر مزرق",
+        "colorViolet": "بنفسجي",
+        "colorRed": "أحمر",
+        "colorCyan": "سماوي",
+        "colorOrange": "برتقالي",
+        "colorMagenta": "أرجواني",
+        "colorCurrent": "اللون الحالي"
     }
 }

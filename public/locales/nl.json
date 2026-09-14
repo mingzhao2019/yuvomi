@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Geen overeenkomende soort in dit huishouden",
         "mappingProfileStatusAmbiguousType": "Dubbelzinnig - meerdere types delen deze naam",
         "icsCalendarName": "Afvalophaling",
-        "icsPickupSummary": "Ophaling: {{name}}"
+        "icsPickupSummary": "Ophaling: {{name}}",
+        "colorGray": "Grijs",
+        "colorBlue": "Blauw",
+        "colorGreen": "Groen",
+        "colorOcher": "Oker",
+        "colorTeal": "Groenblauw",
+        "colorViolet": "Violet",
+        "colorRed": "Rood",
+        "colorCyan": "Cyaan",
+        "colorOrange": "Oranje",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Huidige kleur"
     }
 }

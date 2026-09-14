@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Nincs egyező típus ebben a háztartásban",
         "mappingProfileStatusAmbiguousType": "Nem egyértelmű - több típus is ezt a nevet viseli",
         "icsCalendarName": "Hulladékszállítás",
-        "icsPickupSummary": "Elszállítás: {{name}}"
+        "icsPickupSummary": "Elszállítás: {{name}}",
+        "colorGray": "Szürke",
+        "colorBlue": "Kék",
+        "colorGreen": "Zöld",
+        "colorOcher": "Okker",
+        "colorTeal": "Türkiz",
+        "colorViolet": "Ibolya",
+        "colorRed": "Piros",
+        "colorCyan": "Cián",
+        "colorOrange": "Narancs",
+        "colorMagenta": "Bíbor",
+        "colorCurrent": "Jelenlegi szín"
     }
 }

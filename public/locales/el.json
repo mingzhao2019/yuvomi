@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Κανένας αντίστοιχος τύπος σε αυτό το νοικοκυριό",
         "mappingProfileStatusAmbiguousType": "Διφορούμενο - πολλοί τύποι έχουν αυτό το όνομα",
         "icsCalendarName": "Αποκομιδή απορριμμάτων",
-        "icsPickupSummary": "Αποκομιδή: {{name}}"
+        "icsPickupSummary": "Αποκομιδή: {{name}}",
+        "colorGray": "Γκρι",
+        "colorBlue": "Μπλε",
+        "colorGreen": "Πράσινο",
+        "colorOcher": "Ώχρα",
+        "colorTeal": "Πράσινο-μπλε",
+        "colorViolet": "Βιολετί",
+        "colorRed": "Κόκκινο",
+        "colorCyan": "Κυανό",
+        "colorOrange": "Πορτοκαλί",
+        "colorMagenta": "Ματζέντα",
+        "colorCurrent": "Τρέχον χρώμα"
     }
 }

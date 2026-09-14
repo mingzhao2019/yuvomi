@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "В этой семье нет соответствующего вида",
         "mappingProfileStatusAmbiguousType": "Неоднозначно - несколько типов имеют одинаковое имя",
         "icsCalendarName": "Вывоз мусора",
-        "icsPickupSummary": "Вывоз: {{name}}"
+        "icsPickupSummary": "Вывоз: {{name}}",
+        "colorGray": "Серый",
+        "colorBlue": "Синий",
+        "colorGreen": "Зелёный",
+        "colorOcher": "Охра",
+        "colorTeal": "Бирюзовый",
+        "colorViolet": "Фиолетовый",
+        "colorRed": "Красный",
+        "colorCyan": "Голубой",
+        "colorOrange": "Оранжевый",
+        "colorMagenta": "Пурпурный",
+        "colorCurrent": "Текущий цвет"
     }
 }

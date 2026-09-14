@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Ingen matchande typ i detta hushåll",
         "mappingProfileStatusAmbiguousType": "Tvetydigt - flera typer delar detta namn",
         "icsCalendarName": "Sophämtning",
-        "icsPickupSummary": "Hämtning: {{name}}"
+        "icsPickupSummary": "Hämtning: {{name}}",
+        "colorGray": "Grå",
+        "colorBlue": "Blå",
+        "colorGreen": "Grön",
+        "colorOcher": "Ockra",
+        "colorTeal": "Blågrön",
+        "colorViolet": "Violett",
+        "colorRed": "Röd",
+        "colorCyan": "Cyan",
+        "colorOrange": "Orange",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Nuvarande färg"
     }
 }

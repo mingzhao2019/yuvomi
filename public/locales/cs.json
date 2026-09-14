@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "V této domácnosti není odpovídající druh",
         "mappingProfileStatusAmbiguousType": "Nejednoznačné - více typů má stejný název",
         "icsCalendarName": "Svoz odpadu",
-        "icsPickupSummary": "Svoz: {{name}}"
+        "icsPickupSummary": "Svoz: {{name}}",
+        "colorGray": "Šedá",
+        "colorBlue": "Modrá",
+        "colorGreen": "Zelená",
+        "colorOcher": "Okrová",
+        "colorTeal": "Modrozelená",
+        "colorViolet": "Fialová",
+        "colorRed": "Červená",
+        "colorCyan": "Azurová",
+        "colorOrange": "Oranžová",
+        "colorMagenta": "Purpurová",
+        "colorCurrent": "Aktuální barva"
     }
 }

@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "У цьому домі немає відповідного виду",
         "mappingProfileStatusAmbiguousType": "Неоднозначно - кілька типів мають однакову назву",
         "icsCalendarName": "Вивіз сміття",
-        "icsPickupSummary": "Вивіз: {{name}}"
+        "icsPickupSummary": "Вивіз: {{name}}",
+        "colorGray": "Сірий",
+        "colorBlue": "Синій",
+        "colorGreen": "Зелений",
+        "colorOcher": "Вохра",
+        "colorTeal": "Бірюзовий",
+        "colorViolet": "Фіолетовий",
+        "colorRed": "Червоний",
+        "colorCyan": "Блакитний",
+        "colorOrange": "Помаранчевий",
+        "colorMagenta": "Пурпуровий",
+        "colorCurrent": "Поточний колір"
     }
 }

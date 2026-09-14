@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "이 가구에 일치하는 종류가 없음",
         "mappingProfileStatusAmbiguousType": "모호함 - 동일한 이름의 유형이 여러 개 있습니다",
         "icsCalendarName": "쓰레기 수거",
-        "icsPickupSummary": "수거: {{name}}"
+        "icsPickupSummary": "수거: {{name}}",
+        "colorGray": "회색",
+        "colorBlue": "파랑",
+        "colorGreen": "초록",
+        "colorOcher": "황토색",
+        "colorTeal": "청록",
+        "colorViolet": "보라색",
+        "colorRed": "빨강",
+        "colorCyan": "시안",
+        "colorOrange": "주황",
+        "colorMagenta": "자홍색",
+        "colorCurrent": "현재 색상"
     }
 }

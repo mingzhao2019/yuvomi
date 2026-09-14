@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "此家庭中没有匹配的类型",
         "mappingProfileStatusAmbiguousType": "有歧义 - 多个类型使用相同名称",
         "icsCalendarName": "垃圾收运",
-        "icsPickupSummary": "收运：{{name}}"
+        "icsPickupSummary": "收运：{{name}}",
+        "colorGray": "灰色",
+        "colorBlue": "蓝色",
+        "colorGreen": "绿色",
+        "colorOcher": "赭色",
+        "colorTeal": "青绿色",
+        "colorViolet": "紫色",
+        "colorRed": "红色",
+        "colorCyan": "青色",
+        "colorOrange": "橙色",
+        "colorMagenta": "洋红色",
+        "colorCurrent": "当前颜色"
     }
 }

@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "इस परिवार में कोई मेल खाता प्रकार नहीं",
         "mappingProfileStatusAmbiguousType": "अस्पष्ट - कई प्रकारों का यही नाम है",
         "icsCalendarName": "कचरा संग्रहण",
-        "icsPickupSummary": "संग्रहण: {{name}}"
+        "icsPickupSummary": "संग्रहण: {{name}}",
+        "colorGray": "ग्रे",
+        "colorBlue": "नीला",
+        "colorGreen": "हरा",
+        "colorOcher": "गेरुआ",
+        "colorTeal": "टील",
+        "colorViolet": "बैंगनी",
+        "colorRed": "लाल",
+        "colorCyan": "सियान",
+        "colorOrange": "नारंगी",
+        "colorMagenta": "मैजेंटा",
+        "colorCurrent": "वर्तमान रंग"
     }
 }

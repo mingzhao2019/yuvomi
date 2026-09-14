@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Tidak ada jenis yang cocok di rumah tangga ini",
         "mappingProfileStatusAmbiguousType": "Ambigu - beberapa jenis memiliki nama yang sama",
         "icsCalendarName": "Pengangkutan sampah",
-        "icsPickupSummary": "Pengangkutan: {{name}}"
+        "icsPickupSummary": "Pengangkutan: {{name}}",
+        "colorGray": "Abu-abu",
+        "colorBlue": "Biru",
+        "colorGreen": "Hijau",
+        "colorOcher": "Oker",
+        "colorTeal": "Toska",
+        "colorViolet": "Ungu",
+        "colorRed": "Merah",
+        "colorCyan": "Sian",
+        "colorOrange": "Oranye",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Warna saat ini"
     }
 }

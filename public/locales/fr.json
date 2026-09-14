@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Aucun type correspondant dans ce foyer",
         "mappingProfileStatusAmbiguousType": "Ambigu - plusieurs types portent ce nom",
         "icsCalendarName": "Collecte des déchets",
-        "icsPickupSummary": "Collecte : {{name}}"
+        "icsPickupSummary": "Collecte : {{name}}",
+        "colorGray": "Gris",
+        "colorBlue": "Bleu",
+        "colorGreen": "Vert",
+        "colorOcher": "Ocre",
+        "colorTeal": "Sarcelle",
+        "colorViolet": "Violet",
+        "colorRed": "Rouge",
+        "colorCyan": "Cyan",
+        "colorOrange": "Orange",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Couleur actuelle"
     }
 }

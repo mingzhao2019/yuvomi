@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "نوع مطابقی در این خانوار نیست",
         "mappingProfileStatusAmbiguousType": "مبهم - چند نوع این نام را دارند",
         "icsCalendarName": "جمع‌آوری زباله",
-        "icsPickupSummary": "جمع‌آوری: {{name}}"
+        "icsPickupSummary": "جمع‌آوری: {{name}}",
+        "colorGray": "خاکستری",
+        "colorBlue": "آبی",
+        "colorGreen": "سبز",
+        "colorOcher": "خاکی",
+        "colorTeal": "فیروزه‌ای",
+        "colorViolet": "بنفش",
+        "colorRed": "قرمز",
+        "colorCyan": "سیان",
+        "colorOrange": "نارنجی",
+        "colorMagenta": "سرخابی",
+        "colorCurrent": "رنگ فعلی"
     }
 }

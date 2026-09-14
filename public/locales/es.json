@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Ningún tipo coincidente en este hogar",
         "mappingProfileStatusAmbiguousType": "Ambiguo: varios tipos comparten este nombre",
         "icsCalendarName": "Recogida de residuos",
-        "icsPickupSummary": "Recogida: {{name}}"
+        "icsPickupSummary": "Recogida: {{name}}",
+        "colorGray": "Gris",
+        "colorBlue": "Azul",
+        "colorGreen": "Verde",
+        "colorOcher": "Ocre",
+        "colorTeal": "Verde azulado",
+        "colorViolet": "Violeta",
+        "colorRed": "Rojo",
+        "colorCyan": "Cian",
+        "colorOrange": "Naranja",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Color actual"
     }
 }

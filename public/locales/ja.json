@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "この世帯に一致する種類がありません",
         "mappingProfileStatusAmbiguousType": "あいまい - 同じ名前の種類が複数あります",
         "icsCalendarName": "ゴミ収集",
-        "icsPickupSummary": "収集: {{name}}"
+        "icsPickupSummary": "収集: {{name}}",
+        "colorGray": "グレー",
+        "colorBlue": "青",
+        "colorGreen": "緑",
+        "colorOcher": "オーカー",
+        "colorTeal": "ティール",
+        "colorViolet": "バイオレット",
+        "colorRed": "赤",
+        "colorCyan": "シアン",
+        "colorOrange": "オレンジ",
+        "colorMagenta": "マゼンタ",
+        "colorCurrent": "現在の色"
     }
 }

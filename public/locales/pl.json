@@ -5271,6 +5271,17 @@
         "mappingProfileStatusUnmatchedType": "Brak pasującego rodzaju w tym gospodarstwie",
         "mappingProfileStatusAmbiguousType": "Niejednoznaczne - kilka typów ma tę samą nazwę",
         "icsCalendarName": "Odbiór odpadów",
-        "icsPickupSummary": "Odbiór: {{name}}"
+        "icsPickupSummary": "Odbiór: {{name}}",
+        "colorGray": "Szary",
+        "colorBlue": "Niebieski",
+        "colorGreen": "Zielony",
+        "colorOcher": "Ochra",
+        "colorTeal": "Turkusowy",
+        "colorViolet": "Fioletowy",
+        "colorRed": "Czerwony",
+        "colorCyan": "Cyjan",
+        "colorOrange": "Pomarańczowy",
+        "colorMagenta": "Magenta",
+        "colorCurrent": "Obecny kolor"
     }
 }
