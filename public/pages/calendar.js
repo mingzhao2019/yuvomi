@@ -1856,67 +1856,15 @@ function renderToolbar() {
   // weg?"), und der Rest steht beschriftet im Blatt (openCalendarFilters).
   const filterCount = activeFilterCount();
 
-  // Der Geburtstags-Schalter erscheint nur, wenn im geladenen Bereich wirklich
-  // Geburtstage liegen - oder wenn die Ebene aus ist, denn sonst gaebe es keinen
-  // Weg zurueck: ohne sichtbare Geburtstage verschwaende der Knopf, der sie
-  // wieder einschaltet.
-  const showBirthdayToggle = hasBirthdayEvents() || !state.layerBirthdays;
-  // Der zweite Zweig haelt den Knopf sichtbar, wenn die Ebene ausgeschaltet ist -
-  // sonst gaebe es keinen Weg zurueck. Er darf aber nicht ueber ein
-  // abgeschaltetes Modul hinweghelfen, sonst bliebe der Schalter stehen, wenn
-  // gerade niemand mehr etwas einschalten kann.
-  const showScheduleToggle = scheduleEnabled()
-    && (state.scheduleEntries.length > 0 || !state.layerSchedule);
-
-  const holidayToggleHtml = (showHolidayToggle || showSchoolToggle || showBirthdayToggle || showScheduleToggle) ? `
-    <div class="cal-toolbar__layers">
-      ${showHolidayToggle ? `
-        <button class="cal-toolbar__layer-btn ${state.layerHolidays ? 'cal-toolbar__layer-btn--active' : ''}"
-                id="cal-layer-holidays" data-layer="holidays"
-                title="${t('calendar.toggleHolidays')}"
-                style="--layer-color:${esc(hp.holiday_public_color ?? '#FF3B30')}">
-          <span class="cal-toolbar__layer-dot"></span>
-          <span>${t('calendar.toggleHolidays')}</span>
-        </button>
-      ` : ''}
-      ${showSchoolToggle ? `
-        <button class="cal-toolbar__layer-btn ${state.layerSchool ? 'cal-toolbar__layer-btn--active' : ''}"
-                id="cal-layer-school" data-layer="school"
-                title="${t('calendar.toggleSchool')}"
-                style="--layer-color:${esc(hp.holiday_school_color ?? '#34C759')}">
-          <span class="cal-toolbar__layer-dot"></span>
-          <span>${t('calendar.toggleSchool')}</span>
-        </button>
-      ` : ''}
-      ${showScheduleToggle ? `
-        <button class="cal-toolbar__layer-btn ${state.layerSchedule ? 'cal-toolbar__layer-btn--active' : ''}"
-                data-layer="schedule"
-                title="${t('schedule.overlay')}">
-          <span class="cal-toolbar__layer-dot"></span>
-          <span>${t('schedule.overlay')}</span>
-        </button>
-        <button class="cal-toolbar__layer-btn" data-schedule-display
-                title="${t(state.scheduleDisplay === 'compact' ? 'schedule.fullBlocks' : 'schedule.compactDisplay')}">
-          <span>${t(state.scheduleDisplay === 'compact' ? 'schedule.fullBlocks' : 'schedule.compactDisplay')}</span>
-        </button>
-        ${state.scheduleWarnings.length ? `
-          <span class="cal-toolbar__schedule-warning" role="status"
-                title="${esc(t('schedule.overlapWarning', { date: state.scheduleWarnings[0].date_key, user: scheduleOwnerName(state.scheduleWarnings[0]) }))}">
-            <i data-lucide="triangle-alert" class="icon-sm" aria-hidden="true"></i>
-            <span>${t('schedule.overlapWarningShort')}</span>
-          </span>
-        ` : ''}
-      ` : ''}
-      ${showBirthdayToggle ? `
-        <button class="cal-toolbar__layer-btn ${state.layerBirthdays ? 'cal-toolbar__layer-btn--active' : ''}"
-                id="cal-layer-birthdays" data-layer="birthdays"
-                title="${t('calendar.toggleBirthdays')}"
-                style="--layer-color:var(--color-accent)">
-          <span class="cal-toolbar__layer-dot"></span>
-          <span>${t('calendar.toggleBirthdays')}</span>
-        </button>
-      ` : ''}
-    </div>
+  // DIE UEBERLAPPUNGSWARNUNG BLEIBT IM KOPF. Sie ist eine Meldung mit
+  // `role="status"`, kein Filter - im Blatt waere sie hinter einem Klick
+  // versteckt, und eine Warnung, die man erst oeffnen muss, ist keine.
+  const scheduleWarningHtml = (scheduleEnabled() && state.scheduleWarnings.length) ? `
+    <span class="cal-toolbar__schedule-warning" role="status"
+          title="${esc(t('schedule.overlapWarning', { date: state.scheduleWarnings[0].date_key, user: scheduleOwnerName(state.scheduleWarnings[0]) }))}">
+      <i data-lucide="triangle-alert" class="icon-sm" aria-hidden="true"></i>
+      <span>${t('schedule.overlapWarningShort')}</span>
+    </span>
   ` : '';
 
   const filterBtnHtml = `
@@ -1948,15 +1896,7 @@ function renderToolbar() {
       </button>
     </div>
     <div class="page-toolbar__actions">
-      ${holidayToggleHtml}
-      ${state.users.length > 1 && state.currentUserId != null ? `
-        <button class="cal-toolbar__layer-btn cal-toolbar__mine-btn ${state.assignedToMe ? 'cal-toolbar__layer-btn--active' : ''}"
-                id="cal-assigned-me" aria-pressed="${state.assignedToMe ? 'true' : 'false'}"
-                title="${t('calendar.assignedToMe')}" style="--layer-color:var(--module-calendar)">
-          <i data-lucide="user" class="icon-sm" aria-hidden="true"></i>
-          <span>${t('calendar.assignedToMe')}</span>
-        </button>
-      ` : ''}
+      ${filterBtnHtml}
       <button class="btn btn--primary toolbar-new-btn" id="cal-add" aria-label="${t('calendar.addEvent')}">
         <i data-lucide="plus" aria-hidden="true"></i>
         <span class="toolbar-new-btn__label">${t('newLabel.calendar')}</span>
@@ -1981,11 +1921,6 @@ function renderToolbar() {
 
   if (window.lucide) lucide.createIcons({ el: bar });
 
-  // Scroll-Affordanz der Bar-Zeile: das Segment passt auf 375px komplett,
-  // aber 320px-Geraete und lange Locales scrollen - dann zeigt der geteilte
-  // Peek-Fade (.page-toolbar__bar, layout.css) den Anschnitt.
-  wireScrollFade(bar.querySelector('.cal-toolbar__views'));
-
   updateLabel();
 
   bar.querySelector('#cal-prev').addEventListener('click', () => navigate(-1));
@@ -1995,50 +1930,8 @@ function renderToolbar() {
   bar.querySelector('#cal-search').addEventListener('click', openCalendarSearch);
   bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters);
 
-  bar.querySelector('#cal-assigned-me')?.addEventListener('click', (e) => {
-    state.assignedToMe = !state.assignedToMe;
-    try { localStorage.setItem(ASSIGNED_TO_ME_KEY, state.assignedToMe ? '1' : '0'); } catch {}
-    const btn = e.currentTarget;
-    btn.classList.toggle('cal-toolbar__layer-btn--active', state.assignedToMe);
-    btn.setAttribute('aria-pressed', String(state.assignedToMe));
-    renderView();
-  });
-
-  bar.querySelector('[data-schedule-display]')?.addEventListener('click', () => {
-    state.scheduleDisplay = state.scheduleDisplay === 'compact' ? 'blocks' : 'compact';
-    localStorage.setItem(SCHEDULE_DISPLAY_KEY, state.scheduleDisplay);
-    renderToolbar();
-    renderView();
-  });
-
-  bar.querySelectorAll('[data-layer]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const layer = btn.dataset.layer;
-      if (layer === 'holidays') {
-        state.layerHolidays = !state.layerHolidays;
-        localStorage.setItem(LAYER_HOLIDAYS_KEY, state.layerHolidays);
-        btn.classList.toggle('cal-toolbar__layer-btn--active', state.layerHolidays);
-      } else if (layer === 'school') {
-        state.layerSchool = !state.layerSchool;
-        localStorage.setItem(LAYER_SCHOOL_KEY, state.layerSchool);
-        btn.classList.toggle('cal-toolbar__layer-btn--active', state.layerSchool);
-      } else if (layer === 'schedule') {
-        state.layerSchedule = !state.layerSchedule;
-        localStorage.setItem(LAYER_SCHEDULE_KEY, state.layerSchedule);
-        btn.classList.toggle('cal-toolbar__layer-btn--active', state.layerSchedule);
-      } else if (layer === 'birthdays') {
-        state.layerBirthdays = !state.layerBirthdays;
-        // Literale statt Boolean: der Variablenname triggert sonst die
-        // PII-Heuristik des Code-Scanners - gespeichert wird nur ein Toggle.
-        localStorage.setItem(LAYER_BIRTHDAYS_KEY, state.layerBirthdays ? 'true' : 'false');
-        btn.classList.toggle('cal-toolbar__layer-btn--active', state.layerBirthdays);
-      }
-      renderView();
-    });
-  });
-
-  // Ansichts-Umschalter scrollt auf Mobile horizontal (Scrollbalken versteckt):
-  // Rand-Fade als Affordanz (geteilte has-fade-*-Konvention, Audit F-06).
+  // EIN wireScrollFade auf diesem Element, nicht zwei: renderToolbar() wird bei
+  // Filterwechseln erneut aufgerufen, und der Helfer registriert Beobachter.
   wireScrollFade(bar.querySelector('.cal-toolbar__views'));
   viewTabs = wireTablist(bar.querySelector('.cal-toolbar__views'), {
     activeId: state.view,

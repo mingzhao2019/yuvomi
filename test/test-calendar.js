@@ -21,6 +21,38 @@ function test(name, fn) {
 }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion fehlgeschlagen'); }
 
+test('Kalender-Toolbar verwendet nur den Filterblatt-Einstieg', () => {
+  const source = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const start = source.indexOf('function renderToolbar()');
+  const end = source.indexOf('function updateLabel()', start);
+  assert(start >= 0 && end > start, 'renderToolbar muss als eigener Block auffindbar sein');
+
+  const body = source.slice(start, end);
+  const warningAt = body.indexOf('const scheduleWarningHtml =');
+  const filterAt = body.indexOf('const filterBtnHtml =');
+  assert(warningAt >= 0 && warningAt < filterAt,
+    'die Schichtwarnung muss vor dem Filterknopf definiert werden');
+  assert(body.includes('${filterBtnHtml}'),
+    'der erzeugte Filterknopf muss in die Toolbar-Actions eingesetzt werden');
+  assert(body.includes("bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters)"),
+    'der Filterknopf muss das Filterblatt oeffnen');
+
+  for (const legacy of [
+    'holidayToggleHtml',
+    'showHolidayToggle',
+    'showSchoolToggle',
+    'id="cal-assigned-me"',
+    "querySelector('[data-schedule-display]')",
+    "querySelectorAll('[data-layer]')",
+  ]) {
+    assert(!body.includes(legacy), `alter Toolbar-Pfad muss entfernt bleiben: ${legacy}`);
+  }
+
+  const scrollFadeCalls = body.match(/wireScrollFade\(/g) ?? [];
+  assert(scrollFadeCalls.length === 1,
+    `renderToolbar darf nur einen Scroll-Beobachter registrieren, gefunden: ${scrollFadeCalls.length}`);
+});
+
 test('Kalender-Speicherbestätigungen halten beide Editor-Save-Gates offen', () => {
   const source = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
   for (const [name, nextName] of [
