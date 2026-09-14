@@ -35,8 +35,12 @@ function hasOutboundCalendarTarget(event) {
  * Serie aus Google, Apple, CalDAV oder einem ICS-Abo käme ein lokal
  * ausgenommenes Vorkommen beim nächsten Sync zurück (#489/#532).
  *
- * `external_source` ist serverseitig NOT NULL DEFAULT 'local'; das `?? 'local'`
- * fängt eine Antwort ab, die die Spalte gar nicht mitliefert.
+ * Die Antwort entscheidet das nicht hier, sondern trägt es als
+ * `is_local_recurring_series`: der Server leitet es in `classifyLocalSeriesBatch()`
+ * (`server/services/calendar-occurrence-overrides.js`) ab - `external_source` ist
+ * 'local', und es gibt weder Kalender-, Abo- noch Objektbezug. Nur ein echtes `true`
+ * zählt: fehlt das Feld, gilt die Serie als fremd und nimmt den vorsichtigen Weg
+ * über die Rückfrage aus `isExternalRecurringSeries()`.
  */
 export function isLocalRecurringSeries(event) {
   // The server keeps local origin separate from provider eligibility so it can
