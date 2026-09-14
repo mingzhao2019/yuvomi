@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.66.0] - 2026-09-13
+
 ### Added
 
 - **A calendar's default assignee can now be applied to the events it already imported** (#1154).
@@ -23,6 +25,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   title, in the same order as Budget. The chosen month stays put while you work in it: marking a
   visit paid or editing one reloads that month instead of jumping back, and an empty month says
   which month it is.
+
+- **A shopping list follows what the rest of the household does, while it is open** (#1108). Two people
+  in the same shop used to see two different lists: what one ticked off stayed unticked on the
+  other's phone until that page was reloaded. The open list now hears about changes within about ten
+  seconds and redraws the affected rows in place - the same gesture as your own tap, no jump, no
+  animation - and rebuilds only when an item was added, removed, renamed or moved.
+
+  The server keeps a change counter per list, maintained by database triggers rather than by the
+  routes: shopping items are written from six modules (the list itself, meal-plan and recipe
+  imports, the housekeeping module, MCP, the CalDAV to-do sync), and a counter that every writer
+  has to remember is a counter one of them forgets. The counter also moves when a list is renamed,
+  and its row goes with the list, so a list someone else deletes disappears from your screen too.
+  The open page asks `GET /api/v1/shopping/versions` every ten seconds while the tab is visible,
+  and at once when it becomes visible or gets focus - the moment somebody looks at the phone. It
+  reloads only a list whose number moved, through the same request it used to open it, so there
+  is still one read path. Deliberately a poll and not an open stream: it works through any
+  reverse proxy, holds no connection, and can grow into a stream on the same counter later. Your
+  own taps do not cost a reload: the write routes answer with the counter before and after, and
+  the page skips the reload when nothing else moved in between.
 
 ### Fixed
 
@@ -833,6 +854,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   off stays open to members, as paying the visit does. A member who used to correct an accidental
   tick by unticking the payment task now gets "Permission denied" and has to ask an admin.
 
+## [2.65.3] - 2026-09-12
+
+### Security
+
+- **A household member can no longer take back a paid housekeeping visit through its payment
+  task (GHSA-82jf-c39w-vh8c).** Since v2.64.1 a paid visit can only be changed, deleted or paid
+  again by an admin (GHSA-4p5w-5346-8598). That boundary covered the visit but not the payment
+  task linked to it: reopening the task in Tasks marked the visit unpaid again, and from there a
+  member could change its amount or delete it. Moving the payment task of a paid visit out of
+  done now needs an admin as well, whether from the task form, the checkbox, a swipe or a bulk
+  action. Ticking the task off stays open to members, as paying the visit does. A member who used
+  to correct an accidental tick by unticking the payment task now gets "Permission denied" and has
+  to ask an admin.
+
 ## [2.65.2] - 2026-09-11
 
 ### Security
@@ -847,13 +882,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   need their own scopes. Tokens without scopes and browser sessions see no change; a token set up
   with only `search` or `dashboard` returns empty results until its modules are added.
 
-- **Global search no longer surfaces other members' private calendar events.** The search box
+## [2.65.1] - 2026-09-08
+
+### Security
+
+- **Global search no longer surfaces other members' private calendar events
+  (GHSA-gjpr-85rg-587c).** The search box
   at the top of the app queries every module at once, and its calendar bucket applied only the
   module-access check: a member could type a word and get the title and date of another member's
   private appointment, or of an event from a subscribed calendar that was never shared - while the
   calendar's own search has filtered both since #474. The global search now applies the same two
   clauses as the calendar search, so the two return the same hits for the same word, which is what
   #471 intended. Found while reviewing #1055.
+
+### Changed
+
+- **Updated the production dependency `nodemailer` to 10** (#1048). It carries the password-reset
+  and invitation mails; the SMTP settings are unchanged.
 
 ### Fixed
 
@@ -1567,6 +1612,129 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the native colour input to fill its grid cell; on the mobile layout, where the two-column form
   collapses to one, that cell is the whole form width. It now carries a fixed size, matching the
   compact colour swatches used elsewhere in the app.
+
+## [2.63.0] - 2026-09-02
+
+### Added
+
+- **Third-party modules can declare capabilities in `module.json`** for dashboard widgets, household permissions (`ext:<module-id>`), and API token scopes - the same surfaces core modules use, without changing core application code.
+- **The dashboard dynamically loads third-party widget entry points** (`renderWidget`) from protected module assets, with per-widget error isolation and an optional generic options dialog driven by `optionsSchema`.
+- **Third-party modules can ship UI translations** in `locales/{locale}.json` with manifest `i18n.defaultLocale`, `labelKey` / `titleKey`, and the same 24 core languages as Yuvomi.
+- **OpenAPI now documents extension module capabilities** and module i18n metadata.
+
+- **Every page behind the app shell is now held to one page composition contract** (#929).
+  Layout primitives (`.app-page--*`, `page-measure`, the bleed section), the `--layout-*` width
+  tokens and the `page-layout.js` helpers arrive together with an audit that enforces them. The
+  audit derives its scope from `router.js` rather than from a list: a route with
+  `requiresAuth: false` renders without navigation and is outside the contract, everything else
+  is inside it, and a page added tomorrow is covered the day it gets a route. Three pages that
+  predate the contract are named in the guard, and a second test fails if that list grows, so
+  migrating a page is a deletion rather than a table somebody has to keep honest. The first draft
+  marked one reference page in the production markup instead; that attribute shipped to every
+  visitor and said nothing about the other thirty pages, so the guarantee moved into the guard.
+  The spec lives at `docs/PAGE-COMPOSITION.md`. Two reviews on the way in found what the first
+  cut had left undone: an extension module's `page.composition` and `page.width` were checked
+  on the server and shown in the admin list but never applied to the page, so `data` looked
+  exactly like `reading`; now the router mounts the module in the declared root (the
+  `container` a module's `render()` receives is that root, and `context.page` says which). The
+  reference page had lost the gap between its header and its body, and its measured header
+  wrapped the title in a rail that hid the module seal and the docked title; notes was declared
+  a reading page while its masonry ran the full width beside a 720px header, and is now `full`.
+  Three of the new guards were green without seeing anything: the breakpoint check let the
+  spec's own forbidden example through, the negative-margin check did not know `calc(-1 * ...)`,
+  and the inline-width check read the whole `style` attribute instead of the value. Each of
+  them now has a counter-proof. A second round found the header formula for a tab bar still
+  subtracting the reading width by name, so the housekeeping header (a `data` page) stopped
+  240px before its cards; it now subtracts the measure of its own page, and pages without one
+  (`full`, `split`) set that measure to `100%` rather than `none`, because `none` inside a
+  `calc()` does not degrade, it invalidates. The split grid sat on the page root, where the
+  helper's header and body would have become its two cells; it sits on the body now, and
+  `full`/`split` roots built by the helper take the shell height so a body can scroll on its
+  own. Subscriptions was declared `reading` while its analytics grid and list never met the
+  measure - only the KPI band did, and the page acquired a width jump; it is `full` until its
+  sections follow one measure, and split-expenses, a header over a two-column layout, is
+  `split`. The reach proof of the audit could not catch the failure it was written for: with
+  a dead router expression the scope did not shrink to nothing but widened to every page, login
+  included, and every lower bound stayed green; the expression now has to have read the
+  standalone routes before the file walk is allowed to add anything. A third round found the
+  helpers escaping only attribute values: `id`, `className` and attribute keys went into the
+  markup raw, and these helpers are the API an extension is told to build its page with, so a
+  per-record id was the expected way to hit it; every attribute value now goes through the
+  shared `esc()`. A fourth round showed that `esc()` is the wrong tool for an attribute key: it
+  knows `& < > " '` and not the space or `=` that end a name outside the quotes, so a key with
+  either in it became three attributes, one of them live, while the new guard stayed green with
+  its quote-based payload. Keys are now validated against an attribute-name pattern and an
+  invalid one throws like an unknown mode does; the guard tokenizes the opening tag the way a
+  browser does instead of reading the string. A fifth round caught the split grid measuring
+  the viewport: beside the expanded sidebar a 1024px screen leaves the page about 804px, and a
+  master rail allowed 720px of that left the detail rail a few pixels wide on common laptops;
+  the split root is a container now, the grid switches on the page's own width like the
+  expenses split already did, and the master rail never takes more than half. A sixth round
+  found the header helper still building a rail box for `measured` without `narrow`, the one
+  combination the spec still offered: a real element, not a `display: contents` shim, and it
+  put the title one level below the toolbar where the large-title rules and the collapsing
+  header look for a direct child. No page used it. The option, the element and its rules are
+  gone, every option combination renders the slots as direct children, and a guard fails on
+  either class name anywhere under `public/`. A seventh round found the schedule page declared
+  `data` (960px) under a header that runs full width: nothing showed the measure except the
+  primitives that happen to consume it, so the KPI band of the statistics ended at 960 while
+  the filter card and the result cards beside it did not (on main nothing was capped).
+  Schedule and documents, the two pages with that shape, declare `full` and cap nothing,
+  which is what they looked like before; the page's own rows inside its full-width cards
+  follow suit and no longer stop at the reading width. A guard reads the measure consumers
+  from the stylesheets and fails on any measured page whose header does not narrow but whose
+  markup contains one of them. The budget reports panel had declared itself a `dashboard`
+  inside the `reading` budget page, which set the measure of its subtree to 1200px while the
+  shared header and every other tab end at 720px; it declares the mode of the page it lives in,
+  and a guard holds the two budget panels to that. A split body now carries the page gutter like
+  the measured modes (its rails started at x=0, left of the title), the manifest fields
+  `page.navigation` and `page.responsive` fall back to `standard` like `composition` and
+  `width` do instead of passing a typo through, and the worked example in the spec no longer
+  draws the rail element that the helper had stopped emitting.
+
+- **A third-party module now declares which manifest format it is written in** (`manifestVersion`),
+  and Yuvomi refuses one it cannot read instead of reading it in part. The extension surface from
+  #919 - widgets, `ext:<module-id>` permissions, an API prefix, a locale chain - is a promise made
+  to code nobody here can see: `modules/` is gitignored, modules arrive at runtime. Without a
+  format number, renaming a field later would have been a silent break, where the module still
+  loads, the field is gone, and the household notices a widget that stopped doing anything.
+
+  Omitting the field means 1, so manifests written before it keep working. A manifest declaring
+  a higher version is rejected outright, and the error names both numbers, because loading it
+  halfway would silently ignore fields it considers essential.
+
+  **New optional fields never require a bump**; the number moves only when one is removed or
+  renamed, and then the older format stays readable. A guard drives a manifest carrying every
+  promised field through the real normaliser, so dropping one turns the suite red rather than
+  turning somebody's widget blank.
+
+### Changed
+
+- **`GET /api/v1/modules` includes normalized `capabilities` and `i18n` metadata** (widgets, permission module metadata, API prefix, available locale files) for each installed extension module.
+- **Dashboard widgets, navigation, route guards, and admin permissions merge extension entries at runtime** from enabled modules, so third-party widget ids (`<module-id>:<widget-id>`) and `ext:<module-id>` permission keys behave like core modules.
+- **API token and MCP scope pickers include extension modules** from the live permissions catalog instead of a fixed core-only list.
+- **Extension `capabilities.api.prefix` must be exactly `/api/extensions/<module-id>`** - any other prefix, including a core path such as `/api/tasks`, is rejected so an installed module cannot take over a core token scope.
+- **Extension UI labels resolve through a locale fallback chain** (UI language, module default, `en`, `de`, then static manifest labels) in navigation, Settings, permissions admin, and the dashboard widget chrome.
+- **`CONTRIBUTING.md` says who cleans up a stale PR: it follows from the cause, not from who has
+  time.** `main` moves faster than a review cycle. Mechanical fallout of that - rebases, `CHANGELOG`
+  collisions, the version line, `sw.js`, migration numbering - is the maintainer's; decisions inside
+  the feature stay with its author. Two promises follow: rebase once, after the review, and an open
+  architecture question never blocks a PR (#621 died waiting on one).
+
+### Fixed
+
+- **A failed `GET /modules` no longer wipes the household's extension widget layout.** A network hiccup, a server restart, or the `/api/` rate limit used to empty the in-memory module list; the next dashboard save then persisted a config with every `ext` tile gone. On recovery the widget came back as a newcomer: default size, default position, options lost. A failed fetch now keeps the previous list, and stored `<module-id>:<widget-id>` entries survive normalize even while the module is disabled or the catalog is empty.
+- **The extension permission catalog is scanned before the server accepts requests.** Starting the scan inside the `app.listen` callback left a window where stored `ext:<module-id> → none` rows were dropped and the deny-list treated a missing key as allow.
+- **Extension locale lookup no longer throws for module ids that collide with `Object.prototype`.** `constructor` (and `toString`) pass the module-id regex; looking them up on a plain `{}` store made `t()` throw instead of returning the key.
+- **The empty options dialog for a third-party widget no longer quotes the task-categories copy.** It has its own string.
+
+- **An `allowScripts` pin no longer points at a version that is not installed.** The field names
+  every package allowed to run install scripts, with an exact version, because the permission
+  applies to the reviewed build rather than to the name. Dependabot raises the dependency and the
+  lockfile but never touches that field - it does not know about it - so after every bump the pin
+  referred to a version that had been replaced. Nothing broke visibly, which is exactly why nobody
+  noticed: a permission pointing nowhere looks like one that holds. A guard now compares each pin
+  against the lockfile, so the next bump turns the suite red instead of leaving a dead pin behind.
 
 ## [2.62.0] - 2026-09-01
 
