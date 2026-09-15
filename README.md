@@ -8,7 +8,7 @@
   <p>
     Tasks, calendar, budget, groceries, meals, health and more - for a family, a couple,
     or just you. Twenty modules for one household, usually two to six people, on a server you
-    own, and the only thing that leaves it is a version check.
+    own, and out of the box the only thing that leaves it is a version check.
   </p>
 
   <p>
@@ -19,9 +19,9 @@
   </p>
 
   <p>
-    <a href="#install"><strong>→ Install in minutes</strong></a> &nbsp;·&nbsp;
-    <a href="https://yuvomi.cloud/"><strong>Screenshots &amp; tour</strong></a> &nbsp;·&nbsp;
-    <a href="#documentation"><strong>Docs</strong></a> &nbsp;·&nbsp;
+    <a href="#install"><strong>→ Install in minutes</strong></a>&nbsp;&nbsp;·&nbsp;
+    <a href="https://yuvomi.cloud/"><strong>Screenshots &amp; tour</strong></a>&nbsp;&nbsp;·&nbsp;
+    <a href="#documentation"><strong>Docs</strong></a>&nbsp;&nbsp;·&nbsp;
     <a href="CHANGELOG.md"><strong>Changelog</strong></a>
   </p>
 
@@ -34,7 +34,7 @@
     <img src="docs/screenshots/dashboard-light-web.webp" alt="The Yuvomi dashboard: today's tasks, calendar events, meals and the shopping list on one screen" width="820">
   </picture>
 
-  <sub><b>20</b> modules &nbsp;·&nbsp; <b>24</b> languages &nbsp;·&nbsp; <b>0</b> trackers &nbsp;·&nbsp; optional <b>AES-256</b> database encryption &nbsp;·&nbsp; <b>MIT</b></sub>
+  <sub><b>20</b> modules&nbsp;&nbsp;·&nbsp; <b>24</b> languages&nbsp;&nbsp;·&nbsp; <b>0</b> trackers&nbsp;&nbsp;·&nbsp; optional&nbsp;<b>AES&#8209;256</b>&nbsp;database&nbsp;encryption&nbsp;&nbsp;·&nbsp; <b>MIT</b></sub>
 </div>
 
 Most households glue their life together from a dozen paid apps, each with its own account, its
@@ -132,39 +132,62 @@ drop-in module - with its own dashboard widgets, permissions and translations - 
 
 ---
 
+## Before you commit
+
+**What if this project stops?** Nothing changes on your machine. It is MIT-licensed and
+self-hosted, and there is no server of ours anywhere in the path. The container you already pulled
+keeps running exactly as it does today, with or without us.
+
+**What if you want your data somewhere else?** Everything lives in one SQLite file on your own
+disk, and copying it is the whole export, as long as documents are stored in the database.
+Scheduled backups write a restorable archive on top of that, and the documented API pulls anything
+out in whatever shape you need.
+
+**What does it cost?** Nothing. Yuvomi is free and MIT-licensed. You provide the server; there is
+no subscription, no upsell and no paid tier.
+
+---
+
 ## Install
+
+Pick your way in: [Docker or Podman](#docker-or-podman) for full control, the
+[guided setup](#guided-setup) wizard in your browser, or your [NAS app store](#from-your-nas-app-store)
+without a terminal.
 
 - **Image** - `ghcr.io/ulsklyc/`<wbr>`yuvomi:latest`, about 500 MB.
 - **Needs** - 256 MB RAM and one port, 3000 by default.
 - **Writes** - four volumes you own: data, backups, modules, documents.
-- **Outbound** - one update check against the GitHub releases API, nothing else. Block it and nothing breaks: the changelog then reads the history that ships with your installation, only the hint about a newer version stays away. Weather, calendar sync and cloud backup stay off until you fill in credentials.
-- **Your data** - one SQLite file at `/data/yuvomi.db`. Copying it is the whole export, unless you moved document storage to a folder, WebDAV or Drive; those files then need their own backup.
+- **Outbound** - out of the box, one update check against the GitHub releases API. Block it and nothing breaks, only the hint about a newer version stays away. Everything else reaches out only when you use or switch on a feature that needs it: opening the calendar settings loads the list of holiday countries from openholidaysapi.org, finding a logo for a subscription looks up the service's website, and weather, public holidays, exchange rates, calendar and contact sync, recipe mirrors, Immich, Paperless or Papra, push and notification channels, cloud storage and backup connect once you switch them on.
+- **Your LAN** - calendar subscriptions, WebDAV storage and recipe mirrors on private or internal addresses stay blocked until you opt in ([how](docs/installation.md#environment-variables)).
+- **Encryption key** - optional, but there is no way back: a lost or changed key never opens the database again, not by you and not by us. The guided setup and Umbrel generate one for you; with Compose, TrueNAS or Unraid you set it yourself, so write it down.
+- **Your data** - one SQLite file at `/data/yuvomi.db`, plus the folder, WebDAV or Drive if you moved documents there.
 
 ### Docker or Podman
+
+On Podman, fetch `podman-compose.yml` instead of `docker-compose.yml` and start it with
+`podman compose -f podman-compose.yml up -d`; it carries the SELinux `:Z` volume labels that
+RHEL, Fedora and CentOS Stream need.
 
 ```bash
 curl -O https://raw.githubusercontent.com/ulsklyc/yuvomi/main/docker-compose.yml
 curl -O https://raw.githubusercontent.com/ulsklyc/yuvomi/main/.env.example
 cp .env.example .env
-# two values: one for SESSION_SECRET, one for DB_ENCRYPTION_KEY
-openssl rand -hex 32
-openssl rand -hex 32
+openssl rand -hex 32   # SESSION_SECRET
+openssl rand -hex 32   # DB_ENCRYPTION_KEY
 ```
 
 > **Now open `.env` and replace both `REPLACE_WITH_…` placeholders** with the two values you just
-> generated. Once a database is encrypted, a lost or changed key never opens it again, not by you
-> and not by us, so write the value down. To run without encryption, clear the line instead of
-> filling it.
+> generated, in that order, and write the second one down: it is the database key, and nothing can
+> recover it. To run without encryption, clear the line instead of filling it.
 
 ```bash
 docker compose up -d
 ```
 
-Open `http://localhost:3000`. The first visit walks you through creating your admin account.
-
-On Podman, take `podman-compose.yml` instead of `docker-compose.yml` above and start it with
-`podman compose -f podman-compose.yml up -d`; it carries the SELinux `:Z` volume labels that
-RHEL, Fedora and CentOS Stream need. Both installers detect Podman on their own.
+Open `http://localhost:3000`. The first visit walks you through creating your admin account. If the
+page does not load, `docker compose logs` (on Podman, `podman compose -f podman-compose.yml logs`)
+usually names the reason, and the
+[troubleshooting guide](docs/installation.md#troubleshooting) covers the common ones.
 
 ### Guided setup
 
@@ -185,7 +208,7 @@ install, no terminal required. New to containers? The **[installation guide](doc
 covers engine setup, HTTPS, backups and troubleshooting step by step.
 
 <details>
-<summary><b>Worth reading before you go live</b></summary>
+<summary><b>Before you go live: health data, Google Drive sharing and GDPR</b></summary>
 
 <br>
 
@@ -193,27 +216,23 @@ covers engine setup, HTTPS, backups and troubleshooting step by step.
 
 > **External document storage needs its own backup.** Database backups hold document metadata and links, not binaries stored in a local folder, on WebDAV, or in Google Drive; back up the selected target separately. Yuvomi visibility settings only control access through Yuvomi. Anyone with access to the connected `Yuvomi/Documents` Google Drive folder can view all files stored there.
 
-> **Internal (LAN / private IP) targets are blocked by default.** Server-side request protection rejects private, loopback, link-local and internal-DNS URLs for calendar subscriptions, WebDAV document storage and recipe mirrors. To use an internally-resolving URL, set the matching opt-in in your deployment environment. See the [installation guide](docs/installation.md#environment-variables).
-
-> **Some catalog slugs still carry the legacy name `oikos`** (e.g. Unraid `oikos-…`). The app shows and installs as Yuvomi everywhere; where the technical slug stays `oikos`, it is kept so existing installations upgrade seamlessly. Search for **Yuvomi**; if a store still surfaces an entry as *oikos*, it is the same app.
+> **Self-hosting in a GDPR context?** If you run Yuvomi in the EU/EEA and process other people's data, read [privacy for self-hosters](docs/PRIVACY-FOR-SELFHOSTERS.md) before going live. It covers third-country assessments for every external service, data-processing-agreement notes, log-retention guidance and a records-of-processing template.
 
 </details>
 
----
+<details>
+<summary>Coming from <b>Oikos</b>, or seeing <code>oikos</code> in an app store? Same app, renamed.</summary>
 
-## Before you commit
+<br>
 
-**What if this project stops?** Nothing changes on your machine. It is MIT-licensed and
-self-hosted, there is no server of ours anywhere in the path, and the only thing that leaves your
-machine is a version check against the GitHub releases API. The container you already pulled keeps
-running exactly as it does today, with or without us.
+Yuvomi was renamed from **Oikos** to avoid a trademark conflict with an unrelated product. Same code, same data, same maintainer.
 
-**What if you want your data somewhere else?** Copying one file is the whole export, as long as
-documents live in the database. Everything else is in that single SQLite file on your own disk. Scheduled backups write a restorable archive on top
-of that, and the documented API pulls anything out in whatever shape you need.
+- Old links (`github.com/ulsklyc/oikos`) redirect here automatically.
+- The Docker image moved to `ghcr.io/ulsklyc/yuvomi`; the old `ghcr.io/ulsklyc/oikos` keeps working, so update at your convenience.
+- Existing data and settings are fully preserved on upgrade.
+- Some catalog slugs keep the technical name `oikos` (e.g. Unraid `oikos-…`) so existing installations upgrade seamlessly. Search for **Yuvomi**; an entry still shown as *oikos* is the same app.
 
-**What does it cost?** Nothing. Yuvomi is free and MIT-licensed. You provide the server; there is
-no subscription, no upsell and no paid tier.
+</details>
 
 ---
 
@@ -222,7 +241,7 @@ no subscription, no upsell and no paid tier.
 - **No build step** - pure ES modules and plain CSS. No bundler, no transpiler, no framework, no runtime CDN.
 - **Apple HIG in the Liquid Glass language** - the system font stack and Apple's type scale, capsule controls, inset-grouped lists and spring motion, verified for WCAG AA in light and dark.
 - **Privacy first** - fully self-hosted, optional SQLCipher AES-256 database encryption, zero telemetry.
-- **Sign-in that scales to a household** - optional two-factor authentication (TOTP with recovery codes, enforceable household-wide), optional single sign-on via any OIDC provider (with a switch for whether an unknown identity gets an account, so a provider that serves more than this household does not hand everyone a way in, and another for making SSO the only way in at all), invite links instead of handed-over passwords, and optional self-service password reset by email.
+- **Sign-in that scales to a household** - optional two-factor authentication (TOTP with recovery codes, enforceable household-wide), invite links instead of handed-over passwords, and optional self-service password reset by email. Optional single sign-on works with any OIDC provider. One switch decides whether an unknown identity gets an account, so a provider shared beyond your household opens no door, and another makes SSO the only way in.
 - **24 languages** with automatic detection. A separate household setting decides the language of entries Yuvomi creates itself, so an exported calendar speaks your household's language instead of English.
 
 <p align="center">
@@ -240,41 +259,26 @@ no subscription, no upsell and no paid tier.
 
 ## Documentation
 
-[Installation](docs/installation.md) &nbsp;·&nbsp; [Spec &amp; data model](docs/SPEC.md) &nbsp;·&nbsp; [Third-party modules](MODULES.md) &nbsp;·&nbsp; [Notification webhooks](docs/notification-webhooks.md) &nbsp;·&nbsp; [Immich screensaver](docs/immich-screensaver.md) &nbsp;·&nbsp; [Contributing](CONTRIBUTING.md) &nbsp;·&nbsp; [Releasing](docs/RELEASING.md) &nbsp;·&nbsp; [Security](SECURITY.md) &nbsp;·&nbsp; [Changelog](CHANGELOG.md) &nbsp;·&nbsp; [Backlog](BACKLOG.md) &nbsp;·&nbsp; [Scope](docs/SCOPE.md) &nbsp;·&nbsp; [Decisions](docs/DECISIONS.md) &nbsp;·&nbsp; [Roadmap](docs/ROADMAP.md)
+- **Run it** - [Installation](docs/installation.md)&nbsp;&nbsp;·&nbsp; [Security](SECURITY.md)&nbsp;&nbsp;·&nbsp; [Privacy for self-hosters](docs/PRIVACY-FOR-SELFHOSTERS.md)&nbsp;&nbsp;·&nbsp; [Notification webhooks](docs/notification-webhooks.md)&nbsp;&nbsp;·&nbsp; [Immich screensaver](docs/immich-screensaver.md)
+- **Build on it** - [Spec &amp; data model](docs/SPEC.md)&nbsp;&nbsp;·&nbsp; [Third-party modules](MODULES.md)&nbsp;&nbsp;·&nbsp; [Contributing](CONTRIBUTING.md)
+- **Follow the project** - [Changelog](CHANGELOG.md)&nbsp;&nbsp;·&nbsp; [Roadmap](docs/ROADMAP.md)&nbsp;&nbsp;·&nbsp; [Decisions](docs/DECISIONS.md)&nbsp;&nbsp;·&nbsp; [Scope](docs/SCOPE.md)&nbsp;&nbsp;·&nbsp; [Backlog](BACKLOG.md)&nbsp;&nbsp;·&nbsp; [Releasing](docs/RELEASING.md)
 
 **User guide (community-maintained):** @Kyrodan writes a [user documentation site](https://kyrodan.github.io/yuvomi-docs/)
 in his own repository. It is not part of this project and can lag behind a release, so where it and
 the sources above disagree, the ones above are right.
 
-If you self-host Yuvomi in a GDPR context (EU/EEA, processing other people's data), read
-[privacy for self-hosters](docs/PRIVACY-FOR-SELFHOSTERS.md) before going live. It covers
-third-country assessments for every external service, data-processing-agreement notes,
-log-retention guidance and a records-of-processing template.
-
-<details>
-<summary>Coming from <b>Oikos</b>? This project was renamed, and nothing about the app changes.</summary>
-
-<br>
-
-Yuvomi was renamed from **Oikos** to avoid a trademark conflict with an unrelated product. Same code, same data, same maintainer.
-
-- Old links (`github.com/ulsklyc/oikos`) redirect here automatically.
-- The Docker image moved to `ghcr.io/ulsklyc/yuvomi`; the old `ghcr.io/ulsklyc/oikos` keeps working, so update at your convenience.
-- Existing data and settings are fully preserved on upgrade.
-
-</details>
-
 ---
 
 <div align="center">
   <br>
-  <h3>Take back control of your family's data.</h3>
+  <img src="docs/logo.svg" alt="" width="48" />
+  <p><strong>One home for your household. Yours to keep.</strong></p>
   <p>
-    You install it once and it is yours after that. No account with us,<br>
-    no subscription, and nothing of ours between your household and its data.
+    Install it once. No account with us, no subscription,<br>
+    and nothing of ours between your household and its data.
   </p>
   <p>
-    <a href="#install"><strong>→ Install in minutes</strong></a> &nbsp;·&nbsp;
+    <a href="#install"><strong>→ Install in minutes</strong></a>&nbsp;&nbsp;·&nbsp;
     <a href="https://github.com/ulsklyc/yuvomi/discussions"><strong>Ask a question</strong></a>
   </p>
   <br>
