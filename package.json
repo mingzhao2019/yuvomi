@@ -332,7 +332,18 @@
     "test:schedule-extras": "DB_PATH=:memory: node --experimental-sqlite --test test/test-schedule-extras.js",
     "test:schedule-custom-fields": "DB_PATH=:memory: node --test test/test-schedule-custom-fields.js",
     "test:folder-upload": "node --test test/test-folder-upload.js",
-    "test:workflow-pins": "node --test test/test-workflow-pins.js"
+    "test:workflow-pins": "node --test test/test-workflow-pins.js",
+    "test:recurrence": "node --test test/test-recurrence.js",
+    "test:waste-domain": "node --test test/test-waste-domain.js",
+    "test:waste-migrations": "DB_PATH=:memory: node --experimental-sqlite --test test/test-waste-migrations.js",
+    "test:waste-routes": "DB_PATH=:memory: node --experimental-sqlite --test test/test-waste-routes.js",
+    "test:waste-ui": "node --loader ./test/test-browser-loader.mjs --test test/test-waste-ui.js",
+    "test:waste-import": "node --test test/test-waste-import.js",
+    "test:waste-dashboard": "node --loader ./test/test-browser-loader.mjs --test test/test-waste-dashboard.js",
+    "test:waste-calendar": "node --loader ./test/test-browser-loader.mjs test/test-waste-calendar.js",
+    "test:waste-url-source": "DB_PATH=:memory: node --experimental-sqlite --test test/test-waste-url-source.js",
+    "test:waste-reminders": "DB_PATH=:memory: node --experimental-sqlite --test test/test-waste-reminders.js",
+    "check:waste": "npm run test:waste-domain && npm run test:waste-migrations && npm run test:waste-routes && npm run test:waste-ui && npm run test:waste-import && npm run test:waste-dashboard && npm run test:waste-calendar && npm run test:waste-url-source && npm run test:waste-reminders"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

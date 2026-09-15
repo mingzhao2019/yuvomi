@@ -191,6 +191,7 @@ const README_HEADINGS = {
   health: 'Health',
   rewards: 'Rewards',
   housekeeping: 'Housekeeping',
+  waste: 'Waste collection',
 };
 
 /** Die fett gesetzten Ueberschriften der Modultabelle, in Dokumentreihenfolge. */
