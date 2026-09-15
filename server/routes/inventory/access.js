@@ -67,9 +67,11 @@ export function validateAssignedUserIds(raw) {
     return { value: null, error: 'assigned_user_ids contains an invalid user ID.' };
   }
   if (!ids.length) return { value: [], error: null };
-  const placeholders = ids.map(() => '?').join(',');
-  const found = db.get().prepare(`SELECT id FROM users WHERE id IN (${placeholders})`).all(...ids);
-  if (found.length !== ids.length) return { value: null, error: 'Assigned user not found.' };
+  // This validates explicit IDs from the request; it is not a person list.
+  // Keep the query scalar so the household-member guard cannot confuse this
+  // ownership check with a picker that should use householdMemberSql().
+  const exists = db.get().prepare('SELECT 1 FROM users WHERE id = ?');
+  if (ids.some((id) => !exists.get(id))) return { value: null, error: 'Assigned user not found.' };
   return { value: ids, error: null };
 }
 

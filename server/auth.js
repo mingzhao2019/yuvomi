@@ -74,16 +74,38 @@ const MAX_AVATAR_DATA_LENGTH = 768 * 1024;
  * `access_scope` schon zieht. Ein Haushalt von einer Person mit drei
  * Reisebekanntschaften ist ein Solo-Haushalt.
  *
- * Hauspersonal zaehlt dagegen mit (`includeStaff`). Das ist Bestand, keine
- * Entscheidung - die Frage steht offen in #1207.
+ * Hauspersonal zaehlt ebenso wenig mit (#1207): ein Haushalt aus einer Person
+ * und ihrer Putzhilfe ist ein Solo-Haushalt.
  */
 const HOUSEHOLD_SIZE_SQL = `
   SELECT COUNT(*) AS n FROM users
-  WHERE ${householdMemberSql('users', { includeStaff: true })}
+  WHERE ${householdMemberSql('users')}
 `;
 
 function householdSize(database) {
   return database.prepare(HOUSEHOLD_SIZE_SQL).get()?.n ?? 1;
+}
+
+/**
+ * Welche Module ausser diesem Konto noch jemand lesen kann - fuer die
+ * Schutzsteuerungen (Sichtbarkeit, Sperre, Freigabe), nicht fuer die Anzeige.
+ *
+ * SCHUTZ IST KEINE MITGLIEDERLISTE (#1207). householdSize zaehlt nur
+ * Mitglieder; ein Haushalt aus einer Person und Hauspersonal ist solo. Eine
+ * Sichtbarkeit schuetzt aber vor jedem Konto, das das Modul lesen kann: ohne
+ * das Feld bliebe ein neuer Eintrag bei "alle" und waere fuer genau dieses
+ * Konto lesbar. Gezaehlt wird deshalb jedes andere Konto mit Lesezugriff, auch
+ * Hauspersonal. Gaeste geteilter Ausgaben erreichen ausserhalb dieses Moduls
+ * keine Route (Gast-Sperre in server/index.js) und zaehlen nicht.
+ */
+const PRIVACY_MODULES = ['calendar', 'documents', 'tasks'];
+function othersCanRead(database, userId) {
+  const others = database.prepare(`
+    SELECT u.id, u.role, u.family_role FROM users u
+    WHERE u.id != ? AND ${accessScopeSql('u')} = 'family'
+  `).all(userId);
+  const resolved = others.map((other) => resolvePermissions(database, other).modules);
+  return PRIVACY_MODULES.filter((key) => resolved.some((modules) => (modules[key] ?? 'write') !== 'none'));
 }
 
 /**
@@ -774,6 +796,7 @@ function loginPayload(req, user) {
     // stuende ein Solo-Haushalt bis zum naechsten Kaltstart wieder voller
     // Familienfelder.
     householdSize: householdSize(db.get()),
+    othersCanRead: othersCanRead(db.get(), user.id),
     csrfToken: req.session.csrfToken,
   };
 }
@@ -1938,6 +1961,7 @@ router.get('/me', requireAuth, (req, res) => {
         user: publicUser(user),
         permissions: clientPermissions(db.get(), user),
         householdSize: householdSize(db.get()),
+        othersCanRead: othersCanRead(db.get(), user.id),
       });
     }
 
@@ -1958,6 +1982,7 @@ router.get('/me', requireAuth, (req, res) => {
       user: publicUser(user),
       permissions: clientPermissions(db.get(), user),
       householdSize: householdSize(db.get()),
+      othersCanRead: othersCanRead(db.get(), user.id),
       csrfToken: req.session.csrfToken,
     });
   } catch (err) {
@@ -2310,10 +2335,14 @@ router.get('/api-tokens', requireAuth, requireAdmin, (req, res) => {
       LEFT JOIN users subject ON subject.id = COALESCE(t.subject_user_id, t.created_by)
       ORDER BY t.created_at DESC
     `).all();
+    // KONTEN, keine Mitgliederliste (#1207): ein Admin stellt ein Token fuer
+    // ein Konto aus, auch fuer das einer Haushaltshilfe. Nur Gaeste fehlen,
+    // weil POST /api-tokens sie als Subjekt abweist - dieselbe Grenze ueber
+    // access_scope. Die Liste steht deshalb in der Allowlist des Guards.
     const subjects = db.get().prepare(`
       SELECT u.id, u.username, u.display_name
       FROM users u
-      WHERE ${householdMemberSql('u', { includeStaff: true })}
+      WHERE ${accessScopeSql('u')} = 'family'
       ORDER BY u.display_name
     `).all();
     res.json({ data: rows.map(publicApiToken), subjects });

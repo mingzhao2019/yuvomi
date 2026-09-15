@@ -96,8 +96,20 @@ const PREDICATE_EXPORT = 'householdMemberSql';
  */
 const ALLOWLIST = [
   {
+    file: 'server/auth.js', site: 'othersCanRead', lists: 1,
+    reason: 'Protective controls, not a list of people: visibility, lock and shares must stay while any other account can read a module, housekeeping staff included. Shows no one; returns module keys only.',
+  },
+  {
     file: 'server/auth.js', site: 'GET /users', lists: 2,
-    reason: 'User administration: lists every account and flags staff (is_worker) and guests (access_scope). The calendar, budget and schedule pickers read the same list today.',
+    reason: 'User administration: lists every account and flags staff (is_worker) and guests (access_scope). No picker reads it since #1207; the calendar and schedule pages use it only to name people a record already stores.',
+  },
+  {
+    file: 'server/auth.js', site: 'GET /api-tokens', lists: 1,
+    reason: 'API token subjects for admins: a token is issued for an account, staff included; guests are left out through access_scope because POST /api-tokens rejects them.',
+  },
+  {
+    file: 'server/services/two-factor.js', site: 'householdOverview', lists: 1,
+    reason: 'Two-factor overview for admins: the second factor protects accounts, not membership, so the overview lists every account.',
   },
   {
     file: 'server/auth.js', site: 'findOrCreateOidcUser', lists: 1,
@@ -142,14 +154,6 @@ const ALLOWLIST = [
   {
     file: 'server/routes/health/caregivers.js', site: 'PUT /caregivers/:subjectId', lists: 1,
     reason: 'Existence check for the ids the request names, not a list offered to anyone.',
-  },
-  {
-    file: 'server/routes/inventory/access.js', site: 'validateAssignedUserIds', lists: 1,
-    reason: 'Asset assignment validation: checks the explicit user ids submitted by the caller, not a person list shown in the UI.',
-  },
-  {
-    file: 'server/routes/preferences.js', site: 'parseJsonIds', lists: 1,
-    reason: 'Asset preference cleanup: validates persisted explicit assignee ids without changing their assignment semantics.',
   },
 ];
 
@@ -838,7 +842,7 @@ for (const [name, sql] of MISPLACED) {
 test('self-test: a well-placed predicate is green, whatever else the WHERE says', () => {
   const green = `${IMPORT}function listPeople() {
     return db.prepare(\`SELECT u.id FROM users AS u LEFT JOIN contacts c ON c.family_user_id = u.id
-      WHERE (u.role = 'admin' OR u.role = 'member') AND \${householdMemberSql('u', { includeGuests: true })}
+      WHERE (u.role = 'admin' OR u.role = 'member') AND \${householdMemberSql('u')}
       ORDER BY u.display_name\`).all();
   }`;
   assert.deepEqual(sites(green), [], 'an OR inside its own parentheses beside the predicate is fine');

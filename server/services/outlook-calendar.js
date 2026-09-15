@@ -33,6 +33,7 @@ import {
   ownerEventReminderAts,
   primaryProviderReminderOffset,
 } from './calendar-event-reminders.js';
+import { newNonMembers, nonMemberMessage } from './household-members.js';
 
 // /consumers statt /common: die Entra-App ist für "Personal Microsoft accounts
 // only" registriert; so kann sich kein Organisations-Konto versehentlich anmelden.
@@ -303,6 +304,16 @@ function updateAccount(accountId, { name, autoSyncCalendarId, ownerUserId } = {}
       const userId = Number(ownerUserId);
       if (!Number.isInteger(userId) || !conn.prepare('SELECT 1 FROM users WHERE id = ?').get(userId)) {
         throw new Error('Unknown owner user id.');
+      }
+      // Neu nur Haushaltsmitglieder (#1207); der gespeicherte Owner bleibt gueltig.
+      const strangers = newNonMembers([userId], {
+        stored: account.owner_user_id == null ? [] : [account.owner_user_id],
+        db: conn,
+      });
+      if (strangers.length) {
+        const rejected = new Error(nonMemberMessage(strangers));
+        rejected.code = 'not_household_member';
+        throw rejected;
       }
       updates.push('owner_user_id = ?');
       values.push(userId);

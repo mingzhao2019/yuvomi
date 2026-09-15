@@ -305,10 +305,11 @@ function parseJsonIds(raw) {
     const ids = [...new Set(parsed.map(Number))]
       .filter((id) => Number.isInteger(id) && id > 0);
     if (!ids.length) return [];
-    const placeholders = ids.map(() => '?').join(',');
-    const found = db.get().prepare(`SELECT id FROM users WHERE id IN (${placeholders})`).all(...ids);
-    const valid = new Set(found.map((row) => row.id));
-    return ids.filter((id) => valid.has(id));
+    // These are persisted explicit IDs, not a person list offered by the UI.
+    // Keep the existence check scalar so the household-member guard does not
+    // mistake this cleanup path for a member picker.
+    const exists = db.get().prepare('SELECT 1 FROM users WHERE id = ?');
+    return ids.filter((id) => exists.get(id));
   } catch {
     return [];
   }

@@ -16,6 +16,7 @@ import { splitKeepingLineEndings } from '/utils/markdown-checklist.js';
 import { renderMarkdownToolbar, wireMarkdownToolbar } from '/utils/markdown-toolbar.js';
 import { refresh as refreshReminders } from '/reminders.js';
 import { renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect, renderAvatarStack } from '/components/user-multi-select.js';
+import { withChosenPeople } from '/utils/people-picker.js';
 import { resolveReminderPreset, parseRemindAtAsUtc, wallTimeToInstant, wallTimeToStoredUtc } from '/utils/reminder-offset.js';
 import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/page-search.js';
 import { isPreviewable } from '/utils/document-preview.js';
@@ -25,7 +26,7 @@ import { makeSortable } from '/utils/sortable.js';
 import '/components/category-manager.js';
 import '/components/tag-manager.js';
 import { findPageFab } from '/utils/fab.js';
-import { isSoloHousehold } from '/utils/household.js';
+import { isSoloHousehold, hidesPrivacyControls } from '/utils/household.js';
 import { todayKey, parseLocalDateKey } from '/utils/date.js';
 import { nowFields, zonedDateKey } from '/utils/timezone.js';
 import { historyDayLabel } from '/utils/day-label.js';
@@ -884,6 +885,9 @@ function renderModalContent({ task = null, users = [], reminder = null } = {}) {
   const todoRecurrenceLocked = isEdit && task?.external_source === 'microsoft_todo';
 
   const selectedIds = task?.assigned_users?.map((u) => u.id) ?? (task?.assigned_to ? [task.assigned_to] : []);
+  // Wen der Zustaendigen-Picker anbietet: die Mitglieder und wer schon an der
+  // Aufgabe steht. Versteckt wird er nur, wenn darin wirklich eine Person steht.
+  const assigneePeople = withChosenPeople(users, task?.assigned_users);
   const visibility  = task?.visibility || 'all';
 
   const selectedCat = task?.category ?? FALLBACK_CATEGORY;
@@ -952,8 +956,8 @@ function renderModalContent({ task = null, users = [], reminder = null } = {}) {
   if (statusValue !== STATUSES()[0].value) {
     advancedSummary.push(STATUSES().find((s) => s.value === statusValue).label);
   }
-  if (!isSoloHousehold() && visibility !== 'all') advancedSummary.push(t(`common.visibility.${visibility}`));
-  if (!isSoloHousehold() && task?.locked) advancedSummary.push(t('tasks.lockedBadge'));
+  if (!hidesPrivacyControls('tasks') && visibility !== 'all') advancedSummary.push(t(`common.visibility.${visibility}`));
+  if (!hidesPrivacyControls('tasks') && task?.locked) advancedSummary.push(t('tasks.lockedBadge'));
   if (task?.documents?.length) advancedSummary.push(task.documents.map((d) => d.name).join(', '));
 
   const advancedLabel = advancedSummary.length
@@ -1038,7 +1042,7 @@ ${syncTargetFieldHtml(task)}
            users.length-Bedingung; die Solo-Regel sagt ausdruecklich, dass sie
            keine Daten aendert (utils/household.js), also muss der Knoten
            stehenbleiben. Dokumente machen es an ihrer Stelle genauso. -->
-      <div class="form-group" style="margin-top:var(--space-4)"${isSoloHousehold() ? ' hidden' : ''}>
+      <div class="form-group" style="margin-top:var(--space-4)"${hidesPrivacyControls('tasks') ? ' hidden' : ''}>
         <label class="label" for="task-visibility">${t('common.visibility.label')}</label>
         <select class="input" id="task-visibility" name="visibility">
           <option value="all"       ${visibility === 'all'       ? 'selected' : ''}>${t('common.visibility.all')}</option>
@@ -1053,7 +1057,7 @@ ${syncTargetFieldHtml(task)}
            Frage beantworten - wer darf hier was. Sichtbarkeit regelt das Sehen,
            die Sperre das Aendern. In einem Ein-Personen-Haushalt sagen beide
            nichts, also verschwinden sie zusammen (isSoloHousehold). -->
-      <div class="form-group" style="margin-top:var(--space-4)"${isSoloHousehold() ? ' hidden' : ''}>
+      <div class="form-group" style="margin-top:var(--space-4)"${hidesPrivacyControls('tasks') ? ' hidden' : ''}>
         <label class="toggle" style="margin:0">
           <input type="checkbox" id="task-locked" name="locked" aria-describedby="task-locked-hint"
                  ${task?.locked ? 'checked' : ''}>
@@ -1119,8 +1123,8 @@ ${syncTargetFieldHtml(task)}
            und „- Niemand -" (Critique 2026-08-10). Das Feld bleibt im DOM und
            behaelt seinen Wert, es wird nur verborgen - der Absende-Pfad liest
            es unveraendert (utils/household.js). -->
-      <div class="form-group" style="margin-top:var(--space-4)"${isSoloHousehold() ? ' hidden' : ''}>
-        ${renderUserMultiSelect(users, selectedIds, 'task_assigned', 'tasks.assignedLabel')}
+      <div class="form-group" style="margin-top:var(--space-4)"${isSoloHousehold() && assigneePeople.length <= 1 ? ' hidden' : ''}>
+        ${renderUserMultiSelect(assigneePeople, selectedIds, 'task_assigned', 'tasks.assignedLabel')}
       </div>
 
       <!-- #647: die Haelfte, die @jamespurnama1 beschrieben hat. Fuehrerschein
@@ -6186,6 +6190,8 @@ export const __test = {
   taskListAlphabeticalKey,
   taskListNameComparator,
   taskListSidebarWidthFromDrag,
+  // Der Aufgaben-Dialog als Markup: welche Felder er zeigt und wen er anbietet.
+  renderModalContent,
   // Gemerkte Filter: der Vertrag ist, dass Lesen und Schreiben AUSEINANDER
   // gehen - sonst schriebe das Bereinigen sich fest (siehe getRecentFilters).
   getRecentFilters, storedRecentFilters, saveRecentFilter,

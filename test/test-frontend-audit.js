@@ -7555,6 +7555,8 @@ test('Feldkanten tragen --color-border-control und halten 3:1 auf jedem Feldgrun
     ['.rrule-fields', 'Gruppe der Wiederholungsfelder; Gruppenkante, die Felder darin tragen ihre eigene'],
     ['.schedule-day-row-fields', 'Gruppe der Felder eines Wochentags; linke Gruppenlinie'],
     ['.note-category-selection', 'Chip der gewaehlten Notiz-Kategorie; Knopf, kein Feld'],
+    ['.asset-cost-image-search-dialog', 'Asset-Bildsuche-Dialog; Kartenkante, kein Eingabefeld'],
+    ['.asset-cost-image-search-dialog__source', 'Asset-Bildquellen-Chip; Umschaltknopf, kein Eingabefeld'],
   ]);
   const styles = new URL('../public/styles/', import.meta.url);
   const offenders = [];

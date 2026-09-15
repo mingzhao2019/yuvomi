@@ -5995,7 +5995,7 @@ textarea::placeholder {
   padding-top: var(--space-4);
 }
 
-.rrule-fields--disabled .rrule-day {
+.rrule-fields--disabled .rrule-day:disabled {
   cursor: not-allowed;
   opacity: .65;
 }
