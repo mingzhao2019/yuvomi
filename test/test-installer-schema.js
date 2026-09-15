@@ -178,6 +178,10 @@ const INTENTIONALLY_NOT_IN_INSTALLER = {
     'Optionaler serverseitiger Bildsuchdienst; wird nach der Installation manuell in .env konfiguriert.',
   ASSET_COST_GOOGLE_CSE_ID:
     'Optionaler serverseitiger Google-Suchmaschinenbezeichner; wird nach der Installation manuell in .env konfiguriert.',
+  BIND_ADDRESS:
+    'Nur fuer den Betrieb ohne Container: im Container muss die App auf allen Interfaces '
+    + 'lauschen, sonst erreicht das veroeffentlichte Port-Mapping sie nicht. Der Wizard erzeugt '
+    + 'ausschliesslich Container-Installationen, dort waere jeder gesetzte Wert ein Ausfall.',
   BACKUP_UPLOAD_LIMIT:
     'Betriebs-Feinjustage: Body-Limit fuer den Restore-Upload im Admin-UI, nur beim '
     + 'Zurueckspielen einer ueberdimensionierten Datenbank relevant.',

@@ -196,6 +196,7 @@
     "test:auth-router-token-scope": "node --experimental-sqlite --test test/test-auth-router-token-scope.js",
     "test:permissions": "node --experimental-sqlite --test test/test-permissions.js",
     "test:permissions-routes": "node --experimental-sqlite --test test/test-permissions-routes.js",
+    "test:bind-address": "node --experimental-sqlite --test test/test-bind-address.js",
     "test:router-guest-guard": "node --test test/test-router-guest-guard.js",
     "test:email": "DB_PATH=:memory: node --experimental-sqlite test/test-email.js",
     "test:password-reset": "DB_PATH=:memory: node --experimental-sqlite test/test-password-reset.js",

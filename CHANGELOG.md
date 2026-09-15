@@ -90,6 +90,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GET /api/v1/shopping/suggestions`: the response items are now objects `{ name, category,
   quantity }` ordered by recency, where they used to be plain name strings.
 
+- **`BIND_ADDRESS` sets the address the server listens on.** Unset, nothing changes: the app
+  listens on all interfaces, which is exactly what a container needs for its published port to
+  reach it, so Docker, Podman, Unraid, TrueNAS and Umbrel installations leave it alone. When Node
+  runs directly on a machine behind a reverse proxy on that same machine, `127.0.0.1` keeps the
+  app itself off the network. The built-in MCP bridge follows the setting when it calls the API
+  back. It is not the same as `OIKOS_HTTP_BIND`, which decides where the container engine
+  publishes the port.
+
 ### Changed
 
 - **The README is shorter between the introduction and the install steps** (#1212). Each module
