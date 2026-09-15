@@ -23,7 +23,7 @@ app.use((req, _res, next) => {
   next();
 });
 app.use('/', imageSearchRouter);
-const server = app.listen(0);
+const server = app.listen(0, '127.0.0.1');
 const baseUrl = await new Promise((resolve) => {
   server.on('listening', () => resolve(`http://127.0.0.1:${server.address().port}`));
 });
