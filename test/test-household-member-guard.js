@@ -143,6 +143,14 @@ const ALLOWLIST = [
     file: 'server/routes/health/caregivers.js', site: 'PUT /caregivers/:subjectId', lists: 1,
     reason: 'Existence check for the ids the request names, not a list offered to anyone.',
   },
+  {
+    file: 'server/routes/inventory/access.js', site: 'validateAssignedUserIds', lists: 1,
+    reason: 'Asset assignment validation: checks the explicit user ids submitted by the caller, not a person list shown in the UI.',
+  },
+  {
+    file: 'server/routes/preferences.js', site: 'parseJsonIds', lists: 1,
+    reason: 'Asset preference cleanup: validates persisted explicit assignee ids without changing their assignment semantics.',
+  },
 ];
 
 // --------------------------------------------------------------------------
