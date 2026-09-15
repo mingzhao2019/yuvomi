@@ -84,7 +84,7 @@ import scheduleRouter from './routes/schedule.js';
 import scheduleFeedRouter from './routes/schedule-feed.js';
 import schedulePreferencesRouter from './routes/schedule-preferences.js';
 import scheduleExtrasRouter from './routes/schedule-extras.js';
-import { moduleForPath, requiredAccess, tokenAllows } from './scopes.js';
+import { moduleForPath, requiredAccess, sessionModuleAccessRequirement, tokenAllows } from './scopes.js';
 import { moduleAccessVerdict, MODULE_ACCESS_DENIED, MODULE_ACCESS_READ_ONLY } from './permissions.js';
 import { BODY_LIMIT, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from './utils/upload-limit.js';
 import { createServiceWorkerResponseLoader } from './utils/service-worker.js';
@@ -537,10 +537,23 @@ app.use('/api/v1', (req, res, next) => {
 app.use('/api/v1', (req, res, next) => {
   // Die Regel selbst steht in permissions.js — dieselbe Funktion prüft den
   // MCP-Endpoint (#823), damit beide Oberflächen nicht auseinanderlaufen.
+  //
+  // AUSNAHME /schedule/preferences (S-12, UX-Audit): der Vorlauf/die
+  // Wochenstunden hängen an der EIGENEN users-Zeile (siehe
+  // routes/schedule-preferences.js' eigener Kommentar, "keine Admin-Gate") -
+  // ein Mitglied mit `schedule: read` darf nur FREMDE Schichtplan-Daten nicht
+  // schreiben, seine eigene Erinnerungsvorlaufzeit ist keine davon.
+  // `sessionModuleAccessRequirement()` senkt dafür nur das benötigte Niveau
+  // auf `read` (exakt für diesen Pfad, kein `startsWith`) - der Modul-
+  // Schlüssel bleibt `schedule`, damit `none` weiterhin verweigert wird; die
+  // API-Token-Scope-Prüfung oben bleibt unveraendert an `schedule:write`
+  // gebunden.
+  const { moduleKey: scopedModuleKey, access: scopedAccess } =
+    sessionModuleAccessRequirement(req.path, req.method);
   const verdict = moduleAccessVerdict(
     req.sessionModuleAccess,
-    moduleForPath(req.path),
-    requiredAccess(req.method),
+    scopedModuleKey,
+    scopedAccess,
   );
   if (verdict === MODULE_ACCESS_DENIED) {
     return res.status(403).json({ error: 'You do not have access to this module.', code: 403 });

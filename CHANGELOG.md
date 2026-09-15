@@ -160,6 +160,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   address bar right away - only that parameter, the rest of the URL stays - so a reload or going
   back does not repeat the failed request.
 
+- **A full audit of the Schedule module, fixed in one sweep.** The override editor no longer
+  destroys typed input when its "fill the whole range?" confirmation is cancelled - the confirm now
+  parks and resumes the open form instead of force-closing it, and the same holds if the confirmed
+  save itself then fails: the form stays parked until the write actually succeeds, instead of
+  closing on confirmation and leaving a failure toast over an already-empty page. A member with
+  read-only access to the
+  module sees an honest page: the banner was always there, but every create/edit/delete control
+  rendered anyway and failed only on save; they are now gone, matching what the API has always
+  enforced. Statistics and Overview refetch when the page is revisited (previously they re-labelled
+  another user's cached numbers as your own after a tab switch), show real loading and error states
+  instead of zeros that looked like data, and rapid week-flipping can no longer let a slow older
+  response overwrite a newer one. The dashboard "who's working today" widget refreshes with the
+  15-minute cycle instead of showing the morning state all day, and a failed load renders the error
+  tile with a retry button instead of the "create a shift type" onboarding. Shift-start reminders
+  fire at the DST-correct minute around clock changes, enabling them defaults to a 15-minute lead
+  instead of "at shift start", and a reminder can no longer keep firing for a shift type deleted in
+  the sync's blind window. On the server, a pattern save is capped at 500 cycle-day rows (each
+  stored row is re-emitted on every resolved read - an uncapped save was stored read amplification
+  any member could create), deleting a pattern or a user no longer leaks its custom-field values,
+  duplicate field ids in one payload are rejected instead of half-committing and answering 500, and
+  omitting `field_values` from an override save now preserves stored values, as the extras route
+  always did. The statistics hint text in all 24 languages finally describes the rolling
+  7-day-window rule the overtime flag actually applies, the printed statistics sheet no longer leads
+  with the personal reminder settings card, and a member with no schedule access no longer gets a
+  dead "Schedule" calendar layer plus a guaranteed-403 request on every calendar load.
+
+- **A second pass on the Schedule module, this time on comprehension and everyday polish.** Deleting a
+  shift type now asks first, naming what it removes, like every other destructive action in the
+  module already did. Two raw server strings that used to reach the toast ("shift_type_id must be a
+  positive number.", "cycle_length cannot exclude existing pattern days.") are now plain sentences
+  that say what to do next, and an Extra with no shift types yet shows a hint instead of an empty,
+  submittable dropdown. Editing a pattern's cycle days and leaving the tab (or the card) without
+  saving now prompts to discard, matching the confirm every other unsaved-changes flow in the app
+  already has; merely switching the Add-entry modal's Pattern/Override/Extra segment no longer
+  counts as a change worth asking about. Each cycle-day position shows the actual next date it falls
+  on, with a one-line explanation of the repeating cycle; creating or reactivating a pattern that
+  overlaps another one now asks first and names the consequence, and the pattern currently in effect
+  carries a small marker. A household with no shift types yet opens on that tab instead of the
+  planning tab it would immediately dead-end on. Every schedule tab now has its own address
+  (`/schedule/patterns`, `/schedule/statistics`, ...), so reloading keeps the tab, the back button
+  walks between tabs instead of leaving the page, and the dashboard widget and a shift reminder both
+  link straight to the relevant tab instead of the bare module. Clicking a shift anywhere it appears
+  (the Today card, the Compare view, a week/day calendar block) now opens a small read-only detail
+  view instead of doing nothing; week/day calendar chips show the full time range instead of just
+  the start; and the "Free today" hero and the per-member status row on the dashboard no longer
+  contradict a schedule entry sitting right next to them. The Statistics owner picker is self-only
+  for non-admin members now - statistics remain a read-only summary of data everyone can already see
+  via the Today card and calendar, but the convenience of pulling up someone else's totals was never
+  meant to be open to everyone. Shift-type presets are grouped by template (Work/School/University)
+  instead of one flat list of fifteen, the reminder lead time accepts any custom value up to the
+  server's own 24-hour cap instead of the seven fixed presets, and an expanded shift-type card spans
+  the full row instead of leaving a gap beside it. Tracking overtime at all is now its own switch
+  next to the weekly-hours target, instead of that number being the only way to affect whether the
+  Statistics tab flags anything - turning it off removes the overtime card entirely rather than
+  requiring a number nobody's schedule will ever cross. All of the above is translated into all 24
+  languages.
+
+## [2.66.0] - 2026-09-13
+
+### Added
+
 - **Notes gain category management, a category picker and an AND filter.** Manage personal
   categories and, when permitted, household categories on the Notes board, then select several
   categories to show notes that belong to every selection. Household categories remain assignable

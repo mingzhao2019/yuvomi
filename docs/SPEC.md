@@ -3283,7 +3283,9 @@ Shortening a pattern is refused while days sit beyond the new length, rather tha
 them. As of migration 182, a position is **not** unique — a cycle day may carry several rows (a
 timetable's multiple classes at different times on the same weekday), each its own `shift_type_id`.
 `PUT /patterns/:id/days` always replaces every row of a pattern in one transaction (delete-all,
-re-insert-all), so every save assigns fresh ids to every row, even unchanged ones.
+re-insert-all), so every save assigns fresh ids to every row, even unchanged ones. A save is capped
+at 500 rows total (`MAX_PATTERN_DAY_ROWS`): every stored row is re-emitted as its own entry on every
+resolved read, so an uncapped save would be stored read amplification, not scheduling.
 
 #### Schedule Overrides
 
@@ -3417,8 +3419,12 @@ and `POST /overrides/fill` (and their extra-shift equivalents) follow the same s
 `note` already established: a fill applies one set of values to every day in the range, not a value
 per day. Every read endpoint (`GET /patterns/{id}/days`, `GET /overrides`, `GET /extras`) embeds
 `field_values` per row; every delete path (`DELETE /overrides/{dateKey}`, `DELETE /overrides`,
-`DELETE /extras/{id}`) explicitly deletes the matching `schedule_custom_field_values` rows first,
-since `entry_id` carries no real foreign key for a cascade to ride on.
+`DELETE /extras/{id}`, `DELETE /patterns/{id}` — whose pattern days only cascade at the FK level —
+and the user-deletion transaction, which cascades away all three entry kinds at once) explicitly
+deletes the matching `schedule_custom_field_values` rows first, since `entry_id` carries no real
+foreign key for a cascade to ride on. Omitting `field_values` from a `PUT` leaves stored values
+untouched on both the override and the extra route; only an explicitly sent object (including `{}`)
+replaces them.
 
 **Frontend (capture):** the cycle-day editor, the override create/edit modals, and the extra-shift
 create/edit modals all render a field-input block right after their shift-type selector, sourced from
@@ -3471,7 +3477,13 @@ quiet week elsewhere in the same month cancel out a real overtime week (most peo
 7 days, so spreading the weekly target evenly across every calendar day in the range set a target a
 real week's hours could rarely cross). Only the worst window's excess is reported, never the sum
 across all crossings - overlapping windows share days, so summing would count the same hours
-repeatedly. A **Print** action in the same tab relies on the app's existing
+repeatedly. Tracking overtime at all is its own per-user switch (`schedule_overtime_enabled`,
+migration 218, UX audit S-24) rather than a repurposed value on `schedule_weekly_hours` — that field
+keeps rejecting 0 as invalid input server-side either way, since 0 is never a real full-/part-time
+target. Off (`overtimeEnabled: false`) suppresses the overtime card entirely, independent of whatever
+number happens to sit in the weekly-hours field, and disables that field in the UI (there's nothing
+for it to affect while tracking is off). NULL/unset reads as **on**, so an existing account sees no
+silent behavior change. A **Print** action in the same tab relies on the app's existing
 `@media print` baseline (`public/styles/layout.css`) layered with Schedule-specific print rules
 (`public/styles/schedule.css`) that hide the filters/tabs and lay out the two statistics tables for a
 clean page - no server-side PDF generation, the browser's native print-to-PDF does the rest.
@@ -3489,9 +3501,8 @@ recomputed on every request), managed via `GET/POST regenerate/DELETE /api/v1/sc
 (each member manages only their own token). See `server/services/schedule-ics.js`.
 
 **Personal preferences (Schedule v3):** `GET/PUT /api/v1/schedule/preferences`
-(`{ reminderOffsetMinutes, weeklyHours }`, `server/routes/schedule-preferences.js`) holds two
-per-user settings, both nullable (either field may be omitted from a `PUT` to leave it unchanged, or
-set to `null` to reset it to its default):
+(`{ reminderOffsetMinutes, weeklyHours, overtimeEnabled }`, `server/routes/schedule-preferences.js`)
+holds three per-user settings (any field may be omitted from a `PUT` to leave it unchanged):
 
 - **Shift-start reminders:** an opt-in push notification before an upcoming shift begins.
   `reminderOffsetMinutes: null` (the default) disables it; setting it also triggers an immediate
@@ -3513,7 +3524,14 @@ set to `null` to reset it to its default):
   the Statistics tab's overtime flag scales against (see "Overtime flag + print" above), `null`
   falling back to 40h/week. Per-user rather than a household field, since a part-time and a full-time
   member of the same household have different targets and the overtime card evaluates each member's
-  own range.
+  own range. Always an integer 1-168 (168 = hours in a week) — 0 is rejected, not reinterpreted as
+  "no target" (see the next field for that).
+- **Overtime tracking toggle (`schedule_overtime_enabled`, migration v218, boolean, no null
+  state):** whether the overtime flag runs at all for this person, independent of the weekly-hours
+  number above. Unset reads as `true` (no silent behavior change for existing accounts). Off both
+  hides the overtime card and disables the weekly-hours field in the UI, since there's nothing left
+  for it to affect. A deliberate, separate switch rather than letting `weeklyHours: 0` mean "off" —
+  0 keeps its ordinary meaning (an invalid target) either way.
 
 **Overview tab (Schedule v3):** a fifth tab compares several household members' resolved schedules
 side by side, one lane per person, for a whole week or a single day (`GET /schedule/entries`, no new
@@ -4191,12 +4209,29 @@ One page module with six deep-link routes (pattern like Settings, not like the K
 
 ### Schedule (`/schedule`)
 
-Off by default. Four tabs (shift types, patterns, overrides, statistics) plus a "today" card.
+Off by default. Four tabs — Shift types, Planning (patterns, overrides and extra shifts together),
+Statistics, and Compare (the side-by-side weekly view, formerly labelled "Overview") — plus a
+"today" card. Each tab is its own route (`/schedule/shifts`, `/schedule/patterns`,
+`/schedule/statistics`, `/schedule/overview`; the routes themselves keep the `overview` path segment
+even though the tab label reads "Compare") registered like Health's sub-tabs (one exact route per
+tab, `public/utils/schedule-tabs.js`, soft-navigated via the page module's `update()` export) — a
+reload or a shared/deep link lands on the right tab, and the browser Back button walks between tabs
+instead of leaving the page. A household with no shift types yet opens on the Shift types tab
+instead of Planning, which would otherwise dead-end every form behind it. Clicking a schedule entry
+anywhere it renders (the "today" card, the Compare grid, a week/day calendar block) opens a small
+read-only detail view (shift type, times, owner, note, custom field values, and its origin
+pattern/override/extra) — month-view calendar chips keep navigating to that day instead.
 
 - **Scoping:** every household member may *read* the whole overlay — the family mostly needs to know
   that one person is unavailable on Tuesday evening. A member writes only their own schedule; an
   admin writes for anyone. Shift types are the exception, because they are shared: anyone may add
-  one, only the creator or an admin may change or remove it.
+  one, only the creator or an admin may change or remove it. The Statistics tab's owner picker is
+  narrower than this read scope on purpose: a non-admin sees only themselves there, an admin sees
+  everyone. This is a client-side convenience restriction, not a data boundary — `GET
+  /schedule/entries` itself stays queryable by any `user_id` for any member with module read access,
+  because the "today" card, Compare, the calendar overlay and the dashboard widget all depend on
+  that being household-wide by design; Statistics just stops making it as convenient to pull up
+  someone else's hour totals as it is to look at their shifts directly.
 - **Calendar overlay:** a separate, explicitly toggleable, **read-only** layer — never ordinary
   editable events. It defaults to a compact strip rather than a full block, and the choice persists
   per browser. Its colour comes from `--module-schedule` in `tokens.css`, not from the markup: the

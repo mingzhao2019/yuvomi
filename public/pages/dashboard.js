@@ -1452,6 +1452,13 @@ function renderFamilyWidget(users, data) {
   );
   const events = Array.isArray(data?.upcomingEvents) ? data.upcomingEvents : [];
   const todayKey = householdToday();
+  // S-18 (UX-Audit): dieselbe Schichtplan-Kachel, direkt daneben, widersprach
+  // dieser Zeile - eine Person mit einer echten Schicht heute stand hier
+  // trotzdem als "Heute frei", weil dieses Widget Schichtplan nie kannte.
+  // `data.schedule` existiert nur, wenn die Schichtplan-Kachel selbst sichtbar
+  // ist (ensureScheduleSlice() laedt sie nicht sonst) - ohne sie bleibt diese
+  // Zeile unveraendert wie zuvor.
+  const scheduleEntriesToday = Array.isArray(data?.schedule?.entries) ? data.schedule.entries : [];
 
   const rows = users.slice(0, 6).map((u) => {
     const assignedTo = (e) => (Array.isArray(e.assigned_users) ? e.assigned_users : []).some((a) => a.id === u.id);
@@ -1461,6 +1468,11 @@ function renderFamilyWidget(users, data) {
       const start = eventStartDate(nextEvent);
       const timed = !nextEvent.all_day && start && String(nextEvent.start_datetime).length > 10;
       parts.push(timed ? `${esc(formatTime(start))} ${esc(nextEvent.title)}` : esc(nextEvent.title));
+    }
+    const myShift = scheduleEntriesToday.find((entry) => Number(entry.user_id) === Number(u.id) && entry.shift_type);
+    if (myShift) {
+      const type = myShift.shift_type;
+      parts.push(esc(type.short_code ? `${type.short_code} · ${type.name}` : type.name));
     }
     const open = openByUser.get(u.id) ?? 0;
     if (open > 0) parts.push(esc(t('dashboard.memberOpenTasks', { count: open })));
@@ -2065,8 +2077,10 @@ function renderCycleWidget(cycle) {
 
 /**
  * schedule: { entries, hasTypes } (haushaltsweit, kein Owner-Filter noetig -
- * das Modul liest schon fuer den ganzen Haushalt) | null (Ladefehler) |
- * undefined (Kachel versteckt, kein Request gelaufen).
+ * das Modul liest schon fuer den ganzen Haushalt) | null (Ladefehler,
+ * rendert die geteilte Fehlerkachel ueber den bestehenden try/catch in
+ * renderDashboardLayout, siehe renderWasteWidget) | undefined (Kachel
+ * versteckt, kein Request gelaufen).
  *
  * `entries`, nicht `users`: `resolveEntries()` (services/schedule.js) liefert
  * fuer ein Mitglied ohne jedes Muster und ohne Ausnahme heute gar keinen
@@ -2075,6 +2089,14 @@ function renderCycleWidget(cycle) {
  * aufzulisten wuerde hier etwas zeigen, das die Seite selbst nicht zeigt.
  */
 function renderScheduleWidget(schedule, users, size) {
+  // M-6b: ein Ladefehler ist kein leerer Tag - ohne diesen Wurf faellt `null`
+  // (Fehler) auf denselben Zweig wie `hasTypes === false` (echtes Onboarding)
+  // und zeigt die "Schicht-Typ anlegen"-CTA statt der Fehlerkachel, und bleibt
+  // wegen der `data.schedule !== undefined`-Merkung in ensureScheduleSlice
+  // auch nie neu versucht. Wie renderWasteWidget: der Wurf laesst
+  // renderDashboardLayout die geteilte Fehlerkachel (renderWidgetError) mit
+  // ihrem Retry rendern.
+  if (schedule === null) throw new Error('schedule widget slice failed to load');
   const entries = schedule?.entries ?? [];
   const hasTypes = Boolean(schedule?.hasTypes);
 
@@ -2091,7 +2113,7 @@ function renderScheduleWidget(schedule, users, size) {
 
   if (!entries.length) {
     return `<div class="widget widget--schedule">
-      ${widgetHeader('schedule', t('nav.schedule'), null, '/schedule')}
+      ${widgetHeader('schedule', t('nav.schedule'), null, '/schedule/patterns')}
       <div class="widget__body"><p class="u-meta schedule-widget-empty">${esc(t('schedule.empty'))}</p></div>
     </div>`;
   }
@@ -2133,7 +2155,7 @@ function renderScheduleWidget(schedule, users, size) {
     const icon = type?.icon ? `<i data-lucide="${esc(type.icon)}" class="schedule-widget-row__icon" aria-hidden="true"></i>` : '';
     const badge = entry.source === 'extra' ? `<i data-lucide="layers" class="schedule-widget-row__extra-badge" aria-label="${esc(t('schedule.extraBadgeLabel'))}"></i>` : '';
     return `
-      <div class="schedule-widget-row" data-route="/schedule" role="button" tabindex="0">
+      <div class="schedule-widget-row" data-route="/schedule/patterns" role="button" tabindex="0">
         <span class="schedule-widget-row__avatar" style="background:${esc(accent)};color:${getReadableTextColor(accent)}">${avatarInner}</span>
         <span class="schedule-widget-row__name">${esc(user?.display_name ?? '')}</span>
         <span class="schedule-widget-row__shift">${icon}<span class="schedule-widget-row__dot" style="--schedule-color:${esc(swatchColor)}"></span>${shiftLabel}${badge}</span>
@@ -2141,7 +2163,7 @@ function renderScheduleWidget(schedule, users, size) {
   }).join('');
 
   return `<div class="widget widget--schedule">
-    ${widgetHeader('schedule', t('nav.schedule'), onShift, '/schedule')}
+    ${widgetHeader('schedule', t('nav.schedule'), onShift, '/schedule/patterns')}
     <div class="widget__body">
       <div class="schedule-widget">${rows}</div>
     </div>
@@ -2456,8 +2478,24 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) 
   // mit dem Ausblick als beruhigendem Untertitel. Beides nur, wenn die
   // tragende Domäne überhaupt im Cockpit spricht: neben einem sichtbaren
   // Kalender-Widget wäre „Heute frei" eine fremde Behauptung.
+  //
+  // S-18 (UX-Audit): dieselbe Regel gilt fuer eine sichtbare Schichtplan-
+  // Kachel. "Heute frei"/"Fuer heute alles erledigt" pruefte bisher nur
+  // Aufgaben/Kalender - eine Person mit einer echten Schicht heute sah
+  // trotzdem eine dieser Behauptungen direkt neben der eigenen Kachel, die
+  // etwas anderes zeigte. Beide Zweige (nicht nur "frei") entfallen deshalb,
+  // sobald die Kachel selbst fuer Schichtplan spricht - kein neuer Programm-
+  // Zeilen-Import noetig, das widerspraeche dem "genau eine Repraesentation
+  // je Domaene" oben.
+  // isModuleDisabled() zusaetzlich zu widgetShown() (Review zu #1099, wie
+  // domainInCockpit() oben): eine abgeschaltete Schedule-Kachel kann in einem
+  // stehengebliebenen Layout weiterhin `visible: true` tragen, obwohl sie
+  // nichts mehr zeigt - ohne den Modul-Check wuerde das "Heute frei"/"Fuer
+  // heute alles erledigt" faelschlich unterdrueckt, obwohl gar keine
+  // Schichtplan-Kachel mehr etwas behauptet.
+  const scheduleWidgetVisible = !window.yuvomi?.isModuleDisabled('schedule') && widgetShown('schedule');
   let state = null;
-  if (!program.rows.length) {
+  if (!program.rows.length && !scheduleWidgetVisible) {
     const sayAllDone = includeTasks && program.tasksDoneToday > 0;
     if (sayAllDone || includeCalendar) {
       state = {
@@ -4988,11 +5026,23 @@ export async function render(container, { user, signal: routeSignal = null } = {
       if (Array.isArray(fresh?.upcomingEvents)) {
         fresh.upcomingEvents = fresh.upcomingEvents.map(localizeBirthdayEvent);
       }
-      // Der owner-only Zyklus-Slice reist mit: /dashboard liefert ihn nie,
-      // ein Refresh darf ihn nicht auf „nie geladen" zurückwerfen. Der
-      // Schedule-Slice reist aus demselben Grund mit, nur ohne die
-      // Owner-Beschraenkung - /dashboard liefert auch ihn nie.
+      // Der owner-only Zyklus-Slice reist unveraendert mit: /dashboard
+      // liefert ihn nie, ein Refresh darf ihn nicht auf „nie geladen"
+      // zurückwerfen.
       fresh.cycle = data.cycle;
+      // Schedule hat anders als Cycle keinen Privatsphaere-Grund, den alten
+      // Stand einfach mitzuschleppen (M-6a): "wer heute Dienst hat" blieb
+      // sonst bis zu 15 Minuten stehen und ueberlebte sogar einen
+      // Mitternachts-Wechsel auf dem Wandtablet. Vor der Uebernahme
+      // zuruecksetzen und mit frisch berechnetem Tag neu laden - derselbe
+      // Weg, den ein frisch eingeblendetes Widget in persistWidgetConfig()
+      // schon nimmt. Das heilt nebenbei auch einen zuvor gescheiterten Slice
+      // (M-6b) beim naechsten stillen Takt, statt auf den Retry-Knopf zu warten.
+      if (widgetConfig.some((w) => w.id === 'schedule' && w.visible)) {
+        data.schedule = undefined;
+        await ensureScheduleSlice();
+        if (signal.aborted) return;
+      }
       fresh.schedule = data.schedule;
       fresh.waste = data.waste;
       data = fresh;

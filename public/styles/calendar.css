@@ -2480,15 +2480,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* Der Chip gibt sein Label her, bevor der Kopf umbricht - aber nie sein Ziel:
-   * die Untergrenze ist dieselbe Zielgroesse, die die 640px-Regel weiter unten
-   * setzt, wenn sie das Label ganz entfernt. Ein Label zu verlieren darf ein
-   * Ziel nicht verkleinern (#882). */
-  min-width: var(--target-base);
-  overflow: hidden;
+  /* Nur der sichtbare Text ist ein Detail-Ausloeser. Der Block selbst bleibt
+   * transparent fuer die Spalten- und Termin-Klicks. */
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* Das Label ist der nachgiebige Teil des Chips; Symbol und Punkt bleiben. */
+.cal-toolbar__layer-btn {
+  min-width: var(--target-base);
+}
+
+.cal-toolbar__layer-btn[data-layer="schedule"] {
+  --layer-color: var(--module-schedule);
+}
+
 .cal-toolbar__layer-btn > span:not(.cal-toolbar__layer-dot) {
   min-width: 0;
   overflow: hidden;
@@ -2550,55 +2556,6 @@
 }
 
 
-/* Die Feiertags- und Schul-Layer tragen eine NUTZERFARBE und bekommen sie
-   deshalb als Inline-Style aus den Einstellungen. Der Schichtplan hat keine -
-   seine Farbe ist eine Designentscheidung und gehoert damit hierher und nicht
-   ins Markup. */
-/* Der Schichtblock ist HINTERGRUND, kein Termin. Er erbt Groesse und Lage von
-   .week-event/.day-event, faellt aber in beiden Sichten vor die Termine ins
-   Markup, damit die darueber malen. `pointer-events: none` haelt die Spalte
-   klickbar: der Block trug sonst die volle Spaltenbreite und verdeckte einen
-   Termin nicht nur optisch, sondern nahm ihm auch den Klick - die Handler
-   steigen auf `.schedule-time-block` bewusst aus. */
-.schedule-time-block {
-  pointer-events: none;
-  z-index: 0;
-}
-
-.cal-toolbar__layer-btn[data-layer="schedule"] {
-  --layer-color: var(--module-schedule);
-}
-
-/* Migration 181 (eigene Felder): note plus jedes ueberlagerungssichtbare Feld
- * mit einem Wert, auf der Uhrzeit-Zeile statt nur im (durch
- * pointer-events:none praktisch unerreichbaren) title. Zwei FESTE Zeilen statt
- * des vorherigen Fliesstexts (Titel+Badge, Uhrzeit+Feldwert), jede einzeilig
- * mit Ellipse: bei den ueblichen 30-60-min-Bloecken der Wochenansicht fuellte
- * unvorhersehbar umbrechender Fliesstext den knappen Block schon mit
- * Titel+Uhrzeit, eine dritte Zeile fuer das Feld blieb praktisch immer unter
- * der Blockkante verborgen (overflow:clip). Mit dem Feld AUF der Uhrzeit-Zeile
- * reicht der Platz, den Titel+Uhrzeit ohnehin schon beanspruchten. */
-.schedule-time-block__title,
-.schedule-time-block__time {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.schedule-time-block__time {
-  opacity: .85;
-}
-
-.cal-toolbar__schedule-warning {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-warning);
-  font-size: var(--text-sm);
-}
-
-
 .allday-holiday .schedule-entry__start {
   flex: 0 0 auto;
   font: inherit;
@@ -2611,4 +2568,48 @@
   height: 12px;
   flex: 0 0 auto;
   opacity: .82;
+}
+
+/* S-17: Woche/Tag machen den Chip zu einem Detail-Ausloeser (role="button",
+ * siehe renderScheduleChip()) - der Zeiger zeigt das an, der Fokusring kommt
+ * bereits app-weit aus reset.css. Monat/Agenda tragen die Rolle nicht und
+ * bleiben unveraendert. */
+.schedule-entry[role='button'] {
+  cursor: pointer;
+}
+
+/* S-17: read-only Detail-Modal-Inhalt (renderScheduleEntryDetailContent) -
+ * dieselbe Kopfzeile wie ein Termin-Chip (Farbpunkt + Titel + kleine
+ * Uhrzeit), darunter Label/Wert-Zeilen. Eigenstaendige Kopie der Klassen aus
+ * schedule.css (dieselbe Begruendung wie scheduleEntryMatchKey() oben). */
+.schedule-entry-detail__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.schedule-entry-detail__rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.schedule-entry-detail__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.schedule-entry-detail__row dt {
+  color: var(--color-text-secondary);
+  flex: 0 0 auto;
+}
+
+.schedule-entry-detail__row dd {
+  margin: 0;
+  min-width: 0;
+  text-align: end;
 }
