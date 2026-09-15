@@ -18,8 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without restrictions were never limited by it. Scoped API tokens were never let through, but were
   refused for a capitalised path to a module they may use - that now works as well.
 
-## [2.66.0] - 2026-09-13
-
 ### Added
 
 - **New optional module: Waste collection** (#1063). Define your household's waste types
@@ -70,21 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accepted a white or black icon that then disappeared against the light or dark background - an
   existing color outside the palette is kept, not silently overwritten.
 
-- **A calendar's default assignee can now be applied to the events it already imported** (#1154).
-  Until now the mapping only reached events that arrived after it was set, so the first thing
-  anyone saw after mapping a calendar was a list of unassigned events. Settings → Sync gains a
-  one-off "Apply to existing appointments" action for admins: it runs over the calendars of all
-  accounts that have a default assignee, names how many events it will touch, and fills only
-  events that are not assigned to anyone yet. An assignment made by hand is left alone. ICS
-  subscriptions are not included.
-
-- **The Housekeeping Reports tab can step through past months** (#1137). Until now it only ever
-  showed the current month, and older reports were reachable only through a single worker in the
-  Staff tab. A previous/next stepper with a jump back to the current month now sits next to the
-  title, in the same order as Budget. The chosen month stays put while you work in it: marking a
-  visit paid or editing one reloads that month instead of jumping back, and an empty month says
-  which month it is.
-
 - **A shopping list can be duplicated** (#1103). "Duplicate" sits in the list menu next to
   rename/delete and copies every item into a new list, with category assignment and the manual
   per-category order always carried over - that is the point of duplicating, not a switch. Three
@@ -106,25 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   less behind everything the alphabet puts first. For API users this is a contract change on
   `GET /api/v1/shopping/suggestions`: the response items are now objects `{ name, category,
   quantity }` ordered by recency, where they used to be plain name strings.
-
-- **A shopping list follows what the rest of the household does, while it is open** (#1108). Two people
-  in the same shop used to see two different lists: what one ticked off stayed unticked on the
-  other's phone until that page was reloaded. The open list now hears about changes within about ten
-  seconds and redraws the affected rows in place - the same gesture as your own tap, no jump, no
-  animation - and rebuilds only when an item was added, removed, renamed or moved.
-
-  The server keeps a change counter per list, maintained by database triggers rather than by the
-  routes: shopping items are written from six modules (the list itself, meal-plan and recipe
-  imports, the housekeeping module, MCP, the CalDAV to-do sync), and a counter that every writer
-  has to remember is a counter one of them forgets. The counter also moves when a list is renamed,
-  and its row goes with the list, so a list someone else deletes disappears from your screen too.
-  The open page asks `GET /api/v1/shopping/versions` every ten seconds while the tab is visible,
-  and at once when it becomes visible or gets focus - the moment somebody looks at the phone. It
-  reloads only a list whose number moved, through the same request it used to open it, so there
-  is still one read path. Deliberately a poll and not an open stream: it works through any
-  reverse proxy, holds no connection, and can grow into a stream on the same counter later. Your
-  own taps do not cost a reload: the write routes answer with the counter before and after, and
-  the page skips the reload when nothing else moved in between.
 
 ### Changed
 
@@ -206,13 +170,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   side by side. A country without regions now offers its school-holiday groups directly under
   Settings > Modules > Calendar, and the hint there no longer speaks only of Swiss cantons.
 
-- **Housekeeping only offers visit actions you are allowed to take** (#1135). A paid visit is
-  settled, and only an admin can change or delete it - but the Staff log and the recent visits on
-  the Overview showed edit and delete on every visit, so a member found out at save. The server now
-  sends per visit whether the current user may edit or delete it. Where that is not allowed, the row
-  offers the visit report instead and says that only an admin can change it. A calendar link to
-  such a visit opens the report rather than a form that cannot be saved.
-
 - **An item added without a category lands in the misc category again** (#548). The item route had
   drifted to defaulting to the *first* category ("Fruit & vegetables" in aisle order). It now
   prefers the misc category by name as long as the household still has it, and only falls back to
@@ -222,21 +179,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   category selector resets to the default after every item added, instead of staying on whatever a
   previous suggestion or manual pick set it to - an unrelated item typed right after could quietly
   land in the wrong aisle.
-
-- **Household members and guests created as contacts now show the translated "Other" category
-  instead of the German "Sonstiges"** (#1140). The contact that is mirrored when a household member
-  or a split-expenses guest is created carried the raw German word instead of the category key, so
-  every non-German household saw it untranslated on the contacts page. New contacts get the proper
-  key, and existing ones are corrected when the app updates.
-
-- **Opening Housekeeping with a broken visit deep link now says so** (#1139). Tapping a
-  housekeeping visit in the calendar opens Housekeeping through an `?editVisit=<id>` link; when
-  that visit has been deleted or the link is malformed, it used to fail silently and land on the
-  ordinary dashboard, with nothing to tell a stale link apart from a working one. It now shows a
-  localized message - a missing or invalid visit says so without a retry, while a server error, a
-  network problem or rate limiting offers to try again. The broken link is cleared from the
-  address bar right away - only that parameter, the rest of the URL stays - so a reload or going
-  back does not repeat the failed request.
 
 - **A full audit of the Schedule module, fixed in one sweep.** The override editor no longer
   destroys typed input when its "fill the whole range?" confirmation is cancelled - the confirm now
@@ -331,6 +273,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.66.0] - 2026-09-13
 
 ### Added
+
+- **A calendar's default assignee can now be applied to the events it already imported** (#1154).
+  Until now the mapping only reached events that arrived after it was set, so the first thing
+  anyone saw after mapping a calendar was a list of unassigned events. Settings → Sync gains a
+  one-off "Apply to existing appointments" action for admins: it runs over the calendars of all
+  accounts that have a default assignee, names how many events it will touch, and fills only
+  events that are not assigned to anyone yet. An assignment made by hand is left alone. ICS
+  subscriptions are not included.
+
+- **The Housekeeping Reports tab can step through past months** (#1137). Until now it only ever
+  showed the current month, and older reports were reachable only through a single worker in the
+  Staff tab. A previous/next stepper with a jump back to the current month now sits next to the
+  title, in the same order as Budget. The chosen month stays put while you work in it: marking a
+  visit paid or editing one reloads that month instead of jumping back, and an empty month says
+  which month it is.
+
+- **A shopping list follows what the rest of the household does, while it is open** (#1108). Two people
+  in the same shop used to see two different lists: what one ticked off stayed unticked on the
+  other's phone until that page was reloaded. The open list now hears about changes within about ten
+  seconds and redraws the affected rows in place - the same gesture as your own tap, no jump, no
+  animation - and rebuilds only when an item was added, removed, renamed or moved.
+
+  The server keeps a change counter per list, maintained by database triggers rather than by the
+  routes: shopping items are written from six modules (the list itself, meal-plan and recipe
+  imports, the housekeeping module, MCP, the CalDAV to-do sync), and a counter that every writer
+  has to remember is a counter one of them forgets. The counter also moves when a list is renamed,
+  and its row goes with the list, so a list someone else deletes disappears from your screen too.
+  The open page asks `GET /api/v1/shopping/versions` every ten seconds while the tab is visible,
+  and at once when it becomes visible or gets focus - the moment somebody looks at the phone. It
+  reloads only a list whose number moved, through the same request it used to open it, so there
+  is still one read path. Deliberately a poll and not an open stream: it works through any
+  reverse proxy, holds no connection, and can grow into a stream on the same counter later. Your
+  own taps do not cost a reload: the write routes answer with the counter before and after, and
+  the page skips the reload when nothing else moved in between.
+
+### Fixed
+
+- **Housekeeping only offers visit actions you are allowed to take** (#1135). A paid visit is
+  settled, and only an admin can change or delete it - but the Staff log and the recent visits on
+  the Overview showed edit and delete on every visit, so a member found out at save. The server now
+  sends per visit whether the current user may edit or delete it. Where that is not allowed, the row
+  offers the visit report instead and says that only an admin can change it. A calendar link to
+  such a visit opens the report rather than a form that cannot be saved.
+
+- **Household members and guests created as contacts now show the translated "Other" category
+  instead of the German "Sonstiges"** (#1140). The contact that is mirrored when a household member
+  or a split-expenses guest is created carried the raw German word instead of the category key, so
+  every non-German household saw it untranslated on the contacts page. New contacts get the proper
+  key, and existing ones are corrected when the app updates.
+
+- **Opening Housekeeping with a broken visit deep link now says so** (#1139). Tapping a
+  housekeeping visit in the calendar opens Housekeeping through an `?editVisit=<id>` link; when
+  that visit has been deleted or the link is malformed, it used to fail silently and land on the
+  ordinary dashboard, with nothing to tell a stale link apart from a working one. It now shows a
+  localized message - a missing or invalid visit says so without a retry, while a server error, a
+  network problem or rate limiting offers to try again. The broken link is cleared from the
+  address bar right away - only that parameter, the rest of the URL stays - so a reload or going
+  back does not repeat the failed request.
 
 - **Notes gain category management, a category picker and an AND filter.** Manage personal
   categories and, when permitted, household categories on the Notes board, then select several

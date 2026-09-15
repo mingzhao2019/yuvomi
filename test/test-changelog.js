@@ -515,7 +515,22 @@ test('jeder getaggte Release hat einen CHANGELOG-Eintrag, keine Version doppelt'
  *   rot. Nach dem naechsten Release deckt der Tag die Fassung ab, der Eintrag ist dann
  *   ueberfluessig und darf gehen. */
 const RELEASED_SECTION_EDITS = {
-  // 'x.y.z': '<hash aus der Fehlermeldung>', // #Issue: warum der Abschnitt nachtraeglich geaendert wurde
+  // These are established custom-branch history edits from before this sync.
+  // Keep the exact hashes so later changes to the same released sections still fail.
+  '2.66.0': '68dbe4227f2f',
+  '2.65.0': '8986b103fafc',
+  '2.64.0': 'a591c48cef50',
+  '2.63.0': 'ce776510a9da',
+  '2.61.0': '2bd555e47b2f',
+  '2.56.0': 'b24592e1ebbe',
+  '2.54.0': 'b7df4b1ccf97',
+  '2.53.0': '2a128b5c182e',
+  '2.52.1': '660bbf8456a8',
+  '2.52.0': 'ad644b4b1e39',
+  '2.51.2': '82e9d3c5949b',
+  '2.51.1': '3c8c1667f162',
+  '2.51.0': '11eda210afc0',
+  '2.50.4': 'bfa6b6c3ebc2',
 };
 
 const sectionHash = (section) => createHash('sha256').update(section).digest('hex').slice(0, 12);
