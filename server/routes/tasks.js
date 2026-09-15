@@ -28,6 +28,7 @@ import { toggleChecklistLine } from '../../public/utils/markdown-checklist.js';
 import { resolvePermissions } from '../permissions.js';
 import { fanOutNotification } from '../services/notifications.js';
 import { ensureCalDavTaskList, taskListsTableExists } from '../services/task-lists.js';
+import { householdMemberSql } from '../services/household-members.js';
 import { todayKey } from '../utils/timezone.js';
 import {
   allTags, applyTagChanges, loadTags, loadTagsFor, normalizeTags,
@@ -2503,7 +2504,7 @@ function notifyMentions(task, comment, authorId, previousComment = '') {
   // dem Kommentartext in der Meldung.
   const users = db.get().prepare(`
     SELECT id, display_name FROM users u
-    WHERE NOT EXISTS (SELECT 1 FROM housekeeping_workers hw WHERE hw.user_id = u.id)
+    WHERE ${householdMemberSql('u', { includeGuests: true })}
   `).all();
   // Beim Nachbessern zaehlen nur die NEU dazugekommenen Namen: wer schon in der
   // ersten Fassung stand, ist benachrichtigt und bekaeme sonst bei jedem Tippfehler
@@ -2661,7 +2662,7 @@ router.get('/meta/options', (req, res) => {
   try {
     const users = db.get().prepare(
       `SELECT id, display_name, avatar_color FROM users u
-       WHERE NOT EXISTS (SELECT 1 FROM housekeeping_workers hw WHERE hw.user_id = u.id)
+       WHERE ${householdMemberSql('u', { includeGuests: true })}
        ORDER BY display_name`
     ).all();
     res.json({

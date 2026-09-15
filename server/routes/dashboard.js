@@ -18,6 +18,7 @@ import { resolveBudgetMode } from '../services/budget-visibility.js';
 import { hiddenModulesFor } from '../permissions.js';
 import { daysBetweenDateKeys, householdTimeZone, utcToWall } from '../utils/timezone.js';
 import { inventoryVisibilityWhere } from './inventory/access.js';
+import { householdMemberSql } from '../services/household-members.js';
 import { isAdminUser, serializeEvents } from './calendar/helpers.js';
 
 const log = createLogger('Dashboard');
@@ -503,7 +504,7 @@ router.get('/', (req, res) => {
   try {
     result.users = d.prepare(
       `SELECT id, display_name, avatar_color, avatar_data FROM users u
-       WHERE NOT EXISTS (SELECT 1 FROM housekeeping_workers hw WHERE hw.user_id = u.id)
+       WHERE ${householdMemberSql('u', { includeGuests: true })}
        ORDER BY display_name`
     ).all();
   } catch (err) {
@@ -664,7 +665,7 @@ router.get('/', (req, res) => {
   // Belohnungen: Familien-Punktestand (Top 5 aktive Teilnehmer nach Ledger-Saldo)
   // plus offene Freigaben — ein glanceable Mini-Ranking für den Familienalltag.
   if (allows('rewards')) try {
-    const MEMBER_FILTER = 'NOT EXISTS (SELECT 1 FROM housekeeping_workers hw WHERE hw.user_id = u.id)';
+    const MEMBER_FILTER = householdMemberSql('u', { includeGuests: true });
     const standings = d.prepare(`
       SELECT u.id, u.display_name, u.avatar_color, u.avatar_data, u.family_role,
              COALESCE((SELECT SUM(delta) FROM reward_ledger l WHERE l.user_id = u.id), 0) AS balance
