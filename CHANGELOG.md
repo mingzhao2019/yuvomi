@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **A housekeeping staff account can no longer be signed in through SSO.** Staff accounts have
-  been refused at the password sign-in since v0.63.0, but the rule lived only in that route. The
-  OIDC callback found the same account through an identity already linked to it, or linked it
-  through a provider-verified email matching the account's contact email, and opened a full
-  session - with the second factor enabled, by way of the code prompt. The rule now sits in one
+- **A housekeeping staff account can no longer be signed in through SSO (GHSA-4jcg-7jvj-p4v9).**
+  Staff accounts have been refused at the password sign-in since v0.63.0, but the rule lived only in
+  that route. The OIDC callback found the same account through an identity already linked to it, or
+  linked it through a provider-verified email matching the account's contact email, and opened a
+  full session - with the second factor enabled, by way of the code prompt. The rule now sits in one
   place that every sign-in path asks: the callback checks it before linking, before the second
   factor and before the session, a staff account is never linked by email, and the session setup
   itself refuses such an account as a last line. Only installations with OIDC configured were
