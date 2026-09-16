@@ -7,6 +7,7 @@
  */
 import * as db from '../../db.js';
 import { normalizeVisibility, visibilityWhere } from '../../services/visibility.js';
+import { isAdminRequest } from '../../middleware/require-admin.js';
 
 export const ASSET_SCOPES = Object.freeze(['family', 'personal']);
 
@@ -15,7 +16,7 @@ export function actorId(req) {
 }
 
 export function isAdmin(req) {
-  return req.authRole === 'admin' || req.session?.role === 'admin';
+  return isAdminRequest(req);
 }
 
 export function inventoryVisibilityWhere(alias = 'ii', bind = '@me', admin = false) {

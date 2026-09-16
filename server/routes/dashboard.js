@@ -19,6 +19,7 @@ import { hiddenModulesFor } from '../permissions.js';
 import { daysBetweenDateKeys, householdTimeZone, utcToWall } from '../utils/timezone.js';
 import { inventoryVisibilityWhere } from './inventory/access.js';
 import { householdMemberSql } from '../services/household-members.js';
+import { isAdminRequest } from '../middleware/require-admin.js';
 import { isAdminUser, serializeEvents } from './calendar/helpers.js';
 
 const log = createLogger('Dashboard');
@@ -180,7 +181,7 @@ router.get('/', (req, res) => {
   const d = db.get();
   const result = {};
   const userId = req.authUserId || req.session.userId;
-  const admin = req.authRole === 'admin' || req.session?.role === 'admin';
+  const admin = isAdminRequest(req);
 
   /* WIDGET-OPTIONEN KOMMEN ALS QUERY-PARAMETER, NICHT AUS DEM GESPEICHERTEN
    * LAYOUT (#814). Der Server kennt die Widget-Ids bewusst nicht - sie gehören

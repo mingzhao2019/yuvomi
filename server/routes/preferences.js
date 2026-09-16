@@ -730,7 +730,7 @@ router.put('/', (req, res) => {
         if (!ASSET_DEFAULT_SCOPES.includes(asset_default_scope)) {
           return res.status(400).json({ error: 'Ungültiger Standard-Asset-Typ.', reason: 'asset_default_scope_invalid', code: 400 });
         }
-        if (asset_default_scope === 'family' && req.authRole !== 'admin') {
+        if (asset_default_scope === 'family' && !isAdminRequest(req)) {
           return res.status(403).json({ error: 'Admin access required.', reason: 'asset_default_scope_forbidden', code: 403 });
         }
       }
