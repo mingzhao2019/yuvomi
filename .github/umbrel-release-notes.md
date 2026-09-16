@@ -1,8 +1,14 @@
-<!-- version: 2.66.2 -->
-This is a security update and changes nothing else. It closes a gap in single sign-on: an account for housekeeping staff, which has never been allowed to sign in with a password, could still get in through your SSO provider and end up with a full household member's session. Only households that have single sign-on configured were affected. If you use SSO and keep staff accounts, update soon.
+<!-- version: 2.67.0 -->
+This release adds a new optional module and a good deal of work on Health. Waste collection keeps track of your household's pickup days: define your waste types and their weekly or monthly rhythm, or subscribe to your municipality's calendar file and let it refresh itself. It stays off until you turn it on in Settings, and from there it can also appear on the dashboard and in the calendar.
 
 One thing to check after updating: a token that was given only the search or the dashboard scope now returns empty results until you add the modules it should be able to read.
 
-There are no database migrations and nothing to do beyond updating.
+In Health, the cycle tab has grown into a full tracker, with flow strength shown on the calendar, feelings, more fertility signals, and a daily bubble that answers what today means for you. Some of what you note there stays yours alone, even on days the rest is shared with the family. Next to it, a fasting journal records your timers and the fasts you have already finished.
 
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.66.2
+One change is worth knowing before you update: housekeeping staff and shared-expense guests no longer turn up in the lists where you pick a person, such as assignees or reminder recipients. Anything already assigned to them stays as it is.
+
+The rest is everyday polish. Form fields, set-aside cards and checked-off shopping items are easier to read in both light and dark themes, a shopping list can be duplicated and follows what the rest of the household does while it is open, and the Schedule module had a full pass for clarity.
+
+This release applies database migrations. They run by themselves the first time the new version starts, and on a large household that can take a moment.
+
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.67.0

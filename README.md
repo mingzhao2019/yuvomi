@@ -115,7 +115,7 @@ Turn on what your household needs; the rest stays out of the way.
 | **Housekeeping** | Household staff: schedules, check-in/out, daily or hourly billing, chores and supply requests. |
 | **Waste collection** | Weekly, fixed-day or nth-weekday pickup schedules per waste type ("the last Friday"), with one-off dates, per-occurrence moves or skips, and a municipal ICS calendar imported once or subscribed by URL. Off by default. |
 | **Rewards** | Points on tasks credit the assigned member, with a parent-approved catalog and an auditable ledger. |
-| **Health** | Per-member vitals, medications, labs, activity and cycle tracking, with trend charts. |
+| **Health** | Per-member vitals, medications, labs, activity, cycle tracking and a fasting journal, with trend charts. |
 | **Schedule** | Rotating shift patterns and fixed weekly timetables from one cycle model, with per-day overrides and an explicit free day. The calendar shows them as a read-only overlay computed on read, so changing a pattern leaves no stale appointments behind. Off by default. |
 | **Notes &amp; Contacts** | Colored Markdown sticky notes with checklists you tick off by tapping them, sorted into personal or household categories, plus a contact directory with CardDAV sync and vCard import/export. |
 | **Birthdays** | Birthday and optional name-day tracker with automatic calendar events, age display and reminders. |

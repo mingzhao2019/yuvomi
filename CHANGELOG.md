@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.66.2] - 2026-09-16
+## [2.67.0] - 2026-09-16
 
 ### Security
 
@@ -383,6 +383,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead, and nothing brought it back. The same could pull focus out of an open date picker. The
   first field now stays out of the way once focus has moved inside the dialog or into something on
   top of it, such as a date picker; focus that lands on the page behind the dialog still moves in.
+
+- **The warning about a password login that is still open now names the administrator condition**
+  (#1194). `AUTH_ALLOW_PASSWORD_LOGIN=false` only takes effect once an administrator account is
+  linked to the OIDC provider; a member signing in through SSO does not arm it, so that an
+  administrator without a linked account cannot be locked out of the administration. The startup
+  warning said that no account was linked, so an operator whose member had already signed in through
+  SSO read the switch as armed while the login form was still open. It now says administrator. In
+  the same pass the Portainer compose file stopped defaulting `OPENWEATHER_LANG` to `de`, where the
+  code, `.env.example`, the Unraid template and the installation guide all use `en`.
+
+- **Shared expenses embedded in Budget no longer skip a heading level** (#1190). The embedded tab
+  title is a level-2 heading, which left the group name beside it at the same level and its
+  Balances, Recent expenses and Activity cards directly under the title instead of under the group.
+  The group name is now a level-3 heading and those cards level 4, so the outline a screen reader
+  announces reads Budget, then Shared expenses, then the group, then the section. Nothing moves
+  visually: size, weight, line height, margin and color are unchanged.
+
+## [2.66.2] - 2026-09-16
+
+### Security
+
+- **A housekeeping staff account can no longer be signed in through SSO (GHSA-4jcg-7jvj-p4v9).**
+  Staff accounts have been refused at the password sign-in since v0.63.0, but the rule lived only in
+  that route. The OIDC callback found the same account through an identity already linked to it, or
+  linked it through a provider-verified email matching the account's contact email, and opened a
+  full session - with the second factor enabled, by way of the code prompt. The rule now sits in one
+  place that every sign-in path asks: the callback checks it before linking, before the second
+  factor and before the session, a staff account is never linked by email, and the session setup
+  itself refuses such an account as a last line. Only installations with OIDC configured were
+  affected; password sign-in and members signing in through SSO behave as before.
+
+## [2.66.1] - 2026-09-14
+
+### Security
+
+- **A member's module permissions now hold for every letter case of an API path
+  (GHSA-cvwj-hx37-3r7m).** The API routes `/api/v1/Notes` to the same place as `/api/v1/notes`,
+  but the check that enforces per-member module access compared the path letter for letter, found
+  no module for the capitalised spelling and let the request through. A member set to "no access"
+  for a module could read it that way, and a member with read-only access could write to it. This
+  affected every module since per-member module access arrived in v1.4.0; admins and members
+  without restrictions were never limited by it. Scoped API tokens were never let through, but were
+  refused for a capitalised path to a module they may use - that now works as well.
 
 ## [2.66.0] - 2026-09-13
 
