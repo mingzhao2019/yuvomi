@@ -2787,7 +2787,30 @@
         "wasteFeedRegenerateConfirmDetail": "Devices and services using the old link stop receiving updates and, depending on the app, either keep showing their last state or show nothing until the new address is entered there.",
         "wasteFeedDisableConfirm": "Disable the feed? Existing subscriptions will no longer receive updates.",
         "wasteFeedDisableConfirmDetail": "The link stops delivering anything immediately. Turning it back on later creates a new address that every subscriber has to enter by hand.",
-        "wasteFeedSaved": "Saved."
+        "wasteFeedSaved": "Saved.",
+        "pageDisplays": "Wall tablets",
+        "pageDisplaysDescription": "Create a wall tablet, pair a device and revoke its access.",
+        "displaysTitle": "Wall tablets",
+        "displaysHint": "A wall tablet gets its own account that only this device can use. It is not a family member, it does not sign in, and it only sees what is visible to the household.",
+        "displayDeviceNameLabel": "Tablet name",
+        "displayDeviceNameHint": "For example “Kitchen” or “Hallway” - only to tell them apart in this list.",
+        "displayCreate": "Add wall tablet",
+        "displayEmpty": "No wall tablet created yet.",
+        "displayPaired": "Paired",
+        "displayNotPaired": "Not paired yet",
+        "displayIssueCode": "Generate pairing code",
+        "displayDelete": "Delete",
+        "displayDeleteConfirm": "Delete “{{name}}”?",
+        "displayPairingCodeLabel": "Pairing code",
+        "displayPairingCodeHint": "Valid for 15 minutes and works exactly once. Open /pair on the tablet and type it in there. It is shown only now.",
+        "displayDeviceUnnamed": "Unnamed device",
+        "displayDeviceLastSeen": "Last seen: {{when}}",
+        "displayDeviceNeverSeen": "Never connected",
+        "displayDeviceRevokedAt": "Revoked: {{when}}",
+        "displayRevokeDevice": "Revoke",
+        "displayRevokeConfirm": "End this device's access?",
+        "displayRevokeDetail": "The tablet stops showing anything immediately. To use it again it has to be paired anew.",
+        "displayDeleteDetail": "The account and all paired devices are removed. This cannot be undone."
     },
     "login": {
         "tagline": "Welcome back to your family planner.",
@@ -5496,5 +5519,15 @@
         "colorOrange": "Orange",
         "colorMagenta": "Magenta",
         "colorCurrent": "Current color"
+    },
+    "pairDisplay": {
+        "title": "Pair tablet",
+        "intro": "Enter the pairing code shown in the settings.",
+        "codeLabel": "Pairing code",
+        "codeHint": "Ten characters, upper or lower case does not matter.",
+        "labelLabel": "Name of this device (optional)",
+        "labelHint": "Helps you recognise later which device this is.",
+        "submit": "Pair",
+        "failed": "This pairing code is not valid."
     }
 }

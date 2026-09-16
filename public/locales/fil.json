@@ -2799,7 +2799,30 @@
         "wasteFeedRegenerateConfirmDetail": "Ang mga device at serbisyong gumagamit ng lumang link ay hihinto sa pagtanggap ng mga update, at depende sa app, alinman sa patuloy na ipinapakita ang huling estado nito o walang ipinapakita hanggang mailagay doon ang bagong address.",
         "wasteFeedDisableConfirm": "I-disable ang feed? Ang mga umiiral na subscription ay hindi na makakatanggap ng mga update.",
         "wasteFeedDisableConfirmDetail": "Agad na huminto ang link sa paghahatid ng anuman. Ang muling pag-activate sa ibang pagkakataon ay gumagawa ng bagong address na kailangang i-enter nang mano-mano ng bawat subscriber.",
-        "wasteFeedSaved": "Na-save."
+        "wasteFeedSaved": "Na-save.",
+        "pageDisplays": "Mga wall tablet",
+        "pageDisplaysDescription": "Gumawa ng wall tablet, ipares ang device at bawiin ang access nito.",
+        "displaysTitle": "Mga wall tablet",
+        "displaysHint": "Ang wall tablet ay may sariling account na ang device na ito lang ang makakagamit. Hindi ito miyembro ng pamilya, hindi ito nagla-log in, at nakikita lang nito ang nakikita ng sambahayan.",
+        "displayDeviceNameLabel": "Pangalan ng tablet",
+        "displayDeviceNameHint": "Halimbawa “Kusina” o “Pasilyo” - para lang mapagkaiba ang mga ito sa listahang ito.",
+        "displayCreate": "Magdagdag ng wall tablet",
+        "displayEmpty": "Wala pang wall tablet.",
+        "displayPaired": "Naipares na",
+        "displayNotPaired": "Hindi pa naipapares",
+        "displayIssueCode": "Gumawa ng pairing code",
+        "displayDelete": "Burahin",
+        "displayDeleteConfirm": "Burahin ang “{{name}}”?",
+        "displayPairingCodeLabel": "Pairing code",
+        "displayPairingCodeHint": "Balido sa loob ng 15 minuto at isang beses lang gumagana. Buksan ang /pair sa tablet at i-type ito doon. Ipinapakita lang ito ngayon.",
+        "displayDeviceUnnamed": "Device na walang pangalan",
+        "displayDeviceLastSeen": "Huling nakita: {{when}}",
+        "displayDeviceNeverSeen": "Hindi pa kailanman nakakonekta",
+        "displayDeviceRevokedAt": "Binawi: {{when}}",
+        "displayRevokeDevice": "Bawiin",
+        "displayRevokeConfirm": "Tapusin ang access ng device na ito?",
+        "displayRevokeDetail": "Agad nang hihinto ang tablet sa pagpapakita ng kahit ano. Para magamit ulit, kailangan itong ipares muli.",
+        "displayDeleteDetail": "Aalisin ang account at lahat ng naipares na device. Hindi ito maibabalik."
     },
     "login": {
         "tagline": "Maligayang pagbabalik sa iyong family planner.",
@@ -5496,5 +5519,15 @@
         "colorOrange": "Kahel",
         "colorMagenta": "Magenta",
         "colorCurrent": "Kasalukuyang kulay"
+    },
+    "pairDisplay": {
+        "title": "Ipares ang tablet",
+        "intro": "Ilagay ang pairing code na ipinapakita sa mga setting.",
+        "codeLabel": "Pairing code",
+        "codeHint": "Sampung character, hindi mahalaga kung malaki o maliit ang titik.",
+        "labelLabel": "Pangalan ng device na ito (opsyonal)",
+        "labelHint": "Nakakatulong itong makilala mamaya kung aling device ang tinutukoy.",
+        "submit": "Ipares",
+        "failed": "Hindi balido ang pairing code na ito."
     }
 }

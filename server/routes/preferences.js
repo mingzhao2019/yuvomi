@@ -5,6 +5,7 @@
  */
 
 import { createLogger } from '../logger.js';
+import { pickDisplayPreferences } from '../display-scopes.js';
 import express from 'express';
 import * as db from '../db.js';
 import * as holidays from '../services/holidays.js';
@@ -625,8 +626,7 @@ router.get('/', (req, res) => {
     const moduleOrder = parseModuleOrder(cfgUserGet('module_order', req.authUserId) ?? cfgGet('module_order'));
     const mobileNavOrder = parseMobileNavOrder(cfgUserGet('mobile_nav_order', req.authUserId));
 
-    res.json({
-      data: {
+    const data = {
         visible_meal_types: visibleMealTypes,
         meal_type_names: mealTypeNames,
         currency,
@@ -692,8 +692,13 @@ router.get('/', (req, res) => {
         holiday_school_color:  cfgGet('holiday_school_color')  ?? '#34C759',
         holiday_last_sync:     cfgGet('holiday_last_sync')     ?? null,
         ...assetPersonalDefaults(req.authUserId, req.authRole),
-      },
-    });
+    };
+    // EIN WANDTABLETT BEKOMMT NUR DEN DARSTELLUNGSTEIL (#1208). Diese Antwort
+    // ist die Sammelstelle des ganzen Haushalts - Wohnkoordinaten,
+    // Budget-Betriebsart, Zyklus-Einstellungen, Sync-Ziele -, und sie steht dem
+    // Display nur offen, weil die App ohne sie nicht startet. Was uebrig
+    // bleibt, ist eine Allowlist in display-scopes.js.
+    res.json({ data: req.authMethod === 'display' ? pickDisplayPreferences(data) : data });
   } catch (err) {
     log.error('GET /', err);
     res.status(500).json({ error: 'Interner Fehler', code: 500 });

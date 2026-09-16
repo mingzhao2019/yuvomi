@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A wall tablet can get an account of its own that only a paired device can use.** Under Settings an
+  administrator creates a display, gets a ten-character pairing code, and types it in once on the
+  tablet; from then on the tablet shows the dashboard, calendar, tasks and rewards, and nothing else.
+  A display is not a household member: it appears in no list of people, cannot be assigned anything,
+  and is never offered as a person. It has no usable password and cannot sign in with a username and
+  password or through SSO, so nobody has to type a household password on a device that hangs on a
+  wall and nobody ever signs out of. It reads household-visible entries only, never anybody's private
+  ones, and it can only read - ticking off and requesting a redemption come later (#1209). The
+  pairing code is valid once and for fifteen minutes, the credential lands in an httpOnly cookie that
+  no script on the page can read, and it stays valid until an administrator revokes it - with "last
+  seen" beside it, so revoking is an informed decision rather than a guess. Revoking takes effect on
+  the device's next request. (#1208)
+
 - **Ticking a task off can now name who did it, not just who tapped the checkbox.** A small person
   button sits next to the checkbox and opens the list of household members; picking one marks the
   task done and records that person as having done it. The checkbox itself is untouched - one tap,
@@ -25,6 +38,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backfilled with a claim nobody ever made. `PATCH /api/v1/tasks/{id}/status` takes an optional
   `done_by_user_id` for this; it has to be a household member, and it only applies to the transition
   into done. (#1205)
+
+### Security
+
+- **Reading the calendar no longer reaches the contact book, the sync accounts, or the sync targets.**
+  Permission for the API is granted per module, and the guard judged a request by the first part of
+  its path - so a credential that had been given the calendar alone also reached `GET
+  /birthdays/import/candidates`, which lists every contact with name and birth date, and the status
+  routes of the connected CalDAV, Outlook, Google and Apple accounts, which name the server address,
+  the user name, the account mail address and the last sync error - error text that comes from the
+  other side and regularly carries its address or an account identifier. The birthday-import routes
+  now ask for contact access as well, the status routes leave those management details out for anything but a signed-in person, and the two
+  sync-target lists - they name the connected accounts and their collection URLs - are limited to
+  whoever may actually save to them. If you use an API token scoped to `calendar:read` or
+  `tasks:read` for an integration that reads one of these, give it `contacts:read` or write access to
+  the module in question. The birthday page stops offering its import button where contacts are out
+  of reach. (#1241)
+
+- **A reward request and its wish text now stay between the person asking and whoever decides.** The
+  list of redemption requests handed every reader of the module up to 300 rows, each with the
+  free-form note and the avatar of the member who wrote it; the page showed you only your own, but it
+  filtered them after downloading everybody's. Approving and rejecting is an administrator's job, so
+  administrators still see all of them and everyone else now gets their own from the query. Nothing
+  changes in what the page shows. If you use an API token scoped to `rewards:read` for an integration
+  that reads the whole household's requests, it will now see only those of the member it acts as.
+  (#1241)
 
 ## [2.67.0] - 2026-09-16
 

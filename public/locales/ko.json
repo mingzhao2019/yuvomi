@@ -2799,7 +2799,30 @@
         "wasteFeedRegenerateConfirmDetail": "이전 링크를 사용하는 기기와 서비스는 업데이트를 받지 못하게 되며, 앱에 따라 마지막 상태를 계속 표시하거나 새 주소를 입력할 때까지 아무것도 표시하지 않습니다.",
         "wasteFeedDisableConfirm": "피드를 비활성화할까요? 기존 구독은 더 이상 업데이트를 받지 않습니다.",
         "wasteFeedDisableConfirmDetail": "링크는 즉시 아무것도 전달하지 않게 됩니다. 나중에 다시 활성화하면 새 주소가 생성되며 모든 구독자가 수동으로 다시 입력해야 합니다.",
-        "wasteFeedSaved": "저장되었습니다."
+        "wasteFeedSaved": "저장되었습니다.",
+        "pageDisplays": "벽면 태블릿",
+        "pageDisplaysDescription": "벽면 태블릿을 만들고, 기기를 페어링하고, 그 접근을 해지합니다.",
+        "displaysTitle": "벽면 태블릿",
+        "displaysHint": "벽면 태블릿에는 이 기기만 사용할 수 있는 전용 계정이 생깁니다. 가족 구성원이 아니며 로그인하지 않고, 가구에 공개된 내용만 볼 수 있습니다.",
+        "displayDeviceNameLabel": "태블릿 이름",
+        "displayDeviceNameHint": "예를 들어 “주방”이나 “현관” - 이 목록에서 구분하기 위한 용도입니다.",
+        "displayCreate": "벽면 태블릿 추가",
+        "displayEmpty": "아직 만든 벽면 태블릿이 없습니다.",
+        "displayPaired": "페어링됨",
+        "displayNotPaired": "아직 페어링되지 않음",
+        "displayIssueCode": "페어링 코드 생성",
+        "displayDelete": "삭제",
+        "displayDeleteConfirm": "“{{name}}”을(를) 삭제할까요?",
+        "displayPairingCodeLabel": "페어링 코드",
+        "displayPairingCodeHint": "15분 동안 유효하며 정확히 한 번만 사용할 수 있습니다. 태블릿에서 /pair 를 열고 코드를 입력하세요. 코드는 지금만 표시됩니다.",
+        "displayDeviceUnnamed": "이름 없는 기기",
+        "displayDeviceLastSeen": "마지막 접속: {{when}}",
+        "displayDeviceNeverSeen": "접속한 적 없음",
+        "displayDeviceRevokedAt": "해지됨: {{when}}",
+        "displayRevokeDevice": "해지",
+        "displayRevokeConfirm": "이 기기의 접근을 종료할까요?",
+        "displayRevokeDetail": "태블릿에는 즉시 아무것도 표시되지 않습니다. 계속 사용하려면 다시 페어링해야 합니다.",
+        "displayDeleteDetail": "계정과 페어링된 모든 기기가 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
     },
     "login": {
         "tagline": "가족 플래너에 다시 오신 것을 환영합니다.",
@@ -5496,5 +5519,15 @@
         "colorOrange": "주황",
         "colorMagenta": "자홍색",
         "colorCurrent": "현재 색상"
+    },
+    "pairDisplay": {
+        "title": "태블릿 페어링",
+        "intro": "설정에 표시된 페어링 코드를 입력하세요.",
+        "codeLabel": "페어링 코드",
+        "codeHint": "열 자리이며 대소문자는 구분하지 않습니다.",
+        "labelLabel": "이 기기의 이름 (선택)",
+        "labelHint": "나중에 어떤 기기인지 알아보는 데 도움이 됩니다.",
+        "submit": "페어링",
+        "failed": "이 페어링 코드는 유효하지 않습니다."
     }
 }

@@ -2787,7 +2787,30 @@
         "wasteFeedRegenerateConfirmDetail": "A régi linket használó eszközök és szolgáltatások leállnak a frissítések fogadásával, és az alkalmazástól függően vagy az utolsó állapotukat mutatják, vagy semmit sem jelenítenek meg, amíg meg nem adják ott az új címet.",
         "wasteFeedDisableConfirm": "Kikapcsolja a feedet? A meglévő feliratkozások többé nem kapnak frissítést.",
         "wasteFeedDisableConfirmDetail": "A link azonnal leáll bármi kézbesítésével. A későbbi újbóli bekapcsolás új címet hoz létre, amelyet minden feliratkozónak kézzel kell megadnia.",
-        "wasteFeedSaved": "Mentve."
+        "wasteFeedSaved": "Mentve.",
+        "pageDisplays": "Fali táblagépek",
+        "pageDisplaysDescription": "Fali táblagép létrehozása, eszköz párosítása és hozzáférésének visszavonása.",
+        "displaysTitle": "Fali táblagépek",
+        "displaysHint": "A fali táblagép saját fiókot kap, amelyet csak ez az eszköz használhat. Nem családtag, nem jelentkezik be, és csak azt látja, ami a háztartás számára látható.",
+        "displayDeviceNameLabel": "A táblagép neve",
+        "displayDeviceNameHint": "Például „Konyha” vagy „Előszoba” - csak a listán belüli megkülönböztetéshez.",
+        "displayCreate": "Fali táblagép hozzáadása",
+        "displayEmpty": "Még nincs fali táblagép.",
+        "displayPaired": "Párosítva",
+        "displayNotPaired": "Még nincs párosítva",
+        "displayIssueCode": "Párosítókód létrehozása",
+        "displayDelete": "Törlés",
+        "displayDeleteConfirm": "Törli a következőt: „{{name}}”?",
+        "displayPairingCodeLabel": "Párosítókód",
+        "displayPairingCodeHint": "15 percig érvényes, és pontosan egyszer használható. Nyisd meg a táblagépen a /pair címet, és írd be ott. Csak most jelenik meg.",
+        "displayDeviceUnnamed": "Névtelen eszköz",
+        "displayDeviceLastSeen": "Utoljára látva: {{when}}",
+        "displayDeviceNeverSeen": "Még soha nem csatlakozott",
+        "displayDeviceRevokedAt": "Visszavonva: {{when}}",
+        "displayRevokeDevice": "Visszavonás",
+        "displayRevokeConfirm": "Megszünteted ennek az eszköznek a hozzáférését?",
+        "displayRevokeDetail": "A táblagép azonnal semmit sem mutat többé. A további használathoz újra kell párosítani.",
+        "displayDeleteDetail": "A fiók és az összes párosított eszköz törlődik. Ezt nem lehet visszavonni."
     },
     "login": {
         "tagline": "Üdv újra a családi tervezőben.",
@@ -5496,5 +5519,15 @@
         "colorOrange": "Narancs",
         "colorMagenta": "Bíbor",
         "colorCurrent": "Jelenlegi szín"
+    },
+    "pairDisplay": {
+        "title": "Táblagép párosítása",
+        "intro": "Írd be a párosítókódot, amelyet a beállítások mutatnak.",
+        "codeLabel": "Párosítókód",
+        "codeHint": "Tíz karakter, a kis- és nagybetű nem számít.",
+        "labelLabel": "Ennek az eszköznek a neve (nem kötelező)",
+        "labelHint": "Segít később felismerni, melyik eszközről van szó.",
+        "submit": "Párosítás",
+        "failed": "Ez a párosítókód nem érvényes."
     }
 }

@@ -2787,7 +2787,30 @@
         "wasteFeedRegenerateConfirmDetail": "Les appareils et services utilisant l'ancien lien cessent de recevoir des mises à jour et, selon l'application, continuent d'afficher leur dernier état ou n'affichent plus rien tant que la nouvelle adresse n'y est pas saisie.",
         "wasteFeedDisableConfirm": "Désactiver le flux ? Les abonnements existants ne recevront plus de mises à jour.",
         "wasteFeedDisableConfirmDetail": "Le lien cesse immédiatement de délivrer quoi que ce soit. Le réactiver plus tard crée une nouvelle adresse que chaque abonné doit saisir manuellement.",
-        "wasteFeedSaved": "Enregistré."
+        "wasteFeedSaved": "Enregistré.",
+        "pageDisplays": "Tablettes murales",
+        "pageDisplaysDescription": "Créer une tablette murale, appairer un appareil et révoquer son accès.",
+        "displaysTitle": "Tablettes murales",
+        "displaysHint": "Une tablette murale reçoit son propre compte, utilisable uniquement par cet appareil. Ce n'est pas un membre de la famille, elle ne se connecte pas et ne voit que ce qui est visible par le foyer.",
+        "displayDeviceNameLabel": "Nom de la tablette",
+        "displayDeviceNameHint": "Par exemple « Cuisine » ou « Entrée » - uniquement pour les distinguer dans cette liste.",
+        "displayCreate": "Ajouter une tablette murale",
+        "displayEmpty": "Aucune tablette murale pour le moment.",
+        "displayPaired": "Appairée",
+        "displayNotPaired": "Pas encore appairée",
+        "displayIssueCode": "Générer un code d'appairage",
+        "displayDelete": "Supprimer",
+        "displayDeleteConfirm": "Supprimer « {{name}} » ?",
+        "displayPairingCodeLabel": "Code d'appairage",
+        "displayPairingCodeHint": "Valable 15 minutes et utilisable une seule fois. Ouvrez /pair sur la tablette et saisissez-le. Il n'est affiché que maintenant.",
+        "displayDeviceUnnamed": "Appareil sans nom",
+        "displayDeviceLastSeen": "Vu pour la dernière fois : {{when}}",
+        "displayDeviceNeverSeen": "Jamais connecté",
+        "displayDeviceRevokedAt": "Révoqué : {{when}}",
+        "displayRevokeDevice": "Révoquer",
+        "displayRevokeConfirm": "Mettre fin à l'accès de cet appareil ?",
+        "displayRevokeDetail": "La tablette n'affiche plus rien immédiatement. Pour la réutiliser, il faut l'appairer de nouveau.",
+        "displayDeleteDetail": "Le compte et tous les appareils appairés sont supprimés. Cette action est irréversible."
     },
     "login": {
         "tagline": "Bon retour sur votre planificateur familial.",
@@ -5496,5 +5519,15 @@
         "colorOrange": "Orange",
         "colorMagenta": "Magenta",
         "colorCurrent": "Couleur actuelle"
+    },
+    "pairDisplay": {
+        "title": "Appairer la tablette",
+        "intro": "Saisissez le code d'appairage affiché dans les réglages.",
+        "codeLabel": "Code d'appairage",
+        "codeHint": "Dix caractères, majuscules ou minuscules indifférentes.",
+        "labelLabel": "Nom de cet appareil (facultatif)",
+        "labelHint": "Aide à reconnaître plus tard de quel appareil il s'agit.",
+        "submit": "Appairer",
+        "failed": "Ce code d'appairage n'est pas valide."
     }
 }

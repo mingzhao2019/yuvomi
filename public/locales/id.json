@@ -2799,7 +2799,30 @@
         "wasteFeedRegenerateConfirmDetail": "Perangkat dan layanan yang memakai tautan lama berhenti menerima pembaruan, dan tergantung aplikasinya, tetap menampilkan status terakhirnya atau tidak menampilkan apa pun sampai alamat baru dimasukkan di sana.",
         "wasteFeedDisableConfirm": "Nonaktifkan umpan? Langganan yang ada tidak akan lagi menerima pembaruan.",
         "wasteFeedDisableConfirmDetail": "Tautan langsung berhenti mengirim apa pun. Mengaktifkannya kembali nanti membuat alamat baru yang harus dimasukkan manual oleh setiap pelanggan.",
-        "wasteFeedSaved": "Tersimpan."
+        "wasteFeedSaved": "Tersimpan.",
+        "pageDisplays": "Tablet dinding",
+        "pageDisplaysDescription": "Buat tablet dinding, pasangkan perangkat, dan cabut aksesnya.",
+        "displaysTitle": "Tablet dinding",
+        "displaysHint": "Tablet dinding mendapat akun sendiri yang hanya bisa dipakai perangkat ini. Ia bukan anggota keluarga, tidak masuk log, dan hanya melihat apa yang terlihat oleh rumah tangga.",
+        "displayDeviceNameLabel": "Nama tablet",
+        "displayDeviceNameHint": "Misalnya “Dapur” atau “Lorong” - hanya untuk membedakannya dalam daftar ini.",
+        "displayCreate": "Tambah tablet dinding",
+        "displayEmpty": "Belum ada tablet dinding.",
+        "displayPaired": "Sudah dipasangkan",
+        "displayNotPaired": "Belum dipasangkan",
+        "displayIssueCode": "Buat kode pemasangan",
+        "displayDelete": "Hapus",
+        "displayDeleteConfirm": "Hapus “{{name}}”?",
+        "displayPairingCodeLabel": "Kode pemasangan",
+        "displayPairingCodeHint": "Berlaku 15 menit dan hanya sekali pakai. Buka /pair di tablet lalu ketikkan di sana. Kode ini hanya ditampilkan sekarang.",
+        "displayDeviceUnnamed": "Perangkat tanpa nama",
+        "displayDeviceLastSeen": "Terakhir terlihat: {{when}}",
+        "displayDeviceNeverSeen": "Belum pernah terhubung",
+        "displayDeviceRevokedAt": "Dicabut: {{when}}",
+        "displayRevokeDevice": "Cabut",
+        "displayRevokeConfirm": "Akhiri akses perangkat ini?",
+        "displayRevokeDetail": "Tablet langsung berhenti menampilkan apa pun. Untuk memakainya lagi, tablet harus dipasangkan ulang.",
+        "displayDeleteDetail": "Akun dan semua perangkat yang dipasangkan akan dihapus. Ini tidak bisa dibatalkan."
     },
     "login": {
         "tagline": "Selamat datang kembali di perencana keluarga Anda.",
@@ -5496,5 +5519,15 @@
         "colorOrange": "Oranye",
         "colorMagenta": "Magenta",
         "colorCurrent": "Warna saat ini"
+    },
+    "pairDisplay": {
+        "title": "Pasangkan tablet",
+        "intro": "Masukkan kode pemasangan yang ditampilkan di pengaturan.",
+        "codeLabel": "Kode pemasangan",
+        "codeHint": "Sepuluh karakter, huruf besar atau kecil tidak masalah.",
+        "labelLabel": "Nama perangkat ini (opsional)",
+        "labelHint": "Membantu mengenali nanti perangkat mana yang dimaksud.",
+        "submit": "Pasangkan",
+        "failed": "Kode pemasangan ini tidak berlaku."
     }
 }

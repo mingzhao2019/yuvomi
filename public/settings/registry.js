@@ -252,6 +252,17 @@ export const SETTINGS_LEAVES = freezeEntries([
     loader: () => import('/settings/pages/sync-contacts.js'),
   },
   {
+    id: 'sync-reminders',
+    domainId: 'sync',
+    path: '/settings/sync/reminders',
+    labelKey: 'settings.pageSyncReminders',
+    descriptionKey: 'settings.pageSyncRemindersDescription',
+    icon: 'list-checks',
+    module: 'tasks',
+    adminOnly: true,
+    loader: () => import('/settings/pages/sync-reminders.js'),
+  },
+  {
     // Dateiname und ID bleiben `documents-*`: interne Bezeichner, die sonst den
     // sw.js-Precache und zwei Test-Dateien mitziehen. Nutzersichtbar ist die
     // Domäne, und externe Dienste anzubinden ist Synchronisation.
@@ -309,6 +320,16 @@ export const SETTINGS_LEAVES = freezeEntries([
     icon: 'cloud-sun',
     adminOnly: true,
     loader: () => import('/settings/pages/admin-weather.js'),
+  },
+  {
+    id: 'admin-displays',
+    domainId: 'admin',
+    path: '/settings/admin/displays',
+    labelKey: 'settings.pageDisplays',
+    descriptionKey: 'settings.pageDisplaysDescription',
+    icon: 'tablet-smartphone',
+    adminOnly: true,
+    loader: () => import('/settings/pages/admin-displays.js'),
   },
   {
     id: 'admin-api',

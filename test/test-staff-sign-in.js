@@ -80,7 +80,7 @@ app.post('/__test/pending-two-factor/:userId', (req, res) => {
   req.session.save(() => res.json({ ok: true }));
 });
 app.use('/api/v1/auth', authRouter);
-const server = app.listen(0);
+const server = app.listen(0, '127.0.0.1');
 const base = await new Promise((resolve) => server.on('listening', () => resolve(`http://127.0.0.1:${server.address().port}`)));
 test.after(() => server.close());
 

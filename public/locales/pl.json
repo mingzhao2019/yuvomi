@@ -2799,7 +2799,30 @@
         "wasteFeedRegenerateConfirmDetail": "Urządzenia i usługi korzystające ze starego linku przestają otrzymywać aktualizacje i, zależnie od aplikacji, albo dalej pokazują ostatni stan, albo nic nie pokazują, dopóki nie wprowadzi się tam nowego adresu.",
         "wasteFeedDisableConfirm": "Wyłączyć kanał? Istniejące subskrypcje przestaną otrzymywać aktualizacje.",
         "wasteFeedDisableConfirmDetail": "Link natychmiast przestaje cokolwiek dostarczać. Ponowne włączenie później tworzy nowy adres, który każdy subskrybent musi wpisać ręcznie.",
-        "wasteFeedSaved": "Zapisano."
+        "wasteFeedSaved": "Zapisano.",
+        "pageDisplays": "Tablety ścienne",
+        "pageDisplaysDescription": "Dodać tablet ścienny, sparować urządzenie i unieważnić jego dostęp.",
+        "displaysTitle": "Tablety ścienne",
+        "displaysHint": "Tablet ścienny otrzymuje własne konto, z którego może korzystać tylko to urządzenie. Nie jest członkiem rodziny, nie loguje się i widzi tylko to, co jest widoczne dla gospodarstwa domowego.",
+        "displayDeviceNameLabel": "Nazwa tabletu",
+        "displayDeviceNameHint": "Na przykład „Kuchnia” lub „Przedpokój” - służy tylko do rozróżnienia na tej liście.",
+        "displayCreate": "Dodaj tablet ścienny",
+        "displayEmpty": "Nie utworzono jeszcze żadnego tabletu ściennego.",
+        "displayPaired": "Sparowany",
+        "displayNotPaired": "Jeszcze nie sparowany",
+        "displayIssueCode": "Wygeneruj kod parowania",
+        "displayDelete": "Usuń",
+        "displayDeleteConfirm": "Usunąć „{{name}}”?",
+        "displayPairingCodeLabel": "Kod parowania",
+        "displayPairingCodeHint": "Ważny 15 minut i działa dokładnie raz. Otwórz na tablecie /pair i wpisz go tam. Jest pokazywany tylko teraz.",
+        "displayDeviceUnnamed": "Urządzenie bez nazwy",
+        "displayDeviceLastSeen": "Ostatnio widziane: {{when}}",
+        "displayDeviceNeverSeen": "Nigdy nie połączono",
+        "displayDeviceRevokedAt": "Unieważniono: {{when}}",
+        "displayRevokeDevice": "Unieważnij",
+        "displayRevokeConfirm": "Zakończyć dostęp tego urządzenia?",
+        "displayRevokeDetail": "Tablet natychmiast przestaje cokolwiek pokazywać. Aby znów go używać, trzeba go ponownie sparować.",
+        "displayDeleteDetail": "Konto i wszystkie sparowane urządzenia zostaną usunięte. Tego nie można cofnąć."
     },
     "login": {
         "tagline": "Witaj ponownie w swoim planerze rodzinnym.",
@@ -5496,5 +5519,15 @@
         "colorOrange": "Pomarańczowy",
         "colorMagenta": "Magenta",
         "colorCurrent": "Obecny kolor"
+    },
+    "pairDisplay": {
+        "title": "Sparuj tablet",
+        "intro": "Wpisz kod parowania pokazany w ustawieniach.",
+        "codeLabel": "Kod parowania",
+        "codeHint": "Dziesięć znaków, wielkość liter nie ma znaczenia.",
+        "labelLabel": "Nazwa tego urządzenia (opcjonalnie)",
+        "labelHint": "Pomaga później rozpoznać, o które urządzenie chodzi.",
+        "submit": "Sparuj",
+        "failed": "Ten kod parowania jest nieprawidłowy."
     }
 }
