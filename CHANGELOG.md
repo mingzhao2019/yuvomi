@@ -51,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `done_by_user_id` for this; it has to be a household member, and it only applies to the transition
   into done. (#1205)
 
+### Fixed
+
+- **On an instance without HTTPS, one cookie was issued in a way the browser throws away.** The
+  setting that decides whether cookies are marked HTTPS-only is off by default, which is right for a
+  self-hosted instance reached over plain HTTP. One place read that setting backwards, so on exactly
+  those instances the security token was handed out marked HTTPS-only and the browser dropped it.
+  It mostly hid behind a retry, surfacing as an occasional refused save rather than as anything
+  legible. Nobody has to change a setting; instances that had already turned HTTPS-only on were never
+  affected.
+
 ### Security
 
 - **Reading the calendar no longer reaches the contact book, the sync accounts, or the sync targets.**
