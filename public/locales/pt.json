@@ -399,7 +399,7 @@
         "historyUnknownMember": "Já não pertence ao agregado",
         "historyEmptyTitle": "Ainda nada registado",
         "historyEmptyPersonTitle": "Nada registado para esta pessoa",
-        "historyEmptyDescription": "Aqui vê quem concluiu que tarefa, e quando.",
+        "historyEmptyDescription": "Aqui vês quem fez cada tarefa e quando.",
         "historyEmptyHint": "O registo começa agora - o que foi concluído antes não ficou anotado.",
         "historyLoadError": "Não foi possível carregar o histórico",
         "historyLoadMore": "Mostrar mais",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "Esta lista contém uma tarefa que não pode eliminar. Não foi alterado nada.",
         "taskListSyncRequired": "Desligue a sincronização desta lista antes de a eliminar.",
         "taskListSyncDisabled": "Sincronização desligada",
-        "taskListDeleted": "Lista de tarefas eliminada."
+        "taskListDeleted": "Lista de tarefas eliminada.",
+        "doneByPick": "Quem fez “{{title}}”?",
+        "doneByToast": "Feito por {{name}}.",
+        "historyTickedBy": "assinalado por {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} refeições",

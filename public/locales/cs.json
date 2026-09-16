@@ -410,7 +410,7 @@
         "historyUnknownMember": "Již není v domácnosti",
         "historyEmptyTitle": "Zatím nic zaznamenáno",
         "historyEmptyPersonTitle": "Pro tuto osobu nic zaznamenáno",
-        "historyEmptyDescription": "Zde uvidíte, kdo a kdy odškrtl který úkol.",
+        "historyEmptyDescription": "Zde uvidíte, kdo kterou úlohu splnil a kdy.",
         "historyEmptyHint": "Zaznamenává se od teď - co bylo hotové dříve, si nikdo nepsal.",
         "historyLoadError": "Historii se nepodařilo načíst",
         "historyLoadMore": "Zobrazit více",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "Tento seznam obsahuje úkol, který nemůžete smazat. Nebyly provedeny žádné změny.",
         "taskListSyncRequired": "Před smazáním odpojte synchronizaci tohoto seznamu.",
         "taskListSyncDisabled": "Synchronizace odpojena",
-        "taskListDeleted": "Seznam úkolů smazán."
+        "taskListDeleted": "Seznam úkolů smazán.",
+        "doneByPick": "Kdo splnil „{{title}}“?",
+        "doneByToast": "Splnil(a) {{name}}.",
+        "historyTickedBy": "odškrtl(a) {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} jídla",

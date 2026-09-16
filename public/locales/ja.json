@@ -392,7 +392,7 @@
         "historyUnknownMember": "世帯に在籍していません",
         "historyEmptyTitle": "まだ記録がありません",
         "historyEmptyPersonTitle": "この人の記録はありません",
-        "historyEmptyDescription": "誰がいつどのタスクを完了したかがここに表示されます。",
+        "historyEmptyDescription": "誰がどのタスクをいつやったかがここに表示されます。",
         "historyEmptyHint": "記録はここから始まります。それ以前に完了した分は、どこにも残っていません。",
         "historyLoadError": "履歴を読み込めませんでした",
         "historyLoadMore": "さらに表示",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "このリストには削除できないタスクがあります。変更はありません。",
         "taskListSyncRequired": "削除する前に、このリストの同期を解除してください。",
         "taskListSyncDisabled": "同期解除済み",
-        "taskListDeleted": "タスクリストを削除しました。"
+        "taskListDeleted": "タスクリストを削除しました。",
+        "doneByPick": "「{{title}}」をやったのは誰ですか？",
+        "doneByToast": "{{name}} がやりました。",
+        "historyTickedBy": "チェックしたのは {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}}件の食事",

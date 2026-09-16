@@ -405,7 +405,7 @@
         "historyUnknownMember": "Już nie w gospodarstwie domowym",
         "historyEmptyTitle": "Jeszcze nic nie zapisano",
         "historyEmptyPersonTitle": "Brak zapisów dla tej osoby",
-        "historyEmptyDescription": "Tutaj widać, kto i kiedy odhaczył które zadanie.",
+        "historyEmptyDescription": "Tutaj zobaczysz, kto wykonał które zadanie i kiedy.",
         "historyEmptyHint": "Zapisywanie zaczyna się teraz - tego, co zrobiono wcześniej, nikt nie notował.",
         "historyLoadError": "Nie udało się wczytać historii",
         "historyLoadMore": "Pokaż więcej",
@@ -544,7 +544,10 @@
         "taskListTasksNotDeletable": "Ta lista zawiera zadanie, którego nie możesz usunąć. Nie wprowadzono zmian.",
         "taskListSyncRequired": "Przed usunięciem odłącz synchronizację tej listy.",
         "taskListSyncDisabled": "Synchronizacja odłączona",
-        "taskListDeleted": "Lista zadań usunięta."
+        "taskListDeleted": "Lista zadań usunięta.",
+        "doneByPick": "Kto wykonał „{{title}}”?",
+        "doneByToast": "Wykonał(a) {{name}}.",
+        "historyTickedBy": "odhaczone przez {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} posiłki",

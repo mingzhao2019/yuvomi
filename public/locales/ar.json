@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "تحتوي هذه القائمة على مهمة لا يمكنك حذفها. لم يُجر أي تغيير.",
         "taskListSyncRequired": "افصل مزامنة هذه القائمة قبل حذفها.",
         "taskListSyncDisabled": "تم فصل المزامنة",
-        "taskListDeleted": "تم حذف قائمة المهام."
+        "taskListDeleted": "تم حذف قائمة المهام.",
+        "doneByPick": "مَن أنجز ”{{title}}“؟",
+        "doneByToast": "أنجزها {{name}}.",
+        "historyTickedBy": "وضع العلامة {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وجبات",

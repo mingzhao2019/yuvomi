@@ -405,7 +405,7 @@
         "historyUnknownMember": "더 이상 가족 구성원이 아님",
         "historyEmptyTitle": "아직 기록이 없습니다",
         "historyEmptyPersonTitle": "이 사람의 기록이 없습니다",
-        "historyEmptyDescription": "누가 언제 어떤 작업을 완료했는지 여기에 표시됩니다.",
+        "historyEmptyDescription": "누가 어떤 할 일을 언제 했는지 여기에 표시됩니다.",
         "historyEmptyHint": "기록은 지금부터 시작됩니다. 그 전에 완료한 일은 어디에도 남아 있지 않습니다.",
         "historyLoadError": "기록을 불러오지 못했습니다",
         "historyLoadMore": "더 보기",
@@ -544,7 +544,10 @@
         "taskListTasksNotDeletable": "이 목록에 삭제할 수 없는 작업이 있습니다. 변경되지 않았습니다.",
         "taskListSyncRequired": "삭제하기 전에 이 목록의 동기화를 연결 해제하세요.",
         "taskListSyncDisabled": "동기화 연결 해제됨",
-        "taskListDeleted": "작업 목록을 삭제했습니다."
+        "taskListDeleted": "작업 목록을 삭제했습니다.",
+        "doneByPick": "“{{title}}”을(를) 누가 했나요?",
+        "doneByToast": "{{name}} 님이 했습니다.",
+        "historyTickedBy": "체크한 사람: {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}}개 식사",

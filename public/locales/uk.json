@@ -392,7 +392,7 @@
         "historyUnknownMember": "Більше не в родині",
         "historyEmptyTitle": "Поки нічого не записано",
         "historyEmptyPersonTitle": "Для цього учасника нічого не записано",
-        "historyEmptyDescription": "Тут видно, хто й коли позначив завдання виконаним.",
+        "historyEmptyDescription": "Тут видно, хто і коли виконав яке завдання.",
         "historyEmptyHint": "Запис починається зараз - те, що зробили раніше, ніде не збереглося.",
         "historyLoadError": "Не вдалося завантажити історію",
         "historyLoadMore": "Показати ще",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "У цьому списку є завдання, яке ви не можете видалити. Змін не внесено.",
         "taskListSyncRequired": "Перед видаленням від’єднайте синхронізацію цього списку.",
         "taskListSyncDisabled": "Синхронізацію від’єднано",
-        "taskListDeleted": "Список завдань видалено."
+        "taskListDeleted": "Список завдань видалено.",
+        "doneByPick": "Хто виконав «{{title}}»?",
+        "doneByToast": "Виконав(ла) {{name}}.",
+        "historyTickedBy": "позначив(ла) {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} прийоми їжі",

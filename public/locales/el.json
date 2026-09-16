@@ -392,7 +392,7 @@
         "historyUnknownMember": "Δεν ανήκει πλέον στο νοικοκυριό",
         "historyEmptyTitle": "Δεν έχει καταγραφεί τίποτα ακόμη",
         "historyEmptyPersonTitle": "Καμία καταγραφή για αυτό το άτομο",
-        "historyEmptyDescription": "Εδώ βλέπετε ποιος ολοκλήρωσε ποια εργασία και πότε.",
+        "historyEmptyDescription": "Εδώ βλέπεις ποιος έκανε ποια εργασία και πότε.",
         "historyEmptyHint": "Η καταγραφή ξεκινά τώρα - ό,τι ολοκληρώθηκε πριν δεν το κατέγραψε κανείς.",
         "historyLoadError": "Δεν ήταν δυνατή η φόρτωση του ιστορικού",
         "historyLoadMore": "Εμφάνιση περισσότερων",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "Η λίστα περιέχει εργασία που δεν μπορείτε να διαγράψετε. Δεν έγινε καμία αλλαγή.",
         "taskListSyncRequired": "Αποσυνδέστε τον συγχρονισμό της λίστας πριν από τη διαγραφή.",
         "taskListSyncDisabled": "Ο συγχρονισμός αποσυνδέθηκε",
-        "taskListDeleted": "Η λίστα εργασιών διαγράφηκε."
+        "taskListDeleted": "Η λίστα εργασιών διαγράφηκε.",
+        "doneByPick": "Ποιος έκανε το «{{title}}»;",
+        "doneByToast": "Το έκανε ο/η {{name}}.",
+        "historyTickedBy": "τσεκαρίστηκε από {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} γεύματα",

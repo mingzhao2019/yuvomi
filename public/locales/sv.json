@@ -392,7 +392,7 @@
         "historyUnknownMember": "Inte längre i hushållet",
         "historyEmptyTitle": "Inget registrerat än",
         "historyEmptyPersonTitle": "Inget registrerat för den här personen",
-        "historyEmptyDescription": "Här ser du vem som bockade av vilken uppgift, och när.",
+        "historyEmptyDescription": "Här ser du vem som gjorde vilken uppgift och när.",
         "historyEmptyHint": "Registreringen börjar nu - det som gjordes tidigare skrevs aldrig ned.",
         "historyLoadError": "Historiken kunde inte laddas",
         "historyLoadMore": "Visa fler",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "Listan innehåller en uppgift som du inte kan ta bort. Inget ändrades.",
         "taskListSyncRequired": "Koppla från synkroniseringen för listan innan du tar bort den.",
         "taskListSyncDisabled": "Synkronisering frånkopplad",
-        "taskListDeleted": "Uppgiftslistan har tagits bort."
+        "taskListDeleted": "Uppgiftslistan har tagits bort.",
+        "doneByPick": "Vem gjorde ”{{title}}”?",
+        "doneByToast": "Gjord av {{name}}.",
+        "historyTickedBy": "bockad av {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} måltider",

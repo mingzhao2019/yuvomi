@@ -392,7 +392,7 @@
         "historyUnknownMember": "Ya no está en el hogar",
         "historyEmptyTitle": "Aún no hay nada registrado",
         "historyEmptyPersonTitle": "Nada registrado para esta persona",
-        "historyEmptyDescription": "Aquí verás quién completó qué tarea y cuándo.",
+        "historyEmptyDescription": "Aquí verás quién hizo cada tarea y cuándo.",
         "historyEmptyHint": "El registro empieza ahora: lo completado antes no lo anotó nadie.",
         "historyLoadError": "No se pudo cargar el historial",
         "historyLoadMore": "Mostrar más",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "Esta lista contiene una tarea que no puedes eliminar. No se ha cambiado nada.",
         "taskListSyncRequired": "Desconecta la sincronización de esta lista antes de eliminarla.",
         "taskListSyncDisabled": "Sincronización desconectada",
-        "taskListDeleted": "Lista de tareas eliminada."
+        "taskListDeleted": "Lista de tareas eliminada.",
+        "doneByPick": "¿Quién hizo «{{title}}»?",
+        "doneByToast": "Hecho por {{name}}.",
+        "historyTickedBy": "marcado por {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} comidas",

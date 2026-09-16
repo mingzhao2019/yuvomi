@@ -405,7 +405,7 @@
         "historyUnknownMember": "دیگر عضو خانواده نیست",
         "historyEmptyTitle": "هنوز چیزی ثبت نشده است",
         "historyEmptyPersonTitle": "برای این شخص چیزی ثبت نشده است",
-        "historyEmptyDescription": "اینجا می‌بینید چه کسی چه کاری را کی انجام داده است.",
+        "historyEmptyDescription": "اینجا می‌بینید چه کسی چه کاری را و چه زمانی انجام داده است.",
         "historyEmptyHint": "ثبت از همین حالا آغاز می‌شود - آنچه پیش‌تر انجام شده، جایی نوشته نشده است.",
         "historyLoadError": "بارگذاری تاریخچه ممکن نشد",
         "historyLoadMore": "نمایش بیشتر",
@@ -544,7 +544,10 @@
         "taskListTasksNotDeletable": "این فهرست شامل وظیفه‌ای است که نمی‌توانید حذف کنید. تغییری انجام نشد.",
         "taskListSyncRequired": "پیش از حذف، همگام‌سازی این فهرست را قطع کنید.",
         "taskListSyncDisabled": "همگام‌سازی قطع شد",
-        "taskListDeleted": "فهرست وظایف حذف شد."
+        "taskListDeleted": "فهرست وظایف حذف شد.",
+        "doneByPick": "چه کسی «{{title}}» را انجام داد؟",
+        "doneByToast": "انجام‌شده توسط {{name}}.",
+        "historyTickedBy": "علامت‌زده توسط {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وعده",

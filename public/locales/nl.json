@@ -410,7 +410,7 @@
         "historyUnknownMember": "Niet meer in het huishouden",
         "historyEmptyTitle": "Nog niets vastgelegd",
         "historyEmptyPersonTitle": "Niets vastgelegd voor deze persoon",
-        "historyEmptyDescription": "Hier zie je wie welke taak heeft afgevinkt, en wanneer.",
+        "historyEmptyDescription": "Hier zie je wie welke taak heeft gedaan, en wanneer.",
         "historyEmptyHint": "Vastleggen begint nu - wat eerder klaar was, is nergens genoteerd.",
         "historyLoadError": "Geschiedenis kon niet worden geladen",
         "historyLoadMore": "Meer tonen",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "Deze lijst bevat een taak die je niet kunt verwijderen. Er is niets gewijzigd.",
         "taskListSyncRequired": "Verbreek de synchronisatie van deze lijst voordat je haar verwijdert.",
         "taskListSyncDisabled": "Synchronisatie verbroken",
-        "taskListDeleted": "Takenlijst verwijderd."
+        "taskListDeleted": "Takenlijst verwijderd.",
+        "doneByPick": "Wie heeft “{{title}}” gedaan?",
+        "doneByToast": "Gedaan door {{name}}.",
+        "historyTickedBy": "afgevinkt door {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} maaltijden",

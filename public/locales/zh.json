@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "此列表包含你无法删除的任务，未做任何更改。",
         "taskListSyncRequired": "请先解除此列表的同步，再删除它。",
         "taskListSyncDisabled": "已解除同步",
-        "taskListDeleted": "任务列表已删除。"
+        "taskListDeleted": "任务列表已删除。",
+        "doneByPick": "谁完成了“{{title}}”？",
+        "doneByToast": "由 {{name}} 完成。",
+        "historyTickedBy": "由 {{name}} 勾选"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} 餐",

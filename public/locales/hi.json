@@ -392,7 +392,7 @@
         "historyUnknownMember": "अब परिवार में नहीं",
         "historyEmptyTitle": "अभी तक कुछ दर्ज नहीं",
         "historyEmptyPersonTitle": "इस व्यक्ति के लिए कुछ दर्ज नहीं",
-        "historyEmptyDescription": "यहाँ दिखता है कि किसने कौन-सा काम कब पूरा किया।",
+        "historyEmptyDescription": "यहाँ दिखता है कि कौन-सा काम किसने और कब किया।",
         "historyEmptyHint": "रिकॉर्डिंग अब से शुरू होती है - इससे पहले जो पूरा हुआ, वह कहीं दर्ज नहीं है।",
         "historyLoadError": "इतिहास लोड नहीं हो सका",
         "historyLoadMore": "और दिखाएँ",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "इस सूची में ऐसा कार्य है जिसे आप हटा नहीं सकते। कुछ नहीं बदला।",
         "taskListSyncRequired": "हटाने से पहले इस सूची का समन्वयन डिस्कनेक्ट करें।",
         "taskListSyncDisabled": "समन्वयन डिस्कनेक्ट किया गया",
-        "taskListDeleted": "कार्य सूची हटा दी गई।"
+        "taskListDeleted": "कार्य सूची हटा दी गई।",
+        "doneByPick": "“{{title}}” किसने किया?",
+        "doneByToast": "{{name}} ने किया।",
+        "historyTickedBy": "{{name}} ने चिह्नित किया"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} भोजन",

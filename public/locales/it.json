@@ -392,7 +392,7 @@
         "historyUnknownMember": "Non fa più parte della casa",
         "historyEmptyTitle": "Ancora nulla di registrato",
         "historyEmptyPersonTitle": "Nessuna registrazione per questa persona",
-        "historyEmptyDescription": "Qui vedi chi ha completato quale attività, e quando.",
+        "historyEmptyDescription": "Qui vedi chi ha svolto quale attività e quando.",
         "historyEmptyHint": "La registrazione parte da adesso: ciò che è stato fatto prima non è stato annotato.",
         "historyLoadError": "Impossibile caricare la cronologia",
         "historyLoadMore": "Mostra altri",
@@ -532,7 +532,10 @@
         "taskListTasksNotDeletable": "Questo elenco contiene un’attività che non puoi eliminare. Nessuna modifica effettuata.",
         "taskListSyncRequired": "Disconnetti la sincronizzazione dell’elenco prima di eliminarlo.",
         "taskListSyncDisabled": "Sincronizzazione disconnessa",
-        "taskListDeleted": "Elenco attività eliminato."
+        "taskListDeleted": "Elenco attività eliminato.",
+        "doneByPick": "Chi ha svolto «{{title}}»?",
+        "doneByToast": "Svolto da {{name}}.",
+        "historyTickedBy": "spuntato da {{name}}"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} pasti",
