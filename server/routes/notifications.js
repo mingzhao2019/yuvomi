@@ -7,6 +7,7 @@
 import express from 'express';
 import * as db from '../db.js';
 import { createLogger } from '../logger.js';
+import { isAdminRequest } from '../middleware/require-admin.js';
 import { createNotificationChannelStore, NOTIFICATION_PROVIDERS } from '../services/notification-channels.js';
 import { notificationService as defaultNotificationService, formatNotificationWallTime } from '../services/notifications.js';
 import { householdTimeZone } from '../utils/timezone.js';
@@ -32,7 +33,7 @@ export function buildRouter({
   }
 
   function isAdmin(req) {
-    return req.authRole === 'admin';
+    return isAdminRequest(req);
   }
 
   function permissionError(message = 'Permission denied.') {
