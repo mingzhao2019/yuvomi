@@ -24,7 +24,34 @@ const chain = pkg.scripts.test;
 // custom 保留一条包含定制模块测试的独立链；上游的根 test 链不应把这些
 // 已经由 test:custom 覆盖的套件误报为“未接入”。两条链仍共用同一套
 // browser/文件引用规则，避免为了兼容分支结构复制检查逻辑。
-const testChains = [pkg.scripts.test, pkg.scripts['test:custom']].filter(Boolean);
+const testChains = [
+  pkg.scripts.test,
+  pkg.scripts['test:custom'],
+  pkg.scripts['pretest:custom'],
+].filter(Boolean);
+
+test('fasting slices execute each owned suite exactly once', () => {
+  for (const [script, file] of [
+    ['test:health-fasting', 'test-health-fasting.js'],
+    ['test:health-fasting', 'test-health-fasting-nav.js'],
+    ['test:health-fasting', 'test-health-fasting-migration.js'],
+    ['test:health-fasting', 'test-health-fasting-service.js'],
+    ['test:health-fasting', 'test-health-fasting-api.js'],
+    ['test:health-fasting', 'test-health-fasting-dates.js'],
+  ]) {
+    assert.ok(pkg.scripts[script], `${script} has its own entry point`);
+    assert.ok(pkg.scripts[script].includes(`test/${file}`), `${file} belongs to ${script}`);
+    const occurrences = testChains.reduce(
+      (count, chainText) => count + [...chainText.matchAll(new RegExp(`npm run ${script}(?![\\w:.-])`, 'g'))].length,
+      0,
+    );
+    assert.equal(occurrences, 1);
+    assert.equal(
+      Object.entries(pkg.scripts).filter(([name, command]) => name.startsWith('test:') && command.includes(`test/${file}`)).length,
+      1,
+    );
+  }
+});
 const suiteScripts = Object.keys(pkg.scripts).filter((k) => k.startsWith('test:'));
 
 const suiteFile = (name) => pkg.scripts[name].match(/test\/[\w.-]+\.js/)?.[0];

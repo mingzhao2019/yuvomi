@@ -2062,11 +2062,20 @@ test('admin-family leaf owns family member + role management lazily', () => {
   assert.match(source, /buildFamilyRoleOptions/);
   assert.match(source, /family_role/);
   assert.match(source, /birth_date/);
+  assert.match(source, /capabilityStateText\('health_use_fasting'/);
+  assert.match(source, /item\.default \?\? permissionCatalog\?\.defaults\?\.capability/);
 
   // Family leaf must not own API token, backup, or version concerns.
   assert.doesNotMatch(source, /\/auth\/api-tokens/);
   assert.doesNotMatch(source, /\/backup\//);
   assert.doesNotMatch(source, /\/version/);
+});
+
+test('permission summary compares capability access with each catalog default', () => {
+  const source = read('../public/settings/pages/admin-permissions.js');
+  assert.match(source, /isPermissionDeviation\(item, access\)/);
+  assert.match(source, /accessShort\(access\)/);
+  assert.doesNotMatch(source, /effectiveCapabilityAccess\(item\) === 'allow'/);
 });
 
 test('admin-api leaf owns API token lifecycle with one-time secret display', () => {

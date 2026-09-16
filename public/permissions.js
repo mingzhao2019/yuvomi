@@ -45,7 +45,7 @@ function navPermissionKey(navModule) {
   return NAV_TO_MODULE[navModule] || _extensionNavMap[navModule] || null;
 }
 
-let _perms = { admin: false, modules: {}, widgets: {} };
+let _perms = { admin: false, modules: {}, widgets: {}, capabilities: {} };
 
 export function setPermissions(payload) {
   if (payload && typeof payload === 'object') {
@@ -53,12 +53,13 @@ export function setPermissions(payload) {
       admin: payload.admin === true,
       modules: payload.modules && typeof payload.modules === 'object' ? payload.modules : {},
       widgets: payload.widgets && typeof payload.widgets === 'object' ? payload.widgets : {},
+      capabilities: payload.capabilities && typeof payload.capabilities === 'object' ? payload.capabilities : {},
     };
   }
 }
 
 export function clearPermissions() {
-  _perms = { admin: false, modules: {}, widgets: {} };
+  _perms = { admin: false, modules: {}, widgets: {}, capabilities: {} };
 }
 
 export function getPermissions() {
@@ -94,4 +95,10 @@ export function isNavModuleReadOnly(navModule) {
 export function canSeeWidget(widgetId) {
   if (_perms.admin) return true;
   return (_perms.widgets?.[widgetId] ?? 'allow') !== 'none';
+}
+
+/** Fasting is an explicit Health capability, not an implicit module grant. */
+export function canUseFasting() {
+  if (_perms.admin) return true;
+  return _perms.capabilities?.health_use_fasting === 'allow';
 }

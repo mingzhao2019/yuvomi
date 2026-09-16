@@ -77,6 +77,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A type's color comes from a curated palette instead of a free color picker, which had happily
   accepted a white or black icon that then disappeared against the light or dark background - an
   existing color outside the palette is kept, not silently overwritten.
+- **A fasting journal records timers and past fasts in Health** (Refs #1173).
+  Start now or earlier, record completed intervals, and edit or undo changes with
+  conflict protection. Elapsed/remaining clocks, personal goals and an optional
+  educational dial preserve the recorded time zone. History loads ten records at
+  a time; date filters and CSV cover the complete visible history. Family members
+  can read shared records; personal settings stay private. Fasting is available to
+  every member by default and an admin can switch it off per family role or person.
+  Yuvomi records fasting and does not provide medical advice.
 
 - **A shopping list can be duplicated** (#1103). "Duplicate" sits in the list menu next to
   rename/delete and copies every item into a new list, with category assignment and the manual
