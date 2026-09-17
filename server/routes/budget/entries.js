@@ -49,8 +49,9 @@ function intervalCountCheck(value) {
  */
 router.get('/summary', (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const month = req.query.month || today;
+    // The default month is a household-calendar question, not a UTC one.
+    // Keep the summary and list on the same local period at month boundaries.
+    const month = req.query.month || todayKey(db.get()).slice(0, 7);
 
     if (!MONTH_RE.test(month))
       return res.status(400).json({ error: 'month muss YYYY-MM sein', code: 400 });
@@ -197,8 +198,8 @@ router.get('/export', (req, res) => {
  */
 router.get('/', (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 7);
-    const month = req.query.month || today;
+    // Match the summary above: the default follows the household timezone.
+    const month = req.query.month || todayKey(db.get()).slice(0, 7);
     const loanId = req.query.loan_id ? parseInt(req.query.loan_id, 10) : null;
 
     if (!loanId && !MONTH_RE.test(month))

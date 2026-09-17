@@ -245,6 +245,24 @@ function serverFiles(dir = SERVER_DIR) {
 
 const rel = (file) => path.relative(ROOT, file);
 
+/**
+ * Return whether a source match is inside a comment.
+ *
+ * This guard deliberately judges one match instead of stripping comments from
+ * the whole file. A broad filter can hide real code when comment-like text
+ * appears inside a string or URL; a false alarm is preferable to a blind spot.
+ */
+function stehtImKommentar(quelle, index) {
+  const zeilenAnfang = quelle.lastIndexOf('\n', index - 1) + 1;
+  const vorDemTreffer = quelle.slice(zeilenAnfang, index);
+
+  if (/^\s*\/\//.test(vorDemTreffer)) return true;
+  if (/^\s*(\*|\/\*)/.test(vorDemTreffer)) return !vorDemTreffer.includes('*' + '/');
+  return false;
+}
+
+const NOW_TO_PERIOD = /new Date\(\s*\)\s*\.toISOString\(\s*\)\s*\.slice\(\s*0\s*,\s*(?:10|7)\s*\)/;
+
 test('Guard: nur timezone.js ruft serverTimeZone() direkt', () => {
   // `serverTimeZone()` ist der Rueckfall, nicht die Antwort - es liest `TZ` und
   // sieht die Einstellung nicht. Ein Aufruf woanders hiesse: diese eine Stelle
@@ -263,13 +281,77 @@ test('Guard: kein Server-Modul leitet "heute" aus toISOString() ab', () => {
   // (`new Date(Date.UTC(...))`); verboten ist der Sprung von JETZT auf einen
   // Kalendertag, denn der ist westlich von UTC abends und oestlich davon
   // morgens der falsche. Die Antwort heisst todayKey(<db>).
-  const NOW_TO_DAY = /new Date\(\s*\)\s*\.toISOString\(\)\s*\.slice\(\s*0\s*,\s*10\s*\)/;
   const offenders = serverFiles()
     .filter((file) => !file.endsWith(path.join('utils', 'timezone.js')))
-    .filter((file) => NOW_TO_DAY.test(readFileSync(file, 'utf8')))
+    .filter((file) => {
+      const quelle = readFileSync(file, 'utf8');
+      const suche = new RegExp(NOW_TO_PERIOD.source, 'g');
+      for (let treffer = suche.exec(quelle); treffer; treffer = suche.exec(quelle)) {
+        if (!stehtImKommentar(quelle, treffer.index)) return true;
+      }
+      return false;
+    })
     .map(rel);
   assert.deepEqual(offenders, [],
-    `Diese Dateien bilden "heute" aus dem UTC-Tag: ${offenders.join(', ')}`);
+    `Diese Dateien bilden "heute" aus dem UTC-Kalender: ${offenders.join(', ')}`);
+});
+
+test('Guard: das Urteil ueber den Fundort trifft beide Kommentararten und nichts sonst', () => {
+  const code = 'const m = new Date().toISOString().slice(0, 7);';
+  assert.equal(stehtImKommentar(code, code.indexOf('new Date')), false, 'blanker Code');
+
+  const zeile = '// hier stand new Date().toISOString().slice(0, 7)';
+  assert.equal(stehtImKommentar(zeile, zeile.indexOf('new Date')), true, 'Zeilenkommentar');
+
+  const nachCode = "foo(); // erledigt via new Date().toISOString().slice(0, 7)";
+  assert.equal(stehtImKommentar(nachCode, nachCode.indexOf('new Date')), false,
+    'Kommentar hinter Code gilt als Code');
+
+  const urlImString = "const u = 'https://x'; const m = new Date().toISOString().slice(0, 7);";
+  assert.equal(stehtImKommentar(urlImString, urlImString.indexOf('new Date')), false,
+    'eine URL im String darf keinen Kommentar vortaeuschen');
+
+  const geschlossen = '/' + '* alt *' + '/ const m = new Date().toISOString().slice(0, 7);';
+  assert.equal(stehtImKommentar(geschlossen, geschlossen.indexOf('new Date')), false,
+    'hinter einem geschlossenen Block steht Code');
+
+  const offen = '/' + '* new Date().toISOString().slice(0, 7)';
+  assert.equal(stehtImKommentar(offen, offen.indexOf('new Date')), true,
+    'ein offener Block deckt den Treffer');
+
+  const block = '/' + '* new Date().toISOString().slice(0, 10) *' + '/';
+  assert.equal(stehtImKommentar(block, block.indexOf('new Date')), true, 'Blockkommentar');
+
+  const fortsetzung = '/' + '**\n * new Date().toISOString().slice(0, 7)\n *' + '/';
+  assert.equal(stehtImKommentar(fortsetzung, fortsetzung.indexOf('new Date')), true,
+    'Fortsetzungszeile');
+
+  const danach = '/' + '* alt *' + '/\nconst m = new Date().toISOString().slice(0, 7);';
+  assert.equal(stehtImKommentar(danach, danach.indexOf('new Date')), false,
+    'hinter einem geschlossenen Block');
+});
+
+test('Guard: der Bestand ist sauber, und der Guard sieht ihn wirklich an', () => {
+  let kommentarTreffer = 0;
+  let codeTreffer = 0;
+  for (const file of serverFiles()) {
+    const quelle = readFileSync(file, 'utf8');
+    const suche = new RegExp(NOW_TO_PERIOD.source, 'g');
+    for (let treffer = suche.exec(quelle); treffer; treffer = suche.exec(quelle)) {
+      if (stehtImKommentar(quelle, treffer.index)) kommentarTreffer += 1;
+      else codeTreffer += 1;
+    }
+  }
+  assert.ok(kommentarTreffer > 0, 'der Guard muss mindestens einen Kommentar-Treffer sehen');
+  assert.equal(codeTreffer, 0, 'ausserhalb von Kommentaren steht das Muster nirgends');
+});
+
+test('Guard: das Muster trifft Tag UND Monat, und der Kommentar-Filter haelt', () => {
+  assert.ok(NOW_TO_PERIOD.test('const t = new Date().toISOString().slice(0, 10);'), 'Tag');
+  assert.ok(NOW_TO_PERIOD.test('const m = new Date().toISOString().slice(0,7)'), 'Monat');
+  assert.ok(NOW_TO_PERIOD.test('x = new Date() .toISOString() .slice( 0 , 7 )'), 'Leerzeichen');
+  assert.equal(NOW_TO_PERIOD.test('new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7)'), false,
+    'Date.UTC bleibt frei');
 });
 
 test('Guard: der null-Rueckfall steht nur als Default-Parameter', () => {
