@@ -211,6 +211,7 @@
     "test:multi-reminders": "node --test test/test-multi-reminders.js",
     "test:event-reminder-fanout": "node --experimental-sqlite --test test/test-event-reminder-fanout.js",
     "test:reminders-routes": "node --test test/test-reminders-routes.js",
+    "test:reminder-orphans": "node --test test/test-reminder-orphans.js",
     "test:reminder-offset": "node test/test-reminder-offset.js",
     "test:api": "node --loader ./test/test-browser-loader.mjs test/test-api.js",
     "test:openapi-coverage": "node --test test/test-openapi-coverage.js",

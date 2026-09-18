@@ -1605,6 +1605,13 @@ router.delete('/:id', (req, res) => {
     if (rejectLinkedOccurrenceResource(res, event, req)) return;
     const queued = genericQueued || outlookQueued;
 
+    // Die Erinnerungen abzuraeumen ist seit Migration v227 Sache eines
+    // AFTER-DELETE-Triggers auf `calendar_events` - dieser Block hier ist
+    // seitdem der Guertel zum Hosentraeger und findet im Normalfall nichts
+    // mehr. Er bleibt stehen, weil er die Absicht an der Stelle ausspricht, an
+    // der sie entsteht; die Regel selbst darf nur nicht in dieser Route WOHNEN
+    // (Google-/ICS-/CalDAV-Sync und calendar-prune.js loeschen Termine ohne je
+    // hier vorbeizukommen).
     const result = db.get().transaction(() => {
       const ownedIds = db.get().prepare(`
         SELECT id FROM calendar_events
