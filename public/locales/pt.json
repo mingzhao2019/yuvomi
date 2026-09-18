@@ -535,7 +535,8 @@
         "taskListDeleted": "Lista de tarefas eliminada.",
         "doneByPick": "Quem fez “{{title}}”?",
         "doneByToast": "Feito por {{name}}.",
-        "historyTickedBy": "assinalado por {{name}}"
+        "historyTickedBy": "assinalado por {{name}}",
+        "reminderLockedNeedsDueDate": "Esta tarefa tem um lembrete que não pode alterar. Por isso precisa de uma data de vencimento."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} refeições",
@@ -3075,7 +3076,8 @@
         "customWeeks": "Semanas",
         "sectionTitlePlural": "Lembretes",
         "sharedWithAssignees": "Quem estiver atribuído a este evento também recebe este lembrete.",
-        "offset30min": "30 minutos antes"
+        "offset30min": "30 minutos antes",
+        "readOnlyNotice": "Os lembretes pertencem ao Calendário. Sem permissão de escrita aí, esta definição permanece inalterada."
     },
     "onboarding": {
         "step1Title": "Bem-vindo ao {{name}}",

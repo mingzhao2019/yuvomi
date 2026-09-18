@@ -535,7 +535,8 @@
         "taskListDeleted": "Seznam úkolů smazán.",
         "doneByPick": "Kdo splnil „{{title}}“?",
         "doneByToast": "Splnil(a) {{name}}.",
-        "historyTickedBy": "odškrtl(a) {{name}}"
+        "historyTickedBy": "odškrtl(a) {{name}}",
+        "reminderLockedNeedsDueDate": "Tento úkol má připomínku, kterou nemůžeš změnit. Proto potřebuje datum splnění."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} jídla",
@@ -3552,7 +3553,8 @@
         "customWeeks": "Týdny",
         "sectionTitlePlural": "Připomínky",
         "sharedWithAssignees": "Toto připomenutí dostanou i osoby přiřazené k této události.",
-        "offset30min": "30 minut předem"
+        "offset30min": "30 minut předem",
+        "readOnlyNotice": "Připomínky patří ke Kalendáři. Bez práva k zápisu tam zůstane toto nastavení nezměněné."
     },
     "birthdays": {
         "inDays": "za {{days}} dní",

@@ -535,7 +535,8 @@
         "taskListDeleted": "Takenlijst verwijderd.",
         "doneByPick": "Wie heeft “{{title}}” gedaan?",
         "doneByToast": "Gedaan door {{name}}.",
-        "historyTickedBy": "afgevinkt door {{name}}"
+        "historyTickedBy": "afgevinkt door {{name}}",
+        "reminderLockedNeedsDueDate": "Deze taak heeft een herinnering die je niet mag wijzigen. Daarom is een einddatum nodig."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} maaltijden",
@@ -2960,7 +2961,8 @@
         "customWeeks": "Weken",
         "sectionTitlePlural": "Herinneringen",
         "sharedWithAssignees": "Wie aan deze afspraak is toegewezen, krijgt deze herinnering ook.",
-        "offset30min": "30 minuten van tevoren"
+        "offset30min": "30 minuten van tevoren",
+        "readOnlyNotice": "Herinneringen horen bij de Agenda. Zonder schrijfrechten daar blijft deze instelling ongewijzigd."
     },
     "birthdays": {
         "inDays": "over {{days}} dagen",

@@ -535,7 +535,8 @@
         "taskListDeleted": "Elenco attività eliminato.",
         "doneByPick": "Chi ha svolto «{{title}}»?",
         "doneByToast": "Svolto da {{name}}.",
-        "historyTickedBy": "spuntato da {{name}}"
+        "historyTickedBy": "spuntato da {{name}}",
+        "reminderLockedNeedsDueDate": "Questa attività ha un promemoria che non puoi modificare. Serve quindi una data di scadenza."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} pasti",
@@ -3075,7 +3076,8 @@
         "customWeeks": "Settimane",
         "sectionTitlePlural": "Promemoria",
         "sharedWithAssignees": "Anche chi è assegnato a questo evento riceve questo promemoria.",
-        "offset30min": "30 minuti prima"
+        "offset30min": "30 minuti prima",
+        "readOnlyNotice": "I promemoria appartengono al Calendario. Senza permesso di scrittura lì, questa impostazione resta invariata."
     },
     "onboarding": {
         "step1Title": "Benvenuto in {{name}}",

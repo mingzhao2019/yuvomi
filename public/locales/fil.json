@@ -547,7 +547,8 @@
         "taskListDeleted": "Natanggal ang listahan ng gawain.",
         "doneByPick": "Sino ang gumawa ng “{{title}}”?",
         "doneByToast": "Ginawa ni {{name}}.",
-        "historyTickedBy": "minarkahan ni {{name}}"
+        "historyTickedBy": "minarkahan ni {{name}}",
+        "reminderLockedNeedsDueDate": "May paalala ang gawaing ito na hindi mo maaaring baguhin. Kailangan nito ng petsa ng deadline."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} na (mga) pagkain",
@@ -2972,7 +2973,8 @@
         "customWeeks": "Linggo",
         "sectionTitlePlural": "Mga Paalala",
         "sharedWithAssignees": "Nakukuha rin ng mga nakatalaga sa kaganapang ito ang paalalang ito.",
-        "offset30min": "30 minuto bago"
+        "offset30min": "30 minuto bago",
+        "readOnlyNotice": "Ang mga paalala ay nasa Kalendaryo. Kung wala kang access na magsulat doon, hindi mababago ang setting na ito."
     },
     "birthdays": {
         "inDays": "sa loob ng {{days}} araw",

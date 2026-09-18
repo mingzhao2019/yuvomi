@@ -535,7 +535,8 @@
         "taskListDeleted": "تم حذف قائمة المهام.",
         "doneByPick": "مَن أنجز ”{{title}}“؟",
         "doneByToast": "أنجزها {{name}}.",
-        "historyTickedBy": "وضع العلامة {{name}}"
+        "historyTickedBy": "وضع العلامة {{name}}",
+        "reminderLockedNeedsDueDate": "هذه المهمة لديها تذكير لا يمكنك تغييره. لذلك تحتاج إلى تاريخ استحقاق."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وجبات",
@@ -3075,7 +3076,8 @@
         "customWeeks": "Weeks",
         "sectionTitlePlural": "التذكيرات",
         "sharedWithAssignees": "يحصل المُكلَّفون بهذا الموعد على هذا التذكير أيضًا.",
-        "offset30min": "قبل 30 دقيقة"
+        "offset30min": "قبل 30 دقيقة",
+        "readOnlyNotice": "التذكيرات تنتمي إلى التقويم. بدون صلاحية الكتابة هناك، يبقى هذا الإعداد كما هو."
     },
     "onboarding": {
         "step1Title": "مرحبًا بك في {{name}}",

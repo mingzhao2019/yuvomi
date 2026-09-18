@@ -535,7 +535,8 @@
         "taskListDeleted": "Список задач удалён.",
         "doneByPick": "Кто выполнил «{{title}}»?",
         "doneByToast": "Выполнил(а) {{name}}.",
-        "historyTickedBy": "отметил(а) {{name}}"
+        "historyTickedBy": "отметил(а) {{name}}",
+        "reminderLockedNeedsDueDate": "У этой задачи есть напоминание, которое вы не можете изменить. Поэтому ей нужен срок выполнения."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} приёма пищи",
@@ -3075,7 +3076,8 @@
         "customWeeks": "Weeks",
         "sectionTitlePlural": "Напоминания",
         "sharedWithAssignees": "Участники, назначенные на это событие, тоже получат это напоминание.",
-        "offset30min": "За 30 минут"
+        "offset30min": "За 30 минут",
+        "readOnlyNotice": "Напоминания относятся к Календарю. Без права записи там эта настройка остаётся без изменений."
     },
     "onboarding": {
         "step1Title": "Добро пожаловать в {{name}}",

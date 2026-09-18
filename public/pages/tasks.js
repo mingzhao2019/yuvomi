@@ -26,7 +26,7 @@ import { makeSortable } from '/utils/sortable.js';
 import '/components/category-manager.js';
 import '/components/tag-manager.js';
 import { findPageFab } from '/utils/fab.js';
-import { isNavModuleReadOnly } from '/permissions.js';
+import { isNavModuleReadOnly, navModuleAccess } from '/permissions.js';
 import { isSoloHousehold, hidesPrivacyControls } from '/utils/household.js';
 import { popoverMenuHtml, installPopoverMenus } from '/utils/popover-menu.js';
 import { todayKey, parseLocalDateKey } from '/utils/date.js';
@@ -1490,6 +1490,7 @@ function consumeTaskOpenParameter() {
 }
 
 async function loadReminderForTask(taskId) {
+  if (reminderAccess() === 'none') return null;
   try {
     const data = await api.get(`/reminders?entity_type=task&entity_id=${taskId}`);
     return data.data;
@@ -1498,25 +1499,36 @@ async function loadReminderForTask(taskId) {
   }
 }
 
+function reminderAccess() {
+  return navModuleAccess('calendar');
+}
+
 function renderReminderSection(task = null, reminder = null) {
+  const access = reminderAccess();
+  if (access === 'none' || (access === 'read' && !reminder)) return '';
+
+  const locked = access === 'read';
+  const off = locked ? ' disabled' : '';
+  const lockedDue = locked ? ` data-locked-due="${esc(task?.due_date ?? '')}"` : '';
   const hasReminder = !!reminder;
   const resolved = resolveReminderPreset(task, reminder);
   const showCustom = hasReminder && resolved.preset === 'offset_custom';
   const showAbsolute = hasReminder && resolved.preset === 'offset_absolute';
 
   return `
-    <div class="reminder-section">
+    <div class="reminder-section"${lockedDue}>
       <div class="reminder-section__header">
         <label class="toggle" style="margin:0">
-          <input type="checkbox" id="reminder-toggle" ${hasReminder ? 'checked' : ''}>
+          <input type="checkbox" id="reminder-toggle" ${hasReminder ? 'checked' : ''}${off}>
           <span class="toggle__track"></span>
           <span class="reminder-section__title">${t('reminders.enableLabel')}</span>
         </label>
       </div>
+      ${locked ? `<p class="task-field-hint">${t('reminders.readOnlyNotice')}</p>` : ''}
       <div id="reminder-fields" class="reminder-fields" ${hasReminder ? '' : 'style="display:none"'}>
         <div class="form-group" style="margin:0">
           <label class="label" for="reminder-offset">${t('reminders.offsetLabel')}</label>
-          <select class="input" id="reminder-offset">
+          <select class="input" id="reminder-offset"${off}>
             <option value="offset_none">${t('reminders.offsetNone')}</option>
             <option value="offset_at_time" ${resolved.preset === 'offset_at_time' ? 'selected' : ''}>${t('reminders.offsetAtTime')}</option>
             <option value="offset_15m" ${resolved.preset === 'offset_15m' ? 'selected' : ''}>${t('reminders.offset15min')}</option>
@@ -1532,11 +1544,11 @@ function renderReminderSection(task = null, reminder = null) {
         <div class="modal-grid modal-grid--2" id="reminder-custom-fields" style="${showCustom ? '' : 'display:none'};margin-top:var(--space-3)">
           <div class="form-group" style="margin:0">
             <label class="label" for="reminder-custom-amount">${t('reminders.customAmountLabel')}</label>
-            <input class="input" type="number" min="1" step="1" id="reminder-custom-amount" value="${resolved.amount}">
+            <input class="input" type="number" min="1" step="1" id="reminder-custom-amount" value="${resolved.amount}"${off}>
           </div>
           <div class="form-group" style="margin:0">
             <label class="label" for="reminder-custom-unit">${t('reminders.customUnitLabel')}</label>
-            <select class="input" id="reminder-custom-unit">
+            <select class="input" id="reminder-custom-unit"${off}>
               <option value="minutes" ${resolved.unit === 'minutes' ? 'selected' : ''}>${t('reminders.customMinutes')}</option>
               <option value="hours" ${resolved.unit === 'hours' ? 'selected' : ''}>${t('reminders.customHours')}</option>
               <option value="days" ${resolved.unit === 'days' ? 'selected' : ''}>${t('reminders.customDays')}</option>
@@ -1547,11 +1559,11 @@ function renderReminderSection(task = null, reminder = null) {
         <div class="modal-grid modal-grid--2" id="reminder-absolute-fields" style="${showAbsolute ? '' : 'display:none'};margin-top:var(--space-3)">
           <div class="form-group" style="margin:0">
             <label class="label" for="reminder-absolute-date">${t('reminders.dateLabel')}</label>
-            <yuvomi-datepicker type="date" id="reminder-absolute-date" value="${esc(resolved.date || '')}"></yuvomi-datepicker>
+            <yuvomi-datepicker type="date" id="reminder-absolute-date" value="${esc(resolved.date || '')}"${off}></yuvomi-datepicker>
           </div>
           <div class="form-group" style="margin:0">
             <label class="label" for="reminder-absolute-time">${t('reminders.timeLabel')}</label>
-            <yuvomi-datepicker type="time" id="reminder-absolute-time" value="${esc(resolved.time || '')}"></yuvomi-datepicker>
+            <yuvomi-datepicker type="time" id="reminder-absolute-time" value="${esc(resolved.time || '')}"${off}></yuvomi-datepicker>
           </div>
         </div>
       </div>
@@ -1741,7 +1753,7 @@ function wireTaskForm(panel, { task = null, container = null, onChanged = () => 
   const customFields = panel.querySelector('#reminder-custom-fields');
   const absoluteFields = panel.querySelector('#reminder-absolute-fields');
   toggle?.addEventListener('change', () => {
-    fields.style.display = toggle.checked ? '' : 'none';
+    if (fields) fields.style.display = toggle.checked ? '' : 'none';
   });
   offset?.addEventListener('change', () => {
     if (customFields) customFields.style.display = offset.value === 'offset_custom' ? '' : 'none';
@@ -2818,10 +2830,22 @@ async function handleFormSubmit(e, { container = null, onChanged = () => loadTas
   body.due_time = dueTime || null;
   if (form.status) body.status = form.status.value;
 
+  // Erinnerungen gehören zum Kalender. Bei calendar:read bleibt ein bereits
+  // gespeicherter Reminder sichtbar, wird aber weder erneut gespeichert noch
+  // gelöscht. Der Abschnitt kann durch eine Rechteänderung offen geblieben
+  // sein, deshalb muss der Schutz auch im Submit-Handler sitzen.
+  const canWriteReminder = reminderAccess() === 'write';
+  const wantsReminder = canWriteReminder && !!reminderToggle?.checked;
+  const lockedReminderPresent = !canWriteReminder && !!reminderToggle?.checked;
+  const dueDateWhenOpened = form.querySelector('.reminder-section[data-locked-due]')?.dataset.lockedDue || '';
+  if (lockedReminderPresent && dueDateWhenOpened && !dueDate) {
+    resetSubmit(t('tasks.reminderLockedNeedsDueDate'));
+    return;
+  }
+
   // Erinnerungs-Vorbedingungen VOR dem Speichern prüfen — verhindert den
   // widersprüchlichen Zustand "Aufgabe gespeichert (Erfolgs-Toast) + roter
   // Fehler", wenn Reminder ohne Fälligkeit/Offset gesetzt wird (Critique P2).
-  const wantsReminder = !!reminderToggle?.checked;
   let remindAt = null;
   if (wantsReminder) {
     const offsetPreset = form.querySelector('#reminder-offset')?.value || 'offset_none';
@@ -2887,16 +2911,20 @@ async function handleFormSubmit(e, { container = null, onChanged = () => loadTas
       window.yuvomi.showToast(t('tasks.createdToast'), 'success');
     }
 
-    // Erinnerung speichern oder löschen (Vorbedingungen bereits oben geprüft)
+    // Erinnerung nur mit Kalender-Schreibrecht speichern oder löschen. Bei
+    // calendar:read bedeutet ein gesperrtes, gesetztes Feld nicht "erneut
+    // speichern" und ein gesperrtes leeres Feld nicht "löschen".
     if (savedTaskId) {
-      if (wantsReminder) {
-        await api.post('/reminders', { entity_type: 'task', entity_id: savedTaskId, remind_at: remindAt });
-        refreshReminders();
-      } else {
-        try {
-          await api.delete(`/reminders?entity_type=task&entity_id=${savedTaskId}`);
+      if (canWriteReminder) {
+        if (wantsReminder) {
+          await api.post('/reminders', { entity_type: 'task', entity_id: savedTaskId, remind_at: remindAt });
           refreshReminders();
-        } catch { /* kein Reminder vorhanden - ignorieren */ }
+        } else {
+          try {
+            await api.delete(`/reminders?entity_type=task&entity_id=${savedTaskId}`);
+            refreshReminders();
+          } catch { /* kein Reminder vorhanden - ignorieren */ }
+        }
       }
 
       // Dokument-Verknüpfungen als Replace-Set übernehmen (#503).
@@ -6583,4 +6611,5 @@ export const __test = {
   // Die Frische der Referenzlisten ist nur verhaltensgetrieben pruefbar: sie
   // haengt daran, WIE die Antwort kam, nicht daran, dass eine kam.
   refreshTags,
+  handleFormSubmit, reminderAccess, loadReminderForTask,
 };

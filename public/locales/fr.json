@@ -535,7 +535,8 @@
         "taskListDeleted": "Liste de tâches supprimée.",
         "doneByPick": "Qui a fait « {{title}} » ?",
         "doneByToast": "Fait par {{name}}.",
-        "historyTickedBy": "coché par {{name}}"
+        "historyTickedBy": "coché par {{name}}",
+        "reminderLockedNeedsDueDate": "Cette tâche a un rappel que vous n’êtes pas autorisé à modifier. Elle a donc besoin d’une date d’échéance."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} repas",
@@ -3075,7 +3076,8 @@
         "customWeeks": "Weeks",
         "sectionTitlePlural": "Rappels",
         "sharedWithAssignees": "Les personnes affectées à cet événement reçoivent aussi ce rappel.",
-        "offset30min": "30 minutes avant"
+        "offset30min": "30 minutes avant",
+        "readOnlyNotice": "Les rappels appartiennent au Calendrier. Sans droit d’écriture là-bas, ce réglage reste inchangé."
     },
     "onboarding": {
         "step1Title": "Bienvenue dans {{name}}",

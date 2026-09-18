@@ -547,7 +547,8 @@
         "taskListDeleted": "Lista zadań usunięta.",
         "doneByPick": "Kto wykonał „{{title}}”?",
         "doneByToast": "Wykonał(a) {{name}}.",
-        "historyTickedBy": "odhaczone przez {{name}}"
+        "historyTickedBy": "odhaczone przez {{name}}",
+        "reminderLockedNeedsDueDate": "To zadanie ma przypomnienie, którego nie możesz zmienić. Dlatego wymaga terminu."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} posiłki",
@@ -2972,7 +2973,8 @@
         "customWeeks": "Tygodnie",
         "sectionTitlePlural": "Przypomnienia",
         "sharedWithAssignees": "Osoby przypisane do tego wydarzenia również otrzymają to przypomnienie.",
-        "offset30min": "30 minut wcześniej"
+        "offset30min": "30 minut wcześniej",
+        "readOnlyNotice": "Przypomnienia należą do Kalendarza. Bez prawa zapisu tam to ustawienie pozostaje bez zmian."
     },
     "birthdays": {
         "inDays": "za {{days}} dni",

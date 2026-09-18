@@ -535,7 +535,8 @@
         "taskListDeleted": "Η λίστα εργασιών διαγράφηκε.",
         "doneByPick": "Ποιος έκανε το «{{title}}»;",
         "doneByToast": "Το έκανε ο/η {{name}}.",
-        "historyTickedBy": "τσεκαρίστηκε από {{name}}"
+        "historyTickedBy": "τσεκαρίστηκε από {{name}}",
+        "reminderLockedNeedsDueDate": "Αυτή η εργασία έχει μια υπενθύμιση που δεν επιτρέπεται να αλλάξετε. Χρειάζεται επομένως ημερομηνία λήξης."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} γεύματα",
@@ -3075,7 +3076,8 @@
         "customWeeks": "Weeks",
         "sectionTitlePlural": "Υπενθυμίσεις",
         "sharedWithAssignees": "Όσοι έχουν ανατεθεί σε αυτό το συμβάν λαμβάνουν επίσης αυτή την υπενθύμιση.",
-        "offset30min": "30 λεπτά πριν"
+        "offset30min": "30 λεπτά πριν",
+        "readOnlyNotice": "Οι υπενθυμίσεις ανήκουν στο Ημερολόγιο. Χωρίς δικαίωμα εγγραφής εκεί, αυτή η ρύθμιση παραμένει αμετάβλητη."
     },
     "onboarding": {
         "step1Title": "Καλώς ήρθατε στο {{name}}",
