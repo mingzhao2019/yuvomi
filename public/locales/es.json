@@ -3082,6 +3082,9 @@
         "offset30min": "30 minutos antes",
         "offsetAfterDue": "Después del vencimiento",
         "afterDueHint": "Este recordatorio es posterior a la fecha de vencimiento ({{when}}) y no cambia al guardar. Elige una antelación para moverlo.",
+        "offsetAfterStart": "Después del inicio del evento",
+        "afterStartHint": "Este recordatorio es posterior al inicio del evento ({{when}}) y no cambia al guardar. Elige una antelación para moverlo.",
+        "afterStartNeedsLeadTime": "En eventos individuales de una serie, los recordatorios solo se pueden guardar como antelación. Elige una antelación para este recordatorio o quítalo.",
         "readOnlyNotice": "Los recordatorios pertenecen al Calendario. Sin permiso de escritura allí, este ajuste se mantiene sin cambios."
     },
     "onboarding": {
