@@ -20,7 +20,7 @@
 import Database from 'better-sqlite3-multiple-ciphers';
 import path from 'path';
 import fs from 'node:fs/promises';
-import { mkdirSync, existsSync, renameSync, rmSync, copyFileSync, openSync, readSync, closeSync } from 'node:fs';
+import { mkdirSync, existsSync, renameSync, rmSync, copyFileSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 import { createLogger } from './logger.js';
 import { decodeHtmlEntities } from './utils/html-entities.js';
 import { toE164, defaultCountryFromConfig } from './utils/phone.js';
@@ -272,6 +272,131 @@ function unreadableAtStartError(err) {
   return lines.join(' ');
 }
 
+/** Größe einer regulären Datei, `null` wenn sie fehlt oder keine ist. */
+function regularFileSize(filePath) {
+  try {
+    const stat = statSync(filePath);
+    return stat.isFile() ? stat.size : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Die Datei, die `init()` gleich öffnen wird: `DB_PATH`, oder im „managed"
+ * Layout die Legacy-Datei, solange es `DB_PATH` noch nicht gibt - die öffnet
+ * `migrateLegacyDbFile()` als Erstes. `null` heißt: frische Installation.
+ */
+function databaseFileAboutToOpen() {
+  if (DB_PATH === ':memory:') return null;
+  if (existsSync(DB_PATH)) return DB_PATH;
+  if (LEGACY_DB_PATH && existsSync(LEGACY_DB_PATH)) return LEGACY_DB_PATH;
+  return null;
+}
+
+/**
+ * Meldung für eine vorhandene, aber leere Datenbankdatei (#1282).
+ *
+ * SQLite nimmt eine Datei mit 0 Byte als neue Datenbank, die Migrationen
+ * laufen von vorn, und Yuvomi steht als leere Instanz da - genau in dem
+ * Moment, in dem jemand gerade Daten bewegt. Gemessen mit diesem Treiber:
+ * eine frische Installation hat gar keine Datei, und `journal_mode = WAL`
+ * schreibt Seite 1 (4096 Byte) in die Hauptdatei, bevor es überhaupt ein
+ * `-wal` gibt. Eine leere Datei kommt also von außen (abgebrochene Kopie,
+ * `cp` auf eine volle Platte, falscher Quellpfad) oder aus einem Erststart,
+ * der vor dieser ersten Seite abgebrochen wurde: mit Key liegen zwischen dem
+ * Anlegen der Datei und Seite 1 rund 150 ms Schlüsselableitung, und ein
+ * SIGKILL dort hinterlässt genau diese Datei ohne jede Nebendatei. Beide
+ * Fälle stehen deshalb in der Meldung, jeder mit dem Schritt, der ihn löst.
+ *
+ * Das `-wal` ist KEINE Ausnahme von der Verweigerung, sondern ihr zweiter
+ * Grund. Gemessen: liegt neben einer 0-Byte-Hauptdatei ein `-wal` mit Daten,
+ * löscht SQLite es beim ersten Lesen und startet leer - `init()` hat so ein
+ * Journal bisher stumm vernichtet, und `migrateLegacyDbFile()` tat es bei einer
+ * leeren `oikos.db` schon vor dem Umbenennen. Zu der leeren Datei kann es nicht
+ * gehören (siehe oben), es stammt von der Datenbank, die vorher hier lag, und
+ * ohne Key trug es in der Messung deren kompletten Inhalt. Wer die Datei wie
+ * geraten neu kopiert und das Journal liegen lässt, bekommt ohne Key still die
+ * ALTEN Daten statt des Originals, mit Key den Abbruch „Wrong encryption key"
+ * aus #1267. Deshalb: beiseitelegen, vor beiden Schritten.
+ *
+ * Der Absatz zur Legacy-Datei steht nur da, wenn sie Daten hat: dann führt
+ * „leere Datei löschen" nicht zu einer neuen Instanz, sondern zu `oikos.db`,
+ * die der nächste Start umbenennt.
+ * @param {string} filePath die leere Datei
+ * @returns {string}
+ */
+function emptyDatabaseFileError(filePath) {
+  const lines = [
+    `[DB] ${filePath} exists but is empty (0 bytes). Yuvomi refuses to start on it: SQLite would `
+    + 'take an empty file for a new database, and Yuvomi would come up as a fresh, empty instance '
+    + 'as if your data were gone. Nothing has been written to the file.',
+    'A new installation has no database file at all, and Yuvomi never empties its own. An empty '
+    + 'file is left behind by a copy or restore that failed or stopped short - an interrupted '
+    + 'transfer, cp onto a full disk, a wrong source path - or by a very first start that was '
+    + 'stopped before it had written anything.',
+    'If you copied or restored a database to this path, copy it again from the original and '
+    + `compare the size and sha256sum of ${filePath} with the original before starting Yuvomi.`,
+    'If you want a new, empty instance - you created the file on purpose, or the first start of a '
+    + `new installation was interrupted - delete ${filePath} and start again: Yuvomi then creates `
+    + 'the database itself.',
+  ];
+  if (filePath === DB_PATH && LEGACY_DB_PATH && regularFileSize(LEGACY_DB_PATH) > 0) {
+    lines.push(
+      `An older database file from before the rename lies next to it (${LEGACY_DB_PATH}). `
+      + `Deleting the empty ${path.basename(DB_PATH)} does not give you a new instance then: on the `
+      + `next start Yuvomi moves ${path.basename(LEGACY_DB_PATH)} to ${path.basename(DB_PATH)} and `
+      + 'starts with the data in it. Move it aside first if that is not what you want.'
+    );
+  }
+  const wal = `${filePath}-wal`;
+  if (regularFileSize(wal) > 0) {
+    lines.push(
+      `A write-ahead log with data lies next to it (${wal}). It does not belong to the empty file - `
+      + 'SQLite writes the first page of a database into the main file before it ever creates the '
+      + 'log - so it is left over from the database that was at this path before, and it can hold '
+      + 'changes that exist nowhere else. Starting on the empty file would delete it, and a database '
+      + 'copied back in next to it would be read together with a log that belongs to another file. '
+      + `Before either step above, move ${wal} and ${filePath}-shm aside and keep them - do not `
+      + 'delete them.'
+    );
+  }
+  return lines.join(' ');
+}
+
+/**
+ * `code` des Fehlers aus `assertDatabaseFileNotEmpty()`: daran erkennen der
+ * Auto-Init am Dateiende und der Rollback in `restoreFromFile()` den Leer-Fall,
+ * ohne die Meldung zu lesen.
+ */
+const EMPTY_DATABASE_FILE = 'YUVOMI_EMPTY_DATABASE_FILE';
+
+/**
+ * Handschlag des Restore-CLI (`scripts/restore-backup.js`), gesetzt VOR dem
+ * Import dieses Moduls. Das CLI ist der eine Aufrufer, für den eine leere
+ * `DB_PATH` kein Grund zum Abbruch ist: es ersetzt genau diese Datei - der Rat
+ * der Meldung („copy it again") führt dorthin. Ein Symbol auf `globalThis`
+ * statt einer Env-Variable, weil es kein Schalter für Betreiber ist: der Server
+ * darf den Leer-Fall nie überspringen, und eine Variable in der Umgebung würde
+ * er erben.
+ */
+const RESTORE_TARGET_HANDSHAKE = Symbol.for('yuvomi.db.restoreTarget');
+
+/**
+ * Bricht den Start ab, wenn die Datei, die gleich geöffnet wird, existiert und
+ * leer ist. Läuft VOR allem, was die Datei anfasst - auch vor
+ * `migrateLegacyDbFile()`, die eine leere `oikos.db` samt Journal sonst schon
+ * öffnet und umbenennt. Eine fehlende Datei ist die frische Installation und
+ * bleibt, wie sie war.
+ */
+function assertDatabaseFileNotEmpty() {
+  const filePath = databaseFileAboutToOpen();
+  if (!filePath || regularFileSize(filePath) !== 0) return;
+  const err = new Error(emptyDatabaseFileError(filePath));
+  err.code = EMPTY_DATABASE_FILE;
+  throw err;
+}
+
 /**
  * Datenbankverbindung öffnen, SQLCipher-Key setzen, Migrations ausführen.
  * Einmalig beim Serverstart aufrufen.
@@ -290,6 +415,9 @@ function init({ plaintextBackup = true } = {}) {
       `Data will be lost on container restart. Use an absolute path, e.g. DB_PATH=/data/yuvomi.db`
     );
   }
+  // Vor allem anderen: eine leere Datei würde ab hier still zur frischen
+  // Instanz, und ein Journal daneben ginge dabei verloren (#1282).
+  assertDatabaseFileNotEmpty();
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   migrateLegacyDbFile();
 
@@ -9540,11 +9668,37 @@ async function unlinkIfExists(filePath) {
   }
 }
 
+/** Datei umbenennen; `false`, wenn es sie nicht gibt. */
+async function renameIfExists(from, to) {
+  try {
+    await fs.rename(from, to);
+    return true;
+  } catch (err) {
+    if (err?.code !== 'ENOENT') throw err;
+    return false;
+  }
+}
+
+/**
+ * Wohin `restoreFromFile()` das Journal einer leeren Datei legt: neben die
+ * Rollback-Kopie, aber unter einem Namen, den SQLite nicht von selbst aufgreift
+ * (`<kopie>.wal-kept`, nicht `<kopie>-wal`).
+ */
+function keptJournalName(rollbackPath, kind) {
+  return `${rollbackPath}.${kind}-kept`;
+}
+
 async function restoreFromFile(sourcePath) {
   const backupVersion = validateBackupFile(sourcePath);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const rollbackPath = `${DB_PATH}.pre-restore-${timestamp}`;
   let rollbackCreated = false;
+  // Offen ist die Verbindung, außer im Leer-Fall des Restore-CLI (#1282, siehe
+  // Auto-Init am Dateiende). Nur eine offene Verbindung wird unten per
+  // TRUNCATE gecheckpointet; danach trägt die Rollback-Kopie alles, und ein
+  // Rest-Journal zu löschen verliert nichts.
+  const wasOpen = Boolean(db);
+  let keptJournalPath = null;
 
   try {
     if (db) {
@@ -9561,6 +9715,21 @@ async function restoreFromFile(sourcePath) {
       if (err?.code !== 'ENOENT') throw err;
     }
 
+    // Ohne offene Verbindung hat niemand das Journal gecheckpointet. Ein `-wal`
+    // mit Daten neben der leeren Datei gehört zur Datenbank, die vorher hier
+    // lag, und kann Änderungen tragen, die nirgends sonst stehen - die Meldung
+    // aus `emptyDatabaseFileError()` sagt „keep them". Also nicht löschen,
+    // sondern neben die Rollback-Kopie legen, wohin es als Vorgänger gehört.
+    //
+    // NICHT unter `-wal`: die Rollback-Kopie ist hier selbst die leere Datei,
+    // und SQLite verwirft ein `-wal` neben einer leeren Hauptdatei beim ersten
+    // Lesen. Wer die Kopie ansieht (`sqlite3 <kopie>`, der naheliegende
+    // nächste Schritt), vernichtete sonst genau das, was hier bewahrt wird.
+    if (!wasOpen && regularFileSize(`${DB_PATH}-wal`) > 0) {
+      await fs.rename(`${DB_PATH}-wal`, keptJournalName(rollbackPath, 'wal'));
+      keptJournalPath = keptJournalName(rollbackPath, 'wal');
+      await renameIfExists(`${DB_PATH}-shm`, keptJournalName(rollbackPath, 'shm'));
+    }
     await unlinkIfExists(`${DB_PATH}-wal`);
     await unlinkIfExists(`${DB_PATH}-shm`);
     await fs.copyFile(sourcePath, DB_PATH);
@@ -9577,6 +9746,7 @@ async function restoreFromFile(sourcePath) {
     return {
       schemaVersion: currentVersion(),
       rollbackPath: rollbackCreated ? rollbackPath : null,
+      keptJournalPath,
     };
   } catch (err) {
     if (rollbackCreated) {
@@ -9588,7 +9758,19 @@ async function restoreFromFile(sourcePath) {
         await unlinkIfExists(`${DB_PATH}-wal`);
         await unlinkIfExists(`${DB_PATH}-shm`);
         await fs.copyFile(rollbackPath, DB_PATH);
-        init({ plaintextBackup: false });
+        if (keptJournalPath) {
+          // Der Rollback stellt den Stand vor dem Restore her: das Journal
+          // gehört wieder neben die (leere) Datei, an der die Meldung es nennt.
+          await renameIfExists(keptJournalName(rollbackPath, 'wal'), `${DB_PATH}-wal`);
+          await renameIfExists(keptJournalName(rollbackPath, 'shm'), `${DB_PATH}-shm`);
+        }
+        try {
+          init({ plaintextBackup: false });
+        } catch (reopenErr) {
+          // Die leere Datei verweigert init() wie vor dem Restore - das ist der
+          // alte Stand, kein gescheiterter Rollback.
+          if (reopenErr?.code !== EMPTY_DATABASE_FILE) throw reopenErr;
+        }
       } catch (rollbackErr) {
         log.error('Rollback after failed restore also failed:', rollbackErr);
       }
@@ -9643,7 +9825,21 @@ function _resetTestDatabase() {
   }
 }
 
-init();   // auto-initialise when module is first imported
+// Auto-Init beim ersten Import. Eine Ausnahme: das Restore-CLI setzt vorher den
+// Handschlag (RESTORE_TARGET_HANDSHAKE), und nur für GENAU den Leer-Fall bleibt
+// `db` dann `null` - `restoreFromFile()` ersetzt die leere Datei ohnehin, und
+// ohne diese Ausnahme endete der Rat der Meldung („copy it again") per CLI in
+// einer ungefangenen Ausnahme (#1282). Alles andere wirft weiter, auch im CLI.
+// Eine gesunde Datenbank öffnet das CLI bewusst wie bisher: nur eine offene
+// Verbindung checkpointet `restoreFromFile()` vor der Rollback-Kopie, ein
+// pauschal aufgeschobenes init() kürzte die Kopie um nicht gecheckpointete
+// Transaktionen und löschte danach das `-wal`. Ohne Handschlag (Server, Tests,
+// andere Skripte) bricht der Leer-Fall ab wie zuvor.
+try {
+  init();
+} catch (err) {
+  if (!(err?.code === EMPTY_DATABASE_FILE && globalThis[RESTORE_TARGET_HANDSHAKE] === true)) throw err;
+}
 
 export {
   init,
