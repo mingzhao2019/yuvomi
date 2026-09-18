@@ -20,7 +20,7 @@ import { tokenAllows } from '../scopes.js';
 const log    = createLogger('Reminders');
 const router = express.Router();
 
-const VALID_ENTITY_TYPES = ['task', 'event', 'subscription', 'inventory_item', 'inventory_tracked_date', 'pantry_item', 'cycle_period', 'cycle_log_nudge', 'schedule_entry', 'schedule_extra_entry', 'waste_pickup'];
+const VALID_ENTITY_TYPES = ['task', 'event', 'subscription', 'inventory_item', 'inventory_tracked_date', 'pantry_item', 'cycle_period', 'cycle_log_nudge', 'schedule_entry', 'schedule_extra_entry', 'waste_pickup', 'document_expiry'];
 
 /**
  * Nach jedem Schreibvorgang an den Erinnerungen eines Termins: die Zugewiesenen
@@ -103,10 +103,21 @@ function syncCalendarReminderOutbound(entityType, entityId, userId, hasReminders
  * sind beide keine gespeicherte Zeile, an die man von Hand eine Erinnerung
  * hängen könnte.
  *
+ * `document_expiry` gehört dazu, obwohl `subscription`/`inventory_item`/
+ * `inventory_tracked_date` es nicht tun: dort haelt ein handgesetzter Termin
+ * bis zur naechsten Aenderung des Objekts, hier nicht.
+ * documents.js#syncDocumentExpiryReminder loescht bei JEDEM Speichern ALLE
+ * Zeilen der Entitaet, nicht nur die eigenen - ein Schreibweg, der das
+ * respektiert, haette also nie eine Halbwertszeit, mit der man arbeiten kann.
+ * Zusaetzlich haette ein settable `document_expiry` keine Sichtbarkeitspruefung
+ * auf das einzelne Dokument (nur `mayTouchOrigin()` auf das Modul): ein
+ * Mitglied koennte `entity_id`s fremder, privater Dokumente erraten und ihre
+ * Namen ueber `GET /reminders/pending` zurücklesen.
+ *
  * Die LESEWEGE (GET) kennen alle Typen weiter: der Erinnerungs-Toast muss eine
  * abgeleitete Meldung anzeigen und wegwischen können.
  */
-const DERIVED_ENTITY_TYPES = ['pantry_item', 'cycle_period', 'cycle_log_nudge', 'schedule_entry', 'schedule_extra_entry', 'waste_pickup'];
+const DERIVED_ENTITY_TYPES = ['pantry_item', 'cycle_period', 'cycle_log_nudge', 'schedule_entry', 'schedule_extra_entry', 'waste_pickup', 'document_expiry'];
 
 /* DIESER ROUTER IST EINE MISCHSTELLE, UND SEIN PFAD SAGT DAS NICHT.
  *
@@ -143,6 +154,7 @@ const ORIGIN_MODULE = Object.freeze({
   schedule_entry:         'schedule',
   schedule_extra_entry:   'schedule',
   waste_pickup:           'waste',
+  document_expiry:        'documents',
 });
 
 /**
@@ -234,6 +246,7 @@ router.get('/pending', (req, res) => {
             SELECT t.name FROM waste_reminder_entries e JOIN waste_types t ON t.id = e.type_id
             WHERE e.id = r.entity_id
           )
+          WHEN 'document_expiry' THEN (SELECT name FROM family_documents WHERE id = r.entity_id)
         END AS entity_title,
         -- Unterscheidet die eigene Perioden-Erinnerung von einer an eine
         -- Partnerperson weitergereichten (gleicher entity_type 'cycle_period',
