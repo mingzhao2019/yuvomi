@@ -3,11 +3,12 @@
 import { api } from '/api.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
-import { formatFastingDuration } from '/utils/health-fasting.js';
+import { fastingCompletionCalendarHint, fastingHistoryQuery, fastingStatsQuery, formatFastingDuration, shouldLoadFastingStats } from '/utils/health-fasting.js';
 import { openModal, refocusAfterRender } from '/components/modal.js';
 import { moduleAccess } from '/permissions.js';
 import { scheduleUndoableDelete } from '/utils/ux.js';
 import { fastingEducationMarkup } from '/components/fasting-dial.js';
+import { renderFastingStats } from '/components/health-fasting-insights.js';
 import { fastingPreferencesHtml, wireFastingPreferences, startFasting, finishFasting, openFastingCreator, openFastingEditor, startFastingClock, fastingClockSwitchHtml, fastingStamp, fastingError, requireFastingWrite } from '/components/fasting-controls.js';
 
 const panels = new WeakMap();
@@ -20,21 +21,12 @@ export async function mountFasting(root, { userId } = {}) {
   if (!root) return;
   let view = panels.get(root);
   if (!view) {
-    view = { root, self: userId, subject: userId, members: [], from: '', to: '', generation: 0, stop: null, state: null };
+    view = { root, self: userId, subject: userId, members: [], from: '', to: '', generation: 0, stop: null, state: null, stats: undefined, statsError: false, displayTzid: '' };
     panels.set(root, view);
     root.replaceChildren();
     root.insertAdjacentHTML('beforeend', `<div class="fasting-container"><div data-fasting-shell></div><p role="alert" data-fasting-load-error></p><div class="fasting-panel" data-fasting-body><p role="status">${esc(t('common.loading'))}</p></div></div>`);
   }
-  await refresh(view);
-}
-
-function query(view, cursor = null) {
-  const params = new URLSearchParams();
-  if (view.subject && view.subject !== view.self) params.set('user_id', view.subject);
-  if (view.from) params.set('from', view.from);
-  if (view.to) params.set('to', view.to);
-  if (cursor) { params.set('before_at', cursor.before_at); params.set('before_id', cursor.before_id); }
-  return params.size ? `?${params}` : '';
+  await refresh(view, { refreshStats: true });
 }
 
 function shell(view) {
@@ -47,17 +39,19 @@ function shell(view) {
   }
   el.querySelector('select').addEventListener('change', (event) => {
     view.subject = Number(event.target.value);
-    view.state = null; view.generation++; view.stop?.(); view.stop = null;
+    view.state = null; view.stats = undefined; view.statsError = false; view.generation++; view.stop?.(); view.stop = null;
     const body = view.root.querySelector('[data-fasting-body]');
     body.replaceChildren();
     body.insertAdjacentHTML('beforeend', `<p role="status">${esc(t('common.loading'))}</p>`);
     shell(view);
-    void refresh(view);
+    void refresh(view, { refreshStats: true });
   });
 }
 
 function filtersMarkup(view) {
-  return `<form class="fasting-history-filters" data-fasting-filters><label class="form-label">${esc(t('health.fasting.completedFrom'))}<input class="form-input" type="date" data-fasting-from value="${esc(view.from)}"></label><label class="form-label">${esc(t('health.fasting.completedTo'))}<input class="form-input" type="date" data-fasting-to value="${esc(view.to)}"></label><button type="submit" class="btn btn--secondary">${esc(t('health.fasting.applyFilter'))}</button><p class="form-hint" role="alert" data-fasting-filter-error></p></form>`;
+  const zoneHint = fastingCompletionCalendarHint(view.displayTzid);
+  const zone = zoneHint ? `<p class="form-hint" data-fasting-filter-zone>${esc(zoneHint)}</p>` : '';
+  return `<form class="fasting-history-filters" data-fasting-filters><label class="form-label">${esc(t('health.fasting.completedFrom'))}<input class="form-input" type="date" data-fasting-from value="${esc(view.from)}"></label><label class="form-label">${esc(t('health.fasting.completedTo'))}<input class="form-input" type="date" data-fasting-to value="${esc(view.to)}"></label><button type="submit" class="btn btn--secondary">${esc(t('health.fasting.applyFilter'))}</button>${zone}<p class="form-hint" role="alert" data-fasting-filter-error></p></form>`;
 }
 
 function wireFilters(view, container) {
@@ -69,16 +63,23 @@ function wireFilters(view, container) {
   });
 }
 
-async function refresh(view) {
+async function refresh(view, { refreshStats = false } = {}) {
   if (!view.root.isConnected) return;
+  if (refreshStats) {
+    view.stats = undefined;
+    view.statsError = false;
+  }
   const generation = ++view.generation, subject = view.subject;
   const current = () => view.root.isConnected && view.generation === generation && view.subject === subject;
-  const q = query(view);
+  const historyQuery = fastingHistoryQuery(view);
+  const statsQuery = fastingStatsQuery(view);
   try {
-    const [stateResult, membersResult, filtered] = await Promise.all([
-      api.get(`/health/fasting/state${q}`),
+    const loadStats = shouldLoadFastingStats(view.stats, view.statsError);
+    const [stateResult, statsResult, membersResult, filtered] = await Promise.all([
+      api.get(`/health/fasting/state${historyQuery}`),
+      loadStats ? api.get(`/health/fasting/stats${statsQuery}`).catch(() => ({ data: null, error: true })) : null,
       view.members.length ? null : api.get('/family/members'),
-      view.from || view.to ? api.get(`/health/fasting/history${q}`) : null,
+      view.from || view.to ? api.get(`/health/fasting/history${historyQuery}`) : null,
     ]);
     if (!current()) return;
     const state = stateResult.data;
@@ -87,13 +88,18 @@ async function refresh(view) {
     if (membersResult) view.members = membersResult.data || [];
     currentOwners.set(view.self, view);
     view.state = state;
+    view.displayTzid = state.display_tzid || '';
+    if (statsResult) {
+      view.stats = statsResult.data;
+      view.statsError = statsResult.error === true;
+    }
     view.rows = filtered ? filtered.data : state.history || [];
     view.cursor = filtered ? filtered.next_cursor : state.history_next_cursor;
     view.more = filtered ? filtered.has_more : state.history_has_more;
     view.stop?.();
     shell(view);
     view.root.querySelector('[data-fasting-load-error]').replaceChildren();
-    renderBody(view);
+    renderBody(view, view.stats, view.statsError);
   } catch {
     if (!current()) return;
     if (!view.members.length) {
@@ -104,11 +110,11 @@ async function refresh(view) {
     const error = view.root.querySelector('[data-fasting-load-error]');
     error.replaceChildren();
     error.insertAdjacentHTML('beforeend', `${esc(t('health.fasting.loadError'))} <button class="btn btn--secondary" data-fasting-retry>${esc(t('common.retry'))}</button>`);
-    error.querySelector('button').addEventListener('click', () => void refresh(view));
+    error.querySelector('button').addEventListener('click', () => void refresh(view, { refreshStats: true }));
   }
 }
 
-function renderBody(view) {
+function renderBody(view, stats, statsError = false) {
   const { root, state } = view;
   const writable = view.subject === view.self && state.canWrite && moduleAccess('health') === 'write';
   const active = state.active, last = state.history?.[0];
@@ -124,17 +130,19 @@ function renderBody(view) {
     ${state.settings?.zone_mode === 'educational' ? fastingEducationMarkup() : ''}
   </section>
   ${writable ? `<div class="fasting-card" data-fasting-preferences>${fastingPreferencesHtml(state.settings || {})}</div>` : ''}
-  <section id="history"><div class="fasting-card__heading"><h3 class="u-section-title">${esc(t('health.fasting.history'))}</h3><a href="/api/v1/health/export/fasting${esc(query(view))}" class="btn btn--secondary btn--sm" download>${esc(t('health.fasting.export'))}</a>${writable ? `<button class="btn btn--secondary" data-fasting-backfill>${esc(t('health.fasting.backfill'))}</button>` : ''}</div>
+  ${renderFastingStats(stats, { error: statsError })}
+  <section id="history"><div class="fasting-card__heading"><h3 class="u-section-title">${esc(t('health.fasting.history'))}</h3><a href="/api/v1/health/export/fasting${esc(fastingHistoryQuery(view))}" class="btn btn--secondary btn--sm" download>${esc(t('health.fasting.export'))}</a>${writable ? `<button class="btn btn--secondary" data-fasting-backfill>${esc(t('health.fasting.backfill'))}</button>` : ''}</div>
     ${filtersMarkup(view)}
     <div class="fasting-card" data-fasting-history></div><div class="fasting-history-more"><button class="btn btn--secondary" type="button" data-fasting-more ${view.more ? '' : 'hidden'}>${esc(t('health.fasting.loadMore'))}</button><p class="form-hint" role="alert" data-fasting-history-error></p></div>
   </section>`);
   const reload = () => refresh(view);
+  const reloadStats = () => refresh(view, { refreshStats: true });
   if (writable) {
     wireFastingPreferences(root.querySelector('[data-fasting-preferences]'), state.settings, async () => { await reload(); return root.querySelector('[data-fasting-preferences]'); }, active);
     root.querySelector('[data-fasting-action]').addEventListener('click', async (event) => {
       const button = event.currentTarget; button.disabled = true;
       try {
-        if (active) await finishFasting(active, reload, () => root.isConnected && view.subject === view.self);
+        if (active) await finishFasting(active, reloadStats, () => root.isConnected && view.subject === view.self);
         else if (await startFasting()) { await reload(); refocusAfterRender(); }
       } catch (error) {
         const message = root.isConnected && view.subject === view.self && root.querySelector('[data-fasting-error]');
@@ -142,7 +150,7 @@ function renderBody(view) {
       } finally { if (button.isConnected) button.disabled = false; }
     });
     root.querySelector('[data-fasting-edit-start]')?.addEventListener('click', () => openFastingEditor(active, reload));
-    const creator = async (completed) => { try { await openFastingCreator(reload, completed); } catch (error) { window.yuvomi?.showToast(fastingError(error), 'danger'); } };
+    const creator = async (completed) => { try { await openFastingCreator(completed ? reloadStats : reload, completed); } catch (error) { window.yuvomi?.showToast(fastingError(error), 'danger'); } };
     root.querySelector('[data-fasting-earlier]')?.addEventListener('click', () => void creator(false));
     root.querySelector('[data-fasting-backfill]').addEventListener('click', () => void creator(true));
   }
@@ -154,7 +162,7 @@ function renderBody(view) {
     if (!view.cursor || button.disabled) return;
     button.disabled = true;
     try {
-      const response = await api.get(`/health/fasting/history${query(view, view.cursor)}`);
+      const response = await api.get(`/health/fasting/history${fastingHistoryQuery(view, view.cursor)}`);
       if (!root.isConnected || generation !== view.generation) return;
       const seen = new Set(view.rows.map((row) => row.id));
       view.rows.push(...response.data.filter((row) => !seen.has(row.id)));
@@ -163,7 +171,7 @@ function renderBody(view) {
     } catch { if (button.isConnected) root.querySelector('[data-fasting-history-error]').textContent = t('health.fasting.loadError'); }
     finally { button.disabled = false; }
   });
-  view.stop = startFastingClock(root, active, last, state.settings || {}, { refresh: reload, writable });
+  view.stop = startFastingClock(root, active, last, state.settings || {}, { refresh: reloadStats, writable });
   window.lucide?.createIcons({ el: body });
   if (location.hash === '#history') root.querySelector('#history').scrollIntoView();
 }
@@ -173,7 +181,7 @@ function renderHistory(view, writable) {
   const rows = view.rows.filter((row) => !pendingDeletes.has(deleteKey(view.self, row.id)));
   list.replaceChildren();
   list.insertAdjacentHTML('beforeend', rows.length ? `<ul class="fasting-history">${rows.map((row) => `<li class="fasting-history__row"><div class="fasting-history__dates"><strong>${esc(fastingStamp(row.start_at, row.start_tzid))}</strong><span>${esc(fastingStamp(row.end_at, row.start_tzid))}</span><span>${esc(row.start_tzid)}</span>${row.note ? `<p>${esc(row.note)}</p>` : ''}</div><div class="fasting-history__summary"><strong>${esc(formatFastingDuration((Date.parse(row.end_at) - Date.parse(row.start_at)) / 60000))}</strong>${row.rating ? `<span aria-label="${esc(t('health.fasting.ratingValue', { value: row.rating }))}">${'★'.repeat(row.rating)}${'☆'.repeat(5 - row.rating)}</span>` : ''}</div>${writable ? `<div class="fasting-history__actions"><button class="btn btn--secondary btn--sm" data-fast-edit="${row.id}">${esc(t('common.edit'))}</button><button class="btn btn--ghost btn--sm" data-fast-delete="${row.id}">${esc(t('common.delete'))}</button></div>` : ''}</li>`).join('')}</ul>` : `<p class="empty-hint">${esc(t('health.fasting.noHistory'))}</p>`);
-  list.querySelectorAll('[data-fast-edit]').forEach((button) => button.addEventListener('click', () => openFastingEditor(view.rows.find((row) => row.id === Number(button.dataset.fastEdit)), () => refresh(view))));
+  list.querySelectorAll('[data-fast-edit]').forEach((button) => button.addEventListener('click', () => openFastingEditor(view.rows.find((row) => row.id === Number(button.dataset.fastEdit)), () => refresh(view, { refreshStats: true }))));
   list.querySelectorAll('[data-fast-delete]').forEach((button) => button.addEventListener('click', () => {
     try { requireFastingWrite(); } catch (error) { window.yuvomi?.showToast(fastingError(error), 'danger'); return; }
     const row = view.rows.find((entry) => entry.id === Number(button.dataset.fastDelete));
@@ -183,7 +191,7 @@ function renderHistory(view, writable) {
       pendingDeletes.delete(key);
       if (error) window.yuvomi?.showToast(fastingError(error), 'danger');
       const current = currentOwners.get(owner);
-      if (current?.root.isConnected) void refresh(current);
+      if (current?.root.isConnected) void refresh(current, { refreshStats: true });
     };
     scheduleUndoableDelete({ message: t('health.fasting.deleted'), restoreOnKeepaliveError: true,
       commit: async ({ keepalive }) => { await api.delete(`/health/fasting/${row.id}?expected_revision=${row.revision}`, { keepalive }); settled(); },

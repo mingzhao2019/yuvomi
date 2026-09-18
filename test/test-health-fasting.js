@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fastingHelpHtml } from '../public/components/fasting-help.js';
+import { renderFastingStats } from '../public/components/health-fasting-insights.js';
 import {
   normalizeGoalHours,
   fastingTimerModel,
@@ -11,7 +12,25 @@ import {
   fastingDisplayModel,
   fastingServerDate,
   fastingServerClock,
+  fastingCompletionCalendarHint,
+  fastingHistoryQuery,
+  fastingStatsQuery,
+  shouldLoadFastingStats,
 } from '../public/utils/health-fasting.js';
+
+test('journal filters stay out of stats requests and completion hints name their calendar', () => {
+  const view = { self: 1, subject: 2, from: '2026-09-01', to: '2026-09-30' };
+  assert.equal(fastingHistoryQuery(view), '?user_id=2&from=2026-09-01&to=2026-09-30');
+  assert.equal(fastingStatsQuery(view), '?user_id=2');
+  assert.equal(fastingCompletionCalendarHint('Europe/Prague'), 'health.fasting.completedFrom / health.fasting.completedTo: settings.timezoneLabel - Europe/Prague');
+  assert.equal(fastingCompletionCalendarHint(''), '');
+});
+
+test('insights reload only when absent or after a failed request', () => {
+  assert.equal(shouldLoadFastingStats(undefined, false), true);
+  assert.equal(shouldLoadFastingStats(null, true), true);
+  assert.equal(shouldLoadFastingStats({ currentStreak: 2 }, false), false);
+});
 
 test('help markup remains importable without a DOM and escapes labels with unique associations', () => {
   const first = fastingHelpHtml('<Goal>', ['Full guidance']), second = fastingHelpHtml('Goal', ['Full guidance']);
@@ -20,6 +39,23 @@ test('help markup remains importable without a DOM and escapes labels with uniqu
   assert.match(first, /&lt;Goal&gt;/);
   assert.match(first, /data-lucide="info"/);
   assert.notEqual(first.match(/id="([^"]+)"/)[1], second.match(/id="([^"]+)"/)[1]);
+});
+
+test('insights transport errors leave an explicit fallback instead of hiding the journal', () => {
+  assert.equal(renderFastingStats(null), '');
+  const fallback = renderFastingStats(null, { error: true });
+  assert.match(fallback, /role="status"/);
+  assert.match(fallback, /fasting-stats/);
+});
+
+test('partial weekly goal coverage pluralizes by recorded goals, not all fasts', () => {
+  const empty = { count: 0, totalMinutes: 0, averageMinutes: 0 };
+  const markup = renderFastingStats({
+    allTime: empty, year: empty, last30Days: empty,
+    currentStreak: 0, longestStreak: 0,
+    weekly: [{ date: '2026-09-18', count: 2, totalMinutes: 120, goalMinutes: 60, goalCount: 1, hasRecord: true }],
+  });
+  assert.match(markup, /health\.fasting\.goalCoverage\{&quot;count&quot;:1,&quot;records&quot;:1,&quot;total&quot;:2\}/);
 });
 
 test('goal normalization accepts whole hours 1 through 336 and null', () => {

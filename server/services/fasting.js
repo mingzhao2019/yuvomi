@@ -1,6 +1,7 @@
 import { resolvePermissions } from '../permissions.js';
-import { parseFastingDateRange, rowMatchesFastingDateRange } from './fasting-dates.js';
-import { householdTimeZone } from '../utils/timezone.js';
+import { summarizeFastingRows, fastingStreaks, weeklyFastingSeries } from './fasting-stats.js';
+import { fastingDateKeyFactory, parseFastingDateRange, rowMatchesFastingDateRange } from './fasting-dates.js';
+import { householdTimeZone, shiftDateKey, todayKey } from '../utils/timezone.js';
 
 export class FastingError extends Error {
   constructor(status, reason, message, current = undefined) {
@@ -186,6 +187,8 @@ export function getFastingHistory(database, actor, subjectId = Number(actor?.id)
   const beforeAt = hasCursor ? parseInstant(options.beforeAt, 'before_at') : null;
   const invalidRange = () => fail(400, 'FASTING_DATE_RANGE_INVALID', 'from and to must be valid YYYY-MM-DD dates with from no later than to.');
   const range = parseFastingDateRange(options.from, options.to, invalidRange);
+  const zone = householdTimeZone(database);
+  const dateKey = fastingDateKeyFactory(zone);
   const sql = `SELECT * FROM health_fasts WHERE ${visibleFilter(database, actorId, subject)}
     AND end_at IS NOT NULL ${hasCursor ? 'AND (start_at < ? OR (start_at = ? AND id < ?))' : ''}
     ORDER BY start_at DESC, id DESC`;
@@ -196,7 +199,7 @@ export function getFastingHistory(database, actor, subjectId = Number(actor?.id)
   } else {
     rows = [];
     for (const row of database.prepare(sql).iterate(...params)) {
-      if (!rowMatchesFastingDateRange(row, range)) continue;
+      if (!rowMatchesFastingDateRange(row, range, zone, dateKey)) continue;
       rows.push(row);
       if (rows.length === limit + 1) break;
     }
@@ -212,10 +215,12 @@ export function getAllFastingHistory(database, actor, subjectId = Number(actor?.
   ensureSubject(database, actorId, Number(subjectId), { read: true });
   const invalidRange = () => fail(400, 'FASTING_DATE_RANGE_INVALID', 'from and to must be valid YYYY-MM-DD dates with from no later than to.');
   const range = parseFastingDateRange(options.from, options.to, invalidRange);
+  const zone = householdTimeZone(database);
+  const dateKey = fastingDateKeyFactory(zone);
   const rows = [];
   for (const row of database.prepare(`SELECT * FROM health_fasts WHERE ${visibleFilter(database, actorId, Number(subjectId))}
     AND end_at IS NOT NULL ORDER BY start_at DESC, id DESC`).iterate(Number(subjectId))) {
-    if (rowMatchesFastingDateRange(row, range)) rows.push(row);
+    if (rowMatchesFastingDateRange(row, range, zone, dateKey)) rows.push(row);
   }
   return rows;
 }
@@ -244,6 +249,33 @@ export function getFastingState(database, actor, subjectId = Number(actor?.id)) 
     canWrite,
     acknowledged: canWrite ? safetyAcknowledged(database, subject) : null,
     display_tzid: householdTimeZone(database),
+  };
+}
+
+export function getFastingStats(database, actor, subjectId = Number(actor?.id), now = new Date()) {
+  const rows = getAllFastingHistory(database, actor, subjectId);
+  const zone = householdTimeZone(database);
+  const today = todayKey(database, now);
+  const currentYear = today.slice(0, 4);
+  const windowStart = shiftDateKey(today, -29);
+  // All calendar views of completed records share the household display zone.
+  const dateKey = fastingDateKeyFactory(zone);
+  const completionKey = (row) => dateKey(row.end_at);
+  const yearRows = rows.filter((row) => completionKey(row)?.slice(0, 4) === currentYear);
+  const last30Rows = rows.filter((row) => {
+    const key = completionKey(row);
+    return key && key >= windowStart && key <= today;
+  });
+  const streaks = fastingStreaks(rows, { today, timeZone: zone });
+  return {
+    display_tzid: zone,
+    today,
+    allTime: summarizeFastingRows(rows),
+    year: summarizeFastingRows(yearRows),
+    last30Days: summarizeFastingRows(last30Rows),
+    currentStreak: streaks.current,
+    longestStreak: streaks.longest,
+    weekly: weeklyFastingSeries(rows, { endDate: today, timeZone: zone }),
   };
 }
 

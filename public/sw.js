@@ -105,6 +105,7 @@ const APP_SHELL = [
   '/components/datepicker.js',
   '/components/detail-view.js',
   '/components/document-attach.js',
+  '/components/health-fasting-insights.js',
   '/components/modal.js',
   '/components/photo-screensaver.js',
   '/components/quick-links-manager.js',
