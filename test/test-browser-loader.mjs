@@ -129,7 +129,12 @@ const STUBS = {
     export const updateHeaderAction = () => null;
     export const validateAll = () => true;
     export const promptModal = async (...args) => globalThis.__promptModal?.(...args) ?? null;
-    export const btnLoading = () => {};
+    // Gibt eine FUNKTION zurueck wie das Original - der Aufrufer haelt sie als
+    // stop() fest und ruft sie im Fehlerpfad. Ein leeres Objekt hier liess jeden
+    // Test sterben, der genau diesen Pfad faehrt, und zwar an einem TypeError
+    // statt an der Sache, die er messen wollte. Den Knopfzustand baut der Stub
+    // bewusst NICHT nach: wer ihn pruefen will, wuerde sonst den Stub messen.
+    export const btnLoading = () => () => {};
     export const btnSuccess = () => {};
     export const btnError = () => {};
     export const refocusAfterRender = () => {};
@@ -137,7 +142,17 @@ const STUBS = {
     export const forgetRestore = () => {};
   `,
   '/components/detail-view.js': `
-    export const openDetailView = () => ({ update: () => true, isOpen: () => true });
+    // Tests, die pruefen wollen, WELCHE Bedienelemente ein Aufrufer anbietet -
+    // die Statusknoepfe der Aufgaben-Leseansicht etwa -, setzen
+    // globalThis.__openDetailView und bekommen die Optionen in die Hand,
+    // dasselbe Muster wie __apiStub in /api.js. Ohne das bleibt es beim stummen
+    // Rueckgabewert wie bisher. Ein Guard ueber den QUELLTEXT der Ansicht
+    // taete es hier nicht: er sieht eine Aktionsliste, die gebaut wird, nicht
+    // eine, die auch bei diesem Status herauskommt.
+    export const openDetailView = (options) => {
+      globalThis.__openDetailView?.(options);
+      return { update: () => true, isOpen: () => true };
+    };
     export const closeDetailView = () => {};
     export const detailRowEl = () => null;
     export const visibilityRow = () => ({ icon: 'users', label: '', value: '' });

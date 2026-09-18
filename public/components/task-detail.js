@@ -148,13 +148,35 @@ export async function addSubtask(parentId, { onChanged = () => {} } = {}) {
 // Bausteine der Leseansicht
 // --------------------------------------------------------
 
-// Was aus dem aktuellen Status als Nächstes kommt. Abgelegte Aufgaben führen
-// keine Weiterschaltung: sie sind aus dem Lauf genommen, nicht angehalten - ihr
-// Knopf holt zurück (siehe openTaskDetail).
-const NEXT_STATUS = {
-  open:        { status: 'in_progress', labelKey: 'tasks.detailStart',  icon: 'circle-dot' },
-  in_progress: { status: 'done',        labelKey: 'tasks.detailFinish', icon: 'check' },
-  done:        { status: 'open',        labelKey: 'tasks.detailReopen', icon: 'rotate-ccw' },
+// Wohin eine Aufgabe aus ihrem aktuellen Status gebracht werden kann. Abgelegte
+// Aufgaben führen keine Weiterschaltung: sie sind aus dem Lauf genommen, nicht
+// angehalten - ihr Knopf holt zurück (siehe openTaskDetail).
+//
+// EINE OFFENE AUFGABE HAT ZWEI ZIELE, und das ist der Punkt. Bis v2.67.0 stand
+// hier eine Kette: `open` führte ausschließlich nach `in_progress`, `done` war
+// erst von dort erreichbar. Wer abhaken wollte, musste also erst STARTEN, die
+// Ansicht erneut öffnen und dann erledigen - zwei Durchgänge für den Vorgang,
+// der laut dem Kommentar an der Aktionsliste der häufigste Grund ist, eine
+// Aufgabe überhaupt zu öffnen. Auf dem Handy war dieser Weg zusätzlich der
+// einzige: die Listenkarte blendet ihre Inline-Aktionen unter 640px aus
+// (tasks.css), und die Übersicht zeigt gar keinen Statusknopf, sondern öffnet
+// diese Ansicht (dashboard.js, `openTaskFromOverview`). Dazwischen war nichts
+// zu sehen - die Übersichtszeile trägt den Status nicht, sah nach dem ersten
+// Tipp also aus wie davor, und der Tipp wirkte verschluckt (#1251).
+//
+// Das Zwischenstadium bleibt: `in_progress` ist eine Angabe über die Aufgabe,
+// keine Durchgangsstation. Es steht nur nicht mehr im Weg.
+const STATUS_ACTIONS = {
+  open: [
+    { id: 'task-detail-finish', status: 'done',        labelKey: 'tasks.detailFinish', icon: 'check',      variant: 'secondary' },
+    { id: 'task-detail-start',  status: 'in_progress', labelKey: 'tasks.detailStart',  icon: 'circle-dot', variant: 'ghost' },
+  ],
+  in_progress: [
+    { id: 'task-detail-finish', status: 'done',        labelKey: 'tasks.detailFinish', icon: 'check',      variant: 'secondary' },
+  ],
+  done: [
+    { id: 'task-detail-reopen', status: 'open',        labelKey: 'tasks.detailReopen', icon: 'rotate-ccw', variant: 'secondary' },
+  ],
 };
 
 /** Prioritätsbadge als DOM - dieselbe Optik wie auf der Karte. */
@@ -964,7 +986,7 @@ export function openTaskDetail({
 }) {
   const ctx = { users, currentUserId, isAdmin, categories, taskLists, container, onChanged };
   const archived = isArchived(task);
-  const next = archived ? null : NEXT_STATUS[task.status];
+  const statusActions = archived ? [] : (STATUS_ACTIONS[task.status] ?? []);
   // Gesperrte Aufgabe (#830): der Weiterschalt-Knopf bleibt, Loeschen, Ablegen
   // und Bearbeiten fallen weg. Die Detailansicht ist der zweite Einstieg neben
   // der Zeile - blendete nur die Zeile aus, waere die Sperre hier zu umgehen.
@@ -992,13 +1014,15 @@ export function openTaskDetail({
   // Zustand, den er anzeigen koennte - was die Aufgabe IST, steht zwei Zeilen
   // darueber als "Status: offen". Ein grauer Knopf "Als erledigt markieren"
   // waere nur ein Versprechen, das der Server mit 403 einloest.
-  if (next && !isNavModuleReadOnly('tasks')) {
-    actions.push({
-      id: 'task-detail-advance',
-      label: t(next.labelKey),
-      variant: 'secondary',
-      icon: next.icon,
-      onClick: ({ button }) => advanceTaskStatus(task, next.status, button, ctx),
+  if (!isNavModuleReadOnly('tasks')) {
+    statusActions.forEach((step) => {
+      actions.push({
+        id: step.id,
+        label: t(step.labelKey),
+        variant: step.variant,
+        icon: step.icon,
+        onClick: ({ button }) => advanceTaskStatus(task, step.status, button, ctx),
+      });
     });
   }
 
@@ -1032,9 +1056,40 @@ export function openTaskDetail({
  * den neuen Stand sofort, weil das Abhaken sonst wie ein verschluckter Klick
  * wirkt. Scheitert der Aufruf, kommt die alte Beschriftung zurück.
  */
+/**
+ * Die Statusknoepfe, die gerade in der Ansicht stehen.
+ *
+ * Gebraucht, seit eine offene Aufgabe ZWEI davon traegt (#1251). Vorher war je
+ * Status genau einer da, und `btnLoading()` - das nur den angeklickten sperrt -
+ * war damit ein vollstaendiger Riegel. Jetzt stehen Erledigen und Starten
+ * nebeneinander, jeder mit eigenem Listener, und die Ansicht bleibt offen, bis
+ * die Antwort da ist.
+ *
+ * WAS OHNE DEN RIEGEL PASSIERT, und es ist kein kosmetischer Schaden: wer auf
+ * einer langsamen Leitung Erledigen tippt und dann Starten, schickt zwei
+ * Schreibvorgaenge los. Der erste bucht Punkte, schreibt die Erledigung fort
+ * und legt bei einer Serie die naechste Instanz an. Der zweite liest `prev`
+ * frisch, findet `done` vor, und weil `prev.status === 'done' && status !==
+ * 'done'` gilt, storniert er die Gutschrift, verwirft die Erledigung und
+ * LOESCHT die eben angelegte Folgeinstanz (`discardRecurrenceFollowup` in
+ * server/routes/tasks.js). Uebrig bleibt eine laufende Aufgabe, deren
+ * Erledigung verschwunden ist - und bei einer Serie ihr naechster Termin dazu.
+ */
+const STATUS_ACTION_IDS = Object.values(STATUS_ACTIONS).flat().map((step) => step.id);
+
+function statusActionButtons() {
+  return [...new Set(STATUS_ACTION_IDS)]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+}
+
 async function advanceTaskStatus(task, status, button, ctx) {
   const previous = task.status;
   const stop = btnLoading(button);
+  // Die Geschwister werden nur gesperrt, nicht in den Ladezustand versetzt: der
+  // Spinner gehoert an den Knopf, den jemand gedrueckt hat.
+  const siblings = statusActionButtons().filter((el) => el !== button);
+  siblings.forEach((el) => { el.disabled = true; });
   try {
     await api.patch(`/tasks/${task.id}/status`, { status });
     task.status = status;
@@ -1046,6 +1101,7 @@ async function advanceTaskStatus(task, status, button, ctx) {
   } catch (err) {
     task.status = previous;
     stop();
+    siblings.forEach((el) => { el.disabled = false; });
     // Gescheitert ist ein Schreibvorgang, kein Laden - tasks.loadError („Aufgabe
     // konnte nicht geladen werden") beschriebe den falschen Vorgang.
     window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
