@@ -2962,6 +2962,8 @@
         "sectionTitlePlural": "Emlékeztetők",
         "sharedWithAssignees": "Az eseményhez rendelt személyek is megkapják ezt az emlékeztetőt.",
         "offset30min": "30 perccel előtte",
+        "offsetAfterDue": "A határidő után",
+        "afterDueHint": "Ez az emlékeztető a határidő után van ({{when}}), és mentéskor változatlan marad. Válasszon előzetes időt az áthelyezéséhez.",
         "readOnlyNotice": "Az emlékeztetők a Naptárhoz tartoznak. Ott írási jog nélkül ez a beállítás változatlan marad."
     },
     "birthdays": {

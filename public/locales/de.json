@@ -2974,6 +2974,8 @@
         "customWeeks": "Wochen",
         "sectionTitlePlural": "Erinnerungen",
         "sharedWithAssignees": "Wer diesem Termin zugewiesen ist, bekommt diese Erinnerung ebenfalls.",
+        "offsetAfterDue": "Nach der Fälligkeit",
+        "afterDueHint": "Die Erinnerung liegt nach der Fälligkeit ({{when}}) und bleibt beim Speichern unverändert. Wähle einen Vorlauf, um sie zu verschieben.",
         "readOnlyNotice": "Erinnerungen gehören zum Kalender. Ohne Schreibrecht dort bleibt diese Einstellung unverändert."
     },
     "birthdays": {

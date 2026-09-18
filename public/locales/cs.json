@@ -3554,6 +3554,8 @@
         "sectionTitlePlural": "Připomínky",
         "sharedWithAssignees": "Toto připomenutí dostanou i osoby přiřazené k této události.",
         "offset30min": "30 minut předem",
+        "offsetAfterDue": "Po termínu splnění",
+        "afterDueHint": "Tato připomínka je po termínu splnění ({{when}}) a při uložení zůstane beze změny. Vyberte předstih, kterým ji posunete.",
         "readOnlyNotice": "Připomínky patří ke Kalendáři. Bez práva k zápisu tam zůstane toto nastavení nezměněné."
     },
     "birthdays": {

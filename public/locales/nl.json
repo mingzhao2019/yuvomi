@@ -2962,6 +2962,8 @@
         "sectionTitlePlural": "Herinneringen",
         "sharedWithAssignees": "Wie aan deze afspraak is toegewezen, krijgt deze herinnering ook.",
         "offset30min": "30 minuten van tevoren",
+        "offsetAfterDue": "Na de vervaldatum",
+        "afterDueHint": "Deze herinnering valt na de vervaldatum ({{when}}) en blijft ongewijzigd bij het opslaan. Kies een voorlooptijd om hem te verplaatsen.",
         "readOnlyNotice": "Herinneringen horen bij de Agenda. Zonder schrijfrechten daar blijft deze instelling ongewijzigd."
     },
     "birthdays": {

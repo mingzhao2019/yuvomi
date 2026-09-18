@@ -10,14 +10,14 @@ import { openModal as openSharedModal, closeModal, wireBlurValidation, validateA
 import { openDetailView, closeDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { stagger, vibrate, scheduleUndoableDelete, animationSettled } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
-import { t, getLocale, formatDate, formatDayMonth, formatTime, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
+import { t, getLocale, formatDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { esc, renderMarkdownLight } from '/utils/html.js';
 import { splitKeepingLineEndings } from '/utils/markdown-checklist.js';
 import { renderMarkdownToolbar, wireMarkdownToolbar } from '/utils/markdown-toolbar.js';
 import { refresh as refreshReminders } from '/reminders.js';
 import { renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect, renderAvatarStack } from '/components/user-multi-select.js';
 import { withChosenPeople } from '/utils/people-picker.js';
-import { resolveReminderPreset, parseRemindAtAsUtc, wallTimeToInstant, wallTimeToStoredUtc } from '/utils/reminder-offset.js';
+import { resolveReminderPreset, remindAtFromPreset, parseRemindAtAsUtc, wallTimeToInstant, wallTimeToStoredUtc } from '/utils/reminder-offset.js';
 import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/page-search.js';
 import { isPreviewable } from '/utils/document-preview.js';
 import { renderDocumentAttachField, bindDocumentAttachField } from '/components/document-attach.js';
@@ -1499,21 +1499,96 @@ async function loadReminderForTask(taskId) {
   }
 }
 
+/**
+ * Der Zeitpunkt einer Erinnerung als lesbarer Text in der Anzeigezone.
+ *
+ * `remind_at` ist naiv-UTC ohne Zonen-Suffix und darf deshalb NICHT als String
+ * weitergereicht werden - `zonedFields` laese ihn dann als Wanduhrzeit und
+ * zeigte in einer gesetzten Haushaltszone die falsche Stunde an. Der Umweg
+ * ueber `parseRemindAtAsUtc` macht daraus erst einen Zeitpunkt.
+ */
+function reminderWhenText(reminder) {
+  if (!reminder?.remind_at) return '';
+  const at = parseRemindAtAsUtc(reminder.remind_at);
+  if (Number.isNaN(at.getTime())) return '';
+  return `${formatDate(at)} ${formatTime(at)} ${timeSuffix()}`.trimEnd();
+}
+
+/**
+ * Wie weit darf dieser Dialog an der Erinnerung ruehren: 'write'|'read'|'none'.
+ *
+ * ERINNERUNGEN GEHOEREN DEM KALENDER, NICHT DEN AUFGABEN. `server/scopes.js`
+ * fuehrt die Praefixe `calendar`, `reminders` und `birthdays` unter EINEM
+ * Schluessel (`calendar`); der Aufgaben-Dialog schreibt aber ueber
+ * `/reminders`. Wer `tasks: write` und `calendar: read` traegt, sah hier
+ * deshalb einen Schalter, dessen Speichern serverseitig mit 403 endete - die
+ * Aufgabe war gespeichert, die Erinnerung nicht, und zu sehen bekam er nur
+ * eine Fehlermeldung.
+ *
+ * Drei Zustaende, nach der Faustregel „Zustand wird gesperrt, eine reine
+ * Handlung verschwindet":
+ *   write → unveraendert,
+ *   read  → gesperrt. Eine bestehende Erinnerung IST Zustand und bleibt
+ *           sichtbar; `GET /reminders` laesst `calendar: read` durch, der
+ *           Wert steht also wirklich da und ist nicht geraten.
+ *   none  → weg. Es gibt keinen Zustand zu zeigen: `GET /reminders` antwortet
+ *           mit 403, `loadReminderForTask()` liefert ohnehin null, und ein
+ *           leerer Schalter waere nur ein Versprechen auf einen 403.
+ *
+ * Gemessen wird am Nav-Modul `calendar` (dieselbe Karte wie im Router), nicht
+ * am Pfad - `navModuleAccess()` faellt ohne geladene Rechte auf 'write'
+ * zurueck, wie alles in permissions.js. Der Server bleibt das Gate.
+ */
 function reminderAccess() {
   return navModuleAccess('calendar');
 }
 
+/**
+ * DER DIALOG NENNT AUCH DEN ZUSTAND, DEN SEINE PRESETS NICHT ABBILDEN.
+ *
+ * Die Auswahl kennt nur Vorlaeufe, `remind_at` ist aber ein absoluter
+ * Zeitpunkt. Wer die Faelligkeit VOR eine bestehende Erinnerung zieht, hat
+ * keinen Vorlauf mehr, sondern einen Nachlauf - und den gab es in der Liste
+ * nicht. Der Rueckfall lautete `offset_at_time`: der Dialog sagte „Zum
+ * Startzeitpunkt", waehrend die Erinnerung Tage spaeter feuerte, und das
+ * naechste Speichern rechnete aus dieser falschen Anzeige einen neuen
+ * Zeitpunkt - die Erinnerung wanderte, ohne dass jemand sie angefasst hatte.
+ *
+ * Der Zustand bekommt deshalb einen eigenen Eintrag mit Warnton statt einer
+ * Notluege. Er steht NUR in der Liste, wenn er gerade zutrifft (man waehlt ihn
+ * nicht aus, man ist darin), bleibt danach aber im DOM, damit die Wahl
+ * innerhalb des Dialogs umkehrbar ist: wer versehentlich einen Vorlauf
+ * anklickt, findet den alten Zustand noch vor.
+ *
+ * Der gespeicherte Zeitpunkt reist im versteckten Feld mit, weil das Speichern
+ * ihn braucht - es rechnet fuer diesen Eintrag NICHT, sondern reicht ihn durch.
+ */
 function renderReminderSection(task = null, reminder = null) {
   const access = reminderAccess();
   if (access === 'none' || (access === 'read' && !reminder)) return '';
 
   const locked = access === 'read';
   const off = locked ? ' disabled' : '';
+  // `off` haengt auch am versteckten Transportfeld weiter unten, obwohl das
+  // nichts annimmt. Der Riegel aus #1253 prueft die REGEL („jedes Feld des
+  // Abschnitts"), nicht eine gepflegte Aufzaehlung - und genau deshalb hat er
+  // das neu dazugekommene Feld gefunden. Ihn dafuer aufzuweichen hiesse, ihn
+  // fuer das naechste Feld blind zu machen. Folgenlos ist es ohnehin: `.value`
+  // laesst sich auch gesperrt lesen, und ohne Schreibrecht wird die Erinnerung
+  // gar nicht erst gespeichert.
+  // Die Faelligkeit, MIT DER dieser Dialog geoeffnet wurde, fuers Speichern -
+  // dort entscheidet sie darueber, ob dieser Nutzer gerade ein Datum WEGRAEUMT
+  // oder ob die Aufgabe schon ohne eines kam (Review-Runde 3). Sie reist am
+  // Abschnitt mit, weil es ihn genau dann gibt, wenn eine gesperrte Erinnerung
+  // haengt - kein zusaetzlicher Modulzustand, der neben dem Dialog altern
+  // koennte.
   const lockedDue = locked ? ` data-locked-due="${esc(task?.due_date ?? '')}"` : '';
   const hasReminder = !!reminder;
   const resolved = resolveReminderPreset(task, reminder);
   const showCustom = hasReminder && resolved.preset === 'offset_custom';
   const showAbsolute = hasReminder && resolved.preset === 'offset_absolute';
+  const afterDue = hasReminder && resolved.preset === 'offset_after_due';
+  const whenText = afterDue ? reminderWhenText(reminder) : '';
 
   return `
     <div class="reminder-section"${lockedDue}>
@@ -1530,6 +1605,7 @@ function renderReminderSection(task = null, reminder = null) {
           <label class="label" for="reminder-offset">${t('reminders.offsetLabel')}</label>
           <select class="input" id="reminder-offset"${off}>
             <option value="offset_none">${t('reminders.offsetNone')}</option>
+            ${afterDue ? `<option value="offset_after_due" selected>${t('reminders.offsetAfterDue')}</option>` : ''}
             <option value="offset_at_time" ${resolved.preset === 'offset_at_time' ? 'selected' : ''}>${t('reminders.offsetAtTime')}</option>
             <option value="offset_15m" ${resolved.preset === 'offset_15m' ? 'selected' : ''}>${t('reminders.offset15min')}</option>
             <option value="offset_1h" ${resolved.preset === 'offset_1h' ? 'selected' : ''}>${t('reminders.offset1hour')}</option>
@@ -1540,6 +1616,8 @@ function renderReminderSection(task = null, reminder = null) {
             <option value="offset_custom" ${resolved.preset === 'offset_custom' ? 'selected' : ''}>${t('reminders.offsetCustom')}</option>
             <option value="offset_absolute" ${showAbsolute ? 'selected' : ''}>${t('reminders.dateLabel')} / ${t('reminders.timeLabel')}</option>
           </select>
+          <p class="task-field-hint field-hint--warn" id="reminder-after-due-warning" role="status" ${afterDue ? '' : 'hidden'}><i data-lucide="alert-triangle" aria-hidden="true"></i><span>${t('reminders.afterDueHint', { when: esc(whenText) })}</span></p>
+          <input type="hidden" id="reminder-stored-at" value="${esc(reminder?.remind_at ?? '')}"${off}>
         </div>
         <div class="modal-grid modal-grid--2" id="reminder-custom-fields" style="${showCustom ? '' : 'display:none'};margin-top:var(--space-3)">
           <div class="form-group" style="margin:0">
@@ -1568,6 +1646,72 @@ function renderReminderSection(task = null, reminder = null) {
         </div>
       </div>
     </div>`;
+}
+
+/**
+ * Das Preset, das die Auswahl nach einer Aenderung der Faelligkeit zeigen muss.
+ *
+ * DER ZUSTAND KANN SICH IM DIALOG HEILEN, und dann darf die Beschriftung nicht
+ * stehenbleiben. „Nach der Faelligkeit" ist keine Eigenschaft der Erinnerung,
+ * sondern das VERHAELTNIS zweier Zeitpunkte - schiebt jemand die Faelligkeit
+ * nach hinten (der naheliegende Weg, das Problem zu beheben), liegt die
+ * Erinnerung wieder davor, und der Dialog behauptete sonst weiter einen
+ * Nachlauf. Das waere derselbe Fehler, den dieser Abschnitt beseitigen soll,
+ * nur in die andere Richtung.
+ *
+ * Neu aufgeloest wird NUR, solange die Auswahl noch auf `offset_after_due`
+ * steht. Wer selbst einen Vorlauf gewaehlt hat, hat entschieden; ihm die Wahl
+ * beim naechsten Tastendruck im Datumsfeld umzustellen, waere Bevormundung.
+ *
+ * ES IST DIE GANZE AUFLOESUNG, NICHT NUR DAS PRESET. Ein geheilter Zustand
+ * landet fast immer auf `offset_custom` - ein Datum ohne Uhrzeit faellt auf
+ * 23:59:59, und der Abstand dorthin trifft selten einen runden Vorlauf. Nur die
+ * Auswahl umzustellen, hiesse die Felder darunter auf ihrem Render-Stand stehen
+ * zu lassen: die Auswahl saegte „Benutzerdefiniert", darunter staenden 1 Tag,
+ * und das Speichern verschoebe die Erinnerung doch - derselbe Schaden, in einem
+ * neuen Gewand. Das Heilen macht deshalb genau das, was das Oeffnen tut.
+ *
+ * @param {string} currentValue aktueller Wert der Auswahl
+ * @returns {{preset: string, amount: string, unit: string}|null} die neue
+ *          Auffuellung, oder null wenn nichts umzustellen ist
+ */
+function afterDueResolution(currentValue, { dueDate = '', dueTime = null, storedRemindAt = null } = {}) {
+  if (currentValue !== 'offset_after_due') return null;
+  if (!dueDate || !storedRemindAt) return null;
+  const resolved = resolveReminderPreset(
+    { due_date: dueDate, due_time: dueTime },
+    { remind_at: storedRemindAt },
+  );
+  return resolved.preset === 'offset_after_due' ? null : resolved;
+}
+
+/**
+ * Der Zeitpunkt, den der ausgefuellte Erinnerungs-Abschnitt ergibt.
+ *
+ * DIE NAHT ZWISCHEN MARKUP UND SPEICHERN, und sie steht bewusst als eigene
+ * Funktion da: welche Felder `renderReminderSection` schreibt und welche das
+ * Speichern liest, war vorher nur im Quelltext behauptet und an keiner Stelle
+ * messbar. Ein Test kann hier das ECHTE Markup vorne hineingeben und den
+ * Zeitpunkt hinten herausnehmen.
+ *
+ * Gerechnet wird in `remindAtFromPreset` - hier steht nur, was hineingeht. Der
+ * Zustand „liegt nach der Faelligkeit" hat keinen Vorlauf, aus dem sich etwas
+ * rechnen liesse; er reicht den gespeicherten Zeitpunkt durch und laesst die
+ * Erinnerung damit stehen, wo sie steht.
+ *
+ * @returns {string|null} naiv-UTC `remind_at`, oder null bei „keine" bzw. einer
+ *          unbrauchbaren Eingabe
+ */
+function reminderRemindAtFromForm(form, { dueDate, dueTime = null } = {}) {
+  const preset = form.querySelector('#reminder-offset')?.value || 'offset_none';
+  if (preset === 'offset_none') return null;
+  return remindAtFromPreset(preset, {
+    dueDate,
+    dueTime,
+    amount: form.querySelector('#reminder-custom-amount')?.value,
+    unit: form.querySelector('#reminder-custom-unit')?.value || 'days',
+    storedRemindAt: form.querySelector('#reminder-stored-at')?.value || null,
+  });
 }
 
 // --------------------------------------------------------
@@ -1639,6 +1783,65 @@ function enforceMicrosoftTodoRecurrenceLock(panel, task) {
     control.disabled = true;
     control.setAttribute('disabled', '');
   });
+}
+
+/**
+ * Haelt Auswahl und Warnton am ZUSTAND, nicht am Ladezeitpunkt.
+ *
+ * Zwei Wege fuehren hierher: wer die Auswahl verlaesst, hat das Problem
+ * entschieden und soll den Warnton nicht mehr sehen (wer zurueckgeht, wieder);
+ * und wer die Faelligkeit verschiebt, aendert das Verhaeltnis, aus dem der
+ * Zustand ueberhaupt entsteht. Beide enden in derselben Regel, damit sie nicht
+ * auseinanderlaufen koennen.
+ */
+function syncReminderAfterDue(panel) {
+  const offset = panel.querySelector('#reminder-offset');
+  const warn   = panel.querySelector('#reminder-after-due-warning');
+  if (!offset) return;
+  // EIN GESPERRTER ABSCHNITT WIRD AUCH HIER NICHT ANGEFASST. Das
+  // Faelligkeitsdatum gehoert dem Aufgaben-Modul und ist mit `calendar: read`
+  // bedienbar, die Erinnerung daneben nicht - ein Feld, das sich unter der Hand
+  // aendert, obwohl es gesperrt ist, behauptete einen gespeicherten Zustand,
+  // den es nicht gibt (das Speichern fasst die Erinnerung ohne Schreibrecht
+  // gar nicht an). Gelesen wird der Riegel, den `renderReminderSection` schon
+  // gesetzt hat, statt die Rechtefrage ein zweites Mal zu stellen.
+  if (offset.disabled) return;
+  const next = afterDueResolution(offset.value, {
+    dueDate: parseDateInput(panel.querySelector('#task-due-date')?.value || ''),
+    dueTime: parseTimeInput(panel.querySelector('#task-due-time')?.value || '') || null,
+    storedRemindAt: panel.querySelector('#reminder-stored-at')?.value || null,
+  });
+  // Nur schreiben, wenn die Auswahl den Eintrag auch fuehrt - sonst faende der
+  // Browser ihn nicht und setzte die Auswahl stillschweigend auf den ersten:
+  // aus „1 Tag vorher" wuerde „Keine", und das Speichern loeschte die
+  // Erinnerung.
+  if (next && [...offset.options].some((o) => o.value === next.preset)) {
+    offset.value = next.preset;
+    const amount = panel.querySelector('#reminder-custom-amount');
+    const unit   = panel.querySelector('#reminder-custom-unit');
+    const custom = panel.querySelector('#reminder-custom-fields');
+    if (amount) amount.value = next.amount;
+    if (unit) unit.value = next.unit;
+    // Ein programmatisch gesetzter Wert loest KEIN `change` aus, der Listener
+    // daneben blendet die Felder also nicht ein. Hier steht es deshalb selbst.
+    if (custom) custom.style.display = next.preset === 'offset_custom' ? '' : 'none';
+  }
+  if (warn) warn.hidden = offset.value !== 'offset_after_due';
+}
+
+/**
+ * Die Faelligkeit aendert das Verhaeltnis, aus dem „nach der Faelligkeit"
+ * entsteht - beide Felder werden gehoert, `change` wie `input`, aus demselben
+ * Grund wie bei `wireCountdownGate`: sonst haengt die Anzeige je nach
+ * Bedienweg (Kalenderblatt vs. Tastatur) hinterher.
+ */
+function wireReminderAfterDue(panel) {
+  for (const sel of ['#task-due-date', '#task-due-time']) {
+    const field = panel.querySelector(sel);
+    if (!field) continue;
+    field.addEventListener('change', () => syncReminderAfterDue(panel));
+    field.addEventListener('input', () => syncReminderAfterDue(panel));
+  }
 }
 
 function openTaskModal({ task = null, users = [], reminder = null } = {}, container) {
@@ -1758,7 +1961,9 @@ function wireTaskForm(panel, { task = null, container = null, onChanged = () => 
   offset?.addEventListener('change', () => {
     if (customFields) customFields.style.display = offset.value === 'offset_custom' ? '' : 'none';
     if (absoluteFields) absoluteFields.style.display = offset.value === 'offset_absolute' ? '' : 'none';
+    syncReminderAfterDue(panel);
   });
+  wireReminderAfterDue(panel);
   // Form-Events
   panel.querySelector('#task-form')
     ?.addEventListener('submit', (e) => handleFormSubmit(e, { container, onChanged }));
@@ -2836,6 +3041,35 @@ async function handleFormSubmit(e, { container = null, onChanged = () => loadTas
   // sein, deshalb muss der Schutz auch im Submit-Handler sitzen.
   const canWriteReminder = reminderAccess() === 'write';
   const wantsReminder = canWriteReminder && !!reminderToggle?.checked;
+  // DIE EINE VORBEDINGUNG, DIE AUCH OHNE SCHREIBRECHT GILT: eine Erinnerung
+  // braucht ein Faelligkeitsdatum. Die Regel ist nicht neu - mit Schreibrecht
+  // verweigert die Zeile darunter genau diese Kombination -, aber der Riegel
+  // oben machte sie fuer `calendar: read` brechbar: das Datum gehoert dem
+  // Aufgaben-Modul, ist also bedienbar, und wer es leerraeumt, liess bis
+  // Review-Runde 2 eine Erinnerung an einer Aufgabe OHNE Faelligkeit zurueck
+  // (`server/routes/tasks.js` fasst die Tabelle nicht an). Nachgemessen: die
+  // Aufgabe ging mit `due_date: null` durch, ohne Meldung.
+  //
+  // Der harte Block von vorher kommt damit NICHT zurueck. Er nannte den
+  // Erinnerungs-Schalter, den dieser Nutzer nicht bedienen kann; diese Meldung
+  // nennt das Faelligkeitsdatum, das er bedienen kann, und sagt dazu, warum es
+  // gebraucht wird. Ein Datums-WECHSEL bleibt erlaubt - er bricht die Regel
+  // nicht, sondern verschiebt nur den angezeigten Vorlauf. Der eigene Faden,
+  // auf den diese Zeile verwies, ist inzwischen eingeloest: ein negativer
+  // Versatz heisst jetzt `offset_after_due` und wird benannt statt verschwiegen
+  // (siehe renderReminderSection). Fuer diesen Nutzer aendert das nichts - der
+  // Abschnitt ist gesperrt, und gesperrt bleibt er auch beim Datumswechsel.
+  //
+  // GEMESSEN WIRD DER UEBERGANG, NICHT DER ZUSTAND (Review-Runde 3). Eine
+  // Aufgabe kann schon OHNE Faelligkeit ankommen, waehrend eine gesperrte
+  // Erinnerung an ihr haengt, und daran ist dieser Nutzer dann unschuldig:
+  // Erinnerungen sind pro `created_by` gefuehrt (`server/routes/reminders.js`
+  // filtert GET, Upsert und DELETE danach), niemand erzwingt die Regel
+  // tabellenuebergreifend, also raeumt ein ZWEITES Mitglied das Datum weg und
+  // loescht dabei nur seine eigene - nicht vorhandene - Zeile. Ein Riegel auf
+  // den Endzustand haette den Erstbesitzer danach aus der Aufgabe ausgesperrt,
+  // bei JEDER Aenderung, auch einer Titelkorrektur, und ohne Ausweg: den
+  // Schalter, der die Meldung verursacht, kann er nicht bedienen.
   const lockedReminderPresent = !canWriteReminder && !!reminderToggle?.checked;
   const dueDateWhenOpened = form.querySelector('.reminder-section[data-locked-due]')?.dataset.lockedDue || '';
   if (lockedReminderPresent && dueDateWhenOpened && !dueDate) {
@@ -2862,26 +3096,8 @@ async function handleFormSubmit(e, { container = null, onChanged = () => loadTas
       remindAt = wallTimeToStoredUtc(absoluteDate, absoluteTime);
       if (!remindAt) { resetSubmit(t('common.invalidInput')); return; }
     } else {
-      if (!dueDate) { resetSubmit(t('tasks.reminderNeedsDueDate')); return; }
-      let offsetMs = 0;
-      if (offsetPreset === 'offset_15m') offsetMs = 15 * 60 * 1000;
-      else if (offsetPreset === 'offset_1h') offsetMs = 60 * 60 * 1000;
-      else if (offsetPreset === 'offset_1d') offsetMs = 24 * 60 * 60 * 1000;
-      else if (offsetPreset === 'offset_2d') offsetMs = 2 * 24 * 60 * 60 * 1000;
-      else if (offsetPreset === 'offset_1w') offsetMs = 7 * 24 * 60 * 60 * 1000;
-      else if (offsetPreset === 'offset_2w') offsetMs = 14 * 24 * 60 * 60 * 1000;
-      else if (offsetPreset === 'offset_custom') {
-        const customAmount = Number(form.querySelector('#reminder-custom-amount')?.value || 0);
-        const customUnit = form.querySelector('#reminder-custom-unit')?.value || 'days';
-        if (!Number.isFinite(customAmount) || customAmount <= 0) { resetSubmit(t('common.invalidInput')); return; }
-        const unitFactor = customUnit === 'minutes' ? 60000 : customUnit === 'hours' ? 3600000 : customUnit === 'days' ? 86400000 : 604800000;
-        offsetMs = customAmount * unitFactor;
-      }
-      const dueDateTime = body.due_time
-        ? wallTimeToInstant(`${dueDate}T${body.due_time}`)
-        : wallTimeToInstant(`${dueDate}T23:59:59`);
-      if (Number.isNaN(dueDateTime.getTime())) { resetSubmit(t('common.invalidInput')); return; }
-      remindAt = new Date(dueDateTime.getTime() - offsetMs).toISOString().slice(0, 19);
+      remindAt = reminderRemindAtFromForm(form, { dueDate, dueTime: body.due_time });
+      if (!remindAt) { resetSubmit(t('common.invalidInput')); return; }
     }
   }
 
@@ -6596,6 +6812,17 @@ export const __test = {
   renderTaskCard, wireSwipeGestures,
   // Der Aufgaben-Dialog als Markup: welche Felder er zeigt und wen er anbietet.
   renderModalContent,
+  // Der Erinnerungs-Abschnitt einzeln, weil er einen Zustand zu BENENNEN hat,
+  // den seine Auswahlliste nicht abbildet: eine Erinnerung nach der
+  // Faelligkeit. Was der Abschnitt dabei sagt, ist der halbe Fix - die andere
+  // Haelfte ist, dass das Speichern daraus nicht rechnet.
+  renderReminderSection, reminderRemindAtFromForm, afterDueResolution,
+  // Die Verdrahtung steht mit hier: die Regel allein zu messen hiesse, den
+  // haeufigsten Ausfall auszulassen - einen Listener, den niemand anhaengt.
+  syncReminderAfterDue, wireReminderAfterDue,
+  // Und der AUFRUFER dazu: eine Regel, die richtig ist und die niemand ruft,
+  // ist derselbe Ausfall wie eine falsche Regel.
+  wireTaskForm,
   // Die Personenauswahl beim Abhaken (#1205): WANN sie ueberhaupt erscheint,
   // ist die halbe Entscheidung - ein Solo-Haushalt bekommt sie nie zu sehen.
   renderDoerPicker,

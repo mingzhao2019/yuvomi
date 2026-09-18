@@ -3077,6 +3077,8 @@
         "sectionTitlePlural": "Rappels",
         "sharedWithAssignees": "Les personnes affectées à cet événement reçoivent aussi ce rappel.",
         "offset30min": "30 minutes avant",
+        "offsetAfterDue": "Après l'échéance",
+        "afterDueHint": "Ce rappel se situe après la date d'échéance ({{when}}) et reste inchangé à l'enregistrement. Choisissez un délai pour le déplacer.",
         "readOnlyNotice": "Les rappels appartiennent au Calendrier. Sans droit d’écriture là-bas, ce réglage reste inchangé."
     },
     "onboarding": {

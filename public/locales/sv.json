@@ -3077,6 +3077,8 @@
         "sectionTitlePlural": "Påminnelser",
         "sharedWithAssignees": "Den som är tilldelad den här händelsen får också den här påminnelsen.",
         "offset30min": "30 minuter innan",
+        "offsetAfterDue": "Efter förfallodatumet",
+        "afterDueHint": "Den här påminnelsen ligger efter förfallodatumet ({{when}}) och ändras inte när du sparar. Välj en framförhållning för att flytta den.",
         "readOnlyNotice": "Påminnelser hör till Kalendern. Utan skrivrättighet där förblir den här inställningen oförändrad."
     },
     "onboarding": {

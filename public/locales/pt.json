@@ -3077,6 +3077,8 @@
         "sectionTitlePlural": "Lembretes",
         "sharedWithAssignees": "Quem estiver atribuído a este evento também recebe este lembrete.",
         "offset30min": "30 minutos antes",
+        "offsetAfterDue": "Depois do vencimento",
+        "afterDueHint": "Este lembrete é posterior à data de vencimento ({{when}}) e permanece inalterado ao salvar. Escolha uma antecedência para movê-lo.",
         "readOnlyNotice": "Os lembretes pertencem ao Calendário. Sem permissão de escrita aí, esta definição permanece inalterada."
     },
     "onboarding": {

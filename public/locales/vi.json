@@ -2962,6 +2962,8 @@
         "sectionTitlePlural": "Lời nhắc",
         "sharedWithAssignees": "Những người được giao sự kiện này cũng nhận được lời nhắc này.",
         "offset30min": "30 phút trước",
+        "offsetAfterDue": "Sau ngày đến hạn",
+        "afterDueHint": "Lời nhắc này nằm sau ngày đến hạn ({{when}}) và giữ nguyên khi bạn lưu. Chọn thời gian nhắc trước để dời nó.",
         "readOnlyNotice": "Nhắc nhở thuộc về Lịch. Nếu không có quyền ghi ở đó, cài đặt này giữ nguyên."
     },
     "birthdays": {

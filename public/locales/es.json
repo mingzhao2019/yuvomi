@@ -3077,6 +3077,8 @@
         "sectionTitlePlural": "Recordatorios",
         "sharedWithAssignees": "Quien esté asignado a este evento también recibe este recordatorio.",
         "offset30min": "30 minutos antes",
+        "offsetAfterDue": "Después del vencimiento",
+        "afterDueHint": "Este recordatorio es posterior a la fecha de vencimiento ({{when}}) y no cambia al guardar. Elige una antelación para moverlo.",
         "readOnlyNotice": "Los recordatorios pertenecen al Calendario. Sin permiso de escritura allí, este ajuste se mantiene sin cambios."
     },
     "onboarding": {
