@@ -106,6 +106,7 @@ Turn on what your household needs; the rest stays out of the way.
 | **Tasks** | Kanban board with persistent task lists, deadlines, priorities, subtasks, tags, recurring schedules and multi-member assignment. Sync task lists and tasks with CalDAV or Microsoft To Do. Attach documents and discuss a task in comments. A history view shows what was completed, grouped by day, with who ticked it off - and when a recurring chore was last done. Lock a task so only its creator and admins can redefine it, while everyone else can still tick it off. |
 | **Shopping** | Shared lists grouped by aisle and ordered to match your shop, with swipe gestures, one-tap import from the meal plan, and optional email delivery to a household member. |
 | **Meals** | Weekly drag-and-drop planner with a recipe sidebar and direct export to the shopping list. |
+<<<<<<< HEAD
 | **Recipes** | Create, duplicate and scale recipes, then pre-fill meal slots or send the ingredients to a shopping list. A Mealie or Tandoor instance can be mirrored read-only. |
 | **Pantry** | What is actually in the house: amount, storage location and best-before date, with expiry and low-stock filters and a notification before a date is reached. |
 | **Calendar** | Two-way sync with Google, CalDAV and Outlook.com via Microsoft Graph, calendar subscriptions, recurring events, holiday overlays, filtering by person, per-event visibility and explicit conflict choices. |
@@ -123,6 +124,25 @@ Turn on what your household needs; the rest stays out of the way.
 | **Reminders** | Reminders on tasks, events, shifts, subscription renewals, warranties, inventory deadlines, best-before dates and waste pickups, via in-app badges, opt-in push, and household Gotify, ntfy, webhook or email channels. A reminder on a shared event reaches everyone assigned to it, each with their own copy to move or dismiss. |
 | **API Tokens** | Bearer / X-API-Key tokens with an OpenAPI 3.0 spec and a built-in MCP endpoint for AI agents. Writes are retry-safe via an optional `Idempotency-Key` header. |
 | **Backup** | Manual and scheduled backup/restore with pre-restore rollback and optional cloud upload. |
+=======
+| **Recipes** | Create and scale recipes, fill meal slots, or mirror a Mealie or Tandoor instance read-only. |
+| **Pantry** | Amounts, storage locations and best-before dates, with a reminder before something expires. |
+| **Calendar** | Two-way Google and CalDAV sync, Outlook push, subscriptions, holidays and per-event visibility. |
+| **Documents** | Tagged, searchable family files in folders, stored locally, on WebDAV or in Google Drive. |
+| **Inventory** | What you own, with purchase price, warranty, linked receipts and deadline reminders. Off by default. |
+| **Budget** | Income, expenses, accounts, loans, subscriptions and shared expenses with debt simplification. |
+| **Housekeeping** | Household staff: schedules, check-in/out, billing, chores and supply requests. |
+| **Waste collection** | Pickup schedules per waste type, even "the last Friday", or a subscribed municipal ICS calendar. Off by default. |
+| **Rewards** | Points from tasks, a parent-approved catalog and an auditable ledger. |
+| **Health** | Per-member vitals, medications, preventive care, labs, activity, cycle tracking and a fasting journal, with trend charts. |
+| **Schedule** | Rotating shifts and fixed weekly timetables, shown as an overlay in the calendar. Off by default. |
+| **Notes &amp; Contacts** | Markdown sticky notes with tappable checklists, plus contacts with CardDAV sync and vCard import/export. |
+| **Birthdays** | Birthdays and optional name days, with calendar entries, ages and reminders. |
+| **Family** | Member profiles with roles, and invite links where new members pick their own password. |
+| **Reminders** | For tasks, events, warranties, best-before dates and pickups - in-app, push, Gotify, ntfy, webhook or email. |
+| **API Tokens** | Bearer tokens with an OpenAPI 3.0 spec and a built-in MCP endpoint for AI agents. |
+| **Backup** | Manual and scheduled backups with pre-restore rollback and optional cloud upload. |
+>>>>>>> 64e8e9fb1 (chore: release v2.68.0)
 
 Two more things you only get on your own server: **wall mode** turns the kitchen tablet into a
 readable-from-across-the-room display, and an **Immich screensaver** rotates your own photos when

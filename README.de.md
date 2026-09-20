@@ -109,6 +109,7 @@ Schalte an, was dein Haushalt braucht; der Rest bleibt aus dem Weg.
 | **Aufgaben** | Kanban-Board mit dauerhaften Aufgabenlisten, Fristen, Prioritäten, Unteraufgaben, Tags, Wiederholungen und Mehrfachzuweisung. Aufgabenlisten und Aufgaben mit CalDAV oder Microsoft To Do synchronisieren. Dokumente anhängen und in Kommentaren besprechen. Ein Verlauf zeigt nach Tagen, was erledigt wurde und wer abgehakt hat - und wann eine wiederkehrende Aufgabe zuletzt dran war. Eine Aufgabe lässt sich sperren, sodass nur Ersteller:in und Admins sie umschreiben, alle anderen sie aber weiter abhaken können. |
 | **Einkauf** | Geteilte Listen nach Gang gruppiert und in der Reihenfolge deines Ladens, mit Wischgesten und Ein-Tipp-Import aus dem Essensplan. |
 | **Mahlzeiten** | Wochenplaner per Drag-and-drop mit Rezept-Seitenleiste und direktem Export in die Einkaufsliste. |
+<<<<<<< HEAD
 | **Rezepte** | Rezepte anlegen, duplizieren und skalieren, Mahlzeiten damit vorbelegen oder die Zutaten auf eine Einkaufsliste schicken. Eine Mealie- oder Tandoor-Instanz lässt sich lesend spiegeln. |
 | **Vorrat** | Was wirklich im Haus ist: Menge, Lagerort und Mindesthaltbarkeit, mit Filtern für Ablauf und knappe Bestände und einer Meldung, bevor ein Datum erreicht ist. |
 | **Kalender** | Zwei-Wege-Sync mit Google, CalDAV und Outlook.com via Microsoft Graph, Kalender-Abos, Wiederholungen, Feiertage, Filter nach Person, Sichtbarkeit je Termin und ausdrückliche Konfliktwahl. |
@@ -126,6 +127,25 @@ Schalte an, was dein Haushalt braucht; der Rest bleibt aus dem Weg.
 | **Erinnerungen** | Erinnerungen an Aufgaben, Termine, Schichten, Abo-Verlängerungen, Garantien, Inventar-Fristen, Mindesthaltbarkeit und Abfuhrtermine, per In-App-Kennzeichen, optionalem Push und Gotify-, ntfy-, Webhook- oder E-Mail-Kanälen des Haushalts. Eine Erinnerung an einem geteilten Termin erreicht alle Zugewiesenen, jeden mit einer eigenen Kopie zum Verschieben oder Verwerfen. |
 | **API-Token** | Bearer- / X-API-Key-Token mit OpenAPI-3.0-Spezifikation und eingebautem MCP-Endpunkt für KI-Agenten. Schreibende Aufrufe sind über einen optionalen `Idempotency-Key`-Header wiederholbar. |
 | **Backup** | Manuelle und geplante Sicherung und Wiederherstellung mit Rollback davor und optionalem Cloud-Upload. |
+=======
+| **Rezepte** | Rezepte anlegen und skalieren, Mahlzeiten vorbelegen oder eine Mealie- oder Tandoor-Instanz lesend spiegeln. |
+| **Vorrat** | Menge, Lagerort und Mindesthaltbarkeit, mit einer Erinnerung, bevor etwas abläuft. |
+| **Kalender** | Zwei-Wege-Sync mit Google und CalDAV, Outlook-Push, Kalender-Abos, Feiertage und Sichtbarkeit je Termin. |
+| **Dokumente** | Getaggte, durchsuchbare Familiendateien in Ordnern, lokal, auf WebDAV oder in Google Drive. |
+| **Inventar** | Was dir gehört, mit Kaufpreis, Garantie, verknüpften Belegen und Erinnerungen vor Fristablauf. Standardmäßig aus. |
+| **Budget** | Einnahmen, Ausgaben, Konten, Darlehen, Abos und gemeinsame Ausgaben mit Schuldenvereinfachung. |
+| **Hauswirtschaft** | Haushaltshilfen: Dienstpläne, Ein- und Ausstempeln, Abrechnung, Aufgaben und Materialwünsche. |
+| **Entsorgung** | Abholtermine je Abfallart, auch „der letzte Freitag", oder ein abonnierter kommunaler ICS-Kalender. Standardmäßig aus. |
+| **Belohnungen** | Punkte aus Aufgaben, ein elterlich freigegebener Katalog und ein nachvollziehbares Konto. |
+| **Gesundheit** | Vitalwerte, Medikamente, Vorsorge, Laborwerte, Aktivität, Zyklus und ein Fastentagebuch je Mitglied, mit Verlaufsdiagrammen. |
+| **Schichtplan** | Rotierende Schichten und feste Wochenpläne, als Ebene im Kalender eingeblendet. Standardmäßig aus. |
+| **Notizen &amp; Kontakte** | Markdown-Haftnotizen mit antippbaren Checklisten, dazu Kontakte mit CardDAV-Sync und vCard-Import/-Export. |
+| **Geburtstage** | Geburtstage und optionale Namenstage, mit Kalendereinträgen, Alter und Erinnerungen. |
+| **Familie** | Mitgliedsprofile mit Rollen und Einladungslinks, über die neue Mitglieder ihr Passwort selbst wählen. |
+| **Erinnerungen** | An Aufgaben, Termine, Garantien, Mindesthaltbarkeit und Abfuhr - in der App, per Push, Gotify, ntfy, Webhook oder E-Mail. |
+| **API-Token** | Bearer-Token mit OpenAPI-3.0-Spezifikation und eingebautem MCP-Endpunkt für KI-Agenten. |
+| **Backup** | Manuelle und geplante Sicherungen mit Rollback vor dem Wiederherstellen und optionalem Cloud-Upload. |
+>>>>>>> 64e8e9fb1 (chore: release v2.68.0)
 
 Zwei Dinge gibt es nur auf dem eigenen Server: der **Wandmodus** macht aus dem Küchen-Tablet eine
 Anzeige, die man quer durch den Raum liest, und ein **Immich-Bildschirmschoner** lässt die eigenen

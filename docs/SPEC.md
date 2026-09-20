@@ -1728,11 +1728,11 @@ whenever the underlying object is written (renewal date, warranty end, inventory
 hand-set date survives until the next change to their object, which is a half-life you can work with,
 and closing them would break a published `/api/v1` surface for no reason. The other ten
 (`DERIVED_ENTITY_TYPES`: `pantry_item`, `cycle_period`, `cycle_log_nudge`, `schedule_entry`,
-`schedule_extra_entry`, `waste_pickup`, `document_expiry`, `fasting_goal`,
+`schedule_extra_entry`, `waste_pickup`, `document_expiry`, `health_prevention_due`, `fasting_goal`,
 `fasting_next_start`) are maintained by their owning modules. Pantry, cycle, schedule,
-Waste and fasting also receive periodic repair
+Waste, prevention and fasting also receive periodic repair
 (`syncAllPantryExpiryReminders()`, `syncAllCycleReminders()`, `syncAllScheduleReminders()`,
-`syncAllWasteReminders()`, `syncAllFastingReminders()`, all called from
+`syncAllWasteReminders()`, `syncAllPreventionReminders()`, `syncAllFastingReminders()`, all called from
 `server/services/notifications.js`); document reminders reconcile on document writes, archive and
 delete. A hand-set reminder of any derived type is therefore replaced by the owner, so all four write paths
 (`POST`, `PUT`, `DELETE /:id`, `DELETE` by filter) answer 400 for them.
@@ -1747,10 +1747,30 @@ None of them is something a caller could construct even if the type were settabl
 `schedule_extra_entry` points directly at its `schedule_extra_shifts` row, and `pantry_item` at its
 pantry item.
 
-`document_expiry` points directly at its `family_documents` row. `fasting_goal` and
+`document_expiry` points directly at its `family_documents` row, and `health_prevention_due` at the
+`health_prevention_records` row the due date was computed from (migration v219): a caregiver's
+copy carries `assigned_from`, so revoking that access withdraws it without touching the owner's own.
+`fasting_goal` and
 `fasting_next_start` point directly at the owner's `health_fasts` row; only that owner receives or
 dismisses them, and deleting the fast removes all of its reminder delivery states atomically.
 
+<<<<<<< HEAD
+=======
+**A deleted task or event takes its reminders with it (migration v217, #1258).** `entity_type`/`entity_id`
+is a *soft* reference - `created_by` is the table's only foreign key - so nothing in the schema removed a
+reminder whose task or event was gone. The clean-up lived in the browser instead, as a second request sent
+behind the delete, and three routes lost it: a tab closed straight after deleting dropped the `keepalive`
+call, the `/api/v1` and MCP delete paths never sent it at all, and a member allowed to edit tasks but only
+to read the calendar had it refused without being told. A reminder set by *another* member on the same task
+outlived it every time, because the browser only ever cleaned up its own. What stayed behind pointed at
+nothing: a notification with a heading and no body, or an empty row in the in-app list. Two `AFTER DELETE`
+triggers now do it in the database - `trg_reminders_tasks_ad` on `tasks` and `trg_reminders_events_ad` on
+`calendar_events` - so every delete path is covered, including a cascade, and every member's row goes, not
+just the deleting user's. The same migration deletes the rows already orphaned, once. The thirteen derived
+and settable types keep the soft reference and are reconciled by their owning module, which is why only
+these two needed a trigger.
+
+>>>>>>> 64e8e9fb1 (chore: release v2.68.0)
 Reading and **dismissing** (`PATCH /:id/dismiss`) stay open for all fifteen types - the reminder toast
 has to show a derived notification and let the user wave it away, and dismissing holds precisely
 because the row stays.
