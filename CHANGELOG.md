@@ -167,6 +167,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a whole day keeps it, so all-day series are unchanged - and so is every split Yuvomi itself
   makes, which has always ended the old series on the day before. Subscribed ICS calendars are read
   the same way. (#1269)
+- **A member no longer gets push notifications from a module they are not allowed to use.** Taking a
+  module away from someone already removed its reminders from the in-app list, but the push
+  notification and any notification channel kept going out: the task title, the subscription name
+  with its amount and renewal date, the document name with its expiry date - and tapping one opened
+  a page that turned the person away. Reminders of a module somebody may no longer use now stay
+  silent on every route. The reminder is always one that person set or was given, so nothing ever
+  crossed over to somebody else's data; what was missing was the case "the permission was taken away
+  after the reminder already existed". Read access is not a lock: whoever may read a module still
+  hears from their reminders, and an administrator is unaffected. The reminders are held back rather
+  than deleted, because a permission can be given back - once it is, the ones that fell due in the
+  meantime arrive, as they would after the server had been down for a while. (#1289)
 
 - **An empty database file no longer starts Yuvomi as an empty instance.** If the database file
   existed but had a size of zero, Yuvomi took it for a new database, set it up from scratch and came
