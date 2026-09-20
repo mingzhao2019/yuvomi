@@ -17,15 +17,18 @@ test('dashboard fasting follows Health read-only access and pageshow refresh', a
     await page.evaluate(async () => {
       const { api } = await import('/api.js');
       await api.post('/health/fasting', { start_at: new Date(Date.now() - 60000).toISOString(), start_tzid: 'UTC', acknowledge_safety: true });
-      window.dispatchEvent(new Event('pageshow'));
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
     });
     await page.waitForFunction(() => document.querySelector('[data-fasting-widget-action]')?.textContent === 'Ukončit půst', { timeout: 5000 });
     await page.evaluate(async () => {
       const { setPermissions } = await import('/permissions.js');
-      setPermissions({ modules: { health: 'read' } });
-      window.dispatchEvent(new Event('pageshow'));
+      setPermissions({ modules: { health: 'read' }, capabilities: { health_use_fasting: 'allow' } });
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
     });
     await page.waitForFunction(() => !document.querySelector('[data-fasting-widget-action]'), { timeout: 5000 });
+    assert.ok(await page.$('.fasting-widget'), 'read-only Health access keeps the timer visible');
+    assert.equal(await page.$eval('.fasting-widget .form-hint', (el) => el.textContent.trim()), 'Deník půstu pouze pro čtení');
+    assert.ok(await page.$('.fasting-widget [data-fasting-announcement]'), 'the ticking timer has a live announcement');
   } finally { await harness.close(); }
 });
 
@@ -55,13 +58,14 @@ test('dashboard controls preserve finish, saved mode and all four responsive siz
       }, { method, path, body });
       await call('post', '/health/fasting', { start_at: '2025-01-01T06:00:00Z', end_at: '2025-01-01T08:00:00Z', start_tzid: 'UTC', acknowledge_safety: true });
       await call('post', '/health/fasting', { start_at: new Date(Date.now() - 3600000).toISOString(), start_tzid: 'UTC', goal_minutes: 1200 });
-      await call('put', '/health/fasting/settings', { default_goal_minutes: 1200, clock_mode: 'elapsed' });
+      await call('put', '/health/fasting/settings', { default_goal_minutes: 1200, clock_mode: 'elapsed', zone_mode: 'educational' });
       await gotoRoute(page, '/');
       // Add the widget through the same persisted preference contract as customization.
       await call('put', '/preferences', { dashboard_widgets: [{ id: 'fasting', visible: true, size: '1x1', order: 0 }] });
       await gotoRoute(page, '/');
       await page.waitForSelector('[data-fasting-widget-action]');
       assert.ok(await page.$('.fasting-widget .fasting-dial'));
+      assert.ok(await page.$('.fasting-widget .fasting-dial__zone'), 'widget mirrors the Health educational dial');
       await clickFasting(page, '[data-fasting-clock-mode="remaining"]');
       await page.waitForFunction(() => document.querySelector('[data-fasting-clock-mode="remaining"]').getAttribute('aria-pressed') === 'true');
       assert.equal((await call('get', '/health/fasting/state')).data.settings.clock_mode, 'remaining');

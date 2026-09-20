@@ -21,19 +21,6 @@ test('dashboard owns the shared fasting control styles', () => {
   assert.match(css, /\.widget--fasting\s*\{\s*--widget-accent:\s*var\(--module-health\);\s*\}/);
 });
 
-test('dashboard obtains fasting state from the fasting service', () => {
-  const source = readFileSync(new URL('../server/routes/dashboard.js', import.meta.url), 'utf8');
-  assert.match(source, /import \{ FastingError, getFastingState \} from '\.\.\/services\/fasting\.js';/);
-  assert.match(source, /getFastingState\(d, permissionUser\)/);
-  assert.doesNotMatch(source, /SELECT \* FROM health_fasts/);
-
-  const widgetRenderer = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8')
-    .split('function renderFastingWidget')[1]
-    .split('function wireFastingWidget')[0];
-  assert.match(widgetRenderer, /if \(!fasting\) throw new Error\(/,
-    'a failed fasting slice must reach the shared retryable widget error');
-});
-
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'dashboard-fasting-test-secret';
 
@@ -139,8 +126,31 @@ async function dashboard() {
 test('dashboard fasting payload is self-only even when another fast is family-visible and active', async () => {
   const body = await dashboard();
   assert.equal(body.fasting.active, null, 'another member active fast must never enter this personal widget');
-  assert.equal(body.fasting.lastCompleted?.id, ownerCompleted);
-  assert.equal(body.fasting.settings.clock_mode, 'remaining');
+  assert.deepEqual(body.fasting, {
+    settings: { clock_mode: 'remaining', zone_mode: 'timer' },
+    active: null,
+    lastCompleted: { end_at: '2026-09-16T08:00:00.000Z' },
+  }, 'the cached dashboard payload contains only widget fields');
+});
+
+test('dashboard fasting payload exposes only fields needed by the widget clock', async () => {
+  const fastId = database.prepare(`
+    INSERT INTO health_fasts
+      (user_id, start_at, start_tzid, goal_minutes, rating, note, visibility, created_by, updated_by)
+    VALUES (?, '2026-09-20T08:00:00.000Z', 'UTC', 960, 5, 'Widget must not receive this.', 'private', ?, ?)
+  `).run(OWNER, OWNER, OWNER).lastInsertRowid;
+
+  try {
+    const body = await dashboard();
+    assert.deepEqual(body.fasting.active, {
+      id: Number(fastId),
+      revision: 1,
+      start_at: '2026-09-20T08:00:00.000Z',
+      goal_minutes: 960,
+    });
+  } finally {
+    database.prepare('DELETE FROM health_fasts WHERE id = ?').run(fastId);
+  }
 });
 
 test('a medication aggregation failure does not erase valid fasting state', async () => {
@@ -148,10 +158,21 @@ test('a medication aggregation failure does not erase valid fasting state', asyn
   try {
     const body = await dashboard();
     assert.equal(body.health.hasMeds, false, 'the medication slice uses its empty failure payload');
-    assert.equal(body.fasting.lastCompleted?.id, ownerCompleted,
+    assert.equal(body.fasting.lastCompleted?.end_at, '2026-09-16T08:00:00.000Z',
       'the independently loaded fasting widget remains available');
   } finally {
     database.exec('ALTER TABLE medication_schedules_unavailable RENAME TO medication_schedules');
+  }
+});
+
+test('dashboard keeps Health data visible when the fasting query fails', async () => {
+  database.exec('ALTER TABLE health_fasts RENAME TO health_fasts_unavailable');
+  try {
+    const body = await dashboard();
+    assert.equal(body.fasting, null, 'the widget retains its retryable error state');
+    assert.equal(body.health.hasMeds, true, 'fasting failure must not erase other Health data');
+  } finally {
+    database.exec('ALTER TABLE health_fasts_unavailable RENAME TO health_fasts');
   }
 });
 
@@ -159,7 +180,9 @@ test('dashboard fasting payload is null when the capability is denied', async ()
   setPermission(OWNER, 'capability', 'health_use_fasting', 'none');
   try {
     const body = await dashboard();
-    assert.equal(body.fasting, null);
+    assert.deepEqual(body.fasting, {
+      settings: { clock_mode: 'auto', zone_mode: 'timer' }, active: null, lastCompleted: null,
+    }, 'capability denial keeps the documented empty payload shape');
     assert.equal(body.health.hasMeds, true, 'a fasting capability denial must not erase other Health data');
   } finally {
     setPermission(OWNER, 'capability', 'health_use_fasting', 'allow');
@@ -169,7 +192,9 @@ test('dashboard fasting payload is null when the capability is denied', async ()
 test('dashboard fasting payload follows Health module and API-token scope denial', async () => {
   setPermission(OWNER, 'module', 'health', 'none');
   try {
-    assert.equal((await dashboard()).fasting, null, 'Health none must use the denied payload');
+    assert.deepEqual((await dashboard()).fasting, {
+      settings: { clock_mode: 'auto', zone_mode: 'timer' }, active: null, lastCompleted: null,
+    }, 'Health none must use the denied payload');
   } finally {
     database.prepare(`
       DELETE FROM access_permissions
@@ -180,7 +205,9 @@ test('dashboard fasting payload follows Health module and API-token scope denial
   tokenScopes = ['dashboard:read'];
   try {
     const body = await dashboard();
-    assert.equal(body.fasting, null, 'a token without health scope must use the denied payload');
+    assert.deepEqual(body.fasting, {
+      settings: { clock_mode: 'auto', zone_mode: 'timer' }, active: null, lastCompleted: null,
+    }, 'a token without health scope must use the denied payload');
     assert.equal(body.health.hasMeds, false, 'the Health denied payload must cover the entire Health slice');
   } finally {
     tokenScopes = null;

@@ -19,7 +19,7 @@ import { hiddenModulesFor } from '../permissions.js';
 import { daysBetweenDateKeys, householdTimeZone, utcToWall } from '../utils/timezone.js';
 import { inventoryVisibilityWhere } from './inventory/access.js';
 import { householdMemberSql } from '../services/household-members.js';
-import { FastingError, getFastingState } from '../services/fasting.js';
+import { FastingError, getFastingDashboardState } from '../services/fasting.js';
 import { isAdminRequest } from '../middleware/require-admin.js';
 import { isAdminUser, serializeEvents } from './calendar/helpers.js';
 
@@ -74,7 +74,7 @@ const DENIED_PAYLOAD = Object.freeze({
       hasMeds: false, dosesTotal: 0, dosesTaken: 0, dosesSkipped: 0,
       nextDose: null, lowStockCount: 0,
     },
-    fasting: null,
+    fasting: emptyFastingWidget(),
   }),
   housekeeping: () => ({
     housekeeping: {
@@ -84,6 +84,14 @@ const DENIED_PAYLOAD = Object.freeze({
   }),
   inventory: () => ({ assets: emptyAssetSummary() }),
 });
+
+function emptyFastingWidget() {
+  return {
+    settings: { clock_mode: 'auto', zone_mode: 'timer' },
+    active: null,
+    lastCompleted: null,
+  };
+}
 
 function emptyBudget(month) {
   return {
@@ -754,16 +762,13 @@ router.get('/', (req, res) => {
     }
 
     try {
-      const permissionUser = d.prepare('SELECT id, role, family_role FROM users WHERE id = ?').get(userId);
-      const fastingState = getFastingState(d, permissionUser);
-      result.fasting = {
-        settings: { clock_mode: fastingState.settings?.clock_mode || 'auto' },
-        active: fastingState.active,
-        lastCompleted: fastingState.history[0] || null,
-      };
+      result.fasting = getFastingDashboardState(d, { id: userId });
     } catch (err) {
-      if (!(err instanceof FastingError && err.status === 403)) log.error('fasting error:', err.message);
-      result.fasting = null;
+      if (err instanceof FastingError && err.status === 403) result.fasting = emptyFastingWidget();
+      else {
+        log.error('fasting error:', err.message);
+        result.fasting = null;
+      }
     }
   }
 

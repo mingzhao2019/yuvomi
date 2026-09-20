@@ -2001,7 +2001,7 @@ function renderHealthWidget(health) {
 // Zyklus-Widget (owner-only, opt-in)
 // --------------------------------------------------------
 // Strikt privat: Die Vorhersage wird client-seitig aus den nutzer-eigenen
-// /health/cycle/(sub)-Endpunkten berechnet (siehe render()) und fließt NIE in den
+// /health/cycle/*-Endpunkten berechnet (siehe render()) und fließt NIE in den
 // familienweiten /dashboard-Payload. Zeigt Phase + Zyklustag (Mini-Ring) und die
 // nächste Periode als Countdown — die eine glanceable Zahl für den Alltag.
 
@@ -2086,7 +2086,8 @@ function renderCycleWidget(cycle) {
 function renderFastingWidget(fasting) {
   if (!fasting) throw new Error('fasting widget slice failed to load');
   const active = fasting.active;
-  return `<div class="widget widget--fasting">${widgetHeader('fasting', t('health.fasting.title'), null, '/health/fasting')}
+  const writable = moduleAccess('health') === 'write';
+  return `<div class="widget widget--fasting">${widgetHeader('fasting', t('health.fasting.title'), null)}
     <div class="fasting-widget">
       <div class="fasting-dial fasting-dial--segmented" data-fasting-progress><div data-fasting-segments></div><div class="fasting-dial__content">
         <span class="fasting-widget__meta" data-fasting-clock-label></span>
@@ -2095,13 +2096,14 @@ function renderFastingWidget(fasting) {
       </div></div>
       <div class="fasting-widget__controls">${fastingClockSwitchHtml()}
         ${active ? '<span class="fasting-widget__remaining" data-fasting-remaining></span>' : ''}
-        <div class="fasting-widget__actions">${moduleAccess('health') === 'write' ? `<button type="button" class="btn btn--primary btn--sm" data-fasting-widget-action>${esc(t(active ? 'health.fasting.finish' : 'health.fasting.start'))}</button>` : ''}<a href="/health/fasting#history" class="btn btn--secondary btn--sm">${esc(t('health.fasting.history'))}</a></div>
+        <p class="sr-only" role="status" aria-live="polite" data-fasting-announcement></p>
+        <div class="fasting-widget__actions">${writable ? `<button type="button" class="btn btn--primary btn--sm" data-fasting-widget-action>${esc(t(active ? 'health.fasting.finish' : 'health.fasting.start'))}</button>` : `<p class="form-hint">${esc(t('health.fasting.readOnly'))}</p>`}<a href="/health/fasting#history" class="btn btn--secondary btn--sm">${esc(t('health.fasting.history'))}</a></div>
       </div>
       <p class="form-hint" role="alert" data-fasting-widget-error></p>
     </div></div>`;
 }
 
-function wireFastingWidget(container, rerender, fasting, signal) {
+function wireFastingWidget(container, rerender, refresh, fasting, signal) {
   const root = container.querySelector('.fasting-widget');
   if (!root || !fasting) return () => {};
   root.querySelector('[data-fasting-widget-action]')?.addEventListener('click', async (event) => {
@@ -2114,7 +2116,7 @@ function wireFastingWidget(container, rerender, fasting, signal) {
       if (root.isConnected) root.querySelector('[data-fasting-widget-error]').textContent = fastingError(error);
     } finally { button.disabled = false; }
   }, { signal });
-  return startFastingClock(root, fasting.active, fasting.lastCompleted, fasting.settings);
+  return startFastingClock(root, fasting.active, fasting.lastCompleted, fasting.settings, { refresh });
 }
 
 // --------------------------------------------------------
@@ -5010,7 +5012,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
       ${renderDashboardLayout(cfg, data, weather, currency, { editing: isCustomizing, visibleMealTypes, glanceHidden: !glanceVisible })}
     `);
     wireLinks(container, rerender, { editing: isCustomizing, user });
-    disposeFastingClock = wireFastingWidget(container, rerender, data.fasting, signal);
+    disposeFastingClock = wireFastingWidget(container, rerender, refreshDashboardData, data.fasting, signal);
     // Retry einer isolierten Widget-Fehlerkachel: da /dashboard aggregiert lädt,
     // ist „erneut versuchen" ein voller Neuaufbau (wie der Page-Level-Retry).
     container.querySelectorAll('[data-widget-retry]').forEach((btn) =>
@@ -5125,8 +5127,6 @@ export async function render(container, { user, signal: routeSignal = null } = {
     if (!document.hidden) refreshDashboardData();
   }, 15 * 60 * 1000);
   signal.addEventListener('abort', () => clearInterval(refreshTimerId));
-  window.addEventListener('pageshow', () => { if (!document.hidden) void refreshDashboardData(); }, { signal });
-
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
     const titleEl = container.querySelector('.dashboard-overview__title');
