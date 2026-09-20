@@ -17,6 +17,8 @@ import { retitleBirthdayEvents } from '../services/birthdays.js';
 import { DEFAULT_OVERDUE_GRACE_DAYS } from '../services/countdowns.js';
 import { isWidgetId } from '../services/module-capabilities.js';
 import { listVisibleCategories } from '../services/note-categories.js';
+import { syncPreventionRemindersForSubject } from '../services/prevention-reminders.js';
+import { syncAllFastingReminders } from '../services/fasting-reminders.js';
 // Geteilte isomorphe Util (#620, Allowlist in test/test-layer-boundary.js):
 // dasselbe Kennungsformat, das Event-Modal und Einstellungen verwenden.
 import { parseSyncTargetValue } from '../../public/utils/sync-target.js';
@@ -670,6 +672,10 @@ router.get('/', (req, res) => {
         // Modul-Feature-Schalter (haushaltweit). Default an: fehlender Wert =>
         // Feature aktiv, damit Bestandshaushalte ihr Verhalten behalten.
         ...healthCycleViews(req.authUserId),
+        // Betreuungs-Fan-out fuer Vorsorge-Erinnerungen (D6/Review #1256) -
+        // Opt-in wie cycle_settings.notify_partner_user_id: der Eigentuemer
+        // veroeffentlicht bewusst, es teilt nichts von selbst.
+        health_prevention_notify_caregivers: cfgUserGet('health_prevention_notify_caregivers', req.authUserId) === '1',
         rewards_require_approval: cfgGet('rewards_require_approval') !== '0',
         tasks_subtasks_expanded: cfgGet('tasks_subtasks_expanded') === '1',
         tasks_default_points: parseTaskDefaultPoints(cfgGet('tasks_default_points')),
@@ -717,7 +723,7 @@ router.get('/', (req, res) => {
 
 router.put('/', (req, res) => {
   try {
-    const { visible_meal_types, meal_type_names, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_all_day_reminder_time, calendar_default_assign_me, calendar_default_target, calendar_show_lunar, health_cycle_enabled, health_cycle_enabled_user, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, schedule_hidden_templates, countdown_grace_days, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color, asset_default_scope, asset_default_visibility, asset_default_assignee_ids, asset_cost_metric, asset_summary_theme } = req.body;
+    const { visible_meal_types, meal_type_names, currency, date_format, time_format, week_start, region, timezone, language, app_name, dashboard_widgets, dashboard_today_glance, dashboard_widgets_default, dashboard_today_glance_default, disabled_modules, hidden_modules, module_order, mobile_nav_order, housekeeping_payment_tasks, budget_mode, calendar_default_duration, calendar_default_reminders, calendar_default_all_day_reminder_time, calendar_default_assign_me, calendar_default_target, calendar_show_lunar, health_cycle_enabled, health_cycle_enabled_user, health_prevention_notify_caregivers, rewards_require_approval, tasks_subtasks_expanded, tasks_default_points, tasks_default_target, schedule_hidden_templates, countdown_grace_days, weather_provider, weather_lat, weather_lon, weather_city, weather_units, weather_auto_locate, weather_user, holiday_country, holiday_subdivision, holiday_group, holiday_show_public, holiday_show_school, holiday_public_color, holiday_school_color, asset_default_scope, asset_default_visibility, asset_default_assignee_ids, asset_cost_metric, asset_summary_theme } = req.body;
 
     // Asset page defaults are personal preferences.  Keep the allowlist here
     // instead of trusting the module UI: these values are also consumed by a
@@ -780,23 +786,6 @@ router.put('/', (req, res) => {
         return res.status(400).json({ error: 'schedule_hidden_templates muss ein Array sein', code: 400 });
       }
     }
-
-    // Welche Quickstart-Vorlagen der Schichtplan-Schnellstart zeigt - wie
-    // disabled_modules haushaltweit und admin-only, nicht wie hidden_modules
-    // pro Nutzer: die Vorlagen legen geteilte Schichtarten an. Der Check steht
-    // hier ganz vorne, vor jedem Schreiben in diesem Request: er sass frueher
-    // erst mitten im Handler, nachdem laengst schon andere Haushaltsfelder
-    // geschrieben waren - ein gemischtes Payload eines Nicht-Admins wandte sich
-    // dann teilweise an, bevor der 403 kam.
-    if (schedule_hidden_templates !== undefined) {
-      if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
-      }
-      if (!Array.isArray(schedule_hidden_templates)) {
-        return res.status(400).json({ error: 'schedule_hidden_templates muss ein Array sein', code: 400 });
-      }
-    }
-
     if (visible_meal_types !== undefined) {
       if (!Array.isArray(visible_meal_types)) {
         return res.status(400).json({ error: 'visible_meal_types muss ein Array sein', code: 400 });
@@ -1034,7 +1023,12 @@ router.put('/', (req, res) => {
       const filtered = disabled_modules
         .filter((m) => typeof m === 'string' && TOGGLEABLE_MODULES.includes(m));
       const unique = [...new Set(filtered)];
-      cfgSet('disabled_modules', JSON.stringify(unique));
+      const healthChanged = parseDisabledModules(cfgGet('disabled_modules')).includes('health')
+        !== unique.includes('health');
+      db.transaction(() => {
+        cfgSet('disabled_modules', JSON.stringify(unique));
+        if (healthChanged) syncAllFastingReminders(db.get());
+      });
     }
 
     // Persoenlich ausgeblendete Module (#673) - bewusst OHNE Admin-Check, das ist
@@ -1200,6 +1194,19 @@ router.put('/', (req, res) => {
         return res.status(400).json({ error: 'health_cycle_enabled_user must be a boolean', code: 400 });
       }
       cfgUserSet('health_cycle_enabled', req.authUserId, health_cycle_enabled_user ? '1' : '0');
+    }
+
+    // Betreuungs-Fan-out fuer Vorsorge-Erinnerungen (D6/Review #1256) - Opt-in,
+    // Standard aus. Wirkt sofort: derselbe Sync, den caregivers.js nach einer
+    // Betreuungs-Aenderung anstoesst, nicht erst der naechste periodische Lauf.
+    if (health_prevention_notify_caregivers !== undefined) {
+      if (typeof health_prevention_notify_caregivers !== 'boolean') {
+        return res.status(400).json({ error: 'health_prevention_notify_caregivers must be a boolean', code: 400 });
+      }
+      cfgUserSet('health_prevention_notify_caregivers', req.authUserId, health_prevention_notify_caregivers ? '1' : '0');
+      try { syncPreventionRemindersForSubject(db.get(), req.authUserId); } catch (err) {
+        log.error('Error syncing prevention reminders after notify_caregivers change:', err.message);
+      }
     }
 
     if (rewards_require_approval !== undefined) {
@@ -1482,6 +1489,10 @@ router.put('/', (req, res) => {
         calendar_default_target: cfgUserGet('calendar_default_target', req.authUserId) || '',
         calendar_show_lunar: cfgUserGet('calendar_show_lunar', req.authUserId) === '1',
         ...healthCycleViews(req.authUserId),
+        // Betreuungs-Fan-out fuer Vorsorge-Erinnerungen (D6/Review #1256) -
+        // Opt-in wie cycle_settings.notify_partner_user_id: der Eigentuemer
+        // veroeffentlicht bewusst, es teilt nichts von selbst.
+        health_prevention_notify_caregivers: cfgUserGet('health_prevention_notify_caregivers', req.authUserId) === '1',
         rewards_require_approval: cfgGet('rewards_require_approval') !== '0',
         tasks_subtasks_expanded: cfgGet('tasks_subtasks_expanded') === '1',
         tasks_default_points: parseTaskDefaultPoints(cfgGet('tasks_default_points')),
