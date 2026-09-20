@@ -76,16 +76,34 @@ export function assignDefaultToEvent(d, eventId, userId) {
 // zeigte der Person den Termin, aber weder Erinnerung noch Anhang.
 // --------------------------------------------------------
 
+// --------------------------------------------------------
+// Kein hinausgepushter Termin: der Outbound-Sync stempelt dieselben Spalten
+// (external_source, calendar_ref_id) auf einen lokal angelegten Termin, sobald
+// er im Kalender liegt. Der Umzug zwischen Kalendern stellt dieselbe Frage wie
+// das Nachtragen oben: wurde diese Zeile importiert oder schon von Hand in
+// Yuvomi einem Kalender zugewiesen?
+//
+// Google und CalDAV behalten ihr gewähltes Ziel, Apple und der Legacy-CalDAV-
+// Pfad laden unter der UID `oikos-<id>@oikos.local`. Ein importierter Termin,
+// den jemand in Yuvomi in einen anderen Kalender verschoben hat, trägt
+// ebenfalls ein Ziel und bleibt damit außen vor.
+//
+// Die Bedingung steht hier einmal und wird von beiden Fragestellern verwendet;
+// jede einsetzende Abfrage muss `calendar_events` als `e` führen.
+const NOT_PUSHED_OUTBOUND = `
+  e.target_google_calendar_id IS NULL
+    AND e.target_caldav_calendar_url IS NULL
+    AND COALESCE(e.external_calendar_id, '') <> ('oikos-' || e.id || '@oikos.local')
+    AND NOT (e.external_source = 'google' AND e.created_at < COALESCE(
+      (SELECT applied_at FROM schema_migrations WHERE version = 47), ''))
+`;
+
 const UNASSIGNED_MAPPED_EVENTS = `
   FROM calendar_events e
   JOIN external_calendars ec ON ec.id = e.calendar_ref_id
   JOIN users u ON u.id = ec.default_assignee_user_id
   WHERE e.external_source = ec.source
-    AND e.target_google_calendar_id IS NULL
-    AND e.target_caldav_calendar_url IS NULL
-    AND COALESCE(e.external_calendar_id, '') <> ('oikos-' || e.id || '@oikos.local')
-    AND NOT (e.external_source = 'google' AND e.created_at < COALESCE(
-      (SELECT applied_at FROM schema_migrations WHERE version = 47), ''))
+    AND ${NOT_PUSHED_OUTBOUND}
     AND e.assigned_to IS NULL
     AND NOT EXISTS (SELECT 1 FROM event_assignments ea WHERE ea.event_id = e.id)
 `;
@@ -266,7 +284,8 @@ export async function applyDefaultAssigneesToExisting(
 /**
  * Stellt die Standard-Zuweisung eines umgezogenen Sync-Termins auf die
  * Standard-Person des neuen Kalenders um. No-op, wenn die Zuweisung nicht
- * genau die unangetastete Standard-Person des alten Kalenders ist.
+ * genau die unangetastete Standard-Person des alten Kalenders ist oder der
+ * Termin hinausgepusht wurde (NOT_PUSHED_OUTBOUND).
  *
  * @param {object} d better-sqlite3 Datenbank-Handle
  * @param {number} eventId ID des umgezogenen Termins
@@ -291,6 +310,14 @@ export function reassignDefaultOnCalendarMove(
   ).get(fromCalRefId)?.default_assignee_user_id ?? null;
   if (!fromDefault) return false;
   if (Number(fromDefault) === Number(toDefaultUserId)) return false;
+
+  // An einem hinausgepushten Termin war schon eine Hand: seine Zuweisung ist
+  // eine Aussage eines Menschen, auch wenn sie dieselbe Person nennt wie der
+  // Kalender, in dem er liegt.
+  const notPushedOut = d.prepare(
+    `SELECT 1 FROM calendar_events e WHERE e.id = ? AND ${NOT_PUSHED_OUTBOUND}`
+  ).get(eventId);
+  if (!notPushedOut) return false;
 
   // GENAU die Standard-Person von A - in beiden Spalten, die eine Zuweisung
   // fuehren. `assigned_to` darf leer sein: so sah eine Zeile aus, deren Spalte
