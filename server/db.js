@@ -9242,7 +9242,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 218,
+    version: 228,
     description: 'Documents: optional expiry date + reminder lead, widen reminders for document_expiry',
     foreignKeysOff: true,
     up: `

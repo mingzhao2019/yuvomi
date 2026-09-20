@@ -22,12 +22,14 @@ import { pathToFileURL } from 'node:url';
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const chain = pkg.scripts.test;
 // custom 保留一条包含定制模块测试的独立链；上游的根 test 链不应把这些
-// 已经由 test:custom 覆盖的套件误报为“未接入”。两条链仍共用同一套
-// browser/文件引用规则，避免为了兼容分支结构复制检查逻辑。
+// 已经由 test:custom 覆盖的套件误报为“未接入”。npm 会自动执行 custom
+// 的 pre/test/post 生命周期，因此三段都纳入检查，避免 posttest 中的套件
+// 被误报为未接入。所有链仍共用同一套 browser/文件引用规则。
 const testChains = [
   pkg.scripts.test,
   pkg.scripts['test:custom'],
   pkg.scripts['pretest:custom'],
+  pkg.scripts['posttest:custom'],
 ].filter(Boolean);
 
 test('fasting slices execute each owned suite exactly once', () => {
