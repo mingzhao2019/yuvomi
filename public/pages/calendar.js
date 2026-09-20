@@ -6241,6 +6241,16 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
       && requiresWholeSeriesConfirmation(event)
       && !await confirmLocalWholeSeriesEdit(event)) return;
 
+  // Bei jeder wiederkehrenden Bearbeitung ist ein unverändertes Formular ein
+  // No-op - auch bei einer externen oder outbound-synchronisierten Serie.
+  // Ohne diesen gemeinsamen Riegel würde der dort absichtlich fehlende
+  // Scope-Dialog trotzdem einen ganzen Master zurückschreiben.
+  if (mode === 'edit' && event?.recurrence_rule
+      && !eventFormChanged(overlay, attachmentState)) {
+    closeModal({ force: true });
+    return;
+  }
+
   // WOFUER DIE AENDERUNG GILT, FRAGT ERST DAS SPEICHERN (#1284). Bis dahin
   // stand „Gilt für" als Auswahl unter den Wiederholungsfeldern, vorbelegt mit
   // „Nur diesen Termin". Wer oben eine Person anhakte und speicherte, sah sie
@@ -6252,10 +6262,6 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
   // speichern wie bisher die ganze Reihe.
   let occurrenceScope = 'series';
   if (mode === 'edit' && isLocalRecurringSeries(event) && canEditCalendarOccurrence(event)) {
-    if (!eventFormChanged(overlay, attachmentState)) {
-      closeModal({ force: true });
-      return;
-    }
     const choice = await askOverModal(() => recurringScopeChoice({ action: 'save', event }));
     if (!choice) return;
     occurrenceScope = choice;

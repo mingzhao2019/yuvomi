@@ -548,16 +548,19 @@ test('lokale Serie ohne Recht auf Einzeltermine: die Ganze-Serie-Bestaetigung, k
   assert.equal(writes.find((c) => c.method === 'put')?.path, '/calendar/41');
 });
 
-test('lokale Serie mit Sync-Ziel: dieselbe Frage, „Nur diesen" nimmt den alten Weg', async () => {
-  const panel = openForm(DETACH_ONLY);
+test('Outbound-Serie bleibt extern: keine Reichweitenfrage, ganze Serie mit Ziel', async () => {
+  const panel = openForm(DETACH_ONLY, {
+    syncTargets: { caldav: [{ accountId: 4, accountName: 'Familie', calendarUrl: 'https://dav.test/family/', calendarName: 'Familie' }] },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
   userChecks(personBox(panel, 2));
   const { dialogs, writes } = await clickSave(panel, DETACH_ONLY, { answer: 'this' });
-  assert.equal(dialogs.length, 1);
-  assert.deepEqual(writes.map((c) => [c.method, c.path]).slice(0, 2), [
-    ['post', '/calendar'],
-    ['post', '/calendar/41/exceptions'],
-  ]);
-  assert.deepEqual(writes[0].body.assigned_to, [2]);
+  assert.equal(dialogs.length, 0);
+  const put = writes.find((c) => c.method === 'put');
+  assert.equal(put?.path, '/calendar/99');
+  assert.deepEqual(put?.body.assigned_to, [2]);
+  assert.equal(put?.body.target_caldav_account_id, 4);
+  assert.equal(put?.body.target_caldav_calendar_url, 'https://dav.test/family/');
 });
 
 // --------------------------------------------------------------------------
