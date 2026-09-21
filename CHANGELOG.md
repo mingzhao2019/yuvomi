@@ -110,7 +110,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   editor offered 15 minutes, 1 hour and 2 weeks, and those remain valid, and a value that is already
   stored - whatever it is - is accepted unchanged when it is sent back, so changing the name or the
   date of such a birthday never fails over a reminder nobody touched. In the editor, a custom amount
-  of 0 or above 999 is now refused instead of being saved. (#1384)
+  that is empty, not a whole number, 0 or above 999 is now refused instead of being saved: the editor
+  says so in the interface language and puts the cursor in the field. It checks only a reminder that
+  is being changed, so a stored amount nobody touched still never blocks saving, and an amount typed
+  and then left behind by picking a preset instead is not sent at all. (#1384)
 - **Housekeeping tasks turn "due today" and "overdue" on the household's day, not the server's.**
   The due day of a recurring task was counted in the time zone of the server. On a server running in
   UTC with a household in Berlin, a task done shortly after midnight counted as done the day before,
