@@ -1021,6 +1021,7 @@
         "filtersDisplay": "Affichage",
         "agendaDayEmpty": "Rien de prévu",
         "openInMap": "Ouvrir dans Maps",
+        "syncTargetSeveralAssignees": "Plusieurs personnes sont assignées, l'attribution ne choisit donc aucun calendrier. Utilisé à la place : {{target}}.",
         "filtersSources": "Calendriers",
         "filterUnassigned": "Non attribués",
         "syncTargetAssigneeAmbiguous": "Plusieurs calendriers ont cette personne comme attribution par défaut. Choisis toi-même la destination."

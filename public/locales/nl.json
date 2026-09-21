@@ -1021,6 +1021,7 @@
         "filtersDisplay": "Weergave",
         "agendaDayEmpty": "Niets gepland",
         "openInMap": "Openen in Maps",
+        "syncTargetSeveralAssignees": "Er zijn meerdere personen toegewezen, dus de toewijzing kiest geen agenda. In plaats daarvan geldt: {{target}}.",
         "filtersSources": "Agenda's",
         "filterUnassigned": "Niet toegewezen",
         "syncTargetAssigneeAmbiguous": "Meerdere agenda's hebben deze persoon als standaardtoewijzing. Kies het doel zelf."

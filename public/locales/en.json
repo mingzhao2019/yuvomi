@@ -1021,6 +1021,7 @@
         "filtersReset": "Clear all filters",
         "filtersDisplay": "Display",
         "openInMap": "Open in Maps",
+        "syncTargetSeveralAssignees": "Several people are assigned, so the assignment does not pick a calendar. Used instead: {{target}}.",
         "filtersSources": "Calendars",
         "filterUnassigned": "Unassigned",
         "syncTargetAssigneeAmbiguous": "Several calendars have this person as their default assignee. Choose the target yourself."

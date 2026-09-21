@@ -1033,6 +1033,7 @@
         "filtersDisplay": "Wyświetlanie",
         "agendaDayEmpty": "Nic zaplanowane",
         "openInMap": "Otwórz w mapach",
+        "syncTargetSeveralAssignees": "Przypisano kilka osób, więc przypisanie nie wybiera kalendarza. Zamiast tego obowiązuje: {{target}}.",
         "filtersSources": "Kalendarze",
         "filterUnassigned": "Nieprzypisane",
         "syncTargetAssigneeAmbiguous": "Kilka kalendarzy ma tę osobę jako domyślne przypisanie. Wybierz cel samodzielnie."

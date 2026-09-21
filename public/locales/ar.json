@@ -1021,6 +1021,7 @@
         "filtersDisplay": "العرض",
         "agendaDayEmpty": "لا شيء مُخطط",
         "openInMap": "فتح في الخرائط",
+        "syncTargetSeveralAssignees": "تم إسناد عدة أشخاص، لذلك لا يختار الإسناد أي تقويم. المستخدَم بدلًا من ذلك: {{target}}.",
         "filtersSources": "التقويمات",
         "filterUnassigned": "غير مُسندة",
         "syncTargetAssigneeAmbiguous": "لدى عدة تقويمات هذا الشخص كإسناد افتراضي. اختر الوجهة بنفسك."
