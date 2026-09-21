@@ -477,13 +477,29 @@ test('Sichtbarkeit gilt auch hier: fremde private Einträge zählen für niemand
   assert.deepEqual(fuerBob.map((c) => c.title), ['Gemeinsam']);
 });
 
-test('erledigte und abgelegte Aufgaben zählen nicht mehr herunter', () => {
+test('erledigte Aufgaben bleiben weg, archivierte markierte Aufgaben bleiben sichtbar', () => {
   reset();
   seedTask({ title: 'Erledigt', due: '2026-08-20', status: 'done' });
   seedTask({ title: 'Abgelegt', due: '2026-08-21', archivedAt: '2026-08-16T10:00:00Z' });
   seedTask({ title: 'Offen', due: '2026-08-22' });
   const items = cd({ userId: ALICE, todayKey: '2026-08-17' });
-  assert.deepEqual(items.map((c) => c.title), ['Offen']);
+  assert.deepEqual(items.map((c) => c.title), ['Abgelegt', 'Offen']);
+  assert.equal(items.find((c) => c.title === 'Abgelegt').archived, true,
+    'archivierte Aufgabe muss ihren Archivstatus bis zur Kachel tragen');
+  assert.equal(items.find((c) => c.title === 'Offen').archived, false,
+    'aktive Aufgabe darf nicht als archiviert markiert werden');
+  assert.ok(!items.some((c) => c.title === 'Erledigt'),
+    'erledigte Aufgabe bleibt trotz Countdown-Markierung ausgeschlossen');
+});
+
+test('archivierte Aufgabe folgt weiterhin der Nachfrist', () => {
+  reset();
+  seedTask({ title: 'Archiviert gerade drin', due: '2026-08-10', archivedAt: '2026-08-11T10:00:00Z' });
+  seedTask({ title: 'Archiviert zu alt', due: '2026-08-09', archivedAt: '2026-08-10T10:00:00Z' });
+
+  const items = cd({ userId: ALICE, todayKey: '2026-08-17' });
+  assert.deepEqual(items.map((c) => c.title), ['Archiviert gerade drin']);
+  assert.equal(items[0].days_until, -7);
 });
 
 test('eine markierte Aufgabe ohne Fälligkeit hat nichts, worauf sie zeigen könnte', () => {

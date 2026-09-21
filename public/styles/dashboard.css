@@ -3345,12 +3345,29 @@ svg.weather-forecast__icon {
 }
 
 .countdown-item__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   margin-top: var(--space-0h);
   color: var(--color-text-secondary);
   font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.countdown-item__archived {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0h);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.countdown-item__archived .icon-xs {
+  flex: 0 0 auto;
 }
 
 /* DIE ZAHL IST DER GRUND, WARUM DIE ZEILE DA STEHT, und sie steht deshalb

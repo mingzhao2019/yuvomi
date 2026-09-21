@@ -214,7 +214,7 @@ function overdueGraceDays(d) {
  * @param {number} [opts.limit]
  * @returns {{items: Array<{source: 'event'|'task', id: number, title: string,
  *                  date: string, days_until: number, icon: string|null,
- *                  color: string|null, recurring: boolean}>, total: number}}
+ *                  color: string|null, recurring: boolean, archived?: boolean}>, total: number}}
  */
 export function getCountdowns(d, {
   userId = null, todayKey, hiddenModules = null, limit = DEFAULT_LIMIT,
@@ -361,10 +361,11 @@ function eventCountdowns(d, userId, todayKey, graceDays) {
 }
 
 function taskCountdowns(d, userId, todayKey, graceDays) {
-  // Eine erledigte oder abgelegte Aufgabe zählt nicht mehr herunter: bei einer
-  // wiederkehrenden hat das Abhaken die NÄCHSTE Instanz schon erzeugt (die dann
-  // ihrerseits hier steht), und eine abgelegte ist aus dem Lauf genommen -
-  // dieselbe Regel wie in „Heute auf einen Blick" (#688).
+  // Eine erledigte Aufgabe zählt nicht mehr herunter: bei einer wiederkehrenden
+  // hat das Abhaken die NÄCHSTE Instanz schon erzeugt (die dann ihrerseits hier
+  // steht). Eine abgelegte markierte Aufgabe bleibt dagegen sichtbar, damit die
+  // Übersicht die bewusste Erinnerung nicht lautlos verliert; die Nachfrist
+  // begrenzt weiterhin, wie lange ein einmaliges Datum stehen bleibt.
   //
   // Die Untergrenze ist die Nachfrist, nicht heute: eine markierte Aufgabe, die
   // gestern fällig war, ist genau der Moment, für den jemand sie markiert hat.
@@ -372,11 +373,11 @@ function taskCountdowns(d, userId, todayKey, graceDays) {
   // sie laufen nicht ab.
   const floor = shiftKey(todayKey, -graceDays) ?? todayKey;
   const rows = d.prepare(`
-    SELECT t.id, t.title, t.due_date, t.is_recurring, t.recurrence_from_completion
+    SELECT t.id, t.title, t.due_date, t.is_recurring, t.recurrence_from_completion,
+           t.archived_at
     FROM tasks t
     WHERE t.countdown = 1
       AND t.status != 'done'
-      AND t.archived_at IS NULL
       AND t.due_date IS NOT NULL
       AND t.due_date >= CASE WHEN t.is_recurring = 1 THEN @today ELSE @floor END
       AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
@@ -395,6 +396,7 @@ function taskCountdowns(d, userId, todayKey, graceDays) {
       icon: 'check-square',
       color: null,
       recurring: Boolean(row.is_recurring),
+      archived: Boolean(row.archived_at),
     });
   }
   return out;

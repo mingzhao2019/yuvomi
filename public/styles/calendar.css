@@ -128,10 +128,14 @@
   padding: var(--space-0h);
 }
 
-/* 搜索入口是头部的固定槽位：日历的搜索结果栏仍然在打开后插到
+/* 搜索和筛选入口是头部的固定槽位：日历的搜索结果栏仍然在打开后插到
  * toolbar 下方，但入口本身不能跟随图层/新增按钮掉到另一行。这样桌面
- * 和移动端都与任务页保持同一套“标题旁的搜索入口”结构。 */
+ * 和移动端都与任务页保持同一套“标题旁的搜索和筛选入口”结构。 */
 .cal-toolbar__search-trigger {
+  flex: 0 0 auto;
+}
+
+.cal-toolbar__filter-btn {
   flex: 0 0 auto;
 }
 
@@ -141,6 +145,7 @@
    * header row instead of depending on the number of layer buttons. */
   .cal-toolbar > .page-toolbar__center { order: 1; }
   .cal-toolbar > .cal-toolbar__search-trigger { order: 2; }
+  .cal-toolbar > .cal-toolbar__filter-btn { order: 2; }
   .cal-toolbar > .page-toolbar__actions { order: 3; }
 }
 
@@ -177,7 +182,8 @@
 
 /* Mobiles Umbrechen kommt jetzt aus .page-toolbar--wrap (layout.css): Titel und
  * Suche teilen die erste Zeile, die Datums-Navigation (.cal-toolbar__month =
- * Center-Slot) folgt als eigene Zeile, danach kommen Aktionen und Ansicht.
+ * Center-Slot) folgt als eigene Zeile, danach kommen die übrigen Aktionen und
+ * die Ansicht.
  *
  * Das Scrollen der Ansichts-Leiste stand hier als Modul-Rezept - ohne
  * `min-width: 0`, also scrollte sie zwar, schrumpfte aber nie: in `uk` lief der
@@ -185,7 +191,7 @@
  * Shell-Regel „Tab-Leiste im Modulkopf" (layout.css), die über `[role=tablist]`
  * greift und deshalb jede Leiste erfasst, nicht die vier bekannten. */
 @media (max-width: 767px) {
-  /* Large Title 与搜索入口共享第一行；日期导航、图层操作和视图栏各自
+  /* Large Title 与搜索、筛选入口共享第一行；日期导航、图层操作和视图栏各自
    * 保留明确的槽位。搜索从 actions 中移出后不会再单独占一行。 */
   .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
     > .page-toolbar__title {
@@ -195,6 +201,11 @@
 
   .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
     > .cal-toolbar__search-trigger {
+    order: 0;
+  }
+
+  .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
+    > .cal-toolbar__filter-btn {
     order: 0;
   }
 
@@ -225,7 +236,7 @@
 
 /* 紧凑高度（例如手机横屏）由 Shell 强制保持单行。上面的纵向槽位只
  * 适用于有足够高度的移动端；这里撤回 100% 基础，避免把日期导航和
- * actions 挤出横向滚动区，同时保留标题右侧的搜索入口。 */
+ * actions 挤出横向滚动区，同时保留标题右侧的搜索和筛选入口。 */
 @media (max-width: 767px) and (max-height: 499px) {
   .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
     > .page-toolbar__center {

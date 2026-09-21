@@ -2004,7 +2004,6 @@ function renderToolbar() {
   ` : '';
 
   const filterBtnHtml = `
-    ${scheduleWarningHtml}
     <button class="btn btn--icon cal-toolbar__filter-btn ${filterCount ? 'cal-toolbar__filter-btn--active' : ''}"
             id="cal-filters" aria-label="${filterCount ? esc(t('calendar.filtersActive', { count: filterCount })) : t('calendar.filtersOpen')}"
             title="${t('calendar.filters')}" aria-haspopup="dialog">
@@ -2021,9 +2020,10 @@ function renderToolbar() {
             aria-expanded="false">
       <i data-lucide="search" aria-hidden="true"></i>
     </button>
+    ${filterBtnHtml}
     <div class="page-toolbar__center cal-toolbar__month">${periodNavHtml()}</div>
     <div class="page-toolbar__actions">
-      ${filterBtnHtml}
+      ${scheduleWarningHtml}
       ${readOnly() ? '' : `
       <button class="btn btn--primary toolbar-new-btn" id="cal-add" aria-label="${t('calendar.addEvent')}">
         <i data-lucide="plus" aria-hidden="true"></i>

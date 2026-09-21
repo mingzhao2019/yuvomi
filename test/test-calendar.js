@@ -33,7 +33,13 @@ test('Kalender-Toolbar verwendet nur den Filterblatt-Einstieg', () => {
   assert(warningAt >= 0 && warningAt < filterAt,
     'die Schichtwarnung muss vor dem Filterknopf definiert werden');
   assert(body.includes('${filterBtnHtml}'),
-    'der erzeugte Filterknopf muss in die Toolbar-Actions eingesetzt werden');
+    'der erzeugte Filterknopf muss in die Toolbar eingesetzt werden');
+  assert(/id="cal-search"[\s\S]*\$\{filterBtnHtml\}[\s\S]*class="page-toolbar__center/.test(body),
+    'Suche und Filter müssen als benachbarte Kopfaktionen vor der Datumsnavigation stehen');
+  assert(/<div class="page-toolbar__actions">\s*\$\{scheduleWarningHtml\}/.test(body),
+    'die übrigen Aktionen behalten die Schichtwarnung und den Anlegeknopf');
+  assert(!/<div class="page-toolbar__actions">[\s\S]*\$\{filterBtnHtml\}/.test(body),
+    'der Filterknopf darf nicht mehr im Actions-Slot liegen');
   assert(body.includes("bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters)"),
     'der Filterknopf muss das Filterblatt oeffnen');
 

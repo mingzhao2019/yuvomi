@@ -643,6 +643,33 @@ test('Cockpit-Coda nennt die morgen fällige Aufgabe statt falscher Entwarnung',
   }
 });
 
+test('Countdown-Kachel markiert archivierte Aufgaben sichtbar', async () => {
+  const { __test } = await import('../public/pages/dashboard.js');
+  const previousWindow = global.window;
+  global.window = { yuvomi: null };
+  try {
+    const html = __test.renderCountdowns([
+      {
+        source: 'task', id: 7, title: 'Alte Aufgabe', date: '2026-09-25',
+        days_until: 4, icon: 'check-square', color: null, recurring: false,
+        archived: true,
+      },
+      {
+        source: 'task', id: 8, title: 'Neue Aufgabe', date: '2026-09-26',
+        days_until: 5, icon: 'check-square', color: null, recurring: false,
+        archived: false,
+      },
+    ], '1x2', 2);
+    nodeAssert.match(html, /countdown-item__archived/, 'archived row must expose a visible marker');
+    nodeAssert.match(html, /data-lucide="archive"/, 'archived row must use the archive icon');
+    nodeAssert.match(html, /tasks\.statusArchived/, 'archived marker must be localized');
+    nodeAssert.equal((html.match(/countdown-item__archived/g) ?? []).length, 1,
+      'active rows must not receive the archived marker');
+  } finally {
+    global.window = previousWindow;
+  }
+});
+
 test('"Heute frei"/"Fuer heute alles erledigt" entfaellt neben einer sichtbaren Schichtplan-Kachel (S-18)', async () => {
   const { __test } = await import('../public/pages/dashboard.js');
   const prevWindow = global.window;
