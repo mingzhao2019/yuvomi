@@ -311,7 +311,10 @@
         "wasteMore_one": "+{{count}} meer",
         "optionWasteTypes": "Welke afvalsoorten?",
         "optionWasteTypesHint": "Zonder selectie toont het overzicht alle afvalsoorten.",
-        "optionWasteTypesEmpty": "Er zijn nog geen afvalsoorten."
+        "optionWasteTypesEmpty": "Er zijn nog geen afvalsoorten.",
+        "nutritionNoTarget": "Nog geen dagdoel ingesteld.",
+        "nutritionEntries": "{{count}} items vandaag",
+        "nutritionEntries_one": "{{count}} item vandaag"
     },
     "tasks": {
         "manageCategories": "Categorieën beheren",
@@ -4939,7 +4942,62 @@
             "h": "{{hours}} u",
             "m": "{{minutes}} min"
         },
-        "careBanner": "Je noteert voor {{name}}."
+        "careBanner": "Je noteert voor {{name}}.",
+        "nutrition": {
+            "title": "Voedingswaarden",
+            "emptyTitle": "Nog geen voedingswaarden vastgelegd",
+            "emptyDesc": "Noteer wat je hebt gegeten - de cijfers staan op de verpakking.",
+            "add": "Item toevoegen",
+            "edit": "Item bewerken",
+            "saved": "Item opgeslagen.",
+            "saveError": "Item kon niet worden opgeslagen.",
+            "deleted": "Item verwijderd.",
+            "invalid": "Geef een naam, een tijdstip en geldige getallen op.",
+            "noEntries": "Nog geen items.",
+            "entriesTitle": "Items",
+            "personsLabel": "Persoon",
+            "todayTitle": "Vandaag",
+            "targetTitle": "Dagdoel",
+            "targetSet": "Doel instellen",
+            "targetEdit": "Doel bewerken",
+            "targetHint": "Laat leeg wat je niet wilt bijhouden. Een 0 is een doel, een leeg veld niet.",
+            "targetNone": "Nog geen dagdoel ingesteld.",
+            "targetNoneHint": "Zonder doel toont deze pagina alleen het totaal.",
+            "targetSaved": "Dagdoel opgeslagen.",
+            "targetSaveError": "Dagdoel kon niet worden opgeslagen.",
+            "ofTarget": "{{value}} van {{target}} {{unit}}",
+            "noTargetValue": "{{value}} {{unit}}",
+            "loadError": "Voedingsgegevens konden niet worden geladen.",
+            "loadErrorDesc": "Probeer het later opnieuw.",
+            "retry": "Opnieuw proberen",
+            "field": {
+                "title": "Naam",
+                "consumedAt": "Tijdstip",
+                "mealType": "Maaltijd",
+                "noMealType": "Geen maaltijd",
+                "note": "Notitie"
+            },
+            "meal": {
+                "breakfast": "Ontbijt",
+                "lunch": "Lunch",
+                "dinner": "Avondeten",
+                "snack": "Tussendoortje"
+            },
+            "nutrient": {
+                "energyKcal": "Energie",
+                "fat": "Vetten",
+                "saturatedFat": "waarvan verzadigd",
+                "carbs": "Koolhydraten",
+                "sugar": "waarvan suikers",
+                "protein": "Eiwitten",
+                "salt": "Zout",
+                "fiber": "Vezels"
+            },
+            "unit": {
+                "kcal": "kcal",
+                "g": "g"
+            }
+        }
     },
     "rewards": {
         "title": "Beloningen",

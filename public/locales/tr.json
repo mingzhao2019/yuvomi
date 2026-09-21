@@ -311,7 +311,10 @@
         "wasteMore_one": "+{{count}} tane daha",
         "optionWasteTypes": "Hangi atık türleri?",
         "optionWasteTypesHint": "Seçim yapılmazsa genel bakış tüm atık türlerini gösterir.",
-        "optionWasteTypesEmpty": "Henüz atık türü yok."
+        "optionWasteTypesEmpty": "Henüz atık türü yok.",
+        "nutritionNoTarget": "Henüz günlük hedef belirlenmedi.",
+        "nutritionEntries": "Bugün {{count}} kayıt",
+        "nutritionEntries_one": "Bugün {{count}} kayıt"
     },
     "tasks": {
         "manageCategories": "Kategorileri yönet",
@@ -4939,7 +4942,62 @@
             "h": "{{hours}} sa",
             "m": "{{minutes}} dk"
         },
-        "careBanner": "{{name}} için kayıt giriyorsun."
+        "careBanner": "{{name}} için kayıt giriyorsun.",
+        "nutrition": {
+            "title": "Besin değerleri",
+            "emptyTitle": "Henüz besin değeri kaydı yok",
+            "emptyDesc": "Ne yediğini kaydet - sayılar ambalajın üzerinde yazıyor.",
+            "add": "Kayıt ekle",
+            "edit": "Kaydı düzenle",
+            "saved": "Kayıt kaydedildi.",
+            "saveError": "Kayıt kaydedilemedi.",
+            "deleted": "Kayıt silindi.",
+            "invalid": "Lütfen bir ad, saat ve geçerli sayılar gir.",
+            "noEntries": "Henüz kayıt yok.",
+            "entriesTitle": "Kayıtlar",
+            "personsLabel": "Kişi",
+            "todayTitle": "Bugün",
+            "targetTitle": "Günlük hedef",
+            "targetSet": "Hedef belirle",
+            "targetEdit": "Hedefi düzenle",
+            "targetHint": "Takip etmek istemediklerini boş bırak. Sıfır bir hedeftir, boş alan değildir.",
+            "targetNone": "Henüz günlük hedef belirlenmedi.",
+            "targetNoneHint": "Hedef olmadan bu sayfa yalnızca toplamı gösterir.",
+            "targetSaved": "Günlük hedef kaydedildi.",
+            "targetSaveError": "Günlük hedef kaydedilemedi.",
+            "ofTarget": "{{target}} {{unit}} içinde {{value}}",
+            "noTargetValue": "{{value}} {{unit}}",
+            "loadError": "Besin değeri verileri yüklenemedi.",
+            "loadErrorDesc": "Lütfen daha sonra tekrar deneyin.",
+            "retry": "Tekrar dene",
+            "field": {
+                "title": "Ad",
+                "consumedAt": "Saat",
+                "mealType": "Öğün",
+                "noMealType": "Öğün yok",
+                "note": "Not"
+            },
+            "meal": {
+                "breakfast": "Kahvaltı",
+                "lunch": "Öğle yemeği",
+                "dinner": "Akşam yemeği",
+                "snack": "Atıştırmalık"
+            },
+            "nutrient": {
+                "energyKcal": "Enerji",
+                "fat": "Yağ",
+                "saturatedFat": "bunun doymuş yağ olan kısmı",
+                "carbs": "Karbonhidrat",
+                "sugar": "bunun şeker olan kısmı",
+                "protein": "Protein",
+                "salt": "Tuz",
+                "fiber": "Lif"
+            },
+            "unit": {
+                "kcal": "kcal",
+                "g": "g"
+            }
+        }
     },
     "rewards": {
         "title": "Ödüller",
