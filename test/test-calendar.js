@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { MIGRATIONS_SQL } from '../server/db-schema-test.js';
 import { eachRule } from './css-rules.js';
 const { __test: calendarHelpers } = await import('../public/pages/calendar.js');
-const { setDisplayTimeZone } = await import('../public/utils/timezone.js');
+const { setDisplayTimeZone, displayTimeZone } = await import('/utils/timezone.js');
 
 let passed = 0;
 let failed = 0;
@@ -2173,8 +2173,6 @@ test('renderDayView: zwei ueberlappende Schichten am selben Tag bekommen untersc
 // Vorher nagelte das npm-Skript `TZ=Europe/Berlin` fuer die GANZE Suite fest.
 // Der Pin trug den einen Fall, der ihn braucht, deckte aber jede kuenftige
 // Zonenabhaengigkeit der uebrigen Tests dieser Datei mit zu.
-const { setDisplayTimeZone, displayTimeZone } = await import('/utils/timezone.js');
-
 function withDisplayTimeZone(zone, fn) {
   const zuvor = displayTimeZone();
   try { setDisplayTimeZone(zone); fn(); }
@@ -2339,7 +2337,7 @@ function weekColumnHtml(html, dayStr) {
   return html.slice(from, next === -1 ? undefined : next);
 }
 
-const TIMED_BLOCK_RE = /class="(week|day)-event[^"]*" data-id="(\d+)"\s+style="top:([^;]+);height:([^;]+);left:([^;]+);width:([^;"]+);/g;
+const TIMED_BLOCK_RE = /class="(week|day)-event[^"]*"[^>]*data-id="(\d+)"\s+style="top:([^;]+);height:([^;]+);left:([^;]+);width:([^;"]+);/g;
 
 function timedBlocks(html) {
   return [...html.matchAll(TIMED_BLOCK_RE)].map((m) => ({

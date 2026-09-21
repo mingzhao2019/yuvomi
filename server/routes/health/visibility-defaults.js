@@ -33,7 +33,7 @@ const router = express.Router();
 // `open` ist der Wert, den DIE TABELLE DES BEREICHS fuer "der Haushalt darf
 // mitlesen" schreibt. Er steht hier und nicht als Konstante im Code, weil er
 // genau an einer Stelle abweicht: `health_nutrition_entries` fuehrt seit
-// Migration 223 den kanonischen Satz aus docs/DECISIONS.md Abschnitt 5 und
+// Migration 233 den kanonischen Satz aus docs/DECISIONS.md Abschnitt 5 und
 // schreibt dort 'all'. Diese Tabelle hier (`health_visibility_defaults`) fuehrt
 // weiter das Paar private/family - sie ist die WAHL der Person, nicht die
 // Zeile, und eine Migration, die gespeicherte Werte umschreibt, ist in

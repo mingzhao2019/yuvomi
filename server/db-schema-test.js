@@ -1540,8 +1540,8 @@ const MIGRATIONS_SQL = {
   // Bestaetigte Zuordnung Rezeptzutat -> Vorratszeile (#1314). Der Anker ist
   // (recipe_id, ingredient_key), NICHT recipe_ingredients.id: die Zutatenzeilen
   // werden beim Speichern eines Rezepts komplett neu geschrieben. Begruendung
-  // samt Loeschverhalten steht bei Migration 222 in server/db.js.
-  222: `
+  // samt Loeschverhalten steht bei Migration 232 in server/db.js.
+  232: `
     CREATE TABLE IF NOT EXISTS recipe_ingredient_pantry_matches (
       recipe_id      INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
       ingredient_key TEXT    NOT NULL,
@@ -1558,10 +1558,10 @@ const MIGRATIONS_SQL = {
   // Tagesziel je Person und erfasster Eintrag (#1326). Die acht Naehrwerte
   // sind fest und heissen ueberall gleich; NULL heisst "nicht gesetzt" und 0
   // ist ein ausdrueckliches Ziel - die Begruendung dazu, samt der Wahl des
-  // kanonischen Sichtbarkeits-Vokabulars, steht bei Migration 223 in
+  // kanonischen Sichtbarkeits-Vokabulars, steht bei Migration 233 in
   // server/db.js. Die Trigger bleiben hier weg: eine Testdatenbank braucht
   // kein updated_at, das sich selbst nachzieht.
-  223: `
+  233: `
     CREATE TABLE health_nutrition_targets (
       user_id          INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       energy_kcal      REAL CHECK (energy_kcal      IS NULL OR energy_kcal      >= 0),

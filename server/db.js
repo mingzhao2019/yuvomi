@@ -9635,7 +9635,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 221,
+    version: 231,
     description: 'rewards: per-reward quantity for the household plus a machine-readable rejection reason',
     up: `
       -- STUECKZAHL JE PRAEMIE, FUER DEN GANZEN HAUSHALT (#1310). Der Katalog ist
@@ -9664,7 +9664,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 222,
+    version: 232,
     description: 'Recipes: the household can confirm which stock row an ingredient means (#1314)',
     up: `
       -- Die EINE Aussage aus #1314, Stufe 1: "diese Zutat meint diese Zeile in
@@ -9743,7 +9743,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 223,
+    version: 233,
     description: 'Health: daily nutrition target per person and a logged intake (#1326)',
     up: `
       -- ACHT SPALTEN, FEST, UND DIESELBEN ACHT UEBERALL (docs/DECISIONS.md

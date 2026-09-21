@@ -48,7 +48,7 @@ function withSource(recipe) {
  * sondern eine Messung: PUT /:id weiter unten loescht alle Zutaten eines
  * Rezepts und legt sie neu an, der Provider-Sync ebenso. Eine ID-Verbindung
  * waere nach dem naechsten Speichern still verschwunden. Gespeichert ist
- * deshalb (recipe_id, normalisierter Name) - siehe Migration 222.
+ * deshalb (recipe_id, normalisierter Name) - siehe Migration 232.
  *
  * WAS HIER NICHT PASSIERT: nichts wird geraten. Eine Zutat ohne Zeile in
  * `recipe_ingredient_pantry_matches` bekommt `pantry_item_id: null` und sonst

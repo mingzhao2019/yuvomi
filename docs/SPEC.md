@@ -374,10 +374,10 @@ Points-and-rewards system. A member earns a task's `points` when the task is mar
 | description | TEXT | |
 | is_active | INTEGER | 0/1, default 1 |
 | sort_order | INTEGER | NOT NULL DEFAULT 0 |
-| quantity | INTEGER | nullable, migration v221 - how many units the **household** has; `NULL` = unlimited |
+| quantity | INTEGER | nullable, migration v231 - how many units the **household** has; `NULL` = unlimited |
 | created_by | INTEGER | FK → Users (SET NULL) |
 
-**How many there are (#1310, migration v221).** The catalog is household-wide and has no mapping from
+**How many there are (#1310, migration v231).** The catalog is household-wide and has no mapping from
 a reward to a child, so a physical object used to be open to every child at once and redeemable again
 and again. `quantity` limits it for the whole household - a target per child is a different question
 and deliberately not this one. `NULL` means unlimited and is the state of every reward created before
@@ -404,7 +404,7 @@ in between counting and writing.
 | reward_name / reward_icon / cost | TEXT / TEXT / INTEGER | snapshot at request time |
 | status | TEXT | pending / fulfilled / rejected / cancelled |
 | note | TEXT | optional member note |
-| decision_reason | TEXT | nullable, migration v221 - machine-readable reason for an automatic decision (`out_of_stock`); `NULL` = decided by hand |
+| decision_reason | TEXT | nullable, migration v231 - machine-readable reason for an automatic decision (`out_of_stock`); `NULL` = decided by hand |
 | requested_by / decided_by | INTEGER | FK → Users (SET NULL) |
 | decided_at | TEXT | ISO timestamp, nullable |
 
@@ -640,7 +640,7 @@ provider sync delete all of a recipe's ingredient rows and insert them again, so
 is not stable across a save. Anything that wants to remember something about an ingredient has to
 anchor on `(recipe_id, name)` - see Recipe Ingredient Pantry Matches below.
 
-### Recipe Ingredient Pantry Matches (migration v222, #1314)
+### Recipe Ingredient Pantry Matches (migration v232, #1314)
 The household's own confirmed statement that one ingredient of one recipe means one row of its
 pantry. Stage 1 of #1314; it stores the match and nothing else - no quantity arithmetic, no "what
 can I cook" reading.

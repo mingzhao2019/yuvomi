@@ -4,7 +4,7 @@
  *        anderer Test haelt:
  *
  *   1. SCHEMA UND ROUTE EXISTIEREN. Die ehrliche rote Erstmessung: gegen den
- *      Stand vor Migration 223 liefert `PRAGMA table_info(health_nutrition_entries)`
+ *      Stand vor Migration 233 liefert `PRAGMA table_info(health_nutrition_entries)`
  *      nichts und `GET /nutrition/entries` ist 404.
  *   2. ALLE ACHT NAEHRWERTE EINZELN BEIM NAMEN, durch POST und GET. Acht
  *      Spalten, die in Migration, Route, CSV und Formular von Hand geschrieben
@@ -127,7 +127,7 @@ test.after(() => server.close());
 
 // ── 1. Schema + Migration ───────────────────────────────────────────────────
 
-test('Migration 223 legt beide Tabellen mit den acht Spalten an', () => {
+test('Migration 233 legt beide Tabellen mit den acht Spalten an', () => {
   // DIE ROTE ERSTMESSUNG IN IHRER EHRLICHEN FORM: gegen den Stand vor der
   // Migration ist `columns` leer, und alles darunter faellt mit ihr.
   const columns = (table) => db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);

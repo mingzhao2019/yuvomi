@@ -252,10 +252,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Each reminder can be enabled independently. Changing a fast, its goal or its permissions removes
   notifications that no longer apply without erasing the saved preference. (#1179)
 
-- **A fasting timer can now be added to the dashboard.** It shows only your own fast and lets you
-  start or finish it there, using the same safety confirmation and timer controls as the journal.
-  Existing dashboards keep it hidden until you add it from the dashboard editor. (#1180)
-
 ### Changed
 
 - **The jump-to-now reset sits behind the period stepper in all three period-navigation headers,
@@ -278,42 +274,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **A reminder set for a single occurrence of a repeating event now arrives at the time it says.**
-  Changing the reminder of one occurrence ("Only this event" or "This and following") stored the
-  time as if the household clock were UTC. East of UTC the reminder came that many hours late - in a
-  household two hours ahead of UTC, "one hour before" a 09:00 occurrence ended up an hour after it
-  had started; west of UTC it came early by the same amount. Only households whose clock is UTC were
-  unaffected, which is why it went unnoticed for so long. The reminder of a whole event and every
-  other reminder in Yuvomi were never affected. The same misreading could also make an occurrence
-  reminder vanish: an occurrence whose reminder matches the series' is folded back into the series,
-  and across a daylight-saving boundary two different lead times looked alike - an hour before a
-  summer-time occurrence and two hours before a winter-time one both came out as three. The reminder
-  you had set for that one date was deleted without a word and the series default took over. Both
-  sides of that comparison now read the same clock. Occurrence reminders written before this fix keep
-  their wrong time: they cannot be corrected for you, because nothing in the stored row says which
-  time zone and which lead time it was written from, and moving somebody's reminder on a guess is
-  worse than leaving it. The edit dialog names such a time honestly instead of hiding it (#1260), and
-  saving the reminder again writes it correctly. (#1291)
-- **Saving a change to one event of a repeating series now asks which events it is for.** Editing an
-  event of a series - adding a person, for example - used to change that one event only, unless you
-  had spotted the "Applies to" field below the repeat settings, which started on "Only this event".
-  The person then showed on that single event, and every other event of the series stayed without
-  them: a grey dot, no avatar. The field is gone. Saving now asks "Only this event", "This and
-  following" or "Whole series", with none of them picked in advance, and cancelling takes you back to
-  the form without saving anything. If nothing was changed, saving simply closes the form. A single
-  event, and a series that belongs to a synced or subscribed calendar, save as before, without the
-  question. Deleting an event of a series asks the same question with the same three buttons,
-  instead of a drop-down. A series that already has a person on one event only can be put right by
-  opening one of the events without them, picking the person and choosing "Whole series". Both
-  dialogs say which event they are about, above the three buttons: its title and the date of the
-  occurrence you opened, on the household's clock. That line is what tells you where "This and
-  following" would cut the series, and it matters most when deleting - by then the list or the form
-  has already closed, and the question is the only thing on screen. A question
-  that has just opened ignores taps and clicks for a third of a second, so a quick second tap
-  on Save - or the second click of a double-click on Delete - can no longer answer a question that
-  nobody has read yet; on a phone the dialog slides up into that very spot. Forms and sheets you
-  opened yourself are unaffected and take your first tap as they always did. The keyboard and screen
-  readers are not affected: Enter, Space, Tab and Escape work from the first moment. (#1284)
 - **An installation that is interrupted during its very first start comes back up on its own.**
   An empty database file stops Yuvomi from starting, which is right for every way such a file
   comes about but one: with `DB_ENCRYPTION_KEY` set, creating the database file and writing
@@ -358,6 +318,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hears from their reminders, and an administrator is unaffected. The reminders are held back rather
   than deleted, because a permission can be given back - once it is, the ones that fell due in the
   meantime arrive, as they would after the server had been down for a while. (#1289)
+- **A reminder set for a single occurrence of a repeating event now arrives at the time it says.**
+  Changing the reminder of one occurrence ("Only this event" or "This and following") stored the
+  time as if the household clock were UTC. East of UTC the reminder came that many hours late - in a
+  household two hours ahead of UTC, "one hour before" a 09:00 occurrence ended up an hour after it
+  had started; west of UTC it came early by the same amount. Only households whose clock is UTC were
+  unaffected, which is why it went unnoticed for so long. The reminder of a whole event and every
+  other reminder in Yuvomi were never affected. The same misreading could also make an occurrence
+  reminder vanish: an occurrence whose reminder matches the series' is folded back into the series,
+  and across a daylight-saving boundary two different lead times looked alike - an hour before a
+  summer-time occurrence and two hours before a winter-time one both came out as three. The reminder
+  you had set for that one date was deleted without a word and the series default took over. Both
+  sides of that comparison now read the same clock. Occurrence reminders written before this fix keep
+  their wrong time: they cannot be corrected for you, because nothing in the stored row says which
+  time zone and which lead time it was written from, and moving somebody's reminder on a guess is
+  worse than leaving it. The edit dialog names such a time honestly instead of hiding it (#1260), and
+  saving the reminder again writes it correctly. (#1291)
+- **Saving a change to one event of a repeating series now asks which events it is for.** Editing an
+  event of a series - adding a person, for example - used to change that one event only, unless you
+  had spotted the "Applies to" field below the repeat settings, which started on "Only this event".
+  The person then showed on that single event, and every other event of the series stayed without
+  them: a grey dot, no avatar. The field is gone. Saving now asks "Only this event", "This and
+  following" or "Whole series", with none of them picked in advance, and cancelling takes you back to
+  the form without saving anything. If nothing was changed, saving simply closes the form. A single
+  event, and a series that belongs to a synced or subscribed calendar, save as before, without the
+  question. Deleting an event of a series asks the same question with the same three buttons,
+  instead of a drop-down. A series that already has a person on one event only can be put right by
+  opening one of the events without them, picking the person and choosing "Whole series". Both
+  dialogs say which event they are about, above the three buttons: its title and the date of the
+  occurrence you opened, on the household's clock. That line is what tells you where "This and
+  following" would cut the series, and it matters most when deleting - by then the list or the form
+  has already closed, and the question is the only thing on screen. A question
+  that has just opened ignores taps and clicks for a third of a second, so a quick second tap
+  on Save - or the second click of a double-click on Delete - can no longer answer a question that
+  nobody has read yet; on a phone the dialog slides up into that very spot. Forms and sheets you
+  opened yourself are unaffected and take your first tap as they always did. The keyboard and screen
+  readers are not affected: Enter, Space, Tab and Escape work from the first moment. (#1284)
 
 - **An empty database file no longer starts Yuvomi as an empty instance.** If the database file
   existed but had a size of zero, Yuvomi took it for a new database, set it up from scratch and came
