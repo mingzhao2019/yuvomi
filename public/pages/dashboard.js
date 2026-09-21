@@ -1188,19 +1188,20 @@ function renderCountdowns(allItems, size, total = null) {
     const anchor = c.source === 'task'
       ? ` data-task-id="${esc(String(c.id))}" data-task-title="${esc(c.title)}"`
       : ` data-route="/calendar?open=${encodeURIComponent(String(c.id))}&date=${encodeURIComponent(c.date)}"`;
+    const completedEvent = c.source === 'event' && c.completed;
     return `
-      <div class="countdown-item" role="button" tabindex="0"${anchor}${accent}>
+      <div class="countdown-item${completedEvent ? ' countdown-item--completed' : ''}" role="button" tabindex="0"${anchor}${accent}>
         <span class="countdown-item__icon" aria-hidden="true">
           <i data-lucide="${esc(c.icon || 'calendar')}"></i>
         </span>
         <div class="countdown-item__body">
-          <div class="countdown-item__title">${esc(c.title)}</div>
+          <div class="countdown-item__title${completedEvent ? ' countdown-item__title--completed' : ''}">${esc(c.title)}</div>
           <div class="countdown-item__meta">
             <span>${formatDate(c.date)}</span>
-            ${c.source === 'task' && c.archived ? `
-              <span class="countdown-item__archived" title="${esc(t('tasks.statusArchived'))}">
-                <i data-lucide="archive" class="icon-xs" aria-hidden="true"></i>
-                <span>${esc(t('tasks.statusArchived'))}</span>
+            ${completedEvent ? `
+              <span class="countdown-item__completed" title="${esc(t('calendar.completed'))}">
+                <i data-lucide="archive-restore" class="icon-xs" aria-hidden="true"></i>
+                <span>${esc(t('calendar.completed'))}</span>
               </span>
             ` : ''}
           </div>

@@ -91,6 +91,13 @@ function seedTask({
   `).run(title, status, due, createdBy, visibility, countdown, archivedAt).lastInsertRowid;
 }
 
+function completeEvent(eventId, occurrenceKey = 'single', userId = ALICE) {
+  get().prepare(`
+    INSERT INTO calendar_event_completions (event_id, occurrence_key, user_id)
+    VALUES (?, ?, ?)
+  `).run(eventId, occurrenceKey, userId);
+}
+
 function reset() {
   get().prepare('DELETE FROM calendar_events').run();
   get().prepare('DELETE FROM tasks').run();
@@ -477,29 +484,41 @@ test('Sichtbarkeit gilt auch hier: fremde private Einträge zählen für niemand
   assert.deepEqual(fuerBob.map((c) => c.title), ['Gemeinsam']);
 });
 
-test('erledigte Aufgaben bleiben weg, archivierte markierte Aufgaben bleiben sichtbar', () => {
+test('erledigte und abgelegte Aufgaben bleiben weg, erledigte Kalendertermine bleiben sichtbar', () => {
   reset();
   seedTask({ title: 'Erledigt', due: '2026-08-20', status: 'done' });
   seedTask({ title: 'Abgelegt', due: '2026-08-21', archivedAt: '2026-08-16T10:00:00Z' });
   seedTask({ title: 'Offen', due: '2026-08-22' });
+  const eventId = seedEvent({ title: 'Erledigter Termin', start: '2026-08-23' });
+  completeEvent(eventId);
+  const openEventId = seedEvent({ title: 'Offener Termin', start: '2026-08-24' });
+
   const items = cd({ userId: ALICE, todayKey: '2026-08-17' });
-  assert.deepEqual(items.map((c) => c.title), ['Abgelegt', 'Offen']);
-  assert.equal(items.find((c) => c.title === 'Abgelegt').archived, true,
-    'archivierte Aufgabe muss ihren Archivstatus bis zur Kachel tragen');
-  assert.equal(items.find((c) => c.title === 'Offen').archived, false,
-    'aktive Aufgabe darf nicht als archiviert markiert werden');
+  assert.deepEqual(items.map((c) => c.title), ['Offen', 'Erledigter Termin', 'Offener Termin']);
   assert.ok(!items.some((c) => c.title === 'Erledigt'),
     'erledigte Aufgabe bleibt trotz Countdown-Markierung ausgeschlossen');
+  assert.ok(!items.some((c) => c.title === 'Abgelegt'),
+    'abgelegte Aufgabe bleibt aus der wichtigen Datumsübersicht ausgeschlossen');
+  assert.equal(items.find((c) => c.title === 'Erledigter Termin').completed, true,
+    'erledigter Kalendertermin trägt seinen persönlichen Abschlussstatus');
+  assert.equal(items.find((c) => c.title === 'Offener Termin').completed, false,
+    'offener Kalendertermin bleibt als nicht erledigt markiert');
+  assert.equal(items.find((c) => c.title === 'Offener Termin').id, openEventId);
 });
 
-test('archivierte Aufgabe folgt weiterhin der Nachfrist', () => {
+test('ein erledigtes wiederkehrendes Kalenderereignis verwendet den nächsten Occurrence-Schlüssel', () => {
   reset();
-  seedTask({ title: 'Archiviert gerade drin', due: '2026-08-10', archivedAt: '2026-08-11T10:00:00Z' });
-  seedTask({ title: 'Archiviert zu alt', due: '2026-08-09', archivedAt: '2026-08-10T10:00:00Z' });
+  const eventId = seedEvent({
+    title: 'Wiederkehrender erledigt',
+    start: '2026-08-10',
+    rule: 'FREQ=WEEKLY;INTERVAL=1',
+  });
+  completeEvent(eventId, '2026-08-17');
 
   const items = cd({ userId: ALICE, todayKey: '2026-08-17' });
-  assert.deepEqual(items.map((c) => c.title), ['Archiviert gerade drin']);
-  assert.equal(items[0].days_until, -7);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].date, '2026-08-17');
+  assert.equal(items[0].completed, true);
 });
 
 test('eine markierte Aufgabe ohne Fälligkeit hat nichts, worauf sie zeigen könnte', () => {

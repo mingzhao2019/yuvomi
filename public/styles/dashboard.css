@@ -3344,6 +3344,12 @@ svg.weather-forecast__icon {
   white-space: nowrap;
 }
 
+.countdown-item__title--completed {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 .countdown-item__meta {
   display: flex;
   align-items: center;
@@ -3357,7 +3363,7 @@ svg.weather-forecast__icon {
   white-space: nowrap;
 }
 
-.countdown-item__archived {
+.countdown-item__completed {
   display: inline-flex;
   align-items: center;
   gap: var(--space-0h);
@@ -3366,7 +3372,7 @@ svg.weather-forecast__icon {
   white-space: nowrap;
 }
 
-.countdown-item__archived .icon-xs {
+.countdown-item__completed .icon-xs {
   flex: 0 0 auto;
 }
 

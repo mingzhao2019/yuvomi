@@ -643,28 +643,28 @@ test('Cockpit-Coda nennt die morgen fällige Aufgabe statt falscher Entwarnung',
   }
 });
 
-test('Countdown-Kachel markiert archivierte Aufgaben sichtbar', async () => {
+test('Countdown-Kachel markiert erledigte Kalendertermine, nicht Aufgaben', async () => {
   const { __test } = await import('../public/pages/dashboard.js');
   const previousWindow = global.window;
   global.window = { yuvomi: null };
   try {
     const html = __test.renderCountdowns([
       {
-        source: 'task', id: 7, title: 'Alte Aufgabe', date: '2026-09-25',
-        days_until: 4, icon: 'check-square', color: null, recurring: false,
-        archived: true,
+        source: 'event', id: 7, title: 'Erledigter Termin', date: '2026-09-25',
+        days_until: 4, icon: 'calendar', color: null, recurring: false,
+        completed: true,
       },
       {
-        source: 'task', id: 8, title: 'Neue Aufgabe', date: '2026-09-26',
+        source: 'task', id: 8, title: 'Aufgabe', date: '2026-09-26',
         days_until: 5, icon: 'check-square', color: null, recurring: false,
-        archived: false,
+        archived: true,
       },
     ], '1x2', 2);
-    nodeAssert.match(html, /countdown-item__archived/, 'archived row must expose a visible marker');
-    nodeAssert.match(html, /data-lucide="archive"/, 'archived row must use the archive icon');
-    nodeAssert.match(html, /tasks\.statusArchived/, 'archived marker must be localized');
-    nodeAssert.equal((html.match(/countdown-item__archived/g) ?? []).length, 1,
-      'active rows must not receive the archived marker');
+    nodeAssert.match(html, /countdown-item__completed/, 'completed event must expose a visible marker');
+    nodeAssert.match(html, /data-lucide="archive-restore"/, 'completed event must use the restore archive icon');
+    nodeAssert.match(html, /calendar\.completed/, 'completed marker must be localized');
+    nodeAssert.match(html, /countdown-item__title--completed/, 'completed event title must remain visibly crossed out');
+    nodeAssert.doesNotMatch(html, /tasks\.statusArchived/, 'task archive state must not be rendered in the countdown tile');
   } finally {
     global.window = previousWindow;
   }
