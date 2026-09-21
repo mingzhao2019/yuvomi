@@ -55,6 +55,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the day it arrived, so a Filipino system was told the page was English while the page came up in
   Filipino. Both now know the same languages and resolve a tag the same way, and a test holds them
   together rather than a comment asking the next change to remember. (#1324)
+- **Moving an appointment across a daylight-saving boundary no longer drags its reminder off the
+  lead time you set.** A reminder is a lead - an hour before, a day before - but when the
+  appointment moved, the reminder was carried along by the distance between the two dates on the
+  wall clock rather than by the real distance between the two moments. The two differ by exactly
+  the hour a summer-time change adds or takes away, so an appointment moved from March to July kept
+  "one hour before" in the dialog while the alert landed on the appointment's own start time, and
+  one moved the other way went off two hours early. Nothing looked broken, because "at the start
+  time" is a setting somebody could have chosen on purpose. All four ways an appointment's time
+  changes now run through the same calculation: moving a whole series, moving a single occurrence,
+  an occurrence taking its reminders over from its series, and the "this and all following" split.
+  All-day entries are included, where the reminder hangs on 09:00 local time. The hour the clocks
+  change is covered too, including the one that happens twice in autumn: a reminder moved into it
+  lands on the later of the two readings, the one after the change. The one hour a year that a
+  spring-forward skips has no honest answer, because that time of day never happens - an
+  appointment moved onto it counts as starting when the clocks reach the other side. Reminder
+  times already stored are left as they are. (#1300)
 
 - **Health no longer offers buttons that a read-only member is not allowed to press.** Where your
   access to the module is "read", the largest module in the app still carried every writing control
