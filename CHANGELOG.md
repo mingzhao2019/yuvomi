@@ -197,6 +197,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as long as your access to Health is "write" - the module right is now asked first, so a
   caregiving permission no longer offers a button the server would refuse. (#1265)
 
+- **The budget no longer offers buttons that a read-only member is not allowed to press.** Where
+  your access to Budget is "read", every tab except the reports still carried its writing controls,
+  and each of them ended in an error message: deleting or confirming an entry, opening an entry to
+  edit it, managing categories, adding or editing an account, editing or deleting a loan, booking
+  an instalment or correcting one, setting a category budget or the savings goal; on the
+  subscriptions tab adding, editing, renewing and deleting a subscription - by button and by swipe -
+  and managing its categories, payment methods, monthly budget and currency; on the shared-expenses
+  tab adding an expense or a group, editing, archiving, restoring or deleting a group, settling up
+  and inviting someone. The rule is the one Tasks, Notes, Contacts and Health already follow:
+  something that shows a state stays, something that only acts disappears. An expected entry keeps
+  its "expected" tag, a recurring entry and one with a receipt keep their marks, a savings goal that
+  is set stays as a card, and a plan row keeps its target, what was spent and what is left. An
+  entry, a subscription or a shared expense still opens when you tap it, but into a read-only view
+  instead of the editor: it shows everything the editor would - an entry's subcategory, account,
+  visibility, who is responsible, how it repeats and its receipts; a subscription's description,
+  category, payment method, the account it runs under and its notes; an expense's payer, how it
+  is split and each person's share, its notes and receipts - and offers nothing to change. Receipts
+  are listed only if you may read documents. The same view now opens for an expense in an archived
+  group. A loan's report also shows the account, the first due month, the interest terms and the
+  notes from the loan form. Where a value only lived in a form, it now stands where a tap already
+  leads, without a new button: a credit card's statement shows its credit limit at the top (for
+  everyone - the card itself only shows what is still available), and at "read" a shared-expense
+  group shows its default currency, its default split and its members under the description,
+  with the names cut off after five and the rest counted. What you can read stays complete: the monthly summary and chart, the
+  account balances and each account's statement, the subscription analytics, a group's balances,
+  expenses and activity, the reports tab and the CSV exports. A tab with nothing in it yet says so,
+  instead of telling you to use a + button that is not there. Shared expenses are part of Budget in
+  the permission settings, so the same right decides there. (#1265)
+
 - **Housekeeping no longer offers buttons that a read-only member is not allowed to press.** Where
   your access to the module is "read", the page still carried most of its writing controls, and each
   of them ended in an error message: checking a housekeeper in or out, adding a chore from a

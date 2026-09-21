@@ -1589,7 +1589,9 @@
         "responsibleFilterEmptyTitle": "Nincs tétel ehhez a személyhez",
         "responsibleFilterEmptyDescription": "Ebben a hónapban senki sem felelős tételért ebben a válogatásban.",
         "handoverToSplit": "Áthelyezés a közös kiadásokba",
-        "loanRemainingInstallmentsForecast": "{{forecast}} (terv: {{plan}})"
+        "loanRemainingInstallmentsForecast": "{{forecast}} (terv: {{plan}})",
+        "detailDateLabel": "Dátum",
+        "loanDetailStartMonthLabel": "Első esedékesség hónapja"
     },
     "settings": {
         "healthCycleEnableLabel": "Ciklus fül megjelenítése",
@@ -3770,7 +3772,9 @@
         "proofLabel": "Fizetési igazolás",
         "proofHint": "Egy igazolás, például az utalás képernyőképe.",
         "proofDocumentName": "Fizetési igazolás {{group}}: {{name}}",
-        "loadError": "A megosztott költségek betöltése sikertelen."
+        "loadError": "A megosztott költségek betöltése sikertelen.",
+        "moreMembers": "+{{count}} további",
+        "moreMembers_one": "+{{count}} további"
     },
     "wmo": {
         "0": "Tiszta égbolt",
@@ -4066,7 +4070,9 @@
         "endsAfter": "Még {{count}} fizetés",
         "logoTypeError": "Használjon PNG, JPEG, WebP vagy SVG képet.",
         "accountUsernameLabel": "Regisztrálva erre",
-        "accountUsernameHint": "E-mail-cím vagy felhasználónév. Ez nem jelszómező - a Yuvomi nem tárol jelszavakat."
+        "accountUsernameHint": "E-mail-cím vagy felhasználónév. Ez nem jelszómező - a Yuvomi nem tárol jelszavakat.",
+        "detailAmountLabel": "Összeg",
+        "detailNextPaymentLabel": "Következő fizetés"
     },
     "health": {
         "fasting": {
