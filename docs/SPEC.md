@@ -1754,8 +1754,6 @@ copy carries `assigned_from`, so revoking that access withdraws it without touch
 `fasting_next_start` point directly at the owner's `health_fasts` row; only that owner receives or
 dismisses them, and deleting the fast removes all of its reminder delivery states atomically.
 
-<<<<<<< HEAD
-=======
 **A deleted task or event takes its reminders with it (migration v217, #1258).** `entity_type`/`entity_id`
 is a *soft* reference - `created_by` is the table's only foreign key - so nothing in the schema removed a
 reminder whose task or event was gone. The clean-up lived in the browser instead, as a second request sent
@@ -1770,7 +1768,6 @@ just the deleting user's. The same migration deletes the rows already orphaned, 
 and settable types keep the soft reference and are reconciled by their owning module, which is why only
 these two needed a trigger.
 
->>>>>>> 64e8e9fb1 (chore: release v2.68.0)
 Reading and **dismissing** (`PATCH /:id/dismiss`) stay open for all fifteen types - the reminder toast
 has to show a derived notification and let the user wave it away, and dismissing holds precisely
 because the row stays.
