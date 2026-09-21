@@ -424,6 +424,7 @@
         "filterGroupPerson": "Person",
         "filterGroupTag": "Tag",
         "filterClearAll": "Alle Filter zurücksetzen",
+        "filterPanelDone": "Fertig",
         "navLabelOverdue": "Aufgaben, {{count}} überfällig",
         "statusArchived": "Archiviert",
         "archiveButton": "Aufgabe archivieren",

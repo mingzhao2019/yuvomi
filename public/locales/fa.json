@@ -424,6 +424,7 @@
         "filterGroupPerson": "شخص",
         "filterGroupTag": "برچسب",
         "filterClearAll": "بازنشانی همه فیلترها",
+        "filterPanelDone": "انجام شد",
         "navLabelOverdue": "کارها، {{count}} معوق",
         "statusArchived": "بایگانی‌شده",
         "archiveButton": "بایگانی کار",
