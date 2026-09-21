@@ -1,5 +1,5 @@
 import { api } from '/api.js';
-import { getLocale, t } from '/i18n.js';
+import { getLocale, getNumberFormat, t } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { todayKey } from '/utils/timezone.js';
 import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/page-search.js';
@@ -104,7 +104,7 @@ function formatMoney(value, currency) {
   const amount = Number(value);
   const code = String(currency || state.householdCurrency || 'EUR').toUpperCase();
   const symbol = CURRENCY_SYMBOLS[code];
-  const formatted = new Intl.NumberFormat(undefined, {
+  const formatted = getNumberFormat({
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
