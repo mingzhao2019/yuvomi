@@ -3522,6 +3522,7 @@
         "addCustomTask": "Tambah tugas kustom",
         "noReports": "Belum ada laporan.",
         "profileTitle": "Profil asisten rumah tangga",
+        "openWorkerProfile": "Buka profil",
         "profilePicture": "Foto profil",
         "workerName": "Nama",
         "workerUsername": "Nama pengguna",
@@ -3579,6 +3580,7 @@
         "visitUnpaidToast": "Pembayaran dibatalkan.",
         "receiptUploadTitle": "Unggah bukti pembayaran",
         "receiptUploadHint": "Tambahkan bukti pembayaran. Bukti akan muncul di Dokumen.",
+        "receiptLabel": "Bukti pembayaran",
         "receiptDocumentName": "Bukti - {{name}} - {{date}}",
         "receiptDocumentDescription": "Bukti pembayaran untuk kunjungan {{name}} pada {{date}}.",
         "taskTemplateData": {
