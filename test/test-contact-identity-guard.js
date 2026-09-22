@@ -2,8 +2,9 @@
  * Modul: E-Mail-Adressen verknuepfter Kontakte
  * Zweck: Die E-Mail-Adressen eines Kontakts mit `family_user_id` fuehren zu
  *        seinem Konto (Passwort-Reset, SSO-Verknuepfung). Sie aendern nur die
- *        verknuepfte Person selbst oder ein Admin - ueber jeden Schreibweg.
- *        Alle anderen Felder bleiben fuer Mitglieder editierbar.
+ *        verknuepfte Person selbst oder ein Admin, und nur mit vollem Zugriff
+ *        (Sitzung oder ungescoptes Token) - ueber jeden Schreibweg. Alle
+ *        anderen Felder bleiben fuer Mitglieder editierbar.
  *
  * JEDER TEST STELLT SEINEN AUSGANGSZUSTAND SELBST HER (`reset()`), damit ein
  * roter Test auf seine eigene Ursache zeigt und nicht auf den Rest, den ein
@@ -162,6 +163,40 @@ test('a member-scoped API token is refused', async () => {
   const r = await call(await tokenFor(kidId, ['contacts:write']), 'PUT', `/contacts/${adminContactId}`, { email: ATTACKER });
   assert.equal(r.status, 403);
   assert.deepEqual(emailsOf(adminContactId), ADMIN_UNTOUCHED);
+});
+
+test('an admin\'s token scoped to contacts:write is refused, on the admin\'s own contact too', async () => {
+  const scoped = await tokenFor(adminId, ['contacts:write']);
+  const own = await call(scoped, 'PUT', `/contacts/${adminContactId}`, { email: ATTACKER });
+  assert.equal(own.status, 403);
+  assert.deepEqual(emailsOf(adminContactId), ADMIN_UNTOUCHED);
+  const other = await call(scoped, 'PUT', `/contacts/${kidContactId}`, { emails: [{ label: 'work', value: ATTACKER }] });
+  assert.equal(other.status, 403);
+  assert.deepEqual(emailsOf(kidContactId), { email: 'kid@home.test', emails: [] });
+});
+
+test('a member\'s own scoped token cannot change the member\'s own addresses', async () => {
+  const r = await call(await tokenFor(kidId, ['contacts:write']), 'PUT', `/contacts/${kidContactId}`, { email: ATTACKER });
+  assert.equal(r.status, 403);
+  assert.deepEqual(emailsOf(kidContactId), { email: 'kid@home.test', emails: [] });
+});
+
+test('a scoped token can still change the other fields of a linked contact', async () => {
+  const r = await call(await tokenFor(kidId, ['contacts:write']), 'PUT', `/contacts/${adminContactId}`, {
+    notes: 'Via token', email: 'admin@home.test',
+  });
+  assert.equal(r.status, 200);
+  assert.equal(db.prepare('SELECT notes FROM contacts WHERE id = ?').get(adminContactId).notes, 'Via token');
+  assert.deepEqual(emailsOf(adminContactId), ADMIN_UNTOUCHED);
+});
+
+test('unscoped tokens keep working: the admin\'s on a member, the member\'s on themselves', async () => {
+  const adminFull = await call(await tokenFor(adminId, null), 'PUT', `/contacts/${kidContactId}`, { email: 'kid.a@home.test' });
+  assert.equal(adminFull.status, 200);
+  assert.equal(emailsOf(kidContactId).email, 'kid.a@home.test');
+  const kidFull = await call(await tokenFor(kidId, null), 'PUT', `/contacts/${kidContactId}`, { email: 'kid.b@home.test' });
+  assert.equal(kidFull.status, 200);
+  assert.equal(emailsOf(kidContactId).email, 'kid.b@home.test');
 });
 
 test('a member can still edit the other fields of a linked contact, with the unchanged form around them', async () => {

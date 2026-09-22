@@ -670,6 +670,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Picking it came back as "invalid language". Every other language was unaffected, which is why this
   went unnoticed.
 
+- **An API token limited to certain modules can no longer change the email addresses of a household
+  member's contact, not even an admin's token or the person's own.** These addresses lead to the
+  account, which is more than a module permission covers. Changing them now needs a signed-in session
+  or a token without module limits; other fields stay editable with a limited token.
+
 ## [2.68.0] - 2026-09-20
 
 ### Added

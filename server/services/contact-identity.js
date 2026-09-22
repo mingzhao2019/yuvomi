@@ -18,33 +18,48 @@
  *   SSO-only-Kontos.
  *
  * Die Regel: an einem verknuepften Kontakt aendern diese Adressen nur die
- * verknuepfte Person selbst oder ein Admin. Alle anderen Felder bleiben fuer
- * jeden mit Schreibrecht auf Kontakte editierbar. Ein Schreibweg ohne
- * handelnde Person (der CardDAV-Sync) ist keiner von beiden und laesst die
- * Adressen deshalb stehen.
+ * verknuepfte Person selbst oder ein Admin, und nur mit vollem Zugriff - also
+ * in einer Sitzung oder mit einem ungescopten Token. Ein gescoptes Token ist
+ * auf Module beschraenkt (etwa `contacts:write`); die Adressen sind aber der
+ * Schluessel zum Konto, und wer sie umschreibt, holt sich per Reset oder SSO
+ * mehr als das Modul. Die Scope-Grenze darf hier nicht an der Rolle des
+ * Token-Inhabers vorbei. Alle anderen Felder bleiben fuer jeden mit
+ * Schreibrecht auf Kontakte editierbar. Ein Schreibweg ohne handelnde Person
+ * (der CardDAV-Sync) erfuellt nichts davon und laesst die Adressen stehen.
  */
 
 import { isAdminRequest } from '../middleware/require-admin.js';
 
 /**
  * Wer handelt - aus einem authentifizierten Request.
+ *
+ * `fullAccess` folgt `req.authScopes`, das `requireAuth` setzt: `null` fuer
+ * eine Sitzung und ein ungescoptes Token, eine Liste fuer ein gescoptes Token
+ * und ein Wandtablett. Dieselbe Unterscheidung trifft das Scope-Gate in
+ * server/index.js.
  * @param {import('express').Request} req
- * @returns {{ userId: number|null, isAdmin: boolean }}
+ * @returns {{ userId: number|null, isAdmin: boolean, fullAccess: boolean }}
  */
 export function contactActorFromRequest(req) {
-  return { userId: req.authUserId ?? null, isAdmin: isAdminRequest(req) };
+  return {
+    userId: req.authUserId ?? null,
+    isAdmin: isAdminRequest(req),
+    fullAccess: req.authScopes == null,
+  };
 }
 
 /**
  * Darf `actor` die E-Mail-Adressen dieses Kontakts aendern?
  * @param {{ family_user_id?: number|null }} contact
- * @param {{ userId: number|null, isAdmin: boolean }|null} actor
+ * @param {{ userId: number|null, isAdmin: boolean, fullAccess: boolean }|null} actor
  *   `null` = Schreibweg ohne handelnde Person (Hintergrund-Sync).
  * @returns {boolean}
  */
 export function mayChangeContactEmails(contact, actor) {
   if (!contact?.family_user_id) return true;
   if (!actor) return false;
+  // Ein gescoptes Token nie - auch nicht das des Admins oder der Person selbst.
+  if (actor.fullAccess !== true) return false;
   if (actor.isAdmin === true) return true;
   return actor.userId != null && Number(actor.userId) === Number(contact.family_user_id);
 }

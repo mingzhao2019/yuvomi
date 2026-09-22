@@ -598,7 +598,7 @@ router.put('/:id', (req, res) => {
         .all(id).map((r) => r.value);
       if (bodyChangesContactEmails(contact, storedEmails, req.body)) {
         return res.status(403).json({
-          error: 'Only this member or an admin can change the email addresses of a household member.',
+          error: 'Only this member or an admin, signed in or with a full-access token, can change the email addresses of a household member.',
           code: 403,
         });
       }
