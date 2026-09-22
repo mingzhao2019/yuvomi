@@ -384,18 +384,10 @@ export function applyRemoteEventReminders(
     return true;
   }
   if (preserveSuppressed && current.reminder_suppressed === 1) return false;
-  const defaults = futureReminderAts(
-    defaultReminderAts(current, database, current.created_by),
-    nowMs,
-  );
-  if (current.reminder_suppressed !== 1
-      && JSON.stringify(ownerReminderRows(database, event.id, current.created_by)) === JSON.stringify(defaults)) {
-    return false;
-  }
-  replaceOwnerEventReminders(database, event.id, current.created_by, defaults, {
-    suppressed: false,
-  });
-  return true;
+  // A provider without an event-level reminder does not own the local
+  // reminder template. Preserve an existing manual owner reminder and only
+  // fill an empty template with the personal default once.
+  return ensureDefaultEventReminders(database, current, { onlyFuture: true, nowMs });
 }
 
 /** Add defaults to a future event only when it has no owner reminder yet. */

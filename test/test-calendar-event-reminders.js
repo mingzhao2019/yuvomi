@@ -176,6 +176,15 @@ test('provider imports keep only reminder triggers that are still in the future'
   );
 });
 
+test('provider imports without reminders preserve an existing owner reminder', () => {
+  const event = insertEvent();
+  setUserDefaults(ownerId, [15]);
+  policy.replaceOwnerEventReminders(db, event.id, ownerId, ['2030-06-10T13:00:00']);
+
+  assert.equal(policy.applyRemoteEventReminders(db, event, [], { explicit: false }), false);
+  assert.deepEqual(policy.__test.ownerEventReminderAts(db, event), ['2030-06-10T13:00:00']);
+});
+
 test('an elapsed explicit provider reminder does not fall back to a personal default', () => {
   const event = insertEvent();
   const nowMs = new Date('2030-06-10T13:40:00Z').getTime();

@@ -54,6 +54,7 @@ function fakeContainer() {
     hidden: true,
     classList: { toggle() {} },
     querySelectorAll: () => [],
+    querySelector: () => null,
     addEventListener: (type, fn) => { if (type === 'click') onClick = fn; },
   };
   return {

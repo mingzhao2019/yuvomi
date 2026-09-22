@@ -120,6 +120,12 @@ function resetTables() {
   OWNER = add('owner');
   ANNA = add('anna');
   actingUser = ANNA;
+  // This suite controls the reminder rows explicitly; default-reminder
+  // behavior is covered by test-calendar-event-reminders.js.
+  db.prepare(`
+    INSERT INTO sync_config (key, value) VALUES (?, '[]')
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `).run(`calendar_default_reminders:user:${OWNER}`);
   setHouseholdZone('UTC');
 }
 

@@ -730,9 +730,9 @@
   .asset-cost-card { padding: var(--space-2); }
   .asset-cost-card__daily { font-size: var(--text-lg); }
   .asset-cost-form__row { grid-template-columns: 1fr; gap: 0; }
-  .asset-cost-image-search-dialog { width: calc(100vw - var(--space-3)); max-height: calc(100dvh - var(--space-3)); }
-  .asset-cost-image-search-dialog__body { max-height: calc(100dvh - var(--space-3)); padding: var(--space-3); }
-  .asset-cost-image-search-dialog .asset-cost-image-results { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 62dvh; }
+  .asset-cost-image-search-dialog { width: calc(100vw - var(--space-3)); max-height: calc(var(--viewport-height) - var(--space-3)); }
+  .asset-cost-image-search-dialog__body { max-height: calc(var(--viewport-height) - var(--space-3)); padding: var(--space-3); }
+  .asset-cost-image-search-dialog .asset-cost-image-results { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 62vh; max-height: 62dvh; }
 }
 
 @container asset-cost-body (max-width: 23rem) {

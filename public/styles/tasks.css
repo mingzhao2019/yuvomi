@@ -59,7 +59,7 @@
   position: sticky;
   top: var(--space-16);
   min-width: 0;
-  max-height: calc(100dvh - var(--space-16) - var(--space-4));
+  max-height: calc(var(--viewport-height) - var(--space-16) - var(--space-4));
   overflow-y: auto;
 }
 
@@ -437,6 +437,7 @@ body.task-list-resizing * {
     z-index: var(--z-dropdown);
     inset-inline: 0;
     top: calc(100% + var(--space-1));
+    max-height: min(60vh, 22rem);
     max-height: min(60dvh, 22rem);
     overflow-y: auto;
     padding: var(--space-1);
