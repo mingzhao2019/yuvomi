@@ -2825,6 +2825,7 @@ function openDmsPreview({ item, src, canOpen, onLink }) {
 
   const header = document.createElement('div');
   header.className = 'dms-preview__header';
+  header.dataset.dialogActions = '';
   const heading = document.createElement('p');
   heading.className = 'dms-preview__title';
   heading.textContent = item.title;
@@ -2845,6 +2846,7 @@ function openDmsPreview({ item, src, canOpen, onLink }) {
 
   const actions = document.createElement('div');
   actions.className = 'dms-preview__actions';
+  actions.dataset.dialogActions = '';
   if (canOpen) {
     const open = document.createElement('a');
     open.className = 'btn btn--secondary';

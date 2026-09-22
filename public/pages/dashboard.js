@@ -200,6 +200,7 @@ function showOnboarding(appContainer, onDone) {
 
     const actions = document.createElement('div');
     actions.className = 'onboarding-actions';
+    actions.dataset.dialogActions = '';
 
     const skipBtn = document.createElement('button');
     skipBtn.className = 'btn btn--ghost';
