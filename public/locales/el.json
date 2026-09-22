@@ -668,7 +668,9 @@
         "duplicateKeepQuantities": "Διατήρηση ποσοτήτων",
         "duplicateKeepNotes": "Διατήρηση σημειώσεων & συνδέσμων",
         "duplicateSubmit": "Διπλασιασμός",
-        "duplicateError": "Δεν ήταν δυνατός ο διπλασιασμός της λίστας."
+        "duplicateError": "Δεν ήταν δυνατός ο διπλασιασμός της λίστας.",
+        "itemStateChecked": "τσεκαρισμένο",
+        "itemStateOpen": "μη τσεκαρισμένο"
     },
     "meals": {
         "randomizeSuccess_few": "Προγραμματίστηκαν {{count}} γεύματα.",
