@@ -1,5 +1,5 @@
 /**
- * Test: Ledger-Zeilen tragen den Autor ihres Datensatzes (Migration v225, #1309)
+ * Test: Ledger-Zeilen tragen den Autor ihres Datensatzes (Migration v234, #1309)
  * Zweck: Ein PUT /expenses/:id stempelte die neu geschriebenen Ledger-Zeilen
  *        mit der BEARBEITENDEN Person, ein Storno einer Zahlung (#1378) die
  *        Gegenbuchung mit der STORNIERENDEN. Beide Spalten sind
@@ -26,7 +26,7 @@ const { baseUrl: BASE } = await startTestServer({
 });
 const dbmod = await import('../server/db.js');
 const db = dbmod.get();
-const migration225 = dbmod.MIGRATIONS.find((m) => m.version === 225);
+const migration234 = dbmod.MIGRATIONS.find((m) => m.version === 234);
 
 async function login(username, password) {
   const res = await fetch(`${BASE}/api/v1/auth/login`, {
@@ -130,16 +130,16 @@ addRow.run(GROUP, 'expense', ORPHAN_EXPENSE, OWN.id, ED.id);
 addRow.run(GROUP, 'settlement_reversal', ORPHAN_SETTLEMENT, OWN.id, ED.id);
 const BALANCES = await balances();
 
-test('Migration v225 existiert', () => {
+test('Migration v234 existiert', () => {
   // Nicht an die Position im Array gebunden: die naechste Migration haengt
   // dahinter an, und diese Suite soll davon nicht rot werden.
-  assert.ok(migration225, 'MIGRATIONS enthaelt v225');
-  assert.equal(migration225.version, 225);
+  assert.ok(migration234, 'MIGRATIONS enthaelt v234');
+  assert.equal(migration234.version, 234);
 });
 
 test('Migration setzt created_by auf den Autor des Datensatzes', () => {
   assert.deepEqual(authors('expense', EXPENSE), [ED.id, ED.id, ED.id], 'Ausgangslage: vom Bearbeiter gestempelt');
-  db.exec(migration225.up);
+  db.exec(migration234.up);
   assert.deepEqual(authors('expense', EXPENSE), [AUT.id, AUT.id, AUT.id], 'Ausgabe: Ersteller');
   assert.deepEqual(authors('expense_reversal', EXPENSE), [AUT.id], 'Ausgaben-Gegenbuchung: Ersteller der Ausgabe');
   assert.deepEqual(authors('settlement', SETTLEMENT), [PAY.id, PAY.id], 'Buchung einer Zahlung bleibt bei ihrem Autor');
@@ -152,7 +152,7 @@ test('Migration setzt created_by auf den Autor des Datensatzes', () => {
 test('zweiter Lauf aendert nichts', () => {
   const before = snapshot();
   const changesBefore = db.prepare('SELECT total_changes() AS n').get().n;
-  db.exec(migration225.up);
+  db.exec(migration234.up);
   assert.equal(db.prepare('SELECT total_changes() AS n').get().n, changesBefore, 'keine Zeile beruehrt');
   assert.deepEqual(snapshot(), before);
 });

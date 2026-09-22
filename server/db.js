@@ -9865,7 +9865,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 225,
+    version: 234,
     description: 'Split: ledger rows carry the author of the record they book',
     up: `
       -- Ledger-Zeilen und der Datensatz, den sie buchen, haengen per

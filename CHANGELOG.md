@@ -165,6 +165,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A failed restore explains itself in your language and keeps your place.** When a backup did
+  not open, the restore dialog showed the server's English explanation, up to several paragraphs
+  long, also in a German interface. Each known cause now has a short translated message with the
+  next step, and anything else gets a general one that points to the server log. A screen reader
+  now reads the message together with the backup key field, and a wrong key marks the field as
+  invalid until you type again. After the answer the focus lands in the key field when it
+  appears, otherwise on the restore button, also on phones, where the closing confirmation used
+  to take it away again; before, it could end up at the top of the page. If you moved on to
+  something else while a slow restore was running, the focus stays there. A second click while a
+  restore is running still starts nothing. (#1267)
+
 - **The birthday API checks the reminder fields before it stores them.** `POST` and
   `PUT /api/v1/birthdays` wrote `reminder_offset`, `reminder_custom_amount` and
   `reminder_custom_unit` exactly as sent - a negative number, a decimal or any text ended up in the
@@ -255,8 +266,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saved nothing, without any message. While a dialog is open, messages at the bottom of the screen
   now move out of the way of its title bar and buttons: above the dialog when there is room (on a
   phone, the strip above the sheet), otherwise just above the dialog's buttons. This holds for the
-  welcome tour and for pickers inside a form, such as choosing a document, too. They always stay
-  on screen and can still be dismissed. (#1160)
+  welcome tour and for pickers inside a form, such as choosing a document, too. They also keep
+  clear of the field you are typing in and of expandable sections such as "More settings", so a
+  field reached with the Tab key is never hidden behind a message. They always stay on screen and
+  can still be dismissed. (#1160)
 
 - **Deleting a folder no longer reveals activity on documents you cannot see.** Before deleting a
   folder the app asks the server what the deletion would affect and sends that answer back with the

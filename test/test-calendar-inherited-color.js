@@ -7,12 +7,12 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3-multiple-ciphers';
+import { tempDir } from './tmp-dir.js';
 
-process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'yuvomi-color-')), 'unused.db');
+process.env.DB_PATH = join(tempDir('yuvomi-color-'), 'unused.db');
 const { MIGRATIONS } = await import('../server/db.js');
 
 const NULLABLE_COLOR_VERSION = 170;
@@ -36,7 +36,7 @@ function applyWithProductionSemantics(database, migration) {
 }
 
 function databaseBefore(version) {
-  const database = new Database(join(mkdtempSync(join(tmpdir(), 'yuvomi-color-db-')), 'db.sqlite'));
+  const database = new Database(join(tempDir('yuvomi-color-db-'), 'db.sqlite'));
   database.pragma('foreign_keys = ON');
   database.exec(`
     CREATE TABLE schema_migrations (
@@ -169,7 +169,7 @@ test('der Test-Schema-Auszug haelt die Spalte ebenfalls nullable', async () => {
   for (const key of [1, 11]) {
     const sql = MIGRATIONS_SQL[key];
     if (!sql || !/CREATE TABLE[^;]*calendar_events/.test(sql)) continue;
-    const db = new Database(join(mkdtempSync(join(tmpdir(), 'yuvomi-auszug-')), 'db.sqlite'));
+    const db = new Database(join(tempDir('yuvomi-auszug-'), 'db.sqlite'));
     // Jeder Eintrag ist fuer sich lesbar, seine Nachbartabellen fehlen aber - die
     // Suiten fahren jeweils die, die sie brauchen. Geprueft wird hier die
     // Spalte, nicht die Verweisintegritaet, deshalb ohne Fremdschluessel.

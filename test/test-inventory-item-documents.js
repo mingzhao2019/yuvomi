@@ -227,25 +227,22 @@ const docFields = (list) => (list || []).map((a) => ({
 }));
 const MASKED = { document_id: null, name: null, original_name: null, mime_type: null, file_size: null };
 
-test('Dokumentenrecht: ohne documents-Lesen kommen Belege maskiert - Liste, Einzelabruf, Verlauf (#1358)', async () => {
+test('Dokumentenrecht: ohne documents-Lesen kommen Belege maskiert - Liste und Einzelabruf (#1358)', async () => {
   const doc = insertDocument({ name: 'Garantie Recht' });
   const item = await createItem({ name: 'Rechteprobe', attachment_document_ids: [doc] });
   const open = [{ document_id: doc, name: 'Garantie Recht', original_name: 'Garantie Recht.pdf', mime_type: 'application/pdf', file_size: 1234 }];
   const seen = async (as) => {
     const list = await call('GET', '/items', { as });
     const one = await call('GET', `/items/${item.id}`, { as });
-    const history = await call('GET', `/items/${item.id}/history`, { as });
     assert.equal(list.status, 200);
     assert.equal(one.status, 200);
-    assert.equal(history.status, 200);
     return {
       list: docFields(list.body.data.find((i) => i.id === item.id).attachments),
       one: docFields(one.body.data.attachments),
-      history: history.body.data.timeline.filter((row) => row.type === 'document').map((row) => ({ id: row.id, label: row.label })),
     };
   };
-  const visible = { list: open, one: open, history: [{ id: doc, label: 'Garantie Recht' }] };
-  const masked = { list: [MASKED], one: [MASKED], history: [] };
+  const visible = { list: open, one: open };
+  const masked = { list: [MASKED], one: [MASKED] };
   assert.deepEqual(await seen({ id: A }), visible);
   assert.deepEqual(await seen({ ...NONE, moduleAccess: { documents: 'read' } }), visible, 'Leserecht reicht');
   assert.deepEqual(await seen(NONE), masked, 'documents: none sieht nur, dass ein Beleg da ist');

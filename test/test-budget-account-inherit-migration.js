@@ -13,14 +13,13 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3-multiple-ciphers';
+import { tempDir } from './tmp-dir.js';
 
 // DB_PATH vor dem Import auf eine Wegwerf-Datei: db.js migriert beim Modul-Load.
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret';
-process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'yuvomi-accmig-')), 'unused.db');
+process.env.DB_PATH = join(tempDir('yuvomi-accmig-'), 'unused.db');
 const { MIGRATIONS } = await import('../server/db.js');
 
 // Custom keeps migrations append-only and already uses v181 for health. Locate
@@ -31,7 +30,7 @@ const ACCOUNT_INHERIT_MIGRATION = MIGRATIONS.find((m) =>
 
 /** Minimaler Stand von budget_entries, wie er vor v181 aussah. */
 function seed() {
-  const db = new Database(join(mkdtempSync(join(tmpdir(), 'yuvomi-accmig-')), 'db.sqlite'));
+  const db = new Database(join(tempDir('yuvomi-accmig-'), 'db.sqlite'));
   db.exec(`
     CREATE TABLE budget_entries (
       id                   INTEGER PRIMARY KEY AUTOINCREMENT,
