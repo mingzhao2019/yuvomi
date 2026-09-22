@@ -143,6 +143,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says so in the interface language and puts the cursor in the field. It checks only a reminder that
   is being changed, so a stored amount nobody touched still never blocks saving, and an amount typed
   and then left behind by picking a preset instead is not sent at all. (#1384)
+- **An account created at the first single sign-on now gets its contact entry.** Every other way of
+  adding a household member - an invitation, the first setup, an admin creating the account - also
+  creates the member's contact, which holds the e-mail address the household uses, for example to
+  send a shopping list. An account created by the first OIDC sign-in had none. It now gets one with
+  its name and, if the identity provider marks the address as verified (`email_verified`), that
+  e-mail address. No picture, no birth date and no phone number are taken over, and later sign-ins
+  change nothing, so edits made in Yuvomi stay. (#1357)
+
 - **Deleting a folder no longer reveals activity on documents you cannot see.** Before deleting a
   folder the app asks the server what the deletion would affect and sends that answer back with the
   deletion, so nothing changes unnoticed in between. That answer was built over every document in
