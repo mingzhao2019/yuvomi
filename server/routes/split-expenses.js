@@ -185,7 +185,12 @@ function uniqueUsername(base) {
   return username;
 }
 
-async function userFromContact(database, contactId, actorId) {
+// Ein aus einem Kontakt angelegtes Konto ist IMMER ein Gast der Gruppe, genau
+// wie POST /groups/:id/guests es anlegt. Ohne den Eintrag in
+// split_expense_guest_users zaehlte es als volles Haushaltsmitglied - angelegt
+// von einem Mitglied, obwohl Haushaltskonten Admin-Sache sind, und mit der
+// Kontakt-Adresse als Ziel des Passwort-Resets.
+async function userFromContact(database, contactId, actorId, groupId) {
   const contact = database.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
   if (!contact) throw new Error('Contact not found.');
   if (contact.family_user_id) return contact.family_user_id;
@@ -196,6 +201,9 @@ async function userFromContact(database, contactId, actorId) {
     VALUES (?, ?, ?, ?, 'member', 'other')
   `).run(username, contact.name, passwordHash, randomAvatarColor());
   database.prepare('UPDATE contacts SET family_user_id = ? WHERE id = ?').run(created.lastInsertRowid, contact.id);
+  database.prepare('INSERT OR IGNORE INTO split_expense_guest_users (user_id, group_id, created_by) VALUES (?, ?, ?)')
+    .run(created.lastInsertRowid, groupId, actorId);
+  activity(groupId, actorId, 'guest_created', 'member', created.lastInsertRowid, { display_name: contact.name });
   if (contact.birthday) {
     syncGuestArtifacts(database, created.lastInsertRowid, {
       displayName: contact.name,
@@ -724,7 +732,7 @@ router.post('/groups/:id/members', async (req, res) => {
     const vContactId = req.body.contact_id ? validateId(req.body.contact_id, 'contact_id') : { value: null, error: null };
     if (vUserId.error || vContactId.error) return res.status(400).json({ error: vUserId.error || vContactId.error, code: 400 });
     const role = GROUP_ROLES.includes(req.body.role) && req.body.role !== 'owner' ? req.body.role : 'guest';
-    const memberUserId = vContactId.value ? await userFromContact(db.get(), vContactId.value, userId(req)) : vUserId.value;
+    const memberUserId = vContactId.value ? await userFromContact(db.get(), vContactId.value, userId(req), groupId) : vUserId.value;
     if (!memberUserId) return res.status(400).json({ error: 'user_id or contact_id is required.', code: 400 });
     const exists = db.get().prepare('SELECT 1 FROM users WHERE id = ?').get(memberUserId);
     if (!exists) return res.status(404).json({ error: 'User not found.', code: 404 });

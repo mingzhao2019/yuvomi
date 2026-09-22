@@ -3094,6 +3094,13 @@ API guard checks - and **which** group it may see. Deleting the group must only 
 (migration 124); until then the `group_id` cascade removed the whole row, leaving the account
 itself untouched and thereby promoting a guest to a full household member.
 
+Both ways a split group creates an account write this row: `POST /groups/:id/guests` and adding an
+unlinked contact through `POST /groups/:id/members` with `contact_id`. The second one did not until
+the fix for the contact email rule, so the account it created counted as a full household member - an
+account created by any member, although household accounts are for admins only, with the contact's
+address as the target of its password reset. Such accounts created before the fix are not converted
+automatically; see CHANGELOG.
+
 | Column | Type | Constraint |
 |--------|------|-----------|
 | user_id | INTEGER | FK → Users (CASCADE delete), PRIMARY KEY |

@@ -675,6 +675,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   account, which is more than a module permission covers. Changing them now needs a signed-in session
   or a token without module limits; other fields stay editable with a limited token.
 
+- **Adding a contact to a shared-expense group no longer creates a full household account.** Any
+  member could do this, and the new account counted as a household member with the contact's email
+  address as the target of its password reset, although creating household accounts is for admins.
+  Such an account is now a guest of the group, the same as a guest added directly: it sees only that
+  group's shared expenses. Accounts created this way before the update stay as they are, because
+  some of them may be in real use. Admins should look through the household members under Settings
+  for people who were only meant to share expenses, and remove or re-create them as guests.
+
 ## [2.68.0] - 2026-09-20
 
 ### Added

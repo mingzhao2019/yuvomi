@@ -1,10 +1,12 @@
 /**
- * Modul: E-Mail-Adressen verknuepfter Kontakte
+ * Modul: E-Mail-Adressen verknuepfter Kontakte und Konten aus Kontakten
  * Zweck: Die E-Mail-Adressen eines Kontakts mit `family_user_id` fuehren zu
  *        seinem Konto (Passwort-Reset, SSO-Verknuepfung). Sie aendern nur die
  *        verknuepfte Person selbst oder ein Admin, und nur mit vollem Zugriff
  *        (Sitzung oder ungescoptes Token) - ueber jeden Schreibweg. Alle
- *        anderen Felder bleiben fuer Mitglieder editierbar.
+ *        anderen Felder bleiben fuer Mitglieder editierbar. Dazu: ein Konto,
+ *        das Geteilte Ausgaben aus einem Kontakt anlegen, ist immer ein Gast
+ *        und nie ein Haushaltsmitglied.
  *
  * JEDER TEST STELLT SEINEN AUSGANGSZUSTAND SELBST HER (`reset()`), damit ein
  * roter Test auf seine eigene Ursache zeigt und nicht auf den Rest, den ein
@@ -58,6 +60,7 @@ const db = (await import('../server/db.js')).get();
 const { findOrCreateOidcUser, buildResetRoutes } = await import('../server/auth.js');
 const { createPasswordResetService } = await import('../server/services/password-reset.js');
 const { parseAndMergeContact } = await import('../server/services/cardav-sync.js');
+const { isHouseholdMember } = await import('../server/services/household-members.js');
 
 const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").get().id;
 const kidId = db.prepare("SELECT id FROM users WHERE username = 'kid'").get().id;
@@ -289,4 +292,50 @@ test('after a refused attempt, forgot-password sends the admin\'s link to the ad
     assert.equal((await post('/forgot-password', { identifier: ATTACKER })).status, 200);
     assert.deepEqual(sent.map((m) => m.to), ['admin@home.test']);
   });
+});
+
+// -------------------------------------------------------------------------
+// Geteilte Ausgaben: ein Konto aus einem Kontakt ist ein Gast
+// -------------------------------------------------------------------------
+
+async function contactIntoGroup(name, email) {
+  const c = await call(kid, 'POST', '/contacts', { name, email });
+  assert.equal(c.status, 201);
+  const g = await call(kid, 'POST', '/split-expenses/groups', { name: `Trip ${name}` });
+  assert.equal(g.status, 201);
+  const m = await call(kid, 'POST', `/split-expenses/groups/${g.body.data.id}/members`, { contact_id: c.body.data.id });
+  assert.equal(m.status, 201);
+  return { userId: m.body.data.user_id, groupId: g.body.data.id };
+}
+
+test('adding a contact to a group creates a split guest, not a household member', async () => {
+  const { userId, groupId } = await contactIntoGroup('Grandma', 'grandma@example.test');
+  const guest = db.prepare('SELECT group_id, created_by FROM split_expense_guest_users WHERE user_id = ?').get(userId);
+  assert.deepEqual(guest, { group_id: groupId, created_by: kidId });
+  assert.equal(isHouseholdMember(userId, { db }), false);
+  const members = await call(admin, 'GET', '/family/members');
+  assert.equal(members.status, 200);
+  assert.ok(!members.body.data.some((m) => m.id === userId), 'listed as a household member');
+});
+
+test('an account created from a contact with a foreign address hands out nothing beyond its group', async () => {
+  const { userId } = await contactIntoGroup('Decoy', ATTACKER);
+  const username = db.prepare('SELECT username FROM users WHERE id = ?').get(userId).username;
+  const link = await withResetRoutes(async ({ post, sent }) => {
+    assert.equal((await post('/forgot-password', { identifier: username })).status, 200);
+    return sent.find((m) => m.to === ATTACKER)?.text.match(/token=([\w-]+)/)?.[1] ?? null;
+  });
+  // Ein Gast darf sein Passwort zuruecksetzen - das ist gewollt. Wer die
+  // Adresse traegt, bekommt damit aber nur den Gast, nicht den Haushalt.
+  assert.ok(link, 'the reset link went nowhere - the test would measure nothing');
+  await withResetRoutes(async ({ post }) => {
+    assert.equal((await post('/reset-password', { token: link, password: 'attackerpass1' })).status, 200);
+  });
+  const session = await login(username, 'attackerpass1');
+  assert.equal(session.status, 200);
+  for (const path of ['/tasks', '/contacts', '/family/members']) {
+    const r = await call(session, 'GET', path);
+    assert.equal(r.status, 403, `${path} reachable for the account created from a contact`);
+  }
+  assert.equal(isHouseholdMember(userId, { db }), false);
 });
