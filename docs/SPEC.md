@@ -1482,6 +1482,16 @@ prune apply: an addressbook that returns nothing at all, or whose fetch fails, o
 single unparsable vCard, suspends deletion entirely and logs a warning — an incomplete list of UIDs
 must never be read as "everything else was deleted".
 
+**Email addresses of a linked contact:** a contact with `family_user_id` is a person's account, and
+its addresses (`contacts.email` and every `contact_emails.value`) lead to that account: the password
+reset finds the account by `contacts.email` and sends the link there, and the SSO sign-in links an
+account by a verified address matching either column. Only the linked person or an admin may change
+them; `PUT /api/v1/contacts/:id` refuses anyone else with 403 when the request would change the
+primary address or the set of addresses (sending them unchanged is not a change). The CardDAV sync
+acts for nobody and never writes them on a linked contact, whether it adopts the contact or updates
+it later. All other fields stay editable for anyone with write access to contacts, and the edit form
+shows the addresses read-only to everyone else. The rule lives in `server/services/contact-identity.js`.
+
 ### Contact Categories (migration v84)
 DB-backed, customizable category list for contacts. Replaces the old hardcoded German-named set. The seven predefined keys (`doctor`, `school`, `authority`, `insurance`, `craftsman`, `emergency`, `misc`) carry a stable slug key (which, together with `icon`, drives the list grouping), a localizing `label_key`, a Lucide `icon`, and a `color`; the pre-existing German category values (`Arzt`, `Behörde`, …) are migrated to these keys. User-added categories store their `name` and default to the `tag` icon. A "Manage categories" button in the contacts toolbar opens the shared `yuvomi-category-manager` modal to add, rename, recolor, reorder, and delete categories, with the same in-use / last-category deletion guards as Tasks and Budget.
 

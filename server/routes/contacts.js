@@ -11,6 +11,7 @@ import { str, oneOf, date, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT } from 
 import { uniqueKey } from '../utils/category-slug.js';
 import { composeDisplayName, normalizeNameParts } from '../../public/utils/contact-name.js';
 import { toE164, defaultCountryFromConfig } from '../utils/phone.js';
+import { contactActorFromRequest, mayChangeContactEmails, bodyChangesContactEmails } from '../services/contact-identity.js';
 
 const log = createLogger('Contacts');
 
@@ -585,6 +586,21 @@ router.put('/:id', (req, res) => {
       const addressesValidation = validateAddresses(req.body.addresses);
       if (!addressesValidation.valid) {
         return res.status(400).json({ error: addressesValidation.error, code: 400 });
+      }
+    }
+
+    // Die E-Mail-Adressen eines verknuepften Kontakts fuehren zu seinem Konto
+    // (Passwort-Reset, SSO-Verknuepfung): sie aendern nur die Person selbst
+    // oder ein Admin. Die Regel steht in services/contact-identity.js.
+    if (!mayChangeContactEmails(contact, contactActorFromRequest(req))) {
+      const storedEmails = db.get()
+        .prepare('SELECT value FROM contact_emails WHERE contact_id = ?')
+        .all(id).map((r) => r.value);
+      if (bodyChangesContactEmails(contact, storedEmails, req.body)) {
+        return res.status(403).json({
+          error: 'Only this member or an admin can change the email addresses of a household member.',
+          code: 403,
+        });
       }
     }
 
