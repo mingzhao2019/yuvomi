@@ -46,7 +46,7 @@ export function contactsPaths() {
       put: op({
         summary: 'Update contact with multi-value fields',
         tag: 'Contacts',
-        description: 'On a contact linked to an account (`family_user_id`), `email` and `emails` can only be changed by that member or an admin; anyone else is refused with 403. Sending them unchanged is not a change. All other fields stay editable for anyone with write access to contacts.',
+        description: 'On a contact linked to an account (`family_user_id`), `email` and `emails` can only be changed by that member or an admin; anyone else is refused with 403. Addresses are compared without regard to letter case; sending them unchanged or only in another case is not a change, and the stored spelling is kept. All other fields stay editable for anyone with write access to contacts.',
         params: [idParam()],
         stateChanging: true,
         requestBody: jsonBody(null),

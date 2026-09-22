@@ -1487,7 +1487,9 @@ its addresses (`contacts.email` and every `contact_emails.value`) lead to that a
 reset finds the account by `contacts.email` and sends the link there, and the SSO sign-in links an
 account by a verified address matching either column. Only the linked person or an admin may change
 them; `PUT /api/v1/contacts/:id` refuses anyone else with 403 when the request would change the
-primary address or the set of addresses (sending them unchanged is not a change). The CardDAV sync
+primary address or the set of addresses. Addresses are compared without regard to letter case, as the
+SSO link compares them; sending them unchanged or only in another case is not a change, and the stored
+spelling is kept. The CardDAV sync
 acts for nobody and never writes them on a linked contact, whether it adopts the contact or updates
 it later. All other fields stay editable for anyone with write access to contacts, and the edit form
 shows the addresses read-only to everyone else. The rule lives in `server/services/contact-identity.js`.

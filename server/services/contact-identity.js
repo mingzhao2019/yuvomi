@@ -49,8 +49,12 @@ export function mayChangeContactEmails(contact, actor) {
   return actor.userId != null && Number(actor.userId) === Number(contact.family_user_id);
 }
 
+// Verglichen wird ohne Gross-/Kleinschreibung: dieselben Pfade, die die
+// Adresse lesen (SSO-Verknuepfung, Eindeutigkeitspruefung), vergleichen mit
+// `lower()`. Eine reine Umschreibung der Schreibweise fuehrt zu keinem anderen
+// Konto und ist deshalb keine Aenderung.
 const norm = (value) => {
-  const s = typeof value === 'string' ? value.trim() : '';
+  const s = typeof value === 'string' ? value.trim().normalize('NFC').toLowerCase() : '';
   return s || null;
 };
 
@@ -61,8 +65,8 @@ const norm = (value) => {
  * (`contacts.email`) fuer sich und die Menge ALLER Adressen. Ein unveraendert
  * mitgeschicktes Formular - das Frontend sendet bei jedem Speichern alle
  * Felder - ist damit keine Aenderung, auch wenn es die Hauptadresse
- * zusaetzlich als Zeile in `contact_emails` fuehrt. Labels und die
- * Reihenfolge der Zweitadressen sind keine Identitaet.
+ * zusaetzlich als Zeile in `contact_emails` fuehrt. Labels, die Reihenfolge
+ * der Zweitadressen und die Gross-/Kleinschreibung sind keine Identitaet.
  *
  * @param {object} contact  Gespeicherte Zeile aus `contacts`.
  * @param {string[]} storedEmails  Gespeicherte `contact_emails.value`.

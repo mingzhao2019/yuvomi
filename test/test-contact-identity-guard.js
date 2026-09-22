@@ -119,6 +119,21 @@ test('a member can still edit the other fields of a linked contact, with the unc
   assert.equal(row.email, 'admin@home.test');
 });
 
+test('a member who only changes the letter case is not refused, and the stored spelling stays', async () => {
+  const r = await call(kid, 'PUT', `/contacts/${adminContact.id}`, {
+    notes: 'Case only',
+    email: ' Admin@Home.TEST ',
+    emails: [{ label: 'other', value: 'ADMIN@home.test', isPrimary: true }],
+  });
+  assert.equal(r.status, 200);
+  assert.deepEqual(emailsOf(adminContact.id), { email: 'admin@home.test', emails: [] });
+  assert.equal(db.prepare('SELECT notes FROM contacts WHERE id = ?').get(adminContact.id).notes, 'Case only');
+  // Eine wirklich andere Adresse bleibt verweigert.
+  const other = await call(kid, 'PUT', `/contacts/${adminContact.id}`, { email: 'Admin@Home.test.evil' });
+  assert.equal(other.status, 403);
+  assert.equal(emailsOf(adminContact.id).email, 'admin@home.test');
+});
+
 test('the linked person can change their own email', async () => {
   const r = await call(kid, 'PUT', `/contacts/${kidContact.id}`, {
     email: 'kid.new@home.test', emails: [{ label: 'school', value: 'kid@school.test' }],

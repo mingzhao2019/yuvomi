@@ -602,6 +602,10 @@ router.put('/:id', (req, res) => {
           code: 403,
         });
       }
+      // Gleiche Adressen (etwa nur anders geschrieben): die gespeicherten
+      // bleiben unangetastet, wie sie sind.
+      delete req.body.email;
+      delete req.body.emails;
     }
 
     // Update contact and multi-value fields in a transaction
