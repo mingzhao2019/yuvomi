@@ -34,6 +34,7 @@ import { nowFields, zonedDateKey } from '/utils/timezone.js';
 import { historyDayLabel } from '/utils/day-label.js';
 import {
   PRIORITY_LABELS, STATUS_LABELS, FALLBACK_CATEGORY, formatDueDate, normalizeTagList,
+  statusLabel,
   catLabel as catLabelOf, catSortIndex as catSortIndexOf,
   canEditTaskDefinition as canEditTaskDefinitionFor,
   docMime, docHref, docIcon,
@@ -601,7 +602,7 @@ function renderTaskCard(task, opts = {}) {
             ${s.status === 'done' ? '<i data-lucide="check" class="subtask-item__checkbox-icon" aria-hidden="true"></i>' : ''}
           </button>` : `
           <span class="subtask-item__checkbox subtask-item__checkbox--static ${s.status === 'done' ? 'subtask-item__checkbox--done' : ''}"
-                role="img" aria-label="${esc(`${s.title}: ${t(s.status === 'done' ? 'tasks.statusDone' : 'tasks.statusOpen')}`)}">
+                role="img" aria-label="${esc(`${s.title}: ${statusLabel(s.status)}`)}">
             ${s.status === 'done' ? '<i data-lucide="check" class="subtask-item__checkbox-icon" aria-hidden="true"></i>' : ''}
           </span>`}
           <span class="subtask-item__title">${esc(s.title)}</span>
@@ -642,7 +643,7 @@ function renderTaskCard(task, opts = {}) {
              Zeichen verschwaende die Zeile die Auskunft, die der Haken traegt:
              ob die Aufgabe erledigt ist. */''}
         <span class="task-status-btn task-status-btn--${task.status} task-status-btn--static"
-              role="img" aria-label="${esc(`${task.title}: ${t(isDone ? 'tasks.statusDone' : 'tasks.statusOpen')}`)}">
+              role="img" aria-label="${esc(`${task.title}: ${statusLabel(task.status)}`)}">
           <i data-lucide="check" class="task-status-btn__check" aria-hidden="true"></i>
         </span>
         `}
