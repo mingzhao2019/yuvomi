@@ -339,3 +339,51 @@ test('an account created from a contact with a foreign address hands out nothing
   }
   assert.equal(isHouseholdMember(userId, { db }), false);
 });
+
+// Nach dem Passwort-Hash (dem einzigen await) laeuft alles in EINER
+// Transaktion: Gruppe und Kontakt werden dort neu gelesen. Vorher schrieben
+// vier Einzelanweisungen nach dem await - verschwand die Gruppe waehrenddessen,
+// stand ein Konto samt Verknuepfung da, aber ohne Gast-Zeile: ein volles
+// Haushaltsmitglied, und die Anfrage antwortete 500.
+test('a group deleted while the account is being prepared leaves no account behind', async () => {
+  const c = await call(kid, 'POST', '/contacts', { name: 'Racer', email: ATTACKER });
+  assert.equal(c.status, 201);
+  const g = await call(kid, 'POST', '/split-expenses/groups', { name: 'Race trip' });
+  assert.equal(g.status, 201);
+  const add = call(kid, 'POST', `/split-expenses/groups/${g.body.data.id}/members`, { contact_id: c.body.data.id });
+  // Die Loeschung soll WAEHREND des Hashs ankommen, nicht davor.
+  await new Promise((r) => setTimeout(r, 30));
+  const del = await call(kid, 'DELETE', `/split-expenses/groups/${g.body.data.id}`);
+  assert.equal(del.status, 200);
+  const added = await add;
+  assert.equal(added.status, 404, `adding answered ${added.status}`);
+  assert.equal(db.prepare('SELECT family_user_id FROM contacts WHERE id = ?').get(c.body.data.id).family_user_id, null);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM users WHERE display_name = 'Racer'").get().n, 0);
+});
+
+test('two simultaneous additions of the same contact create one account', async () => {
+  const c = await call(kid, 'POST', '/contacts', { name: 'Twin', email: 'twin@example.test' });
+  assert.equal(c.status, 201);
+  const g = await call(kid, 'POST', '/split-expenses/groups', { name: 'Twin trip' });
+  assert.equal(g.status, 201);
+  const path = `/split-expenses/groups/${g.body.data.id}/members`;
+  const [a, b] = await Promise.all([
+    call(kid, 'POST', path, { contact_id: c.body.data.id }),
+    call(kid, 'POST', path, { contact_id: c.body.data.id }),
+  ]);
+  assert.deepEqual([a.status, b.status], [201, 201]);
+  assert.equal(a.body.data.user_id, b.body.data.user_id);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM users WHERE display_name = 'Twin'").get().n, 1);
+  const linked = db.prepare('SELECT family_user_id FROM contacts WHERE id = ?').get(c.body.data.id).family_user_id;
+  assert.equal(linked, a.body.data.user_id);
+  assert.ok(db.prepare('SELECT 1 FROM split_expense_guest_users WHERE user_id = ?').get(linked));
+});
+
+test('adding a contact that does not exist answers 404 and creates nothing', async () => {
+  const g = await call(kid, 'POST', '/split-expenses/groups', { name: 'Ghost trip' });
+  assert.equal(g.status, 201);
+  const before = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+  const r = await call(kid, 'POST', `/split-expenses/groups/${g.body.data.id}/members`, { contact_id: 999999 });
+  assert.equal(r.status, 404);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM users').get().n, before);
+});

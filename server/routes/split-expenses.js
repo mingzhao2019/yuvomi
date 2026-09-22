@@ -190,30 +190,44 @@ function uniqueUsername(base) {
 // split_expense_guest_users zaehlte es als volles Haushaltsmitglied - angelegt
 // von einem Mitglied, obwohl Haushaltskonten Admin-Sache sind, und mit der
 // Kontakt-Adresse als Ziel des Passwort-Resets.
+//
+// KEIN YIELD ZWISCHEN LESEN UND SCHREIBEN. Der Passwort-Hash ist der einzige
+// asynchrone Schritt und laeuft deshalb zuerst; danach prueft EINE Transaktion
+// Gruppe und Kontakt neu und schreibt Konto, Verknuepfung, Gast-Zeile,
+// Aktivitaet und Artefakte zusammen oder gar nicht. Einzeln geschrieben
+// blieb ein Konto ohne Gast-Zeile stehen, wenn die Gruppe waehrend des Hashs
+// verschwand, und zwei gleichzeitige Anfragen legten zwei Konten an.
+//
+// Rueckgabe: { userId } oder { missing: 'contact' | 'group' }.
 async function userFromContact(database, contactId, actorId, groupId) {
-  const contact = database.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
-  if (!contact) throw new Error('Contact not found.');
-  if (contact.family_user_id) return contact.family_user_id;
-  const username = uniqueUsername(contact.name);
+  const known = database.prepare('SELECT family_user_id FROM contacts WHERE id = ?').get(contactId);
+  if (!known) return { missing: 'contact' };
+  if (known.family_user_id) return { userId: known.family_user_id };
   const passwordHash = await hashPassword(crypto.randomBytes(24).toString('base64url'));
-  const created = database.prepare(`
-    INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
-    VALUES (?, ?, ?, ?, 'member', 'other')
-  `).run(username, contact.name, passwordHash, randomAvatarColor());
-  database.prepare('UPDATE contacts SET family_user_id = ? WHERE id = ?').run(created.lastInsertRowid, contact.id);
-  database.prepare('INSERT OR IGNORE INTO split_expense_guest_users (user_id, group_id, created_by) VALUES (?, ?, ?)')
-    .run(created.lastInsertRowid, groupId, actorId);
-  activity(groupId, actorId, 'guest_created', 'member', created.lastInsertRowid, { display_name: contact.name });
-  if (contact.birthday) {
-    syncGuestArtifacts(database, created.lastInsertRowid, {
-      displayName: contact.name,
-      phone: contact.phone,
-      email: contact.email,
-      birthDate: contact.birthday,
-      actorUserId: actorId,
-    });
-  }
-  return created.lastInsertRowid;
+  return database.transaction(() => {
+    if (!database.prepare('SELECT 1 FROM expense_groups WHERE id = ?').get(groupId)) return { missing: 'group' };
+    const contact = database.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
+    if (!contact) return { missing: 'contact' };
+    if (contact.family_user_id) return { userId: contact.family_user_id };
+    const created = database.prepare(`
+      INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
+      VALUES (?, ?, ?, ?, 'member', 'other')
+    `).run(uniqueUsername(contact.name), contact.name, passwordHash, randomAvatarColor());
+    database.prepare('UPDATE contacts SET family_user_id = ? WHERE id = ?').run(created.lastInsertRowid, contact.id);
+    database.prepare('INSERT OR IGNORE INTO split_expense_guest_users (user_id, group_id, created_by) VALUES (?, ?, ?)')
+      .run(created.lastInsertRowid, groupId, actorId);
+    activity(groupId, actorId, 'guest_created', 'member', created.lastInsertRowid, { display_name: contact.name });
+    if (contact.birthday) {
+      syncGuestArtifacts(database, created.lastInsertRowid, {
+        displayName: contact.name,
+        phone: contact.phone,
+        email: contact.email,
+        birthDate: contact.birthday,
+        actorUserId: actorId,
+      });
+    }
+    return { userId: created.lastInsertRowid };
+  })();
 }
 
 function syncGuestArtifacts(database, userId, { displayName, phone, email, birthDate, actorUserId }) {
@@ -732,7 +746,13 @@ router.post('/groups/:id/members', async (req, res) => {
     const vContactId = req.body.contact_id ? validateId(req.body.contact_id, 'contact_id') : { value: null, error: null };
     if (vUserId.error || vContactId.error) return res.status(400).json({ error: vUserId.error || vContactId.error, code: 400 });
     const role = GROUP_ROLES.includes(req.body.role) && req.body.role !== 'owner' ? req.body.role : 'guest';
-    const memberUserId = vContactId.value ? await userFromContact(db.get(), vContactId.value, userId(req), groupId) : vUserId.value;
+    let memberUserId = vUserId.value;
+    if (vContactId.value) {
+      const fromContact = await userFromContact(db.get(), vContactId.value, userId(req), groupId);
+      if (fromContact.missing === 'contact') return res.status(404).json({ error: 'Contact not found.', code: 404 });
+      if (fromContact.missing === 'group') return res.status(404).json({ error: 'Group not found.', code: 404 });
+      memberUserId = fromContact.userId;
+    }
     if (!memberUserId) return res.status(400).json({ error: 'user_id or contact_id is required.', code: 400 });
     const exists = db.get().prepare('SELECT 1 FROM users WHERE id = ?').get(memberUserId);
     if (!exists) return res.status(404).json({ error: 'User not found.', code: 404 });
