@@ -887,6 +887,10 @@ incremental runs. That run also merges appointments that earlier versions had st
 occurrences back into their series; an occurrence you had assigned to someone or given its own
 colour is kept as a separate entry instead.
 
+Reminders are not part of the sync. Yuvomi does not import the notifications set on an event in
+Google and sends none of its own, so editing an event in Yuvomi leaves its notifications in Google
+as they were. Reminders in Yuvomi are set in Yuvomi for each person and delivered by Yuvomi itself.
+
 ### Outlook Calendar and Microsoft To Do — Microsoft Graph (Optional)
 
 This provider uses one Microsoft Graph OAuth connection for both features. Outlook Calendar now synchronizes in both directions: events created or changed in Yuvomi are sent to Outlook, Outlook-only events in enabled calendars are imported, and changes on both sides become an explicit conflict instead of silently overwriting either version. Microsoft To Do is a separate, bidirectional task sync: enabled lists appear in Yuvomi's Tasks sidebar, and task changes flow in both directions. It supports personal Microsoft accounts (outlook.com, hotmail.com, M365 Family). Outlook.com does not support CalDAV, so both features use the Microsoft Graph API. Multiple family accounts can be connected.
@@ -938,7 +942,9 @@ CalDAV and iCloud sync both ways: events created, edited, deleted, or moved to a
 Yuvomi are applied on the server as well, and changes made there flow back. An outbound change is
 attempted right when you save and retried by the next sync run if the server cannot be reached.
 Editing preserves everything the server holds that Yuvomi does not — attendees, alarms, categories
-and exceptions of a recurring series stay untouched. Events that were already synced before the
+and exceptions of a recurring series stay untouched. Alarms are not imported, though, and Yuvomi
+writes none of its own: an event it creates on the server carries no alarm, and reminders set in
+Yuvomi are delivered by Yuvomi only. Events that were already synced before the
 upgrade to v1.52.0 need one sync run before edits and deletions can reach them.
 
 ### Two-Factor Authentication (Optional)
