@@ -131,6 +131,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wall-clock time. The CSV export then showed the UTC time for these doses. The current minute is
   now stored in the same form as every other dose. The app itself always sends the time and was not
   affected. (#1387)
+- **A dose recorded through the API as taken without a time now gets the current time.** `POST
+  /api/v1/health/medications/{id}/logs` with `status: "taken"` and no `taken_at` stored the dose
+  without any time, so the CSV export left the time column empty for it. It now stores the current
+  minute in household time, the same as marking a dose as taken or correcting it to taken already
+  do. Doses stored this way before keep their empty time. The app itself always sends the time and
+  was not affected. (#1399)
 - **The photo crop dialog is now cached for offline use like the rest of the app.** Avatars,
   birthday and inventory photos, recipe pictures and quick-link images all go through one crop
   dialog, which the app loads only when you pick a picture. It was the one module of that kind the
