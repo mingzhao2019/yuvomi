@@ -133,6 +133,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says so in the interface language and puts the cursor in the field. It checks only a reminder that
   is being changed, so a stored amount nobody touched still never blocks saving, and an amount typed
   and then left behind by picking a preset instead is not sent at all. (#1384)
+- **Deleting a folder no longer reveals activity on documents you cannot see.** Before deleting a
+  folder the app asks the server what the deletion would affect and sends that answer back with the
+  deletion, so nothing changes unnoticed in between. That answer was built over every document in
+  the folder, including private ones of other family members, so asking twice showed whether
+  something had happened to documents you are not allowed to see. It now covers only the documents
+  you can see. Deleting a folder together with its documents still refuses as long as it holds a
+  document you may not delete, and that refusal now comes before the "contents changed" message,
+  which only appears for changes you can see. If such a document arrives while the delete dialog is
+  open, the app now says in your language that nothing was deleted because the folder holds
+  documents you may not delete, instead of showing an English server message. Keeping the documents
+  and deleting only the folder no longer fails while someone else is deleting a single document in
+  it; that document just loses its folder and is then deleted as intended. For API clients the 403
+  of `DELETE /api/v1/documents/folders/{id}?documents=delete` carries the reason
+  `FOLDER_DOCUMENTS_NOT_MANAGEABLE`. (#1355)
 - **The API reference now describes `POST /api/v1/meals/apply-plan` as it behaves.** Since 2.52.0
   it said that without `replace_existing` a slot that already has a meal is skipped. The endpoint
   has never done that: it adds the new meals next to the ones already planned for the same date and
