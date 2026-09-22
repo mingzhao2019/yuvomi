@@ -11,6 +11,7 @@ import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import * as db from './db.js';
 import { generateToken, csrfMiddleware } from './middleware/csrf.js';
+import { SESSION_MAX_AGE_MS, sessionCookieRefreshDue } from './utils/session-lifetime.js';
 import { collectErrors, date as validateDate, str, MAX_SHORT, MAX_TITLE } from './middleware/validate.js';
 import { createLogger } from './logger.js';
 import { memberEmail } from './services/member-email.js';
@@ -192,7 +193,7 @@ class BetterSQLiteStore extends session.Store {
 
   set(sid, sess, callback) {
     try {
-      const ttl = sess.cookie?.maxAge ?? 7 * 24 * 60 * 60 * 1000;
+      const ttl = sess.cookie?.maxAge ?? SESSION_MAX_AGE_MS;
       const expiredAt = Date.now() + ttl;
       db.get()
         .prepare('INSERT OR REPLACE INTO sessions (sid, sess, expired_at) VALUES (?, ?, ?)')
@@ -212,9 +213,29 @@ class BetterSQLiteStore extends session.Store {
     }
   }
 
+  /**
+   * Die Auffrischung des Cookies (#1356) im Store nachtragen: neuer Ablauf in
+   * `sess.cookie` (daraus liest `refreshSessionCookieIfDue` die Frist) und in
+   * `expired_at`. NUR `UPDATE`: eine Zeile, die inzwischen widerrufen wurde,
+   * bleibt weg - anders als `set()`, das ein `INSERT OR REPLACE` ist.
+   */
+  extendCookie(sid, expiresAt) {
+    db.get()
+      .prepare(`UPDATE sessions
+                   SET sess = json_set(sess, '$.cookie.expires', ?, '$.cookie.originalMaxAge', ?),
+                       expired_at = ?
+                 WHERE sid = ?`)
+      .run(new Date(expiresAt).toISOString(), SESSION_MAX_AGE_MS, expiresAt, sid);
+  }
+
+  // Laeuft bei JEDEM Request mit Sitzung, auch bei statischen Dateien: der
+  // Eintrag gleitet also mindestens so weit wie das Cookie, das `requireAuth`
+  // nur alle zwoelf Stunden nachdatiert (#1356). Der Store endet damit nie vor
+  // dem Cookie, hoechstens eine Drosselfrist danach - ein gueltiges Cookie
+  // fuehrt nie ins Leere.
   touch(sid, sess, callback) {
     try {
-      const ttl = sess.cookie?.maxAge ?? 7 * 24 * 60 * 60 * 1000;
+      const ttl = sess.cookie?.maxAge ?? SESSION_MAX_AGE_MS;
       const expiredAt = Date.now() + ttl;
       db.get()
         .prepare('UPDATE sessions SET expired_at = ? WHERE sid = ?')
@@ -273,13 +294,14 @@ if (process.env.SESSION_SECRET.startsWith('REPLACE_WITH_')) {
 const SESSION_COOKIE = 'yuvomi.sid';
 const LEGACY_SESSION_COOKIE = 'oikos.sid';
 
-const expressSession = session({
-  store: sessionStore,
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  name: SESSION_COOKIE,
-  cookie: {
+/**
+ * Die Attribute des Session-Cookies - EINE Quelle fuer express-session, die
+ * oikos.sid-Uebernahme und die Auffrischung. Weichen sie ab, legt der Browser
+ * ein zweites Cookie gleichen Namens an (Pfad und Domain gehoeren zur
+ * Identitaet). `secure` wird bei jedem Aufruf frisch gelesen.
+ */
+function sessionCookieOptions() {
+  return {
     httpOnly: true,
     // secure=false by default; set SESSION_SECURE=true when behind an HTTPS reverse proxy
     secure: process.env.SESSION_SECURE === 'true',
@@ -287,8 +309,19 @@ const expressSession = session({
     // (e.g. reverse proxy, direct URL entry), causing 401 on login. Lax is safe
     // because CSRF is protected by the double-submit token and HTTPS secure flag.
     sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 Tage in ms
-  },
+    // Gleitend: `requireAuth` datiert das Cookie gedrosselt nach (#1356).
+    maxAge: SESSION_MAX_AGE_MS,
+    path: '/',
+  };
+}
+
+const expressSession = session({
+  store: sessionStore,
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  name: SESSION_COOKIE,
+  cookie: sessionCookieOptions(),
 });
 
 /**
@@ -312,11 +345,7 @@ function sessionMiddleware(req, res, next) {
       //    die die Session nicht verändern, KEIN Set-Cookie — und der Browser bliebe
       //    nach dem Verwerfen von oikos.sid komplett ohne Session-Cookie zurück.
       res.cookie(SESSION_COOKIE, legacyValue, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.SESSION_SECURE === 'true',
-        maxAge: 1000 * 60 * 60 * 24 * 7,
-        path: '/',
+        ...sessionCookieOptions(),
         encode: (v) => v, // Wert ist bereits kodiert → kein Doppel-Encoding
       });
       // 3. Erst jetzt das Legacy-Cookie verwerfen (der neue Cookie ist gesetzt).
@@ -849,6 +878,7 @@ function requireAuth(req, res, next) {
     req.authRole = req.session.role;
     // Interaktive Sessions kennen kein Token-Scoping.
     req.authScopes = null;
+    refreshSessionCookieIfDue(req, res);
     applyRoleModuleAccess(req);
     return next();
   }
@@ -858,6 +888,74 @@ function requireAuth(req, res, next) {
 /**
  * Prüft ob der authentifizierte User Admin-Rolle hat.
  */
+
+/**
+ * Datiert das Session-Cookie nach - gedrosselt, wie beim Wandtablett (#1356).
+ *
+ * DIE SITZUNG GLEITET: sie endet nach `SESSION_MAX_AGE_MS` ohne Benutzung,
+ * nicht so lange nach der Anmeldung. Der Store verlaengert sich ohnehin bei
+ * jedem Request (`touch`); das Cookie im Browser tat es nie, weil
+ * express-session ohne `rolling` bei unveraenderter Sitzung kein `Set-Cookie`
+ * schickt. Deshalb stellt diese Funktion das Cookie hoechstens alle zwoelf
+ * Stunden SELBST neu aus.
+ *
+ * `req.session` WIRD DABEI NICHT VERAENDERT, und das ist der Kern (Review zu
+ * #1407). Eine veraenderte Sitzung nimmt am Ende des Requests `store.set()`,
+ * und das ist ein `INSERT OR REPLACE`: wurde die Sitzung widerrufen, waehrend
+ * dieser Request noch lief (Passwort-Reset, 2FA, `invalidateUserSessions`,
+ * Kontoloeschung), legte es die geloeschte Zeile fuer 90 Tage neu an. Hier
+ * laufen nur `UPDATE ... WHERE sid = ?` - auf eine geloeschte Zeile wirken sie
+ * nicht. `req.session.cookie` darf sich aendern: express-session nimmt das
+ * Cookie aus seiner Aenderungspruefung heraus, der Request bleibt auf `touch()`.
+ *
+ * DER WERT IST DERSELBE SIGNIERTE, DEN DER BROWSER GESCHICKT HAT - wie bei der
+ * oikos.sid-Uebernahme in `sessionMiddleware`. Neu signiert wird nichts, und
+ * gehoert der Wert nicht zu `req.sessionID`, wird nichts gesetzt.
+ *
+ * DIE FRIST STEHT IM ABLAUF, DEN DER STORE SPEICHERT. `sess.cookie.expires` ist
+ * der Ablauf, den der Browser zuletzt bekommen hat: beim Login, bei jedem
+ * Speichern einer veraenderten Sitzung und hier per `extendCookie`. Faellig ist
+ * die Auffrischung, wenn davon weniger als 90 Tage minus zwoelf Stunden
+ * uebrig sind. Eine Sitzung von vor #1356 (alte Woche) ist das sofort.
+ *
+ * NUR HIER, NICHT IN DER SESSION-MIDDLEWARE: die haengt vor den statischen
+ * Dateien, eine Auffrischung dort schriebe die Session-ID in oeffentlich
+ * cachebare Asset-Antworten (Begruendung bei `SESSION_COOKIE_REFRESH_AFTER_MS`).
+ *
+ * DIE LAUFZEIT IM SPEICHER WIRD MITGESETZT, weil express-session am Ende
+ * `touch()` ruft und auf `originalMaxAge` zuruecksetzt; eine Sitzung mit der
+ * alten Woche schriebe sonst `expired_at` wieder auf sieben Tage.
+ */
+function refreshSessionCookieIfDue(req, res) {
+  const cookie = req.session.cookie;
+  // Ohne Cookie-Objekt ist es keine express-session (Routentests haengen ein
+  // nacktes `{ userId, role }` an) - es gibt nichts nachzudatieren.
+  if (!cookie) return;
+  const now = Date.now();
+  const expiresAt = cookie.expires instanceof Date ? cookie.expires.getTime() : null;
+  if (!sessionCookieRefreshDue(expiresAt, now)) return;
+  const value = signedSessionCookieValue(req);
+  if (!value) return;
+  res.cookie(SESSION_COOKIE, value, {
+    ...sessionCookieOptions(),
+    encode: (v) => v, // Wert ist bereits signiert und kodiert
+  });
+  cookie.maxAge = SESSION_MAX_AGE_MS;
+  cookie.originalMaxAge = SESSION_MAX_AGE_MS;
+  sessionStore.extendCookie(req.sessionID, now + SESSION_MAX_AGE_MS);
+}
+
+/**
+ * Der rohe, signierte `yuvomi.sid`-Wert aus dem Request - nur, wenn er zu
+ * `req.sessionID` gehoert. Erster Treffer, wie `cookie.parse` in express-session.
+ */
+function signedSessionCookieValue(req) {
+  const match = (req.headers.cookie || '').match(/(?:^|;\s*)yuvomi\.sid=([^;]+)/);
+  if (!match) return null;
+  let decoded;
+  try { decoded = decodeURIComponent(match[1]); } catch { return null; }
+  return decoded.startsWith(`s:${req.sessionID}.`) ? match[1] : null;
+}
 
 /**
  * Richtet eine neue Session nach erfolgter Authentifizierung ein.
@@ -886,7 +984,7 @@ function setupAuthSession(req, res, user) {
         httpOnly: false,
         sameSite: 'lax',
         secure: process.env.SESSION_SECURE === 'true',
-        maxAge: 1000 * 60 * 60 * 24 * 7,
+        maxAge: SESSION_MAX_AGE_MS,
       });
       resolve();
     });
@@ -2169,7 +2267,7 @@ router.get('/me', requireAuth, (req, res) => {
       httpOnly: false,
       sameSite: 'lax',
       secure: process.env.SESSION_SECURE === 'true',
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: SESSION_MAX_AGE_MS,
     });
 
     res.json({
