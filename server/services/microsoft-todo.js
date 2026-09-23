@@ -1690,7 +1690,7 @@ function startSync(options, state = {
     completionTaskIds: normalizeCompletionTaskIds(options.completionTaskIds),
   };
   let wrapped;
-  const running = syncInternal(normalizedOptions);
+  const running = runExternalJob(() => syncInternal(normalizedOptions));
   wrapped = running.finally(() => {
     if (syncState === state && state.activePromise === wrapped && !state.queued) syncState = null;
   });
@@ -1729,7 +1729,7 @@ function queueSync(state, options) {
     state.queued = null;
     state.activePromise = entry.promise;
     state.activeForceFull = Boolean(entry.options.forceFull);
-    return syncInternal(entry.options);
+    return runExternalJob(() => syncInternal(entry.options));
   };
   const chained = previous.then(runQueued, runQueued);
   entry.promise = chained.finally(() => {
@@ -1742,7 +1742,7 @@ function queueSync(state, options) {
 
 /** Serialize scheduler, manual, and OAuth-triggered syncs for shared accounts. */
 export function sync(options = {}) {
-  return runExternalJob(() => runQueuedSync(options));
+  return runQueuedSync(options);
 }
 
 function runQueuedSync(options = {}) {
