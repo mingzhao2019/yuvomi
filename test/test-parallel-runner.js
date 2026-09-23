@@ -31,6 +31,7 @@ import { isRunning, parseProcStat, processState, runningGroupMembers } from '../
 
 const RUNNER = fileURLToPath(new URL('../scripts/run-tests-parallel.mjs', import.meta.url));
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const TEST_CHAIN = pkg.scripts['test-chain'] ?? pkg.scripts.test;
 
 /*
  * Die Attrappe schreibt je Aufruf einen Datensatz: Programmname, jedes Argument
@@ -103,7 +104,7 @@ const agrees = (result) => result.wholeStatus === 0
 
 test('der Runner findet jeden Schritt der test-Kette, so wie sh ihn ausfuehrt', () => {
   const { steps } = loadSteps();
-  const result = compare(pkg.scripts.test, steps);
+  const result = compare(TEST_CHAIN, steps);
 
   assert.equal(result.wholeStatus, 0, 'die Kette laeuft gegen die Attrappen nicht durch');
   // Anzahl zuerst, mit lesbarer Meldung; danach Menge und Reihenfolge.
@@ -144,12 +145,12 @@ test('Gegenprobe: der Vergleich wird rot, wenn das Parsen einen Schritt verliert
   assert.equal(agrees(naive), false, 'naives Trennen an && muss auffallen');
   assert.ok(naive.broken.length > 0, 'die zerschnittenen Schritte muessen benannt werden');
 
-  const lost = compare(pkg.scripts.test, loadSteps().steps.slice(0, -1));
+  const lost = compare(TEST_CHAIN, loadSteps().steps.slice(0, -1));
   assert.equal(agrees(lost), false, 'ein fehlender letzter Schritt muss auffallen');
 
   const glued = loadSteps().steps;
   glued.splice(0, 2, `${glued[0]} && ${glued[1]}`);
-  assert.equal(agrees(compare(pkg.scripts.test, glued)), false, 'zwei verschmolzene Schritte muessen auffallen');
+  assert.equal(agrees(compare(TEST_CHAIN, glued)), false, 'zwei verschmolzene Schritte muessen auffallen');
 });
 
 test('andere Operatoren brechen ab, statt still in einen Schritt zu rutschen', () => {

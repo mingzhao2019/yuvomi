@@ -10,7 +10,8 @@
  * Kosten: sie dauert, und der erste rote Schritt verdeckt jeden folgenden. Wer
  * drei Suiten gebrochen hat, erfaehrt es in drei Laeufen.
  *
- * KEINE ZWEITE LISTE. Die Schritte kommen aus `scripts.test`, so wie `sh` sie
+ * KEINE ZWEITE LISTE. Die Schritte kommen aus `scripts.test-chain` (mit
+ * Rueckfall auf `scripts.test` fuer fremde package.json), so wie `sh` sie
  * liest: getrennt wird nur an einem `&&` ausserhalb von Anfuehrungszeichen. Ein
  * anderer Operator (`||`, `;`, `|`, `&`, Klammern, Backticks) bricht mit einer
  * Meldung ab, statt still in einen Nachbarschritt zu rutschen. Dass der Parser
@@ -214,8 +215,9 @@ function rejectStateChange(step) {
 /** Die Schritte der `test`-Kette einer package.json, samt Arbeitsverzeichnis. */
 export function loadSteps(packagePath = REPO_PACKAGE) {
   const pkg = JSON.parse(readFileSync(packagePath, 'utf8'));
-  if (typeof pkg.scripts?.test !== 'string') throw new Error(`${packagePath} hat kein scripts.test`);
-  return { steps: parseChain(pkg.scripts.test), cwd: path.dirname(path.resolve(packagePath)) };
+  const chain = pkg.scripts?.['test-chain'] ?? pkg.scripts?.test;
+  if (typeof chain !== 'string') throw new Error(`${packagePath} hat weder scripts.test-chain noch scripts.test`);
+  return { steps: parseChain(chain), cwd: path.dirname(path.resolve(packagePath)) };
 }
 
 /** Groesster Sekundenwert, den ein Node-Timer noch haelt: floor((2^31-1) / 1000). */

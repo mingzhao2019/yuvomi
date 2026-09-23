@@ -30,14 +30,47 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tempDir } from './tmp-dir.js';
 
 const TEST_DIR = fileURLToPath(new URL('.', import.meta.url));
 const REPO = join(TEST_DIR, '..');
 const HELPER = pathToFileURL(join(TEST_DIR, 'tmp-dir.js')).href;
+const WRAPPER = join(REPO, 'scripts', 'run-with-temp-cleanup.mjs');
+
+for (const [label, exitCode] of [['success', 0], ['failure', 7], ['signal', 143]]) {
+  test(`cleanup wrapper handles ${label} without touching sibling directories`, () => {
+    const own = tempDir('yuvomi-wrapper-root-');
+    const sibling = join(own, 'yuvomi-main-refresh-worktree');
+    mkdirSync(sibling);
+    writeFileSync(join(sibling, 'keep'), 'untouched');
+    const env = { ...process.env, TMPDIR: `${own}/`, TMP: own, TEMP: own };
+    const script = [
+      "const { mkdtempSync } = require('node:fs');",
+      "const { tmpdir } = require('node:os');",
+      "const { join } = require('node:path');",
+      "mkdtempSync(join(tmpdir(), 'yuvomi-wrapper-probe-'));",
+      'console.log(tmpdir());',
+      label === 'signal' ? "process.kill(process.ppid, 'SIGTERM'); setInterval(() => {}, 1000);" : `process.exit(${exitCode});`,
+    ].join('\n');
+
+    const result = spawnSync(process.execPath, [WRAPPER, process.execPath, '-e', script], {
+      cwd: REPO,
+      env,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+
+    assert.equal(result.status, exitCode, `${result.stdout}\n${result.stderr}`);
+    const runTempDir = result.stdout.trim();
+    assert.equal(dirname(runTempDir), own);
+    assert.equal(existsSync(runTempDir), false);
+    assert.deepEqual(readdirSync(own), ['yuvomi-main-refresh-worktree']);
+    assert.equal(readFileSync(join(sibling, 'keep'), 'utf8'), 'untouched');
+  });
+}
 
 /**
  * Dateien, die `mkdtemp` selbst rufen und selbst wegraeumen (after(),

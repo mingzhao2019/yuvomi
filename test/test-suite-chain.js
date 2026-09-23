@@ -20,13 +20,13 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-const chain = pkg.scripts.test;
+const chain = pkg.scripts['test-chain'] ?? pkg.scripts.test;
 // custom 保留一条包含定制模块测试的独立链；上游的根 test 链不应把这些
 // 已经由 test:custom 覆盖的套件误报为“未接入”。npm 会自动执行 custom
 // 的 pre/test/post 生命周期，因此三段都纳入检查，避免 posttest 中的套件
 // 被误报为未接入。所有链仍共用同一套 browser/文件引用规则。
 const testChains = [
-  pkg.scripts.test,
+  chain,
   pkg.scripts['test:custom'],
   pkg.scripts['pretest:custom'],
   pkg.scripts['posttest:custom'],
@@ -85,7 +85,7 @@ const suiteFile = (name) => pkg.scripts[name].match(/test\/[\w.-]+\.js/)?.[0];
  * Der Docblock darüber verbietet, eine Suite nach ihrem Namen der einen oder
  * anderen Kette zuzuordnen; das entscheidet `needsBrowser()` über die Bauart.
  * Dieses Script ist aber keine Suite, sondern die KETTE selbst - es kann nicht
- * in sich hängen, so wie `pkg.scripts.test` nicht in sich hängt. Deshalb steht
+ * in sich hängen, so wie `pkg.scripts['test-chain']` nicht in sich hängt. Deshalb steht
  * es hier einmal benannt und nicht in einer Liste, die wachsen könnte.
  */
 const BROWSER_CHAIN = 'test:document-guards';
