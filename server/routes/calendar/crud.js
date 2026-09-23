@@ -32,6 +32,7 @@ import { newNonMembers, nonMemberMessage } from '../../services/household-member
 import { documentViewer } from '../../services/document-links.js';
 import { documentClonePredicate, documentWidenPredicate } from '../../services/document-access.js';
 import { mayWriteModule } from '../../permissions.js';
+import { recordLocalColorChoice } from '../../services/legacy-color-snapshot.js';
 import {
   assertSuccessorHasOccurrence,
   baseOccurrenceFor,
@@ -961,10 +962,11 @@ router.put('/:id', async (req, res) => {
       : (userIds.includes(event.assigned_to) ? event.assigned_to : (userIds[0] ?? null));
 
     const userModified = event.external_source !== 'local' ? 1 : event.user_modified;
+    // Color state is independent from edits to other event fields. Only an actual
+    // case-insensitive color change marks this as a local color choice.
     const asColorKey = (value) => (value == null ? null : String(value).toLowerCase());
-    const colorModified = (colorTouched && asColorKey(colorVal) !== asColorKey(event.color))
-      ? 1
-      : event.color_modified;
+    const colorChanged = colorTouched && asColorKey(colorVal) !== asColorKey(event.color);
+    const colorModified = colorChanged ? 1 : event.color_modified;
 
 
     const caldavAccountId = vCaldav ? vCaldav.value.accountId : event.target_caldav_account_id;
@@ -1070,6 +1072,10 @@ router.put('/:id', async (req, res) => {
         colorModified,
         id
       );
+      // Eine lokale Farbwahl macht einen gespiegelten Termin dauerhaft zu
+      // keiner Altlast der Farb-Heilung mehr (#1270), auch wenn er spaeter
+      // wieder die alte Farbe bekommt oder die Wahl den Server nie erreicht.
+      if (colorChanged && event.external_source === 'caldav') recordLocalColorChoice(db.get(), [id]);
       setEventAssignments(db.get(), id, userIds, { mayWidenAttachment: rights.mayWidenAttachment });
       // A direct API update that changes an event's start/date must not leave a
       // missing default reminder behind. The UI still owns explicit reminder
