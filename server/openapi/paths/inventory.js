@@ -1,4 +1,6 @@
-import { op, jsonBody, idParam, stringPathParam, DOCUMENT_LINKS_READ_NOTE } from '../helpers.js';
+import {
+  op, jsonBody, idParam, stringPathParam, DOCUMENT_LINKS_READ_NOTE, BUDGET_LINKS_READ_NOTE,
+} from '../helpers.js';
 
 export function inventoryPaths() {
   return {
@@ -47,11 +49,11 @@ export function inventoryPaths() {
       }),
     },
     '/api/v1/inventory/items': {
-      get: op({ summary: 'List inventory items', description: `Filters: category, location_id, status, q. Each item carries \`attachments\`. ${DOCUMENT_LINKS_READ_NOTE}`, tag: 'Inventory' }),
+      get: op({ summary: 'List inventory items', description: `Filters: category, location_id, status, q. Each item carries \`attachments\`. ${DOCUMENT_LINKS_READ_NOTE} ${BUDGET_LINKS_READ_NOTE}`, tag: 'Inventory' }),
       post: op({ summary: 'Create an inventory item (optional `attachment_document_ids`: documents from the documents module; optional `entry_id`: prefills purchase_price from that booking if it has no existing links; optional `tracked_dates`: array of custom {label, date, reminder_offset_days} entries)', tag: 'Inventory', description: DOCUMENT_LINKS_READ_NOTE, stateChanging: true, documentDeleteConflict: true, documentLinkRefusal: true, requestBody: jsonBody(null) }),
     },
     '/api/v1/inventory/items/{id}': {
-      get: op({ summary: 'Get an inventory item', description: `The item carries \`attachments\`. ${DOCUMENT_LINKS_READ_NOTE}`, tag: 'Inventory', params: [idParam('id', 'Item ID')] }),
+      get: op({ summary: 'Get an inventory item', description: `The item carries \`attachments\`. ${DOCUMENT_LINKS_READ_NOTE} ${BUDGET_LINKS_READ_NOTE}`, tag: 'Inventory', params: [idParam('id', 'Item ID')] }),
       put: op({ summary: 'Replace an inventory item (`attachment_document_ids` replaces the document links, omit to leave untouched; `tracked_dates` replaces the whole set of custom tracked dates, omit to leave untouched)', tag: 'Inventory', params: [idParam('id', 'Item ID')], description: DOCUMENT_LINKS_READ_NOTE, stateChanging: true, documentDeleteConflict: true, documentLinkRefusal: true, requestBody: jsonBody(null) }),
       delete: op({ summary: 'Delete an inventory item', tag: 'Inventory', params: [idParam('id', 'Item ID')], stateChanging: true }),
     },
@@ -64,6 +66,7 @@ export function inventoryPaths() {
     '/api/v1/inventory/items/{id}/entries': {
       post: op({
         summary: "Link a budget entry to an inventory item (role defaults to 'purchase')",
+        description: BUDGET_LINKS_READ_NOTE,
         tag: 'Inventory',
         params: [idParam('id', 'Item ID')],
         stateChanging: true,
@@ -73,6 +76,7 @@ export function inventoryPaths() {
     '/api/v1/inventory/items/{id}/entries/{entryId}': {
       delete: op({
         summary: 'Unlink a budget entry from an inventory item (removes all roles for this pair)',
+        description: BUDGET_LINKS_READ_NOTE,
         tag: 'Inventory',
         params: [idParam('id', 'Item ID'), idParam('entryId', 'Budget entry ID')],
         stateChanging: true,
@@ -81,6 +85,7 @@ export function inventoryPaths() {
     '/api/v1/inventory/entries/{entryId}/items': {
       get: op({
         summary: 'List inventory items linked to a budget entry',
+        description: 'Needs read access to the Budget module (for API tokens a `budget:read` scope); without it the entry answers 404 like an unknown one.',
         tag: 'Inventory',
         params: [idParam('entryId', 'Budget entry ID')],
       }),

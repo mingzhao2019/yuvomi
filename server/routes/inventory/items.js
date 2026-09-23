@@ -21,7 +21,7 @@ import {
 } from '../../services/document-links.js';
 import { sendDocumentDeletionConflict } from '../../services/document-deletion-lock.js';
 import {
-  ROLES, visibleEntry, linkabilityError, entryHasLinks, linkEntry, unlinkEntry,
+  ROLES, visibleEntry, linkabilityError, entryHasLinks, linkEntry, unlinkEntry, budgetViewer,
   loadLinkedEntriesForItems, loadLinkedEntries, computeTotal,
 } from './entry-links.js';
 import { warrantyEndDate, reminderDateForWarranty } from '../../services/inventory-deadlines.js';
@@ -123,12 +123,12 @@ function decorateItem(item, userId, admin, assignedUsers, linkedEntries) {
   };
 }
 
-function loadItem(id, userId, admin = false, viewer = { userId, readsDocuments: true }) {
+function loadItem(id, userId, admin = false, budget = null, viewer = { userId, readsDocuments: true }) {
   const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(id);
   if (!item || !canReadItem(item, userId, admin)) return null;
   const category = db.get().prepare('SELECT name, icon, label_key FROM inventory_categories WHERE key = ?').get(item.category);
   const assignedUsers = loadAssignedUsers([item.id]).get(item.id) || [];
-  const linkedEntries = loadLinkedEntries(item.id, userId);
+  const linkedEntries = loadLinkedEntries(item.id, budget);
   return {
     ...decorateItem(item, userId, admin, assignedUsers, linkedEntries),
     category_name: category?.name ?? item.category,
@@ -140,7 +140,7 @@ function loadItem(id, userId, admin = false, viewer = { userId, readsDocuments: 
   };
 }
 
-function loadItems({ category, locationId, status, q } = {}, userId, admin = false, viewer = { userId, readsDocuments: true }) {
+function loadItems({ category, locationId, status, q } = {}, userId, admin = false, budget = null, viewer = { userId, readsDocuments: true }) {
   const clauses = [inventoryVisibilityWhere('ii', '@me', admin)];
   const params = { me: userId };
   if (category !== undefined) { clauses.push('ii.category = @category'); params.category = category; }
@@ -159,7 +159,7 @@ function loadItems({ category, locationId, status, q } = {}, userId, admin = fal
     ORDER BY ii.name COLLATE NOCASE ASC
   `).all(params);
   const byItem = loadDocumentLinks(db.get(), { ...DOCS, ownerIds: rows.map((r) => r.id), viewer });
-  const entriesByItem = loadLinkedEntriesForItems(rows.map((r) => r.id), userId);
+  const entriesByItem = loadLinkedEntriesForItems(rows.map((r) => r.id), budget);
   const datesByItem = loadTrackedDatesForItems(rows.map((r) => r.id));
   const assignedByItem = loadAssignedUsers(rows.map((r) => r.id));
   return rows.map((row) => {
@@ -333,7 +333,7 @@ router.get('/', (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : undefined;
     const userId = actorId(req);
 
-    res.json({ data: loadItems({ category, locationId, status, q }, userId, isAdmin(req), documentViewer(req)) });
+    res.json({ data: loadItems({ category, locationId, status, q }, userId, isAdmin(req), budgetViewer(req), documentViewer(req)) });
   } catch (err) {
     log.error('GET / error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -348,7 +348,7 @@ router.get('/:id', (req, res) => {
     const vId = idParam(req.params.id, 'Gegenstand-ID');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
-    const item = loadItem(vId.value, userId, isAdmin(req), documentViewer(req));
+    const item = loadItem(vId.value, userId, isAdmin(req), budgetViewer(req), documentViewer(req));
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
     res.json({ data: item });
   } catch (err) {
@@ -384,7 +384,7 @@ router.post('/', (req, res) => {
     if (rawEntryId !== undefined && rawEntryId !== null && rawEntryId !== '') {
       const vEntryId = idParam(rawEntryId, 'Buchung');
       if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
-      entry = visibleEntry(vEntryId.value, userId);
+      entry = visibleEntry(vEntryId.value, budgetViewer(req));
       if (!entry) return res.status(404).json({ error: 'Booking not found.', code: 404 });
       const linkError = linkabilityError(entry);
       if (linkError) return res.status(linkError.code).json({ error: linkError.error, code: linkError.code });
@@ -406,6 +406,7 @@ router.post('/', (req, res) => {
     // Datumsrechnung nicht parsen kann -, darf der Gegenstand nicht trotzdem
     // geschrieben bleiben, waehrend die Anfrage mit 500 endet.
     const viewer = documentViewer(req);
+    const budget = budgetViewer(req);
     assertDocumentLinkTargetsAvailable(db.get(), req.body.attachment_document_ids, viewer);
     const result = db.get().transaction(() => {
       const inserted = db.get().prepare(`
@@ -444,10 +445,10 @@ router.post('/', (req, res) => {
     });
 
     if (entry) {
-      linkEntry({ itemId: result.lastInsertRowid, entryId: entry.id, role: 'purchase', amountShare: null, userId });
+      linkEntry({ itemId: result.lastInsertRowid, entryId: entry.id, role: 'purchase', amountShare: null, viewer: budget });
     }
 
-    res.status(201).json({ data: loadItem(result.lastInsertRowid, userId, admin, viewer) });
+    res.status(201).json({ data: loadItem(result.lastInsertRowid, userId, admin, budget, viewer) });
   } catch (err) {
     if (sendDocumentDeletionConflict(res, err)) return;
     if (sendDocumentLinkRefusal(res, err)) return;
@@ -491,6 +492,7 @@ router.put('/:id', (req, res) => {
     // A rejected in-flight attachment must not leave the item fields or its
     // reminders half-updated.
     const viewer = documentViewer(req);
+    const budget = budgetViewer(req);
     if (req.body.attachment_document_ids !== undefined) {
       assertDocumentLinkTargetsAvailable(db.get(), req.body.attachment_document_ids, viewer);
     }
@@ -536,7 +538,7 @@ router.put('/:id', (req, res) => {
       });
     }
 
-    res.json({ data: loadItem(item.id, userId, admin, viewer) });
+    res.json({ data: loadItem(item.id, userId, admin, budget, viewer) });
   } catch (err) {
     if (sendDocumentDeletionConflict(res, err)) return;
     if (sendDocumentLinkRefusal(res, err)) return;
@@ -575,10 +577,11 @@ router.post('/:id/entries', (req, res) => {
       amountShare = vShare.value;
     }
 
-    const result = linkEntry({ itemId: item.id, entryId: vEntryId.value, role: vRole.value, amountShare, userId });
+    const budget = budgetViewer(req);
+    const result = linkEntry({ itemId: item.id, entryId: vEntryId.value, role: vRole.value, amountShare, viewer: budget });
     if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
 
-    res.status(201).json({ data: loadItem(item.id, userId, admin, documentViewer(req)) });
+    res.status(201).json({ data: loadItem(item.id, userId, admin, budget, documentViewer(req)) });
   } catch (err) {
     log.error('POST /:id/entries error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -603,10 +606,11 @@ router.delete('/:id/entries/:entryId', (req, res) => {
     const vEntryId = idParam(req.params.entryId, 'Buchung-ID');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
 
-    const result = unlinkEntry({ itemId: item.id, entryId: vEntryId.value, userId });
+    const budget = budgetViewer(req);
+    const result = unlinkEntry({ itemId: item.id, entryId: vEntryId.value, viewer: budget });
     if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
 
-    res.json({ data: loadItem(item.id, userId, admin, documentViewer(req)) });
+    res.json({ data: loadItem(item.id, userId, admin, budget, documentViewer(req)) });
   } catch (err) {
     log.error('DELETE /:id/entries/:entryId error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });

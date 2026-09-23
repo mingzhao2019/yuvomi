@@ -42,6 +42,8 @@ app.use((req, _res, next) => {
   req.authUserId = actor.id;
   req.authRole = actor.role;
   req.session = { userId: actor.id, role: actor.role };
+  req.sessionModuleAccess = actor.moduleAccess ?? null;
+  req.authScopes = actor.scopes ?? null;
   next();
 });
 app.use('/items', itemsRouter);
@@ -271,4 +273,62 @@ test('Buchung loeschen entfernt nur die Verknuepfung', async () => {
   db.prepare('DELETE FROM budget_entries WHERE id = ?').run(entry);
   assert.equal(db.prepare('SELECT COUNT(*) AS c FROM inventory_item_entries WHERE entry_id = ?').get(entry).c, 0);
   assert.ok(db.prepare('SELECT id FROM inventory_items WHERE id = ?').get(item.id));
+});
+
+for (const [name, as] of [
+  ['budget: none', { id: A, role: 'admin', moduleAccess: { budget: 'none' } }],
+  ['Token ohne budget:read', { id: A, role: 'admin', scopes: ['inventory:write'] }],
+]) {
+  test(`Budget-Leserecht (${name}): item responses mask linked entries`, async () => {
+    const entry = insertEntry({ title: `Geheim ${name}`, amount: -777 });
+    const item = await createItem({ entry_id: entry });
+
+    const detail = await call('GET', `/items/${item.id}`, { as });
+    assert.equal(detail.status, 200);
+    assert.deepEqual(detail.body.data.linked_entries, []);
+    assert.equal(detail.body.data.linked_entries_total, 0);
+
+    const list = await call('GET', '/items', { as });
+    assert.deepEqual(list.body.data.find((row) => row.id === item.id).linked_entries, []);
+  });
+
+  test(`Budget-Leserecht (${name}): lookup and linking behave like an unknown booking`, async () => {
+    const entry = insertEntry({ title: `Nachschlag ${name}` });
+    const item = await createItem();
+    const links = () => db.prepare('SELECT COUNT(*) AS c FROM inventory_item_entries WHERE entry_id = ?').get(entry).c;
+
+    assert.equal((await call('POST', `/items/${item.id}/entries`, { as, body: { entry_id: entry } })).status, 404);
+    assert.equal(links(), 0);
+    assert.equal((await call('GET', `/entries/${entry}/items`, { as })).status, 404);
+
+    const before = db.prepare('SELECT COUNT(*) AS c FROM inventory_items').get().c;
+    const prefill = await call('POST', '/items', { as, body: { name: 'Vorbelegt', entry_id: entry } });
+    assert.equal(prefill.status, 404);
+    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM inventory_items').get().c, before);
+  });
+
+  test(`Budget-Leserecht (${name}): unlink refuses and keeps the link`, async () => {
+    const entry = insertEntry({ title: `Entfernen ${name}` });
+    const item = await createItem({ entry_id: entry });
+    const links = () => db.prepare('SELECT COUNT(*) AS c FROM inventory_item_entries WHERE item_id = ? AND entry_id = ?').get(item.id, entry).c;
+    assert.equal(links(), 1);
+
+    const result = await call('DELETE', `/items/${item.id}/entries/${entry}`, { as });
+    assert.equal(result.status, 404);
+    assert.equal(links(), 1);
+  });
+}
+
+test('Budget-Leserecht: read reicht fuer linked entries', async () => {
+  const entry = insertEntry({ title: 'Lesend' });
+  const item = await createItem({ entry_id: entry });
+  const detail = await call('GET', `/items/${item.id}`, {
+    as: { id: A, role: 'admin', moduleAccess: { budget: 'read' } },
+  });
+  assert.equal(detail.body.data.linked_entries.length, 1);
+
+  const token = await call('GET', `/items/${item.id}`, {
+    as: { id: A, role: 'admin', scopes: ['inventory:read', 'budget:read'] },
+  });
+  assert.equal(token.body.data.linked_entries.length, 1);
 });

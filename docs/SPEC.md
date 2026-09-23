@@ -2884,7 +2884,10 @@ Links an item to Budget entries — a purchase, a refund, a repair, an accessory
 
 Visibility follows Budget's own rules exactly: in personal budget mode a private booking stays
 invisible to other members even when linked to a household-visible item, and linking a recurring
-series' materialized instance or an `is_pending` (expected) entry is rejected. Creating an item with
+series' materialized instance or an `is_pending` (expected) entry is rejected. Reads and changes to
+these links also require read access to the Budget module (member rights and token scope): without
+it, inventory responses carry no linked entries or total, while link, unlink, prefill, and reverse
+lookup requests answer 404 as for an unknown booking. Creating an item with
 `entry_id` prefills `purchase_price` from that booking's amount — but only for the **first** item
 linked to it, so a collective receipt split across several items does not silently copy its total
 onto each one.

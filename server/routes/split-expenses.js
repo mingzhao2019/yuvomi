@@ -20,6 +20,7 @@ import { CURRENCY_CODES } from '../../public/utils/currency-codes.js';
 import { syncBirthdayArtifacts } from '../services/birthdays.js';
 import { householdMemberSql, newNonMembers, staffMessage } from '../services/household-members.js';
 import { todayKey } from '../utils/timezone.js';
+import { mayReadModule, mayWriteModule } from '../permissions.js';
 
 const log = createLogger('SplitExpenses');
 const router = express.Router();
@@ -185,6 +186,22 @@ function uniqueUsername(base) {
   return username;
 }
 
+class Refusal extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function sendRefusal(res, err) {
+  return res.status(err.status).json({ error: err.message, code: err.status });
+}
+
+function assertManagesGroup(groupId, req) {
+  if (!requireGroupAccess(groupId, req)) throw new Refusal(404, 'Group not found.');
+  if (!canManageGroup(groupId, req)) throw new Refusal(403, 'Not authorized.');
+}
+
 // Ein aus einem Kontakt angelegtes Konto ist IMMER ein Gast der Gruppe, genau
 // wie POST /groups/:id/guests es anlegt. Ohne den Eintrag in
 // split_expense_guest_users zaehlte es als volles Haushaltsmitglied - angelegt
@@ -199,35 +216,29 @@ function uniqueUsername(base) {
 // verschwand, und zwei gleichzeitige Anfragen legten zwei Konten an.
 //
 // Rueckgabe: { userId } oder { missing: 'contact' | 'group' }.
-async function userFromContact(database, contactId, actorId, groupId) {
-  const known = database.prepare('SELECT family_user_id FROM contacts WHERE id = ?').get(contactId);
-  if (!known) return { missing: 'contact' };
-  if (known.family_user_id) return { userId: known.family_user_id };
-  const passwordHash = await hashPassword(crypto.randomBytes(24).toString('base64url'));
-  return database.transaction(() => {
-    if (!database.prepare('SELECT 1 FROM expense_groups WHERE id = ?').get(groupId)) return { missing: 'group' };
-    const contact = database.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
-    if (!contact) return { missing: 'contact' };
-    if (contact.family_user_id) return { userId: contact.family_user_id };
-    const created = database.prepare(`
-      INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
-      VALUES (?, ?, ?, ?, 'member', 'other')
-    `).run(uniqueUsername(contact.name), contact.name, passwordHash, randomAvatarColor());
-    database.prepare('UPDATE contacts SET family_user_id = ? WHERE id = ?').run(created.lastInsertRowid, contact.id);
-    database.prepare('INSERT OR IGNORE INTO split_expense_guest_users (user_id, group_id, created_by) VALUES (?, ?, ?)')
-      .run(created.lastInsertRowid, groupId, actorId);
-    activity(groupId, actorId, 'guest_created', 'member', created.lastInsertRowid, { display_name: contact.name });
-    if (contact.birthday) {
-      syncGuestArtifacts(database, created.lastInsertRowid, {
-        displayName: contact.name,
-        phone: contact.phone,
-        email: contact.email,
-        birthDate: contact.birthday,
-        actorUserId: actorId,
-      });
-    }
-    return { userId: created.lastInsertRowid };
-  })();
+function userFromContact(database, contactId, actorId, groupId, passwordHash) {
+  const contact = database.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
+  if (!contact) throw new Refusal(404, 'Contact not found.');
+  if (contact.family_user_id) return contact.family_user_id;
+  if (!passwordHash) throw new Error('userFromContact: missing password hash for an unlinked contact.');
+  const created = database.prepare(`
+    INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
+    VALUES (?, ?, ?, ?, 'member', 'other')
+  `).run(uniqueUsername(contact.name), contact.name, passwordHash, randomAvatarColor());
+  database.prepare('UPDATE contacts SET family_user_id = ? WHERE id = ?').run(created.lastInsertRowid, contact.id);
+  database.prepare('INSERT OR IGNORE INTO split_expense_guest_users (user_id, group_id, created_by) VALUES (?, ?, ?)')
+    .run(created.lastInsertRowid, groupId, actorId);
+  activity(groupId, actorId, 'guest_created', 'member', created.lastInsertRowid, { display_name: contact.name });
+  if (contact.birthday) {
+    syncGuestArtifacts(database, created.lastInsertRowid, {
+      displayName: contact.name,
+      phone: contact.phone,
+      email: contact.email,
+      birthDate: contact.birthday,
+      actorUserId: actorId,
+    });
+  }
+  return created.lastInsertRowid;
 }
 
 function syncGuestArtifacts(database, userId, { displayName, phone, email, birthDate, actorUserId }) {
@@ -679,6 +690,9 @@ router.get('/groups/:id/member-candidates', (req, res) => {
     const groupId = Number(req.params.id);
     if (!requireGroupAccess(groupId, req)) return res.status(404).json({ error: 'Group not found.', code: 404 });
     if (isSplitGuest(req)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    const readsContacts = mayReadModule(req, 'contacts');
+    const writesContacts = mayWriteModule(req, 'contacts');
+    const readsCalendar = mayReadModule(req, 'calendar');
     // Haushaltsmitglieder, dazu die Gaeste DIESER Gruppe (#1207). Ein Gast
     // existiert fuer geteilte Ausgaben: er gehoert zu der Gruppe, fuer die er
     // angelegt wurde, und zu jeder, in der er schon Mitglied ist. Gaeste
@@ -721,15 +735,20 @@ router.get('/groups/:id/member-candidates', (req, res) => {
         AND NOT (${householdMemberSql('u')})
         AND NOT EXISTS (SELECT 1 FROM split_expense_guest_users sg WHERE sg.user_id = u.id)
       ORDER BY display_name COLLATE NOCASE ASC
-    `).all({ groupId });
-    const contacts = db.get().prepare(`
+    `).all({ groupId }).map((person) => ({
+      ...person,
+      phone: readsContacts ? person.phone : null,
+      email: readsContacts ? person.email : null,
+      birth_date: readsCalendar ? person.birth_date : null,
+    }));
+    const contacts = writesContacts ? db.get().prepare(`
       SELECT 'contact' AS source, NULL AS user_id, c.id AS contact_id, c.name AS display_name,
              NULL AS username, '#2563EB' AS avatar_color, 'other' AS family_role,
              c.phone, c.email, c.birthday AS birth_date, 0 AS in_group, NULL AS group_role
       FROM contacts c
       WHERE c.family_user_id IS NULL
       ORDER BY c.name COLLATE NOCASE ASC
-    `).all();
+    `).all() : [];
     res.json({ data: [...people, ...contacts] });
   } catch (err) {
     log.error('GET /groups/:id/member-candidates error:', err);
@@ -745,30 +764,42 @@ router.post('/groups/:id/members', async (req, res) => {
     const vUserId = req.body.user_id ? validateId(req.body.user_id, 'user_id') : { value: null, error: null };
     const vContactId = req.body.contact_id ? validateId(req.body.contact_id, 'contact_id') : { value: null, error: null };
     if (vUserId.error || vContactId.error) return res.status(400).json({ error: vUserId.error || vContactId.error, code: 400 });
+    if (!vUserId.value && !vContactId.value) return res.status(400).json({ error: 'user_id or contact_id is required.', code: 400 });
     const role = GROUP_ROLES.includes(req.body.role) && req.body.role !== 'owner' ? req.body.role : 'guest';
-    let memberUserId = vUserId.value;
+    let passwordHash = null;
     if (vContactId.value) {
-      const fromContact = await userFromContact(db.get(), vContactId.value, userId(req), groupId);
-      if (fromContact.missing === 'contact') return res.status(404).json({ error: 'Contact not found.', code: 404 });
-      if (fromContact.missing === 'group') return res.status(404).json({ error: 'Group not found.', code: 404 });
-      memberUserId = fromContact.userId;
+      if (!mayReadModule(req, 'contacts')) return res.status(404).json({ error: 'Contact not found.', code: 404 });
+      const known = db.get().prepare('SELECT family_user_id FROM contacts WHERE id = ?').get(vContactId.value);
+      if (!known) return res.status(404).json({ error: 'Contact not found.', code: 404 });
+      if (!known.family_user_id) {
+        if (!mayWriteModule(req, 'contacts')) {
+          return res.status(403).json({ error: 'Write access to contacts is required to add a contact without an account.', code: 403 });
+        }
+        passwordHash = await hashPassword(crypto.randomBytes(24).toString('base64url'));
+      }
     }
-    if (!memberUserId) return res.status(400).json({ error: 'user_id or contact_id is required.', code: 400 });
-    const exists = db.get().prepare('SELECT 1 FROM users WHERE id = ?').get(memberUserId);
-    if (!exists) return res.status(404).json({ error: 'User not found.', code: 404 });
-    // Mitglieder und Gaeste, aber kein Hauspersonal (#1207). Eine bestehende
-    // Mitgliedschaft bleibt gueltig und laesst sich weiter aendern.
-    const already = db.get().prepare('SELECT 1 FROM expense_group_members WHERE group_id = ? AND user_id = ?').get(groupId, memberUserId);
-    const staff = newNonMembers([memberUserId], { stored: already ? [memberUserId] : [], guestsAllowed: true });
-    if (staff.length) return res.status(400).json({ error: staffMessage(staff), code: 400 });
-    db.get().prepare(`
-      INSERT INTO expense_group_members (group_id, user_id, role, invited_by)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(group_id, user_id) DO UPDATE SET role = excluded.role
-    `).run(groupId, memberUserId, role, userId(req));
-    activity(groupId, userId(req), 'member_added', 'member', memberUserId, { role });
+    const memberUserId = db.transaction(() => {
+      assertManagesGroup(groupId, req);
+      const uid = vContactId.value
+        ? userFromContact(db.get(), vContactId.value, userId(req), groupId, passwordHash)
+        : vUserId.value;
+      if (!db.get().prepare('SELECT 1 FROM users WHERE id = ?').get(uid)) throw new Refusal(404, 'User not found.');
+      // Mitglieder und Gaeste, aber kein Hauspersonal (#1207). Eine bestehende
+      // Mitgliedschaft bleibt gueltig und laesst sich weiter aendern.
+      const already = db.get().prepare('SELECT 1 FROM expense_group_members WHERE group_id = ? AND user_id = ?').get(groupId, uid);
+      const staff = newNonMembers([uid], { stored: already ? [uid] : [], guestsAllowed: true });
+      if (staff.length) throw new Refusal(400, staffMessage(staff));
+      db.get().prepare(`
+        INSERT INTO expense_group_members (group_id, user_id, role, invited_by)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(group_id, user_id) DO UPDATE SET role = excluded.role
+      `).run(groupId, uid, role, userId(req));
+      activity(groupId, userId(req), 'member_added', 'member', uid, { role });
+      return uid;
+    })();
     res.status(201).json({ data: { group_id: groupId, user_id: memberUserId, role } });
   } catch (err) {
+    if (err instanceof Refusal) return sendRefusal(res, err);
     log.error('POST /groups/:id/members error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
@@ -815,6 +846,10 @@ router.post('/groups/:id/guests', async (req, res) => {
     const hash = await hashPassword(password);
 
     const createdUserId = db.transaction(() => {
+      assertManagesGroup(groupId, req);
+      if (db.get().prepare('SELECT 1 FROM users WHERE username = ?').get(username)) {
+        throw new Refusal(409, 'Username is already taken.');
+      }
       const created = db.get().prepare(`
         INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
         VALUES (?, ?, ?, ?, 'member', ?)
@@ -844,6 +879,7 @@ router.post('/groups/:id/guests', async (req, res) => {
     `).get(createdUserId);
     res.status(201).json({ data: user });
   } catch (err) {
+    if (err instanceof Refusal) return sendRefusal(res, err);
     log.error('POST /groups/:id/guests error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
