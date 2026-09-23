@@ -29,7 +29,7 @@
  */
 
 import { isAdminRequest } from '../middleware/require-admin.js';
-import { emailMatchKey } from '../utils/email-match.js';
+import { accountIdsByEmail, emailMatchKey } from '../utils/email-match.js';
 
 /**
  * Wer handelt - aus einem authentifizierten Request.
@@ -105,4 +105,59 @@ export function bodyChangesContactEmails(contact, storedEmails, body) {
   if (before.size !== after.size) return true;
   for (const v of after) if (!before.has(v)) return true;
   return false;
+}
+
+/** Die Antwort, wenn eine neue Adresse schon an einem anderen Konto steht. */
+export const EMAIL_IN_USE_MESSAGE = 'This email address already belongs to another account.';
+
+/**
+ * Alle gespeicherten Adressen des Kontakts eines Kontos (Haupt- und
+ * Zweitadressen) - der Stand VOR einem Schreibvorgang.
+ * @param {object} database
+ * @param {number} userId
+ * @returns {string[]}
+ */
+export function storedAccountEmails(database, userId) {
+  const contact = database.prepare('SELECT id, email FROM contacts WHERE family_user_id = ?').get(userId);
+  if (!contact) return [];
+  const secondary = database.prepare('SELECT value FROM contact_emails WHERE contact_id = ?')
+    .all(contact.id).map((r) => r.value);
+  return [contact.email, ...secondary];
+}
+
+/**
+ * Welche Adressen fuehrt ein Schreibvorgang an einem verknuepften Kontakt NEU
+ * ein, die schon ein ANDERES Konto traegt?
+ *
+ * Neu ist, was nach `emailMatchKey()` nicht schon in `before` steht: ein
+ * unveraendert mitgeschicktes Formular (das Frontend sendet bei jedem
+ * Speichern alle Felder) bleibt speicherbar, auch wenn die Adresse aus der
+ * Zeit vor dieser Pruefung schon doppelt vergeben ist.
+ *
+ * Gezaehlt wird mit derselben Funktion und derselben Regel wie die
+ * SSO-Verknuepfung und "Passwort vergessen" (`accountIdsByEmail`, Haupt- und
+ * Zweitadressen), verknuepfte Konten eingeschlossen - an ihnen haengt der
+ * Passwort-Reset. Gaeste der geteilten Ausgaben zaehlen nicht: sie verknuepfen
+ * nie ueber die Adresse, "Passwort vergessen" zieht ihnen das Mitglied vor, und
+ * derselbe Mensch kann in zwei Gruppen als Gast stehen.
+ *
+ * @param {object} database
+ * @param {{ userId?: number|null, before?: unknown[], after?: unknown[] }} change
+ *   `userId` ist das Konto, dessen Kontakt geschrieben wird (`null` fuer ein
+ *   Konto, das erst entsteht).
+ * @returns {string[]} die belegten Adressen, wie sie im Schreibvorgang stehen
+ */
+export function emailsTakenByOtherAccounts(database, { userId = null, before = [], after = [] } = {}) {
+  const known = new Set(before.map(emailMatchKey).filter(Boolean));
+  const taken = [];
+  for (const address of after) {
+    const key = emailMatchKey(address);
+    if (!key || known.has(key)) continue;
+    known.add(key);
+    const others = accountIdsByEmail(database, address, {
+      secondary: true, withoutSplitGuests: true, excludeUserId: userId == null ? null : Number(userId),
+    });
+    if (others.length) taken.push(String(address));
+  }
+  return taken;
 }

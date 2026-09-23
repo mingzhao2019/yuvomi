@@ -62,7 +62,8 @@
             "hint": "Controla quién puede ver esta entrada en Yuvomi.",
             "assigneesNobodyHint": "Si no asignas a nadie, solo tú verás esta entrada."
         },
-        "toShoppingListNamed": "Añadir {{title}} a la lista de la compra"
+        "toShoppingListNamed": "Añadir {{title}} a la lista de la compra",
+        "emailInUse": "Esta dirección de correo ya pertenece a otra cuenta."
     },
     "kitchen": {
         "noShoppingLists": "Todavía no hay lista de la compra.",
@@ -2919,6 +2920,8 @@
         "orDivider": "o",
         "ssoError": "Error al iniciar sesión con SSO. Inténtalo de nuevo.",
         "ssoNoAccount": "Todavía no hay ninguna cuenta aquí para este inicio de sesión con SSO. Ponte en contacto con la administración de tu hogar.",
+        "ssoEmailAmbiguous": "Tu dirección de correo pertenece aquí a varias cuentas, por lo que el inicio de sesión con SSO no se puede asignar a ninguna. Ponte en contacto con la administración de tu hogar.",
+        "ssoLinkRequired": "Aquí ya existe una cuenta con contraseña para tu dirección de correo. Inicia sesión con ella y vincula el SSO en Ajustes → Cuenta, o ponte en contacto con la administración de tu hogar.",
         "forgotPassword": "¿Olvidaste la contraseña?",
         "networkError": "Error de conexión. Comprueba que el servidor esté funcionando e inténtalo de nuevo.",
         "capsLockWarning": "El bloqueo de mayúsculas está activado.",

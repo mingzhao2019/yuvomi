@@ -62,7 +62,8 @@
             "hint": "Kiểm soát ai có thể xem mục này trong Yuvomi.",
             "assigneesNobodyHint": "Nếu không giao cho ai, chỉ bạn thấy mục này."
         },
-        "toShoppingListNamed": "Thêm {{title}} vào danh sách mua sắm"
+        "toShoppingListNamed": "Thêm {{title}} vào danh sách mua sắm",
+        "emailInUse": "Địa chỉ email này đã thuộc về một tài khoản khác."
     },
     "kitchen": {
         "noShoppingLists": "Chưa có danh sách mua sắm.",
@@ -2919,6 +2920,8 @@
         "orDivider": "hoặc",
         "ssoError": "Đăng nhập SSO thất bại. Vui lòng thử lại.",
         "ssoNoAccount": "Chưa có tài khoản nào ở đây cho lần đăng nhập SSO này. Vui lòng liên hệ quản trị viên hộ gia đình của bạn.",
+        "ssoEmailAmbiguous": "Địa chỉ email của bạn thuộc về nhiều tài khoản ở đây, vì vậy không thể gán lần đăng nhập SSO cho tài khoản nào. Vui lòng liên hệ quản trị viên hộ gia đình của bạn.",
+        "ssoLinkRequired": "Ở đây đã có một tài khoản có mật khẩu cho địa chỉ email của bạn. Hãy đăng nhập bằng tài khoản đó và liên kết SSO trong Cài đặt → Tài khoản, hoặc liên hệ quản trị viên hộ gia đình của bạn.",
         "forgotPassword": "Quên mật khẩu?",
         "networkError": "Kết nối thất bại. Kiểm tra xem máy chủ có đang chạy không rồi thử lại.",
         "capsLockWarning": "Caps Lock đang bật.",

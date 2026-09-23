@@ -62,7 +62,8 @@
             "hint": "Określa, kto może zobaczyć ten wpis w Yuvomi.",
             "assigneesNobodyHint": "Bez przypisania widzisz ten wpis tylko ty."
         },
-        "toShoppingListNamed": "Dodaj {{title}} na listę zakupów"
+        "toShoppingListNamed": "Dodaj {{title}} na listę zakupów",
+        "emailInUse": "Ten adres e-mail należy już do innego konta."
     },
     "kitchen": {
         "noShoppingLists": "Nie ma jeszcze listy zakupów.",
@@ -2931,6 +2932,8 @@
         "orDivider": "lub",
         "ssoError": "Logowanie SSO nie powiodło się. Spróbuj ponownie.",
         "ssoNoAccount": "Dla tego logowania SSO nie ma tu jeszcze konta. Skontaktuj się z administratorem swojego gospodarstwa domowego.",
+        "ssoEmailAmbiguous": "Twój adres e-mail należy tu do kilku kont, dlatego logowania SSO nie można przypisać do żadnego z nich. Skontaktuj się z administratorem swojego gospodarstwa domowego.",
+        "ssoLinkRequired": "Dla Twojego adresu e-mail istnieje tu już konto z hasłem. Zaloguj się nim i powiąż SSO w Ustawienia → Konto albo skontaktuj się z administratorem swojego gospodarstwa domowego.",
         "forgotPassword": "Nie pamiętasz hasła?",
         "networkError": "Połączenie nie powiodło się. Sprawdź, czy serwer działa, i spróbuj ponownie.",
         "capsLockWarning": "Caps Lock jest włączony.",

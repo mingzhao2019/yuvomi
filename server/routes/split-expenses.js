@@ -19,6 +19,7 @@ import { buildSplits, decorateMoney, minorToDecimal, parseMoneyToMinor, simplify
 import { CURRENCY_CODES } from '../../public/utils/currency-codes.js';
 import { syncBirthdayArtifacts } from '../services/birthdays.js';
 import { householdMemberSql, newNonMembers, staffMessage } from '../services/household-members.js';
+import { EMAIL_IN_USE_MESSAGE, emailsTakenByOtherAccounts } from '../services/contact-identity.js';
 import { todayKey } from '../utils/timezone.js';
 import { mayReadModule, mayWriteModule } from '../permissions.js';
 
@@ -187,14 +188,19 @@ function uniqueUsername(base) {
 }
 
 class Refusal extends Error {
-  constructor(status, message) {
+  constructor(status, message, reason = null) {
     super(message);
     this.status = status;
+    this.reason = reason;
   }
 }
 
 function sendRefusal(res, err) {
-  return res.status(err.status).json({ error: err.message, code: err.status });
+  return res.status(err.status).json({
+    error: err.message,
+    code: err.status,
+    ...(err.reason && { reason: err.reason }),
+  });
 }
 
 function assertManagesGroup(groupId, req) {
@@ -216,11 +222,19 @@ function assertManagesGroup(groupId, req) {
 // verschwand, und zwei gleichzeitige Anfragen legten zwei Konten an.
 //
 // Rueckgabe: { userId } oder { missing: 'contact' | 'group' }.
-function userFromContact(database, contactId, actorId, groupId, passwordHash) {
+function userFromContact(database, contactId, actorId, groupId, passwordHash, { checkEmails = true } = {}) {
   const contact = database.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
   if (!contact) throw new Refusal(404, 'Contact not found.');
   if (contact.family_user_id) return contact.family_user_id;
   if (!passwordHash) throw new Error('userFromContact: missing password hash for an unlinked contact.');
+  // Ein Mitglied darf beim Verknuepfen keine bereits belegte Kontaktadresse uebernehmen.
+  if (checkEmails) {
+    const secondary = database.prepare('SELECT value FROM contact_emails WHERE contact_id = ?')
+      .all(contact.id).map((r) => r.value);
+    if (emailsTakenByOtherAccounts(database, { after: [contact.email, ...secondary] }).length) {
+      throw new Refusal(409, EMAIL_IN_USE_MESSAGE, 'email_in_use');
+    }
+  }
   const created = database.prepare(`
     INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
     VALUES (?, ?, ?, ?, 'member', 'other')
@@ -785,7 +799,9 @@ router.post('/groups/:id/members', async (req, res) => {
     const memberUserId = db.transaction(() => {
       assertManagesGroup(groupId, req);
       const uid = vContactId.value
-        ? userFromContact(db.get(), vContactId.value, userId(req), groupId, passwordHash)
+        ? userFromContact(db.get(), vContactId.value, userId(req), groupId, passwordHash, {
+          checkEmails: !isAdminRequest(req),
+        })
         : vUserId.value;
       if (!db.get().prepare('SELECT 1 FROM users WHERE id = ?').get(uid)) throw new Refusal(404, 'User not found.');
       // Mitglieder und Gaeste, aber kein Hauspersonal (#1207). Eine bestehende
@@ -849,29 +865,38 @@ router.post('/groups/:id/guests', async (req, res) => {
     if (exists) return res.status(409).json({ error: 'Username is already taken.', code: 409 });
     const hash = await hashPassword(password);
 
-    const createdUserId = db.transaction(() => {
-      assertManagesGroup(groupId, req);
-      if (db.get().prepare('SELECT 1 FROM users WHERE username = ?').get(username)) {
-        throw new Refusal(409, 'Username is already taken.');
-      }
-      const created = db.get().prepare(`
-        INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
-        VALUES (?, ?, ?, ?, 'member', ?)
-      `).run(username, vDisplayName.value, hash, randomAvatarColor(), familyRole);
-      syncGuestArtifacts(db.get(), created.lastInsertRowid, {
-        displayName: vDisplayName.value,
-        phone: vPhone.value,
-        email: vEmail.value,
-        birthDate: vBirthDate.value,
-        actorUserId: userId(req),
+    let createdUserId;
+    try {
+      createdUserId = db.transaction(() => {
+        assertManagesGroup(groupId, req);
+        if (db.get().prepare('SELECT 1 FROM users WHERE username = ?').get(username)) {
+          throw new Refusal(409, 'Username is already taken.');
+        }
+        if (!isAdminRequest(req) && emailsTakenByOtherAccounts(db.get(), { after: [vEmail.value] }).length) {
+          throw new Refusal(409, EMAIL_IN_USE_MESSAGE, 'email_in_use');
+        }
+        const created = db.get().prepare(`
+          INSERT INTO users (username, display_name, password_hash, avatar_color, role, family_role)
+          VALUES (?, ?, ?, ?, 'member', ?)
+        `).run(username, vDisplayName.value, hash, randomAvatarColor(), familyRole);
+        syncGuestArtifacts(db.get(), created.lastInsertRowid, {
+          displayName: vDisplayName.value,
+          phone: vPhone.value,
+          email: vEmail.value,
+          birthDate: vBirthDate.value,
+          actorUserId: userId(req),
+        });
+        db.get().prepare('INSERT INTO expense_group_members (group_id, user_id, role, invited_by) VALUES (?, ?, ?, ?)')
+          .run(groupId, created.lastInsertRowid, 'guest', userId(req));
+        db.get().prepare('INSERT OR IGNORE INTO split_expense_guest_users (user_id, group_id, created_by) VALUES (?, ?, ?)')
+          .run(created.lastInsertRowid, groupId, userId(req));
+        activity(groupId, userId(req), 'guest_created', 'member', created.lastInsertRowid, { display_name: vDisplayName.value });
+        return created.lastInsertRowid;
       });
-      db.get().prepare('INSERT INTO expense_group_members (group_id, user_id, role, invited_by) VALUES (?, ?, ?, ?)')
-        .run(groupId, created.lastInsertRowid, 'guest', userId(req));
-      db.get().prepare('INSERT OR IGNORE INTO split_expense_guest_users (user_id, group_id, created_by) VALUES (?, ?, ?)')
-        .run(created.lastInsertRowid, groupId, userId(req));
-      activity(groupId, userId(req), 'guest_created', 'member', created.lastInsertRowid, { display_name: vDisplayName.value });
-      return created.lastInsertRowid;
-    });
+    } catch (err) {
+      if (err instanceof Refusal) return sendRefusal(res, err);
+      throw err;
+    }
 
     const user = db.get().prepare(`
       SELECT u.id, u.username, u.display_name, u.avatar_color, u.avatar_data, u.family_role,

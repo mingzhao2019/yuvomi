@@ -62,7 +62,8 @@
             "hint": "Styr vem som kan se den här posten i Yuvomi.",
             "assigneesNobodyHint": "Utan tilldelning ser bara du den här posten."
         },
-        "toShoppingListNamed": "Lägg till {{title}} i inköpslistan"
+        "toShoppingListNamed": "Lägg till {{title}} i inköpslistan",
+        "emailInUse": "Den här e-postadressen hör redan till ett annat konto."
     },
     "kitchen": {
         "noShoppingLists": "Det finns ingen inköpslista än.",
@@ -2919,6 +2920,8 @@
         "orDivider": "eller",
         "ssoError": "SSO-inloggning misslyckades. Försök igen.",
         "ssoNoAccount": "Det finns ännu inget konto här för den här SSO-inloggningen. Kontakta administratören för ditt hushåll.",
+        "ssoEmailAmbiguous": "Din e-postadress hör här till mer än ett konto, därför kan SSO-inloggningen inte kopplas till något av dem. Kontakta administratören för ditt hushåll.",
+        "ssoLinkRequired": "Det finns redan ett konto med lösenord för din e-postadress här. Logga in med det och koppla SSO under Inställningar → Konto, eller kontakta administratören för ditt hushåll.",
         "forgotPassword": "Glömt lösenordet?",
         "networkError": "Anslutningen misslyckades. Kontrollera att servern körs och försök igen.",
         "capsLockWarning": "Caps Lock är på.",

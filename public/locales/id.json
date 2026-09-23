@@ -62,7 +62,8 @@
             "hint": "Menentukan siapa yang dapat melihat entri ini di Yuvomi.",
             "assigneesNobodyHint": "Tanpa penerima tugas, hanya kamu yang melihat entri ini."
         },
-        "toShoppingListNamed": "Tambahkan {{title}} ke daftar belanja"
+        "toShoppingListNamed": "Tambahkan {{title}} ke daftar belanja",
+        "emailInUse": "Alamat email ini sudah dimiliki akun lain."
     },
     "kitchen": {
         "noShoppingLists": "Belum ada daftar belanja.",
@@ -2931,6 +2932,8 @@
         "orDivider": "atau",
         "ssoError": "Masuk SSO gagal. Silakan coba lagi.",
         "ssoNoAccount": "Belum ada akun di sini untuk masuk SSO ini. Silakan hubungi administrator rumah tangga Anda.",
+        "ssoEmailAmbiguous": "Alamat email Anda terdaftar di lebih dari satu akun di sini, sehingga masuk SSO tidak dapat dicocokkan dengan salah satunya. Silakan hubungi administrator rumah tangga Anda.",
+        "ssoLinkRequired": "Sudah ada akun dengan kata sandi untuk alamat email Anda di sini. Masuk dengan akun itu dan tautkan SSO di Pengaturan → Akun, atau hubungi administrator rumah tangga Anda.",
         "forgotPassword": "Lupa kata sandi?",
         "networkError": "Koneksi gagal. Periksa apakah server berjalan lalu coba lagi.",
         "capsLockWarning": "Caps Lock aktif.",

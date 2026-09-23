@@ -190,9 +190,11 @@ test('SSO: eine unbekannte Identitaet bekommt weiterhin ein Mitgliedskonto und e
   assert.equal(sessionsOf(user.id), 1);
 });
 
-test('SSO: ein Mitglied mit Kontakt-E-Mail wird weiterhin verknuepft und angemeldet', async () => {
+test('SSO: ein vorbereitetes Mitglied mit Kontakt-E-Mail wird weiterhin verknuepft und angemeldet', async () => {
+  // Ohne Passwort, wie ein Admin es fuer die erste SSO-Anmeldung vorbereitet:
+  // nur so ein Konto verknuepft ueber die Adresse (GHSA-6pmj-w42g-g6qv).
   const { lastInsertRowid } = database.prepare(`
-    INSERT INTO users (username, display_name, password_hash) VALUES ('mitglied-mail', 'Mitglied Mail', 'x')
+    INSERT INTO users (username, display_name, password_hash) VALUES ('mitglied-mail', 'Mitglied Mail', '$oidc$')
   `).run();
   const memberId = Number(lastInsertRowid);
   database.prepare('INSERT INTO contacts (name, email, family_user_id) VALUES (?, ?, ?)')

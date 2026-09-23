@@ -62,7 +62,8 @@
             "hint": "Controls who can see this entry in Yuvomi.",
             "assigneesNobodyHint": "With no one assigned, only you can see this entry."
         },
-        "toShoppingListNamed": "Add {{title}} to the shopping list"
+        "toShoppingListNamed": "Add {{title}} to the shopping list",
+        "emailInUse": "This email address already belongs to another account."
     },
     "kitchen": {
         "noShoppingLists": "There is no shopping list yet.",
@@ -2919,6 +2920,8 @@
         "orDivider": "or",
         "ssoError": "SSO sign-in failed. Please try again.",
         "ssoNoAccount": "There is no account here yet for this SSO sign-in. Please contact your household's administrator.",
+        "ssoEmailAmbiguous": "Your email address belongs to more than one account here, so the SSO sign-in cannot be matched to any of them. Please contact your household's administrator.",
+        "ssoLinkRequired": "There is already an account with a password for your email address here. Sign in with it and link SSO under Settings → Account, or contact your household's administrator.",
         "forgotPassword": "Forgot password?",
         "networkError": "Connection failed. Check that the server is running and try again.",
         "capsLockWarning": "Caps Lock is on.",

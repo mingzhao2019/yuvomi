@@ -62,7 +62,8 @@
             "hint": "Determina chi può vedere questa voce in Yuvomi.",
             "assigneesNobodyHint": "Senza assegnatari, solo tu vedi questa voce."
         },
-        "toShoppingListNamed": "Aggiungi {{title}} alla lista della spesa"
+        "toShoppingListNamed": "Aggiungi {{title}} alla lista della spesa",
+        "emailInUse": "Questo indirizzo email appartiene già a un altro account."
     },
     "kitchen": {
         "noShoppingLists": "Non c'è ancora una lista della spesa.",
@@ -2919,6 +2920,8 @@
         "orDivider": "o",
         "ssoError": "Accesso SSO non riuscito. Riprova.",
         "ssoNoAccount": "Non esiste ancora un account qui per questo accesso SSO. Contatta l'amministratore della tua famiglia.",
+        "ssoEmailAmbiguous": "Il tuo indirizzo email appartiene qui a più account, quindi l'accesso SSO non può essere associato a nessuno di essi. Contatta l'amministratore della tua famiglia.",
+        "ssoLinkRequired": "Qui esiste già un account con password per il tuo indirizzo email. Accedi con quello e collega l'SSO in Impostazioni → Account, oppure contatta l'amministratore della tua famiglia.",
         "forgotPassword": "Password dimenticata?",
         "networkError": "Connessione non riuscita. Verifica che il server sia in esecuzione e riprova.",
         "capsLockWarning": "Il tasto Bloc Maiusc è attivo.",

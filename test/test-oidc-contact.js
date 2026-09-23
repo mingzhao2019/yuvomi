@@ -183,10 +183,14 @@ test('eine Adresse ueber MAX_TITLE (200) wird nicht uebernommen', async () => {
   assert.equal(contacts[0].email, null);
 });
 
-/** Legt ein lokales Mitglied samt Kontakt an, wie es die Verknuepfung vorfindet. */
+/**
+ * Legt ein lokales Mitglied samt Kontakt an, wie es die Verknuepfung vorfindet:
+ * ohne Passwort, wie ein Admin es fuer die erste SSO-Anmeldung vorbereitet -
+ * nur so ein Konto verknuepft ueber die Adresse (GHSA-6pmj-w42g-g6qv).
+ */
 function addLocalMember(username, email) {
   const id = Number(database.prepare(`
-    INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, 'x')
+    INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, '$oidc$')
   `).run(username, `Lokal ${username}`).lastInsertRowid);
   database.prepare("INSERT INTO contacts (name, category, email, family_user_id) VALUES (?, 'misc', ?, ?)")
     .run(`Lokal ${username}`, email, id);

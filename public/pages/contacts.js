@@ -1325,7 +1325,9 @@ function buildContactForm({ mode, contact = null }) {
           renderList();
           window.yuvomi?.showToast(mode === 'create' ? t('contacts.savedToast') : t('contacts.updatedToast'), 'success');
         } catch (err) {
-          window.yuvomi?.showToast(err.data?.error ?? t('common.unknownError'), 'danger');
+          window.yuvomi?.showToast(err.data?.reason === 'email_in_use'
+            ? t('common.emailInUse')
+            : (err.data?.error ?? t('common.unknownError')), 'danger');
           saveBtn.disabled    = false;
           saveBtn.textContent = isEdit ? t('common.save') : t('common.create');
         }

@@ -154,11 +154,16 @@ export async function render(container) {
     // Ebenso ein Konto, das sich nicht anmelden darf (#243): dieselbe Absage
     // wie beim Passwort-Login. "Bitte erneut versuchen" liesse den Nutzer einen
     // Weg wiederholen, der nie aufgeht.
-    showError(errorEl, ssoError === 'oidc_signup_disabled'
-      ? t('login.ssoNoAccount')
-      : ssoError === 'oidc_sign_in_blocked'
-        ? t('login.accountCannotSignIn')
-        : t('login.ssoError'));
+    // Zwei Absagen, bei denen die Adresse kein Konto eindeutig und sicher
+    // benennt (GHSA-6pmj-w42g-g6qv): beide nennen den Weg, der weiterhilft,
+    // statt "bitte erneut versuchen" - ein neuer Versuch endet genauso.
+    const ssoMessage = new Map([
+      ['oidc_signup_disabled', () => t('login.ssoNoAccount')],
+      ['oidc_sign_in_blocked', () => t('login.accountCannotSignIn')],
+      ['oidc_email_ambiguous', () => t('login.ssoEmailAmbiguous')],
+      ['oidc_link_required', () => t('login.ssoLinkRequired')],
+    ]).get(ssoError);
+    showError(errorEl, ssoMessage ? ssoMessage() : t('login.ssoError'));
   }
 
   // Mit SSO als Hauptweg tritt das Formular zurueck, verschwindet aber NICHT

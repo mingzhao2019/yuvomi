@@ -62,7 +62,8 @@
             "hint": "Meghatározza, ki láthatja ezt a bejegyzést a Yuvomiban.",
             "assigneesNobodyHint": "Hozzárendelés nélkül csak te látod ezt a bejegyzést."
         },
-        "toShoppingListNamed": "{{title}} hozzáadása a bevásárlólistához"
+        "toShoppingListNamed": "{{title}} hozzáadása a bevásárlólistához",
+        "emailInUse": "Ez az e-mail-cím már egy másik fiókhoz tartozik."
     },
     "kitchen": {
         "noShoppingLists": "Még nincs bevásárlólista.",
@@ -2919,6 +2920,8 @@
         "orDivider": "vagy",
         "ssoError": "SSO bejelentkezés sikertelen. Kérjük, próbálja újra.",
         "ssoNoAccount": "Ehhez az SSO bejelentkezéshez itt még nincs fiók. Kérjük, forduljon a háztartás rendszergazdájához.",
+        "ssoEmailAmbiguous": "Az e-mail-címed itt több fiókhoz is tartozik, ezért az SSO-bejelentkezés egyikhez sem rendelhető. Kérjük, forduljon a háztartás rendszergazdájához.",
+        "ssoLinkRequired": "Az e-mail-címedhez itt már tartozik egy jelszavas fiók. Jelentkezz be vele, és kösd össze az SSO-t a Beállítások → Fiók alatt, vagy fordulj a háztartás rendszergazdájához.",
         "forgotPassword": "Elfelejtett jelszó?",
         "networkError": "A kapcsolat sikertelen. Ellenőrizd, hogy fut-e a szerver, majd próbáld újra.",
         "capsLockWarning": "A Caps Lock be van kapcsolva.",

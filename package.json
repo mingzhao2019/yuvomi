@@ -315,6 +315,7 @@
     "test:display-task-entry-points": "node --loader ./test/test-browser-loader.mjs --test test/test-display-task-entry-points.js",
     "test:staff-sign-in": "node --experimental-sqlite --experimental-test-module-mocks --test test/test-staff-sign-in.js",
     "test:oidc-contact": "node --experimental-sqlite --experimental-test-module-mocks --test test/test-oidc-contact.js",
+    "test:oidc-email-link": "node --experimental-sqlite --experimental-test-module-mocks --test test/test-oidc-email-link.js",
     "test:family-contacts": "node --experimental-sqlite test/test-family-contacts.js",
     "test:family-routes": "node --experimental-sqlite --test test/test-family-routes.js",
     "test:household-members": "node --experimental-sqlite --test test/test-household-members.js",

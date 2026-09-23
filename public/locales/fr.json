@@ -62,7 +62,8 @@
             "hint": "Détermine qui peut voir cette entrée dans Yuvomi.",
             "assigneesNobodyHint": "Sans personne assignée, vous seul voyez cette entrée."
         },
-        "toShoppingListNamed": "Ajouter {{title}} à la liste de courses"
+        "toShoppingListNamed": "Ajouter {{title}} à la liste de courses",
+        "emailInUse": "Cette adresse e-mail appartient déjà à un autre compte."
     },
     "kitchen": {
         "noShoppingLists": "Il n'y a encore aucune liste de courses.",
@@ -2919,6 +2920,8 @@
         "orDivider": "ou",
         "ssoError": "La connexion SSO a échoué. Veuillez réessayer.",
         "ssoNoAccount": "Aucun compte n'existe encore ici pour cette connexion SSO. Contactez l'administrateur de votre foyer.",
+        "ssoEmailAmbiguous": "Votre adresse e-mail est associée à plusieurs comptes ici, la connexion SSO ne peut donc être rattachée à aucun d'eux. Contactez l'administrateur de votre foyer.",
+        "ssoLinkRequired": "Un compte avec mot de passe existe déjà ici pour votre adresse e-mail. Connectez-vous avec celui-ci et associez le SSO dans Paramètres → Compte, ou contactez l'administrateur de votre foyer.",
         "forgotPassword": "Mot de passe oublié ?",
         "networkError": "Échec de la connexion. Vérifiez que le serveur fonctionne, puis réessayez.",
         "capsLockWarning": "La touche Verr. Maj est activée.",

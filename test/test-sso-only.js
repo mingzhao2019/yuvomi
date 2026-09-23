@@ -519,16 +519,23 @@ test('die Doppelpruefung der Adresse folgt exakt dem Linker', () => {
   // genau die Faelle, an denen der Linker spaeter scheitert - andere
   // Schreibweise, oder dieselbe Adresse als ZWEITadresse eines anderen
   // Mitglieds. Das Konto stuende dann ohne Passwort und ohne Verknuepfung da.
-  // Beide fragen seit der Normalisierung dieselbe Funktion mit denselben
-  // Optionen; das Verhalten selbst haelt test:oidc (Leerraum, Tab, NBSP).
+  // Beide fragen seit GHSA-6pmj-w42g-g6qv EINE Funktion, `ssoLinkCandidates`
+  // (unverknuepft, ohne Gaeste, Haupt- und Zweitadressen); das Verhalten selbst
+  // halten test:oidc (Leerraum, Tab, NBSP, Gaeste) und test:oidc-email-link.
   const start = authSrc.indexOf('function assertSsoOnlyAllowed');
   const body = authSrc.slice(start, authSrc.indexOf('\n}', start));
   const linkStart = authSrc.indexOf('export function findOrCreateOidcUser');
   const linker = authSrc.slice(linkStart, authSrc.indexOf('\n}', linkStart));
-  assert.match(body, /accountIdsByEmail\(db\.get\(\), address, \{\s*secondary: true, unlinkedOnly: true, excludeUserId,\s*\}\)/,
+  assert.match(body, /ssoLinkCandidates\(db\.get\(\), address, \{ excludeUserId \}\)/,
     'die Clash-Pruefung fragt nicht dieselbe Funktion wie der Linker');
-  assert.match(linker, /accountIdsByEmail\(database, email, \{ secondary: true, unlinkedOnly: true \}\)/,
+  assert.match(linker, /ssoLinkCandidates\(database, email\)/,
     'der Linker fragt nicht mehr die gemeinsame Funktion');
+  assert.doesNotMatch(body + linker, /accountIdsByEmail\(/,
+    'eine eigene Abfrage neben der gemeinsamen Funktion waere die zweite Regel');
+  const helperStart = authSrc.indexOf('function ssoLinkCandidates');
+  const helper = authSrc.slice(helperStart, authSrc.indexOf('\n}', helperStart));
+  assert.match(helper, /secondary: true, unlinkedOnly: true, withoutSplitGuests: true/,
+    'die gemeinsame Funktion zaehlt Zweitadressen, nur Unverknuepfte und keine Gaeste');
 });
 
 test('der Reset wird nicht beworben, wenn es kein Passwort mehr gibt', () => {

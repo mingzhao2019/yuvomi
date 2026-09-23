@@ -54,7 +54,7 @@ export function contactsPaths() {
       put: op({
         summary: 'Update contact with multi-value fields',
         tag: 'Contacts',
-        description: 'On a contact linked to an account (`family_user_id`), `email` and `emails` can only be changed by that member or an admin, in a session or with an unscoped token; anyone else, and any token scoped to modules, is refused with 403. Addresses are compared without regard to letter case; sending them unchanged or only in another case is not a change, and the stored spelling is kept. All other fields stay editable for anyone with write access to contacts.',
+        description: 'On a contact linked to an account (`family_user_id`), `email` and `emails` can only be changed by that member or an admin, in a session or with an unscoped token; anyone else, and any token scoped to modules, is refused with 403. Addresses are compared without regard to letter case; sending them unchanged or only in another case is not a change, and the stored spelling is kept. When the member edits their own linked contact, a newly added address that already belongs to another account (split-expense guests excluded) is refused with 409 and `reason: "email_in_use"`; an admin may assign it. All other fields stay editable for anyone with write access to contacts.',
         params: [idParam()],
         stateChanging: true,
         requestBody: jsonBody(null),
@@ -62,6 +62,7 @@ export function contactsPaths() {
           200: { description: 'Successful response' },
           401: { $ref: '#/components/responses/Unauthorized' },
           403: { $ref: '#/components/responses/Forbidden' },
+          409: { description: 'A newly added email address already belongs to another account (`reason: "email_in_use"`)' },
           500: { $ref: '#/components/responses/InternalServerError' },
         },
       }),

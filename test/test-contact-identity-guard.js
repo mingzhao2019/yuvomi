@@ -340,11 +340,15 @@ test('adding a contact to a group creates a split guest, not a household member'
 });
 
 test('an account created from a contact with a foreign address hands out nothing beyond its group', async () => {
-  const { userId } = await contactIntoGroup('Decoy', ATTACKER);
+  // Eine eigene Adresse: ATTACKER traegt seit dem SSO-Test oben ein
+  // Haushaltskonto, und eine Adresse, die schon ein anderes Konto traegt, wird
+  // seit GHSA-6pmj-w42g-g6qv gar nicht erst zum Gast (test:oidc-email-link).
+  const DECOY = 'decoy@attacker.test';
+  const { userId } = await contactIntoGroup('Decoy', DECOY);
   const username = db.prepare('SELECT username FROM users WHERE id = ?').get(userId).username;
   const link = await withResetRoutes(async ({ post, sent }) => {
     assert.equal((await post('/forgot-password', { identifier: username })).status, 200);
-    return sent.find((m) => m.to === ATTACKER)?.text.match(/token=([\w-]+)/)?.[1] ?? null;
+    return sent.find((m) => m.to === DECOY)?.text.match(/token=([\w-]+)/)?.[1] ?? null;
   });
   // Ein Gast darf sein Passwort zuruecksetzen - das ist gewollt. Wer die
   // Adresse traegt, bekommt damit aber nur den Gast, nicht den Haushalt.

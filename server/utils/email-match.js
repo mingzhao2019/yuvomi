@@ -1,10 +1,16 @@
 /**
  * Modul: E-Mail-Abgleich
  * Zweck: EINE Regel dafuer, wann eine eingegebene oder vom Anbieter gemeldete
- *        Adresse dieselbe ist wie eine gespeicherte. Drei Stellen fragen das:
- *        die SSO-Verknuepfung, die Pruefung vor einem Konto ohne Passwort
- *        (sie muss genau das vorhersagen, woran die Verknuepfung scheitert)
- *        und "Passwort vergessen".
+ *        Adresse dieselbe ist wie eine gespeicherte. Das fragen die
+ *        SSO-Verknuepfung, die Pruefung vor einem Konto ohne Passwort
+ *        (sie muss genau das vorhersagen, woran die Verknuepfung scheitert),
+ *        "Passwort vergessen" und die Pruefung, ob eine neue Adresse schon an
+ *        einem anderen Konto steht (services/contact-identity.js).
+ *
+ * Eine Adresse, die ein Mitglied selbst setzen kann, ist kein Beweis, wem ein
+ * Konto gehoert. Die SSO-Verknuepfung fragt deshalb nicht nur diese Regel,
+ * sondern auch, wer die Adresse gesetzt haben kann (`ssoLinkCandidates()` in
+ * server/auth.js, GHSA-6pmj-w42g-g6qv).
  *
  * Normalisiert wird in JS, auf beiden Seiten mit derselben Funktion. SQLites
  * `trim()` entfernt nur Leerzeichen - ein Tab, ein CR oder ein geschuetztes
@@ -40,21 +46,30 @@ export function emailMatchKey(value) {
  * @param {boolean} [opts.secondary=false] - auch `contact_emails.value` pruefen
  * @param {boolean} [opts.unlinkedOnly=false] - nur Konten ohne `oidc_sub`
  * @param {number|null} [opts.excludeUserId=null] - dieses Konto auslassen
+ * @param {boolean} [opts.withoutSplitGuests=false] - Gaeste der geteilten
+ *   Ausgaben auslassen. Ihre Adresse setzt jedes Mitglied, das eine Gruppe
+ *   verwaltet, frei - sie darf weder ein Konto finden noch eines verdecken.
  * @returns {number[]} eindeutige Konto-IDs
  */
 export function accountIdsByEmail(database, address, {
   secondary = false,
   unlinkedOnly = false,
   excludeUserId = null,
+  withoutSplitGuests = false,
 } = {}) {
   const key = emailMatchKey(address);
   if (!key) return [];
+  const where = [];
+  if (unlinkedOnly) where.push('u.oidc_sub IS NULL');
+  if (withoutSplitGuests) {
+    where.push('NOT EXISTS (SELECT 1 FROM split_expense_guest_users sg WHERE sg.user_id = u.id)');
+  }
   const rows = database.prepare(`
     SELECT u.id AS id, c.email AS email${secondary ? ', ce.value AS alt' : ''}
     FROM users u
     JOIN contacts c ON c.family_user_id = u.id
     ${secondary ? 'LEFT JOIN contact_emails ce ON ce.contact_id = c.id' : ''}
-    ${unlinkedOnly ? 'WHERE u.oidc_sub IS NULL' : ''}
+    ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
   `).all();
   const ids = new Set();
   for (const row of rows) {

@@ -62,7 +62,8 @@
             "hint": "Controla quem pode ver esta entrada no Yuvomi.",
             "assigneesNobodyHint": "Sem ninguém atribuído, só você vê esta entrada."
         },
-        "toShoppingListNamed": "Adicionar {{title}} à lista de compras"
+        "toShoppingListNamed": "Adicionar {{title}} à lista de compras",
+        "emailInUse": "Este endereço de e-mail já pertence a outra conta."
     },
     "kitchen": {
         "noShoppingLists": "Ainda não existe lista de compras.",
@@ -2919,6 +2920,8 @@
         "orDivider": "ou",
         "ssoError": "O login SSO falhou. Por favor, tente novamente.",
         "ssoNoAccount": "Ainda não existe uma conta aqui para este login SSO. Contacte o administrador do seu agregado familiar.",
+        "ssoEmailAmbiguous": "O seu endereço de e-mail pertence aqui a mais do que uma conta, por isso o início de sessão SSO não pode ser associado a nenhuma delas. Contacte o administrador do seu agregado familiar.",
+        "ssoLinkRequired": "Já existe aqui uma conta com palavra-passe para o seu endereço de e-mail. Inicie sessão com ela e associe o SSO em Configurações → Conta, ou contacte o administrador do seu agregado familiar.",
         "forgotPassword": "Esqueceste-te da palavra-passe?",
         "networkError": "Falha na ligação. Verifica se o servidor está a funcionar e tenta novamente.",
         "capsLockWarning": "O Caps Lock está ativado.",

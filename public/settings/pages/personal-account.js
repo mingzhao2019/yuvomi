@@ -689,7 +689,9 @@ function bindEvents(container, user, profileState) {
       }
       window.yuvomi?.showToast(t('settings.profileSavedToast'), 'success');
     } catch (error) {
-      showError(profileError, error.message);
+      showError(profileError, error.data?.reason === 'email_in_use'
+        ? t('common.emailInUse')
+        : error.message);
     } finally {
       submitButton.disabled = false;
     }

@@ -62,7 +62,8 @@
             "hint": "控制谁可以在 Yuvomi 中看到此条目。",
             "assigneesNobodyHint": "未指定任何人时，只有你能看到此条目。"
         },
-        "toShoppingListNamed": "将{{title}}加入购物清单"
+        "toShoppingListNamed": "将{{title}}加入购物清单",
+        "emailInUse": "此电子邮件地址已属于另一个账户。"
     },
     "kitchen": {
         "noShoppingLists": "还没有购物清单。",
@@ -2919,6 +2920,8 @@
         "orDivider": "或",
         "ssoError": "SSO登录失败，请重试。",
         "ssoNoAccount": "此SSO登录尚无对应账户，请联系您家庭的管理员。",
+        "ssoEmailAmbiguous": "您的电子邮件地址在这里属于多个账户，因此无法将此SSO登录对应到其中任何一个。请联系您家庭的管理员。",
+        "ssoLinkRequired": "这里已有一个使用您的电子邮件地址且设有密码的账户。请用该账户登录，并在 设置 → 账户 中关联 SSO，或联系您家庭的管理员。",
         "forgotPassword": "忘记密码？",
         "networkError": "连接失败。请检查服务器是否正在运行，然后重试。",
         "capsLockWarning": "大写锁定已开启。",

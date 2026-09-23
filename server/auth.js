@@ -44,7 +44,8 @@ import {
   invitePresetPermissions, isValidInvitePreset, writeSubjectPermissions,
   INVITE_PRESET_DEFAULT,
 } from './permissions.js';
-import { requireAdmin } from './middleware/require-admin.js';
+import { isAdminRequest, requireAdmin } from './middleware/require-admin.js';
+import { EMAIL_IN_USE_MESSAGE, emailsTakenByOtherAccounts, storedAccountEmails } from './services/contact-identity.js';
 import * as twoFactor from './services/two-factor.js';
 
 const log = createLogger('Auth');
@@ -1149,14 +1150,52 @@ function sanitizeOidcUsername(raw) {
 }
 
 /**
+ * Konten, die eine verifizierte Adresse bei der ersten SSO-Anmeldung meinen
+ * kann (GHSA-6pmj-w42g-g6qv). EINE Funktion fuer den Linker und fuer die
+ * Pruefung vor einem Konto ohne Passwort (`assertSsoOnlyAllowed`), denn die
+ * muss genau das vorhersagen, woran der Linker scheitert.
+ *
+ * - nur noch nicht verknuepfte Konten: ein verknuepftes findet sein `sub`;
+ * - ohne die Gaeste der geteilten Ausgaben: deren Adresse setzt jedes
+ *   Mitglied frei, das eine Gruppe verwaltet (auch ueber einen beliebigen
+ *   Kontakt). Zaehlten sie mit, koennte ein Mitglied damit die erste
+ *   Anmeldung eines anderen mehrdeutig machen oder sie auf den Gast ziehen.
+ *   Ein Gast gehoert nicht zum Haushalt und steht nicht in dessen
+ *   Identitaetsanbieter; verknuepft wird er nie ueber die Adresse.
+ *
+ * @param {object} database
+ * @param {unknown} address
+ * @param {{ excludeUserId?: number|null }} [opts]
+ * @returns {number[]}
+ */
+function ssoLinkCandidates(database, address, { excludeUserId = null } = {}) {
+  return accountIdsByEmail(database, address, {
+    secondary: true, unlinkedOnly: true, withoutSplitGuests: true, excludeUserId,
+  });
+}
+
+/**
  * Findet oder erstellt einen User anhand der (validierten) OIDC-Claims.
  *
  * Identität primär über den (kryptografisch validierten) `sub`. Existiert kein
  * sub-Match, wird ein bestehender lokaler Account NUR verknüpft, wenn der IdP
- * `email_verified: true` liefert UND genau ein noch nicht OIDC-gebundener Account
- * dieselbe E-Mail führt. Ohne verifizierte E-Mail (oder bei Mehrdeutigkeit) wird
- * ein separater Account angelegt — Linking auf unverifizierte E-Mails wäre ein
- * Account-Takeover-Vektor.
+ * `email_verified: true` liefert UND genau ein Kandidat (`ssoLinkCandidates`)
+ * die E-Mail führt UND dessen Adresse nur ein Admin gesetzt haben kann. Ohne
+ * verifizierte E-Mail wird ein separater Account angelegt - Linking auf
+ * unverifizierte E-Mails wäre ein Account-Takeover-Vektor.
+ *
+ * Zwei Fälle weisen die Anmeldung ab, statt zu raten (GHSA-6pmj-w42g-g6qv):
+ * - mehrere Kandidaten (`oidc_email_ambiguous`): welches Konto gemeint ist,
+ *   weiß nur ein Admin. Früher entstand hier still ein neues Konto, das den
+ *   `sub` für immer band.
+ * - genau ein Kandidat, aber ein Mitgliedskonto mit Passwort
+ *   (`oidc_link_required`): dessen Adresse kann das Mitglied selbst gesetzt
+ *   haben, auch die einer fremden Person. Die Person verknüpft dann angemeldet
+ *   unter Einstellungen → Konto (#832), oder ein Admin stellt das Konto auf
+ *   „Nur SSO-Anmeldung". Verknüpft wird über die Adresse nur ein Konto ohne
+ *   Passwort oder ein Admin-Konto - deren Adresse kann nur ein Admin gesetzt
+ *   haben.
+ * Rückgabe dann `{ refused, accountIds }` statt einer users-Zeile.
  *
  * Ausnahme: `OIDC_TRUST_EMAIL_WITHOUT_VERIFIED_CLAIM=true` — Opt-in für IdPs, die
  * den Claim zwar weglassen, aber nur verifizierte Adressen ausgeben (z. B. ältere
@@ -1170,8 +1209,10 @@ function sanitizeOidcUsername(raw) {
  *
  * @param {import('better-sqlite3-multiple-ciphers').Database} database
  * @param {{ sub: string, iss?: string, email?: string, email_verified?: boolean, name?: string, preferred_username?: string, username?: string }} claims
- * @returns {{ id: number, role: string, [key: string]: any }|null} `null`, wenn
- *   das Konto neu wäre und die automatische Kontoerstellung abgeschaltet ist.
+ * @returns {{ id: number, role: string, [key: string]: any }|{ refused: string, accountIds: number[] }|null}
+ *   `null`, wenn das Konto neu wäre und die automatische Kontoerstellung
+ *   abgeschaltet ist; `{ refused }` mit dem Redirect-Grund, wenn die Adresse
+ *   kein Konto eindeutig und sicher benennt.
  */
 export function findOrCreateOidcUser(database, claims) {
   const { sub, iss, email_verified, name, preferred_username, username: usernameClaim } = claims;
@@ -1192,29 +1233,50 @@ export function findOrCreateOidcUser(database, claims) {
   // 2. Linking an bestehenden lokalen Account — ausschließlich bei verifizierter
   //    E-Mail oder explizitem Opt-in via OIDC_TRUST_EMAIL_WITHOUT_VERIFIED_CLAIM.
   //    Family-User-E-Mails hängen an contacts.email (Primär) bzw.
-  //    contact_emails.value (Sekundär). Verknüpft wird nur, wenn GENAU EIN noch
-  //    nicht OIDC-gebundener Account die E-Mail führt; 0 oder >1 Treffer →
-  //    sicherheitshalber neuer Account. Beide Seiten laufen durch dieselbe
-  //    Regel (`accountIdsByEmail`, utils/email-match.js): die gespeicherte
-  //    Adresse kann Leerraum tragen (Formular, Import, auch Tab oder NBSP).
-  //    `assertSsoOnlyAllowed` fragt mit denselben Optionen.
+  //    contact_emails.value (Sekundär). Wer in Frage kommt, sagt
+  //    `ssoLinkCandidates` (dieselbe Funktion fragt `assertSsoOnlyAllowed`):
+  //    noch nicht gebundene Konten ohne die Gäste der geteilten Ausgaben, über
+  //    die eine Regel aus utils/email-match.js (Leerraum, Tab, NBSP, A-Z).
   const trustMissingVerified = process.env.OIDC_TRUST_EMAIL_WITHOUT_VERIFIED_CLAIM === 'true';
   if (email && (email_verified === true || (trustMissingVerified && email_verified !== false))) {
-    const matches = accountIdsByEmail(database, email, { secondary: true, unlinkedOnly: true })
-      .map((id) => ({ id }));
+    const candidates = ssoLinkCandidates(database, email);
 
-    if (matches.length === 1) {
+    // Mehrere Konten tragen die Adresse: abweisen, nicht raten und nicht still
+    // ein drittes Konto anlegen. Ein neues Konto bände den sub für immer, und
+    // jede spätere Anmeldung landete dort - auch nachdem die Doppelung
+    // behoben ist. Das gilt unabhängig von OIDC_ALLOW_SIGNUP.
+    if (candidates.length > 1) {
+      return { refused: 'oidc_email_ambiguous', accountIds: candidates };
+    }
+
+    if (candidates.length === 1) {
+      const account = database.prepare('SELECT * FROM users WHERE id = ?').get(candidates[0]);
       // Ein Konto, das sich nicht anmelden darf, wird nicht verknuepft: es
       // truege sonst den sub, und jede weitere Anmeldung faende es schon in
       // Schritt 1. Zurueck kommt es trotzdem, unverknuepft - der Callback weist
       // es mit eigenem Grund ab, statt derselben Person ein Ersatzkonto anzulegen.
-      if (!canSignIn(database, matches[0].id)) {
-        return database.prepare('SELECT * FROM users WHERE id = ?').get(matches[0].id);
+      if (!canSignIn(database, account.id)) return account;
+      // UEBER DIE ADRESSE VERKNUEPFT NUR EIN KONTO, DESSEN ADRESSE NIEMAND
+      // AUSSER EINEM ADMIN GESETZT HABEN KANN. Die Adressen eines Mitglieds-
+      // Kontakts aendern nur die Person selbst und ein Admin
+      // (services/contact-identity.js). Also:
+      // - ein Konto ohne Passwort: ohne Passwort und ohne sub kommt niemand
+      //   hinein, der die Adresse am eigenen Profil aendern koennte;
+      // - ein Admin-Konto: die Person selbst IST Admin.
+      // Die Adresse eines Mitglieds-Kontos MIT Passwort pflegt das Mitglied
+      // selbst - auch auf die Adresse einer Person, die sich erst noch per SSO
+      // anmeldet, und deren erste Anmeldung landete dann im Konto des
+      // Mitglieds, das das Passwort kennt. Dieses Konto verknuepft deshalb nur
+      // angemeldet (Einstellungen → Konto, #832) oder nachdem ein Admin es auf
+      // „Nur SSO-Anmeldung" gestellt hat. Abgewiesen wird mit eigenem Grund,
+      // damit niemand still ein zweites Konto bekommt.
+      if (!isSsoOnlyAccount(account.password_hash) && account.role !== 'admin') {
+        return { refused: 'oidc_link_required', accountIds: candidates };
       }
       database.prepare(
         'UPDATE users SET oidc_sub = ?, oidc_provider = ? WHERE id = ?',
-      ).run(sub, provider, matches[0].id);
-      return database.prepare('SELECT * FROM users WHERE id = ?').get(matches[0].id);
+      ).run(sub, provider, account.id);
+      return database.prepare('SELECT * FROM users WHERE id = ?').get(account.id);
     }
   }
 
@@ -2275,6 +2337,22 @@ router.get('/oidc/callback', refuseWhileRestoring, async (req, res) => {
       return res.redirect('/login?error=oidc_signup_disabled');
     }
 
+    // Die Adresse benennt kein Konto eindeutig und sicher (GHSA-6pmj-w42g-g6qv).
+    // Kein Konto angelegt, keins verknuepft; der Grund steht im Redirect, und
+    // das Log sagt dem Admin, welche Konten er ansehen muss. Die Adresse selbst
+    // steht nicht im Log, die Konto-IDs genuegen.
+    if (user.refused) {
+      const ids = user.accountIds.join(', ');
+      if (user.refused === 'oidc_email_ambiguous') {
+        log.warn(`OIDC sign-in refused: the verified email address is on more than one unlinked account (user ids ${ids}). `
+          + `Keep the address on one account only, or have the person link SSO under Settings > Account. sub=${claims.sub}`);
+      } else {
+        log.warn(`OIDC sign-in refused: the verified email address belongs to user ${ids}, which has a password and is not linked to SSO. `
+          + `The person links SSO under Settings > Account, or an admin switches the account to SSO-only sign-in. sub=${claims.sub}`);
+      }
+      return res.redirect(`/login?error=${user.refused}`);
+    }
+
     // Ein Konto der Haushaltshilfe meldet sich auch ueber SSO nicht an (#243).
     // Die Pruefung steht VOR dem zweiten Faktor: dahinter legte der Callback
     // erst einen Wartezustand an, und der Code oeffnete dann die Sitzung.
@@ -2991,16 +3069,14 @@ export function assertSsoOnlyAllowed(ssoOnly, password, { linked = false, email 
   // Und sie muss dieses eine Konto meinen: `findOrCreateOidcUser` verknuepft
   // nur bei GENAU einem Treffer und laesst zwei Kandidaten unangetastet.
   //
-  // Die Bedingung ist bewusst dieselbe wie dort - dieselbe Funktion mit
-  // denselben Optionen (`accountIdsByEmail`: Leerraum, Schreibweise UND die
-  // Zweitadressen aus `contact_emails`). Eine engere Pruefung hier waere
+  // Die Bedingung ist bewusst dieselbe wie dort - dieselbe Funktion
+  // (`ssoLinkCandidates`: Leerraum, Schreibweise, die Zweitadressen aus
+  // `contact_emails`, ohne Gaeste). Eine engere Pruefung hier waere
   // schlimmer als keine: sie gaebe gruenes Licht fuer genau die Faelle, an
   // denen der Linker spaeter scheitert (andere Gross-/Kleinschreibung, oder
   // dieselbe Adresse als Zweitadresse eines anderen Mitglieds), und das Konto
   // stuende dann ohne Passwort und ohne Verknuepfung da.
-  const clash = accountIdsByEmail(db.get(), address, {
-    secondary: true, unlinkedOnly: true, excludeUserId,
-  }).length > 0;
+  const clash = ssoLinkCandidates(db.get(), address, { excludeUserId }).length > 0;
   if (clash) {
     return 'This email address already belongs to another member, so SSO could not tell the accounts apart.';
   }
@@ -3283,6 +3359,22 @@ router.patch('/me/profile', requireAuth, csrfMiddleware, (req, res) => {
     }
     if (memberFields.errors.length) {
       return res.status(400).json({ error: memberFields.errors.join(' '), code: 400 });
+    }
+
+    // Eine Adresse, die schon ein anderes Konto traegt, setzt sich ein
+    // Mitglied nicht selbst (GHSA-6pmj-w42g-g6qv): sonst stellte es die
+    // Mehrdeutigkeit her, an der SSO-Verknuepfung und Passwort-Reset des
+    // anderen scheitern. Ein Admin darf das bewusst (Familienpostfach).
+    // Synchron bis zum Schreiben: kein await zwischen Pruefung und UPDATE.
+    if (memberFields.values.email !== undefined && !isAdminRequest(req)) {
+      const taken = emailsTakenByOtherAccounts(db.get(), {
+        userId: req.authUserId,
+        before: storedAccountEmails(db.get(), req.authUserId),
+        after: [memberFields.values.email],
+      });
+      if (taken.length) {
+        return res.status(409).json({ error: EMAIL_IN_USE_MESSAGE, code: 409, reason: 'email_in_use' });
+      }
     }
 
     db.transaction(() => {

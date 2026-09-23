@@ -62,7 +62,8 @@
             "hint": "Určuje, kdo vidí tuto položku v Yuvomi.",
             "assigneesNobodyHint": "Bez přiřazení vidíš tuto položku jen ty."
         },
-        "toShoppingListNamed": "Přidat {{title}} na nákupní seznam"
+        "toShoppingListNamed": "Přidat {{title}} na nákupní seznam",
+        "emailInUse": "Tato e-mailová adresa již patří jinému účtu."
     },
     "kitchen": {
         "noShoppingLists": "Nákupní seznam ještě neexistuje.",
@@ -2919,6 +2920,8 @@
         "orDivider": "nebo",
         "ssoError": "Přihlášení přes SSO selhalo. Zkuste to prosím znovu.",
         "ssoNoAccount": "Pro toto přihlášení přes SSO zde zatím není žádný účet. Obraťte se na správce vaší domácnosti.",
+        "ssoEmailAmbiguous": "Vaše e-mailová adresa zde patří k více účtům, proto nelze přihlášení přes SSO přiřadit žádnému z nich. Obraťte se na správce vaší domácnosti.",
+        "ssoLinkRequired": "Pro vaši e-mailovou adresu zde již existuje účet s heslem. Přihlaste se jím a propojte SSO v Nastavení → Účet, nebo se obraťte na správce vaší domácnosti.",
         "forgotPassword": "Zapomenuté heslo?",
         "networkError": "Připojení selhalo. Zkontrolujte, zda server běží, a zkuste to znovu.",
         "capsLockWarning": "Caps Lock je zapnutý.",

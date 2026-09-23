@@ -62,7 +62,8 @@
             "hint": "Kinokontrol kung sino ang makakakita ng entry na ito sa Yuvomi.",
             "assigneesNobodyHint": "Kung walang naatasan, ikaw lang ang makakakita ng entry na ito."
         },
-        "toShoppingListNamed": "Idagdag ang {{title}} sa listahan ng pamimili"
+        "toShoppingListNamed": "Idagdag ang {{title}} sa listahan ng pamimili",
+        "emailInUse": "Ang email address na ito ay pag-aari na ng ibang account."
     },
     "kitchen": {
         "noShoppingLists": "Wala pang listahan ng pamimili.",
@@ -2931,6 +2932,8 @@
         "orDivider": "o",
         "ssoError": "Nabigo ang pag-sign in gamit ang SSO. Pakisubukang muli.",
         "ssoNoAccount": "Wala pang account dito para sa pag-sign in na ito gamit ang SSO. Makipag-ugnayan sa administrador ng iyong sambahayan.",
+        "ssoEmailAmbiguous": "Ang iyong email address ay nasa higit sa isang account dito, kaya hindi maitutugma ang pag-sign in gamit ang SSO sa alinman sa mga ito. Makipag-ugnayan sa administrador ng iyong sambahayan.",
+        "ssoLinkRequired": "May account na may password na para sa iyong email address dito. Mag-sign in gamit iyon at iugnay ang SSO sa Mga Setting → Account, o makipag-ugnayan sa administrador ng iyong sambahayan.",
         "forgotPassword": "Nakalimutan ang password?",
         "networkError": "Nabigo ang koneksyon. Tiyaking tumatakbo ang server at subukan ulit.",
         "capsLockWarning": "Naka-on ang Caps Lock.",

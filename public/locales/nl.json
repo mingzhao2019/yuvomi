@@ -62,7 +62,8 @@
             "hint": "Bepaalt wie dit item in Yuvomi kan zien.",
             "assigneesNobodyHint": "Zonder toewijzing zie alleen jij dit item."
         },
-        "toShoppingListNamed": "{{title}} op de boodschappenlijst zetten"
+        "toShoppingListNamed": "{{title}} op de boodschappenlijst zetten",
+        "emailInUse": "Dit e-mailadres hoort al bij een ander account."
     },
     "kitchen": {
         "noShoppingLists": "Er is nog geen boodschappenlijst.",
@@ -2919,6 +2920,8 @@
         "orDivider": "of",
         "ssoError": "SSO-aanmelding mislukt. Probeer het opnieuw.",
         "ssoNoAccount": "Er is hier nog geen account voor deze SSO-aanmelding. Neem contact op met de beheerder van je huishouden.",
+        "ssoEmailAmbiguous": "Je e-mailadres hoort hier bij meer dan één account, daarom kan de SSO-aanmelding aan geen van beide worden gekoppeld. Neem contact op met de beheerder van je huishouden.",
+        "ssoLinkRequired": "Er bestaat hier al een account met wachtwoord voor je e-mailadres. Meld je daarmee aan en koppel SSO onder Instellingen → Account, of neem contact op met de beheerder van je huishouden.",
         "forgotPassword": "Wachtwoord vergeten?",
         "networkError": "Verbinding mislukt. Controleer of de server draait en probeer het opnieuw.",
         "capsLockWarning": "Caps Lock staat aan.",

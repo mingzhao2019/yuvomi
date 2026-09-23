@@ -62,7 +62,8 @@
             "hint": "Bu kaydı Yuvomi’de kimin görebileceğini belirler.",
             "assigneesNobodyHint": "Kimse atanmazsa bu kaydı yalnızca sen görürsün."
         },
-        "toShoppingListNamed": "{{title}} yemeğini alışveriş listesine ekle"
+        "toShoppingListNamed": "{{title}} yemeğini alışveriş listesine ekle",
+        "emailInUse": "Bu e-posta adresi zaten başka bir hesaba ait."
     },
     "kitchen": {
         "noShoppingLists": "Henüz alışveriş listesi yok.",
@@ -2919,6 +2920,8 @@
         "orDivider": "veya",
         "ssoError": "SSO girişi başarısız oldu. Lütfen tekrar deneyin.",
         "ssoNoAccount": "Bu SSO girişi için burada henüz bir hesap yok. Lütfen hane yöneticinizle iletişime geçin.",
+        "ssoEmailAmbiguous": "E-posta adresiniz burada birden fazla hesaba ait olduğundan SSO girişi hiçbiriyle eşleştirilemiyor. Lütfen hane yöneticinizle iletişime geçin.",
+        "ssoLinkRequired": "E-posta adresiniz için burada zaten parolalı bir hesap var. Bu hesapla giriş yapın ve SSO'yu Ayarlar → Hesap altında bağlayın ya da hane yöneticinizle iletişime geçin.",
         "forgotPassword": "Parolanı mı unuttun?",
         "networkError": "Bağlantı başarısız oldu. Sunucunun çalıştığını kontrol edip tekrar deneyin.",
         "capsLockWarning": "Caps Lock açık.",

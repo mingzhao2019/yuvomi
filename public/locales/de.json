@@ -62,7 +62,8 @@
             "hint": "Legt fest, wer diesen Eintrag in Yuvomi sieht.",
             "assigneesNobodyHint": "Ohne Zuweisung sieht diesen Eintrag nur du."
         },
-        "toShoppingListNamed": "{{title}} auf die Einkaufsliste setzen"
+        "toShoppingListNamed": "{{title}} auf die Einkaufsliste setzen",
+        "emailInUse": "Diese E-Mail-Adresse gehört bereits zu einem anderen Konto."
     },
     "kitchen": {
         "noShoppingLists": "Es gibt noch keine Einkaufsliste.",
@@ -2931,6 +2932,8 @@
         "orDivider": "oder",
         "ssoError": "SSO-Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
         "ssoNoAccount": "Für diese SSO-Anmeldung gibt es hier noch kein Konto. Wende dich an die Administration deines Haushalts.",
+        "ssoEmailAmbiguous": "Deine E-Mail-Adresse steht hier an mehreren Konten, deshalb kann die SSO-Anmeldung keinem davon zugeordnet werden. Wende dich an die Administration deines Haushalts.",
+        "ssoLinkRequired": "Zu deiner E-Mail-Adresse gibt es hier schon ein Konto mit Passwort. Melde dich damit an und verknüpfe SSO unter Einstellungen → Konto, oder wende dich an die Administration deines Haushalts.",
         "forgotPassword": "Passwort vergessen?",
         "networkError": "Verbindung fehlgeschlagen. Prüfe, ob der Server läuft, und versuche es erneut.",
         "capsLockWarning": "Feststelltaste (Caps Lock) ist aktiv.",
