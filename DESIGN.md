@@ -759,6 +759,18 @@ gemessen, in Light und Dark - nicht geschaetzt und nicht aus einer fremden Palet
 uebernommen. Als Guard im Repo steht die Messung in `test/test-document-guards.js`
 (Sonde 2 misst den komponierten Kontrast am gerenderten Dokument).
 
+**Die Zuruecknahme-Regel (#1230, 2026-09-15).** Was beiseitegelegt ist - erledigte und
+archivierte Aufgaben, archivierte Konten, pausierte Abos, inaktive Medikamente und Praemien,
+schon importierte Zeilen -, tritt ueber drei Token-Rollen zurueck, nie ueber `opacity`:
+`--color-surface-receded` (die Flaeche sinkt auf die vertiefte Stufe),
+`--color-border-receded` (die ruhigste Kante) und `--color-text-receded` (der Sekundaertext
+eine Stufe leiser, 5,39 / 7,71:1 auf der zurueckgenommenen Flaeche). Titel bleiben
+secondary, Badges, Prioritaets-Chips und Initialen voll: sie tragen die Aussage des
+Zustands. Die Deckung multiplizierte den Kontrast JEDES Textes mit herunter und lag
+gerendert bei 1,65-3,86:1 light und 2,40-4,23:1 dark. Alle drei sind Aliase, die
+Dark-Bloecke ziehen sie ueber die Stufen darunter mit. Guard: `test/test-frontend-audit.js`,
+"zurueckgenommene Karten und Zeilen" - keine Zustandsregel setzt `opacity` unter 1.
+
 **Die Akzent-auf-Toenung-Regel.** Akzent-TEXT auf akzent-getoentem Grund (Chips, Badges,
 Avatare) nutzt `color-mix(in srgb, var(--module-accent) 70%, var(--color-text-primary))`;
 bewusst kein Token, weil die Formel dort ausgewertet werden muss, wo `--module-accent`
@@ -992,6 +1004,14 @@ Fundstellen). Ein 9px-Text sagt weniger als ein sauberer Punkt.
   >=1024 Desktop (Sidebar, mehrspaltig), >=1440 Wide; dazu die zweite Achse <500px Hoehe
   (kompakte Hoehe, siehe „Die Chrome-Regel"). Komponenten-interne Umbrueche gehoeren in
   @container-Queries, nicht in neue Viewport-Breakpoints.
+- **Fensterhoehe in einer Rechnung:** `var(--viewport-height)`, nie `100dvh` direkt
+  (#1276). Der Token steht auf `100vh` und kippt per `@supports (height: 100dvh)` auf dvh.
+  Ein vh-Zwilling davor rettet nur Deklarationen OHNE `var()`/`env()`: mit `var()` gilt
+  `calc(100dvh - var(--space-4))` beim Parsen als gueltig, verdraengt den Zwilling und wird
+  erst beim Berechnen ungueltig - dann faellt `max-height` auf `none`, nicht auf 100vh
+  (Chrome vor 108, Safari vor 15.4). Die Shell-Hoehe an `body` und `.app-shell` behaelt ihre
+  Kette `100vh` / `-webkit-fill-available` / `100dvh`. Guard:
+  `test/test-old-browser-fallbacks.js`.
 - **Was von der Breite eines BAUSTEINS abhaengt, fragt seinen Container - und die Regel hat
   zwei gemessene Anlassfaelle.** Das Notizen-Raster im Dashboard haengte seine Spaltenzahl
   an Viewport-Breakpoints und stand ab 1024px dreispaltig, auch wenn die Notizkarte selbst
@@ -1123,6 +1143,23 @@ backdrop-filter steht drin (mit webkit-Zwilling fuer Safari < 18). prefers-reduc
 transparency kippt alle Glas-Tokens auf `--color-surface`-Werte und alle Blur-Stufen auf 0;
 prefers-contrast: more haertet Kanten auf Textfarben, schaltet Blur und Backdrop-Blobs ab
 und hebt den Notes-Tint auf 6.3:1.
+
+**Die Ausweich-Regel des Toast-Stapels (#1421, 2026-09-22).** Der untere Shell-Stapel
+(Toasts, Sammelpille) liegt UEBER Dialogen (`--z-toast` 300 ueber `--z-modal` 200), damit
+eine Meldung waehrend eines Dialogs sichtbar bleibt - und er verdeckt dabei keine
+Bedienleiste des Dialogs. Anlass: der Toast einer faelligen Erinnerung lag bei 1280x900
+genau auf "Speichern" des Kalenderdialogs, der Klick verwarf die Erinnerung und speicherte
+nichts. `pointer-events: none` am Toast waere keine Antwort (der Knopf bliebe verdeckt, und
+der Erinnerungs-Toast ist selbst bedienbar); CSS-Ankerpositionierung auch nicht (iOS vor 26
+kennt sie nicht, und die Wahl haengt an gemessenen Hoehen). `public/utils/toast-placement.js`
+waehlt deshalb die erste passende Lage: dort, wo er steht; ueber dem Dialog; darunter; an
+seinem Platz ueber reinem Inhalt; im Dialog direkt ueber der unteren Leiste; die naechste
+freie Kante. Als Leiste zaehlen `.modal-panel__header/__footer`, `.modal-actions`,
+`[data-dialog-actions]` UND jeder sichtbare Knopf und Link des Dialogs, dazu das gerade
+fokussierte Feld (WCAG 2.4.11). Findet sich kein Platz, zeigt der Stapel nur den juengsten
+Toast, die uebrigen stehen `inert` als `.toast--tucked` bereit. Ein Dialog mit eigener
+Kopf- oder Fusszeile zeichnet sie mit `data-dialog-actions` aus; das Register dazu fuehrt
+`test:toast-placement`.
 
 ## Shapes
 
@@ -1542,6 +1579,36 @@ nur das gerenderte Dokument sieht, ob eine Liste ueberhaupt verdrahtet ist.
   Kanonisch fuer neuen Code ist `.form-input` - der Name, den `.form-group`/`.form-field`/
   `.form-label` schon fuehren. Bestand bleibt unangetastet, Umbenennen aller Fundstellen ist
   keine Migration wert.
+
+### Nur lesen: das Zeichen statt des Knopfs (#1252, #1265)
+Wer ein Modul nur lesen darf, sieht den ZUSTAND, aber keine Handlung. Der Server weist
+jeden Schreibversuch mit 403 ab; die Oberflaeche ist die ehrliche Entsprechung dazu, nicht
+die Grenze. Ein Knopf, der erst im Fehler-Toast oder als zurueckspringender Haken antwortet,
+ist die teurere Auskunft als einer, der gar nicht da ist.
+
+- **Der Anlegeweg** faellt app-weit: `applyModuleReadonly()` (router.js) setzt
+  `html[data-module-readonly]`, layout.css blendet damit `.page-fab`, `.toolbar-new-btn`
+  und `.notes-manage-categories` aus, setzt `--fab-safe-zone` auf 0 und zeigt oben
+  `.module-readonly-banner`. Alles Weitere entscheidet die Seite selbst
+  (`isNavModuleReadOnly()` plus eine Positivliste der erlaubten Aktionen im delegierten
+  Handler), auch fuer Wege ohne eigenen Knopf: Sortierzug, Wischgeste, Popover-Menues.
+- **Zustand bleibt als Zeichen, nicht als `disabled`-Knopf.** Ein gesperrter Knopf traegt
+  Trefflaeche und Hover-Rahmen weiter und verspricht eine Beruehrung, die nichts tut. Die
+  Bauart heisst `--static` (`.task-status-btn--static`, `.subtask-item__checkbox--static`,
+  `.item-check--static`, `.note-card__pin--static` und weitere): ein
+  `<span role="img">`, dessen `aria-label` den Zustand nennt ("Titel: erledigt"),
+  `cursor: default`, kein vergroesserndes `::before`, und die Hover-Regel nimmt es per
+  `:not()` aus. Eine Wischzeile ohne Geste wird `.swipe-row--static` und verliert ihren
+  Chevron. Markdown-Checklisten tragen dieselbe Form ueber `checklist.stateLabels` in
+  `renderMarkdownLight`.
+- **Die Antwort folgt dem Datensatz.** Ein gesetzter Wert bleibt gesperrt sichtbar (er ist
+  echt), ein leerer Schalter faellt ganz weg - leer ist kein Zustand.
+- **Das Wandtablett** faellt unter dieselbe Regel und behaelt trotzdem seine zwei benannten
+  Handlungen (Abhaken, Einloesen); jede betroffene Stelle fragt deshalb ZUERST
+  `actingAsDisplay()`.
+
+Gemessen am echten Markup: `test:module-readonly-ui`, `test:budget-readonly-ui`,
+`test:shopping-readonly-ui`.
 
 ### Navigation
 - **Mobil:** schwebende Glas-Kapsel (`--glass-bg-elevated` + `--blur-md` + saturate,
@@ -2546,6 +2613,8 @@ Angabe braeuchte einen zweiten Timer, nur damit sie sich selbst aktuell haelt.
   Ein Zwei-Optionen-Scope-Schalter bleibt in der Titelzeile.
 
 ### Don't:
+- **Don't** einem Nur-lesen-Nutzer einen `disabled`-Knopf hinstellen, wo ein Zustand
+  steht; er zeigt das Zeichen (`--static`), und eine Handlung ohne Recht faellt ganz weg.
 - **Don't** einen zweiten Buttonradius einfuehren; die Kapsel steht in der `.btn`-Basisregel
   und gilt fuer alle Varianten inklusive Icon-Buttons.
 - **Don't** ein `aria-label` als sichtbaren Text weiterreichen; es beschreibt eine
