@@ -816,7 +816,7 @@ router.post('/groups/:id/members', async (req, res) => {
       `).run(groupId, uid, role, userId(req));
       activity(groupId, userId(req), 'member_added', 'member', uid, { role });
       return uid;
-    })();
+    });
     res.status(201).json({ data: { group_id: groupId, user_id: memberUserId, role } });
   } catch (err) {
     if (err instanceof Refusal) return sendRefusal(res, err);
