@@ -20,7 +20,7 @@ reviewing an upstream change.
 `custom` follows the current version of the local `main` branch after an upstream
 sync. Read the version from `main:package.json` and keep the root version in
 `package.json`, the two root package entries in `package-lock.json`, and
-`public/sw.js`'s `APP_RELEASE` identical. Current baseline: `2.68.0`.
+`public/sw.js`'s `APP_RELEASE` identical. Current baseline: `2.69.1`.
 
 Update current-release references in installation/landing metadata as part of
 the same change, but keep historical `CHANGELOG.md` entries unchanged. A
@@ -78,6 +78,37 @@ If `upstream` already exists, fetch it instead of adding it again.
 
 The goal is a deliberate, reviewable flow of selected upstream improvements while keeping the
 custom branch's contracts and existing installations stable.
+
+## Sync record: 2.69.1
+
+Source baseline: `main:package.json` at `2.69.1` (2026-09-23). The integration branch started at
+`custom` commit `88146b3a3`; the upstream checkpoint was `origin/main` commit `036f48860` (#1429).
+Commits through that checkpoint were already represented in the starting custom tree and were not
+replayed. All 24 commits after the checkpoint are accounted for below.
+
+| Upstream commit | Decision |
+| --- | --- |
+| `082a5e57c`, `6d1c7ca99`, `bdde8b3c0`, `0074474e6` | Adopted linked-contact email ownership, case-insensitive matching, isolated tests, and token-scope checks. Kept custom contact permissions and email normalization. |
+| `5f539bf16`, `f2f3af8e2` | Adopted contact-to-guest identity and atomic creation after password hashing; retained the custom guest mapping, generated password, and contact artifacts. |
+| `3bbe2d5d2` | Adopted source-module read checks across linked records and transfers, including Inventory, Budget, Pantry, Shopping, Recipes, Contacts, and split-expense candidates. |
+| `49600ea3f` | Adopted toast, dialog, 2FA, and read-only interaction fixes. |
+| `4e6150705` | Adopted the restored-page `pageshow` probe fix. |
+| `d1e30ee77` | Adopted linked-document read-right enforcement. |
+| `d916c7a4d` | Adopted SSO email normalization and skipped-dose timestamp correction; retained the same normalized address rule for password reset. |
+| `7ca7366f8` | Adopted split-ledger rebuilding after account deletion; appended migration `v235` after custom migrations `v225`-`v234`. |
+| `5e130012e` | Ported the calendar assignment review one moved event at a time, preserving custom assignment behavior. |
+| `7073efbc2` | Ported the CalDAV legacy-color cleanup without replacing custom calendar, Outlook, or ICS flows. |
+| `fa7488937` | Ported atomic backup replacement and damaged-backup refusal, preserving tracking for custom Outlook and Microsoft To Do sync tasks. |
+| `5e4d968d3` | Adopted CardDAV admin-only account management and password re-entry when the server origin or username changes. |
+| `5264bd59b` | Adopted secure SSO email linking, ambiguity refusal, and duplicate-address guards; adapted split-expense checks to custom guest transactions. |
+| `57d09c46a` | Adopted the SSO administrator guidance and updated the environment, security, installation, and specification docs. |
+| `5b1ad1960` | Adopted release `2.69.1` metadata, including package, lockfile, service worker, install examples, and release dates. |
+| `f80e44c23` | Adopted the four UI system rules added to `DESIGN.md` after the release tag. |
+| `f4b8f0759`, `fce4641c3` | Did not import intermediate release versions or stale release metadata. Manually ported the still-current Nutrition model, page, and API documentation from the `fce4641c3` specification change; final version metadata comes from `5b1ad1960`. |
+| `1f0ead970`, `a03e4cb9c` | Did not cherry-pick release merge commits; their component commits and release metadata are handled individually above, leaving no extra semantic changes. |
+
+No commit after checkpoint `036f48860` remains deferred. No upstream branch merge or push was
+performed.
 
 ## Microsoft To Do compatibility boundary
 

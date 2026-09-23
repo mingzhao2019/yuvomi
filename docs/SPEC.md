@@ -3156,10 +3156,12 @@ like `apple_app_password` and Google OAuth tokens; encryption-at-rest is via the
 
 ### Health (migration 65)
 
-The Health module stores personal medical data per family member across seven tables (migration
-65) plus three menstrual-cycle tables (migration 71). Every owner-scoped table carries `user_id`
-(the owning member) and a `visibility` of `private` (owner only) or `family` (all members). Nested
-tables (schedules, logs, results) inherit visibility from their parent record. Health data is sensitive — encryption-at-rest via the optional
+The Health module stores personal medical data per family member. Migration 65 created the original
+seven tables, and migration 71 added three menstrual-cycle tables; later migrations add the newer
+Health records described below. Most owner-scoped tables carry `user_id` (the owning member) and a
+`visibility` of `private` (owner only) or `family` (all members). Nutrition uses the canonical
+`private`/`all` visibility set described under migration v233. Nested tables (schedules, logs,
+results) inherit visibility from their parent record. Health data is sensitive — encryption-at-rest via the optional
 `DB_ENCRYPTION_KEY` (SQLCipher) is strongly recommended. Yuvomi is **not** a medical device and
 makes **no diagnostic claims**; reference ranges and flags are neutral, user-supplied values.
 
@@ -3835,6 +3837,40 @@ via a standing care grant (`careAwareClause()` already shows them a subject's `p
 opt-in above is what keeps that fact off a second person's lock screen unless the owner asks for it.
 Admin governs the type registry only; **it never gains read access to another person's records**
 (docs/DECISIONS.md #1 — privacy beats admin convenience).
+
+#### Nutrition (migration v233, #1326)
+
+A daily target per person and a log of what was eaten, each with the same eight nutrients in the
+order of the EU nutrition label: `energy_kcal`, `fat_g`, `saturated_fat_g`, `carbs_g`, `sugar_g`,
+`protein_g`, `salt_g`, `fiber_g` (`NUTRIENT_KEYS` in `server/services/health-nutrition.js`, the one
+list that migration, routes, export and UI read). Every figure is **taken, never derived**
+(`docs/DECISIONS.md` entry 8): Yuvomi stores the numbers a household states about its own meal and
+sums them, and never turns an ingredient into nutrients. None of the columns is called `calories`,
+because `health_activities.calories` is energy burnt.
+
+`health_nutrition_targets` has one sparse row per person (`user_id` primary key, cascading on user
+deletion), eight nullable non-negative REAL columns and timestamps. A target with all eight values
+`NULL` is deleted instead of stored, so no row means no target and `0` remains an explicit target of
+zero.
+
+`health_nutrition_entries` stores the log:
+
+| Column | Type | Contract |
+|---|---|---|
+| id | INTEGER | Primary key |
+| user_id | INTEGER | Owner; user deletion cascades |
+| consumed_at | TEXT | Household wall-clock time `YYYY-MM-DDTHH:mm`, not an instant; a day is the household's calendar day |
+| meal_type | TEXT | Nullable; `breakfast`, `lunch`, `dinner` or `snack` |
+| title | TEXT | Required, free text |
+| energy_kcal … fiber_g | REAL | The eight nutrients, each nullable and non-negative |
+| note | TEXT | Nullable |
+| visibility | TEXT | `private` (default) or `all`; this table uses the canonical visibility set rather than Health's older `private`/`family` pair |
+| created_by | INTEGER | Required; user deletion cascades |
+| created_at, updated_at | TEXT | UTC audit timestamps |
+
+The owner and a granted caregiver read every entry; other members read only entries opened with
+`all` (`careAwareClause()`). Targets have no visibility field: only the owner and a caregiver who
+may record for them can read a target.
 
 ### Schedule (migration 165, #786)
 
@@ -4848,7 +4884,7 @@ resolution: see [Waste Types](#waste-types-migration-v197-1063) and the sections
 
 ### Health (`/health`)
 
-One page module with eight deep-link routes (pattern like Settings, not like the Kitchen cluster), sharing a sub-tab bar: Overview (`/health`), Vitals (`/health/vitals`), Cycle (`/health/cycle`), Fasting (`/health/fasting`), Medications (`/health/meds`), Prevention (`/health/prevention`), Labs (`/health/labs`), Activity (`/health/activity`). Toggleable like any module; disabled → router redirects to the dashboard. Health data is sensitive — enable `DB_ENCRYPTION_KEY` (SQLCipher). **Not a medical device; no diagnostic claims.**
+One page module with nine deep-link routes (pattern like Settings, not like the Kitchen cluster), sharing a sub-tab bar: Overview (`/health`), Vitals (`/health/vitals`), Cycle (`/health/cycle`), Fasting (`/health/fasting`), Medications (`/health/meds`), Prevention (`/health/prevention`), Labs (`/health/labs`), Activity (`/health/activity`), Nutrition (`/health/nutrition`). Toggleable like any module; disabled → router redirects to the dashboard. Health data is sensitive — enable `DB_ENCRYPTION_KEY` (SQLCipher). **Not a medical device; no diagnostic claims.**
 
 - **Per-member scoping:** a person switcher filters to one family member. Since v2.58.0 it is a single button carrying the active person, opening the shared popover menu with `menuitemradio` entries - the same vocabulary and single-select check mark as the recipe source filter. It replaced a permanent 48px pill row that stood above all six views, where a household of four met ten choices before the first piece of content. A household with only one visible person gets no switcher at all. Each row is `private` (owner only) or `family` (all members). Editing is limited to the owner's own view; foreign members show family-visible rows read-only.
 - **Recording for someone else:** a parent can record for a child (fever, medication) once an admin
@@ -4859,12 +4895,13 @@ One page module with eight deep-link routes (pattern like Settings, not like the
 - **Medications:** medication list (name, dose, form, active/PRN), schedule editor (time slots + weekday mask + dose), "due today" view with take/skip, 7-day adherence bar, and stock/refill warnings. Reminders are delivered through the existing push/notification-channel layer (`server/services/medication-scheduler.js`) — no separate reminder table.
 - **Labs:** reports with multiple analytes (value, unit, reference low/high); `low`/`normal`/`high` flag derived from value + range and colour-coded via tokens; per-analyte trend chart with a reference band; neutral medical disclaimer.
 - **Activity:** training log (preset or custom type, duration, optional distance/intensity/calories, note); weekly summary cards and a native SVG bar chart per weekday.
+- **Nutrition (#1326):** daily targets and logged intake use the same eight fixed nutrients. Values are entered by the household and summed; they are never inferred from recipes or products. The tab shows today's totals against each configured target, and a missing target is shown as unset rather than zero. An opt-in dashboard widget (`nutrition`, hidden by default) uses the same summary. Each person's visibility default is stored under the `nutrition` scope.
 - **Prevention:** a household-defined vaccination/checkup log (migration 219 — full data-model detail above). The tab shows a "due / overdue" section (`GET /prevention/due`) whose chip tone reuses `DATE_STATUS_ALERT_DAYS` (`public/utils/date-status.js`, the same threshold Documents' expiry chip uses) against the server-computed `days_left`, then records grouped by type with add/edit/delete. Types are managed under Settings → Modules → Health, not on this tab. A caregiver logging for someone they care for gets that record scoped and defaulted through the same `resolveOwner()`/`defaultVisibilityFor()` path as vitals — the visibility follows the **owner's** choice, not the caregiver's. Caregivers also receive the due reminder itself (see the data-model section above for the fan-out rules).
 - **Cycle:** menstrual cycle tracking. Period episodes (start/end + flow), per-day logs (flow intensity, a curated 20-symptom picker with an optional 1–3 severity each, mood), and calendar-method predictions of the next period, ovulation, and fertile window (luteal length, cycle/period averages derived from history or overridden in settings). A native **SVG cycle-ring** shows the current phase, cycle day, and countdown; a month calendar colour-codes logged and predicted periods, the fertile window, and ovulation; plus prediction stat cards, a period history, and CSV export. A **pregnancy mode** (migration 82) in the cycle settings pauses all predictions (next period, ovulation, fertile window, ring, and calendar projection); with an optional estimated due date it instead shows the gestational week (Naegele rule, 280 days), trimester, countdown, and a progress bar, while daily logging stays available. Cycle data defaults to `private`; a per-member **default-visibility** setting (migration 96) can pre-select `family` for newly logged periods and day logs instead, and an **"apply to all"** action in the cycle settings bulk-updates every existing entry to the chosen visibility (`PATCH /health/cycle/visibility`, strictly own-scoped). The visibility of any single period or day log stays overridable in its own modal. The fertile window carries a clear disclaimer that it is not contraception and no substitute for medical advice. Cycle data is deliberately kept out of global search; the only dashboard surface is an **opt-in, owner-only tile** (v0.98.0) that shows the signed-in user's own next-period countdown and current phase — it is never added to the shared dashboard payload. The calendar distinguishes phases with **non-colour cues** (solid fill, diagonal hatch, ringed day, outline) as well as colour, so it stays legible with colour-vision deficiency. **Today carries the app accent, not the module tone (v2.24.1):** its ring used the Health colour, which is the tone in that grid closest to the period colour — and today is frequently a logged day, so both rings met on the same cell. Measured (CIEDE2000, JND 2.3) the distance to `--cycle-period` rose from 17.23 light / 14.33 dark to 31.50 / 25.97, and the grid's smallest pairwise distance from 17.23 / 14.33 to 26.60 / 25.97. It is also the mark the calendar and the datepicker already use for the current day; the 2 px ring width stays, because 1.5 px already belongs to a predicted period.
 - **Overview:** aggregated landing view — due-today medications with inline take/skip, latest vitals cards (deep-link to the Vitals tab), adherence rate + streak, quick-capture buttons, upcoming reminders, and a **CSV export** bar (one download per area — vitals, activities, labs, medication logs — with optional date range).
 - **Search & shortcuts:** medications and activities appear in global search (FTS5) with the same visibility scoping and deep-link to the Meds/Activity tab; the `g h` keyboard shortcut jumps to the last-visited Health tab.
 - **Accessibility:** the sub-tab bar and the range chip row expose `role="tablist"`/`tab` with arrow-key navigation and roving tabindex; the person menu carries the menu keyboard behaviour from the shared `popover-menu` (focus moves onto the active choice on open, arrows wrap, Home/End, Tab leaves) and hands focus back to the freshly rendered trigger after a switch; SVG charts carry `role="img"` + `aria-label`; take/skip/save actions announce via the polite/assertive live regions; modals trap focus and restore it on close.
-- **API:** `GET/POST/PATCH/DELETE /api/v1/health/{vitals,medications,labs,activities}` (+ nested `…/medications/:id/schedules|logs`, `…/logs/:id/take|skip`, lab results), cycle endpoints `…/cycle/periods`, `…/cycle/logs` (upsert per day), `GET/PUT …/cycle/settings`, `GET/POST/PATCH/DELETE /api/v1/health/prevention/{records,types}` (types: admin-only writes) and `GET /api/v1/health/prevention/due?user_id=`, and `GET /api/v1/health/export/{vitals,activities,labs,meds-logs,cycle}` (text/csv). All handlers apply `user_id` scoping and `visibility` filtering.
+- **API:** `GET/POST/PATCH/DELETE /api/v1/health/{vitals,medications,labs,activities}` (+ nested `…/medications/:id/schedules|logs`, `…/logs/:id/take|skip`, lab results), cycle endpoints `…/cycle/periods`, `…/cycle/logs` (upsert per day), `GET/PUT …/cycle/settings`, `GET/POST/PATCH/DELETE /api/v1/health/prevention/{records,types}` (types: admin-only writes) and `GET /api/v1/health/prevention/due?user_id=`, nutrition endpoints `GET/PUT …/nutrition/targets?user_id=`, `GET/POST …/nutrition/entries` (`user_id`, `from`, `to`, `meal_type`; dates filter on the household day of `consumed_at`), `PATCH/DELETE …/nutrition/entries/:id` and `GET …/nutrition/summary?user_id=&date=` (defaults to the household's today), and `GET /api/v1/health/export/{vitals,activities,labs,meds-logs,cycle,nutrition}` (text/csv). All handlers apply `user_id` scoping and `visibility` filtering.
 
 ### Schedule (`/schedule`)
 
