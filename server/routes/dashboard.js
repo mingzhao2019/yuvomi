@@ -18,6 +18,7 @@ import { resolveBudgetMode } from '../services/budget-visibility.js';
 import { hiddenModulesFor } from '../permissions.js';
 import { daysBetweenDateKeys, householdTimeZone, utcToWall, todayKey } from '../utils/timezone.js';
 import { inventoryVisibilityWhere } from './inventory/access.js';
+import { documentViewer } from '../services/document-links.js';
 import { householdMemberSql } from '../services/household-members.js';
 import { FastingError, getFastingDashboardState } from '../services/fasting.js';
 import { NUTRIENT_KEYS, nutritionSummaryFor } from '../services/health-nutrition.js';
@@ -318,7 +319,7 @@ router.get('/', (req, res) => {
   if (allows('calendar')) try {
     result.upcomingEvents = serializeEvents(getUpcomingEvents(d, {
       userId, limit: 5, fromToday: true, assignedTo: eventsAssignedTo, includeBirthdays,
-    }), { database: d, actorId: userId, isAdmin: isAdminUser(req) });
+    }), { database: d, viewer: documentViewer(req), actorId: userId, isAdmin: isAdminUser(req) });
   } catch (err) {
     log.error('upcomingEvents error:', err.message);
     result.upcomingEvents = [];
