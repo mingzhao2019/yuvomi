@@ -9,7 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **Only admins can manage CardDAV accounts.** Members and tokens without an admin subject can no longer list or change household CardDAV accounts, address-book selections, or credentials. Contact reading and editing and the background sync are unchanged.
+- **A member can no longer decide where another person's first single sign-on ends up.** The first
+  time someone signs in with SSO, Yuvomi looks for their existing account by the email address the
+  identity provider confirms. Members can edit the email address on their own profile, and that was
+  enough to send another household member's first SSO sign-in into a new, empty account instead of
+  the one prepared for them, or into the member's own account. `OIDC_ALLOW_SIGNUP=false` did not
+  prevent the second case. Linking by email address now only happens for accounts whose address
+  nobody but an admin can have set: accounts created with "SSO sign-in only" and admin accounts. When
+  the address is on more than one account, the sign-in is refused with a message saying so, instead
+  of quietly creating another account. Guests of shared expenses no longer take part in this at all.
+  Members also can no longer give their own profile, their own contact or a shared-expense guest an
+  email address that already belongs to another account; admins still can, for example for a shared
+  family mailbox. Accounts that are already linked to SSO are not affected.
+
+  **What admins need to do:** a member whose account has a password and is not yet linked to SSO is
+  no longer linked by email address. Their first SSO sign-in is refused with a message that asks
+  them to sign in with their password and use "Link SSO account" under Settings → Account →
+  Single sign-on; alternatively, switch the account to "SSO sign-in only" under Settings →
+  Administration → Family, and their next SSO sign-in links it. If you have set
+  `AUTH_ALLOW_PASSWORD_LOGIN=false`, those members cannot sign in with a password, so switch their
+  accounts to "SSO sign-in only". An address that is on several accounts has to be left on one of
+  them before that person can sign in. Refused sign-ins are written to the server log with the
+  account ids involved. It is worth checking once under Settings → Administration → Family which
+  member contacts carry another person's email address, and whether an unexpected account (for
+  example a name with `-1` at the end) was created by an SSO sign-in.
+
+- **Only admins can manage CardDAV accounts.** Members and tokens without an admin subject can no
+  longer list or change household CardDAV accounts, address-book selections, or credentials.
+  Contact reading and editing and the background sync are unchanged.
 
 - **Changing a CardDAV server or username requires the password again.** An empty password keeps the stored one only while the server origin and username remain unchanged; otherwise the update is rejected with `password_required` and saves nothing.
 
