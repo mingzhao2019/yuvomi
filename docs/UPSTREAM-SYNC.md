@@ -98,7 +98,7 @@ replayed. All 24 commits after the checkpoint are accounted for below.
 | `7ca7366f8` | Adopted split-ledger rebuilding after account deletion; appended migration `v235` after custom migrations `v225`-`v234`. |
 | `5e130012e` | Ported the calendar assignment review one moved event at a time, preserving custom assignment behavior. |
 | `7073efbc2` | Ported the CalDAV legacy-color cleanup without replacing custom calendar, Outlook, or ICS flows. |
-| `fa7488937` | Ported atomic backup replacement and damaged-backup refusal, preserving tracking for custom Outlook and Microsoft To Do sync tasks. |
+| `fa7488937` | Ported atomic backup replacement and damaged-backup refusal. Put Microsoft To Do restore tracking around active/queued runs rather than the public `sync()` wrapper, preserving its shared-Promise and queue semantics while the restore still waits for active jobs. |
 | `5e4d968d3` | Adopted CardDAV admin-only account management and password re-entry when the server origin or username changes. |
 | `5264bd59b` | Adopted secure SSO email linking, ambiguity refusal, and duplicate-address guards; adapted split-expense checks to custom guest transactions. |
 | `57d09c46a` | Adopted the SSO administrator guidance and updated the environment, security, installation, and specification docs. |
@@ -109,6 +109,12 @@ replayed. All 24 commits after the checkpoint are accounted for below.
 
 No commit after checkpoint `036f48860` remains deferred. No upstream branch merge or push was
 performed.
+
+The published changelog sections for `2.69.1`, `2.69.0`, and `2.68.1` were restored verbatim from
+the `v2.69.1` tag, while the existing `2.68.0` and older custom history stays intact. The two custom
+receipt-privacy descriptions remain under `[Unreleased]`: the housekeeping API's private-receipt
+response differs from upstream, and budget receipt APIs also suppress whether hidden documents are
+attached.
 
 ## Microsoft To Do compatibility boundary
 

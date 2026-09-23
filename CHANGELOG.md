@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
+  sent the file name and document number of a visit's receipt to everyone who could open the
+  housekeeping module, also to members without access to documents and when the receipt was a
+  private document of someone else. The page already hid the name without document access, but the
+  API still returned it. Name and number now come only when you may read that document, by the same
+  rule the documents module uses; otherwise the visit only says that it has a receipt, and the edit
+  dialog shows "Attached" instead of an upload field. Saving such a visit keeps the receipt: before,
+  saving it could silently remove someone else's private receipt, and it can no longer be replaced
+  or removed by someone who cannot see it. Linking a receipt now needs access to documents. For API
+  clients every visit and work session carries `has_receipt`; `receipt_document_id` and
+  `receipt_document_name` are `null` unless you may read the document, API tokens need a
+  `documents:read` scope for them, and `PUT /api/v1/housekeeping/visits/{id}` answers 403 when it
+  would replace a receipt you cannot see or link one without access to documents. (#1358)
+
+- **Receipts on budget entries, shared expenses and inventory items no longer name documents you
+  may not read.** Their API sent the file name and document number of every linked receipt to
+  anyone who could open the budget or the inventory, also to members without access to documents
+  and to API tokens without a documents scope. Without access to documents a receipt now only says
+  that it is there: the detail view shows "Attached" where the name was, and the inventory no
+  longer shows a link that leads nowhere or lists the document in an item's history. Linking a
+  receipt or a payment proof needs access to documents, and existing receipts stay when such a
+  member saves the entry. For API clients `attachments[].document_id`, `name`, `original_name`,
+  `mime_type` and `file_size` are `null` without access to the documents module (for API tokens a
+  `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
+  document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
+  same 403 for every id. (#1358)
+
 ## [2.69.1] - 2026-09-23
 
 ### Security
@@ -36,11 +65,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   member contacts carry another person's email address, and whether an unexpected account (for
   example a name with `-1` at the end) was created by an SSO sign-in.
 
-- **Only admins can manage CardDAV accounts.** Members and tokens without an admin subject can no
-  longer list or change household CardDAV accounts, address-book selections, or credentials.
-  Contact reading and editing and the background sync are unchanged.
+- **Only admins can manage CardDAV accounts now, as the settings page already promised.** The
+  contact sync page was shown to admins only, but the server checked nothing beyond access to the
+  contacts module, which members have by default. Any member, and any API token with
+  `contacts:write`, could list the household's CardDAV accounts with their server address and
+  username, add or remove accounts, switch address books on and off, and change an account's server
+  address while its stored password was kept, so that the next connection test or sync sent the
+  household's CardDAV credentials to that server. Every route under `/api/v1/contacts/cardav` now
+  requires an admin; members get `403`. An API token needs an admin as its subject and, as before,
+  the `contacts` scope. Members keep reading and editing contacts as before, and the background sync
+  keeps running.
 
-- **Changing a CardDAV server or username requires the password again.** An empty password keeps the stored one only while the server origin and username remain unchanged; otherwise the update is rejected with `password_required` and saves nothing.
+- **A CardDAV account moved to another server or username needs its password again.** Leaving the
+  password empty when editing an account still keeps the stored one, but only while the server
+  (scheme, host and port) and the username stay the same. Otherwise the change is refused with
+  `400` and the error code `password_required`, and nothing is saved. A different path on the same
+  server keeps working without the password.
+
+## [2.69.0] - 2026-09-23
 
 ### Added
 
@@ -161,6 +203,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A fasting timer can now be added to the dashboard.** It shows only your own fast and lets you
   start or finish it there, using the same safety confirmation and timer controls as the journal.
   Existing dashboards keep it hidden until you add it from the dashboard editor. (#1180)
+
+- **Inventory tracked dates can now recur, keep a service history, and vehicles have an odometer.**
+  Give a tracked date (TÜV, boiler service, chimney sweep, extinguisher check, ...) a recurring
+  interval in months, and pressing "Done" rolls it forward instead of just clearing it - the
+  reminder moves with it. Every completion is kept in a new service-history view on the item,
+  alongside its linked maintenance bookings and documents with a running cost total, and a
+  vehicle's history now plots its odometer readings as a small trend chart. Vehicles can also
+  carry a manual odometer reading (km or mi) - a tracked date can add a distance interval as a
+  hint ("1,400 km to go") next to its date, though only the date itself ever produces a reminder.
 
 - **A reward can now say how many of it there are.** The catalog is shared by the whole household and
   had no idea of quantity, so a cinema evening and a wooden train were the same thing to it: both
@@ -327,8 +378,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leaves no guest account behind. An unknown contact answers 404 instead of a server error. (#1433)
 
 - **An inventory item shows its budget bookings only with access to the budget.** Without read
-  access to the budget, an item no longer shows its linked bookings or their total, and the edit
-  form leaves out the bookings section and its buttons instead of
+  access to the budget, an item no longer shows its linked bookings, their total or the bookings
+  in its history, and the edit form leaves out the bookings section and its buttons instead of
   claiming there are none. Linking, unlinking or pre-filling the purchase price from a booking
   answers as if the booking did not exist. (#1433)
 
@@ -343,21 +394,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   something else while a slow restore was running, the focus stays there. A second click while a
   restore is running still starts nothing. (#1267)
 
-- **The birthday API checks the reminder fields before it stores them.** `POST` and
-  `PUT /api/v1/birthdays` wrote `reminder_offset`, `reminder_custom_amount` and
-  `reminder_custom_unit` exactly as sent - a negative number, a decimal or any text ended up in the
-  database, and the server then reminded at a time nobody had chosen or fell back to a default
-  without saying so. They now answer 400 with a message naming the field. A lead time is empty (no
-  reminder), "custom", or whole minutes from 0 up to 999 weeks, the most the custom amount can
-  express; the custom amount is a whole number from 1 to 999, as in the editor, and the unit is
-  minutes, hours, days or weeks. Records written before this keep working: older versions of the
-  editor offered 15 minutes, 1 hour and 2 weeks, and those remain valid, and a value that is already
-  stored - whatever it is - is accepted unchanged when it is sent back, so changing the name or the
-  date of such a birthday never fails over a reminder nobody touched. In the editor, a custom amount
-  that is empty, not a whole number, 0 or above 999 is now refused instead of being saved: the editor
-  says so in the interface language and puts the cursor in the field. It checks only a reminder that
-  is being changed, so a stored amount nobody touched still never blocks saving, and an amount typed
-  and then left behind by picking a preset instead is not sent at all. (#1384)
 - **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
   sent the file name and document number of a visit's receipt to everyone who could open the
   housekeeping module, also to members without access to documents and when the receipt was a
@@ -517,6 +553,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   minute in household time, the same as marking a dose as taken or correcting it to taken already
   do. Doses stored this way before keep their empty time. The app itself always sends the time and
   was not affected. (#1399)
+- **Marking an inventory deadline as done no longer stores a broken date when the next one would
+  fall after 9999-12-31.** The next due date then has a five-digit year, which the date format cannot
+  hold: the deadline got a date like "99990-06-01", its reminder a date that is not a date, and the
+  item could not be saved again afterwards. The request is now refused with a message that names
+  the limit, and neither the deadline nor its history change. (#1387)
 - **The photo crop dialog is now cached for offline use like the rest of the app.** Avatars,
   birthday and inventory photos, recipe pictures and quick-link images all go through one crop
   dialog, which the app loads only when you pick a picture. It was the one module of that kind the
@@ -529,6 +570,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the morning west of it, showed the neighbouring day. It now follows the household time zone,
   like the rest of the app. (#1309)
 
+- **The birthday API checks the reminder fields before it stores them.** `POST` and
+  `PUT /api/v1/birthdays` wrote `reminder_offset`, `reminder_custom_amount` and
+  `reminder_custom_unit` exactly as sent - a negative number, a decimal or any text ended up in the
+  database, and the server then reminded at a time nobody had chosen or fell back to a default
+  without saying so. They now answer 400 with a message naming the field. A lead time is empty (no
+  reminder), "custom", or whole minutes from 0 up to 999 weeks, the most the custom amount can
+  express; the custom amount is a whole number from 1 to 999, as in the editor, and the unit is
+  minutes, hours, days or weeks. Records written before this keep working: older versions of the
+  editor offered 15 minutes, 1 hour and 2 weeks, and those remain valid, and a value that is already
+  stored - whatever it is - is accepted unchanged when it is sent back, so changing the name or the
+  date of such a birthday never fails over a reminder nobody touched. In the editor, a custom amount
+  that is empty, not a whole number, 0 or above 999 is now refused instead of being saved: the editor
+  says so in the interface language and puts the cursor in the field. It checks only a reminder that
+  is being changed, so a stored amount nobody touched still never blocks saving, and an amount typed
+  and then left behind by picking a preset instead is not sent at all. (#1384)
 - **On a phone, the task filter panel can be closed again after picking filters.** The Filter
   button sat at the end of the chip row, which scrolls sideways on a phone, and every filter you
   picked put another chip in front of it and pushed it further out of view - with the panel open
@@ -870,6 +926,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a pattern that required exactly two letters - and Filipino's file is `fil.json`, with three.
   Picking it came back as "invalid language". Every other language was unaffected, which is why this
   went unnoticed.
+
+## [2.68.1] - 2026-09-23
+
+### Security
+
+- **Only the linked person or an admin can now change the email addresses of a household member's
+  contact.** A contact linked to an account carries that account's email addresses, and those
+  addresses are used by the password reset and by the SSO sign-in to find the account. Any member
+  with write access to contacts could change them, on anyone's contact, and a CardDAV sync could
+  overwrite them as well. Changing the primary or an additional email address of a linked contact
+  now needs that person or an admin; anyone else is refused, and the edit form shows the addresses
+  read-only to them. The CardDAV sync no longer writes them on a linked contact. Every other field
+  of a linked contact stays editable for members as before, and contacts that are not linked to an
+  account are not affected.
 
 - **An API token limited to certain modules can no longer change the email addresses of a household
   member's contact, not even an admin's token or the person's own.** These addresses lead to the
