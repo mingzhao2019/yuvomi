@@ -527,7 +527,7 @@ function formContent(item) {
           ${item?.photo_data ? `<img src="${esc(item.photo_data)}" alt="">` : '<i data-lucide="image" aria-hidden="true"></i>'}
         </button>
         <div class="asset-cost-form__photo-actions">
-          <input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" data-photo-file>
+          <input class="sr-only" type="file" accept="image/png,image/jpeg,image/webp" data-photo-file aria-label="${esc(tr('choosePhoto'))}" tabindex="-1">
           <button type="button" class="btn btn--secondary btn--sm" data-choose-photo>${esc(tr('choosePhoto'))}</button>
         </div>
       </div>
