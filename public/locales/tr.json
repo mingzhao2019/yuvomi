@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "Bu adres ve kullanıcı adına sahip bir hesap zaten bağlı.",
         "cardavErrorAccountNotFound": "Bu hesap artık yok. Sayfayı yeniden yükle.",
         "cardavErrorAddressbookNotFound": "Bu adres defteri artık yok. Adres defterlerini yenile.",
+        "cardavErrorPasswordRequired": "Farklı bir sunucu veya kullanıcı adı için parolayı yeniden gir.",
         "syncPartiallyFailed": "Son çalıştırmada hata oluştu",
         "syncErrorDetail": "Son çalıştırma: {{error}}",
         "cardavEditAccount": "CardDAV hesabını düzenle",

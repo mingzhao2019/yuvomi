@@ -2199,6 +2199,7 @@
         "cardavErrorDuplicate": "Nakakonekta na ang account na may address at username na ito.",
         "cardavErrorAccountNotFound": "Wala na ang account na ito. I-reload ang pahina.",
         "cardavErrorAddressbookNotFound": "Wala na ang address book na ito. I-refresh ang mga address book.",
+        "cardavErrorPasswordRequired": "Kailangang ilagay muli ang password para sa ibang server o username.",
         "syncPartiallyFailed": "May error ang huling pagtakbo",
         "syncErrorDetail": "Huling pagtakbo: {{error}}",
         "cardavEditAccount": "I-edit ang CardDAV account",

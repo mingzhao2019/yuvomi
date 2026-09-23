@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "已连接使用该地址和用户名的账户。",
         "cardavErrorAccountNotFound": "该账户已不存在，请重新加载页面。",
         "cardavErrorAddressbookNotFound": "该通讯录已不存在，请刷新通讯录列表。",
+        "cardavErrorPasswordRequired": "更换服务器或用户名后，需要重新输入密码。",
         "syncPartiallyFailed": "上次运行出现错误",
         "syncErrorDetail": "上次运行：{{error}}",
         "cardavEditAccount": "编辑 CardDAV 账户",

@@ -54,6 +54,7 @@ function errorMessage(err) {
     account_duplicate: 'settings.cardavErrorDuplicate',
     account_not_found: 'settings.cardavErrorAccountNotFound',
     addressbook_not_found: 'settings.cardavErrorAddressbookNotFound',
+    password_required: 'settings.cardavErrorPasswordRequired',
     internal: 'common.errorGeneric',
     invalid_id: 'common.errorGeneric',
   };

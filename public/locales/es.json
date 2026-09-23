@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "Ya hay una cuenta conectada con esta dirección y este usuario.",
         "cardavErrorAccountNotFound": "Esta cuenta ya no existe. Vuelve a cargar la página.",
         "cardavErrorAddressbookNotFound": "Esta libreta de direcciones ya no existe. Actualiza las libretas.",
+        "cardavErrorPasswordRequired": "Para otro servidor u otro nombre de usuario, vuelve a introducir la contraseña.",
         "syncPartiallyFailed": "El último intento tuvo errores",
         "syncErrorDetail": "Último intento: {{error}}",
         "cardavEditAccount": "Editar cuenta CardDAV",

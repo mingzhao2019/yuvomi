@@ -2143,6 +2143,7 @@
         "cardavErrorDuplicate": "Ezzel a címmel és felhasználónévvel már csatlakozik egy fiók.",
         "cardavErrorAccountNotFound": "Ez a fiók már nem létezik. Töltsd újra az oldalt.",
         "cardavErrorAddressbookNotFound": "Ez a címjegyzék már nem létezik. Frissítsd a címjegyzékeket.",
+        "cardavErrorPasswordRequired": "Másik szerverhez vagy felhasználónévhez add meg újra a jelszót.",
         "syncPartiallyFailed": "A legutóbbi futás hibás volt",
         "syncErrorDetail": "Legutóbbi futás: {{error}}",
         "cardavEditAccount": "CardDAV-fiók szerkesztése",

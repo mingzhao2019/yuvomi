@@ -2199,6 +2199,7 @@
         "cardavErrorDuplicate": "Ein Konto mit dieser Adresse und diesem Benutzernamen ist schon verbunden.",
         "cardavErrorAccountNotFound": "Dieses Konto gibt es nicht mehr. Lade die Seite neu.",
         "cardavErrorAddressbookNotFound": "Dieses Adressbuch gibt es nicht mehr. Aktualisiere die Adressbücher.",
+        "cardavErrorPasswordRequired": "Für einen anderen Server oder Benutzernamen gib das Passwort erneut ein.",
         "syncPartiallyFailed": "Zuletzt mit Fehlern",
         "syncErrorDetail": "Letzter Lauf: {{error}}",
         "cardavEditAccount": "CardDAV-Konto bearbeiten",

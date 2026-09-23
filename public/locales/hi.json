@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "इस पते और उपयोगकर्ता नाम वाला खाता पहले से जुड़ा है।",
         "cardavErrorAccountNotFound": "यह खाता अब मौजूद नहीं है। पेज फिर से लोड करें।",
         "cardavErrorAddressbookNotFound": "यह पता पुस्तिका अब मौजूद नहीं है। पता पुस्तिकाएँ ताज़ा करें।",
+        "cardavErrorPasswordRequired": "किसी दूसरे सर्वर या उपयोगकर्ता नाम के लिए पासवर्ड फिर से दर्ज करें।",
         "syncPartiallyFailed": "पिछली बार त्रुटियाँ रहीं",
         "syncErrorDetail": "पिछली बार: {{error}}",
         "cardavEditAccount": "CardDAV खाता संपादित करें",

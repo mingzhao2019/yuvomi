@@ -2176,6 +2176,7 @@
         "cardavErrorDuplicate": "حسابی با این نشانی و نام کاربری از قبل متصل است.",
         "cardavErrorAccountNotFound": "این حساب دیگر وجود ندارد. صفحه را دوباره بارگذاری کنید.",
         "cardavErrorAddressbookNotFound": "این دفترچه نشانی دیگر وجود ندارد. دفترچه‌های نشانی را تازه‌سازی کنید.",
+        "cardavErrorPasswordRequired": "برای سرور یا نام کاربری دیگر، رمز عبور را دوباره وارد کنید.",
         "syncPartiallyFailed": "اجرای آخر با خطا همراه بود",
         "syncErrorDetail": "آخرین اجرا: {{error}}",
         "cardavEditAccount": "ویرایش حساب CardDAV",

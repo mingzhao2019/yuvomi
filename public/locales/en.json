@@ -2186,6 +2186,7 @@
         "cardavErrorDuplicate": "An account with this address and username is already connected.",
         "cardavErrorAccountNotFound": "This account no longer exists. Reload the page.",
         "cardavErrorAddressbookNotFound": "This address book no longer exists. Refresh the address books.",
+        "cardavErrorPasswordRequired": "A different server or username needs the password again.",
         "syncPartiallyFailed": "Last run had errors",
         "syncErrorDetail": "Last run: {{error}}",
         "cardavEditAccount": "Edit CardDAV account",

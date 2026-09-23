@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "Учётная запись с этим адресом и именем пользователя уже подключена.",
         "cardavErrorAccountNotFound": "Этой учётной записи больше нет. Обновите страницу.",
         "cardavErrorAddressbookNotFound": "Этой адресной книги больше нет. Обновите список адресных книг.",
+        "cardavErrorPasswordRequired": "Для другого сервера или имени пользователя введите пароль ещё раз.",
         "syncPartiallyFailed": "Последний запуск с ошибками",
         "syncErrorDetail": "Последний запуск: {{error}}",
         "cardavEditAccount": "Изменить учётную запись CardDAV",

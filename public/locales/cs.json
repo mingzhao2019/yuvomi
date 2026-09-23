@@ -2164,6 +2164,7 @@
         "cardavErrorDuplicate": "Účet s touto adresou a tímto uživatelským jménem je už připojený.",
         "cardavErrorAccountNotFound": "Tento účet už neexistuje. Načti stránku znovu.",
         "cardavErrorAddressbookNotFound": "Tento adresář už neexistuje. Aktualizuj adresáře.",
+        "cardavErrorPasswordRequired": "Pro jiný server nebo uživatelské jméno zadej heslo znovu.",
         "syncPartiallyFailed": "Poslední běh obsahoval chyby",
         "syncErrorDetail": "Poslední běh: {{error}}",
         "cardavEditAccount": "Upravit účet CardDAV",

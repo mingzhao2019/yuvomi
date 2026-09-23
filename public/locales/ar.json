@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "يوجد حساب متصل بالفعل بهذا العنوان واسم المستخدم.",
         "cardavErrorAccountNotFound": "لم يعد هذا الحساب موجودًا. أعد تحميل الصفحة.",
         "cardavErrorAddressbookNotFound": "لم يعد دفتر العناوين هذا موجودًا. حدِّث دفاتر العناوين.",
+        "cardavErrorPasswordRequired": "يتطلب خادم أو اسم مستخدم مختلف إدخال كلمة المرور مرة أخرى.",
         "syncPartiallyFailed": "حدثت أخطاء في آخر تشغيل",
         "syncErrorDetail": "آخر تشغيل: {{error}}",
         "cardavEditAccount": "تعديل حساب CardDAV",

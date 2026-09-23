@@ -2176,6 +2176,7 @@
         "cardavErrorDuplicate": "이 주소와 사용자 이름의 계정이 이미 연결되어 있습니다.",
         "cardavErrorAccountNotFound": "이 계정은 더 이상 없습니다. 페이지를 새로 고치세요.",
         "cardavErrorAddressbookNotFound": "이 주소록은 더 이상 없습니다. 주소록을 새로 고치세요.",
+        "cardavErrorPasswordRequired": "다른 서버나 사용자 이름에는 비밀번호를 다시 입력해야 합니다.",
         "syncPartiallyFailed": "마지막 실행에 오류가 있었습니다",
         "syncErrorDetail": "마지막 실행: {{error}}",
         "cardavEditAccount": "CardDAV 계정 편집",

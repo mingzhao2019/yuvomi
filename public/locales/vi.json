@@ -2120,6 +2120,7 @@
         "cardavErrorDuplicate": "Đã có tài khoản kết nối với địa chỉ và tên đăng nhập này.",
         "cardavErrorAccountNotFound": "Tài khoản này không còn tồn tại. Hãy tải lại trang.",
         "cardavErrorAddressbookNotFound": "Sổ địa chỉ này không còn tồn tại. Hãy làm mới danh sách sổ địa chỉ.",
+        "cardavErrorPasswordRequired": "Máy chủ hoặc tên người dùng khác cần nhập lại mật khẩu.",
         "syncPartiallyFailed": "Lần chạy gần nhất có lỗi",
         "syncErrorDetail": "Lần chạy gần nhất: {{error}}",
         "cardavEditAccount": "Sửa tài khoản CardDAV",

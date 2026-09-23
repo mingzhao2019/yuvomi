@@ -2176,6 +2176,7 @@
         "cardavErrorDuplicate": "Akun dengan alamat dan nama pengguna ini sudah terhubung.",
         "cardavErrorAccountNotFound": "Akun ini sudah tidak ada. Muat ulang halaman.",
         "cardavErrorAddressbookNotFound": "Buku alamat ini sudah tidak ada. Segarkan daftar buku alamat.",
+        "cardavErrorPasswordRequired": "Server atau nama pengguna yang berbeda memerlukan kata sandi lagi.",
         "syncPartiallyFailed": "Proses terakhir bermasalah",
         "syncErrorDetail": "Proses terakhir: {{error}}",
         "cardavEditAccount": "Edit akun CardDAV",

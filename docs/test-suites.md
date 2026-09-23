@@ -378,6 +378,7 @@ npm run test:holidays           # holiday cache lookup, layer toggles, OpenHolid
 npm run test:carddav        # CardDAV: vCard-Parser, Merge/Adoption (#531/#535), Multi-Values ohne Dubletten des primären Eintrags bei wiederholtem Sync
 npm run test:carddav-addressbook-toggle   # Adressbuch-Umschaltung (#534): Frontend↔Router-Vertrag (PUT /addressbooks/:id), Feldnamen, 400/404
 npm run test:carddav-account-lifecycle    # CardDAV-Konto: Bearbeiten (PUT, Passwort-Beibehaltung, 409/404), Sammelschalter, sichtbare Sync-Fehler (Migration 92/93)
+npm run test:carddav-admin-gate          # CardDAV-Kontoverwaltung nur fuer Admins (Sitzung + Token, echter Server, fremder Host schneidet mit); neuer Server/Benutzer braucht das Passwort neu
 npm run test:family-contacts
 npm run test:contacts-routes   # Kontakt-Routen: Multi-Value (phones/emails/addresses) POST/PUT-Replacement, GET-Filter (category/q), vCard-Export + Escaping (inkl. BDAY), birthday-Persistenz, validateAddresses-Feldzweige, 404/403 (family-Löschschutz). Dazu die Identität eines verknüpften Mitglieds (`family_display_name/_avatar_color/_avatar_data`) in LISTE UND DETAIL - beide holen denselben Kontakt, und läge der Join nur in der Liste, spräche die geöffnete Karte wieder den Modulton; ein unverknüpfter Kontakt bringt keine fremde Identität mit
 npm run test:vcard-parser      # vCard-Parser (public/utils/vcard.js): Multi-Card-Split, Feldextraktion, BDAY→birthday-Normalisierung

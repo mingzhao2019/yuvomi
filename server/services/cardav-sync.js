@@ -514,6 +514,25 @@ function getAllAccounts() {
 }
 
 /**
+ * Ob zwei Konto-Adressen denselben Empfaenger fuer die Zugangsdaten meinen:
+ * Schema, Host und Port, normalisiert ueber `URL` (Host in Kleinschrift,
+ * Standardport entfaellt). Der Pfad zaehlt nicht - er waehlt auf demselben
+ * Server nur eine andere Sammlung. Eine Adresse, die `URL` nicht versteht,
+ * zaehlt nur bei woertlicher Gleichheit als dieselbe.
+ */
+function sameCredentialOrigin(a, b) {
+  const origin = (raw) => {
+    try { return new URL(String(raw).trim()).origin; } catch { return null; }
+  };
+  const oa = origin(a);
+  const ob = origin(b);
+  if (oa === null || ob === null || oa === 'null' || ob === 'null') {
+    return String(a).trim() === String(b).trim();
+  }
+  return oa === ob;
+}
+
+/**
  * Zugangsdaten eines Kontos ändern. Die Adressbuch-Auswahl bleibt erhalten -
  * genau dafür existiert dieser Pfad: ein rotiertes Passwort soll nicht bedeuten,
  * dass das Konto gelöscht und die Auswahl neu getroffen werden muss.
@@ -522,10 +541,18 @@ function getAllAccounts() {
  * (UNIQUE(carddav_url, username)); der Fall wird als 'conflict' gemeldet statt
  * als Ausnahme.
  *
+ * DAS GESPEICHERTE PASSWORT GEHOERT ZU EINEM SERVER UND EINEM BENUTZER. Wer den
+ * Server (Schema, Host, Port) oder den Benutzernamen wechselt, muss es neu
+ * eingeben; sonst 'password-required', und nichts wird geschrieben. Ohne diese
+ * Regel reichte ein PUT mit fremder Adresse und leerem Passwort, und der
+ * naechste Test oder Sync schickte die Zugangsdaten des Haushalts per Basic
+ * Auth dorthin. Ein anderer Pfad auf demselben Server bleibt ohne Passwort
+ * moeglich: die Zugangsdaten gehen an denselben Empfaenger wie vorher.
+ *
  * @param {number} accountId
  * @param {{name:string, cardavUrl:string, username:string, password:string|null}} fields
  *        password === null lässt das gespeicherte Passwort unberührt.
- * @returns {Object|'not-found'|'conflict'} Konto ohne Passwort
+ * @returns {Object|'not-found'|'conflict'|'password-required'} Konto ohne Passwort
  */
 function updateAccount(accountId, { name, cardavUrl, username, password }) {
   const database = db.get();
@@ -537,6 +564,11 @@ function updateAccount(accountId, { name, cardavUrl, username, password }) {
     WHERE carddav_url = ? AND username = ? AND id != ?
   `).get(cardavUrl, username, accountId);
   if (clash) return 'conflict';
+
+  if (password === null
+      && (!sameCredentialOrigin(cardavUrl, account.carddav_url) || username !== account.username)) {
+    return 'password-required';
+  }
 
   database.prepare(`
     UPDATE carddav_accounts

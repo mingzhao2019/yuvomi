@@ -2143,6 +2143,7 @@
         "cardavErrorDuplicate": "Er is al een account met dit adres en deze gebruikersnaam verbonden.",
         "cardavErrorAccountNotFound": "Dit account bestaat niet meer. Herlaad de pagina.",
         "cardavErrorAddressbookNotFound": "Dit adresboek bestaat niet meer. Ververs de adresboeken.",
+        "cardavErrorPasswordRequired": "Voor een andere server of gebruikersnaam moet je het wachtwoord opnieuw invoeren.",
         "syncPartiallyFailed": "Laatste run met fouten",
         "syncErrorDetail": "Laatste run: {{error}}",
         "cardavEditAccount": "CardDAV-account bewerken",

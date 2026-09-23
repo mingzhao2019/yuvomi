@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "Ett konto med den här adressen och det här användarnamnet är redan anslutet.",
         "cardavErrorAccountNotFound": "Kontot finns inte längre. Ladda om sidan.",
         "cardavErrorAddressbookNotFound": "Adressboken finns inte längre. Uppdatera adressböckerna.",
+        "cardavErrorPasswordRequired": "En annan server eller ett annat användarnamn kräver lösenordet igen.",
         "syncPartiallyFailed": "Senaste körningen hade fel",
         "syncErrorDetail": "Senaste körningen: {{error}}",
         "cardavEditAccount": "Redigera CardDAV-konto",

@@ -1980,6 +1980,7 @@
         "cardavErrorDuplicate": "このアドレスとユーザー名のアカウントはすでに接続されています。",
         "cardavErrorAccountNotFound": "このアカウントは存在しません。ページを再読み込みしてください。",
         "cardavErrorAddressbookNotFound": "このアドレス帳は存在しません。アドレス帳を更新してください。",
+        "cardavErrorPasswordRequired": "別のサーバーまたはユーザー名にはパスワードを再入力してください。",
         "syncPartiallyFailed": "前回の実行でエラーがありました",
         "syncErrorDetail": "前回の実行: {{error}}",
         "cardavEditAccount": "CardDAV アカウントを編集",

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Only admins can manage CardDAV accounts.** Members and tokens without an admin subject can no longer list or change household CardDAV accounts, address-book selections, or credentials. Contact reading and editing and the background sync are unchanged.
+
+- **Changing a CardDAV server or username requires the password again.** An empty password keeps the stored one only while the server origin and username remain unchanged; otherwise the update is rejected with `password_required` and saves nothing.
+
 ### Added
 
 - **A backup from another installation can be restored without touching a shell.** A backup
