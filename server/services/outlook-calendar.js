@@ -11,6 +11,7 @@
  * landet in outlook_calendar_conflicts, bis jemand ausdrücklich eine Seite wählt.
  */
 
+import { runExternalJob } from '../utils/restore-state.js';
 import { createLogger } from '../logger.js';
 const log = createLogger('Outlook');
 
@@ -2023,7 +2024,11 @@ async function processOrphans(database, account, candidates, accessToken, fetchI
  * pushes the already recorded local intent and never performs a network-wide
  * import for every keystroke.
  */
-async function sync({ fetchImpl = fetch, inbound = true } = {}) {
+function sync(options = {}) {
+  return runExternalJob(() => runOutlookSync(options));
+}
+
+async function runOutlookSync({ fetchImpl = fetch, inbound = true } = {}) {
   const accounts = getAllAccounts();
   const empty = {
     success: true,

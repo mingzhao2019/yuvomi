@@ -16,6 +16,8 @@ import * as db from './db.js';
 import { router as authRouter, sessionMiddleware, requireAuth, requireAdmin, isPasswordLoginEnabled } from './auth.js';
 import { csrfMiddleware } from './middleware/csrf.js';
 import idempotencyMiddleware from './middleware/idempotency.js';
+import { createRestoreWriteGate, trackAdmittedWrite } from './middleware/restore-gate.js';
+import { createErrorHandler } from './middleware/error-handler.js';
 import { buildOpenApiSpec } from './openapi.js';
 import * as googleCalendar from './services/google-calendar.js';
 import * as appleCalendar from './services/apple-calendar.js';
@@ -177,6 +179,11 @@ app.use(compression());
 // --------------------------------------------------------
 // Request-Parsing
 // --------------------------------------------------------
+// Schreibsperre waehrend eines Restores (#1431). Vor den Body-Parsern: ein
+// zweiter Restore wird abgewiesen, bevor sein Upload gelesen wird. Vor den
+// Sessions: auch deren Schreiben (Login, Logout) gehoert dazu. Vor /mcp und
+// allen Routern, damit kein Schreibzugriff durchrutscht.
+app.use(createRestoreWriteGate(db.isRestoreRunning, db.isDatabaseOpen));
 app.use(express.json({ limit: BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
 
@@ -518,7 +525,7 @@ app.get('/feed/waste/:token.ics', feedLimiter, (req, res) => {
 
 // MCP-Endpoint (Streamable HTTP, stateless): Auth über bestehende Bearer-API-Tokens.
 // Eigener Namespace außerhalb von /api/v1 → kein CSRF, kein Guest-Guard.
-app.use('/mcp', apiLimiter, requireAuth, mcpRouter);
+app.use('/mcp', apiLimiter, requireAuth, trackAdmittedWrite, mcpRouter);
 
 // Alle weiteren API-Routen erfordern Authentifizierung + CSRF-Schutz
 // Kopplung eines Wandtabletts (#1208): VOR requireAuth, wie /auth/login. Ein
@@ -528,6 +535,8 @@ app.use('/mcp', apiLimiter, requireAuth, mcpRouter);
 // im Administrator-Router hinter requireAuth.
 app.use('/api/v1/displays', pairingRouter);
 app.use('/api/v1', requireAuth);
+// Ab hier steht die Identitaet fest: schreibende Anfragen wartet ein Restore ab (#1431).
+app.use('/api/v1', trackAdmittedWrite);
 // System-Metadaten: authentifiziert, aber bewusst vor Guest-/Token-Scope-Gates
 // wie /version behandelt. Keine Haushaltsdaten, nur upstream Release Notes.
 app.use('/api/v1/changelog', changelogRouter);
@@ -730,10 +739,7 @@ app.get('/{*path}', spaLimiter, (req, res) => {
 // --------------------------------------------------------
 // Globaler Error-Handler
 // --------------------------------------------------------
-app.use((err, req, res, _next) => {
-  log.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error.', code: 500 });
-});
+app.use(createErrorHandler(log));
 
 // --------------------------------------------------------
 // Auto-Sync Scheduler (Google + Apple Calendar)

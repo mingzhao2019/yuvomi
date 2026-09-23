@@ -165,6 +165,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A restore can no longer leave a half-written database behind, and a damaged backup is refused.**
+  A restore copied the backup straight over the database file, so if Yuvomi was stopped or the
+  disk filled up in the middle of it, the next start found a broken database, and nothing said
+  that the copy kept under `.pre-restore-*` was the way back. The backup is now written next to
+  the database first and swapped in with a single rename, so the database is always either the
+  old one or the restored one; a copy left over by an interrupted restore is removed on the next
+  start. A backup of this installation with a damaged page further in was also restored without
+  complaint, because only its first page was read. Every page is now checked before anything is
+  changed, and a damaged backup is refused with a translated message that says to fetch the file
+  again or use an older backup. The copy kept under `.pre-restore-*` is written the same way, so
+  an interrupted restore never leaves a cut-off copy under that name. A second restore started
+  while one is still running, from another tab or another admin, is now refused with a message
+  instead of racing the first one. Changes made while a restore is running are refused with a
+  translated note to try again in a minute, instead of seeming saved and then disappearing. Pages
+  keep loading while the backup is copied; only in the short moment the database file itself is
+  swapped does the app answer with the same note. Calendar and contact syncs, push notifications
+  and scheduled backups do not start during a restore, and one already running is finished
+  first. A restore that would leave the database unwritable for Yuvomi stops before replacing
+  anything and says to run it as the user Yuvomi runs as.
+  (#1422)
+
 - **Synced appointments lose a calendar colour that was never theirs.** Up to v2.48.0 the CalDAV
   import wrote the calendar's colour into each appointment as if it had been chosen for it. For an
   appointment that had been edited in Yuvomi before v2.50.0, that copy was kept as a deliberate

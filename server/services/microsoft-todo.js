@@ -9,6 +9,7 @@
  */
 import { createLogger } from '../logger.js';
 import * as dbModule from '../db.js';
+import { runExternalJob } from '../utils/restore-state.js';
 import {
   ensureAccessToken,
   getStatus as getOutlookStatus,
@@ -1741,6 +1742,10 @@ function queueSync(state, options) {
 
 /** Serialize scheduler, manual, and OAuth-triggered syncs for shared accounts. */
 export function sync(options = {}) {
+  return runExternalJob(() => runQueuedSync(options));
+}
+
+function runQueuedSync(options = {}) {
   const forceFull = Boolean(options.forceFull);
   const queueIfRunning = Boolean(options.queueIfRunning);
   if (!syncState) return startSync(options);

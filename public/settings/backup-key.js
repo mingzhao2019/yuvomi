@@ -52,10 +52,14 @@ const SHOW_REASONS = new Set(['backup_key_required', 'backup_key_wrong', 'backup
  * Gruende, bei denen die Datei das Problem ist und nicht der Schluessel:
  * `backup_damaged` gibt es nur mit bewiesen richtigem Schluessel,
  * `backup_unreadable` auch VOR seiner Pruefung (etwa fehlendes Leserecht beim
- * Kopieren) - dort ist er nicht widerlegt. Feld und Wert bleiben, damit der
- * zweite Versuch mit einer neu geholten Datei nicht am Abtippen scheitert.
+ * Kopieren) - dort ist er nicht widerlegt. `backup_corrupt` meldet die
+ * Integritaetspruefung nach dem Oeffnen (#1422), bei einem fremden Backup also
+ * erst nach dem Umschluesseln mit dem richtigen Schluessel. Feld und Wert
+ * bleiben, damit der zweite Versuch mit einer neu geholten Datei nicht am
+ * Abtippen scheitert. `restore_in_progress` (ein anderer Restore laeuft noch)
+ * sagt ueber Datei und Schluessel gar nichts - auch dann bleibt beides.
  */
-const KEEP_REASONS = new Set(['backup_damaged', 'backup_unreadable']);
+const KEEP_REASONS = new Set(['backup_damaged', 'backup_unreadable', 'backup_corrupt', 'restore_in_progress', 'restore_busy']);
 
 /**
  * Was nach einem gescheiterten Restore mit dem Feld geschieht.
@@ -99,6 +103,11 @@ export const REASON_TEXT = Object.freeze({
   ),
   backup_damaged: () => t('settings.backupRestoreErrorDamaged'),
   backup_unreadable: () => t('settings.backupRestoreErrorUnreadable'),
+  // Ohne Satz ueber den Schluessel: auch ein Klartext-Backup kann es treffen.
+  backup_corrupt: () => t('settings.backupRestoreErrorCorrupt'),
+  restore_in_progress: () => t('settings.backupRestoreErrorInProgress'),
+  // Noch laufende Arbeit, der Restore hat nach seiner Frist aufgegeben (#1431).
+  restore_busy: () => t('settings.backupRestoreErrorBusy'),
 });
 
 /**

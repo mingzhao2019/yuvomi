@@ -11,6 +11,8 @@ import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import * as db from './db.js';
 import { generateToken, csrfMiddleware } from './middleware/csrf.js';
+import { refuseWhileRestoring } from './middleware/restore-gate.js';
+import { restoreInProgressError } from './utils/restore-messages.js';
 import { SESSION_MAX_AGE_MS, sessionCookieRefreshDue } from './utils/session-lifetime.js';
 import { collectErrors, date as validateDate, str, MAX_SHORT, MAX_TITLE } from './middleware/validate.js';
 import { createLogger } from './logger.js';
@@ -177,11 +179,22 @@ class BetterSQLiteStore extends session.Store {
     `);
     // Abgelaufene Sessions regelmäßig aufräumen (alle 15 Minuten)
     setInterval(() => {
-      db.get().prepare('DELETE FROM sessions WHERE expired_at <= ?').run(Date.now());
+      // Waehrend eines Restores ist die Verbindung gesperrt oder zu (#1431) -
+      // ein Wurf hier waere eine ungefangene Ausnahme im Timer.
+      if (db.isRestoreRunning()) return;
+      try {
+        db.get().prepare('DELETE FROM sessions WHERE expired_at <= ?').run(Date.now());
+      } catch (err) {
+        log.warn(`Session cleanup failed: ${err?.message ?? err}`);
+      }
     }, 15 * 60_000).unref();
   }
 
   get(sid, callback) {
+    // Waehrend eines Restores ist die Verbindung zeitweise zu (#1431). API-
+    // Anfragen beantwortet `restoreWriteGate` dann schon mit 503; hier kommen
+    // nur noch statische Dateien an, die keine Sitzung brauchen.
+    if (db.isRestoreRunning() && !db.isDatabaseOpen()) return callback(null, null);
     try {
       const row = db.get()
         .prepare('SELECT sess FROM sessions WHERE sid = ? AND expired_at > ?')
@@ -193,6 +206,13 @@ class BetterSQLiteStore extends session.Store {
   }
 
   set(sid, sess, callback) {
+    // Waehrend eines Restores nimmt die Datenbank keine Schreibzugriffe an
+    // (#1431). Nicht still verwerfen: eine Sitzung, die als gespeichert gilt,
+    // aber fehlt, verliert etwa den OAuth-`state` (Codex-Befund in #1431). Ein
+    // gewoehnlicher Seitenaufruf ruft `set()` gar nicht - er aendert die
+    // Sitzung nicht, und die Cookie-Verlaengerung setzt waehrend eines Restores
+    // aus. Der Fehler wird im globalen Fehlerbehandler zu 503.
+    if (db.isRestoreRunning()) return callback(restoreInProgressError());
     try {
       const ttl = sess.cookie?.maxAge ?? SESSION_MAX_AGE_MS;
       const expiredAt = Date.now() + ttl;
@@ -206,6 +226,7 @@ class BetterSQLiteStore extends session.Store {
   }
 
   destroy(sid, callback) {
+    if (db.isRestoreRunning()) return callback(restoreInProgressError());
     try {
       db.get().prepare('DELETE FROM sessions WHERE sid = ?').run(sid);
       callback(null);
@@ -235,6 +256,9 @@ class BetterSQLiteStore extends session.Store {
   // dem Cookie, hoechstens eine Drosselfrist danach - ein gueltiges Cookie
   // fuehrt nie ins Leere.
   touch(sid, sess, callback) {
+    // Waehrend eines Restores: die Sitzung bleibt einfach so lange gueltig,
+    // wie sie war (#1431) - statt jeden Seitenaufruf mit 500 zu beenden.
+    if (db.isRestoreRunning()) return callback(null);
     try {
       const ttl = sess.cookie?.maxAge ?? SESSION_MAX_AGE_MS;
       const expiredAt = Date.now() + ttl;
@@ -790,9 +814,13 @@ function authenticateApiToken(req) {
   `).get(tokenHash);
   if (!row) return null;
 
-  db.get().prepare(`
-    UPDATE api_tokens SET last_used_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?
-  `).run(row.id);
+  // Buchfuehrung, kein Teil der Anfrage: waehrend eines Restores (#1431)
+  // entfaellt sie, statt jeden Token-Aufruf mit 500 zu beenden.
+  if (!db.isRestoreRunning()) {
+    db.get().prepare(`
+      UPDATE api_tokens SET last_used_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?
+    `).run(row.id);
+  }
 
   req.apiToken = publicApiToken(row);
   req.user = {
@@ -957,6 +985,10 @@ function requireAuth(req, res, next) {
  * alten Woche schriebe sonst `expired_at` wieder auf sieben Tage.
  */
 function refreshSessionCookieIfDue(req, res) {
+  // Waehrend eines Restores nicht nachdatieren (#1431): der Store nimmt nichts
+  // an, und ein neues Cookie ohne passende Zeile liefe auseinander. Der
+  // naechste Request danach holt es nach.
+  if (db.isRestoreRunning()) return;
   const cookie = req.session.cookie;
   // Ohne Cookie-Objekt ist es keine express-session (Routentests haengen ein
   // nacktes `{ userId, role }` an) - es gibt nichts nachzudatieren.
@@ -2080,7 +2112,7 @@ async function beginOidcFlow(req, config, extra = {}) {
   }).href;
 }
 
-router.get('/oidc/start', async (req, res) => {
+router.get('/oidc/start', refuseWhileRestoring, async (req, res) => {
   try {
     const config = await getOidcConfig();
     if (!config) {
@@ -2098,7 +2130,7 @@ router.get('/oidc/start', async (req, res) => {
  * Verknüpfungsstand des eigenen Kontos (#832).
  * Response: { enabled, linked, provider, can_unlink }
  */
-router.get('/oidc/link', requireAuth, (req, res) => {
+router.get('/oidc/link', requireAuth, refuseWhileRestoring, (req, res) => {
   const user = db.get()
     .prepare('SELECT oidc_sub, oidc_provider, password_hash FROM users WHERE id = ?')
     .get(req.authUserId);
@@ -2171,7 +2203,7 @@ router.delete('/oidc/link', requireAuth, csrfMiddleware, (req, res) => {
  * prüft Signatur, iss, aud, exp, nonce), ermittelt/erstellt den User über den
  * validierten sub und richtet die Session ein.
  */
-router.get('/oidc/callback', async (req, res) => {
+router.get('/oidc/callback', refuseWhileRestoring, async (req, res) => {
   try {
     const config = await getOidcConfig();
     if (!config) return res.redirect('/login?error=oidc_not_configured');

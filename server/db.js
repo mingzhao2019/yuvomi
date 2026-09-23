@@ -21,8 +21,10 @@ import Database from 'better-sqlite3-multiple-ciphers';
 import path from 'path';
 import os from 'node:os';
 import fs from 'node:fs/promises';
-import { mkdirSync, existsSync, renameSync, linkSync, rmSync, copyFileSync, openSync, readSync, closeSync, statSync } from 'node:fs';
+import { mkdirSync, existsSync, renameSync, linkSync, rmSync, copyFileSync, openSync, readSync, closeSync, statSync, readdirSync, constants as fsConstants } from 'node:fs';
 import { createLogger } from './logger.js';
+import { RESTORE_IN_PROGRESS_MESSAGE, RESTORE_IN_PROGRESS_REASON } from './utils/restore-messages.js';
+import { setRestoreRunning, activeWriters, restoreWaitTimeoutMs, waitUntilIdle } from './utils/restore-state.js';
 import { decodeHtmlEntities } from './utils/html-entities.js';
 import { toE164, defaultCountryFromConfig } from './utils/phone.js';
 
@@ -416,11 +418,20 @@ function init({ plaintextBackup = true } = {}) {
       `Data will be lost on container restart. Use an absolute path, e.g. DB_PATH=/data/yuvomi.db`
     );
   }
+  // Reste eines abgebrochenen Restores zuerst: auch vor der Leer-Pruefung,
+  // denn ein CLI-Restore auf eine leere Datei (#1282), der mittendrin stirbt,
+  // laesst sie neben genau so einer Datei liegen - und die Pruefung bricht ab,
+  // bevor sie sonst drankaemen (Codex-Befund in #1431). Gefahrlos: angefasst
+  // werden nur Arbeitsdateien toter Prozesse, nie die Datenbank oder ihr Journal.
+  removeRestoreStaging();
   // Vor allem anderen: eine leere Datei würde ab hier still zur frischen
   // Instanz, und ein Journal daneben ginge dabei verloren (#1282).
   assertDatabaseFileNotEmpty();
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   migrateLegacyDbFile();
+  // Scheitert die Umbenennung einer Legacy-oikos.db, faellt DB_PATH auf sie
+  // zurueck - und Reste eines Restores tragen dann ihren Namen.
+  removeRestoreStaging();
 
   // Beide Prüfungen laufen VOR dem Öffnen: fehlt der Cipher-Support, darf gar
   // nicht erst eine unverschlüsselte Datei entstehen.
@@ -10270,7 +10281,24 @@ function getPath() {
   return DB_PATH;
 }
 
-async function backupToFile(destinationPath) {
+/**
+ * Laufende `backupToFile()`-Aufrufe. Der Restore wartet vor dem Schliessen der
+ * Verbindung, bis keiner mehr laeuft (Codex-Befund in #1431): seit die
+ * Arbeitsdatei VOR dem Schliessen kopiert wird, kann waehrend dieses Kopierens
+ * ein Backup (Download-Route, Zeitplan) auf der noch offenen Verbindung
+ * beginnen - und `db.close()` zoege ihm die Verbindung unter den Haenden weg.
+ * @type {Set<Promise<unknown>>}
+ */
+const activeBackups = new Set();
+
+function backupToFile(destinationPath) {
+  const running = backupToFileUntracked(destinationPath);
+  const tracked = running.finally(() => activeBackups.delete(tracked));
+  activeBackups.add(tracked);
+  return tracked;
+}
+
+async function backupToFileUntracked(destinationPath) {
   const database = get();
   await fs.mkdir(path.dirname(destinationPath), { recursive: true });
 
@@ -10282,14 +10310,30 @@ async function backupToFile(destinationPath) {
     // der Quelle, das Backup ist also ebenfalls verschlüsselt. Es verlangt
     // allerdings ein noch nicht existierendes Ziel.
     await unlinkIfExists(destinationPath);
-    database.prepare('VACUUM INTO ?').run(destinationPath);
+    vacuumInto(database, destinationPath);
   } else if (typeof database.backup === 'function') {
     await database.backup(destinationPath);
   } else {
-    database.prepare('VACUUM INTO ?').run(destinationPath);
+    vacuumInto(database, destinationPath);
   }
 
   return destinationPath;
+}
+
+/**
+ * `VACUUM INTO` auch waehrend eines Restores: `query_only` (siehe
+ * `restoreFromFile()`) sperrt es sonst, obwohl es nur in eine andere Datei
+ * schreibt. Das Loesen und Wiedersetzen ist synchron - dazwischen kann kein
+ * anderer Request schreiben.
+ */
+function vacuumInto(database, destinationPath) {
+  const locked = database.pragma('query_only', { simple: true }) === 1;
+  if (locked) database.pragma('query_only = OFF');
+  try {
+    database.prepare('VACUUM INTO ?').run(destinationPath);
+  } finally {
+    if (locked) database.pragma('query_only = ON');
+  }
 }
 
 /**
@@ -10409,22 +10453,36 @@ function restoreError(message, reason, cause) {
  * @returns {Error}
  */
 function unreadableBackupError(encrypted, cause) {
+  const code = typeof cause?.code === 'string' ? cause.code : '';
   if (!encrypted) {
+    // Kopf da, aber schon die Schemaseite kaputt: ein beschaedigtes Backup,
+    // keine fremde Datei - derselbe Grund wie aus `assertBackupIntact()`
+    // (Codex-Befund in #1431).
+    if (code.startsWith('SQLITE_CORRUPT')) {
+      return restoreError(
+        `Backup file is damaged (${code}: ${cause?.message ?? String(cause)}). Its SQLite header is `
+        + 'intact, but its schema page is not. Nothing on this instance was changed. Get the backup '
+        + 'again from where it is stored and check that its size and sha256sum match the stored '
+        + 'original, then restore that copy - or restore an older backup.',
+        'backup_corrupt',
+        cause
+      );
+    }
     return new Error('Backup file is not a valid Yuvomi database.', { cause });
   }
-  const code = typeof cause?.code === 'string' ? cause.code : '';
   if (code === 'SQLITE_NOTADB') return undecryptableBackupError(cause);
 
   const detail = `${code || 'no SQLite error code'}: ${cause?.message ?? String(cause)}`;
   if (DB_KEY && code.startsWith('SQLITE_CORRUPT')) {
-    return new Error(
+    return restoreError(
       `Backup file is damaged or incomplete (${detail}). DB_ENCRYPTION_KEY is not the problem: it `
       + 'does open this file - its first page decrypted and passed the integrity check, which a '
       + 'wrong key never does. Most likely the file was cut short before it got here, by a download '
       + 'or copy that stopped early. Nothing on this instance was changed. Get the backup again from '
       + 'where it is stored - download or copy it once more - and check that its size and sha256sum '
       + 'match the stored original, then restore that copy.',
-      { cause }
+      'backup_corrupt',
+      cause
     );
   }
 
@@ -10433,6 +10491,78 @@ function unreadableBackupError(encrypted, cause) {
     lines.push('Check that the file is there and that the user this restore runs as may read it.');
   }
   return new Error(lines.join(' '), { cause });
+}
+
+/** Erste Zeile eines Befunds ohne die Kopfzeile `*** in database main ***`. */
+function firstFinding(result) {
+  const text = String(result);
+  return text.split('\n').find((line) => line.trim() && !line.startsWith('***')) ?? text;
+}
+
+/**
+ * Jede Seite des Backups lesen, bevor es eingespielt wird (#1422).
+ *
+ * `assertReadable()` liest nur `sqlite_master`. Ein EIGENES Backup mit einer
+ * kaputten Seite dahinter (gemessen: ein gekipptes Byte in Seite 5, mit und
+ * ohne Schluessel) ging damit ohne Fehler durch, wurde eingespielt, und die
+ * Instanz lief danach auf einer Datenbank, deren `quick_check` Hunderte
+ * unerreichbare Seiten meldet. Der Weg mit Backup-Schluessel lehnte dieselbe
+ * Datei schon ab - nur weil das Umschluesseln jede Seite anfasst.
+ *
+ * `quick_check` statt `integrity_check`: es liest jede Seite (mit Schluessel
+ * also auch deren HMAC) und prueft den Aufbau jedes B-Baums, laeuft aber
+ * linear. Was `integrity_check` zusaetzlich prueft - ob jeder Index genau zu
+ * seiner Tabelle passt -, kann in einem Backup aus `VACUUM INTO` nur durch
+ * eine kaputte Seite auseinanderlaufen, und die findet schon `quick_check`.
+ * Gemessen mit Schluessel: 2 MB samt ganzem Restore unter 200 ms, 91 MB (300 000 Zeilen, zwei
+ * Indizes) rund 0,9 s gegen 1,9 s fuer `integrity_check` - der Restore
+ * blockiert solange den Server, deshalb die schnellere Pruefung.
+ * `quick_check(1)` hoert nach dem ersten Befund auf; einer reicht. Es meldet
+ * nicht nur kaputte Seiten, sondern auch Zeilen, die eine NOT-NULL-Regel
+ * ihrer Tabelle verletzen (gemessen: „NULL value in a.x"; CHECK-Regeln prueft
+ * es nicht) - deshalb sagt die Meldung „haelt nicht zusammen" und nicht
+ * „Seite unlesbar".
+ * @param {import('better-sqlite3-multiple-ciphers').Database} candidate
+ * @param {boolean} encrypted
+ */
+function assertBackupIntact(candidate, encrypted) {
+  let result;
+  try {
+    // Klartext: integrity_check. quick_check prueft nicht, ob jeder Index zu
+    // seiner Tabelle passt, und ohne Seiten-HMAC kann ein gekipptes Byte in
+    // einem indizierten Wert genau das auseinanderlaufen lassen - gemessen:
+    // quick_check „ok", integrity_check „row missing from index" (Codex-Befund
+    // in #1431). Verschluesselt: quick_check. Jede Seite traegt dort ein HMAC,
+    // eine veraenderte Seite scheitert schon beim Lesen, und integrity_check
+    // kostete fuer diesen Fall nur die doppelte Zeit.
+    result = candidate.pragma(encrypted ? 'quick_check(1)' : 'integrity_check(1)', { simple: true });
+  } catch (err) {
+    const code = typeof err?.code === 'string' ? err.code : '';
+    if (!code.startsWith('SQLITE_CORRUPT')) throw unreadableBackupError(encrypted, err);
+    result = `${code}: ${err.message}`;
+  }
+  if (result === 'ok') return;
+  throw restoreError(
+    `Backup file is damaged: the integrity check found an error in it (${firstFinding(result)}). `
+    + 'Its first page opens, but the file does not hold together - a damaged page or a row that '
+    + 'breaks a NOT NULL rule of its table - and restoring it would put a broken database in place. Nothing on '
+    + 'this instance was changed. Get the backup again from '
+    + 'where it is stored and check that its size and sha256sum match the stored original, then '
+    + 'restore that copy - or restore an older backup.',
+    'backup_corrupt'
+  );
+}
+
+/**
+ * Ein Backup pruefen, ohne es einzuspielen: dieselbe Validierung wie vor jedem
+ * Restore (lesbar mit dem eigenen Schluessel, Integritaet, Yuvomi-Schema, keine
+ * neuere Version). Liefert die Schema-Version; wirft mit derselben Meldung wie
+ * der Restore.
+ * @param {string} sourcePath
+ * @returns {number}
+ */
+function checkBackupFile(sourcePath) {
+  return validateBackupFile(sourcePath);
 }
 
 function validateBackupFile(sourcePath) {
@@ -10456,6 +10586,7 @@ function validateBackupFile(sourcePath) {
     } catch (err) {
       throw unreadableBackupError(encrypted, err);
     }
+    assertBackupIntact(candidate, encrypted);
     const row = candidate.prepare(`
       SELECT name
       FROM sqlite_master
@@ -10658,6 +10789,22 @@ async function rekeyForeignBackup(sourcePath, oldKey) {
 }
 
 /**
+ * Laeuft in diesem Prozess gerade ein Restore? Ein zweiter (zweiter Tab,
+ * zweiter Admin) wird sofort abgelehnt, statt mit dem ersten um dieselben
+ * Dateien zu ringen: im Review von #1431 nachgestellt, ueberschrieb der zweite die
+ * halbe Arbeitsdatei bzw. die Rollback-Kopie des ersten, und der erste hing
+ * danach eine Mischung an DB_PATH (`database disk image is malformed`).
+ * Gesetzt wird der Riegel vor dem ersten `await`, geloest im `finally`.
+ * Gegen einen Restore aus einem ANDEREN Prozess (CLI neben dem Server) wirkt
+ * er nicht. Dafuer tragen Arbeitsdatei und halbe Rollback-Kopie die
+ * Prozessnummer im Namen: kein Prozess ueberschreibt die des anderen, und
+ * `removeRestoreStaging()` raeumt nur Dateien toter Prozesse weg. Den Tausch
+ * selbst serialisiert das nicht - beide haengten nacheinander eine
+ * vollstaendige Datenbank an DB_PATH.
+ */
+let restoreRunning = false;
+
+/**
  * Backup einspielen.
  * @param {string} sourcePath
  * @param {{ backupKey?: string | Buffer | null }} [options] `backupKey`: der
@@ -10666,6 +10813,99 @@ async function rekeyForeignBackup(sourcePath, oldKey) {
  *   wird nicht gespeichert und steht in keiner Meldung.
  */
 async function restoreFromFile(sourcePath, { backupKey = null } = {}) {
+  if (restoreRunning) {
+    throw restoreError(RESTORE_IN_PROGRESS_MESSAGE, RESTORE_IN_PROGRESS_REASON);
+  }
+  restoreRunning = true;
+  setRestoreRunning(true);
+  try {
+    // Erst die Jobs zu Ende kommen lassen, die schon nach aussen schreiben
+    // (Kalender-Sync, Push, ...): sie muessen ihr Ergebnis noch zurueckschreiben
+    // koennen, sonst bleibt der entfernte Stand ohne Link (Codex-Befund in
+    // #1431). Neue beginnen ab `setRestoreRunning(true)` nicht mehr, und
+    // schreibende Requests weist `restoreWriteGate` ab derselben Zeile ab.
+    // Schon zugelassene schreibende Requests laufen zu Ende und landen in der
+    // alten Datenbank, nie in der eingespielten (Codex-Befund in #1431).
+    // Hoechstens `restoreWaitTimeoutMs()` lang, dann Abbruch vor jeder
+    // Aenderung (Review #1431).
+    await waitForQuietOrGiveUp();
+    // Ab jetzt nimmt die laufende Verbindung keine Schreibzugriffe mehr an
+    // (Codex-Befund in #1431): seit die Arbeitsdatei VOR dem Schliessen kopiert
+    // wird, bleibt sie waehrenddessen offen, und ein Schreibzugriff meldete
+    // Erfolg, den Checkpoint, Schliessen und rename danach verwarfen. Die neue
+    // Verbindung nach dem Tausch beginnt ohne den Riegel, nach einem
+    // Fehlschlag wird er unten geloest.
+    try { db?.pragma('query_only = ON'); } catch { /* ohne Verbindung nichts zu sperren */ }
+    return await restoreFromFileUnlocked(sourcePath, { backupKey });
+  } finally {
+    restoreRunning = false;
+    setRestoreRunning(false);
+    try { db?.pragma('query_only = OFF'); } catch { /* best effort */ }
+  }
+}
+
+/**
+ * Auf laufende Backups, Jobs und zugelassene Anfragen warten - hoechstens
+ * `restoreWaitTimeoutMs()`. Laeuft die Frist ab, bricht der Restore ab, bevor er
+ * die Verbindung sperrt oder etwas aendert, mit einem Grund, den der Dialog
+ * uebersetzt (Review #1431).
+ */
+async function waitForQuietOrGiveUp() {
+  const quiet = await waitUntilIdle(
+    () => [...activeBackups, ...activeWriters()],
+    Date.now() + restoreWaitTimeoutMs()
+  );
+  if (quiet) return;
+  const seconds = Math.round(restoreWaitTimeoutMs() / 1000);
+  throw restoreError(
+    `Yuvomi is still busy: a sync, a backup or a request had not finished after ${seconds} seconds, `
+    + 'so the restore did not start. Nothing on this instance was changed. Try again in a moment.',
+    'restore_busy'
+  );
+}
+
+/** Laeuft gerade ein Restore? Fuer `restoreWriteGate`. */
+function isRestoreRunning() {
+  return restoreRunning;
+}
+
+/**
+ * Ist die Verbindung offen? Waehrend eines Restores ist sie es vom Schliessen
+ * bis zum Wiederoeffnen nicht - dann beantwortet `restoreWriteGate` auch
+ * lesende API-Anfragen mit 503 (Review #1431).
+ */
+function isDatabaseOpen() {
+  return Boolean(db);
+}
+
+/**
+ * `true`, wenn `sourcePath` dieselbe Datei ist wie DB_PATH (auch per Symlink
+ * oder hartem Link). Ein Restore der laufenden Datenbank auf sich selbst
+ * kopierte die Hauptdatei VOR dem Checkpoint: was nur im `-wal` stand, fehlte
+ * der Arbeitsdatei, und das rename haengte diesen alten Stand als „Erfolg" ein
+ * (Codex-Befund in #1431).
+ */
+function isActiveDatabaseFile(sourcePath) {
+  try {
+    // bigint: grosse Inode-Nummern (manche Netz- und Overlay-Dateisysteme)
+    // passen nicht verlustfrei in eine Zahl.
+    const source = statSync(sourcePath, { bigint: true });
+    const active = statSync(DB_PATH, { bigint: true });
+    return source.dev === active.dev && source.ino === active.ino;
+  } catch {
+    return false;
+  }
+}
+
+async function restoreFromFileUnlocked(sourcePath, { backupKey }) {
+  if (isActiveDatabaseFile(sourcePath)) {
+    throw new Error(
+      `Backup file ${sourcePath} is the active database itself (DB_PATH). Restoring it onto itself `
+      + 'would drop the changes that are still only in its write-ahead log. Nothing on this instance '
+      + 'was changed. Restore a backup file instead - download one under Settings, Backup, or copy '
+      + 'the database file while Yuvomi is stopped.'
+    );
+  }
   const oldKey = backupKeyBytes(backupKey);
   // Ein Klartext-Backup braucht keinen Schluessel - es laeuft wie bisher und
   // wird von init() mit dem eigenen verschluesselt.
@@ -10682,10 +10922,253 @@ async function restoreFromFile(sourcePath, { backupKey = null } = {}) {
   }
 }
 
+const RESTORE_STAGING_SUFFIX = '.restore-tmp';
+
+/**
+ * Arbeitsname, unter dem `restoreFromFile()` die neue Datenbank ablegt, bevor
+ * sie an `DB_PATH` gehaengt wird (#1422). Neben `DB_PATH`, nicht im
+ * Temp-Verzeichnis: nur im selben Verzeichnis ist das Umhaengen ein `rename()`
+ * innerhalb eines Dateisystems und damit unteilbar - wie `.creating` (#1287).
+ */
+function restoreStagingPath() {
+  // Eigener Name je Restore: ein Restore aus einem zweiten Prozess (CLI neben
+  // dem laufenden Server) ueberschreibt so nie die Arbeitsdatei des ersten.
+  return `${DB_PATH}${RESTORE_STAGING_SUFFIX}-${process.pid}-${Date.now().toString(36)}`;
+}
+
+/**
+ * Codes, mit denen ein Dateisystem sagt, dass es fsync auf ein Verzeichnis
+ * nicht kann - nicht, dass es gescheitert ist. EISDIR/EACCES/EPERM kommen beim
+ * Oeffnen eines Verzeichnisses (Windows, manche Netzfreigaben), EINVAL,
+ * ENOTSUP/EOPNOTSUPP und EBADF vom fsync selbst (FUSE, SMB, NFS-Varianten).
+ */
+const DIRECTORY_SYNC_UNSUPPORTED = new Set(['EINVAL', 'ENOTSUP', 'EOPNOTSUPP', 'EISDIR', 'EPERM', 'EACCES', 'EBADF']);
+
+/**
+ * Verzeichnis-Eintrag auf die Platte bringen. Kann das Dateisystem das nicht,
+ * bleibt es beim unteilbaren rename (nur nicht sofort dauerhaft). Ein echter
+ * Fehler (EIO, ENOSPC, ...) geht weiter: der Aufrufer bricht ab bzw. meldet,
+ * statt einen nicht bestaetigten Tausch als Erfolg auszugeben (Codex-Befund in #1431).
+ */
+async function syncDirectory(dirPath) {
+  let handle;
+  try {
+    handle = await fs.open(dirPath, 'r');
+    await handle.sync();
+  } catch (err) {
+    if (!DIRECTORY_SYNC_UNSUPPORTED.has(err?.code)) throw err;
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+}
+
+/**
+ * Die fertige Arbeitsdatei unteilbar an `DB_PATH` haengen (#1422). Sie ist
+ * vorher vollstaendig neben `DB_PATH` kopiert und auf die Platte gebracht
+ * (`stageDatabaseCopy()`); hier wird nur noch umbenannt.
+ *
+ * Vorher wurde das Backup direkt ueber `DB_PATH` kopiert. Ein Kopieren ist
+ * nicht unteilbar: starb der Prozess mittendrin oder lief die Platte voll,
+ * lag an `DB_PATH` eine halb geschriebene Datei - halb Backup, halb nichts -,
+ * und der naechste Start fand eine kaputte Datenbank. Der Rueckweg ueber
+ * `.pre-restore-*` stand zwar da, aber nichts sagte dem Admin, dass er ihn
+ * braucht. Jetzt ist `DB_PATH` zu jedem Zeitpunkt entweder die alte oder die
+ * neue Datenbank: bis zum `rename()` ist nur die Arbeitsdatei betroffen, und
+ * die raeumt der naechste Start weg (`removeRestoreStaging()`).
+ *
+ * Die Verbindung muss dafuer zu sein, und `-wal`/`-shm` der alten Datenbank
+ * muessen VOR dem Umhaengen weg sein: SQLite wendete ein liegengebliebenes
+ * `-wal` sonst auf die neue Datei an. Beides erledigt der Aufrufer.
+ * DB_PATH muss eine echte Datei sein, kein Symlink: `rename()` ersetzt den
+ * Verzeichniseintrag, einen Symlink also durch die Datei, statt ihm zu folgen.
+ * Dasselbe gilt schon fuer die Verschluesselungs-Migration und `.creating`;
+ * docs/installation.md sagt es beim Restore.
+ * @param {string} stagingPath  fertig geschriebene Arbeitsdatei oder, beim
+ *   Rollback, die Rollback-Kopie
+ */
+async function swapIntoDbPath(stagingPath, onRenamed = () => {}) {
+  await fs.rename(stagingPath, DB_PATH);
+  // Sofort vermerken: scheitert der fsync danach, liegt die Datei trotzdem
+  // schon an DB_PATH, und der Aufrufer muss das wissen.
+  onRenamed();
+  await syncDirectory(path.dirname(DB_PATH));
+}
+
+/** `from` nach `stagingPath` kopieren und die Datei auf die Platte bringen. */
+async function stageDatabaseCopy(from, stagingPath) {
+  await unlinkIfExists(stagingPath);
+  await fs.copyFile(from, stagingPath);
+  await adoptDatabaseAttributes(stagingPath);
+  // Lesend genuegt fuer fsync - und klappt auch, wenn die Datei keine
+  // Schreibrechte traegt.
+  const handle = await fs.open(stagingPath, 'r');
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+/**
+ * Rechte und, soweit erlaubt, Besitzer der bisherigen Datenbank auf die
+ * Arbeitsdatei uebertragen (Codex-Befunde in #1431).
+ *
+ * `copyFile` gibt der neuen Datei die Rechte der QUELLE und den Nutzer, der
+ * kopiert, als Besitzer - und das rename macht beides zu denen von DB_PATH.
+ * Das fruehere Kopieren UEBER DB_PATH behielt die Datei und damit beides.
+ * Gemessen wurde: ein Backup von schreibgeschuetztem Medium (0444) machte die
+ * Arbeitsdatei 0444, und ein CLI-Restore als root hinterliesse eine Datenbank,
+ * die der Dienst nach dem Neustart nicht schreiben darf. Der Besitzerwechsel
+ * gelingt nur als root oder wenn er ohnehin stimmt; sonst bleibt er, wie er
+ * ist. Ohne bisherige Datenbank: 0600, lesbar nur fuer den Dienst.
+ * @param {string} filePath
+ */
+/**
+ * Kann, wer die bisherige Datenbank schreiben durfte, auch die neue Datei
+ * schreiben? Besitzer gleich: Besitzerbit; sonst Gruppe gleich: Gruppenbit.
+ * Wer nur ueber die Gruppe schrieb, schreibt so weiter; wer Besitzer war und
+ * es nicht mehr ist, verliert das Recht (ausser die Datei ist fuer alle
+ * schreibbar).
+ * @param {import('node:fs').Stats} staged
+ * @param {import('node:fs').Stats} previous
+ */
+function stillWritableForPreviousWriters(staged, previous, { processMayWritePrevious = false } = {}) {
+  const mode = staged.mode;
+  if (mode & 0o002) return true;
+  // Die Arbeitsdatei gehoert immer dem laufenden Prozess. Durfte er die
+  // bisherige Datenbank schreiben, ist er der Dienst oder hat dessen Rechte -
+  // dann genuegt sein Besitzer-Schreibbit, auch bei anderer uid und gid als die
+  // alte Datei (Review #1431).
+  if (processMayWritePrevious && staged.uid === process.geteuid?.() && (mode & 0o200) !== 0) return true;
+  if (staged.uid === previous.uid) return (mode & 0o200) !== 0;
+  if (staged.gid === previous.gid) return (mode & 0o020) !== 0;
+  return false;
+}
+
+async function adoptDatabaseAttributes(filePath) {
+  let previous = null;
+  try { previous = await fs.stat(DB_PATH); } catch { /* keine bisherige Datenbank */ }
+  try {
+    await fs.chmod(filePath, previous ? previous.mode & 0o7777 : 0o600);
+  } catch (err) {
+    // FUSE- und SMB-Mounts eines NAS lehnen chmod oft ab - dann gelten ihre
+    // eigenen Rechte. Abbrechen nur, wenn der Besitzer die Datei so nicht
+    // schreiben kann: sie wird gleich DB_PATH.
+    const mode = (await fs.stat(filePath)).mode;
+    if ((mode & 0o200) === 0) throw err;
+    log.warn(`Could not set the mode of ${filePath} (${err?.code ?? err}); keeping the one the file system gave it.`);
+  }
+  if (previous) {
+    try {
+      await fs.chown(filePath, previous.uid, previous.gid);
+    } catch (err) {
+      // Nur als root oder ohne Wechsel erlaubt. Abbrechen, vor dem Tausch, nur
+      // wenn die Datei so fuer die bisherigen Schreiber der Datenbank NICHT
+      // schreibbar waere (Codex-Befund in #1431) - verglichen wird mit Besitzer
+      // UND Gruppe der bisherigen Datei, wie im chmod-Zweig ueber die
+      // Modusbits. Eine Datenbank root:node 0660 mit dem Dienst als node
+      // (TrueNAS, Entrypoint ohne chown) besteht so ueber die Gruppe; eine
+      // gleichbleibende uid (SMB-Mounts melden jeder Datei dieselbe) ohnehin.
+      const staged = await fs.stat(filePath);
+      // Nur im Dienst selbst (Restore aus der App) ist die eigene euid die des
+      // Dienstes. Das Restore-CLI (Handschlag gesetzt) kann root oder ein
+      // Gruppenmitglied sein, das die alte Datei schreiben darf, der Dienst
+      // die neue aber nicht - dort gelten nur Besitzer und Gruppe (Review #1431).
+      let processMayWritePrevious = false;
+      if (globalThis[RESTORE_TARGET_HANDSHAKE] !== true) {
+        try {
+          await fs.access(DB_PATH, fsConstants.W_OK);
+          processMayWritePrevious = true;
+        } catch { /* der laufende Prozess darf die bisherige Datenbank nicht schreiben */ }
+      }
+      if (!stillWritableForPreviousWriters(staged, previous, { processMayWritePrevious })) {
+        throw new Error(
+          `Could not give ${filePath} the owner of the current database (uid ${previous.uid}, gid `
+          + `${previous.gid}; it belongs to uid ${staged.uid}, gid ${staged.gid}): ${err?.code ?? err}. `
+          + 'Yuvomi would not be able to write the restored database. Nothing on this instance was '
+          + 'changed. Run the restore as the user Yuvomi runs as, or as root.',
+          { cause: err }
+        );
+      }
+    }
+  }
+}
+
+const ROLLBACK_PARTIAL_SUFFIX = '.partial';
+
+/**
+ * Lebt der Prozess, der eine liegengebliebene Datei angelegt hat, noch - und
+ * ist es nicht dieser? `process.kill(pid, 0)` prueft nur, sendet nichts;
+ * `EPERM` heisst „gibt es, gehoert einem anderen Benutzer".
+ *
+ * Grenze: die Nummer gilt nur im selben PID-Namensraum. Ein CLI-Restore per
+ * `docker compose run` laeuft in einem eigenen Container; seine Nummer kann
+ * hier einen fremden Prozess treffen (dann bleibt die Datei bis zum naechsten
+ * Start liegen) oder keinen (dann wird sie geloescht). Trifft das seine
+ * Arbeitsdatei, scheitert sein rename auf DB_PATH; trifft es seine halbe
+ * Rollback-Kopie, scheitert deren rename, und `restoreValidatedFile()` bricht
+ * deshalb ab (ENOENT zaehlt dort nur, wenn DB_PATH vorher fehlte). In beiden
+ * Faellen vor dem Tausch: DB_PATH bleibt die alte Datenbank.
+ * @param {number} pid
+ */
+function otherProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err?.code === 'EPERM';
+  }
+}
+
+/**
+ * Reste eines abgebrochenen Restores wegraeumen: die Arbeitsdatei
+ * (`<DB_PATH>.restore-tmp-<pid>-<zeit>`) und eine halbe Rollback-Kopie
+ * (`<DB_PATH>.pre-restore-<zeit>.<pid>.partial`). Die Arbeitsdatei ist nie an
+ * `DB_PATH` gehaengt worden - die Datenbank ist die alte, und das Backup liegt
+ * dort, woher es kam. Ohne Aufraeumen laege eine vollstaendige Kopie des
+ * Backups im Datenverzeichnis, bei einem Klartext-Backup sogar unverschluesselt.
+ *
+ * Jeder Prozess, der db.js laedt, laeuft hier durch (`init()`). Eine Datei,
+ * deren Prozess noch lebt, gehoert zu einem laufenden Restore und bleibt
+ * liegen (Review #1431) - siehe `otherProcessAlive()` fuer die Grenze.
+ * Der Compose-Restore aus docs/installation.md schreibt die Nummer 0: er laeuft
+ * bei gestopptem Server in einem eigenen Container, dessen Nummern hier nichts
+ * bedeuten - 0 heisst „kein Eigentuemer", sein Rest wird immer weggeraeumt.
+ */
+function removeRestoreStaging() {
+  if (DB_PATH === ':memory:') return;
+  const dir = path.dirname(DB_PATH);
+  const base = path.basename(DB_PATH);
+  const stagingPrefix = `${base}${RESTORE_STAGING_SUFFIX}-`;
+  const rollbackPrefix = `${base}.pre-restore-`;
+  let names;
+  try { names = readdirSync(dir); } catch { return; }
+  for (const name of names) {
+    let pid;
+    if (name.startsWith(stagingPrefix)) {
+      pid = Number(name.slice(stagingPrefix.length).split('-')[0]);
+    } else if (name.startsWith(rollbackPrefix) && name.endsWith(ROLLBACK_PARTIAL_SUFFIX)) {
+      const parts = name.slice(0, -ROLLBACK_PARTIAL_SUFFIX.length).split('.');
+      pid = Number(parts[parts.length - 1]);
+    } else {
+      continue;
+    }
+    if (otherProcessAlive(pid)) continue;
+    const leftover = path.join(dir, name);
+    log.info(`${leftover} is left over from a restore that was interrupted before the swap - removing it. The database is the one from before that restore.`);
+    try { rmSync(leftover, { force: true }); } catch { /* best effort */ }
+  }
+}
+
 async function restoreValidatedFile(sourcePath) {
   const backupVersion = validateBackupFile(sourcePath);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const rollbackPath = `${DB_PATH}.pre-restore-${timestamp}`;
+  // Mit Prozessnummer wie die Arbeitsdatei: `removeRestoreStaging()` laesst
+  // die Datei eines noch laufenden fremden Prozesses liegen.
+  const rollbackPartialPath = `${rollbackPath}.${process.pid}${ROLLBACK_PARTIAL_SUFFIX}`;
+  const stagingPath = restoreStagingPath();
   let rollbackCreated = false;
   // Offen ist die Verbindung, außer im Leer-Fall des Restore-CLI (#1282, siehe
   // Auto-Init am Dateiende). Nur eine offene Verbindung wird unten per
@@ -10693,20 +11176,58 @@ async function restoreValidatedFile(sourcePath) {
   // Rest-Journal zu löschen verliert nichts.
   const wasOpen = Boolean(db);
   let keptJournalPath = null;
+  // Ab hier liegt an DB_PATH die Datenbank aus dem Backup (#1422).
+  let swapped = false;
+  // Die Rollback-Kopie ist per rename zurueck an DB_PATH.
+  let rolledBack = false;
 
   try {
+    await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
+    // Zuerst die Arbeitsdatei: scheitert schon das Kopieren (volle Platte),
+    // ist die laufende Verbindung noch gar nicht angefasst.
+    await stageDatabaseCopy(sourcePath, stagingPath);
+
+    // Laufende Backups zu Ende kommen lassen. Zwischen dem letzten Blick auf
+    // `activeBackups` und `db.close()` steht kein await: ein neues Backup kann
+    // dort nicht mehr beginnen, und danach findet es keine Verbindung.
+    // Waehrend des Kopierens kann ein Download ein Backup begonnen haben.
+    // Scheitert das Warten, raeumt der catch unten die Arbeitsdatei weg - die
+    // Datenbank ist noch nicht angefasst. Die Schleife prueft nach dem letzten
+    // await noch einmal synchron - erst dann ist die Luecke zu.
+    do {
+      await waitForQuietOrGiveUp();
+    } while (activeBackups.size > 0 || activeWriters().length > 0);
     if (db) {
       try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch { /* best effort */ }
       db.close();
       db = null;
     }
 
-    await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
+    // Die Rollback-Kopie entsteht wie die Arbeitsdatei: unter einem
+    // Zwischennamen vollstaendig geschrieben, auf die Platte gebracht, dann
+    // umbenannt. Ein direktes Kopieren hinterliess bei einem Abbruch eine
+    // abgeschnittene Datei unter dem Namen, den die Anleitung als Rueckweg
+    // nennt. Kein harter Link statt der Kopie: er spart das Kopieren, aber
+    // bis zum Tausch waeren Rollback und DB_PATH dieselbe Datei - ein
+    // gescheiterter Restore, der die alte Datenbank wieder oeffnet, schriebe
+    // dann in die Rollback-Kopie mit.
+    // ENOENT heisst hier nur dann „keine bisherige Datenbank", wenn DB_PATH
+    // schon vor dem Kopieren fehlte. Sonst kam es von unterwegs - etwa weil
+    // ein zweiter Prozess die `.partial` als Rest weggeraeumt hat (Review
+    // #1431) -, und ohne Rollback-Kopie darf nicht getauscht werden: die alte
+    // Datenbank waere danach weg.
+    const hadDatabase = existsSync(DB_PATH);
     try {
-      await fs.copyFile(DB_PATH, rollbackPath);
+      await stageDatabaseCopy(DB_PATH, rollbackPartialPath);
+      await fs.rename(rollbackPartialPath, rollbackPath);
+      // Den Namen dauerhaft machen, BEVOR DB_PATH ersetzt wird: sonst kann nach
+      // einem Stromausfall das Backup an DB_PATH stehen, die Rollback-Kopie aber
+      // noch unter `.partial` - und die raeumt der naechste Start weg
+      // (Codex-Befund in #1431).
+      await syncDirectory(path.dirname(DB_PATH));
       rollbackCreated = true;
     } catch (err) {
-      if (err?.code !== 'ENOENT') throw err;
+      if (err?.code !== 'ENOENT' || hadDatabase) throw err;
     }
 
     // Ohne offene Verbindung hat niemand das Journal gecheckpointet. Ein `-wal`
@@ -10726,7 +11247,12 @@ async function restoreValidatedFile(sourcePath) {
     }
     await unlinkIfExists(`${DB_PATH}-wal`);
     await unlinkIfExists(`${DB_PATH}-shm`);
-    await fs.copyFile(sourcePath, DB_PATH);
+    // Das Entfernen der alten Nebendateien dauerhaft machen, BEVOR DB_PATH
+    // ersetzt wird: sonst kann nach einem Stromausfall das neue DB_PATH stehen
+    // und das alte -wal wieder daneben - und SQLite wendete es auf die falsche
+    // Datei an (Codex-Befund in #1431).
+    await syncDirectory(path.dirname(DB_PATH));
+    await swapIntoDbPath(stagingPath, () => { swapped = true; });
 
     // Ohne Klartext-Sicherheitskopie: stammt das Backup aus der Zeit vor der
     // Verschlüsselung, verschlüsselt init() es jetzt — die Sicherung dafür ist
@@ -10743,21 +11269,51 @@ async function restoreValidatedFile(sourcePath) {
       keptJournalPath,
     };
   } catch (err) {
-    if (rollbackCreated) {
-      try {
+    try {
+      // Best effort: ein Rest, der nicht weggeht (EACCES), darf das
+      // Wiederoeffnen unten nicht verhindern - der naechste Start raeumt ihn weg.
+      for (const leftover of [stagingPath, rollbackPartialPath]) {
+        try {
+          await unlinkIfExists(leftover);
+        } catch (cleanupErr) {
+          log.warn(`Could not remove ${leftover} after a failed restore: ${cleanupErr?.message ?? cleanupErr}`);
+        }
+      }
+      if (swapped) {
+        // init() kann die neue Datenbank schon geoeffnet haben.
         if (db) {
           db.close();
           db = null;
         }
-        await unlinkIfExists(`${DB_PATH}-wal`);
-        await unlinkIfExists(`${DB_PATH}-shm`);
-        await fs.copyFile(rollbackPath, DB_PATH);
-        if (keptJournalPath) {
-          // Der Rollback stellt den Stand vor dem Restore her: das Journal
-          // gehört wieder neben die (leere) Datei, an der die Meldung es nennt.
-          await renameIfExists(keptJournalName(rollbackPath, 'wal'), `${DB_PATH}-wal`);
-          await renameIfExists(keptJournalName(rollbackPath, 'shm'), `${DB_PATH}-shm`);
+        if (rollbackCreated) {
+          // Die neue Datenbank liegt schon an DB_PATH: die alte per rename
+          // zurueck, nicht per Kopie. Eine Kopie braucht noch einmal so viel
+          // Platz wie die alte Datenbank, waehrend die neue noch an DB_PATH
+          // liegt - bei vollem Datentraeger (der Fall aus #1422) scheiterte der
+          // Rollback, und die Instanz blieb auf dem gescheiterten Backup ohne
+          // Verbindung stehen (Review #1431). Das rename ist unteilbar und
+          // braucht keinen Platz; die Rollback-Kopie ist danach DB_PATH selbst.
+          await unlinkIfExists(`${DB_PATH}-wal`);
+          await unlinkIfExists(`${DB_PATH}-shm`);
+          await syncDirectory(path.dirname(DB_PATH));
+          await swapIntoDbPath(rollbackPath, () => { rolledBack = true; });
         }
+      }
+      // Vor dem Tausch ist DB_PATH die alte Datei geblieben, nach dem Rollback
+      // ist sie es wieder: ein beiseite gelegtes Journal gehoert zurueck neben
+      // die (leere) Datei, an der die Meldung es nennt.
+      if (keptJournalPath) {
+        await renameIfExists(keptJournalName(rollbackPath, 'wal'), `${DB_PATH}-wal`);
+        await renameIfExists(keptJournalName(rollbackPath, 'shm'), `${DB_PATH}-shm`);
+        // Das zurueckgelegte Journal dauerhaft machen: sonst kann es nach einem
+        // Stromausfall wieder unter `.wal-kept` liegen, wo die Meldung zur
+        // leeren Datei es nicht nennt (Codex-Befund in #1431).
+        await syncDirectory(path.dirname(DB_PATH));
+      }
+      if (!db && swapped && !rollbackCreated) {
+        // Vorher gab es keine Datenbank: nichts zurueckzuholen.
+        try { init({ plaintextBackup: false }); } catch { /* preserve original restore error */ }
+      } else if (!db) {
         try {
           init({ plaintextBackup: false });
         } catch (reopenErr) {
@@ -10765,14 +11321,57 @@ async function restoreValidatedFile(sourcePath) {
           // alte Stand, kein gescheiterter Rollback.
           if (reopenErr?.code !== EMPTY_DATABASE_FILE) throw reopenErr;
         }
-      } catch (rollbackErr) {
-        log.error('Rollback after failed restore also failed:', rollbackErr);
       }
-    } else if (!db) {
-      try { init({ plaintextBackup: false }); } catch { /* preserve original restore error */ }
+    } catch (rollbackErr) {
+      log.error('Rollback after failed restore also failed:', rollbackErr);
+      // Nur wenn die Instanz wirklich nicht mehr wie vorher dasteht: getauscht,
+      // oder ohne Verbindung. Scheitert bloss das Aufraeumen der Arbeitsdatei
+      // (etwa EACCES), laeuft die alte Datenbank weiter - dann gilt der
+      // urspruengliche Fehler, samt seinem Grund (Review #1431).
+      if (swapped || !db) {
+        throw rollbackFailedError(err, rollbackErr, {
+          swapped, rolledBack, rollbackPath: rollbackCreated ? rollbackPath : null,
+        });
+      }
     }
     throw err;
   }
+}
+
+/**
+ * Meldung, wenn nach einem gescheiterten Restore auch der Rueckweg scheitert
+ * (Review #1431). Die Instanz steht dann NICHT mehr wie vorher da - der
+ * urspruengliche Fehler (oft mit einem Grund, dessen Dialogtext „hier wurde
+ * nichts geaendert" sagt) waere eine falsche Auskunft. Deshalb ohne `reason`:
+ * der Dialog zeigt diese Meldung selbst, und sie nennt den Weg von Hand.
+ * @param {Error} restoreErr
+ * @param {Error} rollbackErr
+ * @param {{ swapped: boolean, rolledBack: boolean, rollbackPath: string | null }} state
+ *   `swapped`: das Backup lag schon an DB_PATH; `rolledBack`: die Rollback-Kopie
+ *   ist per rename zurueck; `rollbackPath`: die Rollback-Kopie, falls eine
+ *   angelegt wurde (vorher gab es sonst keine Datenbank)
+ */
+function rollbackFailedError(restoreErr, rollbackErr, { swapped, rolledBack, rollbackPath }) {
+  const lines = [
+    `Restore failed: ${restoreErr?.message ?? String(restoreErr)}`,
+    `Putting the previous database back failed as well: ${rollbackErr?.message ?? String(rollbackErr)}.`,
+  ];
+  if (swapped && !rolledBack && rollbackPath) {
+    lines.push(
+      `The database from before the restore is kept at ${rollbackPath}. Stop Yuvomi, move that file `
+      + `to ${DB_PATH} (and delete ${DB_PATH}-wal and ${DB_PATH}-shm if they exist), then start Yuvomi again.`
+    );
+  } else if (swapped && !rolledBack) {
+    lines.push(
+      `There was no database at ${DB_PATH} before this restore, and the restored one does not start. `
+      + `Delete ${DB_PATH} (with ${DB_PATH}-wal and ${DB_PATH}-shm) to start as a fresh instance, or restore another backup.`
+    );
+  } else if (rolledBack) {
+    lines.push(`The database from before the restore is back at ${DB_PATH}, but it could not be opened again. Restart Yuvomi.`);
+  } else {
+    lines.push(`The restore never replaced ${DB_PATH}; the database there is the one from before, but it could not be opened again. Restart Yuvomi.`);
+  }
+  return new Error(lines.join(' '), { cause: restoreErr });
 }
 
 // --------------------------------------------------------
@@ -10829,10 +11428,19 @@ function _resetTestDatabase() {
 // pauschal aufgeschobenes init() kürzte die Kopie um nicht gecheckpointete
 // Transaktionen und löschte danach das `-wal`. Ohne Handschlag (Server, Tests,
 // andere Skripte) bricht der Leer-Fall ab wie zuvor.
-try {
-  init();
-} catch (err) {
-  if (!(err?.code === EMPTY_DATABASE_FILE && globalThis[RESTORE_TARGET_HANDSHAKE] === true)) throw err;
+// Nur pruefen, nichts oeffnen: `server/check-backup.js` (der Pruefschritt im
+// dokumentierten Compose-Restore, #1431) setzt diesen Handschlag VOR dem
+// Import. Er braucht nur `checkBackupFile()` - und die laufende Datenbank darf
+// dabei nicht angefasst werden, sie kann leer sein oder einen anderen
+// Schluessel tragen, genau die Faelle, fuer die es den manuellen Weg gibt.
+const CHECK_ONLY_HANDSHAKE = Symbol.for('yuvomi.db.checkOnly');
+
+if (globalThis[CHECK_ONLY_HANDSHAKE] !== true) {
+  try {
+    init();
+  } catch (err) {
+    if (!(err?.code === EMPTY_DATABASE_FILE && globalThis[RESTORE_TARGET_HANDSHAKE] === true)) throw err;
+  }
 }
 
 export {
@@ -10851,3 +11459,4 @@ export {
   _setTestDatabase,
   _resetTestDatabase,
 };
+export { checkBackupFile, isRestoreRunning, isDatabaseOpen };
