@@ -116,6 +116,24 @@ receipt-privacy descriptions remain under `[Unreleased]`: the housekeeping API's
 response differs from upstream, and budget receipt APIs also suppress whether hidden documents are
 attached.
 
+## Sync record: 2026-09-25 review ports
+
+The integration branch started at custom commit `7935c02b4` and manually ported the three upstream
+review commits through `9a9864a59`:
+
+| Upstream commit | Decision |
+| --- | --- |
+| `900487968` | Adopted the dashboard surface, dense grid, today sheet, week strip, aggregate counts, and four new tiles. Preserved custom asset widgets, module permissions, and task-list behavior. |
+| `2677f8073` | Adopted the phone layout, day list, keyboard access, shared event grammar, and shorter dialog. Adapted event rendering and controls to the custom calendar contracts. |
+| `9a9864a59` | Adopted stable view tabs, multi-day bars, title/assignee ordering, and popover ordering. Kept custom completion, color, and deletion behavior. |
+
+The upstream Inventory service-log/odometer feature (`e146829b3`) remains intentionally unported. It
+uses upstream migration `v224`, while custom migration `v224` is already released for a different
+task-assignment contract; custom Inventory has no corresponding service-log routes or data model.
+The dashboard port initially carried only that feature's `test:inventory-service-log` script
+registration, so the orphaned registration was removed instead of adding a misleading test or
+renumbering released migrations. The feature remains a separately scoped integration task.
+
 ## Microsoft To Do compatibility boundary
 
 Microsoft To Do `steps`/`checklistItems` are intentionally not imported or exported as Yuvomi subtasks. A To Do step is a nested checklist entry without its own task identity, visibility, permissions, or parent-task relationship; Yuvomi subtasks are real tasks and participate in those models. Any upstream change that assumes the two are interchangeable must therefore be adapted or skipped during selective synchronization.

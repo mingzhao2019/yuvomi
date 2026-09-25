@@ -3767,7 +3767,7 @@ function renderMonthDay(date, inMonth, { selected = false, selWeek = false, spli
 
   // The month cell owns the navigation target; the chip itself stays
   // non-navigational, while its status button remains directly actionable.
-  const taskHtml = taskShown.map((tk) => renderTaskChip(tk, { interactive: false, icon: false })).join('');
+  const taskHtml = taskShown.map((tk) => renderTaskChip(tk, { interactive: false })).join('');
 
   // gridcell mit roving tabindex (wireMonthGridKeys): genau EINE Zelle ist
   // Tab-Stopp. `aria-selected` nur im geteilten Monat - dort gibt es eine
@@ -4247,15 +4247,7 @@ function renderWeekView(container) {
             `).join('')}
             ${scheduleChips[i].map((entry) => renderScheduleChip(entry, 'allday-holiday', { showFullRange: true, clickable: true })).join('')}
             ${waste[i].map((occ) => renderWasteChip(occ)).join('')}
-            ${alldayEvs[i].map((ev) => {
-              const timeText = allDayChipTimeText(ev, d);
-              const spoken = allDayChipTimeText(ev, d, { suffix: true });
-              return `
-              <div class="allday-event${eventCompletionClass(ev)}" data-id="${ev.id}" data-calendar-event
-                   style="${eventSurfaceStyle(ev)}"
-                   title="${allDayChipTitle(ev, timeText)}"${eventBlockAttrs(ev, spoken || t('calendar.allDay'))}>${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="allday-event__label"><span>${esc(ev.title)}</span>${allDayChipTimeHtml(timeText)}</span>${chipAssigneeStack(ev, { size: 16, maxVisible: 3 })}</div>
-            `;
-            }).join('')}
+            ${alldayEvs[i].map((ev) => renderAllDayEvent(ev, d)).join('')}
             ${tasksOnDay(d).map(renderTaskChip).join('')}
           </div>
         `).join('')}
@@ -4546,10 +4538,11 @@ function renderAllDayEvent(ev, dayStr) {
   // nur, wenn beide daneben GANZ passen - sonst fallen sie in die
   // abgeschnittene zweite Zeile (calendar.css, `.allday-event__line`). Name im
   // title-Attribut und im gesprochenen Namen bleibt.
+  const classes = `${segment ? bandClasses('allday-event', segment) : 'allday-event'}${eventCompletionClass(ev)}`;
   return `
-    <div class="${segment ? bandClasses('allday-event', segment) : 'allday-event'}" data-id="${ev.id}"
-         style="${eventSurfaceStyle(ev)}"${eventBlockAttrs(ev, spoken || t('calendar.allDay'))}
-         title="${allDayChipTitle(ev, allDayChipTimeText(ev, dayStr, { suffix: true }))}">${segment?.continuesBefore ? bandContinuationHtml('before') : ''}${eventGlyphsHtml(ev)}<span class="allday-event__line"><span class="allday-event__label"><span>${esc(ev.title)}</span>${allDayChipTimeHtml(timeText)}</span>${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</span>${segment?.continuesAfter ? bandContinuationHtml('after') : ''}</div>`;
+    <div class="${classes}" data-id="${ev.id}"
+         style="${eventSurfaceStyle(ev)}" data-calendar-event${eventBlockAttrs(ev, spoken || t('calendar.allDay'))}
+         title="${allDayChipTitle(ev, allDayChipTimeText(ev, dayStr, { suffix: true }))}">${segment?.continuesBefore ? bandContinuationHtml('before') : ''}${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="allday-event__line"><span class="allday-event__label"><span>${esc(ev.title)}</span>${allDayChipTimeHtml(timeText)}</span>${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</span>${segment?.continuesAfter ? bandContinuationHtml('after') : ''}</div>`;
 }
 
 /**
@@ -4582,9 +4575,9 @@ function renderWeekBand(band) {
   const until = continuesAfter ? '' : allDayChipTimeText(ev, endKey);
   const spoken = bandSpokenWhen(ev, { continued: continuesBefore });
   return `
-    <div class="${bandClasses('allday-event', band)}" data-id="${ev.id}" data-start="${esc(startKey)}" data-end="${esc(endKey)}"
+    <div class="${bandClasses('allday-event', band)}${eventCompletionClass(ev)}" data-id="${ev.id}" data-start="${esc(startKey)}" data-end="${esc(endKey)}" data-calendar-event
          style="grid-column:${first + 2} / span ${last - first + 1};grid-row:${lane + 1};${eventSurfaceStyle(ev)}"${eventBlockAttrs(ev, spoken)}
-         title="${[ev.title, bandSpokenWhen(ev), ev.cal_name].filter(Boolean).map((part) => esc(part)).join(' · ')}${chipAssigneeTitleSuffix(ev)}">${continuesBefore ? bandContinuationHtml('before') : ''}${eventGlyphsHtml(ev)}<span class="allday-event__line"><span class="allday-event__label"><span>${esc(ev.title)}</span>${allDayChipTimeHtml(from)}</span>${until ? `<small class="allday-event__time cal-band__until">${esc(until)}</small>` : ''}${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</span>${continuesAfter ? bandContinuationHtml('after') : ''}</div>`;
+         title="${[ev.title, bandSpokenWhen(ev), ev.cal_name].filter(Boolean).map((part) => esc(part)).join(' · ')}${chipAssigneeTitleSuffix(ev)}">${continuesBefore ? bandContinuationHtml('before') : ''}${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="allday-event__line"><span class="allday-event__label"><span>${esc(ev.title)}</span>${allDayChipTimeHtml(from)}</span>${until ? `<small class="allday-event__time cal-band__until">${esc(until)}</small>` : ''}${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</span>${continuesAfter ? bandContinuationHtml('after') : ''}</div>`;
 }
 
 function renderWeekEvent(ev, layout = null, dayStr = null) {
@@ -4599,8 +4592,8 @@ function renderWeekEvent(ev, layout = null, dayStr = null) {
   const width = layout ? `calc(${100 / layout.totalCols}% - 4px)` : 'calc(100% - 4px)';
 
   return `
-    <div class="week-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}"
-         style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}"
+    <div class="week-event${eventCompletionClass(ev)}" data-id="${ev.id}"
+         style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}" data-calendar-event
          title="${esc(ev.title)}${chipAssigneeTitleSuffix(ev)}"${eventBlockAttrs(ev, eventTimeText(ev, dayStr))}>
       <div class="week-event__title">${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span></div>
       <div class="week-event__time"><span class="week-event__when">${gridTimeText(ev, dayStr)}</span>${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</div>
@@ -4797,14 +4790,7 @@ function renderDayView(container) {
           `).join('')}
           ${scheduleChips.map((entry) => renderScheduleChip(entry, 'allday-holiday', { showFullRange: true, clickable: true })).join('')}
           ${dayWaste.map((occ) => renderWasteChip(occ)).join('')}
-          ${allday.map((ev) => {
-            const timeText = allDayChipTimeText(ev, state.cursor);
-            const spoken = allDayChipTimeText(ev, state.cursor, { suffix: true });
-            return `
-            <div class="allday-event${eventCompletionClass(ev)}" data-id="${ev.id}" data-calendar-event
-                 style="${eventSurfaceStyle(ev)}"
-                 title="${allDayChipTitle(ev, timeText)}"${eventBlockAttrs(ev, spoken || t('calendar.allDay'))}>${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="allday-event__label"><span>${esc(ev.title)}</span>${allDayChipTimeHtml(timeText)}</span>${chipAssigneeStack(ev, { size: 16, maxVisible: 3 })}</div>`;
-          }).join('')}
+          ${allday.map((ev) => renderAllDayEvent(ev, state.cursor)).join('')}
           ${tasksOnDay(state.cursor).map(renderTaskChip).join('')}
         </div>
       </div>` : ''}
@@ -4929,8 +4915,8 @@ function renderDayEvent(ev, layout = null, dayStr = null) {
   const timeText = gridTimeText(ev, dayStr);
 
   return `
-    <div class="day-event${roomy ? '' : ' day-event--tight'}${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}"
-         style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}"
+    <div class="day-event${roomy ? '' : ' day-event--tight'}${eventCompletionClass(ev)}" data-id="${ev.id}"
+         style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}" data-calendar-event
          title="${esc(ev.title)}${ev.location ? ' · ' + esc(fmtLocation(ev.location)) : ''}${chipAssigneeTitleSuffix(ev)}"${eventBlockAttrs(ev, eventTimeText(ev, dayStr))}>
       <span class="day-event__text">
         <span class="day-event__title">${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="day-event__name cal-event__title">${esc(ev.title)}</span></span>
@@ -5882,7 +5868,6 @@ export const __test = {
   monthGridKeyTarget,
   addMonthsClamped,
   taskChipAriaLabel,
-  renderTaskChip,
   handleGridKeydown,
   chronological,
   CAL_SHORTCUT_KEYS,

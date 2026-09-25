@@ -29,20 +29,27 @@ test('Kalender-Toolbar verwendet nur den Filterblatt-Einstieg', () => {
   assert(start >= 0 && end > start, 'renderToolbar muss als eigener Block auffindbar sein');
 
   const body = source.slice(start, end);
-  const warningAt = body.indexOf('const scheduleWarningHtml =');
-  const filterAt = body.indexOf('const filterBtnHtml =');
-  assert(warningAt >= 0 && warningAt < filterAt,
-    'die Schichtwarnung muss vor dem Filterknopf definiert werden');
-  assert(body.includes('${filterBtnHtml}'),
-    'der erzeugte Filterknopf muss in die Toolbar eingesetzt werden');
-  assert(/id="cal-search"[\s\S]*\$\{filterBtnHtml\}[\s\S]*class="page-toolbar__center/.test(body),
-    'Suche und Filter müssen als benachbarte Kopfaktionen vor der Datumsnavigation stehen');
-  assert(/<div class="page-toolbar__actions">\s*\$\{scheduleWarningHtml\}/.test(body),
-    'die übrigen Aktionen behalten die Schichtwarnung und den Anlegeknopf');
-  assert(!/<div class="page-toolbar__actions">[\s\S]*\$\{filterBtnHtml\}/.test(body),
-    'der Filterknopf darf nicht mehr im Actions-Slot liegen');
+  assert(body.includes('const scheduleWarningHtml ='),
+    'renderToolbar muss die Schichtwarnung weiter aus dem aktuellen Zustand ableiten');
+  assert(body.includes('toolbarHtml({ filterCount, scheduleWarningHtml })'),
+    'renderToolbar muss den gemeinsamen Toolbar-Baustein verwenden');
   assert(body.includes("bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters)"),
     'der Filterknopf muss das Filterblatt oeffnen');
+
+  const html = calendarHelpers.toolbarHtml({
+    filterCount: 1,
+    scheduleWarningHtml: '<span class="test-schedule-warning"></span>',
+  });
+  const actions = html.indexOf('class="page-toolbar__actions"');
+  const bar = html.indexOf('class="page-toolbar__bar');
+  const filters = html.indexOf('id="cal-filters"');
+  const search = html.indexOf('id="cal-search"');
+  assert(actions >= 0 && bar > actions && filters > bar && search > bar,
+    'Filter und Suche müssen im gemeinsamen Baustein hinter dem Aktions-Slot in der Bar-Zeile stehen');
+  const actionsHtml = html.slice(actions, bar);
+  assert(actionsHtml.includes('test-schedule-warning') && !actionsHtml.includes('cal-filters')
+    && !actionsHtml.includes('cal-search'),
+  'der Aktions-Slot behält die Warnung und enthält keine Filter- oder Suchaktion');
 
   for (const legacy of [
     'holidayToggleHtml',
