@@ -35,6 +35,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
   document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
   same 403 for every id. (#1358)
+- **The month on a phone shows the day you pick below the grid.** Tapping a day in the month view
+  now selects it instead of jumping to the day view, and its events and tasks appear as a list
+  under the grid, in the same rows as the agenda; the date above the list opens the day view. Drag
+  the list up or scroll it and the grid shrinks to the selected week, drag down to bring the month
+  back, or use the button next to the date. A free day offers to add an event for that day, and
+  "+" adds to the selected day. Tasks and events are now told apart by shape (square and round)
+  instead of a ring that was hard to see in dark mode, and the "Event titles" switch moved from the
+  filter sheet to the month itself. Collapsed to the selected week, a swipe or the arrows move one
+  week instead of a month, as in Apple Calendar, and the month follows when the selection crosses
+  into the next one. With event titles on, the weeks share a fixed height, so the list below keeps
+  the same room in every month; a cell that runs out of space shows "+2".
+
+- **Swipe between months, weeks and days in the calendar.** On a touch screen a horizontal swipe
+  over the month, week or day view moves to the next or previous period, with the same distance and
+  vibration as the swipe actions in lists. Vertical scrolling, the hour grid and the system's
+  back gesture at the screen edge keep working; with reduced motion the new period appears without
+  sliding in. The arrow buttons stay for mouse and keyboard.
+
+- **The calendar can be driven from the keyboard.** In the calendar, `t` jumps to today, `k` and `j`
+  (or the arrow keys when nothing is focused) move to the previous and next period, and `m`, `w`, `d`
+  and `a` switch to month, week, day and agenda - the keys Google Calendar uses. The help dialog
+  (`?`) lists them while you are in the calendar. The month grid is now a single tab stop: the
+  arrow keys move through the days and across into the next month, Home and End go to the start
+  and end of the week, Page Up and Page Down move a month, and Enter opens the day (on a phone it
+  selects it for the list below).
+
 - **The calendar tile shows the week ahead at 2x1.** Set to the wide size, the calendar tile on the
   overview no longer lists three events but shows the next seven days: a dot per event in the colour
   of the event, person or calendar, a band for all-day and multi-day events (with an open end where
@@ -54,6 +80,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the module's own balance source, so it shows what the module shows.
 
 ### Changed
+
+- **The calendar gives phones more room for events.** Filter and search moved next to the view
+  switcher, so the calendar header on a phone is 166px instead of 230px, and when you scroll the
+  week, day or agenda, the page title folds away completely and leaves only the date navigation
+  and the view switcher (121px). The month now shows 65 % of the screen instead of 56 %, the week
+  nine hours instead of six and a half. The week's day headings sit in one line with the date and
+  the hour column is narrower. The period label keeps its width, so the arrows no longer jump
+  when you switch views, and on wide screens they sit next to the label instead of at the far
+  ends of the header.
+
+- **The month grid has only as many rows as the month needs.** It used to show six weeks every
+  time, so a month like September 2026 ended with a full row of October; it now shows four to six.
+
+- **An event looks the same in every calendar view, and every time reads "17:00 - 18:30".** The
+  month showed a tinted bar with a coloured edge, the week a block with an extra frame and a
+  generic calendar icon, the day a card with two colour strokes and its title floating in the
+  middle, the agenda a white row with a coloured dot. Now all of them follow the month: tinted
+  surface, one coloured edge, the title at the top and the time underneath when there is room;
+  agenda rows and the day list under the phone month carry the same edge instead of the dot.
+  An event shows its icon only when you picked one, in every view, and the repeat mark on every
+  series. Icons take the colour of the title instead of the raw event colour, which was hard to
+  read on light colours such as amber. Times use one format everywhere, with "Uhr" once at the
+  end in German instead of after each time, and shift times now follow the 12-hour setting. The
+  "ganztg." label next to the all-day row is now the full word and wraps in the narrow phone
+  column instead of running into the screen edge, tasks in the agenda sit closer together and line up with the
+  date and the event rows, and the initials in the agenda's avatar stack are 12px.
+
+- **The calendar's arrows say where they go.** They are named "Previous month", "Next week",
+  "Next 3 days" or "Next 30 days", depending on the view, instead of "Back" and "Forward", and
+  show that name as a tooltip. The agenda's heading names the span it lists ("24.09. -
+  24.10.2026") instead of only its first day, so it is clear that "Forward" moves thirty days.
+
+- **The event dialog asks the common things first.** Title, time, people, recurrence, reminders,
+  location and description now come first; visibility, the countdown switch, colour, icon, sync
+  target and attachment moved behind "More settings", which now names what it holds. Start and
+  end each take one row with date and time side by side, so the dialog on a phone is about a
+  third shorter. When you edit an event with a restricted visibility, a countdown or an
+  attachment, the section opens by itself. "Add reminder" is a compact button under the reminders
+  instead of a bar across the whole dialog. The "Nobody" choice in every people picker is now a
+  plain chip instead of a grey placeholder avatar with dashes around the word.
+
+- **Edit sits at the bottom of an event on a phone, Delete no longer does.** The sheet that opens
+  for an event put Edit at the top, out of reach of the thumb, and Delete at the bottom, where the
+  thumb rests. Edit is now the main button at the bottom right; Delete stays in red at the start
+  of the row and still asks before it deletes.
+
+- **"Clear all filters" is always in view.** It sat at the end of the calendar's filter sheet,
+  below the fold on a laptop screen, and now sits at the sheet's bottom edge.
 
 - **Rewards on the dashboard show progress, not a ranking.** A child sees only their own balance, a
   quiet bar to the next reward, recently earned points and their own pending requests - no
@@ -82,6 +156,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   quiet day.
 
 ### Fixed
+
+- **Events in the week and day view can be reached by keyboard and screen reader.** They could only
+  be clicked: Tab skipped them and a screen reader did not offer them. Every event, all-day bar
+  and day heading is now a button named like the agenda row (title, time, place, people), in the
+  order of the day, and Enter opens it. Tasks in the calendar now say their priority, and the
+  month's days say what is on them ("Thursday, 24.09.2026, today, 3 entries: ...") instead of
+  only how much. Tasks in the agenda are easier to hit: the touch area around them is 44px (48px
+  on touch screens) while they look the same.
+
+- **Hints under form fields are small and grey, and compact buttons compact, in every module.**
+  Outside the settings, the explanatory line under a field showed in full-size, full-contrast
+  body text - in the event dialog, in budget, contacts, meals, shopping and elsewhere - and read
+  louder than the field it belonged to, because its style was only loaded on the settings pages.
+  The compact button style had the same fault: it only loaded on the rewards page, so buttons
+  meant to be compact in the settings, health, inventory, documents, tasks and the calendar had
+  the full padding. They are compact everywhere now and keep a height of 40px for the mouse (44px
+  and more on touch) - on the rewards page that makes them 8px taller than before.
 
 - **"Today" no longer gives a false all-clear.** Open doses, pending approvals (for the person who
   approves them), today's bin and "put it out tonight", birthdays, your own shift, due reminders,

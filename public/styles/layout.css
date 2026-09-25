@@ -4663,6 +4663,22 @@ p.field-hint--warn[hidden] {
 }
 
 /* Default-Disclosure-Dreieck entfernen (Cross-Browser) */
+/* Mit `hint`: die Beschriftung und darunter, was hinter ihr liegt. Die zweite
+ * Zeile ist eine Stufe leiser (Caption-Groesse, tertiaer) und bricht um, statt
+ * den Chevron aus der Zeile zu schieben. */
+.form-advanced__label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0h);
+  min-width: 0;
+}
+
+.form-advanced__hint {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-tertiary);
+}
+
 .form-advanced__summary::-webkit-details-marker { display: none; }
 .form-advanced__summary::marker { content: ''; }
 
@@ -5030,6 +5046,39 @@ p.field-hint--warn[hidden] {
   border-color: transparent;
 }
 
+/* DER KLEINE KNOPF fuer dichte Aktionsreihen (Kartenfuss, Zeilenaktion,
+ * Hinzufuegen unter einer Liste). Er stand bis 2026-09-24 in rewards.css,
+ * und das laedt der Router nur auf /rewards: an rund hundert Stellen in
+ * Einstellungen, Aufgaben, Gesundheit, Inventar, Dokumenten und Kalender
+ * trug `btn--sm` nichts, und der Knopf war ein normaler - derselbe Fehler wie
+ * `.form-hint` in settings.css (test-frontend-audit: „global geladen").
+ *
+ * KLEIN HEISST SCHMALER, NICHT UNTER DIE ZIELGROESSE. In rewards.css stand
+ * `min-height: var(--target-sm)` (32px) - ein Token, das tokens.css selbst
+ * „kein Touch-Target" nennt. Solange die Regel nur auf /rewards galt, fiel
+ * das nicht auf; global haette sie die Einnehmen-Knoepfe der Gesundheit, die
+ * in schmalen Karten nur ihr Symbol zeigen, auf 36x32px gedrueckt - ein
+ * freistehendes Ziel unter den 40px am Zeiger (Zielgroessen-Regel). Der
+ * kleine Knopf spart deshalb Polsterung, Luecke und die 48px, die `.btn`
+ * unter 1024px nach der BREITE traegt; die Hoehe haelt die Zielgroesse der
+ * Geraetewelt (`--target-md` am Zeiger, `--target-base` am Finger).
+ *
+ * VOR `.btn--icon`, nicht dahinter: `btn--icon btn--sm` steht an einem
+ * Dutzend Stellen, und der Icon-Knopf behaelt dort seine quadratische
+ * 44px-Flaeche - der kleine Knopf verdichtet Text, kein Symbol. */
+.btn--sm {
+  min-height: var(--target-md);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  gap: var(--space-1);
+}
+
+@media (pointer: coarse), (max-width: 639px) {
+  .btn--sm {
+    min-height: var(--target-base);
+  }
+}
+
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -5238,6 +5287,29 @@ textarea::placeholder {
   font-weight: var(--font-weight-regular);
   color: var(--color-text-tertiary);
 }
+
+/* DIE HINWEISZEILE UNTER EINEM FELD - global, weil sie global benutzt wird.
+ *
+ * Die Regel lebte bis 2026-09-24 in settings.css. Der Router laedt aber genau
+ * EIN Seiten-Blatt pro Route, und `.form-hint` steht in fast jedem Modul:
+ * ueberall ausser in den Einstellungen fiel sie auf den geerbten Koerpertext
+ * zurueck (16px, volle Primaertinte) - lauter als das Label und das Feld, zu
+ * denen sie gehoert (Critique 2026-09-24, P2, gemessen im Termin-Dialog).
+ * Kalender, Budget, Kontakte, Dokumente, Inventar und die Fasten-Bausteine
+ * trugen dafuer eine eigene Kopie oder eine Ersatzklasse. Die Regel
+ * steht deshalb hier; `test:frontend-audit` haelt sie in einem Blatt, das
+ * index.html fuer jede Route verlinkt. Nur die Zeilenlaenge der
+ * Einstellungen (`.settings-page .form-hint`) bleibt in settings.css. */
+.form-hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Tonlagen für Hinweistexte. Vorher setzte `admin-backup.js` die Farbe des
+   Verbindungstests inline (`style.color = 'var(--color-success)'`), was den
+   Wert am Token vorbei ins Markup schrieb. */
+.form-hint--success { color: var(--color-success); }
+.form-hint--danger { color: var(--color-danger); }
 
 .required-marker {
   color: var(--color-danger);

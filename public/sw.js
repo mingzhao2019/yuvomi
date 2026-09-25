@@ -182,6 +182,7 @@ const APP_SHELL = [
   '/utils/pantry-status.js',
   '/utils/pantry-units.js',
   '/utils/people-picker.js',
+  '/utils/period-swipe.js',
   '/utils/permission-group.js',
   '/utils/phone.js',
   '/utils/popover-menu.js',

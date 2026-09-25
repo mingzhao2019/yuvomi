@@ -1606,7 +1606,25 @@ function reminderAccess() {
 function renderReminderSection(task = null, reminder = null) {
   const access = reminderAccess();
   if (access === 'none' || (access === 'read' && !reminder)) return '';
-
+  // Ein gesperrter Abschnitt zeigt weiter, WAS eingestellt ist, und nimmt
+  // nichts an: `disabled` an jedem Bedienelement. Der Riegel im Formular
+  // (handleFormSubmit) haengt nicht daran - `checked` liesse sich auch an einem
+  // disabled-Kaestchen ablesen -, er fragt reminderAccess() selbst.
+  //
+  // `disabled` nimmt die Felder auch aus der TAB-ORDNUNG - der gespeicherte
+  // Wert ist dann sichtbar, aber per Tastatur nicht erreichbar. Fuer Knoepfe
+  // kennt das Haus dafuer `aria-disabled` (layout.css `.btn[aria-disabled]`);
+  // ein Kontrollkaestchen kann kein `readonly` tragen, ein `aria-disabled`-
+  // Kaestchen bliebe also bedienbar und muesste im Skript zurueckgesetzt
+  // werden. Das ist der Tausch, den diese Stelle bewusst macht.
+  //
+  // Die Hinweiszeile traegt `.task-field-hint` aus tasks.css und KEINE eigene
+  // Klasse: derselbe Satz in derselben Rolle darf nicht dreimal verschieden
+  // aussehen. (Der Kalender-Dialog hatte dafuer `.cal-field-hint`; seit
+  // `.form-hint` global in layout.css steht, nimmt er diese.) Tragfaehig ist
+  // das, weil BEIDE Wege in dieses Markup
+  // tasks.css mitbringen - die Route /tasks laedt es als Seiten-Blatt, und
+  // `openTaskById()` (Dashboard, Kalender) awaitet vorher `ensureTaskStyles()`.
   const locked = access === 'read';
   const off = locked ? ' disabled' : '';
   // `off` haengt auch am versteckten Transportfeld weiter unten, obwohl das

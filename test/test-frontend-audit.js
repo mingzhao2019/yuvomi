@@ -361,8 +361,29 @@ test('English and French user multi-select none labels are localized', () => {
   const en = JSON.parse(read('../public/locales/en.json'));
   const fr = JSON.parse(read('../public/locales/fr.json'));
 
-  assert.equal(en.userMultiSelect.nobody, '- No one -');
-  assert.equal(fr.userMultiSelect.nobody, '- Personne -');
+  assert.equal(en.userMultiSelect.nobody, 'No one');
+  assert.equal(fr.userMultiSelect.nobody, 'Personne');
+});
+
+// „NIEMAND" IST EIN RUHIGER EINTRAG, KEINE PERSON (Critique 2026-09-24). Der
+// Chip trug einen grauen Kreis mit einem Gedankenstrich, und das Wort stand in
+// Strichen („- Niemand -") - ein Platzhalter-Gesicht neben echten Initialen.
+// Geprueft am gerenderten Markup der Komponente und am Wortlaut jeder Sprache.
+test('user multi-select: „Niemand" ohne Avatar und ohne Strich-Dekoration', () => {
+  const src = read('../public/components/user-multi-select.js');
+  const start = src.indexOf('export function renderUserMultiSelect(');
+  const body = src.slice(start, src.indexOf('\n}', start));
+  const none = /<label class="([^"]*)">\s*<input[^>]*user-ms__none[^>]*>([\s\S]*?)<\/label>/.exec(body);
+  assert.ok(none, 'die „Niemand"-Option ist nicht mehr als eigene Zeile gerendert');
+  assert.doesNotMatch(none[2], /user-ms__avatar/, '„Niemand" traegt wieder einen Avatar');
+  assert.match(none[1], /\buser-ms__option--none\b/, 'ohne Avatar braucht der Chip sein eigenes Polster');
+  assert.match(read('../public/styles/user-multi-select.css'), /\.user-ms__option--none\s*\{[^}]*padding-inline-start/);
+  const offenders = [];
+  for (const file of readdirSync(new URL('../public/locales/', import.meta.url)).filter((f) => f.endsWith('.json'))) {
+    const value = JSON.parse(read(`../public/locales/${file}`)).userMultiSelect?.nobody ?? '';
+    if (/^[-\u2013\u2014]\s|\s[-\u2013\u2014]$/.test(value)) offenders.push(`${file}: ${value}`);
+  }
+  assert.deepEqual(offenders, [], '„Niemand" steht wieder in Strichen');
 });
 
 test('dynamic frontend translation key domains exist in every locale', () => {
@@ -6915,7 +6936,7 @@ test('calendar month view uses tinted event surfaces derived from --ev-color', (
 test('calendar agenda events and task chips keep readable contrast in mobile agenda', () => {
   const calendar = read('../public/styles/calendar.css');
   const eventBody = cssRuleBody(calendar, '.agenda-event');
-  const colorBody = cssRuleBody(calendar, '.agenda-event__color');
+  const edgeBody = cssRuleBody(calendar, '.agenda-event__body');
   const taskBody = cssRuleBody(calendar, '.cal-task-chip');
   const metaBody = cssRuleBody(calendar, '.agenda-event__meta');
 
@@ -6929,11 +6950,11 @@ test('calendar agenda events and task chips keep readable contrast in mobile age
   assert.doesNotMatch(eventBody, /border:|box-shadow:/, 'the agenda row is a row: no own edge, no own shadow');
   assert.match(read('../public/pages/calendar.js'), /<div class="list-rows">\$\{events/,
     'agenda events must sit in exactly one carrier (.list-rows), which carries surface and hairlines');
-  // Kalenderfarbe ist ein zentrierter Dot (kein vollhoher Seitenstreifen) —
-  // tokenisiert und sichtbar, konsistent mit den Status-Dots der Aufgabenliste.
-  assert.match(colorBody, /width:\s*var\(--space-2\)/, 'agenda color dot should use a spacing token for its width');
-  assert.match(colorBody, /height:\s*var\(--space-2\)/, 'agenda color dot should be a fixed-size dot, not a full-height rail');
-  assert.match(colorBody, /border-radius:\s*var\(--radius-full\)/, 'agenda color dot should be round');
+  // Die Kalenderfarbe ist seit 2026-09-24 die Kante der Bloecke, nicht mehr ein
+  // 8px-Punkt (Critique P2, eine Termingrammatik): am TEXT der Zeile, nicht an
+  // der Zeile, damit die Zeile eine Zeile bleibt (die Zusage oben).
+  assert.match(edgeBody, /border-inline-start:\s*var\(--cal-event-edge\) solid var\(--ev-color/, 'the agenda row names its calendar colour with the block edge');
+  assert.doesNotMatch(calendar, /\.agenda-event__color\s*\{/, 'the retired colour dot must not come back as a second form');
   // Die Toenung IST der zweite Kanal neben der Textfarbe. Kante und Schatten
   // waren ein dritter und vierter Traeger derselben Information - dieselbe
   // Zusage, die `.month-day__event` seit dem HIG-Rollout flach haelt, und der
@@ -10775,11 +10796,77 @@ test('settings.css haelt Zeilenlaenge, Token-Disziplin und keine toten Regeln', 
     assert.ok(shell.includes(cls), `${cls} muss im Markup vorkommen, sonst ist die CSS-Regel tot`);
   }
 
-  // Design-Werte gehoeren nicht ins JS.
+  // Design-Werte gehoeren nicht ins JS. Die Tonlagen stehen seit 2026-09-24
+  // mit `.form-hint` in layout.css (siehe den Guard darunter).
   const backup = read('../public/settings/pages/admin-backup.js');
   assert.ok(!/\.style\.(opacity|color)\s*=/.test(backup), 'Tone/Opazitaet ueber Klassen, nicht inline');
-  assert.match(css, /\.form-hint--success \{ color: var\(--color-success\); \}/);
+  assert.match(read('../public/styles/layout.css'), /\.form-hint--success \{ color: var\(--color-success\); \}/);
   assert.match(css, /\.settings-page \.form-input:disabled \{/);
+});
+
+/*
+ * GETEILTE KLASSEN STEHEN IN EINEM BLATT, DAS JEDE ROUTE LAEDT (Critique 2026-09-24).
+ *
+ * `.form-hint` lebte in settings.css, `.btn--sm` in rewards.css. Der Router
+ * laedt pro Route genau EIN Seiten-Blatt, und beide Klassen stehen in fast
+ * jedem Modul: ausserhalb ihrer Heimatroute fiel jede Hinweiszeile auf den
+ * Koerpertext zurueck (16px, volle Primaertinte; im Termin-Dialog an sieben
+ * Stellen), und jeder kleine Knopf war ein normaler (rund hundert Stellen).
+ * Kalender, Budget, Kontakte, Dokumente und die Fasten-Bausteine trugen fuer
+ * den Hinweis Kopien oder Ersatzklassen.
+ *
+ * Zwei Fragen je Klasse: Steht die Basisregel genau einmal, und zwar in einem
+ * Blatt, das index.html verlinkt? Und traegt kein anderes Blatt eine Kopie
+ * davon - eine Regel, deren letztes Glied die Klasse ist und die eine ihrer
+ * tragenden Eigenschaften setzt? Eine Anpassung im Kontext, die keine davon
+ * setzt (`.settings-page .form-hint { max-width }`, `.caldav-account-actions
+ * .btn--sm:first-child { flex }`), bleibt erlaubt.
+ */
+const SHARED_CLASSES = [
+  { cls: 'form-hint', props: ['font-size', 'color'] },
+  { cls: 'btn--sm', props: ['min-height', 'padding', 'font-size'] },
+];
+
+for (const { cls, props } of SHARED_CLASSES) {
+  test(`.${cls} steht in einem global geladenen Blatt, und kein Modul traegt eine Kopie`, () => {
+    const html = withoutHtmlComments(read('../public/index.html'));
+    const globals = new Set([...html.matchAll(/<link rel="stylesheet" href="\/styles\/([\w-]+\.css)"/g)].map((m) => m[1]));
+    assert.ok(globals.has('layout.css'), 'index.html nennt layout.css nicht mehr - die globalen Blaetter sind nicht mehr lesbar');
+    const own = new RegExp(`(?:^|[\\s>+~])\\.${cls}$`);
+    const sets = new RegExp(`(?:^|[;{\\s])(?:${props.join('|')})\\s*:`);
+    const homes = [];
+    const copies = [];
+    for (const { file, css } of stylesheetFiles()) {
+      for (const { selector, body, at } of eachRule(css)) {
+        for (const sel of selector.split(',').map((x) => x.trim())) {
+          if (sel === `.${cls}` && at.length === 0) homes.push(file);
+          else if (sel !== `.${cls}` && own.test(sel) && sets.test(body)) copies.push(`${file}: ${sel}`);
+          else if (sel === `.${cls}` && !globals.has(file)) copies.push(`${file}: ${sel} (in ${at.join(' ')})`);
+        }
+      }
+    }
+    assert.equal(homes.length, 1, `die Basisregel .${cls} steht ${homes.length}x: ${homes.join(', ')}`);
+    assert.ok(globals.has(homes[0]),
+      `.${cls} steht in ${homes[0]} - das laedt der Router nur auf seiner Route, ueberall sonst traegt die Klasse nichts`);
+    assert.deepEqual(copies, [], `eine Kopie von .${cls} in einem Seiten-Blatt - die Regel ist global, die Kopie verdeckt, wenn sie fehlt`);
+  });
+}
+
+// KLEIN HEISST SCHMALER, NICHT UNTER DIE ZIELGROESSE (2026-09-24). Der kleine
+// Knopf stand in rewards.css auf `--target-sm` (32px, laut tokens.css „kein
+// Touch-Target"); global haette das die Einnehmen-Knoepfe der Gesundheit, die
+// in schmalen Karten nur ihr Symbol zeigen, auf 36x32px gedrueckt.
+test('.btn--sm haelt die Zielgroesse der Geraetewelt, auch am Zeiger', () => {
+  const css = read('../public/styles/layout.css');
+  const rules = [...eachRule(css)].filter((r) => r.selector.split(',').map((x) => x.trim()).includes('.btn--sm'));
+  const base = rules.find((r) => r.at.length === 0);
+  assert.ok(base, '.btn--sm hat keine Basisregel in layout.css');
+  assert.match(base.body, /min-height:\s*var\(--target-md\)/, 'am Zeiger unter 40px - ein freistehender kleiner Knopf faellt unter die Zielgroessen-Regel');
+  for (const r of rules) {
+    assert.doesNotMatch(r.body, /--target-sm/, `.btn--sm liest --target-sm (${r.at.join(' ') || 'Basis'}) - das Token ist keine Zielgroesse`);
+  }
+  const touch = rules.find((r) => r.at.some((a) => /pointer:\s*coarse/.test(a)));
+  assert.ok(touch && /min-height:\s*var\(--target-base\)/.test(touch.body), 'am Finger fehlt --target-base');
 });
 
 // Avatare tragen die Farbe, die sich das Mitglied selbst aussucht; die
@@ -13515,8 +13602,8 @@ test('jede Stufe der Toenungsskala hat mindestens einen Nutzer', () => {
  *   2. KANTE, RING ODER PUNKT. Eine FREI GEWAEHLTE Nutzerfarbe kann keine
  *      Flaeche tragen, weil ihre Helligkeit unbestimmt ist (ein schwarzer
  *      Termin lag bei 1.22:1). Sie steht deshalb NEBEN dem Inhalt statt
- *      darunter: `border-inline-start: 3px solid` am Kalenderblock, der
- *      Inset-Ring an der Countdown-Scheibe, der 8px-Punkt an der Agendazeile.
+ *      darunter: `border-inline-start: 3px solid` am Kalenderblock und an der
+ *      Agendazeile, der Inset-Ring an der Countdown-Scheibe.
  *      Dort braucht sie keine Tinte, also auch keine Zusicherung ueber sie.
  *
  * WER NICHTS NENNT, FAELLT NICHT UNTER DIE REGEL. Ein Platzhalter - die

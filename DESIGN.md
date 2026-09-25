@@ -990,7 +990,10 @@ Textrolle, die die App ueberhaupt kennt (Verhaeltnis <= 0.55 statt der freien Pr
 Darunter IST die Scheibe der Kanal: die Nutzerfarbe traegt per Identitaetsfarben-Regel
 ohnehin das Signal, der Name steht im `title`. Vorher stand hier eine 9px-Untergrenze, und
 die Kalender-Gitter riefen mit `size` 14-16 genau hinein (Sonde `undersized-ui-text`, 13
-Fundstellen). Ein 9px-Text sagt weniger als ein sauberer Punkt.
+Fundstellen). Ein 9px-Text sagt weniger als ein sauberer Punkt. Wo der Stapel neben
+Fliesstext steht statt in einem Chip, hebt `minFont` die Untergrenze (Agenda-Zeile seit
+2026-09-24: 12px auf 22px Scheibe, neben der 14px-Metazeile) - die Scheibe waechst mit, damit
+das Verhaeltnis haelt.
 
 ## Layout
 
@@ -1204,6 +1207,14 @@ blind nach innen kopieren.
   lokale Ueberschreibungen blieben wirkungslos. `--focus-ring-offset-inset` (-2px) ist nur
   fuer Elemente an einer geclippten Kante da.
 
+- **Klein (`.btn--sm`):** fuer dichte Aktionsreihen - Polsterung 4px 12px, Luecke 4px, die
+  Hoehe bleibt die Zielgroesse der Geraetewelt (`--target-md` am Zeiger, `--target-base` am
+  Finger). Klein heisst schmaler, nicht unter die Zielgroesse. Steht seit 2026-09-24 in
+  `layout.css`; vorher in rewards.css, und damit trug die Klasse an rund hundert Stellen
+  ausserhalb von /rewards nichts. Mit `.btn--icon` kombiniert behaelt der Icon-Knopf seine
+  quadratische Flaeche (die Regel steht davor). Guard: „.btn--sm steht in einem global
+  geladenen Blatt" und „haelt die Zielgroesse der Geraetewelt" (test-frontend-audit).
+
 **Die Eine-Buttonform-Regel.** Es gibt genau eine Buttonform, und sie steht genau an einer
 Stelle. Der Guard `one button shape app-wide` prueft die Kapsel in der `.btn`-Basisregel und
 verbietet JEDER weiteren Regel mit einer `.btn`-Variante im Selektor, einen border-radius zu
@@ -1374,6 +1385,19 @@ Sonde 6 hatte, als sie nach `.metric-grid` fragte und die Reihe nicht sah.
 gross und dehnt seine Flaeche per `::before` auf `--target-base` aus; eine Box-Messung meldet
 ihn als Verstoss, obwohl der Finger 44px findet. Das ist zugleich das Rezept fuer „kompakt
 aussehen, voll treffen".
+
+**Wo gedehnt wird, gehoert die sichtbare Flaeche immer dem eigenen Ziel** (2026-09-24). Die
+Aufgabe in Agenda und Tagesliste (`.agenda-tasks .cal-task-chip`) bleibt die 24px-Bar und dehnt
+ihre Flaeche per `::before` senkrecht auf `--target-base`; die Polsterung der Liste ist genau
+diese Dehnung (`--task-hit-grow`), sonst griffe die Flaeche in den Termin darueber. Zwischen zwei
+Aufgaben duerfen sich die Dehnungen ueberlappen (8px Zeilenabstand statt 20-24px, sonst stand
+die Liste im 48px-Takt luftiger als die Terminzeilen) - aber UNTER den Chips: `z-index: -1` im
+eigenen Stapelkontext (`isolation: isolate`), damit ein Tipp auf eine sichtbare Bar nie die
+Nachbarin trifft. Eine Ueberlappung auf der sichtbaren Flaeche ist ein Treffer fuer das
+falsche Ziel, eine in der Luft dazwischen nicht. Traegt das Ziel selbst
+`overflow: hidden`, schneidet es sein Pseudo ab: dann `overflow: visible` und die Ellipse ans
+Kind. Im Ganztags-Stapel der Woche bleibt die Aufgabe ein Reihen-Bauteil (24px, Spacing-
+Ausnahme) - dort kann keiner wachsen, ohne den Nachbarn zu verdecken.
 
 **Die Groesse des Icon-Knopfs gehoert der Shell.** `.btn--icon` nimmt `--target-base` und
 schaltet damit ueber `(hover: none)`. Vorher schaltete es ueber `@media (min-width: 1024px)`,
@@ -1583,6 +1607,15 @@ nur das gerenderte Dokument sieht, ob eine Liste ueberhaupt verdrahtet ist.
   Kanonisch fuer neuen Code ist `.form-input` - der Name, den `.form-group`/`.form-field`/
   `.form-label` schon fuehren. Bestand bleibt unangetastet, Umbenennen aller Fundstellen ist
   keine Migration wert.
+- **Hinweiszeile:** `.form-hint` (14px, Sekundaertext, Tonlagen `--success`/`--danger`) steht
+  in layout.css, weil fast jedes Modul sie benutzt - bis 2026-09-24 lebte sie in settings.css
+  und renderte ueberall sonst als 16px-Koerpertext. Eine geteilte Klasse gehoert in ein Blatt,
+  das index.html verlinkt; eine Kopie oder Ersatzklasse im Seiten-Blatt ist der Fehler, nicht
+  die Loesung (`test:frontend-audit`). `.task-field-hint` (12px, tertiaer) ist die leisere
+  Bestandsstimme der Aufgaben und Erinnerungen.
+- **„Weitere Einstellungen" nennt, was dahinter liegt:** `advancedSection(..., { hint })` setzt
+  unter die Beschriftung eine Caption-Zeile mit den Feldnamen. Ein Feld, das nur hinter dem
+  Aufklapper steht, findet sonst nur, wer schon weiss, dass es existiert.
 
 ### Nur lesen: das Zeichen statt des Knopfs (#1252, #1265)
 Wer ein Modul nur lesen darf, sieht den ZUSTAND, aber keine Handlung. Der Server weist
@@ -1668,7 +1701,12 @@ seiner 7ch-Untergrenze ellipsiert); mobil zeigte Gesundheit 3 von 6, die Haushal
 
 Traeger: die Klasse sitzt direkt an einer Pillen-Leiste (budget-tabs, sub-tabs-bar im Kopf,
 housekeeping-/rewards-tabs) oder als neutraler Wrapper um einen Segment-Traeger, dessen
-Well nicht die ganze Zeile faerben darf (Kalender-Views). Der fruehere Rail-Pad-
+Well nicht die ganze Zeile faerben darf (Kalender-Views). **Die Werkzeuge der Ansicht stehen
+am Ende derselben Zeile** (Kalender: Filter und Suche, Critique 2026-09-24): im Aktions-Slot
+bauten sie mobil eine eigene Kopfzeile und standen je nach Kollaps-Zustand links oder
+rechts. In der Bar-Zeile stehen sie in jeder Ansicht, jedem Zustand und jeder Breite an
+derselben Stelle. Wird es eng, gibt das Segment nach (es scrollt mit Fade), nie die
+Werkzeuge: die haben kein Label zum Anschneiden, nur ihre Trefferflaeche. Der fruehere Rail-Pad-
 Ausnahmeeintrag fuer Tab-Innenabstaende ist mit dem Subjekt-Scan des #577-Guards entfallen:
 ein Selektor, dessen letztes Compound nicht die Rail ist, polstert ein KIND der Rail.
 
@@ -1890,6 +1928,15 @@ unter dem letzten Widget der Uebersicht, der FAB lag am Seitenende auf der recht
 Polster bleibt und haelt die Box um den Nachlauf kuerzer; die Scrollhoehe ist damit
 max(Fenster, Inhaltsende + Nachlauf). Pruefebene: `test:dashboard-surface-browser`.
 
+**Ein Toast ist kein Summand** (2026-09-24). Der Erinnerungs-Toast liegt 30 Sekunden ueber
+dem unteren Rand - am Desktop ueber der letzten Monatszeile, mobil ueber der Tagesliste - und
+laesst sich verwerfen. Als vierter Summand haette er den Nachlauf nur fuer diese Zeit
+verlaengert: in scrollenden Flaechen harmlos, im Desktop-Monat aber, der den Scrollport ohne
+Ueberlauf fuellt, haette er jede Zeile um ~16px gestaucht und beim Verschwinden wieder
+gestreckt - ein Raster, das mit jeder Meldung springt. Erreichbar bleibt darunter alles: die
+Zelle zeigt ueber dem Toast Ziffer und ersten Eintrag und oeffnet den Tag, und der Toast
+geht. Die Invariante der Regel gilt fuer DAUERHAFTE Flaechen (FAB, Pille, Banner).
+
 **Mobil aendert die Regel nichts, und das ist per Konstruktion so:** unter 1024px ist
 `--fab-safe-zone` 0, weil der Knopf in der Nav-Kapsel sitzt. Ein Nachlauf von 0 ist dasselbe
 wie eine Marge von 0.
@@ -1953,6 +2000,21 @@ Die MECHANIK richtet sich nach der Scrollport-Architektur des Moduls, die Regel 
   `overflow: hidden`, der Kopf liegt ausserhalb und bewegt sich nie. Dort klappt die
   Titelzeile wirklich ein - gefahrlos, weil der Hoehenwechsel nur den inneren Port
   verlaengert, ohne dessen Offset anzufassen.
+
+**Im Kalender klappt die Titelzeile GANZ ein, nicht nur auf den Inline-Schnitt**
+(Critique 2026-09-24, P1). Der Inline-Titel sollte neben den Zeitraum ruecken - der fuellt
+mobil aber die ganze Zeile, also blieb der Titel auf seiner eigenen, und der Kollaps sparte
+5-14px. Eingeklappt verlaesst der Titel jetzt das Bild (geclippt wie `.sr-only`, das `<h1>`
+bleibt die Seitenueberschrift), sein Siegel geht mit; Zeitraum und Bar-Zeile bleiben. Den
+Modulnamen fuehrt dann die Tab-Leiste unten. Das gilt nur, wo ein Zeitraum den Kopf weiter
+verankert - Notizen und Kontakte haetten danach nichts mehr, was sagt, wo man ist. Gemessen
+bei 375px: Kopf 230 -> 166px ausgeklappt, 121px eingeklappt; Inhalt Monat 56 -> 65 %, Woche
+46 -> 62 % (6,5 -> 9 Stunden), Tag 54 -> 67 %, Agenda 62 -> 69 %. **Ein Ansichtswechsel ist
+ein neuer Scrollport, kein Scroll:** der Kalender laesst die Shell danach an seinem neuen Port
+neu urteilen, sonst erbte der Monat, der gar nicht scrollen kann, den eingeklappten Kopf der
+Woche. Und **einklappen kann nur ein vermessener Kopf** - ein Scroll-Ereignis vor der ersten
+Messung (die Woche springt beim ersten Render auf „jetzt") markierte den Kopf sonst ohne
+Lead-Zone als eingeklappt, und `update()` misst einen eingeklappten Kopf nie wieder.
 
 Der Kopf bleibt in ZEILENRICHTUNG - kein Modul setzt eine eigene Flex-Richtung auf einer
 Kopf-Klasse. Eine Tab-Leiste im Kopf ist eine eigene, horizontal scrollende Zeile UNTER dem
@@ -2162,6 +2224,22 @@ hinausgeflogene Karte behauptet, die Sache sei erledigt, waehrend das Undo-Fenst
 offen steht. Die Geste selbst - Schwellwert 80px, Daempfung darueber, Scroll-Erkennung,
 Haptik am Schwellwert, Ausnahme fuer den Sortiergriff, der einmalige Hinweis nach dem
 Seitentausch - liegt geteilt in `utils/swipe-row.js`.
+
+**Der Zeitraum-Wisch ist dieselbe Geste auf einer Flaeche statt einer Zeile** (Critique
+2026-09-24, P1). Waagerecht ueber Monat, Woche oder Tag blaettert einen Zeitraum weiter
+(`utils/period-swipe.js`); die Agenda ist eine fortlaufende Liste ohne Nachbarn und bleibt
+aussen vor. Schwelle, Richtungssperre und Haptik sind die der Wischzeilen, damit der Weg
+derselbe ist, den die Hand schon kennt. Drei Grenzen, alle gemessen statt vermutet: **der
+Rand gehoert dem System** (ein Kontakt in den aeusseren 20px ist die Zurueck-Geste von iOS
+und Android und wird gar nicht angenommen), **senkrecht gewinnt** (wer zuerst senkrecht zieht,
+scrollt das Zeitraster, und die Geste ist fuer diesen Kontakt vorbei), und **ein offener
+Dialog nimmt sie der Flaeche darunter** - geprueft am Modal-Overlay, NICHT an
+`[aria-modal]`: das „Mehr"-Blatt und das Such-Overlay tragen es auch geschlossen und
+schalteten die Geste beim Bau still ab. Die Zeit laeuft in Leserichtung, in `ar`/`fa`
+gespiegelt. Der Inhalt folgt dem Finger und der neue Zeitraum gleitet von der Seite herein,
+aus der er geholt wurde; unter reduzierter Bewegung beides nicht, die Geste bleibt. Die
+Pfeilknoepfe bleiben der Weg fuer Maus und Tastatur. Die Flaeche traegt
+`touch-action: pan-y pinch-zoom` - ohne `pinch-zoom` verwirft Chromium das Aufziehen.
 
 **Geprueft auf zwei Ebenen, weil jede etwas anderes sehen kann.** Ebene 3 (statisch, in
 `test-frontend-audit.js`) folgt von jeder Wischrichtung mit `--delete` der Kante zu der
@@ -2432,25 +2510,29 @@ einen Akzent erst recht, weil das Violett dunkler ist als das gemessene Tasks-Gr
 **Im Monatsraster** flache Tint-Bars statt satter Farbfelder: Flaeche auf `--tint-surface`
 (Layer-Farbe auf `--color-surface-work`, Hover eine Sprosse hoeher auf `--tint-raised`),
 Tinte `color-mix(in srgb, var(--ev-color) 35%, var(--color-text-primary))`; gemessen
-7.2-9.5:1 ueber die Layer-Farben. Keine Borders, Icons oder Avatar-Stacks im Monat (das
-"wer" traegt das title-Attribut). "Heute" ist NUR ein gefuellter Akzent-Kreis auf der Ziffer;
+7.2-9.5:1 ueber die Layer-Farben. Kein Rahmen und kein Avatar-Stack im Monat (das "wer"
+traegt das title-Attribut); Glyphen nach der Icon-Regel unten, wie in jeder Ansicht - hier
+stand bis 2026-09-24 „keine Icons im Monat", waehrend die Monatsbalken die Serienmarke laengst
+trugen. "Heute" ist NUR ein gefuellter Akzent-Kreis auf der Ziffer;
 Nachbarmonatstage dimmen ueber Flaeche UND Ziffer (AA-fest), nie ueber blosse Opacity auf
 Text allein.
 
 **Die Vollton-Kanten-Regel** (2026-08-17, Etappe 3). Wo ein Block GROSS genug ist, ihn zu
-tragen, sagt eine Kante im Vollton, zu wem er gehoert - 3px an der Inline-Start-Seite, der
-Zeitleisten-Kanon der Messlatte (Apple Kalender, Fantastical). Der Tagesspalten-Block hatte
-sie als eigenes Element (`.day-event__spine`) laengst; Wochen- und Ganztages-Bloecke bekamen
+tragen, sagt eine Kante im Vollton, zu wem er gehoert - 3px (`--cal-event-edge`) an der
+Inline-Start-Seite, der Zeitleisten-Kanon der Messlatte (Apple Kalender, Fantastical). Der
+Tagesspalten-Block hatte sie als eigenes Element (`.day-event__spine`, seit 2026-09-24
+entfallen) laengst; Wochen- und Ganztages-Bloecke bekamen
 sie als `border-inline-start`, weil sie ohne sie im Dark entsaettigter Nebel waren: 16 %
 Fuellung plus eine 1px-Kante auf halber Deckung ist dieselbe Beimischungs-Falle, an der das
 Absenderband zerbrochen ist - **eine Waschung hellt auf, sie faerbt nicht.** Fuellung
-(`--tint-surface`) und Tinte (38 % im Wochen- und Tagesblock, 35 % im Ganztages-Balken und
-im Monat) bleiben bei ihren gemessenen Rezepten unveraendert; die Farbe wandert in die Kante,
-wo die User-Farben-Regel sie ausdruecklich zulaesst.
+(`--tint-surface`) und Tinte (damals 38 % im Wochen- und Tagesblock, 35 % im Ganztages-Balken
+und im Monat; seit 2026-09-24 ueberall 35 %) bleiben bei ihren gemessenen Rezepten; die Farbe
+wandert in die Kante, wo die User-Farben-Regel sie ausdruecklich zulaesst.
 
 **Hier stand bis 2026-08-28 „Das Monatsraster bleibt kantenlos", und das war seit der
-Umsetzung falsch.** Alle VIER Blockarten tragen die Kante - `.month-day__event` genauso wie
-`.week-event`, `.day-event` und `.allday-event`; im Quelltext ist sie am Monatschip
+Umsetzung falsch.** Alle vier Blockarten tragen die Kante - `.month-day__event` genauso wie
+`.week-event`, `.day-event` und `.allday-event`, seit 2026-09-24 auch die Listenzeile (siehe
+„Eine Termingrammatik" unten); im Quelltext ist sie am Monatschip
 begruendet, nur hier war die Ausnahme stehengeblieben. Zwei Wahrheiten in zwei Dateien, und
 die Datei mit dem Anspruch, die Quelle zu sein, war die falsche. Der befuerchtete Effekt
 („bei 20px Chiphoehe waere die Kante ein Viertel des Blocks") ist gemessen nicht
@@ -2474,6 +2556,173 @@ alleinigen Traeger einer Information wird, traegt nicht sie den Kontrast, sonder
 Fassung.** Die User-Farben-Regel kannte bis dahin den Textfall (verboten) und den
 Flaechenfall (gemessene Mix-Rezepte); fuer den Punkt, der zur einzigen Auskunft wird, gab es
 kein Rezept. Jetzt gibt es eines.
+
+**Die Form sagt, WAS es ist, der Ring, DASS es da ist** (2026-09-24). Aufgabe und Termin
+unterschied im Punkteraster bis dahin nur ein Ring in `--color-surface-work` um den
+Aufgabenpunkt - die Farbe der Flaeche, auf der er steht, im Dark unsichtbar. Jetzt tragen
+beide dieselbe Fassung (`--color-text-tertiary`, die Ring-Regel oben), und die Art traegt die
+FORM: Termin rund, Aufgabe ein Quadrat mit `--radius-2xs` - das Kaestchen, das sie in der Liste
+als Checkbox-Glyph fuehrt. Eine Unterscheidung, die an einer zweiten Farbe haengt, haelt in
+einem Theme und faellt im anderen; eine Form haelt in beiden.
+
+**Eine Termingrammatik** (Critique 2026-09-24, P2). Ein Termin sprach vier Mundarten: im Monat
+Balken mit Kante, in der Woche Block mit Kante, 1px-Rahmen und Standardglyph, im Tag Karte mit
+Kante UND eigenem Spine-Element (zwei Farbstriche) und senkrecht zentriertem Titel, in der
+Liste weisse Zeile mit 8px-Farbpunkt. Die Monatsbalken sind die Referenz, alle anderen folgen:
+
+- **Der Block** (Monat, Woche, Tag, Ganztag): Flaeche `--tint-surface` in der Terminfarbe auf
+  dem Grund, auf dem er steht (`--color-surface-work`, im Tag `--color-surface`), Hover eine
+  Sprosse hoeher; Tinte EIN Rezept, 35 % Terminfarbe in `--color-text-primary`; Kante
+  `--cal-event-edge` im Vollton an Inline-Start; kein Rahmen, `--radius-xs`. Gemessen ueber
+  die zwoelf Seed-/Kalenderfarben (Amber, Cyan, Teal eingeschlossen): Ruhe mindestens 7,22:1
+  light / 6,96:1 dark, Hover 6,83 / 6,47. Die 38 % der Woche waren naeher an der Nutzerfarbe,
+  also nie der bessere Kontrast.
+- **Titel oben, Zeit darunter, wenn Platz ist.** Zeitbloecke richten den Titel an der
+  Oberkante aus (klebend, wenn der Block oben aus dem Scrollport ragt), halbfett; die Zeitzeile
+  tritt ueber das Gewicht zurueck, nie ueber Opacity. Ob sie Platz hat, fragt eine
+  Container-Query nach der HOEHE des Blocks (`container: ev-block / size`, unter 2.125rem
+  entfaellt sie) - eine Minutenschwelle waere bei 56px-Stunden (Woche) und 40px-Stunden (Tag)
+  in einer der beiden Ansichten falsch; angeschnitten ist schlechter als weg.
+- **Die Listenzeile** (Agenda, Tagesliste des Telefon-Monats) bleibt eine Zeile auf der
+  Traegerflaeche - eine getoente Zeile waere eine Karte in der Karte -, aber die Zugehoerigkeit
+  traegt dieselbe Kante, am TEXT (`.agenda-event__body`), so hoch wie Titel und Metazeile.
+  Das Craft-Verbot „farbige Seitenkante an Listenzeilen" ist hier bewusst gebrochen: die Kante
+  ist die Kalenderfarbe selbst, dieselbe wie am Block, keine Dekoration.
+- **Die Icon-Regel.** Ein Terminicon erscheint nur, wenn jemand eines gewaehlt hat
+  (`hasEventIcon()`: 'calendar' ist Spalten-Default und Rueckfall, ein Kalenderglyph im
+  Kalender sagt nichts); die Serienmarke bei jeder Serie. Beides in JEDER Ansicht gleich, ueber
+  einen Baustein (`eventGlyphsHtml()`), 12px im Block, 16px in der Listenzeile. Die Glyphen
+  tragen die Tinte des Titels (`currentColor`), nie den Vollton der Terminfarbe: Amber auf
+  hellem Amber ist der Textfall, den die User-Farben-Regel verbietet, und die Farbe steht schon
+  in der Kante. Einzige Ausnahme: die Titelfassung des Telefon-Monats (~44px Spalte, der Titel
+  hat sieben Zeichen) laesst die Glyphen weg; die Tagesliste darunter zeigt sie.
+- **Ein Zeitformat.** Jede Spanne geht durch `timeSpanText()`: „17:00 - 18:30", der Trenner
+  aus `calendar.dayRangeLabel`, die Uhrzeiten aus `formatTime()` (12 Stunden, Ziffern der
+  Locale), das Suffix der Locale („Uhr") EINMAL am Ende. Im Raster ohne Suffix (der Block steht
+  an seiner Uhrzeit), in Liste, Detailansicht, Schichtdetail, Tooltip und gesprochenem Namen
+  mit - ein Termin klingt in jeder Ansicht gleich. „ab"/„bis" am ersten und letzten Tag eines
+  Mehrtagestermins bleiben. Vorher: drei Schreibweisen, zwei mit Gedankenstrich, Schichtzeiten
+  als rohe 24-Stunden-Zeichenkette auch fuer wen 12 Stunden eingestellt hat.
+- **Die Ganztags-Beschriftung** der Zeitspalte steht als ganzes Wort mit weichem Trennstrich in
+  der Locale („ganz-/taegig"), bricht in der 44px-Spalte um und haelt Abstand zur Kante;
+  „ganztg." war 42,5px breit in 40px Innenmass und eine Abkuerzung zum Entziffern.
+
+### Mobil-Monat: Raster oben, der gewaehlte Tag darunter (Critique 2026-09-24, P2)
+Unter 640px ist der Monat geteilt, nach der Messlatte (Apple Kalender „Liste", Fantastical,
+Outlook): **das Raster sagt, WO etwas ist, die Liste sagt, WAS.** Vorher sprang ein Tipp auf
+einen Tag in die Tagesansicht - wer lesen wollte, was am Dienstag steht, verliess den Monat.
+
+- **Ein Tipp WAEHLT den Tag.** Die Auswahl ist ein 2px-Ring in `--color-text-primary` mit
+  2px Luft (`outline-offset`) um die Ziffer; heute bleibt der gefuellte Akzentkreis, und am
+  gewaehlten Heute stehen beide. Ring statt zweiter Fuellung, weil zwei gefuellte Kreise
+  (Akzent und Neutral) nicht sagen, welcher der gewaehlte ist. Ein Tag aus dem Nachbarmonat
+  blaettert dorthin und waehlt ihn. In die Tagesansicht fuehrt der Kopf der Liste (Datum mit
+  Chevron) - Doppeltipp ist kein Weg.
+- **Die Liste spricht die Zeilensprache der Agenda** (dieselben Zeilen, derselbe Kopf: Datum
+  fett, Wochentag sekundaer). Eine eigene Monatszeile waere eine weitere Termin-Mundart. Sie
+  steht NEBEN `.month-view`, nicht darin: die Punktregeln sind an `.month-view` geschnitten und
+  haetten die Aufgaben der Liste zu Quadraten ohne Titel geschrumpft. Ein freier Tag sagt es
+  ruhig (kompakter Leerzustand, Aktion `btn--secondary`) - er ist kein Fehlerfall.
+- **Die Punkte sagen nur noch, wo.** Zentriert unter der Ziffer, hoechstens vier, ohne „+N" -
+  wie viel es ist, sagt die Liste. Zeilen fest 48px (Punkte), damit das Einklappen eine
+  animierbare Strecke hat. **Die Titelfassung hat ein Budget von 320px, nicht 80px je Woche**
+  (vier Wochen 80px, fuenf 64px, sechs 53px): mit 80px fest blieben der Liste bei 375x812
+  81px, im Sechs-Wochen-Monat nichts; jetzt ist sie in jedem Monat gleich hoch (170px Zeilen).
+  Was nicht passt, zeigt die Zelle als nackte Zahl („+2") - „+2 weitere" brach auf ~50px um
+  und wurde angeschnitten, und was die weiteren sind, sagt die Liste.
+- **Einklappen auf die Woche.** Hochziehen oder Scrollen der Liste klappt das Raster auf die
+  Woche des gewaehlten Tags zusammen (die Zeile bleibt stehen, die anderen gehen auf null),
+  Herunterziehen oder Zurueckscrollen an den Listenanfang klappt auf; der Knopf im Listenkopf
+  (`aria-expanded`) tut dasselbe ohne Geste. Die Scroll-Regel klappt nur ein, wenn die Liste
+  danach noch scrollen kann - sonst klemmt scrollTop auf 0, und genau das ist das Signal zum
+  Aufklappen: das Raster pumpte. Unter `prefers-reduced-motion` ohne Uebergang.
+- **Eingeklappt geht der Monat wochenweise**, wie in Apples Kalender: Wischen, Pfeile und
+  j/k ruecken die Auswahl um sieben Tage, der Monat folgt ihr ueber die Grenze. Ein
+  Monatssprung haette die Auswahl vom 24.09. auf den 01.10. gerissen - weg aus der einen Woche,
+  die man sieht. Aufgeklappt bleibt es der Monat. Die Schrittweite steht EINMAL
+  (`periodStepOf`) und benennt auch die Pfeile.
+- **Termintitel wohnt am Monat**, als Umschalter im Listenkopf (`aria-pressed`, an = Fuellung
+  UND Akzent-Glyph), nicht mehr im Filterblatt unter „Darstellung": ein Schalter, der die
+  Ansicht aendert, gehoert an die Ansicht. Die Titelfassung ist die dichtere Stufe, drei
+  Zeilen je Zelle; die Liste darunter wird dafuer kuerzer, das Einklappen gibt sie zurueck.
+
+**Die Pfeile sagen, was sie tun.** „Vorheriger Monat", „Naechste Woche", „Naechste 3 Tage"
+(Telefon-Woche), „Naechste 30 Tage" (Agenda) als Name und Tooltip - vorher hiessen sie in
+jeder Ansicht „Zurueck"/„Weiter", und in der Agenda sprang „Weiter" still dreissig Tage. Die
+Agenda nennt im Kopf dazu ihre Spanne („24.09. - 24.10.2026") statt nur ihren Anfang.
+
+**Das Raster hat so viele Zeilen, wie der Monat braucht** (vier bis sechs, alle Breiten).
+Ladefenster und Zeichnung lesen dieselbe Rechnung (`monthGridSpan`); fest 42 Tage zeigten im
+September 2026 eine ganze Zeile Oktober.
+
+### Der Kalender per Tastatur und Screenreader (Critique 2026-09-24, P1)
+**Wer den Kalender nicht sieht oder nicht anfasst, erreicht jeden Termin, den der Finger
+erreicht.** Vorher trugen die Bloecke in Woche und Tag nur `cursor: pointer`, und der Monat war
+35-42 einzelne Tab-Stopps ohne Pfeiltasten.
+
+- **Der Monat ist EIN ARIA-Grid mit EINEM Tab-Stopp.** `role=grid` an `.month-view` (Name: das
+  Zeitraum-Label), die Wochentagsleiste als Kopfzeile, je Woche ein `.month-grid__row`
+  (`role=row`, selbst ein 7-Spalten-Raster mit `minmax(0, 1fr)` und `min-height: 0`, sonst
+  verschoebe ein voller Tag seine Woche), der Tag als `gridcell` mit roving tabindex. Pfeile
+  bewegen den Tag und wechseln am Rand den Monat, Pos1/Ende springen an Anfang und Ende der
+  Woche nach dem Wochenstart des Haushalts, Bild auf/ab um einen Monat mit geklemmter
+  Tageszahl. Enter/Leertaste tut, was der Tipp tut: am Telefon waehlen (`aria-selected`, nicht
+  `aria-pressed` - das ist die Semantik eines Umschalters), am Desktop den Tag oeffnen, und der
+  Fokus geht mit auf dessen ersten Eintrag. Der Name der Zelle sagt, was dort steht:
+  „Donnerstag, 24.09.2026, Heute, 3 Einträge: Zahnarzt, Fußball, Training".
+- **Termine in der Zelle sind keine eigenen Tab-Stopps.** Das APG-Grid kennt Widgets in Zellen
+  nur ueber einen zweiten Modus (Enter hinein, Escape heraus), den niemand findet; ausserdem
+  zeigt die Zelle nur, was hineinpasst („+N"). Der Weg fuehrt ueber die Zelle in den Tag, wo
+  JEDER Eintrag ein Knopf ist - vollstaendig statt zur Haelfte.
+- **Jeder Block ist ein Knopf** (`.week-event`, `.day-event`, `.allday-event`, der Tageskopf der
+  Woche) und heisst wie die Agenda-Zeile: Serie, Titel, Zeit, Ort, Kalender, Personen. Die
+  DOM-Reihenfolge einer Spalte ist die Uhrzeit (`chronological()`), Schichten eingemischt, denn
+  sie ist die Tab-Reihenfolge. Eine Aufgabe nennt ihre Prioritaet im Namen - der Punkt ist
+  `aria-hidden`.
+- **Der Fokusring liegt aussen, wo Platz ist, innen, wo geschnitten wird.** Auf den getoenten
+  Bloecken aussen (`--focus-ring-offset`, `z-index` ueber die Nachbar-Lanes): innen laege der
+  Akzent auf einer Toenung und schnitte die Vollton-Kante. In `.allday-cell` (schneidet ab)
+  und an der Monatszelle innen (`--focus-ring-offset-inset`).
+- **Die Auswahl im Telefon-Monat wird angesagt, das Zeichnen nicht.** Eine polite Live-Region
+  (`#cal-live`) ausserhalb von `#cal-body` - eine Region, die mit ihrem Inhalt entsteht, sagt
+  nichts - meldet „Freitag, 25.09.2026, 2 Einträge" nur bei einer Auswahl, nie bei einem
+  Neuaufbau.
+- **Kuerzel nach Google Kalender, nur auf /calendar:** `t` heute, `k`/`j` zurueck/vor (dazu die
+  Pfeile, wenn kein Bedienelement den Fokus hat; RTL gespiegelt), `m`/`w`/`d`/`a` die Ansicht.
+  Sie stehen in `SHORTCUTS` der Shell mit `route` - EIN Dispatcher, damit „g d" nie zugleich
+  „d" ist -, die Hilfe (`?`) zeigt sie nur dort, und die Knoepfe tragen `aria-keyshortcuts`.
+  Die Tablist heisst „Ansicht", nicht wie die H1.
+
+### Das Leseblatt: die Hauptaktion in die Daumenzone (Critique 2026-09-24, Persona Casey)
+Im Sheet der Detailansicht stand „Bearbeiten" oben im Kopf und „Löschen" unten in der
+Fusszeile - die riskanteste Aktion war die erreichbarste. Mit `edit.primary` steht Bearbeiten
+als Primaerknopf am ENDE der Fusszeile, Löschen bleibt `danger-ghost` am Anfang
+(`margin-inline-end: auto`, in RTL gespiegelt), und der Kopfknopf erscheint erst im Formular,
+als „Zurück". Opt-in, weil die Hauptabsicht dem Objekt gehoert: im Termin ist es Bearbeiten, in
+der Aufgabe das Erledigen. Die Rueckfrage beim Löschen bleibt. Der Kalender nimmt es; Kontakte
+und Inventar haben dieselbe Fusszeile und sind die naechsten Kandidaten.
+
+### Der Termin-Dialog: Haeufiges oben, Seltenes benannt (Critique 2026-09-24, P2)
+Der Dialog war mobil drei Bildschirme lang (1559px bei 523 sichtbar), und Sichtbarkeit und
+Stichtag standen VOR Wiederholung und Erinnerung. Die Reihenfolge folgt jetzt der Haeufigkeit:
+Titel, Ganztaegig, Von, Bis, Wer, Wiederholung, Erinnerung, Ort, Beschreibung; hinter
+„Weitere Einstellungen" Sichtbarkeit, Stichtag, Farbe, Icon, Sync-Ziel, Anhang - und die
+Zeile des Aufklappers nennt sie.
+- **Von und Bis sind je eine Zeile** (`.cal-when`): EINE Beschriftung, Datum und Uhrzeit
+  daneben, die Beschriftungsspalte `max-content` in einem Raster fuer beide Zeilen. Das Datum
+  heisst wie seine Zeile, die Uhrzeit bringt ihren Namen ueber `label` mit.
+- **Ein Takt:** `.cal-event-form` ist eine Flex-Spalte mit 16px, Gruppen ohne eigene Marge -
+  im Modal wie im Leseblatt (dort fehlte die Luecke, im Modal war sie doppelt). Wiederholung und
+  Erinnerung sind Felder in der Reihe, keine Abschnitte: keine eigenen Trennlinien, der
+  Erinnerungsschalter spricht wie „Ganztaegig". Die einzige Linie trennt „Weitere
+  Einstellungen" ab.
+- **Beim Bearbeiten klappt nur Unsichtbares auf:** eingeschraenkte Sichtbarkeit, Stichtag,
+  Anhang. Farbe und Icon zeigt der Termin selbst. Eine Warnung, die im zugeklappten Teil
+  erscheint, oeffnet ihn - aufklappen, nie zuklappen.
+- **„Niemand" ist ein ruhiger Eintrag, keine Person:** kein Avatar, keine Striche um das Wort
+  (`.user-ms__option--none`, gilt fuer jede Personenwahl). Doppelte Initialen (Leo und Linda
+  Johnson, beide „LJ") sind offen: rund ein Dutzend Kopien der Initialen-Regel, eine
+  Kollisionsregel gehoert in EINE geteilte Funktion.
 
 ### Der Wand-Modus (Signature Component)
 **Der WACHE Zustand des Dashboards - keine zweite Seite, sondern dieselbe Flaeche in anderer

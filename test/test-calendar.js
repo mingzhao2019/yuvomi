@@ -6,11 +6,12 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { MIGRATIONS_SQL } from '../server/db-schema-test.js';
 import { eachRule } from './css-rules.js';
 const { __test: calendarHelpers } = await import('../public/pages/calendar.js');
 const { setDisplayTimeZone, displayTimeZone } = await import('/utils/timezone.js');
+const periodSwipe = await import('../public/utils/period-swipe.js');
 
 let passed = 0;
 let failed = 0;
@@ -478,15 +479,34 @@ test('Wochenberechnung: Montag korrekt', () => {
   assert(getMondayOf('2026-03-22') === '2026-03-16', 'So → Mo der Vorwoche');
 });
 
-test('Monatsbereich: 42 Tage für Kalenderraster', () => {
-  function addDays(dateStr, n) {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + n);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+// DAS RASTER HAT SO VIELE ZEILEN, WIE DER MONAT BRAUCHT (Critique 2026-09-24).
+// Hier stand ein Test ueber eine TESTEIGENE addDays-Kopie ("42 Tage") - er
+// pruefte die Arithmetik seiner selbst, nicht die Seite. Geprueft wird jetzt
+// das echte Ladefenster: im September 2026 (Wochenstart Montag) war die
+// sechste Zeile komplett Oktober und wurde trotzdem geladen und gezeichnet.
+test('Monatsraster: vier bis sechs Wochenzeilen, und das Ladefenster endet mit der letzten', () => {
+  const { getMonthRange, getRangeForView, state } = calendarHelpers;
+  const cases = [
+    // [Cursor, Wochenstart, from, to] - Sep 2026 beginnt Di, Feb 2027 Mo, Aug 2026 Sa
+    ['2026-09-24', 1, '2026-08-31', '2026-10-04'], // 5 Zeilen, nicht 6
+    ['2027-02-10', 1, '2027-02-01', '2027-02-28'], // 4 Zeilen: 28 Tage ab Montag
+    ['2026-08-15', 1, '2026-07-27', '2026-09-06'], // 6 Zeilen bleiben 6
+    ['2026-09-24', 0, '2026-08-30', '2026-10-03'], // Sonntag-Start: 5 Zeilen
+  ];
+  for (const [cursor, weekStart, from, to] of cases) {
+    const r = getMonthRange(cursor, weekStart);
+    assert(r.from === from && r.to === to,
+      `${cursor} (Start ${weekStart}): erwartet ${from}..${to}, erhalten ${r.from}..${r.to}`);
   }
-  const from = '2026-03-01';
-  const to   = addDays(from, 41);
-  assert(to === '2026-04-11', `Erwartet 2026-04-11, erhalten ${to}`);
+  // Der echte Aufrufer (Ladefenster der Ansicht) liest dieselbe Rechnung.
+  const zuvor = state.weekStart;
+  try {
+    state.weekStart = 1;
+    const v = getRangeForView('month', '2026-09-24');
+    assert(v.to === '2026-10-04', `das Ladefenster des Monats laedt eine Zeile Oktober zu viel: ${v.to}`);
+  } finally {
+    state.weekStart = zuvor;
+  }
 });
 
 test('Deep-Link-Datum: gültiger date-Parameter gewinnt vor Serien-Masterdatum', () => {
@@ -537,24 +557,71 @@ test('Wiederholungsmarke ist nur bei Serien sichtbar und für Screenreader benan
   );
 });
 
-test('Wiederholungsmarke steht vor dem Titel in allen Kalenderansichten mit ausgeschriebenem Titel', () => {
-  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
-  const regions = [
-    ['Monat', 'function renderMonthDay', 'function renderWeekView', 1],
-    ['Woche', 'function renderWeekView', 'function renderDayView', 2],
-    ['Tagesansicht', 'function renderDayView', 'function renderAgendaView', 2],
-    ['Agenda', 'function renderAgendaEvent', 'function applyDefaultSyncTarget', 1],
-  ];
+// --------------------------------------------------------
+// DIE ICON-REGEL (Critique 2026-09-24, P2): ein Termin zeigt vor seinem Titel
+// in JEDER Ansicht dieselben Glyphen - sein Icon nur, wenn jemand eines gewaehlt
+// hat (hasEventIcon), die Serienmarke bei jeder Serie. Vorher fragte nur das
+// Tagesraster; Woche, Ganztag und Agenda setzten das Standardglyph als
+// Fuellsel, der Monat gar keins.
+//
+// Gemessen am gerenderten Markup der FUENF Bausteine, nicht am Quelltext: ein
+// Textguard zaehlte Aufrufe und sah nicht, welches Icon am Ende dasteht.
+// --------------------------------------------------------
+function glyphsBeforeTitle(html, title) {
+  const at = html.indexOf(`>${title}<`);
+  assert(at !== -1, `Vorbedingung: der Titel ${title} steht im Markup`);
+  const head = html.slice(0, at);
+  return {
+    calendarGlyph: /data-lucide="calendar"/.test(head),
+    ownIcon: /data-lucide="stethoscope"/.test(head),
+    repeat: /class="calendar-repeat-icon"/.test(head),
+  };
+}
 
-  for (const [name, from, to, expected] of regions) {
-    const body = src.slice(src.indexOf(from), src.indexOf(to));
-    const markers = body.match(/calendarRepeatIconHtml\(ev\)/g) ?? [];
-    assert(markers.length === expected,
-      `${name}: erwartet ${expected} Serienmarken vor ausgeschriebenen Titeln, gefunden ${markers.length}`);
-    assert(
-      /calendarRepeatIconHtml\(ev\)[\s\S]{0,180}esc\(ev\.title\)/.test(body),
-      `${name}: Serienmarke muss vor dem ausgeschriebenen Titel stehen`
-    );
+function everyEventView(ev) {
+  const out = {};
+  withMonthState({ events: [ev] }, () => {
+    out.Monat = calendarHelpers.renderMonthDay('2026-09-24', true, { focusable: true });
+    out.Woche = calendarHelpers.renderWeekEvent(ev, null, '2026-09-24');
+    out.Tag = calendarHelpers.renderDayEvent(ev, null, '2026-09-24');
+    out.Ganztag = calendarHelpers.renderAllDayEvent(ev, '2026-09-24');
+    out.Agenda = calendarHelpers.renderAgendaEvent(ev, '2026-09-24');
+  });
+  return out;
+}
+
+const glyphEvent = (extra) => ({
+  id: 5101, title: 'Zahnarzt', all_day: 0, assigned_users: [],
+  start_datetime: '2026-09-24T09:00', end_datetime: '2026-09-24T10:30', ...extra,
+});
+
+test('Icon-Regel: das Standardglyph steht in KEINER Ansicht vor dem Titel', () => {
+  for (const [view, html] of Object.entries(everyEventView(glyphEvent({ icon: 'calendar' })))) {
+    assert(!glyphsBeforeTitle(html, 'Zahnarzt').calendarGlyph,
+      `${view}: ein Termin ohne eigenes Icon traegt das Kalenderglyph als Fuellsel`);
+  }
+});
+
+test('Icon-Regel: ein gewaehltes Icon steht in JEDER Ansicht vor dem Titel', () => {
+  for (const [view, html] of Object.entries(everyEventView(glyphEvent({ icon: 'stethoscope' })))) {
+    assert(glyphsBeforeTitle(html, 'Zahnarzt').ownIcon, `${view}: das gewaehlte Icon fehlt`);
+  }
+});
+
+test('Icon-Regel: die Serienmarke steht in JEDER Ansicht vor dem Titel', () => {
+  for (const [view, html] of Object.entries(everyEventView(glyphEvent({ recurrence_rule: 'FREQ=WEEKLY' })))) {
+    assert(glyphsBeforeTitle(html, 'Zahnarzt').repeat, `${view}: die Serienmarke fehlt`);
+  }
+});
+
+test('Icon-Regel: kein Baustein ruft das Icon an eventGlyphsHtml() vorbei', () => {
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const helper = src.slice(src.indexOf('function eventGlyphsHtml('), src.indexOf('function eventIconElement('));
+  assert(/hasEventIcon\(ev\.icon\)/.test(helper) && /calendarRepeatIconHtml\(ev\)/.test(helper),
+    'eventGlyphsHtml() muss hasEventIcon fragen und die Serienmarke setzen');
+  for (const call of ['eventIconHtml(ev.icon', 'calendarRepeatIconHtml(ev)']) {
+    const hits = src.split(call).length - 1;
+    assert(hits === 1, `${call} steht ${hits}-mal im Quelltext - ausserhalb von eventGlyphsHtml() ist es eine zweite Icon-Regel`);
   }
 });
 
@@ -838,8 +905,24 @@ const whenRange = (text) => JSON.parse(text.slice(text.indexOf('{'), text.lastIn
 
 test('eventWhenText: eintägiges Zeit-Event nennt vom Ende nur die Uhrzeit', () => {
   const text = eventWhenText({ start_datetime: '2026-09-10T14:00', end_datetime: '2026-09-10T15:30', all_day: 0 });
-  assert(text.startsWith('calendar.dayRangeLabel'), `Zeitraum über den Locale-Key: ${text}`);
+  // Das Datum EINMAL vorn, dann die Spanne im einen Zeitformat (timeSpanText).
+  assert(text.startsWith('2026-09-10 calendar.dayRangeLabel'), `Datum, dann der Zeitraum über den Locale-Key: ${text}`);
+  assert(whenRange(text).from === '2026-09-10T14:00', `Start ohne zweites Datum: ${text}`);
   assert(whenRange(text).to === '2026-09-10T15:30', `Ende ohne vorangestelltes Datum: ${text}`);
+});
+
+test('eventWhenText: das Uhrzeit-Suffix steht einmal, am Ende', () => {
+  globalThis.__timeSuffix = 'Uhr';
+  try {
+    const one = eventWhenText({ start_datetime: '2026-09-10T14:00', end_datetime: '2026-09-10T15:30', all_day: 0 });
+    const multi = eventWhenText({ start_datetime: '2026-09-10T14:00', end_datetime: '2026-09-12T11:00', all_day: 0 });
+    for (const text of [one, multi]) {
+      assert(text.split('Uhr').length === 2 && text.endsWith(' Uhr'),
+        `„10:00 Uhr - 11:30 Uhr" war die alte Form, erwartet genau ein Suffix am Ende: ${text}`);
+    }
+  } finally {
+    delete globalThis.__timeSuffix;
+  }
 });
 
 test('eventWhenText: mehrtägiges Zeit-Event nennt Enddatum und Enduhrzeit', () => {
@@ -1924,6 +2007,385 @@ test('Geburtstage ueberleben den Personenfilter und "Mir zugewiesen" - sie sind 
     state.assignedToMe = saved.assignedToMe;
     state.currentUserId = saved.currentUserId;
     state.layerBirthdays = saved.layerBirthdays;
+  }
+});
+
+test('getWeekRange: Desktop bleibt beim reinen 7-Tage-Raster (#1006)', () => {
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-11', { weekStart: 1, mobile: false });
+  assert(from === '2026-03-09' && to === '2026-03-15',
+    `Desktop-Woche darf sich nicht erweitern: ${from}..${to}`);
+});
+
+test('getWeekRange: Mobile mitten in der Woche erweitert das Ladefenster nicht unnötig (#1006)', () => {
+  // Mittwoch: das 3-Tage-Fenster (Di-Do) liegt vollständig innerhalb der
+  // Montag-Woche - die Vereinigung darf hier gleich dem Desktop-Raster bleiben.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-11', { weekStart: 1, mobile: true });
+  assert(from === '2026-03-09' && to === '2026-03-15',
+    `Ein Mittwochs-Cursor braucht keine Erweiterung: ${from}..${to}`);
+});
+
+test('getWeekRange: Montag-Woche + Sonntags-Cursor schliesst den folgenden Montag ein (#1006)', () => {
+  // Sonntag ist der letzte Tag der Montag-Woche; das Mobile-Fenster (Sa-Mo)
+  // ragt einen Tag darüber hinaus - genau der Tag, den buildDayIndex() vorher
+  // stillschweigend wegklammerte.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-15', { weekStart: 1, mobile: true });
+  assert(from === '2026-03-09' && to === '2026-03-16',
+    `Der folgende Montag muss mitgeladen werden: ${from}..${to}`);
+});
+
+test('getWeekRange: Sonntag-Woche + Samstags-Cursor schliesst den folgenden Sonntag ein (#1006)', () => {
+  // Dieselbe Randsituation am anderen Wochenstart: Samstag ist hier der
+  // letzte Tag, das Mobile-Fenster ragt in den folgenden Sonntag hinein.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-14', { weekStart: 0, mobile: true });
+  assert(from === '2026-03-08' && to === '2026-03-15',
+    `Der folgende Sonntag muss mitgeladen werden: ${from}..${to}`);
+});
+
+test('getWeekRange: Montag-Woche + Montags-Cursor schliesst den vorherigen Sonntag ein (#1006)', () => {
+  // Symmetrischer Fall am linken Rand: Montag ist der erste Tag der Woche,
+  // das Mobile-Fenster ragt einen Tag in die vorherige Woche hinein.
+  const { from, to } = calendarHelpers.getWeekRange('2026-03-09', { weekStart: 1, mobile: true });
+  assert(from === '2026-03-08' && to === '2026-03-15',
+    `Der vorherige Sonntag muss mitgeladen werden: ${from}..${to}`);
+});
+
+test('getRangeForView: Der echte Week-Aufrufer liest matchMedia und reicht mobile weiter (#1030)', () => {
+  // Die fünf getWeekRange()-Tests oben beweisen nur die Arithmetik, nachdem
+  // `mobile` schon feststeht. Wenn der echte Aufrufer aufhört, das Flag zu
+  // liefern (z.B. `return getWeekRange(cursor)` ohne Optionen), blieben sie
+  // trotzdem grün - dieser Test prüft die fehlende Verbindung.
+  const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, 'window');
+  const previousWindow = globalThis.window;
+  try {
+    globalThis.window = { matchMedia: () => ({ matches: true }) };
+    const mobile = calendarHelpers.getRangeForView('week', '2026-03-15');
+    assert(mobile.from === '2026-03-09' && mobile.to === '2026-03-16',
+      `Mobile-Aufrufer muss das erweiterte Fenster laden: ${mobile.from}..${mobile.to}`);
+
+    globalThis.window = { matchMedia: () => ({ matches: false }) };
+    const desktop = calendarHelpers.getRangeForView('week', '2026-03-15');
+    assert(desktop.from === '2026-03-09' && desktop.to === '2026-03-15',
+      `Desktop-Aufrufer darf sich nicht erweitern: ${desktop.from}..${desktop.to}`);
+  } finally {
+    if (hadWindow) globalThis.window = previousWindow;
+    else delete globalThis.window;
+  }
+});
+
+// --------------------------------------------------------
+// Monatszelle am Telefon: Punkte oder Titelzeilen (Schalter im Filter-Blatt)
+// --------------------------------------------------------
+
+test('Monatsflaeche traegt die Titel-Modifier-Klasse nur, wenn der Schalter an ist', () => {
+  assert(calendarHelpers.monthViewClasses(false) === 'month-view',
+    'aus heisst: keine zweite Klasse, also exakt die Basisfassung');
+  assert(calendarHelpers.monthViewClasses(true).split(' ').includes('month-view--titles'),
+    'an heisst: die Modifier-Klasse, an der die 639er-Query haengt');
+  assert(calendarHelpers.monthViewClasses(true).split(' ').includes('month-view'),
+    'die Basisklasse bleibt - sie traegt Flex-Richtung und Ueberlauf der Flaeche');
+});
+
+// DER LEERE STRING IST DER FALL, DER ZAEHLT: getPropertyValue() liefert ihn,
+// wo die Property nirgends gesetzt ist, und `parseInt('') > 0` ist NaN > 0.
+// Ohne diese Umsetzung stuende dort still `NaN` als Deckel, und Math.min(x, NaN)
+// ist NaN - jede Zelle haette am Ende keinen einzigen Chip gezeigt.
+test('Der Sichtbarkeits-Deckel liest 0, leer und Unfug alle als "kein Deckel"', () => {
+  const { monthDayVisibleCap } = calendarHelpers;
+  for (const raw of ['', ' ', '0', 'auto', 'none', '-3']) {
+    assert(monthDayVisibleCap(raw) === Infinity,
+      `${JSON.stringify(raw)} muss "kein Deckel" heissen, war ${monthDayVisibleCap(raw)}`);
+  }
+  assert(monthDayVisibleCap('4') === 4, 'die gesetzte Zahl gilt');
+  assert(monthDayVisibleCap(' 4 ') === 4, 'getPropertyValue liefert den Wert mit Rand-Leerraum');
+});
+
+test('Die Titelfassung wohnt in derselben Query wie die Punktfassung', () => {
+  const rules = [...eachRule(calendarCss)].filter((r) => r.selector.includes('.month-view--titles'));
+  assert(rules.length > 0, '.month-view--titles hat keine einzige Regel - der Schalter waere folgenlos');
+  for (const rule of rules) {
+    assert(rule.at.some((a) => /max-width:\s*639px/.test(a)),
+      `${rule.selector.trim()} steht ausserhalb der 639er-Query - auf dem Desktop zeigt die `
+      + 'Monatszelle ohnehin Titel, eine Regel dort aendert nur, was schon stimmt');
+  }
+});
+
+// Die Punktfassung ist die VORGABE und muss es bleiben: waere sie unbedingt
+// geschnitten, gaebe der Schalter die Titelzeilen nie frei; waere sie ganz weg,
+// haette das Update jedes Telefon ungefragt umgebaut.
+test('Die Punktfassung gilt genau dann, wenn die Titelfassung nicht gewaehlt ist', () => {
+  const dotRules = [...eachRule(calendarCss)].filter((r) =>
+    /border-radius:\s*var\(--radius-full\)/.test(r.body)
+    && r.selector.includes('.month-day')
+    && r.at.some((a) => /max-width:\s*639px/.test(a)));
+  assert(dotRules.length > 0, 'die Punktgeometrie der Monatszelle ist verschwunden');
+  for (const rule of dotRules) {
+    assert(rule.selector.includes(':not(.month-view--titles)'),
+      `${rule.selector.trim()} macht Punkte ohne die Bedingung - der Schalter kaeme nie gegen sie an`);
+  }
+});
+
+// Der Klipp-Guard MUSS jede Fassungsregel ueberwiegen, die `display` setzt.
+// Bei Gleichstand gewinnt die spaetere Regel, und die Fassungen stehen weiter
+// unten in der Datei - ein geklippter Chip waere wieder sichtbar, waehrend das
+// "+N" darunter ihn weiterzaehlt. Genau so ist es beim Bau dieses Schalters
+// passiert: `:not(.month-view--titles)` zaehlt sein Argument mit, und mit dem
+// urspruenglichen `.month-day` davor stand die Punktfassung selbst auf vier.
+//
+// GEZAEHLT WIRD NUR, WER `display` SETZT. Die erste Fassung dieses Guards nahm
+// jede Regel mit der Modifier-Klasse und stolperte ueber
+// `.month-view--titles .cal-task-chip .priority-dot` - vier Klassen, aber sie
+// setzt eine Breite auf einem ANDEREN Element und kann mit dem Klipp-Guard nie
+// kollidieren. Ein Guard, der solche Regeln mitzaehlt, erzwingt eine
+// Spezifitaets-Ruestung gegen einen Konflikt, den es nicht gibt.
+test('Der Klipp-Guard steht ueber jeder Fassungsregel, die display setzt', () => {
+  const clip = [...eachRule(calendarCss)].find((r) => r.selector.includes('.is-clipped')
+    && r.selector.includes('.month-day'));
+  assert(clip, 'die .is-clipped-Regel des Monatsrasters fehlt');
+  // Spezifitaet zaehlt das :not()-Argument mit - deshalb einfach alle
+  // Klassen-Token des Selektors, inklusive derer in der Klammer.
+  const classes = (sel) => (sel.split(',')[0].match(/\.[a-zA-Z][\w-]*/g) ?? []).length;
+  const variant = [...eachRule(calendarCss)].filter((r) =>
+    (r.selector.includes('.month-view--titles') || r.selector.includes(':not(.month-view--titles)'))
+    && /(?:^|;)\s*display\s*:/.test(r.body));
+  assert(variant.length > 0, 'keine Fassungsregel setzt display - dann prueft dieser Guard nichts');
+  for (const rule of variant) {
+    assert(classes(clip.selector) > classes(rule.selector),
+      `.is-clipped traegt ${classes(clip.selector)} Klassen, ${rule.selector.trim()} `
+      + `traegt ${classes(rule.selector)} - bei Gleichstand gewinnt die spaetere Regel, `
+      + 'und das ist die Fassung');
+  }
+});
+
+// --------------------------------------------------------
+// Der geteilte Monat am Telefon (Critique 2026-09-24, P2): Raster oben, der
+// gewaehlte Tag als Liste darunter.
+// --------------------------------------------------------
+
+test('Monatszelle am Telefon: ein Tipp WAEHLT den Tag, statt in die Tagesansicht zu springen', () => {
+  const { monthDayTapAction } = calendarHelpers;
+  assert(monthDayTapAction('2026-09-10', '2026-09-24', { split: true }) === 'select',
+    'ein Tag im selben Monat wird am Telefon gewaehlt');
+  assert(monthDayTapAction('2026-10-02', '2026-09-24', { split: true }) === 'change-month',
+    'ein Tag aus dem Nachbarmonat blaettert dorthin');
+  assert(monthDayTapAction('2026-09-10', '2026-09-24', { split: false }) === 'open-day',
+    'auf dem Desktop bleibt der Drill-in in den Tag');
+});
+
+// Die Entscheidung allein beweist nichts, wenn der Klick sie umgeht (Merker
+// „Optionstest muss den Aufrufer lesen"). Vorher rief der Zellen-Handler
+// switchToDayView() direkt - fuer jede Breite.
+test('Monatszelle: Klick und Enter laufen ueber monthDayTapAction, nicht direkt in den Tag', () => {
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const render = src.slice(src.indexOf('function renderMonthView('), src.indexOf('async function activateMonthDay('));
+  // Die Tastatur des Rasters wohnt seit dem ARIA-Grid (Schritt 3 der Critique
+  // 2026-09-24) in wireMonthGridKeys - renderMonthView muss sie verdrahten.
+  const keys = src.slice(src.indexOf('function wireMonthGridKeys('), src.indexOf('function focusFirstDayEntry('));
+  assert(render.length > 0 && keys.length > 0, 'renderMonthView/wireMonthGridKeys nicht gefunden');
+  assert(/wireMonthGridKeys\(grid/.test(render), 'renderMonthView verdrahtet die Rastertastatur nicht');
+  const view = render + keys;
+  assert(!/switchToDayView\(/.test(view),
+    'renderMonthView ruft switchToDayView() direkt - der Tipp am Telefon wuerde wieder springen');
+  assert((view.match(/activateMonthDay\(/g) ?? []).length >= 2,
+    'Klick UND Enter/Space muessen ueber activateMonthDay() laufen');
+  const act = src.slice(src.indexOf('async function activateMonthDay('));
+  assert(/monthDayTapAction\(/.test(act.slice(0, act.indexOf('\n}\n'))),
+    'activateMonthDay() entscheidet nicht ueber monthDayTapAction()');
+});
+
+test('Monatswechsel: gewaehlt ist heute, wenn der Monat heute enthaelt, sonst der Erste', () => {
+  const { monthStepCursor } = calendarHelpers;
+  const TODAY = '2026-09-24';
+  assert(monthStepCursor('2026-08-12', 1, TODAY) === TODAY, 'in den laufenden Monat: heute');
+  assert(monthStepCursor('2026-09-24', 1, TODAY) === '2026-10-01', 'in einen anderen Monat: der Erste');
+  assert(monthStepCursor('2026-01-31', 1, TODAY) === '2026-02-01',
+    'vom 31. aus nicht per setMonth() in den Maerz rechnen');
+  assert(monthStepCursor('2026-03-31', -1, TODAY) === '2026-02-01', 'rueckwaerts genauso');
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const nav = src.slice(src.indexOf('async function navigate('), src.indexOf('async function goToday('));
+  assert(/monthStepCursor\(/.test(nav), 'navigate() blaettert den Monat nicht ueber monthStepCursor()');
+});
+
+// EINGEKLAPPT GEHT DER TELEFON-MONAT WOCHENWEISE (Critique 2026-09-24, Rest 1).
+// Vorher sprang Wischen/Pfeil auch eingeklappt einen Monat, und die Auswahl
+// riss vom 24.09. auf den 01.10. - weg aus der einen Woche, die man sah.
+test('Schrittweite: eingeklappter Telefon-Monat geht eine Woche, sonst gilt die Ansicht', () => {
+  const { periodStepOf: step } = calendarHelpers;
+  assert(step('month', { mobile: true, monthCollapsed: true }).unit === 'week', 'eingeklappt: Woche');
+  assert(step('month', { mobile: true, monthCollapsed: true }).days === 7, 'eingeklappt: sieben Tage');
+  assert(step('month', { mobile: true, monthCollapsed: false }).unit === 'month', 'aufgeklappt: Monat');
+  assert(step('month', { mobile: false, monthCollapsed: true }).unit === 'month',
+    'auf dem Desktop gibt es kein Einklappen - ein liegengebliebener Zustand nach dem Drehen zaehlt nicht');
+  assert(step('week', { mobile: true }).days === 3 && step('week', { mobile: false }).days === 7, 'Woche: 3 Tage mobil, 7 sonst');
+  assert(step('day').days === 1 && step('agenda').days === 30, 'Tag 1, Agenda 30');
+
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const nav = src.slice(src.indexOf('async function navigate('), src.indexOf('async function goToday('));
+  assert(/currentPeriodStep\(\)/.test(nav), 'navigate() liest die Schrittweite nicht aus currentPeriodStep()');
+  assert(!/dir \* 30|dir \* \(isMobile/.test(nav), 'navigate() rechnet eine eigene Schrittweite neben periodStepOf()');
+  const cur = src.slice(src.indexOf('function currentPeriodStep('), src.indexOf('function periodArrowLabels('));
+  assert(/monthCollapsed:\s*_monthCollapsed/.test(cur), 'currentPeriodStep() fragt den Einklapp-Zustand nicht');
+  const sync = src.slice(src.indexOf('function syncMonthCollapse('), src.indexOf('function syncMonthCollapse(') + 400);
+  assert(/syncPeriodArrows\(\)/.test(sync), 'Einklappen benennt die Pfeile nicht um - sie hiessen weiter „Monat"');
+});
+
+// DIE PFEILE SAGEN, WAS SIE TUN (Critique 2026-09-24, Rest 8): in jeder
+// Ansicht hiessen sie „Zurueck"/„Weiter", und in der Agenda sprang „Weiter"
+// dreissig Tage, ohne dass es irgendwo stand.
+test('Pfeilnamen folgen der Schrittweite, die Agenda nennt ihre Spanne', () => {
+  const { periodArrowLabels: labels, periodStepOf: step } = calendarHelpers;
+  assert(labels(step('month')).next === 'calendar.nextMonth', 'Monat');
+  assert(labels(step('month', { mobile: true, monthCollapsed: true })).prev === 'calendar.prevWeek', 'eingeklappter Monat: Woche');
+  assert(labels(step('week')).next === 'calendar.nextWeek', 'Woche am Desktop');
+  assert(labels(step('week', { mobile: true })).next === 'calendar.nextDays{"count":3}', 'Drei-Tage-Fenster am Telefon');
+  assert(labels(step('day')).prev === 'calendar.prevDay', 'Tag');
+  assert(labels(step('agenda')).next === 'calendar.nextDays{"count":30}', 'Agenda: dreissig Tage');
+
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const nav = src.slice(src.indexOf('function periodNavHtml('), src.indexOf('const CAL_SHORTCUT_KEYS'));
+  assert(!/calendar\.(back|forward)/.test(nav), 'die Pfeile tragen wieder das allgemeine Zurueck/Weiter');
+  const upd = src.slice(src.indexOf('function updateLabel('), src.indexOf('function updateLabel(') + 2200);
+  assert(/syncPeriodArrows\(\)/.test(upd), 'updateLabel() benennt die Pfeile nach einem Ansichtswechsel nicht um');
+  assert(!/agendaFrom/.test(src), 'die Agenda nennt wieder nur ihren Anfang („Ab ...")');
+  assert(/view === 'agenda'\)[\s\S]{0,200}getAgendaRange\(state\.cursor\)[\s\S]{0,200}dayRangeLabel/.test(upd),
+    'das Agenda-Label nennt nicht die Spanne, die getAgendaRange() laedt');
+});
+
+// DIE TITELFASSUNG LAESST DER TAGESLISTE PLATZ (Critique 2026-09-24, Rest 2):
+// mit 80px je Woche blieben der Liste bei 375x812 genau 81px, im Sechs-
+// Wochen-Monat nichts. Die Wochen teilen sich jetzt ein festes Budget.
+test('Titelfassung am Telefon: die Wochen teilen sich 320px, keine Zeile unter 48px', () => {
+  const tokens = readFileSync(new URL('../public/styles/tokens.css', import.meta.url), 'utf8');
+  const px = (name) => Number(new RegExp(`--${name}:\\s*(\\d+)px`).exec(tokens)?.[1]);
+  const rule = [...eachRule(calendarCss)].find((r) => r.at.some((a) => /max-width:\s*639px/.test(a))
+    && r.selector.trim() === '.month-view--split.month-view--titles .month-day');
+  assert(rule, 'Zeilenregel der Titelfassung im geteilten Monat nicht gefunden');
+  const decl = /--month-row-h:\s*([^;]+);/.exec(rule.body)?.[1];
+  assert(decl && /var\(--month-weeks/.test(decl), 'die Zeilenhoehe haengt nicht an der Wochenzahl');
+  const rowFor = (weeks) => Function(`return ${decl
+    .replace(/var\(--month-weeks(?:,\s*\d+)?\)/g, String(weeks))
+    .replace(/var\(--([\w-]+)\)/g, (_, n) => String(px(n)))
+    .replace(/\bmin\(/g, 'Math.min(').replace(/\bcalc\(/g, '(')}`)();
+  for (const weeks of [4, 5, 6]) {
+    const row = rowFor(weeks);
+    assert(row * weeks <= 320 + 0.5, `${weeks} Wochen belegen ${row * weeks}px - die Liste darunter schrumpft wieder`);
+    assert(row >= 48, `${weeks} Wochen: ${row}px je Zeile - unter der Zielgroesse am Finger`);
+  }
+  assert(rowFor(4) === 80, 'vier Wochen behalten ihre drei Titelzeilen (80px)');
+  const fit = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const body = fit.slice(fit.indexOf('function fitMonthDayCells('), fit.indexOf('function scheduleMonthFit('));
+  assert(/closest\('\.month-view--split'\)/.test(body) && (body.match(/calendar\.moreEvents/g) ?? []).length === 1
+    && /moreText\(total\)/.test(body) && /moreText\(hiddenCount\)/.test(body),
+    'die Zelle im Telefon-Monat schreibt wieder „+N weitere" - bei ~50px Breite bricht das um und wird abgeschnitten');
+});
+
+// EINE KANTE FUER DEN TAG (Critique 2026-09-24, Konsistenz): Datum und
+// Terminkarte standen bei x=12, Aufgaben- und Feiertags-Chips mit eigenem
+// 12px-Einzug bei x=24 - eine dritte Fluchtlinie, weder Karte noch Text.
+test('Agenda und Tagesliste: Aufgaben und Feiertage ruecken nicht ein', () => {
+  const rules = [...eachRule(calendarCss)].filter((r) => r.at.length === 0);
+  for (const sel of ['.agenda-tasks', '.agenda-holidays']) {
+    const rule = rules.find((r) => r.selector.trim() === sel);
+    assert(rule, `${sel} fehlt`);
+    const pad = /(?:^|[;\s{])padding:\s*([^;]+);/.exec(rule.body)?.[1]?.trim().split(/\s+/);
+    assert(pad && pad.length === 2 && pad[1] === '0', `${sel} rueckt mit ${pad?.[1]} ein - die Chips stehen nicht an der Kante von Datum und Karte`);
+  }
+});
+
+// DAS AUFHEBEN LIEGT OHNE SCROLLEN IM BLICK (Critique 2026-09-24, Rest 4).
+test('Filterblatt: „Alle Filter aufheben" steht in der Fusszeile des Blatts', () => {
+  let opened = null;
+  const prevOpen = globalThis.__openModal;
+  const prevDoc = globalThis.document;
+  const hadWindow = 'window' in globalThis;
+  const prevWindow = globalThis.window;
+  globalThis.__openModal = (opts) => { opened = opts; };
+  globalThis.document = { ...(prevDoc ?? {}), querySelector: () => null };
+  globalThis.window = { matchMedia: () => ({ matches: false }) };
+  try {
+    calendarHelpers.openCalendarFilters();
+  } finally {
+    globalThis.__openModal = prevOpen;
+    globalThis.document = prevDoc;
+    if (hadWindow) globalThis.window = prevWindow; else delete globalThis.window;
+  }
+  assert(opened, 'das Filterblatt oeffnet kein Modal');
+  const footer = /<div class="modal-panel__footer">([\s\S]*?)<\/div>/.exec(opened.content);
+  assert(footer && /id="cal-filters-reset"/.test(footer[1]),
+    'der Aufheben-Knopf steht nicht in .modal-panel__footer - mountFooter() hebt ihn nicht an den Rand, er liegt unter der Falz');
+  assert((opened.content.match(/id="cal-filters-reset"/g) ?? []).length === 1, 'der Knopf steht doppelt');
+});
+
+test('Einklappen auf die Woche: nur nach unten, nur mit Platz, auf am Listenanfang', () => {
+  const { monthCollapseStep: step } = calendarHelpers;
+  assert(step({ collapsed: false, top: 40, lastTop: 20, room: 200, hold: false }) === 'collapse',
+    'nach unten gescrollt, und die Liste kann danach weiter scrollen');
+  assert(step({ collapsed: false, top: 40, lastTop: 20, room: 4, hold: false }) === 'stay',
+    'ohne Platz nach dem Einklappen klemmte scrollTop auf 0 und das Raster pumpte auf und zu');
+  assert(step({ collapsed: false, top: 20, lastTop: 40, room: 200, hold: false }) === 'stay',
+    'nach oben scrollen klappt nicht ein');
+  assert(step({ collapsed: true, top: 0, lastTop: 30, room: 0, hold: false }) === 'expand',
+    'zurueck am Listenanfang klappt auf');
+  assert(step({ collapsed: true, top: 0, lastTop: 0, room: 0, hold: false }) === 'stay',
+    'ohne Bewegung (per Knopf eingeklappt, Liste oben) bleibt es zu');
+  assert(step({ collapsed: false, top: 80, lastTop: 60, room: 200, hold: true }) === 'stay',
+    'nach ausdruecklichem Aufklappen nimmt der naechste Wisch die Entscheidung nicht zurueck');
+  assert(step({ collapsed: false, top: 0, lastTop: 10, room: 200, hold: true }) === 'release',
+    'erst der Weg ueber den Listenanfang gibt das Einklappen wieder frei');
+});
+
+// AUFGABE UND TERMIN UNTERSCHEIDET DIE FORM. Vorher war der einzige Unterschied
+// ein Ring in --color-surface-work - der Farbe der Flaeche, auf der er steht,
+// im Dark unsichtbar (calendar.css ~1931).
+test('Punktfassung: Aufgabe ist ein abgerundetes Quadrat, Termin rund, beide im Tertiaer-Ring', () => {
+  const inPhone = (r) => r.at.some((a) => /max-width:\s*639px/.test(a));
+  const rules = [...eachRule(calendarCss)].filter(inPhone);
+  const task = rules.filter((r) => r.selector.includes(':not(.month-view--titles) .cal-task-chip')
+    && !r.selector.includes(','));
+  const own = task.find((r) => /border-radius/.test(r.body));
+  assert(own, 'der Aufgabenpunkt hat keine eigene Form - er erbt den Kreis des Terminpunkts');
+  assert(!/radius-full/.test(own.body), 'der Aufgabenpunkt ist rund und damit vom Termin nicht zu unterscheiden');
+  for (const r of task) {
+    assert(!/--color-surface-work/.test(r.body),
+      `${r.selector.trim()}: ein Ring in der Flaechenfarbe ist im Dark unsichtbar`);
+  }
+  assert(task.some((r) => /box-shadow:[^;]*--color-text-tertiary/.test(r.body)),
+    'der Aufgabenpunkt braucht die Tertiaer-Fassung der Ring-Regel (3:1)');
+  const ev = rules.find((r) => r.selector.trim() === '.month-view:not(.month-view--titles) .month-day__event');
+  assert(ev && /--color-text-tertiary/.test(ev.body), 'der Terminpunkt verliert seinen Ring');
+});
+
+test('Der Titel-Schalter wohnt am Monat, nicht mehr im Filterblatt', () => {
+  const html = calendarHelpers.monthListHtml();
+  assert(/id="month-titles-toggle"[^>]*aria-pressed="(true|false)"/.test(html),
+    'der Listenkopf traegt keinen Titel-Schalter mit aria-pressed');
+  assert(/id="month-collapse"[^>]*aria-controls="month-grid"/.test(html),
+    'der Einklapp-Knopf fehlt oder nennt das Raster nicht');
+  assert(/id="month-open-day"/.test(html), 'der Weg in die Tagesansicht fehlt im Listenkopf');
+  assert(/class="[^"]*page-scrollport[^"]*" id="month-list-rows"/.test(html),
+    'die Liste ist nicht der Scrollport - das Raster wuerde wieder scrollen');
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  assert(!/data-filter-month-titles/.test(src), 'das Filterblatt fuehrt den Titel-Schalter noch');
+});
+
+test('Telefon-Monat: „+" legt fuer den gewaehlten Tag an, der Reset fuehrt zu heute zurueck', () => {
+  const { state, newEventDate, syncTodayButton } = calendarHelpers;
+  const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, 'window');
+  const previousWindow = globalThis.window;
+  const zuvor = { view: state.view, cursor: state.cursor, today: state.today };
+  try {
+    Object.assign(state, { view: 'month', cursor: '2026-09-10', today: '2026-09-24' });
+    globalThis.window = { matchMedia: () => ({ matches: true }) };
+    assert(newEventDate() === '2026-09-10', `am Telefon muss der gewaehlte Tag kommen, war ${newEventDate()}`);
+    const btn = fakeResetButton();
+    syncTodayButton({ querySelector: (sel) => (sel === '#cal-today' ? btn : null) });
+    assert(btn.classList.contains('is-current') === false,
+      'ein anderer Tag ist gewaehlt - „Heute" muss erreichbar sein');
+    globalThis.window = { matchMedia: () => ({ matches: false }) };
+    assert(newEventDate() === '2026-09-24', 'auf dem Desktop gilt weiter die Zeitraumregel (#737)');
+  } finally {
+    Object.assign(state, zuvor);
+    if (hadWindow) globalThis.window = previousWindow;
+    else delete globalThis.window;
   }
 });
 
@@ -3083,6 +3545,678 @@ test('scheduleEnabled() verlangt zusaetzlich moduleAccess(\'schedule\') !== \'no
   assert(/moduleAccess\('schedule'\) !== 'none'/.test(fnBody),
     'scheduleEnabled() muss wie wasteEnabled() auch die Leserechte pruefen, nicht nur die Abschaltung - '
     + 'sonst sieht ein Mitglied ohne Schedule-Recht weiter die Ebenen-Zeile und loest bei jedem Laden ein 403 aus');
+});
+
+// --------------------------------------------------------
+// Mobile Inhaltsflaeche (Critique 2026-09-24, P1)
+// --------------------------------------------------------
+
+/* FILTER UND SUCHE WOHNEN IN DER BAR-ZEILE, NICHT IM AKTIONS-SLOT.
+ *
+ * Im Aktions-Slot bildeten sie mobil eine eigene Kopfzeile (56px fuer zwei
+ * Knoepfe) und standen je nach Kollaps-Zustand links oder rechts. Geprueft
+ * wird das GERENDERTE Markup des Kopfs: beide Knoepfe stehen in
+ * `.page-toolbar__bar`, HINTER der Tab-Leiste, und der Aktions-Slot enthaelt
+ * keinen von beiden. */
+test('Kalenderkopf: Filter und Suche stehen in der Bar-Zeile hinter dem Ansichts-Segment, nicht im Aktions-Slot', () => {
+  const html = calendarHelpers.toolbarHtml({ filterCount: 0, scheduleWarningHtml: '' });
+  const at = (needle) => html.indexOf(needle);
+  const actions = at('class="page-toolbar__actions"');
+  const bar = at('class="page-toolbar__bar');
+  const tablist = at('role="tablist"');
+  const filters = at('id="cal-filters"');
+  const search = at('id="cal-search"');
+  assert(actions >= 0 && bar >= 0 && tablist >= 0, 'Kopf ohne Aktions-Slot, Bar-Zeile oder Tab-Leiste gerendert');
+  assert(filters >= 0 && search >= 0, 'Filter- oder Suchknopf fehlt im Kopf');
+  assert(bar > actions, 'die Bar-Zeile muss nach dem Aktions-Slot stehen');
+  assert(filters > bar && search > bar,
+    `Filter (${filters}) und Suche (${search}) muessen IN der Bar-Zeile stehen (ab ${bar}), `
+    + 'nicht im Aktions-Slot - dort bauten sie mobil eine eigene Kopfzeile');
+  assert(filters > tablist && search > tablist,
+    'Filter und Suche gehoeren HINTER das Ansichts-Segment, ans Ende der Bar-Zeile');
+  const actionsHtml = html.slice(actions, bar);
+  assert(!actionsHtml.includes('cal-filters') && !actionsHtml.includes('cal-search'),
+    'der Aktions-Slot darf Filter oder Suche nicht (auch nicht zusaetzlich) tragen');
+});
+
+/* EINGEKLAPPT VERLAESST DER TITEL DAS BILD, NICHT DEN BAUM.
+ *
+ * Vorher fiel er nur auf den Inline-Schnitt und blieb auf seiner eigenen
+ * Zeile: der Kollaps sparte 5-14px. Die Regel muss den Titel aus dem Fluss
+ * nehmen und klippen (das <h1> bleibt fuer Screenreader), sonst bleibt die
+ * Zeile stehen. */
+test('Kalenderkopf: eingeklappt klappt die Titelzeile ganz ein (Titel geclippt, Siegel weg)', () => {
+  const rules = [...eachRule(calendarCss)];
+  const title = rules.find((r) => r.selector.split(',').map((x) => x.trim())
+    .includes('.cal-toolbar.page-toolbar--capped.is-collapsed > .page-toolbar__title'));
+  assert(title, 'keine Regel fuer den eingeklappten Kalendertitel');
+  assert(/position:\s*absolute/.test(title.body) && /clip-path:\s*inset\(50%\)/.test(title.body),
+    'der eingeklappte Titel muss aus dem Fluss (position: absolute) und geclippt sein - '
+    + 'display: none nimmt der Seite ihre Ueberschrift');
+  assert(!/display:\s*none/.test(title.body), 'das <h1> darf nicht per display: none verschwinden');
+  const seal = rules.find((r) => r.selector.trim()
+    === '.cal-toolbar.page-toolbar--capped.is-collapsed > .module-seal--head');
+  assert(seal && /display:\s*none/.test(seal.body), 'das Absender-Siegel muss mit dem Titel einklappen');
+});
+
+/* DAS LABEL HAT EINE FESTE BREITE. Mit `flex-basis: auto` brachte es seine
+ * Textbreite mit (Monat 156px, Tag 186px), und der Weiter-Pfeil sprang beim
+ * Ansichtswechsel 30px. */
+test('Zeitraum-Label: Basis 0 statt Textbreite, damit die Pfeile nicht springen', () => {
+  const label = [...eachRule(calendarCss)].find((r) => r.selector.trim() === '.cal-toolbar__label');
+  assert(label, '.cal-toolbar__label fehlt');
+  assert(/flex:\s*1 1 0(?:px|%)?\s*(;|$)/.test(label.body),
+    `das Label muss flex: 1 1 0 tragen (feste Breite aus dem Rest der Zeile), hat: ${label.body.match(/flex:[^;]+/)?.[0]}`);
+});
+
+/* DIE STUNDENLEISTE PASST IN 44px. „12:00 PM" braucht ~50px; im
+ * 12-Stunden-Format beschriftet sie volle Stunden ohne „:00". */
+test('Stundenleiste: volle Stunden, im 12-Stunden-Format ohne „:00"', () => {
+  // Die Schreibweise, die formatTime im 12-Stunden-Format liefert (i18n.js):
+  // `${h % 12 || 12}:${mm} ${AM|PM}`. Der Browser-Loader stubbt formatTime,
+  // deshalb wird die Kuerzung hier an ihrer eigenen Funktion geprueft.
+  assert(calendarHelpers.compactHourLabel('8:00 AM') === '8 AM', calendarHelpers.compactHourLabel('8:00 AM'));
+  assert(calendarHelpers.compactHourLabel('12:00 PM') === '12 PM', calendarHelpers.compactHourLabel('12:00 PM'));
+  assert(calendarHelpers.compactHourLabel('08:00') === '08:00', '24-Stunden-Schreibweise bleibt unveraendert');
+  assert(calendarHelpers.compactHourLabel('08.00') === '08.00', 'die Locale-Schreibweise (id) bleibt unveraendert');
+  // Und die Stundenleiste benutzt sie - in Woche UND Tag.
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const uses = src.match(/<span class="week-view__time-label">\$\{h === 0 \? '' : hourGutterLabel\(h\)\}<\/span>/g) ?? [];
+  assert(uses.length === 2, `Woche und Tag muessen hourGutterLabel verwenden, gefunden: ${uses.length}`);
+});
+
+/* WISCHEN ZWISCHEN ZEITRAEUMEN: die Entscheidungen der Geste als reine
+ * Funktionen - Schwelle, Richtungssperre, Rand, Leserichtung. Dass die Geste
+ * im Dokument verdrahtet ist, sieht nur der Browser (gemessen beim Bau). */
+test('Zeitraum-Wisch: Schwelle, Richtungssperre, Systemrand und RTL', () => {
+  const swipe = periodSwipe;
+  // Schwelle: dieselbe wie die Wischzeilen (80px).
+  assert(swipe.periodSwipeStep(-79) === 0, 'unter 80px blaettert nichts');
+  assert(swipe.periodSwipeStep(-80) === 1, 'LTR: nach links = naechster Zeitraum');
+  assert(swipe.periodSwipeStep(120) === -1, 'LTR: nach rechts = vorheriger Zeitraum');
+  assert(swipe.periodSwipeStep(-120, { rtl: true }) === -1, 'RTL: nach links = vorheriger Zeitraum');
+  assert(swipe.periodSwipeStep(120, { rtl: true }) === 1, 'RTL: nach rechts = naechster Zeitraum');
+  // Richtungssperre: senkrecht gewinnt, sobald es mehr senkrecht ist.
+  assert(swipe.periodSwipeLock(5, 5) === null, 'innerhalb der Toleranz ist noch nichts entschieden');
+  assert(swipe.periodSwipeLock(10, 40) === 'scroll', 'ueberwiegend senkrecht ist Scrollen');
+  assert(swipe.periodSwipeLock(30, 10) === 'swipe', 'ueberwiegend waagerecht ist die Geste');
+  // Der Rand gehoert der Zurueck-Geste des Systems.
+  assert(swipe.startsAtScreenEdge(10, 375) && swipe.startsAtScreenEdge(365, 375),
+    'ein Kontakt naeher als 20px an der Kante gehoert dem System');
+  assert(!swipe.startsAtScreenEdge(40, 375), 'ein Kontakt im Inhalt gehoert der Geste');
+});
+
+/* Ein zweiter Finger MITTEN im Wisch (PR #1460, Review): sein touchstart kam
+ * zuerst und setzte die Sperre auf 'off' - damit erreichte onMove seinen
+ * Mehrfinger-Zweig nie, onEnd stieg ohne reset aus, und der Inhalt blieb bis
+ * zum naechsten Rendern um den Wischweg verschoben stehen. */
+test('Zeitraum-Wisch: ein zweiter Finger mitten im Wisch setzt den Inhalt zurueck', () => {
+  const zuvor = { window: globalThis.window, document: globalThis.document };
+  try {
+    globalThis.window = { matchMedia: () => ({ matches: false }), innerWidth: 375 };
+    globalThis.document = { getElementById: () => null, documentElement: { dir: '' } };
+    const handlers = {};
+    const child = { style: {}, isConnected: true, classList: { add() {}, remove() {} } };
+    const surface = {
+      firstElementChild: child,
+      addEventListener: (type, fn) => { handlers[type] = fn; },
+      removeEventListener() {},
+      closest: () => null,
+    };
+    let steps = 0;
+    periodSwipe.wirePeriodSwipe(surface, { enabled: () => true, onStep: () => { steps++; } });
+    const target = { closest: () => null };
+    const at = (x, y) => ({ clientX: x, clientY: y });
+
+    handlers.touchstart({ touches: [at(200, 300)], target });
+    handlers.touchmove({ touches: [at(150, 302)], cancelable: true, preventDefault() {} });
+    assert(child.style.transform, 'Vorbedingung: der Inhalt folgt dem Finger');
+
+    handlers.touchstart({ touches: [at(150, 302), at(300, 400)], target });
+    assert(!child.style.transform, `der zweite Finger muss den Wisch abbrechen, Transform: ${child.style.transform}`);
+    handlers.touchend({ touches: [] });
+    assert(steps === 0, 'ein abgebrochener Wisch blaettert nicht');
+  } finally {
+    globalThis.window = zuvor.window;
+    globalThis.document = zuvor.document;
+  }
+});
+
+// --------------------------------------------------------
+// Tastatur und Screenreader (Critique 2026-09-24, P1, Schritt 3)
+//
+// Vorher: Terminbloecke in Woche und Tag trugen `cursor: pointer` und sonst
+// nichts, das Monatsraster war 35-42 einzelne role="button"-Tab-Stopps ohne
+// Pfeiltasten, die Prioritaet einer Aufgabe stand nur im aria-hidden-Punkt und
+// die Ansichts-Tablist hiess wie die H1. Gemessen wird am GERENDERTEN Markup.
+// --------------------------------------------------------
+
+function withMonthState(extra, fn) {
+  const hadWindow = Object.prototype.hasOwnProperty.call(globalThis, 'window');
+  const previousWindow = globalThis.window;
+  const hadRO = Object.prototype.hasOwnProperty.call(globalThis, 'ResizeObserver');
+  const previousRO = globalThis.ResizeObserver;
+  try {
+    globalThis.ResizeObserver = class { observe() {} disconnect() {} };
+    withOvernightState({ cursor: '2026-09-24', today: '2026-09-24', weekStart: 1, ...extra }, fn);
+  } finally {
+    if (hadRO) globalThis.ResizeObserver = previousRO; else delete globalThis.ResizeObserver;
+    if (hadWindow) globalThis.window = previousWindow;
+  }
+}
+
+test('Monatsraster ist EIN ARIA-Grid mit EINEM Tab-Stopp: grid > row > gridcell, roving tabindex', () => {
+  withMonthState({}, () => {
+    const container = fakeContainer();
+    calendarHelpers.renderMonthView(container);
+    const html = container.html;
+    assert(/class="month-view[^"]*"[^>]*role="grid"/.test(html), 'die Monatsflaeche traegt kein role="grid"');
+    assert(/role="grid" aria-labelledby="cal-label"/.test(html), 'das Grid muss nach dem Zeitraum-Label heissen');
+    const weeks = calendarHelpers.monthGridSpan('2026-09-24').weeks;
+    const rows = (html.match(/class="month-grid__row" role="row"/g) ?? []).length;
+    assert(rows === weeks, `je Woche eine role=row erwartet (${weeks}), gefunden ${rows}`);
+    const cells = [...html.matchAll(/class="month-day[^"]*" data-date="([^"]+)"[^>]*role="gridcell" tabindex="(0|-1)"/g)];
+    assert(cells.length === weeks * 7, `alle Tage muessen gridcells sein: ${cells.length} von ${weeks * 7}`);
+    const stops = cells.filter((m) => m[2] === '0').map((m) => m[1]);
+    assert(stops.length === 1 && stops[0] === '2026-09-24',
+      `genau EIN Tab-Stopp, auf dem Cursor - gefunden: ${stops.join(', ') || 'keiner'}`);
+    assert(!/class="month-day[^"]*"[^>]*role="button"/.test(html), 'eine Monatszelle ist noch role="button"');
+    assert((html.match(/role="columnheader"/g) ?? []).length === 7, 'die Wochentagsleiste muss die Spaltenkoepfe tragen');
+  });
+});
+
+test('Monatszelle: Auswahl im Telefon-Monat ist aria-selected, nicht aria-pressed; am Desktop keine Auswahl', () => {
+  withMonthState({}, () => {
+    const split = calendarHelpers.renderMonthDay('2026-09-24', true, { selected: true, split: true, focusable: true });
+    assert(/aria-selected="true"/.test(split), 'der gewaehlte Tag muss aria-selected="true" tragen');
+    assert(!/aria-pressed/.test(split), 'aria-pressed ist die Semantik eines Umschalters, nicht einer Grid-Auswahl');
+    const other = calendarHelpers.renderMonthDay('2026-09-23', true, { split: true });
+    assert(/aria-selected="false"/.test(other) && /tabindex="-1"/.test(other), 'ein anderer Tag: nicht gewaehlt, kein Tab-Stopp');
+    const desk = calendarHelpers.renderMonthDay('2026-09-24', true, { focusable: true });
+    assert(!/aria-selected|aria-pressed/.test(desk), 'am Desktop oeffnet die Zelle den Tag - dort gibt es keine Auswahl');
+    const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+    const sel = src.slice(src.indexOf('function selectMonthDay('), src.indexOf('let _monthFocusDate'));
+    assert(/aria-selected/.test(sel) && !/aria-pressed/.test(sel), 'selectMonthDay() muss aria-selected nachziehen');
+  });
+});
+
+test('Monatszelle: der Name nennt Wochentag, heute, Anzahl und die ersten drei Titel', () => {
+  const label = calendarHelpers.monthDayAriaLabel('2026-09-24', 5, [
+    { title: 'Zahnarzt' }, { title: 'Training', recurrence_rule: 'FREQ=WEEKLY' },
+  ], { tasks: [{ title: 'Steuer' }, { title: 'Muell' }], others: ['Feiertag'], isToday: true });
+  assert(label.startsWith('calendar.dayLongThursday, '), `der Wochentag fehlt vorn: ${label}`);
+  assert(label.includes(', calendar.today, '), `„heute" fehlt: ${label}`);
+  assert(label.endsWith('calendar.monthDayEntries{"count":5}: Feiertag, Zahnarzt, calendar.recurringEvent: Training'),
+    `Anzahl und die ersten drei Titel in Zellreihenfolge erwartet: ${label}`);
+  const empty = calendarHelpers.monthDayAriaLabel('2026-09-25', 0, []);
+  assert(!/today|monthDayEntries/.test(empty), `ein leerer Tag nennt nur sein Datum: ${empty}`);
+});
+
+test('Monatsraster: Pfeile, Pos1/Ende und Bild auf/ab fuehren zum richtigen Tag (Rand, Wochenstart, RTL)', () => {
+  const k = calendarHelpers.monthGridKeyTarget;
+  assert(k('2026-09-30', 'ArrowRight', { weekStart: 1 }) === '2026-10-01', 'rechts ueber den Monatsrand');
+  assert(k('2026-09-01', 'ArrowLeft', { weekStart: 1 }) === '2026-08-31', 'links ueber den Monatsrand');
+  assert(k('2026-09-01', 'ArrowLeft', { weekStart: 1, rtl: true }) === '2026-09-02', 'RTL: links ist vor');
+  assert(k('2026-09-24', 'ArrowDown', { weekStart: 1 }) === '2026-10-01', 'runter eine Woche');
+  assert(k('2026-09-24', 'ArrowUp', { weekStart: 1 }) === '2026-09-17', 'hoch eine Woche');
+  assert(k('2026-09-24', 'Home', { weekStart: 1 }) === '2026-09-21', 'Pos1: Montag bei Wochenstart Montag');
+  assert(k('2026-09-24', 'Home', { weekStart: 0 }) === '2026-09-20', 'Pos1: Sonntag bei Wochenstart Sonntag');
+  assert(k('2026-09-24', 'End', { weekStart: 1 }) === '2026-09-27', 'Ende: Sonntag bei Wochenstart Montag');
+  assert(k('2026-01-31', 'PageDown', { weekStart: 1 }) === '2026-02-28', 'Bild ab vom 31.01. auf den 28.02., nicht in den Maerz');
+  assert(k('2026-03-31', 'PageUp', { weekStart: 1 }) === '2026-02-28', 'Bild auf klemmt genauso');
+  assert(k('2026-09-24', 'a', { weekStart: 1 }) === null, 'eine fremde Taste gehoert nicht dem Raster');
+});
+
+test('Monatsraster: der Tab-Stopp bleibt nach dem Neuaufbau auf dem zuletzt fokussierten Tag', () => {
+  withMonthState({}, () => {
+    const dates = ['2026-08-31', '2026-09-01', '2026-09-24'];
+    assert(calendarHelpers.monthRovingDate(dates, '2026-09-01') === '2026-09-24', 'ohne Fokusmerker: der Cursor');
+    calendarHelpers.state.cursor = '2026-12-01';
+    assert(calendarHelpers.monthRovingDate(dates, '2026-09-01') === '2026-09-01', 'Cursor nicht im Raster: der erste Monatstag');
+  });
+});
+
+test('Woche und Tag: jeder Terminblock ist ein Knopf mit Namen wie die Agenda-Zeile', () => {
+  const ev = { ...morningEvent(), location: 'Praxis Dr. Weber', cal_name: 'Familie' };
+  const allDay = { id: 4133, title: 'Ausflug', all_day: 1, assigned_users: [], start_datetime: '2026-06-15T00:00', end_datetime: '2026-06-15T00:00' };
+  withOvernightState({ events: [ev, allDay] }, () => {
+    for (const [name, render] of [['Woche', calendarHelpers.renderWeekView], ['Tag', calendarHelpers.renderDayView]]) {
+      const container = fakeContainer();
+      render(container);
+      const html = container.html;
+      const block = new RegExp(`class="(?:week|day)-event[^"]*" data-id="4132"[^>]*>`).exec(html)?.[0] ?? '';
+      assert(/role="button"/.test(block) && /tabindex="0"/.test(block), `${name}: der Zeitblock ist kein Knopf: ${block.slice(0, 120)}`);
+      const aria = /aria-label="([^"]*)"/.exec(block)?.[1] ?? '';
+      assert(aria.startsWith('Fruehstueck, ') && aria.includes('Praxis Dr. Weber') && aria.includes('Familie'),
+        `${name}: der Name muss Titel, Zeit, Ort und Kalender tragen: ${aria}`);
+      const chip = /class="allday-event" data-id="4133"[^>]*>/.exec(html)?.[0] ?? '';
+      assert(/role="button"/.test(chip) && /tabindex="0"/.test(chip) && /aria-label="Ausflug, calendar.allDay/.test(chip),
+        `${name}: der Ganztags-Balken ist kein benannter Knopf: ${chip.slice(0, 160)}`);
+    }
+  });
+});
+
+test('Woche: der Tageskopf ist ein Knopf in den Tag; Enter oeffnet Termin, Aufgabe und Tag', () => {
+  withOvernightState({}, () => {
+    const container = fakeContainer();
+    calendarHelpers.renderWeekView(container);
+    const headers = [...container.html.matchAll(/class="week-view__day-header" data-date="[^"]+" role="button" tabindex="0"\s+aria-label="calendar\.monthOpenDay/g)];
+    assert(headers.length === 7, `alle sieben Tageskoepfe muessen benannte Knoepfe sein, gefunden ${headers.length}`);
+  });
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  for (const [name, from, to] of [['Woche', 'function renderWeekView(', 'function chronological('], ['Tag', 'function renderDayView(', 'function renderDayEvent(']]) {
+    const body = src.slice(src.indexOf(from), src.indexOf(to));
+    assert(/addEventListener\('keydown', handleGridKeydown\)/.test(body), `${name}: Enter/Leertaste ist nicht verdrahtet`);
+  }
+  const handler = src.slice(src.indexOf('function handleGridKeydown('), src.indexOf('function scrollToHour('));
+  for (const sel of ['.cal-task-chip', '.week-view__day-header', '.week-event, .day-event, .allday-event', 'view-schedule-entry']) {
+    assert(handler.includes(sel), `handleGridKeydown kennt ${sel} nicht - der Tab-Stopp taete auf Enter nichts`);
+  }
+});
+
+test('Woche und Tag: Tab laeuft in Uhrzeit-Reihenfolge, Schichten und Termine gemischt', () => {
+  const order = calendarHelpers.chronological([
+    { range: { start: 600, end: 660 }, html: () => 'C' },
+    { range: { start: 480, end: 540 }, html: () => 'A' },
+    { range: { start: 480, end: 600 }, html: () => 'B' },
+  ]);
+  assert(order === 'ABC', `erwartet A, B, C (Beginn, dann Ende) - gerendert ${order}`);
+  const late = { ...morningEvent(), id: 4140, title: 'Spaet', start_datetime: '2026-06-15T18:00', end_datetime: '2026-06-15T19:00' };
+  withOvernightState({ events: [late, morningEvent()] }, () => {
+    const container = fakeContainer();
+    calendarHelpers.renderDayView(container);
+    const ids = timedBlocks(container.html).map((b) => b.id);
+    assert(JSON.stringify(ids) === JSON.stringify([4132, 4140]), `der fruehe Termin muss zuerst im DOM stehen: ${ids.join(', ')}`);
+  });
+});
+
+test('Aufgabe im Kalender: der Name nennt die Prioritaet und die Uhrzeit, nicht nur den Titel', () => {
+  const label = calendarHelpers.taskChipAriaLabel({ title: 'Steuer', priority: 'urgent', due_time: '14:30:00' });
+  assert(label.includes('tasks.priorityLabel: tasks.priorityUrgent'), `die Prioritaet fehlt im Namen: ${label}`);
+  assert(/14:30/.test(label), `die Uhrzeit fehlt im Namen: ${label}`);
+  const none = calendarHelpers.taskChipAriaLabel({ title: 'Steuer', priority: 'none' });
+  assert(!/priority/.test(none), `„ohne Prioritaet" sagt nichts, wie der Punkt: ${none}`);
+  const html = calendarHelpers.renderTaskChip({ id: 1, title: 'Steuer', priority: 'high' });
+  assert(/aria-label="calendar\.taskChipAriaLabel\{[^"]*\}, tasks\.priorityLabel: tasks\.priorityHigh"/.test(html),
+    `der gerenderte Chip traegt die Prioritaet nicht im aria-label: ${html.slice(0, 200)}`);
+});
+
+test('Kopf: die Tablist heisst „Ansicht", die Knoepfe nennen ihre Kuerzel', () => {
+  const html = calendarHelpers.toolbarHtml();
+  assert(/role="tablist" aria-label="calendar\.viewSwitcher"/.test(html), 'die Tablist muss „Ansicht" heissen, nicht wie die H1');
+  assert(!/role="tablist" aria-label="nav\.calendar"/.test(html), 'die Tablist heisst noch „Kalender"');
+  for (const [view, key] of Object.entries({ month: 'm', week: 'w', day: 'd', agenda: 'a' })) {
+    assert(new RegExp(`id="cal-view-tab-${view}"[^>]*aria-keyshortcuts="${key}"`).test(html), `Reiter ${view} nennt „${key}" nicht`);
+  }
+  const nav = calendarHelpers.periodNavHtml();
+  assert(/id="cal-prev"[^>]*aria-keyshortcuts="k ArrowLeft"/.test(nav), 'zurueck nennt k und Pfeil links nicht');
+  assert(/id="cal-next"[^>]*aria-keyshortcuts="j ArrowRight"/.test(nav), 'vor nennt j und Pfeil rechts nicht');
+  assert(/id="cal-today"[^>]*aria-keyshortcuts="t"/.test(nav), 'heute nennt t nicht');
+  assert(calendarHelpers.periodArrowKeys(true).prev === 'ArrowRight', 'RTL: zurueck ist Pfeil rechts');
+});
+
+test('Kuerzel: t, j/k und m/w/d/a gelten nur auf /calendar und gehen an die Seite, nicht an den DOM', () => {
+  const router = readFileSync(new URL('../public/router.js', import.meta.url), 'utf8');
+  const { CAL_SHORTCUT_KEYS } = calendarHelpers;
+  const keys = [CAL_SHORTCUT_KEYS.today, CAL_SHORTCUT_KEYS.prev, CAL_SHORTCUT_KEYS.next, ...Object.values(CAL_SHORTCUT_KEYS.views)];
+  for (const key of keys) {
+    assert(new RegExp(`\\{ key: '${key}', route: '/calendar'`).test(router), `SHORTCUTS fuehrt „${key}" nicht als Kalender-Kuerzel`);
+  }
+  const dispatch = router.slice(router.indexOf('function initKeyboardShortcuts('), router.indexOf('function showHelpModal('));
+  assert(/shortcutApplies\(s\)/.test(dispatch), 'der Dispatcher prueft die Route eines Kuerzels nicht - „d" schaltete ueberall');
+  assert(/bareFocusOnly/.test(dispatch) && /focusIsBare\(\)/.test(dispatch),
+    'die Pfeile duerfen nur ohne Fokus auf einem Bedienelement blaettern (Raster, Tablist, Felder)');
+  // Der Akkord „g d" wird VOR der Einzeltaste entschieden.
+  assert(dispatch.indexOf("_pendingKey === 'g'") < dispatch.indexOf('shortcutApplies(s)'), 'der g-Akkord muss vor den Einzeltasten stehen');
+  const help = router.slice(router.indexOf('function showHelpModal('));
+  assert(/SHORTCUTS\.filter\(\(s\) => shortcutApplies\(s\)\)/.test(help), 'die Hilfe zeigt Kuerzel, die hier nichts tun');
+  const cal = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  assert(/addEventListener\?\.\('yuvomi:calendar-command', onCalendarCommand\)/.test(cal), 'die Seite hoert die Kuerzel nicht');
+});
+
+/* PR #1460, Review: der Tipp auf einen Tag zeichnet das Raster bewusst NICHT
+ * neu - also muss selectMonthDay() den einen Tab-Stopp selbst mitnehmen, sonst
+ * landet Tab von aussen auf dem alten Tag und die Pfeile starten dort. */
+test('Telefon-Monat: der Tipp auf einen Tag nimmt den Tab-Stopp mit', () => {
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const sel = src.slice(src.indexOf('function selectMonthDay('), src.indexOf('let _monthFocusDate'));
+  assert(/cell\.tabIndex\s*=\s*selected\s*\?\s*0\s*:\s*-1/.test(sel),
+    'selectMonthDay() muss tabindex 0 auf den gewaehlten Tag und -1 auf alle anderen setzen');
+  assert(!/\.focus\(/.test(sel), 'ein Tipp darf den Fokus nicht verschieben');
+});
+
+/* CONTRIBUTING.md: „Pages export a render() function, no side effects on
+ * import". Die beiden Listener dieser Seite (Kuerzel, 640er-Schwelle) haengen
+ * sich deshalb erst im ersten render() an - einmal, nicht je Besuch. */
+const importListeners = await (async () => {
+  const zuvor = { window: globalThis.window, document: globalThis.document };
+  const angehaengt = [];
+  try {
+    globalThis.document = { addEventListener: (type) => angehaengt.push(`document:${type}`) };
+    globalThis.window = { matchMedia: () => ({ matches: false, addEventListener: (type) => angehaengt.push(`matchMedia:${type}`) }) };
+    await import(`../public/pages/calendar.js?import-probe=${Date.now()}`);
+  } finally {
+    globalThis.window = zuvor.window;
+    globalThis.document = zuvor.document;
+  }
+  return angehaengt;
+})();
+test('Kalender-Seite: der Import haengt keine Listener an', () => {
+  assert(importListeners.length === 0, `der Import haengt an: ${importListeners.join(', ')}`);
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const page = src.slice(src.indexOf('export async function render('), src.indexOf('// Lade-Skeleton sofort'));
+  assert(/bindPageListeners\(\)/.test(page), 'render() muss die Listener der Seite anhaengen');
+});
+
+test('Telefon-Monat: die Auswahl wird angesagt - aus einer Live-Region, die den Neuaufbau ueberlebt', () => {
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const page = src.slice(src.indexOf('export async function render('), src.indexOf('// Lade-Skeleton sofort'));
+  assert(/id="cal-live"[^>]*aria-live="polite"/.test(page), 'die Seite hat keine polite Live-Region');
+  assert(page.indexOf('id="cal-live"') < page.indexOf('id="cal-body"') || !/id="cal-body"[\s\S]*id="cal-live"/.test(page),
+    'die Live-Region muss AUSSERHALB von #cal-body stehen, sonst entsteht sie mit ihrem Inhalt');
+  const sel = src.slice(src.indexOf('function selectMonthDay('), src.indexOf('let _monthFocusDate'));
+  assert(/announceMonthDay\(date\)/.test(sel), 'die Auswahl eines Tages wird nicht angesagt');
+  const view = src.slice(src.indexOf('function renderView('), src.indexOf('function syncHeadToScrollport('));
+  assert(!/announceMonthDay/.test(view), 'renderView() darf nicht ansagen - sonst redet jeder Filterwechsel');
+});
+
+test('Aufgaben-Chip: Trefferflaeche in der Liste auf --target-base, im Ganztags-Stapel mindestens 24px', () => {
+  const css = readFileSync(new URL('../public/styles/calendar.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const before = rules.find((r) => r.selector.trim() === '.agenda-tasks .cal-task-chip::before');
+  assert(before && /inset-block:\s*calc\(-1 \* var\(--task-hit-grow\)\)/.test(before.body), 'die Liste dehnt die Aufgabe nicht per ::before');
+  const list = rules.find((r) => r.selector.trim() === '.agenda-tasks');
+  assert(list && /--task-hit-grow:\s*calc\(\(var\(--target-base\) - var\(--space-6\)\) \/ 2\)/.test(list.body),
+    'die Dehnung muss aus --target-base kommen');
+  // Seit 2026-09-24 duerfen sich die Dehnungen zweier Aufgaben ueberlappen
+  // (8px Zeilenabstand statt 20-24px) - aber nur UNTER den Chips: die sichtbare
+  // Bar trifft immer sich selbst.
+  assert(/row-gap:\s*var\(--space-2\)/.test(list.body), 'der Zeilenabstand der Aufgaben ist wieder die doppelte Dehnung (48px-Takt)');
+  assert(/isolation:\s*isolate/.test(list.body) && /z-index:\s*-1/.test(before.body),
+    'ueberlappende Dehnungen muessen unter den Chips liegen, sonst trifft ein Tipp auf die untere Bar die obere Aufgabe');
+  const chip = rules.find((r) => r.selector.trim() === '.agenda-tasks .cal-task-chip');
+  assert(chip && /overflow:\s*visible/.test(chip.body), 'der Chip schneidet sein eigenes ::before ab (overflow)');
+  const stack = rules.find((r) => r.selector.trim() === '.allday-cell .cal-task-chip');
+  assert(stack && /min-height:\s*var\(--space-6\)/.test(stack.body), 'im Ganztags-Stapel bleibt die Aufgabe unter 24px');
+  const focus = rules.find((r) => /\.week-event:focus-visible/.test(r.selector) && /\.day-event:focus-visible/.test(r.selector));
+  assert(focus && /outline:\s*var\(--focus-ring-width\) solid var\(--focus-ring-color\)/.test(focus.body), 'Terminbloecke haben keinen Fokusring');
+});
+
+// --------------------------------------------------------
+// EIN ZEITFORMAT (Critique 2026-09-24, P2). Drei Schreibweisen derselben
+// Spanne standen im Kalender: Raster ohne Leerzeichen mit Gedankenstrich,
+// Agenda mit Gedankenstrich und „Uhr", Detail „10:00 Uhr - 11:30 Uhr". Jetzt
+// eine: `calendar.dayRangeLabel` („{{from}} - {{to}}") ueber formatTime(), das
+// Suffix einmal am Ende - im Raster ohne, sonst mit.
+// --------------------------------------------------------
+test('timeSpanText: Spanne ueber den Locale-Trenner, Suffix einmal am Ende', () => {
+  globalThis.__timeSuffix = 'Uhr';
+  try {
+    const span = calendarHelpers.timeSpanText('2026-09-24T17:00', '2026-09-24T18:30');
+    assert(span === 'calendar.dayRangeLabel{"from":"2026-09-24T17:00","to":"2026-09-24T18:30"} Uhr',
+      `erwartet Trenner aus der Locale und ein Suffix am Ende: ${span}`);
+    const grid = calendarHelpers.timeSpanText('2026-09-24T17:00', '2026-09-24T18:30', { suffix: false });
+    assert(!grid.includes('Uhr'), `die Rasterfassung traegt kein Suffix: ${grid}`);
+    const open = calendarHelpers.timeSpanText('2026-09-24T17:00', null);
+    assert(open === '2026-09-24T17:00 Uhr', `ohne Ende nur der Start mit Suffix: ${open}`);
+  } finally {
+    delete globalThis.__timeSuffix;
+  }
+});
+
+test('Zeitformat: Raster, Liste, gesprochener Name und Schicht gehen durch denselben Helfer', () => {
+  globalThis.__timeSuffix = 'Uhr';
+  try {
+    const ev = glyphEvent({});
+    const range = 'calendar.dayRangeLabel{"from":"2026-09-24T09:00","to":"2026-09-24T10:30"}';
+    const html = {};
+    withMonthState({ events: [ev] }, () => {
+      html.week = calendarHelpers.renderWeekEvent(ev, null, '2026-09-24');
+      html.day = calendarHelpers.renderDayEvent(ev, null, '2026-09-24');
+      html.agenda = calendarHelpers.renderAgendaEvent(ev, '2026-09-24');
+    });
+    const esc = (text) => escStub(text);
+    assert(html.week.includes(`class="week-event__time">${range}<`), `Woche: Rasterfassung erwartet: ${html.week}`);
+    assert(html.day.includes(`class="day-event__meta">${range}<`), `Tag: Rasterfassung erwartet: ${html.day}`);
+    assert(html.agenda.includes(`<span>${esc(`${range} Uhr`)}</span>`), `Agenda: Listenfassung mit Suffix erwartet: ${html.agenda}`);
+    for (const [view, markup] of Object.entries(html)) {
+      assert(markup.includes(esc(`Zahnarzt, ${range} Uhr`)),
+        `${view}: der gesprochene Name nennt die Zeit in der Listenfassung - ein Termin klingt ueberall gleich`);
+    }
+    const shift = calendarHelpers.scheduleTimeLabel({ start_time: '22:00', end_time: '06:00' });
+    assert(shift === 'calendar.dayRangeLabel{"from":"22:00","to":"06:00"} Uhr +1',
+      `die Schichtspanne geht durch formatTime() (12 Stunden!) und denselben Trenner: ${shift}`);
+  } finally {
+    delete globalThis.__timeSuffix;
+  }
+});
+
+test('calendar.js enthaelt keinen Gedankenstrich - weder im UI-Text noch im Kommentar', () => {
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const hits = src.split('\n').map((line, i) => [i + 1, line]).filter(([, line]) => /[\u2013\u2014]/.test(line));
+  assert(hits.length === 0,
+    `Projektregel: "-" statt Em-/En-Dash (CLAUDE.md). Fundstellen: ${hits.map(([n]) => n).join(', ')}`);
+  for (const file of readdirSync(new URL('../public/locales/', import.meta.url)).filter((n) => n.endsWith('.json'))) {
+    const range = JSON.parse(readFileSync(new URL(`../public/locales/${file}`, import.meta.url), 'utf8')).calendar.dayRangeLabel;
+    assert(!/[\u2013\u2014]/.test(range), `${file}: calendar.dayRangeLabel traegt einen Gedankenstrich: ${range}`);
+  }
+});
+
+// --------------------------------------------------------
+// EINE BLOCKGRAMMATIK (Critique 2026-09-24, P2): Monat, Woche, Tag, Ganztag und
+// die Listenzeile nennen die Terminfarbe mit derselben Kante, die Bloecke mit
+// demselben Ink-Rezept. Vorher: Tag mit eigenem Spine-Element NEBEN der Kante
+// (zwei Striche), Woche 38 % statt 35 %, Liste mit 8px-Punkt, Icons im Vollton.
+// --------------------------------------------------------
+test('Blockgrammatik: eine Kante, ein Ink-Rezept, Titel oben, Glyphen in der Tinte', () => {
+  const rules = [...eachRule(calendarCss)];
+  const body = (selector) => rules.filter((r) => r.selector.trim() === selector).map((r) => r.body).join(';');
+  for (const selector of ['.month-day__event', '.week-event', '.day-event', '.allday-event', '.agenda-event__body']) {
+    assert(/border-inline-start:\s*var\(--cal-event-edge\) solid var\(--ev-color/.test(body(selector)),
+      `${selector}: die Terminfarbe steht nicht als Kante aus --cal-event-edge`);
+  }
+  const inks = ['.month-day__event', '.week-event', '.day-event', '.allday-event']
+    .map((selector) => body(selector).match(/(?:^|;)\s*color:\s*color-mix\(in srgb, var\(--ev-color\) (\d+)%/)?.[1]);
+  assert(new Set(inks).size === 1 && inks[0] === '35', `ein Ink-Rezept fuer alle Bloecke erwartet, gefunden: ${inks.join(', ')}`);
+  assert(!/(?:^|;)\s*border:/.test(body('.week-event') + body('.allday-event')),
+    'Woche und Ganztag tragen wieder einen Rahmen, den Monat und Tag nicht haben');
+  assert(!rules.some((r) => /day-event__spine/.test(r.selector)), 'das zweite Kanten-Element des Tags ist zurueck');
+  assert(!/day-event__spine/.test(readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8')),
+    'renderDayEvent zeichnet wieder ein eigenes Spine-Element');
+  assert(/align-items:\s*flex-start/.test(body('.day-event')), 'der Tagesblock zentriert seinen Titel wieder senkrecht');
+  assert(!rules.some((r) => /event-icon/.test(r.selector) && /(?:^|;)\s*color:\s*var\(--ev-color\)/.test(r.body)),
+    'ein Terminicon steht wieder im Vollton der Nutzerfarbe statt in der Tinte');
+  assert(!rules.some((r) => r.selector.trim() === '.agenda-event__color'), 'der Farbpunkt der Listenzeile ist zurueck');
+});
+
+test('Blockgrammatik: die Zeitzeile erscheint nach der Hoehe des Blocks, nicht halb abgeschnitten', () => {
+  assert(/container:\s*ev-block \/ size/.test(calendarCss.slice(calendarCss.indexOf('\n.week-event {'))),
+    'der Wochenblock ist kein Groessen-Container');
+  const query = /@container ev-block \(height < ([\d.]+)rem\)\s*\{([^}]*)\}/.exec(calendarCss);
+  assert(query && /\.week-event__time/.test(query[2]) && /\.day-event__meta/.test(query[2]),
+    'Woche und Tag muessen ihre Zeitzeile ueber dieselbe Hoehenfrage ausblenden');
+});
+
+test('Ganztags-Beschriftung bricht um, statt aus der 44px-Spalte zu ragen', () => {
+  const label = [...eachRule(calendarCss)].find((r) => r.selector.trim() === '.calendar-all-day-label');
+  assert(/overflow-wrap:\s*anywhere/.test(label.body), 'ein Wort ohne Bruchstelle ragt wieder aus der Spalte');
+  const de = JSON.parse(readFileSync(new URL('../public/locales/de.json', import.meta.url), 'utf8')).calendar.allDayShort;
+  assert(de.includes('\u00ad'), `„ganztg." war 42,5px breit in 44px - das deutsche Wort braucht eine Trennstelle: ${de}`);
+});
+
+// --------------------------------------------------------
+// Termin-Dialog: Reihenfolge, Aufklapper, Hinweiszeilen (Critique 2026-09-24, P2)
+// --------------------------------------------------------
+
+/**
+ * Rendert den Dialog wie im Browser und haelt fest, was `advancedSection()`
+ * bekommt: der Loader stubt modal.js, der Aufklapper waere sonst unsichtbar.
+ */
+function renderEventDialog({ mode = 'create', event = null, users = [{ id: 1, display_name: 'Anna Berg' }, { id: 2, display_name: 'Ben Berg' }] } = {}) {
+  const vorher = { users: calendarHelpers.state.users, hook: globalThis.__advancedSection, ms: globalThis.__renderUserMultiSelect };
+  let advanced = null;
+  globalThis.__renderUserMultiSelect = (_people, _ids, name) => `<div class="user-ms" data-ms-name="${name}"></div>`;
+  globalThis.__advancedSection = (inner, opts) => {
+    advanced = { inner: String(inner), opts };
+    return `<details class="form-advanced"${opts?.open ? ' open' : ''}><summary class="form-advanced__summary"></summary><div class="form-advanced__body">${inner}</div></details>`;
+  };
+  calendarHelpers.state.users = users;
+  try {
+    const html = calendarHelpers.buildEventModalContent({ mode, event, date: '2030-05-01', reminder: [] });
+    return { html, advanced };
+  } finally {
+    calendarHelpers.state.users = vorher.users;
+    if (vorher.hook === undefined) delete globalThis.__advancedSection;
+    else globalThis.__advancedSection = vorher.hook;
+    if (vorher.ms === undefined) delete globalThis.__renderUserMultiSelect;
+    else globalThis.__renderUserMultiSelect = vorher.ms;
+  }
+}
+
+const EDIT_BASE = {
+  id: 9, title: 'Elternabend', start_datetime: '2030-05-01T19:00', end_datetime: '2030-05-01T20:30',
+  visibility: 'all', created_by: 1,
+};
+
+test('Termin-Dialog: die Felder stehen nach Haeufigkeit, Seltenes hinter „Weitere Einstellungen"', () => {
+  const { html, advanced } = renderEventDialog();
+  assert(advanced, 'der Dialog baut „Weitere Einstellungen" nicht mehr ueber advancedSection()');
+  // Titel, Wann, Wer, Wiederholung, Erinnerung, Ort, Beschreibung - dann der Aufklapper.
+  const main = ['id="modal-title"', 'id="modal-allday"', 'id="modal-start-date"', 'data-ms-name="cal_assigned"',
+    'id="modal-reminder-toggle"', 'id="modal-location"', 'id="modal-description"',
+    '<details class="form-advanced"'];
+  const at = main.map((m) => html.indexOf(m));
+  assert(at.every((i) => i >= 0), `nicht gerendert: ${main.filter((_, i) => at[i] < 0).join(', ')}`);
+  assert(at.every((i, k) => k === 0 || at[k - 1] < i),
+    `Reihenfolge ist ${main.slice().sort((a, b) => html.indexOf(a) - html.indexOf(b)).join(' < ')}`);
+  for (const m of main.slice(0, -1)) {
+    assert(!advanced.inner.includes(m), `${m} steht hinter dem Aufklapper - es gehoert in den Hauptteil`);
+  }
+  // Die Wiederholung rendert der Loader als Stub (''), ihre Stelle steht im
+  // Aufruf: zwischen der Personenwahl und der Erinnerung, ausserhalb des
+  // Aufklappers.
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('function buildEventModalContent('), src.indexOf('\nfunction confirmCalendarOverrideOrphans('));
+  const ret = body.slice(body.indexOf('return `'));
+  const [who, rrule, remind] = ["renderUserMultiSelect(", "renderRRuleFields('event'", 'renderCalendarReminderSection('].map((m) => ret.indexOf(m));
+  assert(who > 0 && who < rrule && rrule < remind, `Wiederholung steht nicht zwischen Wer und Erinnerung (${who}/${rrule}/${remind})`);
+  // Sichtbarkeit, Stichtag, Farbe, Icon, Sync-Ziel, Anhang - in dieser Folge.
+  const rare = ['id="modal-visibility"', 'id="modal-countdown"', 'id="event-color-picker"', 'id="modal-icon-trigger"',
+    'id="event-sync-target"', 'id="modal-attachment"'];
+  const inner = rare.map((m) => advanced.inner.indexOf(m));
+  assert(inner.every((i) => i >= 0), `nicht hinter dem Aufklapper: ${rare.filter((_, i) => inner[i] < 0).join(', ')}`);
+  assert(inner.every((i, k) => k === 0 || inner[k - 1] < i), 'die seltenen Felder stehen in anderer Folge');
+  // Der Aufklapper nennt, was hinter ihm liegt - aus den Beschriftungen der Felder.
+  assert(advanced.opts?.hint === calendarHelpers.eventAdvancedTopics({ visibilityOffered: true, attachment: true }),
+    `der Aufklapper nennt seinen Inhalt nicht: ${JSON.stringify(advanced.opts)}`);
+  for (const key of ['common.visibility.label', 'calendar.colorLabel', 'calendar.iconLabel', 'calendar.syncTargetLabel', 'calendar.attachmentLabel']) {
+    assert(advanced.inner.includes(key), `${key} steht in der Zeile des Aufklappers, aber kein Feld dahinter traegt es`);
+  }
+  assert(advanced.opts.open === false, 'ein neuer Termin oeffnet „Weitere Einstellungen"');
+});
+
+test('Termin-Dialog: der Aufklapper nennt nur, was er zeigt', () => {
+  const alle = calendarHelpers.eventAdvancedTopics({ visibilityOffered: true, attachment: true });
+  const ohne = calendarHelpers.eventAdvancedTopics({ visibilityOffered: false, attachment: false });
+  assert(alle.includes('common.visibility.label') && alle.includes('calendar.attachmentLabel'), alle);
+  assert(!ohne.includes('common.visibility.label'), `Sichtbarkeit genannt, obwohl das Feld verborgen ist: ${ohne}`);
+  assert(!ohne.includes('calendar.attachmentLabel'), `Anhang genannt ohne Dokumente-Zugriff: ${ohne}`);
+  assert(ohne.includes('dashboard.countdownTitle'), 'der Stichtag fehlt in der Zeile - genau ihn faende sonst niemand (#647)');
+  // Der Aufrufer liest dieselbe Bedingung wie das Feld: ein Haushalt ohne weitere Leser.
+  const solo = renderEventDialog({ users: [{ id: 1, display_name: 'Anna Berg' }] });
+  assert(!solo.advanced.opts.hint.includes('common.visibility.label'),
+    `im Haushalt ohne weitere Leser nennt der Aufklapper eine verborgene Sichtbarkeit: ${solo.advanced.opts.hint}`);
+});
+
+test('Termin-Dialog: beim Bearbeiten geht der Aufklapper nur fuer Unsichtbares auf', () => {
+  const open = (event) => renderEventDialog({ mode: 'edit', event: { ...EDIT_BASE, ...event } }).advanced.opts.open;
+  assert(open({}) === false, 'ein schlichter Termin oeffnet „Weitere Einstellungen"');
+  assert(open({ color: '#3B82F6', icon: 'star' }) === false, 'Farbe und Icon zeigt der Termin selbst - kein Grund aufzuklappen');
+  assert(open({ description: 'Mitbringen: Stifte' }) === false, 'die Beschreibung steht im Hauptteil und oeffnet nichts mehr');
+  assert(open({ countdown: 1 }) === true, 'ein Stichtag bleibt zugeklappt versteckt');
+  assert(open({ visibility: 'private' }) === true, 'eine eingeschraenkte Sichtbarkeit bleibt zugeklappt versteckt');
+  assert(open({ attachment_document_id: 3, attachment_name: 'a.pdf' }) === true, 'ein Anhang bleibt zugeklappt versteckt');
+  const solo = renderEventDialog({ mode: 'edit', event: { ...EDIT_BASE, visibility: 'private' }, users: [{ id: 1, display_name: 'Anna Berg' }] });
+  assert(solo.advanced.opts.open === false, 'fuer ein verborgenes Sichtbarkeitsfeld klappt der Dialog auf');
+});
+
+test('Termin-Dialog: Von und Bis sind je eine Zeile, jedes Feld behaelt seinen Namen', () => {
+  const { html } = renderEventDialog();
+  const row = /<div class="cal-when" id="time-fields">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? '';
+  const labels = [...row.matchAll(/<label[^>]*for="([\w-]+)"[^>]*>([^<]*)<\/label>/g)].map((m) => `${m[1]}=${m[2]}`);
+  assert(JSON.stringify(labels) === JSON.stringify(['modal-start-date=calendar.fromLabel', 'modal-end-date=calendar.toLabel']),
+    `Zeilenbeschriftungen: ${labels.join(', ')}`);
+  // Das Datum heisst wie seine Zeile (sichtbarer Name im zugaenglichen), die
+  // Uhrzeit bringt ihren eigenen mit - sie hat keine sichtbare Beschriftung.
+  assert(!/id="modal-start-date"[^>]*\blabel="/.test(row), 'das Datumsfeld ueberschreibt die sichtbare Zeilenbeschriftung „Von"');
+  assert(/id="modal-start-time"[^>]*\blabel="calendar\.startTimeLabel"/.test(row), 'das Zeitfeld hat keinen eigenen Namen');
+  assert(/id="modal-end-time"[^>]*\blabel="calendar\.endTimeLabel"/.test(row), 'das Endzeitfeld hat keinen eigenen Namen');
+  const grid = [...eachRule(calendarCss)].find((r) => r.selector.trim() === '.cal-when');
+  assert(grid && /grid-template-columns:\s*max-content\b/.test(grid.body),
+    'die Beschriftungsspalte ist nicht mehr EINE Spalte fuer beide Zeilen');
+});
+
+test('Termin-Dialog: die Sichtbarkeitswarnung klappt ihren Abschnitt auf', () => {
+  // Die Sichtbarkeit steht hinter „Weitere Einstellungen". Wer oben die letzte
+  // Person abwaehlt, waehrend „Nur Zugewiesene" gilt, bekaeme die Warnung sonst
+  // in einem geschlossenen <details>.
+  const listeners = {};
+  const details = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
+  const select = { value: 'assignees', addEventListener: (type, fn) => { listeners.select = fn; } };
+  const warn = { hidden: true, closest: (sel) => (sel === 'details' ? details : null) };
+  const ms = { addEventListener: (type, fn) => { listeners.ms = fn; } };
+  const panel = { querySelector: (sel) => ({ '#vis': select, '#warn': warn, '.user-ms[data-ms-name="cal_assigned"]': ms })[sel] ?? null };
+  const vorher = globalThis.__getSelectedUserIds;
+  globalThis.__getSelectedUserIds = () => [1];
+  try {
+    calendarHelpers.wireVisibilityWarning(panel, '#vis', 'cal_assigned', '#warn');
+    assert(warn.hidden === true && !('open' in details.attrs), 'mit einer Person gibt es nichts zu warnen und nichts aufzuklappen');
+    globalThis.__getSelectedUserIds = () => [];
+    listeners.select();
+    assert(warn.hidden === false, 'ohne Person bei „Nur Zugewiesene" fehlt die Warnung');
+    assert(details.attrs.open === '', 'die Warnung steht in einem geschlossenen Abschnitt');
+  } finally {
+    if (vorher === undefined) delete globalThis.__getSelectedUserIds;
+    else globalThis.__getSelectedUserIds = vorher;
+  }
+});
+
+/*
+ * JEDE KLASSE IM TERMIN-DIALOG HAT EINE REGEL IN EINEM BLATT, DAS /calendar
+ * LAEDT. `.form-hint` lebte in settings.css, der Router laedt pro Route genau
+ * ein Seiten-Blatt - im Dialog standen sieben Hinweise in 16px Primaertinte,
+ * und `.form-help` (Anhang) hatte nirgends eine Regel. Geprueft wird das
+ * gerenderte Markup gegen die Blaetter, die auf /calendar wirklich geladen
+ * sind: index.html, calendar.css und reminders.css (router.js laedt es fuer
+ * jede angemeldete Sitzung).
+ */
+test('Termin-Dialog: jede Klasse im Markup hat eine Regel in einem Blatt, das /calendar laedt', () => {
+  const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  const sheets = [...read('../public/index.html').matchAll(/<link rel="stylesheet" href="\/styles\/([\w-]+\.css)"/g)]
+    .map((m) => m[1]).concat('calendar.css', 'reminders.css');
+  const styled = new Set();
+  for (const file of sheets) {
+    for (const { selector } of eachRule(read(`../public/styles/${file}`))) {
+      for (const m of selector.matchAll(/\.([\w-]+)/g)) styled.add(m[1]);
+    }
+  }
+  // Klassen, die KEINE Regel brauchen - mit Grund, nicht als Sammelbecken.
+  const HOOKS = new Map([
+    ['event-icon-picker__trigger-icon', 'traegt das Icon; gestaltet ueber `.event-icon-picker__trigger svg`'],
+  ]);
+  const event = {
+    ...EDIT_BASE, recurrence_rule: 'FREQ=WEEKLY;BYDAY=MO', countdown: 1, visibility: 'assignees',
+    attachment_document_id: 3, attachment_name: 'a.pdf', attachment_mime: 'application/pdf',
+  };
+  const unstyled = new Set();
+  for (const { html } of [renderEventDialog(), renderEventDialog({ mode: 'edit', event })]) {
+    for (const m of html.matchAll(/class="([^"$]*)"/g)) {
+      for (const cls of m[1].split(/\s+/).filter(Boolean)) {
+        if (!cls.startsWith('js-') && !styled.has(cls) && !HOOKS.has(cls)) unstyled.add(cls);
+      }
+    }
+  }
+  assert(unstyled.size === 0, `ohne Regel auf /calendar (faellt auf den Koerpertext zurueck): ${[...unstyled].join(', ')}`);
 });
 
 // --------------------------------------------------------
