@@ -1101,7 +1101,13 @@
         "syncTargetSeveralAssignees": "تم إسناد عدة أشخاص، لذلك لا يختار الإسناد أي تقويم. المستخدَم بدلًا من ذلك: {{target}}.",
         "filtersSources": "التقويمات",
         "filterUnassigned": "غير مُسندة",
-        "syncTargetAssigneeAmbiguous": "لدى عدة تقويمات هذا الشخص كإسناد افتراضي. اختر الوجهة بنفسك."
+        "syncTargetAssigneeAmbiguous": "لدى عدة تقويمات هذا الشخص كإسناد افتراضي. اختر الوجهة بنفسك.",
+        "dateSpanSpoken": "من {{from}} إلى {{to}}",
+        "multiDayPosition": "اليوم {{day}} من {{total}}",
+        "bandContinued": "تتمة",
+        "monthDayMoreTitles": "و{{count}} أخرى",
+        "monthDayMoreTitles_one": "و{{count}} أخرى",
+        "monthDayMoreTitles_other": "و{{count}} أخرى"
     },
     "noteCategories": {
         "categories": "الفئات",

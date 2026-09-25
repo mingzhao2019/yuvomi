@@ -1101,7 +1101,13 @@
         "syncTargetSeveralAssignees": "Έχουν ανατεθεί πολλά άτομα, οπότε η ανάθεση δεν επιλέγει ημερολόγιο. Ισχύει αντί γι' αυτό: {{target}}.",
         "filtersSources": "Ημερολόγια",
         "filterUnassigned": "Χωρίς ανάθεση",
-        "syncTargetAssigneeAmbiguous": "Πολλά ημερολόγια έχουν αυτό το άτομο ως προεπιλεγμένη ανάθεση. Επίλεξε μόνος σου τον προορισμό."
+        "syncTargetAssigneeAmbiguous": "Πολλά ημερολόγια έχουν αυτό το άτομο ως προεπιλεγμένη ανάθεση. Επίλεξε μόνος σου τον προορισμό.",
+        "dateSpanSpoken": "{{from}} έως {{to}}",
+        "multiDayPosition": "Ημέρα {{day}} από {{total}}",
+        "bandContinued": "συνέχεια",
+        "monthDayMoreTitles": "και {{count}} ακόμη",
+        "monthDayMoreTitles_one": "και {{count}} ακόμη",
+        "monthDayMoreTitles_other": "και {{count}} ακόμη"
     },
     "noteCategories": {
         "categories": "Κατηγορίες",

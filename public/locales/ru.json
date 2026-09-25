@@ -1101,7 +1101,13 @@
         "syncTargetSeveralAssignees": "Назначено несколько человек, поэтому назначение не выбирает календарь. Вместо этого используется: {{target}}.",
         "filtersSources": "Календари",
         "filterUnassigned": "Не назначенные",
-        "syncTargetAssigneeAmbiguous": "У нескольких календарей этот человек назначен по умолчанию. Выбери цель сам."
+        "syncTargetAssigneeAmbiguous": "У нескольких календарей этот человек назначен по умолчанию. Выбери цель сам.",
+        "dateSpanSpoken": "с {{from}} по {{to}}",
+        "multiDayPosition": "День {{day}} из {{total}}",
+        "bandContinued": "продолжение",
+        "monthDayMoreTitles": "и ещё {{count}}",
+        "monthDayMoreTitles_one": "и ещё {{count}}",
+        "monthDayMoreTitles_other": "и ещё {{count}}"
     },
     "noteCategories": {
         "categories": "Категории",

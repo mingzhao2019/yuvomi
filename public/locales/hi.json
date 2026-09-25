@@ -1101,7 +1101,13 @@
         "syncTargetSeveralAssignees": "कई लोग असाइन हैं, इसलिए असाइनमेंट कोई कैलेंडर नहीं चुनता। इसके बजाय लागू: {{target}}।",
         "filtersSources": "कैलेंडर",
         "filterUnassigned": "किसी को नहीं सौंपे गए",
-        "syncTargetAssigneeAmbiguous": "कई कैलेंडर में यह व्यक्ति डिफ़ॉल्ट असाइनमेंट है। लक्ष्य स्वयं चुनें।"
+        "syncTargetAssigneeAmbiguous": "कई कैलेंडर में यह व्यक्ति डिफ़ॉल्ट असाइनमेंट है। लक्ष्य स्वयं चुनें।",
+        "dateSpanSpoken": "{{from}} से {{to}} तक",
+        "multiDayPosition": "{{total}} में से दिन {{day}}",
+        "bandContinued": "जारी",
+        "monthDayMoreTitles": "और {{count}} अन्य",
+        "monthDayMoreTitles_one": "और {{count}} अन्य",
+        "monthDayMoreTitles_other": "और {{count}} अन्य"
     },
     "noteCategories": {
         "categories": "श्रेणियाँ",

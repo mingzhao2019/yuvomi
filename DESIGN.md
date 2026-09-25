@@ -2015,6 +2015,14 @@ neu urteilen, sonst erbte der Monat, der gar nicht scrollen kann, den eingeklapp
 Woche. Und **einklappen kann nur ein vermessener Kopf** - ein Scroll-Ereignis vor der ersten
 Messung (die Woche springt beim ersten Render auf „jetzt") markierte den Kopf sonst ohne
 Lead-Zone als eingeklappt, und `update()` misst einen eingeklappten Kopf nie wieder.
+**Einklappen darf nur ein Scroll, den der Nutzer fuehrt** (Re-Kritik 2026-09-25, P2): die
+Shell merkt sich das Ziel der letzten Geste (Rad, Beruehrung, Zeiger, Taste) und wertet einen
+Scroll nur, wenn diese Geste im bewegten Port lag. Der Sprung der Woche auf „jetzt" und das
+Neu-Urteilen nach dem Ansichtswechsel sind keine Geste - gewertet wie eine, klappten sie beim
+Tipp auf „Woche" oder „Tag" den Titel ein und zogen die Tabs mobil von y 105 auf y 60, unter
+den Finger. Ein Scroll ohne Geste darf nur die Reserve-Regel: traegt der neue Port den
+eingeklappten Kopf nicht (Monat), klappt er auf; sonst haelt der Kopf seinen Zustand ueber den
+Wechsel.
 
 Der Kopf bleibt in ZEILENRICHTUNG - kein Modul setzt eine eigene Flex-Richtung auf einer
 Kopf-Klasse. Eine Tab-Leiste im Kopf ist eine eigene, horizontal scrollende Zeile UNTER dem
@@ -2517,6 +2525,19 @@ trugen. "Heute" ist NUR ein gefuellter Akzent-Kreis auf der Ziffer;
 Nachbarmonatstage dimmen ueber Flaeche UND Ziffer (AA-fest), nie ueber blosse Opacity auf
 Text allein.
 
+**Der Titel vor dem „Wer"** (Re-Kritik 2026-09-25, P2). In Woche und Ganztag darf der
+Avatar-Stack dem Titel keinen Platz nehmen; er schrumpfte nie und liess mobil von „Zahnarzt -
+Familie" 44 von 112px, am Desktop vom Ganztagsbalken „Städtereise übers Wochenende" 73 von
+181px. Im Wochenblock steht er deshalb in der ZEITZEILE hinter der Uhrzeit, nie in der
+Titelzeile; im Ganztagsbalken teilt er sich mit dem Label (Titel plus Uhrzeit) eine Zeile.
+Beide Zeilen sind umbrechend, eine Zeilenhoehe hoch und schneiden den Rest ab - der Stack
+erscheint nur, wenn er neben die Uhrzeit bzw. das GANZE Label passt, sonst faellt er als
+Ganzes in die unsichtbare zweite Zeile. Die Mindestbreite ist damit gemessen, nicht als rem-Wert
+geschaetzt; ist der Block zu flach fuer die Zeitzeile (`ev-block`-Hoehenfrage), geht er mit ihr.
+Rangfolge: Titel, Uhrzeit, Wer. Das „Wer" bleibt im title-Attribut und im gesprochenen Namen,
+die Tagesansicht zeigt ihn ab einer Stunde (`roomy`), der Monat nie. Gemessen danach: mobil
+Zahnarzt 44 -> 78px (Stack faellt), Desktop 67 -> 101px mit Stack, Städtereise 73 -> 101px.
+
 **Die Vollton-Kanten-Regel** (2026-08-17, Etappe 3). Wo ein Block GROSS genug ist, ihn zu
 tragen, sagt eine Kante im Vollton, zu wem er gehoert - 3px (`--cal-event-edge`) an der
 Inline-Start-Seite, der Zeitleisten-Kanon der Messlatte (Apple Kalender, Fantastical). Der
@@ -2607,6 +2628,51 @@ Liste weisse Zeile mit 8px-Farbpunkt. Die Monatsbalken sind die Referenz, alle a
   der Locale („ganz-/taegig"), bricht in der 44px-Spalte um und haelt Abstand zur Kante;
   „ganztg." war 42,5px breit in 40px Innenmass und eine Abkuerzung zum Entziffern.
 
+**Mehrtaegige Termine** (Re-Kritik 2026-09-25, P2). Ein Termin ueber mehrere Tage ist EIN Band
+je Wochenzeile, kein Chip je Tag - in der Ganztagszeile der Woche und im Monat ab 640px, nach
+dem Muster, das der Wochenstreifen der Uebersicht (`.week-strip__band`) laengst zeichnete.
+Vorher stand „Staedtereise" 13.-15.10. als drei gleiche Chips a 128px, jeder mit Icon und
+Avataren, und der Screenreader hoerte dreimal „Ganztaegig"; gemessen danach: ein Balken, 395px,
+der Titel ganz.
+
+- **Band ist, was die Ganztagszeile traegt und mehrere Tage beruehrt** (`isBandEvent()`:
+  ganztaegig oder ab 24 Stunden, dieselbe Regel wie der Wochenstreifen). Ein kurzer
+  Nachttermin bleibt an beiden Tagen ein eigener Eintrag (#1313).
+- **Die Grammatik ist die des Blocks, neu sind nur die ENDEN.** Toenung, Tinte 35 % und
+  Kante wie `.allday-event`/`.month-day__event` (gemessen 7,22-8,08:1 light, 7,51-7,65:1 dark
+  mit Amber, Cyan, Teal). Die Kante und die Rundung stehen nur am ECHTEN Anfang bzw. Ende;
+  laeuft der Termin ueber die Zeile hinaus, ist das Ende offen - keine Kante, keine Rundung,
+  bis an den Spaltenrand - und traegt ein Chevron in der Tinte des Titels (`.cal-band--before`
+  / `--after`, `.cal-band__cont`). Die offene Kante allein ist bei 4px Radius zu leise. Alles
+  logisch: in RTL oeffnet sich die andere Seite, das Chevron dreht mit.
+- **Titel und Glyphen einmal**, am Anfang bzw. am Zeilenanfang der Fortsetzung. In der Woche
+  gilt die Zeile „Titel vor dem Wer" (oben): Titel mit „ab", dann „bis" am Ende des Bands, dann
+  die Zugewiesenen - alle in DERSELBEN umbrechenden Zeile, was neben dem ganzen Titel nicht
+  passt, faellt weg. Mobil hatte das „bis" den Titel sonst auf „Te…" gekuerzt. Im Monat kein
+  Stack (Monatskanon), das „Wer" steht im title.
+- **Spuren** vergibt `packLanes()` (utils/week-strip.js), EINE Packung fuer Uebersicht und
+  Kalender: stabil nach echtem Anfang, bei Gleichstand der laengere zuerst, jeder in die
+  niedrigste freie Spur. Einzeltages-Chips stehen darunter. Im Monat liegt eine Schicht
+  `.month-bands` ueber den sieben Zellen einer Woche; die Zelle haelt so viele Spuren frei,
+  wie an ihrem Tag belegt sind (`.month-day__lanes`). Welche Spuren stehen bleiben,
+  entscheidet `fitMonthDayCells()` fuer die ganze ZEILE - ein Band ueber drei Zellen kann nicht
+  in einer davon weichen -, und das „+N" zaehlt die verborgenen Baender mit.
+- **Nachbarmonat und Fokus gelten auch unter dem Band.** Ueber Tagen aus dem Nachbarmonat
+  faellt die Toenung des Bands auf `--tint-wash` wie beim Chip der Zelle, Text und Kante
+  bleiben (`.cal-band--outside`: ein Verlauf mit harten Stopps mitten in der Spaltenfuge, die
+  Zahl der Spalten aussen setzt `monthBandsHtml()`). Der Fokusring der Monatszelle sitzt auf
+  ihrem `::after` UEBER der Schicht; die Zelle selbst hebt sich nicht, sonst verschwaende das
+  Band unter ihrer Flaeche - vorher deckte ein kreuzendes Band die Seiten des Rings.
+- **Tastatur und Screenreader.** In der Woche ist das Band ein Knopf wie jeder Block; im Monat
+  bleibt die Zelle der eine Tab-Stopp (#1460), die Schicht ist `aria-hidden`, und die Zelle
+  nennt das Band mit „(Tag 2 von 3)". Der Name eines Bands nennt die Spanne („13. bis 15.
+  Oktober", verdichtet ueber `formatRangeToParts`, Bindewort aus der Locale statt des
+  Gedankenstrichs der Locale) und bei einer Fortsetzung „Fortsetzung". Nennt eine Zelle drei von
+  vier Titeln, sagt sie „und 1 weiterer".
+- **Punkt und Liste bleiben je Tag.** Im Telefon-Monat heisst der Punkt „hier ist etwas";
+  Agenda und Tagesliste behalten eine Zeile je Tag, sagen aber „Tag 2 von 3" hinter der
+  Uhrzeit. Die Tagesansicht zeigt das Stueck des Tages mit offenen Enden.
+
 ### Mobil-Monat: Raster oben, der gewaehlte Tag darunter (Critique 2026-09-24, P2)
 Unter 640px ist der Monat geteilt, nach der Messlatte (Apple Kalender „Liste", Fantastical,
 Outlook): **das Raster sagt, WO etwas ist, die Liste sagt, WAS.** Vorher sprang ein Tipp auf
@@ -2682,7 +2748,7 @@ erreicht.** Vorher trugen die Bloecke in Woche und Tag nur `cursor: pointer`, un
 - **Der Fokusring liegt aussen, wo Platz ist, innen, wo geschnitten wird.** Auf den getoenten
   Bloecken aussen (`--focus-ring-offset`, `z-index` ueber die Nachbar-Lanes): innen laege der
   Akzent auf einer Toenung und schnitte die Vollton-Kante. In `.allday-cell` (schneidet ab)
-  und an der Monatszelle innen (`--focus-ring-offset-inset`).
+  und an der Monatszelle innen (`--focus-ring-offset-inset`, auf `::after` ueber den Baendern).
 - **Die Auswahl im Telefon-Monat wird angesagt, das Zeichnen nicht.** Eine polite Live-Region
   (`#cal-live`) ausserhalb von `#cal-body` - eine Region, die mit ihrem Inhalt entsteht, sagt
   nichts - meldet „Freitag, 25.09.2026, 2 Einträge" nur bei einer Auswahl, nie bei einem
@@ -2701,6 +2767,12 @@ als Primaerknopf am ENDE der Fusszeile, Löschen bleibt `danger-ghost` am Anfang
 als „Zurück". Opt-in, weil die Hauptabsicht dem Objekt gehoert: im Termin ist es Bearbeiten, in
 der Aufgabe das Erledigen. Die Rueckfrage beim Löschen bleibt. Der Kalender nimmt es; Kontakte
 und Inventar haben dieselbe Fusszeile und sind die naechsten Kandidaten.
+**Das Popover am Desktop folgt derselben Ordnung** (Re-Kritik 2026-09-25, P2): es setzte
+Bearbeiten als Sekundaerknopf VOR alle Aktionen, Löschen stand 8px daneben, sein `--start` schob
+nichts mehr auseinander, und „In Maps öffnen" rutschte allein in eine zweite Zeile. Mit
+`edit.primary` gilt jetzt auch dort: Aufruferaktionen zuerst, Bearbeiten primaer am Ende. In
+286px Innenbreite teilen sich Löschen und Maps die erste Zeile, Bearbeiten steht unten am Ende -
+dasselbe Bild wie im Sheet, und kein Aktionsknopf verliert seine Beschriftung.
 
 ### Der Termin-Dialog: Haeufiges oben, Seltenes benannt (Critique 2026-09-24, P2)
 Der Dialog war mobil drei Bildschirme lang (1559px bei 523 sichtbar), und Sichtbarkeit und

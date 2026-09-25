@@ -107,6 +107,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   column instead of running into the screen edge, tasks in the agenda sit closer together and line up with the
   date and the event rows, and the initials in the agenda's avatar stack are 12px.
 
+- **A trip over several days is one bar in the calendar, not a chip on every day.** In the week's
+  all-day row and in the month on a computer, an event that spans several days is now drawn as a
+  single bar across its days, with its title, icon and people once, as the calendar tile on the
+  overview already did. Where it runs on past the end of the week, the bar stays open with a small
+  arrow, and it picks up with the same arrow at the start of the next week. Overlapping trips stack
+  in rows without covering each other, above the events of a single day, and "+2 more" in the
+  month counts the bars it had to hide. Over days of the previous or next month the bar is
+  paler, like the events there. An event over 24 hours shows "from 14:00" at its start and
+  "until 11:00" at its end. The agenda and the day list under the phone month keep one row per
+  day but say which day it is ("Day 2 of 3"). Screen readers hear a bar as one event with its dates
+  ("13 to 15 October") and a continued piece as "continued", and a month day that names three of
+  four entries now adds "and 1 more".
+
 - **The calendar's arrows say where they go.** They are named "Previous month", "Next week",
   "Next 3 days" or "Next 30 days", depending on the view, instead of "Back" and "Forward", and
   show that name as a tooltip. The agenda's heading names the span it lists ("24.09. -
@@ -156,6 +169,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   quiet day.
 
 ### Fixed
+
+- **Event titles in the week keep their room.** The people assigned to an event sat next to its
+  title and never shrank, so on a phone "Dentist - family" showed four letters. They now sit
+  after the time on the second line of a block, and in all-day bars behind the title, and they
+  only appear where they fit next to the full time or title. The names are still in the tooltip
+  and read out by screen readers; the day view shows them as before.
+
+- **The event popover on a desktop puts Delete and Edit apart.** Edit stood first and Delete 8px
+  next to it, and "Open in Maps" dropped onto a line of its own. The popover now follows the phone
+  sheet: Delete at the start, Edit as the main button at the end, below the other actions.
+
+- **Switching the calendar view no longer moves the view tabs on a phone.** Week and day scroll to
+  the current hour when they open, and the header took that for your own scrolling: it folded the
+  title away, and the tabs jumped 45px up under your finger. Only scrolling you do yourself folds
+  the header now, in every module that has one (budget, calendar, notes, contacts). Once folded, it
+  stays folded when you switch to week, day or agenda; the month, which cannot scroll, unfolds it.
 
 - **Events in the week and day view can be reached by keyboard and screen reader.** They could only
   be clicked: Tab skipped them and a screen reader did not offer them. Every event, all-day bar

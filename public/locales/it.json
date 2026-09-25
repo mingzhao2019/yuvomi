@@ -1101,7 +1101,13 @@
         "syncTargetSeveralAssignees": "Sono assegnate più persone, quindi l'assegnazione non sceglie alcun calendario. Si usa invece: {{target}}.",
         "filtersSources": "Calendari",
         "filterUnassigned": "Non assegnati",
-        "syncTargetAssigneeAmbiguous": "Più calendari hanno questa persona come assegnazione predefinita. Scegli tu la destinazione."
+        "syncTargetAssigneeAmbiguous": "Più calendari hanno questa persona come assegnazione predefinita. Scegli tu la destinazione.",
+        "dateSpanSpoken": "dal {{from}} al {{to}}",
+        "multiDayPosition": "Giorno {{day}} di {{total}}",
+        "bandContinued": "continuazione",
+        "monthDayMoreTitles": "e altri {{count}}",
+        "monthDayMoreTitles_one": "e {{count}} altro",
+        "monthDayMoreTitles_other": "e altri {{count}}"
     },
     "noteCategories": {
         "categories": "Categorie",
