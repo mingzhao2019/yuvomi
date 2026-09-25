@@ -447,3 +447,48 @@ test('die Serverliste traegt jede Locale-Datei des Ordners', async () => {
     'Die Serverliste ist kuerzer als der Ordner - eine Datei faellt aus dem Muster.');
   assert.ok(getSupportedLocales().includes('fil'), 'fil fehlt - der Code aus #1322');
 });
+
+// CLAUDE.md: ueberall `-` statt Gedankenstrich, auch in UI-Texten (Kritik
+// 2026-09-25: 33 Werte in 21 Locales). Die Ausnahmen sind SPRACHREGELN, keine
+// Stilwahl, und stehen hier einzeln mit Grund - eine Allowlist, damit eine neue
+// Uebersetzung den Strich nicht still zurueckbringt.
+//  - zh: "——" ist der chinesische Gedankenstrich (破折号), ein eigenes
+//    Satzzeichen; ein Bindestrich ist im chinesischen Fliesstext kein Ersatz.
+//    Erlaubt ist nur die Doppelform, ein einzelner Strich bleibt ein Befund.
+//  - ru/uk tasks.subtaskDeleteDetail: der Strich steht fuer das ausgelassene
+//    Praedikat ("это — нет" = "das hier [laesst sich] nicht"); die Grammatik
+//    verlangt ihn dort, ein Bindestrich waere ein Fehler.
+const DASH_EXCEPTIONS = {
+  zh: { allLocale: /——/g },
+  ru: { keys: new Set(['tasks.subtaskDeleteDetail']) },
+  uk: { keys: new Set(['tasks.subtaskDeleteDetail']) },
+};
+
+test('kein Locale-Wert traegt einen Gedankenstrich ausser den begruendeten Sprachregeln', () => {
+  const hits = [];
+  for (const locale of LOCALES) {
+    const rule = DASH_EXCEPTIONS[locale] || {};
+    for (const [key, value] of flatten(JSON.parse(readLocale(locale)))) {
+      if (rule.keys?.has(key)) continue;
+      const rest = rule.allLocale ? value.replace(rule.allLocale, '') : value;
+      if (/[\u2013\u2014]/.test(rest)) hits.push(`${locale}: ${key}`);
+      // Der chinesische Strich steht ohne Leerzeichen zwischen den Zeichen.
+      if (rule.allLocale && / ——|—— /.test(value)) hits.push(`${locale}: ${key} (Leerzeichen am ——)`);
+    }
+  }
+  assert.deepEqual(hits, []);
+});
+
+test('jede Gedankenstrich-Ausnahme trifft einen Wert, der den Strich wirklich traegt', () => {
+  // Sonst ueberlebt eine Ausnahme ihren Anlass und deckt spaeter einen neuen Strich.
+  for (const [locale, rule] of Object.entries(DASH_EXCEPTIONS)) {
+    const values = flatten(JSON.parse(readLocale(locale)));
+    for (const key of rule.keys || []) {
+      assert.match(values.get(key) ?? '', /[\u2013\u2014]/, `${locale}: ${key}`);
+    }
+    if (rule.allLocale) {
+      assert.ok([...values.values()].some((v) => rule.allLocale.test(v)), `${locale}: keine Doppelform mehr`);
+      rule.allLocale.lastIndex = 0;
+    }
+  }
+});

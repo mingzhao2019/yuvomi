@@ -3918,3 +3918,38 @@ test('Termin-Lesepopup: ein fremder privater Anhang zeigt denselben Hinweis wie 
   assert.equal(calendar.attachmentNode({ id: 9, attachment_locked: false }), null);
   assert.equal(calendar.attachmentNode({ id: 9, attachment_locked: null }), null);
 });
+
+// -------------------------------------------------------------------------
+// Dokumente: Bearbeiten im Betrachter (Re-Critique 2026-09-25, P2)
+// -------------------------------------------------------------------------
+
+// Die Seite liest beim Laden ihre Ansicht und Sortierung aus localStorage;
+// Node kennt es nicht. Ein leerer Speicher reicht (Muster aus test-people-pickers.js).
+globalThis.localStorage = globalThis.localStorage ?? {
+  getItem: () => null, setItem() {}, removeItem() {}, clear() {},
+};
+const { __test: documentsPage } = await import('../public/pages/documents.js');
+
+test('Dokument-Betrachter: Bearbeiten nur mit Schreibrecht auf die Dokumente', () => {
+  const doc = {
+    id: 31, name: 'Pass', category: 'identity', mime_type: 'image/png', file_size: 1200,
+    storage_backend: 'local', visibility: 'family', status: 'active',
+  };
+  const bearbeiten = /data-action="edit-document"/;
+  // Eigenes Mini-DOM: das der Suite baut `test.after` oben ab, und unter
+  // Node 22/24 laeuft dieser Hook schon vor einem Test, der erst nach einem
+  // `await import` registriert wird - der Betrachter liest `document.activeElement`.
+  const abbau = installMiniDom();
+  try {
+    const [lesen] = mitModal(() => withAccess({ documents: 'read' }, () => documentsPage.openDocumentViewer(doc)));
+    assert.ok(lesen, 'der Betrachter oeffnet auch nur lesend');
+    assert.doesNotMatch(lesen.content, bearbeiten, 'kein Bearbeiten, das am 403 endet');
+    assert.match(lesen.content, /download/, 'Herunterladen bleibt');
+    const [schreiben] = mitModal(() => withAccess({ documents: 'write' }, () => documentsPage.openDocumentViewer(doc)));
+    assert.match(schreiben.content, bearbeiten, 'mit Schreibrecht steht es - sonst maesse die Zeile oben nichts');
+    const [fremd] = mitModal(() => withAccess({ documents: 'write', tasks: 'read' }, () => documentsPage.openDocumentViewer(doc)));
+    assert.match(fremd.content, bearbeiten, 'ein FREMDES Modul auf read sperrt es nicht');
+  } finally {
+    abbau();
+  }
+});
