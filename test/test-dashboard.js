@@ -266,7 +266,9 @@ test('Tagesprogramm: Termin, Aufgabe und Mahlzeit mischen sich chronologisch', a
     // Nur dinner geplant: selectTodayMeal fällt zu jeder Tageszeit auf dinner
     // vor (deterministisch, kein withHour nötig).
     todayMeals: [{ id: 33, meal_type: 'dinner', title: 'Pasta' }],
-  });
+  // Feste Uhr: seit #1449 verlaesst ein beendeter Termin das Programm, und
+  // der um 14:00 waere am Nachmittag sonst schon vorbei.
+  }, { now: todayAt(8) });
 
   const kinds = result.rows.map((r) => r.kind);
   nodeAssert.deepEqual(kinds, ['task', 'event', 'meal'], 'Aufgabe 09:30 → Termin 14:00 → Abendessen (nominal 18:30)');
@@ -631,7 +633,8 @@ test('Cockpit-Coda nennt die morgen fällige Aufgabe statt falscher Entwarnung',
     const withTomorrow = __test.renderTodayCockpit({
       upcomingEvents: [{ id: 1, title: 'Heute Abend', start_datetime: `${todayStr}T20:00:00` }],
       urgentTasks: [{ id: 5, title: 'Zettel abgeben', due_date: tomorrowStr, status: 'open' }],
-    }, []);
+    // Feste Uhr (#1449): nach 20 Uhr waere der Termin vorbei und die Zeile weg.
+    }, [], false, { now: todayAt(9) });
     nodeAssert.match(withTomorrow, /todayNothingElseTomorrow/, 'Coda warnt vor der Morgen-Frist');
     // Leerer Tag, nur die Morgen-Aufgabe → Zustandszeile trägt sie als Ausblick.
     const stateRow = __test.renderTodayCockpit({
@@ -722,6 +725,343 @@ test('a disabled Schedule module cannot suppress "Heute frei" via a stale widget
     global.window = prevWindow;
   }
 });
+
+/* DAS HEUTE-BLATT KENNT JEDE QUELLE, DIE ETWAS OFFEN HAT (Critique 23.09.2026,
+ * P1). Gemessen an Linda: zwei offene Dosen um 08:00 und eine wartende
+ * Freigabe lagen in derselben Antwort, und das Blatt schloss mit „Danach steht
+ * heute nichts mehr an". Die Faelle unten laufen alle ueber das MODELL, das
+ * Cockpit und Wand gemeinsam lesen - und mit fester Uhr: offen oder nicht
+ * haengt an der Tageszeit (Dosis faellig, Tonne vor Mittag). */
+function todayAt(hour, minute = 0) {
+  const now = new Date();
+  now.setHours(hour, minute, 0, 0);
+  return now;
+}
+
+async function withSheetEnv({ perms = { admin: true }, disabled = [] } = {}, fn) {
+  const { __test } = await import('../public/pages/dashboard.js');
+  const { setPermissions, clearPermissions } = await import('../public/permissions.js');
+  const prevWindow = global.window;
+  global.window = { yuvomi: { isModuleDisabled: (m) => disabled.includes(m) } };
+  setPermissions({ admin: false, modules: {}, widgets: {}, capabilities: {}, ...perms });
+  try {
+    return fn(__test);
+  } finally {
+    clearPermissions();
+    global.window = prevWindow;
+  }
+}
+
+const sheetKinds = (model) => model.rows.map((row) => row.kind);
+const eveningEvent = () => ({ id: 1, title: 'Elternabend', start_datetime: `${toLocalDateKey(new Date())}T20:00:00` });
+const openDoses = () => ({ hasMeds: true, dosesTotal: 2, dosesTaken: 0, dosesSkipped: 0, nextDose: { name: 'Eisen', time: '08:00' } });
+
+test('Heute-Blatt: eine offene Dosis steht im Blatt und haelt die Coda auf', () => withSheetEnv({}, (__test) => {
+  const model = __test.buildTodayCockpitModel(
+    { upcomingEvents: [eveningEvent()], health: openDoses() }, [], { now: todayAt(9) },
+  );
+  nodeAssert.ok(sheetKinds(model).includes('dose'), `die Dosis ist eine Zeile, erhalten: ${sheetKinds(model)}`);
+  nodeAssert.equal(model.coda, null, 'keine Entwarnung, solange eine Dosis offen ist');
+
+  const taken = __test.buildTodayCockpitModel(
+    { upcomingEvents: [eveningEvent()], health: { ...openDoses(), dosesTaken: 2, nextDose: null } }, [], { now: todayAt(9) },
+  );
+  nodeAssert.ok(!sheetKinds(taken).includes('dose'), 'genommene Dosen sind keine offene Zeile');
+  nodeAssert.match(String(taken.coda), /todayNothingElse/, 'sind alle genommen, faellt die Coda wieder');
+}));
+
+test('Heute-Blatt: die wartende Freigabe spricht nur zu Admins', async () => {
+  const data = { upcomingEvents: [eveningEvent()], rewards: { view: 'approver', standings: [], participantCount: 0, pending: 2 } };
+  await withSheetEnv({ perms: { admin: true } }, (__test) => {
+    const model = __test.buildTodayCockpitModel(data, [], { now: todayAt(9) });
+    nodeAssert.ok(sheetKinds(model).includes('approval'), 'der Admin sieht die Freigabe');
+    nodeAssert.equal(model.coda, null, 'und keine Entwarnung daneben');
+  });
+  // Das Kind bekommt vom Server die Sicht `self`; `pending` zaehlt dort seine
+  // eigenen Bitten (siehe den Test "(a2 x a8)" darunter).
+  const kid = { ...data, rewards: { view: 'self', me: 7, standings: [], participantCount: 0, pending: 1 } };
+  await withSheetEnv({ perms: { admin: false } }, (__test) => {
+    const model = __test.buildTodayCockpitModel(kid, [], { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(model).includes('approval'), 'ein Kind entscheidet keine Freigaben');
+    nodeAssert.match(String(model.coda), /todayNothingElse/, 'fuer das Kind ist der Tag ohne sie vollstaendig');
+  });
+});
+
+/* DIE SICHT KOMMT VOM SERVER (Integration 2026-09-23, a2 x a8). Seit der
+ * Belohnungs-Umbau liefert /dashboard `rewards.pending` je Sicht: `approver`
+ * zaehlt alle offenen Anfragen, `self` nur die EIGENEN des Kindes. Die
+ * Blatt-Quelle fragte nur das Client-Recht `isAdmin` - wer die Anfrage-Zahl
+ * eines Kindes mit gesetztem Admin-Flag (veralteter Rechte-Stand, anderes
+ * Konto im selben Speicher) bekam, las die eigene Bitte als "Freigabe". Die
+ * Antwort traegt die Entscheidung schon; das Blatt folgt ihr. */
+test('Heute-Blatt: Freigaben sprechen nur in der Sicht "approver" (a2 x a8)', async () => {
+  const self = { upcomingEvents: [eveningEvent()], rewards: { view: 'self', me: 7, standings: [], pending: 1 } };
+  await withSheetEnv({ perms: { admin: true } }, (__test) => {
+    const model = __test.buildTodayCockpitModel(self, [], { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(model).includes('approval'),
+      `die eigene Anfrage eines Kindes ist keine Freigabe, erhalten: ${sheetKinds(model)}`);
+  });
+  const family = { upcomingEvents: [eveningEvent()], rewards: { view: 'family', standings: [], pending: 0 } };
+  await withSheetEnv({ perms: { admin: true } }, (__test) => {
+    const model = __test.buildTodayCockpitModel(family, [], { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(model).includes('approval'), 'die Familien-Sicht kennt keine Freigaben');
+  });
+});
+
+/* DIE ZAHL OFFENER FREIGABEN STEHT GENAU EINMAL: Belohnungen-Widget vor
+ * Heute-Blatt vor Eltern-Kennzahlkachel. Widget sichtbar -> Blatt und Kachel
+ * schweigen (Kein-Echo, `shown`); Widget aus, Blatt da -> nur das Blatt; Blatt
+ * ausgeblendet -> die Kachel. Geprueft am AUFRUFER (`renderDashboardLayout`),
+ * weil die Kachel nur dort erfaehrt, ob das Blatt die Zahl schon traegt. */
+test('Freigaben: die Zahl steht an genau einer Stelle - Widget > Heute-Blatt > Kennzahlkachel', async () => {
+  const data = {
+    upcomingEvents: [eveningEvent()],
+    // Budget und Geburtstag halten die Reihe bei mindestens zwei Kacheln.
+    budget: { entryCount: 3, balance: 100, income: 200 },
+    birthdays: [{ name: 'Oma', days_until: 5, kind: 'birthday' }],
+    rewards: { view: 'approver', me: 1, standings: [], participantCount: 2, pending: 2, catalog: [] },
+  };
+  const metricsOnly = [{ id: 'metrics', visible: true, size: '2x1' }];
+  const pendingTile = (html) => /metric-card[^]*?rewardsPending/.test(html);
+  await withSheetEnv({ perms: { admin: true } }, (__test) => {
+    const sheet = __test.buildTodayCockpitModel(data, metricsOnly, { now: todayAt(9) });
+    nodeAssert.ok(sheetKinds(sheet).includes('approval'), 'ohne Belohnungen-Widget traegt das Blatt die Freigabe');
+    const withSheet = __test.renderDashboardLayout(metricsOnly, data, null, 'EUR', { glanceHidden: false });
+    nodeAssert.ok(!pendingTile(withSheet), 'neben dem Blatt nennt die Kennzahlkachel die Freigaben nicht noch einmal');
+    const withoutSheet = __test.renderDashboardLayout(metricsOnly, data, null, 'EUR', { glanceHidden: true });
+    nodeAssert.ok(pendingTile(withoutSheet), 'ist das Blatt ausgeblendet, traegt die Kachel die Zahl');
+    const withWidget = [...metricsOnly, { id: 'rewards', visible: true, size: '1x2' }];
+    const sheetBesideWidget = __test.buildTodayCockpitModel(data, withWidget, { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(sheetBesideWidget).includes('approval'), 'neben dem Widget schweigt das Blatt');
+    const layout = __test.renderDashboardLayout(withWidget, data, null, 'EUR', { glanceHidden: false });
+    nodeAssert.ok(!pendingTile(layout.replace(/<div class="widget widget--rewards[^]*$/, '')),
+      'neben dem Widget schweigt die Kachel');
+  });
+});
+
+/* Dieselbe Regel fuer die Dosen (Browser-Abnahme der Integration: „2 Dosen
+ * offen" im Blatt, „2 offen" in der Gesundheits-Kachel darunter). Die Kachel
+ * tritt zurueck, solange das Blatt die offenen Dosen nennt - ausser eine
+ * Packung muss nachbestellt werden: das sagt das Blatt nicht. */
+test('Dosen: die Zahl offener Dosen steht nicht in Blatt UND Kennzahlkachel', async () => {
+  const data = {
+    budget: { entryCount: 3, balance: 100, income: 200 },
+    birthdays: [{ name: 'Oma', days_until: 5, kind: 'birthday' }],
+    health: { ...openDoses(), lowStockCount: 0 },
+  };
+  const metricsOnly = [{ id: 'metrics', visible: true, size: '2x1' }];
+  const healthTile = (html) => /metric-card[^]*?metricDoses/.test(html);
+  await withSheetEnv({ perms: { admin: true } }, (__test) => {
+    nodeAssert.ok(sheetKinds(__test.buildTodayCockpitModel(data, metricsOnly, { now: todayAt(7) })).includes('dose'),
+      'Vorbedingung: das Blatt nennt die Dosen');
+    nodeAssert.ok(!healthTile(__test.renderDashboardLayout(metricsOnly, data, null, 'EUR', { glanceHidden: false })),
+      'neben dem Blatt keine zweite Dosen-Zahl');
+    nodeAssert.ok(healthTile(__test.renderDashboardLayout(metricsOnly, data, null, 'EUR', { glanceHidden: true })),
+      'ohne Blatt traegt die Kachel sie');
+    const refill = { ...data, health: { ...data.health, lowStockCount: 1 } };
+    nodeAssert.match(__test.renderDashboardLayout(metricsOnly, refill, null, 'EUR', { glanceHidden: false }), /healthRefill/,
+      'eine Nachbestellung sagt das Blatt nicht - die Kachel bleibt');
+  });
+});
+
+test('Heute-Blatt: die Tonne von heute und die von morgen (heute Abend rausstellen)', () => withSheetEnv({}, (__test) => {
+  const today = toLocalDateKey(new Date());
+  const tomorrow = addLocalDays(today, 1);
+  const morning = __test.buildTodayCockpitModel({
+    upcomingEvents: [eveningEvent()],
+    wastePickups: [
+      { date_key: today, type_name: 'Restmuell', deep_link: '?type=1' },
+      { date_key: today, type_name: 'Papier', deep_link: '?type=2' },
+    ],
+  }, [], { now: todayAt(7) });
+  const wasteRows = morning.rows.filter((row) => row.kind === 'waste');
+  nodeAssert.equal(wasteRows.length, 1, 'zwei Tonnen eines Tages sind eine Zeile');
+  nodeAssert.match(wasteRows[0].title, /Restmuell.*Papier/);
+  nodeAssert.equal(morning.coda, null, 'am Morgen muss die Tonne noch raus - keine Entwarnung');
+
+  const afternoon = __test.buildTodayCockpitModel({
+    upcomingEvents: [eveningEvent()],
+    wastePickups: [{ date_key: today, type_name: 'Restmuell' }],
+  }, [], { now: todayAt(15) });
+  nodeAssert.ok(sheetKinds(afternoon).includes('waste'), 'am Nachmittag bleibt die Auskunft stehen');
+  nodeAssert.match(String(afternoon.coda), /todayNothingElse/, 'die abgeholte Tonne haelt die Coda nicht auf');
+
+  const eve = __test.buildTodayCockpitModel({ wastePickups: [{ date_key: tomorrow, type_name: 'Bio' }] }, [], { now: todayAt(9) });
+  const tonight = eve.rows.find((row) => row.kind === 'waste');
+  nodeAssert.match(String(tonight?.sub), /todayWasteTonight/, 'die Abholung von morgen heisst: heute Abend rausstellen');
+  nodeAssert.equal(eve.coda, null);
+  nodeAssert.equal(eve.state, null, 'ein Tag mit offener Tonne ist nicht „heute frei"');
+}));
+
+test('Heute-Blatt: die Coda faellt, wenn alles Offene erledigt ist', () => withSheetEnv({}, (__test) => {
+  const model = __test.buildTodayCockpitModel({
+    upcomingEvents: [eveningEvent()],
+    health: { ...openDoses(), dosesTaken: 1, dosesSkipped: 1, nextDose: null },
+    rewards: { pending: 0 },
+    wastePickups: [],
+    housekeeping: { present: true, presentSince: `${toLocalDateKey(new Date())}T08:30:00`, workerName: 'Maria' },
+  }, [], { now: todayAt(9) });
+  nodeAssert.deepEqual(sheetKinds(model).sort(), ['event', 'housekeeping'], 'Termin und Auskunft, nichts Offenes');
+  nodeAssert.match(String(model.coda), /todayNothingElse/, 'nichts mehr offen - jetzt stimmt die Entwarnung');
+}));
+
+/* Gefunden in der Browser-Verifikation: der Check-in der Haushaltshilfe ist ein
+ * Instant ('...Z'), und die Zeile las ihren Platz im Tag per Regex aus dem
+ * String - also in UTC, waehrend die Beschriftung daneben die Haushaltszone
+ * zeigte. „seit 08:30" stand deshalb HINTER einer Dosis um 08:00 nicht,
+ * sondern davor. Die Zone ist hier fest auf Honolulu gestellt, damit der Fall
+ * auch in einer CI in UTC rot werden kann. */
+test('Heute-Blatt: die Haushaltshilfe sortiert nach der Haushaltsuhr, nicht nach UTC', async () => {
+  const tz = await import('/utils/timezone.js');
+  await withSheetEnv({}, (__test) => {
+    tz.setDisplayTimeZone('Pacific/Honolulu');
+    try {
+      const now = new Date();
+      const today = tz.zonedDateKey(now);
+      const model = __test.buildTodayCockpitModel({
+        housekeeping: { present: true, presentSince: `${today}T18:30:00Z`, workerName: 'Maria' },
+      }, [], { now });
+      const row = model.rows.find((r) => r.kind === 'housekeeping');
+      nodeAssert.equal(row?.sortKey, tz.zonedTimeKey(`${today}T18:30:00Z`), 'der Platz im Tag ist die Wanduhr des Haushalts');
+      nodeAssert.equal(row.sortKey, '08:30');
+    } finally {
+      tz.setDisplayTimeZone(null);
+    }
+  });
+});
+
+test('Heute-Blatt: Kein-Echo gilt auch fuer die neuen Quellen', () => withSheetEnv({}, (__test) => {
+  const today = toLocalDateKey(new Date());
+  const data = {
+    health: openDoses(),
+    rewards: { view: 'approver', pending: 1 },
+    wastePickups: [{ date_key: today, type_name: 'Restmuell' }],
+    myShiftsToday: [{ shift_type: { id: 3, name: 'Fruehdienst', start_time: '06:00', end_time: '14:00' } }],
+    housekeeping: { present: true, presentSince: `${today}T08:30:00`, workerName: 'Maria' },
+    birthdays: [{ id: 4, name: 'Oma Erna', days_until: 0, kind: 'birthday' }],
+  };
+  const all = __test.buildTodayCockpitModel(data, [], { now: todayAt(9) });
+  nodeAssert.deepEqual(
+    [...new Set(sheetKinds(all))].sort(),
+    ['approval', 'birthday', 'dose', 'housekeeping', 'shift', 'waste'],
+    'Vorbedingung: ohne Kacheln spricht jede Quelle',
+  );
+  for (const [widget, kind] of [['health', 'dose'], ['rewards', 'approval'], ['waste', 'waste'],
+    ['schedule', 'shift'], ['housekeeping', 'housekeeping'], ['birthdays', 'birthday']]) {
+    const model = __test.buildTodayCockpitModel(data, [{ id: widget, visible: true }], { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(model).includes(kind), `sichtbare ${widget}-Kachel: keine ${kind}-Zeile im Blatt`);
+    nodeAssert.ok(sheetKinds(model).length > 0, 'die uebrigen Quellen sprechen weiter');
+  }
+}));
+
+test('Heute-Blatt: ohne Gesundheitsrecht keine Dosen, abgeschaltetes Modul spricht nicht', async () => {
+  const data = { upcomingEvents: [eveningEvent()], health: openDoses() };
+  // Die Gegenprobe zuerst: ein Mitglied mit vollen Rechten sieht die Dosis.
+  // Ohne sie waere jede Abwesenheit unten auch beim Nichtstun gruen.
+  await withSheetEnv({ perms: { admin: false } }, (__test) => {
+    const model = __test.buildTodayCockpitModel(data, [], { now: todayAt(9) });
+    nodeAssert.ok(sheetKinds(model).includes('dose'), 'Vorbedingung: mit Recht steht die Dosis im Blatt');
+  });
+  await withSheetEnv({ perms: { admin: false, widgets: { health: 'none' } } }, (__test) => {
+    const model = __test.buildTodayCockpitModel(data, [], { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(model).includes('dose'), 'ein gesperrtes Gesundheits-Widget heisst: keine Dosen im Blatt');
+  });
+  await withSheetEnv({ perms: { admin: false, modules: { health: 'none' } } }, (__test) => {
+    const model = __test.buildTodayCockpitModel(data, [], { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(model).includes('dose'), 'ein gesperrtes Gesundheitsmodul ebenso');
+  });
+  await withSheetEnv({ disabled: ['health'] }, (__test) => {
+    const model = __test.buildTodayCockpitModel(data, [], { now: todayAt(9) });
+    nodeAssert.ok(!sheetKinds(model).includes('dose'), 'ein abgeschaltetes Modul spricht nicht');
+  });
+});
+
+/* Review #1450: die Erinnerungs-Quelle hat keine eigene Kachel und lief deshalb
+ * am Widget-Riegel von sourceSpeaks() vorbei. Ein gesperrtes Gesundheits-Widget
+ * hielt die Dosen stumm, eine faellige Vorsorge-Erinnerung stand trotzdem
+ * mit ihrem Titel im Blatt; ebenso Abo (budget), Aufgabe und Termin. */
+test('Heute-Blatt: eine Erinnerung folgt dem Widget-Recht ihres Moduls', async () => {
+  const reminders = [
+    { id: 1, entity_type: 'health_prevention_due', entity_id: 7, entity_title: 'Darmkrebs-Vorsorge' },
+    { id: 2, entity_type: 'subscription', entity_id: 8, entity_title: 'Streaming-Abo' },
+    { id: 3, entity_type: 'task', entity_id: 9, entity_title: 'Steuer abgeben' },
+    { id: 4, entity_type: 'event', entity_id: 10, entity_title: 'Zahnarzt' },
+    { id: 5, entity_type: 'document_expiry', entity_id: 11, entity_title: 'Reisepass' },
+  ];
+  const titles = (model) => model.rows.filter((r) => r.kind === 'reminder').map((r) => r.title).sort();
+  await withSheetEnv({ perms: { admin: false } }, (__test) => {
+    const model = __test.buildTodayCockpitModel({ pendingReminders: reminders }, [], { now: todayAt(9) });
+    nodeAssert.deepEqual(titles(model), ['Darmkrebs-Vorsorge', 'Reisepass', 'Steuer abgeben', 'Streaming-Abo', 'Zahnarzt'],
+      'Vorbedingung: mit allen Rechten spricht jede Erinnerung');
+  });
+  await withSheetEnv({ perms: { admin: false, widgets: { health: 'none', budget: 'none', tasks: 'none', calendar: 'none' } } }, (__test) => {
+    const model = __test.buildTodayCockpitModel({ pendingReminders: reminders }, [], { now: todayAt(9) });
+    nodeAssert.deepEqual(titles(model), ['Reisepass'],
+      'gesperrte Widgets heissen: keine Erinnerung aus ihrem Modul; ohne eigene Kachel (Dokumente) bleibt nur das Modulrecht');
+  });
+});
+
+test('Heute-Blatt: unter dem Deckel bleibt, was offen ist', () => withSheetEnv({}, (__test) => {
+  const today = toLocalDateKey(new Date());
+  const events = Array.from({ length: 7 }, (_, i) => ({
+    id: 100 + i, title: `Termin ${i}`, start_datetime: `${today}T${String(10 + i).padStart(2, '0')}:00:00`,
+  }));
+  const model = __test.buildTodayCockpitModel(
+    { upcomingEvents: events, health: { ...openDoses(), nextDose: { name: 'Eisen', time: '23:00' } } },
+    [], { now: todayAt(9) },
+  );
+  nodeAssert.ok(sheetKinds(model).includes('dose'), 'die offene Dosis spaet am Abend faellt nicht unter den Deckel');
+  nodeAssert.equal(model.rows.length, __test.PROGRAM_ROW_CAP);
+  nodeAssert.equal(model.overflow, 2);
+  nodeAssert.equal(model.coda, null);
+}));
+
+test('Wand: dieselben Quellen, dieselbe Coda-Regel wie das Cockpit', () => withSheetEnv({}, (__test) => {
+  const data = { upcomingEvents: [eveningEvent()], health: openDoses(), users: [] };
+  const html = __test.renderWallSurface(data, null, { now: todayAt(9) });
+  nodeAssert.match(html, /wall-row--health/, 'die Dosis steht auch an der Wand');
+  nodeAssert.ok(!/todayNothingElse/.test(html), 'und die Wand gibt keine falsche Entwarnung');
+  const done = __test.renderWallSurface(
+    { upcomingEvents: [eveningEvent()], health: { ...openDoses(), dosesTaken: 2, nextDose: null }, users: [] },
+    null, { now: todayAt(9) },
+  );
+  nodeAssert.match(done, /todayNothingElse/, 'alles genommen: die Wand schliesst mit der Coda');
+}));
+
+/* #1449: BEENDETE TERMINE TRETEN ZURUECK. Das Blatt verspricht, was heute NOCH
+ * ansteht; ein Termin, dessen Ende hinter uns liegt, verlaesst es. Die
+ * Termin-Kachel behaelt ihn, aber zurueckgetreten und oberhalb des Kommenden -
+ * und ihr Fuenfer-Limit zaehlt nur das Kommende. */
+test('Heute-Blatt: ein beendeter Termin verlaesst das Blatt (#1449)', () => withSheetEnv({}, (__test) => {
+  const today = toLocalDateKey(new Date());
+  const model = __test.buildTodayCockpitModel({
+    upcomingEvents: [
+      { id: 1, title: 'Fruehsport', start_datetime: `${today}T06:30:00`, end_datetime: `${today}T07:30:00` },
+      { id: 2, title: 'Laeuft noch', start_datetime: `${today}T08:30:00`, end_datetime: `${today}T10:00:00` },
+      { id: 3, title: 'Ganztags', start_datetime: today, all_day: 1 },
+      eveningEvent(),
+    ],
+  }, [], { now: todayAt(9) });
+  const titles = model.rows.map((row) => row.title);
+  nodeAssert.ok(!titles.includes('Fruehsport'), `der beendete Termin ist weg, erhalten: ${titles}`);
+  nodeAssert.ok(titles.includes('Laeuft noch'), 'ein laufender Termin bleibt');
+  nodeAssert.ok(titles.includes('Ganztags'), 'ein Ganztagstermin endet nicht an seinem Tag');
+}));
+
+test('Termin-Kachel: beendete Termine treten zurueck, das Limit zaehlt nur Kommendes (#1449)', () => withSheetEnv({}, (__test) => {
+  const today = toLocalDateKey(new Date());
+  const ended = Array.from({ length: 5 }, (_, i) => ({
+    id: 10 + i, title: `Vorbei ${i}`,
+    start_datetime: `${today}T0${i + 1}:00:00`, end_datetime: `${today}T0${i + 1}:30:00`,
+  }));
+  const html = __test.renderUpcomingEvents([...ended, eveningEvent()], { now: todayAt(19, 28) });
+  nodeAssert.match(html, /Elternabend/, 'der kommende Abendtermin steht in der Kachel');
+  const endedRows = html.match(/event-item--ended/g) ?? [];
+  nodeAssert.equal(endedRows.length, 2, 'die zwei juengsten beendeten stehen zurueckgetreten darueber');
+  nodeAssert.match(html, /eventsEndedMore/, 'der Rest faltet sich in eine Zahl');
+  nodeAssert.ok(html.indexOf('Vorbei 4') < html.indexOf('Elternabend'), 'Beendetes oberhalb des Kommenden');
+  nodeAssert.ok(!html.includes('Vorbei 0'), 'aeltere beendete stehen nicht einzeln da');
+}));
 
 test('Notiz-Widget: nur der Auszug landet im DOM, nie der Volltext (Paket 3)', async () => {
   const { __test } = await import('../public/pages/dashboard.js');
@@ -1178,6 +1518,9 @@ test('Dashboard-Geburtstagswidget lädt Geburtstage haushaltsweit (Issue #406)',
 
     nodeAssert.equal(response.status, 200);
     nodeAssert.equal(body.birthdayCount, 2);
+    // Die Kachel-Badge zaehlt Anlaesse, nicht Personen: zwei Menschen, einer
+    // davon mit Namenstag, sind drei Zeilen (Critique 2026-09-23).
+    nodeAssert.equal(body.birthdayTotal, 3);
     nodeAssert.ok(names.includes('Widget Other Today'), 'Dashboard widget must include birthdays created by other users');
     const ownerRows = body.birthdays.filter((item) => item.name === 'Widget Owner Today');
     nodeAssert.deepEqual(
@@ -1256,6 +1599,9 @@ test('Dashboard-Endpoint filtert heutige Mahlzeiten nach sichtbaren Typen', asyn
   }
 });
 
+// Die Rangfolge nach Punkten ist mit der Critique 2026-09-23 entfallen: wer
+// freigibt, sieht die Kinder nach NAMEN, und die Sicht haengt an der Rolle
+// (authRole). Die Sichten einzeln prueft test/test-dashboard-rewards.js.
 test('Dashboard-Endpoint: Belohnungen liefert Punktestand, Teilnehmerzahl und offene Freigaben', async () => {
   const { get } = await import('../server/db.js');
   const { default: dashboardRouter } = await import('../server/routes/dashboard.js');
@@ -1285,14 +1631,15 @@ test('Dashboard-Endpoint: Belohnungen liefert Punktestand, Teilnehmerzahl und of
     VALUES (?, 'Kino', 50, 'pending')`).run(kidB);
 
   const app = express();
-  app.use((req, _res, next) => { req.authUserId = parent; req.session = { userId: parent }; next(); });
+  app.use((req, _res, next) => { req.authUserId = parent; req.authRole = 'admin'; req.session = { userId: parent }; next(); });
   app.use('/', dashboardRouter);
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   try {
     const body = await (await fetch(`http://127.0.0.1:${server.address().port}/`)).json();
     const names = body.rewards.standings.map((s) => s.display_name);
-    nodeAssert.equal(names[0], 'Kid B', 'höchster Saldo führt das Ranking an');
+    nodeAssert.equal(body.rewards.view, 'approver');
+    nodeAssert.equal(names[0], 'Kid A', 'nach Namen, nicht nach Saldo - Kid B hat mehr und steht nicht vorn');
     nodeAssert.ok(names.includes('Kid A'), 'zweiter Teilnehmer ist enthalten');
     nodeAssert.ok(!names.includes('Rewards Parent'), 'Nicht-Teilnehmer erscheinen nicht');
     nodeAssert.equal(body.rewards.standings.find((s) => s.display_name === 'Kid B').balance, 80);
@@ -1862,6 +2209,54 @@ test('getUpcomingEvents: fromToday=true zeigt heutige vergangene Termine (Issue 
     'Termin von gestern darf auch mit fromToday nicht erscheinen');
 });
 
+/* #1449: DAS FUENFER-LIMIT ZAEHLT NUR, WAS NOCH KOMMT. Gemessen im Issue: um
+ * 19:28 lieferte die Abfrage fuenf laengst vorbeie Termine und liess den um
+ * 21:00 fallen. Beendete Termine von heute kommen weiter mit (die Kachel zeigt
+ * sie zurueckgetreten), aber AUSSERHALB des Deckels. Wanduhrzeit ohne Zone plus
+ * ein `now` aus derselben lokalen Uhr: die Haushaltszone faellt hier auf die
+ * Serverzone zurueck (keine sync_config), beide Seiten lesen also dieselbe. */
+test('getUpcomingEvents: das Limit zaehlt nur Kommendes, Beendetes von heute kommt ausserhalb mit (#1449)', () => {
+  cdb.exec('SAVEPOINT ended_today');
+  try {
+    const day = '2091-03-10';
+    const ended = ['06:00', '07:00', '08:00', '09:00', '10:00'].map((time, index) => insertEvent({
+      title: `Vorbei ${index + 1}`, start_datetime: `${day}T${time}:00`,
+      end_datetime: `${day}T${time.slice(0, 2)}:30:00`, created_by: cuTheo,
+    }));
+    const running = insertEvent({
+      title: 'Laeuft noch', start_datetime: `${day}T19:00:00`, end_datetime: `${day}T20:00:00`, created_by: cuTheo,
+    });
+    const evening = insertEvent({ title: 'Abendtermin', start_datetime: `${day}T21:00:00`, created_by: cuTheo });
+    const allDay = insertEvent({ title: 'Ganztags', start_datetime: day, all_day: 1, created_by: cuTheo });
+    const now = new Date(2091, 2, 10, 19, 28);
+
+    const plain = getUpcomingEvents(cdb, { userId: cuTheo, limit: 5, fromToday: true, windowDays: 1, now });
+    nodeAssert.ok(!plain.some((e) => Number(e.id) === Number(evening)),
+      'Vorbedingung: ohne die Option verdraengen die beendeten Termine den Abendtermin');
+
+    const events = getUpcomingEvents(cdb, {
+      userId: cuTheo, limit: 2, fromToday: true, windowDays: 1, now, keepEndedToday: 20,
+    });
+    const ids = events.map((e) => Number(e.id));
+    for (const id of ended) nodeAssert.ok(ids.includes(Number(id)), 'beendete Termine von heute bleiben dabei');
+    // Der Deckel von 2 gilt dem, was noch kommt: der laufende Termin zaehlt
+    // als kommend, der ganztaegige endet nie am eigenen Tag - beide passen,
+    // der Abendtermin ist der dritte und faellt heraus.
+    nodeAssert.ok(ids.includes(Number(running)), 'ein laufender Termin zaehlt als kommend');
+    nodeAssert.ok(ids.includes(Number(allDay)), 'ein Ganztagstermin endet nicht an seinem eigenen Tag');
+    nodeAssert.equal(events.length, ended.length + 2, 'das Limit zaehlt nur die zwei kommenden');
+    nodeAssert.ok(!ids.includes(Number(evening)), 'der dritte kommende faellt unter den Deckel');
+
+    const five = getUpcomingEvents(cdb, {
+      userId: cuTheo, limit: 5, fromToday: true, windowDays: 1, now, keepEndedToday: 20,
+    });
+    nodeAssert.ok(five.some((e) => Number(e.id) === Number(evening)),
+      'mit Fuenfer-Deckel steht der Abendtermin wieder drin (Abnahme aus #1449)');
+  } finally {
+    cdb.exec('ROLLBACK TO ended_today; RELEASE ended_today');
+  }
+});
+
 test('getUpcomingEvents: zukünftige Termine sortiert und auf limit begrenzt', () => {
   const events = getUpcomingEvents(cdb, { userId: cuTheo, limit: 10 });
   assert(events.find((e) => e.title === 'Theodore Soccer Game'), 'Zukünftiger Einzeltermin erscheint');
@@ -2258,6 +2653,39 @@ test('Wand-Modus: der Fehlerzustand trägt keinen Retry-Knopf, aber die Uhr', as
   });
 });
 
+/* EIN LAUFENDER TIMER NIMMT EINE ZEILE (Integration 2026-09-23, Browser-Abnahme
+ * bei 1280x800). Der Deckel von vier Zeilen ist fuer eine Flaeche OHNE die
+ * Timer-Anzeige gerechnet; die Anzeige kostet 64px plus Abstand, und an einem
+ * vollen Tag schob sie Fuss samt „Timer abbrechen" und Ausstieg auf 808-856px -
+ * unter den Bildrand einer Flaeche, die nicht scrollt. Solange der Timer steht,
+ * zeigt das Programm eine Zeile weniger, und „+N weitere" zaehlt sie mit. */
+test('Wand-Modus: ein laufender Timer nimmt dem Programm eine Zeile', async () => {
+  const { __test } = await import('../public/pages/dashboard.js');
+  const { startWallTimer, clearWallTimer } = await import('../public/components/wall-timer.js');
+  const store = new Map();
+  const prev = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) },
+  });
+  try {
+    await withWallWindow(() => {
+      const data = { urgentTasks: wallTasks(9), users: [] };
+      const rows = (html) => (html.match(/class="wall-row /g) ?? []).length;
+      nodeAssert.equal(rows(__test.renderWallSurface(data, null, {})), __test.WALL_ROW_CAP, 'Vorbedingung: ohne Timer der volle Deckel');
+      startWallTimer(5);
+      const running = __test.renderWallSurface(data, null, {});
+      nodeAssert.match(running, /wall__timer-value/, 'Vorbedingung: die Timer-Anzeige steht');
+      nodeAssert.equal(rows(running), __test.WALL_ROW_CAP - 1, 'mit laufendem Timer eine Zeile weniger');
+      clearWallTimer();
+      nodeAssert.equal(rows(__test.renderWallSurface(data, null, {})), __test.WALL_ROW_CAP, 'nach dem Timer wieder der volle Deckel');
+    });
+  } finally {
+    if (prev) Object.defineProperty(globalThis, 'localStorage', prev);
+    else delete globalThis.localStorage;
+  }
+});
+
 test('Wand-Modus: der Deckel greift, und der Überlauf sagt die Wahrheit', async () => {
   const { __test } = await import('../public/pages/dashboard.js');
   await withWallWindow(() => {
@@ -2362,13 +2790,11 @@ test('Wand-Modus: das Nachtfenster läuft über Mitternacht (22:00 bis 06:00)', 
 // --------------------------------------------------------
 // Widget-Konfiguration (public/utils/dashboard-widgets.js)
 //
-// ANLASS: `normalizeDashboardConfig` und `isUserOrderedConfig` tragen zusammen
-// eine Zusicherung - ein Bestandslayout, dem eine inzwischen neu bekannte
-// Widget-Id fehlt, darf sich NICHT als Nutzer-Umsortierung lesen. Tut es das,
-// schaltet das Raster von der dichten Packung auf preserve-order und der
-// Weissraum aus Audit A1-03 ist zurueck, ohne dass jemand etwas umsortiert hat.
-// Sie war bis 2026-08-13 durch keinen Test gedeckt und hing an einer
-// Vereinbarung ueber die Reihenfolge von WIDGET_IDS.
+// ANLASS: `normalizeDashboardConfig` sortiert eine inzwischen neu bekannte
+// Widget-Id an ihrer Default-Position ein, nicht hinten. Bis 2026-09-23 hing
+// daran zusaetzlich die Packung des Rasters (`isUserOrderedConfig` schaltete
+// umsortierte Layouts auf die Quellordnung); das Raster packt seitdem immer
+// dicht, die Einsortierung bleibt der Ort, an dem ein Neuzugang erscheint.
 // --------------------------------------------------------
 
 const widgets = await import('../public/utils/dashboard-widgets.js');
@@ -2419,7 +2845,7 @@ function layoutOhne(missing) {
 // ergaenzen, aendern dieselbe Zeile unterschiedlich - das ist ein Konflikt, den
 // git meldet, statt ihn stillschweigend zu verschmelzen.
 const ERWARTETE_WIDGET_IDS = [
-  'tasks', 'calendar', 'meals', 'shopping', 'assets', 'birthdays', 'countdown', 'budget',
+  'tasks', 'calendar', 'meals', 'shopping', 'assets', 'pantry', 'birthdays', 'countdown', 'budget',
   'rewards', 'health', 'cycle', 'fasting', 'nutrition', 'housekeeping', 'schedule',
   'waste', 'family', 'notes', 'weather', 'clock', 'metrics', 'quicklinks',
 ];
@@ -2435,16 +2861,6 @@ test('Widget-Merge: eine fehlende Id landet an ihrer Default-Position, nicht hin
     `An die falsche Stelle einsortiert: ${falsch.join(', ')} - erwartet ist die Default-Position`);
 });
 
-test('Widget-Merge: ein Bestandslayout ohne eine Id ist KEINE Nutzer-Umsortierung (A1-03)', () => {
-  // Der eigentliche Punkt. Vor dem Merge-Fix ist das fuer jede Id rot, die
-  // nicht die LETZTE sichtbare in WIDGET_IDS ist - angehaengt steht sie hinter
-  // Widgets, vor denen sie im Default steht.
-  const falsch = widgets.WIDGET_IDS.filter((id) =>
-    widgets.isUserOrderedConfig(widgets.normalizeDashboardConfig(layoutOhne(id))));
-  assert(falsch.length === 0,
-    `Als umsortiert gelesen, obwohl nur eine Id fehlte: ${falsch.join(', ')} - das Raster faellt dort auf preserve-order`);
-});
-
 test('Widget-Merge: zwei fehlende Ids behalten ihre Reihenfolge zueinander', () => {
   const zwei = widgets.DEFAULT_WIDGET_CONFIG
     .filter((w) => !['meals', 'shopping'].includes(w.id))
@@ -2452,8 +2868,6 @@ test('Widget-Merge: zwei fehlende Ids behalten ihre Reihenfolge zueinander', () 
   const merged = widgets.normalizeDashboardConfig(zwei).map((w) => w.id);
   assert(merged.join(',') === widgets.WIDGET_IDS.join(','),
     `Zwei benachbarte Neuzugaenge kamen durcheinander: ${merged.join(',')}`);
-  assert(!widgets.isUserOrderedConfig(merged.map((id, i) => ({ id, visible: true, order: i, size: '1x1' }))),
-    'zwei fehlende Ids lesen sich als Umsortierung');
 });
 
 test('Widget-Merge: eine fehlende Id am Anfang der Liste landet vorn, nicht hinten', () => {
@@ -2479,8 +2893,6 @@ test('Widget-Merge: ein umsortiertes Layout laesst den Neuzugang seinem Vorgaeng
   // `birthdays`, und dorthin gehoert er - nicht ans Ende.
   assert(sichtbar.join(',') === 'weather,metrics,family,budget,birthdays,countdown,rewards,notes,assets',
     `Neuzugang an unerwarteter Stelle: ${sichtbar.join(',')}`);
-  assert(widgets.isUserOrderedConfig(merged),
-    'ein echt umsortiertes Layout muss umsortiert bleiben - sonst packt dense es um');
 });
 
 test('Widget-Optionen reisen durch die Normalisierung, ohne dass sie jemand kennt (#814)', () => {
@@ -2539,27 +2951,77 @@ test('dashboardQuery uebersetzt Optionen in Parameter, die die Route versteht (#
   assert(widgets.dashboardQuery(null) === '/dashboard');
 });
 
-test('isUserOrderedConfig erkennt eine ECHTE Umsortierung weiterhin', () => {
-  // Gegenprobe zur Zusicherung oben: sie darf nicht dadurch halten, dass die
-  // Funktion nie mehr `true` sagt. Zwei sichtbare Widgets tauschen.
-  const sichtbar = widgets.DEFAULT_WIDGET_CONFIG.filter((w) => w.visible).map((w) => w.id);
-  assert(sichtbar.length >= 2, `Reichweite: nur ${sichtbar.length} sichtbare Widgets im Default`);
-  const getauscht = widgets.DEFAULT_WIDGET_CONFIG.map((w) => ({ ...w }));
-  const a = getauscht.findIndex((w) => w.id === sichtbar[0]);
-  const b = getauscht.findIndex((w) => w.id === sichtbar[1]);
-  [getauscht[a].order, getauscht[b].order] = [getauscht[b].order, getauscht[a].order];
-  assert(widgets.isUserOrderedConfig(getauscht),
-    `Tausch von ${sichtbar[0]} und ${sichtbar[1]} wurde nicht als Umsortierung erkannt`);
-  assert(!widgets.isUserOrderedConfig(widgets.DEFAULT_WIDGET_CONFIG),
-    'der unveraenderte Default liest sich als Umsortierung');
+// --------------------------------------------------------
+// Das dichte Raster, nachgerechnet (Critique 2026-09-23)
+//
+// `packGrid` rechnet `grid-auto-flow: row dense` fuer Kacheln mit reinen Spans
+// nach; der Loch-Hinweis im Bearbeiten-Modus schlaegt darauf eine Groesse vor.
+// Ob der Browser genauso packt, misst test:dashboard-surface-browser am
+// gerenderten Raster - hier steht die Rechnung selbst.
+// --------------------------------------------------------
+
+const kachel = (id, cols, rows, size = `${cols}x${rows}`) => ({ id, cols, rows, size });
+
+test('packGrid: dicht heisst, eine spaetere kleine Kachel fuellt das fruehere Loch', () => {
+  // calendar 2x1 laesst rechts eine Zelle frei, tasks 2x1 passt nicht hinein,
+  // notes 1x1 schon - `dense` setzt den Cursor fuer jede Kachel zurueck.
+  const cells = widgets.packGrid([kachel('calendar', 2, 1), kachel('tasks', 2, 1), kachel('notes', 1, 1)], 3);
+  assert(cells.map((r) => r.map((v) => v ?? '.').join(' ')).join(' / ')
+    === 'calendar calendar notes / tasks tasks .', `Belegung: ${JSON.stringify(cells)}`);
+  assert(widgets.gridHoleCount(cells) === 0, 'die letzte Zeile darf auslaufen, sie ist kein Loch');
 });
 
-test('isUserOrderedConfig: ein reiner Sichtbarkeits-Toggle ist keine Umsortierung', () => {
-  const versteckt = widgets.DEFAULT_WIDGET_CONFIG.map((w) => (w.id === 'notes' ? { ...w, visible: false } : w));
-  assert(!widgets.isUserOrderedConfig(versteckt), 'Ausblenden wurde als Umsortierung gelesen');
-  // Und eine abgeschaffte Id aus einem alten Stand ebenso wenig.
-  const alt = [{ id: 'ancient', visible: true, order: -1 }, ...widgets.DEFAULT_WIDGET_CONFIG];
-  assert(!widgets.isUserOrderedConfig(alt), 'eine unbekannte Alt-Id wurde als Umsortierung gelesen');
+test('packGrid: eine hohe Kachel belegt beide Zeilen, eine zu breite wird an der Kante gekappt', () => {
+  const cells = widgets.packGrid([kachel('family', 1, 2), kachel('weather', 3, 1), kachel('notes', 2, 1)], 2);
+  // weather ist breiter als das Raster: gerechnet wird mit zwei Spalten.
+  assert(cells[0][0] === 'family' && cells[1][0] === 'family', `family: ${JSON.stringify(cells)}`);
+  assert(cells[2].every((v) => v === 'weather'), `weather: ${JSON.stringify(cells)}`);
+  assert(cells[0][1] === null && cells[1][1] === null && cells[3].every((v) => v === 'notes'),
+    `notes passt nicht neben family und landet unten: ${JSON.stringify(cells)}`);
+  assert(widgets.gridHoleCount(cells) === 2);
+});
+
+test('suggestGridHoleFill: schlaegt die billigste Aenderung am Nachbarn des Lochs vor', () => {
+  // Drei Breitkacheln in drei Spalten: rechts bleibt je eine Zelle frei.
+  // Billigste Loesung ist dieselbe Flaeche in anderer Form, und zwar an der
+  // Kachel links neben dem ersten Loch.
+  const items = [kachel('calendar', 2, 1), kachel('tasks', 2, 1), kachel('notes', 2, 1)];
+  const presets = (item) => [['1x1', 1, 1], ['2x1', 2, 1], ['1x2', 1, 2], ['2x2', 2, 2]]
+    .map(([size, cols, rows]) => ({ size, cols, rows, id: item.id }));
+  const vorschlag = widgets.suggestGridHoleFill(items, 3, presets);
+  nodeAssert.deepEqual(vorschlag, { id: 'calendar', size: '1x2' });
+  const danach = widgets.packGrid(items.map((it) => (it.id === 'calendar' ? { ...it, cols: 1, rows: 2 } : it)), 3);
+  assert(widgets.gridHoleCount(danach) === 0, 'der Vorschlag schliesst das Loch nicht');
+});
+
+test('suggestGridHoleFill: waechst lieber, als Inhalt wegzunehmen', () => {
+  // Der Demo-Haushalt bei 1440px, in seiner gespeicherten Rangfolge: unter
+  // „Belohnungen" (1x1, dicht nach vorn gerueckt) bleibt ein Loch neben den
+  // Kennzahlen (2x1). Kennzahlen als 1x1 schloesse es auch - und naehme einer
+  // Kachel die Haelfte. Belohnungen als 1x2 waechst in das Loch hinein.
+  const items = [
+    kachel('family', 1, 2), kachel('budget', 1, 2), kachel('birthdays', 1, 2),
+    kachel('weather', 2, 1), kachel('metrics', 2, 1), kachel('rewards', 1, 1), kachel('notes', 2, 1),
+  ];
+  const presets = (item) => [['1x1', 1, 1], ['2x1', 2, 1], ['1x2', 1, 2], ['2x2', 2, 2]]
+    .map(([size, cols, rows]) => ({ size, cols, rows, id: item.id }));
+  assert(widgets.gridHoleCount(widgets.packGrid(items, 3)) === 1, 'Reichweite: das Ausgangsraster hat genau ein Loch');
+  nodeAssert.deepEqual(widgets.suggestGridHoleFill(items, 3, presets), { id: 'rewards', size: '1x2' });
+});
+
+test('suggestGridHoleFill: ohne Loch und ohne Ausweg schweigt er', () => {
+  const presets = (item) => [{ size: item.size, cols: item.cols, rows: item.rows }];
+  assert(widgets.suggestGridHoleFill([kachel('a', 1, 1), kachel('b', 1, 1)], 2, presets) === null,
+    'eine volle Zeile hat kein Loch');
+  // Nur die eigene Groesse im Angebot: es gibt nichts vorzuschlagen.
+  assert(widgets.suggestGridHoleFill([kachel('a', 2, 1), kachel('b', 2, 1), kachel('c', 1, 1)], 3, presets) === null,
+    'ohne Kandidaten darf kein Vorschlag entstehen');
+});
+
+test('isUserOrderedConfig gibt es nicht mehr - das Raster schaltet nach keiner Reihenfolge um', () => {
+  // Gegenprobe zur Entscheidung vom 2026-09-23 (immer dicht): ein Aufrufer,
+  // der die Unterscheidung zurueckholen wollte, faende sie hier nicht mehr.
+  assert(!('isUserOrderedConfig' in widgets), 'isUserOrderedConfig ist zurueck');
 });
 
 test('Widget-Merge: gespeicherte Reihenfolge gewinnt ueber die Array-Position', () => {
@@ -2611,7 +3073,7 @@ const METRIC_DATA = {
   // so nicht gibt (Codex-Review zu PR #754).
   pinnedNotes: [{ title: 'Urlaub', pinned: 1 }],
   pinnedNotesCount: 1,
-  rewards: { standings: [{ display_name: 'Leo', balance: 60 }] },
+  rewards: { view: 'self', me: 1, standings: [{ id: 1, display_name: 'Leo', balance: 60 }], catalog: [] },
   health: { hasMeds: true, dosesTotal: 3, dosesTaken: 1, dosesSkipped: 0, nextDose: { name: 'Vitamin D3' }, lowStockCount: 0 },
   housekeeping: { configured: true, visitsThisMonth: 4, present: true },
 };

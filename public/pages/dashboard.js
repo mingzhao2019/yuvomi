@@ -7,13 +7,15 @@
 import { api, auth } from '/api.js';
 import { createPageController } from '/utils/page-lifecycle.js';
 import { canSeeWidget, moduleAccess, navModuleAccess, canUseFasting } from '/permissions.js';
-import { t, formatDate, formatTime, timeSuffix, getLocale, getNumberFormat } from '/i18n.js';
+import { todaySheetContext, collectSourceRows, composeTodaySheet, codaAllowed, speakingSourceIds } from '/utils/today-sheet.js';
+import { t, formatDate, formatDayMonth, formatTime, timeSuffix, getLocale, getNumberFormat } from '/i18n.js';
 import { getReadableTextColor, AVATAR_FALLBACK_COLOR } from '/utils/color.js';
 import { resolveEventColor } from '/utils/event-color.js';
+import { buildWeekStrip } from '/utils/week-strip.js';
 import { esc, fmtLocation, renderMarkdownLight } from '/utils/html.js';
 // `todayKey` heisst hier schon ein Parameter (bzw. eine lokale Bindung), der den
 // Bezugstag traegt - der Import kommt deshalb unter eigenem Namen herein.
-import { toLocalDateKey, parseLocalDateKey, addLocalDays, todayKey as householdToday } from '/utils/date.js';
+import { parseLocalDateKey, addLocalDays, todayKey as householdToday } from '/utils/date.js';
 import { nowFields, zonedUTCProxy, zonedDateKey, zonedTimeKey } from '/utils/timezone.js';
 import { formatChineseLunarDate, shouldDisplayChineseLunar } from '/utils/lunar.js';
 import { predictCycle, PHASE } from '/utils/health-cycle.js';
@@ -21,6 +23,8 @@ import { NUTRIENTS, nutrientProgress } from '/utils/health-nutrition.js';
 import { startFasting, finishFasting, startFastingClock, fastingClockSwitchHtml, fastingError } from '/components/fasting-controls.js';
 import { localizeBirthdayEvent } from '/utils/birthday-event.js';
 import { countdownPhrase, countdownRank } from '/utils/countdown.js';
+import { EXPIRY_SOON_DAYS, pantryExpiryPhrase, pantryExpiryTone } from '/utils/pantry-status.js';
+import { locationLabel } from '/utils/pantry-locations.js';
 import { findPageFab } from '/utils/fab.js';
 import { openModal, closeModal, confirmModal, refocusAfterRender } from '/components/modal.js';
 import { renderAvatarStack } from '/components/user-multi-select.js';
@@ -28,7 +32,7 @@ import { isSoloHousehold } from '/utils/household.js';
 import {
   WIDGET_SIZE_PRESETS, WIDGET_SIZE_OPTIONS,
   COCKPIT_COVERED_WIDGETS,
-  nearestPreset, isUserOrderedConfig, sameWidgetConfig,
+  nearestPreset, sameWidgetConfig, suggestGridHoleFill,
   dashboardQuery,
 } from '/utils/dashboard-widgets.js';
 import {
@@ -53,6 +57,7 @@ import { attachOverlay } from '/utils/overlay-history.js';
 import { mealTypeList, primeMealTypeNames } from '/utils/meal-types.js';
 import { recipeThumbHtml, wireRecipeThumbs } from '/utils/recipe-thumb.js';
 import { wireNoteCategoryOverflow } from '/utils/note-category-overflow.js';
+import { nextRewardGoal } from '/utils/reward-goal.js';
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
@@ -74,13 +79,24 @@ const ONBOARDING_TITLE_ID = 'onboarding-step-title';
 const APP_NAME_STORAGE_KEY = 'yuvomi-app-name';
 const CUSTOMIZE_HINT_KEY = 'yuvomi-dash-customize-hint';
 
+/* DER TAG EINES TERMINS IST DER TAG DER HAUSHALTSZONE, nicht der des Browsers.
+ *
+ * Hier stand `toLocalDateKey(new Date(value))`, und das las einen
+ * synchronisierten Termin (`…Z` oder mit Offset) in der Zone des GERAETS:
+ * `toLocalDateKey` sieht die Haushaltszone bewusst nie (CLAUDE.md, Fallen).
+ * Mit Haushalt in Berlin und Telefon in Tokio stand ein Termin um 23:30 am
+ * Folgetag - in der Liste, im Tagesprogramm, im Familien-Widget und im
+ * Kalender-Link. Zonenlose Wanduhrzeit fiel nicht auf, weil der Umweg ueber
+ * `new Date()` dieselben Ziffern zurueckgibt.
+ *
+ * `zonedDateKey` ist dieselbe Antwort, die der Kalender gibt (`localDate` in
+ * pages/calendar.js): Wanduhrzeit wird gelesen, ein Zeitpunkt in die
+ * Anzeigezone umgerechnet, ohne gesetzte Zone bleibt es beim Browser. */
 function eventOccurrenceDateKey(event) {
   const value = String(event?.start_datetime || '');
   if (!value) return '';
   if (value.length <= 10) return value.slice(0, 10);
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value.slice(0, 10) : toLocalDateKey(date);
+  return zonedDateKey(value) || value.slice(0, 10);
 }
 
 // All-day events store start_datetime as a date-only key ("2026-07-10"). Parsing
@@ -100,6 +116,42 @@ function calendarEventRoute(event) {
   const occurrenceDate = eventOccurrenceDateKey(event);
   if (/^\d{4}-\d{2}-\d{2}$/.test(occurrenceDate)) params.set('date', occurrenceDate);
   return `/calendar?${params.toString()}`;
+}
+
+/**
+ * Ein Zeitpunkt oder eine Wanduhrzeit als Stempel des Haushalts
+ * ('YYYY-MM-DDTHH:MM', Anzeigezone): Wanduhrzeit wird gelesen, ein Zeitpunkt
+ * umgerechnet. Leer, wenn der Wert keinen hergibt. Termin-Kachel, Heute-Blatt
+ * und Familienkarte vergleichen mit DIESEM Stempel.
+ */
+function householdStamp(value) {
+  const day = zonedDateKey(value);
+  const time = zonedTimeKey(value);
+  return day && time ? `${day}T${time}` : '';
+}
+
+/** Jetzt als Wanduhr-Stempel des Haushalts ('YYYY-MM-DDTHH:MM'). */
+function householdNowStamp(now = new Date()) {
+  return householdStamp(now);
+}
+
+/**
+ * Ist dieser Termin vorbei (#1449)? „Vorbei" heisst: sein ENDE liegt hinter
+ * uns, gelesen in der Wanduhr des Haushalts - dieselbe Regel wie serverseitig
+ * in `getUpcomingEvents` (`keepEndedToday`). Ein laufender Termin zaehlt also
+ * noch, ein ganztaegiger endet nie an seinem eigenen Tag, und ohne Ende ist
+ * der Start das Ende.
+ *
+ * Gefragt wird hier und nicht nur beim Laden, weil ein Termin auch zwischen
+ * zwei Abrufen endet: das unberuehrte Wandtablet soll um 9:31 nicht mehr den
+ * Termin bis 9:30 zeigen, sondern erst in einer Viertelstunde.
+ */
+function eventHasEnded(event, nowStamp) {
+  if (!event || event.all_day) return false;
+  const end = String(event.end_datetime || event.start_datetime || '');
+  if (end.length <= 10) return false;
+  const endStamp = householdStamp(end);
+  return endStamp !== '' && endStamp <= nowStamp;
 }
 
 function getAppName() {
@@ -292,7 +344,10 @@ function maybeHintCustomize(container) {
 // Widget → Modul-Slug für die „Modul deaktiviert?"-Prüfung. Widgets ohne Eintrag
 // (family, weather) sind immer verfügbar. Modulweit, damit Grid-Filter und
 // Wieder-Einblenden-Leiste dieselbe Sichtbarkeitsregel teilen.
-const MODULE_FOR_WIDGET = { tasks: 'tasks', calendar: 'calendar', shopping: 'shopping', meals: 'meals', notes: 'notes', birthdays: 'birthdays', budget: 'budget', rewards: 'rewards', health: 'health', cycle: 'health', fasting: 'health', nutrition: 'health', housekeeping: 'housekeeping', schedule: 'schedule', waste: 'waste' };
+// `split-expenses` ist kein Widget, sondern eine Kachel der Kennzahlreihe -
+// steht aber hier, weil `isWidgetModuleEnabled()` auch die Kacheln filtert, und
+// die geteilten Ausgaben haengen am Budget-Modul (server/scopes.js).
+const MODULE_FOR_WIDGET = { tasks: 'tasks', calendar: 'calendar', shopping: 'shopping', meals: 'meals', notes: 'notes', birthdays: 'birthdays', budget: 'budget', 'split-expenses': 'budget', rewards: 'rewards', health: 'health', cycle: 'health', fasting: 'health', nutrition: 'health', housekeeping: 'housekeeping', schedule: 'schedule', waste: 'waste', pantry: 'pantry' };
 
 const WIDGETS_WITH_OPTIONS = new Set(['calendar', 'tasks', 'notes', 'waste']);
 
@@ -432,7 +487,8 @@ function widgetLabel(id) {
     housekeeping: () => t('nav.housekeeping'),
     schedule: () => t('nav.schedule'),
     waste:    () => t('nav.waste'),
-    family:   () => t('dashboard.familyMembers'),
+    pantry:   () => t('dashboard.pantryExpiringTitle'),
+    family:   () => t('dashboard.familyTitle'),
     clock:    () => t('dashboard.clock'),
     metrics:  () => t('dashboard.metrics'),
     countdown: () => t('dashboard.countdownTitle'),
@@ -554,6 +610,28 @@ function lunarDateForNow(now = new Date()) {
  * Vorher stand hier `d.toDateString() === new Date().toDateString()` - beide
  * Seiten in der Browser-Zone, also fuer jeden Betrachter ein anderes „heute".
  */
+/*
+ * NACH „MORGEN" KOMMT DER WOCHENTAG, NICHT DAS JAHR. Hier sprang das Label
+ * direkt auf „26.09.2026" - drei Tage voraus mit Jahreszahl, wo ein Mensch
+ * „Sa." sagt (Critique 2026-09-23). Die Stufen: heute, morgen, bis sechs Tage
+ * voraus der kurze Wochentag (ab sieben waere er mehrdeutig: „Mi." hiesse
+ * heute oder in einer Woche), danach Tag und Monat, das Jahr nur, wenn es
+ * nicht das laufende ist. Vergangenes bekommt nie einen Wochentag - „Mo." fuer
+ * letzten Montag liest sich als der naechste.
+ *
+ * Gerechnet wird auf den KEYS der Haushaltszone, nie auf einem `Date`: der
+ * Abstand kommt aus `Date.UTC` ueber Jahr/Monat/Tag (zonenfrei und
+ * sommerzeitfest), der Name aus demselben UTC-Mittag mit `timeZone: 'UTC'` -
+ * die Technik von `zonedUTCProxy`. Der Name folgt der App-Sprache
+ * (`getLocale`), Tag und Monat der Datumsschreibweise der Region.
+ */
+const WEEKDAY_LABEL_DAYS = 6;
+
+function dayKeyNoonUtc(key) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : NaN;
+}
+
 function relativeDateLabel(value) {
   if (value === null || value === undefined || value === '') return '';
   const day = zonedDateKey(value);
@@ -561,7 +639,14 @@ function relativeDateLabel(value) {
   const today = householdToday();
   if (day === today) return t('common.today');
   if (day === addLocalDays(today, 1)) return t('common.tomorrow');
-  return formatDate(value);
+  const dayNoon = dayKeyNoonUtc(day);
+  const ahead = Math.round((dayNoon - dayKeyNoonUtc(today)) / 86400000);
+  if (ahead > 1 && ahead <= WEEKDAY_LABEL_DAYS) {
+    return new Intl.DateTimeFormat(getLocale(), { weekday: 'short', timeZone: 'UTC' }).format(new Date(dayNoon));
+  }
+  // Der KEY geht an die Formatierer, nicht `value`: ein Zeitpunkt ist oben
+  // schon in die Anzeigezone umgerechnet, ein zweites Mal waere doppelt.
+  return day.slice(0, 4) === today.slice(0, 4) ? formatDayMonth(day) : formatDate(day);
 }
 
 function formatDateTime(isoString) {
@@ -650,7 +735,11 @@ function formatDueDate(dateStr, timeStr) {
     return { text: dueTime ? `${t('dashboard.dueTomorrow')} – ${formatTime(dueStamp)}` : t('dashboard.dueTomorrow'), overdue: false };
   }
 
-  return { text: fullLabel, overdue: false };
+  // Weiter voraus dieselbe Stufung wie am Termin daneben (relativeDateLabel):
+  // „Sa, 10:00" statt „26.09.2026, 10:00". Ueberfaelliges und „bald" oben
+  // behalten das volle Datum - dort ist es die Auskunft.
+  const dayLabel = relativeDateLabel(dayKey);
+  return { text: dueTime ? `${dayLabel}, ${formatTime(dueStamp)}` : dayLabel, overdue: false };
 }
 
 const PRIORITY_LABELS = () => ({
@@ -746,9 +835,18 @@ function widgetHeader(widgetId, title, count, linkHref, linkLabel, sealSlug = nu
   // Aufrufstellen: `0` kommt sowohl fest aus den Leerzustaenden als auch
   // gerechnet aus `totalOpen`/`badge`, und eine Allowlist deckt nur die
   // Stellen ab, die man beim Schreiben gesehen hat.
+  //
+  // DIE ZAHL STEHT NICHT IM NAMEN DER UEBERSCHRIFT (Critique 2026-09-23). Als
+  // Kind der h3 las ein Screenreader „Geburtstage 5" - eine Ueberschrift, die
+  // anders heisst als ihr Widget, und eine Zahl ohne Wort dazu. Die Badge ist
+  // deshalb aria-hidden, und derselbe Wert steht hinter der h3 als Satz.
   const numericCount = Number(count);
-  const badge = count != null && Number.isFinite(numericCount) && numericCount > 0
-    ? `<span class="widget__badge">${count}</span>`
+  const hasCount = count != null && Number.isFinite(numericCount) && numericCount > 0;
+  const badge = hasCount
+    ? `<span aria-hidden="true" class="widget__badge">${count}</span>`
+    : '';
+  const countText = hasCount
+    ? `<span class="sr-only">${esc(t('dashboard.badgeCount', { count: numericCount }))}</span>`
     : '';
   // OHNE ZIEL KEIN LINK. Jede Kachel bis #647 gehoerte genau einer Seite, und
   // „Alle" fuehrte dorthin. Der Countdown gehoert zweien: seine Zeilen kommen
@@ -790,6 +888,7 @@ function widgetHeader(widgetId, title, count, linkHref, linkLabel, sealSlug = nu
         <span class="widget__title-text">${title}</span>
         ${badge}
       </h3>
+      ${countText}
       ${link}
     </div>
   `;
@@ -885,15 +984,19 @@ const MEAL_SORT_TIME = { breakfast: '08:00', lunch: '12:30', snack: '15:30', din
  * dann heute Fälliges ohne Uhrzeit (00:02). upcomingEvents liefert nur „ab
  * jetzt" - Vergangenes verschwindet also von selbst aus dem Programm.
  */
-function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, includeMeals = true } = {}) {
+function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, includeMeals = true, now = new Date() } = {}) {
   const highlights = buildTodayHighlights(data);
-  const todayKey = householdToday();
+  const todayKey = zonedDateKey(now);
+  const nowStamp = householdNowStamp(now);
   const events = Array.isArray(data?.upcomingEvents) ? data.upcomingEvents : [];
   const rows = [];
 
   if (includeCalendar) {
     for (const event of events) {
       if (eventOccurrenceDateKey(event) !== todayKey) continue;
+      // Das Blatt verspricht, was heute NOCH ansteht (#1449): ein beendeter
+      // Termin verlaesst es. Die Termin-Kachel behaelt ihn zurueckgetreten.
+      if (eventHasEnded(event, nowStamp)) continue;
       const start = eventStartDate(event);
       const timed = !event.all_day && start && String(event.start_datetime).length > 10;
       rows.push({
@@ -908,6 +1011,10 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
         tone: 'event',
         route: calendarEventRoute(event),
         who: event.assigned_users?.[0] ?? null,
+        // Beitrags-Vertrag (utils/today-sheet.js): ein Termin ist ein Rahmen
+        // des Tages, kein Auftrag - er haelt die Coda nicht auf.
+        priority: 40,
+        open: false,
       });
     }
   }
@@ -934,6 +1041,8 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
         tone: 'task',
         route: '/tasks',
         who: task.assigned_users?.[0] ?? null,
+        priority: overdue ? 10 : 30,
+        open: true,
       });
     }
   }
@@ -950,6 +1059,8 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
       tone: 'dinner',
       route: '/meals',
       who: null,
+      priority: 80,
+      open: false,
     });
   }
 
@@ -999,7 +1110,7 @@ function skeletonWidget(lines = 3) {
 
 const TASK_STATUS_IN_PROGRESS = () => t('tasks.statusInProgress');
 
-function renderUrgentTasks(tasks) {
+function renderUrgentTasks(tasks, openTotal = null) {
   if (!tasks.length) {
     return `<div class="widget widget--tasks">
       ${widgetHeader('tasks', t('nav.tasks'), 0, '/tasks')}
@@ -1035,13 +1146,39 @@ function renderUrgentTasks(tasks) {
     `;
   }).join('');
 
+  // `urgentTasks` sind die fuenf dringendsten, `openTaskCount` alle offenen
+  // (siehe listTotal).
+  const total = listTotal(openTotal, tasks.length);
   return `<div class="widget widget--tasks">
-    ${widgetHeader('tasks', t('nav.tasks'), tasks.length, '/tasks')}
-    <div class="widget__body">${items}</div>
+    ${widgetHeader('tasks', t('nav.tasks'), total, '/tasks')}
+    <div class="widget__body">${items}${listMoreLine('dashboard.tasksMore', total - tasks.length)}</div>
   </div>`;
 }
 
-function renderUpcomingEvents(events) {
+/* BEENDETE TERMINE TRETEN ZURUECK, UND DAS LIMIT ZAEHLT NUR KOMMENDES (#1449).
+ *
+ * Die Kachel las nie die Endzeit: ein Termin, der um 9:00 vorbei war, sah aus
+ * wie einer um 18:00, und fuenf vorbeie fuellten das Limit, waehrend der um
+ * 21:00 fehlte. Der Server liefert das Kommende jetzt ungedeckelt vom
+ * Vergangenen (`keepEndedToday`); hier entscheidet die Uhr, was davon vorbei
+ * ist - auch zwischen zwei Abrufen.
+ *
+ * Die zwei juengsten beendeten stehen zurueckgetreten UEBER dem Kommenden
+ * (chronologisch sind sie frueher), der Rest faltet sich in eine Zahl: an einem
+ * vollen Tag waeren sonst sechs vergangene Zeilen der Inhalt der Kachel.
+ * Zurueckgetreten heisst: Farbe statt Deckung (#1230) und ein Wort im Etikett
+ * statt „Heute" - der Zustand haengt nicht an der Farbe allein. */
+const ENDED_EVENTS_SHOWN = 2;
+const UPCOMING_EVENTS_SHOWN = 5;
+
+function renderUpcomingEvents(allEvents, { now = new Date() } = {}) {
+  const todayKey = zonedDateKey(now);
+  const nowStamp = householdNowStamp(now);
+  const endedToday = allEvents.filter((e) => eventOccurrenceDateKey(e) === todayKey && eventHasEnded(e, nowStamp));
+  const ended = endedToday.slice(-ENDED_EVENTS_SHOWN);
+  const folded = endedToday.length - ended.length;
+  const ahead = allEvents.filter((e) => !endedToday.includes(e)).slice(0, UPCOMING_EVENTS_SHOWN);
+  const events = [...ended, ...ahead];
   if (!events.length) {
     return `<div class="widget widget--calendar">
       ${widgetHeader('calendar', t('nav.calendar'), 0, '/calendar')}
@@ -1054,20 +1191,28 @@ function renderUpcomingEvents(events) {
 
   // Der Tagesvergleich ueber KEYS, nicht ueber `toDateString()`: das las die
   // Browser-Zone und machte „heute" zu einer Frage an das Geraet (#851).
-  const today = householdToday();
+  const today = todayKey;
   const items = events.map((e) => {
     const d = eventStartDate(e) ?? new Date(e.start_datetime);
     const dayKey = eventOccurrenceDateKey(e);
     const isToday = dayKey === today;
+    const isEnded = ended.includes(e);
     const _suffix = timeSuffix();
     const timeStr = e.all_day ? t('dashboard.allDay') : `${formatTime(d)}${_suffix ? ' ' + _suffix : ''}`.trim();
+    const badge = isEnded
+      ? `<span class="event-time-badge">${esc(t('dashboard.eventEnded'))}</span>`
+      : `<span class="event-time-badge ${isToday ? 'event-time-badge--today' : ''}">${isToday ? t('common.today') : relativeDateLabel(dayKey)}</span>`;
     return `
-      <div class="event-item${e.completed ? ' event-item--done' : ''}" data-route="${esc(calendarEventRoute(e))}" role="button" tabindex="0">
+      <div class="event-item${isEnded ? ' event-item--ended' : ''}${e.completed ? ' event-item--done' : ''}" data-route="${esc(calendarEventRoute(e))}" role="button" tabindex="0">
+        <!-- Dieselbe Regel wie im Kalender, aus derselben Datei. Hier stand
+             e.color || e.cal_color - dieselbe Frage ohne den Zweig fuer die
+             zugewiesene Person, was seit #891 zwei verschiedene Antworten
+             gegeben haette. -->
         <div class="event-item__bar" style="background-color:${esc(resolveEventColor(e))}"></div>
         <div class="event-item__content">
           <div class="event-item__title">${e.completed ? `<span class="event-item__completion" title="${esc(t('calendar.completed'))}" aria-label="${esc(t('calendar.completed'))}"><i data-lucide="check" aria-hidden="true"></i></span>` : ''}${esc(e.title)}</div>
           <div class="event-item__time">
-            <span class="event-time-badge ${isToday ? 'event-time-badge--today' : ''}">${isToday ? t('common.today') : relativeDateLabel(dayKey)}</span>
+            ${badge}
             ${timeStr}
             ${e.location ? ` · ${esc(fmtLocation(e.location))}` : ''}
             ${e.cal_name ? `<span class="event-item__cal">${esc(e.cal_name)}</span>` : ''}
@@ -1078,10 +1223,81 @@ function renderUpcomingEvents(events) {
     `;
   }).join('');
 
+  const earlier = folded > 0
+    ? `<p class="event-list__earlier">${esc(t('dashboard.eventsEndedMore', { count: folded }))}</p>`
+    : '';
+  // KEINE BADGE: die Liste ist nach vorn offen und bei fuenf Kommenden
+  // geschnitten, eine Gesamtzahl gibt es nicht. „5" stuende genau so lange da,
+  // wie mindestens fuenf Termine kommen - eine Zahl, die nur ihre eigene
+  // Obergrenze nennt. Beendete zaehlen ohnehin nie mit (#1449).
   return `<div class="widget widget--calendar">
-    ${widgetHeader('calendar', t('nav.calendar'), events.length, '/calendar')}
-    <div class="widget__body">${items}</div>
+    ${widgetHeader('calendar', t('nav.calendar'), null, '/calendar')}
+    <div class="widget__body">${earlier}${items}</div>
   </div>`;
+}
+
+/* „DIESE WOCHE" - DER KALENDER IN 2x1 IST EIN STREIFEN, KEINE LISTE.
+ *
+ * Eine GROESSE des bestehenden Widgets und kein eigenes: die Frage ist
+ * dieselbe (was steht an), nur der Zuschnitt ein anderer, und die Filter
+ * („nur meine", Geburtstage), die Rechte und der Kopf gehoeren schon dem
+ * Kalender-Widget. Ein zweites Widget haette sie doppelt gefuehrt und im
+ * Anpassen-Tray eine weitere Kachel neben den einundzwanzig gestellt. Auf 2x1
+ * war die Liste ohnehin die schwaechste Form - drei Zeilen in einer Breite,
+ * die sieben Tage nebeneinander traegt.
+ *
+ * Kein Titel je Termin im Bild: der Streifen sagt, wie voll die Woche ist und
+ * wer, nicht was. Wer es wissen will, tippt den Tag und landet in dessen
+ * Tagesansicht (`/calendar?date=`); die Titel stehen im Tooltip und die Zahl
+ * im zugaenglichen Namen des Tages. */
+const WEEKDAY_SHORT_KEYS = ['dayShortSunday', 'dayShortMonday', 'dayShortTuesday', 'dayShortWednesday', 'dayShortThursday', 'dayShortFriday', 'dayShortSaturday'];
+const WEEKDAY_LONG_KEYS = ['dayLongSunday', 'dayLongMonday', 'dayLongTuesday', 'dayLongWednesday', 'dayLongThursday', 'dayLongFriday', 'dayLongSaturday'];
+
+function renderWeekStrip(weekEvents) {
+  // Geburtstage tragen serverseitig einen sprachneutralen Titel (#524) - hier
+  // und nicht im Ladepfad uebersetzt, weil der Titel nur im Tagesnamen steht.
+  const events = (Array.isArray(weekEvents) ? weekEvents : []).map(localizeBirthdayEvent);
+  const strip = buildWeekStrip(events, householdToday());
+  const lanes = strip.laneCount;
+  const days = strip.days.map((day) => {
+    const column = day.index + 1;
+    const dateLabel = `${t(`calendar.${WEEKDAY_LONG_KEYS[day.weekday]}`)}, ${formatDayMonth(day.key)}`;
+    const countLabel = day.count ? t('dashboard.weekDayEvents', { count: day.count }) : t('dashboard.noEvents');
+    const label = `${dateLabel}${day.isToday ? `, ${t('common.today')}` : ''}: ${countLabel}`;
+    const route = `/calendar?date=${day.key}`;
+    const dots = day.dots.map((dot) => `<span class="week-strip__dot" style="--dot-color:${esc(dot.color)}"></span>`).join('');
+    const more = day.more ? `<span class="week-strip__more">+${day.more}</span>` : '';
+    return `
+      <a href="${route}" data-route="${route}" class="week-strip__day${day.isToday ? ' week-strip__day--today' : ''}"
+         style="grid-column:${column};grid-row:1 / span ${lanes + 2}" ${day.isToday ? 'aria-current="date"' : ''}
+         aria-label="${esc(label)}"${day.titles.length ? ` title="${esc(day.titles.join(', '))}"` : ''}></a>
+      <span class="week-strip__head${day.isToday ? ' week-strip__head--today' : ''}" style="grid-column:${column}" aria-hidden="true">
+        <span class="week-strip__weekday">${esc(t(`calendar.${WEEKDAY_SHORT_KEYS[day.weekday]}`))}</span>
+        <span class="week-strip__date">${day.dayOfMonth}</span>
+      </span>
+      <span class="week-strip__dots" style="grid-column:${column};grid-row:${lanes + 2}" aria-hidden="true">${dots}${more}</span>`;
+  }).join('');
+  const bands = strip.bands.map((band) => `
+      <span class="week-strip__band${band.continuesBefore ? ' week-strip__band--before' : ''}${band.continuesAfter ? ' week-strip__band--after' : ''}"
+            style="grid-column:${band.startIndex + 1} / ${band.endIndex + 2};grid-row:${band.lane + 2};--dot-color:${esc(band.color)}"
+            aria-hidden="true"></span>`).join('');
+  const empty = strip.days.every((day) => day.count === 0)
+    ? `<p class="week-strip__empty">${t('dashboard.weekStripEmpty')}</p>`
+    : '';
+  return `<div class="widget widget--calendar widget--week">
+    ${widgetHeader('calendar', t('dashboard.weekStripTitle'), null, '/calendar')}
+    <div class="widget__body">
+      <div class="week-strip">${days}${bands}</div>
+      ${empty}
+    </div>
+  </div>`;
+}
+
+/** Das Kalender-Widget in seiner Groesse: 2x1 ist die Woche, alles andere die Liste. */
+function renderCalendarWidget(data, size) {
+  return nearestPreset(size ?? '1x2') === '2x1'
+    ? renderWeekStrip(data?.weekEvents)
+    : renderUpcomingEvents(data?.upcomingEvents ?? []);
 }
 
 /**
@@ -1105,11 +1321,39 @@ function listRowCap(size) {
   return Number(String(size ?? '1x1').split('x')[1]) >= 2 ? LIST_ROWS_TALL : LIST_ROWS_SHORT;
 }
 
-export function renderUpcomingBirthdays(allBirthdays, size) {
+/*
+ * DIE BADGE ZAEHLT DIE SACHE, NICHT DIE ZEILEN (Critique 2026-09-23).
+ *
+ * Bis hierher trugen Notizen, Geburtstage, Aufgaben und Einkauf die Laenge der
+ * GEZEIGTEN Liste im Kopf: „Notizen 3" bei fuenf angehefteten, „Geburtstage 5"
+ * bei acht, „Aufgaben 5" bei zwoelf offenen - eine Zahl, die genau bis zur
+ * Obergrenze der Liste stimmt und darueber still luegt. Die Kennzahlkacheln
+ * hatten dieselbe Lehre schon gezogen (`openTaskCount` statt `urgentTasks`);
+ * die Kachelkoepfe daneben nicht.
+ *
+ * Die Gesamtzahl kommt vom Server, neben der Liste (`notesTotal`,
+ * `birthdayTotal`, `openTaskCount`, `shoppingOpenCount`) - wie `countdownTotal`
+ * beim Countdown. Fehlt sie (aelterer Server, Fehlerpfad), faellt die Badge auf
+ * die geladene Laenge zurueck; nie unter die gezeigten Zeilen, denn eine Badge
+ * kleiner als die Liste darunter waere derselbe Widerspruch andersherum.
+ *
+ * Was nicht in die Kachel passt, wird genannt: eine ruhige Fusszeile „+N
+ * weitere", dieselbe Form wie beim Countdown und bei der Entsorgung.
+ */
+function listTotal(total, loaded) {
+  const n = total === null || total === undefined || total === '' ? NaN : Number(total);
+  return Number.isFinite(n) ? Math.max(n, loaded) : loaded;
+}
+
+function listMoreLine(key, rest) {
+  return rest > 0 ? `<p class="widget-list-more">${esc(t(key, { count: rest }))}</p>` : '';
+}
+
+export function renderUpcomingBirthdays(allBirthdays, size, total = null) {
   // Der Vorrat kommt fuer die groesste Fassung vom Server (routes/dashboard.js);
-  // was davon erscheint, entscheidet die Kachel. Die Badge zaehlt weiter die
-  // gezeigten Zeilen - sie sagt „so viele stehen hier", nicht „so viele hat der
-  // Haushalt", und das war schon vor dem Nachschub ihre Bedeutung.
+  // was davon erscheint, entscheidet die Kachel. Die Badge zaehlte hier die
+  // gezeigten Zeilen und sagte damit „5" bei acht anstehenden Anlaessen - jetzt
+  // nennt sie `birthdayTotal`, und der Rest steht als Fusszeile da (listTotal).
   const birthdays = allBirthdays.slice(0, listRowCap(size));
   if (!birthdays.length) {
     return `<div class="widget widget--birthdays">
@@ -1155,9 +1399,10 @@ export function renderUpcomingBirthdays(allBirthdays, size) {
     `;
   }).join('');
 
+  const gesamt = listTotal(total, allBirthdays.length);
   return `<div class="widget widget--birthdays">
-    ${widgetHeader('birthdays', t('nav.birthdays'), birthdays.length, '/birthdays')}
-    <div class="widget__body">${items}</div>
+    ${widgetHeader('birthdays', t('nav.birthdays'), gesamt, '/birthdays')}
+    <div class="widget__body">${items}${listMoreLine('dashboard.birthdaysMore', gesamt - birthdays.length)}</div>
   </div>`;
 }
 
@@ -1300,7 +1545,7 @@ function renderTodayMeals(meals, visibleMealTypes = MEAL_ORDER) {
   </div>`;
 }
 
-function renderPinnedNotes(allNotes, size) {
+function renderPinnedNotes(allNotes, size, total = null) {
   /* WIE VIELE ZEILEN, ENTSCHEIDET DIE KACHEL - wie bei jeder anderen
    * Listenkachel (`listRowCap`). Die Notizen waren die einzige, die ihre Groesse
    * gar nicht las: der Server schnitt bei drei, und drei war damit die
@@ -1354,9 +1599,15 @@ function renderPinnedNotes(allNotes, size) {
   // Breite kommt aus dem Größenklassen-System am .widget-wrapper (widget-size--2x1);
   // die frühere .widget--wide war in keinem CSS definiert und damit tot — entfernt,
   // damit Notizen wie jedes andere Widget genau ein Größen-Vokabular trägt (Critique P2).
+  // „Notizen 3" stand hier auch bei fuenf angehefteten: die Badge zaehlte die
+  // gezeigten Karten. Die Vorschau ist Angeheftetes zuerst, dann Neuestes -
+  // gezaehlt wird deshalb die Menge, aus der sie schoepft (`notesTotal`, mit
+  // demselben Kategoriefilter), nicht nur die angehefteten (listTotal).
+  const gesamt = listTotal(total, allNotes.length);
   return `<div class="widget widget--notes">
-    ${widgetHeader('notes', t('nav.notes'), notes.length, '/notes')}
+    ${widgetHeader('notes', t('nav.notes'), gesamt, '/notes')}
     <div class="notes-grid-widget">${items}</div>
+    ${listMoreLine('dashboard.notesMore', gesamt - notes.length)}
   </div>`;
 }
 
@@ -1464,6 +1715,72 @@ function renderQuickLinks(items) {
   </div>`;
 }
 
+/*
+ * DIE TAGESLAGE DER FAMILIENKARTE (#1449, Critique 2026-09-23).
+ *
+ * Die Karte nahm den ERSTEN Termin des Tages, den sie fuer eine Person fand,
+ * und verglich ihn nie mit der Uhr: 06:30 stand dort den ganzen Nachmittag,
+ * und ein ganztaegiger Eintrag gewann den Tag, weil er vorne sortiert war.
+ * Release-Notes 2.4.0 und SPEC versprechen den NAECHSTEN.
+ *
+ * „Vorbei" ist `eventHasEnded` - DIESELBE Regel, nach der die Termin-Kachel
+ * einen Termin als „Vorbei" zuruecktreten laesst und das Heute-Blatt ihn
+ * entlaesst (seit /dashboard die heute beendeten mitliefert, #1449). Eine
+ * eigene Rechnung hier hatte in Randfaellen (Ende nur als Datum) das Gegenteil
+ * der Kachel gesagt. Verglichen wird als Stempel der Anzeigezone
+ * (`householdStamp`) - das Geraet hat keine Stimme. Unter den heutigen geht
+ * ein Termin mit Uhrzeit dem ganztaegigen vor.
+ *
+ * Noch offen aus #1449 und bewusst nicht hier: die Karte leiht sich weiter die
+ * Liste der Kalenderkachel (fuenf Eintraege, ihr „nur meine"-Filter).
+ */
+function familyAgenda(events, shownIds, todayKey, now = new Date()) {
+  const nowStamp = householdNowStamp(now);
+  const items = events.map((event) => {
+    const raw = String(event?.start_datetime || '');
+    const allDay = Boolean(event?.all_day) || raw.length <= 10;
+    const day = allDay ? raw.slice(0, 10) : eventOccurrenceDateKey(event);
+    const start = allDay ? '' : householdStamp(raw);
+    const people = new Set((Array.isArray(event?.assigned_users) ? event.assigned_users : [])
+      .map((a) => Number(a.id))
+      .filter((id) => shownIds.has(id)));
+    const ended = !allDay && eventHasEnded(event, nowStamp);
+    return { event, day, allDay, start, ended, people, shared: people.size >= 2 };
+  }).filter((item) => item.day && item.day >= todayKey && item.people.size > 0);
+
+  const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  items.sort((a, b) => cmp(a.day, b.day) || (Number(a.allDay) - Number(b.allDay)) || cmp(a.start, b.start));
+  const ahead = items.filter((item) => !item.ended);
+
+  const byPerson = new Map();
+  for (const id of shownIds) {
+    const own = ahead.filter((item) => !item.shared && item.people.has(id));
+    byPerson.set(id, {
+      nextToday: own.find((item) => item.day === todayKey) ?? null,
+      hadToday: items.some((item) => item.day === todayKey && item.people.has(id)),
+      sharedToday: ahead.some((item) => item.shared && item.day === todayKey && item.people.has(id)),
+      nextLater: own.find((item) => item.day > todayKey) ?? null,
+    });
+  }
+  return { nextShared: ahead.find((item) => item.shared) ?? null, byPerson };
+}
+
+/** „10:00 Zahnarzt" heute, „Sa. · Zahnarzt" an einem spaeteren Tag (escaped). */
+function familyEventLabel(item, todayKey) {
+  const title = esc(item.event.title);
+  if (item.day === todayKey) return item.allDay ? title : `${esc(formatTime(item.event.start_datetime))} ${title}`;
+  return `${esc(relativeDateLabel(item.day))} · ${title}`;
+}
+
+/** „Alex und Linda" in der Grammatik der App-Sprache. */
+function familyNameList(names) {
+  try {
+    return new Intl.ListFormat(getLocale(), { style: 'long', type: 'conjunction' }).format(names);
+  } catch {
+    return names.join(', ');
+  }
+}
+
 function renderFamilyWidget(users, data) {
   // IM SOLO-HAUSHALT GIBT ES DIESES WIDGET NICHT - entschieden in
   // `isWidgetModuleEnabled`, damit es auch aus der „Anpassen"-Ablage faellt.
@@ -1490,15 +1807,39 @@ function renderFamilyWidget(users, data) {
   // Zeile unveraendert wie zuvor.
   const scheduleEntriesToday = Array.isArray(data?.schedule?.entries) ? data.schedule.entries : [];
 
-  const rows = users.slice(0, 6).map((u) => {
-    const assignedTo = (e) => (Array.isArray(e.assigned_users) ? e.assigned_users : []).some((a) => a.id === u.id);
-    const nextEvent = events.find((e) => eventOccurrenceDateKey(e) === todayKey && assignedTo(e));
+  const shown = users.slice(0, 6);
+  const shownIds = new Set(shown.map((u) => Number(u.id)));
+  const agenda = familyAgenda(events, shownIds, todayKey);
+
+  // DER GETEILTE TERMIN STEHT EINMAL DA. Ein Termin fuer drei Personen stand in
+  // drei Zeilen („26.09.2026 · Zahnarzt - Familie" bei Alex, Leo und Linda) -
+  // die Karte wiederholte dieselbe Auskunft, statt zu sagen, dass es EIN
+  // gemeinsamer Termin ist (Critique 2026-09-23). Geteilt heisst: zwei oder
+  // mehr der gezeigten Personen sind zugewiesen. Der naechste solche Termin
+  // bekommt eine eigene Zeile oben, die Personenzeilen zeigen nur Eigenes.
+  const sharedNext = agenda.nextShared;
+  let sharedRow = '';
+  if (sharedNext) {
+    const who = shown.filter((u) => sharedNext.people.has(Number(u.id)));
+    const label = who.length === users.length
+      ? t('dashboard.familyEveryone')
+      : familyNameList(who.map((u) => u.display_name));
+    sharedRow = `
+      <div class="family-member family-member--shared">
+        <span class="family-widget-avatar family-widget-avatar--group" aria-hidden="true">
+          <i data-lucide="users"></i>
+        </span>
+        <span class="family-member__body">
+          <span class="family-member__name">${esc(label)}</span>
+          <span class="family-member__status">${familyEventLabel(sharedNext, todayKey)}</span>
+        </span>
+      </div>`;
+  }
+
+  const rows = shown.map((u) => {
+    const mine = agenda.byPerson.get(Number(u.id)) ?? { nextToday: null, hadToday: false, sharedToday: false, nextLater: null };
     const parts = [];
-    if (nextEvent) {
-      const start = eventStartDate(nextEvent);
-      const timed = !nextEvent.all_day && start && String(nextEvent.start_datetime).length > 10;
-      parts.push(timed ? `${esc(formatTime(start))} ${esc(nextEvent.title)}` : esc(nextEvent.title));
-    }
+    if (mine.nextToday) parts.push(familyEventLabel(mine.nextToday, todayKey));
     const myShift = scheduleEntriesToday.find((entry) => Number(entry.user_id) === Number(u.id) && entry.shift_type);
     if (myShift) {
       const type = myShift.shift_type;
@@ -1511,18 +1852,25 @@ function renderFamilyWidget(users, data) {
     // dasselbe „Heute frei" zu stapeln (Critique P5: die größte Karte des
     // Boards mit einem Bit Information). Erst wer auch im Ausblick nichts
     // hat, ist wirklich frei - und das darf dann leise dastehen.
+    //
+    // Davor zwei Zustaende, die „frei" sonst falsch benannt haette (#1449):
+    // wer heute nur noch den gemeinsamen Termin oben vor sich hat, ist nicht
+    // frei; und wer heute Termine HATTE und keiner mehr kommt, ist „fuer heute
+    // durch" - nicht frei und nicht mit dem Termin von 06:30 beschriftet.
     let status;
     let free = false;
     if (parts.length) {
       status = parts.join(' · ');
+    } else if (mine.sharedToday) {
+      status = esc(t('dashboard.familyOnlyShared'));
+    } else if (mine.hadToday) {
+      status = esc(t('dashboard.familyDoneToday'));
+      free = true;
+    } else if (mine.nextLater) {
+      status = familyEventLabel(mine.nextLater, todayKey);
     } else {
-      const upcoming = events.find((e) => eventOccurrenceDateKey(e) > todayKey && assignedTo(e));
-      if (upcoming) {
-        status = `${esc(relativeDateLabel(eventOccurrenceDateKey(upcoming)))} · ${esc(upcoming.title)}`;
-      } else {
-        status = esc(t('dashboard.todayFree'));
-        free = true;
-      }
+      status = esc(t('dashboard.todayFree'));
+      free = true;
     }
     return `
       <div class="family-member">
@@ -1559,9 +1907,10 @@ function renderFamilyWidget(users, data) {
     : esc(t('dashboard.familyDayCalm'));
 
   return `<div class="widget widget--family">
-    ${widgetHeader('family', t('dashboard.familyMembers'), null, '/settings', t('dashboard.manage'), 'contacts')}
+    ${widgetHeader('family', t('dashboard.familyTitle'), null, '/settings', t('dashboard.manage'), 'contacts')}
     <div class="family-widget">
       <div class="family-widget__list">
+        ${sharedRow}
         ${rows}
         ${moreCount > 0 ? `<div class="family-member family-member--more">${esc(t('dashboard.shoppingMore', { count: moreCount }))}</div>` : ''}
       </div>
@@ -1619,7 +1968,39 @@ function renderBudgetSavings(budget, balance, income, savingsRate) {
     </div>` : ''}`;
 }
 
-function renderBudgetWidget(budget, currency) {
+/* DIE HOHE BUDGET-KACHEL FUELLT IHRE HOEHE MIT INHALT (Critique 2026-09-23).
+ *
+ * Als 1x2 bekommt die Karte die Hoehe zweier Rasterzeilen, ihr Inhalt reichte
+ * fuer gut eine: gemessen ~90px leeres Band zwischen „Einnahmen/Ausgaben" und
+ * der Fusszeile, die unten verankert ist (`margin-block-start: auto`, siehe
+ * „Ueberschuessige Hoehe wird Atem" in dashboard.css). Atem war das nicht mehr,
+ * sondern eine Luecke mitten in der Karte. Die hohe Fassung zeigt deshalb die
+ * DREI groessten Ausgabenkategorien statt einer - dieselbe Frage („wohin ging
+ * das Geld?"), vollstaendiger beantwortet, und genau die Hoehe, die fehlte.
+ * Die flache Kachel behaelt ihre eine Zeile; mehr trueg sie nicht. */
+function renderBudgetTopExpenses(budget, currency, size) {
+  const rows = (Array.isArray(budget?.topExpenses) && budget.topExpenses.length
+    ? budget.topExpenses
+    : budget?.topExpenseCategory ? [{ category: budget.topExpenseCategory, amount: budget.topExpenseAmount }] : [])
+    .slice(0, listRowCap(size) === LIST_ROWS_TALL ? 3 : 1);
+  if (!rows.length) return '';
+  if (rows.length === 1) {
+    return `<div class="budget-widget__footer">${t('dashboard.topExpense')}: <strong>${esc(budgetCategoryLabel(rows[0].category))}</strong> · ${formatCurrency(rows[0].amount, currency)}</div>`;
+  }
+  return `
+    <div class="budget-widget__footer budget-widget__top">
+      <p class="budget-widget__top-title">${esc(t('dashboard.topExpenses'))}</p>
+      <ul class="budget-widget__top-list">
+        ${rows.map((row) => `
+        <li class="budget-widget__top-row">
+          <span>${esc(budgetCategoryLabel(row.category))}</span>
+          <strong>${formatCurrency(row.amount, currency)}</strong>
+        </li>`).join('')}
+      </ul>
+    </div>`;
+}
+
+function renderBudgetWidget(budget, currency, size = '1x1') {
   const income = budget?.income || 0;
   const expenses = budget?.expenses || 0;
   const balance = budget?.balance || 0;
@@ -1629,7 +2010,7 @@ function renderBudgetWidget(budget, currency) {
 
   if (!hasData) {
     return `<div class="widget widget--budget">
-      ${widgetHeader('budget', t('dashboard.budgetOverview'), null, '/budget')}
+      ${widgetHeader('budget', t('nav.budget'), null, '/budget')}
       <div class="widget__empty">
         <i data-lucide="wallet" class="empty-state__icon" aria-hidden="true"></i>
         <div>${t('dashboard.noBudgetData')}</div>
@@ -1639,7 +2020,7 @@ function renderBudgetWidget(budget, currency) {
   }
 
   return `<div class="widget widget--budget">
-    ${widgetHeader('budget', t('dashboard.budgetOverview'), null, '/budget')}
+    ${widgetHeader('budget', t('nav.budget'), null, '/budget')}
     <div class="budget-widget">
       <div class="budget-widget__headline">
         <span>${t('dashboard.monthlyBalance')}</span>
@@ -1656,9 +2037,7 @@ function renderBudgetWidget(budget, currency) {
           <strong>${formatCurrency(expenses, currency)}</strong>
         </span>
       </div>
-      ${budget?.topExpenseCategory
-        ? `<div class="budget-widget__footer">${t('dashboard.topExpense')}: <strong>${esc(budgetCategoryLabel(budget.topExpenseCategory))}</strong> · ${formatCurrency(budget.topExpenseAmount, currency)}</div>`
-        : ''}
+      ${renderBudgetTopExpenses(budget, currency, size)}
     </div>
   </div>`;
 }
@@ -1704,11 +2083,18 @@ function renderBudgetWidget(budget, currency) {
  * Deshalb stehen die drei spezialisierten Module jetzt mit in der Liste. Sie
  * sind es, die im Standard-Layout kein eigenes Widget zeigen
  * (DEFAULT_HIDDEN_WIDGETS) - und genau deshalb gehoeren sie hierher. Wer sie
- * nicht nutzt, hat keine Daten und bekommt keine Kachel. */
-const METRIC_TILE_ORDER = ['tasks', 'shopping', 'budget', 'birthdays', 'meals', 'notes', 'rewards', 'health', 'housekeeping'];
+ * nicht nutzt, hat keine Daten und bekommt keine Kachel.
+ *
+ * DIE GETEILTEN AUSGABEN STEHEN DIREKT HINTER DEM BUDGET (Critique 2026-09-23).
+ * Das Modul hatte kein Element auf der Uebersicht, und die Critique wollte
+ * ausdruecklich eine Kennzahl, kein Widget - eine offene Forderung ist genau die
+ * Art Zahl, fuer die diese Reihe da ist. Vor den Opt-in-Modulen, weil eine
+ * Schuld eine Handlung verlangt und ein Punktestand nicht. Ausgeglichen gibt es
+ * keine Kachel (siehe metricTileFor). */
+const METRIC_TILE_ORDER = ['tasks', 'shopping', 'budget', 'split-expenses', 'birthdays', 'meals', 'notes', 'rewards', 'health', 'housekeeping'];
 const METRIC_TILE_COUNT = 4;
 
-function metricTileFor(id, data, currency) {
+function metricTileFor(id, data, currency, sheetSpeaks = new Set()) {
   const route = { tasks: '/tasks', shopping: '/shopping', budget: '/budget', birthdays: '/birthdays', meals: '/meals', notes: '/notes', rewards: '/rewards', health: '/health', housekeeping: '/housekeeping' }[id];
   switch (id) {
     case 'tasks': {
@@ -1750,6 +2136,9 @@ function metricTileFor(id, data, currency) {
         tone: neutral ? 'balance-neutral' : balance >= 0 ? 'balance-positive' : 'balance-negative',
       };
     }
+    case 'split-expenses': {
+      return splitBalanceTile(data.splitBalance);
+    }
     case 'birthdays': {
       const next = (data.birthdays ?? [])[0];
       if (!next) return null;
@@ -1785,12 +2174,29 @@ function metricTileFor(id, data, currency) {
       };
     }
     case 'rewards': {
-      const leader = (data.rewards?.standings ?? [])[0];
-      if (!leader) return null;
+      // KEIN SPITZENREITER (Critique 2026-09-23). Die Kachel nannte den
+      // hoechsten Stand samt Namen - dieselbe Rangliste wie das alte Widget,
+      // nur kuerzer. Wer selbst sammelt, sieht den eigenen Stand und sein Ziel;
+      // wer freigibt, sieht nur, ob etwas auf ihn wartet.
+      const r = data.rewards ?? {};
+      const standings = Array.isArray(r.standings) ? r.standings : [];
+      const own = standings.find((m) => m.id === r.me);
+      if (own && (r.view === 'self' || standings.length === 1)) {
+        return {
+          id, route, icon: widgetIcon('rewards'), label: t('nav.rewards'),
+          value: t('dashboard.metricPoints', { count: Number(own.balance) || 0 }),
+          note: rewardGoalLabel(own.balance, r.catalog),
+        };
+      }
+      // Die Zahl offener Freigaben steht an GENAU EINER Stelle: im
+      // Belohnungen-Widget (dann filtert `shown` diese Kachel weg), sonst im
+      // Heute-Blatt, und nur wenn keines von beiden sie traegt, hier.
+      const pending = r.view === 'approver' ? Number(r.pending) || 0 : 0;
+      if (!pending || sheetSpeaks.has('approvals')) return null;
       return {
         id, route, icon: widgetIcon('rewards'), label: t('nav.rewards'),
-        value: t('dashboard.metricPoints', { count: leader.balance ?? 0 }),
-        note: leader.display_name,
+        value: t('dashboard.rewardsPending', { count: pending }),
+        note: t('rewards.pendingApprovals'),
       };
     }
     case 'health': {
@@ -1800,16 +2206,27 @@ function metricTileFor(id, data, currency) {
       // eine Kachel, die je nach Berechtigung etwas anderes zeigt, ist zwei
       // Kacheln mit einem Namen.
       if (!h.hasMeds || !(h.dosesTotal > 0)) return null;
+      // Nennt das Heute-Blatt die offenen Dosen schon, waere „2 offen" hier
+      // dieselbe Zahl ein zweites Mal - ausser eine Packung muss nachbestellt
+      // werden, das sagt das Blatt nicht.
+      if (sheetSpeaks.has('doses') && !(h.lowStockCount > 0)) return null;
       const offen = h.dosesTotal - (h.dosesTaken ?? 0) - (h.dosesSkipped ?? 0);
       return {
         id, route, icon: widgetIcon('health'), label: t('nav.health'),
+        // „2 Dosen" liess offen, ob offen oder genommen (Critique 2026-09-23,
+        // Persona Grosseltern) - der Wert nennt jetzt den Zustand („2 offen",
+        // wie „12 offen" bei den Aufgaben; „2 Dosen offen" passte mobil nicht
+        // in die nicht umbrechende Wertzeile), und die Zweitzeile nennt die
+        // naechste Dosis mit Uhrzeit statt nur dem Namen.
         value: t('dashboard.metricDoses', { count: Math.max(0, offen) }),
         // Die Nachbestellung schlaegt die naechste Uhrzeit: eine leere Packung
         // ist der Zustand, der eine Handlung braucht, eine faellige Dosis der,
         // der von selbst kommt.
         note: h.lowStockCount > 0
           ? t('dashboard.healthRefill', { count: h.lowStockCount })
-          : offen <= 0 ? t('dashboard.healthAllTaken') : (h.nextDose?.name || t('dashboard.healthAllTaken')),
+          : offen <= 0 || !h.nextDose?.name
+            ? t('dashboard.healthAllTaken')
+            : `${h.nextDose.time ? `${formatTime(h.nextDose.time)} ` : ''}${h.nextDose.name}`,
         noteTone: h.lowStockCount > 0 ? 'danger' : null,
       };
     }
@@ -1818,11 +2235,20 @@ function metricTileFor(id, data, currency) {
       if (!hk.configured) return null;
       return {
         id, route, icon: widgetIcon('housekeeping'), label: t('nav.housekeeping'),
-        value: t('dashboard.metricVisits', { count: hk.visitsThisMonth ?? 0 }),
+        // „9 Besuche" ohne Zeitraum - gezaehlt werden die abgeschlossenen
+        // Besuche des laufenden Monats (routes/dashboard.js), und das sagt der
+        // Wert jetzt. Kurz („9 im Monat"), weil der Wert nicht umbricht: die
+        // Kachel ist mobil 152px breit, „9 Besuche diesen Monat" wurde dort
+        // abgeschnitten (gemessen). Das Substantiv steht im Kachelnamen.
+        value: t('dashboard.metricVisitsMonth', { count: hk.visitsThisMonth ?? 0 }),
         // Drei Zustaende, ein Rang: wer gerade da ist, ist die Nachricht; sonst
-        // zaehlt offenes Geld; sonst der letzte Besuch.
+        // zaehlt offenes Geld; sonst der letzte Besuch. „Gerade im Haus" um
+        // 21:18 las sich wie ein Fehler - mit „seit 08:00" ist es eine Auskunft
+        // (und eine vergessene Abmeldung von gestern sieht man am Datum).
         note: hk.present
-          ? t('dashboard.housekeepingPresent')
+          ? (hk.presentSince
+            ? t('dashboard.housekeepingPresentSince', { time: housekeepingSinceLabel(hk.presentSince) })
+            : t('dashboard.housekeepingPresent'))
           : hk.unpaidAmount > 0
             ? t('dashboard.housekeepingUnpaid', { amount: formatCurrency(hk.unpaidAmount, currency) })
             : hk.lastVisit
@@ -1833,6 +2259,74 @@ function metricTileFor(id, data, currency) {
     default:
       return null;
   }
+}
+
+/**
+ * Betrag aus dem Ledger in der ISO-Skala seiner Waehrung.
+ *
+ * Der Server liefert Geteilte-Ausgaben-Betraege als Dezimalstring in der
+ * Skala aus `CURRENCY_MINOR_UNITS` (ISO 4217: JPY 0, EUR 2, KWD 3). Die Stellen
+ * kommen deshalb aus dem String und nicht aus `Intl`, dessen CLDR-Konvention
+ * davon abweicht (HUF zeigt dort keine Nachkommastellen, 12,50 stuende als
+ * „13" da). Und anders als `formatCurrency()` bleiben die Stellen auch ab 1000:
+ * ein offener Betrag ist eine Forderung, keine Groessenordnung.
+ */
+function formatLedgerAmount(amount, currency) {
+  const digits = (String(amount).split('.')[1] ?? '').length;
+  return getNumberFormat({
+    style: 'currency', currency, minimumFractionDigits: digits, maximumFractionDigits: digits,
+  }).format(Number(amount) || 0);
+}
+
+/**
+ * Kachel „Ausgleich offen" der geteilten Ausgaben.
+ *
+ * WERT = NETTO, FUSSNOTE = DIE GROESSTE POSITION. Die Zahl beantwortet „wie
+ * stehe ich insgesamt", die Zeile darunter „bei wem" - mit „+N" fuer die
+ * uebrigen Positionen, statt eine Liste in eine Kachel zu zwaengen. Das Netto
+ * gehoert zur Waehrung der genannten Position; Betraege verschiedener
+ * Waehrungen addiert niemand. Vorzeichen und Farbe nach der Rolle `balance`
+ * (utils/money.js): Minus nur, wer schuldet.
+ *
+ * AUSGEGLICHEN GIBT ES KEINE KACHEL, auch wenn sich zwei Gruppen nur
+ * gegenseitig aufheben. „Alles ausgeglichen" waere wahr, verlangt
+ * aber nichts - und die Reihe hat vier Plaetze, die sonst eine Zahl tragen, die
+ * NIRGENDS steht. Dieselbe Regel wie bei den uebrigen Kandidaten: keine offene
+ * Position, keine Kennzahl.
+ *
+ * Die Saldenquelle ist die der Ausgleichs-Ansicht (server/services/
+ * split-expenses.js, groupBalanceRows) - die Kachel zeigt, was das Modul zeigt,
+ * auch dessen offenen Fehler #1445.
+ */
+function splitBalanceTile(balance) {
+  const positions = Array.isArray(balance?.positions) ? balance.positions : [];
+  // Das Netto entscheidet, nicht die Positionen: es summiert ueber alle
+  // Gruppen und laesst eine Waehrung mit Summe 0 weg, die Positionen bleiben je
+  // Gruppe stehen. Offen ist also nur, wo ein Netto steht - und die genannte
+  // Position gehoert zu dessen Waehrung.
+  const net = (balance?.net ?? []).find((n) => Number(n.netMinor) !== 0);
+  if (!net) return null;
+  const top = positions.find((p) => p.currency === net.currency);
+  if (!top) return null;
+  const netMinor = Number(net.netMinor);
+  const who = top.direction === 'owe'
+    ? t('dashboard.splitYouOwe', { name: top.name })
+    : t('dashboard.splitOwesYou', { name: top.name });
+  const more = positions.length - 1;
+  // „+2" als Zahl der Format-Locale, nicht als Textbaustein: Vorzeichen und
+  // Ziffern gehoeren dem Zahlformat (RTL, arabische Ziffern).
+  const note = more > 0 ? `${who} · ${getNumberFormat({ signDisplay: 'always' }).format(more)}` : who;
+  return {
+    id: 'split-expenses',
+    // Die Ausgleichs-Ansicht liegt im Budget, Reiter „Aufteilung", in der
+    // Gruppe der genannten Position.
+    route: `/budget?tab=split-expenses&group=${encodeURIComponent(String(top.groupId))}`,
+    icon: widgetIcon('split-expenses'),
+    label: t('splitExpenses.title'),
+    value: formatLedgerAmount(net.amount, net.currency),
+    note,
+    tone: netMinor > 0 ? 'balance-positive' : netMinor < 0 ? 'balance-negative' : 'balance-neutral',
+  };
 }
 
 function renderMetricTile(tile) {
@@ -1882,12 +2376,12 @@ function renderMetricTile(tile) {
  * dessen Kachel - und wer es wieder einblendet, verliert sie. Die Reihe folgt
  * dem Layout, statt eine eigene Vorstellung davon zu pflegen.
  */
-function selectMetricTiles(data, currency, shown = new Set()) {
+function selectMetricTiles(data, currency, shown = new Set(), sheetSpeaks = new Set()) {
   const tiles = METRIC_TILE_ORDER
     .filter((id) => isWidgetModuleEnabled(id))
     .filter((id) => !COCKPIT_COVERED_WIDGETS.has(id))
     .filter((id) => !shown.has(id))
-    .map((id) => metricTileFor(id, data, currency))
+    .map((id) => metricTileFor(id, data, currency, sheetSpeaks))
     .filter(Boolean)
     .slice(0, METRIC_TILE_COUNT);
 
@@ -1899,59 +2393,203 @@ function selectMetricTiles(data, currency, shown = new Set()) {
 /* Die AUSWAHL steht getrennt von der DARSTELLUNG, damit die Zusage pruefbar ist,
  * ohne ein Dokument zu bauen: was die Reihe zeigt, ist die Aussage - dass sie es
  * in einem <a> zeigt, ist ihre Form. */
-function renderMetricTiles(data, currency, shown = new Set()) {
-  const tiles = selectMetricTiles(data, currency, shown);
+function renderMetricTiles(data, currency, shown = new Set(), sheetSpeaks = new Set()) {
+  const tiles = selectMetricTiles(data, currency, shown, sheetSpeaks);
   if (!tiles.length) return '';
-  return `<div class="metric-tiles">${tiles.map(renderMetricTile).join('')}</div>`;
+  // Die Reihe war das einzige Widget ohne Ueberschrift: per H-Taste sprang man
+  // an ihr vorbei, und ihre vier Zahlen hingen unter der vorigen Kachel. Die
+  // Ueberschrift ist sr-only, weil jede Kachel ihr Modul schon sichtbar nennt -
+  // ein Etikett „Kennzahlen" ueber einer Reihe, die sich selbst erklaert, waere
+  // nur Kopfhoehe. Sie steht VOR der Reihe, nicht in ihr: `.metric-tiles` ist
+  // selbst das Raster der Kacheln.
+  return `<h3 class="sr-only">${esc(t('dashboard.metrics'))}</h3>
+    <div class="metric-tiles">${tiles.map(renderMetricTile).join('')}</div>`;
 }
 
 // --------------------------------------------------------
-// Belohnungen-Widget (Familien-Punktestand)
+// Belohnungen-Widget: der eigene Weg zur Praemie, kein Wettbewerb
 // --------------------------------------------------------
 
-function renderRewardsWidget(rewards) {
-  const standings = Array.isArray(rewards?.standings) ? rewards.standings : [];
-  if (!standings.length) {
+/* HIER STAND EINE RANGLISTE, UND SIE WAR FUER JEDEN DIESELBE (Critique
+ * 2026-09-23, Persona Emma, 9). "1 Leo 60 / 2 Emma 30" las ein Kind als
+ * Wettbewerb unter Geschwistern - PRODUCT.md verspricht jedem
+ * Familienmitglied den eigenen Blick. Seitdem gibt es keinen Platz und keinen
+ * hervorgehobenen Spitzenreiter mehr, und die Sicht folgt der Rolle, die das
+ * Modul selbst fuer "darf freigeben" fragt (der Server liefert sie als
+ * `view`, siehe routes/dashboard.js):
+ *
+ *   self     - das Kind sieht NUR sich: Stand, einen ruhigen Balken zur
+ *              naechsten Praemie, die zuletzt verdienten Punkte;
+ *   approver - Eltern sehen jedes Kind nebeneinander (nach Namen), je Kind
+ *              Stand und Ziel, dazu die offenen Freigaben als Sprung;
+ *   family   - Wandtablett und Mitglieder ohne eigene Punkte: wie die Eltern,
+ *              ohne Freigaben.
+ *
+ * Das Ziel waehlt /utils/reward-goal.js, dieselbe Regel wie der Balken auf der
+ * Belohnungen-Seite - zwei Balken mit zwei Zielen waeren zwei Wahrheiten. */
+
+/** So viele Mitglieder zeigt die Eltern-Sicht je Kachelhoehe; der Rest spricht als Zahl. */
+const REWARD_MEMBERS_SHORT = 2;
+const REWARD_MEMBERS_TALL = 5;
+
+function sizeSpans(size) {
+  const [cols, rows] = String(size ?? '1x2').split('x').map(Number);
+  return { cols: cols || 1, rows: rows || 1 };
+}
+
+/** Der Satz zur naechsten Praemie - fuer Balken und Kennzahlkachel derselbe. */
+function rewardGoalLabel(balance, catalog, goal = nextRewardGoal(balance, catalog)) {
+  if (!goal) return t('rewards.noRewardsYet');
+  if (goal.reached) return t('rewards.canRedeemNow');
+  return t('rewards.remainingToReward', { points: formatPoints(goal.missing), reward: goal.target.name });
+}
+
+/**
+ * Balken plus Satz zur naechsten Praemie. Die Ansage traegt den Satz
+ * (`aria-valuetext`), nicht die Prozentzahl - "noch 15 bis Kinoabend" ist die
+ * Aussage, 75 % ist nur ihre Ableitung. Ohne einloesbare Praemie gibt es
+ * keinen Balken: er behauptete einen Weg, den niemand angelegt hat.
+ *
+ * `compact` laesst den sichtbaren Satz weg und behaelt die Ansage: auf einer
+ * Kachel, die eine Rasterzeile hoch ist, trug die Eltern-Sicht mit Satz 259px
+ * gegen 183px der Nachbarkachel und dehnte deren Zeile mit (gemessen 1440px).
+ * Wer den Satz lesen will, zieht die Kachel auf 1x2 - dort steht er.
+ */
+function rewardGoalHTML(balance, catalog, who = '', { compact = false } = {}) {
+  const goal = nextRewardGoal(balance, catalog);
+  const label = rewardGoalLabel(balance, catalog, goal);
+  if (!goal) return `<p class="rewards-goal__label rewards-goal__label--muted">${esc(label)}</p>`;
+  const name = who ? `${t('rewards.progressLabel')}: ${who}` : t('rewards.progressLabel');
+  return `
+    <div class="rewards-goal__track" role="progressbar" aria-label="${esc(name)}"
+         aria-valuenow="${goal.pct}" aria-valuemin="0" aria-valuemax="100"
+         aria-valuetext="${esc(label)}"><span class="rewards-goal__fill" style="--rewards-progress:${goal.pct / 100}"></span></div>
+    ${compact ? '' : `<p class="rewards-goal__label" aria-hidden="true">${esc(label)}</p>`}`;
+}
+
+function rewardAvatarHTML(m) {
+  const color = m.avatar_color || AVATAR_FALLBACK_COLOR;
+  const inner = m.avatar_data
+    ? `<img src="${esc(m.avatar_data)}" alt="" loading="lazy">`
+    : esc(initials(m.display_name));
+  return `<span class="rewards-member__avatar" aria-hidden="true" style="background:${esc(color)};color:${getReadableTextColor(color)}">${inner}</span>`;
+}
+
+function rewardsFooterHTML(text) {
+  return `<a class="rewards-widget__footer" href="/rewards" data-route="/rewards">
+      <i data-lucide="clock" aria-hidden="true"></i>
+      <span>${esc(text)}</span>
+    </a>`;
+}
+
+/**
+ * Wann eine Gutschrift kam - rueckwaerts gelesen. `relativeDateLabel` schaut
+ * nach vorn (heute, morgen) und schrieb fuer vorgestern "21.09.2026": in einer
+ * Zeile, die ohnehin nur die letzten Tage traegt, ist das Jahr Laerm. Es steht
+ * nur, wenn es ein anderes ist.
+ */
+function earnedWhenLabel(value) {
+  const day = zonedDateKey(value);
+  if (!day) return '';
+  const today = householdToday();
+  if (day === today) return t('common.today');
+  if (day === addLocalDays(today, -1)) return t('common.yesterday');
+  return day.slice(0, 4) === today.slice(0, 4) ? formatDayMonth(value) : formatDate(value);
+}
+
+function renderRewardsSelf(me, rewards, spans) {
+  // Die kleine Kachel traegt nur den Weg zum Ziel: mit einer Verlaufszeile
+  // und dem Anfrage-Chip stand sie bei 275px gegen 183px der Nachbarn
+  // (gemessen 1440px). Breit steht der Verlauf daneben, hoch darunter.
+  const recentCap = spans.rows >= 2 ? 3 : spans.cols >= 2 ? 2 : 0;
+  const recent = (Array.isArray(rewards.recent) ? rewards.recent : []).slice(0, recentCap);
+  const recentHTML = recent.length ? `
+      <div class="rewards-self__recent">
+        <p class="rewards-self__recent-title" aria-hidden="true">${esc(t('dashboard.rewardsRecent'))}</p>
+        <ul class="rewards-recent" aria-label="${esc(t('dashboard.rewardsRecent'))}">
+          ${recent.map((row) => `
+            <li class="rewards-recent__row">
+              <span class="rewards-recent__delta">+${esc(formatPoints(row.delta))}</span>
+              <span class="rewards-recent__reason">${esc(row.reason || t(`rewards.ledgerType.${row.type}`))}</span>
+              <span class="rewards-recent__when">${esc(earnedWhenLabel(row.created_at))}</span>
+            </li>`).join('')}
+        </ul>
+      </div>` : '';
+  const pending = Number(rewards.pending) || 0;
+  return `
+    <div class="widget__body rewards-widget rewards-widget--self">
+      <div class="rewards-self">
+        <div class="rewards-self__goal">
+          <p class="rewards-self__points">${esc(t('dashboard.metricPoints', { count: Number(me.balance) || 0 }))}</p>
+          ${rewardGoalHTML(me.balance, rewards.catalog)}
+        </div>
+        ${recentHTML}
+      </div>
+      ${pending > 0 ? rewardsFooterHTML(t('dashboard.rewardsOwnPending', { count: pending })) : ''}
+    </div>`;
+}
+
+function renderRewardsFamily(members, rewards, spans) {
+  // Nach Namen, nicht nach Punkten: eine Reihenfolge nach Stand WAERE die
+  // Rangliste, nur ohne Ziffern.
+  const sorted = [...members].sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), getLocale()));
+  const cap = spans.rows >= 2 ? REWARD_MEMBERS_TALL : REWARD_MEMBERS_SHORT;
+  const shown = sorted.slice(0, cap);
+  const rows = shown.map((m) => `
+      <li class="rewards-member">
+        ${rewardAvatarHTML(m)}
+        <span class="rewards-member__body">
+          <span class="rewards-member__head">
+            <span class="rewards-member__name">${esc(m.display_name)}</span>
+            <span class="rewards-member__points">${esc(t('dashboard.metricPoints', { count: Number(m.balance) || 0 }))}</span>
+          </span>
+          ${rewardGoalHTML(m.balance, rewards.catalog, m.display_name, { compact: spans.rows < 2 })}
+        </span>
+      </li>`).join('');
+  const more = sorted.length - shown.length;
+  const pending = rewards.view === 'approver' ? Number(rewards.pending) || 0 : 0;
+  return `
+    <div class="widget__body rewards-widget">
+      <ul class="rewards-widget__members">${rows}</ul>
+      ${more > 0 ? `<p class="rewards-widget__more">${esc(t('dashboard.shoppingMore', { count: more }))}</p>` : ''}
+      ${pending > 0 ? rewardsFooterHTML(t('dashboard.rewardsPending', { count: pending })) : ''}
+    </div>`;
+}
+
+function renderRewardsWidget(rewards, size) {
+  const r = rewards ?? {};
+  const standings = Array.isArray(r.standings) ? r.standings : [];
+  const own = standings.find((m) => m.id === r.me);
+  // Das Kind sieht NUR sich, auch wenn eine Antwort mehr mitbraechte.
+  const members = r.view === 'self' ? (own ? [own] : []) : standings;
+  const header = widgetHeader('rewards', t('nav.rewards'), null, '/rewards');
+
+  if (!members.length) {
+    // Praemien anlegen ist Elternsache: einem Kind einen Knopf zu zeigen, der
+    // in eine Seite fuehrt, auf der es nichts anlegen darf, waere die leere
+    // Zusage aus #700.
+    const cta = r.view === 'approver' && navModuleAccess('rewards') === 'write'
+      ? emptyStateCta('/rewards', t('rewards.addReward')) : '';
     return `<div class="widget widget--rewards">
-      ${widgetHeader('rewards', t('nav.rewards'), 0, '/rewards')}
+      ${header}
       <div class="widget__empty">
         <i data-lucide="award" class="empty-state__icon" aria-hidden="true"></i>
         <div>${t('dashboard.noRewards')}</div>
-        ${emptyStateCta('/rewards', t('rewards.addReward'))}
+        ${cta}
       </div>
     </div>`;
   }
 
-  const rows = standings.map((m, i) => {
-    const color = m.avatar_color || AVATAR_FALLBACK_COLOR;
-    const avatarInner = m.avatar_data
-      ? `<img src="${esc(m.avatar_data)}" alt="" loading="lazy">`
-      : esc(initials(m.display_name));
-    return `
-      <div class="rewards-widget-row${i === 0 ? ' rewards-widget-row--leader' : ''}" data-route="/rewards" role="button" tabindex="0">
-        <span class="rewards-widget-row__rank" aria-hidden="true">${i + 1}</span>
-        <span class="rewards-widget-row__avatar" style="background:${esc(color)};color:${getReadableTextColor(color)}">${avatarInner}</span>
-        <span class="rewards-widget-row__name">${esc(m.display_name)}</span>
-        <span class="rewards-widget-row__points"><strong>${esc(formatPoints(m.balance))}</strong> ${esc(t('rewards.pointsUnit'))}</span>
-      </div>
-    `;
-  }).join('');
-
-  const pending = Number(rewards?.pending) || 0;
-  const footer = pending > 0
-    ? `<div class="rewards-widget__footer" data-route="/rewards" role="button" tabindex="0">
-        <i data-lucide="clock" aria-hidden="true"></i>
-        <span>${t('dashboard.rewardsPending', { count: pending })}</span>
-      </div>`
-    : '';
-
-  const badge = Number(rewards?.participantCount) || standings.length;
+  const spans = sizeSpans(size);
+  // WER ALLEIN SAMMELT, SIEHT SEINEN WEG - auch als Elternteil im
+  // Ein-Personen-Haushalt. Eine Uebersicht "je Kind" mit genau einer Zeile,
+  // die man selbst ist, waere die Eltern-Sicht ohne Kinder.
+  const body = own && members.length === 1
+    ? renderRewardsSelf(own, r, spans)
+    : renderRewardsFamily(members, r, spans);
   return `<div class="widget widget--rewards">
-    ${widgetHeader('rewards', t('nav.rewards'), badge, '/rewards')}
-    <div class="widget__body">
-      <div class="rewards-widget">${rows}</div>
-      ${footer}
-    </div>
+    ${header}
+    ${body}
   </div>`;
 }
 
@@ -2317,6 +2955,92 @@ function renderScheduleWidget(schedule, users, size) {
 }
 
 // --------------------------------------------------------
+// Vorrat-Widget „Laeuft bald ab" (Critique 2026-09-23)
+// --------------------------------------------------------
+
+/** Menge knapp: 2 bleibt "2", 2,5 wird lokalisiert - wie auf der Vorratsseite. */
+function pantryQuantityText(item) {
+  const amount = getNumberFormat({ maximumFractionDigits: 2 }).format(Number(item.quantity) || 0);
+  // Rueckfall auf den Rohwert, wie `unitLabel()` in pages/pantry.js: eine
+  // Einheit ohne Locale-Key stuende sonst als nackter Schluessel in der Zeile.
+  const key = `pantry.units.${item.unit}`;
+  const unit = t(key);
+  return `${amount} ${unit === key ? String(item.unit ?? '') : unit}`;
+}
+
+/**
+ * pantryExpiring: { items, todayItems, total, expiredCount, todayCount } aus
+ * GET /dashboard (services/pantry-expiring.js) | null (Ladefehler, rendert die
+ * geteilte Fehlerkachel ueber den try/catch in renderDashboardLayout).
+ *
+ * EINE ZEILE IST EINE CHARGE, nicht ein Produkt: zwei Packungen Milch mit zwei
+ * Daten sind zwei Zeilen, wie auf der Vorratsseite. Das Haushalts-Produkt ueber
+ * der Charge (#1448) steht noch aus, und eine Gruppierung nach Namen waere
+ * hier eine zweite, eigene Vorstellung davon.
+ *
+ * DIE RESTTAGE KOMMEN VOM SERVER (`days_left`), gerechnet am Haushaltstag
+ * derselben Antwort, aus der auch Badge und Zaehler stammen. Eine zweite
+ * Rechnung hier kippte kurz nach Mitternacht gegen die Badge daneben.
+ *
+ * Der Ton spricht nur in der Resttage-Zeile, und nur, wo es etwas zu tun gibt:
+ * abgelaufen im Gefahrenton, heute und morgen im Warnton, alles Weitere im
+ * Sekundaerton. Eine Liste, die jede Zeile rot faerbt, sagt nichts mehr.
+ *
+ * Reine Anzeige - kein Knopf, der schreibt. Wer nur lesen darf, sieht dieselbe
+ * Kachel; die Zeilen fuehren in den passend gefilterten Vorrat.
+ */
+function renderPantryWidget(pantry, size) {
+  if (pantry === null || pantry === undefined) throw new Error('pantry widget slice failed to load');
+  const title = t('dashboard.pantryExpiringTitle');
+  const items = Array.isArray(pantry.items) ? pantry.items : [];
+
+  if (!items.length) {
+    return `<div class="widget widget--pantry">
+      ${widgetHeader('pantry', title, null, '/pantry')}
+      <div class="widget__empty">
+        <i data-lucide="archive" class="empty-state__icon" aria-hidden="true"></i>
+        <div>${esc(t('dashboard.pantryExpiringEmpty', { count: EXPIRY_SOON_DAYS }))}</div>
+      </div>
+    </div>`;
+  }
+
+  const shown = items.slice(0, listRowCap(size));
+  const rows = shown.map((item) => {
+    const days = Number(item.days_left);
+    const tone = pantryExpiryTone(days);
+    const phrase = pantryExpiryPhrase(days);
+    const label = phrase.count === undefined ? t(phrase.key) : t(phrase.key, { count: phrase.count });
+    const icon = item.location_icon && hasIcon(item.location_icon) ? item.location_icon : 'package';
+    const meta = [pantryQuantityText(item), item.location_name ? locationLabel(item.location_name) : '']
+      .filter(Boolean).join(' · ');
+    const filter = tone === 'expired' ? 'expired' : 'soon';
+    return `
+      <div class="pantry-widget-row" data-route="/pantry?filter=${filter}" role="button" tabindex="0">
+        <span class="pantry-widget-row__icon" aria-hidden="true"><i data-lucide="${esc(icon)}"></i></span>
+        <div class="pantry-widget-row__body">
+          <div class="pantry-widget-row__name">${esc(item.name)}</div>
+          <div class="pantry-widget-row__meta">${esc(meta)}</div>
+        </div>
+        <div class="pantry-widget-row__days pantry-widget-row__days--${tone}">${esc(label)}</div>
+      </div>`;
+  }).join('');
+
+  // Gezaehlt gegen die SERVER-Gesamtzahl: der Server deckelt die Liste selbst,
+  // und eine Fussnote aus der geladenen Laenge verschwiege genau diesen Schnitt
+  // (dieselbe Lehre wie beim Countdown, #647).
+  const total = Number.isFinite(Number(pantry.total)) ? Number(pantry.total) : items.length;
+  const rest = Math.max(0, total - shown.length);
+  const more = rest > 0
+    ? `<p class="pantry-widget-more">${esc(t('dashboard.pantryExpiringMore', { count: rest }))}</p>`
+    : '';
+
+  return `<div class="widget widget--pantry">
+    ${widgetHeader('pantry', title, total, '/pantry')}
+    <div class="widget__body">${rows}${more}</div>
+  </div>`;
+}
+
+// --------------------------------------------------------
 // Waste-Widget (naechste Abholung je aktivem Typ)
 // --------------------------------------------------------
 
@@ -2422,6 +3146,14 @@ function renderWasteWidget(waste, size) {
 // Haushaltshilfe-Widget (Anwesenheit + offene Zahlung)
 // --------------------------------------------------------
 
+/** „08:00" fuer einen Beginn heute, „22.09., 08:00" fuer einen aelteren -
+ * eine offene Sitzung von gestern ist eine vergessene Abmeldung, keine
+ * Anwesenheit, und die blosse Uhrzeit verschwiege genau das. */
+function housekeepingSinceLabel(since) {
+  const time = formatTime(since);
+  return zonedDateKey(since) === householdToday() ? time : `${relativeDateLabel(since)}, ${time}`;
+}
+
 function renderHousekeepingWidget(hk, currency) {
   if (!hk?.configured) {
     return `<div class="widget widget--housekeeping">
@@ -2443,7 +3175,7 @@ function renderHousekeepingWidget(hk, currency) {
         <span class="housekeeping-widget__dot" aria-hidden="true"></span>
         <div class="housekeeping-widget__lines">
           <div class="housekeeping-widget__state">${t('dashboard.housekeepingPresent')}</div>
-          <div class="housekeeping-widget__sub">${hk.workerName ? `${esc(hk.workerName)} · ` : ''}${hk.presentSince ? t('dashboard.housekeepingSince', { time: formatTime(new Date(hk.presentSince)) }) : ''}</div>
+          <div class="housekeeping-widget__sub">${hk.workerName ? `${esc(hk.workerName)} · ` : ''}${hk.presentSince ? t('dashboard.housekeepingSince', { time: housekeepingSinceLabel(hk.presentSince) }) : ''}</div>
         </div>
       </div>`
     : `<div class="housekeeping-widget__status">
@@ -2475,7 +3207,7 @@ function renderHousekeepingWidget(hk, currency) {
  * Es erscheint NUR dann - nicht am Einkauf, nicht am Essen, und im
  * Solo-Haushalt an keiner Zeile (`whoMark` entscheidet das selbst). Ein
  * Zeichen, das immer da ist, sagt nichts. */
-function renderTodayRow(row) {
+function renderTodayRow(row, extraClass = '') {
   const mark = whoMark(row.who);
   // Trailing-Detail ist die ZEIT, kein Zähler mehr: die Programm-Zeile
   // beantwortet „wann", und dieselbe Badge-Form für drei Bedeutungen
@@ -2519,7 +3251,7 @@ function renderTodayRow(row) {
       </span>
       ${trailing}
   `;
-  const attrs = `class="today-cockpit-card today-cockpit-card--${row.tone}" data-route="${esc(row.route)}"${objectAttrs}`;
+  const attrs = `class="today-cockpit-card today-cockpit-card--${esc(row.tone)}${extraClass}" data-route="${esc(row.route)}"${objectAttrs}`;
   return opensModal
     ? `<button type="button" ${attrs}>${inner}</button>`
     : `<a href="${esc(row.route)}" ${attrs}>${inner}</a>`;
@@ -2560,7 +3292,25 @@ const PROGRAM_ROW_CAP = 6;
  * @returns {{rows: object[], overflow: number, state: object|null,
  *            shopping: object|null, coda: string|null}}
  */
-function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) {
+/** Der Blatt-Kontext - Cockpit, Wand und Kennzahlreihe fragen denselben. */
+function todaySheetContextFor(cfg, now, existing = []) {
+  const todayKey = zonedDateKey(now);
+  return todaySheetContext({
+    todayKey,
+    tomorrowKey: addLocalDays(todayKey, 1),
+    nowTime: zonedTimeKey(now),
+    cfg,
+    isModuleDisabled: (module) => Boolean(window.yuvomi?.isModuleDisabled(module)),
+    existing,
+  });
+}
+
+/** Die Quellen, die im Heute-Blatt gerade eine Zeile tragen (siehe speakingSourceIds). */
+function todaySheetSpeaks(data, cfg, now = new Date()) {
+  return speakingSourceIds(data, todaySheetContextFor(cfg, now));
+}
+
+function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP, now = new Date() } = {}) {
   // Kein Echo: ist das Modul-Widget einer Domäne sichtbar, entfallen ihre
   // Programm-Zeilen — jede Domäne hat genau eine Repräsentation (Cockpit ODER
   // Widget), statt dieselbe Aufgabe/Termin doppelt zu zeigen.
@@ -2572,9 +3322,18 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) 
   const includeMeals = domainInCockpit('meals');
   const includeShopping = domainInCockpit('shopping');
 
-  const program = buildTodayProgram(data, { includeTasks, includeCalendar, includeMeals });
-  const visibleRows = program.rows.slice(0, cap);
-  const overflow = program.rows.length - visibleRows.length;
+  const program = buildTodayProgram(data, { includeTasks, includeCalendar, includeMeals, now });
+
+  // Die uebrigen Quellen des Blatts (Dosen, Freigaben, Abfuhr, Geburtstag,
+  // Schicht, Erinnerungen, Haushaltshilfe) sprechen ueber den Beitrags-Vertrag
+  // in utils/today-sheet.js - mit denselben drei Riegeln wie oben
+  // (Modulschalter, Recht, Kein-Echo) und derselben Zeilenform. Cockpit und
+  // Wand fragen beide hier; die Wand reicht nur keine Kachel-Konfiguration mit.
+  const sheetContext = todaySheetContextFor(cfg, now, program.rows);
+  const contributed = collectSourceRows(data, sheetContext);
+  const sheet = composeTodaySheet([...program.rows, ...contributed.rows], { cap });
+  const visibleRows = sheet.rows;
+  const overflow = sheet.overflow;
 
   // Ausblick über heute hinaus: das chronologisch Nächste aus Termin UND
   // fälliger Aufgabe - die Beruhigung darf nicht um Mitternacht enden
@@ -2641,8 +3400,10 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) 
   // Schichtplan-Kachel mehr etwas behauptet.
   const scheduleWidgetVisible = !window.yuvomi?.isModuleDisabled('schedule') && widgetShown('schedule');
   let state = null;
-  if (!program.rows.length && !scheduleWidgetVisible) {
-    const sayAllDone = includeTasks && program.tasksDoneToday > 0;
+  if (!sheet.allRows.length && !scheduleWidgetVisible) {
+    // „Alles erledigt" sagt auch eine Quelle, deren Offenes heute geschafft
+    // ist (alle Dosen genommen) - sonst hiesse derselbe Tag „Heute frei".
+    const sayAllDone = (includeTasks && program.tasksDoneToday > 0) || contributed.settled;
     if (sayAllDone || includeCalendar) {
       state = {
         title: sayAllDone ? t('dashboard.todayAllDone') : t('dashboard.todayFree'),
@@ -2674,9 +3435,14 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) 
   // eine Aufgabe fällig, sagt die Coda es dazu - sonst wäre „nichts mehr" um
   // 21 Uhr eine falsche Entwarnung (Critique P3). Nur morgen, nicht später:
   // eine Frist in drei Tagen ist keine Falle.
+  //
+  // Seit dem Beitrags-Vertrag ausserdem nur, wenn keine Zeile mehr OFFEN ist
+  // (`codaAllowed`): unter einer offenen Dosis, einer wartenden Freigabe oder
+  // der Tonne am Morgen ist „nichts mehr" keine Entwarnung, sondern ein
+  // Widerspruch zur Zeile darueber.
   let coda = null;
-  if (program.rows.length > 0 && overflow === 0) {
-    const tomorrowKey = addLocalDays(householdToday(), 1);
+  if (codaAllowed(sheet)) {
+    const tomorrowKey = sheetContext.tomorrowKey;
     const tomorrowTask = includeTasks && program.nextDueTask?.due_date === tomorrowKey ? program.nextDueTask : null;
     coda = tomorrowTask
       ? t('dashboard.todayNothingElseTomorrow', { title: tomorrowTask.title })
@@ -2687,15 +3453,32 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) 
   // SEHEN ist, nicht, was heute ansteht. „Wer heute dran ist" zaehlt ueber den
   // ganzen Tag - sonst verschwaende jemand aus der Antwort, nur weil seine
   // Zeilen hinter dem Deckel liegen.
-  return { rows: visibleRows, allRows: program.rows, overflow, state, shopping, coda };
+  return { rows: visibleRows, allRows: sheet.allRows, overflow, state, shopping, coda };
 }
 
-function renderTodayCockpit(data, cfg = [], editing = false) {
-  const model = buildTodayCockpitModel(data, cfg);
+function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date() } = {}) {
+  const model = buildTodayCockpitModel(data, cfg, { now });
 
+  /* DIE BREITE BUEHNE TRAEGT ZWEI SPALTEN ZEILEN (Critique 23.09.2026). Am
+   * Desktop ist das Blatt 1140px breit, und eine Zeile nutzte davon ~200px
+   * Text - dazwischen lag ein leeres Band bis zur Uhrzeit. Ab einer
+   * Containerbreite (dashboard.css, `today-cockpit__rows--split`) laufen die
+   * Zeilen deshalb in zwei Spalten, SPALTENWEISE: links die fruehe, rechts die
+   * spaete Haelfte des Tages, damit das Programm von oben nach unten gelesen
+   * bleibt. Die Haelfte steht hier, weil nur das Markup die Zahl kennt; auf
+   * schmaler Buehne haben die Klassen keine Wirkung, das Blatt bleibt eine
+   * Liste in unveraenderter Hoehe. */
+  const listRows = [];
+  if (model.state) listRows.push(renderTodayStateRow(model.state));
+  const split = model.rows.length >= 2;
+  const perColumn = Math.ceil(model.rows.length / 2);
+  listRows.push(...model.rows.map((row, index) => renderTodayRow(row, split && index >= perColumn
+    ? ` today-cockpit-card--col2${index === perColumn ? ' today-cockpit-card--col-start' : ''}`
+    : '')));
   const parts = [];
-  if (model.state) parts.push(renderTodayStateRow(model.state));
-  parts.push(...model.rows.map(renderTodayRow));
+  if (listRows.length) {
+    parts.push(`<div class="today-cockpit__rows${split ? ' today-cockpit__rows--split' : ''}"${split ? ` style="--today-rows-per-column:${perColumn}"` : ''}>${listRows.join('')}</div>`);
+  }
   if (model.overflow > 0) {
     parts.push(`<div class="today-cockpit__more">${esc(t('dashboard.todayMore', { count: model.overflow }))}</div>`);
   }
@@ -2731,35 +3514,34 @@ function renderTodayCockpit(data, cfg = [], editing = false) {
 }
 
 
-/* WOHER MAN WEISS, DASS DIE FLAECHE LEBT (Critique R2, A8). Der stille Refresh
- * (15-Min-Takt plus Tab-Reaktivierung) tut seine Arbeit unsichtbar - und genau
- * das ist am Wandtablet das Problem: eine Flaeche, die sich nie erkennbar
- * bewegt, ist von einer eingefrorenen nicht zu unterscheiden. Wer daran
- * vorbeigeht, kann „heute nichts mehr" nicht glauben, ohne neu zu laden.
+/* DER KOPF DER UEBERSICHT: Datumszeile mit Werkzeugen, darunter der Large
+ * Title ueber die volle Breite (Critique 2026-09-23, P1).
  *
- * Der Anker ist deshalb absichtlich klein und absolut: eine Uhrzeit, keine
- * „vor 3 Minuten"-Angabe, die einen zweiten Timer braeuchte, nur um sich
- * selbst zu widerlegen. Er steht in der Werkzeugspalte, nicht im Gruss-Stapel
- * - der Masthead soll weiter mit Datum, Gruss und Wetter sprechen, nicht mit
- * Betriebszustand. Im Bearbeiten-Modus entfaellt er: dort wird nicht
- * aktualisiert, und die Werkzeugleiste braucht ihren Platz. */
-function renderDashboardOverview(user, editing = false, weather = null, updatedAt = null, scope = {}) {
+ * Die Werkzeuge standen als eigene Spalte NEBEN dem Grusstapel, und unter
+ * ihnen der Stand-Anker mit `flex: 0 0 100%`. Der blaehte die Spalte mobil auf
+ * 187px auf; dem Gruss blieben bei 390px 171px, er brach dreizeilig um
+ * („Guten / Abend, / Linda"), und der erste Inhalt stand bei 274 von 844px.
+ * Jetzt teilen sich Datum und Knoepfe EINE Zeile - dieselbe Bauart wie eine
+ * Large-Title-Leiste, deren Knoepfe ueber dem Titel sitzen -, und der Titel
+ * hat die ganze Breite. Das Raster dafuer steht in dashboard.css.
+ *
+ * DER STAND-ANKER („Stand 14:32", Critique R2, A8) gehoert der Wand. Dort
+ * beweist er, dass der stille Refresh laeuft, und dort steht er weiter
+ * (`.wall__updated`, renderWallSurface). Auf dem Telefon und am Schreibtisch
+ * kostete er eine Zeile Kopf fuer eine Frage, die dort niemand stellt: wer die
+ * Seite in der Hand hat, laedt sie im Zweifel selbst neu. */
+function renderDashboardOverview(user, editing = false, weather = null, scope = {}) {
   // Wer der Vorgabe des Haushalts folgt, hat nichts zurueckzusetzen; wer sie
   // setzen darf, ist Admin (#827).
   const { followsDefault = true, canPublish = false } = scope;
   const dateLabel = mastheadDateLabel();
-  const updated = !editing && updatedAt
-    ? `<p class="dashboard-overview__updated">${esc(t('dashboard.updatedAt', { time: formatTime(updatedAt) }))}</p>`
-    : '';
 
   return `
     <section class="dashboard-overview">
       <div class="dashboard-overview__header${editing ? ' dashboard-overview__header--editing' : ''}">
-        <div class="dashboard-overview__heading">
-          <span class="dashboard-overview__date">${dateLabel}</span>
-          <h2 class="dashboard-overview__title dashboard-overview__title--${greetingPeriod()}">${greeting(user.display_name)}</h2>
-          ${mastheadWeatherHtml(weather)}
-        </div>
+        <span class="dashboard-overview__date">${dateLabel}</span>
+        <h2 class="dashboard-overview__title dashboard-overview__title--${greetingPeriod()}">${greeting(user.display_name)}</h2>
+        ${mastheadWeatherHtml(weather)}
         <div class="dashboard-overview__tools">
           ${editing ? `
           <!-- Die Beruhigung stand nur im Toast NACH dem Speichern, die
@@ -2813,11 +3595,54 @@ function renderDashboardOverview(user, editing = false, weather = null, updatedA
                   aria-pressed="${editing ? 'true' : 'false'}">
             <i data-lucide="${editing ? 'x' : 'settings-2'}" aria-hidden="true"></i>
           </button>
-          ${updated}
         </div>
       </div>
     </section>
   `;
+}
+
+/**
+ * Ein Selektor, der „dasselbe" Element nach einem Neuaufbau wiederfindet.
+ *
+ * Die Flaeche wird bei jeder Anpassen-Geste per setHtml neu gebaut; Elemente
+ * ueberleben das nicht, ihre IDENTITAET schon: eine Id, oder eines der
+ * data-Attribute, mit denen die Bearbeiten-Knoepfe ihre Kachel nennen. Wo das
+ * Attribut die Kachel nicht selbst nennt (Groesse, Verschieben, Griff), grenzt
+ * die umgebende Kachel es ein.
+ */
+const FOCUS_IDENTITY_ATTRS = [
+  'data-widget-size-preset', 'data-widget-move', 'data-widget-drag-handle',
+  'data-widget-hide', 'data-widget-show', 'data-widget-options',
+  'data-glance-hide', 'data-glance-show',
+];
+
+function focusKeyOf(el) {
+  if (el.id) return `#${CSS.escape(el.id)}`;
+  const attr = FOCUS_IDENTITY_ATTRS.find((a) => el.hasAttribute(a));
+  if (!attr) return null;
+  const value = el.getAttribute(attr);
+  const own = value ? `[${attr}="${CSS.escape(value)}"]` : `[${attr}]`;
+  const tile = el.closest('.widget-wrapper[data-widget-id]')?.dataset.widgetId;
+  return tile ? `.widget-wrapper[data-widget-id="${CSS.escape(tile)}"] ${own}` : own;
+}
+
+/* EINE ANSAGE-REGION, DIE DEN NEUAUFBAU UEBERLEBT.
+ *
+ * Eine Live-Region wird nur gehoert, wenn es sie schon gab, bevor ihr Text sich
+ * aendert - eine, die mit dem Neuaufbau selbst entsteht, schweigt in der Regel.
+ * Die Seite baut aber bei jeder Anpassen-Geste und bei jedem Timer-Wechsel neu.
+ * Gesprochen wird deshalb ueber den Ansager der Shell (`#route-announcer`,
+ * router.js): hoeflich, atomar, sr-only und fuer die ganze Sitzung da. Er meldet
+ * sonst Seitenwechsel - eine Zustandsaenderung dieser Seite ist dieselbe Sorte
+ * Nachricht. Leeren und verzoegert setzen ist sein eigenes Muster: derselbe Text
+ * zweimal hintereinander waere sonst keine Aenderung. */
+let announceTimer = null;
+function announceDashboard(message) {
+  const region = typeof document === 'undefined' ? null : document.getElementById('route-announcer');
+  if (!region || !message) return;
+  clearTimeout(announceTimer);
+  region.textContent = '';
+  announceTimer = setTimeout(() => { region.textContent = message; }, 50);
 }
 
 function widgetSizeClass(size) {
@@ -3121,8 +3946,11 @@ function renderWidgetCustomizeControls(w, index = 0, total = 1) {
       </button>`;
   }).join('');
 
+  // Die Leiste steht VOR der Ueberschrift der Kachel. Ohne eigenen Namen hoerte
+  // man per Tab je Kachel denselben Griff und dieselben Groessen - welche Kachel
+  // man anfasst, sagt erst die Gruppe.
   return `
-    <div class="widget-edit-controls" data-widget-controls>
+    <div class="widget-edit-controls" role="group" aria-label="${esc(widgetLabel(w.id))}" data-widget-controls>
       <button type="button" class="widget-edit-controls__handle" data-widget-drag-handle
               aria-label="${t('dashboard.customizeReorderHandle')}" aria-keyshortcuts="ArrowUp ArrowDown">
         <i data-lucide="grip-vertical" aria-hidden="true"></i>
@@ -3201,12 +4029,12 @@ function renderHiddenWidgetsTray(cfg, glanceHidden = false) {
 
 function renderDashboardLayout(cfg, data, weather, currency, { editing = false, visibleMealTypes = MEAL_ORDER, glanceHidden = false } = {}) {
   const widgetById = {
-    tasks: () => renderUrgentTasks(data.urgentTasks ?? []),
-    calendar: () => renderUpcomingEvents(data.upcomingEvents ?? []),
-    birthdays: (size) => renderUpcomingBirthdays(data.birthdays ?? [], size),
+    tasks: () => renderUrgentTasks(data.urgentTasks ?? [], data.openTaskCount),
+    calendar: (size) => renderCalendarWidget(data, size),
+    birthdays: (size) => renderUpcomingBirthdays(data.birthdays ?? [], size, data.birthdayTotal),
     countdown: (size) => renderCountdowns(data.countdowns ?? [], size, data.countdownTotal),
-    budget: () => renderBudgetWidget(data.budget ?? {}, currency),
-    rewards: () => renderRewardsWidget(data.rewards ?? {}),
+    budget: (size) => renderBudgetWidget(data.budget ?? {}, currency, size),
+    rewards: (size) => renderRewardsWidget(data.rewards ?? {}, size),
     health: () => renderHealthWidget(data.health ?? {}),
     cycle: () => renderCycleWidget(data.cycle),
     fasting: () => renderFastingWidget(data.fasting),
@@ -3214,10 +4042,11 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     housekeeping: () => renderHousekeepingWidget(data.housekeeping ?? {}, currency),
     schedule: (size) => renderScheduleWidget(data.schedule, data.users ?? [], size),
     waste: (size) => renderWasteWidget(data.waste, size),
+    pantry: (size) => renderPantryWidget(data.pantryExpiring, size),
     family: () => renderFamilyWidget(data.users ?? [], data),
     meals: () => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes),
-    notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size),
-    shopping: () => renderShoppingLists(data.shoppingLists ?? []),
+    notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size, data.notesTotal),
+    shopping: () => renderShoppingLists(data.shoppingLists ?? [], data.shoppingOpenCount, data.shoppingOpenLists),
     assets: () => renderAssetsWidget(data.assets ?? {}, currency),
     weather: () => (weather ? renderWeatherWidget(weather) : ''),
     clock: () => renderClockWidget(),
@@ -3227,9 +4056,12 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     // DERSELBEN Bedingung, nach der die Kacheln gleich gefiltert werden, damit
     // die beiden nicht auseinanderlaufen; `metrics` selbst ist ausgenommen, es
     // waere sonst sein eigener Grund zu schweigen.
+    // Dazu, welche Zahl das Heute-Blatt schon nennt (offene Freigaben): die
+    // Kein-Echo-Regel gilt auch zwischen Blatt und Kachel. Ein ausgeblendetes
+    // Blatt nennt nichts.
     metrics: () => renderMetricTiles(data, currency, new Set(
       cfg.filter((w) => w.visible && w.id !== 'metrics' && isWidgetModuleEnabled(w.id)).map((w) => w.id),
-    )),
+    ), glanceHidden ? new Set() : todaySheetSpeaks(data, cfg)),
   };
 
   const tiles = cfg
@@ -3261,13 +4093,21 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
   // in die Anpassung (das Cockpit oben bleibt als Orientierung erhalten).
   const gridInner = tiles
     || emptyHintHTML(t('dashboard.allWidgetsHidden'), { icon: 'layout-dashboard' });
-  // Beim Bearbeiten und bei bewusst umsortierten Layouts die Quellordnung bewahren
-  // (kein dense-Umpacken); der Autor-Default darf dicht packen.
-  const preserveOrder = (editing || isUserOrderedConfig(cfg)) ? ' dashboard__grid--preserve-order' : '';
-  const grid = `<div class="dashboard__grid ${editing ? 'dashboard__grid--editing' : ''}${preserveOrder}" id="dashboard-widget-grid">${gridInner}</div>`;
+  // Dicht gepackt in jedem Zustand (dashboard.css, `.dashboard__grid`): die
+  // Reihenfolge ist die Rangfolge, kein Schalter mehr fuer umsortierte Layouts.
+  /* DAS RASTER HAT SEINE EIGENE UEBERSCHRIFT (Critique 2026-09-23). Ohne sie
+   * hingen alle Widget-h3 unter der h2 „Heute wichtig" - wer per Ueberschriften
+   * navigiert, hielt Budget, Wetter und Notizen fuer Teile des Kopfbands, und
+   * wer das Kopfband ausblendet, hatte gar keine h2 mehr ueber ihnen. Sichtbar
+   * waere sie ein drittes Etikett ueber Kacheln, die ihre eigenen Koepfe tragen;
+   * gebraucht wird sie nur als Gliederungsebene. Das Wort ist dasselbe, das die
+   * Anpassen-Leiste benutzt („Widgets anpassen", „Ausgeblendete Widgets"). */
+  const heading = `<h2 class="sr-only" id="dashboard-widgets-title">${esc(t('dashboard.widgetsHeading'))}</h2>`;
+  const grid = `<div class="dashboard__grid ${editing ? 'dashboard__grid--editing' : ''}" id="dashboard-widget-grid"
+                    role="region" aria-labelledby="dashboard-widgets-title">${gridInner}</div>`;
   // Im Bearbeiten-Modus folgt die Wieder-Einblenden-Leiste dem Grid, damit
   // ausgeblendete Widgets nicht in einer Sackgasse verschwinden.
-  return editing ? `${grid}${renderHiddenWidgetsTray(cfg, glanceHidden)}` : grid;
+  return `${heading}${editing ? `${grid}${renderHiddenWidgetsTray(cfg, glanceHidden)}` : grid}`;
 }
 
 /* DAS SKELETT VERSPRICHT DAS LAYOUT, DAS GLEICH KOMMT (Critique R1, A10).
@@ -3292,7 +4132,7 @@ function renderDashboardSkeleton() {
   return `
     <section class="dashboard-overview">
       <div class="dashboard-overview__header">
-        <div class="dashboard-overview__heading">
+        <div>
           <div class="skeleton skeleton-line skeleton-line--short"></div>
           <div class="skeleton skeleton-line skeleton-line--medium"></div>
         </div>
@@ -3394,7 +4234,7 @@ function renderAssetsWidget(summary = {}, currency = 'EUR') {
 // Shopping-Widget
 // --------------------------------------------------------
 
-function renderShoppingLists(lists) {
+function renderShoppingLists(lists, openTotal = null, openListTotal = null) {
   if (!lists.length) {
     return `<div class="widget widget--shopping">
       ${widgetHeader('shopping', t('nav.shopping'), 0, '/shopping')}
@@ -3406,7 +4246,11 @@ function renderShoppingLists(lists) {
     </div>`;
   }
 
-  const totalOpen = lists.reduce((sum, l) => sum + l.open_count, 0);
+  // Der Server liefert hoechstens drei Listen; `shoppingOpenCount` und
+  // `shoppingOpenLists` zaehlen ueber alle (listTotal). Ohne sie bleibt es bei
+  // der Summe der geladenen Listen.
+  const totalOpen = listTotal(openTotal, lists.reduce((sum, l) => sum + l.open_count, 0));
+  const moreLists = listTotal(openListTotal, lists.length) - lists.length;
 
   const listsHtml = lists.map((list) => {
     const progress = list.total_count > 0
@@ -3442,7 +4286,7 @@ function renderShoppingLists(lists) {
 
   return `<div class="widget widget--shopping">
     ${widgetHeader('shopping', t('nav.shopping'), totalOpen, '/shopping')}
-    <div class="widget__body">${listsHtml}</div>
+    <div class="widget__body">${listsHtml}${listMoreLine('dashboard.shoppingMoreLists', moreLists)}</div>
   </div>`;
 }
 
@@ -4064,11 +4908,25 @@ function renderWallError() {
  * steht er immer im DOM und ist immer per Tastatur erreichbar, traegt aber im
  * Ruhezustand nur sein Zeichen. Jede Beruehrung hebt ihn fuer ein paar Sekunden
  * auf die volle Kapsel samt Beschriftung (`data-wall-awake`, siehe
- * `wireWallSurface`). Weil sonst nichts auf der Flaeche beruehrbar ist,
- * kollidiert dieses Wecken mit nichts.
+ * `wireWallSurface`). Seit dem Kuechentimer (#844) ist der Ausstieg nicht mehr
+ * das Einzige, was man beruehren kann - dessen Startknoepfe stehen daneben und
+ * ruhen genauso leise, aber sichtbar. Damit ein Tipp, der die Wand nur wecken
+ * sollte, keinen Timer startet, weckt der erste Zeiger auf eine schlafende
+ * Wand dort nur (wall-timer.js).
  */
-function renderWallSurface(data, weather, { failed = false, loading = false, updatedAt = null } = {}) {
-  const model = failed || loading ? null : buildTodayCockpitModel(data, [], { cap: WALL_ROW_CAP });
+function renderWallSurface(data, weather, { failed = false, loading = false, updatedAt = null, now = new Date() } = {}) {
+  // Der Kuechentimer (#844). Er wird auch im Lade- und Fehlerzustand gebaut: er
+  // haengt an nichts, was geladen werden koennte, und ein laufender Timer, der
+  // beim naechsten Netzfehler verschwaende, waere schlimmer als gar keiner.
+  const timer = renderWallTimer();
+  // Seine Anzeige kostet eine Programmzeile Hoehe (64px plus Abstand, gemessen
+  // bei 1280x800). WALL_ROW_CAP ist fuer die Flaeche OHNE sie gerechnet: an
+  // einem vollen Tag schob sie den Fuss samt „Timer abbrechen" und Ausstieg
+  // unter den Bildrand. Solange sie steht, nimmt das Programm eine Zeile
+  // weniger, und „+N weitere" zaehlt sie mit. Der Start und das Ende rufen
+  // ohnehin `rerender()` (wall-timer.js), der Deckel folgt also von selbst.
+  const cap = timer.display ? WALL_ROW_CAP - 1 : WALL_ROW_CAP;
+  const model = failed || loading ? null : buildTodayCockpitModel(data, [], { cap, now });
 
   let main;
   if (failed) {
@@ -4085,11 +4943,6 @@ function renderWallSurface(data, weather, { failed = false, loading = false, upd
   const stamp = updatedAt
     ? `<p class="wall__updated">${esc(t('dashboard.updatedAt', { time: formatTime(updatedAt) }))}</p>`
     : '<p class="wall__updated"></p>';
-
-  // Der Kuechentimer (#844). Er wird auch im Lade- und Fehlerzustand gebaut: er
-  // haengt an nichts, was geladen werden koennte, und ein laufender Timer, der
-  // beim naechsten Netzfehler verschwaende, waere schlimmer als gar keiner.
-  const timer = renderWallTimer();
 
   return `
     <div class="wall">
@@ -4129,7 +4982,7 @@ function wireWallSurface(container, rerender, signal) {
   }
   signal.addEventListener('abort', () => clearTimeout(awakeTimer));
 
-  wireWallTimer(wall, rerender, signal);
+  wireWallTimer(wall, rerender, signal, { announce: announceDashboard });
 }
 
 /**
@@ -4443,6 +5296,69 @@ function closestWidgetDrop(grid, event, draggedId) {
   return { id: nearest.item.dataset.widgetId, placement, item: nearest.item };
 }
 
+/* DER LOCH-HINWEIS IM BEARBEITEN-MODUS (Critique 2026-09-23).
+ *
+ * Das Raster packt immer dicht; was dann noch leer bleibt, liegt an den
+ * GROESSEN - drei Breitkacheln in drei Spalten lassen rechts je eine Zelle
+ * frei, weil keine spaetere Kachel hineinpasst. Das loest keine Reihenfolge,
+ * nur eine andere Groesse, und die schlaegt der Bearbeiten-Modus vor: EINE
+ * Aenderung, nach der kein Loch bleibt und das Raster nicht hoeher wird. Gibt
+ * es keine, schweigt er - ein Hinweis ohne Ausweg waere Laerm.
+ *
+ * Die Spans kommen aus dem Stylesheet, nicht aus einer zweiten Tabelle: welche
+ * Groesse in welcher Breite wie viele Spalten und Zeilen belegt, steht nur in
+ * dashboard.css. Fuer eine Kandidaten-Groesse wird die Klasse kurz getauscht
+ * und der berechnete Stil gelesen - ein Stil-Recalc, kein Layout, und der
+ * Tausch ist zurueckgenommen, bevor der Browser das naechste Bild malt. */
+function gridSpans(el) {
+  const cs = getComputedStyle(el);
+  const span = (start, end) => Number(/span (\d+)/.exec(`${start} ${end}`)?.[1] || 1);
+  return { cols: span(cs.gridColumnStart, cs.gridColumnEnd), rows: span(cs.gridRowStart, cs.gridRowEnd) };
+}
+
+function spansForSize(el, size) {
+  const current = [...el.classList].find((c) => c.startsWith('widget-size--'));
+  const probe = widgetSizeClass(size);
+  if (!current || current === probe) return gridSpans(el);
+  el.classList.replace(current, probe);
+  try {
+    return gridSpans(el);
+  } finally {
+    el.classList.replace(probe, current);
+  }
+}
+
+function gridColumnCount(grid) {
+  return getComputedStyle(grid).gridTemplateColumns.split(' ').filter((v) => v && v !== 'none').length;
+}
+
+function gridHoleSuggestion(grid) {
+  const columns = gridColumnCount(grid);
+  if (columns < 2) return null;
+  const items = [...grid.querySelectorAll(':scope > .widget-wrapper[data-widget-id]')].map((el) => ({
+    id: el.dataset.widgetId,
+    el,
+    size: [...el.classList].find((c) => c.startsWith('widget-size--'))?.slice('widget-size--'.length) ?? '1x1',
+    ...gridSpans(el),
+  }));
+  return suggestGridHoleFill(items, columns,
+    (item) => WIDGET_SIZE_PRESETS.map((p) => ({ size: p.value, ...spansForSize(item.el, p.value) })));
+}
+
+function renderGridHint(suggestion) {
+  const preset = WIDGET_SIZE_PRESETS.find((p) => p.value === suggestion.size);
+  const text = t('dashboard.gridHoleHint', {
+    widget: widgetLabel(suggestion.id),
+    size: preset ? t(preset.labelKey) : suggestion.size,
+  });
+  return `
+    <div class="dashboard-grid-hint" role="status">
+      <p class="dashboard-grid-hint__text">${esc(text)}</p>
+      <button type="button" class="btn btn--ghost" data-grid-hint-apply
+              data-widget-id="${esc(suggestion.id)}" data-size="${esc(suggestion.size)}">${esc(t('dashboard.gridHoleApply'))}</button>
+    </div>`;
+}
+
 function updateWidgetConfig(config, id, patch) {
   return config.map((w) => w.id === id ? { ...w, ...patch } : w)
     .map((w, i) => ({ ...w, order: i }));
@@ -4517,7 +5433,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
   // nach dem Laden bleibt und ersetzt diesen hier - `wireWallTimer` raeumt
   // seinen vorigen Takt selbst ab.
   if (wallMode) {
-    wireWallTimer(container.querySelector('.wall'), rerender, signal);
+    wireWallTimer(container.querySelector('.wall'), rerender, signal, { announce: announceDashboard });
     // Der Ausstieg gehoert zur selben Sorte: er haengt an nichts, was geladen
     // wird. Einmal verdrahtet, ueber den Container - er ueberlebt das zweite
     // Rendern und braucht keinen zweiten Aufruf.
@@ -4555,10 +5471,11 @@ export async function render(container, { user, signal: routeSignal = null } = {
   // dahinter waere die falscheste aller Angaben.
   let lastLoadedAt = null;
   try {
-    const [dashRes, weatherRes, prefsRes] = await Promise.all([
+    const [dashRes, weatherRes, prefsRes, remindersRes] = await Promise.all([
       api.get(layoutHintQuery('/dashboard')),
       api.get(`/weather?lang=${encodeURIComponent(getLocale())}`).catch(() => ({ data: null })),
       api.get('/preferences').catch(() => ({ data: {} })),
+      loadPendingReminders(),
     ]);
     // Ueberholt oder verlassen, waehrend die Antworten unterwegs waren (#977):
     // dieser Aufbau gehoert niemandem mehr und faesst die Flaeche nicht an.
@@ -4611,6 +5528,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
         setCountdownAvailability(data?.countdowns);
       } catch { /* die ungefilterte Antwort steht bereits - lieber mehr als nichts */ }
     }
+    data.pendingReminders = remindersRes;
     glanceVisible = prefsRes.data?.dashboard_today_glance !== false;
     savedGlanceVisible = glanceVisible;
     followsDefault = prefsRes.data?.dashboard_follows_default !== false;
@@ -4719,6 +5637,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
       fresh.cycle = data.cycle;
       fresh.schedule = data.schedule;
       fresh.waste = data.waste;
+      fresh.pendingReminders = data.pendingReminders;
       data = fresh;
       setCountdownAvailability(data?.countdowns);
       lastLoadedAt = new Date();
@@ -4903,12 +5822,44 @@ export async function render(container, { user, signal: routeSignal = null } = {
     window.yuvomi?.showToast(t('dashboard.customizeSetDefaultDone'), 'success');
   }
 
+  // Beobachtet im Bearbeiten-Modus die Spaltenzahl des Rasters: ein Loch, das
+  // bei drei Spalten bleibt, gibt es bei zwei vielleicht nicht - und umgekehrt.
+  let gridHintObserver = null;
+  signal.addEventListener('abort', () => gridHintObserver?.disconnect(), { once: true });
+
+  function syncGridHint(grid) {
+    container.querySelector('.dashboard-grid-hint')?.remove();
+    const suggestion = gridHoleSuggestion(grid);
+    if (!suggestion) return;
+    // VOR dem Raster, nicht dahinter: das Loch steht oft oben, und ein Hinweis
+    // unter zwanzig Kacheln waere einer, den man erst nach dem Scrollen findet.
+    grid.insertAdjacentHTML('beforebegin', renderGridHint(suggestion));
+    container.querySelector('.dashboard-grid-hint [data-grid-hint-apply]')?.addEventListener('click', () => {
+      widgetConfig = updateWidgetConfig(widgetConfig, suggestion.id, { size: suggestion.size });
+      rebuildDashboard(widgetConfig);
+    });
+  }
+
   function wireDashboardEditMode() {
+    gridHintObserver?.disconnect();
+    gridHintObserver = null;
     if (!isCustomizing) return;
     const grid = container.querySelector('#dashboard-widget-grid');
     if (!grid) return;
     let draggedId = '';
     let currentDrop = null;
+
+    syncGridHint(grid);
+    if (typeof ResizeObserver === 'function') {
+      let columns = gridColumnCount(grid);
+      gridHintObserver = new ResizeObserver(() => {
+        const next = gridColumnCount(grid);
+        if (next === columns) return;
+        columns = next;
+        syncGridHint(grid);
+      });
+      gridHintObserver.observe(grid);
+    }
 
     const clearDropHint = () => {
       grid.querySelectorAll('.widget-wrapper--drop-before, .widget-wrapper--drop-after').forEach((el) => {
@@ -4969,7 +5920,15 @@ export async function render(container, { user, signal: routeSignal = null } = {
         const size = btn.dataset.widgetSizePreset;
         if (!WIDGET_SIZE_OPTIONS.includes(size)) return;
         widgetConfig = updateWidgetConfig(widgetConfig, btn.dataset.widgetId, { size });
+        // Der Fokus bleibt auf demselben Knopf (rebuildDashboard traegt ihn
+        // hinueber), und der traegt jetzt aria-pressed - gesagt wird trotzdem,
+        // was sich geaendert hat: die Kachel ist gewachsen, nicht der Knopf.
         rebuildDashboard(widgetConfig);
+        const preset = WIDGET_SIZE_PRESETS.find((p) => p.value === size);
+        announceDashboard(t('dashboard.customizeSizeDone', {
+          widget: widgetLabel(btn.dataset.widgetId),
+          size: preset ? t(preset.labelKey) : size,
+        }));
       });
     });
 
@@ -4988,10 +5947,32 @@ export async function render(container, { user, signal: routeSignal = null } = {
       });
     });
 
+    /* WER AUSBLENDET, VERLIERT SEINEN KNOPF - UND DARF DESHALB NICHT DEN FOKUS
+     * VERLIEREN. Der Neuaufbau ersetzt das ganze Raster; der gedrueckte Knopf
+     * ist danach fort, und der Fokus fiel bis hierher auf <body> zurueck: wer
+     * per Tastatur drei Kacheln ausblenden wollte, stand nach der ersten wieder
+     * am Seitenanfang. Er geht deshalb zum gleichen Knopf der Nachbarkachel
+     * (so laesst sich eine Reihe nacheinander abraeumen), und wo es keine gibt,
+     * zum Chip, der sie zurueckholt. Beim Einblenden spiegelbildlich. */
+    const neighbourIds = (el, selector, attr) => {
+      const next = el?.nextElementSibling?.closest(selector) ? el.nextElementSibling : null;
+      const prev = el?.previousElementSibling?.closest(selector) ? el.previousElementSibling : null;
+      return [next, prev].map((n) => n?.getAttribute(attr) ?? n?.querySelector(`[${attr}]`)?.getAttribute(attr))
+        .filter(Boolean);
+    };
+
     grid.querySelectorAll('[data-widget-hide]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        widgetConfig = updateWidgetConfig(widgetConfig, btn.dataset.widgetHide, { visible: false });
+        const id = btn.dataset.widgetHide;
+        const wrapper = btn.closest('.widget-wrapper');
+        focusAfterRebuild = [
+          ...neighbourIds(wrapper, '.widget-wrapper', 'data-widget-id')
+            .map((n) => `.widget-wrapper[data-widget-id="${CSS.escape(n)}"] [data-widget-hide]`),
+          `[data-widget-show="${CSS.escape(id)}"]`,
+        ];
+        widgetConfig = updateWidgetConfig(widgetConfig, id, { visible: false });
         rebuildDashboard(widgetConfig);
+        announceDashboard(t('dashboard.customizeHiddenDone', { widget: widgetLabel(id) }));
       });
     });
 
@@ -4999,8 +5980,15 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // weit gesucht): der Gegenpart zum Ausblenden, macht den Inline-Editor komplett.
     container.querySelectorAll('[data-widget-show]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        widgetConfig = updateWidgetConfig(widgetConfig, btn.dataset.widgetShow, { visible: true });
+        const id = btn.dataset.widgetShow;
+        focusAfterRebuild = [
+          ...neighbourIds(btn.closest('.widget-restore-chip-group') ?? btn, '.widget-restore-chip-group, [data-glance-show]', 'data-widget-show')
+            .map((n) => `[data-widget-show="${CSS.escape(n)}"]`),
+          `.widget-wrapper[data-widget-id="${CSS.escape(id)}"] [data-widget-hide]`,
+        ];
+        widgetConfig = updateWidgetConfig(widgetConfig, id, { visible: true });
         rebuildDashboard(widgetConfig);
+        announceDashboard(t('dashboard.customizeShownDone', { widget: widgetLabel(id) }));
       });
     });
 
@@ -5008,11 +5996,15 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // der andere in der Tray-Leiste), deshalb container-weit gesucht.
     container.querySelector('[data-glance-hide]')?.addEventListener('click', () => {
       glanceVisible = false;
+      focusAfterRebuild = ['[data-glance-show]'];
       rebuildDashboard(widgetConfig);
+      announceDashboard(t('dashboard.customizeHiddenDone', { widget: t('dashboard.todayTitle') }));
     });
     container.querySelector('[data-glance-show]')?.addEventListener('click', () => {
       glanceVisible = true;
+      focusAfterRebuild = ['[data-glance-hide]'];
       rebuildDashboard(widgetConfig);
+      announceDashboard(t('dashboard.customizeShownDone', { widget: t('dashboard.todayTitle') }));
     });
 
     // Reorder ohne HTML5-DnD (das feuert nicht per Finger und ist nicht per
@@ -5026,6 +6018,13 @@ export async function render(container, { user, signal: routeSignal = null } = {
       if (!id || !siblingId) return false;
       widgetConfig = reorderWidgetConfig(widgetConfig, id, siblingId, dir === 'up' ? 'before' : 'after');
       rebuildDashboard(widgetConfig);
+      // Der Fokus folgt der Kachel (die Aufrufer unten), aber wohin sie
+      // gerutscht ist, sieht nur, wer hinsieht: gesagt wird der neue Platz.
+      const order = [...container.querySelectorAll('#dashboard-widget-grid > .widget-wrapper[data-widget-id]')]
+        .map((w) => w.dataset.widgetId);
+      announceDashboard(t('dashboard.customizeMovedTo', {
+        widget: widgetLabel(id), position: order.indexOf(id) + 1, total: order.length,
+      }));
       return true;
     };
 
@@ -5061,6 +6060,11 @@ export async function render(container, { user, signal: routeSignal = null } = {
 
   let disposeNoteCategories = () => {};
   let disposeFastingClock = () => {};
+  // Fokus-Nachfolger, den eine Geste fuer den naechsten Neuaufbau vormerkt
+  // (Selektoren, der erste Treffer gewinnt), und der Modus des letzten Aufbaus -
+  // null, solange noch keiner lief.
+  let focusAfterRebuild = null;
+  let renderedCustomizing = null;
   signal.addEventListener('abort', () => disposeFastingClock(), { once: true });
   signal.addEventListener('abort', () => disposeNoteCategories(), { once: true });
   function rebuildDashboard(cfg) {
@@ -5099,9 +6103,17 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // Kein Wetter-Echo: die Masthead-Zeile spricht nur, wenn die Wetter-Karte
     // nicht ohnehin im Raster sichtbar ist (Opt-in fürs Wandtablet).
     const weatherCardShown = cfg.some((w) => w.id === 'weather' && w.visible);
+    // Wer hatte den Fokus? Nach dem setHtml gibt es sein Element nicht mehr
+    // (siehe focusKeyOf / restoreFocusAfterRebuild).
+    const focused = document.activeElement;
+    const keepFocus = focused && focused !== document.body && shell.contains(focused)
+      ? focusKeyOf(focused) : null;
+    const hadFocus = !!focused && focused !== document.body && shell.contains(focused);
+    const modeChanged = renderedCustomizing !== null && renderedCustomizing !== isCustomizing;
+    renderedCustomizing = isCustomizing;
     setHtml(shell, `
       <section class="dashboard-masthead dashboard-masthead--${greetingPeriod()}${mastheadSlim}">
-        ${renderDashboardOverview(user, isCustomizing, weatherCardShown ? null : weather, lastLoadedAt, { followsDefault, canPublish })}
+        ${renderDashboardOverview(user, isCustomizing, weatherCardShown ? null : weather, { followsDefault, canPublish })}
         ${cockpitHtml}
       </section>
       ${renderDashboardLayout(cfg, data, weather, currency, { editing: isCustomizing, visibleMealTypes, glanceHidden: !glanceVisible })}
@@ -5143,6 +6155,28 @@ export async function render(container, { user, signal: routeSignal = null } = {
     container.querySelector('#dashboard-customize-publish')?.addEventListener('click', publishHouseholdDefault, { signal: signal });
     wireDashboardEditMode();
     void mountExtensionWidgets(shell, cfg, user);
+
+    /* DER FOKUS UEBERLEBT DEN NEUAUFBAU. Jede Geste im Anpassen-Modus baut die
+     * Flaeche neu - und bis hierher fiel der Fokus danach auf <body>: wer per
+     * Tastatur „Anpassen" drueckte, eine Groesse waehlte oder speicherte, stand
+     * wieder am Seitenanfang. Reihenfolge der Kandidaten: dasselbe Element
+     * (gleiche Id bzw. gleiches data-Attribut), dann das, was die Geste selbst
+     * als Nachfolger nennt (Ausblenden -> Nachbarkachel), und wenn die Geste den
+     * Modus gewechselt hat (Speichern, Abbrechen), der Anpassen-Knopf, der ihn
+     * wieder oeffnet. */
+    const candidates = [
+      keepFocus,
+      ...(focusAfterRebuild ?? []),
+      ...(hadFocus && modeChanged ? ['#dashboard-customize-btn'] : []),
+    ].filter(Boolean);
+    focusAfterRebuild = null;
+    for (const selector of candidates) {
+      const el = container.querySelector(selector);
+      if (el && !el.disabled) {
+        el.focus();
+        break;
+      }
+    }
   }
 
   rebuildDashboard(widgetConfig);
@@ -5212,6 +6246,8 @@ export async function render(container, { user, signal: routeSignal = null } = {
       }
       fresh.schedule = data.schedule;
       fresh.waste = data.waste;
+      fresh.pendingReminders = await loadPendingReminders();
+      if (signal.aborted) return;
       data = fresh;
       lastLoadedAt = new Date();
       rebuildDashboard(widgetConfig);
@@ -5250,7 +6286,24 @@ export async function render(container, { user, signal: routeSignal = null } = {
   // 06:00 muss die Flaeche umschalten, wenn es so weit ist - nicht erst beim
   // naechsten Laden. Ein zweiter Timer nur dafuer waere ein zweiter Takt fuer
   // dieselbe Minute.
-  startClockTicker(container, signal, wallMode ? () => syncWallMode(location.pathname) : null);
+  //
+  // Derselbe Takt traegt die Grenzen des Tages (#1449): endet ein Termin, wird
+  // eine Dosis faellig oder ist die Tonne mittags abgeholt, aendert sich das
+  // Blatt - ohne Neuladen, denn das unberuehrte Wandtablet wartet sonst bis zum
+  // stillen Refresh. Gebaut wird nur, wenn sich der Stand WIRKLICH geaendert
+  // hat: der Fingerabdruck ist billig, ein Neuaufbau je Minute waere es nicht.
+  let dayFingerprint = todayFingerprint(data, widgetConfig);
+  const followDayBoundaries = () => {
+    if (loadFailed || isCustomizing) return;
+    const next = todayFingerprint(data, widgetConfig);
+    if (next === dayFingerprint) return;
+    dayFingerprint = next;
+    rebuildDashboard(widgetConfig);
+  };
+  startClockTicker(container, signal, () => {
+    if (wallMode) syncWallMode(location.pathname);
+    followDayBoundaries();
+  });
 
   // 30-Minuten Auto-Refresh für Wetter (inkl. optionaler Standort-Aktualisierung).
   // Anker ist der Datensatz, nicht der Karten-Button: seit dem Masthead-Umzug
@@ -5296,6 +6349,41 @@ export async function render(container, { user, signal: routeSignal = null } = {
 }
 
 /**
+ * Was sich am Tag allein durch die Uhr aendert: welche Zeilen im Blatt stehen
+ * (samt offen/ueberfaellig) und welche Termine vorbei sind. Ein Stempel, kein
+ * Markup - verglichen wird nur, ob ein Neuaufbau etwas anderes zeigen wuerde.
+ */
+function todayFingerprint(data, cfg, now = new Date()) {
+  if (!data) return '';
+  const model = buildTodayCockpitModel(data, cfg, { now });
+  const nowStamp = householdNowStamp(now);
+  const ended = (Array.isArray(data.upcomingEvents) ? data.upcomingEvents : [])
+    .filter((event) => eventHasEnded(event, nowStamp))
+    .map((event) => `${event.id}@${event.start_datetime}`);
+  return JSON.stringify([
+    model.rows.map((row) => [row.kind, row.objectId, row.title, row.open, Boolean(row.overdue)]),
+    model.overflow, Boolean(model.coda), Boolean(model.state), ended,
+  ]);
+}
+
+/**
+ * Die faelligen Erinnerungen fuer das Heute-Blatt (utils/today-sheet.js).
+ *
+ * Derselbe Endpunkt, den die Glocke pollt - er filtert Herkuenfte schon nach
+ * Modulrecht und Token-Scope (`mayTouchOrigin`), das Blatt waehlt daraus nur
+ * noch, welche Herkunft eine Zeile ist. Ein Fehler kostet die Zeilen, nicht
+ * die Uebersicht: die Erinnerung spricht weiter ueber Toast und Glocke.
+ */
+async function loadPendingReminders() {
+  try {
+    const res = await api.get('/reminders/pending');
+    return Array.isArray(res?.data) ? res.data : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Der Schichtplan eines Tages fuer die Kachel: Eintraege, ob es ueberhaupt
  * Typen gibt, und die Namen der Plan-Besitzer. data.users kommt aus der
  * Mitgliederliste (#1207); auch Hauspersonal kann einen Plan haben, und seine
@@ -5316,7 +6404,7 @@ async function loadScheduleSlice(day) {
   };
 }
 
-export const __test = { loadScheduleSlice, renderUrgentTasks, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderFamilyWidget, renderCountdowns, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab };
+export const __test = { renderCalendarWidget, renderRewardsWidget, loadScheduleSlice, renderUrgentTasks, renderUpcomingEvents, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderPantryWidget, renderFamilyWidget, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles, renderGridHint };
 
 // `signal` ist der Controller des Aufbaus, der die Wetterkarte gezeichnet hat
 // (#976/#977). Vorher las diese Funktion das Modul-Feld `_fabController` -
@@ -5378,3 +6466,8 @@ function wireWeatherRefresh(container, onUpdated = null, signal) {
 // Die CSS-Seite davon hält test-frontend-audit.js als Regel fest: keine Regel,
 // die `.page-fab` trifft, darf `opacity: 0` oder `pointer-events: none`
 // schreiben - und seit der Dial eine `.page-fab-group` ist, trifft das auch ihn.
+
+// Test-Tor fuer die Klarheits-Runde (test/test-dashboard-clarity.js): eigene
+// Zeile statt Verlaengerung der langen `__test`-Liste oben, damit parallele
+// Aenderungen an beiden nicht in derselben Zeile kollidieren.
+Object.assign(__test, { renderUpcomingEvents, renderShoppingLists, renderDashboardLayout });

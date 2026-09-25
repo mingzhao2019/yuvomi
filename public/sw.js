@@ -192,6 +192,7 @@ const APP_SHELL = [
   '/utils/recipe-to-meal.js',
   '/utils/recurrence-scope.js',
   '/utils/reminder-offset.js',
+  '/utils/reward-goal.js',
   '/utils/schedule-tabs.js',
   '/utils/scroll-restore.js',
   '/utils/seal-pair.js',
@@ -205,12 +206,14 @@ const APP_SHELL = [
   '/utils/timezone.js',
   '/utils/toast-placement.js',
   '/utils/toast-surface.js',
+  '/utils/today-sheet.js',
   '/utils/ux.js',
   '/utils/vcard.js',
   '/utils/version.js',
   '/utils/upload-limit.js',
   '/utils/wall-mode.js',
   '/utils/web-share.js',
+  '/utils/week-strip.js',
   '/offline.html',
   // offline.html laedt theme-init.js, damit die Huelle dieselbe Farbwelt
   // trifft wie die App (gespeicherter Wunsch schlaegt Systemeinstellung).
