@@ -530,6 +530,39 @@
   color: var(--color-text-primary);
 }
 
+/* DIE SCHALTERZEILE (Komponenten-Kanon, 2026-09-26): eine Boolean-Einstellung
+ * ist ein Schalter wie in Apples Einstellungen - Label links und fuellend, die
+ * geteilte `.toggle`-Bahn rechts (toggleRowHtml({ control: 'switch' })). Die
+ * ganze Zeile bleibt das Label und damit die Trefferflaeche. Der Fokusring
+ * steht an der Zeile und nur bei Tastaturfokus: `:focus-within` allein zeigte
+ * ihn auch nach jedem Mausklick, und die Bahn truege sonst einen zweiten. */
+.toggle-row--switch .toggle-row__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.toggle-row--switch .toggle {
+  margin-inline-start: auto;
+}
+
+.toggle-row--switch .toggle input[type="checkbox"] {
+  width: 1px;
+  height: 1px;
+}
+
+.toggle-row--switch:focus-within {
+  outline: none;
+}
+
+.toggle-row--switch:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.toggle-row--switch .toggle input:focus-visible + .toggle__track {
+  outline: none;
+}
+
 /* DIE FARBSCHEIBE EINER ZEILE, DEREN GEGENSTAND EINE EIGENE FARBE HAT
    (eine Person, eine Kalenderebene).
 
@@ -867,10 +900,13 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-surface-elevated);
-  border: 1.5px solid var(--color-border);
-  color: var(--color-text-tertiary);
+  /* Sieht aus wie das EINE Suchfeld (page-search.css), weil es sich wie eins
+   * anfuehlt: gefuellte Kapsel statt 16px-Ecke mit Kante (Komponenten-Kanon,
+   * 2026-09-26). Es ist ein Knopf, der die globale Suche oeffnet. */
+  border-radius: var(--radius-full);
+  background-color: var(--color-fill-field);
+  border: 1.5px solid transparent;
+  color: var(--color-text-secondary);
   cursor: text;
   font-family: inherit;
   text-align: left;
@@ -881,22 +917,17 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 }
 
 /* Der Hover eines FELDES lebt an seiner Kante, nicht an seiner Flaeche
- * (Dark-Kur 2026-08-17). Hier stand zusaetzlich der Flaechenschritt auf
- * --color-surface-elevated-hover, und der drueckte den Placeholder
- * (Tertiaerfarbe) im Dark unter AA - gemessen 3.82:1, mit der gestiegenen
- * Rampe 4.32:1, beides unter 4.5. Ein Eingabefeld ist nach dem
- * Kasten-in-Kasten-Vokabular ein GRIFF und traegt seine Kante; border-strong
- * gegen border ist in beiden Themes ein klarer Zustand (1.55x dunkel), die
- * Flaeche muss nichts dazutun. Die uebrigen Traeger der Hover-Stufe
- * (.more-item, .metric-card--tile, Chips) fuehren keinen Tertiaertext und
- * behalten ihren Flaechenschritt. */
+ * (Dark-Kur 2026-08-17): ein Flaechenschritt drueckte den Platzhalter im Dark
+ * unter AA (gemessen 3.82:1). Seit dem Komponenten-Kanon (2026-09-26) ist die
+ * Kante in Ruhe transparent und der Hover faerbt sie ein - dieselbe Regel wie
+ * am EINEN Suchfeld (page-search.css); der Platzhalter steht in
+ * Sekundaertext auf --color-fill-field. */
 .more-sheet__search:hover {
-  border-color: var(--color-border-strong, var(--color-border));
+  border-color: var(--color-border-control);
 }
 
 .more-sheet__search:active {
   border-color: var(--color-accent);
-  background-color: color-mix(in srgb, var(--color-accent) var(--tint-state), var(--color-surface-elevated));
   transform: scale(0.985);
 }
 
@@ -921,7 +952,7 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 
 .more-sheet__search-placeholder {
   font-size: var(--text-sm);
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
   flex: 1;
 }
 
@@ -1406,20 +1437,14 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+/* Flaeche, Kante, Form und Fokus teilt die globale Suche mit dem EINEN
+ * Suchfeld (page-search.css, Komponenten-Kanon 2026-09-26); hier steht nur,
+ * was ihr eigen ist: sie fuellt die Kopfzeile und hat keine Lupe davor. */
 .search-overlay__input {
   flex: 1;
   height: var(--target-lg);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-lg);
-  border: 1.5px solid var(--color-border-control);
-  background-color: var(--color-surface-elevated);
-  color: var(--color-text-primary);
+  padding: 0 var(--space-4);
   font-size: var(--text-base);
-}
-
-.search-overlay__input:focus {
-  outline: none;
-  border-color: var(--color-accent);
 }
 
 .search-overlay__close {
@@ -1854,7 +1879,6 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 .segmented__item.is-active svg,
 .cal-toolbar__view-btn--active svg,
 .cal-toolbar__search-btn--active svg,
-.theme-toggle__btn--active svg,
 .perm-modeswitch__btn.is-active svg,
 .perm-seg__opt.is-active svg {
   /* 30 % statt 16 %: auf Tab-Bar-Größe (20px) las die schwächere Füllung
@@ -2256,6 +2280,19 @@ html.fab-anim-done .page-fab {
    * 431px breit, 72px hinaus). Das Clipping von `main.app-content` macht den
    * Bruch unsichtbar, nicht harmlos. */
   min-width: 0;
+}
+
+/* Unter 1024px dockt nichts in den Slot (dockFabIntoToolbar), er bleibt in
+ * Modulen mit Tab-Zeile leer - bricht im umbrechenden Kopf aber auf eine
+ * eigene Null-Zeile und bringt deren row-gap mit: +8px Kopf in Gesundheit und
+ * Belohnungen, gemessen 375px. Das schob "Fasten beenden" unter die
+ * Glas-Tab-Leiste (test:fasting-browser, der Tipp traf den Kalender-Tab).
+ * `:empty` statt `[hidden]`: ein gefuellter Slot bleibt immer sichtbar
+ * (test:hidden-cascade). */
+@media (max-width: 1023px) {
+  .page-toolbar__actions:empty {
+    display: none;
+  }
 }
 
 /* --------------------------------------------------------
@@ -5783,6 +5820,31 @@ p.field-hint--warn[hidden] {
   height: 18px;
 }
 
+/* Gesperrte Zeilenaktion - dieselben zwei Zustaende wie beim `.btn`, weil
+ * seit dem Komponenten-Kanon (2026-09-26) die Verwalter (Kategorien, Abo-
+ * Kategorien, Zahlungsarten) ihre Pfeile am Listenrand hier sperren und jede
+ * Stelle die Regel sonst selbst mitbrachte (category-manager.css,
+ * subscriptions.css). `disabled` = nicht erreichbar, blass wie `.btn:disabled`;
+ * `aria-disabled` = fokussierbar, der Klick wird im Handler verworfen, also eine
+ * echte gedeckte Farbe statt Opazitaet und kein Hover-Grund, der eine Wirkung
+ * verspricht. */
+.row-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.row-action[aria-disabled='true'],
+.row-action[aria-disabled='true']:hover {
+  color: var(--color-text-disabled);
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.row-action[aria-disabled='true']:active {
+  transform: none;
+}
+
 /* Auch der Icon-Button ist eine Kapsel, hier also ein Kreis - Apples eigene
  * Icon-Buttons sind rund. Die frühere --radius-sm-Ecke war der letzte Rest der
  * zwei Buttonformen: sie überschrieb die Basisregel und stand damit neben der
@@ -6010,35 +6072,6 @@ textarea::placeholder {
   flex: 1.5;
   min-width: 0;
   font-size: var(--type-body);
-}
-
-.ingredient-row__remove {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-full);
-  background: none;
-  border: none;
-  cursor: pointer;
-  /* NICHT --color-text-disabled: der Knopf ist bedienbar, er tritt nur zurueck.
-   * Die Ruhefarbe eines erreichbaren Bedienelements traegt 3:1 (dieselbe Regel
-   * wie bei .meal-slot__add-btn in meals.css). */
-  color: var(--color-text-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  position: relative;
-  transition: color var(--transition-fast);
-}
-
-.ingredient-row__remove::before {
-  content: '';
-  position: absolute;
-  inset: -8px;
-}
-
-.ingredient-row__remove:hover {
-  color: var(--color-danger);
 }
 
 .meal-type-badge {
@@ -7320,7 +7353,11 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  /* Die Oberkante liegt unter der Statusleiste (viewport-fit=cover): ohne den
+   * Inset stand der Text als installierte App hinter Uhr und Notch (Critique
+   * 2026-09-26, Minor). Dieselbe Formel wie der Kopf des Such-Overlays; die
+   * gemessene Hoehe (router.js, --offline-banner-height) schliesst ihn ein. */
+  padding: calc(var(--space-2) + var(--safe-area-inset-top)) var(--space-4) var(--space-2);
   background-color: var(--color-warning-light);
   color: var(--color-warning-ink);
   font-size: var(--text-sm);
@@ -7784,13 +7821,6 @@ html[data-module-readonly] {
   color: var(--color-text-secondary);
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
-}
-
-.module-readonly-banner i {
-  width: 16px;
-  height: 16px;
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
 }
 
 /* Warn-Variante für Formular-Hinweise (#474 Sichtbarkeits-Guard): hebt einen

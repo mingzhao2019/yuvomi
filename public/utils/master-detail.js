@@ -197,13 +197,22 @@ function inertHandle() {
  *        schreibt keine Adresse; `?open=` ist dort nur der Einstieg.
  * @param {boolean} [opts.deepLinkNarrow=false]
  *        `?open=` auch unter der Schwelle einloesen (oeffnet `openNarrow`).
+ * @param {(id: string) => void} [opts.onNarrowSync]
+ *        Unter der Schwelle OHNE `deepLinkNarrow`: Zurueck/Vor auf `?open=`
+ *        hat Auswahl und Adresse bewegt, die Seite zeigt den Eintrag auf ihre
+ *        Art (Rezepte: den Aufklapper aufmachen), ohne dass ein Blatt aufgeht.
+ * @param {boolean} [opts.claimInitial=true]
+ *        `false`: den `?open=` beim Aufbau NICHT einloesen und die Adresse
+ *        stehen lassen - die Seite hat den Link schon selbst eingeloest
+ *        (Aufgaben: ein Blatt fuer eine Aufgabe, die in der Liste keine Zeile
+ *        hat). Kopieren und Neuladen tragen den Link dann weiter.
  * @param {AbortSignal} [opts.signal]     Router-Signal; Abbruch baut ab.
  * @returns {{open: Function, select: Function, clear: Function, selectedId: Function,
  *   isSplit: Function, refresh: Function, destroy: Function}}
  */
 export function mountMasterDetail({
   root, list, param = 'open', renderDetail, openNarrow, onEnter, onModeChange,
-  narrow = 'sheet', deepLinkNarrow = false, signal,
+  narrow = 'sheet', deepLinkNarrow = false, claimInitial = true, onNarrowSync, signal,
 } = {}) {
   if (!root) throw new TypeError('mountMasterDetail: root fehlt');
   const listEl = list ?? root.querySelector('.split-view__list');
@@ -410,7 +419,11 @@ export function mountMasterDetail({
     const all = rows();
     const index = all.indexOf(row);
     let next = null;
-    if (event.key === 'ArrowDown') next = all[Math.min(all.length - 1, index + 1)];
+    // Ohne Auswahl nimmt der erste Pfeil die Zeile, auf der der Fokus steht -
+    // wie Mail nach Tab in die Liste. Sonst sprang er an ihr vorbei, und
+    // rechts stand nie, worauf der Fokus lag.
+    if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && selected == null) next = row;
+    else if (event.key === 'ArrowDown') next = all[Math.min(all.length - 1, index + 1)];
     else if (event.key === 'ArrowUp') next = all[Math.max(0, index - 1)];
     else if (event.key === 'Home') next = all[0];
     else if (event.key === 'End') next = all[all.length - 1];
@@ -495,6 +508,7 @@ export function mountMasterDetail({
     // sonst nennt die Adresse einen Eintrag, und zu sehen ist die Liste. Das
     // Zurueck AUS dem Blatt faengt der Router vorher ab (overlay-history).
     if (deepLinkNarrow) callNarrow(id);
+    else onNarrowSync?.(id);
   }
 
   const handle = {
@@ -516,7 +530,7 @@ export function mountMasterDetail({
 
   // Deep-Link: `?open=` beim Aufbau einloesen.
   lastSplit = isSplit();
-  const initial = new URLSearchParams(location.search).get(param);
+  const initial = claimInitial ? new URLSearchParams(location.search).get(param) : null;
   if (initial) {
     if (lastSplit) select(initial, { history: 'none' });
     else {

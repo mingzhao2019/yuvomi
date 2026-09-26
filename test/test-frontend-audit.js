@@ -514,6 +514,63 @@ test('runtime locale changes keep language and writing direction synchronized', 
   );
 });
 
+/**
+ * DIE WERKZEUGE DER SEITENLEISTE SPRECHEN DIE NEUE SPRACHE (Codex an #1477,
+ * Thread 4112556723). Suche und Einklappen stehen seit der Critique
+ * 2026-09-26 in der Logo-Zeile - ausserhalb von `.nav-sidebar__items`, das
+ * `rebuildNavigation()` neu baut. Ihre Namen wurden nur beim Aufbau der Shell
+ * gesetzt, nach einem Sprachwechsel las der Screenreader (und der Tooltip)
+ * weiter die alte Sprache. Gefahren wird die echte Funktion aus router.js,
+ * dazu die Zusage, dass der Sprachpfad sie aufruft.
+ */
+test('Suche und Einklappen der Seitenleiste folgen dem Sprachwechsel', async () => {
+  const { createContext, runInContext } = await import('node:vm');
+  const router = read('../public/router.js');
+  const fnSource = (name) => {
+    const start = router.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, `router.js hat keine Funktion ${name}() mehr`);
+    let depth = 0;
+    for (let i = router.indexOf('{', start); i < router.length; i += 1) {
+      if (router[i] === '{') depth += 1;
+      else if (router[i] === '}' && --depth === 0) return router.slice(start, i + 1);
+    }
+    throw new Error(`${name}: keine schliessende Klammer`);
+  };
+  const el = () => {
+    const attrs = new Map();
+    return { attrs, setAttribute: (k, v) => attrs.set(k, String(v)), getAttribute: (k) => attrs.get(k) ?? null };
+  };
+  const search = el();
+  const toggle = el();
+  const root = { querySelector: (sel) => ({ '.nav-sidebar__search': search, '.nav-sidebar__toggle': toggle })[sel] ?? null };
+  let locale = 'de';
+  let collapsed = false;
+  const context = createContext({
+    t: (key) => `${locale}:${key}`,
+    navigator: { platform: 'MacIntel' },
+    document: {
+      querySelector: (sel) => (sel === '.nav-sidebar__logo-actions' ? root : null),
+      documentElement: { classList: { contains: (c) => c === 'sidebar-collapsed' && collapsed } },
+    },
+  });
+  const sync = runInContext(`${['isApplePlatform', 'searchShortcutLabel', 'syncSidebarTools'].map(fnSource).join('\n')}\n;syncSidebarTools`, context);
+
+  sync();
+  assert.equal(search.getAttribute('aria-label'), 'de:nav.search (\u2318K)');
+  assert.equal(toggle.getAttribute('aria-label'), 'de:nav.sidebarCollapse');
+  locale = 'en';
+  collapsed = true;
+  sync();
+  assert.equal(search.getAttribute('aria-label'), 'en:nav.search (\u2318K)', 'die Suche nennt sich nach dem Wechsel in der alten Sprache');
+  assert.equal(search.getAttribute('title'), 'en:nav.search (\u2318K)', 'der Tooltip der Suche bleibt in der alten Sprache');
+  assert.equal(toggle.getAttribute('aria-label'), 'en:nav.sidebarExpand', 'Einklappen nennt sich in der alten Sprache oder im falschen Zustand');
+  assert.equal(toggle.getAttribute('title'), 'en:nav.sidebarExpand');
+
+  const rebuild = /function rebuildNavigation\([\s\S]*?\n\}/.exec(router)?.[0] ?? '';
+  assert.match(rebuild, /if \(updateLabels\) \{[\s\S]*?syncSidebarTools\(\);[\s\S]*?\n  \}/,
+    'der Sprachpfad (rebuildNavigation mit updateLabels) zieht die Namen der Logo-Zeile nicht nach');
+});
+
 test('install prompt waits for initial translations before rendering text', () => {
   const i18n = read('../public/i18n.js');
   const prompt = read('../public/components/yuvomi-install-prompt.js');
@@ -1249,9 +1306,13 @@ test('jede Sub-Tab-Leiste erklärt ihre Semantik, und zwar die, die ihre Routen 
 });
 
 test('settings theme toggle exposes pressed state', () => {
+  // Seit dem Komponenten-Kanon (2026-09-26) ist das Theme ein Segment: genau
+  // einer gilt, also radiogroup mit aria-checked (wireTablist mode 'select'
+  // pflegt es) statt drei unabhaengiger aria-pressed-Knoepfe.
   const source = read('../public/settings/pages/personal-appearance.js');
-  assert.match(source, /aria-pressed/);
-  assert.match(source, /setAttribute\('aria-pressed'/);
+  assert.match(source, /role="radiogroup"/);
+  assert.match(source, /role="radio"[\s\S]*aria-checked=/);
+  assert.match(source, /mode: 'select'/);
 });
 
 test('personal settings leaves exist and export async render functions', () => {
@@ -1478,11 +1539,12 @@ test('personal appearance leaf owns theme, locale, and regional preferences', ()
   assert.match(source, /await getPreferences\(\)/);
   assert.match(source, /getSupportedLocales\(\)/);
   assert.match(source, /setLocale\(/);
-  assert.match(source, /aria-pressed/);
-  assert.match(source, /setAttribute\('aria-pressed'/);
-  assert.match(source, /data-lucide="monitor"/);
-  assert.match(source, /data-lucide="sun"/);
-  assert.match(source, /data-lucide="moon"/);
+  assert.match(source, /role="radiogroup"/);
+  assert.match(source, /mode: 'select'/);
+  assert.match(source, /icon: 'monitor'/);
+  assert.match(source, /icon: 'sun'/);
+  assert.match(source, /icon: 'moon'/);
+  assert.match(source, /data-lucide="\$\{icon\}"/);
   assert.match(source, /date_format/);
   assert.match(source, /time_format/);
   assert.match(source, /savePreferences\(\{/);
@@ -3507,10 +3569,12 @@ test('die Küchen-Listen teilen eine Zeilen-Grammatik', () => {
     }
   }
 
-  // Alle drei Listen-Tabs benutzen die geteilten Klassen im Markup.
+  // Alle drei Listen-Tabs benutzen die geteilten Klassen im Markup. Der
+  // Traeger ist seit dem Komponenten-Kanon (2026-09-26) `.row-carrier`;
+  // `.list-rows` laeuft aus (test:control-dialect haelt den Ratchet).
   for (const page of ['shopping', 'pantry', 'recipes']) {
     const src = read(`../public/pages/${page}.js`);
-    for (const cls of ['list-scroller', 'list-rows', 'list-row', 'list-row__main', 'list-row__name', 'list-row__actions']) {
+    for (const cls of ['list-scroller', 'row-carrier', 'list-row', 'list-row__main', 'list-row__name', 'list-row__actions']) {
       assert.ok(src.includes(cls), `${page}.js muss ${cls} verwenden`);
     }
   }
@@ -6889,9 +6953,11 @@ test('phase 4 settings theme toggle uses Lucide placeholders instead of inline S
   const settings = read('../public/settings/pages/personal-appearance.js');
 
   assert.doesNotMatch(settings, /<svg\s+width="18"\s+height="18"[\s\S]*?data-theme-value=/);
-  assert.match(settings, /data-lucide="monitor"/);
-  assert.match(settings, /data-lucide="sun"/);
-  assert.match(settings, /data-lucide="moon"/);
+  assert.doesNotMatch(settings, /<svg\b[\s\S]*?data-tab-id=/);
+  assert.match(settings, /icon: 'monitor'/);
+  assert.match(settings, /icon: 'sun'/);
+  assert.match(settings, /icon: 'moon'/);
+  assert.match(settings, /<i data-lucide="\$\{icon\}"/);
 });
 
 test('phase 4 opens search from More sheet in a single handoff', () => {
@@ -7154,8 +7220,9 @@ test('calendar agenda events and task chips keep readable contrast in mobile age
   // eine Ebene hoeher eingeloest.
   assert.doesNotMatch(eventBody, /background(-color)?:/, 'the agenda row is a row: its surface belongs to the carrier');
   assert.doesNotMatch(eventBody, /border:|box-shadow:/, 'the agenda row is a row: no own edge, no own shadow');
-  assert.match(read('../public/pages/calendar.js'), /<div class="list-rows">\$\{events/,
-    'agenda events must sit in exactly one carrier (.list-rows), which carries surface and hairlines');
+  // Der Traeger heisst seit dem Komponenten-Kanon (2026-09-26) `.row-carrier`.
+  assert.match(read('../public/pages/calendar.js'), /<div class="row-carrier">\$\{events/,
+    'agenda events must sit in exactly one carrier (.row-carrier), which carries surface and hairlines');
   // Die Kalenderfarbe ist seit 2026-09-24 die Kante der Bloecke, nicht mehr ein
   // 8px-Punkt (Critique P2, eine Termingrammatik): am TEXT der Zeile, nicht an
   // der Zeile, damit die Zeile eine Zeile bleibt (die Zusage oben).
@@ -7937,8 +8004,9 @@ test('Feldkanten tragen --color-border-control und halten 3:1 auf jedem Feldgrun
   // hier - mit dem Grund, warum sie kein Eingabefeld ist.
   const FIELD_WORD = /search|input|field|select|textarea/i;
   const NOT_A_FIELD = new Map([
-    ['.more-sheet__search', 'Knopf im Feld-Look: oeffnet die Suche, nimmt keine Eingabe an; bewusst unveraendert (#1230)'],
-    ['.more-sheet__search:hover', 'Hover desselben Knopfs'],
+    // `.more-sheet__search` stand hier bis 2026-09-26: seit dem Komponenten-
+    // Kanon traegt der Knopf die gefuellte Kapsel des EINEN Suchfelds, in Ruhe
+    // ohne Kante und im Hover mit --color-border-control - keine Kartenkante mehr.
     ['.cal-search', 'Leiste der Kalendersuche; die Kante ist die Trennlinie unter der Leiste, nicht die des Feldes'],
     ['.search-overlay__header', 'Kopf des Such-Overlays; Trennlinie zur Trefferliste'],
     ['.search-overlay__panel', 'Flaeche des Such-Overlays ab Tablet-Breite; Kartenkante'],
@@ -7956,7 +8024,7 @@ test('Feldkanten tragen --color-border-control und halten 3:1 auf jedem Feldgrun
   const offenders = [];
   const unnamed = [];
   const usedExceptions = new Set();
-  let controlEdges = 0;
+  const controlEdges = new Set();
   for (const file of readdirSync(styles).filter((entry) => entry.endsWith('.css') && entry !== 'tokens.css')) {
     for (const rule of eachRule(readFileSync(new URL(file, styles), 'utf8'))) {
       const parts = rule.selector.split(',').map((s) => s.trim().replace(/\s+/g, ' '));
@@ -7965,7 +8033,7 @@ test('Feldkanten tragen --color-border-control und halten 3:1 auf jedem Feldgrun
       const edges = [...rule.body.matchAll(/(?:^|;)\s*border(?:-color|-top|-bottom|-left|-right)?\s*:\s*([^;]+)/g)].map((m) => m[1]);
       const cardEdge = edges.some((v) => /var\(\s*--color-border(?:-subtle|-strong)?\s*[,)]/.test(v));
       if (fieldParts.length) {
-        if (edges.some((v) => /var\(\s*--color-border-control\s*\)/.test(v))) controlEdges += 1;
+        if (edges.some((v) => /var\(\s*--color-border-control\s*\)/.test(v))) fieldParts.forEach((part) => controlEdges.add(`${file} ${part}`));
         if (cardEdge) offenders.push(`${file}: ${fieldParts.join(', ')}${rule.at.length ? `  [${rule.at.join(' ')}]` : ''}`);
       }
       if (!cardEdge) continue;
@@ -7976,8 +8044,12 @@ test('Feldkanten tragen --color-border-control und halten 3:1 auf jedem Feldgrun
       }
     }
   }
-  assert.ok(controlEdges >= 10,
-    `Nur ${controlEdges} Feldregeln mit --color-border-control gefunden - der Selektor-Scan greift nicht mehr, der Guard misst nichts.`);
+  // Die Probe, dass der Scan greift, ist das kanonische Feld selbst - keine
+  // Mindestzahl. Bis 2026-09-26 stand hier `>= 10`; der Komponenten-Kanon
+  // loeschte eigene Suchfeld-Regeln (Abos, Ausgleich), die Zahl sank zu Recht,
+  // und ein Literal haette jede weitere Konsolidierung rot gemacht.
+  assert.ok(controlEdges.has('layout.css .form-input'),
+    `Die Feldregel .form-input (layout.css) mit --color-border-control wurde nicht gefunden - der Selektor-Scan greift nicht mehr, der Guard misst nichts. Gefunden: ${[...controlEdges].join(', ')}`);
   assert.deepEqual(offenders, [],
     'Feldregeln, die ihre Ruhekante aus der Kartenkante ziehen (--color-border*). Ein Eingabefeld nimmt '
     + '--color-border-control (3:1, WCAG 1.4.11); --color-border bleibt Trennlinien und Kartenkanten.');
@@ -9049,8 +9121,9 @@ test('Budget places Subscriptions between Budget and Loans with secure rendering
 test('search fields keep visible labels after users enter a query', () => {
   // The shared page-search building block renders the label+input pair once;
   // page-toolbar modules opt in by calling renderPageSearch with their field id.
-  // Split-expenses keeps its own sidebar-filter markup (visible label above the
-  // control, server-side reload) as a documented, distinct pattern.
+  // Split-expenses and subscriptions joined in the component canon (2026-09-26):
+  // a server-side reload is a debounce setting of wirePageSearch, not a reason
+  // for a sixth field.
   const pageSearch = read('../public/utils/page-search.js');
   assert.match(pageSearch, /<label[^>]*for="\$\{esc\(id\)\}"/);
   assert.match(pageSearch, /<input[^>]*id="\$\{esc\(id\)\}"/);
@@ -9063,6 +9136,8 @@ test('search fields keep visible labels after users enter a query', () => {
     ['../public/pages/tasks.js', 'tasks-search'],
     ['../public/pages/pantry.js', 'pantry-search'],
     ['../public/pages/recipes.js', 'recipes-search'],
+    ['../public/pages/split-expenses.js', 'split-group-search'],
+    ['../public/pages/subscriptions.js', 'subscriptions-search'],
   ];
   for (const [file, id] of viaComponent) {
     const source = read(file);
@@ -9088,16 +9163,6 @@ test('search fields keep visible labels after users enter a query', () => {
     // Kalender: schwergewichtige Server-FTS-Ergebnisansicht mit eigener
     // Icon-Reveal-Leiste, kein Client-Filter (siehe utils/page-search.js).
     'calendar.js',
-    // Split-Expenses: sichtbares Label über dem Feld, Server-Reload. Der
-    // inlineLabel-Block unten prüft es separat.
-    'split-expenses.js',
-    // Abos: eigenes Markup, aber die Substanz stimmt - Lupe, `<label>` mit
-    // sr-only-Text, autocomplete="off" und eine 250ms-Debounce um einen
-    // SERVER-Filter (`?q=`), nicht um einen Client-Filter. Damit liegt es näher
-    // am Kalender als an der Küche und ist kein Fall der Defektklasse, die
-    // dieser Guard fängt. Offen bleibt allein der Leeren-Knopf; eine
-    // Konsolidierung wäre Aufräumen, keine Fehlerbehebung.
-    'subscriptions.js',
   ]);
   const pagesDir = new URL('../public/pages/', import.meta.url);
   for (const entry of readdirSync(pagesDir)) {
@@ -9109,18 +9174,6 @@ test('search fields keep visible labels after users enter a query', () => {
       /renderPageSearch\(\{/,
       `${entry} builds a search input by hand; use renderPageSearch() from `
       + 'utils/page-search.js or add it to documentedExceptions with a reason',
-    );
-  }
-
-  const inlineLabel = [
-    ['../public/pages/split-expenses.js', 'split-group-search'],
-  ];
-  for (const [file, id] of inlineLabel) {
-    const source = read(file);
-    assert.match(
-      source,
-      new RegExp(`<label[^>]*for="${id}"[^>]*>[\\s\\S]*?<input[^>]*id="${id}"|<label[^>]*>[\\s\\S]*?<input[^>]*id="${id}"`),
-      `${file} must expose a persistent visible label for #${id}`,
     );
   }
 });
@@ -9407,8 +9460,13 @@ test('remaining audited mobile controls use 48px touch targets', () => {
   // nimmt --target-base (44px Zeiger / 48px Finger) statt --target-lg fest: das
   // Kriterium ist die Zeigerfähigkeit, nicht die Viewport-Breite (tokens.css).
   assertRuleUsesToken(read('../public/styles/panel.css'), '.segmented__item', 'min-height', '--target-base', '../public/styles/panel.css');
-  assertRuleUsesToken(budget, '.budget-loan-card__filter', 'width', '--target-lg', '../public/styles/budget.css');
-  assertRuleUsesToken(budget, '.budget-loan-card__filter', 'height', '--target-lg', '../public/styles/budget.css');
+  // Der Raten-Filter der Darlehenskarte ist seit dem Komponenten-Kanon
+  // (2026-09-26) eine Zeilenaktion: die 48px traegt `.row-action`
+  // (--target-lg), und die Kette dorthin ist die Klasse am Knopf.
+  assert.match(read('../public/pages/budget.js'), /rowActionHtml\(\{\s*icon: 'filter', action: 'loan-filter'/);
+  assertRuleUsesToken(read('../public/styles/layout.css'), '.row-action', 'width', '--target-lg', '../public/styles/layout.css');
+  assertRuleUsesToken(read('../public/styles/layout.css'), '.row-action', 'height', '--target-lg', '../public/styles/layout.css');
+  assert.doesNotMatch(budget, /\.budget-loan-card__filter\s*\{[^}]*(?:width|height)\s*:/);
   assert.match(
     settings,
     /@media \(max-width:\s*767px\)[\s\S]*\.settings-breadcrumb__link\s*\{[\s\S]*min-height:\s*var\(--target-lg\)/,
@@ -14329,7 +14387,10 @@ test('kein var() auf ein Token, das nirgends entsteht', () => {
  * Grafik und wird an 3:1 fuer nicht-textuelle Inhalte gemessen, nicht an 4,5.
  */
 test('die Deaktiviert-Farbe steht an keinem erreichbaren Bedienelement', () => {
-  const DISABLED_SELECTOR = /:disabled\b|\[disabled\]|\[aria-disabled(?:="true")?\]|(?:^|[\s.>+~])[\w-]*(?:--disabled|\.is-disabled)\b/;
+  // Beide Anfuehrungszeichen: `[aria-disabled='true']` ist derselbe Zustand
+  // (layout.css schreibt `.btn` und `.row-action` so) - der Guard prueft die
+  // Regel, nicht die Schreibweise.
+  const DISABLED_SELECTOR = /:disabled\b|\[disabled\]|\[aria-disabled(?:=(["'])true\1)?\]|(?:^|[\s.>+~])[\w-]*(?:--disabled|\.is-disabled)\b/;
   const DIRECT_COLOR = /(?:^|[;{\s])color:\s*var\(--color-text-disabled\s*\)/;
 
   const styleDir = new URL('../public/styles/', import.meta.url);

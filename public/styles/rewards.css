@@ -15,6 +15,16 @@
   flex-direction: column;
 }
 
+/* EINE TITELZEILE, EINE HOEHE (wie housekeeping.css): Katalog und Buchungen
+ * docken am Desktop ihre Kopf-Pille an, die Uebersicht hat keine - ohne
+ * Mindesthoehe ruckte der Inhalt bei jedem Tabwechsel. Nur ab 1024px
+ * (dockFabIntoToolbar in router.js). */
+@media (min-width: 1024px) {
+  .rewards-toolbar > .page-toolbar__actions {
+    min-height: var(--target-base);
+  }
+}
+
 /* Die Tab-Reihe ist die Bar-Zeile des Kopfs (.page-toolbar__bar, layout.css,
  * Werkzeugzeilen-Regel 2026-08-27): volle Zeile unter dem Titel auf ALLEN
  * Viewports, nicht mehr nur in der kompakten Groessenklasse. Das fruehere
@@ -61,7 +71,6 @@
   margin: 0;
   color: var(--color-text-primary);
 }
-.rw-section__title i { width: 18px; height: 18px; color: var(--module-accent); }
 
 .rw-toolbar-row { display: flex; gap: var(--space-2); }
 
@@ -458,7 +467,6 @@
   background: var(--color-surface-2);
   color: var(--color-text-secondary);
 }
-.rw-ledger-row__icon i { width: 17px; height: 17px; }
 
 /* DAS ZEICHEN UNTERSCHEIDET, NICHT DER TON.
  *

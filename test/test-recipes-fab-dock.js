@@ -710,3 +710,61 @@ test('Liste + Detail: in der schmalen Zeile stehen Zutatenzahl und "Diese Woche 
   assert.match(narrow?.body ?? '', /display:\s*block/, 'schmal muss der Slot die Angaben als Text hintereinander setzen');
   assert.match(narrow?.body ?? '', /flex:\s*1 0 100%/, 'schmal muss der Slot eine eigene Zeile unter dem Namen sein');
 });
+
+/*
+ * EIN BENANNTES ZIEL SCHLAEGT EINEN ALTEN FILTER - AUCH DAS EIGENE (Codex an
+ * #1477, Runde 3). Duplizieren und Neu waehlen das neue Rezept in der Spalte
+ * aus. Die Kopie ist immer nativ (duplicateRecipe postet ohne Quelle); steht
+ * der Quellenfilter auf "Mealie", faellt sie aus der Liste - und rechts stand
+ * ein Rezept ohne Zeile links. Dieselbe Regel wie beim Deep-Link (#936): die
+ * Filter fallen weg, bevor ausgewaehlt wird.
+ */
+test('Liste + Detail: die Kopie eines gespiegelten Rezepts unter dem Quellenfilter steht links UND rechts', async () => {
+  const doc = await renderFresh(DISHES, { split: true, path: '/recipes?open=3' });
+  await settle();
+  const { __test } = await import('../public/pages/recipes.js');
+  clickBubbling(doc.querySelector('[data-source-value="mealie"]'));
+  assert.equal(__test.state.sourceFilter, 'mealie');
+  assert.deepEqual(doc.querySelectorAll('.recipe-row-item[data-md-id]').map((r) => r.dataset.mdId), ['3'],
+    'der Quellenfilter greift nicht - der Test misst den Fall nicht');
+
+  globalThis.__apiStub.post = async (url, body) => {
+    assert.equal(url, '/recipes');
+    return { data: { ...dish(4), title: body.title } };
+  };
+  const duplicate = doc.querySelectorAll('#recipes-detail .split-view__detail-actions button')
+    .find((b) => b.getAttribute('aria-label') === 'recipes.duplicate');
+  assert.ok(duplicate, 'kein Duplizieren im Kopf der Spalte');
+  clickBubbling(duplicate);
+  await settle();
+  await settle();
+
+  assert.equal(location.search, '?open=4', 'die Kopie ist nicht ausgewaehlt');
+  assert.equal(paneTitle(doc), 'Gericht 3 (recipes.copySuffix)', 'rechts steht nicht die Kopie');
+  const row = doc.querySelector('.recipe-row-item[data-md-id="4"]');
+  assert.ok(row !== null, 'rechts steht die Kopie, links fehlt ihre Zeile - der alte Filter hat das benannte Ziel geschlagen');
+  assert.ok(row.classList.contains('is-selected'), 'die Zeile der Kopie ist nicht markiert');
+  assert.equal(__test.state.sourceFilter, 'all', 'der Quellenfilter steht noch');
+});
+
+/*
+ * ZURUECK/VOR UNTER DER SCHWELLE KLAPPT DAS GENANNTE REZEPT AUF (Codex an
+ * #1477, Thread 4112556732). Eintraege mit `?open=` entstehen in der Spalte;
+ * wird das Fenster schmal und geht der Nutzer zurueck, verbraucht der Baustein
+ * die Geste (Auswahl und Adresse wandern) - das Akkordeon blieb zu, die
+ * Adresse nannte ein Rezept, das nirgends zu sehen war. Dieselbe Einloesung
+ * wie beim Laden (openRecipeFromQuery): aufklappen, ins Bild holen.
+ */
+test('Liste + Detail, unter der Schwelle: Zurueck/Vor auf ?open= klappt das Rezept auf', async () => {
+  const doc = await renderFresh(DISHES, { split: false, path: '/recipes' });
+  await settle();
+  assert.equal(doc.querySelector('#recipe-detail-2').hidden, true, 'vorher zu - sonst misst der Test nichts');
+  const { handleMasterDetailPopstate } = await import('../public/utils/master-detail.js');
+  history.pushState(null, '', '/recipes?open=2');
+  assert.equal(handleMasterDetailPopstate(), true, 'die Geste gehoert dem Baustein - sonst misst der Test den Seitenneubau');
+  await settle();
+  assert.equal(doc.querySelector('#recipe-detail-2').hidden, false, 'die Adresse nennt Rezept 2, das Akkordeon blieb zu');
+  assert.equal(toggleOf(doc, 2).getAttribute('aria-expanded'), 'true');
+  assert.equal(doc.querySelector('#recipes-detail [data-md-body] .split-view__detail-title'), null,
+    'unter der Schwelle zeichnet nichts in die unsichtbare Spalte');
+});
