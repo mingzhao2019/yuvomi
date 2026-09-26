@@ -192,7 +192,9 @@ test('Leere Buchungsliste mit `budget: read`: nur der Titel, kein CTA und keine 
   withAccess({ budget: 'write' }, () => {
     const html = budget.renderEntries();
     assert.match(html, /id="empty-cta-budget"/);
-    assert.match(html, /budget\.emptyDescription/);
+    // Seit der Critique 2026-09-25 auch mit Schreibrecht EIN Satz und der
+    // Knopf - die Anleitung „ueber den + Button" ist ganz entfallen.
+    assert.doesNotMatch(html, /budget\.emptyDescription|emptyHint\.budget/);
   });
   withAccess({ budget: 'read' }, () => {
     const html = budget.renderEntries();
@@ -223,7 +225,10 @@ test('Konten mit `budget: read`: Anlegen und Bearbeiten weg, Saldo und Kontoausz
   mitKonten([konto(), konto({ id: 5, name: 'Altkonto', archived: 1 })], () => {
     withAccess({ budget: 'write' }, () => {
       const html = budget.renderAccountsPage();
-      assert.match(html, /id="budget-add-account"/);
+      // EIN Anlegeweg: der Kopfknopf (TAB_CAPS.accounts.add). Der Panel-Knopf
+      // „Konto hinzufuegen" steht nur noch im Leerzustand (Critique 2026-09-25).
+      assert.doesNotMatch(html, /budget-add-account/, 'mit Konten kein zweiter Anlegeknopf im Panel');
+      assert.match(BUDGET_CODE, /'accounts':\s*\{[^}]*add: 'budget\.addAccount'/, 'der Kopfknopf legt Konten an');
       assert.match(html, /data-edit="4"/);
     });
     withAccess({ budget: 'read' }, () => {
@@ -237,6 +242,20 @@ test('Konten mit `budget: read`: Anlegen und Bearbeiten weg, Saldo und Kontoausz
       assert.match(html, /budget\.netWorth/);
     });
   });
+});
+
+test('Konten ohne Archiv: keine leere Kopfleiste ueber der Kennzahl', () => {
+  // Ohne Anlegeknopf und ohne Archiv-Umschalter hatte .panel-head keinen
+  // sichtbaren Inhalt mehr und stand nur als 16px-Abstand da. Die Ueberschrift
+  // bleibt fuer Screenreader, die Leiste kommt erst mit dem Umschalter.
+  mitKonten([konto()], () => withAccess({ budget: 'write' }, () => {
+    const html = budget.renderAccountsPage();
+    assert.doesNotMatch(html, /class="panel-head"/);
+    assert.match(html, /<h2 class="panel-head__title sr-only">/);
+  }));
+  mitKonten([konto(), konto({ id: 5, archived: 1 })], () => withAccess({ budget: 'write' }, () => {
+    assert.match(budget.renderAccountsPage(), /class="panel-head"[\s\S]*id="budget-toggle-archived"/);
+  }));
 });
 
 test('Keine Konten mit `budget: read`: kein Anlegen-CTA', () => {
@@ -291,6 +310,19 @@ test('Darlehensrate mit `budget: read`: die Zeile bleibt, Bearbeiten und Loesche
     assert.match(html, /500/);
     assert.match(html, /budget\.loanInstallmentNumber/);
   });
+});
+
+test('leerer Monat: ein Satz und der Knopf, keine dreifache Null (Critique 2026-09-25)', () => {
+  withAccess({ budget: 'write' }, () => {
+    const leer = { income: 0, expenses: 0, balance: 0, byCategory: [], pending: { count: 0 } };
+    const html = buchungsTab([], { summary: leer });
+    assert.doesNotMatch(html, /metric-grid|budget-overview__aside/, 'ohne Buchung keine Bilanz aus drei Nullen');
+    assert.match(html, /budget\.emptyTitle/);
+    assert.match(html, /id="empty-cta-budget"/);
+    const erwartet = buchungsTab([], { summary: { ...leer, pending: { count: 1, income: 0, expenses: -20 } } });
+    assert.match(erwartet, /budget-overview__aside/, 'eine erwartete Buchung ist kein leerer Monat');
+  });
+  assert.doesNotMatch(BUDGET_CODE, /budget\.loansEmptyDescription/, 'auch der Darlehen-Leerzustand verweist nicht mehr auf die +-Schaltflaeche');
 });
 
 test('Keine Darlehen mit `budget: read`: kein Anlegen-CTA und keine Anleitung dazu', () => {
@@ -398,9 +430,12 @@ test('Abo-Karte mit `budget: read`: der Koerper oeffnet die Leseansicht, Verlaen
     assert.match(html, /class="swipe-row swipe-row--static"/, 'ohne Geste auch kein Wisch-Chevron');
     assert.match(html, /<button type="button" class="subscription-card__main list-row__main--interactive"\s+data-action="view">/);
     assert.doesNotMatch(html, /data-action="(edit|renew|delete)"|swipe-reveal|common\.edit/);
-    // Die Auskunft: Name, Status, Zyklus, Erinnerung, Betrag.
+    // Die Auskunft: Name, Zyklus, Erinnerung, Betrag. Der Status steht, wo er
+    // etwas unterscheidet (Critique 2026-09-25): „aktiv" ist der Normalfall der
+    // Liste und traegt keine Pille mehr, „pausiert" schon - bei jedem Recht.
     assert.match(html, /Streamingdienst/);
-    assert.match(html, /subscriptions\.active/);
+    assert.doesNotMatch(html, /subscription-status/);
+    assert.match(abos.renderCard(abo({ enabled: false, status: 'paused' })), /class="subscription-status [^"]*">\s*subscriptions\.disabled/);
     assert.match(html, /subscriptions\.cycle\.monthly/);
     assert.match(html, /subscriptions\.reminderMeta/);
     assert.match(html, /12[.,]99/);
@@ -436,9 +471,48 @@ test('Abo-Kennzahlen ohne Monatsbudget: bei `budget: read` keine Aufforderung, e
   } finally { abos.state.summary = vorher; }
 });
 
+test('Abo-Budget spricht wie der Plan: ab 85 % Warnton, ueberschritten Danger (Critique 2026-09-25)', () => {
+  const vorher = abos.state.summary;
+  const summe = (used) => ({ active_count: 3, monthly_total: used, monthly_budget: 100, remaining_budget: 100 - used, base_currency: 'EUR' });
+  try {
+    abos.state.summary = summe(123.6);
+    const over = abos.renderSummary();
+    assert.match(over, /class="metric-card metric-card--over"/, 'eine Ueberschreitung ist eine Tatsache - dieselbe Stimme wie die Plan-Kategorie');
+    assert.doesNotMatch(over, /metric-card--warning/);
+    assert.match(over, /metric-card__progress metric-card__progress--over/);
+    assert.match(over, /id="subscriptions-over-budget-action"/, 'der Handlungsweg bleibt');
+    abos.state.summary = summe(90);
+    const near = abos.renderSummary();
+    assert.match(near, /metric-card__progress--near/, 'ab 85 % der Warnton, wie im Plan');
+    assert.doesNotMatch(near, /metric-card--over|progress--over/);
+    abos.state.summary = summe(50);
+    assert.doesNotMatch(abos.renderSummary(), /progress--(near|over)|metric-card--over/);
+  } finally { abos.state.summary = vorher; }
+  const panel = readFileSync(new URL('../public/styles/panel.css', import.meta.url), 'utf8');
+  const rule = (sel) => [...eachRule(panel)].find((r) => r.selector.trim() === sel)?.body ?? '';
+  assert.match(rule('.metric-card__progress--over > span'), /--color-danger/);
+  assert.match(rule('.metric-card__progress--near > span'), /--color-warning/);
+  assert.match(rule('.metric-card--over .metric-card__value'), /--color-danger/);
+  const plansCss = readFileSync(new URL('../public/styles/budget.css', import.meta.url), 'utf8');
+  assert.match(plansCss, /\.budget-plan-row--tone-over \{ --plan-tone-color: var\(--color-danger\);/, 'der Plan ist die Referenz');
+});
+
 test('Abos: Kopfaktionen, Listen-Riegel und Wischgeste haengen am Recht', () => {
-  // Werkzeugleiste: Kategorien/Zahlungsarten und die Einstellungen schreiben beide.
-  assert.match(ABOS_CODE, /\$\{readOnly\(\) \? '' : `<div class="subscriptions-toolbar__actions">/);
+  // Werkzeug-Menue: Kategorien/Zahlungsarten und die Einstellungen schreiben
+  // beide und fallen bei `read`; die Sortierung liest und bleibt. Filterblatt
+  // und Filterknopf sind Lesen und stehen bei jedem Recht.
+  withAccess({ budget: 'write' }, () => {
+    const menu = abos.toolsMenuHtml();
+    assert.match(menu, /id="subscriptions-manage"/);
+    assert.match(menu, /id="subscriptions-settings"/);
+    assert.match(menu, /data-sort="cost-desc"/);
+  });
+  withAccess({ budget: 'read' }, () => {
+    const menu = abos.toolsMenuHtml();
+    assert.doesNotMatch(menu, /subscriptions-manage|subscriptions-settings/);
+    assert.match(menu, /role="menuitemradio"[^>]*data-sort="due"/, 'Sortieren ist Lesen');
+  });
+  assert.doesNotMatch(fn(ABOS_CODE, 'render'), /readOnly\(\)[^\n]*subscriptions-filters/, 'der Filterknopf haengt an keinem Recht');
   assert.deepEqual([...abos.READ_SAFE_ACTIONS], ['view'], 'edit, renew und delete schreiben; nur `view` liest');
   const bind = fn(ABOS_CODE, 'bindContent');
   const riegel = bind.indexOf('if (readOnly() && !READ_SAFE_ACTIONS.has(action.dataset.action)) return;');
@@ -683,7 +757,18 @@ test('Keine Gruppe mit `budget: read`: der Titel bleibt, „Erstelle eine Gruppe
 
 test('Geteilte Ausgaben: Kopfknopf und Gruppe-Anlegen haengen am Recht', () => {
   const render = fn(SPLIT_CODE, 'render');
-  assert.match(render, /\$\{readOnly\(\) \? '' : `<button class="btn \$\{addExpenseBtnVariant\}" id="split-add-expense">/);
+  // Eingebettet steht „Ausgabe hinzufuegen" im Budget-Kopf (#budget-add), den
+  // CSS und addHandler bei `read` sperren; der Kopf fragt canAddSplitExpense().
+  // Der Knopf der (heute nicht erreichten) eigenstaendigen Seite haengt weiter
+  // am Recht.
+  assert.match(render, /\$\{readOnly\(\) \? '' : `<button class="btn btn--primary" id="split-add-expense">/);
+  withAccess({ budget: 'write' }, () => assert.equal(split.canAddSplitExpense(), true));
+  withAccess({ budget: 'read' }, () => assert.equal(split.canAddSplitExpense(), false));
+  const status = split.state.groupStatus;
+  try {
+    split.state.groupStatus = 'archived';
+    withAccess({ budget: 'write' }, () => assert.equal(split.canAddSplitExpense(), false, 'im Archiv keine neue Ausgabe'));
+  } finally { split.state.groupStatus = status; }
   assert.match(render, /\$\{readOnly\(\) \? '' : `<button class="btn btn--icon" id="split-add-group"/);
 });
 
@@ -705,7 +790,7 @@ test('READ_SAFE_ACTIONS ist eine Positivliste und enthaelt nur lesende Aktionen'
 
 test('WRITE_HOOKS nennt jeden schreibenden Bedienhaken ohne `data-action`', () => {
   const genannt = budget.WRITE_HOOKS.split(',').map((s) => s.trim()).sort();
-  const erwartet = ['[data-edit]', '#budget-add-account', '#budget-add-account-empty',
+  const erwartet = ['[data-edit]', '#budget-add-account-empty',
     '#budget-empty-loan', '#budget-manage-categories', '#empty-cta-budget'].sort();
   assert.deepEqual(genannt, erwartet);
   for (const hook of erwartet) {

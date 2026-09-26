@@ -10195,11 +10195,16 @@ test('split expenses reflows from container width, not viewport width', () => {
     '.split-main braucht eine eigene Ebene — es steht hinter dem Gruppen-Panel und hat weniger Platz als .split-page',
   );
 
-  assert.match(
-    split,
-    /@container split-page \(max-width:\s*719px\)[\s\S]*\.split-layout\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
-    '.split-layout stapelt nach eigener Breite; minmax(0, 1fr) verhindert, dass die 240px-Gruppenkachel die Spalte aufbläht',
-  );
+  const stack = split.match(/@container split-page \(max-width:\s*(\d+)px\)[\s\S]*?\.split-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.ok(stack,
+    '.split-layout stapelt nach eigener Breite; minmax(0, 1fr) verhindert, dass die 240px-Gruppenkachel die Spalte aufbläht');
+  // Nebeneinander nur, wenn der Hauptbereich daneben seine zwei Kartenspalten
+  // behaelt (Critique 2026-09-25): bei 720px Grenze stand bei 1024x768 ein
+  // 404px-Hauptbereich mit gestapelten Karten, 194% Viewporthoehe. Panel 320 +
+  // Gap 16 + die 640 der split-main-Stufe unten.
+  const mainStack = Number(split.match(/@container split-main \(max-width:\s*(\d+)px\)/)?.[1]);
+  assert.ok(Number(stack[1]) + 1 >= 320 + 16 + mainStack + 1,
+    `.split-layout bleibt bis ${stack[1]}px gestapelt - nebeneinander waere der Hauptbereich schmaler als seine Zweispalten-Stufe (${mainStack + 1}px)`);
   assert.match(
     split,
     /@container split-main \(max-width:\s*639px\)[\s\S]*\.split-content-grid\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
@@ -10336,6 +10341,24 @@ test('demo seed writes only reminder offsets the birthday form offers', () => {
     .filter(([, value]) => value === undefined || value === 'custom' || !offered.includes(value))
     .map(([token, value]) => `${token} = ${value}`);
   assert.deepEqual(invalid, [], `Seed-Vorlauf ausserhalb der Formularwerte (${offered.join(', ')})`);
+});
+
+// Darlehen im Demo-Seed: die Spalte direction (#638) hat den Default 'lent'.
+// Der Seed liess sie weg, und die Baufinanzierung bei der Sparkasse stand in
+// der Demo als „Verliehen" - mit Raten als Einnahme. Jede Zeile nennt ihre
+// Richtung deshalb selbst; ein aufgenommener Kredit ist 'borrowed'.
+test('demo seed names the direction of every loan, the mortgage is borrowed', () => {
+  const seed = read('../scripts/seed-demo.js');
+  const insert = seed.match(/const insertLoan = db\.prepare\(`([\s\S]*?)`\);/);
+  assert.ok(insert, 'insertLoan im Seed nicht gefunden');
+  assert.match(insert[1], /\bdirection\b/, 'INSERT INTO budget_loans ohne direction faellt auf den Default lent');
+  const calls = [...seed.matchAll(/insertLoan\.run\(([\s\S]*?)\)\.lastInsertRowid/g)].map((m) => m[1]);
+  assert.ok(calls.length >= 2, `erwartet mindestens 2 Darlehen, gefunden: ${calls.length}`);
+  const directions = calls.map((args) => args.trim().replace(/,\s*$/, '').match(/'(lent|borrowed)'$/)?.[1]);
+  assert.ok(directions.every(Boolean), 'jedes insertLoan.run endet auf eine Richtung (lent/borrowed)');
+  const mortgage = calls.findIndex((args) => /Mortgage/.test(args));
+  assert.ok(mortgage >= 0, 'Baufinanzierung im Seed nicht gefunden');
+  assert.equal(directions[mortgage], 'borrowed', 'die Baufinanzierung ist ein aufgenommener Kredit');
 });
 
 // ============================================================

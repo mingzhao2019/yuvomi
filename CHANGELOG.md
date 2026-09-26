@@ -89,6 +89,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Budget puts the bookings first and speaks one language across its seven tabs.** A pass over
+  the whole module from the 2026-09-25 critique; the tabs themselves stay as they are.
+
+  **Wide screens:** the overview shows the bookings on the left and the month summary with the
+  categories on the right, where they stay in view while you scroll (as long as they fit the
+  window). The list no longer scrolls inside a small box of its own: at 1440x900 you see 11
+  bookings instead of 3, at 1280x800 9 instead of 1, and the page has one scroll bar instead of
+  two. All seven tabs start and end at the same edges - the plan is no longer centred - and every
+  section title has the same size. "Expenses only" sits in the heading of the month summary with a
+  larger target.
+
+  **Phones:** on a 390x844 phone two bookings are visible straight away instead of none. The
+  balance leads the month summary with the income and expense cards below it, and the change
+  against the previous month is back on every card. Wherever the overview has a single column
+  (phones, and laptops with the sidebar open) the category chart shows the three largest expenses,
+  with "All categories" in its heading to expand it. "Manage categories", the CSV export and
+  grouping by person are one menu next to "Transactions". When you scroll, the "Budget" title
+  folds away like the calendar's and the header shrinks from 162 to 117px.
+
+  **Subscriptions:** the four filter drop-downs became one "Filters" button with the number of
+  active filters; it opens a sheet, and each active filter shows as a removable chip below the
+  search. Sorting and the two management dialogs are in one menu. The list comes before the charts
+  and its rows are compact - on a phone 74 to 109px instead of 173px, with the due date wrapping
+  between date and "2 days overdue" instead of running under the amount. "By category" is a bar
+  list with amount and share instead of a pie chart without values, the renewal forecast names its
+  peak month, and the charts no longer overflow on a 1024px screen. "Over budget" offers "Most
+  expensive first" and speaks like the plan: amber from 85 %, red once the budget is exceeded. The
+  yearly projection no longer repeats the currency, and "1 day overdue" is singular.
+
+  **Split:** the tab no longer repeats a second title and description, "Add expense" is the button
+  in the budget header (on a phone the usual "+"), so no floating button covers amounts on a
+  desktop, and group actions besides "Settle" are in one menu. At 1024px the groups sit above the
+  group instead of beside a column twice the screen height.
+
+  **Charts and figures:** the category chart has one scale for income and one for expenses, so the
+  salary no longer squeezes every expense into a sliver. A month that has not started yet is
+  labelled "Month forecast" and its balance is no longer green, and bookings dated after today get
+  a ring instead of a dot. Income and expense totals are shown in the text colour - colour stays
+  with the balance and the change against last month. Amounts on all budget tabs use digits of
+  equal width. Statistics no longer repeat the overview: the trend adds up over the month, the
+  categories show the change against the previous week, month or year, and the whole chart can be
+  scrubbed instead of hitting a 10-24px column.
+
+  **Dialogs and details:** the booking dialog starts on a large amount field, asks for amount,
+  title, category and date, keeps account, visibility, people, repetition and receipts behind
+  "More details" (open when editing a booking that uses them), and is as wide as the other forms.
+  Delete buttons name the booking they delete, the whole title line opens a booking, "+ Category"
+  has a full-size target, and an empty month shows one sentence and its button instead of three
+  sentences and three zeros. Each loan offers "Mark as paid" as a secondary button, leaving one
+  primary button on the tab. The accounts tab says "All accounts, as of today", and new accounts
+  are added with the "+" in the header like on every other tab - the "Add account" button only
+  appears while there are no accounts yet.
+
 - **The calendar gives phones more room for events.** Filter and search moved next to the view
   switcher, so the calendar header on a phone is 166px instead of 230px, and when you scroll the
   week, day or agenda, the page title folds away completely and leaves only the date navigation
