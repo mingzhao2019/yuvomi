@@ -367,14 +367,26 @@ test('save confirmations preserve the same editor across repeated gates and keep
     }), true);
 
     // Delete callers omit the new option and still close on confirmation.
+    // Seit dem echten Ausgang (Critique 2026-09-26, P1-1) loest die Rueckfrage
+    // auf, sobald das Schliessen BEGINNT; abgehaengt wird das Overlay erst am
+    // Ende der Animation (Netz: MODAL_EXIT_FALLBACK_MS = 400). Gemessen wird
+    // die Regel, nicht der Zeitpunkt: beim Aufloesen laeuft der Ausgang schon
+    // (oder ist durch), und danach ist der Editor binnen zwei Sekunden weg. Ein
+    // Editor, der nie schliesst, bleibt damit rot.
     await page.evaluate(() => {
       window.saveGateTest.pending = window.saveGateTest.modal.confirmOverModal('Delete this event?');
     });
     await clickPastDeadTime(page, '#confirm-modal-ok');
     assert.deepEqual(await page.evaluate(async () => {
       const confirmed = await window.saveGateTest.pending;
-      return { confirmed, closeCount: window.saveGateTest.closeCount(), editorConnected: window.saveGateTest.editor.isConnected };
-    }), { confirmed: true, closeCount: 1, editorConnected: false });
+      const { editor } = window.saveGateTest;
+      return {
+        confirmed,
+        closeCount: window.saveGateTest.closeCount(),
+        closing: !editor.isConnected || editor.classList.contains('modal-overlay--closing'),
+      };
+    }), { confirmed: true, closeCount: 1, closing: true });
+    await page.waitForFunction(() => !window.saveGateTest.editor.isConnected, { timeout: 2000 });
   } finally {
     await page.close();
   }
@@ -511,6 +523,16 @@ async function openCalendarSaveGateEditor(page, { wholeSeriesOnly = false } = {}
   }, wholeSeriesOnly);
   await page.evaluate((path) => window.yuvomi.navigate(path), `/calendar?open=${seriesId}&date=2048-04-03`);
   await page.waitForSelector('#detail-popover-edit, #detail-view-edit');
+  // ERST NACH DEM SEITENWECHSEL KLICKEN (Critique 2026-09-26, P2-1). Der Wechsel
+  // laeuft seit R3 als View Transition, und solange sie laeuft, trifft Chromium
+  // jeden Klick auf <html> - trotz `::view-transition { pointer-events: none }`
+  // (gemessen: elementsFromPoint liefert nur HTML). Der Deep-Link oeffnet das
+  // Popover schon ~170ms nach dem Start, die Transition endet ~250ms spaeter;
+  // ein sofortiger Klick schloss das Popover als Aussenklick, und der Editor kam
+  // nie. Das Fenster ist kuerzer als eine menschliche Reaktion, und die Sonde
+  // misst das Speichern-Tor, nicht den Seitenwechsel. `navigating` faellt mit
+  // `finished` der Transition (router.js).
+  await page.waitForFunction(() => !document.documentElement.classList.contains('navigating'));
   await page.click('#detail-popover-edit, #detail-view-edit');
   await page.waitForSelector('#modal-title');
   await page.evaluate(() => {
