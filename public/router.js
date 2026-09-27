@@ -31,6 +31,7 @@ import { activityType } from '/utils/health-activity.js';
 import { buildHelpRows } from '/utils/help.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
 import { triggerPageFab } from '/utils/fab.js';
+import { wireSheetDrag } from '/utils/sheet-drag.js';
 import {
   handleBackNavigation, closeAllOverlays, consumeOverlayMarker,
   pushOverlay, dropOverlay, attachOverlay,
@@ -2397,6 +2398,13 @@ function adoptPageFab() {
   // nur der Knopf um, bliebe die Mechanik im Scrollport zurück - der halbe
   // Umzug wäre schlimmer als keiner, weil er nach Erledigung aussieht.
   if (fresh) layer.replaceChildren(fresh.closest('.page-fab-group') ?? fresh);
+  // DER KOPF KANN NACH DEM FAB KOMMEN: eine Seite, die ihren Kopf erst nach
+  // ihren awaits baut, hatte beim ersten Aufruf keinen Slot - der FAB schwebt
+  // dann schon in der Ebene, und `#main-content` findet ihn nicht mehr. Die
+  // Ebene gehoert der aktuellen Seite (clearPageFab() beim Routenwechsel),
+  // also darf der schwebende Knopf hier nachdocken.
+  const floating = layer.querySelector('.page-fab');
+  if (floating && dockFabIntoToolbar(floating)) return null;
   return layer.querySelector('.page-fab');
 }
 
@@ -2425,12 +2433,10 @@ function adoptPageFab() {
  * Knopf stehen - sichtbar falsch statt unsichtbar uneinheitlich. Ein Guard in
  * test-frontend-audit hält dazu, dass jeder `.page-fab` das Attribut trägt.
  *
- * DREI SACHEN DOCKEN NICHT AN, jede aus ihrem eigenen Grund:
+ * ZWEI SACHEN DOCKEN NICHT AN, jede aus ihrem eigenen Grund:
  *   - eine .page-fab-group (das Speed-Dial der Übersicht): sie ist ein Menü,
  *     kein Knopf, und ihre Aktionsliste ist fixiert. Ein halber Umzug wäre
  *     schlimmer als keiner.
- *   - Module, die ihren eigenen .toolbar-new-btn mitbringen: sonst stünden
- *     zwei Primärknöpfe nebeneinander.
  *   - Module ohne Aktions-Slot im Kopf: dort bleibt der schwebende Knopf, bis
  *     ihr Kopf einen bekommt. Lieber ein Modul mit dem alten Weg als eines
  *     ohne Primäraktion.
@@ -2439,7 +2445,6 @@ function dockFabIntoToolbar(fab) {
   if (!isDesktopViewport()) return false;
   if (fab.closest('.page-fab-group')) return false;
   const main = document.getElementById('main-content');
-  if (main?.querySelector('.toolbar-new-btn')) return false;
   const slot = main?.querySelector('.page-toolbar__actions');
   if (!slot) return false;
   const label = fab.dataset.dockLabel;
@@ -3346,28 +3351,24 @@ function initMoreSheet(container, openSearch) {
     }
   });
 
-  /* WISCHEN SCHLIESST NUR VOM ANFANG DER LISTE AUS.
+  /* WISCHEN SCHLIESST NUR VOM ANFANG DER LISTE AUS - ODER VOM GRIFF.
    *
    * Vorher schloss jede Abwaertsbewegung ueber 60px das Blatt, egal wo sie
    * begann. Seit `.more-sheet__body` scrollt (die Obergrenze gegen den
    * Blattueberstand bei 320px), IST diese Geste auch das Zurueckscrollen in den
    * Gruppen: wer unten steht und nach oben zurueckwischt, bewegt den Finger
-   * abwaerts und schloss damit das Blatt (PR-Review #754).
+   * abwaerts und schloss damit das Blatt (PR-Review #754). Der Stand wird beim
+   * BEGINN der Geste gemerkt, nicht am Ende.
    *
-   * Der Stand wird beim BEGINN der Geste gemerkt, nicht am Ende: bis dahin hat
-   * der Scroller laengst reagiert und stuende auch nach einem echten
-   * Zieh-zum-Schliessen auf 0. */
-  let _touchStartY = 0;
-  let _touchStartAtTop = true;
-  sheet.addEventListener('touchstart', (e) => {
-    _touchStartY = e.touches[0].clientY;
-    const body = sheet.querySelector('.more-sheet__body');
-    _touchStartAtTop = !body || body.scrollTop <= 0;
-  }, { passive: true });
-  sheet.addEventListener('touchend', (e) => {
-    if (!_touchStartAtTop) return;
-    if (e.changedTouches[0].clientY - _touchStartY > 60) closeSheet();
-  }, { passive: true });
+   * Die Geste selbst ist seit der Re-Critique 2026-09-27 dieselbe wie am
+   * Dialog-Sheet (utils/sheet-drag.js): das Blatt geht 1:1 mit, schliesst ab
+   * 80px ODER bei einem Flick, federt sonst zurueck. Vorher entschied erst
+   * `touchend` ab 60px, und das Blatt stand waehrenddessen still. */
+  wireSheetDrag(sheet, {
+    scroller: () => sheet.querySelector('.more-sheet__body'),
+    onDismiss: () => closeSheet(),
+    resetAfterDismiss: true,
+  });
 
   sheet.addEventListener('click', (e) => {
     if (e.target.closest('[data-route]')) closeSheet({ restoreFocus: false });
@@ -4916,7 +4917,7 @@ observeNavCapsule();
 // hing an einem einzelnen `resize`, und blieb ein zweites aus, war die
 // Primäraktion des Moduls dauerhaft weg - dieselbe Falle wie beim
 // Scroll-Retract, den #634 entfernt hat. Der FAB ist der einzige Weg zum
-// Anlegen (`.toolbar-new-btn` ist überall ausgeblendet), also kostet ein
+// Anlegen (angedockt wird erst ab 1024px), also kostet ein
 // Falsch-Positiv hier das ganze Modul.
 //
 // Eine Tastatur ist offen, wenn ein Texteingabefeld den Fokus hat. Das ist

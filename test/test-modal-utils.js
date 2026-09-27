@@ -1052,30 +1052,52 @@ test('_tryRefocus schreibt das tatsaechlich gesetzte Ziel in den Merker zurueck'
 // Scrollen des Inhalts. Die Geste darf das Panel dann nicht anfassen - vorher
 // schrieb sie bei jedem Aufwaerts-Frame `translateY(0)`, und ein frisch
 // geoeffneter Dialog steht immer oben, also begann jede Wischgeste so.
+//
+// Seit der Re-Critique 2026-09-27 laeuft die Geste ueber den geteilten Helfer
+// utils/sheet-drag.js (Dialog-Sheet UND Mehr-Blatt) und schreibt `translate`
+// statt `transform`: die Einfahrt haelt `transform` per `forwards`, und eine
+// gefuellte Animation schlaegt jedes Inline-`transform` - gemessen blieb die
+// Tafel bei `style.transform = 'translateY(100px)'` stehen. Der Faktor 0.6 ist
+// 1:1 gewichen (vorher `translateY(24px)` fuer 50px Weg, jetzt 40px).
 // --------------------------------------------------------
 const { __test: modalInternals } = await import('../public/components/modal.js');
+const sheetDrag = await import('../public/utils/sheet-drag.js');
 
-function fakeSheet() {
+function fakeSheet({ wire = (panel) => modalInternals.wireSheetSwipe(panel), top = 100 } = {}) {
   const handlers = {};
   const writes = [];
-  let transform = '';
+  const attrs = {};
+  let translate = '';
+  let clock = 1000;
   const panel = {
     addEventListener: (type, fn) => { handlers[type] = fn; },
+    removeEventListener: () => {},
     querySelector: () => ({ scrollTop: 0 }),
-    getBoundingClientRect: () => ({ top: 100 }),
+    getBoundingClientRect: () => ({ top }),
+    setAttribute: (k, v) => { attrs[k] = v; },
+    removeAttribute: (k) => { delete attrs[k]; },
+    getAttribute: (k) => attrs[k] ?? null,
     style: {
-      get transform() { return transform; },
-      set transform(v) { writes.push(v); transform = v; },
+      get translate() { return translate; },
+      set translate(v) { writes.push(v); translate = v; },
     },
   };
-  modalInternals.wireSheetSwipe(panel);
-  const at = (y) => ({ touches: [{ clientY: y }], changedTouches: [{ clientY: y }] });
+  wire(panel);
+  // Jede Probe 16ms nach der vorigen, ausser der Test gibt die Zeit vor.
+  const at = (y, dt = 16) => {
+    clock += dt;
+    return { timeStamp: clock, touches: [{ clientY: y }], changedTouches: [{ clientY: y }] };
+  };
   return {
     writes,
-    get transform() { return transform; },
-    start: (y) => handlers.touchstart(at(y)),
-    move: (y) => handlers.touchmove(at(y)),
-    end: (y) => handlers.touchend(at(y)),
+    attrs,
+    get translate() { return translate; },
+    start: (y) => handlers.touchstart(at(y, 0)),
+    move: (y, dt) => handlers.touchmove(at(y, dt)),
+    end: (y, dt) => handlers.touchend(at(y, dt)),
+    cancel: (y, dt) => handlers.touchcancel(at(y, dt)),
+    // Ein zweiter Finger setzt auf: touchstart meldet zwei Beruehrungen.
+    secondFinger: (y) => { clock += 16; handlers.touchstart({ timeStamp: clock, touches: [{ clientY: y }, { clientY: y + 80 }], changedTouches: [{ clientY: y + 80 }] }); },
   };
 }
 
@@ -1097,28 +1119,175 @@ test('Sheet-Swipe: ein Zittern nach oben verwirft eine Schliessgeste nicht', () 
   sheet.move(592); // 8px nach oben: innerhalb der Schwelle
   assert.deepEqual(sheet.writes, [], 'innerhalb der Schwelle kein Schreibzugriff');
   sheet.move(650);
-  assert.equal(sheet.transform, 'translateY(24px)', 'die Geste zieht das Sheet trotz des Zitterns');
+  assert.equal(sheet.translate, '0px 40px', 'die Geste zieht das Sheet trotz des Zitterns - 1:1 ab der Schwelle');
 });
 
-test('Sheet-Swipe: ein begonnener Zug bleibt verfolgt und setzt das Panel einmal zurueck', () => {
+test('Sheet-Swipe: 1:1 - der Versatz folgt dem Finger Pixel fuer Pixel', () => {
+  const sheet = fakeSheet();
+  sheet.start(600);
+  sheet.move(620);
+  assert.equal(sheet.translate, '0px 10px');
+  sheet.move(655);
+  assert.equal(sheet.translate, '0px 45px', 'kein Faktor 0.6 mehr');
+  assert.equal(sheet.attrs['data-sheet-drag'], 'drag', 'waehrend des Zugs keine Transition (Marke fuer layout.css)');
+});
+
+test('Sheet-Swipe: ein begonnener Zug bleibt verfolgt; ueber dem Start gibt das Blatt nur als Gummiband nach', () => {
   global.requestAnimationFrame = (fn) => fn();
   try {
     const sheet = fakeSheet();
     sheet.start(600);
     sheet.move(650); // 50px nach unten: das Sheet folgt
-    assert.equal(sheet.transform, 'translateY(24px)');
+    assert.equal(sheet.translate, '0px 40px');
     sheet.move(590); // der Finger kehrt ueber den Start zurueck
-    assert.equal(sheet.transform, '', 'zurueckgesetzt, sobald der Finger ueber dem Start steht (b7c0312c)');
-    const writesAfterReset = sheet.writes.length;
-    sheet.move(570);
-    sheet.move(550);
-    assert.equal(sheet.writes.length, writesAfterReset, 'zurueckgesetzt wird einmal, nicht in jedem Frame');
+    const up = parseFloat(sheet.translate.split(' ')[1]);
+    assert.ok(up < 0 && up > -10, `Gummiband: leicht nach oben, gedaempft (${sheet.translate})`);
+    sheet.move(300); // 300px ueber dem Start
+    const far = parseFloat(sheet.translate.split(' ')[1]);
+    assert.ok(far < up && far > -24, `das Gummiband hat eine Grenze (${sheet.translate})`);
     sheet.move(640);
-    sheet.end(640); // 40px: kein Schliessen, zurueck in die Ruhelage
-    assert.equal(sheet.transform, '', 'touchend raeumt den Zug ab');
+    sheet.end(640, 400); // 40px, langsam: kein Schliessen, zurueck in die Ruhelage
+    assert.equal(sheet.translate, '', 'touchend raeumt den Zug ab');
+    assert.equal(sheet.attrs['data-sheet-drag'], undefined, 'ohne Marke federt `translate` per Transition zurueck');
   } finally {
     delete global.requestAnimationFrame;
   }
+});
+
+test('Sheet-Drag: schliesst ab 80px Weg ODER bei einem Flick > 0.5px/ms, sonst federt es zurueck', () => {
+  global.requestAnimationFrame = (fn) => fn();
+  try {
+    const run = (moves, endY, endDt) => {
+      let dismissed = 0;
+      const sheet = fakeSheet({ wire: (p) => sheetDrag.wireSheetDrag(p, { onDismiss: () => { dismissed += 1; } }) });
+      sheet.start(600);
+      for (const [y, dt] of moves) sheet.move(y, dt);
+      sheet.end(endY, endDt);
+      return { dismissed, translate: sheet.translate };
+    };
+    // 90px langsam gezogen (Tempo 0.1px/ms): der Weg reicht.
+    assert.equal(run([[630, 300], [660, 300], [690, 300]], 690, 100).dismissed, 1);
+    // 40px, aber schnell (40px in 32ms = 1.25px/ms): ein Flick schliesst.
+    assert.equal(run([[620, 16], [640, 16]], 640, 1).dismissed, 1, 'kurzer Flick schliesst (vorher: sprang zurueck)');
+    // 40px langsam: weder Weg noch Tempo - das Blatt federt zurueck.
+    const slow = run([[620, 300], [640, 300]], 640, 300);
+    assert.equal(slow.dismissed, 0);
+    assert.equal(slow.translate, '');
+    // Beim Schliessen bleibt der Zug stehen: der Ausgang startet am Finger.
+    const kept = run([[700, 16]], 700, 16);
+    assert.equal(kept.dismissed, 1);
+    assert.equal(kept.translate, '0px 90px', 'der Ausgang startet dort, wo der Finger losliess');
+  } finally {
+    delete global.requestAnimationFrame;
+  }
+});
+
+test('Sheet-Drag: bleibt das Blatt stehen (onDismiss -> false, Rueckfrage), federt es in die Ruhelage', () => {
+  global.requestAnimationFrame = (fn) => fn();
+  try {
+    const sheet = fakeSheet({ wire: (p) => sheetDrag.wireSheetDrag(p, { onDismiss: () => false }) });
+    sheet.start(600);
+    sheet.move(720);
+    sheet.end(720);
+    assert.equal(sheet.translate, '');
+  } finally {
+    delete global.requestAnimationFrame;
+  }
+});
+
+test('Sheet-Drag: touchcancel bricht die Geste ab - es schliesst nie, das Blatt federt zurueck', () => {
+  // Ein abgebrochener Touch (Browser uebernimmt die Geste, Unterbrechung) ist
+  // keine Absicht zu schliessen, auch wenn der letzte Stand wie ein Flick aussah.
+  global.requestAnimationFrame = (fn) => fn();
+  try {
+    let dismissed = 0;
+    const sheet = fakeSheet({ wire: (p) => sheetDrag.wireSheetDrag(p, { onDismiss: () => { dismissed += 1; } }) });
+    sheet.start(600);
+    sheet.move(650, 16);
+    sheet.move(720, 16); // 120px schnell: als touchend waere das ein Schliessen
+    sheet.cancel(720, 1);
+    assert.equal(dismissed, 0, 'touchcancel darf onDismiss nie ausloesen');
+    assert.equal(sheet.translate, '', 'der Zug wird zurueckgenommen');
+    assert.equal(sheet.attrs['data-sheet-drag'], undefined, 'ohne Marke federt es per Transition zurueck');
+  } finally {
+    delete global.requestAnimationFrame;
+  }
+});
+
+test('Sheet-Drag: ein zweiter Finger mitten im Zug laesst das Blatt nicht versetzt stehen', () => {
+  global.requestAnimationFrame = (fn) => fn();
+  try {
+    let dismissed = 0;
+    const sheet = fakeSheet({ wire: (p) => sheetDrag.wireSheetDrag(p, { onDismiss: () => { dismissed += 1; } }) });
+    sheet.start(600);
+    sheet.move(660);
+    assert.equal(sheet.translate, '0px 50px');
+    sheet.secondFinger(660);
+    sheet.end(660);
+    assert.equal(dismissed, 0);
+    assert.equal(sheet.translate, '', 'der Versatz faellt zurueck, statt bei 50px zu kleben');
+    assert.equal(sheet.attrs['data-sheet-drag'], undefined, 'die Zieh-Marke (keine Transition) bleibt nicht haengen');
+  } finally {
+    delete global.requestAnimationFrame;
+  }
+});
+
+test('Sheet-Drag: Entscheidung und Tempo als reine Funktionen', () => {
+  assert.equal(sheetDrag.shouldDismissSheet({ distance: 80, velocity: 0 }), true);
+  assert.equal(sheetDrag.shouldDismissSheet({ distance: 79, velocity: 0.5 }), false, 'die Grenze ist "groesser als 0.5"');
+  assert.equal(sheetDrag.shouldDismissSheet({ distance: 10, velocity: 0.51 }), true);
+  // Tempo misst die letzten 100ms, nicht die ganze Geste: langer Anlauf, schneller Schluss.
+  const v = sheetDrag.releaseVelocity([{ y: 0, t: 0 }, { y: 10, t: 900 }, { y: 40, t: 950 }, { y: 80, t: 1000 }]);
+  assert.ok(Math.abs(v - 0.7) < 1e-9, `Tempo der letzten 100ms (${v})`);
+  assert.equal(sheetDrag.rubberBand(10), 0);
+  assert.ok(sheetDrag.rubberBand(-1000) > -24);
+});
+
+test('Sheet-Drag: ein Tipp schreibt nichts (Schwelle), auch nicht beim Loslassen', () => {
+  const sheet = fakeSheet({ wire: (p) => sheetDrag.wireSheetDrag(p, { onDismiss: () => assert.fail('ein Tipp schliesst nicht') }) });
+  sheet.start(600);
+  sheet.move(605);
+  sheet.end(605);
+  assert.deepEqual(sheet.writes, []);
+});
+
+test('Sheet-Griff: sichtbar im hellen Theme, in der Kopfzone statt ueber einem leeren Streifen, gleich an Dialog und Mehr-Blatt (Re-Critique 2026-09-27, P1 #1)', () => {
+  const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  const layout = read('../public/styles/layout.css');
+  const glass = read('../public/styles/glass.css');
+  const tokens = read('../public/styles/tokens.css');
+  const mobile = [...eachRule(layout)].filter((r) => r.at.some((a) => /max-width:\s*767px/.test(a)));
+  const body = (rules, sel) => rules.find((r) => r.selector === sel)?.body ?? '';
+  // Vorher: `--modal-handle-color: var(--glass-border)` fuer JEDES Theme -
+  // Glas-Weiss 65 % auf weisser Tafel, gemessen unsichtbar.
+  assert.ok(![...eachRule(glass)].some((r) => /--modal-handle-color|--sheet-grabber/.test(r.body)),
+    'glass.css faerbt den Griff nicht mehr fuer jedes Theme um - das Glas-Weiss gehoert nur dem Dark (Token)');
+  assert.match(tokens, /--_sheet-grabber:\s*var\(--color-border-strong\)/, 'hell: die kraeftigere neutrale Kante');
+  assert.equal((tokens.match(/--_sheet-grabber:\s*var\(--glass-border\)/g) || []).length, 2, 'dunkel (Media + data-theme): Glas-Weiss');
+  const grip = body(mobile, '.modal-panel::before');
+  assert.match(grip, /background-color:\s*var\(--sheet-grabber\)/);
+  assert.match(grip, /width:\s*36px/);
+  assert.match(grip, /height:\s*5px/);
+  // Der leere 36px-Streifen (`--space-4 + 20px`) ist weg; Griff-Oberkante bis
+  // Titel-Oberkante 16px (8px + Kopfpolster 12px + Zentrierung neben dem X).
+  assert.match(body(mobile, '.modal-panel'), /padding-top:\s*0/);
+  assert.match(grip, /top:\s*var\(--space-2\)/);
+  assert.match(body(mobile, '.modal-panel > .modal-panel__header'), /padding-top:\s*var\(--space-3\)/);
+  // Das Mehr-Blatt traegt denselben Griff.
+  const more = body([...eachRule(layout)], '.more-sheet__handle');
+  assert.match(more, /background-color:\s*var\(--sheet-grabber\)/);
+  assert.match(more, /height:\s*5px/);
+});
+
+test('Sheet-Grammatik: das Mehr-Blatt zieht ueber denselben Helfer wie der Dialog und federt per translate zurueck', () => {
+  const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  const router = read('../public/router.js');
+  const layout = read('../public/styles/layout.css');
+  assert.match(router, /wireSheetDrag\(sheet, \{[\s\S]{0,200}resetAfterDismiss: true/);
+  assert.doesNotMatch(router, /clientY - _touchStartY > 60/, 'die alte Geste (erst bei touchend, ab 60px) ist weg');
+  const more = [...eachRule(layout)].find((r) => r.selector === '.more-sheet' && !r.at.length)?.body ?? '';
+  assert.match(more, /translate var\(--duration-lg\) var\(--ease-out\)/, 'Rueckfedern mit Token-Dauer und -Kurve');
+  assert.match(more, /border-radius:\s*var\(--radius-lg\)/, 'Radius des Dialog-Sheets');
 });
 
 /* DER ERSTFOKUS NIMMT KEINEN SPAETER GESETZTEN FOKUS WEG (#1156).
