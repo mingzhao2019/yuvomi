@@ -2732,7 +2732,7 @@ html.fab-anim-done .page-fab {
  *
  *   Lesemass       `reading` / `form`      eine Spalte, 720px (--layout-reading)
  *   Liste + Detail `.app-page--list-detail` unter der Schwelle wie Lesemass,
- *                  (bzw. `split`)           ab 75rem Modulflaeche Liste links,
+ *                  (bzw. `split`)           ab 65rem Modulflaeche Liste links,
  *                                           Detail der Auswahl rechts
  *   Flaeche        `full` / `dashboard`    die volle Hauptspalte
  *
@@ -2782,7 +2782,7 @@ html.fab-anim-done .page-fab {
   display: none;
 }
 
-@container module-surface (min-width: 75rem) {
+@container module-surface (min-width: 65rem) {
   /* Ab der Schwelle ist die Seite eine zweispaltige Flaeche: ihr Kopf laeuft
    * ueber beide Spalten (wie die Werkzeugleiste in Mail), und alles, was sonst
    * am Lesemass endet, endet jetzt an seiner Spalte. `100%` statt `none` aus
@@ -2867,6 +2867,8 @@ html.fab-anim-done .page-fab {
 .split-view__detail-body {
   display: flex;
   flex-direction: column;
+  /* Fuellt die Spalte, damit ein kurzes Detail seinen Fuss unten traegt. */
+  flex: 1 0 auto;
   min-height: 0;
 }
 
@@ -2902,11 +2904,59 @@ html.fab-anim-done .page-fab {
   flex-shrink: 0;
 }
 
+/* DER FUSS DER SPALTE KLEBT UNTEN, EINREIHIG (R10 L6, A3 P2-1). Er scrollte
+ * mit dem Inhalt: bei 1440x900 stand „Erledigen" einer einfachen Aufgabe
+ * unter der Falz. Jetzt gilt dieselbe Regel wie am Blattrand: der Kopf klebt
+ * oben, der Fuss unten, dazwischen scrollt das Detail. `margin-block-start:
+ * auto` setzt ihn bei kurzem Inhalt an die Unterkante der Spalte (die Ansicht
+ * fuellt sie, detail-view.css). Einreihig: Loeschen am Anfang, der Rest am
+ * Ende - eine Folgeaktion wie „In Maps oeffnen" gehoert in ihre Zeile, nicht
+ * hierher. */
 .split-view__detail-footer {
+  position: sticky;
+  /* Die Spalte steht nur am Desktop, wo `--nav-tail` 0 ist - der Wert haelt
+   * trotzdem die Regel der Kapsel (test:mobile-chrome, Fall 3). */
+  bottom: var(--nav-tail);
+  z-index: 1;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: var(--space-2);
-  padding: var(--space-4) var(--space-5) var(--space-5);
+  margin-block-start: auto;
+  padding: var(--space-3) var(--space-5);
+  background-color: var(--color-surface);
+  border-block-start: 1px solid var(--color-border-subtle);
+}
+
+.split-view__detail-footer > .btn {
+  flex-shrink: 0;
+}
+
+/* Die Spalte ist ihr eigener Container: ihre Breite, nicht das Fenster,
+ * entscheidet, ob die Fussbeschriftungen passen. */
+.split-view__detail {
+  container: detail-pane / inline-size;
+}
+
+/* Schmale Spalte (1280: 552px; Aufgaben tragen fuenf Aktionen): leise Knoepfe
+ * mit Icon zeigen nur das Icon, die Beschriftung bleibt als zugaenglicher Name
+ * (geclippt wie `.sr-only`) und als Tooltip. Der Fuss bleibt EINE Reihe; die
+ * Hauptaktion (Erledigen) und Loeschen behalten ihr Wort. */
+@container detail-pane (max-width: 40rem) {
+  .split-view__detail-footer > .btn--ghost:has(> svg, > i) > .btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .split-view__detail-footer > .btn--ghost:has(> svg, > i):has(> .btn__label) {
+    min-width: var(--target-md);
+    padding-inline: var(--space-2);
+  }
 }
 
 /* --------------------------------------------------------
@@ -3036,7 +3086,7 @@ html.fab-anim-done .page-fab {
  * (gemessen 2026-07-29). Innerhalb eines nicht scrollenden Roots ist `top: 0`
  * korrekt, und die Leiste darüber kann den Kopf ohnehin nicht überlaufen.
  *
- * Nutzer: die vier Küchen-Tabs. Für health-tabs.js ebenso verwendbar. */
+ * Nutzer: die vier Küchen-Tabs. */
 .page-toolbar--in-group {
   border-top: none;
 }

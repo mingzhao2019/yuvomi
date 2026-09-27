@@ -795,10 +795,12 @@ test('Kalender-Detailansicht: Löschen, Zurücksetzen und Bearbeiten fallen weg,
   );
   assert.match(CAL_CODE, /edit: readOnly\(\) \? undefined : \{/,
     'ohne Mounter baut die geteilte Ansicht keinen Bearbeiten-Knopf');
-  // Und die einzige nicht schreibende Aktion bleibt bedingungslos drin.
+  // Und die einzige nicht schreibende Aktion bleibt bedingungslos drin - seit
+  // R10 als Folgeaktion der Ort-Zeile (mapRowAction), nicht im Fuss.
   assert.match(CAL_CODE, /id: 'detail-open-map'/);
-  const mapBlock = CAL_CODE.slice(CAL_CODE.indexOf('const mapUrl = eventMapUrl(ev.location);'), CAL_CODE.indexOf("id: 'detail-open-map'"));
-  assert.ok(!mapBlock.includes('readOnly()'), '"In Karte öffnen" schreibt nichts und gehört auch einem Nur-lesen-Nutzer');
+  const mapBlock = CAL_CODE.slice(CAL_CODE.indexOf('function mapRowAction'), CAL_CODE.indexOf("id: 'detail-open-map'"));
+  assert.ok(mapBlock.length > 0 && !mapBlock.includes('readOnly()'), '"In Karte öffnen" schreibt nichts und gehört auch einem Nur-lesen-Nutzer');
+  assert.match(CAL_CODE, /action: mapRowAction\(ev\)/, 'die Ort-Zeile traegt die Karte fuer jeden, auch Nur-lesen');
 });
 
 // -------------------------------------------------------------------------
@@ -2008,7 +2010,9 @@ test('Geburtstagszeile: die Textspalte ist fuer Lesende UND Schreibende der Weg 
     const html = birthdays.birthdayItemHtml(geburtstag());
     // Bis R8 blieb die Spalte mit Schreibrecht ein `div`: ein Tipp auf die
     // Zeile tat nichts, waehrend der Wisch-Chevron Navigation versprach.
-    assert.match(html, /<button type="button" class="list-row__main list-row__main--interactive" data-open="9">/,
+    // `data-md-focus` (R10): im Split landet der Pfeiltasten-Fokus auf diesem
+    // Knopf - weitere Attribute aendern nichts an der Regel.
+    assert.match(html, /<button type="button" class="list-row__main list-row__main--interactive" data-open="9"[^>]*>/,
       'mit Schreibrecht ist die Hauptspalte ein Knopf, der den Editor oeffnet');
     assert.doesNotMatch(html, /<div class="list-row__main">/);
     assert.doesNotMatch(html, /swipe-row--static/, 'Schreibende behalten die Geste und ihren Chevron');
@@ -2019,7 +2023,7 @@ test('Geburtstagszeile: die Textspalte ist fuer Lesende UND Schreibende der Weg 
   });
   withAccess({ calendar: 'read' }, () => {
     const html = birthdays.birthdayItemHtml(geburtstag());
-    const knopf = /<button type="button" class="list-row__main list-row__main--interactive" data-open="9">([\s\S]*?)<\/button>/.exec(html);
+    const knopf = /<button type="button" class="list-row__main list-row__main--interactive" data-open="9"[^>]*>([\s\S]*?)<\/button>/.exec(html);
     assert.ok(knopf, 'ohne diesen Knopf oeffnet bei `read` gar nichts - und die Notiz ist auf dem Telefon ausgeblendet');
     assert.match(knopf[1], /Oma Erna/, 'der Knopf traegt die Zeile selbst, nicht eine leere Flaeche');
     assert.doesNotMatch(knopf[1], /<div/, 'in einem `button` steht nur Phrasing-Inhalt');
@@ -3552,7 +3556,7 @@ test('Aufgaben-Tab mit `housekeeping: read`: kein Anlegen, kein Abhaken, keine Z
   assert.doesNotMatch(lesen.html, /<button/, 'auf diesem Tab schreibt jeder Knopf');
   assert.match(lesen.html, /Fenster putzen/, 'der Renderer lief - die Aufgabe steht da');
   assert.match(lesen.html, /housekeeping\.overdue/, 'und ihre Dringlichkeit, als Wort');
-  assert.match(lesen.html, /housekeeping-task--overdue housekeeping-task--readonly/, 'und als Toenung, ohne die Spalte des Kreises');
+  assert.match(lesen.html, /housekeeping-task--overdue housekeeping-task--readonly/, 'und als Zustandsklasse (seit R10 faerbt sie nur das Wort), ohne die Spalte des Kreises');
   assert.deepEqual(lesen.gefragt, [], 'keine Verdrahtung - jede auf diesem Tab schreibt');
 
   const schreiben = hkContainer();

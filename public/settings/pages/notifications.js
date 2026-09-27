@@ -169,7 +169,7 @@ function renderChannelShell(container, user) {
     <p class="form-hint" id="notification-channel-status" role="status" aria-live="polite"></p>
     <div id="notification-channel-list-user"></div>
     ${isAdmin ? `
-      <h2 class="settings-section__title notification-channel-household-title">${t('settings.notificationHouseholdTitle')}</h2>
+      <h2 class="settings-section__title notification-channel-household-title">${t('settings.notificationChannelsTitle')}</h2>
       <p class="form-hint">${t('settings.notificationHouseholdDescription')}</p>
       <div class="settings-form-actions">
         <button type="button" class="btn btn--secondary" data-notification-channel-add="household">

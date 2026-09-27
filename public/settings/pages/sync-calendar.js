@@ -18,7 +18,12 @@ import {
 import { withBusy } from '/utils/ux.js';
 import { esc } from '/utils/html.js';
 import { loadFamilyUsers } from '/settings/family-users.js';
-import { renderReminderSyncSection } from '/settings/pages/sync-reminders.js';
+import { renderReminderSyncSection } from './sync-reminders.js';
+
+// Seit R10 ein Abschnitt im Blatt Kalender (registry.js). Neu laden heisst,
+// das Blatt an dieser Stelle neu zu zeichnen - nicht ueber die Alt-Adresse,
+// die erst umleitet und dabei an den Blattanfang springt.
+const SYNC_CALENDAR_HREF = '/settings/modules/calendar?section=sync-calendar';
 
 const MORE_PROVIDERS_ID = 'sync-more-providers';
 const GOOGLE_PROVIDER_ID = 'sync-provider-google';
@@ -116,7 +121,7 @@ function buildOutlookTodoLists(account, lists, selection) {
       if (selection.dirty) await selection.save();
       await api.get(`/calendar/outlook/accounts/${account.id}/todo-lists?refresh=true`);
       showToast(t('settings.outlookTodoRefreshed'), 'success');
-      window.yuvomi?.navigate('/settings/sync/calendar');
+      window.yuvomi?.navigate('/settings/modules/calendar?section=sync-calendar');
     } catch (err) {
       showToast(err.message || t('common.errorGeneric'), 'danger');
       refreshBtn.disabled = false;
@@ -931,7 +936,7 @@ function buildGoogleProvider(googleStatus, user) {
               : t('settings.disconnectedToast', { provider: 'Google Calendar' }),
             'default',
           );
-          window.yuvomi?.navigate('/settings/sync/calendar');
+          window.yuvomi?.navigate(SYNC_CALENDAR_HREF);
         } catch (err) {
           showToast(err.message || t('common.errorGeneric'), 'danger');
         }
@@ -1766,7 +1771,7 @@ function buildOutlookProvider(outlookStatus, user) {
   }
 
   const accounts = outlookStatus.accounts || [];
-  const refresh = () => window.yuvomi?.navigate('/settings/sync/calendar');
+  const refresh = () => window.yuvomi?.navigate(SYNC_CALENDAR_HREF);
 
   if (accounts.length === 0) {
     const empty = document.createElement('p');
@@ -1867,7 +1872,7 @@ function buildAppleProvider(appleStatus, user) {
         try {
           await api.delete(`/calendar/apple/disconnect?deleteEvents=${deleteEvents ? 'true' : 'false'}`);
           showToast(t('settings.disconnectedToast', { provider: 'Apple Calendar' }), 'default');
-          window.yuvomi?.navigate('/settings/sync/calendar');
+          window.yuvomi?.navigate(SYNC_CALENDAR_HREF);
         } catch (err) {
           showToast(err.message || t('common.errorGeneric'), 'danger');
         }
@@ -1920,7 +1925,7 @@ function buildAppleConnectForm() {
     try {
       await api.post('/calendar/apple/connect', { url, username, password });
       showToast(t('settings.appleConnectedToast'), 'success');
-      window.yuvomi?.navigate('/settings/sync/calendar');
+      window.yuvomi?.navigate(SYNC_CALENDAR_HREF);
     } catch (err) {
       errorEl.textContent = err.message || t('common.errorGeneric');
       errorEl.hidden = false;

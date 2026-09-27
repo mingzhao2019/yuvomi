@@ -19,6 +19,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installMiniDom } from './mini-dom.js';
+import { eachRule } from './css-rules.js';
 
 // ── Kleinstes DOM ─────────────────────────────────────────────────────────
 
@@ -169,8 +170,12 @@ function makePage({ split = true, path = '/contacts' } = {}) {
     checkOf: (i) => rows[i].children[1],
     setSplit(on) { detail.display = on ? 'flex' : 'none'; },
   };
+  // Die Vorwahl (opts.preselect, Standard an) ist hier AUS: diese Tests
+  // pruefen, was ein Klick und eine Taste von einem leeren Anfang aus tun.
+  // Die Vorwahl selbst pruefen die Tests unter „Vorwahl" mit `preselect: true`.
   page.mount = (opts = {}) => md.mountMasterDetail({
     root,
+    preselect: false,
     renderDetail: (id, into) => { calls.render.push(id); into.content = [`detail:${id}`]; },
     openNarrow: (id) => calls.narrow.push(id),
     onEnter: (id) => calls.enter.push(id),
@@ -717,6 +722,204 @@ test('der Router fragt den Baustein, BEVOR er bei popstate neu zeichnet', () => 
   assert.ok(consult > 0 && nav > consult, 'popstate: handleMasterDetailPopstate() muss vor navigate() stehen');
   assert.ok(handler.indexOf('handleBackNavigation()') < consult,
     'ein offener Dialog faengt die Geste zuerst (#871), erst dann die Auswahl');
+});
+
+// ── Vorwahl: der Einstieg zeigt rechts gleich einen Eintrag (L2) ──────────
+
+test('Vorwahl: in der Spalte ohne Adress-Auswahl steht die erste sichtbare Zeile, per replaceState', async () => {
+  const p = makePage();
+  const handle = md.mountMasterDetail({
+    root: p.root,
+    renderDetail: (id, into) => { p.calls.render.push(id); into.content = [`detail:${id}`]; },
+    openNarrow: (id) => p.calls.narrow.push(id),
+  });
+  await tick();
+  assert.equal(handle.selectedId(), '1', 'Standard: die erste Zeile ist gewaehlt');
+  assert.deepEqual(p.calls.render, ['1']);
+  assert.equal(p.empty.hidden, true, 'kein „Waehle ..." beim Einstieg');
+  assert.deepEqual(historyLog, [['replace', '/contacts?open=1']], 'kein Schritt fuer die Zurueck-Taste');
+  assert.equal(document.activeElement, null, 'die Vorwahl nimmt niemandem den Fokus');
+  handle.destroy();
+});
+
+test('Vorwahl: nie unter der Schwelle, nie gegen ?open=, nie mit preselect:false', () => {
+  let p = makePage({ split: false });
+  let handle = p.mount({ preselect: true });
+  assert.equal(handle.selectedId(), null, 'mobil oeffnet der Einstieg nichts');
+  assert.deepEqual(historyLog, []);
+  handle.destroy();
+
+  p = makePage({ path: '/contacts?open=4' });
+  handle = p.mount({ preselect: true });
+  assert.equal(handle.selectedId(), '4', 'der Deep-Link hat Vorrang');
+  assert.deepEqual(p.calls.render, ['4']);
+  handle.destroy();
+
+  // Die Seite loest den Link selbst ein (Aufgaben, claimInitial:false): die
+  // Adresse nennt trotzdem eine Auswahl, also keine Vorwahl daneben.
+  p = makePage({ path: '/tasks?open=99' });
+  handle = p.mount({ preselect: true, claimInitial: false });
+  assert.equal(handle.selectedId(), null);
+  assert.equal(location.search, '?open=99', 'der Link bleibt stehen');
+  handle.destroy();
+
+  p = makePage();
+  handle = p.mount({ preselect: false });
+  assert.equal(handle.selectedId(), null);
+  handle.destroy();
+});
+
+test('Vorwahl: eigene Wahl per Funktion, spaete Liste per refresh(), Esc bleibt leer', () => {
+  let p = makePage();
+  let seen = null;
+  let handle = p.mount({ preselect: (ids) => { seen = ids; return ids.at(-1); } });
+  assert.deepEqual(seen, ['1', '2', '4', '5'], 'nur sichtbare Zeilen (die dritte ist weggefiltert)');
+  assert.equal(handle.selectedId(), '5');
+  handle.destroy();
+
+  // Die Liste kommt erst nach dem Aufbau (Rezepte): refresh() holt es nach.
+  p = makePage();
+  const kept = p.list.children.splice(0);
+  handle = p.mount({ preselect: true });
+  assert.equal(handle.selectedId(), null, 'ohne Zeilen nichts');
+  p.list.append(...kept);
+  handle.refresh();
+  assert.equal(handle.selectedId(), '1');
+  // Wer abwaehlt, bekommt den Leerzustand - kein Zurueckspringen beim naechsten refresh().
+  key(p.focusOf(0), 'Escape');
+  assert.equal(handle.selectedId(), null);
+  handle.refresh();
+  assert.equal(handle.selectedId(), null, 'eine Vorwahl je Aufbau, danach entscheidet der Nutzer');
+  handle.destroy();
+
+  // Verschwindet die gewaehlte Zeile (Kategorie gewechselt, weggefiltert), ist
+  // das ein neuer Zusammenhang - wie Mail beim Ordnerwechsel: der erste steht.
+  p = makePage();
+  handle = p.mount({ preselect: true });
+  handle.open('4');
+  p.list.children.splice(0, 1);
+  p.list.children.splice(2, 1);
+  handle.refresh();
+  assert.equal(handle.selectedId(), '2', 'nach dem Wegfall steht die erste verbliebene Zeile');
+  assert.deepEqual(historyLog.at(-1), ['replace', '/contacts?open=2']);
+  handle.destroy();
+
+  // Ein Deep-Link auf etwas, das nie eine Zeile hatte, ist ein „gibt es
+  // nicht" (Rueckgabe-Vertrag): Leerzustand, keine Vorwahl daneben.
+  p = makePage({ path: '/contacts?open=99' });
+  handle = p.mount({ preselect: true });
+  handle.refresh();
+  assert.equal(handle.selectedId(), null);
+  assert.equal(p.empty.hidden, false);
+  assert.equal(location.search, '');
+  handle.destroy();
+});
+
+test('Vorwahl: beim Wechsel schmal -> Spalte, ohne gemerkte Auswahl', () => {
+  const observers = [];
+  global.ResizeObserver = class { constructor(cb) { this.cb = cb; observers.push(this); } observe() {} disconnect() {} };
+  try {
+    const p = makePage({ split: false });
+    const handle = p.mount({ preselect: true });
+    assert.equal(handle.selectedId(), null);
+    p.setSplit(true);
+    for (const o of observers) o.cb();
+    assert.equal(handle.selectedId(), '1');
+    assert.deepEqual(p.calls.narrow, [], 'und oeffnet dabei kein Blatt');
+    handle.destroy();
+  } finally {
+    delete global.ResizeObserver;
+  }
+});
+
+// ── Pfad-Adressen (Einstellungen, Gesundheit) ─────────────────────────────
+
+test('address: Auswahl als Pfad - Klick pusht, Vorwahl ersetzt, Zurueck/Vor loest der Baustein', () => {
+  const p = makePage({ path: '/health' });
+  const address = {
+    read: (loc) => {
+      const m = loc.pathname.match(/^\/health\/([^/]+)$/);
+      if (m) return m[1];
+      return loc.pathname === '/health' ? null : undefined;
+    },
+    href: (id) => (id ? `/health/${id}` : '/health'),
+  };
+  const handle = p.mount({ address, preselect: true, param: 'ignored' });
+  assert.equal(handle.selectedId(), '1');
+  assert.deepEqual(historyLog, [['replace', '/health/1']]);
+  handle.open('4');
+  assert.deepEqual(historyLog.at(-1), ['push', '/health/4']);
+  setUrl('/health/1');
+  assert.equal(md.handleMasterDetailPopstate(), true, 'ein anderer Pfad derselben Seite: kein Neuzeichnen');
+  assert.equal(handle.selectedId(), '1');
+  setUrl('/health');
+  assert.equal(md.handleMasterDetailPopstate(), true);
+  assert.equal(handle.selectedId(), null);
+  setUrl('/tasks');
+  assert.equal(md.handleMasterDetailPopstate(), false, 'eine fremde Adresse gehoert dem Router');
+  handle.destroy();
+
+  const deep = makePage({ path: '/health/5' });
+  const h2 = deep.mount({ address, preselect: true });
+  assert.equal(h2.selectedId(), '5', 'der Pfad ist der Deep-Link');
+  assert.deepEqual(historyLog, [], 'und schreibt beim Aufbau nichts');
+  h2.destroy();
+});
+
+// ── Schwelle: wer bekommt Liste + Detail (L1) ────────────────────────────
+
+test('Schwelle: ein 1280er-Laptop bekommt Liste + Detail, auch mit klassischer Bildlaufleiste', () => {
+  // Die Abfrage misst die Modulflaeche = Fenster minus Seitenleiste. Bei 1280
+  // sind das 1060px; eine klassische Bildlaufleiste an #main-content (Windows,
+  // Inventar scrollt dort) nimmt bis 17px. Bis R10 stand die Schwelle bei
+  // 75rem (1200px) - 1280 fiel auf den Einspalter mit Modal zurueck, obwohl
+  // Liste (420) + Luecke (24) + Detail (>= 560) hineinpassen (A3 P2-2).
+  const tokens = readFileSync(new URL('../public/styles/tokens.css', import.meta.url), 'utf8');
+  const px = (name, unit) => {
+    const m = tokens.match(new RegExp(`${name}:\\s*([0-9.]+)${unit}`));
+    assert.ok(m, `tokens.css: ${name} fehlt`);
+    return Number(m[1]) * (unit === 'rem' ? 16 : 1);
+  };
+  const threshold = px('--layout-split-threshold', 'rem');
+  const sidebar = px('--sidebar-width-expanded', 'px');
+  const surface1280 = 1280 - sidebar - 17;
+  assert.ok(threshold <= surface1280,
+    `Schwelle ${threshold}px > Modulflaeche ${surface1280}px bei 1280 - der Laptop bekommt kein Liste + Detail`);
+  // Und nach unten begrenzt: Liste + Luecke + ein lesbares Detail muessen passen.
+  const listMin = px('--layout-list-min', 'rem');
+  assert.ok(threshold - listMin - 24 - 2 * 32 >= 480,
+    `Schwelle ${threshold}px laesst dem Detail unter 480px - zu schmal zum Lesen`);
+});
+
+test('Detailfuss: klebt unten in der Spalte, einreihig, und steht bei kurzem Inhalt an der Unterkante (L6)', () => {
+  // A3 P2-1: bei 1440x900 stand „Erledigen" einer einfachen Aufgabe unter der
+  // Falz, weil der Fuss mit dem Inhalt scrollte. Regel wie am Blattrand: Kopf
+  // oben, Fuss unten, dazwischen scrollt das Detail.
+  const layout = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
+  const dv = readFileSync(new URL('../public/styles/detail-view.css', import.meta.url), 'utf8');
+  const body = (css, sel) => [...eachRule(css)].filter((r) => !r.at.length && r.selector.trim() === sel).map((r) => r.body).join(';');
+  const foot = body(layout, '.split-view__detail-footer');
+  assert.match(foot, /position:\s*sticky/, 'der Fuss klebt');
+  assert.match(foot, /bottom:\s*var\(--nav-tail\)/, 'unten (ueber einer Kapsel, falls je eine steht)');
+  assert.match(foot, /flex-wrap:\s*nowrap/, 'einreihig');
+  assert.match(foot, /margin-block-start:\s*auto/, 'kurzer Inhalt: Fuss an der Unterkante');
+  assert.match(foot, /background-color:\s*var\(--color-surface\)/, 'deckt den Inhalt, der darunter scrollt');
+  assert.match(body(layout, '.split-view__detail-body'), /flex:\s*1 0 auto/, 'der Koerper fuellt die Spalte');
+  assert.match(body(dv, '.detail-view--in-pane'), /flex:\s*1 0 auto/, 'die Ansicht fuellt den Koerper');
+  // Und die Leseansicht haengt genau diese Klasse an ihren Fuss in der Spalte.
+  const js = readFileSync(new URL('../public/components/detail-view.js', import.meta.url), 'utf8');
+  assert.match(js, /footer\.className = 'detail-view__footer split-view__detail-footer'/);
+
+  // EINE Reihe auch in der schmalen Spalte (1280: 552px, Aufgaben mit fuenf
+  // Aktionen - gemessen 622px Inhalt): leise Knoepfe mit Icon zeigen dort nur
+  // das Icon. Lucide ersetzt das <i> durch ein <svg> - der Selektor muss beide
+  // kennen, sonst greift er im Browser nie (erste Fassung: nur `> i`).
+  assert.match(body(layout, '.split-view__detail'), /container:\s*detail-pane\s*\/\s*inline-size/);
+  const narrow = [...eachRule(layout)].filter((r) => /@container\s+detail-pane\s*\(max-width:/.test(r.at.join(' ')));
+  const hide = narrow.find((r) => /\.btn--ghost:has\(> svg, > i\) > \.btn__label/.test(r.selector));
+  assert.ok(hide && /clip:\s*rect\(0, 0, 0, 0\)/.test(hide.body), 'die Beschriftung tritt geclippt zurueck (bleibt zugaenglich)');
+  assert.match(js, /label\.className = 'btn__label'/, 'die Beschriftung steht in einem eigenen Knoten');
+  assert.match(js, /if \(action\.icon\) btn\.title = action\.label;/, 'als Tooltip bleibt sie lesbar');
 });
 
 test('splitViewDetailHtml: benannte Spalte mit Leerzustand und leerem Koerper, Nutzertext escaped', () => {

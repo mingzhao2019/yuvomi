@@ -9,6 +9,7 @@ import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } fro
 import { openModal as openSharedModal, closeModal, confirmModal, confirmOverModal, askOverModal, advancedSection, wireBlurValidation, reportFieldError, refocusAfterRender, renderKeepingFocus } from '/components/modal.js';
 import { attachOverlay } from '/utils/overlay-history.js';
 import { openDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
+import { mountMasterDetail, splitViewDetailHtml } from '/utils/master-detail.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete } from '/utils/ux.js';
 import { t, getLocale, formatDate as formatPreferredDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { esc, fmtLocation } from '/utils/html.js';
@@ -689,6 +690,10 @@ let state = {
   hiddenSources: new Map(), // Quellschluessel -> { name, color }, siehe calendarSources()
 };
 let _container = null;
+// Liste + Detail der Agenda (R10 L5): am Desktop steht rechts der gewaehlte
+// Termin. Nur die Agenda traegt den Baustein - Monat, Woche und Tag sind
+// Flaechen. Je Neuaufbau der Agenda ein neuer Aufbau (renderAgendaView).
+let _agendaMd = null;
 const calendarLoads = createCalendarLoadCoordinator();
 // Eigener Koordinator statt calendarLoads: ein Waste-Fetchfehler darf den
 // Ladezustand von Terminen/Aufgaben/Feiertagen/Schichtplan nicht anfassen,
@@ -773,6 +778,23 @@ function validDateParam(value) {
  * Ansicht nur in der Tablist (siehe switchToDayView).
  * @returns {string} der Tag oder '' (kein Tag-Link, ungueltig oder mit `open`)
  */
+/**
+ * Der Termin-Link aus `?open=`: `{ id, date }` oder null.
+ *
+ * Zwei Formen: der Zahl-Link der globalen Suche (`?open=12`, Tag optional aus
+ * `&date=`) und die Auswahl der Agenda-Detailspalte (`?open=12.2026-10-14`,
+ * siehe agendaMdId). Die zweite schreibt die Spalte selbst in die Adresse; las
+ * der Aufbau nur die erste, setzte ein Neuladen oder ein geteilter Link den
+ * Cursor auf heute zurueck, der Tag lag ausserhalb der geladenen Agenda, und
+ * die Auswahl fiel weg. Der Tag der Auswahl gewinnt vor `&date=` - er ist
+ * Teil derselben Adresse, die die Spalte geschrieben hat.
+ */
+function openDeepLink(params) {
+  const m = /^(\d+)(?:\.(\d{4}-\d{2}-\d{2}))?$/.exec(String(params.get('open') ?? ''));
+  if (!m) return null;
+  return { id: m[1], date: validDateParam(m[2]) || validDateParam(params.get('date')) };
+}
+
 function dayDeepLinkDate(params) {
   if (params.get('open')) return '';
   return validDateParam(params.get('date'));
@@ -2322,15 +2344,16 @@ export async function render(container, { user }) {
   bodyEl.insertAdjacentHTML('beforeend', renderSkeletonList({ rows: 6, lines: 2 }));
 
   const params    = new URLSearchParams(window.location.search);
-  const openId    = params.get('open');
-  const dateParam = validDateParam(params.get('date'));
+  const openLink  = openDeepLink(params);
+  const openId    = openLink?.id ?? null;
+  const dateParam = openLink ? openLink.date : validDateParam(params.get('date'));
   let initialEvent = null;
   const dayLink = dayDeepLinkDate(params);
   if (dayLink) {
     state.cursor = dayLink;
     state.view = 'day';
   }
-  if (openId && /^\d+$/.test(openId)) {
+  if (openId) {
     try {
       const eventRes = await api.get(`/calendar/${openId}`);
       if (eventRes?.data) {
@@ -2409,11 +2432,23 @@ export async function render(container, { user }) {
 
     const chip =
       container.querySelector(`[data-date="${CSS.escape(targetDate)}"] [data-id="${CSS.escape(openId)}"]`)
+      // Die Agenda-Zeile traegt Termin und Tag an EINEM Knoten; ohne diese
+      // Form fand der Rueckfall die erste Zeile einer Serie, nicht den Tag.
+      ?? container.querySelector(`[data-id="${CSS.escape(openId)}"][data-date="${CSS.escape(targetDate)}"]`)
       ?? container.querySelector(`[data-id="${CSS.escape(openId)}"]`);
 
     if (chip) {
       chip.scrollIntoView({ block: 'center', behavior: 'instant' });
-      openEventDetail(occurrence, chip);
+      // In der Agenda mit Detailspalte: der Link WAEHLT den Termin aus, statt
+      // ein Popover neben die Spalte zu setzen - und die Adresse nimmt die
+      // Form der Auswahl an (`<id>.<Tag>`), ohne neuen History-Eintrag.
+      // Nannte die Adresse die Auswahl schon (`<id>.<Tag>`), hat der Baustein
+      // sie beim Aufbau eingeloest; die steht, auch wenn der Rueckfall unten
+      // eine andere Zeile derselben Serie gefunden hat.
+      if (_agendaMd?.isSplit() && chip.dataset.mdId) {
+        if (_agendaMd.selectedId() == null) _agendaMd.select(chip.dataset.mdId, { history: 'replace' });
+      }
+      else openEventDetail(occurrence, chip);
     } else {
       // Kein sichtbarer Chip (Termin außerhalb der aktuellen Ansicht): Der
       // Deep-Link landet trotzdem in der Leseansicht, nur ohne Verankerung.
@@ -3098,8 +3133,13 @@ function renderView() {
    * breitesten Koerpers; die Agenda-LISTE behaelt ihre Lesebahn. Der
    * Kanten-Guard kennt diese Bauart (test-frontend-audit: Lesemass-Toggle
    * am Koerper ohne Kopf-Toggle). */
-  _container.querySelector('#calendar-page')
-    ?.classList.toggle('is-reading-measure', state.view === 'agenda');
+  const page = _container.querySelector('#calendar-page');
+  page?.classList.toggle('is-reading-measure', state.view === 'agenda');
+  // DIE AGENDA IST LISTE + DETAIL (R10 L5, A2): am Desktop liess sie rechts
+  // 436px leer. Der Container der Schwelle (`module-surface`) steht nur in der
+  // Agenda an der Seitenwurzel; die drei Raster bleiben Flaeche.
+  page?.classList.toggle('app-page--list-detail', state.view === 'agenda');
+  if (state.view !== 'agenda') dropAgendaSelection();
   // Monats-Resize-Observer lösen, bevor das alte #month-grid detached wird;
   // nur die Monatsansicht setzt ihn danach wieder auf.
   _monthGridResizeObserver?.disconnect();
@@ -5075,8 +5115,78 @@ function handleDayRowActivation(e, { keyboard = false } = {}) {
   const evEl = e.target.closest('.agenda-event');
   if (!evEl) return;
   if (keyboard) e.preventDefault();
+  // In der Agenda entscheidet der Baustein: ab der Schwelle waehlt die Zeile
+  // aus (Detailspalte), darunter oeffnet sie wie bisher (openNarrow).
+  if (_agendaMd && evEl.dataset.mdId) { _agendaMd.open(evEl.dataset.mdId, evEl); return; }
   const ev = state.events.find((x) => x.id === parseInt(evEl.dataset.id, 10));
   if (ev) openEventDetail(ev, evEl);
+}
+
+/**
+ * Die Auswahl-ID einer Agenda-Zeile: Termin UND Tag (`<id>.<YYYY-MM-DD>`).
+ * Ein Serientermin und ein mehrtaegiger Termin stehen mit derselben id an
+ * mehreren Tagen; mit der id allein fuehrten die Pfeiltasten von der zweiten
+ * Zeile einer Serie zurueck zur ersten (der Baustein findet die ERSTE Zeile
+ * zu einer ID). Ein Punkt statt eines Doppelpunkts: die Adresse traegt ihn
+ * unkodiert, und die id ist eine Zahl. Haushaltshilfe-Besuche bekommen keine
+ * - sie oeffnen ihr eigenes Modul, eine Vorwahl darf dorthin nicht fuehren.
+ */
+function agendaMdId(ev, day) {
+  if (ev?.housekeeping_visit_id) return null;
+  return `${ev.id}.${day}`;
+}
+
+function agendaMdIdAttr(ev, day) {
+  const id = agendaMdId(ev, day);
+  return id ? ` data-md-id="${esc(id)}"` : '';
+}
+
+/** Der Termin zu einer Auswahl-ID, bevorzugt das Vorkommen an diesem Tag. */
+function eventForAgendaMdId(mdId) {
+  const m = /^(\d+)(?:\.(\d{4}-\d{2}-\d{2}))?$/.exec(String(mdId ?? ''));
+  if (!m) return null;
+  const id = Number(m[1]);
+  const matches = state.events.filter((x) => x.id === id);
+  return matches.find((x) => m[2] && localDate(x.start_datetime) === m[2]) ?? matches[0] ?? null;
+}
+
+/** Die Agenda wird verlassen (andere Ansicht): die Auswahl geht mit, ohne Geschichte. */
+function dropAgendaSelection() {
+  if (!_agendaMd) return;
+  const md = _agendaMd;
+  _agendaMd = null;
+  if (md.selectedId() != null) md.clear({ history: 'replace' });
+  md.destroy();
+}
+
+/**
+ * Haengt Liste + Detail an die gerade gebaute Agenda. Ein reiner Zahl-Link
+ * (`?open=12`, globale Suche) loest der Kalender wie bisher selbst ein
+ * (render(): Vorkommen am Zieltag) - der Baustein beansprucht nur seine
+ * eigene Form `<id>.<Tag>`.
+ */
+function mountAgendaDetail(container) {
+  const root = container.querySelector('.calendar-agenda-split');
+  _agendaMd?.destroy();
+  _agendaMd = null;
+  if (!root) return;
+  const open = new URLSearchParams(location.search).get('open');
+  _agendaMd = mountMasterDetail({
+    root,
+    claimInitial: !(open && /^\d+$/.test(open)),
+    renderDetail: (id, body) => {
+      const ev = eventForAgendaMdId(id);
+      if (!ev || ev.housekeeping_visit_id) return false;
+      // Nicht abwarten: die Erinnerungen kommen nach (openEventDetail), die
+      // Spalte gehoert sofort dem Termin.
+      openEventDetail(ev, null, { pane: body });
+      return undefined;
+    },
+    openNarrow: (id, trigger) => {
+      const ev = eventForAgendaMdId(id);
+      if (ev) openEventDetail(ev, trigger ?? null);
+    },
+  });
 }
 
 function renderAgendaView(container) {
@@ -5104,7 +5214,8 @@ function renderAgendaView(container) {
 
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
-    <div class="agenda-view page-scrollport" id="agenda-view">
+    <div class="split-view calendar-agenda-split">
+    <div class="agenda-view page-scrollport split-view__list" id="agenda-view">
       ${groups.length === 0
         ? emptyStateHTML({
           icon: 'calendar-plus',
@@ -5133,6 +5244,12 @@ function renderAgendaView(container) {
           </div>
         `).join('')
       }
+    </div>
+    ${splitViewDetailHtml({
+      id: 'calendar',
+      label: t('calendar.detailPaneLabel'),
+      empty: { icon: 'calendar', title: t('calendar.pickOne'), hint: t('calendar.pickOneHint') },
+    })}
     </div>
   `);
 
@@ -5166,33 +5283,14 @@ function renderAgendaView(container) {
   // Tastaturaktivierung der als role="button" ausgezeichneten Zeilen (Enter/Space).
   agenda.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    const openTarget = e.target.closest('.agenda-event__open');
-    if (openTarget) {
-      e.preventDefault();
-      const evEl = openTarget.closest('.agenda-event');
-      const ev = state.events.find((x) => x.id === parseInt(evEl?.dataset.id, 10));
-      if (ev) openEventDetail(ev, evEl);
-      return;
-    }
-    if (e.target.closest('.cal-event__archive')) return;
-    const taskChip = e.target.closest('.cal-task-chip');
-    if (taskChip && e.target === taskChip && taskChip.getAttribute('role') === 'button') {
-      e.preventDefault();
-      openTaskFromCalendar(taskChip.dataset.taskId);
-      return;
-    }
-    const wasteEl = e.target.closest('.waste-occurrence-chip');
-    if (wasteEl) {
-      e.preventDefault();
-      navigateToWasteOccurrence(wasteEl.dataset.deepLink);
-      return;
-    }
-    const evEl = e.target.closest('.agenda-event');
-    if (!evEl) return;
-    e.preventDefault();
-    const ev = state.events.find((x) => x.id === parseInt(evEl.dataset.id, 10));
-    if (ev) openEventDetail(ev, evEl);
+    if (e.target.closest('.cal-event__archive, [data-calendar-task-action="toggle"]')) return;
+    // Enter auf der schon gewaehlten Zeile gehoert dem Baustein (fokussiert
+    // das Detail); ein zweites Oeffnen hier waere dieselbe Geste doppelt.
+    if (e.defaultPrevented) return;
+    handleDayRowActivation(e, { keyboard: true });
   });
+
+  mountAgendaDetail(container);
 }
 
 // --------------------------------------------------------
@@ -5841,6 +5939,8 @@ async function openFoundEvent(ev) {
 }
 
 export const __test = {
+  // R10 L5: Liste + Detail der Agenda - Auswahl-ID und ihr Termin.
+  agendaMdId, eventForAgendaMdId,
   // Die Nur-lesen-Weiche (#467) und der Anlegeweg, den sie als erstes schliesst.
   readOnly, openEventModal,
   periodStepOf, periodArrowLabels, openCalendarFilters,
@@ -5882,6 +5982,7 @@ export const __test = {
   sortAgendaEntries,
   deepLinkTargetDate,
   dayDeepLinkDate,
+  openDeepLink,
   findDeepLinkedOccurrence,
   validDateParam,
   hasAttachment,
@@ -6003,9 +6104,9 @@ function renderAgendaEvent(ev, dayStr) {
   // rows. Keep the rendered date on both the row and its focusable opener so
   // focus restoration can identify the same occurrence after a redraw.
   return `
-    <div class="list-row agenda-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}" data-date="${esc(agendaDate)}" style="${eventSurfaceStyle(ev)}">
+    <div class="list-row agenda-event${eventCompletionClass(ev)}" data-calendar-event data-id="${ev.id}" data-date="${esc(agendaDate)}"${agendaMdIdAttr(ev, agendaDate)} style="${eventSurfaceStyle(ev)}">
       ${renderEventCompletionControl(ev)}
-      <div class="agenda-event__open" data-date="${esc(agendaDate)}" role="button" tabindex="0" aria-label="${esc(ariaLabel)}">
+      <div class="agenda-event__open" data-md-focus data-date="${esc(agendaDate)}" role="button" tabindex="0" aria-label="${esc(ariaLabel)}">
         <div class="agenda-event__body">
           <div class="agenda-event__title">${eventGlyphsHtml(ev, { compact: false })}<span class="cal-event__title">${esc(ev.title)}</span></div>
           <div class="agenda-event__meta">
@@ -6014,7 +6115,6 @@ function renderAgendaEvent(ev, dayStr) {
             ${ev.cal_name ? `<span class="calendar-meta-item calendar-meta-item--cal">${calendarMetaIconHtml('calendar-days')}<span>${esc(ev.cal_name)}</span></span>` : ''}
             ${eventVisibilityMeta(ev.visibility)}
             ${assignedUsers.length ? `<span class="agenda-event__assigned">${renderAvatarStack(assignedUsers, { size: 22, maxVisible: 3, minFont: 12 })}</span>` : ''}
-          </div>
         </div>
       </div>
     </div>
@@ -6184,6 +6284,28 @@ function eventMapUrl(location) {
 }
 
 /**
+ * Ort in einer Karte öffnen (#1110) - als ausdrückliche Aktion, nicht als Link
+ * auf dem Ortstext: `location` ist Freitext, und "Zoom" oder "Raum 3B" sind
+ * keine Adresse. Die Aktion behauptet das nie, der Link wird erst beim Antippen
+ * benutzt. Dieselbe Suche wie die Adresse in Kontakte.
+ *
+ * ALS FOLGEAKTION DER ORT-ZEILE (R10 L6, A2 P3), nicht mehr in der Fusszeile:
+ * dort stand sie neben Loeschen und Bearbeiten und brach den Fuss auf drei
+ * Reihen (mobil 133px). Sie schreibt nichts und gehoert deshalb auch einem
+ * Nur-lesen-Nutzer - kein `readOnly()` hier.
+ */
+function mapRowAction(ev) {
+  const mapUrl = eventMapUrl(ev.location);
+  if (!mapUrl) return null;
+  return {
+    id: 'detail-open-map',
+    label: t('calendar.openInMap'),
+    icon: 'map-pin',
+    onClick: () => window.open(mapUrl, '_blank', 'noopener'),
+  };
+}
+
+/**
  * Die Leseinformationen eines Termins.
  *
  * Wiederholung, Erinnerungen und Sichtbarkeit standen bisher nur im
@@ -6195,7 +6317,7 @@ function renderEventDetail(ev, reminders = []) {
     { icon: 'calendar', label: t('calendar.detailCalendar'), node: calendarChipNode(ev) },
     { icon: 'clock', label: t('calendar.detailWhen'), value: eventWhenText(ev) },
     recurrenceRow(ev.recurrence_rule),
-    { icon: 'map-pin', label: t('calendar.locationLabel'), value: ev.location ? fmtLocation(ev.location) : '' },
+    { icon: 'map-pin', label: t('calendar.locationLabel'), value: ev.location ? fmtLocation(ev.location) : '', action: mapRowAction(ev) },
     assignedRow(ev.assigned_users, t('calendar.assignedLabel'), ev.assigned_name || ''),
     {
       icon: 'bell',
@@ -6221,9 +6343,10 @@ function renderEventDetail(ev, reminders = []) {
  * Der einzige Einstieg in einen bestehenden Termin. Ohne Anker (Deep-Link,
  * Suchtreffer) wird daraus ein Sheet, mit Anker am Desktop ein Popover.
  */
-async function openEventDetail(ev, anchor = null) {
+async function openEventDetail(ev, anchor = null, { pane = null } = {}) {
   // Haushaltshilfe-Besuche werden in ihrem eigenen Modul bearbeitet; der Umweg
-  // über eine Detailansicht führte sonst ins Leere.
+  // über eine Detailansicht führte sonst ins Leere. (In der Detailspalte der
+  // Agenda stehen sie gar nicht erst zur Wahl - agendaMdId().)
   if (ev?.housekeeping_visit_id) {
     window.yuvomi.navigate(`/housekeeping?editVisit=${ev.housekeeping_visit_id}`);
     return;
@@ -6262,21 +6385,6 @@ async function openEventDetail(ev, anchor = null) {
     },
   }];
 
-  // Ort in einer Karte öffnen (#1110) - als ausdrückliche Aktion, nicht als Link
-  // auf dem Ortstext: `location` ist Freitext, und "Zoom" oder "Raum 3B" sind
-  // keine Adresse. Die Aktion behauptet das nie, der Link wird erst beim Antippen
-  // benutzt. Dieselbe Suche wie die Adresse in Kontakte.
-  const mapUrl = eventMapUrl(ev.location);
-  if (mapUrl) {
-    actions.push({
-      id: 'detail-open-map',
-      label: t('calendar.openInMap'),
-      variant: 'ghost',
-      icon: 'map-pin',
-      onClick: () => window.open(mapUrl, '_blank', 'noopener'),
-    });
-  }
-
   // ICS-Abos: Ein lokal geänderter Termin lässt sich auf das Original
   // zurücksetzen. Die Aktion gehört zum Objekt, also in die Fußzeile.
   if (ev.external_source === 'ics'
@@ -6309,6 +6417,10 @@ async function openEventDetail(ev, anchor = null) {
     title: ev.title,
     accentColor: resolveEventBackground(ev),
     anchor,
+    // Die Detailspalte der Agenda (Liste + Detail): dieselbe Ansicht, rechts
+    // neben der Liste statt als Popover. Bearbeiten steht dort im Kopf und
+    // fuehrt ins Formular-Modal (`edit.standalone`).
+    pane: pane ?? undefined,
     sections: renderEventDetail(ev, reminders),
     actions,
     // Ohne `edit` baut die geteilte Ansicht keinen Bearbeiten-Knopf
