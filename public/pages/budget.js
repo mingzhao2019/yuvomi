@@ -134,13 +134,31 @@ function getSubcategories(category) {
   return state.meta.subcategories?.[category] || [];
 }
 
-function defaultSubcategory(category) {
-  return getSubcategories(category)[0]?.key || '';
+/* DIE UNTERKATEGORIE WIRD GEWAEHLT, NICHT GESETZT (Re-Critique 2026-09-27,
+ * R8 H4-Rest). Nach Wahl von "Essen" stand sie still auf ihrem ersten Eintrag -
+ * dieselbe Klasse wie die vorbelegte Kategorie: wer sie nicht ansieht, bucht
+ * sie. Bei mehreren steht ein Platzhalter und die Wahl ist Pflicht; bei genau
+ * einer gibt es nichts zu entscheiden, sie steht vorgewaehlt; ohne keine gibt
+ * es auch keine Pflicht (der Server laesst sie dann leer). Ein Bestandswert,
+ * der zur Kategorie gehoert, bleibt stehen. Markup und Kategoriewahl im
+ * offenen Dialog lesen beide diese eine Regel. */
+function subcategoryChoice(category, selected = '') {
+  const subs = getSubcategories(category);
+  const several = subs.length > 1;
+  const value = subs.some((s) => s.key === selected) ? selected : (subs.length === 1 ? subs[0].key : '');
+  return { value, required: several, placeholder: several };
 }
 
-function defaultCategory(type) {
-  const cats = type === 'income' ? incomeCategories() : expenseCategories();
-  return cats[0]?.key || '';
+function subcategoryPlaceholderOption(selected) {
+  return `<option value="" disabled${selected ? ' selected' : ''}>${esc(t('budget.subcategoryPlaceholder'))}</option>`;
+}
+
+/* Leerer Platzhalter der Kategorie-Auswahl im Buchungsdialog (A5 P2-4). Hier
+ * stand `defaultCategory()` - die erste Kategorie als Vorgabe, genau die Regel,
+ * die still Miete buchte; aufgerufen wurde sie zuletzt nirgends mehr. `disabled`:
+ * zurueck auf "keine Wahl" fuehrt kein Weg, nur zu einer anderen Kategorie. */
+function categoryPlaceholderOption(selected) {
+  return `<option value="" disabled${selected ? ' selected' : ''}>${esc(t('budget.categoryPlaceholder'))}</option>`;
 }
 
 function getMonthName(monthIndex) {
@@ -282,6 +300,30 @@ const DEFAULT_COLOR_ID = 'default';
 function tabFromQuery(search) {
   const tab = new URLSearchParams(search || '').get('tab');
   return tab && Object.hasOwn(TAB_CAPS, tab) ? tab : null;
+}
+
+/* DER REITER STEHT IN DER ADRESSE (Re-Critique 2026-09-27, A5 P2-1).
+ * `?tab=` wurde nur gelesen: wer auf Aufteilung wechselte und neu lud, stand
+ * wieder in der Uebersicht, und wer ueber `?tab=subscriptions` kam und auf
+ * Darlehen wechselte, hatte eine Adresse, die einen anderen Reiter nannte.
+ * Jetzt schreibt der Wechsel `?tab=` - per replaceState, denn ein Reiter ist
+ * kein Ort, zu dem "Zurueck" einzeln fuehren soll. `path` im State, weil der
+ * Router ihn bei popstate liest (router.js). Fremde Parameter (`group` aus dem
+ * Dashboard-Sprung) bleiben stehen. */
+function tabSearch(search, tab) {
+  const params = new URLSearchParams(search || '');
+  params.set('tab', tab);
+  return `?${params.toString()}`;
+}
+
+function writeTabToUrl(tab) {
+  const loc = globalThis.location;
+  const hist = globalThis.history;
+  if (!loc || typeof hist?.replaceState !== 'function') return;
+  const search = tabSearch(loc.search, tab);
+  if (search === loc.search) return;
+  const path = `${loc.pathname}${search}${loc.hash || ''}`;
+  hist.replaceState({ ...(hist.state ?? {}), path }, '', path);
 }
 
 function tabCaps() {
@@ -608,6 +650,11 @@ export async function render(container, { user }) {
   const tabFromUrl = tabFromQuery(window.location.search);
   if (tabFromUrl) state.activeTab = tabFromUrl;
   if (user?.access_scope === 'split_guest') state.activeTab = 'split-expenses';
+  // Ohne Parameter zeigt die Seite den zuletzt aktiven Reiter - die Adresse
+  // nennt ihn ab jetzt auch, sonst fuehrte ein Neuladen woanders hin. Hier,
+  // vor dem ersten await: der Router hat die Adresse gerade gesetzt, und
+  // spaeter koennte sie schon einer anderen Seite gehoeren.
+  writeTabToUrl(state.activeTab);
 
   if (user?.access_scope !== 'split_guest') {
     try {
@@ -786,6 +833,7 @@ function wireNav() {
     onChange: async (id) => {
       const prev = state.activeTab;
       state.activeTab = id;
+      writeTabToUrl(id);
       // Eine Zeitachse über den Tabwechsel hinweg: der Monat aus dem Budget-Tab
       // wird zum Anker der Berichte und umgekehrt. Vorher hielt budget-stats.js
       // einen eigenen Anker, sodass ein im Budget gewählter März in den Berichten
@@ -1823,6 +1871,7 @@ function wireAccountsPage() {
       // Aktive Pille mitziehen: dieser Wechsel läuft nicht über die Tab-Leiste,
       // daher malt wireTablist ihn nur über sync() nach (updateTabs tut es nicht mehr).
       _tablist?.sync('budget');
+      writeTabToUrl('budget');
       await loadMonth(state.month);
       renderBody();
       // Der geklickte Button wird beim Re-Render entfernt — ohne Fokus-Umzug
@@ -2760,6 +2809,7 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
   // damit die Zuordnung ablesbar ist, nimmt hier aber keine Eingabe entgegen - der
   // Server bucht ohnehin nach der Richtung und würde eine Umkehr still zurückdrehen.
   const isLoanPayment = isEdit && (entry.loan_payment_id != null || entry.loan_id != null);
+  const initialTypeId = !isEdit && initialType === 'loan' ? 'loan' : (isExpense ? 'expense' : 'income');
   // Bei virtuellen Serien hält amount nur den Monatsanteil; im Formular den eingegebenen Periodenbetrag zeigen.
   const editAmount = isEdit && entry.recurrence_virtual && entry.recurrence_full_amount != null
     ? entry.recurrence_full_amount
@@ -2776,15 +2826,23 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
   const intervalOption = (val, key) =>
     `<option value="${val}" ${curInterval === val ? 'selected' : ''}>${t(key)}</option>`;
 
+  // KEINE VORBELEGTE KATEGORIE (Re-Critique 2026-09-27, A5 P2-4). Die erste
+  // Kategorie stand vorgewaehlt - "Wohnen / Zuhause" mit "Miete / Kreditrate":
+  // wer nur Betrag und "REWE" tippte, buchte still Miete. Neu steht die Auswahl
+  // auf einem leeren Platzhalter, und Speichern verlangt eine Wahl. Beim
+  // Bearbeiten bleibt die Kategorie des Bestands gewaehlt.
   const initialCats = isExpense ? expenseCategories() : incomeCategories();
-  const catOpts     = initialCats.map((c) =>
-    `<option value="${esc(c.key)}" ${isEdit && entry.category === c.key ? 'selected' : ''}>${esc(categoryLabel(c))}</option>`
+  // Eine Bestandskategorie, die es nicht mehr gibt, faellt ebenfalls auf den
+  // Platzhalter - sonst waehlte der Browser still die erste Option.
+  const initialCategory = isEdit && initialCats.some((c) => c.key === entry.category) ? entry.category : '';
+  const catOpts     = categoryPlaceholderOption(!initialCategory) + initialCats.map((c) =>
+    `<option value="${esc(c.key)}" ${initialCategory === c.key ? 'selected' : ''}>${esc(categoryLabel(c))}</option>`
   ).join('');
-  const initialCategory = isEdit ? entry.category : initialCats[0]?.key;
-  const initialSubcategory = isEdit ? entry.subcategory : defaultSubcategory(initialCategory);
-  const subcatOpts = getSubcategories(initialCategory).map((s) =>
-    `<option value="${esc(s.key)}" ${initialSubcategory === s.key ? 'selected' : ''}>${esc(subcategoryLabel(s))}</option>`
-  ).join('');
+  const initialSub = subcategoryChoice(initialCategory, isEdit ? entry.subcategory : '');
+  const subcatOpts = (initialSub.placeholder ? subcategoryPlaceholderOption(!initialSub.value) : '')
+    + getSubcategories(initialCategory).map((s) =>
+      `<option value="${esc(s.key)}" ${initialSub.value === s.key ? 'selected' : ''}>${esc(subcategoryLabel(s))}</option>`
+    ).join('');
 
   const hasAccounts = (state.accounts?.length ?? 0) > 0;
   const accountOpts = `<option value="">${t('budget.noAccount')}</option>` + (state.accounts ?? []).map((a) =>
@@ -2797,13 +2855,23 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
         </div>` : '';
 
   const content = `
-    <div class="amount-type-toggle ${isEdit ? 'amount-type-toggle--entry-only' : ''}">
-      <button class="amount-type-btn amount-type-btn--expenses ${isExpense ? 'amount-type-btn--active' : ''}"
-              id="type-expense" type="button" ${isLoanPayment ? 'disabled' : ''}>${t('budget.typeExpense')}</button>
-      <button class="amount-type-btn amount-type-btn--income ${!isExpense ? 'amount-type-btn--active' : ''}"
-              id="type-income" type="button" ${isLoanPayment ? 'disabled' : ''}>${t('budget.typeIncome')}</button>
-      ${!isEdit ? `<button class="amount-type-btn amount-type-btn--loan"
-              id="type-loan" type="button">${t('budget.typeLoan')}</button>` : ''}
+    ${/* BUCHUNGSTYP ALS KANON-SEGMENT (Re-Critique 2026-09-27, A5 P1-1). Drei
+        * Knoepfe ohne Rolle und ohne Zustand, das Vorzeichen stand nur in der
+        * Farbe einer roten Vollflaeche - fuer Screenreader unsichtbar, fuer
+        * alle anderen ein Alarm. Jetzt `.segmented` mit radiogroup, der Zustand
+        * steht in aria-checked und als Pille im Well (Form, nicht Farbe);
+        * Pfeiltasten, Roving-Tabindex und die gleitende Kapsel kommen aus den
+        * geteilten Bausteinen (onSave: wireTablist + attachSegmentIndicator). */ ''}
+    <div class="segmented budget-type-toggle" role="radiogroup" aria-label="${t('budget.typeGroupLabel')}">
+      ${[
+        ['expense', 'budget.typeExpense'],
+        ['income', 'budget.typeIncome'],
+        ...(isEdit ? [] : [['loan', 'budget.typeLoan']]),
+      ].map(([id, key]) => {
+        const on = id === initialTypeId;
+        return `<button class="segmented__item${on ? ' is-active' : ''}" id="type-${id}" type="button" role="radio"
+              data-tab-id="${id}" aria-checked="${on}" tabindex="${on ? '0' : '-1'}" ${isLoanPayment ? 'disabled' : ''}>${t(key)}</button>`;
+      }).join('')}
     </div>
     ${isLoanPayment ? `<p class="budget-type-locked-hint">${t('budget.loanPaymentTypeLocked')}</p>` : ''}
 
@@ -2831,18 +2899,18 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
 
     <div class="form-group js-entry-field">
       <div class="budget-field-header">
-        <label class="form-label" for="bm-category">${t('budget.categoryLabel')}</label>
+        <label class="form-label" for="bm-category">${t('budget.categoryLabel')}<span class="required-marker" aria-hidden="true"> *</span></label>
         <button class="btn btn--secondary budget-inline-add" type="button" id="bm-add-category">${t('budget.addCategory')}</button>
       </div>
-      <select class="form-input" id="bm-category">${catOpts}</select>
+      <select class="form-input" id="bm-category" required aria-required="true">${catOpts}</select>
     </div>
 
-    <div class="form-group js-entry-field" id="bm-subcategory-group">
+    <div class="form-group js-entry-field" id="bm-subcategory-group"${initialCategory ? '' : ' hidden'}>
       <div class="budget-field-header">
-        <label class="form-label" for="bm-subcategory">${t('budget.subcategoryLabel')}</label>
+        <label class="form-label" for="bm-subcategory">${t('budget.subcategoryLabel')}<span class="required-marker" aria-hidden="true"${initialSub.required ? '' : ' hidden'}> *</span></label>
         <button class="btn btn--secondary budget-inline-add" type="button" id="bm-add-subcategory">${t('budget.addSubcategory')}</button>
       </div>
-      <select class="form-input" id="bm-subcategory">${subcatOpts}</select>
+      <select class="form-input" id="bm-subcategory"${initialSub.required ? ' required aria-required="true"' : ''}>${subcatOpts}</select>
     </div>
 
     <div class="form-group js-entry-field">
@@ -2973,7 +3041,7 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
     // 400px liessen Kategorie und Unterkategorie nicht nebeneinander stehen.
     size: 'md',
     onSave(panel) {
-      let currentType = !isEdit && initialType === 'loan' ? 'loan' : (isExpense ? 'expense' : 'income');
+      let currentType = initialTypeId;
 
       // Checkbox-Logik des Zustaendigen-Pickers (#1057): "Niemand" schliesst die
       // uebrigen aus und umgekehrt. Ohne diese Bindung waeren beide gleichzeitig
@@ -2999,9 +3067,8 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
 
       const setType = (type) => {
         currentType = type;
-        panel.querySelector('#type-expense').classList.toggle('amount-type-btn--active', type === 'expense');
-        panel.querySelector('#type-income').classList.toggle('amount-type-btn--active', type === 'income');
-        panel.querySelector('#type-loan')?.classList.toggle('amount-type-btn--active', type === 'loan');
+        // Den Zustand der Leiste (is-active, aria-checked, tabindex) malt
+        // wireTablist - hier nur, was am Typ haengt.
         panel.querySelectorAll('.js-entry-field').forEach((el) => { el.hidden = type === 'loan'; });
         panel.querySelector('#bm-loan-fields').hidden = type !== 'loan';
         // Wiederkehrungs-Optionen nur zeigen, wenn "Wiederkehrend" aktiv ist.
@@ -3019,6 +3086,13 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
         const catSelect = panel.querySelector('#bm-category');
         const currentValue = preferredCategory || catSelect.value;
 
+        // Der Platzhalter bleibt die erste Option: passt die bisherige Wahl
+        // nicht zum neuen Typ (Ausgabe -> Einnahme), steht die Auswahl wieder
+        // leer, statt still auf die erste Kategorie des anderen Typs zu fallen.
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.textContent = t('budget.categoryPlaceholder');
         const options = cats.map((c) => {
           const opt = document.createElement('option');
           opt.value = c.key;
@@ -3026,8 +3100,8 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
           opt.selected = currentValue === c.key;
           return opt;
         });
-        catSelect.replaceChildren(...options);
-        if (!cats.some((c) => c.key === catSelect.value)) catSelect.value = cats[0]?.key || '';
+        catSelect.replaceChildren(placeholder, ...options);
+        if (!cats.some((c) => c.key === currentValue)) catSelect.value = '';
         updateSubcategoryOptions();
       };
 
@@ -3036,19 +3110,29 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
         const subcatGroup = panel.querySelector('#bm-subcategory-group');
         const subcatSelect = panel.querySelector('#bm-subcategory');
         const subcategories = getSubcategories(catSelect.value);
-        const currentValue = preferredSubcategory || subcatSelect.value;
+        const choice = subcategoryChoice(catSelect.value, preferredSubcategory || subcatSelect.value);
 
-        subcatGroup.hidden = false;
-        subcatSelect.replaceChildren(...subcategories.map((s) => {
+        // Ohne Kategorie gibt es keine Unterkategorie zu waehlen.
+        subcatGroup.hidden = !catSelect.value;
+        const options = subcategories.map((s) => {
           const opt = document.createElement('option');
           opt.value = s.key;
           opt.textContent = subcategoryLabel(s);
-          opt.selected = currentValue === s.key;
           return opt;
-        }));
-        if (subcategories.length && !subcategories.some((s) => s.key === subcatSelect.value)) {
-          subcatSelect.value = subcategories[0].key;
+        });
+        if (choice.placeholder) {
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.disabled = true;
+          placeholder.textContent = t('budget.subcategoryPlaceholder');
+          options.unshift(placeholder);
         }
+        subcatSelect.replaceChildren(...options);
+        subcatSelect.value = choice.value;
+        subcatSelect.required = choice.required;
+        if (choice.required) subcatSelect.setAttribute('aria-required', 'true');
+        else subcatSelect.removeAttribute('aria-required');
+        subcatGroup.querySelector('.required-marker').hidden = !choice.required;
       };
 
       const addCategory = async () => {
@@ -3089,15 +3173,17 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
         }
       };
 
-      panel.querySelector('#type-expense').addEventListener('click', () => {
-        setType('expense');
+      // Dieselbe Verhaltensschicht wie der Darlehens-Statusfilter: Klick,
+      // Pfeiltasten/Home/End, Roving-Tabindex und aria-checked im select-Modus;
+      // die Kapsel gleitet mit (Kanon, Runde 7 D8). Eine gesperrte Rate
+      // (disabled) nimmt weder Klick noch Fokus an.
+      wireTablist(panel.querySelector('.budget-type-toggle'), {
+        activeId: currentType,
+        activeClass: 'is-active',
+        mode: 'select',
+        onChange: (id) => setType(id),
       });
-      panel.querySelector('#type-income').addEventListener('click', () => {
-        setType('income');
-      });
-      panel.querySelector('#type-loan')?.addEventListener('click', () => {
-        setType('loan');
-      });
+      attachSegmentIndicator(panel.querySelector('.budget-type-toggle'));
       wireLoanDirectionField(panel);
       wireLoanCurrencyFields(panel);
       wireLoanInterestFields(panel);
@@ -3186,6 +3272,14 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
         }
         if (isNaN(absVal) || absVal <= 0) {
           reportFieldError(panel.querySelector('#bm-amount'), t('budget.validAmountRequired'));
+          return;
+        }
+        if (!category) {
+          reportFieldError(panel.querySelector('#bm-category'), t('budget.categoryRequired'));
+          return;
+        }
+        if (!subcategory && subcategoryChoice(category).required) {
+          reportFieldError(panel.querySelector('#bm-subcategory'), t('budget.subcategoryRequired'));
           return;
         }
         if (rejectOffGridAmount(panel.querySelector('#bm-amount'), absVal, state.currency, {
@@ -4015,6 +4109,54 @@ async function openConfirmBookingModal(id) {
   });
 }
 
+/* DIE BILANZ RECHNET MIT, WAS DIE LISTE SCHON ZEIGT (Re-Critique 2026-09-27,
+ * A5 P3). Loeschen nahm die Zeile sofort aus der Liste, aber Saldo, Ein/Aus und
+ * Kategorien blieben bis zum Commit (5 s Undo-Fenster) auf dem alten Wert - zwei
+ * Aussagen ueber denselben Monat, die sich widersprachen. `sign` -1 rechnet die
+ * Buchungen heraus, +1 (Undo) wieder hinein. Dieselben Regeln wie der Server
+ * (`GET /budget/summary`): offene Buchungen (`is_pending`) zaehlen nur im
+ * Offen-Hinweis, und nur Buchungen des Monats der Bilanz zaehlen - ein Undo
+ * nach dem Blaettern rechnet nichts in den falschen Monat. Nach dem Commit
+ * kommt ohnehin der Serverstand. Gibt eine neue Bilanz zurueck. */
+function summaryWith(summary, entries, sign) {
+  if (!summary) return summary;
+  const round = (n) => Math.round(n * 1e6) / 1e6;
+  const next = {
+    ...summary,
+    byCategory: (summary.byCategory ?? []).map((row) => ({ ...row })),
+    pending: summary.pending ? { ...summary.pending } : summary.pending,
+  };
+  for (const e of entries) {
+    const amount = Number(e?.amount);
+    if (!Number.isFinite(amount)) continue;
+    if (summary.month && String(e.date ?? '').slice(0, 7) !== summary.month) continue;
+    const income = amount > 0 ? amount : 0;
+    const expenses = amount < 0 ? amount : 0;
+    if (e.is_pending) {
+      if (!next.pending) continue;
+      next.pending.count = Math.max(0, (next.pending.count || 0) + sign);
+      next.pending.income = round((next.pending.income || 0) + sign * income);
+      next.pending.expenses = round((next.pending.expenses || 0) + sign * expenses);
+      continue;
+    }
+    next.income = round((next.income || 0) + sign * income);
+    next.expenses = round((next.expenses || 0) + sign * expenses);
+    next.balance = round((next.balance || 0) + sign * amount);
+    let row = next.byCategory.find((r) => r.category === e.category);
+    if (!row && sign > 0) {
+      row = { category: e.category, income: 0, expenses: 0, total: 0 };
+      next.byCategory.push(row);
+    }
+    if (!row) continue;
+    row.income = round((row.income || 0) + sign * income);
+    row.expenses = round((row.expenses || 0) + sign * expenses);
+    row.total = round((row.total || 0) + sign * amount);
+  }
+  // Eine Kategorie ohne Buchung liefert der Server nicht - das Diagramm auch nicht.
+  next.byCategory = next.byCategory.filter((r) => r.income !== 0 || r.expenses !== 0);
+  return next;
+}
+
 async function deleteEntry(id) {
   if (readOnly()) return;
   const entry = state.entries.find((e) => e.id === id);
@@ -4031,6 +4173,7 @@ async function deleteEntry(id) {
   }
 
   state.entries = state.entries.filter((e) => e.id !== id);
+  if (entry) state.summary = summaryWith(state.summary, [entry], -1);
   renderBody();
   vibrate([30, 50, 30]);
 
@@ -4043,8 +4186,11 @@ async function deleteEntry(id) {
       renderBody();
     },
     restore: (err) => {
-      if (entry) {
+      // Nur in den Monat zurueck, aus dem sie kam: nach dem Blaettern zeigt
+      // die Liste einen anderen Monat, und die Buchung gehoert nicht hinein.
+      if (entry && String(entry.date ?? '').slice(0, 7) === state.month) {
         state.entries = [...state.entries, entry].sort((a, b) => new Date(b.date) - new Date(a.date));
+        state.summary = summaryWith(state.summary, [entry], 1);
         renderBody();
       }
       if (err) window.yuvomi?.showToast(err.data?.error ?? t('common.unknownError'), 'danger');
@@ -4098,7 +4244,11 @@ async function deleteEntrySeries(id) {
   if (readOnly()) return;
   const entry = state.entries.find((e) => e.id === id);
   const parentId = entry?.recurrence_parent_id ?? (entry?.is_recurring ? entry.id : id);
-  state.entries = state.entries.filter((e) => e.id !== parentId && e.recurrence_parent_id !== parentId);
+  const inSeries = (e) => e.id === parentId || e.recurrence_parent_id === parentId;
+  const removed = state.entries.filter(inSeries);
+  state.entries = state.entries.filter((e) => !inSeries(e));
+  // Das Undo laedt den Monat neu (restore unten) - herausrechnen genuegt hier.
+  state.summary = summaryWith(state.summary, removed, -1);
   renderBody();
   vibrate([30, 50, 30]);
 
@@ -4138,6 +4288,11 @@ export const __test = {
   syncCurrentButton,
   tabCaps,
   tabFromQuery,
+  // R8 H5/H6: Adresse je Reiter und die mitrechnende Bilanz beim Loeschen.
+  tabSearch,
+  writeTabToUrl,
+  summaryWith,
+  subcategoryChoice,
   currentMonth,
   state,
   // #1228: Zustaendigen-Picker fuer test:people-pickers.

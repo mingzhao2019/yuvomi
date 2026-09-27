@@ -1398,6 +1398,28 @@ test('Notizkarte mit Schreibrecht: Nadel, Loeschen und das antippbare Kaestchen'
   }));
 });
 
+test('R8 H15: der Notiztitel ist eine echte Ueberschrift der passenden Ebene, ohne neue Optik', async () => {
+  mitEchtemMarkdown(() => withAccess({ notes: 'read' }, () => {
+    const html = notes.renderNoteCard(notiz({ title: 'Einkauf' }));
+    assert.match(html, /<h2 class="note-card__title">Einkauf<\/h2>/,
+      'ohne Gruppenkoepfe steht die Notiz direkt unter dem Seitentitel (h1)');
+    assert.doesNotMatch(html, /<div class="note-card__title">/, 'ein `div` findet die Ueberschriften-Navigation nicht');
+    assert.match(notes.renderNoteCard(notiz({ title: 'Einkauf' }), { headingLevel: 3 }), /<h3 class="note-card__title">/,
+      'unter "Angeheftet"/"Weitere" (h2) eine Ebene tiefer');
+    assert.doesNotMatch(notes.renderNoteCard(notiz({ title: '' })), /note-card__title/, 'ohne Titel keine leere Ueberschrift');
+  }));
+  // Die Optik haengt an der Klasse, nicht am Element: die Rolle setzt die
+  // Groesse, sonst griffe die UA-Groesse eines h2.
+  const { readFileSync } = await import('node:fs');
+  const typo = readFileSync(new URL('../public/styles/typography.css', import.meta.url), 'utf8');
+  assert.ok([...eachRule(typo)].some((r) => r.selector.split(',').map((x) => x.trim()).includes('.note-card__title')
+    && /font-size\s*:/.test(r.body)), '.note-card__title bringt seine Schriftgroesse selbst mit');
+  // Der Aufruf mit `map()` reichte den Index als zweites Argument durch - die
+  // Ebene kommt deshalb als benanntes Objekt, und das Raster ruft sie so auf.
+  const src = readFileSync(new URL('../public/pages/notes.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /\.map\(renderNoteCard\)/, 'map() darf renderNoteCard keinen Index als Optionen geben');
+});
+
 test('Notizkarte mit `notes: read`: das Kaestchen wird zum Zustandszeichen', () => {
   mitEchtemMarkdown(() => withAccess({ notes: 'read' }, () => {
     const html = notes.renderNoteCard(notiz());
@@ -1981,11 +2003,19 @@ function mitGeburtstagen(liste, fn) {
   try { return fn(); } finally { birthdays.state.birthdays = vorher; }
 }
 
-test('Geburtstagszeile mit `calendar: read`: die Textspalte ist der Weg zum Eintrag', () => {
+test('Geburtstagszeile: die Textspalte ist fuer Lesende UND Schreibende der Weg zum Eintrag (H8)', () => {
   withAccess({ calendar: 'write' }, () => {
     const html = birthdays.birthdayItemHtml(geburtstag());
-    assert.doesNotMatch(html, /data-open=/, 'mit Schreibrecht bleiben Wisch und Stift der Weg in den Editor');
-    assert.match(html, /<div class="list-row__main">/);
+    // Bis R8 blieb die Spalte mit Schreibrecht ein `div`: ein Tipp auf die
+    // Zeile tat nichts, waehrend der Wisch-Chevron Navigation versprach.
+    assert.match(html, /<button type="button" class="list-row__main list-row__main--interactive" data-open="9">/,
+      'mit Schreibrecht ist die Hauptspalte ein Knopf, der den Editor oeffnet');
+    assert.doesNotMatch(html, /<div class="list-row__main">/);
+    assert.doesNotMatch(html, /swipe-row--static/, 'Schreibende behalten die Geste und ihren Chevron');
+  });
+  withAccess({ calendar: 'read' }, () => {
+    assert.match(birthdays.birthdayItemHtml(geburtstag()), /class="swipe-row swipe-row--static"/,
+      'Nur-Lesende sehen keinen Chevron, der eine Geste verspricht');
   });
   withAccess({ calendar: 'read' }, () => {
     const html = birthdays.birthdayItemHtml(geburtstag());
@@ -1994,6 +2024,16 @@ test('Geburtstagszeile mit `calendar: read`: die Textspalte ist der Weg zum Eint
     assert.match(knopf[1], /Oma Erna/, 'der Knopf traegt die Zeile selbst, nicht eine leere Flaeche');
     assert.doesNotMatch(knopf[1], /<div/, 'in einem `button` steht nur Phrasing-Inhalt');
   });
+});
+
+test('Ein Tipp auf die Geburtstagszeile mit Schreibrecht oeffnet den Editor mit dem Bestand (H8)', () => {
+  const eintrag = geburtstag();
+  const offen = mitGeburtstagen([eintrag], () => withAccess({ calendar: 'write' }, () => (
+    modalOptionen(() => birthdays.onListClick(klickAuf({ '[data-open]': { dataset: { open: '9' } } })))
+  )));
+  assert.ok(offen, 'der Tipp oeffnet einen Dialog');
+  assert.match(offen.content, /id="bd-save"/, 'der Editor, nicht die Leseansicht');
+  assert.match(offen.content, /id="bd-name"[^>]*value="Oma Erna"/, 'mit dem Bestand vorbelegt');
 });
 
 test('Ein Tipp bei `calendar: read` oeffnet die Leseansicht, und sie zeigt, was der Editor zeigt', () => {
@@ -2086,6 +2126,7 @@ function editorElement(felder = {}) {
   const handler = {};
   return {
     value: '', hidden: false, disabled: false, ...felder,
+    handlers: handler,
     addEventListener(type, fn) { (handler[type] ??= []).push(fn); },
     async feuern(type) { for (const fn of handler[type] ?? []) await fn({ target: this }); },
     click() {}, focus() {}, replaceChildren() {}, insertAdjacentHTML() {},
@@ -2585,22 +2626,246 @@ test('canEditFor(): das Modulrecht steht VOR der Betreuungs-Freigabe', () => {
 const messung = (over = {}) => ({ id: 41, type: 'weight', value_num: 72.4, unit: 'kg', measured_at: '2026-06-15T08:00', ...over });
 const gewicht = () => ({ type: 'weight', labelKey: 'health.vitals.metric.weight', units: ['kg'], icon: 'scale', channels: null, decimals: 1 });
 
-test('Vitalwerte-Historie mit `health: read`: die Messung bleibt, ihr Loeschweg geht', () => {
+test('Vitalwerte-Historie mit `health: read`: die Messung bleibt, ihr Bearbeiten-Weg geht', () => {
   mitView('vitals', { meId: 1, personId: 1, rows: [messung()], range: 'month', __reset: { rows: [] } }, () => {
     withAccess({ health: 'write' }, () => {
       const html = health.recentMeasurementsMarkup(gewicht());
-      assert.match(html, /data-delete-vital="41"/);
-      assert.match(html, /health\.vitals\.deleteMeasurement/);
+      // R8 H9: die Zeile oeffnet Bearbeiten (Stift) statt nur zu loeschen.
+      assert.match(html, /data-vital-edit="41"/);
+      assert.match(html, /health\.vitals\.editMeasurement/);
+      assert.doesNotMatch(html, /data-delete-vital/, 'Loeschen steht im Dialogfuss, nicht mehr in der Zeile');
     });
     withAccess({ health: 'read' }, () => {
       const html = health.recentMeasurementsMarkup(gewicht());
-      assert.doesNotMatch(html, /data-delete-vital/);
+      assert.doesNotMatch(html, /data-vital-edit/);
       assert.doesNotMatch(html, /<button/);
       // Der Inhalt, den nur ein wirklich gelaufener Renderer ausgeben kann:
       assert.match(html, /health\.vitals\.recentMeasurements/);
       assert.match(html, /72[.,]4/);
     });
   });
+});
+
+test('R8 H9: eine Messung oeffnet sich mit Bestand, Loeschen steht links im Dialogfuss', () => {
+  const bp = { id: 52, type: 'bp', value_num: 128, value_num2: 84, value_num3: 66, unit: 'mmHg', measured_at: '2026-06-15T08:30', visibility: 'family', note: 'nach dem Laufen' };
+  const offen = withAccess({ health: 'write' }, () => modalOptionen(() => health.openVitalModal({ row: bp })));
+  assert.ok(offen, 'mit Schreibrecht geht der Dialog auf');
+  assert.equal(offen.title, 'health.vitals.edit');
+  assert.match(offen.content, /id="vital-sys"[^>]*value="128"/, 'der Bestand steht im Formular');
+  assert.match(offen.content, /id="vital-dia"[^>]*value="84"/);
+  assert.match(offen.content, /id="vital-pulse"[^>]*value="66"/);
+  assert.match(offen.content, /value="2026-06-15T08:30"/, 'der Messzeitpunkt, nicht jetzt');
+  assert.match(offen.content, /<option value="family" selected/, 'die gespeicherte Sichtbarkeit, nicht die Voreinstellung');
+  assert.match(offen.content, />nach dem Laufen<\/textarea>/);
+  assert.match(offen.content, /id="vital-type" disabled/, 'die Metrik einer Messung steht fest');
+  const fuss = /<div class="modal-panel__footer[^"]*">([\s\S]*?)<\/div>/.exec(offen.content)[1];
+  const loeschen = fuss.indexOf('data-action="vital-delete"');
+  assert.ok(loeschen >= 0, 'Loeschen steht im Dialogfuss');
+  assert.ok(loeschen < fuss.indexOf('data-action="cancel"'), 'links vor Abbrechen und Speichern (Kanon)');
+  assert.match(fuss, /btn--danger-outline" data-action="vital-delete" style="margin-inline-end:auto"/);
+
+  const neu = withAccess({ health: 'write' }, () => modalOptionen(() => health.openVitalModal()));
+  assert.equal(neu.title, 'health.vitals.add');
+  assert.doesNotMatch(neu.content, /vital-delete/, 'ohne Bestand gibt es nichts zu loeschen');
+  assert.doesNotMatch(neu.content, /id="vital-type" disabled/);
+});
+
+test('R8 H9: PATCH einer Messung leert, was der Dialog nicht mehr zeigt', () => {
+  assert.deepEqual(
+    health.vitalPatchBody({ type: 'bp', value_num: 120, value_num2: 80, visibility: 'private', measured_at: '2026-06-15T08:30' }),
+    { type: 'bp', value_num: 120, value_num2: 80, value_num3: null, note: null, visibility: 'private', measured_at: '2026-06-15T08:30' },
+    'ein geleertes Pulsfeld darf den alten Puls nicht stehen lassen',
+  );
+});
+
+/**
+ * Oeffnet den Vitalwert-Dialog im Bearbeiten-Modus, verdrahtet ihn gegen eine
+ * Attrappe aus seinem eigenen Markup (die Einheit als Auswahl mit
+ * Browser-Verhalten), laesst `bedienen` daran drehen und schickt das Formular
+ * ab. Zurueck kommen die Schreibaufrufe, durch JSON wie in api.js.
+ */
+async function vitalwertSpeichern(row, bedienen = () => {}) {
+  const optionen = withAccess({ health: 'write' }, () => modalOptionen(() => health.openVitalModal({ row })));
+  assert.ok(optionen, 'mit Schreibrecht geht der Dialog auf');
+  const html = optionen.content;
+  // Die Wertefelder so, wie das Markup der Metrik sie stellt: der einfache
+  // Wert, das Paar (Blutdruck) oder die Dauer - jedes mit seinem Bestand.
+  const wertefelder = {};
+  for (const id of ['vital-value', 'vital-sys', 'vital-dia', 'vital-pulse', 'vital-hours', 'vital-minutes']) {
+    const feld = new RegExp(`<input[^>]*id="${id}"[^>]*>`).exec(html);
+    if (feld) wertefelder[`#${id}`] = editorElement({ value: /value="([^"]*)"/.exec(feld[0])?.[1] ?? '' });
+  }
+  assert.ok(Object.keys(wertefelder).length, 'das Markup traegt Wertefelder mit Bestand');
+  // Die Einheit, wie sie im Markup steht: Auswahl, verstecktes Feld - oder
+  // gar keins (das Paar). Ein erfundenes Feld wuerde den Fehler verdecken.
+  const versteckt = /<input type="hidden" id="vital-unit" value="([^"]*)">/.exec(html);
+  const einheit = /<select[^>]*id="vital-unit"/.test(html) ? editorAuswahl(html, 'vital-unit')
+    : versteckt ? editorElement({ value: versteckt[1] }) : null;
+  const form = editorElement();
+  const el = {
+    '#vital-form': form,
+    '#vital-type': editorElement({ value: row.type }),
+    '#vital-value-fields': editorElement({ querySelector: () => null }),
+    '#vital-visibility': editorElement({ value: row.visibility || 'private' }),
+    '#vital-measured-at': editorElement({ value: row.measured_at }),
+    '#vital-note': editorElement({ value: row.note ?? '' }),
+    ...wertefelder,
+    '#vital-unit': einheit,
+    '[type="submit"]': editorElement(),
+  };
+  optionen.onSave({ querySelector: (sel) => el[sel] ?? null });
+  bedienen(el);
+  const gesendet = [];
+  const vorher = { api: globalThis.__apiStub, window: globalThis.window, hatteWindow: 'window' in globalThis };
+  const mitschreiben = (method) => async (path, body) => {
+    gesendet.push({ method, path, body: JSON.parse(JSON.stringify(body)) });
+    return { data: { id: row.id } };
+  };
+  globalThis.__apiStub = { get: async () => ({ data: [] }), patch: mitschreiben('patch'), post: mitschreiben('post') };
+  globalThis.window = { yuvomi: { showToast() {} } };
+  try {
+    await withAccess({ health: 'write' }, async () => {
+      for (const fn of form.handlers?.submit ?? []) await fn({ preventDefault() {}, target: form });
+    });
+  } finally {
+    globalThis.__apiStub = vorher.api;
+    if (vorher.hatteWindow) globalThis.window = vorher.window;
+    else delete globalThis.window;
+  }
+  return { gesendet, html };
+}
+
+test('Codex an #1485: eine Einheit ausserhalb der Liste bleibt beim Bearbeiten stehen', async () => {
+  const stone = { id: 61, type: 'weight', value_num: 12, unit: 'stone', measured_at: '2026-06-15T08:00', visibility: 'private', note: '' };
+  const { gesendet, html } = await vitalwertSpeichern(stone, (el) => { el['#vital-note'].value = 'nach dem Fruehstueck'; });
+  const { gewaehlt } = auswahlAusMarkup(html, 'vital-unit');
+  assert.equal(gewaehlt.value, 'stone', 'die gespeicherte Einheit steht gewaehlt da, nicht still die erste der Liste');
+  assert.equal(gesendet.length, 1, 'genau ein Schreibaufruf');
+  assert.equal(gesendet[0].method, 'patch');
+  assert.equal(gesendet[0].body.note, 'nach dem Fruehstueck');
+  assert.ok(!('unit' in gesendet[0].body),
+    `eine Notiz-Korrektur fasst die Einheit nicht an (aus 12 stone wurden 12 kg): ${JSON.stringify(gesendet[0].body)}`);
+
+  // Waehlt der Mensch die Einheit selbst, geht sie mit.
+  const umgestellt = await vitalwertSpeichern(stone, (el) => { el['#vital-unit'].value = 'lb'; });
+  assert.equal(umgestellt.gesendet[0].body.unit, 'lb');
+  // Eine gelistete Einheit bleibt, wie sie war, ohne verwaiste Zusatzoption.
+  const kg = await vitalwertSpeichern({ ...stone, unit: 'kg' });
+  assert.deepEqual(auswahlAusMarkup(kg.html, 'vital-unit').optionen.map((o) => o.value), ['kg', 'lb']);
+});
+
+test('Codex an #1485: ein Blutdruck in kPa bleibt beim Speichern einer Notiz kPa', async () => {
+  // Das Paar hat kein Einheitenfeld; collectVitalBody() setzt fest mmHg. Ohne
+  // Feld gab es nichts zu vergleichen, und ein per API in kPa erfasster Wert
+  // wurde beim Speichern einer Notiz still zu mmHg umbeschriftet.
+  const kpa = { id: 71, type: 'bp', value_num: 16, value_num2: 10.5, value_num3: 62, unit: 'kPa', measured_at: '2026-06-15T08:30', visibility: 'private', note: '' };
+  const { gesendet, html } = await vitalwertSpeichern(kpa, (el) => { el['#vital-note'].value = 'nach dem Laufen'; });
+  assert.doesNotMatch(html, /id="vital-unit"/, 'Voraussetzung: das Paar-Markup traegt kein Einheitenfeld');
+  assert.equal(gesendet.length, 1, 'genau ein Schreibaufruf');
+  assert.equal(gesendet[0].method, 'patch');
+  assert.equal(gesendet[0].body.note, 'nach dem Laufen');
+  assert.equal(gesendet[0].body.value_num, 16, 'der Wert selbst geht mit');
+  assert.ok(!('unit' in gesendet[0].body),
+    `ohne Einheitenfeld geht keine Einheit mit (aus kPa wurde mmHg): ${JSON.stringify(gesendet[0].body)}`);
+
+  // Auch die Dauer mit ihrem versteckten Feld schreibt die Einheit nie um.
+  const schlaf = { id: 72, type: 'sleep', value_num: 7.5, unit: 'min', measured_at: '2026-06-15T08:30', visibility: 'private', note: '' };
+  const dauer = await vitalwertSpeichern(schlaf, (el) => { el['#vital-note'].value = 'unruhig'; });
+  assert.ok(!('unit' in dauer.gesendet[0].body),
+    `ein verstecktes Einheitenfeld schreibt keine Einheit um: ${JSON.stringify(dauer.gesendet[0].body)}`);
+});
+
+test('R8 H9: ein Laborwert laesst sich korrigieren, nicht nur loeschen', () => {
+  const analyt = { id: 3, analyte: 'Ferritin', value_num: 88, unit: 'ng/ml', ref_low: 30, ref_high: 300, flag: 'normal' };
+  const zeile = health.resultEditRowMarkup(analyt);
+  assert.match(zeile, /data-result-edit="3"/, 'die Zeile traegt einen Stift');
+  assert.match(zeile, /common\.editNamed/, 'mit dem Objektnamen');
+  assert.match(zeile, /data-result-del="3"/);
+  const form = health.resultFormMarkup(analyt);
+  assert.match(form, /id="res-analyte"[^>]*value="Ferritin"/, 'das Formular traegt den Bestand');
+  assert.match(form, /id="res-value"[^>]*value="88"/);
+  assert.match(form, /id="res-ref-high"[^>]*value="300"/);
+  assert.match(form, /data-action="res-save"/);
+  assert.match(form, /data-action="res-edit-cancel"/);
+  assert.doesNotMatch(form, /data-action="res-add"/);
+  const leer = health.resultFormMarkup();
+  assert.match(leer, /data-action="res-add"/);
+  assert.doesNotMatch(leer, /value="/, 'ohne Bestand bleibt das Formular leer');
+});
+
+/**
+ * Faehrt den Analyt-Editor eines Befunds gegen eine Attrappe: `felder` setzt
+ * die Eingaben, dann ein Klick auf Hinzufuegen bzw. Uebernehmen. Zurueck
+ * kommen Schreibaufrufe und gemeldete Feldfehler.
+ */
+async function analytSpeichern(report, { editId = null, felder = {}, badInput = false } = {}) {
+  const elemente = new Map();
+  const element = (sel) => {
+    if (!elemente.has(sel)) elemente.set(sel, editorElement({ querySelector: () => null }));
+    return elemente.get(sel);
+  };
+  let markup = '';
+  const host = {
+    replaceChildren() { markup = ''; elemente.clear(); },
+    insertAdjacentHTML(_pos, html) { markup += html; },
+    querySelector: (sel) => element(sel),
+    querySelectorAll: () => [],
+  };
+  const panel = { querySelector: (sel) => (sel === '#lab-results-editor' ? host : null) };
+  const gesendet = [];
+  const fehler = [];
+  const vorher = { api: globalThis.__apiStub, fehler: globalThis.__reportFieldError, window: globalThis.window, hatteWindow: 'window' in globalThis };
+  const mitschreiben = (method) => async (path, body) => {
+    gesendet.push({ method, path, body: JSON.parse(JSON.stringify(body)) });
+    return { data: { id: editId ?? 99, ...body } };
+  };
+  globalThis.__apiStub = { get: async () => ({ data: [] }), patch: mitschreiben('patch'), post: mitschreiben('post') };
+  globalThis.__reportFieldError = (el, text) => { fehler.push(text); };
+  globalThis.window = { yuvomi: { showToast() {} } };
+  try {
+    health.renderResultEditor(panel, report, { editId });
+    const knopf = editId != null ? 'res-save' : 'res-add';
+    assert.match(markup, new RegExp(`data-action="${knopf}"`), 'der Editor steht im erwarteten Modus');
+    for (const [sel, wert] of Object.entries(felder)) element(sel).value = wert;
+    element('#res-value').validity = { badInput };
+    const klick = element('[data-action="res-add"], [data-action="res-save"]');
+    for (const fn of klick.handlers.click ?? []) await fn({ currentTarget: klick, target: klick });
+  } finally {
+    globalThis.__apiStub = vorher.api;
+    if (vorher.fehler === undefined) delete globalThis.__reportFieldError;
+    else globalThis.__reportFieldError = vorher.fehler;
+    if (vorher.hatteWindow) globalThis.window = vorher.window;
+    else delete globalThis.window;
+  }
+  return { gesendet, fehler };
+}
+
+test('Codex an #1485: ein Laborwert ohne Zahl laesst sich bearbeiten, ohne eine erfinden zu muessen', async () => {
+  const ohneWert = { id: 5, analyte: 'Befundtext', value_num: null, unit: null, ref_low: null, ref_high: null, flag: null };
+  const report = { id: 2, results: [ohneWert] };
+  const bearbeitet = await analytSpeichern(report, {
+    editId: 5,
+    felder: { '#res-analyte': 'Befundtext Urin', '#res-value': '' },
+  });
+  assert.deepEqual(bearbeitet.fehler, [], 'kein Pflichtfeld-Fehler: value_num ist nullable');
+  assert.equal(bearbeitet.gesendet.length, 1, 'genau ein Schreibaufruf');
+  assert.equal(bearbeitet.gesendet[0].method, 'patch');
+  assert.equal(bearbeitet.gesendet[0].body.analyte, 'Befundtext Urin');
+  assert.equal(bearbeitet.gesendet[0].body.value_num, null, 'null bleibt null');
+
+  // Eine Eingabe, die keine Zahl ist, bleibt ein Fehler.
+  const kaputt = await analytSpeichern(report, { editId: 5, felder: { '#res-analyte': 'X', '#res-value': 'abc' } });
+  assert.deepEqual(kaputt.gesendet, []);
+  assert.deepEqual(kaputt.fehler, ['health.labs.results.valueRequired']);
+  // Ein Zahlenfeld meldet eine halbe Eingabe ("1e") als leer - sie wird nicht still zu null.
+  const halb = await analytSpeichern(report, { editId: 5, felder: { '#res-analyte': 'X', '#res-value': '' }, badInput: true });
+  assert.deepEqual(halb.gesendet, []);
+  assert.deepEqual(halb.fehler, ['health.labs.results.valueRequired']);
+
+  // Anlegen bleibt, wie es ist: der Wert ist dort Pflicht.
+  const neu = await analytSpeichern({ id: 2, results: [] }, { felder: { '#res-analyte': 'Ferritin', '#res-value': '' } });
+  assert.deepEqual(neu.gesendet, []);
+  assert.deepEqual(neu.fehler, ['health.labs.results.valueRequired']);
 });
 
 // -------------------------------------------------------------------------
@@ -2946,7 +3211,7 @@ test('WRITE_HOOKS nennt jeden schreibenden Bedienhaken ohne `data-action`', () =
   const erwartet = [
     'data-med-edit', 'data-medlog-edit', 'data-dose-take', 'data-dose-skip',
     'data-ov-dose-take', 'data-ov-dose-skip', 'data-prn-take',
-    'data-activity-edit', 'data-prevention-edit', 'data-delete-vital',
+    'data-activity-edit', 'data-prevention-edit', 'data-vital-edit',
     'data-cycle-day', 'data-cycle-edit',
     'data-nutrition-edit', 'data-nutrition-target',
   ];
@@ -2980,7 +3245,7 @@ test('der Riegel steht in jeder Verdrahtung VOR der ersten Schreib-Aktion', () =
     ['wireMeds', 'data-med-edit'],
     ['wireActivity', 'data-activity-edit'],
     ['wirePrevention', 'data-prevention-edit'],
-    ['renderDetail', 'data-delete-vital'],
+    ['renderDetail', 'data-vital-edit'],
   ];
   for (const [name, ersteAktion] of faelle) {
     const fn = healthFn(name);
@@ -4195,4 +4460,95 @@ test('Kanon R5: der Kanban-Statusknopf trifft auf --target-base, obwohl er 24px 
   assert.match(flaeche.body, /content:\s*''/);
   assert.match(flaeche.body, /position:\s*absolute/);
   assert.match(flaeche.body, /inset:\s*calc\(\(100% - var\(--target-base\)\) \/ 2\)/);
+});
+
+// -------------------------------------------------------------------------
+// R8 H14: Kontakte und Dokumente waehlen per Auswahlkreis, nicht per Checkbox
+// -------------------------------------------------------------------------
+
+/** Ein Knoten mit Klassenliste und Attributen, genug fuer die Umschalter. */
+function schalterKnoten(attrs = {}) {
+  const klassen = new Set();
+  const knoten = {
+    dataset: {}, disabled: false, attrs: { ...attrs },
+    classList: { toggle: (k, an) => { if (an) klassen.add(k); else klassen.delete(k); }, contains: (k) => klassen.has(k) },
+    setAttribute(k, v) { this.attrs[k] = String(v); },
+    getAttribute(k) { return this.attrs[k] ?? null; },
+  };
+  knoten.klassen = klassen;
+  return knoten;
+}
+
+test('R8 H14: Kontakt-Auswahl ist ein Knopf mit Auswahlkreis und Objektnamen, keine native Checkbox', async () => {
+  const vorher = { mode: contacts.state.selectMode, sel: new Set(contacts.state.selected) };
+  // Der Tipp malt die Bulk-Pille (utils/bulk-pill.js liest `document`). Ohne
+  // eigenes document hing der Test davon ab, ob ein frueherer Test eines
+  // liegen liess: im vollen Lauf gruen, einzeln und in der CI rot. Ohne
+  // Shell-Schicht (getElementById -> null) malt die Pille nichts.
+  const echtesDocument = globalThis.document;
+  globalThis.document = { getElementById: () => null };
+  try {
+    contacts.state.selectMode = true;
+    contacts.state.selected = new Set([7]);
+    const an = contacts.renderContactItem({ id: 7, name: 'Ada Lovelace' });
+    assert.doesNotMatch(an, /type="checkbox"/, 'die native Checkbox ist weg');
+    assert.match(an, /<button type="button" class="select-circle select-circle--on" data-select="7"\s+aria-pressed="true" aria-label="contacts\.selectNamed\{&quot;name&quot;:&quot;Ada Lovelace&quot;\}"/);
+    assert.match(an, /<div class="contact-item__open list-row__main--interactive contact-item__select">/,
+      'die Zeile bleibt Trefflaeche, ist aber kein Knopf mit aria-label, der Name und Nummer verschluckt');
+    const aus = contacts.renderContactItem({ id: 8, name: 'Grace' });
+    assert.match(aus, /<button type="button" class="select-circle" data-select="8"\s+aria-pressed="false"/);
+    assert.match(contacts.renderContactItem({ id: 9, name: 'Papa', family_user_id: 3 }), /data-select="9"[^>]*disabled>/,
+      'Familien-Kontakte sind einzeln nicht loeschbar und damit nicht waehlbar');
+
+    // Der Tipp als Programm: Menge, aria-pressed, Kreis und Zeile gehen zusammen.
+    const zeile = schalterKnoten();
+    const knopf = schalterKnoten({ 'aria-pressed': 'false' });
+    knopf.dataset.select = '8';
+    knopf.closest = (sel) => (sel === '.contact-item' ? zeile : null);
+    contacts.toggleContactSelection(knopf);
+    assert.ok(contacts.state.selected.has(8));
+    assert.equal(knopf.attrs['aria-pressed'], 'true');
+    assert.ok(knopf.klassen.has('select-circle--on'));
+    assert.ok(zeile.klassen.has('contact-item--selected'));
+    contacts.toggleContactSelection(knopf);
+    assert.ok(!contacts.state.selected.has(8));
+    assert.equal(knopf.attrs['aria-pressed'], 'false');
+    knopf.disabled = true;
+    contacts.toggleContactSelection(knopf);
+    assert.ok(!contacts.state.selected.has(8), 'ein gesperrter Knopf waehlt nicht');
+  } finally {
+    contacts.state.selectMode = vorher.mode;
+    contacts.state.selected = vorher.sel;
+    globalThis.document = echtesDocument;
+  }
+});
+
+test('R8 H14: Dokument-Auswahl ist ein Auswahlkreis mit Objektnamen, keine native Checkbox', () => {
+  const st = documentsPage.state;
+  const vorher = { mode: st.selectMode, sel: new Set(st.selected) };
+  try {
+    st.selectMode = true;
+    st.selected = new Set([4]);
+    const an = documentsPage.renderSelectBox({ id: 4, name: 'Mietvertrag.pdf' });
+    assert.doesNotMatch(an, /type="checkbox"/);
+    assert.match(an, /<button type="button" class="select-circle select-circle--on"/);
+    assert.match(an, /data-select-id="4" aria-pressed="true"/);
+    assert.match(an, /aria-label="documents\.selectDocument\{&quot;name&quot;:&quot;Mietvertrag\.pdf&quot;\}"/);
+    assert.match(documentsPage.renderSelectBox({ id: 5, name: 'x' }), /aria-pressed="false"/);
+
+    documentsPage.setContainerForTest({ querySelector: () => null, querySelectorAll: () => [] });
+    const kreis = schalterKnoten({ 'aria-pressed': 'false' });
+    const karte = schalterKnoten();
+    karte.dataset.id = '5';
+    karte.querySelector = (sel) => (sel === '[data-select-id]' ? kreis : null);
+    documentsPage.toggleDocumentSelection(karte);
+    assert.ok(st.selected.has(5));
+    assert.equal(kreis.attrs['aria-pressed'], 'true');
+    assert.ok(kreis.klassen.has('select-circle--on'));
+    assert.ok(karte.klassen.has('is-selected'));
+  } finally {
+    st.selectMode = vorher.mode;
+    st.selected = vorher.sel;
+    documentsPage.setContainerForTest(null);
+  }
 });

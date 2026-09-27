@@ -250,7 +250,7 @@ const READ_SAFE_ACTIONS = new Set(['cancel', 'ov-go-meds', 'ov-go-cycle']);
 const WRITE_HOOKS = [
   '[data-med-edit]', '[data-medlog-edit]', '[data-dose-take]', '[data-dose-skip]',
   '[data-ov-dose-take]', '[data-ov-dose-skip]', '[data-prn-take]',
-  '[data-activity-edit]', '[data-prevention-edit]', '[data-delete-vital]',
+  '[data-activity-edit]', '[data-prevention-edit]', '[data-vital-edit]',
   '[data-nutrition-edit]', '[data-nutrition-target]',
   '[data-cycle-day]', '[data-cycle-edit]',
 ].join(', ');
@@ -987,28 +987,36 @@ function renderDetail() {
     }));
 
   // Der Riegel vor dem einen schreibenden Weg dieser Ansicht (#1265): der
-  // Zeitraum-Stepper darueber liest, das Loeschen darunter nicht.
+  // Zeitraum-Stepper darueber liest, das Bearbeiten darunter nicht.
   if (readOnly()) return;
 
-  // Korrekturpfad (Audit R2, A2-08): Einzelmessungen sind lösch-, damit
-  // korrigierbar (löschen + neu erfassen). Undo-Toast statt Confirm (Hausmuster).
-  host.querySelectorAll('[data-delete-vital]').forEach((btn) =>
+  // Korrekturpfad (Audit R2, A2-08; R8 H9): die Zeile oeffnet die Messung
+  // im Bearbeiten-Dialog - wie Vorsorge, Aktivitaet und Naehrwerte. Bis R8
+  // trug sie nur einen Papierkorb, und korrigieren hiess loeschen und neu
+  // erfassen. Loeschen steht jetzt links im Dialogfuss.
+  host.querySelectorAll('[data-vital-edit]').forEach((btn) =>
     btn.addEventListener('click', () => {
-      const id = Number(btn.dataset.deleteVital);
-      const idx = vitals.rows.findIndex((r) => r.id === id);
-      if (idx === -1) return;
-      const [row] = vitals.rows.splice(idx, 1);
-      renderVitalsShell();
-      scheduleUndoableDelete({
-        commit: ({ keepalive } = {}) => api.delete(`/health/vitals/${id}`, { keepalive }),
-        restore: () => { vitals.rows.splice(idx, 0, row); renderVitalsShell(); },
-        message: t('health.vitals.measurementDeleted'),
-      });
+      const id = Number(btn.dataset.vitalEdit);
+      const row = vitals.rows.find((r) => r.id === id);
+      if (row) openVitalModal({ row });
     }));
 }
 
-// Kompakte Historie der gewählten Metrik: jüngste Messungen mit Löschweg
-// (nur eigene Ansicht) - macht Tippfehler ohne Umweg korrigierbar.
+/** Loeschen einer Messung mit Undo-Toast statt Confirm (Hausmuster). */
+function deleteVitalWithUndo(id) {
+  const idx = vitals.rows.findIndex((r) => r.id === id);
+  if (idx === -1) return;
+  const [row] = vitals.rows.splice(idx, 1);
+  renderVitalsShell();
+  scheduleUndoableDelete({
+    commit: ({ keepalive } = {}) => api.delete(`/health/vitals/${id}`, { keepalive }),
+    restore: () => { vitals.rows.splice(idx, 0, row); renderVitalsShell(); },
+    message: t('health.vitals.measurementDeleted'),
+  });
+}
+
+// Kompakte Historie der gewählten Metrik: jüngste Messungen mit Bearbeiten-
+// Weg (nur eigene Ansicht) - macht Tippfehler ohne Umweg korrigierbar.
 function recentMeasurementsMarkup(metric) {
   const rows = vitals.rows
     .filter((r) => r.type === metric.type)
@@ -1026,13 +1034,12 @@ function recentMeasurementsMarkup(metric) {
             <span class="health-recent__date">${esc(formatDate(String(r.measured_at).slice(0, 10)))}</span>
             <span class="health-recent__value">${esc(valueText(r))}${vitalUnitText(metric, r) ? ` <small>${esc(vitalUnitText(metric, r))}</small>` : ''}</span>
             ${own ? rowActionHtml({
-              icon: 'trash-2',
-              tone: 'danger',
-              label: t('health.vitals.deleteMeasurement', {
+              icon: 'pencil',
+              label: t('health.vitals.editMeasurement', {
                 value: [valueText(r), vitalUnitText(metric, r)].filter(Boolean).join(' '),
                 date: formatDate(String(r.measured_at).slice(0, 10)),
               }),
-              attrs: { 'data-delete-vital': r.id },
+              attrs: { 'data-vital-edit': r.id },
             }) : ''}
           </li>`).join('')}
       </ul>
@@ -1169,21 +1176,26 @@ function localDateTimeValue(date) {
   return `${key}T${hh}:${mm}`;
 }
 
-function valueFieldsMarkup(type) {
+function valueFieldsMarkup(type, row = null) {
   const metric = vitalMetric(type) || VITAL_METRICS[0];
+  // Bearbeiten (R8 H9): der Bestand steht im Markup, nicht erst nach einem
+  // zweiten Durchgang im DOM - so zeigt schon der erste Frame die Messung.
+  const has = (v) => v !== null && v !== undefined && v !== '';
+  const valueAttr = (v) => (row && has(v) ? ` value="${esc(String(v))}"` : '');
 
   // Schlaf wird in Stunden und Minuten erfasst, nicht als Dezimalzahl - „7,5"
   // ist eine Rechnung, die der Erfassende sonst im Kopf machen müsste.
   if (metric.format === 'duration') {
+    const parts = row && has(row.value_num) ? splitDuration(row.value_num) : null;
     return `
       <div class="modal-grid modal-grid--2">
         <div class="form-field">
           <label class="label" for="vital-hours">${esc(t('health.vitals.field.hours'))}</label>
-          <input class="input" id="vital-hours" type="number" inputmode="numeric" step="1" min="0" max="24" required>
+          <input class="input" id="vital-hours" type="number" inputmode="numeric" step="1" min="0" max="24" required${parts ? ` value="${esc(String(parts.hours))}"` : ''}>
         </div>
         <div class="form-field">
           <label class="label" for="vital-minutes">${esc(t('health.vitals.field.minutes'))}</label>
-          <input class="input" id="vital-minutes" type="number" inputmode="numeric" step="1" min="0" max="59" value="0">
+          <input class="input" id="vital-minutes" type="number" inputmode="numeric" step="1" min="0" max="59" value="${esc(String(parts ? parts.minutes : 0))}">
         </div>
       </div>
       <input type="hidden" id="vital-unit" value="${esc(metric.units[0] || '')}">`;
@@ -1192,13 +1204,14 @@ function valueFieldsMarkup(type) {
   // Stimmung als Skala: fünf Gesichter statt eines Zahlenfelds - derselbe
   // Auswahl-Chip wie Flow und Symptome im Zyklus-Tagebuch (.health-choice).
   if (metric.format === 'scale') {
+    const chosen = row && has(row.value_num) ? moodStep(row.value_num)?.value : null;
     return `
       <div class="form-field">
         <span class="label">${esc(t('health.vitals.field.mood'))}</span>
         <div class="health-choices health-choices--scale" data-group="mood" role="group"
              aria-label="${esc(t('health.vitals.field.mood'))}">
           ${MOOD_SCALE.map((step) => `
-            <button type="button" class="health-choice" data-mood="${esc(step.value)}" aria-pressed="false">
+            <button type="button" class="health-choice" data-mood="${esc(step.value)}" aria-pressed="${step.value === chosen ? 'true' : 'false'}">
               <i data-lucide="${esc(step.icon)}" aria-hidden="true"></i>
               <span class="health-choice-label">${esc(t(step.labelKey))}</span>
             </button>`).join('')}
@@ -1212,24 +1225,31 @@ function valueFieldsMarkup(type) {
       <div class="modal-grid modal-grid--3">
         <div class="form-field">
           <label class="label" for="vital-sys">${esc(t('health.vitals.field.systolic'))}</label>
-          <input class="input" id="vital-sys" type="number" inputmode="numeric" step="1" min="0" required>
+          <input class="input" id="vital-sys" type="number" inputmode="numeric" step="1" min="0" required${valueAttr(row?.value_num)}>
         </div>
         <div class="form-field">
           <label class="label" for="vital-dia">${esc(t('health.vitals.field.diastolic'))}</label>
-          <input class="input" id="vital-dia" type="number" inputmode="numeric" step="1" min="0" required>
+          <input class="input" id="vital-dia" type="number" inputmode="numeric" step="1" min="0" required${valueAttr(row?.value_num2)}>
         </div>
         <div class="form-field">
           <label class="label" for="vital-pulse">${esc(t('health.vitals.field.pulse'))}</label>
-          <input class="input" id="vital-pulse" type="number" inputmode="numeric" step="1" min="0">
+          <input class="input" id="vital-pulse" type="number" inputmode="numeric" step="1" min="0"${valueAttr(row?.value_num3)}>
         </div>
       </div>`;
   }
-  const unitField = metric.units.length > 1
+  /* EINE UNBEKANNTE EINHEIT WURDE STILL ZUR ERSTEN (Codex an #1485): stand
+   * die gespeicherte Einheit nicht in der Liste (per API oder Import erfasst,
+   * etwa "stone"), war keine Option gewaehlt, der Browser nahm die erste, und
+   * das Speichern einer Notiz machte aus 12 stone 12 kg. Die gespeicherte
+   * Einheit steht deshalb als eigene Option da und ist gewaehlt. */
+  const orphanUnit = row?.unit && !metric.units.includes(row.unit) ? row.unit : null;
+  const unitOptions = orphanUnit ? [orphanUnit, ...metric.units] : metric.units;
+  const unitField = vitalUnitEditable(metric)
     ? `
       <div class="form-field">
         <label class="label" for="vital-unit">${esc(t('health.vitals.field.unit'))}</label>
         <select class="input" id="vital-unit">
-          ${metric.units.map((u) => `<option value="${esc(u)}">${esc(u)}</option>`).join('')}
+          ${unitOptions.map((u) => `<option value="${esc(u)}"${row?.unit === u ? ' selected' : ''}>${esc(u)}</option>`).join('')}
         </select>
       </div>`
     : `<input type="hidden" id="vital-unit" value="${esc(metric.units[0])}">`;
@@ -1237,47 +1257,66 @@ function valueFieldsMarkup(type) {
     <div class="modal-grid modal-grid--2">
       <div class="form-field">
         <label class="label" for="vital-value">${esc(t('health.vitals.field.value'))}</label>
-        <input class="input" id="vital-value" type="number" inputmode="decimal" step="any" required>
+        <input class="input" id="vital-value" type="number" inputmode="decimal" step="any" required${valueAttr(row?.value_num)}>
       </div>
       ${unitField}
     </div>`;
 }
 
+/**
+ * Erfassen UND Bearbeiten einer Messung. `opts.row` ist der Bestand (R8 H9):
+ * bis dahin kannte der Dialog nur das Anlegen, und ein Tippfehler liess sich
+ * allein durch Loeschen und Neu-Erfassen beheben - anders als in Vorsorge,
+ * Aktivitaet und Naehrwerten, deren Zeilen einen Stift tragen.
+ *
+ * Beim Bearbeiten steht die Metrik fest: eine Blutdruck-Messung, die zur
+ * Stimmung wird, ist keine Korrektur, sondern eine andere Messung. Loeschen
+ * steht nach dem Kanon links im Dialogfuss und geht ueber denselben
+ * Rueckgaengig-Weg wie vorher der Papierkorb in der Zeile.
+ */
 function openVitalModal(opts = {}) {
   if (readOnly()) return;  // #1265, dritte Linie: auch ein Aufruf ohne Knopf endet hier
+  const row = opts.row && opts.row.id ? opts.row : null;
+  const isEdit = Boolean(row);
   const now = new Date();
+  const currentType = isEdit ? row.type : vitals.selectedType;
   const typeOptions = VITAL_METRICS.map((m) =>
-    `<option value="${esc(m.type)}"${m.type === vitals.selectedType ? ' selected' : ''}>${esc(t(m.labelKey))}</option>`).join('');
+    `<option value="${esc(m.type)}"${m.type === currentType ? ' selected' : ''}>${esc(t(m.labelKey))}</option>`).join('');
+  const visibilityValue = isEdit ? (row.visibility || 'private') : defaultVisibility(vitalScopeKey(currentType));
+  const measuredValue = isEdit && row.measured_at
+    ? String(row.measured_at).slice(0, 16)
+    : localDateTimeValue(now);
 
   openModal({
-    title: t('health.vitals.add'),
+    title: isEdit ? t('health.vitals.edit') : t('health.vitals.add'),
     size: 'md',
     content: `
       <form id="vital-form" class="form-stack">
         <div class="form-field">
           <label class="label" for="vital-type">${esc(t('health.vitals.field.type'))}</label>
-          <select class="input" id="vital-type">${typeOptions}</select>
+          <select class="input" id="vital-type"${isEdit ? ' disabled' : ''}>${typeOptions}</select>
         </div>
-        <div id="vital-value-fields">${valueFieldsMarkup(vitals.selectedType)}</div>
+        <div id="vital-value-fields">${valueFieldsMarkup(currentType, row)}</div>
         <div class="modal-grid modal-grid--2">
           <div class="form-field">
             <label class="label" for="vital-measured-at">${esc(t('health.vitals.field.measuredAt'))}</label>
-            <yuvomi-datepicker id="vital-measured-at" type="datetime" value="${esc(localDateTimeValue(now))}"></yuvomi-datepicker>
+            <yuvomi-datepicker id="vital-measured-at" type="datetime" value="${esc(measuredValue)}"></yuvomi-datepicker>
           </div>
           <div class="form-field">
             <label class="label" for="vital-visibility">${esc(t('health.vitals.field.visibility'))}</label>
             <select class="input" id="vital-visibility">
-              <option value="private"${defaultVisibility(vitalScopeKey(vitals.selectedType)) === 'family' ? '' : ' selected'}>${esc(t('health.vitals.visibility.private'))}</option>
-              <option value="family"${defaultVisibility(vitalScopeKey(vitals.selectedType)) === 'family' ? ' selected' : ''}>${esc(t('health.vitals.visibility.family'))}</option>
+              <option value="private"${visibilityValue === 'family' ? '' : ' selected'}>${esc(t('health.vitals.visibility.private'))}</option>
+              <option value="family"${visibilityValue === 'family' ? ' selected' : ''}>${esc(t('health.vitals.visibility.family'))}</option>
             </select>
           </div>
         </div>
         <div class="form-field">
           <label class="label" for="vital-note">${esc(t('health.vitals.field.note'))}</label>
-          <textarea class="input" id="vital-note" rows="2" maxlength="2000"></textarea>
+          <textarea class="input" id="vital-note" rows="2" maxlength="2000">${esc(isEdit && row.note ? row.note : '')}</textarea>
         </div>
         ${disclaimerMarkup(true)}
         <div class="modal-panel__footer modal-panel__footer--plain">
+          ${isEdit ? `<button type="button" class="btn btn--danger-outline" data-action="vital-delete" style="margin-inline-end:auto"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>` : ''}
           <button type="button" class="btn btn--secondary" data-action="cancel">${esc(t('common.cancel'))}</button>
           <button type="submit" class="btn btn--primary">${esc(t('common.save'))}</button>
         </div>
@@ -1302,7 +1341,8 @@ function openVitalModal(opts = {}) {
       // hat. Eine bewusst getroffene Wahl darf ein Typwechsel nicht
       // zurueckdrehen; sie waere sonst weg, ohne dass es jemand sieht.
       const visibilitySelect = panel.querySelector('#vital-visibility');
-      let visibilityTouched = false;
+      // Beim Bearbeiten ist die Sichtbarkeit Bestand, keine Voreinstellung.
+      let visibilityTouched = isEdit;
       visibilitySelect?.addEventListener('change', () => { visibilityTouched = true; });
 
       typeSelect.addEventListener('change', () => {
@@ -1314,12 +1354,27 @@ function openVitalModal(opts = {}) {
         }
       });
 
+      // Die Einheit geht beim Bearbeiten nur mit, wenn jemand sie umstellt:
+      // sonst koennte ein Feld, das den Bestand nicht abbildet (ein verstecktes
+      // Einheitenfeld traegt immer die Standardeinheit), ihn still ueberschreiben.
+      /* EIN BLUTDRUCK IN kPa WURDE BEIM SPEICHERN EINER NOTIZ ZU mmHg (Codex an
+       * #1485): das Paar-Markup hat gar kein Einheitenfeld, `unitBefore` war
+       * undefined, und collectVitalBody() setzt fuer Paare fest mmHg - der
+       * Vergleich griff nie. Umstellen kann die Einheit nur eine Auswahl; ohne
+       * sie geht beim Bearbeiten nie eine Einheit mit. */
+      const unitEditable = isEdit && vitalUnitEditable(vitalMetric(row.type));
+      const unitBefore = unitEditable ? panel.querySelector('#vital-unit')?.value : undefined;
+
       panel.querySelector('[data-action="cancel"]')?.addEventListener('click', () => closeModal({ force: true }));
+      panel.querySelector('[data-action="vital-delete"]')?.addEventListener('click', () => {
+        closeModal({ force: true });
+        deleteVitalWithUndo(row.id);
+      });
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitBtn = panel.querySelector('[type="submit"]');
-        const body = collectVitalBody(panel, typeSelect.value);
+        const body = collectVitalBody(panel, isEdit ? row.type : typeSelect.value);
         if (!body) {
           submitBtn.disabled = false;
           // Fehler am Wertefeld statt als ortloser Toast (geteiltes Muster,
@@ -1335,7 +1390,14 @@ function openVitalModal(opts = {}) {
         }
         submitBtn.disabled = true;
         try {
-          await api.post('/health/vitals', { ...body, ...ownerField(vitals.personId, vitals.meId) });
+          if (isEdit) {
+            // PATCH liest nur genannte Felder. Ein geleertes Puls- oder
+            // Notizfeld muss deshalb als null mitgehen, sonst bliebe der
+            // alte Wert stehen, obwohl der Dialog ihn nicht mehr zeigt.
+            await api.patch(`/health/vitals/${row.id}`, vitalPatchBody(body, { unitEditable, unitBefore }));
+          } else {
+            await api.post('/health/vitals', { ...body, ...ownerField(vitals.personId, vitals.meId) });
+          }
           closeModal({ force: true });
           window.yuvomi?.showToast(t('health.vitals.saved'), 'success');
           await reloadAfterSave(body.type);
@@ -1349,6 +1411,33 @@ function openVitalModal(opts = {}) {
       });
     },
   });
+}
+
+/**
+ * Der PATCH-Body einer bearbeiteten Messung: nicht erfasste Kanaele als null.
+ * Die Einheit geht nur mit, wenn der Dialog sie waehlen laesst
+ * (`unitEditable`) und sie sich gegen `unitBefore` geaendert hat - sonst
+ * bleibt sie weg, und PATCH laesst sie stehen, wie sie gespeichert ist.
+ */
+function vitalPatchBody(body, { unitEditable = false, unitBefore } = {}) {
+  const out = {
+    ...body,
+    value_num2: body.value_num2 ?? null,
+    value_num3: body.value_num3 ?? null,
+    note: body.note ?? null,
+  };
+  if (!unitEditable || (out.unit ?? '') === (unitBefore ?? '')) delete out.unit;
+  return out;
+}
+
+/**
+ * Laesst der Dialog die Einheit dieser Metrik waehlen? Nur der einfache Wert
+ * mit mehr als einer Einheit traegt eine Auswahl; Dauer, Skala und Paar haben
+ * kein sichtbares Einheitenfeld.
+ */
+function vitalUnitEditable(metric) {
+  if (!metric || ['duration', 'scale', 'pair'].includes(metric.format)) return false;
+  return (metric.units?.length ?? 0) > 1;
 }
 
 function numOrNull(input) {
@@ -3195,7 +3284,7 @@ async function deleteLabReport(report) {
 // Zeichnet den Analyt-Editor im Modal (Liste + Hinzufügen-Formular mit Flag-
 // Vorschau) und verdrahtet ihn. Für einen noch nicht gespeicherten Befund nur
 // ein Hinweis (Analyten über die nested-Endpunkte, wie beim Einnahmeplan).
-function renderResultEditor(panel, report) {
+function renderResultEditor(panel, report, { editId = null } = {}) {
   const host = panel.querySelector('#lab-results-editor');
   if (!host) return;
   host.replaceChildren();
@@ -3207,58 +3296,81 @@ function renderResultEditor(panel, report) {
   }
 
   const results = Array.isArray(report.results) ? report.results : [];
+  const editing = editId != null ? results.find((r) => r.id === editId) || null : null;
   const list = results.length
-    ? `<ul class="health-results-list">${results.map(resultEditRowMarkup).join('')}</ul>`
+    ? `<ul class="health-results-list">${results.map((r) => resultEditRowMarkup(r, { editing: r.id === editing?.id })).join('')}</ul>`
     : `<div class="health-results-empty">${esc(t('health.labs.results.none'))}</div>`;
 
   host.insertAdjacentHTML('beforeend', `
     ${list}
-    <div class="health-results-add">
+    ${resultFormMarkup(editing)}`);
+  if (window.lucide) window.lucide.createIcons({ el: host });
+  wireResultEditor(panel, report, editing);
+}
+
+/**
+ * Das Analyt-Formular unter der Liste - zum Hinzufuegen, oder mit dem Bestand
+ * eines Analyten zum Korrigieren (R8 H9). Bis R8 liess sich ein Laborwert nur
+ * loeschen; ein Tippfehler im Wert kostete die ganze Zeile samt Referenz.
+ */
+function resultFormMarkup(editing = null) {
+  const val = (v) => (editing && v !== null && v !== undefined ? ` value="${esc(String(v))}"` : '');
+  const actions = editing
+    ? `<div class="health-results-add__actions">
+        <button type="button" class="btn btn--secondary btn--sm" data-action="res-edit-cancel">${esc(t('common.cancel'))}</button>
+        <button type="button" class="btn btn--primary btn--sm" data-action="res-save">
+          <i data-lucide="check" aria-hidden="true"></i>${esc(t('health.labs.results.update'))}
+        </button>
+      </div>`
+    : `<button type="button" class="btn btn--secondary btn--sm" data-action="res-add">
+        <i data-lucide="plus" aria-hidden="true"></i>${esc(t('health.labs.results.add'))}
+      </button>`;
+  return `
+    <div class="health-results-add"${editing ? ` data-editing="${esc(editing.id)}"` : ''}>
       <div class="modal-grid modal-grid--2">
         <div class="form-field">
           <label class="label" for="res-analyte">${esc(t('health.labs.results.analyte'))}</label>
-          <input class="input" id="res-analyte" type="text" maxlength="120">
+          <input class="input" id="res-analyte" type="text" maxlength="120"${val(editing?.analyte)}>
         </div>
         <div class="form-field">
           <label class="label" for="res-value">${esc(t('health.labs.results.value'))}</label>
-          <input class="input" id="res-value" type="number" inputmode="decimal" step="any">
+          <input class="input" id="res-value" type="number" inputmode="decimal" step="any"${val(editing?.value_num)}>
         </div>
       </div>
       <div class="modal-grid modal-grid--3">
         <div class="form-field">
           <label class="label" for="res-unit">${esc(t('health.labs.results.unit'))}</label>
-          <input class="input" id="res-unit" type="text" maxlength="30">
+          <input class="input" id="res-unit" type="text" maxlength="30"${val(editing?.unit)}>
         </div>
         <div class="form-field">
           <label class="label" for="res-ref-low">${esc(t('health.labs.results.refLow'))}</label>
-          <input class="input" id="res-ref-low" type="number" inputmode="decimal" step="any">
+          <input class="input" id="res-ref-low" type="number" inputmode="decimal" step="any"${val(editing?.ref_low)}>
         </div>
         <div class="form-field">
           <label class="label" for="res-ref-high">${esc(t('health.labs.results.refHigh'))}</label>
-          <input class="input" id="res-ref-high" type="number" inputmode="decimal" step="any">
+          <input class="input" id="res-ref-high" type="number" inputmode="decimal" step="any"${val(editing?.ref_high)}>
         </div>
       </div>
       <div class="health-results-preview" id="res-flag-preview" aria-live="polite"></div>
-      <button type="button" class="btn btn--secondary btn--sm" data-action="res-add">
-        <i data-lucide="plus" aria-hidden="true"></i>${esc(t('health.labs.results.add'))}
-      </button>
-    </div>`);
-  if (window.lucide) window.lucide.createIcons({ el: host });
-  wireResultEditor(panel, report);
+      ${actions}
+    </div>`;
 }
 
-function resultEditRowMarkup(r) {
+function resultEditRowMarkup(r, { editing = false } = {}) {
   const unit = r.unit ? ` ${esc(r.unit)}` : '';
   return `
-    <li class="health-results-row" data-result-id="${esc(r.id)}">
+    <li class="health-results-row${editing ? ' is-editing' : ''}" data-result-id="${esc(r.id)}"${editing ? ' aria-current="true"' : ''}>
       <span class="health-results-row__analyte">${esc(r.analyte)}</span>
       <span class="health-results-row__value">${esc(fmtNum(r.value_num))}${unit}</span>
       <span class="health-results-row__flag">${flagIndicatorMarkup(r.flag)}</span>
-      ${rowActionHtml({ icon: 'trash-2', tone: 'danger', label: t('common.deleteNamed', { name: r.analyte }), attrs: { 'data-result-del': r.id } })}
+      <span class="row-actions">
+        ${rowActionHtml({ icon: 'pencil', label: t('common.editNamed', { name: r.analyte }), attrs: { 'data-result-edit': r.id } })}
+        ${rowActionHtml({ icon: 'trash-2', tone: 'danger', label: t('common.deleteNamed', { name: r.analyte }), attrs: { 'data-result-del': r.id } })}
+      </span>
     </li>`;
 }
 
-function wireResultEditor(panel, report) {
+function wireResultEditor(panel, report, editing = null) {
   const host = panel.querySelector('#lab-results-editor');
 
   const preview = host.querySelector('#res-flag-preview');
@@ -3278,7 +3390,18 @@ function wireResultEditor(panel, report) {
   };
   [valueEl, lowEl, highEl].forEach((el) => el?.addEventListener('input', updatePreview));
 
-  host.querySelector('[data-action="res-add"]')?.addEventListener('click', async (e) => {
+  updatePreview();
+
+  host.querySelectorAll('[data-result-edit]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      renderResultEditor(panel, report, { editId: Number(btn.dataset.resultEdit) });
+      panel.querySelector('#res-analyte')?.focus();
+    }));
+  host.querySelector('[data-action="res-edit-cancel"]')?.addEventListener('click', () => {
+    renderResultEditor(panel, report);
+  });
+
+  host.querySelector('[data-action="res-add"], [data-action="res-save"]')?.addEventListener('click', async (e) => {
     const addBtn = e.currentTarget;
     const analyte = host.querySelector('#res-analyte')?.value.trim();
     const valueRaw = valueEl?.value;
@@ -3286,12 +3409,23 @@ function wireResultEditor(panel, report) {
       reportFieldError(host.querySelector('#res-analyte'), t('health.labs.results.analyteRequired'));
       return;
     }
-    if (valueRaw === '' || valueRaw == null || !Number.isFinite(Number(valueRaw))) {
+    // BEARBEITEN ERFAND EINE PFLICHT (Codex an #1485): `value_num` ist
+    // nullable - ein Analyt ohne Zahl (per API oder Import erfasst) liess
+    // sich sonst nur korrigieren, wenn man ihm einen Wert ausdachte. Beim
+    // Bearbeiten darf das Feld deshalb leer bleiben, null bleibt null; beim
+    // Anlegen bleibt der Wert Pflicht. Keine Zahl ist in beiden Faellen falsch,
+    // auch die, die ein Zahlenfeld als leer meldet (`badInput`).
+    const empty = valueRaw === '' || valueRaw == null;
+    const notANumber = valueEl?.validity?.badInput || (!empty && !Number.isFinite(Number(valueRaw)));
+    // Ein vorhandener Messwert laesst sich nicht leeren (der Server lehnt es
+    // ab); leer bleiben darf nur, was schon leer war.
+    const hadValue = editing && editing.value_num !== null && editing.value_num !== undefined;
+    if ((empty && (!editing || hadValue)) || notANumber) {
       reportFieldError(valueEl, t('health.labs.results.valueRequired'));
       return;
     }
 
-    const body = { analyte, value_num: Number(valueRaw) };
+    const body = { analyte, value_num: empty ? null : Number(valueRaw) };
     const unit = host.querySelector('#res-unit')?.value.trim();
     if (unit) body.unit = unit;
     if (lowEl?.value !== '' && lowEl?.value != null) body.ref_low = Number(lowEl.value);
@@ -3299,8 +3433,16 @@ function wireResultEditor(panel, report) {
 
     addBtn.disabled = true;
     try {
-      const res = await api.post(`/health/labs/${report.id}/results`, body);
-      report.results = [...(report.results || []), res.data];
+      if (editing) {
+        // Geleerte Felder gehen als null mit - PATCH liest nur genannte.
+        const res = await api.patch(`/health/results/${editing.id}`, {
+          unit: null, ref_low: null, ref_high: null, ...body,
+        });
+        report.results = (report.results || []).map((r) => (r.id === editing.id ? res.data : r));
+      } else {
+        const res = await api.post(`/health/labs/${report.id}/results`, body);
+        report.results = [...(report.results || []), res.data];
+      }
       renderResultEditor(panel, report);
       syncLabsAfterResultChange();
     } catch (err) {
@@ -7770,6 +7912,12 @@ export const __test = {
   // Die Renderer der Tabs. Reine Funktionen ueber dem Modulzustand - was sie
   // brauchen, setzt `setViewStateForTest()`.
   recentMeasurementsMarkup,
+  // R8 H9: Bearbeiten von Messung und Analyt.
+  openVitalModal,
+  vitalPatchBody,
+  resultEditRowMarkup,
+  resultFormMarkup,
+  renderResultEditor,
   dueRowMarkup,
   prnRowMarkup,
   medCardMarkup,

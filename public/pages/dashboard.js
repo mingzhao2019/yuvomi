@@ -29,6 +29,7 @@ import { findPageFab } from '/utils/fab.js';
 import { openModal, closeModal, confirmModal, refocusAfterRender } from '/components/modal.js';
 import { renderAvatarStack } from '/components/user-multi-select.js';
 import { isSoloHousehold } from '/utils/household.js';
+import { findSettingsLeaf } from '/settings/registry.js';
 import {
   WIDGET_SIZE_PRESETS, WIDGET_SIZE_OPTIONS,
   COCKPIT_COVERED_WIDGETS,
@@ -1781,7 +1782,20 @@ function familyNameList(names) {
   }
 }
 
-function renderFamilyWidget(users, data) {
+/* „VERWALTEN" FUEHRT AN EIN FESTES BLATT, ODER NIRGENDWOHIN (Re-Critique
+ * 2026-09-27, A7 P1-1). Der Link zeigte auf `/settings`, und die Wurzel stellt
+ * das zuletzt besuchte Blatt wieder her (pages/settings.js): nach einem Besuch
+ * der Darstellung landete „Verwalten" dort. Das Ziel ist deshalb das Blatt
+ * selbst, und ob es erscheint, entscheidet DERSELBE Guard, der das Blatt
+ * oeffnet (`findSettingsLeaf`) - wer es nicht oeffnen darf, bekaeme sonst einen
+ * Link, der ihn auf sein Konto umleitet. */
+const FAMILY_SETTINGS_LEAF = '/settings/admin/family';
+
+function familyManageHref(user) {
+  return findSettingsLeaf(FAMILY_SETTINGS_LEAF, user)?.path ?? null;
+}
+
+function renderFamilyWidget(users, data, { manageHref = null } = {}) {
   // IM SOLO-HAUSHALT GIBT ES DIESES WIDGET NICHT - entschieden in
   // `isWidgetModuleEnabled`, damit es auch aus der „Anpassen"-Ablage faellt.
   // Es war das prominenteste Widget rechts oben und zeigte einer Solo-Nutzerin
@@ -1907,7 +1921,7 @@ function renderFamilyWidget(users, data) {
     : esc(t('dashboard.familyDayCalm'));
 
   return `<div class="widget widget--family">
-    ${widgetHeader('family', t('dashboard.familyTitle'), null, '/settings', t('dashboard.manage'), 'contacts')}
+    ${widgetHeader('family', t('dashboard.familyTitle'), null, manageHref, manageHref ? t('dashboard.manage') : null, 'contacts')}
     <div class="family-widget">
       <div class="family-widget__list">
         ${sharedRow}
@@ -3243,11 +3257,17 @@ function renderTodayRow(row, extraClass = '') {
   // die Modulzugehoerigkeit (Herkunfts-Regel, Block 2), der Inhalt steht als
   // Titel in Textfarbe, das Modul-Label lebt als ruhiger Untertitel weiter
   // (nie versal, nie ueber dem Titel).
+  // DER TITEL ZUERST, DANN DIE PERSON (Re-Critique 2026-09-27, A7 Sam). Das
+  // Zeichen steht vor dem Text, und sein Name sprach deshalb als Erstes: „Linda
+  // Johnson Einverstaendnis fuer ...". Das Paar ist hier nur Bild; der Name
+  // folgt als eigener Text hinter Titel und Modul - dieselbe Auskunft, in der
+  // Reihenfolge, in der man eine Zeile liest.
+  const whoName = mark ? `<span class="sr-only">, ${esc(row.who?.display_name ?? '')}</span>` : '';
   const inner = `
-      <span class="${mark ? 'seal-pair' : ''}"><span class="module-seal today-cockpit-card__icon">${moduleIconHTML(row.icon)}</span>${mark}</span>
+      <span class="${mark ? 'seal-pair' : ''}"${mark ? ' aria-hidden="true"' : ''}><span class="module-seal today-cockpit-card__icon">${moduleIconHTML(row.icon)}</span>${mark}</span>
       <span class="today-cockpit-card__body">
         <strong class="today-cockpit-card__value${row.completed ? ' today-cockpit-card__value--done' : ''}">${esc(row.title)}</strong>
-        <span class="today-cockpit-card__sub">${esc(row.sub)}</span>
+        <span class="today-cockpit-card__sub">${esc(row.sub)}</span>${whoName}
       </span>
       ${trailing}
   `;
@@ -3453,10 +3473,63 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP, now = n
   // SEHEN ist, nicht, was heute ansteht. „Wer heute dran ist" zaehlt ueber den
   // ganzen Tag - sonst verschwaende jemand aus der Antwort, nur weil seine
   // Zeilen hinter dem Deckel liegen.
-  return { rows: visibleRows, allRows: sheet.allRows, overflow, state, shopping, coda };
+  const hidden = sheet.allRows.filter((row) => !visibleRows.includes(row));
+  const moreRoute = overflow > 0 ? todayMoreRoute(hidden, sheetContext.todayKey) : null;
+  return { rows: visibleRows, allRows: sheet.allRows, hiddenRows: hidden, overflow, moreRoute, state, shopping, coda };
 }
 
-function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date() } = {}) {
+/* „+N WEITERE HEUTE" FUEHRT DORTHIN, WO DIE VERSTECKTEN ZEILEN STEHEN
+ * (Re-Critique 2026-09-27, A7 P2-9). Die Fusszeile war ein `<div>`: sie sagte,
+ * dass es mehr gibt, und liess keinen Weg dorthin.
+ *
+ * EIN LINK NUR, WENN DIE ZIELANSICHT ALLE VERDECKTEN ZEILEN ZEIGT (Codex an
+ * #1485). Die erste Fassung waehlte bei gemischten Quellen „das Naechstbeste":
+ * Aufgabe plus Dosis fuehrte in die Aufgabenliste, Termin plus Abfuhr an den
+ * Kalendertag - der Link versprach „+2 weitere" und zeigte eine davon. Jetzt:
+ *   - nur Aufgaben: die Aufgabenliste,
+ *   - Termine und heute faellige Aufgaben: der Kalendertag, der beides zeigt
+ *     (eine UEBERFAELLIGE Aufgabe steht dort nicht),
+ *   - ein anderes Modul allein, alle Zeilen mit demselben Ziel: dieses Ziel
+ *     samt Filter,
+ *   - sonst `null`: die Fusszeile wird ein Knopf, der die verdeckten Zeilen an
+ *     Ort und Stelle aufklappt (renderTodayCockpit, wireTodayMore).
+ * Ein Termin nennt in seiner Zeile genau EIN Vorkommen (`open=`); fuer mehrere
+ * ist der Tag das ehrliche Ziel. */
+function todayMoreRoute(hiddenRows, todayKey) {
+  if (!hiddenRows.length || hiddenRows.some((row) => !row?.route)) return null;
+  const routes = hiddenRows.map((row) => String(row.route));
+  const base = (route) => route.split('?')[0];
+  const bases = new Set(routes.map(base));
+  if (bases.size === 1 && bases.has('/tasks')) return '/tasks';
+  const calendarShowsAll = [...bases].every((b) => b === '/calendar' || b === '/tasks')
+    && hiddenRows.every((row) => base(String(row.route)) !== '/tasks' || !row.overdue);
+  if (calendarShowsAll) return `/calendar?date=${encodeURIComponent(todayKey)}`;
+  return new Set(routes).size === 1 ? routes[0] : null;
+}
+
+/** Aufgeklappt bleibt aufgeklappt, auch wenn ein Refresh das Blatt neu zeichnet. */
+let todayMoreOpen = false;
+
+/**
+ * Der Aufklapp-Knopf des Ueberlaufs: schaltet die verdeckten Zeilen an Ort und
+ * Stelle, ohne das Blatt neu zu zeichnen - so bleibt der Fokus auf dem Knopf,
+ * und ein zweiter Tipp klappt wieder zu.
+ */
+function wireTodayMore(root) {
+  root.querySelectorAll('[data-today-more]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      const region = root.querySelector(`#${btn.getAttribute('aria-controls')}`);
+      if (region) region.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const label = btn.querySelector('span');
+      if (label) label.textContent = open ? btn.dataset.lessLabel : btn.dataset.moreLabel;
+      todayMoreOpen = open;
+    });
+  });
+}
+
+function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(), moreOpen = todayMoreOpen } = {}) {
   const model = buildTodayCockpitModel(data, cfg, { now });
 
   /* DIE BREITE BUEHNE TRAEGT ZWEI SPALTEN ZEILEN (Critique 23.09.2026). Am
@@ -3479,8 +3552,23 @@ function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date() 
   if (listRows.length) {
     parts.push(`<div class="today-cockpit__rows${split ? ' today-cockpit__rows--split' : ''}"${split ? ` style="--today-rows-per-column:${perColumn}"` : ''}>${listRows.join('')}</div>`);
   }
-  if (model.overflow > 0) {
-    parts.push(`<div class="today-cockpit__more">${esc(t('dashboard.todayMore', { count: model.overflow }))}</div>`);
+  if (model.overflow > 0 && model.moreRoute) {
+    const moreText = esc(t('dashboard.todayMore', { count: model.overflow }));
+    parts.push(`<a href="${esc(model.moreRoute)}" class="today-cockpit__more today-cockpit__more--link" data-route="${esc(model.moreRoute)}">
+          <span>${moreText}</span><i data-lucide="chevron-right" class="icon-sm" aria-hidden="true"></i>
+        </a>`);
+  } else if (model.overflow > 0) {
+    // Keine Ansicht zeigt alle verdeckten Zeilen (todayMoreRoute): sie stehen
+    // hier, zugeklappt, und der Knopf darunter klappt sie auf.
+    const moreText = t('dashboard.todayMore', { count: model.overflow });
+    const lessText = t('dashboard.todayLess');
+    parts.push(`<div class="today-cockpit__rows today-cockpit__rows--more" id="today-cockpit-more"${moreOpen ? '' : ' hidden'}>${
+      model.hiddenRows.map((row) => renderTodayRow(row)).join('')}</div>`);
+    parts.push(`<button type="button" class="today-cockpit__more today-cockpit__more--link" data-today-more
+          aria-expanded="${moreOpen ? 'true' : 'false'}" aria-controls="today-cockpit-more"
+          data-more-label="${esc(moreText)}" data-less-label="${esc(lessText)}">
+          <span>${esc(moreOpen ? lessText : moreText)}</span><i data-lucide="chevron-down" class="icon-sm today-cockpit__more-icon" aria-hidden="true"></i>
+        </button>`);
   }
   if (model.shopping) parts.push(renderTodayRow(model.shopping));
   if (model.coda) parts.push(`<div class="today-cockpit__coda">${esc(model.coda)}</div>`);
@@ -3583,22 +3671,33 @@ function renderDashboardOverview(user, editing = false, weather = null, scope = 
                Im Anpassen-Modus faellt er weg: dort geht es um die Anordnung
                der Kacheln, und ein Moduswechsel mittendrin wuerfe eine
                ungespeicherte Bearbeitung weg. -->
+          <!-- IM ANPASSEN-MODUS GIBT ES KEIN X (Re-Critique 2026-09-27, A7 P2-5).
+               Es hiess „Anpassung beenden" und verwarf still - neben
+               „Abbrechen" ein zweiter Ausgang mit derselben Folge, aber einem
+               Wort, das „fertig" verspricht. Die Leiste hat jetzt genau zwei
+               Wege hinaus: Speichern, und Abbrechen mit Rueckfrage, sobald
+               etwas zu verlieren ist. -->
           ${editing ? '' : `
           <button class="dashboard-icon-btn" id="dashboard-wall-enter"
                   aria-label="${t('dashboard.wallEnter')}"
                   title="${t('dashboard.wallEnter')}">
             <i data-lucide="maximize-2" aria-hidden="true"></i>
-          </button>`}
-          <button class="dashboard-icon-btn" id="dashboard-customize-btn"
-                  aria-label="${editing ? t('dashboard.customizeExit') : t('dashboard.customize')}"
-                  title="${editing ? t('dashboard.customizeExit') : t('dashboard.customize')}"
-                  aria-pressed="${editing ? 'true' : 'false'}">
-            <i data-lucide="${editing ? 'x' : 'settings-2'}" aria-hidden="true"></i>
           </button>
+          <button class="dashboard-icon-btn" id="dashboard-customize-btn"
+                  aria-label="${t('dashboard.customize')}"
+                  title="${t('dashboard.customize')}">
+            <i data-lucide="settings-2" aria-hidden="true"></i>
+          </button>`}
         </div>
       </div>
     </section>
   `;
+}
+
+/** Hat der Anpassen-Modus etwas, das „Abbrechen" wegwerfen wuerde? */
+function customizeHasChanges({ widgetConfig, savedWidgetConfig, glanceVisible, savedGlanceVisible }) {
+  return !sameWidgetConfig(savedWidgetConfig, widgetConfig)
+    || Boolean(glanceVisible) !== Boolean(savedGlanceVisible);
 }
 
 /**
@@ -4110,7 +4209,7 @@ function renderHiddenWidgetsTray(cfg, glanceHidden = false) {
   `;
 }
 
-function renderDashboardLayout(cfg, data, weather, currency, { editing = false, visibleMealTypes = MEAL_ORDER, glanceHidden = false } = {}) {
+function renderDashboardLayout(cfg, data, weather, currency, { editing = false, visibleMealTypes = MEAL_ORDER, glanceHidden = false, familyManage = null } = {}) {
   const widgetById = {
     tasks: () => renderUrgentTasks(data.urgentTasks ?? [], data.openTaskCount),
     calendar: (size) => renderCalendarWidget(data, size),
@@ -4126,7 +4225,7 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     schedule: (size) => renderScheduleWidget(data.schedule, data.users ?? [], size),
     waste: (size) => renderWasteWidget(data.waste, size),
     pantry: (size) => renderPantryWidget(data.pantryExpiring, size),
-    family: () => renderFamilyWidget(data.users ?? [], data),
+    family: () => renderFamilyWidget(data.users ?? [], data, { manageHref: familyManage }),
     meals: () => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes),
     notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size, data.notesTotal),
     shopping: () => renderShoppingLists(data.shoppingLists ?? [], data.shoppingOpenCount, data.shoppingOpenLists),
@@ -5278,6 +5377,7 @@ async function openTaskFromOverview(taskId, container, rerender, user) {
 // --------------------------------------------------------
 
 function wireLinks(container, rerender, { editing = false, user = null } = {}) {
+  wireTodayMore(container);
   container.querySelectorAll('[data-route]').forEach((el) => {
     if (el.id === 'fab-main' || el.closest('#fab-actions')) return;
     if (editing && el.closest('.widget-wrapper--editing')) return;
@@ -5797,6 +5897,24 @@ export async function render(container, { user, signal: routeSignal = null } = {
     rebuildDashboard(widgetConfig);
   }
 
+  /* ABBRECHEN FRAGT, SOBALD ES ETWAS ZU VERLIEREN GIBT (Re-Critique
+   * 2026-09-27, A7 P2-5). Ein Fehlgriff neben „Speichern" warf die ganze
+   * Anordnung wortlos weg. Ohne Aenderung bleibt der Ausgang ein Tipp - eine
+   * Rueckfrage ohne Folge waere nur Reibung. Nach dem Verwerfen steht der Fokus
+   * wieder auf „Anpassen", wie nach jedem Moduswechsel. */
+  async function requestCancelDashboardConfig() {
+    if (customizeHasChanges({ widgetConfig, savedWidgetConfig, glanceVisible, savedGlanceVisible })) {
+      const confirmed = await confirmModal(t('modal.unsavedChanges'), {
+        danger: true,
+        confirmLabel: t('modal.discardChanges'),
+        detail: t('dashboard.customizeDiscardDetail'),
+      });
+      if (!confirmed || !isCustomizing) return;
+    }
+    focusAfterRebuild = ['#dashboard-customize-btn'];
+    cancelDashboardConfig();
+  }
+
   /* „ZURÜCKSETZEN" HATTE SEIT #585 ZWEI PLAUSIBLE BEDEUTUNGEN und lieferte eine
    * dritte (Critique 2026-08-16). Solange die Anordnung dem Haushalt gehörte,
    * war „auf Standard" eindeutig. Seit sie der Person gehört, kann der Satz auch
@@ -6203,7 +6321,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
         ${renderDashboardOverview(user, isCustomizing, weatherCardShown ? null : weather, { followsDefault, canPublish })}
         ${cockpitHtml}
       </section>
-      ${renderDashboardLayout(cfg, data, weather, currency, { editing: isCustomizing, visibleMealTypes, glanceHidden: !glanceVisible })}
+      ${renderDashboardLayout(cfg, data, weather, currency, { editing: isCustomizing, visibleMealTypes, glanceHidden: !glanceVisible, familyManage: familyManageHref(user) })}
     `);
     wireLinks(container, rerender, { editing: isCustomizing, user });
     disposeFastingClock = wireFastingWidget(container, rerender, refreshDashboardData, data.fasting, signal);
@@ -6229,15 +6347,14 @@ export async function render(container, { user, signal: routeSignal = null } = {
       rerender();
     }, { signal: signal });
     container.querySelector('#dashboard-customize-btn')?.addEventListener('click', () => {
-      isCustomizing = !isCustomizing;
-      if (!isCustomizing) {
-        cancelDashboardConfig();
-        return;
-      }
+      // Nur noch der Einstieg: im Anpassen-Modus gibt es diesen Knopf nicht.
+      // Der Fokus geht in die Leiste, die ihn abloest.
+      isCustomizing = true;
+      focusAfterRebuild = ['#dashboard-customize-cancel'];
       rebuildDashboard(widgetConfig);
     }, { signal: signal });
     container.querySelector('#dashboard-customize-save')?.addEventListener('click', saveDashboardConfig, { signal: signal });
-    container.querySelector('#dashboard-customize-cancel')?.addEventListener('click', cancelDashboardConfig, { signal: signal });
+    container.querySelector('#dashboard-customize-cancel')?.addEventListener('click', requestCancelDashboardConfig, { signal: signal });
     container.querySelector('#dashboard-customize-reset')?.addEventListener('click', resetDashboardConfig, { signal: signal });
     container.querySelector('#dashboard-customize-publish')?.addEventListener('click', publishHouseholdDefault, { signal: signal });
     wireDashboardEditMode();
@@ -6492,7 +6609,7 @@ async function loadScheduleSlice(day) {
   };
 }
 
-export const __test = { renderCalendarWidget, renderRewardsWidget, loadScheduleSlice, renderUrgentTasks, renderUpcomingEvents, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderPantryWidget, renderFamilyWidget, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles, renderGridHint, captureTileRects, playTileFlip };
+export const __test = { renderCalendarWidget, renderRewardsWidget, loadScheduleSlice, renderUrgentTasks, renderUpcomingEvents, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderPantryWidget, renderFamilyWidget, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles, renderGridHint, captureTileRects, playTileFlip, familyManageHref, customizeHasChanges, todayMoreRoute, wireTodayMore };
 
 // `signal` ist der Controller des Aufbaus, der die Wetterkarte gezeichnet hat
 // (#976/#977). Vorher las diese Funktion das Modul-Feld `_fabController` -

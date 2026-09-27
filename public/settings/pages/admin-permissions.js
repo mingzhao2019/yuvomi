@@ -105,7 +105,21 @@ const state = {
   draft: { modules: {}, widgets: {}, capabilities: {} },
   inherited: { modules: {}, widgets: {}, capabilities: {} },
   dirty: false,
+  loadedFor: null,     // subjectKey(), dessen Rechte in draft/inherited stehen
+  loadFailed: false,   // das Laden der Rechte fuer das aktuelle Subjekt scheiterte
 };
+
+/* EINE VERALTETE ANTWORT SCHRIEB IN DAS NEUE SUBJEKT (Codex an #1485, P1).
+ * Mitglieder -> Rollen startet das Laden der ersten Rolle, die Mitglieds-Chips
+ * standen bis zur Antwort noch klickbar da. Kam die Rollen-Antwort NACH der
+ * eines inzwischen gewaehlten Mitglieds, landete sie in dessen Entwurf, und der
+ * naechste Tipp auf Speichern schrieb sie ueber seine Overrides. Jede Ladung
+ * traegt deshalb eine Generation, nur die juengste darf schreiben; und
+ * Speichern/Bearbeiten gelten nur fuer einen Entwurf, der zum aktuellen
+ * Subjekt geladen ist. */
+let loadGeneration = 0;
+const subjectKey = () => `${state.mode}:${state.subjectId}`;
+const draftIsCurrent = () => state.loadedFor === subjectKey();
 
 const moduleLabel = (key) => {
   const m = state.catalog?.modules.find((x) => x.key === key);
@@ -150,22 +164,22 @@ function effectiveCapabilityAccess(item, view = {}) {
 
 // ── Zugriffs-Optionen ────────────────────────────────────────────────────────
 
-function moduleOptions() {
+function moduleOptions(mode = state.mode) {
   const base = [
     { value: 'none', label: t('settings.permAccessNone'), icon: MODULE_OPT_ICONS.none },
     { value: 'read', label: t('settings.permAccessRead'), icon: MODULE_OPT_ICONS.read },
     { value: 'write', label: t('settings.permAccessWrite'), icon: MODULE_OPT_ICONS.write },
   ];
-  if (state.mode === 'user') return [{ value: 'inherit', label: t('settings.permInherit'), icon: MODULE_OPT_ICONS.inherit }, ...base];
+  if (mode === 'user') return [{ value: 'inherit', label: t('settings.permInherit'), icon: MODULE_OPT_ICONS.inherit }, ...base];
   return base;
 }
 
-function widgetOptions() {
+function widgetOptions(mode = state.mode) {
   const base = [
     { value: 'none', label: t('settings.permWidgetBlocked'), icon: WIDGET_OPT_ICONS.none },
     { value: 'allow', label: t('settings.permWidgetAllowed'), icon: WIDGET_OPT_ICONS.allow },
   ];
-  if (state.mode === 'user') return [{ value: 'inherit', label: t('settings.permInherit'), icon: WIDGET_OPT_ICONS.inherit }, ...base];
+  if (mode === 'user') return [{ value: 'inherit', label: t('settings.permInherit'), icon: WIDGET_OPT_ICONS.inherit }, ...base];
   return base;
 }
 
@@ -358,6 +372,37 @@ function renderSummary(container) {
   window.lucide?.createIcons({ el: host });
 }
 
+// ── Legende der Icon-Segmente ────────────────────────────────────────────────
+//
+// Am breiten Zeiger-Viewport tragen die Segmente nur ihr Icon; der Klartext
+// stand allein im `title` (Re-Critique 2026-09-27, A7 P2-13). Die Legende sagt
+// einmal ueber der Liste, was die Zeichen heissen - aus DENSELBEN Optionen, aus
+// denen die Segmente gebaut sind, damit Legende und Knopf nie auseinanderlaufen.
+// Sie ist ein Bild zum Nachschlagen: jedes Segment traegt seinen Namen selbst
+// (`aria-label`), ein Screenreader hoerte die Liste sonst ein zweites Mal.
+//
+// DIESELBEN ICONS HEISSEN JE ABSCHNITT ETWAS ANDERES (Codex an #1485): das
+// Auge ist am Modul „Lesen", am Widget „Verfuegbar", an einer Faehigkeit
+// „Erlaubt". Eine Legende nur aus den Modul-Optionen stand auch ueber Widget-
+// und Faehigkeits-Zeilen und nannte dort die falsche Bedeutung. Jeder Abschnitt
+// traegt deshalb seine eigenen Woerter unter seiner Ueberschrift; „Erben"
+// bedeutet ueberall dasselbe und steht einmal vorn.
+export function permLegendHtml(mode = state.mode, { widgets = true, capabilities = true } = {}) {
+  const item = (o) => `
+      <span class="perm-legend__item"><i data-lucide="${esc(o.icon)}" aria-hidden="true"></i>${esc(o.label)}</span>`;
+  const own = (options) => options.filter((o) => o.value !== 'inherit');
+  const group = (heading, options) => `
+    <span class="perm-legend__group"><span class="perm-legend__scope">${esc(heading)}</span>${own(options).map(item).join('')}</span>`;
+  const inherit = moduleOptions(mode).find((o) => o.value === 'inherit');
+  const parts = [
+    inherit ? `<span class="perm-legend__group">${item(inherit)}</span>` : '',
+    group(t('settings.permModulesHeading'), moduleOptions(mode)),
+    widgets ? group(t('settings.permWidgetsHeading'), widgetOptions(mode)) : '',
+    capabilities ? group(t('settings.permCapabilitiesHeading'), capabilityOptions(mode)) : '',
+  ];
+  return `<p class="perm-legend" aria-hidden="true">${parts.join('')}</p>`;
+}
+
 // ── Matrix ─────────────────────────────────────────────────────────────────────
 
 function subjectTitle() {
@@ -375,6 +420,20 @@ function renderMatrix(container) {
     panel.insertAdjacentHTML('beforeend', `<p class="form-hint perm-empty">${esc(
       state.mode === 'role' ? t('settings.permSelectRolePrompt') : t('settings.permSelectMemberPrompt'),
     )}</p>`);
+    return;
+  }
+
+  /* EIN GESCHEITERTES LADEN SAH AUS WIE EINE BEARBEITBARE VOREINSTELLUNG
+   * (Codex an #1485): der Entwurf blieb leer, die Matrix zeigte fuer jedes
+   * Modul „Bearbeiten", Klicks wurden still verworfen und Zuruecksetzen tat
+   * nichts. Ohne geladene Rechte steht keine Matrix da, sondern die Meldung
+   * mit „Erneut versuchen" - derselbe Baustein wie beim Katalog. */
+  if (state.loadFailed) {
+    const { mode, subjectId } = state;
+    panel.replaceChildren(createRetryState({
+      message: t('settings.permLoadError'),
+      onRetry: () => selectSubject(container, mode, subjectId),
+    }));
     return;
   }
 
@@ -410,6 +469,10 @@ function renderMatrix(container) {
       <p class="perm-matrix__hint">${esc(
         state.mode === 'role' ? t('settings.permRoleLegend') : t('settings.permMemberLegend'),
       )}</p>
+      ${permLegendHtml(state.mode, {
+        widgets: state.catalog.widgets.length > 0,
+        capabilities: (state.catalog.capabilities || []).length > 0,
+      })}
     </div>
     <div id="perm-summary"></div>
     <div class="perm-list">${groupsHtml}${generalHtml}</div>
@@ -471,10 +534,16 @@ function renderSubjectSelector(container) {
   host.replaceChildren();
 
   if (state.mode === 'role') {
-    const chips = state.catalog.roles.map((role) => `
-      <button type="button" class="perm-chip${String(role) === String(state.subjectId) ? ' is-active' : ''}"
+    // DER GEWAEHLTE CHIP SAGT ES AUCH OHNE FARBE (Re-Critique 2026-09-27,
+    // A7 P2-13): `is-active` war nur ein Farbwechsel, ein Screenreader hoerte
+    // fuenf gleiche Knoepfe und keinen Hinweis, wessen Rechte darunter stehen.
+    const chips = state.catalog.roles.map((role) => {
+      const active = String(role) === String(state.subjectId);
+      return `
+      <button type="button" class="perm-chip${active ? ' is-active' : ''}" aria-pressed="${active ? 'true' : 'false'}"
         data-role="${esc(role)}">${esc(familyRoleLabel(role))}</button>
-    `).join('');
+    `;
+    }).join('');
     host.insertAdjacentHTML('beforeend', chips);
   } else {
     const members = state.catalog.members.filter((m) => !['split_guest', 'display'].includes(m.access_scope));
@@ -484,8 +553,9 @@ function renderSubjectSelector(container) {
     }
     const chips = members.map((m) => {
       const badge = m.role === 'admin' ? `<span class="perm-chip__badge">${esc(t('settings.systemAdminBadge'))}</span>` : '';
+      const active = String(m.id) === String(state.subjectId);
       return `
-        <button type="button" class="perm-chip${String(m.id) === String(state.subjectId) ? ' is-active' : ''}"
+        <button type="button" class="perm-chip${active ? ' is-active' : ''}" aria-pressed="${active ? 'true' : 'false'}"
           data-user="${esc(m.id)}">
           <span class="perm-chip__avatar${prefersInkText(m.avatar_color) ? ' perm-chip__avatar--ink' : ''}"
             style="background:${esc(m.avatar_color) || 'var(--color-accent)'}">${
@@ -506,17 +576,36 @@ function initials(name) {
 
 // ── Laden ────────────────────────────────────────────────────────────────────
 
+/* OHNE VORWAHL STAND UNTER DEN ROLLEN EINE LEERE FLAECHE (Re-Critique
+ * 2026-09-27, A7 P2-13). Die Rollen sind eine feste, kurze Liste, und jede ist
+ * eine sinnvolle erste Antwort - also steht die erste gewaehlt da, wie ein
+ * Segment immer einen Wert hat. Die Mitglieder bleiben ohne Vorwahl: dort ist
+ * das erste in der Liste oft die Admin-Person selbst, deren Rechte gar nicht
+ * einschraenkbar sind. */
+export function initialSubject(mode, catalog) {
+  if (mode !== 'role') return null;
+  const [first] = catalog?.roles ?? [];
+  return first ?? null;
+}
+
 async function selectSubject(container, mode, id) {
+  const generation = ++loadGeneration;
   state.mode = mode;
   state.subjectId = id;
   state.dirty = false;
+  state.loadedFor = null;
+  state.loadFailed = false;
   state.draft = { modules: {}, widgets: {}, capabilities: {} };
   state.inherited = { modules: {}, widgets: {}, capabilities: {} };
+  // Bis die Rechte da sind, ist die stehende Matrix nicht bedienbar: sie zeigt
+  // noch das vorige Subjekt, und ein Klick liefe ins Leere.
+  lockMatrix(container);
 
   if (id != null) {
     try {
       if (mode === 'role') {
         const res = await api.get(`/permissions/role/${encodeURIComponent(id)}`);
+        if (generation !== loadGeneration) return;
         state.draft = { modules: { ...res.data.modules }, widgets: { ...res.data.widgets }, capabilities: { ...res.data.capabilities } };
       } else {
         const member = state.catalog.members.find((m) => String(m.id) === String(id));
@@ -526,19 +615,34 @@ async function selectSubject(container, mode, id) {
             ? api.get(`/permissions/role/${encodeURIComponent(member.family_role)}`)
             : Promise.resolve({ data: { modules: {}, widgets: {}, capabilities: {} } }),
         ]);
+        if (generation !== loadGeneration) return;
         state.draft = { modules: { ...ov.data.modules }, widgets: { ...ov.data.widgets }, capabilities: { ...ov.data.capabilities } };
         state.inherited = { modules: { ...roleRes.data.modules }, widgets: { ...roleRes.data.widgets }, capabilities: { ...roleRes.data.capabilities } };
       }
+      state.loadedFor = subjectKey();
+      state.dirty = false;
     } catch (err) {
-      window.yuvomi?.showToast(err.message || t('common.errorGeneric'), 'danger');
+      if (generation !== loadGeneration) return;
+      console.error('[Permissions] subject load failed:', err);
+      state.loadFailed = true;
     }
+  } else {
+    state.loadedFor = subjectKey();
   }
 
   renderSubjectSelector(container);
   renderMatrix(container);
 }
 
+function lockMatrix(container) {
+  const panel = container.querySelector('#perm-matrix');
+  panel?.querySelectorAll('.perm-seg__opt, #perm-reset, #perm-save').forEach((el) => { el.disabled = true; });
+}
+
 async function save(container) {
+  if (!draftIsCurrent()) return;
+  const generation = loadGeneration;
+  const title = subjectTitle();
   const payload = { modules: {}, widgets: {}, capabilities: {} };
   for (const [k, v] of Object.entries(state.draft.modules)) if (v && v !== 'inherit') payload.modules[k] = v;
   for (const [k, v] of Object.entries(state.draft.widgets)) if (v && v !== 'inherit') payload.widgets[k] = v;
@@ -555,13 +659,17 @@ async function save(container) {
     // Neue Rechte koennen neue Mitleser eines Moduls schaffen: `othersCanRead`
     // neu holen, damit die Schutzfelder in derselben Sitzung stimmen.
     await auth.me().catch(() => {});
-    state.draft = { modules: { ...res.data.modules }, widgets: { ...res.data.widgets }, capabilities: { ...res.data.capabilities } };
-    state.dirty = false;
-    renderMatrix(container);
-    window.yuvomi?.showToast(t('settings.permSaved', { name: subjectTitle() }), 'success');
+    // Inzwischen ein anderes Subjekt gewaehlt: die Antwort gehoert nicht in
+    // dessen Entwurf.
+    if (generation === loadGeneration) {
+      state.draft = { modules: { ...res.data.modules }, widgets: { ...res.data.widgets }, capabilities: { ...res.data.capabilities } };
+      state.dirty = false;
+      renderMatrix(container);
+    }
+    window.yuvomi?.showToast(t('settings.permSaved', { name: title }), 'success');
   } catch (err) {
     window.yuvomi?.showToast(err.message || t('common.errorGeneric'), 'danger');
-    if (saveBtn) saveBtn.disabled = false;
+    if (saveBtn && generation === loadGeneration) saveBtn.disabled = false;
   }
 }
 
@@ -583,7 +691,7 @@ function bindEvents(container) {
         b.classList.toggle('is-active', active);
         b.setAttribute('aria-selected', active ? 'true' : 'false');
       });
-      selectSubject(container, next, null);
+      selectSubject(container, next, initialSubject(next, state.catalog));
     });
   });
 
@@ -630,7 +738,7 @@ function applySegment(container, opt) {
   // `<modulId>:<widgetId>`. Ein destrukturierendes split(':') behielt davon nur
   // `ext` bzw. die Modul-Id, und der Server wies das zu Recht ab.
   const { type, key } = parsePermissionGroup(opt.dataset.group);
-  if (!key) return;
+  if (!key || !draftIsCurrent()) return;
   const value = opt.dataset.value;
   if (type === 'module') state.draft.modules[key] = value;
   else if (type === 'widget') state.draft.widgets[key] = value;
@@ -648,6 +756,8 @@ function applySegment(container, opt) {
 }
 
 async function resetSubject(container) {
+  // Ohne geladenen Entwurf gibt es nichts zurueckzusetzen - auch keine Frage.
+  if (!draftIsCurrent()) return;
   // War der einzige Confirm ohne `danger`, obwohl er Zugriffsbeschraenkungen
   // aufhebt - und bei einer Rolle gleich fuer mehrere Personen.
   const ok = await confirmModal(t('settings.permResetConfirm', { name: subjectTitle() }), {
@@ -655,7 +765,7 @@ async function resetSubject(container) {
     confirmLabel: t('settings.permResetSubject'),
     detail: t('settings.permResetConfirmDetail'),
   });
-  if (!ok) return;
+  if (!ok || !draftIsCurrent()) return;
   state.draft = { modules: {}, widgets: {}, capabilities: {} };
   state.dirty = true;
   renderMatrix(container);
@@ -708,8 +818,7 @@ export async function render(container, { user } = {}) {
   state.inherited = { modules: {}, widgets: {}, capabilities: {} };
   state.dirty = false;
 
-  renderSubjectSelector(container);
-  renderMatrix(container);
   bindEvents(container);
+  await selectSubject(container, 'role', initialSubject('role', catalog));
   window.lucide?.createIcons({ el: container });
 }

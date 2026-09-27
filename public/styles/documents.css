@@ -190,25 +190,6 @@
   flex-wrap: wrap;
 }
 
-.document-select {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--module-accent) var(--tint-surface), transparent);
-  cursor: pointer;
-}
-
-.document-select input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--module-accent);
-  cursor: pointer;
-}
-
 /* Die RASTERKARTE traegt ihre Auswahl als Ring - sie ist ein eigenes Objekt
  * (randlos seit 2026-09-25, der Ring ist deshalb ein Schatten, keine Kante). Die ZEILE hat beides nicht mehr und traegt sie als getoente
  * Flaeche: dasselbe Vokabular wie jeder andere ausgewaehlte Zustand der App
@@ -1984,9 +1965,13 @@
   }
 }
 
-/* Ist die Vorschau ein Link ins DMS, taucht beim Hover/Fokus ein Öffnen-Symbol
-   über der Kachel auf - eine kleine Belohnung dafür, dass die Vorschau mehr kann
-   als nur zeigen (Issue #533). */
+/* Ist die Vorschau ein Link ins DMS oder oeffnet sie die grosse Vorschau,
+   sagt ein Zeichen in der Ecke, dass sie mehr kann als zeigen (Issue #533).
+   DAUERHAFT SICHTBAR (R8 H14): bis dahin legte sich das Zeichen erst beim
+   Ueberfahren als Schleier ueber die ganze Kachel - auf Touch und Tablet gab
+   es die Auskunft also nie (ignore.md: Aktionen stehen dauerhaft). Als Marke
+   in der Ecke verdeckt es die Vorschau nicht; das Ziel ist die Kachel selbst,
+   deshalb bleibt das Zeichen ohne eigene Treffflaeche. */
 .dms-result__media--link,
 .dms-result__media--action {
   cursor: pointer;
@@ -1999,30 +1984,36 @@
 
 .dms-result__open {
   position: absolute;
-  inset: 0;
+  inset-block-end: var(--space-1);
+  inset-inline-end: var(--space-1);
+  width: var(--space-6);
+  height: var(--space-6);
   display: grid;
   place-items: center;
-  opacity: 0;
-  /* Unsichtbar heisst auch unklickbar: ohne pointer-events bleibt hier ein
-   * volles Trefferziel stehen, das niemand sieht (Guard
-   * `verborgene Reveal-Aktionen bleiben nicht klickbar`, test-frontend-audit.js). */
+  border-radius: var(--radius-full);
   pointer-events: none;
   color: var(--color-surface);
   background: color-mix(in srgb, var(--color-text-primary) 52%, transparent);
-  transition: opacity var(--transition-fast);
+  transition: background-color var(--transition-fast);
 }
 
 .dms-result__open svg {
-  width: 20px;
-  height: 20px;
+  width: var(--space-4);
+  height: var(--space-4);
 }
 
+/* Hover und Fokus verstaerken die Marke, statt sie erst herbeizuholen. */
 .dms-result__media--link:hover .dms-result__open,
 .dms-result__media--link:focus-visible .dms-result__open,
 .dms-result__media--action:not(:disabled):hover .dms-result__open,
 .dms-result__media--action:not(:disabled):focus-visible .dms-result__open {
-  opacity: 1;
-  pointer-events: auto;
+  background: color-mix(in srgb, var(--color-text-primary) 76%, transparent);
+}
+
+/* Ohne Vorschau und ohne Link (die Kachel wird zur reinen Anzeige) gibt es
+   nichts zu oeffnen - dann auch kein Zeichen, das es verspricht. */
+.dms-result__media--action:disabled .dms-result__open {
+  display: none;
 }
 
 .dms-result__media--link:focus-visible,

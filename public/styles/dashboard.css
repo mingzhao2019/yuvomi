@@ -2703,6 +2703,59 @@ svg.weather-forecast__icon {
   font-size: var(--type-caption);
 }
 
+/* „+N weitere heute" ist ein Weg (Re-Critique 2026-09-27, A7 P2-9): dieselbe
+ * Fusszeile, aber als Zeile mit Ziel - volle Breite, Zielhoehe der Geraetewelt,
+ * Chevron am Ende wie jede navigierende Zeile, und der Text eine Stufe kraeftiger
+ * als die stille Coda, weil man ihn antippen soll. */
+.today-cockpit__more--link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--target-base);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.today-cockpit__more--link:hover,
+.today-cockpit__more--link:focus-visible {
+  background: color-mix(in srgb, var(--color-text-primary) var(--tint-state), var(--color-surface));
+  color: var(--color-text-primary);
+}
+
+.today-cockpit__more--link:focus-visible {
+  outline-offset: var(--focus-ring-offset-inset);
+}
+
+/* Der Aufklapp-Knopf (Codex an #1485): zeigt keine Ansicht alle verdeckten
+ * Zeilen, klappt dieselbe Fusszeile sie an Ort und Stelle auf. Als <button>
+ * braucht sie den Reset auf die Optik des Links; das Chevron zeigt nach unten
+ * und dreht sich im offenen Zustand. */
+button.today-cockpit__more--link {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--color-border-subtle);
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.today-cockpit__more-icon {
+  transition: transform var(--transition-fast);
+}
+
+.today-cockpit__more[aria-expanded="true"] .today-cockpit__more-icon {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-cockpit__more-icon {
+    transition: none;
+  }
+}
+
 .today-cockpit-card--task {
   --today-card-accent: var(--module-tasks);
 }
@@ -2744,6 +2797,17 @@ svg.weather-forecast__icon {
 /* Die Einkaufszeile folgt der Liste, nicht einer Geschwisterzeile - dieselbe
  * Haarlinie wie zwischen den Zeilen. */
 .today-cockpit__rows + .today-cockpit-card {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* Die aufgeklappten verdeckten Zeilen (Codex an #1485) setzen die Liste fort:
+ * dieselbe Haarlinie zur letzten sichtbaren Zeile, und zugeklappt nimmt ihr
+ * `display: grid` dem `hidden` nicht die Wirkung. */
+.today-cockpit__rows--more[hidden] {
+  display: none;
+}
+
+.today-cockpit__rows + .today-cockpit__rows--more {
   border-top: 1px solid var(--color-border-subtle);
 }
 

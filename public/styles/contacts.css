@@ -181,15 +181,10 @@
   cursor: pointer;
 }
 
-.contact-item__checkbox {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  accent-color: var(--c-accent);
-  cursor: pointer;
-}
-
-.contact-item__checkbox:disabled {
+/* Familien-Kontakte sind einzeln nicht loeschbar und damit nicht waehlbar:
+ * der Kreis tritt zurueck, statt eine Wahl anzubieten, die es nicht gibt.
+ * Der Kreis selbst (`.select-circle`) ist ein Shell-Baustein in layout.css. */
+.contact-item__select .select-circle:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }
