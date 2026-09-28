@@ -904,7 +904,7 @@
         "monthDayEntries_other": "{{count}} مورد",
         "dayEmptyHint": "هنوز رویدادی نیست. روی یک ساعت بزن تا اضافه کنی.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "هفته {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "هفته {{week}} · {{month}}",
         "titleLabel": "عنوان",
         "titlePlaceholder": "مثلاً دندان‌پزشک",
         "allDayToggle": "تمام‌روز",

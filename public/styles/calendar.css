@@ -149,7 +149,7 @@
    * Zeile (layout.css), ist also nie die Zeile ohne Raum. */
   flex: 1 1 0;
   /* Untergrenze statt 0: gekuerzt darf das Label werden, verschwinden nicht.
-   * 7ch traegt "Aug 2026" - der kuerzeste Stand, aus dem noch hervorgeht, wo
+   * 7ch traegt "September" - der kuerzeste Stand, aus dem noch hervorgeht, wo
    * man im Kalender steht. */
   min-width: 7ch;
   text-align: center;
@@ -162,8 +162,8 @@
  * Label bei 1280px die ganze Mitte der Titelzeile (571px), und die Pfeile
  * standen 630px auseinander - fuer jeden Zeitraumwechsel mit der Maus ein
  * Weg quer ueber den Kopf (Critique 2026-09-24, Persona Alex). 15rem tragen
- * das laengste deutsche Label („Mittwoch, 30.09.2026", „KW 39 · September
- * 2026": 192px) mit Luft; laengere Locales kuerzt die Ellipse. Die Breite
+ * das laengste deutsche Label („Mittwoch, 30.09.", „KW 39 · September":
+ * 192px) mit Luft; laengere Locales kuerzt die Ellipse. Die Breite
  * haengt nicht am Text - die Pfeile springen auch hier nicht. */
 @media (min-width: 768px) {
   .cal-toolbar__label {
@@ -251,8 +251,8 @@
  * Shell-Regel „Tab-Leiste im Modulkopf" (layout.css), die über `[role=tablist]`
  * greift und deshalb jede Leiste erfasst, nicht die vier bekannten. */
 @media (max-width: 767px) {
-  /* Large Title 与搜索、筛选入口共享第一行；日期导航、图层操作和视图栏各自
-   * 保留明确的槽位。搜索从 actions 中移出后不会再单独占一行。 */
+  /* Large Title 与日期导航共享第一行；工具按钮在空间不足时自然落到
+   * 下一排，不让日期控件被年份和额外换行挤压。 */
   .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
     > .page-toolbar__title {
     flex: 1 1 auto;
@@ -271,8 +271,10 @@
 
   .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
     > .page-toolbar__center {
-    order: 1;
-    flex: 0 0 100%;
+    order: 0;
+    flex: 1 1 auto;
+    flex-basis: auto;
+    min-width: min-content;
   }
 
   .cal-toolbar.page-toolbar--wrap:not(.page-toolbar--in-group):has(> .page-toolbar__title)
@@ -331,21 +333,11 @@
   display: none;
 }
 
-/* MOBIL ZWEI KOPFZEILEN STATT DREI (R9 M5, Re-Critique 2026-09-27 A8 P2-3).
+/* MOBIL TITEL UND ZEITRAUM IN EINER ZEILE (custom calendar compact header).
  *
- * Gemessen 390x844 vorher: Titel 41px, Zeitraum 48px, Ansichts-Segment mit
- * Filter und Suche 52px - 166px Kopf, der Kalender stand als einziger
- * Nicht-Ausnahme-Kopf ueber 122px. Wie in Apples Kalender wandert die
- * Ansichtswahl ins Menue „..." (calendar.js, viewMenuHtml); das Segment
- * verschwindet, und die Bar-Zeile loest sich auf (`display: contents`): ihre
- * Werkzeuge - Filter, Suche, Menue - ruecken als Gruppe an das Ende der
- * Titelzeile, der Zeitraum behaelt die zweite Zeile fuer sich.
- *
- * WARUM DER FILTER OBEN STEHT UND NICHT NEBEN DEM STEPPER: gemessen haette
- * Zeile 2 mit Filter dem Zeitraumlabel 134px gelassen, das mobile Wochenlabel
- * („26.09. - 28.09.2026") braucht 155px und waere abgeschnitten worden. Oben
- * steht der Filter bei Suche und Menue - dieselbe Werkzeuggruppe wie am
- * Desktop am Ende der Bar-Zeile. */
+ * Der Zeitraum steht neben dem Titel. Die Werkzeugbuttons brechen erst um,
+ * wenn die Breite fuer ihre Trefferflaechen nicht reicht; der Datumsbereich
+ * bleibt dadurch auf dem Telefon in der ersten Kopfzeile. */
 @media (max-width: 639px) {
   .cal-toolbar__views {
     display: none;
@@ -379,8 +371,10 @@
   }
 
   .page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center {
-    order: 2;
-    flex-basis: 100%;
+    order: 0;
+    flex: 1 1 auto;
+    flex-basis: auto;
+    min-width: min-content;
   }
 }
 

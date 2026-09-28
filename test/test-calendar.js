@@ -2261,6 +2261,29 @@ test('Pfeilnamen folgen der Schrittweite, die Agenda nennt ihre Spanne', () => {
     'das Agenda-Label nennt nicht die Spanne, die getAgendaRange() laedt');
 });
 
+test('Kalender-Zeitraumlabels verzichten auf das redundante Jahr', () => {
+  const previous = globalThis.__formatDayMonth;
+  globalThis.__formatDayMonth = (value) => 'DM:' + value;
+  try {
+    assert(calendarHelpers.formatCalendarDate('2026-09-28') === 'DM:2026-09-28',
+      'ein einzelnes Zeitraumdatum muss ohne Jahr formatiert werden');
+    assert(/DM:2026-09-28/.test(calendarHelpers.formatCalendarDate('2026-09-28', { weekday: true })),
+      'das Tageslabel muss den kompakten Tag/Monat-Wert verwenden');
+  } finally {
+    if (previous === undefined) delete globalThis.__formatDayMonth;
+    else globalThis.__formatDayMonth = previous;
+  }
+
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const update = src.slice(src.indexOf('function updateLabel('), src.indexOf('function syncViewPanel('));
+  assert(/state\.view === 'month'\)\s+lbl\.textContent = mon/.test(update),
+    'die Monatsansicht darf im Kopf nicht wieder das Jahr anhängen');
+  assert(/view === 'agenda'[\s\S]*to: formatDayMonth\(to\)/.test(update),
+    'die Agenda muss beide Bereichsenden ohne Jahr ausgeben');
+  assert(!/weekNumberLabel[\s\S]{0,140}\byear\b/.test(update),
+    'die Wochenansicht darf das Jahr nicht an das Periodenlabel übergeben');
+});
+
 // DIE TITELFASSUNG LAESST DER TAGESLISTE PLATZ (Critique 2026-09-24, Rest 2):
 // mit 80px je Woche blieben der Liste bei 375x812 genau 81px, im Sechs-
 // Wochen-Monat nichts. Die Wochen teilen sich jetzt ein festes Budget.

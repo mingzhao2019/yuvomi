@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}}件",
         "dayEmptyHint": "予定はまだありません。時間をタップして追加できます。",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "第 {{week}} 週 · {{month}} {{year}}",
+        "weekNumberLabel": "第 {{week}} 週 · {{month}}",
         "titleLabel": "タイトル",
         "titlePlaceholder": "例：歯医者",
         "allDayToggle": "終日",

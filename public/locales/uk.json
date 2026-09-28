@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} записів",
         "dayEmptyHint": "Поки немає подій. Торкніться часу, щоб створити.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Т{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Т{{week}} · {{month}}",
         "titleLabel": "Заголовок",
         "titlePlaceholder": "напр. Стоматолог",
         "allDayToggle": "Весь день",

@@ -216,16 +216,17 @@ test('M5: der Kopf traegt ein Ansichtsmenue mit genau einer gewaehlten Ansicht',
   }
 });
 
-test('M5: mobil ersetzt das Menue das Segment, und der Kopf hat zwei Zeilen', () => {
+test('M5: mobil ersetzt das Menue das Segment, und der Zeitraum bleibt neben dem Titel', () => {
   assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn').display, 'none', 'am Desktop waehlt das Segment');
   assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn', { media: MOBILE }).display, 'inline-flex');
   assert.equal(declarations(calendarCss, '.cal-toolbar__views', { media: MOBILE }).display, 'none');
   const bar = declarations(calendarCss, '.cal-toolbar > .cal-toolbar__bar', { media: MOBILE });
   assert.equal(bar.display, 'contents', 'die Bar-Zeile loest sich auf - ihre Werkzeuge ruecken in die Titelzeile');
   const center = declarations(calendarCss, '.page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center', { media: MOBILE });
-  assert.equal(center['flex-basis'], '100%', 'der Zeitraum behaelt die zweite Zeile fuer sich (Label nicht angeschnitten)');
+  assert.equal(center['flex-basis'], 'auto', 'der Zeitraum bleibt in der Titelzeile');
+  assert.equal(center.order, '0', 'der Zeitraum steht vor den Werkzeugen');
+  assert.equal(center['min-width'], 'min-content', 'die Navigationsknöpfe dürfen nicht ineinander laufen');
   assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn', { media: MOBILE }).order, '1');
-  assert.equal(center.order, '2', 'Werkzeuge vor dem Zeitraum: sie stehen in Zeile 1');
 });
 
 test('M5: Termintitel der Woche brechen nach Blockhoehe um statt nowrap', () => {

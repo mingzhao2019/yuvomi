@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} записей",
         "dayEmptyHint": "Пока нет событий. Нажмите на время, чтобы создать.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Н{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Н{{week}} · {{month}}",
         "titleLabel": "Заголовок",
         "titlePlaceholder": "напр. Врач",
         "allDayToggle": "Весь день",

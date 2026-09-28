@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} entradas",
         "dayEmptyHint": "Aún no hay citas. Toca una hora para crear una.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Sem. {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Sem. {{week}} · {{month}}",
         "titleLabel": "Título",
         "titlePlaceholder": "Ej. Dentista",
         "allDayToggle": "Todo el día",

@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} items",
         "dayEmptyHint": "Nog geen afspraken. Tik op een tijdstip om er een toe te voegen.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "W{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "W{{week}} · {{month}}",
         "titleLabel": "Titel",
         "titlePlaceholder": "bijv. Tandarts",
         "allDayToggle": "Hele dag",

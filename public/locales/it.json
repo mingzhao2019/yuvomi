@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} voci",
         "dayEmptyHint": "Nessun appuntamento. Tocca un orario per crearne uno.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "S{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "S{{week}} · {{month}}",
         "titleLabel": "Titolo",
         "titlePlaceholder": "es. Dentista",
         "allDayToggle": "Tutto il giorno",

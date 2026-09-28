@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} poster",
         "dayEmptyHint": "Inga händelser än. Tryck på en tid för att lägga till.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "V{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "V{{week}} · {{month}}",
         "titleLabel": "Titel",
         "titlePlaceholder": "till exempel Tandläkare",
         "allDayToggle": "Hela dagen",

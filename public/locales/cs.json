@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} položek",
         "dayEmptyHint": "Zatím žádné události. Klepni na čas a přidej novou.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "T{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "T{{week}} · {{month}}",
         "titleLabel": "Název",
         "titlePlaceholder": "např. Zubař",
         "allDayToggle": "Celý den",

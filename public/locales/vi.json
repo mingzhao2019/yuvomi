@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} mục",
         "dayEmptyHint": "Chưa có sự kiện. Chạm vào một giờ để thêm.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Tuần {{week}} · Tháng {{month}} năm {{year}}",
+        "weekNumberLabel": "Tuần {{week}} · Tháng {{month}}",
         "titleLabel": "Tiêu đề",
         "titlePlaceholder": "ví dụ: Khám răng",
         "allDayToggle": "Cả ngày",

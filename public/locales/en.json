@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} entries",
         "dayEmptyHint": "No events yet. Tap a time to add one.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "W{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "W{{week}} · {{month}}",
         "titleLabel": "Title",
         "titlePlaceholder": "e.g. Dentist",
         "allDayToggle": "All day",

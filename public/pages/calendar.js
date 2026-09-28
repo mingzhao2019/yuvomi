@@ -867,7 +867,11 @@ function calendarLunarDate(dateStr) {
 }
 
 function formatCalendarDate(dateStr, options = {}) {
-  const base = formatDate(dateStr, options);
+  const { long = false, weekday = false } = options;
+  const dayMonth = formatDayMonth(dateStr);
+  const base = weekday
+    ? `${long ? DAY_NAMES_LONG()[new Date(dateStr + 'T00:00:00').getDay()] : DAY_NAMES_SHORT()[new Date(dateStr + 'T00:00:00').getDay()]}, ${dayMonth}`
+    : dayMonth;
   const lunar = calendarLunarDate(dateStr);
   return lunar ? `${base} · ${lunar}` : base;
 }
@@ -2712,30 +2716,31 @@ function updateLabel() {
   const lbl = _container.querySelector('#cal-label');
   if (!lbl) return;
   const d    = new Date(state.cursor + 'T00:00:00');
-  const year = d.getFullYear();
   const mon  = MONTH_NAMES()[d.getMonth()];
 
-  if (state.view === 'month')  lbl.textContent = `${mon} ${year}`;
+  // The period context is already obvious from the calendar and navigation;
+  // keep the toolbar compact by omitting the redundant year.
+  if (state.view === 'month')  lbl.textContent = mon;
   if (state.view === 'week') {
     // Mobil zeigt die "Woche" ein 3-Tage-Fenster um den Cursor (renderWeekView);
     // ein "KW 30"-Label würde dann einen Bereich behaupten, der nicht zu sehen
     // ist (Audit A1-19). Das Label nennt stattdessen den sichtbaren Bereich.
     lbl.textContent = window.matchMedia(MOBILE_MEDIA_QUERY).matches
-      ? t('calendar.dayRangeLabel', { from: formatDayMonth(addDays(state.cursor, -1)), to: formatPreferredDate(addDays(state.cursor, 1)) })
-      : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon, year });
+      ? t('calendar.dayRangeLabel', { from: formatDayMonth(addDays(state.cursor, -1)), to: formatDayMonth(addDays(state.cursor, 1)) })
+      : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon });
   }
-  // Mobil der kurze Wochentag: „Donnerstag, 24.09.2026" brauchte 186px und
+  // Mobil der kurze Wochentag: „Donnerstag, 24.09." brauchte 186px und
   // lief damit ueber die feste Breite des Labels hinaus - der Weiter-Pfeil
   // stand in der Tagesansicht 30px weiter rechts als in den drei anderen
   // (Critique 2026-09-24). „Do, 24.09.2026" traegt dieselbe Auskunft.
   if (state.view === 'day')    lbl.textContent = formatCalendarDate(state.cursor, { weekday: true, long: !window.matchMedia(MOBILE_MEDIA_QUERY).matches });
-  // DIE AGENDA NENNT IHRE SPANNE, nicht nur ihren Anfang. „Ab 24.09.2026"
+  // DIE AGENDA NENNT IHRE SPANNE, nicht nur ihren Anfang. „Ab 24.09."
   // sagte nicht, wie weit die Liste reicht, und „Weiter" sprang dann still
-  // auf „Ab 24.10.2026" (Critique 2026-09-24). Die Spanne ist die, die
+  // auf „Ab 24.10." (Critique 2026-09-24). Die Spanne ist die, die
   // getAgendaRange() laedt und renderAgendaView() zeigt.
   if (state.view === 'agenda') {
     const { from, to } = getAgendaRange(state.cursor);
-    lbl.textContent = t('calendar.dayRangeLabel', { from: formatDayMonth(from), to: formatPreferredDate(to) });
+    lbl.textContent = t('calendar.dayRangeLabel', { from: formatDayMonth(from), to: formatDayMonth(to) });
   }
 
   syncPeriodArrows();
@@ -6083,6 +6088,7 @@ export const __test = {
   buildLayerRowsHtml,
   periodNavHtml,
   toolbarHtml,
+  formatCalendarDate,
   hourGutterLabel,
   compactHourLabel,
   syncTodayButton,

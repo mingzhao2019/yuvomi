@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} إدخالات",
         "dayEmptyHint": "لا مواعيد بعد. انقر على وقت لإضافة موعد.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "الأسبوع {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "الأسبوع {{week}} · {{month}}",
         "titleLabel": "العنوان",
         "titlePlaceholder": "مثال: طبيب الأسنان",
         "allDayToggle": "طوال اليوم",

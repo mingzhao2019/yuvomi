@@ -904,7 +904,7 @@
         "monthDayEntries_other": "{{count}} Einträge",
         "dayEmptyHint": "Noch keine Termine. Tippe auf eine Uhrzeit, um einen Termin anzulegen.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "KW {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "KW {{week}} · {{month}}",
         "titleLabel": "Titel",
         "titlePlaceholder": "z.B. Zahnarzt",
         "allDayToggle": "Ganztägig",

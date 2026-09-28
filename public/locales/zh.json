@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} 个条目",
         "dayEmptyHint": "还没有日程。点按时间即可创建。",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "第 {{week}} 周 · {{month}} {{year}}",
+        "weekNumberLabel": "第 {{week}} 周 · {{month}}",
         "titleLabel": "标题",
         "titlePlaceholder": "例如：牙医预约",
         "allDayToggle": "全天",

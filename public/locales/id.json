@@ -904,7 +904,7 @@
         "monthDayEntries_other": "{{count}} entri",
         "dayEmptyHint": "Belum ada acara. Ketuk waktu untuk menambahkan.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Minggu {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Minggu {{week}} · {{month}}",
         "titleLabel": "Judul",
         "titlePlaceholder": "mis. Dokter gigi",
         "allDayToggle": "Sepanjang hari",

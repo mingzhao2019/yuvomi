@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} entrées",
         "dayEmptyHint": "Aucun rendez-vous. Touche une heure pour en créer un.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "S{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "S{{week}} · {{month}}",
         "titleLabel": "Titre",
         "titlePlaceholder": "ex. Dentiste",
         "allDayToggle": "Toute la journée",

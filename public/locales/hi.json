@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} प्रविष्टियाँ",
         "dayEmptyHint": "अभी कोई ईवेंट नहीं। जोड़ने के लिए किसी समय पर टैप करें।",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "सप्ताह {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "सप्ताह {{week}} · {{month}}",
         "titleLabel": "शीर्षक",
         "titlePlaceholder": "उदा.: डॉक्टर के पास",
         "allDayToggle": "पूरे दिन",

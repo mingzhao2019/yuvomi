@@ -892,7 +892,7 @@
         "monthDayEntries_other": "{{count}} bejegyzés",
         "dayEmptyHint": "Még nincs esemény. Koppints egy időpontra a létrehozáshoz.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "H{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "H{{week}} · {{month}}",
         "titleLabel": "Cím",
         "titlePlaceholder": "pl. Fogorvos",
         "allDayToggle": "Egész nap",

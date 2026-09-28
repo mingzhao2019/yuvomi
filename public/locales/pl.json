@@ -904,7 +904,7 @@
         "monthDayEntries_other": "{{count}} wpisów",
         "dayEmptyHint": "Brak terminów. Dotknij godziny, aby dodać nowy.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Tydz. {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Tydz. {{week}} · {{month}}",
         "titleLabel": "Tytuł",
         "titlePlaceholder": "np. Dentysta",
         "allDayToggle": "Cały dzień",
