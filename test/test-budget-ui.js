@@ -695,7 +695,11 @@ test('die Trendkurve beschriftet Skala und Zeitraum - IM Bild', () => {
   // Seit der Extraktion nach `utils/chart.js` bringt die geteilte Geometrie
   // ihren linken Gutter mit. Geprueft wird deshalb: die Achse kommt aus der
   // geteilten Quelle, und das Streckungs-Attribut ist weg.
-  assert.match(stats, /chartGridMarkup\(0, max,/, 'die Werteachse kommt aus der geteilten Geometrie');
+  assert.match(stats, /chartGridMarkup\(0, axis\.max,/, 'die Werteachse kommt aus der geteilten Geometrie');
+  // Seit C4 (Re-Critique 2026-09-27) auf runder Skala: Gitter und Kurve lesen
+  // DIESELBE gerundete Obergrenze, sonst stuende die Kurve neben ihrer Achse.
+  assert.match(stats, /const axis = niceDomain\(0, max, \{ integer: true \}\);/);
+  assert.match(stats, /chartY\(v, 0, axis\.max\)/);
   assert.match(stats, /chartXLabelsMarkup\(/, 'die Zeitachse kommt aus der geteilten Geometrie');
   assert.doesNotMatch(stats, /preserveAspectRatio="none"/, 'eine Kurve mit Achse darf nicht gestreckt werden - der Text im Bild verzerrt mit');
   assert.doesNotMatch(stats, /budget-stats__axis-(max|mid|x)/, 'die Achse steht im SVG, nicht als HTML daneben');
@@ -2767,5 +2771,95 @@ test('Serie loeschen im Konto-Drilldown rechnet die Bilanz nicht aus der gefilte
     delete globalThis.__undoStub;
     delete globalThis.__apiStub;
     Object.assign(s, zuvor);
+  }
+});
+
+// --------------------------------------------------------
+// Rot ist Warnung, nicht Grundton (Re-Critique 2026-09-27, C1)
+// --------------------------------------------------------
+
+/* ROT HIESS JEDE AUSGABE. Punkt, Betrag und jeder Kategoriebalken standen in
+ * --color-danger - auf der Uebersicht 23 rote Punkte, 23 rote Betraege und 7
+ * rote Balken, und der echte Alarm (Plan ueberschritten, Konto im Minus) hob
+ * sich davon nicht mehr ab. Die Regel, die der Guard haelt: Rot steht nur an
+ * einem Zustand, der warnt; eine Ausgabe ist kein Zustand. Die Richtung traegt
+ * das Vorzeichen aus dem Zahlformat, nicht die Farbe. */
+test('Rot steht im Budget nur an einer Warnung, nie an der Ausgabe selbst', () => {
+  const WARNING = /(?:negative|over|overdue|danger|error)\b/;
+  const red = [...eachRule(budgetCss)].filter((r) => /var\(--color-danger\)/.test(r.body));
+  assert.ok(red.length > 0, 'der Scanner findet die Warnregeln nicht mehr - der Guard waere blind');
+  for (const r of red) {
+    const sel = r.selector.replace(/\s+/g, ' ').trim();
+    assert.doesNotMatch(sel, /expense/, `${sel}: eine Ausgabe ist keine Warnung`);
+    assert.match(sel, WARNING, `${sel}: Rot ohne Warnzustand im Selektor`);
+  }
+  const trend = stats.match(/<svg class="chart budget-stats__trend"[\s\S]*?<\/svg>/);
+  assert.ok(trend, 'Trend-Diagramm nicht gefunden');
+  assert.doesNotMatch(trend[0], /--color-danger/, 'die Ausgabenlinie ist kein Alarm');
+  // Die Richtung bleibt lesbar ohne Farbe: das Vorzeichen kommt aus dem Zahlformat.
+  assert.match(budget, /amountByRole\(e\.amount, 'flow'\)/);
+});
+
+// --------------------------------------------------------
+// Suche im Hauptbuch (Re-Critique 2026-09-27, C6)
+// --------------------------------------------------------
+
+test('das Hauptbuch hat eine Suche ueber alle Monate, im geteilten Feld', () => {
+  // Kanon: das geteilte Feld, verdrahtet ueber wirePageSearch, und die Anfrage
+  // geht an den Server (alle Monate), nicht an die Zeilen des Monats.
+  assert.match(budget, /renderPageSearch\(\{\s*id: 'budget-ledger-search'/);
+  assert.match(budget, /wirePageSearch\(body, \{ id: 'budget-ledger-search', delay: 250, onQuery: runLedgerSearch \}\)/);
+  assert.match(budget, /api\.get\(`\/budget\?q=\$\{encodeURIComponent\(query\)\}/);
+  // Nach jedem Schreiben laedt der Monat neu - die Treffer muessen mit.
+  const load = budget.match(/async function loadMonth\(month\) \{[\s\S]*?\n\}/)[0];
+  assert.match(load, /if \(state\.ledgerQuery\) await loadLedgerSearch\(state\.ledgerQuery\)/);
+  // Die Breite ist der Token der Kopfsuche, keine Modulbreite.
+  const searchCss = readFileSync(new URL('../public/styles/page-search.css', import.meta.url), 'utf8');
+  const rule = [...eachRule(searchCss)].find((r) => r.selector.trim() === '.section-toolbar > label.page-search');
+  assert.match(rule?.body ?? '', /max-width:\s*var\(--page-search-width\)/);
+});
+
+test('die Hauptbuch-Suche steht im Listenkopf und nimmt mobil die Icon-Form (C6)', () => {
+  // Als eigene Zeile ueber der Liste kostete das Feld mobil 56px: die erste
+  // Buchung stand bei 390x844 auf y=398, der R9-Stand war 342. Im Kopf, neben
+  // Titel und Menue, nimmt es unter 768px die Icon-Form der Kopfsuche.
+  const head = budget.slice(budget.indexOf('<div class="budget-list-header'), budget.indexOf('<div class="budget-list" id="budget-list">'));
+  assert.match(head, /class="budget-list-header section-toolbar"/, 'der Listenkopf ist ein Abschnittskopf mit Suche');
+  const search = head.indexOf("id: 'budget-ledger-search'");
+  const actions = head.indexOf('budget-list-header__actions');
+  assert.ok(search > 0 && search < actions, 'das Feld steht IM Kopf, vor dem Menue');
+  assert.doesNotMatch(head, /class="budget-list-search"/, 'keine eigene Suchzeile ueber der Liste');
+  const layoutCss = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
+  const iconForm = [...eachRule(layoutCss)].find((r) => /\.section-toolbar \.page-search:not\(:focus-within\)/.test(r.selector)
+    && /width:\s*var\(--target-base\)/.test(r.body));
+  assert.ok(iconForm, 'die Icon-Form der Kopfsuche gilt auch im Abschnittskopf');
+  assert.ok(iconForm.at.some((a) => /max-width:\s*767px/.test(a)), 'unter 768px, wie im Seitenkopf');
+});
+
+test('Treffer der Suche stehen mit vollem Datum, ein leeres Ergebnis nennt die Anfrage', async () => {
+  // Der Leerzustand baut per DOM (emptyStateHTML) - eigene Mini-DOM, kein
+  // Erbe aus frueheren Tests.
+  const { installMiniDom } = await import('./mini-dom.js');
+  const abraeumen = installMiniDom();
+  const s = budgetUi.state;
+  const vorher = { q: s.ledgerQuery, r: s.ledgerResults, e: s.ledgerError, entries: s.entries };
+  try {
+    s.entries = [];
+    s.ledgerQuery = 'arzt';
+    s.ledgerError = null;
+    s.ledgerResults = [{ id: 71, title: 'Zahnarztrechnung', amount: -80, category: 'personal_health', date: '2033-02-03', account_id: null }];
+    const html = budgetUi.renderEntries();
+    assert.match(html, /data-id="71"/, 'der Treffer ist eine Zeile wie jede andere');
+    assert.match(html, /2033/, 'Treffer aus anderen Monaten nennen das Jahr - "03.02." allein waere mehrdeutig');
+    s.ledgerResults = [];
+    const leer = budgetUi.renderEntries();
+    assert.match(leer, /ledgerSearchEmpty|arzt/);
+    assert.doesNotMatch(leer, /budget\.emptyTitle|empty-cta-budget/, 'kein leerer Monat, sondern keine Treffer');
+    s.ledgerQuery = '';
+    s.ledgerResults = null;
+    assert.doesNotMatch(budgetUi.renderEntries(), /ledgerSearchEmpty/);
+  } finally {
+    s.ledgerQuery = vorher.q; s.ledgerResults = vorher.r; s.ledgerError = vorher.e; s.entries = vorher.entries;
+    abraeumen();
   }
 });

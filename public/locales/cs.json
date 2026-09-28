@@ -384,7 +384,8 @@
         "todayWasteTonight": "Dnes večer vystavit",
         "eventEnded": "Skončilo",
         "eventsEndedMore": "Dříve dnes: +{{count}}",
-        "eventsEndedMore_one": "Dříve dnes: +{{count}}"
+        "eventsEndedMore_one": "Dříve dnes: +{{count}}",
+        "widgetSizeWide": "Široký (2×1)"
     },
     "tasks": {
         "manageCategories": "Spravovat kategorie",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Rozbalit sloupec",
         "kanbanArchiveDone": "Archivovat vše hotové",
         "kanbanArchiveDoneConfirm": "Archivovat všechny hotové úkoly v tomto sloupci?",
-        "kanbanArchiveDoneAction": "Archivovat"
+        "kanbanArchiveDoneAction": "Archivovat",
+        "filterDueToday": "Splatné do dneška"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} jídla",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Převést do sdílených výdajů",
         "loanRemainingInstallmentsForecast": "{{forecast}} (plán: {{plan}})",
         "detailDateLabel": "Datum",
-        "loanDetailStartMonthLabel": "První měsíc splatnosti"
+        "loanDetailStartMonthLabel": "První měsíc splatnosti",
+        "ledgerSearchLabel": "Hledat transakce",
+        "ledgerSearchPlaceholder": "Hledat ve všech měsících",
+        "ledgerSearchCount": "Nalezeno transakcí: {{count}}",
+        "ledgerSearchCount_one": "Nalezena {{count}} transakce",
+        "ledgerSearchCount_few": "Nalezeny {{count}} transakce",
+        "ledgerSearchTruncated": "Nejnovějších {{limit}} výsledků - upřesněte hledání",
+        "ledgerSearchEmpty": "Žádná transakce neodpovídá „{{query}}“",
+        "ledgerSearchError": "Hledání selhalo. Zkuste to prosím znovu."
     },
     "settings": {
         "healthCycleEnableLabel": "Zobrazit kartu cyklu",
@@ -3782,7 +3792,8 @@
             "reasonTooDeep": "Cesta překračuje limit pěti úrovní složek.",
             "reasonParentFailed": "Nadřazenou složku se nepodařilo vytvořit.",
             "reasonRateLimited": "Server nyní přijímá příliš mnoho požadavků. Zkuste nahrávání později znovu."
-        }
+        },
+        "selectDone": "Hotovo"
     },
     "reminders": {
         "sectionTitle": "Připomínka",
@@ -3994,7 +4005,14 @@
         "ingredientMatchEmpty": "Spíž je zatím prázdná.",
         "ingredientMatchSaved": "Přiřazení uloženo.",
         "ingredientMatchCleared": "Přiřazení zrušeno.",
-        "ingredientMatchLoadError": "Spíž se nepodařilo načíst."
+        "ingredientMatchLoadError": "Spíž se nepodařilo načíst.",
+        "ingredientMatchOpen": "Přiřadit {{count}} ingrediencí ke spíži",
+        "ingredientMatchOpen_one": "Přiřadit {{count}} ingredienci ke spíži",
+        "ingredientMatchOpen_few": "Přiřadit {{count}} ingredience ke spíži",
+        "ingredientMatchOpen_two": "Přiřadit {{count}} ingrediencí ke spíži",
+        "ingredientMatchOpen_many": "Přiřadit {{count}} ingredience ke spíži",
+        "ingredientMatchBulkTitle": "Přiřadit ingredience ke spíži",
+        "ingredientMatchBulkHint": "U každé ingredience vyber položku ve spíži, kterou znamená. Yuvomi nic nehádá - platí jen to, co tady potvrdíš."
     },
     "wmo": {
         "0": "Jasno",
@@ -5440,7 +5458,37 @@
             "can": "konzerva",
             "bottle": "lahev",
             "jar": "sklenice",
-            "bag": "sáček"
+            "bag": "sáček",
+            "pcs_one": "ks",
+            "pcs_two": "ks",
+            "pcs_few": "ks",
+            "pcs_many": "ks",
+            "pcs_other": "ks",
+            "pkg_one": "balení",
+            "pkg_two": "balení",
+            "pkg_few": "balení",
+            "pkg_many": "balení",
+            "pkg_other": "balení",
+            "can_one": "konzerva",
+            "can_two": "konzerv",
+            "can_few": "konzervy",
+            "can_many": "konzervy",
+            "can_other": "konzerv",
+            "bottle_one": "lahev",
+            "bottle_two": "lahví",
+            "bottle_few": "lahve",
+            "bottle_many": "lahve",
+            "bottle_other": "lahví",
+            "jar_one": "sklenice",
+            "jar_two": "sklenic",
+            "jar_few": "sklenice",
+            "jar_many": "sklenice",
+            "jar_other": "sklenic",
+            "bag_one": "sáček",
+            "bag_two": "sáčků",
+            "bag_few": "sáčky",
+            "bag_many": "sáčku",
+            "bag_other": "sáčků"
         }
     },
     "inventory": {

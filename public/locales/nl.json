@@ -384,7 +384,8 @@
         "todayWasteTonight": "Vanavond buitenzetten",
         "eventEnded": "Afgelopen",
         "eventsEndedMore": "+{{count}} eerder vandaag",
-        "eventsEndedMore_one": "+{{count}} eerder vandaag"
+        "eventsEndedMore_one": "+{{count}} eerder vandaag",
+        "widgetSizeWide": "Breed (2×1)"
     },
     "tasks": {
         "manageCategories": "Categorieën beheren",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Kolom uitklappen",
         "kanbanArchiveDone": "Alles wat klaar is archiveren",
         "kanbanArchiveDoneConfirm": "Alle afgeronde taken in deze kolom archiveren?",
-        "kanbanArchiveDoneAction": "Archiveren"
+        "kanbanArchiveDoneAction": "Archiveren",
+        "filterDueToday": "Uiterlijk vandaag te doen"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} maaltijden",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Naar gedeelde uitgaven",
         "loanRemainingInstallmentsForecast": "{{forecast}} (volgens plan: {{plan}})",
         "detailDateLabel": "Datum",
-        "loanDetailStartMonthLabel": "Eerste vervaldatum"
+        "loanDetailStartMonthLabel": "Eerste vervaldatum",
+        "ledgerSearchLabel": "Transacties zoeken",
+        "ledgerSearchPlaceholder": "In alle maanden zoeken",
+        "ledgerSearchCount": "{{count}} transacties gevonden",
+        "ledgerSearchCount_one": "{{count}} transactie gevonden",
+        "ledgerSearchCount_few": "{{count}} transacties gevonden",
+        "ledgerSearchTruncated": "De nieuwste {{limit}} resultaten - verfijn je zoekopdracht",
+        "ledgerSearchEmpty": "Geen transactie komt overeen met ‘{{query}}’",
+        "ledgerSearchError": "Zoeken is mislukt. Probeer het opnieuw."
     },
     "settings": {
         "healthCycleEnableLabel": "Cyclustabblad tonen",
@@ -3310,7 +3320,14 @@
         "ingredientMatchEmpty": "De voorraad is nog leeg.",
         "ingredientMatchSaved": "Koppeling opgeslagen.",
         "ingredientMatchCleared": "Koppeling verwijderd.",
-        "ingredientMatchLoadError": "De voorraad kon niet worden geladen."
+        "ingredientMatchLoadError": "De voorraad kon niet worden geladen.",
+        "ingredientMatchOpen": "{{count}} ingrediënten aan de voorraad koppelen",
+        "ingredientMatchOpen_one": "{{count}} ingrediënt aan de voorraad koppelen",
+        "ingredientMatchOpen_few": "{{count}} ingrediënten aan de voorraad koppelen",
+        "ingredientMatchOpen_two": "{{count}} ingrediënten aan de voorraad koppelen",
+        "ingredientMatchOpen_many": "{{count}} ingrediënten aan de voorraad koppelen",
+        "ingredientMatchBulkTitle": "Ingrediënten aan de voorraad koppelen",
+        "ingredientMatchBulkHint": "Kies voor elk ingrediënt de regel in je voorraad die het bedoelt. Yuvomi raadt niets - alleen wat je hier bevestigt telt."
     },
     "search": {
         "emptyHint": "Typ minstens 2 tekens om te zoeken in taken, afspraken, notities, contacten, boodschappen en gezondheid.",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "Het pad overschrijdt de limiet van vijf mapniveaus.",
             "reasonParentFailed": "De bovenliggende map kon niet worden gemaakt.",
             "reasonRateLimited": "De server ontvangt te veel verzoeken. Probeer de upload later opnieuw."
-        }
+        },
+        "selectDone": "Klaar"
     },
     "housekeeping": {
         "title": "Huishouden",
@@ -5440,7 +5458,37 @@
             "can": "blik",
             "bottle": "fles",
             "jar": "pot",
-            "bag": "zak"
+            "bag": "zak",
+            "pcs_one": "stuk",
+            "pcs_two": "stuks",
+            "pcs_few": "stuks",
+            "pcs_many": "stuks",
+            "pcs_other": "stuks",
+            "pkg_one": "pak",
+            "pkg_two": "pakken",
+            "pkg_few": "pakken",
+            "pkg_many": "pakken",
+            "pkg_other": "pakken",
+            "can_one": "blik",
+            "can_two": "blikken",
+            "can_few": "blikken",
+            "can_many": "blikken",
+            "can_other": "blikken",
+            "bottle_one": "fles",
+            "bottle_two": "flessen",
+            "bottle_few": "flessen",
+            "bottle_many": "flessen",
+            "bottle_other": "flessen",
+            "jar_one": "pot",
+            "jar_two": "potten",
+            "jar_few": "potten",
+            "jar_many": "potten",
+            "jar_other": "potten",
+            "bag_one": "zak",
+            "bag_two": "zakken",
+            "bag_few": "zakken",
+            "bag_many": "zakken",
+            "bag_other": "zakken"
         }
     },
     "inventory": {

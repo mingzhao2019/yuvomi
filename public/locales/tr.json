@@ -384,7 +384,8 @@
         "todayWasteTonight": "Bu akşam dışarı çıkar",
         "eventEnded": "Bitti",
         "eventsEndedMore": "Bugün daha önce +{{count}}",
-        "eventsEndedMore_one": "Bugün daha önce +{{count}}"
+        "eventsEndedMore_one": "Bugün daha önce +{{count}}",
+        "widgetSizeWide": "Geniş (2×1)"
     },
     "tasks": {
         "manageCategories": "Kategorileri yönet",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Sütunu genişlet",
         "kanbanArchiveDone": "Tamamlananların hepsini arşivle",
         "kanbanArchiveDoneConfirm": "Bu sütundaki tüm tamamlanan görevler arşivlensin mi?",
-        "kanbanArchiveDoneAction": "Arşivle"
+        "kanbanArchiveDoneAction": "Arşivle",
+        "filterDueToday": "Son tarihi bugüne kadar"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} öğünden",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Paylaşılan giderlere aktar",
         "loanRemainingInstallmentsForecast": "{{forecast}} (plana göre: {{plan}})",
         "detailDateLabel": "Tarih",
-        "loanDetailStartMonthLabel": "İlk vade ayı"
+        "loanDetailStartMonthLabel": "İlk vade ayı",
+        "ledgerSearchLabel": "İşlemlerde ara",
+        "ledgerSearchPlaceholder": "Tüm aylarda ara",
+        "ledgerSearchCount": "{{count}} işlem bulundu",
+        "ledgerSearchCount_one": "{{count}} işlem bulundu",
+        "ledgerSearchCount_few": "{{count}} işlem bulundu",
+        "ledgerSearchTruncated": "En yeni {{limit}} sonuç - aramayı daraltın",
+        "ledgerSearchEmpty": "“{{query}}” ile eşleşen işlem yok",
+        "ledgerSearchError": "Arama başarısız oldu. Lütfen tekrar deneyin."
     },
     "settings": {
         "healthCycleEnableLabel": "Döngü sekmesini göster",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "Kiler henüz boş.",
         "ingredientMatchSaved": "Eşleştirme kaydedildi.",
         "ingredientMatchCleared": "Eşleştirme kaldırıldı.",
-        "ingredientMatchLoadError": "Kiler yüklenemedi."
+        "ingredientMatchLoadError": "Kiler yüklenemedi.",
+        "ingredientMatchOpen": "{{count}} malzemeyi kilerle eşleştir",
+        "ingredientMatchOpen_one": "{{count}} malzemeyi kilerle eşleştir",
+        "ingredientMatchOpen_few": "{{count}} malzemeyi kilerle eşleştir",
+        "ingredientMatchOpen_two": "{{count}} malzemeyi kilerle eşleştir",
+        "ingredientMatchOpen_many": "{{count}} malzemeyi kilerle eşleştir",
+        "ingredientMatchBulkTitle": "Malzemeleri kilerle eşleştir",
+        "ingredientMatchBulkHint": "Her malzeme için karşılığı olan kiler satırını seç. Yuvomi hiçbir şey tahmin etmez - yalnızca burada onayladığın geçerlidir."
     },
     "search": {
         "emptyHint": "Görevler, etkinlikler, notlar, kişiler, alışveriş ve sağlıkta aramak için en az 2 karakter yaz.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "Yol beş klasör düzeyi sınırını aşıyor.",
             "reasonParentFailed": "Üst klasör oluşturulamadı.",
             "reasonRateLimited": "Sunucu çok fazla istek alıyor. Yüklemeyi daha sonra tekrar deneyin."
-        }
+        },
+        "selectDone": "Bitti"
     },
     "shortcuts": {
         "goKitchen": "Mutfak",
@@ -5440,7 +5458,37 @@
             "can": "konserve",
             "bottle": "şişe",
             "jar": "kavanoz",
-            "bag": "poşet"
+            "bag": "poşet",
+            "pcs_one": "adet",
+            "pcs_two": "adet",
+            "pcs_few": "adet",
+            "pcs_many": "adet",
+            "pcs_other": "adet",
+            "pkg_one": "paket",
+            "pkg_two": "paket",
+            "pkg_few": "paket",
+            "pkg_many": "paket",
+            "pkg_other": "paket",
+            "can_one": "konserve",
+            "can_two": "konserve",
+            "can_few": "konserve",
+            "can_many": "konserve",
+            "can_other": "konserve",
+            "bottle_one": "şişe",
+            "bottle_two": "şişe",
+            "bottle_few": "şişe",
+            "bottle_many": "şişe",
+            "bottle_other": "şişe",
+            "jar_one": "kavanoz",
+            "jar_two": "kavanoz",
+            "jar_few": "kavanoz",
+            "jar_many": "kavanoz",
+            "jar_other": "kavanoz",
+            "bag_one": "poşet",
+            "bag_two": "poşet",
+            "bag_few": "poşet",
+            "bag_many": "poşet",
+            "bag_other": "poşet"
         }
     },
     "inventory": {

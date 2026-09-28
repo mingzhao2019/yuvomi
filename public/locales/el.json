@@ -384,7 +384,8 @@
         "todayWasteTonight": "Βγάλτε τον απόψε",
         "eventEnded": "Έληξε",
         "eventsEndedMore": "+{{count}} νωρίτερα σήμερα",
-        "eventsEndedMore_one": "+{{count}} νωρίτερα σήμερα"
+        "eventsEndedMore_one": "+{{count}} νωρίτερα σήμερα",
+        "widgetSizeWide": "Φαρδύ (2×1)"
     },
     "tasks": {
         "manageCategories": "Διαχείριση κατηγοριών",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Επέκταση στήλης",
         "kanbanArchiveDone": "Αρχειοθέτηση όλων των ολοκληρωμένων",
         "kanbanArchiveDoneConfirm": "Αρχειοθέτηση όλων των ολοκληρωμένων εργασιών αυτής της στήλης;",
-        "kanbanArchiveDoneAction": "Αρχειοθέτηση"
+        "kanbanArchiveDoneAction": "Αρχειοθέτηση",
+        "filterDueToday": "Λήξη έως σήμερα"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} γεύματα",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Μεταφορά στα κοινά έξοδα",
         "loanRemainingInstallmentsForecast": "{{forecast}} (σχέδιο: {{plan}})",
         "detailDateLabel": "Ημερομηνία",
-        "loanDetailStartMonthLabel": "Πρώτος μήνας λήξης"
+        "loanDetailStartMonthLabel": "Πρώτος μήνας λήξης",
+        "ledgerSearchLabel": "Αναζήτηση συναλλαγών",
+        "ledgerSearchPlaceholder": "Αναζήτηση σε όλους τους μήνες",
+        "ledgerSearchCount": "Βρέθηκαν {{count}} συναλλαγές",
+        "ledgerSearchCount_one": "Βρέθηκε {{count}} συναλλαγή",
+        "ledgerSearchCount_few": "Βρέθηκαν {{count}} συναλλαγές",
+        "ledgerSearchTruncated": "Τα {{limit}} νεότερα αποτελέσματα - περιορίστε την αναζήτηση",
+        "ledgerSearchEmpty": "Καμία συναλλαγή δεν ταιριάζει με «{{query}}»",
+        "ledgerSearchError": "Η αναζήτηση απέτυχε. Δοκιμάστε ξανά."
     },
     "settings": {
         "healthCycleEnableLabel": "Εμφάνιση καρτέλας κύκλου",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "Το απόθεμα είναι ακόμη άδειο.",
         "ingredientMatchSaved": "Η αντιστοίχιση αποθηκεύτηκε.",
         "ingredientMatchCleared": "Η αντιστοίχιση καταργήθηκε.",
-        "ingredientMatchLoadError": "Δεν ήταν δυνατή η φόρτωση του αποθέματος."
+        "ingredientMatchLoadError": "Δεν ήταν δυνατή η φόρτωση του αποθέματος.",
+        "ingredientMatchOpen": "Αντιστοίχιση {{count}} συστατικών στο απόθεμα",
+        "ingredientMatchOpen_one": "Αντιστοίχιση {{count}} συστατικού στο απόθεμα",
+        "ingredientMatchOpen_few": "Αντιστοίχιση {{count}} συστατικών στο απόθεμα",
+        "ingredientMatchOpen_two": "Αντιστοίχιση {{count}} συστατικών στο απόθεμα",
+        "ingredientMatchOpen_many": "Αντιστοίχιση {{count}} συστατικών στο απόθεμα",
+        "ingredientMatchBulkTitle": "Αντιστοίχιση συστατικών στο απόθεμα",
+        "ingredientMatchBulkHint": "Για κάθε συστατικό διάλεξε τη γραμμή του αποθέματος που εννοεί. Το Yuvomi δεν μαντεύει τίποτα - μετράει μόνο ό,τι επιβεβαιώνεις εδώ."
     },
     "search": {
         "emptyHint": "Πληκτρολόγησε τουλάχιστον 2 χαρακτήρες για αναζήτηση σε εργασίες, ραντεβού, σημειώσεις, επαφές, αγορές και υγεία.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "Η διαδρομή υπερβαίνει το όριο πέντε επιπέδων φακέλων.",
             "reasonParentFailed": "Δεν ήταν δυνατή η δημιουργία του γονικού φακέλου.",
             "reasonRateLimited": "Ο διακομιστής δέχεται πάρα πολλά αιτήματα. Δοκιμάστε ξανά αργότερα."
-        }
+        },
+        "selectDone": "Έτοιμο"
     },
     "shortcuts": {
         "goKitchen": "Κουζίνα",
@@ -5440,7 +5458,37 @@
             "can": "κονσέρβα",
             "bottle": "μπουκάλι",
             "jar": "βάζο",
-            "bag": "σακούλα"
+            "bag": "σακούλα",
+            "pcs_one": "τεμ.",
+            "pcs_two": "τεμ.",
+            "pcs_few": "τεμ.",
+            "pcs_many": "τεμ.",
+            "pcs_other": "τεμ.",
+            "pkg_one": "συσκευασία",
+            "pkg_two": "συσκευασίες",
+            "pkg_few": "συσκευασίες",
+            "pkg_many": "συσκευασίες",
+            "pkg_other": "συσκευασίες",
+            "can_one": "κονσέρβα",
+            "can_two": "κονσέρβες",
+            "can_few": "κονσέρβες",
+            "can_many": "κονσέρβες",
+            "can_other": "κονσέρβες",
+            "bottle_one": "μπουκάλι",
+            "bottle_two": "μπουκάλια",
+            "bottle_few": "μπουκάλια",
+            "bottle_many": "μπουκάλια",
+            "bottle_other": "μπουκάλια",
+            "jar_one": "βάζο",
+            "jar_two": "βάζα",
+            "jar_few": "βάζα",
+            "jar_many": "βάζα",
+            "jar_other": "βάζα",
+            "bag_one": "σακούλα",
+            "bag_two": "σακούλες",
+            "bag_few": "σακούλες",
+            "bag_many": "σακούλες",
+            "bag_other": "σακούλες"
         }
     },
     "inventory": {

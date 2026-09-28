@@ -396,7 +396,8 @@
         "todayWasteTonight": "امشب بیرون بگذارید",
         "eventEnded": "پایان یافت",
         "eventsEndedMore": "+{{count}} پیش‌تر امروز",
-        "eventsEndedMore_one": "+{{count}} پیش‌تر امروز"
+        "eventsEndedMore_one": "+{{count}} پیش‌تر امروز",
+        "widgetSizeWide": "پهن (۲×۱)"
     },
     "tasks": {
         "manageCategories": "مدیریت دسته‌ها",
@@ -636,7 +637,8 @@
         "kanbanColExpand": "باز کردن ستون",
         "kanbanArchiveDone": "بایگانی همه کارهای انجام‌شده",
         "kanbanArchiveDoneConfirm": "همه کارهای انجام‌شده در این ستون بایگانی شوند؟",
-        "kanbanArchiveDoneAction": "بایگانی"
+        "kanbanArchiveDoneAction": "بایگانی",
+        "filterDueToday": "سررسید تا امروز"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وعده",
@@ -1737,7 +1739,15 @@
         "handoverToSplit": "انتقال به هزینه‌های مشترک",
         "loanRemainingInstallmentsForecast": "{{forecast}} (طرح: {{plan}})",
         "detailDateLabel": "تاریخ",
-        "loanDetailStartMonthLabel": "اولین ماه سررسید"
+        "loanDetailStartMonthLabel": "اولین ماه سررسید",
+        "ledgerSearchLabel": "جست‌وجوی تراکنش‌ها",
+        "ledgerSearchPlaceholder": "جست‌وجو در همهٔ ماه‌ها",
+        "ledgerSearchCount": "{{count}} تراکنش پیدا شد",
+        "ledgerSearchCount_one": "{{count}} تراکنش پیدا شد",
+        "ledgerSearchCount_few": "{{count}} تراکنش پیدا شد",
+        "ledgerSearchTruncated": "{{limit}} نتیجهٔ جدیدتر - جست‌وجو را دقیق‌تر کنید",
+        "ledgerSearchEmpty": "هیچ تراکنشی با «{{query}}» مطابقت ندارد",
+        "ledgerSearchError": "جست‌وجو ناموفق بود. لطفاً دوباره تلاش کنید."
     },
     "settings": {
         "healthCycleEnableLabel": "نمایش برگهٔ چرخه",
@@ -3322,7 +3332,14 @@
         "ingredientMatchEmpty": "انبار هنوز خالی است.",
         "ingredientMatchSaved": "اختصاص ذخیره شد.",
         "ingredientMatchCleared": "اختصاص برداشته شد.",
-        "ingredientMatchLoadError": "انبار بارگذاری نشد."
+        "ingredientMatchLoadError": "انبار بارگذاری نشد.",
+        "ingredientMatchOpen": "اختصاص {{count}} ماده به انبار",
+        "ingredientMatchOpen_one": "اختصاص {{count}} ماده به انبار",
+        "ingredientMatchOpen_few": "اختصاص {{count}} ماده به انبار",
+        "ingredientMatchOpen_two": "اختصاص {{count}} ماده به انبار",
+        "ingredientMatchOpen_many": "اختصاص {{count}} ماده به انبار",
+        "ingredientMatchBulkTitle": "اختصاص مواد به انبار",
+        "ingredientMatchBulkHint": "برای هر ماده ردیفی از انبار را انتخاب کن که به آن اشاره دارد. یوومی چیزی را حدس نمی‌زند - فقط آنچه اینجا تأیید کنی معتبر است."
     },
     "onboarding": {
         "step1Title": "به {{name}} خوش آمدید",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "مسیر از محدودیت پنج سطح پوشه فراتر می‌رود.",
             "reasonParentFailed": "پوشه بالادست ایجاد نشد.",
             "reasonRateLimited": "سرور در حال دریافت درخواست‌های زیادی است. بعداً دوباره بارگذاری را امتحان کنید."
-        }
+        },
+        "selectDone": "تمام"
     },
     "userMultiSelect": {
         "nobody": "هیچ‌کس",
@@ -5440,7 +5458,37 @@
             "can": "قوطی",
             "bottle": "بطری",
             "jar": "شیشه",
-            "bag": "کیسه"
+            "bag": "کیسه",
+            "pcs_one": "عدد",
+            "pcs_two": "عدد",
+            "pcs_few": "عدد",
+            "pcs_many": "عدد",
+            "pcs_other": "عدد",
+            "pkg_one": "بسته",
+            "pkg_two": "بسته",
+            "pkg_few": "بسته",
+            "pkg_many": "بسته",
+            "pkg_other": "بسته",
+            "can_one": "قوطی",
+            "can_two": "قوطی",
+            "can_few": "قوطی",
+            "can_many": "قوطی",
+            "can_other": "قوطی",
+            "bottle_one": "بطری",
+            "bottle_two": "بطری",
+            "bottle_few": "بطری",
+            "bottle_many": "بطری",
+            "bottle_other": "بطری",
+            "jar_one": "شیشه",
+            "jar_two": "شیشه",
+            "jar_few": "شیشه",
+            "jar_many": "شیشه",
+            "jar_other": "شیشه",
+            "bag_one": "کیسه",
+            "bag_two": "کیسه",
+            "bag_few": "کیسه",
+            "bag_many": "کیسه",
+            "bag_other": "کیسه"
         }
     },
     "inventory": {

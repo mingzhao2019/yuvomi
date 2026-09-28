@@ -396,7 +396,8 @@
         "todayWasteTonight": "Heute Abend rausstellen",
         "eventEnded": "Vorbei",
         "eventsEndedMore": "+{{count}} frühere heute",
-        "eventsEndedMore_one": "+{{count}} früherer heute"
+        "eventsEndedMore_one": "+{{count}} früherer heute",
+        "widgetSizeWide": "Breit (2×1)"
     },
     "tasks": {
         "manageCategories": "Kategorien verwalten",
@@ -636,7 +637,8 @@
         "kanbanColExpand": "Spalte ausklappen",
         "kanbanArchiveDone": "Alles Erledigte archivieren",
         "kanbanArchiveDoneConfirm": "Alle erledigten Aufgaben in dieser Spalte archivieren?",
-        "kanbanArchiveDoneAction": "Archivieren"
+        "kanbanArchiveDoneAction": "Archivieren",
+        "filterDueToday": "Bis heute fällig"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} Mahlzeiten",
@@ -1737,7 +1739,15 @@
         "handoverToSplit": "In geteilte Ausgaben übernehmen",
         "loanRemainingInstallmentsForecast": "{{forecast}} (Plan: {{plan}})",
         "detailDateLabel": "Datum",
-        "loanDetailStartMonthLabel": "Erster Fälligkeitsmonat"
+        "loanDetailStartMonthLabel": "Erster Fälligkeitsmonat",
+        "ledgerSearchLabel": "Buchungen durchsuchen",
+        "ledgerSearchPlaceholder": "Alle Monate durchsuchen",
+        "ledgerSearchCount": "{{count}} Buchungen gefunden",
+        "ledgerSearchCount_one": "{{count}} Buchung gefunden",
+        "ledgerSearchCount_few": "{{count}} Buchungen gefunden",
+        "ledgerSearchTruncated": "Die neuesten {{limit}} Treffer - genauer suchen",
+        "ledgerSearchEmpty": "Keine Buchung mit „{{query}}“",
+        "ledgerSearchError": "Die Suche ist fehlgeschlagen. Bitte erneut versuchen."
     },
     "settings": {
         "healthCycleEnableLabel": "Zyklus-Tab anzeigen",
@@ -3322,7 +3332,14 @@
         "ingredientMatchEmpty": "Dein Vorrat ist noch leer.",
         "ingredientMatchSaved": "Zuordnung gespeichert.",
         "ingredientMatchCleared": "Zuordnung aufgehoben.",
-        "ingredientMatchLoadError": "Der Vorrat konnte nicht geladen werden."
+        "ingredientMatchLoadError": "Der Vorrat konnte nicht geladen werden.",
+        "ingredientMatchOpen": "{{count}} Zutaten dem Vorrat zuordnen",
+        "ingredientMatchOpen_one": "{{count}} Zutat dem Vorrat zuordnen",
+        "ingredientMatchOpen_few": "{{count}} Zutaten dem Vorrat zuordnen",
+        "ingredientMatchOpen_two": "{{count}} Zutaten dem Vorrat zuordnen",
+        "ingredientMatchOpen_many": "{{count}} Zutaten dem Vorrat zuordnen",
+        "ingredientMatchBulkTitle": "Zutaten dem Vorrat zuordnen",
+        "ingredientMatchBulkHint": "Wähle für jede Zutat die Zeile aus deinem Vorrat, die sie meint. Yuvomi rät nichts - es gilt nur, was du hier bestätigst."
     },
     "onboarding": {
         "step1Title": "Willkommen bei {{name}}",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "Der Pfad überschreitet das Limit von fünf Ordnerebenen.",
             "reasonParentFailed": "Der übergeordnete Ordner konnte nicht erstellt werden.",
             "reasonRateLimited": "Der Server erhält gerade zu viele Anfragen. Versuche den Upload später erneut."
-        }
+        },
+        "selectDone": "Fertig"
     },
     "userMultiSelect": {
         "nobody": "Niemand",
@@ -5440,7 +5458,37 @@
             "can": "Dose",
             "bottle": "Flasche",
             "jar": "Glas",
-            "bag": "Beutel"
+            "bag": "Beutel",
+            "pcs_one": "Stück",
+            "pcs_two": "Stück",
+            "pcs_few": "Stück",
+            "pcs_many": "Stück",
+            "pcs_other": "Stück",
+            "pkg_one": "Packung",
+            "pkg_two": "Packungen",
+            "pkg_few": "Packungen",
+            "pkg_many": "Packungen",
+            "pkg_other": "Packungen",
+            "can_one": "Dose",
+            "can_two": "Dosen",
+            "can_few": "Dosen",
+            "can_many": "Dosen",
+            "can_other": "Dosen",
+            "bottle_one": "Flasche",
+            "bottle_two": "Flaschen",
+            "bottle_few": "Flaschen",
+            "bottle_many": "Flaschen",
+            "bottle_other": "Flaschen",
+            "jar_one": "Glas",
+            "jar_two": "Gläser",
+            "jar_few": "Gläser",
+            "jar_many": "Gläser",
+            "jar_other": "Gläser",
+            "bag_one": "Beutel",
+            "bag_two": "Beutel",
+            "bag_few": "Beutel",
+            "bag_many": "Beutel",
+            "bag_other": "Beutel"
         }
     },
     "inventory": {

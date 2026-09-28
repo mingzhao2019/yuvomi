@@ -384,7 +384,8 @@
         "todayWasteTonight": "Đem ra tối nay",
         "eventEnded": "Đã kết thúc",
         "eventsEndedMore": "+{{count}} sớm hơn hôm nay",
-        "eventsEndedMore_one": "+{{count}} sớm hơn hôm nay"
+        "eventsEndedMore_one": "+{{count}} sớm hơn hôm nay",
+        "widgetSizeWide": "Rộng (2×1)"
     },
     "tasks": {
         "manageCategories": "Quản lý danh mục",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Mở rộng cột",
         "kanbanArchiveDone": "Lưu trữ tất cả đã xong",
         "kanbanArchiveDoneConfirm": "Lưu trữ mọi công việc đã xong trong cột này?",
-        "kanbanArchiveDoneAction": "Lưu trữ"
+        "kanbanArchiveDoneAction": "Lưu trữ",
+        "filterDueToday": "Hạn đến hôm nay"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} bữa ăn",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Chuyển sang chi tiêu chung",
         "loanRemainingInstallmentsForecast": "{{forecast}} (kế hoạch: {{plan}})",
         "detailDateLabel": "Ngày",
-        "loanDetailStartMonthLabel": "Tháng đáo hạn đầu tiên"
+        "loanDetailStartMonthLabel": "Tháng đáo hạn đầu tiên",
+        "ledgerSearchLabel": "Tìm giao dịch",
+        "ledgerSearchPlaceholder": "Tìm trong tất cả các tháng",
+        "ledgerSearchCount": "Tìm thấy {{count}} giao dịch",
+        "ledgerSearchCount_one": "Tìm thấy {{count}} giao dịch",
+        "ledgerSearchCount_few": "Tìm thấy {{count}} giao dịch",
+        "ledgerSearchTruncated": "{{limit}} kết quả mới nhất - hãy thu hẹp tìm kiếm",
+        "ledgerSearchEmpty": "Không có giao dịch nào khớp với “{{query}}”",
+        "ledgerSearchError": "Tìm kiếm không thành công. Vui lòng thử lại."
     },
     "settings": {
         "healthCycleEnableLabel": "Hiện tab chu kỳ",
@@ -3310,7 +3320,14 @@
         "ingredientMatchEmpty": "Kho dự trữ vẫn còn trống.",
         "ingredientMatchSaved": "Đã lưu liên kết.",
         "ingredientMatchCleared": "Đã bỏ liên kết.",
-        "ingredientMatchLoadError": "Không tải được kho dự trữ."
+        "ingredientMatchLoadError": "Không tải được kho dự trữ.",
+        "ingredientMatchOpen": "Gán {{count}} nguyên liệu với kho dự trữ",
+        "ingredientMatchOpen_one": "Gán {{count}} nguyên liệu với kho dự trữ",
+        "ingredientMatchOpen_few": "Gán {{count}} nguyên liệu với kho dự trữ",
+        "ingredientMatchOpen_two": "Gán {{count}} nguyên liệu với kho dự trữ",
+        "ingredientMatchOpen_many": "Gán {{count}} nguyên liệu với kho dự trữ",
+        "ingredientMatchBulkTitle": "Gán nguyên liệu với kho dự trữ",
+        "ingredientMatchBulkHint": "Với mỗi nguyên liệu, chọn dòng trong kho dự trữ mà nó muốn nói đến. Yuvomi không đoán gì cả - chỉ những gì bạn xác nhận ở đây mới có hiệu lực."
     },
     "search": {
         "emptyHint": "Nhập ít nhất 2 ký tự để tìm trong công việc, sự kiện, ghi chú, danh bạ, mua sắm và sức khỏe.",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "Đường dẫn vượt quá giới hạn năm cấp thư mục.",
             "reasonParentFailed": "Không thể tạo thư mục cha.",
             "reasonRateLimited": "Máy chủ đang nhận quá nhiều yêu cầu. Hãy thử tải lên lại sau."
-        }
+        },
+        "selectDone": "Xong"
     },
     "housekeeping": {
         "title": "Dọn dẹp",
@@ -5440,7 +5458,37 @@
             "can": "hộp",
             "bottle": "chai",
             "jar": "lọ",
-            "bag": "túi"
+            "bag": "túi",
+            "pcs_one": "cái",
+            "pcs_two": "cái",
+            "pcs_few": "cái",
+            "pcs_many": "cái",
+            "pcs_other": "cái",
+            "pkg_one": "gói",
+            "pkg_two": "gói",
+            "pkg_few": "gói",
+            "pkg_many": "gói",
+            "pkg_other": "gói",
+            "can_one": "hộp",
+            "can_two": "hộp",
+            "can_few": "hộp",
+            "can_many": "hộp",
+            "can_other": "hộp",
+            "bottle_one": "chai",
+            "bottle_two": "chai",
+            "bottle_few": "chai",
+            "bottle_many": "chai",
+            "bottle_other": "chai",
+            "jar_one": "lọ",
+            "jar_two": "lọ",
+            "jar_few": "lọ",
+            "jar_many": "lọ",
+            "jar_other": "lọ",
+            "bag_one": "túi",
+            "bag_two": "túi",
+            "bag_few": "túi",
+            "bag_many": "túi",
+            "bag_other": "túi"
         }
     },
     "inventory": {

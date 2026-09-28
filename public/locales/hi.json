@@ -384,7 +384,8 @@
         "todayWasteTonight": "आज रात बाहर रखें",
         "eventEnded": "समाप्त",
         "eventsEndedMore": "आज पहले +{{count}}",
-        "eventsEndedMore_one": "आज पहले +{{count}}"
+        "eventsEndedMore_one": "आज पहले +{{count}}",
+        "widgetSizeWide": "चौड़ा (2×1)"
     },
     "tasks": {
         "manageCategories": "श्रेणियाँ प्रबंधित करें",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "कॉलम फैलाएं",
         "kanbanArchiveDone": "सभी पूर्ण कार्य संग्रहित करें",
         "kanbanArchiveDoneConfirm": "इस कॉलम के सभी पूर्ण कार्य संग्रहित करें?",
-        "kanbanArchiveDoneAction": "संग्रहित करें"
+        "kanbanArchiveDoneAction": "संग्रहित करें",
+        "filterDueToday": "आज तक देय"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} भोजन",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "साझा खर्च में ले जाएं",
         "loanRemainingInstallmentsForecast": "{{forecast}} (योजना: {{plan}})",
         "detailDateLabel": "तारीख",
-        "loanDetailStartMonthLabel": "पहला देय महीना"
+        "loanDetailStartMonthLabel": "पहला देय महीना",
+        "ledgerSearchLabel": "लेन-देन खोजें",
+        "ledgerSearchPlaceholder": "सभी महीनों में खोजें",
+        "ledgerSearchCount": "{{count}} लेन-देन मिले",
+        "ledgerSearchCount_one": "{{count}} लेन-देन मिला",
+        "ledgerSearchCount_few": "{{count}} लेन-देन मिले",
+        "ledgerSearchTruncated": "सबसे नए {{limit}} परिणाम - खोज को और सटीक करें",
+        "ledgerSearchEmpty": "“{{query}}” से कोई लेन-देन मेल नहीं खाता",
+        "ledgerSearchError": "खोज विफल रही। कृपया फिर से कोशिश करें।"
     },
     "settings": {
         "healthCycleEnableLabel": "चक्र टैब दिखाएँ",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "भंडार अभी खाली है।",
         "ingredientMatchSaved": "संबंध सहेजा गया।",
         "ingredientMatchCleared": "संबंध हटाया गया।",
-        "ingredientMatchLoadError": "भंडार लोड नहीं हो सका।"
+        "ingredientMatchLoadError": "भंडार लोड नहीं हो सका।",
+        "ingredientMatchOpen": "{{count}} सामग्रियों को भंडार से जोड़ें",
+        "ingredientMatchOpen_one": "{{count}} सामग्री को भंडार से जोड़ें",
+        "ingredientMatchOpen_few": "{{count}} सामग्रियों को भंडार से जोड़ें",
+        "ingredientMatchOpen_two": "{{count}} सामग्रियों को भंडार से जोड़ें",
+        "ingredientMatchOpen_many": "{{count}} सामग्रियों को भंडार से जोड़ें",
+        "ingredientMatchBulkTitle": "सामग्रियों को भंडार से जोड़ें",
+        "ingredientMatchBulkHint": "हर सामग्री के लिए भंडार की वह पंक्ति चुनें जिसका मतलब वह है। Yuvomi कुछ भी अनुमान नहीं लगाता - केवल वही मान्य है जिसकी पुष्टि आप यहाँ करते हैं।"
     },
     "search": {
         "emptyHint": "कार्य, ईवेंट, नोट्स, संपर्क, खरीदारी और स्वास्थ्य में खोजने के लिए कम से कम 2 अक्षर लिखें।",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "पथ पाँच फ़ोल्डर स्तर की सीमा से अधिक है।",
             "reasonParentFailed": "मूल फ़ोल्डर नहीं बनाया जा सका।",
             "reasonRateLimited": "सर्वर को अभी बहुत अधिक अनुरोध मिल रहे हैं। बाद में फिर से अपलोड करें।"
-        }
+        },
+        "selectDone": "हो गया"
     },
     "shortcuts": {
         "goKitchen": "रसोई",
@@ -5440,7 +5458,37 @@
             "can": "डिब्बा",
             "bottle": "बोतल",
             "jar": "जार",
-            "bag": "थैली"
+            "bag": "थैली",
+            "pcs_one": "नग",
+            "pcs_two": "नग",
+            "pcs_few": "नग",
+            "pcs_many": "नग",
+            "pcs_other": "नग",
+            "pkg_one": "पैकेट",
+            "pkg_two": "पैकेट",
+            "pkg_few": "पैकेट",
+            "pkg_many": "पैकेट",
+            "pkg_other": "पैकेट",
+            "can_one": "डिब्बा",
+            "can_two": "डिब्बे",
+            "can_few": "डिब्बे",
+            "can_many": "डिब्बे",
+            "can_other": "डिब्बे",
+            "bottle_one": "बोतल",
+            "bottle_two": "बोतलें",
+            "bottle_few": "बोतलें",
+            "bottle_many": "बोतलें",
+            "bottle_other": "बोतलें",
+            "jar_one": "जार",
+            "jar_two": "जार",
+            "jar_few": "जार",
+            "jar_many": "जार",
+            "jar_other": "जार",
+            "bag_one": "थैली",
+            "bag_two": "थैलियाँ",
+            "bag_few": "थैलियाँ",
+            "bag_many": "थैलियाँ",
+            "bag_other": "थैलियाँ"
         }
     },
     "inventory": {

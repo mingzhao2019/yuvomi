@@ -384,7 +384,8 @@
         "todayWasteTonight": "Ma este kitenni",
         "eventEnded": "Véget ért",
         "eventsEndedMore": "+{{count}} korábbi ma",
-        "eventsEndedMore_one": "+{{count}} korábbi ma"
+        "eventsEndedMore_one": "+{{count}} korábbi ma",
+        "widgetSizeWide": "Széles (2×1)"
     },
     "tasks": {
         "manageCategories": "Kategóriák kezelése",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Oszlop kibővítése",
         "kanbanArchiveDone": "Minden kész archiválása",
         "kanbanArchiveDoneConfirm": "Archiválod az oszlop összes kész feladatát?",
-        "kanbanArchiveDoneAction": "Archiválás"
+        "kanbanArchiveDoneAction": "Archiválás",
+        "filterDueToday": "Ma vagy korábban esedékes"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} étkezésből",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Áthelyezés a közös kiadásokba",
         "loanRemainingInstallmentsForecast": "{{forecast}} (terv: {{plan}})",
         "detailDateLabel": "Dátum",
-        "loanDetailStartMonthLabel": "Első esedékesség hónapja"
+        "loanDetailStartMonthLabel": "Első esedékesség hónapja",
+        "ledgerSearchLabel": "Tranzakciók keresése",
+        "ledgerSearchPlaceholder": "Keresés az összes hónapban",
+        "ledgerSearchCount": "{{count}} tranzakció található",
+        "ledgerSearchCount_one": "{{count}} tranzakció található",
+        "ledgerSearchCount_few": "{{count}} tranzakció található",
+        "ledgerSearchTruncated": "A legújabb {{limit}} találat - szűkítse a keresést",
+        "ledgerSearchEmpty": "Egy tranzakció sem egyezik ezzel: „{{query}}”",
+        "ledgerSearchError": "A keresés nem sikerült. Próbálja újra."
     },
     "settings": {
         "healthCycleEnableLabel": "Ciklus fül megjelenítése",
@@ -3310,7 +3320,14 @@
         "ingredientMatchEmpty": "A készlet még üres.",
         "ingredientMatchSaved": "Hozzárendelés mentve.",
         "ingredientMatchCleared": "Hozzárendelés megszüntetve.",
-        "ingredientMatchLoadError": "A készletet nem sikerült betölteni."
+        "ingredientMatchLoadError": "A készletet nem sikerült betölteni.",
+        "ingredientMatchOpen": "{{count}} hozzávaló hozzárendelése a készlethez",
+        "ingredientMatchOpen_one": "{{count}} hozzávaló hozzárendelése a készlethez",
+        "ingredientMatchOpen_few": "{{count}} hozzávaló hozzárendelése a készlethez",
+        "ingredientMatchOpen_two": "{{count}} hozzávaló hozzárendelése a készlethez",
+        "ingredientMatchOpen_many": "{{count}} hozzávaló hozzárendelése a készlethez",
+        "ingredientMatchBulkTitle": "Hozzávalók hozzárendelése a készlethez",
+        "ingredientMatchBulkHint": "Minden hozzávalóhoz válaszd ki a készlet azon sorát, amelyre vonatkozik. A Yuvomi semmit sem találgat - csak az számít, amit itt megerősítesz."
     },
     "search": {
         "emptyHint": "Írj be legalább 2 karaktert a feladatok, események, jegyzetek, névjegyek, bevásárlás és egészség kereséséhez.",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "Az elérési út meghaladja az öt mappaszint korlátját.",
             "reasonParentFailed": "A szülőmappát nem sikerült létrehozni.",
             "reasonRateLimited": "A szerver túl sok kérést kap. Próbáld meg később újra a feltöltést."
-        }
+        },
+        "selectDone": "Kész"
     },
     "housekeeping": {
         "title": "Háztartás",
@@ -5440,7 +5458,37 @@
             "can": "konzerv",
             "bottle": "üveg",
             "jar": "befőttesüveg",
-            "bag": "tasak"
+            "bag": "tasak",
+            "pcs_one": "db",
+            "pcs_two": "db",
+            "pcs_few": "db",
+            "pcs_many": "db",
+            "pcs_other": "db",
+            "pkg_one": "csomag",
+            "pkg_two": "csomag",
+            "pkg_few": "csomag",
+            "pkg_many": "csomag",
+            "pkg_other": "csomag",
+            "can_one": "konzerv",
+            "can_two": "konzerv",
+            "can_few": "konzerv",
+            "can_many": "konzerv",
+            "can_other": "konzerv",
+            "bottle_one": "üveg",
+            "bottle_two": "üveg",
+            "bottle_few": "üveg",
+            "bottle_many": "üveg",
+            "bottle_other": "üveg",
+            "jar_one": "befőttesüveg",
+            "jar_two": "befőttesüveg",
+            "jar_few": "befőttesüveg",
+            "jar_many": "befőttesüveg",
+            "jar_other": "befőttesüveg",
+            "bag_one": "tasak",
+            "bag_two": "tasak",
+            "bag_few": "tasak",
+            "bag_many": "tasak",
+            "bag_other": "tasak"
         }
     },
     "inventory": {

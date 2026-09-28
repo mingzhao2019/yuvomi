@@ -384,7 +384,8 @@
         "todayWasteTonight": "Sacar esta noche",
         "eventEnded": "Terminado",
         "eventsEndedMore": "+{{count}} anteriores hoy",
-        "eventsEndedMore_one": "+{{count}} anterior hoy"
+        "eventsEndedMore_one": "+{{count}} anterior hoy",
+        "widgetSizeWide": "Ancho (2×1)"
     },
     "tasks": {
         "manageCategories": "Gestionar categorías",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Expandir columna",
         "kanbanArchiveDone": "Archivar todo lo hecho",
         "kanbanArchiveDoneConfirm": "¿Archivar todas las tareas hechas de esta columna?",
-        "kanbanArchiveDoneAction": "Archivar"
+        "kanbanArchiveDoneAction": "Archivar",
+        "filterDueToday": "Vencen hasta hoy"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} comidas",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Pasar a gastos compartidos",
         "loanRemainingInstallmentsForecast": "{{forecast}} (según plan: {{plan}})",
         "detailDateLabel": "Fecha",
-        "loanDetailStartMonthLabel": "Primer mes de vencimiento"
+        "loanDetailStartMonthLabel": "Primer mes de vencimiento",
+        "ledgerSearchLabel": "Buscar movimientos",
+        "ledgerSearchPlaceholder": "Buscar en todos los meses",
+        "ledgerSearchCount": "{{count}} movimientos encontrados",
+        "ledgerSearchCount_one": "{{count}} movimiento encontrado",
+        "ledgerSearchCount_few": "{{count}} movimientos encontrados",
+        "ledgerSearchTruncated": "Los {{limit}} resultados más recientes - afina la búsqueda",
+        "ledgerSearchEmpty": "Ningún movimiento coincide con «{{query}}»",
+        "ledgerSearchError": "La búsqueda ha fallado. Inténtalo de nuevo."
     },
     "settings": {
         "healthCycleEnableLabel": "Mostrar la pestaña de ciclo",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "La despensa aún está vacía.",
         "ingredientMatchSaved": "Asignación guardada.",
         "ingredientMatchCleared": "Asignación eliminada.",
-        "ingredientMatchLoadError": "No se pudo cargar la despensa."
+        "ingredientMatchLoadError": "No se pudo cargar la despensa.",
+        "ingredientMatchOpen": "Asignar {{count}} ingredientes a la despensa",
+        "ingredientMatchOpen_one": "Asignar {{count}} ingrediente a la despensa",
+        "ingredientMatchOpen_few": "Asignar {{count}} ingredientes a la despensa",
+        "ingredientMatchOpen_two": "Asignar {{count}} ingredientes a la despensa",
+        "ingredientMatchOpen_many": "Asignar {{count}} ingredientes a la despensa",
+        "ingredientMatchBulkTitle": "Asignar ingredientes a la despensa",
+        "ingredientMatchBulkHint": "Elige para cada ingrediente la línea de tu despensa a la que se refiere. Yuvomi no adivina nada - solo cuenta lo que confirmes aquí."
     },
     "search": {
         "emptyHint": "Escribe al menos 2 caracteres para buscar en tareas, citas, notas, contactos, compras y salud.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "La ruta supera el límite de cinco niveles de carpetas.",
             "reasonParentFailed": "No se pudo crear la carpeta superior.",
             "reasonRateLimited": "El servidor está recibiendo demasiadas solicitudes. Intenta cargar de nuevo más tarde."
-        }
+        },
+        "selectDone": "Hecho"
     },
     "shortcuts": {
         "goKitchen": "Cocina",
@@ -5440,7 +5458,37 @@
             "can": "lata",
             "bottle": "botella",
             "jar": "tarro",
-            "bag": "bolsa"
+            "bag": "bolsa",
+            "pcs_one": "ud.",
+            "pcs_two": "uds.",
+            "pcs_few": "uds.",
+            "pcs_many": "uds.",
+            "pcs_other": "uds.",
+            "pkg_one": "paquete",
+            "pkg_two": "paquetes",
+            "pkg_few": "paquetes",
+            "pkg_many": "paquetes",
+            "pkg_other": "paquetes",
+            "can_one": "lata",
+            "can_two": "latas",
+            "can_few": "latas",
+            "can_many": "latas",
+            "can_other": "latas",
+            "bottle_one": "botella",
+            "bottle_two": "botellas",
+            "bottle_few": "botellas",
+            "bottle_many": "botellas",
+            "bottle_other": "botellas",
+            "jar_one": "tarro",
+            "jar_two": "tarros",
+            "jar_few": "tarros",
+            "jar_many": "tarros",
+            "jar_other": "tarros",
+            "bag_one": "bolsa",
+            "bag_two": "bolsas",
+            "bag_few": "bolsas",
+            "bag_many": "bolsas",
+            "bag_other": "bolsas"
         }
     },
     "inventory": {

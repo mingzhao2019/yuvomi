@@ -384,7 +384,8 @@
         "todayWasteTonight": "Put out tonight",
         "eventEnded": "Ended",
         "eventsEndedMore": "+{{count}} earlier today",
-        "eventsEndedMore_one": "+{{count}} earlier today"
+        "eventsEndedMore_one": "+{{count}} earlier today",
+        "widgetSizeWide": "Wide (2×1)"
     },
     "tasks": {
         "manageCategories": "Manage categories",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Expand column",
         "kanbanArchiveDone": "Archive all done",
         "kanbanArchiveDoneConfirm": "Archive every done task in this column?",
-        "kanbanArchiveDoneAction": "Archive"
+        "kanbanArchiveDoneAction": "Archive",
+        "filterDueToday": "Due by today"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} meals",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Move to Split Expenses",
         "loanRemainingInstallmentsForecast": "{{forecast}} (plan: {{plan}})",
         "detailDateLabel": "Date",
-        "loanDetailStartMonthLabel": "First due month"
+        "loanDetailStartMonthLabel": "First due month",
+        "ledgerSearchLabel": "Search transactions",
+        "ledgerSearchPlaceholder": "Search all months",
+        "ledgerSearchCount": "{{count}} transactions found",
+        "ledgerSearchCount_one": "{{count}} transaction found",
+        "ledgerSearchCount_few": "{{count}} transactions found",
+        "ledgerSearchTruncated": "The newest {{limit}} matches - refine your search",
+        "ledgerSearchEmpty": "No transaction matches “{{query}}”",
+        "ledgerSearchError": "The search failed. Please try again."
     },
     "settings": {
         "healthCycleEnableLabel": "Show cycle tab",
@@ -3310,7 +3320,14 @@
         "ingredientMatchEmpty": "Your pantry is still empty.",
         "ingredientMatchSaved": "Match saved.",
         "ingredientMatchCleared": "Match removed.",
-        "ingredientMatchLoadError": "The pantry could not be loaded."
+        "ingredientMatchLoadError": "The pantry could not be loaded.",
+        "ingredientMatchOpen": "Match {{count}} ingredients to the pantry",
+        "ingredientMatchOpen_one": "Match {{count}} ingredient to the pantry",
+        "ingredientMatchOpen_few": "Match {{count}} ingredients to the pantry",
+        "ingredientMatchOpen_two": "Match {{count}} ingredients to the pantry",
+        "ingredientMatchOpen_many": "Match {{count}} ingredients to the pantry",
+        "ingredientMatchBulkTitle": "Match ingredients to the pantry",
+        "ingredientMatchBulkHint": "For each ingredient, pick the pantry row it means. Yuvomi guesses nothing - only what you confirm here counts."
     },
     "search": {
         "emptyHint": "Type at least 2 characters to search tasks, events, notes, contacts, shopping and health.",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "The path exceeds the five-level folder limit.",
             "reasonParentFailed": "Its parent folder could not be created.",
             "reasonRateLimited": "The server is receiving too many requests. Try the upload again later."
-        }
+        },
+        "selectDone": "Done"
     },
     "housekeeping": {
         "title": "Housekeeping",
@@ -5440,7 +5458,37 @@
             "can": "can",
             "bottle": "bottle",
             "jar": "jar",
-            "bag": "bag"
+            "bag": "bag",
+            "pcs_one": "pcs",
+            "pcs_two": "pcs",
+            "pcs_few": "pcs",
+            "pcs_many": "pcs",
+            "pcs_other": "pcs",
+            "pkg_one": "pack",
+            "pkg_two": "packs",
+            "pkg_few": "packs",
+            "pkg_many": "packs",
+            "pkg_other": "packs",
+            "can_one": "can",
+            "can_two": "cans",
+            "can_few": "cans",
+            "can_many": "cans",
+            "can_other": "cans",
+            "bottle_one": "bottle",
+            "bottle_two": "bottles",
+            "bottle_few": "bottles",
+            "bottle_many": "bottles",
+            "bottle_other": "bottles",
+            "jar_one": "jar",
+            "jar_two": "jars",
+            "jar_few": "jars",
+            "jar_many": "jars",
+            "jar_other": "jars",
+            "bag_one": "bag",
+            "bag_two": "bags",
+            "bag_few": "bags",
+            "bag_many": "bags",
+            "bag_other": "bags"
         }
     },
     "inventory": {

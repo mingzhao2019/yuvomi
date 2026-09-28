@@ -384,7 +384,8 @@
         "todayWasteTonight": "今晚放出",
         "eventEnded": "已结束",
         "eventsEndedMore": "今天较早 +{{count}}",
-        "eventsEndedMore_one": "今天较早 +{{count}}"
+        "eventsEndedMore_one": "今天较早 +{{count}}",
+        "widgetSizeWide": "宽 (2×1)"
     },
     "tasks": {
         "manageCategories": "管理类别",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "展开该列",
         "kanbanArchiveDone": "归档全部已完成",
         "kanbanArchiveDoneConfirm": "要归档此列中所有已完成的任务吗？",
-        "kanbanArchiveDoneAction": "归档"
+        "kanbanArchiveDoneAction": "归档",
+        "filterDueToday": "今天及之前到期"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} 餐",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "转入共享支出",
         "loanRemainingInstallmentsForecast": "{{forecast}}（计划：{{plan}}）",
         "detailDateLabel": "日期",
-        "loanDetailStartMonthLabel": "首期月份"
+        "loanDetailStartMonthLabel": "首期月份",
+        "ledgerSearchLabel": "搜索交易",
+        "ledgerSearchPlaceholder": "搜索所有月份",
+        "ledgerSearchCount": "找到 {{count}} 笔交易",
+        "ledgerSearchCount_one": "找到 {{count}} 笔交易",
+        "ledgerSearchCount_few": "找到 {{count}} 笔交易",
+        "ledgerSearchTruncated": "最新的 {{limit}} 条结果 - 请缩小搜索范围",
+        "ledgerSearchEmpty": "没有与“{{query}}”匹配的交易",
+        "ledgerSearchError": "搜索失败，请重试。"
     },
     "settings": {
         "healthCycleEnableLabel": "显示周期标签页",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "库存还是空的。",
         "ingredientMatchSaved": "已保存关联。",
         "ingredientMatchCleared": "已取消关联。",
-        "ingredientMatchLoadError": "无法加载库存。"
+        "ingredientMatchLoadError": "无法加载库存。",
+        "ingredientMatchOpen": "将 {{count}} 种材料关联到库存",
+        "ingredientMatchOpen_one": "将 {{count}} 种材料关联到库存",
+        "ingredientMatchOpen_few": "将 {{count}} 种材料关联到库存",
+        "ingredientMatchOpen_two": "将 {{count}} 种材料关联到库存",
+        "ingredientMatchOpen_many": "将 {{count}} 种材料关联到库存",
+        "ingredientMatchBulkTitle": "将材料关联到库存",
+        "ingredientMatchBulkHint": "为每种材料选择它所指的库存条目。Yuvomi 不做任何猜测 - 只有你在这里确认的才算数。"
     },
     "search": {
         "emptyHint": "输入至少 2 个字符即可搜索任务、日程、便签、联系人、购物和健康。",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "路径超过五层文件夹限制。",
             "reasonParentFailed": "无法创建上级文件夹。",
             "reasonRateLimited": "服务器当前收到的请求过多。请稍后重试上传。"
-        }
+        },
+        "selectDone": "完成"
     },
     "shortcuts": {
         "goKitchen": "厨房",
@@ -5440,7 +5458,37 @@
             "can": "罐",
             "bottle": "瓶",
             "jar": "玻璃罐",
-            "bag": "袋"
+            "bag": "袋",
+            "pcs_one": "个",
+            "pcs_two": "个",
+            "pcs_few": "个",
+            "pcs_many": "个",
+            "pcs_other": "个",
+            "pkg_one": "包",
+            "pkg_two": "包",
+            "pkg_few": "包",
+            "pkg_many": "包",
+            "pkg_other": "包",
+            "can_one": "罐",
+            "can_two": "罐",
+            "can_few": "罐",
+            "can_many": "罐",
+            "can_other": "罐",
+            "bottle_one": "瓶",
+            "bottle_two": "瓶",
+            "bottle_few": "瓶",
+            "bottle_many": "瓶",
+            "bottle_other": "瓶",
+            "jar_one": "玻璃罐",
+            "jar_two": "玻璃罐",
+            "jar_few": "玻璃罐",
+            "jar_many": "玻璃罐",
+            "jar_other": "玻璃罐",
+            "bag_one": "袋",
+            "bag_two": "袋",
+            "bag_few": "袋",
+            "bag_many": "袋",
+            "bag_other": "袋"
         }
     },
     "inventory": {

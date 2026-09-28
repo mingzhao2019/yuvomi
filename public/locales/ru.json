@@ -384,7 +384,8 @@
         "todayWasteTonight": "Выставить сегодня вечером",
         "eventEnded": "Завершено",
         "eventsEndedMore": "Раньше сегодня: +{{count}}",
-        "eventsEndedMore_one": "Раньше сегодня: +{{count}}"
+        "eventsEndedMore_one": "Раньше сегодня: +{{count}}",
+        "widgetSizeWide": "Широкий (2×1)"
     },
     "tasks": {
         "manageCategories": "Управление категориями",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Развернуть столбец",
         "kanbanArchiveDone": "Архивировать все выполненные",
         "kanbanArchiveDoneConfirm": "Архивировать все выполненные задачи в этом столбце?",
-        "kanbanArchiveDoneAction": "Архивировать"
+        "kanbanArchiveDoneAction": "Архивировать",
+        "filterDueToday": "Срок до сегодня"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} приёма пищи",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Перенести в общие расходы",
         "loanRemainingInstallmentsForecast": "{{forecast}} (план: {{plan}})",
         "detailDateLabel": "Дата",
-        "loanDetailStartMonthLabel": "Первый месяц оплаты"
+        "loanDetailStartMonthLabel": "Первый месяц оплаты",
+        "ledgerSearchLabel": "Поиск операций",
+        "ledgerSearchPlaceholder": "Искать во всех месяцах",
+        "ledgerSearchCount": "Найдено операций: {{count}}",
+        "ledgerSearchCount_one": "Найдена операция: {{count}}",
+        "ledgerSearchCount_few": "Найдено {{count}} операции",
+        "ledgerSearchTruncated": "Самые новые результаты: {{limit}} - уточните запрос",
+        "ledgerSearchEmpty": "Нет операций по запросу «{{query}}»",
+        "ledgerSearchError": "Не удалось выполнить поиск. Попробуйте ещё раз."
     },
     "settings": {
         "healthCycleEnableLabel": "Показать вкладку цикла",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "Запасы пока пусты.",
         "ingredientMatchSaved": "Сопоставление сохранено.",
         "ingredientMatchCleared": "Сопоставление снято.",
-        "ingredientMatchLoadError": "Не удалось загрузить запасы."
+        "ingredientMatchLoadError": "Не удалось загрузить запасы.",
+        "ingredientMatchOpen": "Сопоставить {{count}} ингредиента с запасами",
+        "ingredientMatchOpen_one": "Сопоставить {{count}} ингредиент с запасами",
+        "ingredientMatchOpen_few": "Сопоставить {{count}} ингредиента с запасами",
+        "ingredientMatchOpen_two": "Сопоставить {{count}} ингредиента с запасами",
+        "ingredientMatchOpen_many": "Сопоставить {{count}} ингредиентов с запасами",
+        "ingredientMatchBulkTitle": "Сопоставить ингредиенты с запасами",
+        "ingredientMatchBulkHint": "Для каждого ингредиента выбери строку запасов, которую он означает. Yuvomi ничего не угадывает - действует только то, что ты подтвердишь здесь."
     },
     "search": {
         "emptyHint": "Введите минимум 2 символа для поиска по задачам, событиям, заметкам, контактам, покупкам и здоровью.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "Путь превышает лимит в пять уровней папок.",
             "reasonParentFailed": "Не удалось создать родительскую папку.",
             "reasonRateLimited": "Сервер получает слишком много запросов. Повторите загрузку позже."
-        }
+        },
+        "selectDone": "Готово"
     },
     "shortcuts": {
         "goKitchen": "Кухня",
@@ -5440,7 +5458,37 @@
             "can": "банка",
             "bottle": "бутылка",
             "jar": "стеклянная банка",
-            "bag": "пакет"
+            "bag": "пакет",
+            "pcs_one": "шт.",
+            "pcs_two": "шт.",
+            "pcs_few": "шт.",
+            "pcs_many": "шт.",
+            "pcs_other": "шт.",
+            "pkg_one": "упаковка",
+            "pkg_two": "упаковки",
+            "pkg_few": "упаковки",
+            "pkg_many": "упаковок",
+            "pkg_other": "упаковки",
+            "can_one": "банка",
+            "can_two": "банки",
+            "can_few": "банки",
+            "can_many": "банок",
+            "can_other": "банки",
+            "bottle_one": "бутылка",
+            "bottle_two": "бутылки",
+            "bottle_few": "бутылки",
+            "bottle_many": "бутылок",
+            "bottle_other": "бутылки",
+            "jar_one": "стеклянная банка",
+            "jar_two": "стеклянной банки",
+            "jar_few": "стеклянные банки",
+            "jar_many": "стеклянных банок",
+            "jar_other": "стеклянной банки",
+            "bag_one": "пакет",
+            "bag_two": "пакета",
+            "bag_few": "пакета",
+            "bag_many": "пакетов",
+            "bag_other": "пакета"
         }
     },
     "inventory": {

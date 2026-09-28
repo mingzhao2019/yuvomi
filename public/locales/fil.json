@@ -396,7 +396,8 @@
         "todayWasteTonight": "Ilabas mamayang gabi",
         "eventEnded": "Tapos na",
         "eventsEndedMore": "+{{count}} mas maaga ngayon",
-        "eventsEndedMore_one": "+{{count}} mas maaga ngayon"
+        "eventsEndedMore_one": "+{{count}} mas maaga ngayon",
+        "widgetSizeWide": "Malapad (2×1)"
     },
     "tasks": {
         "manageCategories": "Pamahalaan ang mga kategorya",
@@ -636,7 +637,8 @@
         "kanbanColExpand": "Ilabas ang column",
         "kanbanArchiveDone": "I-archive lahat ng tapos na",
         "kanbanArchiveDoneConfirm": "I-archive ang lahat ng tapos na gawain sa column na ito?",
-        "kanbanArchiveDoneAction": "I-archive"
+        "kanbanArchiveDoneAction": "I-archive",
+        "filterDueToday": "Nakatakda hanggang ngayon"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} na (mga) pagkain",
@@ -1737,7 +1739,15 @@
         "handoverToSplit": "Ilipat sa shared expenses",
         "loanRemainingInstallmentsForecast": "{{forecast}} (plano: {{plan}})",
         "detailDateLabel": "Petsa",
-        "loanDetailStartMonthLabel": "Unang buwan ng taning"
+        "loanDetailStartMonthLabel": "Unang buwan ng taning",
+        "ledgerSearchLabel": "Maghanap ng mga transaksyon",
+        "ledgerSearchPlaceholder": "Maghanap sa lahat ng buwan",
+        "ledgerSearchCount": "{{count}} transaksyon ang nahanap",
+        "ledgerSearchCount_one": "{{count}} transaksyon ang nahanap",
+        "ledgerSearchCount_few": "{{count}} transaksyon ang nahanap",
+        "ledgerSearchTruncated": "Ang {{limit}} pinakabagong resulta - paliitin ang paghahanap",
+        "ledgerSearchEmpty": "Walang transaksyong tumutugma sa “{{query}}”",
+        "ledgerSearchError": "Nabigo ang paghahanap. Pakisubukang muli."
     },
     "settings": {
         "healthCycleEnableLabel": "Ipakita ang tab ng siklo",
@@ -3322,7 +3332,14 @@
         "ingredientMatchEmpty": "Wala pa ring laman ang iyong paminggalan.",
         "ingredientMatchSaved": "Na-save ang pagtutugma.",
         "ingredientMatchCleared": "Inalis ang pagtutugma.",
-        "ingredientMatchLoadError": "Hindi ma-load ang paminggalan."
+        "ingredientMatchLoadError": "Hindi ma-load ang paminggalan.",
+        "ingredientMatchOpen": "Itugma ang {{count}} sangkap sa paminggalan",
+        "ingredientMatchOpen_one": "Itugma ang {{count}} sangkap sa paminggalan",
+        "ingredientMatchOpen_few": "Itugma ang {{count}} sangkap sa paminggalan",
+        "ingredientMatchOpen_two": "Itugma ang {{count}} sangkap sa paminggalan",
+        "ingredientMatchOpen_many": "Itugma ang {{count}} sangkap sa paminggalan",
+        "ingredientMatchBulkTitle": "Itugma ang mga sangkap sa paminggalan",
+        "ingredientMatchBulkHint": "Para sa bawat sangkap, piliin ang linya sa paminggalan na tinutukoy nito. Walang hinuhulaan ang Yuvomi - ang kinukumpirma mo lang dito ang binibilang."
     },
     "onboarding": {
         "step1Title": "Maligayang pagdating sa {{name}}",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "Lampas ang path sa limang antas ng folder.",
             "reasonParentFailed": "Hindi magawa ang parent folder.",
             "reasonRateLimited": "Masyadong maraming kahilingan ang natatanggap ng server. Subukang mag-upload muli mamaya."
-        }
+        },
+        "selectDone": "Tapos na"
     },
     "userMultiSelect": {
         "nobody": "Wala",
@@ -5440,7 +5458,37 @@
             "can": "lata",
             "bottle": "bote",
             "jar": "garapon",
-            "bag": "supot"
+            "bag": "supot",
+            "pcs_one": "pirasa",
+            "pcs_two": "pirasa",
+            "pcs_few": "pirasa",
+            "pcs_many": "pirasa",
+            "pcs_other": "pirasa",
+            "pkg_one": "pakete",
+            "pkg_two": "pakete",
+            "pkg_few": "pakete",
+            "pkg_many": "pakete",
+            "pkg_other": "pakete",
+            "can_one": "lata",
+            "can_two": "lata",
+            "can_few": "lata",
+            "can_many": "lata",
+            "can_other": "lata",
+            "bottle_one": "bote",
+            "bottle_two": "bote",
+            "bottle_few": "bote",
+            "bottle_many": "bote",
+            "bottle_other": "bote",
+            "jar_one": "garapon",
+            "jar_two": "garapon",
+            "jar_few": "garapon",
+            "jar_many": "garapon",
+            "jar_other": "garapon",
+            "bag_one": "supot",
+            "bag_two": "supot",
+            "bag_few": "supot",
+            "bag_many": "supot",
+            "bag_other": "supot"
         }
     },
     "inventory": {

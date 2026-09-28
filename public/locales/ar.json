@@ -384,7 +384,8 @@
         "todayWasteTonight": "أخرجها الليلة",
         "eventEnded": "انتهى",
         "eventsEndedMore": "+{{count}} سابقة اليوم",
-        "eventsEndedMore_one": "+{{count}} سابقة اليوم"
+        "eventsEndedMore_one": "+{{count}} سابقة اليوم",
+        "widgetSizeWide": "عريض (2×1)"
     },
     "tasks": {
         "manageCategories": "إدارة الفئات",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "توسيع العمود",
         "kanbanArchiveDone": "أرشفة كل المهام المنجزة",
         "kanbanArchiveDoneConfirm": "أرشفة جميع المهام المنجزة في هذا العمود؟",
-        "kanbanArchiveDoneAction": "أرشفة"
+        "kanbanArchiveDoneAction": "أرشفة",
+        "filterDueToday": "المستحقة حتى اليوم"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وجبات",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "نقل إلى النفقات المشتركة",
         "loanRemainingInstallmentsForecast": "{{forecast}} (الخطة: {{plan}})",
         "detailDateLabel": "التاريخ",
-        "loanDetailStartMonthLabel": "أول شهر استحقاق"
+        "loanDetailStartMonthLabel": "أول شهر استحقاق",
+        "ledgerSearchLabel": "البحث في المعاملات",
+        "ledgerSearchPlaceholder": "البحث في كل الأشهر",
+        "ledgerSearchCount": "تم العثور على {{count}} معاملة",
+        "ledgerSearchCount_one": "تم العثور على معاملة واحدة",
+        "ledgerSearchCount_few": "تم العثور على {{count}} معاملات",
+        "ledgerSearchTruncated": "أحدث {{limit}} نتيجة - حدِّد البحث أكثر",
+        "ledgerSearchEmpty": "لا توجد معاملة تطابق «{{query}}»",
+        "ledgerSearchError": "فشل البحث. يرجى المحاولة مرة أخرى."
     },
     "settings": {
         "healthCycleEnableLabel": "إظهار علامة تبويب الدورة",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "المؤن فارغة حتى الآن.",
         "ingredientMatchSaved": "تم حفظ الربط.",
         "ingredientMatchCleared": "تم إلغاء الربط.",
-        "ingredientMatchLoadError": "تعذّر تحميل المؤن."
+        "ingredientMatchLoadError": "تعذّر تحميل المؤن.",
+        "ingredientMatchOpen": "اربط {{count}} مكوّن بالمؤن",
+        "ingredientMatchOpen_one": "اربط مكوّنًا واحدًا بالمؤن",
+        "ingredientMatchOpen_few": "اربط {{count}} مكوّنات بالمؤن",
+        "ingredientMatchOpen_two": "اربط مكوّنين بالمؤن",
+        "ingredientMatchOpen_many": "اربط {{count}} مكوّنًا بالمؤن",
+        "ingredientMatchBulkTitle": "اربط المكوّنات بالمؤن",
+        "ingredientMatchBulkHint": "اختر لكل مكوّن الصف الذي يقصده في مؤنك. لا يخمّن يوفومي شيئًا - لا يُعتد إلا بما تؤكده هنا."
     },
     "search": {
         "emptyHint": "اكتب حرفين على الأقل للبحث في المهام والمواعيد والملاحظات وجهات الاتصال والتسوق والصحة.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "يتجاوز المسار حد خمسة مستويات من المجلدات.",
             "reasonParentFailed": "تعذر إنشاء المجلد الأب.",
             "reasonRateLimited": "يتلقى الخادم طلبات كثيرة جدًا الآن. حاول التحميل مرة أخرى لاحقًا."
-        }
+        },
+        "selectDone": "تم"
     },
     "shortcuts": {
         "goKitchen": "المطبخ",
@@ -5440,7 +5458,37 @@
             "can": "علبة",
             "bottle": "زجاجة",
             "jar": "برطمان",
-            "bag": "كيس"
+            "bag": "كيس",
+            "pcs_one": "قطعة",
+            "pcs_two": "قطعتان",
+            "pcs_few": "قطع",
+            "pcs_many": "قطعة",
+            "pcs_other": "قطعة",
+            "pkg_one": "عبوة",
+            "pkg_two": "عبوتان",
+            "pkg_few": "عبوات",
+            "pkg_many": "عبوة",
+            "pkg_other": "عبوة",
+            "can_one": "علبة",
+            "can_two": "علبتان",
+            "can_few": "علب",
+            "can_many": "علبة",
+            "can_other": "علبة",
+            "bottle_one": "زجاجة",
+            "bottle_two": "زجاجتان",
+            "bottle_few": "زجاجات",
+            "bottle_many": "زجاجة",
+            "bottle_other": "زجاجة",
+            "jar_one": "برطمان",
+            "jar_two": "برطمانان",
+            "jar_few": "برطمانات",
+            "jar_many": "برطمان",
+            "jar_other": "برطمان",
+            "bag_one": "كيس",
+            "bag_two": "كيسان",
+            "bag_few": "أكياس",
+            "bag_many": "كيس",
+            "bag_other": "كيس"
         }
     },
     "inventory": {

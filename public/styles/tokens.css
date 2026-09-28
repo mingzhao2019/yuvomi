@@ -419,10 +419,9 @@
   --color-info-ink:       var(--_color-info-ink);
 
   /* Toast-Textfarben: weiß auf dunklen semantischen Bg (light mode).
-   * Dark mode überschreibt auf dunkel, weil --color-success/warning/danger
-   * dort vivid/hell sind und weißen Text unleserlich machen würden. */
-  --_toast-success-text: var(--color-text-on-accent);
-  --toast-success-text:  var(--_toast-success-text);
+   * Dark mode überschreibt auf dunkel, weil --color-warning/danger dort
+   * vivid/hell sind und weißen Text unleserlich machen würden. Erfolg steht
+   * seit R11 auf dem Shell-Glas (glass.css, --shell-success-ink). */
   --_toast-warning-text: var(--color-text-on-accent);
   --toast-warning-text:  var(--_toast-warning-text);
   --_toast-danger-text:  var(--color-text-on-accent);
@@ -456,6 +455,17 @@
    * kein Duplikat, sondern zwei Aussagen, die im dunklen auseinanderlaufen. */
   --_shell-danger-ink:   #FF9A91;
   --shell-danger-ink:    var(--_shell-danger-ink);
+
+  /* DER ERFOLG AUF SHELL-MATERIAL (Re-Critique 2026-09-27, C2). Der
+   * Erfolgs-Toast war eine gruene Vollflaeche - 118 Aufrufe, jeder ein kleiner
+   * Alarm. Er steht jetzt auf demselben Glas wie jeder Toast; das Gruen
+   * wandert ins Haekchen. Es ist ein Icon, also 3:1 (WCAG 1.4.11), und es
+   * laeuft wie die Gefahr der Themenlage entgegen. Gegen den komponierten
+   * Glasgrund und den opaken Token:
+   *   hell   #6ADE87 auf #413E39 = 6,29:1  |  auf #2D2A25 = 8,45:1
+   *   dunkel #0B6B2B auf #D2CEC6 = 4,25:1  |  auf #E7E2DA = 5,17:1 */
+  --_shell-success-ink:  #6ADE87;
+  --shell-success-ink:   var(--_shell-success-ink);
 
   /* Datenreihen-Palette für Diagramme (Donut, Kategorie-Segmente).
    * Bewusst eigene Tokens statt geborgter Modul-Akzente: Modulfarben tragen
@@ -1961,7 +1971,6 @@
     --_color-info-ink:      #60ACFF;
 
     /* Toast: dunkler Text auf vividen Farben */
-    --_toast-success-text: #04200D;   /* auf #30D158 */
     --_toast-warning-text: #2B1A00;   /* auf #FF9F0A */
     --_toast-danger-text:  #330606;   /* auf #FF6961 */
 
@@ -1970,6 +1979,7 @@
      * Glasgrund #D2CEC6: 5,58:1. --color-danger-hover (#B80012) hielt dort nur
      * 4,39:1 und ist deshalb NICHT der Wert. */
     --_shell-danger-ink:   #9B000F;
+    --_shell-success-ink:  #0B6B2B;
 
     /* Dunkle Tinte auf den vividen Hell-Füllungen des Dark Mode (FAB, Badges, aktive Chips) */
     --_color-ink-on-vivid: #0A0A0C;
@@ -2203,12 +2213,12 @@
     --_color-info-ink:      #60ACFF;
 
     /* Toast: dunkler Text auf vividen Farben */
-    --_toast-success-text: #04200D;
     --_toast-warning-text: #2B1A00;
     --_toast-danger-text:  #330606;
 
     /* Gegendrehung, siehe den Zwilling im prefers-color-scheme-Block. */
     --_shell-danger-ink:   #9B000F;
+    --_shell-success-ink:  #0B6B2B;
 
     /* Dunkle Tinte auf den vividen Hell-Füllungen des Dark Mode (FAB, Badges, aktive Chips) */
     --_color-ink-on-vivid: #0A0A0C;

@@ -396,7 +396,8 @@
         "todayWasteTonight": "Taruh di luar malam ini",
         "eventEnded": "Selesai",
         "eventsEndedMore": "+{{count}} sebelumnya hari ini",
-        "eventsEndedMore_one": "+{{count}} sebelumnya hari ini"
+        "eventsEndedMore_one": "+{{count}} sebelumnya hari ini",
+        "widgetSizeWide": "Lebar (2×1)"
     },
     "tasks": {
         "manageCategories": "Kelola kategori",
@@ -636,7 +637,8 @@
         "kanbanColExpand": "Bentangkan kolom",
         "kanbanArchiveDone": "Arsipkan semua yang selesai",
         "kanbanArchiveDoneConfirm": "Arsipkan semua tugas selesai di kolom ini?",
-        "kanbanArchiveDoneAction": "Arsipkan"
+        "kanbanArchiveDoneAction": "Arsipkan",
+        "filterDueToday": "Jatuh tempo hingga hari ini"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} hidangan",
@@ -1737,7 +1739,15 @@
         "handoverToSplit": "Pindahkan ke pengeluaran bersama",
         "loanRemainingInstallmentsForecast": "{{forecast}} (rencana: {{plan}})",
         "detailDateLabel": "Tanggal",
-        "loanDetailStartMonthLabel": "Bulan jatuh tempo pertama"
+        "loanDetailStartMonthLabel": "Bulan jatuh tempo pertama",
+        "ledgerSearchLabel": "Cari transaksi",
+        "ledgerSearchPlaceholder": "Cari di semua bulan",
+        "ledgerSearchCount": "{{count}} transaksi ditemukan",
+        "ledgerSearchCount_one": "{{count}} transaksi ditemukan",
+        "ledgerSearchCount_few": "{{count}} transaksi ditemukan",
+        "ledgerSearchTruncated": "{{limit}} hasil terbaru - persempit pencarian",
+        "ledgerSearchEmpty": "Tidak ada transaksi yang cocok dengan “{{query}}”",
+        "ledgerSearchError": "Pencarian gagal. Silakan coba lagi."
     },
     "settings": {
         "healthCycleEnableLabel": "Tampilkan tab siklus",
@@ -3322,7 +3332,14 @@
         "ingredientMatchEmpty": "Persediaan masih kosong.",
         "ingredientMatchSaved": "Pencocokan disimpan.",
         "ingredientMatchCleared": "Pencocokan dihapus.",
-        "ingredientMatchLoadError": "Persediaan tidak dapat dimuat."
+        "ingredientMatchLoadError": "Persediaan tidak dapat dimuat.",
+        "ingredientMatchOpen": "Cocokkan {{count}} bahan dengan persediaan",
+        "ingredientMatchOpen_one": "Cocokkan {{count}} bahan dengan persediaan",
+        "ingredientMatchOpen_few": "Cocokkan {{count}} bahan dengan persediaan",
+        "ingredientMatchOpen_two": "Cocokkan {{count}} bahan dengan persediaan",
+        "ingredientMatchOpen_many": "Cocokkan {{count}} bahan dengan persediaan",
+        "ingredientMatchBulkTitle": "Cocokkan bahan dengan persediaan",
+        "ingredientMatchBulkHint": "Untuk setiap bahan, pilih baris persediaan yang dimaksud. Yuvomi tidak menebak apa pun - hanya yang kamu konfirmasi di sini yang berlaku."
     },
     "onboarding": {
         "step1Title": "Selamat datang di {{name}}",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "Jalur melebihi batas lima tingkat folder.",
             "reasonParentFailed": "Folder induk tidak dapat dibuat.",
             "reasonRateLimited": "Server sedang menerima terlalu banyak permintaan. Coba unggah lagi nanti."
-        }
+        },
+        "selectDone": "Selesai"
     },
     "userMultiSelect": {
         "nobody": "Tidak ada",
@@ -5440,7 +5458,37 @@
             "can": "kaleng",
             "bottle": "botol",
             "jar": "toples",
-            "bag": "kantong"
+            "bag": "kantong",
+            "pcs_one": "buah",
+            "pcs_two": "buah",
+            "pcs_few": "buah",
+            "pcs_many": "buah",
+            "pcs_other": "buah",
+            "pkg_one": "bungkus",
+            "pkg_two": "bungkus",
+            "pkg_few": "bungkus",
+            "pkg_many": "bungkus",
+            "pkg_other": "bungkus",
+            "can_one": "kaleng",
+            "can_two": "kaleng",
+            "can_few": "kaleng",
+            "can_many": "kaleng",
+            "can_other": "kaleng",
+            "bottle_one": "botol",
+            "bottle_two": "botol",
+            "bottle_few": "botol",
+            "bottle_many": "botol",
+            "bottle_other": "botol",
+            "jar_one": "toples",
+            "jar_two": "toples",
+            "jar_few": "toples",
+            "jar_many": "toples",
+            "jar_other": "toples",
+            "bag_one": "kantong",
+            "bag_two": "kantong",
+            "bag_few": "kantong",
+            "bag_many": "kantong",
+            "bag_other": "kantong"
         }
     },
     "inventory": {

@@ -669,7 +669,12 @@ Inhalt, kein Verlauf ueber eine Karte, kein Text auf einer Flaeche, die nicht ge
   (Amber-Braun, bewusst von Danger-Rot getrennt fuer Farbfehlsicht, 4.9:1), Danger
   (Apple Red, 5.4:1), Info (Apple Blue, 5.4:1, getrennt vom Contacts-Tint). Dark Mode:
   vivide Apple-Dark-Werte (#30D158 / #FF9F0A / #FF6961 / #409CFF) mit dunkler Tinte statt
-  Weiss; die Toast-Textfarben kippen dafuer ueber eigene Tokens mit.
+  Weiss; die Toast-Textfarben kippen dafuer ueber eigene Tokens mit. **Ein Erfolg ist keine
+  Vollflaeche (Re-Critique 2026-09-27, C2):** der Erfolgs-Toast steht auf demselben
+  Shell-Glas wie jeder Toast, gruen ist nur sein Haekchen (`--shell-success-ink`, gegen das
+  komponierte Glas gemessen); Fehler und Warnung bleiben Vollflaechen - sie sollen
+  unterbrechen, eine Bestaetigung nicht. Alle Aufrufe laufen ueber `showToast`, die Regel
+  steht einmal in glass.css (`test:toast-placement`).
 - **Chart-Serien** (`--chart-series-1..7`): eigene Datenreihen-Palette, bewusst KEINE
   geborgten Modul-Tints (Modulfarben tragen Bedeutung, die in einem Ausgaben-Donut falsch
   waere). Sieben Toene, im Dark aufgehellt auf >=3:1 Grafikkontrast; mehr Segmente werden
@@ -724,6 +729,15 @@ Inhalt, kein Verlauf ueber eine Karte, kein Text auf einer Flaeche, die nicht ge
   eigene Grouped-List-Separatoren. Der TEXT-Kontrast ist ueberall ohne Verstoss.
 
 ### Named Rules
+**Rot ist eine Warnung, kein Vorzeichen (Re-Critique 2026-09-27, C1).** Im Budget war jede
+Ausgabe rot - der Normalfall eines Haushaltsbuchs las sich als Dauer-Alarm, und die echte
+Warnung ging darin unter. Ausgaben stehen jetzt in Textfarbe, die Richtung traegt das
+Vorzeichen (`amountByRole(..., 'flow')`), Kategoriebalken und Trendlinie tragen den
+Modulton bzw. die Sekundaerfarbe; Einnahmen duerfen ruhig gruen sein. `--color-danger`
+bleibt fuer das, was wirklich eine Handlung verlangt: ein Konto im Minus, ein negativer
+Saldo, ein ueberschrittener Plan. Ein Zustand steht nie NUR in der Farbe
+(`test:budget-ui`).
+
 **Die Eine-Stimme-Regel (2026-08-10).** Die App hat GENAU EINE Akzentfarbe, und das ist
 das Violett der Bildmarke. Sie traegt alles, was in jedem Modul dasselbe tut: die
 Tab-Leiste und die Sidebar samt Aktiv-Pille, den FAB, den Primaer- und Sekundaerknopf,
@@ -914,6 +928,16 @@ Subheadline 15, Footnote 13, Caption 2 11.
 - Inputs nie unter 16px (`--text-base`, iOS-Zoom-Schwelle).
 
 ### Named Rules
+**Ein Wort bricht an der Silbe, mit Strich (Re-Critique 2026-09-27, W1).** "Tomatensupp/e"
+und "SAUERSTOFFSAETTI/GUNG" kamen aus `overflow-wrap: break-word` neben `hyphens: manual`:
+das Wort brach dort, wo die Zeile endete, ohne Strich. Wer ein Wort brechen laesst, gibt
+seinem Subjekt `hyphens: auto; hyphenate-limit-chars: 6 4 4` (die App setzt `lang`, der
+Browser kennt die Silben); `overflow-wrap: anywhere` bleibt die letzte Stufe fuer
+Zeichenketten ohne Silben (URLs, Codes, Zeitangaben). Versal-Labels, die nicht passen,
+werden kuerzer oder verlieren den Versal-Transform, statt mitten im Wort zu brechen. Der
+Guard (`test:typography`) prueft die Regel am Subjekt, nicht die Schreibweise, und fuehrt
+die Bestandsausnahmen als schrumpfende Karte.
+
 **Die Kopf-Abgrenzungs-Regel.** Zwei Kopfrollen, und was ein Kopf benennt entscheidet
 welche: benennt er einen BEREICH der Seite ("Heute wichtig", "Punktestaende", "Nach
 Kategorie", "Transaktionen"), ist er eine Ueberschrift in Satzschreibung. Wiederholt er
@@ -1317,7 +1341,7 @@ sind Dokumente (ein Werkzeugmenue), Kalender (Filterblatt, Dialogfuss) und der B
 |---|---|---|---|
 | Bearbeiten/Loeschen/Mehr an einer Zeile | `.row-action`, Loeschen `.row-action--danger`, dauerhaft sichtbar (ignore.md) | `rowActionHtml()` / `rowActionEl()` (utils/row-action.js); Mehr-Menue: `popoverMenuHtml({ triggerClass: 'row-action' })` | `btn--secondary btn--icon` (violett umrandet), `btn--danger-outline` als Ring, eigene Stiftzellen, `btn--icon btn--sm` |
 | Name der Zeilenaktion | nennt das OBJEKT: "Anna anrufen", "Kategorie Obst loeschen" | `t('common.editNamed' / 'deleteNamed' / 'removeNamed' / 'moreActionsNamed', { name })` oder ein Modul-Key mit `{{name}}` | zwoelfmal "Anrufen", fuenfmal "Loeschen" |
-| Suchen | EIN Suchfeld: gefuellte Kapsel (`--color-fill-field`, `--radius-full`, Kante transparent, Fokus = Akzentkante + Ring), mobil im Kopf die Icon-Form. Am Desktop (ab 1024px) EINE Breite `--page-search-width` (320px, endet in Liste+Detail vor der Listenspur) an EINER Stelle: der Center-Slot direkt hinter dem Titel (Referenz Dokumente) | `renderPageSearch({ className: '... page-toolbar__center' })` + `wirePageSearch()` (utils/page-search.js); Breite und Lage stehen in page-search.css; die globale Suche teilt die Regel per Selektorliste | eigene Felder mit 10/12/16px-Ecke, randlose Leisten, `form-input type=search`; Modulbreiten (neun Breiten 280-830px) und Auto-Rand ans Zeilenende |
+| Suchen | EIN Suchfeld: gefuellte Kapsel (`--color-fill-field`, `--radius-full`, Kante transparent, Fokus = Akzentkante + Ring), mobil im Kopf die Icon-Form. Am Desktop (ab 1024px) EINE Breite `--page-search-width` (320px, endet in Liste+Detail vor der Listenspur) an EINER Stelle: der Center-Slot direkt hinter dem Titel (Referenz Dokumente) | `renderPageSearch({ className: '... page-toolbar__center' })` + `wirePageSearch()` (utils/page-search.js); Breite und Lage stehen in page-search.css; die globale Suche teilt die Regel per Selektorliste; eine Suche nur fuer einen Abschnitt steht in dessen Kopf (`.section-toolbar`, Hauptbuch im Budget) mit derselben Breite und mobil derselben Icon-Form | eigene Felder mit 10/12/16px-Ecke, randlose Leisten, `form-input type=search`; Modulbreiten (neun Breiten 280-830px) und Auto-Rand ans Zeilenende |
 | Folge gleichartiger Zeilen | `.row-carrier` (Surface, `--radius-lg`, `--shadow-sm`, Haarlinien `> * + *`); liegt die Liste schon in einer Karte: `.row-divided` | list-row.css | `.list-rows` (12px, ohne Schatten) - laeuft aus, danach faellt die Regel |
 | Anlegen | `page-fab` MIT Nomen: mobil in der Kapsel, am Desktop angedockt als Kopf-Pille "+ Nomen" (Kuerzel "n" angesagt); ein Kontext-FAB nennt je Tab sein Nomen (ein Nomen, keine Verbphrase) | `createPageFab({ dockLabel })`, `setPageFabAction(fab, { label, dockLabel, onClick })` (utils/fab.js) | schwebender FAB ohne Nomen, dessen Bedeutung mit dem Tab wechselt; Inline-Anlegeformulare ueber der Liste; eigener Kopfknopf `.toolbar-new-btn` |
 | Dialogknoepfe | `.modal-panel__footer`: [Loeschen `btn--danger-outline` MIT Text, links] ... [Abbrechen] [Primaer `btn--primary`]; `mountFooter()` hebt ihn an den Blattrand, mobil ueber die Falz - auch die geteilten Rueckfragen (confirm/prompt/select) | modal.js; Vorbild Kalender-Termin, Aufgabe | `.modal-actions` im scrollenden Koerper, Loeschen als rotes Icon |
@@ -1325,7 +1349,7 @@ sind Dokumente (ein Werkzeugmenue), Kalender (Filterblatt, Dialogfuss) und der B
 | Auswahl aus 2-4 Werten (Theme) | `.segmented` im Well (Abschnitt "Segmented Controls") | panel.css | drei getrennte Rahmenknoepfe |
 | Auswahl in einer Segment-/Tab-Leiste zeigen | EINE Bewegung: eine Kapsel hinter den Labels gleitet (`--duration-lg` + `--ease-out`, nur `transform`, Breite nur wenn sie sich aendert; reduzierte Bewegung springt); die Sidebar-Pille behaelt ihre Feder, hoechstens `--duration-xl` | `attachSegmentIndicator(bar)` (utils/segment-indicator.js; folgt jedem Wechsel des aktiven Eintrags selbst), `renderSubTabs({ indicator })`, `{ key }` fuer Leisten, die neu gebaut werden | springende Flaeche am aktiven Tab; eigene WAAPI-Kapseln; Literal-Dauern (450ms) |
 | Mobiles Blatt (Dialog, Mehr) | EINE Grammatik: Griff 36x5 in der Kopfzone (`--sheet-grabber`: hell `--color-border-strong`, dunkel Glas-Weiss), Griff-Oberkante bis Titel 16px; 1:1 mitgehen, schliessen ab 80px Weg ODER Flick > 0.5px/ms, sonst zurueckfedern (`--duration-lg` + `--ease-out`), nach oben Gummiband; der Zug liegt auf `translate` | `wireSheetDrag(sheet, { scroller, onDismiss })` (utils/sheet-drag.js) | leerer Griff-Streifen, Glas-Weiss auf weisser Tafel, Faktor 0.6, Schliessen erst bei `touchend`, Zurueckspringen ohne Transition |
-| Mehrfachauswahl in einer Liste | Auswahlkreis ERSETZT Statuskreis und Zeilen-Picker (Apple Erinnerungen); Leiste = Bulk-Pille mit "Fertig"; Name je Zeile mit Objekt ("<Titel> auswaehlen"); Loeschen im Pillen-Stil | `.select-circle` (layout.css) + `setBulkPill({ label, actions })` / `clearBulkPill()` (utils/bulk-pill.js) | native blaue Checkbox neben dem Statuskreis, eigene Aktionsleiste, gefuellte rote Loeschen-Kapsel |
+| Mehrfachauswahl in einer Liste | Auswahlkreis ERSETZT Statuskreis und Zeilen-Picker (Apple Erinnerungen); Leiste = Bulk-Pille mit "Fertig"; Name je Zeile mit Objekt ("<Titel> auswaehlen"); Loeschen im Pillen-Stil, Rueckfrage in der Pille, eine Folge, die die Frage nicht traegt, als Detailzeile darunter (Dokumente: kein Papierkorb) | `.select-circle` (layout.css) + `setBulkPill({ label, actions })` / `clearBulkPill()` (utils/bulk-pill.js), `confirm: { question, detail? }` | native blaue Checkbox neben dem Statuskreis, eigene Aktionsleiste, gefuellte rote Loeschen-Kapsel |
 | Aktionen an Karte oder Zeile | dauerhaft sichtbar, ruhig per Tertiaerfarbe (ignore.md) | `.row-action` | Einblenden erst per `:hover`/`:focus-within` |
 | Icon stylen | auf `svg` (oder eine Klasse) zielen - Lucide ersetzt `<i data-lucide>` durch `<svg>` | - | Regeln auf `... i`: sie trafen nie (38 entfernt) |
 
@@ -2058,12 +2082,26 @@ ein Modulkopf unter 768px gebaut ist. Anlass: dieselbe Frage hatte sechs Antwort
 114px in der Mehrheit, 170-176px in Aufgaben und Inventar, feste Filterreihen in Notizen,
 Kontakten und Vorrat (Port erst bei y179), und unter der Glas-Kapsel lief nie Inhalt.
 
-1. **Hoechstens zwei Kopfzeilen.** Zeile 1: Large Title (34/700), trailing das Such-Icon
-   (wo das Modul sucht) und genau EIN Werkzeugmenue „..." (`pageToolsMenuHtml`,
-   utils/popover-menu.js, Vorbild `documents-tools-btn`). Die Primaeraktion bleibt mobil der
-   FAB in der Kapsel, am Desktop die angedockte Kopf-Pille. Zeile 2, optional und genau
-   eine: die Kontext-Steuerung (Ansichts-Segment, Zeitraum-Stepper, Sub-Tabs,
-   Listen-Kapseln, „Filter (n)"). Ziel ausgeklappt <= 114px, mit Stepper <= 122px.
+1. **Hoechstens zwei Kopfzeilen.** Zeile 1 traegt allein den Large Title (34/700) mit dem
+   Absender-Siegel davor. Zeile 2 ist die Bar-Zeile, die beim Scrollen stehen bleibt: vorn
+   das Such-Icon (wo das Modul sucht), dann die Kontext-Steuerung (Ansichts-Segment,
+   Zeitraum-Stepper, Listen-Kapseln, „Filter (n)"), trailing genau EIN Werkzeugmenue „..."
+   (`pageToolsMenuHtml`, utils/popover-menu.js, Vorbild `documents-tools-btn`). Traegt ein
+   Modul Sub-Tabs, ist die Tab-Leiste die ganze Zeile 2 (Schichtplan, Haushaltshilfe,
+   Belohnungen). Die Primaeraktion bleibt mobil der FAB in der Kapsel, am Desktop die
+   angedockte Kopf-Pille. Ziel ausgeklappt <= 114px, mit Stepper <= 122px. Gemessen
+   2026-09-27 (R11, 390px): Aufgaben, Notizen, Kontakte, Dokumente, Inventar, Geburtstage,
+   Entsorgung, Einstellungen 114-120px, Kalender 117px, Budget 162px (benannte Ausnahme unten).
+   Bis R11 stand hier, Such-Icon und Menue sassen in Zeile 1 neben dem Titel - gebaut war
+   immer Zeile 2 (Re-Critique 2026-09-27, A8 P3-1). Neben dem Large Title haetten sie ihn
+   bei 390px auf rund 220px gekuerzt, und angedockt waeren sie mit ihm aus dem Bild gewandert.
+
+   **Nie ein Kopf ohne Ortsangabe.** Angedockt wandert Zeile 1 aus dem Bild, und der Titel
+   kommt als kleiner Inline-Titel zurueck (`wireCollapsingHeader`, utils/ux.js): in die
+   Bar-Zeile, wo sie ihm 88px laesst; sonst falten ihre Kontrollen ins „..." (R9 M9); und wo
+   nichts falten kann, weil die Bar-Zeile eine Tab-Leiste ist, klebt der Kopf um die Hoehe
+   des Inline-Titels tiefer und zeigt ihn in diesem Streifen ueber der Leiste (Band, R11
+   H1). Kopfhoehe und Klebekante haengen in keinem der drei Wege am Andock-Zustand.
 2. **Keine losen Verwaltungs-Icons oder Textknoepfe im Kopf.** Kategorien, Tags, Lagerorte,
    Mehrfachauswahl, Import, Verlauf stehen im Werkzeugmenue - mit Icon UND Text; ein
    Ansichts-Schalter dort ist ein `menuitemcheckbox` mit Haken.
@@ -2091,8 +2129,13 @@ Tab-Leiste tragen, die selbst sagt, wo man ist, ersetzt sie den Large Title: Zei
 Leiste, Zeile 2 = EINE Kopfzeile je Tab mit [Kontext] ... [Such-Icon] [EIN „..."] (am Desktop
 dazu die angedockte Primaer-Pille). Such-Icon und Menue wandern in Zeile 2, weil die Leiste
 bei 390px schon ohne sie ueberlaeuft (gemessen scrollWidth 403/390). Die Zwei-Zeilen-Regel
-gilt unveraendert; alle Tabs derselben Leiste sind gleich hoch (Kueche: 121px mobil). Ein Tab
-ohne Werkzeuge traegt kein leeres „..." (Rezepte).
+gilt unveraendert. Ein Tab ohne Werkzeuge traegt kein leeres „..." (Rezepte).
+Seit R9 (M10) gilt mobil eine Verdichtung: traegt Zeile 2 KEINEN Kontext, nur Werkzeuge
+(Rezepte: Lupe, mit angebundenem Anbieter dazu der Quellenfilter; Vorrat: Lupe und „..."),
+legen sich die Werkzeuge ans Ende der Leiste, und der Kopf ist eine Zeile (56px statt 121px,
+kitchen-tabs.css). Die Leiste endet vor ihnen; Zaehler werden dort zum Punkt an der Ecke des
+Labels (R11 H2), damit vier Tabs und zwei Werkzeuge bei 375px ohne Scrollen passen.
+Mahlzeiten und Einkauf behalten Zeile 2 fuer ihren Kontext (Woche, Listen) - 121px.
 
 **Benannte Ausnahme: Sub-Tabs + Zeitraum (Budget, Haushaltshilfe-Berichte).** Ein Modul, dessen
 Zeile 2 schon die Sub-Tabs traegt und dessen Tab einen Zeitraum blaettert, bekommt den

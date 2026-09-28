@@ -384,7 +384,8 @@
         "todayWasteTonight": "Ställ ut i kväll",
         "eventEnded": "Avslutat",
         "eventsEndedMore": "+{{count}} tidigare i dag",
-        "eventsEndedMore_one": "+{{count}} tidigare i dag"
+        "eventsEndedMore_one": "+{{count}} tidigare i dag",
+        "widgetSizeWide": "Bred (2×1)"
     },
     "tasks": {
         "manageCategories": "Hantera kategorier",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Fäll ut kolumnen",
         "kanbanArchiveDone": "Arkivera allt klart",
         "kanbanArchiveDoneConfirm": "Arkivera alla klara uppgifter i den här kolumnen?",
-        "kanbanArchiveDoneAction": "Arkivera"
+        "kanbanArchiveDoneAction": "Arkivera",
+        "filterDueToday": "Förfaller senast i dag"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} måltider",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Flytta till delade utgifter",
         "loanRemainingInstallmentsForecast": "{{forecast}} (enligt plan: {{plan}})",
         "detailDateLabel": "Datum",
-        "loanDetailStartMonthLabel": "Första förfallomånaden"
+        "loanDetailStartMonthLabel": "Första förfallomånaden",
+        "ledgerSearchLabel": "Sök transaktioner",
+        "ledgerSearchPlaceholder": "Sök i alla månader",
+        "ledgerSearchCount": "{{count}} transaktioner hittades",
+        "ledgerSearchCount_one": "{{count}} transaktion hittades",
+        "ledgerSearchCount_few": "{{count}} transaktioner hittades",
+        "ledgerSearchTruncated": "De {{limit}} senaste träffarna - förfina sökningen",
+        "ledgerSearchEmpty": "Ingen transaktion matchar ”{{query}}”",
+        "ledgerSearchError": "Sökningen misslyckades. Försök igen."
     },
     "settings": {
         "healthCycleEnableLabel": "Visa cykelfliken",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "Skafferiet är fortfarande tomt.",
         "ingredientMatchSaved": "Kopplingen sparades.",
         "ingredientMatchCleared": "Kopplingen togs bort.",
-        "ingredientMatchLoadError": "Skafferiet kunde inte läsas in."
+        "ingredientMatchLoadError": "Skafferiet kunde inte läsas in.",
+        "ingredientMatchOpen": "Koppla {{count}} ingredienser till skafferiet",
+        "ingredientMatchOpen_one": "Koppla {{count}} ingrediens till skafferiet",
+        "ingredientMatchOpen_few": "Koppla {{count}} ingredienser till skafferiet",
+        "ingredientMatchOpen_two": "Koppla {{count}} ingredienser till skafferiet",
+        "ingredientMatchOpen_many": "Koppla {{count}} ingredienser till skafferiet",
+        "ingredientMatchBulkTitle": "Koppla ingredienser till skafferiet",
+        "ingredientMatchBulkHint": "Välj för varje ingrediens den rad i skafferiet som den avser. Yuvomi gissar ingenting - bara det du bekräftar här gäller."
     },
     "search": {
         "emptyHint": "Skriv minst 2 tecken för att söka bland uppgifter, händelser, anteckningar, kontakter, inköp och hälsa.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "Sökvägen överskrider gränsen på fem mappnivåer.",
             "reasonParentFailed": "Den överordnade mappen kunde inte skapas.",
             "reasonRateLimited": "Servern tar emot för många förfrågningar. Försök ladda upp igen senare."
-        }
+        },
+        "selectDone": "Klar"
     },
     "shortcuts": {
         "goKitchen": "Kök",
@@ -5440,7 +5458,37 @@
             "can": "burk",
             "bottle": "flaska",
             "jar": "glasburk",
-            "bag": "påse"
+            "bag": "påse",
+            "pcs_one": "st",
+            "pcs_two": "st",
+            "pcs_few": "st",
+            "pcs_many": "st",
+            "pcs_other": "st",
+            "pkg_one": "paket",
+            "pkg_two": "paket",
+            "pkg_few": "paket",
+            "pkg_many": "paket",
+            "pkg_other": "paket",
+            "can_one": "burk",
+            "can_two": "burkar",
+            "can_few": "burkar",
+            "can_many": "burkar",
+            "can_other": "burkar",
+            "bottle_one": "flaska",
+            "bottle_two": "flaskor",
+            "bottle_few": "flaskor",
+            "bottle_many": "flaskor",
+            "bottle_other": "flaskor",
+            "jar_one": "glasburk",
+            "jar_two": "glasburkar",
+            "jar_few": "glasburkar",
+            "jar_many": "glasburkar",
+            "jar_other": "glasburkar",
+            "bag_one": "påse",
+            "bag_two": "påsar",
+            "bag_few": "påsar",
+            "bag_many": "påsar",
+            "bag_other": "påsar"
         }
     },
     "inventory": {

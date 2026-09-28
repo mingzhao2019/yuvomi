@@ -1903,3 +1903,75 @@ test('G2: der Fuss traegt genau EINEN Hinweis - den zur Fruchtbarkeit, wenn sie 
   assert.doesNotMatch(shell, /fertilityDisclaimer/);
   assert.match(shell, /cycleFooterMarkup\(darf, prediction\)/);
 });
+
+// --------------------------------------------------------
+// Kein Seitenstreifen an einem Traeger (Re-Critique 2026-09-27, C3)
+// --------------------------------------------------------
+//
+// `.cycle-bubble` trug eine 3px-Kante in Modulfarbe an einem abgerundeten
+// Kasten - das Muster, das DESIGN.md fuer Traeger ohne freie Nutzerfarbe
+// ausschliesst und das `impeccable detect` als side-tab meldet. Die Blase
+// zeigt ihren Ton jetzt mit dem Zeichen links und der Waschung. Gehalten wird
+// die Regel fuer das ganze Stylesheet: eine einseitige Kante breiter als die
+// Haarlinie (1px-Trenner zwischen Werten bleiben erlaubt) ist ein Streifen.
+test('health.css: keine farbige Seitenkante als Zeichen an einem Traeger', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const css = readFileSync(new URL('../public/styles/health.css', import.meta.url), 'utf8');
+  const SIDE = /(?:^|;)\s*border-(?:left|right|inline-start|inline-end)(?:-width)?\s*:\s*([^;]+)/g;
+  let seen = 0;
+  for (const rule of eachRule(css)) {
+    for (const m of rule.body.matchAll(SIDE)) {
+      seen += 1;
+      const width = m[1].match(/(\d+(?:\.\d+)?)px/);
+      const hairline = width && Number(width[1]) <= 1;
+      assert.ok(hairline || /^\s*(?:0|none)\b/.test(m[1]),
+        `${rule.selector.trim()}: einseitige Kante "${m[1].trim()}" ist ein Seitenstreifen`);
+    }
+  }
+  assert.ok(seen > 0, 'der Scanner sieht keine einzige Seitenkante mehr - der Trenner in .cycle-stat__pair-item fehlt, der Guard waere blind');
+});
+
+// --------------------------------------------------------
+// Kalender und Trends nebeneinander, wo es passt (Re-Critique 2026-09-27, C7)
+// --------------------------------------------------------
+test('Zyklus: Kalender und Trends stehen als Paar, das seine eigene Breite fragt', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const { __test: healthUi } = await import('../public/pages/health.js');
+  const paar = healthUi.cyclePairMarkup('<section class="cycle-cal"></section>', '<section class="cycle-trends"></section>');
+  assert.match(paar, /class="cycle-pair"[\s\S]*class="cycle-pair__cols"><section class="cycle-cal"><\/section><section class="cycle-trends">/);
+  assert.equal(healthUi.cyclePairMarkup('<section class="cycle-cal"></section>', ''), '<section class="cycle-cal"></section>',
+    'ohne Trends kein Paar - eine leere Spalte waere Platz ohne Aussage');
+
+  const src = readFileSync(new URL('../public/pages/health.js', import.meta.url), 'utf8');
+  const shell = src.slice(src.indexOf('function renderCycleShell()'), src.indexOf('function cyclePairMarkup('));
+  assert.equal((shell.match(/cyclePairMarkup\(cycleCalendarMarkup\(own, pms, darf\)/g) ?? []).length, 2,
+    'beide Zweige (Normal und Schwangerschaft) setzen das Paar');
+  assert.doesNotMatch(shell, /\$\{cycleCalendarMarkup\(own, pms, darf\)\}/, 'kein Kalender mehr ausserhalb des Paars');
+
+  const css = readFileSync(new URL('../public/styles/health.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const host = rules.find((r) => r.selector.trim() === '.cycle-pair');
+  assert.match(host?.body ?? '', /container:\s*cycle-pair\s*\/\s*inline-size/);
+  const cols = rules.find((r) => r.selector.trim() === '.cycle-pair__cols' && r.at.some((a) => /@container cycle-pair/.test(a)));
+  assert.ok(cols, 'die Zweispalte steht in einer Container-Regel, nicht an einer Seiten-Schwelle');
+  const at = cols.at.find((a) => /@container cycle-pair/.test(a));
+  const rem = Number(at.match(/min-width:\s*([\d.]+)rem/)?.[1]);
+  // Mindestmasse: Gitter 472px + Abstand 24px + eine Trendspalte, in der ein
+  // Diagramm mindestens 160px hoch steht (Karte und SVG nehmen 72px Innenrand,
+  // gemessen). Die erste Fassung (51rem, 3:1) stellte es bei 1440px 92px hoch.
+  const geo = healthUi.CYCLE_TREND_CHART;
+  const chartHeight = (rem * 16 - 472 - 24 - 72) * (geo.H / geo.W);
+  assert.ok(chartHeight >= 160, `Schwelle ${rem}rem: ein Trenddiagramm stuende im Paar ${chartHeight.toFixed(0)}px hoch`);
+  // Die Detailspalte ist hoechstens 968px breit (gemessen bei 1920 und 2560px) -
+  // eine hoehere Schwelle bekaeme nie ein Paar.
+  assert.ok(rem * 16 <= 968, `Schwelle ${rem}rem - die Detailspalte (hoechstens 968px) bekaeme nie ein Paar`);
+  // Die Trends zeichnen alle in dieser Flaeche - ein Diagramm im 3:1 waere im
+  // Paar wieder zu flach.
+  for (const fn of ['simpleLineChartMarkup', 'cycleLengthTrendChartMarkup', 'flowLoadTrendChartMarkup']) {
+    const body = src.slice(src.indexOf(`function ${fn}(`), src.indexOf('\nfunction ', src.indexOf(`function ${fn}(`) + 10));
+    assert.match(body, /CYCLE_TREND_CHART/, `${fn} zeichnet nicht in der Trend-Flaeche`);
+    assert.match(body, /chartRatioAttr\(geo\)/, `${fn}: das SVG nennt sein Seitenverhaeltnis nicht (panel.css haelt sonst 3:1)`);
+    assert.doesNotMatch(body, /chartScales\(\)|chartY\([^)]*max\)/, `${fn}: rechnet noch in der 3:1-Flaeche`);
+  }
+  assert.match(cols.body, /grid-template-columns:\s*var\(--cycle-pair-cal\)\s+minmax\(0,\s*1fr\)/);
+});

@@ -384,7 +384,8 @@
         "todayWasteTonight": "今夜出す",
         "eventEnded": "終了",
         "eventsEndedMore": "本日の終了分 他{{count}}件",
-        "eventsEndedMore_one": "本日の終了分 他{{count}}件"
+        "eventsEndedMore_one": "本日の終了分 他{{count}}件",
+        "widgetSizeWide": "横長 (2×1)"
     },
     "tasks": {
         "manageCategories": "カテゴリーを管理",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "列を開く",
         "kanbanArchiveDone": "完了をすべてアーカイブ",
         "kanbanArchiveDoneConfirm": "この列の完了したタスクをすべてアーカイブしますか？",
-        "kanbanArchiveDoneAction": "アーカイブ"
+        "kanbanArchiveDoneAction": "アーカイブ",
+        "filterDueToday": "今日までが期限"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}}件の食事",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "共有支出に移す",
         "loanRemainingInstallmentsForecast": "{{forecast}}（計画: {{plan}}）",
         "detailDateLabel": "日付",
-        "loanDetailStartMonthLabel": "初回支払月"
+        "loanDetailStartMonthLabel": "初回支払月",
+        "ledgerSearchLabel": "取引を検索",
+        "ledgerSearchPlaceholder": "すべての月を検索",
+        "ledgerSearchCount": "{{count}} 件の取引が見つかりました",
+        "ledgerSearchCount_one": "{{count}} 件の取引が見つかりました",
+        "ledgerSearchCount_few": "{{count}} 件の取引が見つかりました",
+        "ledgerSearchTruncated": "新しい順に {{limit}} 件 - 検索語を絞り込んでください",
+        "ledgerSearchEmpty": "「{{query}}」に一致する取引はありません",
+        "ledgerSearchError": "検索に失敗しました。もう一度お試しください。"
     },
     "settings": {
         "healthCycleEnableLabel": "周期タブを表示",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "在庫はまだ空です。",
         "ingredientMatchSaved": "対応づけを保存しました。",
         "ingredientMatchCleared": "対応づけを解除しました。",
-        "ingredientMatchLoadError": "在庫を読み込めませんでした。"
+        "ingredientMatchLoadError": "在庫を読み込めませんでした。",
+        "ingredientMatchOpen": "{{count}} 件の材料を在庫に対応づける",
+        "ingredientMatchOpen_one": "{{count}} 件の材料を在庫に対応づける",
+        "ingredientMatchOpen_few": "{{count}} 件の材料を在庫に対応づける",
+        "ingredientMatchOpen_two": "{{count}} 件の材料を在庫に対応づける",
+        "ingredientMatchOpen_many": "{{count}} 件の材料を在庫に対応づける",
+        "ingredientMatchBulkTitle": "材料を在庫に対応づける",
+        "ingredientMatchBulkHint": "材料ごとに、それが指す在庫の行を選んでください。Yuvomi は何も推測しません - ここで確認したものだけが有効です。"
     },
     "search": {
         "emptyHint": "2文字以上入力すると、タスク・予定・メモ・連絡先・買い物・健康を検索できます。",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "パスがフォルダー5階層の上限を超えています。",
             "reasonParentFailed": "親フォルダーを作成できませんでした。",
             "reasonRateLimited": "サーバーへのリクエストが多すぎます。しばらくしてからもう一度アップロードしてください。"
-        }
+        },
+        "selectDone": "完了"
     },
     "shortcuts": {
         "goKitchen": "キッチン",
@@ -5440,7 +5458,37 @@
             "can": "缶",
             "bottle": "本",
             "jar": "瓶",
-            "bag": "袋"
+            "bag": "袋",
+            "pcs_one": "個",
+            "pcs_two": "個",
+            "pcs_few": "個",
+            "pcs_many": "個",
+            "pcs_other": "個",
+            "pkg_one": "パック",
+            "pkg_two": "パック",
+            "pkg_few": "パック",
+            "pkg_many": "パック",
+            "pkg_other": "パック",
+            "can_one": "缶",
+            "can_two": "缶",
+            "can_few": "缶",
+            "can_many": "缶",
+            "can_other": "缶",
+            "bottle_one": "本",
+            "bottle_two": "本",
+            "bottle_few": "本",
+            "bottle_many": "本",
+            "bottle_other": "本",
+            "jar_one": "瓶",
+            "jar_two": "瓶",
+            "jar_few": "瓶",
+            "jar_many": "瓶",
+            "jar_other": "瓶",
+            "bag_one": "袋",
+            "bag_two": "袋",
+            "bag_few": "袋",
+            "bag_many": "袋",
+            "bag_other": "袋"
         }
     },
     "inventory": {

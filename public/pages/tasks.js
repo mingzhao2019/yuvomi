@@ -1454,6 +1454,14 @@ let state = {
   bulkSelectMode:  false,
   selectedTaskIds: new Set(),
   searchQuery:     '',
+  // „Bis heute faellig" (Re-Critique 2026-09-27): ein Filter, den die ADRESSE
+  // setzt (`?due=today`, der Link „+n weitere heute" der Uebersicht) und das
+  // Filterblatt wieder nimmt. Bewusst nicht gemerkt: er gehoert zum Besuch,
+  // nicht zum Geraet - wer die Aufgaben spaeter normal oeffnet, sieht alle.
+  dueToday:        false,
+  // Hat „Bis heute faellig" den Standard-Status selbst geweitet? Nur dann nimmt
+  // das Ausschalten die Weitung zurueck - ein bewusst gewaehlter Status bleibt.
+  dueTodayWidened: false,
 };
 
 /**
@@ -1462,6 +1470,89 @@ let state = {
  * Task-List-Navigation bleibt lokal, damit der Wechsel zwischen Listen sofort
  * erfolgt und sich wie eine dauerhafte Seitenleiste anfühlt.
  */
+
+/**
+ * `?due=today` in der Adresse? Andere Werte kennt die Seite (noch) nicht und
+ * laesst sie still fallen, statt eine leere Liste zu zeigen.
+ */
+function dueTodayFromSearch(search) {
+  return new URLSearchParams(search || '').get('due') === 'today';
+}
+
+/**
+ * „Bis heute faellig" an- oder ausschalten - der EINE Weg fuer beide Einstiege,
+ * die Adresse beim Betreten und den Schalter im Blatt. Beim Einschalten weitet
+ * der Statusfilter sich vom Standard „Offen" auf „Offen" + „In Bearbeitung":
+ * die Heute-Liste der Uebersicht zeigt begonnene Aufgaben mit, und der Link
+ * verspricht genau diese Zeilen. Die zwei Chips stehen sichtbar im Blatt, die
+ * Zahl am Knopf zaehlt sie - nichts wird still umgestellt. Einen vom Nutzer
+ * gesetzten Statusfilter laesst der Filter stehen. Beim Ausschalten nimmt er
+ * nur die EIGENE Weitung zurueck, und nur, solange niemand den Status seither
+ * geaendert hat.
+ *
+ * Vorher weitete nur die Adresse; der Schalter im Blatt filterte bloss die
+ * geladene Liste. Derselbe Filter zeigte dann je Einstieg andere Zeilen, und
+ * ein Neuladen der geschriebenen Adresse vergroesserte die Liste (Review R11).
+ * Nachladen muss der Aufrufer: der Seitenaufbau laedt ohnehin gleich danach.
+ */
+function setDueToday(on) {
+  state.dueToday = !!on;
+  const status = state.filters.status;
+  if (state.dueToday) {
+    if (status.length === 1 && status[0] === 'open') {
+      state.filters.status = ['open', 'in_progress'];
+      state.dueTodayWidened = true;
+    }
+    // Sonst bleibt die Marke, wie sie ist: aus dem Aus-Zustand kommend ist sie
+    // schon false, und ein zweites Einschalten ueber einer eigenen Weitung
+    // (erneuter Besuch mit ?due=today) behaelt sie.
+    return;
+  }
+  if (state.dueTodayWidened && status.length === 2 && status[0] === 'open' && status[1] === 'in_progress') {
+    state.filters.status = ['open'];
+  }
+  state.dueTodayWidened = false;
+}
+
+/** Die Adresse beim Betreten lesen - ueber denselben Weg wie das Blatt. */
+function applyDueTodayFromAddress(search) {
+  setDueToday(dueTodayFromSearch(search));
+}
+
+/**
+ * Offen und bis heute faellig - UEBERFAELLIGES eingeschlossen, wie die
+ * Heute-Liste der Uebersicht, auf die der Link verweist, und wie „Heute" in
+ * Apples Erinnerungen. Der Tag kommt aus `todayKey()` (Haushaltszone), der
+ * Vergleich ist ein reiner Schluesselvergleich YYYY-MM-DD.
+ */
+function isDueByToday(task, today = todayKey()) {
+  return task.status !== 'done' && !!task.due_date && String(task.due_date).slice(0, 10) <= today;
+}
+
+/**
+ * Den Filter in die Adresse schreiben bzw. herausnehmen - per replaceState,
+ * wie der Budget-Reiter: ein Filter ist kein Ort, zu dem „Zurueck" einzeln
+ * fuehren soll. `path` im State, weil der Router ihn bei popstate liest.
+ */
+function writeDueTodayToUrl(on) {
+  const loc = globalThis.location;
+  const hist = globalThis.history;
+  if (!loc || typeof hist?.replaceState !== 'function') return;
+  const params = new URLSearchParams(loc.search || '');
+  if (on) params.set('due', 'today');
+  else params.delete('due');
+  const search = params.toString() ? `?${params}` : '';
+  if (search === (loc.search || '')) return;
+  const path = `${loc.pathname}${search}${loc.hash || ''}`;
+  hist.replaceState({ ...(hist.state ?? {}), path }, '', path);
+}
+
+/**
+ * Aufgaben nach der Toolbar-Suche gefiltert. Rein clientseitig über Titel und
+ * Beschreibung — die Serverfilter (Status/Priorität/Person) laufen weiter über
+ * loadTasks(). state.tasks bleibt ungefiltert, damit Zähler wie das
+ * Überfällig-Badge die Gesamtlage melden und nicht die Suchtreffer.
+*/
 function taskListMatches(task) {
   const scope = String(state.activeTaskListId);
   if (scope === 'all') return true;
@@ -1478,8 +1569,9 @@ function taskListMatches(task) {
 function filteredTasks() {
   const q = state.searchQuery.trim().toLowerCase();
   const scoped = state.tasks.filter(taskListMatches);
-  if (!q) return scoped;
-  return scoped.filter((task) =>
+  const base = state.dueToday ? scoped.filter((task) => isDueByToday(task)) : scoped;
+  if (!q) return base;
+  return base.filter((task) =>
     (task.title       || '').toLowerCase().includes(q) ||
     (task.description || '').toLowerCase().includes(q) ||
     (task.tags ?? []).some((tag) => tag.toLowerCase().includes(q))
@@ -4406,7 +4498,8 @@ function activeFilterCount() {
     + state.filters.assigned_to.length
     + state.filters.category.length
     + state.filters.tags.length
-    + (state.showFuture ? 1 : 0);
+    + (state.showFuture ? 1 : 0)
+    + (state.dueToday ? 1 : 0);
 }
 
 /**
@@ -4510,6 +4603,8 @@ function filterSheetGroups() {
   }
   showRows.push(toggleRowHtml({ label: t('tasks.showFuture'), icon: 'calendar-clock', checked: state.showFuture,
     attrs: { 'data-filter-future': 'true' } }));
+  showRows.push(toggleRowHtml({ label: t('tasks.filterDueToday'), icon: 'calendar-check', checked: state.dueToday,
+    attrs: { 'data-filter-due-today': 'true' } }));
   groups.push({ heading: t('tasks.filterGroupShow'), html: showRows.join('') });
 
   if (state.viewMode === 'list') {
@@ -4570,6 +4665,8 @@ function syncFilterSheet(panel) {
   if (mine) mine.checked = isAssignedToMe();
   const future = panel.querySelector('[data-filter-future]');
   if (future) future.checked = state.showFuture;
+  const dueToday = panel.querySelector('[data-filter-due-today]');
+  if (dueToday) dueToday.checked = state.dueToday;
 }
 
 /**
@@ -4634,6 +4731,16 @@ async function onFilterSheetChange(input, container) {
     try { localStorage.setItem(SHOW_FUTURE_KEY, state.showFuture ? '1' : '0'); } catch {}
     renderFilters(container);
     await loadTasks(container);
+    return;
+  }
+  if (input.matches('[data-filter-due-today]')) {
+    // Derselbe Weg wie die Adresse (setDueToday): die Statusweitung laeuft mit,
+    // also muss der Bestand nachgeladen werden - wie bei „Geplante anzeigen".
+    // Die Adresse zieht mit, damit ein Neuladen dasselbe zeigt.
+    setDueToday(input.checked);
+    writeDueTodayToUrl(state.dueToday);
+    renderFilters(container);
+    await loadTasks(container);
   }
 }
 
@@ -4665,6 +4772,9 @@ async function onFilterSheetClick(e, container) {
 async function resetTaskFilters(container) {
   state.filters = { status: [], priority: [], assigned_to: [], category: [], tags: [] };
   state.showFuture = false;
+  state.dueToday = false;
+  state.dueTodayWidened = false;
+  writeDueTodayToUrl(false);
   try { localStorage.setItem(SHOW_FUTURE_KEY, '0'); } catch {}
   renderFilters(container);
   await loadTasks(container);
@@ -7383,6 +7493,8 @@ export async function render(container, { user, signal } = {}) {
 
   // showFuture aus localStorage wiederherstellen
   try { state.showFuture = localStorage.getItem(SHOW_FUTURE_KEY) === '1'; } catch {}
+  // „Bis heute faellig" kommt nur aus der Adresse (siehe state.dueToday).
+  applyDueTodayFromAddress(window.location.search);
 
   const isKanban = state.viewMode === 'kanban';
   // Was nur die Aufgabenliste betrifft, blendet `syncViewChrome` gleich nach
@@ -7599,6 +7711,9 @@ export const __test = {
   taskListAlphabeticalKey,
   taskListNameComparator,
   taskListSidebarWidthFromDrag,
+  // `?due=today` (Re-Critique 2026-09-27): was die Adresse setzt, was die
+  // Liste daraus zeigt, und dass das Blatt es wieder nimmt - samt Adresse.
+  dueTodayFromSearch, isDueByToday, applyDueTodayFromAddress,
   // Das Brett als Markup plus seine Spaltenliste (#1250). Beides steht hier,
   // weil die Spaltenzahl eine Zusicherung GEGEN das Stylesheet ist: das Raster
   // muss so viele Spalten legen, wie diese Liste fuehrt, und genau dort ist es

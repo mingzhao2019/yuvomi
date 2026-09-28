@@ -384,7 +384,8 @@
         "todayWasteTonight": "Виставити сьогодні ввечері",
         "eventEnded": "Завершено",
         "eventsEndedMore": "Раніше сьогодні: +{{count}}",
-        "eventsEndedMore_one": "Раніше сьогодні: +{{count}}"
+        "eventsEndedMore_one": "Раніше сьогодні: +{{count}}",
+        "widgetSizeWide": "Широкий (2×1)"
     },
     "tasks": {
         "manageCategories": "Керування категоріями",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Розгорнути стовпець",
         "kanbanArchiveDone": "Архівувати всі виконані",
         "kanbanArchiveDoneConfirm": "Архівувати всі виконані завдання в цьому стовпці?",
-        "kanbanArchiveDoneAction": "Архівувати"
+        "kanbanArchiveDoneAction": "Архівувати",
+        "filterDueToday": "Термін до сьогодні"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} прийоми їжі",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Перенести до спільних витрат",
         "loanRemainingInstallmentsForecast": "{{forecast}} (план: {{plan}})",
         "detailDateLabel": "Дата",
-        "loanDetailStartMonthLabel": "Перший місяць сплати"
+        "loanDetailStartMonthLabel": "Перший місяць сплати",
+        "ledgerSearchLabel": "Пошук операцій",
+        "ledgerSearchPlaceholder": "Шукати в усіх місяцях",
+        "ledgerSearchCount": "Знайдено операцій: {{count}}",
+        "ledgerSearchCount_one": "Знайдено операцію: {{count}}",
+        "ledgerSearchCount_few": "Знайдено {{count}} операції",
+        "ledgerSearchTruncated": "Найновіші результати: {{limit}} - уточніть запит",
+        "ledgerSearchEmpty": "Немає операцій за запитом «{{query}}»",
+        "ledgerSearchError": "Не вдалося виконати пошук. Спробуйте ще раз."
     },
     "settings": {
         "healthCycleEnableLabel": "Показати вкладку циклу",
@@ -3243,7 +3253,14 @@
         "ingredientMatchEmpty": "Запаси поки що порожні.",
         "ingredientMatchSaved": "Зіставлення збережено.",
         "ingredientMatchCleared": "Зіставлення знято.",
-        "ingredientMatchLoadError": "Не вдалося завантажити запаси."
+        "ingredientMatchLoadError": "Не вдалося завантажити запаси.",
+        "ingredientMatchOpen": "Зіставити {{count}} інгредієнта із запасами",
+        "ingredientMatchOpen_one": "Зіставити {{count}} інгредієнт із запасами",
+        "ingredientMatchOpen_few": "Зіставити {{count}} інгредієнти із запасами",
+        "ingredientMatchOpen_two": "Зіставити {{count}} інгредієнта із запасами",
+        "ingredientMatchOpen_many": "Зіставити {{count}} інгредієнтів із запасами",
+        "ingredientMatchBulkTitle": "Зіставити інгредієнти із запасами",
+        "ingredientMatchBulkHint": "Для кожного інгредієнта вибери рядок запасів, який він означає. Yuvomi нічого не вгадує - діє лише те, що ти підтвердиш тут."
     },
     "search": {
         "emptyHint": "Введіть щонайменше 2 символи для пошуку в завданнях, подіях, нотатках, контактах, покупках і здоров'ї.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "Шлях перевищує обмеження у п’ять рівнів папок.",
             "reasonParentFailed": "Не вдалося створити батьківську папку.",
             "reasonRateLimited": "Сервер отримує забагато запитів. Повторіть завантаження пізніше."
-        }
+        },
+        "selectDone": "Готово"
     },
     "shortcuts": {
         "goKitchen": "Кухня",
@@ -5440,7 +5458,37 @@
             "can": "банка",
             "bottle": "пляшка",
             "jar": "скляна банка",
-            "bag": "пакет"
+            "bag": "пакет",
+            "pcs_one": "шт.",
+            "pcs_two": "шт.",
+            "pcs_few": "шт.",
+            "pcs_many": "шт.",
+            "pcs_other": "шт.",
+            "pkg_one": "упаковка",
+            "pkg_two": "упаковки",
+            "pkg_few": "упаковки",
+            "pkg_many": "упаковок",
+            "pkg_other": "упаковки",
+            "can_one": "банка",
+            "can_two": "банки",
+            "can_few": "банки",
+            "can_many": "банок",
+            "can_other": "банки",
+            "bottle_one": "пляшка",
+            "bottle_two": "пляшки",
+            "bottle_few": "пляшки",
+            "bottle_many": "пляшок",
+            "bottle_other": "пляшки",
+            "jar_one": "скляна банка",
+            "jar_two": "скляної банки",
+            "jar_few": "скляні банки",
+            "jar_many": "скляних банок",
+            "jar_other": "скляної банки",
+            "bag_one": "пакет",
+            "bag_two": "пакета",
+            "bag_few": "пакети",
+            "bag_many": "пакетів",
+            "bag_other": "пакета"
         }
     },
     "inventory": {

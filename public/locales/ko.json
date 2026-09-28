@@ -396,7 +396,8 @@
         "todayWasteTonight": "오늘 밤 내놓기",
         "eventEnded": "종료",
         "eventsEndedMore": "오늘 앞선 일정 +{{count}}",
-        "eventsEndedMore_one": "오늘 앞선 일정 +{{count}}"
+        "eventsEndedMore_one": "오늘 앞선 일정 +{{count}}",
+        "widgetSizeWide": "가로형 (2×1)"
     },
     "tasks": {
         "manageCategories": "카테고리 관리",
@@ -636,7 +637,8 @@
         "kanbanColExpand": "열 펼치기",
         "kanbanArchiveDone": "완료된 항목 모두 보관",
         "kanbanArchiveDoneConfirm": "이 열의 완료된 할 일을 모두 보관할까요?",
-        "kanbanArchiveDoneAction": "보관"
+        "kanbanArchiveDoneAction": "보관",
+        "filterDueToday": "오늘까지 마감"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}}개 식사",
@@ -1737,7 +1739,15 @@
         "handoverToSplit": "공동 지출로 옮기기",
         "loanRemainingInstallmentsForecast": "{{forecast}} (계획: {{plan}})",
         "detailDateLabel": "날짜",
-        "loanDetailStartMonthLabel": "첫 상환 월"
+        "loanDetailStartMonthLabel": "첫 상환 월",
+        "ledgerSearchLabel": "거래 검색",
+        "ledgerSearchPlaceholder": "모든 달에서 검색",
+        "ledgerSearchCount": "거래 {{count}}건 찾음",
+        "ledgerSearchCount_one": "거래 {{count}}건 찾음",
+        "ledgerSearchCount_few": "거래 {{count}}건 찾음",
+        "ledgerSearchTruncated": "최신 결과 {{limit}}건 - 검색어를 좁혀 보세요",
+        "ledgerSearchEmpty": "“{{query}}”와 일치하는 거래가 없습니다",
+        "ledgerSearchError": "검색에 실패했습니다. 다시 시도해 주세요."
     },
     "settings": {
         "healthCycleEnableLabel": "주기 탭 표시",
@@ -3322,7 +3332,14 @@
         "ingredientMatchEmpty": "재고가 아직 비어 있습니다.",
         "ingredientMatchSaved": "연결을 저장했습니다.",
         "ingredientMatchCleared": "연결을 해제했습니다.",
-        "ingredientMatchLoadError": "재고를 불러오지 못했습니다."
+        "ingredientMatchLoadError": "재고를 불러오지 못했습니다.",
+        "ingredientMatchOpen": "재료 {{count}}개를 재고에 연결",
+        "ingredientMatchOpen_one": "재료 {{count}}개를 재고에 연결",
+        "ingredientMatchOpen_few": "재료 {{count}}개를 재고에 연결",
+        "ingredientMatchOpen_two": "재료 {{count}}개를 재고에 연결",
+        "ingredientMatchOpen_many": "재료 {{count}}개를 재고에 연결",
+        "ingredientMatchBulkTitle": "재료를 재고에 연결",
+        "ingredientMatchBulkHint": "재료마다 가리키는 재고 항목을 고르세요. Yuvomi는 아무것도 추측하지 않습니다 - 여기서 확인한 것만 적용됩니다."
     },
     "onboarding": {
         "step1Title": "{{name}}에 오신 것을 환영합니다",
@@ -3662,7 +3679,8 @@
             "reasonTooDeep": "경로가 폴더 5단계 제한을 초과합니다.",
             "reasonParentFailed": "상위 폴더를 만들 수 없습니다.",
             "reasonRateLimited": "서버에 요청이 너무 많습니다. 나중에 다시 업로드하세요."
-        }
+        },
+        "selectDone": "완료"
     },
     "userMultiSelect": {
         "nobody": "없음",
@@ -5440,7 +5458,37 @@
             "can": "캔",
             "bottle": "병",
             "jar": "유리병",
-            "bag": "봉지"
+            "bag": "봉지",
+            "pcs_one": "개",
+            "pcs_two": "개",
+            "pcs_few": "개",
+            "pcs_many": "개",
+            "pcs_other": "개",
+            "pkg_one": "팩",
+            "pkg_two": "팩",
+            "pkg_few": "팩",
+            "pkg_many": "팩",
+            "pkg_other": "팩",
+            "can_one": "캔",
+            "can_two": "캔",
+            "can_few": "캔",
+            "can_many": "캔",
+            "can_other": "캔",
+            "bottle_one": "병",
+            "bottle_two": "병",
+            "bottle_few": "병",
+            "bottle_many": "병",
+            "bottle_other": "병",
+            "jar_one": "유리병",
+            "jar_two": "유리병",
+            "jar_few": "유리병",
+            "jar_many": "유리병",
+            "jar_other": "유리병",
+            "bag_one": "봉지",
+            "bag_two": "봉지",
+            "bag_few": "봉지",
+            "bag_many": "봉지",
+            "bag_other": "봉지"
         }
     },
     "inventory": {

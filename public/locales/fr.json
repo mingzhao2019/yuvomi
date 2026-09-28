@@ -384,7 +384,8 @@
         "todayWasteTonight": "À sortir ce soir",
         "eventEnded": "Terminé",
         "eventsEndedMore": "+{{count}} plus tôt aujourd'hui",
-        "eventsEndedMore_one": "+{{count}} plus tôt aujourd'hui"
+        "eventsEndedMore_one": "+{{count}} plus tôt aujourd'hui",
+        "widgetSizeWide": "Large (2×1)"
     },
     "tasks": {
         "manageCategories": "Gérer les catégories",
@@ -624,7 +625,8 @@
         "kanbanColExpand": "Agrandir la colonne",
         "kanbanArchiveDone": "Archiver tout ce qui est terminé",
         "kanbanArchiveDoneConfirm": "Archiver toutes les tâches terminées de cette colonne ?",
-        "kanbanArchiveDoneAction": "Archiver"
+        "kanbanArchiveDoneAction": "Archiver",
+        "filterDueToday": "Échéance jusqu’à aujourd’hui"
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} repas",
@@ -1725,7 +1727,15 @@
         "handoverToSplit": "Basculer vers les dépenses partagées",
         "loanRemainingInstallmentsForecast": "{{forecast}} (plan : {{plan}})",
         "detailDateLabel": "Date",
-        "loanDetailStartMonthLabel": "Premier mois d’échéance"
+        "loanDetailStartMonthLabel": "Premier mois d’échéance",
+        "ledgerSearchLabel": "Rechercher des opérations",
+        "ledgerSearchPlaceholder": "Rechercher dans tous les mois",
+        "ledgerSearchCount": "{{count}} opérations trouvées",
+        "ledgerSearchCount_one": "{{count}} opération trouvée",
+        "ledgerSearchCount_few": "{{count}} opérations trouvées",
+        "ledgerSearchTruncated": "Les {{limit}} résultats les plus récents - affinez la recherche",
+        "ledgerSearchEmpty": "Aucune opération ne correspond à « {{query}} »",
+        "ledgerSearchError": "La recherche a échoué. Veuillez réessayer."
     },
     "settings": {
         "healthCycleEnableLabel": "Afficher l’onglet cycle",
@@ -3201,7 +3211,14 @@
         "ingredientMatchEmpty": "La réserve est encore vide.",
         "ingredientMatchSaved": "Association enregistrée.",
         "ingredientMatchCleared": "Association supprimée.",
-        "ingredientMatchLoadError": "La réserve n’a pas pu être chargée."
+        "ingredientMatchLoadError": "La réserve n’a pas pu être chargée.",
+        "ingredientMatchOpen": "Associer {{count}} ingrédients à la réserve",
+        "ingredientMatchOpen_one": "Associer {{count}} ingrédient à la réserve",
+        "ingredientMatchOpen_few": "Associer {{count}} ingrédients à la réserve",
+        "ingredientMatchOpen_two": "Associer {{count}} ingrédients à la réserve",
+        "ingredientMatchOpen_many": "Associer {{count}} ingrédients à la réserve",
+        "ingredientMatchBulkTitle": "Associer les ingrédients à la réserve",
+        "ingredientMatchBulkHint": "Pour chaque ingrédient, choisis la ligne de ta réserve qu'il désigne. Yuvomi ne devine rien - seul ce que tu confirmes ici compte."
     },
     "search": {
         "emptyHint": "Saisis au moins 2 caractères pour chercher dans les tâches, rendez-vous, notes, contacts, courses et santé.",
@@ -3602,7 +3619,8 @@
             "reasonTooDeep": "Le chemin dépasse la limite de cinq niveaux de dossiers.",
             "reasonParentFailed": "Le dossier parent n’a pas pu être créé.",
             "reasonRateLimited": "Le serveur reçoit trop de requêtes. Réessayez l’importation plus tard."
-        }
+        },
+        "selectDone": "OK"
     },
     "shortcuts": {
         "goKitchen": "Cuisine",
@@ -5440,7 +5458,37 @@
             "can": "boîte",
             "bottle": "bouteille",
             "jar": "bocal",
-            "bag": "sachet"
+            "bag": "sachet",
+            "pcs_one": "pièce",
+            "pcs_two": "pièces",
+            "pcs_few": "pièces",
+            "pcs_many": "pièces",
+            "pcs_other": "pièces",
+            "pkg_one": "paquet",
+            "pkg_two": "paquets",
+            "pkg_few": "paquets",
+            "pkg_many": "paquets",
+            "pkg_other": "paquets",
+            "can_one": "boîte",
+            "can_two": "boîtes",
+            "can_few": "boîtes",
+            "can_many": "boîtes",
+            "can_other": "boîtes",
+            "bottle_one": "bouteille",
+            "bottle_two": "bouteilles",
+            "bottle_few": "bouteilles",
+            "bottle_many": "bouteilles",
+            "bottle_other": "bouteilles",
+            "jar_one": "bocal",
+            "jar_two": "bocaux",
+            "jar_few": "bocaux",
+            "jar_many": "bocaux",
+            "jar_other": "bocaux",
+            "bag_one": "sachet",
+            "bag_two": "sachets",
+            "bag_few": "sachets",
+            "bag_many": "sachets",
+            "bag_other": "sachets"
         }
     },
     "inventory": {
