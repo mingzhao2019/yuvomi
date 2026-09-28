@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} másik munkamenet befejezve.",
         "otherSessionsNone": "A fiókod egyetlen más eszközön sem volt bejelentkezve.",
         "otherSessionsError": "A kijelentkezés más eszközökön nem sikerült.",
-        "otherSessionsTooManyAttempts": "Túl sok kérés. Várj egy kicsit, majd próbáld újra."
+        "otherSessionsTooManyAttempts": "Túl sok kérés. Várj egy kicsit, majd próbáld újra.",
+        "pushUnavailable": "A push értesítések most nem érhetők el ezen az eszközön. Töltsd újra az oldalt."
     },
     "login": {
         "tagline": "Üdv újra a családi tervezőben.",
@@ -3330,7 +3331,7 @@
         "ingredientMatchBulkHint": "Minden hozzávalóhoz válaszd ki a készlet azon sorát, amelyre vonatkozik. A Yuvomi semmit sem találgat - csak az számít, amit itt megerősítesz."
     },
     "search": {
-        "emptyHint": "Írj be legalább 2 karaktert a feladatok, események, jegyzetek, névjegyek, bevásárlás és egészség kereséséhez.",
+        "emptyHint": "Gépelj, hogy egy területre ugorj vagy létrehozz valamit. 2 karaktertől a bejegyzéseidet is megtalálod, akár szórészlettel is.",
         "title": "Keresés",
         "open": "Keresés megnyitása",
         "placeholder": "Keresés…",
@@ -3339,7 +3340,9 @@
         "scopesLabel": "Ugrás ide",
         "loading": "Keresés…",
         "resultCountOne": "{{count}} találat",
-        "resultCountMany": "{{count}} találat"
+        "resultCountMany": "{{count}} találat",
+        "goTo": "Ugrás ide",
+        "newSection": "Új létrehozása"
     },
     "onboarding": {
         "step1Title": "Üdvözöljük a {{name}} alkalmazásban",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "A következő adag csak {{time}} után esedékes ({{remaining}}).",
                 "earlyConfirmAction": "Rögzítés mégis"
             },
-            "stockUpdateFailed": "Az adag rögzítve, de a készletet nem sikerült frissíteni."
+            "stockUpdateFailed": "Az adag rögzítve, de a készletet nem sikerült frissíteni.",
+            "takeNamed": "{{name}} bevétele",
+            "skipNamed": "{{name}} kihagyása"
         },
         "prevention": {
             "title": "Megelőzés és védőoltások",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} ó {{minutes}} p",
             "h": "{{hours}} ó",
-            "m": "{{minutes}} p"
+            "m": "{{minutes}} p",
+            "unitH": "ó"
         },
         "careBanner": "{{name}} nevében rögzítesz.",
         "nutrition": {

@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} andere sessies beëindigd.",
         "otherSessionsNone": "Je account was op geen enkel ander apparaat aangemeld.",
         "otherSessionsError": "Afmelden op andere apparaten is mislukt.",
-        "otherSessionsTooManyAttempts": "Te veel verzoeken. Wacht even en probeer het dan opnieuw."
+        "otherSessionsTooManyAttempts": "Te veel verzoeken. Wacht even en probeer het dan opnieuw.",
+        "pushUnavailable": "Pushmeldingen zijn op dit apparaat nu niet beschikbaar. Laad de pagina opnieuw."
     },
     "login": {
         "tagline": "Welkom terug bij je gezinsplanner.",
@@ -3330,7 +3331,7 @@
         "ingredientMatchBulkHint": "Kies voor elk ingrediënt de regel in je voorraad die het bedoelt. Yuvomi raadt niets - alleen wat je hier bevestigt telt."
     },
     "search": {
-        "emptyHint": "Typ minstens 2 tekens om te zoeken in taken, afspraken, notities, contacten, boodschappen en gezondheid.",
+        "emptyHint": "Typ om naar een onderdeel te gaan of iets aan te maken. Vanaf 2 tekens vind je ook je items, zelfs op delen van woorden.",
         "title": "Zoeken",
         "open": "Zoeken openen",
         "placeholder": "Zoeken…",
@@ -3339,7 +3340,9 @@
         "scopesLabel": "Ga naar",
         "loading": "Zoeken…",
         "resultCountOne": "{{count}} resultaat",
-        "resultCountMany": "{{count}} resultaten"
+        "resultCountMany": "{{count}} resultaten",
+        "goTo": "Ga naar",
+        "newSection": "Nieuw aanmaken"
     },
     "onboarding": {
         "step1Title": "Welkom bij {{name}}",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "De volgende dosis is pas vanaf {{time}} voorzien ({{remaining}}).",
                 "earlyConfirmAction": "Toch vastleggen"
             },
-            "stockUpdateFailed": "De dosis is vastgelegd, maar de voorraad kon niet worden bijgewerkt."
+            "stockUpdateFailed": "De dosis is vastgelegd, maar de voorraad kon niet worden bijgewerkt.",
+            "takeNamed": "{{name}} innemen",
+            "skipNamed": "{{name}} overslaan"
         },
         "prevention": {
             "title": "Preventie & vaccinaties",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} u {{minutes}} min",
             "h": "{{hours}} u",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "u"
         },
         "careBanner": "Je noteert voor {{name}}.",
         "nutrition": {

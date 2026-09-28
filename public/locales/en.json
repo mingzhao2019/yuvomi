@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} other sessions ended.",
         "otherSessionsNone": "Your account was not signed in on any other device.",
         "otherSessionsError": "Signing out on other devices failed.",
-        "otherSessionsTooManyAttempts": "Too many requests. Please wait a moment, then try again."
+        "otherSessionsTooManyAttempts": "Too many requests. Please wait a moment, then try again.",
+        "pushUnavailable": "Push is not available on this device right now. Please reload the page."
     },
     "login": {
         "tagline": "Welcome back to your family planner.",
@@ -3330,7 +3331,7 @@
         "ingredientMatchBulkHint": "For each ingredient, pick the pantry row it means. Yuvomi guesses nothing - only what you confirm here counts."
     },
     "search": {
-        "emptyHint": "Type at least 2 characters to search tasks, events, notes, contacts, shopping and health.",
+        "emptyHint": "Type to jump to an area or create something. From 2 characters you also find your entries, even by parts of words.",
         "title": "Search",
         "open": "Open search",
         "placeholder": "Search…",
@@ -3339,7 +3340,9 @@
         "scopesLabel": "Jump to",
         "loading": "Searching…",
         "resultCountOne": "{{count}} result",
-        "resultCountMany": "{{count}} results"
+        "resultCountMany": "{{count}} results",
+        "goTo": "Go to",
+        "newSection": "Create new"
     },
     "onboarding": {
         "step1Title": "Welcome to {{name}}",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "The next dose is not due until {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Log anyway"
             },
-            "stockUpdateFailed": "The dose was logged, but the stock could not be updated."
+            "stockUpdateFailed": "The dose was logged, but the stock could not be updated.",
+            "takeNamed": "Take {{name}}",
+            "skipNamed": "Skip {{name}}"
         },
         "prevention": {
             "title": "Preventive care & vaccinations",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} h {{minutes}} min",
             "h": "{{hours}} h",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "h"
         },
         "careBanner": "You are recording for {{name}}.",
         "nutrition": {

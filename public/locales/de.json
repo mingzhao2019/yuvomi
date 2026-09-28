@@ -136,7 +136,7 @@
         "waste": "Entsorgung"
     },
     "search": {
-        "emptyHint": "Ab 2 Zeichen durchsuchst du Aufgaben, Termine, Notizen, Kontakte, Einkauf und Gesundheit.",
+        "emptyHint": "Tippe, um zu einem Bereich zu springen oder etwas anzulegen. Ab 2 Zeichen findest du auch deine Einträge, sogar über Wortteile.",
         "title": "Suche",
         "placeholder": "Suchen…",
         "noResults": "Keine Ergebnisse gefunden.",
@@ -145,7 +145,9 @@
         "scopesLabel": "Direkt öffnen",
         "loading": "Suche läuft…",
         "resultCountOne": "{{count}} Ergebnis",
-        "resultCountMany": "{{count}} Ergebnisse"
+        "resultCountMany": "{{count}} Ergebnisse",
+        "goTo": "Gehe zu",
+        "newSection": "Neu anlegen"
     },
     "dashboard": {
         "title": "Übersicht",
@@ -3048,7 +3050,8 @@
         "otherSessionsEnded_few": "{{count}} andere Sitzungen beendet.",
         "otherSessionsNone": "Auf keinem anderen Gerät war dein Konto angemeldet.",
         "otherSessionsError": "Abmelden auf anderen Geräten fehlgeschlagen.",
-        "otherSessionsTooManyAttempts": "Zu viele Anfragen. Bitte warte kurz und versuche es dann erneut."
+        "otherSessionsTooManyAttempts": "Zu viele Anfragen. Bitte warte kurz und versuche es dann erneut.",
+        "pushUnavailable": "Push ist auf diesem Gerät gerade nicht verfügbar. Bitte die Seite neu laden."
     },
     "login": {
         "tagline": "Willkommen zurück bei deinem Familienplaner.",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "Die nächste Dosis ist erst ab {{time}} vorgesehen ({{remaining}}).",
                 "earlyConfirmAction": "Trotzdem eintragen"
             },
-            "stockUpdateFailed": "Die Dosis ist eingetragen, der Bestand konnte aber nicht angepasst werden."
+            "stockUpdateFailed": "Die Dosis ist eingetragen, der Bestand konnte aber nicht angepasst werden.",
+            "takeNamed": "{{name}} einnehmen",
+            "skipNamed": "{{name}} überspringen"
         },
         "prevention": {
             "title": "Vorsorge & Impfungen",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} Std. {{minutes}} Min.",
             "h": "{{hours}} Std.",
-            "m": "{{minutes}} Min."
+            "m": "{{minutes}} Min.",
+            "unitH": "Std."
         },
         "careBanner": "Du trägst für {{name}} ein.",
         "nutrition": {

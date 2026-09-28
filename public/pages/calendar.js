@@ -4681,9 +4681,9 @@ function renderAllDayEvent(ev, dayStr) {
   const classes = `${segment ? bandClasses('allday-event', segment) : 'allday-event'}${eventCompletionClass(ev)}`;
   return `
     <div class="${classes}" data-id="${ev.id}"
-         style="${eventSurfaceStyle(ev)}" data-calendar-event${eventBlockAttrs(ev, spoken || t('calendar.allDay'))}
+         style="${eventSurfaceStyle(ev)}" data-calendar-event${eventBlockAttrs(ev, spoken || t('calendar.allDay'), dayStr)}
          title="${allDayChipTitle(ev, allDayChipTimeText(ev, dayStr, { suffix: true }))}">${segment?.continuesBefore ? bandContinuationHtml('before') : ''}${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="allday-event__line"><span class="allday-event__label"><span>${esc(ev.title)}</span>${allDayChipTimeHtml(timeText)}</span>${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</span>${segment?.continuesAfter ? bandContinuationHtml('after') : ''}</div>`;
-}
+  }
 
 /**
  * Ein Zeitblock der Woche. DIE TITELZEILE GEHOERT DEM TITEL (Re-Kritik
@@ -4734,7 +4734,7 @@ function renderWeekEvent(ev, layout = null, dayStr = null) {
   return `
     <div class="week-event${eventCompletionClass(ev)}" data-id="${ev.id}"
          style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}" data-calendar-event
-         title="${esc(ev.title)}${chipAssigneeTitleSuffix(ev)}"${eventBlockAttrs(ev, eventTimeText(ev, dayStr))}>
+         title="${esc(ev.title)}${chipAssigneeTitleSuffix(ev)}"${eventBlockAttrs(ev, eventTimeText(ev, dayStr), dayStr)}>
       <div class="week-event__title">${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="cal-event__title">${esc(ev.title)}</span></div>
       <div class="week-event__time"><span class="week-event__when">${gridTimeText(ev, dayStr)}</span>${chipAssigneeStack(ev, { size: 14, maxVisible: 2 })}</div>
     </div>
@@ -5057,7 +5057,7 @@ function renderDayEvent(ev, layout = null, dayStr = null) {
   return `
     <div class="day-event${roomy ? '' : ' day-event--tight'}${eventCompletionClass(ev)}" data-id="${ev.id}"
          style="top:${top};height:${height};left:${left};width:${width};${eventSurfaceStyle(ev)}" data-calendar-event
-         title="${esc(ev.title)}${ev.location ? ' · ' + esc(fmtLocation(ev.location)) : ''}${chipAssigneeTitleSuffix(ev)}"${eventBlockAttrs(ev, eventTimeText(ev, dayStr))}>
+         title="${esc(ev.title)}${ev.location ? ' · ' + esc(fmtLocation(ev.location)) : ''}${chipAssigneeTitleSuffix(ev)}"${eventBlockAttrs(ev, eventTimeText(ev, dayStr), dayStr)}>
       <span class="day-event__text">
         <span class="day-event__title">${renderEventCompletionControl(ev)}${eventGlyphsHtml(ev)}<span class="day-event__name cal-event__title">${esc(ev.title)}</span></span>
         <span class="day-event__meta">${timeText}${place}</span>
@@ -5978,6 +5978,7 @@ async function openFoundEvent(ev) {
 }
 
 export const __test = {
+  eventBlockAttrs,
   // R10 L5: Liste + Detail der Agenda - Auswahl-ID und ihr Termin.
   agendaMdId, eventForAgendaMdId,
   // Die Nur-lesen-Weiche (#467) und der Anlegeweg, den sie als erstes schliesst.
@@ -6162,11 +6163,12 @@ function renderAgendaEvent(ev, dayStr) {
   `;
 }
 
-function agendaEventAriaLabel(ev, timeStr) {
+function agendaEventAriaLabel(ev, timeStr, dayText = '') {
   return [
     (ev.recurrence_rule || ev.is_recurring_instance) ? t('calendar.recurringEvent') : '',
     ev.title,
     timeStr,
+    dayText,
     ev.location ? fmtLocation(ev.location) : '',
     ev.cal_name,
     chipAssigneeLabel(ev),
@@ -6181,8 +6183,16 @@ function agendaEventAriaLabel(ev, timeStr) {
  * Zeit, Ort, Kalender, Personen), damit ein Termin in jeder Ansicht gleich
  * klingt. Enter/Leertaste: handleGridKeydown.
  */
-function eventBlockAttrs(ev, timeText) {
-  return ` role="button" tabindex="0" aria-label="${esc(agendaEventAriaLabel(ev, timeText))}"`;
+//
+// Im Wochen- und Tagesraster nennt der Name auch den TAG (A2 P2-2): in der
+// Agenda traegt die Tagesueberschrift ihn, im Raster tragen die Spalten kein
+// Label - wer die Woche per Tab abfuhr, hoerte "Fussball, 14:00 - 15:00" ohne
+// zu erfahren, an welchem der sieben Tage. `dayStr` ist die Spalte, in der
+// der Block steht, gesprochen wie die Monatszelle ("Montag, 28.09.2026") -
+// HINTER der Uhrzeit, damit "Titel, Zeit" in jeder Ansicht gleich beginnt.
+function eventBlockAttrs(ev, timeText, dayStr = null) {
+  const dayText = dayStr ? formatDate(dayStr, { long: true, weekday: true }) : '';
+  return ` role="button" tabindex="0" aria-label="${esc(agendaEventAriaLabel(ev, timeText, dayText))}"`;
 }
 
 // Sichtbarkeits-Indikator (#474): nur bei eingeschränkten Terminen ein dezentes

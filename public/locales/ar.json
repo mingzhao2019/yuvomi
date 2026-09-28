@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "تم إنهاء {{count}} جلسات أخرى.",
         "otherSessionsNone": "لم يكن حسابك مسجّل الدخول على أي جهاز آخر.",
         "otherSessionsError": "فشل تسجيل الخروج من الأجهزة الأخرى.",
-        "otherSessionsTooManyAttempts": "طلبات كثيرة. انتظر قليلًا ثم حاول مرة أخرى."
+        "otherSessionsTooManyAttempts": "طلبات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.",
+        "pushUnavailable": "إشعارات الدفع غير متاحة على هذا الجهاز حاليًا. يرجى إعادة تحميل الصفحة."
     },
     "login": {
         "tagline": "مرحبًا بعودتك إلى منظّم عائلتك.",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "اختر لكل مكوّن الصف الذي يقصده في مؤنك. لا يخمّن يوفومي شيئًا - لا يُعتد إلا بما تؤكده هنا."
     },
     "search": {
-        "emptyHint": "اكتب حرفين على الأقل للبحث في المهام والمواعيد والملاحظات وجهات الاتصال والتسوق والصحة.",
+        "emptyHint": "اكتب للانتقال إلى قسم أو لإنشاء شيء جديد. من حرفين تجد أيضًا إدخالاتك، حتى بأجزاء الكلمات.",
         "title": "بحث",
         "open": "فتح البحث",
         "placeholder": "بحث…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "الانتقال إلى",
         "loading": "جارٍ البحث…",
         "resultCountOne": "{{count}} نتيجة",
-        "resultCountMany": "{{count}} نتائج"
+        "resultCountMany": "{{count}} نتائج",
+        "goTo": "انتقل إلى",
+        "newSection": "إنشاء جديد"
     },
     "birthdays": {
         "inDays_one": "خلال {{count}} يوم",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "الجرعة التالية مقررة ابتداءً من {{time}} فقط ({{remaining}}).",
                 "earlyConfirmAction": "سجّل على أي حال"
             },
-            "stockUpdateFailed": "تم تسجيل الجرعة، لكن تعذّر تحديث المخزون."
+            "stockUpdateFailed": "تم تسجيل الجرعة، لكن تعذّر تحديث المخزون.",
+            "takeNamed": "تناول {{name}}",
+            "skipNamed": "تخطّي {{name}}"
         },
         "prevention": {
             "title": "الوقاية واللقاحات",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} س {{minutes}} د",
             "h": "{{hours}} س",
-            "m": "{{minutes}} د"
+            "m": "{{minutes}} د",
+            "unitH": "س"
         },
         "careBanner": "أنت تسجّل نيابةً عن {{name}}.",
         "nutrition": {

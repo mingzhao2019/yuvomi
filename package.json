@@ -437,7 +437,10 @@
     "test:dashboard-split-balance": "node --experimental-sqlite --test test/test-dashboard-split-balance.js",
     "test:dashboard-clarity": "node --test test/test-dashboard-clarity.js",
     "test:dashboard-rewards": "node --experimental-sqlite --test test/test-dashboard-rewards.js",
-    "test:dashboard-surface-browser": "node --test --test-concurrency=1 test/test-dashboard-surface-browser.js"
+    "test:dashboard-surface-browser": "node --test --test-concurrency=1 test/test-dashboard-surface-browser.js",
+    "test:inventory-service-log": "node --experimental-sqlite --test test/test-inventory-service-log.js",
+    "test:toast-show": "node --loader ./test/test-browser-loader.mjs --test test/test-toast-show.js",
+    "test:search-palette": "node --test test/test-search-palette.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

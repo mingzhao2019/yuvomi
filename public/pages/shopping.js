@@ -918,10 +918,11 @@ async function openSendListDialog(container) {
         try {
           await api.post(`/shopping/${listId}/send`, { userId });
           closeModal({ force: true });
-          // BEWUSST KEIN success-Toast. Die Erfolgsmeldungen der App sind nach
-          // 50 Bestaetigungen dauerhaft stummgeschaltet (`TOAST_SUCCESS_MAX` in
-          // router.js) - richtig fuer Handlungen, deren Ergebnis auf dem
-          // Bildschirm steht und die man taeglich wiederholt. Ein Mailversand
+          // BEWUSST KEIN success-Toast. Die Erfolgsmeldungen der App zeigen
+          // nach 50 Bestaetigungen keine Flaeche mehr (`TOAST_SUCCESS_MAX` in
+          // utils/toast-show.js; angesagt werden sie weiter) - richtig fuer
+          // Handlungen, deren Ergebnis auf dem Bildschirm steht und die man
+          // taeglich wiederholt. Ein Mailversand
           // ist das Gegenteil: er passiert selten, laesst sich nicht
           // zuruecknehmen, und sein Ergebnis liegt in einem fremden Postfach.
           // Wer hier nichts sieht, weiss nicht, ob die Liste unterwegs ist.
@@ -2167,7 +2168,13 @@ function openItemDetails(itemId, container) {
           <textarea class="form-input" id="item-details-notes" rows="4"
                     placeholder="${t('shopping.notesPlaceholder')}">${esc(item.notes || '')}</textarea>
         </div>
+        ${/* LOESCHEN OHNE WISCHGESTE (A4 P1-1, WCAG 2.5.1). Am Touchgeraet
+            * blendet shopping.css den Papierkorb der Zeile aus; einziger Weg
+            * war das Wischen, das VoiceOver abfaengt. Jetzt links im Fuss wie
+            * bei Mahlzeit und Rezept, und derselbe Weg wie Wisch und Knopf
+            * (`deleteItemUndoable`: sofort weg, fuenf Sekunden Rueckgaengig). */ ''}
         <div class="modal-panel__footer modal-panel__footer--plain">
+          <button type="button" class="btn btn--danger-outline" id="item-details-delete" data-delete-name="${esc(item.name)}" style="margin-inline-end:auto"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>
           <button type="button" class="btn btn--secondary" id="item-details-cancel">${t('common.cancel')}</button>
           <button type="submit" class="btn btn--primary">${t('common.save')}</button>
         </div>
@@ -2182,6 +2189,14 @@ function openItemDetails(itemId, container) {
       const preview = panel.querySelector('#item-details-link');
 
       panel.querySelector('#item-details-cancel')?.addEventListener('click', () => closeModal());
+      panel.querySelector('#item-details-delete')?.addEventListener('click', () => {
+        // Der Dialog kann vor einem Rechtewechsel aufgegangen sein.
+        if (readOnly()) return;
+        // force: getippte, ungespeicherte Aenderungen gehen mit dem Artikel -
+        // eine Rueckfrage "Verwerfen?" vor dem Loeschen fragte das Falsche.
+        closeModal({ force: true });
+        deleteItemUndoable(item.id, container);
+      });
 
       urlEl?.addEventListener('input', () => {
         preview.replaceChildren();

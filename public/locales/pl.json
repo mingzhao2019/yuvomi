@@ -136,7 +136,7 @@
         "waste": "Odbiór odpadów"
     },
     "search": {
-        "emptyHint": "Wpisz co najmniej 2 znaki, aby przeszukać zadania, terminy, notatki, kontakty, zakupy i zdrowie.",
+        "emptyHint": "Pisz, aby przejść do obszaru lub coś utworzyć. Od 2 znaków znajdziesz też swoje wpisy, nawet po fragmentach słów.",
         "title": "Szukaj",
         "placeholder": "Szukaj…",
         "noResults": "Nie znaleziono wyników.",
@@ -145,7 +145,9 @@
         "scopesLabel": "Przejdź do",
         "loading": "Wyszukiwanie…",
         "resultCountOne": "{{count}} wynik",
-        "resultCountMany": "{{count}} wyników"
+        "resultCountMany": "{{count}} wyników",
+        "goTo": "Przejdź do",
+        "newSection": "Utwórz nowe"
     },
     "dashboard": {
         "title": "Pulpit",
@@ -3048,7 +3050,8 @@
         "otherSessionsEnded_few": "Zakończono {{count}} inne sesje.",
         "otherSessionsNone": "Twoje konto nie było zalogowane na żadnym innym urządzeniu.",
         "otherSessionsError": "Nie udało się wylogować na innych urządzeniach.",
-        "otherSessionsTooManyAttempts": "Zbyt wiele żądań. Poczekaj chwilę i spróbuj ponownie."
+        "otherSessionsTooManyAttempts": "Zbyt wiele żądań. Poczekaj chwilę i spróbuj ponownie.",
+        "pushUnavailable": "Powiadomienia push są teraz niedostępne na tym urządzeniu. Odśwież stronę."
     },
     "login": {
         "tagline": "Witaj ponownie w swoim planerze rodzinnym.",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "Następna dawka przewidziana jest dopiero od {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Zapisz mimo to"
             },
-            "stockUpdateFailed": "Dawkę zapisano, ale nie udało się zaktualizować zapasu."
+            "stockUpdateFailed": "Dawkę zapisano, ale nie udało się zaktualizować zapasu.",
+            "takeNamed": "Przyjmij {{name}}",
+            "skipNamed": "Pomiń {{name}}"
         },
         "prevention": {
             "title": "Profilaktyka i szczepienia",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} godz. {{minutes}} min",
             "h": "{{hours}} godz.",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "godz."
         },
         "careBanner": "Wpisujesz dane dla {{name}}.",
         "nutrition": {

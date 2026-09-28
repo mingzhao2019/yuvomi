@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "Ukončeny {{count}} další relace.",
         "otherSessionsNone": "Tvůj účet nebyl přihlášen na žádném jiném zařízení.",
         "otherSessionsError": "Odhlášení na ostatních zařízeních se nezdařilo.",
-        "otherSessionsTooManyAttempts": "Příliš mnoho požadavků. Chvíli počkej a zkus to znovu."
+        "otherSessionsTooManyAttempts": "Příliš mnoho požadavků. Chvíli počkej a zkus to znovu.",
+        "pushUnavailable": "Push oznámení teď na tomto zařízení nejsou k dispozici. Načtěte prosím stránku znovu."
     },
     "login": {
         "tagline": "Vítejte zpět ve svém rodinném plánovači.",
@@ -3111,7 +3112,7 @@
         "moreSettings": "Další nastavení"
     },
     "search": {
-        "emptyHint": "Zadej alespoň 2 znaky pro hledání v úkolech, událostech, poznámkách, kontaktech, nákupech a zdraví.",
+        "emptyHint": "Piš a přejdi do oblasti nebo něco vytvoř. Od 2 znaků najdeš i své záznamy, dokonce podle části slova.",
         "title": "Hledat",
         "placeholder": "Hledat…",
         "noResults": "Žádné výsledky nenalezeny.",
@@ -3120,7 +3121,9 @@
         "scopesLabel": "Přejít na",
         "loading": "Vyhledávání…",
         "resultCountOne": "{{count}} výsledek",
-        "resultCountMany": "{{count}} výsledků"
+        "resultCountMany": "{{count}} výsledků",
+        "goTo": "Přejít na",
+        "newSection": "Vytvořit nové"
     },
     "shortcuts": {
         "search": "Otevřít vyhledávání",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "Další dávka je na řadě až od {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Přesto zapsat"
             },
-            "stockUpdateFailed": "Dávka je zapsána, zásobu se ale nepodařilo upravit."
+            "stockUpdateFailed": "Dávka je zapsána, zásobu se ale nepodařilo upravit.",
+            "takeNamed": "Užít {{name}}",
+            "skipNamed": "Přeskočit {{name}}"
         },
         "prevention": {
             "title": "Prevence a očkování",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} h {{minutes}} min",
             "h": "{{hours}} h",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "h"
         },
         "careBanner": "Zapisuješ za {{name}}.",
         "nutrition": {

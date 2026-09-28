@@ -136,7 +136,7 @@
         "waste": "쓰레기 수거"
     },
     "search": {
-        "emptyHint": "2자 이상 입력하면 할 일, 일정, 메모, 연락처, 쇼핑, 건강을 검색합니다.",
+        "emptyHint": "입력해서 영역으로 이동하거나 새로 만드세요. 2자부터는 내 항목도 찾을 수 있고, 단어의 일부로도 됩니다.",
         "title": "검색",
         "placeholder": "검색…",
         "noResults": "결과를 찾을 수 없습니다.",
@@ -145,7 +145,9 @@
         "scopesLabel": "바로 열기",
         "loading": "검색 중…",
         "resultCountOne": "결과 {{count}}개",
-        "resultCountMany": "결과 {{count}}개"
+        "resultCountMany": "결과 {{count}}개",
+        "goTo": "이동",
+        "newSection": "새로 만들기"
     },
     "dashboard": {
         "title": "개요",
@@ -3048,7 +3050,8 @@
         "otherSessionsEnded_few": "다른 세션 {{count}}개를 종료했습니다.",
         "otherSessionsNone": "다른 기기에 로그인된 계정이 없었습니다.",
         "otherSessionsError": "다른 기기에서 로그아웃하지 못했습니다.",
-        "otherSessionsTooManyAttempts": "요청이 너무 많습니다. 잠시 기다린 후 다시 시도하세요."
+        "otherSessionsTooManyAttempts": "요청이 너무 많습니다. 잠시 기다린 후 다시 시도하세요.",
+        "pushUnavailable": "지금 이 기기에서는 푸시 알림을 사용할 수 없습니다. 페이지를 새로고침하세요."
     },
     "login": {
         "tagline": "가족 플래너에 다시 오신 것을 환영합니다.",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "다음 복용은 {{time}}부터 예정되어 있습니다({{remaining}}).",
                 "earlyConfirmAction": "그래도 기록"
             },
-            "stockUpdateFailed": "복용은 기록했지만 재고를 수정하지 못했습니다."
+            "stockUpdateFailed": "복용은 기록했지만 재고를 수정하지 못했습니다.",
+            "takeNamed": "{{name}} 복용",
+            "skipNamed": "{{name}} 건너뛰기"
         },
         "prevention": {
             "title": "예방접종 및 건강검진",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}}시간 {{minutes}}분",
             "h": "{{hours}}시간",
-            "m": "{{minutes}}분"
+            "m": "{{minutes}}분",
+            "unitH": "시간"
         },
         "careBanner": "{{name}} 님의 기록을 입력하고 있습니다.",
         "nutrition": {

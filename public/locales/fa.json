@@ -136,7 +136,7 @@
         "waste": "جمع‌آوری زباله"
     },
     "search": {
-        "emptyHint": "برای جستجو در کارها، رویدادها، یادداشت‌ها، مخاطبین، خرید و سلامت دست‌کم ۲ نویسه بنویس.",
+        "emptyHint": "بنویس تا به یک بخش بروی یا چیزی بسازی. از ۲ نویسه به بعد ورودی‌هایت را هم پیدا می‌کنی، حتی با بخشی از واژه.",
         "title": "جستجو",
         "placeholder": "جستجو…",
         "noResults": "نتیجه‌ای یافت نشد.",
@@ -145,7 +145,9 @@
         "scopesLabel": "رفتن به",
         "loading": "در حال جستجو…",
         "resultCountOne": "{{count}} نتیجه",
-        "resultCountMany": "{{count}} نتیجه"
+        "resultCountMany": "{{count}} نتیجه",
+        "goTo": "رفتن به",
+        "newSection": "ساختن مورد تازه"
     },
     "dashboard": {
         "title": "نمای کلی",
@@ -3048,7 +3050,8 @@
         "otherSessionsEnded_few": "{{count}} نشست دیگر پایان یافت.",
         "otherSessionsNone": "حساب تو در هیچ دستگاه دیگری وارد نشده بود.",
         "otherSessionsError": "خروج از دستگاه‌های دیگر ناموفق بود.",
-        "otherSessionsTooManyAttempts": "درخواست‌های بیش از حد. کمی صبر کنید و دوباره تلاش کنید."
+        "otherSessionsTooManyAttempts": "درخواست‌های بیش از حد. کمی صبر کنید و دوباره تلاش کنید.",
+        "pushUnavailable": "اعلان‌های Push در حال حاضر روی این دستگاه در دسترس نیستند. لطفاً صفحه را دوباره بارگیری کنید."
     },
     "login": {
         "tagline": "دوباره به برنامه‌ریز خانوادگی‌تان خوش آمدید.",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "دوز بعدی تنها از {{time}} پیش‌بینی شده است ({{remaining}}).",
                 "earlyConfirmAction": "با این حال ثبت کن"
             },
-            "stockUpdateFailed": "دوز ثبت شد، اما به‌روزرسانی موجودی ممکن نشد."
+            "stockUpdateFailed": "دوز ثبت شد، اما به‌روزرسانی موجودی ممکن نشد.",
+            "takeNamed": "مصرف {{name}}",
+            "skipNamed": "رد کردن {{name}}"
         },
         "prevention": {
             "title": "پیشگیری و واکسیناسیون",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} ساعت {{minutes}} دقیقه",
             "h": "{{hours}} ساعت",
-            "m": "{{minutes}} دقیقه"
+            "m": "{{minutes}} دقیقه",
+            "unitH": "ساعت"
         },
         "careBanner": "شما برای {{name}} ثبت می‌کنید.",
         "nutrition": {

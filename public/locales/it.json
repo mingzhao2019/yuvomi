@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} altre sessioni terminate.",
         "otherSessionsNone": "Il tuo account non era connesso su nessun altro dispositivo.",
         "otherSessionsError": "Uscita dagli altri dispositivi non riuscita.",
-        "otherSessionsTooManyAttempts": "Troppe richieste. Attendi un momento, poi riprova."
+        "otherSessionsTooManyAttempts": "Troppe richieste. Attendi un momento, poi riprova.",
+        "pushUnavailable": "Le notifiche push non sono disponibili al momento su questo dispositivo. Ricarica la pagina."
     },
     "login": {
         "tagline": "Bentornato nel tuo pianificatore familiare.",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "Per ogni ingrediente scegli la riga della dispensa a cui si riferisce. Yuvomi non indovina nulla - vale solo ciò che confermi qui."
     },
     "search": {
-        "emptyHint": "Digita almeno 2 caratteri per cercare tra attività, appuntamenti, note, contatti, spesa e salute.",
+        "emptyHint": "Digita per andare a una sezione o creare qualcosa. Da 2 caratteri trovi anche le tue voci, pure per parti di parola.",
         "title": "Ricerca",
         "open": "Apri ricerca",
         "placeholder": "Cerca…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "Vai a",
         "loading": "Ricerca…",
         "resultCountOne": "{{count}} risultato",
-        "resultCountMany": "{{count}} risultati"
+        "resultCountMany": "{{count}} risultati",
+        "goTo": "Vai a",
+        "newSection": "Crea nuovo"
     },
     "birthdays": {
         "inDays_one": "tra {{count}} giorno",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "La dose successiva è prevista solo dalle {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Registra comunque"
             },
-            "stockUpdateFailed": "La dose è registrata, ma la scorta non è stata aggiornata."
+            "stockUpdateFailed": "La dose è registrata, ma la scorta non è stata aggiornata.",
+            "takeNamed": "Prendi {{name}}",
+            "skipNamed": "Salta {{name}}"
         },
         "prevention": {
             "title": "Prevenzione e vaccinazioni",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} h {{minutes}} min",
             "h": "{{hours}} h",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "h"
         },
         "careBanner": "Stai registrando per {{name}}.",
         "nutrition": {

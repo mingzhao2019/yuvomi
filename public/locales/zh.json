@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "已结束 {{count}} 个其他会话。",
         "otherSessionsNone": "你的账户没有在其他任何设备上登录。",
         "otherSessionsError": "在其他设备上退出失败。",
-        "otherSessionsTooManyAttempts": "请求过多，请稍候再试。"
+        "otherSessionsTooManyAttempts": "请求过多，请稍候再试。",
+        "pushUnavailable": "此设备当前无法使用推送通知。请重新加载页面。"
     },
     "login": {
         "tagline": "欢迎回到您的家庭计划工具。",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "为每种材料选择它所指的库存条目。Yuvomi 不做任何猜测 - 只有你在这里确认的才算数。"
     },
     "search": {
-        "emptyHint": "输入至少 2 个字符即可搜索任务、日程、便签、联系人、购物和健康。",
+        "emptyHint": "输入即可跳转到某个模块或新建内容。输入 2 个字符起还能搜索你的条目，词的一部分也能找到。",
         "title": "搜索",
         "open": "打开搜索",
         "placeholder": "搜索…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "直接打开",
         "loading": "搜索中…",
         "resultCountOne": "{{count}} 个结果",
-        "resultCountMany": "{{count}} 个结果"
+        "resultCountMany": "{{count}} 个结果",
+        "goTo": "前往",
+        "newSection": "新建"
     },
     "birthdays": {
         "inDays_one": "{{count}}天后",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "下一次服用要到 {{time}} 之后（{{remaining}}）。",
                 "earlyConfirmAction": "仍然记录"
             },
-            "stockUpdateFailed": "已记录服用，但未能更新库存。"
+            "stockUpdateFailed": "已记录服用，但未能更新库存。",
+            "takeNamed": "服用 {{name}}",
+            "skipNamed": "跳过 {{name}}"
         },
         "prevention": {
             "title": "预防保健与疫苗接种",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} 小时 {{minutes}} 分钟",
             "h": "{{hours}} 小时",
-            "m": "{{minutes}} 分钟"
+            "m": "{{minutes}} 分钟",
+            "unitH": "小时"
         },
         "careBanner": "你正在为 {{name}} 记录。",
         "nutrition": {

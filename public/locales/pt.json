@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} outras sessões terminadas.",
         "otherSessionsNone": "A tua conta não tinha sessão iniciada em nenhum outro dispositivo.",
         "otherSessionsError": "Não foi possível terminar a sessão noutros dispositivos.",
-        "otherSessionsTooManyAttempts": "Demasiados pedidos. Aguarda um momento e tenta novamente."
+        "otherSessionsTooManyAttempts": "Demasiados pedidos. Aguarda um momento e tenta novamente.",
+        "pushUnavailable": "As notificações push não estão disponíveis neste dispositivo no momento. Recarregue a página."
     },
     "login": {
         "tagline": "Bem-vindo de volta ao teu planeador familiar.",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "Escolhe, para cada ingrediente, a linha da tua despensa a que se refere. O Yuvomi não adivinha nada - só vale o que confirmares aqui."
     },
     "search": {
-        "emptyHint": "Digita pelo menos 2 caracteres para pesquisar tarefas, eventos, notas, contactos, compras e saúde.",
+        "emptyHint": "Digita para ir a uma área ou criar algo. A partir de 2 caracteres também encontras os teus registos, até por partes de palavras.",
         "title": "Pesquisa",
         "open": "Abrir pesquisa",
         "placeholder": "Pesquisar…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "Ir para",
         "loading": "Pesquisando…",
         "resultCountOne": "{{count}} resultado",
-        "resultCountMany": "{{count}} resultados"
+        "resultCountMany": "{{count}} resultados",
+        "goTo": "Ir para",
+        "newSection": "Criar novo"
     },
     "birthdays": {
         "inDays_one": "em {{count}} dia",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "A próxima dose só está prevista a partir das {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Registrar mesmo assim"
             },
-            "stockUpdateFailed": "A dose foi registrada, mas o estoque não pôde ser atualizado."
+            "stockUpdateFailed": "A dose foi registrada, mas o estoque não pôde ser atualizado.",
+            "takeNamed": "Tomar {{name}}",
+            "skipNamed": "Ignorar {{name}}"
         },
         "prevention": {
             "title": "Prevenção e vacinas",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} h {{minutes}} min",
             "h": "{{hours}} h",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "h"
         },
         "careBanner": "Está a registar para {{name}}.",
         "nutrition": {

@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} sesiones más cerradas.",
         "otherSessionsNone": "Tu cuenta no tenía la sesión iniciada en ningún otro dispositivo.",
         "otherSessionsError": "No se pudo cerrar la sesión en otros dispositivos.",
-        "otherSessionsTooManyAttempts": "Demasiadas solicitudes. Espera un momento y vuelve a intentarlo."
+        "otherSessionsTooManyAttempts": "Demasiadas solicitudes. Espera un momento y vuelve a intentarlo.",
+        "pushUnavailable": "Las notificaciones push no están disponibles ahora en este dispositivo. Vuelve a cargar la página."
     },
     "login": {
         "tagline": "Bienvenido de nuevo a tu planificador familiar.",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "Elige para cada ingrediente la línea de tu despensa a la que se refiere. Yuvomi no adivina nada - solo cuenta lo que confirmes aquí."
     },
     "search": {
-        "emptyHint": "Escribe al menos 2 caracteres para buscar en tareas, citas, notas, contactos, compras y salud.",
+        "emptyHint": "Escribe para ir a una sección o crear algo. Desde 2 caracteres también encuentras tus entradas, incluso por partes de palabras.",
         "title": "Búsqueda",
         "open": "Abrir búsqueda",
         "placeholder": "Buscar…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "Ir a",
         "loading": "Buscando…",
         "resultCountOne": "{{count}} resultado",
-        "resultCountMany": "{{count}} resultados"
+        "resultCountMany": "{{count}} resultados",
+        "goTo": "Ir a",
+        "newSection": "Crear nuevo"
     },
     "birthdays": {
         "inDays_one": "en {{count}} día",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "La próxima dosis no está prevista hasta las {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Registrar igualmente"
             },
-            "stockUpdateFailed": "La dosis quedó registrada, pero no se pudo actualizar el stock."
+            "stockUpdateFailed": "La dosis quedó registrada, pero no se pudo actualizar el stock.",
+            "takeNamed": "Tomar {{name}}",
+            "skipNamed": "Omitir {{name}}"
         },
         "prevention": {
             "title": "Prevención y vacunas",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} h {{minutes}} min",
             "h": "{{hours}} h",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "h"
         },
         "careBanner": "Estás registrando para {{name}}.",
         "nutrition": {

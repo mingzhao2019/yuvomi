@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} diğer oturum sonlandırıldı.",
         "otherSessionsNone": "Hesabın başka hiçbir cihazda oturum açmış değildi.",
         "otherSessionsError": "Diğer cihazlarda oturum kapatılamadı.",
-        "otherSessionsTooManyAttempts": "Çok fazla istek. Lütfen biraz bekle, sonra tekrar dene."
+        "otherSessionsTooManyAttempts": "Çok fazla istek. Lütfen biraz bekle, sonra tekrar dene.",
+        "pushUnavailable": "Anlık bildirimler şu anda bu cihazda kullanılamıyor. Lütfen sayfayı yeniden yükleyin."
     },
     "login": {
         "tagline": "Aile planlayıcına tekrar hoş geldin.",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "Her malzeme için karşılığı olan kiler satırını seç. Yuvomi hiçbir şey tahmin etmez - yalnızca burada onayladığın geçerlidir."
     },
     "search": {
-        "emptyHint": "Görevler, etkinlikler, notlar, kişiler, alışveriş ve sağlıkta aramak için en az 2 karakter yaz.",
+        "emptyHint": "Bir bölüme gitmek ya da yeni bir şey oluşturmak için yaz. 2 karakterden itibaren kayıtlarını da bulursun, kelimenin bir kısmıyla bile.",
         "title": "Arama",
         "open": "Aramayı aç",
         "placeholder": "Ara…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "Doğrudan aç",
         "loading": "Aranıyor…",
         "resultCountOne": "{{count}} sonuç",
-        "resultCountMany": "{{count}} sonuç"
+        "resultCountMany": "{{count}} sonuç",
+        "goTo": "Git",
+        "newSection": "Yeni oluştur"
     },
     "birthdays": {
         "inDays_one": "{{count}} gün sonra",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "Sonraki doz ancak {{time}} itibarıyla öngörülüyor ({{remaining}}).",
                 "earlyConfirmAction": "Yine de kaydet"
             },
-            "stockUpdateFailed": "Doz kaydedildi, ancak stok güncellenemedi."
+            "stockUpdateFailed": "Doz kaydedildi, ancak stok güncellenemedi.",
+            "takeNamed": "{{name}} al",
+            "skipNamed": "{{name}} atla"
         },
         "prevention": {
             "title": "Önleyici bakım ve aşılar",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} sa {{minutes}} dk",
             "h": "{{hours}} sa",
-            "m": "{{minutes}} dk"
+            "m": "{{minutes}} dk",
+            "unitH": "sa"
         },
         "careBanner": "{{name}} için kayıt giriyorsun.",
         "nutrition": {

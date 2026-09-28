@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} andra sessioner avslutade.",
         "otherSessionsNone": "Ditt konto var inte inloggat på någon annan enhet.",
         "otherSessionsError": "Det gick inte att logga ut på andra enheter.",
-        "otherSessionsTooManyAttempts": "För många förfrågningar. Vänta en stund och försök sedan igen."
+        "otherSessionsTooManyAttempts": "För många förfrågningar. Vänta en stund och försök sedan igen.",
+        "pushUnavailable": "Push-aviseringar är inte tillgängliga på den här enheten just nu. Ladda om sidan."
     },
     "login": {
         "tagline": "Välkommen tillbaka till din familjeplanerare.",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "Välj för varje ingrediens den rad i skafferiet som den avser. Yuvomi gissar ingenting - bara det du bekräftar här gäller."
     },
     "search": {
-        "emptyHint": "Skriv minst 2 tecken för att söka bland uppgifter, händelser, anteckningar, kontakter, inköp och hälsa.",
+        "emptyHint": "Skriv för att gå till en del eller skapa något. Från 2 tecken hittar du även dina poster, också på delar av ord.",
         "title": "Sök",
         "open": "Öppna sökning",
         "placeholder": "Sök…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "Gå till",
         "loading": "Söker…",
         "resultCountOne": "{{count}} resultat",
-        "resultCountMany": "{{count}} resultat"
+        "resultCountMany": "{{count}} resultat",
+        "goTo": "Gå till",
+        "newSection": "Skapa ny"
     },
     "birthdays": {
         "inDays_one": "om {{count}} dag",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "Nästa dos är inte planerad förrän {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Registrera ändå"
             },
-            "stockUpdateFailed": "Dosen registrerades, men lagret kunde inte uppdateras."
+            "stockUpdateFailed": "Dosen registrerades, men lagret kunde inte uppdateras.",
+            "takeNamed": "Ta {{name}}",
+            "skipNamed": "Hoppa över {{name}}"
         },
         "prevention": {
             "title": "Förebyggande vård & vaccinationer",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} tim {{minutes}} min",
             "h": "{{hours}} tim",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "tim"
         },
         "careBanner": "Du registrerar åt {{name}}.",
         "nutrition": {

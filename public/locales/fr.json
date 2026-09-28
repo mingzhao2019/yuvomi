@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} autres sessions fermées.",
         "otherSessionsNone": "Ton compte n’était connecté sur aucun autre appareil.",
         "otherSessionsError": "La déconnexion des autres appareils a échoué.",
-        "otherSessionsTooManyAttempts": "Trop de requêtes. Patiente un instant, puis réessaie."
+        "otherSessionsTooManyAttempts": "Trop de requêtes. Patiente un instant, puis réessaie.",
+        "pushUnavailable": "Les notifications push ne sont pas disponibles pour le moment sur cet appareil. Veuillez recharger la page."
     },
     "login": {
         "tagline": "Bon retour sur votre planificateur familial.",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "Pour chaque ingrédient, choisis la ligne de ta réserve qu'il désigne. Yuvomi ne devine rien - seul ce que tu confirmes ici compte."
     },
     "search": {
-        "emptyHint": "Saisis au moins 2 caractères pour chercher dans les tâches, rendez-vous, notes, contacts, courses et santé.",
+        "emptyHint": "Tape pour aller à une rubrique ou créer quelque chose. Dès 2 caractères, tu trouves aussi tes entrées, même avec une partie d’un mot.",
         "title": "Recherche",
         "open": "Ouvrir la recherche",
         "placeholder": "Rechercher…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "Aller à",
         "loading": "Recherche…",
         "resultCountOne": "{{count}} résultat",
-        "resultCountMany": "{{count}} résultats"
+        "resultCountMany": "{{count}} résultats",
+        "goTo": "Aller à",
+        "newSection": "Créer"
     },
     "birthdays": {
         "inDays_one": "dans {{count}} jour",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "La prochaine dose n'est prévue qu'à partir de {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Enregistrer quand même"
             },
-            "stockUpdateFailed": "La dose est enregistrée, mais le stock n'a pas pu être mis à jour."
+            "stockUpdateFailed": "La dose est enregistrée, mais le stock n'a pas pu être mis à jour.",
+            "takeNamed": "Prendre {{name}}",
+            "skipNamed": "Ignorer {{name}}"
         },
         "prevention": {
             "title": "Prévention et vaccinations",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} h {{minutes}} min",
             "h": "{{hours}} h",
-            "m": "{{minutes}} min"
+            "m": "{{minutes}} min",
+            "unitH": "h"
         },
         "careBanner": "Vous saisissez pour {{name}}.",
         "nutrition": {

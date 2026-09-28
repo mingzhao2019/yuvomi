@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "Đã kết thúc {{count}} phiên khác.",
         "otherSessionsNone": "Tài khoản của bạn không đăng nhập trên thiết bị nào khác.",
         "otherSessionsError": "Không thể đăng xuất trên các thiết bị khác.",
-        "otherSessionsTooManyAttempts": "Quá nhiều yêu cầu. Vui lòng đợi một chút rồi thử lại."
+        "otherSessionsTooManyAttempts": "Quá nhiều yêu cầu. Vui lòng đợi một chút rồi thử lại.",
+        "pushUnavailable": "Thông báo đẩy hiện không khả dụng trên thiết bị này. Vui lòng tải lại trang."
     },
     "login": {
         "tagline": "Chào mừng bạn trở lại trình lập kế hoạch gia đình.",
@@ -3330,7 +3331,7 @@
         "ingredientMatchBulkHint": "Với mỗi nguyên liệu, chọn dòng trong kho dự trữ mà nó muốn nói đến. Yuvomi không đoán gì cả - chỉ những gì bạn xác nhận ở đây mới có hiệu lực."
     },
     "search": {
-        "emptyHint": "Nhập ít nhất 2 ký tự để tìm trong công việc, sự kiện, ghi chú, danh bạ, mua sắm và sức khỏe.",
+        "emptyHint": "Nhập để chuyển đến một mục hoặc tạo mới. Từ 2 ký tự, bạn cũng tìm được các mục của mình, kể cả bằng một phần của từ.",
         "title": "Tìm kiếm",
         "open": "Mở tìm kiếm",
         "placeholder": "Tìm kiếm…",
@@ -3339,7 +3340,9 @@
         "scopesLabel": "Mở nhanh",
         "loading": "Đang tìm…",
         "resultCountOne": "{{count}} kết quả",
-        "resultCountMany": "{{count}} kết quả"
+        "resultCountMany": "{{count}} kết quả",
+        "goTo": "Đi tới",
+        "newSection": "Tạo mới"
     },
     "onboarding": {
         "step1Title": "Chào mừng đến với {{name}}",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "Liều tiếp theo chỉ được tính từ {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Vẫn ghi nhận"
             },
-            "stockUpdateFailed": "Đã ghi nhận liều, nhưng không cập nhật được tồn kho."
+            "stockUpdateFailed": "Đã ghi nhận liều, nhưng không cập nhật được tồn kho.",
+            "takeNamed": "Uống {{name}}",
+            "skipNamed": "Bỏ qua {{name}}"
         },
         "prevention": {
             "title": "Phòng ngừa & tiêm chủng",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} giờ {{minutes}} phút",
             "h": "{{hours}} giờ",
-            "m": "{{minutes}} phút"
+            "m": "{{minutes}} phút",
+            "unitH": "giờ"
         },
         "careBanner": "Bạn đang ghi cho {{name}}.",
         "nutrition": {

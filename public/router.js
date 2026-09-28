@@ -13,8 +13,9 @@ import { forgetLayoutHint } from '/utils/dashboard-layout-hint.js';
 import { initI18n, getLocale, t, formatDate, formatTime } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { emptyHintEl, emptyStateEl } from '/utils/empty-state.js';
-import { wireScrollFade, wireCollapsingHeader, wireSwipeToDismiss, watchNavCapsuleHeight } from '/utils/ux.js';
-import { TOAST_SURFACES, toastSurface } from '/utils/toast-surface.js';
+import { wireScrollFade, wireCollapsingHeader, watchNavCapsuleHeight } from '/utils/ux.js';
+import { TOAST_SURFACES } from '/utils/toast-surface.js';
+import { showToast } from '/utils/toast-show.js';
 import { BULK_PILL_LAYER, clearBulkPill } from '/utils/bulk-pill.js';
 import { watchToastPlacement } from '/utils/toast-placement.js';
 import { COMPOSITION_MODES } from '/utils/page-layout.js';
@@ -28,14 +29,17 @@ import { moduleAccentToken, moduleAccentVar } from '/utils/module-accent.js';
 import { getLastHealthRoute, HEALTH_ROUTES } from '/utils/health-tabs.js';
 import { SCHEDULE_ROUTES } from '/utils/schedule-tabs.js';
 import { activityType } from '/utils/health-activity.js';
-import { SEARCH_SECTIONS, searchScopeModules, searchResultCount } from '/utils/search-sections.js';
+import {
+  SEARCH_SECTIONS, NEW_ACTIONS, searchResultCount, markSegments, paletteCommands,
+} from '/utils/search-sections.js';
 import { buildHelpRows } from '/utils/help.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
 import { triggerPageFab } from '/utils/fab.js';
+import { hasLeaveGuard, mayLeave } from '/utils/leave-guard.js';
 import { wireSheetDrag } from '/utils/sheet-drag.js';
 import {
   handleBackNavigation, closeAllOverlays, consumeOverlayMarker,
-  pushOverlay, dropOverlay, attachOverlay,
+  pushOverlay, dropOverlay, attachOverlay, whenHistorySettled,
 } from '/utils/overlay-history.js';
 import {
   applyNavBadges, setNavBadge, resetNavBadges, navBadgeRoutes,
@@ -55,7 +59,9 @@ import { prefersInkText } from '/utils/contrast.js';
 import { handleMasterDetailPopstate } from '/utils/master-detail.js';
 import '/components/datepicker.js';
 import { NAV_ICONS, MODULE_ICON, moduleIconEl } from '/nav-icons.js';
-import { RENAMED_SETTINGS_SOURCE_PATHS, SETTINGS_LEAVES } from '/settings/registry.js';
+import {
+  RENAMED_SETTINGS_SOURCE_PATHS, SETTINGS_LEAVES, searchSettings, settingsOptionUrl, settingsSectionUrl,
+} from '/settings/registry.js';
 import {
   NAV_SECTION,
   resolveMobileNavOrder,
@@ -632,6 +638,26 @@ function createFocusTrap(container) {
  */
 async function navigate(path, userOrPushState = true, pushState = true) {
   if (isNavigating) return;
+  // VERLASSEN-SCHUTZ (utils/leave-guard.js, Re-Critique 2026-09-28 A7 P2-1):
+  // eine Seite mit ungespeicherter Arbeit - der Anpassen-Modus der Uebersicht -
+  // fragt, bevor sie verschwindet. Jeder Weg endet hier: Seitenleiste,
+  // Tab-Leiste, Mehr-Blatt, Befehlspalette, Zurueck (popstate). Nur fuer
+  // Wechsel einer angemeldeten Sitzung: das Anmelden (Objekt) und ein
+  // Sitzungsablauf fragen nicht. Ohne Waechter kein await: zwischen der
+  // Pruefung oben und `isNavigating = true` darf keine Luecke entstehen.
+  if (currentUser && typeof userOrPushState !== 'object' && hasLeaveGuard() && !(await mayLeave(path))) {
+    // Ein Zurueck hat die Adresse schon gewechselt - sie gehoert wieder der
+    // Seite, die stehen bleibt.
+    // Erst wenn die Rueckfrage ihren History-Eintrag zurueckgegeben hat
+    // (whenHistorySettled in utils/overlay-history.js) - sonst truege deren
+    // spaetes back() die Adresse gleich wieder weg.
+    if (userOrPushState === false && currentPath) {
+      const stay = currentPath;
+      await whenHistorySettled();
+      history.pushState({ path: stay }, '', stay);
+    }
+    return;
+  }
   isNavigating = true;
 
   // Offenes „Mehr“-Sheet beim Navigieren immer schließen — robust und
@@ -3485,12 +3511,40 @@ function initMoreSheet(container, openSearch) {
 /**
  * Initialisiert die Suchfunktion (Overlay + API-Calls).
  */
-// Durchsuchbare Domänen des /search-Endpunkts: EINE Liste in
-// utils/search-sections.js (Sektionen UND Direktsprung-Kacheln). Die Kacheln
-// zeigen nur Module, die der Betrachter in der Navigation hat - abgeschaltet
-// oder gesperrt, liefert der Server dort ohnehin nichts.
-function searchScopeAvailable(module) {
-  return !_disabledModules.has(module) && canAccessNavModule(module);
+// Die Palette hinter ⌘K (Re-Critique 2026-09-28, A1 P2-1): zuerst ORTE und
+// HANDLUNGEN, dann Daten. Die Orte sind genau die Ziele der Navigation
+// (navItems - abgeschaltet, gesperrt oder ausgeblendet faellt heraus), dazu die
+// Einstellungsblaetter aus derselben Suche wie in den Einstellungen; die
+// Handlungen sind die Anlege-Aktionen (utils/search-sections.js NEW_ACTIONS),
+// nur wo der Betrachter schreiben darf.
+function paletteLocal(q) {
+  const targets = navItems();
+  const places = targets.map((item) => ({
+    label: item.label, route: item.navHref ?? item.path, module: item.module, icon: item.icon,
+  }));
+  const settings = [];
+  if (currentUser && targets.some((item) => item.module === 'settings')) {
+    const found = searchSettings(q, { user: currentUser, translate: t });
+    const settingsLabel = t('nav.settings');
+    found.leaves.forEach((leaf) => settings.push({
+      label: t(leaf.labelKey), route: leaf.path, context: settingsLabel, module: 'settings',
+    }));
+    found.sections.forEach(({ leaf, section, label }) => settings.push({
+      label, route: settingsSectionUrl(leaf, section.id), context: t(leaf.labelKey), module: 'settings',
+    }));
+    found.options.forEach(({ leaf, key, label }) => settings.push({
+      label, route: settingsOptionUrl(leaf, key), context: t(leaf.labelKey), module: 'settings',
+    }));
+  }
+  const visible = new Set(targets.map((item) => item.module));
+  const verb = t('search.newSection');
+  const actions = NEW_ACTIONS
+    .filter((action) => visible.has(action.module) && navModuleAccess(action.module) === 'write')
+    .map((action) => ({
+      label: t(action.labelKey), route: action.route, module: action.module,
+      context: t(`nav.${action.module}`), verb, create: true,
+    }));
+  return paletteCommands(q, { places, settings, actions });
 }
 
 function initSearch(container) {
@@ -3529,20 +3583,24 @@ function initSearch(container) {
     scopes.appendChild(scopesHeading);
     const list = document.createElement('div');
     list.className = 'search-scopes__list';
-    searchScopeModules(searchScopeAvailable).forEach((module) => {
-      const scope = { labelKey: `nav.${module}`, route: `/${module}` };
+    // ALLE SICHTBAREN ZIELE, nicht die durchsuchten Module: "Direkt oeffnen"
+    // kannte Schichtplan, Haushaltshilfe, Belohnungen und Mahlzeiten nicht,
+    // weil die Suche dort keine Daten hat (Re-Critique 2026-09-28, A1 P2-1).
+    navItems().forEach((item) => {
+      const scope = { label: item.label, route: item.navHref ?? item.path };
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'search-scope';
       // Markensiegel (Herkunfts-Regel, Block 2): die Kachel benennt ihr
-      // Zielmodul ueber Familienton + Icon; der Slug ist die Route selbst.
+      // Zielmodul ueber Familienton + Icon.
       const seal = document.createElement('span');
       seal.className = 'module-seal module-seal--sm search-scope__seal';
       seal.setAttribute('aria-hidden', 'true');
-      seal.style.setProperty('--seal-accent', moduleAccentVar(scope.route.slice(1)));
-      seal.appendChild(moduleIconEl(MODULE_ICON[scope.route.slice(1)]));
+      const accent = item.accent ? `var(--${item.accent}, var(--color-accent))` : moduleAccentVar(item.module);
+      if (accent) seal.style.setProperty('--seal-accent', accent);
+      seal.appendChild(moduleIconEl(item.icon));
       const label = document.createElement('span');
-      label.textContent = t(scope.labelKey);
+      label.textContent = scope.label;
       btn.append(seal, label);
       btn.addEventListener('click', () => {
         closeSearch({ restoreFocus: false });
@@ -3630,36 +3688,57 @@ function initSearch(container) {
     }
   });
 
+  const announceCount = (count) => setStatus(
+    count === 0 ? t('search.noResults')
+      : count === 1 ? t('search.resultCountOne', { count })
+      : t('search.resultCountMany', { count }),
+  );
+
   let searchTimer = null;
   input.addEventListener('input', () => {
     clearTimeout(searchTimer);
     const q = input.value.trim();
-    if (q.length < 2) {
+    if (q.length < 1) {
       renderSearchHint();
       return;
     }
+    // ORTE UND HANDLUNGEN SOFORT, ohne Server und ab dem ersten Zeichen: sie
+    // kennt der Client selbst. Die Daten kommen ab zwei Zeichen dazu.
+    const local = paletteLocal(q);
+    const onClose = () => closeSearch({ restoreFocus: false });
+    if (q.length < 2) {
+      // Ohne Ort und ohne Aktion bliebe die Flaeche leer: der Server wird
+      // unter zwei Zeichen nicht gefragt, sein "Keine Ergebnisse" kommt nie.
+      // Dann steht weiter der Hinweis mit den Kacheln.
+      const localCount = local.places.length + local.actions.length;
+      if (localCount === 0) {
+        renderSearchHint();
+        return;
+      }
+      renderSearchResults(results, null, onClose, { local, query: q });
+      results.setAttribute('aria-busy', 'false');
+      announceCount(localCount);
+      return;
+    }
+    renderSearchResults(results, null, onClose, { local, query: q });
     searchTimer = setTimeout(async () => {
       // Ladezustand erst wenn der Fetch wirklich startet (nach dem Debounce):
-      // Skeletons + „Suche läuft…" statt einer eingefroren wirkenden Fläche auf
-      // langsamem Home-Server (Critique P1). Kein Flackern bei schnellem Tippen.
-      results.replaceChildren();
+      // Skeletons + „Suche läuft…" unter den Orten statt einer eingefroren
+      // wirkenden Fläche auf langsamem Home-Server (Critique P1).
       results.setAttribute('aria-busy', 'true');
       results.insertAdjacentHTML('beforeend', renderSkeletonList({ rows: 4, lines: 2 }));
       setStatus(t('search.loading'));
       try {
         const data = await api.get(`/search?q=${encodeURIComponent(q)}`);
-        const count = renderSearchResults(results, data, () => closeSearch({ restoreFocus: false }));
+        const count = renderSearchResults(results, data, onClose, { local, query: q });
         results.setAttribute('aria-busy', 'false');
-        setStatus(
-          count === 0 ? t('search.noResults')
-            : count === 1 ? t('search.resultCountOne', { count })
-            : t('search.resultCountMany', { count }),
-        );
+        announceCount(count);
       } catch {
         // Fehler nicht verschlucken: sichtbare Meldung statt „wirkt wie 0 Treffer".
-        // Die Ansage besitzt jetzt #search-status; der sichtbare Text bleibt rein
+        // Die Ansage besitzt #search-status; der sichtbare Text bleibt rein
         // visuell (kein role=status), sonst läse der Screenreader ihn doppelt.
-        results.replaceChildren();
+        // Die Orte bleiben stehen - sie brauchen den Server nicht.
+        renderSearchResults(results, null, onClose, { local, query: q, silent: true });
         results.setAttribute('aria-busy', 'false');
         results.appendChild(emptyHintEl(t('search.error')));
         setStatus(t('search.error'));
@@ -3670,15 +3749,33 @@ function initSearch(container) {
   return openSearch;
 }
 
+/** Text mit markierten Fundstellen als Knoten (`<mark>`), ohne innerHTML. */
+function appendMarked(el, text, query) {
+  for (const seg of markSegments(text, query)) {
+    if (seg.mark) {
+      const mark = document.createElement('mark');
+      mark.className = 'search-result__hit';
+      mark.textContent = seg.text;
+      el.appendChild(mark);
+    } else {
+      el.appendChild(document.createTextNode(seg.text));
+    }
+  }
+}
+
 /**
- * Rendert Suchergebnisse in den Ergebnis-Container.
+ * Rendert die Palette: Orte und Aktionen (lokal) vor den Datentreffern.
+ * `data` ist null, solange der Server nicht geantwortet hat (oder unter zwei
+ * Zeichen gar nicht gefragt wird).
+ * @returns {number} Zahl aller Zeilen - fuer die Ansage
  */
-function renderSearchResults(container, data, onClose) {
+function renderSearchResults(container, data, onClose, { local = { places: [], actions: [] }, query = '', silent = false } = {}) {
   container.replaceChildren();
-  const total = searchResultCount(data);
+  const localCount = local.places.length + local.actions.length;
+  const total = localCount + (data ? searchResultCount(data) : 0);
 
   if (total === 0) {
-    container.appendChild(emptyHintEl(t('search.noResults')));
+    if (data && !silent) container.appendChild(emptyHintEl(t('search.noResults')));
     return 0;
   }
 
@@ -3693,7 +3790,7 @@ function renderSearchResults(container, data, onClose) {
   // der Sektion ist die Herkunft damit selbstverstaendlich, die Zeilen
   // bleiben siegelfrei. Die Zeilen selbst liegen in GENAU EINEM Traeger
   // (Zeilenlisten-Regel) statt als Karte pro Treffer.
-  function makeSection(labelKey, sealModule, items, routeFn, labelFn, metaFn) {
+  function makeSection(label, sealModule, items, { route, title, meta, go }) {
     if (!items.length) return;
     const section = document.createElement('div');
     section.className = 'search-section';
@@ -3707,29 +3804,33 @@ function renderSearchResults(container, data, onClose) {
       sealEl.appendChild(moduleIconEl(MODULE_ICON[sealModule]));
       heading.appendChild(sealEl);
     }
-    heading.appendChild(document.createTextNode(t(labelKey)));
+    heading.appendChild(document.createTextNode(label));
     section.appendChild(heading);
     const rows = document.createElement('div');
     rows.className = 'search-section__rows';
     items.forEach((item) => {
       const btn = document.createElement('button');
+      btn.type = 'button';
       btn.className = 'search-result';
-      const title = document.createElement('span');
-      title.className = 'search-result__title';
-      title.textContent = labelFn ? labelFn(item) : item.title;
-      btn.appendChild(title);
-      // Zweitzeile mit Datum/Detail: Treffer ohne jeden Kontext waren nicht
-      // unterscheidbar (Audit A1-14).
-      const metaText = metaFn?.(item);
-      if (metaText) {
-        const meta = document.createElement('span');
-        meta.className = 'search-result__meta';
-        meta.textContent = metaText;
-        btn.appendChild(meta);
+      const titleEl = document.createElement('span');
+      titleEl.className = 'search-result__title';
+      appendMarked(titleEl, title(item), query);
+      btn.appendChild(titleEl);
+      // Zweitzeile: Datum/Detail (Audit A1-14) und - steht das Suchwort nicht
+      // im Titel - der Ausschnitt, in dem es steht (A1 P2-2). Ohne ihn las sich
+      // "sch" -> "Klavier üben" wie ein Zufall.
+      const metaText = meta?.(item) || '';
+      const excerpt = item.excerpt || '';
+      if (metaText || excerpt) {
+        const metaEl = document.createElement('span');
+        metaEl.className = 'search-result__meta';
+        appendMarked(metaEl, [metaText, excerpt].filter(Boolean).join(' · '), query);
+        btn.appendChild(metaEl);
       }
       btn.addEventListener('click', () => {
         onClose();
-        navigate(routeFn(item));
+        if (go) go(item);
+        else navigate(route(item));
       });
       rows.appendChild(btn);
     });
@@ -3737,16 +3838,37 @@ function renderSearchResults(container, data, onClose) {
     container.appendChild(section);
   }
 
-  // Reihenfolge, Ueberschrift, Ziel und Zweitzeile je Trefferart:
+  // 1. GEHE ZU - Navigationsziele und Einstellungsblaetter.
+  makeSection(t('search.goTo'), null, local.places, {
+    route: (item) => item.route,
+    title: (item) => item.label,
+    meta: (item) => item.context || '',
+  });
+  // 2. NEU ANLEGEN - die Seite oeffnen und ihre Primaeraktion ausloesen, genau
+  //    wie der Kurzbefehl `n` (triggerPageFab: nichts, wo kein FAB zu sehen ist).
+  makeSection(t('search.newSection'), null, local.actions, {
+    title: (item) => item.label,
+    meta: (item) => item.context || '',
+    go: async (item) => {
+      await navigate(item.route);
+      triggerPageFab();
+    },
+  });
+
+  // 3. DATEN - Reihenfolge, Ueberschrift, Ziel und Zweitzeile je Trefferart:
   // utils/search-sections.js (test:search-permissions prueft sie gegen die
   // Antwort des Servers).
   const fmt = { formatDate, formatTime, activityLabel };
-  SEARCH_SECTIONS.forEach((section) => {
-    const hits = Array.isArray(data?.[section.bucket]) ? data[section.bucket] : [];
-    makeSection(section.labelKey, section.module, hits, section.route,
-      section.label ? (item) => section.label(item, fmt) : null,
-      section.meta ? (item) => section.meta(item, fmt) : null);
-  });
+  if (data) {
+    SEARCH_SECTIONS.forEach((section) => {
+      const hits = Array.isArray(data?.[section.bucket]) ? data[section.bucket] : [];
+      makeSection(t(section.labelKey), section.module, hits, {
+        route: section.route,
+        title: (item) => (section.label ? section.label(item, fmt) : item.title),
+        meta: section.meta ? (item) => section.meta(item, fmt) : null,
+      });
+    });
+  }
 
   // Die Siegel-Icons kommen als data-lucide-Platzhalter; der Treffer-Pfad
   // rendert sie selbst (der Leerzustands-Pfad tut es bereits genauso).
@@ -4571,104 +4693,8 @@ function errorDetails(err) {
 // Toast-Benachrichtigungen (global)
 // --------------------------------------------------------
 
-/**
- * Zeigt eine Toast-Benachrichtigung an.
- * @param {string} message
- * @param {'default'|'success'|'danger'|'warning'} type
- * @param {number} duration - ms
- */
-const TOAST_SUCCESS_KEY = 'yuvomi:toastSuccessCount';
-const TOAST_SUCCESS_MAX = 50;
-
-function _toastSvg(children) {
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('class', 'toast__icon');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '2.5');
-  svg.setAttribute('aria-hidden', 'true');
-  for (const [tag, attrs] of children) {
-    const el = document.createElementNS(NS, tag);
-    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-    svg.appendChild(el);
-  }
-  return svg;
-}
-
-const TOAST_ICONS = {
-  success: () => _toastSvg([['polyline', { points: '20 6 9 17 4 12' }]]),
-  danger:  () => _toastSvg([
-    ['circle', { cx: '12', cy: '12', r: '10' }],
-    ['line',   { x1: '12', y1: '8',  x2: '12',   y2: '12' }],
-    ['line',   { x1: '12', y1: '16', x2: '12.01', y2: '16' }],
-  ]),
-  warning: () => _toastSvg([
-    ['path', { d: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z' }],
-    ['line', { x1: '12', y1: '9',  x2: '12',   y2: '13' }],
-    ['line', { x1: '12', y1: '17', x2: '12.01', y2: '17' }],
-  ]),
-};
-
-function showToast(message, type = 'default', duration = 3000, onUndo = null) {
-  const container = toastSurface((type === 'danger' || type === 'warning') ? 'assertive' : 'polite');
-  if (!container) return;
-
-  // Aktions-Button: Legacy-Undo (Funktion) oder benannte Aktion ({ label, onClick }).
-  const action = typeof onUndo === 'function'
-    ? { label: t('common.undo'), onClick: onUndo }
-    : (onUndo && typeof onUndo.onClick === 'function' ? onUndo : null);
-
-  // Long Loop: Success-Toasts nach TOAST_SUCCESS_MAX Aufrufen unterdrücken.
-  // Aktions-Toasts (Undo oder benannte Aktion) sind wichtig → nie unterdrücken.
-  if (type === 'success' && !action) {
-    const successCount = parseInt(localStorage.getItem(TOAST_SUCCESS_KEY) ?? '0', 10) + 1;
-    localStorage.setItem(TOAST_SUCCESS_KEY, String(successCount));
-    if (successCount > TOAST_SUCCESS_MAX) return;
-  }
-
-  // Max. 3 gleichzeitige Toasts (global): ältesten entfernen falls Limit erreicht
-  const existing = document.querySelectorAll('.toast-container .toast');
-  if (existing.length >= 3) existing[0].remove();
-
-  const toast = document.createElement('div');
-  toast.className = `toast ${type !== 'default' ? `toast--${type}` : ''}`;
-  // Keine eigene Live-Rolle: die Region (hoeflich oder bestimmt) sagt an.
-  // `role="alert"` machte jeden Toast bestimmt, auch in der hoeflichen Region,
-  // und liess ihn je nach Screenreader doppelt ansagen.
-
-  const iconEl = TOAST_ICONS[type]?.();
-  if (iconEl) toast.appendChild(iconEl);
-  const span = document.createElement('span');
-  span.textContent = message;
-  toast.appendChild(span);
-
-  if (action) {
-    const actionBtn = document.createElement('button');
-    actionBtn.className = 'toast__undo';
-    actionBtn.textContent = action.label;
-    actionBtn.addEventListener('click', () => {
-      clearTimeout(dismissTimer);
-      toast.remove();
-      action.onClick();
-    });
-    toast.appendChild(actionBtn);
-  }
-
-  container.appendChild(toast);
-  const dismiss = () => {
-    clearTimeout(dismissTimer);
-    toast.classList.add('toast--out');
-    toast.addEventListener('animationend', () => toast.remove(), { once: true });
-  };
-  const dismissTimer = setTimeout(dismiss, duration);
-
-  // Wischen zum Verwerfen: die Geste samt ihrer zwei Fallen liegt in
-  // `wireSwipeToDismiss` (utils/ux.js), das CSS-Gegenstück ist das
-  // `touch-action: pan-y` auf `.toast`.
-  wireSwipeToDismiss(toast, { onDismiss: dismiss });
-}
+// showToast lebt in utils/toast-show.js (Frist mit Pause, Ansage trotz
+// Erfolgs-Zaehler); window.yuvomi.showToast unten reicht sie weiter.
 
 // --------------------------------------------------------
 // Event-Listener

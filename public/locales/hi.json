@@ -3036,7 +3036,8 @@
         "otherSessionsEnded_few": "{{count}} अन्य सत्र समाप्त किए गए।",
         "otherSessionsNone": "आपका खाता किसी अन्य डिवाइस पर साइन इन नहीं था।",
         "otherSessionsError": "अन्य डिवाइस से साइन आउट नहीं हो सका।",
-        "otherSessionsTooManyAttempts": "बहुत अधिक अनुरोध। कृपया थोड़ा रुकें, फिर दोबारा कोशिश करें।"
+        "otherSessionsTooManyAttempts": "बहुत अधिक अनुरोध। कृपया थोड़ा रुकें, फिर दोबारा कोशिश करें।",
+        "pushUnavailable": "इस डिवाइस पर पुश सूचनाएँ अभी उपलब्ध नहीं हैं. कृपया पेज फिर से लोड करें."
     },
     "login": {
         "tagline": "अपने पारिवारिक प्लानर में फिर से आपका स्वागत है।",
@@ -3221,7 +3222,7 @@
         "ingredientMatchBulkHint": "हर सामग्री के लिए भंडार की वह पंक्ति चुनें जिसका मतलब वह है। Yuvomi कुछ भी अनुमान नहीं लगाता - केवल वही मान्य है जिसकी पुष्टि आप यहाँ करते हैं।"
     },
     "search": {
-        "emptyHint": "कार्य, ईवेंट, नोट्स, संपर्क, खरीदारी और स्वास्थ्य में खोजने के लिए कम से कम 2 अक्षर लिखें।",
+        "emptyHint": "किसी हिस्से पर जाने या कुछ नया बनाने के लिए लिखें। 2 अक्षरों से आपकी प्रविष्टियाँ भी मिलती हैं, शब्द के हिस्से से भी।",
         "title": "खोज",
         "open": "खोज खोलें",
         "placeholder": "खोजें…",
@@ -3230,7 +3231,9 @@
         "scopesLabel": "यहाँ जाएँ",
         "loading": "खोज जारी…",
         "resultCountOne": "{{count}} परिणाम",
-        "resultCountMany": "{{count}} परिणाम"
+        "resultCountMany": "{{count}} परिणाम",
+        "goTo": "यहाँ जाएँ",
+        "newSection": "नया बनाएँ"
     },
     "birthdays": {
         "inDays_one": "{{count}} दिन में",
@@ -4673,7 +4676,9 @@
                 "earlyDetail": "अगली खुराक {{time}} से ही तय है ({{remaining}}).",
                 "earlyConfirmAction": "फिर भी दर्ज करें"
             },
-            "stockUpdateFailed": "खुराक दर्ज हो गई, लेकिन स्टॉक अपडेट नहीं हो सका."
+            "stockUpdateFailed": "खुराक दर्ज हो गई, लेकिन स्टॉक अपडेट नहीं हो सका.",
+            "takeNamed": "{{name}} लें",
+            "skipNamed": "{{name}} छोड़ें"
         },
         "prevention": {
             "title": "निवारण और टीकाकरण",
@@ -5219,7 +5224,8 @@
         "duration": {
             "hm": "{{hours}} घं {{minutes}} मि",
             "h": "{{hours}} घं",
-            "m": "{{minutes}} मि"
+            "m": "{{minutes}} मि",
+            "unitH": "घं"
         },
         "careBanner": "आप {{name}} के लिए दर्ज कर रहे हैं।",
         "nutrition": {
