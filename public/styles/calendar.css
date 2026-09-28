@@ -335,17 +335,23 @@
 
 /* MOBIL TITEL UND ZEITRAUM IN EINER ZEILE (custom calendar compact header).
  *
- * Der Zeitraum steht neben dem Titel. Die Werkzeugbuttons brechen erst um,
- * wenn die Breite fuer ihre Trefferflaechen nicht reicht; der Datumsbereich
- * bleibt dadurch auf dem Telefon in der ersten Kopfzeile. */
+ * Der Zeitraum steht neben dem Titel. Die drei Kalenderwerkzeuge bleiben als
+ * Gruppe in ihrer eigenen, rechtsbuendigen Zeile: `display: contents` wuerde
+ * ihre Flex-Reihenfolge aufloesen und bei knapper Breite den Filter neben den
+ * Zeitraum schieben, waehrend Suche und Menue in die naechste Zeile fallen. */
 @media (max-width: 639px) {
   .cal-toolbar__views {
     display: none;
   }
 
-  .cal-toolbar > .cal-toolbar__bar,
+  .cal-toolbar > .cal-toolbar__bar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
   .cal-toolbar__tools {
-    display: contents;
+    display: flex;
+    margin-inline-start: auto;
   }
 
   .cal-toolbar__tools-btn {
@@ -362,12 +368,6 @@
   .cal-toolbar__tools-btn {
     order: 1;
     flex-shrink: 0;
-  }
-
-  /* Eingeklappt ist der Titel nur noch fuer Vorlesehilfen da - die Werkzeuge
-   * rutschen dann an das Zeilenende statt an den Anfang. */
-  .cal-toolbar__filter-btn {
-    margin-inline-start: auto;
   }
 
   .page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center {

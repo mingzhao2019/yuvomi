@@ -2269,6 +2269,9 @@ test('Kalender-Zeitraumlabels verzichten auf das redundante Jahr', () => {
       'ein einzelnes Zeitraumdatum muss ohne Jahr formatiert werden');
     assert(/DM:2026-09-28/.test(calendarHelpers.formatCalendarDate('2026-09-28', { weekday: true })),
       'das Tageslabel muss den kompakten Tag/Monat-Wert verwenden');
+    assert(calendarHelpers.formatCalendarDate('2026-09-28', { weekday: true, long: true })
+      .startsWith('calendar.dayLongMonday, '),
+      'das vollstaendige Tageslabel muss den lokalisierten langen Wochentag verwenden');
   } finally {
     if (previous === undefined) delete globalThis.__formatDayMonth;
     else globalThis.__formatDayMonth = previous;
@@ -2280,6 +2283,8 @@ test('Kalender-Zeitraumlabels verzichten auf das redundante Jahr', () => {
     'die Monatsansicht darf im Kopf nicht wieder das Jahr anhängen');
   assert(/view === 'agenda'[\s\S]*to: formatDayMonth\(to\)/.test(update),
     'die Agenda muss beide Bereichsenden ohne Jahr ausgeben');
+  assert(/view === 'day'\)\s+lbl\.textContent = formatCalendarDate\(state\.cursor, \{ weekday: true, long: true \}\)/.test(update),
+    'die Tagesansicht muss auch mobil den vollstaendigen Wochentag ausgeben');
   assert(!/weekNumberLabel[\s\S]{0,140}\byear\b/.test(update),
     'die Wochenansicht darf das Jahr nicht an das Periodenlabel übergeben');
 });

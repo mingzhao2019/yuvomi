@@ -2729,11 +2729,10 @@ function updateLabel() {
       ? t('calendar.dayRangeLabel', { from: formatDayMonth(addDays(state.cursor, -1)), to: formatDayMonth(addDays(state.cursor, 1)) })
       : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon });
   }
-  // Mobil der kurze Wochentag: „Donnerstag, 24.09." brauchte 186px und
-  // lief damit ueber die feste Breite des Labels hinaus - der Weiter-Pfeil
-  // stand in der Tagesansicht 30px weiter rechts als in den drei anderen
-  // (Critique 2026-09-24). „Do, 24.09.2026" traegt dieselbe Auskunft.
-  if (state.view === 'day')    lbl.textContent = formatCalendarDate(state.cursor, { weekday: true, long: !window.matchMedia(MOBILE_MEDIA_QUERY).matches });
+  // Die Tagesansicht nennt den vollstaendigen lokalisierten Wochentag; das
+  // Datum bleibt kompakt und ohne Jahr, damit die Kopfzeile trotzdem ruhig
+  // bleibt (z. B. „Montag, 09-28" bzw. „星期一, 09-28").
+  if (state.view === 'day')    lbl.textContent = formatCalendarDate(state.cursor, { weekday: true, long: true });
   // DIE AGENDA NENNT IHRE SPANNE, nicht nur ihren Anfang. „Ab 24.09."
   // sagte nicht, wie weit die Liste reicht, und „Weiter" sprang dann still
   // auf „Ab 24.10." (Critique 2026-09-24). Die Spanne ist die, die

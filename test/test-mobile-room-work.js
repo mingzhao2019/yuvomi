@@ -216,17 +216,29 @@ test('M5: der Kopf traegt ein Ansichtsmenue mit genau einer gewaehlten Ansicht',
   }
 });
 
-test('M5: mobil ersetzt das Menue das Segment, und der Zeitraum bleibt neben dem Titel', () => {
+test('M5: mobil ersetzt das Menue das Segment, und die Werkzeuge bleiben eine rechte Gruppe', () => {
   assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn').display, 'none', 'am Desktop waehlt das Segment');
   assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn', { media: MOBILE }).display, 'inline-flex');
   assert.equal(declarations(calendarCss, '.cal-toolbar__views', { media: MOBILE }).display, 'none');
   const bar = declarations(calendarCss, '.cal-toolbar > .cal-toolbar__bar', { media: MOBILE });
-  assert.equal(bar.display, 'contents', 'die Bar-Zeile loest sich auf - ihre Werkzeuge ruecken in die Titelzeile');
+  assert.equal(bar.display, 'flex', 'die Werkzeugzeile bleibt ein eigener Flex-Traeger');
+  assert.equal(bar['justify-content'], 'flex-end', 'die Werkzeugzeile richtet die Gruppe rechts aus');
+  const tools = declarations(calendarCss, '.cal-toolbar__tools', { media: MOBILE });
+  assert.equal(tools.display, 'flex', 'Filter, Suche und Menue bleiben in einer gemeinsamen Flex-Gruppe');
+  assert.equal(tools['margin-inline-start'], 'auto', 'die Werkzeuggruppe sitzt am Zeilenende');
+  const filter = declarations(calendarCss, '.cal-toolbar__filter-btn', { media: MOBILE });
+  assert.notEqual(filter['margin-inline-start'], 'auto', 'der Filter darf die Gruppe nicht auseinanderdruecken');
   const center = declarations(calendarCss, '.page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center', { media: MOBILE });
   assert.equal(center['flex-basis'], 'auto', 'der Zeitraum bleibt in der Titelzeile');
   assert.equal(center.order, '0', 'der Zeitraum steht vor den Werkzeugen');
   assert.equal(center['min-width'], 'min-content', 'die Navigationsknöpfe dürfen nicht ineinander laufen');
-  assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn', { media: MOBILE }).order, '1');
+  const html = calendar.toolbarHtml();
+  const toolsStart = html.indexOf('class="cal-toolbar__tools"');
+  const toolsEnd = html.indexOf('</div>', toolsStart);
+  const toolsHtml = html.slice(toolsStart, toolsEnd);
+  for (const id of ['cal-filters', 'cal-search', 'cal-views-menu']) {
+    assert(toolsHtml.includes(`id="${id}"`), `${id} muss in der gemeinsamen Werkzeuggruppe stehen`);
+  }
 });
 
 test('M5: Termintitel der Woche brechen nach Blockhoehe um statt nowrap', () => {
