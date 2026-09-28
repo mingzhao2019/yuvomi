@@ -347,13 +347,13 @@ body.task-list-resizing * {
     min-width: 0;
   }
 
-  /* list-group/list-rows carry a desktop reading measure. On mobile the
+  /* list-group/row-carrier carry a desktop reading measure. On mobile the
    * history view is the task page's main rail, not a narrow intrinsic-sized
    * reading column. Keep every level of that chain at the available width;
    * the title can then wrap naturally instead of forcing a vertical strip. */
   #task-list,
   #task-list > .list-group,
-  #task-list > .list-group > .list-rows {
+  #task-list > .list-group > .row-carrier {
     width: 100%;
     min-width: 0;
   }

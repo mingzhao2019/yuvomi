@@ -15,6 +15,8 @@ import {
   bindUserMultiSelect,
 } from '/components/user-multi-select.js';
 import { attachOverlay } from '/utils/overlay-history.js';
+import { rowActionHtml } from '/utils/row-action.js';
+import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_SYMBOLS = { CNY: '¥', EUR: '€', USD: '$' };
@@ -100,7 +102,7 @@ function currencyCode(item) {
 }
 
 function formatMoney(value, currency) {
-  if (value == null || !Number.isFinite(Number(value))) return '—';
+  if (value == null || !Number.isFinite(Number(value))) return '-';
   const amount = Number(value);
   const code = String(currency || state.householdCurrency || 'EUR').toUpperCase();
   const symbol = CURRENCY_SYMBOLS[code];
@@ -222,14 +224,18 @@ function cardHtml(item) {
       <div class="asset-cost-card__visual">
         ${imageHtml(item)}
         <span class="asset-cost-status asset-cost-status--${esc(item.statusGroup)}">${esc(statusLabel(item.status))}</span>
-        ${item.can_delete ? `<button type="button" class="asset-cost-card__delete" data-delete-id="${item.id}" aria-label="${esc(tr('delete'))}">
-          <i data-lucide="trash-2" aria-hidden="true"></i>
-        </button>` : ''}
+        ${item.can_delete ? rowActionHtml({
+          icon: 'trash-2',
+          tone: 'danger',
+          className: 'asset-cost-card__delete',
+          label: `${tr('delete')}: ${item.name}`,
+          attrs: { 'data-delete-id': item.id },
+        }) : ''}
       </div>
       <h3 class="asset-cost-card__name">${esc(item.name)}</h3>
       <div class="asset-cost-card__meta">
         <span>${esc(formatMoney(item.purchasePrice, currencyCode(item)))}</span>
-        <span>${item.daysUsed == null ? '—' : `${item.daysUsed} ${esc(tr('days'))}`}</span>
+        <span>${item.daysUsed == null ? '-' : `${item.daysUsed} ${esc(tr('days'))}`}</span>
       </div>
       <div class="asset-cost-card__daily">${esc(dailyValue)}<small>${esc(tr('perDay'))}</small><em>${esc(metricLabel())}</em></div>
       ${goal}
@@ -374,6 +380,8 @@ function renderBody() {
     <section class="asset-cost-grid" aria-live="polite">
       ${items.length ? items.map(cardHtml).join('') : `<p class="asset-cost-empty">${esc(state.items.length ? tr('noResults') : tr('empty'))}</p>`}
     </section>`);
+
+  attachSegmentIndicator(state.body.querySelector('.asset-cost-categories'), { key: 'asset-cost-categories' });
 
   state.body.querySelectorAll('[data-progress]').forEach((bar) => {
     const value = Math.max(0, Math.min(100, Number(bar.dataset.progress) || 0));
@@ -624,6 +632,7 @@ function renderImageSearchResults(dialog, sources, selectedProvider, { loading =
   const tabs = dialog.querySelector('[data-image-search-sources]');
   const target = dialog.querySelector('[data-image-search-results]');
   const ordered = orderedImageSources(sources);
+  tabs.querySelector(':scope > .seg-indicator')?._segHandle?.destroy();
   tabs.replaceChildren();
   tabs.insertAdjacentHTML('beforeend', `
     <button type="button" class="asset-cost-image-search-dialog__source is-selected" data-image-search-source="all" role="tab" aria-selected="true">
@@ -639,6 +648,7 @@ function renderImageSearchResults(dialog, sources, selectedProvider, { loading =
     button.classList.toggle('is-selected', active);
     button.setAttribute('aria-selected', String(active));
   });
+  attachSegmentIndicator(tabs, { key: 'asset-cost-image-search-sources' });
 
   if (loading) {
     target.replaceChildren();
@@ -730,7 +740,7 @@ function openImageSearchDialog(formPanel, setPhoto) {
       </header>
       <div class="asset-cost-image-search-dialog__query">
         <label class="sr-only" for="asset-cost-image-search-query">${esc(tr('imageSearchQueryLabel'))}</label>
-        <input id="asset-cost-image-search-query" class="form-input" type="search" autocomplete="off" inputmode="search" value="${esc(initialQuery)}" placeholder="${esc(tr('imageQuery'))}">
+        <input id="asset-cost-image-search-query" class="form-input" type="text" role="searchbox" autocomplete="off" inputmode="search" value="${esc(initialQuery)}" placeholder="${esc(tr('imageQuery'))}">
         <button type="button" class="btn btn--primary" data-image-search-submit aria-label="${esc(tr('imageSearchSubmit'))}">
           <i data-lucide="search" aria-hidden="true"></i>
         </button>
@@ -1017,7 +1027,8 @@ async function loadData() {
 
 function buildPage(container) {
   const page = document.createElement('div');
-  page.className = 'asset-cost-page app-page app-page--data page';
+  page.className = 'asset-cost-page app-page app-page--full page';
+  page.dataset.composition = 'full';
   page.dataset.composition = 'data';
   page.insertAdjacentHTML('beforeend', `
     <div class="asset-cost-toolbar page-toolbar page-toolbar--wrap">

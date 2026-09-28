@@ -192,7 +192,8 @@ function openRecipeFromQuery() {
   row.scrollIntoView({ block: 'nearest' });
 }
 
-export async function render(container, { signal } = {}) {
+export async function render(container) {
+  const { signal } = arguments[1] ?? {};
   _container = container;
   _md = null;
 

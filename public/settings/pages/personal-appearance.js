@@ -272,6 +272,7 @@ function renderPage(container, preferences, isAdmin) {
       <div class="settings-card" id="lunar-calendar-setting">
         <h3 class="settings-card__title">${t('settings.lunarCalendarTitle')}</h3>
         ${toggleRowHtml({
+          control: 'switch',
           label: t('settings.lunarCalendarLabel'),
           checked: !!preferences.calendar_show_lunar,
           attrs: { id: 'calendar-show-lunar', 'aria-describedby': 'lunar-calendar-hint' },

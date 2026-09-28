@@ -26,6 +26,7 @@ import { makeSortable } from '/utils/sortable.js';
 import '/components/category-manager.js';
 import '/components/tag-manager.js';
 import { findPageFab } from '/utils/fab.js';
+import { rowActionEl } from '/utils/row-action.js';
 import { isNavModuleReadOnly, navModuleAccess } from '/permissions.js';
 import { setBulkPill, clearBulkPill } from '/utils/bulk-pill.js';
 import { isSoloHousehold, hidesPrivacyControls } from '/utils/household.js';
@@ -2439,30 +2440,21 @@ function commentRowNode(comment, { onChanged }) {
 
     // Ändern darf nur der Autor - ein Admin moderiert, er schreibt nicht um.
     if (mine) {
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.className = 'task-comment__action';
-      edit.setAttribute('aria-label', t('tasks.commentEdit'));
-      edit.title = t('tasks.commentEdit');
-      const editIcon = document.createElement('i');
-      editIcon.dataset.lucide = 'pencil';
-      editIcon.className = 'icon-sm';
-      editIcon.setAttribute('aria-hidden', 'true');
-      edit.appendChild(editIcon);
-      edit.addEventListener('click', () => startCommentEdit(row, comment, { onChanged }));
+      const edit = rowActionEl({
+        icon: 'pencil',
+        label: t('tasks.commentEdit'),
+        attrs: { title: t('tasks.commentEdit') },
+        onClick: () => startCommentEdit(row, comment, { onChanged }),
+      });
       actions.appendChild(edit);
     }
 
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'task-comment__action task-comment__action--danger';
-    del.setAttribute('aria-label', t('tasks.commentDelete'));
-    del.title = t('tasks.commentDelete');
-    const delIcon = document.createElement('i');
-    delIcon.dataset.lucide = 'trash-2';
-    delIcon.className = 'icon-sm';
-    delIcon.setAttribute('aria-hidden', 'true');
-    del.appendChild(delIcon);
+    const del = rowActionEl({
+      icon: 'trash-2',
+      tone: 'danger',
+      label: t('tasks.commentDelete'),
+      attrs: { title: t('tasks.commentDelete') },
+    });
     // Kein Bestätigungsdialog, sondern der Rückgängig-Toast, den diese Seite
     // schon fürs Löschen einer Aufgabe benutzt. Zwei Gründe: Eine Rückfrage
     // wäre hier ein Modal über einem Modal - `confirmModal` verdrängt die
@@ -4901,24 +4893,21 @@ function taskListOptionLabel(item) {
 }
 
 function makeTaskListDeleteButton(item, container) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'task-list-nav__delete';
-  button.disabled = !taskListIsDisconnected(item);
-  button.title = button.disabled
-    ? t('tasks.taskListSyncRequired')
-    : t('tasks.taskListDelete');
-  button.setAttribute('aria-label', `${t('tasks.taskListDelete')}: ${taskListLabel(item)}`);
-
-  const icon = document.createElement('i');
-  icon.setAttribute('data-lucide', 'trash-2');
-  icon.className = 'icon-md';
-  icon.setAttribute('aria-hidden', 'true');
-  button.appendChild(icon);
-  button.addEventListener('click', (event) => {
+  const disconnected = taskListIsDisconnected(item);
+  const button = rowActionEl({
+    icon: 'trash-2',
+    tone: 'danger',
+    className: 'task-list-nav__delete',
+    label: `${t('tasks.taskListDelete')}: ${taskListLabel(item)}`,
+    attrs: {
+      disabled: !disconnected,
+      title: disconnected ? t('tasks.taskListDelete') : t('tasks.taskListSyncRequired'),
+    },
+    onClick: (event) => {
     event.preventDefault();
     event.stopPropagation();
     handleDeleteTaskList(item, container);
+    },
   });
   return button;
 }
@@ -6126,8 +6115,8 @@ function wireSwipeGestures(container) {
  * ging das gerade noch gut; mit der dritten waeren es zwei Listen gewesen, die
  * auseinanderlaufen koennen, und eine davon haette den Verlauf vergessen.
  *
- * Sichtbarkeit ueber [hidden] statt style.display: ein Zustand, den auch
- * assistive Technik als „nicht vorhanden" liest.
+ * Die Suche bleibt im Desktop-Raster als unsichtbarer Platzhalter, damit der
+ * Wechsel zwischen Liste, Brett und Verlauf nicht horizontal springt.
  */
 function syncViewChrome(container) {
   const mode = state.viewMode;
@@ -6169,7 +6158,7 @@ function syncViewChrome(container) {
   // veraendern kann. Die Gruppierung steht im Filterblatt und fragt dort beim
   // Oeffnen selbst nach der Ansicht.
   const search = container.querySelector('.tasks-toolbar__search');
-  if (search) search.hidden = isHistory;
+  if (search) search.classList.toggle('tasks-toolbar__search--inactive', isHistory);
   const filterBtn = container.querySelector('#tasks-filter-btn');
   if (filterBtn) filterBtn.hidden = isHistory;
   if (!isList) {
@@ -7048,6 +7037,18 @@ async function openTaskSheet(id, container, signal = null) {
   }
 }
 
+// A task deep link is a one-shot instruction for the narrow sheet. Consume it
+// even when the task is missing or inaccessible, so a reload does not retry a
+// request that can never produce a view. The helper is also used for ordinary
+// narrow opens; without a current `open` parameter the cleanup is a no-op.
+async function openTaskSheetAndConsumeDeepLink(id, container, signal = null) {
+  try {
+    await openTaskSheet(id, container, signal);
+  } finally {
+    consumeTaskOpenParameter();
+  }
+}
+
 /**
  * Das Detail einer Aufgabe in die Spalte zeichnen.
  *
@@ -7117,9 +7118,9 @@ function mountTaskSplit(container, signal) {
 
   // Ein Deep-Link auf eine Aufgabe, die in dieser Liste nicht steht (erledigt,
   // abgelegt, weggefiltert - die globale Suche findet alle): keine Auswahl
-  // ohne Zeile, sondern das Sheet wie bisher. Der Link BLEIBT in der Adresse
-  // (Kopieren, Neuladen, Vor - Codex an #1477); der Baustein laesst nur diese
-  // Anfangsauswahl liegen, statt sie ohne Zeile zu beanspruchen.
+  // ohne Zeile, sondern das Sheet wie bisher. Der Link wird nach dem ersten
+  // Sheet-Versuch verbraucht, auch wenn die Aufgabe fehlt oder nicht zugänglich
+  // ist; eine breite Auswahl bleibt dagegen als Master/Detail-Zustand bestehen.
   const initial = new URLSearchParams(location.search).get(TASK_DETAIL_PARAM);
   const sheetFor = initial && !root.querySelector(`[data-md-id="${CSS.escape(initial)}"]`) ? initial : null;
 
@@ -7130,7 +7131,7 @@ function mountTaskSplit(container, signal) {
     deepLinkNarrow: true,
     claimInitial: sheetFor == null,
     renderDetail: (id, body, ctx) => renderTaskPane(id, body, ctx.signal, container),
-    openNarrow: (id, _trigger, { signal }) => openTaskSheet(id, container, signal),
+    openNarrow: (id, _trigger, { signal }) => openTaskSheetAndConsumeDeepLink(id, container, signal),
     // Enter auf der gewaehlten Zeile: Bearbeiten, wie der Knopf im Kopf der
     // Spalte - ohne Schreibrecht steht dort keiner, dann fuehrt Enter ins
     // Detail.
@@ -7161,7 +7162,7 @@ function mountTaskSplit(container, signal) {
   chosen?.scrollIntoView?.({ block: 'nearest' });
   // Mit dem Signal der Seite: verlaesst der Nutzer sie waehrend der Anfragen,
   // geht kein Blatt ueber der Zielseite auf.
-  if (sheetFor) openTaskSheet(sheetFor, container, signal);
+  if (sheetFor) openTaskSheetAndConsumeDeepLink(sheetFor, container, signal);
 }
 
 /**
@@ -7416,6 +7417,12 @@ export async function render(container, { user, signal } = {}) {
               (utils/bulk-pill.js, updateBulkActionsBar), wie in Einkauf,
               Kontakten und Vorrat - nicht mehr als eigene Leiste ueber der
               Liste (Re-Critique 2026-09-27, D5). */ ''}
+        <div class="tasks-layout">
+          <nav class="task-lists-sidebar" id="task-lists-nav" aria-labelledby="task-lists-title"></nav>
+          <div class="task-list-resizer" id="task-list-resizer" role="separator"
+               aria-orientation="vertical" aria-valuemin="208" aria-valuemax="420"
+               aria-label="${t('tasks.taskSourceLabel')}" tabindex="0"></div>
+          <div class="tasks-main">
         <div class="split-view tasks-split">
         <div id="task-list" class="split-view__list">
           ${[1,2,3].map(() => `
@@ -7430,6 +7437,8 @@ export async function render(container, { user, signal } = {}) {
           label: t('tasks.detailPaneLabel'),
           empty: { icon: 'list-checks', title: t('tasks.pickOne'), hint: t('tasks.pickOneHint') },
         })}
+        </div>
+          </div>
         </div>
         ${readOnly() ? '' : `
         <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}" data-dock-label="${t('newLabel.tasks')}">

@@ -288,8 +288,8 @@ test('openTaskSheet oeffnet nach dem Laden nur, solange das Signal des Bausteins
   }
   // Der Aufrufer reicht das Signal des Bausteins durch.
   const src = readFileSync(new URL('../public/pages/tasks.js', import.meta.url), 'utf8');
-  assert.match(src, /openNarrow: \(id, _trigger, \{ signal \}\) => openTaskSheet\(id, container, signal\)/,
-    'mountTaskSplit gibt das Signal aus openNarrow an openTaskSheet weiter');
+  assert.match(src, /openNarrow: \(id, _trigger, \{ signal \}\) => openTaskSheetAndConsumeDeepLink\(id, container, signal\)/,
+    'mountTaskSplit gibt das Signal aus openNarrow an openTaskSheetAndConsumeDeepLink weiter');
 });
 
 test('renderTaskPane: nur 404/403 heisst „gibt es nicht"; ein Netz- oder Serverfehler wirft', async () => {
@@ -323,7 +323,7 @@ test('der Rueckfall fuer ?open= auf eine Aufgabe ausserhalb der Liste haengt am 
   const src = readFileSync(new URL('../public/pages/tasks.js', import.meta.url), 'utf8');
   const mount = src.slice(src.indexOf('function mountTaskSplit('));
   const body = mount.slice(0, mount.indexOf('\n}\n'));
-  assert.match(body, /if \(sheetFor\) openTaskSheet\(sheetFor, container, signal\)/,
+  assert.match(body, /if \(sheetFor\) openTaskSheetAndConsumeDeepLink\(sheetFor, container, signal\)/,
     'mountTaskSplit reicht das Signal der Seite an den Rueckfall weiter');
 });
 
@@ -341,14 +341,13 @@ test('Wiederholen nach dem Ladefehler baut mit dem Seiten-Signal neu auf', () =>
   assert.match(head, /pageSignal = signal \?\? null;/, 'render merkt sich das Signal fuer den Wiederholen-Weg');
 });
 
-// ── Der Rueckfall fuer ?open= ausserhalb der Liste behaelt die Adresse ─────
+// ── Der Rueckfall fuer ?open= ausserhalb der Liste verbraucht die Adresse ──
 
-test('?open= auf eine Aufgabe ausserhalb der Liste: das Blatt geht auf, die Adresse behaelt den Link, die Spalte waehlt nichts', async () => {
-  // Codex an #1477 (Thread 4112556721): der Rueckfall nahm `?open=` VOR dem
-  // Blatt aus der Adresse, damit der Baustein die Zeile nicht beansprucht, die
-  // es nicht gibt. Die Adresse hiess danach `/tasks` - Kopieren, Neuladen und
-  // Vor oeffneten die Aufgabe nicht mehr. Jetzt bleibt der Link stehen, und
-  // der Baustein laesst genau diese Anfangsauswahl liegen (claimInitial).
+test('?open= auf eine Aufgabe ausserhalb der Liste: das Blatt geht auf, die Adresse verbraucht den Link, die Spalte waehlt nichts', async () => {
+  // Der Rueckfall nimmt `?open=` erst nach dem Blattversuch aus der Adresse.
+  // Damit wird ein fehlender oder nicht zugänglicher Task nicht bei jedem
+  // Reload erneut angefragt, waehrend der Seitenaufruf selbst den Link noch
+  // vollständig verarbeiten kann.
   const node = (extra = {}) => ({
     hidden: false,
     isConnected: true,
@@ -377,18 +376,28 @@ test('?open= auf eine Aufgabe ausserhalb der Liste: das Blatt geht auf, die Adre
 
   const url = { current: new URL('http://yuvomi.test/tasks?open=7') };
   const writes = [];
-  const saved = { location: globalThis.location, history: globalThis.history, gcs: globalThis.getComputedStyle };
-  globalThis.location = {
+  const saved = {
+    location: globalThis.location,
+    history: globalThis.history,
+    gcs: globalThis.getComputedStyle,
+    windowLocation: globalThis.window.location,
+    windowHistory: globalThis.window.history,
+  };
+  const locationStub = {
     get href() { return url.current.href; },
     get pathname() { return url.current.pathname; },
     get search() { return url.current.search; },
     get hash() { return url.current.hash; },
   };
-  globalThis.history = {
+  const historyStub = {
     state: null,
     replaceState(state, _t, to) { writes.push(['replace', to]); url.current = new URL(to, url.current); },
     pushState(state, _t, to) { writes.push(['push', to]); url.current = new URL(to, url.current); },
   };
+  globalThis.location = locationStub;
+  globalThis.history = historyStub;
+  globalThis.window.location = locationStub;
+  globalThis.window.history = historyStub;
   globalThis.getComputedStyle = (el) => ({ display: el.display ?? 'block' });
   const opened = [];
   globalThis.__apiStub = {
@@ -400,8 +409,8 @@ test('?open= auf eine Aufgabe ausserhalb der Liste: das Blatt geht auf, die Adre
     tasks.mountTaskSplit(container, page$.signal);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
-    assert.equal(location.search, '?open=7', 'der Rueckfall hat den Link aus der Adresse genommen - Kopieren und Neuladen oeffnen die Aufgabe nicht mehr');
-    assert.deepEqual(writes, [], 'weder Rueckfall noch Baustein schreiben die Adresse');
+    assert.equal(location.search, '', 'der erledigte Deep-Link bleibt nicht fuer einen erneuten Versuch in der Adresse');
+    assert.deepEqual(writes, [['replace', '/tasks']], 'der Verbrauch ersetzt den aktuellen Verlaufseintrag');
     assert.deepEqual(opened, [{ title: 'Tisch decken', pane: null }],
       'genau das Blatt geht auf - kein Detail in der Spalte fuer eine Aufgabe ohne Zeile');
   } finally {
@@ -409,6 +418,8 @@ test('?open= auf eine Aufgabe ausserhalb der Liste: das Blatt geht auf, die Adre
     globalThis.location = saved.location;
     globalThis.history = saved.history;
     globalThis.getComputedStyle = saved.gcs;
+    globalThis.window.location = saved.windowLocation;
+    globalThis.window.history = saved.windowHistory;
     delete globalThis.__apiStub;
     delete globalThis.__openDetailView;
   }

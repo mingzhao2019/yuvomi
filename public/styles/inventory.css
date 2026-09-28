@@ -273,6 +273,10 @@
   gap: var(--space-3);
 }
 
+.inventory-form-row[hidden] {
+  display: none;
+}
+
 /* Vier Zustaende eines Gegenstands, und sie tragen ihren Ton in der SCHRIFT
  * (Skalen-Regel, zweiter Zweig - wie die Vorratsmeldung). Vorher lag unter
  * jeder Schrift dieselbe Farbe noch einmal als Waschung; das ist die Bauart,

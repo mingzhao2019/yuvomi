@@ -363,10 +363,12 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
             <label class="form-label" for="notification-message-pusher-token-${suffix}">${t('settings.notificationChannelWebhookToken')}</label>
             <input class="form-input" id="notification-message-pusher-token-${suffix}" name="messagePusherToken" type="password" autocomplete="new-password" placeholder="${channel.secretSet ? esc(t('settings.notificationChannelSecretKeep')) : ''}">
           </div>
-          <label class="form-checkbox">
-            <input type="checkbox" name="messagePusherTokenQuery"${channel.config.tokenInQuery ? ' checked' : ''}>
-            <span>${t('settings.notificationChannelMessagePusherTokenQuery')}</span>
-          </label>
+          ${toggleRowHtml({
+            control: 'switch',
+            label: t('settings.notificationChannelMessagePusherTokenQuery'),
+            checked: !!channel.config.tokenInQuery,
+            attrs: { name: 'messagePusherTokenQuery' },
+          })}
           <p class="form-hint">${t('settings.notificationChannelMessagePusherHint')}</p>
         </div>
         <div class="notification-provider-fields notification-provider-fields--email${isEmail ? '' : ' settings-card--hidden'}">

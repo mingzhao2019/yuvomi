@@ -137,3 +137,48 @@ renumbering released migrations. The feature remains a separately scoped integra
 ## Microsoft To Do compatibility boundary
 
 Microsoft To Do `steps`/`checklistItems` are intentionally not imported or exported as Yuvomi subtasks. A To Do step is a nested checklist entry without its own task identity, visibility, permissions, or parent-task relationship; Yuvomi subtasks are real tasks and participate in those models. Any upstream change that assumes the two are interchangeable must therefore be adapted or skipped during selective synchronization.
+
+## Sync record: 2026-09-28 selective review ports
+
+Source checkpoint: upstream `main` moved from `9a9864a59` (#1465) to
+`b23ce8fbd` (#1489). The integration branch started at custom commit
+`bb3b3ef48` and is `custom-upstream-selective-2026-09-28`. The 16 upstream
+commits below were reviewed in upstream order and represented by the listed
+custom adaptation commits; the upstream branch was not merged wholesale.
+
+| Upstream commit | Custom integration | Decision |
+| --- | --- | --- |
+| `525706f27` | `6db592ab7` | Adopted the dashboard ended-today test fixture correction. |
+| `1c60be749` | `3d1443b80` | Manually ported document tools, previews, deadline-first ordering, and keyboard access; preserved custom document permissions, receipt visibility, and storage providers. |
+| `84a4ef346` | `177587cd3` | Manually ported the budget booking-first layout, single lane, subscription/split views, and chart scale separation; kept custom account, category, series, and permission semantics. |
+| `3fe24b7d9` | `129d6f4d5` | Adopted the independently applicable visible-defect fixes and adapted affected module markup to the custom API and read-only contracts. |
+| `ab3ca4a6a` | `e7bb530e4` | Manually ported the mobile header rule, floating tab capsule, shared search/tools/filter blocks, and content-safe-area layout; retained custom task-list and provider entry points. |
+| `621c38c23` | `b6881e9a8` | Manually ported standing chrome, real sheet/dialog exits, list motion, and stale-response guards; preserved custom module loading and sync behavior. |
+| `246173a85` | `41c142e49` | Manually ported the compact sidebar, width regimes, and shared list/detail navigation; retained custom asset, task-list, visibility, and permission behavior. |
+| `0c5fd494d` | `0f5671c3b` | Manually ported the shared control dialect, search, row actions, dialogs, settings controls, and mobile shell; kept custom Microsoft To Do, calendar, notification, and asset controls. |
+| `cc04e8145` | `3ef78973b` | Adapted the document-guard probes to wait for the real modal exit and page transition, without changing the custom document contract. |
+| `8a70c8779` | `51e218879` | Adopted the motion fix so a tap during a page change terminates the active fade, while retaining custom router and standing-chrome behavior. |
+| `70ddca00d` | `93ed0eba7` | Manually ported the shared sheet grammar, visible grabber, docked add action, search width, selection mode, and sliding indicators; preserved custom settings and synchronization routes. |
+| `c18fdeb01` | `1e75e7bf2` | Adopted task selection safeguards and observer teardown: swipes/subtask controls are inert in select mode and rebuilt segment bars release observers. |
+| `bf2b74092` | `9c6f6e7dd` | Manually ported honest links, explicit cancel/delete flows, category selection, editable vitals/labs, and selection circles; retained custom task, document, and health permissions. |
+| `7f9b47b50` | `6d46e5c7d` | Adopted the budget series-delete accounting fix; filtered account views wait for the server reload so totals cannot be skewed. |
+| `fa1eae8f9` | `d632c6b98` | Manually ported phone-first task, kanban, calendar, contacts, health, meals, notes, dashboard, kitchen, and budget layouts; preserved custom calendar completion and task-list interactions. |
+| `b23ce8fbd` | `a572d8812` | Manually ported one settings sheet per module, health overview navigation, and list/detail from 1280px; kept custom settings defaults, Provider/VTODO continuity, legacy redirects, asset widgets, and agenda completion controls. |
+
+The UI review series introduced no database migration and no new API data
+model. No released migration was rewritten. Version metadata remains `2.69.1`
+from the synchronized local `main`; the root package, lockfile roots,
+`public/sw.js`, and current release references remain aligned. Existing
+changelog history was not rewritten by this record.
+
+Semantic conflict decisions for this series were handled by combining
+behavior rather than selecting whole files. Settings use the upstream
+one-sheet structure but retain custom task defaults, Provider/VTODO semantics,
+and the legacy reminders redirect. Calendar agenda uses the upstream
+master-detail layout but retains custom event completion, task/waste keyboard
+actions, and provider event handling. Document, inventory, task, notification,
+and dashboard ports retain the custom permission boundaries and data sources.
+Microsoft To Do `steps`/`checklistItems` remain separate from Yuvomi subtasks;
+Outlook/ICS synchronization remains bidirectional/read-only as defined above,
+and persistent task lists, notification channels, assets, and dashboard
+widgets were not removed or given upstream-only semantics.

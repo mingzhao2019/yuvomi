@@ -27,6 +27,7 @@ const chain = pkg.scripts['test-chain'] ?? pkg.scripts.test;
 // 被误报为未接入。所有链仍共用同一套 browser/文件引用规则。
 const testChains = [
   chain,
+  pkg.scripts.test,
   pkg.scripts['test:custom'],
   pkg.scripts['pretest:custom'],
   pkg.scripts['posttest:custom'],

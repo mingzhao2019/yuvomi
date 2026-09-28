@@ -5238,7 +5238,7 @@ function renderAgendaView(container) {
               </div>`).join('')}</div>` : ''}
             ${schedule.length ? `<div class="agenda-holidays">${schedule.map((entry) => renderScheduleChip(entry, 'agenda-holiday')).join('')}</div>` : ''}
             ${waste.length ? `<div class="agenda-holidays">${waste.map((occ) => renderWasteChip(occ, { className: 'agenda-holiday', interactive: true })).join('')}</div>` : ''}
-            ${entries.length ? `<div class="list-rows agenda-entries">${entries.map((entry) => renderAgendaEntry(entry, date)).join('')}</div>` : ''}
+            ${entries.length ? `<div class="row-carrier agenda-entries">${entries.map((entry) => renderAgendaEntry(entry, date)).join('')}</div>` : ''}
             ${(!entries.length && !holidays.length && !schedule.length && !waste.length)
               ? `<p class="agenda-day__empty">${t('calendar.agendaDayEmpty')}</p>` : ''}
           </div>

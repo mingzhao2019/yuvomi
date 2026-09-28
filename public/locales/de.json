@@ -260,6 +260,7 @@
         "metricDoses_one": "{{count}} offen",
         "metricVisits": "{{count}} Besuche",
         "metricVisits_one": "{{count}} Besuch",
+        "metricVisits_few": "{{count}} Besuche",
         "savingsRate": "Sparquote",
         "topExpense": "Größte Ausgabe",
         "noBudgetData": "Keine Budgetdaten in diesem Monat.",
@@ -504,6 +505,8 @@
         "unarchivedToast": "Aufgabe wiederhergestellt.",
         "archivedLabel": "Archiviert am",
         "bulkSelect": "Mehrfachauswahl",
+        "bulkSelectAll": "Alle sichtbaren auswählen",
+        "bulkClearSelection": "Auswahl aufheben",
         "selectTaskNamed": "{{title}} auswählen",
         "bulkSelectedCount": "{{count}} ausgewählt",
         "bulkMarkDone": "Erledigt",
@@ -3659,12 +3662,7 @@
             "reasonTooDeep": "Der Pfad überschreitet das Limit von fünf Ordnerebenen.",
             "reasonParentFailed": "Der übergeordnete Ordner konnte nicht erstellt werden.",
             "reasonRateLimited": "Der Server erhält gerade zu viele Anfragen. Versuche den Upload später erneut."
-        },
-        "shareAction": "Teilen",
-        "sharePreparing": "Wird vorbereitet …",
-        "shareUnsupportedType": "Dieser Dateityp lässt sich nicht über das Teilen-Menü des Geräts weitergeben. Lade die Datei stattdessen herunter.",
-        "shareUnavailable": "Das Teilen-Menü des Geräts steht in diesem Browser nicht zur Verfügung oder braucht eine sichere Verbindung (HTTPS). Lade die Datei stattdessen herunter.",
-        "shareFailed": "Teilen hat nicht geklappt. Lade die Datei stattdessen herunter."
+        }
     },
     "userMultiSelect": {
         "nobody": "Niemand",
@@ -5825,8 +5823,6 @@
         "quickStartNothingNew": "Bereits eingerichtet - nichts Neues anzulegen.",
         "cycleLengthTooShort": "Tag {{from}}-{{to}} hat noch Schichten. Leere sie zuerst, dann verkürze den Zyklus.",
         "cycleLengthConflictGeneric": "Diese Zykluslänge würde Tage entfernen, die noch Schichten haben. Leere sie zuerst, dann verkürze den Zyklus.",
-        "cycleDaysHint": "Der Zyklus wiederholt sich alle {{count}} Tage ab dem Startdatum - Tage davor folgen rückwärts demselben Rhythmus.",
-        "cycleDaysHint_one": "Der Zyklus wiederholt sich täglich ab dem Startdatum - Tage davor folgen rückwärts demselben Rhythmus.",
         "origin": "Herkunft",
         "entryDetailTitle": "Schichtdetails",
         "fullBlocksHint": "Aus: Schichten erscheinen in der Wochen- und Tagesansicht als kompakte ganztägige Chips.",

@@ -248,6 +248,7 @@
         "metricDoses_one": "{{count}} left",
         "metricVisits": "{{count}} visits",
         "metricVisits_one": "{{count}} visit",
+        "metricVisits_few": "{{count}} visits",
         "savingsRate": "Savings rate",
         "topExpense": "Top expense",
         "noBudgetData": "No budget data this month.",
@@ -457,6 +458,8 @@
         "unarchivedToast": "Task restored.",
         "archivedLabel": "Archived on",
         "bulkSelect": "Bulk select",
+        "bulkSelectAll": "Select all visible",
+        "bulkClearSelection": "Clear selection",
         "selectTaskNamed": "Select {{title}}",
         "bulkSelectedCount": "{{count}} selected",
         "bulkMarkDone": "Mark done",
@@ -3659,12 +3662,7 @@
             "reasonTooDeep": "The path exceeds the five-level folder limit.",
             "reasonParentFailed": "Its parent folder could not be created.",
             "reasonRateLimited": "The server is receiving too many requests. Try the upload again later."
-        },
-        "shareAction": "Share",
-        "sharePreparing": "Preparing …",
-        "shareUnsupportedType": "This file type cannot be shared through the device's share sheet. Download the file instead.",
-        "shareUnavailable": "The device's share sheet is not available in this browser, or it needs a secure connection (HTTPS). Download the file instead.",
-        "shareFailed": "Sharing did not work. Download the file instead."
+        }
     },
     "housekeeping": {
         "title": "Housekeeping",
@@ -5825,8 +5823,6 @@
         "quickStartNothingNew": "Already set up - nothing new to create.",
         "cycleLengthTooShort": "Days {{from}}-{{to}} still have shifts. Clear them first, then shorten the cycle.",
         "cycleLengthConflictGeneric": "This cycle length would remove days that still have shifts. Clear them first, then shorten the cycle.",
-        "cycleDaysHint": "The cycle repeats every {{count}} days from the start date - days before it follow the same rhythm backwards.",
-        "cycleDaysHint_one": "The cycle repeats every day from the start date - days before it follow the same rhythm backwards.",
         "origin": "Origin",
         "entryDetailTitle": "Shift details",
         "fullBlocksHint": "Off: shifts appear as compact all-day chips in Week and Day view.",

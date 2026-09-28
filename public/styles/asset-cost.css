@@ -19,10 +19,6 @@
   white-space: nowrap;
 }
 
-.asset-cost-toolbar__search {
-  max-width: 320px;
-}
-
 .asset-cost-toolbar__search-trigger { display: none; }
 
 .asset-cost-body {
