@@ -1112,6 +1112,15 @@ const SHAPE_EXEMPT = new Map([
   ['week-event', 'Rasterzelle: Terminblock im Zeitraster der Woche, Hoehe = Dauer'],
   ['day-event', 'Rasterzelle: Terminblock im Zeitraster des Tages, Hoehe = Dauer'],
   ['allday-event', 'Rasterzelle: Ganztags-Balken der Woche/des Tages, gleiche Bar wie .month-day__event'],
+  // Seit R9 M13 (Re-Critique 2026-09-27) oeffnet die Notizkarte als GANZE
+  // Karte: der Oeffnen-Knopf liegt unsichtbar ueber ihr (notes.css, keine
+  // Flaeche, keine Kante) und erbt ihren Radius nur, damit der Fokusring die
+  // Karte umrahmt. Die Form, die man sieht und tippt, ist die der Karte - und
+  // die Notizen sind laut DESIGN.md („Drei Flaechen sind AUSDRUECKLICH keine
+  // Zeilenliste") ein Raster, keine Zeilenliste. Dieselbe Begruendung wie bei
+  // `.health-overview__card--link`: eine Kapsel waere hier eine zweite Form
+  // neben den gleichen Karten des Rasters.
+  ['note-card__open', 'Rasterzelle: ganze Notizkarte als Oeffner im Notizraster (Masonry, DESIGN.md)'],
   // 4. Zeilen einer Zeilenliste
   ['nav-item', 'Zeile: Eintrag der Sidebar-Navigation'],
   ['note-item', 'Zeile: Notiz im Dashboard-Widget'],
@@ -1777,6 +1786,15 @@ async function metricRowHeights(page) {
   return page.evaluate(() => {
     const carriers = new Map();
     for (const card of document.querySelectorAll('.metric-card')) {
+      // EINE KARTE OHNE KASTEN IST KEINE KACHEL DER REIHE. `display: none`
+      // (selbst oder an einem Vorfahren) erzeugt kein Rasterelement und keine
+      // Zelle - die Reihe hat dann eine Karte weniger, keine leere. Gemessen
+      // lieferte so eine Karte `top 0, Hoehe 0`, galt damit als eigene
+      // Rasterzeile und als Kachel der Hoehe 0: die Abrechnung blendet ihre
+      // Gruppen-Kachel mobil per Container-Query aus (R10 L11), und die Sonde
+      // meldete „Hoehen 59, 59, 0". Gefiltert wird NUR, was gar keinen Kasten
+      // hat; eine gerenderte Karte der Hoehe 0 bleibt ein Befund.
+      if (!card.getClientRects().length) continue;
       const parent = card.parentElement;
       if (!parent) continue;
       if (!carriers.has(parent)) carriers.set(parent, []);
