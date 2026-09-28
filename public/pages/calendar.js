@@ -6118,6 +6118,7 @@ function renderAgendaEvent(ev, dayStr) {
         </div>
       </div>
     </div>
+    </div>
   `;
 }
 

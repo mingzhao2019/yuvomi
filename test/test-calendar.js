@@ -4537,6 +4537,18 @@ test('Agenda: jede Terminzeile ist je Tag eindeutig waehlbar, Haushaltshilfe-Bes
   assert(!/data-md-id/.test(calendarHelpers.renderAgendaEvent(visit, '2026-10-14')), 'und steht nicht zur (Vor-)Wahl');
 });
 
+test('Agenda: Terminzeile schliesst ihren aeusseren Container', () => {
+  const row = calendarHelpers.renderAgendaEvent({
+    id: 9,
+    title: 'Termin',
+    start_datetime: '2026-10-14T10:00:00',
+    end_datetime: '2026-10-14T11:00:00',
+  }, '2026-10-14');
+  const opened = row.match(/<div\b/g)?.length ?? 0;
+  const closed = row.match(/<\/div>/g)?.length ?? 0;
+  assert(opened === closed, `Agenda-Zeile muss alle div-Container schliessen: ${opened} offen, ${closed} geschlossen`);
+});
+
 test('Agenda: die Auswahl-ID findet das Vorkommen ihres Tages, sonst den Termin', () => {
   const previous = calendarHelpers.state.events;
   try {
