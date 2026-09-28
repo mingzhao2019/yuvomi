@@ -2812,7 +2812,7 @@ Deleting a location is never blocked: its items become location-less and its sub
 parent-less, rather than being reassigned or blocking the delete — the same "deletion always
 succeeds, references dangle safely" pattern as Pantry Locations.
 
-### Inventory Categories (migrations v136, v142)
+### Inventory Categories (migrations v136, v142, v236)
 DB-backed, customizable category list for inventory items, seeded with five defaults (Electronics,
 Vehicles, Household, Sports, Other) analogous to Task Categories. `other` is protected and cannot be
 deleted. The five seeded categories keep a stable slug `key` and are localized via `label_key`
@@ -2828,6 +2828,7 @@ typed name is never silently overwritten by the translation on the next language
 | label_key | TEXT | nullable — i18n key for seeded categories; NULL for custom ones |
 | icon | TEXT | NOT NULL (default 'package') |
 | sort_order | INTEGER | NOT NULL (default 0) |
+| tracks_odometer | INTEGER | NOT NULL (default 0, migration v236) — `1` for the built-in `vehicles` category; controls whether manual odometer fields are accepted |
 | created_at | TEXT | ISO 8601 |
 
 `inventory_items.category` is deliberately not a real foreign key: deleting a category reassigns
@@ -2842,7 +2843,7 @@ the seeded `electronics` category once it carries a `label_key`; it only conflic
 rebuild rather than a plain `ADD COLUMN`, since `name` had been `NOT NULL` since v136 and needed to
 become nullable — unlike `task_categories`, which declared it nullable from the start.
 
-### Inventory Items (migrations v136, v141)
+### Inventory Items (migrations v136, v141, v236)
 One row per owned belonging.
 
 | Column | Type | Constraint |
@@ -2862,6 +2863,9 @@ One row per owned belonging.
 | photo_data | TEXT | nullable (v141) — a single Base64 data URL, same storage pattern as `birthdays.photo_data`; server-validated MIME type and a ~5 MB cap (`server/routes/inventory/items.js`). The UI sends a 256 × 256 JPEG via `pickCroppedImage()`; the wider server cap keeps accepting larger legacy values and API writes |
 | created_by | INTEGER | FK → Users (**SET NULL**) — inventory is household property like the pantry; unlike `pantry_items` (which needed a follow-up migration, v109, to fix this) it starts SET NULL from the beginning |
 | account_username | TEXT | nullable (migration v198, #1004) — the e-mail address or username a device is registered under. A note, not a credential |
+| odometer | INTEGER | nullable (migration v236), CHECK `>= 0` — latest manual reading for categories whose `tracks_odometer` is enabled |
+| odometer_unit | TEXT | nullable (migration v236), CHECK `km`\|`mi` — defaults to `km` when a reading is first supplied without a unit |
+| odometer_on | TEXT | nullable (migration v236), `YYYY-MM-DD` — date of the cached reading, defaulting to today in the household timezone when omitted |
 | created_at / updated_at | TEXT | ISO 8601 |
 
 `GET /api/v1/inventory/items` supports filtering by `category`, `location_id`, `status`, and a
@@ -2909,7 +2913,7 @@ lookup requests answer 404 as for an unknown booking. Creating an item with
 linked to it, so a collective receipt split across several items does not silently copy its total
 onto each one.
 
-### Inventory Item Dates (migration v140)
+### Inventory Item Dates (migrations v140, v236)
 Custom, per-item tracked dates beyond the built-in warranty deadline — TÜV, service, insurance
 renewal, or anything else with a date and its own reminder lead time.
 
@@ -2919,14 +2923,49 @@ renewal, or anything else with a date and its own reminder lead time.
 | label | TEXT | NOT NULL |
 | date | TEXT | NOT NULL, `YYYY-MM-DD` |
 | reminder_offset_days | INTEGER | NOT NULL (default 30), CHECK `0–365` — an explicit `0` ("remind me on the day") is preserved, not coerced to the default |
+| interval_months | INTEGER | nullable (migration v236), CHECK `1–600` — NULL keeps one-off behavior; a value rolls the date forward after completion |
+| interval_distance | INTEGER | nullable (migration v236), CHECK `> 0` — distance hint only, never a reminder |
 | created_by | INTEGER | FK → Users (SET NULL) |
 | created_at / updated_at | TEXT | ISO 8601 |
 
 Capped at 10 rows per item (`MAX_TRACKED_DATES_PER_ITEM`). `PUT /api/v1/inventory/items/:id` treats
 `tracked_dates` as a full replace-set like `attachment_document_ids`: omitting the field leaves
 existing rows untouched, an empty array clears all of them, and an invalid or over-the-cap payload
-rejects the whole write with no partial insert. Each row drives its own [reminder](#reminders),
+rejects the whole write with no partial insert. Because free-text rows have no natural key, a full
+item save gives every replaced row a new id. Each row drives its own [reminder](#reminders),
 recreated whenever the item is saved.
+
+**Completion (`POST /api/v1/inventory/items/:id/dates/:dateId/complete`, v236).** Marking a tracked
+date done writes one `inventory_item_service_log` row containing a label/date snapshot plus the
+optional odometer, vendor, and note. When `interval_months` is set, the date rolls forward with
+end-of-month clamping and its reminder is re-synced; the row keeps its id, so its ICS UID remains
+stable. Without an interval, the date and reminder are removed and the completion remains in the
+service log. A reminder whose new time is already past is not recreated.
+
+`interval_distance` is a display hint only (for example, "1,400 km to go"). The app has no
+telematics integration, so it creates neither a reminder nor an ICS event for that threshold.
+
+**Service log (`inventory_item_service_log`, migration v236).** Each completed or manually logged
+service event stores `item_id` (CASCADE delete), an optional `item_date_id` (SET NULL), and the
+`label`/`performed_on` snapshot, so history remains readable after tracked dates are replaced or
+deleted. Optional fields are `odometer`, `vendor`, `note`, and `created_by` (SET NULL), with the
+usual created/updated timestamps. Plain CRUD lives under
+`/api/v1/inventory/items/:id/service-log`; edits and deletes of the row supplying the current
+odometer recompute the cached reading from the remaining log rows, while a backdated entry never
+rewinds it. The existing Inventory item read/edit rules continue to gate the log, including
+custom personal/household scope, visibility, assignment, and administrator boundaries.
+
+**History (`GET /api/v1/inventory/items/:id/history`, v236).** This is a read-only aggregation,
+not a second store: service-log rows, linked Budget entries with `maintenance`/`accessory` roles,
+and visible linked Documents are merged into one dated timeline with a cost total. Budget and
+Document visibility continue to use their existing rules, including their personal/shared modes
+and no unrelated administrator bypass.
+
+**Odometer.** Manual readings are accepted only for categories with `tracks_odometer = 1`, seeded
+on the built-in `vehicles` category by migration v236. `odometer_unit` is `km` or `mi`, and a
+category without the flag clears `odometer`, `odometer_unit`, and `odometer_on` on item create or
+full replace. There is currently no category-manager control for adding the flag. The item PUT
+remains a full replace: omitting the odometer fields clears the reading.
 
 ### Expense Groups
 Split expense groups (migration v39).

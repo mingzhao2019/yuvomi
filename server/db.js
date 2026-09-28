@@ -10011,6 +10011,47 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    version: 236,
+    description: 'Inventory: recurring tracked dates, service log, and odometer',
+    up: `
+      ALTER TABLE inventory_item_dates ADD COLUMN interval_months INTEGER
+        CHECK (interval_months IS NULL OR (interval_months BETWEEN 1 AND 600));
+      ALTER TABLE inventory_item_dates ADD COLUMN interval_distance INTEGER
+        CHECK (interval_distance IS NULL OR interval_distance > 0);
+
+      ALTER TABLE inventory_categories ADD COLUMN tracks_odometer INTEGER NOT NULL DEFAULT 0;
+      UPDATE inventory_categories SET tracks_odometer = 1 WHERE key = 'vehicles';
+
+      ALTER TABLE inventory_items ADD COLUMN odometer INTEGER
+        CHECK (odometer IS NULL OR odometer >= 0);
+      ALTER TABLE inventory_items ADD COLUMN odometer_unit TEXT
+        CHECK (odometer_unit IS NULL OR odometer_unit IN ('km', 'mi'));
+      ALTER TABLE inventory_items ADD COLUMN odometer_on TEXT;
+
+      CREATE TABLE inventory_item_service_log (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id      INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+        item_date_id INTEGER REFERENCES inventory_item_dates(id) ON DELETE SET NULL,
+        label        TEXT    NOT NULL,
+        performed_on TEXT    NOT NULL,
+        odometer     INTEGER CHECK (odometer IS NULL OR odometer >= 0),
+        vendor       TEXT,
+        note         TEXT,
+        created_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+      CREATE INDEX idx_inventory_item_service_log_item
+        ON inventory_item_service_log(item_id, performed_on DESC);
+      CREATE TRIGGER trg_inventory_item_service_log_updated_at
+        AFTER UPDATE ON inventory_item_service_log FOR EACH ROW BEGIN
+          UPDATE inventory_item_service_log
+          SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+          WHERE id = OLD.id;
+        END;
+    `,
+  },
 ];
 
 /**

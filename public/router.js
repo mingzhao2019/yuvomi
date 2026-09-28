@@ -2712,34 +2712,32 @@ function wireSidebarResizer(sidebar) {
   resizer.tabIndex = 0;
 
   let drag = null;
-  const finishDrag = () => {
+  const finishDrag = (pointerId = null) => {
     if (!drag) return;
-    const pointerId = drag.pointerId;
+    if (pointerId != null && pointerId !== drag.pointerId) return;
     drag = null;
     setSidebarWidth(currentSidebarWidth());
     document.documentElement.classList.remove('sidebar-resizing');
-    if (resizer.hasPointerCapture?.(pointerId)) resizer.releasePointerCapture(pointerId);
   };
+  const moveDrag = (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    setSidebarWidth(drag.startWidth + event.clientX - drag.startX, { persist: false });
+  };
+  const stopDrag = (event) => finishDrag(event.pointerId);
 
   resizer.addEventListener('pointerdown', (event) => {
     if (event.button !== 0 || document.documentElement.classList.contains('sidebar-collapsed')) return;
     event.preventDefault();
     drag = { pointerId: event.pointerId, startX: event.clientX, startWidth: currentSidebarWidth() };
     document.documentElement.classList.add('sidebar-resizing');
-    resizer.setPointerCapture?.(event.pointerId);
   });
-  resizer.addEventListener('pointermove', (event) => {
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    event.preventDefault();
-    setSidebarWidth(drag.startWidth + event.clientX - drag.startX, { persist: false });
-  });
-  resizer.addEventListener('pointerup', (event) => {
-    if (drag && event.pointerId === drag.pointerId) finishDrag();
-  });
-  resizer.addEventListener('pointercancel', finishDrag);
-  resizer.addEventListener('lostpointercapture', () => {
-    if (drag) finishDrag();
-  });
+  // Track the active pointer on the document so dragging remains continuous
+  // after it leaves the narrow separator. This also avoids capturing clicks
+  // on controls that happen to sit under the pointer at the end of a drag.
+  document.addEventListener('pointermove', moveDrag);
+  document.addEventListener('pointerup', stopDrag);
+  document.addEventListener('pointercancel', stopDrag);
   resizer.addEventListener('keydown', (event) => {
     if (document.documentElement.classList.contains('sidebar-collapsed')) return;
     const step = event.shiftKey ? 32 : 16;

@@ -138,21 +138,37 @@ one of the areas below.
 
 ## Current sync checkpoint
 
-As of 2026-09-28, the latest reviewed upstream checkpoint is `b23ce8fbd`
-(#1489), following `9a9864a59`. It was selectively ported from `custom`
-commit `bb3b3ef48` into the current `custom` history; the upstream branch was
-not merged wholesale.
+As of 2026-09-28, the latest reviewed upstream checkpoint is `60b022d96`
+(#1492), following `b23ce8fbd`. Commits `fdf137f33` (#1490), `2b15bdc91`
+(#1491), and `60b022d96` (#1492) were selectively ported from the current
+`custom` history on `custom-upstream-selective-2026-09-28`; the upstream branch
+was not merged wholesale.
 
-The review covered the dashboard, document and budget surfaces, mobile shell,
-shared controls, sheets and list/detail navigation, task selection, health and
-calendar layouts, and the final settings structure. The port preserved custom
-task-list and provider behavior, notification scopes, inventory/assets,
-permissions, dashboard widgets, and the Microsoft To Do checklist boundary.
-It introduced no new database migration or API data model, and no released
-migration was rewritten.
+The review covered quiet surfaces and plain-language labels, budget and search
+behavior, due-today filtering, chart readability, document guards, the command
+palette, task subtasks and kanban actions, calendar accessible names, dashboard
+customization guards, settings sheets, notifications and toasts, inventory
+category addresses, and the shared mobile/desktop layout. The port preserved
+custom task-list filtering and Markdown checklist behavior, Microsoft To Do
+list and provider behavior, calendar completion controls and subscriptions,
+notification scopes, inventory/assets and permissions, dashboard widgets, and
+the Microsoft To Do checklist boundary. Where upstream overlapped custom,
+task-list context and filtering, calendar controls, inventory permissions and
+hierarchy, and localized custom copy were composed explicitly rather than
+choosing an entire file.
 
-The current release version at this checkpoint is `2.69.1`. The completed
-integration passed focused tests, the full `npm test` suite, `git diff --check`,
-and version-consistency checks. Replace this section with a new checkpoint
+Inventory feature commit `e146829b3` (#1257), which was not present in the
+custom data model, was manually ported as well. Its upstream migration `224`
+could not be reused because custom already has a released migration `224` for
+task completions; the port is append-only migration `236`. It adds recurring
+tracked-date fields, the service-log and history endpoints, and manual odometer
+fields while retaining custom personal/household asset scope, visibility,
+assignment, administrator boundaries, and existing Budget/Document visibility
+rules. The related OpenAPI paths, Inventory data-model documentation, and
+focused service-log tests were updated together. No released migration was
+rewritten.
+
+The current release version remains `2.69.1`; root package versions and
+`public/sw.js` are synchronized. Replace this section with a new checkpoint
 summary during the next upstream sync rather than extending an ever-growing
 historical table.

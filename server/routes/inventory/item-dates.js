@@ -11,6 +11,8 @@
  * Erinnerungs-Ownership: die Zeile "gehoert" dem Gegenstand-Ersteller
  * (item.created_by), nicht der Person, die gerade speichert - identisches
  * Muster wie die Garantie-Erinnerung in items.js#syncReminder.
+ * interval_months is a simple month-based recurrence for the completion
+ * action, not a second RRULE engine. interval_distance is display-only.
  */
 import * as db from '../../db.js';
 import { str, date, num, collectErrors } from '../../middleware/validate.js';
@@ -20,7 +22,8 @@ const DEFAULT_REMINDER_OFFSET_DAYS = 30;
 
 function loadTrackedDates(itemId) {
   return db.get().prepare(`
-    SELECT id, item_id, label, date, reminder_offset_days, created_at, updated_at
+    SELECT id, item_id, label, date, reminder_offset_days, interval_months, interval_distance,
+           created_at, updated_at
     FROM inventory_item_dates
     WHERE item_id = ?
     ORDER BY date ASC, id ASC
@@ -32,7 +35,8 @@ function loadTrackedDatesForItems(itemIds) {
   if (!itemIds.length) return map;
   const placeholders = itemIds.map(() => '?').join(',');
   const rows = db.get().prepare(`
-    SELECT id, item_id, label, date, reminder_offset_days, created_at, updated_at
+    SELECT id, item_id, label, date, reminder_offset_days, interval_months, interval_distance,
+           created_at, updated_at
     FROM inventory_item_dates
     WHERE item_id IN (${placeholders})
     ORDER BY date ASC, id ASC
@@ -42,6 +46,15 @@ function loadTrackedDatesForItems(itemIds) {
     map.get(row.item_id).push(row);
   }
   return map;
+}
+
+function loadTrackedDate(id) {
+  return db.get().prepare(`
+    SELECT id, item_id, label, date, reminder_offset_days, interval_months, interval_distance,
+           created_at, updated_at
+    FROM inventory_item_dates
+    WHERE id = ?
+  `).get(id);
 }
 
 function validateTrackedDateRow(row) {
@@ -62,8 +75,33 @@ function validateTrackedDateRow(row) {
     }
   }
 
+  let intervalMonths = null;
+  if (row?.interval_months !== undefined && row.interval_months !== null && row.interval_months !== '') {
+    const vInterval = num(row.interval_months, 'Wiederholung (Monate)');
+    results.push(vInterval);
+    if (vInterval.value !== null && (!Number.isInteger(vInterval.value) || vInterval.value < 1 || vInterval.value > 600)) {
+      results.push({ error: 'Wiederholung muss eine ganze Zahl zwischen 1 und 600 Monaten sein.' });
+    } else if (vInterval.value !== null) {
+      intervalMonths = vInterval.value;
+    }
+  }
+
+  let intervalDistance = null;
+  if (row?.interval_distance !== undefined && row.interval_distance !== null && row.interval_distance !== '') {
+    const vDistance = num(row.interval_distance, 'Distanz-Intervall');
+    results.push(vDistance);
+    if (vDistance.value !== null && (!Number.isInteger(vDistance.value) || vDistance.value <= 0)) {
+      results.push({ error: 'Distanz-Intervall muss eine positive ganze Zahl sein.' });
+    } else if (vDistance.value !== null) {
+      intervalDistance = vDistance.value;
+    }
+  }
+
   return {
-    value: { label: vLabel.value, date: vDate.value, reminder_offset_days: offsetDays },
+    value: {
+      label: vLabel.value, date: vDate.value, reminder_offset_days: offsetDays,
+      interval_months: intervalMonths, interval_distance: intervalDistance,
+    },
     errors: collectErrors(results),
   };
 }
@@ -138,13 +176,36 @@ function writeTrackedDates(itemId, values, createdBy) {
   database.prepare('DELETE FROM inventory_item_dates WHERE item_id = ?').run(itemId);
 
   const insert = database.prepare(`
-    INSERT INTO inventory_item_dates (item_id, label, date, reminder_offset_days, created_by)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO inventory_item_dates
+      (item_id, label, date, reminder_offset_days, interval_months, interval_distance, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   for (const row of values) {
-    const result = insert.run(itemId, row.label, row.date, row.reminder_offset_days, createdBy);
+    const result = insert.run(
+      itemId, row.label, row.date, row.reminder_offset_days,
+      row.interval_months, row.interval_distance, createdBy,
+    );
     syncTrackedDateReminder({ id: result.lastInsertRowid, date: row.date, reminder_offset_days: row.reminder_offset_days }, createdBy);
   }
+}
+
+function rollTrackedDateForward(trackedDate, newDate, createdBy) {
+  const database = db.get();
+  database.prepare("DELETE FROM reminders WHERE entity_type = 'inventory_tracked_date' AND entity_id = ?")
+    .run(trackedDate.id);
+  database.prepare('UPDATE inventory_item_dates SET date = ? WHERE id = ?').run(newDate, trackedDate.id);
+  syncTrackedDateReminder({
+    id: trackedDate.id,
+    date: newDate,
+    reminder_offset_days: trackedDate.reminder_offset_days,
+  }, createdBy);
+}
+
+function removeTrackedDate(trackedDateId) {
+  const database = db.get();
+  database.prepare("DELETE FROM reminders WHERE entity_type = 'inventory_tracked_date' AND entity_id = ?")
+    .run(trackedDateId);
+  database.prepare('DELETE FROM inventory_item_dates WHERE id = ?').run(trackedDateId);
 }
 
 /** Beim Loeschen eines Gegenstands: alle Erinnerungen seiner Fristen abraeumen,
@@ -155,6 +216,7 @@ function removeTrackedDateReminders(itemId) {
 }
 
 export {
-  loadTrackedDates, loadTrackedDatesForItems, validateTrackedDatesInput, writeTrackedDates,
+  loadTrackedDates, loadTrackedDatesForItems, loadTrackedDate, validateTrackedDatesInput, writeTrackedDates,
+  rollTrackedDateForward, removeTrackedDate,
   removeTrackedDateReminders, MAX_TRACKED_DATES_PER_ITEM,
 };

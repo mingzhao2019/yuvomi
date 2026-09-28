@@ -2445,6 +2445,8 @@
 .settings-outlook-conflict__title {
   font-weight: var(--font-weight-medium);
   overflow-wrap: anywhere;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 4 4;
 }
 
 .settings-outlook-conflict__version p:not(.settings-outlook-conflict__title) {
