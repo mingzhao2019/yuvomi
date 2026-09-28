@@ -1310,7 +1310,9 @@
    * test/test-old-browser-fallbacks.js. */
   --viewport-height: 100vh;
   --sidebar-width: 56px;             /* Fallback (mobile: sidebar hidden) */
-  --sidebar-width-expanded: 220px;   /* full sidebar (≥1024px), max 240px laut Spec */
+  --sidebar-width-min: 220px;        /* expanded desktop minimum */
+  --sidebar-width-max: 320px;        /* user-adjustable desktop maximum */
+  --sidebar-width-expanded: 220px;   /* default full sidebar (≥1024px) */
   /* Zeilenhoehe der Seitenleiste (Critique 2026-09-26, P1-2): 15 Module,
    * vier Sektionslabels, Einstellungen und das Konto muessen auf 1280x800
    * ohne Scrollen stehen - mit 40px-Zeilen fehlten dort ~270px. Die Zeilen

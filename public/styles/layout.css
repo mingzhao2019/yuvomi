@@ -4210,6 +4210,46 @@ p.field-hint--warn[hidden] {
     overflow: hidden;
   }
 
+  .nav-sidebar__resizer {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 2;
+    touch-action: none;
+  }
+
+  .nav-sidebar__resizer::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: 1px;
+    background: transparent;
+    transition: background-color var(--transition-fast);
+  }
+
+  .nav-sidebar__resizer:hover::after,
+  .nav-sidebar__resizer:focus-visible::after {
+    background: var(--color-accent);
+  }
+
+  html.sidebar-collapsed .nav-sidebar__resizer {
+    display: none;
+  }
+
+  html.sidebar-resizing,
+  html.sidebar-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
+
+  html.sidebar-resizing .nav-sidebar,
+  html.sidebar-resizing .app-content {
+    transition: none !important;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .nav-sidebar,
     .app-content {

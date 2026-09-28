@@ -1977,8 +1977,9 @@ function renderTaskChip(task, { interactive = true, agenda = false, agendaDate =
   const dot = priority !== 'none'
     ? `<span class="priority-dot priority-dot--${priority}" aria-hidden="true"></span>`
     : '';
+  const agendaMdAttr = agenda ? ` data-md-id="${esc(agendaTaskMdId(task))}"` : '';
   return `<div class="cal-task-chip cal-task-chip--${priority}${done ? ' cal-task-chip--done' : ''}"
-               data-task-id="${task.id}"${button}
+               data-task-id="${task.id}"${agendaMdAttr}${button}
                title="${label}${esc(detailStr)}">
     ${check}
     ${dot}
@@ -2191,7 +2192,7 @@ async function loadRange(from, to) {
  * gezeichnet: Abhaken, Ablegen und Löschen ändern, WELCHE Aufgaben auf einem
  * Tag stehen, nicht nur wie sie aussehen.
  */
-async function openTaskFromCalendar(taskId) {
+async function openTaskFromCalendar(taskId, { pane = null, signal = null } = {}) {
   try {
     const { openTaskById } = await import('/pages/tasks.js');
     await openTaskById(taskId, {
@@ -2201,9 +2202,15 @@ async function openTaskFromCalendar(taskId) {
         await loadRange(state.rangeFrom, state.rangeTo);
         renderView();
       },
+      pane,
+      signal,
     });
   } catch (err) {
     console.error('[Calendar] Aufgabe konnte nicht geöffnet werden:', err);
+    if (pane) {
+      if (err?.status === 404 || err?.status === 403) return false;
+      throw err;
+    }
     window.yuvomi?.showToast(err.message ?? t('tasks.loadError'), 'danger');
   }
 }
@@ -5103,6 +5110,10 @@ function handleDayRowActivation(e, { keyboard = false } = {}) {
   const taskChip = e.target.closest('.cal-task-chip');
   if (taskChip) {
     if (keyboard) e.preventDefault();
+    if (_agendaMd && taskChip.dataset.mdId) {
+      _agendaMd.open(taskChip.dataset.mdId, taskChip);
+      return;
+    }
     openTaskFromCalendar(taskChip.dataset.taskId);
     return;
   }
@@ -5141,6 +5152,15 @@ function agendaMdIdAttr(ev, day) {
   return id ? ` data-md-id="${esc(id)}"` : '';
 }
 
+function agendaTaskMdId(task) {
+  return `task:${task.id}`;
+}
+
+function taskIdForAgendaMdId(mdId) {
+  const match = /^task:(\d+)$/.exec(String(mdId ?? ''));
+  return match ? match[1] : null;
+}
+
 /** Der Termin zu einer Auswahl-ID, bevorzugt das Vorkommen an diesem Tag. */
 function eventForAgendaMdId(mdId) {
   const m = /^(\d+)(?:\.(\d{4}-\d{2}-\d{2}))?$/.exec(String(mdId ?? ''));
@@ -5174,7 +5194,9 @@ function mountAgendaDetail(container) {
   _agendaMd = mountMasterDetail({
     root,
     claimInitial: !(open && /^\d+$/.test(open)),
-    renderDetail: (id, body) => {
+    renderDetail: (id, body, ctx) => {
+      const taskId = taskIdForAgendaMdId(id);
+      if (taskId != null) return openTaskFromCalendar(taskId, { pane: body, signal: ctx.signal });
       const ev = eventForAgendaMdId(id);
       if (!ev || ev.housekeeping_visit_id) return false;
       // Nicht abwarten: die Erinnerungen kommen nach (openEventDetail), die
@@ -5182,7 +5204,12 @@ function mountAgendaDetail(container) {
       openEventDetail(ev, null, { pane: body });
       return undefined;
     },
-    openNarrow: (id, trigger) => {
+    openNarrow: (id, trigger, ctx) => {
+      const taskId = taskIdForAgendaMdId(id);
+      if (taskId != null) {
+        openTaskFromCalendar(taskId, { signal: ctx.signal });
+        return;
+      }
       const ev = eventForAgendaMdId(id);
       if (ev) openEventDetail(ev, trigger ?? null);
     },
@@ -5265,6 +5292,10 @@ function renderAgendaView(container) {
     if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
     if (taskChip) {
+      if (_agendaMd && taskChip.dataset.mdId) {
+        _agendaMd.open(taskChip.dataset.mdId, taskChip);
+        return;
+      }
       openTaskFromCalendar(taskChip.dataset.taskId);
       return;
     }
@@ -5275,6 +5306,10 @@ function renderAgendaView(container) {
     }
     const evEl = e.target.closest('.agenda-event');
     if (evEl) {
+      if (_agendaMd && evEl.dataset.mdId) {
+        _agendaMd.open(evEl.dataset.mdId, evEl);
+        return;
+      }
       const ev = state.events.find((ev) => ev.id === parseInt(evEl.dataset.id, 10));
       if (ev) openEventDetail(ev, evEl);
     }

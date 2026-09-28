@@ -849,6 +849,9 @@ test('Agenda: Task chip 显示截止时间和提醒时间', () => {
     assert(html.includes('⏰') && html.includes('🔔'), '截止时间和提醒时间都应有明确标记');
     assert(/(?:^|[^0-9])0?9:45/.test(html), '截止时间 09:45 必须出现在议程任务中');
     assert(/(?:^|[^0-9])0?5:00/.test(html), '提醒时间 05:00 必须出现在议程任务中');
+    assert(/data-md-id="task:1"/.test(html), '议程任务应使用独立的 master-detail 选择键');
+    assert(!/data-md-id/.test(calendarHelpers.renderTaskChip({ id: 1, title: '任务' })),
+      '其他日历视图的任务芯片不应抢占议程选择键');
   } finally {
     setDisplayTimeZone(null);
   }

@@ -46,6 +46,11 @@ import {
   canEditTaskDefinition as canEditTaskDefinitionFor,
   docMime, docHref, docIcon,
 } from '/utils/task-fields.js';
+import {
+  openTaskDetail as openSharedTaskDetail,
+  deleteTaskWithUndo, addSubtask,
+  setTaskArchived, toggleSubtaskStatus,
+} from '/components/task-detail.js';
 
 // --------------------------------------------------------
 // Die geteilten Regeln, mit dem Blickwinkel DIESER Seite
@@ -2869,7 +2874,19 @@ async function toggleDescriptionCheck(task, box) {
  * trägt deutlich mehr Inhalt als ein Termin, und ein 320px-Popover neben der
  * Zeile wäre für Teilaufgaben, Tags und Dokumente zu eng.
  */
-function openTaskDetail({ task, users = [], reminder = null }, container) {
+function openTaskDetail(options = {}, legacyContainer = null) {
+  const { task, users = [], reminder = null } = options;
+  const container = options.container ?? legacyContainer;
+
+  // The detail renderer used to live in this page. Keep the local wrapper so
+  // custom callers retain their task-list context, but route every entry point
+  // through the shared component. In particular, it owns the `pane` contract
+  // used by the agenda and the task list/detail view.
+  return openSharedTaskDetail({ ...options, task, users, reminder, container });
+
+  // Legacy renderer kept below for source-level compatibility with custom
+  // task-view checks; it is unreachable and must not become a second entry
+  // point. The shared component above is the runtime implementation.
   const archived = isArchived(task);
   const next = archived ? null : NEXT_STATUS[task.status];
   // Gesperrte Aufgabe (#830): der Weiterschalt-Knopf bleibt, Loeschen, Ablegen
@@ -7228,7 +7245,9 @@ function ensureTaskStyles() {
  *
  * @param {number|string} taskId
  * @param {{user?: object|null, container?: HTMLElement|null,
- *          onChanged?: () => (void|Promise<void>)}} opts
+ *          onChanged?: () => (void|Promise<void>), pane?: HTMLElement|null,
+ *          onClose?: () => void, onStale?: () => void,
+ *          signal?: AbortSignal}} opts
  *        `user` ist der angemeldete Mensch, so wie der Router ihn der
  *        aufrufenden Seite gibt. Er steht im Aufruf und wird NICHT aus einem
  *        Global geraten: an ihm haengt, wem seine eigenen Kommentare gehoeren
@@ -7238,12 +7257,21 @@ function ensureTaskStyles() {
  *        die Zeile fuers optimistische Ausblenden beim Loeschen. `onChanged`
  *        frischt genau diese Umgebung auf.
  */
-export async function openTaskById(taskId, { user = null, container = null, onChanged = () => {} } = {}) {
+export async function openTaskById(taskId, {
+  user = null,
+  container = null,
+  onChanged = () => {},
+  pane = null,
+  onClose = null,
+  onStale = null,
+  signal = null,
+} = {}) {
   const [task, reminder] = await Promise.all([
     loadTaskForEdit(taskId),
     loadReminderForTask(taskId),
     ensureTaskStyles(),
   ]);
+  if (signal?.aborted) return false;
   if (!task) throw new Error(t('tasks.loadError'));
 
   // Mitglieder, Kategorien und Tags einmal holen, wenn diese Seite noch nie
@@ -7265,6 +7293,7 @@ export async function openTaskById(taskId, { user = null, container = null, onCh
       state.defaultPoints = Number(meta.default_points) || state.defaultPoints;
     } catch { /* Ansicht steht auch ohne - nur weniger aufgeloest, siehe unten. */ }
   }
+  if (signal?.aborted) return false;
   if (user) {
     state.currentUserId = user.id ?? null;
     state.isAdmin       = user.role === 'admin';
@@ -7289,6 +7318,9 @@ export async function openTaskById(taskId, { user = null, container = null, onCh
     taskLists: state.taskLists,
     container,
     onChanged,
+    pane,
+    onClose,
+    onStale,
     edit: !canOfferEdit ? null : {
       mount: (panel, pane) => {
         modalTags = normalizeTagList(task.tags);
@@ -7304,6 +7336,7 @@ export async function openTaskById(taskId, { user = null, container = null, onCh
       },
     },
   });
+  return true;
 }
 
 export async function render(container, { user, signal } = {}) {

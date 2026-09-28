@@ -1884,6 +1884,7 @@ let _stopToastPlacement = null;
  */
 
 function renderAppShell(container) {
+  restoreSidebarWidth();
   // Gast und Display teilen sich die schmale Navigation: beide sind
   // Nicht-Mitglieder mit einer festen, kleinen Erlaubnis, und beide haben
   // nichts von Mehr-Menue, Suchleiste und System-Reihe. Was sie
@@ -2117,6 +2118,18 @@ function renderAppShell(container) {
   // die Zeile selbst nennt, WER angemeldet ist, was die Leiste vorher nirgends
   // sagte.
   sidebar.appendChild(sidebarAccountEl({ isDisplayShell }));
+  const sidebarResizer = document.createElement('div');
+  sidebarResizer.className = 'nav-sidebar__resizer';
+  sidebarResizer.setAttribute('role', 'separator');
+  sidebarResizer.setAttribute('aria-orientation', 'vertical');
+  sidebarResizer.setAttribute('aria-valuemin', String(SIDEBAR_WIDTH_MIN));
+  sidebarResizer.setAttribute('aria-valuemax', String(SIDEBAR_WIDTH_MAX));
+  sidebarResizer.setAttribute('aria-valuenow', String(currentSidebarWidth()));
+  sidebarResizer.setAttribute('aria-label', t('nav.sidebarExpand'));
+  sidebarResizer.setAttribute('title', `${t('nav.sidebarExpand')} / ${t('nav.sidebarCollapse')}`);
+  sidebarResizer.tabIndex = 0;
+  sidebar.appendChild(sidebarResizer);
+  wireSidebarResizer(sidebar);
   installPopoverMenus(sidebar);
 
   if (window.lucide) window.lucide.createIcons({ el: sidebar });
@@ -2636,6 +2649,83 @@ function clearPageFab() {
 const FAB_SEEN_KEY = (module) => `yuvomi:fabSeen:${module}`;
 const FAB_SEEN_MAX = 5;
 const SIDEBAR_COLLAPSED_KEY = 'yuvomi.sidebar.collapsed';
+const SIDEBAR_WIDTH_KEY = 'yuvomi.sidebar.width';
+const SIDEBAR_WIDTH_MIN = 220;
+const SIDEBAR_WIDTH_MAX = 320;
+const SIDEBAR_WIDTH_DEFAULT = 220;
+
+function clampSidebarWidth(value) {
+  const width = Number(value);
+  if (!Number.isFinite(width)) return SIDEBAR_WIDTH_DEFAULT;
+  return Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, Math.round(width)));
+}
+
+function currentSidebarWidth() {
+  const inline = document.documentElement.style.getPropertyValue('--sidebar-width-expanded');
+  return clampSidebarWidth(parseFloat(inline) || SIDEBAR_WIDTH_DEFAULT);
+}
+
+function setSidebarWidth(value, { persist = true } = {}) {
+  const width = clampSidebarWidth(value);
+  document.documentElement.style.setProperty('--sidebar-width-expanded', `${width}px`);
+  if (persist) localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+  document.querySelector('.nav-sidebar__resizer')?.setAttribute('aria-valuenow', String(width));
+  return width;
+}
+
+function restoreSidebarWidth() {
+  const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+  setSidebarWidth(saved == null ? SIDEBAR_WIDTH_DEFAULT : saved, { persist: false });
+}
+
+function wireSidebarResizer(sidebar) {
+  const resizer = sidebar?.querySelector('.nav-sidebar__resizer');
+  if (!resizer || resizer.dataset.wired === '1') return;
+  resizer.dataset.wired = '1';
+  resizer.tabIndex = 0;
+
+  let drag = null;
+  const finishDrag = () => {
+    if (!drag) return;
+    const pointerId = drag.pointerId;
+    drag = null;
+    setSidebarWidth(currentSidebarWidth());
+    document.documentElement.classList.remove('sidebar-resizing');
+    if (resizer.hasPointerCapture?.(pointerId)) resizer.releasePointerCapture(pointerId);
+  };
+
+  resizer.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || document.documentElement.classList.contains('sidebar-collapsed')) return;
+    event.preventDefault();
+    drag = { pointerId: event.pointerId, startX: event.clientX, startWidth: currentSidebarWidth() };
+    document.documentElement.classList.add('sidebar-resizing');
+    resizer.setPointerCapture?.(event.pointerId);
+  });
+  resizer.addEventListener('pointermove', (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    setSidebarWidth(drag.startWidth + event.clientX - drag.startX, { persist: false });
+  });
+  resizer.addEventListener('pointerup', (event) => {
+    if (drag && event.pointerId === drag.pointerId) finishDrag();
+  });
+  resizer.addEventListener('pointercancel', finishDrag);
+  resizer.addEventListener('lostpointercapture', () => {
+    if (drag) finishDrag();
+  });
+  resizer.addEventListener('keydown', (event) => {
+    if (document.documentElement.classList.contains('sidebar-collapsed')) return;
+    const step = event.shiftKey ? 32 : 16;
+    let next = null;
+    if (event.key === 'ArrowRight') next = currentSidebarWidth() + step;
+    if (event.key === 'ArrowLeft') next = currentSidebarWidth() - step;
+    if (event.key === 'Home') next = SIDEBAR_WIDTH_MIN;
+    if (event.key === 'End') next = SIDEBAR_WIDTH_MAX;
+    if (next == null) return;
+    event.preventDefault();
+    setSidebarWidth(next);
+  });
+}
 
 const SHORTCUTS = [
   // Direkt auf die Overlay-Funktion — der alte Umweg über einen Klick auf die
