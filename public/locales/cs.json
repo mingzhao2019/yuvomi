@@ -2,6 +2,9 @@
     "common": {
         "swipeSidesSwapped": "Směry přejetí byly prohozeny - hlavní akce je nyní na druhé straně.",
         "apply": "Přidat",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "RRRR",
         "searchClear": "Vymazat hledání",
         "save": "Uložit",
         "unit": "Jednotka",
@@ -21,8 +24,6 @@
         "filtersActive": "Aktivní filtry: {{count}}",
         "filtersActive_one": "1 aktivní filtr",
         "filtersActive_few": "{{count}} aktivní filtry",
-        "filtersActive_two": "Aktivní filtry: {{count}}",
-        "filtersActive_many": "Aktivní filtry: {{count}}",
         "filtersReset": "Zrušit všechny filtry",
         "close": "Zavřít",
         "create": "Vytvořit",
@@ -75,10 +76,7 @@
             "assigneesNobodyHint": "Bez přiřazení vidíš tuto položku jen ty."
         },
         "toShoppingListNamed": "Přidat {{title}} na nákupní seznam",
-        "emailInUse": "Tato e-mailová adresa již patří jinému účtu.",
-        "datePlaceholderDay": "DD",
-        "datePlaceholderMonth": "MM",
-        "datePlaceholderYear": "RRRR"
+        "emailInUse": "Tato e-mailová adresa již patří jinému účtu."
     },
     "kitchen": {
         "noShoppingLists": "Nákupní seznam ještě neexistuje.",
@@ -136,7 +134,8 @@
         "inventory": "Inventář",
         "schedule": "Rozpis směn",
         "assetCost": "Asset Cost",
-        "waste": "Svoz odpadu"
+        "waste": "Svoz odpadu",
+        "moreBadge_few": "{{count}} otevřené"
     },
     "dashboard": {
         "title": "Přehled",
@@ -392,7 +391,40 @@
         "fabNew": "Nový",
         "todayOverdueCount": "Po termínu: {{count}}",
         "todayOverdueCount_one": "Po termínu: {{count}}",
-        "todayOverdueCount_few": "Po termínu: {{count}}"
+        "todayOverdueCount_few": "Po termínu: {{count}}",
+        "weekDayEvents_few": "{{count}} události",
+        "wallWhoCount_few": "{{count}} položky dnes",
+        "wallTimerMinutes_few": "{{count}} min",
+        "badgeCount_few": "{{count}} položky",
+        "daysLeft_few": "Za {{count}} dny",
+        "countdownWeeks_few": "asi {{count}} týdny",
+        "countdownMonths_few": "asi {{count}} měsíce",
+        "countdownYears_few": "asi {{count}} roky",
+        "countdownOverdue_few": "před {{count}} dny",
+        "countdownMore_few": "+{{count}} další",
+        "wasteMore_few": "+{{count}} další",
+        "pantryExpiringEmpty_few": "V příštích {{count}} dnech nic nevyprší",
+        "pantryExpiringMore_few": "+{{count}} další",
+        "tasksMore_few": "+{{count}} další",
+        "notesMore_few": "+{{count}} další",
+        "birthdaysMore_few": "+{{count}} další",
+        "shoppingMoreLists_few": "+{{count}} další seznamy",
+        "metricOpen_few": "{{count}} otevřené",
+        "metricOverdue_few": "{{count}} po termínu",
+        "metricItems_few": "{{count}} položky",
+        "metricOnLists_few": "na {{count}} seznamech",
+        "metricMeals_few": "{{count}} jídla",
+        "metricPinned_few": "{{count}} připnuté",
+        "metricPoints_few": "{{count}} body",
+        "metricDoses_few": "{{count}} zbývají",
+        "metricVisitsMonth_few": "{{count}} tento měsíc",
+        "rewardsOwnPending_few": "Čeká na schválení: {{count}}",
+        "housekeepingVisitsMonth_few": "{{count}} návštěvy tento měsíc",
+        "todayMore_few": "+{{count}} další dnes",
+        "memberOpenTasks_few": "{{count}} úkoly",
+        "todayDosesOpen_few": "Dávky k užití: {{count}}",
+        "eventsEndedMore_few": "Dříve dnes: +{{count}}",
+        "nutritionEntries_few": "Dnes {{count}} záznamy"
     },
     "tasks": {
         "manageCategories": "Spravovat kategorie",
@@ -633,7 +665,16 @@
         "kanbanArchiveDone": "Archivovat vše hotové",
         "kanbanArchiveDoneConfirm": "Archivovat všechny hotové úkoly v tomto sloupci?",
         "kanbanArchiveDoneAction": "Archivovat",
-        "filterDueToday": "Splatné do dneška"
+        "filterDueToday": "Splatné do dneška",
+        "tagUsageCount_few": "{{count}} úkoly",
+        "tagDeleteConfirm_few": "Odebrat {{tag}} z {{count}} úkolů?",
+        "tagsUpdated_few": "Aktualizovány {{count}} úkoly",
+        "tagDeleted_few": "Štítek odebrán z {{count}} úkolů",
+        "bulkTagHint_few": "Platí pro {{count}} vybrané úkoly.",
+        "pointsDefaultHint_few": "Výchozí hodnota domácnosti: {{count}} body. Změna zde platí jen pro tento úkol.",
+        "pointsSummary_few": "{{count}} body",
+        "documentsCount_few": "Dokumenty: {{count}}",
+        "tagsSkippedLocked_few": "Přeskočeny {{count}} zamčené úkoly."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} jídla",
@@ -703,6 +744,7 @@
         "sendListTitle": "Odeslat nákupní seznam",
         "sendListDescription": "{{count}} nevyřízených položek půjde vybranému členovi.",
         "sendListDescription_one": "{{count}} nevyřízená položka půjde vybranému členovi.",
+        "sendListDescription_few": "{{count}} nevyřízené položky půjdou vybranému členovi.",
         "sendListRecipient": "Příjemce",
         "sendListSnapshotHint": "Odesílá se stav k této chvíli. Co odškrtnete později, v e-mailu nebude.",
         "sendListSubmit": "Odeslat",
@@ -1151,7 +1193,11 @@
         "bandContinued": "pokračování",
         "monthDayMoreTitles": "a ještě {{count}}",
         "monthDayMoreTitles_one": "a ještě {{count}}",
-        "monthDayMoreTitles_other": "a ještě {{count}}"
+        "monthDayMoreTitles_other": "a ještě {{count}}",
+        "monthDayEntries_few": "{{count}} položky",
+        "overrideOrphanConfirmTitle_few": "Ponechat {{count}} upravené výskyty?",
+        "filtersActive_few": "{{count}} aktivní filtry",
+        "monthDayMoreTitles_few": "a ještě {{count}}"
     },
     "noteCategories": {
         "categories": "Kategorie",
@@ -1349,6 +1395,7 @@
         "selectNamed": "Vybrat kontakt {{name}}",
         "bulkDeleteConfirm": "Smazat {{count}} kontaktů?",
         "bulkDeleteConfirm_one": "Smazat {{count}} kontakt?",
+        "bulkDeleteConfirm_few": "Smazat {{count}} kontakty?",
         "bulkDeletedToast": "Smazáno {{count}} kontaktů"
     },
     "budget": {
@@ -1746,7 +1793,9 @@
         "ledgerSearchCount_few": "Nalezeny {{count}} transakce",
         "ledgerSearchTruncated": "Nejnovějších {{limit}} výsledků - upřesněte hledání",
         "ledgerSearchEmpty": "Žádná transakce neodpovídá „{{query}}“",
-        "ledgerSearchError": "Hledání selhalo. Zkuste to prosím znovu."
+        "ledgerSearchError": "Hledání selhalo. Zkuste to prosím znovu.",
+        "pendingSummary_few": "{{count}} očekávané položky: {{amount}}",
+        "receiptsAttachedLabel_few": "Připojené doklady: {{count}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Zobrazit kartu cyklu",
@@ -2121,8 +2170,10 @@
             "errorNoSource": "Vyberte soubor nebo zadejte URL.",
             "success": "Naimportováno událostí: {{count}}.",
             "success_one": "Naimportována {{count}} událost.",
+            "success_few": "Naimportovány {{count}} události.",
             "successWithSkipped": "Naimportováno {{count}}, {{skipped}} již existovalo.",
             "successWithSkipped_one": "Naimportována {{count}} událost, {{skipped}} již existovalo.",
+            "successWithSkipped_few": "Naimportovány {{count}} události, {{skipped}} již existovalo.",
             "allDuplicates": "Žádné nové události - všechny už existovaly."
         },
         "memberPhoneLabel": "Telefonní číslo (volitelné)",
@@ -2265,19 +2316,24 @@
         "syncCleanup": {
             "question": "Smazat {{count}} synchronizovaných událostí?",
             "question_one": "Smazat {{count}} synchronizovanou událost?",
+            "question_few": "Smazat {{count}} synchronizované události?",
             "detail": "Kalendář je nyní odznačen. Události, které již přenesl, můžete ponechat, nebo odstranit. U poskytovatele se nic nezmění a opětovné zapnutí je načte znovu.",
             "keep": "Ponechat",
             "delete": "Smazat",
             "removed": "Odstraněno {{count}} událostí.",
             "removed_one": "Odstraněna {{count}} událost.",
+            "removed_few": "Odstraněny {{count}} události.",
             "accountQuestion": "Odpojit účet a smazat {{count}} událostí?",
             "accountQuestion_one": "Odpojit účet a smazat {{count}} událost?",
+            "accountQuestion_few": "Odpojit účet a smazat {{count}} události?",
             "accountDetail": "Bez smazání zůstanou přenesené události bez vlastního kalendáře.",
             "orphanHint": "V Yuvomi zůstává {{count}} přenesených událostí z tohoto připojení.",
             "orphanHint_one": "V Yuvomi zůstává {{count}} přenesená událost z tohoto připojení.",
+            "orphanHint_few": "V Yuvomi zůstávají {{count}} přenesené události z tohoto připojení.",
             "orphanAction": "Odstranit přenesené události",
             "orphanQuestion": "Smazat {{count}} přenesených událostí?",
             "orphanQuestion_one": "Smazat {{count}} přenesenou událost?",
+            "orphanQuestion_few": "Smazat {{count}} přenesené události?",
             "orphanDetail": "Připojení je odpojené - těchto událostí se už žádná synchronizace nedotkne. U poskytovatele se nic nemění a opětovné připojení je přenese znovu."
         },
         "calendarsRefreshed": "Kalendáře aktualizovány",
@@ -2708,14 +2764,17 @@
             "backfillAction": "Použít na stávající události",
             "backfillQuestion": "Přiřadit {{count}} nepřiřazených událostí?",
             "backfillQuestion_one": "Přiřadit {{count}} nepřiřazenou událost?",
+            "backfillQuestion_few": "Přiřadit {{count}} nepřiřazené události?",
             "backfillDetail": "Každá událost dostane výchozí přiřazení svého kalendáře. Týká se to i událostí, u kterých někdo přiřazení ručně odebral. Vrátit to lze jen událost po události.",
             "backfillConfirm": "Přiřadit",
             "backfillNone": "Nejsou žádné události, na které by se dalo použít výchozí přiřazení.",
             "backfillDone": "Přiřazeno {{count}} událostí.",
             "backfillDone_one": "Přiřazena {{count}} událost.",
+            "backfillDone_few": "Přiřazeny {{count}} události.",
             "backfillChanged": "Od spočítání se události změnily. Použijte to prosím znovu.",
             "backfillFillCount": "Nepřiřazené události: {{count}}",
             "backfillFillCount_one": "{{count}} nepřiřazená událost",
+            "backfillFillCount_few": "{{count}} nepřiřazené události",
             "backfillMovedTitle": "Události s výchozím přiřazením jiného kalendáře",
             "backfillMovedHint": "Tyto události stále nesou výchozí přiřazení jiného kalendáře téhož účtu. Může jít o přesunutou událost, nebo o kalendář, jehož výchozí přiřazení bylo později změněno. Změní se jen vybrané události, ostatní zůstanou beze změny.",
             "backfillMovedPartial": "Události {{first}} až {{last}} z {{total}}. „Přiřadit“ použije výběr na této stránce, „Zobrazit další“ přejde dál bez použití. Nevybrané události zůstanou beze změny.",
@@ -3055,7 +3114,19 @@
         "pushUnavailable": "Push oznámení teď na tomto zařízení nejsou k dispozici. Načtěte prosím stránku znovu.",
         "pageScheduleMineDescription": "Připomenutí před vlastní směnou a týdenní hodiny pro přesčasy.",
         "sheetInventoryDescription": "Odebírat termíny svých věcí ve vlastní kalendářové aplikaci.",
-        "sheetWasteDescription": "Odebírat nadcházející svozy ve vlastní kalendářové aplikaci."
+        "sheetWasteDescription": "Odebírat nadcházející svozy ve vlastní kalendářové aplikaci.",
+        "rewardsDefaultPointsRebaseTitle_few": "Převést {{count}} úkoly z {{from}} na {{to}} bodů?",
+        "rewardsDefaultPointsRebased_few": "Aktualizovány {{count}} úkoly.",
+        "searchResults_few": "Nalezena {{count}} nastavení",
+        "apiTokenScopeSummary_few": "Vybráno oprávnění: {{count}}",
+        "backupSchedulerCronHourly_few": "Každé {{count}} hodiny, v minutě {{minute}}",
+        "backupSchedulerKeepCount_few": "{{count}} zálohy",
+        "kitchenActiveCount_few": "Aktivní moduly kuchyně: {{count}}",
+        "enabledReminderListCount_few": "Povolené seznamy připomínek: {{count}}",
+        "twoFactorRecoveryLeft_few": "Zbývají {{count}} záložní kódy.",
+        "healthVisibilityApplied_few": "Upraveny {{count}} záznamy.",
+        "healthPreventionIntervalMonths_few": "Každé {{count}} měsíce",
+        "healthPreventionIntervalYears_few": "Každé {{count}} roky"
     },
     "login": {
         "tagline": "Vítejte zpět ve svém rodinném plánovači.",
@@ -3551,12 +3622,14 @@
         "receiptDocumentName": "Doklad: {{title}} ({{group}})",
         "receiptsAttachedLabel": "Připojené doklady: {{count}}",
         "receiptsAttachedLabel_one": "Připojený doklad: {{count}}",
+        "receiptsAttachedLabel_few": "Připojené doklady: {{count}}",
         "proofLabel": "Doklad o platbě",
         "proofHint": "Jeden doklad, například snímek převodu.",
         "proofDocumentName": "Doklad o platbě {{group}}: {{name}}",
         "loadError": "Společné výdaje se nepodařilo načíst.",
         "moreMembers": "+{{count}} dalších",
         "moreMembers_one": "+{{count}} další",
+        "moreMembers_few": "+{{count}} další",
         "paymentDetail": "{{payer}} pro {{payee}}: {{amount}}",
         "paymentReversed": "Stornováno",
         "reversePayment": "Stornovat",
@@ -3778,6 +3851,7 @@
             "limitHint": "Každý soubor může mít nejvýše {{size}} MB. Prázdné složky se nevytvoří.",
             "selectedFolder": "Vybraná složka: {{name}} · {{count}} souborů",
             "selectedFolder_one": "Vybraná složka: {{name}} · {{count}} soubor",
+            "selectedFolder_few": "Vybraná složka: {{name}} · {{count}} soubory",
             "willMerge": "Sloučit s existující složkou",
             "willCreate": "Vytvořit složku",
             "willSkip": "Přeskočit existující soubor",
@@ -3795,6 +3869,7 @@
             "adminLimitHint": "Aktuální limit jednoho souboru je {{size}} MB. Správce ho může zvýšit nastavením MAX_UPLOAD_MB na serveru.",
             "uploadAction": "Nahrát {{count}} souborů",
             "uploadAction_one": "Nahrát {{count}} soubor",
+            "uploadAction_few": "Nahrát {{count}} soubory",
             "progress": "{{current}} z {{total}} · {{name}}",
             "completedWithErrors": "Nahrávání skončilo s chybami",
             "completed": "Složka byla nahrána",
@@ -3805,6 +3880,7 @@
             "noUploadableFiles": "Tato složka neobsahuje žádné soubory, které lze nahrát.",
             "uploadedToast": "Nahráno {{count}} dokumentů.",
             "uploadedToast_one": "Nahrán {{count}} dokument.",
+            "uploadedToast_few": "Nahrány {{count}} dokumenty.",
             "reasonMissingPath": "Prohlížeč neposkytl cestu ke složce.",
             "reasonUnsafePath": "Cesta obsahuje nebezpečnou část.",
             "reasonEmptyFile": "Soubor je prázdný.",
@@ -3815,7 +3891,10 @@
             "reasonParentFailed": "Nadřazenou složku se nepodařilo vytvořit.",
             "reasonRateLimited": "Server nyní přijímá příliš mnoho požadavků. Zkuste nahrávání později znovu."
         },
-        "selectDone": "Hotovo"
+        "selectDone": "Hotovo",
+        "deleteFolderKeepDocuments_few": "Odstranit jen složku; dokumenty zachovat ({{count}})",
+        "deleteFolderWithDocuments_few": "Odstranit složku i dokumenty ({{count}})",
+        "folderDeletedWithDocumentsToast_few": "Složka a dokumenty ({{count}}) byly odstraněny."
     },
     "reminders": {
         "sectionTitle": "Připomínka",
@@ -3863,8 +3942,6 @@
         "inDays_one": "za {{count}} den",
         "inDays": "za {{count}} dní",
         "inDays_few": "za {{count}} dny",
-        "inDays_two": "za {{count}} dní",
-        "inDays_many": "za {{count}} dní",
         "turnsAge": "oslaví {{age}}",
         "title": "Narozeniny",
         "addButton": "Přidat narozeniny",
@@ -3965,6 +4042,7 @@
         "summaryUntil": "do {{date}}",
         "summaryCount": "{{count}} termínů",
         "summaryCount_one": "{{count}} termín",
+        "summaryCount_few": "{{count}} termíny",
         "fromCompletionLabel": "Opakovat od splnění",
         "fromCompletionHint": "Interval začíná dnem, kdy úkol odškrtnete, ne datem splatnosti.",
         "summaryFromCompletion": "od splnění",
@@ -4020,6 +4098,12 @@
         "imageHint": "Jeden obrázek na recept. Zobrazí se v jídelním plánu a na dlaždici přehledu.",
         "imageTooLarge": "Obrázek je i po zmenšení příliš velký.",
         "ingredientMatchNone": "Nepřiřazeno",
+        "ingredientMatchOpen": "Přiřadit {{count}} ingrediencí ke spíži",
+        "ingredientMatchOpen_one": "Přiřadit {{count}} ingredienci ke spíži",
+        "ingredientMatchOpen_few": "Přiřadit {{count}} ingredience ke spíži",
+        "ingredientMatchOpen_many": "Přiřadit {{count}} ingredience ke spíži",
+        "ingredientMatchBulkTitle": "Přiřadit ingredience ke spíži",
+        "ingredientMatchBulkHint": "U každé ingredience vyber položku ve spíži, kterou znamená. Yuvomi nic nehádá - platí jen to, co tady potvrdíš.",
         "ingredientMatchAction": "Přiřadit {{name}} k položce ve spíži",
         "ingredientMatchTitle": "Přiřadit {{name}}",
         "ingredientMatchLabel": "Položka ve spíži",
@@ -4027,14 +4111,7 @@
         "ingredientMatchEmpty": "Spíž je zatím prázdná.",
         "ingredientMatchSaved": "Přiřazení uloženo.",
         "ingredientMatchCleared": "Přiřazení zrušeno.",
-        "ingredientMatchLoadError": "Spíž se nepodařilo načíst.",
-        "ingredientMatchOpen": "Přiřadit {{count}} ingrediencí ke spíži",
-        "ingredientMatchOpen_one": "Přiřadit {{count}} ingredienci ke spíži",
-        "ingredientMatchOpen_few": "Přiřadit {{count}} ingredience ke spíži",
-        "ingredientMatchOpen_two": "Přiřadit {{count}} ingrediencí ke spíži",
-        "ingredientMatchOpen_many": "Přiřadit {{count}} ingredience ke spíži",
-        "ingredientMatchBulkTitle": "Přiřadit ingredience ke spíži",
-        "ingredientMatchBulkHint": "U každé ingredience vyber položku ve spíži, kterou znamená. Yuvomi nic nehádá - platí jen to, co tady potvrdíš."
+        "ingredientMatchLoadError": "Spíž se nepodařilo načíst."
     },
     "wmo": {
         "0": "Jasno",
@@ -4090,7 +4167,8 @@
         "whatsNewTitle": "Novinky ve tvé aplikaci",
         "whatsNewSince": "Od verze {{version}}, kterou jsi viděl naposledy.",
         "whatsNewMore": "V seznamu níže je dalších {{count}} změn.",
-        "whatsNewMore_one": "V seznamu níže je ještě jedna změna."
+        "whatsNewMore_one": "V seznamu níže je ještě jedna změna.",
+        "whatsNewMore_few": "V seznamu níže jsou další {{count}} změny."
     },
     "forgotPassword": {
         "title": "Obnovit heslo",
@@ -4210,6 +4288,7 @@
         "listTitle": "Předplatná",
         "listCount": "{{count}} předplatných",
         "listCount_one": "{{count}} předplatné",
+        "listCount_few": "{{count}} předplatná",
         "ratesUnavailable": "Směnné kurzy nejsou k dispozici",
         "refreshRates": "Aktualizovat kurzy",
         "monthlyCost": "Měsíční náklady",
@@ -4356,7 +4435,11 @@
         "accountUsernameLabel": "Registrováno na",
         "accountUsernameHint": "E-mailová adresa nebo uživatelské jméno. Není to pole pro heslo - Yuvomi hesla neukládá.",
         "detailAmountLabel": "Částka",
-        "detailNextPaymentLabel": "Další platba"
+        "detailNextPaymentLabel": "Další platba",
+        "overdueDays_few": "{{count}} dny po splatnosti",
+        "reminderMeta_few": "{{count}} dny předem",
+        "filtersActive_few": "Filtry (aktivní: {{count}})",
+        "endsAfter_few": "Zbývají {{count}} platby"
     },
     "health": {
         "fasting": {
@@ -4739,7 +4822,9 @@
                 "intervalMonths": "Interval",
                 "nextDueOn": "Další termín (přepsat)",
                 "reminderOffsetDays": "Předstih připomenutí (dny)"
-            }
+            },
+            "overdueDays_few": "Po termínu {{count}} dny",
+            "dueInDays_few": "Termín za {{count}} dny"
         },
         "labs": {
             "title": "Laboratorní hodnoty",
@@ -4963,11 +5048,14 @@
                 "source": {
                     "history": "Na základě posledních {{count}} cyklů",
                     "history_one": "Na základě posledního cyklu",
+                    "history_few": "Na základě posledních {{count}} cyklů",
                     "insufficientHistory": "Zatím výchozí hodnota - zaznamenejte ještě {{count}} cyklů pro osobní předpověď",
                     "insufficientHistory_one": "Zatím výchozí hodnota - zaznamenejte ještě {{count}} cyklus pro osobní předpověď",
+                    "insufficientHistory_few": "Zatím výchozí hodnota - zaznamenejte ještě {{count}} cykly pro osobní předpověď",
                     "default": "Výchozí předpoklad (zatím nezaznamenána žádná historie)",
                     "historyOther": "Na základě posledních {{count}} cyklů",
-                    "historyOther_one": "Na základě posledního cyklu"
+                    "historyOther_one": "Na základě posledního cyklu",
+                    "historyOther_few": "Na základě posledních {{count}} cyklů"
                 }
             },
             "unit": {
@@ -5217,6 +5305,7 @@
                 "periodToday": "Menstruace se dnes očekává - začít teď?",
                 "periodOverdue": "Menstruace mešká {{count}} dní - začít teď?",
                 "periodOverdue_one": "Menstruace mešká {{count}} den - začít teď?",
+                "periodOverdue_few": "Menstruace mešká {{count}} dny - začít teď?",
                 "periodStillOpen": "Podle záznamu tvoje menstruace stále probíhá - ukončit teď?",
                 "peakPainDay": "Podle vašeho vzorce bývá dnešek často dnem s nejsilnější bolestí ({{symptom}}).",
                 "likelySymptomsToday": "Dnes pravděpodobně: {{symptoms}}",
@@ -5463,6 +5552,7 @@
         "toShoppingAll": "Vše na nákupní seznam",
         "bulkPillLabel": "{{count}} položek téměř došlo",
         "bulkPillLabel_one": "1 položce téměř došlo",
+        "bulkPillLabel_few": "{{count}} položky téměř došly",
         "toShoppingDone": "{{count}} položek přidáno do {{list}}.",
         "toShoppingDone_one": "{{count}} položka přidána do {{list}}.",
         "toShoppingSkipped": "{{count}} tam už bylo.",
@@ -5475,42 +5565,34 @@
         "locOther": "Ostatní",
         "units": {
             "pcs": "ks",
+            "pcs_one": "ks",
+            "pcs_few": "ks",
+            "pcs_other": "ks",
             "g": "g",
             "kg": "kg",
             "ml": "ml",
             "l": "l",
             "pkg": "balení",
-            "can": "konzerva",
-            "bottle": "lahev",
-            "jar": "sklenice",
-            "bag": "sáček",
-            "pcs_one": "ks",
-            "pcs_two": "ks",
-            "pcs_few": "ks",
-            "pcs_many": "ks",
-            "pcs_other": "ks",
             "pkg_one": "balení",
-            "pkg_two": "balení",
             "pkg_few": "balení",
-            "pkg_many": "balení",
             "pkg_other": "balení",
+            "can": "konzerva",
             "can_one": "konzerva",
-            "can_two": "konzerv",
             "can_few": "konzervy",
             "can_many": "konzervy",
             "can_other": "konzerv",
+            "bottle": "lahev",
             "bottle_one": "lahev",
-            "bottle_two": "lahví",
             "bottle_few": "lahve",
             "bottle_many": "lahve",
             "bottle_other": "lahví",
+            "jar": "sklenice",
             "jar_one": "sklenice",
-            "jar_two": "sklenic",
             "jar_few": "sklenice",
             "jar_many": "sklenice",
             "jar_other": "sklenic",
+            "bag": "sáček",
             "bag_one": "sáček",
-            "bag_two": "sáčků",
             "bag_few": "sáčky",
             "bag_many": "sáčku",
             "bag_other": "sáčků"
@@ -5623,8 +5705,6 @@
         "deadlineChipInDays_one": "{{label}} za {{count}} den",
         "deadlineChipInDays": "{{label}} za {{count}} dní",
         "deadlineChipInDays_few": "{{label}} za {{count}} dny",
-        "deadlineChipInDays_two": "{{label}} za {{count}} dní",
-        "deadlineChipInDays_many": "{{label}} za {{count}} dní",
         "deadlineChipToday": "{{label}} dnes",
         "deadlineChipOverdue": "{{label}} po lhůtě",
         "warrantyChipUntil": "Záruka do {{date}}",
@@ -5663,7 +5743,11 @@
         "odometerChartTitle": "Stav tachometru v čase",
         "detailPaneLabel": "Podrobnosti předmětu",
         "pickOne": "Vyberte předmět",
-        "pickOneHint": "Údaje, termíny a historie se zobrazí zde."
+        "pickOneHint": "Údaje, termíny a historie se zobrazí zde.",
+        "warrantyStatusExpiringSoon_few": "Záruka končí za {{count}} dny",
+        "warrantyMonthsValue_few": "{{count}} měsíce",
+        "trackedDateInDays_few": "Za {{count}} dny",
+        "trackedDateOverdueDays_few": "{{count}} dny po lhůtě"
     },
     "documentAttach": {
         "label": "Přílohy",
@@ -5680,6 +5764,7 @@
         "openAction": "Otevřít {{name}}",
         "limitReached": "Nejvýše dokumentů: {{count}}.",
         "limitReached_one": "Nejvýše dokumentů: {{count}}.",
+        "limitReached_few": "Nejvýše dokumentů: {{count}}.",
         "lockedPrivate": "Příloha existuje (soukromá)"
     },
     "join": {
@@ -5921,7 +6006,11 @@
         "totalHours": "Hodin celkem",
         "plannedNote": "plánováno",
         "reminderLeadTime": "Předstih",
-        "settingsSaved": "Uloženo."
+        "settingsSaved": "Uloženo.",
+        "quickStartCreated_few": "Vytvořeny {{count}} typy směn.",
+        "deleteCustomFieldDetail_few": "Je nyní přiřazeno k {{count}} typům směn. Veškeré k němu zaznamenané hodnoty zmizí s ním. Nelze vrátit zpět.",
+        "cycleDaysHint_few": "Cyklus se opakuje každé {{count}} dny od začátku cyklu - dny před ním následují stejný rytmus pozpátku.",
+        "deletePatternDetail_few": "Jeho {{count}} dny cyklu zmizí s ním. Nelze vrátit zpět."
     },
     "waste": {
         "title": "Svoz odpadu",
@@ -6109,7 +6198,13 @@
         "colorCyan": "Azurová",
         "colorOrange": "Oranžová",
         "colorMagenta": "Purpurová",
-        "colorCurrent": "Aktuální barva"
+        "colorCurrent": "Aktuální barva",
+        "upcomingShowMore_few": "Zobrazit {{count}} další",
+        "importDiagnosticSkippedUnparsable_few": "Byly přeskočeny {{count}} položky kalendáře (chybějící nebo nečitelné datum zahájení).",
+        "importDiagnosticCancelledExcluded_few": "Byly vyloučeny {{count}} zrušené položky kalendáře.",
+        "importDiagnosticMissingUidFallback_few": "{{count}} položky kalendáře neměly UID; byla použita náhradní identita na základě štítku a data.",
+        "importDiagnosticDuplicateInstance_few": "{{count}} duplicitní termíny svozu (stejná identita) byly sloučeny do jednoho.",
+        "mappingProfileApplicableCount_few": "Budou použita {{count}} přiřazení."
     },
     "pairDisplay": {
         "title": "Spárovat tablet",
