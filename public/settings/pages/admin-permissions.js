@@ -17,6 +17,7 @@ import { prefersInkText } from '/utils/contrast.js';
 import { confirmModal } from '/components/modal.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { createRetryState } from '/settings/components.js';
+import { syncLeafEdits, trackLeafEdits } from '/settings/dirty-guard.js';
 import { resolveExtensionLabel } from '/utils/extension-i18n.js';
 import {
   effectiveCapabilityAccess as resolveCapabilityAccess,
@@ -498,6 +499,9 @@ function updateSaveState(panel) {
   if (dirty) dirty.hidden = !state.dirty;
   // Am Telefon klebt der Fuss nur mit ungespeicherten Aenderungen (settings.css).
   panel.querySelector('.perm-actions')?.classList?.toggle('is-dirty', state.dirty);
+  // Offener Entwurf = Rueckfrage vor jedem Verlassen des Blatts (R15 A7 P1-1):
+  // die Matrix ist kein Formular, der Guard erfaehrt ihren Stand von hier.
+  syncLeafEdits();
 }
 
 // Widgets eines Moduls neu rendern (nach Modul-Änderung: Sperr-Zustände hängen daran).
@@ -823,6 +827,9 @@ export async function render(container, { user } = {}) {
   state.draft = { modules: {}, widgets: {}, capabilities: {} };
   state.inherited = { modules: {}, widgets: {}, capabilities: {} };
   state.dirty = false;
+  // Die Matrix hat keinen <form>: sie meldet ihren Entwurf selbst beim
+  // Verlassen-Schutz der Einstellungen an (settings/dirty-guard.js).
+  trackLeafEdits(container, () => state.dirty);
 
   bindEvents(container);
   await selectSubject(container, 'role', initialSubject('role', catalog));
