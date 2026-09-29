@@ -235,7 +235,7 @@ router.post('/outlook/conflicts/:id/resolve', requireAdmin, async (req, res) => 
  * Admin only. Lists are materialized as Yuvomi Task Lists; refresh=true
  * discovers new Microsoft To Do lists while retaining enabled state.
  */
-router.get('/outlook/accounts/:id/todo-lists', requireAdmin, async (req, res) => {
+router.get('/outlook/accounts/:id/todo-lists', requireAdmin, refuseWhileRestoring, async (req, res) => {
   try {
     outlookCalendar.assertConfigured();
     const accountId = parseInt(req.params.id, 10);

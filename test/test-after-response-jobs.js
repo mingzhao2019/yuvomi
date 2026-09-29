@@ -445,6 +445,8 @@ const LESEN_NACH_AWAIT = new Map([
   ['server/routes/dms.js|/search', 'DMS-Adapter (Paperless, Papra) ohne Datenbank'],
   ['server/routes/dms.js|/thumbnail', 'DMS-Adapter ohne Datenbank'],
   ['server/routes/documents.js|/:id/thumbnail', 'Vorschaubild nur fuer DMS-Dokumente, DMS-Adapter ohne Datenbank'],
+  ['server/routes/inventory/image-search.js|/', 'externe Bildsuche mit In-Memory-Cache, keine Datenbank'],
+  ['server/routes/inventory/image-search.js|/preview', 'externer Bildabruf ohne Datenbankzugriff'],
   ['server/routes/modules.js|/', 'Erweiterungen aus dem Dateisystem'],
   ['server/routes/modules.js|/assets/:id/{*assetPath}', 'Datei einer Erweiterung aus dem Dateisystem'],
   ['server/routes/permissions.js|/catalog', 'Erweiterungen aus dem Dateisystem'],
