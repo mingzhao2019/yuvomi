@@ -9,6 +9,7 @@ import express from 'express';
 import { hydrateNotesWithCategories } from '../services/note-categories.js';
 import * as db from '../db.js';
 import { hydrateBirthdayOccurrences } from '../services/birthdays.js';
+import { decorateEventCompletions } from '../services/calendar-event-completions.js';
 import { getEventsOverlappingDays, getUpcomingEvents } from '../services/calendar-event-reader.js';
 import { taskScopeWhere, taskCategoryWhere, categoryBindings, normalizeCategoryFilter } from '../services/task-scope.js';
 import { getCountdowns } from '../services/countdowns.js';
@@ -377,10 +378,13 @@ router.get('/', (req, res) => {
     // von heute kommen ausserhalb mit - die Kachel zeigt sie zurueckgetreten,
     // das Heute-Blatt laesst sie weg. Welche beendet sind, entscheidet der
     // Browser an der Uhr: ein Termin endet auch zwischen zwei Abrufen.
-    result.upcomingEvents = serializeEvents(getUpcomingEvents(d, {
+    const upcomingEvents = getUpcomingEvents(d, {
       userId, limit: 5, fromToday: true, assignedTo: eventsAssignedTo, includeBirthdays,
       keepEndedToday: ENDED_TODAY_POOL,
-    }), { database: d, viewer: documentViewer(req), actorId: userId, isAdmin: isAdminUser(req) });
+    });
+    result.upcomingEvents = serializeEvents(decorateEventCompletions(d, upcomingEvents, userId), {
+      database: d, viewer: documentViewer(req), actorId: userId, isAdmin: isAdminUser(req),
+    });
   } catch (err) {
     log.error('upcomingEvents error:', err.message);
     result.upcomingEvents = [];

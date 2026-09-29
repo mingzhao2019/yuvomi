@@ -281,6 +281,22 @@ const KID = { id: 91, display_name: 'Leo', avatar_color: '#FF9500' };
 const ev = (id, title, start, end, extra = {}) => ({
   id, title, start_datetime: start, end_datetime: end, all_day: 0, assigned_users: [], ...extra,
 });
+
+test('#1569: die Uebersicht liefert archivierte Termine mit persoenlichem Status', withClock(THU_10_BERLIN, 'Europe/Berlin', async () => {
+  clearEvents();
+  const eventId = addEvent('Archivierter Termin', '2026-09-24T19:00', '2026-09-24T20:00');
+  db.prepare(`
+    INSERT INTO calendar_event_completions (event_id, occurrence_key, user_id)
+    VALUES (?, 'single', ?)
+  `).run(eventId, ADMIN);
+
+  const { upcomingEvents } = await getJson('/');
+  const event = upcomingEvents.find((item) => Number(item.id) === eventId);
+  assert.equal(event?.completed, true, 'GET /dashboard muss den persoenlichen Archivstatus mitliefern');
+  assert.match(dash.renderUpcomingEvents(upcomingEvents, { now: new Date() }), /event-item--done/,
+    'die Kalenderkachel setzt damit die CSS-Klasse fuer die durchgestrichene Zeile');
+}));
+
 // Wie die Antwort sie liefert: sortiert nach Beginn.
 const BERLIN_DAY = [
   ev(1, 'Reise', '2026-09-23T18:00', '2026-09-25T12:00'),
