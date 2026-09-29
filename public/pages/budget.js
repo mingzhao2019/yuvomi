@@ -27,6 +27,7 @@ import { budgetCategoryLabel } from '/utils/category-labels.js';
 import { trendMarkup } from '/utils/metric-card.js';
 import { installPopoverMenus } from '/utils/popover-menu.js';
 import { rowActionHtml } from '/utils/row-action.js';
+import { metricGlanceHtml, wireMetricGlance } from '/utils/metric-glance.js';
 import { intervalUnitLabel } from '/rrule-ui.js';
 import { appendCurrencyOptions } from '/settings/currency.js';
 import '/components/category-manager.js';
@@ -241,6 +242,7 @@ let state = {
   expensesOnly: false,        // Anzeige „Nur Ausgaben" (#504): Einnahmen+Saldo ausblenden
   categoriesExpanded: false,  // Kategorie-Diagramm einspaltig ganz aufgeklappt (sonst Top 3)
   balanceExpanded: false,     // mobil: Bilanz-Karten unter der Kopfzeile aufgeklappt (balanceGlanceHtml)
+  loansExpanded: false,       // mobil: Darlehens-Karten unter der Glance-Zeile aufgeklappt (metricGlanceHtml)
   meta:        { expenseCategories: [], incomeCategories: [], subcategories: {} },
   // Zeitachse der Berichte: dieselbe Kopfleiste wie der Monat, nur mit
   // umschaltbarer Auflösung. Der Anker lebt hier statt in budget-stats.js, damit
@@ -918,6 +920,7 @@ function wireNav() {
         state.reportAnchor = anchorForMonth(state.month);
       }
       renderBody();
+      markTabEntering();
       if (prev === 'reports' && id !== 'reports') {
         const ym = state.reportAnchor.slice(0, 7);
         if (ym !== state.month) {
@@ -975,6 +978,18 @@ function watchAsideFit(panel) {
 // --------------------------------------------------------
 // Body
 // --------------------------------------------------------
+
+/* DER NEUE REITER BLENDET EIN (R14 P11, A5 P3). Die Untertabs wechselten per
+ * hartem Schnitt, waehrend jeder Seitenwechsel blendet. Nur der Wechsel selbst
+ * blendet - ein Neuaufbau desselben Reiters (Filter, Monat, Speichern) nicht;
+ * die Klasse faellt nach der Blende. Unter reduzierter Bewegung schneidet die
+ * globale Sperre (reset.css) die Animation ab. */
+function markTabEntering() {
+  const panel = _container?.querySelector('#budget-body > .budget-tab-panel');
+  if (!panel) return;
+  panel.classList.add('budget-tab-panel--entering');
+  panel.addEventListener('animationend', () => panel.classList.remove('budget-tab-panel--entering'), { once: true });
+}
 
 function renderBody() {
   const body = _container.querySelector('#budget-body');
@@ -1308,9 +1323,6 @@ function renderBody() {
     // bleibt - er liest nur.
     const action = e.target.closest('[data-action]');
     if (action && readOnly() && !READ_SAFE_ACTIONS.has(action.dataset.action)) return;
-
-    const delBtn = e.target.closest('[data-action="delete"]');
-    if (delBtn) { await deleteEntry(parseInt(delBtn.dataset.id, 10)); return; }
 
     const confirmBtn = e.target.closest('[data-action="confirm"]');
     if (confirmBtn) { await openConfirmBookingModal(parseInt(confirmBtn.dataset.id, 10)); return; }
@@ -1902,11 +1914,12 @@ function entryRows(list, { fullDate = false } = {}) {
              aria-label="${esc(t('budget.responsibleFilterTo', { name: e.responsible_users[0].display_name ?? '' }))}"
            >${renderAvatarStack(e.responsible_users, { size: 16, maxVisible: 3 })}</button>`
       : '';
+    // EINE ZEILENBEDIENUNG (R14 P8, A5 P2-6): die Zeile oeffnet die Buchung,
+    // Loeschen steht in deren Blatt (#bm-delete) - an der Zeile bleibt nur die
+    // Folgeaktion „Verbuchen". Der dauerhafte Papierkorb neben dem Betrag war
+    // eine von drei Bedienungen im Modul und kappte den Titel.
     const rowActions = (masked || ro) ? '' : `
-          ${confirmBtn}
-          <button class="row-action row-action--danger" data-action="delete" data-id="${e.id}" aria-label="${esc(t('budget.deleteLabel', { title: e.title }))}">
-            <i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>
-          </button>`;
+          ${confirmBtn}`;
 
     return `
       <div class="list-row budget-entry${pending ? ' budget-entry--pending' : ''}${upcoming ? ' budget-entry--upcoming' : ''}${masked ? ' budget-entry--masked' : ''}" ${rowInteraction}>
@@ -2253,16 +2266,26 @@ function renderLoansDashboard() {
   const summary = state.loans?.summary ?? {};
   const visibleLoans = filteredLoans();
 
+  const remainingLabel = t(summary.has_interest ? 'budget.loanRemainingPrincipal' : 'budget.loanRemainingAmount');
   return `
     <section class="budget-loans">
+      ${metricGlanceHtml({
+    id: 'budget-loans-more',
+    controls: 'budget-loans-details',
+    expanded: state.loansExpanded,
+    label: remainingLabel,
+    value: amountByRole(summary.remaining_principal ?? summary.remaining_amount ?? 0, 'total').text,
+    flows: [
+      { label: t('budget.loanRemainingInstallments'), amount: String(summary.remaining_installments ?? 0) },
+      { label: t('budget.loanPaidAmount'), amount: amountByRole(summary.paid_amount ?? 0, 'total').text },
+    ],
+  })}
       <div class="panel-head budget-loans__header">
         <div>
           <!-- Unsichtbar wie bei den Konten: sichtbar wiederholte der Titel nur den Tab. -->
           <h2 class="panel-head__title sr-only">${t('budget.loansTitle')}</h2>
-          <div class="budget-loans__summary">${t('budget.loansSummary', {
-            count: summary.active_count ?? 0,
-            amount: formatAmount(summary.remaining_principal ?? summary.remaining_amount ?? 0),
-          })}</div>
+          <!-- Die Summenzeile („2 aktiv · 175.444,93 € offen") ist entfallen:
+               sie wiederholte die Karte RESTSCHULD direkt darunter (R14 P1). -->
           ${state.loanFilterId ? `<div class="budget-list-header__filter">${esc(activeLoanLabel())}</div>` : ''}
         </div>
         <div class="panel-head__actions">
@@ -2286,10 +2309,11 @@ function renderLoansDashboard() {
       </div>
       <!-- Geteilte Kennzahl-Zeile statt der früheren eigenen budget-loans__stats
            (fünfte Kartenbauart des Moduls, Critique 2026-07-30, P0). Rolle
-           total: die Richtung steht im Label, nicht im Vorzeichen. -->
-      <div class="metric-grid">
+           total: die Richtung steht im Label, nicht im Vorzeichen.
+           Mobil wartet sie hinter EINER Zeile (metricGlanceHtml, R14 P1). -->
+      <div class="metric-grid budget-glance-details${state.loansExpanded ? ' is-expanded' : ''}" id="budget-loans-details">
         <div class="metric-card">
-          <div class="metric-card__label">${t(summary.has_interest ? 'budget.loanRemainingPrincipal' : 'budget.loanRemainingAmount')}</div>
+          <div class="metric-card__label">${remainingLabel}</div>
           <div class="metric-card__value">${amountByRole(summary.remaining_principal ?? summary.remaining_amount ?? 0, 'total').text}</div>
         </div>
         <div class="metric-card">
@@ -2447,6 +2471,7 @@ function renderLoansPage() {
 }
 
 function wireLoansPage() {
+  wireMetricGlance(_container, 'budget-loans-more', (on) => { state.loansExpanded = on; });
   _container.querySelector('#budget-empty-loan')?.addEventListener('click', () => openBudgetModal({ mode: 'create', initialType: 'loan' }));
   _container.querySelector('#budget-clear-loan-filter')?.addEventListener('click', () => {
     state.loanFilterId = null;
@@ -2478,17 +2503,6 @@ function wireLoansPage() {
   _container.querySelectorAll('[data-action="loan-pay"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       await markLoanPayment(parseInt(btn.dataset.id, 10));
-    });
-  });
-  _container.querySelectorAll('[data-action="loan-edit"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const loan = state.loans.loans.find((item) => item.id === parseInt(btn.dataset.id, 10));
-      if (loan) openLoanModal(loan);
-    });
-  });
-  _container.querySelectorAll('[data-action="loan-delete"]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      await deleteLoan(parseInt(btn.dataset.id, 10));
     });
   });
   _container.querySelectorAll('[data-action="loan-filter"]').forEach((btn) => {
@@ -2606,10 +2620,17 @@ function openLoanReport(loan) {
         </div>
       ` : `<div class="budget-loans__empty">${t('budget.loanNoTransactions')}</div>`}
     </div>
-    <div class="modal-panel__footer modal-panel__footer--plain">
+    ${readOnly() ? `<div class="modal-panel__footer modal-panel__footer--plain">
       <div></div>
       <button class="btn btn--primary" id="loan-report-close">${t('common.close')}</button>
-    </div>`;
+    </div>` : `<div class="modal-panel__footer">
+      <button type="button" class="btn btn--danger-outline" id="loan-report-delete"
+              aria-label="${esc(t('common.deleteNamed', { name: loan.title }))}" style="margin-inline-end:auto">
+        <i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i><span>${esc(t('common.delete'))}</span>
+      </button>
+      <button type="button" class="btn btn--secondary" id="loan-report-close">${t('common.close')}</button>
+      <button type="button" class="btn btn--primary" id="loan-report-edit">${esc(t('common.edit'))}</button>
+    </div>`}`;
 
   openSharedModal({
     title: t('budget.loanReportTitle'),
@@ -2617,6 +2638,18 @@ function openLoanReport(loan) {
     size: 'md',
     onSave(panel) {
       panel.querySelector('#loan-report-close')?.addEventListener('click', closeModal);
+      // EINE ZEILENBEDIENUNG (R14 P8): Bearbeiten und Loeschen wohnen hier,
+      // nicht mehr an der Karte. Bearbeiten ersetzt das Blatt; Loeschen fragt
+      // wie bisher (deleteLoan) und schliesst den Bericht vorher.
+      panel.querySelector('#loan-report-edit')?.addEventListener('click', () => {
+        closeModal({ force: true });
+        openLoanModal(loan);
+      });
+      panel.querySelector('#loan-report-delete')?.addEventListener('click', async () => {
+        closeModal({ force: true });
+        await deleteLoan(loan.id);
+        refocusAfterRender();
+      });
     },
   });
 }
@@ -2727,11 +2760,10 @@ function renderLoanCard(loan) {
         ${/* Bei `budget: read` gehen alle drei: Bearbeiten, Loeschen und das
             * Buchen einer Rate schreiben. Faelligkeit, Fortschritt und der
             * Bericht hinter der Karte bleiben - sie sind die Auskunft. */ ''}
+        ${/* EINE ZEILENBEDIENUNG (R14 P8): Bearbeiten und Loeschen stehen im
+            * Bericht, den die Karte oeffnet (openLoanReport) - an der Karte
+            * bleibt nur „Rate buchen". */ ''}
         ${readOnly() ? '' : `<div class="budget-loan-card__actions">
-          <div class="row-actions">
-            ${rowActionHtml({ icon: 'pencil', action: 'loan-edit', label: t('common.editNamed', { name: loan.title }), attrs: { 'data-id': loan.id } })}
-            ${rowActionHtml({ icon: 'trash-2', tone: 'danger', action: 'loan-delete', label: t('common.deleteNamed', { name: loan.title }), attrs: { 'data-id': loan.id } })}
-          </div>
           ${/* Sekundaer, nicht primaer (Critique 2026-09-25): drei Darlehen
               * zeigten drei violette Primaerknoepfe nebeneinander, und keiner
               * war der Weg der Seite. Der steht im Kopf („+ Darlehen"). */ ''}
@@ -4547,5 +4579,9 @@ export const __test = {
   toggleBalanceDetailsForTest(container) {
     _container = container;
     toggleBalanceDetails();
+  },
+  markTabEnteringForTest(container) {
+    _container = container;
+    markTabEntering();
   },
 };

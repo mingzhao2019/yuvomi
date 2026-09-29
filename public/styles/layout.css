@@ -1488,6 +1488,15 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   font-size: var(--text-base);
 }
 
+/* EIN X IM PALETTENKOPF (R14, A1 P3-3): das native Leeren des Suchfelds stand
+ * direkt neben dem Schliessen-Knopf, zwei gleiche Zeichen fuer zwei Folgen.
+ * Geleert wird per Escape im Feld (Browser-Standard) oder Auswahl. */
+.search-overlay__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 .search-overlay__close {
   /* Liegt im DOM hinter den Treffern (Tab-Weg: Suchfeld -> Ergebnisse,
    * Audit A1-14), visuell aber weiterhin oben rechts im Kopfbereich. */
@@ -1930,7 +1939,6 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 .segmented__item.is-active svg,
 .cal-toolbar__view-btn--active svg,
 .cal-toolbar__search-btn--active svg,
-.perm-modeswitch__btn.is-active svg,
 .perm-seg__opt.is-active svg {
   /* 30 % statt 16 %: auf Tab-Bar-Größe (20px) las die schwächere Füllung
    * weiter als Outline (Finish-Verdict Fundament-Phase, Fix 8). */
@@ -3896,9 +3904,18 @@ html.fab-anim-done .page-fab {
   background-color: var(--color-surface);
   box-shadow: var(--shadow-md);
   /* Die Position rechnet JS erst im `toggle`-Ereignis; ohne die Startopazität
-   * blitzt das Panel eine Frame lang oben links auf. */
-  opacity: 0;
-  transition: opacity var(--transition-fast);
+   * blitzt das Panel eine Frame lang oben links auf.
+   *
+   * DAS MENUE WAECHST VOM AUSLOESER AUS (R14, A1 P3-4), statt nur
+   * einzublenden: Startgroesse 96 % und Blende, der Ursprung ist die Ecke am
+   * Ausloeser (utils/popover-menu.js setzt `transform-origin` mit der
+   * Position und `transform: none` beim Oeffnen). Kein @starting-style: das
+   * Oeffnen laeuft ohnehin ueber die zwei Werte, die JS nach der Rechnung
+   * setzt, und so wirkt es auch dort, wo @starting-style fehlt. */
+  transform: scale(0.96);
+  transition:
+    opacity var(--duration-md) var(--ease-out),
+    transform var(--duration-md) var(--ease-out);
 }
 
 .popover-menu:popover-open {
@@ -4008,8 +4025,13 @@ a.popover-menu__item {
   margin-inline-start: auto;
 }
 
+/* Reduzierte Bewegung: kein Wachsen, nur die Blende - sie bewegt nichts. */
 @media (prefers-reduced-motion: reduce) {
-  .popover-menu,
+  .popover-menu {
+    transform: none;
+    transition: opacity var(--duration-md) var(--ease-out);
+  }
+
   .popover-menu__item {
     transition: none;
   }
@@ -4419,14 +4441,6 @@ p.field-hint--warn[hidden] {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .nav-sidebar__version {
-    margin-top: var(--space-0h);
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-medium);
-    letter-spacing: var(--tracking-label);
-    color: var(--color-text-tertiary);
   }
 
   /* ── Nav-Items Container ── */
@@ -6148,6 +6162,24 @@ p.field-hint--warn[hidden] {
   min-width: var(--target-base);
 }
 
+/* EINE STEUERHOEHE IM DESKTOP-KOPF (R14, A1 P3-2). Suche und Werkzeugmenue
+ * standen mit --target-base (44px) neben Segment, Filter und angedockter
+ * Pille mit --target-md (40px, die `.btn`-Regel oben) - zwei Kanten in einer
+ * Zeile, gemessen in 12 Modulen bei 1440. Am Zeiger ist 40px die Regel
+ * (Hit-Test, ignore.md); dieselbe Grenze wie `.btn`. */
+@media (min-width: 1024px) {
+  .page-toolbar .btn--icon {
+    min-height: var(--target-md);
+    min-width: var(--target-md);
+  }
+
+  /* `height` dazu: Polster plus Zeilenhoehe ergaben 43px ueber der Untergrenze. */
+  .page-toolbar .page-search__input {
+    min-height: var(--target-md);
+    height: var(--target-md);
+  }
+}
+
 
 /* FAB und page-fab ausblenden wenn virtuelle Tastatur offen (nur Mobile) */
 @media (max-width: 1023px) {
@@ -6336,26 +6368,37 @@ textarea::placeholder {
  * Global statt modul-scoped, weil Modals im geteilten Overlay rendern und der
  * Router immer nur EIN Modul-Stylesheet aktiv hält. Markup: ingredient-row.js.
  * -------------------------------------------------------- */
+/* ZWEI ZEILEN STATT DREI GEKAPPTER FELDER (Re-Critique 2026-09-28, A4 P2-7):
+ * im 520px-Dialog zeigte die Kategorie "Fleisch &...", "Milchpro...", mobil
+ * blieben ihr 100px. Der Name bekommt die volle Zeile (mit dem Entfernen-Knopf),
+ * Menge und Kategorie teilen sich die zweite. */
 .ingredient-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  grid-template-areas: "name name remove" "qty cat .";
   align-items: center;
   gap: var(--space-2);
   border-radius: var(--radius-glass-inner);
 }
 
 .ingredient-row__name {
-  flex: 2;
+  grid-area: name;
+  min-width: 0;
 }
 
 .ingredient-row__qty {
-  flex: 1;
+  grid-area: qty;
   min-width: 0;
 }
 
 .ingredient-row__cat {
-  flex: 1.5;
+  grid-area: cat;
   min-width: 0;
   font-size: var(--type-body);
+}
+
+.ingredient-row > .row-action {
+  grid-area: remove;
 }
 
 .meal-type-badge {

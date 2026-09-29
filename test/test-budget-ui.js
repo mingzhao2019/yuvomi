@@ -2309,15 +2309,9 @@ test('Kennzahlen: Einnahmen und Ausgaben in Label-Farbe, Farbe nur am Saldo und 
 });
 
 test('Loeschknoepfe nennen, WAS sie loeschen', () => {
-  const vorher = { ...budgetUi.state };
-  try {
-    Object.assign(budgetUi.state, { entries: [zeile(), zeile({ id: 42, title: 'Strom' })], responsibleFilterId: null, groupByResponsible: false });
-    const html = budgetUi.renderEntries();
-    const names = [...html.matchAll(/data-action="delete"[^>]*aria-label="([^"]*)"/g)].map((m) => m[1]);
-    assert.equal(names.length, 2);
-    assert.notEqual(names[0], names[1], '23 gleichnamige „Eintrag loeschen" waren nicht unterscheidbar');
-  } finally { Object.assign(budgetUi.state, vorher); }
-  assert.match(budget, /data-action="delete" data-id="\$\{e\.id\}" aria-label="\$\{esc\(t\('budget\.deleteLabel', \{ title: e\.title \}\)\)\}"/);
+  // Seit R14 P8 steht Loeschen einer Buchung nur noch in ihrem Blatt (die
+  // Zeile traegt keinen Papierkorb mehr, siehe „EINE Zeilenbedienung" unten);
+  // der Name mit Objekt gilt dort.
   assert.match(budget, /id="bm-delete" aria-label="\$\{esc\(t\('budget\.deleteLabel', \{ title: entry\.title \}\)\)\}"/);
   const de = JSON.parse(read('../public/locales/de.json'));
   assert.match(de.budget.deleteLabel, /\{\{title\}\}/);
@@ -2902,4 +2896,176 @@ test('Darlehen tragen eine Flaeche wie jede Karte, ohne Hover-Sprung (Re-Critiqu
   const html = budgetUi.renderLoanTransactions([loan]);
   assert.match(html, /class="[^"]*\brow-carrier\b[^"]*budget-loan-transactions__list|class="budget-loan-transactions__list[^"]*\brow-carrier\b/,
     'die Ratenliste traegt .row-carrier');
+});
+
+/* MOBIL: EINE ZEILE STATT KENNZAHL-WAND (Re-Critique 2026-09-28, A5 P1-3).
+ * Gemessen 390x844: erste Abo-Zeile y=478, erste Darlehenskarte y=413, erste
+ * Gruppe der Aufteilung y=436 - hinter vier, drei (plus Summenzeile) und drei
+ * Kennzahl-Karten. Die Uebersicht hatte die Loesung (balanceGlanceHtml): EINE
+ * Zeile, die die Karten aufklappt. Dieselbe Zeile jetzt fuer Abos, Darlehen,
+ * Aufteilung; die Darlehen-Summenzeile („2 aktiv · 175.444,93 € offen")
+ * wiederholte die Karte RESTSCHULD und entfaellt. */
+const { __test: abosGlance } = await import('../public/pages/subscriptions.js');
+const { __test: splitGlance } = await import('../public/pages/split-expenses.js');
+
+function glanceVorDetails(html, id, controls) {
+  const glance = html.indexOf('<div class="row-carrier budget-glance">');
+  const button = html.match(new RegExp(`<button type="button" class="budget-glance__row budget-glance__balance" id="${id}"\\s*aria-expanded="false" aria-controls="${controls}">`));
+  const details = html.search(new RegExp(`class="[^"]*\\bbudget-glance-details\\b[^"]*"[^>]*id="${controls}"|id="${controls}"[^>]*class="[^"]*\\bbudget-glance-details\\b`));
+  assert.ok(glance >= 0, `${id}: kein Zeilentraeger`);
+  assert.ok(button, `${id}: die Zeile ist ein Aufklapper mit Zustand, der ${controls} steuert`);
+  assert.ok(details > glance, `${id}: die Karten warten HINTER der Zeile`);
+  return html.slice(details);
+}
+
+test('Abos, Darlehen, Aufteilung mobil: EINE Glance-Zeile, die Karten klappen auf (R14 P1)', () => {
+  const vorher = { loans: budgetUi.state.loans, filter: budgetUi.state.loanStatusFilter };
+  try {
+    budgetUi.state.loans = {
+      loans: [{ id: 1, status: 'active' }],
+      summary: { active_count: 2, remaining_principal: 1000, has_interest: true, remaining_installments: 12, paid_amount: 500 },
+    };
+    budgetUi.state.loanStatusFilter = 'paid'; // keine sichtbare Karte - hier zaehlt nur der Kopf
+    const html = budgetUi.renderLoansPage();
+    const rest = glanceVorDetails(html, 'budget-loans-more', 'budget-loans-details');
+    assert.match(rest, /class="metric-grid/, 'Darlehen: die drei Karten stehen im aufklappbaren Bereich');
+    assert.doesNotMatch(html, /budget\.loansSummary|budget-loans__summary/, 'die Summenzeile wiederholte RESTSCHULD und entfaellt');
+    assert.match(html, /budget-glance__label">budget\.loanRemainingPrincipal</, 'Leitwert ist die Restschuld');
+  } finally {
+    Object.assign(budgetUi.state, { loans: vorher.loans, loanStatusFilter: vorher.filter });
+  }
+
+  const abos = abosGlance.renderSummary();
+  const abosRest = glanceVorDetails(abos, 'subscriptions-glance-more', 'subscriptions-summary-details');
+  assert.match(abosRest, /class="metric-grid metric-grid--quad/, 'Abos: die vier Karten im aufklappbaren Bereich');
+  assert.match(abos, /budget-glance__label">subscriptions\.monthlyCost</, 'Leitwert sind die Monatskosten');
+
+  const summary = { html: '' };
+  const slot = { html: '' };
+  const vorherSplit = { ...splitGlance.state };
+  Object.assign(splitGlance.state, {
+    groupStatus: 'active', groups: [{ id: 1 }],
+    dashboard: { total_owed: [{ amount: 12, currency: 'EUR' }], total_owing: [] }, meta: { currencies: ['EUR'], default_currency: 'EUR' },
+  });
+  const el = (box) => ({ set innerHTML(v) { box.html = v; }, replaceChildren() { box.html = ''; }, insertAdjacentHTML(_p, v) { box.html += v; }, querySelector: () => null });
+  try {
+    splitGlance.renderSummaryForTest({ querySelector: (sel) => (sel === '#split-summary' ? el(summary) : sel === '#split-glance' ? el(slot) : null) });
+  } finally {
+    Object.assign(splitGlance.state, vorherSplit);
+  }
+  const splitHtml = `${slot.html}<section class="metric-grid budget-glance-details" id="split-summary">`;
+  glanceVorDetails(splitHtml, 'split-glance-more', 'split-summary');
+  assert.match(slot.html, /budget-glance__label">splitExpenses\.youAreOwed</);
+  assert.match(splitExpenses, /<section class="metric-grid budget-glance-details" id="split-summary">/, 'Aufteilung: die Kennzahl-Zeile ist der aufklappbare Bereich');
+
+  // CSS: eingeklappt ist der Bereich unter 640px weg, ab 640px bleibt er.
+  const rules = [...eachRule(budgetCss)];
+  const phone = (r) => r.at.some((a) => /max-width:\s*639px/.test(a));
+  assert(rules.some((r) => phone(r) && /display:\s*none/.test(r.body) && /\.budget-glance-details:not\(\.is-expanded\)/.test(r.selector)),
+    'unter 640px ist der eingeklappte Bereich weg');
+  assert(!rules.some((r) => !phone(r) && /budget-glance-details:not/.test(r.selector)), 'ab 640px bleiben die Karten');
+});
+
+/* DER KOPF SPRINGT NICHT (Re-Critique 2026-09-28, A5 P2-9). Mobil 162 <-> 135px
+ * beim Wechsel zwischen einem Monats-Reiter (Stepper 48px) und einem Reiter
+ * mit Periodennotiz (21px): die Tab-Leiste darunter sprang um 27px. Der Slot
+ * haelt die Stepper-Hoehe, gleich was er traegt. */
+test('Budget-Kopf: der Monats-Slot haelt die Stepper-Hoehe auch mit der Notiz (R14 P1)', () => {
+  const slot = [...eachRule(budgetCss)].filter((r) => r.at.length === 0 && /(^|,)\s*\.budget-nav__month\s*(,|$)/.test(r.selector));
+  assert.ok(slot.some((r) => /min-(?:block-size|height):\s*var\(--target-base\)/.test(r.body)),
+    '.budget-nav__month braucht min-block-size: var(--target-base) - sonst springt die Tab-Leiste');
+});
+
+/* DIE SUCHE STEHT IM KOPF DER LISTE, DIE SIE FILTERT (R14 P8, A5 P2-7).
+ * Abos trugen eine eigene Werkzeugzeile ueber allem (Suche 448px, mobil ein
+ * volles Feld mit abgeschnittenem Platzhalter), die Gruppensuche der
+ * Aufteilung eine eigene 48px-Zeile. Jetzt sind beide `.section-toolbar` wie
+ * das Hauptbuch: Breite aus --page-search-width, mobil die Icon-Form. */
+test('Abos- und Gruppensuche stehen im Listenkopf (.section-toolbar), ohne eigene Modulbreite (R14 P8)', () => {
+  const code = withoutHtmlComments(subscriptions);
+  const kopf = code.match(/<div class="subscriptions-section-head section-toolbar">([\s\S]*?)<\/div>\s*<div class="subscriptions-active-filters"/);
+  assert.ok(kopf, 'Abos: der Listenkopf ist .section-toolbar');
+  assert.match(kopf[1], /renderPageSearch\(\{\s*id: 'subscriptions-search'/, 'Abos: die Suche steht im Listenkopf');
+  assert.match(kopf[1], /id="subscriptions-list-title"/, 'Abos: Titel und Suche teilen die Zeile');
+  assert.doesNotMatch(code, /class="subscriptions-toolbar"/, 'Abos: keine eigene Werkzeugzeile mehr');
+  const breite = /(?:^|[;\s{])(?:width|max-width|min-width|flex|flex-basis)\s*:/;
+  for (const r of eachRule(subscriptionsCss)) {
+    if (/\.subscriptions-search\b/.test(r.selector)) assert.doesNotMatch(r.body, breite, `${r.selector}: Modulbreite der Suche`);
+  }
+  const split = withoutHtmlComments(splitExpenses);
+  const gruppen = split.match(/<div class="split-panel-head section-toolbar">([\s\S]*?)<\/aside>/);
+  assert.ok(gruppen, 'Aufteilung: der Gruppenkopf ist .section-toolbar');
+  assert.match(gruppen[1].split('class="segmented')[0], /renderPageSearch\(\{\s*id: 'split-group-search'/, 'Aufteilung: die Suche steht im Gruppenkopf, vor dem Statusfilter');
+});
+
+/* R14 P11 (A5 P3): die Budget-Untertabs wechselten per hartem Schnitt, die
+ * Seiten per View Transition. Der neue Reiter blendet jetzt ein - nur beim
+ * Reiterwechsel, nicht bei jedem Neuaufbau (Filter, Monat). */
+test('Budget-Untertabs blenden beim Wechsel ein, mit Tokens (R14 P11)', () => {
+  const klassen = new Set();
+  let ende = null;
+  const panel = { classList: { add: (c) => klassen.add(c), remove: (c) => klassen.delete(c) }, addEventListener: (typ, fn) => { if (typ === 'animationend') ende = fn; } };
+  budgetUi.markTabEnteringForTest({ querySelector: (sel) => (sel === '#budget-body > .budget-tab-panel' ? panel : null) });
+  assert.ok(klassen.has('budget-tab-panel--entering'), 'der neue Reiter traegt die Einblendung');
+  ende?.();
+  assert.ok(!klassen.has('budget-tab-panel--entering'), 'nach der Blende faellt die Klasse, ein Neuaufbau blendet nicht erneut');
+  const onChange = budget.slice(budget.indexOf('_tablist = wireTablist('), budget.indexOf('_tablist = wireTablist(') + 1500);
+  assert.match(onChange, /renderBody\(\);\s*markTabEntering\(\);/, 'nur der Reiterwechsel blendet');
+  const regel = [...eachRule(budgetCss)].find((r) => r.selector.trim() === '.budget-tab-panel--entering' && !r.at.length);
+  assert.ok(regel, '.budget-tab-panel--entering fehlt');
+  assert.match(regel.body, /animation:\s*fade-in var\(--duration-[a-z0-9]+\) var\(--ease-[a-z-]+\)/, 'Blende aus Tokens');
+});
+
+/* STATISTIK OHNE DOPPELUNG (R14 P8, A5 P2-8). „Nach Kategorie" (Balken, alle
+ * Modulton) und „Ausgaben-Anteile" (Donut, sieben Serienfarben) nannten
+ * dieselben Betraege nebeneinander in zwei Farbsystemen. Jetzt traegt jeder
+ * Ausgabenbalken die Farbe SEINES Donut-Segments und seinen Anteil; die
+ * Donut-Legende, die alles ein zweites Mal aufzaehlte, entfaellt. */
+test('Statistik: Ausgabenbalken tragen Donut-Farbe und Anteil, keine zweite Legende (R14 P8)', async () => {
+  const { __test: st } = await import('../public/pages/budget-stats.js');
+  const farben = st.categoryColorIndex([
+    { category: 'a', expenses: -100 }, { category: 'b', expenses: -300 }, { category: 'c', expenses: 0, income: 50 },
+    ...Array.from({ length: 8 }, (_, i) => ({ category: `x${i}`, expenses: -(10 - i) })),
+  ]);
+  assert.equal(farben.get('b'), 0, 'die groesste Ausgabe nimmt die erste Serienfarbe - wie ihr Donut-Segment');
+  assert.equal(farben.get('a'), 1);
+  assert.equal(farben.has('c'), false, 'ohne Ausgabe kein Segment');
+  assert.equal(farben.get('x7'), st.DONUT_SEGMENTS - 1, 'jenseits der Palette: die Farbe der Sammelscheibe');
+  const code = withoutHtmlComments(stats);
+  assert.match(code, /--bar-fill:\$\{DONUT_COLORS\[/, 'der Balken nimmt die Segmentfarbe');
+  assert.match(code, /budget-bar-row__share/, 'der Balken nennt seinen Anteil');
+  assert.doesNotMatch(code, /budget-stats__legend budget-stats__legend--wrap/, 'die Donut-Legende zaehlt nicht alles ein zweites Mal auf');
+  const fill = [...eachRule(budgetCss)].find((r) => r.selector.trim() === '.budget-bar-row__fill--expenses');
+  assert.match(fill.body, /background-color:\s*var\(--bar-fill,\s*var\(--module-accent\)\)/);
+});
+
+/* EINE ZEILENBEDIENUNG FUER ALLE BUDGET-LISTEN (R14 P8, A5 P2-6). Drei
+ * Bedienungen im selben Modul: das Hauptbuch mit dauerhaftem Papierkorb neben
+ * dem Betrag, die Abos mit Papierkorb (und Wischen), die Darlehen mit Stift,
+ * Papierkorb und Pille. Die EINE Regel jetzt: die Zeile oeffnet ihr Objekt,
+ * Loeschen (und Bearbeiten) steht in dessen Blatt, an der Zeile bleibt
+ * hoechstens die eine positive Folgeaktion (Verbuchen, Verlaengern, Rate
+ * buchen) - die Aktionszahl sinkt, die Sichtbarkeit bleibt (ignore.md). */
+test('Budget-Listen: die Zeile oeffnet, Loeschen steht im Blatt, hoechstens eine Folgeaktion (R14 P8)', () => {
+  const vorher = { ...budgetUi.state };
+  try {
+    Object.assign(budgetUi.state, { entries: [zeile()], responsibleFilterId: null, groupByResponsible: false });
+    assert.doesNotMatch(budgetUi.renderEntries(), /data-action="delete"/, 'Hauptbuch: kein Papierkorb an der Zeile');
+  } finally { Object.assign(budgetUi.state, vorher); }
+  const karte = budgetUi.renderLoanCard({
+    id: 9, title: 'Autokredit', borrower: 'Bank', direction: 'borrowed', status: 'active',
+    total_amount: 6000, remaining_amount: 4000, paid_amount: 2000, paid_installments: 4,
+    installment_count: 12, next_due_month: '2026-07', is_settled: 0, payments: [],
+  });
+  assert.doesNotMatch(karte, /loan-edit|loan-delete/, 'Darlehen: weder Stift noch Papierkorb an der Karte');
+  assert.match(karte, /data-action="loan-pay"/, 'die eine Folgeaktion bleibt');
+  const code = withoutHtmlComments(budget);
+  const bericht = code.slice(code.indexOf('function openLoanReport('), code.indexOf('function loanReportDetails('));
+  assert.match(bericht, /id="loan-report-delete"/, 'Loeschen steht im Bericht (dem Blatt des Darlehens)');
+  assert.match(bericht, /id="loan-report-edit"/, 'Bearbeiten steht im Bericht');
+  const abosCode = withoutHtmlComments(subscriptions);
+  const card = abosCode.slice(abosCode.indexOf('function renderCard('), abosCode.indexOf('function wireSubscriptionSwipe('));
+  assert.doesNotMatch(card, /rowActionHtml\(\{ icon: 'trash-2'/, 'Abos: kein Papierkorb an der Zeile');
+  assert.match(card, /action: 'renew'/, 'Abos: Verlaengern bleibt als Folgeaktion');
+  assert.match(abosCode, /id="subscription-delete"/, 'Abos: Loeschen steht im Bearbeiten-Blatt');
 });

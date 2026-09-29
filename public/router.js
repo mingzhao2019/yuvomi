@@ -548,12 +548,6 @@ function updateBranding(path = currentPath) {
   const appName = getAppName();
   const sidebarLogoName = document.querySelector('.nav-sidebar__brand-name');
   if (sidebarLogoName) sidebarLogoName.textContent = appName;
-  const sidebarVersion = document.querySelector('.nav-sidebar__version');
-  if (sidebarVersion) {
-    const version = getAppVersion();
-    sidebarVersion.textContent = version ? t('login.version', { version }) : '';
-    sidebarVersion.hidden = !version;
-  }
 
   const loginTitle = document.querySelector('.auth-hero__title');
   if ((path === '/login' || path === '/setup') && loginTitle) loginTitle.textContent = appName;
@@ -1976,12 +1970,10 @@ function renderAppShell(container) {
   const sidebarLogoSpan = document.createElement('span');
   sidebarLogoSpan.className = 'nav-sidebar__brand-name';
   sidebarLogoSpan.textContent = getAppName();
-  const sidebarVersion = document.createElement('small');
-  sidebarVersion.className = 'nav-sidebar__version';
-  const cachedVersion = getAppVersion();
-  sidebarVersion.textContent = cachedVersion ? t('login.version', { version: cachedVersion }) : '';
-  sidebarVersion.hidden = !cachedVersion;
-  sidebarBrandText.append(sidebarLogoSpan, sidebarVersion);
+  // KEINE VERSION UNTER DER WORTMARKE (R14, A1 P3-7): sie stand dauerhaft da
+  // und sagte in jeder Sitzung dasselbe. Wer sie sucht, findet sie in den
+  // Neuigkeiten (aktuelle Version) und im Blatt System.
+  sidebarBrandText.append(sidebarLogoSpan);
   sidebarLogo.appendChild(sidebarBrandText);
 
   const sidebarToggle = document.createElement('button');
@@ -3542,7 +3534,14 @@ function paletteLocal(q) {
       label: t(action.labelKey), route: action.route, module: action.module,
       context: t(`nav.${action.module}`), verb, create: true,
     }));
-  return paletteCommands(q, { places, settings, actions });
+  // Hilfe hat keine Seite, nur ein Blatt - am Desktop lag sie hinter dem
+  // Avatar (R14, A1 P3-6). Die Tastenkombinationen stehen im Hilfeblatt.
+  const commands = [
+    { label: t('nav.help'), run: () => showHelpModal() },
+    { label: t('shortcuts.help'), run: () => showHelpModal() },
+    { label: t('nav.changelog'), run: () => showChangelogModal() },
+  ];
+  return paletteCommands(q, { places, settings, actions, commands });
 }
 
 function initSearch(container) {
@@ -3838,9 +3837,9 @@ function renderSearchResults(container, data, onClose, { local = { places: [], a
 
   // 1. GEHE ZU - Navigationsziele und Einstellungsblaetter.
   makeSection(t('search.goTo'), null, local.places, {
-    route: (item) => item.route,
     title: (item) => item.label,
     meta: (item) => item.context || '',
+    go: (item) => (item.run ? item.run() : navigate(item.route)),
   });
   // 2. NEU ANLEGEN - die Seite oeffnen und ihre Primaeraktion ausloesen, genau
   //    wie der Kurzbefehl `n` (triggerPageFab: nichts, wo kein FAB zu sehen ist).
@@ -5170,6 +5169,9 @@ window.yuvomi = {
   setDisabledModules,
   setHiddenModules,
   setModuleOrder,
+  // Die Anordnung der Seitenleiste, fuer die Modulblaetter der Einstellungen
+  // (settings/registry.js, settingsSheetsForDomain) - eine Reihenfolge, zwei Orte.
+  moduleOrder: () => _moduleOrder.slice(),
   setMobileNavOrder,
   refreshThirdPartyModules,
   isModuleDisabled,

@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "誰も割り当てないと、この項目はあなたにしか表示されません。"
         },
         "toShoppingListNamed": "{{title}}を買い物リストへ追加",
-        "emailInUse": "このメールアドレスはすでに別のアカウントで使われています。"
+        "emailInUse": "このメールアドレスはすでに別のアカウントで使われています。",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "YYYY"
     },
     "kitchen": {
         "noShoppingLists": "買い物リストがまだありません。",
@@ -385,7 +388,11 @@
         "eventEnded": "終了",
         "eventsEndedMore": "本日の終了分 他{{count}}件",
         "eventsEndedMore_one": "本日の終了分 他{{count}}件",
-        "widgetSizeWide": "横長 (2×1)"
+        "widgetSizeWide": "横長 (2×1)",
+        "fabNew": "新規",
+        "todayOverdueCount": "期限切れ {{count}}件",
+        "todayOverdueCount_one": "期限切れ {{count}}件",
+        "todayOverdueCount_few": "期限切れ {{count}}件"
     },
     "tasks": {
         "manageCategories": "カテゴリーを管理",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "他のデバイスではサインインしていませんでした。",
         "otherSessionsError": "他のデバイスからのサインアウトに失敗しました。",
         "otherSessionsTooManyAttempts": "リクエストが多すぎます。少し待ってから、もう一度お試しください。",
-        "pushUnavailable": "このデバイスでは現在プッシュ通知を利用できません。ページを再読み込みしてください。"
+        "pushUnavailable": "このデバイスでは現在プッシュ通知を利用できません。ページを再読み込みしてください。",
+        "pageScheduleMineDescription": "自分のシフト前のリマインダーと、残業判定用の週の労働時間。",
+        "sheetInventoryDescription": "持ち物の期限を自分のカレンダーアプリで購読します。",
+        "sheetWasteDescription": "今後の収集日を自分のカレンダーアプリで購読します。"
     },
     "login": {
         "tagline": "家族のプランナーへおかえりなさい。",
@@ -5708,14 +5718,15 @@
         "healthVitals": "測定値",
         "healthCycle": "生理",
         "healthMeds": "薬",
-        "healthPrevention": "記録",
+        "healthPrevention": "検診",
         "healthLabs": "検査結果",
         "healthActivity": "トレーニング",
-        "healthNutrition": "記録",
+        "healthNutrition": "食事",
         "rewards": "景品",
         "rewardsBonus": "ボーナス",
         "scheduleShiftType": "シフトの種類",
-        "scheduleEntry": "エントリー"
+        "scheduleEntry": "エントリー",
+        "wasteType": "ごみの種類"
     },
     "iconPicker": {
         "title": "アイコンを選ぶ",
@@ -5894,7 +5905,14 @@
         "typeInUse": "このシフトの種類はまだパターン、例外、または追加シフトで使用されています。先にそれらの使用箇所を削除してください。",
         "discardCycleDayEditsDetail": "続行すると、この周期の日や詳細に対する未保存の変更は失われます。",
         "overviewClearSelection": "選択をクリア",
-        "continuesUntil": "…{{time}}まで継続"
+        "continuesUntil": "…{{time}}まで継続",
+        "planningNeedsTypesTitle": "まずシフトの種類を追加",
+        "planningNeedsTypesDescription": "シフトパターン、例外、追加シフトはシフトの種類をもとにします（早番、授業時間、休暇など）。まず1つ追加してください。",
+        "goToShiftTypes": "シフトの種類へ",
+        "totalHours": "合計時間",
+        "plannedNote": "予定",
+        "reminderLeadTime": "事前通知",
+        "settingsSaved": "保存しました。"
     },
     "waste": {
         "title": "ゴミ収集",

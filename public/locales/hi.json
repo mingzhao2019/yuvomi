@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "किसी को असाइन न करने पर यह प्रविष्टि केवल आप देख सकते हैं।"
         },
         "toShoppingListNamed": "{{title}} खरीदारी सूची में जोड़ें",
-        "emailInUse": "यह ईमेल पता पहले से किसी दूसरे खाते का है।"
+        "emailInUse": "यह ईमेल पता पहले से किसी दूसरे खाते का है।",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "YYYY"
     },
     "kitchen": {
         "noShoppingLists": "अभी कोई खरीद सूची नहीं है.",
@@ -385,7 +388,11 @@
         "eventEnded": "समाप्त",
         "eventsEndedMore": "आज पहले +{{count}}",
         "eventsEndedMore_one": "आज पहले +{{count}}",
-        "widgetSizeWide": "चौड़ा (2×1)"
+        "widgetSizeWide": "चौड़ा (2×1)",
+        "fabNew": "नया",
+        "todayOverdueCount": "{{count}} अतिदेय",
+        "todayOverdueCount_one": "{{count}} अतिदेय",
+        "todayOverdueCount_few": "{{count}} अतिदेय"
     },
     "tasks": {
         "manageCategories": "श्रेणियाँ प्रबंधित करें",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "आपका खाता किसी अन्य डिवाइस पर साइन इन नहीं था।",
         "otherSessionsError": "अन्य डिवाइस से साइन आउट नहीं हो सका।",
         "otherSessionsTooManyAttempts": "बहुत अधिक अनुरोध। कृपया थोड़ा रुकें, फिर दोबारा कोशिश करें।",
-        "pushUnavailable": "इस डिवाइस पर पुश सूचनाएँ अभी उपलब्ध नहीं हैं. कृपया पेज फिर से लोड करें."
+        "pushUnavailable": "इस डिवाइस पर पुश सूचनाएँ अभी उपलब्ध नहीं हैं. कृपया पेज फिर से लोड करें.",
+        "pageScheduleMineDescription": "अपनी शिफ्ट से पहले रिमाइंडर और ओवरटाइम के लिए साप्ताहिक घंटे।",
+        "sheetInventoryDescription": "अपनी वस्तुओं की समय-सीमाएँ अपने कैलेंडर ऐप में सब्सक्राइब करें।",
+        "sheetWasteDescription": "आने वाले कचरा संग्रह अपने कैलेंडर ऐप में सब्सक्राइब करें।"
     },
     "login": {
         "tagline": "अपने पारिवारिक प्लानर में फिर से आपका स्वागत है।",
@@ -5708,14 +5718,15 @@
         "healthVitals": "मापन",
         "healthCycle": "माहवारी",
         "healthMeds": "दवा",
-        "healthPrevention": "प्रविष्टि",
+        "healthPrevention": "जांच",
         "healthLabs": "रिपोर्ट",
-        "healthActivity": "सत्र",
-        "healthNutrition": "प्रविष्टि",
+        "healthActivity": "व्यायाम",
+        "healthNutrition": "भोजन",
         "rewards": "इनाम",
         "rewardsBonus": "बोनस",
         "scheduleShiftType": "शिफ़्ट का प्रकार",
-        "scheduleEntry": "प्रविष्टि"
+        "scheduleEntry": "प्रविष्टि",
+        "wasteType": "कचरे का प्रकार"
     },
     "iconPicker": {
         "title": "आइकन चुनें",
@@ -5894,7 +5905,14 @@
         "typeInUse": "यह शिफ़्ट प्रकार अभी भी किसी चक्र, अपवाद या अतिरिक्त शिफ़्ट में उपयोग हो रहा है। पहले उन उपयोगों को हटाएँ।",
         "discardCycleDayEditsDetail": "यदि आप आगे बढ़ते हैं, तो इस चक्र के दिनों या विवरणों में किए गए आपके असहेजे बदलाव खो जाएँगे।",
         "overviewClearSelection": "चयन साफ़ करें",
-        "continuesUntil": "…{{time}} तक जारी है"
+        "continuesUntil": "…{{time}} तक जारी है",
+        "planningNeedsTypesTitle": "पहले एक शिफ्ट प्रकार",
+        "planningNeedsTypesDescription": "शेड्यूल, अपवाद और अतिरिक्त शिफ्ट शिफ्ट प्रकारों पर आधारित होते हैं - जैसे सुबह की शिफ्ट, स्कूल की घंटी या छुट्टी। पहले एक जोड़ें।",
+        "goToShiftTypes": "शिफ्ट प्रकारों पर जाएँ",
+        "totalHours": "कुल घंटे",
+        "plannedNote": "नियोजित",
+        "reminderLeadTime": "पहले से याद दिलाने का समय",
+        "settingsSaved": "सहेजा गया।"
     },
     "waste": {
         "title": "कचरा संग्रहण",

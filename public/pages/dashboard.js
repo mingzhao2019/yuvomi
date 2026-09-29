@@ -1321,7 +1321,25 @@ function renderCalendarWidget(data, size) {
 const LIST_ROWS_SHORT = 3;
 const LIST_ROWS_TALL = 5;
 
+/* DIE TELEFON-BUEHNE (R14, A7 P2-2). Unter 640px ist das Raster eine Spalte
+ * und die Uebersicht ein Scroll von 3,8 Bildschirmen (gemessen 3192px bei
+ * 390x844); jede hohe Kachel trug dort fuenf Zeilen, obwohl ihre Hoehe nicht
+ * neben einer Nachbarin stand, sondern unter ihr. Dieselbe Grenze wie der
+ * Anpassen-Kopf (dashboard.css, 639px), damit beide dieselbe Frage gleich
+ * beantworten. Ohne `matchMedia` (Node-Tests, alte Umgebungen) ist es die
+ * breite Buehne - dort aendert sich nichts. */
+const PHONE_STAGE_QUERY = '(max-width: 639px)';
+
+function onPhoneStage() {
+  try {
+    return Boolean(globalThis.window?.matchMedia?.(PHONE_STAGE_QUERY)?.matches);
+  } catch {
+    return false;
+  }
+}
+
 function listRowCap(size) {
+  if (onPhoneStage()) return LIST_ROWS_SHORT;
   return Number(String(size ?? '1x1').split('x')[1]) >= 2 ? LIST_ROWS_TALL : LIST_ROWS_SHORT;
 }
 
@@ -3298,6 +3316,55 @@ function renderTodayStateRow({ title, sub, icon, route }) {
 // sondern eine zweite Aufgabenliste. Der Überlauf spricht als stille Fußzeile.
 const PROGRAM_ROW_CAP = 6;
 
+/* AUF DEM TELEFON ZWEI ZEILEN (R14, A7 P2-2). Sechs Zeilen zu je 64px plus
+ * Kopf und Einkauf machten das Blatt 591px hoch; das erste Widget begann bei
+ * y760 von 844, hinter der Kapsel. Zwei Zeilen beantworten „was steht an?",
+ * der Rest steht eine Geste entfernt hinter „+N weitere" - dort auch die
+ * Einkaufszeile (renderTodayCockpit). Unter dem Deckel bleibt zuerst, was
+ * offen ist (composeTodaySheet), und die Sammelzeile der Ueberfaelligen ist
+ * eine davon. Gemessen danach: erstes Widget y~400 statt y760. */
+const PROGRAM_ROW_CAP_PHONE = 2;
+
+/* AB ZWEI UEBERFAELLIGEN EINE SAMMELZEILE (R14, A7 P2-2). Fuenfmal rotes
+ * „Ueberfaellig" untereinander ist am Morgen kein Programm, sondern ein
+ * Vorwurf - und es schob alles andere unter den Deckel. Die Sammelzeile sagt
+ * die Zahl einmal, zeigt mit gestapelten Avataren, wen es angeht, und klappt
+ * die Zeilen an Ort und Stelle auf. Nur auf dem Telefon: breit stehen die
+ * Zeilen in zwei Spalten neben dem Rest des Tages und kosten keinen Scroll. */
+const OVERDUE_GROUP_MIN = 2;
+
+function groupOverdueRows(rows) {
+  const overdue = rows.filter((row) => row.kind === 'task' && row.overdue);
+  if (overdue.length < OVERDUE_GROUP_MIN) return rows;
+  const seen = new Set();
+  const people = [];
+  for (const row of overdue) {
+    const id = row.who?.id;
+    if (id == null || seen.has(id)) continue;
+    seen.add(id);
+    // renderAvatarStack liest `color`, die Zeilen tragen `avatar_color`.
+    people.push({ ...row.who, color: row.who.color ?? row.who.avatar_color });
+  }
+  const group = {
+    kind: 'overdue',
+    objectId: null,
+    members: overdue,
+    people,
+    sortKey: '00:00',
+    timeLabel: '',
+    overdue: true,
+    title: t('dashboard.todayOverdueCount', { count: overdue.length }),
+    sub: t('nav.tasks'),
+    icon: 'check-square',
+    tone: 'task',
+    route: '/tasks?due=today',
+    who: null,
+    priority: 10,
+    open: true,
+  };
+  return [group, ...rows.filter((row) => !overdue.includes(row))];
+}
+
 /**
  * DAS TAGESPROGRAMM ALS MODELL, EINMAL FUER ZWEI FLAECHEN.
  *
@@ -3330,7 +3397,11 @@ function todaySheetSpeaks(data, cfg, now = new Date()) {
   return speakingSourceIds(data, todaySheetContextFor(cfg, now));
 }
 
-function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP, now = new Date() } = {}) {
+function buildTodayCockpitModel(data, cfg = [], {
+  cap = onPhoneStage() ? PROGRAM_ROW_CAP_PHONE : PROGRAM_ROW_CAP,
+  now = new Date(),
+  groupOverdue = onPhoneStage(),
+} = {}) {
   // Kein Echo: ist das Modul-Widget einer Domäne sichtbar, entfallen ihre
   // Programm-Zeilen — jede Domäne hat genau eine Repräsentation (Cockpit ODER
   // Widget), statt dieselbe Aufgabe/Termin doppelt zu zeigen.
@@ -3351,7 +3422,8 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP, now = n
   // Wand fragen beide hier; die Wand reicht nur keine Kachel-Konfiguration mit.
   const sheetContext = todaySheetContextFor(cfg, now, program.rows);
   const contributed = collectSourceRows(data, sheetContext);
-  const sheet = composeTodaySheet([...program.rows, ...contributed.rows], { cap });
+  const programRows = groupOverdue ? groupOverdueRows(program.rows) : program.rows;
+  const sheet = composeTodaySheet([...programRows, ...contributed.rows], { cap });
   const visibleRows = sheet.rows;
   const overflow = sheet.overflow;
 
@@ -3510,6 +3582,46 @@ function todayMoreRoute(hiddenRows, todayKey) {
 
 /** Aufgeklappt bleibt aufgeklappt, auch wenn ein Refresh das Blatt neu zeichnet. */
 let todayMoreOpen = false;
+let todayOverdueOpen = false;
+
+/**
+ * Die Sammelzeile der Ueberfaelligen (groupOverdueRows): dieselbe Anatomie wie
+ * jede Heute-Zeile - Siegel, Titel, Untertitel, Detail am Ende -, aber ein
+ * Aufklapp-Knopf statt eines Wegs. Das Detail am Ende ist, wen es angeht
+ * (gestapelte Avatare, im Solo-Haushalt nichts), und ein Chevron, das sich
+ * wie beim „+N weitere"-Knopf dreht. Die aufgeklappten Zeilen tragen kein
+ * zweites „Ueberfaellig": die Sammelzeile hat es einmal gesagt.
+ */
+function renderTodayOverdueGroup(row, open) {
+  const who = isSoloHousehold() ? [] : (row.people ?? []);
+  const people = who.length ? renderAvatarStack(who, { size: 24, maxVisible: 3 }) : '';
+  // Die Avatare sind Bild; wen die Zeile angeht, spricht der Name dahinter.
+  const names = who.length ? `<span class="sr-only">, ${esc(who.map((p) => p.display_name ?? '').join(', '))}</span>` : '';
+  const button = `<button type="button" class="today-cockpit-card today-cockpit-card--${esc(row.tone)} today-cockpit-card--group" data-today-overdue
+          aria-expanded="${open ? 'true' : 'false'}" aria-controls="today-cockpit-overdue">
+      <span class="module-seal today-cockpit-card__icon">${moduleIconHTML(row.icon)}</span>
+      <span class="today-cockpit-card__body">
+        <strong class="today-cockpit-card__value">${esc(row.title)}</strong>
+        <span class="today-cockpit-card__sub">${esc(row.sub)}</span>${names}
+      </span>
+      <span class="today-cockpit-card__trail" aria-hidden="true">${people}<i data-lucide="chevron-down" class="icon-sm today-cockpit__more-icon"></i></span>
+    </button>`;
+  const members = (row.members ?? []).map((member) => renderTodayRow({ ...member, timeLabel: '' })).join('');
+  return `${button}<div class="today-cockpit__rows today-cockpit__rows--more today-cockpit__rows--group" id="today-cockpit-overdue"${open ? '' : ' hidden'}>${members}</div>`;
+}
+
+/** Die Sammelzeile klappt an Ort und Stelle, wie der „+N weitere"-Knopf. */
+function wireTodayOverdue(root) {
+  root.querySelectorAll('[data-today-overdue]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      const region = root.querySelector(`#${btn.getAttribute('aria-controls')}`);
+      if (region) region.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      todayOverdueOpen = open;
+    });
+  });
+}
 
 /**
  * Der Aufklapp-Knopf des Ueberlaufs: schaltet die verdeckten Zeilen an Ort und
@@ -3530,7 +3642,7 @@ function wireTodayMore(root) {
   });
 }
 
-function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(), moreOpen = todayMoreOpen } = {}) {
+function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(), moreOpen = todayMoreOpen, overdueOpen = todayOverdueOpen } = {}) {
   const model = buildTodayCockpitModel(data, cfg, { now });
 
   /* DIE BREITE BUEHNE TRAEGT ZWEI SPALTEN ZEILEN (Critique 23.09.2026). Am
@@ -3544,12 +3656,17 @@ function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(),
    * Liste in unveraenderter Hoehe. */
   const listRows = [];
   if (model.state) listRows.push(renderTodayStateRow(model.state));
-  const split = model.rows.length >= 2;
+  // Die Sammelzeile gibt es nur auf dem Telefon; dort teilt sich die Liste nie.
+  const grouped = model.rows.some((row) => row.kind === 'overdue');
+  const split = model.rows.length >= 2 && !grouped;
   const perColumn = Math.ceil(model.rows.length / 2);
-  listRows.push(...model.rows.map((row, index) => renderTodayRow(row, split && index >= perColumn
-    ? ` today-cockpit-card--col2${index === perColumn ? ' today-cockpit-card--col-start' : ''}`
-    : '')));
+  listRows.push(...model.rows.map((row, index) => (row.kind === 'overdue'
+    ? renderTodayOverdueGroup(row, overdueOpen)
+    : renderTodayRow(row, split && index >= perColumn
+      ? ` today-cockpit-card--col2${index === perColumn ? ' today-cockpit-card--col-start' : ''}`
+      : ''))));
   const parts = [];
+  const foldShopping = Boolean(model.shopping) && model.overflow > 0 && !model.moreRoute && onPhoneStage();
   if (listRows.length) {
     parts.push(`<div class="today-cockpit__rows${split ? ' today-cockpit__rows--split' : ''}"${split ? ` style="--today-rows-per-column:${perColumn}"` : ''}>${listRows.join('')}</div>`);
   }
@@ -3560,18 +3677,21 @@ function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(),
         </a>`);
   } else if (model.overflow > 0) {
     // Keine Ansicht zeigt alle verdeckten Zeilen (todayMoreRoute): sie stehen
-    // hier, zugeklappt, und der Knopf darunter klappt sie auf.
-    const moreText = t('dashboard.todayMore', { count: model.overflow });
+    // hier, zugeklappt, und der Knopf darunter klappt sie auf. Auf dem Telefon
+    // klappt die Einkaufszeile mit (R14): sie ist zeitlos, und als eigene
+    // Zeile unter dem Knopf schob sie das erste Widget um 64px weiter hinab.
+    const hidden = foldShopping ? [...model.hiddenRows, model.shopping] : model.hiddenRows;
+    const moreText = t('dashboard.todayMore', { count: hidden.length });
     const lessText = t('dashboard.todayLess');
     parts.push(`<div class="today-cockpit__rows today-cockpit__rows--more" id="today-cockpit-more"${moreOpen ? '' : ' hidden'}>${
-      model.hiddenRows.map((row) => renderTodayRow(row)).join('')}</div>`);
+      hidden.map((row) => renderTodayRow(row)).join('')}</div>`);
     parts.push(`<button type="button" class="today-cockpit__more today-cockpit__more--link" data-today-more
           aria-expanded="${moreOpen ? 'true' : 'false'}" aria-controls="today-cockpit-more"
           data-more-label="${esc(moreText)}" data-less-label="${esc(lessText)}">
           <span>${esc(moreOpen ? lessText : moreText)}</span><i data-lucide="chevron-down" class="icon-sm today-cockpit__more-icon" aria-hidden="true"></i>
         </button>`);
   }
-  if (model.shopping) parts.push(renderTodayRow(model.shopping));
+  if (model.shopping && !foldShopping) parts.push(renderTodayRow(model.shopping));
   if (model.coda) parts.push(`<div class="today-cockpit__coda">${esc(model.coda)}</div>`);
 
   // Deckt der Nutzer alle vier Domänen über Widgets ab, wäre das Cockpit leer —
@@ -3658,7 +3778,9 @@ function renderCustomizeFootnote({ followsDefault = true, canPublish = false } =
 function renderDashboardOverview(user, editing = false, weather = null, scope = {}) {
   // Wer der Vorgabe des Haushalts folgt, hat nichts zurueckzusetzen; wer sie
   // setzen darf, ist Admin (#827).
-  const { followsDefault = true, canPublish = false } = scope;
+  // `offerNew: false` im Fehlerzustand: wie der Speed-Dial dort (#634-Kommentar
+  // bei initFab) kein Anlegen in Module, deren Daten nicht geladen sind.
+  const { followsDefault = true, canPublish = false, offerNew = true } = scope;
   const dateLabel = mastheadDateLabel();
 
   return `
@@ -3733,7 +3855,8 @@ function renderDashboardOverview(user, editing = false, weather = null, scope = 
                   aria-label="${t('dashboard.customize')}"
                   title="${t('dashboard.customize')}">
             <i data-lucide="settings-2" aria-hidden="true"></i>
-          </button>`}
+          </button>
+          ${offerNew && onDesktopStage() ? renderNewPill() : ''}`}
         </div>
       </div>
     </section>
@@ -4204,6 +4327,7 @@ function renderWidgetCustomizeControls(w, index = 0, total = 1) {
   // man anfasst, sagt erst die Gruppe.
   return `
     <div class="widget-edit-controls" role="group" aria-label="${esc(widgetLabel(w.id))}" data-widget-controls>
+      <span class="widget-edit-controls__caption" aria-hidden="true">${esc(widgetLabel(w.id))}</span>
       <button type="button" class="widget-edit-controls__handle" data-widget-drag-handle
               aria-label="${t('dashboard.customizeReorderHandle')}" aria-keyshortcuts="ArrowUp ArrowDown">
         <i data-lucide="grip-vertical" aria-hidden="true"></i>
@@ -4397,9 +4521,12 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
   const heading = `<h2 class="sr-only" id="dashboard-widgets-title">${esc(t('dashboard.widgetsHeading'))}</h2>`;
   const grid = `<div class="dashboard__grid ${editing ? 'dashboard__grid--editing' : ''}" id="dashboard-widget-grid"
                     role="region" aria-labelledby="dashboard-widgets-title">${gridInner}</div>`;
-  // Im Bearbeiten-Modus folgt die Wieder-Einblenden-Leiste dem Grid, damit
-  // ausgeblendete Widgets nicht in einer Sackgasse verschwinden.
-  return `${heading}${editing ? `${grid}${renderHiddenWidgetsTray(cfg, glanceHidden)}` : grid}`;
+  // Im Bearbeiten-Modus steht die Wieder-Einblenden-Leiste UEBER dem Raster
+  // (R14, A7 P2-2), wie die Widget-Galerie in iOS: mobil lag der Vorrat mit 14
+  // Chips unter 3924px Raster, und wer eine Kachel zurueckholen wollte, musste
+  // an allen anderen vorbei. Sie bleibt der Ausweg aus der Sackgasse
+  // „ausgeblendet", nur jetzt am Anfang des Wegs.
+  return `${heading}${editing ? `${renderHiddenWidgetsTray(cfg, glanceHidden)}${grid}` : grid}`;
 }
 
 /* DAS SKELETT VERSPRICHT DAS LAYOUT, DAS GLEICH KOMMT (Critique R1, A10).
@@ -5218,7 +5345,7 @@ function renderWallSurface(data, weather, { failed = false, loading = false, upd
   // weniger, und „+N weitere" zaehlt sie mit. Der Start und das Ende rufen
   // ohnehin `rerender()` (wall-timer.js), der Deckel folgt also von selbst.
   const cap = timer.display ? WALL_ROW_CAP - 1 : WALL_ROW_CAP;
-  const model = failed || loading ? null : buildTodayCockpitModel(data, [], { cap, now });
+  const model = failed || loading ? null : buildTodayCockpitModel(data, [], { cap, now, groupOverdue: false });
 
   let main;
   if (failed) {
@@ -5343,7 +5470,69 @@ const FAB_ACTIONS = () => [
   { route: '/notes',    label: t('dashboard.fabNote'),     icon: 'sticky-note'    },
 ].filter((a) => navModuleAccess(a.route.slice(1)) === 'write');
 
+/* AM DESKTOP IST ANLEGEN EINE ANGEDOCKTE PILLE (R14, A8 P3-2). Die Uebersicht
+ * war der einzige schwebende FAB am Desktop - 48x48 unten rechts, nur
+ * "Schnellaktionen" als Name -, waehrend jedes andere Modul "+ Nomen" im Kopf
+ * traegt. Dieselbe Grenze wie das Andocken der Shell (router.js,
+ * isDesktopViewport); dieselbe Form (`page-fab--docked`, schon so gerendert,
+ * damit ein Neuaufbau des Kopfs nicht auf das Andocken warten muss), dasselbe
+ * Menue als Popover. Der Kurzbefehl `n` klickt den `.page-fab` und oeffnet es. */
+const DESKTOP_STAGE_QUERY = '(min-width: 1024px)';
+
+function onDesktopStage() {
+  try {
+    return Boolean(globalThis.window?.matchMedia?.(DESKTOP_STAGE_QUERY)?.matches);
+  } catch {
+    return false;
+  }
+}
+
+function renderNewPill() {
+  const actions = FAB_ACTIONS();
+  if (!actions.length) return '';
+  const items = actions.map((a) => `
+          <button type="button" role="menuitem" class="popover-menu__item" data-new-route="${esc(a.route)}">
+            <i data-lucide="${esc(a.icon)}" class="icon-md" aria-hidden="true"></i>
+            <span>${esc(a.label)}</span>
+          </button>`).join('');
+  const label = t('dashboard.fabNew');
+  return `
+        <div class="page-toolbar__actions dashboard-overview__new">
+          <button type="button" class="page-fab btn btn--primary page-fab--docked popover-menu__trigger" id="fab-main"
+                  data-dock-label="${esc(label)}" aria-label="${esc(t('nav.quickActions'))}" title="${esc(t('nav.quickActions'))} (n)"
+                  aria-keyshortcuts="n" aria-haspopup="menu" aria-expanded="false" popovertarget="dashboard-new-menu">
+            <i data-lucide="plus" aria-hidden="true"></i><span class="toolbar-new-btn__label">${esc(label)}</span>
+          </button>
+          <div class="popover-menu" id="dashboard-new-menu" popover role="menu">${items}
+          </div>
+        </div>`;
+}
+
+/** Die Menuepunkte der Pille: dieselben Wege wie der Speed-Dial (FAB_NEW_BTN). */
+function wireNewMenu(container, signal) {
+  installPopoverMenus(container);
+  container.addEventListener('click', async (event) => {
+    const item = event.target.closest?.('[data-new-route]');
+    if (!item) return;
+    item.closest('[popover]')?.hidePopover?.();
+    const route = item.dataset.newRoute;
+    await window.yuvomi.navigate(route);
+    const btnSelector = FAB_NEW_BTN[route];
+    if (btnSelector) document.querySelector(btnSelector)?.click();
+  }, { signal });
+}
+
+// "Neu"-Button-Selector auf der jeweiligen Zielseite
+const FAB_NEW_BTN = {
+  '/tasks':    '#btn-new-task',
+  '/calendar': '#fab-new-event',
+  '/shopping': '#fab-new-item',
+  '/notes':    '#fab-new-note',
+};
+
 function renderFab() {
+  // Am Desktop steht Anlegen als Pille im Kopf (renderNewPill).
+  if (onDesktopStage()) return '';
   const actions = FAB_ACTIONS();
   // Kein Eintrag, kein Knopf. Ein Speed-Dial, der sich auf eine leere Liste
   // oeffnet, waere die schlechtere Haelfte des Fehlers, den der Filter behebt.
@@ -5404,14 +5593,6 @@ function initFab(signal) {
   const fabActions  = fabGroup?.querySelector('#fab-actions');
   const fabBackdrop = fabGroup?.querySelector('#fab-backdrop');
   if (!fabMain || !fabActions) return;
-
-  // "Neu"-Button-Selector auf der jeweiligen Zielseite
-  const FAB_NEW_BTN = {
-    '/tasks':    '#btn-new-task',
-    '/calendar': '#fab-new-event',
-    '/shopping': '#fab-new-item',
-    '/notes':    '#fab-new-note',
-  };
 
   let open = false;
 
@@ -5507,6 +5688,7 @@ async function openTaskFromOverview(taskId, container, rerender, user) {
 
 function wireLinks(container, rerender, { editing = false, user = null } = {}) {
   wireTodayMore(container);
+  wireTodayOverdue(container);
   container.querySelectorAll('[data-route]').forEach((el) => {
     if (el.id === 'fab-main' || el.closest('#fab-actions')) return;
     if (editing && el.closest('.widget-wrapper--editing')) return;
@@ -6509,7 +6691,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     }
     if (loadFailed) {
       setHtml(shell, `
-        ${renderDashboardOverview(user, false)}
+        ${renderDashboardOverview(user, false, null, { offerNew: false })}
         ${renderDashboardError(loadErrorStatus)}
       `);
       if (window.lucide) window.lucide.createIcons({ el: shell });
@@ -6638,6 +6820,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     findPageFab('fab-main')?.closest('.page-fab-group')?.remove();
   } else {
     initFab(signal);
+    wireNewMenu(container, signal);
   }
 
   // SELBSTHEILUNG STATT RETRY-KNOPF. Am Wandtablet drueckt niemand auf
@@ -6800,7 +6983,7 @@ function todayFingerprint(data, cfg, now = new Date()) {
     .filter((event) => eventHasEnded(event, nowStamp))
     .map((event) => `${event.id}@${event.start_datetime}`);
   return JSON.stringify([
-    model.rows.map((row) => [row.kind, row.objectId, row.title, row.open, Boolean(row.overdue)]),
+    model.rows.map((row) => [row.kind, row.objectId ?? row.members?.map((m) => m.objectId), row.title, row.open, Boolean(row.overdue)]),
     model.overflow, Boolean(model.coda), Boolean(model.state), ended,
   ]);
 }
@@ -6843,8 +7026,7 @@ async function loadScheduleSlice(day) {
   };
 }
 
-export const __test = { renderCalendarWidget, renderRewardsWidget, loadScheduleSlice, renderUrgentTasks, renderUpcomingEvents, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderPantryWidget, renderFamilyWidget, renderCountdowns, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles, renderGridHint, captureTileRects, playTileFlip, familyManageHref, customizeHasChanges, todayMoreRoute, wireTodayMore, renderWidgetSizeMenu, renderCustomizeFootnote, applyRowFill };
-Object.assign(__test, { customizeLeaveAllowed, setCustomizeFabHidden });
+export const __test = { customizeLeaveAllowed, setCustomizeFabHidden, renderCalendarWidget, renderRewardsWidget, loadScheduleSlice, renderUrgentTasks, renderUpcomingEvents, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderPantryWidget, renderFamilyWidget, renderCountdowns, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles, renderGridHint, captureTileRects, playTileFlip, familyManageHref, customizeHasChanges, todayMoreRoute, wireTodayMore, wireTodayOverdue, renderWidgetSizeMenu, renderNewPill, renderCustomizeFootnote, applyRowFill };
 
 // `signal` ist der Controller des Aufbaus, der die Wetterkarte gezeichnet hat
 // (#976/#977). Vorher las diese Funktion das Modul-Feld `_fabController` -

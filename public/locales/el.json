@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Χωρίς ανάθεση, μόνο εσύ βλέπεις αυτήν την καταχώριση."
         },
         "toShoppingListNamed": "Προσθήκη «{{title}}» στη λίστα αγορών",
-        "emailInUse": "Αυτή η διεύθυνση email ανήκει ήδη σε άλλον λογαριασμό."
+        "emailInUse": "Αυτή η διεύθυνση email ανήκει ήδη σε άλλον λογαριασμό.",
+        "datePlaceholderDay": "ΗΗ",
+        "datePlaceholderMonth": "ΜΜ",
+        "datePlaceholderYear": "ΕΕΕΕ"
     },
     "kitchen": {
         "noShoppingLists": "Δεν υπάρχει ακόμη λίστα αγορών.",
@@ -385,7 +388,11 @@
         "eventEnded": "Έληξε",
         "eventsEndedMore": "+{{count}} νωρίτερα σήμερα",
         "eventsEndedMore_one": "+{{count}} νωρίτερα σήμερα",
-        "widgetSizeWide": "Φαρδύ (2×1)"
+        "widgetSizeWide": "Φαρδύ (2×1)",
+        "fabNew": "Νέο",
+        "todayOverdueCount": "{{count}} εκπρόθεσμες",
+        "todayOverdueCount_one": "{{count}} εκπρόθεσμη",
+        "todayOverdueCount_few": "{{count}} εκπρόθεσμες"
     },
     "tasks": {
         "manageCategories": "Διαχείριση κατηγοριών",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Ο λογαριασμός σου δεν ήταν συνδεδεμένος σε καμία άλλη συσκευή.",
         "otherSessionsError": "Η αποσύνδεση από άλλες συσκευές απέτυχε.",
         "otherSessionsTooManyAttempts": "Πάρα πολλά αιτήματα. Περίμενε λίγο και δοκίμασε ξανά.",
-        "pushUnavailable": "Οι ειδοποιήσεις push δεν είναι διαθέσιμες αυτή τη στιγμή σε αυτή τη συσκευή. Φορτώστε ξανά τη σελίδα."
+        "pushUnavailable": "Οι ειδοποιήσεις push δεν είναι διαθέσιμες αυτή τη στιγμή σε αυτή τη συσκευή. Φορτώστε ξανά τη σελίδα.",
+        "pageScheduleMineDescription": "Υπενθύμιση πριν από τη δική σου βάρδια και εβδομαδιαίες ώρες για τις υπερωρίες.",
+        "sheetInventoryDescription": "Εγγραφή στις προθεσμίες των αντικειμένων σου στη δική σου εφαρμογή ημερολογίου.",
+        "sheetWasteDescription": "Εγγραφή στις επερχόμενες αποκομιδές στη δική σου εφαρμογή ημερολογίου."
     },
     "login": {
         "tagline": "Καλώς ήρθατε ξανά στον οικογενειακό σας οργανωτή.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Μέτρηση",
         "healthCycle": "Περίοδος",
         "healthMeds": "Φάρμακο",
-        "healthPrevention": "Καταχώριση",
+        "healthPrevention": "Έλεγχος",
         "healthLabs": "Αποτέλεσμα",
         "healthActivity": "Προπόνηση",
-        "healthNutrition": "Καταχώριση",
+        "healthNutrition": "Γεύμα",
         "rewards": "Βραβείο",
         "rewardsBonus": "Μπόνους",
         "scheduleShiftType": "Τύπος βάρδιας",
-        "scheduleEntry": "Καταχώριση"
+        "scheduleEntry": "Καταχώριση",
+        "wasteType": "Τύπος αποβλήτων"
     },
     "iconPicker": {
         "title": "Επιλογή εικονιδίου",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Αυτός ο τύπος βάρδιας χρησιμοποιείται ακόμη από έναν κύκλο, μια εξαίρεση ή μια επιπλέον βάρδια. Αφαιρέστε πρώτα αυτές τις χρήσεις.",
         "discardCycleDayEditsDetail": "Οι μη αποθηκευμένες αλλαγές σας στις ημέρες κύκλου ή στα στοιχεία αυτού του κύκλου βαρδιών θα χαθούν αν συνεχίσετε.",
         "overviewClearSelection": "Καθαρισμός επιλογής",
-        "continuesUntil": "…συνεχίζεται έως {{time}}"
+        "continuesUntil": "…συνεχίζεται έως {{time}}",
+        "planningNeedsTypesTitle": "Πρώτα ένας τύπος βάρδιας",
+        "planningNeedsTypesDescription": "Τα προγράμματα, οι εξαιρέσεις και οι επιπλέον βάρδιες βασίζονται σε τύπους βάρδιας - π.χ. πρωινή βάρδια, σχολική ώρα ή άδεια. Πρόσθεσε πρώτα έναν.",
+        "goToShiftTypes": "Στους τύπους βάρδιας",
+        "totalHours": "Σύνολο ωρών",
+        "plannedNote": "προγραμματισμένες",
+        "reminderLeadTime": "Χρόνος προειδοποίησης",
+        "settingsSaved": "Αποθηκεύτηκε."
     },
     "waste": {
         "title": "Αποκομιδή απορριμμάτων",

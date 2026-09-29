@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Hozzárendelés nélkül csak te látod ezt a bejegyzést."
         },
         "toShoppingListNamed": "{{title}} hozzáadása a bevásárlólistához",
-        "emailInUse": "Ez az e-mail-cím már egy másik fiókhoz tartozik."
+        "emailInUse": "Ez az e-mail-cím már egy másik fiókhoz tartozik.",
+        "datePlaceholderDay": "NN",
+        "datePlaceholderMonth": "HH",
+        "datePlaceholderYear": "ÉÉÉÉ"
     },
     "kitchen": {
         "noShoppingLists": "Még nincs bevásárlólista.",
@@ -385,7 +388,11 @@
         "eventEnded": "Véget ért",
         "eventsEndedMore": "+{{count}} korábbi ma",
         "eventsEndedMore_one": "+{{count}} korábbi ma",
-        "widgetSizeWide": "Széles (2×1)"
+        "widgetSizeWide": "Széles (2×1)",
+        "fabNew": "Új",
+        "todayOverdueCount": "{{count}} lejárt",
+        "todayOverdueCount_one": "{{count}} lejárt",
+        "todayOverdueCount_few": "{{count}} lejárt"
     },
     "tasks": {
         "manageCategories": "Kategóriák kezelése",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "A fiókod egyetlen más eszközön sem volt bejelentkezve.",
         "otherSessionsError": "A kijelentkezés más eszközökön nem sikerült.",
         "otherSessionsTooManyAttempts": "Túl sok kérés. Várj egy kicsit, majd próbáld újra.",
-        "pushUnavailable": "A push értesítések most nem érhetők el ezen az eszközön. Töltsd újra az oldalt."
+        "pushUnavailable": "A push értesítések most nem érhetők el ezen az eszközön. Töltsd újra az oldalt.",
+        "pageScheduleMineDescription": "Emlékeztető a saját műszakod előtt és heti óraszám a túlórákhoz.",
+        "sheetInventoryDescription": "Tárgyaid határidőinek előfizetése a saját naptáralkalmazásodban.",
+        "sheetWasteDescription": "A közelgő szállítások előfizetése a saját naptáralkalmazásodban."
     },
     "login": {
         "tagline": "Üdv újra a családi tervezőben.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Mérés",
         "healthCycle": "Menstruáció",
         "healthMeds": "Gyógyszer",
-        "healthPrevention": "Bejegyzés",
+        "healthPrevention": "Szűrés",
         "healthLabs": "Lelet",
         "healthActivity": "Edzés",
-        "healthNutrition": "Bejegyzés",
+        "healthNutrition": "Étkezés",
         "rewards": "Jutalom",
         "rewardsBonus": "Bónusz",
         "scheduleShiftType": "Műszaktípus",
-        "scheduleEntry": "Bejegyzés"
+        "scheduleEntry": "Bejegyzés",
+        "wasteType": "Hulladéktípus"
     },
     "iconPicker": {
         "title": "Ikon választása",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Ezt a műszaktípust még használja egy ciklus, egy kivétel vagy egy extra műszak. Előbb távolítsa el ezeket a használatokat.",
         "discardCycleDayEditsDetail": "Ha folytatja, elvesznek a ciklusnapokon vagy e műszakciklus adatain végzett, még nem mentett módosításai.",
         "overviewClearSelection": "Kijelölés törlése",
-        "continuesUntil": "…eddig tart: {{time}}"
+        "continuesUntil": "…eddig tart: {{time}}",
+        "planningNeedsTypesTitle": "Előbb egy műszaktípus",
+        "planningNeedsTypesDescription": "A beosztások, kivételek és extra műszakok műszaktípusokra épülnek - például reggeli műszak, tanóra vagy szabadság. Először adj hozzá egyet.",
+        "goToShiftTypes": "A műszaktípusokhoz",
+        "totalHours": "Összes óra",
+        "plannedNote": "tervezett",
+        "reminderLeadTime": "Előzetes idő",
+        "settingsSaved": "Mentve."
     },
     "waste": {
         "title": "Hulladékgyűjtés",

@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Zonder toewijzing zie alleen jij dit item."
         },
         "toShoppingListNamed": "{{title}} op de boodschappenlijst zetten",
-        "emailInUse": "Dit e-mailadres hoort al bij een ander account."
+        "emailInUse": "Dit e-mailadres hoort al bij een ander account.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "JJJJ"
     },
     "kitchen": {
         "noShoppingLists": "Er is nog geen boodschappenlijst.",
@@ -385,7 +388,11 @@
         "eventEnded": "Afgelopen",
         "eventsEndedMore": "+{{count}} eerder vandaag",
         "eventsEndedMore_one": "+{{count}} eerder vandaag",
-        "widgetSizeWide": "Breed (2×1)"
+        "widgetSizeWide": "Breed (2×1)",
+        "fabNew": "Nieuw",
+        "todayOverdueCount": "{{count}} achterstallig",
+        "todayOverdueCount_one": "{{count}} achterstallig",
+        "todayOverdueCount_few": "{{count}} achterstallig"
     },
     "tasks": {
         "manageCategories": "Categorieën beheren",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Je account was op geen enkel ander apparaat aangemeld.",
         "otherSessionsError": "Afmelden op andere apparaten is mislukt.",
         "otherSessionsTooManyAttempts": "Te veel verzoeken. Wacht even en probeer het dan opnieuw.",
-        "pushUnavailable": "Pushmeldingen zijn op dit apparaat nu niet beschikbaar. Laad de pagina opnieuw."
+        "pushUnavailable": "Pushmeldingen zijn op dit apparaat nu niet beschikbaar. Laad de pagina opnieuw.",
+        "pageScheduleMineDescription": "Herinnering vóór je eigen dienst en weekuren voor overuren.",
+        "sheetInventoryDescription": "Abonneer je op de termijnen van je spullen in je eigen agenda-app.",
+        "sheetWasteDescription": "Abonneer je op komende ophaaldagen in je eigen agenda-app."
     },
     "login": {
         "tagline": "Welkom terug bij je gezinsplanner.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Meting",
         "healthCycle": "Menstruatie",
         "healthMeds": "Medicijn",
-        "healthPrevention": "Item",
+        "healthPrevention": "Controle",
         "healthLabs": "Uitslag",
-        "healthActivity": "Sessie",
-        "healthNutrition": "Item",
+        "healthActivity": "Training",
+        "healthNutrition": "Maaltijd",
         "rewards": "Beloning",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Diensttype",
-        "scheduleEntry": "Item"
+        "scheduleEntry": "Item",
+        "wasteType": "Afvalsoort"
     },
     "iconPicker": {
         "title": "Pictogram kiezen",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Dit diensttype wordt nog gebruikt door een roosterpatroon, een uitzondering of een extra dienst. Verwijder eerst dat gebruik.",
         "discardCycleDayEditsDetail": "Je niet-opgeslagen wijzigingen aan de cyclusdagen of gegevens van dit roosterpatroon gaan verloren als je doorgaat.",
         "overviewClearSelection": "Selectie wissen",
-        "continuesUntil": "…loopt door tot {{time}}"
+        "continuesUntil": "…loopt door tot {{time}}",
+        "planningNeedsTypesTitle": "Eerst een diensttype",
+        "planningNeedsTypesDescription": "Roosters, uitzonderingen en extra diensten bouwen op diensttypes - bijvoorbeeld vroege dienst, lesuur of vakantie. Voeg er eerst een toe.",
+        "goToShiftTypes": "Naar de diensttypes",
+        "totalHours": "Totaal uren",
+        "plannedNote": "gepland",
+        "reminderLeadTime": "Voorlooptijd",
+        "settingsSaved": "Opgeslagen."
     },
     "waste": {
         "title": "Afvalinzameling",

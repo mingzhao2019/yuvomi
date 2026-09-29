@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "未指定任何人时，只有你能看到此条目。"
         },
         "toShoppingListNamed": "将{{title}}加入购物清单",
-        "emailInUse": "此电子邮件地址已属于另一个账户。"
+        "emailInUse": "此电子邮件地址已属于另一个账户。",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "YYYY"
     },
     "kitchen": {
         "noShoppingLists": "还没有购物清单。",
@@ -385,7 +388,11 @@
         "eventEnded": "已结束",
         "eventsEndedMore": "今天较早 +{{count}}",
         "eventsEndedMore_one": "今天较早 +{{count}}",
-        "widgetSizeWide": "宽 (2×1)"
+        "widgetSizeWide": "宽 (2×1)",
+        "fabNew": "新建",
+        "todayOverdueCount": "已逾期 {{count}} 项",
+        "todayOverdueCount_one": "已逾期 {{count}} 项",
+        "todayOverdueCount_few": "已逾期 {{count}} 项"
     },
     "tasks": {
         "manageCategories": "管理类别",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "你的账户没有在其他任何设备上登录。",
         "otherSessionsError": "在其他设备上退出失败。",
         "otherSessionsTooManyAttempts": "请求过多，请稍候再试。",
-        "pushUnavailable": "此设备当前无法使用推送通知。请重新加载页面。"
+        "pushUnavailable": "此设备当前无法使用推送通知。请重新加载页面。",
+        "pageScheduleMineDescription": "自己班次前的提醒，以及用于计算加班的每周工时。",
+        "sheetInventoryDescription": "在你自己的日历应用中订阅物品的期限。",
+        "sheetWasteDescription": "在你自己的日历应用中订阅即将到来的收运。"
     },
     "login": {
         "tagline": "欢迎回到您的家庭计划工具。",
@@ -5708,14 +5718,15 @@
         "healthVitals": "测量值",
         "healthCycle": "月经",
         "healthMeds": "药物",
-        "healthPrevention": "记录",
+        "healthPrevention": "体检",
         "healthLabs": "报告",
         "healthActivity": "训练",
-        "healthNutrition": "记录",
+        "healthNutrition": "餐食",
         "rewards": "奖品",
         "rewardsBonus": "奖励",
         "scheduleShiftType": "班次类型",
-        "scheduleEntry": "条目"
+        "scheduleEntry": "条目",
+        "wasteType": "垃圾类型"
     },
     "iconPicker": {
         "title": "选择图标",
@@ -5894,7 +5905,14 @@
         "typeInUse": "此班次类型仍被某个排班周期、例外或额外班次使用。请先移除这些使用。",
         "discardCycleDayEditsDetail": "如果继续，你对此排班周期的周期天数或详情所做的未保存更改将会丢失。",
         "overviewClearSelection": "清除选择",
-        "continuesUntil": "…持续到 {{time}}"
+        "continuesUntil": "…持续到 {{time}}",
+        "planningNeedsTypesTitle": "请先添加班次类型",
+        "planningNeedsTypesDescription": "排班、例外和加班都基于班次类型 - 例如早班、课时或休假。请先添加一个。",
+        "goToShiftTypes": "前往班次类型",
+        "totalHours": "总小时数",
+        "plannedNote": "计划",
+        "reminderLeadTime": "提前提醒",
+        "settingsSaved": "已保存。"
     },
     "waste": {
         "title": "垃圾收集",

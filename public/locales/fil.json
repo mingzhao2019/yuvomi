@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Kung walang naatasan, ikaw lang ang makakakita ng entry na ito."
         },
         "toShoppingListNamed": "Idagdag ang {{title}} sa listahan ng pamimili",
-        "emailInUse": "Ang email address na ito ay pag-aari na ng ibang account."
+        "emailInUse": "Ang email address na ito ay pag-aari na ng ibang account.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "YYYY"
     },
     "kitchen": {
         "noShoppingLists": "Wala pang listahan ng pamimili.",
@@ -399,7 +402,11 @@
         "eventEnded": "Tapos na",
         "eventsEndedMore": "+{{count}} mas maaga ngayon",
         "eventsEndedMore_one": "+{{count}} mas maaga ngayon",
-        "widgetSizeWide": "Malapad (2×1)"
+        "widgetSizeWide": "Malapad (2×1)",
+        "fabNew": "Bago",
+        "todayOverdueCount": "{{count}} lampas na sa takdang araw",
+        "todayOverdueCount_one": "{{count}} lampas na sa takdang araw",
+        "todayOverdueCount_few": "{{count}} lampas na sa takdang araw"
     },
     "tasks": {
         "manageCategories": "Pamahalaan ang mga kategorya",
@@ -3051,7 +3058,10 @@
         "otherSessionsNone": "Hindi naka-sign in ang account mo sa anumang ibang device.",
         "otherSessionsError": "Hindi nagawang mag-sign out sa ibang device.",
         "otherSessionsTooManyAttempts": "Masyadong maraming kahilingan. Maghintay sandali, saka subukang muli.",
-        "pushUnavailable": "Hindi available ngayon ang push sa device na ito. Paki-reload ang page."
+        "pushUnavailable": "Hindi available ngayon ang push sa device na ito. Paki-reload ang page.",
+        "pageScheduleMineDescription": "Paalala bago ang sarili mong shift at lingguhang oras para sa overtime.",
+        "sheetInventoryDescription": "Mag-subscribe sa mga deadline ng iyong mga gamit sa sarili mong calendar app.",
+        "sheetWasteDescription": "Mag-subscribe sa mga paparating na pangongolekta sa sarili mong calendar app."
     },
     "login": {
         "tagline": "Maligayang pagbabalik sa iyong family planner.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Sukat",
         "healthCycle": "Regla",
         "healthMeds": "Gamot",
-        "healthPrevention": "Tala",
+        "healthPrevention": "Pagsusuri",
         "healthLabs": "Ulat",
-        "healthActivity": "Aktibidad",
-        "healthNutrition": "Tala",
+        "healthActivity": "Ehersisyo",
+        "healthNutrition": "Pagkain",
         "rewards": "Gantimpala",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Uri ng shift",
-        "scheduleEntry": "Entry"
+        "scheduleEntry": "Entry",
+        "wasteType": "Uri ng basura"
     },
     "iconPicker": {
         "title": "Pumili ng icon",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Ginagamit pa rin ang uri ng shift na ito ng isang pattern, exception, o extra na shift. Alisin muna ang mga paggamit na iyon.",
         "discardCycleDayEditsDetail": "Mawawala ang mga hindi na-save mong pagbabago sa mga araw ng cycle o detalye ng pattern na ito kung magpapatuloy ka.",
         "overviewClearSelection": "I-clear ang pinili",
-        "continuesUntil": "…magpapatuloy hanggang {{time}}"
+        "continuesUntil": "…magpapatuloy hanggang {{time}}",
+        "planningNeedsTypesTitle": "Magdagdag muna ng uri ng shift",
+        "planningNeedsTypesDescription": "Nakabatay sa mga uri ng shift ang mga iskedyul, eksepsiyon at dagdag na shift - gaya ng maagang shift, oras ng klase o bakasyon. Magdagdag muna ng isa.",
+        "goToShiftTypes": "Pumunta sa mga uri ng shift",
+        "totalHours": "Kabuuang oras",
+        "plannedNote": "nakaplano",
+        "reminderLeadTime": "Agwat bago magpaalala",
+        "settingsSaved": "Nai-save."
     },
     "waste": {
         "title": "Koleksyon ng basura",

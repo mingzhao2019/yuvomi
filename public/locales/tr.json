@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Kimse atanmazsa bu kaydı yalnızca sen görürsün."
         },
         "toShoppingListNamed": "{{title}} yemeğini alışveriş listesine ekle",
-        "emailInUse": "Bu e-posta adresi zaten başka bir hesaba ait."
+        "emailInUse": "Bu e-posta adresi zaten başka bir hesaba ait.",
+        "datePlaceholderDay": "GG",
+        "datePlaceholderMonth": "AA",
+        "datePlaceholderYear": "YYYY"
     },
     "kitchen": {
         "noShoppingLists": "Henüz alışveriş listesi yok.",
@@ -385,7 +388,11 @@
         "eventEnded": "Bitti",
         "eventsEndedMore": "Bugün daha önce +{{count}}",
         "eventsEndedMore_one": "Bugün daha önce +{{count}}",
-        "widgetSizeWide": "Geniş (2×1)"
+        "widgetSizeWide": "Geniş (2×1)",
+        "fabNew": "Yeni",
+        "todayOverdueCount": "{{count}} gecikmiş",
+        "todayOverdueCount_one": "{{count}} gecikmiş",
+        "todayOverdueCount_few": "{{count}} gecikmiş"
     },
     "tasks": {
         "manageCategories": "Kategorileri yönet",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Hesabın başka hiçbir cihazda oturum açmış değildi.",
         "otherSessionsError": "Diğer cihazlarda oturum kapatılamadı.",
         "otherSessionsTooManyAttempts": "Çok fazla istek. Lütfen biraz bekle, sonra tekrar dene.",
-        "pushUnavailable": "Anlık bildirimler şu anda bu cihazda kullanılamıyor. Lütfen sayfayı yeniden yükleyin."
+        "pushUnavailable": "Anlık bildirimler şu anda bu cihazda kullanılamıyor. Lütfen sayfayı yeniden yükleyin.",
+        "pageScheduleMineDescription": "Kendi vardiyanızdan önce hatırlatma ve fazla mesai için haftalık saatler.",
+        "sheetInventoryDescription": "Eşyalarının son tarihlerine kendi takvim uygulamanda abone ol.",
+        "sheetWasteDescription": "Yaklaşan toplama günlerine kendi takvim uygulamanda abone ol."
     },
     "login": {
         "tagline": "Aile planlayıcına tekrar hoş geldin.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Ölçüm",
         "healthCycle": "Adet",
         "healthMeds": "İlaç",
-        "healthPrevention": "Kayıt",
+        "healthPrevention": "Muayene",
         "healthLabs": "Sonuç",
         "healthActivity": "Antrenman",
-        "healthNutrition": "Kayıt",
+        "healthNutrition": "Öğün",
         "rewards": "Ödül",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Vardiya türü",
-        "scheduleEntry": "Giriş"
+        "scheduleEntry": "Giriş",
+        "wasteType": "Atık türü"
     },
     "iconPicker": {
         "title": "Simge seç",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Bu vardiya türü hâlâ bir düzen, istisna veya ek vardiya tarafından kullanılıyor. Önce bu kullanımları kaldırın.",
         "discardCycleDayEditsDetail": "Devam ederseniz bu vardiya düzeninin döngü günlerinde veya bilgilerinde yaptığınız kaydedilmemiş değişiklikler kaybolur.",
         "overviewClearSelection": "Seçimi temizle",
-        "continuesUntil": "…{{time}} saatine kadar sürüyor"
+        "continuesUntil": "…{{time}} saatine kadar sürüyor",
+        "planningNeedsTypesTitle": "Önce bir vardiya türü",
+        "planningNeedsTypesDescription": "Planlar, istisnalar ve ek vardiyalar vardiya türlerine dayanır - örneğin sabah vardiyası, ders saati veya izin. Önce bir tane ekleyin.",
+        "goToShiftTypes": "Vardiya türlerine git",
+        "totalHours": "Toplam saat",
+        "plannedNote": "planlanan",
+        "reminderLeadTime": "Önceden hatırlatma",
+        "settingsSaved": "Kaydedildi."
     },
     "waste": {
         "title": "Atık toplama",

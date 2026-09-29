@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Bez přiřazení vidíš tuto položku jen ty."
         },
         "toShoppingListNamed": "Přidat {{title}} na nákupní seznam",
-        "emailInUse": "Tato e-mailová adresa již patří jinému účtu."
+        "emailInUse": "Tato e-mailová adresa již patří jinému účtu.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "RRRR"
     },
     "kitchen": {
         "noShoppingLists": "Nákupní seznam ještě neexistuje.",
@@ -385,7 +388,11 @@
         "eventEnded": "Skončilo",
         "eventsEndedMore": "Dříve dnes: +{{count}}",
         "eventsEndedMore_one": "Dříve dnes: +{{count}}",
-        "widgetSizeWide": "Široký (2×1)"
+        "widgetSizeWide": "Široký (2×1)",
+        "fabNew": "Nový",
+        "todayOverdueCount": "Po termínu: {{count}}",
+        "todayOverdueCount_one": "Po termínu: {{count}}",
+        "todayOverdueCount_few": "Po termínu: {{count}}"
     },
     "tasks": {
         "manageCategories": "Spravovat kategorie",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Tvůj účet nebyl přihlášen na žádném jiném zařízení.",
         "otherSessionsError": "Odhlášení na ostatních zařízeních se nezdařilo.",
         "otherSessionsTooManyAttempts": "Příliš mnoho požadavků. Chvíli počkej a zkus to znovu.",
-        "pushUnavailable": "Push oznámení teď na tomto zařízení nejsou k dispozici. Načtěte prosím stránku znovu."
+        "pushUnavailable": "Push oznámení teď na tomto zařízení nejsou k dispozici. Načtěte prosím stránku znovu.",
+        "pageScheduleMineDescription": "Připomenutí před vlastní směnou a týdenní hodiny pro přesčasy.",
+        "sheetInventoryDescription": "Odebírat termíny svých věcí ve vlastní kalendářové aplikaci.",
+        "sheetWasteDescription": "Odebírat nadcházející svozy ve vlastní kalendářové aplikaci."
     },
     "login": {
         "tagline": "Vítejte zpět ve svém rodinném plánovači.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Měření",
         "healthCycle": "Menstruace",
         "healthMeds": "Lék",
-        "healthPrevention": "Záznam",
+        "healthPrevention": "Prohlídka",
         "healthLabs": "Nález",
         "healthActivity": "Trénink",
-        "healthNutrition": "Záznam",
+        "healthNutrition": "Jídlo",
         "rewards": "Odměna",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Typ směny",
-        "scheduleEntry": "Záznam"
+        "scheduleEntry": "Záznam",
+        "wasteType": "Druh odpadu"
     },
     "iconPicker": {
         "title": "Vybrat ikonu",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Tento typ směny se stále používá v cyklu, výjimce nebo vedlejší směně. Nejprve odstraňte tato použití.",
         "discardCycleDayEditsDetail": "Pokud budete pokračovat, přijdete o neuložené změny dnů cyklu nebo údajů tohoto cyklu směn.",
         "overviewClearSelection": "Zrušit výběr",
-        "continuesUntil": "…pokračuje do {{time}}"
+        "continuesUntil": "…pokračuje do {{time}}",
+        "planningNeedsTypesTitle": "Nejdřív typ směny",
+        "planningNeedsTypesDescription": "Rozpisy, výjimky a směny navíc stojí na typech směn - třeba ranní směna, vyučovací hodina nebo dovolená. Nejdřív jeden přidejte.",
+        "goToShiftTypes": "K typům směn",
+        "totalHours": "Hodin celkem",
+        "plannedNote": "plánováno",
+        "reminderLeadTime": "Předstih",
+        "settingsSaved": "Uloženo."
     },
     "waste": {
         "title": "Svoz odpadu",

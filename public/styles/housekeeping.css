@@ -925,3 +925,31 @@
     gap: var(--space-2);
   }
 }
+
+/* BESUCHE | ZAHLUNGEN (Re-Critique 2026-09-28, P5 / A8 P2-3). Die Uebersicht
+ * ist ein Kennzahlen-Reiter, keine Textseite: im Lesemass (720px) standen
+ * Besuche und Zahlungen untereinander und bei 1440 blieben rechts rund 470px
+ * leer. NUR dieser Reiter bekommt das breite Mass (Kopf, Kennzahlen und Karten
+ * fluchten weiter miteinander; die Listenreiter bleiben im Lesemass), und die
+ * zwei Karten stehen nebeneinander, sobald die Inhaltsspalte fuer zwei
+ * lesbare Karten reicht - gemessen am Container der Seite, nicht am Viewport
+ * (PAGE-005: eine Seite besitzt keine eigenen Viewport-Schwellen). 60rem
+ * erreicht die Spalte ab etwa 1280px Fensterbreite neben der Seitenleiste. */
+.housekeeping-page[data-tab="dashboard"] {
+  --page-measure: var(--layout-wide);
+}
+
+.housekeeping-dashboard-columns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--page-measure, none);
+}
+
+@container housekeeping-page (min-width: 60rem) {
+  .housekeeping-dashboard-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}

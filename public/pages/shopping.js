@@ -7,6 +7,7 @@
 import { api } from '/api.js';
 import { stagger, vibrate, scheduleUndoableDelete, collapseOut, expandIn } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
+import { flipSnapshot, flipPlay } from '/utils/flip.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import {
@@ -1092,8 +1093,10 @@ function renderListContent(container) {
         <select class="quick-add__cat" id="item-cat-select" aria-label="${t('shopping.categoryLabel')}">
           ${state.categories.map((c) => `<option value="${esc(c.name)}" ${c.name === DEFAULT_CATEGORY_NAME ? 'selected' : ''}>${esc(categoryLabel(c.name))}</option>`).join('')}
         </select>
+        <!-- Return-Glyphe statt eines zweiten "+" (Re-Critique 2026-09-28,
+             A4 P2-4): das Plus gehoert der Kopf-Pille bzw. dem FAB. -->
         <button class="quick-add__btn" type="submit" aria-label="${t('shopping.addItemLabel')}">
-          <i data-lucide="plus" class="icon-lg" aria-hidden="true"></i>
+          <i data-lucide="corner-down-left" class="icon-lg" aria-hidden="true"></i>
         </button>
       </form>
     </div>`}
@@ -2298,9 +2301,15 @@ function openItemDetails(itemId, container) {
 function updateItemsList(container) {
   const listEl = container.querySelector('#items-list');
   if (listEl) {
+    // FLIP (Re-Critique 2026-09-28, A4 P2-8): ein abgehakter Artikel sprang
+    // beim Neubau ans Gruppenende. Die Lage wird VOR dem Neubau gemessen und
+    // jede bewegte Zeile gleitet danach von dort an ihre neue Stelle
+    // (utils/flip.js; reduzierte Bewegung springt wie bisher).
+    const before = flipSnapshot(listEl, '.swipe-row[data-swipe-id]', 'data-swipe-id');
     // mountItems() verdrahtet den CTA des Leerzustands selbst; der frühere
     // nachgelagerte #empty-cta-shopping-Listener entfällt damit.
     mountItems(listEl, container);
+    flipPlay(listEl, '.swipe-row[data-swipe-id]', 'data-swipe-id', before);
     if (window.lucide) window.lucide.createIcons({ el: listEl });
     stagger(listEl.querySelectorAll('.shopping-item'), { host: listEl });
     // Regel 3 in utils/module-access.js: Wischen und Ziehen haben kein Markup,

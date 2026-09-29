@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Ohne Zuweisung sieht diesen Eintrag nur du."
         },
         "toShoppingListNamed": "{{title}} auf die Einkaufsliste setzen",
-        "emailInUse": "Diese E-Mail-Adresse gehört bereits zu einem anderen Konto."
+        "emailInUse": "Diese E-Mail-Adresse gehört bereits zu einem anderen Konto.",
+        "datePlaceholderDay": "TT",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "JJJJ"
     },
     "kitchen": {
         "noShoppingLists": "Es gibt noch keine Einkaufsliste.",
@@ -399,7 +402,11 @@
         "eventEnded": "Vorbei",
         "eventsEndedMore": "+{{count}} frühere heute",
         "eventsEndedMore_one": "+{{count}} früherer heute",
-        "widgetSizeWide": "Breit (2×1)"
+        "widgetSizeWide": "Breit (2×1)",
+        "fabNew": "Neu",
+        "todayOverdueCount": "{{count}} überfällig",
+        "todayOverdueCount_one": "{{count}} überfällig",
+        "todayOverdueCount_few": "{{count}} überfällig"
     },
     "tasks": {
         "manageCategories": "Kategorien verwalten",
@@ -3051,7 +3058,10 @@
         "otherSessionsNone": "Auf keinem anderen Gerät war dein Konto angemeldet.",
         "otherSessionsError": "Abmelden auf anderen Geräten fehlgeschlagen.",
         "otherSessionsTooManyAttempts": "Zu viele Anfragen. Bitte warte kurz und versuche es dann erneut.",
-        "pushUnavailable": "Push ist auf diesem Gerät gerade nicht verfügbar. Bitte die Seite neu laden."
+        "pushUnavailable": "Push ist auf diesem Gerät gerade nicht verfügbar. Bitte die Seite neu laden.",
+        "pageScheduleMineDescription": "Erinnerung vor der eigenen Schicht und Wochenstunden für die Überstunden.",
+        "sheetInventoryDescription": "Fristen aus deinem Inventar in der eigenen Kalender-App abonnieren.",
+        "sheetWasteDescription": "Anstehende Abholungen in der eigenen Kalender-App abonnieren."
     },
     "login": {
         "tagline": "Willkommen zurück bei deinem Familienplaner.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Messwert",
         "healthCycle": "Periode",
         "healthMeds": "Medikament",
-        "healthPrevention": "Eintrag",
+        "healthPrevention": "Vorsorge",
         "healthLabs": "Befund",
-        "healthActivity": "Einheit",
-        "healthNutrition": "Eintrag",
+        "healthActivity": "Training",
+        "healthNutrition": "Mahlzeit",
         "rewards": "Prämie",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Schichtart",
-        "scheduleEntry": "Eintrag"
+        "scheduleEntry": "Eintrag",
+        "wasteType": "Abfallart"
     },
     "iconPicker": {
         "title": "Symbol wählen",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Diese Schichtart wird noch von einem Muster, einer Ausnahme oder einer Zusatzschicht verwendet. Entferne zuerst diese Verwendungen.",
         "discardCycleDayEditsDetail": "Deine ungespeicherten Änderungen an den Zyklustagen oder Angaben dieses Schichtplans gehen verloren, wenn du fortfährst.",
         "overviewClearSelection": "Auswahl leeren",
-        "continuesUntil": "…geht bis {{time}}"
+        "continuesUntil": "…geht bis {{time}}",
+        "planningNeedsTypesTitle": "Zuerst eine Schichtart",
+        "planningNeedsTypesDescription": "Schichtpläne, Ausnahmen und Zusatzschichten bauen auf Schichtarten auf - etwa Frühschicht, Schulstunde oder Urlaub. Lege zuerst eine an.",
+        "goToShiftTypes": "Zu den Schichtarten",
+        "totalHours": "Stunden gesamt",
+        "plannedNote": "geplant",
+        "reminderLeadTime": "Vorlauf",
+        "settingsSaved": "Gespeichert."
     },
     "waste": {
         "title": "Entsorgung",

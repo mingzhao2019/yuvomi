@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Nếu không giao cho ai, chỉ bạn thấy mục này."
         },
         "toShoppingListNamed": "Thêm {{title}} vào danh sách mua sắm",
-        "emailInUse": "Địa chỉ email này đã thuộc về một tài khoản khác."
+        "emailInUse": "Địa chỉ email này đã thuộc về một tài khoản khác.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "YYYY"
     },
     "kitchen": {
         "noShoppingLists": "Chưa có danh sách mua sắm.",
@@ -385,7 +388,11 @@
         "eventEnded": "Đã kết thúc",
         "eventsEndedMore": "+{{count}} sớm hơn hôm nay",
         "eventsEndedMore_one": "+{{count}} sớm hơn hôm nay",
-        "widgetSizeWide": "Rộng (2×1)"
+        "widgetSizeWide": "Rộng (2×1)",
+        "fabNew": "Mới",
+        "todayOverdueCount": "{{count}} quá hạn",
+        "todayOverdueCount_one": "{{count}} quá hạn",
+        "todayOverdueCount_few": "{{count}} quá hạn"
     },
     "tasks": {
         "manageCategories": "Quản lý danh mục",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Tài khoản của bạn không đăng nhập trên thiết bị nào khác.",
         "otherSessionsError": "Không thể đăng xuất trên các thiết bị khác.",
         "otherSessionsTooManyAttempts": "Quá nhiều yêu cầu. Vui lòng đợi một chút rồi thử lại.",
-        "pushUnavailable": "Thông báo đẩy hiện không khả dụng trên thiết bị này. Vui lòng tải lại trang."
+        "pushUnavailable": "Thông báo đẩy hiện không khả dụng trên thiết bị này. Vui lòng tải lại trang.",
+        "pageScheduleMineDescription": "Nhắc trước ca của chính bạn và số giờ mỗi tuần để tính làm thêm.",
+        "sheetInventoryDescription": "Đăng ký các hạn của đồ dùng trong ứng dụng lịch của bạn.",
+        "sheetWasteDescription": "Đăng ký các lần thu gom sắp tới trong ứng dụng lịch của bạn."
     },
     "login": {
         "tagline": "Chào mừng bạn trở lại trình lập kế hoạch gia đình.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Chỉ số đo",
         "healthCycle": "Kỳ kinh",
         "healthMeds": "Thuốc",
-        "healthPrevention": "Mục",
+        "healthPrevention": "Khám",
         "healthLabs": "Kết quả",
         "healthActivity": "Buổi tập",
-        "healthNutrition": "Mục",
+        "healthNutrition": "Bữa ăn",
         "rewards": "Phần thưởng",
         "rewardsBonus": "Thưởng",
         "scheduleShiftType": "Loại ca",
-        "scheduleEntry": "Mục"
+        "scheduleEntry": "Mục",
+        "wasteType": "Loại rác"
     },
     "iconPicker": {
         "title": "Chọn biểu tượng",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Loại ca này vẫn đang được dùng bởi một chu kỳ, ngoại lệ hoặc ca phụ. Hãy xóa các mục sử dụng đó trước.",
         "discardCycleDayEditsDetail": "Các thay đổi chưa lưu của bạn đối với các ngày trong chu kỳ hoặc chi tiết của chu kỳ ca này sẽ bị mất nếu bạn tiếp tục.",
         "overviewClearSelection": "Xóa lựa chọn",
-        "continuesUntil": "…tiếp tục đến {{time}}"
+        "continuesUntil": "…tiếp tục đến {{time}}",
+        "planningNeedsTypesTitle": "Trước tiên thêm một loại ca",
+        "planningNeedsTypesDescription": "Lịch, ngoại lệ và ca thêm đều dựa trên loại ca - ví dụ ca sáng, tiết học hoặc nghỉ phép. Hãy thêm một loại trước.",
+        "goToShiftTypes": "Đến loại ca",
+        "totalHours": "Tổng số giờ",
+        "plannedNote": "dự kiến",
+        "reminderLeadTime": "Thời gian nhắc trước",
+        "settingsSaved": "Đã lưu."
     },
     "waste": {
         "title": "Thu gom rác",

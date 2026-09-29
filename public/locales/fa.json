@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "بدون واگذاری، فقط خودت این مورد را می‌بینی."
         },
         "toShoppingListNamed": "افزودن {{title}} به فهرست خرید",
-        "emailInUse": "این نشانی ایمیل از قبل متعلق به حساب دیگری است."
+        "emailInUse": "این نشانی ایمیل از قبل متعلق به حساب دیگری است.",
+        "datePlaceholderDay": "روز",
+        "datePlaceholderMonth": "ماه",
+        "datePlaceholderYear": "سال"
     },
     "kitchen": {
         "noShoppingLists": "هنوز فهرست خریدی وجود ندارد.",
@@ -399,7 +402,11 @@
         "eventEnded": "پایان یافت",
         "eventsEndedMore": "+{{count}} پیش‌تر امروز",
         "eventsEndedMore_one": "+{{count}} پیش‌تر امروز",
-        "widgetSizeWide": "پهن (۲×۱)"
+        "widgetSizeWide": "پهن (۲×۱)",
+        "fabNew": "جدید",
+        "todayOverdueCount": "{{count}} معوق",
+        "todayOverdueCount_one": "{{count}} معوق",
+        "todayOverdueCount_few": "{{count}} معوق"
     },
     "tasks": {
         "manageCategories": "مدیریت دسته‌ها",
@@ -3051,7 +3058,10 @@
         "otherSessionsNone": "حساب تو در هیچ دستگاه دیگری وارد نشده بود.",
         "otherSessionsError": "خروج از دستگاه‌های دیگر ناموفق بود.",
         "otherSessionsTooManyAttempts": "درخواست‌های بیش از حد. کمی صبر کنید و دوباره تلاش کنید.",
-        "pushUnavailable": "اعلان‌های Push در حال حاضر روی این دستگاه در دسترس نیستند. لطفاً صفحه را دوباره بارگیری کنید."
+        "pushUnavailable": "اعلان‌های Push در حال حاضر روی این دستگاه در دسترس نیستند. لطفاً صفحه را دوباره بارگیری کنید.",
+        "pageScheduleMineDescription": "یادآوری پیش از شیفت خودتان و ساعت‌های هفتگی برای اضافه‌کاری.",
+        "sheetInventoryDescription": "مهلت‌های وسایلت را در برنامهٔ تقویم خودت دنبال کن.",
+        "sheetWasteDescription": "جمع‌آوری‌های پیش رو را در برنامهٔ تقویم خودت دنبال کن."
     },
     "login": {
         "tagline": "دوباره به برنامه‌ریز خانوادگی‌تان خوش آمدید.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "اندازه‌گیری",
         "healthCycle": "قاعدگی",
         "healthMeds": "دارو",
-        "healthPrevention": "رکورد",
+        "healthPrevention": "معاینه",
         "healthLabs": "نتیجه",
-        "healthActivity": "جلسه",
-        "healthNutrition": "رکورد",
+        "healthActivity": "تمرین",
+        "healthNutrition": "وعده غذایی",
         "rewards": "جایزه",
         "rewardsBonus": "پاداش",
         "scheduleShiftType": "نوع شیفت",
-        "scheduleEntry": "مورد"
+        "scheduleEntry": "مورد",
+        "wasteType": "نوع پسماند"
     },
     "iconPicker": {
         "title": "انتخاب آیکون",
@@ -5894,7 +5905,14 @@
         "typeInUse": "این نوع شیفت هنوز در یک چرخه، استثنا یا شیفت اضافی استفاده می‌شود. ابتدا این استفاده‌ها را حذف کنید.",
         "discardCycleDayEditsDetail": "اگر ادامه دهید، تغییرات ذخیره‌نشده شما در روزهای چرخه یا جزئیات این چرخه شیفت از بین می‌رود.",
         "overviewClearSelection": "پاک کردن انتخاب",
-        "continuesUntil": "…تا {{time}} ادامه دارد"
+        "continuesUntil": "…تا {{time}} ادامه دارد",
+        "planningNeedsTypesTitle": "اول یک نوع شیفت",
+        "planningNeedsTypesDescription": "برنامه‌ها، استثناها و شیفت‌های اضافی بر پایه نوع شیفت هستند - مثل شیفت صبح، زنگ درسی یا مرخصی. اول یکی اضافه کنید.",
+        "goToShiftTypes": "رفتن به نوع شیفت‌ها",
+        "totalHours": "مجموع ساعت‌ها",
+        "plannedNote": "برنامه‌ریزی‌شده",
+        "reminderLeadTime": "زمان یادآوری پیش از شروع",
+        "settingsSaved": "ذخیره شد."
     },
     "waste": {
         "title": "جمع‌آوری زباله",

@@ -295,6 +295,15 @@
   flex: 0 0 auto;
 }
 
+/* Swatches im Dark mit Kante (Re-Critique 2026-09-28, P9): die Presets halten
+ * dort jetzt >= 3:1, eine BESTANDSFARBE aus der Zeit davor (700-900er Toene,
+ * keine Migration) faellt aber unter 2:1 und verschwaende in der Karte. Die
+ * Kante aus dem Kanten-Token traegt den Punkt unabhaengig von seinem Ton. */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .schedule-swatch { box-shadow: inset 0 0 0 1px var(--color-border-strong); }
+}
+:root[data-theme="dark"] .schedule-swatch { box-shadow: inset 0 0 0 1px var(--color-border-strong); }
+
 .schedule-entry-row,
 .schedule-override {
   align-items: center;
@@ -608,12 +617,6 @@
   gap: var(--space-1);
 }
 
-.schedule-stat-total {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .schedule-stat-row__head {
   display: flex;
   align-items: center;
@@ -625,8 +628,7 @@
   flex: 1;
 }
 
-.schedule-stat-row strong,
-.schedule-stat-total strong {
+.schedule-stat-row strong {
   font-variant-numeric: tabular-nums;
 }
 
@@ -660,12 +662,6 @@
   .schedule-stat-row__fill {
     transition: none;
   }
-}
-
-.schedule-stat-total {
-  justify-content: space-between;
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border);
 }
 
 @media screen and (prefers-color-scheme: dark) {
@@ -759,6 +755,14 @@
  * (441px bei 390) Sektion und Leerzustand ueber den Rand. */
 .schedule-overview {
   grid-template-columns: minmax(0, 1fr);
+  /* Mindestbreite EINER Personenspur je Tag (Re-Critique 2026-09-28, A2
+   * P2-5). Vorher 220px fest: mit einer Person 1676px Inhalt in 1156px, Sa/So
+   * hinter einem Seitwaerts-Scroll. 8rem reichen fuer Titel + Uhrzeit (die
+   * Kalenderwoche fasst ihre Tage bei 1440 in 151px); die Tage teilen sich
+   * den Rest (.schedule-overview__day unten). Gescrollt wird erst, wenn
+   * mehrere Personen zusammen das Minimum ueberschreiten. Die Spurspalten im
+   * Markup (renderOverview()) lesen denselben Wert. */
+  --schedule-lane-min: 8rem;
 }
 
 .schedule-overview__toolbar {
@@ -802,6 +806,14 @@
 
 .schedule-overview__day {
   flex: 0 0 auto;
+}
+
+/* Die sieben Tage teilen sich die Breite; ihre Mindestbreite ist die Summe
+ * ihrer Spuren (min-content), darunter scrollt der Container. Die Zeitspalte
+ * bleibt auf ihrer festen Breite. */
+.schedule-overview__day:not(.schedule-overview__gutter) {
+  flex: 1 1 0;
+  min-width: min-content;
 }
 
 .schedule-overview__day + .schedule-overview__day {
@@ -917,7 +929,7 @@
 }
 
 .schedule-overview__lane {
-  min-width: 220px;
+  min-width: 0;
 }
 
 .schedule-overview__lane-head {

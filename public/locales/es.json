@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Si no asignas a nadie, solo tú verás esta entrada."
         },
         "toShoppingListNamed": "Añadir {{title}} a la lista de la compra",
-        "emailInUse": "Esta dirección de correo ya pertenece a otra cuenta."
+        "emailInUse": "Esta dirección de correo ya pertenece a otra cuenta.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "AAAA"
     },
     "kitchen": {
         "noShoppingLists": "Todavía no hay lista de la compra.",
@@ -385,7 +388,11 @@
         "eventEnded": "Terminado",
         "eventsEndedMore": "+{{count}} anteriores hoy",
         "eventsEndedMore_one": "+{{count}} anterior hoy",
-        "widgetSizeWide": "Ancho (2×1)"
+        "widgetSizeWide": "Ancho (2×1)",
+        "fabNew": "Nuevo",
+        "todayOverdueCount": "{{count}} vencidas",
+        "todayOverdueCount_one": "{{count}} vencida",
+        "todayOverdueCount_few": "{{count}} vencidas"
     },
     "tasks": {
         "manageCategories": "Gestionar categorías",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Tu cuenta no tenía la sesión iniciada en ningún otro dispositivo.",
         "otherSessionsError": "No se pudo cerrar la sesión en otros dispositivos.",
         "otherSessionsTooManyAttempts": "Demasiadas solicitudes. Espera un momento y vuelve a intentarlo.",
-        "pushUnavailable": "Las notificaciones push no están disponibles ahora en este dispositivo. Vuelve a cargar la página."
+        "pushUnavailable": "Las notificaciones push no están disponibles ahora en este dispositivo. Vuelve a cargar la página.",
+        "pageScheduleMineDescription": "Recordatorio antes de tu propio turno y horas semanales para las horas extra.",
+        "sheetInventoryDescription": "Suscríbete a los plazos de tus objetos en tu propia app de calendario.",
+        "sheetWasteDescription": "Suscríbete a las próximas recogidas en tu propia app de calendario."
     },
     "login": {
         "tagline": "Bienvenido de nuevo a tu planificador familiar.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Medición",
         "healthCycle": "Periodo",
         "healthMeds": "Medicamento",
-        "healthPrevention": "Registro",
+        "healthPrevention": "Revisión",
         "healthLabs": "Informe",
-        "healthActivity": "Sesión",
-        "healthNutrition": "Registro",
+        "healthActivity": "Entrenamiento",
+        "healthNutrition": "Comida",
         "rewards": "Premio",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Tipo de turno",
-        "scheduleEntry": "Entrada"
+        "scheduleEntry": "Entrada",
+        "wasteType": "Tipo de residuo"
     },
     "iconPicker": {
         "title": "Elegir icono",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Este tipo de turno todavía se usa en una rotación, una excepción o un turno extra. Elimina primero esos usos.",
         "discardCycleDayEditsDetail": "Tus cambios sin guardar en los días de ciclo o los datos de esta rotación se perderán si continúas.",
         "overviewClearSelection": "Borrar la selección",
-        "continuesUntil": "…continúa hasta las {{time}}"
+        "continuesUntil": "…continúa hasta las {{time}}",
+        "planningNeedsTypesTitle": "Primero un tipo de turno",
+        "planningNeedsTypesDescription": "Los horarios, las excepciones y los turnos extra se basan en tipos de turno, como turno de mañana, hora de clase o vacaciones. Añade uno primero.",
+        "goToShiftTypes": "Ir a los tipos de turno",
+        "totalHours": "Horas totales",
+        "plannedNote": "previstas",
+        "reminderLeadTime": "Antelación",
+        "settingsSaved": "Guardado."
     },
     "waste": {
         "title": "Recogida de basura",

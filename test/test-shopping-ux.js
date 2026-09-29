@@ -2208,3 +2208,95 @@ test('ab 60rem Einkaufsflaeche stehen die Kategorien dicht gepackt in zwei Spalt
   assert.match(quick?.body ?? '', /max-width:\s*calc\(\(100% - var\(--space-5\)\) \/ 2\)/,
     'die Eingabezeile endet mit der ersten Spalte (Spaltenluecke = column-gap)');
 });
+
+// Re-Critique 2026-09-28 (P7 / A4 P2-5): der Wisch-Chevron ">" an jeder
+// Einkaufszeile sagt in iOS "tippe fuer Detail" - hier hiess er "wische", und
+// Tippen hakt ab. Die Geste lehrt der vorhandene Nudge (swipe-row--hint); der
+// Chevron und seine Polster-Reserve fallen in der Einkaufsliste weg.
+test('Einkauf: kein Wisch-Chevron an der Zeile, keine Reserve dafuer', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const rules = [...eachRule(readFileSync(new URL('../public/styles/shopping.css', import.meta.url), 'utf8'))];
+  const off = rules.find((r) => r.selector.trim() === '.swipe-row:has(> .shopping-item)::after' && !r.at.length);
+  assert.match(off?.body ?? '', /content:\s*none/, 'der Chevron der geteilten Zeile faellt in der Einkaufsliste weg');
+  const reserve = rules.filter((r) => r.selector.trim() === '.shopping-item' && r.at.some((a) => /hover:\s*none/.test(a))
+    && /padding-inline-end:\s*calc\(var\(--space-2\) \+ var\(--space-3\) \+ var\(--space-2\)\)/.test(r.body));
+  assert.deepEqual(reserve.map((r) => r.at.join(' ')), [], 'die Reserve fuer den Pfeil ist mit ihm gegangen');
+});
+
+// Re-Critique 2026-09-28 (P7 / A4 P2-4): am Zeiger standen zwei violette "+"
+// fuer dieselbe Absicht - die angedockte Kopf-Pille "+ Artikel" und der
+// Absender des Schnellfelds. Das "+" bleibt der Pille; der Absender ist die
+// ruhige Return-Glyphe wie in Erinnerungen (tippen, Enter).
+test('Einkauf: EIN Plus - der Absender des Schnellfelds ist eine ruhige Return-Glyphe', async () => {
+  const src = readFileSync(new URL('../public/pages/shopping.js', import.meta.url), 'utf8');
+  const btn = /<button class="quick-add__btn"[^>]*>\s*<i data-lucide="([^"]+)"/.exec(src);
+  assert.ok(btn, 'der Absender bleibt ein echter Submit-Knopf');
+  assert.equal(btn[1], 'corner-down-left', 'kein zweites Plus neben der Kopf-Pille');
+  const { eachRule } = await import('./css-rules.js');
+  const rule = [...eachRule(readFileSync(new URL('../public/styles/shopping.css', import.meta.url), 'utf8'))]
+    .find((r) => r.selector.trim() === '.quick-add__btn' && !r.at.length);
+  assert.doesNotMatch(rule?.body ?? '', /background-color:\s*var\(--color-accent\)/, 'keine zweite gefuellte Stimme');
+  assert.match(rule?.body ?? '', /color:\s*var\(--color-text-(?:secondary|tertiary)\)/);
+});
+
+// Re-Critique 2026-09-28 (P11 / A4 P2-8): eine neu gezeichnete Einkaufsliste
+// liess den abgehakten Artikel ans Gruppenende SPRINGEN. FLIP haelt die Lage
+// vor dem Neubau fest und laesst jede bewegte Zeile gleiten - wiedererkannt am
+// Schluessel, weil der Neubau neue Knoten baut.
+function flipRow(key, top) {
+  const calls = [];
+  return {
+    calls,
+    getAttribute: (a) => (a === 'data-swipe-id' ? key : null),
+    getBoundingClientRect: () => ({ left: 0, top }),
+    animate: (frames, opts) => { calls.push({ frames, opts }); return {}; },
+  };
+}
+const flipRoot = (rows) => ({ querySelectorAll: () => rows });
+
+test('FLIP: nur bewegte, wiedererkannte Zeilen gleiten - von der alten Lage in die neue, per transform', async () => {
+  const { flipSnapshot, flipPlay } = await import('../public/utils/flip.js');
+  const prevMM = window.matchMedia;
+  window.matchMedia = () => ({ matches: false });
+  try {
+    const before = flipSnapshot(flipRoot([flipRow('1', 0), flipRow('2', 50), flipRow('3', 100)]), '.swipe-row', 'data-swipe-id');
+    assert.deepEqual([...before.keys()], ['1', '2', '3']);
+    // Nach dem Neubau: 1 wandert ans Ende, 2 und 3 ruecken auf, 4 ist neu.
+    const a = flipRow('2', 0); const b = flipRow('3', 50); const c = flipRow('1', 100); const d = flipRow('4', 150);
+    const moved = flipPlay(flipRoot([a, b, c, d]), '.swipe-row', 'data-swipe-id', before, { duration: 200, easing: 'ease-out' });
+    assert.equal(moved, 3);
+    assert.deepEqual(c.calls[0].frames, [{ transform: 'translate(0px, -100px)' }, { transform: 'none' }], 'von oben ans Ende gleiten');
+    assert.deepEqual(a.calls[0].frames[0], { transform: 'translate(0px, 50px)' });
+    assert.equal(d.calls.length, 0, 'eine neue Zeile hat keine alte Lage');
+    assert.deepEqual(c.calls[0].opts, { duration: 200, easing: 'ease-out' });
+  } finally {
+    window.matchMedia = prevMM;
+  }
+});
+
+test('FLIP: reduzierte Bewegung und eine unbewegte Liste spielen nichts', async () => {
+  const { flipSnapshot, flipPlay } = await import('../public/utils/flip.js');
+  const prevMM = window.matchMedia;
+  try {
+    window.matchMedia = () => ({ matches: false });
+    const still = flipRow('1', 10);
+    const before = flipSnapshot(flipRoot([flipRow('1', 10)]), '.swipe-row', 'data-swipe-id');
+    assert.equal(flipPlay(flipRoot([still]), '.swipe-row', 'data-swipe-id', before, { duration: 1, easing: 'x' }), 0);
+    window.matchMedia = () => ({ matches: true });
+    const moved = flipRow('1', 90);
+    assert.equal(flipPlay(flipRoot([moved]), '.swipe-row', 'data-swipe-id', before, { duration: 1, easing: 'x' }), 0);
+    assert.equal(moved.calls.length, 0, 'reduzierte Bewegung springt wie bisher');
+  } finally {
+    window.matchMedia = prevMM;
+  }
+});
+
+test('FLIP ist im Neubau der Einkaufsliste verdrahtet: messen vor mountItems, spielen danach', () => {
+  const src = readFileSync(new URL('../public/pages/shopping.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('function updateItemsList(container) {'), src.indexOf('function updateItemsList(container) {') + 900);
+  const snap = body.indexOf("flipSnapshot(listEl, '.swipe-row[data-swipe-id]', 'data-swipe-id')");
+  const mount = body.indexOf('mountItems(listEl, container)');
+  const play = body.indexOf("flipPlay(listEl, '.swipe-row[data-swipe-id]', 'data-swipe-id', before)");
+  assert.ok(snap > -1 && mount > -1 && play > -1, 'Messen, Neubau und Abspielen stehen im Neubau');
+  assert.ok(snap < mount && mount < play, 'erst messen, dann neu bauen, dann abspielen');
+});

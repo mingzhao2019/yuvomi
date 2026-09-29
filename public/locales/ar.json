@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "بدون إسناد، لا يرى هذا العنصر سواك."
         },
         "toShoppingListNamed": "إضافة {{title}} إلى قائمة التسوق",
-        "emailInUse": "عنوان البريد الإلكتروني هذا مرتبط بالفعل بحساب آخر."
+        "emailInUse": "عنوان البريد الإلكتروني هذا مرتبط بالفعل بحساب آخر.",
+        "datePlaceholderDay": "يي",
+        "datePlaceholderMonth": "شش",
+        "datePlaceholderYear": "سسسس"
     },
     "kitchen": {
         "noShoppingLists": "لا توجد قائمة مشتريات بعد.",
@@ -385,7 +388,11 @@
         "eventEnded": "انتهى",
         "eventsEndedMore": "+{{count}} سابقة اليوم",
         "eventsEndedMore_one": "+{{count}} سابقة اليوم",
-        "widgetSizeWide": "عريض (2×1)"
+        "widgetSizeWide": "عريض (2×1)",
+        "fabNew": "جديد",
+        "todayOverdueCount": "متأخرة: {{count}}",
+        "todayOverdueCount_one": "متأخرة: {{count}}",
+        "todayOverdueCount_few": "متأخرة: {{count}}"
     },
     "tasks": {
         "manageCategories": "إدارة الفئات",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "لم يكن حسابك مسجّل الدخول على أي جهاز آخر.",
         "otherSessionsError": "فشل تسجيل الخروج من الأجهزة الأخرى.",
         "otherSessionsTooManyAttempts": "طلبات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.",
-        "pushUnavailable": "إشعارات الدفع غير متاحة على هذا الجهاز حاليًا. يرجى إعادة تحميل الصفحة."
+        "pushUnavailable": "إشعارات الدفع غير متاحة على هذا الجهاز حاليًا. يرجى إعادة تحميل الصفحة.",
+        "pageScheduleMineDescription": "تذكير قبل مناوبتك وساعات العمل الأسبوعية لحساب العمل الإضافي.",
+        "sheetInventoryDescription": "اشترك في مواعيد أغراضك النهائية في تطبيق التقويم الخاص بك.",
+        "sheetWasteDescription": "اشترك في مواعيد الجمع القادمة في تطبيق التقويم الخاص بك."
     },
     "login": {
         "tagline": "مرحبًا بعودتك إلى منظّم عائلتك.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "قياس",
         "healthCycle": "دورة",
         "healthMeds": "دواء",
-        "healthPrevention": "سجل",
+        "healthPrevention": "فحص وقائي",
         "healthLabs": "تقرير",
-        "healthActivity": "جلسة",
-        "healthNutrition": "سجل",
+        "healthActivity": "تمرين",
+        "healthNutrition": "وجبة",
         "rewards": "جائزة",
         "rewardsBonus": "مكافأة",
         "scheduleShiftType": "نوع مناوبة",
-        "scheduleEntry": "إدخال"
+        "scheduleEntry": "إدخال",
+        "wasteType": "نوع النفايات"
     },
     "iconPicker": {
         "title": "اختيار أيقونة",
@@ -5894,7 +5905,14 @@
         "typeInUse": "لا يزال نوع المناوبة هذا مستخدَمًا في دورة أو استثناء أو مناوبة إضافية. أزل هذه الاستخدامات أولًا.",
         "discardCycleDayEditsDetail": "ستفقد تغييراتك غير المحفوظة على أيام الدورة أو تفاصيل هذا النمط إذا تابعت.",
         "overviewClearSelection": "مسح التحديد",
-        "continuesUntil": "…يستمر حتى {{time}}"
+        "continuesUntil": "…يستمر حتى {{time}}",
+        "planningNeedsTypesTitle": "أضف نوع مناوبة أولًا",
+        "planningNeedsTypesDescription": "تعتمد الجداول والاستثناءات والمناوبات الإضافية على أنواع المناوبات - مثل المناوبة الصباحية أو الحصة الدراسية أو الإجازة. أضف نوعًا أولًا.",
+        "goToShiftTypes": "إلى أنواع المناوبات",
+        "totalHours": "إجمالي الساعات",
+        "plannedNote": "مخطط",
+        "reminderLeadTime": "مدة التذكير المسبق",
+        "settingsSaved": "تم الحفظ."
     },
     "waste": {
         "title": "جمع النفايات",

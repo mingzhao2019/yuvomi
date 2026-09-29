@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Без призначення цей запис бачите лише ви."
         },
         "toShoppingListNamed": "Додати {{title}} до списку покупок",
-        "emailInUse": "Ця адреса електронної пошти вже належить іншому обліковому запису."
+        "emailInUse": "Ця адреса електронної пошти вже належить іншому обліковому запису.",
+        "datePlaceholderDay": "ДД",
+        "datePlaceholderMonth": "ММ",
+        "datePlaceholderYear": "РРРР"
     },
     "kitchen": {
         "noShoppingLists": "Списку покупок ще немає.",
@@ -385,7 +388,11 @@
         "eventEnded": "Завершено",
         "eventsEndedMore": "Раніше сьогодні: +{{count}}",
         "eventsEndedMore_one": "Раніше сьогодні: +{{count}}",
-        "widgetSizeWide": "Широкий (2×1)"
+        "widgetSizeWide": "Широкий (2×1)",
+        "fabNew": "Створити",
+        "todayOverdueCount": "Прострочено: {{count}}",
+        "todayOverdueCount_one": "Прострочено: {{count}}",
+        "todayOverdueCount_few": "Прострочено: {{count}}"
     },
     "tasks": {
         "manageCategories": "Керування категоріями",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Ваш обліковий запис не був відкритий на жодному іншому пристрої.",
         "otherSessionsError": "Не вдалося вийти на інших пристроях.",
         "otherSessionsTooManyAttempts": "Забагато запитів. Зачекайте трохи й спробуйте знову.",
-        "pushUnavailable": "Push-сповіщення зараз недоступні на цьому пристрої. Перезавантажте сторінку."
+        "pushUnavailable": "Push-сповіщення зараз недоступні на цьому пристрої. Перезавантажте сторінку.",
+        "pageScheduleMineDescription": "Нагадування перед власною зміною і тижневі години для понаднормових.",
+        "sheetInventoryDescription": "Підписатися на терміни своїх речей у власному застосунку календаря.",
+        "sheetWasteDescription": "Підписатися на найближчі вивезення у власному застосунку календаря."
     },
     "login": {
         "tagline": "З поверненням до вашого сімейного планувальника.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Вимірювання",
         "healthCycle": "Менструація",
         "healthMeds": "Ліки",
-        "healthPrevention": "Запис",
+        "healthPrevention": "Огляд",
         "healthLabs": "Результат",
         "healthActivity": "Тренування",
-        "healthNutrition": "Запис",
+        "healthNutrition": "Прийом їжі",
         "rewards": "Нагорода",
         "rewardsBonus": "Бонус",
         "scheduleShiftType": "Тип зміни",
-        "scheduleEntry": "Запис"
+        "scheduleEntry": "Запис",
+        "wasteType": "Вид відходів"
     },
     "iconPicker": {
         "title": "Вибрати піктограму",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Цей тип зміни досі використовується в циклі, винятку або додатковій зміні. Спочатку видаліть ці використання.",
         "discardCycleDayEditsDetail": "Якщо ви продовжите, незбережені зміни днів циклу або даних цього циклу змін буде втрачено.",
         "overviewClearSelection": "Скинути вибір",
-        "continuesUntil": "…триває до {{time}}"
+        "continuesUntil": "…триває до {{time}}",
+        "planningNeedsTypesTitle": "Спершу тип зміни",
+        "planningNeedsTypesDescription": "Графіки, винятки й додаткові зміни спираються на типи змін - наприклад, ранкова зміна, урок чи відпустка. Спершу додайте один.",
+        "goToShiftTypes": "До типів змін",
+        "totalHours": "Усього годин",
+        "plannedNote": "заплановано",
+        "reminderLeadTime": "Завчасно",
+        "settingsSaved": "Збережено."
     },
     "waste": {
         "title": "Вивезення сміття",

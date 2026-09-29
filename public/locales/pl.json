@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Bez przypisania widzisz ten wpis tylko ty."
         },
         "toShoppingListNamed": "Dodaj {{title}} na listę zakupów",
-        "emailInUse": "Ten adres e-mail należy już do innego konta."
+        "emailInUse": "Ten adres e-mail należy już do innego konta.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "RRRR"
     },
     "kitchen": {
         "noShoppingLists": "Nie ma jeszcze listy zakupów.",
@@ -399,7 +402,11 @@
         "eventEnded": "Zakończone",
         "eventsEndedMore": "Wcześniej dziś: +{{count}}",
         "eventsEndedMore_one": "Wcześniej dziś: +{{count}}",
-        "widgetSizeWide": "Szeroki (2×1)"
+        "widgetSizeWide": "Szeroki (2×1)",
+        "fabNew": "Nowy",
+        "todayOverdueCount": "Zaległe: {{count}}",
+        "todayOverdueCount_one": "Zaległe: {{count}}",
+        "todayOverdueCount_few": "Zaległe: {{count}}"
     },
     "tasks": {
         "manageCategories": "Zarządzaj kategoriami",
@@ -3051,7 +3058,10 @@
         "otherSessionsNone": "Twoje konto nie było zalogowane na żadnym innym urządzeniu.",
         "otherSessionsError": "Nie udało się wylogować na innych urządzeniach.",
         "otherSessionsTooManyAttempts": "Zbyt wiele żądań. Poczekaj chwilę i spróbuj ponownie.",
-        "pushUnavailable": "Powiadomienia push są teraz niedostępne na tym urządzeniu. Odśwież stronę."
+        "pushUnavailable": "Powiadomienia push są teraz niedostępne na tym urządzeniu. Odśwież stronę.",
+        "pageScheduleMineDescription": "Przypomnienie przed własną zmianą i tygodniowe godziny do nadgodzin.",
+        "sheetInventoryDescription": "Subskrybuj terminy swoich przedmiotów we własnej aplikacji kalendarza.",
+        "sheetWasteDescription": "Subskrybuj nadchodzące odbiory we własnej aplikacji kalendarza."
     },
     "login": {
         "tagline": "Witaj ponownie w swoim planerze rodzinnym.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Pomiar",
         "healthCycle": "Miesiączka",
         "healthMeds": "Lek",
-        "healthPrevention": "Wpis",
+        "healthPrevention": "Badanie",
         "healthLabs": "Wynik",
         "healthActivity": "Trening",
-        "healthNutrition": "Wpis",
+        "healthNutrition": "Posiłek",
         "rewards": "Nagroda",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Rodzaj zmiany",
-        "scheduleEntry": "Wpis"
+        "scheduleEntry": "Wpis",
+        "wasteType": "Rodzaj odpadu"
     },
     "iconPicker": {
         "title": "Wybierz ikonę",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Ten rodzaj zmiany jest nadal używany przez cykl, wyjątek lub dodatkową zmianę. Najpierw usuń te zastosowania.",
         "discardCycleDayEditsDetail": "Jeśli będziesz kontynuować, niezapisane zmiany dni cyklu lub danych tego cyklu zmian zostaną utracone.",
         "overviewClearSelection": "Wyczyść wybór",
-        "continuesUntil": "…trwa do {{time}}"
+        "continuesUntil": "…trwa do {{time}}",
+        "planningNeedsTypesTitle": "Najpierw rodzaj zmiany",
+        "planningNeedsTypesDescription": "Grafiki, wyjątki i dodatkowe zmiany opierają się na rodzajach zmian - np. zmiana poranna, lekcja lub urlop. Najpierw dodaj jeden.",
+        "goToShiftTypes": "Do rodzajów zmian",
+        "totalHours": "Łącznie godzin",
+        "plannedNote": "zaplanowane",
+        "reminderLeadTime": "Wyprzedzenie",
+        "settingsSaved": "Zapisano."
     },
     "waste": {
         "title": "Odbiór odpadów",

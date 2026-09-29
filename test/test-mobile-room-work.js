@@ -71,8 +71,12 @@ test('M1: mobil spannt der Aufgabentitel ueber Text- und Personenspalte', () => 
     'der Personenstapel steht in der Metazeile, nicht neben dem Titel');
 });
 
-test('M1: mobil nimmt die Personenwahl der Zeile keine Breite, bleibt aber Anker ihres Menues', () => {
-  const doer = declarations(tasksCss, '.task-card__main > .task-doer-btn', { media: MOBILE });
+// Re-Critique 2026-09-28 (P8 / A3 P2-2): am Desktop stand die Personenwahl
+// als zweites Leading-Control neben jedem Statuskreis - "wer hat erledigt"
+// ist erst NACH dem Erledigen eine Frage. Die Regel gilt jetzt auf jeder
+// Breite; der Weg bleibt Detail-Fuss, Kontextmenue und Long-Press.
+test('M1/P8: auf keiner Breite nimmt die Personenwahl der Zeile Platz, bleibt aber Anker ihres Menues', () => {
+  const doer = declarations(tasksCss, '.task-card__main > .task-doer-btn');
   assert.equal(doer.position, 'absolute', 'aus dem Fluss - der Titel bekommt ihre 44px');
   assert.equal(doer.visibility, 'hidden', 'unsichtbar und aus der Tab-Folge; der Tastaturweg ist das Detail');
   assert.notEqual(doer.display, 'none',
@@ -296,4 +300,26 @@ test('M13: mobil ist die Karte kompakt - drei Zeilen Vorschau, Fusszeile ohne Kr
   const del = declarations(notesCss, '.note-card__delete', { media: MOBILE });
   assert.match(del['margin-block'] ?? '', /var\(--target-base\)/,
     'Loeschen haengt seine volle Trefflaeche in die Polsterung statt die Zeile zu strecken');
+});
+
+// Re-Critique 2026-09-28 (P8 / A3 P3-2): mobil brach der Detail-Fuss einer
+// Aufgabe auf zwei Reihen (Loeschen/Erledigen/Person, dann Starten/
+// Archivieren - gemessen 133px, "Aufgabe archivieren" allein 188px breit).
+// Starten und Archivieren gehen mobil in EIN Mehr-Menue; ihre Knoepfe bleiben
+// im DOM (Sperrlogik der Statusknoepfe, Handler), das Menue loest sie aus.
+test('P8: mobil ist der Detail-Fuss einer Aufgabe eine Reihe - Starten und Archivieren im Mehr-Menue', () => {
+  const dv = css('detail-view.css');
+  const hidden = [...eachRule(dv)].filter((r) => /display:\s*none/.test(r.body));
+  const base = hidden.find((r) => !r.at.length && r.selector.trim() === '.detail-view__footer > .task-detail__more');
+  assert.ok(base, 'am Desktop gibt es den Mehr-Knopf nicht - dort passen alle Aktionen');
+  const mobil = hidden.find((r) => r.at.some((a) => a.includes(MOBILE))
+    && r.selector.includes('.detail-view__footer:has(> .task-detail__more) > .task-detail__overflow'));
+  assert.ok(mobil, 'mobil treten Starten und Archivieren in das Menue');
+  const show = [...eachRule(dv)].find((r) => r.at.some((a) => a.includes(MOBILE))
+    && r.selector.trim() === '.detail-view__footer > .task-detail__more');
+  assert.match(show?.body ?? '', /display:\s*inline-flex/);
+  const src = readFileSync(new URL('../public/components/task-detail.js', import.meta.url), 'utf8');
+  assert.match(src, /id: MORE_BUTTON_ID/, 'der Mehr-Knopf ist eine Aktion des Fusses');
+  assert.match(src, /classList\.add\('task-detail__overflow'\)/, 'Starten und Archivieren werden als ueberlaufend markiert');
+  assert.match(src, /\.click\(\)/, 'ein Menueeintrag loest den echten Knopf aus - ein Handler, eine Sperrlogik');
 });

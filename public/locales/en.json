@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "With no one assigned, only you can see this entry."
         },
         "toShoppingListNamed": "Add {{title}} to the shopping list",
-        "emailInUse": "This email address already belongs to another account."
+        "emailInUse": "This email address already belongs to another account.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "YYYY"
     },
     "kitchen": {
         "noShoppingLists": "There is no shopping list yet.",
@@ -385,7 +388,11 @@
         "eventEnded": "Ended",
         "eventsEndedMore": "+{{count}} earlier today",
         "eventsEndedMore_one": "+{{count}} earlier today",
-        "widgetSizeWide": "Wide (2×1)"
+        "widgetSizeWide": "Wide (2×1)",
+        "fabNew": "New",
+        "todayOverdueCount": "{{count}} overdue",
+        "todayOverdueCount_one": "{{count}} overdue",
+        "todayOverdueCount_few": "{{count}} overdue"
     },
     "tasks": {
         "manageCategories": "Manage categories",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Your account was not signed in on any other device.",
         "otherSessionsError": "Signing out on other devices failed.",
         "otherSessionsTooManyAttempts": "Too many requests. Please wait a moment, then try again.",
-        "pushUnavailable": "Push is not available on this device right now. Please reload the page."
+        "pushUnavailable": "Push is not available on this device right now. Please reload the page.",
+        "pageScheduleMineDescription": "Reminder before your own shift and weekly hours for overtime.",
+        "sheetInventoryDescription": "Subscribe to the deadlines from your inventory in your own calendar app.",
+        "sheetWasteDescription": "Subscribe to upcoming pickups in your own calendar app."
     },
     "login": {
         "tagline": "Welcome back to your family planner.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Measurement",
         "healthCycle": "Period",
         "healthMeds": "Medication",
-        "healthPrevention": "Entry",
+        "healthPrevention": "Checkup",
         "healthLabs": "Report",
-        "healthActivity": "Activity",
-        "healthNutrition": "Entry",
+        "healthActivity": "Workout",
+        "healthNutrition": "Meal",
         "rewards": "Reward",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Shift type",
-        "scheduleEntry": "Entry"
+        "scheduleEntry": "Entry",
+        "wasteType": "Waste type"
     },
     "iconPicker": {
         "title": "Choose icon",
@@ -5894,7 +5905,14 @@
         "typeInUse": "This shift type is still used by a schedule plan, override, or extra shift. Remove those uses first.",
         "discardCycleDayEditsDetail": "Your unsaved changes to this schedule plan's cycle days or details will be lost if you continue.",
         "overviewClearSelection": "Clear selection",
-        "continuesUntil": "…continues until {{time}}"
+        "continuesUntil": "…continues until {{time}}",
+        "planningNeedsTypesTitle": "Add a shift type first",
+        "planningNeedsTypesDescription": "Schedules, exceptions and extra shifts build on shift types - such as an early shift, a school period or vacation. Add one first.",
+        "goToShiftTypes": "Go to shift types",
+        "totalHours": "Total hours",
+        "plannedNote": "planned",
+        "reminderLeadTime": "Lead time",
+        "settingsSaved": "Saved."
     },
     "waste": {
         "title": "Waste collection",

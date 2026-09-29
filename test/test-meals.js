@@ -1739,6 +1739,97 @@ test('Essensplan-Board am Desktop: Woche oben, Kopf einzeilig, leere Slots ohne 
   assert(drop && /outline:/.test(drop.body), 'die Ablage-Markierung bleibt');
 });
 
+// Re-Critique 2026-09-28 (P7 / A4 P2-10): "Zutat hinzufuegen" sprach zwei
+// Dialekte (Mahlzeit = orangefarbener Textlink, Rezept = violette Kapsel),
+// beide auf ingredientRowHTML; der Loeschen-Knopf im Dialogfuss zwei Stile
+// (Vorrat ghost, Mahlzeit/Rezept outline).
+test('Kueche: "Zutat hinzufuegen" ist in beiden Editoren derselbe Knopf, Dialog-Loeschen ein Stil', () => {
+  const recipesSrc = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
+  const pantrySrc = readFileSync(new URL('../public/pages/pantry.js', import.meta.url), 'utf8');
+  const btn = (src, id) => new RegExp(`<button class="([^"]*)"[^>]*id="${id}"[^>]*>\\s*<i data-lucide="plus"`).exec(src);
+  const meal = btn(mealsSource, 'add-ingredient-btn');
+  const recipe = btn(recipesSrc, 'recipe-add-ingredient');
+  assert(meal && recipe, 'beide Knoepfe tragen das Plus als erstes Kind');
+  const dialect = (cls) => cls.split(/\s+/).filter((c) => c.startsWith('btn')).join(' ');
+  assert(dialect(meal[1]) === 'btn btn--secondary', `Mahlzeit: ${meal[1]}`);
+  assert(dialect(recipe[1]) === dialect(meal[1]), `Rezept (${recipe[1]}) und Mahlzeit (${meal[1]}) sprechen verschieden`);
+  const mealsCss = readFileSync(new URL('../public/styles/meals.css', import.meta.url), 'utf8');
+  const own = [...eachRule(mealsCss)].find((r) => r.selector.trim() === '.add-ingredient-btn');
+  assert(!/color:\s*var\(--module-accent\)/.test(own?.body ?? ''), 'kein Modulton-Textlink mehr');
+  assert(!/btn--danger-ghost/.test(pantrySrc), 'Vorrat: Loeschen im Dialogfuss wie Mahlzeit und Rezept (btn--danger-outline)');
+  assert(/class="btn btn--danger-outline pantry-form__delete"/.test(pantrySrc), 'Vorrat: btn--danger-outline');
+});
+
+// Re-Critique 2026-09-28 (P7 / A4 P2-9): "Mahlzeit hinzufuegen" aus einem
+// Slot fragte zuerst Datum und Mahlzeit - genau das, was der Slot schon weiss;
+// der Name lag bei 427px Hoehe unter dem Falz.
+test('Mahlzeit aus dem Slot: Name zuerst, Tag und Mahlzeit als Zusammenfassung darunter', () => {
+  const at = (html, id) => html.indexOf(`id="${id}"`);
+  const slot = mealsUi.buildModalContent({ mode: 'create', date: '2026-09-28', mealType: 'lunch', fromSlot: true });
+  assert(at(slot, 'modal-title') > -1 && at(slot, 'modal-date') > -1, 'beide Felder stehen da');
+  assert(at(slot, 'modal-title') < at(slot, 'modal-date'), 'aus dem Slot steht der Name vor dem Datum');
+  assert(at(slot, 'modal-title') < at(slot, 'modal-type'), 'und vor der Mahlzeit');
+  assert(/class="[^"]*\bmeal-modal__when\b/.test(slot), 'Tag und Mahlzeit stehen als eigene, ruhige Zeile');
+  const plain = mealsUi.buildModalContent({ mode: 'create', date: '2026-09-28', mealType: 'lunch' });
+  assert(at(plain, 'modal-date') < at(plain, 'modal-title'), 'ohne Slot (FAB) bleibt die Reihenfolge: erst wann, dann was');
+  assert(/openMealModal\(\{ mode: 'create', date: btn\.dataset\.date, mealType: btn\.dataset\.type, fromSlot: true \}\)/.test(mealsSource),
+    'der Slot-Knopf sagt, dass er aus dem Slot kommt');
+});
+
+// Re-Critique 2026-09-28 (P11 / A4 P2-8): der Rezept-Aufklapper oeffnete
+// hart. Der Zustand bleibt `hidden` (sichtbarer Default, auch headless), die
+// Bewegung kommt aus dem geteilten Paar expandIn/collapseOut (utils/ux.js) -
+// Oeffnen zieht auf, Schliessen klappt erst ein und versteckt dann.
+test('Rezepte mobil: der Aufklapper zieht auf und klappt ein, statt zu springen', () => {
+  const recipesSrc = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
+  assert(/import \{[^}]*\bexpandIn\b[^}]*\bcollapseOut\b[^}]*\} from '\/utils\/ux\.js'|import \{[^}]*\bcollapseOut\b[^}]*\bexpandIn\b[^}]*\} from '\/utils\/ux\.js'/.test(recipesSrc),
+    'das geteilte Paar aus utils/ux.js');
+  const branch = recipesSrc.slice(recipesSrc.indexOf("if (btn.dataset.action === 'toggle-detail') {"),
+    recipesSrc.indexOf("if (btn.dataset.action === 'edit') {"));
+  assert(/panel\.hidden = false;[\s\S]*expandIn\(panel\)/.test(branch), 'Oeffnen: sichtbar machen, dann aufziehen');
+  assert(/collapseOut\(panel\)\.then\([\s\S]*panel\.hidden = true/.test(branch), 'Schliessen: erst einklappen, dann verstecken');
+  assert(/getAnimations(?:\?\.)?\(\)\.forEach\(\(a\) => a\.cancel\(\)\)/.test(branch),
+    'die gehaltene Einklapp-Animation (fill: forwards) wird danach verworfen - sonst oeffnete das Panel beim naechsten Mal auf Hoehe 0');
+});
+
+// Re-Critique 2026-09-28 (P7 / A4 P2-7): die Mahlzeit-Typen im
+// Rezeptformular waren native Checkbox PLUS Farbbadge je Option -
+// Doppelkodierung, und der Kanon nennt die native Checkbox fuer Mehrfachauswahl
+// unter "Nicht mehr". Jetzt Umschalt-Chips (`filter-chip`, aria-pressed).
+test('Rezeptformular: Mahlzeit-Typen sind Umschalt-Chips mit aria-pressed, ohne Checkbox und Badge', () => {
+  const recipesSrc = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
+  const group = recipesSrc.slice(recipesSrc.indexOf('id="recipe-meal-types"'), recipesSrc.indexOf('id="recipe-meal-types"') + 700);
+  assert(/<button type="button" class="filter-chip recipe-meal-types__chip"[^>]*data-meal-type="\$\{option\.key\}"[^>]*aria-pressed=/.test(group),
+    'jede Option ist ein Umschalt-Chip');
+  assert(!/type="checkbox"/.test(group), 'keine native Checkbox mehr');
+  assert(!/meal-type-badge/.test(group), 'kein zweites Farbzeichen je Option');
+  assert(/role="group" aria-labelledby="recipe-meal-types-label"/.test(recipesSrc), 'die Chips sind eine benannte Gruppe');
+  assert(/#recipe-meal-types \[aria-pressed="true"\]/.test(recipesSrc), 'gespeichert wird, was gedrueckt ist');
+});
+
+// Re-Critique 2026-09-28 (P7 / A4 P2-7): die Zutatenzeile teilte drei Felder
+// in EINER Flex-Reihe - im 520px-Dialog las sich die Kategorie als
+// "Fleisch &...", mobil blieben ihr rund 100px. Regel: der Name steht allein
+// in der ersten Zeile (mit dem Entfernen-Knopf), Menge und Kategorie teilen
+// sich die zweite; kein Feld der Zeile wird per Flex-Anteil gekappt.
+test('Zutatenzeile: Name allein in Zeile eins, Menge und Kategorie teilen Zeile zwei', () => {
+  const css = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)].filter((r) => /(^|,)\s*\.ingredient-row(\b|__)/.test(r.selector));
+  const row = rules.find((r) => r.selector.trim() === '.ingredient-row' && !r.at.length);
+  assert(row && /display:\s*grid/.test(row.body), '.ingredient-row ist ein Raster');
+  const areas = (row.body.match(/grid-template-areas:\s*([^;]+);/) || [])[1] || '';
+  const lines = [...areas.matchAll(/"([^"]+)"/g)].map((m) => m[1].trim().split(/\s+/));
+  assert(lines.length === 2, 'zwei Zeilen');
+  assert(lines[0].includes('name') && !lines[0].includes('qty') && !lines[0].includes('cat'), 'Zeile eins traegt nur den Namen');
+  assert(lines[1].includes('qty') && lines[1].includes('cat'), 'Zeile zwei traegt Menge und Kategorie');
+  for (const r of rules) {
+    assert(!/(^|[;\s])flex:/.test(r.body), `${r.selector.trim()}: kein Flex-Anteil kappt ein Feld`);
+    assert(!/(?:^|[;\s])(?:max-)?width:\s*\d+px/.test(r.body), `${r.selector.trim()}: keine feste Pixelbreite`);
+  }
+  assert(rules.some((r) => r.selector.trim() === '.ingredient-row > .row-action' && /grid-area:\s*remove/.test(r.body)),
+    'der Entfernen-Knopf steht in Zeile eins neben dem Namen');
+});
+
 // --------------------------------------------------------
 // Ergebnis
 // --------------------------------------------------------

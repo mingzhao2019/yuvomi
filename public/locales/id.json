@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Tanpa penerima tugas, hanya kamu yang melihat entri ini."
         },
         "toShoppingListNamed": "Tambahkan {{title}} ke daftar belanja",
-        "emailInUse": "Alamat email ini sudah dimiliki akun lain."
+        "emailInUse": "Alamat email ini sudah dimiliki akun lain.",
+        "datePlaceholderDay": "HH",
+        "datePlaceholderMonth": "BB",
+        "datePlaceholderYear": "TTTT"
     },
     "kitchen": {
         "noShoppingLists": "Belum ada daftar belanja.",
@@ -399,7 +402,11 @@
         "eventEnded": "Selesai",
         "eventsEndedMore": "+{{count}} sebelumnya hari ini",
         "eventsEndedMore_one": "+{{count}} sebelumnya hari ini",
-        "widgetSizeWide": "Lebar (2×1)"
+        "widgetSizeWide": "Lebar (2×1)",
+        "fabNew": "Baru",
+        "todayOverdueCount": "{{count}} terlambat",
+        "todayOverdueCount_one": "{{count}} terlambat",
+        "todayOverdueCount_few": "{{count}} terlambat"
     },
     "tasks": {
         "manageCategories": "Kelola kategori",
@@ -3051,7 +3058,10 @@
         "otherSessionsNone": "Akunmu tidak masuk di perangkat lain mana pun.",
         "otherSessionsError": "Gagal keluar dari perangkat lain.",
         "otherSessionsTooManyAttempts": "Terlalu banyak permintaan. Tunggu sebentar, lalu coba lagi.",
-        "pushUnavailable": "Notifikasi push saat ini tidak tersedia di perangkat ini. Silakan muat ulang halaman."
+        "pushUnavailable": "Notifikasi push saat ini tidak tersedia di perangkat ini. Silakan muat ulang halaman.",
+        "pageScheduleMineDescription": "Pengingat sebelum sif Anda sendiri dan jam mingguan untuk lembur.",
+        "sheetInventoryDescription": "Berlangganan tenggat barang-barangmu di aplikasi kalendermu sendiri.",
+        "sheetWasteDescription": "Berlangganan jadwal pengangkutan mendatang di aplikasi kalendermu sendiri."
     },
     "login": {
         "tagline": "Selamat datang kembali di perencana keluarga Anda.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Pengukuran",
         "healthCycle": "Menstruasi",
         "healthMeds": "Obat",
-        "healthPrevention": "Catatan",
+        "healthPrevention": "Pemeriksaan",
         "healthLabs": "Hasil",
-        "healthActivity": "Sesi",
-        "healthNutrition": "Catatan",
+        "healthActivity": "Latihan",
+        "healthNutrition": "Makanan",
         "rewards": "Hadiah",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Jenis shift",
-        "scheduleEntry": "Entri"
+        "scheduleEntry": "Entri",
+        "wasteType": "Jenis sampah"
     },
     "iconPicker": {
         "title": "Pilih ikon",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Jenis shift ini masih digunakan oleh pola, pengecualian, atau shift ekstra. Hapus dulu penggunaan tersebut.",
         "discardCycleDayEditsDetail": "Perubahan yang belum disimpan pada hari siklus atau detail pola ini akan hilang jika Anda melanjutkan.",
         "overviewClearSelection": "Hapus pilihan",
-        "continuesUntil": "…berlanjut hingga {{time}}"
+        "continuesUntil": "…berlanjut hingga {{time}}",
+        "planningNeedsTypesTitle": "Tambahkan jenis sif dulu",
+        "planningNeedsTypesDescription": "Jadwal, pengecualian, dan sif tambahan bergantung pada jenis sif - misalnya sif pagi, jam pelajaran, atau cuti. Tambahkan satu dulu.",
+        "goToShiftTypes": "Ke jenis sif",
+        "totalHours": "Total jam",
+        "plannedNote": "terencana",
+        "reminderLeadTime": "Waktu pengingat sebelumnya",
+        "settingsSaved": "Tersimpan."
     },
     "waste": {
         "title": "Pengumpulan sampah",

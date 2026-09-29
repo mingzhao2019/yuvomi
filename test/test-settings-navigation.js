@@ -131,7 +131,8 @@ test('die Blaetter verteilen sich wie beschlossen auf drei Bereiche, je Modul ei
   // Blatt - die Verteilung ist die IA-Aussage, keine nackte Gesamtzahl.
   const perDomain = {};
   for (const leaf of SETTINGS_LEAVES) perDomain[leaf.domainId] = (perDomain[leaf.domainId] ?? 0) + 1;
-  assert.deepEqual(perDomain, { personal: 5, admin: 8, modules: 13 });
+  // R14 (A7 P2-3): Inventar und Entsorgung bekommen ein Blatt fuer ihren Feed.
+  assert.deepEqual(perDomain, { personal: 5, admin: 8, modules: 15 });
   assert.deepEqual(SETTINGS_DOMAINS.map((domain) => domain.id), ['personal', 'admin', 'modules']);
   // Jedes Blatt haengt an einem existierenden Bereich, jeder Abschnitt an
   // einem existierenden Blatt, und kein Blatt ist leer.
@@ -437,10 +438,11 @@ test('Mitglieder erreichen ihr eigenes Zyklus-Opt-out (#760)', () => {
   // Schnitt wie bei personal-calendar.
   const sheet = findSettingsLeaf('/settings/personal/health', member);
   assert.equal(sheet?.id, 'module-health');
-  assert.deepEqual(settingsSheetSections(sheet, member).map((entry) => entry.id), ['personal-health']);
+  // R14: dazu der eigene Zyklus-Export, der vorher im Kalender-Blatt stand.
+  assert.deepEqual(settingsSheetSections(sheet, member).map((entry) => entry.id), ['personal-health', 'feed-cycle']);
   // Der haushaltweite Schalter bleibt daneben adminOnly.
   assert.deepEqual(settingsSheetSections(sheet, admin).map((entry) => entry.id),
-    ['personal-health', 'options-health', 'modules-health']);
+    ['personal-health', 'feed-cycle', 'options-health', 'modules-health']);
 });
 
 test('die Modul-Optionen sind aufgeloest: jeder Teil steht im Blatt seines Moduls', async () => {
@@ -1888,6 +1890,8 @@ const RETIRED_OPTIONS = Object.freeze({
 /** Der Abschnitt, in dem ein altes Blatt heute steht (modules-options: einer je Teil). */
 function sectionsOfOldLeaf(oldId) {
   if (oldId === 'modules-options') return SETTINGS_SECTIONS.filter((s) => String(s.loader).includes('modules-options.js'));
+  // Feed-Abos: seit R14 ein Feed je Modulblatt, dieselbe Datei (A7 P2-3).
+  if (oldId === 'personal-feeds') return SETTINGS_SECTIONS.filter((s) => String(s.loader).includes('personal-feeds.js'));
   return SETTINGS_SECTIONS.filter((s) => s.id === oldId);
 }
 
@@ -2295,4 +2299,168 @@ test('die Shell wartet hoechstens eine Frist auf ihre Abschnitte', async (t) => 
   const leaf = shell.slice(shell.indexOf('async function renderLeafContent('), shell.indexOf('function isSplit('));
   assert.match(leaf, /await awaitSections\(/);
   assert.doesNotMatch(leaf, /await Promise\.all\(hosts/, 'renderLeafContent wartet wieder ohne Frist auf alle Abschnitte');
+});
+
+// R14 P12 (Re-Critique 2026-09-28, A1 P3-7): "v2.69.1" stand dauerhaft unter
+// der Wortmarke - Chrome-Rauschen. Die Version steht, wo man sie sucht: im
+// Blatt "Neuigkeiten" (aktuelle Version) und im Blatt "System".
+test('R14: die Versionsnummer steht nicht mehr unter der Wortmarke', async () => {
+  const router = await readFile(new URL('../public/router.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(router, /className = 'nav-sidebar__version'/, 'keine Versionszeile in der Seitenleiste');
+  assert.match(router, /changelog\.currentVersion/, 'die Neuigkeiten nennen die installierte Version');
+  const system = await readFile(new URL('../public/settings/pages/admin-system.js', import.meta.url), 'utf8');
+  assert.match(system, /settings\.systemVersionValue/, 'das Blatt System nennt sie ebenfalls');
+});
+
+// R14 P10 (Re-Critique 2026-09-28, A7 P3): die Modulblaetter standen in einer
+// anderen Reihenfolge als die Seitenleiste - Budget vor Gesundheit, Kontakte
+// vor Dokumenten. Jetzt folgen sie ihr: Gruppen der Seitenleiste, darin die
+// Reihenfolge, die der Haushalt gewaehlt hat.
+test('R14: Modulblaetter stehen in der Reihenfolge der Seitenleiste', async () => {
+  const { settingsSheetsForDomain } = await import('../public/settings/registry.js');
+  const admin = { role: 'admin' };
+  const ids = (order) => settingsSheetsForDomain('modules', admin, { moduleOrder: order }).map((s) => s.module ?? s.id);
+  const plain = ids([]);
+  assert.deepEqual(plain.slice(0, 2), ['modules-active', 'modules-navigation'], 'die zwei allgemeinen Blaetter zuerst');
+  const mods = plain.slice(2);
+  assert.deepEqual(mods, ['dashboard', 'calendar', 'schedule', 'tasks', 'kitchen', 'housekeeping', 'waste', 'documents',
+    'inventory', 'rewards', 'contacts', 'health', 'budget'], 'ohne eigene Anordnung genau wie die Seitenleiste (gemessen 1440)');
+  const pos = (id) => mods.indexOf(id);
+  assert.equal(mods[0], 'dashboard', 'die Uebersicht fuehrt wie in der Seitenleiste');
+  assert.ok(pos('tasks') < pos('kitchen') && pos('kitchen') < pos('contacts') && pos('contacts') < pos('budget'),
+    `Planen, Haushalt, Menschen, Finanzen: ${mods}`);
+  assert.ok(pos('health') < pos('budget'), 'Gesundheit (Menschen) vor Budget (Finanzen)');
+  const custom = ids(['tasks', 'schedule', 'calendar', 'rewards', 'kitchen']).slice(2);
+  assert.ok(custom.indexOf('tasks') < custom.indexOf('calendar'), 'die eigene Reihenfolge des Haushalts zaehlt');
+  assert.ok(custom.indexOf('rewards') < custom.indexOf('kitchen'));
+  const router = await readFile(new URL('../public/router.js', import.meta.url), 'utf8');
+  assert.match(router, /moduleOrder: \(\) => _moduleOrder\.slice\(\)/, 'die Einstellungen lesen dieselbe Reihenfolge wie die Seitenleiste');
+});
+
+// R14 P10 (Re-Critique 2026-09-28, A8 P2-4): zwei mobile Unterseiten-
+// Grammatiken - Gesundheit-Bereich mit Large Title (34px), Einstellungs-Blatt
+// mit 22px-Titel direkt ueber einem 20px-Abschnitt. EINE Regel: eine Ebene
+// tiefer heisst mobil Zurueck-Leiste plus Large Title.
+test('R14: mobil traegt das Einstellungs-Blatt den Large Title wie jede Unterseite', async () => {
+  const css = await readFile(new URL('../public/styles/typography.css', import.meta.url), 'utf8');
+  const phone = [...eachRule(css)].filter((r) => r.at.some((a) => /\(max-width:\s*767px\)/.test(a))
+    && r.selector.split(',').some((s) => s.trim() === '.settings-leaf-header__title'));
+  assert.equal(phone.length, 1, 'eine Regel fuer den mobilen Blatt-Titel');
+  assert.match(phone[0].body, /font-size:\s*var\(--type-page-title-mobile\)/, 'Large Title (34px), dieselbe Stufe wie der Modulkopf');
+});
+
+// R14 P10 (Re-Critique 2026-09-28, A7 P2-3): das Kalender-Blatt war die
+// Sammelschublade - 4703px, fuenfmal "Feed aktivieren" als Primaerknopf, die
+// Exporte von Inventar, Gesundheit, Schichtplan und Entsorgung darin.
+test('R14: jeder Export steht im Blatt seines Moduls', async () => {
+  const { settingsSheetsForDomain } = await import('../public/settings/registry.js');
+  const member = { role: 'member' };
+  const home = (id) => SETTINGS_SECTIONS.find((section) => section.id === id);
+  assert.equal(home('personal-feeds').sheetId, 'module-calendar', 'der Kalender-Feed bleibt im Kalender');
+  assert.equal(home('personal-feeds').props?.part, 'calendar');
+  for (const [id, sheet, part] of [
+    ['feed-schedule', 'module-schedule', 'schedule'],
+    ['feed-cycle', 'module-health', 'cycle'],
+    ['feed-inventory', 'module-inventory', 'inventory'],
+    ['feed-waste', 'module-waste', 'waste'],
+  ]) {
+    const section = home(id);
+    assert.equal(section?.sheetId, sheet, `${id} steht im Blatt ${sheet}`);
+    assert.equal(section.props?.part, part);
+    assert.equal(section.scope, 'mine', 'der Token haengt an der eigenen Zeile');
+    assert.equal(section.adminOnly, false, 'jedes Mitglied richtet sein eigenes Abo ein (#770)');
+    assert.ok(SETTINGS_LEAVES.some((leaf) => leaf.id === sheet), `${sheet} ist ein Blatt`);
+  }
+  const calendarOptions = home('personal-feeds').options.map((o) => (typeof o === 'string' ? o : o.key));
+  assert.ok(!calendarOptions.some((key) => /inventoryFeed|cycleFeed|scheduleFeed|wasteFeed/.test(key)),
+    'die Suche fuehrt fremde Exporte nicht mehr ins Kalender-Blatt');
+  assert.ok(settingsSheetsForDomain('modules', member).some((leaf) => leaf.id === 'module-inventory'),
+    'Mitglieder sehen das Inventar-Blatt (ihr eigener Feed)');
+});
+
+test('R14: ein Feed ist ein Schalter, kein Primaerknopf', async () => {
+  const src = await readFile(new URL('../public/settings/pages/personal-feeds.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /btn--primary/, 'kein "Feed aktivieren" als Primaerknopf');
+  assert.match(src, /control: 'switch',\s*label: feed\.text\.title\(\)/, 'An/Aus ist ein Schalter mit dem Namen des Feeds');
+  assert.match(src, /container\.dataset\?\.part/, 'der Abschnitt sagt, welcher Feed');
+  assert.match(src, /!next && !await feed\.confirmDisable\(\)/, 'Ausschalten fragt nach wie der fruehere Knopf');
+});
+
+// R14 P11 (Re-Critique 2026-09-28, A7 P3/A1): der Blattwechsel schnitt hart,
+// waehrend der Rest der App mit Blenden wechselt. Das neue Blatt blendet ein -
+// nur beim WECHSEL (nicht beim ersten Aufbau), nur Deckkraft, Dauer und
+// Kurve aus den Tokens.
+test('R14: ein Blattwechsel blendet das neue Blatt ein', async () => {
+  const shell = await readFile(new URL('../public/settings/shell.js', import.meta.url), 'utf8');
+  const leaf = shell.slice(shell.indexOf('async function renderLeafContent('), shell.indexOf('function isSplit('));
+  assert.match(leaf, /const swapping = Boolean\(content\.querySelector\(':scope > \.settings-leaf'\)\);[\s\S]*content\.replaceChildren\(breadcrumb, header, leafContainer\);/,
+    'gefragt wird VOR dem Tausch, ob schon ein Blatt stand');
+  assert.match(leaf, /if \(swapping\) \{[^}]*classList\.add\('settings-sheet-enter'\)/, 'nur ein Wechsel blendet');
+  const css = await readFile(new URL('../public/styles/settings.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const enter = rules.find((r) => r.selector.trim() === '.settings-sheet-enter');
+  assert.ok(enter, 'die Regel fuer das einblendende Blatt fehlt');
+  assert.match(enter.body, /animation:\s*settings-sheet-enter var\(--duration-md\) var\(--ease-out\)/);
+  assert.match(css, /@keyframes settings-sheet-enter\s*\{\s*from\s*\{\s*opacity:\s*0;?\s*\}\s*\}/, 'nur Deckkraft - nichts bewegt sich');
+});
+
+// R14 P8 (Re-Critique 2026-09-28, A7 P2-4): Familie brach den Kanon - violetter
+// Balken "+ Mitglied hinzufuegen" ueber 720px, 850px Inline-Formular mit
+// [Erstellen][Abbrechen], Zeilen ohne Haarlinien, Namen per Verkettung
+// ("Alex Johnson Loeschen"). Jetzt: Blatt-Dialog mit Kanon-Fuss, geteilte Liste,
+// Objektnamen aus common.*Named.
+test('R14: Familie legt im Blatt-Dialog an, Fuss [Abbrechen][Primaer], Zeilen mit Haarlinien', async () => {
+  const src = await readFile(new URL('../public/settings/pages/admin-family.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /settings-card--hidden/, 'kein Inline-Formular, das auf- und zugeklappt wird');
+  for (const [fn, cancel, submit] of [
+    ['addMemberFormHtml', 'cancel-add-member', "t('settings.createMember')"],
+    ['addInviteFormHtml', 'cancel-add-invite', "t('settings.invites.submit')"],
+  ]) {
+    const body = src.slice(src.indexOf(`function ${fn}(`), src.indexOf('\n}\n', src.indexOf(`function ${fn}(`)));
+    const foot = body.slice(body.indexOf('modal-panel__footer'));
+    assert.ok(body.includes('modal-panel__footer'), `${fn}: der Fuss ist .modal-panel__footer`);
+    assert.ok(foot.indexOf(cancel) >= 0 && foot.indexOf(cancel) < foot.indexOf(submit), `${fn}: [Abbrechen] vor [Primaer]`);
+  }
+  assert.match(src, /addMemberBtn\.addEventListener\('click', \(\) => openAddMemberModal\(/, 'der Knopf oeffnet den Dialog');
+  assert.match(src, /addBtn\.addEventListener\('click', \(\) => openInviteModal\(\)\)/);
+  assert.match(src, /content: addMemberFormHtml\(\)/);
+  assert.match(src, /content: addInviteFormHtml\(\)/);
+  assert.match(src, /<ul class="settings-members row-divided" id="members-list">/, 'Haarlinien zwischen den Mitgliedern');
+  assert.doesNotMatch(src, /btn--primary settings-add-btn/, 'kein violetter Balken ueber die volle Breite');
+  assert.match(src, /t\('common\.deleteNamed', \{ name: u\.display_name \}\)/, 'der Loeschknopf nennt sein Objekt');
+  assert.match(src, /t\('common\.editNamed', \{ name: u\.display_name \}\)/);
+  const editFoot = src.slice(src.indexOf('id="edit-member-error"'), src.indexOf("settings.saveMember')}</button>"));
+  assert.match(editFoot, /modal-panel__footer/, 'auch Bearbeiten traegt den Kanon-Fuss');
+});
+
+// R14 P8 (Re-Critique 2026-09-28, A7 Konsistenz): die Rechte trugen einen
+// eigenen Modus-Umschalter (.perm-modeswitch) neben dem Kanon-Umschalter, den
+// Design und Wochenstart zeigen.
+test('R14: der Modus der Rechte ist der Kanon-Umschalter .segmented', async () => {
+  const src = await readFile(new URL('../public/settings/pages/admin-permissions.js', import.meta.url), 'utf8');
+  assert.match(src, /<div class="segmented settings-segmented perm-mode" role="tablist"/);
+  assert.match(src, /class="segmented__item is-active" role="tab" aria-selected="true" data-mode="role"/);
+  assert.match(src, /attachSegmentIndicator\(modeSwitch\)/, 'die gleitende Kapsel bleibt');
+  const css = await readFile(new URL('../public/styles/settings.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(css, /perm-modeswitch/, 'kein zweiter Dialekt im Stylesheet');
+});
+
+// R14 P12 (Re-Critique 2026-09-28, A2 P2-3): die eigenen Schichtplan-
+// Einstellungen (Vorlauf, Ueberstunden, Wochenstunden) standen als Karte im
+// Tab "Auswertung". Sie gehoeren ins Modulblatt - und ein Mitglied muss sie
+// dort finden: die Route traegt keinen Admin-Check, das Blatt darf keinen
+// erfinden. Ohne den Registry-Eintrag war personal-schedule.js unerreichbar.
+test('R14: "Meine Einstellungen" des Schichtplans stehen im Modulblatt, auch fuer Mitglieder', async () => {
+  const member = { role: 'member' };
+  const sheet = SETTINGS_LEAVES.find((leaf) => leaf.id === 'module-schedule');
+  assert.ok(sheet, 'das Modulblatt Schichtplan existiert');
+  const sections = settingsSheetSections(sheet, member);
+  const mine = sections.find((section) => section.id === 'personal-schedule');
+  assert.ok(mine, 'der Abschnitt steht im Blatt und ist fuer ein Mitglied sichtbar');
+  assert.equal(mine.scope, 'mine');
+  assert.equal(mine.adminOnly, false);
+  assert.match(String(mine.loader), /import\('\/settings\/pages\/personal-schedule\.js'\)/,
+    'der Abschnitt laedt die Seite, die z14 aus der Auswertung geholt hat');
+  const src = await readFile(new URL('../public/settings/pages/personal-schedule.js', import.meta.url), 'utf8');
+  assert.match(src, /export async function render\(container, \{ user \}\)/, 'die Shell ruft render() des Moduls');
 });

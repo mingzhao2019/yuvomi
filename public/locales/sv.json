@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Utan tilldelning ser bara du den här posten."
         },
         "toShoppingListNamed": "Lägg till {{title}} i inköpslistan",
-        "emailInUse": "Den här e-postadressen hör redan till ett annat konto."
+        "emailInUse": "Den här e-postadressen hör redan till ett annat konto.",
+        "datePlaceholderDay": "DD",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "ÅÅÅÅ"
     },
     "kitchen": {
         "noShoppingLists": "Det finns ingen inköpslista än.",
@@ -385,7 +388,11 @@
         "eventEnded": "Avslutat",
         "eventsEndedMore": "+{{count}} tidigare i dag",
         "eventsEndedMore_one": "+{{count}} tidigare i dag",
-        "widgetSizeWide": "Bred (2×1)"
+        "widgetSizeWide": "Bred (2×1)",
+        "fabNew": "Ny",
+        "todayOverdueCount": "{{count}} försenade",
+        "todayOverdueCount_one": "{{count}} försenad",
+        "todayOverdueCount_few": "{{count}} försenade"
     },
     "tasks": {
         "manageCategories": "Hantera kategorier",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Ditt konto var inte inloggat på någon annan enhet.",
         "otherSessionsError": "Det gick inte att logga ut på andra enheter.",
         "otherSessionsTooManyAttempts": "För många förfrågningar. Vänta en stund och försök sedan igen.",
-        "pushUnavailable": "Push-aviseringar är inte tillgängliga på den här enheten just nu. Ladda om sidan."
+        "pushUnavailable": "Push-aviseringar är inte tillgängliga på den här enheten just nu. Ladda om sidan.",
+        "pageScheduleMineDescription": "Påminnelse före ditt eget pass och veckotimmar för övertid.",
+        "sheetInventoryDescription": "Prenumerera på dina sakers tidsfrister i din egen kalenderapp.",
+        "sheetWasteDescription": "Prenumerera på kommande hämtningar i din egen kalenderapp."
     },
     "login": {
         "tagline": "Välkommen tillbaka till din familjeplanerare.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Mätvärde",
         "healthCycle": "Mens",
         "healthMeds": "Medicin",
-        "healthPrevention": "Post",
+        "healthPrevention": "Undersökning",
         "healthLabs": "Provsvar",
-        "healthActivity": "Pass",
-        "healthNutrition": "Post",
+        "healthActivity": "Träningspass",
+        "healthNutrition": "Måltid",
         "rewards": "Belöning",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Skifttyp",
-        "scheduleEntry": "Post"
+        "scheduleEntry": "Post",
+        "wasteType": "Avfallstyp"
     },
     "iconPicker": {
         "title": "Välj ikon",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Den här skifttypen används fortfarande av en skiftcykel, ett undantag eller ett extraskift. Ta bort dessa användningar först.",
         "discardCycleDayEditsDetail": "Dina osparade ändringar av cykeldagarna eller uppgifterna för den här skiftcykeln går förlorade om du fortsätter.",
         "overviewClearSelection": "Rensa urvalet",
-        "continuesUntil": "…fortsätter till {{time}}"
+        "continuesUntil": "…fortsätter till {{time}}",
+        "planningNeedsTypesTitle": "Först en skifttyp",
+        "planningNeedsTypesDescription": "Scheman, undantag och extrapass bygger på skifttyper - till exempel morgonpass, lektion eller semester. Lägg till en först.",
+        "goToShiftTypes": "Till skifttyperna",
+        "totalHours": "Timmar totalt",
+        "plannedNote": "planerade",
+        "reminderLeadTime": "Förvarning",
+        "settingsSaved": "Sparat."
     },
     "waste": {
         "title": "Avfallshämtning",

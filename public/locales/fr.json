@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Sans personne assignée, vous seul voyez cette entrée."
         },
         "toShoppingListNamed": "Ajouter {{title}} à la liste de courses",
-        "emailInUse": "Cette adresse e-mail appartient déjà à un autre compte."
+        "emailInUse": "Cette adresse e-mail appartient déjà à un autre compte.",
+        "datePlaceholderDay": "JJ",
+        "datePlaceholderMonth": "MM",
+        "datePlaceholderYear": "AAAA"
     },
     "kitchen": {
         "noShoppingLists": "Il n'y a encore aucune liste de courses.",
@@ -385,7 +388,11 @@
         "eventEnded": "Terminé",
         "eventsEndedMore": "+{{count}} plus tôt aujourd'hui",
         "eventsEndedMore_one": "+{{count}} plus tôt aujourd'hui",
-        "widgetSizeWide": "Large (2×1)"
+        "widgetSizeWide": "Large (2×1)",
+        "fabNew": "Nouveau",
+        "todayOverdueCount": "{{count}} en retard",
+        "todayOverdueCount_one": "{{count}} en retard",
+        "todayOverdueCount_few": "{{count}} en retard"
     },
     "tasks": {
         "manageCategories": "Gérer les catégories",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Ton compte n’était connecté sur aucun autre appareil.",
         "otherSessionsError": "La déconnexion des autres appareils a échoué.",
         "otherSessionsTooManyAttempts": "Trop de requêtes. Patiente un instant, puis réessaie.",
-        "pushUnavailable": "Les notifications push ne sont pas disponibles pour le moment sur cet appareil. Veuillez recharger la page."
+        "pushUnavailable": "Les notifications push ne sont pas disponibles pour le moment sur cet appareil. Veuillez recharger la page.",
+        "pageScheduleMineDescription": "Rappel avant votre propre poste et heures hebdomadaires pour les heures supplémentaires.",
+        "sheetInventoryDescription": "S’abonner aux échéances de tes objets dans ta propre application de calendrier.",
+        "sheetWasteDescription": "S’abonner aux prochaines collectes dans ta propre application de calendrier."
     },
     "login": {
         "tagline": "Bon retour sur votre planificateur familial.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Mesure",
         "healthCycle": "Règles",
         "healthMeds": "Médicament",
-        "healthPrevention": "Entrée",
+        "healthPrevention": "Examen",
         "healthLabs": "Compte rendu",
         "healthActivity": "Séance",
-        "healthNutrition": "Entrée",
+        "healthNutrition": "Repas",
         "rewards": "Récompense",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Type de poste",
-        "scheduleEntry": "Entrée"
+        "scheduleEntry": "Entrée",
+        "wasteType": "Type de déchet"
     },
     "iconPicker": {
         "title": "Choisir une icône",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Ce type de poste est encore utilisé par un roulement, une exception ou un poste supplémentaire. Supprimez d’abord ces utilisations.",
         "discardCycleDayEditsDetail": "Vos modifications non enregistrées sur les jours de cycle ou les détails de ce roulement seront perdues si vous continuez.",
         "overviewClearSelection": "Effacer la sélection",
-        "continuesUntil": "…se poursuit jusqu’à {{time}}"
+        "continuesUntil": "…se poursuit jusqu’à {{time}}",
+        "planningNeedsTypesTitle": "D’abord un type de poste",
+        "planningNeedsTypesDescription": "Les roulements, exceptions et postes supplémentaires reposent sur les types de poste - par exemple poste du matin, heure de cours ou congé. Ajoutez-en un d’abord.",
+        "goToShiftTypes": "Vers les types de poste",
+        "totalHours": "Total des heures",
+        "plannedNote": "prévues",
+        "reminderLeadTime": "Délai",
+        "settingsSaved": "Enregistré."
     },
     "waste": {
         "title": "Collecte des déchets",

@@ -75,7 +75,10 @@
             "assigneesNobodyHint": "Без назначения эту запись видите только вы."
         },
         "toShoppingListNamed": "Добавить {{title}} в список покупок",
-        "emailInUse": "Этот адрес электронной почты уже принадлежит другой учётной записи."
+        "emailInUse": "Этот адрес электронной почты уже принадлежит другой учётной записи.",
+        "datePlaceholderDay": "ДД",
+        "datePlaceholderMonth": "ММ",
+        "datePlaceholderYear": "ГГГГ"
     },
     "kitchen": {
         "noShoppingLists": "Списка покупок ещё нет.",
@@ -385,7 +388,11 @@
         "eventEnded": "Завершено",
         "eventsEndedMore": "Раньше сегодня: +{{count}}",
         "eventsEndedMore_one": "Раньше сегодня: +{{count}}",
-        "widgetSizeWide": "Широкий (2×1)"
+        "widgetSizeWide": "Широкий (2×1)",
+        "fabNew": "Создать",
+        "todayOverdueCount": "Просрочено: {{count}}",
+        "todayOverdueCount_one": "Просрочено: {{count}}",
+        "todayOverdueCount_few": "Просрочено: {{count}}"
     },
     "tasks": {
         "manageCategories": "Управление категориями",
@@ -3037,7 +3044,10 @@
         "otherSessionsNone": "Ваша учётная запись не была открыта ни на одном другом устройстве.",
         "otherSessionsError": "Не удалось выйти на других устройствах.",
         "otherSessionsTooManyAttempts": "Слишком много запросов. Подождите немного и попробуйте снова.",
-        "pushUnavailable": "Push-уведомления сейчас недоступны на этом устройстве. Перезагрузите страницу."
+        "pushUnavailable": "Push-уведомления сейчас недоступны на этом устройстве. Перезагрузите страницу.",
+        "pageScheduleMineDescription": "Напоминание перед своей сменой и недельные часы для учёта сверхурочных.",
+        "sheetInventoryDescription": "Подписаться на сроки своих вещей в собственном приложении календаря.",
+        "sheetWasteDescription": "Подписаться на предстоящие вывозы в собственном приложении календаря."
     },
     "login": {
         "tagline": "С возвращением в ваш семейный планировщик.",
@@ -5708,14 +5718,15 @@
         "healthVitals": "Измерение",
         "healthCycle": "Менструация",
         "healthMeds": "Лекарство",
-        "healthPrevention": "Запись",
+        "healthPrevention": "Осмотр",
         "healthLabs": "Результат",
         "healthActivity": "Тренировка",
-        "healthNutrition": "Запись",
+        "healthNutrition": "Приём пищи",
         "rewards": "Награда",
         "rewardsBonus": "Бонус",
         "scheduleShiftType": "Тип смены",
-        "scheduleEntry": "Запись"
+        "scheduleEntry": "Запись",
+        "wasteType": "Вид отходов"
     },
     "iconPicker": {
         "title": "Выбрать значок",
@@ -5894,7 +5905,14 @@
         "typeInUse": "Этот тип смены всё ещё используется в цикле, исключении или дополнительной смене. Сначала удалите эти использования.",
         "discardCycleDayEditsDetail": "Если вы продолжите, несохранённые изменения дней цикла или данных этого цикла смен будут потеряны.",
         "overviewClearSelection": "Сбросить выбор",
-        "continuesUntil": "…продолжается до {{time}}"
+        "continuesUntil": "…продолжается до {{time}}",
+        "planningNeedsTypesTitle": "Сначала тип смены",
+        "planningNeedsTypesDescription": "Графики, исключения и дополнительные смены строятся на типах смен - например, утренняя смена, урок или отпуск. Сначала добавьте один.",
+        "goToShiftTypes": "К типам смен",
+        "totalHours": "Всего часов",
+        "plannedNote": "запланировано",
+        "reminderLeadTime": "Заранее",
+        "settingsSaved": "Сохранено."
     },
     "waste": {
         "title": "Вывоз мусора",

@@ -513,3 +513,155 @@ test('Beifang: Karten der Uebersicht auf der Radius-Skala, Disclaimer im Lesemas
   const ch = Number(measure[1]);
   assert.ok(ch >= 45 && ch <= 75, `Lesemass ${ch}ch ausserhalb 45-75ch`);
 });
+
+// --------------------------------------------------------
+// R14 P3/P6: Personenwahl in den Kopf, Heute vor die Bereichsliste
+// --------------------------------------------------------
+//
+// Gemessen 390x844: auf jeder Bereichsseite stand die Personenwahl als eigene
+// Zeile (y122-170, erste Karte y186); auf der Uebersicht bei y=594 HINTER der
+// Bereichsliste, „Heute faellig" bei y=658, „Schnell erfassen" bei y=1916. Am
+// Desktop fehlte der Detailspalte ein Kopf mit dem Bereichsnamen (nur sr-only).
+
+test('R14 P3/P6: der Umzugsplan - Desktop Detailkopf, Bereich schmal Kopfzeile, Telefon-Uebersicht vor die Liste', async () => {
+  const { hoistPlan } = await import('../public/utils/health-hoist.js');
+  assert.deepEqual(hoistPlan({ split: true, overview: false, phone: false }), [{ part: 'person', slot: 'detail' }]);
+  assert.deepEqual(hoistPlan({ split: true, overview: true, phone: false }), [{ part: 'person', slot: 'detail' }]);
+  assert.deepEqual(hoistPlan({ split: false, overview: false, phone: true }), [{ part: 'person', slot: 'toolbar' }],
+    'Bereichsseite: die Pille teilt die Zeile mit „‹ Gesundheit" statt eine eigene zu kosten');
+  assert.deepEqual(hoistPlan({ split: false, overview: true, phone: true }).map((p) => `${p.part}>${p.slot}`),
+    ['person>priority', 'banner>priority', 'due>priority', 'quick>priority'],
+    'Telefon-Uebersicht: Person, Hinweis, Heute faellig, Schnell erfassen stehen VOR der Bereichsliste');
+  assert.deepEqual(hoistPlan({ split: false, overview: true, phone: false }), [], 'Tablet: das Raster bleibt, wie es ist');
+});
+
+test('R14 P3/P6: der Umzug haengt verdrahtete Knoten um und bringt sie zurueck oder verwirft sie', async () => {
+  const { applyHoistPlan, hoistPlan } = await import('../public/utils/health-hoist.js');
+  // Kleines DOM-Doppel: genug Baum fuer matches/querySelector/insertBefore.
+  class El {
+    constructor(cls) { this.cls = cls; this.children = []; this.parentElement = null; this.connected = true; }
+    get isConnected() { let n = this; while (n.parentElement) n = n.parentElement; return n.connected; }
+    get firstChild() { return this.children[0] ?? null; }
+    get nextSibling() { const p = this.parentElement; return p ? p.children[p.children.indexOf(this) + 1] ?? null : null; }
+    matches(sel) { return sel.split(',').some((s) => s.trim() === `.${this.cls}`); }
+    contains(n) { for (let x = n; x; x = x.parentElement) if (x === this) return true; return false; }
+    querySelector(sel) { for (const c of this.children) { if (c.matches(sel)) return c; const d = c.querySelector(sel); if (d) return d; } return null; }
+    remove() { if (this.parentElement) { const p = this.parentElement; p.children.splice(p.children.indexOf(this), 1); this.parentElement = null; } }
+    appendChild(n) { n.remove(); this.children.push(n); n.parentElement = this; return n; }
+    insertBefore(n, ref) { n.remove(); const i = ref ? this.children.indexOf(ref) : -1; if (i < 0) this.children.push(n); else this.children.splice(i, 0, n); n.parentElement = this; return n; }
+  }
+  const page = new El('page');
+  const mk = (cls, parent) => parent.appendChild(new El(cls));
+  const toolbar = mk('slot-toolbar', page);
+  const detail = mk('slot-detail', page);
+  const priority = mk('slot-priority', page);
+  const panel = mk('health-panel', page);
+  const root = mk('root', panel);
+  const person = mk('health-person-switcher', root);
+  const grid = mk('health-overview__grid', root);
+  const due = mk('health-overview__card--due', grid);
+  mk('health-overview__card--other', grid);
+  const quick = mk('health-overview__card--quick', grid);
+  const slots = { toolbar, detail, priority };
+
+  applyHoistPlan(hoistPlan({ split: false, overview: true, phone: true }), { panel, slots });
+  assert.deepEqual(priority.children, [person, due, quick], 'in Planreihenfolge vor der Liste');
+  applyHoistPlan(hoistPlan({ split: true, overview: true, phone: false }), { panel, slots });
+  assert.deepEqual(detail.children, [person], 'Desktop: die Pille steht im Detailkopf');
+  assert.equal(priority.children.length, 0);
+  assert.deepEqual(grid.children.map((c) => c.cls), ['health-overview__card--due', 'health-overview__card--other', 'health-overview__card--quick'],
+    'die Karten stehen wieder an ihrem Platz im Raster');
+  // Das Panel baut neu (Personenwechsel): die umgezogene alte Pille ist veraltet.
+  root.children.splice(0, 1, new El('health-person-switcher'));
+  root.children[0].parentElement = root;
+  const frisch = root.children[0];
+  applyHoistPlan(hoistPlan({ split: false, overview: false, phone: true }), { panel, slots });
+  assert.deepEqual(toolbar.children, [frisch], 'die FRISCHE Pille zieht um');
+  assert.equal(detail.children.length, 0, 'die alte ist weg, nicht doppelt zurueck im Panel');
+  assert.equal(root.children.filter((c) => c.cls === 'health-person-switcher').length, 0);
+});
+
+test('R14 P3/P6: Kopf, Streifen und Detailkopf stehen im Markup, die Karten sind benannt', async () => {
+  assert.match(HEALTH_JS, /class="health-toolbar__person" data-health-person-slot/, 'Slot in der Zeile „‹ Gesundheit"');
+  assert.match(HEALTH_JS, /class="health-priority" data-health-priority><\/div>\s*\$\{areasNavMarkup\(\)\}/, 'Streifen VOR der Bereichsliste');
+  assert.match(HEALTH_JS, /overviewCard\('calendar-check', 'health\.overview\.dueToday\.title', overviewDueMarkup\(\), 'due'\)/);
+  assert.match(HEALTH_JS, /overviewCard\('plus-circle', 'health\.overview\.quick\.title', quickCaptureMarkup\(\), 'quick'\)/);
+  assert.match(HEALTH_JS, /class="split-view__detail-head health-detail-head"/, 'Detailkopf wie die anderen Split-Views (A8 P2-2)');
+  const { eachRule } = await import('./css-rules.js');
+  const css = read('public/styles/health.css');
+  const rules = [...eachRule(css)];
+  assert.ok(rules.some((r) => /\.health-page\[data-health-pushed\] \.health-priority/.test(r.selector) && /display:\s*none/.test(r.body)),
+    'in einem Bereich gibt es den Streifen nicht');
+  assert.ok(rules.some((r) => /\.health-priority:empty/.test(r.selector) && /display:\s*none/.test(r.body)), 'leer kostet er nichts');
+});
+
+// R14 P4 (A6 P2-7): „Noch keine Eintraege." zentriert oben, ohne Weg - in der
+// 676px-Detailspalte 21 % genutzt. Jetzt der geteilte Leerzustand mit Titel,
+// Satz und dem Anlege-Weg (nur mit Schreibrecht).
+test('R14 P4: Vorsorge und Naehrwerte leer = EIN Leerzustand mit Aktion statt einer Hinweiszeile', () => {
+  const fnBody = (name) => {
+    const start = HEALTH_JS.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, `${name} fehlt`);
+    return HEALTH_JS.slice(start, HEALTH_JS.indexOf('\n}\n', start));
+  };
+  const prev = fnBody('renderPreventionShell');
+  assert.doesNotMatch(prev, /emptyHintHTML\(t\('health\.prevention\.noRecords'\)\)/, 'Vorsorge: keine nackte Hinweiszeile mehr');
+  assert.match(prev, /emptyStateHTML\(\{[\s\S]*?title: t\('health\.prevention\.emptyTitle'\)[\s\S]*?id: 'health-prevention-empty-add'/,
+    'Vorsorge: Leerzustand mit Titel und Anlege-Knopf');
+  assert.match(fnBody('wirePrevention'), /#health-prevention-empty-add'\)\?\.addEventListener\('click', \(\) => openPreventionModal\(null\)\)/);
+  const nut = fnBody('renderNutritionShell');
+  assert.doesNotMatch(nut, /emptyHintHTML\(t\('health\.nutrition\.noEntries'\)\)/, 'Naehrwerte: keine nackte Hinweiszeile mehr');
+  assert.match(nut, /emptyStateHTML\(\{[\s\S]*?title: t\('health\.nutrition\.emptyTitle'\)[\s\S]*?id: 'health-nutrition-empty-add'/);
+  assert.match(fnBody('wireNutrition'), /#health-nutrition-empty-add'\)\?\.addEventListener\('click', \(\) => openNutritionModal\(null\)\)/);
+});
+
+// R14 P8 (A6 P2-5): die Vorsorge trug zwei native Datumsfelder, direkt neben
+// dem Export mit dem Kanon-Picker. Jedes Datumsfeld der Gesundheit ist jetzt
+// `yuvomi-datepicker`.
+test('R14 P8: kein natives Datumsfeld in der Gesundheit', () => {
+  const nativ = [...HEALTH_JS.matchAll(/<input[^>]*type="date"[^>]*>/g)].map((m) => m[0]);
+  assert.deepEqual(nativ, [], 'native Datumsfelder statt yuvomi-datepicker');
+  assert.match(HEALTH_JS, /<yuvomi-datepicker id="prevention-given-on" type="date"/);
+  assert.match(HEALTH_JS, /<yuvomi-datepicker id="prevention-next-due" type="date"/);
+});
+
+// R14 P8 (A6 P2-6): Zyklus-Verlauf und Trainings-Liste lagen nackt auf der
+// Buehne, waehrend „Letzte Messungen" und Labor in Karten stehen. Jede
+// Verlaufsliste traegt jetzt die Flaeche eines Zeilentraegers.
+test('R14 P8: Verlaufslisten der Gesundheit stehen auf einem Traeger', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const rules = [...eachRule(read('public/styles/health.css'))].filter((r) => !r.at.length);
+  for (const list of ['.cycle-history__list', '.health-activity-list']) {
+    const own = rules.filter((r) => r.selector.split(',').map((x) => x.trim()).includes(list));
+    assert.ok(own.some((r) => /background(?:-color)?:\s*var\(--color-surface\)/.test(r.body)), `${list}: keine Flaeche`);
+    assert.ok(own.some((r) => /border-radius:\s*var\(--radius-lg\)/.test(r.body)), `${list}: kein Kartenradius`);
+  }
+});
+
+// R14 P11 (A6 P2-9): schmal schaltete der Bereichswechsel `hidden` um - die
+// einzige Tiefennavigation im Modul sprang. Jetzt blendet der neue Bereich
+// ein (nur schmal, nur beim Wechsel), mit Tokens.
+test('R14 P11: der Bereichswechsel schmal blendet ein', async () => {
+  const start = HEALTH_JS.indexOf('function activateArea(');
+  const body = HEALTH_JS.slice(start, HEALTH_JS.indexOf('\n}\n', start));
+  assert.match(body, /if \(narrow && previous && previous !== id\) markAreaEntering\(route\);/);
+  const { eachRule } = await import('./css-rules.js');
+  const regel = [...eachRule(read('public/styles/health.css'))].find((r) => r.selector.trim() === '.health-panel--entering' && !r.at.length);
+  assert.ok(regel, '.health-panel--entering fehlt');
+  assert.match(regel.body, /animation:\s*fade-in var\(--duration-[a-z0-9]+\) var\(--ease-[a-z-]+\)/);
+});
+
+// R14 P6 (A8 P2-2, A6 §5): die angedockte Pille hiess in Vorsorge und
+// Naehrwerte „Eintrag", in Aktivitaet „Einheit" - kein Nomen des Objekts
+// (Kanon DESIGN.md: die Pille nennt, was entsteht). Jeder Bereich traegt sein
+// eigenes Nomen, in jeder Sprache verschieden von den anderen.
+test('R14 P6: die Kopf-Pille nennt je Bereich ihr Objekt', () => {
+  const keys = ['healthVitals', 'healthCycle', 'healthMeds', 'healthPrevention', 'healthLabs', 'healthActivity', 'healthNutrition'];
+  for (const file of readdirSync(join(ROOT, 'public/locales')).filter((f) => f.endsWith('.json'))) {
+    const labels = JSON.parse(read(`public/locales/${file}`)).newLabel;
+    const values = keys.map((k) => labels[k]);
+    assert.equal(new Set(values).size, values.length, `${file}: zwei Bereiche teilen ein Nomen (${values.join(' / ')})`);
+  }
+  const de = JSON.parse(read('public/locales/de.json')).newLabel;
+  for (const k of keys) assert.ok(!['Eintrag', 'Einheit'].includes(de[k]), `de ${k}: „${de[k]}" ist kein Objekt`);
+});
