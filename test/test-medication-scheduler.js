@@ -284,7 +284,7 @@ function berlinSchedule(time, opts = {}) {
   return db;
 }
 
-test('#1539: Prozess UTC, Haushalt Berlin - 08:00 ist um 08:00 Berliner Zeit faellig', inProcessZone('UTC', async () => {
+test('#1539: Prozess UTC, Haushalt Berlin - 08:00 ist um 08:00 Berliner Zeit faellig', inProcessZone('Etc/UTC', async () => {
   assert.equal(new Date('2026-06-15T12:00').getTimezoneOffset(), 0, 'Prozess muss in UTC laufen');
   const db = berlinSchedule('08:00');
   // 07:30 in Berlin (05:30Z): noch nicht.
@@ -295,7 +295,7 @@ test('#1539: Prozess UTC, Haushalt Berlin - 08:00 ist um 08:00 Berliner Zeit fae
   assert.deepEqual(logs, ['2026-06-15T08:00']);
 }));
 
-test('#1539: der Kalendertag und der Wochentag sind die des Haushalts', inProcessZone('UTC', async () => {
+test('#1539: der Kalendertag und der Wochentag sind die des Haushalts', inProcessZone('Etc/UTC', async () => {
   // Montag 21:00 in New York ist Dienstag 01:00 UTC. Ein Plan nur fuer Montag
   // (Bit 0) um 20:00 ist faellig - fuer Montag, nicht fuer Dienstag.
   const db = berlinSchedule('20:00', { zone: 'America/New_York', daysMask: 1 });
@@ -304,7 +304,7 @@ test('#1539: der Kalendertag und der Wochentag sind die des Haushalts', inProces
   assert.deepEqual(logs, ['2026-06-15T20:00']);
 }));
 
-test('#1539: an beiden Zeitumstellungen folgt die Faelligkeit der Uhr des Haushalts', inProcessZone('UTC', async () => {
+test('#1539: an beiden Zeitumstellungen folgt die Faelligkeit der Uhr des Haushalts', inProcessZone('Etc/UTC', async () => {
   // 29.03.2026: Berlin springt auf CEST, 08:00 ist 06:00Z.
   const spring = berlinSchedule('08:00');
   assert.deepEqual((await runAt(spring, '2026-03-29T05:59:00Z')).logs, [], '07:59 CEST');
