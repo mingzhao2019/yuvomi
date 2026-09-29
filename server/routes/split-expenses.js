@@ -1221,6 +1221,8 @@ function activityCursor(query) {
   return { cursor: { beforeAt: query.before_at, beforeId } };
 }
 
+const LEDGER_REPAIR_ACTIVITY = new Set(['ledger_restored', 'ledger_removed']);
+
 router.get('/groups/:id/activity', (req, res) => {
   try {
     const groupId = Number(req.params.id);
@@ -1242,10 +1244,11 @@ router.get('/groups/:id/activity', (req, res) => {
     const hasMore = fetched.length > limit;
     const rows = fetched.slice(0, limit).map((row) => {
       const metadata = row.metadata ? JSON.parse(row.metadata) : null;
-      // 'ledger_restored' (Migration v235) speichert den Betrag in Minor-Units:
-      // eingefrorenes SQL kennt die Nachkommastellen je Waehrung nicht. Hier
-      // bekommt er dieselbe Dezimalform wie payment_registered (`amount`).
-      if (row.type === 'ledger_restored' && Number.isInteger(metadata?.amount_minor) && metadata.currency) {
+      // 'ledger_restored' (Migration v235) und 'ledger_removed' (v237)
+      // speichern den Betrag in Minor-Units: eingefrorenes SQL kennt die
+      // Nachkommastellen je Waehrung nicht. Hier bekommt er dieselbe
+      // Dezimalform wie payment_registered (`amount`).
+      if (LEDGER_REPAIR_ACTIVITY.has(row.type) && Number.isInteger(metadata?.amount_minor) && metadata.currency) {
         return { ...row, metadata: decorateMoney(metadata) };
       }
       return { ...row, metadata };

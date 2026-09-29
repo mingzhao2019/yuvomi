@@ -428,6 +428,7 @@
     "pretest": "node scripts/run-with-temp-cleanup.mjs npm run test:custom",
     "posttest": "node scripts/run-with-temp-cleanup.mjs npm run posttest:custom",
     "test:split-ledger-rebuild-migration": "node --experimental-sqlite --test test/test-split-ledger-rebuild-migration.js",
+    "test:split-orphan-ledger-migration": "node --experimental-sqlite --test test/test-split-orphan-ledger-migration.js",
     "test:restore-swap": "node --experimental-sqlite --test test/test-restore-swap.js",
     "test:restore-server": "node --experimental-sqlite --test test/test-restore-server.js",
     "test:carddav-admin-gate": "node --experimental-sqlite --test test/test-carddav-admin-gate.js",

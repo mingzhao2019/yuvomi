@@ -10052,6 +10052,49 @@ const MIGRATIONS = [
         END;
     `,
   },
+  {
+    version: 237,
+    description: 'Split: remove ledger rows of expenses that no longer exist',
+    // The counterpart to v235: before v225, PUT /expenses/:id stamped ledger
+    // rows with the editor. Deleting the expense author then cascaded the
+    // expense and its splits while leaving those rows behind.
+    up(db) {
+      db.exec(`
+        DROP TABLE IF EXISTS temp._v237_orphans;
+        CREATE TEMP TABLE _v237_orphans AS
+          SELECT DISTINCT l.group_id, l.source_id AS id
+          FROM expense_ledger_entries l
+          WHERE l.source_type IN ('expense', 'expense_reversal')
+            AND NOT EXISTS (SELECT 1 FROM expenses e WHERE e.id = l.source_id);
+      `);
+      const removed = db.prepare('SELECT id, group_id FROM _v237_orphans ORDER BY id, group_id').all();
+      db.exec(`
+        INSERT INTO expense_activity (group_id, actor_id, type, entity_type, entity_id, metadata)
+        SELECT o.group_id, NULL, 'ledger_removed', 'expense', o.id,
+               CASE WHEN p.id IS NULL
+                 THEN json_object('title', (
+                   SELECT x.memo FROM expense_ledger_entries x
+                   WHERE x.source_type IN ('expense', 'expense_reversal')
+                     AND x.source_id = o.id AND x.group_id = o.group_id
+                   ORDER BY x.id LIMIT 1))
+                 ELSE json_object('title', p.memo, 'amount_minor', p.amount_minor, 'currency', p.currency)
+               END
+        FROM _v237_orphans o
+        LEFT JOIN expense_ledger_entries p ON p.id = (
+          SELECT MIN(y.id) FROM expense_ledger_entries y
+          WHERE y.source_type = 'expense' AND y.source_id = o.id AND y.group_id = o.group_id
+            AND y.counterparty_id IS NULL)
+        ORDER BY o.id, o.group_id;
+        DELETE FROM expense_ledger_entries
+        WHERE source_type IN ('expense', 'expense_reversal')
+          AND NOT EXISTS (SELECT 1 FROM expenses e WHERE e.id = expense_ledger_entries.source_id);
+        DROP TABLE _v237_orphans;
+      `);
+      for (const row of removed) {
+        log.info(`Removed the ledger rows of shared expense ${row.id} in group ${row.group_id}: the expense no longer exists, and the group's balances change accordingly.`);
+      }
+    },
+  },
 ];
 
 /**
