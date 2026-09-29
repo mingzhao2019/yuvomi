@@ -764,6 +764,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   singular and the form for 5 and more existed, so "za 2 dní" appeared instead of "za 2 dny" and
   "خلال 2 أيام" instead of "خلال يومين". Every counter now carries every form its language uses, only
   in that language, and a test fails for any new counter that misses one.
+
+- **Counts no longer show "1" for 21, 0 or 5 in some languages** (#1549). In Russian and Ukrainian
+  the singular form also serves 21, 31, 101 and so on, in French, Portuguese, Hindi and Persian it
+  also serves 0, and in Filipino most numbers. About 90 of these forms had a fixed "1" or a word
+  like "every month" instead of the number, so a day with 21 events read "1 событие" in Russian and
+  a day with 5 events read "1 kaganapan" in Filipino. They now show the actual number; a fixed
+  wording stays only where the screen can never show another number, and a test checks that.
 - **"Change all future occurrences" no longer ends a recurring payment** (#1546). Editing a later
   month of a series and choosing "Change all future occurrences" sent the recurrence settings of
   that single month along, and a generated month carries none: the series was switched off, every
