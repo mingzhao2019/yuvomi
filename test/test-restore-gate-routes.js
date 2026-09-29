@@ -107,7 +107,6 @@ test('#1531 der Router-Stack wird gelesen, nicht leer', () => {
   const unrecorded = layers.filter((l) => l.kind === 'use' && l.paths.length === 0);
   assert.deepEqual(unrecorded, [], 'Layer ohne bekannten Mount-Pfad');
 });
-
 test('#1531 jede Top-Level-Route ist von needsDatabase() gedeckt oder begruendet freigestellt', () => {
   const uncovered = [];
   for (const entry of topLevelLayers()) {
@@ -214,4 +213,3 @@ test('#1531 bei geschlossener Verbindung: gedeckte Routen 503, freigestellte ohn
   }
   assert.deepEqual(wrong, [], 'gedeckt heisst 503, freigestellt heisst ohne 5xx');
 });
-
