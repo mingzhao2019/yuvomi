@@ -757,6 +757,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The note category hints no longer suggest that notes are private** (#1514). A personal
+  category is only visible to you, but a note filed under it is still visible to every household
+  member, just without that category. The hint next to the category type and the hint in the
+  category manager now say so.
 - **The reminder list for new tasks says why it is empty.** Without a CalDAV reminder list enabled
   for tasks, the section under Settings → Modules → Tasks now explains what a reminder list is and
   that an admin enables it, and admins get a link to Reminder sync. If the lists cannot be loaded,
