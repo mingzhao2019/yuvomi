@@ -35,6 +35,7 @@ import { householdMemberSql, isHouseholdMember, newNonMembers, nonMemberMessage 
 import { displayActingPerson, isDisplayRequest } from '../services/display-acting.js';
 import { pushService } from '../services/push.js';
 import { todayKey } from '../utils/timezone.js';
+import { runExternalJob } from '../utils/restore-state.js';
 import {
   allTags, applyTagChanges, loadTags, loadTagsFor, normalizeTags,
   removeTagEverywhere, renameTag, setTags, tagKey, tagsKey, taskIdsWithTag,
@@ -2730,7 +2731,10 @@ function notifyMentions(task, comment, authorId, previousComment = '') {
     if (!target) continue;
     const perms = resolvePermissions(db.get(), target);
     if (!perms.admin && perms.modules?.tasks === 'none') continue;
-    fanOutNotification({
+    // Als Job (#1532): die Fan-out-Provider schreiben nach asynchroner Zustellung
+    // noch Zustellstatus oder entfernen abgelaufene Abos. Die bestehende
+    // persönliche/haushaltsweite Auswahl und Payload bleiben unverändert.
+    runExternalJob(() => fanOutNotification({
       userId: id,
       payload: {
         title: task.title,
@@ -2739,7 +2743,7 @@ function notifyMentions(task, comment, authorId, previousComment = '') {
         tag: `task-comment-${task.id}`,
         priority: 'default',
       },
-    }).catch((err) => log.warn('Erwähnungs-Benachrichtigung fehlgeschlagen:', err?.message || err));
+    })).catch((err) => log.warn('Erwähnungs-Benachrichtigung fehlgeschlagen:', err?.message || err));
   }
 }
 
