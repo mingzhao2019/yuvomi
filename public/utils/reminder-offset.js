@@ -7,9 +7,12 @@
  * abgelegt (ohne abschließendes "Z"). Daher muss es hier ebenfalls als UTC
  * interpretiert werden — sonst entsteht ein doppelter Zeitzonen-Offset, der
  * sich bei jedem Speichern erneut aufaddiert (Issue #354).
+ *
+ * Die Faelligkeit ist dagegen WANDUHRZEIT der Haushaltszone und wird ueber
+ * `dueInstantMs` in einen Zeitpunkt umgerechnet - nicht per `new Date()`, das
+ * die Ziffern in der Zone des Geraets liest (#1522).
  */
-
-import { displayTimeZone, zonedFields } from './timezone.js';
+import { displayTimeZone, wallTimeToInstantMs, zonedFields } from './timezone.js';
 
 const TZ_SUFFIX = /[zZ]|[+-]\d{2}:?\d{2}$/;
 
@@ -23,39 +26,10 @@ export function parseRemindAtAsUtc(value) {
   return new Date(TZ_SUFFIX.test(value) ? value : `${value}Z`);
 }
 
-/**
- * Parst eine Yuvomi-Wanduhrzeit als Zeitpunkt in der Anzeige-/Haushaltszone.
- * Ohne explizite Haushaltszone bleibt die bisherige Browser-Zone der Fallback.
- * @param {string} value YYYY-MM-DDTHH:mm[:ss]
- * @param {string|null} timeZone IANA-Zone oder null für Browser-Lokalzeit
- * @returns {Date}
- */
+/** Parst eine Yuvomi-Wanduhrzeit als Zeitpunkt in der Anzeige-/Haushaltszone. */
 export function wallTimeToInstant(value, timeZone = displayTimeZone()) {
-  const raw = String(value ?? '').trim();
-  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?$/.exec(raw);
-  if (!match) return new Date(NaN);
-  const local = `${match[1]}T${match[2]}:${match[3] || '00'}`;
-
-  if (!timeZone) return new Date(local);
-
-  // `fakeUtc` carries the wall-clock digits as UTC fields. Formatting those
-  // digits in the target zone reveals the offset that has to be removed. This
-  // is the browser counterpart of server/utils/timezone.js:localToUTC().
-  const fakeUtc = new Date(`${local}Z`);
-  if (Number.isNaN(fakeUtc.getTime())) return new Date(NaN);
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric', month: 'numeric', day: 'numeric',
-    hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
-  }).formatToParts(fakeUtc);
-  const get = (type) => {
-    const part = parts.find((entry) => entry.type === type);
-    const valuePart = part ? Number(part.value) : 0;
-    return type === 'hour' && valuePart === 24 ? 0 : valuePart;
-  };
-  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
-  const offsetMs = fakeUtc.getTime() - asUtc;
-  return new Date(fakeUtc.getTime() + offsetMs);
+  const instantMs = wallTimeToInstantMs(value, timeZone);
+  return instantMs === null ? new Date(NaN) : new Date(instantMs);
 }
 
 /** 将 Yuvomi 的日期和时间字段保存为现有的 UTC（不带 Z）格式。 */
@@ -67,7 +41,8 @@ export function wallTimeToStoredUtc(date, time = '00:00', timeZone = displayTime
 function taskDueInstant(task) {
   if (!task?.due_date) return null;
   const dueTime = task.due_time || '23:59:59';
-  return wallTimeToInstant(`${task.due_date}T${dueTime}`);
+  const instantMs = wallTimeToInstantMs(`${task.due_date}T${dueTime}`);
+  return instantMs === null ? null : new Date(instantMs);
 }
 
 function absoluteReminderFields(reminder) {
@@ -83,14 +58,14 @@ function absoluteReminderFields(reminder) {
 }
 
 /**
- * Millisekunden-Versatz zwischen Fälligkeit (lokal) und Erinnerung (UTC).
+ * Millisekunden-Versatz zwischen Fälligkeit (Haushaltszone) und Erinnerung (UTC).
  * @returns {number|null} positiver Versatz in ms, oder null bei fehlenden Daten
  */
 export function parseOffsetMsFromReminder(task, reminder) {
   if (!task?.due_date || !reminder?.remind_at) return null;
   const due = taskDueInstant(task);
   const remind = parseRemindAtAsUtc(reminder.remind_at);
-  if (Number.isNaN(due.getTime()) || Number.isNaN(remind.getTime())) return null;
+  if (due === null || Number.isNaN(remind.getTime())) return null;
   return due.getTime() - remind.getTime();
 }
 
@@ -202,7 +177,7 @@ export function remindAtFromPreset(preset, {
     if (offsetMs === undefined) return null;
   }
 
-  const due = wallTimeToInstant(`${dueDate}T${dueTime || '23:59:59'}`);
-  if (Number.isNaN(due.getTime())) return null;
-  return new Date(due.getTime() - offsetMs).toISOString().slice(0, 19);
+  const due = wallTimeToInstantMs(`${dueDate}T${dueTime || '23:59:59'}`);
+  if (due === null) return null;
+  return new Date(due - offsetMs).toISOString().slice(0, 19);
 }
