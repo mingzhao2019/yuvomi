@@ -1248,11 +1248,11 @@ function buildOutlookCalendarList(account, calendars, user, selection) {
     windowLabel.textContent = t('settings.outlookSyncStartDate');
     windowLabel.appendChild(buildOutlookInfoButton(t('settings.outlookSyncStartDateHint')));
 
-    const dateInput = document.createElement('input');
-    dateInput.type = 'date';
-    dateInput.className = 'form-input outlook-calendar-item__date';
-    dateInput.value = cal.syncStartDate || '';
-    dateInput.disabled = user?.role !== 'admin';
+    const dateInput = document.createElement('yuvomi-datepicker');
+    dateInput.className = 'outlook-calendar-item__date';
+    dateInput.setAttribute('value', cal.syncStartDate || '');
+    dateInput.setAttribute('label', `${t('settings.outlookSyncStartDate')}: ${name.textContent}`);
+    if (user?.role !== 'admin') dateInput.setAttribute('disabled', '');
     dateInput.title = t('settings.outlookSyncStartDateHint');
     dateInput.setAttribute('aria-label', `${t('settings.outlookSyncStartDate')}: ${name.textContent}`);
     windowField.append(windowLabel, dateInput);

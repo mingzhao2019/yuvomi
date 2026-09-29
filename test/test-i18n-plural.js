@@ -274,6 +274,7 @@ const PLURAL_EXCEPTIONS = {
   'dashboard.healthRefill': 'NO_NOUN',
   'health.labs.abnormalBadge': 'NO_NOUN',
   'subscriptions.activeCount': 'NO_NOUN',
+  'budget.loansSummary': 'NO_NOUN',
 
   // --- Zahl in Klammern / hinter Doppelpunkt ------------------------------
   'category.errorInUse': 'PARENTHETICAL',
@@ -585,6 +586,7 @@ const FEW_GAPS_LEGACY = new Set([
   "splitExpenses.receiptsAttachedLabel",
   "subscriptions.endsAfter",
   "subscriptions.filtersActive",
+  "subscriptions.listCount",
   "subscriptions.overdueDays",
   "subscriptions.reminderMeta",
   "tasks.bulkTagHint",

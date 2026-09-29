@@ -138,35 +138,37 @@ one of the areas below.
 
 ## Current sync checkpoint
 
-As of 2026-09-28, the latest reviewed upstream checkpoint is `60b022d96`
-(#1492), following `b23ce8fbd`. Commits `fdf137f33` (#1490), `2b15bdc91`
-(#1491), and `60b022d96` (#1492) were selectively ported from the current
-`custom` history on `custom-upstream-selective-2026-09-28`; the upstream branch
-was not merged wholesale.
+As of 2026-09-29, the latest reviewed upstream checkpoint is `40880779b`
+(#1533), following `60b022d96` (#1492). The current `custom` history
+selectively ports the reviewed updates through #1533, including #1493, #1495,
+#1501, #1502, #1513, #1521, #1520, #1517, #1512, #1518, #1519, #1525, #1527,
+#1528, #1526, and #1533. The ports were composed on
+`custom-upstream-selective-2026-09-29`; the upstream branch was not merged
+wholesale.
 
 The review covered quiet surfaces and plain-language labels, budget and search
 behavior, due-today filtering, chart readability, document guards, the command
 palette, task subtasks and kanban actions, calendar accessible names, dashboard
 customization guards, settings sheets, notifications and toasts, inventory
-category addresses, and the shared mobile/desktop layout. The port preserved
-custom task-list filtering and Markdown checklist behavior, Microsoft To Do
-list and provider behavior, calendar completion controls and subscriptions,
-notification scopes, inventory/assets and permissions, dashboard widgets, and
-the Microsoft To Do checklist boundary. Where upstream overlapped custom,
-task-list context and filtering, calendar controls, inventory permissions and
-hierarchy, and localized custom copy were composed explicitly rather than
-choosing an entire file.
+category addresses, shared mobile/desktop layout, recurring task and CalDAV
+targets, split-ledger cleanup, attachment shares, reminder time zones, bounded
+CalDAV repair, restore gating, and the document-guard/test harness changes in
+#1533. The port preserved custom task-list filtering and Markdown checklist
+behavior, Microsoft To Do list and provider behavior, calendar completion
+controls and subscriptions, notification scopes, inventory/assets and
+permissions, dashboard widgets, and the Microsoft To Do checklist boundary.
+Where upstream overlapped custom, the affected contracts were composed
+explicitly rather than choosing an entire file.
 
 Inventory feature commit `e146829b3` (#1257), which was not present in the
-custom data model, was manually ported as well. Its upstream migration `224`
-could not be reused because custom already has a released migration `224` for
-task completions; the port is append-only migration `236`. It adds recurring
-tracked-date fields, the service-log and history endpoints, and manual odometer
-fields while retaining custom personal/household asset scope, visibility,
-assignment, administrator boundaries, and existing Budget/Document visibility
-rules. The related OpenAPI paths, Inventory data-model documentation, and
-focused service-log tests were updated together. No released migration was
-rewritten.
+custom data model, was manually ported as append-only migration `236` because
+custom already has a released migration `224` for task completions. It adds
+recurring tracked-date fields, the service-log and history endpoints, and
+manual odometer fields while retaining custom personal/household asset scope,
+visibility, assignment, administrator boundaries, and existing Budget/Document
+visibility rules. The related OpenAPI paths, Inventory data-model
+documentation, and focused service-log tests were updated together. No
+released migration was rewritten; the current schema migration remains `237`.
 
 The current release version remains `2.69.1`; root package versions and
 `public/sw.js` are synchronized. Replace this section with a new checkpoint

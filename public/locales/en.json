@@ -3751,7 +3751,7 @@
         "taskFrequency": "Frequency (days)",
         "createTask": "Create task",
         "taskCreatedToast": "Housekeeping task created.",
-        "dashboard": "Dashboard",
+        "dashboard": "Overview",
         "reports": "Reports",
         "visitsThisMonth": "Visits this month",
         "lastVisit": "Last visit",

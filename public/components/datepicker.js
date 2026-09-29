@@ -149,6 +149,12 @@ class YuvomiDatepicker extends HTMLElement {
 
   get type() { return this._type; }
 
+  get disabled() { return this.hasAttribute('disabled'); }
+
+  set disabled(value) {
+    this.toggleAttribute('disabled', Boolean(value));
+  }
+
   focus() { this._subs[0]?.input?.focus(); }
 
   // ── Aufbau ─────────────────────────────────────────────────────────────
