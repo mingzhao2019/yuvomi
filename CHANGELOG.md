@@ -139,6 +139,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The demo data shows an ordinary family day on any date.** Three tasks for Linda, Alex and Leo
+  are due today, today brings an all-day sports day and an evening movie night, and the weekly
+  classes start in the first week of the month, so the overview no longer says "Nothing else today"
+  beside "No tasks assigned for today" and the month view is filled from the 1st. Six single
+  events are spread across the whole current month, never on today, so the month is not empty
+  before today either. Every meal of today is planned, and this week's Friday pizza exists before
+  the meal plan is opened. Height and head circumference have a value, so no vitals card reads
+  "No value yet". Only a database filled by `scripts/seed-demo.js` is affected. The screenshot
+  script pins the browser clock to the evening, so the overview shows dinner, can write to another
+  folder and capture single motifs, and adds a wall-mode shot.
+
+- **The website speaks to the whole family, and its module list follows the app's menu.** A new
+  section shows three moments from the family's side - the tablet on the kitchen wall, the app on
+  every phone and an invite with the right access for each role - drawn with the three circles of
+  the logo instead of a mock screenshot. The module section is grouped like the app's navigation
+  (Plan, Household, People, Finance, plus what lives in Settings) instead of one long row of cards,
+  and the handoffs show the item travelling from one module to the next once as they scroll in.
+  The hero no longer tilts, the grain overlay is gone, the first gallery screen is the meal week
+  instead of a repeat of the hero, and the page ends on the family call to action rather than on
+  the key warning, which stays in full on the install page.
+
+- **The website wears the app's colours and buttons.** Module colours follow the app's areas of
+  life (kitchen orange for meals, recipes, shopping and pantry; one green for tasks, housekeeping
+  and rewards), dark mode uses the app's warmer card and border tones, and every button is a flat
+  capsule like in the app instead of a lifted, glowing rectangle. The copy button on the install
+  page no longer shows white text on bright green in dark mode, and the legal pages keep their
+  header on one line on a phone.
+
+- **The website says less and promises only what the app does.** "What it replaces" is a short
+  band of six pairs instead of a ten-row table, the module catalog shows names first and puts the
+  descriptions behind "Show descriptions" on every screen size, and contacts sit under People as in
+  the app's menu. The pantry handoff no longer claims the last jar is "already" on the list (one
+  tap puts it there, and reminders are about best-before dates only), points are described as going
+  to whoever did the task, and a fourth question before you commit answers how safe access from
+  outside is: two-factor sign-in that an admin can require, invite links, SSO-only login and
+  signing out other devices. The same two sentences are corrected in the README. The page is about
+  1,350px shorter on a desktop and 800px shorter on a phone.
+
 - **The web installer looks and works like the app.** A step list on the desktop jumps back to
   finished steps and stays with you while Yuvomi starts, on/off options are switches as in the app,
   a phone shows more of each step, and the review groups your answers with a "Change" link each. The language you set up in carries over to the app, the upload limit can be
@@ -766,6 +804,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   school holidays" save when you flip them, like the other switches, and confirm with a message.
 
 ### Fixed
+
+- **"Due today" stays readable on the selected task.** On a wide screen the task open on the
+  right is highlighted in the list, and on that highlight "Due today" and "Overdue" fell below
+  the 4.5:1 contrast the rest of the app keeps. Both now use the darker text shade there.
+
+- **The website no longer states things the app does not do.** The quick start said a database
+  left on the placeholder key gets encrypted with a public value; Yuvomi does not start on the
+  placeholders at all, and the note now says so. The install page promised a two-command Docker
+  setup where the steps are a handful of commands plus one edit in `.env`. The site and both
+  READMEs named OpenAPI 3.0 while the server delivers 3.1 and called documents "tagged", and "turn
+  on what fits" stood over four modules that cannot be switched off. The outbound note now lists
+  every service that connects once you switch it on, as the README does.
+
+- **The install page's steps and fixes match the files they describe.** A busy port is now moved
+  with `OIKOS_HTTP_PORT` in `.env` instead of by editing the compose file, and the database reset
+  removes the data folder, which `docker compose down -v` never touched. Step 2 names the
+  `REPLACE_WITH_…` placeholders and how to edit `.env`, a new first fix covers a container that
+  keeps restarting on them, and the Docker path switches its commands to Podman. Portainer and
+  Windows get a note each, and the last step shows the right address for Proxmox and the web
+  installer.
+
+- **Every install path on the website runs to the end.** The Proxmox steps installed a Debian
+  package that does not exist in Debian 13 and created the container from a template that was
+  never downloaded; they now fetch the current template with `pveam` and install `docker-compose`,
+  and the Docker steps sit in the Proxmox tab itself, so the page ends on the container's address
+  instead of `localhost`. The web installer names the SSH tunnel for opening it from another
+  device and points servers without a browser to `bash install.sh`. After choosing Podman,
+  troubleshooting, restarts and updates show Podman commands too. Umbrel no longer reads as if it
+  had asked for the keys it generates itself, TrueNAS calls the database key optional like its
+  own form, and the encryption decision comes before the first start. On a phone the download
+  commands wrap, so the file name is visible.
+- **The website loads less and keeps one header on every page.** On a desktop the landing page
+  no longer downloads a 414 KB English screenshot in PNG alongside the one it shows (about 180 KB of
+  images instead of up to 590 KB); only visitors without JavaScript get the PNGs. No screenshot
+  appears twice any more, the dot in "Why one app" travels along the arrow instead of across the
+  first label, the expanded Household group has no gap between its entries, and at 320px the header
+  fits the screen. The privacy notice, Datenschutz and Impressum use the same glass header as the
+  other pages, with the logo in the same place on all five, and with "reduce transparency" or "increase contrast" switched on in the system the
+  header turns solid, as in the app.
+
+- **The website is easier to use on a phone and with a keyboard.** The Install button at the
+  bottom of the phone screen stays while you read and only steps aside over the command blocks and
+  the closing buttons; it used to vanish on every downward scroll. The section menu no longer hangs
+  off the left edge on a phone, fits its longest entry on one line and closes with Escape or when
+  focus moves on. Links inside sentences are underlined and easier to tap, long captions and legal
+  text wrap at a readable width, and the German page no longer shows English first and then jumps
+  on a slow connection. The legal pages share the install page's header and footer links. With
+  JavaScript off, the home page no longer shows an empty box above the dashboard picture.
+
+- **The website's evidence links show what they claim.** "0 trackers" now opens the README's
+  full list of outbound connections instead of the website's own privacy policy, and the source
+  link says it leads to the update check. The quick start names the image's architectures, amd64
+  and arm64 including Raspberry Pi 4 and 5. Every page has a home-screen and PNG icon, search
+  engines get a sitemap and a description of the app, the German page carries a German
+  description, and on a phone no separator dot is left hanging at the end of the stats line. The
+  English note on the imprint links the English privacy policy.
 
 - **The weather settings show weather configured by the server.** A location set during
   installation (`WEATHER_*`, or the legacy `OPENWEATHER_*`) showed weather on the overview while

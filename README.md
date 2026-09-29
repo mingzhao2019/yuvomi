@@ -78,23 +78,19 @@ change must be reviewed against the custom data model and UI before it is adapte
 | Instead of juggling… | Yuvomi gives you |
 |---|---|
 | a to-do &amp; task app | **Tasks** - Kanban, persistent task lists, deadlines, recurring, multi-assignment |
-| a shared calendar subscription | **Calendar** - sync, subscriptions, per-event visibility |
-| a cost-splitting app | **Shared expenses** - shared costs with debt simplification |
-| a budgeting app | **Budget** - income, expenses, accounts, savings goals |
+| a family calendar app | **Calendar** - sync, subscriptions, per-event visibility |
 | a meal planner &amp; recipe app | **Meals &amp; Recipes** - weekly planner with shopping export |
 | a grocery-list app | **Shopping** - shared, aisle-organized lists |
-| a pantry &amp; expiry tracker | **Pantry** - stock, storage location, best-before dates |
-| a document manager | **Documents** - tagged, searchable family files |
-| a home-inventory app | **Inventory** - owned belongings, purchase price, warranty, linked receipts |
-| a notes app &amp; contacts sync | **Notes &amp; Contacts** - Markdown notes, CardDAV sync |
+| a budgeting &amp; cost-splitting app | **Budget** - income, expenses, accounts, savings goals, shared costs with debt simplification |
+| a document manager | **Documents** - searchable family files in folders |
 
 ## The modules talk to each other
 
 This is the part a folder full of separate apps cannot do:
 
 - **The week's meal plan writes the shopping list.** Plan Thursday, and the ingredients are on the list before anyone walks to the shop.
-- **The last jar out of the pantry is already on the list.** Tick items off after a shop and they book back into the pantry with their quantity.
-- **A ticked-off chore pays out.** Points on a task land on the assigned member's account, and the reward catalog spends them.
+- **The last jar out of the pantry goes on the list with one tap.** Tick items off after a shop and they book back into the pantry with their quantity.
+- **A ticked-off chore pays out.** Points on a task go to whoever did it - the assignee, or the person picked when it is ticked off - and the reward catalog spends them.
 - **A filed receipt hangs on the booking.** Upload it once and it belongs to the transaction, the shared expense and the inventory item at the same time.
 
 ## The twenty modules
@@ -121,7 +117,7 @@ Turn on what your household needs; the rest stays out of the way.
 | **Birthdays** | Birthday and optional name-day tracker with automatic calendar events, age display and reminders. |
 | **Family** | Member profiles with roles, photos and contact details. New members join through an invite link and pick their own password. |
 | **Reminders** | Reminders on tasks, events, shifts, subscription renewals, warranties, inventory deadlines, best-before dates and waste pickups, via in-app badges, opt-in push, and household Gotify, ntfy, webhook or email channels. A reminder on a shared event reaches everyone assigned to it, each with their own copy to move or dismiss. |
-| **API Tokens** | Bearer / X-API-Key tokens with an OpenAPI 3.0 spec and a built-in MCP endpoint for AI agents. Writes are retry-safe via an optional `Idempotency-Key` header. |
+| **API Tokens** | Bearer / X-API-Key tokens with an OpenAPI 3.1 spec and a built-in MCP endpoint for AI agents. Writes are retry-safe via an optional `Idempotency-Key` header. |
 | **Backup** | Manual and scheduled backup/restore with pre-restore rollback and optional cloud upload. |
 
 Two more things you only get on your own server: **wall mode** turns the kitchen tablet into a
