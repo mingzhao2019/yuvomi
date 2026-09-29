@@ -967,9 +967,11 @@ async function fetchObjectsByUrl(client, wanted) {
  * @param {{createClient?: Function}} [opts] Client-Factory (Tests)
  * @returns {Promise<{deleted:number,updated:number}>}
  */
-export async function flushOutbound(opts = {}) {
+async function flushTodoOutbound(opts = {}) {
   return runSerialized('caldav-todo', 'flush', () => runFlushOutbound(opts));
 }
+
+export { flushTodoOutbound as flushOutbound };
 
 async function runFlushOutbound({ createClient } = {}) {
   const total  = { deleted: 0, updated: 0, created: 0 };

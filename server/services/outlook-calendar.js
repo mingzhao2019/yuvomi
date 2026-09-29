@@ -2184,7 +2184,7 @@ async function runOutlookSync({ fetchImpl = fetch, inbound = true } = {}) {
 }
 
 /** Immediate best-effort outbound pass used after local event mutations. */
-async function flushOutbound(options = {}) {
+async function flushOutlookOutbound(options = {}) {
   return sync({ ...options, inbound: false });
 }
 
@@ -2471,7 +2471,7 @@ export {
   markEventOutbound,
   markReminderOutbound,
   queueEventDeletion,
-  flushOutbound,
+  flushOutlookOutbound as flushOutbound,
   assertConfigured,
   getAccountById,
   ensureAccessToken,

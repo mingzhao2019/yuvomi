@@ -17,7 +17,7 @@ import { completionFeed, seriesHistory, syncTaskCompletion } from '../services/t
 import { normalizeCategoryFilter, taskCategoryWhere, taskScopeNeedsToday, taskScopeWhere } from '../services/task-scope.js';
 import { normalizeVisibility, visibilityWhere } from '../services/visibility.js';
 import {
-  flushOutbound, markTodoOutbound, queueTodoDeletion, recurrenceFollowupTarget,
+  flushOutbound as flushTodoOutbound, markTodoOutbound, queueTodoDeletion, recurrenceFollowupTarget,
 } from '../services/caldav-todo-outbound.js';
 import {
   changesMicrosoftTodoRecurrence, markTaskOutbound, queueTaskDeletion, sync as syncMicrosoftTodo,
@@ -54,8 +54,13 @@ function pushToCalDAV(what) {
   flushOutbound().catch((err) => log.warn(`${what} vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
 }
 
+function flushOutbound() {
+  return runExternalJob(() => flushTodoOutbound());
+}
+
 function pushToMicrosoftTodo(what, options = {}) {
-  syncMicrosoftTodo(options).catch((err) => log.warn(`${what} für Microsoft To Do vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
+  runExternalJob(() => syncMicrosoftTodo(options))
+    .catch((err) => log.warn(`${what} für Microsoft To Do vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
 }
 
 /**

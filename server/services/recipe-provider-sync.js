@@ -281,7 +281,8 @@ export function getStatus() {
 
 export function startScheduler() {
   const run = () => {
-    sync().catch((err) => log.error('Recipe provider sync scheduler run failed:', err?.message || err));
+    runExternalJob(syncUntracked)
+      .catch((err) => log.error('Recipe provider sync scheduler run failed:', err?.message || err));
   };
   setTimeout(run, 10_000).unref();
   setInterval(run, SYNC_INTERVAL_MS).unref();

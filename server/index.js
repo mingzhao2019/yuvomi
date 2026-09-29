@@ -767,38 +767,44 @@ try {
 }
 
 async function runSync() {
+  const jobs = [];
+  const schedule = (name, run) => {
+    jobs.push(Promise.resolve().then(run).catch((e) => logSync.error(`${name} error:`, e.message)));
+  };
+
   const { connected: googleConnected } = googleCalendar.getStatus();
   if (googleConnected) {
-    googleCalendar.sync().catch((e) => logSync.error('Google error:', e.message));
+    schedule('Google', () => googleCalendar.sync());
   }
 
   const { configured: appleConfigured } = appleCalendar.getStatus();
   if (appleConfigured) {
-    appleCalendar.sync().catch((e) => logSync.error('Apple error:', e.message));
+    schedule('Apple', () => appleCalendar.sync());
   }
 
   // ICS: kein Guard nötig — sync() fragt die DB ab und kehrt sofort zurück wenn keine Abonnements existieren
-  icsSubscription.sync().catch((e) => logSync.error('ICS error:', e.message));
+  schedule('ICS', () => icsSubscription.sync());
 
   // CalDAV Kalender (VEVENT): kein Guard nötig — sync() kehrt sofort zurück, wenn
   // keine Accounts konfiguriert sind.
-  caldavSync.sync().catch((e) => logSync.error('CalDAV error:', e.message));
+  schedule('CalDAV', () => caldavSync.sync());
 
   // CalDAV Reminders (VTODO → Tasks/Shopping): kein Guard nötig — sync() kehrt sofort
   // zurück, wenn keine aktivierten Reminder-Listen konfiguriert sind.
-  caldavReminders.sync().catch((e) => logSync.error('CalDAV reminders error:', e.message));
+  schedule('CalDAV reminders', () => caldavReminders.sync());
 
   // Outlook-Sync (Microsoft Graph, bidirektional): kein Guard nötig — sync() kehrt sofort
   // zurück, wenn keine Konten verbunden sind.
-  outlookCalendar.sync().catch((e) => logSync.error('Outlook error:', e.message));
-  microsoftTodo.sync().catch((e) => logSync.error('Microsoft To Do error:', e.message));
+  schedule('Outlook', () => outlookCalendar.sync());
+  schedule('Microsoft To Do', () => microsoftTodo.sync());
 
   // CardDAV Kontakte: kein Guard nötig — sync() kehrt sofort zurück, wenn keine
   // Accounts konfiguriert sind.
-  carddavSync.sync().catch((e) => logSync.error('CardDAV error:', e.message));
+  schedule('CardDAV', () => carddavSync.sync());
 
   // Holidays: kein Guard nötig — sync() kehrt sofort zurück, wenn kein Land konfiguriert ist.
-  holidays.sync().catch((e) => logSync.error('Holidays error:', e.message));
+  schedule('Holidays', () => holidays.sync());
+  await Promise.all(jobs);
 }
 
 // --------------------------------------------------------

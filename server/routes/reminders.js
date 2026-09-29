@@ -13,6 +13,7 @@ import { markTaskReminderOutbound } from '../services/microsoft-todo.js';
 import { fanOutEventReminders, eventAuthorId } from '../services/event-reminder-fanout.js';
 import * as calendarOutbound from '../services/calendar-outbound.js';
 import * as outlookCalendar from '../services/outlook-calendar.js';
+import { runExternalJob } from '../utils/restore-state.js';
 import { recordManualOwnerReminderChange } from '../services/calendar-event-reminders.js';
 import { deniedModules } from '../permissions.js';
 import { tokenAllows } from '../scopes.js';
@@ -65,10 +66,10 @@ function syncCalendarReminderOutbound(entityType, entityId, userId, hasReminders
   const outlookPending = outlookCalendar.markReminderOutbound(event);
   if (!genericPending && !outlookPending) return;
 
-  Promise.all([
+  runExternalJob(() => Promise.all([
     genericPending ? calendarOutbound.flushOutbound() : null,
     outlookPending ? outlookCalendar.flushOutbound() : null,
-  ]).catch((err) => log.warn('Event reminder change queued, immediate push failed:', err.message));
+  ])).catch((err) => log.warn('Event reminder change queued, immediate push failed:', err.message));
 }
 
 /**

@@ -26,6 +26,7 @@ import {
 } from '../../services/document-storage.js';
 import * as outlookCalendar from '../../services/outlook-calendar.js';
 import { queueEventDeletion, markEventOutbound, flushOutbound } from '../../services/calendar-outbound.js';
+import { runExternalJob } from '../../utils/restore-state.js';
 import { ensureDefaultEventReminders, clearReminderSuppression } from '../../services/calendar-event-reminders.js';
 import { SOURCE_CALENDAR_COLUMNS, SOURCE_CALENDAR_JOIN } from '../../services/calendar-events.js';
 import { newNonMembers, nonMemberMessage } from '../../services/household-members.js';
@@ -1226,10 +1227,10 @@ router.put('/:id', async (req, res) => {
     }) });
 
     if (pending) {
-      Promise.all([
+      runExternalJob(() => Promise.all([
         genericPending ? flushOutbound() : null,
         outlookPending ? outlookCalendar.flushOutbound() : null,
-      ])
+      ]))
         .catch((e) => log.warn('Änderung vorgemerkt, Sofortversuch fehlgeschlagen:', e.message));
     }
   } catch (err) {
@@ -1839,10 +1840,10 @@ router.delete('/:id', (req, res) => {
     // verzögern noch scheitern lassen. Schlägt er fehl, bleibt der Tombstone
     // liegen und der nächste Sync-Lauf holt die Löschung nach.
     if (queued) {
-      Promise.all([
+      runExternalJob(() => Promise.all([
         genericQueued ? flushOutbound() : null,
         outlookQueued ? outlookCalendar.flushOutbound() : null,
-      ])
+      ]))
         .catch((err) => log.warn('Löschung vorgemerkt, Sofortversuch fehlgeschlagen:', err.message));
     }
   } catch (err) {

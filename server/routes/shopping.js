@@ -13,8 +13,9 @@ import * as db from '../db.js';
 import { str, oneOf, url, date, collectErrors, MAX_TITLE, MAX_SHORT, MAX_TEXT } from '../middleware/validate.js';
 import { aggregateMealIngredients } from '../services/shopping-import.js';
 import { loadItemTagsFor } from '../utils/task-tags.js';
+import { runExternalJob } from '../utils/restore-state.js';
 import {
-  flushOutbound, markTodoOutbound, queueTodoDeletions,
+  flushOutbound as flushTodoOutbound, markTodoOutbound, queueTodoDeletions,
 } from '../services/caldav-todo-outbound.js';
 import rateLimit from 'express-rate-limit';
 import { emailService as defaultEmailService } from '../services/email.js';
@@ -66,6 +67,10 @@ function mirroredItems(where, ...params) {
  */
 function pushToCalDAV(what) {
   flushOutbound().catch((err) => log.warn(`${what} vorgemerkt, Sofortversuch fehlgeschlagen:`, err.message));
+}
+
+function flushOutbound() {
+  return runExternalJob(() => flushTodoOutbound());
 }
 
 /** Alle Kategorien aus DB laden (nach sort_order sortiert). */
