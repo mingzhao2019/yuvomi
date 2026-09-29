@@ -208,6 +208,7 @@
         "wallTimerAcknowledge": "Matikan pengatur waktu",
         "wallTimerDone": "Selesai",
         "wallExited": "Mode dinding nonaktif. Kembali lewat “{{action}}” di header halaman.",
+        "wallEntered": "Mode dinding: ringkasan sebagai tampilan tenang untuk dinding. Keluar lewat “{{action}}” di bawah atau tombol Kembali.",
         "wallOffline": "Tidak ada koneksi",
         "wallOfflineHint": "Layar terus mencoba.",
         "familyMembers": "Anggota keluarga",

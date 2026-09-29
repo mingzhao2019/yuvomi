@@ -216,6 +216,7 @@
         "wallTimerAcknowledge": "Wyłącz minutnik",
         "wallTimerDone": "Gotowe",
         "wallExited": "Tryb ścienny wyłączony. Wróć przez „{{action}}” w nagłówku strony.",
+        "wallEntered": "Tryb ścienny: przegląd jako spokojny ekran na ścianę. Wyjdziesz przez „{{action}}” na dole lub przyciskiem Wstecz.",
         "wallOffline": "Brak połączenia",
         "wallOfflineHint": "Ekran próbuje dalej.",
         "familyMembers": "Członkowie rodziny",

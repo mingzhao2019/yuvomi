@@ -194,6 +194,7 @@
         "wallTimerAcknowledge": "タイマーを止める",
         "wallTimerDone": "完了",
         "wallExited": "ウォールモードを終了しました。ページ上部の「{{action}}」で戻れます。",
+        "wallEntered": "ウォールモード: 概要を壁掛け用の落ち着いた表示にします。下の「{{action}}」または「戻る」で終了できます。",
         "wallOffline": "接続がありません",
         "wallOfflineHint": "画面は再試行を続けます。",
         "familyMembers": "家族メンバー",

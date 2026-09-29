@@ -194,6 +194,7 @@
         "wallTimerAcknowledge": "Desligar temporizador",
         "wallTimerDone": "Pronto",
         "wallExited": "Modo parede desativado. Volte por «{{action}}» no cabeçalho.",
+        "wallEntered": "Modo parede: o resumo como ecrã tranquilo para a parede. Saia por «{{action}}» em baixo ou com Voltar.",
         "wallOffline": "Sem ligação",
         "wallOfflineHint": "O ecrã continua a tentar.",
         "familyMembers": "Membros da família",
