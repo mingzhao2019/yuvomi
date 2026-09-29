@@ -16,7 +16,7 @@ import {
   hasExplicitZone, householdTimeZone, shiftDateKey, storedToInstantMsPrecise, utcToWall,
 } from '../utils/timezone.js';
 import { createLogger } from '../logger.js';
-import { applyDocumentAccess } from './document-access.js';
+import { applyDocumentAccess, attachmentAccessMode, eventAudienceChanged } from './document-access.js';
 
 const log = createLogger('CalendarOccurrenceOverrides');
 
@@ -791,12 +791,22 @@ function independentAttachmentValues(database, cloned, sourceDocumentId, claimed
 }
 
 /**
- * Das Anhang-Dokument folgt dem Termin. Weiter oeffnen darf es nur, wem
- * `mayWiden(documentId)` das zugesteht - der Aufrufer reicht es als
- * `mayWidenAttachment` herein (Dokumente schreiben UND das Dokument sehen,
- * #1358). Ohne ihn wird nur verengt: `applyDocumentAccess()`.
+ * Das Anhang-Dokument folgt dem Termin, soweit `mayWiden(documentId)` das
+ * zugesteht - der Aufrufer reicht es als `mayWidenAttachment` herein: `true`
+ * (Dokumente schreiben, das Dokument sehen UND verwalten, #1358) gleicht voll
+ * ab, `ATTACHMENT_NARROW_ONLY` (in diesem Schreiben neu hochgeladen) verengt
+ * nur. Ohne Urteil bleibt das Dokument unangetastet (#1443): `applyDocumentAccess()`.
+ *
+ * Und nur, wenn sich das Publikum aendert (#1443): `before` ist, wer den Termin
+ * vor diesem Speichern sah (`{ visibility, userIds }`, `null` ohne Vorzustand).
+ * Bleibt es gleich, bleibt das Dokument - ausser der Anhang ist in diesem
+ * Speichern neu gesetzt (`attachmentSet`). Eine Kopie (Split, Abloesen) zaehlt
+ * nicht als neu gesetzt: sie traegt schon die Rechte ihrer Quelle.
  */
-function syncOwnedAttachmentAccess(database, documentId, visibility, userIds, mayWiden = () => false) {
+function syncOwnedAttachmentAccess(database, documentId, visibility, userIds, mayWiden = () => false, {
+  before = null, attachmentSet = false,
+} = {}) {
+  if (!attachmentSet && !eventAudienceChanged(before, { visibility, userIds })) return;
   if (!documentId
       || !hasColumn(database, 'family_documents', 'visibility')
       || !hasColumn(database, 'family_document_access', 'document_id')
@@ -809,7 +819,7 @@ function syncOwnedAttachmentAccess(database, documentId, visibility, userIds, ma
   applyDocumentAccess(database, documentId, {
     visibility: documentVisibility,
     userIds,
-    mayWiden: mayWiden(documentId) === true,
+    ...attachmentAccessMode(mayWiden(documentId)),
   });
 }
 
@@ -1308,6 +1318,11 @@ export function upsertOccurrenceOverride(database, {
         child.visibility,
         effectiveAssignments,
         mayWidenAttachment,
+        {
+          before: { visibility: current.visibility, userIds: currentAssignments },
+          attachmentSet: createdAttachment !== undefined
+            && !sameAttachment(effectiveAttachment, currentAttachment),
+        },
       );
     }
     return { event: resolveOccurrence(database, child, master), restored: false };
@@ -1576,6 +1591,7 @@ function refreshReparentedChild(database, child, oldResolved, successor, success
     JSON.stringify(orderedFields),
     child.id,
   );
+  const assignmentsBefore = canonicalIds(assignmentIds(database, child.id));
   replaceAssignments(database, child.id, effectiveAssignments);
   if (orderedFields.includes('attachment')) {
     syncOwnedAttachmentAccess(
@@ -1584,6 +1600,7 @@ function refreshReparentedChild(database, child, oldResolved, successor, success
       values.visibility,
       effectiveAssignments,
       mayWidenAttachment,
+      { before: { visibility: oldResolved.visibility, userIds: assignmentsBefore } },
     );
   }
   return true;
@@ -1661,10 +1678,11 @@ export function splitSeries(database, {
 
     const selectedFields = selectedChild ? parseOverrideFields(selectedChild.overridden_fields) : [];
     const requestedAssignments = assignments === undefined ? undefined : orderedIds(assignments);
+    const selectedAssignments = selectedFields.includes('assignments')
+      ? canonicalIds(assignmentIds(database, selectedChild.id))
+      : canonicalIds(assignmentIds(database, master.id));
     const successorAssignments = requestedAssignments === undefined
-      ? selectedFields.includes('assignments')
-        ? canonicalIds(assignmentIds(database, selectedChild.id))
-        : canonicalIds(assignmentIds(database, master.id))
+      ? selectedAssignments
       : requestedAssignments;
     successorValues.assigned_to = requestedAssignments === undefined
       ? selectedFields.includes('assignments')
@@ -1799,6 +1817,15 @@ export function splitSeries(database, {
       successor.visibility,
       successorAssignments,
       mayWidenAttachment,
+      {
+        // Verglichen wird mit dem Publikum, dem das Dokument bisher folgte: dem
+        // des Serientermins, wenn er den Anhang selbst trug, sonst dem des
+        // Serienkopfs - eine geerbte Kopie folgt einem engeren Termin (Review #1443).
+        before: selectedFields.includes('attachment')
+          ? { visibility: selectedResolved.visibility, userIds: selectedAssignments }
+          : { visibility: master.visibility, userIds: canonicalIds(assignmentIds(database, master.id)) },
+        attachmentSet: createdAttachment !== undefined,
+      },
     );
     for (const child of children) {
       if (orphanIds.has(Number(child.id))) continue;
@@ -1993,6 +2020,10 @@ function materializeDetachedChild(database, child, master, {
       resolved.visibility,
       effectiveAssignments,
       mayWidenAttachment,
+      // Die Kopie traegt die Rechte der Quelle, und die folgte dem Serienkopf:
+      // abgeglichen wird, wenn der abgeloeste Termin ein anderes Publikum hat
+      // als der Serienkopf (Review #1443).
+      { before: { visibility: master.visibility, userIds: canonicalIds(assignmentIds(database, master.id)) } },
     );
   }
 }
@@ -2110,8 +2141,9 @@ function refreshInheritedChild(database, child, oldResolved, updatedMaster, tz, 
   }
   const ownsAssignments = fields.includes('assignments');
   const ownsAttachment = fields.includes('attachment');
+  const assignmentsBefore = canonicalIds(assignmentIds(database, child.id));
   const effectiveAssignments = ownsAssignments
-    ? canonicalIds(assignmentIds(database, child.id))
+    ? assignmentsBefore
     : canonicalIds(assignmentIds(database, updatedMaster.id));
   if (!ownsAssignments) {
     replaceAssignments(database, child.id, effectiveAssignments);
@@ -2162,6 +2194,7 @@ function refreshInheritedChild(database, child, oldResolved, updatedMaster, tz, 
       values.visibility,
       effectiveAssignments,
       mayWidenAttachment,
+      { before: { visibility: oldResolved.visibility, userIds: assignmentsBefore } },
     );
   }
 }
@@ -2280,6 +2313,7 @@ export function updateSeriesWithOverrides(database, {
         updated.visibility,
         canonicalIds(assignmentIds(database, master.id)),
         mayWidenAttachment,
+        { before: { visibility: current.visibility, userIds: currentAssignments }, attachmentSet: true },
       );
     }
     const orphanIds = new Set(orphans.map((child) => Number(child.id)));
