@@ -17,7 +17,7 @@ import { completionFeed, seriesHistory, syncTaskCompletion } from '../services/t
 import { normalizeCategoryFilter, taskCategoryWhere, taskScopeNeedsToday, taskScopeWhere } from '../services/task-scope.js';
 import { normalizeVisibility, visibilityWhere } from '../services/visibility.js';
 import {
-  flushOutbound, markTodoOutbound, queueTodoDeletion,
+  flushOutbound, markTodoOutbound, queueTodoDeletion, recurrenceFollowupTarget,
 } from '../services/caldav-todo-outbound.js';
 import {
   changesMicrosoftTodoRecurrence, markTaskOutbound, queueTaskDeletion, sync as syncMicrosoftTodo,
@@ -1854,6 +1854,7 @@ router.put('/:id', (req, res) => {
     let pendingMicrosoft = false;
     let undone  = 0;
     let undoneMicrosoft = 0;
+    let spawned = false;
     let updated;
     db.get().transaction(() => {
       db.get().prepare(`
@@ -1937,7 +1938,7 @@ router.put('/:id', (req, res) => {
       // Das Status-Dropdown im Bearbeiten-Formular hakt genauso ab wie die Checkbox -
       // also muss es die Serie genauso weiterschreiben. Grundlage ist die frisch
       // gelesene Zeile, damit im selben Zug geänderte Regel/Fälligkeit schon zählen.
-      if (status === 'done' && task.status !== 'done') spawnRecurrenceFollowup(updated);
+      if (status === 'done' && task.status !== 'done') spawned = spawnRecurrenceFollowup(updated);
     })();
 
     addAssignedUsers(updated);
@@ -1945,7 +1946,7 @@ router.put('/:id', (req, res) => {
 
     res.json({ data: updated });
 
-    if (pending || undone || (syncTarget?.provider === 'caldav')) pushToCalDAV('Änderung');
+    if (pending || undone || spawned || (syncTarget?.provider === 'caldav')) pushToCalDAV('Änderung');
     if (pendingMicrosoft || undoneMicrosoft || syncTarget?.provider === 'microsoft_todo') {
       const microsoftSyncOptions = { queueIfRunning: true };
       if (status === 'done' && task.status !== 'done') {
@@ -2079,16 +2080,19 @@ function shiftedStartDate(startDate, dueDate, nextDue) {
  * das Status-Dropdown im Bearbeiten-Dialog (PUT /:id). Lag der Spawn nur im
  * einen, beendete der andere die Serie lautlos.
  *
- * Ohne Rückgabewert, anders als discardRecurrenceFollowup: die Folgeinstanz
- * entsteht ohne external_uid/external_source, markTodoOutbound lässt sie
- * deshalb liegen. Es gibt nichts zu pushen.
+ * Die Folgeinstanz entsteht ohne external_uid/external_source: sie ist auf dem
+ * Server ein neuer Eintrag, keine Kopie der Vorgängerin - mit deren UID
+ * überschriebe der Upload das eben erledigte Vorkommen. Das Sync-Ziel dagegen
+ * erbt sie (#1515): eine in eine Erinnerungsliste geschickte Serie blieb sonst
+ * ab dem zweiten Vorkommen lokal. Rückgabe: true, wenn die Folgeinstanz damit
+ * auf ihren Upload wartet und der Aufrufer den Sofortversuch anstoßen soll.
  *
  * Beide Aufrufer halten bereits eine Transaktion, die eigene läuft darin als
  * Savepoint. Sie bleibt trotzdem stehen: sie hält Aufgabe, Zuweisungen und Tags
  * auch dann zusammen, wenn später jemand von außerhalb einer Transaktion ruft.
  */
 function spawnRecurrenceFollowup(task) {
-  if (!task?.is_recurring || !task.recurrence_rule || task.parent_task_id) return;
+  if (!task?.is_recurring || !task.recurrence_rule || task.parent_task_id) return false;
   // Microsoft To Do owns the continuation of its recurring tasks: completing
   // the current item causes Graph/To Do to create the next remote item. A
   // local follow-up here would later be imported beside it as a duplicate.
@@ -2096,9 +2100,9 @@ function spawnRecurrenceFollowup(task) {
     || (task.task_list_id != null && db.get().prepare(
       'SELECT 1 FROM task_lists WHERE id = ? AND provider = ?'
     ).get(task.task_list_id, 'microsoft_todo'));
-  if (microsoftTodoTarget) return;
+  if (microsoftTodoTarget) return false;
   // Höchstens eine Folgeinstanz je Erledigung - sonst legt doppeltes Abhaken nach.
-  if (recurrenceFollowupOf(task.id)) return;
+  if (recurrenceFollowupOf(task.id)) return false;
 
   // Zwei Verankerungen, die Aufgabe entscheidet (#658): ab Fälligkeit
   // (Vorgabe, holt übersprungene Vorkommen auf, damit die nächste Instanz
@@ -2110,7 +2114,7 @@ function spawnRecurrenceFollowup(task) {
     completedOn,
     fromCompletion: !!task.recurrence_from_completion,
   });
-  if (!nextDate) return;
+  if (!nextDate) return false;
 
   const existingAssignments = db.get()
     .prepare('SELECT user_id FROM task_assignments WHERE task_id = ?')
@@ -2125,13 +2129,17 @@ function spawnRecurrenceFollowup(task) {
   const existingSubtasks = db.get()
     .prepare('SELECT * FROM tasks WHERE parent_task_id = ? ORDER BY id ASC')
     .all(task.id);
+  // Das Ziel erbt nur die Aufgabe selbst. Unteraufgaben gehen nie als eigenes
+  // VTODO hinaus (pendingCreations), ihre Kopien unten nehmen keines mit.
+  const syncTarget = recurrenceFollowupTarget(task);
 
   db.get().transaction(() => {
     const newTask = db.get().prepare(`
       INSERT INTO tasks (title, description, category, priority, status,
         start_date, due_date, due_time, assigned_to, created_by, is_recurring, recurrence_rule,
-        points, visibility, recurrence_from_completion, countdown, locked, recurrence_origin_id)
-      VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
+        points, visibility, recurrence_from_completion, countdown, locked, recurrence_origin_id,
+        target_caldav_account_id, target_caldav_list_url)
+      VALUES (?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       task.title, task.description, task.category, task.priority,
       shiftedStartDate(task.start_date, task.due_date, nextDate),
@@ -2154,7 +2162,8 @@ function spawnRecurrenceFollowup(task) {
       // gesperrt wurde. created_by wandert oben mit, also bleiben Ersteller:in
       // und Admins auch an der Folgeinstanz berechtigt.
       task.locked ? 1 : 0,
-      task.id
+      task.id,
+      syncTarget?.accountId ?? null, syncTarget?.listUrl ?? null
     );
     setAssignments(db.get(), newTask.lastInsertRowid, existingAssignments);
     setTags(db.get(), newTask.lastInsertRowid, existingTags);
@@ -2186,6 +2195,7 @@ function spawnRecurrenceFollowup(task) {
       setTags(db.get(), newSub.lastInsertRowid, subTags);
     }
   })();
+  return !!syncTarget;
 }
 
 // --------------------------------------------------------
@@ -2332,6 +2342,7 @@ router.patch('/:id/status', (req, res) => {
     let pendingMicrosoft = false;
     let undone  = 0;
     let undoneMicrosoft = 0;
+    let spawned = false;
     db.get().transaction(() => {
       db.get().prepare('UPDATE tasks SET status = ? WHERE id = ?').run(status, req.params.id);
       pending = markTodoOutbound('tasks', prev, { ...prev, status });
@@ -2355,13 +2366,13 @@ router.patch('/:id/status', (req, res) => {
 
       // Wiederkehrende Aufgabe: nächste Instanz erstellen wenn erledigt
       if (status === 'done' && prev.status !== 'done') {
-        spawnRecurrenceFollowup(db.get().prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id));
+        spawned = spawnRecurrenceFollowup(db.get().prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id));
       }
     })();
 
     res.json({ data: { id: Number(req.params.id), status, archived_at: prev.archived_at } });
 
-    if (pending || undone) pushToCalDAV('Statuswechsel');
+    if (pending || undone || spawned) pushToCalDAV('Statuswechsel');
     if (pendingMicrosoft || undoneMicrosoft) {
       const microsoftSyncOptions = { queueIfRunning: true };
       if (status === 'done' && prev.status !== 'done') {
