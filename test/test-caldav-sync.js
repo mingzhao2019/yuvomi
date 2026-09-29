@@ -1803,7 +1803,7 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
     legacyState(d, COLOR_A);
     d.prepare('INSERT INTO sync_config (key, value) VALUES (?, ?)').run(HEAL_KEY_1, daysAgo(40));
 
-    await updateAccount(1, { username: 'u9', createClient: accountClient([CAL_A, CAL_B]) });
+    await updateAccount(1, { username: 'u9', password: 'p9', createClient: accountClient([CAL_A, CAL_B]) });
     assert.strictEqual(healState(d), null, 'die alte, abgelaufene Frist ist verworfen');
     d.prepare('UPDATE caldav_calendar_selection SET enabled = 1 WHERE calendar_url = ?').run(CAL_A);
 
@@ -1813,7 +1813,7 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
 
   it('ein umgehaengtes Konto ohne Altzeilen heilt nie', () => withDb(async (d) => {
     d.prepare('INSERT INTO sync_config (key, value) VALUES (?, ?)').run(HEAL_KEY_1, daysAgo(2));
-    await updateAccount(1, { caldavUrl: 'https://dav2.example/', createClient: accountClient([CAL_A]) });
+    await updateAccount(1, { caldavUrl: 'https://dav2.example/', password: 'p2', createClient: accountClient([CAL_A]) });
     assert.strictEqual(healState(d), 'never');
   }));
 
@@ -2057,7 +2057,7 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
 
   it('updateAccount mit neuem Benutzer raeumt den Schnappschuss mit', () => withDb(async (d) => {
     startWindow(d, daysAgo(40), { 999: COLOR_A });
-    await updateAccount(1, { username: 'u9', createClient: accountClient([CAL_A]) });
+    await updateAccount(1, { username: 'u9', password: 'p9', createClient: accountClient([CAL_A]) });
     assert.strictEqual(healState(d, SNAPSHOT_KEY_1), null);
   }));
 
