@@ -9,7 +9,7 @@ mention notifications remain best-effort.
 
 ## Configure a channel
 
-Open **Settings → Personal → Notifications**. The page has two groups:
+Open **Settings → Account → Notifications**. The page has two groups:
 
 - **Personal notifications** are visible and manageable by the current user.
   Personal scope currently allows only Webhook and message-pusher, and a personal
@@ -20,7 +20,7 @@ Open **Settings → Personal → Notifications**. The page has two groups:
 
 In either group, select **Add channel**, choose a provider, enter its endpoint and
 credentials, enable it, and use **Send test**. Email uses the SMTP configuration under
-Settings → Email (SMTP) and stores only one recipient address per channel. Personal Webhook and message-pusher
+Settings → Household → Email (SMTP) and stores only one recipient address per channel. Personal Webhook and message-pusher
 channels can be configured independently from household channels. If an
 administrator enables both a personal and a household channel targeting the same
 destination, two deliveries are expected; Yuvomi does not silently deduplicate

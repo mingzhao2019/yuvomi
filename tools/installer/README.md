@@ -54,12 +54,12 @@ dedicated `podman-compose.yml` (SELinux `:Z` labels).
      - **Security keys** - `SESSION_SECRET` and `DB_ENCRYPTION_KEY` (pre-filled
        on a fresh install; existing keys are kept, see below)
      - **Weather** - Open-Meteo coordinates (no API key). They apply until a
-       household location is saved in the app (Settings → Integrations), which
+       household location is saved in the app (Settings → Household → Integrations), which
        then takes precedence
      - **Calendar** - Google Calendar, Outlook (Microsoft Graph) and Apple iCloud
        CalDAV, the last one marked *legacy*: the `.env` holds exactly one iCloud
        account, while further CalDAV accounts (Nextcloud, a second iCloud) are
-       added in the app under Settings → Calendar
+       added in the app under Settings → Modules → Calendar
      - **Email** - SMTP (`EMAIL_SMTP_*`, `EMAIL_FROM_*`); enables password-reset
        emails, email as a household notification channel, and sending a shopping
        list to a member; a port outside 1-65535 is refused on the spot. Values set
@@ -144,7 +144,7 @@ The Google Drive Documents fields configure OAuth only. `GOOGLE_DRIVE_CLIENT_ID`
 `GOOGLE_DRIVE_CLIENT_SECRET` are optional paired overrides; when both are empty, the runtime reuses
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. `GOOGLE_DRIVE_REDIRECT_URI` is always Drive-specific
 and must exactly match `/api/v1/documents/storage/google-drive/callback`. After installation, connect
-and test Drive in **Settings → Documents**, then explicitly select it. OAuth
+and test Drive in **Settings → Modules → Documents**, then explicitly select it. OAuth
 success alone never changes the upload destination.
 
 > SQLite/database backups do not contain document binaries stored in a local folder, on WebDAV, or

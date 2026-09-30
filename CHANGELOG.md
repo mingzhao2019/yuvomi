@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.70.0] - 2026-09-30
+
 ### Added
 
 - **First-run setup keeps the chosen language.** The setup page now tells the server which
@@ -451,8 +453,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   larger target.
 
   **Phones:** on a 390x844 phone two bookings are visible straight away instead of none. The
-  balance leads the month summary with the income and expense cards below it, and the change
-  against the previous month is back on every card. Wherever the overview has a single column
+  balance leads the month summary (on a phone as one row with income and expenses inline, see
+  "Budget on a phone starts with the bookings"). Wherever the overview has a single column
   (phones, and laptops with the sidebar open) the category chart shows the three largest expenses,
   with "All categories" in its heading to expand it. "Manage categories", the CSV export and
   grouping by person are one menu next to "Transactions". When you scroll, the "Budget" title
@@ -492,11 +494,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are added with the "+" in the header like on every other tab - the "Add account" button only
   appears while there are no accounts yet.
 
-- **The calendar gives phones more room for events.** Filter and search moved next to the view
-  switcher, so the calendar header on a phone is 166px instead of 230px, and when you scroll the
-  week, day or agenda, the page title folds away completely and leaves only the date navigation
-  and the view switcher (121px). The month now shows 65 % of the screen instead of 56 %, the week
-  nine hours instead of six and a half. The week's day headings sit in one line with the date and
+- **The calendar gives phones more room for events.** The calendar header on a phone is shorter
+  (see "The calendar header on a phone takes two rows"), and when you scroll the week, day or
+  agenda, the page title folds away completely and leaves only the date navigation. The month and
+  the week show more of their grid than before. The week's day headings sit in one line with the date and
   the hour column is narrower. The period label keeps its width, so the arrows no longer jump
   when you switch views, and on wide screens they sit next to the label instead of at the far
   ends of the header.
@@ -600,8 +601,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The new document dialog shows the expiry date right away**, next to its reminder, which appears
   once a date is set, and has a Cancel button.
 
-- **Bulk actions without a selection step back instead of warning.** Archive and Delete stay in the
-  selection bar, dimmed, until a document is picked.
+- **Bulk actions without a selection step back instead of warning.** Archive, in the tools menu
+  while selecting, stays dimmed until a document is picked.
 
 - **A search that finds nothing offers the other view.** When the archive holds matches for a search
   among active documents, or the other way round, the empty result offers to search there.
@@ -785,9 +786,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arrange, and each tile offers one size menu with only the sizes that change something there. The
   first tile now starts on the first screen.
 
-- **The kitchen tabs fit a phone, with search in the same row.** In Recipes and Pantry the search
-  button and "..." sit in the kitchen tab row instead of a row of their own, and the four tabs fit
-  down to 375px without scrolling.
+- **The kitchen tabs fit a phone.** The four tabs fit down to 375px without scrolling; the search
+  and tools of Recipes and Pantry sit in the context row below them (see "The kitchen head on a
+  phone follows one rule").
 
 - **The shift plan's statistics period is a menu on narrow screens** instead of a segmented control
   that scrolled sideways.
@@ -925,13 +926,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   trailing slash, which reaches the same route. A new test now reads every top-level route from
   the running app and fails when one is neither covered by the restore gate nor listed with a reason.
 
-- **The family card no longer misses an evening appointment on a busy day** (#1449). The card took
-  its appointments from the calendar tile, which stops at five coming ones and follows its "Only
-  mine" option: a child's evening appointment could be cut off, and with "Only mine" every other
-  member read as free. The card now loads each member's appointments of the day on its own, ignores
-  "Only mine", and switches to the next appointment or to "Done for today" when one ends, without a
-  reload.
-
 - **A trip that began yesterday shows on today's overview** (#1457). Appointments were picked by
   their start, so a trip, a hospital stay or a school camp that started yesterday and runs until
   tomorrow was missing from the calendar tile, the today sheet, the wall display and the family
@@ -1017,7 +1011,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `/api/v1/...` instead of an internal error. The documented Docker Compose restore command now
   also flushes to disk after moving the old write-ahead log aside, so a power loss right after it
   cannot keep the restored database next to the old log; if you saved a copy of the command, take
-  the new one from the guide or from Settings, Administration, Backup and restore. A restore on
+  the new one from the guide or from Settings, Household, Backup and restore. A restore on
   Node running natively on Windows no longer stops with `EPERM` while writing the restored copy to
   disk; Docker installs were not affected. (#1441)
 
@@ -1029,8 +1023,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   start. The automatic calendar sync no longer stops the server when its timer fires in the moment
   a restore has the database closed. (#1532)
 - **Confirming a long list of moved events no longer holds up the server** (#1440). When an admin
-  confirmed a page of moved events under Settings > Sync, every picked entry was checked with a
-  query prepared anew for it, and a full page of up to 5,000 ran without a pause, so other requests
+  confirmed a page of moved events in the calendar sync settings, every picked entry was checked
+  with a query prepared anew for it, and a full page of up to 5,000 ran without a pause, so other requests
   waited meanwhile. The check now prepares its query once and lets other requests through after
   every 50 entries. An entry that no longer matches still stops the whole confirmation with nothing
   written.
@@ -1225,8 +1219,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "5.550 €" are no longer cut off.
 
 - **Adding a family member keeps your place.** "Add member" opened its form below the two-factor
-  card and dropped the keyboard focus. The form now opens right under the member list with the
-  first field focused, and Cancel returns to the button; cancelling an invite does the same.
+  card and dropped the keyboard focus. The form now opens in a dialog (see "Family members and
+  invites are added in a dialog"), and Cancel returns the focus to the button; cancelling an invite
+  does the same.
 
 - **The gift icon on reward cards is back.** In the narrow catalog cards on a desktop the icons of
   "Redeem" and the price shrank to a dot. They keep their size now, and price and buttons move to
@@ -1254,7 +1249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   next to it, and "Open in Maps" dropped onto a line of its own. The popover now follows the phone
   sheet: Delete at the start, Edit as the main button at the end, below the other actions.
 
-- **Switching the calendar view no longer moves the view tabs on a phone.** Week and day scroll to
+- **Switching the calendar view no longer folds the header on a phone.** Week and day scroll to
   the current hour when they open, and the header took that for your own scrolling: it folded the
   title away, and the tabs jumped 45px up under your finger. Only scrolling you do yourself folds
   the header now, in every module that has one (budget, calendar, notes, contacts). Once folded, it
@@ -1285,9 +1280,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Finished appointments step back** (#1449). The event tile's limit of five counts only what is
   still coming, and finished events sit stepped back above it; in the today sheet and on the wall
-  they leave at their end time without a reload. The family card shows each member's next
-  appointment instead of the first one of the day, says "Done for today" after the last one, and
-  shows an appointment shared by several members once. Event tile and family card use the same
+  they leave at their end time without a reload. The family card loads each member's appointments of
+  the day on its own instead of taking them from the event tile (which stops at five and follows
+  "Only mine", so a child's evening appointment could be cut off and other members read as free),
+  shows each member's next appointment instead of the first one of the day, says "Done for today"
+  after the last one, and shows an appointment shared by several members once. Event tile and family card use the same
   rule for "finished".
 
 - **Synced events land on the right day on the overview.** Events that come from an external
@@ -1341,9 +1338,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   highlight while the cursor stays in the field, and reach the start tiles when the field is empty.
 
 - **A click beside an event popover only closes it.** Clicking an empty spot in the week or day
-  view to dismiss an open event used to start a new event at the same time. The first click now
-  just closes the popover, a second click adds an event. This holds for every popover of the
-  detail view.
+  view to dismiss an open event used to start a new event at the same time. A click now just closes
+  the popover; new events come from a double-click or a long press (see "New events in the
+  calendar's week and day"). This holds for every popover of the detail view.
 
 - **Messages no longer cover the buttons of a detail column.** With list and detail side by side
   on a desktop, a message sat over Delete at the foot of the detail column. It now moves out of the
