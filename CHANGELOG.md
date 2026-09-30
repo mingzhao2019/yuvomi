@@ -110,6 +110,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file cannot be created or locked, Yuvomi logs a warning and works as before; the lock does not
   reach across machines (NFS with `nolock`) or from a Docker Desktop host into its containers.
 
+- **Changing a recurring payment for all future months no longer rewrites its first booking**
+  (#1035). The first entry of a series was also its template, so choosing "Change all future
+  occurrences" changed the title, amount, category, subcategory, account and responsible members of
+  a booking that could lie years back. Moving a rent series to a new account moved the rent of
+  January 2020 with it, and both account balances were wrong afterwards. A series now keeps its own
+  definition: the change applies to the series and to every entry from today on, while entries
+  already booked, the first one included, keep their values. Correcting only the first entry no
+  longer changes every future month either, and editing it now asks "only this or all future", like
+  every other entry of the series; switching "Recurring" off there still ends the series without
+  that question. Visibility still applies to the whole series on purpose: whoever
+  makes a series private means its past entries too. Existing series are carried over on update
+  without changing any entry.
+
 ## [2.70.0] - 2026-09-30
 
 ### Added
