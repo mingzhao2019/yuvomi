@@ -20,6 +20,23 @@ const router = express.Router();
 // Wörter; zusätzlich validiert das Schreiben gegen die echten Kategorie-Keys).
 export const BUDGET_SAVINGS_KEY = '__savings__';
 
+const HOUSEHOLD_WIDE = Object.freeze({
+  f: Object.freeze({ clause: '', params: Object.freeze([]) }),
+  c: Object.freeze({ expr: 'category', params: Object.freeze([]) }),
+});
+
+/** Prueft den Kontext von computePlanProgress; wirft bei fehlendem oder halbem. */
+function planContext(context) {
+  const { filter, categoryExpr, householdWide } = context || {};
+  const isFilter = filter && typeof filter.clause === 'string' && Array.isArray(filter.params);
+  const isExpr = categoryExpr && typeof categoryExpr.expr === 'string' && categoryExpr.expr !== ''
+    && Array.isArray(categoryExpr.params);
+  if (householdWide === true && filter === undefined && categoryExpr === undefined) return HOUSEHOLD_WIDE;
+  if (householdWide === undefined && isFilter && isExpr) return { f: filter, c: categoryExpr };
+  throw new TypeError('computePlanProgress: context needs { filter, categoryExpr } '
+    + 'from budgetFilter()/budgetCategoryExpr(), or an explicit { householdWide: true }');
+}
+
 /**
  * Berechnet Plan-vs-Ist für einen Monat.
  * Plan = stetiger Monatsbetrag je Ausgabenkategorie; Ist = tatsächliche Ausgaben
@@ -42,18 +59,22 @@ export const BUDGET_SAVINGS_KEY = '__savings__';
  * keiner Zeile auf und fliesst nur in Einnahmen und Saldo des Sparziels - wie
  * in der Uebersicht, wo sein Betrag zaehlt, sein Zweck aber nicht.
  *
- * Ohne die beiden Argumente rechnet die Funktion ueber den ganzen Haushalt ohne
- * Sichtbarkeit (Altverhalten, identisch zum shared-Modus). Das ist nur fuer
- * Aufrufer ohne Betrachter gedacht; wer einer Person antwortet - Route, Widget,
- * Benachrichtigung -, muss Filter und Kategorie-Ausdruck mitgeben, sonst
- * verraet der Plan fremde private Ausgaben ueber ihre Kategorie-Summe.
+ * **DER KONTEXT IST PFLICHT, FAIL-CLOSED.** Wer einer Person antwortet - Route,
+ * Widget, Benachrichtigung -, gibt `{ filter, categoryExpr }` mit. Ein bewusst
+ * betrachterloser Aufrufer sagt `{ householdWide: true }` und bekommt den ganzen
+ * Haushalt ohne Sichtbarkeit (Altverhalten, identisch zum shared-Modus). Fehlt
+ * beides, wirft die Funktion: ein stiller Default auf "alles" hiesse, dass ein
+ * kuenftiger Aufrufer, der die Argumente vergisst, fremde private Ausgaben
+ * wieder ueber ihre Kategorie-Summe verraet - und zwar gruen, ohne Fehler.
  *
+ * @param {object} database
+ * @param {string} month  YYYY-MM
+ * @param {{ filter: {clause: string, params: any[]}, categoryExpr: {expr: string, params: any[]} }
+ *        | { householdWide: true }} context
  * @returns {object} { month, isCurrentMonth, plans: [], savings: {}|null, totalPlanned, totalActual }
  */
-export function computePlanProgress(database, month, filter = { clause: '', params: [] },
-                                    categoryExpr = { expr: 'category', params: [] }) {
-  const f = filter && filter.clause ? filter : { clause: '', params: [] };
-  const c = categoryExpr && categoryExpr.expr ? categoryExpr : { expr: 'category', params: [] };
+export function computePlanProgress(database, month, context) {
+  const { f, c } = planContext(context);
   const from = `${month}-01`;
   const to   = `${month}-31`;
   const isCurrentMonth = month === thisMonthLocalKey();
@@ -122,8 +143,10 @@ router.get('/plans', (req, res) => {
     const month = MONTH_RE.test(req.query.month || '') ? req.query.month : thisMonthLocalKey();
     // Sichtbarkeit/Scope wie Summary und Statistik (#476/#505/#659).
     res.json({
-      data: computePlanProgress(db.get(), month,
-        budgetFilter(req, 'budget_entries'), budgetCategoryExpr(req, 'budget_entries')),
+      data: computePlanProgress(db.get(), month, {
+        filter: budgetFilter(req, 'budget_entries'),
+        categoryExpr: budgetCategoryExpr(req, 'budget_entries'),
+      }),
     });
   } catch (err) {
     log.error('', err);
