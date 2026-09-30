@@ -124,6 +124,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Filipino, which OpenWeatherMap does not offer, uses `OPENWEATHER_LANG` and otherwise English.
   `OPENWEATHER_LANG` is that fallback and takes an OpenWeatherMap code; a code OpenWeatherMap does
   not list is now ignored in favour of English, as the installation guide and `.env.example` say.
+### Security
+
+- **An amount-only budget entry no longer gives its category or loan away through the list.** In
+  personal budget mode, an entry another member shares as "amount only" shows you its amount and
+  date, but not what it was for. Filtering the entry list by category still matched it under its
+  real category, so the set of results named the purpose the row itself hid. The filter now sees
+  the same view as the response: such an entry matches only the private catch-all bucket, like in
+  the summary and the statistics, and that bucket can be filtered on as well. A loan installment
+  set to amount only also kept the loan's title and lender in the list, and turned up in that
+  loan's overview; both now stay hidden like the entry's title. Shared budget mode is unaffected.
 
 ## [2.71.0] - 2026-09-30
 

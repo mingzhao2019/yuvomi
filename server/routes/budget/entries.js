@@ -7,7 +7,7 @@ import express from 'express';
 import { createLogger } from '../../logger.js';
 import * as db from '../../db.js';
 import { str, oneOf, date as validateDate, num, rrule, collectErrors, MAX_TITLE, MONTH_RE } from '../../middleware/validate.js';
-import { normalizeBudgetVisibility } from '../../services/budget-visibility.js';
+import { normalizeBudgetVisibility, BUDGET_MASKED_CATEGORY } from '../../services/budget-visibility.js';
 import { todayKey } from '../../utils/timezone.js';
 import { foldSearchText } from '../../services/search.js';
 import { sendDocumentDeletionConflict } from '../../services/document-deletion-lock.js';
@@ -252,9 +252,19 @@ router.get('/', (req, res) => {
       params.push(from, to);
     }
 
-    if (req.query.category && validCategoryKeys().includes(req.query.category)) {
-      sql += ' AND b.category = ?';
-      params.push(req.query.category);
+    // GEFILTERT WIRD AUF DIE MASKIERTE KATEGORIE (#659), nicht auf die Spalte.
+    // Fremde 'shared_amount'-Zeilen tragen in der Antwort '__private__'; ein
+    // Filter auf die echte Spalte liesse sie trotzdem genau unter ihrer echten
+    // Kategorie erscheinen, und die Treffermenge verriete den Zweck, den die
+    // Maske verbirgt. Wie in Summary und Statistik laufen sie deshalb unter dem
+    // Sammel-Bucket - und der ist hier auch filterbar, damit jede Zeile der
+    // Kategorie-Aufschluesselung einen Drilldown hat. Der Bind des Ausdrucks
+    // steht an seiner Stelle im WHERE, also VOR dem Vergleichswert.
+    const categoryKey = req.query.category;
+    if (categoryKey && (categoryKey === BUDGET_MASKED_CATEGORY || validCategoryKeys().includes(categoryKey))) {
+      const catExpr = budgetCategoryExpr(req, 'b');
+      sql += ` AND ${catExpr.expr} = ?`;
+      params.push(...catExpr.params, categoryKey);
     }
 
     if (req.query.account_id) {
@@ -274,8 +284,13 @@ router.get('/', (req, res) => {
     sql += ' ORDER BY b.date DESC, b.created_at DESC';
 
     const entries = db.get().prepare(sql).all(...params).map(withResponsibles);
+    const masked = maskEntries(req, withAttachments(entries, documentViewer(req)));
+    // Der Darlehens-Drilldown filtert auf eine Verknuepfung, und die nimmt die
+    // Maske einer fremden 'shared_amount'-Rate weg (#659). Auf die maskierte
+    // Sicht gefiltert passt eine solche Rate deshalb zu keinem Darlehen - sonst
+    // verriete die Treffermenge, wofuer das Geld war.
     res.json({
-      data: maskEntries(req, withAttachments(entries, documentViewer(req))),
+      data: loanId ? masked.filter((row) => !row.details_hidden) : masked,
     });
   } catch (err) {
     log.error('', err);

@@ -353,3 +353,112 @@ test('#659 personal: das Inventar behandelt shared_amount wie privat', async () 
     assert.ok(visibleEntry(created.data.id, asViewer(A)), 'der Eigentuemer sieht seine eigene');
   } finally { await app.close(); }
 });
+
+// ============================================================
+// Filter auf die maskierte Sicht (#659). Ein Filter, der die ECHTE Spalte
+// prueft und erst danach maskiert, verraet den Zweck ueber die Treffermenge:
+// die Zeile selbst traegt dann '__private__', aber sie steht genau in der
+// Antwort auf die Frage nach ihrer echten Kategorie. Filter muessen deshalb
+// dieselbe Sicht sehen, die die Antwort zeigt.
+// ============================================================
+
+test('#659 personal: der Kategorie-Filter der Liste verraet den Zweck nicht', async () => {
+  setMode('personal');
+  const app = await startApp();
+  try {
+    const hidden = await createAmountOnly(app, 'Taxi heimlich', { category: 'transport' });
+    // Eine SICHTBARE Buchung derselben Kategorie daneben: ohne sie bestuende
+    // ein Filter, der schlicht gar nichts liefert, diesen Test auch.
+    const visible = await (await createEntry(app, { id: B, role: 'member' }, {
+      title: 'B Bus', visibility: 'shared', category: 'transport', amount: -3,
+    })).json();
+
+    actor = { id: B, role: 'member' };
+    const list = async (category) =>
+      (await (await fetch(`${app.baseUrl}/?month=${MONTH}&scope=household&category=${category}`)).json()).data;
+
+    const transport = await list('transport');
+    assert.ok(byId(transport, visible.data.id), 'die sichtbare transport-Buchung bleibt im Filter');
+    assert.equal(byId(transport, hidden.data.id), undefined,
+      'die fremde nur-Betrag-Buchung darf unter ihrer echten Kategorie NICHT auftauchen');
+    for (const row of transport) {
+      assert.notEqual(row.details_hidden, true, 'ein Filter nach transport liefert nichts Maskiertes');
+    }
+
+    const pot = await list('__private__');
+    const row = byId(pot, hidden.data.id);
+    assert.ok(row, 'unter dem Sammel-Bucket steht sie - symmetrisch zur Summary');
+    assert.equal(row.details_hidden, true);
+    assert.equal(byId(pot, visible.data.id), undefined, 'der Sammel-Bucket enthaelt nur Maskiertes');
+  } finally { await app.close(); }
+});
+
+test('#659 personal: der Eigentuemer filtert seine Buchung unter der echten Kategorie', async () => {
+  setMode('personal');
+  const app = await startApp();
+  try {
+    const own = await createAmountOnly(app, 'Taxi eigen', { category: 'transport' });
+    actor = { id: A, role: 'member' };
+    const mine = (await (await fetch(`${app.baseUrl}/?month=${MONTH}&scope=mine&category=transport`)).json()).data;
+    assert.ok(byId(mine, own.data.id), 'fuer A ist nichts maskiert, also filtert A nach der echten Kategorie');
+    const pot = (await (await fetch(`${app.baseUrl}/?month=${MONTH}&scope=mine&category=__private__`)).json()).data;
+    assert.equal(byId(pot, own.data.id), undefined, 'die eigene Buchung liegt fuer A nie im Sammel-Bucket');
+  } finally { await app.close(); }
+});
+
+test('#659 shared-Modus: der Kategorie-Filter bleibt beim Altverhalten', async () => {
+  setMode('shared');
+  const app = await startApp();
+  try {
+    const created = await createAmountOnly(app, 'Taxi Altmodus', { category: 'transport' });
+    actor = { id: B, role: 'member' };
+    const rows = (await (await fetch(`${app.baseUrl}/?month=${MONTH}&category=transport`)).json()).data;
+    assert.ok(byId(rows, created.data.id), 'im shared-Modus wird nie maskiert, also auch nicht gefiltert');
+  } finally { await app.close(); }
+});
+
+test('#659 personal: eine maskierte Darlehensrate verraet ihr Darlehen nicht', async () => {
+  // Eine Rate ist eine Verknuepfung wie ein Beleg: sie sagt, WOFUER das Geld
+  // war. Die Rate erbt die Stufe des Darlehens, laesst sich aber einzeln auf
+  // 'shared_amount' stellen - dann darf weder die Zeile den Darlehenstitel
+  // tragen noch der Darlehens-Drilldown sie als Treffer liefern.
+  setMode('personal');
+  const app = await startApp();
+  try {
+    actor = { id: A, role: 'member' };
+    const post = (path, body, method = 'POST') => fetch(`${app.baseUrl}${path}`, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const loan = await (await post('/loans', {
+      title: 'Kredit Zahnspange', borrower: 'Bank Geheim', total_amount: 300,
+      installment_count: 3, start_month: MONTH, visibility: 'private',
+    })).json();
+    assert.ok(loan.data?.id, `Darlehen angelegt: ${JSON.stringify(loan)}`);
+    const pay = await (await post(`/loans/${loan.data.id}/payments`, { paid_date: `${MONTH}-12` })).json();
+    const entryId = pay.data?.payment?.budget_entry_id ?? pay.data?.budget_entry_id
+      ?? db.prepare('SELECT budget_entry_id FROM budget_loan_payments WHERE loan_id = ?').get(loan.data.id)?.budget_entry_id;
+    assert.ok(entryId, `Rate hat eine Buchung: ${JSON.stringify(pay)}`);
+    const put = await post(`/${entryId}`, { visibility: 'shared_amount' }, 'PUT');
+    assert.equal(put.status, 200, 'A darf die eigene Rate auf nur-Betrag stellen');
+
+    actor = { id: B, role: 'member' };
+    const rows = (await (await fetch(`${app.baseUrl}/?month=${MONTH}&scope=household`)).json()).data;
+    const row = byId(rows, entryId);
+    assert.ok(row, 'der Betrag zaehlt fuer B mit, die Zeile steht also da');
+    assert.equal(row.details_hidden, true);
+    const text = JSON.stringify(row);
+    assert.ok(!text.includes('Zahnspange') && !text.includes('Bank Geheim'),
+      `Darlehenstitel/-partner geleakt: ${text}`);
+    assert.equal(row.loan_id, undefined, 'auch die Darlehens-ID ist eine Verknuepfung');
+
+    const drill = (await (await fetch(`${app.baseUrl}/?loan_id=${loan.data.id}`)).json()).data;
+    assert.equal(byId(drill, entryId), undefined,
+      'der Darlehens-Drilldown darf die maskierte Rate nicht als Treffer liefern');
+
+    actor = { id: A, role: 'member' };
+    const ownDrill = (await (await fetch(`${app.baseUrl}/?loan_id=${loan.data.id}`)).json()).data;
+    const ownRow = byId(ownDrill, entryId);
+    assert.ok(ownRow, 'A sieht die eigene Rate im Drilldown');
+    assert.equal(ownRow.loan_title, 'Kredit Zahnspange', 'fuer A bleibt die Verknuepfung stehen');
+  } finally { await app.close(); }
+});
