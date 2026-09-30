@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.71.0] - 2026-09-30
-
 ### Added
 
 - **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
@@ -37,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
   document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
   same 403 for every id. (#1358)
+
+## [2.71.0] - 2026-09-30
+
+### Added
 
 - **Brazilian Portuguese as its own language** (#1437, translated by @dareoon). The app, the
   web installer and the command-line installer speak pt-BR as the 25th language, next to the

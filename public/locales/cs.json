@@ -425,11 +425,6 @@
         "memberOpenTasks_few": "{{count}} úkoly",
         "todayDosesOpen_few": "Dávky k užití: {{count}}",
         "eventsEndedMore_few": "Dříve dnes: +{{count}}",
-        "weatherHighLow": "Nejvyšší {{max}}°, nejnižší {{min}}°",
-        "optionCalendarBirthdaysHint": "Bez zaškrtnutí narozeniny z této dlaždice zmizí, v kalendáři zůstanou.",
-        "nutritionNoTarget": "Denní cíl zatím není nastaven.",
-        "nutritionEntries": "Dnes {{count}} záznamů",
-        "nutritionEntries_one": "Dnes {{count}} záznam",
         "nutritionEntries_few": "Dnes {{count}} záznamy",
         "weatherUnavailable": "Počasí momentálně není k dispozici"
     },

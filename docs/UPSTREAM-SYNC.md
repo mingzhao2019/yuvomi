@@ -139,52 +139,66 @@ one of the areas below.
 ## Current sync checkpoint
 
 As of 2026-09-30, local `main` and `upstream/main` both point to
-`c274a1565` (v2.70.0). The previous custom checkpoint was `708df9e61`.
-Changes were reviewed in upstream order and integrated on
-`custom-upstream-selective-2026-09-30`; upstream was not merged wholesale into
-`custom`.
+`e9426e434` (v2.71.0). The previous custom checkpoint was `8d9c41277`.
+Every upstream commit after that checkpoint was reviewed in order and adopted
+on `custom-upstream-selective-2026-09-30`; upstream was not merged wholesale
+into `custom`.
 
 | Upstream commit | Behavior | Integration decision |
 | --- | --- | --- |
-| `762fcc36f` | Folder-delete preview and result counts follow module rights and record visibility; hidden documents are not disclosed or deleted. | Manually ported as `69bebc020`; kept snapshot comparison ahead of visible-document management checks and preserved hidden-document unfiling semantics. |
-| `3f3cee5a9` | Merge of upstream main into the folder-delete feature branch. | Merge carrier only; no additional behavior was separately ported. The folder fix is accounted for above. |
-| `c53c77633` | Merge of upstream main into the folder-delete feature branch, with a changelog conflict. | Merge carrier only; no independent behavior beyond the reviewed feature/release changes. Changelog placement was resolved in the integration tree. |
-| `6c7f13ae0` | Merge of upstream main into the folder-delete feature branch. | Merge carrier only; no additional behavior was separately ported. |
-| `c289e13ba` (#1570) | Web installer adopts the app's visual language, responsive step flow, validation and hand-off to the running app. | Adopted as `2009a811b`; retained the custom app's routes and installer contracts. |
-| `09902f832` (#1571) | Installer adds module on/off switches and includes Docker setup in its step list. | Adopted as `163c3b66d`; retained all localized installer behavior. |
-| `405450fe5` (#1573) | Website fact corrections, complete installation paths, family section and app design tokens. | Adopted as `dff96232f`; composed the README reward wording to match custom behavior: points go to the member who completes the task, not necessarily its assignee. |
-| `6e0760b37` | Merge of upstream main into the folder-delete feature branch. | Merge carrier only; no independent behavior beyond the reviewed feature/release changes. |
-| `c274a1565` | v2.70.0 release metadata. | Adopted as `e3e5902c7`; package, lockfile, service-worker and current release metadata agree on `2.70.0`. |
+| `fe481849c` (#1575) | Refreshes the site screenshots and documents wall mode. | Adopted as `fe481849c`; documentation/assets only. |
+| `c6e17e0ca` (#1576) | Reorganizes the README's family/module sections and corrects claims against the app. | Adopted as `c6e17e0ca`; checked the README and landing-page consistency tests. |
+| `5675c95e7` (#1530, #1552) | CLI restore refuses to run while a server is using the database; server startup coordinates through the instance lock. | Adopted as `5675c95e7`; composed with the existing restore gate and kept the lock handshake process-local. |
+| `c44663b33` (#1577, #1579) | Recipe edit/delete authorization follows `meals: write`, while provider-mirrored recipes remain read-only. | Adopted as `c44663b33`; replaced the old recipe-owner check with the module permission gate, retained mirror protection and `meals: read` denial, and added route/gate coverage. |
+| `1721e9025` (#1578) | Housekeeping tests use the household date; installer weather guidance names the current settings path. | Adopted as `1721e9025`; no custom data contract changed. |
+| `38ad18ea1` (#1035, #1541) | Separates a recurring budget series definition from its first booking so later-series edits do not rewrite historical transactions. | Adopted as `38ad18ea1`; migration 238 is additive and preserves anchor identity, responsibility assignments, visibility, and existing recurrence fields. |
+| `7faa88992` (#1581) | Gives the off-switch track 3:1 contrast and mirrors its motion in RTL. | Adopted as `7faa88992`; uses the dedicated switch token and retains the existing responsive control layout. |
+| `de60e3dc3` (#1584) | Keeps the weather dashboard tile present with an unavailable state when a configured provider fails. | Adopted as `de60e3dc3`; distinguishes provider failure from `not_configured` and preserves the widget slot and retry path. |
+| `cc82934a4` (#1582) | Removes the unwanted surface strip below the tab bar in installed iPhone PWA mode. | Adopted as `cc82934a4`; retained the existing mobile navigation and safe-area behavior. |
+| `6aa172cb4` (#1437) | Adds Brazilian Portuguese for the app, web installer, and CLI. | Adopted as `6aa172cb4`; manually translated remaining long app strings and removed duplicate dashboard keys from 20 locale files. |
+| `77434ee75` (#1586) | Documents rootless Podman without an outbound route and the bridge setup fix. | Adopted as `77434ee75`; installer behavior and existing deployment paths remain intact. |
+| `5a15a11dd` | Publishes v2.71.0 release metadata. | Adopted as `5a15a11dd`; root package, both root lockfile versions, service-worker release, and current release metadata agree on `2.71.0`. |
+| `df353de8e` | Aligns `DESIGN.md` with v2.71.0 wall-mode, contrast, selected-row, and weather behavior. | Cherry-picked as `3c5121aa4`; documentation only. |
+| `e9426e434` | Resolves three stale `DESIGN.md` rules and corrects the calendar week-block tint comment. | Cherry-picked as `20f8d6ccc`; the CSS change is comment-only, with no runtime behavior change. |
 
-Semantic overlaps were resolved explicitly. The folder-delete fix limits each
-module count by both read permission and record visibility, compares the
-confirmed snapshot before management checks, and leaves hidden documents in
-place while clearing only their folder association. The website's reward
-description was corrected in English and German to describe custom completion
-recipient semantics. The upstream security explanation for folder deletion was
-restored to its released changelog section; the two custom #1358 document
-permission entries remain under `[Unreleased]` rather than being moved into the
-v2.70.0 release. No released migration or schema history changed.
+Semantic overlaps were resolved explicitly. The restore change acquires the
+instance lock before database recovery or cleanup: the server waits, while the
+CLI refuses an active server, without changing the existing restore protocol.
+For recipes, the previous owner-only rule was not a required custom boundary;
+the household-wide `meals: write` contract was adopted, while mirrored recipes
+still reject edits/deletes and the module gate still rejects `meals: read`.
+Migration 238 adds a series-definition table and responsible-assignment table,
+backfills only missing definitions, and installs insert/start/stop triggers;
+it does not rewrite released migrations. The definition carries the existing
+visibility values, including `shared_amount`, and leaves the first booking as
+an ordinary transaction. Weather failures remain visible as an unavailable
+widget instead of being mistaken for a disabled module. The pt-BR import's
+incomplete long strings were translated, duplicate dashboard keys were
+removed, and custom `#1358` permission notes remain under `[Unreleased]` rather
+than being moved into the v2.71.0 release.
 
-The earlier dashboard fix `708df9e61` remains in `custom`: completed calendar
-events in the overview still render `event-item--done`, its CSS still applies
-line-through, and `test/test-dashboard-today.js` asserts that state. No upstream
-change in this range superseded that behavior.
+The earlier dashboard fix `708df9e61` remains intact: completed calendar events
+in the overview render `event-item--done`, CSS applies line-through, and
+`test/test-dashboard-today.js` asserts the completed state. No upstream change
+in this range superseded it.
 
-The current schema remains migration `237`; no migration files or database
-schema code changed in this sync. The root package, both root lockfile version
-fields, `public/sw.js`'s `APP_RELEASE`, and current release metadata all match
-`main:package.json` at `2.70.0`. Replace this section at the next upstream sync
-rather than extending an ever-growing history table.
+The schema is migration `238`; the migration append-only test passes. The root
+package, both root lockfile version fields, `public/sw.js`'s `APP_RELEASE`, and
+current release metadata match `main:package.json` at `2.71.0`.
 
-Focused validation passed for the dashboard completed-event state, folder
-deletion, installer, migration append-only guard, landing page, and README
-consistency (424 tests total; landing page 109/109, README consistency 17/17).
-`git diff --check` passed, and the full `npm test` completed with exit code 0.
-The restore-swap suite reported 64 passed, 3 skipped for root-specific
-filesystem behavior, and 0 failed.
+Focused validation passed for instance locking, budget migration and routes,
+recipes and module permissions, weather, dashboard (including the archived
+event line-through state), housekeeping, installer localization/static/a11y,
+PWA precache, i18n, migration append-only behavior, README/landing consistency,
+and the frontend audit. The full `npm test` completed with exit code 0 before
+the final two documentation-only cherry-picks. After those cherry-picks, the
+frontend audit passed 434/434, the mobile-chrome suite passed, the dashboard
+overview regression passed 20/20, and `git diff --check` passed. The budget
+browser test could not run because Chrome 152 is not installed. The restore-swap
+suite reported 64 passed, 3 skipped for root-specific filesystem behavior, and
+0 failed.
 
 Microsoft To Do task/list mapping, Outlook and ICS calendar semantics,
 persistent task lists, personal and household notification channels,
-Inventory/assets, and dashboard widgets were retained; their code and focused
-regression coverage were not removed or replaced. No push was performed.
+Inventory/assets, and dashboard widgets remain present with their custom
+semantics; their code was not removed or replaced. No push was performed.
