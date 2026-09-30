@@ -45,7 +45,10 @@ async function load() {
     body.insertAdjacentHTML('beforeend', renderSkeletonList({ rows: 4, lines: 2 }));
   }
   try {
-    const res = await api.get(`/budget/plans?month=${view.month}`);
+    // Im personal-Modus rechnet der Plan gegen die gewaehlte Ansicht (Mein
+    // Budget / Haushalt), wie Uebersicht und Berichte (#659).
+    const scope = view.ctx?.budgetMode === 'personal' ? `&scope=${view.ctx.scope}` : '';
+    const res = await api.get(`/budget/plans?month=${view.month}${scope}`);
     view.data = res.data;
     view.error = false;
   } catch (err) {

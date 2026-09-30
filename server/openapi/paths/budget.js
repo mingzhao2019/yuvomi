@@ -4,7 +4,7 @@ export function budgetPaths() {
   return {
     '/api/v1/budget/summary': { get: op({ summary: 'Get budget summary', tag: 'Budget' }) },
     '/api/v1/budget/plans': {
-      get: op({ summary: 'Get planned budget vs. actual for a month (category caps + savings goal)', tag: 'Budget' }),
+      get: op({ summary: 'Get planned budget vs. actual for a month (category caps + savings goal)', tag: 'Budget', description: 'In personal budget mode the actual figures count what you can see, like the summary: `scope` (`mine`|`household`, default `mine`) picks the view, private entries of others do not count, and the amount of an entry of someone else whose details are hidden (`shared_amount`) counts only toward income and balance of the savings goal, never toward a category. Shared mode counts every entry.' }),
     },
     '/api/v1/budget/plans/{category}': {
       put: op({ summary: 'Set planned monthly amount for a category or the savings goal (__savings__)', tag: 'Budget', params: [stringPathParam('category', 'Expense category key or __savings__')], stateChanging: true, requestBody: jsonBody(null) }),
