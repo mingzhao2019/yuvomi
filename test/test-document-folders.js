@@ -53,13 +53,15 @@ function buildMigratedDatabase(migrations) {
   return db;
 }
 
-function createHarness({ userId = ADMIN_ID, role = 'admin' } = {}) {
+function createHarness({ userId = ADMIN_ID, role = 'admin', moduleAccess = null, scopes = null } = {}) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
     req.authUserId = userId;
     req.authRole = role;
     req.session = { userId, role };
+    req.sessionModuleAccess = moduleAccess;
+    req.authScopes = scopes;
     next();
   });
   app.use('/api/v1/documents', documentsRouter);
@@ -398,7 +400,7 @@ test('DELETE with documents rejects a member before deleting any owned document'
   }
 });
 
-test('delete impact does not count a hidden private document and admins cannot delete it through a folder', async () => {
+test('delete impact does not count hidden documents and folder deletion leaves them unfiled', async () => {
   const ownerId = get().prepare(`
     INSERT INTO users (username, display_name, password_hash, role)
     VALUES (?, ?, 'hash', 'member')
@@ -449,16 +451,13 @@ test('delete impact does not count a hidden private document and admins cannot d
       + `&expected_snapshot=${impact.body.data.snapshot}`,
     );
 
-    assert.equal(del.status, 403);
-    assert.equal(del.body.error, 'Not authorized to delete every document in this folder.');
-    assert.equal(get().prepare('SELECT COUNT(*) AS count FROM family_documents WHERE id IN (?, ?)')
-      .get(visibleId, hiddenId).count, 2);
-    assert.ok(get().prepare('SELECT id FROM family_document_folders WHERE id = ?').get(folder.body.data.id));
-
-    const unfile = await h.call('DELETE', `/folders/${folder.body.data.id}?documents=unfile`);
-    assert.equal(unfile.status, 200);
-    assert.equal(unfile.body.data.unfiled_documents, 1,
-      'the response must count only documents visible to the caller');
+    assert.equal(del.status, 200);
+    assert.equal(del.body.data.deleted_documents, 1);
+    assert.equal(del.body.data.unfiled_documents, 0);
+    assert.equal(get().prepare('SELECT id FROM family_documents WHERE id = ?').get(visibleId), undefined);
+    const hidden = get().prepare('SELECT id, folder_id FROM family_documents WHERE id = ?').get(hiddenId);
+    assert.ok(hidden, 'an admin cannot delete a document hidden from them through a folder');
+    assert.equal(hidden.folder_id, null);
   } finally {
     await h.close();
   }
@@ -929,7 +928,7 @@ test('the delete-impact snapshot ignores every change to documents the caller ca
   }
 });
 
-test('a branch the caller may not delete answers 403 before any 409 content check (#1355)', async () => {
+test('a changed visible branch answers 409 before the ownership check', async () => {
   const memberId = seedMember('race-member');
   const ownerId = seedMember('race-owner');
   const memberHarness = createHarness({ userId: memberId, role: 'member' });
@@ -937,30 +936,28 @@ test('a branch the caller may not delete answers 403 before any 409 content chec
     const folder = await memberHarness.call('POST', '/folders', { name: `Race-${randomUUID()}` });
     const folderId = folder.body.data.id;
     const ownedId = insertFolderDocument(folderId, memberId, 'family');
-    const impact = await memberHarness.call('GET', `/folders/${folderId}/delete-impact`);
-    assert.equal(impact.body.data.can_delete_documents, true);
-    const query = `/folders/${folderId}?documents=delete`
-      + `&expected_documents=${impact.body.data.documents}`
-      + `&expected_folders=${impact.body.data.removed_folders}`
-      + `&expected_snapshot=${impact.body.data.snapshot}`;
+    const preview = async () => {
+      const impact = await memberHarness.call('GET', `/folders/${folderId}/delete-impact`);
+      return `/folders/${folderId}?documents=delete`
+        + `&expected_documents=${impact.body.data.documents}`
+        + `&expected_folders=${impact.body.data.removed_folders}`
+        + `&expected_snapshot=${impact.body.data.snapshot}`;
+    };
+    const stale = await preview();
 
-    // Nach der Vorschau kommt ein fuer das Mitglied unsichtbares Dokument dazu.
-    const hiddenId = insertFolderDocument(folderId, ownerId, 'private');
-    const hiddenRace = await memberHarness.call('DELETE', query);
-    assert.equal(hiddenRace.status, 403, 'an invisible late document must not surface as 409');
-    assert.equal(hiddenRace.body.reason, 'FOLDER_DOCUMENTS_NOT_MANAGEABLE');
-    get().prepare('DELETE FROM family_documents WHERE id = ?').run(hiddenId);
-
-    // Ein sichtbares, fremdes Dokument (nicht verwaltbar) darf ebenso kein 409 sein.
+    // Ein sichtbares, fremdes Dokument nach der Vorschau erzeugt zuerst 409.
     const foreignId = insertFolderDocument(folderId, ownerId, 'family');
-    const foreignRace = await memberHarness.call('DELETE', query);
-    assert.equal(foreignRace.status, 403);
-    assert.equal(foreignRace.body.reason, 'FOLDER_DOCUMENTS_NOT_MANAGEABLE');
+    const foreignRace = await memberHarness.call('DELETE', stale);
+    assert.equal(foreignRace.status, 409);
+    assert.equal(foreignRace.body.reason, 'FOLDER_CONTENT_CHANGED');
+    const foreignFresh = await memberHarness.call('DELETE', await preview());
+    assert.equal(foreignFresh.status, 403);
+    assert.equal(foreignFresh.body.reason, 'FOLDER_DOCUMENTS_NOT_MANAGEABLE');
     get().prepare('DELETE FROM family_documents WHERE id = ?').run(foreignId);
 
     // Ein sichtbares, eigenes Dokument nach der Vorschau bleibt ein 409.
     const lateOwnId = insertFolderDocument(folderId, memberId, 'family');
-    const visibleRace = await memberHarness.call('DELETE', query);
+    const visibleRace = await memberHarness.call('DELETE', stale);
     assert.equal(visibleRace.status, 409);
     assert.equal(visibleRace.body.reason, 'FOLDER_CONTENT_CHANGED');
 
@@ -1025,6 +1022,219 @@ test('destructive delete still waits for a single-document delete in progress (#
   } finally {
     unlockDocumentDeletes([documentId]);
     await h.close();
+  }
+});
+
+function linkFromEveryModule(documentId, { owner, visibility = 'all', groupMember = owner }) {
+  get().prepare(`
+    INSERT INTO calendar_events (title, start_datetime, created_by, attachment_document_id, visibility)
+    VALUES ('Linked event', '2026-09-03T10:00:00Z', ?, ?, ?)
+  `).run(owner, documentId, visibility);
+  get().prepare(`
+    INSERT INTO housekeeping_work_sessions (check_in, created_by, receipt_document_id)
+    VALUES ('2026-09-03T10:00:00Z', ?, ?)
+  `).run(owner, documentId);
+  const groupId = get().prepare(`
+    INSERT INTO expense_groups (name, created_by, avatar_document_id) VALUES ('Linked group', ?, ?)
+  `).run(owner, documentId).lastInsertRowid;
+  get().prepare(`
+    INSERT INTO expense_group_members (group_id, user_id, role) VALUES (?, ?, 'owner')
+  `).run(groupId, groupMember);
+  const expenseId = get().prepare(`
+    INSERT INTO expenses
+      (group_id, title, amount_minor, currency, converted_amount_minor, converted_currency, payer_id, created_by)
+    VALUES (?, 'Linked expense', 100, 'EUR', 100, 'EUR', ?, ?)
+  `).run(groupId, owner, owner).lastInsertRowid;
+  get().prepare('INSERT INTO expense_attachments (expense_id, document_id, created_by) VALUES (?, ?, ?)')
+    .run(expenseId, documentId, owner);
+  get().prepare(`
+    INSERT INTO settlements (group_id, payer_id, payee_id, amount_minor, currency, created_by, proof_document_id)
+    VALUES (?, ?, ?, 100, 'EUR', ?, ?)
+  `).run(groupId, owner, ADMIN_ID, owner, documentId);
+  const taskId = get().prepare('INSERT INTO tasks (title, created_by, visibility) VALUES (?, ?, ?)')
+    .run('Linked task', owner, visibility).lastInsertRowid;
+  get().prepare('INSERT INTO task_documents (task_id, document_id, created_by) VALUES (?, ?, ?)')
+    .run(taskId, documentId, owner);
+  const entryId = get().prepare(`
+    INSERT INTO budget_entries (title, amount, date, created_by, owner_id, visibility)
+    VALUES ('Linked budget entry', 1, '2026-09-03', ?, ?, ?)
+  `).run(owner, owner, visibility === 'private' ? 'private' : 'shared').lastInsertRowid;
+  get().prepare('INSERT INTO budget_entry_attachments (entry_id, document_id, created_by) VALUES (?, ?, ?)')
+    .run(entryId, documentId, owner);
+  const itemId = get().prepare("INSERT INTO inventory_items (name, created_by) VALUES ('Linked item', ?)")
+    .run(owner).lastInsertRowid;
+  get().prepare('INSERT INTO inventory_item_documents (item_id, document_id, created_by) VALUES (?, ?, ?)')
+    .run(itemId, documentId, owner);
+}
+
+test('delete impact hides links from unreadable modules for sessions and scoped tokens', async () => {
+  const memberId = seedMember('impact-no-modules');
+  const moduleAccess = {
+    calendar: 'none', housekeeping: 'none', tasks: 'none', budget: 'none', inventory: 'none',
+  };
+  const adminHarness = createHarness();
+  const noModules = createHarness({ userId: memberId, role: 'member', moduleAccess });
+  const documentsToken = createHarness({ userId: memberId, role: 'member', scopes: ['documents:read'] });
+  try {
+    const folder = await adminHarness.call('POST', '/folders', { name: `Module-rights-${randomUUID()}` });
+    const folderId = folder.body.data.id;
+    const documentId = insertFolderDocument(folderId, memberId, 'family');
+    const before = {
+      session: (await noModules.call('GET', `/folders/${folderId}/delete-impact`)).body.data,
+      token: (await documentsToken.call('GET', `/folders/${folderId}/delete-impact`)).body.data,
+    };
+
+    linkFromEveryModule(documentId, { owner: ADMIN_ID, groupMember: memberId });
+
+    const hiddenCounts = {
+      calendar: null, housekeeping: null, split_expenses: null, tasks: null, budget: null, inventory: null,
+    };
+    for (const [label, harness] of [['session', noModules], ['token', documentsToken]]) {
+      const impact = await harness.call('GET', `/folders/${folderId}/delete-impact`);
+      assert.equal(impact.status, 200);
+      assert.deepEqual(impact.body.data.linked_records, hiddenCounts);
+      assert.equal(impact.body.data.snapshot, before[label].snapshot,
+        `${label}: unreadable-module links must not affect the snapshot`);
+    }
+
+    const fullToken = createHarness({
+      userId: memberId,
+      role: 'member',
+      scopes: ['documents:read', 'calendar:read', 'housekeeping:read', 'tasks:read', 'budget:read', 'inventory:read'],
+    });
+    try {
+      const impact = await fullToken.call('GET', `/folders/${folderId}/delete-impact`);
+      assert.deepEqual(impact.body.data.linked_records, {
+        calendar: 1, housekeeping: 1, split_expenses: 3, tasks: 1, budget: 1, inventory: 1,
+      });
+    } finally {
+      await fullToken.close();
+    }
+  } finally {
+    await Promise.all([adminHarness.close(), noModules.close(), documentsToken.close()]);
+  }
+});
+
+test('delete impact counts only linked records visible within readable modules', async () => {
+  const memberId = seedMember('impact-hidden-records');
+  const otherId = seedMember('impact-hidden-owner');
+  const previousMode = get().prepare("SELECT value FROM sync_config WHERE key = 'budget_mode'").get();
+  get().prepare("INSERT OR REPLACE INTO sync_config (key, value) VALUES ('budget_mode', 'personal')").run();
+  const memberHarness = createHarness({ userId: memberId, role: 'member' });
+  try {
+    const folder = await memberHarness.call('POST', '/folders', { name: `Hidden-records-${randomUUID()}` });
+    const folderId = folder.body.data.id;
+    const documentId = insertFolderDocument(folderId, memberId, 'family');
+    const before = (await memberHarness.call('GET', `/folders/${folderId}/delete-impact`)).body.data;
+
+    linkFromEveryModule(documentId, { owner: otherId, visibility: 'private' });
+
+    const impact = await memberHarness.call('GET', `/folders/${folderId}/delete-impact`);
+    assert.equal(impact.status, 200);
+    assert.deepEqual(impact.body.data.linked_records, {
+      calendar: 0, housekeeping: 1, split_expenses: 0, tasks: 0, budget: 0, inventory: 1,
+    });
+    get().prepare('DELETE FROM housekeeping_work_sessions WHERE receipt_document_id = ?').run(documentId);
+    get().prepare('DELETE FROM inventory_item_documents WHERE document_id = ?').run(documentId);
+    const hiddenOnly = await memberHarness.call('GET', `/folders/${folderId}/delete-impact`);
+    assert.equal(hiddenOnly.body.data.snapshot, before.snapshot,
+      'private calendar, task, budget and non-member group links are not part of the snapshot');
+  } finally {
+    if (previousMode) {
+      get().prepare("UPDATE sync_config SET value = ? WHERE key = 'budget_mode'").run(previousMode.value);
+    } else {
+      get().prepare("DELETE FROM sync_config WHERE key = 'budget_mode'").run();
+    }
+    await memberHarness.close();
+  }
+});
+
+test('hidden documents do not change destructive folder-delete answers', async () => {
+  const memberId = seedMember('probe-member');
+  const ownerId = seedMember('probe-owner');
+  const memberHarness = createHarness({ userId: memberId, role: 'member' });
+  const wrongSnapshot = 'f'.repeat(64);
+  try {
+    const probe = async (withHidden) => {
+      const folder = await memberHarness.call('POST', '/folders', { name: `Probe-${randomUUID()}` });
+      const folderId = folder.body.data.id;
+      const ownId = insertFolderDocument(folderId, memberId, 'family');
+      const hiddenId = withHidden ? insertFolderDocument(folderId, ownerId, 'private') : null;
+      const wrong = await memberHarness.call('DELETE',
+        `/folders/${folderId}?documents=delete&expected_snapshot=${wrongSnapshot}`);
+      const impact = await memberHarness.call('GET', `/folders/${folderId}/delete-impact`);
+      const right = await memberHarness.call('DELETE',
+        `/folders/${folderId}?documents=delete`
+        + `&expected_documents=${impact.body.data.documents}`
+        + `&expected_folders=${impact.body.data.removed_folders}`
+        + `&expected_snapshot=${impact.body.data.snapshot}`);
+      const strip = ({ status, body }) => ({
+        status,
+        body: body?.data ? { ...body, data: { ...body.data, id: 'folder' } } : body,
+      });
+      return { wrong: strip(wrong), right: strip(right), folderId, ownId, hiddenId };
+    };
+
+    const without = await probe(false);
+    const withHidden = await probe(true);
+    assert.equal(without.wrong.status, 409);
+    assert.deepEqual(withHidden.wrong, without.wrong);
+    assert.equal(without.right.status, 200);
+    assert.deepEqual(withHidden.right, without.right);
+    assert.equal(get().prepare('SELECT id FROM family_documents WHERE id = ?').get(withHidden.ownId), undefined);
+    const hidden = get().prepare('SELECT id, folder_id FROM family_documents WHERE id = ?').get(withHidden.hiddenId);
+    assert.ok(hidden);
+    assert.equal(hidden.folder_id, null);
+    assert.equal(get().prepare('SELECT id FROM family_document_folders WHERE id = ?').get(withHidden.folderId), undefined);
+  } finally {
+    await memberHarness.close();
+  }
+});
+
+test('a hidden document arriving during deletion is not named in the partial answer', async () => {
+  const storageRoot = mkdtempSync(join(tmpdir(), 'yuvomi-folder-delete-hidden-race-'));
+  const previousStoragePath = process.env.DOCUMENT_STORAGE_LOCAL_PATH;
+  process.env.DOCUMENT_STORAGE_LOCAL_PATH = storageRoot;
+  const ownerId = seedMember('race-hidden-owner');
+  const h = createHarness();
+  try {
+    const folder = await h.call('POST', '/folders', { name: `Hidden-race-${randomUUID()}` });
+    const insert = get().prepare(`
+      INSERT INTO family_documents
+        (name, original_name, mime_type, file_size, content_data, storage_key, category, visibility, status, folder_id, created_by)
+      VALUES (?, ?, 'text/plain', 1, ?, ?, 'other', ?, 'active', ?, ?)
+    `);
+    const storageKeys = Array.from({ length: 40 }, (_unused, index) => `hidden-race-${index}.txt`);
+    for (const storageKey of storageKeys) {
+      writeFileSync(join(storageRoot, storageKey), storageKey);
+      insert.run(storageKey, storageKey, Buffer.alloc(0), storageKey, 'family', folder.body.data.id, ADMIN_ID);
+    }
+
+    const impact = await h.call('GET', `/folders/${folder.body.data.id}/delete-impact`);
+    const deletion = h.call('DELETE',
+      `/folders/${folder.body.data.id}?documents=delete&expected_snapshot=${impact.body.data.snapshot}`);
+    const deadline = Date.now() + 2000;
+    while (existsSync(join(storageRoot, storageKeys[0])) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    assert.equal(existsSync(join(storageRoot, storageKeys[0])), false, 'storage deletion must have started');
+    const hiddenId = insert.run(
+      'Private tax letter', 'private.txt', Buffer.from('p'), null, 'private', folder.body.data.id, ownerId,
+    ).lastInsertRowid;
+
+    const del = await deletion;
+    assert.equal(JSON.stringify(del.body).includes('Private tax letter'), false);
+    assert.equal((del.body.data.failed_documents || []).some((document) => document.id === hiddenId), false);
+    assert.equal(del.status, 200);
+    assert.equal(del.body.data.folder_deleted, true);
+    const hidden = get().prepare('SELECT id, folder_id FROM family_documents WHERE id = ?').get(hiddenId);
+    assert.ok(hidden);
+    assert.equal(hidden.folder_id, null);
+  } finally {
+    await h.close();
+    if (previousStoragePath === undefined) delete process.env.DOCUMENT_STORAGE_LOCAL_PATH;
+    else process.env.DOCUMENT_STORAGE_LOCAL_PATH = previousStoragePath;
+    rmSync(storageRoot, { recursive: true, force: true });
   }
 });
 

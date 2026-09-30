@@ -49,9 +49,11 @@ The same rule was reached three times, each time from a different module:
 - **Documents, review of PR #989 (September 2026).** The destructive folder delete skipped
   the ownership check for admins, so an admin could permanently delete a member's private
   document that the single-document path would not even show them. Decided in review: the
-  visibility rule stands and admins do not override it. The subtree is selected through the
-  one visibility rule and refused as soon as one row in it is invisible to the caller;
-  sharing a single document deliberately is the owner's act, and that path already exists.
+  visibility rule stands and admins do not override it. A hidden row is never deleted through
+  its folder; it keeps its data and only loses the folder link when the subtree is deleted.
+  Refusing the whole subtree would itself reveal that a hidden row exists, so both preview and
+  delete answer are independent of hidden documents. Sharing a single document deliberately is
+  the owner's act, and that path already exists.
 
 The task lock in v2.30.0 rests on the same reasoning from the other side: a family role says
 who somebody is, not what they may do, and Yuvomi had already replaced that inference with
