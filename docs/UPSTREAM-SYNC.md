@@ -138,53 +138,53 @@ one of the areas below.
 
 ## Current sync checkpoint
 
-As of 2026-09-29, local `main` and `upstream/main` both point to
-`c46f8724f` (#1568), following the previous checkpoint `40880779b` (#1533).
-The updates below were reviewed in upstream order and selectively ported on
-`custom-upstream-selective-2026-09-29`; `upstream/main` was not merged into
+As of 2026-09-30, local `main` and `upstream/main` both point to
+`c274a1565` (v2.70.0). The previous custom checkpoint was `708df9e61`.
+Changes were reviewed in upstream order and integrated on
+`custom-upstream-selective-2026-09-30`; upstream was not merged wholesale into
 `custom`.
 
 | Upstream commit | Behavior | Integration decision |
 | --- | --- | --- |
-| `0a5aa8af5` (#1535) | CalDAV credentials are required again after changing server or username. | Ported; retained account identity and credential boundaries. |
-| `7048cf2f7` (#1534/#1538) | Dashboard's “due today until” follows the household day. | Ported; retained custom dashboard composition. |
-| `75205a48e` (#1531/#1537) | Restore-route coverage includes `/docs` and every top-level route. | Ported with the existing route allowlists. |
-| `fe63eb995` (#1532/#1548) | Restore waits for work that writes after the HTTP response. | Ported with custom deferred-provider-sync tracking. |
-| `b72eb1982` (#1536) | Split dashboard tile net matches its summary band. | Test-only change adopted. |
-| `fd45aec4e` (#1546/#1553) | Editing a recurring budget month for future entries no longer ends the series. | Ported with custom recurring-series behavior. |
-| `93bdaa890` (#1539/#1542) | Medication reminders use the household clock. | Ported; no data-model change. |
-| `450885975` (#1540/#1543) | Editing a housekeeping visit preserves its household day. | Ported with household-time-zone semantics. |
-| `3a6fc78d7` (#1555) | WebDAV credentials are required again after changing server or username. | Ported; existing account and secret handling retained. |
-| `0a544860f` (#1473/#1547) | Counting strings receive locale-appropriate plural categories. | Manually composed across locales; custom translations retained and plural categories checked. |
-| `7349c8081` (#1549/#1554) | `_one` strings retain `{{count}}` where “one” can cover values above one. | Manually composed across locales; custom wording retained. |
-| `58eaf7558` (#1556/#1557) | Housekeeping check-in uses the household day. | Ported with household-time-zone semantics. |
-| `740d28d95` (#1544/#1558) | Copy explains that deleting a series' first budget entry ends the series. | Ported as explanatory copy; deletion behavior was not changed. |
-| `e69964d5c` (#1474) | Multi-day calendar bars mirror their open edge and tint in RTL. | Ported; calendar selection and completion behavior retained. |
-| `c816176bc` (#1551/#1563) | Restore waits for GET handlers that write after an `await`. | Ported; To Do list refresh is gated, and Inventory image-search GETs are documented as read-only. |
-| `2de082470` (#1564) | Wall mode has an in-view exit and Back leaves the mode. | Adopted with the shared overlay-history marker; custom wall timer and route behavior retained. |
-| `6de301ee7` (#1565) | RTL calendar class lookup escapes every regular-expression character. | Equivalent test fix was already present as `7c72feb1c`; no duplicate port was added. |
-| `1c607f539` (#1567) | First-run setup keeps the selected language and accepts an optional time zone. | Ported as additive `/api/v1` fields; custom `test-chain` was preserved and the new test added to it. |
-| `c46f8724f` (#1568) | Admin weather settings report whether the active source is the database or server environment. | Ported with one shared resolver; `weather_user` stays member-scoped, and the API response excludes keys. |
+| `762fcc36f` | Folder-delete preview and result counts follow module rights and record visibility; hidden documents are not disclosed or deleted. | Manually ported as `69bebc020`; kept snapshot comparison ahead of visible-document management checks and preserved hidden-document unfiling semantics. |
+| `3f3cee5a9` | Merge of upstream main into the folder-delete feature branch. | Merge carrier only; no additional behavior was separately ported. The folder fix is accounted for above. |
+| `c53c77633` | Merge of upstream main into the folder-delete feature branch, with a changelog conflict. | Merge carrier only; no independent behavior beyond the reviewed feature/release changes. Changelog placement was resolved in the integration tree. |
+| `6c7f13ae0` | Merge of upstream main into the folder-delete feature branch. | Merge carrier only; no additional behavior was separately ported. |
+| `c289e13ba` (#1570) | Web installer adopts the app's visual language, responsive step flow, validation and hand-off to the running app. | Adopted as `2009a811b`; retained the custom app's routes and installer contracts. |
+| `09902f832` (#1571) | Installer adds module on/off switches and includes Docker setup in its step list. | Adopted as `163c3b66d`; retained all localized installer behavior. |
+| `405450fe5` (#1573) | Website fact corrections, complete installation paths, family section and app design tokens. | Adopted as `dff96232f`; composed the README reward wording to match custom behavior: points go to the member who completes the task, not necessarily its assignee. |
+| `6e0760b37` | Merge of upstream main into the folder-delete feature branch. | Merge carrier only; no independent behavior beyond the reviewed feature/release changes. |
+| `c274a1565` | v2.70.0 release metadata. | Adopted as `e3e5902c7`; package, lockfile, service-worker and current release metadata agree on `2.70.0`. |
 
-Semantic overlaps were resolved explicitly. The two pluralization changes were
-merged into all locales without replacing custom copy. Wall mode uses the
-existing single overlay-history registry and keeps the custom timer and
-root-route lifecycle. Setup writes language/time zone in the first-admin
-transaction and does not infer region, currency, or date format. Weather
-resolution is shared by the proxy and preferences response; removing a stored
-Open-Meteo location clears its coordinates so environment configuration can
-apply again. Restore gating protects database-writing provider refreshes while
-keeping network-only image search outside the gate. No migrations or released
-schema history changed.
+Semantic overlaps were resolved explicitly. The folder-delete fix limits each
+module count by both read permission and record visibility, compares the
+confirmed snapshot before management checks, and leaves hidden documents in
+place while clearing only their folder association. The website's reward
+description was corrected in English and German to describe custom completion
+recipient semantics. The upstream security explanation for folder deletion was
+restored to its released changelog section; the two custom #1358 document
+permission entries remain under `[Unreleased]` rather than being moved into the
+v2.70.0 release. No released migration or schema history changed.
 
-The preceding Inventory port `e146829b3` (#1257) remains append-only migration
-`236`, alongside custom migration `224`; it supplies recurring tracked dates,
-service history, and odometer fields while preserving custom asset scope,
-visibility, assignment, and administrator boundaries. The current schema
-migration remains `237`.
+The earlier dashboard fix `708df9e61` remains in `custom`: completed calendar
+events in the overview still render `event-item--done`, its CSS still applies
+line-through, and `test/test-dashboard-today.js` asserts that state. No upstream
+change in this range superseded that behavior.
 
-`main:package.json` remains at `2.69.1`; the root package, both root lockfile
-versions, and `public/sw.js`'s `APP_RELEASE` match it. Current installation and
-landing-page metadata also remain on `2.69.1`; historical changelog entries
-were not rewritten. Replace this section at the next upstream sync rather than
-extending an ever-growing history table.
+The current schema remains migration `237`; no migration files or database
+schema code changed in this sync. The root package, both root lockfile version
+fields, `public/sw.js`'s `APP_RELEASE`, and current release metadata all match
+`main:package.json` at `2.70.0`. Replace this section at the next upstream sync
+rather than extending an ever-growing history table.
+
+Focused validation passed for the dashboard completed-event state, folder
+deletion, installer, migration append-only guard, landing page, and README
+consistency (424 tests total; landing page 109/109, README consistency 17/17).
+`git diff --check` passed, and the full `npm test` completed with exit code 0.
+The restore-swap suite reported 64 passed, 3 skipped for root-specific
+filesystem behavior, and 0 failed.
+
+Microsoft To Do task/list mapping, Outlook and ICS calendar semantics,
+persistent task lists, personal and household notification channels,
+Inventory/assets, and dashboard widgets were retained; their code and focused
+regression coverage were not removed or replaced. No push was performed.

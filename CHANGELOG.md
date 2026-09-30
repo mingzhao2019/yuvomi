@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
+  sent the file name and document number of a visit's receipt to everyone who could open the
+  housekeeping module, also to members without access to documents and when the receipt was a
+  private document of someone else. The page already hid the name without document access, but the
+  API still returned it. Name and number now come only when you may read that document, by the same
+  rule the documents module uses; otherwise the visit only says that it has a receipt, and the edit
+  dialog shows "Attached" instead of an upload field. Saving such a visit keeps the receipt: before,
+  saving it could silently remove someone else's private receipt, and it can no longer be replaced
+  or removed by someone who cannot see it. Linking a receipt now needs access to documents. For API
+  clients every visit and work session carries `has_receipt`; `receipt_document_id` and
+  `receipt_document_name` are `null` unless you may read the document, API tokens need a
+  `documents:read` scope for them, and `PUT /api/v1/housekeeping/visits/{id}` answers 403 when it
+  would replace a receipt you cannot see or link one without access to documents. (#1358)
+
+- **Receipts on budget entries, shared expenses and inventory items no longer name documents you
+  may not read.** Their API sent the file name and document number of every linked receipt to
+  anyone who could open the budget or the inventory, also to members without access to documents
+  and to API tokens without a documents scope. Without access to documents a receipt now only says
+  that it is there: the detail view shows "Attached" where the name was, and the inventory no
+  longer shows a link that leads nowhere or lists the document in an item's history. Linking a
+  receipt or a payment proof needs access to documents, and existing receipts stay when such a
+  member saves the entry. For API clients `attachments[].document_id`, `name`, `original_name`,
+  `mime_type` and `file_size` are `null` without access to the documents module (for API tokens a
+  `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
+  document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
+  same 403 for every id. (#1358)
+
 ## [2.70.0] - 2026-09-30
 
 ### Added
@@ -53,32 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   button that corrects the value and recalculates its flag. The API gains
   `PATCH /api/v1/health/results/:id` for a single lab value.
 
-- **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
-  sent the file name and document number of a visit's receipt to everyone who could open the
-  housekeeping module, also to members without access to documents and when the receipt was a
-  private document of someone else. The page already hid the name without document access, but the
-  API still returned it. Name and number now come only when you may read that document, by the same
-  rule the documents module uses; otherwise the visit only says that it has a receipt, and the edit
-  dialog shows "Attached" instead of an upload field. Saving such a visit keeps the receipt: before,
-  saving it could silently remove someone else's private receipt, and it can no longer be replaced
-  or removed by someone who cannot see it. Linking a receipt now needs access to documents. For API
-  clients every visit and work session carries `has_receipt`; `receipt_document_id` and
-  `receipt_document_name` are `null` unless you may read the document, API tokens need a
-  `documents:read` scope for them, and `PUT /api/v1/housekeeping/visits/{id}` answers 403 when it
-  would replace a receipt you cannot see or link one without access to documents. (#1358)
-
-- **Receipts on budget entries, shared expenses and inventory items no longer name documents you
-  may not read.** Their API sent the file name and document number of every linked receipt to
-  anyone who could open the budget or the inventory, also to members without access to documents
-  and to API tokens without a documents scope. Without access to documents a receipt now only says
-  that it is there: the detail view shows "Attached" where the name was, and the inventory no
-  longer shows a link that leads nowhere or lists the document in an item's history. Linking a
-  receipt or a payment proof needs access to documents, and existing receipts stay when such a
-  member saves the entry. For API clients `attachments[].document_id`, `name`, `original_name`,
-  `mime_type` and `file_size` are `null` without access to the documents module (for API tokens a
-  `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
-  document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
-  same 403 for every id. (#1358)
 - **The month on a phone shows the day you pick below the grid.** Tapping a day in the month view
   now selects it instead of jumping to the day view, and its events and tasks appear as a list
   under the grid, in the same rows as the agenda; the date above the list opens the day view. Drag
@@ -1365,6 +1368,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **Deleting a folder no longer tells you about records and documents you may not see.** Before
+  deleting a folder the app asks the server what the deletion would affect. That answer counted,
+  per module, the calendar events, housekeeping visits, shared expenses, tasks, budget entries and
+  inventory items linked to the documents in the folder, without checking whether you may open
+  that module or see those records. A member without access to the budget, or an API token
+  limited to `documents:read`, learned how many bookings link to a document, and a member learned
+  about links from another member's private event or task; the confirmation code in the same
+  answer changed with them. The counts now include only modules you may open and only records
+  you can see there. Deleting a folder together with its documents also gave hidden documents
+  away: when the folder held another member's private document, the request was refused with a
+  different answer than when it did not, so a member with write access to documents could test
+  any folder for private documents of others. Such a document is now left alone instead: it is
+  not deleted, keeps its sharing and only loses its folder, exactly as when you keep the
+  documents, and the answer is the same whether it is there or not. This replaces the refusal
+  described in 2.68.1 and 2.69.0; nobody can delete a document through a folder that they cannot
+  see, administrators included. When a document arrived in the folder while a deletion was still
+  running, the partial result named it even if it was private to someone else; it now names only
+  documents you can see. For API clients: in the response of
+  `GET /api/v1/documents/folders/{id}/delete-impact`, `linked_records` has `null` for a module the
+  caller may not read (member right or token scope; shared expenses follow `budget`), not a
+  count. `DELETE /api/v1/documents/folders/{id}?documents=delete` now compares the snapshot
+  first (409 `FOLDER_CONTENT_CHANGED`) and answers 403 `FOLDER_DOCUMENTS_NOT_MANAGEABLE` only
+  for a visible document the caller may not manage; `deleted_documents` and `failed_documents`
+  cover only visible documents.
 - **The WebDAV backup target moved to another server or username needs its password again.**
   The connection test in Settings -> Household -> Backup and restore, and the API behind it, took
   a new server address with the password field left as it was and tested it with the stored
