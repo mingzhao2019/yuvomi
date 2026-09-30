@@ -1195,7 +1195,8 @@ Stapelkontext (`isolation: isolate`, layout.css) - fuer jede Split-Detailspalte
 es liess 228px leer, ohne dass die Flaeche etwas trug. Zugeordnet am 2026-09-26:
 
 - **Inventar -> Liste + Detail**, weil es ein Detail-Markup hat (`openDetailView`, dieselbe
-  Leseansicht wie Kontakte). Bis der Baustein eingehaengt ist, steht es auf dem Lesemass.
+  Leseansicht wie Kontakte); eingehaengt mit #1477 (`reading` + `list-detail`,
+  `test:inventory-list-detail`).
 - **Haushaltshilfe -> Lesemass.** Ihre vier Reiter sind Listen und Karten, die auf 720px
   zweispaltig bleiben. Die Berichte waeren als Flaeche besser gelesen, aber ein Regime je
   Reiter hiesse den geteilten Kopf je Reiter umzuschalten - dieselbe offene Frage wie beim
@@ -1944,8 +1945,9 @@ housekeeping-/rewards-tabs) oder als neutraler Wrapper um einen Segment-Traeger,
 Well nicht die ganze Zeile faerben darf (Kalender-Views). **Die Werkzeuge der Ansicht stehen
 am Ende derselben Zeile** (Kalender: Filter und Suche, Critique 2026-09-24): im Aktions-Slot
 bauten sie mobil eine eigene Kopfzeile und standen je nach Kollaps-Zustand links oder
-rechts. In der Bar-Zeile stehen sie in jeder Ansicht, jedem Zustand und jeder Breite an
-derselben Stelle. Wird es eng, gibt das Segment nach (es scrollt mit Fade), nie die
+rechts. In der Bar-Zeile stehen sie ab 640px in jeder Ansicht und jedem Zustand an derselben
+Stelle; unter 640px stehen sie seit R17 (2026-09-28) in Zeile 1 neben dem Titel (siehe
+„Variante: Zeitraum-Kopf" unter der Kopfregel mobil). Wird es eng, gibt das Segment nach (es scrollt mit Fade), nie die
 Werkzeuge: die haben kein Label zum Anschneiden, nur ihre Trefferflaeche. Der fruehere Rail-Pad-
 Ausnahmeeintrag fuer Tab-Innenabstaende ist mit dem Subjekt-Scan des #577-Guards entfallen:
 ein Selektor, dessen letztes Compound nicht die Rail ist, polstert ein KIND der Rail.
@@ -2084,7 +2086,7 @@ Modulseite, und wieviel Chrome darf davorstehen.
 
 **Die Groessenklasse hat dafuer eine zweite Achse** (tokens.css §11c): unter 500px
 Viewporthoehe faellt der Kopf auf seine Bar-Zeile, die Suche in ihre Icon-Form, jede Leiste
-gibt eine Padding-Stufe ab, und `--fab-safe-zone` schrumpft auf Gap plus Knopf. Die Breite
+gibt eine Padding-Stufe ab. Der FAB traegt dazu nichts bei (siehe unten). Die Breite
 allein konnte das nicht entscheiden - nach ihr ist ein 640x400-Fenster (ein 1280x800-Laptop
 bei 200 % Zoom, also WCAG 1.4.4) von einem 375x812-Telefon nicht zu unterscheiden, auf dem
 dieselben 296px Kopf unauffaellig sind. Dieselbe Lage haben Splitscreen-Tablets, kleine
@@ -2102,19 +2104,16 @@ der falsche Gehorsam gegenueber der Regel.
 wegzunehmen hiesse, eine Navigationsebene zu verstecken, die es nur in dieser Groessenklasse
 nicht gaebe. Die Tabs behalten `--target-base` und verlieren nur die Luft um sich herum.
 
-**Und die FAB-Zone faellt so weit, wie sie kann, und keinen Pixel weiter.** Die erste Fassung
-setzte sie auf 0 und war damit falsch: am Scroll-Ende lagen `.pantry-stepper__btn` und
-`.contact-more-menu` unter dem Knopf und waren nicht mehr erreichbar - genau die Zusicherung
-aus #634, an einem Scrollstand, den niemand mehr aufloesen kann, weil es unter ihm nichts
-mehr gibt. Verzichtbar sind die 16px Luft und ein Teil des Schwebeabstands, nicht die Flaeche
-des Knopfes. Der grosse Gewinn kommt ohnehin aus dem Kopf: auf /tasks 296px Chrome ueber
-231px Scrollport vorher, 137px ueber 263px nachher - von "keine einzige Aufgabe sichtbar" auf
-zwei.
-
-**Diesen Absatz hat die Nachlauf-Regel ueberholt** (siehe unten): die Zone muss gar nicht
-fallen, sie muss ihren MECHANISMUS wechseln. Was hier als „so weit, wie sie kann" formuliert
-ist, war ein Kompromiss zwischen Flaeche und Erreichbarkeit - und der war nur noetig, solange
-die Reserve den Scrollport verkuerzte.
+**Die FAB-Zone faellt in der kompakten Hoehe NICHT, und muss es nicht.** Bis 2026-08-10 stand
+hier die Rechnung, wie weit `--fab-safe-zone` fallen darf (92 auf 60px), samt der Warnung,
+dass 0 am Scroll-Ende `.pantry-stepper__btn` und `.contact-more-menu` unter dem Knopf
+unerreichbar macht (#634). Beides ist erledigt, seit der Knopf unter 1024px in der Nav-Kapsel
+sitzt: dort ist die Zone ueberall 0, und darueber traegt sie die Nachlauf-Regel (siehe unten)
+als Nachlauf am Inhaltsende, der den Scrollport nicht verkuerzt. Der Kompromiss zwischen
+Flaeche und Erreichbarkeit war nur noetig, solange die Reserve den Scrollport verkuerzte
+(tokens.css, „Kompakte Hoehe - die zweite Achse der Groessenklasse (§11c)"). Der grosse Gewinn kam ohnehin aus dem Kopf: auf
+/tasks 296px Chrome ueber 231px Scrollport vorher, 137px ueber 263px nachher - von „keine
+einzige Aufgabe sichtbar" auf zwei.
 
 ### Kopfregel mobil (2026-09-26, Critique A1 P1-3 / A8)
 
