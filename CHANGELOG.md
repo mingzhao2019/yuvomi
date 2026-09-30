@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
   same 403 for every id. (#1358)
 
+- **Brazilian Portuguese as its own language** (#1437, translated by @dareoon). The app, the
+  web installer and the command-line installer speak pt-BR as the 25th language, next to the
+  existing Portuguese. A Brazilian browser or `LANG=pt_BR.UTF-8` picks it on its own, as does a
+  household whose region is Brazil for the entries Yuvomi writes itself; every other Portuguese
+  region keeps `pt`. Holiday names in Brazil stay Portuguese under the new data language.
+
 ### Changed
 
 - **The website and README screenshots show v2.70.0, and the family section shows the wall mode.**
