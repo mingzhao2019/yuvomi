@@ -338,7 +338,18 @@ components:
      jedes colorMeta da, waehrend alle neun Familientoene Name, Dark-Wert und
      Rampe fuehren; und ein Don't war auf seinen ersten Satz gekuerzt. Die
      Rampen sind aus dem jeweiligen canonical neu gerechnet, alle 29 Eintraege
-     stimmen jetzt gegen ihren Ausgangswert. -->
+     stimmen jetzt gegen ihren Ausgangswert.
+
+     Nachgefuehrt 2026-09-30 gegen v2.71.0 (32 Commits auf public seit #1502). Frontmatter
+     (Farben, Familien, Wetterlagen, Radien) deckt sich mit tokens.css, alle 143 genannten
+     Tokens und 131 Selektoren existieren oder stehen ausdruecklich als entfallen. Ein
+     Widerspruch aus den neuen Commits: der Wand-Ausstieg stand hier noch als Nur-Zeichen im
+     Ruhezustand, genau die Falle, die #1559 zurueckgenommen hat. Zwei aeltere: die Dark-Kanten
+     trugen die Werte von vor der Dark-Kur (#454039 / #37332E), und der Absatz dazu fuehrte
+     „Bedienelement-Kanten verfehlen 3:1" als Betreiber-Entscheidung, waehrend Inputs darunter
+     laengst --color-border-control mit 3:1 beschreiben; der Dark-Akzent nannte 4.96:1 statt
+     4.61:1. Neu aufgenommen: Schalterbahn (#1572), klebender Wand-Fuss und Meldungen oben
+     (#1559), -ink-Fristfarbe auf ausgewaehlter Zeile, Wetter-Ausfallzustand (#1584). -->
 
 ## Page Composition
 
@@ -494,8 +505,8 @@ Inhalt, kein Verlauf ueber eine Karte, kein Text auf einer Flaeche, die nicht ge
 
 ### Primary
 - **Das Violett der Bildmarke** (`accent-violet` #6C3AED): die Stimme der App. 6.10:1 auf
-  Weiss, 5.49:1 auf dem Grouped-Grund; Dark-Variante `#A78BFA` (4.96:1 auf der hellsten
-  Flaeche, auf der sie als Text steht). Der getoente Zwilling `accent-light` traegt
+  Weiss, 5.49:1 auf dem Grouped-Grund; Dark-Variante `#A78BFA` (4.61:1 auf der hellsten
+  Flaeche, auf der sie als Text steht, `#37332E`; 5.39:1 auf Surface, 6.52:1 auf der Buehne). Der getoente Zwilling `accent-light` traegt
   Fokus-Glows und Heute-Chips. Das Dashboard teilt den Wert bewusst als Modul-Tint - es
   ist der Raum der Marke.
 
@@ -724,11 +735,20 @@ Inhalt, kein Verlauf ueber eine Karte, kein Text auf einer Flaeche, die nicht ge
   und 5.58:1 auf bg, Tertiaer >=4.6:1 auf bg (auch Placeholder-Farbe), Quartaer nur
   dekorativ, nie Fliesstext.
 - **Kanten** (`border` Standard, `border-subtle` Trenner, `border-strong` Hover): im Dark
-  Mode eigenstaendig gesetzt (#454039 / #37332E / #6F6A61), weil die Neutral-Rampe dort zu
-  dicht an der Flaechenfarbe liegt. Bekannte, dokumentierte Betreiber-Entscheidung: Kanten
-  von Bedienelementen erreichen die 3:1 von WCAG 1.4.11 nicht (gemessen 1.26:1 hell auf
-  Surface, 1.13:1 auf dem Grouped-Grund, 1.60:1 dunkel; Zielwert waere #949494), wie Apples
-  eigene Grouped-List-Separatoren. Der TEXT-Kontrast ist ueberall ohne Verstoss.
+  Mode eigenstaendig gesetzt (#47423B / #3E3933 / #6F6A61, seit der Dark-Kur 2026-08-17),
+  weil die Neutral-Rampe dort zu dicht an der Flaechenfarbe liegt. Karten- und Trennkanten
+  bleiben bewusst unter 3:1, wie Apples eigene Grouped-List-Separatoren - sie grenzen
+  Flaechen ab, keine Bedienelemente. **Wo eine Kante die Grenze eines BEDIENELEMENTS ist,
+  haelt sie 3:1 nach WCAG 1.4.11**, und dafuer gibt es je einen eigenen Token statt einer
+  Ausnahme: `--color-border-control` fuer die Ruhekante von Eingabefeldern (siehe Inputs)
+  und `--color-switch-off` fuer die Bahn eines ausgeschalteten Schalters (#1572). Die Bahn
+  stand auf `--neutral-300` und lag bei 1,65:1 auf Weiss und 1,46:1 auf dem dunklen `-raised`
+  - ein Schalter, der aus war, verschwand in seiner Zeile. Die Bahn selbst traegt die Grenze,
+  keine zusaetzliche Kante: die Form bleibt Apples randlose Kapsel. Light `#88847C` (eine Spur
+  unter `--neutral-500`, weil die Rampenstufe auf dem Zeilen-Hover 2,94 truege) haelt 3,72 auf
+  Weiss, 3,36 auf der Buehne, 3,10 auf dem Hover; Dark `#948E85` (= `--_neutral-500`) 3,25-4,51.
+  Guard: `test:frontend-audit`, „die ausgeschaltete Schalterbahn haelt 3:1 auf jeder Flaeche, auf der ein Schalter steht". Der TEXT-Kontrast
+  ist ueberall ohne Verstoss.
 
 ### Named Rules
 **Rot ist eine Warnung, kein Vorzeichen (Re-Critique 2026-09-27, C1).** Im Budget war jede
@@ -874,7 +894,11 @@ liegt regelmaessig auf einem geloggten Tag - dann stehen beide Ringe an derselbe
 **Zwei Kategorien sind ausdruecklich NICHT gemeint, und beide unterscheiden sich nach der
 Bauart, nicht nach einer Ausnahmeliste.** Eine FRISTMELDUNG („heute faellig",
 `.due-date--today`, `.housekeeping-task--today`) sagt nicht „das ist der heutige Tag",
-sondern „das ist jetzt dran", und traegt die Warnfarbe. Und die GEBURTSTAGSZEILE behaelt
+sondern „das ist jetzt dran", und traegt die Warnfarbe. Auf einer AUSGEWAEHLTEN Zeile der
+Spaltenform (Akzent `--tint-state` ueber der Flaeche, light #EDE7FD) haelt die Vollfarbe keine
+4,5:1 mehr („Heute faellig" 4,14, „Ueberfaellig" 4,47); dort tritt die `-ink`-Stufe ein
+(`--color-warning-ink` / `--color-danger-ink`, 5,31 / 5,73, `tasks.css`) - dieselbe Antwort, die
+tokens.css fuer Text auf getoenter Flaeche immer gibt. Und die GEBURTSTAGSZEILE behaelt
 ihren Modulton mit der Begruendung, die im Quelltext steht: die Zeile beantwortet „wann",
 und der eine Tag, an dem die Antwort HEUTE lautet, ist der Anlass des ganzen Moduls -
 gemessen 5,08:1 light / 7,35:1 dark. Beides sind Zeile, Chip oder Textspanne, keine
@@ -1321,7 +1345,9 @@ lag bei 1280x800 auf "Loeschen"), aber nur ohne offenen Dialog; die Erinnerung w
 ganz, nur ihrem Fuss. Findet sich kein Platz, zeigt der Stapel nur den juengsten
 Toast, die uebrigen stehen `inert` als `.toast--tucked` bereit. Ein Dialog mit eigener
 Kopf- oder Fusszeile zeichnet sie mit `data-dialog-actions` aus; das Register dazu fuehrt
-`test:toast-placement`.
+`test:toast-placement`. Im Wand-Modus steht der Stapel ohne offenen Dialog OBEN statt unten
+(#1559, siehe „Der Wand-Modus"): dort gibt es keine Tab-Leiste, mit der er rechnet, und unten
+liegen Ausstieg und Timer-Knoepfe.
 
 ## Shapes
 
@@ -1357,7 +1383,7 @@ sind Dokumente (ein Werkzeugmenue), Kalender (Filterblatt, Dialogfuss) und der B
 | Folge gleichartiger Zeilen | `.row-carrier` (Surface, `--radius-lg`, `--shadow-sm`, Haarlinien `> * + *`); liegt die Liste schon in einer Karte: `.row-divided` | list-row.css | `.list-rows` (12px, ohne Schatten) - laeuft aus, danach faellt die Regel |
 | Anlegen | `page-fab` MIT Nomen: mobil in der Kapsel, am Desktop angedockt als Kopf-Pille "+ Nomen" (Kuerzel "n" angesagt); ein Kontext-FAB nennt je Tab sein Nomen (ein Nomen, keine Verbphrase) | `createPageFab({ dockLabel })`, `setPageFabAction(fab, { label, dockLabel, onClick })` (utils/fab.js) | schwebender FAB ohne Nomen, dessen Bedeutung mit dem Tab wechselt; Inline-Anlegeformulare ueber der Liste; eigener Kopfknopf `.toolbar-new-btn` |
 | Dialogknoepfe | `.modal-panel__footer`: [Loeschen `btn--danger-outline` MIT Text, am Anfangsrand] ... [Abbrechen] [Primaer `btn--primary`]; `mountFooter()` hebt ihn an den Blattrand, mobil ueber die Falz - auch die geteilten Rueckfragen (confirm/prompt/select). Den Anfangsrand haelt EINE Regel in layout.css an `.modal-panel__delete` (setzt `decorateFooterDelete`, RTL gespiegelt), kein `margin` je Modul (R16) | modal.js; Vorbild Kalender-Termin, Aufgabe | `.modal-actions` im scrollenden Koerper, Loeschen als rotes Icon |
-| Boolean in den Einstellungen | Schalter (`.toggle`-Bahn, `role="switch"`), Label links, Zustand rechts | `toggleRowHtml({ ..., control: 'switch' })` (settings/components.js) | native 18px-Checkbox, "Aktiviert"-Badge neben dem Haken |
+| Boolean in den Einstellungen | Schalter (`.toggle`-Bahn, `role="switch"`), Label links, Zustand rechts; Bahn aus = `--color-switch-off` (3:1, siehe Kanten), der Knopf startet per `inset-inline-start` und laeuft in RTL nach links wie bei Apple (#1572) | `toggleRowHtml({ ..., control: 'switch' })` (settings/components.js) | native 18px-Checkbox, "Aktiviert"-Badge neben dem Haken |
 | Auswahl aus 2-4 Werten (Theme) | `.segmented` im Well (Abschnitt "Segmented Controls") | panel.css | drei getrennte Rahmenknoepfe |
 | Auswahl in einer Segment-/Tab-Leiste zeigen | EINE Bewegung: eine Kapsel hinter den Labels gleitet (`--duration-lg` + `--ease-out`, nur `transform`, Breite nur wenn sie sich aendert; reduzierte Bewegung springt); die Sidebar-Pille behaelt ihre Feder, hoechstens `--duration-xl` | `attachSegmentIndicator(bar)` (utils/segment-indicator.js; folgt jedem Wechsel des aktiven Eintrags selbst), `renderSubTabs({ indicator })`, `{ key }` fuer Leisten, die neu gebaut werden | springende Flaeche am aktiven Tab; eigene WAAPI-Kapseln; Literal-Dauern (450ms) |
 | Mobiles Blatt (Dialog, Mehr) | EINE Grammatik: Griff 36x5 in der Kopfzone (`--sheet-grabber`: hell `--color-border-strong`, dunkel Glas-Weiss), Griff-Oberkante bis Titel 16px; 1:1 mitgehen, schliessen ab 80px Weg ODER Flick > 0.5px/ms, sonst zurueckfedern (`--duration-lg` + `--ease-out`), nach oben Gummiband; der Zug liegt auf `translate` | `wireSheetDrag(sheet, { scroller, onDismiss })` (utils/sheet-drag.js) | leerer Griff-Streifen, Glas-Weiss auf weisser Tafel, Faktor 0.6, Schliessen erst bei `touchend`, Zurueckspringen ohne Transition |
@@ -2834,6 +2860,15 @@ jeder der vier Tage seinen eigenen Ton, weil aus zwei Metern Farbe die schneller
 ist als Form. Nachts gibt die Wand beides ab - ein bernsteinfarbenes Sonnenzeichen waere im
 dunklen Flur der hellste Punkt im Raum.
 
+**KEIN WETTER IST EIN ZUSTAND, KEIN VERSCHWINDEN** (#1584, 2026-09-30). Eine gescheiterte Abfrage
+kam als leeres Datum zurueck, der Renderer lieferte dafuer nichts, und die Kachel verschwand aus
+dem Raster, aus der Anpassen-Ablage und nahm die Wetterzeile im Kopf mit. Jetzt entscheidet der
+GRUND: ist kein Wetter eingerichtet (`not_configured`), ist die Kachel nicht verfuegbar wie ein
+abgeschaltetes Modul; ist es eingerichtet und der Anbieter scheitert, bleibt die Kachel stehen -
+`.weather-widget--unavailable` mit `cloud-off`-Zeichen, „Wetter gerade nicht verfuegbar" im
+`.widget__empty` und dem Aktualisieren-Knopf, und die automatische Aktualisierung laeuft weiter.
+Ein unbekannter Grund zaehlt als eingerichtet: im Zweifel bleibt die Kachel.
+
 ### Anmeldeseite
 Die erste Seite der App ist Teil derselben Welt, keine Ausnahme. Die Buehne ist der reine
 Seitengrund ohne Verlauf (bis Runde 3 stand hier der letzte chromatische Verlauf der App).
@@ -3189,12 +3224,26 @@ laeuft in der Praxis auf einem geteilten Konto; eine servergespeicherte Einstell
 allen Familienmitgliedern das Handy-Dashboard um. Und keine Automatik nach Geraeteform: eine
 Fehlerkennung auf dem Laptop erzeugte einen Zustand, den niemand angefordert hat.
 
-**Der Ausstieg ist leise da und hell auf Beruehrung.** Ein dauerhaft voller Knopf
-widerspraeche der ruhigen Flaeche, ein unsichtbarer waere eine Falle: im Ruhezustand steht nur
-sein Zeichen in Sekundaerfarbe (weiterhin AA, weiterhin fokussierbar, volle Zielgroesse), jede
-Beruehrung setzt `data-wall-awake` und hebt ihn fuer sechs Sekunden auf die volle Kapsel samt
-Beschriftung. Bewegt wird dabei nur Farbe - eine Breiten-Transition waere eine
-Layout-Animation fuer einen Zustand, den aus zwei Metern niemand beobachtet.
+**Der Ausstieg ist leise, aber mit Wort, und hell auf Beruehrung** (#1559, 2026-09-29). Ein
+dauerhaft voller Knopf widerspraeche der ruhigen Flaeche, ein unsichtbarer waere eine Falle -
+und bis #1559 WAR er eine: im Ruhezustand stand nur sein Zeichen da, und wer den Modus aus
+Versehen eingeschaltet hatte, sah ein graues Symbol ohne Namen und fand nicht hinaus
+(D#1494). Das Wort steht deshalb immer da, in Sekundaerfarbe ohne Kapsel (AA, fokussierbar,
+volle Zielgroesse) - die Ruhe kommt aus der Farbe, nicht aus dem Weglassen. Jede Beruehrung
+setzt `data-wall-awake` und hebt den Knopf fuer sechs Sekunden auf die volle Kapsel. Das
+Polster ist in beiden Zustaenden dasselbe, der Knopf aendert beim Wecken seine Breite nicht;
+bewegt wird nur Farbe (Grund, Kante, Schrift).
+
+**Der Fuss klebt, wenn die Flaeche laenger ist als das Bild** (#1559). Auf 390x844 lag der
+Ausstieg bei y=832-880, auf 375x667 ganz darunter - der einzige Weg hinaus nur per Scrollen
+erreichbar. `.wall__foot` ist `position: sticky` an `bottom: var(--nav-tail)` (im Wand-Modus 0)
+und fuellt seinen Streifen mit `--color-bg`, damit der Inhalt DARUNTER durchscrollt; unten haelt
+er `--wall-pad`, mindestens die Safe-Area. Keine Regel nach Geraeteklasse: `sticky` greift nur,
+wenn der Platz fehlt, und Polster und Gegenrand heben sich im Fluss auf (1280x800 passt weiter,
+`test:dashboard-surface-browser`). **Meldungen stehen auf der Wand OBEN**: unten liegen Ausstieg
+und Timer-Startknoepfe, und der Hinweis beim Einschalten lag am Telefon acht Sekunden auf „5 Min".
+Oben steht nur die Uhr, die nichts annimmt. Die Lage neben einem offenen Dialog (`[data-dock]`)
+bleibt Sache der Ausweich-Regel des Toast-Stapels.
 
 **Die Startknoepfe der Kuechenuhr ruhen sichtbar, und die erste Beruehrung weckt nur**
 (2026-09-23). Unsichtbare Knoepfe, die trotzdem auf Beruehrung reagierten, waren eine Falle:
