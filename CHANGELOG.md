@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.71.0] - 2026-09-30
+
 ### Added
 
 - **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
@@ -81,6 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wider than a phone screen. The website says the week's meal plan reaches the shopping list
   through one import, not one tap.
 
+- **The installation guide covers rootless Podman without a route to the internet.** The app
+  works, but everything that reaches outside fails: the weather tile says the weather is currently
+  unavailable, and ICS subscriptions and CalDAV to outside servers stop updating. A new entry under
+  troubleshooting in `docs/installation.md` shows how to recognise it (a test from inside the
+  container ends in `ENETUNREACH`, its routing table is empty) and the fix, `Network=podman` in the
+  Quadlet unit, together with what the bridge network changes for sign-in lockout and rate limits
+  without a reverse proxy.
+
 ### Fixed
 
 - **The weather tile no longer vanishes when the weather provider fails.** With weather set up
@@ -127,7 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   location is saved under Settings → Household → Integrations (was Settings → Integrations), SMTP is
   managed under Settings → Household → Email (SMTP), the timezone is changed under Settings →
   Account → Appearance, and further CalDAV accounts are added under Settings → Modules → Calendar,
-  in all 24 installer languages.
+  in every installer language.
 
 - **A command-line restore refuses to run while Yuvomi is running** (#1530). `scripts/restore-backup.js`
   replaced the database without knowing whether a server was working on it: the file changed under
