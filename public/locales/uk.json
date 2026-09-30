@@ -464,7 +464,8 @@
         "eventsEndedMore_few": "Раніше сьогодні: +{{count}}",
         "eventsEndedMore_many": "Раніше сьогодні: +{{count}}",
         "nutritionEntries_few": "Сьогодні {{count}} записи",
-        "nutritionEntries_many": "Сьогодні {{count}} записів"
+        "nutritionEntries_many": "Сьогодні {{count}} записів",
+        "weatherUnavailable": "Погода зараз недоступна"
     },
     "tasks": {
         "manageCategories": "Керування категоріями",

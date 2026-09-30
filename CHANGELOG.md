@@ -77,6 +77,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The weather tile no longer vanishes when the weather provider fails.** With weather set up
+  (Open-Meteo or OpenWeatherMap), a failed request to the provider removed the tile from the
+  overview, from the hidden widgets you can add back under Customize, and took the weather line in
+  the header with it. The tile now stays in place and says the weather is currently unavailable,
+  with its refresh button to try again, and picks the weather up on the next automatic refresh.
+  Without any weather set up, the tile is not offered at all, like a switched-off module. The server
+  log now names the provider and the cause of a failed request (HTTP status or error code, or a
+  missing API key), at most once per half hour per cause, and `GET /api/v1/weather` answers
+  `{ data: null, reason }` with `not_configured` or `upstream_error`.
+
 - **A switch that is off is easy to see, and in Arabic and Persian "on" sits on the left.** The
   track of a switch that is off was a light grey that nearly vanished into its row, in light and
   dark mode alike; it is now dark enough to stand out against every surface a switch appears on,

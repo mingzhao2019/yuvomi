@@ -503,7 +503,8 @@
         "eventsEndedMore_many": "+{{count}} سابقة اليوم",
         "nutritionEntries_few": "{{count}} سجلات اليوم",
         "nutritionEntries_two": "سجلان اليوم",
-        "nutritionEntries_many": "{{count}} سجلًا اليوم"
+        "nutritionEntries_many": "{{count}} سجلًا اليوم",
+        "weatherUnavailable": "الطقس غير متاح حاليًا"
     },
     "tasks": {
         "manageCategories": "إدارة الفئات",
