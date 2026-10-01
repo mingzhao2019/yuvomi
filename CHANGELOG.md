@@ -81,6 +81,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so every occurrence in view is shown and none on a day without one. If that reload fails or only
   reaches the offline copy, the new series still shows on its start day as before.
 
+- **The command-line installer takes the answer its own prompt shows.** In German, Swedish, Dutch,
+  Spanish, Portuguese, Italian, French, Polish, Czech and Turkish the yes/no questions show the
+  local letter - `[j/N]`, `[s/N]`, `[e/H]` - but `install.sh` only understood `y`, so typing `j`
+  for the weather widget, calendar sync or document storage silently answered no. Turkish `h` at
+  the final "proceed?" did not cancel, and the Czech and Dutch letter for entering a key by hand
+  generated one instead. Every language now accepts the letter its prompt shows and its own word
+  for yes and no - `ja`, `sí`, `да`, `はい`, `نعم` and so on, also typed in capitals - as well as
+  `y`/`yes` and `n`/`no`. The three document-storage questions, which showed `[y/N]` in those
+  languages, now show the same letter as every other question.
+- **The command-line installer now gets through all seven steps, on macOS as well.** The
+  interactive setup ended without a message right after the prerequisite check, and after the
+  summary it stopped before writing `.env`. On macOS two more stops were waiting behind those:
+  the answers were compared with a bash 4 feature that the bundled bash 3.2 rejects with "bad
+  substitution", and after the admin account was created a `head` option macOS does not know
+  ended the run before the success message.
+
 ## [2.71.0] - 2026-09-30
 
 ### Added
