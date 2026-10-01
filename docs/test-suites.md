@@ -504,6 +504,16 @@ npm run test:installer-a11y  # Zielgrößen, Kontrast und Fokus des Web-Installe
 # Gegen den Stand ohne Rueckfall beide rot, mit `fresh = true` statt `!fromCache` der Cache-Fall.
 ```
 
+## Budget series start date (#1545)
+
+`test:budget-series-migration` verifies migration v239 backfills the separate series start day,
+leaves booked entries unchanged, and initializes the start day from both series triggers.
+`test:budget-recurrence` runs with migrations v238 and v239. `test:budget-entries-routes` covers
+single-entry date corrections, explicit `start_date`, invalid earlier-month starts, future-anchor
+moves, start-day materialization, and freezing missing historical occurrences on the old grid for
+both start-day and rhythm changes. `test:budget-ui` checks that only a changed first-entry date is
+sent as `start_date`, never as the booking's `date` field.
+
 ## Focused linked occurrence suite
 
 Run `npm run test:calendar-occurrence-overrides`

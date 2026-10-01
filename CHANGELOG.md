@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A recurring budget series keeps its own start day.** Correcting the date of its first booked
+  entry no longer shifts future monthly or weekly occurrences. An explicit series edit can move
+  the recurrence grid; before a rhythm or start-day change, missing past entries are materialized
+  on the old grid so historical totals stay complete and unchanged.
+
 - **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
   sent the file name and document number of a visit's receipt to everyone who could open the
   housekeeping module, also to members without access to documents and when the receipt was a

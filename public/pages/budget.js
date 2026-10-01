@@ -4533,7 +4533,10 @@ function anchorSeriesBody(body, entry) {
   const shown = entry.recurrence_virtual && entry.recurrence_full_amount != null
     ? entry.recurrence_full_amount
     : entry.amount;
-  return changedSeriesBody(body, entry, { amount: Number(shown), keepRhythm: true });
+  const out = changedSeriesBody(body, entry, { amount: Number(shown), keepRhythm: true });
+  // Nur dieser Serienpfad deutet ein geaendertes Datum als Rasterwechsel.
+  if (body.date && body.date !== entry.date) out.start_date = body.date;
+  return out;
 }
 
 /**

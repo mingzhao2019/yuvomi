@@ -1238,3 +1238,96 @@ test('GET /?q=: begrenzt die Treffer und sagt es', async () => {
   const leer = await call('GET', '/?q=%20%20');
   assert.equal(leer.status, 400, 'eine leere Suche ist keine Monatsliste ohne Monat');
 });
+
+// ── #1545: Serienstart und gebuchte Anker sind getrennte Tatsachen ───────────
+const seriesDatesIn = (anchorId, month) => db.prepare(
+  'SELECT date FROM budget_entries WHERE recurrence_parent_id = ? AND date BETWEEN ? AND ? ORDER BY date'
+).all(anchorId, `${month}-01`, `${month}-31`).map((row) => row.date);
+const seriesStart = (anchorId) => db.prepare(
+  'SELECT start_date FROM budget_series WHERE anchor_id = ?'
+).get(anchorId)?.start_date;
+
+test('#1545: die Einzelkorrektur am Anker verschiebt nicht das kuenftige Raster', async () => {
+  const anchor = insertEntry({ date: '2000-01-05', is_recurring: 1 });
+  const corrected = await call('PUT', `/${anchor}`, { body: { date: '2000-01-06' } });
+  assert.equal(corrected.status, 200);
+  assert.equal(corrected.body.data.date, '2000-01-06');
+  assert.equal(seriesStart(anchor), '2000-01-05');
+  await generatedIn('2099-11', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-11'), ['2099-11-05']);
+});
+
+test('#1545: nur start_date verschiebt die Serie, waehrend die gebuchte erste Buchung stehen bleibt', async () => {
+  const anchor = insertEntry({ date: '2000-01-05', is_recurring: 1 });
+  const changed = await call('PUT', `/${anchor}/series`, { body: { start_date: '2000-01-06' } });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.body.data.series.start_date, '2000-01-06');
+  assert.equal(changed.body.data.date, '2000-01-05');
+  await generatedIn('2099-11', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-11'), ['2099-11-06']);
+});
+
+test('#1545: ein Serien-Body ignoriert date und lehnt ungueltige Starttage ab', async () => {
+  const anchor = insertEntry({ date: '2000-02-05', is_recurring: 1 });
+  const ignored = await call('PUT', `/${anchor}/series`, { body: { date: '2000-02-09' } });
+  assert.equal(ignored.status, 200);
+  assert.equal(seriesStart(anchor), '2000-02-05');
+  for (const start_date of ['2000-02-30', '05.02.2000', null]) {
+    const invalid = await call('PUT', `/${anchor}/series`, { body: { start_date } });
+    assert.equal(invalid.status, 400, String(start_date));
+  }
+  const beforeAnchorMonth = await call('PUT', `/${anchor}/series`, { body: { start_date: '2000-01-05' } });
+  assert.equal(beforeAnchorMonth.status, 400);
+  const sameMonth = await call('PUT', `/${anchor}/series`, { body: { start_date: '2000-02-04' } });
+  assert.equal(sameMonth.status, 200);
+  assert.equal(seriesStart(anchor), '2000-02-04');
+  await generatedIn('2000-02', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2000-02'), [], 'im Startmonat bleibt die erste Buchung allein');
+});
+
+test('#1545: ein noch zukuenftiger Anker zieht mit dem neuen Starttag um', async () => {
+  const anchor = insertEntry({ date: '2099-06-05', is_recurring: 1 });
+  const changed = await call('PUT', `/${anchor}/series`, { body: { start_date: '2099-06-07' } });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.body.data.date, '2099-06-07');
+  assert.equal(seriesStart(anchor), '2099-06-07');
+  assert.equal(await generatedIn('2099-06', anchor), undefined);
+  await generatedIn('2099-07', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-07'), ['2099-07-07']);
+});
+
+test('#1545: der neue Starttag wird fuer einen bereits gebuchten Anker materialisiert', async () => {
+  const anchor = insertEntry({ date: '2000-01-05', is_recurring: 1 });
+  const changed = await call('PUT', `/${anchor}/series`, { body: { start_date: '2099-03-06' } });
+  assert.equal(changed.status, 200);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-03'), ['2099-03-06']);
+  await generatedIn('2099-03', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-03'), ['2099-03-06'], 'der Starttag wird nicht doppelt angelegt');
+});
+
+test('#1545: eine Rasteraenderung friert fehlende Vergangenheit auf dem alten Raster ein', async () => {
+  const anchor = insertEntry({ date: '2000-01-05', is_recurring: 1 });
+  await generatedIn('2000-03', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2000-03'), ['2000-03-05']);
+
+  const changed = await call('PUT', `/${anchor}/series`, { body: { start_date: '2000-01-06' } });
+  assert.equal(changed.status, 200);
+  await generatedIn('2000-04', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2000-04'), ['2000-04-05'], 'nie geoeffnete Vergangenheit folgt noch dem alten Raster');
+  await generatedIn('2000-03', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2000-03'), ['2000-03-05'], 'ein alter Monat bekommt keine Doublette');
+  await generatedIn('2099-11', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-11'), ['2099-11-06'], 'ab heute gilt das neue Raster');
+});
+
+test('#1545: ein Rhythmuswechsel am Anker friert die Vergangenheit ebenfalls ein', async () => {
+  const anchor = insertEntry({ date: '2000-01-05', is_recurring: 1 });
+  const changed = await call('PUT', `/${anchor}`, { body: { recurrence_interval: 'yearly' } });
+  assert.equal(changed.status, 200);
+  await generatedIn('2000-04', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2000-04'), ['2000-04-05']);
+  await generatedIn('2099-01', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-01'), ['2099-01-05']);
+  await generatedIn('2099-11', anchor);
+  assert.deepEqual(seriesDatesIn(anchor, '2099-11'), []);
+});

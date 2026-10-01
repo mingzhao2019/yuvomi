@@ -1,11 +1,12 @@
 /**
- * Test: Serien-Definition als eigene Tabelle (Migration v238, #1035)
+ * Test: Budget-Serien-Definition und eigener Starttag (Migrationen v238/v239)
  * Zweck: Bis v237 war die erste Zeile einer Budget-Serie zweierlei - Vorlage
  *        fuer jedes kuenftige Vorkommen UND die erste, von Hand erfasste
  *        Buchung. v238 legt die Vorlage in `budget_series` (plus
  *        `budget_series_responsibles`) ab und fuellt sie aus dem Bestand.
- *        Geprueft wird an einer Datenbank, die die ECHTE Migrationskette bis
- *        v237 gefahren hat:
+ *        v239 trennt den Starttag der Serie vom Buchungsdatum und friert das
+ *        alte Raster vor einer Aenderung ein. Geprueft wird an einer Datenbank,
+ *        die die ECHTE Migrationskette bis v237 gefahren hat:
  *          - jede laufende Serie bekommt genau eine Definition mit den Werten,
  *            die bisher am Original standen - dieselben Vorkommen wie vorher;
  *          - keine Buchung aendert sich (Vorher/Nachher ueber alle Zeilen);
@@ -33,6 +34,7 @@ const { MIGRATIONS, migrate } = await import('../server/db.js');
 const { generateRecurringInstances } = await import('../server/routes/budget/helpers.js');
 
 const V = MIGRATIONS.find((m) => m.description === 'Budget: a series keeps its own definition, the first booking is an ordinary entry (#1035)');
+const V_START = MIGRATIONS.find((m) => m.description === 'Budget: a series keeps its own start date and freezes the old grid (#1545, #1585)');
 
 /** Eine Datenbank im Stand direkt vor der Migration, mit typischem Bestand. */
 function legacyDb() {
@@ -84,6 +86,8 @@ const seriesPeople = (db, id) => db.prepare(
 test('Vorbedingung: die Migration ist gefunden und kommt nach dem Bestand', () => {
   assert.ok(V, 'Migration fuer #1035 fehlt');
   assert.ok(V.version > 237, `v${V.version} muss angehaengt sein, nicht eingefuegt`);
+  assert.ok(V_START, 'Migration fuer #1545 fehlt');
+  assert.ok(V_START.version > V.version, `v${V_START.version} muss nach v${V.version} angehaengt sein`);
 });
 
 test('jede laufende Serie bekommt genau eine Definition mit den Werten ihres Originals', () => {
@@ -92,14 +96,18 @@ test('jede laufende Serie bekommt genau eine Definition mit den Werten ihres Ori
 
   const count = db.prepare('SELECT COUNT(*) AS c FROM budget_series').get().c;
   assert.equal(count, 3, 'Miete, Police, Fitness - sonst nichts');
+  const entryIndexes = db.pragma('index_list(budget_entries)').map((index) => index.name);
+  assert.ok(entryIndexes.includes('idx_budget_parent_date'), 'v239 indiziert Serieninstanzen nach Anker und Datum');
   const { created_at: _c, updated_at: _u, ...rent } = definition(db, ids.rent);
   assert.deepEqual(rent, {
     anchor_id: ids.rent, title: 'Miete', amount: -900, full_amount: null,
     category: 'housing', subcategory: 'rent_mortgage', account_id: giro, visibility: 'shared',
+    start_date: '2020-01-05', grid_from: null,
   });
   const policy = definition(db, ids.policy);
   assert.equal(policy.amount, -100, 'virtuell: der geglaettete Monatsanteil, wie am Original');
   assert.equal(policy.full_amount, -1200, 'und der eingegebene Periodenbetrag');
+  assert.equal(policy.start_date, '2020-01-09');
   assert.equal(policy.visibility, 'private');
   assert.equal(definition(db, ids.gym).visibility, 'shared_amount');
   for (const none of ['rentFeb', 'ended', 'endedInst', 'plain']) {
@@ -115,6 +123,8 @@ test('eine Definition traegt created_at und updated_at (ISO 8601), wie jede Enti
   migrate(db, MIGRATIONS);
   const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
   const backfilled = definition(db, ids.rent);
+  assert.equal(backfilled.start_date, '2020-01-05', 'v239 uebernimmt den Starttag aus dem Anker');
+  assert.equal(backfilled.grid_from, null, 'bestehende Serien haben bis zur ersten Rasteraenderung keine Grenze');
   assert.match(String(backfilled.created_at), iso, 'aus dem Backfill');
   assert.match(String(backfilled.updated_at), iso);
   const id = db.prepare(`
@@ -122,6 +132,8 @@ test('eine Definition traegt created_at und updated_at (ISO 8601), wie jede Enti
     VALUES ('Seed', -5, 'housing', 'utilities', '2024-01-01', 1, ?)
   `).run(users.a).lastInsertRowid;
   assert.match(String(definition(db, id).created_at), iso, 'aus dem Trigger');
+  assert.equal(definition(db, id).start_date, '2024-01-01', 'v239-Trigger uebernimmt das Buchungsdatum als Starttag');
+  assert.equal(definition(db, id).grid_from, null);
   db.close();
 });
 
@@ -179,6 +191,7 @@ test('ein zweiter Lauf ueberschreibt nichts, auch keine inzwischen abweichende D
   db.prepare("UPDATE budget_series SET title = 'Miete 2031', amount = -1000 WHERE anchor_id = ?").run(ids.rent);
   db.prepare('DELETE FROM budget_series_responsibles WHERE anchor_id = ?').run(ids.rent);
   db.exec(V.up);
+  V_START.up(db);
   const rent = definition(db, ids.rent);
   assert.equal(rent.title, 'Miete 2031');
   assert.equal(rent.amount, -1000);

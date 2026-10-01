@@ -130,7 +130,8 @@
         "rewards": "Belønninger",
         "pantry": "Spiskammer",
         "inventory": "Inventar",
-        "schedule": "Planlegging"
+        "schedule": "Planlegging",
+        "assetCost": "Eiendeler"
     },
     "dashboard": {
         "title": "Oversikt",
@@ -376,7 +377,17 @@
         "nutritionNoTarget": "Intet daglig mål satt ennå.",
         "nutritionEntries": "{{count}} oppføringer i dag",
         "nutritionEntries_one": "{{count}} oppføring i dag",
-        "weatherUnavailable": "Været er ikke tilgjengelig akkurat nå"
+        "weatherUnavailable": "Været er ikke tilgjengelig akkurat nå",
+        "familyMembers": "Familiemedlemmer",
+        "budgetOverview": "Budsjettoversikt",
+        "assetsPurchaseTotal": "Kjøpesum totalt",
+        "assetsCurrentDailyCost": "Nåværende daglig kostnad",
+        "assetsActive": "Aktive",
+        "assetsRetired": "Utrangerte",
+        "assetsSold": "Solgte",
+        "metricVisits": "{{count}} besøk",
+        "metricVisits_one": "{{count}} besøk",
+        "widgetSizeNarrow": "Smal (2×1)"
     },
     "tasks": {
         "manageCategories": "Administrer kategorier",
@@ -587,7 +598,36 @@
         "kanbanColExpand": "Vis kolonne",
         "kanbanArchiveDone": "Arkiver alle fullførte",
         "kanbanArchiveDoneConfirm": "Arkivere alle fullførte oppgaver i denne kolonnen?",
-        "kanbanArchiveDoneAction": "Arkiver"
+        "kanbanArchiveDoneAction": "Arkiver",
+        "subtaskPrompt": "Underoppgave:",
+        "bulkSelectAll": "Velg alle synlige",
+        "bulkClearSelection": "Fjern valg",
+        "todoRecurrenceEditHint": "Microsoft To Do administrerer gjentakelsesregelen for denne oppgaven. Endre eller fjern den i Microsoft To Do.",
+        "taskListLabel": "Oppgaveliste",
+        "taskSourceLabel": "Kilde",
+        "taskSourceSelect": "Velg kilde",
+        "taskListShortLabel": "Liste",
+        "taskListSelect": "Velg liste",
+        "taskListSelectSource": "Velg en kilde først",
+        "taskListResetToSource": "Vis alle oppgaver fra denne kilden",
+        "taskListSortAlphabetical": "Sorter lister etter navn",
+        "taskListSortAlphabeticalDisable": "Gjenopprett manuell rekkefølge",
+        "taskListSortAlphabeticalOn": "Listene er sortert etter navn.",
+        "taskListSortAlphabeticalOff": "Manuell listerekkefølge er gjenopprettet.",
+        "taskListReorderHandle": "Endre rekkefølge: {{name}}",
+        "taskListReorderHint": "Dra eller bruk piltastene for å endre rekkefølge",
+        "taskListReorderAnnounce": "{{name}}, plass {{position}} av {{total}}",
+        "taskListOrderSaveError": "Rekkefølgen på oppgavelistene kunne ikke lagres.",
+        "filterGroupSchedule": "Planlegging",
+        "includeFuture": "Ta med oppgaver som ikke har startet",
+        "taskListLocal": "Lokal",
+        "taskListDelete": "Slett oppgaveliste",
+        "taskListDeleteConfirm": "Slette oppgavelisten «{{name}}» og alle lokale oppgaver i den?",
+        "taskListDeleteDetail": "Alle oppgaver, underoppgaver, påminnelser og oppgavekoblinger i denne listen slettes lokalt. Den eksterne listen og oppgavene i den endres ikke.",
+        "taskListTasksNotDeletable": "Denne listen inneholder en oppgave du ikke kan slette. Ingenting ble endret.",
+        "taskListSyncRequired": "Koble fra synkroniseringen for denne listen før du sletter den.",
+        "taskListSyncDisabled": "Synkronisering frakoblet",
+        "taskListDeleted": "Oppgavelisten er slettet."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} element(er) slettet.",
@@ -840,7 +880,7 @@
         "dayEmptyHintPointer": "Ingen hendelser ennå. Dobbeltklikk på et tidspunkt for å legge til en.",
         "dayEmptyHintTouch": "Ingen hendelser ennå. Trykk og hold på et tidspunkt for å legge til en.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Uke {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Uke {{week}} · {{month}}",
         "titleLabel": "Tittel",
         "titlePlaceholder": "f.eks. Tannlege",
         "allDayToggle": "Hele dagen",
@@ -1086,7 +1126,10 @@
         "bandContinued": "fortsatt",
         "monthDayMoreTitles": "og {{count}} til",
         "monthDayMoreTitles_one": "og {{count}} til",
-        "monthDayMoreTitles_other": "og {{count}} til"
+        "monthDayMoreTitles_other": "og {{count}} til",
+        "completed": "Fullført",
+        "markComplete": "Merk {{title}} som fullført",
+        "markIncomplete": "Merk {{title}} som ikke fullført"
     },
     "noteCategories": {
         "categories": "Kategorier",
@@ -1679,7 +1722,8 @@
         "handoverToSplit": "Flytt til Split Expenses",
         "loanRemainingInstallmentsForecast": "{{forecast}} (plan: {{plan}})",
         "detailDateLabel": "Dato",
-        "loanDetailStartMonthLabel": "Første forfallsmåned"
+        "loanDetailStartMonthLabel": "Første forfallsmåned",
+        "loansSummary": "{{count}} aktive · {{amount}} gjenstår"
     },
     "settings": {
         "healthCycleEnableLabel": "Vis syklusfane",
@@ -2667,8 +2711,8 @@
         "notificationChannelNtfyPassword": "ntfy-passord",
         "notificationChannelWebhookToken": "Bearer-token (valgfritt)",
         "notificationChannelWebhookTemplate": "Payload-mal (valgfritt)",
-        "notificationChannelWebhookTemplatePlaceholder": "{\"content\": \"{{title}} - {{body}}\"}",
-        "notificationChannelWebhookTemplateHint": "La det stå tomt for å sende Yuvomis standardtekst. Tilgjengelige plassholdere: {{title}}, {{body}}, {{url}}, {{tag}}.",
+        "notificationChannelWebhookTemplatePlaceholder": "{\"event\":\"notification\",\"notification\":{\"title\":\"{{title}}\",\"body\":\"{{body}}\",\"description\":\"{{description}}\"}}",
+        "notificationChannelWebhookTemplateHint": "La feltet stå tomt for å sende Yuvomis standardtekst. Info-knappen viser alle tilgjengelige felter.",
         "notificationChannelSave": "Lagre kanal",
         "notificationChannelSaved": "Kanal lagret.",
         "notificationChannelTest": "Send test",
@@ -2933,7 +2977,65 @@
         "otherSessionsEnded_one": "{{count}} annen økt ble avsluttet.",
         "otherSessionsNone": "Kontoen din var ikke pålogget på noen andre enheter.",
         "otherSessionsError": "Logg ut på andre enheter mislyktes.",
-        "otherSessionsTooManyAttempts": "For mange forespørsler. Vennligst vent et øyeblikk og prøv igjen."
+        "otherSessionsTooManyAttempts": "For mange forespørsler. Vennligst vent et øyeblikk og prøv igjen.",
+        "inventoryFeedInactive": "Eksportfeeden er deaktivert.",
+        "inventoryFeedActivate": "Aktiver feed",
+        "cycleFeedInactive": "Eksportfeeden er deaktivert.",
+        "cycleFeedActivate": "Aktiver feed",
+        "holidayCountryListPartial": "Hele landlisten kunne ikke lastes. Kina og det lagrede utvalget er fortsatt tilgjengelig.",
+        "lunarCalendarTitle": "Kinesisk månekalender",
+        "lunarCalendarLabel": "Vis datoer i månekalenderen",
+        "lunarCalendarHint": "Vis kinesiske datoer i månekalenderen på oversikten og i kalenderen.",
+        "lunarCalendarSaved": "Innstillingen for månekalenderen er lagret.",
+        "notificationPersonalTitle": "Personlige varsler",
+        "notificationPersonalDescription": "Personlige Webhook- og message-pusher-kanaler sender varsler til ditt eget endepunkt.",
+        "notificationHouseholdTitle": "Varsler for husholdningen",
+        "notificationHouseholdDescription": "Husholdningskanaler mottar varsler som gjelder hele husholdningen. Bare administratorer kan administrere dem.",
+        "notificationChannelPersonalEmpty": "Ingen personlige kanaler er konfigurert ennå.",
+        "notificationChannelTemplateHint": "La feltet stå tomt for å sende Yuvomis standardtekst. Info-knappen viser alle tilgjengelige felter.",
+        "notificationChannelTemplateHelpLabel": "Vis hjelp for malfeltene",
+        "notificationChannelTemplateCopy": "Kopier eksempel",
+        "notificationChannelTemplateCopied": "Eksempelet er kopiert.",
+        "notificationChannelTemplateCopyFailed": "Kopieringen mislyktes. Marker eksempelteksten og kopier den manuelt.",
+        "notificationChannelTemplateHelp": "Felter: {{title}} = modul; {{body}} = varslingstekst; {{description}} = beskrivelse av oppgaven eller hendelsen; {{details}} = flere detaljer; {{entityType}}/{{entityId}} = kilde; {{dueDate}}/{{dueTime}} = frist; {{startDate}}/{{startTime}} = start; {{endDate}}/{{endTime}} = slutt på hendelsen; {{remindAt}} = påminnelsestid; {{sentAt}} = sendetid; {{url}}/{{tag}} = mål og identifikator; {{priority}} = transportprioritet; {{category}}/{{taskPriority}}/{{status}} = oppgavedata; {{location}}/{{allDay}} = hendelsesdata. Eksempel: {\"event\":\"notification\",\"notification\":{\"title\":\"{{title}}\",\"body\":\"{{body}}\"}}. Webhook-maler bruker JSON, og tekstverdier bør stå i anførselstegn. message-pusher-maler er ren tekst. Påminnelses- og sendetider for message-pusher bruker husholdningens tidssone; tomme felter utelater hele linjen, og lenker blir bare absolutte når BASE_URL er konfigurert.",
+        "notificationChannelMessagePusherUsername": "Brukernavn for message-pusher",
+        "notificationChannelMessagePusherMethod": "Forespørselsmetode",
+        "notificationChannelMessagePusherFormat": "POST-format",
+        "notificationChannelMessagePusherChannel": "Push-kanal (valgfritt)",
+        "notificationChannelMessagePusherField": "Body-felt",
+        "notificationChannelMessagePusherContent": "innhold (Markdown)",
+        "notificationChannelMessagePusherDescription": "beskrivelse",
+        "notificationChannelMessagePusherTemplate": "Meldingsmal (valgfritt)",
+        "notificationChannelMessagePusherTemplatePlaceholder": "🔔 {{title}}\n📌 {{body}}\n📄 {{description}}\n⏰ Frist: {{dueDate}} {{dueTime}}\n🚀 Start: {{startDate}} {{startTime}}",
+        "notificationChannelMessagePusherTemplateHint": "La feltet stå tomt for å beholde gjeldende melding. Bruk info-knappen for å se alle feltene.",
+        "notificationChannelMessagePusherTokenQuery": "Legg tokenet i URL-ens spørringsparametere",
+        "notificationChannelMessagePusherHint": "POST + JSON anbefales. GET eller token i URL-en kan bli synlig i proxy- og serverlogger.",
+        "outlookTodoLists": "Microsoft To Do-lister",
+        "outlookTodoListsHint": "Aktiverte lister vises i oppgavesidefeltet og synkroniseres begge veier.",
+        "outlookFullSyncHint": "Full synkronisering: Outlook-kalender og Microsoft To Do",
+        "outlookSyncStartDate": "Importer fra",
+        "outlookSyncStartDateHint": "Bruk en fast dato. Standard er seks måneder tilbake. Endringen påvirker bare fremtidige importer; eksisterende hendelser beholdes.",
+        "outlookSyncStartDateSaved": "Startdatoen for import er lagret.",
+        "outlookConflictTitle": "Outlook-konflikter",
+        "outlookConflictHint": "Denne hendelsen er endret både i Yuvomi og Outlook. Velg hvilken versjon som skal beholdes.",
+        "outlookConflictLocal": "Yuvomi",
+        "outlookConflictRemote": "Outlook",
+        "outlookConflictKeepLocal": "Behold Yuvomi",
+        "outlookConflictUseRemote": "Bruk Outlook",
+        "outlookConflictResolved": "Konfliktvalget er lagret.",
+        "outlookConflictRemoteDeleted": "Slettet i Outlook",
+        "outlookTodoListsEmpty": "Ingen Microsoft To Do-lister er funnet ennå.",
+        "outlookTodoSelectAll": "Velg alle",
+        "outlookTodoRefresh": "Oppdater To Do-listene",
+        "outlookTodoRefreshed": "To Do-listene er oppdatert.",
+        "outlookSelectionSaved": "Kalender- og To Do-utvalgene er lagret.",
+        "outlookSelectionSavedShort": "✓ Lagret",
+        "calendarDefaultAllDayReminderTimeLabel": "Påminnelsestid for heldagshendelser",
+        "calendarDefaultAllDayReminderTimeHint": "Når en heldagshendelse ikke har en ekstern påminnelse, sendes varselet på denne lokale tiden på hendelsesdatoen.",
+        "scheduleFeedInactive": "Eksportfeeden er deaktivert.",
+        "scheduleFeedActivate": "Aktiver feed",
+        "wasteFeedInactive": "Ikke aktiv ennå.",
+        "wasteFeedActivate": "Aktiver feed"
     },
     "login": {
         "tagline": "Velkommen tilbake til familieplanleggeren din.",
@@ -3061,6 +3163,7 @@
         "offsetLabel": "Påminn meg",
         "offsetNone": "Ingen",
         "offset15min": "15 minutter før",
+        "offset30min": "30 minutter før",
         "offset1hour": "1 time før",
         "offset1day": "1 dag før",
         "offsetAtTime": "Ved hendelsestid",
@@ -4221,7 +4324,9 @@
         "accountUsernameLabel": "Registrert under",
         "accountUsernameHint": "E-postadresse eller brukernavn. Ikke et passordfelt - Yuvomi lagrer ikke passord.",
         "detailAmountLabel": "Beløp",
-        "detailNextPaymentLabel": "Neste betaling"
+        "detailNextPaymentLabel": "Neste betaling",
+        "listCount": "{{count}} abonnementer",
+        "listCount_one": "{{count}} abonnement"
     },
     "health": {
         "fasting": {
@@ -4317,7 +4422,8 @@
             "statsWeekly": "Faster de siste sju dagene",
             "allTime": "All tid",
             "thisYear": "Dette året",
-            "last30Days": "Siste 30 dager"
+            "last30Days": "Siste 30 dager",
+            "applyFilter": "Bruk datoer"
         },
         "tabs": {
             "overview": "Oversikt",
@@ -4565,6 +4671,7 @@
         "prevention": {
             "title": "Forebyggende behandling og vaksiner",
             "emptyTitle": "Ingen forebyggende behandlinger ennå",
+            "noRecords": "Ingen oppføringer ennå.",
             "emptyDesc": "Vaksiner og kontroller vises her når de er loggført.",
             "add": "Legg til oppføring",
             "edit": "Rediger oppføring",
@@ -4811,6 +4918,7 @@
                 "avgCycle": "Gjennomsnittlig sykluslengde",
                 "avgPeriod": "Gjennomsnittlig periodelengde",
                 "cycleVariation": "Syklusvariasjon",
+                "regularity": "Regelmessighet",
                 "regular": "Regelmessig",
                 "irregular": "Uregelmessig",
                 "notEnoughData": "Ikke nok data",
@@ -5119,6 +5227,7 @@
             "deleted": "Oppføring slettet.",
             "invalid": "Vennligst oppgi et navn, et tidspunkt og gyldige tall.",
             "entriesTitle": "Oppføringer",
+            "noEntries": "Ingen oppføringer ennå.",
             "personsLabel": "Person",
             "todayTitle": "I dag",
             "targetTitle": "Daglig mål",
@@ -5348,7 +5457,8 @@
         "mappingProfileStatusUnmatchedType": "Ingen samsvarende type i denne husholdningen",
         "mappingProfileStatusAmbiguousType": "Tvetydig - flere typer deler dette navnet",
         "icsCalendarName": "Avfallshenting",
-        "icsPickupSummary": "Henting av {{name}}"
+        "icsPickupSummary": "Henting av {{name}}",
+        "addTypeFirstHint": "Legg til en type først."
     },
     "rewards": {
         "title": "Belønninger",
@@ -5683,7 +5793,8 @@
         "odometerChartTitle": "Kilometerstand over tid",
         "detailPaneLabel": "Elementdetaljer",
         "pickOne": "Velg et element",
-        "pickOneHint": "Detaljer, frister og historikk vises her."
+        "pickOneHint": "Detaljer, frister og historikk vises her.",
+        "backToInventory": "Tilbake til inventaret"
     },
     "documentAttach": {
         "label": "Vedlegg",
@@ -5754,7 +5865,8 @@
         "rewards": "Belønning",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Skiftetype",
-        "scheduleEntry": "Oppføring"
+        "scheduleEntry": "Oppføring",
+        "assetCost": "Eiendel"
     },
     "iconPicker": {
         "title": "Velg ikon",
@@ -5934,7 +6046,13 @@
         "overviewClearSelection": "Tøm valg",
         "continuesUntil": "…varer til {{time}}",
         "overviewEmptyTitle": "Velg personer som skal sammenlignes",
-        "overviewEmptyDescription": "Velg minst ett medlem av husholdningen over for å se deres ukesplaner ved siden av hverandre."
+        "overviewEmptyDescription": "Velg minst ett medlem av husholdningen over for å se deres ukesplaner ved siden av hverandre.",
+        "createPattern": "Opprett vaktplan",
+        "date": "Dato",
+        "compactDisplay": "Kompakt",
+        "total": "Totalt",
+        "recurring": "Gjentakende",
+        "replaceExisting": "Erstatt det som allerede er planlagt"
     },
     "pairDisplay": {
         "title": "Par enebrett",

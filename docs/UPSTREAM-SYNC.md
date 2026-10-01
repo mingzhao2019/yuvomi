@@ -136,7 +136,7 @@ one of the areas below.
    changes require explicit authorization. Never use a force push to repair a
    failed synchronization.
 
-## Current sync checkpoint
+## Previous sync checkpoint (2026-09-30)
 
 As of 2026-09-30, local `main` and `upstream/main` both point to
 `e9426e434` (v2.71.0). The previous custom checkpoint was `8d9c41277`.
@@ -202,3 +202,50 @@ Microsoft To Do task/list mapping, Outlook and ICS calendar semantics,
 persistent task lists, personal and household notification channels,
 Inventory/assets, and dashboard widgets remain present with their custom
 semantics; their code was not removed or replaced. No push was performed.
+
+## Current sync checkpoint (2026-10-01)
+
+Local `main` and `upstream/main` both point to `ab8a61d35` (v2.71.0). The
+previous custom checkpoint is `8c7d7206d`; the integration branch started at
+that commit and reviewed all nine upstream commits after `e9426e434` in order.
+Eight independent changes were cherry-picked, and the budget-series change was
+manually ported because custom migration 238 and its series-definition
+semantics differ from upstream. Upstream was not merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `acd1c2e3b` (#1545, #1585) | Gives a recurring budget series its own start date and freezes missing past occurrences before a grid change. | Manually ported as custom migration 239; retained the custom definition from migration 238, account inheritance, virtual-budget account exclusion, responsibility inheritance, `shared_amount`, permissions and per-entry receipts. |
+| `155742f1c` | Makes the calendar import guard assert the rule rather than a source line. | Cherry-picked as `e535adce6`; test-only. |
+| `f06c59ca4` (#1592) | Keeps the dashboard plus button in place after leaving wall mode. | Cherry-picked as `ced460c10`; custom dashboard layout remains intact. |
+| `cf480557b` (#1590) | Orders tasks and computes the start badge using the household clock. | Cherry-picked as `0311ec134`; preserved the custom task-test exports and added household-timezone coverage. |
+| `604acb5c6` (#1595) | Makes the mobile tab-bar capsule thinner and clearer. | Cherry-picked as `958083d52`; existing navigation slots and accessibility fallbacks remain. |
+| `818e798a7` (#1529) | Adds Norwegian Bokmål. | Cherry-picked as `70806894b`; kept the custom translation baseline and added the `nb` locale. |
+| `a439c23a1` (#1597) | Shows real occurrences immediately after saving a new calendar series. | Cherry-picked as `ec6bad1d4`; retained custom calendar-provider and timezone semantics. |
+| `0f05ea01c` (#1594) | Accepts localized installer confirmations and runs the installer on macOS. | Cherry-picked as `f4255dd1d`; no custom deployment contract changed. |
+| `ab8a61d35` (#1599) | Derives budget, OpenAPI and weather language lists from locale files. | Cherry-picked as `6fdd03ac5`; retained custom locale behavior and added `test:language-lists` to `npm test`. |
+
+The budget port leaves released migration 238 unchanged and appends migration
+239. Existing running series backfill `budget_series.start_date` from their
+anchor's date; the triggers initialize it for newly created/restarted series.
+Single-entry date correction changes only the booked anchor. A series edit
+moves the grid only through explicit `start_date`; rhythm or start-day changes
+materialize missing occurrences through yesterday on the old definition and
+apply the new grid from today. The anchor still moves with the start day only
+while it is future-dated. Existing custom account, visibility, responsible
+member, virtual amount, permission and receipt behavior remains authoritative.
+
+No release commit is in this upstream range. Root `package.json`, both root
+`package-lock.json` version fields, `public/sw.js` `APP_RELEASE`, and current
+release metadata remain at `2.71.0`, matching `main:package.json`.
+
+Focused budget validation passed: recurrence (31 assertions), migration v238/v239,
+budget UI (124 tests), and budget entry routes (87 tests). `git diff --check`
+passed. The full `npm test` and final custom-branch fast-forward are recorded
+after validation below.
+
+The earlier dashboard regression remains intact: archived/completed overview
+events render `event-item--done` with a line-through, covered by
+`test/test-dashboard-today.js`. Microsoft To Do task/list mapping, Outlook and
+ICS calendar behavior, persistent task lists, separate personal/household
+notification channels, Inventory/assets, and dashboard widgets remain present
+with their custom semantics. No push was performed.

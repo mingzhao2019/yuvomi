@@ -10244,6 +10244,46 @@ const MIGRATIONS = [
       END;
     `,
   },
+  {
+    version: 239,
+    description: 'Budget: a series keeps its own start date and freezes the old grid (#1545, #1585)',
+    up(database) {
+      const columns = database.prepare('PRAGMA table_info(budget_series)').all().map((column) => column.name);
+      if (!columns.includes('start_date')) database.exec('ALTER TABLE budget_series ADD COLUMN start_date TEXT');
+      if (!columns.includes('grid_from')) database.exec('ALTER TABLE budget_series ADD COLUMN grid_from TEXT');
+
+      database.exec(`
+        CREATE INDEX IF NOT EXISTS idx_budget_parent_date
+          ON budget_entries(recurrence_parent_id, date);
+
+        UPDATE budget_series
+           SET start_date = (SELECT e.date FROM budget_entries e WHERE e.id = budget_series.anchor_id)
+         WHERE start_date IS NULL;
+
+        DROP TRIGGER IF EXISTS trg_budget_series_on_insert;
+        CREATE TRIGGER trg_budget_series_on_insert
+          AFTER INSERT ON budget_entries
+          WHEN NEW.is_recurring = 1 AND NEW.recurrence_parent_id IS NULL
+        BEGIN
+          INSERT OR IGNORE INTO budget_series
+            (anchor_id, title, amount, full_amount, category, subcategory, account_id, visibility, start_date)
+          VALUES (NEW.id, NEW.title, NEW.amount, NEW.recurrence_full_amount, NEW.category,
+                  NEW.subcategory, NEW.account_id, NEW.visibility, NEW.date);
+        END;
+
+        DROP TRIGGER IF EXISTS trg_budget_series_on_start;
+        CREATE TRIGGER trg_budget_series_on_start
+          AFTER UPDATE OF is_recurring ON budget_entries
+          WHEN OLD.is_recurring = 0 AND NEW.is_recurring = 1 AND NEW.recurrence_parent_id IS NULL
+        BEGIN
+          INSERT OR IGNORE INTO budget_series
+            (anchor_id, title, amount, full_amount, category, subcategory, account_id, visibility, start_date)
+          VALUES (NEW.id, NEW.title, NEW.amount, NEW.recurrence_full_amount, NEW.category,
+                  NEW.subcategory, NEW.account_id, NEW.visibility, NEW.date);
+        END;
+      `);
+    },
+  },
 ];
 
 /**

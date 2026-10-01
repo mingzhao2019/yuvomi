@@ -1858,6 +1858,7 @@ test('anchorSeriesBody: Rhythmus mit, Werte nur geaendert, Betrag gegen den geze
   // vorbelegt ist. Unveraendert mitgeschickt, drehten sie die Serie zurueck.
   const anchor = {
     id: 1, recurrence_parent_id: null, is_recurring: 1, title: 'Versicherung', amount: -100,
+    date: '2026-01-15',
     recurrence_virtual: 1, recurrence_full_amount: -1200, category: 'housing', subcategory: 'insurance',
     account_id: 7, visibility: 'shared', responsible_users: [{ id: 2 }],
   };
@@ -1874,6 +1875,10 @@ test('anchorSeriesBody: Rhythmus mit, Werte nur geaendert, Betrag gegen den geze
   assert.equal(changed.title, 'Haftpflicht');
   assert.equal(changed.amount, -1320);
   assert.ok(!('date' in changed), 'das Datum gehoert der Buchung');
+
+  const movedStart = budgetUi.anchorSeriesBody({ ...dialogBody, date: '2026-01-16' }, anchor);
+  assert.equal(movedStart.start_date, '2026-01-16', 'nur eine geaenderte Anker-Datumsangabe verschiebt das Serienraster');
+  assert.ok(!('date' in movedStart), 'das Buchungsdatum wird nicht als Serienfeld gesendet');
 });
 
 test('Bearbeiten eines Vorkommens zeigt den Wiederholungs-Schalter nicht (#1546)', () => {
