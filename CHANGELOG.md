@@ -43,6 +43,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   In both cases the button now takes its usual place next to the tab bar. Entering wall mode no
   longer leaves the plus button on the wall while the overview loads.
 
+- **The task list orders a day's tasks by the household's clock, not the device's.** The order
+  inside a group and a board column read the due time in the device's time zone. On a device whose
+  zone skips an hour for daylight saving time, a task due in that hour moved an hour later and
+  showed up after a task due later the same day, even when the household's own zone has no such gap
+  that day. The order now compares the due date and time as entered, and "now" is the household's
+  time, like the due label and the grouping next to it.
+
+- **A task's "Starts on" badge follows the household's day.** The badge on a task without a due
+  date compared its start date with midnight on the device. On a device in another time zone it
+  stayed on a task that had already started in the household, or left too early. The date in the
+  badge could also show the day before, for example with the device in Berlin and the household
+  set to Honolulu.
+
 ## [2.71.0] - 2026-09-30
 
 ### Added
