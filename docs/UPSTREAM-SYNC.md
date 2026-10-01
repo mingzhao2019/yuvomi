@@ -205,12 +205,13 @@ semantics; their code was not removed or replaced. No push was performed.
 
 ## Current sync checkpoint (2026-10-01)
 
-Local `main` and `upstream/main` both point to `ab8a61d35` (v2.71.0). The
+Local `main` and `upstream/main` both point to `c471ef0f8` (v2.71.0). The
 previous custom checkpoint is `8c7d7206d`; the integration branch started at
-that commit and reviewed all nine upstream commits after `e9426e434` in order.
-Eight independent changes were cherry-picked, and the budget-series change was
-manually ported because custom migration 238 and its series-definition
-semantics differ from upstream. Upstream was not merged wholesale.
+that commit and reviewed all eleven upstream commits after `e9426e434` in
+order. Ten independent changes were cherry-picked, and the budget-series
+change was manually ported because custom migration 238 and its
+series-definition semantics differ from upstream. Upstream was not merged
+wholesale.
 
 | Upstream commit | Behavior | Integration decision |
 | --- | --- | --- |
@@ -223,6 +224,8 @@ semantics differ from upstream. Upstream was not merged wholesale.
 | `a439c23a1` (#1597) | Shows real occurrences immediately after saving a new calendar series. | Cherry-picked as `ec6bad1d4`; retained custom calendar-provider and timezone semantics. |
 | `0f05ea01c` (#1594) | Accepts localized installer confirmations and runs the installer on macOS. | Cherry-picked as `f4255dd1d`; no custom deployment contract changed. |
 | `ab8a61d35` (#1599) | Derives budget, OpenAPI and weather language lists from locale files. | Cherry-picked as `6fdd03ac5`; retained custom locale behavior and added `test:language-lists` to `npm test`. |
+| `05081422d` (#1600) | Clarifies that `OPENWEATHER_LANG` is only a fallback and unknown codes are ignored. | Cherry-picked as `153c2f016`; documentation-only, no provider behavior changed. |
+| `c471ef0f8` (#1601) | Shows the selected task beside task history on wide screens. | Cherry-picked as `3369e240b`; combined the detail-component import with `wireScrollFade` and retained custom search, task-list, subtask, and detail behavior. |
 
 The budget port leaves released migration 238 unchanged and appends migration
 239. Existing running series backfill `budget_series.start_date` from their
@@ -238,14 +241,16 @@ No release commit is in this upstream range. Root `package.json`, both root
 `package-lock.json` version fields, `public/sw.js` `APP_RELEASE`, and current
 release metadata remain at `2.71.0`, matching `main:package.json`.
 
-Focused budget validation passed: recurrence (31 assertions), migration v238/v239,
-budget UI (124 tests), and budget entry routes (87 tests). `git diff --check`
-passed. The full `npm test` and final custom-branch fast-forward are recorded
-after validation below.
+Focused budget validation passed: recurrence (31 assertions), migration
+v238/v239, budget UI (124 tests), and budget entry routes (87 tests). The full
+`npm test` completed with exit code 0; restore-swap passed 64 tests with 3
+root-specific skips, and restore-server passed 15/15. Focused task-history,
+master-detail, and detail-view suites passed. `git diff --check` passed.
 
 The earlier dashboard regression remains intact: archived/completed overview
 events render `event-item--done` with a line-through, covered by
 `test/test-dashboard-today.js`. Microsoft To Do task/list mapping, Outlook and
 ICS calendar behavior, persistent task lists, separate personal/household
 notification channels, Inventory/assets, and dashboard widgets remain present
-with their custom semantics. No push was performed.
+with their custom semantics. Validation completed before the local `custom`
+fast-forward. No push was performed.
