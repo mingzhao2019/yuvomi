@@ -55,8 +55,11 @@ function makeDb() {
     CREATE TABLE pantry_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
       quantity REAL NOT NULL DEFAULT 1, expires_on TEXT, created_by INTEGER REFERENCES users(id) ON DELETE SET NULL);
     -- Minimal, nur genug fuer den 'document_expiry'-Zweig in processDueNotifications().
+    -- Sichtbarkeit und Freigaben wie im echten Schema: die Zustellung fragt
+    -- seit services/reminder-targets.js, ob ein Dokument fuer alle da ist.
     CREATE TABLE family_documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-      expires_at TEXT);
+      expires_at TEXT, created_by INTEGER, visibility TEXT NOT NULL DEFAULT 'family');
+    CREATE TABLE family_document_access (document_id INTEGER NOT NULL, user_id INTEGER NOT NULL);
     -- Minimal, nur genug fuer den 'health_prevention_due'-Zweig in
     -- processDueNotifications() UND fuer syncAllPreventionReminders() -
     -- ohne diese zwei Tabellen scheitert schon die Sync-Abfrage mit "no such

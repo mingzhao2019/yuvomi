@@ -39,7 +39,7 @@ const remindersModule = await import('../server/routes/reminders.js');
 const { processDueNotifications } = await import('../server/services/notifications.js');
 const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
 const { resolvePermissions, buildSessionModuleAccess } = await import('../server/permissions.js');
-const { TARGET_ENTITY_TYPES } = await import('../server/services/reminder-targets.js');
+const { TARGET_ENTITY_TYPES, HOUSEHOLD_CHANNEL_POLICY, reminderTargetPublicSql } = await import('../server/services/reminder-targets.js');
 
 const NOW = new Date('2024-06-15T12:00:00Z');
 const PAST = '2000-01-01T00:00:00';
@@ -511,5 +511,121 @@ test('Haushaltskanal: ohne Push und ohne eigenen Kanal bleibt die Erinnerung im 
   assert.deepEqual(viaChannels(run, own), []);
   assert.ok((await pending(database, owner)).some((r) => r.id === own), '/pending zeigt die eigene Erinnerung nicht');
   assert.notEqual(database.prepare('SELECT pushed_at FROM reminders WHERE id = ?').get(own).pushed_at, null);
+  database.close();
+});
+
+// --------------------------------------------------------------------------
+// 5. ABGELEITETE HERKUENFTE IM HAUSHALTSKANAL
+//
+// Abschnitt 4 deckte, was ein Mensch setzen kann. Die Herkuenfte, die ein Sync
+// herstellt, gingen weiter ungefragt an den Haushaltskanal - darunter der
+// vorhergesagte Periodenbeginn (in der Partner-Fassung mit Namen), der
+// taegliche Zyklus-Hinweis, Vorsorge, Fasten, der Name eines privaten
+// Dokuments und die eigene Schicht. Die Regel ist eine Allowlist: in den
+// Haushaltskanal geht nur, was diese Karte ausdruecklich fuer alle freigibt.
+// --------------------------------------------------------------------------
+const publicFlags = (database) => new Map(database.prepare(`
+  SELECT r.id, CASE WHEN ${reminderTargetPublicSql(database, 'r')} THEN 1 ELSE 0 END AS pub FROM reminders r
+`).all().map((row) => [row.id, row.pub]));
+
+function makeDocument(database, owner, visibility, sharedWith = null) {
+  const id = database.prepare(`
+    INSERT INTO family_documents (name, original_name, mime_type, file_size, content_data, expires_at, created_by, visibility)
+    VALUES (?, 'pass.pdf', 'application/pdf', 1, ?, '2024-07-01', ?, ?)
+  `).run(`${SECRET}-Dokument`, Buffer.from('x'), owner, visibility).lastInsertRowid;
+  if (sharedWith) database.prepare('INSERT INTO family_document_access (document_id, user_id) VALUES (?, ?)').run(id, sharedWith);
+  return id;
+}
+
+test('jede Herkunft ist fuer den Haushaltskanal ausdruecklich eingeordnet', () => {
+  // Eine neue Herkunft ohne Eintrag ginge nicht an den Haushaltskanal
+  // (Allowlist) - sie soll aber eine Entscheidung bekommen, keine Vorgabe.
+  assert.deepEqual(Object.keys(HOUSEHOLD_CHANNEL_POLICY).sort(), [...remindersModule.VALID_ENTITY_TYPES].sort());
+  const of = (policy) => Object.keys(HOUSEHOLD_CHANNEL_POLICY).filter((type) => HOUSEHOLD_CHANNEL_POLICY[type] === policy).sort();
+  assert.deepEqual(of('personal'), [
+    'cycle_log_nudge', 'cycle_period', 'fasting_goal', 'fasting_next_start',
+    'health_prevention_due', 'schedule_entry', 'schedule_extra_entry',
+  ]);
+  assert.deepEqual(of('household'), ['pantry_item', 'waste_pickup']);
+  assert.deepEqual(of('row'), ['document_expiry', ...TARGET_ENTITY_TYPES].sort());
+});
+
+test('Haushaltskanal: die Einordnung je Herkunft, an der Klausel der Zustellung gemessen', () => {
+  // Ohne Zustelllauf: die Syncs stellen ihre Zeilen selbst her und raeumen
+  // fremde ab. Gemessen wird das Fragment, das die Zustellung als
+  // `target_public` liest - mit einer Zeile je Herkunft.
+  const database = freshDb();
+  const owner = freshUser(database);
+  const other = freshUser(database);
+  const expected = new Map();
+  const add = (type, entityId, pub) => expected.set(insertReminder(database, owner, type, entityId), [type, pub]);
+
+  for (const type of ['cycle_period', 'cycle_log_nudge', 'health_prevention_due', 'fasting_goal', 'fasting_next_start', 'schedule_entry', 'schedule_extra_entry']) {
+    add(type, 1, 0);
+  }
+  add('pantry_item', 1, 1);
+  add('waste_pickup', 1, 1);
+  add('document_expiry', makeDocument(database, owner, 'family'), 1);
+  add('document_expiry', makeDocument(database, owner, 'private'), 0);
+  add('document_expiry', makeDocument(database, owner, 'restricted', other), 0);
+  add('document_expiry', 999999, 0);
+  add('task', makeTask(database, owner, 'all'), 1);
+  add('task', makeTask(database, owner, 'private'), 0);
+  // Eine Herkunft, die diese Fassung nicht kennt: nicht oeffentlich.
+  // Die Spalte traegt ein CHECK; fuer diese eine Zeile ausgesetzt, wie es eine
+  // spaetere Migration mit einer neuen Herkunft taete.
+  database.pragma('ignore_check_constraints = ON');
+  add('etwas_neues', 1, 0);
+  database.pragma('ignore_check_constraints = OFF');
+
+  const flags = publicFlags(database);
+  const got = [...expected].map(([id, [type]]) => [type, flags.get(id)]);
+  assert.deepEqual(got, [...expected.values()]);
+  database.close();
+});
+
+test('Zyklus: weder der taegliche Hinweis noch die Partner-Meldung mit Namen gehen an den Haushaltskanal', async () => {
+  const database = freshDb();
+  const owner = freshUser(database);
+  const partner = freshUser(database);
+  database.prepare("UPDATE users SET display_name = 'Anna' WHERE id = ?").run(owner);
+  personalChannel(database, partner);
+  for (const [start, end] of [['2024-03-01', '2024-03-05'], ['2024-03-31', '2024-04-04'], ['2024-04-30', '2024-05-04'], ['2024-05-30', '2024-06-03']]) {
+    database.prepare("INSERT INTO cycle_periods (user_id, start_date, end_date, visibility) VALUES (?, ?, ?, 'private')").run(owner, start, end);
+  }
+  // Naechster vorhergesagter Beginn 2024-06-29, vierzehn Tage vorher = NOW;
+  // dazu der taegliche Log-Hinweis der Eigentuemerin.
+  database.prepare('INSERT INTO cycle_settings (user_id, notify_partner_user_id, notify_partner_days_before, remind_log_daily) VALUES (?, ?, 14, 1)')
+    .run(owner, partner);
+
+  const run = await deliver(database);
+  const partnerRow = database.prepare("SELECT id FROM reminders WHERE entity_type = 'cycle_period' AND created_by = ?").get(partner);
+  const nudgeRow = database.prepare("SELECT id FROM reminders WHERE entity_type = 'cycle_log_nudge' AND created_by = ?").get(owner);
+  assert.ok(partnerRow && nudgeRow, 'Vorbedingung: beide Zyklus-Erinnerungen stehen');
+
+  // Die Partner-Meldung nennt die Person - und geht deshalb nur an den Partner.
+  const partnerPush = run.push.find((p) => p.tag === tagOf(partnerRow.id));
+  assert.ok(partnerPush && partnerPush.userId === partner && /Anna/.test(partnerPush.body), 'der Push an den Partner mit Namen fehlt');
+  assert.deepEqual(viaChannels(run, partnerRow.id), ['user'], 'Partner-Meldung: Kanaele');
+  assert.ok(run.push.some((p) => p.tag === tagOf(nudgeRow.id) && p.userId === owner), 'der Push des Hinweises fehlt');
+  assert.deepEqual(viaChannels(run, nudgeRow.id), [], 'Log-Hinweis: Kanaele');
+  assert.deepEqual(run.channel.filter((p) => p.scope === 'household'), [], 'der Haushaltskanal bekam eine Zyklus-Meldung');
+  database.close();
+});
+
+test('Dokumentablauf: nur ein Dokument, das alle sehen, geht an den Haushaltskanal', async () => {
+  const database = freshDb();
+  const owner = freshUser(database);
+  const other = freshUser(database);
+  personalChannel(database, owner);
+  const family = insertReminder(database, owner, 'document_expiry', makeDocument(database, owner, 'family'));
+  const priv = insertReminder(database, owner, 'document_expiry', makeDocument(database, owner, 'private'));
+  const named = insertReminder(database, owner, 'document_expiry', makeDocument(database, owner, 'restricted', other));
+
+  const run = await deliver(database);
+  assert.deepEqual(viaChannels(run, family), ['household', 'user'], 'Dokument fuer alle');
+  assert.deepEqual(viaChannels(run, priv), ['user'], 'privates Dokument');
+  assert.deepEqual(viaChannels(run, named), ['user'], 'Dokument fuer benannte Personen');
+  for (const id of [family, priv, named]) assert.ok(run.push.some((p) => p.tag === tagOf(id) && p.userId === owner));
   database.close();
 });

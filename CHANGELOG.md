@@ -285,6 +285,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can see reach the household channel as before. If you rely on a household channel for
   reminders about private entries, turn on push notifications on your device; the reminder
   also still appears in the app. Affected are all versions since v1.11.0.
+- **Health, shift and private-document reminders no longer reach household notification
+  channels.** The reminders Yuvomi creates on its own went to the household channel as well:
+  the predicted start of a period (in the version sent to a partner, with the person's name),
+  the daily cycle log hint, a due preventive check-up, fasting reminders, a shift about to start
+  and the expiry of a document, including a private one or one shared with named people only.
+  Cycle, check-up and fasting reminders and shift reminders now go to the person they are meant
+  for only, by push (and to a channel of their own, where one exists). A document expiry reaches
+  the household channel only if the document is visible to the whole family. Pantry and waste
+  collection reminders are household matters and reach the channel as before. Affected are
+  versions since v2.65.0 (cycle and shifts), v2.67.0 (partner notice) and v2.68.0 (check-ups,
+  fasting, document expiry).
 
 ## [2.71.0] - 2026-09-30
 

@@ -34,6 +34,10 @@
 
 import { icsSubscriptionVisibleWhere, visibilityWhere } from './visibility.js';
 import { budgetVisibilityWhere, resolveBudgetMode } from './budget-visibility.js';
+import { documentVisibleSql } from './document-access.js';
+
+/** Platzhaltername fuer "niemand Bestimmtes" - wird im SQL durch NULL ersetzt. */
+const NOBODY = 'reminder_target_nobody';
 
 /**
  * Je Herkunft: die Tabelle und die Klausel, unter der `viewer` (ein
@@ -132,23 +136,89 @@ export function reminderTargetVisibleSql(database, alias = 'r', viewer = `${alia
 }
 
 /**
- * WHERE-Fragment: wahr, wenn JEDES Mitglied das Ziel der Zeile sieht.
+ * DARF EINE HERKUNFT IN EINEN KANAL DES GANZEN HAUSHALTS? Eine Karte ueber ALLE
+ * Herkuenfte, und sie ist eine Allowlist: was hier nicht steht, geht nicht
+ * hinein. Ein Haushaltskanal (ntfy-Topic, Gotify, Webhook, E-Mail) ist ein
+ * Leser ohne Kennung - wer ihn liest, legt der Admin fest, der ihn einrichtet,
+ * und die Zeilen-Sichtbarkeit kennt keinen Admin-Bypass (#474).
  *
- * Fuer die Zustellung an einen Kanal, der dem ganzen Haushalt gehoert. Ein
- * solcher Kanal ist ein Leser wie jeder andere, nur ohne Kennung: die Frage
- * "sieht der Empfaenger es" beantwortet fuer ihn nichts, weil er nicht der
- * Empfaenger ist.
+ *   'row'        die Zeile entscheidet: nur wenn JEDES Mitglied ihr Ziel sieht.
+ *                Die setzbaren Herkuenfte (TARGETS) und der Dokumentablauf -
+ *                Dokumente haben eine eigene Zeilenregel (`documentVisibleSql`).
+ *   'household'  Haushaltsdaten ohne Zeilen-Sichtbarkeit: Vorrat und Muell.
+ *   'personal'   nie. Die Meldung geht an Web Push und an Kanaele, die der
+ *                Person selbst gehoeren.
  *
- * KEINE ZWEITE REGEL. Es sind dieselben Klauseln wie oben, gefragt fuer einen
- * Betrachter, der NIEMAND BESTIMMTES ist (`NULL`): `created_by = NULL`,
- * `owner_id = NULL` und die Zuweisung an `NULL` sind nie wahr, also bleibt von
- * jeder Klausel genau der Teil uebrig, der fuer alle gilt - `visibility =
- * 'all'`, ein geteiltes Abo, ein nicht privates Abo im persoenlichen
- * Budget-Modus. Wer die Regel eines Moduls aendert, aendert damit beide Fragen.
+ * WARUM GESUNDHEIT GANZ PERSOENLICH IST und nicht der Zeile folgt: Zyklus,
+ * Vorsorge und Fasten tragen zwar eine Sichtbarkeit, aber die Meldung selbst
+ * ist die Auskunft - "naechste Periode am ...", in der Partner-Fassung mit dem
+ * Namen der Person, "heute noch nichts eingetragen", der faellige
+ * Vorsorgetermin. Ihre Erinnerungen hängen zudem an Ankern und abgeleiteten
+ * Zeitpunkten, nicht an einer Zeile mit `visibility`; eine Regel "fuer alle
+ * sichtbar" liesse sich dort nur raten. Wer sie einer zweiten Person zeigen
+ * will, hat dafuer eigene Wege (Partner-Hinweis, Betreuung) - die bleiben.
  *
- * Wie beim Fragment oben gilt eine Zeile ohne Ziel und eine Herkunft ohne
- * Zeilen-Sichtbarkeit als fuer alle da: dort gibt es nichts zu verbergen.
+ * WARUM SCHICHTEN PERSOENLICH SIND: der Schichtplan hat keine Zeilenregel, aus
+ * der sich "fuer alle" ableiten liesse, die Erinnerung entsteht je Person aus
+ * deren eigenem Vorlauf, und ihr Text nennt die Person nicht ("Fruehschicht -
+ * 06:00"). Im Haushaltskanal waere sie eine Meldung ohne Adressaten ueber den
+ * Arbeitstag eines Einzelnen.
+ */
+export const HOUSEHOLD_CHANNEL_POLICY = Object.freeze({
+  ...Object.fromEntries(Object.keys(TARGETS).map((type) => [type, 'row'])),
+  document_expiry:       'row',
+  pantry_item:           'household',
+  waste_pickup:          'household',
+  cycle_period:          'personal',
+  cycle_log_nudge:       'personal',
+  health_prevention_due: 'personal',
+  fasting_goal:          'personal',
+  fasting_next_start:    'personal',
+  schedule_entry:        'personal',
+  schedule_extra_entry:  'personal',
+});
+
+/**
+ * WHERE-Fragment: wahr, wenn die Zeile in einen Kanal des ganzen Haushalts
+ * darf - also wenn JEDES Mitglied ihr Ziel sieht.
+ *
+ * Fuer die Zustellung. Ein solcher Kanal ist ein Leser wie jeder andere, nur
+ * ohne Kennung: die Frage "sieht der Empfaenger es" beantwortet fuer ihn
+ * nichts, weil er nicht der Empfaenger ist.
+ *
+ * KEINE ZWEITE REGEL. Fuer die Herkuenfte mit Zeilenregel sind es dieselben
+ * Klauseln wie oben, gefragt fuer einen Betrachter, der NIEMAND BESTIMMTES ist
+ * (`NULL`): `created_by = NULL`, `owner_id = NULL` und die Zuweisung an `NULL`
+ * sind nie wahr, also bleibt von jeder Klausel genau der Teil uebrig, der fuer
+ * alle gilt - `visibility = 'all'`, ein geteiltes Abo, ein nicht privates Abo
+ * im persoenlichen Budget-Modus, ein Dokument mit `visibility = 'family'`. Wer
+ * die Regel eines Moduls aendert, aendert damit beide Fragen.
+ *
+ * Bei den setzbaren Herkuenften gilt eine Zeile ohne Ziel und eine Herkunft
+ * ohne Zeilen-Sichtbarkeit (Inventar) als fuer alle da: dort gibt es nichts zu
+ * verbergen. Ein Dokument muss es dagegen GEBEN - eine Waise hat hier keinen
+ * Bestandsschutz, und die Allowlist entscheidet im Zweifel fuer "nicht".
+ *
+ * EINE UNBEKANNTE HERKUNFT IST NICHT OEFFENTLICH (`ELSE 0`). Das ist der
+ * Unterschied zu `reminderTargetVisibleSql()`: dort geht es um den Empfaenger
+ * der eigenen Zeile, hier um Dritte.
  */
 export function reminderTargetPublicSql(database, alias = 'r') {
-  return reminderTargetVisibleSql(database, alias, 'NULL');
+  const quoted = (policy) => Object.keys(HOUSEHOLD_CHANNEL_POLICY)
+    .filter((type) => HOUSEHOLD_CHANNEL_POLICY[type] === policy)
+    .map((type) => `'${type}'`).join(', ');
+  // `documentVisibleSql` nimmt den Namen eines Bind-Parameters; hier steht an
+  // seiner Stelle NULL, damit die Regel der Dokumente woertlich dieselbe bleibt.
+  const documentForAll = documentVisibleSql('x', NOBODY).replaceAll(`@${NOBODY}`, 'NULL');
+  return `(CASE
+    WHEN ${alias}.entity_type IN (${Object.keys(TARGETS).map((type) => `'${type}'`).join(', ')})
+      THEN ${reminderTargetVisibleSql(database, alias, 'NULL')}
+    WHEN ${alias}.entity_type = 'document_expiry'
+      THEN EXISTS (
+        SELECT 1 FROM family_documents x
+        WHERE x.id = ${alias}.entity_id AND COALESCE(${documentForAll}, 0) = 1
+      )
+    WHEN ${alias}.entity_type IN (${quoted('household')}) THEN 1
+    ELSE 0
+  END) = 1`;
 }
