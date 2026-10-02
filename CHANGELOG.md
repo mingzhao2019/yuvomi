@@ -265,12 +265,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   edited or deleted by them either. Changing its status was left out of that rule: a household
   member who could not see a task could still mark it done, reopen it or archive it by addressing
   it directly through the API. Marking it done could credit the points to the wrong person and
-  create the next occurrence of a recurring task; reopening it removed the points already credited
-  and discarded that next occurrence. The task's content was not readable this way. The status
-  change now answers "Task not found" for a task you cannot see, exactly as for one that does not
-  exist, and changes nothing. A subtask can no longer be added beneath a task you cannot see for
-  the same reason. Nothing changes for tasks you can see: the person who created a task, the
-  people assigned to it and, for tasks shared with everyone, every member tick them off as
+  create the next occurrence of a recurring task; reopening it took the points already credited
+  back again and discarded that next occurrence. The task's content was not readable this way. The
+  status change now answers "Task not found" for a task you cannot see, exactly as for one that
+  does not exist, and changes nothing. A subtask can no longer be added beneath a task you cannot
+  see for the same reason. Nothing changes for tasks you can see: the person who created a task,
+  the people assigned to it and, for tasks shared with everyone, every member tick them off as
   before. Affected are all versions since v1.11.0, which introduced task visibility.
 - **A reminder can only be set on an entry you can see, and it only names an entry you can see.**
   Reminders are set per person on a task, a calendar event, a subscription or an inventory item.
