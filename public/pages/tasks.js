@@ -1269,6 +1269,7 @@ ${syncTargetFieldHtml(task)}
         </select>
         <p class="task-field-hint">${t('common.visibility.hint')}</p>
         <p class="task-field-hint field-hint--warn" id="task-visibility-warning" role="status" hidden><i data-lucide="alert-triangle" aria-hidden="true"></i><span>${t('common.visibility.assigneesNobodyHint')}</span></p>
+        <p class="task-field-hint field-hint--warn" id="task-visibility-private-warning" role="status" hidden><i data-lucide="alert-triangle" aria-hidden="true"></i><span>${t('common.visibility.privateAssignedHint')}</span></p>
       </div>
 
       <!-- #830: Die Sperre steht neben der Sichtbarkeit, weil beide dieselbe
@@ -2091,16 +2092,31 @@ function reminderRemindAtFromForm(form, { dueDate, dueTime = null } = {}) {
 // Modal-Verwaltung (delegiert an Shared Modal-System)
 // --------------------------------------------------------
 
-// Blendet einen Hinweis ein, wenn „Nur Zugewiesene" gewählt ist, aber niemand
-// zugewiesen wurde — dann sieht faktisch nur der Ersteller den Eintrag (#474 Guard).
-function wireVisibilityWarning(panel, selectSel, msName, warnSel) {
+// Zwei Hinweise an der Sichtbarkeit, beide warnen nur und aendern nichts
+// (dieselbe Regel wie im Termin-Dialog, pages/calendar.js):
+// - „Nur Zugewiesene" ohne Person: dann sieht faktisch nur der Ersteller den
+//   Eintrag (#474 Guard).
+// - „Nur ich" mit mindestens einer anderen Person als dem Ersteller: die Zugewiesenen sehen den Eintrag
+//   nicht. Die Kombination bleibt erlaubt und die
+//   Zuweisung stehen - Bestandsdaten und API-Clients fuehren sie.
+function wireVisibilityWarning(panel, selectSel, msName, warnSel, privateWarnSel, creatorId = null) {
   const select = panel.querySelector(selectSel);
   const warn   = panel.querySelector(warnSel);
   if (!select || !warn) return;
+  const privateWarn = privateWarnSel ? panel.querySelector(privateWarnSel) : null;
   const ms = panel.querySelector(`.user-ms[data-ms-name="${msName}"]`);
   const update = () => {
-    const count = getSelectedUserIds(panel, msName).length;
-    warn.hidden = !(select.value === 'assignees' && count === 0);
+    const ids = getSelectedUserIds(panel, msName).map(Number);
+    warn.hidden = !(select.value === 'assignees' && ids.length === 0);
+    // Wer den Eintrag angelegt hat, sieht ihn auch als „Nur ich": gezaehlt
+    // werden nur die anderen. Massgeblich ist `created_by` des Eintrags, nicht
+    // wer ihn gerade bearbeitet; ein neuer gehoert dem angemeldeten Konto.
+    const others = creatorId == null ? ids : ids.filter((id) => id !== Number(creatorId));
+    if (privateWarn) privateWarn.hidden = !(select.value === 'private' && others.length > 0);
+    // Die Sichtbarkeit steht unter „Weitere Einstellungen", die Personen
+    // darueber: aufklappen, nie zuklappen.
+    const shown = [warn, privateWarn].find((el) => el && !el.hidden);
+    shown?.closest('details')?.setAttribute('open', '');
   };
   select.addEventListener('change', update);
   ms?.addEventListener('click', () => setTimeout(update, 0));
@@ -2288,7 +2304,8 @@ function wireTaskForm(panel, { task = null, container = null, onChanged = () => 
   // RRULE-Events binden
   bindRRuleEvents(document, 'task');
   bindUserMultiSelect(panel, 'task_assigned');
-  wireVisibilityWarning(panel, '#task-visibility', 'task_assigned', '#task-visibility-warning');
+  wireVisibilityWarning(panel, '#task-visibility', 'task_assigned', '#task-visibility-warning', '#task-visibility-private-warning',
+    task?.created_by ?? state.currentUserId);
   wireCountdownGate(panel);
 
   // Tag-Editor (#586)

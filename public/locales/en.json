@@ -75,7 +75,8 @@
             "assignees": "Assignees only",
             "private": "Only me",
             "hint": "Controls who can see this entry in Yuvomi.",
-            "assigneesNobodyHint": "With no one assigned, only you can see this entry."
+            "assigneesNobodyHint": "With no one assigned, only you can see this entry.",
+            "privateAssignedHint": "Only the person who created this entry can see it - the other assigned people cannot. Choose \"Assignees only\" if they should see it."
         },
         "toShoppingListNamed": "Add {{title}} to the shopping list",
         "emailInUse": "This email address already belongs to another account."

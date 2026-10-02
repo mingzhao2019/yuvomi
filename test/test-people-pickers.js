@@ -432,3 +432,102 @@ test('settings: saving a calendar subscription keeps a stored assignee that is n
     'removing an assignee who is on offer still works');
   assert.deepEqual(icsSettings.assigneePatch(select(String(ANNA.id), ANNA.id), null), { default_assignee_user_id: ANNA.id });
 });
+
+// --------------------------------------------------------------------------
+// "Nur ich" mit zugewiesenen Personen - Aufgaben-Dialog
+//
+// Dieselbe Regel wie im Termin-Dialog (test:calendar-sync-target-hint): wer
+// zugewiesen ist, sieht einen privaten Eintrag nicht. Der Dialog sagt es und
+// laesst Zuweisung und Sichtbarkeit stehen. Das Markup kommt aus
+// `renderModalContent`, verdrahtet wird ueber `wireTaskForm` - ein Doppel, das
+// fuer jeden unbekannten Selektor `null` liefert, an dem die uebrigen
+// Verdrahtungen aussteigen.
+// --------------------------------------------------------------------------
+
+function taskVisibilityForm({ visibility = 'all', assigned = [], task = null } = {}) {
+  const html = tasks.renderModalContent({ task, users: [ANNA, BEN] });
+  const group = /<select class="input" id="task-visibility"[\s\S]*?<\/div>/.exec(html)?.[0];
+  assert.ok(group, 'the task dialog has a visibility select');
+  const el = (extra = {}) => ({
+    listeners: {},
+    addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); },
+    fire(type) { for (const fn of this.listeners[type] ?? []) fn(); },
+    ...extra,
+  });
+  const details = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } };
+  const nodes = {
+    '#task-visibility': el({ value: visibility }),
+    '.user-ms[data-ms-name="task_assigned"]': el(),
+  };
+  for (const [, id, hidden, key] of group.matchAll(/<p class="task-field-hint field-hint--warn" id="([\w-]+)" role="status"( hidden)?>[\s\S]*?<span>([^<]*)<\/span><\/p>/g)) {
+    nodes[`#${id}`] = el({ hidden: Boolean(hidden), textContent: key, closest: (sel) => (sel === 'details' ? details : null) });
+  }
+  const form = { nodes, details, assigned: [...assigned] };
+  globalThis.__getSelectedUserIds = () => form.assigned;
+  const panel = { querySelector: (sel) => nodes[sel] ?? null, querySelectorAll: () => [], addEventListener: () => {} };
+  tasks.wireTaskForm(panel, { task });
+  form.pick = (value) => { nodes['#task-visibility'].value = value; nodes['#task-visibility'].fire('change'); };
+  form.assign = async (ids) => {
+    form.assigned = ids;
+    nodes['.user-ms[data-ms-name="task_assigned"]'].fire('click');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+  form.warn = (id) => {
+    assert.ok(nodes[id], `${id} is in the dialog markup`);
+    return nodes[id];
+  };
+  return form;
+}
+
+test('task dialog: "only me" with an assigned person says they will not see the entry', async () => {
+  const PRIVATE_ASSIGNED = '#task-visibility-private-warning';
+  const NOBODY = '#task-visibility-warning';
+  try {
+    const form = taskVisibilityForm({ assigned: [BEN.id] });
+    assert.equal(form.warn(PRIVATE_ASSIGNED).hidden, true, 'nothing to say while everyone sees it');
+    assert.equal(form.warn(PRIVATE_ASSIGNED).textContent, 'common.visibility.privateAssignedHint');
+
+    form.pick('private');
+    assert.equal(form.warn(PRIVATE_ASSIGNED).hidden, false, 'private with a person: the hint shows');
+    assert.equal(form.warn(NOBODY).hidden, true, 'the nobody-assigned warning is a different case');
+    assert.equal(form.details.attrs.open, '', 'the section the hint lives in opens');
+
+    await form.assign([]);
+    assert.equal(form.warn(PRIVATE_ASSIGNED).hidden, true, 'private with nobody: no hint');
+    await form.assign([BEN.id]);
+    assert.equal(form.warn(PRIVATE_ASSIGNED).hidden, false, 'assigning follows');
+
+    for (const value of ['assignees', 'all']) {
+      form.pick(value);
+      assert.equal(form.warn(PRIVATE_ASSIGNED).hidden, true, value);
+      assert.equal(form.warn(NOBODY).hidden, true, value);
+    }
+    assert.deepEqual(form.assigned, [BEN.id], 'the dialog warns, it does not clear the assignment');
+  } finally {
+    delete globalThis.__getSelectedUserIds;
+  }
+});
+
+test('task dialog: whoever created the entry does not count as an assigned person who cannot see it', async () => {
+  const PRIVATE_ASSIGNED = '#task-visibility-private-warning';
+  const vorher = tasks.state.currentUserId;
+  const TASK = { id: 5, title: 'Geschenk', status: 'open', priority: 'none', visibility: 'private' };
+  try {
+    // Neue Aufgabe: Ersteller ist das angemeldete Konto.
+    tasks.state.currentUserId = ANNA.id;
+    const own = taskVisibilityForm({ visibility: 'private', assigned: [ANNA.id] });
+    assert.equal(own.warn(PRIVATE_ASSIGNED).hidden, true, 'only the creator is assigned: no hint');
+    await own.assign([ANNA.id, BEN.id]);
+    assert.equal(own.warn(PRIVATE_ASSIGNED).hidden, false, 'creator plus another person: the hint shows');
+
+    // Bearbeiten: es zaehlt created_by der Aufgabe, nicht wer bearbeitet.
+    const foreign = taskVisibilityForm({ visibility: 'private', assigned: [ANNA.id], task: { ...TASK, created_by: BEN.id } });
+    assert.equal(foreign.warn(PRIVATE_ASSIGNED).hidden, false, 'the editor is assigned but did not create it: the hint shows');
+    tasks.state.currentUserId = BEN.id;
+    const theirs = taskVisibilityForm({ visibility: 'private', assigned: [ANNA.id], task: { ...TASK, created_by: ANNA.id } });
+    assert.equal(theirs.warn(PRIVATE_ASSIGNED).hidden, true, 'the creator is assigned, someone else edits: no hint');
+  } finally {
+    tasks.state.currentUserId = vorher;
+    delete globalThis.__getSelectedUserIds;
+  }
+});
