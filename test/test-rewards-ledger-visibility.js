@@ -172,6 +172,38 @@ test('die Maske haengt an task_id und reason, nicht am Typ', async () => {
   assert.equal((await seenBy(owner.call, reversal)).reason, e.title);
 });
 
+test('Gegenbuchung beim Wiederoeffnen: sie nennt die Aufgabe genauso wenig wie die Gutschrift', async () => {
+  // Seit #1617 loescht das Wiederoeffnen die Gutschrift nicht mehr, sondern
+  // bucht gegen: eine zweite Zeile (`reversal`) mit `task_id`, demselben Titel
+  // und `reverses_id`. Sie entsteht hier ueber den echten Weg.
+  const e = await earned('private');
+  assert.equal((await owner.call('PATCH', `/tasks/${e.taskId}/status`, { status: 'open' })).status, 200);
+  const reversal = db.prepare("SELECT * FROM reward_ledger WHERE task_id = ? AND type = 'reversal'").get(e.taskId);
+  assert.ok(reversal, 'die Probe braucht eine Gegenbuchung');
+  assert.equal(reversal.reason, e.title, 'die Probe braucht den Titel in der Gegenbuchung');
+  assert.equal(reversal.reverses_id, e.ledgerId);
+
+  for (const [label, viewer] of [['fremdes Mitglied', outsider.call], ['Admin', admin]]) {
+    const row = await seenBy(viewer, reversal.id);
+    assert.ok(row, `${label}: die Gegenbuchung fehlt - der Saldo liesse sich nicht nachrechnen`);
+    assert.equal(row.delta, -5);
+    assert.deepEqual({ reason: row.reason, task_id: row.task_id }, { reason: null, task_id: null }, label);
+    // Die Antwort traegt weder die Serie noch den Verweis auf die Gutschrift.
+    assert.deepEqual(Object.keys(row).filter((k) => /series|reverses/.test(k)), [], `${label}: Verweisspalten in der Antwort`);
+    assert.ok(!JSON.stringify(row).includes(SECRET), `${label}: die Zeile nennt den Titel`);
+  }
+  assert.equal((await seenBy(owner.call, reversal.id)).reason, e.title);
+
+  // Mit der Aufgabe verlieren BEIDE Zeilen ihre task_id - der Schnappschuss
+  // bleibt bei der Person, der sie gehoeren.
+  assert.equal((await owner.call('DELETE', `/tasks/${e.taskId}`)).status, 200);
+  for (const id of [e.ledgerId, reversal.id]) {
+    const row = await seenBy(outsider.call, id);
+    assert.deepEqual({ reason: row.reason, task_id: row.task_id }, { reason: null, task_id: null });
+    assert.equal((await seenBy(owner.call, id)).reason, e.title);
+  }
+});
+
 test('geloeschte Aufgabe: der Schnappschuss des Titels bleibt bei der Person, der die Zeile gehoert', async () => {
   const e = await earned('private');
   assert.equal((await owner.call('DELETE', `/tasks/${e.taskId}`)).status, 200);
