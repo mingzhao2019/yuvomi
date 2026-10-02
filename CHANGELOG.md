@@ -68,6 +68,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
   document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
   same 403 for every id. (#1358)
+- **The month heading of Calendar and Budget follows the word order of the language** (#1607).
+  Both pages put the month name, a space and the year together themselves, which gave "10월 2026"
+  in Korean instead of "2026년 10월" (and the same for Japanese, Chinese and Hungarian). Month
+  and year now come from one formatter that asks the UI language for the order and always uses
+  the Gregorian calendar. German and English look the same as before; a few languages gain the
+  connecting words their grammar asks for ("Octubre de 2026", "Tháng 10 năm 2026").
+- **An event that ends at midnight is drawn at its full length in the week and day view**
+  (#1607). An event from 23:00 to 00:00 appeared as a 30-minute strip, and one from 22:00 to
+  00:00 as well: an end at exactly 00:00 was read as "ends at minute 0 of the same day". It now
+  runs to the end of the day, and it shares its column correctly with events that overlap it.
+  Events of 24 hours or more stay in the all-day row as before.
+- **A recurring event found in the global search opens at its next date, not in its first year**
+  (#1607). The search behind Cmd/Ctrl+K listed a series with the date of its very first
+  occurrence, and the link opened the calendar there: a birthday from 1990 opened October 1990.
+  The global search now resolves a series to its next occurrence from today, with the same
+  two-year window the calendar's own search uses, and the link carries that day. In
+  `GET /api/v1/search`, `events[].start_datetime` of a recurring event is therefore the next
+  occurrence instead of the series start; `id` is unchanged.
+- **A repeat end before the start date is no longer saved** (#1607). An event starting on 2 October
+  could be saved as "daily, until 30 September": the dialog only checked that the end was a valid
+  date, and the server only checked the form of the rule. The dialog now shows the error at the
+  repeat-end field, and `POST /api/v1/calendar`, `PUT /api/v1/calendar/{id}` and the "this and
+  following" edit answer 400. A repeat end on the start day stays valid. A series from an ICS
+  import or a synced calendar that already carries such a rule is still imported and stays
+  editable; tasks are unchanged, because a task is due on its own date and the rule only decides
+  about its successor.
+- **The weekday buttons of a weekly series no longer all look switched off** (#1607). A weekly
+  event without chosen weekdays repeats on the weekday of its start, but the "repeat on" buttons
+  showed none of the seven as active. The weekday of the start date is now shown as active, both
+  when you switch a new event to weekly and when you open an existing series, and it follows the
+  start date until you pick days yourself. The stored rule of an existing series is not rewritten.
 - **Editing a shared expense no longer rewrites its history** (#1607). The activity feed of a group
   showed the amount an expense has now, so correcting 50 to 10 also changed the earlier "Expense
   created" line to 10 - for expenses created by other members too. Each entry now records the
