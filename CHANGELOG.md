@@ -290,8 +290,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directly through the API still returned it, with title, description and location, and let a
   member edit or delete it. Marking such an event as a countdown also showed it on everyone's
   overview. These paths now apply the same rule as the calendar list and answer "not found", as
-  for an event that does not exist. Events from a shared subscription and local events are
-  unaffected. Affected are all versions since v0.20.38; the countdown since v2.18.0.
+  for an event that does not exist. The same holds for resetting a subscribed event to its feed
+  version: an admin could reset an event of a subscription they cannot see, and the answer told
+  apart an event that exists but is hidden from one that does not exist. Events from a shared
+  subscription and local events are unaffected. Affected are all versions since v0.20.38; the
+  countdown since v2.18.0.
 - **Household notification channels no longer receive reminders for entries that are not visible
   to everyone.** A notification channel set up by an admin (ntfy, Gotify, webhook or e-mail)
   received every due reminder of every member, with the entry's title. That included your own

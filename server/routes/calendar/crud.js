@@ -1736,7 +1736,11 @@ router.post('/:id/reset', (req, res) => {
       LEFT JOIN ics_subscriptions s ON s.id = e.subscription_id
       WHERE e.id = ?
     `).get(id);
-    if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
+    // Unsichtbar heisst auch hier "gibt es nicht" (wie GET/PUT/DELETE /:id):
+    // sonst verriete die 400 einen fremden privaten Termin und die 403 einen
+    // Termin aus einem fremden ungeteilten Abo, und ein Admin setzte einen
+    // Termin zurueck, den er nicht sieht. Die Rechteregel darunter bleibt.
+    if (!event || !loadVisibleEvent(id, req)) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
     if (event.external_source !== 'ics')
       return res.status(400).json({ error: 'Nur ICS-Events können zurückgesetzt werden.', code: 400 });
 

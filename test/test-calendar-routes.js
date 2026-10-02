@@ -5309,3 +5309,45 @@ test('following - ein Nachfolger, dessen Regel vor seinem Start endet, wird abge
     db.prepare("DELETE FROM calendar_events WHERE title = 'ENDE-FOLGESERIE'").run();
   }
 });
+
+test('POST /:id/reset: ein Termin, den die Person nicht sieht, ist 404 - nicht 403 oder 400', async () => {
+  // Die Route lud den Termin per Kennung und antwortete je nach Fall anders:
+  // 400 fuer einen fremden PRIVATEN lokalen Termin ("nur ICS"), 403 fuer einen
+  // Termin aus fremdem ungeteiltem Abo. Beides sagt, dass es die Kennung gibt -
+  // und ein Admin konnte den Termin eines Abos zuruecksetzen, das er nicht sieht.
+  const missing = await call('POST', '/999999/reset', { actor: TOM });
+  assert.equal(missing.status, 404);
+
+  const subId = db.prepare(
+    "INSERT INTO ics_subscriptions (name, url, color, created_by, shared) VALUES ('Marias Reset-Abo','https://x/rs.ics','#112233',?,0)",
+  ).run(MARIA.id).lastInsertRowid;
+  const ics = insertEvent({ title: 'RESET-GEHEIM', start_datetime: '2044-02-03T09:00', external_source: 'ics', subscription_id: subId, created_by: MARIA.id, user_modified: 1 });
+  const priv = insertEvent({ title: 'RESET-PRIVAT', start_datetime: '2044-02-03T09:00', created_by: MARIA.id, visibility: 'private' });
+  const flag = () => db.prepare('SELECT user_modified FROM calendar_events WHERE id = ?').get(ics).user_modified;
+
+  for (const viewer of [TOM, ADMIN]) {
+    const who = viewer === ADMIN ? 'Admin' : 'Mitglied';
+    for (const [label, id] of [['ungeteiltes Abo', ics], ['privater lokaler Termin', priv]]) {
+      const r = await call('POST', `/${id}/reset`, { actor: viewer });
+      assert.equal(r.status, 404, `${who}: ${label}`);
+      assert.deepEqual(r.body, missing.body, `${who}: ${label} - die Antwort verraet den Termin`);
+    }
+  }
+  assert.equal(flag(), 1, 'ein fremder Aufruf hat den Termin zurueckgesetzt');
+
+  // Die Eigentuemerin des Abos setzt zurueck, und ihr eigener lokaler Termin
+  // bekommt weiter die ehrliche 400.
+  assert.equal((await call('POST', `/${priv}/reset`, { actor: MARIA })).status, 400);
+  assert.equal((await call('POST', `/${ics}/reset`, { actor: MARIA })).status, 200);
+  assert.equal(flag(), 0);
+
+  // Geteilt: der Admin sieht den Termin und darf zuruecksetzen wie bisher,
+  // ein Mitglied ohne Bezug bekommt die 403.
+  db.prepare('UPDATE ics_subscriptions SET shared = 1 WHERE id = ?').run(subId);
+  db.prepare('UPDATE calendar_events SET user_modified = 1 WHERE id = ?').run(ics);
+  assert.equal((await call('POST', `/${ics}/reset`, { actor: TOM })).status, 403);
+  assert.equal((await call('POST', `/${ics}/reset`, { actor: ADMIN })).status, 200);
+
+  db.prepare('DELETE FROM calendar_events WHERE id IN (?, ?)').run(ics, priv);
+  db.prepare('DELETE FROM ics_subscriptions WHERE id = ?').run(subId);
+});
