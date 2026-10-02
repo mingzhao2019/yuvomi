@@ -63,6 +63,7 @@
     "test:phone": "DB_PATH=:memory: node --experimental-sqlite --test test/test-phone.js",
     "test:rewards": "DB_PATH=:memory: node --experimental-sqlite test/test-rewards.js",
     "test:rewards-routes": "node --experimental-sqlite --test test/test-rewards-routes.js",
+    "test:rewards-ledger-visibility": "node --experimental-sqlite --test test/test-rewards-ledger-visibility.js",
     "test:rewards-ui": "node --test test/test-rewards-ui.js",
     "test:reward-icon-null-migration": "node --experimental-sqlite --test test/test-reward-icon-null-migration.js",
     "test:shopping": "node --experimental-sqlite test/test-shopping.js",

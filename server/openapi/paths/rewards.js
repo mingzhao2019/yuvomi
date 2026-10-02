@@ -20,7 +20,7 @@ export function rewardsPaths() {
       delete: op({ summary: 'Delete reward', tag: 'Rewards', admin: true, params: [idParam()], stateChanging: true }),
     },
     '/api/v1/rewards/ledger': {
-      get: op({ summary: 'Point transaction history (filter by user_id)', tag: 'Rewards' }),
+      get: op({ summary: 'Point transaction history (filter by user_id)', tag: 'Rewards', description: 'Every entry carries its person, points and type. `reason` and `task_id` of an entry that belongs to a task are `null` unless the entry is the caller\'s own or the caller can see that task (same rule as GET /tasks, no admin bypass); once the task is deleted they stay with the entry\'s owner. Bonus, adjustment and redemption entries keep their `reason` for everyone.' }),
     },
     '/api/v1/rewards/redemptions': {
       get: op({ summary: 'List redemption requests (filter by status)', tag: 'Rewards' }),

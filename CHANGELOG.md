@@ -178,6 +178,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Your own reminders and those passed on to the assignees of an event work as before. Affected
   are all versions since v1.11.0 for tasks and events, since v1.23.0 for subscriptions, and
   since v0.20.38 for events from a calendar subscription that is not shared.
+- **The points history no longer names a task you cannot see.** A points entry in Rewards shows
+  the title of the task it was earned for, and the history is open to everyone who can use
+  Rewards. That made the title of a private task, or of one visible to its assignees only,
+  readable for the rest of the household as soon as the task was ticked off. The history now
+  shows that title only to the person the points belong to and to those who can see the task;
+  everyone else sees the entry with its person, date and points and the neutral text "Task
+  completed". Once a task has been deleted, its title stays with the person the points belong
+  to. This applies to entries already in the history as well. Balances, bonus points,
+  corrections and redemptions are shown as before. Affected are all versions since v1.11.0.
 
 ## [2.71.0] - 2026-09-30
 

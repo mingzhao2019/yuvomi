@@ -367,6 +367,43 @@ test('Belohnungen: der Einrichtungsschritt „Praemien" wechselt wirklich in den
   assert.ok(geklickt, `gesucht wurde ${gefragt} - der Reiter heisst data-tab-id="catalog"`);
 });
 
+test('Belohnungen: eine Buchung ohne Grund zeigt den Namen ihres Typs, keine leere Zeile', () => {
+  // Der Server liefert `reason: null`, wenn die Aufgabe hinter einer Buchung
+  // fuer die betrachtende Person nicht sichtbar ist (routes/rewards.js). Die
+  // Zeile bleibt dann stehen - mit Betrag und Person - und braucht einen Text,
+  // der nichts verraet: den Namen des Buchungstyps. Ohne den Rueckfall staende
+  // dort "null" oder nichts.
+  const s = rewardsPage.state;
+  const vorher = { user: s.user, overview: s.overview, ledger: s.ledger, ledgerFilter: s.ledgerFilter };
+  try {
+    s.user = { id: 1, role: 'member' };
+    s.overview = { me: 1, balances: [{ id: 2, display_name: 'Emma', balance: 30 }] };
+    s.ledgerFilter = null;
+    const reasonOf = (row) => {
+      s.ledger = [{ id: 1, delta: 5, user_name: 'Emma', created_at: '2026-09-20', ...row }];
+      const el = markupEl();
+      rewardsPage.renderLedger(el);
+      return el.html.match(/<p class="rw-ledger-row__reason">([^<]*)<\/p>/)?.[1];
+    };
+    const named = reasonOf({ type: 'earn', reason: 'Zimmer', task_id: 7 });
+    assert.equal(named, 'Zimmer');
+    for (const type of ['earn', 'reversal']) {
+      const masked = reasonOf({ type, reason: null, task_id: null });
+      assert.ok(masked && masked.trim(), `${type}: die Zeile hat keinen Text`);
+      assert.notEqual(masked, 'null', `${type}: die Zeile zeigt das Wort null`);
+      assert.match(masked, new RegExp(`ledgerType\\.${type}$`), `${type}: der Text ist nicht der Name des Typs (${masked})`);
+    }
+    // Betrag und Person stehen in der maskierten Zeile weiter da.
+    s.ledger = [{ id: 1, type: 'earn', delta: 5, reason: null, task_id: null, user_name: 'Emma', created_at: '2026-09-20' }];
+    const el = markupEl();
+    rewardsPage.renderLedger(el);
+    assert.match(el.html, /rw-ledger-row__meta">Emma/);
+    assert.match(el.html, /rw-delta--pos/);
+  } finally {
+    Object.assign(s, vorher);
+  }
+});
+
 test('Belohnungen: Verlaufs-Chips sind Kanon-Filterchips mit aria-pressed (Re-Critique 2026-09-28 P2-6)', () => {
   // `.rw-chip` war ein eigener Dialekt: 31px hoch, kein Zustand fuer den
   // Screenreader (aria-pressed fehlte). Kanon ist `.filter-chip` (40/48px,
