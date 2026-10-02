@@ -716,6 +716,8 @@
         "taskListDeleted": "Lista zadań usunięta.",
         "doneByPick": "Kto wykonał „{{title}}”?",
         "doneByToast": "Wykonał(a) {{name}}.",
+        "seriesDoneToast": "Zrobione - następny raz: {{date}}",
+        "seriesDoneByToast": "Wykonał(a) {{name}} - następny raz: {{date}}",
         "historyTickedBy": "odhaczone przez {{name}}",
         "reminderLockedNeedsDueDate": "To zadanie ma przypomnienie, którego nie możesz zmienić. Dlatego wymaga terminu.",
         "kanbanColCollapse": "Zwiń kolumnę",

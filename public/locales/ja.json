@@ -623,6 +623,8 @@
         "taskListDeleted": "タスクリストを削除しました。",
         "doneByPick": "「{{title}}」をやったのは誰ですか？",
         "doneByToast": "{{name}} がやりました。",
+        "seriesDoneToast": "完了 - 次回: {{date}}",
+        "seriesDoneByToast": "{{name}} がやりました - 次回: {{date}}",
         "historyTickedBy": "チェックしたのは {{name}}",
         "reminderLockedNeedsDueDate": "このタスクには変更できないリマインダーが設定されています。そのため期限日が必要です。",
         "kanbanColCollapse": "列を閉じる",
