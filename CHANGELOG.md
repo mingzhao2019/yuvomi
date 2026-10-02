@@ -127,6 +127,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the evening. A browser that reports no usable zone, or only UTC, sends nothing and the server
   falls back to `TZ` as before. Households that already exist are not changed - an admin sets
   the zone once in the settings under "Time zone".
+- **Reopening a completed task no longer erases its points from the history** (#1607). Reopening
+  a task used to delete its earning. If the points were already in a reward request, the balance
+  went below zero and the history showed only the request, neither the earning nor that it had
+  been taken back. The earning now stays in the history and reopening adds a second entry,
+  "Reopened: <task>", that takes the same points back. Completing the task again awards them
+  again. A balance can still go below zero this way; the page and the overview tile now say so
+  next to the number, the next points make up for it, and a pending request stays pending for
+  the parents to decide - with the current balance shown beside it when it is below zero.
+  Earnings that earlier versions deleted on reopening are not restored.
+
+- **A recurring task gives its points once a day, not once per tick** (#1603). Ticking off a
+  recurring task creates its next occurrence right away, and that one could be ticked off again
+  at once - each time for the full points. A recurring task now pays each person at most once
+  per day; the day is the household's, not UTC. Ticking off still works and still moves the
+  series on, and reopening a task and completing it again on the same day keeps its points. The
+  same holds for subtasks that carry points. If you catch up two missed occurrences of the same
+  task on one day, they count once.
+
 - **Correcting the date of a series' first entry no longer moves the rest of the series** (#1545).
   Every later occurrence of a recurring payment is counted from its start day, and that was still
   the date of the first entry. Correcting it with "Only this occurrence" (the rent was debited on
