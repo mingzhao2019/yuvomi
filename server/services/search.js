@@ -6,7 +6,7 @@
  * Abhaengigkeiten: server/services/visibility.js, document-access.js und
  *        budget-visibility.js (reine SQL-Bausteine, kein db.js)
  */
-import { visibilityWhere } from './visibility.js';
+import { icsSubscriptionVisibleWhere, visibilityWhere } from './visibility.js';
 import { documentVisibleSql } from './document-access.js';
 import { budgetDetailsVisibleWhere, resolveBudgetMode } from './budget-visibility.js';
 
@@ -372,12 +372,7 @@ export function runSearch(database, q, userId, { hiddenModules = null, disabledN
       FROM search_index s
       JOIN calendar_events e ON e.id = s.entity_id
       WHERE s.entity = 'event' AND s.search_index MATCH @match
-        AND (
-          e.external_source <> 'ics'
-          OR e.subscription_id IN (
-            SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = @userId
-          )
-        )
+        AND ${icsSubscriptionVisibleWhere('e', '@userId')}
         AND ${visibilityWhere('e', 'event_assignments', 'event_id', '@userId')}
       ORDER BY e.start_datetime ASC
       LIMIT @limit

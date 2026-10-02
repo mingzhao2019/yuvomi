@@ -12,6 +12,7 @@ import {
 import { formatWall, vtimezoneFor } from '../utils/vtimezone.js';
 import { outboundDateRange } from './outbound-dtstart.js';
 import { rruleLine } from './recurrence.js';
+import { icsSubscriptionVisibleWhere } from './visibility.js';
 import {
   BODY_FREE_EVENT_COLUMNS, eventProjectionSql, resolveProjectedEventRows,
 } from './calendar-event-reader.js';
@@ -283,12 +284,7 @@ function buildFeed(conn, userId, now = new Date(), tz = householdTimeZone(conn))
   const queriedRows = conn.prepare(`
     SELECT ${eventProjectionSql(conn, 'e', BODY_FREE_EVENT_COLUMNS)}${assigneeSelect}
     FROM calendar_events e
-    WHERE (
-      e.external_source <> 'ics'
-      OR e.subscription_id IN (
-        SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = ?
-      )
-    )
+    WHERE ${icsSubscriptionVisibleWhere('e')}
     AND (
       e.recurrence_rule IS NOT NULL
       OR DATE(e.start_datetime) >= ?

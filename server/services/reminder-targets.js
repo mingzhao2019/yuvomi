@@ -32,7 +32,7 @@
  * laesst sie deshalb unberuehrt.
  */
 
-import { visibilityWhere } from './visibility.js';
+import { icsSubscriptionVisibleWhere, visibilityWhere } from './visibility.js';
 import { budgetVisibilityWhere, resolveBudgetMode } from './budget-visibility.js';
 
 /**
@@ -50,12 +50,8 @@ const TARGETS = Object.freeze({
   event: {
     table: 'calendar_events',
     rowRule: true,
-    visible: (viewer) => `(
-      x.external_source <> 'ics'
-      OR x.subscription_id IN (
-        SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = ${viewer}
-      )
-    ) AND ${visibilityWhere('x', 'event_assignments', 'event_id', viewer)}`,
+    visible: (viewer) => `${icsSubscriptionVisibleWhere('x', viewer)}
+      AND ${visibilityWhere('x', 'event_assignments', 'event_id', viewer)}`,
   },
   subscription: {
     table: 'budget_subscriptions',

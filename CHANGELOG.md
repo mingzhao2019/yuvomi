@@ -187,6 +187,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   completed". Once a task has been deleted, its title stays with the person the points belong
   to. This applies to entries already in the history as well. Balances, bonus points,
   corrections and redemptions are shown as before. Affected are all versions since v1.11.0.
+- **An event from a calendar subscription that is not shared can no longer be opened or changed
+  by other members.** A subscribed calendar (ICS) that its owner has not shared is hidden from
+  everyone else in the calendar, the search and the overview. Addressing one of its events
+  directly through the API still returned it, with title, description and location, and let a
+  member edit or delete it. Marking such an event as a countdown also showed it on everyone's
+  overview. These paths now apply the same rule as the calendar list and answer "not found", as
+  for an event that does not exist. Events from a shared subscription and local events are
+  unaffected. Affected are all versions since v0.20.38; the countdown since v2.18.0.
 
 ## [2.71.0] - 2026-09-30
 

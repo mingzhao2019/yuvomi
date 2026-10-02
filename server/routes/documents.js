@@ -11,7 +11,7 @@ import { createLogger } from '../logger.js';
 import { str, date as validateDate, num, collectErrors, id as validateId, MAX_TEXT, MAX_TITLE } from '../middleware/validate.js';
 import { isAdminRequest } from '../middleware/require-admin.js';
 import { mayReadModule } from '../permissions.js';
-import { visibilityWhere } from '../services/visibility.js';
+import { icsSubscriptionVisibleWhere, visibilityWhere } from '../services/visibility.js';
 import { budgetDetailsVisibleWhere, resolveBudgetMode } from '../services/budget-visibility.js';
 import { reminderDateBefore, reminderIsInThePast } from '../utils/reminder-schedule.js';
 import { canManageDocument, documentVisibleSql } from '../services/document-access.js';
@@ -649,8 +649,7 @@ function folderDeleteLinkedState(req, documentIds) {
     calendar_events: readsCalendar ? ids(`
       SELECT e.id AS identity FROM calendar_events e
        WHERE e.attachment_document_id IN (${placeholders})
-         AND (e.external_source <> 'ics' OR e.subscription_id IN (
-           SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = @userId))
+         AND ${icsSubscriptionVisibleWhere('e', '@userId')}
          AND ${visibilityWhere('e', 'event_assignments', 'event_id', '@userId')}
        ORDER BY e.id
     `) : null,

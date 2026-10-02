@@ -13,7 +13,7 @@ import {
 import { SOURCE_CALENDAR_COLUMNS, SOURCE_CALENDAR_JOIN } from '../../services/calendar-events.js';
 import { decorateEventCompletions } from '../../services/calendar-event-completions.js';
 import { buildMatchQuery, resolveEventSearchRows } from '../../services/search.js';
-import { visibilityWhere } from '../../services/visibility.js';
+import { icsSubscriptionVisibleWhere, visibilityWhere } from '../../services/visibility.js';
 import { documentViewer } from '../../services/document-links.js';
 import {
   VALID_SOURCES, ASSIGNED_USERS_SQL, getUserId, isAdminUser, serializeEvents,
@@ -72,12 +72,7 @@ router.get('/', (req, res) => {
         OR
         (e.recurrence_rule IS NOT NULL AND DATE(e.start_datetime) <= ?)
       )
-      AND (
-        e.external_source <> 'ics'
-        OR e.subscription_id IN (
-          SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = ?
-        )
-      )
+      AND ${icsSubscriptionVisibleWhere('e')}
     `;
     const params = [to, from, to, getUserId(req)];
 
@@ -172,12 +167,7 @@ router.get('/search', (req, res) => {
     // geteilten/eigenen Abos). Als Fragment wiederverwendet für Count + Liste.
     const whereSql = `
       s.entity = 'event' AND s.search_index MATCH @match
-      AND (
-        e.external_source <> 'ics'
-        OR e.subscription_id IN (
-          SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = @userId
-        )
-      )
+      AND ${icsSubscriptionVisibleWhere('e', '@userId')}
       AND ${visibilityWhere('e', 'event_assignments', 'event_id', '@userId')}`;
 
     const total = db.get().prepare(`

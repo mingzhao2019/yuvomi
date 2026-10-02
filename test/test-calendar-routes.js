@@ -5105,3 +5105,55 @@ test('Farb-Heilung: eine Farbwahl vor dem ersten Heil-Lauf kommt nicht in den Sc
     db.prepare("DELETE FROM sync_config WHERE key LIKE 'caldav_legacy_color_heal_%'").run();
   }
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Ein Termin aus einem fremden, ungeteilten ICS-Abo - per Kennung
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Die Liste, die Suche und `/upcoming` ziehen den Abo-Filter seit jeher: ein
+// ICS-Termin erscheint nur aus einem geteilten oder eigenen Abo. Die Wege, die
+// eine Kennung aus dem Pfad nehmen, fragten nur die Zeilen-Sichtbarkeit - und
+// die steht bei einem importierten Termin auf `all`.
+test('ICS-Termin aus fremdem ungeteiltem Abo: per Kennung weder lesbar noch aenderbar', async () => {
+  const missing = await call('GET', '/999999', { actor: TOM });
+  assert.equal(missing.status, 404);
+
+  const subId = db.prepare(
+    "INSERT INTO ics_subscriptions (name, url, color, created_by, shared) VALUES ('Marias Abo','https://x/priv.ics','#112233',?,0)",
+  ).run(MARIA.id).lastInsertRowid;
+  const single = insertEvent({ title: 'ABO-GEHEIM', start_datetime: '2043-02-03T09:00', external_source: 'ics', subscription_id: subId, created_by: MARIA.id });
+  const series = insertEvent({ title: 'ABO-GEHEIM-SERIE', start_datetime: '2043-02-03T09:00', recurrence_rule: 'FREQ=DAILY', external_source: 'ics', subscription_id: subId, created_by: MARIA.id });
+  const before = () => db.prepare('SELECT id, title, user_modified FROM calendar_events WHERE subscription_id = ? ORDER BY id').all(subId);
+  const untouched = before();
+  const exdates = () => db.prepare('SELECT COUNT(*) AS n FROM calendar_event_exceptions WHERE event_id = ?').get(series).n;
+
+  // Die Voraussetzung: in der Liste steht er fuer Tom nicht.
+  const listed = await call('GET', '/?from=2043-02-01&to=2043-02-05', { actor: TOM });
+  assert.ok(!JSON.stringify(listed.body).includes('ABO-GEHEIM'), 'die Liste zeigt den Termin');
+
+  for (const viewer of [TOM, ADMIN]) {
+    const who = viewer === ADMIN ? 'Admin' : 'Mitglied';
+    const read = await call('GET', `/${single}`, { actor: viewer });
+    assert.equal(read.status, 404, `${who}: GET /:id`);
+    assert.deepEqual(read.body, missing.body, `${who}: die Antwort verraet den Termin`);
+    assert.equal((await call('PUT', `/${single}`, { actor: viewer, body: { title: 'uebernommen' } })).status, 404, `${who}: PUT /:id`);
+    assert.equal((await call('DELETE', `/${single}`, { actor: viewer })).status, 404, `${who}: DELETE /:id`);
+    assert.equal((await call('POST', `/${series}/exceptions`, { actor: viewer, body: { date: '2043-02-04' } })).status, 404, `${who}: POST /:id/exceptions`);
+    assert.equal((await call('PUT', `/${series}/occurrences/2043-02-04T09:00`, { actor: viewer, body: { title: 'x' } })).status, 404, `${who}: PUT occurrence`);
+    assert.equal((await call('DELETE', `/${series}/occurrences/2043-02-04T09:00`, { actor: viewer })).status, 404, `${who}: DELETE occurrence`);
+  }
+  assert.deepEqual(before(), untouched, 'ein fremder Aufruf hat den Termin veraendert');
+  assert.equal(exdates(), 0, 'ein fremder Aufruf hat eine Ausnahme geschrieben');
+
+  // Die Eigentuemerin des Abos liest ihren Termin.
+  const own = await call('GET', `/${single}`, { actor: MARIA });
+  assert.equal(own.status, 200);
+  assert.equal(own.body.data.title, 'ABO-GEHEIM');
+
+  // Geteilt: derselbe Termin ist fuer alle da.
+  db.prepare('UPDATE ics_subscriptions SET shared = 1 WHERE id = ?').run(subId);
+  assert.equal((await call('GET', `/${single}`, { actor: TOM })).status, 200);
+
+  db.prepare('DELETE FROM calendar_events WHERE subscription_id = ?').run(subId);
+  db.prepare('DELETE FROM ics_subscriptions WHERE id = ?').run(subId);
+});

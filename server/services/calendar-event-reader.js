@@ -11,7 +11,7 @@ import {
   SOURCE_CALENDAR_COLUMNS, SOURCE_CALENDAR_JOIN,
 } from './calendar-events.js';
 import { resolveEventRows } from './calendar-occurrence-overrides.js';
-import { visibilityWhere } from './visibility.js';
+import { icsSubscriptionVisibleWhere, visibilityWhere } from './visibility.js';
 import {
   householdTimeZone, localToUTC, shiftDateKey, storedToInstantMs, todayKey,
 } from '../utils/timezone.js';
@@ -206,12 +206,7 @@ export function getUpcomingEvents(d, {
       OR
       (e.recurrence_rule IS NOT NULL AND DATE(e.start_datetime) <= ?)
     )
-    AND (
-      e.external_source <> 'ics'
-      OR e.subscription_id IN (
-        SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = ?
-      )
-    )
+    AND ${icsSubscriptionVisibleWhere('e')}
     AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
     ORDER BY e.start_datetime ASC
   `).all(...singleParams, future, userId, userId, userId);
@@ -385,12 +380,7 @@ export function getEventsOverlappingDays(d, {
       OR
       (e.recurrence_rule IS NOT NULL AND DATE(e.start_datetime) <= ?)
     )
-    AND (
-      e.external_source <> 'ics'
-      OR e.subscription_id IN (
-        SELECT id FROM ics_subscriptions WHERE shared = 1 OR created_by = ?
-      )
-    )
+    AND ${icsSubscriptionVisibleWhere('e')}
     AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
     ORDER BY e.start_datetime ASC
   `).all(sqlTo, sqlFrom, sqlTo, userId, userId, userId);
