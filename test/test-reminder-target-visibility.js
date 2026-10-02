@@ -322,6 +322,46 @@ test('PUT durch die Erstellerin verteilt weiter an die Zugewiesenen eines Termin
   database.close();
 });
 
+test('privater Termin mit Zugewiesenen: die verteilte Erinnerung erreicht die Zugewiesene nicht, bis der Termin fuer sie sichtbar ist', async () => {
+  // Das Formular warnt seit #1621 bei "Nur ich" + Zugewiesene: den Eintrag
+  // sieht nur, wer ihn angelegt hat. Die Erinnerung haelt sich an dasselbe.
+  // Das Verteilen legt die geerbte Zeile weiter an (event-reminder-fanout.js
+  // fragt die Sichtbarkeit nicht) - zugestellt wird sie nicht, und /pending
+  // nennt sie nicht, solange die Zugewiesene den Termin nicht sieht.
+  const database = freshDb();
+  const author = freshUser(database);
+  const assignee = freshUser(database);
+  personalChannel(database, assignee);
+  const id = makeEvent(database, author, 'private', [assignee]);
+
+  assert.equal((await put(database, author, 'event', id)).status, 200);
+  const [own] = remindersOf(database, author);
+  const [inherited] = remindersOf(database, assignee);
+  assert.ok(own && inherited, 'Vorbedingung: eigene und geerbte Zeile stehen');
+  assert.equal(inherited.assigned_from, author);
+
+  // Die Zugewiesene kann sich selbst auch keine setzen - fuer sie gibt es den Termin nicht.
+  assert.equal((await post(database, assignee, 'event', id)).status, 404);
+
+  assert.deepEqual(await pending(database, assignee), [], '/pending nennt der Zugewiesenen den privaten Termin');
+  const quiet = await deliver(database);
+  assert.deepEqual(quiet.push.filter((p) => p.userId === assignee), [], 'ein Push ging an die Zugewiesene');
+  assert.deepEqual(viaChannels(quiet, inherited.id), [], 'ein Kanal bekam die geerbte Erinnerung');
+  assert.ok(![...quiet.push, ...quiet.channel].some((p) => p.tag === tagOf(inherited.id)));
+  // Die Erstellerin bekommt ihre eigene - per Push, nicht ueber den Haushaltskanal.
+  assert.deepEqual(sentVia(quiet, own.id), { Push: true, Kanal: false });
+  assert.equal(database.prepare('SELECT pushed_at FROM reminders WHERE id = ?').get(inherited.id).pushed_at, null,
+    'die geerbte Zeile gilt als zugestellt');
+
+  // "Nur Zugewiesene" statt "Nur ich": dieselbe Zeile geht jetzt hinaus.
+  database.prepare("UPDATE calendar_events SET visibility = 'assignees' WHERE id = ?").run(id);
+  assert.deepEqual((await pending(database, assignee)).map((r) => r.id), [inherited.id]);
+  const loud = await deliver(database);
+  assert.ok(loud.push.some((p) => p.tag === tagOf(inherited.id) && p.userId === assignee && String(p.body).includes(SECRET)));
+  assert.deepEqual(viaChannels(loud, inherited.id), ['user']);
+  database.close();
+});
+
 // --------------------------------------------------------------------------
 // 2. LESEN
 // --------------------------------------------------------------------------
