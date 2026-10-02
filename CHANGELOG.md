@@ -297,6 +297,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   versions since v2.65.0 (cycle and shifts), v2.67.0 (partner notice) and v2.68.0 (check-ups,
   fasting, document expiry).
 
+- **The "discard changes" question has two different buttons in every language** (#1607). In
+  Korean, Italian and Ukrainian both buttons said "Cancel", in Turkish and Russian the two words
+  were nearly the same, so it was unclear which one throws the input away. The discarding button
+  now says "discard" there, and the question above it uses the same verb. The same applied to the
+  question when leaving the permissions sheet with unsaved changes in Korean, Italian and
+  Russian.
+
+- **Saving a name dialog with an empty field says so instead of closing** (#1607). Creating a
+  shopping list with an empty name closed the dialog without a message and without a list. The
+  same dialog asks for the new name of a list, folder, category or subtask and for a custom
+  reminder time, and behaved the same there. It now stays open and marks the field as required;
+  Cancel and Escape still close it.
+
+- **A rejected default visibility in the Health settings jumps back** (#1607). When the server
+  refused a change to the default visibility of a health area, the error appeared but the field
+  kept showing the new value, so the sheet implied a sharing change that never happened. The
+  field now returns to the saved value, like the switches above it.
+
+- **Settings no longer show the sheet of a module you have no access to** (#1607). A member whose
+  permission for a module is "No access" still found that module's sheet under Settings, open and
+  operable, next to a "no access" error; the server refused every change. The sheet is now gone
+  from the list, from the settings search and from its direct address, as the module already was
+  from the navigation. With "Read only" the sheet stays.
+
+- **The board shows the lock of a locked task** (#1607). A task that only its assignees may
+  change carried its lock in the list but lost it on the board card. The card now shows the same
+  sign.
+
 ## [2.71.0] - 2026-09-30
 
 ### Added
