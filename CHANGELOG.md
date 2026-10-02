@@ -155,6 +155,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the same reason. Nothing changes for tasks you can see: the person who created a task, the
   people assigned to it and, for tasks shared with everyone, every member tick them off as
   before. Affected are all versions since v1.11.0, which introduced task visibility.
+- **A reminder can only be set on an entry you can see, and it only names an entry you can see.**
+  Reminders are set per person on a task, a calendar event, a subscription or an inventory item.
+  Setting one checked that you may use the module, but not that the entry exists or that you may
+  see it, and the list of due reminders and the notification then showed the entry's title. A
+  household member could therefore learn the title of a private task, of a task or event visible
+  to its assignees only, of an event from a calendar subscription that is not shared, and, in
+  personal budget mode, the name, amount and due date of a private subscription. Setting or
+  replacing a reminder on an entry you cannot see now answers "Entity not found", the same as for
+  an entry that does not exist. Due reminders, push notifications and the notification channels
+  skip a reminder whose entry its recipient cannot see. That also covers reminders created before
+  this update and entries that became private afterwards, such as a task changed to private or
+  an event you are no longer assigned to. Such a reminder is kept, not deleted, and comes back
+  if the entry becomes visible to you again. One consequence: a person assigned to a *private*
+  event no longer receives the reminder its creator set, because a private event is visible to
+  its creator only; use "assignees only" for an event the assigned people should hear about.
+  Your own reminders and those passed on to the assignees of an event work as before. Affected
+  are all versions since v1.11.0 for tasks and events, since v1.23.0 for subscriptions, and
+  since v0.20.38 for events from a calendar subscription that is not shared.
 
 ## [2.71.0] - 2026-09-30
 

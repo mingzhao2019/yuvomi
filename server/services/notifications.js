@@ -22,6 +22,7 @@ import { syncAllCycleReminders } from './cycle-reminders.js';
 import { syncAllScheduleReminders } from './schedule-reminders.js';
 import { syncAllWasteReminders } from './waste-reminders.js';
 import { withoutModulesDeniedToRecipient, withoutSwitchedOffModules } from './reminder-origins.js';
+import { reminderTargetVisibleSql } from './reminder-targets.js';
 import { syncAllPreventionReminders } from './prevention-reminders.js';
 import { syncAllFastingReminders } from './fasting-reminders.js';
 import { remindAtCompareKey, remindAtUtcSql } from '../utils/reminder-schedule.js';
@@ -770,6 +771,12 @@ export async function processDueNotifications({
       -- als Body durch. routes/reminders.js#/pending traegt denselben Riegel.
       AND (r.entity_type != 'task'  OR EXISTS (SELECT 1 FROM tasks           WHERE id = r.entity_id))
       AND (r.entity_type != 'event' OR EXISTS (SELECT 1 FROM calendar_events WHERE id = r.entity_id))
+      -- Kein Titel an jemanden, der die Zeile nicht sieht - dieselbe Klausel
+      -- wie in routes/reminders.js#/pending (services/reminder-targets.js).
+      -- Die Zeile bleibt ausstehend (pushed_at leer) und geht raus, sobald
+      -- der Empfaenger ihr Ziel wieder sieht. Der Filter steht in der Abfrage
+      -- und damit vor Push UND Kanaelen.
+      AND ${reminderTargetVisibleSql(activeDb, 'r')}
     ORDER BY r.remind_at ASC
   `).all(remindAtCompareKey(nowIso));
 

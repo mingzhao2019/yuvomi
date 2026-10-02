@@ -18,6 +18,7 @@ import { recordManualOwnerReminderChange } from '../services/calendar-event-remi
 import { deniedModules } from '../permissions.js';
 import { tokenAllows } from '../scopes.js';
 import { ORIGIN_MODULE, withoutSwitchedOffModules } from '../services/reminder-origins.js';
+import { reminderTargetVisible, reminderTargetVisibleSql } from '../services/reminder-targets.js';
 import { remindAtCompareKey, remindAtUtcSql } from '../utils/reminder-schedule.js';
 
 const log    = createLogger('Reminders');
@@ -188,12 +189,29 @@ function cycleOwnerName(anchorId) {
 }
 
 /** Herkünfte, die ein Schreibweg annehmen darf: alle ausser den abgeleiteten. */
-const SETTABLE_ENTITY_TYPES = VALID_ENTITY_TYPES.filter((t) => !DERIVED_ENTITY_TYPES.includes(t));
+export const SETTABLE_ENTITY_TYPES = VALID_ENTITY_TYPES.filter((t) => !DERIVED_ENTITY_TYPES.includes(t));
 
 /** Fehlertext, wenn ein Schreibweg eine abgeleitete Herkunft von Hand setzen will. */
 function derivedTypeError(entityType) {
   return `Reminders for ${entityType} are derived from the item itself and cannot be set here.`;
 }
+
+/*
+ * DAS MODULRECHT IST NICHT DIE ZEILE. `mayTouchOrigin()` sagt, ob der Aufrufer
+ * Aufgaben, Termine oder Abos ueberhaupt anfassen darf - nicht, ob er DIESE
+ * Aufgabe sieht. Bis hierher fragte das kein Schreibweg: eine Erinnerung liess
+ * sich auf eine geratene Kennung setzen, auch auf eine, die es nicht gibt, und
+ * `/pending` nannte danach den Titel. Die Regel selbst steht in
+ * services/reminder-targets.js und ist die des jeweiligen Moduls.
+ *
+ * 404 FUER BEIDES, "gibt es nicht" und "siehst du nicht": der Unterschied
+ * zwischen den Antworten waere die Auskunft, die die Sichtbarkeit verweigert.
+ *
+ * NUR AN POST UND PUT. Lesen, Verwerfen und Loeschen treffen ausschliesslich
+ * Zeilen mit `created_by = <Aufrufer>` und nennen keinen Titel; wer eine eigene
+ * Erinnerung aufraeumen will, deren Ziel er nicht mehr sieht, soll das koennen.
+ */
+const TARGET_NOT_FOUND = { error: 'Entity not found.', code: 404 };
 
 // Obergrenze für mehrere Erinnerungen je Entität (z. B. Kalender-Termin, #436).
 const MAX_REMINDERS_PER_ENTITY = 5;
@@ -272,6 +290,11 @@ router.get('/pending', (req, res) => {
              WHERE completed_task.id = r.entity_id AND completed_task.status = 'done'
           )
         )
+        -- Der Titel wird nur fuer eine Zeile aufgeloest, die der Aufrufer
+        -- sieht (services/reminder-targets.js). Das Modulrecht darueber sagt
+        -- nichts ueber die einzelne Aufgabe, und die Sichtbarkeit aendert sich
+        -- nach dem Anlegen. Uebersprungen, nicht geloescht.
+        AND ${reminderTargetVisibleSql(db.get(), 'r')}
         -- Eine 'cycle_period'/'cycle_log_nudge'-Zeile, deren Anker bereits
         -- geloescht wurde (Eigentuemer geloescht, Einstellung geaendert, o.ae.),
         -- aber deren periodischer Sync noch nicht wieder gelaufen ist, darf
@@ -442,6 +465,9 @@ router.post('/', (req, res) => {
     }
 
     const entityId = parseInt(entity_id, 10);
+    if (!reminderTargetVisible(db.get(), entity_type, entityId, userId)) {
+      return res.status(404).json(TARGET_NOT_FOUND);
+    }
 
     // Bestehende nicht-verworfene Erinnerungen für diese Entität löschen
     db.get().prepare(`
@@ -492,6 +518,9 @@ router.put('/', (req, res) => {
     }
     if (!mayTouchOrigin(req, entityType, 'write')) {
       return res.status(403).json({ error: 'You do not have access to this module.', code: 403 });
+    }
+    if (!reminderTargetVisible(db.get(), entityType, entityId, userId)) {
+      return res.status(404).json(TARGET_NOT_FOUND);
     }
     if (!Array.isArray(remindAts)) {
       return res.status(400).json({ error: 'remind_ats muss ein Array sein.', code: 400 });
