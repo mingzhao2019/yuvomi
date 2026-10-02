@@ -1084,6 +1084,157 @@ test('auch eine gewoehnliche fremde Aufgabe ist nicht loeschbar (#748-Review)', 
 });
 
 // --------------------------------------------------------
+// PATCH /:id/status fragt die Sichtbarkeit wie jeder andere Schreibweg
+// --------------------------------------------------------
+//
+// PUT, DELETE, /archive und /check pruefen `mayAccessTask` seit #748/#769. Der
+// Statusweg lud die Zeile per id und schrieb darauf - nur der Display-Zweig
+// fragte nach der Sichtbarkeit. Gemessen wird deshalb nicht nur der
+// Antwortcode, sondern alles, was der Uebergang schreibt: Status, Ablage,
+// Punktebuchung, Verlauf und die Folgeinstanz einer Serie.
+
+const STATUS_OWNER    = seedUser('status-owner', 'member');
+const STATUS_ASSIGNEE = seedUser('status-assignee', 'member');
+const STATUS_OUTSIDER = seedUser('status-outsider', 'member');
+// Alle drei nehmen am Punktesystem teil: ohne Einschreibung gaebe es keine
+// Buchung, und "keine Buchung" bewiese dann nichts.
+for (const id of [STATUS_OWNER, STATUS_ASSIGNEE, STATUS_OUTSIDER]) {
+  db.prepare('INSERT INTO reward_participants (user_id, enabled) VALUES (?, 1)').run(id);
+}
+const statusOwner    = { id: STATUS_OWNER, role: 'member' };
+const statusAssignee = { id: STATUS_ASSIGNEE, role: 'member' };
+const statusOutsider = { id: STATUS_OUTSIDER, role: 'member' };
+
+/** Alles, was ein Statuswechsel anfassen kann - als ein vergleichbarer Stand. */
+function statusFootprint(id) {
+  const row = db.prepare('SELECT status, archived_at FROM tasks WHERE id = ?').get(id);
+  return {
+    status: row.status,
+    archived_at: row.archived_at,
+    ledger: db.prepare('SELECT user_id, delta, type FROM reward_ledger WHERE task_id = ? ORDER BY id').all(id),
+    completions: db.prepare('SELECT COUNT(*) AS n FROM task_completions WHERE task_id = ?').get(id).n,
+    followups: db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE recurrence_origin_id = ?').get(id).n,
+  };
+}
+
+/** Eine taeglich wiederkehrende Aufgabe mit Punkten - jede Nebenwirkung des Abhakens ist an ihr sichtbar. */
+async function seriesTask(visibility, extra = {}) {
+  const r = await call('POST', '/', {
+    as: statusOwner,
+    body: {
+      title: `status-${visibility}-${randomUUID().slice(0, 8)}`,
+      category: CATEGORY, visibility, points: 5,
+      due_date: '2030-01-07', is_recurring: 1, recurrence_rule: 'FREQ=DAILY',
+      ...extra,
+    },
+  });
+  assert.equal(r.status, 201);
+  return r.body.data.id;
+}
+
+for (const [label, visibility, extra] of [
+  ['private Aufgabe', 'private', {}],
+  ['assignees-Aufgabe ohne eigene Zuweisung', 'assignees', { assigned_to: [STATUS_ASSIGNEE] }],
+]) {
+  test(`PATCH status: ${label} ist fuer ein fremdes Mitglied unantastbar - offen wie erledigt`, async () => {
+    const missing = await call('PATCH', '/999999/status', { as: statusOutsider, body: { status: 'done' } });
+    assert.equal(missing.status, 404);
+
+    const id = await seriesTask(visibility, extra);
+    // Die Voraussetzung, auf der alles steht: die Aufgabe ist fuer den Fremden nicht da.
+    assert.equal((await call('GET', `/${id}`, { as: statusOutsider })).status, 404);
+
+    const open = statusFootprint(id);
+    assert.equal(open.status, 'open');
+    for (const status of ['done', 'in_progress', 'open', 'archived']) {
+      const r = await call('PATCH', `/${id}/status`, { as: statusOutsider, body: { status } });
+      assert.equal(r.status, 404, `${status} auf unsichtbare Aufgabe`);
+      // Dieselbe Antwort wie fuer eine Kennung, die es nie gab - der
+      // Unterschied waere die Auskunft.
+      assert.deepEqual(r.body, missing.body, `${status}: Antwort verraet die Existenz`);
+      assert.deepEqual(statusFootprint(id), open, `${status} hat etwas geschrieben`);
+    }
+    // Auch eine benannte Person aendert daran nichts.
+    const named = await call('PATCH', `/${id}/status`, {
+      as: statusOutsider, body: { status: 'done', done_by_user_id: STATUS_OUTSIDER },
+    });
+    assert.equal(named.status, 404);
+    assert.deepEqual(statusFootprint(id), open);
+
+    // Rueckrichtung: wer die Aufgabe sieht, hakt ab - mit Buchung, Verlauf und Folgeinstanz.
+    const ticked = await call('PATCH', `/${id}/status`, { as: statusOwner, body: { status: 'done' } });
+    assert.equal(ticked.status, 200);
+    const done = statusFootprint(id);
+    assert.equal(done.status, 'done');
+    assert.equal(done.ledger.length, 1, 'die Probe braucht eine Buchung, die storniert werden koennte');
+    assert.equal(done.completions, 1);
+    assert.equal(done.followups, 1, 'die Probe braucht eine Folgeinstanz, die verworfen werden koennte');
+
+    for (const status of ['open', 'in_progress', 'archived']) {
+      const r = await call('PATCH', `/${id}/status`, { as: statusOutsider, body: { status } });
+      assert.equal(r.status, 404, `${status} auf erledigte unsichtbare Aufgabe`);
+      assert.deepEqual(r.body, missing.body);
+      assert.deepEqual(statusFootprint(id), done, `${status} hat storniert, verworfen oder abgelegt`);
+    }
+  });
+}
+
+test('PATCH status: wer die Aufgabe sieht, wechselt den Status weiter - dieselbe Regel wie PUT', async () => {
+  // Zugewiesene Person an einer assignees-Aufgabe.
+  const shared = await seriesTask('assignees', { assigned_to: [STATUS_ASSIGNEE] });
+  assert.equal((await call('PATCH', `/${shared}/status`, { as: statusAssignee, body: { status: 'done' } })).status, 200);
+  assert.equal(statusFootprint(shared).status, 'done');
+  // Ersteller:in, ohne selbst zugewiesen zu sein - auch zurueck und ins Archiv.
+  assert.equal((await call('PATCH', `/${shared}/status`, { as: statusOwner, body: { status: 'open' } })).status, 200);
+  assert.equal(statusFootprint(shared).status, 'open');
+  assert.equal((await call('PATCH', `/${shared}/status`, { as: statusOwner, body: { status: 'archived' } })).status, 200);
+  assert.ok(statusFootprint(shared).archived_at);
+
+  // Ersteller:in an der eigenen privaten Aufgabe.
+  const priv = await seriesTask('private');
+  assert.equal((await call('PATCH', `/${priv}/status`, { as: statusOwner, body: { status: 'in_progress' } })).status, 200);
+
+  // Eine Aufgabe fuer alle bleibt fuer alle abhakbar - auch fuer den, der weder
+  // angelegt hat noch zugewiesen ist.
+  const everyone = await seriesTask('all', { assigned_to: [STATUS_ASSIGNEE] });
+  assert.equal((await call('PATCH', `/${everyone}/status`, { as: statusOutsider, body: { status: 'done' } })).status, 200);
+  assert.equal(statusFootprint(everyone).status, 'done');
+
+  // Kein Admin-Bypass, weder strenger noch lockerer als PUT: die Rolle sagt
+  // nichts ueber die Sichtbarkeit (#474).
+  const admin = { id: ALICE, role: 'admin' };
+  const hidden = await seriesTask('private');
+  assert.equal((await call('PUT', `/${hidden}`, { as: admin, body: { title: 'x' } })).status, 404);
+  assert.equal((await call('PATCH', `/${hidden}/status`, { as: admin, body: { status: 'done' } })).status, 404);
+  assert.equal(statusFootprint(hidden).status, 'open');
+});
+
+test('POST: unter eine unsichtbare Aufgabe laesst sich keine Unteraufgabe haengen', async () => {
+  // Derselbe Befund eine Route weiter: die Elternaufgabe wurde per id geladen
+  // und nur auf Tiefe und Sperre geprueft. 201 gegen 404 verriet, ob es die
+  // Kennung gibt, und die Unteraufgabe stand danach in der fremden Checkliste.
+  const missing = await call('POST', '/', { as: statusOutsider, body: { title: 'Waise', parent_task_id: 999999 } });
+  assert.equal(missing.status, 404);
+
+  for (const [visibility, extra] of [['private', {}], ['assignees', { assigned_to: [STATUS_ASSIGNEE] }]]) {
+    const parent = await seriesTask(visibility, extra);
+    const r = await call('POST', '/', {
+      as: statusOutsider, body: { title: 'Eingeschoben', visibility: 'all', parent_task_id: parent },
+    });
+    assert.equal(r.status, 404, `${visibility}: Unteraufgabe unter unsichtbarer Elternaufgabe`);
+    assert.deepEqual(r.body, missing.body);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM tasks WHERE parent_task_id = ?').get(parent).n, 0);
+  }
+
+  // Wer die Elternaufgabe sieht, haengt weiter an: Ersteller:in, Zugewiesene, und alle bei `all`.
+  const shared = await seriesTask('assignees', { assigned_to: [STATUS_ASSIGNEE] });
+  assert.equal((await call('POST', '/', { as: statusAssignee, body: { title: 'Punkt 1', parent_task_id: shared } })).status, 201);
+  assert.equal((await call('POST', '/', { as: statusOwner, body: { title: 'Punkt 2', parent_task_id: shared } })).status, 201);
+  const everyone = await seriesTask('all');
+  assert.equal((await call('POST', '/', { as: statusOutsider, body: { title: 'Punkt 3', parent_task_id: everyone } })).status, 201);
+});
+
+// --------------------------------------------------------
 // Kommentare an Aufgaben (#734)
 // --------------------------------------------------------
 

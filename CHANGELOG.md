@@ -141,6 +141,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entries of others no longer count, and an amount-only entry counts toward income and balance of
   the savings goal but toward no category. Shared budget mode is unaffected.
 
+### Security
+
+- **Ticking off, reopening or archiving a task now respects its visibility.** A private task, or
+  one visible to its assignees only, is hidden from everyone else, and since v2.12.0 it cannot be
+  edited or deleted by them either. Changing its status was left out of that rule: a household
+  member who could not see a task could still mark it done, reopen it or archive it by addressing
+  it directly through the API. Marking it done could credit the points to the wrong person and
+  create the next occurrence of a recurring task; reopening it removed the points already credited
+  and discarded that next occurrence. The task's content was not readable this way. The status
+  change now answers "Task not found" for a task you cannot see, exactly as for one that does not
+  exist, and changes nothing. A subtask can no longer be added beneath a task you cannot see for
+  the same reason. Nothing changes for tasks you can see: the person who created a task, the
+  people assigned to it and, for tasks shared with everyone, every member tick them off as
+  before. Affected are all versions since v1.11.0, which introduced task visibility.
+
 ## [2.71.0] - 2026-09-30
 
 ### Added
