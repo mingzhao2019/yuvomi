@@ -151,7 +151,7 @@ async function deliver(database, now = NOW) {
     channelStore: createNotificationChannelStore({ db: database }),
     pushService: { sendPushToUser: async (userId, payload) => { push.push({ userId, ...payload }); return 1; } },
     providers: {
-      ntfy: { id: 'ntfy', send: async ({ payload }) => { channel.push(payload); return { ok: true, status: 200 }; } },
+      ntfy: { id: 'ntfy', send: async ({ channel: target, payload }) => { channel.push({ ...payload, scope: target.scope, channelUser: target.userId ?? null }); return { ok: true, status: 200 }; } },
     },
     now,
   });
@@ -317,7 +317,8 @@ test('PUT durch die Erstellerin verteilt weiter an die Zugewiesenen eines Termin
   assert.equal(inherited[0].assigned_from, author);
 
   const run = await deliver(database);
-  assert.deepEqual(sentVia(run, inherited[0].id), { Push: true, Kanal: true });
+  // Ein Termin fuer die Zugewiesenen ist nicht fuer alle da: Push ja, Haushaltskanal nein.
+  assert.deepEqual(sentVia(run, inherited[0].id), { Push: true, Kanal: false });
   database.close();
 });
 
@@ -347,7 +348,9 @@ for (const hidden of HIDDEN) {
     const run = await deliver(database);
     assert.deepEqual(sentVia(run, leaked), { Push: false, Kanal: false });
     assert.deepEqual(run.push.filter((p) => p.userId === outsider), [], 'ein Push ging an den Fremden');
-    assert.deepEqual(sentVia(run, own), { Push: true, Kanal: true }, 'die eigene Erinnerung ging nicht raus');
+    // Die eigene Erinnerung geht an die Person selbst - nicht an den Kanal des
+    // Haushalts, der sie allen zustellte (Abschnitt 4).
+    assert.deepEqual(sentVia(run, own), { Push: true, Kanal: false }, 'die eigene Erinnerung: Push ja, Haushaltskanal nein');
 
     // Uebersprungen, nicht geloescht und nicht als zugestellt vermerkt.
     const row = database.prepare('SELECT * FROM reminders WHERE id = ?').get(leaked);
@@ -431,5 +434,82 @@ test('eine Waise bleibt, was sie war: der Lese-Filter verbirgt Vorhandenes, nich
   assert.deepEqual(seen.map((r) => r.entity_title), [null, null, null]);
   const run = await deliver(database);
   for (const id of orphans) assert.deepEqual(sentVia(run, id), { Push: true, Kanal: true });
+  database.close();
+});
+
+// --------------------------------------------------------------------------
+// 4. DER HAUSHALTSKANAL IST EIN LESER WIE JEDER ANDERE
+//
+// Ein Kanal mit `scope = 'household'` (ntfy-Topic, Gotify, Webhook, E-Mail)
+// bekam JEDE faellige Erinnerung jedes Mitglieds, mit Titel. Anlegen kann ihn
+// nur ein Admin, und die Oberflaeche legt ausschliesslich solche an - die
+// Erinnerung an eine private Aufgabe ging damit an die, vor denen `private`
+// sie verbirgt. In den Haushaltskanal geht deshalb nur, was JEDER sehen darf;
+// alles andere bleibt bei Push und den persoenlichen Kanaelen der Person.
+// --------------------------------------------------------------------------
+const viaChannels = (run, id) => run.channel.filter((p) => p.tag === tagOf(id)).map((p) => p.scope).sort();
+
+function personalChannel(database, userId) {
+  return createNotificationChannelStore({ db: database }).createChannel({
+    provider: 'ntfy', name: `ntfy-${userId}`, enabled: true, scope: 'user', userId,
+    config: { baseUrl: 'https://ntfy.test', topic: `user-${userId}` }, secrets: {},
+  });
+}
+
+for (const hidden of HIDDEN) {
+  test(`Haushaltskanal: die eigene Erinnerung an ${hidden.label} geht an Push und den persoenlichen Kanal, nicht an alle`, async () => {
+    const database = freshDb();
+    hidden.setup?.(database);
+    const owner = freshUser(database);
+    const assignee = freshUser(database);
+    personalChannel(database, owner);
+    const id = hidden.make(database, owner, assignee);
+    const own = insertReminder(database, owner, hidden.type, id);
+
+    const run = await deliver(database);
+    assert.ok(run.push.some((p) => p.tag === tagOf(own) && p.userId === owner), 'der Push an die Person selbst fehlt');
+    assert.deepEqual(viaChannels(run, own), ['user'], 'Kanaele, die die Erinnerung bekamen');
+    assert.ok(!run.channel.some((p) => p.scope === 'household' && JSON.stringify(p).includes(SECRET)),
+      'der Haushaltskanal nennt einen verborgenen Titel');
+    assert.notEqual(database.prepare('SELECT pushed_at FROM reminders WHERE id = ?').get(own).pushed_at, null,
+      'die Zeile gilt nicht als zugestellt');
+    database.close();
+  });
+}
+
+test('Haushaltskanal: was jeder sehen darf, geht weiter an alle Kanaele', async () => {
+  const database = freshDb();
+  const owner = freshUser(database);
+  personalChannel(database, owner);
+  const cases = {
+    'Aufgabe fuer alle':        insertReminder(database, owner, 'task', makeTask(database, owner, 'all')),
+    'Termin fuer alle':         insertReminder(database, owner, 'event', makeEvent(database, owner, 'all')),
+    'Termin aus geteiltem Abo': insertReminder(database, owner, 'event', makeIcsEvent(database, owner, true)),
+    // Geteilter Budget-Modus (Vorgabe): dort sehen alle alles, auch `private`.
+    'Abo, geteilter Modus':     insertReminder(database, owner, 'subscription', makeSubscription(database, owner, 'private')),
+    'Inventar':                 insertReminder(database, owner, 'inventory_item', makeInventoryItem(database, owner)),
+    'Inventar-Frist':           insertReminder(database, owner, 'inventory_tracked_date', makeTrackedDate(database, owner)),
+    'Waise':                    insertReminder(database, owner, 'subscription', 999999),
+  };
+  const run = await deliver(database);
+  for (const [label, id] of Object.entries(cases)) {
+    assert.deepEqual(viaChannels(run, id), ['household', 'user'], label);
+  }
+  database.close();
+});
+
+test('Haushaltskanal: ohne Push und ohne eigenen Kanal bleibt die Erinnerung im Toast, nicht haengen', async () => {
+  // Wer weder Push noch einen eigenen Kanal hat, bekam die Meldung bisher nur
+  // ueber den Haushaltskanal. Sie faellt dort jetzt weg - /pending zeigt sie
+  // weiter, und die Zeile darf nicht ewig als ausstehend im Lauf bleiben.
+  const database = freshDb();
+  const owner = freshUser(database);
+  database.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').run(owner);
+  const own = insertReminder(database, owner, 'task', makeTask(database, owner, 'private'));
+
+  const run = await deliver(database);
+  assert.deepEqual(viaChannels(run, own), []);
+  assert.ok((await pending(database, owner)).some((r) => r.id === own), '/pending zeigt die eigene Erinnerung nicht');
+  assert.notEqual(database.prepare('SELECT pushed_at FROM reminders WHERE id = ?').get(own).pushed_at, null);
   database.close();
 });

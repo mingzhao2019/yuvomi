@@ -118,8 +118,7 @@ export function reminderTargetVisible(database, entityType, entityId, userId) {
  * @param {object} database  fuer den Budget-Modus (ein Lesezugriff, synchron)
  * @param {string} alias     Alias der reminders-Tabelle in der Abfrage
  */
-export function reminderTargetVisibleSql(database, alias = 'r') {
-  const viewer = `${alias}.created_by`;
+export function reminderTargetVisibleSql(database, alias = 'r', viewer = `${alias}.created_by`) {
   const hidden = Object.keys(TARGETS)
     .filter((type) => TARGETS[type].rowRule)
     .map((type) => `(${alias}.entity_type = '${type}' AND EXISTS (
@@ -130,4 +129,26 @@ export function reminderTargetVisibleSql(database, alias = 'r') {
   return `NOT (
     ${hidden.join('\n    OR ')}
   )`;
+}
+
+/**
+ * WHERE-Fragment: wahr, wenn JEDES Mitglied das Ziel der Zeile sieht.
+ *
+ * Fuer die Zustellung an einen Kanal, der dem ganzen Haushalt gehoert. Ein
+ * solcher Kanal ist ein Leser wie jeder andere, nur ohne Kennung: die Frage
+ * "sieht der Empfaenger es" beantwortet fuer ihn nichts, weil er nicht der
+ * Empfaenger ist.
+ *
+ * KEINE ZWEITE REGEL. Es sind dieselben Klauseln wie oben, gefragt fuer einen
+ * Betrachter, der NIEMAND BESTIMMTES ist (`NULL`): `created_by = NULL`,
+ * `owner_id = NULL` und die Zuweisung an `NULL` sind nie wahr, also bleibt von
+ * jeder Klausel genau der Teil uebrig, der fuer alle gilt - `visibility =
+ * 'all'`, ein geteiltes Abo, ein nicht privates Abo im persoenlichen
+ * Budget-Modus. Wer die Regel eines Moduls aendert, aendert damit beide Fragen.
+ *
+ * Wie beim Fragment oben gilt eine Zeile ohne Ziel und eine Herkunft ohne
+ * Zeilen-Sichtbarkeit als fuer alle da: dort gibt es nichts zu verbergen.
+ */
+export function reminderTargetPublicSql(database, alias = 'r') {
+  return reminderTargetVisibleSql(database, alias, 'NULL');
 }

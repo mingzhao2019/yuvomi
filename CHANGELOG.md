@@ -262,6 +262,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overview. These paths now apply the same rule as the calendar list and answer "not found", as
   for an event that does not exist. Events from a shared subscription and local events are
   unaffected. Affected are all versions since v0.20.38; the countdown since v2.18.0.
+- **Household notification channels no longer receive reminders for entries that are not visible
+  to everyone.** A notification channel set up by an admin (ntfy, Gotify, webhook or e-mail)
+  received every due reminder of every member, with the entry's title. That included your own
+  reminder for a private task or event, for one visible to its assignees only, for an event
+  from a calendar subscription that is not shared and, in personal budget mode, for a private
+  subscription with its amount and date, so the people reading that channel saw what the
+  entry's visibility hides from them. Such reminders now go to your own devices by push only
+  (and to a channel that belongs to you alone, where one exists). Reminders for entries everyone
+  can see reach the household channel as before. If you rely on a household channel for
+  reminders about private entries, turn on push notifications on your device; the reminder
+  also still appears in the app. Affected are all versions since v1.11.0.
 
 ## [2.71.0] - 2026-09-30
 
