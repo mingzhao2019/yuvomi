@@ -83,6 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
   document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
   same 403 for every id. (#1358)
+- **The calendar mirrors fully in right-to-left languages.** In Arabic and Persian the week
+  view drew the column lines of the all-day row 1px beside those of the time grid, the month
+  grid drew a line along its outer right edge and only a thin one between its two leftmost days,
+  the hour labels and the "All day" label sat against the outer edge instead of the grid, the red
+  now line in the day view ran across the hour column with its dot on the wrong end, and nested
+  calendar filters were indented from the left. The avatars on all-day entries now sit at the end of
+  the line instead of right after the title, and the compact month dots start at the edge of the
+  day. Left-to-right layouts are unchanged.
 - **The month heading of Calendar and Budget follows the word order of the language** (#1607).
   Both pages put the month name, a space and the year together themselves, which gave "10월 2026"
   in Korean instead of "2026년 10월" (and the same for Japanese, Chinese and Hungarian). Month
