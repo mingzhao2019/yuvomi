@@ -83,6 +83,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
   document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
   same 403 for every id. (#1358)
+- **"No access to this module" is shown in your language** (#1607). When a request was refused
+  because your role has no access to a module, or only read access, the message came from the
+  server in English, whatever language the app was set to. Both messages are now translated
+  into all 26 languages, on every page that shows them. Other refusals, for example "Admin
+  access required", are still English. API clients keep the English `error` text and get a new
+  `reason` field beside it: `module_access_denied` or `module_read_only`.
+- **The status buttons on the task board name their task for screen readers** (#1607). The
+  icon button on each board card that moves a task on was announced only as "Set to in
+  progress", "Mark as done" or "Reopen", so every button in a column had the same name. It now
+  reads "Set Laundry to in progress". The tooltip stays the short form.
+- **Subscriptions without a monthly budget no longer show "Monthly budget 0" next to
+  "Unlimited"** (#1607). With no budget set, the figures above the list carried a card
+  "Monthly budget 0.00" with an empty bar, right beside the card saying there is no budget
+  limit. The zero card is gone in that case and three cards remain: monthly cost, no budget
+  limit, yearly projection. With a budget set, the four cards are unchanged.
+- **Korean no longer writes "18:00 시"** (#1607). With the 24-hour clock, Korean put the hour
+  counter 시 after a time that already has minutes, as in "내일, 18:00 시". The time now stands
+  on its own, as in Japanese and Chinese.
+- **The empty shopping list no longer promises that ticked items move to the pantry by
+  themselves** (#1607). The hint read "After the shop, ticked items move into the pantry", but
+  nothing moves until you choose "Into pantry" on the ticked items. It now says they can be
+  moved, in all 26 languages, and it is left out when the pantry is switched off or you may not
+  write there, because that action is not offered then either.
+- **The Budget tile on the overview opens the month, not the tab you last had open** (#1607).
+  Budget remembers its last tab. After a visit to Statistics, "Add entry" on the empty Budget
+  tile, the tile's header link and the "Monthly balance" figure all led to Statistics, where
+  nothing can be added. All three now open the Budget tab, which shows the month the tile is
+  about and carries the add button.
 - **The calendar mirrors fully in right-to-left languages.** In Arabic and Persian the week
   view drew the column lines of the all-day row 1px beside those of the time grid, the month
   grid drew a line along its outer right edge and only a thin one between its two leftmost days,
