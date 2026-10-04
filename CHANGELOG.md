@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`nn`), which has no translation of its own: it now gets Bokmål, the closer language, rather
   than English. This holds for the app, the web installer, the command-line installer and the
   `lang` parameter of the API. An explicit language choice in the settings is not affected.
+- **A loan created from "New entry" in the budget overview can say how many installments are
+  already paid** (#1648, reported by @ramonbresco). The field existed only in the "New loan" dialog
+  of the Loans tab; choosing the type "Loan" in the overview's dialog left it out, so a running loan
+  entered there started at zero. Both dialogs now build their loan fields from one list, so a field
+  can no longer land in one and miss the other. The same repair makes the suggestion work that
+  2.29.0 announced and never delivered: moving the first due month into the past fills in the number
+  of months since then, never more than the loan has installments, and stops as soon as you set the
+  field yourself. For a loan with interest that limit is the term shown in the preview; until the
+  preview has one, the field stays at 0. It was wired to the dialog that did not have the field.
 
 ## [2.72.0] - 2026-10-04
 
