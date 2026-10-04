@@ -67,6 +67,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a reload opened that page, and the next Back skipped one. Deleting a recurring event from
   the card did this every time; editing did it whenever the form opened quickly enough. The
   app now waits for the browser to finish before it takes the new entry.
+- **A direct link to a module that is switched off opens the overview, not the module.** Opening
+  the address of a module the household has switched off, from a bookmark or after reloading the
+  page, still showed that module, complete and usable, although it was gone from the navigation.
+  Inside the running app the same link already led to the overview. It now does so on a fresh
+  start as well, for members and for guests of a shared-expense group, and the module's address
+  is not kept in the history.
 
 ## [2.72.0] - 2026-10-04
 
