@@ -485,6 +485,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out of the six-month chart, while the chart and the overview tile already counted it in the
   household's month. All of them now read the month from the household's clock. Stored values
   are not rewritten.
+- **A recurring shared expense is checked when it is created, not when it is booked.** Creating
+  one through the API accepted any payer, any participants and any split values. A person who
+  was never in the group could be named as payer or participant and was then booked a debt in
+  that group on every due date. A split that cannot be booked (exact amounts that do not add up
+  to the amount, percentages that do not add up to 100, a missing share) was stored as well, and
+  on its due date it stopped the booking run for every due recurring expense of the
+  installation, each hour again. Such a request is now answered with `400` under the same rule
+  as a single expense, and nothing is stored. Recurring expenses that already exist are not
+  changed.
 
 ## [2.71.0] - 2026-09-30
 
