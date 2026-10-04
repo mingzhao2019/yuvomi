@@ -3164,6 +3164,8 @@ Template for automatically generated expenses on a fixed schedule.
 | paused_at | TEXT | nullable |
 | created_by | INTEGER | FK → Users (CASCADE delete), NOT NULL |
 
+**Checked on create, booked one by one (#1642, #1645).** `POST /api/v1/split-expenses/groups/:id/recurring` applies the same rule as a single expense before anything is stored: payer and participants must be members of the group, and the split must be bookable (exact amounts add up to the amount, percentages to 100, no share missing); otherwise it answers 400. `split_snapshot` holds the checked form, not the request body. The hourly run books each due row in its own transaction and checks membership again on every due date. A row that cannot be booked - an invalid snapshot, or a payer or participant who is no longer a member - gets `paused_at` set and one `recurring_auto_paused` entry in [Expense Activity](#expense-activity); the other rows are booked as usual. Any other error leaves the row unpaused for the next run. Resuming goes through the existing toggle `POST /api/v1/split-expenses/recurring/:id/pause`.
+
 ### Expense Activity
 Per-group event log for expenses, settlements, and member events.
 
@@ -3176,6 +3178,10 @@ Per-group event log for expenses, settlements, and member events.
 | entity_id | INTEGER | nullable |
 | metadata | TEXT | JSON, nullable |
 | created_at | TEXT | NOT NULL, UTC instant (`YYYY-MM-DDTHH:MM:SSZ`) |
+
+**Entries keep the amount they were written with (#1607).** `expense_created`, `expense_edited` and `expense_deleted` store `{title, amount_minor, currency}` as it was at that moment, and the activity endpoint adds the decimal `amount`, as for `ledger_restored`. The feed reads the amount from the entry, not from the expense as it is now, so a later edit does not rewrite earlier lines. Entries written before this carry only the title and show no amount. `comment_added` stores `{title}`.
+
+**Paused by the booking run (#1645).** `recurring_auto_paused` (`entity_type` 'recurring_expense', `actor_id` NULL, shown as "System") is written when the hourly run pauses a recurring expense it cannot book. Its metadata is `{title, reason}` with `reason` `split_invalid` or `not_a_member`.
 
 **Restored bookings (#1382).** Migration v235 writes one `ledger_restored` entry (`entity_type` 'expense', `actor_id` NULL, shown as "System") per active expense whose lost ledger rows it rebuilt. Its metadata is `{title, amount_minor, currency}` with the booked (converted) amount, because frozen migration SQL cannot apply per-currency minor units; the activity endpoint adds the decimal `amount` (ISO 4217), and the feed shows title and amount.
 

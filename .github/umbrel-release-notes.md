@@ -1,12 +1,12 @@
-<!-- version: 2.71.0 -->
-This update adds Brazilian Portuguese and fixes several things people ran into after 2.70.0.
+<!-- version: 2.72.0 -->
+This update closes several privacy gaps between members of a household, adds Norwegian Bokmål, and fixes a long list of things people reported after 2.71.0.
 
-Brazilian Portuguese is now its own language in the app, next to the existing Portuguese. A browser set to Brazilian Portuguese picks it on its own.
+On the security side, ticking off, reopening or archiving a task now respects its visibility, reminders can only be set on entries you can see, and the points history no longer names a task that is hidden from you. In personal budget mode, the entry list and the budget plan no longer reveal what another member keeps private. A recurring shared expense is now checked when it is created, and one that cannot be booked is paused on its own instead of holding back every other recurring expense. Updating is recommended for every household with more than one member.
 
-Changing a recurring budget payment for all future months no longer rewrites its first booking, which could lie years back and move old amounts to another account. Members who may edit the meal plan can now edit and delete recipes that someone else added; before, saving failed with "Not authorized", even for an admin.
+Norwegian Bokmål is the 26th language. Admins are asked once whether the household should use the browser's time zone, and a new household starts in its own time zone. Korean sentences now pick the right particle for the name they contain, and avatars show the same initials for a person on every page.
 
-When the weather service cannot be reached, the weather tile now stays on the overview and says the weather is currently unavailable, instead of disappearing without a trace. In the app added to an iPhone home screen, the dark strip below the tab bar is gone. Switches that are off are easier to see, and in Arabic and Persian "on" sits on the left.
+Recurring tasks say when they come back after you tick them off, and give their points once a day instead of once per tick; reopening a completed task no longer erases its points from the history. In the calendar, opening one occurrence of a recurring event opens that occurrence, an event that ends at midnight is drawn at its full length, and right-to-left languages are mirrored fully. An address that does not exist now takes you to the closest page.
 
-The update runs one database migration on first start. It gives every recurring budget payment a definition of its own, without changing any existing entry. No action is needed; as always, a backup before updating is a good idea.
+The update runs two database migrations on first start. One gives every recurring budget payment its own start date, the other changes how points are reversed when a task is reopened. No existing entry is lost and no action is needed; as always, a backup before updating is a good idea.
 
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.71.0
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.72.0
