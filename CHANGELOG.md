@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of months since then, never more than the loan has installments, and stops as soon as you set the
   field yourself. For a loan with interest that limit is the term shown in the preview; until the
   preview has one, the field stays at 0. It was wired to the dialog that did not have the field.
+- **Housekeeping: "today" and "last visit" read a visit's check-in as a point in time.** Only
+  visits the app did not write itself are affected: rows imported by hand with a time that has
+  no zone, and the demo data. They were compared and sorted as text, so such a visit could be
+  missing from the helper's "today" or counted on the neighbouring day, and the earlier of two
+  visits could be shown as the latest - in the module, its visit lists and the overview tile.
+  All of them now compare the time on the household's clock. Stored values are not changed.
 
 ## [2.72.0] - 2026-10-04
 
