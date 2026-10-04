@@ -39,7 +39,7 @@
 import { hasAnyOccurrence, nextOccurrenceAfter, seriesStartFor } from './recurrence.js';
 import { loadEventExceptions } from './calendar-events.js';
 import { completionKeyForEvent, decorateEventCompletions } from './calendar-event-completions.js';
-import { householdDisabledModules } from './household-modules.js';
+import { modulesLeftOut, notBirthdayEventSql } from './household-modules.js';
 import { eventProjectionSql, resolveProjectedEventRows } from './calendar-event-reader.js';
 import { icsSubscriptionVisibleWhere, visibilityWhere } from './visibility.js';
 import { householdTimeZone, utcToWall } from '../utils/timezone.js';
@@ -246,10 +246,14 @@ export function getCountdowns(d, {
    * darf dieser Betrachter diese Zeile sehen? -, und deshalb landen sie in
    * einem Set und nicht in zwei nacheinander angewandten Filtern. Der
    * Unterschied wäre sonst wieder `total`: zwei Schnitte, zwei Wahrheiten. */
-  const hidden = new Set([...householdDisabledModules(d), ...(hiddenModules ?? [])]);
+  const hidden = modulesLeftOut(d, hiddenModules);
   const graceDays = overdueGraceDays(d);
   const items = [
-    ...(hidden.has('calendar') ? [] : eventCountdowns(d, userId, todayKey, graceDays)),
+    ...(hidden.has('calendar') ? [] : eventCountdowns(d, userId, todayKey, graceDays, {
+      // Ein Geburtstagstermin kann als Countdown markiert sein. Er steht in
+      // `calendar_events`, gehoert aber dem Schalter `birthdays` (#1660).
+      withBirthdays: !hidden.has('birthdays'),
+    })),
     ...(hidden.has('tasks') ? [] : taskCountdowns(d, userId, todayKey, graceDays)),
   ];
 
@@ -273,7 +277,7 @@ export function getCountdowns(d, {
   return { items: sorted.slice(0, limit), total: sorted.length };
 }
 
-function eventCountdowns(d, userId, todayKey, graceDays) {
+function eventCountdowns(d, userId, todayKey, graceDays, { withBirthdays = true } = {}) {
   // Einmal je Lauf statt je Termin: die Zone steht in sync_config und aendert
   // sich innerhalb eines Requests nicht.
   const tz = householdTimeZone(d);
@@ -303,7 +307,8 @@ function eventCountdowns(d, userId, todayKey, graceDays) {
     LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
     WHERE e.countdown = 1
       AND ${icsSubscriptionVisibleWhere('e')}
-      AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
+      AND ${visibilityWhere('e', 'event_assignments', 'event_id')}${
+        withBirthdays ? '' : ` AND ${notBirthdayEventSql('e')}`}
   `).all(userId, userId, userId);
 
   const exceptionsByEvent = loadEventExceptions(
