@@ -802,7 +802,7 @@ router.post('/groups/:id/members', async (req, res) => {
       if (!known) return res.status(404).json({ error: 'Contact not found.', code: 404 });
       if (!known.family_user_id) {
         if (!mayWriteModule(req, 'contacts')) {
-          return res.status(403).json({ error: 'Write access to contacts is required to add a contact without an account.', code: 403 });
+          return res.status(403).json({ error: 'Write access to contacts is required to add a contact without an account.', code: 403, reason: 'cross_module_access' });
         }
         passwordHash = await hashPassword(crypto.randomBytes(24).toString('base64url'));
       }
