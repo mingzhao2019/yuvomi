@@ -3059,7 +3059,19 @@
         "pushUnavailable": "Les notifications push ne sont pas disponibles pour le moment sur cet appareil. Veuillez recharger la page.",
         "pageScheduleMineDescription": "Rappel avant votre propre poste et heures hebdomadaires pour les heures supplémentaires.",
         "sheetInventoryDescription": "S’abonner aux échéances de tes objets dans ta propre application de calendrier.",
-        "sheetWasteDescription": "S’abonner aux prochaines collectes dans ta propre application de calendrier."
+        "sheetWasteDescription": "S’abonner aux prochaines collectes dans ta propre application de calendrier.",
+        "apiTokensInactiveTitle": "Révoqués ou expirés",
+        "apiTokensInactiveHint": "Ces jetons ne donnent plus aucun accès. Une entrée supprimée ne peut pas être restaurée.",
+        "apiTokensNoneActive": "Aucun jeton API actif.",
+        "apiTokenRemove": "Supprimer le jeton",
+        "apiTokenRemoveConfirm": "Supprimer le jeton API « {{name}} » ?",
+        "apiTokenRemoveDetail": "L'entrée disparaît définitivement de la liste. Cette action est irréversible.",
+        "apiTokenRemovedToast": "Jeton API supprimé.",
+        "apiTokenRemoveActive": "Ce jeton est encore actif. Révoquez-le d'abord.",
+        "displayRemoveDevice": "Supprimer",
+        "displayRemoveDeviceConfirm": "Supprimer l'entrée de cet appareil ?",
+        "displayRemoveDeviceDetail": "L'entrée disparaît définitivement de la liste. Cette action est irréversible.",
+        "displayRemoveDeviceActive": "Cet appareil est encore appairé. Révoquez-le d'abord."
     },
     "login": {
         "tagline": "Bon retour sur votre planificateur familial.",

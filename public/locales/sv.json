@@ -3059,7 +3059,19 @@
         "pushUnavailable": "Push-aviseringar är inte tillgängliga på den här enheten just nu. Ladda om sidan.",
         "pageScheduleMineDescription": "Påminnelse före ditt eget pass och veckotimmar för övertid.",
         "sheetInventoryDescription": "Prenumerera på dina sakers tidsfrister i din egen kalenderapp.",
-        "sheetWasteDescription": "Prenumerera på kommande hämtningar i din egen kalenderapp."
+        "sheetWasteDescription": "Prenumerera på kommande hämtningar i din egen kalenderapp.",
+        "apiTokensInactiveTitle": "Återkallade eller utgångna",
+        "apiTokensInactiveHint": "De här tokens ger inte längre någon åtkomst. En borttagen post kan inte återställas.",
+        "apiTokensNoneActive": "Ingen aktiv API-token.",
+        "apiTokenRemove": "Ta bort token",
+        "apiTokenRemoveConfirm": "Ta bort API-token \"{{name}}\"?",
+        "apiTokenRemoveDetail": "Posten försvinner från listan för gott. Det går inte att ångra.",
+        "apiTokenRemovedToast": "API-token har tagits bort.",
+        "apiTokenRemoveActive": "Den här token är fortfarande aktiv. Återkalla den först.",
+        "displayRemoveDevice": "Ta bort",
+        "displayRemoveDeviceConfirm": "Ta bort posten för den här enheten?",
+        "displayRemoveDeviceDetail": "Posten försvinner från listan för gott. Det går inte att ångra.",
+        "displayRemoveDeviceActive": "Den här enheten är fortfarande parkopplad. Återkalla den först."
     },
     "login": {
         "tagline": "Välkommen tillbaka till din familjeplanerare.",

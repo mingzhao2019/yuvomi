@@ -3059,7 +3059,19 @@
         "pushUnavailable": "A push értesítések most nem érhetők el ezen az eszközön. Töltsd újra az oldalt.",
         "pageScheduleMineDescription": "Emlékeztető a saját műszakod előtt és heti óraszám a túlórákhoz.",
         "sheetInventoryDescription": "Tárgyaid határidőinek előfizetése a saját naptáralkalmazásodban.",
-        "sheetWasteDescription": "A közelgő szállítások előfizetése a saját naptáralkalmazásodban."
+        "sheetWasteDescription": "A közelgő szállítások előfizetése a saját naptáralkalmazásodban.",
+        "apiTokensInactiveTitle": "Visszavont vagy lejárt",
+        "apiTokensInactiveHint": "Ezek a tokenek már nem adnak hozzáférést. Az eltávolított bejegyzés nem állítható vissza.",
+        "apiTokensNoneActive": "Nincs aktív API token.",
+        "apiTokenRemove": "Token eltávolítása",
+        "apiTokenRemoveConfirm": "Eltávolítja az API tokent \"{{name}}\"?",
+        "apiTokenRemoveDetail": "A bejegyzés végleg eltűnik a listáról. Ezt nem lehet visszavonni.",
+        "apiTokenRemovedToast": "API token eltávolítva.",
+        "apiTokenRemoveActive": "Ez a token még aktív. Előbb vonja vissza.",
+        "displayRemoveDevice": "Eltávolítás",
+        "displayRemoveDeviceConfirm": "Eltávolítod ennek az eszköznek a bejegyzését?",
+        "displayRemoveDeviceDetail": "A bejegyzés végleg eltűnik a listáról. Ezt nem lehet visszavonni.",
+        "displayRemoveDeviceActive": "Ez az eszköz még párosítva van. Előbb vond vissza."
     },
     "login": {
         "tagline": "Üdv újra a családi tervezőben.",

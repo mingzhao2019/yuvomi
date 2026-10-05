@@ -3255,7 +3255,19 @@
         "healthPreventionIntervalMonths_many": "Каждые {{count}} мес.",
         "healthPreventionIntervalYears_few": "Каждые {{count}} года",
         "healthPreventionIntervalYears_many": "Каждые {{count}} лет",
-        "otherSessionsEnded_many": "Завершено других сеансов: {{count}}."
+        "otherSessionsEnded_many": "Завершено других сеансов: {{count}}.",
+        "apiTokensInactiveTitle": "Отозванные или истёкшие",
+        "apiTokensInactiveHint": "Эти токены больше не дают доступа. Удалённую запись нельзя восстановить.",
+        "apiTokensNoneActive": "Нет активных токенов API.",
+        "apiTokenRemove": "Удалить токен",
+        "apiTokenRemoveConfirm": "Удалить токен API «{{name}}»?",
+        "apiTokenRemoveDetail": "Запись исчезнет из списка навсегда. Это нельзя отменить.",
+        "apiTokenRemovedToast": "Токен API удалён.",
+        "apiTokenRemoveActive": "Этот токен ещё активен. Сначала отзовите его.",
+        "displayRemoveDevice": "Удалить",
+        "displayRemoveDeviceConfirm": "Удалить запись этого устройства?",
+        "displayRemoveDeviceDetail": "Запись исчезнет из списка навсегда. Это нельзя отменить.",
+        "displayRemoveDeviceActive": "Это устройство ещё подключено. Сначала отзовите его."
     },
     "login": {
         "tagline": "С возвращением в ваш семейный планировщик.",

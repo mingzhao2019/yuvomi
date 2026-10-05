@@ -3059,7 +3059,19 @@
         "pushUnavailable": "As notificações push não estão disponíveis neste dispositivo no momento. Recarregue a página.",
         "pageScheduleMineDescription": "Lembrete antes do seu próprio turno e horas semanais para horas extra.",
         "sheetInventoryDescription": "Assina os prazos dos teus objetos na tua própria app de calendário.",
-        "sheetWasteDescription": "Assina as próximas recolhas na tua própria app de calendário."
+        "sheetWasteDescription": "Assina as próximas recolhas na tua própria app de calendário.",
+        "apiTokensInactiveTitle": "Revogados ou expirados",
+        "apiTokensInactiveHint": "Estes tokens já não dão acesso. Uma entrada removida não pode ser recuperada.",
+        "apiTokensNoneActive": "Nenhum token de API ativo.",
+        "apiTokenRemove": "Remover token",
+        "apiTokenRemoveConfirm": "Remover o token de API \"{{name}}\"?",
+        "apiTokenRemoveDetail": "A entrada desaparece da lista de forma definitiva. Isto não pode ser anulado.",
+        "apiTokenRemovedToast": "Token de API removido.",
+        "apiTokenRemoveActive": "Este token ainda está ativo. Revogue-o primeiro.",
+        "displayRemoveDevice": "Remover",
+        "displayRemoveDeviceConfirm": "Remover a entrada deste dispositivo?",
+        "displayRemoveDeviceDetail": "A entrada desaparece da lista de forma definitiva. Isto não pode ser anulado.",
+        "displayRemoveDeviceActive": "Este dispositivo ainda está emparelhado. Revogue-o primeiro."
     },
     "login": {
         "tagline": "Bem-vindo de volta ao teu planeador familiar.",

@@ -3073,7 +3073,19 @@
         "pushUnavailable": "Hindi available ngayon ang push sa device na ito. Paki-reload ang page.",
         "pageScheduleMineDescription": "Paalala bago ang sarili mong shift at lingguhang oras para sa overtime.",
         "sheetInventoryDescription": "Mag-subscribe sa mga deadline ng iyong mga gamit sa sarili mong calendar app.",
-        "sheetWasteDescription": "Mag-subscribe sa mga paparating na pangongolekta sa sarili mong calendar app."
+        "sheetWasteDescription": "Mag-subscribe sa mga paparating na pangongolekta sa sarili mong calendar app.",
+        "apiTokensInactiveTitle": "Nabawi o nag-expire",
+        "apiTokensInactiveHint": "Hindi na nagbibigay ng access ang mga token na ito. Hindi na maibabalik ang inalis na entry.",
+        "apiTokensNoneActive": "Walang aktibong API token.",
+        "apiTokenRemove": "Alisin ang token",
+        "apiTokenRemoveConfirm": "Alisin ang API token na \"{{name}}\"?",
+        "apiTokenRemoveDetail": "Tuluyang mawawala ang entry sa listahan. Hindi ito maibabalik.",
+        "apiTokenRemovedToast": "Naalis ang API token.",
+        "apiTokenRemoveActive": "Aktibo pa ang token na ito. Bawiin muna ito.",
+        "displayRemoveDevice": "Alisin",
+        "displayRemoveDeviceConfirm": "Alisin ang entry ng device na ito?",
+        "displayRemoveDeviceDetail": "Tuluyang mawawala ang entry sa listahan. Hindi ito maibabalik.",
+        "displayRemoveDeviceActive": "Nakapares pa ang device na ito. Bawiin muna ito."
     },
     "login": {
         "tagline": "Maligayang pagbabalik sa iyong family planner.",

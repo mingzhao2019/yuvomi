@@ -3073,7 +3073,19 @@
         "pushUnavailable": "Notifikasi push saat ini tidak tersedia di perangkat ini. Silakan muat ulang halaman.",
         "pageScheduleMineDescription": "Pengingat sebelum sif Anda sendiri dan jam mingguan untuk lembur.",
         "sheetInventoryDescription": "Berlangganan tenggat barang-barangmu di aplikasi kalendermu sendiri.",
-        "sheetWasteDescription": "Berlangganan jadwal pengangkutan mendatang di aplikasi kalendermu sendiri."
+        "sheetWasteDescription": "Berlangganan jadwal pengangkutan mendatang di aplikasi kalendermu sendiri.",
+        "apiTokensInactiveTitle": "Dicabut atau kedaluwarsa",
+        "apiTokensInactiveHint": "Token ini tidak lagi memberi akses. Entri yang dihapus tidak bisa dipulihkan.",
+        "apiTokensNoneActive": "Tidak ada token API aktif.",
+        "apiTokenRemove": "Hapus token",
+        "apiTokenRemoveConfirm": "Hapus token API \"{{name}}\"?",
+        "apiTokenRemoveDetail": "Entri hilang dari daftar untuk selamanya. Ini tidak bisa dibatalkan.",
+        "apiTokenRemovedToast": "Token API dihapus.",
+        "apiTokenRemoveActive": "Token ini masih aktif. Cabut dulu.",
+        "displayRemoveDevice": "Hapus",
+        "displayRemoveDeviceConfirm": "Hapus entri perangkat ini?",
+        "displayRemoveDeviceDetail": "Entri hilang dari daftar untuk selamanya. Ini tidak bisa dibatalkan.",
+        "displayRemoveDeviceActive": "Perangkat ini masih dipasangkan. Cabut dulu."
     },
     "login": {
         "tagline": "Selamat datang kembali di perencana keluarga Anda.",

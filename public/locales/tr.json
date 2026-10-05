@@ -3059,7 +3059,19 @@
         "pushUnavailable": "Anlık bildirimler şu anda bu cihazda kullanılamıyor. Lütfen sayfayı yeniden yükleyin.",
         "pageScheduleMineDescription": "Kendi vardiyanızdan önce hatırlatma ve fazla mesai için haftalık saatler.",
         "sheetInventoryDescription": "Eşyalarının son tarihlerine kendi takvim uygulamanda abone ol.",
-        "sheetWasteDescription": "Yaklaşan toplama günlerine kendi takvim uygulamanda abone ol."
+        "sheetWasteDescription": "Yaklaşan toplama günlerine kendi takvim uygulamanda abone ol.",
+        "apiTokensInactiveTitle": "İptal edilmiş veya süresi dolmuş",
+        "apiTokensInactiveHint": "Bu belirteçler artık erişim sağlamıyor. Kaldırılan kayıt geri getirilemez.",
+        "apiTokensNoneActive": "Etkin API belirteci yok.",
+        "apiTokenRemove": "Belirteci kaldır",
+        "apiTokenRemoveConfirm": "\"{{name}}\" API belirteci kaldırılsın mı?",
+        "apiTokenRemoveDetail": "Kayıt listeden kalıcı olarak silinir. Bu geri alınamaz.",
+        "apiTokenRemovedToast": "API belirteci kaldırıldı.",
+        "apiTokenRemoveActive": "Bu belirteç hâlâ etkin. Önce iptal edin.",
+        "displayRemoveDevice": "Kaldır",
+        "displayRemoveDeviceConfirm": "Bu cihazın kaydı kaldırılsın mı?",
+        "displayRemoveDeviceDetail": "Kayıt listeden kalıcı olarak silinir. Bu geri alınamaz.",
+        "displayRemoveDeviceActive": "Bu cihaz hâlâ eşleştirilmiş. Önce iptal edin."
     },
     "login": {
         "tagline": "Aile planlayıcına tekrar hoş geldin.",

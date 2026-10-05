@@ -3059,7 +3059,19 @@
         "pushUnavailable": "このデバイスでは現在プッシュ通知を利用できません。ページを再読み込みしてください。",
         "pageScheduleMineDescription": "自分のシフト前のリマインダーと、残業判定用の週の労働時間。",
         "sheetInventoryDescription": "持ち物の期限を自分のカレンダーアプリで購読します。",
-        "sheetWasteDescription": "今後の収集日を自分のカレンダーアプリで購読します。"
+        "sheetWasteDescription": "今後の収集日を自分のカレンダーアプリで購読します。",
+        "apiTokensInactiveTitle": "失効済みまたは期限切れ",
+        "apiTokensInactiveHint": "これらのトークンではもうアクセスできません。削除した項目は元に戻せません。",
+        "apiTokensNoneActive": "有効な API トークンはありません。",
+        "apiTokenRemove": "トークンを削除",
+        "apiTokenRemoveConfirm": "API トークン「{{name}}」を削除しますか?",
+        "apiTokenRemoveDetail": "この項目は一覧から完全に消えます。この操作は取り消せません。",
+        "apiTokenRemovedToast": "API トークンを削除しました。",
+        "apiTokenRemoveActive": "このトークンはまだ有効です。先に失効させてください。",
+        "displayRemoveDevice": "削除",
+        "displayRemoveDeviceConfirm": "この端末の項目を削除しますか？",
+        "displayRemoveDeviceDetail": "この項目は一覧から完全に消えます。この操作は取り消せません。",
+        "displayRemoveDeviceActive": "この端末はまだペアリングされています。先に失効させてください。"
     },
     "login": {
         "tagline": "家族のプランナーへおかえりなさい。",

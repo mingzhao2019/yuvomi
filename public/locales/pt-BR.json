@@ -3059,7 +3059,19 @@
         "calendarDefaultAllDayReminderTimeLabel": "Hora do lembrete de eventos de dia inteiro",
         "calendarDefaultAllDayReminderTimeHint": "Quando um evento de dia inteiro não tiver lembrete remoto, avise neste horário local no dia do evento.",
         "wasteFeedInactive": "Ainda não está ativo.",
-        "wasteFeedActivate": "Ativar feed"
+        "wasteFeedActivate": "Ativar feed",
+        "apiTokensInactiveTitle": "Revogados ou expirados",
+        "apiTokensInactiveHint": "Estes tokens não dão mais acesso. Uma entrada removida não pode ser restaurada.",
+        "apiTokensNoneActive": "Nenhum token de API ativo.",
+        "apiTokenRemove": "Remover token",
+        "apiTokenRemoveConfirm": "Remover o token de API \"{{name}}\"?",
+        "apiTokenRemoveDetail": "A entrada some da lista de forma definitiva. Isto não pode ser anulado.",
+        "apiTokenRemovedToast": "Token de API removido.",
+        "apiTokenRemoveActive": "Este token ainda está ativo. Revogue-o primeiro.",
+        "displayRemoveDevice": "Remover",
+        "displayRemoveDeviceConfirm": "Remover a entrada deste dispositivo?",
+        "displayRemoveDeviceDetail": "A entrada some da lista de forma definitiva. Isto não pode ser anulado.",
+        "displayRemoveDeviceActive": "Este dispositivo ainda está pareado. Revogue-o primeiro."
     },
     "login": {
         "tagline": "Bem-vindo de volta ao seu planejador familiar.",

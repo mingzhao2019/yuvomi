@@ -3059,7 +3059,19 @@
         "pushUnavailable": "इस डिवाइस पर पुश सूचनाएँ अभी उपलब्ध नहीं हैं. कृपया पेज फिर से लोड करें.",
         "pageScheduleMineDescription": "अपनी शिफ्ट से पहले रिमाइंडर और ओवरटाइम के लिए साप्ताहिक घंटे।",
         "sheetInventoryDescription": "अपनी वस्तुओं की समय-सीमाएँ अपने कैलेंडर ऐप में सब्सक्राइब करें।",
-        "sheetWasteDescription": "आने वाले कचरा संग्रह अपने कैलेंडर ऐप में सब्सक्राइब करें।"
+        "sheetWasteDescription": "आने वाले कचरा संग्रह अपने कैलेंडर ऐप में सब्सक्राइब करें।",
+        "apiTokensInactiveTitle": "रद्द या समाप्त",
+        "apiTokensInactiveHint": "ये टोकन अब कोई पहुँच नहीं देते। हटाई गई प्रविष्टि वापस नहीं लाई जा सकती।",
+        "apiTokensNoneActive": "कोई सक्रिय API टोकन नहीं।",
+        "apiTokenRemove": "टोकन हटाएँ",
+        "apiTokenRemoveConfirm": "API टोकन \"{{name}}\" हटाएँ?",
+        "apiTokenRemoveDetail": "प्रविष्टि सूची से हमेशा के लिए हट जाएगी। इसे वापस नहीं लिया जा सकता।",
+        "apiTokenRemovedToast": "API टोकन हटाया गया।",
+        "apiTokenRemoveActive": "यह टोकन अभी सक्रिय है। पहले इसे रद्द करें।",
+        "displayRemoveDevice": "हटाएँ",
+        "displayRemoveDeviceConfirm": "इस डिवाइस की प्रविष्टि हटाएँ?",
+        "displayRemoveDeviceDetail": "प्रविष्टि सूची से हमेशा के लिए हट जाएगी। इसे वापस नहीं लिया जा सकता।",
+        "displayRemoveDeviceActive": "यह डिवाइस अभी जुड़ा हुआ है। पहले इसे रद्द करें।"
     },
     "login": {
         "tagline": "अपने पारिवारिक प्लानर में फिर से आपका स्वागत है।",

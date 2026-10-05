@@ -3073,7 +3073,19 @@
         "pushUnavailable": "اعلان‌های Push در حال حاضر روی این دستگاه در دسترس نیستند. لطفاً صفحه را دوباره بارگیری کنید.",
         "pageScheduleMineDescription": "یادآوری پیش از شیفت خودتان و ساعت‌های هفتگی برای اضافه‌کاری.",
         "sheetInventoryDescription": "مهلت‌های وسایلت را در برنامهٔ تقویم خودت دنبال کن.",
-        "sheetWasteDescription": "جمع‌آوری‌های پیش رو را در برنامهٔ تقویم خودت دنبال کن."
+        "sheetWasteDescription": "جمع‌آوری‌های پیش رو را در برنامهٔ تقویم خودت دنبال کن.",
+        "apiTokensInactiveTitle": "باطل‌شده یا منقضی‌شده",
+        "apiTokensInactiveHint": "این توکن‌ها دیگر دسترسی نمی‌دهند. مورد حذف‌شده قابل بازیابی نیست.",
+        "apiTokensNoneActive": "هیچ توکن API فعالی وجود ندارد.",
+        "apiTokenRemove": "حذف توکن",
+        "apiTokenRemoveConfirm": "توکن API «{{name}}» حذف شود؟",
+        "apiTokenRemoveDetail": "این مورد برای همیشه از فهرست حذف می‌شود. این کار برگشت‌پذیر نیست.",
+        "apiTokenRemovedToast": "توکن API حذف شد.",
+        "apiTokenRemoveActive": "این توکن هنوز فعال است. ابتدا آن را باطل کنید.",
+        "displayRemoveDevice": "حذف",
+        "displayRemoveDeviceConfirm": "مورد مربوط به این دستگاه حذف شود؟",
+        "displayRemoveDeviceDetail": "این مورد برای همیشه از فهرست حذف می‌شود. این کار برگشت‌پذیر نیست.",
+        "displayRemoveDeviceActive": "این دستگاه هنوز جفت است. ابتدا آن را باطل کنید."
     },
     "login": {
         "tagline": "دوباره به برنامه‌ریز خانوادگی‌تان خوش آمدید.",

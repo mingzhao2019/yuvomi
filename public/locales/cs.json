@@ -3157,7 +3157,19 @@
         "twoFactorRecoveryLeft_few": "Zbývají {{count}} záložní kódy.",
         "healthVisibilityApplied_few": "Upraveny {{count}} záznamy.",
         "healthPreventionIntervalMonths_few": "Každé {{count}} měsíce",
-        "healthPreventionIntervalYears_few": "Každé {{count}} roky"
+        "healthPreventionIntervalYears_few": "Každé {{count}} roky",
+        "apiTokensInactiveTitle": "Odvolané nebo vypršelé",
+        "apiTokensInactiveHint": "Tyto tokeny už neposkytují žádný přístup. Odstraněný záznam nelze obnovit.",
+        "apiTokensNoneActive": "Žádný aktivní API token.",
+        "apiTokenRemove": "Odstranit token",
+        "apiTokenRemoveConfirm": "Odstranit API token \"{{name}}\"?",
+        "apiTokenRemoveDetail": "Záznam ze seznamu nadobro zmizí. Tuto akci nelze vzít zpět.",
+        "apiTokenRemovedToast": "API token odstraněn.",
+        "apiTokenRemoveActive": "Tento token je stále aktivní. Nejprve ho odvolejte.",
+        "displayRemoveDevice": "Odstranit",
+        "displayRemoveDeviceConfirm": "Odstranit záznam tohoto zařízení?",
+        "displayRemoveDeviceDetail": "Záznam ze seznamu nadobro zmizí. Tuto akci nelze vzít zpět.",
+        "displayRemoveDeviceActive": "Toto zařízení je stále spárované. Nejprve ho odvolejte."
     },
     "login": {
         "tagline": "Vítejte zpět ve svém rodinném plánovači.",

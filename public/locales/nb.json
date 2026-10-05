@@ -3059,7 +3059,19 @@
         "scheduleFeedInactive": "Eksportfeeden er deaktivert.",
         "scheduleFeedActivate": "Aktiver feed",
         "wasteFeedInactive": "Ikke aktiv ennå.",
-        "wasteFeedActivate": "Aktiver feed"
+        "wasteFeedActivate": "Aktiver feed",
+        "apiTokensInactiveTitle": "Trukket tilbake eller utløpt",
+        "apiTokensInactiveHint": "Disse tokenene gir ikke lenger tilgang. En fjernet oppføring kan ikke gjenopprettes.",
+        "apiTokensNoneActive": "Ingen aktive API-tokener.",
+        "apiTokenRemove": "Fjern token",
+        "apiTokenRemoveConfirm": "Fjerne API-token \"{{name}}\"?",
+        "apiTokenRemoveDetail": "Oppføringen forsvinner fra listen for godt. Dette kan ikke gjøres om.",
+        "apiTokenRemovedToast": "API-token fjernet.",
+        "apiTokenRemoveActive": "Dette tokenet er fortsatt aktivt. Trekk det tilbake først.",
+        "displayRemoveDevice": "Fjern",
+        "displayRemoveDeviceConfirm": "Fjerne oppføringen for denne enheten?",
+        "displayRemoveDeviceDetail": "Oppføringen forsvinner fra listen for godt. Dette kan ikke gjøres om.",
+        "displayRemoveDeviceActive": "Denne enheten er fortsatt paret. Trekk den tilbake først."
     },
     "login": {
         "tagline": "Velkommen tilbake til familieplanleggeren din.",
