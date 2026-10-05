@@ -5564,7 +5564,7 @@ function renderAgendaView(container) {
         _agendaMd.open(evEl.dataset.mdId, evEl);
         return;
       }
-      const ev = state.events.find((ev) => ev.id === parseInt(evEl.dataset.id, 10));
+      const ev = eventForChip(evEl);
       if (ev) openEventDetail(ev, evEl);
     }
   });

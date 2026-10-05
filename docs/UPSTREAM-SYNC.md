@@ -254,3 +254,59 @@ ICS calendar behavior, persistent task lists, separate personal/household
 notification channels, Inventory/assets, and dashboard widgets remain present
 with their custom semantics. Validation completed before the local `custom`
 fast-forward. No push was performed.
+
+## Current sync checkpoint (2026-10-05)
+
+Local `main` and `upstream/main` both point to `b218afa38` (v2.73.0). The
+integration branch `custom-upstream-selective-2026-10-05` started at custom
+`202f871b4` and points to `2f2fa2960`; after validation it was fast-forwarded
+into `custom`. The upstream range after the previous checkpoint was reviewed
+in upstream order. Upstream was not merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `5027becaa` (#1653) | Makes an unknown public descendant such as `/pair/extra` land on `/pair` for signed-out users, while keeping the guest budget detour single-navigation and loop-free. | Cherry-picked as `2ac44cab4`; retained the custom router harness, translated refusal handling, and test-chain entry point. |
+| `5b509f0f2` (#1654) | Waits for the overlay-owned asynchronous `back()` before placing a new history marker. | Cherry-picked as `7c4ceb140`; the custom overlay marker, delayed traversal model, and browser guard remain intact. |
+| `5044c31ab` (#1655) | A cold direct link to a household-disabled module now reaches the overview after preferences load. | Cherry-picked as `a5f562b02`; composed with the custom same-navigation detour and retained the access/disabled-module guard order. |
+| `9ee47ffd4` (#1659) | 403 responses with a known reason use the localized sentence for that reason instead of the server's English text. | Cherry-picked as `0390c73f8`; adopted the shared `REFUSAL_MESSAGES` map for `api.js` and `friendly-error.js`, retained custom reason classification and locale coverage. |
+| `ab1ed8fad` | Publishes v2.73.0 release metadata. | Cherry-picked as `5b187d513`; synchronized the root package, both root lockfile versions, service worker, current docs, Umbrel notes, and changelog. |
+| `3d95e9330` (#1662) | Periodic medication, prevention-reminder, and recipe-provider jobs rest while their household module is switched off. | Cherry-picked as `559345193`; manually combined the medication notification fan-out with the new health gate, and kept the custom restore gate while applying the recipes-only scheduled gate; manual sync remains available. |
+| `7fd981f96` (#1664) | Mixed dashboard/calendar/search/ICS/countdown answers omit data from a household-disabled module; birthdays retain their separate switch semantics. | Cherry-picked as `5ab5a0bc3`; combined `modulesLeftOut()` with custom asset/timezone and event-completion behavior, preserving response shapes and the calendar-versus-birthdays distinction. |
+| `e83cd2aaa` (#1666) | Reads timezone offsets at whole-second precision so fractional seconds are converted exactly once. | Cherry-picked as `7bf46a585`; retained custom precise household-time and housekeeping semantics, while moving the fractional-second correction into the shared converters. |
+| `1ed1f7a7e` (#1667) | Validates and localizes the paid-installments field in both loan creation dialogs and returns structured refusal reasons. | Cherry-picked as `ca4f0847f`; retained the custom unified loan-field renderer, budget visibility/account semantics, and existing paid-installment bookkeeping. |
+| `b218afa38` (#1674) | Mounts unauthenticated pages at the app root instead of nesting their `main` inside the previous page. | Cherry-picked as `2f2fa2960`; retained custom public-route detours and added `test:page-mount` to the custom full-test command. |
+| `06bd02c14` | Historical merge of `origin/main` into `fix/task-status-visibility`. | Skipped; merge-only history, with its constituent visibility, reminder, localization, and documentation changes already represented by the previous selective sync/custom tree. |
+| `603dd5a8d` | Historical merge of `origin/main` into `ghsa-hc9r-lift`. | Skipped for the same reason; no independent merge behavior should be replayed into custom. |
+| `3db82b545` | Historical merge of `fix/task-status-visibility` into `fix/budget-private-views`. | Skipped; its content is the already reviewed branch history plus merge resolution, not a new upstream feature. |
+
+The semantic conflict resolutions in this range were: `package.json` keeps the
+custom `test-chain` and appends each new regression suite; medication scheduling
+keeps custom `fanOutNotification` while gating health; recipe scheduling gates
+only the automatic provider job because manual sync is an explicit user action;
+dashboard/countdown imports combine the custom asset and event-completion paths
+with the unified disabled-module set; and the housekeeping documentation keeps
+the custom split test suites while updating the fractional-second contract. The
+upstream rewards migration was relocated from its upstream `230` to custom
+`240`, because custom fasting already owns `230`; existing custom migrations
+`230` through `239` were left untouched, and the reward tests/docs now refer to
+`240`. The custom Microsoft To Do list mapping, Outlook/ICS boundaries,
+persistent task lists, separate notification channels, Inventory/assets, and
+dashboard widgets remain in place.
+
+The v2.72.0 release cherry-pick also carried three custom-only notes into the
+released section. The recurring-budget start-day note and the two receipt
+privacy notes were moved back to `[Unreleased]`, where they belong to the
+custom release stream. The remaining intentional custom history in the
+`[2.72.0]` section is pinned in `test/test-changelog.js` as
+`'2.72.0': '06999d64fcbb'`; this exact hash preserves the established section
+while still detecting any later unrecorded edit.
+
+Focused validation for this checkpoint passed for rewards, the suite chain,
+reminder target visibility, subtask composition, calendar and calendar
+deletion, migration append-only behavior, version consistency, and CHANGELOG.
+The notification regression fixture was aligned with the existing personal
+provider allowlist (`message_pusher`/Webhook); `test:notifications` passes
+56/56 without widening ntfy's household-only boundary. The full test result
+completed in the authorized environment with `npm test` exit code 0; the
+captured log contains no failing subtests. `git diff --check` also passed. No
+push or remote state change was performed.

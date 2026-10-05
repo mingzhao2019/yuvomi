@@ -120,7 +120,7 @@ export function rewardTargets(d, taskId, actingUserId, doneByUserId = null) {
 /*
  * DER VERLAUF IST GESCHICHTE: WIEDERÖFFNEN BUCHT GEGEN, ES LÖSCHT NICHT (#1607).
  *
- * Bis v230 nahm das Zurücksetzen einer erledigten Aufgabe die earn-Zeile aus
+ * Bis v240 nahm das Zurücksetzen einer erledigten Aufgabe die earn-Zeile aus
  * dem Ledger. Das hielt den Verlauf frei von Hin-und-her, aber es schrieb ihn
  * um: wer mit den Punkten schon eine Prämie angefragt hatte, stand danach im
  * Minus, und der Verlauf zeigte nur noch die Einlösung - weder die Gutschrift
@@ -135,7 +135,7 @@ export function rewardTargets(d, taskId, actingUserId, doneByUserId = null) {
  * Person (earn plus reversal mit dieser task_id): größer 0 heißt vergütet, 0
  * heißt offen. Das ersetzt den partiellen UNIQUE-Index `uniq_reward_earn`, der
  * mit einer stehenbleibenden earn-Zeile die Neuvergabe nach dem Wiederöffnen
- * verschluckt hätte (Migration 230). Die Idempotenz steht damit im Code - das
+ * verschluckt hätte (Migration 240). Die Idempotenz steht damit im Code - das
  * trägt, weil der Treiber synchron ist und Lesen und Schreiben in EINER
  * Transaktion liegen: zwischen "Netto ist 0" und der Buchung kommt kein
  * anderer Request dazwischen. Ein `await` in diesem Pfad wäre genau die Lücke.
@@ -184,11 +184,11 @@ const TASK_NET = `
  * eigene Punkte trägt und im Verlauf bewusst nicht steht. Der Wert ist die ID
  * des ersten Vorkommens und bleibt es, auch wenn es dieses längst nicht mehr
  * gibt. Eine Aufgabe ohne Kennung ist ihr eigenes erstes Vorkommen; trägt sie
- * aus der Zeit vor v230 noch einen Vorgänger-Verweis, gilt die Wurzel ihrer
+ * aus der Zeit vor v240 noch einen Vorgänger-Verweis, gilt die Wurzel ihrer
  * Kette (seriesOfTask) - derselbe Wert, den ihre nächste Folgeinstanz erbt.
  *
- * BESTAND: Gutschriften von vor v230 tragen keine Kennung und zählen für den
- * Deckel nicht. Es gibt ihn erst seit v230 - gesperrt hat davor nichts.
+ * BESTAND: Gutschriften von vor v240 tragen keine Kennung und zählen für den
+ * Deckel nicht. Es gibt ihn erst seit v240 - gesperrt hat davor nichts.
  *
  * Eine wieder geöffnete Aufgabe hat eine Gegenbuchung, die auf ihre
  * Gutschrift zeigt (`reverses_id`); die fällt damit heraus.

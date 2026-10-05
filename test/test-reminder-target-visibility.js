@@ -152,6 +152,7 @@ async function deliver(database, now = NOW) {
     pushService: { sendPushToUser: async (userId, payload) => { push.push({ userId, ...payload }); return 1; } },
     providers: {
       ntfy: { id: 'ntfy', send: async ({ channel: target, payload }) => { channel.push({ ...payload, scope: target.scope, channelUser: target.userId ?? null }); return { ok: true, status: 200 }; } },
+      webhook: { id: 'webhook', send: async ({ channel: target, payload }) => { channel.push({ ...payload, scope: target.scope, channelUser: target.userId ?? null }); return { ok: true, status: 200 }; } },
     },
     now,
   });
@@ -491,8 +492,8 @@ const viaChannels = (run, id) => run.channel.filter((p) => p.tag === tagOf(id)).
 
 function personalChannel(database, userId) {
   return createNotificationChannelStore({ db: database }).createChannel({
-    provider: 'ntfy', name: `ntfy-${userId}`, enabled: true, scope: 'user', userId,
-    config: { baseUrl: 'https://ntfy.test', topic: `user-${userId}` }, secrets: {},
+    provider: 'webhook', name: `webhook-${userId}`, enabled: true, scope: 'user', userId,
+    config: { baseUrl: `https://webhook.test/user-${userId}` }, secrets: {},
   });
 }
 

@@ -610,6 +610,10 @@ const REASONS_WITHOUT_SENTENCE = new Set([
   // Je Aufruf ein anderes Modul und ein anderes Recht - ein Satz fuer alle
   // braeuchte den Modulnamen aus der Antwort.
   'cross_module_access',
+  // Custom-Asset-Einstellungen und Kategorieverwaltung liefern nur das
+  // allgemeine Admin-Gate; der reason dient der Einordnung, nicht einer
+  // eigenen Nutzerzeile.
+  'admin_required', 'asset_default_scope_forbidden',
   // Anmeldung und Einrichtung: die Seiten zeigen den Servertext oder lesen ihn
   // per Muster (login.js: "password login is disabled").
   'account_cannot_sign_in', 'password_login_disabled', 'setup_completed', 'required',
@@ -714,6 +718,7 @@ const PLAIN_REFUSALS = new Set([
   'Keine Berechtigung, für diese Person einzutragen.',
   'You cannot modify this entry.', 'You cannot modify this loan.', 'You cannot modify this subscription.',
   'You cannot change a receipt you may not see.', 'Household category management is not allowed.',
+  'Only administrators can create family assets.',
   // Nur mit API-Token erreichbar, nie aus der App.
   'Token scope does not permit this operation.',
 ]);

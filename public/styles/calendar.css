@@ -767,7 +767,7 @@
 .allday-event .avatar-stack__item,
 .week-event__time .avatar-stack__item {
   border-width: 1.5px;
-  margin-left: calc(-1 * var(--space-1));
+  margin-inline-start: calc(-1 * var(--space-1));
 }
 
 /* DIE GLYPHEN TRAGEN DIE TINTE DES TITELS, nicht den Vollton der Terminfarbe
@@ -1709,7 +1709,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -2682,7 +2682,7 @@
 }
 
 .cal-task-chip__reminder {
-  margin-left: var(--space-1);
+  margin-inline-start: var(--space-1);
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-regular);
 }

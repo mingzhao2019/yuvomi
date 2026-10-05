@@ -10285,7 +10285,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 230,
+    version: 240,
     description: 'Rewards: reversal instead of deletion on reopen, series id on tasks and earnings (#1607, #1603)',
     // DER LEDGER LÖSCHT NICHT MEHR (#1607). Bis hierher nahm das Wiederöffnen
     // einer erledigten Aufgabe ihre earn-Zeile aus reward_ledger - entgegen dem

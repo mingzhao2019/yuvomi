@@ -93,16 +93,18 @@ test('syncTaskRewards: done→open storniert die Vergabe', () => {
   assert.equal(getBalance(db, child1), before, 'Storno stellt Saldo wieder her');
 });
 
-test('v230 läuft ein zweites Mal durch, ohne etwas doppelt anzulegen', () => {
-  const v230 = MIGRATIONS.find((m) => m.version === 230);
-  assert.doesNotThrow(() => v230.up(db));
+test('v240 läuft ein zweites Mal durch, ohne etwas doppelt anzulegen', () => {
+  const rewardsMigration = MIGRATIONS.find((m) => m.description.startsWith('Rewards: reversal instead of deletion'));
+  assert.ok(rewardsMigration, 'Rewards-Migration fehlt');
+  assert.equal(rewardsMigration.version, 240, 'Rewards-Migration muss nach der custom v230 liegen');
+  assert.doesNotThrow(() => rewardsMigration.up(db));
   for (const [table, column] of [['tasks', 'recurrence_series_id'], ['reward_ledger', 'series_id'], ['reward_ledger', 'reverses_id']]) {
     const n = db.prepare(`PRAGMA table_info(${table})`).all().filter((c) => c.name === column).length;
     assert.equal(n, 1, `${table}.${column}`);
   }
 });
 
-test('uniq_reward_earn ist gefallen, die Netto-Frage hat ihren Index (v230, #1607)', () => {
+test('uniq_reward_earn ist gefallen, die Netto-Frage hat ihren Index (v240, #1607)', () => {
   const names = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'reward_ledger'").all().map((r) => r.name);
   assert.ok(!names.includes('uniq_reward_earn'), 'der eindeutige Index verschluckte die Neuvergabe nach dem Wiederöffnen');
   assert.ok(names.includes('idx_reward_ledger_task'));
@@ -160,7 +162,7 @@ test('Wechselt die Zuweisung zwischen Erledigen und Wiederöffnen, trifft die Ge
 
 /**
  * Folgeinstanz OHNE recurrence_series_id - so, wie sie in einem Bestand von vor
- * v230 steht: neue Zeile, zeigt nur auf die Vorgängerin. Die Tests darunter
+ * v240 steht: neue Zeile, zeigt nur auf die Vorgängerin. Die Tests darunter
  * halten damit den RÜCKFALL fest (Serie = Wurzel der Kette). Den Weg mit
  * mitreisender Kennung, auch über ein gelöschtes Vorkommen hinweg, fährt
  * test:tasks-routes über die echte Route.

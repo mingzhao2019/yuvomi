@@ -946,7 +946,15 @@ test('next-fast channel notification uses household-localized actionable copy', 
   // Kanal, nie an den des Haushalts (services/reminder-targets.js). Beide
   // stehen hier, damit der Test auch sieht, wohin die Meldung NICHT geht.
   store.createChannel({ provider: 'ntfy', name: 'household', enabled: true, config: { baseUrl: 'https://ntfy.test', topic: 'family' }, secrets: {} });
-  store.createChannel({ provider: 'ntfy', name: 'mine', enabled: true, scope: 'user', userId: 1, config: { baseUrl: 'https://ntfy.test', topic: 'me' }, secrets: {} });
+  store.createChannel({
+    provider: 'message_pusher',
+    name: 'mine',
+    enabled: true,
+    scope: 'user',
+    userId: 1,
+    config: { baseUrl: 'https://push.test', username: 'mine' },
+    secrets: { token: 'test-token' },
+  });
   db.prepare("INSERT INTO sync_config (key, value) VALUES ('language', 'en')").run();
   db.prepare(`INSERT INTO health_fasting_settings
     (user_id, default_goal_minutes, remind_goal, remind_next_start) VALUES (1, 960, 0, 1)`).run();
@@ -957,6 +965,7 @@ test('next-fast channel notification uses household-localized actionable copy', 
   const payloads = [];
   const providers = {
     ntfy: { id: 'ntfy', send: async ({ channel, payload }) => { payloads.push({ ...payload, channel: channel.name }); return { ok: true, status: 200 }; } },
+    message_pusher: { id: 'message_pusher', send: async ({ channel, payload }) => { payloads.push({ ...payload, channel: channel.name }); return { ok: true, status: 200 }; } },
   };
 
   await processDueNotifications({
