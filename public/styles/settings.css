@@ -1441,7 +1441,9 @@
   visibility: hidden;
   pointer-events: none;
   transform: translateY(calc(var(--space-1) * -1));
-  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  transition: opacity var(--duration-xs) var(--ease-out),
+    transform var(--duration-xs) var(--ease-out),
+    visibility var(--duration-xs) var(--ease-out);
 }
 
 .notification-template-help:hover .notification-template-help__tooltip,
