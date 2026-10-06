@@ -21,6 +21,7 @@ import { resolveHouseholdFormats, translate } from '../utils/i18n.js';
 import { escapeICSText, foldLine } from './ics-export.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
 import { visibilityWhere } from './visibility.js';
+import { activeAccountSql } from './account-state.js';
 
 const log = createLogger('InventoryDeadlinesICS');
 
@@ -152,7 +153,7 @@ function clearFeedToken(conn, userId) {
 function findUserIdByFeedToken(conn, token) {
   if (!token) return null;
   const row = conn.prepare(
-    `SELECT id FROM users WHERE inventory_deadlines_feed_token = ?`
+    `SELECT id FROM users WHERE inventory_deadlines_feed_token = ? AND ${activeAccountSql('users')}`
   ).get(token);
   return row?.id ?? null;
 }
