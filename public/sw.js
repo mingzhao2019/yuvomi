@@ -121,6 +121,7 @@ const APP_SHELL = [
   '/utils/contact-name.js',
   '/utils/contrast.js',
   '/utils/countdown.js',
+  '/utils/dashboard-event-limit.js',
   '/utils/dashboard-layout-hint.js',
   '/utils/dashboard-widgets.js',
   '/utils/date-status.js',
