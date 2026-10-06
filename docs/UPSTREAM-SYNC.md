@@ -374,3 +374,26 @@ append-only migrations, suite chaining, motion tokens, settings navigation,
 and notification-channel forms. The full `npm test` completed with exit code
 0. `git diff --check` passed before this documentation checkpoint. No push or
 remote state change has been performed yet.
+
+## Follow-up sync checkpoint (2026-10-06)
+
+After refreshing `upstream/main`, three new upstream commits were selected for
+the existing `custom` line. Local `main` and `upstream/main` now point to
+`1c8befe40`; the integration branch started at custom `4b72804dc`. This is a
+selective integration only: the long-standing custom divergence is not part of
+this change and upstream was not merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `4214a2c50` (#1724) | Lets a loan set a monthly due day and dates a paid installment on that day. | Integrated as `b34d8be5d`; relocated the upstream migration to custom migration 243 and retained custom loan, ledger, locale, and test behavior. |
+| `999ee2258` (#1726) | Keeps recurring split expenses anchored to the 29th, 30th, or 31st where the target month permits it. | Integrated as `08284cdea`; relocated the upstream migration to custom migration 244 and retained custom reverse-ledger and scheduler behavior. |
+| `1c8befe40` (#1730) | Fits every chart gutter to the widest rendered axis value, including charts mounted later or initially hidden. | Integrated as `7531e498a`; retained custom chart and layout behavior. |
+
+Custom migrations 233, 234, 241, and 242 were left unchanged. The effective
+change from custom for this follow-up is 55 files, 2,581 insertions, and 150
+deletions; it does not represent the historical custom/upstream divergence.
+
+Focused loan validation passed 19/19, recurring split validation passed 40/40,
+and the chart-gutter logic test passed. The browser chart suite could not run
+because the required Puppeteer Chrome 152.0.7977.42 is not installed in this
+environment. No push or remote state change has been performed yet.
