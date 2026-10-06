@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `{ order }`, administrators only; `sort_order` on `GET /api/v1/family/members` and
   `GET /api/v1/auth/users`, and `is_household_member` on every user object (migration 242).
 
+- **Each device chooses how long it waits before the photo screensaver starts** (#885). Settings →
+  Appearance, next to wall mode, offers 1, 2, 5, 10 or 15 minutes; five stays the default, so
+  nothing changes on a device that never touches it. The choice is stored in the browser like wall
+  mode, because the devices in one household want different delays: a photo frame on the wall
+  wants its pictures back after a minute, a kitchen tablet people work on should wait longer, and a
+  household value would also reach every phone. The value is applied before the page renders, so
+  the first idle period already uses it, and a change takes effect at once without a reload, in
+  other open tabs too. The settings search finds it under "screensaver", and the Immich page no
+  longer promises five minutes.
+
 - **Revoked and expired API tokens can be removed from the list** (D#1672, asked by @torbenvanassche). Under
   Settings, API access, a revoked token stayed in the list for good, with a greyed-out button
   next to it. The list now has two parts: the tokens that work, each with "Revoke", and below

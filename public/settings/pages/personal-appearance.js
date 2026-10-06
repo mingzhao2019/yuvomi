@@ -1,4 +1,5 @@
 import {
+  formatUnit,
   getLocale,
   getSupportedLocales,
   setLocale,
@@ -12,6 +13,11 @@ import { toggleRowHtml } from '/settings/components.js';
 import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { isWallModeEnabled, setWallModeEnabled } from '/utils/wall-mode.js';
+import {
+  SCREENSAVER_IDLE_STEPS,
+  getScreensaverIdleSeconds,
+  setScreensaverIdleSeconds,
+} from '/utils/screensaver-idle.js';
 import { setDisplayTimeZone } from '/utils/timezone.js';
 import { isChineseLunarContext, isChineseLunarSupported } from '/utils/lunar.js';
 import { adoptZone, zoneHintEl, zoneMismatch } from '/utils/household-zone-hint.js';
@@ -204,6 +210,31 @@ function clearError(element) {
   element.hidden = true;
 }
 
+// Minutes in the UI language (CLDR via formatUnit), so the five steps need no
+// plural keys of their own in 26 locales.
+function screensaverIdleText(seconds) {
+  return formatUnit(seconds / 60, 'minute', { unitDisplay: 'long' });
+}
+
+function screensaverIdleOptions() {
+  const current = getScreensaverIdleSeconds();
+  return SCREENSAVER_IDLE_STEPS.map((seconds) => `
+    <option value="${seconds}"${seconds === current ? ' selected' : ''}>${esc(screensaverIdleText(seconds))}</option>`).join('');
+}
+
+/**
+ * Device-local like wall mode: no server request, no preference. The
+ * screensaver watches the attribute this sets, so the new delay applies without
+ * a reload, and the toast confirms it like the wall-mode toggle above it.
+ * Exported so test:screensaver-idle can drive the real handler.
+ */
+export function bindScreensaverIdleSelect(select) {
+  select?.addEventListener('change', () => {
+    const seconds = setScreensaverIdleSeconds(Number(select.value));
+    window.yuvomi?.showToast(t('settings.screensaverIdleSaved', { delay: screensaverIdleText(seconds) }), 'success');
+  });
+}
+
 function renderLoadError(container) {
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
@@ -280,6 +311,18 @@ function renderPage(container, preferences, isAdmin) {
           attrs: { id: 'calendar-show-lunar', 'aria-describedby': 'lunar-calendar-hint' },
         })}
         <p class="form-hint" id="lunar-calendar-hint">${t('settings.lunarCalendarHint')}</p>
+      <!-- Next to wall mode and for the same reason: device-local (#885). A
+           photo frame and a kitchen tablet in one household want different
+           delays, and a household value would reach every phone too. The
+           Immich connection itself stays under Household -> Integrations. -->
+      <div class="settings-card">
+        <div class="form-group">
+          <label class="form-label" for="screensaver-idle-select">${t('settings.screensaverIdleLabel')}</label>
+          <select class="form-input" id="screensaver-idle-select" aria-describedby="screensaver-idle-hint">
+            ${screensaverIdleOptions()}
+          </select>
+        </div>
+        <p class="form-hint" id="screensaver-idle-hint">${t('settings.screensaverIdleHint')}</p>
       </div>
     </section>
 
@@ -570,6 +613,7 @@ function bindEvents(container, user) {
       if (lunarToggle.isConnected) lunarToggle.disabled = false;
     }
   });
+  bindScreensaverIdleSelect(container.querySelector('#screensaver-idle-select'));
 
   const localeSelect = container.querySelector('#locale-select');
   localeSelect?.addEventListener('change', async () => {
