@@ -444,5 +444,5 @@ the test command had not started.
 Focused validation passed for meals/cook (40/40), dashboard, frontend audit,
 schema and migration append-only checks, i18n, and plural i18n. The second
 full `npm test` run completed with exit code 0 and no failing subtests.
-`git diff --check` passed. No push or remote state change has been performed
-yet.
+`git diff --check` passed. After validation, both `main` and `custom` were
+pushed to `origin` by fast-forward; no force-push was used.
