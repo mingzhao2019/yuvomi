@@ -402,8 +402,8 @@ environment. No push or remote state change has been performed yet.
 
 Local `main` and `upstream/main` both point to `45a55a954` (v2.73.0). The
 integration branch `custom-upstream-selective-2026-10-06` started at custom
-`97a4447c0` and points to `1c3dedfb3`; it has not yet been fast-forwarded into
-`custom`. The eight upstream commits after the previous checkpoint at
+`97a4447c0` and was fast-forwarded into `custom` at `a15c0b8b8` after
+validation. The eight upstream commits after the previous checkpoint at
 `1c8befe40` were reviewed and integrated in upstream order. Upstream was not
 merged wholesale.
 
