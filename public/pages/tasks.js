@@ -6713,7 +6713,8 @@ function updateBulkActionsBar(container) {
       },
       {
         label: t('tasks.bulkDelete'),
-        ariaLabel: t('tasks.bulkDeleteAsk', { count: n }),
+        // Der Name ist eine Aussage, die Frage gehoert dem Bestaetigungsschritt (#1723).
+        ariaLabel: t('tasks.bulkDeleteLabel', { count: n }),
         count: n,
         danger: true,
         confirm: { question: t('tasks.bulkDeleteAsk', { count: n }) },
