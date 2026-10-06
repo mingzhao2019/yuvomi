@@ -1567,7 +1567,6 @@
         "loanAddedToast": "Darlehen hinzugefügt",
         "loanSavedToast": "Darlehen gespeichert",
         "loanDeletedToast": "Darlehen gelöscht",
-        "loanPaymentAddedToast": "Zahlung erfasst",
         "loanPaymentTitle": "Darlehensrückzahlung: {{borrower}}",
         "typeLoan": "Darlehen",
         "tabsLabel": "Budgetbereiche",
@@ -1774,7 +1773,11 @@
         "ledgerSearchCount_one": "{{count}} Buchung gefunden",
         "ledgerSearchTruncated": "Die neuesten {{limit}} Treffer - genauer suchen",
         "ledgerSearchEmpty": "Keine Buchung mit „{{query}}“",
-        "ledgerSearchError": "Die Suche ist fehlgeschlagen. Bitte erneut versuchen."
+        "ledgerSearchError": "Die Suche ist fehlgeschlagen. Bitte erneut versuchen.",
+        "loanDueDayLabel": "Fälligkeitstag",
+        "loanDueDayHint": "Optional: Tag im Monat, 1 bis 31. Als bezahlt markierte Raten werden dann auf diesen Tag gebucht statt auf heute. In kürzeren Monaten gilt der letzte Tag.",
+        "loanDueDayInvalid": "Tag von 1 bis 31 eingeben oder leer lassen",
+        "loanPaymentAddedOnToast": "Zahlung erfasst zum {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Zyklus-Tab anzeigen",

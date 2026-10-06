@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Loan added",
         "loanSavedToast": "Loan saved",
         "loanDeletedToast": "Loan deleted",
-        "loanPaymentAddedToast": "Payment recorded",
         "loanPaymentTitle": "Loan repayment: {{borrower}}",
         "typeLoan": "Loan",
         "tabsLabel": "Budget sections",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} transaction found",
         "ledgerSearchTruncated": "The newest {{limit}} matches - refine your search",
         "ledgerSearchEmpty": "No transaction matches “{{query}}”",
-        "ledgerSearchError": "The search failed. Please try again."
+        "ledgerSearchError": "The search failed. Please try again.",
+        "loanDueDayLabel": "Due day",
+        "loanDueDayHint": "Optional: day of the month, 1 to 31. Installments marked as paid are then dated on this day instead of today. In shorter months the last day applies.",
+        "loanDueDayInvalid": "Enter a day from 1 to 31, or leave it empty",
+        "loanPaymentAddedOnToast": "Payment recorded for {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Show cycle tab",

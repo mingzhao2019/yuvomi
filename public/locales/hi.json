@@ -1553,7 +1553,6 @@
         "loanAddedToast": "उधार जोड़ा गया",
         "loanSavedToast": "उधार सहेजा गया",
         "loanDeletedToast": "उधार हटाया गया",
-        "loanPaymentAddedToast": "भुगतान दर्ज किया गया",
         "loanPaymentTitle": "ऋण भुगतान: {{borrower}}",
         "typeLoan": "उधार",
         "tabsLabel": "बजट अनुभाग",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} लेन-देन मिला",
         "ledgerSearchTruncated": "सबसे नए {{limit}} परिणाम - खोज को और सटीक करें",
         "ledgerSearchEmpty": "“{{query}}” से कोई लेन-देन मेल नहीं खाता",
-        "ledgerSearchError": "खोज विफल रही। कृपया फिर से कोशिश करें।"
+        "ledgerSearchError": "खोज विफल रही। कृपया फिर से कोशिश करें।",
+        "loanDueDayLabel": "देय दिन",
+        "loanDueDayHint": "वैकल्पिक: महीने का दिन, 1 से 31 तक। भुगतान दर्ज की गई किस्तें तब आज की जगह इसी दिन की तारीख पर दर्ज होती हैं। छोटे महीनों में आख़िरी दिन लागू होता है।",
+        "loanDueDayInvalid": "1 से 31 तक का दिन दर्ज करें या खाली छोड़ें",
+        "loanPaymentAddedOnToast": "भुगतान {{date}} की तारीख पर दर्ज किया गया"
     },
     "settings": {
         "healthCycleEnableLabel": "चक्र टैब दिखाएँ",

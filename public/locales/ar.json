@@ -1769,7 +1769,6 @@
         "loanAddedToast": "تمت إضافة القرض",
         "loanSavedToast": "تم حفظ القرض",
         "loanDeletedToast": "تم حذف القرض",
-        "loanPaymentAddedToast": "تم تسجيل الدفع",
         "loanPaymentTitle": "سداد القرض: {{borrower}}",
         "typeLoan": "قرض",
         "tabsLabel": "أقسام الميزانية",
@@ -1985,7 +1984,11 @@
         "pendingSummary_many": "{{count}} حركة متوقعة: {{amount}}",
         "receiptsAttachedLabel_few": "الإيصالات المرفقة: {{count}}",
         "receiptsAttachedLabel_two": "إيصالان مرفقان",
-        "receiptsAttachedLabel_many": "الإيصالات المرفقة: {{count}}"
+        "receiptsAttachedLabel_many": "الإيصالات المرفقة: {{count}}",
+        "loanDueDayLabel": "يوم الاستحقاق",
+        "loanDueDayHint": "اختياري: يوم من الشهر، من 1 إلى 31. تُؤرَّخ الأقساط التي تُسجَّل كمدفوعة بهذا اليوم بدلاً من اليوم الحالي. في الأشهر الأقصر يُعتمد اليوم الأخير.",
+        "loanDueDayInvalid": "أدخل يوماً من 1 إلى 31 أو اترك الحقل فارغاً",
+        "loanPaymentAddedOnToast": "تم تسجيل الدفع بتاريخ {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "إظهار علامة تبويب الدورة",

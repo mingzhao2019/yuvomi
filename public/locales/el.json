@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Το δάνειο προστέθηκε",
         "loanSavedToast": "Το δάνειο αποθηκεύτηκε",
         "loanDeletedToast": "Το δάνειο διαγράφηκε",
-        "loanPaymentAddedToast": "Η πληρωμή καταγράφηκε",
         "loanPaymentTitle": "Πληρωμή δανείου: {{borrower}}",
         "typeLoan": "Δάνειο",
         "tabsLabel": "Ενότητες προϋπολογισμού",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "Βρέθηκε {{count}} συναλλαγή",
         "ledgerSearchTruncated": "Τα {{limit}} νεότερα αποτελέσματα - περιορίστε την αναζήτηση",
         "ledgerSearchEmpty": "Καμία συναλλαγή δεν ταιριάζει με «{{query}}»",
-        "ledgerSearchError": "Η αναζήτηση απέτυχε. Δοκιμάστε ξανά."
+        "ledgerSearchError": "Η αναζήτηση απέτυχε. Δοκιμάστε ξανά.",
+        "loanDueDayLabel": "Ημέρα λήξης",
+        "loanDueDayHint": "Προαιρετικό: ημέρα του μήνα, 1 έως 31. Οι δόσεις που σημειώνονται ως πληρωμένες παίρνουν τότε αυτή την ημέρα αντί για τη σημερινή. Στους μικρότερους μήνες ισχύει η τελευταία ημέρα.",
+        "loanDueDayInvalid": "Εισαγάγετε ημέρα από 1 έως 31 ή αφήστε το πεδίο κενό",
+        "loanPaymentAddedOnToast": "Η πληρωμή καταγράφηκε με ημερομηνία {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Εμφάνιση καρτέλας κύκλου",

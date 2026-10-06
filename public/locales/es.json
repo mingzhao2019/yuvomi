@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Préstamo añadido",
         "loanSavedToast": "Préstamo guardado",
         "loanDeletedToast": "Préstamo eliminado",
-        "loanPaymentAddedToast": "Pago registrado",
         "loanPaymentTitle": "Pago del préstamo: {{borrower}}",
         "typeLoan": "Préstamo",
         "tabsLabel": "Secciones del presupuesto",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} movimiento encontrado",
         "ledgerSearchTruncated": "Los {{limit}} resultados más recientes - afina la búsqueda",
         "ledgerSearchEmpty": "Ningún movimiento coincide con «{{query}}»",
-        "ledgerSearchError": "La búsqueda ha fallado. Inténtalo de nuevo."
+        "ledgerSearchError": "La búsqueda ha fallado. Inténtalo de nuevo.",
+        "loanDueDayLabel": "Día de vencimiento",
+        "loanDueDayHint": "Opcional: día del mes, del 1 al 31. Las cuotas marcadas como pagadas se fechan entonces en este día en lugar de hoy. En los meses más cortos se usa el último día.",
+        "loanDueDayInvalid": "Introduce un día del 1 al 31 o deja el campo vacío",
+        "loanPaymentAddedOnToast": "Pago registrado con fecha {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Mostrar la pestaña de ciclo",

@@ -1553,7 +1553,6 @@
         "loanAddedToast": "貸付を追加しました",
         "loanSavedToast": "貸付を保存しました",
         "loanDeletedToast": "貸付を削除しました",
-        "loanPaymentAddedToast": "返済を記録しました",
         "loanPaymentTitle": "ローン返済: {{borrower}}",
         "typeLoan": "貸付",
         "tabsLabel": "予算セクション",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} 件の取引が見つかりました",
         "ledgerSearchTruncated": "新しい順に {{limit}} 件 - 検索語を絞り込んでください",
         "ledgerSearchEmpty": "「{{query}}」に一致する取引はありません",
-        "ledgerSearchError": "検索に失敗しました。もう一度お試しください。"
+        "ledgerSearchError": "検索に失敗しました。もう一度お試しください。",
+        "loanDueDayLabel": "支払日",
+        "loanDueDayHint": "任意：毎月の日付（1から31）。返済済みにした回は、今日ではなくこの日付で記録されます。日数の少ない月は末日になります。",
+        "loanDueDayInvalid": "1から31の日付を入力するか、空欄にしてください",
+        "loanPaymentAddedOnToast": "{{date}}付で返済を記録しました"
     },
     "settings": {
         "healthCycleEnableLabel": "周期タブを表示",

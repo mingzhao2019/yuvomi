@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Hitel hozzáadva",
         "loanSavedToast": "Hitel mentve",
         "loanDeletedToast": "Hitel törölve",
-        "loanPaymentAddedToast": "Fizetés rögzítve",
         "loanPaymentTitle": "Hitel visszafizetés: {{borrower}}",
         "typeLoan": "Hitel",
         "tabsLabel": "Költségvetési szakaszok",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} tranzakció található",
         "ledgerSearchTruncated": "A legújabb {{limit}} találat - szűkítse a keresést",
         "ledgerSearchEmpty": "Egy tranzakció sem egyezik ezzel: „{{query}}”",
-        "ledgerSearchError": "A keresés nem sikerült. Próbálja újra."
+        "ledgerSearchError": "A keresés nem sikerült. Próbálja újra.",
+        "loanDueDayLabel": "Esedékesség napja",
+        "loanDueDayHint": "Nem kötelező: a hónap napja, 1 és 31 között. A fizetettként jelölt részletek ekkor erre a napra kerülnek a mai nap helyett. Rövidebb hónapokban az utolsó nap érvényes.",
+        "loanDueDayInvalid": "Adjon meg egy napot 1 és 31 között, vagy hagyja üresen",
+        "loanPaymentAddedOnToast": "Fizetés rögzítve ezzel a dátummal: {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Ciklus fül megjelenítése",

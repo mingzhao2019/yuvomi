@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Khoản vay đã thêm",
         "loanSavedToast": "Khoản vay đã lưu",
         "loanDeletedToast": "Khoản vay đã xóa",
-        "loanPaymentAddedToast": "Đã ghi nhận thanh toán",
         "loanPaymentTitle": "Trả nợ khoản vay: {{borrower}}",
         "typeLoan": "Khoản vay",
         "tabsLabel": "Các phần ngân sách",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "Tìm thấy {{count}} giao dịch",
         "ledgerSearchTruncated": "{{limit}} kết quả mới nhất - hãy thu hẹp tìm kiếm",
         "ledgerSearchEmpty": "Không có giao dịch nào khớp với “{{query}}”",
-        "ledgerSearchError": "Tìm kiếm không thành công. Vui lòng thử lại."
+        "ledgerSearchError": "Tìm kiếm không thành công. Vui lòng thử lại.",
+        "loanDueDayLabel": "Ngày đáo hạn",
+        "loanDueDayHint": "Tùy chọn: ngày trong tháng, từ 1 đến 31. Các kỳ được đánh dấu đã trả sẽ được ghi vào ngày này thay vì hôm nay. Với tháng ngắn hơn, ngày cuối tháng được áp dụng.",
+        "loanDueDayInvalid": "Nhập ngày từ 1 đến 31 hoặc để trống",
+        "loanPaymentAddedOnToast": "Đã ghi nhận thanh toán vào ngày {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Hiện tab chu kỳ",

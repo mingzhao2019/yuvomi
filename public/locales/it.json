@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Prestito aggiunto",
         "loanSavedToast": "Prestito salvato",
         "loanDeletedToast": "Prestito eliminato",
-        "loanPaymentAddedToast": "Pagamento registrato",
         "loanPaymentTitle": "Rimborso del prestito: {{borrower}}",
         "typeLoan": "Prestito",
         "tabsLabel": "Sezioni del bilancio",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} movimento trovato",
         "ledgerSearchTruncated": "I {{limit}} risultati più recenti - restringi la ricerca",
         "ledgerSearchEmpty": "Nessun movimento corrisponde a «{{query}}»",
-        "ledgerSearchError": "La ricerca non è riuscita. Riprova."
+        "ledgerSearchError": "La ricerca non è riuscita. Riprova.",
+        "loanDueDayLabel": "Giorno di scadenza",
+        "loanDueDayHint": "Facoltativo: giorno del mese, da 1 a 31. Le rate segnate come pagate vengono allora datate a questo giorno invece che a oggi. Nei mesi più corti vale il giorno finale del mese.",
+        "loanDueDayInvalid": "Inserisci un giorno da 1 a 31 oppure lascia il campo vuoto",
+        "loanPaymentAddedOnToast": "Pagamento registrato in data {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Mostra la scheda ciclo",

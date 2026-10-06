@@ -1567,7 +1567,6 @@
         "loanAddedToast": "وام افزوده شد",
         "loanSavedToast": "وام ذخیره شد",
         "loanDeletedToast": "وام حذف شد",
-        "loanPaymentAddedToast": "پرداخت ثبت شد",
         "loanPaymentTitle": "بازپرداخت وام: {{borrower}}",
         "typeLoan": "وام",
         "tabsLabel": "بخش‌های بودجه",
@@ -1774,7 +1773,11 @@
         "ledgerSearchCount_one": "{{count}} تراکنش پیدا شد",
         "ledgerSearchTruncated": "{{limit}} نتیجهٔ جدیدتر - جست‌وجو را دقیق‌تر کنید",
         "ledgerSearchEmpty": "هیچ تراکنشی با «{{query}}» مطابقت ندارد",
-        "ledgerSearchError": "جست‌وجو ناموفق بود. لطفاً دوباره تلاش کنید."
+        "ledgerSearchError": "جست‌وجو ناموفق بود. لطفاً دوباره تلاش کنید.",
+        "loanDueDayLabel": "روز سررسید",
+        "loanDueDayHint": "اختیاری: روزی از ماه، از 1 تا 31. اقساطی که پرداخت‌شده علامت می‌خورند به جای امروز با این روز ثبت می‌شوند. در ماه‌های کوتاه‌تر آخرین روز ماه در نظر گرفته می‌شود.",
+        "loanDueDayInvalid": "روزی از 1 تا 31 وارد کنید یا خالی بگذارید",
+        "loanPaymentAddedOnToast": "پرداخت با تاریخ {{date}} ثبت شد"
     },
     "settings": {
         "healthCycleEnableLabel": "نمایش برگهٔ چرخه",

@@ -1711,7 +1711,6 @@
         "loanAddedToast": "Pożyczka dodana",
         "loanSavedToast": "Pożyczka zapisana",
         "loanDeletedToast": "Pożyczka usunięta",
-        "loanPaymentAddedToast": "Płatność zarejestrowana",
         "loanPaymentTitle": "Spłata pożyczki: {{borrower}}",
         "typeLoan": "Pożyczka",
         "tabsLabel": "Sekcje budżetu",
@@ -1924,7 +1923,11 @@
         "pendingSummary_few": "{{count}} oczekujące pozycje: {{amount}}",
         "pendingSummary_many": "Oczekujące pozycje: {{count}} ({{amount}})",
         "receiptsAttachedLabel_few": "Załączone dowody: {{count}}",
-        "receiptsAttachedLabel_many": "Załączone dowody: {{count}}"
+        "receiptsAttachedLabel_many": "Załączone dowody: {{count}}",
+        "loanDueDayLabel": "Dzień płatności",
+        "loanDueDayHint": "Opcjonalnie: dzień miesiąca, od 1 do 31. Raty oznaczone jako zapłacone otrzymują wtedy datę tego dnia zamiast dzisiejszej. W krótszych miesiącach obowiązuje ostatni dzień.",
+        "loanDueDayInvalid": "Podaj dzień od 1 do 31 albo zostaw pole puste",
+        "loanPaymentAddedOnToast": "Płatność zarejestrowana z datą {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Pokaż kartę cyklu",

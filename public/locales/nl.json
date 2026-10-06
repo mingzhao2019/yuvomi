@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Lening toegevoegd",
         "loanSavedToast": "Lening opgeslagen",
         "loanDeletedToast": "Lening verwijderd",
-        "loanPaymentAddedToast": "Betaling vastgelegd",
         "loanPaymentTitle": "Leningaflossing: {{borrower}}",
         "typeLoan": "Lening",
         "tabsLabel": "Budgetsecties",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} transactie gevonden",
         "ledgerSearchTruncated": "De nieuwste {{limit}} resultaten - verfijn je zoekopdracht",
         "ledgerSearchEmpty": "Geen transactie komt overeen met ‘{{query}}’",
-        "ledgerSearchError": "Zoeken is mislukt. Probeer het opnieuw."
+        "ledgerSearchError": "Zoeken is mislukt. Probeer het opnieuw.",
+        "loanDueDayLabel": "Vervaldag",
+        "loanDueDayHint": "Optioneel: dag van de maand, 1 tot en met 31. Termijnen die als betaald worden gemarkeerd, krijgen dan deze dag als datum in plaats van vandaag. In kortere maanden geldt de laatste dag.",
+        "loanDueDayInvalid": "Voer een dag van 1 tot en met 31 in of laat het veld leeg",
+        "loanPaymentAddedOnToast": "Betaling vastgelegd op {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Cyclustabblad tonen",

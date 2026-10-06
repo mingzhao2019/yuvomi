@@ -1567,7 +1567,6 @@
         "loanAddedToast": "Naidagdag ang utang",
         "loanSavedToast": "Na-save ang utang",
         "loanDeletedToast": "Natanggal ang utang",
-        "loanPaymentAddedToast": "Naitala ang bayad",
         "loanPaymentTitle": "Bayad sa utang: {{borrower}}",
         "typeLoan": "Utang",
         "tabsLabel": "Mga bahagi ng badyet",
@@ -1774,7 +1773,11 @@
         "ledgerSearchCount_one": "{{count}} transaksyon ang nahanap",
         "ledgerSearchTruncated": "Ang {{limit}} pinakabagong resulta - paliitin ang paghahanap",
         "ledgerSearchEmpty": "Walang transaksyong tumutugma sa “{{query}}”",
-        "ledgerSearchError": "Nabigo ang paghahanap. Pakisubukang muli."
+        "ledgerSearchError": "Nabigo ang paghahanap. Pakisubukang muli.",
+        "loanDueDayLabel": "Araw ng taning",
+        "loanDueDayHint": "Opsyonal: araw ng buwan, 1 hanggang 31. Ang mga hulog na minarkahang bayad ay itatala sa araw na ito sa halip na ngayong araw. Sa mas maiikling buwan, ang huling araw ang gagamitin.",
+        "loanDueDayInvalid": "Maglagay ng araw mula 1 hanggang 31, o iwanang blangko",
+        "loanPaymentAddedOnToast": "Naitala ang bayad sa petsang {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Ipakita ang tab ng siklo",

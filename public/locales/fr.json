@@ -1553,7 +1553,6 @@
         "loanAddedToast": "Prêt ajouté",
         "loanSavedToast": "Prêt enregistré",
         "loanDeletedToast": "Prêt supprimé",
-        "loanPaymentAddedToast": "Paiement enregistré",
         "loanPaymentTitle": "Remboursement du prêt : {{borrower}}",
         "typeLoan": "Prêt",
         "tabsLabel": "Sections du budget",
@@ -1760,7 +1759,11 @@
         "ledgerSearchCount_one": "{{count}} opération trouvée",
         "ledgerSearchTruncated": "Les {{limit}} résultats les plus récents - affinez la recherche",
         "ledgerSearchEmpty": "Aucune opération ne correspond à « {{query}} »",
-        "ledgerSearchError": "La recherche a échoué. Veuillez réessayer."
+        "ledgerSearchError": "La recherche a échoué. Veuillez réessayer.",
+        "loanDueDayLabel": "Jour d’échéance",
+        "loanDueDayHint": "Facultatif : jour du mois, de 1 à 31. Les échéances marquées comme payées sont alors datées de ce jour et non d’aujourd’hui. Les mois plus courts prennent leur dernier jour.",
+        "loanDueDayInvalid": "Indiquez un jour de 1 à 31 ou laissez le champ vide",
+        "loanPaymentAddedOnToast": "Paiement enregistré au {{date}}"
     },
     "settings": {
         "healthCycleEnableLabel": "Afficher l’onglet cycle",
