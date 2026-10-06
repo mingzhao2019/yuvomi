@@ -10354,7 +10354,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 231,
+    version: 241,
     description: 'Users: a deactivated account keeps its row (#1381)',
     // WER SPUREN IN GETEILTEN DATEN HINTERLASSEN HAT, WIRD DEAKTIVIERT STATT
     // GELOESCHT (#1381). `DELETE FROM users` liess bis hierher die

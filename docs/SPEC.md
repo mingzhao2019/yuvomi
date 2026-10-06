@@ -35,9 +35,9 @@ Every table: `id INTEGER PRIMARY KEY`, `created_at TEXT`, `updated_at TEXT` (ISO
 | schedule_overtime_enabled | INTEGER | Nullable (migration v208) - `NULL`/1 = overtime tracking on, 0 = off |
 | waste_feed_token | TEXT | Nullable (migration v205) - secret token of this member's Waste pickup ICS feed. Partial UNIQUE index WHERE NOT NULL |
 | waste_feed_type_ids | TEXT | Nullable (migration v205) - JSON array of `waste_types.id` for that feed; `NULL` = every active type |
-| deactivated_at | TEXT | Nullable (migration v231, #1381) - ISO 8601 moment the account was deactivated; `NULL` = active. See "Removing an account" below |
+| deactivated_at | TEXT | Nullable (migration v241, #1381) - ISO 8601 moment the account was deactivated; `NULL` = active. See "Removing an account" below |
 
-**Removing an account: deactivate or delete (v231, #1381).** `DELETE /api/v1/auth/users/:id` used
+**Removing an account: deactivate or delete (v241, #1381).** `DELETE /api/v1/auth/users/:id` used
 to run `DELETE FROM users` and let the foreign keys decide. For shared data that was wrong in two
 opposite ways: `created_by ... ON DELETE CASCADE` took a person's appointments, notes, documents and
 the payments they had recorded for others with them (changing other members' balances silently),
