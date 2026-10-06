@@ -45,6 +45,10 @@ const ALLOWED = {
     count: 1,
     reason: 'The same title suffix for the Outlook push; a changed order would push every event again.',
   },
+  'server/routes/inventory/access.js': {
+    count: 1,
+    reason: 'Inventory assigned_users belong to one asset record; the existing saved assignment order is intentionally preserved, as with other people stored on a single record.',
+  },
 };
 
 function sourceFiles(dir) {
