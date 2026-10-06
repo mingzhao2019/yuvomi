@@ -310,3 +310,67 @@ provider allowlist (`message_pusher`/Webhook); `test:notifications` passes
 completed in the authorized environment with `npm test` exit code 0; the
 captured log contains no failing subtests. `git diff --check` also passed. No
 push or remote state change was performed.
+
+## Current sync checkpoint (2026-10-06)
+
+Local `main` and `upstream/main` both point to `789ff8a98` (v2.73.0). The
+integration branch `custom-upstream-selective-2026-10-06` started at custom
+`18b6f390c` and points to `8212763d0`; it has not yet been fast-forwarded into
+`custom`. The upstream range after the previous checkpoint was reviewed in
+upstream order. Upstream was not merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `6bd9110cb` (#1673) | Adds shared spacing, UI building blocks, inputs, and motion primitives across the modules. | Cherry-picked as `0ccbf48a3`; composed the broad UI refresh with custom notification, task-list, calendar, inventory, and dashboard behavior. |
+| `d5b193066` (#1677) | Logs provider error fields when OIDC sign-on fails. | Cherry-picked as `7b241ed18`; no custom authentication contract changed. |
+| `6d5124a50` (#1678) | Opens a read-only pantry view instead of the editor. | Cherry-picked as `11122f393`; retained custom read/write module gates. |
+| `7ba8be04f` (#1681) | Allows revoked and expired API tokens to be removed. | Cherry-picked as `7d4cd17b0`; retained the custom API error and permission contracts. |
+| `49b42fccb` (#1684) | Shows 5, 8, or 12 appointments in the overview calendar tile by width. | Cherry-picked as `b3b6c5e65`; retained custom dashboard widgets and event completion state. |
+| `b63437459` (#1685) | Bumps `proxy-addr` from 2.0.7 to 2.0.8. | Cherry-picked as `a72ea38d4`. |
+| `f610fee81` (#1686) | Sends a refusal with its own reason only once. | Cherry-picked as `6098d1f21`; retained custom refusal classification and localized API behavior. |
+| `f99d2b06c` (#1687) | Deactivates a member with shared entries instead of deleting the member. | Cherry-picked as `f74a70589`; appended custom migration 241 after the custom schema and retained the custom deactivation/restore semantics. |
+| `80fafe6ee` (#1416) | Deletes split expenses through exact reverse ledger entries. | Adopted as `28333a9da`; retained the reverse-ledger author and rounding behavior required by custom account deactivation. |
+| `5280718f6` (#1692) | Moves `navigate()` into its own module. | Cherry-picked as `1493aef5`; retained custom guest-route detours and navigation guards. |
+| `bb4231016` (#1691) | Refines the tab strip, calendar week, settings link, and viewer focus behavior. | Cherry-picked as `c51099d57`; combined it with custom settings and document navigation behavior. |
+| `ce1fd615c` (#1693) | Shows budget refusal sentences in the app at the relevant field. | Cherry-picked as `20d501990`; retained custom budget visibility and account semantics. |
+| `208aedd2c` (#1690) | Gives members with shared initials distinct initials. | Cherry-picked as `25cc4768f`; kept custom member ordering and avatar behavior. |
+| `d4586493d` (#1694) | Keeps API budget error sentences in English. | Cherry-picked as `4c73ac5d3`; retained the structured refusal reason contract. |
+| `882d620ae` (#1696) | Gives the test infrastructure an OS file path instead of a URL pathname. | Cherry-picked as `c779f9d18`. |
+| `7e3dbe36d` (#1710) | Removes roadmap lines that became tracked issues from the Later list. | Cherry-picked as `dad78d91c`; documentation only. |
+| `e272bb9ea` (#1717) | Makes demo PDFs real PDFs that the preview can open. | Cherry-picked as `a86bc613a`; retained the custom demo seed paths. |
+| `3310c6f99` (#1716) | Uses one reminder-sync name and correct waste color names. | Cherry-picked as `e892c1da6`; retained custom notification-channel labels. |
+| `501aa0933` (#1718) | Keeps long board titles, Korean hints, and won amounts visible. | Cherry-picked as `933edd73f`; composed with custom responsive layout rules. |
+| `0221339bc` (#1714) | Resuming a recurring split expense skips missed dates. | Cherry-picked as `7df27f7b0`; retained custom reverse-ledger semantics. |
+| `acd0e55b1` (#1715) | Adds one shared read row that communicates the action of a tap. | Cherry-picked as `d59d49922`; retained custom read-only module behavior. |
+| `4fb50255f` (#1719) | Places overlapping calendar events in lanes by person. | Cherry-picked as `09ca508bf`; retained custom Outlook/ICS boundaries and timezone behavior. |
+| `789ff8a98` (#1720) | Lets a household set one order for its members and uses it in member lists. | Manually ported as `8b38f1122`; appended custom migration 242, retained inventory `assigned_users` storage order as an explicit exception, and preserved custom permission/API behavior. |
+
+The integration branch also contains five custom-only follow-up commits: the
+custom migration placement for member deactivation, split-expense reversal
+suite documentation, the Inventory assignment-order guard, task-list refusal
+reason classification coverage, and the notification-help motion-token fix.
+They close custom compatibility and test gaps exposed while applying the
+upstream commits; they are not additional upstream history.
+
+The main semantic conflicts were resolved as follows. The Microsoft To Do
+list mapping, Outlook/ICS rules, persistent task lists, notification channels,
+Inventory/assets, and dashboard widgets remain authoritative in custom. The
+member deactivation change appends migration 241, and member ordering appends
+migration 242; released migrations were not edited. Inventory asset
+`assigned_users` keeps its saved order because it is a single-record field,
+while people lists use the household order. Split-expense deletion continues
+to use the reverse ledger. Upstream UI motion tokens were combined with the
+custom notification template help styling.
+
+There is no release-version change in this range: root package metadata,
+both root lockfile version fields, `public/sw.js`, and current release
+metadata remain at v2.73.0. Microsoft To Do mapping, Outlook/ICS calendars,
+persistent task lists, separate personal/household notification channels,
+Inventory/assets, and dashboard widgets remain present with their custom
+semantics.
+
+Focused tests passed for the API, member ordering, split-expense reversal,
+append-only migrations, suite chaining, motion tokens, settings navigation,
+and notification-channel forms. The full `npm test` completed with exit code
+0. `git diff --check` passed before this documentation checkpoint. No push or
+remote state change has been performed yet.
