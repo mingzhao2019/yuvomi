@@ -428,9 +428,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every 400 and 409 of the write routes for entries, series, accounts, categories and loans
   now carries a `reason` next to `error`, three of them with `max` (the limit the refusal is
   about); budget plans are unchanged. A refused `POST /api/v1/budget/loans/preview` says why
-  (`reason`, `max`). The `error` texts are unchanged, with one correction: an unknown
-  `account_id` was answered in German and now reads "Account not found." or "account_id must
-  be a valid account id.".
+  (`reason`, `max`). An unknown `account_id` was answered in German and now reads "Account
+  not found." or "account_id must be a valid account id."; the other German `error` sentences
+  of the budget routes are the next entry.
+
+- **Budget API: the `error` sentences are English throughout.** For API clients only - the app
+  does not show these sentences, it reads `reason`. Some refusals of the budget routes were
+  still German or half German, because a German field name was put into an English sentence:
+  "month muss YYYY-MM sein", "Betrag muss größer als 0 sein.", "Titel is required.", "Kontotyp
+  must be one of: ...". They now read "month must be in YYYY-MM format.", "Amount must be
+  greater than zero.", "Title is required.", "Account type must be one of: ...", and the same
+  goes for the other field names: Amount, Category, Date, Interval, Interval count, Starting
+  balance, Credit limit, Color, Type, and `recurrence_rule` for an invalid rule. Affected are
+  entries, series, booking an expected entry, accounts, categories, budget plans, and the
+  `month`, `q`, `range` and `anchor` parameters of the list, the summary, the search and the
+  statistics. Status codes and every `reason` are exactly as before; `reason` is the stable
+  key, so a client that compared the `error` text should switch to it. Where a sentence lists
+  the allowed category keys, the keys of the built-in income categories are still German
+  words - they are stored keys, not wording. Other modules are unchanged (#1668).
 
 ## [2.73.0] - 2026-10-04
 
