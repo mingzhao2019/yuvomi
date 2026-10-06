@@ -290,6 +290,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
   document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
   same 403 for every id. (#1358)
+- **The PDFs in the demo data are real PDFs** (#1511). The demo documents carried a line of
+  placeholder text under a `.pdf` name, so the built-in preview could not open them and
+  every screenshot of an opened document showed an error. Each one is now a one-page PDF with
+  the title and description of its entry, in the language the demo was seeded in, and it opens
+  in the preview and in the browser's own viewer. The three demo images are still placeholders.
+  Only a database filled by `scripts/seed-demo.js` is affected.
+
 - **An avatar never shows more than one character per name part** (#1464). A name starting
   with "ß" put three letters on the disc ("ßeta Schmidt" showed "SSS"), because writing a
   letter in capitals can turn it into two; the same went for the ligatures "ﬁ" and "ﬂ". The
