@@ -769,8 +769,6 @@
         "kanbanArchiveDoneConfirm": "أرشفة جميع المهام المنجزة في هذا العمود؟",
         "kanbanArchiveDoneAction": "أرشفة",
         "filterDueToday": "المستحقة حتى اليوم",
-        "bulkDeleteAsk_two": "حذف مهمتين؟",
-        "bulkDeleteAsk_many": "حذف {{count}} مهمة؟",
         "tagUsageCount_few": "{{count}} مهام",
         "tagUsageCount_two": "مهمتان",
         "tagUsageCount_many": "{{count}} مهمة",

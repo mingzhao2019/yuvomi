@@ -728,7 +728,6 @@
         "kanbanArchiveDoneConfirm": "Архівувати всі виконані завдання в цьому стовпці?",
         "kanbanArchiveDoneAction": "Архівувати",
         "filterDueToday": "Термін до сьогодні",
-        "bulkDeleteAsk_many": "Видалити завдання ({{count}})?",
         "tagUsageCount_few": "{{count}} завдання",
         "tagUsageCount_many": "{{count}} завдань",
         "tagDeleteConfirm_few": "Прибрати {{tag}} із {{count}} завдань?",

@@ -742,7 +742,6 @@
         "kanbanArchiveDoneConfirm": "Zarchiwizować wszystkie ukończone zadania w tej kolumnie?",
         "kanbanArchiveDoneAction": "Zarchiwizuj",
         "filterDueToday": "Termin do dziś",
-        "bulkDeleteAsk_many": "Usunąć {{count}} zadań?",
         "tagUsageCount_few": "{{count}} zadania",
         "tagUsageCount_many": "{{count}} zadań",
         "tagDeleteConfirm_few": "Usunąć {{tag}} z {{count}} zadań?",
