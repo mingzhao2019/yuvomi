@@ -397,3 +397,52 @@ Focused loan validation passed 19/19, recurring split validation passed 40/40,
 and the chart-gutter logic test passed. The browser chart suite could not run
 because the required Puppeteer Chrome 152.0.7977.42 is not installed in this
 environment. No push or remote state change has been performed yet.
+
+## Current sync checkpoint (2026-10-07)
+
+Local `main` and `upstream/main` both point to `45a55a954` (v2.73.0). The
+integration branch `custom-upstream-selective-2026-10-06` started at custom
+`97a4447c0` and points to `1c3dedfb3`; it has not yet been fast-forwarded into
+`custom`. The eight upstream commits after the previous checkpoint at
+`1c8befe40` were reviewed and integrated in upstream order. Upstream was not
+merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `95cb03e9f` (#1725) | Localizes holiday country names and regions, adds a standalone bulk-delete label, and keeps the CalDAV section name. | Cherry-picked as `5e63247ab`; retained custom locale and calendar contracts. |
+| `7b67c1880` (#1732) | Updates `sharp` from 0.35.4 to 0.35.5, including the bundled security fix. | Cherry-picked as `71b6aad44`. |
+| `2d3bc0e40` (#1731) | Removes meal-plan and recipe write controls for members with read-only kitchen access. | Cherry-picked as `9a11f47e9`; retained the custom module gates and pantry write boundary. |
+| `b23f974dc` (#1729) | Clarifies housekeeping, waste, dashboard-size, and weather-settings wording. | Cherry-picked as `315e4b3a2`; existing custom stored values remain unchanged. |
+| `834646603` (#1665) | Lets each device choose its screensaver idle delay. | Cherry-picked as `78775fcdc`; kept the device-local storage contract and theme-init path. |
+| `060304f77` (#1735) | Removes inventory/document write controls on read access and enforces document ownership in the UI. | Cherry-picked as `ab9261e46`; retained server-side permission and visibility rules. |
+| `47964c697` (#1736) | Adds coverage for the inventory/document read-only gates and their write-access counter-cases. | Cherry-picked as `253057973`. |
+| `45a55a954` (#1737) | Lets a meal and a recurring meal series name a household member as cook. | Manually ported as `54d1857e0`; relocated the upstream migration 235 to custom migration 245 and retained custom member, deactivation, permission, API, and UI behavior. |
+
+The upstream meal feature was the only semantic port in this range. The
+custom schema already owns migrations 233 and 234, and the custom branch had
+since added migration 241 and 242, so the nullable cook columns were appended
+as migration 245 without changing released migrations. The cook is a shared
+responsibility rather than ownership: `meals: read` still controls visibility,
+`meals: write` controls edits, only household members can be newly selected,
+and a stored cook remains valid while the account is deactivated. Single-meal,
+series, and apply-plan writes preserve the missing-field semantics documented
+in `docs/SPEC.md`.
+
+The locale patch required one custom follow-up, `1c3dedfb3`, removing five
+duplicate plural keys that the upstream localization change encountered in
+custom `ar`, `pl`, `ru`, and `uk` files. This was a correction to the merged
+locale state, not another upstream commit. It restores `test:i18n` without
+discarding any newly translated key.
+
+There is no release-version change in this range: root package metadata, both
+root lockfile version fields, `public/sw.js`, and current release metadata
+remain at v2.73.0. The CI workflow now sets `PUPPETEER_SKIP_DOWNLOAD` and
+points Puppeteer at the hosted runner's `/usr/bin/google-chrome`; the previous
+failure happened during `npm ci` while Puppeteer was downloading Chrome, so
+the test command had not started.
+
+Focused validation passed for meals/cook (40/40), dashboard, frontend audit,
+schema and migration append-only checks, i18n, and plural i18n. The second
+full `npm test` run completed with exit code 0 and no failing subtests.
+`git diff --check` passed. No push or remote state change has been performed
+yet.

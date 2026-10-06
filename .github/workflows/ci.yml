@@ -23,6 +23,11 @@ jobs:
     name: Tests (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # The hosted runner already provides Chrome. Do not make npm ci depend on
+      # Puppeteer's storage.googleapis.com download completing successfully.
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
 
     strategy:
       matrix:
@@ -112,13 +117,17 @@ jobs:
   # 05e6ef250 in 4 von 15 Journal-Tests rot, ohne dass es jemand sah. Sie braucht
   # allein rund 7 Minuten und laeuft deshalb hier als eigener Job, parallel zu den
   # Tests. Eine Node-Version reicht: die Suite misst das Dokument im Browser, nicht
-  # die Laufzeit; 24.x ist die des Images. Chromium bringt `npm ci` mit (puppeteer,
-  # freigegeben unter `allowScripts` in package.json), der Harness startet es
-  # headless mit --no-sandbox (test/document-guards-harness.js).
+  # die Laufzeit; 24.x ist die des Images. Der Runner stellt Chrome bereit;
+  # Puppeteers Installations-Download ist deshalb in diesem Job ebenfalls
+  # abgeschaltet. Der Harness startet den System-Browser headless mit
+  # --no-sandbox (test/document-guards-harness.js).
   fasting-browser:
     name: Fasting browser suite (Node.js 24.x)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
