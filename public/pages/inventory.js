@@ -28,7 +28,7 @@ import { formatMoney } from '/utils/money.js';
 import { todayKey } from '/utils/date.js';
 import { formatDate, getLocale, getNumberFormat } from '/i18n.js';
 import { renderDocumentAttachField, bindDocumentAttachField } from '/components/document-attach.js';
-import { pathAccess } from '/utils/module-access.js';
+import { pathAccess, mayWritePath } from '/utils/module-access.js';
 import { warrantyStatus, hasUpcomingDeadline, dateStatus, countUpcomingDeadlines, deadlineChipSpec } from '/utils/inventory-warranty.js';
 import { openDetailView, closeDetailView } from '/components/detail-view.js';
 import { mountMasterDetail, splitViewDetailHtml } from '/utils/master-detail.js';
@@ -54,6 +54,30 @@ const state = {
   currentUser: null,
 };
 
+/**
+ * Darf dieses Konto ins Inventar schreiben? Regel 1 in utils/module-access.js.
+ * Als Funktion, damit jedes Neuzeichnen neu fragt (ein Rechtewechsel kommt
+ * ohne Reload an).
+ *
+ * WAS BEI `read` BLEIBT: Suche, Kennzahlen, Fristen-Filter, Kategorien, die
+ * Zeile mit Status und Frist als ZEICHEN - und der Tipp auf sie, der die
+ * Detailansicht oeffnet. Die war schon immer eine Leseansicht (Regel 9); bei
+ * `read` nennt sie zusaetzlich, was sonst nur das Formular zeigte: den
+ * Erinnerungs-Vorlauf und das Monats-Intervall einer Frist.
+ * WAS GEHT: Anlegen (FAB, Leerzustand samt Einladungstext), „Bearbeiten" und
+ * „Loeschen" der Detailansicht, „Erledigt" an einer faelligen Frist und die
+ * Verwaltung von Orten und Kategorien (Regel 7). Belege lesen und oeffnen
+ * folgt weiter dem Dokumente-Recht (attachmentDetailEntries), verknuepfte
+ * Buchungen dem Budget-Recht (showsBookings).
+ *
+ * KEIN WANDTABLETT: ein Display fuehrt `inventory` nicht in seiner Scope-Liste
+ * (server/display-scopes.js) und erreicht diese Seite nicht; ein
+ * `actingAsDisplay()` davor braucht es hier nicht.
+ */
+function readOnly() {
+  return !mayWritePath('/inventory');
+}
+
 async function loadLocations() {
   const res = await api.get('/inventory/locations');
   state.locations = res.data;
@@ -74,6 +98,7 @@ function categoryTracksOdometer(categoryKey) {
 // Ort-Verwaltung (zwei Ebenen ueber dieselbe Komponente wie Budget-Kategorien)
 // --------------------------------------------------------
 async function openLocationManager() {
+  if (readOnly()) return;
   await import('/components/category-manager.js');
 
   // Die Auffrischung haengt am Ereignis, nicht am Schliessen: beim Loeschen
@@ -129,6 +154,7 @@ async function openLocationManager() {
 // Kategorie-Verwaltung (flach, keine Unterebene)
 // --------------------------------------------------------
 async function openCategoryManager() {
+  if (readOnly()) return;
   await import('/components/category-manager.js');
 
   // Wie bei den Orten: das Ereignis traegt die Auffrischung, nicht das
@@ -742,6 +768,20 @@ function syncDetailTop(page, detail) {
   page.style.setProperty('--inventory-detail-top', `${Math.round(detail.getBoundingClientRect().top)}px`);
 }
 
+/**
+ * Der Leerzustand der Seite. Bei `read` nur die Auskunft: die Beschreibung
+ * („Trage ein, was du besitzt ...") laedt zu der Handlung ein, die der Knopf
+ * darunter meint, und faellt mit ihm weg (Regel 9).
+ */
+function emptyInventoryState() {
+  if (readOnly()) return { title: t('inventory.emptyTitle') };
+  return {
+    title: t('inventory.emptyTitle'),
+    description: t('inventory.emptyDescription'),
+    action: { label: t('inventory.addItem'), icon: 'plus', onClick: () => openItemModal('create') },
+  };
+}
+
 function renderListBody() {
   const list = _container?.querySelector('#inventory-list');
   if (!list) return;
@@ -756,11 +796,7 @@ function renderListBody() {
     syncInventoryHeader();
     const filtersHost = _container?.querySelector('#inventory-filters');
     if (filtersHost) filtersHost.hidden = true;
-    list.replaceChildren(emptyStateEl({
-      title: t('inventory.emptyTitle'),
-      description: t('inventory.emptyDescription'),
-      action: { label: t('inventory.addItem'), icon: 'plus', onClick: () => openItemModal('create') },
-    }));
+    list.replaceChildren(emptyStateEl(emptyInventoryState()));
     return;
   }
 
@@ -949,6 +985,20 @@ function warrantyDetailValue(item) {
   return t('inventory.warrantyStatusValid', { date: formattedDate });
 }
 
+/**
+ * Was an einer Frist sonst nur das Formular zeigt: der Erinnerungs-Vorlauf und
+ * das Monats-Intervall. Wer schreiben darf, findet beides hinter „Bearbeiten";
+ * bei `read` gibt es das Formular nicht, also stehen die Werte in der Zeile
+ * (Regel 9) - mit den Beschriftungen des Formulars, damit beide dasselbe sagen.
+ */
+function trackedDateFormOnlyValues(d) {
+  if (!readOnly()) return [];
+  return [
+    d.reminder_offset_days != null ? `${t('inventory.trackedDateRemindBeforeLabel')}: ${d.reminder_offset_days}` : '',
+    d.interval_months ? `${t('inventory.trackedDateIntervalMonthsLabel')}: ${d.interval_months}` : '',
+  ];
+}
+
 /** Fristen-Zeile je getrackter Frist: Bezeichnung + Datum + Countdown. */
 function trackedDateDetailEntries(item) {
   return (item.tracked_dates || []).map((d) => {
@@ -960,7 +1010,7 @@ function trackedDateDetailEntries(item) {
     const distanceHint = d.interval_distance
       ? t('inventory.trackedDateDistanceHint', { value: formatOdometer(d.interval_distance), count: d.interval_distance, unit: odometerUnitLabel(item.odometer_unit) })
       : '';
-    const sub = [countdown ? `${formatDate(d.date)} · ${countdown}` : formatDate(d.date), distanceHint]
+    const sub = [countdown ? `${formatDate(d.date)} · ${countdown}` : formatDate(d.date), distanceHint, ...trackedDateFormOnlyValues(d)]
       .filter(Boolean).join(' · ');
     return { text: d.label, sub };
   });
@@ -999,7 +1049,9 @@ function trackedDatesDetailNode(item, onDone) {
     }
     line.appendChild(main);
 
-    if (due) {
+    // „Erledigt" ist eine Handlung und faellt bei `read` weg; dass die Frist
+    // faellig ist, sagt die Zeile selbst (Countdown in `sub`).
+    if (due && typeof onDone === 'function') {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn btn--secondary btn--sm inventory-tracked-date-detail-row__done';
@@ -1307,7 +1359,8 @@ async function openItemDetail(item, { pane = null, signal = null } = {}) {
   // gewaehlt sein - dann gehoert die Spalte ihr, nicht diesem Gegenstand.
   if (signal?.aborted) return;
 
-  const onDoneTrackedDate = async (trackedDate) => {
+  const ro = readOnly();
+  const onDoneTrackedDate = ro ? null : async (trackedDate) => {
     if (pane) {
       // In der Spalte liegt kein Overlay offen: die Abschluss-Karte geht direkt
       // auf, und ein closeDetailView() schloesse hier ein fremdes Modal. Nach
@@ -1356,7 +1409,10 @@ async function openItemDetail(item, { pane = null, signal = null } = {}) {
     size: 'md',
     pane,
     sections: renderItemDetail(item, history, onDoneTrackedDate, historyLoadFailed),
-    actions: item.can_delete ? [{
+    // OHNE SCHREIBRECHT WEDER „LOESCHEN" NOCH „BEARBEITEN": `openDetailView`
+    // baut beide nur, wenn der Schluessel steht (detail-view.js) - weglassen
+    // ist die ganze Antwort, die Leseansicht bleibt vollstaendig.
+    actions: item.can_delete && !ro ? [{
       id: 'inventory-detail-delete',
       label: t('common.delete'),
       variant: 'danger-ghost',
@@ -1367,9 +1423,13 @@ async function openItemDetail(item, { pane = null, signal = null } = {}) {
         await removeItem(item);
       },
     }] : [],
-    edit: item.can_edit ? {
+    edit: item.can_edit && !ro ? {
       label: t('common.edit'),
       title: t('common.editItem'),
+      // Im Sheet ist Bearbeiten die Hauptaktion und steht unten in der
+      // Daumenzone; Loeschen bleibt zurueckgenommen am Anfang und fragt
+      // weiter nach (removeItem), wie im Kalender (#1460, #1463).
+      primary: true,
       mount: (panel, editPane) => {
         const form = buildItemForm({ mode: 'edit', item });
         editPane.insertAdjacentHTML('beforeend', form.content);
@@ -1390,6 +1450,7 @@ async function openItemDetail(item, { pane = null, signal = null } = {}) {
  * @returns {Promise<boolean>} true, wenn die Frist erledigt wurde
  */
 function openCompletionSheet(item, trackedDate) {
+  if (readOnly()) return Promise.resolve(false);
   return new Promise((resolve) => {
     let settled = false;
     const settle = (result) => { if (!settled) { settled = true; resolve(result); } };
@@ -2179,11 +2240,16 @@ function buildItemForm({ mode, item = null }) {
 }
 
 function openItemModal(mode, item = null) {
+  // DER EINE RIEGEL: jeder Anlege- und Bearbeitungsweg endet hier - FAB,
+  // Leerzustand, Tastenkuerzel „n" (klickt den FAB), Enter auf der Zeile und
+  // „Bearbeiten" aus der Detailspalte.
+  if (readOnly()) return;
   const form = buildItemForm({ mode, item });
   openSharedModal({ title: form.title, size: 'md', content: form.content, onSave: form.wire });
 }
 
 async function saveItem(panel, mode, item, attachments, pickedBooking, photoData) {
+  if (readOnly()) return;
   const saveBtn = panel.querySelector('#inv-save');
   const nameInput = panel.querySelector('#inv-name');
   const name = nameInput.value.trim();
@@ -2238,6 +2304,7 @@ async function saveItem(panel, mode, item, attachments, pickedBooking, photoData
 }
 
 async function removeItem(item) {
+  if (readOnly()) return;
   const ok = await confirmModal(t('inventory.deleteConfirm', { name: item.name }), {
     danger: true,
     detail: t('inventory.deleteConfirmDetail'),
@@ -2253,6 +2320,26 @@ async function removeItem(item) {
   } catch (err) {
     window.yuvomi?.showToast(err.data?.error ?? t('common.errorGeneric'), 'danger');
   }
+}
+
+/**
+ * Das Werkzeugmenue im Kopf. Beide Eintraege sind Verwaltung (Orte,
+ * Kategorien) und schreiben - bei `read` faellt das Menue ganz weg, der
+ * Aufrufer versteckt den Ausloeser (Regel 7 in utils/module-access.js).
+ */
+function inventoryToolsHtml() {
+  if (readOnly()) return '';
+  return `
+    <div class="page-toolbar__actions">
+      ${pageToolsMenuHtml({
+        id: 'inventory-tools-menu',
+        label: t('common.moreActions'),
+        items: [
+          { action: 'manage-locations', label: t('inventory.manageLocations'), icon: 'map-pin' },
+          { action: 'manage-categories', label: t('inventory.manageCategories'), icon: 'tags' },
+        ],
+      })}
+    </div>`;
 }
 
 export async function render(container, { user, signal } = {}) {
@@ -2291,16 +2378,7 @@ export async function render(container, { user, signal } = {}) {
       clearLabel: t('common.searchClear'),
       className: 'inventory-search page-toolbar__center',
     })}
-    <div class="page-toolbar__actions">
-      ${pageToolsMenuHtml({
-        id: 'inventory-tools-menu',
-        label: t('common.moreActions'),
-        items: [
-          { action: 'manage-locations', label: t('inventory.manageLocations'), icon: 'map-pin' },
-          { action: 'manage-categories', label: t('inventory.manageCategories'), icon: 'tags' },
-        ],
-      })}
-    </div>`);
+    ${inventoryToolsHtml()}`);
   toolbar.insertAdjacentHTML('afterbegin', `<h1 class="page-toolbar__title">${esc(t('nav.inventory'))}</h1>`);
   // Rueckweg aus einer Kategorie, oben wie Apples Navigationsleiste und wie
   // „‹ Gesundheit" (syncInventoryHeader blendet ihn ein).
@@ -2382,7 +2460,7 @@ export async function render(container, { user, signal } = {}) {
   }, { signal });
   toolbar.addEventListener('click', (e) => {
     const item = pageToolsActionEl(e.target);
-    if (!item || item.disabled) return;
+    if (!item || item.disabled || readOnly()) return;
     if (item.dataset.action === 'manage-locations') openLocationManager();
     else if (item.dataset.action === 'manage-categories' && canManageCategories) openCategoryManager();
   });
@@ -2460,7 +2538,7 @@ export async function render(container, { user, signal } = {}) {
       openNarrow: openItemNarrow,
       onEnter: (id) => {
         const item = state.items.find((i) => String(i.id) === id);
-        if (item) openItemModal('edit', item);
+        if (item && !readOnly()) openItemModal('edit', item);
       },
       onModeChange: onInventoryModeChange,
     });
@@ -2552,6 +2630,19 @@ export const __test = {
   categoryOptionsHtml,
   attachmentDetailEntries,
   buildItemForm,
+  // #1265: Nur-lesen. Die Suite faehrt Markup und Handler, nicht den Quelltext.
+  readOnly,
+  emptyInventoryState,
+  inventoryToolsHtml,
+  trackedDateDetailEntries,
+  trackedDatesDetailNode,
+  openItemDetail,
+  openItemModal,
+  openCompletionSheet,
+  openLocationManager,
+  openCategoryManager,
+  saveItem,
+  removeItem,
   // Review R11: Kilometerstand-Trend auf der Zeitachse, auch am selben Tag.
   odometerChartMarkup,
 };
