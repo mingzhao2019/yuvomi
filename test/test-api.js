@@ -827,6 +827,9 @@ const REASONS_WITHOUT_SENTENCE = new Set([
   // Haushaltsreihenfolge (#1644): das Blatt, das sie setzt, erreicht nur ein
   // Administrator, und es zeigt bei jedem Scheitern seinen eigenen Satz.
   'admin_required',
+  // Listenloeschung: der Servertext erklaert, dass einzelne Aufgaben nicht
+  // gemeinsam geloescht werden duerfen; die Seite hat keinen eigenen Satz.
+  'task_list_tasks_not_deletable',
 ]);
 
 // ─── #1669: ein Grund, der durch eine Variable gereicht wird ────────────────
@@ -859,6 +862,8 @@ const REASONS_PASSED_THROUGH = new Map([
   ['auth.js: err.code', { sites: 1, at403: [], why: 'feste 409 (2FA)' }],
   ['routes/notes.js: result.reason', { sites: 1, at403: [], why: 'feste 409' }],
   ['routes/family.js: problem.reason', { sites: 1, at403: [], why: 'memberOrderProblem: feste 400; die 403 daneben traegt ein Literal' }],
+  ['routes/tasks.js: err.reason', { sites: 1, at403: [['task_list_tasks_not_deletable', 'routes/tasks.js']],
+    why: 'TaskListDeleteError: nur die fehlende Loeschbarkeit aller Aufgaben ist 403; die anderen Gruende sind 404/409' }],
   ['routes/tasks.js: result.reason', { sites: 1, at403: [], why: 'feste 409' }],
   ['routes/backup.js: err.reason', { sites: 1, at403: [], why: 'Restore: 409, 503 oder 400' }],
   // refuse() (#1656, #1668): die eine Stelle, ueber die jede Absage der
