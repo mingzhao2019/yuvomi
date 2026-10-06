@@ -1604,6 +1604,12 @@ const MIGRATIONS_SQL = {
   241: `
     ALTER TABLE users ADD COLUMN deactivated_at TEXT;
   `,
+  // v242 (#1644): die eine Haushaltsreihenfolge der Mitglieder. NULL = nicht
+  // platziert; `memberOrderSql()` liest die Spalte, also braucht sie jede
+  // Suite, die eine Mitgliederliste gegen dieses Schema sortiert.
+  242: `
+    ALTER TABLE users ADD COLUMN sort_order INTEGER;
+  `,
 };
 
 export { MIGRATIONS_SQL };

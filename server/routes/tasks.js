@@ -31,7 +31,7 @@ import { resolvePermissions } from '../permissions.js';
 import { fanOutNotification } from '../services/notifications.js';
 import { ensureCalDavTaskList, taskListsTableExists } from '../services/task-lists.js';
 import { isAdminRequest } from '../middleware/require-admin.js';
-import { householdMemberSql, isHouseholdMember, newNonMembers, nonMemberMessage } from '../services/household-members.js';
+import { householdMemberSql, isHouseholdMember, memberOrderSql, memberPositionSql, newNonMembers, nonMemberMessage } from '../services/household-members.js';
 import { displayActingPerson, isDisplayRequest } from '../services/display-acting.js';
 import { pushService } from '../services/push.js';
 import { todayKey } from '../utils/timezone.js';
@@ -3009,9 +3009,9 @@ router.delete('/:id/comments/:commentId', (req, res) => {
 router.get('/meta/options', (req, res) => {
   try {
     const users = db.get().prepare(
-      `SELECT id, display_name, avatar_color FROM users u
+      `SELECT u.id, u.display_name, u.avatar_color, ${memberPositionSql('u')} AS sort_order FROM users u
        WHERE ${householdMemberSql('u')}
-       ORDER BY display_name`
+       ORDER BY ${memberOrderSql('u')}`
     ).all();
     res.json({
       users,

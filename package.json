@@ -367,6 +367,7 @@
     "test:family-routes": "node --experimental-sqlite --test test/test-family-routes.js",
     "test:household-members": "node --experimental-sqlite --test test/test-household-members.js",
     "test:household-member-guard": "node --test test/test-household-member-guard.js",
+    "test:member-order": "node --experimental-sqlite --test test/test-member-order.js test/test-member-order-guard.js && node --loader ./test/test-browser-loader.mjs --test test/test-member-order-ui.js",
     "test:user-deactivation": "node --experimental-sqlite --experimental-test-module-mocks --test test/test-user-deactivation.js",
     "test:user-traces-guard": "node --test test/test-user-traces-guard.js",
     "test:people-pickers": "node --loader ./test/test-browser-loader.mjs --test test/test-people-pickers.js",
@@ -440,10 +441,7 @@
     "test:split-amount-input": "node --loader ./test/test-browser-loader.mjs --test test/test-split-amount-input.js",
     "test:module-write-access": "node --loader ./test/test-browser-loader.mjs --test test/test-module-write-access.js",
     "test:module-gate-path-case": "node --experimental-sqlite --test test/test-module-gate-path-case.js",
-    "test": "node scripts/run-with-temp-cleanup.mjs npm run test-chain && npm run test:language-lists && npm run test:control-dialect && npm run test:auth-pages-ui && npm run test:mobile-room-work && npm run test:meals-recipe-entry && npm run test:rewards-ui && npm run test:instance-lock && npm run test:budget-series-migration && npm run test:split-amount-input && npm run test:task-series-feedback && npm run test:prompt-modal && npm run test:settings-health-visibility && npm run test:setup-timezone && npm run test:i18n-ko-particles && npm run test:unknown-route && npm run test:initials && npm run test:page-mount && npm run test:friendly-error && npm run test:disabled-module-mixed-answers && npm run test:rewards-ledger-visibility && npm run test:reminder-target-visibility && npm run test:subtask-compose && npm run test:oidc-error-log && npm run test:api-token-remove && npm run test:dashboard-event-limit && npm run test:user-deactivation && npm run test:user-traces-guard && npm run test:split-expense-reversal && npm run test:calendar-breakpoint && npm run test:documents-viewer-focus && npm run test:budget-error-language && npm run test:seed-demo-pdfs && npm run test:chart-gutter && npm run test:read-row",
-    "test:calendar-breakpoint": "TZ=Europe/Berlin node --loader ./test/test-browser-loader.mjs --test test/test-calendar-breakpoint.js",
-    "test:documents-viewer-focus": "node --loader ./test/test-browser-loader.mjs --test test/test-documents-viewer-focus.js",
-    "test:budget-error-language": "node --experimental-sqlite --test test/test-budget-error-language.js",
+    "test": "node scripts/run-with-temp-cleanup.mjs npm run test-chain && npm run test:language-lists && npm run test:control-dialect && npm run test:auth-pages-ui && npm run test:mobile-room-work && npm run test:meals-recipe-entry && npm run test:rewards-ui && npm run test:instance-lock && npm run test:budget-series-migration && npm run test:split-amount-input && npm run test:task-series-feedback && npm run test:prompt-modal && npm run test:settings-health-visibility && npm run test:setup-timezone && npm run test:i18n-ko-particles && npm run test:unknown-route && npm run test:initials && npm run test:page-mount && npm run test:friendly-error && npm run test:disabled-module-mixed-answers && npm run test:rewards-ledger-visibility && npm run test:reminder-target-visibility && npm run test:subtask-compose && npm run test:oidc-error-log && npm run test:api-token-remove && npm run test:dashboard-event-limit && npm run test:user-deactivation && npm run test:user-traces-guard && npm run test:split-expense-reversal && npm run test:calendar-breakpoint && npm run test:documents-viewer-focus && npm run test:budget-error-language && npm run test:seed-demo-pdfs && npm run test:chart-gutter && npm run test:read-row && npm run test:member-order",
     "test:schedule": "DB_PATH=:memory: node --test test/test-schedule.js",
     "test:schedule-default-off-migration": "node --experimental-sqlite --test test/test-schedule-default-off-migration.js",
     "test:docs-landing": "node --test test/test-docs-landing.js",
@@ -486,8 +484,7 @@
     "test:dashboard-rewards": "node --experimental-sqlite --test test/test-dashboard-rewards.js",
     "test:inventory-service-log": "node --experimental-sqlite --test test/test-inventory-service-log.js",
     "test:toast-show": "node --loader ./test/test-browser-loader.mjs --test test/test-toast-show.js",
-    "test:search-palette": "node --test test/test-search-palette.js",
-    "test:setup-language": "node test/test-setup-language.js"
+    "test:search-palette": "node --test test/test-search-palette.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

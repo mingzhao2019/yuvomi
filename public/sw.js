@@ -180,6 +180,7 @@ const APP_SHELL = [
   '/utils/markdown-toolbar.js',
   '/utils/master-detail.js',
   '/utils/meal-types.js',
+  '/utils/member-order.js',
   '/utils/mentions.js',
   '/utils/module-accent.js',
   '/utils/module-access.js',
