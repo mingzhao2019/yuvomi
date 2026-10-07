@@ -3781,6 +3781,7 @@
         "taskArea": "Ruimte",
         "taskAreaPlaceholder": "Voorbeeld: Badkamer",
         "taskFrequency": "Frequentie (dagen)",
+        "createTask": "Taak aanmaken",
         "taskCreatedToast": "Huishoudtaak aangemaakt.",
         "dashboard": "Overzicht",
         "reports": "Rapporten",

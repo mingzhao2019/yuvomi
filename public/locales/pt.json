@@ -3781,6 +3781,7 @@
         "taskArea": "Área",
         "taskAreaPlaceholder": "Ex: Banheiro",
         "taskFrequency": "Frequência (dias)",
+        "createTask": "Criar tarefa",
         "taskCreatedToast": "Tarefa de faxina criada.",
         "dashboard": "Visão geral",
         "reports": "Relatórios",

@@ -3781,6 +3781,7 @@
         "taskArea": "エリア",
         "taskAreaPlaceholder": "例: 浴室",
         "taskFrequency": "頻度 (日)",
+        "createTask": "タスクを作成",
         "taskCreatedToast": "家事タスクを作成しました。",
         "dashboard": "概要",
         "reports": "レポート",

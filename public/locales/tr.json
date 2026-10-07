@@ -3781,6 +3781,7 @@
         "taskArea": "Alan",
         "taskAreaPlaceholder": "Örnek: Banyo",
         "taskFrequency": "Sıklık (gün)",
+        "createTask": "Görev oluştur",
         "taskCreatedToast": "Ev işi görevi oluşturuldu.",
         "dashboard": "Genel bakış",
         "reports": "Raporlar",

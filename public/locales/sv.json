@@ -3781,6 +3781,7 @@
         "taskArea": "Område",
         "taskAreaPlaceholder": "Exempel: badrum",
         "taskFrequency": "Frekvens (dagar)",
+        "createTask": "Skapa uppgift",
         "taskCreatedToast": "Städuppgift skapad.",
         "dashboard": "Översikt",
         "reports": "Rapporter",

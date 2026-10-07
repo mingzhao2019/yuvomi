@@ -3423,6 +3423,7 @@
         "taskArea": "Oblast",
         "taskAreaPlaceholder": "Příklad: Koupelna",
         "taskFrequency": "Četnost (dny)",
+        "createTask": "Vytvořit úkol",
         "taskCreatedToast": "Úkol domácí péče vytvořen.",
         "dashboard": "Přehled",
         "reports": "Hlášení",

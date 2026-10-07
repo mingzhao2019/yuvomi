@@ -1539,11 +1539,7 @@ function createOutlookSelection(account) {
     updateSaveButton() {
       if (!selection.saveButton) return;
       selection.saveButton.disabled = !selection.dirty || selection.saving;
-      selection.saveButton.textContent = selection.saving
-        ? t('common.saving')
-        : selection.saved && !selection.dirty
-          ? t('settings.outlookSelectionSavedShort')
-          : t('common.save');
+      selection.saveButton.textContent = t('common.save');
     },
     markDirty() {
       selection.dirty = true;
@@ -1563,6 +1559,7 @@ function createOutlookSelection(account) {
         selection.dirty = false;
         selection.saved = true;
         selection.setStatus(t('settings.outlookSelectionSaved'), 'success');
+        selection.statusElement?.setAttribute('aria-label', t('settings.outlookSelectionSavedShort'));
         showToast(t('settings.outlookSelectionSaved'), 'success');
       } catch (err) {
         const message = err.message || t('common.errorGeneric');

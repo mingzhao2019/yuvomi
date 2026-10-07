@@ -3785,6 +3785,7 @@
         "taskArea": "Area",
         "taskAreaPlaceholder": "Contoh: Kamar mandi",
         "taskFrequency": "Frekuensi (hari)",
+        "createTask": "Buat tugas",
         "taskCreatedToast": "Tugas asisten rumah tangga dibuat.",
         "dashboard": "Ringkasan",
         "reports": "Laporan",

@@ -3781,6 +3781,7 @@
         "taskArea": "Área",
         "taskAreaPlaceholder": "Ejemplo: baño",
         "taskFrequency": "Frecuencia (días)",
+        "createTask": "Crear tarea",
         "taskCreatedToast": "Tarea de limpieza creada.",
         "dashboard": "Resumen",
         "reports": "Informes",

@@ -4005,6 +4005,7 @@
         "taskArea": "Зона",
         "taskAreaPlaceholder": "Например: ванная",
         "taskFrequency": "Периодичность (дни)",
+        "createTask": "Создать задачу",
         "taskCreatedToast": "Задача по уборке создана.",
         "dashboard": "Обзор",
         "reports": "Отчёты",

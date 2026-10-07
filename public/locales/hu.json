@@ -3781,6 +3781,7 @@
         "taskArea": "Terület",
         "taskAreaPlaceholder": "Példa: Fürdőszoba",
         "taskFrequency": "Gyakoriság (nap)",
+        "createTask": "Feladat létrehozása",
         "taskCreatedToast": "Háztartási feladat létrehozva.",
         "dashboard": "Áttekintés",
         "reports": "Jelentések",

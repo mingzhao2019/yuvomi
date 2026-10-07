@@ -3781,6 +3781,7 @@
         "taskArea": "Zone",
         "taskAreaPlaceholder": "Exemple : salle de bain",
         "taskFrequency": "Fréquence (jours)",
+        "createTask": "Créer la tâche",
         "taskCreatedToast": "Tâche de ménage créée.",
         "dashboard": "Aperçu",
         "reports": "Rapports",

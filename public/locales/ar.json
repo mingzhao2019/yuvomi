@@ -4117,6 +4117,7 @@
         "taskArea": "المنطقة",
         "taskAreaPlaceholder": "مثال: الحمام",
         "taskFrequency": "التكرار (بالأيام)",
+        "createTask": "إنشاء مهمة",
         "taskCreatedToast": "تم إنشاء مهمة التدبير المنزلي.",
         "dashboard": "نظرة عامة",
         "reports": "التقارير",

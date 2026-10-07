@@ -3781,6 +3781,7 @@
         "taskArea": "区域",
         "taskAreaPlaceholder": "例如：浴室",
         "taskFrequency": "频率（天）",
+        "createTask": "创建任务",
         "taskCreatedToast": "家务任务已创建。",
         "dashboard": "概览",
         "reports": "报告",

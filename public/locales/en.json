@@ -3781,6 +3781,7 @@
         "taskArea": "Area",
         "taskAreaPlaceholder": "Example: Bathroom",
         "taskFrequency": "Frequency (days)",
+        "createTask": "Create task",
         "taskCreatedToast": "Housekeeping task created.",
         "dashboard": "Overview",
         "reports": "Reports",

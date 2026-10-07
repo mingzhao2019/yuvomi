@@ -3781,6 +3781,7 @@
         "taskArea": "Khu vực",
         "taskAreaPlaceholder": "Ví dụ: Phòng tắm",
         "taskFrequency": "Tần suất (ngày)",
+        "createTask": "Tạo nhiệm vụ",
         "taskCreatedToast": "Nhiệm vụ dọn dẹp đã tạo.",
         "dashboard": "Tổng quan",
         "reports": "Báo cáo",

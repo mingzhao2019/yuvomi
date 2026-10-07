@@ -446,3 +446,60 @@ schema and migration append-only checks, i18n, and plural i18n. The second
 full `npm test` run completed with exit code 0 and no failing subtests.
 `git diff --check` passed. After validation, both `main` and `custom` were
 pushed to `origin` by fast-forward; no force-push was used.
+
+## Current sync checkpoint (2026-10-07, follow-up)
+
+After refreshing `upstream/main`, ten new upstream commits were reviewed in
+order and selected for the custom line. Local `main` and `upstream/main`
+both point to `b0f4a02c3` (the v2.74.0 release plus the follow-up UI fixes).
+The integration branch `custom-upstream-selective-2026-10-07` started at
+custom `8cae9bd61`. This is a selective integration only: upstream was not
+merged or rebased wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `fd62a75d5` (#1738) | Adds Singapore dollar (SGD) and an `en-SG` region preset. | Cherry-picked as `499389343`; retained custom region and currency behavior. |
+| `e47c5b7fb` (#1740) | Clarifies that the training log is a third-party module. | Cherry-picked as `6caf64766`; documentation only. |
+| `f09e69820` (#1743) | Dates an overdue loan installment in its own month. | Cherry-picked as `c730dfe67`; retained custom loan and ledger behavior. |
+| `11f7e3244` (#1739) | Adds meal-cook follow-ups, strict cook identity, and no picture per meal. | Cherry-picked as `cce71a818`; retained custom migration 245 and member/deactivation semantics. |
+| `d93392194` (#1742) | Publishes the v2.74.0 release metadata. | Cherry-picked as `d73d680f7`; synchronized release metadata with local `main`. |
+| `6de9b8cd3` (#1744) | Adds listing, editing, pausing, resuming, and deletion for recurring split expenses. | Cherry-picked as `6bf64b0f2`; retained custom reverse-ledger and migration 244 behavior. |
+| `3289c8746` (#1745) | Adds pocket money balances and money requests per child. | Integrated as `ee0c52ffd`; relocated upstream migration 236 to custom append-only migration 246. |
+| `1caf10921` (#1769) | Updates roadmap and scope documentation. | Cherry-picked as `dc12f8763`; documentation only. |
+| `cfbe458f3` (#1767) | Applies the 2026-10-07 UI critique across layout, dialogs, filters, motion, and tests. | Cherry-picked as `15f313129`; combined custom task, calendar, inventory, settings, locale, and compatibility behavior. |
+| `b0f4a02c3` (#1779) | Fixes seven review leftovers from the UI critique. | Cherry-picked as `ae42e15c9`; adopted the coupled modal, filter, budget, schedule, waste, locale, and regression-test fixes. |
+
+The upstream commit count for this checkpoint is exactly ten. One custom-only
+follow-up commit accompanies the integration: it restores the published
+`2.74.0` changelog text, wires the recurring-expense UI suite into `npm test`,
+removes the duplicate migration `234` test-suite note, restores locale-key
+parity after conflict resolution, and keeps the Outlook selection save status
+accessible without changing the save button label. Custom migration 244
+remains the recurring split-expense migration, migration 246 remains
+append-only, and the old migration 234 is not reintroduced or rewritten. The
+custom Puppeteer CI fix remains in custom and was not copied into the pure
+upstream `main` line.
+
+The semantic overlap decisions are: meal-cook columns remain under custom
+migration 245; pocket money is append-only at migration 246; recurring split
+expenses retain the custom reverse ledger; the settings UI keeps the lunar
+calendar switch and all-day reminder time; inventory keeps the administrator
+category manager and custom asset behavior; and task-list, Microsoft To Do,
+Outlook/ICS, notification-channel, Inventory/assets, and dashboard contracts
+remain authoritative in custom.
+
+Final validation passed as follows:
+
+- `npm run test:changelog`: 34/34 passed.
+- `npm test`: exit code 0 with no failing subtests. The restore-rekey suite
+  reported 15 passed and 1 root-only filesystem case skipped.
+- `git diff --check`: passed.
+- Root `package.json`, both root `package-lock.json` version fields,
+  `public/sw.js`'s `APP_RELEASE`, and current release metadata agree on
+  `2.74.0`.
+
+The custom-only cleanup is committed after the ten selected upstream commits.
+The temporary integration branch is then fast-forwarded into `custom`, the
+temporary branch is deleted, and `origin/main` and `origin/custom` are pushed
+with ordinary fast-forward updates. No force-push or wholesale upstream merge
+is allowed.

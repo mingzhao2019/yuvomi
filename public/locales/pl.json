@@ -4009,6 +4009,7 @@
         "taskArea": "Obszar",
         "taskAreaPlaceholder": "Przykład: Łazienka",
         "taskFrequency": "Częstotliwość (dni)",
+        "createTask": "Utwórz zadanie",
         "taskCreatedToast": "Zadanie sprzątania utworzone.",
         "dashboard": "Przegląd",
         "reports": "Raporty",
