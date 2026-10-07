@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.74.0] - 2026-10-07
+
 ### Added
 
 - **The Singapore dollar is a currency a household can pick, and Singapore is a region** (#1697,
