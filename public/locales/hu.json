@@ -1710,7 +1710,6 @@
         "periodNoteAccounts": "Minden számla, mai állapot",
         "periodNoteSubscriptions": "Minden aktív előfizetés",
         "periodNoteLoans": "Minden kölcsön",
-        "periodNoteSplit": "Minden csoport",
         "statsRangeLabel": "Időszak",
         "statsOtherCategories": "Egyéb",
         "trendDelta": "{{amount}} a(z) {{month}} hónaphoz képest",

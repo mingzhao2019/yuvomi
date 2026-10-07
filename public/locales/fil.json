@@ -1724,7 +1724,6 @@
         "periodNoteAccounts": "Lahat ng account, hanggang ngayon",
         "periodNoteSubscriptions": "Lahat ng aktibong subscription",
         "periodNoteLoans": "Lahat ng utang",
-        "periodNoteSplit": "Lahat ng grupo",
         "statsRangeLabel": "Panahon",
         "statsOtherCategories": "Iba pa",
         "trendDelta": "{{amount}} kumpara sa {{month}}",

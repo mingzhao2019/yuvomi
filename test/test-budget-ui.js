@@ -90,7 +90,21 @@ test('der Kopf-Slot bleibt auf jedem Tab besetzt', () => {
   for (const entry of table[0].matchAll(/'([a-z-]+)':\s*\{([^}]*)\}/g)) {
     const [, id, caps] = entry;
     if (/month:\s*true/.test(caps)) continue;
+    // EINE Ausnahme, mit Grund (#1775, Punkt 7): die Aufteilung. Ihr Kopf
+    // sagte "Alle Gruppen", direkt darunter stehen seit R17 die Kennzahlen der
+    // GEWAEHLTEN Gruppe - die Notiz behauptete das Falsche. Was fuer den
+    // ganzen Reiter gilt, laesst sich dort in keinem Satz sagen: die Summe
+    // aller Gruppen traegt ihr eigenes Etikett in der Gruppenwahl, die
+    // gewaehlte Gruppe ihre Ueberschrift.
+    if (id === 'split-expenses') {
+      assert.doesNotMatch(caps, /note:/, 'die Aufteilung traegt keine Kopfnotiz mehr - sie widersprach den Zahlen darunter');
+      continue;
+    }
     assert.match(caps, /note:\s*'budget\.periodNote/, `'${id}' hat weder Stepper noch Kontexttext`);
+  }
+  // Der Satz ist damit tot und steht in keiner Sprache mehr.
+  for (const file of readdirSync(new URL('../public/locales/', import.meta.url)).filter((f) => f.endsWith('.json'))) {
+    assert.doesNotMatch(read(`../public/locales/${file}`), /"periodNoteSplit"/, `${file} traegt den toten Schluessel noch`);
   }
   // Und der Kontexttext wird auch wirklich geschaltet.
   assert.match(budget, /note\.hidden = !caps\.note/);
@@ -394,9 +408,11 @@ test('neue Einträge landen im angezeigten Monat, nicht im heutigen', () => {
   // angewandt auf den angezeigten Monat.
   assert.match(budget, /defaultDateInPeriod/,
     'das Standarddatum kommt nicht mehr aus defaultDateInPeriod() (utils/date.js)');
-  assert.match(budget, /monthPeriodKeys\(state\.month\)/,
-    'der Zeitraum ist nicht mehr der angezeigte Monat');
-  assert.match(budget, /const defaultDate = defaultDateInPeriod\(/,
+  // Seit #1775 rechnet newEntryDefaultDate(): der Zeitraum des Aufrufers (die
+  // Statistik), sonst der angezeigte Monat - als Programm weiter unten geprueft.
+  assert.match(budget, /period\?\.from \? period : monthPeriodKeys\(month\)/,
+    'ohne eigenen Zeitraum ist es nicht mehr der angezeigte Monat');
+  assert.match(budget, /const defaultDate = newEntryDefaultDate\(period, state\.month, today\);/,
     'defaultDate wird nicht mehr aus der Regel abgeleitet');
   // Das Datumsfeld muss den abgeleiteten Wert nutzen, nicht mehr `today`.
   assert.match(budget, /id="bm-date"\s*\n?\s*value="\$\{isEdit \? entry\.date : defaultDate\}"/);
@@ -4784,9 +4800,29 @@ test('R17: mobil rechnet der Verlauf auf einer hoeheren Flaeche (mindestens 160p
 
 test('R17: der Leerzustand der Statistik traegt eine Handlung - nur fuer den, der schreiben darf', () => {
   assert.match(stats, /action: typeof view\.ctx\.onAddEntry === 'function'\s*\? \{ label: t\('budget\.emptyAction'\), icon: 'plus', attrs: \{ id: 'budget-stats-empty-add' \} \}\s*: undefined/);
-  assert.match(stats, /querySelector\('#budget-stats-empty-add'\)\?\.addEventListener\('click', \(\) => view\.ctx\.onAddEntry\?\.\(\)\)/);
-  assert.match(budget, /onAddEntry: readOnly\(\) \? null : \(\) => openBudgetModal\(\{ mode: 'create' \}\)/,
+  assert.match(stats, /querySelector\('#budget-stats-empty-add'\)\?\.addEventListener\('click', \(\) => view\.ctx\.onAddEntry\?\.\(/);
+  assert.match(budget, /onAddEntry: readOnly\(\) \? null : \(period\) => openBudgetModal\(\{ mode: 'create', period \}\)/,
     'bei `read` reicht das Budget keine Handlung herein');
+});
+
+test('#1775: der Eintrag aus dem Leerzustand der Statistik landet im gezeigten Zeitraum', () => {
+  const { newEntryDefaultDate } = budgetUi;
+  // Die Statistik zeigt den leeren Maerz, die Buchungsliste steht im Oktober.
+  assert.equal(newEntryDefaultDate({ from: '2026-03-01', to: '2026-03-31' }, '2026-10', '2026-10-07'), '2026-03-01',
+    'ein vergangener Monat: sein Erster, nicht der Monat der Liste');
+  assert.equal(newEntryDefaultDate({ from: '2026-03-02', to: '2026-03-08' }, '2026-10', '2026-10-07'), '2026-03-02',
+    'eine Woche: ihr erster Tag');
+  assert.equal(newEntryDefaultDate({ from: '2026-01-01', to: '2026-12-31' }, '2026-03', '2026-10-07'), '2026-10-07',
+    'enthaelt der Zeitraum heute, bleibt es heute');
+  assert.equal(newEntryDefaultDate(null, '2026-03', '2026-10-07'), '2026-03-01',
+    'ohne Zeitraum gilt weiter der Monat der Buchungsliste (FAB, Kopf-Knopf)');
+  assert.equal(newEntryDefaultDate(null, '2026-10', '2026-10-07'), '2026-10-07');
+  // Verdrahtung: das Panel reicht den Zeitraum der GELADENEN Daten herein, und
+  // der Dialog rechnet sein Datum ueber genau diese Funktion.
+  assert.match(stats, /onAddEntry\?\.\(\s*(?:\/\/[^\n]*\n\s*)*view\.data \? \{ from: view\.data\.from, to: view\.data\.to \} : null,/);
+  const dialog = budget.slice(budget.indexOf('function openBudgetModal('), budget.indexOf('function openBudgetModal(') + 1600);
+  assert.match(dialog, /function openBudgetModal\(\{ mode, entry = null, initialType = '', period = null \}\)/);
+  assert.match(dialog, /const defaultDate = newEntryDefaultDate\(period, state\.month, today\);/);
 });
 
 test('R17: in der Statistik stehen Ausgaben und Einnahmen nebeneinander, der Name in der Zeilentypo', () => {
@@ -4826,4 +4862,44 @@ test('R17: der Verlauf zeichnet neu, wenn das Fenster die Schwelle kreuzt; ein M
   const toggle = menu.slice(menu.indexOf('function onToggle(event)'));
   assert.match(toggle, /querySelectorAll\(`\[popovertarget="\$\{panel\.id\}"\]`\)\) el\.setAttribute\('aria-expanded', 'false'\);[\s\S]*?trigger\?\.setAttribute\('aria-expanded', String\(event\.newState === 'open'\)\)/,
     'erst alle auf false, dann der sichtbare auf den Zustand');
+});
+
+/* #1775 (Review): die Statistik laedt bei jedem Schritt neu, ohne auf die
+ * vorige Ladung zu warten, und schrieb jede Antwort in denselben `view`. Kam
+ * die AELTERE Antwort spaeter, stand ihr Zeitraum unter dem Kopf des neueren.
+ * Gefahren wird die echte fetchStats() mit Antworten in vertauschter Folge. */
+test('#1775: eine ueberholte Statistik-Antwort ueberschreibt den neueren Zeitraum nicht', async () => {
+  const { __test } = await import('../public/pages/budget-stats.js');
+  const view = __test.statsView();
+  const saved = { ...view };
+  const savedStub = globalThis.__apiStub;
+  const pending = new Map();
+  globalThis.__apiStub = {
+    get: (url) => new Promise((resolve) => {
+      const anchor = /anchor=([\d-]+)/.exec(url)[1];
+      pending.set(anchor, () => resolve({ data: { from: anchor, to: anchor, categories: [] } }));
+    }),
+  };
+  const settle = async (anchor) => { pending.get(anchor)(); await new Promise((r) => setTimeout(r, 0)); };
+  try {
+    Object.assign(view, { range: 'month', ctx: { budgetMode: 'shared' }, data: null, prev: null, error: false });
+    view.anchor = '2026-03-01';
+    const older = __test.fetchStats();
+    view.anchor = '2026-04-01';
+    const newer = __test.fetchStats();
+    // Die juengere Ladung antwortet zuerst (samt ihrem Vorzeitraum) ...
+    await settle('2026-04-01');
+    await settle('2026-03-31');
+    assert.equal(await newer, true);
+    assert.equal(view.data.from, '2026-04-01');
+    // ... die aeltere danach: sie darf nichts mehr schreiben.
+    await settle('2026-03-01');
+    await settle('2026-02-28');
+    assert.equal(await older, false, 'die ueberholte Ladung meldet sich als ueberholt');
+    assert.equal(view.data.from, '2026-04-01', 'unter dem April-Kopf steht weiter der April');
+    assert.equal(view.prev.from, '2026-03-31');
+  } finally {
+    Object.assign(view, saved);
+    globalThis.__apiStub = savedStub;
+  }
 });

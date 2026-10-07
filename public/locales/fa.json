@@ -1724,7 +1724,6 @@
         "periodNoteAccounts": "همهٔ حساب‌ها، تا امروز",
         "periodNoteSubscriptions": "همه اشتراک‌های فعال",
         "periodNoteLoans": "همه وام‌ها",
-        "periodNoteSplit": "همه گروه‌ها",
         "statsRangeLabel": "بازه",
         "statsOtherCategories": "سایر",
         "trendDelta": "{{amount}} نسبت به {{month}}",

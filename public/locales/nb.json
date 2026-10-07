@@ -1716,7 +1716,6 @@
         "periodNoteAccounts": "Alle kontoer, per i dag",
         "periodNoteSubscriptions": "Alle aktive abonnementer",
         "periodNoteLoans": "Alle lån",
-        "periodNoteSplit": "Alle grupper",
         "statsRangeLabel": "Periode",
         "statsOtherCategories": "Annet",
         "trendDelta": "{{amount}} mot {{month}}",

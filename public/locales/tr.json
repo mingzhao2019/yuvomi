@@ -1710,7 +1710,6 @@
         "periodNoteAccounts": "Tüm hesaplar, bugün itibarıyla",
         "periodNoteSubscriptions": "Tüm aktif abonelikler",
         "periodNoteLoans": "Tüm krediler",
-        "periodNoteSplit": "Tüm gruplar",
         "statsRangeLabel": "Dönem",
         "statsOtherCategories": "Diğer",
         "trendDelta": "{{month}} ayına göre {{amount}}",

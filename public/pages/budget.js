@@ -307,7 +307,14 @@ const TAB_CAPS = {
   // gedockt, oeffnet den Ausgaben-Dialog der Unterseite (openNewSplitExpense).
   // Im Archiv blendet syncAddAction() ihn aus - die Regel dafuer fragt die
   // Unterseite selbst (canAddSplitExpense).
-  'split-expenses': { month: false, note: 'budget.periodNoteSplit',         add: 'splitExpenses.addExpense', label: 'newLabel.splitExpenses' },
+  //
+  // OHNE KOPFNOTIZ, als einziger Reiter ohne Stepper (#1775). Hier stand "Alle
+  // Gruppen" - direkt ueber Kennzahlen, die seit R17 der GEWAEHLTEN Gruppe
+  // gehoeren. Die Summe aller Gruppen traegt ihr Etikett in der Gruppenwahl
+  // (split-expenses.js, renderGroupsTotal), die gewaehlte Gruppe ihre eigene
+  // Ueberschrift; ein dritter Satz im Kopf koennte nur einem von beiden
+  // widersprechen. Der Slot haelt seine Hoehe (budget.css, .budget-nav__month).
+  'split-expenses': { month: false, add: 'splitExpenses.addExpense', label: 'newLabel.splitExpenses' },
 };
 
 // Sentinel für „keine eigene Farbe" im Kontofarb-Wähler: der echte Wert ist der
@@ -1085,8 +1092,9 @@ function renderBody() {
       range: state.range,
       anchor: state.reportAnchor,
       // Der Leerzustand der Statistik legt von dort einen Eintrag an (R17);
-      // bei `read` gibt es die Handlung nicht.
-      onAddEntry: readOnly() ? null : () => openBudgetModal({ mode: 'create' }),
+      // bei `read` gibt es die Handlung nicht. Das Panel reicht den Zeitraum
+      // mit, den es zeigt - der Dialog datiert den Eintrag dort hinein.
+      onAddEntry: readOnly() ? null : (period) => openBudgetModal({ mode: 'create', period }),
       onRangeChange: (r) => {
         state.range = r;
         // Woche/Monat/Jahr wechselt die Aufloesung: Blende ohne Richtung.
@@ -3237,7 +3245,19 @@ function openEntryReadView(entry) {
   });
 }
 
-function openBudgetModal({ mode, entry = null, initialType = '' }) {
+/**
+ * Vorbelegtes Datum eines neuen Eintrags. `period` ist der Zeitraum, den der
+ * Aufrufer gerade ZEIGT (die Statistik: Woche, Monat oder Jahr an
+ * `state.reportAnchor`); fehlt er, gilt der Monat der Buchungsliste. Die
+ * Statistik blaettert ohne `state.month` zu bewegen - ohne den Zeitraum
+ * landete ein Eintrag aus dem leeren Maerz im laufenden Monat (#1775).
+ */
+function newEntryDefaultDate(period, month, today) {
+  const { from, to } = period?.from ? period : monthPeriodKeys(month);
+  return defaultDateInPeriod(from, to, today);
+}
+
+function openBudgetModal({ mode, entry = null, initialType = '', period = null }) {
   // DIE DRITTE LINIE, wie an jedem Einstieg in einen Schreibweg dieser Seite:
   // ein Aufruf, der gar nicht ueber einen Knopf kommt (FAB, Leerzustand, eine
   // Darlehensrate, ein Aufrufer von morgen), endet hier. An diesem Dialog
@@ -3255,8 +3275,7 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
   // der sofort aus der Liste verschwindet. Im laufenden Monat bleibt es heute.
   // Dieselbe Regel trägt der Kalender über seine vier Ansichten; sie steht
   // deshalb in utils/date.js und nicht zweimal hier und dort.
-  const { from, to } = monthPeriodKeys(state.month);
-  const defaultDate = defaultDateInPeriod(from, to, today);
+  const defaultDate = newEntryDefaultDate(period, state.month, today);
 
   const isExpense  = isEdit ? entry.amount < 0 : true;
   // Rate eines Darlehens (#638/#859): Ob sie Einnahme oder Ausgabe ist, entscheidet
@@ -5238,6 +5257,8 @@ async function deleteEntrySeries(id) {
 // statt Quelltext-Regex.
 export const __test = {
   monthNavHtml,
+  // #1775: das Datum eines neuen Eintrags folgt dem gezeigten Zeitraum.
+  newEntryDefaultDate,
   // #1648: die EINE Feldliste des Darlehens und ihre Verdrahtung, als Programm.
   loanFormFieldsHtml,
   wireLoanFormFields,

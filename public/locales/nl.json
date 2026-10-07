@@ -1710,7 +1710,6 @@
         "periodNoteAccounts": "Alle rekeningen, stand vandaag",
         "periodNoteSubscriptions": "Alle actieve abonnementen",
         "periodNoteLoans": "Alle leningen",
-        "periodNoteSplit": "Alle groepen",
         "statsRangeLabel": "Periode",
         "statsOtherCategories": "Overige",
         "trendDelta": "{{amount}} t.o.v. {{month}}",
