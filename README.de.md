@@ -134,7 +134,7 @@ Entsorgung und Schichtplan sind anfangs aus.
 | **Budget** | Einnahmen, Ausgaben, Konten, Darlehen, Abos und Planung je Kategorie, mit persönlichem Modus. Ein Eintrag kann seinen Betrag teilen und Titel und Kategorie für sich behalten, damit der Stand eines geteilten Kontos stimmt. |
 | **Haushaltshilfe** | Haushaltshilfen: Dienstpläne, Ein- und Ausstempeln, Tages- oder Stundenabrechnung, Aufgaben und Materialwünsche. |
 | **Entsorgung** | Wöchentliche, monatlich feste oder Wochentag-Abholtermine je Abfallart („der letzte Freitag"), mit Einzelterminen, Verschieben oder Ausfallenlassen je Termin und einem kommunalen ICS-Kalender, einmal importiert oder per URL abonniert. Standardmäßig aus. |
-| **Belohnungen** | Punkte auf Aufgaben gehen an das Mitglied, das sie erledigt, mit elterlich freigegebenem Katalog und nachvollziehbarem Konto. |
+| **Belohnungen** | Punkte auf Aufgaben gehen an das Mitglied, das sie erledigt, mit elterlich freigegebenem Katalog, nachvollziehbarem Konto und Taschengeld je Kind. |
 | **Gesundheit** | Vitalwerte, Medikamente, Laborwerte, Aktivität, Zyklus und ein Fastentagebuch je Mitglied, mit Verlaufsdiagrammen. |
 | **Schichtplan** | Rotierende Schichtmuster und feste Wochenpläne aus einem Zyklusmodell, mit Ausnahmen je Tag und einem ausdrücklichen freien Tag. Der Kalender zeigt sie als schreibgeschützte Ebene, beim Lesen berechnet - eine Musteränderung lässt keine veralteten Termine zurück. Standardmäßig aus. |
 | **Notizen &amp; Kontakte** | Farbige Markdown-Haftnotizen mit Checklisten, die man antippt statt zu bearbeiten, in persönlichen oder Haushalts-Kategorien, plus ein Kontaktverzeichnis mit CardDAV-Sync und vCard-Import/-Export. |

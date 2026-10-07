@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.75.0] - 2026-10-07
+
 ### Added
 
 - **Rewards can hold pocket money: a money balance per child, credited on a schedule, paid out on
@@ -382,6 +384,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   group.** Since the figures at the top of the tab show the selected group, the note in the
   header claimed the opposite of what stood below it. It is gone on this tab; the total over all
   groups keeps its label in the group list, and the selected group its own heading.
+
+- **An open filter popover no longer stays on screen when the page changes.** On a desktop the
+  calendar's filter popover hangs above the page and closed only on Escape or a click outside:
+  going back in the browser or changing the page from the keyboard left it standing over the next
+  page. It is now removed on every page change, and so is the new filter popover in Tasks.
 
 ## [2.74.0] - 2026-10-07
 

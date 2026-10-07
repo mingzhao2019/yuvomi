@@ -1,12 +1,12 @@
-<!-- version: 2.74.0 -->
-This update brings a handful of new functions and a broad tidy-up of how the app looks and moves.
+<!-- version: 2.75.0 -->
+This update adds pocket money and reworks how many pages are laid out and operated.
 
-A planned meal can name the member who cooks it, and the week plan and the overview show who that is. A household can put its members in an order of its own, and every list of people follows it. A loan can carry a due day, so "Mark paid" dates an installment on that day in its own month, and an installment whose month is already over no longer lands in the month you tapped in. The Singapore dollar and Singapore as a region are new, the calendar tile on the overview can list 8 or 12 appointments instead of 5, each device chooses how long it waits before the photo screensaver starts, and revoked or expired API tokens can be removed from the list.
+Rewards can now hold pocket money: a money balance per child, separate from points, credited weekly or monthly on a day you choose. A child asks for a deposit or a withdrawal, a parent confirms it, and only the child and the parents see the balance. Recurring shared expenses have a place of their own: a group lists them, and they can be edited, paused and resumed.
 
-Removing a member no longer takes their entries with it: an account that has left traces in shared data is deactivated instead of deleted. Deleting a shared expense leaves a trace instead of rewriting the books, a monthly shared expense on the 29th, 30th or 31st no longer skips a month, and resuming a paused one no longer books every date it missed.
+Many modules open on what you came for. The shift plan shows the plan before its master data, waste collection adds the recurring pickup with its main button, the budget tells planned from booked amounts, inventory opens on your things, and shared expenses show the figures of the group you are looking at. Dialogs now follow one pattern, with Cancel and the main button at the bottom right, and the settings list their options as rows that save the same way on every page. One settings page has a new name: "Integrations" is now "Photos and weather".
 
-Across the modules, headers, tabs, dialogs and lists now share one layout and one kind of movement, and many pages show more on the first screen of a phone. With read-only access, the meal plan, recipes, pantry, inventory and documents no longer offer buttons that end in an error message. A module that is switched off for the household is left out of the overview and no longer works in the background.
+On a phone, the calendar header shrinks to one row when you scroll, the document viewer uses the whole screen, and the budget month changes with a sideways swipe. On a desktop, filters in Tasks open beside the list instead of over it, and net worth, statistics and several lists use the width of the window. Lists, detail columns and the date picker move the same way everywhere.
 
-The update runs five database migrations on first start. They add the deactivated state and the order of household members, the due day of a loan, the anchor day of a recurring shared expense and the cook of a meal. No existing entry is lost and no action is needed; as always, a backup before updating is a good idea.
+The update runs one database migration on first start, which adds the pocket-money balance to Rewards. No existing entry is changed and no action is needed; as always, a backup before updating is a good idea.
 
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.74.0
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.75.0
