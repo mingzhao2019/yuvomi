@@ -3609,6 +3609,27 @@ html.fab-anim-done .page-fab {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    opacity: 1;
+  }
+
+  /* ER BLENDET EIN UND AUS statt zu springen (R17, Bewegung) - das Muster des
+   * Popover-Menues: `display` schaltet diskret, die Deckkraft laeuft in
+   * `--duration-xs`. Zwei Deklarationen, die Reihenfolge ist der Rueckfall:
+   * ohne `allow-discrete` verwirft der Browser die zweite und der Titel
+   * erscheint hart wie bisher. Kein Layout: er nimmt seinen Platz im selben
+   * Frame ein wie zuvor (`flex: 1 1 0`, die Zeile bricht nie um). */
+  .page-toolbar--stacked > .page-toolbar__dock-title {
+    opacity: 0;
+    transition: opacity var(--duration-xs) var(--ease-out);
+    transition:
+      opacity var(--duration-xs) var(--ease-out),
+      display var(--duration-xs) allow-discrete;
+  }
+
+  @starting-style {
+    .page-toolbar--stacked.is-docked > .page-toolbar__dock-title {
+      opacity: 0;
+    }
   }
 
   /* NIE EIN KOPF OHNE ORTSANGABE (R9 M9): laesst die Bar-Zeile dem Titel
@@ -3652,6 +3673,18 @@ html.fab-anim-done .page-fab {
 
   .page-toolbar--stacked.page-toolbar--dock-band.is-docked > .page-toolbar__dock-title {
     visibility: visible;
+  }
+
+  /* Im Band tauschen Large Title und angedockter Titel per Deckkraft
+   * (`visibility` schaltet am Ende bzw. Anfang derselben Dauer mit). */
+  .page-toolbar--stacked.page-toolbar--dock-band > .page-toolbar__dock-title {
+    transition:
+      opacity var(--duration-xs) var(--ease-out),
+      visibility var(--duration-xs) var(--ease-out);
+  }
+
+  .page-toolbar--stacked.page-toolbar--dock-band > [data-dock-lead] {
+    transition: opacity var(--duration-xs) var(--ease-out);
   }
 
   /* Opazitaet statt `visibility`: der Large Title bleibt die Ueberschrift der
@@ -3701,6 +3734,67 @@ html.fab-anim-done .page-fab {
    * `transform: scale()` an ihrer Stelle traegt nicht: der Platz der Zeile
    * wechselt mit (`flex-basis` oben), der Titel liefe waehrend der Skalierung
    * ueber seine Nachbarn. Der Groessenwechsel faellt deshalb in EINEN Frame. */
+
+  /* ... UND DER TITEL BLENDET IN SEINEN NEUEN SCHNITT (R17, Bewegung). Der
+   * Wechsel selbst bleibt ein Frame (Layout wird nicht animiert, siehe oben);
+   * weich wird er, weil der Titel an der neuen Stelle aus der Deckkraft 0
+   * kommt statt dort hart zu stehen - nur `opacity`, `--duration-xs`.
+   * Zwei gleiche Keyframes mit zwei Namen: der Namenswechsel startet die
+   * Blende in beide Richtungen neu. Den Rueckweg traegt `was-collapsed`
+   * (gesetzt von wireCollapsingHeader beim ersten Einklappen) - ohne den
+   * Merker blendete jeder Seitenaufbau seinen Titel ein, sobald die Messung
+   * `--capped` setzt. Im Budget ist der Titel eingeklappt aus dem Bild
+   * (`--period`, unten); dort blendet nur die Rueckkehr. Unter reduzierter
+   * Bewegung nimmt reset.css die Dauer auf 0s. */
+  .page-toolbar--capped.is-collapsed > .page-toolbar__title {
+    animation: page-title-settle var(--duration-xs) var(--ease-out);
+  }
+
+  .page-toolbar--capped.was-collapsed:not(.is-collapsed) > .page-toolbar__title {
+    animation: page-title-settle-back var(--duration-xs) var(--ease-out);
+  }
+}
+
+/* ZEITRAUM-WISCH (utils/period-swipe.js; Kalender, Budget). Hier und nicht im
+ * Stylesheet eines Moduls: der Baustein ist geteilt, die Modul-Stylesheets
+ * laden einzeln.
+ *
+ * Der neue Zeitraum gleitet von der Seite herein, aus der ihn der Finger
+ * geholt hat - kurz und ohne Ueberschwingen: er antwortet auf eine Geste,
+ * er fuehrt keine vor. Die Seite ist LOGISCH (Leserichtung), in `ar`/`fa`
+ * gespiegelt. Unter reduzierter Bewegung setzt period-swipe.js die Klasse gar
+ * nicht erst; die Regel unten ist das Netz dafuer. */
+.period-swipe-in--next,
+.period-swipe-in--prev {
+  animation: period-swipe-in var(--duration-md) var(--ease-out);
+}
+
+.period-swipe-in--next { --period-swipe-from: var(--space-8); }
+.period-swipe-in--prev { --period-swipe-from: calc(-1 * var(--space-8)); }
+
+[dir="rtl"] .period-swipe-in--next { --period-swipe-from: calc(-1 * var(--space-8)); }
+[dir="rtl"] .period-swipe-in--prev { --period-swipe-from: var(--space-8); }
+
+@keyframes period-swipe-in {
+  from {
+    transform: translateX(var(--period-swipe-from));
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .period-swipe-in--next,
+  .period-swipe-in--prev {
+    animation: none;
+  }
+}
+
+@keyframes page-title-settle {
+  from { opacity: 0; }
+}
+
+@keyframes page-title-settle-back {
+  from { opacity: 0; }
 }
 
 /* EIN KOPF MIT ZEITRAUM KLAPPT DIE TITELZEILE GANZ EIN (Kalender-Critique
@@ -3711,13 +3805,23 @@ html.fab-anim-done .page-fab {
  * mit Vor/Zurueck beim Scrollen weiter „wo bin ich", die Tab-Leiste darunter
  * den Modulnamen - der Large Title hat eingeklappt nichts mehr zu sagen, was
  * nicht schon dasteht. Fiel er nur auf den Inline-Schnitt, blieb er auf seiner
- * eigenen Zeile, weil der Zeitraum mobil die ganze Zeile fuellt: der Kollaps
- * sparte im Kalender 5-14px, im Budget 14px (170 -> 156px).
+ * eigenen Zeile, weil der Zeitraum mobil die ganze Zeile fuellt.
  *
  * Eingeklappt verlaesst der Titel deshalb das Bild, nicht den Baum: das <h1>
  * bleibt die Seitenueberschrift fuer Screenreader, geclippt wie `.sr-only`.
  * Das Siegel geht mit. Koepfe ohne Zeitraum (Notizen, Kontakte) behalten den
- * Inline-Schnitt - bei ihnen verankert nichts anderes die Seite. */
+ * Inline-Schnitt - bei ihnen verankert nichts anderes die Seite.
+ *
+ * WAS DAS HEUTE SPART (gemessen 390x844, R17 Schritt 5 - hier standen
+ * "5-14px" und "Budget 170 -> 156px" aus der Zeit der drei Kopfzeilen):
+ * - Kalender: die Regel allein sparte seit R17 Z1 NICHTS (117 -> 117px) - die
+ *   Werkzeuge stehen dort in der Titelzeile und hielten sie offen. Erst
+ *   calendar.css holt eingeklappt den Stepper in diese Zeile: 117 -> 65px.
+ * - Budget: die Regel greift nicht mehr. Seit R16 teilt der Stepper die
+ *   Titelzeile (`--period-inline`, unten), der Titel bleibt im Inline-Schnitt
+ *   und der Kopf misst in jedem Zustand 117px - Zeile 1 traegt Titel und
+ *   Monat (0px frei), Zeile 2 die sieben Reiter (550px in 358px, scrollend).
+ *   Reiter und Stepper passen nicht in eine Zeile; der Kopf bleibt zweizeilig. */
 @media (max-width: 1023px) {
   .page-toolbar--period.page-toolbar--capped.is-collapsed > .page-toolbar__title {
     position: absolute;
@@ -3738,11 +3842,12 @@ html.fab-anim-done .page-fab {
  * Unter der Kuechen-Leiste traegt der Kopf von Rezepte und Vorrat mobil nur
  * Werkzeuge - Lupe, "..." -, und kostete dafuer 65px ueber der Liste.
  * `wireCollapsingHeader` (utils/ux.js) erkennt eine solche Zeile
- * (`--fold-row`: Gruppen-Variante, einzeilig, ohne Titel, im Center-Slot
- * nur die Suche) und haengt sie an dieselbe Schwelle und Klasse wie den Kopf
- * der gedeckelten Module: angedockt (`is-collapsed`) gibt sie ihre Hoehe
- * frei, zurueck oben kommt sie wieder. Mahlzeiten und Einkauf benennen in
- * ihrer Zeile etwas (Woche, Liste) und falten nicht.
+ * (`--fold-row`: Gruppen-Variante, einzeilig, ohne Titel) und haengt sie an
+ * dieselbe Schwelle und Klasse wie den Kopf der gedeckelten Module: angedockt
+ * (`is-collapsed`) gibt sie ihre Hoehe frei, zurueck oben kommt sie wieder.
+ * Seit R17 Schritt 5 falten auch Mahlzeiten (Wochenstepper) und Einkauf
+ * (Listen-Kapseln): ihr Kopf stand in jedem Scrollstand bei 121px, der des
+ * Vorrats daneben bei 56 (gemessen 390x844: Port 723 -> 787px).
  *
  * WIE SIE FALTET: nicht ueber ihre Hoehe. Eine Hoehe, die nach `auto`
  * zurueckgleiten soll, braucht `interpolate-size`, und das kann Safari nicht -
@@ -4591,6 +4696,96 @@ a.popover-menu__item {
 
 .filter-sheet__group--view > * + * {
   margin-top: var(--space-3);
+}
+
+/* --------------------------------------------------------
+ * Filter am Desktop als Popover am Knopf (Critique R17, E13;
+ * utils/filter-sheet.js `openFilterPopover`, ab 1024px).
+ *
+ * Dasselbe Blatt ohne Overlay und ohne Unschaerfe: die Liste dahinter bleibt
+ * sichtbar und filtert live. Flaeche, Kante, Schatten und Radius wie
+ * `.popover-menu` - dasselbe Material fuer alles, was an einem Knopf aufgeht;
+ * die Form hatte zuerst der Kalender-Filter (`.cal-filters-popover`,
+ * calendar.css). Breite = `--layout-rail-min`, die Inhaltsbreite eines
+ * Telefons: die Gruppen sind fuer genau diese Breite gebaut.
+ *
+ * EIN- UND AUSGANG WIE DAS POPOVER-MENUE: es waechst aus der Ecke am Knopf
+ * (96 % -> 100 %) und blendet, der Ausgang ist kuerzer. Den Ursprung setzt
+ * positionFilterPopover() mit der Position. ZWEI DEKLARATIONEN, die
+ * Reihenfolge ist der Rueckfall: ohne `allow-discrete` verwirft der Browser
+ * die zweite, und das Popover schliesst hart. Unter reduzierter Bewegung
+ * nimmt reset.css die Dauer auf 0s.
+ * -------------------------------------------------------- */
+.filter-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  z-index: var(--z-dropdown);
+  inline-size: min(var(--layout-rail-min), calc(100vw - 2 * var(--space-2)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3) var(--space-3) 0;
+  border: var(--space-px) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--duration-xs) var(--ease-out),
+    transform var(--duration-xs) var(--ease-out);
+  transition:
+    opacity var(--duration-xs) var(--ease-out),
+    transform var(--duration-xs) var(--ease-out),
+    overlay var(--duration-xs) allow-discrete,
+    display var(--duration-xs) allow-discrete;
+}
+
+.filter-popover:popover-open {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--duration-md) var(--ease-out),
+    transform var(--duration-md) var(--ease-out);
+  transition:
+    opacity var(--duration-md) var(--ease-out),
+    transform var(--duration-md) var(--ease-out),
+    overlay var(--duration-md) allow-discrete,
+    display var(--duration-md) allow-discrete;
+}
+
+@starting-style {
+  .filter-popover:popover-open {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Kein Abdunkeln, keine Unschaerfe: das ist der Sinn der Form. */
+.filter-popover::backdrop {
+  background: transparent;
+}
+
+.filter-popover__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Das Zuruecksetzen bleibt ohne Scrollen im Blick - wie mountFooter() es im
+ * Blatt an den Rand hebt, klebt es hier am unteren Rand des Popovers. */
+.filter-popover .modal-panel__footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-block-start: var(--space-3);
+  margin-inline: calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-block-start: var(--space-px) solid var(--color-border-subtle);
+  background-color: var(--color-surface);
 }
 
 /* DIE CHIPREIHE IM SCROLLPORT.
@@ -5670,6 +5865,33 @@ p.field-hint--warn[hidden] {
   margin-bottom: 0;
 }
 
+/* ZWEI FELDER NEBENEINANDER, GETEILT (R17, E6). Menge/Einheit, Ort/Kategorie:
+ * `auto-fit` misst das Modal, nicht das Fenster, und faellt einspaltig, sobald
+ * die Untergrenze je Spalte nicht mehr passt. Die Regel stand als
+ * `.pantry-form-row` in pantry.css und 1:1 kopiert als `.inventory-form-row`
+ * in inventory.css - und der Artikel-Dialog des EINKAUFS benutzte die
+ * Vorratsklasse, deren Blatt dort nie geladen ist: Menge und Kategorie, Preis
+ * und Laden standen untereinander, der Dialog war mobil 752px lang. Eine
+ * geteilte Klasse gehoert in ein Blatt, das index.html verlinkt (dieselbe
+ * Lehre wie `.form-hint`).
+ * 8rem: im 364px-Sheet (innen 332) passen zwei Spalten (2 x 128 + 12).
+ * `--wide` (11rem) fuer Felder, die schmaler nicht lesbar sind - die
+ * Datumsfelder des Inventars; dort bleibt das Sheet einspaltig wie bisher. */
+.form-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--form-pair-min, 8rem), 1fr));
+  gap: var(--space-3);
+}
+
+.form-pair--wide {
+  --form-pair-min: 11rem;
+}
+
+/* `hidden` verliert gegen `display: grid` (Kilometerstand im Inventar). */
+.form-pair[hidden] {
+  display: none;
+}
+
 /* Gleich hohe Karten/Boxen in Modal-Grids */
 .modal-panel__body .grid {
   align-items: stretch;
@@ -6673,6 +6895,14 @@ p.field-hint--warn[hidden] {
   .page-toolbar .page-search__input {
     min-height: var(--target-md);
     height: var(--target-md);
+  }
+
+  /* Dieselbe Regel im Dialogfuss (R17, E6): ein Icon-Knopf (Archivieren neben
+   * Loeschen, Entsorgung und Konto) stand mit 44px neben Abbrechen und
+   * Speichern mit 40 und streckte seinen Nachbarn mit. */
+  .modal-panel__footer .btn--icon {
+    min-height: var(--target-md);
+    min-width: var(--target-md);
   }
 }
 

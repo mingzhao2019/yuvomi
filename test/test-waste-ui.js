@@ -726,7 +726,7 @@ test('der FAB fuehrt ohne Abfallart nicht mehr ins Leere', () => {
   assert.ok(handler, 'der FAB-Handler in applyPageMode muss auffindbar bleiben');
   assert.match(handler[0], /if \(readOnly\(\)\) return;/);
   assert.match(handler[0], /creates === 'type'\) openTypeModal\(\)/);
-  assert.match(handler[0], /else openPickupModal\(\)/);
+  assert.match(handler[0], /else openScheduleModal\(null\)/, 'mit Abfallart legt der Primaerknopf den Termin an (R17/E2)');
   assert.doesNotMatch(WASTE_CODE, /addTypeFirstHint/, 'kein Umleitungs-Toast mehr');
   assert.match(WASTE_CODE, /setPageFabAction\(fab, \{[\s\S]{0,120}dockLabel: t\(intent\.dockLabelKey\)/,
     'der angedockte Knopf zieht sein Nomen mit');
@@ -866,8 +866,70 @@ test('fabIntent: ohne Abfallart nennt der FAB "Abfallart" und legt sie an', () =
   assert.deepEqual(fabIntent({ types: [] }), { creates: 'type', labelKey: 'waste.addType', dockLabelKey: 'newLabel.wasteType' });
   assert.deepEqual(fabIntent({ types: [{ id: 1, archived: true }] }),
     { creates: 'type', labelKey: 'waste.addType', dockLabelKey: 'newLabel.wasteType' }, 'nur archivierte: keine Abholung moeglich');
+  // Entscheidung R17 (E2): mit Abfallart legt der Primaerknopf den
+  // WIEDERKEHRENDEN TERMIN an - bis dahin die Einzelabholung, die seltenste
+  // Handlung des Moduls.
   assert.deepEqual(fabIntent({ types: [{ id: 1, archived: false }] }),
-    { creates: 'pickup', labelKey: 'waste.addPickup', dockLabelKey: 'newLabel.waste' });
+    { creates: 'schedule', labelKey: 'waste.addSchedule', dockLabelKey: 'newLabel.wasteSchedule' });
+});
+
+// ---------------------------------------------------------------------------
+// Critique R17 (E2): der Termin ist der Hauptweg, die Abholung sagt, wann sie ist
+// ---------------------------------------------------------------------------
+
+test('R17/E2: die Einzelabholung steht im Werkzeugmenue, der Termin-Dialog waehlt seine Abfallart', () => {
+  const menu = WASTE_SRC.slice(WASTE_SRC.indexOf("id: 'waste-page-menu'"), WASTE_SRC.indexOf('id="waste-add-type-btn"'));
+  assert.match(menu, /\{ action: 'add-pickup', label: t\('waste\.addPickup'\), icon: 'calendar-plus' \}/);
+  assert.match(WASTE_CODE, /kind === 'add-pickup'\) \{[\s\S]{0,200}?else openPickupModal\(\);/, 'der Eintrag oeffnet den Dialog der Einzelabholung');
+  const css = readFileSync(new URL('../public/styles/waste.css', import.meta.url), 'utf8');
+  const hidden = [...eachRule(css)].filter((r) => /display:\s*none/.test(r.body))
+    .flatMap((r) => r.selector.split(',').map((x) => x.trim()));
+  assert.ok(hidden.includes('.waste-page--onboarding #waste-page-menu [data-action="add-pickup"]'),
+    'ohne Abfallart gibt es nichts, wofuer man eine Einzelabholung eintraegt');
+
+  // Vom Primaerknopf kommt der Dialog ohne Abfallart: vorgeschlagen wird die
+  // erste aktive OHNE Termin, sonst die erste aktive.
+  const types = [{ id: 1 }, { id: 2 }, { id: 3, archived: true }];
+  assert.equal(__test.defaultScheduleType(types, [{ type_id: 1 }]).id, 2);
+  assert.equal(__test.defaultScheduleType(types, [{ type_id: 1 }, { type_id: 2 }]).id, 1);
+  assert.equal(__test.defaultScheduleType([{ id: 3, archived: true }], []), null);
+  const modal = WASTE_SRC.slice(WASTE_SRC.indexOf('function openScheduleModal(type, schedule = null) {'), WASTE_SRC.indexOf('function openPickupModal('));
+  assert.match(modal, /const pickType = !type;/);
+  assert.match(modal, /<select class="form-input" id="wsm-type">/);
+  assert.match(modal, /const typeId = typeSelect \? Number\(typeSelect\.value\) : type\.id;/);
+});
+
+test('R17/E2: eine Abholung nennt Wochentag, Datum und Abstand', () => {
+  // t() ist im Loader der Schluessel plus seine Parameter, formatDate() gibt
+  // den Key zurueck: geprueft wird die Zusammensetzung, nicht die Uebersetzung.
+  const today = '2026-10-07'; // Mittwoch
+  assert.equal(__test.pickupWhenLabel('2026-10-07', today), 'Mi, 2026-10-07 · common.today');
+  assert.equal(__test.pickupWhenLabel('2026-10-08', today), 'Do, 2026-10-08 · common.tomorrow');
+  assert.equal(__test.pickupWhenLabel('2026-10-09', today), 'Fr, 2026-10-09 · dashboard.daysLeft{"count":2}');
+  assert.equal(__test.pickupWhenLabel('2026-12-21', today), 'Mo, 2026-12-21 · dashboard.countdownMonths{"count":2}');
+  assert.equal(__test.pickupWhenLabel('2026-10-05', today), 'Mo, 2026-10-05', 'ein vergangener Tag traegt keinen Abstand');
+  // Der Wochentag haengt am KEY, nicht an der Zone des Prozesses.
+  const before = process.env.TZ;
+  try {
+    for (const zone of ['Pacific/Auckland', 'America/Los_Angeles']) {
+      process.env.TZ = zone;
+      assert.equal(__test.pickupWhenLabel('2026-10-09', today), 'Fr, 2026-10-09 · dashboard.daysLeft{"count":2}', zone);
+    }
+  } finally {
+    if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
+  }
+  const row = __test.occurrenceRowHtml({ key: 'k', type_id: 1, type_name: 'Papier', date_key: '2099-01-02', origins: [] });
+  assert.match(row, /<span class="list-row__meta">Fr, 2099-01-02 · /, 'die Abholzeile traegt das Label');
+});
+
+test('R17/E2: eine Abfallart mit anstehender Abholung sagt nicht "Noch kein Termin"', () => {
+  const occurrences = [
+    { type_id: 2, date_key: '2099-01-02', origins: [{ kind: 'one_off' }] },
+    { type_id: 2, date_key: '2099-02-02', origins: [{ kind: 'one_off' }] },
+  ];
+  assert.match(__test.typeWithoutScheduleLine(2, occurrences), /^waste\.nextPickupLabel: Fr, 2099-01-02/, 'die naechste Abholung dieser Art');
+  assert.equal(__test.typeWithoutScheduleLine(1, occurrences), 'waste.noSchedulesYet', 'wirklich nichts: der bisherige Satz');
+  assert.match(WASTE_SRC, /<p class="waste-schedule-list__empty">\$\{esc\(typeWithoutScheduleLine\(type\.id\)\)\}<\/p>/, 'die Karte liest die Zeile dort');
 });
 
 test('create-preset-type schreibt und steht deshalb NICHT in READ_SAFE_ACTIONS', () => {
@@ -886,4 +948,29 @@ test('Onboarding-CSS: Abholungen, Quellen, Abschnittstitel und Kopfknopf treten 
     '.waste-page--onboarding #waste-add-type-btn',
   ]) assert.ok(hidden.includes(sel), `${sel} fehlt`);
   assert.match(WASTE_CODE, /classList\.toggle\('waste-page--onboarding', isOnboarding\(state\)\)/);
+});
+
+// R17 (E6), Critique 2026-10-07 (A3 P1): der Termin-Dialog trug sieben rohe
+// 13x13-Checkboxen in 31px-Labels und "Aktiv" als Checkbox statt als Schalter.
+test('R17 E6: Wochentage sind Chips mit Zustand, "Aktiv" ist ein Schalter', () => {
+  const html = __test.weekdayPickerHtml('MO,TH');
+  const chips = [...html.matchAll(/<button type="button" class="([^"]*)" data-weekday="(\w+)"\s+aria-pressed="(true|false)">/g)];
+  assert.equal(chips.length, 7, 'sieben Chips, je Wochentag einer');
+  assert.ok(chips.every((m) => m[1].split(' ').includes('filter-chip')), 'der Chip des Kanons');
+  assert.deepEqual(chips.filter((m) => m[3] === 'true').map((m) => m[2]), ['MO', 'TH'], 'der Zustand steht in aria-pressed');
+  assert.deepEqual(chips.filter((m) => m[1].includes('filter-chip--active')).map((m) => m[2]), ['MO', 'TH'], 'und im Bild');
+  assert.doesNotMatch(html, /type="checkbox"/, 'keine rohe Checkbox mehr');
+  assert.match(html, /role="group" aria-labelledby="wsm-weekdays-label"/, 'die Gruppe hat einen Namen');
+  assert.match(html, /<input type="hidden" name="weekdays" value="MO,TH">/, 'der Stand steht fuer den Verwerfen-Schutz in einem Feld');
+
+  // Lesen: genau die gedrueckten Chips, in Wochenreihenfolge.
+  const pressed = [{ dataset: { weekday: 'MO' } }, { dataset: { weekday: 'TH' } }];
+  const root = { querySelectorAll: (sel) => (/\[aria-pressed="true"\]/.test(sel) ? pressed : []) };
+  assert.deepEqual(__test.weekdayPickerValue(root), ['MO', 'TH']);
+
+  const modal = WASTE_SRC.slice(WASTE_SRC.indexOf('function openScheduleModal(type, schedule = null) {'), WASTE_SRC.indexOf('function openPickupModal('));
+  assert.match(modal, /<label class="toggle">\s*<input type="checkbox" id="wsm-active"[^>]*>\s*<span class="toggle__track"><\/span>/,
+    '"Aktiv" traegt die Schalter-Bahn');
+  assert.match(modal, /body\.weekdays = weekdayPickerValue\(panel\)/, 'der Speicherweg liest die Chips');
+  assert.match(modal, /wireWeekdayPicker\(panel\)/, 'und die Chips sind verdrahtet');
 });

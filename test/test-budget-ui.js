@@ -699,7 +699,9 @@ test('die Trendkurve beschriftet Skala und Zeitraum - IM Bild', () => {
   // Seit C4 (Re-Critique 2026-09-27) auf runder Skala: Gitter und Kurve lesen
   // DIESELBE gerundete Obergrenze, sonst stuende die Kurve neben ihrer Achse.
   assert.match(stats, /const axis = niceDomain\(0, max, \{ integer: true \}\);/);
-  assert.match(stats, /chartY\(v, 0, axis\.max\)/);
+  // Seit R17 mit der Geometrie der Flaeche (mobil hoeher): Raster und Kurve teilen auch sie.
+  assert.match(stats, /chartY\(v, 0, axis\.max, geo\)/);
+  assert.match(stats, /chartGridMarkup\(0, axis\.max, [^;]*, geo, axis\.steps\)/);
   assert.match(stats, /chartXLabelsMarkup\(/, 'die Zeitachse kommt aus der geteilten Geometrie');
   assert.doesNotMatch(stats, /preserveAspectRatio="none"/, 'eine Kurve mit Achse darf nicht gestreckt werden - der Text im Bild verzerrt mit');
   assert.doesNotMatch(stats, /budget-stats__axis-(max|mid|x)/, 'die Achse steht im SVG, nicht als HTML daneben');
@@ -1446,10 +1448,49 @@ test('Kopf und alle Reiter enden an der Bahn: Kopfmass, Plan, Darlehen und Konte
   assert.match(loanMetrics?.body ?? '', /grid-column:\s*2/);
   assert.match(loanMetrics?.body ?? '', /--summary-cards:\s*1/, 'in der Seitenleiste stehen die Kennzahlen untereinander');
 
-  // Konten: die eine Kennzahl traegt die Zeile bis zur Bahn.
-  const net = rule('#budget-body .budget-tab-panel--accounts > .metric-grid', flat);
-  assert.match(net?.body ?? '', /--summary-cards:\s*1/);
-  assert.match(net?.body ?? '', /max-width:\s*var\(--budget-lane\)/);
+  // Konten (R17, E14): das Nettovermoegen steht als Leistenkarte NEBEN den
+  // Konten - dieselbe Zweispalte wie Uebersicht, Plan und Darlehen. Bis dahin
+  // trug EINE Karte die ganze Zeile (981px bei 1280, 1124px bei 1440).
+  const accounts = rule('.budget-accounts', wide);
+  assert.match(accounts?.body ?? '', columns, 'die Konten stehen auf derselben Zweispalte');
+  const net = rule('.budget-accounts > .metric-grid', wide);
+  assert.match(net?.body ?? '', /grid-column:\s*2/, 'das Nettovermoegen steht in der Seitenleiste');
+  assert.match(net?.body ?? '', /grid-row:\s*1/, 'neben den Konten, nicht darueber');
+  assert.match(rule('.budget-accounts > :not(.metric-grid)', wide)?.body ?? '', /grid-column:\s*1;[\s\S]*grid-row:\s*1/,
+    'Konten (oder ihr Leerzustand) nehmen die Hauptspalte');
+  assert.equal(rule('#budget-body .budget-tab-panel--accounts > .metric-grid', flat), undefined,
+    'die Regel „eine Karte traegt die Zeile" ist abgeloest');
+  // EIN Traeger, flache Zeilen (Sonde 7): die Liste traegt Flaeche und Radius,
+  // das Konto keine; getrennt wird ueber `> * + *`, nie ueber `gap`.
+  const list = rule('.budget-accounts__list', flat);
+  assert.match(list?.body ?? '', /flex-direction:\s*column/);
+  assert.match(list?.body ?? '', /background:\s*var\(--color-surface\)/);
+  assert.match(list?.body ?? '', /overflow:\s*hidden/);
+  assert.doesNotMatch(list?.body ?? '', /\bgap\s*:|grid-template-columns/, 'keine gap-getrennte Kartenspalte, kein Raster');
+  assert.match(rule('.budget-accounts__list > * + *', flat)?.body ?? '', /border-top:\s*1px solid var\(--color-border-subtle\)/);
+  assert.doesNotMatch(rule('.budget-account', flat)?.body ?? '', /background|box-shadow|border-radius/, 'die Zeile ist flaechenlos');
+  assert.ok(!rules.some(({ selector, at }) => selector.trim() === '.budget-accounts__list' && at.some((a) => /@media/.test(a))),
+    'keine Fensterabfrage mehr an der Kontenliste - zwei 325px-Karten brachen die Namen mitten im Wort');
+});
+
+test('E14: das Nettovermoegen ist eine Leistenkarte im Konten-Raster, im Markup vor den Konten', () => {
+  const zuvor = { accounts: budgetUi.state.accounts, netWorth: budgetUi.state.netWorth, show: budgetUi.state.accountsShowArchived };
+  try {
+    budgetUi.state.accounts = [{ id: 1, name: 'Giro', type: 'checking', current_balance: 100, starting_balance: 0, archived: 0 }];
+    budgetUi.state.netWorth = 100;
+    const html = budgetUi.renderAccountsPage();
+    const wrap = html.indexOf('<div class="budget-accounts">');
+    const rail = html.indexOf('class="metric-grid metric-grid--rail budget-glance-details"');
+    const list = html.indexOf('<div class="budget-accounts__list">');
+    assert.ok(wrap > 0 && rail > wrap && list > rail, 'Huelle > Leistenkarte > Kontenliste (schmal steht die Kennzahl ueber den Konten)');
+    assert.equal(html.match(/class="metric-card /g)?.length, 1, 'EINE Karte, EIN Wert');
+    // Auch der Leerzustand steht in der Zweispalte (Quelltext: emptyStateHTML braucht ein DOM).
+    const fn = budget.slice(budget.indexOf('function renderAccountsPage()'), budget.indexOf('function wireAccountsPage()'));
+    assert.equal(fn.match(/<div class="budget-accounts">/g)?.length, 2, 'beide Zweige (leer und gefuellt) fuehren die Huelle');
+    assert.equal(fn.match(/\$\{rail\}/g)?.length, 2, 'und beide die Leistenkarte');
+  } finally {
+    Object.assign(budgetUi.state, { accounts: zuvor.accounts, netWorth: zuvor.netWorth, accountsShowArchived: zuvor.show });
+  }
 });
 
 test('alle Tabs teilen EINE Bahn: gleiche linke Kante, gleiches Mass, der Plan nicht zentriert', () => {
@@ -2081,7 +2122,9 @@ test('Gruppe löschen trägt eine andere Gewichtung als bearbeiten/archivieren',
     'Löschen steht zuletzt, hinter einem Trenner, im Gefahrenton');
   // Sichtbar bleibt die haeufige Handlung, nicht fuenf Knoepfe.
   const main = splitExpenses.slice(splitExpenses.indexOf('function renderMain('), splitExpenses.indexOf('// So viele Namen stehen'));
-  assert.match(main, /id="split-settle"[\s\S]*\$\{groupToolsMenuHtml\(\)\}/);
+  // Seit R17/E5 steht "Ausgleichen" in der Salden-Zeile, das Menue im Gruppenkopf.
+  assert.match(main, /id="split-settle"/);
+  assert.match(main, /<div class="split-header-actions">[\s\S]*?: groupToolsMenuHtml\(\)\}/);
   assert.doesNotMatch(main, /id="split-(edit|archive|delete)-group"/, 'die Gruppenverwaltung steht im Menue, nicht als Icon-Knopfreihe');
 });
 
@@ -2102,9 +2145,25 @@ test('Budgetkopf traegt page-toolbar--period: eingeklappt verlaesst der Titel da
   assert(title && /clip-path:\s*inset\(50%\)/.test(title.body) && /position:\s*absolute/.test(title.body),
     'die geteilte Regel muss den eingeklappten Titel aus dem Fluss nehmen und klippen');
   assert(title.at.some((a) => /max-width:\s*1023px/.test(a)), 'nur unterhalb der Desktop-Breite');
+  // Keine zweite, kalendereigene Kopie DIESER Regel: der Kalender darf seinen
+  // eingeklappten Kopf ordnen (seit R17 rueckt dort der Stepper in Zeile 1),
+  // aber Titel und Siegel nimmt allein die geteilte Regel aus dem Bild.
   const calendarCss = read('../public/styles/calendar.css');
-  assert.doesNotMatch(calendarCss.replace(/\/\*[\s\S]*?\*\//g, ''), /\.cal-toolbar\.page-toolbar--capped\.is-collapsed/,
-    'keine zweite, kalendereigene Kopie der Regel');
+  const copies = [...eachRule(calendarCss)].filter((r) => /\.is-collapsed/.test(r.selector)
+    && (/\.page-toolbar__title|\.module-seal--head/.test(r.selector) || /clip-path\s*:/.test(r.body)));
+  assert.deepEqual(copies.map((r) => r.selector.trim()), [], 'keine zweite, kalendereigene Kopie der Regel');
+  // Allowlist statt Denylist (R17 Schritt 8): bis R17 verbot dieser Test JEDE
+  // eingeklappte Kalender-Regel. Die Praezisierung oben faengt die alte Kopie,
+  // aber nicht denselben Fehler in anderer Schreibweise (`> h1 { display: none }`).
+  // Erlaubt ist deshalb nur, was der eingeklappte Kalenderkopf wirklich ordnet:
+  // der Center-Slot (Stepper rueckt in Zeile 1) und die Werkzeuge, die ins
+  // Ansichtsmenue falten. Jede weitere Regel ist rot, bis sie hier steht.
+  const ALLOWED_COLLAPSED = [/> \.page-toolbar__center$/, /\[data-collapse-fold\]/];
+  const strangers = [...eachRule(calendarCss)]
+    .filter((r) => /\.is-collapsed/.test(r.selector))
+    .flatMap((r) => r.selector.split(',').map((part) => part.trim()))
+    .filter((part) => /\.is-collapsed/.test(part) && !ALLOWED_COLLAPSED.some((re) => re.test(part)));
+  assert.deepEqual(strangers, [], 'der eingeklappte Kalenderkopf ordnet nur Center-Slot und gefaltete Werkzeuge');
 });
 
 /* ZWEI SKALEN (Critique 2026-09-25, P2): eine gemeinsame Skala liess das
@@ -2907,9 +2966,12 @@ test('die Bilanz rechnet eine geloeschte Buchung sofort heraus und beim Undo wie
   const del = budgetCode.slice(budgetCode.indexOf('async function deleteEntry('));
   const delBody = del.slice(0, del.indexOf('\n}\n'));
   const before = delBody.slice(0, delBody.indexOf('scheduleUndoableDelete'));
-  assert.match(before, /state\.summary = summaryWith\(state\.summary, \[entry\], -1\)[\s\S]*renderBody\(\)/, 'Loeschen zeichnet die alte Bilanz');
+  assert.match(before, /state\.summary = summaryWith\(state\.summary, \[entry\], -1\)[\s\S]*collapseEntryThenRedraw\(id\)/, 'Loeschen zeichnet die alte Bilanz');
   const restore = delBody.slice(delBody.indexOf('restore:'));
-  assert.match(restore, /state\.summary = summaryWith\(state\.summary, \[entry\], 1\)[\s\S]*renderBody\(\)/, 'Undo rechnet die Buchung nicht zurueck');
+  assert.match(restore, /state\.summary = summaryWith\(state\.summary, \[entry\], 1\)[\s\S]*redrawEntries\(\)/, 'Undo rechnet die Buchung nicht zurueck');
+  // Beide zeichnen ueber renderBody() - mit Listenbewegung (utils/list-motion.js).
+  assert.match(budgetCode, /function redrawEntries\(\) \{[\s\S]{0,200}redrawList\(body, renderBody,/);
+  assert.match(budgetCode, /function collapseEntryThenRedraw\(id\) \{[\s\S]{0,300}redrawEntries\(\); \}\);\n\}/);
   const series = budgetCode.slice(budgetCode.indexOf('async function deleteEntrySeries('));
   const seriesBefore = series.slice(0, series.indexOf('scheduleUndoableDelete'));
   assert.match(seriesBefore, /state\.summary = summaryWith\(state\.summary, removed, -1\)/, 'Serie loeschen zeichnet die alte Bilanz');
@@ -4455,4 +4517,313 @@ test('#1631: die neuen Saetze stehen in jeder Sprache, uebersetzt und mit ihrem 
       assert.notEqual(text, locales.get('en.json')[key], `${name}: budget.${key} ist der englische Satz`);
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Entscheidung R17 (E4): die Uebersicht zeigt "Geplant · n" und "Gebucht"
+// ---------------------------------------------------------------------------
+
+/* Im laufenden Monat standen die Zeilen mit einem Datum nach heute oben in der
+ * EINEN absteigenden Liste: 11 von 23 in der Demo, die erste gebuchte Buchung
+ * bei y=878 von 800 (1280x800), keine einzige Tatsache im ersten Bild. */
+test('R17/E4: splitLedger trennt Geplantes von Gebuchtem und stellt das Naechste nach vorn', () => {
+  const heute = '2026-10-07';
+  const rows = [
+    zeile({ id: 1, date: '2026-10-19' }),
+    zeile({ id: 2, date: '2026-10-08' }),
+    zeile({ id: 3, date: '2026-10-07' }),
+    zeile({ id: 4, date: '2026-10-05', is_pending: 1 }),
+    zeile({ id: 5, date: '2026-10-01' }),
+  ];
+  const { planned, booked } = budgetUi.splitLedger(rows, heute);
+  assert.deepEqual(planned.map((e) => e.id), [4, 2, 1], 'geplant: Datum nach heute ODER noch erwartet - aufsteigend, das Naechste zuerst');
+  assert.deepEqual(booked.map((e) => e.id), [3, 5], 'gebucht: der Rest in der Reihenfolge der Liste; heute zaehlt als passiert');
+  assert.deepEqual(rows.map((e) => e.id), [1, 2, 3, 4, 5], 'die Eingabe bleibt unveraendert');
+});
+
+test('R17/E4: zwei Abschnitte mit Titel, "Geplant" eingeklappt auf drei Zeilen', () => {
+  const vorher = { ...budgetUi.state };
+  const geplant = [6, 5, 4, 3, 2].map((tag) => zeile({ id: 100 + tag, title: `Serie ${tag}`, date: `2999-01-0${tag}` }));
+  const gebucht = [zeile({ id: 1, title: 'Einkauf', date: '2000-01-03' }), zeile({ id: 2, title: 'Miete', date: '2000-01-01' })];
+  try {
+    Object.assign(budgetUi.state, {
+      month: '2000-01', entries: [...geplant, ...gebucht], responsibleFilterId: null, groupByResponsible: false,
+      ledgerQuery: '', ledgerResults: null, plannedExpandedMonth: null,
+    });
+    const html = budgetUi.renderEntries();
+    const abschnitte = [...html.matchAll(/<section class="budget-ledger-section ([^"]*)"/g)].map((m) => m[1].trim());
+    assert.deepEqual(abschnitte, ['budget-ledger-section--planned', 'budget-ledger-section--booked'], 'erst Geplant, dann Gebucht');
+    // R17: eine Stufe unter dem Abschnittstitel „Transaktionen" (`u-compact`, 17 statt 20px) -
+    // zwei gleich grosse Ueberschriften standen 17px uebereinander.
+    assert.match(html, /<h3 class="u-section-title u-compact budget-ledger-section__title" id="budget-planned-title">budget\.plannedTitle <span class="budget-ledger-section__count">· 5<\/span><\/h3>/);
+    assert.match(html, /<h3 class="u-section-title u-compact budget-ledger-section__title" id="budget-booked-title">budget\.bookedTitle<\/h3>/);
+    assert.match(readFileSync(new URL('../public/styles/typography.css', import.meta.url), 'utf8'),
+      /\.u-section-title\.u-compact\s*\{\s*font-size:\s*var\(--type-card-title\);/);
+
+    const [planned, booked] = html.split('budget-ledger-section--booked');
+    const reihen = [...planned.matchAll(/class="list-row budget-entry([^"]*)" data-id="(\d+)"/g)];
+    assert.deepEqual(reihen.map((m) => Number(m[2])), [102, 103, 104, 105, 106], 'das Naechste zuerst');
+    assert.deepEqual(reihen.map((m) => /budget-entry--more/.test(m[1])), [false, false, false, true, true],
+      `die ersten ${budgetUi.PLANNED_PREVIEW_ROWS} stehen, der Rest wartet hinter dem Knopf`);
+    assert.match(planned, /data-action="toggle-planned"\s+aria-expanded="false" aria-controls="budget-planned-rows"/);
+    assert.match(planned, /budget\.showAllPlanned\{&quot;count&quot;:5\}/, 'der Knopf nennt, wie viele es sind');
+    assert.deepEqual([...booked.matchAll(/data-id="(\d+)"/g)].map((m) => Number(m[1])), [1, 2], 'Gebucht in der Reihenfolge der Liste');
+    assert.doesNotMatch(booked, /budget-entry--more|toggle-planned/);
+
+    // Aufgeklappt gilt fuer DIESEN Monat, nicht fuer den naechsten.
+    budgetUi.state.plannedExpandedMonth = '2000-01';
+    assert.match(budgetUi.renderEntries(), /budget-ledger-section--planned is-expanded"[\s\S]*aria-expanded="true"/);
+    budgetUi.state.plannedExpandedMonth = '1999-12';
+    assert.doesNotMatch(budgetUi.renderEntries(), /is-expanded/);
+
+    // Drei oder weniger: kein Knopf, nichts versteckt.
+    budgetUi.state.entries = [...geplant.slice(0, 3), ...gebucht];
+    const wenig = budgetUi.renderEntries();
+    assert.doesNotMatch(wenig, /toggle-planned|budget-entry--more/);
+
+    // Ohne Geplantes bleibt es EINE Liste ohne Zwischentitel.
+    budgetUi.state.entries = gebucht;
+    assert.doesNotMatch(budgetUi.renderEntries(), /budget-ledger-section/, 'vergangener Monat: kein einzelner Abschnitt "Gebucht"');
+  } finally { Object.assign(budgetUi.state, vorher); }
+
+  // Ein Prognose-Monat ist ganz geplant: dort sagt es der Titel der Bilanz.
+  try {
+    Object.assign(budgetUi.state, { month: '2999-01', entries: geplant, responsibleFilterId: null, groupByResponsible: false, ledgerQuery: '', ledgerResults: null });
+    assert.doesNotMatch(budgetUi.renderEntries(), /budget-ledger-section/);
+  } finally { Object.assign(budgetUi.state, vorher); }
+});
+
+test('R17/E4: der Aufklapper schaltet ohne Neuaufbau, auch bei Nur-lesen; geplante Betraege stehen sekundaer', () => {
+  const klassen = new Set(['budget-ledger-section', 'budget-ledger-section--planned']);
+  const label = { textContent: '' };
+  const section = {
+    classList: { contains: (c) => klassen.has(c), toggle: (c, an) => (an ? klassen.add(c) : klassen.delete(c)) },
+    querySelectorAll: () => ({ length: 7 }),
+  };
+  const attrs = {};
+  const knopf = {
+    closest: (sel) => (sel === '.budget-ledger-section--planned' ? section : null),
+    setAttribute: (k, v) => { attrs[k] = v; },
+    querySelector: () => label,
+  };
+  const vorher = { ...budgetUi.state };
+  try {
+    Object.assign(budgetUi.state, { month: '2000-01', plannedExpandedMonth: null });
+    budgetUi.togglePlanned(knopf);
+    assert.ok(klassen.has('is-expanded'));
+    assert.equal(attrs['aria-expanded'], 'true');
+    assert.equal(label.textContent, 'budget.showFewerCategories');
+    assert.equal(budgetUi.state.plannedExpandedMonth, '2000-01', 'der Zustand haengt am Monat');
+    budgetUi.togglePlanned(knopf);
+    assert.ok(!klassen.has('is-expanded'));
+    assert.equal(attrs['aria-expanded'], 'false');
+    assert.equal(label.textContent, 'budget.showAllPlanned{"count":7}');
+    assert.equal(budgetUi.state.plannedExpandedMonth, null);
+  } finally { Object.assign(budgetUi.state, vorher); }
+
+  assert.match(budget, /const READ_SAFE_ACTIONS = new Set\(\['loan-filter', 'toggle-planned'\]\)/, 'aufklappen liest nur');
+  assert.match(budget, /closest\('\[data-action="toggle-planned"\]'\);\s*\n\s*if \(plannedBtn\) \{ togglePlanned\(plannedBtn\); return; \}/,
+    'der Klick laeuft ueber die Delegation der Liste');
+
+  const rules = [...eachRule(budgetCss)];
+  const regel = (sel) => rules.find((r) => r.selector.trim() === sel);
+  assert.match(regel('.budget-ledger-section--planned:not(.is-expanded) .budget-entry--more')?.body ?? '', /display:\s*none/);
+  assert.match(regel('.budget-ledger-section--planned .budget-entry__amount')?.body ?? '', /color:\s*var\(--color-text-secondary\)/,
+    'ein geplanter Betrag ist noch keine Tatsache');
+  // Die Huelle gibt Flaeche und Trennlinien an die Abschnitte ab - der Titel
+  // steht auf der Buehne, nicht in einer Karte.
+  assert.match(regel('.budget-list:has(> .budget-ledger-section)')?.body ?? '', /background:\s*none[\s\S]*box-shadow:\s*none/);
+  assert.match(regel('.budget-ledger-section__rows')?.body ?? '', /box-shadow:\s*var\(--shadow-sm\)/);
+  // Listenbewegung und Monats-Wisch (R17, Schritt 2) haengen an diesen beiden.
+  assert.match(budget, /const BUDGET_ENTRY = '#budget-list \.budget-entry\[data-id\]';/);
+  assert.match(budget, /class="budget-list" id="budget-list"/);
+});
+
+// ---------------------------------------------------------------------------
+// Entscheidung R17 (E5): die Kurzzeile gehoert der gewaehlten Gruppe
+// ---------------------------------------------------------------------------
+
+/* Oben stand die Summe ueber alle Gruppen ("Du schuldest 196,14 €") direkt
+ * ueber dem Saldo der Gruppe ("Linda schuldet Alex 24,14 €"): zwei Zahlen fuer
+ * scheinbar dieselbe Frage. */
+test('R17/E5: Kurzzeile und Karten zeigen den Saldo der GEWAEHLTEN Gruppe, die Summe aller steht in der Gruppenwahl', () => {
+  const saldo = splitGlance.ownGroupBalance;
+  const balances = [
+    { currency: 'EUR', user_id: 1, net_minor: 2414, net: '24.14' },
+    { currency: 'EUR', user_id: 2, net_minor: -2414, net: '-24.14' },
+    { currency: 'USD', user_id: 2, net_minor: 500, net: '5.00' },
+    { currency: 'CHF', user_id: 2, net_minor: 0, net: '0.00' },
+  ];
+  assert.deepEqual(saldo(balances, 2), { owed: [{ amount: '5.00', currency: 'USD' }], owing: [{ amount: '24.14', currency: 'EUR' }] },
+    'positiv bekommt man, negativ schuldet man - je Waehrung, ohne Vorzeichen, null zaehlt nicht');
+  assert.deepEqual(saldo(balances, 1), { owed: [{ amount: '24.14', currency: 'EUR' }], owing: [] });
+  assert.deepEqual(saldo(balances, 9), { owed: [], owing: [] }, 'ohne Saldo in der Gruppe: ausgeglichen');
+  assert.deepEqual(saldo(balances, null), { owed: [], owing: [] });
+
+  const boxen = { summary: { html: '' }, glance: { html: '' }, total: { html: '', hidden: true } };
+  const el = (box) => ({
+    replaceChildren() { box.html = ''; }, insertAdjacentHTML(_p, v) { box.html += v; }, querySelector: () => null,
+    set hidden(v) { box.hidden = v; }, get hidden() { return box.hidden; },
+  });
+  const container = { querySelector: (sel) => ({ '#split-summary': el(boxen.summary), '#split-glance': el(boxen.glance), '#split-groups-total': el(boxen.total) }[sel] ?? null) };
+  const vorher = { ...splitGlance.state };
+  try {
+    Object.assign(splitGlance.state, {
+      groupStatus: 'active', groups: [{ id: 1 }, { id: 2 }], user: { id: 2 },
+      // Alle Gruppen zusammen: 196,14 € Schulden. In der gewaehlten Gruppe: 24,14 €.
+      dashboard: { total_owed: [], total_owing: [{ amount: '196.14', currency: 'EUR' }] },
+      balances: { balances: balances.slice(0, 2), simplified_debts: [] },
+      meta: { currencies: ['EUR'], default_currency: 'EUR' },
+    });
+    splitGlance.renderSummaryForTest(container);
+    assert.match(boxen.glance.html, /24,14/, 'die Kurzzeile nennt den Saldo der Gruppe');
+    assert.doesNotMatch(boxen.glance.html, /196,14/, 'nicht die Summe aller Gruppen');
+    assert.match(boxen.summary.html, /metric-card metric-card--negative">\s*<div class="metric-card__label">splitExpenses\.youOwe<\/div>\s*<div class="metric-card__value">24,14/);
+    assert.doesNotMatch(boxen.summary.html, /196,14/);
+    assert.equal(boxen.total.hidden, false);
+    assert.match(boxen.total.html, /splitExpenses\.allGroups<\/span>[\s\S]*splitExpenses\.youOwe <strong>196,14/, 'die Summe ueber alle Gruppen steht in der Gruppenwahl');
+
+    // Im Archiv zaehlen die Summen des Servers nicht mit: die Zeile faellt.
+    splitGlance.state.groupStatus = 'archived';
+    splitGlance.renderSummaryForTest(container);
+    assert.equal(boxen.total.hidden, true);
+  } finally {
+    Object.assign(splitGlance.state, vorher);
+  }
+  assert.match(splitExpenses, /<p class="split-groups-total" id="split-groups-total" hidden><\/p>\s*<div class="split-groups" id="split-groups"><\/div>/,
+    'die Zeile steht in der Gruppenwahl, ueber der Liste');
+});
+
+test('R17/E5: "Ausgleichen" steht in der Salden-Zeile; schmal tritt der Gruppenkopf zurueck', () => {
+  const main = splitExpenses.slice(splitExpenses.indexOf('function drawMain('), splitExpenses.indexOf('// So viele Namen stehen'));
+  const kopf = main.slice(main.indexOf('<div class="split-header-actions">'), main.indexOf('<div class="split-content-grid">'));
+  assert.doesNotMatch(kopf, /split-settle/, 'im Gruppenkopf steht "Ausgleichen" nicht mehr');
+  assert.match(main, /const balanceActions = canAct \? `\s*<div class="split-section-actions">\s*<button class="btn btn--secondary" id="split-settle">[\s\S]*?\$\{groupToolsTriggerHtml\(\)\}/,
+    'die Salden-Zeile traegt "Ausgleichen" und den schmalen Ausloeser des Werkzeugmenues');
+  assert.match(main, /<span>\$\{t\('splitExpenses\.simplified'\)\}<\/span>\s*<\/div>\$\{balanceActions\}/);
+  assert.match(main, /const canAct = !ro && !archived;/, 'nur wer handeln darf, in einer aktiven Gruppe');
+  assert.match(main, /class="split-group-header\$\{toolsOnly \? ' split-group-header--tools-only' : ''\}"/);
+
+  // EIN Menue, zwei Ausloeser: die ids im Menue bleiben einmalig.
+  const trigger = splitGlance.groupToolsTriggerHtml();
+  assert.match(trigger, /popovertarget="split-group-tools-menu"/);
+  assert.doesNotMatch(trigger, /id="/, 'der Ausloeser traegt keine id - es gibt ihn zweimal');
+  assert.equal((splitGlance.groupToolsMenuHtml().match(/id="split-group-tools-menu"/g) ?? []).length, 1);
+  const popover = read('../public/utils/popover-menu.js');
+  assert.match(popover, /const trigger = triggerOf\(panel\.id\);/, 'das Menue richtet sich am SICHTBAREN Ausloeser aus');
+  assert.match(popover, /all\.find\(\(el\) => \(typeof el\.getClientRects === 'function' \? el\.getClientRects\(\)\.length > 0 : false\)\) \?\? all\[0\]/);
+
+  const rules = [...eachRule(splitCss)];
+  const schmal = (r) => r.at.some((a) => /split-page \(max-width:\s*639px\)/.test(a));
+  const find = (sel, pred = () => true) => rules.find((r) => r.selector.trim() === sel && pred(r));
+  assert.match(find('.split-section-actions .split-group-tools', (r) => r.at.length === 0)?.body ?? '', /display:\s*none/, 'breit steht der Ausloeser im Gruppenkopf');
+  assert.match(find('.split-section-actions .split-group-tools', schmal)?.body ?? '', /display:\s*inline-flex/, 'schmal der in der Salden-Zeile');
+  assert.match(find('.split-group-header--tools-only', schmal)?.body ?? '', /position:\s*absolute[\s\S]*clip-path/,
+    'schmal bleibt der Kopf im Baum und tritt aus dem Bild');
+  assert.match(find('.split-group-header--tools-only .split-header-actions', schmal)?.body ?? '', /display:\s*none/, 'sein Ausloeser ist dann kein Tab-Stopp');
+  // R17: der Zusatz („vereinfachte Schulden") brach NEBEN dem Knopf in der 300px-Spalte auf zwei
+  // Zeilen (Kopf 77 statt 44px). Die Huelle loest sich auf; Titel und Knopf teilen Zeile 1, der
+  // Zusatz nimmt Zeile 2 ueber die ganze Breite.
+  assert.match(find('.split-section-head__lead')?.body ?? '', /display:\s*contents/);
+  assert.match(find('.split-section-head__lead > .split-section-title')?.body ?? '', /flex:\s*1 1 0/, 'der Titel teilt die Zeile mit dem Knopf');
+  const zusatz = find('.split-section-head__lead > span')?.body ?? '';
+  assert.match(zusatz, /flex:\s*1 0 100%/, 'der Zusatz bekommt die ganze Zeile - kein Umbruch mitten im Ausdruck');
+  assert.match(zusatz, /order:\s*1/, 'unter Titel UND Knopf');
+});
+
+// ---------------------------------------------------------------------------
+// Statistik (Critique R17): Kategoriezeilen auf dem Lesemass, Zukunft
+// gestrichelt mit Heute-Marke, mobil ein hoeheres Diagramm, Leerzustand mit
+// Handlung.
+// ---------------------------------------------------------------------------
+
+test('R17: die Kurve teilt sich am heutigen Tag - nur wenn der Zeitraum eine Zukunft hat', async () => {
+  const { __test: st } = await import('../public/pages/budget-stats.js');
+  const days = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'];
+  assert.equal(st.futureStartIndex(days, '2026-10-02'), 1, 'der letzte Tag bis heute ist der Teilungspunkt');
+  assert.equal(st.futureStartIndex(days, '2026-10-01'), 0);
+  assert.equal(st.futureStartIndex(days, '2026-10-04'), -1, 'heute ist der letzte Tag: keine Zukunft');
+  assert.equal(st.futureStartIndex(days, '2026-11-15'), -1, 'ein vergangener Monat bleibt eine durchgezogene Kurve');
+  assert.equal(st.futureStartIndex(days, '2026-09-30'), -1, 'ein kuenftiger Monat hat keine Vergangenheit zu trennen');
+  assert.equal(st.futureStartIndex([], '2026-10-02'), -1);
+  // Luecken in der Reihe (Wochenraster): der letzte Punkt bis heute.
+  assert.equal(st.futureStartIndex(['2026-10-01', '2026-10-08', '2026-10-15'], '2026-10-10'), 1);
+
+  const fn = stats.slice(stats.indexOf('function renderTrendChart()'), stats.indexOf('/** Die Flaeche des Verlaufs'));
+  assert.match(fn, /futureStartIndex\(s\.map\(\(p\) => p\.period\), todayKey\(\)\)/, 'heute ist der Tag der Haushaltszone (todayKey)');
+  assert.match(fn, /cumulative \? futureStartIndex/, 'nur die aufsummierte Tageskurve - das Jahr vergleicht Monate');
+  assert.equal(fn.match(/class="budget-stats__future"/g)?.length, 2, 'beide Serien laufen ab heute punktiert weiter');
+  assert.match(fn, /points\(incomes, 0, lastPast\)[\s\S]*points\(expenses, 0, lastPast\)/, 'die gebuchte Kurve endet heute');
+  assert.match(fn, /points\(incomes, todayIndex\)/, 'die Zukunft beginnt am selben Punkt - keine Luecke in der Linie');
+  assert.match(fn, /todayMarkerMarkup\(/);
+  assert.match(stats, /class="chart__axis budget-stats__today-label"[^>]*>\$\{view\.ctx\.esc\(t\('common\.today'\)\)\}/, 'die Marke nennt den Tag');
+  // Schritt 2 hat das Einzeichnen eingebaut: die Zukunft steht IN der Gruppe, die sich einzeichnet.
+  const group = fn.slice(fn.indexOf('<g class="budget-stats__lines">'), fn.indexOf('</g>'));
+  assert.match(group, /budget-stats__future/);
+  assert.match(fn, /drawChartOnce\('budget-stats-trend', \{ lines: host\.querySelector\('\.budget-stats__lines'\) \}\)/);
+  const rules = [...eachRule(budgetCss)];
+  const future = rules.find(({ selector }) => selector.trim() === '.budget-stats__future');
+  assert.match(future?.body ?? '', /stroke-dasharray:/, 'die Zukunft ist gestrichelt');
+});
+
+test('R17: mobil rechnet der Verlauf auf einer hoeheren Flaeche (mindestens 160px bei 390px Fenster)', async () => {
+  const { __test: st } = await import('../public/pages/budget-stats.js');
+  // 390px Fenster: 358px Karte, davon 34px Achsenpolster - das SVG ist 324px breit.
+  const height = 324 * st.TREND_CHART_NARROW.H / st.TREND_CHART_NARROW.W;
+  assert.ok(height >= 160, `das Diagramm stuende bei ${Math.round(height)}px (vorher 108)`);
+  assert.match(stats, /matchMedia\?\.\('\(max-width: 639px\)'\)\?\.matches === true \? TREND_CHART_NARROW : CHART/);
+  const fn = stats.slice(stats.indexOf('function renderTrendChart()'), stats.indexOf('/** Die Flaeche des Verlaufs'));
+  assert.match(fn, /const ratio = H === CHART\.H \? '' : ` style="aspect-ratio: \$\{W\} \/ \$\{H\}"`;/,
+    '`.chart` traegt 600/200 als Seitenverhaeltnis - die hoehere Flaeche sagt ihres selbst an');
+  assert.match(fn, /viewBox="0 0 \$\{W\} \$\{H\}"\$\{ratio\}/);
+  assert.doesNotMatch(fn.replace(/H === CHART\.H/g, ''), /CHART\.(W|H)|chartX\(i, s\.length\)|chartXLabelsMarkup\([^;]*\)\)\)\}/,
+    'Kurve, Raster, Achse und Punkte rechnen mit derselben Geometrie');
+  assert.match(fn, /chartXLabelsMarkup\(s\.map\(\(p\) => periodLabel\(p\.period\)\), geo\)/);
+  assert.match(fn, /chartX\(i, s\.length, geo\) \/ geo\.W/, 'auch die Ablesepunkte');
+});
+
+test('R17: der Leerzustand der Statistik traegt eine Handlung - nur fuer den, der schreiben darf', () => {
+  assert.match(stats, /action: typeof view\.ctx\.onAddEntry === 'function'\s*\? \{ label: t\('budget\.emptyAction'\), icon: 'plus', attrs: \{ id: 'budget-stats-empty-add' \} \}\s*: undefined/);
+  assert.match(stats, /querySelector\('#budget-stats-empty-add'\)\?\.addEventListener\('click', \(\) => view\.ctx\.onAddEntry\?\.\(\)\)/);
+  assert.match(budget, /onAddEntry: readOnly\(\) \? null : \(\) => openBudgetModal\(\{ mode: 'create' \}\)/,
+    'bei `read` reicht das Budget keine Handlung herein');
+});
+
+test('R17: in der Statistik stehen Ausgaben und Einnahmen nebeneinander, der Name in der Zeilentypo', () => {
+  const rules = [...eachRule(budgetCss)];
+  const at = (re) => (r) => r.at.some((a) => re.test(a));
+  const wide = rules.find((r) => r.selector.trim() === '.budget-stats__main--wide .budget-chart' && at(/budget-page\s*\(\s*min-width:\s*960px\s*\)/)(r));
+  assert.match(wide?.body ?? '', /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+    'zwei Bloecke je ~480-550px statt einer 830px langen Balkenbahn zwischen Name und Betrag');
+  const label = rules.find((r) => r.selector.trim() === '.budget-stats__main--wide .budget-bar-row__label' && at(/budget-page\s*\(\s*min-width:\s*480px\s*\)/)(r));
+  assert.match(label?.body ?? '', /font-size:\s*var\(--text-sm\)/, '14px statt der 12px-Caption');
+  assert.match(label?.body ?? '', /color:\s*var\(--color-text-primary\)/);
+  // Die Seitenleiste der Uebersicht behaelt die kompakte Form.
+  const base = rules.find((r) => r.selector.trim() === '.budget-bar-row__label' && r.at.length === 0 && /font-size/.test(r.body));
+  assert.match(base?.body ?? '', /font-size:\s*var\(--text-xs\)/);
+});
+
+// Review an #1767: zwei Stellen, die an der Fensterbreite haengen.
+test('R17: der Verlauf zeichnet neu, wenn das Fenster die Schwelle kreuzt; ein Menue setzt ALLE Ausloeser zurueck', () => {
+  const watch = stats.slice(stats.indexOf('function watchTrendBreakpoint(panel)'), stats.indexOf('function trendGeometry()'));
+  assert.ok(watch.length > 0, 'watchTrendBreakpoint fehlt');
+  assert.match(watch, /matchMedia\?\.\('\(max-width: 639px\)'\)/, 'dieselbe Schwelle wie trendGeometry()');
+  assert.match(stats, /trendGeometry\(\) \{\s*return globalThis\.window\?\.matchMedia\?\.\('\(max-width: 639px\)'\)/);
+  assert.match(watch, /addEventListener\('change', onChange\)/);
+  assert.match(watch, /if \(!panel\.isConnected\) \{\s*mql\.removeEventListener\('change', onChange\)/, 'meldet sich ab, wenn das Panel weg ist');
+  assert.match(watch, /trendWatch\?\.mql\.removeEventListener/, 'ein Lauscher, nicht einer je Aufbau');
+  assert.match(stats, /renderTrendChart\(\);\s*watchTrendBreakpoint\(view\.root\);/);
+  // Der Aufruf steht in renderBodyContent(body): dort gibt es KEIN `panel`.
+  // Die erste Fassung uebergab es trotzdem - ein ReferenceError bei jedem
+  // Aufbau mit Daten, nach dem Balken, Donut und Export nicht mehr liefen
+  // (Review an #1767; der Textvergleich des Aufrufs allein sah das nicht).
+  const bodyStart = stats.indexOf('function renderBodyContent(body)');
+  const bodyFn = stats.slice(bodyStart, stats.indexOf('\nfunction ', bodyStart + 10));
+  assert.ok(bodyStart !== -1 && bodyFn.length > 0, 'renderBodyContent nicht gefunden');
+  assert.doesNotMatch(bodyFn.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''), /\bpanel\b/, 'kein `panel` im Rumpf von renderBodyContent');
+
+  const menu = read('../public/utils/popover-menu.js');
+  const toggle = menu.slice(menu.indexOf('function onToggle(event)'));
+  assert.match(toggle, /querySelectorAll\(`\[popovertarget="\$\{panel\.id\}"\]`\)\) el\.setAttribute\('aria-expanded', 'false'\);[\s\S]*?trigger\?\.setAttribute\('aria-expanded', String\(event\.newState === 'open'\)\)/,
+    'erst alle auf false, dann der sichtbare auf den Zustand');
 });

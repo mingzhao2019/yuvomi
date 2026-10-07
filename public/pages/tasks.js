@@ -6,8 +6,9 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } from '/rrule-ui.js';
-import { openModal as openSharedModal, closeModal, wireBlurValidation, validateAll, btnSuccess, btnError, btnLoading, promptModal, confirmModal, advancedSection, refocusAfterRender } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, whenModalClosed, wireBlurValidation, validateAll, btnSuccess, btnError, btnLoading, promptModal, confirmModal, advancedSection, refocusAfterRender } from '/components/modal.js';
 import { openDetailView, closeDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
+import { whenHistorySettled } from '/utils/overlay-history.js';
 import { stagger, vibrate, scheduleUndoableDelete, animationSettled, collapseOut, expandIn, wireScrollFade } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
 import { t, getLocale, formatDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
@@ -1444,7 +1445,7 @@ ${reminderTucked ? `<div class="task-form__tucked">${reminderHtml}</div>` : ''}`
           </button>` : ''}
         <button type="button" class="btn btn--secondary" data-action="close-modal">${t('common.cancel')}</button>
         <button type="submit" class="btn btn--primary" id="task-submit-btn">
-          ${isEdit ? t('common.save') : t('common.create')}
+          ${isEdit ? t('common.save') : t('common.add')}
         </button>
       </div>
     </form>`;
@@ -1777,6 +1778,48 @@ async function loadTaskLists(container) {
   state.taskLists = data.data ?? [];
   state.taskListOrder = normalizeTaskListOrder(data.order);
   renderTaskLists(container);
+}
+
+/**
+ * DIE NEUE AUFGABE KOMMT AN (Critique R17). Nach dem Anlegen zeichnete die
+ * Liste hart neu: die Zeile stand irgendwo zwischen den anderen - bei einer
+ * langen Liste unter dem Falz, in einer zugeklappten Gruppe gar nicht - und
+ * rechts blieb die vorher gewaehlte Aufgabe stehen. Man sah einen Toast und
+ * suchte. Jetzt: die Gruppe der neuen Aufgabe geht auf, ihre Zeile zieht mit
+ * der Listenbewegung ein (`expandIn`, wie nach einem Statuswechsel), rollt ins
+ * Bild und ist in der Spaltenform ausgewaehlt - die Detailspalte zeigt, was
+ * man gerade angelegt hat.
+ *
+ * Nichts davon, wenn die Aufgabe die Ansicht nicht erreicht (ein Filter
+ * schliesst sie aus, das Brett statt der Liste, eine fremde Seite ohne
+ * Container): dann bleibt es beim Toast.
+ *
+ * @returns {boolean} ob die Zeile in der Liste steht
+ */
+function revealCreatedTask(container, taskId) {
+  if (!container || taskId == null || state.viewMode !== 'list') return false;
+  const task = filteredTasks().find((entry) => String(entry.id) === String(taskId));
+  if (!task) return false;
+  let row = taskRowEl(container, taskId);
+  if (!row) {
+    // Die Gruppe ist eingeklappt: die Aufgabe, die man eben angelegt hat, ist
+    // ein Grund, sie zu oeffnen (und der Zustand bleibt, wie beim Tipp auf den Kopf).
+    const group = groupBy([task], state.groupMode)[0];
+    if (!group || !isGroupCollapsed(state.groupMode, group.id)) return false;
+    toggleGroup(state.groupMode, group.id);
+    renderTaskList(container);
+    row = taskRowEl(container, taskId);
+    if (!row) return false;
+  }
+  // ERST ins Bild, dann einziehen: die Zeile hat jetzt ihre volle Hoehe. Nach
+  // dem Start von expandIn ist sie 0px hoch, und `nearest` holte nur ihre
+  // Oberkante an den Rand - der Rest zoege unter dem Falz auf.
+  row.scrollIntoView?.({ block: 'nearest' });
+  expandIn(row);
+  // Wie ein Klick auf die Zeile: ein Eintrag in der History, Zurueck fuehrt
+  // zur vorher gewaehlten Aufgabe.
+  if (taskMd?.isSplit()) taskMd.select(String(taskId), { history: 'push' });
+  return true;
 }
 
 /**
@@ -3425,7 +3468,7 @@ async function handleFormSubmit(e, { container = null, onChanged = () => loadTas
   submitBtn.disabled = true;
   submitBtn.textContent = t('common.saving');
 
-  const originalLabel = taskId ? t('common.save') : t('common.create');
+  const originalLabel = taskId ? t('common.save') : t('common.add');
 
   const startDateRaw = form.start_date?.value || '';
   const startDate = parseDateInput(startDateRaw);
@@ -3627,6 +3670,18 @@ async function handleFormSubmit(e, { container = null, onChanged = () => loadTas
     // sofort in Filterleiste und Vorschlägen stehen (#586).
     await refreshTags();
     await onChanged();
+    // Angelegt, nicht bearbeitet: die neue Zeile zeigen (siehe revealCreatedTask).
+    // ERST WENN DER DIALOG WEG IST und die History wieder der Seite gehoert:
+    // er schliesst 700ms nach dem Haken und gibt dabei seinen Marker per
+    // `history.back()` zurueck. Eine Auswahl davor schriebe `?open=` auf den
+    // Marker-Eintrag, und das `back()` truege die alte Adresse wieder herein
+    // (gemessen: rechts die neue Aufgabe, in der Adresse die alte). Und die
+    // Zeile zieht so ein, wenn man sie sieht, nicht hinter dem Dialog.
+    if (!taskId && savedTaskId) {
+      whenModalClosed()
+        .then(() => whenHistorySettled())
+        .then(() => revealCreatedTask(container, savedTaskId));
+    }
   } catch (err) {
     resetSubmit(
       err?.data?.reason === 'microsoft_todo_recurrence_managed'
@@ -4940,10 +4995,14 @@ function renderFilters(container) {
  * Liste um seine Hoehe nach unten und lief am Desktop 1156px ueber einer
  * 720px-Liste (A3 P2-8); Schliessen per Esc, Tipp daneben und Zurueck-Geste
  * bringt das Blatt jetzt von der Modal-Schicht mit, den Fokus gibt sie an den
- * Knopf zurueck.
+ * Knopf zurueck. Ab 1024px ist es ein Popover am Knopf ohne Overlay
+ * (utils/filter-sheet.js, `anchor`).
  */
 function openTaskFilters(container) {
   const panel = openFilterSheet({
+    // Am Desktop haengen die Filter als Popover am Knopf (E13): die Liste
+    // dahinter bleibt sichtbar und filtert live.
+    anchor: () => container?.querySelector?.('#tasks-filter-btn') ?? null,
     groups: filterSheetGroups(),
     // Nicht „Alle Filter aufheben": der Knopf stellt den Standard her (Status
     // „Offen"), und so heisst er auch.
@@ -8011,6 +8070,10 @@ export const __test = {
   taskListAlphabeticalKey,
   taskListNameComparator,
   taskListSidebarWidthFromDrag,
+  // E13: am Desktop haengen die Filter als Popover am Knopf (utils/filter-sheet.js).
+  openTaskFilters,
+  // R17: die neue Aufgabe kommt an (Gruppe auf, Zeile zieht ein, rollt ins Bild, ausgewaehlt).
+  revealCreatedTask, toggleGroup,
   // Die Quittung nach dem Abhaken (#1603), je Weg am laufenden Aufruf: Haken
   // und Wisch teilen sich eine, die Personenwahl und das Brett haben je ihre.
   acknowledgeStatusToggle, completeTaskFor, runColumnMove,

@@ -1131,6 +1131,184 @@ test('Listenbewegung: Module, die ihre Zeilen neu bauen, nutzen list-motion bzw.
   assert.match(fn, /if \(first\) \{\s*el\.replaceChildren\(\);\s*el\.insertAdjacentHTML\('beforeend', renderSkeletonList/, 'Skelett nur unter `first`');
 });
 
+/* R17, Bewegung: "das System steht, die Abdeckung fehlt". Acht Seiten bauten
+ * ihre Liste nach Anlegen und Loeschen hart neu. Jede Zeile hier ist eine
+ * Stelle, an der die DATEN sich aendern - nicht die Frage (Filter, Suche). */
+test('Listenbewegung R17: Notizen, Dokumente, Kontakte, Budget, Inventar, Abos, Aufteilung und Geburtstage zeichnen ueber list-motion', () => {
+  const modules = [
+    ['notes', /redrawList\(grid, \(\) => drawGrid\(grid\), \{ selector: NOTE_CARD, keyAttr: 'data-id' \}\)/, 'Raster'],
+    ['notes', /state\.notes = state\.notes\.filter\(\(n\) => n\.id !== id\);\s*renderNotesAndFilters\(\{ motion: true \}\)/, 'geloeschte Notiz'],
+    ['notes', /closeSavedEditorWhenActive\(\);\s*renderNotesAndFilters\(\{ motion: true \}\)/, 'gespeicherte Notiz'],
+    ['documents', /redrawList\(list, drawDocuments, \{ selector: DOCUMENT_ITEM, keyAttr: 'data-id' \}\)/, 'Liste und Raster'],
+    ['documents', /Promise\.all\(leaving\.map\(\(row\) => collapseRow\(row\)\)\)\.then\(/, 'geloeschte Zeile klappt aus'],
+    ['contacts', /redrawList\(container, \(\) => drawList\(container, \{ animate \}\), \{ selector: CONTACT_ROW, keyAttr: 'data-id' \}\)/, 'Liste'],
+    ['contacts', /collapseRow\(row, \{ group: row\?\.closest\('\.contact-group'\), selector: CONTACT_ROW \}\)/, 'geloeschter Kontakt klappt aus, mit dem letzten die Gruppe'],
+    ['budget', /redrawList\(body, renderBody, \{ selector: BUDGET_ENTRY, keyAttr: 'data-id' \}\)/, 'Buchungsliste'],
+    ['budget', /summaryWith\(state\.summary, \[entry\], -1\);[\s\S]{0,260}collapseEntryThenRedraw\(id\);/, 'geloeschte Buchung klappt aus'],
+    ['budget', /closeModal\(\{ force: true \}\);\s*redrawEntries\(\);\s*window\.yuvomi\?\.showToast\(t\('budget\.addedToast'\)/, 'neue Buchung zieht auf'],
+    ['inventory', /redrawList\(host, renderListBody, \{ selector: INVENTORY_ITEM_ROW, keyAttr: 'data-id' \}\)/, 'Gegenstaende'],
+    ['inventory', /await collapseRow\(_container\?\.querySelector\(`#inventory-list \.list-row\[data-id="\$\{item\.id\}"\]`\)/, 'geloeschter Gegenstand klappt aus'],
+    ['subscriptions', /redrawList\(content, drawContent, \{ selector: SUBSCRIPTION_ROW, keyAttr: 'data-swipe-id' \}\)/, 'Abos'],
+    ['subscriptions', /await collapseRow\(container\.querySelector\(`#subscriptions-list \.swipe-row\[data-swipe-id=/, 'geloeschtes Abo klappt aus'],
+    ['split-expenses', /redrawList\(main, \(\) => drawMain\(main\), \{ selector: SPLIT_ROW, keyAttr: 'data-row-key' \}\)/, 'Ausgaben und Serien'],
+    ['split-expenses', /await collapseSplitRow\(`expense-\$\{expense\.id\}`\);\s*renderAll\(\{ motion: true \}\)/, 'geloeschte Ausgabe klappt aus'],
+    ['split-expenses', /await collapseSplitRow\(`recurring-\$\{recurring\.id\}`\);\s*renderAll\(\{ motion: true \}\)/, 'geloeschte Serie klappt aus'],
+    ['split-expenses', /renderAll\(\);[\s\S]{0,260}swapContent\(_container\?\.querySelector\(`#split-main \[data-row-key="recurring-\$\{id\}"\]`\) \?\? null, null\);/, 'Pausieren/Fortsetzen blendet die Serienzeile'],
+    ['birthdays', /redrawList\(host, \(\) => drawList\(host, \{ repaint \}\), \{ selector: BIRTHDAY_ROW, keyAttr: 'data-swipe-id' \}\)/, 'Liste'],
+    ['birthdays', /collapseRow\(row\)\.then\(\(\) => \{ if \(_container === owner\) renderList\(\{ motion: true \}\); \}\)/, 'geloeschter Geburtstag klappt aus'],
+  ];
+  const missing = modules.filter(([name, pattern]) => !pattern.test(pageSource(name))).map(([name, , what]) => `${name}.js: ${what}`);
+  assert.deepEqual(missing, [], `Liste ohne Bewegung:\n  ${missing.join('\n  ')}`);
+  // Die Zeile muss das Attribut auch TRAGEN, an dem die Bewegung sie
+  // wiedererkennt - ein Selektor ohne Treffer zeichnet still ohne Bewegung.
+  const carried = [
+    ['notes', /class="note-card \$\{[^}]+\}"\s+data-id="\$\{note\.id\}"/],
+    ['documents', /<article class="document-card\$\{[^}]+\}" data-id="\$\{doc\.id\}">/],
+    ['documents', /<article class="list-row document-row\$\{[^}]+\}" data-id="\$\{doc\.id\}">/],
+    ['contacts', /contact-item" data-id="\$\{c\.id\}"/],
+    ['budget', /const rowInteraction = masked \? '' : `data-id="\$\{e\.id\}"`;/],
+    ['inventory', /<div class="list-row" data-id="\$\{item\.id\}" data-md-id=/],
+    ['subscriptions', /data-swipe-id="\$\{subscription\.id\}"/],
+    ['split-expenses', /data-expense-id="\$\{expense\.id\}" data-row-key="expense-\$\{expense\.id\}"/],
+    ['split-expenses', /data-expense-view="\$\{expense\.id\}" data-row-key="expense-\$\{expense\.id\}"/],
+    ['split-expenses', /split-recurring-row\$\{[^}]+\}" data-row-key="recurring-\$\{recurring\.id\}"/],
+    ['birthdays', /data-swipe-id="\$\{birthday\.id\}"/],
+  ];
+  const bare = carried.filter(([name, pattern]) => !pattern.test(pageSource(name))).map(([name, pattern]) => `${name}.js: ${pattern}`);
+  assert.deepEqual(bare, [], `Zeile ohne Wiedererkennungs-Attribut:\n  ${bare.join('\n  ')}`);
+});
+
+const publicSource = (path) => readFileSync(new URL(`../public/${path}`, import.meta.url), 'utf8');
+
+test('Liste + Detail: ein Wechsel der Auswahl blendet die Detailspalte, ein Neuzeichnen derselben nicht', () => {
+  const md = publicSource('utils/master-detail.js');
+  // Nur select() mit einer ANDEREN Auswahl blendet ...
+  assert.match(md, /if \(!same \|\| bodyEl\.hidden\) paint\(selected, \{ swap: !same \}\);/);
+  // ... und zwar NACH dem Zeichnen, ohne Richtung (nur opacity: ein transform
+  // machte die Spalte zum Bezugsrahmen ihres klebenden Kopfes).
+  const paint = md.slice(md.indexOf('async function paint('), md.indexOf('function showLoadError('));
+  assert.match(paint, /createIcons\(\{ el: bodyEl \}\);[\s\S]{0,260}if \(swap\) swapContent\(bodyEl, null\);\n  \}/);
+  assert.ok(paint.indexOf('await renderDetail') < paint.indexOf('swapContent(bodyEl'), 'erst zeichnen, dann blenden');
+  // refresh({ repaint }) zeichnet dieselbe Auswahl neu - ohne Blende.
+  assert.match(md, /if \(repaint && selected != null && isSplit\(\)\) paint\(selected\);/);
+  assert.equal((md.match(/swap: /g) ?? []).length, 1, 'genau eine Stelle setzt swap');
+});
+
+const ruleBodies = (file, selector) => [...eachRule(css(file))]
+  .filter((r) => r.selector.replace(/\s+/g, ' ').trim() === selector)
+  .map((r) => r.body);
+
+test('Large Title: der Titel blendet in seinen neuen Schnitt, Layout wird nicht animiert', () => {
+  const settle = ruleBodies('layout.css', '.page-toolbar--capped.is-collapsed > .page-toolbar__title').join(';');
+  assert.match(settle, /animation:\s*page-title-settle var\(--duration-xs\) var\(--ease-out\)/, 'Einklappen blendet');
+  const back = ruleBodies('layout.css', '.page-toolbar--capped.was-collapsed:not(.is-collapsed) > .page-toolbar__title').join(';');
+  assert.match(back, /animation:\s*page-title-settle-back var\(--duration-xs\) var\(--ease-out\)/, 'Ausklappen blendet');
+  // Nur Deckkraft: ein Keyframe mit Groesse, Abstand oder Versatz animierte Layout im klebenden Kopf.
+  for (const name of ['page-title-settle', 'page-title-settle-back']) {
+    const body = keyframesBody(name);
+    assert.ok(body, `@keyframes ${name} fehlt`);
+    const props = [...body.matchAll(/([\w-]+)\s*:/g)].map((m) => m[1]);
+    assert.deepEqual([...new Set(props)], ['opacity'], `${name} animiert mehr als opacity`);
+  }
+  // Der Rueckweg haengt am Merker, nicht an `--capped` allein: sonst blendete
+  // jeder Seitenaufbau seinen Titel ein, sobald die Messung die Klasse setzt.
+  const titleRules = [...eachRule(css('layout.css'))].filter((r) => /page-title-settle/.test(r.body));
+  assert.equal(titleRules.length, 2);
+  for (const r of titleRules) assert.match(r.selector, /\.is-collapsed|\.was-collapsed/, `${r.selector}: Blende ohne Zustand`);
+  const ux = publicSource('utils/ux.js');
+  assert.match(ux, /if \(top > 24\) toolbar\.classList\.add\(\.\.\.states, 'was-collapsed'\);/, 'der Merker faellt beim ersten Einklappen');
+  assert.match(ux, /classList\.remove\('page-toolbar--stacked', 'page-toolbar--capped', 'is-collapsed', 'is-docked', 'was-collapsed',/, 'und geht mit dem Abbau');
+  // Weiterhin keine font-size-Transition am Titel (R16).
+  for (const file of ['layout.css', 'typography.css']) {
+    for (const r of eachRule(css(file))) {
+      if (!/page-toolbar__title/.test(r.selector)) continue;
+      assert.doesNotMatch(r.body, /transition[^;]*font-size/, `${file}: ${r.selector} animiert font-size`);
+    }
+  }
+  // Der angedockte Titel blendet ein und aus (Muster des Popover-Menues).
+  const dock = ruleBodies('layout.css', '.page-toolbar--stacked > .page-toolbar__dock-title').join(';');
+  assert.match(dock, /opacity:\s*0/);
+  assert.match(dock, /transition:\s*opacity var\(--duration-xs\) var\(--ease-out\),\s*display var\(--duration-xs\) allow-discrete/);
+  assert.match(css('layout.css'), /@starting-style \{\s*\.page-toolbar--stacked\.is-docked > \.page-toolbar__dock-title \{\s*opacity: 0;/);
+  assert.match(ruleBodies('layout.css', '.page-toolbar--stacked.is-docked > .page-toolbar__dock-title').join(';'), /opacity:\s*1/);
+});
+
+test('Zeitraum-Wisch: das Budget blaettert seine Monats-Reiter wie der Kalender, ohne zweiten Uebergang', () => {
+  const budget = pageSource('budget');
+  assert.match(budget, /import \{ wirePeriodSwipe \} from '\/utils\/period-swipe\.js';/);
+  const wire = budget.slice(budget.indexOf('wirePeriodSwipe(bodyEl(), {'), budget.indexOf('wirePeriodSwipe(bodyEl(), {') + 260);
+  assert.match(wire, /enabled: \(\) => Boolean\(tabCaps\(\)\.month\) && !state\.loadError,/, 'nur Reiter mit Zeitachse (TAB_CAPS.month)');
+  assert.match(wire, /ignore: PERIOD_SWIPE_IGNORE,/);
+  assert.match(wire, /onStep: \(step\) => stepPeriod\(step, \{ swap: false \}\),/, 'derselbe Stepper wie die Pfeile; der Wisch gleitet selbst herein');
+  // Was selbst waagerecht arbeitet, behaelt seinen Finger.
+  const ignore = budget.match(/const PERIOD_SWIPE_IGNORE = '([^']+)';/)?.[1] ?? '';
+  for (const sel of ['.u-scroll-fade', '.budget-stats__points', 'input']) {
+    assert.ok(ignore.split(',').map((s) => s.trim()).includes(sel), `${sel} fehlt in PERIOD_SWIPE_IGNORE`);
+  }
+  assert.match(publicSource('pages/budget-stats.js'), /class="budget-stats__points"/, 'die Diagrammflaeche heisst noch so');
+  // Senkrecht scrollt, waagerecht gehoert dem Wisch - wie #cal-body.
+  assert.match(ruleBodies('budget.css', '#budget-body').join(';'), /touch-action:\s*pan-y pinch-zoom/);
+  // Das Hereingleiten steht im geteilten Blatt: calendar.css laedt nur mit dem Kalender.
+  assert.ok(globalSheets.includes('layout.css'));
+  assert.ok([...eachRule(css('layout.css'))].some((r) => /\.period-swipe-in--next/.test(r.selector) && /animation:\s*period-swipe-in var\(--duration-md\) var\(--ease-out\)/.test(r.body)));
+  assert.match(css('layout.css'), /@keyframes period-swipe-in\b/);
+  assert.doesNotMatch(css('calendar.css').replace(/\/\*[\s\S]*?\*\//g, ''), /period-swipe-in/, 'keine zweite Fassung im Modul-Blatt');
+});
+
+test('Kalender: das Filter-Popover hat Ein- und Ausgang wie das Popover-Menue', () => {
+  const base = ruleBodies('calendar.css', '.cal-filters-popover').join(';');
+  assert.match(base, /opacity:\s*0/);
+  assert.match(base, /transform:\s*scale\(0\.96\)/);
+  assert.match(base, /overlay var\(--duration-xs\) allow-discrete,\s*display var\(--duration-xs\) allow-discrete/, 'der Ausgang haelt es im Top-Layer');
+  // Rueckfall: die erste transition-Deklaration kommt ohne allow-discrete aus.
+  const transitions = [...base.matchAll(/transition:\s*([^;]+)/g)].map((m) => m[1]);
+  assert.equal(transitions.length, 2);
+  assert.doesNotMatch(transitions[0], /allow-discrete/);
+  const open = ruleBodies('calendar.css', '.cal-filters-popover:popover-open').join(';');
+  assert.match(open, /opacity:\s*1/);
+  assert.match(open, /transform:\s*none/);
+  assert.match(open, /opacity var\(--duration-md\) var\(--ease-out\)/, 'die Einfahrt ist laenger als der Ausgang');
+  assert.match(css('calendar.css'), /@starting-style \{\s*\.cal-filters-popover:popover-open \{\s*opacity: 0;\s*transform: scale\(0\.96\);/);
+  // Der Ursprung kommt mit der Position aus JS (keine physische Seite im Blatt, RTL-Guard in test:calendar).
+  assert.doesNotMatch(base, /transform-origin/);
+  assert.match(pageSource('calendar'), /pop\.style\.transformOrigin = `\$\{Math\.round\(Math\.min\(Math\.max\(0, rect\.right - left\), width\)\)\}px 0`;/);
+  // Ein sofortiges remove() im toggle schnitt den Ausgang ab.
+  const cal = pageSource('calendar');
+  const toggle = cal.slice(cal.indexOf("pop.addEventListener('toggle'"), cal.indexOf('pop.showPopover();'));
+  assert.doesNotMatch(toggle.replace(/\/\/.*$/gm, ''), /^\s*pop\.remove\(\);/m, 'das Popover geht erst nach dem Ausgang aus dem Baum');
+  assert.match(toggle, /setTimeout\(\(\) => pop\.remove\(\), durationToken\('--duration-xs', 120\) \+ 40\);/);
+});
+
+test('Erststart: die Karte steht, der Schritt wechselt ueber swapContent mit fester Hoehe', () => {
+  const dash = pageSource('dashboard');
+  const fn = dash.slice(dash.indexOf('function showOnboarding('), dash.indexOf('function maybeHintCustomize('));
+  assert.doesNotMatch(fn, /overlay\.replaceChildren\(\)/, 'die Karte wird nicht mehr je Schritt neu gebaut');
+  assert.match(fn, /swapContent\(stepEl, \(\) => \{ next = fillStep\(\); \}, \{ direction: 1 \}\);\s*next\?\.focus\(\);/, 'Tausch, dann Fokus auf den neuen Hauptknopf');
+  assert.match(fn, /function fitSteps\(\) \{[\s\S]{0,420}tallest = Math\.max\(tallest, stepEl\.offsetHeight\);[\s\S]{0,200}stepEl\.style\.minBlockSize = `\$\{tallest\}px`;/, 'die Hoehe ist die des hoechsten Schritts');
+  assert.match(fn, /appContainer\.appendChild\(overlay\);[\s\S]{0,120}fitSteps\(\);/, 'gemessen wird im Baum');
+  const step = ruleBodies('dashboard.css', '.onboarding-step').join(';');
+  assert.match(step, /display:\s*flex/);
+  assert.match(ruleBodies('dashboard.css', '.onboarding-step > .onboarding-body').join(';'), /flex:\s*1 0 auto/, 'der Text nimmt den Rest, Punkte und Knoepfe stehen');
+});
+
+test('Diagramme: Kurven und Ring der Berichte zeichnen sich einmal ein (drawChartOnce)', () => {
+  const stats = publicSource('pages/budget-stats.js');
+  assert.match(stats, /import \{ growBars, drawChartOnce \} from '\/utils\/ux\.js';/);
+  // Die Kurven stehen in EINER Gruppe - an ihr haengt der Beschnitt, Raster und Achse bleiben stehen.
+  // Seit R17 (Zukunft punktiert) stehen bis zu vier Linien in der Gruppe - alle zeichnen sich mit ein.
+  assert.match(stats, /<g class="budget-stats__lines">\s*<polyline[\s\S]{0,400}<polyline[\s\S]{0,900}<\/g>/);
+  assert.match(stats, /drawChartOnce\('budget-stats-trend', \{ lines: host\.querySelector\('\.budget-stats__lines'\) \}\);/);
+  assert.match(stats, /drawChartOnce\('budget-stats-donut', \{ arcs: host\.querySelectorAll\('\.budget-stats__donut circle'\) \}\);/);
+  // Das Ringsegment traegt "Laenge Umfang" - daraus liest der Helfer den Startwert.
+  assert.match(stats, /stroke-dasharray="\$\{\(frac \* C\)\.toFixed\(2\)\} \$\{C\.toFixed\(2\)\}"/);
+  // Der Helfer selbst: ohne fill (Endzustand = Markup), einmal je Sitzung.
+  const ux = publicSource('utils/ux.js');
+  const fn = ux.slice(ux.indexOf('export function drawChartOnce('), ux.indexOf('function settleAnimation('));
+  assert.doesNotMatch(fn, /fill:/, 'kein fill - faellt die Animation aus, steht das Diagramm');
+  assert.match(fn, /prefers-reduced-motion: reduce/);
+  assert.match(fn, /durationToken\('--duration-xl', 300\), easing: easingToken\('--ease-out'/);
+});
+
 test('Schichtplan: Laden zeigt das geteilte Skelett, Blaettern haelt den Inhalt bis zur Antwort', () => {
   const schedule = pageSource('schedule');
   assert.doesNotMatch(schedule, /card card--padded schedule-stat-loading/, 'keine Textkarte "Laedt..." mehr');

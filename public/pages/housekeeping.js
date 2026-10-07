@@ -337,11 +337,30 @@ function updateHousekeepingFab() {
 
 function renderShell(container) {
   container.replaceChildren();
-  // Kopf nach der Kopfregel (DESIGN.md): Zeile 1 Titel, Zeile 2 die Reiter.
-  // Der Zeitraum des Berichte-Tabs steht im Center-Slot wie im Budget
-  // (`page-toolbar--period`) - am Desktop in der Titelzeile, mobil als eigene
-  // Zeile ueber den Reitern; auf den anderen Tabs ist der Slot leer und
-  // verborgen (syncReportPeriod()).
+  // Kopf nach der Kopfregel (DESIGN.md): Zeile 1 Titel, Zeile 2 die Reiter -
+  // auf jedem Reiter derselbe Kopf.
+  //
+  // DER ZEITRAUM DES BERICHTE-REITERS STEHT UNTER DEN REITERN (Critique R17),
+  // als eigene Zeile zwischen Kopf und Inhalt (#housekeeping-period). Bis
+  // dahin stand er im Center-Slot des Kopfs: mobil schob er sich als Zeile
+  // ZWISCHEN Titel und Reiter, und die Leiste sprang beim Wechsel auf
+  // "Berichte" von y=53 auf y=105 unter dem Finger weg (Kopf 118 -> 170px).
+  // Im Kopf UNTER die Leiste ruecken geht nicht: die Shell dockt den Kopf an
+  // seiner letzten Zeile an (der Andock-Helfer in utils/ux.js), dann wanderten
+  // die Reiter aus dem Bild und der Stepper bliebe stehen. Dieselbe Stelle wie
+  // im Schichtplan/Vergleich: der Zeitraum gehoert dem Reiter, also steht er
+  // an dessen Anfang. Der Slot liegt AUSSERHALB von #housekeeping-content,
+  // weil der Inhalt bei jedem Monatsschritt neu gebaut wird und der Pfeil,
+  // auf dem jemand blaettert, seinen Fokus behalten muss; auf den anderen
+  // Reitern ist er leer und verborgen (syncReportPeriod()).
+  //
+  // AM DESKTOP STEHT ER WIEDER IN DER TITELZEILE (Entscheidung R17, E16). Dort
+  // sprang nie etwas - Titel, Zeitraum und Kopf-Pille teilen sich Zeile 1 -,
+  // und unter den Reitern scrollte der Monat mit dem Inhalt weg. Ein Knoten,
+  // zwei Plaetze: placeReportPeriod() haengt den Slot ab 1024px (ab dort dockt
+  // auch die Kopf-Pille an) als Center-Slot in den Kopf und darunter zurueck
+  // zwischen Kopf und Inhalt. Das Markup traegt den schmalen Platz, damit eine
+  // Seite ohne `matchMedia` die Reiter nie verschiebt.
   // Breitenregel (DESIGN.md, R16 2026-10-05): Flaeche mit Spalten. Die Seite
   // fuehrt das breite Mass, der Kopf endet in allen vier Reitern an derselben
   // Kante (vorher 996 in der Uebersicht, 720 in den anderen - der Knopf
@@ -349,9 +368,8 @@ function renderShell(container) {
   // Liste auf dem Lesemass, daneben Kennzahlen bzw. das Protokoll.
   container.insertAdjacentHTML('beforeend', `
     <section class="housekeeping-page app-page app-page--dashboard app-page--columns" data-composition="dashboard" aria-labelledby="housekeeping-title">
-      <header class="page-toolbar page-toolbar--narrow page-toolbar--wrap page-toolbar--period housekeeping-toolbar">
+      <header class="page-toolbar page-toolbar--narrow housekeeping-toolbar">
         <h1 class="page-toolbar__title" id="housekeeping-title">${esc(t('housekeeping.title'))}</h1>
-        <div class="page-toolbar__center housekeeping-period" id="housekeeping-period" hidden></div>
         <div class="page-toolbar__actions"></div>
         <nav class="housekeeping-tabs page-toolbar__bar" role="tablist" aria-label="${esc(t('housekeeping.bottomNav'))}">
           ${renderTabButton('dashboard', 'layout-dashboard', t('housekeeping.dashboard'))}
@@ -360,6 +378,7 @@ function renderShell(container) {
           ${renderTabButton('staff', 'users-round', t('housekeeping.staffTitle'))}
         </nav>
       </header>
+      <div class="housekeeping-period" id="housekeeping-period" hidden></div>
       <div class="housekeeping-content" id="housekeeping-content"></div>
     </section>
   `);
@@ -372,6 +391,7 @@ function renderShell(container) {
   // Monats-Stepper des Berichte-Tabs.
   page.addEventListener('click', readOnlyLatch, true);
   page.addEventListener('submit', readOnlyLatch, true);
+  watchReportPeriodPlace(page);
 
   wireTablist(container.querySelector('.housekeeping-tabs'), {
     activeId: state.tab,
@@ -834,7 +854,7 @@ function openTaskCreateModal(content) {
           </div>
           <div class="modal-panel__footer">
             <button class="btn btn--secondary" type="button" data-create-cancel>${esc(t('common.cancel'))}</button>
-            <button class="btn btn--primary" type="submit">${esc(t('housekeeping.createTask'))}</button>
+            <button class="btn btn--primary" type="submit">${esc(t('common.add'))}</button>
           </div>
         </form>
       </div>
@@ -942,6 +962,35 @@ function renderTasks(content) {
   redrawList(content, () => drawTasks(content), { selector: TASK_ROW, keyAttr: 'data-swipe-id' });
 }
 
+/**
+ * DIE SEITENSPALTE DER AUFGABEN (Critique R17). Der Reiter liess sie leer
+ * (1280: 612 von 996px genutzt, 384px frei), obwohl es seine zwei Kennzahlen
+ * gibt: „Faellig" und „Erledigt im Monat" standen nur auf der Uebersicht.
+ * Dieselben Zahlen aus demselben Bestand (`state.dashboard`, nach jedem
+ * Erledigen neu geladen), dieselbe Karte, dieselben Worte.
+ *
+ * Unter 640px bleibt sie aus (`budget-glance-details`, panel.css): dort
+ * stuenden zwei Kacheln als 190px unter der Liste, und die Kurzzeile der
+ * Uebersicht nennt die Faelligen schon. Dazwischen steht sie unter der Liste,
+ * ab der Split-Schwelle daneben (`.page-columns`).
+ */
+function taskSummaryHtml() {
+  const data = state.dashboard || {};
+  const pending = data.pending_tasks ?? 0;
+  const finished = data.finished_tasks_this_month ?? 0;
+  return `
+    <section class="metric-grid budget-glance-details housekeeping-task-summary" aria-label="${esc(t('housekeeping.tasks'))}">
+      <article class="metric-card${pending > 0 ? '' : ' metric-card--empty'}">
+        <div class="metric-card__label">${esc(t('housekeeping.pendingChores'))}</div>
+        <div class="metric-card__value">${esc(pending)}</div>
+      </article>
+      <article class="metric-card${finished > 0 ? '' : ' metric-card--empty'}">
+        <div class="metric-card__label">${esc(t('housekeeping.finishedChores'))}</div>
+        <div class="metric-card__value">${esc(finished)}</div>
+      </article>
+    </section>`;
+}
+
 function drawTasks(content) {
   content.replaceChildren();
   const taskRows = state.tasks.map(taskRowHtml).join('');
@@ -956,6 +1005,7 @@ function drawTasks(content) {
     <section class="housekeeping-task-list row-carrier" aria-label="${esc(t('housekeeping.tasks'))}">
       ${taskRows || empty}
     </section>`,
+    rail: taskSummaryHtml(),
   }));
   if (window.lucide) window.lucide.createIcons({ el: content });
   // Jede Verdrahtung darunter schreibt - bei `read` haengt keine.
@@ -1254,10 +1304,10 @@ function applyVisitReport(data) {
  * Die Pfeile beschreiben sich ueber den Monat, damit ein Screenreader nach dem
  * Schritt auch sagt, wo er gelandet ist.
  *
- * IM KOPF, NICHT IN DER KARTE (Critique 2026-09-26, A3 P2-4). Der Zeitraum
- * beantwortet beim Scrollen weiter „welcher Monat", wie im Budget; in der Karte
- * scrollte er mit der Kennzahl-Zeile weg. Er steht im Center-Slot des Kopfs
- * (#housekeeping-period, renderShell()).
+ * UEBER DEM INHALT, NICHT IN DER KARTE (Critique 2026-09-26, A3 P2-4) - und
+ * seit R17 UNTER DEN REITERN statt im Kopf: dort schob er die Reiterleiste
+ * mobil um eine Zeile nach unten. Er steht in der Zeile zwischen Kopf und
+ * Inhalt (#housekeeping-period, Begruendung in renderShell()).
  *
  * VERBORGEN PER `.is-current` + `inert`, NICHT PER `hidden` - dieselbe Regel
  * wie Budget und Kalender (#1200): `hidden` nahm den Reset aus dem Fluss, das
@@ -1273,13 +1323,55 @@ function reportMonthNavHtml(shownMonth, isCurrentMonth) {
   });
 }
 
-/** Der Zeitraum-Slot im Kopf der Seite, zu der `content` gehoert. */
+/* Ab dieser Breite steht der Zeitraum in der Titelzeile: dieselbe Schwelle,
+ * ab der die Kopf-Pille andockt (dockFabIntoToolbar in router.js) und der
+ * Aktions-Slot die Titelzeile auf einer Hoehe haelt (housekeeping.css). */
+const REPORT_PERIOD_HEAD_QUERY = '(min-width: 1024px)';
+
+/**
+ * Haengt den Zeitraum-Slot an seinen Platz: `inHead` = Center-Slot der
+ * Titelzeile (vor den Aktionen), sonst die Zeile zwischen Kopf und Inhalt.
+ * Der Knoten wandert samt Stepper und Zuhoerern; steht er schon richtig,
+ * passiert nichts (ein erneutes Einhaengen naehme dem Pfeil den Fokus).
+ */
+function placeReportPeriod(page, inHead) {
+  const slot = page?.querySelector?.('#housekeeping-period');
+  const head = page?.querySelector?.('.housekeeping-toolbar');
+  if (!slot || !head) return;
+  const actions = head.querySelector('.page-toolbar__actions');
+  if (inHead && actions) {
+    if (slot.parentNode !== head) head.insertBefore(slot, actions);
+    slot.classList.add('page-toolbar__center');
+  } else {
+    if (slot.parentNode === head) head.after(slot);
+    slot.classList.remove('page-toolbar__center');
+  }
+}
+
+let reportPeriodMedia = null;
+let reportPeriodMediaHandler = null;
+
+/* Die Seite entsteht bei jedem Aufruf neu: der alte Zuhoerer faellt, bevor der
+ * neue haengt, sonst verschoebe jede fruehere Seite ihren abgehaengten Slot. */
+function watchReportPeriodPlace(page) {
+  if (reportPeriodMedia && reportPeriodMediaHandler) {
+    reportPeriodMedia.removeEventListener('change', reportPeriodMediaHandler);
+  }
+  reportPeriodMedia = typeof window.matchMedia === 'function' ? window.matchMedia(REPORT_PERIOD_HEAD_QUERY) : null;
+  reportPeriodMediaHandler = null;
+  if (!reportPeriodMedia) return;
+  reportPeriodMediaHandler = (event) => placeReportPeriod(page, event.matches);
+  reportPeriodMedia.addEventListener('change', reportPeriodMediaHandler);
+  placeReportPeriod(page, reportPeriodMedia.matches);
+}
+
+/** Der Zeitraum-Slot (Titelzeile oder Zeile unter den Reitern) der Seite, zu der `content` gehoert. */
 function reportPeriodSlot(content) {
   return content?.closest?.('.housekeeping-page')?.querySelector('#housekeeping-period') ?? null;
 }
 
 /**
- * Stellt den Zeitraum im Kopf auf den Tab ein: im Berichte-Tab der Stepper
+ * Stellt die Zeitraum-Zeile auf den Tab ein: im Berichte-Tab der Stepper
  * des angezeigten Monats, sonst ein leerer, verborgener Slot.
  *
  * Steht der Stepper schon, werden nur Label und Reset nachgezogen, nicht die
@@ -1357,7 +1449,8 @@ async function showReportMonth(content, monthValue, focusId = null) {
     if (!content?.isConnected || state.tab !== 'reports') return;
     swapPeriod(content, towards, () => renderReports(content));
     // Der Reset verschwindet im laufenden Monat - dann bleibt der Fokus am
-    // vorherigen Pfeil statt auf <body> zu fallen. Der Stepper steht im Kopf.
+    // vorherigen Pfeil statt auf <body> zu fallen. Der Stepper steht in der
+    // Zeitraum-Zeile ueber dem Inhalt, nicht im Inhalt.
     const head = reportPeriodSlot(content) ?? content;
     const target = focusId ? head.querySelector(`#${focusId}`) : null;
     (target && !target.inert ? target : head.querySelector('#housekeeping-report-prev'))
@@ -1383,12 +1476,12 @@ function stepReportMonth(content, dir) {
 
 /**
  * Der Berichte-Tab: die drei Kennzahlen des Monats, darunter die Besuche als
- * Zeilen. Den Monat waehlt der Stepper im Kopf (syncReportPeriod()).
+ * Zeilen. Den Monat waehlt der Stepper darueber (syncReportPeriod()).
  *
  * DIE KENNZAHLEN SIND DIE DER UEBERSICHT (`.metric-card`), nicht mehr die
  * graue `--inset`-Fassung in einer Karte: zwei KPI-Looks im selben Modul
  * (Critique 2026-09-26, A3 P2-4), und die Karte trug nur noch Ueberschrift und
- * Stepper, seit der Stepper im Kopf steht.
+ * Stepper, seit der Stepper ueber dem Inhalt steht.
  *
  * DIE BESUCHSZEILE IST EINE `.list-row` wie im Personal-Protokoll: Avatar |
  * Name + Datum, Betrag, Status | Aktionen. Vorher stand „Als bezahlt
@@ -1396,7 +1489,7 @@ function stepReportMonth(content, dir) {
  * darunter in einer eigenen - mobil 197px pro Besuch. Bezahlen ist jetzt
  * dieselbe `.row-action` wie im Protokoll (`banknote`), beschriftet
  * per `aria-label` mit dem Datum der Zeile. Sichtbar steht das Datum ohne
- * Jahr: den Monat samt Jahr nennt der Stepper im Kopf, und mit Jahr brach die
+ * Jahr: den Monat samt Jahr nennt der Stepper darueber, und mit Jahr brach die
  * Metazeile mobil um. Das `aria-label` behaelt das volle Datum.
  */
 function renderReports(content) {
@@ -1408,7 +1501,7 @@ function renderReports(content) {
   const rows = visits.map((visit) => {
     const paid = !!visit.paid_at;
     const visitDate = formatDate(visit.check_in);
-    // Ohne Jahr: den Monat samt Jahr nennt der Stepper im Kopf. Das
+    // Ohne Jahr: den Monat samt Jahr nennt der Stepper darueber. Das
     // `aria-label` der Aktionen behaelt das volle Datum.
     return visitRowHtml(visit, {
       dateText: formatDayMonth(visit.check_in),
@@ -1962,10 +2055,10 @@ function openVisitEditModal(visit, content, { onDone } = {}) {
           </label>
         </div>
         ${receiptFieldHtml(visit)}
-        <button class="btn btn--primary housekeeping-form-submit" type="submit">
-          <i data-lucide="save" aria-hidden="true"></i>
-          <span>${esc(t('common.save'))}</span>
-        </button>
+        <div class="modal-panel__footer">
+          <button class="btn btn--secondary" type="button" data-action="close-modal">${esc(t('common.cancel'))}</button>
+          <button class="btn btn--primary" type="submit">${esc(t('common.save'))}</button>
+        </div>
       </form>
     `,
     onSave: (panel) => {
@@ -2219,10 +2312,10 @@ function openStaffModal(worker, content, options = {}) {
           <span>${esc(t('housekeeping.workerNotes'))}</span>
           <textarea name="notes" rows="3" maxlength="5000">${esc(item.notes || '')}</textarea>
         </label>
-        <button class="btn btn--primary housekeeping-form-submit" type="submit">
-          <i data-lucide="save" aria-hidden="true"></i>
-          <span>${esc(t('common.save'))}</span>
-        </button>
+        <div class="modal-panel__footer">
+          <button class="btn btn--secondary" type="button" data-action="close-modal">${esc(t('common.cancel'))}</button>
+          <button class="btn btn--primary" type="submit">${esc(item.id ? t('common.save') : t('common.add'))}</button>
+        </div>
       </form>
     `,
     onSave: (panel) => {
@@ -2474,6 +2567,8 @@ export const __test = {
   completeTask,
   reportMonthNavHtml,
   syncReportPeriod,
+  placeReportPeriod,
+  REPORT_PERIOD_HEAD_QUERY,
   renderStaff,
   staffLogPayHtml,
   receiptFieldHtml,

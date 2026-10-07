@@ -330,6 +330,54 @@ export function growBars(root, { selector, memo }) {
   return moving.length;
 }
 
+/** Diagramme, die sich in dieser Sitzung schon eingezeichnet haben (`memo`). */
+const drawnCharts = new Set();
+
+/**
+ * Laesst ein Diagramm sich EINMAL einzeichnen - beim ersten Erscheinen in
+ * dieser Sitzung, danach nie wieder (Critique R17, Bewegung). Das Geschwister
+ * von `growBars`: dort wachsen Balken an ihren Wert, hier zeichnet sich eine
+ * Linie von der Zeitachse her ein und ein Ring fuellt sich im Uhrzeigersinn.
+ *
+ * EINMAL, NICHT BEI JEDEM ZEITRAUM: wer blaettert, vergleicht - eine Kurve,
+ * die sich bei jedem Schritt neu einzeichnet, hielte die Antwort 300ms zurueck
+ * und waere beim dritten Mal Dekoration. Den Zeitraumwechsel traegt der
+ * gerichtete Inhaltswechsel (utils/content-swap.js). `memo` benennt das
+ * Diagramm; ein Aufruf ohne Marken (leeres Diagramm) verbraucht ihn nicht.
+ *
+ * DER ENDZUSTAND STEHT IM MARKUP. Beide Bewegungen laufen ueber die Web
+ * Animations API ohne `fill`: faellt sie aus (kein `animate`, verdeckter Tab,
+ * reduzierte Bewegung), steht das Diagramm fertig da. Nur Zeichnen, kein
+ * Layout: `clip-path` an der Liniengruppe, `stroke-dasharray`/`-dashoffset` an
+ * den Ringsegmenten.
+ *
+ * @param {string} memo  Name des Diagramms
+ * @param {Object} marks
+ * @param {Element|null} [marks.lines]  Gruppe der Linien (zeichnet sich in Leserichtung der Zeitachse ein)
+ * @param {Iterable<Element>} [marks.arcs]  Ringsegmente (`<circle>` mit stroke-dasharray "Laenge Umfang")
+ * @returns {number} wie viele Marken sich einzeichnen
+ */
+export function drawChartOnce(memo, { lines = null, arcs = [] } = {}) {
+  const segments = [...(arcs ?? [])].filter((el) => typeof el?.animate === 'function');
+  const group = typeof lines?.animate === 'function' ? lines : null;
+  if (!group && !segments.length) return 0;
+  if (drawnCharts.has(memo)) return 0;
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 0;
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return 0;
+  drawnCharts.add(memo);
+  const timing = { duration: durationToken('--duration-xl', 300), easing: easingToken('--ease-out', 'ease-out') };
+  if (group) group.animate([{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], timing);
+  for (const el of segments) {
+    const dash = el.getAttribute('stroke-dasharray') ?? '';
+    const total = dash.trim().split(/[\s,]+/)[1] ?? '0';
+    el.animate([
+      { strokeDasharray: `0 ${total}`, strokeDashoffset: '0' },
+      { strokeDasharray: dash, strokeDashoffset: el.getAttribute('stroke-dashoffset') ?? '0' },
+    ], timing);
+  }
+  return (group ? 1 : 0) + segments.length;
+}
+
 function settleAnimation(anim, duration) {
   return new Promise((resolve) => {
     let done = false;
@@ -602,6 +650,8 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
   let lead = 0;
   // Hoehe einer Faltzeile (siehe `foldRow` in update), ohne ihre Linie.
   let foldH = 0;
+  // Hoehe des Kopfs bei der letzten AUSGEKLAPPTEN Messung (siehe onInnerScroll).
+  let openH = 0;
   let dockTitle = null;
   let headSeal = null;
   // Die Kinder der Lead-Zone, die im Band-Modus angedockt ausblenden.
@@ -699,9 +749,18 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
     // mit einem aufgeklappten Rezept: 166px ausgeklappt, 102px gefaltet) beim
     // naechsten Scroll-Ereignis wieder aus - und dann wieder ein. Der
     // berechnete Rand gilt auch mitten in der Bewegung.
+    // Dasselbe gilt fuer einen gedeckelten Kopf, der eingeklappt wirklich
+    // kuerzer ist (Kalender mobil seit R17: 117 -> 65px): der Port ist dann um
+    // die Differenz hoeher und die Reserve um genau so viel kleiner. Gegen die
+    // eingeklappte Reserve gemessen, pendelte eine Liste, deren Reserve
+    // zwischen Schwelle und Schwelle + Differenz liegt. `openH` ist die Hoehe
+    // der letzten ausgeklappten Messung.
+    const shorter = !fold && toolbar.classList.contains('is-collapsed') && openH > 0
+      ? Math.max(0, openH - toolbar.getBoundingClientRect().height)
+      : 0;
     const unfolded = fold
       ? reserve - Math.min(0, parseFloat(getComputedStyle(toolbar).marginBlockEnd) || 0)
-      : reserve;
+      : reserve + shorter;
     if (unfolded < (fold ? foldH : lead) + 48) {
       toolbar.classList.remove(...states);
       return;
@@ -709,7 +768,9 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
     // Ab hier nur noch der Nutzer (siehe `gestureTarget` oben).
     if (!gestureTarget || !port.contains(gestureTarget)) return;
     const top = port.scrollTop;
-    if (top > 24) toolbar.classList.add(...states);
+    // `was-collapsed`: ab jetzt darf der Titel beim Ausklappen einblenden
+    // (layout.css, `page-title-settle-back`) - nicht schon beim Seitenaufbau.
+    if (top > 24) toolbar.classList.add(...states, 'was-collapsed');
     else if (top < 8) toolbar.classList.remove(...states);
   };
   const update = () => {
@@ -736,6 +797,7 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
         && c.getBoundingClientRect().height > 0,
     );
     const tb = toolbar.getBoundingClientRect();
+    openH = tb.height;
     const padTop = parseFloat(getComputedStyle(toolbar).paddingBlockStart) || 0;
     // WAS EINE ZEILE IST, ENTSCHEIDET DIE ÜBERLAPPUNG, NICHT DIE OBERKANTE.
     // Ein Vergleich der `top`-Werte hält jeden vertikalen Versatz für einen
@@ -825,27 +887,29 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
     // DIE FALTZEILE (R17 K1, Re-Critique 2026-09-28 A4 P2-4 / A8 P3-2). Unter
     // einer Gruppen-Leiste (Kueche) steht der Kopf der Seite als EINE Zeile
     // ohne Titel - in Rezepte und Vorrat traegt sie mobil nur Werkzeuge (Lupe,
-    // "...") und kostet 65px fuer ein bis zwei Icons. Angedockt gibt sie diese
+    // "..."), im Essensplan die Woche, im Einkauf die Listen - und kostet 65px
+    // ueber der Liste. Angedockt gibt sie diese
     // Hoehe frei, an derselben Schwelle und mit derselben Klasse wie der Kopf
     // der gedeckelten Module (`is-collapsed`, onInnerScroll); zurueck oben
     // kommt sie wieder. Das ist Apples `hidesSearchBarWhenScrolling` fuer eine
     // Zeile, deren Inhalt die Suche IST.
     //
-    // NUR EINE ZEILE, DIE NICHTS BENENNT: steht im Center-Slot etwas anderes
-    // als die Suche (Wochenstepper im Essensplan, Listen-Kapseln im Einkauf),
-    // beantwortet die Zeile beim Scrollen weiter „wo bin ich" und bleibt -
-    // dieselbe Abgrenzung wie der Zeitraum im Kalender. Gezaehlt wird ueber
-    // `classList`, nicht per Selektor: die Regel ist eine Aussage ueber den
-    // Inhalt des Slots.
+    // JEDE ZEILE UNTER DER LEISTE FALTET, AUCH EINE, DIE ETWAS BENENNT (R17
+    // Schritt 5, Critique 2026-10-07 A1 P2 / A4). Bis dahin blieben
+    // Essensplan (Wochenstepper) und Einkauf (Listen-Kapseln) stehen, mit der
+    // Begruendung, ihre Zeile beantworte beim Scrollen weiter „wo bin ich" -
+    // gemessen kostete das in beiden 121px Kopf in JEDEM Scrollstand, waehrend
+    // der Vorrat daneben auf 56px faltet. Die Leiste darueber nennt den Ort
+    // (Mahlzeiten, Einkauf); Woche und Liste kommen oben wieder, wie die
+    // Suche. Fokus in der Zeile, ein Suchbegriff und ein offenes Menue halten
+    // sie offen (layout.css) - wer gerade die Woche blaettert, behaelt sie.
     //
     // KEINE LEAD-ZONE: die Zeile ist einzeilig, und eine Lead-Zone auf einem
     // einzeiligen Kopf verbirgt seine Linie (Sonde 8). Die Hoehe steht deshalb
     // in einer eigenen Variablen, gemessen OHNE die Linie - die bleibt
     // gefaltet als Kante unter der Leiste stehen.
-    const center = [...toolbar.children].find((c) => c.classList.contains('page-toolbar__center'));
     const foldRow = Boolean(capped) && lines.length === 1 && !heading
-      && toolbar.classList.contains('page-toolbar--in-group')
-      && (!center || center.classList.contains('page-search'));
+      && toolbar.classList.contains('page-toolbar--in-group');
     toolbar.classList.toggle('page-toolbar--fold-row', foldRow);
     foldH = foldRow ? Math.round(tb.height - (parseFloat(getComputedStyle(toolbar).borderBottomWidth) || 0)) : 0;
     if (foldH > 0) toolbar.style.setProperty('--fold-row-h', `${foldH}px`);
@@ -1000,9 +1064,27 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
   const onMenuToggle = (e) => {
     const panel = e.target;
     if (!(panel instanceof Element) || !panel.matches('.popover-menu')) return;
+    // DIE GEDECKELTE FALTUNG (R17 Schritt 5, Kalender). Ein eingeklappter Kopf
+    // der gedeckelten Architektur darf Werkzeuge abgeben, wenn sein Menue sie
+    // aufnimmt: das Modul markiert sie (`data-collapse-fold`) und das Menue
+    // (`data-collapse-fold-menu`), sein Stylesheet blendet sie eingeklappt
+    // aus. Hier entstehen - wie bei der Faltung der scrollenden Koepfe - nur
+    // die Stellvertreter, und nur fuer das, was gerade WIRKLICH nicht zu
+    // sehen ist: wo das Stylesheet nichts ausblendet (breiter Kopf, aktiver
+    // Filter), entsteht auch kein zweiter Weg zur selben Handlung.
+    const foldMenu = capped ? toolbar.querySelector('[data-collapse-fold-menu][popovertarget]') : null;
+    if (foldMenu && foldMenu.getAttribute('popovertarget') === panel.id) {
+      clearDockFoldItems(panel, foldMenu);
+      if (e.newState === 'open' && toolbar.classList.contains('is-collapsed')) {
+        fillDockFoldItems(panel, [...toolbar.querySelectorAll('[data-collapse-fold]')]
+          .filter((el) => el.getClientRects().length === 0));
+      }
+      return;
+    }
     const actions = toolbar.querySelector(':scope > .page-toolbar__actions');
-    if (!actions || dockFoldMenu(actions)?.panel !== panel) return;
-    clearDockFoldItems(panel);
+    const menu = actions ? dockFoldMenu(actions) : null;
+    if (menu?.panel !== panel) return;
+    clearDockFoldItems(panel, menu.trigger);
     if (e.newState === 'open'
       && toolbar.classList.contains('page-toolbar--dock-fold')
       && toolbar.classList.contains('is-docked')) {
@@ -1046,7 +1128,7 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
       toolbar.style.removeProperty('--page-toolbar-lead');
       toolbar.style.removeProperty('--fold-row-h');
       foldH = 0;
-      toolbar.classList.remove('page-toolbar--stacked', 'page-toolbar--capped', 'is-collapsed', 'is-docked', 'page-toolbar--dock-fold', 'page-toolbar--dock-band', 'page-toolbar--fold-row');
+      toolbar.classList.remove('page-toolbar--stacked', 'page-toolbar--capped', 'is-collapsed', 'is-docked', 'was-collapsed', 'page-toolbar--dock-fold', 'page-toolbar--dock-band', 'page-toolbar--fold-row');
     },
   };
 }
@@ -1093,7 +1175,18 @@ function dockFoldLabel(btn) {
     .replace(/\s+/g, ' ').trim();
 }
 
-function clearDockFoldItems(panel) {
+function clearDockFoldItems(panel, trigger = null) {
+  // DER FOKUS GEHT VOR DEM ABBAU ZUM AUSLOESER. Das Menue schliesst, sobald
+  // ein Eintrag gewaehlt ist, und der Stellvertreter faellt hier aus dem DOM,
+  // BEVOR die Popover-API den Fokus zurueckgibt - sie gibt ihn nur zurueck,
+  // solange er noch im Panel steht. Ohne diesen Schritt landete er nach
+  // "Heute" auf dem Dokument (R17 Schritt 5, Kalender; genauso bei der
+  // Faltung der Aufgaben). Oeffnet das Original danach selbst etwas (Suche,
+  // Filter), nimmt es den Fokus wie immer mit.
+  const active = document.activeElement;
+  if (trigger && active?.parentElement === panel && active.classList?.contains('page-toolbar__fold-item')) {
+    trigger.focus?.({ preventScroll: true });
+  }
   panel.querySelectorAll(':scope > .page-toolbar__fold-item').forEach((el) => el.remove());
 }
 
@@ -1115,14 +1208,21 @@ function fillDockFoldItems(panel, controls) {
     const choice = !single && buttons.some((b) => b.hasAttribute('aria-pressed')
       || ['radio', 'tab', 'menuitemradio'].includes(b.getAttribute('role')));
     for (const btn of buttons) {
-      if (btn.disabled || !dockFoldLabel(btn)) continue;
+      // `inert` wie `disabled`: ein Reset, der gerade nichts zuruecksetzt
+      // ("Heute" im laufenden Zeitraum), ist kein Eintrag.
+      if (btn.disabled || btn.inert || !dockFoldLabel(btn)) continue;
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'popover-menu__item page-toolbar__fold-item';
       const on = ['aria-pressed', 'aria-checked', 'aria-selected'].some((a) => btn.getAttribute(a) === 'true');
       item.setAttribute('role', choice ? 'menuitemradio' : 'menuitem');
       if (choice) item.setAttribute('aria-checked', String(on));
-      const glyph = btn.querySelector('svg')?.cloneNode(true);
+      // Ein Knopf, der nur Text traegt ("Heute"), nennt sein Zeichen selbst
+      // (`data-fold-icon`, Lucide-Name in PascalCase) - sonst stuende er im
+      // Menue als einziger ohne Zeichen und um dessen Breite versetzt.
+      const named = btn.dataset?.foldIcon ? window.lucide?.icons?.[btn.dataset.foldIcon] : null;
+      const glyph = btn.querySelector('svg')?.cloneNode(true)
+        ?? (named ? window.lucide.createElement(named) : null);
       if (glyph) {
         glyph.setAttribute('class', 'icon-md');
         glyph.setAttribute('aria-hidden', 'true');

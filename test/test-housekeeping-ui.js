@@ -706,7 +706,17 @@ test('Listenreiter am Desktop: Liste im Spaltenraster, Kennzahlen bzw. Protokoll
   // renderTasks() reicht seit R16 an redrawList() weiter; das Markup baut drawTasks().
   const tasks = fn('drawTasks');
   assert.match(tasks, /renderPageColumns\(\{\s*main:[\s\S]*housekeeping-task-list/, 'Aufgaben: die Liste steht in der Listenspalte');
-  assert.doesNotMatch(tasks, /\brail:/, 'Aufgaben: kein zweiter Inhalt, also keine erfundene Seitenspalte');
+  // R17: der Reiter HAT einen zweiten Inhalt - „Faellig" und „Erledigt im Monat"
+  // standen nur auf der Uebersicht, die Spalte daneben blieb leer (384px bei 1280).
+  assert.match(tasks, /\brail: taskSummaryHtml\(\),/, 'Aufgaben: die zwei Kennzahlen stehen in der Seitenspalte');
+  assert.doesNotMatch(tasks, /railFirst/, 'hinter der Liste im DOM: schmal stehen sie darunter, nie davor');
+  const summary = fn('taskSummaryHtml');
+  assert.match(summary, /state\.dashboard/, 'derselbe Bestand wie die Uebersicht (nach jedem Erledigen neu geladen)');
+  assert.match(summary, /class="metric-grid budget-glance-details housekeeping-task-summary"/,
+    'unter 640px bleiben die Kacheln aus - das Telefon bekommt nichts vor oder unter die Liste');
+  assert.match(summary, /t\('housekeeping\.pendingChores'\)[\s\S]*data\.pending_tasks|pending_tasks[\s\S]*t\('housekeeping\.pendingChores'\)/);
+  assert.match(summary, /t\('housekeeping\.finishedChores'\)/, 'dieselben Worte wie auf der Uebersicht');
+  assert.equal(summary.match(/class="metric-card\$\{/g)?.length, 2, 'zwei Karten, keine dritte erfunden');
   const reports = fn('renderReports');
   assert.match(reports, /renderPageColumns\(\{\s*railFirst: true,\s*rail:[\s\S]*metric-grid[\s\S]*main:[\s\S]*housekeeping-reports/,
     'Berichte: Kennzahlen im DOM vor der Liste (mobil darueber), am Desktop in der Seitenspalte');
@@ -927,4 +937,106 @@ test('#1723: die Ueberschrift des Reiters heisst wie der Reiter', async () => {
   assert.equal(heading, words.tab, 'Reiter und Ueberschrift nennen dieselbe Liste verschieden');
   assert.doesNotMatch(content.html.split('page-columns__rail')[0], /<h2 class="u-section-title">/,
     'ueber der Liste steht eine zweite, sichtbare Ueberschrift');
+});
+
+// ---------------------------------------------------------------------------
+// Critique R17: die Reiterleiste steht auf jedem Reiter gleich
+// ---------------------------------------------------------------------------
+
+/* Der Monats-Stepper des Berichte-Reiters stand im Center-Slot des Kopfs. Mobil
+ * schob er sich damit als eigene Zeile ZWISCHEN Titel und Reiter: die Leiste
+ * sprang beim Wechsel auf "Berichte" von y=53 auf y=105 (Kopf 118 -> 170px).
+ * Jetzt ist der Kopf auf jedem Reiter derselbe, und der Zeitraum steht als
+ * eigene Zeile zwischen Kopf und Inhalt - ausserhalb des Inhalts, weil der bei
+ * jedem Monatsschritt neu gebaut wird und der Pfeil seinen Fokus behalten muss.
+ * Gemessen am ECHTEN Markup von renderShell(). */
+test('R17: der Zeitraum der Berichte steht unter den Reitern, nicht im Kopf', async () => {
+  let html = '';
+  const seite = { appendChild() {}, addEventListener() {}, dataset: {} };
+  const container = {
+    replaceChildren() { html = ''; },
+    insertAdjacentHTML(_pos, markup) { html += markup; },
+    querySelector: (sel) => (sel === '.housekeeping-page' ? seite : null),
+  };
+  hk.state().tab = 'reports';
+  // renderShell() baut nach dem Markup den FAB per DOM-API; dafuer reicht das
+  // Mini-DOM, und es wird danach wieder abgeraeumt.
+  const { installMiniDom } = await import('./mini-dom.js');
+  const abraeumen = installMiniDom();
+  try {
+    hk.renderShell(container);
+  } finally {
+    abraeumen();
+  }
+
+  const kopf = html.match(/<header class="([^"]*)"[^>]*>([\s\S]*?)<\/header>/);
+  assert.ok(kopf, 'die Seite hat einen Kopf');
+  assert.doesNotMatch(kopf[2], /housekeeping-period|page-toolbar__center/,
+    'im Kopf steht kein Zeitraum-Slot - er oeffnete mobil eine Zeile ueber den Reitern');
+  assert.doesNotMatch(kopf[1], /page-toolbar--period\b|page-toolbar--wrap\b/,
+    'der Kopf behauptet keinen Zeitraum mehr (der Modifier engte mobil den Zeilenabstand)');
+  assert.match(kopf[2], /role="tablist"/, 'die Reiter stehen im Kopf');
+
+  const nachKopf = html.slice(html.indexOf('</header>'));
+  assert.match(nachKopf, /^<\/header>\s*<div class="housekeeping-period" id="housekeeping-period" hidden><\/div>\s*<div class="housekeeping-content" id="housekeeping-content"><\/div>/,
+    'der Zeitraum ist die Zeile zwischen Kopf und Inhalt: unter den Reitern, ausserhalb des Inhalts, auf den anderen Reitern verborgen');
+  assert.equal((html.match(/id="housekeeping-period"/g) || []).length, 1, 'genau ein Slot');
+
+  // Die Zeile bringt ihr Layout selbst mit - den Center-Slot der Shell hat sie nicht mehr.
+  const { readFileSync } = await import('node:fs');
+  const { eachRule } = await import('./css-rules.js');
+  const regeln = [...eachRule(readFileSync(new URL('../public/styles/housekeeping.css', import.meta.url), 'utf8'))];
+  const basis = regeln.find((r) => r.selector.trim() === '.housekeeping-period' && r.at.length === 0);
+  assert.ok(basis, '.housekeeping-period hat eine Basisregel');
+  assert.match(basis.body, /display:\s*flex/);
+  assert.match(basis.body, /var\(--page-inline-pad\)/, 'dasselbe Seitenpolster wie der Inhalt darunter');
+  const verborgen = regeln.findIndex((r) => r.selector.trim() === '.housekeeping-period[hidden]' && /display:\s*none/.test(r.body));
+  assert.ok(verborgen > regeln.indexOf(basis), '`[hidden]` gewinnt gegen `display: flex` (steht dahinter)');
+});
+
+/* Entscheidung R17 (E16): am Desktop steht der Zeitraum wieder in der
+ * Titelzeile - dort sprang nie etwas, und unter den Reitern scrollte der Monat
+ * mit dem Inhalt weg. EIN Knoten, zwei Plaetze: placeReportPeriod() haengt ihn
+ * um. Mobil bleibt der Platz aus dem Markup (Test darueber). */
+test('R17/E16: ab 1024px haengt der Zeitraum in der Titelzeile, darunter unter den Reitern', async () => {
+  const klassen = new Set(['housekeeping-period']);
+  const zuege = [];
+  const actions = { name: 'actions' };
+  const slot = {
+    parentNode: null,
+    classList: { add: (c) => klassen.add(c), remove: (c) => klassen.delete(c) },
+  };
+  const head = {
+    querySelector: (sel) => (sel === '.page-toolbar__actions' ? actions : null),
+    insertBefore(node, vor) { zuege.push(['insertBefore', vor.name]); node.parentNode = head; },
+    after(node) { zuege.push(['after']); node.parentNode = page; },
+  };
+  const page = {
+    querySelector: (sel) => (sel === '#housekeeping-period' ? slot : sel === '.housekeeping-toolbar' ? head : null),
+  };
+  slot.parentNode = page;
+
+  hk.placeReportPeriod(page, true);
+  assert.deepEqual(zuege, [['insertBefore', 'actions']], 'breit: der Slot steht im Kopf VOR den Aktionen (Titel, Zeitraum, Pille)');
+  assert.ok(klassen.has('page-toolbar__center'), 'im Kopf ist er der Center-Slot der Shell');
+
+  hk.placeReportPeriod(page, true);
+  assert.equal(zuege.length, 1, 'steht er schon im Kopf, wird er nicht neu eingehaengt (der Pfeil behielte seinen Fokus nicht)');
+
+  hk.placeReportPeriod(page, false);
+  assert.deepEqual(zuege[1], ['after'], 'schmal: zurueck hinter den Kopf, also unter die Reiter');
+  assert.ok(!klassen.has('page-toolbar__center'), 'unter den Reitern ist er kein Center-Slot mehr');
+
+  hk.placeReportPeriod(page, false);
+  assert.equal(zuege.length, 2, 'steht er schon unter den Reitern, bleibt er stehen');
+
+  assert.equal(hk.REPORT_PERIOD_HEAD_QUERY, '(min-width: 1024px)', 'die Schwelle der angedockten Kopf-Pille');
+  const { readFileSync } = await import('node:fs');
+  const quelle = readFileSync(new URL('../public/pages/housekeeping.js', import.meta.url), 'utf8');
+  const shell = quelle.slice(quelle.indexOf('function renderShell('), quelle.indexOf('\n}\n', quelle.indexOf('function renderShell(')));
+  assert.match(shell, /watchReportPeriodPlace\(page\)/, 'renderShell() stellt den Platz ein und folgt der Breite');
+  const { eachRule } = await import('./css-rules.js');
+  const regeln = [...eachRule(readFileSync(new URL('../public/styles/housekeeping.css', import.meta.url), 'utf8'))];
+  const imKopf = regeln.find((r) => r.selector.trim() === '.page-toolbar > .housekeeping-period');
+  assert.match(imKopf?.body ?? '', /padding:\s*0/, 'im Kopf faellt das eigene Zeilenpolster');
 });

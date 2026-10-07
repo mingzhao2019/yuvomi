@@ -16,6 +16,8 @@ import { t, formatDate, formatDayMonth, formatMonthYear, getLocale, getNumberFor
 import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod } from '/utils/period-stepper.js';
 import { swapContent } from '/utils/content-swap.js';
+import { wirePeriodSwipe } from '/utils/period-swipe.js';
+import { redrawList, collapseRow } from '/utils/list-motion.js';
 import { friendlyError } from '/utils/friendly-error.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
 import { render as renderSplitExpenses, prefillSplitExpense, canAddSplitExpense, openNewSplitExpense } from '/pages/split-expenses.js';
@@ -245,6 +247,7 @@ let state = {
   scope:       'mine',        // Ansichts-Filter im personal-Modus: 'mine' | 'household'
   expensesOnly: false,        // Anzeige „Nur Ausgaben" (#504): Einnahmen+Saldo ausblenden
   categoriesExpanded: false,  // Kategorie-Diagramm einspaltig ganz aufgeklappt (sonst Top 3)
+  plannedExpandedMonth: null, // Monat, in dem "Geplant" ganz aufgeklappt ist (sonst die naechsten 3); gilt nur fuer DIESEN Monat
   balanceExpanded: false,     // mobil: Bilanz-Karten unter der Kopfzeile aufgeklappt (balanceGlanceHtml)
   loansExpanded: false,       // mobil: Darlehens-Karten unter der Glance-Zeile aufgeklappt (metricGlanceHtml)
   meta:        { expenseCategories: [], incomeCategories: [], subcategories: {} },
@@ -372,7 +375,7 @@ function readOnly() {
 
 // Jede `data-action` dieser Seite, die NICHT schreibt. Eine Positivliste,
 // damit eine morgen ergaenzte Schreib-Aktion standardmaessig gesperrt ist.
-const READ_SAFE_ACTIONS = new Set(['loan-filter']);
+const READ_SAFE_ACTIONS = new Set(['loan-filter', 'toggle-planned']);
 
 // Die schreibenden Bedienhaken OHNE `data-action` - Konten, Leerzustaende und
 // der Kategorie-Verwalter sind einzeln verdrahtet, nicht ueber einen Verteiler.
@@ -850,15 +853,32 @@ function wireNav() {
   // Der neue Zeitraum kommt von der Seite, zu der man blaettert (swapPeriod,
   // utils/period-stepper.js) - vorher ein harter Schnitt.
   const bodyEl = () => _container.querySelector('#budget-body');
-  const stepPeriod = async (dir) => {
+  // `swap: false` setzt der Wisch, der sein eigenes Hereingleiten mitbringt
+  // (utils/period-swipe.js) - kein zweiter Uebergang darueber.
+  const stepPeriod = async (dir, { swap = true } = {}) => {
     if (state.activeTab === 'reports') {
       state.reportAnchor = stepAnchor(state.reportAnchor, state.range, dir);
-      swapPeriod(bodyEl(), dir, renderBody);
+      if (swap) swapPeriod(bodyEl(), dir, renderBody);
+      else renderBody();
       return;
     }
     await loadMonth(addMonths(state.month, dir));
-    swapPeriod(bodyEl(), dir, () => { renderBody(); updateLabel(); });
+    if (swap) swapPeriod(bodyEl(), dir, () => { renderBody(); updateLabel(); });
+    else { renderBody(); updateLabel(); }
   };
+  // WISCHEN BLAETTERT DEN ZEITRAUM WIE IM KALENDER (R17, Bewegung): auf den
+  // Reitern mit Zeitachse (`TAB_CAPS.month`: Budget, Plan, Berichte) holt ein
+  // waagerechter Wisch den naechsten bzw. vorigen Zeitraum - derselbe Stepper
+  // wie die Pfeile, die der Weg fuer Tastatur und Maus bleiben. Senkrecht
+  // gewinnt das Scrollen (Richtungssperre in period-swipe.js); eine Leiste,
+  // die selbst waagerecht scrollt, und ein Eingabefeld behalten ihren Finger.
+  // `#budget-body` ueberlebt jeden renderBody(); dem Finger folgt sein erstes
+  // Kind, das Panel des Reiters.
+  wirePeriodSwipe(bodyEl(), {
+    enabled: () => Boolean(tabCaps().month) && !state.loadError,
+    ignore: PERIOD_SWIPE_IGNORE,
+    onStep: (step) => stepPeriod(step, { swap: false }),
+  });
   _container.querySelector('#budget-prev').addEventListener('click', () => stepPeriod(-1));
   _container.querySelector('#budget-next').addEventListener('click', () => stepPeriod(1));
   _container.querySelector('#budget-today').addEventListener('click', async () => {
@@ -1001,6 +1021,34 @@ function watchAsideFit(panel) {
 // Body
 // --------------------------------------------------------
 
+/* Wo ein waagerechter Kontakt NICHT den Zeitraum blaettert: Leisten, die selbst
+ * waagerecht scrollen (`.u-scroll-fade`: Chip- und Filterreihen), die
+ * Diagrammflaeche der Berichte (`.budget-stats__points` - dort waehlt der
+ * waagerechte Zug den Tag, wie ein Regler) und Eingabefelder. */
+const PERIOD_SWIPE_IGNORE = '.u-scroll-fade, .budget-stats__points, input, textarea, select, [contenteditable]';
+
+const BUDGET_ENTRY = '#budget-list .budget-entry[data-id]';
+
+/* DIE BUCHUNGSLISTE BEWEGT SICH WIE JEDE LISTE (R17, Bewegung): wer eine
+ * Buchung angelegt, geloescht oder per "Rueckgaengig" zurueckgeholt hat,
+ * zeichnet hierueber neu - die neue Zeile zieht auf, was die Stelle wechselt,
+ * gleitet (utils/list-motion.js). Traeger ist `#budget-body`: `#budget-list`
+ * baut jeder renderBody() neu, wiedererkannt wird die Zeile an `data-id`.
+ * Filter, Suche, Reiter und Monat zeichnen weiter ueber renderBody() bzw.
+ * swapContent/swapPeriod - dort wechselt die Frage, nicht die Liste. */
+function redrawEntries() {
+  const body = _container?.querySelector('#budget-body');
+  if (!body) return;
+  redrawList(body, renderBody, { selector: BUDGET_ENTRY, keyAttr: 'data-id' });
+}
+
+/** Die Zeile einer Buchung klappt aus, bevor die Liste ohne sie neu steht. */
+function collapseEntryThenRedraw(id) {
+  const owner = _container;
+  const row = owner?.querySelector(`#budget-list .budget-entry[data-id="${id}"]`) ?? null;
+  collapseRow(row).then(() => { if (_container === owner) redrawEntries(); });
+}
+
 function renderBody() {
   const body = _container.querySelector('#budget-body');
   if (!body) return;
@@ -1036,6 +1084,9 @@ function renderBody() {
       // sitzt im geteilten Kopf, das Panel wählt nur noch die Auflösung.
       range: state.range,
       anchor: state.reportAnchor,
+      // Der Leerzustand der Statistik legt von dort einen Eintrag an (R17);
+      // bei `read` gibt es die Handlung nicht.
+      onAddEntry: readOnly() ? null : () => openBudgetModal({ mode: 'create' }),
       onRangeChange: (r) => {
         state.range = r;
         // Woche/Monat/Jahr wechselt die Aufloesung: Blende ohne Richtung.
@@ -1344,6 +1395,9 @@ function renderBody() {
 
     const confirmBtn = e.target.closest('[data-action="confirm"]');
     if (confirmBtn) { await openConfirmBookingModal(parseInt(confirmBtn.dataset.id, 10)); return; }
+
+    const plannedBtn = e.target.closest('[data-action="toggle-planned"]');
+    if (plannedBtn) { togglePlanned(plannedBtn); return; }
 
     // Ein Klick auf die Avatare filtert auf diese Person (#1057) - dieselbe
     // Geste wie der Konto-Drilldown, und sie braucht kein eigenes Bedienelement
@@ -1794,7 +1848,107 @@ function renderEntries() {
       </div>`).join('');
   }
 
-  return entryRows(rows);
+  return ledgerSectionsHtml(rows);
+}
+
+/* Wie viele geplante Zeilen eingeklappt stehen. */
+const PLANNED_PREVIEW_ROWS = 3;
+
+/**
+ * Pure: teilt die Buchungen eines Monats in GEPLANT und GEBUCHT (Entscheidung
+ * R17, E4).
+ *
+ * Geplant ist, was noch keine Tatsache ist: eine Zeile mit einem Datum nach
+ * heute (isUpcomingEntry() - meist eine Serie, die der Server fuer den Monat
+ * schon angelegt hat) und eine erwartete Buchung, die noch niemand verbucht
+ * hat (`is_pending`, #637). Gebucht ist der Rest, in der Reihenfolge der Liste.
+ *
+ * GEPLANT STEHT AUFSTEIGEND, das Naechste zuerst: der Abschnitt zeigt
+ * eingeklappt nur drei Zeilen, und das sollen die sein, die als Naechstes
+ * kommen - nicht die vom Monatsende, mit denen die absteigende Liste begann.
+ * Eine erwartete Buchung mit einem Datum von gestern steht damit ganz vorn:
+ * sie wartet auf ihr Haekchen. Stabil sortiert; `today` als Parameter, damit
+ * ein Test den Tag festnagelt.
+ */
+function splitLedger(rows, today = todayKey()) {
+  const planned = [];
+  const booked = [];
+  for (const entry of rows) {
+    if (entry.is_pending || entry.date > today) planned.push(entry);
+    else booked.push(entry);
+  }
+  planned.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return { planned, booked };
+}
+
+function plannedToggleLabel(expanded, count) {
+  return expanded ? t('budget.showFewerCategories') : t('budget.showAllPlanned', { count });
+}
+
+/**
+ * Die Liste der Uebersicht als zwei Abschnitte: "Geplant · n" und "Gebucht".
+ *
+ * Bis R17 EINE absteigende Liste: im laufenden Monat standen die Zeilen mit
+ * einem Datum nach heute oben - 11 von 23 in der Demo, die erste gebuchte
+ * Buchung bei y=878 von 800 (1280x800) und y=990 von 844 (390). Das erste Bild
+ * eines Haushaltsbuchs zeigte keine einzige Tatsache, und der Unterschied zur
+ * Prognose war ein Ring statt eines Punkts.
+ *
+ * OHNE GEPLANTE ZEILE BLEIBT ES EINE LISTE OHNE ZWISCHENTITEL (vergangener
+ * Monat, Kontoauszug ohne Ausstehendes): ein einzelner Abschnitt "Gebucht"
+ * unter dem Titel der Liste saegte nur eine Zeile ab. Ein Prognose-Monat ist
+ * ganz geplant - dort sagt es der Titel der Bilanz (isForecastMonth()), und
+ * der Abschnitt klappte 20 von 23 Zeilen weg.
+ *
+ * Der Aufklapp-Zustand gilt fuer den Monat, in dem er gesetzt wurde
+ * (`plannedExpandedMonth`), und wird nicht gespeichert.
+ */
+function ledgerSectionsHtml(rows) {
+  // „Geplant" und „Gebucht" sind UNTERTITEL von „Transaktionen" (R17): beide
+  // standen als 20px-Abschnittstitel 17px unter einem 20px-Abschnittstitel -
+  // zwei gleich grosse Ueberschriften uebereinander. `u-compact` ist die Stufe
+  // darunter (typography.css, Kartentitel).
+  if (isForecastMonth(state.month)) return entryRows(rows);
+  const { planned, booked } = splitLedger(rows);
+  if (!planned.length) return entryRows(rows);
+  const expanded = state.plannedExpandedMonth === state.month;
+  const more = planned.length - PLANNED_PREVIEW_ROWS;
+  const toggle = more > 0 ? `
+        <button type="button" class="budget-planned-toggle" data-action="toggle-planned"
+                aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="budget-planned-rows">
+          <i data-lucide="chevron-down" class="icon-sm budget-planned-toggle__icon" aria-hidden="true"></i>
+          <span class="budget-planned-toggle__label">${esc(plannedToggleLabel(expanded, planned.length))}</span>
+        </button>` : '';
+  return `
+      <section class="budget-ledger-section budget-ledger-section--planned${expanded ? ' is-expanded' : ''}" aria-labelledby="budget-planned-title">
+        <h3 class="u-section-title u-compact budget-ledger-section__title" id="budget-planned-title">${esc(t('budget.plannedTitle'))} <span class="budget-ledger-section__count">· ${planned.length}</span></h3>
+        <div class="budget-ledger-section__rows" id="budget-planned-rows">
+          ${entryRows(planned.slice(0, PLANNED_PREVIEW_ROWS))}
+          ${entryRows(planned.slice(PLANNED_PREVIEW_ROWS), { rowClass: 'budget-entry--more' })}${toggle}
+        </div>
+      </section>
+      ${booked.length ? `
+      <section class="budget-ledger-section budget-ledger-section--booked" aria-labelledby="budget-booked-title">
+        <h3 class="u-section-title u-compact budget-ledger-section__title" id="budget-booked-title">${esc(t('budget.bookedTitle'))}</h3>
+        <div class="budget-ledger-section__rows">
+          ${entryRows(booked)}
+        </div>
+      </section>` : ''}`;
+}
+
+/* Auf- und Zuklappen ohne Neuaufbau (wie toggleCategoryChart()): der Knopf
+ * behaelt Fokus und Position, nur Klasse, aria-expanded und Beschriftung
+ * ziehen nach. */
+function togglePlanned(button) {
+  const section = button.closest('.budget-ledger-section--planned');
+  if (!section) return;
+  const expanded = !section.classList.contains('is-expanded');
+  state.plannedExpandedMonth = expanded ? state.month : null;
+  section.classList.toggle('is-expanded', expanded);
+  button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  const label = button.querySelector('.budget-planned-toggle__label');
+  const count = section.querySelectorAll('.budget-entry').length;
+  if (label) label.textContent = plannedToggleLabel(expanded, count);
 }
 
 /**
@@ -1816,7 +1970,7 @@ function statementCreditLimitHtml() {
 }
 
 /** Die Buchungszeilen selbst - einmal gebaut, von Liste und Gruppen benutzt. */
-function entryRows(list, { fullDate = false } = {}) {
+function entryRows(list, { fullDate = false, rowClass = '' } = {}) {
   const ro = readOnly();
   // In einem Prognose-Monat liegt JEDE Zeile nach heute - dort sagt es der
   // Titel der Bilanz, und ein Symbol in jeder Metazeile waere Wiederholung.
@@ -1944,7 +2098,7 @@ function entryRows(list, { fullDate = false } = {}) {
           ${confirmBtn}`;
 
     return `
-      <div class="list-row budget-entry${pending ? ' budget-entry--pending' : ''}${upcoming ? ' budget-entry--upcoming' : ''}${masked ? ' budget-entry--masked' : ''}" ${rowInteraction}>
+      <div class="list-row budget-entry${pending ? ' budget-entry--pending' : ''}${upcoming ? ' budget-entry--upcoming' : ''}${masked ? ' budget-entry--masked' : ''}${rowClass ? ` ${rowClass}` : ''}" ${rowInteraction}>
         <div class="budget-entry__indicator ${indClass}"></div>
         <div class="list-row__main">
           ${titleCell}
@@ -2001,7 +2155,16 @@ function renderAccountsPage() {
       value: netWorth.text,
       tone: Number(state.netWorth) > 0 ? 'positive' : Number(state.netWorth) < 0 ? 'negative' : 'neutral',
     })}
-    <div class="metric-grid budget-glance-details">
+    `;
+  // DAS NETTOVERMOEGEN IST EINE LEISTENKARTE NEBEN DEN KONTEN (Critique R17,
+  // E14). Bis dahin trug die eine Kennzahl eine ganze Zeile ueber dem Raster:
+  // EINE Karte ueber 981px (1280) bzw. 1124px (1440), davon rund 800px leer.
+  // Ab 960px Modulflaeche steht sie in der Seitenleiste der Budget-Bahn wie
+  // die Kennzahlen der Uebersicht und der Darlehen (`.metric-grid--rail`),
+  // die Konten daneben auf dem Lesemass. Im Markup bleibt sie VORN: schmaler
+  // steht sie ueber den Konten, mobil vertritt sie die Kurzzeile.
+  const rail = `
+    <div class="metric-grid metric-grid--rail budget-glance-details">
       <div class="metric-card ${netWorth.className}">
         <div class="metric-card__label">${t('budget.netWorth')}</div>
         <div class="metric-card__value">${netWorth.text}</div>
@@ -2012,12 +2175,15 @@ function renderAccountsPage() {
     return `
       <div class="budget-tab-panel page-scrollport budget-tab-panel--accounts">
         ${header}
+        <div class="budget-accounts">
+        ${rail}
         ${emptyStateHTML({
     icon: 'wallet',
     title: t('budget.accountsEmptyTitle'),
     description: ro ? '' : t('budget.accountsEmptyDescription'),
     action: ro ? null : { label: t('budget.addAccount'), icon: 'plus', attrs: { id: 'budget-add-account-empty' } },
   })}
+        </div>
       </div>`;
   }
 
@@ -2059,7 +2225,10 @@ function renderAccountsPage() {
   return `
     <div class="budget-tab-panel page-scrollport budget-tab-panel--accounts">
       ${header}
-      <div class="budget-accounts__list">${cards}</div>
+      <div class="budget-accounts">
+        ${rail}
+        <div class="budget-accounts__list">${cards}</div>
+      </div>
     </div>`;
 }
 
@@ -2161,7 +2330,7 @@ function openAccountModal(account = null) {
     </div>
 
     <div class="modal-panel__footer modal-panel__footer--plain">
-      <div style="display:flex;gap:var(--space-2);margin-inline-end:auto">
+      <div style="display:flex;gap:var(--space-1);margin-inline-end:auto">
       ${isEdit ? `<button type="button" class="btn btn--danger-outline" id="am-delete">
         <i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${t('common.delete')}
       </button>
@@ -3347,7 +3516,7 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
           panel.querySelector('#bm-recurrence-options').hidden = !panel.querySelector('#bm-recurring').checked;
         }
         panel.querySelector('#bm-save').textContent = type === 'loan'
-          ? t('budget.createLoan')
+          ? t('common.add')
           : (isEdit ? t('common.save') : t('common.add'));
         if (type !== 'loan') updateCategoryOptions();
       };
@@ -3596,7 +3765,7 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
             state.entries.unshift(res.data);
             await loadMonth(state.month);
             closeModal({ force: true });
-            renderBody();
+            redrawEntries();
             window.yuvomi?.showToast(t('budget.addedToast'), 'success');
           } else if (entry.recurrence_parent_id || (entry.is_recurring && recurring)) {
             // Buchung einer Serie - eine Instanz ODER die erste Buchung selbst:
@@ -4546,7 +4715,7 @@ async function saveLoanFromPanel(panel, saveBtn, { loan = null, closeAfterSave =
   const accountSel = panel.querySelector('#lm-account');
   if (accountSel) body.account_id = accountSel.value === '' ? null : parseInt(accountSel.value, 10);
 
-  const saveLabel = isEdit ? t('common.save') : t('budget.createLoan');
+  const saveLabel = isEdit ? t('common.save') : t('common.add');
   saveBtn.disabled = true;
   saveBtn.textContent = '…';
   // Gezahlte Raten gegen die abgeleitete Laufzeit (#1656) - nur wo es etwas zu
@@ -4586,14 +4755,17 @@ function openLoanModal(loan = null) {
       <div></div>
       <div style="display:flex;gap:var(--space-3)">
         <button class="btn btn--secondary" id="lm-cancel">${t('common.cancel')}</button>
-        <button class="btn btn--primary" id="lm-save">${isEdit ? t('common.save') : t('budget.createLoan')}</button>
+        <button class="btn btn--primary" id="lm-save">${isEdit ? t('common.save') : t('common.add')}</button>
       </div>
     </div>`;
 
   openSharedModal({
     title: isEdit ? t('budget.editLoan') : t('budget.newLoan'),
     content,
-    size: 'sm',
+    // 520 statt 400 (R17, E6): achtzehn Felder, darunter Zweierreihen - im
+    // 400er-Blatt (innen 366) fielen die Paare einspaltig und der Dialog
+    // wurde ein Formularstapel.
+    size: 'md',
     onSave(panel) {
       wireLoanFormFields(panel);
       panel.querySelector('#lm-cancel').addEventListener('click', closeModal);
@@ -4852,7 +5024,9 @@ async function deleteEntry(id) {
   // Auch im Konto-Drilldown genau: der Server loescht genau diese eine
   // Buchung, und sie steht in der Liste - anders als die Serie (listNarrowsSummary).
   if (entry && inMonth) state.summary = summaryWith(state.summary, [entry], -1);
-  renderBody();
+  // Der Zustand ist schon geaendert: ein Neuzeichnen, das dem Ausklappen
+  // zuvorkommt, zeigt dasselbe Ergebnis nur ohne die Bewegung.
+  collapseEntryThenRedraw(id);
   vibrate([30, 50, 30]);
 
   scheduleUndoableDelete({
@@ -4878,7 +5052,7 @@ async function deleteEntry(id) {
         state.ledgerResults = [...state.ledgerResults.filter((e) => e.id !== id), entry].sort(byDate);
         back = true;
       }
-      if (back) renderBody();
+      if (back) redrawEntries();
       if (err) showBudgetError(err);
     },
   });
@@ -5126,6 +5300,8 @@ export const __test = {
   WRITE_HOOKS,
   readOnlyLatch,
   renderEntries,
+  // R17/E4: die Liste der Uebersicht als "Geplant" und "Gebucht".
+  splitLedger, ledgerSectionsHtml, togglePlanned, PLANNED_PREVIEW_ROWS,
   renderAccountsPage,
   renderLoansPage,
   renderLoanCard,

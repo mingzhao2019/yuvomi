@@ -989,6 +989,7 @@ function dockStub({ withMenu = true, tabBar = false, padTop = 0, barTop = 57 } =
     addEventListener(type, fn) { (this.handlers[type] ??= []).push(fn); }
     removeEventListener(type, fn) { this.handlers[type] = (this.handlers[type] ?? []).filter((f) => f !== fn); }
     click() { this.clicks += 1; for (const fn of this.handlers.click ?? []) fn({ target: this }); }
+    focus() { this.focused = (this.focused ?? 0) + 1; global.document.activeElement = this; }
     getClientRects() { return this.visible() ? [this.rect] : []; }
     getBoundingClientRect() {
       const r = this.visible() ? this.rect : { top: 0, bottom: 0, left: 0, width: 0 };
@@ -1094,8 +1095,21 @@ test('M9: im Werkzeugmenue stehen die gefalteten Kontrollen, ein Eintrag klickt 
     assert.equal(s.panel.children.indexOf(items[0]), 0, 'oben im Menue');
     items[1].click();
     assert.equal(s.kanban.clicks, 1, 'der Eintrag loest die Aktion des Originals aus, keine zweite Kopie');
+    // R17 Schritt 8: der gewaehlte Stellvertreter traegt den Fokus, wenn das
+    // Menue schliesst - und faellt dabei aus dem DOM. Der Fokus muss VORHER
+    // zum Ausloeser, sonst gibt ihn die Popover-API an niemanden zurueck.
+    const trigger = s.actions.querySelector(':scope > .page-tools-btn[popovertarget]');
+    items[1].focus();
     s.toggleMenu('closed');
     assert.equal(s.panel.children.filter((c) => c.classes.has('page-toolbar__fold-item')).length, 0, 'geschlossen: Stellvertreter wieder weg');
+    assert.equal(global.document.activeElement, trigger, 'der Fokus steht am Ausloeser, nicht auf einem abgehaengten Eintrag');
+
+    // Stand der Fokus woanders (Maus neben das Menue), bleibt er dort.
+    s.toggleMenu('open');
+    s.filter.focus();
+    const before = trigger.focused;
+    s.toggleMenu('closed');
+    assert.equal(trigger.focused, before, 'ohne Fokus auf einem Stellvertreter wird nichts umgesetzt');
 
     s.toolbar.classList.remove('is-docked');
     s.toggleMenu('open');
@@ -1341,15 +1355,24 @@ test('K1: die Kuechen-Kontextzeile aus reinen Werkzeugen klappt beim Andocken ei
   } finally { s.restore(); }
 });
 
-test('K1: eine Kontextzeile, die etwas benennt, und ein kurzer Port falten nicht', () => {
-  const named = kitchenFoldStub({ centerCls: ['page-toolbar__center', 'week-nav'] });
-  try {
-    wireCollapsingHeader(named.toolbar);
-    assert.equal(named.toolbar.classList.contains('page-toolbar--fold-row'), false, 'Wochenstepper und Listen-Kapseln bleiben stehen');
-    named.fire('touchstart', named.row);
-    named.scrollTo(120);
-    assert.equal(named.toolbar.classList.contains('is-collapsed'), false);
-  } finally { named.restore(); }
+// R17 Schritt 5 (Critique 2026-10-07): bis dahin blieben Wochenstepper
+// (Mahlzeiten) und Listen-Kapseln (Einkauf) stehen - 121px Kopf in jedem
+// Scrollstand, der Vorrat daneben 56. Jede Zeile unter der Leiste faltet.
+test('K1: auch eine Kontextzeile, die etwas benennt, faltet - ein kurzer Port nicht', () => {
+  for (const centerCls of [['page-toolbar__center', 'week-nav'], ['page-toolbar__center']]) {
+    const named = kitchenFoldStub({ centerCls });
+    try {
+      wireCollapsingHeader(named.toolbar);
+      assert.equal(named.toolbar.classList.contains('page-toolbar--fold-row'), true,
+        `Wochenstepper und Listen-Kapseln falten wie die Suche (${centerCls.join(' ')})`);
+      assert.equal(named.toolbar.props.get('--fold-row-h'), '64px');
+      named.fire('touchstart', named.row);
+      named.scrollTo(120);
+      assert.equal(named.toolbar.classList.contains('is-collapsed'), true, 'angedockt steht nur die Kuechen-Leiste');
+      named.scrollTo(0);
+      assert.equal(named.toolbar.classList.contains('is-collapsed'), false, 'zurueck oben kommen Woche und Liste wieder');
+    } finally { named.restore(); }
+  }
   const short = kitchenFoldStub();
   try {
     short.port.scrollHeight = short.port.clientHeight + 90;
@@ -1445,6 +1468,70 @@ async function withBarEnv({ reduced = false, visibility = 'visible', raf = 'neve
     if (saved.raf === undefined) delete global.requestAnimationFrame; else global.requestAnimationFrame = saved.raf;
   }
 }
+
+/*
+ * drawChartOnce (Critique R17, Bewegung): Linie und Ring zeichnen sich EINMAL
+ * ein. Geprueft wird das Programm: was animiert wird, womit, und dass es beim
+ * zweiten Mal, unter reduzierter Bewegung und im verdeckten Tab still bleibt -
+ * ohne den Merker zu verbrauchen.
+ */
+function chartMark(attrs = {}) {
+  const el = {
+    calls: [],
+    getAttribute: (name) => attrs[name] ?? null,
+    animate(keyframes, timing) { el.calls.push({ keyframes, timing }); return {}; },
+  };
+  return el;
+}
+
+async function withChartEnv({ reduced = false, visibility = 'visible' }, fn) {
+  const saved = { window: globalThis.window, document: globalThis.document, getComputedStyle: globalThis.getComputedStyle };
+  globalThis.window = { matchMedia: (q) => ({ matches: reduced && /prefers-reduced-motion/.test(q) }) };
+  globalThis.document = { visibilityState: visibility, documentElement: {} };
+  globalThis.getComputedStyle = () => ({ getPropertyValue: (name) => ({ '--duration-xl': '300ms', '--ease-out': 'cubic-bezier(0.16, 1, 0.3, 1)' }[name] ?? '') });
+  const { drawChartOnce } = await import('../public/utils/ux.js');
+  try { return await fn(drawChartOnce); } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
+    }
+  }
+}
+
+test('drawChartOnce: Linie per clip-path, Ring per stroke-dasharray - aus Tokens, ohne fill, und nur einmal', async () => {
+  await withChartEnv({}, async (drawChartOnce) => {
+    const lines = chartMark();
+    const arc = chartMark({ 'stroke-dasharray': '94.25 376.99', 'stroke-dashoffset': '-120.00' });
+    assert.equal(drawChartOnce('test-once', { lines, arcs: [arc] }), 2);
+    assert.deepEqual(lines.calls[0].keyframes, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }]);
+    assert.deepEqual(arc.calls[0].keyframes, [
+      { strokeDasharray: '0 376.99', strokeDashoffset: '0' },
+      { strokeDasharray: '94.25 376.99', strokeDashoffset: '-120.00' },
+    ], 'das Segment waechst von 12 Uhr an seine Stelle; Ziel ist der Wert aus dem Markup');
+    for (const mark of [lines, arc]) {
+      assert.deepEqual(mark.calls[0].timing, { duration: 300, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }, 'Dauer und Kurve aus Tokens, kein fill');
+    }
+    // Zweiter Aufruf (Zeitraum geblaettert, Reiter neu betreten): nichts.
+    const again = chartMark();
+    assert.equal(drawChartOnce('test-once', { lines: again }), 0);
+    assert.equal(again.calls.length, 0);
+  });
+});
+
+test('drawChartOnce: reduzierte Bewegung, verdeckter Tab und ein leeres Diagramm verbrauchen den Merker nicht', async () => {
+  for (const env of [{ reduced: true }, { visibility: 'hidden' }]) {
+    await withChartEnv(env, async (drawChartOnce) => {
+      const lines = chartMark();
+      assert.equal(drawChartOnce('test-held', { lines }), 0, JSON.stringify(env));
+      assert.equal(lines.calls.length, 0);
+    });
+  }
+  await withChartEnv({}, async (drawChartOnce) => {
+    assert.equal(drawChartOnce('test-held', { lines: null, arcs: [] }), 0, 'ohne Marken kein Lauf');
+    assert.equal(drawChartOnce('test-held', { lines: {} }), 0, 'ohne animate kein Lauf');
+    const lines = chartMark();
+    assert.equal(drawChartOnce('test-held', { lines }), 1, 'der erste echte Aufruf zeichnet');
+  });
+});
 
 test('growBars: startet bei 0, und der Endwert kommt auch OHNE rAF (Timer-Rueckfall)', async () => {
   await withBarEnv({ raf: 'never' }, async (growBars, frames) => {

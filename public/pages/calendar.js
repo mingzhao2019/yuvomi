@@ -10,7 +10,7 @@ import { openModal as openSharedModal, closeModal, confirmModal, confirmOverModa
 import { attachOverlay } from '/utils/overlay-history.js';
 import { openDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { mountMasterDetail, splitViewDetailHtml } from '/utils/master-detail.js';
-import { stagger, wireScrollFade, scheduleUndoableDelete, vibrate } from '/utils/ux.js';
+import { stagger, wireScrollFade, scheduleUndoableDelete, vibrate, durationToken } from '/utils/ux.js';
 import { t, getLocale, formatDate as formatPreferredDate, formatDayMonth, formatMonthYear, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { esc, fmtLocation, REQUIRED_MARK } from '/utils/html.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod } from '/utils/period-stepper.js';
@@ -2525,7 +2525,12 @@ function periodNavHtml() {
     prev: { id: 'cal-prev', label: labels.prev, title: true, keys: `${CAL_SHORTCUT_KEYS.prev} ${keys.prev}` },
     value: { id: 'cal-label', className: 'cal-toolbar__label' },
     next: { id: 'cal-next', label: labels.next, title: true, keys: `${CAL_SHORTCUT_KEYS.next} ${keys.next}` },
-    reset: { id: 'cal-today', className: 'cal-toolbar__today', label: t('calendar.today'), keys: CAL_SHORTCUT_KEYS.today },
+    // `data-collapse-fold`: eingeklappt (mobil) weicht "Heute" ins Menue, das
+    // Label braucht die Breite (calendar.css; die Stellvertreter baut utils/ux.js).
+    reset: {
+      id: 'cal-today', className: 'cal-toolbar__today', label: t('calendar.today'), keys: CAL_SHORTCUT_KEYS.today,
+      attrs: { 'data-collapse-fold': true, 'data-fold-icon': 'CalendarCheck' },
+    },
   });
 }
 
@@ -2619,7 +2624,7 @@ function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '' } = {}) {
              ohne aufgelöstes Ziel bleibt das Attribut weg. -->
         <button type="button" class="btn btn--secondary btn--icon cal-toolbar__search-btn" id="cal-search"
                 aria-label="${t('calendar.searchOpen')}" title="${t('calendar.searchOpen')}"
-                aria-expanded="false">
+                aria-expanded="false" data-collapse-fold>
           <i data-lucide="search" class="icon-md" aria-hidden="true"></i>
         </button>
         ${viewMenuHtml()}
@@ -2646,13 +2651,24 @@ function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '' } = {}) {
  */
 const VIEW_ICONS = { month: 'calendar-days', week: 'calendar-range', day: 'calendar-1', agenda: 'list' };
 
+/**
+ * DER KNOPF ZEIGT DIE AKTIVE ANSICHT (R17, E11; Critique 2026-10-07 A2 P2).
+ * Hinter "..." stand mobil nirgends im Kopf, in welcher Ansicht man ist - das
+ * Segment, das es am Desktop sagt, ist unter 640px ausgeblendet. Der Knopf
+ * traegt jetzt die Glyphe der aktiven Ansicht (dieselbe wie ihr Menue-Eintrag)
+ * und nennt sie im Namen: "Ansicht: Woche". Das Menue bleibt.
+ */
+function viewMenuLabel(current = state.view) {
+  return `${t('calendar.viewSwitcher')}: ${VIEW_LABELS()[current] ?? ''}`;
+}
+
 function viewMenuHtml(current = state.view) {
-  const label = t('calendar.viewSwitcher');
+  const label = viewMenuLabel(current);
   return `
         <button type="button" class="btn btn--secondary btn--icon cal-toolbar__tools-btn popover-menu__trigger" id="cal-views-menu"
-                popovertarget="cal-views-menu-panel" aria-haspopup="menu" aria-expanded="false"
-                aria-label="${esc(label)}" title="${esc(label)}">
-          <i data-lucide="ellipsis" class="icon-md" aria-hidden="true"></i>
+                popovertarget="cal-views-menu-panel" aria-haspopup="menu" aria-expanded="false" data-collapse-fold-menu
+                data-view="${esc(current)}" aria-label="${esc(label)}" title="${esc(label)}">
+          <i data-lucide="${VIEW_ICONS[current] ?? VIEW_ICONS.month}" class="icon-md" aria-hidden="true"></i>
         </button>
         <div class="popover-menu" id="cal-views-menu-panel" popover role="menu">
           ${VIEWS.map((v) => `
@@ -2668,11 +2684,24 @@ function viewMenuHtml(current = state.view) {
 
 /** Den Haken im Ansichtsmenue der aktuellen Ansicht nachziehen. */
 function syncViewMenu(root = _container) {
+  let active = null;
   for (const item of root?.querySelectorAll?.('[data-cal-view]') ?? []) {
     const on = item.dataset.calView === state.view;
+    if (on) active = item;
     item.setAttribute('aria-checked', String(on));
     item.querySelector('.popover-menu__item-check')?.classList.toggle('popover-menu__item-check--hidden', !on);
   }
+  // Der Ausloeser zieht mit (E11): Glyphe und Name der aktiven Ansicht. Die
+  // Glyphe ist die des Menue-Eintrags, als Kopie - sie ist dort schon
+  // gezeichnet, ein zweiter Lucide-Lauf ueber den Kopf entfaellt.
+  const trigger = root?.querySelector?.('#cal-views-menu');
+  if (!trigger || trigger.dataset.view === state.view) return;
+  trigger.dataset.view = state.view;
+  const label = viewMenuLabel(state.view);
+  trigger.setAttribute('aria-label', label);
+  trigger.setAttribute('title', label);
+  const glyph = active?.firstElementChild?.cloneNode(true);
+  if (glyph) trigger.replaceChildren(glyph);
 }
 
 function renderToolbar() {
@@ -2720,6 +2749,9 @@ function renderToolbar() {
   bar.querySelector('#cal-today').addEventListener('click', goToday);
   bar.querySelector('#cal-search').addEventListener('click', openCalendarSearch);
   bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters);
+  // Der Filterknopf kommt aus dem geteilten Baustein; die Marke fuer die
+  // Faltung im eingeklappten Kopf (calendar.css) setzt deshalb das Modul.
+  bar.querySelector('#cal-filters').setAttribute('data-collapse-fold', '');
   installPopoverMenus(bar);
   bar.querySelector('#cal-views-menu-panel')?.addEventListener('click', (e) => {
     const item = e.target.closest?.('[data-cal-view]');
@@ -6014,7 +6046,11 @@ function openFiltersPopover(content) {
     trigger()?.setAttribute('aria-expanded', String(open));
     if (open) return;
     filtersPopoverClosedAt = Date.now();
-    pop.remove();
+    // Erst NACH dem Ausgang aus dem Baum (calendar.css: --duration-xs, das
+    // Popover bleibt per `allow-discrete` so lange im Top-Layer). Ein
+    // sofortiges remove() schnitt ihn ab. Ein erneutes Oeffnen davor raeumt
+    // den alten Knoten selbst (erste Zeile von openFiltersPopover).
+    setTimeout(() => pop.remove(), durationToken('--duration-xs', 120) + 40);
   });
   pop.showPopover();
   positionFiltersPopover(pop, trigger());
@@ -6034,6 +6070,10 @@ function positionFiltersPopover(pop, anchor) {
   pop.style.left = `${Math.round(left)}px`;
   pop.style.top = `${Math.round(top)}px`;
   pop.style.maxHeight = `${Math.round(window.innerHeight - top - margin)}px`;
+  // Es waechst aus der Ecke am Knopf (calendar.css): der Ursprung ist die
+  // Stelle des Popovers, unter der die Knopfkante steht - auch wenn das
+  // Fenster es von dort weggeschoben hat.
+  pop.style.transformOrigin = `${Math.round(Math.min(Math.max(0, rect.right - left), width))}px 0`;
 }
 
 /**
@@ -6169,7 +6209,20 @@ function closeCalendarSearch({ restoreView = true } = {}) {
   toggle?.classList.remove('cal-toolbar__search-btn--active');
 
   if (restoreView) renderView();
-  toggle?.focus();
+  headerToolFocusTarget(toggle)?.focus();
+}
+
+/**
+ * Wohin der Fokus zurueckgeht, wenn ein Werkzeug des Kopfs fertig ist. Sonst
+ * das Werkzeug selbst - eingeklappt am Telefon (R17) ist es aber ins
+ * Ansichtsmenue gefaltet und nicht im Bild: `focus()` auf ein `display: none`
+ * tut nichts, und der Fokus fiele nach Esc in der Suche auf das Dokument.
+ * Dann geht er an den Knopf, ueber den das Werkzeug erreicht wurde.
+ */
+function headerToolFocusTarget(tool) {
+  if (!tool) return null;
+  if (tool.getClientRects().length > 0) return tool;
+  return tool.closest('.cal-toolbar')?.querySelector('[data-collapse-fold-menu]') ?? tool;
 }
 
 async function runCalendarSearch(raw) {
@@ -6347,6 +6400,8 @@ async function openFoundEvent(ev) {
 }
 
 export const __test = {
+  // R17 Schritt 8: der Fokus nach der Suche, wenn ihr Knopf gefaltet ist.
+  closeSearchForTest(container) { _container = container; searchActive = true; closeCalendarSearch({ restoreView: false }); },
   // #1504: der Wechsel ueber die Telefonschwelle, gemessen am echten Renderer.
   onPhoneQueryChange,
   setContainerForTest(container) { _container = container; },
@@ -6467,6 +6522,7 @@ export const __test = {
   periodNavHtml,
   toolbarHtml,
   formatCalendarDate,
+  viewMenuHtml,
   hourGutterLabel,
   compactHourLabel,
   syncTodayButton,
@@ -8419,7 +8475,7 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
       </button>` : '<div></div>'}
       <div style="display:flex;gap:var(--space-3)">
         <button type="button" class="btn btn--secondary" id="modal-cancel">${t('common.cancel')}</button>
-        <button class="btn btn--primary" id="modal-save">${isEdit ? t('common.save') : t('common.create')}</button>
+        <button class="btn btn--primary" id="modal-save">${isEdit ? t('common.save') : t('common.add')}</button>
       </div>
     </div>`;
 }
@@ -8607,7 +8663,7 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
     if (!rrule.valid_until) {
       reportFieldError(overlay.querySelector('#event-rrule-until'), t('calendar.invalidDate'));
       saveBtn.disabled    = false;
-      saveBtn.textContent = mode === 'edit' ? t('common.save') : t('common.create');
+      saveBtn.textContent = mode === 'edit' ? t('common.save') : t('common.add');
       return;
     }
     const attachmentFile = overlay.querySelector('#modal-attachment')?.files?.[0];
@@ -8833,7 +8889,7 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
     // und der Button reaktiviert - die Eingaben des Nutzers bleiben erhalten.
     window.yuvomi?.showToast(calendarSaveErrorMessage(err), 'danger');
     saveBtn.disabled    = false;
-    saveBtn.textContent = mode === 'edit' ? t('common.save') : t('common.create');
+    saveBtn.textContent = mode === 'edit' ? t('common.save') : t('common.add');
   }
 }
 

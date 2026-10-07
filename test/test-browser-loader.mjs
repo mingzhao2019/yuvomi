@@ -265,12 +265,14 @@ const STUBS = {
     // Austritt und Aufziehen (Abhaken, Gruppen) - ohne Layout gibt es nichts
     // zu bewegen, der Aufrufer wartet nur auf das Ende.
     export const collapseOut = () => Promise.resolve();
-    export const expandIn = () => Promise.resolve();
+    // Wer sehen will, WELCHE Zeile einzieht, setzt globalThis.__expandIn.
+    export const expandIn = (el) => { globalThis.__expandIn?.(el); return Promise.resolve(); };
     // Token-Leser ohne Stylesheet: der Rueckfall ist der Wert (utils/flip.js).
     // Region auf-/zuklappen: ohne Layout bleibt nur der Zustand selbst (hidden).
     export const toggleRegion = (region, open) => { if (region) region.hidden = !open; return Promise.resolve(); };
     // Balken wachsen lassen: ohne Layout nichts zu tun, der Endwert steht im Markup.
     export const growBars = () => 0;
+    export const drawChartOnce = () => 0;
     export const durationToken = (name, fallback) => fallback;
     export const easingToken = (name, fallback = 'ease-out') => fallback;
   `,

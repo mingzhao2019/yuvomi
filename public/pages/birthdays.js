@@ -15,6 +15,7 @@ import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { moduleAccess, isNavModuleReadOnly } from '/permissions.js';
 import { findPageFab } from '/utils/fab.js';
 import { mountMasterDetail, splitViewDetailHtml } from '/utils/master-detail.js';
+import { redrawList, collapseRow } from '/utils/list-motion.js';
 import { openDetailView } from '/components/detail-view.js';
 // Alias: dieses Modul fuehrt selbst eine `emptyStateHtml()`, die den Renderer
 // mit den Geburtstags-Texten fuellt. Zwei Namen, die sich nur in der
@@ -477,9 +478,23 @@ function emptyStateHtml() {
  * @param {{repaint?: boolean}} [opts] nach einer Datenaenderung (Speichern,
  *   Import) zeichnet die Detailspalte den gewaehlten Geburtstag neu.
  */
-function renderList({ repaint = false } = {}) {
+const BIRTHDAY_ROW = '.swipe-row[data-swipe-id]';
+
+/* `motion: true` setzt, wer die DATEN geaendert hat (angelegt, gespeichert,
+ * geloescht, per "Rueckgaengig" zurueckgeholt): die neue Zeile zieht auf, und
+ * was dadurch die Stelle wechselt, gleitet (utils/list-motion.js). Die Suche
+ * zeichnet ohne Bewegung neu - dort wechselt die Frage, nicht die Liste. */
+function renderList({ repaint = false, motion = false } = {}) {
   const host = _container.querySelector('#birthdays-list');
   if (!host) return;
+  if (motion) redrawList(host, () => drawList(host, { repaint }), { selector: BIRTHDAY_ROW, keyAttr: 'data-swipe-id' });
+  else {
+    drawList(host, { repaint });
+    stagger(host.querySelectorAll('.birthday-item'), { host });
+  }
+}
+
+function drawList(host, { repaint = false } = {}) {
   if (state.loading) {
     host.setAttribute('aria-busy', 'true');
     host.replaceChildren();
@@ -501,7 +516,6 @@ function renderList({ repaint = false } = {}) {
   host.insertAdjacentHTML('beforeend', list.map(birthdayItemHtml).join(''));
 
   if (window.lucide) window.lucide.createIcons({ el: host });
-  stagger(host.querySelectorAll('.birthday-item'), { host });
   // Der Nudge-Hinweis gehoert zur GESTE und steht deshalb in deren Verdrahtung:
   // bei `calendar: read` gibt es keine Geste, und der Hinweis wuerde eine
   // Bedienung ankuendigen, die es nicht gibt - dazu einen der drei Hinweis-
@@ -697,10 +711,11 @@ async function onListClick(e) {
   const open = e.target.closest('[data-open]');
   if (open) {
     // Ab der Schwelle waehlt der Tipp aus (Detailspalte), darunter oeffnet er
-    // wie bisher Editor bzw. Leseansicht - das entscheidet der Baustein.
+    // das Leseblatt (R17, E7; bei Nur-lesen die Leseansicht) - das entscheidet
+    // der Baustein.
     if (_md) { _md.open(open.dataset.open, open); return; }
     const birthday = state.birthdays.find((item) => item.id === Number(open.dataset.open));
-    if (birthday) openBirthdayModal({ mode: 'edit', birthday });
+    if (birthday) openBirthdaySheet(birthday);
     return;
   }
   const action = e.target.closest('[data-action]');
@@ -883,7 +898,7 @@ function openBirthdayModal({ mode, birthday = null }) {
           </button>` : '<div></div>'}
           <div class="birthday-modal__footer-actions">
             <button class="btn btn--secondary" type="button" id="bd-cancel">${t('common.cancel')}</button>
-            <button class="btn btn--primary" type="button" id="bd-save">${isEdit ? t('common.save') : t('common.create')}</button>
+            <button class="btn btn--primary" type="button" id="bd-save">${isEdit ? t('common.save') : t('common.add')}</button>
           </div>
         </div>
       </div>
@@ -1037,7 +1052,7 @@ function openBirthdayModal({ mode, birthday = null }) {
             window.yuvomi?.showToast(t('birthdays.createdToast'), 'success');
           }
           await loadData();
-          renderList({ repaint: true });
+          renderList({ repaint: true, motion: true });
           closeModal({ force: true });
         } catch (err) {
           window.yuvomi?.showToast(err.message, 'danger');
@@ -1141,7 +1156,7 @@ async function openImportModal() {
           const res = await api.post('/birthdays/import', { contact_ids: ids });
           window.yuvomi?.showToast(t('birthdays.importSuccess', { count: res.data.imported }), 'success');
           await loadData();
-          renderList({ repaint: true });
+          renderList({ repaint: true, motion: true });
           closeModal({ force: true });
         } catch (err) {
           window.yuvomi?.showToast(err.message, 'danger');
@@ -1169,7 +1184,12 @@ function deleteBirthday(id) {
 
   state.birthdays = state.birthdays.filter((b) => b.id !== id);
   updateBirthdayBadge();
-  renderList();
+  // Die Zeile klappt aus, die Nachbarn ruecken nach - erst dann steht die
+  // Liste ohne sie neu. Der Zustand ist schon geaendert: ein Neuzeichnen, das
+  // dazwischenkommt, zeigt dasselbe Ergebnis nur ohne die Bewegung.
+  const owner = _container;
+  const row = owner?.querySelector(`#birthdays-list .swipe-row[data-swipe-id="${id}"]`) ?? null;
+  collapseRow(row).then(() => { if (_container === owner) renderList({ motion: true }); });
 
   scheduleUndoableDelete({
     message: t('birthdays.deletedToast'),
@@ -1181,7 +1201,7 @@ function deleteBirthday(id) {
         ...state.birthdays.slice(index),
       ];
       updateBirthdayBadge();
-      renderList();
+      if (_container === owner) renderList({ motion: true });
       if (err) window.yuvomi?.showToast(err.data?.error ?? t('common.unknownError'), 'danger');
     },
   });
@@ -1256,6 +1276,60 @@ function renderBirthdayPane(id, body) {
 }
 
 /**
+ * Der Geburtstag als Leseblatt unter der Schwelle (R17, E7).
+ *
+ * ZEILENTIPP OEFFNET DETAILS, NICHT DAS FORMULAR. Am Telefon ging der Tipp
+ * bisher direkt in den Editor - als einzige Liste neben Kalender (Leseblatt,
+ * Bearbeiten primaer im Fuss) und Kontakten (Leseblatt). Wer nur nachsehen
+ * will, wie alt jemand wird, stand in einem Formular mit offener Tastatur.
+ * Dieselben Zeilen wie die Detailspalte (`birthdayPaneSections`), dieselbe
+ * Fussordnung wie der Termin: Loeschen zurueckgenommen am Anfang, Bearbeiten
+ * als Primaerknopf am Ende (Daumenzone, DESIGN.md "Das Leseblatt").
+ *
+ * Bearbeiten ist eine `action` und kein `edit.mount`: der Editor ist ein
+ * eigener Dialog mit Bild-Upload und eigener Fusszeile (`openBirthdayModal`),
+ * kein Formular, das sich in ein fremdes Blatt setzen liesse. Das Blatt geht
+ * zu, der Fokus kehrt auf die Zeile zurueck, und von dort oeffnet der Editor -
+ * sein Schliessen landet deshalb wieder auf der Zeile.
+ *
+ * Nur mit Schreibrecht: bei `calendar: read` bleibt die Leseansicht
+ * `openBirthdayReadModal` der Weg (openBirthdayModal entscheidet).
+ */
+function openBirthdaySheet(birthday) {
+  if (readOnly()) { openBirthdayModal({ mode: 'edit', birthday }); return; }
+  openDetailView({
+    title: birthday.name,
+    key: `birthday:${birthday.id}`,
+    accentColor: 'var(--module-birthdays)',
+    size: 'md',
+    sections: birthdayPaneSections(birthday),
+    actions: [{
+      id: 'birthday-detail-delete',
+      label: t('common.delete'),
+      variant: 'danger-ghost',
+      icon: 'trash-2',
+      align: 'start',
+      onClick: async ({ close }) => {
+        await close({ force: true });
+        deleteBirthday(birthday.id);
+      },
+    }, {
+      id: 'detail-view-edit',
+      label: t('common.edit'),
+      variant: 'primary',
+      icon: 'pencil',
+      onClick: async ({ close }) => {
+        await close({ force: true });
+        // Der Editor merkt sich beim Oeffnen, wo der Fokus steht - das muss
+        // die Zeile sein, nicht <body> zwischen zwei Dialogen.
+        _container?.querySelector(`[data-open="${birthday.id}"]`)?.focus();
+        openBirthdayModal({ mode: 'edit', birthday });
+      },
+    }],
+  });
+}
+
+/**
  * Der Kopf klebt in #main-content; die Detailspalte klebt darunter und misst
  * ihn dafuer (wie Inventar - Geburtstage haben keinen eigenen Scrollport, und
  * der Kopf bricht in langen Locales um).
@@ -1286,10 +1360,10 @@ function mountBirthdaysDetail(signal) {
     root,
     signal,
     renderDetail: (id, body) => renderBirthdayPane(id, body),
-    // Unter der Schwelle der bisherige Weg: Editor, bei Nur-lesen die Leseansicht.
+    // Unter der Schwelle das Leseblatt (E7), bei Nur-lesen die Leseansicht.
     openNarrow: (id) => {
       const birthday = find(id);
-      if (birthday) openBirthdayModal({ mode: 'edit', birthday });
+      if (birthday) openBirthdaySheet(birthday);
     },
     onEnter: (id) => {
       const birthday = find(id);

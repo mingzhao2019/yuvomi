@@ -11,6 +11,10 @@ import { SETTINGS_DOMAINS, SETTINGS_LEAVES } from '../public/settings/registry.j
 import { eachRule } from './css-rules.js';
 import { keySetDiff } from './i18n-plural-keys.js';
 import { withoutHtmlComments, withoutBlockComments, withoutCommentsKeepingLines } from './source-text.js';
+import {
+  dialogSegments, submitOutsideFooter, footerWithoutCancel, saveBranchPartners,
+  fixedSaveOnTwoCaseDialog, foreignCreateVerbs, aliasFieldClasses,
+} from './dialog-grammar.js';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r/g, '');
 
@@ -1781,7 +1785,9 @@ test('module-specific settings leaves preserve their required controls and behav
   // deshalb zählt das Blatt keine `<input>`-Literale mehr. Fuenf statt vier
   // Fundstellen im QUELLTEXT, nicht Aufrufe zur Laufzeit: die drei
   // Schichtplan-Vorlagen teilen sich die eine `.map(...)`-Aufrufstelle oben.
-  assert.equal([...options.matchAll(/toggleRowHtml\(\{/g)].length, 5);
+  // Seit R17 (E9) ueber die Schalterzeile der Gruppe (`settingSwitchRowHtml`).
+  assert.equal([...options.matchAll(/settingSwitchRowHtml\(\{/g)].length, 5);
+  assert.equal([...options.matchAll(/\btoggleRowHtml\(/g)].length, 0, 'kein Schalter ausserhalb einer gruppierten Zeile');
   assert.equal([...options.matchAll(/<(?:input|select|textarea)\b/g)].length, 0);
   assert.equal([...options.matchAll(/getPreferences\(\)/g)].length, 1);
   assert.match(options, /budget_mode: checked \? 'personal' : 'shared'/);
@@ -6420,6 +6426,90 @@ test('showToast is never called with an unsupported variant', () => {
   for (const file of files) {
     assert.doesNotMatch(read(file), /showToast\([^;]*?,\s*'error'\)/s, `${file} uses showToast(..., 'error')`);
   }
+});
+
+// Critique R17: fuenf angepinnte Notizen in vier Spalten liessen die fuenfte
+// allein in ihrer Zeile (240 von 996px, 432px hoch), und „Weitere Notizen"
+// begann erst bei y=988 - der Gruppenkopf spannte ueber alle Spalten und machte
+// immer eine neue Zeile auf. Jetzt fliesst die naechste Gruppe in die
+// angebrochene Zeile. Das Raster BLEIBT das Raster (Guard darunter).
+test('R17: die weiteren Notizen fliessen in die angebrochene Zeile der angepinnten', () => {
+  const page = read('../public/pages/notes.js');
+  const fnSrc = (name) => {
+    const start = page.indexOf(`function ${name}(`);
+    assert.ok(start > 0, `${name} fehlt`);
+    return page.slice(start, page.indexOf('\n}\n', start) + 2);
+  };
+  // GEFAHREN, nicht gelesen: beide Funktionen aus dem Quelltext, mit einem Raster, das mitschreibt.
+  const run = new Function('getComputedStyle', `${fnSrc('groupFlow')}\n${fnSrc('syncGroupFlow')}\nreturn { groupFlow, syncGroupFlow };`);
+  const makeEl = (classes) => {
+    const set = new Set(classes);
+    const props = new Map();
+    return {
+      classList: { add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c) },
+      style: { setProperty: (k, v) => props.set(k, v), removeProperty: (k) => props.delete(k) },
+      props, has: (c) => set.has(c),
+    };
+  };
+  const makeGrid = (pinnedCount, restCount, columns) => {
+    const titles = restCount && pinnedCount ? [makeEl(['notes-group__title']), makeEl(['notes-group__title'])] : [];
+    const pinned = Array.from({ length: pinnedCount }, () => makeEl(['note-card', 'note-card--pinned']));
+    const all = () => [...titles, ...pinned];
+    const grid = {
+      titles, pinned, columns,
+      querySelectorAll: (sel) => {
+        if (sel === '.notes-group__title') return titles;
+        if (sel === '.note-card--pinned') return pinned;
+        if (sel === '.note-card--trailing') return all().filter((el) => el.has('note-card--trailing'));
+        return [];
+      },
+    };
+    return grid;
+  };
+  const { groupFlow, syncGroupFlow } = run((grid) => ({ gridTemplateColumns: Array.from({ length: grid.columns }, () => '232.5px').join(' ') }));
+
+  assert.deepEqual(groupFlow(5, 4), { trailing: 1, labelStart: 2 }, 'fuenf in vier Spalten: eine Nachzueglerin, der Kopf beginnt in Spalte 2');
+  assert.deepEqual(groupFlow(5, 3), { trailing: 2, labelStart: 3 });
+  assert.equal(groupFlow(8, 4).trailing, 0, 'eine volle Zeile bricht wie bisher');
+  assert.equal(groupFlow(5, 1).trailing, 0, 'eine Spalte (Telefon): nichts aendert sich');
+  assert.equal(groupFlow(0, 4).trailing, 0);
+
+  const grid = makeGrid(5, 3, 4);
+  syncGroupFlow(grid);
+  assert.deepEqual(grid.pinned.map((el) => el.has('note-card--trailing')), [false, false, false, false, true]);
+  assert.equal(grid.titles[1].has('notes-group__title--inline'), true, 'der Kopf „Weitere Notizen" reiht sich ein');
+  assert.equal(grid.titles[1].props.get('--notes-label-start'), '2');
+  assert.equal(grid.titles[0].has('notes-group__title--inline'), false, 'der erste Kopf spannt weiter ueber alle Spalten');
+  // Die Breite wechselt (drei Spalten): der alte Stand wird abgeraeumt, nicht ueberlagert.
+  grid.columns = 3;
+  syncGroupFlow(grid);
+  assert.deepEqual(grid.pinned.map((el) => el.has('note-card--trailing')), [false, false, false, true, true]);
+  assert.equal(grid.titles[1].props.get('--notes-label-start'), '3');
+  // Telefon: alles zurueck.
+  grid.columns = 1;
+  syncGroupFlow(grid);
+  assert.equal(grid.pinned.some((el) => el.has('note-card--trailing')), false);
+  assert.equal(grid.titles[1].has('notes-group__title--inline'), false);
+  assert.equal(grid.titles[1].props.has('--notes-label-start'), false);
+  // Ohne zweite Gruppe (nur Angepinnte) gibt es keinen Kopf, der sich einreihen koennte.
+  const only = makeGrid(5, 0, 4);
+  syncGroupFlow(only);
+  assert.equal(only.pinned.some((el) => el.has('note-card--trailing')), false);
+
+  // Verdrahtung: in der Zeichenfunktion (die Listenbewegung misst direkt danach) und beim Breitenwechsel.
+  const draw = fnSrc('drawGrid');
+  assert.match(draw, /insertAdjacentHTML\('beforeend', html\);[\s\S]*syncGroupFlow\(grid\);/);
+  assert.match(page, /new ResizeObserver\(\(\) => \{[\s\S]{0,300}syncGroupFlow\(grid\);/);
+
+  // CSS: nur im Zeilenraster, und die Gruppenkoepfe bleiben Koepfe.
+  const css = read('../public/styles/notes.css');
+  const rows = [...eachRule(css)].filter((r) => r.at.some((a) => /@supports not \(grid-template-rows: masonry\)/.test(a)));
+  const inline = rows.find((r) => r.selector.trim() === '.notes-group__title.notes-group__title--inline');
+  assert.match(inline?.body ?? '', /grid-column:\s*var\(--notes-label-start, 1\) \/ -1/, 'von der ersten freien Spalte bis zum Rand');
+  assert.match(inline?.body ?? '', /align-self:\s*end/, 'der Kopf bleibt bei seinen Karten');
+  assert.match(rows.find((r) => r.selector.trim() === '.note-card--trailing')?.body ?? '', /grid-row:\s*span 2/,
+    'die Nachzueglerin steht neben Kopf UND erster Kartenzeile');
+  assert.match(page, /heading\(t\('notes\.groupPinned'\)\)[\s\S]{0,120}heading\(t\('notes\.groupOthers'\)\)/, 'beide Gruppenlabel bleiben');
 });
 
 test('responsive adaptation keeps Notes vertical and prevents intrinsic-width overflow', () => {
@@ -11357,6 +11447,103 @@ test('.btn--sm haelt die Zielgroesse der Geraetewelt, auch am Zeiger', () => {
   }
   const touch = rules.find((r) => r.at.some((a) => /pointer:\s*coarse/.test(a)));
   assert.ok(touch && /min-height:\s*var\(--target-base\)/.test(touch.body), 'am Finger fehlt --target-base');
+});
+
+// Schicht-Chips im Kalender (Critique R17). Der Chip erbte die Vollton-Flaeche
+// des Feiertags, aber nicht dessen berechnete Tinte (`--holi-ink`), und stand
+// damit in Weiss auf der Schichtfarbe: gemessen 3,26:1 fuer 12px-Schrift auf
+// der Fruehschicht (#0891B2). Jetzt traegt er das Rezept des Schichtplans
+// (schedule.css, `.schedule-overview__block`): 16-%-Toenung, Vollton-Punkt,
+// neutrale Schrift - in Monat, Ganztagszeile und Agenda.
+//
+// GERECHNET WIRD AUS DEN QUELLEN, nicht aus Literalen hier: die Farben aus der
+// Startpalette in schedule.js, Flaeche und Tinte aus tokens.css je Theme, das
+// Rezept aus der Regel in calendar.css. Aendert sich eine der drei Seiten,
+// rechnet der Guard mit dem neuen Wert.
+test('Schicht-Chips im Kalender: getoent wie im Schichtplan, Schrift >= 4,5:1 fuer die Startpalette', async () => {
+  const { contrastRatio } = await import('../public/utils/contrast.js');
+  const calendarCss = read('../public/styles/calendar.css');
+  const scheduleCss = read('../public/styles/schedule.css');
+  const tokensCss = read('../public/styles/tokens.css');
+  const scheduleJs = read('../public/pages/schedule.js');
+  const calendarJs = read('../public/pages/calendar.js');
+
+  // --- Die Startpalette: jede Farbe der Schicht-Vorlagen ---------------------
+  const presets = scheduleJs.slice(scheduleJs.indexOf('const SHARED_PRESETS'), scheduleJs.indexOf('});', scheduleJs.indexOf('const PRESET_TEMPLATES')));
+  const palette = [...new Set([...presets.matchAll(/color:\s*'(#[0-9A-Fa-f]{6})'/g)].map((m) => m[1].toUpperCase()))];
+  assert.ok(palette.length >= 8, `Startpalette aus schedule.js gelesen (${palette.length} Farben)`);
+  assert.ok(palette.includes('#0891B2'), 'die Befund-Farbe (Fruehschicht) ist dabei');
+
+  // --- Das Rezept: eine Regel fuer alle drei Ansichten -----------------------
+  const SELEKTOREN = ['.month-day__holiday.schedule-entry', '.allday-holiday.schedule-entry', '.agenda-holiday.schedule-entry'];
+  const regeln = [...eachRule(calendarCss)];
+  const letzte = (selektor, eigenschaft) => {
+    let wert = null;
+    for (const { selector, body, at } of regeln) {
+      if (at.length) continue;
+      if (!selector.split(',').map((t) => t.trim()).includes(selektor)) continue;
+      const m = new RegExp(`(?:^|;)\\s*${eigenschaft}\\s*:\\s*([^;]+)`).exec(body);
+      if (m) wert = m[1].trim();
+    }
+    return wert;
+  };
+  const REZEPT = 'color-mix(in srgb, var(--holi-color) var(--tint-surface), var(--color-surface-work))';
+  for (const selektor of SELEKTOREN) {
+    assert.equal(letzte(selektor, 'background'), REZEPT, `${selektor}: Flaeche ist die 16-%-Toenung`);
+    assert.equal(letzte(selektor, 'color'), 'var(--color-text-primary)', `${selektor}: Schrift neutral, keine Mischtinte aus einer Nutzerfarbe`);
+    assert.match(letzte(`${selektor} > span:first-child::before`, 'background') ?? '', /^var\(--holi-color\)$/,
+      `${selektor}: den Vollton traegt der Punkt vor dem Namen`);
+  }
+  // Dasselbe Rezept wie der Block im Schichtplan-Reiter "Vergleich".
+  const block = [...eachRule(scheduleCss)].find((r) => r.selector.trim() === '.schedule-overview__block');
+  assert.match(block.body, /background:\s*color-mix\(in srgb, var\(--schedule-color\) var\(--tint-surface\), var\(--color-surface-work\)\)/);
+  assert.match(block.body, /(?:^|;)\s*color:\s*var\(--color-text-primary\)/);
+  // Der Chip bekommt keine eigene Tinte aus dem Markup, die die Regel ueberstimmte.
+  for (const m of calendarJs.matchAll(/class="[^"]*schedule-entry"[^>]*style="([^"]*)"/g)) {
+    assert.doesNotMatch(m[1], /--holi-ink|(?:^|;)\s*color\s*:/, 'der Schicht-Chip setzt keine Inline-Tinte');
+  }
+  // Zeit und Zusatz-Marke: Sekundaertinte statt Deckkraft.
+  for (const selektor of ['.allday-holiday .schedule-entry__start', '.schedule-entry__extra-badge']) {
+    assert.equal(letzte(selektor, 'color'), 'var(--color-text-secondary)', `${selektor}: Sekundaertinte`);
+    assert.equal(letzte(selektor, 'opacity'), null, `${selektor}: keine Deckkraft - sie liesse den Kontrast mit der Schichtfarbe schwanken`);
+  }
+
+  // --- Die Werte je Theme, aus tokens.css ------------------------------------
+  const roh = (rumpf, name) => new RegExp(`(?:^|[;{\\s])${name}:\\s*(#[0-9A-Fa-f]{6})\\b`).exec(rumpf)?.[1] ?? null;
+  const tint = Number(/--tint-surface:\s*(\d+)%/.exec(tokensCss)?.[1]) / 100;
+  assert.equal(tint, 0.16, '--tint-surface gelesen');
+  const themes = {
+    light: tokensCss,
+    'dark (System)': darkSchemeBlock(tokensCss)?.[1],
+    'dark (Schalter)': darkAttrBlock(tokensCss)?.[1],
+  };
+  const kanaele = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+  const hex = (rgb) => `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+  const mische = (farbe, flaeche, anteil) => hex(kanaele(farbe).map((v, i) => v * anteil + kanaele(flaeche)[i] * (1 - anteil)));
+
+  let gemessen = 0;
+  for (const [theme, rumpf] of Object.entries(themes)) {
+    assert.ok(rumpf, `${theme}: Token-Block gefunden`);
+    const flaeche = roh(rumpf, '--_color-surface-work');
+    const primaer = roh(rumpf, '--_neutral-900');
+    const sekundaer = roh(rumpf, '--_neutral-600');
+    assert.ok(flaeche && primaer && sekundaer, `${theme}: Flaeche und Tinten gelesen (${flaeche}, ${primaer}, ${sekundaer})`);
+    for (const farbe of palette) {
+      const chip = mische(farbe, flaeche, tint);
+      const schrift = contrastRatio(primaer, chip);
+      const zeit = contrastRatio(sekundaer, chip);
+      assert.ok(schrift >= 4.5, `${theme} ${farbe}: Name ${schrift.toFixed(2)}:1 auf ${chip}`);
+      assert.ok(zeit >= 4.5, `${theme} ${farbe}: Zeit ${zeit.toFixed(2)}:1 auf ${chip}`);
+      gemessen += 2;
+    }
+  }
+  assert.equal(gemessen, palette.length * 3 * 2, 'jede Farbe in jedem Theme fuer Name und Zeit gemessen');
+
+  // --- Gegenprobe der Rechnung: der alte Zustand faellt ----------------------
+  // Weiss auf dem 90-%-Vollton ueber der hellen Arbeitsflaeche: genau der
+  // Befund. Lieferte die Rechnung hier nichts Rotes, maesse sie nichts.
+  const alt = mische('#0891B2', roh(tokensCss, '--_color-surface-work'), 0.9);
+  assert.ok(contrastRatio('#FFFFFF', alt) < 4.5, `Vollton mit weisser Schrift riss die Schwelle (${contrastRatio('#FFFFFF', alt).toFixed(2)}:1)`);
 });
 
 // Avatare tragen die Farbe, die sich das Mitglied selbst aussucht; die
@@ -16685,6 +16872,49 @@ test('der schmale Zustand der Kueche steht hinter seinem Bauteil', () => {
 });
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * DAS WOCHENRASTER SCHNEIDET KEINE KARTE AB (Critique R17)
+ *
+ * Gemessen bei 1366x650: 27 von 27 belegten Slots 100px hoch bei 139-161px
+ * Inhalt, das "+" jeder Karte unsichtbar, und das Raster hatte keinen
+ * Scrollweg dorthin. Zwei Ursachen, die sich gegenseitig verdeckten:
+ *
+ * 1. Die Zeilen waren `auto`. Der Slot traegt `min-height`, und eine
+ *    `auto`-Zeile nimmt dann DIESEN Wert als Untergrenze statt der
+ *    Inhaltshoehe; den Rest bekam sie nur aus uebriger Scrollport-Hoehe.
+ * 2. Der Slot beschnitt seinen Ueberlauf - deshalb lief nichts ueber, und
+ *    ohne Ueberlauf scrollt nichts.
+ *
+ * Der Guard haelt beide Enden: die Zeilenregel am Raster und dass keine
+ * Regel, deren Subjekt der Slot ist, wieder beschneidet.
+ * ──────────────────────────────────────────────────────────────────────────── */
+test('das Wochenraster der Kueche schneidet keine Karte ab', () => {
+  const css = read('../public/styles/meals.css');
+  let autoRows = null;
+  const clipping = [];
+  for (const { selector, body, at } of eachRule(css)) {
+    const sels = String(selector).split(',').map((s) => s.trim());
+    if (sels.includes('.week-grid') && at.some((a) => /min-width:\s*1024px/.test(a))) {
+      const m = /grid-auto-rows\s*:\s*([^;]+)/.exec(body);
+      if (m) autoRows = m[1].trim();
+    }
+    // Subjekt = letzter zusammengesetzter Selektor. `.meal-slot__type-label`
+    // (sr-only am Board) ist ein anderes Bauteil und bleibt aussen vor.
+    const subjectIsSlot = sels.some((s) => /\.meal-slot(?![\w-]|__)(?:--[\w-]+)?(?::[\w-]+(?:\([^)]*\))?)*$/.test(s.split(/[\s>+~]+/).pop()));
+    if (!subjectIsSlot) continue;
+    for (const m of body.matchAll(/(?:^|;)\s*(overflow(?:-[xy])?)\s*:\s*([^;]+)/g)) {
+      if (/\b(?:hidden|clip)\b/.test(m[2])) clipping.push(`${selector.trim()} { ${m[1]}: ${m[2].trim()} }`);
+    }
+  }
+  assert.ok(autoRows && /^(?:min-content|max-content)$/.test(autoRows),
+    `.week-grid (ab 1024px) braucht grid-auto-rows: min-content, gefunden: ${autoRows} - `
+    + 'mit auto-Zeilen ist der Slot nur so hoch wie sein min-height plus Resthoehe, '
+    + 'und bei 650px Fensterhoehe waren alle 27 Karten abgeschnitten');
+  assert.deepEqual(clipping, [],
+    'der Slot beschneidet wieder seinen Inhalt - der Radius-Beschnitt gehoert an das '
+    + 'Kind, das eine Flaeche an die Ecke malt (.meal-slot__add-more-btn)');
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
  * WER EINEN WEG SCHLIESST, MUSS DEN ERSATZWEG NACHWEISEN (#925)
  *
  * tasks.css blendet `.task-card__inline-action` unter 640px aus - mit guter
@@ -19688,7 +19918,9 @@ test('R16: Konten zeigt mobil die Kurzzeile wie jeder Budget-Reiter mit Kennzahl
   const accounts = read('../public/pages/budget.js').match(/const header = `[\s\S]*?<\/div>`;/)?.[0] ?? '';
   assert.match(accounts, /metricGlanceHtml\(\{\s*label: t\('budget\.netWorth'\)/, 'Konten fuehrt die Kurzzeile');
   assert.doesNotMatch(accounts, /controls:/, 'eine Zahl hat nichts aufzuklappen');
-  assert.match(accounts, /<div class="metric-grid budget-glance-details">/, 'die Karte bleibt unter 640px aus');
+  // Seit R17 (E14) ist die Karte die Leistenkarte neben den Konten - `budget-glance-details`
+  // haelt sie unter 640px weiter aus.
+  assert.match(accounts, /<div class="metric-grid metric-grid--rail budget-glance-details">/, 'die Karte bleibt unter 640px aus');
 });
 
 test('R16: im Budget steht jeder Abschnittstitel auf der Buehne, die Zeilen liegen im Traeger', () => {
@@ -19888,4 +20120,278 @@ test('R16: in der schmalen Abo-Liste steht der Turnus unter dem Betrag, nicht in
   assert.match(show?.body ?? '', /display:\s*block/, 'schmal steht er unter dem Betrag');
   const hide = rules.find((r) => narrow(r) && /\.subscription-card__meta-cycle\b/.test(r.selector));
   assert.match(hide?.body ?? '', /display:\s*none/, 'und weicht dort aus der Metazeile - nie beides zugleich');
+});
+
+// ── R17, E6: EINE Dialog-Grammatik ──────────────────────────────────────────
+// Critique 2026-10-07 (A3 P1, A5 P2): drei Fuss-Grammatiken (Belohnungen ohne
+// Abbrechen, Haushaltshilfe mit dem Speichern-Knopf linksbuendig im scrollenden
+// Koerper - mobil bei y=1362 in einem 664px-Fenster) und vier Verben fuer
+// dieselbe Handlung ("Erstellen", "Hinzufuegen", "Aufgabe erstellen",
+// "Speichern"). Die Regel: Fuss = Abbrechen + Primaer am Ende; Anlegen heisst
+// "Hinzufuegen", Bearbeiten "Speichern". Gelesen wird das Markup der Funktion,
+// die den Dialog oeffnet (test/dialog-grammar.js), die Beschriftung ueber ihren
+// deutschen Locale-Wert.
+const DIALOG_SOURCES = ['../public/pages/', '../public/components/', '../public/settings/']
+  .flatMap((dir) => walkJsFiles(dir));
+const dialogSource = (path) => withoutCommentsKeepingLines(read(path));
+const deValueOf = (() => {
+  const de = JSON.parse(read('../public/locales/de.json'));
+  return (key) => {
+    const value = key.split('.').reduce((node, part) => node?.[part], de);
+    return typeof value === 'string' ? value : undefined;
+  };
+})();
+// Kein Anlegen/Bearbeiten, sondern eine benannte Handlung mit eigenem Verb.
+const NAMED_DIALOG_ACTIONS = ['documents.uploadAction'];
+// "Erstellen und hinzufuegen": legt einen Gast an UND nimmt ihn in die Gruppe -
+// zwei Schritte, die das Verb beide nennen muss.
+const COMPOUND_CREATE = ['splitExpenses.createAndAddGuest'];
+
+test('R17 E6: die Scanner der Dialog-Grammatik sehen ihre Gegenfaelle', () => {
+  const body = `
+function openThing(item) {
+  const isEdit = Boolean(item);
+  openModal({
+    title: isEdit ? t('waste.editType') : t('waste.newType'),
+    content: \`<form id="f">
+      <input class="form-input" name="n">
+      <button class="btn btn--primary" type="submit">\${t('common.save')}</button>
+    </form>\`,
+  });
+}`;
+  assert.deepEqual(submitOutsideFooter(body), [4], 'Absenden im Koerper wird gefunden');
+  assert.deepEqual(fixedSaveOnTwoCaseDialog(body, deValueOf), [4], 'starres Speichern bei zwei Faellen wird gefunden');
+  const footer = `
+function openThing(item) {
+  openSharedModal({
+    title: t('rewards.addReward'),
+    content: \`<form id="f">
+      <div class="modal-panel__footer">
+        <button type="submit" class="btn btn--primary">\${isEdit ? esc(t('common.save')) : esc(t('tasks.emptyAction'))}</button>
+      </div>
+    </form>\`,
+  });
+}`;
+  assert.deepEqual(submitOutsideFooter(footer), [], 'der Knopf im Fuss ist kein Fund');
+  assert.deepEqual(footerWithoutCancel(footer), [3], 'ein Fuss ohne Abbrechen wird gefunden');
+  assert.deepEqual(saveBranchPartners(footer), ['tasks.emptyAction']);
+  assert.deepEqual(foreignCreateVerbs(footer, deValueOf), ['tasks.emptyAction=Aufgabe erstellen']);
+  // Ein Kommentar macht nichts gruen: der Aufrufer schneidet ihn vorher.
+  const commented = withoutCommentsKeepingLines(footer.replace('<form id="f">', '<form id="f">\n      <!-- <button data-action="close-modal"> -->'));
+  assert.deepEqual(footerWithoutCancel(commented), [3]);
+  const good = footer
+    .replace('<button type="submit"', '<button type="button" class="btn btn--secondary" data-action="close-modal">${t(\'common.cancel\')}</button>\n        <button type="submit"')
+    .replace("t('tasks.emptyAction')", "t('common.add')");
+  assert.deepEqual(footerWithoutCancel(good), []);
+  assert.deepEqual(saveBranchPartners(good), []);
+  assert.deepEqual(foreignCreateVerbs(good, deValueOf), []);
+});
+
+test('R17 E6: kein Dialog sendet aus dem scrollenden Koerper, und neben dem Primaerknopf steht Abbrechen', () => {
+  const outside = [];
+  const lonely = [];
+  let dialogs = 0;
+  for (const path of DIALOG_SOURCES) {
+    const src = dialogSource(path);
+    dialogs += dialogSegments(src).length;
+    for (const line of submitOutsideFooter(src)) outside.push(`${path}:${line}`);
+    for (const line of footerWithoutCancel(src)) lonely.push(`${path}:${line}`);
+  }
+  assert.ok(dialogs > 100, `der Scanner findet die Dialoge der App (${dialogs})`);
+  assert.deepEqual(outside, [], 'der absendende Knopf gehoert in `.modal-panel__footer` (mountFooter hebt ihn an den Blattrand)');
+  assert.deepEqual(lonely, [], 'ein Fuss mit absendendem Primaerknopf traegt auch Abbrechen');
+});
+
+test('R17 E6: Anlegen heisst "Hinzufuegen", Bearbeiten "Speichern" - in jedem Dialog', () => {
+  assert.equal(deValueOf('common.add'), 'Hinzufügen');
+  assert.equal(deValueOf('common.save'), 'Speichern');
+  const partners = [];
+  const fixed = [];
+  const verbs = [];
+  for (const path of DIALOG_SOURCES) {
+    const src = dialogSource(path);
+    for (const key of saveBranchPartners(src, NAMED_DIALOG_ACTIONS)) partners.push(`${path}: ${key}`);
+    for (const line of fixedSaveOnTwoCaseDialog(src, deValueOf)) fixed.push(`${path}:${line}`);
+    for (const hit of foreignCreateVerbs(src, deValueOf, COMPOUND_CREATE)) verbs.push(`${path}: ${hit}`);
+  }
+  assert.deepEqual(partners, [], 'neben "Speichern" steht als Anlegen-Fall nur `common.add`');
+  assert.deepEqual(fixed, [], 'ein Dialog fuer Anlegen UND Bearbeiten nennt beide Faelle am Knopf');
+  assert.deepEqual(verbs, [], 'kein Primaerknopf im Dialogfuss nennt das Anlegen "Erstellen" oder "Anlegen"');
+});
+
+test('R17 E6: im Dialogfuss misst ein Icon-Knopf am Zeiger so hoch wie seine Nachbarn', () => {
+  const rule = [...eachRule(read('../public/styles/layout.css'))]
+    .find((r) => r.selector.trim() === '.modal-panel__footer .btn--icon');
+  assert.ok(rule, '.modal-panel__footer .btn--icon fehlt');
+  assert.ok(rule.at.some((a) => /min-width:\s*1024px/.test(a)), 'nur am Zeiger - auf Touch bleiben 44px');
+  assert.match(rule.body, /min-height:\s*var\(--target-md\)/);
+});
+
+// ── R17, E12: ein Wort je Sache ─────────────────────────────────────────────
+// Critique 2026-10-07 (A7 P2): die Navigation sagt "Übersicht", acht Texte
+// sagten "Dashboard"; das Blatt "Integrationen" trug nur Immich und Wetter
+// (CalDAV, Mealie, ntfy liegen woanders); "Familie und Rollen" stand neben
+// "Rollen und Rechte"; "Recipe-Provider" war nie uebersetzt; und der Rundgang
+// beschrieb eine Leiste, die es nicht gibt ("Dashboard und Kalender", "···").
+test('R17 E12: die deutsche Oberflaeche nennt die Startseite ueberall "Uebersicht"', () => {
+  const de = JSON.parse(read('../public/locales/de.json'));
+  const hits = [];
+  const walk = (node, path) => {
+    for (const [key, value] of Object.entries(node)) {
+      const here = path ? `${path}.${key}` : key;
+      if (typeof value === 'string') {
+        if (/Dashboard|Recipe-Provider/.test(value)) hits.push(`${here}: ${value}`);
+      } else if (value && typeof value === 'object') walk(value, here);
+    }
+  };
+  walk(de, '');
+  assert.deepEqual(hits, [], 'die Navigation heisst "Übersicht" - kein zweites Wort fuer dieselbe Seite, kein unuebersetzter Fachbegriff');
+  assert.equal(de.nav.dashboard, 'Übersicht');
+  assert.equal(de.settings.pageIntegrations, 'Fotos und Wetter', 'das Blatt nennt, was es traegt');
+  assert.equal(de.settings.pageFamilyRoles, 'Mitglieder', 'nicht "Familie und Rollen" neben "Rollen und Rechte"');
+});
+
+test('R17 E12: der Rundgang beschreibt die untere Leiste, die es gibt - in jeder Sprache', () => {
+  const dir = new URL('../public/locales/', import.meta.url);
+  const offenders = [];
+  for (const file of readdirSync(dir).filter((name) => name.endsWith('.json'))) {
+    const locale = JSON.parse(read(`../public/locales/${file}`));
+    const body = locale.onboarding.step2Body;
+    // Die Leiste traegt den Knopf "Mehr" (nav.more), keinen "···"-Knopf, und
+    // ihre Plaetze sind einstellbar - der Text zaehlt deshalb keine Module auf.
+    if (body.includes('···') || !body.includes(locale.nav.more)) offenders.push(`${file}: ${body}`);
+    // Der Verweis im Kalender-Leerzustand fuehrt zum Blatt, das die
+    // Synchronisation traegt, nicht zu "Fotos und Wetter".
+    if (!locale.emptyHint.calendar.includes(locale.settings.pageCalendarModule)) offenders.push(`${file}: ${locale.emptyHint.calendar}`);
+  }
+  assert.deepEqual(offenders, []);
+});
+
+// ── R17, E6: die Zwei-Felder-Zeile ist EINE geteilte Regel ──────────────────
+// Critique 2026-10-07 (A4 P2): der Artikel-Dialog des Einkaufs benutzte
+// `.pantry-form-row`, die nur in pantry.css stand - das Blatt ist im Einkauf
+// nicht geladen, also `display: block`, Menge/Kategorie und Preis/Laden
+// untereinander, Dialog 752px lang. inventory.css trug dieselbe Regel als
+// Kopie, "weil sich die Blaetter gegenseitig ausschliessen".
+test('R17 E6: die Zwei-Felder-Zeile steht einmal in layout.css, kein Modulblatt kopiert sie', () => {
+  const layout = [...eachRule(read('../public/styles/layout.css'))];
+  const pair = layout.find((r) => r.selector.trim() === '.form-pair' && !r.at.length);
+  assert.match(pair?.body ?? '', /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(/, '.form-pair ist das auto-fit-Raster');
+  assert.ok(layout.some((r) => r.selector.trim() === '.form-pair[hidden]' && /display:\s*none/.test(r.body)),
+    '`hidden` muss gegen `display: grid` gewinnen (Kilometerstand im Inventar)');
+  assert.match(read('../public/index.html'), /styles\/layout\.css/, 'layout.css laedt auf jeder Seite');
+
+  const copies = [];
+  for (const file of readdirSync(new URL('../public/styles/', import.meta.url)).filter((f) => f.endsWith('.css') && f !== 'layout.css')) {
+    for (const rule of eachRule(read(`../public/styles/${file}`))) {
+      if (/form-row\s*$/.test(rule.selector.trim()) && /repeat\(auto-fit,\s*minmax\(/.test(rule.body)) copies.push(`${file}: ${rule.selector.trim()}`);
+    }
+  }
+  assert.deepEqual(copies, [], 'eine geteilte Klasse gehoert in ein Blatt, das index.html verlinkt - keine Kopie je Modul');
+
+  // Die drei Formulare, die sie brauchen, tragen sie - am gerenderten Attribut.
+  for (const [page, min] of [['shopping', 2], ['pantry', 2], ['inventory', 6]]) {
+    const src = withoutCommentsKeepingLines(read(`../public/pages/${page}.js`));
+    const rows = [...src.matchAll(/class="([^"]*)"/g)].filter((m) => m[1].split(/\s+/).includes('form-pair'));
+    assert.ok(rows.length >= min, `${page}.js: ${rows.length} Zwei-Felder-Zeilen mit .form-pair`);
+    assert.doesNotMatch(src, /class="[^"]*\b(?:pantry|inventory)-form-row\b/, `${page}.js traegt keine Modulklasse fuer die Zeile mehr`);
+  }
+});
+
+// ── R17, E6: EIN Feldsatz in Dialogen ───────────────────────────────────────
+// Critique 2026-10-07 (A5 P2, A2 P2): die Dialoge der Aufteilung schrieben
+// `<label>Text<input class="input">` (Label 16px primaer, Betrag 42px/16/500,
+// kein Pflicht-Stern trotz `required`) neben dem Budget-Eintrag mit
+// `.form-label` 14px sekundaer, `.budget-amount-input` 48px/20/600 und Stern.
+// `.input`/`.label` sind Aliasse derselben Regel (layout.css); kanonisch ist
+// `.form-input`/`.form-label`. Umgestellt sind Aufteilung und Schichtplan -
+// die uebrigen Dateien stehen als Arbeitsvorrat in ALIAS_PENDING, und die
+// Liste darf nur schrumpfen.
+const ALIAS_PENDING = new Set([
+  '../public/pages/health.js', '../public/pages/tasks.js', '../public/pages/documents.js',
+  '../public/pages/rewards.js', '../public/pages/calendar.js', '../public/pages/setup.js',
+  '../public/pages/join.js', '../public/pages/login.js', '../public/pages/reset-password.js',
+  '../public/pages/forgot-password.js', '../public/components/user-multi-select.js',
+  '../public/components/tag-manager.js', '../public/settings/pages/admin-email.js',
+  '../public/settings/pages/modules-health.js',
+]);
+
+test('R17 E6: Dialog-Markup traegt `.form-label`/`.form-input`, nicht die Alias-Klassen', () => {
+  assert.deepEqual(aliasFieldClasses('<label class="label" for="x">a</label><input class="input wide">'), ['label', 'input wide'],
+    'Gegenfall: der Scanner sieht die Alias-Klassen');
+  assert.deepEqual(aliasFieldClasses('<span class="form-label">a</span><input class="form-input input-group__field">'), [],
+    'und nur sie - kein Treffer auf Namen, die das Wort nur enthalten');
+  const offenders = [];
+  const cleared = [];
+  for (const path of DIALOG_SOURCES) {
+    const count = aliasFieldClasses(dialogSource(path)).length;
+    if (count && !ALIAS_PENDING.has(path)) offenders.push(`${path}: ${count}`);
+    if (!count && ALIAS_PENDING.has(path)) cleared.push(path);
+  }
+  assert.deepEqual(offenders, [], 'neuer Code schreibt `.form-input`/`.form-label`');
+  assert.deepEqual(cleared, [], 'umgestellt - dann raus aus ALIAS_PENDING, sonst wird die Liste eine Allowlist');
+});
+
+test('R17 E6: die Dialoge der Aufteilung tragen Label, Stern und Betrag des Budget-Eintrags', () => {
+  const src = dialogSource('../public/pages/split-expenses.js');
+  assert.doesNotMatch(src, /<label>\$\{t\(/, 'kein nacktes <label>Text<input> mehr');
+  const fields = [...src.matchAll(/<label class="form-field">([\s\S]*?)<\/label>/g)].map((m) => m[1]);
+  assert.ok(fields.length >= 30, `die Felder der Dialoge (${fields.length})`);
+  const controlOf = (field) => field.slice(field.indexOf('</span>'));
+  const tagOf = (field) => controlOf(field).match(/<(?:input|select|textarea|yuvomi-datepicker)\b[^>]*>/)?.[0] ?? '';
+  for (const field of fields) {
+    assert.match(field, /^<span class="form-label">\$\{t\('[^']+'\)\}/, `das Label ist .form-label: ${field.slice(0, 80)}`);
+    const required = /\srequired(?=[\s>])/.test(tagOf(field));
+    const star = field.slice(0, field.indexOf('</span>')).includes('${REQUIRED_MARK}');
+    assert.equal(star, required, `Stern genau am Pflichtfeld: ${field.slice(0, 90)}`);
+  }
+  const amounts = fields.filter((field) => /name="amount"/.test(tagOf(field)));
+  assert.equal(amounts.length, 3, 'Ausgabe, Serie und Zahlung haben je ein Betragsfeld');
+  for (const field of amounts) {
+    assert.match(tagOf(field), /class="form-input budget-amount-input"/, 'der Betrag ist 48px/20/600 wie im Budget-Eintrag');
+  }
+  assert.match(read('../public/styles/budget.css'), /\.budget-amount-input\s*\{[^}]*font-size:\s*var\(--text-xl\)/);
+});
+
+// ── R17, E8: EIN Speichermuster in den Einstellungen ────────────────────────
+// Critique 2026-10-07 (A7 P1): drei Knopfplaetze - 99px linksbuendig, 612px
+// vollbreit ("Passwort speichern"), rechts klebend ("Rechte"). Die Regel:
+// Schalter und Auswahl wirken sofort; ein Text- oder Zahlfeld speichert per
+// Knopf, und der sitzt rechts im Kartenfuss, im Markup als Letzter.
+test('R17 E8: in den Einstellungen steht der Primaerknopf als Letzter in einer Aktionszeile, und sie schliesst rechts ab', () => {
+  const rules = [...eachRule(read('../public/styles/settings.css'))];
+  const right = rules.find((r) => r.selector.trim() === '.settings-form-actions:has(> .btn--primary)');
+  assert.match(right?.body ?? '', /justify-content:\s*flex-end/, 'die Aktionszeile mit Primaerknopf schliesst rechts ab');
+  const sticky = rules.find((r) => r.selector.trim() === '.perm-actions' && !r.at.length);
+  assert.match(sticky?.body ?? '', /justify-content:\s*flex-end/, 'auch die klebende Zeile der Rechte steht rechts');
+
+  const notLast = [];
+  const naked = [];
+  let rows = 0;
+  for (const path of walkJsFiles('../public/settings/')) {
+    const src = dialogSource(path);
+    for (const m of src.matchAll(/<div class="settings-form-actions[^"]*"[^>]*>/g)) {
+      const end = src.indexOf('</div>', m.index);
+      const buttons = [...src.slice(m.index, end).matchAll(/<(?:button|a)\b[^>]*class="([^"]*)"/g)].map((b) => b[1]);
+      const primary = buttons.findIndex((cls) => /\bbtn--primary\b/.test(cls));
+      if (primary < 0) continue;
+      rows += 1;
+      if (primary !== buttons.length - 1) notLast.push(`${path}:${src.slice(0, m.index).split('\n').length}`);
+    }
+    // Ein absendender Primaerknopf direkt im Formular (ohne Aktionszeile) ist
+    // ein Flex-Kind der Formularspalte und streckt sich auf volle Breite.
+    for (const m of src.matchAll(/<form\b[^>]*class="[^"]*\bsettings-form\b[\s\S]*?<\/form>/g)) {
+      const form = m[0];
+      for (const b of form.matchAll(/<button\b[^>]*type="submit"[^>]*>/g)) {
+        const before = form.slice(0, b.index);
+        const open = before.lastIndexOf('<div class="settings-form-actions');
+        const footer = before.lastIndexOf('<div class="modal-panel__footer');
+        const wrap = Math.max(open, footer);
+        if (wrap < 0 || before.indexOf('</div>', wrap) >= 0) naked.push(`${path}:${src.slice(0, m.index + b.index).split('\n').length}`);
+      }
+    }
+  }
+  assert.ok(rows >= 15, `der Scanner findet die Aktionszeilen (${rows})`);
+  assert.deepEqual(notLast, [], 'der Primaerknopf steht im Markup zuletzt - Nebenaktionen davor, wie im Dialogfuss');
+  assert.deepEqual(naked, [], 'ein Speichern-Knopf steht in `.settings-form-actions`, nicht nackt in der Formularspalte');
 });

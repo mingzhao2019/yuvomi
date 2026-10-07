@@ -594,7 +594,7 @@ test('Gruppe mit `budget: read`: keine Handlung, aber Salden, Ausgaben und Verla
     const html = splitHauptteil();
     assert.doesNotMatch(html, /split-header-actions|data-expense-id/);
     // Die Ausgabe oeffnet die Leseansicht, nicht das Bearbeiten.
-    assert.match(html, /<button type="button" class="split-expense" data-expense-view="40">/);
+    assert.match(html, /<button type="button" class="split-expense" data-expense-view="40" data-row-key="expense-40">/);
     assert.doesNotMatch(html, /splitExpenses\.editExpense/);
     assert.match(html, /Urlaub Ostsee/);
     assert.match(html, /Ferienwohnung/);
@@ -764,10 +764,10 @@ test('Regel 6: `renderExpenses` traegt nicht mehr den Namen des Modulrechts', ()
   // utils/module-access.js warnt. Jetzt heisst er nach seiner Wirkung, und der
   // Aufrufer nennt beide Gruende ausdruecklich.
   assert.match(SPLIT_CODE, /function renderExpenses\(asList = false\)/);
-  assert.match(fn(SPLIT_CODE, 'renderMain'), /renderExpenses\(archived \|\| ro\)/);
+  assert.match(fn(SPLIT_CODE, 'drawMain'), /renderExpenses\(archived \|\| ro\)/);
   // Der Listen-Handler liest `data-expense-view` in die Leseansicht und nur
   // `data-expense-id` ins Bearbeiten.
-  assert.match(fn(SPLIT_CODE, 'renderMain'), /if \(btn\.dataset\.expenseView\) openExpenseReadView\(expense\);\n\s*else openExpenseModal\(expense\);/);
+  assert.match(fn(SPLIT_CODE, 'drawMain'), /if \(btn\.dataset\.expenseView\) openExpenseReadView\(expense\);\n\s*else openExpenseModal\(expense\);/);
 });
 
 test('Keine Gruppe mit `budget: read`: der Titel bleibt, „Erstelle eine Gruppe" geht', () => {
@@ -809,8 +809,8 @@ test('Geteilte Ausgaben: Kopfknopf und Gruppe-Anlegen haengen am Recht', () => {
 // -------------------------------------------------------------------------
 
 test('READ_SAFE_ACTIONS ist eine Positivliste und enthaelt nur lesende Aktionen', () => {
-  assert.deepEqual([...budget.READ_SAFE_ACTIONS], ['loan-filter'],
-    'der Raten-Filter ist die einzige lesende `data-action` dieser Seite');
+  assert.deepEqual([...budget.READ_SAFE_ACTIONS], ['loan-filter', 'toggle-planned'],
+    'der Raten-Filter und der Aufklapper von "Geplant" (R17/E4) sind die lesenden `data-action` dieser Seite');
   const alle = new Set([...BUDGET_CODE.matchAll(/data-action="([a-z-]+)"/g)].map((m) => m[1]));
   // Untergrenze nur als Blindheits-Probe: seit R14 P8 stehen Loeschen und
   // Bearbeiten in den Blaettern, die Seite traegt 7 Aktionsnamen.
@@ -1446,6 +1446,8 @@ test('Darlehen: der Bericht zeigt jeden Wert des Darlehens-Dialogs, den Karte un
       'budget.loanNotesLabel': [[/Sondertilgung &lt;jaehrlich&gt;<\/textarea>/], /^Sondertilgung <jaehrlich>$/],
     };
     const editor = withAccess({ budget: 'write' }, () => modalOptionen(() => budget.openLoanModal(loan)));
+    // R17 (E6): achtzehn Felder gehoeren ins 520er-Panel, nicht ins 400er-Blatt.
+    assert.equal(editor.size, 'md', 'der Darlehen-Dialog oeffnet im 520px-Panel');
     const html = budget.loanReportDetails(loan);
     jederWert(werte, editor.content, berichtKacheln(html), 'Darlehen');
     assert.match(html, /Sondertilgung &lt;jaehrlich&gt;/, 'die Notiz geht durch esc()');

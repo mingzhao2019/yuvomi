@@ -2194,6 +2194,62 @@ test('Belohnungen: das Punktefeld speichert wie die Schalter - ohne eigenen Knop
   }
 });
 
+// R17 Schritt 5: dieselbe Regel auf dem Blatt "Uebersicht". Das eine Zahlfeld
+// (Nachfrist fuer Countdowns) hatte einen eigenen Speichern-Knopf - ein
+// einzelnes Kurzfeld speichert beim Verlassen und mit Enter, mit derselben
+// Quittung wie das Punktefeld der Belohnungen.
+test('Uebersicht: die Nachfrist speichert beim Verlassen und mit Enter - ohne eigenen Knopf', async () => {
+  const { render } = await import('/settings/pages/modules-countdowns.js');
+  const { resetPreferencesCache } = await import('/settings/preferences-cache.js');
+  const puts = [];
+  const toasts = [];
+  const prevWindow = globalThis.window;
+  globalThis.window = { yuvomi: { showToast: (...args) => toasts.push(args) } };
+  globalThis.__apiStub = {
+    get: async () => ({ data: { countdown_grace_days: 7, disabled_modules: [] } }),
+    put: async (url, body) => { puts.push([url, body]); return { data: body }; },
+  };
+  resetPreferencesCache();
+  try {
+    const sheet = rewardsSheet();
+    await render(sheet, { user: { role: 'admin' } });
+    const form = sheet.html.match(/<form\b[^>]*id="countdown-grace-days-form"[\s\S]*?<\/form>/)?.[0] ?? '';
+    assert.match(form, /id="countdown-grace-days"/, 'Reichweite: das Feld steht im Formular');
+    assert.doesNotMatch(form, /type="submit"|settings-form-actions/, 'kein Speichern-Knopf nur fuer dieses Feld');
+
+    const input = sheet.el('countdown-grace-days');
+    const error = sheet.el('countdown-grace-days-error');
+    input.value = '';
+    await input.fire('blur');
+    assert.deepEqual(puts, [], 'ein geleertes Feld wird nicht als 0 geschrieben (#1027)');
+    assert.equal(error.hidden, false, 'sondern benannt');
+    assert.equal(input.getAttribute('aria-invalid'), 'true');
+
+    input.value = '14';
+    await input.fire('blur');
+    assert.deepEqual(puts, [['/preferences', { countdown_grace_days: 14 }]], 'beim Verlassen gespeichert');
+    assert.equal(error.hidden, true);
+    assert.equal(input.getAttribute('aria-invalid'), null);
+    assert.equal(input.readOnly, false, 'das Feld ist nach dem Speichern wieder frei');
+    assert.ok(toasts.some(([key]) => key === 'settings.countdownGraceDaysSaved'), `mit Rueckmeldung: ${JSON.stringify(toasts)}`);
+
+    await input.fire('blur');
+    assert.equal(puts.length, 1, 'derselbe Wert ein zweites Mal ist kein neuer Schreibzugriff');
+
+    input.value = '3';
+    await sheet.el('countdown-grace-days-form').fire('submit');
+    assert.deepEqual(puts.at(-1), ['/preferences', { countdown_grace_days: 3 }], 'Enter speichert ebenso');
+
+    input.value = '30';
+    await input.fire('keydown', { key: 'Escape' });
+    assert.equal(input.value, '3', 'Escape nimmt die ungespeicherte Eingabe zurueck');
+  } finally {
+    delete globalThis.__apiStub;
+    globalThis.window = prevWindow;
+    resetPreferencesCache();
+  }
+});
+
 // ── #1516: Die Standard-Erinnerungsliste ohne freigegebene Liste und bei gescheiterter Abfrage ──
 
 /**
@@ -2907,7 +2963,9 @@ test('R14: jeder Export steht im Blatt seines Moduls', async () => {
 test('R14: ein Feed ist ein Schalter, kein Primaerknopf', async () => {
   const src = await readFile(new URL('../public/settings/pages/personal-feeds.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /btn--primary/, 'kein "Feed aktivieren" als Primaerknopf');
-  assert.match(src, /control: 'switch',\s*label: feed\.text\.title\(\)/, 'An/Aus ist ein Schalter mit dem Namen des Feeds');
+  // Seit R17 (E9) die Schalterzeile der Gruppe; `settingSwitchRowHtml` setzt
+  // `control: 'switch'` selbst (test:control-dialect prueft das Ergebnis).
+  assert.match(src, /settingSwitchRowHtml\(\{\s*label: feed\.text\.title\(\)/, 'An/Aus ist ein Schalter mit dem Namen des Feeds');
   assert.match(src, /container\.dataset\?\.part/, 'der Abschnitt sagt, welcher Feed');
   assert.match(src, /!next && !await feed\.confirmDisable\(\)/, 'Ausschalten fragt nach wie der fruehere Knopf');
 });
@@ -3206,4 +3264,242 @@ test('settings sidebar: the active link is revealed below the sticky search, not
   } finally {
     globalThis.getComputedStyle = previous;
   }
+});
+
+// R17 (Critique 2026-10-07, E9): EINE KARTE JE OPTION GIBT ES NICHT MEHR.
+//
+// Das Blatt Darstellung trug zehn Einstellungen in acht Karten (1650px bei
+// 1280, 2014px mobil, drei im ersten Bild), waehrend "Aktive Module" daneben
+// schon gruppierte Zeilen fuehrte. Jetzt steht eine Option als Zeile in einem
+// Traeger (`.row-carrier.settings-group`, settings/components.js
+// `settingRowHtml` / `settingSwitchRowHtml`); eine Karte bleibt, wo ein echtes
+// Formular steht (mehrere Felder, ein Knopf).
+//
+// AM GERENDERTEN MARKUP, nicht am Dateitext: jeder Abschnitt der Registry wird
+// als Programm gerendert (Admin, leere Antworten), und beurteilt wird, was er
+// in seinen Traeger schreibt. Ein Regex ueber die Quelldatei saehe weder, was
+// ein Helfer zusammensetzt (`partHtml`, `scopeRowHtml`), noch welcher Zweig
+// einer Vorlage laeuft. Nicht gesehen wird, was ein Abschnitt erst per DOM-API
+// baut (documents-storage, die Konten der Synchronisation) - dort stehen
+// Formulare, keine Ein-Element-Karten.
+function sheetProbeContainer(part) {
+  let html = '';
+  let longest = '';
+  return {
+    dataset: part ? { part } : {},
+    isConnected: true,
+    // Ein Abschnitt, der NACH dem Zeichnen an einer Attrappe scheitert, ersetzt
+    // sein Markup durch den Fehlerzustand - beurteilt wird der laengste Stand.
+    get html() { return longest; },
+    replaceChildren() { html = ''; },
+    insertAdjacentHTML(_pos, markup) { html += markup; if (html.length > longest.length) longest = html; },
+    appendChild() {}, append() {}, addEventListener() {},
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    closest: () => null,
+  };
+}
+
+/** Jede `.settings-card` des Markups samt Inhalt (Kommentare vorher entfernt). */
+function settingsCardsIn(markup) {
+  const html = markup.replace(/<!--[\s\S]*?-->/g, '');
+  const cards = [];
+  const open = /<div class="(?:[^"]*\s)?settings-card(?:\s[^"]*)?"[^>]*>/g;
+  let m;
+  while ((m = open.exec(html))) {
+    const tag = /<(\/?)div\b[^>]*>/g;
+    tag.lastIndex = open.lastIndex;
+    let depth = 1;
+    let end = html.length;
+    let t;
+    while (depth > 0 && (t = tag.exec(html))) {
+      depth += t[1] ? -1 : 1;
+      if (depth === 0) end = tag.lastIndex;
+    }
+    cards.push(html.slice(m.index, end));
+  }
+  return cards;
+}
+
+const cardControls = (card) => [...card.matchAll(
+  /<select\b|<textarea\b|role="radiogroup"|<input\b(?![^>]*\btype="(?:hidden|file|radio)")[^>]*>/g,
+)].length;
+const cardHasAction = (card) => /<button\b|class="(?:[^"]*\s)?btn(?:\s[^"]*)?"/.test(card);
+
+test('R17: der Karten-Scanner sieht eine Karte mit genau einem Bedienelement - und laesst ein Formular stehen', () => {
+  const lone = '<div class="settings-card"><h3>Titel</h3><label class="toggle-row"><input type="checkbox" role="switch"></label><p>Hinweis</p></div>';
+  const form = '<div class="settings-card"><div><input type="text"></div><input type="password"><button class="btn btn--primary">x</button></div>';
+  const withButton = '<div class="settings-card settings-card--x"><input type="text"><div><button type="submit">x</button></div></div>';
+  const commented = '<!-- <div class="settings-card"><select></select></div> --><div class="row-carrier settings-group"><select></select></div>';
+  const cards = settingsCardsIn(lone + form + withButton + commented);
+  assert.equal(cards.length, 3, 'drei Karten, die auskommentierte zaehlt nicht');
+  assert.deepEqual(cards.map(cardControls), [1, 2, 1]);
+  assert.deepEqual(cards.map(cardHasAction), [false, true, true]);
+  assert.match(cards[1], /btn--primary/, 'die Karte reicht bis zu IHREM schliessenden div, nicht bis zum ersten');
+});
+
+/** Jeder Abschnitt der Registry, als Programm gerendert: id -> Markup. Einmal je Lauf. */
+let sheetProbe = null;
+function probeSheets() {
+  sheetProbe ??= (async () => {
+    const { SETTINGS_SECTIONS } = await import('../public/settings/registry.js');
+    const { resetPreferencesCache } = await import('/settings/preferences-cache.js');
+    const prev = { window: globalThis.window, document: globalThis.document, api: globalThis.__apiStub };
+    const storage = { getItem: () => null, setItem() {}, removeItem() {} };
+    globalThis.window = {
+      yuvomi: { showToast() {}, isModuleDisabled: () => false },
+      matchMedia: () => ({ matches: false, addEventListener() {} }),
+      addEventListener() {},
+      location: { origin: 'http://localhost', protocol: 'https:', pathname: '/settings' },
+      localStorage: storage,
+    };
+    globalThis.document = fakeDocument();
+    globalThis.__apiStub = {
+      // Ein Feed ist ohne Adresse AUS (ein Schalter); Listen sind leer.
+      get: async (url) => {
+        if (/feed/.test(url)) return { data: null };
+        if (/^\/modules/.test(url)) return { data: [] };
+        return { data: {} };
+      },
+      put: async (_url, body) => ({ data: body }),
+      post: async () => ({ data: {} }),
+      patch: async () => ({ data: {} }),
+      delete: async () => ({ data: {} }),
+    };
+    resetPreferencesCache();
+    const rendered = new Map();
+    try {
+      for (const section of SETTINGS_SECTIONS) {
+        const host = sheetProbeContainer(section.props?.part);
+        try {
+          const module = await section.loader();
+          await module.render(host, { user: { id: 1, role: 'admin', is_admin: true }, query: new URLSearchParams() });
+        } catch {
+          // Nach dem Zeichnen an einer Attrappe gescheitert: das Markup steht.
+        }
+        rendered.set(section.id, host.html.replace(/<!--[\s\S]*?-->/g, ''));
+      }
+    } finally {
+      globalThis.window = prev.window;
+      globalThis.document = prev.document;
+      globalThis.__apiStub = prev.api;
+      resetPreferencesCache();
+    }
+    return rendered;
+  })();
+  return sheetProbe;
+}
+
+test('R17: kein Einstellungsblatt rendert eine Karte mit genau einem Bedienelement', async () => {
+  const rendered = await probeSheets();
+
+  const offenders = [];
+  let cardsSeen = 0;
+  for (const [id, html] of rendered) {
+    for (const card of settingsCardsIn(html)) {
+      cardsSeen += 1;
+      if (cardControls(card) === 1 && !cardHasAction(card)) {
+        offenders.push(`${id}: ${card.replace(/\s+/g, ' ').slice(0, 140)}`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, [],
+    'eine Option ist eine Zeile in einem Traeger (.settings-group), keine eigene Karte');
+
+  // EINE ZUSICHERUNG UEBER NICHTS IST KEINE. Die umgestellten Abschnitte
+  // muessen wirklich gezeichnet haben, und zwar gruppierte Zeilen; faellt
+  // einer unter der Attrappe um, bevor er zeichnet, sieht der Guard ihn nicht.
+  const GROUPED = [
+    'personal-appearance', 'personal-notifications', 'admin-family', 'modules-countdowns',
+    'personal-calendar', 'personal-feeds', 'modules-calendar', 'options-schedule', 'options-tasks',
+    'options-budget', 'options-housekeeping', 'options-health', 'modules-rewards', 'personal-health',
+    'feed-schedule', 'feed-cycle', 'feed-inventory', 'feed-waste',
+  ];
+  for (const id of GROUPED) {
+    const html = rendered.get(id) ?? '';
+    assert.match(html, /class="row-carrier settings-group"/, `${id}: keine gruppierten Zeilen im gerenderten Markup`);
+    assert.match(html, /class="settings-setting-row[ "]/, `${id}: der Traeger ist leer`);
+  }
+  const drawn = [...rendered.values()].filter((html) => html.length > 0).length;
+  assert.ok(drawn >= 30, `nur ${drawn} von ${rendered.size} Abschnitten haben gezeichnet - liest der Guard die Blaetter noch?`);
+  assert.ok(cardsSeen >= 15, `nur ${cardsSeen} Karten gesehen - der Scanner findet die Formular-Karten nicht mehr`);
+});
+
+test('R17: die gruppierte Zeile - Label links, Bedienelement rechts, der Hinweis ausserhalb des Labels', async () => {
+  const { settingRowHtml, settingSwitchRowHtml } = await import('../public/settings/components.js');
+  const row = settingRowHtml({
+    label: 'Zeit <zone>', labelFor: 'tz', description: 'Gilt & wirkt', descriptionId: 'tz-hint',
+    control: '<select id="tz"></select>', extra: '<div id="tz-error" hidden></div>',
+  });
+  assert.match(row, /^<div class="settings-setting-row"><div class="settings-setting-row__copy"><label class="settings-setting-row__label" for="tz">Zeit &lt;zone&gt;<\/label>/);
+  assert.match(row, /<p class="settings-setting-row__description" id="tz-hint">Gilt &amp; wirkt<\/p><div id="tz-error" hidden><\/div><\/div><div class="settings-setting-row__control"><select id="tz"><\/select><\/div><\/div>$/);
+  assert.match(settingRowHtml({ label: 'x', labelId: 'l', stacked: true }), /^<div class="settings-setting-row settings-setting-row--stacked"><div class="settings-setting-row__copy"><span class="settings-setting-row__label" id="l">x<\/span>/,
+    'ohne `labelFor` kein <label>: eine Gruppe (Segment, Chips) wird ueber aria-labelledby benannt');
+
+  const sw = settingSwitchRowHtml({ label: 'Push', checked: true, description: 'Nur hier', descriptionId: 'p-hint', attrs: { id: 'p' } });
+  assert.match(sw, /^<div class="settings-setting-row settings-setting-row--switch"><label class="toggle-row toggle-row--switch">/);
+  assert.match(sw, /<input type="checkbox" role="switch" id="p" aria-describedby="p-hint" checked>/, 'der Hinweis ist dem Schalter zugeordnet');
+  assert.match(sw, /<\/label><p class="settings-setting-row__description" id="p-hint">Nur hier<\/p><\/div>$/,
+    'der Hinweis steht NACH dem Label - im Label laese ein Screenreader ihn als Teil des Namens');
+
+  // Zweispaltig in jeder Breite, mindestens ein Fingerziel hoch.
+  const css = await readFile(new URL('../public/styles/settings.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const base = rules.find((r) => r.selector.trim() === '.settings-group > .settings-setting-row' && !r.at.length);
+  assert.match(base?.body ?? '', /grid-template-columns:\s*minmax\(0, 1fr\) auto/);
+  assert.match(base?.body ?? '', /min-height:\s*var\(--target-lg\)/, 'die Zeile ist mobil ein Fingerziel hoch');
+  const narrowed = rules.filter((r) => r.at.length && /\.settings-group\b[^,{]*\.settings-setting-row\b/.test(r.selector)
+    && /grid-template-columns/.test(r.body));
+  assert.deepEqual(narrowed.map((r) => r.selector), [],
+    'keine Breitenabfrage stapelt die Zeile wieder: gestapelt war ein Auswahlfeld mit "5 Minuten" mobil vollbreit');
+  const control = rules.find((r) => r.selector.trim() === '.settings-group .settings-setting-row__control' && !r.at.length);
+  assert.match(control?.body ?? '', /max-inline-size:\s*50cqi/, 'das Bedienelement nimmt hoechstens die halbe Zeile, das Label bricht um');
+});
+
+test('R17: keine Abschnittsueberschrift steht in einem Blatt zweimal ("Termine", "Zyklus")', async () => {
+  const { SETTINGS_SECTIONS } = await import('../public/settings/registry.js');
+  const rendered = await probeSheets();
+  const bySheet = new Map();
+  for (const section of SETTINGS_SECTIONS) {
+    const titles = [...(rendered.get(section.id) ?? '').matchAll(/class="settings-section__title"[^>]*>([^<]*)</g)].map((m) => m[1].trim());
+    bySheet.set(section.sheetId, [...(bySheet.get(section.sheetId) ?? []), ...titles]);
+  }
+  const doubled = [];
+  let seen = 0;
+  for (const [sheetId, titles] of bySheet) {
+    seen += titles.length;
+    for (const title of new Set(titles)) {
+      if (titles.filter((entry) => entry === title).length > 1) doubled.push(`${sheetId}: "${title}"`);
+    }
+  }
+  assert.ok(seen >= 20, `nur ${seen} Abschnittsueberschriften gesehen`);
+  assert.deepEqual(doubled, [], 'zwei gleiche Ueberschriften auf einer Ebene: die Sprungmarke und der Screenreader koennen sie nicht unterscheiden');
+});
+
+test('R17: die Sprungmarken heissen wie die Ueberschriften der Abschnitte, nicht wie die Registry', async () => {
+  const shell = await readFile(new URL('../public/settings/shell.js', import.meta.url), 'utf8');
+  const fn = shell.slice(shell.indexOf('function syncJumpLabels('), shell.indexOf('async function renderSheetSection('));
+  assert.match(fn, /host\?\.querySelector\('\.settings-section__title, \.settings-navigation-panel__title'\)/,
+    'gelesen wird die erste sichtbare Abschnittsueberschrift im Traeger');
+  assert.match(fn, /link\.textContent = text/);
+  assert.match(shell, /link\.dataset\.jumpSection = target\.id/, 'die Marke weiss, zu welchem Traeger sie gehoert');
+  const section = shell.slice(shell.indexOf('async function renderSheetSection('), shell.indexOf('async function renderLeafContent('));
+  assert.match(section, /await module\.render\(host, \{ user, query \}\);[\s\S]*?syncJumpLabels\(host\.closest\?\.\('\.settings-leaf'\)\)/,
+    'jeder fertige Abschnitt zieht seine Marke nach, auch nach der Wartefrist');
+  const leaf = shell.slice(shell.indexOf('async function renderLeafContent('), shell.indexOf('function levelScopedHeadings('));
+  assert.match(leaf, /await awaitSections\([\s\S]*?\);[\s\S]*?jump\?\.classList\.remove\('settings-sheet-jump--pending'\)/,
+    'nach der Frist stehen die Marken in jedem Fall');
+});
+
+test('R17: die Standard-Erinnerungen sind Chips des Kanons mit aria-pressed, keine Checkbox in einer Pille', async () => {
+  const rendered = await probeSheets();
+  const html = rendered.get('personal-calendar') ?? '';
+  const chips = [...html.matchAll(/<button type="button" class="filter-chip js-default-reminder[^"]*"\s+data-value="(\d+)" aria-pressed="(true|false)">/g)];
+  assert.ok(chips.length >= 5, `nur ${chips.length} Erinnerungs-Chips im gerenderten Abschnitt`);
+  assert.doesNotMatch(html, /reminder-preset/);
+  assert.equal([...html.matchAll(/<input\b[^>]*type="checkbox"/g)].length, 1, 'die einzige Checkbox ist der Schalter "mir zuweisen"');
+  const src = await readFile(new URL('../public/settings/pages/personal-calendar.js', import.meta.url), 'utf8');
+  assert.match(src, /chip\.setAttribute\('aria-pressed', String\(on\)\);\s*chip\.classList\.toggle\('filter-chip--active', on\)/,
+    'Zustand und Aktiv-Form wechseln zusammen');
+  assert.match(src, /querySelectorAll\('\.js-default-reminder\[aria-pressed="true"\]'\)/, 'gelesen wird der Zustand, den der Chip ansagt');
 });

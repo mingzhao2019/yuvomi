@@ -83,8 +83,8 @@ function renderPage(container) {
             </div>
             <div id="ics-add-error" class="form-error" role="alert" hidden></div>
             <div class="settings-form-actions">
-              <button type="submit" class="btn btn--primary" id="ics-submit-btn">${t('settings.ics.actions.submit')}</button>
               <button type="button" class="btn btn--secondary" id="ics-cancel-btn">${t('settings.ics.actions.cancel')}</button>
+              <button type="submit" class="btn btn--primary" id="ics-submit-btn">${t('settings.ics.actions.submit')}</button>
             </div>
           </form>
         </div>
@@ -274,7 +274,7 @@ function openIcsEditModal(container, sub, subs, user) {
           <p class="form-hint">${t('settings.sync.defaultAssigneeHint')}</p>
         </div>
         <div id="ics-edit-error" class="form-error" role="alert" hidden></div>
-        <div class="settings-form-actions">
+        <div class="modal-panel__footer modal-panel__footer--plain">
           <button type="button" class="btn btn--secondary" id="ics-edit-cancel">${t('common.cancel')}</button>
           <button type="submit" class="btn btn--primary">${t('settings.ics.actions.save')}</button>
         </div>

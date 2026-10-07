@@ -55,35 +55,9 @@
   touch-action: pan-y pinch-zoom;
 }
 
-/* Der neue Zeitraum gleitet von der Seite herein, aus der ihn der Finger
- * geholt hat - kurz und ohne Ueberschwingen: er antwortet auf eine Geste,
- * er fuehrt keine vor. Die Seite ist LOGISCH (Leserichtung), in `ar`/`fa`
- * gespiegelt. Unter reduzierter Bewegung setzt period-swipe.js die Klasse gar
- * nicht erst; die Regel unten ist das Netz dafuer. */
-.period-swipe-in--next,
-.period-swipe-in--prev {
-  animation: period-swipe-in var(--duration-md) var(--ease-out);
-}
-
-.period-swipe-in--next { --period-swipe-from: var(--space-8); }
-.period-swipe-in--prev { --period-swipe-from: calc(-1 * var(--space-8)); }
-
-[dir="rtl"] .period-swipe-in--next { --period-swipe-from: calc(-1 * var(--space-8)); }
-[dir="rtl"] .period-swipe-in--prev { --period-swipe-from: var(--space-8); }
-
-@keyframes period-swipe-in {
-  from {
-    transform: translateX(var(--period-swipe-from));
-    opacity: 0.4;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .period-swipe-in--next,
-  .period-swipe-in--prev {
-    animation: none;
-  }
-}
+/* Das Hereingleiten des neuen Zeitraums (`.period-swipe-in--next/--prev`) steht
+ * in layout.css: der Wisch (utils/period-swipe.js) blaettert seit R17 auch den
+ * Monat im Budget, und dieses Stylesheet laedt nur mit dem Kalender. */
 
 /* Ansichtswechsel Monat/Woche/Tag/Agenda (Re-Critique 2026-09-28, A2 P3):
  * die neue Ansicht blendet ein statt hart zu schneiden - kurz, ohne Versatz,
@@ -398,6 +372,36 @@
   .page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center {
     order: 2;
     flex-basis: 100%;
+  }
+
+  /* EINGEKLAPPT EINE ZEILE (R17 Schritt 5, Critique 2026-10-07 A1 P1).
+   *
+   * Gemessen 390x844: der Kopf mass ausgeklappt 117px und eingeklappt 117px.
+   * Titel und Siegel verliessen das Bild, aber Zeile 1 blieb stehen - drei
+   * Icons bei x 222-374 neben 206px Leerraum -, und der Zeitraum behielt
+   * Zeile 2. Jetzt rueckt der Stepper in die frei gewordene Zeile, vor das
+   * Menue: 117 -> 65px, wie Notizen, Kontakte und Gesundheit.
+   *
+   * WAS DAFUER WEICHT: Suche, Filter und "Heute" falten ins Menue - als
+   * Eintraege mit demselben Namen, die das Original klicken
+   * (`data-collapse-fold`, wireCollapsingHeader). Das Label braucht die
+   * Breite: mit allen dreien blieben ihm 68px, "07.10. - 06.11.2026" misst
+   * 172px. So bekommt es 194px. Ein AKTIVER Filter faltet nicht - die Zahl
+   * am Knopf ist die Zusage der Kopfregel (aktive Filter bleiben sichtbar),
+   * dann kuerzt das Label (142px, Ellipse).
+   *
+   * Nur unter 640px: darueber waehlt das Segment die Ansicht, das Menue ist
+   * unsichtbar, und ohne Menue faltet nichts. */
+  .page-toolbar--period-title.cal-toolbar.page-toolbar--capped.is-collapsed > .page-toolbar__center {
+    order: 0;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .page-toolbar--period-title.cal-toolbar.page-toolbar--capped.is-collapsed .cal-toolbar__search-btn[data-collapse-fold],
+  .page-toolbar--period-title.cal-toolbar.page-toolbar--capped.is-collapsed .cal-toolbar__filter-btn[data-collapse-fold]:not(.page-filter-btn--active),
+  .page-toolbar--period-title.cal-toolbar.page-toolbar--capped.is-collapsed .cal-toolbar__today[data-collapse-fold] {
+    display: none;
   }
 }
 
@@ -3558,18 +3562,65 @@
 }
 
 
+/* DER SCHICHT-CHIP IST GETOENT, NICHT VOLLFARBIG (Critique R17).
+ *
+ * Er erbte die Balkenform des Feiertags samt dessen Vollton-Flaeche, aber
+ * nicht dessen Tinte: der Feiertag bekommt `--holi-ink` aus
+ * getReadableTextColor(), der Schicht-Chip nicht, und fiel damit auf Weiss
+ * zurueck - gemessen 3,26:1 fuer 12px-Schrift auf der Fruehschicht (#0891B2),
+ * 2,9:1 auf "Ganztags" (#D97706).
+ *
+ * Die Antwort ist die des Schichtplans selbst (schedule.css,
+ * `.schedule-overview__block`, Reiter "Vergleich"), damit dieselbe Schicht in
+ * beiden Modulen dieselbe Sprache spricht: die Flaeche ist die 16-%-Toenung
+ * (`--tint-surface`, Objekt-Sprosse), den Vollton traegt ein Punkt vor dem
+ * Namen, und die Schrift ist NEUTRAL (DESIGN.md, "Rangmarke -> Vollton-Punkt,
+ * Schrift neutral"). `--tint-ink` waere hier falsch: die Farbe einer
+ * Schichtart ist frei gewaehlt, und die 70-%-Tinte ist nur fuer die neun
+ * Familientoene geeicht (Begruendung an `.day-event` weiter oben).
+ *
+ * Gilt in Monat, Ganztagszeile (Woche/Tag) und Agenda. Der Guard rechnet den
+ * Kontrast fuer jede Farbe der Startpalette in beiden Themes nach
+ * (test-frontend-audit.js, "Schicht-Chips im Kalender").
+ *
+ * Die Punktfassung des mobilen Monats (`.month-view:not(.month-view--titles)
+ * .month-day__holiday`) schlaegt diese Regel ueber ihre Spezifitaet und bleibt
+ * ein Vollton-Punkt mit Ring: dort IST der Chip der Punkt. */
+.month-day__holiday.schedule-entry,
+.allday-holiday.schedule-entry,
+.agenda-holiday.schedule-entry {
+  background: color-mix(in srgb, var(--holi-color) var(--tint-surface), var(--color-surface-work));
+  color: var(--color-text-primary);
+}
+
+.month-day__holiday.schedule-entry > span:first-child::before,
+.allday-holiday.schedule-entry > span:first-child::before,
+.agenda-holiday.schedule-entry > span:first-child::before {
+  content: '';
+  display: inline-block;
+  inline-size: var(--space-1h);
+  block-size: var(--space-1h);
+  margin-inline-end: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--holi-color);
+  vertical-align: middle;
+}
+
+/* Zeit und Zusatz-Marke treten ueber die Sekundaertinte zurueck, nicht ueber
+ * `opacity`: auf der getoenten Flaeche liesse eine 82-%-Deckung den Kontrast
+ * mit der Schichtfarbe schwanken, die Sekundaertinte ist gemessen. */
 .allday-holiday .schedule-entry__start {
   flex: 0 0 auto;
   font: inherit;
   font-variant-numeric: tabular-nums;
-  opacity: .82;
+  color: var(--color-text-secondary);
 }
 
 .schedule-entry__extra-badge {
   width: 12px;
   height: 12px;
   flex: 0 0 auto;
-  opacity: .82;
+  color: var(--color-text-secondary);
 }
 
 /* S-17: Woche/Tag machen den Chip zu einem Detail-Ausloeser (role="button",
@@ -3637,6 +3688,49 @@
   background-color: var(--color-surface);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-md);
+  /* EIN- UND AUSGANG WIE DAS POPOVER-MENUE (R17, Bewegung; layout.css,
+   * `.popover-menu`): es waechst aus der Ecke am Filterknopf (96 % -> 100 %)
+   * und blendet, der Ausgang ist kuerzer (--duration-xs gegen --duration-md)
+   * und nimmt das Wachstum zurueck. Bisher erschien und verschwand es hart.
+   * Den Ursprung (`transform-origin`) setzt positionFiltersPopover() mit der
+   * Position - dort faellt die Entscheidung fuer die Kante, hier stuende sie
+   * als physische Seite, die in RTL nicht stimmen muss.
+   * Hier MIT @starting-style: die Position rechnet openFiltersPopover() im
+   * selben Takt wie showPopover(), es gibt keinen Frame oben links zu
+   * verstecken. ZWEI DEKLARATIONEN, die Reihenfolge ist der Rueckfall: ohne
+   * `allow-discrete` verwirft der Browser die zweite, und das Popover
+   * schliesst hart wie bisher. Unter reduzierter Bewegung nimmt reset.css
+   * die Dauer auf 0s. */
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--duration-xs) var(--ease-out),
+    transform var(--duration-xs) var(--ease-out);
+  transition:
+    opacity var(--duration-xs) var(--ease-out),
+    transform var(--duration-xs) var(--ease-out),
+    overlay var(--duration-xs) allow-discrete,
+    display var(--duration-xs) allow-discrete;
+}
+
+.cal-filters-popover:popover-open {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--duration-md) var(--ease-out),
+    transform var(--duration-md) var(--ease-out);
+  transition:
+    opacity var(--duration-md) var(--ease-out),
+    transform var(--duration-md) var(--ease-out),
+    overlay var(--duration-md) allow-discrete,
+    display var(--duration-md) allow-discrete;
+}
+
+@starting-style {
+  .cal-filters-popover:popover-open {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }
 
 .cal-filters-popover::backdrop {
