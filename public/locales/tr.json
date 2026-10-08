@@ -4305,6 +4305,8 @@
         "intervalLabel": "Her",
         "nextPaymentLabel": "Sonraki ödeme",
         "reminderDaysLabel": "Hatırlatma günleri",
+        "reminderEnabledLabel": "Ödeme hatırlatıcısı",
+        "noReminder": "Hatırlatıcı yok",
         "categoryLabel": "Kategori",
         "paymentMethodLabel": "Ödeme yöntemi",
         "websiteLabel": "Web sitesi",

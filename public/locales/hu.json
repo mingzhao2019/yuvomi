@@ -4305,6 +4305,8 @@
         "intervalLabel": "Minden",
         "nextPaymentLabel": "Következő fizetés",
         "reminderDaysLabel": "Emlékeztető napok",
+        "reminderEnabledLabel": "Fizetési emlékeztető",
+        "noReminder": "Nincs emlékeztető",
         "categoryLabel": "Kategória",
         "paymentMethodLabel": "Fizetési mód",
         "websiteLabel": "Weboldal",

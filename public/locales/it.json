@@ -4305,6 +4305,8 @@
         "intervalLabel": "Ogni",
         "nextPaymentLabel": "Prossimo pagamento",
         "reminderDaysLabel": "Giorni di promemoria",
+        "reminderEnabledLabel": "Promemoria di pagamento",
+        "noReminder": "Nessun promemoria",
         "categoryLabel": "Categoria",
         "paymentMethodLabel": "Metodo di pagamento",
         "websiteLabel": "Sito web",

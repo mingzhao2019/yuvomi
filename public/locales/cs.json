@@ -4423,6 +4423,8 @@
         "intervalLabel": "Každých",
         "nextPaymentLabel": "Další platba",
         "reminderDaysLabel": "Dny připomenutí",
+        "reminderEnabledLabel": "Připomenutí platby",
+        "noReminder": "Bez připomínky",
         "categoryLabel": "Kategorie",
         "paymentMethodLabel": "Platební metoda",
         "websiteLabel": "Web",

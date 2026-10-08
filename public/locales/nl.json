@@ -4305,6 +4305,8 @@
         "intervalLabel": "Elke",
         "nextPaymentLabel": "Volgende betaling",
         "reminderDaysLabel": "Herinneringsdagen",
+        "reminderEnabledLabel": "Betalingsherinnering",
+        "noReminder": "Geen herinnering",
         "categoryLabel": "Categorie",
         "paymentMethodLabel": "Betaalmethode",
         "websiteLabel": "Website",

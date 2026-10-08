@@ -4305,6 +4305,8 @@
         "intervalLabel": "Κάθε",
         "nextPaymentLabel": "Επόμενη πληρωμή",
         "reminderDaysLabel": "Ημέρες υπενθύμισης",
+        "reminderEnabledLabel": "Υπενθύμιση πληρωμής",
+        "noReminder": "Χωρίς υπενθύμιση",
         "categoryLabel": "Κατηγορία",
         "paymentMethodLabel": "Τρόπος πληρωμής",
         "websiteLabel": "Ιστότοπος",

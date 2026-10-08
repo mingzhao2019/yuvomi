@@ -4305,6 +4305,8 @@
         "intervalLabel": "Mỗi",
         "nextPaymentLabel": "Khoản thanh toán tiếp theo",
         "reminderDaysLabel": "Số ngày nhắc",
+        "reminderEnabledLabel": "Nhắc thanh toán",
+        "noReminder": "Không có lời nhắc",
         "categoryLabel": "Danh mục",
         "paymentMethodLabel": "Phương thức thanh toán",
         "websiteLabel": "Trang web",

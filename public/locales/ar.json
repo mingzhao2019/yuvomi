@@ -4656,6 +4656,8 @@
         "intervalLabel": "كل",
         "nextPaymentLabel": "الدفعة التالية",
         "reminderDaysLabel": "أيام التذكير",
+        "reminderEnabledLabel": "تذكير بالدفع",
+        "noReminder": "بدون تذكير",
         "categoryLabel": "الفئة",
         "paymentMethodLabel": "طريقة الدفع",
         "websiteLabel": "الموقع الإلكتروني",
