@@ -90,6 +90,14 @@ typography:
     fontSize: "1.0625rem"
     fontWeight: 600
     lineHeight: 1.3
+  # Zeilentitel: der Name einer Listenzeile (.list-row__name, .u-row-title).
+  # Eine Zeile ist Lesetext mit Betonung, eine Karte fuehrt ihren Titel als
+  # headline; Zeilenhoehe des Body (R16, 2026-10-05, test:typography).
+  row-title:
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, Arial, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 500
+    lineHeight: 1.47
   body:
     fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, Arial, sans-serif"
     fontSize: "1.0625rem"
