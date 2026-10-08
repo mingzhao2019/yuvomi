@@ -41,7 +41,7 @@ import {
   WIDGET_SIZE_PRESETS, WIDGET_SIZE_OPTIONS,
   COCKPIT_COVERED_WIDGETS,
   nearestPreset, sameWidgetConfig, suggestGridHoleFill, rowFillSpans,
-  dashboardQuery, dashboardQueryFiltersCounts,
+  dashboardQuery, dashboardQueryFiltersCounts, normalizeShoppingListSelection,
 } from '/utils/dashboard-widgets.js';
 import { EVENT_LIMIT_STEPS, EVENT_LIMIT_DEFAULT, clampEventLimit } from '/utils/dashboard-event-limit.js';
 import {
@@ -482,7 +482,7 @@ function maybeHintCustomize(container) {
 // die geteilten Ausgaben haengen am Budget-Modul (server/scopes.js).
 const MODULE_FOR_WIDGET = { tasks: 'tasks', calendar: 'calendar', shopping: 'shopping', meals: 'meals', notes: 'notes', birthdays: 'birthdays', budget: 'budget', 'split-expenses': 'budget', rewards: 'rewards', health: 'health', cycle: 'health', fasting: 'health', nutrition: 'health', housekeeping: 'housekeeping', schedule: 'schedule', waste: 'waste', pantry: 'pantry' };
 
-const WIDGETS_WITH_OPTIONS = new Set(['calendar', 'tasks', 'notes', 'waste']);
+const WIDGETS_WITH_OPTIONS = new Set(['calendar', 'tasks', 'notes', 'waste', 'shopping']);
 
 const _extensionWidgetModules = new Map();
 
@@ -1039,8 +1039,16 @@ function buildTodayHighlights(data) {
   });
   const nextEvent = todayEvents[0] ?? null;
 
+  // DIE ZAHL DES SERVERS, wo es sie gibt (#1818): `shoppingLists` traegt
+  // hoechstens drei Listen, die Summe ihrer `open_count` war bei vier Listen
+  // schon zu klein (gemessen 13 gegen 14). `shoppingOpenCount` zaehlt ueber
+  // alle Listen; ohne ihn (aelterer Server, Abfrage gescheitert: `null`)
+  // bleibt die Summe der geladenen Listen.
+  const serverOpenCount = data?.shoppingOpenCount;
   const openShoppingCount = shoppingItems.length
     ? shoppingItems.filter((item) => !item.is_checked).length
+    : typeof serverOpenCount === 'number' && Number.isFinite(serverOpenCount)
+    ? serverOpenCount
     : shoppingLists.reduce((sum, list) => {
         if (Number.isFinite(Number(list.open_count))) return sum + Number(list.open_count);
         if (Number.isFinite(Number(list.openCount))) return sum + Number(list.openCount);
@@ -4420,6 +4428,21 @@ async function loadWasteTypes() {
   return wasteTypesCache;
 }
 
+/**
+ * Die Einkaufslisten fuer den Optionen-Dialog (#1818). Bewusst OHNE Cache und
+ * mit `null` im Fehlerfall, wie bei den Notiz-Kategorien: eine eben angelegte
+ * Liste muss waehlbar sein, und ein Dialog ohne Katalog darf eine bestehende
+ * Auswahl nicht als "nichts gewaehlt" speichern.
+ */
+async function loadShoppingLists(getLists = (path) => api.get(path)) {
+  try {
+    const res = await getLists('/shopping');
+    return Array.isArray(res?.data) ? res.data : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadNoteCategories(getCategories = (path) => api.get(path)) {
   try {
     const res = await getCategories('/notes/categories');
@@ -4502,7 +4525,7 @@ async function openExtensionWidgetOptions(id, meta, current = {}) {
 }
 
 /** Der Optionen-Dialog eines Widgets. Aufloesen mit den neuen Optionen oder null. */
-async function openWidgetOptions(id, current = {}, { loadNotes = loadNoteCategories } = {}) {
+async function openWidgetOptions(id, current = {}, { loadNotes = loadNoteCategories, loadLists = loadShoppingLists } = {}) {
   const extMeta = getExtensionWidgetMeta(id);
   if (extMeta?.optionsSchema) return openExtensionWidgetOptions(id, extMeta, current);
 
@@ -4518,6 +4541,14 @@ async function openWidgetOptions(id, current = {}, { loadNotes = loadNoteCategor
     window.yuvomi?.showToast(t('dashboard.loadError'), 'danger');
     return null;
   }
+  const shoppingLists = id === 'shopping' ? await loadLists() : [];
+  if (shoppingLists === null) {
+    window.yuvomi?.showToast(t('dashboard.loadError'), 'danger');
+    return null;
+  }
+  // Angehakt ist, was gespeichert UND noch da ist: eine geloeschte Liste hat
+  // keine Zeile mehr und faellt mit dem naechsten Speichern aus der Auswahl.
+  const pickedLists = new Set(normalizeShoppingListSelection(options.lists));
 
   const body = id === 'calendar'
     ? `
@@ -4560,6 +4591,17 @@ async function openWidgetOptions(id, current = {}, { loadNotes = loadNoteCategor
                  ${(options.types ?? []).includes(wt.id) ? 'checked' : ''}>
           <span>${esc(wt.name)}</span>
         </label>`).join('') : `<p class="widget-options__hint">${t('dashboard.optionWasteTypesEmpty')}</p>`}
+      </fieldset>`
+    : id === 'shopping' ? `
+      <fieldset class="form-group widget-options__group">
+        <legend class="form-label">${t('dashboard.optionShoppingLists')}</legend>
+        <p class="widget-options__hint">${t('dashboard.optionShoppingListsHint')}</p>
+        ${shoppingLists.length ? shoppingLists.map((list) => `
+        <label class="widget-options__choice">
+          <input type="checkbox" name="shopping-list" value="${esc(String(list.id))}"
+                 ${pickedLists.has(Number(list.id)) ? 'checked' : ''}>
+          <span>${esc(list.name)}</span>
+        </label>`).join('') : `<p class="widget-options__hint">${t('dashboard.noShoppingLists')}</p>`}
       </fieldset>`
     : id === 'tasks' ? `
       <fieldset class="form-group widget-options__group">
@@ -4628,6 +4670,13 @@ async function openWidgetOptions(id, current = {}, { loadNotes = loadNoteCategor
             // heisst „alle" - eine seltene Abholung darf nie stillschweigend
             // verschwinden, nur weil niemand den Dialog geoeffnet hat.
             if (picked.length) next.types = picked;
+          } else if (id === 'shopping') {
+            // Keine Auswahl heisst „alle Listen" und wird nicht gespeichert -
+            // das Verhalten von vor der Option (#1818).
+            const picked = normalizeShoppingListSelection(
+              [...panel.querySelectorAll('input[name="shopping-list"]:checked')].map((el) => el.value),
+            );
+            if (picked.length) next.lists = picked;
           } else if (id === 'tasks') {
             const picked = [...panel.querySelectorAll('input[name="task-category"]:checked')].map((el) => el.value);
             // Keine Auswahl heisst „alle" - eine leere Liste als Filter waere
@@ -4805,6 +4854,8 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     meals: () => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes, data.users),
     notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size, data.notesTotal),
     shopping: () => renderShoppingLists(data.shoppingLists ?? [], data.shoppingOpenCount, data.shoppingOpenLists),
+    assets: () => renderAssetsWidget(data.assets ?? {}, currency),
+    shopping: () => renderShoppingTile(data),
     assets: () => renderAssetsWidget(data.assets ?? {}, currency),
     // Hier ankommen heisst eingerichtet (`isWidgetModuleEnabled`); fehlt das
     // Wetter trotzdem, sagt die Kachel es, statt zu verschwinden.
@@ -4997,7 +5048,22 @@ function renderAssetsWidget(summary = {}, currency = 'EUR') {
 // Shopping-Widget
 // --------------------------------------------------------
 
-function renderShoppingLists(lists, openTotal = null, openListTotal = null) {
+/**
+ * Was die Einkaufs-Kachel aus der Antwort liest (#1818). Mit einer Auswahl
+ * liefert die Route `shoppingTile` - die gewaehlten Listen, die offenen Artikel
+ * darin und wie viele gewaehlte Listen es gibt. Ohne Auswahl (oder wenn das
+ * Feld fehlt) gelten die Felder, die auch das Heute-Blatt und die Wand lesen.
+ * Die Kachel ist der EINZIGE Leser von `shoppingTile`.
+ */
+function renderShoppingTile(data) {
+  const tile = data?.shoppingTile;
+  if (tile && Array.isArray(tile.lists)) {
+    return renderShoppingLists(tile.lists, tile.openCount, tile.listCount);
+  }
+  return renderShoppingLists(data?.shoppingLists ?? [], data?.shoppingOpenCount, data?.shoppingOpenLists);
+}
+
+function renderShoppingLists(lists, openTotal = null, listTotalCount = null) {
   if (!lists.length) {
     return `<div class="widget widget--shopping">
       ${widgetHeader('shopping', t('nav.shopping'), 0, '/shopping')}
@@ -5009,11 +5075,17 @@ function renderShoppingLists(lists, openTotal = null, openListTotal = null) {
     </div>`;
   }
 
-  // Der Server liefert hoechstens drei Listen; `shoppingOpenCount` und
-  // `shoppingOpenLists` zaehlen ueber alle (listTotal). Ohne sie bleibt es bei
-  // der Summe der geladenen Listen.
+  // Der Server liefert hoechstens drei Listen und zaehlt daneben, woraus sie
+  // geschnitten sind (listTotal): ohne Auswahl ueber alle Listen mit Offenem
+  // (`shoppingOpenCount`, `shoppingOpenLists`), mit Auswahl ueber die
+  // gewaehlten (`shoppingTile.openCount`, `.listCount`). Ohne die Zahlen
+  // bleibt es bei der Summe der geladenen Listen.
   const totalOpen = listTotal(openTotal, lists.reduce((sum, l) => sum + l.open_count, 0));
-  const moreLists = listTotal(openListTotal, lists.length) - lists.length;
+  // "+n weitere Listen" nennt, was der Deckel abschneidet. OHNE Auswahl sind
+  // das Listen mit Offenem, und jede gezeigte hat welches. MIT Auswahl (#1818)
+  // ist es JEDE gewaehlte Liste, auch eine fertig gekaufte: "eine gewaehlte
+  // Liste bleibt stehen" haelt nur, wenn die abgeschnittene als "+1" da ist.
+  const moreLists = listTotal(listTotalCount, lists.length) - lists.length;
 
   const listsHtml = lists.map((list) => {
     const progress = list.total_count > 0
@@ -5034,7 +5106,8 @@ function renderShoppingLists(lists, openTotal = null, openListTotal = null) {
     // `/shopping` oeffnet die erste Liste der Einkaufsseite (die aelteste),
     // waehrend die Kachel die zuletzt geaenderte zuerst zeigt - der Tipp auf
     // "Drogerie" landete im Wocheneinkauf. Der Kachelkopf bleibt beim blanken
-    // Pfad: er zaehlt ueber alle Listen. Eine inzwischen geloeschte id faellt
+    // Pfad: er zaehlt ueber mehrere Listen (alle, oder die gewaehlten) und ist
+    // der Sammelverweis. Eine inzwischen geloeschte id faellt
     // auf der Einkaufsseite auf die erste Liste zurueck.
     const listRoute = `/shopping?list=${encodeURIComponent(String(list.id))}`;
 
@@ -5050,6 +5123,9 @@ function renderShoppingLists(lists, openTotal = null, openListTotal = null) {
         <div class="shopping-widget-list__items">
           ${itemsHtml}
           ${moreCount > 0 ? `<div class="shopping-widget-item shopping-widget-item--more">${t('dashboard.shoppingMore', { count: moreCount })}</div>` : ''}
+          ${/* Eine AUSGEWAEHLTE Liste steht auch ohne Offenes da (#1818): die
+                Zeile bleibt der Weg zu ihr und sagt, warum sie leer ist. */ ''}
+          ${list.open_count === 0 ? `<div class="shopping-widget-item shopping-widget-item--more">${esc(t('dashboard.shoppingListNothingOpen'))}</div>` : ''}
         </div>
       </div>
     `;
@@ -7520,7 +7596,7 @@ function wireWeatherRefresh(container, onUpdated = null, signal) {
 // Test-Tor fuer die Klarheits-Runde (test/test-dashboard-clarity.js): eigene
 // Zeile statt Verlaengerung der langen `__test`-Liste oben, damit parallele
 // Aenderungen an beiden nicht in derselben Zeile kollidieren.
-Object.assign(__test, { renderUpcomingEvents, renderShoppingLists, renderDashboardLayout, wireLinks });
+Object.assign(__test, { renderUpcomingEvents, renderShoppingLists, renderShoppingTile, loadShoppingLists, renderDashboardLayout, wireLinks });
 
 // Test-Tor fuer die Uebersichts-Bugs vom 2026-09-29 (#1449, #1451-#1457).
 Object.assign(__test, { renderBudgetWidget });

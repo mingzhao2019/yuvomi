@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   took out come first and the money you lent follows as its own group. While the list is not in
   its default order, a line above it says which order applies; tap it to change. The order is a calculation to read:
   Yuvomi does not suggest which loan to pay first and does not move payments between loans.
+- **Choose which shopping lists the overview shows** (#1818, from D#1624). The shopping tile now
+  has options in "Customize": tick the lists you want on it. With nothing ticked it shows every
+  list with open items, as before. A list you picked stays on the tile even when everything on it
+  is bought, so it is one tap away when you want to add the first item. The tile shows up to
+  three lists; a further one you picked is named as "+1 more list". The choice is yours alone,
+  does not change what anyone else in the household sees, and only applies to the tile: the
+  today sheet, the wall and the menu keep counting every list.
 
 ### Fixed
 
@@ -246,6 +253,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Overview rows that lead to one item open as fast as the others.** A row for an event, a
   shopping list or a pantry filter did not preload the page behind it on hover or press, so its
   first tap was slower than on any other row.
+- **"n open" for shopping counts every list.** With more than three lists that still had open
+  items, the today sheet and the wall added up only three of them and showed a smaller number
+  than the shopping page.
 - **A shopping list on the overview opens that list.** The shopping tile shows up to three lists,
   the most recently changed first, but tapping any of them opened the shopping page on its first
   list - tap "Drugstore" and you got "Weekly shop". Each row now opens its own list, by tap, click
