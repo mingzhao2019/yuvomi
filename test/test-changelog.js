@@ -521,6 +521,7 @@ test('jeder getaggte Release hat einen CHANGELOG-Eintrag, keine Version doppelt'
 const RELEASED_SECTION_EDITS = {
   // These are established custom-branch history edits from before this sync.
   // Keep the exact hashes so later changes to the same released sections still fail.
+  '2.75.0': 'a7b765b32669',
   '2.74.0': '89431a723f78',
   '2.72.0': '06999d64fcbb',
   '2.67.0': '5fd8632ccade',

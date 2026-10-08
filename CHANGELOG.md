@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A recurring budget series keeps its own start day.** Correcting the date of its first booked
+  entry no longer shifts future monthly or weekly occurrences. An explicit series edit can move
+  the recurrence grid; before a rhythm or start-day change, missing past entries are materialized
+  on the old grid so historical totals stay complete and unchanged.
+
+- **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
+  sent the file name and document number of a visit's receipt to everyone who could open the
+  housekeeping module, also to members without access to documents and when the receipt was a
+  private document of someone else. The page already hid the name without document access, but the
+  API still returned it. Name and number now come only when you may read that document, by the same
+  rule the documents module uses; otherwise the visit only says that it has a receipt, and the edit
+  dialog shows "Attached" instead of an upload field. Saving such a visit keeps the receipt: before,
+  saving it could silently remove someone else's private receipt, and it can no longer be replaced
+  or removed by someone who cannot see it. Linking a receipt now needs access to documents. For API
+  clients every visit and work session carries `has_receipt`; `receipt_document_id` and
+  `receipt_document_name` are `null` unless you may read the document, API tokens need a
+  `documents:read` scope for them, and `PUT /api/v1/housekeeping/visits/{id}` answers 403 when it
+  would replace a receipt you cannot see or link one without access to documents. (#1358)
+
+- **Receipts on budget entries, shared expenses and inventory items no longer name documents you
+  may not read.** Their API sent the file name and document number of every linked receipt to
+  anyone who could open the budget or the inventory, also to members without access to documents
+  and to API tokens without a documents scope. Without access to documents a receipt now only says
+  that it is there: the detail view shows "Attached" where the name was, and the inventory no
+  longer shows a link that leads nowhere or lists the document in an item's history. Linking a
+  receipt or a payment proof needs access to documents, and existing receipts stay when such a
+  member saves the entry. For API clients `attachments[].document_id`, `name`, `original_name`,
+  `mime_type` and `file_size` are `null` without access to the documents module (for API tokens a
+  `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
+  document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with
+  the same 403 for every id. (#1358)
+
 ## [2.75.0] - 2026-10-07
 
 ### Added
@@ -254,38 +288,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Paging to another period afterwards shows the new figures at once, without replaying it.
 
 ### Fixed
-
-- **A recurring budget series keeps its own start day.** Correcting the date of its first booked
-  entry no longer shifts future monthly or weekly occurrences. An explicit series edit can move
-  the recurrence grid; before a rhythm or start-day change, missing past entries are materialized
-  on the old grid so historical totals stay complete and unchanged.
-
-- **A housekeeping visit no longer gives away a receipt you may not see.** The housekeeping API
-  sent the file name and document number of a visit's receipt to everyone who could open the
-  housekeeping module, also to members without access to documents and when the receipt was a
-  private document of someone else. The page already hid the name without document access, but the
-  API still returned it. Name and number now come only when you may read that document, by the same
-  rule the documents module uses; otherwise the visit only says that it has a receipt, and the edit
-  dialog shows "Attached" instead of an upload field. Saving such a visit keeps the receipt: before,
-  saving it could silently remove someone else's private receipt, and it can no longer be replaced
-  or removed by someone who cannot see it. Linking a receipt now needs access to documents. For API
-  clients every visit and work session carries `has_receipt`; `receipt_document_id` and
-  `receipt_document_name` are `null` unless you may read the document, API tokens need a
-  `documents:read` scope for them, and `PUT /api/v1/housekeeping/visits/{id}` answers 403 when it
-  would replace a receipt you cannot see or link one without access to documents. (#1358)
-
-- **Receipts on budget entries, shared expenses and inventory items no longer name documents you
-  may not read.** Their API sent the file name and document number of every linked receipt to
-  anyone who could open the budget or the inventory, also to members without access to documents
-  and to API tokens without a documents scope. Without access to documents a receipt now only says
-  that it is there: the detail view shows "Attached" where the name was, and the inventory no
-  longer shows a link that leads nowhere or lists the document in an item's history. Linking a
-  receipt or a payment proof needs access to documents, and existing receipts stay when such a
-  member saves the entry. For API clients `attachments[].document_id`, `name`, `original_name`,
-  `mime_type` and `file_size` are `null` without access to the documents module (for API tokens a
-  `documents:read` scope), a settlement's `proof_document_id` is `null` unless you may read that
-  document, and a non-empty `attachment_document_ids` or a `proof_document_id` is answered with the
-  same 403 for every id. (#1358)
 
 - **Tasks on a phone: after picking a folded entry from the tools menu, the keyboard focus is
   back on the menu button.** With the header docked, view switch and filter move into the "..."
