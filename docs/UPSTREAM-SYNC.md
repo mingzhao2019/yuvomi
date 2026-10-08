@@ -554,3 +554,47 @@ end-to-end status remains unverified. `git diff --check` passes. After the
 integration commit, local `main` will be fast-forwarded to the refreshed
 `upstream/main`, then the temporary integration branch will be fast-forwarded
 into `custom`; no force push or wholesale upstream merge is used.
+
+## Follow-up sync checkpoint (2026-10-08)
+
+After the previous checkpoint, `upstream/main` advanced from `66575de23` to
+`eb8d6c828`. The ten commits through `775b558f6` and the new screensaver test
+commit were reviewed in upstream order. Local `main` and `upstream/main` now
+both point to `eb8d6c828`. The integration branch
+`custom-upstream-selective-2026-10-08` started at custom `29f995527` and
+currently points to `cf7ec71c0`. Upstream was not merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `729d98f36` (#1815) | Gives the CI test job thirty minutes. | Adopted as `1e6e5bf1d`; retained the custom Puppeteer download/host Chrome setup that prevents `npm ci` from failing during browser download. |
+| `3db5372e3` (#1809) | A display no longer offers Customize and Search from the dashboard. | Adopted as `076c17404`; preserved the custom dashboard asset/widget and navigation contracts. |
+| `2e74892b6` (#1813) | Fixes stale state in the meal dialog and budget month view. | Adopted as `903f07530`; retained custom calendar, timezone, and budget behavior. |
+| `d4ca8c6ae` (#1810) | Refreshes an ICS feed when an imported event changes UID. | Adopted as `584f6880a`; preserved the custom ICS read-only boundary and event identity rules. |
+| `dc2cdc921` (#1811) | Sends the redirect URI as an authorized OIDC token-request field. | Adopted as `2482ae903`; retained the custom OIDC error and identity handling. |
+| `449d1676c` (#1812) | Fixes mmHg wrapping, schedule ranges, field-picker names, and test harness behavior. | Adopted as `84fd1dc35`; retained custom schedule, locale, and test-chain contracts. |
+| `a52c3e1c5` (#1819) | Refuses startup on Node.js versions without Node-API 10. | Adopted as `86dbdc98e`; retained the custom runtime guard and supported-version diagnostics. |
+| `79b975de2` (#1820) | Makes a shopping dashboard tile open its own list. | Adopted as `f416f3977`; preserved the custom dashboard module and task-list entry points. |
+| `146f3728e` (#1727) | Adds a per-subscription payment reminder switch. | Adopted as `811887ebc`; retained custom reminder, notification, permission, and timezone semantics. |
+| `775b558f6` (#1822) | Makes locked fields visibly locked across the UI. | Adopted as `41ee69e54`; retained custom destructive-control exceptions in the audit and preserved the existing read/write gates. |
+| `eb8d6c828` (#1786) | Covers the untouched-device screensaver default, stored select value, and timer-delay interaction. | Cherry-picked as `cf7ec71c0`; exported `screensaverIdleOptions()` for the test and retained the device-local screensaver contract. |
+
+Two custom-only follow-up commits accompany this range: `49cda5aba` keeps
+custom test-chain entry points after the upstream script changes, and
+`c3c56d4c6` records the custom destructive-control exceptions in the frontend
+audit. They are compatibility corrections, not additional upstream commits.
+
+There is no migration or data-model change in this range. Version metadata
+remains `2.75.0` across the root package, both root lockfile fields,
+`public/sw.js`, and current release metadata. The screensaver change adds no
+runtime storage model or API surface. Microsoft To Do list mapping, Outlook
+and ICS calendars, persistent task lists, separate personal/household
+notification channels, Inventory/assets, and dashboard widgets remain present
+with their custom semantics.
+
+The full `npm test` chain completed on the integration tree before the final
+screensaver-only upstream commit; its log contains no failing subtests. After
+`eb8d6c828`, `npm run test:screensaver-idle` passed and `git diff --check`
+passed. The post-commit full chain was not rerun because the final upstream
+change only adds regression coverage and a named test export; that residual
+scope is explicitly recorded here. No force-push or wholesale upstream merge
+was used.
