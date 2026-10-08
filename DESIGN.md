@@ -237,11 +237,16 @@ components:
     textColor: "{colors.ink-on-vivid}"
     rounded: "{rounded.full}"
     size: "44px (mobil, in der Nav-Kapsel) / 48px (Desktop)"
+  # Die Bildmarke selbst (utils/brand-mark.js, seit R18): ein SVG mit eigenem
+  # Verlauf und drei weissen Kreisen (82 % Deckung), in beiden Themes dieselbe.
+  # Der Traeger (.auth-hero__mark) gibt nur Groesse, Rundung und --shadow-md.
+  # Bis R18 stand hier ein in Akzent gefuelltes Tile mit Zeichen in
+  # ink-on-vivid und rounded.lg.
   brand-tile:
-    backgroundColor: "{colors.accent-violet}"
-    textColor: "{colors.ink-on-vivid}"
-    rounded: "{rounded.lg}"
-    size: "64px"
+    backgroundColor: "linear-gradient(135deg, #8B5CF6, #6C3AED) (--brand-mark-from / --brand-mark-to)"
+    textColor: "#FFFFFF (--brand-mark-ink)"
+    rounded: "22.5% (rx 36 von 160)"
+    size: "64px, kompakt 48px"
 ---
 
 # Design System: Yuvomi
@@ -1638,17 +1643,20 @@ sind Dokumente (ein Werkzeugmenue), Kalender (Filterblatt, Dialogfuss) und der B
 hakt der Zeilen-Tipp ab; sonst oeffnet er. Loeschen = Wisch mobil + ein fester Ort am Desktop.
 - **Einkauf:** der Tipp auf die Zeile hakt ab (die ganze Zeile ist das Ziel, nicht nur das
   Kaestchen - die Geste im Laden ist einhaendig), auf Touch zusaetzlich der Wisch vom
-  Zeilenanfang. Der Stift in der Zeile oeffnet die Artikel-Details. Zweimal stand es kurz
-  anders (ein Zwischenstand von R16 und R17 Schritt 4 unter E7): der Zeilenkoerper als
-  Oeffnen-Knopf, der Stift fort, das Abhak-Ziel 48 statt 358px. Beide Male zurueckgenommen -
-  E7 nimmt den Einkauf aus (`test:shopping` haelt Stift und Zeilen-Toggle,
-  `test:shopping-readonly-ui` den Zeilenklick am Handler). Loeschen: Wisch zum Zeilenende
-  (Touch), Papierkorb in der Zeile (Zeiger), Dialogfuss (immer).
+  Zeilenanfang. In die Artikel-Details fuehrt ein EIGENER Weg der Zeile: bis 2026-10-07 der
+  Stift, seit R18 der Eintrag "Bearbeiten" im Mehr-Knopf (`rowMenuHtml`, Zeilenaktionen im
+  Kanon oben). Zweimal stand es kurz anders (ein Zwischenstand von R16 und R17 Schritt 4
+  unter E7): der Zeilenkoerper als Oeffnen-Knopf, der eigene Weg fort, das Abhak-Ziel 48 statt
+  358px. Beide Male zurueckgenommen - E7 nimmt den Einkauf aus (`test:shopping` haelt den
+  Bearbeiten-Eintrag und den Zeilen-Toggle, `test:shopping-readonly-ui` den Zeilenklick am
+  Handler). Loeschen: Wisch zum Zeilenende (Touch), der Eintrag "Loeschen" im Mehr-Knopf
+  (bis R18 ein Papierkorb in der Zeile), Dialogfuss (immer).
 - **Vorrat:** Koerper oeffnet. Loeschen: Wisch zum Zeilenende (Touch; Stepper und Warenkorb
   sind Ausnahmezone, `wirePantrySwipe()`), Dialogfuss (immer), jeweils mit Rueckgaengig. Der
   Chevron am Zeilenende entfaellt hier - dort steht der "+"-Knopf.
-- **Mahlzeiten:** die Karte oeffnet den Dialog, Loeschen im Dialogfuss (auch mobil, wo der
-  Papierkorb der Karte nicht steht) und am Zeiger auf der Karte.
+- **Mahlzeiten:** die Karte oeffnet den Dialog, Loeschen steht im Dialogfuss - in jeder
+  Breite. Die Karte traegt seit R18 keinen Papierkorb mehr (benannte Ausnahme der
+  Zeilenaktionen im Kanon oben).
 - **Rezepte:** die Zeile oeffnet das Rezept; Bearbeiten und Loeschen stehen im Mehr-Menue der
   Zeile und im Leseblatt.
 
