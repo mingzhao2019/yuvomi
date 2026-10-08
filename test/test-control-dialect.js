@@ -1176,9 +1176,13 @@ const PENDING = {
   // umgestellt (Einkauf, Geburtstage, Schichtplan, Darlehen, Aufgaben,
   // Essensplan); diese hier sind die uebrigen - Verwalter-Dialoge
   // (Kategorien, Etiketten, Abo-Kategorien), Formularzeilen (Zutat entfernen),
-  // Kommentare, Einstellungslisten. Wer eine anfasst, zieht sie auf
-  // `rowMenuHtml()` um und senkt die Zahl.
+  // Kommentare, Einstellungslisten. Custom bringt ausserdem die
+  // Asset-Karte und die Task-Nebenflaechen (Unteraufgaben, Kommentare,
+  // getrennte Listen) mit eigenen direkten Loeschaktionen; diese vier Stellen
+  // sind keine neuen Aenderungen dieses Syncs. Wer eine davon anfasst, zieht
+  // sie auf `rowMenuHtml()` um und senkt die Zahl.
   'row-danger-visible': {
+    'public/pages/asset-cost.js': 1,
     'public/components/category-manager.js': 1,
     'public/components/tag-manager.js': 1,
     'public/components/task-detail.js': 1,
@@ -1188,7 +1192,7 @@ const PENDING = {
     'public/pages/housekeeping.js': 1,
     'public/pages/notes.js': 1,
     'public/pages/subscriptions.js': 1,
-    'public/pages/tasks.js': 1,
+    'public/pages/tasks.js': 3,
     'public/settings/pages/admin-api.js': 1,
     'public/settings/pages/admin-family.js': 2,
     'public/settings/pages/personal-calendar-subscriptions.js': 1,
