@@ -5499,7 +5499,6 @@
         "sourceDeletedToast": "Quelle gelöscht",
         "sourceDeleteConfirm": "Diese Importquelle löschen?",
         "sourceDeleteConfirmDetail": "Alle aus dieser Quelle übernommenen Abholungen und Zuordnungen gehen dabei verloren und lassen sich nicht wiederherstellen. Manuell angelegte Termine und andere Quellen sind davon nicht betroffen.",
-        "emptySourcesTitle": "Noch keine Importquellen",
         "emptySourcesDescription": "Importiere eine ICS-Datei deiner Gemeinde, um Abholtermine automatisch zu übernehmen.",
         "addUrlSourceAction": "URL-Quelle hinzufügen",
         "urlSourceModalTitle": "URL-Quelle hinzufügen",
@@ -6132,7 +6131,6 @@
         "deletePatternTitle": "Muster „{{name}}\" löschen?",
         "deletePatternDetail": "Die {{count}} Zyklustage dieses Musters gehen mit verloren. Das lässt sich nicht rückgängig machen.",
         "deletePatternDetail_one": "Der eine Zyklustag dieses Musters geht mit verloren. Das lässt sich nicht rückgängig machen.",
-        "emptyCustomFieldsTitle": "Noch keine eigenen Felder",
         "icon": "Symbol",
         "chooseIcon": "Symbol wählen",
         "print": "Drucken",
@@ -6190,8 +6188,7 @@
         "totalHours": "Stunden gesamt",
         "plannedNote": "geplant",
         "reminderLeadTime": "Vorlauf",
-        "settingsSaved": "Gespeichert.",
-        "emptyOverridesTitle": "Noch keine Ausnahmen"
+        "settingsSaved": "Gespeichert."
     },
     "pairDisplay": {
         "title": "Tablet koppeln",

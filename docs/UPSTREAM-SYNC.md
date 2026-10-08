@@ -503,3 +503,54 @@ The temporary integration branch is then fast-forwarded into `custom`, the
 temporary branch is deleted, and `origin/main` and `origin/custom` are pushed
 with ordinary fast-forward updates. No force-push or wholesale upstream merge
 is allowed.
+
+## Current sync checkpoint (2026-10-08)
+
+After refreshing `upstream/main`, four upstream commits were reviewed in
+upstream order and integrated on `custom-upstream-selective-2026-10-08`. Local
+`main` and `upstream/main` are at `66575de23`; the integration branch started
+at custom `6bbf29aaf` and currently ends at `9a9746aee`. This is a selective
+integration only: upstream was not merged wholesale into custom.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `f7ca9b63a` | Publishes the v2.75.0 release metadata and release notes. | Cherry-picked as `447b56075`; custom-only release-note changes were reconciled in `5197e903b` so the released section remains upstream-compatible and custom notes stay under `[Unreleased]`. |
+| `b500010ce` (#1794) | Delivers the R18 craft pass: startup/update handling, network-first and static-asset caching, material surfaces, motion, row actions, detail heads, form rows, and their regression suites. | Integrated as `123b3da60` with semantic conflict resolution. The upstream UI behavior and tests were adopted where compatible; custom task-list, Markdown checklist, timezone/lunar, sidebar sizing, service-worker `no-cache`, permission, API, and test-topology contracts were retained. |
+| `809253056` | Adds the row-title typography role to the `DESIGN.md` frontmatter. | Cherry-picked as `b25cec090`; documentation only. |
+| `66575de23` | Aligns the kitchen row rule and brand-mark frontmatter with R18's More action and SVG brand mark. | Cherry-picked as `9a9746aee`; documentation only. |
+
+The R18 conflicts were resolved by behavior rather than by selecting whole
+files. Custom task sources and persistent lists remain first-class, Markdown
+checklists remain separate from Microsoft To Do steps, and custom timezone and
+lunar-calendar behavior remains in place. The R18 detail view moves the due
+date into `taskDetailHead`, so the custom test now checks the head instead of
+requiring the old render function to contain that label. The custom sidebar
+slots and widths remain, while compatible R18 row, material, motion, startup,
+network-timeout, static-cache, and detail-view changes are included. Locale
+files keep custom translations, receive all upstream keys, and were checked
+for duplicate keys; the two missing Norwegian and Brazilian Portuguese empty
+state titles were restored explicitly. The custom service worker's no-cache
+behavior was preserved alongside the upstream network-first/static-asset
+coverage.
+
+There is no migration or data-model change in this range. Root `package.json`,
+both root `package-lock.json` version fields, `public/sw.js`'s `APP_RELEASE`,
+and current release metadata agree on `2.75.0`. Microsoft To Do mapping,
+Outlook/ICS calendars, persistent task lists, separate personal/household
+notification channels, Inventory/assets, and dashboard widgets remain present
+with their custom semantics.
+
+Focused validation passed for i18n, locale switching, task detail rendering,
+material UI, service-worker behavior, calendar behavior, static assets, and
+motion. The first full `npm test` run reached the motion suite and exposed an
+integration-only baseline mismatch: upstream's hover ratchet was 240, while
+custom had 271 unguarded rules before R18 and 256 after the R18 cleanup. The
+ratchet was therefore set to the custom baseline of 256, retaining the
+non-increasing guard. The affected `test:motion` suite passes 64/64, and
+`test:frontend-audit` passes 475/475 when its required Node child processes
+are allowed; the sandbox-only run reports `spawnSync ... node EPERM`. The full
+`npm test` chain was not rerun after these focused corrections, so that final
+end-to-end status remains unverified. `git diff --check` passes. After the
+integration commit, local `main` will be fast-forwarded to the refreshed
+`upstream/main`, then the temporary integration branch will be fast-forwarded
+into `custom`; no force push or wholesale upstream merge is used.
