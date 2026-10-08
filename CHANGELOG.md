@@ -229,6 +229,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   covers a provider that leaves `email_verified` out, not one that sends `email_verified: false`,
   which authentik does by default since 2025.10. The guide and `.env.example` now name the fix
   on the provider side (#1780).
+- **Blood pressure and its unit stay on one line in the health tiles.** In a narrow tile "mmHg"
+  dropped below "116/74". The size of the value used to follow the width of the whole row of
+  tiles, which says little where the row fills itself with as many tiles as fit; it now follows
+  the tile. A narrow tile shows the value one step smaller, the narrowest one also a smaller
+  unit, and on a very small phone the vitals page shows one tile per line instead of two that are
+  too narrow. Tiles in budget, housekeeping and inventory are unchanged.
+- **Screen readers name the field picker in the shift type dialog.** Under "Custom fields" the
+  dropdown next to "Add" had no name, so it was announced as an unnamed combo box with the first
+  field as its value. It is now announced as "Field to attach". Nothing changes on screen.
+- **In the shift planner "To" follows "From".** When adding an exception or an extra shift,
+  moving "From" past "To" left "To" where it was; "Add" then failed, and the message was the
+  server's English sentence in whatever language the app was set to. "To" now moves along with
+  "From", in the add dialog and in the two dialogs that edit an existing range. A range that is
+  still the wrong way round is named at the "To" field, in the language of the app, before
+  anything is sent. For API clients the refusal keeps its sentence and gains
+  `reason: "range_reversed"`.
 - **The first visit no longer reloads itself and empties the login form.** One to four seconds
   after the very first load the page reloaded, and whatever had been typed into the login form
   was gone. The reload was meant for an update of the app, but it also fired when the app was
