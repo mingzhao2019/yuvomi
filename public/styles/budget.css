@@ -1868,8 +1868,10 @@
   margin-top: calc((var(--target-base) - 1lh) / -2 + var(--space-0h));
 }
 
-.budget-loans__sort-note:hover {
-  color: var(--color-text-primary);
+@media (hover: hover) {
+  .budget-loans__sort-note:hover {
+    color: var(--color-text-primary);
+  }
 }
 
 .budget-loans__sort-note:focus-visible {

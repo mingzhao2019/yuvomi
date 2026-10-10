@@ -598,3 +598,41 @@ passed. The post-commit full chain was not rerun because the final upstream
 change only adds regression coverage and a named test export; that residual
 scope is explicitly recorded here. No force-push or wholesale upstream merge
 was used.
+
+## Current sync checkpoint (2026-10-10)
+
+`git fetch upstream` advanced `upstream/main` from `eb8d6c828` to
+`348228c24`. Local `main` was fast-forwarded to that exact upstream commit.
+The selective integration started from custom `5b21d569d` on the temporary
+branch `custom-upstream-selective-2026-10-10`; it did not merge the upstream
+branch wholesale and it did not push anything.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `422f0e56e` (#1823) | Sort budget loans by interest rate or remaining balance. | Adopted as `942cdfe8a`; retained custom due-day, household-timezone, payment-date, currency, and test-chain behavior. |
+| `3c5af1ba5` (#1835) | Close loopback connections in the reminder visibility test. | Adopted as `50ce55397`; test-harness-only change. |
+| `743871a74` (#1827) | A wall display reading `events_scope=mine` sees all events. | Adopted as `99c1180dc`; the display-only rule stays at the dashboard reader, while member and API-token semantics remain personal. |
+| `37d013563` (#1832) | Dashboard overview rows open their item and preserve focus while rebuilding. | Adopted as `d35c274bd`; retained custom dashboard exports, asset widget, and navigation contracts. |
+| `348228c24` (#1831) | Choose which shopping lists the shopping tile shows. | Adopted as `7b440d1d6`; the selection populates `shoppingTile` only, while Today, wall, navigation, and asset data keep their existing unfiltered/custom payloads. |
+
+The conflict resolutions preserved the custom Inventory/assets widget and
+payload, the shopping row entry points, display permissions and area modules,
+budget due-day and timezone behavior, and the custom documentation wording.
+The package test chain includes the new loan-order and dashboard-shopping
+regressions. A duplicate widget-map entry left by the dashboard conflict was
+removed in the custom follow-up, and the new loan-sort hover rule was placed
+under `@media (hover: hover)` so it preserves the touch-device hover ratchet.
+
+There is no migration or data-model change in this range. Version metadata
+remains `2.75.0` across the root package, both root lockfile fields,
+`public/sw.js`, and current release metadata. Microsoft To Do list mapping,
+Outlook and ICS calendars, persistent task lists, separate personal/household
+notification channels, Inventory/assets, and dashboard widgets remain present
+with their custom semantics.
+
+Focused validation passed: dashboard shopping selection 30/30, dashboard
+clarity 56/56, loan routes 66/66, loan amortization 26/26, reminder visibility
+34/34, display account 50/50, display task entry points 6/6, and motion 64/64.
+The complete `npm test` chain passed after the touch-hover compatibility fix
+(exit code 0), and `git diff --check` passed. No force-push or wholesale
+upstream merge was used.

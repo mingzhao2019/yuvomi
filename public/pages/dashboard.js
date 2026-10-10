@@ -4853,8 +4853,6 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     family: () => renderFamilyWidget(data.users ?? [], data, { manageHref: familyManage }),
     meals: () => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes, data.users),
     notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size, data.notesTotal),
-    shopping: () => renderShoppingLists(data.shoppingLists ?? [], data.shoppingOpenCount, data.shoppingOpenLists),
-    assets: () => renderAssetsWidget(data.assets ?? {}, currency),
     shopping: () => renderShoppingTile(data),
     assets: () => renderAssetsWidget(data.assets ?? {}, currency),
     // Hier ankommen heisst eingerichtet (`isWidgetModuleEnabled`); fehlt das
