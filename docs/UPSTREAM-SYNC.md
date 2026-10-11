@@ -680,3 +680,9 @@ UID 50/50, reminder policy, CalDAV outbound, inherited-color migration 12/12,
 service-worker precache, and typography 22/22. The complete `npm test` chain
 passed after the integration fixes (exit code 0), and `git diff --check`
 passed. No force-push or wholesale upstream merge was used.
+
+After validation finished, `upstream/main` advanced again with
+`293e0022c` (#1875/#1877) and `facffb187` (release `v2.76.0`). Those two
+commits arrived after the sixteen-commit selection and were intentionally not
+added to `custom`; local and remote `main` were separately fast-forwarded to
+`facffb187` so the main branch remains an exact mirror of the current upstream.
