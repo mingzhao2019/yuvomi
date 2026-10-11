@@ -275,7 +275,7 @@ export async function processPendingDeletions(client, source, objectIndex, ownCa
  *                                    Auflistung gescheitert ist (Umzüge warten dann)
  * @returns {Promise<number>} erfolgreich verarbeitete Termine
  */
-export async function processPendingUpdates(client, source, objectIndex, calendarsByUrl = null) {
+export async function processPendingUpdates(client, source, objectIndex, calendarsByUrl = null, uploadGate = null) {
   const events = outbound.pendingUpdates(source);
   if (events.length === 0) return 0;
 
@@ -323,6 +323,7 @@ export async function processPendingUpdates(client, source, objectIndex, calenda
         log.warn(`[${label(source)}] Destination calendar ${moveTo} is not available, keeping event ${event.id} where it is.`);
         outbound.clearOutboundMove(event.id);
       } else {
+        if (uploadGate?.isClosed(destCal.url)) continue;
         try {
           const filename = filenameFromUrl(url, event.external_calendar_id);
           // tsdav löst den Dateinamen relativ zur Kalender-URL auf. Ohne Schrägstrich
@@ -378,6 +379,11 @@ export async function processPendingUpdates(client, source, objectIndex, calenda
           done++;
           continue; // der Patch ist mit dem Anlegen bereits geschrieben
         } catch (err) {
+          if (outbound.classifyOutboundError(err) !== 'settled'
+              && uploadGate?.refused(moveTo, err)) {
+            outbound.handleUpdateError(err, event, 'move', label(source), outbound.clearOutboundMove);
+            continue;
+          }
           // 404/410 auf das Anlegen heisst "das ZIEL ist weg", nicht "der Termin
           // ist weg": nur der Umzug fällt, eine wartende Bearbeitung geht unten
           // im bisherigen Kalender hinaus. handleUpdateError läse es als
@@ -396,6 +402,7 @@ export async function processPendingUpdates(client, source, objectIndex, calenda
 
     if (!event.outbound_dirty) continue;
 
+    if (uploadGate?.isClosed(known.calendarUrl)) continue;
     try {
       await client.updateCalendarObject({
         calendarObject: { url, etag: known.etag, data: patched },
@@ -403,6 +410,9 @@ export async function processPendingUpdates(client, source, objectIndex, calenda
       outbound.settleOutbound(fresh);
       done++;
     } catch (err) {
+      if (outbound.classifyOutboundError(err) !== 'settled') {
+        uploadGate?.refused(known.calendarUrl, err);
+      }
       outbound.handleUpdateError(err, event, 'update', label(source));
     }
   }

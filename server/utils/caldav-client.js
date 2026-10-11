@@ -145,10 +145,11 @@ export function isCollectionRefusal(err) {
  *   gate.report((url, err, waiting) => log.warn(...));   // EINE Zeile je Collection
  */
 export function createUploadGate() {
-  const closed = new Map(); // Collection-URL → { err, waiting }
+  const closed = new Map(); // normalisierte Collection-URL → { url, err, waiting }
+  const keyOf = (collectionUrl) => String(collectionUrl || '').replace(/\/+$/, '');
   return {
     isClosed(collectionUrl) {
-      const entry = closed.get(collectionUrl);
+      const entry = closed.get(keyOf(collectionUrl));
       if (!entry) return false;
       entry.waiting++;
       return true;
@@ -156,11 +157,12 @@ export function createUploadGate() {
     /** @returns {boolean} true, wenn die Absage die Collection schliesst */
     refused(collectionUrl, err) {
       if (!isCollectionRefusal(err)) return false;
-      if (!closed.has(collectionUrl)) closed.set(collectionUrl, { err, waiting: 1 });
+      const key = keyOf(collectionUrl);
+      if (!closed.has(key)) closed.set(key, { url: collectionUrl, err, waiting: 1 });
       return true;
     },
     report(write) {
-      for (const [collectionUrl, { err, waiting }] of closed) write(collectionUrl, err, waiting);
+      for (const { url, err, waiting } of closed.values()) write(url, err, waiting);
     },
   };
 }

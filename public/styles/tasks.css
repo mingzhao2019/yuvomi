@@ -311,6 +311,8 @@ body.task-list-resizing * {
   white-space: normal;
   hyphens: auto;
   hyphenate-limit-chars: 6 4 4;
+  -webkit-hyphenate-limit-before: 4;
+  -webkit-hyphenate-limit-after: 4;
 }
 
 .task-list-nav__account {
@@ -326,6 +328,8 @@ body.task-list-resizing * {
   overflow-wrap: anywhere;
   hyphens: auto;
   hyphenate-limit-chars: 6 4 4;
+  -webkit-hyphenate-limit-before: 4;
+  -webkit-hyphenate-limit-after: 4;
 }
 
 @media (max-width: 767px) {
@@ -478,6 +482,8 @@ body.task-list-resizing * {
     overflow-wrap: anywhere;
     hyphens: auto;
     hyphenate-limit-chars: 6 4 4;
+    -webkit-hyphenate-limit-before: 4;
+    -webkit-hyphenate-limit-after: 4;
     cursor: pointer;
   }
 

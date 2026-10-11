@@ -547,11 +547,10 @@ async function runSync({ makeClient } = {}) {
   // zum Objekt für Bestandstermine erst aus dessen Abruf bekannt wird; der
   // Inbound überspringt dafür alles, was hier noch aussteht.
   // --------------------------------------------------------
+  const uploadGate = createUploadGate();
   try {
     const removed = await processPendingDeletions(client, 'apple', objectIndex, ownCalendarUrls);
     if (removed) log.info(`${removed} pending deletion(s) applied in iCloud.`);
-    const pushed = await processPendingUpdates(client, 'apple', objectIndex, calendarsByUrl);
-    if (pushed) log.info(`${pushed} local change(s) pushed to iCloud.`);
   } catch (err) {
     log.error('Outbound changes failed:', err.message);
   }
@@ -568,7 +567,6 @@ async function runSync({ makeClient } = {}) {
   // Lehnt der Kalender ab (nur lesbar, Konto voll), träfe jeder weitere Termin
   // dieses Laufs dieselbe Absage: nach der ersten ist Schluss, und es gibt EINE
   // Zeile mit der Anzahl statt einer je Termin.
-  const uploadGate = createUploadGate();
   for (const event of localEvents) {
     if (!defaultCal || uploadGate.isClosed(defaultCal.url)) continue;
     try {
@@ -589,6 +587,16 @@ async function runSync({ makeClient } = {}) {
         log.error(`Outbound error for event ${event.id}:`, err.message);
       }
     }
+  }
+  // Änderungen an bereits gespiegelten Terminen kommen nach den lokalen
+  // Neuanlagen: beide Wege teilen sich dieselbe Collection-Schranke. So
+  // kostet eine Ablehnung genau einen Versuch, ohne einen lokalen Upload
+  // hinter einem unabhängigen, bereits wartenden Update zu verstecken.
+  try {
+    const pushed = await processPendingUpdates(client, 'apple', objectIndex, calendarsByUrl, uploadGate);
+    if (pushed) log.info(`${pushed} local change(s) pushed to iCloud.`);
+  } catch (err) {
+    log.error('Outbound changes failed:', err.message);
   }
   uploadGate.report((calendarUrl, err, waiting) => log.error(
     `Calendar ${calendarUrl} is not accepting uploads (${err.message}); `

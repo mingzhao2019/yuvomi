@@ -192,7 +192,7 @@ test('der Test-Schema-Auszug haelt die Spalte ebenfalls nullable', async () => {
 // --------------------------------------------------------
 
 test('Migration 167 uebernimmt den bisherigen Schutz Zeile fuer Zeile', () => {
-  const db = buildDatabaseBefore(COLOR_MODIFIED_VERSION);
+  const db = databaseBefore(COLOR_MODIFIED_VERSION);
   seed(db);
 
   const vorher = db.prepare('SELECT user_modified FROM calendar_events ORDER BY id').all()
@@ -202,7 +202,7 @@ test('Migration 167 uebernimmt den bisherigen Schutz Zeile fuer Zeile', () => {
   // nicht zu unterscheiden.
   assert.ok(new Set(vorher).size > 1, `der Bestand muss beide Faelle tragen: ${vorher.join()}`);
 
-  applyWithMigrateSemantics(db, MIGRATIONS.find((m) => m.version === COLOR_MODIFIED_VERSION));
+  applyWithProductionSemantics(db, migration(COLOR_MODIFIED_VERSION));
 
   const nachher = db.prepare('SELECT user_modified, color_modified FROM calendar_events ORDER BY id').all();
   assert.deepEqual(nachher.map((r) => r.color_modified), vorher,
@@ -220,10 +220,10 @@ test('Migration 167 laesst einen neuen Termin bei 0 anfangen', () => {
   // Die Gegenprobe zum Backfill: er darf nicht als Default durchschlagen, sonst
   // waere jeder frisch importierte Termin gegen die Farbe seines Anbieters
   // gesperrt - genau der Zustand, den #899 aufloest.
-  const db = buildDatabaseBefore(COLOR_MODIFIED_VERSION);
+  const db = databaseBefore(COLOR_MODIFIED_VERSION);
   seed(db);
   db.prepare("UPDATE calendar_events SET user_modified = 1").run();
-  applyWithMigrateSemantics(db, MIGRATIONS.find((m) => m.version === COLOR_MODIFIED_VERSION));
+  applyWithProductionSemantics(db, migration(COLOR_MODIFIED_VERSION));
 
   db.prepare(`INSERT INTO calendar_events (title, start_datetime, created_by)
               VALUES ('Frisch importiert', '2040-01-01T09:00', 1)`).run();

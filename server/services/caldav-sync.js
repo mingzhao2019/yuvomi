@@ -1266,11 +1266,10 @@ async function runSync({ createClient } = {}) {
       // Ausgehende Löschungen und Änderungen (#593). Nach dem Inbound, weil der
       // Weg zum Objekt für Bestandstermine erst aus dessen Abruf bekannt wird;
       // der Inbound überspringt dafür alles, was hier noch aussteht.
+      const uploadGate = createUploadGate();
       try {
         const removed = await processPendingDeletions(client, 'caldav', objectIndex, ownCalendarUrls);
         if (removed) log.info(`${removed} pending deletion(s) applied on the server.`);
-        const pushed = await processPendingUpdates(client, 'caldav', objectIndex, calendarsByUrl);
-        if (pushed) log.info(`${pushed} local change(s) pushed to the server.`);
       } catch (err) {
         log.error(`Outbound changes failed for account ${account.id}:`, err.message);
       }
@@ -1281,7 +1280,6 @@ async function runSync({ createClient } = {}) {
       // Einmal je Lauf: die Zone, an der naive Zeiten haengen (#938).
       const householdZone = householdTimeZone(db.get());
 
-      const uploadGate = createUploadGate();
       for (const event of localEvents) {
         try {
           // Find target calendar
@@ -1317,6 +1315,16 @@ async function runSync({ createClient } = {}) {
             log.error(`Failed to upload event ${event.id} to CalDAV:`, err.message);
           }
         }
+      }
+      // Änderungen an bereits gespiegelten Terminen kommen nach den lokalen
+      // Neuanlagen: beide Wege teilen sich dieselbe Collection-Schranke. So
+      // kostet eine Ablehnung genau einen Versuch, ohne einen lokalen Upload
+      // hinter einem unabhängigen, bereits wartenden Update zu verstecken.
+      try {
+        const pushed = await processPendingUpdates(client, 'caldav', objectIndex, calendarsByUrl, uploadGate);
+        if (pushed) log.info(`${pushed} local change(s) pushed to the server.`);
+      } catch (err) {
+        log.error(`Outbound changes failed for account ${account.id}:`, err.message);
       }
       // EINE Zeile je Kalender, der in diesem Lauf abgelehnt hat.
       uploadGate.report((calendarUrl, err, waiting) => log.error(

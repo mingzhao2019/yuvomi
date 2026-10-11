@@ -23,7 +23,9 @@
 import { createLogger } from '../logger.js';
 import * as db from '../db.js';
 import { runExternalJob } from '../utils/restore-state.js';
-import { ownUid, ownUploadRowId, findObjectWithUid } from '../utils/own-uid.js';
+import {
+  ownUid, ownUploadRowId, parseOwnUid, findObjectWithUid,
+} from '../utils/own-uid.js';
 import { collectionUrlOf } from '../utils/caldav-client.js';
 
 const log = createLogger('CalendarOutbound');
@@ -474,6 +476,16 @@ export function markReminderOutbound(event, { writable = true } = {}) {
   if (!event || !OUTBOUND_SOURCES.includes(event.external_source)) return false;
   if (!writable) return false;
   if (!event.external_calendar_id || !acceptsOutbound(event.external_source)) return false;
+  // A legacy/current Yuvomi-shaped UID is not, by itself, proof that this
+  // installation owns the remote object. Inbound default reminders are an
+  // automatic mutation, so do not make an old or foreign installation's
+  // object dirty merely because it arrived without a VALARM. An explicit
+  // mirrored-field edit still goes through markEventOutbound as before.
+  const parsed = parseOwnUid(event.external_calendar_id);
+  if (parsed?.kind === 'event'
+      && ownUploadRowId(event.external_calendar_id, 'event', db.get()) !== Number(event.id)) {
+    return false;
+  }
   return markOutbound(event.id, { dirty: true });
 }
 
