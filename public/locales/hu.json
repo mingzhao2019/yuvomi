@@ -5665,6 +5665,7 @@
         "money": {
             "title": "Zsebpénz",
             "setUp": "Zsebpénz beállítása",
+            "empty": "Nyiss számlát egy gyereknek, hogy a zsebpénze itt legyen, ütemezve jóváírva.",
             "planWeekly": "{{amount}} hetente",
             "planMonthly": "{{amount}} havonta",
             "nextCredit": "Következő jóváírás: {{date}}",
