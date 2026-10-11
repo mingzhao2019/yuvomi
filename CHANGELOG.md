@@ -78,6 +78,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   screen the wall keeps the start alone so the title keeps its room. The line under a title is
   now a single line in both places: a long calendar name, or any other long text there, ends in
   an ellipsis instead of wrapping.
+- **The notes grid stops at four columns** (#1765, from D#826). The four-column step now starts at
+  1200px of grid width instead of 900px, and the fifth column is gone. A note card is never
+  narrower than 232px, where it could be 216px before, so the title and first lines of a note
+  stay readable on a wide screen. Phones and narrow windows look as they did.
 - **Rows show fewer buttons.** Lists no longer carry a pencil and a bin on every line. Editing,
   deleting and anything further sit behind one "more" button per row that is always visible and
   names what it does in words. This applies to shopping items, birthdays, tasks, loan payments
