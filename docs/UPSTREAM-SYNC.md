@@ -636,3 +636,47 @@ clarity 56/56, loan routes 66/66, loan amortization 26/26, reminder visibility
 The complete `npm test` chain passed after the touch-hover compatibility fix
 (exit code 0), and `git diff --check` passed. No force-push or wholesale
 upstream merge was used.
+
+## Current sync checkpoint (2026-10-11)
+
+`git fetch upstream` advanced `upstream/main` from `348228c24` to
+`70f13e6f5`. Local `main` was fast-forwarded to that exact upstream commit.
+The selective integration started from custom `de6d102d4` on the temporary
+branch `custom-upstream-selective-2026-10-11`; all sixteen upstream commits
+were reviewed and cherry-picked in upstream order. The upstream branch was
+not merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `a85bbf9ef` (#1834) | A wall tablet no longer reuses a stored “Assigned to me” filter. | Adopted as `6a93653c7`; retained custom display and dashboard filtering semantics. |
+| `c4fac1b3a` (#1826) | Wall mode shows the calendar name and time range. | Adopted as `cf2c8af8b`; preserved custom wall layout and test-suite documentation. |
+| `4b38e2636` (#1845) | Shortcut handling tolerates a key event without a key. | Adopted as `13dc34955`; no custom shortcut behavior was removed. |
+| `aee756bc7` (#1854) | Pocket money without an account explains its purpose. | Adopted as `e713a6cb4`; retained custom rewards wording and account rules. |
+| `3d438e9b3` (#1852) | The demo household includes pocket money. | Adopted as `d9fbde398`; no migration or schema change was needed. |
+| `b409a0777` (#1858) | Wall mode counts every assignee and shows the event icon. | Adopted as `52b04e3cd`; preserved custom event colors and wall payload semantics. |
+| `72691ed6b` (#1851) | Notes grid stops at four columns. | Adopted as `37430e5bc`; retained custom notes reader behavior. |
+| `de6082e68` (#1850) | Waste first-run state is centered on desktop. | Adopted as `2ad1bdf6e`; visual-only change. |
+| `2f42b9f59` (#1837) | A CalDAV server refusal is reported as a failed sync. | Adopted as `2a023e99d`; preserved custom task-list binding and outbound retry semantics. |
+| `3b96bf605` (#1864) | Budget category-manager labels use the correct language. | Adopted as `4b3e6cf54`; retained custom localized error and label mappings. |
+| `4204f7abb` (#1853) | Long account names wrap in the budget view. | Adopted as `c728e52b9`; no data-model change. |
+| `760c6e5a4` (#1865) | Safari keeps the hyphenation limit on long words. | Adopted as `95d4f57d8`; added the missing WebKit declarations in the affected custom rules. |
+| `5507c4c1e` (#1829/#1867) | Today sheet shows the event icon. | Adopted as `6f1dc89c8`; removed a duplicate service-worker precache entry left by the conflict resolution. |
+| `87392e492` (#1869) | Subscription renewal follows edit permission. | Adopted as `f3811c3d9`; preserved custom permission and reminder behavior. |
+| `0210615cd` (#1844/#1866) | Subscription appears in every month in which it is due. | Adopted as `856f61d8b`; retained custom budget projection semantics. |
+| `70f13e6f5` (#1787/#1868) | Overview can grant a rewards bonus. | Adopted as `0b5c1795c`; preserved custom rewards and overview contracts. |
+
+The conflict resolutions preserved the custom dashboard/widget payloads,
+event-color behavior, CalDAV task-list binding, budget and subscription
+semantics, and the existing test-chain wrapper. The CalDAV integration also
+shares one refusal gate across local creates and pending updates so one
+collection refusal consumes exactly one attempt. Automatic reminder outbound
+updates now require provenance for Yuvomi-shaped UIDs, preventing legacy or
+foreign mirrored objects from being dirtied solely by default reminders. Two
+upstream test additions were adapted to the custom migration-test helper names.
+
+There is no migration or schema change in this range. Version metadata remains
+`2.75.0`. Focused validation passed: CalDAV HTTP refusals 51/51, CalDAV own
+UID 50/50, reminder policy, CalDAV outbound, inherited-color migration 12/12,
+service-worker precache, and typography 22/22. The complete `npm test` chain
+passed after the integration fixes (exit code 0), and `git diff --check`
+passed. No force-push or wholesale upstream merge was used.
