@@ -139,6 +139,8 @@ const APP_SHELL = [
   '/utils/document-thumbs.js',
   '/utils/document-folder-delete.js',
   '/utils/document-preview.js',
+  '/utils/event-color.js',
+  '/utils/event-icon.js',
   '/utils/empty-state.js',
   '/utils/extension-i18n.js',
   '/utils/extension-widgets.js',
