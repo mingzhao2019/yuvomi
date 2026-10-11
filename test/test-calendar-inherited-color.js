@@ -188,6 +188,172 @@ test('der Test-Schema-Auszug haelt die Spalte ebenfalls nullable', async () => {
 });
 
 // --------------------------------------------------------
+// Die Farbe bekommt einen eigenen Zustand (Migration 167, #899)
+// --------------------------------------------------------
+
+test('Migration 167 uebernimmt den bisherigen Schutz Zeile fuer Zeile', () => {
+  const db = buildDatabaseBefore(COLOR_MODIFIED_VERSION);
+  seed(db);
+
+  const vorher = db.prepare('SELECT user_modified FROM calendar_events ORDER BY id').all()
+    .map((r) => r.user_modified);
+  // VORBEDINGUNG. Waeren alle drei Zeilen gleich, sagte der Vergleich unten
+  // nichts: `color_modified = 0` waere dann von `color_modified = user_modified`
+  // nicht zu unterscheiden.
+  assert.ok(new Set(vorher).size > 1, `der Bestand muss beide Faelle tragen: ${vorher.join()}`);
+
+  applyWithMigrateSemantics(db, MIGRATIONS.find((m) => m.version === COLOR_MODIFIED_VERSION));
+
+  const nachher = db.prepare('SELECT user_modified, color_modified FROM calendar_events ORDER BY id').all();
+  assert.deepEqual(nachher.map((r) => r.color_modified), vorher,
+    'der Backfill ist konservativ: was heute geschuetzt ist, bleibt geschuetzt');
+  assert.deepEqual(nachher.map((r) => r.user_modified), vorher,
+    'und user_modified behaelt seine eigene Bedeutung');
+
+  const spalte = db.prepare('PRAGMA table_info(calendar_events)').all()
+    .find((c) => c.name === 'color_modified');
+  assert.equal(spalte.notnull, 1, 'das Flag ist nie unbekannt');
+  assert.equal(spalte.dflt_value, '0', 'ein neuer Termin faengt ohne eigene Farbwahl an');
+});
+
+test('Migration 167 laesst einen neuen Termin bei 0 anfangen', () => {
+  // Die Gegenprobe zum Backfill: er darf nicht als Default durchschlagen, sonst
+  // waere jeder frisch importierte Termin gegen die Farbe seines Anbieters
+  // gesperrt - genau der Zustand, den #899 aufloest.
+  const db = buildDatabaseBefore(COLOR_MODIFIED_VERSION);
+  seed(db);
+  db.prepare("UPDATE calendar_events SET user_modified = 1").run();
+  applyWithMigrateSemantics(db, MIGRATIONS.find((m) => m.version === COLOR_MODIFIED_VERSION));
+
+  db.prepare(`INSERT INTO calendar_events (title, start_datetime, created_by)
+              VALUES ('Frisch importiert', '2040-01-01T09:00', 1)`).run();
+  const neu = db.prepare("SELECT color_modified FROM calendar_events WHERE title = 'Frisch importiert'").get();
+  assert.equal(neu.color_modified, 0);
+});
+
+test('der Test-Schema-Auszug kennt den Zustand ebenfalls', async () => {
+  // Dieselbe Falle wie bei der nullable Farbe darueber: fehlt die Spalte im
+  // Auszug, stirbt jede Suite, die einen Sync-Upsert faehrt, an `no such
+  // column` - und zwar an einer Stelle, die mit ihrem Pruefzweck nichts zu tun
+  // hat. Der Beleg ist deshalb ein INSERT, keine Spaltendefinition.
+  const { MIGRATIONS_SQL } = await import('../server/db-schema-test.js');
+  const sql = MIGRATIONS_SQL[11];
+  const db = new Database(join(tempDir('yuvomi-auszug-'), 'db.sqlite'));
+  db.pragma('foreign_keys = OFF');
+  db.exec(sql);
+  db.prepare(`INSERT INTO calendar_events (title, start_datetime, created_by)
+              VALUES ('Farblos', '2040-01-01T09:00', 1)`).run();
+  assert.equal(db.prepare('SELECT color_modified FROM calendar_events').get().color_modified, 0);
+  db.close();
+});
+
+// --------------------------------------------------------
+// Wer das Gatter bedient (#899)
+// --------------------------------------------------------
+
+/**
+ * Quelltext ohne Kommentare. Ein Guard, der im Rohtext sucht, liest einen
+ * Kommentar als Regel - und die Kommentare an genau diesen Stellen ERKLAEREN
+ * den alten Zustand, nennen also `user_modified` mit voller Absicht.
+ */
+function ohneKommentare(quelle) {
+  return quelle
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((zeile) => !/^\s*(\/\/|--)/.test(zeile))
+    .join('\n');
+}
+
+const SYNC_DIENSTE = [
+  'server/services/caldav-sync.js',
+  'server/services/apple-calendar.js',
+  'server/services/google-calendar.js',
+];
+
+test('jedes Farb-Gatter des Inbound haengt an color_modified (#899)', async () => {
+  // Eine Regel statt einer Allowlist, aus demselben Grund wie beim Fallback
+  // darunter: die Stelle sieht in allen drei Diensten gleich aus. Gefunden wird
+  // der Ausdruck selbst, nicht seine Datei - der vierte Anbieter faellt damit
+  // automatisch unter die Regel.
+  const { readFile } = await import('node:fs/promises');
+  const GATTER_RE = /CASE\s+WHEN\s+(\w+)\s*=\s*0\s+THEN\s+\?\s+ELSE\s+color\s+END/g;
+
+  let gefunden = 0;
+  const falsch = [];
+  for (const datei of SYNC_DIENSTE) {
+    const quelle = ohneKommentare(await readFile(new URL(`../${datei}`, import.meta.url), 'utf8'));
+    for (const treffer of quelle.matchAll(GATTER_RE)) {
+      gefunden++;
+      if (treffer[1] !== 'color_modified') falsch.push(`${datei}: ${treffer[0]}`);
+    }
+  }
+
+  // VORBEDINGUNG: findet das Muster nichts, ist die Zusicherung darunter leer.
+  // Genau so waere sie gruen geblieben, als das Gatter noch falsch war.
+  assert.ok(gefunden >= 5, `nur ${gefunden} Farb-Gatter gefunden - stimmt das Muster noch?`);
+  assert.deepEqual(falsch, [],
+    'user_modified wird bei JEDER Bearbeitung gesetzt; ein Titel-Edit fror die Farbe damit ein (#899)');
+});
+
+test('der Upload merkt sich, dass die hinausgeschickte Farbe unsere ist (#899)', async () => {
+  // Der dritte Befund aus #899: beide Abbildungen sind verlustbehaftet (CSS3-
+  // Name bzw. eine von elf colorIds). Ohne das Flag holt der naechste
+  // Inbound-Lauf den gerundeten Wert zurueck und ersetzt die gewaehlte Farbe.
+  //
+  // Die Regel haengt an der Stelle, an der ein LOKALER Termin zu einem
+  // gespiegelten wird - das ist genau der Moment, in dem die Farbe erstmals
+  // hinausgeht, und er ist in jedem Dienst als `external_source = '<anbieter>'`
+  // in einer UPDATE-SET-Liste erkennbar.
+  //
+  // Seit #1837 teilen sich CalDAV und Apple diese Stelle: beide rufen
+  // `markEventUploaded` in calendar-outbound.js, das die Quelle als Parameter
+  // bindet (`external_source = ?`). Gezaehlt werden deshalb ANBIETER, nicht
+  // UPDATEs: jeder der drei muss auf einem der beiden Wege ankommen, und jedes
+  // UPDATE, das einen Termin zum Spiegel macht, muss das Flag tragen - das
+  // geteilte genauso wie ein woertliches.
+  const { readFile } = await import('node:fs/promises');
+  const lies = async (datei) => ohneKommentare(await readFile(new URL(`../${datei}`, import.meta.url), 'utf8'));
+  const UPDATE_RE = /UPDATE calendar_events\s+SET([\s\S]*?)WHERE/g;
+  const HELFER_DATEI = 'server/services/calendar-outbound.js';
+
+  const ohneFlag = [];
+  const angekommen = new Set();
+
+  // Der geteilte Helfer: genau das UPDATE, das die Quelle gebunden setzt.
+  const helferQuelle = await lies(HELFER_DATEI);
+  const helferStart = helferQuelle.indexOf('export function markEventUploaded(');
+  assert.ok(helferStart >= 0, 'markEventUploaded fehlt in calendar-outbound.js - stimmt der Guard noch?');
+  const helferRumpf = helferQuelle.slice(helferStart, helferQuelle.indexOf('\nexport ', helferStart + 1));
+  const helferUpdates = [...helferRumpf.matchAll(UPDATE_RE)]
+    .filter((treffer) => /external_source\s*=\s*\?/.test(treffer[1]));
+  assert.equal(helferUpdates.length, 1,
+    'markEventUploaded setzt external_source nicht mehr in genau einem UPDATE - stimmt der Guard noch?');
+  const helferHatFlag = /color_modified/.test(helferUpdates[0][1]);
+  if (!helferHatFlag) ohneFlag.push(HELFER_DATEI);
+
+  for (const datei of SYNC_DIENSTE) {
+    const quelle = await lies(datei);
+    for (const treffer of quelle.matchAll(UPDATE_RE)) {
+      const setListe = treffer[1];
+      const woertlich = setListe.match(/external_source\s*=\s*'(caldav|apple|google)'/);
+      if (!woertlich) continue;
+      angekommen.add(woertlich[1]);
+      if (!/color_modified/.test(setListe)) ohneFlag.push(datei);
+    }
+    // Der Aufruf muss die Quelle woertlich nennen: nur so ist belegt, WELCHER
+    // Anbieter ueber den Helfer laeuft.
+    for (const treffer of quelle.matchAll(/markEventUploaded\(\s*[^,]+,\s*\{[^}]*?source:\s*'(caldav|apple|google)'/g)) {
+      angekommen.add(treffer[1]);
+    }
+  }
+
+  assert.deepEqual([...angekommen].sort(), ['apple', 'caldav', 'google'],
+    'jeder der drei Anbieter braucht eine Upload-Stelle, die den Termin zum Spiegel macht');
+  assert.deepEqual(ohneFlag, [],
+    'der Upload muss color_modified setzen, sonst verliert der Termin seine exakte Farbe an die gemappte');
+});
+
+// --------------------------------------------------------
 // Die Importpfade
 // --------------------------------------------------------
 

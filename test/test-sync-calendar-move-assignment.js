@@ -37,6 +37,9 @@ const { sync: caldavSync } = await import('../server/services/caldav-sync.js');
 const { sync: appleSync } = await import('../server/services/apple-calendar.js');
 const { __test: google } = await import('../server/services/google-calendar.js');
 const { reassignDefaultOnCalendarMove } = await import('../server/services/sync-assignment.js');
+// Die UID, unter der ein Termin hochgeht, kommt aus EINER Quelle (own-uid.js)
+// und traegt die Kennung der Installation; hier nachgebaut waere sie eine Kopie.
+const { eventUidFor } = await import('../server/services/calendar-outbound.js');
 
 const CAL_A = 'https://dav.example/cal-a/';
 const CAL_B = 'https://dav.example/cal-b/';
@@ -484,7 +487,7 @@ describe('#1270 - ein hinausgepushter Termin behält seine Zuweisung', () => {
 
     // ECHTER Outbound: kein Kalender liefert etwas, der Push läuft.
     await caldavSync({ createClient: caldavClient(null) });
-    const uid = `oikos-${id}@oikos.local`;
+    const uid = eventUidFor(id);
     const pushed = rowOf(id);
     assert.equal(pushed.external_source, 'caldav', 'der Push hat die Zeile übergeben');
     assert.equal(pushed.external_calendar_id, uid, 'und ihr die oikos-UID gegeben');
@@ -514,7 +517,7 @@ describe('#1270 - ein hinausgepushter Termin behält seine Zuweisung', () => {
 
     // ECHTER Outbound: kein Kalender liefert etwas, der Push läuft.
     await appleSync({ makeClient: appleClient(null) });
-    const uid = `oikos-${id}@oikos.local`;
+    const uid = eventUidFor(id);
     const pushed = rowOf(id);
     assert.equal(pushed.external_source, 'apple', 'der Push hat die Zeile übergeben');
     assert.equal(pushed.external_calendar_id, uid, 'und ihr die oikos-UID gegeben');

@@ -10,6 +10,7 @@ import { visibilityWhere } from './visibility.js';
 // aendert sich an den Dokumentrechten nichts - nichts wird `family`, enger
 // oder privat, keine Freigabe faellt weg (applyDocumentAccess, `grantAssignees`).
 const FOLLOW_ASSIGNMENT = Object.freeze({ grantAssigneesOnly: true });
+import { sqlIsOwnEventUidOfRow } from '../utils/own-uid.js';
 import { remindAtCompareKey, remindAtUtcSql } from '../utils/reminder-schedule.js';
 
 // --------------------------------------------------------
@@ -88,11 +89,15 @@ export function assignDefaultToEvent(d, eventId, userId) {
 // --------------------------------------------------------
 
 // --------------------------------------------------------
-// Kein hinausgepushter Termin: der Outbound-Sync stempelt dieselben Spalten
+// Kein HINAUSGEPUSHTER Termin: der Outbound-Sync stempelt dieselben Spalten
 // (external_source, calendar_ref_id) auf einen lokal angelegten Termin, sobald
-// er im Kalender liegt. Der Umzug zwischen Kalendern stellt dieselbe Frage wie
-// das Nachtragen oben: wurde diese Zeile importiert oder schon von Hand in
-// Yuvomi einem Kalender zugewiesen?
+// er im Kalender liegt. Er hinterlässt aber eine Spur, die kein Import trägt -
+// Google und CalDAV behalten ihr gewähltes Ziel (target_*), Apple und CalDAV
+// laden unter einer eigenen UID hoch (altes und neues Muster: own-uid.js). Ein
+// importierter Termin, den jemand in Yuvomi in einen anderen Kalender verschoben
+// hat, trägt ebenfalls ein Ziel und bleibt damit außen vor: an ihm hat schon eine
+// Hand gearbeitet. Der Umzug zwischen Kalendern stellt dieselbe Frage wie das
+// Nachtragen oben: wurde diese Zeile importiert oder schon von Hand zugewiesen?
 //
 // Google und CalDAV behalten ihr gewähltes Ziel, Apple und der Legacy-CalDAV-
 // Pfad laden unter der UID `oikos-<id>@oikos.local`. Ein importierter Termin,
@@ -104,7 +109,7 @@ export function assignDefaultToEvent(d, eventId, userId) {
 const NOT_PUSHED_OUTBOUND = `
   e.target_google_calendar_id IS NULL
     AND e.target_caldav_calendar_url IS NULL
-    AND COALESCE(e.external_calendar_id, '') <> ('oikos-' || e.id || '@oikos.local')
+    AND NOT ${sqlIsOwnEventUidOfRow('e.external_calendar_id', 'e.id')}
     AND NOT (e.external_source = 'google' AND e.created_at < COALESCE(
       (SELECT applied_at FROM schema_migrations WHERE version = 47), ''))
 `;
