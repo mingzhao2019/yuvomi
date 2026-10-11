@@ -48,6 +48,8 @@ describe('CalDAV Multi-Account Sync', () => {
       );
 
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id                          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -241,6 +243,8 @@ describe('pruneDeletedEvents (#508)', () => {
 
   function setup() {
     db = new DatabaseSync(':memory:');
+    // Bewusst OHNE caldav_account_id (Migration 238): ohne Konto im Aufruf
+    // fragt der Prune nicht danach - so laeuft er fuer Apple.
     db.exec(`
       CREATE TABLE calendar_events (
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
@@ -429,6 +433,8 @@ describe('CalDAV sync yields to the event loop (#519)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -446,6 +452,8 @@ describe('CalDAV sync yields to the event loop (#519)', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         calendar_external_id TEXT NOT NULL,
@@ -583,6 +591,8 @@ describe('CalDAV: RECURRENCE-ID-Overrides killen die Serie nicht (#549)', () => 
         default_assignee_user_id INTEGER, UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -600,6 +610,8 @@ describe('CalDAV: RECURRENCE-ID-Overrides killen die Serie nicht (#549)', () => 
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         calendar_external_id TEXT NOT NULL,
@@ -766,6 +778,8 @@ describe('CalDAV: No-op-Syncs bleiben im Standard-Log-Level still', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -782,6 +796,8 @@ describe('CalDAV: No-op-Syncs bleiben im Standard-Log-Level still', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         calendar_external_id TEXT NOT NULL,
@@ -1003,6 +1019,8 @@ describe('CalDAV: eine Bearbeitung friert die Farbe nicht mehr ein (#899)', () =
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1020,6 +1038,8 @@ describe('CalDAV: eine Bearbeitung friert die Farbe nicht mehr ein (#899)', () =
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL, calendar_external_id TEXT NOT NULL,
         event_external_id TEXT NOT NULL,
@@ -1189,6 +1209,8 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1206,6 +1228,8 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL, calendar_external_id TEXT NOT NULL,
         event_external_id TEXT NOT NULL,
@@ -2125,6 +2149,8 @@ describe('CalDAV: eine Aufgabenliste bleibt kein Terminziel (#617)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2141,6 +2167,8 @@ describe('CalDAV: eine Aufgabenliste bleibt kein Terminziel (#617)', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         calendar_external_id TEXT NOT NULL,
@@ -2290,6 +2318,13 @@ describe('CalDAV: die Kalenderauswahl überlebt das Aktualisieren (#732)', () =>
         VALUES (1, '${KEEP_URL}', 'Privat', '#4A90E2', 1),
                (1, '${DROP_URL}', 'Arbeit', '#4A90E2', 0);
     `);
+    // `node:sqlite` kennt kein `.transaction()`; updateAccount schreibt das
+    // Konto in einer. Derselbe Shim wie im Block zum Aufraeumen (#732).
+    d.transaction = (fn) => (...args) => {
+      d.exec('BEGIN');
+      try { const out = fn(...args); d.exec('COMMIT'); return out; }
+      catch (err) { d.exec('ROLLBACK'); throw err; }
+    };
     return d;
   }
 
@@ -2384,6 +2419,8 @@ describe('CalDAV: das Aufräumen beim Abwählen ist eine Wahl (#732)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2392,12 +2429,17 @@ describe('CalDAV: das Aufräumen beim Abwählen ist eine Wahl (#732)', () => {
         calendar_ref_id INTEGER, created_by INTEGER,
         user_modified INTEGER NOT NULL DEFAULT 0,
         color_modified INTEGER NOT NULL DEFAULT 0,
-        target_caldav_calendar_url TEXT
+        target_caldav_calendar_url TEXT,
+        -- deleteAccount() nimmt den Zeilen, die bleiben, ihre Ausgangsmarker.
+        outbound_dirty INTEGER NOT NULL DEFAULT 0, outbound_attempts INTEGER NOT NULL DEFAULT 0,
+        outbound_move_to TEXT
       );
       CREATE TABLE caldav_todo_pending_deletions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER
       );
       CREATE TABLE calendar_pending_deletions (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL, calendar_external_id TEXT NOT NULL,
         event_external_id TEXT NOT NULL,
@@ -2429,19 +2471,23 @@ describe('CalDAV: das Aufräumen beim Abwählen ist eine Wahl (#732)', () => {
       -- Zwei gespiegelte Termine im abzuwaehlenden Kalender, einer davon lokal
       -- bearbeitet; dazu ein Termin im NACHBARkalender und ein rein lokaler,
       -- der diesen Kalender nur als Hochladeziel traegt.
-      INSERT INTO calendar_events (title, start_datetime, external_calendar_id, external_source, calendar_ref_id, created_by, user_modified)
-        VALUES ('Gespiegelt',  '2026-08-14T10:00', 'uid-1', 'caldav', 1, 1, 0),
-               ('Bearbeitet',  '2026-08-15T10:00', 'uid-2', 'caldav', 1, 1, 1),
-               ('Nachbar',     '2026-08-16T10:00', 'uid-3', 'caldav', 2, 1, 0);
+      -- Alle drei gehoeren dem Konto (#1860): gezaehlt und aufgeraeumt wird
+      -- ueber das Konto der Zeile.
+      INSERT INTO calendar_events (title, start_datetime, external_calendar_id, external_source, calendar_ref_id, created_by, user_modified, caldav_account_id)
+        VALUES ('Gespiegelt',  '2026-08-14T10:00', 'uid-1', 'caldav', 1, 1, 0, 1),
+               ('Bearbeitet',  '2026-08-15T10:00', 'uid-2', 'caldav', 1, 1, 1, 1),
+               ('Nachbar',     '2026-08-16T10:00', 'uid-3', 'caldav', 2, 1, 0, 1);
       INSERT INTO calendar_events (title, start_datetime, external_source, created_by, target_caldav_calendar_url)
         VALUES ('Eigener Termin', '2026-08-17T10:00', 'local', 1, '${CAL_A}');
       -- Der Fall, der den source-Filter ueberhaupt erst pruefbar macht: ein
       -- NICHT gespiegelter Termin, der trotzdem an diesem Kalender haengt. Ohne
       -- ihn liefe die Sonde ueber calendar_ref_id allein und waere blind dafuer,
       -- ob der Filter etwas tut (gegengeprueft: er blieb gruen, als ich ihn
-      -- entfernte).
-      INSERT INTO calendar_events (title, start_datetime, external_source, calendar_ref_id, created_by)
-        VALUES ('Lokal am Kalender', '2026-08-18T10:00', 'local', 1, 1);
+      -- entfernte). Er traegt auch das Konto, das eine lokale Zeile nie hat:
+      -- sonst hielte ihn schon der Konto-Filter fern, und der source-Filter
+      -- waere wieder ungeprueft.
+      INSERT INTO calendar_events (title, start_datetime, external_source, calendar_ref_id, created_by, caldav_account_id)
+        VALUES ('Lokal am Kalender', '2026-08-18T10:00', 'local', 1, 1, 1);
     `);
     // `node:sqlite` kennt kein `.transaction()`; die App laeuft auf
     // better-sqlite3, das eine mitbringt. Der Shim bildet nur deren Semantik ab
@@ -2585,6 +2631,8 @@ describe('CalDAV: neue Kalender sind opt-in (#732)', () => {
         default_assignee_user_id INTEGER, UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
+        -- Konto der Zeile (Migration 238, #1860)
+        caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
