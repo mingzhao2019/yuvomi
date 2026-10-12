@@ -476,6 +476,7 @@
     "test:shopping-versions": "node --experimental-sqlite --test test/test-shopping-versions.js",
     "test:shopping-move": "node --experimental-sqlite --test test/test-shopping-move.js",
     "test:shopping-move-ui": "node --loader ./test/test-browser-loader.mjs --test test/test-shopping-move-ui.js",
+    "test:shopping-gone-reload": "node --loader ./test/test-browser-loader.mjs --test test/test-shopping-gone-reload.js",
     "test:shopping-move-carry": "node --experimental-sqlite --test test/test-shopping-move-carry.js",
     "test:live-feed": "node --test test/test-live-feed.js",
     "test:module-readonly-ui": "TZ=Europe/Berlin node --loader ./test/test-browser-loader.mjs --test test/test-module-readonly-ui.js test/test-inventory-documents-readonly-ui.js",
