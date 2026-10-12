@@ -7,12 +7,16 @@
  * Verhalten:
  *   - configure({ basePath, groups, groupField, supportsSubcategories, labelResolver, titleKey, hintKey,
  *                 addMaxLength, localizedLabels,
- *                 deleteConfirmKey, deleteDetailKey, subDeleteDetailKey, errorKeyMap })
+ *                 deleteConfirmKey, deleteDetailKey, subDeleteDetailKey,
+ *                 errorKeyMap, errorFallbackKey })
  *   - Lädt via api.get(basePath); mutiert über post/put/patch/delete relativ zu basePath
  *   - `localizedLabels: true` haengt der Listenanfrage `?lang=<Oberflaechensprache>` an -
  *     fuer Routen, die ihre Labels auf dem Server uebersetzen (heute nur Budget, #1859)
  *   - Dispatcht nach jeder Mutation `category-manager-changed`
  *   - Zeigt Server-Guard-Fehler (in-use/last) als Toast
+ *   - `errorFallbackKey`: der allgemeine Satz fuer einen Fehler ohne bekannten Grund.
+ *     Wer ihn setzt, zeigt nie den Text des Servers (#1909, heute der Einkauf); ohne
+ *     ihn bleibt der alte Rueckfall auf `err.message`, bis das Modul seine Gruende hat
  *   - Räumt Listener in disconnectedCallback() auf
  *
  * VERTRAG FUER AUFRUFER: die Auffrischung gehoert in den Ereignis-Handler, nicht
@@ -38,6 +42,7 @@ import { esc } from '/utils/html.js';
 import { makeSortable, isDragActive } from '/utils/sortable.js';
 import { wireTablist } from '/utils/tablist.js';
 import { rowActionHtml } from '/utils/row-action.js';
+import { errorSentence } from '/utils/friendly-error.js';
 
 /** Platzhalter-Id fuer den Eintrag ohne Ton: eine leere `data-tab-id` waere kein Knopf. */
 const NO_COLOR_ID = '__none__';
@@ -118,6 +123,8 @@ class CategoryManagerElement extends HTMLElement {
     this._deleteDetailKey = 'category.deleteConfirmDetail';
     this._subDeleteDetailKey = 'category.deleteSubConfirmDetail';
     this._errorKeyMap = {};
+    // Siehe `_errMsg`: gesetzt heisst, der Text des Servers erreicht den Toast nie.
+    this._errorFallbackKey = null;
     // OPT-IN: nur wer eine Palette mitgibt, bekommt die Farbwahl. Fuenf der
     // sechs Aufrufer zeigen ihre Kategorien nirgends als farbige Marke - dort
     // waere ein Farbknopf eine Einstellung ohne Wirkung.
@@ -158,6 +165,7 @@ class CategoryManagerElement extends HTMLElement {
     if (opts.subDeleteDetailKey) this._subDeleteDetailKey = opts.subDeleteDetailKey;
     this._errorKeyMap = opts.errorKeyMap && typeof opts.errorKeyMap === 'object'
       ? opts.errorKeyMap : {};
+    if (opts.errorFallbackKey) this._errorFallbackKey = opts.errorFallbackKey;
     this._renderShell();
     this._load();
   }
@@ -633,8 +641,14 @@ class CategoryManagerElement extends HTMLElement {
   }
 
   // Server-Guard-Fehler in die UI-Sprache übersetzen: die Route liefert einen
-  // stabilen `reason`-Code (+ optional `count`) in err.data; unbekannte Fehler
-  // fallen auf die (englische) Server-Meldung zurück.
+  // stabilen `reason`-Code (+ optional `count`) in err.data.
+  //
+  // Unbekannte Fehler (#1909): hat der Aufrufer `errorFallbackKey` gesetzt,
+  // sagt `errorSentence` den Satz - den eines anderen bekannten Grundes (der
+  // Laden heisst schon so, die Kategorie wurde inzwischen geloescht) oder den
+  // allgemeinen, nie den des Servers. Ohne den Schluessel bleibt der alte
+  // Rueckfall auf die Server-Meldung: die Routen jener Module nennen ihre
+  // Faelle noch nicht, und der allgemeine Satz sagte dort weniger als heute.
   _errMsg(err) {
     const reason = err?.data?.reason;
     const count = err?.data?.count;
@@ -648,7 +662,10 @@ class CategoryManagerElement extends HTMLElement {
       case 'subcategory_in_use': return t('category.errorSubInUse', { count });
       case 'subcategory_last':   return t('category.errorSubLast');
       case 'subcategory_exists': return t('category.errorSubExists');
-      default:                   return err?.message ?? '';
+      default:
+        return this._errorFallbackKey
+          ? errorSentence(err, this._errorFallbackKey)
+          : (err?.message ?? '');
     }
   }
 
