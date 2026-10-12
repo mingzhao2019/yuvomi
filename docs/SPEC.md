@@ -1523,6 +1523,99 @@ deletion of another account for the same object falls when the row becomes a mir
 loops read the row again when it is its turn, so a target changed before that is not uploaded to
 the old list.
 
+**An upload whose answer never arrived leaves a note (migration v241, #1882).** A PUT can reach
+the server while its answer is lost. The row then stays local although its object lies on the
+server. While the row keeps waiting for the same place, the next run adopts the object (`adoptOwnEventUpload`, `adoptOwnUpload`).
+If it is deleted or gets another target first, nothing local used to say that something of it lies
+there: the fetch brought the deleted entry back as a new row, or put a second row next to the
+existing one. Every upload is therefore noted in `caldav_upload_attempts` synchronously before the
+request is sent (`uploadNewEvent`, `uploadNewTodo`) and the note is removed when the result is
+booked (`bookEventUpload`, `bookTodoUpload`, or the fetch adopting the object). A note that is
+still there means the answer never came.
+
+| Column | Type | Constraint |
+|--------|------|-----------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| source | TEXT | NOT NULL - `caldav` or `apple` |
+| account_id | INTEGER | FK → CalDAV Accounts (ON DELETE CASCADE), NULL for iCloud |
+| kind | TEXT | NOT NULL - `event`, `task` or `item` |
+| row_id | INTEGER | NOT NULL - id in `calendar_events`, `tasks` or `shopping_items`; no foreign key, the note outlives its row |
+| collection_url | TEXT | NOT NULL - the calendar or list the upload went to |
+| uid | TEXT | NOT NULL - the UID the object was sent under |
+| object_url | TEXT | NOT NULL - the address the object was sent to |
+| created_at | TEXT | ISO 8601, NOT NULL |
+
+Constraints: UNIQUE(source, COALESCE(account_id, 0), kind, row_id, collection_url) ·
+Index: idx_caldav_upload_attempts_uid ON caldav_upload_attempts(uid)
+
+A note is never removed because an upload failed: a refusal speaks about that one attempt, and the
+object of an earlier attempt can still lie there. Each attempt renews `created_at`.
+
+Each pass decides per note from the row as it is now (`uploadAttemptState`, `todoAttemptState`):
+*waiting* - the row is local and still belongs to that place, the note stays; *mirrored* - the row
+is a mirror at exactly that place (another account on the same calendar took the object over, or
+the same calendar is connected under the other source), the note is dropped; *leftover* - the row
+is gone, has another or no target, or is a mirror elsewhere.
+
+A leftover is removed by `removeLeftoverUploads`, and only after reading the server: the object at
+exactly the address the upload went to is fetched (`inspectObjectAt`) immediately before anything
+is done.
+
+- It carries the UID of the upload: `DELETE` to that address with the ETag just read as
+  `If-Match`; the note is dropped once the object is gone (a `404` counts). A `412` or another
+  refusal leaves the note for the next pass. A server that names no ETag gets the `DELETE` without
+  `If-Match`: the UID read immediately before is then the only guard, and an object replaced at
+  that address between the read and the `DELETE` would be removed. That window is accepted;
+  refusing to delete without an ETag would leave the leftover on such servers for good.
+- It carries a foreign UID: nothing is deleted and the note is dropped. The note proves the
+  attempt, not what lies at the address today.
+- Nothing lies there: the PUT never arrived, or the server is still working on it. The note stays
+  for `UPLOAD_NOTE_GRACE_MS` (24 hours after the last attempt) and is then dropped without a
+  request. Measured: a PUT stored after the client gave up and after a run found nothing brought
+  the deleted entry back as long as the note fell on that first "not there".
+
+The same period bounds how long a refused removal is retried; after it the note is dropped and the
+object is an entry like any other again. After every `await` the note and the row are read again
+and decided in one synchronous step. No row is written to `calendar_pending_deletions` or
+`caldav_todo_pending_deletions` for a leftover: those deletions go to the stored address without
+that look, also in the immediate attempt, and count a `404` as done.
+
+The fetch asks per object, freshly, whether a note stands for it at this place whose row is not a
+mirror there (`isUnbookedOwnUpload`), because the row can be deleted while the run is still
+reading the server. Such an object may only be adopted, for the row that waits exactly here;
+otherwise it is neither imported nor matched to a row, and for tasks and shopping items it does
+not enter the run's object index (the same UID may legitimately lie in another list of the
+account). That question is asked across all accounts of the source: two accounts can hold the same
+calendar or list, and the fetch of one sees the object that went up through the other. The removal
+stays with the account the note belongs to.
+
+For events the removal runs in the full sync run after the fetch, never in the immediate attempt
+and never from a delete route, and only in calendars fetched in that run. For tasks and shopping
+items it runs in every pass (run and immediate attempt) before the uploads, only in lists that are
+switched on, so a row with a new target in the same account normally goes up after its leftover
+is gone. The rule does not depend on which code path removed the row.
+
+"Still belongs to that place" is read from the target the row carries, not from whether that
+calendar or list is currently switched on: switching off means "stop syncing", not "clean up on
+the server". A deselected calendar and a switched-off shopping mapping keep the note, and a task
+whose list is unavailable keeps its target while a note for that list stands (otherwise
+`processPendingCreations` clears an unreachable target). For iCloud, which uploads into the first
+calendar of an unordered listing, a row counts as waiting as long as the upload loop would still
+take it, whichever calendar is first now; its object in the former first calendar becomes a
+leftover only once the row is a mirror elsewhere, and a skipped leftover does not enter the run's
+UID-keyed object map. A task does not wait in a list that the selection has since assigned to
+shopping, although its target still names it; the fetch reads the kind of a leftover from its UID,
+not from the module the list serves now. Deleting a CalDAV account and pointing an account at
+another server or user drop its notes; disconnecting iCloud drops them only if no connection
+remains through the `APPLE_*` environment variables.
+
+The removal is unconditional as to content on purpose, like the user delete (#1883): the entry was
+deleted in Yuvomi or no longer belongs there, in whatever state another app has left it - but
+never an object that verifiably carries another UID. The note, not the
+UID, is the evidence: a UID comes from the server and proves nothing, and after restoring an older
+backup it can name a row that does not exist any more. An object with an own UID but no note is an
+entry like any other and is imported.
+
 The counterpart for *edits* lives on the event row itself (migration v104): `outbound_dirty` (0/1)
 marks a mirrored event whose local change still has to reach the provider, and `outbound_attempts`
 counts failed pushes under the same five-attempt limit. Deliberately **not** `user_modified` or
