@@ -33,5 +33,5 @@ export function resolveEventColorOrNull(ev) {
     const primary = assignees.find((user) => user.id === ev.assigned_to) ?? assignees[0];
     return primary.color || null;
   }
-  return ev.cal_color || null;
+  return ev.cal_color || ev.local_calendar_color || null;
 }

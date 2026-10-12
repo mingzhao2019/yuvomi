@@ -51,6 +51,8 @@ export const OUTBOUND_SOURCES = ['google', 'caldav', 'apple'];
 
 // Felder, die zum Provider gespiegelt werden. Alles andere (Zuweisung, Sichtbarkeit,
 // Icon, Anhang) ist Yuvomi-intern und löst keinen Push aus.
+// local_calendar_id is intentionally absent: moving local calendars never pushes outward.
+// A sync target and a local calendar are mutually exclusive.
 export const MIRRORED_FIELDS = [
   'title', 'description', 'location', 'color',
   'all_day', 'start_datetime', 'end_datetime', 'recurrence_rule',
@@ -1015,7 +1017,7 @@ export function markEventUploaded(eventId, { source, uid, objectUrl, calRefId, a
   }
   return db.get().prepare(`
     UPDATE calendar_events
-    SET external_source = ?, external_calendar_id = ?,
+    SET external_source = ?, external_calendar_id = ?, local_calendar_id = NULL,
         external_object_url = ?, calendar_ref_id = ?,${forCaldav ? '\n        caldav_account_id = ?,' : ''}
         color_modified = CASE WHEN color IS NOT NULL THEN 1 ELSE color_modified END,
         outbound_dirty = CASE WHEN ? = 1 THEN 1 ELSE outbound_dirty END,

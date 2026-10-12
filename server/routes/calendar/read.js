@@ -3,6 +3,8 @@
  * GET / (Bereich), GET /upcoming, GET /search (FTS).
  */
 
+import { localCalendarColorSql, localCalendarIdSql } from '../../services/local-calendars.js';
+
 import { createLogger } from '../../logger.js';
 import express from 'express';
 import * as db from '../../db.js';
@@ -49,8 +51,20 @@ router.get('/', (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
+             -- Name UND geerbte Farbe kommen aus zwei Toepfen: CalDAV/Google
+             -- ueber calendar_ref_id, ICS-Abos ueber subscription_id (sie haben
+             -- keinen external_calendars-Eintrag). Beide sind dasselbe - eine
+             -- Eigenschaft, die fuer JEDEN Termin der Quelle gilt (#891).
+             --
+             -- DER NAME FOLGTE DER FARBE ERST NICHT (#1064): er las allein
+             -- ec.name und blieb damit bei jedem Abo-Termin NULL, waehrend die
+             -- Zeile darunter dessen Farbe laengst auslieferte. Der Termin trug
+             -- sichtbar die Farbe seiner Quelle und konnte sie nirgends nennen.
              COALESCE(isub.name, ec.name) AS cal_name,
              COALESCE(isub.color, ec.color) AS cal_color,
+             lc.id AS local_calendar_id,
+             lc.name  AS local_calendar_name,
+             ${localCalendarColorSql()} AS local_calendar_color,
              ${SOURCE_CALENDAR_COLUMNS},
              COALESCE(bd.name, nd.name) AS birthday_name,
              bd.birth_date AS birthday_date,
@@ -62,6 +76,7 @@ router.get('/', (req, res) => {
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
       LEFT JOIN users u_created  ON u_created.id  = e.created_by
       LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
+      LEFT JOIN local_calendars lc ON lc.id = ${localCalendarIdSql()}
       ${SOURCE_CALENDAR_JOIN}
       LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
       LEFT JOIN birthdays bd ON bd.calendar_event_id = e.id
@@ -194,8 +209,20 @@ router.get('/search', (req, res) => {
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color,
              u_created.display_name  AS creator_name,
+             -- Name UND geerbte Farbe kommen aus zwei Toepfen: CalDAV/Google
+             -- ueber calendar_ref_id, ICS-Abos ueber subscription_id (sie haben
+             -- keinen external_calendars-Eintrag). Beide sind dasselbe - eine
+             -- Eigenschaft, die fuer JEDEN Termin der Quelle gilt (#891).
+             --
+             -- DER NAME FOLGTE DER FARBE ERST NICHT (#1064): er las allein
+             -- ec.name und blieb damit bei jedem Abo-Termin NULL, waehrend die
+             -- Zeile darunter dessen Farbe laengst auslieferte. Der Termin trug
+             -- sichtbar die Farbe seiner Quelle und konnte sie nirgends nennen.
              COALESCE(isub.name, ec.name) AS cal_name,
              COALESCE(isub.color, ec.color) AS cal_color,
+             lc.id AS local_calendar_id,
+             lc.name  AS local_calendar_name,
+             ${localCalendarColorSql()} AS local_calendar_color,
              ${SOURCE_CALENDAR_COLUMNS},
              COALESCE(bd.name, nd.name) AS birthday_name,
              bd.birth_date AS birthday_date,
@@ -208,6 +235,7 @@ router.get('/search', (req, res) => {
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
       LEFT JOIN users u_created  ON u_created.id  = e.created_by
       LEFT JOIN external_calendars ec ON ec.id = e.calendar_ref_id
+      LEFT JOIN local_calendars lc ON lc.id = ${localCalendarIdSql()}
       ${SOURCE_CALENDAR_JOIN}
       LEFT JOIN ics_subscriptions isub ON isub.id = e.subscription_id
       LEFT JOIN birthdays bd ON bd.calendar_event_id = e.id
