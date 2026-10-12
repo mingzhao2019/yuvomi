@@ -56,6 +56,8 @@
     "test:recurrence": "node --test test/test-recurrence.js",
     "test:tasks-recurrence": "node --test test/test-tasks-recurrence.js",
     "test:tasks-routes": "node --test test/test-tasks-routes.js",
+    "test:tasks-reorder": "node --test test/test-tasks-reorder.js",
+    "test:tasks-reorder-ui": "node --loader ./test/test-browser-loader.mjs --test test/test-tasks-reorder-ui.js",
     "test:task-default-points": "node --test test/test-task-default-points.js",
     "test:task-groups": "node --loader ./test/test-browser-loader.mjs --test test/test-task-groups.js",
     "test:kanban-columns": "node --loader ./test/test-browser-loader.mjs --test test/test-kanban-columns.js",

@@ -404,6 +404,9 @@
         "todayOverdueCount_one": "{{count}} atrasada"
     },
     "tasks": {
+        "resetOrder": "Ordenar automaticamente",
+        "resetOrderAria": "Ordenar automaticamente: {{group}}",
+        "resetOrderDone": "Ordem automática reposta para \"{{group}}\".",
         "manageCategories": "Gerir categorias",
         "addCategory": "+ categoria",
         "title": "Tarefas",

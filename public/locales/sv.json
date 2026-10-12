@@ -404,6 +404,9 @@
         "todayOverdueCount_one": "{{count}} försenad"
     },
     "tasks": {
+        "resetOrder": "Sortera automatiskt",
+        "resetOrderAria": "Sortera automatiskt: {{group}}",
+        "resetOrderDone": "”{{group}}” sorteras automatiskt igen.",
         "manageCategories": "Hantera kategorier",
         "addCategory": "+ kategori",
         "title": "Uppgifter",

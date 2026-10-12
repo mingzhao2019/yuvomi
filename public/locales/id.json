@@ -418,6 +418,9 @@
         "todayOverdueCount_one": "{{count}} terlambat"
     },
     "tasks": {
+        "resetOrder": "Urutkan otomatis",
+        "resetOrderAria": "Urutkan otomatis: {{group}}",
+        "resetOrderDone": "\"{{group}}\" diurutkan otomatis lagi.",
         "manageCategories": "Kelola kategori",
         "addCategory": "+ Kategori",
         "title": "Tugas",

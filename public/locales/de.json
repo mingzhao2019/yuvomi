@@ -418,6 +418,9 @@
         "todayOverdueCount_one": "{{count}} überfällig"
     },
     "tasks": {
+        "resetOrder": "Automatisch sortieren",
+        "resetOrderAria": "Automatisch sortieren: {{group}}",
+        "resetOrderDone": "„{{group}}“ ist wieder automatisch sortiert.",
         "manageCategories": "Kategorien verwalten",
         "addCategory": "+ Kategorie",
         "title": "Aufgaben",

@@ -404,6 +404,9 @@
         "metricVisits_one": "{{count}} besøk"
     },
     "tasks": {
+        "resetOrder": "Sorter automatisk",
+        "resetOrderAria": "Sorter automatisk: {{group}}",
+        "resetOrderDone": "«{{group}}» er sortert automatisk igjen.",
         "manageCategories": "Administrer kategorier",
         "addCategory": "+ kategori",
         "title": "Oppgaver",

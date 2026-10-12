@@ -404,6 +404,9 @@
         "assetsSold": "Sold"
     },
     "tasks": {
+        "resetOrder": "Ordenar automaticamente",
+        "resetOrderAria": "Ordenar automaticamente: {{group}}",
+        "resetOrderDone": "Ordem automática restaurada para \"{{group}}\".",
         "manageCategories": "Gerenciar categorias",
         "addCategory": "+ categoria",
         "title": "Tarefas",

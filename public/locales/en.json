@@ -404,6 +404,9 @@
         "todayOverdueCount_one": "{{count}} overdue"
     },
     "tasks": {
+        "resetOrder": "Sort automatically",
+        "resetOrderAria": "Sort automatically: {{group}}",
+        "resetOrderDone": "\"{{group}}\" is sorted automatically again.",
         "manageCategories": "Manage categories",
         "addCategory": "+ category",
         "title": "Tasks",

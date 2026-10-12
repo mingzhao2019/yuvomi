@@ -404,6 +404,9 @@
         "todayOverdueCount_one": "{{count}} εκπρόθεσμη"
     },
     "tasks": {
+        "resetOrder": "Αυτόματη ταξινόμηση",
+        "resetOrderAria": "Αυτόματη ταξινόμηση: {{group}}",
+        "resetOrderDone": "Η ομάδα «{{group}}» ταξινομείται ξανά αυτόματα.",
         "manageCategories": "Διαχείριση κατηγοριών",
         "addCategory": "+ κατηγορία",
         "title": "Εργασίες",

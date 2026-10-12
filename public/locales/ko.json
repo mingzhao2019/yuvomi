@@ -418,6 +418,9 @@
         "todayOverdueCount_one": "기한 지남 {{count}}건"
     },
     "tasks": {
+        "resetOrder": "자동으로 정렬",
+        "resetOrderAria": "자동으로 정렬: {{group}}",
+        "resetOrderDone": "\"{{group}}\" 그룹이 다시 자동으로 정렬됩니다.",
         "manageCategories": "카테고리 관리",
         "addCategory": "+ 카테고리",
         "title": "할 일",

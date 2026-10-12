@@ -404,6 +404,9 @@
         "todayOverdueCount_one": "{{count}} en retard"
     },
     "tasks": {
+        "resetOrder": "Trier automatiquement",
+        "resetOrderAria": "Trier automatiquement : {{group}}",
+        "resetOrderDone": "Tri automatique rétabli pour « {{group}} ».",
         "manageCategories": "Gérer les catégories",
         "addCategory": "+ catégorie",
         "title": "Tâches",

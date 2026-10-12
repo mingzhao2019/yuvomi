@@ -418,6 +418,9 @@
         "todayOverdueCount_one": "{{count}} lampas na sa takdang araw"
     },
     "tasks": {
+        "resetOrder": "Awtomatikong ayusin",
+        "resetOrderAria": "Awtomatikong ayusin: {{group}}",
+        "resetOrderDone": "Awtomatiko nang nakaayos muli ang \"{{group}}\".",
         "manageCategories": "Pamahalaan ang mga kategorya",
         "addCategory": "+ kategorya",
         "title": "Mga Gawain",
