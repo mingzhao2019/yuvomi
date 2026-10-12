@@ -118,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   due tomorrow at 22:00 or later and less than 24 hours away gets its own label next to the date,
   "Due soon". In English and 17 other languages that label carried the text of "Due today", so the
   tile said "today" in front of tomorrow's date. It now reads "Due soon" in each of them. Dutch
-  follows with the pending Dutch locale update (#1892).
+  gets its own label with the Dutch wording corrections below (#1892).
 - **An archived shared-expense group now refuses changes on the server too** (#1747). Until now only
   the page was locked: an API client or a stale tab could still add, edit or delete expenses,
   comments, settlements and recurring expenses in a group the household had put away, and the
@@ -206,6 +206,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the installer after using them day to day: one word for a shift ("vakt"), a reminder
   ("påminnelse") and a tablet ("nettbrett") throughout, "container" and "image" for Docker
   instead of literal translations, and singular forms for a count of one instead of "(er)".
+- **Dutch wording corrections from daily use** (#1892). The notes module was called "Bord" in the
+  navigation, as its page title and in the API token scopes, and "Notities" elsewhere; it is
+  "Notities" in all three now. The due labels on the dashboard, in Tasks, Housekeeping and health
+  prevention read "Vervalt vandaag" and "Vervalt morgen" instead of "Vandaag vervallen" and
+  "Morgen vervallen", and the dashboard's "Due soon" label has its own text, "Vervalt
+  binnenkort", where it repeated the one for today. The empty housekeeping tile says
+  "huishoudhulp" instead of "huishoudelijke hulp".
 - **Deleting an entry of a switched-off CalDAV calendar or reminder list no longer deletes it on
   the server, and is no longer lost or stuck** (#1884). Switching a calendar or reminder list off
   in Settings is meant to leave everything in it alone. A deletion made in Yuvomi for an entry of
