@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dates, the date field placeholder, short dates and typed input all follow it. Existing households
   keep the format they have set. A household that already has the Netherlands as its region gets
   the new format by setting "Region" to "Custom" and then "Preferred date format" to `DD-MM-YYYY`.
+- **Wall mode names today's tasks under each person** (#1817, from D#1604). "Who's up today"
+  used to show a face and a number. It now lists each person's open tasks for today by title, and
+  below them, dimmed and with a checkmark, what they have already done today - so a glance shows
+  what is left and what is finished. The wall still does not scroll: it shows as many lines as
+  the screen has room for and says "+2 more" for the rest. When space runs short, finished tasks
+  give way first. Someone who has finished everything keeps their ticked tasks until the next
+  day. Under the faces only tasks the whole household may see appear: a task set to "Assignees
+  only" is not listed there, whoever is signed in on the device. (The day's programme beside it
+  is unchanged and still shows what the signed-in person may see.)
 - **A profile picture can be fetched from Gravatar once, if the operator turns it on.** Off by
   default: while `GRAVATAR_BASE_URL` is unset or empty nothing is sent and Settings → Account shows
   no button. An operator opts in by setting it to `https://gravatar.com/avatar/` or a Libravatar

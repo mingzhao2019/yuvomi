@@ -193,6 +193,8 @@
         "wallWhoCount": "Bugün {{count}} kayıt",
         "wallWhoCount_one": "Bugün 1 kayıt",
         "wallWhoNone": "Bugün kimseye atanmadı",
+        "wallWhoDoneMore": "+{{count}} tamamlandı",
+        "wallWhoDoneMore_one": "+{{count}} tamamlandı",
         "wallExit": "Duvar modundan çık",
         "wallEnter": "Duvar modunu başlat",
         "wallTimerLabel": "Mutfak zamanlayıcısı",
