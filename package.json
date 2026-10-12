@@ -427,6 +427,7 @@
     "test:dms-adapter": "node --test test/test-dms-adapter.js",
     "test:dms-guard": "node --test test/test-dms-guard.js",
     "test:file-signature": "node --test test/test-file-signature.js",
+    "test:gravatar": "node --experimental-sqlite --test test/test-gravatar.js",
     "test:dms-routes": "node --test test/test-dms-routes.js",
     "test:dms-papra-adapter": "node --test test/test-dms-papra-adapter.js",
     "test:recipe-provider-adapter": "node --test test/test-recipe-provider-adapter.js",

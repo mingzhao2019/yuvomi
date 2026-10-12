@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dates, the date field placeholder, short dates and typed input all follow it. Existing households
   keep the format they have set. A household that already has the Netherlands as its region gets
   the new format by setting "Region" to "Custom" and then "Preferred date format" to `DD-MM-YYYY`.
+- **A profile picture can be fetched from Gravatar once, if the operator turns it on.** Off by
+  default: while `GRAVATAR_BASE_URL` is unset or empty nothing is sent and Settings → Account shows
+  no button. An operator opts in by setting it to `https://gravatar.com/avatar/` or a Libravatar
+  mirror; a household member can then fetch the picture for their saved address, named in the
+  hint, and it is stored exactly like an upload, never fetched again. Split-expense guests are
+  refused. Only a SHA-256 hash of the address and the server's IP leave the server, through the
+  SSRF-guarded client with an 8 second limit, a 512 KiB cap and a signature check. If the
+  picture, the address or the account changes while the fetch runs, nothing is stored (409).
 - **Tapping a category or subcategory in the budget overview filters the transactions list.**
   (#1593, from D#1583) The filter applies in place and can be cleared again.
 
