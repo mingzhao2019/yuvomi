@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tapping a category or subcategory in the budget overview filters the transactions list.**
   (#1593, from D#1583) The filter applies in place and can be cleared again.
 
+### Changed
+
+- **Recipes mirrored from a Norwegian Mealie or Tandoor sort into shopping categories.** The
+  keyword list that guesses a category from an ingredient's name now knows Norwegian words as
+  well as German and English, so "hvetemel" lands under baked goods and "oppvaskmiddel" under
+  household instead of everything ending up under "Other". Matching stays whole-word, so a
+  compound such as "kyllinglår" still falls through unless it is listed on its own.
+
 ### Fixed
 
 - **An archived shared-expense group now refuses changes on the server too** (#1747). Until now only
@@ -92,6 +100,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Events without an account that no account delivers any more stay until you delete them.
   - If you delete an event that a second account also keeps as its own copy, that account adds it
     back on its next sync.
+- **Norwegian Bokmål reads more naturally.** A second pass over the app
+  and the installer after using them day to day: one word for a shift ("vakt"), a reminder
+  ("påminnelse") and a tablet ("nettbrett") throughout, "container" and "image" for Docker
+  instead of literal translations, and singular forms for a count of one instead of "(er)".
 
 ## [2.76.0] - 2026-10-11
 
