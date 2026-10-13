@@ -401,7 +401,14 @@
         "widgetSizeWide": "Széles (2×1)",
         "fabNew": "Új",
         "todayOverdueCount": "{{count}} lejárt",
-        "todayOverdueCount_one": "{{count}} lejárt"
+        "todayOverdueCount_one": "{{count}} lejárt",
+        "weatherHighLow": "Legmagasabb: {{max}}°, legalacsonyabb: {{min}}°",
+        "optionCalendarBirthdaysHint": "Pipa nélkül a születésnapok kimaradnak ebből a csempéből, a naptárban továbbra is ott vannak.",
+        "nutritionNoTarget": "Még nincs napi cél beállítva.",
+        "nutritionEntries": "Ma {{count}} bejegyzés",
+        "nutritionEntries_one": "Ma {{count}} bejegyzés",
+        "wallScreensaverNone": "A képernyővédő nem érhető el.",
+        "wallScreensaverStart": "Képernyővédő"
     },
     "tasks": {
         "resetOrder": "Automatikus rendezés",

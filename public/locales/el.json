@@ -401,7 +401,14 @@
         "widgetSizeWide": "Φαρδύ (2×1)",
         "fabNew": "Νέο",
         "todayOverdueCount": "{{count}} εκπρόθεσμες",
-        "todayOverdueCount_one": "{{count}} εκπρόθεσμη"
+        "todayOverdueCount_one": "{{count}} εκπρόθεσμη",
+        "weatherHighLow": "Μέγιστη {{max}}°, ελάχιστη {{min}}°",
+        "optionCalendarBirthdaysHint": "Χωρίς επιλογή τα γενέθλια λείπουν από αυτό το πλακίδιο, στο ημερολόγιο παραμένουν.",
+        "nutritionNoTarget": "Δεν έχει οριστεί ημερήσιος στόχος.",
+        "nutritionEntries": "{{count}} καταχωρίσεις σήμερα",
+        "nutritionEntries_one": "{{count}} καταχώριση σήμερα",
+        "wallScreensaverNone": "Η προφύλαξη οθόνης δεν είναι διαθέσιμη.",
+        "wallScreensaverStart": "Προφύλαξη οθόνης"
     },
     "tasks": {
         "resetOrder": "Αυτόματη ταξινόμηση",

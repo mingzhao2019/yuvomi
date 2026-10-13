@@ -495,7 +495,9 @@
         "eventsEndedMore_many": "Wcześniej dziś: +{{count}}",
         "nutritionEntries_few": "Dzisiaj {{count}} wpisy",
         "nutritionEntries_many": "Dzisiaj {{count}} wpisów",
-        "weatherUnavailable": "Pogoda jest obecnie niedostępna"
+        "weatherUnavailable": "Pogoda jest obecnie niedostępna",
+        "wallScreensaverNone": "Wygaszacz ekranu jest niedostępny.",
+        "wallScreensaverStart": "Wygaszacz ekranu"
     },
     "tasks": {
         "resetOrder": "Sortuj automatycznie",

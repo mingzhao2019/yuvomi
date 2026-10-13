@@ -401,7 +401,9 @@
         "assetsCurrentDailyCost": "Custo diário atual",
         "assetsActive": "Active",
         "assetsRetired": "Retired",
-        "assetsSold": "Sold"
+        "assetsSold": "Sold",
+        "wallScreensaverNone": "Protetor de tela não disponível.",
+        "wallScreensaverStart": "Protetor de tela"
     },
     "tasks": {
         "resetOrder": "Ordenar automaticamente",

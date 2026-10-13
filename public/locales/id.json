@@ -415,7 +415,14 @@
         "widgetSizeWide": "Lebar (2×1)",
         "fabNew": "Baru",
         "todayOverdueCount": "{{count}} terlambat",
-        "todayOverdueCount_one": "{{count}} terlambat"
+        "todayOverdueCount_one": "{{count}} terlambat",
+        "weatherHighLow": "Tertinggi {{max}}°, terendah {{min}}°",
+        "optionCalendarBirthdaysHint": "Tanpa centang, ulang tahun tidak muncul di kartu ini - di kalender tetap ada.",
+        "nutritionNoTarget": "Belum ada target harian.",
+        "nutritionEntries": "{{count}} catatan hari ini",
+        "nutritionEntries_one": "{{count}} catatan hari ini",
+        "wallScreensaverNone": "Screensaver tidak tersedia.",
+        "wallScreensaverStart": "Screensaver"
     },
     "tasks": {
         "resetOrder": "Urutkan otomatis",

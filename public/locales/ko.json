@@ -415,7 +415,14 @@
         "widgetSizeWide": "가로형 (2×1)",
         "fabNew": "새로 만들기",
         "todayOverdueCount": "기한 지남 {{count}}건",
-        "todayOverdueCount_one": "기한 지남 {{count}}건"
+        "todayOverdueCount_one": "기한 지남 {{count}}건",
+        "weatherHighLow": "최고 {{max}}°, 최저 {{min}}°",
+        "optionCalendarBirthdaysHint": "체크를 해제하면 이 타일에 생일이 표시되지 않습니다. 캘린더에는 그대로 남습니다.",
+        "nutritionNoTarget": "아직 하루 목표가 없습니다.",
+        "nutritionEntries": "오늘 기록 {{count}}건",
+        "nutritionEntries_one": "오늘 기록 {{count}}건",
+        "wallScreensaverNone": "화면 보호기를 사용할 수 없습니다.",
+        "wallScreensaverStart": "화면 보호기"
     },
     "tasks": {
         "resetOrder": "자동으로 정렬",

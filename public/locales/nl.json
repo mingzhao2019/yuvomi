@@ -401,7 +401,14 @@
         "widgetSizeWide": "Breed (2×1)",
         "fabNew": "Nieuw",
         "todayOverdueCount": "{{count}} achterstallig",
-        "todayOverdueCount_one": "{{count}} achterstallig"
+        "todayOverdueCount_one": "{{count}} achterstallig",
+        "weatherHighLow": "Maximum {{max}}°, minimum {{min}}°",
+        "optionCalendarBirthdaysHint": "Zonder vinkje blijven verjaardagen weg uit deze tegel - in de agenda staan ze nog.",
+        "nutritionNoTarget": "Nog geen dagdoel ingesteld.",
+        "nutritionEntries": "{{count}} items vandaag",
+        "nutritionEntries_one": "{{count}} item vandaag",
+        "wallScreensaverNone": "Schermbeveiliging niet beschikbaar.",
+        "wallScreensaverStart": "Schermbeveiliging"
     },
     "tasks": {
         "resetOrder": "Automatisch sorteren",

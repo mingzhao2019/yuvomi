@@ -415,7 +415,14 @@
         "widgetSizeWide": "پهن (۲×۱)",
         "fabNew": "جدید",
         "todayOverdueCount": "{{count}} معوق",
-        "todayOverdueCount_one": "{{count}} معوق"
+        "todayOverdueCount_one": "{{count}} معوق",
+        "weatherHighLow": "بیشینه {{max}}°، کمینه {{min}}°",
+        "optionCalendarBirthdaysHint": "بدون تیک، تولدها در این کارت نمایش داده نمی‌شوند؛ در تقویم همچنان هستند.",
+        "nutritionNoTarget": "هنوز هدف روزانه‌ای تعیین نشده است.",
+        "nutritionEntries": "{{count}} رکورد امروز",
+        "nutritionEntries_one": "{{count}} رکورد امروز",
+        "wallScreensaverNone": "محافظ صفحه در دسترس نیست.",
+        "wallScreensaverStart": "محافظ صفحه"
     },
     "tasks": {
         "resetOrder": "مرتب‌سازی خودکار",

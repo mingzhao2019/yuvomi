@@ -401,7 +401,14 @@
         "widgetSizeWide": "Wide (2×1)",
         "fabNew": "New",
         "todayOverdueCount": "{{count}} overdue",
-        "todayOverdueCount_one": "{{count}} overdue"
+        "todayOverdueCount_one": "{{count}} overdue",
+        "weatherHighLow": "High {{max}}°, low {{min}}°",
+        "optionCalendarBirthdaysHint": "Unchecked, birthdays stay out of this tile - the calendar still shows them.",
+        "nutritionNoTarget": "No daily target set yet.",
+        "nutritionEntries": "{{count}} entries today",
+        "nutritionEntries_one": "{{count}} entry today",
+        "wallScreensaverNone": "Screensaver not available.",
+        "wallScreensaverStart": "Screensaver"
     },
     "tasks": {
         "resetOrder": "Sort automatically",

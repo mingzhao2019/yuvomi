@@ -401,7 +401,14 @@
         "widgetSizeWide": "横長 (2×1)",
         "fabNew": "新規",
         "todayOverdueCount": "期限切れ {{count}}件",
-        "todayOverdueCount_one": "期限切れ {{count}}件"
+        "todayOverdueCount_one": "期限切れ {{count}}件",
+        "weatherHighLow": "最高 {{max}}°、最低 {{min}}°",
+        "optionCalendarBirthdaysHint": "チェックを外すと、このタイルに誕生日は表示されません。カレンダーには残ります。",
+        "nutritionNoTarget": "1日の目標はまだ設定されていません。",
+        "nutritionEntries": "今日の記録 {{count}} 件",
+        "nutritionEntries_one": "今日の記録 {{count}} 件",
+        "wallScreensaverNone": "スクリーンセーバーを開始できません。",
+        "wallScreensaverStart": "スクリーンセーバー"
     },
     "tasks": {
         "resetOrder": "自動で並べ替え",

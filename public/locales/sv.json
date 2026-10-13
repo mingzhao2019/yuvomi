@@ -401,7 +401,14 @@
         "widgetSizeWide": "Bred (2×1)",
         "fabNew": "Ny",
         "todayOverdueCount": "{{count}} försenade",
-        "todayOverdueCount_one": "{{count}} försenad"
+        "todayOverdueCount_one": "{{count}} försenad",
+        "weatherHighLow": "Högsta {{max}}°, lägsta {{min}}°",
+        "optionCalendarBirthdaysHint": "Utan bock hålls födelsedagar utanför den här rutan - i kalendern står de kvar.",
+        "nutritionNoTarget": "Inget dagsmål angivet än.",
+        "nutritionEntries": "{{count}} poster idag",
+        "nutritionEntries_one": "{{count}} post idag",
+        "wallScreensaverNone": "Skärmsläckare ej tillgänglig.",
+        "wallScreensaverStart": "Skärmsläckare"
     },
     "tasks": {
         "resetOrder": "Sortera automatiskt",

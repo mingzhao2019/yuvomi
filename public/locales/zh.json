@@ -401,7 +401,14 @@
         "widgetSizeWide": "宽 (2×1)",
         "fabNew": "新建",
         "todayOverdueCount": "已逾期 {{count}} 项",
-        "todayOverdueCount_one": "已逾期 {{count}} 项"
+        "todayOverdueCount_one": "已逾期 {{count}} 项",
+        "weatherHighLow": "最高 {{max}}°、最低 {{min}}°",
+        "optionCalendarBirthdaysHint": "取消勾选后，此卡片不再显示生日，日历中仍会保留。",
+        "nutritionNoTarget": "尚未设置每日目标。",
+        "nutritionEntries": "今天 {{count}} 条记录",
+        "nutritionEntries_one": "今天 {{count}} 条记录",
+        "wallScreensaverNone": "屏幕保护程序不可用。",
+        "wallScreensaverStart": "屏幕保护"
     },
     "tasks": {
         "resetOrder": "自动排序",

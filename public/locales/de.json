@@ -415,7 +415,14 @@
         "widgetSizeWide": "Breit (2×1)",
         "fabNew": "Neu",
         "todayOverdueCount": "{{count}} überfällig",
-        "todayOverdueCount_one": "{{count}} überfällig"
+        "todayOverdueCount_one": "{{count}} überfällig",
+        "weatherHighLow": "Höchstwert {{max}}°, Tiefstwert {{min}}°",
+        "optionCalendarBirthdaysHint": "Ohne Haken bleiben Geburtstage aus dieser Kachel - im Kalender stehen sie weiter.",
+        "nutritionNoTarget": "Noch kein Tagesziel gesetzt.",
+        "nutritionEntries": "{{count}} Einträge heute",
+        "nutritionEntries_one": "{{count}} Eintrag heute",
+        "wallScreensaverNone": "Bildschirmschoner nicht verfügbar.",
+        "wallScreensaverStart": "Bildschirmschoner"
     },
     "tasks": {
         "resetOrder": "Automatisch sortieren",

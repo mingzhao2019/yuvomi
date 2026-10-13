@@ -401,7 +401,14 @@
         "widgetSizeWide": "Rộng (2×1)",
         "fabNew": "Mới",
         "todayOverdueCount": "{{count}} quá hạn",
-        "todayOverdueCount_one": "{{count}} quá hạn"
+        "todayOverdueCount_one": "{{count}} quá hạn",
+        "weatherHighLow": "Cao nhất {{max}}°, thấp nhất {{min}}°",
+        "optionCalendarBirthdaysHint": "Nếu bỏ chọn, sinh nhật sẽ không xuất hiện trong thẻ này - trên lịch vẫn còn.",
+        "nutritionNoTarget": "Chưa đặt mục tiêu hằng ngày.",
+        "nutritionEntries": "{{count}} mục hôm nay",
+        "nutritionEntries_one": "{{count}} mục hôm nay",
+        "wallScreensaverNone": "Trình bảo vệ màn hình không khả dụng.",
+        "wallScreensaverStart": "Trình bảo vệ màn hình"
     },
     "tasks": {
         "resetOrder": "Sắp xếp tự động",
