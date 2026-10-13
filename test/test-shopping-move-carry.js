@@ -196,7 +196,7 @@ function assertCarried(server, collectionUrl, { summary = 'Milch' } = {}) {
 
 // ── Der Umzug selbst ────────────────────────────────────────────────────────────
 
-test('Schema: die Vormerkung des Umzugs steht an der Zeile (Migration 243)', () => {
+test('Schema: die Vormerkung des Umzugs steht an der Zeile (Migration 253)', () => {
   const columns = db.prepare('PRAGMA table_info(shopping_items)').all().map((c) => c.name);
   assert.ok(columns.includes('outbound_move'));
   assert.ok(columns.includes('outbound_move_attempts'));

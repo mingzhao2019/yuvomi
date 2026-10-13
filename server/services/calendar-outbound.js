@@ -17,7 +17,7 @@
 //
 // CalDAV führt mehrere Konten in denselben beiden Tabellen. Ein gespiegelter
 // Termin und sein Löschauftrag tragen deshalb ihr Konto
-// (`caldav_account_id`, Migration 238, #1860), und jede Abfrage für 'caldav'
+// (`caldav_account_id`, Migration 248, #1860), und jede Abfrage für 'caldav'
 // läuft je Konto: gesendet wird ein Termin nur über das Konto, dem er gehört.
 // Google und Apple kennen je genau eine Verbindung und filtern wie bisher nur
 // auf die Quelle; ihre Abfragen nennen die Spalte gar nicht erst.
@@ -367,7 +367,7 @@ export function dropDeletionsIn({ source, calendarExternalId, eventExternalId, a
 
 /**
  * Räumt CalDAV-Löschaufträge ab, die keinem Konto gehören (#1860): Bestand,
- * den Migration 238 nicht sicher zuordnen konnte. Es gibt kein Konto, über das
+ * den Migration 248 nicht sicher zuordnen konnte. Es gibt kein Konto, über das
  * sie gesendet werden dürften, und ohne dieses Abräumen blieben sie für immer
  * liegen. Der Termin kann danach einmal zurückkommen.
  * @returns {number} Zahl der abgeräumten Aufträge
@@ -558,7 +558,7 @@ export function pendingUpdateCount(source, { accountId = null } = {}) {
 
 /**
  * Wartende Arbeit an CalDAV-Zeilen, die keinem Konto gehören (#1860): eine
- * Bearbeitung von vor Migration 238 an einer Zeile, die sie nicht sicher
+ * Bearbeitung von vor Migration 248 an einer Zeile, die sie nicht sicher
  * zuordnen konnte. Gesendet wird sie nie - es gibt kein Konto, über das sie
  * hinausdürfte. Übernommen wird die Zeile aber auch nicht, solange etwas an
  * ihr wartet, sonst ginge die Bearbeitung an das Konto, das zufällig zuerst

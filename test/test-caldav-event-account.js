@@ -6,7 +6,7 @@
  * die Zeile des ersten, und welches Konto eine Bearbeitung oder Löschung
  * sendet, ergab sich erst zur Laufzeit aus Kalender-URL und Objektadresse.
  * Jetzt steht das Konto in der Zeile (`calendar_events.caldav_account_id`,
- * Migration 238) und am Löschauftrag.
+ * Migration 248) und am Löschauftrag.
  *
  * Die Regeln, die hier geprüft werden:
  *   - EINE Zeile je UID. Sie gehört dem Konto, das sie zuerst gebracht hat;

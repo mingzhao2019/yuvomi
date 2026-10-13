@@ -247,7 +247,7 @@ test('Geburtstag mit Kalender-Referenz anlegen', () => {
 //
 // Anders als der Rest dieser Datei gegen das ECHTE Schema, also nach allen
 // Migrationen von server/db.js: die Frage ist, ob die Spalten ihren
-// Fremdschlüssel am Ende noch tragen. Migration 238 legt ihn an; ein späterer
+// Fremdschlüssel am Ende noch tragen. Migration 248 legt ihn an; ein späterer
 // Rebuild einer der beiden Tabellen, der die Spalte ohne ihn abschreibt, fiele
 // sonst erst auf, wenn ein gelöschtes Konto Termine hinterlässt, die auf
 // nichts mehr zeigen.

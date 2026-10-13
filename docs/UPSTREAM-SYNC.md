@@ -686,3 +686,88 @@ After validation finished, `upstream/main` advanced again with
 commits arrived after the sixteen-commit selection and were intentionally not
 added to `custom`; local and remote `main` were separately fast-forwarded to
 `facffb187` so the main branch remains an exact mirror of the current upstream.
+
+## Current sync checkpoint (2026-10-14)
+
+`git fetch upstream` was rerun before this sync and found no movement:
+local `main` and `upstream/main` both point to `6210698455` (v2.76.0).
+The selective integration started from custom `6a71b42ac` on
+`custom-upstream-selective-2026-10-14`. All 51 commits after the previous
+checkpoint at `70f13e6f5` were reviewed and incorporated in upstream order;
+the upstream branch was not merged wholesale.
+
+| Upstream commit | Behavior | Integration decision |
+| --- | --- | --- |
+| `293e0022c` (#1875/#1877) | Google outbound events use the configured household time zone. | Adopted; retained custom precise time conversion and provider semantics. |
+| `facffb187` | Publishes v2.76.0 release metadata. | Adopted; synchronized current package, lockfile, service-worker, release, and installer metadata. |
+| `beb0d6134` (#1860/#1879) | CalDAV imports attribute mirrored events and pending deletions to the account that brought them. | Manually composed; preserved custom account/list identity and relocated the upstream migration to custom migration 248. |
+| `e1ff416b7` (#1861/#1862/#1880) | A refused move or edit during upload no longer loses or rolls back local changes. | Adopted with the custom CalDAV outbound/refusal state machine. |
+| `efcf6117` (#1886) | A waiting removal deletes only its own remote entry. | Adopted; retained custom UID, account, and target checks. |
+| `46bd79e8b` (#1855) | Archived expense groups reject writes on the server. | Adopted; retained custom API refusal reasons and permissions. |
+| `74b2ebcc7` (#1849) | Adds DD-MM-YYYY and selects it for the Netherlands. | Adopted; retained custom locale and date-format settings. |
+| `a8d121444` (#1894) | Pins the money-account test clock and time zone. | Adopted; test-only. |
+| `56336dae6` (#1824) | Checked-off shopping items move into a collapsed section. | Adopted; retained custom list selection and dashboard entry points. |
+| `23f47dee1` (#1728) | Category bars filter the budget transaction list. | Adopted; retained custom budget visibility and account semantics. |
+| `939a662d8` (#1752) | Updates Norwegian Bokmål wording. | Adopted; merged with the custom locale baseline. |
+| `2a117de04` (#1893) | An upload follows a target changed while it was in flight. | Adopted with custom CalDAV target/list guards. |
+| `ec2599715` (#1791) | A profile picture can be fetched from Gravatar once. | Adopted; retained the custom profile and privacy contract. |
+| `d89d6abbe` (#1896) | Corrects the dashboard “due soon” wording. | Adopted; localization only. |
+| `4dd395fb2` (#1825) | Wall mode names today’s tasks under each person. | Adopted; combined with custom wall payload and visibility rules. |
+| `bfb7767c6` (#1838) | Wall mode shows only household-visible entries. | Adopted; retained display-specific permissions and scopes. |
+| `6b3698f54` (#1898) | Gravatar hints and errors name the configured service. | Adopted; retained custom provider allowlists. |
+| `444a192a9` (#1899) | Budget focus stays on the tapped category bar. | Adopted; UI-only. |
+| `52932e171` (#1792) | Adds a per-device screensaver clock and full-bleed photos. | Adopted; retained device-local settings and custom display gates. |
+| `ac8b6232e` (#1895) | Deleting after a lost upload response remains deleted. | Adopted with custom CalDAV upload notes and retry behavior. |
+| `fe88d4619` (#1646) | Adds manual task order within a category. | Adopted; relocated the upstream migration to custom migration 252 and preserved persistent task-list ordering. |
+| `9b33af691` (#1900) | Wall mode omits personal entries like a paired display. | Adopted; retained the custom wall response shape. |
+| `a93e6e430` (#1902) | A deletion for a switched-off calendar waits. | Adopted; retained custom calendar selection and retry semantics. |
+| `5ea40b7dd` (#1907) | Wall responses carry only fields drawn by the wall. | Adopted; preserved custom asset and event-color payloads. |
+| `d82d9e0f4` (#1671) | Allows opt-in module installation from GitHub or a ZIP in Settings. | Adopted; retained custom install guards, path validation, and opt-in behavior. |
+| `1fc352502` (#1700) | Moves a shopping item to another list, including its CalDAV entry. | Manually composed; relocated the upstream migration to custom migration 253 and retained custom list identity and move/refusal handling. |
+| `66299fe3f` (#1892) | Corrects Dutch notes and due-label wording. | Adopted; localization only. |
+| `50d42b20c` (#1913) | Uses one checked path for a module ID from a request. | Adopted; retained custom API and permission gates. |
+| `aac939908` (#1914) | A skipped upload leftover no longer shields a deleted row. | Adopted with custom CalDAV leftover/UID handling. |
+| `d74b4401d` (#1793) | A paired wall tablet can show the photo screensaver. | Adopted; retained display scopes and administrator switch semantics. |
+| `2157ab5f4` (#1915) | Wall-mode text says the display is fixed, not its arrangement. | Adopted; localization only. |
+| `9b2efe8c5` (#1916) | Shopping error toasts use the app’s sentence. | Adopted; retained structured refusal reasons. |
+| `21bbcf3b6` (#1920) | `friendlyError` names the server’s cause again. | Adopted; retained custom localized error mapping. |
+| `0f95e859d` (#1921) | Shopping reloads itself when an item has disappeared. | Adopted; preserved custom list and selection state. |
+| `fe6afeb6e` (#1924) | Deleting an already-gone shopping item succeeds. | Adopted; retained idempotent API behavior. |
+| `f5c54465b` (#1243) | Adds multiple first-class local calendars. | Manually composed; relocated the upstream migration to custom migration 255, retained local-calendar color/completion and CalDAV/ICS target precedence, and preserved custom calendar UI. |
+| `0a44034a7` (#1925) | Deleting a gone list, store, or category succeeds. | Adopted; retained custom deletion permissions and response contracts. |
+| `ea4581bb8` (#1928) | An event moved away during upload is not booked as uploaded. | Adopted with custom calendar outbound target checks. |
+| `8c0024712` (#1930) | A series receiving an exception in flight stays local. | Adopted; regression coverage composed with custom recurrence behavior. |
+| `3c209cf3a` (#1931) | Waste error toasts use the app’s sentence. | Adopted; retained custom error-key mapping. |
+| `b7b323b62` (#1933) | A Google edit made during upload is sent afterwards. | Adopted; retained custom Google conflict and timezone behavior. |
+| `6cc5a2e4` (#1936) | Waste import and URL-source errors use the app’s sentence. | Adopted; retained custom source-state and localization contracts. |
+| `9e09f5199` (#1939) | A feed without calendar entries keeps the last waste pickups. | Adopted; retained custom empty-feed safety behavior. |
+| `98d3b124d` (#1943) | Store management names the store, not the category. | Adopted; UI/error wording only. |
+| `6aa6207e0` (#1944) | The screensaver idle timer stays off until somebody is signed in. | Adopted; retained device-local timer behavior. |
+| `56e536030` (#1923) | The wall footer button starts the photo screensaver. | Adopted; retained custom wall layout and display permission gates. |
+| `1b943f2c1` (#1946) | A manually started screensaver survives the pointer leaving the button. | Adopted; UI behavior only. |
+| `99a8de6b5` (#1948) | Pins module-install guards so tests cannot bypass them. | Adopted; retained the custom install safety boundary. |
+| `775bb4025` (#1949) | Changelog tests catch conflict markers and duplicated rubric entries. | Adopted; test-only. |
+| `810f9952e` (#1952) | A switched-off medication has no due dose on the page. | Adopted; retained custom health permissions and scheduler behavior. |
+| `621069845` (#1954) | An entry note clears the wall clock and the footer gains a scroll edge. | Adopted; retained custom wall layout and dashboard payload contracts. |
+
+The migration conflict was resolved append-only. Custom migrations 238–247
+remain unchanged. The eight imported schema changes that originally used
+upstream versions 238–245 now run as custom migrations 248–255:
+CalDAV account attribution, search-trigger narrowing, deletion ETags, upload
+attempt notes, task order, shopping moves, display screensaver state, and
+local calendars. The schema mirror and the migration append-only test both
+cover the resulting sequence; no released migration was rewritten.
+
+The main semantic overlap decisions were to combine all CalDAV/Google
+in-flight and lost-response fixes with the custom task-list identity, own-UID,
+refusal, target, and timezone rules; combine wall/display changes with the
+custom asset, event-color, visibility, and paired-device contracts; and add
+local calendars without removing completion controls, local colors, or the
+ICS/CalDAV target boundary. The existing custom test-chain wrapper and its
+additional suites were preserved. No redundant custom feature was removed
+wholesale.
+
+Version metadata is synchronized at `2.76.0` in the root package, both root
+lockfile fields, `public/sw.js`, and current release metadata. The temporary
+integration branch currently ends at `21a95ab65`; focused validation and the
+full `npm test` are required before fast-forwarding `custom`.

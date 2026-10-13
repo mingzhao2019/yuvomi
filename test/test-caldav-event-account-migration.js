@@ -1,6 +1,6 @@
 /**
- * Test: Migration v238 gegen eine befüllte Bestands-DB (#1860)
- * Zweck: v238 trägt an calendar_events und calendar_pending_deletions das
+ * Test: Migration v248 gegen eine befüllte Bestands-DB (#1860)
+ * Zweck: v248 trägt an calendar_events und calendar_pending_deletions das
  *        CalDAV-Konto nach und ordnet den Bestand zu. Diese Suite baut die echte
  *        Migrationskette bis v237, befüllt sie mit einem, zwei und keinem Konto
  *        und weist nach:
@@ -26,12 +26,12 @@ import { tempDir } from './tmp-dir.js';
 
 // DB_PATH vor dem Import auf eine Wegwerf-Datei: db.js migriert beim Modul-Load.
 // Geprüft wird hier die exportierte Migration gegen eine eigens aufgebaute
-// Vor-v238-DB.
+// Vor-v248-DB.
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret';
 process.env.DB_PATH = join(tempDir('yuvomi-caldavacc-'), 'unused.db');
 const { MIGRATIONS } = await import('../server/db.js');
 
-const V238 = MIGRATIONS.find((m) => m.version === 238);
+const V248 = MIGRATIONS.find((m) => m.version === 248);
 
 /** Eine Migration so fahren, wie es der Runner in db.js tut. */
 function applyMigration(db, migration) {
@@ -164,7 +164,7 @@ test('ein Konto: jede CalDAV-Zeile und jeder CalDAV-Löschauftrag gehört ihm', 
   ageEvents(db);
   const before = { events: events(db), tombstones: tombstones(db), search: searchRows(db) };
 
-  applyMigration(db, V238);
+  applyMigration(db, V248);
 
   for (const key of ['selected', 'noCalendar', 'leftover', 'dirty']) {
     assert.equal(accountOf(db, ids[key]), account, `CalDAV-Zeile "${key}" gehört nicht dem einzigen Konto`);
@@ -235,7 +235,7 @@ test('zwei Konten: zugeordnet wird nur über einen Kalender-Schlüssel, der in g
   ageEvents(db);
   const before = { events: events(db), tombstones: tombstones(db), search: searchRows(db) };
 
-  applyMigration(db, V238);
+  applyMigration(db, V248);
 
   const expected = {
     inA: a, inAOff: a, inB: b, dirtyInB: b, targetLies: a,
@@ -262,7 +262,7 @@ test('kein Konto: nichts wird zugeordnet, die Spalten stehen trotzdem', () => {
   const id = addEvent(db, 'Waise', { external_source: 'caldav', external_calendar_id: 'u1' });
   const stone = addTombstone(db, 'caldav', 'https://gone.example/cal/x/', 'd1');
 
-  applyMigration(db, V238);
+  applyMigration(db, V248);
 
   assert.equal(accountOf(db, id), null);
   assert.equal(tombstoneAccount(db, stone), null);
@@ -289,7 +289,7 @@ test('kein Rebuild: Tabellen, Trigger und Indizes bleiben, die Trigger mit demse
   };
   assert.ok(before.triggers.length >= 5, 'die Vorher-Aufnahme hat die Trigger nicht gesehen');
 
-  applyMigration(db, V238);
+  applyMigration(db, V248);
 
   // ADD COLUMN fügt genau eine Spaltendefinition in den gespeicherten Wortlaut
   // ein (vor einer Tabellen-Constraint am Ende) und lässt die Tabelle auf
@@ -333,7 +333,7 @@ test('beide Spalten tragen ihren Fremdschlüssel: Termine bleiben ohne Konto, L�
   const stoneB = addTombstone(db, 'caldav', 'https://dav.example/cal/ben/', 'd2');
   const stoneGoogle = addTombstone(db, 'google', 'fam@g', 'd3');
 
-  applyMigration(db, V238);
+  applyMigration(db, V248);
 
   const foreignKey = (table) => db.pragma(`foreign_key_list(${table})`).find((fk) => fk.from === 'caldav_account_id');
   assert.deepEqual(
@@ -371,7 +371,7 @@ test('eine Datenbank, die die Spalten schon trägt, läuft durch und wird trotzd
     ALTER TABLE calendar_pending_deletions ADD COLUMN caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE;
   `);
 
-  applyMigration(db, V238);
+  applyMigration(db, V248);
 
   assert.equal(accountOf(db, id), account);
   db.close();

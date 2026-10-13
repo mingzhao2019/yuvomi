@@ -10728,7 +10728,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 238,
+    version: 248,
     description: 'CalDAV: a mirrored event and its pending deletion carry their account (#1860)',
     // EIN GESPIEGELTER TERMIN GEHOERT ZU EINEM KONTO, UND DAS STEHT JETZT IN
     // DER ZEILE (#1860). Bis hierher war die UID die ganze Identitaet, ueber
@@ -10771,7 +10771,7 @@ const MIGRATIONS = [
     // setzte jede zugeordnete Zeile auf "eben geaendert". Beides soll ein reiner
     // Konto-Nachtrag nicht ausloesen. Sie werden mit ihrem gespeicherten
     // Wortlaut wieder angelegt, in derselben Reihenfolge, in derselben
-    // Transaktion. (Migration 239 verengt den Such-Trigger dauerhaft auf seine
+    // Transaktion. (Migration 249 verengt den Such-Trigger dauerhaft auf seine
     // indizierten Spalten; dieses Ruhen bleibt für den einmaligen Nachtrag.)
     up(database) {
       // Eine gedriftete Datenbank kann die Spalte schon tragen
@@ -10851,7 +10851,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 239,
+    version: 249,
     description: 'Calendar: the search index update trigger fires only on the indexed columns (#1860)',
     // DER SUCH-TRIGGER FEUERTE BEI JEDEM UPDATE AN calendar_events. Sein Rumpf
     // loescht und schreibt die FTS-Zeile des Termins neu - teuer. Bei einem
@@ -10902,7 +10902,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 240,
+    version: 250,
     description: 'Calendar: a pending deletion can carry the ETag of the entry it was queued for (#1883)',
     // EIN LOESCHAUFTRAG, DER WARTET, KANNTE NUR DIE ADRESSE SEINES OBJEKTS. Der
     // Auftrag aus einem Umzug, dessen Quelle ihr Loeschen abgelehnt hat (#1861),
@@ -10921,7 +10921,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 241,
+    version: 251,
     description: 'CalDAV: an upload is noted before it is sent, so a lost answer leaves a trace (#1882)',
     // EIN UPLOAD, DESSEN ANTWORT VERLOREN GING, HINTERLIESS NICHTS. Der PUT kam
     // an, das Objekt liegt auf dem Server, und lokal stand nur eine Zeile wie
@@ -10969,7 +10969,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 242,
+    version: 252,
     description: 'Tasks: manual order within a category (tasks.sort_order)',
     // NULL = nie von Hand eingeordnet. Solche Aufgaben behalten die bisherige
     // Reihenfolge (Faelligkeit, dann Prioritaet) und stehen HINTER den von Hand
@@ -10988,7 +10988,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 243,
+    version: 253,
     description: 'Shopping: a mirrored item waits to be carried to the list it was moved to',
     // Ein gespiegelter Artikel, der auf eine andere gespiegelte Liste umzieht
     // (#1700), nimmt sein Objekt auf dem CalDAV-Server mit. `outbound_move = 1`
@@ -11012,7 +11012,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 244,
+    version: 254,
     description: 'Displays: the photo screensaver is switched on per display by an administrator (#1766)',
     // OB EIN WANDTABLETT DEN FOTO-SCHONER ZEIGT, ENTSCHEIDET EIN ADMINISTRATOR,
     // JE DISPLAY (#1766, PR #1793). Ohne diese Spalte haette jedes gekoppelte
@@ -11034,7 +11034,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 245,
+    version: 255,
     description: 'Calendar: first-class local calendars with per-calendar feeds',
     up: `
       CREATE TABLE local_calendars (

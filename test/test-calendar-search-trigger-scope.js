@@ -1,6 +1,6 @@
 /**
  * Test: der Such-Trigger an calendar_events feuert nur auf den indizierten
- *       Spalten (Migration v239, #1860)
+ *       Spalten (Migration v249, #1860)
  * Zweck: `trg_search_events_au` schrieb bei JEDEM UPDATE die FTS-Zeile des
  *        Termins neu, auch wenn kein durchsuchtes Feld betroffen war. Das SET
  *        NULL beim Loeschen eines CalDAV-Kontos fasst `caldav_account_id` an

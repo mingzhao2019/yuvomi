@@ -48,7 +48,7 @@ describe('CalDAV Multi-Account Sync', () => {
       );
 
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -243,7 +243,7 @@ describe('pruneDeletedEvents (#508)', () => {
 
   function setup() {
     db = new DatabaseSync(':memory:');
-    // Bewusst OHNE caldav_account_id (Migration 238): ohne Konto im Aufruf
+    // Bewusst OHNE caldav_account_id (Migration 248): ohne Konto im Aufruf
     // fragt der Prune nicht danach - so laeuft er fuer Apple.
     db.exec(`
       CREATE TABLE calendar_events (
@@ -433,7 +433,7 @@ describe('CalDAV sync yields to the event loop (#519)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -452,7 +452,7 @@ describe('CalDAV sync yields to the event loop (#519)', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
@@ -466,7 +466,7 @@ describe('CalDAV sync yields to the event loop (#519)', () => {
         UNIQUE(source, calendar_external_id, event_external_id)
       );
       CREATE TABLE caldav_upload_attempts (
-        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 241, #1882)
+        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 251, #1882)
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
@@ -603,7 +603,7 @@ describe('CalDAV: RECURRENCE-ID-Overrides killen die Serie nicht (#549)', () => 
         default_assignee_user_id INTEGER, UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -622,7 +622,7 @@ describe('CalDAV: RECURRENCE-ID-Overrides killen die Serie nicht (#549)', () => 
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
@@ -636,7 +636,7 @@ describe('CalDAV: RECURRENCE-ID-Overrides killen die Serie nicht (#549)', () => 
         UNIQUE(source, calendar_external_id, event_external_id)
       );
       CREATE TABLE caldav_upload_attempts (
-        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 241, #1882)
+        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 251, #1882)
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
@@ -802,7 +802,7 @@ describe('CalDAV: No-op-Syncs bleiben im Standard-Log-Level still', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -820,7 +820,7 @@ describe('CalDAV: No-op-Syncs bleiben im Standard-Log-Level still', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
@@ -834,7 +834,7 @@ describe('CalDAV: No-op-Syncs bleiben im Standard-Log-Level still', () => {
         UNIQUE(source, calendar_external_id, event_external_id)
       );
       CREATE TABLE caldav_upload_attempts (
-        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 241, #1882)
+        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 251, #1882)
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
@@ -1055,7 +1055,7 @@ describe('CalDAV: eine Bearbeitung friert die Farbe nicht mehr ein (#899)', () =
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -1075,7 +1075,7 @@ describe('CalDAV: eine Bearbeitung friert die Farbe nicht mehr ein (#899)', () =
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL, calendar_external_id TEXT NOT NULL,
@@ -1086,7 +1086,7 @@ describe('CalDAV: eine Bearbeitung friert die Farbe nicht mehr ein (#899)', () =
         UNIQUE(source, calendar_external_id, event_external_id)
       );
       CREATE TABLE caldav_upload_attempts (
-        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 241, #1882)
+        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 251, #1882)
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
@@ -1258,7 +1258,7 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -1278,7 +1278,7 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL, calendar_external_id TEXT NOT NULL,
@@ -1289,7 +1289,7 @@ describe('CalDAV: die eingebrannte Kalenderfarbe loest sich (#1270)', () => {
         UNIQUE(source, calendar_external_id, event_external_id)
       );
       CREATE TABLE caldav_upload_attempts (
-        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 241, #1882)
+        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 251, #1882)
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
@@ -2211,7 +2211,7 @@ describe('CalDAV: eine Aufgabenliste bleibt kein Terminziel (#617)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -2229,7 +2229,7 @@ describe('CalDAV: eine Aufgabenliste bleibt kein Terminziel (#617)', () => {
         external_object_url TEXT
       );
       CREATE TABLE calendar_pending_deletions (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
@@ -2243,7 +2243,7 @@ describe('CalDAV: eine Aufgabenliste bleibt kein Terminziel (#617)', () => {
         UNIQUE(source, calendar_external_id, event_external_id)
       );
       CREATE TABLE caldav_upload_attempts (
-        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 241, #1882)
+        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 251, #1882)
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
@@ -2493,7 +2493,7 @@ describe('CalDAV: das Aufräumen beim Abwählen ist eine Wahl (#732)', () => {
         UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -2512,7 +2512,7 @@ describe('CalDAV: das Aufräumen beim Abwählen ist eine Wahl (#732)', () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT, account_id INTEGER
       );
       CREATE TABLE calendar_pending_deletions (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL, calendar_external_id TEXT NOT NULL,
@@ -2520,7 +2520,7 @@ describe('CalDAV: das Aufräumen beim Abwählen ist eine Wahl (#732)', () => {
         UNIQUE(source, calendar_external_id, event_external_id)
       );
       CREATE TABLE caldav_upload_attempts (
-        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 241, #1882)
+        -- Notiz eines Uploads, dessen Ergebnis noch nicht gebucht ist (Migration 251, #1882)
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE CASCADE,
@@ -2717,7 +2717,7 @@ describe('CalDAV: neue Kalender sind opt-in (#732)', () => {
         default_assignee_user_id INTEGER, UNIQUE(source, external_id)
       );
       CREATE TABLE calendar_events (
-        -- Konto der Zeile (Migration 238, #1860)
+        -- Konto der Zeile (Migration 248, #1860)
         caldav_account_id INTEGER REFERENCES caldav_accounts(id) ON DELETE SET NULL,
         -- die Farb-Heilung (#1270) grenzt nach dem Alter der Zeile ab
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
