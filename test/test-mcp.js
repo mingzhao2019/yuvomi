@@ -53,7 +53,7 @@ db.exec(MIGRATIONS_SQL[85]);  // calendar_event_exceptions
 db.exec(MIGRATIONS_SQL[179]); // generated birthday/name-day joins
 db.exec(MIGRATIONS_SQL[44]); // search index rebuilt by migration 194
 db.exec(MIGRATIONS_SQL[204]); // linked occurrence overrides
-db.exec(MIGRATIONS_SQL[245]);
+db.exec(MIGRATIONS_SQL[255]); // local calendars
 db.exec(MIGRATIONS_SQL[41]);  // tasks.start_date (geplante Aufgaben)
 db.exec(MIGRATIONS_SQL[74]);  // access_permissions (Modulrechte, #467)
 // DIESE DREI SIND EINE AUSWAHL, KEIN SCHEMA: Migration 1 legt `tasks` in der

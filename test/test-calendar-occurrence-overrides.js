@@ -107,7 +107,7 @@ function createDatabase() {
   database.exec(MIGRATIONS_SQL[26]); // family document ACLs
   database.exec(MIGRATIONS_SQL[85]); // calendar_event_exceptions
   database.exec(MIGRATIONS_SQL[179]); // generated name-day event owner
-  database.exec(MIGRATIONS_SQL[245]);
+  database.exec(MIGRATIONS_SQL[255]); // local calendars
   database.exec(`
     CREATE TABLE housekeeping_work_sessions (
       id INTEGER PRIMARY KEY,
