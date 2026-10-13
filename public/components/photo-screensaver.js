@@ -19,6 +19,8 @@ let slideTimer;
 let clockTimer;
 let overlay;
 let run = 0;
+// When the last counted pointermove was; see the listener and preview().
+let lastMove = 0;
 // SOMEBODY IS SIGNED IN ON THIS PAGE (#1919). This module loads from index.html
 // on every page, the sign-in and setup pages included, and there is nobody
 // there whose screensaver it could be: the photo request would answer 401,
@@ -32,6 +34,10 @@ let armed = false;
 
 function stop() {
   run += 1;
+  // A start by hand retired here (preview()) holds moves back no longer. Its
+  // request may stay open for as long as it likes; the hand on the mouse must
+  // keep the idle screensaver away from now on, not from the answer on.
+  if (lastMove === Infinity) lastMove = 0;
   clearInterval(slideTimer);
   slideTimer = undefined;
   clearTimeout(clockTimer);
@@ -184,16 +190,30 @@ export function disarmScreensaver() {
   clearTimeout(idleTimer);
 }
 
-/** Opens the real screensaver immediately for the admin configuration preview. */
+/**
+ * Opens the real screensaver immediately: the admin configuration preview and
+ * the start button in the wall footer (#1766).
+ *
+ * The mouse that clicked is still on its way off the button, and that move
+ * must not dismiss what the click just started. The throttle on pointermove
+ * (`lastMove`, in the listener below) is the grace period: no move counts
+ * while the photos load - a move there would retire the start, and the caller
+ * would say "not available" - and the first second after the answer belongs
+ * to the opening. A key, a press, a touch or the wheel are deliberate and
+ * dismiss at once, as always; while the photos load they retire the start,
+ * and stop() ends the wait for moves with it. The press of the click itself
+ * comes before this call and finds nothing to dismiss.
+ */
 export async function preview() {
   stop();
   clearTimeout(idleTimer);
+  lastMove = Infinity;
   const opened = await start();
+  lastMove = Date.now();
   if (!opened) resetIdle();
   return opened;
 }
 
-let lastMove = 0;
 for (const eventName of ['pointerdown', 'keydown', 'touchstart', 'wheel']) {
   window.addEventListener(eventName, resetIdle, { passive: false, capture: true });
 }
