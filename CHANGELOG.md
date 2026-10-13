@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.77.0] - 2026-10-14
+
 ### Added
 
 - **Organize events in several local calendars** (#1243, from D#1231). Create and rename household
@@ -72,7 +74,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the automatic order. Grouping by due date, the board, selection mode, `tasks: read` and the
   wall display are unchanged. The API gets `PATCH /api/v1/tasks/reorder` and
   `POST /api/v1/tasks/reorder/reset`, and `sort_order` on each task (migration 242).
-
 - **Custom modules can be installed from Settings, from GitHub or as a ZIP file, where the operator
   allows it.** Until now a third-party module reached Yuvomi only as a folder copied into `modules/`
   on the server. The new page Settings → Modules → Add custom module (admin only) takes the address
