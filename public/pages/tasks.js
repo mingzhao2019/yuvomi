@@ -30,6 +30,7 @@ import '/components/tag-manager.js';
 import { findPageFab } from '/utils/fab.js';
 import { rowActionEl } from '/utils/row-action.js';
 import { isNavModuleReadOnly, navModuleAccess } from '/permissions.js';
+import { errorSentence } from '/utils/friendly-error.js';
 import { setBulkPill, clearBulkPill } from '/utils/bulk-pill.js';
 import { isSoloHousehold, hidesPrivacyControls } from '/utils/household.js';
 import { popoverMenuHtml, installPopoverMenus, pageToolsMenuHtml, pageToolsActionEl, syncPopoverMenuItem } from '/utils/popover-menu.js';
@@ -3194,7 +3195,7 @@ async function toggleDescriptionCheck(task, box) {
   } catch (err) {
     paint(!checked);
     window.yuvomi?.showToast(
-      err.status === 409 ? t('tasks.checkConflict') : (err.data?.error ?? t('common.unknownError')),
+      err.status === 409 ? t('tasks.checkConflict') : errorSentence(err, 'common.unknownError'),
       'danger',
     );
   }
@@ -3474,7 +3475,7 @@ function openTaskCategoryManager(container) {
       // ankommt, ist immer ein Fehler DIESER Auffrischung - und der erklaert als
       // einziger, warum die Seite den alten Stand behaelt.
       console.error('[Tasks] Auffrischen nach Kategorie-Aenderung fehlgeschlagen:', err);
-      window.yuvomi?.showToast(err.data?.error ?? t('common.errorGeneric'), 'danger');
+      window.yuvomi?.showToast(errorSentence(err, 'common.errorGeneric'), 'danger');
     }
   };
   openSharedModal({
@@ -5527,7 +5528,7 @@ function persistTaskListOrder(
       // have completed while this request was in flight.
       restoreTaskListOrderScope(scope, run.rollback);
       renderTaskLists(container);
-      window.yuvomi.showToast(err.data?.error ?? t('tasks.taskListOrderSaveError'), 'danger');
+      window.yuvomi.showToast(errorSentence(err, 'tasks.taskListOrderSaveError'), 'danger');
     } finally {
       taskListOrderRuns.delete(key);
     }

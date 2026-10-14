@@ -768,6 +768,7 @@ additional suites were preserved. No redundant custom feature was removed
 wholesale.
 
 Version metadata is synchronized at `2.76.0` in the root package, both root
-lockfile fields, `public/sw.js`, and current release metadata. The temporary
-integration branch currently ends at `21a95ab65`; focused validation and the
-full `npm test` are required before fast-forwarding `custom`.
+lockfile fields, `public/sw.js`, and current release metadata. Focused
+validation and the full `npm test` chain passed on 2026-10-14, including the
+final hover, localized-error, locale-canonicalization, and changelog checks.
+The temporary integration branch is ready to fast-forward into `custom`.

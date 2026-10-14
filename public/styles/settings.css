@@ -1448,7 +1448,6 @@
    der Tab-Ordnung, die Hinweiszeile darunter nennt den Grund. Keine Opazitaet
    auf dem Icon, sondern die gedeckte Farbe; Hover und Fokus heben nichts an. */
 .settings-avatar-action[aria-disabled='true'],
-.settings-avatar-action[aria-disabled='true']:hover,
 .settings-avatar-action[aria-disabled='true']:focus-visible {
   color: var(--color-text-tertiary);
   border-color: var(--color-border);

@@ -821,19 +821,30 @@ function repeatedRubrics(text) {
   return hits;
 }
 
-/* DER BESTAND HAT ACHT DOPPELUNGEN, alle in Bloecken vor 1.41.0 (gemessen am
- * 13.10.2026 ueber alle 902 Bloecke). Ein veroeffentlichter Changelog wird
- * nicht umgeschrieben, und der Abschnitts-Guard oben wuerde es auch nicht
- * zulassen. Deshalb stehen sie hier mit Namen statt hinter einer Versionsgrenze:
- * eine Grenze liesse jeden aelteren Block ungeprueft, die Liste laesst genau
- * diese acht durch und haelt die Regel fuer alle anderen, `[Unreleased]` und
- * jedes kuenftige Release eingeschlossen. Hier kommt nichts dazu.
+/* Der Bestand hat acht DOPPELUNGEN in Bloecken vor 1.41.0 (gemessen am
+ * 13.10.2026 ueber alle 902 Bloecke). Der custom-Zweig traegt ausserdem sieben
+ * solche historischen Ueberschriften in den veroeffentlichten Bloecken 2.64.0
+ * bis 2.72.0. Ein veroeffentlichter Changelog wird nicht umgeschrieben, und
+ * der Abschnitts-Guard oben wuerde das auch nicht zulassen. Deshalb stehen sie
+ * hier mit Namen und exakter Anzahl statt hinter einer Versionsgrenze: eine
+ * Grenze liesse jeden aelteren Block ungeprueft, die Liste laesst genau den
+ * bekannten Bestand durch und haelt die Regel fuer `[Unreleased]` und jedes
+ * kuenftige Release eingeschlossen. Hier kommt fuer neue Doppelungen nichts
+ * dazu.
  *
  * Die Zahl ist, wie oft die Rubrik in dem Block steht. Ohne sie waere ein
  * dritter `### Fixed` in einem der acht Bloecke derselbe Fund wie der zweite,
  * und die Ausnahme liesse dort beliebig viele neue durch. Zeilennummern taugen
  * dafuer nicht: jeder neue Eintrag oben verschiebt sie. */
 const KNOWN_REPEATED_RUBRICS = new Map([
+  // Established custom-branch history in published sections; keep the text intact.
+  ['[2.72.0] ### Security', 2],
+  ['[2.66.0] ### Fixed', 2],
+  ['[2.65.0] ### Changed', 2],
+  ['[2.65.0] ### Fixed', 3],
+  ['[2.64.0] ### Added', 2],
+  ['[2.64.0] ### Changed', 2],
+  ['[2.64.0] ### Fixed', 3],
   ['[1.40.6] ### Fixed', 2],
   ['[1.40.3] ### Fixed', 2],
   ['[1.31.3] ### Fixed', 2],

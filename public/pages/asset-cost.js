@@ -1,6 +1,7 @@
 import { api } from '/api.js';
 import { getLocale, getNumberFormat, t } from '/i18n.js';
 import { esc } from '/utils/html.js';
+import { errorSentence } from '/utils/friendly-error.js';
 import { todayKey } from '/utils/timezone.js';
 import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/page-search.js';
 import {
@@ -337,7 +338,7 @@ async function openCategoryManager() {
     } catch (err) {
       // The manager displays the mutation error; this is a separate refresh
       // request and must remain visible if it fails.
-      window.yuvomi?.showToast(err.data?.error ?? t('common.errorGeneric'), 'danger');
+      window.yuvomi?.showToast(errorSentence(err, 'common.errorGeneric'), 'danger');
     }
   };
   let manager = null;
@@ -980,7 +981,7 @@ async function saveAsset(panel, item, photoData) {
     window.yuvomi?.showToast(item ? tr('updated') : tr('created'), 'success');
   } catch (err) {
     if (saveButton) saveButton.disabled = false;
-    window.yuvomi?.showToast(err.data?.error || tr('loadError'), 'danger');
+    window.yuvomi?.showToast(errorSentence(err, 'common.errorGeneric'), 'danger');
   }
 }
 
@@ -997,7 +998,7 @@ async function removeAsset(item) {
     refocusAfterRender();
     window.yuvomi?.showToast(tr('deleted'), 'success');
   } catch (err) {
-    window.yuvomi?.showToast(err.data?.error || tr('loadError'), 'danger');
+    window.yuvomi?.showToast(errorSentence(err, 'common.errorGeneric'), 'danger');
   }
 }
 
@@ -1086,6 +1087,6 @@ export async function render(container, { user } = {}) {
     renderBody();
   } catch (err) {
     state.body.replaceChildren();
-    state.body.insertAdjacentHTML('beforeend', `<p class="asset-cost-empty">${esc(err.data?.error || tr('loadError'))}</p>`);
+    state.body.insertAdjacentHTML('beforeend', `<p class="asset-cost-empty">${esc(errorSentence(err, 'common.errorGeneric'))}</p>`);
   }
 }
