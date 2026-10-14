@@ -1112,17 +1112,30 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
     saved[name] = Object.getOwnPropertyDescriptor(globalThis, name);
     Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
   }
+  // Die Anfragen laufen echt ueber HTTP; erst auf ihre Antworten warten, dann
+  // die Mikrotasks der Glocke ablaufen lassen (sonst ein Wettlauf, z. B. unter Windows).
+  const inflight = [];
+  const settle = async () => {
+    await Promise.allSettled(inflight.splice(0));
+    for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setImmediate(resolve));
+  };
   const bell = await import('../public/reminders.js');
   try {
     await withClock(NOON_BERLIN, 'Europe/Berlin', async () => {
       seedPersonal();
       viewer = BEN;
       globalThis.__apiStub = {
-        get: async (path) => { asked.push(path); return (await fetch(`${base}${path}`)).json(); },
+        get: (path) => {
+          asked.push(path);
+          const answer = fetch(`${base}${path}`).then((res) => res.json());
+          inflight.push(answer);
+          return answer;
+        },
       };
       // An der Wand: Schalter an, Route der Uebersicht.
       store.set('yuvomi-wall-mode', '1');
       await bell.init();
+      await settle();
       assert.deepEqual(asked, ['/reminders/pending?audience=household']);
       assert.equal(surface.children.length, 0, 'kein Toast ueber der Wand');
       assert.equal(notifications.length, 0, 'keine Browser-Benachrichtigung');
@@ -1130,6 +1143,7 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
       // Dieselbe Sitzung auf einer anderen Seite: der Schalter allein macht keine Wand.
       globalThis.location.pathname = '/tasks';
       await bell.refresh();
+      await settle();
       assert.equal(asked.at(-1), '/reminders/pending');
       assert.equal(surface.children.length, 1, 'Reichweite: ausserhalb der Wand kommt der Toast - und er war nicht als gezeigt verbucht');
       assert.equal(notifications.at(-1)?.options.body, 'Steuer abgeben');
@@ -1138,6 +1152,7 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
       store.delete('yuvomi-wall-mode');
       globalThis.location.pathname = '/';
       await bell.refresh();
+      await settle();
       assert.equal(asked.at(-1), '/reminders/pending');
 
       // EINE PERSOENLICHE ANTWORT, DIE UNTERWEGS WAR, ALS DIE WAND AUFGING
@@ -1155,12 +1170,14 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
         return answer;
       };
       await bell.refresh();
+      await settle();
       assert.equal(asked.at(-1), '/reminders/pending', 'Reichweite: gefragt wurde persoenlich');
       assert.equal(surface.children.length, 0, 'die unterwegs gewesene Antwort wird ueber der Wand kein Toast');
       assert.equal(notifications.length, 0);
       globalThis.__apiStub.get = direct;
       globalThis.location.pathname = '/tasks';
       await bell.refresh();
+      await settle();
       assert.equal(surface.children.length, 1, 'und sie war nicht verbraucht: zurueck auf der Seite kommt der Toast');
     })();
   } finally {
