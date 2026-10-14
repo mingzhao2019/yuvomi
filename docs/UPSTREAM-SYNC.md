@@ -772,3 +772,41 @@ lockfile fields, `public/sw.js`, and current release metadata. Focused
 validation and the full `npm test` chain passed on 2026-10-14, including the
 final hover, localized-error, locale-canonicalization, and changelog checks.
 The temporary integration branch is ready to fast-forward into `custom`.
+
+## Current sync checkpoint (2026-10-14, v2.77.0)
+
+The upstream remote was refreshed from `6210698455ea` to
+`369958246ea650bccb8f2379fca3f83ec9a48308` (`v2.77.0`). Local `main` was
+fast-forwarded to that upstream tip. The selective integration started from
+the actual custom tip `0bb28c5da08c5b1d8128f141910e93ef153ed6f7` on the
+temporary branch `custom-upstream-selective-2026-10-14`; upstream was not
+merged wholesale.
+
+All nine new upstream commits were reviewed and integrated in upstream order:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `9abae6dff` | Publishes v2.77.0 release metadata. | Adopted as `4527a727a`; synchronized package, lockfile, service-worker, release, and installer metadata. |
+| `29d8d5c58` | Bumps the Node action. | Adopted as `2e21a0678`. |
+| `79e7b7f18` | Bumps setup-node. | Adopted as `335382297`. |
+| `2a795e5d3` | Bumps the Claude action. | Adopted as `af9fe0bc3`. |
+| `219062006` | Keeps an authored series start aligned on every push. | Manually composed as `69af3ca26`; retained custom reminder, color, recurrence, and completion semantics, with the schema change relocated to custom migration 256. |
+| `800f5ec8b` | Updates development dependencies. | Adopted as `c82276a6c`. |
+| `21d94e1d0` | Leaves event time untouched for title-only calendar saves. | Manually composed as `aeac4d552`; retained the custom UI and test-chain wrapper. |
+| `7d26dc4df` | Updates production dependencies, including `tsdav` 2.4.0. | Manually composed as `12f90076d`; retained custom CalDAV task-list, UID, target, and refusal behavior and adapted empty/missing multiget handling. |
+| `369958246e` | Checks account origin for CalDAV reminder/task synchronization. | Adopted as `2043db072`; added the focused Todo-origin regression test. |
+
+The semantic conflict points were the custom migration numbering, the active
+custom test wrapper, authored-series and reminder timezone behavior, and
+CalDAV 2.4 response/refusal handling. No existing custom feature was removed.
+The follow-up CalDAV compatibility fix is committed as
+`827297d26` (`fix(caldav): tolerate empty tsdav multiget responses`).
+
+Version metadata is synchronized at `2.77.0` in the root package, both root
+lockfile fields, `public/sw.js`, and release metadata. Focused validation has
+passed for authored-series origin (66/66), calendar form timezone (13/13),
+CalDAV Todo origin (7/7), CalDAV HTTP refusals (68/68), CalDAV own UID
+(204/204), CalDAV/CardDAV, shopping moves, Google/Outlook calendar flows,
+MCP, and dashboard suites. `git diff --check` is clean. The final full
+`npm test` remains the last validation step before fast-forwarding `custom`
+and pushing both `main` and `custom` without force.
