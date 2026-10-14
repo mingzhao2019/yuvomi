@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Budget overview: expense categories and subcategories show their share of the total.** The
+  share stands quietly after the amount, the same way the Statistics tab already shows it. A
+  category is measured against the total of all expenses, a subcategory against the total of its
+  category; income rows stay as they are. The share is calculated in one place for both pages, so
+  the Statistics tab now also writes a share below one percent as "<1 %" instead of "0%", and
+  formats the number in the language and region you have chosen.
+
 ### Fixed
 
 - **Housekeeping: creating or editing a housekeeper profile saves again** (#1976). Since 2.75.0
