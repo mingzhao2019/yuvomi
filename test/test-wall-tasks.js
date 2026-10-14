@@ -1112,7 +1112,6 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
     saved[name] = Object.getOwnPropertyDescriptor(globalThis, name);
     Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
   }
-  const settle = async () => { for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setImmediate(resolve)); };
   const bell = await import('../public/reminders.js');
   try {
     await withClock(NOON_BERLIN, 'Europe/Berlin', async () => {
@@ -1123,16 +1122,14 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
       };
       // An der Wand: Schalter an, Route der Uebersicht.
       store.set('yuvomi-wall-mode', '1');
-      bell.init();
-      await settle();
+      await bell.init();
       assert.deepEqual(asked, ['/reminders/pending?audience=household']);
       assert.equal(surface.children.length, 0, 'kein Toast ueber der Wand');
       assert.equal(notifications.length, 0, 'keine Browser-Benachrichtigung');
 
       // Dieselbe Sitzung auf einer anderen Seite: der Schalter allein macht keine Wand.
       globalThis.location.pathname = '/tasks';
-      bell.refresh();
-      await settle();
+      await bell.refresh();
       assert.equal(asked.at(-1), '/reminders/pending');
       assert.equal(surface.children.length, 1, 'Reichweite: ausserhalb der Wand kommt der Toast - und er war nicht als gezeigt verbucht');
       assert.equal(notifications.at(-1)?.options.body, 'Steuer abgeben');
@@ -1140,8 +1137,7 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
       // Und ohne den Schalter auf der Uebersicht ebenso persoenlich.
       store.delete('yuvomi-wall-mode');
       globalThis.location.pathname = '/';
-      bell.refresh();
-      await settle();
+      await bell.refresh();
       assert.equal(asked.at(-1), '/reminders/pending');
 
       // EINE PERSOENLICHE ANTWORT, DIE UNTERWEGS WAR, ALS DIE WAND AUFGING
@@ -1158,15 +1154,13 @@ test('Persoenliches: die Glocke der Shell fragt ueber einer Wand die Haushaltsfa
         globalThis.location.pathname = '/';
         return answer;
       };
-      bell.refresh();
-      await settle();
+      await bell.refresh();
       assert.equal(asked.at(-1), '/reminders/pending', 'Reichweite: gefragt wurde persoenlich');
       assert.equal(surface.children.length, 0, 'die unterwegs gewesene Antwort wird ueber der Wand kein Toast');
       assert.equal(notifications.length, 0);
       globalThis.__apiStub.get = direct;
       globalThis.location.pathname = '/tasks';
-      bell.refresh();
-      await settle();
+      await bell.refresh();
       assert.equal(surface.children.length, 1, 'und sie war nicht verbraucht: zurueck auf der Seite kommt der Toast');
     })();
   } finally {
@@ -1325,6 +1319,8 @@ const DELIBERATELY_EMPTY_ON_THE_WALL = Object.freeze({
   pinnedNotes: 'notes', pinnedNotesCount: 'notes', notesTotal: 'notes',
   // Geld steht an keiner Wand.
   budget: 'budget', splitBalance: 'budget',
+  // Inventar: die Kennzahlen stehen nicht an der Wand.
+  assets: 'inventory',
   // Was nur dem Betrachter gilt (#1900).
   rewards: 'rewards', health: 'health', fasting: 'health', nutrition: 'health', myShiftsToday: 'schedule',
   // Keinem Modul zugeordnet: nach der anfragenden Person geschnitten.

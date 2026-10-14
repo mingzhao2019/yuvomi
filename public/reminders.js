@@ -433,12 +433,14 @@ async function poll() {
 
 /**
  * Startet das Reminder-Polling. Idempotent.
+ * @returns {Promise<void>} der erste Poll, falls er gestartet wurde
  */
 function init() {
-  if (_isInitialized) return;
+  if (_isInitialized) return Promise.resolve();
   _isInitialized = true;
-  poll();
+  const initialPoll = poll();
   _pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+  return initialPoll;
 }
 
 /**
@@ -457,9 +459,10 @@ function stop() {
 
 /**
  * Erzwingt sofortigen Poll (z.B. nach Erstellen einer Erinnerung).
+ * @returns {Promise<void>} der abgeschlossene Poll
  */
 function refresh() {
-  poll();
+  return poll();
 }
 
 export {
