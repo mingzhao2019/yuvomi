@@ -1141,12 +1141,17 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
       { allDayTime: '00:00' },
     );
     const explicitRemoteReminder = remoteReminderAts.length > 0;
-    const reminderApplied = applyRemoteEventReminders(
-      db.get(),
-      reminderEvent,
-      remoteReminderAts,
-      { explicit: explicitRemoteReminder },
-    );
+    // Beim Echo bleibt die lokale Erinnerung; ein Anbieterwert gehört dann
+    // zum ausgerichteten Push und ist keine neue lokale Änderung.
+    const reminderEcho = isEcho(reminderEvent, googleReading(incoming));
+    const reminderApplied = reminderEcho
+      ? false
+      : applyRemoteEventReminders(
+        db.get(),
+        reminderEvent,
+        remoteReminderAts,
+        { explicit: explicitRemoteReminder },
+      );
     if (reminderApplied && !explicitRemoteReminder
         && reminderEvent?.reminder_suppressed !== 1 && calWritable) {
       const refreshed = db.get().prepare(

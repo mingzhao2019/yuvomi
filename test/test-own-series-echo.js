@@ -114,7 +114,11 @@ const startMs = (value) => {
   return /(?:Z|[+-]\d\d:\d\d)$/.test(raw) ? Date.parse(raw) : Date.parse(wall(raw));
 };
 
-function addReminder(eventId, remindAt = '2035-01-15T08:00:00.000Z') {
+function addReminder(eventId, remindAt = '2035-01-15T08:00:00') {
+  // POST installs the household default reminder. The acceptance case supplies
+  // its own single reminder so the echo can be checked without depending on
+  // that unrelated default.
+  db.prepare("DELETE FROM reminders WHERE entity_type = 'event' AND entity_id = ?").run(eventId);
   db.prepare("INSERT INTO reminders (entity_type, entity_id, remind_at, created_by) VALUES ('event', ?, ?, 1)")
     .run(eventId, remindAt);
   return remindAt;
@@ -871,12 +875,12 @@ for (const name of ['CalDAV', 'iCloud']) {
   });
 }
 
-// ── Migration 248 ───────────────────────────────────────────────────────────
+// ── Migration 258 ───────────────────────────────────────────────────────────
 
-test(`[${ZONE}] Migration 248 legt die Spalte an, Bestandszeilen bleiben NULL, ein zweiter Lauf scheitert nicht`, async () => {
+test(`[${ZONE}] Migration 258 legt die Spalte an, Bestandszeilen bleiben NULL, ein zweiter Lauf scheitert nicht`, async () => {
   const { DatabaseSync } = await import('node:sqlite');
-  const migration = dbmod.MIGRATIONS.find((m) => m.version === 248);
-  assert.ok(migration, 'Migration 248 fehlt');
+  const migration = dbmod.MIGRATIONS.find((m) => m.version === 258);
+  assert.ok(migration, 'Migration 258 fehlt');
   const database = new DatabaseSync(':memory:');
   try {
     database.exec(`

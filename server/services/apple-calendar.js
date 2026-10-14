@@ -573,10 +573,15 @@ async function runSync({ makeClient } = {}) {
             { fallbackZone: ev.tzid || householdTimeZone(db.get()) },
           );
           const explicitRemoteReminder = remoteReminderAts.length > 0;
-          const reminderApplied = applyRemoteEventReminders(
-            db.get(), reminderEvent, remoteReminderAts,
-            { explicit: explicitRemoteReminder },
-          );
+          // Beim Echo darf ein VALARM des ausgerichteten Pushs die lokale
+          // Erinnerung nicht auf den Anbieter-Tag verschieben.
+          const reminderEcho = isEcho(reminderEvent, icsReading(ev));
+          const reminderApplied = reminderEcho
+            ? false
+            : applyRemoteEventReminders(
+              db.get(), reminderEvent, remoteReminderAts,
+              { explicit: explicitRemoteReminder },
+            );
           if (reminderApplied && !explicitRemoteReminder
               && reminderEvent?.reminder_suppressed !== 1) {
             const refreshed = db.get().prepare(

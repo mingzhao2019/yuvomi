@@ -11128,7 +11128,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 247,
+    version: 257,
     description: 'waste: a source remembers the case of its last failed fetch',
     // DER FALL DES LETZTEN FEHLSCHLAGS STEHT NEBEN SEINEM TEXT (#1909). Bisher
     // trug die Quelle nur `last_error`, den englischen Text des Servers ("No
@@ -11145,7 +11145,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 248,
+    version: 258,
     description: 'calendar: an event remembers what its last aligned push sent',
     // DER ABRUF ERKENNT DAS ECHO DES EIGENEN PUSHS (#1956). Eine hier verfasste
     // Serie geht mit einem Start hinaus, den ihre Regel trifft (#986, #1935):
@@ -11435,7 +11435,7 @@ const CRITICAL_COLUMNS = [
   { table: 'calendar_events', column: 'series_authored',
     type: 'INTEGER NOT NULL DEFAULT 0 CHECK(series_authored IN (0, 1))',
     backfill: backfillSeriesAuthored },
-  // #1956: v248 traegt den Sende-Schnappschuss nach; ohne die Spalte scheitert
+  // #1956: v258 traegt den Sende-Schnappschuss nach; ohne die Spalte scheitert
   // jeder Abruf von Google, CalDAV und iCloud (er liest sie, bevor er die
   // Zeile anfasst) und jede Buchung eines Pushs. Kein Nachtrag: NULL heisst
   // "kein Schnappschuss", der Abruf nimmt den Weg von vorher.
