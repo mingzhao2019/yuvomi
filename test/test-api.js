@@ -884,6 +884,8 @@ const REASONS_PASSED_THROUGH = new Map([
   ['routes/family.js: problem.reason', { sites: 1, at403: [], why: 'memberOrderProblem: feste 400; die 403 daneben traegt ein Literal' }],
   ['routes/tasks.js: err.reason', { sites: 1, at403: [['task_list_tasks_not_deletable', 'routes/tasks.js']],
     why: 'TaskListDeleteError: nur die fehlende Loeschbarkeit aller Aufgaben ist 403; die anderen Gruende sind 404/409' }],
+  // parseDataUrl (#1909): der Fall einer gewaehlten Datei (Typ, Inhalt, leer).
+  ['routes/documents.js: parsed.reason', { sites: 1, at403: [], why: 'parseDataUrl: feste 400' }],
   ['routes/tasks.js: result.reason', { sites: 1, at403: [], why: 'feste 409' }],
   ['routes/backup.js: err.reason', { sites: 1, at403: [], why: 'Restore: 409, 503 oder 400' }],
   // wasteErrorResponse (#1795, #1909): der Grund eines getypten Abfuhr-Fehlers

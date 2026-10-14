@@ -4080,7 +4080,20 @@
         "folderDeletedWithDocumentsToast_many": "Теку й документи ({{count}}) видалено.",
         "expiredDays_many": "Термін минув {{count}} днів тому",
         "expiringInDays_many": "Спливає через {{count}} днів",
-        "expiringShort_many": "Залишилося {{count}} днів"
+        "expiringShort_many": "Залишилося {{count}} днів",
+        "errorFolderGone": "Цієї папки більше немає.",
+        "errorSelectedFolderGone": "Вибраної папки більше немає.",
+        "errorFolderExists": "Тут уже є папка з такою назвою. Виберіть іншу назву.",
+        "errorFolderTooDeep": "Папки можна вкладати не глибше ніж на {{limit}} рівнів.",
+        "errorDocumentGone": "Цей документ більше недоступний.",
+        "errorFileTypeNotAllowed": "Файли цього типу не можна завантажити.",
+        "errorFileContentMismatch": "Вміст файлу не відповідає його типу.",
+        "errorFileEmpty": "Файл порожній.",
+        "errorStorageFailed": "Сховище документів не відповіло. Спробуйте пізніше.",
+        "errorDmsAccountGone": "Цього облікового запису DMS більше немає.",
+        "errorDmsDocumentGone": "Цього документа більше немає в DMS.",
+        "errorDmsAlreadyLinked": "Цей документ із DMS уже пов’язано.",
+        "errorDmsAlreadyStored": "Цей документ уже зберігається в DMS."
     },
     "shortcuts": {
         "goKitchen": "Кухня",

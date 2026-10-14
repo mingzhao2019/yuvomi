@@ -4196,7 +4196,20 @@
         "expiringInDays_two": "تنتهي صلاحيته خلال يومين",
         "expiringInDays_many": "تنتهي صلاحيته خلال {{count}} يومًا",
         "expiringShort_two": "متبقٍ يومان",
-        "expiringShort_many": "متبقٍ {{count}} يومًا"
+        "expiringShort_many": "متبقٍ {{count}} يومًا",
+        "errorFolderGone": "هذا المجلد لم يعد موجودًا.",
+        "errorSelectedFolderGone": "المجلد المحدد لم يعد موجودًا.",
+        "errorFolderExists": "يوجد هنا مجلد بهذا الاسم بالفعل. اختر اسمًا آخر.",
+        "errorFolderTooDeep": "يمكن تداخل المجلدات حتى {{limit}} مستويات كحد أقصى.",
+        "errorDocumentGone": "هذا المستند لم يعد متاحًا.",
+        "errorFileTypeNotAllowed": "لا يمكن رفع هذا النوع من الملفات.",
+        "errorFileContentMismatch": "محتوى الملف لا يطابق نوعه.",
+        "errorFileEmpty": "الملف فارغ.",
+        "errorStorageFailed": "لم يستجب مخزن المستندات. حاول مرة أخرى لاحقًا.",
+        "errorDmsAccountGone": "حساب نظام إدارة المستندات هذا لم يعد موجودًا.",
+        "errorDmsDocumentGone": "هذا المستند لم يعد موجودًا في نظام إدارة المستندات.",
+        "errorDmsAlreadyLinked": "مستند نظام إدارة المستندات هذا مرتبط بالفعل.",
+        "errorDmsAlreadyStored": "هذا المستند محفوظ بالفعل في نظام إدارة المستندات."
     },
     "shortcuts": {
         "goKitchen": "المطبخ",

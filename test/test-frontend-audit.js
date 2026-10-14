@@ -21286,7 +21286,6 @@ const SERVER_TEXT_OPEN = new Map([
   ['pages/birthdays.js', 1],
   ['pages/calendar.js', 7],
   ['pages/contacts.js', 4],
-  ['pages/documents.js', 9],
   ['pages/inventory.js', 8],
   ['pages/meals.js', 6],
   ['pages/notes.js', 5],
@@ -21296,7 +21295,6 @@ const SERVER_TEXT_OPEN = new Map([
   ['pages/subscriptions.js', 8],
   ['settings/module-install-errors.js', 1],
   ['settings/pages/modules-kitchen.js', 1],
-  ['utils/document-folder-delete.js', 1],
 ]);
 
 test('der Leser fuer den Servertext sieht jede Schreibweise und keinen Kommentar (#1909)', () => {
@@ -21354,7 +21352,8 @@ test('keine Seite zeigt den Text des Servers ohne Zuordnung, die offenen stehen 
   assert.deepEqual(shrunk, [],
     'Eine Datei liest den Servertext seltener als die Liste sagt - SERVER_TEXT_OPEN auf die neue Zahl senken '
     + '(bei 0 den Eintrag streichen), sonst darf die Zahl unbemerkt wieder steigen.');
-  for (const name of ['pages/shopping.js', 'pages/waste.js', 'pages/health.js', 'settings/pages/modules-health.js', 'utils/kitchen-transfer.js', 'components/category-manager.js']) {
+  for (const name of ['pages/shopping.js', 'pages/waste.js', 'pages/health.js', 'settings/pages/modules-health.js', 'utils/kitchen-transfer.js', 'components/category-manager.js',
+    'pages/documents.js', 'utils/document-folder-delete.js']) {
     assert.equal(SERVER_TEXT_OPEN.has(name), false, `${name} steht auf 0 und gehoert nicht in die Liste`);
   }
 });
@@ -21376,6 +21375,8 @@ const ERROR_MESSAGE_CLEAN = [
   'pages/health.js',
   'pages/health-fasting.js',
   'settings/pages/modules-health.js',
+  'pages/documents.js',
+  'utils/document-folder-delete.js',
 ];
 
 test('der Leser fuer err.message sieht beide Schreibweisen und keinen Kommentar (#1909)', () => {

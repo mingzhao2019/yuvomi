@@ -3850,7 +3850,20 @@
             "reasonParentFailed": "Üst klasör oluşturulamadı.",
             "reasonRateLimited": "Sunucu çok fazla istek alıyor. Yüklemeyi daha sonra tekrar deneyin."
         },
-        "selectDone": "Bitti"
+        "selectDone": "Bitti",
+        "errorFolderGone": "Bu klasör artık yok.",
+        "errorSelectedFolderGone": "Seçilen klasör artık yok.",
+        "errorFolderExists": "Burada bu adda bir klasör zaten var. Başka bir ad seç.",
+        "errorFolderTooDeep": "Klasörler en fazla {{limit}} düzey iç içe olabilir.",
+        "errorDocumentGone": "Bu belge artık kullanılamıyor.",
+        "errorFileTypeNotAllowed": "Bu dosya türü yüklenemez.",
+        "errorFileContentMismatch": "Dosyanın içeriği dosya türüyle eşleşmiyor.",
+        "errorFileEmpty": "Dosya boş.",
+        "errorStorageFailed": "Belge deposu yanıt vermedi. Daha sonra tekrar dene.",
+        "errorDmsAccountGone": "Bu DMS hesabı artık yok.",
+        "errorDmsDocumentGone": "Bu belge artık DMS'de yok.",
+        "errorDmsAlreadyLinked": "Bu DMS belgesi zaten bağlı.",
+        "errorDmsAlreadyStored": "Bu belge zaten bir DMS'de saklanıyor."
     },
     "shortcuts": {
         "goKitchen": "Mutfak",
