@@ -344,12 +344,17 @@ export function withHttpRefusalsAsErrors(client, { fetch: clientFetch } = {}) {
           response.ok ? NOT_A_LISTING_TEXT[name] : null
         );
       }
+      // A multistatus whose every resource is refused is a listing refusal
+      // even when tsdav resolves it as an empty result instead of throwing.
+      // Inspect the recorded response before deciding that `result` is valid.
+      const refusal = response
+        ? refusalInMultistatus(await response.text().catch(() => ''))
+        : null;
+      if (refusal) throw new DavHttpError(name, response.url, refusal);
       if (failure) {
         // Ein Multistatus, in dem jede Ressource abgelehnt ist (403 je
         // Ressource): tsdav 2.4.0 wirft "discovery failed" ohne Status. Es ist
         // dieselbe Absage wie eine an der ganzen Anfrage.
-        const refusal = response ? refusalInMultistatus(await response.text().catch(() => '')) : null;
-        if (refusal) throw new DavHttpError(name, response.url, refusal);
         throw failure;
       }
       return result;
@@ -567,6 +572,10 @@ async function multigetByAddress(client, kind, { collectionUrl, objectUrls, head
   const objects = [];
   for (const res of responses || []) {
     if (!res?.raw?.multistatus) {
+      // tsdav 2.4 represents an empty 207 Multistatus as only its HTTP
+      // response metadata. A multiget with no matching object is a valid
+      // "not there" answer, not a malformed entry.
+      if (res?.ok && res.status === 207) continue;
       throw new DavHttpError(spec.operation, collectionUrl, res,
         res?.ok ? 'The server did not answer with the requested entries' : 'The server refused to read entries');
     }
@@ -574,7 +583,8 @@ async function multigetByAddress(client, kind, { collectionUrl, objectUrls, head
       // Ein leerer Multistatus: keines der Objekte liegt dort. Ein Eintrag ohne
       // Adresse in einem gefüllten dagegen belegt nichts - als "fort" gelesen,
       // verschwände ein Objekt, über das der Server gar nichts gesagt hat.
-      if (!res.raw.multistatus.response) continue;
+      const rawResponses = res.raw.multistatus.response;
+      if (!rawResponses || (Array.isArray(rawResponses) && rawResponses.length === 0)) continue;
       throw new DavHttpError(spec.operation, collectionUrl, null, 'The server did not answer with the requested entries');
     }
     const url = new URL(res.href, base).href;
