@@ -18,7 +18,9 @@ import {
 } from '../../services/calendar-event-completions.js';
 import { startOrRuleChanged } from '../../services/outbound-dtstart.js';
 import { resolveProjectedEventRows } from '../../services/calendar-event-reader.js';
-import { hasExplicitZone, householdTimeZone, shiftDateKey, utcToWall } from '../../utils/timezone.js';
+import {
+  hasExplicitZone, householdTimeZone, shiftDateKey, storedDayDiffersFromSeriesDay, storedToWall, utcToWall,
+} from '../../utils/timezone.js';
 import {
   StorageError,
   cleanupStagedUpload,
@@ -977,9 +979,9 @@ router.put('/:id', async (req, res) => {
     // mit 400 ab. `expandRecurringEvents` nimmt die Pruefung im selben Fall
     // zurueck (`zonenUnsicher`); nur `tzid` kann diesen Zustand erzeugen, die
     // Route selbst nimmt das Feld nicht entgegen.
-    const wandUhr = event.tzid ? utcToWall(String(startDanach ?? ''), event.tzid) : null;
-    const zonenUnsicher = !!event.tzid
-      && !(wandUhr && wandUhr.date === String(startDanach ?? '').slice(0, 10));
+    // Zonenlose Ziffern sind Wanduhr des Haushalts, nie der Prozesszone (#1993).
+    const wandUhr = event.tzid ? storedToWall(String(startDanach ?? ''), event.tzid, zoneOpts.zone) : null;
+    const zonenUnsicher = storedDayDiffersFromSeriesDay(String(startDanach ?? ''), event.tzid, zoneOpts.zone);
     if (serieBeruehrt
       && !hasAnyOccurrence(startDanach, regelDanach, { utcDiffersFromLocal: zonenUnsicher })) {
       return res.status(400).json({
@@ -1444,7 +1446,7 @@ router.put('/:seriesId/occurrences/:recurrenceId', async (req, res) => {
         { status: unauthorized ? 403 : 400, code: eligibility.reason },
       ));
     }
-    baseOccurrenceFor(master, req.params.recurrenceId);
+    baseOccurrenceFor(master, req.params.recurrenceId, householdTimeZone(db.get()));
 
     const mutation = validateOccurrenceMutationBody(db.get(), req.body, { master });
     const { values: validated, errors } = mutation;
@@ -1604,7 +1606,8 @@ router.put('/:seriesId/occurrences/:recurrenceId/following', async (req, res) =>
         { status: unauthorized ? 403 : 400, code: eligibility.reason },
       ));
     }
-    const selectedBase = baseOccurrenceFor(master, req.params.recurrenceId);
+    const seriesZone = householdTimeZone(db.get());
+    const selectedBase = baseOccurrenceFor(master, req.params.recurrenceId, seriesZone);
 
     const mutation = validateOccurrenceMutationBody(db.get(), req.body, { following: true, master });
     const { values: validated } = mutation;
@@ -1656,7 +1659,7 @@ router.put('/:seriesId/occurrences/:recurrenceId/following', async (req, res) =>
       recurrence_rule: Object.hasOwn(req.body, 'recurrence_rule')
         ? validated.recurrence_rule
         : master.recurrence_rule,
-    });
+    }, seriesZone);
 
     const replacementRequested = typeof req.body.attachment_data === 'string'
       && req.body.attachment_data.trim() !== '';

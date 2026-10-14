@@ -232,7 +232,7 @@ function buildICS(event, householdZone = null) {
   // 10 Uhr auf wessen Uhr auch immer.
   // Start/Ende mit der eigenen Wiederholungsregel in Einklang (#986); ein
   // importiertes DTSTART bleibt unberuehrt (#756).
-  const outboundRow = outboundEvent(event);
+  const outboundRow = outboundEvent(event, { householdZone });
   const when = eventDateTimeFields(outboundRow, householdZone);
   const lines = [
     'BEGIN:VCALENDAR',
@@ -689,7 +689,7 @@ async function runSync({ makeClient } = {}) {
       // wurde, bleibt lokal, und sein Objekt wird wieder entfernt.
       outbound.bookEventUpload(event, {
         source: 'apple', uid, objectUrl, calRefId, adopted, calendarUrl: defaultCal.url,
-        wantsUploadHere: stillWantsUpload, snapshot: icsSnapshot(event, icsData, uid),
+        wantsUploadHere: stillWantsUpload, snapshot: icsSnapshot(event, icsData, uid, householdZone),
       });
     } catch (err) {
       if (!uploadGate.refused(defaultCal.url, err)) {

@@ -62,7 +62,7 @@ function buildCalDAVICS(event, householdZone = null) {
   // sondern eine Uhrzeit ohne Uhr.
   // Start/Ende mit der eigenen Wiederholungsregel in Einklang (#986); ein
   // importiertes DTSTART bleibt unberuehrt (#756).
-  const outboundRow = outboundEvent(event);
+  const outboundRow = outboundEvent(event, { householdZone });
   const when = eventDateTimeFields(outboundRow, householdZone);
   const lines = [
     'BEGIN:VCALENDAR',
@@ -1599,7 +1599,7 @@ async function runSync({ createClient } = {}) {
           const booked = outbound.bookEventUpload(event, {
             source: 'caldav', uid, objectUrl, calRefId, adopted, accountId: account.id,
             calendarUrl: event.target_caldav_calendar_url,
-            snapshot: icsSnapshot(event, icsData, uid),
+            snapshot: icsSnapshot(event, icsData, uid, householdZone),
           });
           if (booked !== 'mirrored') continue;
 
