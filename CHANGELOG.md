@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Any other refusal still stops the sync with its HTTP status, and an entry the server sends
   without its content is an error, not an empty contact or event.
 
+### Security
+
+- **Reminder and task sync with CalDAV checks every request against the account's address**, as
+  event sync does since #1860. This applies to the sync run, the immediate update after an edit and
+  moving a shopping item between synced lists.
+
 ## [2.77.0] - 2026-10-14
 
 ### Added
