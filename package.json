@@ -417,6 +417,7 @@
     "test:people-pickers": "node --loader ./test/test-browser-loader.mjs --test test/test-people-pickers.js",
     "test:initials": "node --loader ./test/test-browser-loader.mjs --test test/test-initials.js",
     "test:google-calendar": "node test/test-google-calendar.js",
+    "test:google-until-local-day": "TZ=UTC node --experimental-sqlite --test test/test-google-until-local-day.js && TZ=Europe/Berlin node --experimental-sqlite --test test/test-google-until-local-day.js",
     "test:google-sync-token-reset": "node --test test/test-google-sync-token-reset.js",
     "test:google-drive-storage": "node --experimental-sqlite --test test/test-google-drive-storage.js",
     "test:housekeeping": "DB_PATH=:memory: node --experimental-sqlite test/test-housekeeping.js",
