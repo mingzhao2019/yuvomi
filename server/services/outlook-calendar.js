@@ -1582,8 +1582,8 @@ function applyRemoteEvent(database, account, selection, remote, timeZone) {
         (title, description, start_datetime, end_datetime, all_day, location,
          color, created_by, external_calendar_id, external_source,
          recurrence_rule, user_modified, visibility, tzid, external_object_url,
-         outbound_dirty, outbound_attempts)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'outlook', ?, 0, 'all', ?, ?, 0, 0)
+         outbound_dirty, outbound_attempts, series_authored)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'outlook', ?, 0, 'all', ?, ?, 0, 0, 0)
     `).run(
       snapshot.title,
       snapshot.description,
@@ -2341,8 +2341,8 @@ function resolveConflict(conflictId, resolution) {
           INSERT INTO calendar_events
             (title, description, start_datetime, end_datetime, all_day, location,
              color, created_by, external_calendar_id, external_source,
-             recurrence_rule, user_modified, visibility, tzid, external_object_url)
-          VALUES (?, ?, ?, ?, ?, ?, '#4285F4', ?, ?, 'outlook', ?, 0, 'all', ?, ?)
+             recurrence_rule, user_modified, visibility, tzid, external_object_url, series_authored)
+          VALUES (?, ?, ?, ?, ?, ?, '#4285F4', ?, ?, 'outlook', ?, 0, 'all', ?, ?, 0)
         `).run(
           remote.title,
           remote.description,

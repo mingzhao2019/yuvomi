@@ -38,7 +38,7 @@ import {
   icalAlarmLinesForEvent,
   reminderAtsFromIcalAlarms,
 } from './calendar-event-reminders.js';
-import { outboundEvent } from './outbound-dtstart.js';
+import { authoredAfterInbound, outboundEvent } from './outbound-dtstart.js';
 import { followInboundStartChange } from './calendar-occurrence-overrides.js';
 
 const APPLE_COLOR = '#FC3C44';
@@ -231,7 +231,8 @@ function buildICS(event, householdZone = null) {
   // 10 Uhr auf wessen Uhr auch immer.
   // Start/Ende mit der eigenen Wiederholungsregel in Einklang (#986); ein
   // importiertes DTSTART bleibt unberuehrt (#756).
-  const when = eventDateTimeFields(outboundEvent(event), householdZone);
+  const outboundRow = outboundEvent(event);
+  const when = eventDateTimeFields(outboundRow, householdZone);
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -259,7 +260,7 @@ function buildICS(event, householdZone = null) {
   if (event.recurrence_rule) {
     lines.push(rruleLine(event.recurrence_rule));
   }
-  lines.push(...icalAlarmLinesForEvent(event, db.get()));
+  lines.push(...icalAlarmLinesForEvent(event, db.get(), { outbound: outboundRow }));
 
   lines.push('END:VEVENT', 'END:VCALENDAR');
   return lines.join('\r\n');
@@ -477,7 +478,8 @@ async function runSync({ makeClient } = {}) {
           if (pendingDeletionUids.has(ev.uid)) continue;
 
           const selExisting = db.get().prepare(
-            `SELECT id, outbound_dirty, calendar_ref_id, start_datetime FROM calendar_events WHERE external_calendar_id = ? AND external_source = 'apple'`
+            `SELECT id, outbound_dirty, calendar_ref_id, start_datetime, recurrence_rule, series_authored
+             FROM calendar_events WHERE external_calendar_id = ? AND external_source = 'apple'`
           );
           let existing = selExisting.get(ev.uid);
 
@@ -501,12 +503,17 @@ async function runSync({ makeClient } = {}) {
                   all_day = ?, location = ?, recurrence_rule = ?, tzid = ?,
                   color = CASE WHEN color_modified = 0 THEN ? ELSE color END,
                   calendar_ref_id = ?,
-                  external_object_url = COALESCE(?, external_object_url)
+                  external_object_url = COALESCE(?, external_object_url),
+                  series_authored = ?
               WHERE id = ?
             `).run(
               ev.summary, ev.description, ev.dtstart, ev.dtend,
               ev.allDay ? 1 : 0, ev.location, ev.rrule, ev.tzid ?? null, evColor, calRefId,
-              obj.url ?? null, existing.id
+              obj.url ?? null,
+              // Die Marke (#1935) faellt, wenn hier ein anderer Start oder eine
+              // andere Regel in die Zeile kommt, als dort stand - wie im CalDAV-Sync.
+              authoredAfterInbound(existing, { start_datetime: ev.dtstart, recurrence_rule: ev.rrule }),
+              existing.id
             );
             eventId = existing.id;
             // In iCloud verschoben (#1377): die Erinnerungen ziehen mit.

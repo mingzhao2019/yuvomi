@@ -16,6 +16,7 @@ import {
   localToUTC,
   shiftDateKey,
   storedToInstantMs,
+  utcToWall,
 } from '../utils/timezone.js';
 
 export const DEFAULT_EVENT_REMINDER_OFFSET = 15;
@@ -89,9 +90,21 @@ function escapeIcalText(value) {
 
 function icalUtcValue(remindAt) {
   const raw = String(remindAt || '').trim();
-  const instant = new Date(`${raw}Z`);
+  const instant = new Date(hasExplicitZone(raw) ? raw : `${raw}Z`);
   if (Number.isNaN(instant.getTime())) return null;
   return instant.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+/** Move an absolute reminder by calendar days while keeping its wall-clock time. */
+function shiftReminderByWallDays(remindAt, days, zone) {
+  if (!days) return remindAt;
+  const instantMs = reminderInstantMs(remindAt);
+  if (Number.isNaN(instantMs)) return remindAt;
+  const wall = utcToWall(new Date(instantMs).toISOString(), zone);
+  if (!wall) return remindAt;
+  const shifted = localToUTC(`${shiftDateKey(wall.date, days)}T${wall.time}`, zone);
+  const result = new Date(shifted);
+  return Number.isNaN(result.getTime()) ? remindAt : canonicalUtc(result);
 }
 
 /**
@@ -285,23 +298,44 @@ export function primaryProviderReminderOffset(event, database) {
 }
 
 /** Serialize the owner's reminders as DISPLAY VALARMs for writable CalDAV. */
-export function icalAlarmLinesForEvent(event, database) {
+export function icalAlarmLinesForEvent(event, database, { outbound = event } = {}) {
   const rows = ownerEventReminderAts(database, event).slice(0, MAX_EVENT_REMINDERS);
   const lines = [];
-  const startMs = event?.all_day
+  const sourceStartMs = event?.all_day
     ? eventStartInstantMs(event, database, { allDayTime: '00:00' })
     : eventStartInstantMs(event, database);
+  const targetStartMs = outbound?.all_day
+    ? eventStartInstantMs(outbound, database, { allDayTime: '00:00' })
+    : eventStartInstantMs(outbound, database);
+  const timedShift = Number.isFinite(sourceStartMs) && Number.isFinite(targetStartMs)
+    ? targetStartMs - sourceStartMs
+    : 0;
+  const dayShift = event?.all_day && outbound?.start_datetime
+    ? Math.round((Date.parse(`${String(outbound.start_datetime).slice(0, 10)}T00:00:00Z`)
+      - Date.parse(`${String(event.start_datetime).slice(0, 10)}T00:00:00Z`)) / 86400000)
+    : 0;
+  const zone = householdTimeZone(database);
   for (const remindAt of rows) {
     const reminderMs = reminderInstantMs(remindAt);
     if (Number.isNaN(reminderMs)) continue;
     let trigger;
-    if (event?.all_day || startMs === null || startMs - reminderMs < 0) {
-      const absolute = icalUtcValue(remindAt);
+    if (event?.all_day) {
+      const absolute = icalUtcValue(shiftReminderByWallDays(remindAt, dayShift, zone));
       if (!absolute) continue;
       trigger = `TRIGGER;VALUE=DATE-TIME:${absolute}`;
     } else {
-      const minutes = Math.max(0, Math.round((startMs - reminderMs) / 60_000));
-      trigger = `TRIGGER:-PT${minutes}M`;
+      const relativeMs = sourceStartMs - reminderMs;
+      if (Number.isFinite(relativeMs) && relativeMs >= 0) {
+        const minutes = Math.max(0, Math.round(relativeMs / 60_000));
+        trigger = `TRIGGER:-PT${minutes}M`;
+      } else {
+        const shifted = Number.isFinite(timedShift)
+          ? canonicalUtc(new Date(reminderMs + timedShift))
+          : remindAt;
+        const absolute = icalUtcValue(shifted);
+        if (!absolute) continue;
+        trigger = `TRIGGER;VALUE=DATE-TIME:${absolute}`;
+      }
     }
     lines.push(
       'BEGIN:VALARM',

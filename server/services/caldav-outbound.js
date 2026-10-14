@@ -200,7 +200,8 @@ function deletedByUser(source, uid, sourceObjectUrl, sourceCalendarUrl, accountI
 export function icsFieldsForEvent(event, householdZone = null) {
   // Start/Ende mit der eigenen Wiederholungsregel in Einklang (#986); ein
   // importiertes DTSTART bleibt unberuehrt (#756).
-  const when = eventDateTimeFields(outboundEvent(event), householdZone);
+  const outboundRow = outboundEvent(event);
+  const when = eventDateTimeFields(outboundRow, householdZone);
 
   const fields = {
     SUMMARY:     event.title,
@@ -209,7 +210,7 @@ export function icsFieldsForEvent(event, householdZone = null) {
     RRULE:       event.recurrence_rule || null,
     DTSTART:     when.dtstart,
     DTEND:       when.dtend,
-    VALARMS:     icalAlarmLinesForEvent(event, db.get()),
+    VALARMS:     icalAlarmLinesForEvent(event, db.get(), { outbound: outboundRow }),
   };
 
   const colorName = nearestIcalColorName(event.color);

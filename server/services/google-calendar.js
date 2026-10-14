@@ -25,7 +25,7 @@ import { decodeHtmlEntities } from '../utils/html-entities.js';
 import { nearestColorId } from '../utils/ical-color.js';
 // Fallback-Zone für den Outbound-Sync, wenn Google für den Zielkalender keine liefert.
 import { configuredHouseholdTimeZone, householdTimeZone } from '../utils/timezone.js';
-import { outboundEvent } from './outbound-dtstart.js';
+import { authoredAfterInbound, outboundEvent } from './outbound-dtstart.js';
 import { assignDefaultToEvent, reassignDefaultOnCalendarMove } from './sync-assignment.js';
 import { countSourceEvents, deleteSourceEvents } from './calendar-prune.js';
 import { readSyncOutcome, withSyncOutcome } from './sync-outcome.js';
@@ -1042,9 +1042,10 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
     // explicit event color; the read path supplies the calendar color as metadata.
     const evColor = (item.colorId && colorMap[item.colorId]) || null;
 
-    const existing = db.get().prepare(
-      'SELECT id, outbound_dirty, calendar_ref_id, start_datetime FROM calendar_events WHERE external_calendar_id = ? AND external_source = ?'
-    ).get(item.id, 'google');
+    const existing = db.get().prepare(`
+      SELECT id, outbound_dirty, calendar_ref_id, start_datetime, recurrence_rule, series_authored
+      FROM calendar_events WHERE external_calendar_id = ? AND external_source = ?
+    `).get(item.id, 'google');
 
     // Eine lokale Bearbeitung, die noch auf ihren Push wartet, darf der Inbound
     // nicht mit dem alten Google-Stand überschreiben (#593). Der Push kommt im
@@ -1068,15 +1069,21 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
       // muss; die Farbspalte wiederholt ihren SET-Ausdruck, damit eine lokale
       // Umfärbung (color_modified) nicht als Unterschied zählt. Die Bindings der
       // SET-Liste kommen dafür ein zweites Mal.
+      //
+      // DIE MARKE `series_authored` (#1935) faellt, wenn hier ein anderer Start
+      // oder eine andere Regel in die Zeile kommt, als dort stand - auch der
+      // ausgerichtete Start, den Yuvomi selbst hinaufgegeben hat
+      // (services/outbound-dtstart.js). Geschrieben wird wie bisher.
+      const authored = authoredAfterInbound(existing, { start_datetime: startDt, recurrence_rule: rrule });
       const values = [
-        title, description, startDt, endDt, allDay ? 1 : 0, location, rrule, tzid, evColor, calRefId,
+        title, description, startDt, endDt, allDay ? 1 : 0, location, rrule, tzid, evColor, calRefId, authored,
       ];
       db.get().prepare(`
         UPDATE calendar_events
         SET title = ?, description = ?, start_datetime = ?, end_datetime = ?,
             all_day = ?, location = ?, recurrence_rule = ?, tzid = ?,
             color = CASE WHEN color_modified = 0 THEN ? ELSE color END,
-            calendar_ref_id = ?
+            calendar_ref_id = ?, series_authored = ?
         WHERE id = ?
           AND (   title           IS NOT ?
                OR description     IS NOT ?
@@ -1088,6 +1095,7 @@ function upsertGoogleEvents(items, calRefId = null, calColor = GOOGLE_COLOR, col
                OR tzid            IS NOT ?
                OR color           IS NOT CASE WHEN color_modified = 0 THEN ? ELSE color END
                OR calendar_ref_id IS NOT ?
+               OR series_authored IS NOT ?
               )
       `).run(...values, existing.id, ...values);
       // In Google verschoben (#1377): die Erinnerungen ziehen mit.
@@ -1312,7 +1320,9 @@ function localEventToGoogle(rawEvent, colorMap = {}, timeZone = outboundTimeZone
   // Start und Ende mit der eigenen Wiederholungsregel in Einklang (#986), bevor
   // irgendein Feld daraus abgeleitet wird - ein importiertes DTSTART bleibt
   // unberuehrt (#756). Begruendung in services/outbound-dtstart.js.
-  const event = outboundEvent(rawEvent);
+  // Ausgerichtet wird in der Zone, die unten als `timeZone` hinausgeht: in
+  // ihr rechnet Google die Vorkommen, nicht in der `tzid` der Zeile (#1935).
+  const event = outboundEvent(rawEvent, { zone: timeZone });
   const allDay = !!event.all_day;
   const gEvent = {
     summary:     event.title,
@@ -1320,7 +1330,11 @@ function localEventToGoogle(rawEvent, colorMap = {}, timeZone = outboundTimeZone
     location:    event.location    || undefined,
     reminders: {
       useDefault: false,
-      overrides: googleReminderOverrides(event),
+      // Reminder offsets belong to the stored start. The outbound serializer
+      // may align a series start for the provider without changing the row;
+      // calculating from the aligned copy would pin the reminder to the old
+      // calendar date on the next inbound (#1935, #1377).
+      overrides: googleReminderOverrides(rawEvent),
     },
   };
 

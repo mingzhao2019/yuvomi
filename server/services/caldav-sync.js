@@ -37,7 +37,7 @@ import {
   icalAlarmLinesForEvent,
   reminderAtsFromIcalAlarms,
 } from './calendar-event-reminders.js';
-import { outboundEvent } from './outbound-dtstart.js';
+import { authoredAfterInbound, outboundEvent } from './outbound-dtstart.js';
 import { followInboundStartChange } from './calendar-occurrence-overrides.js';
 
 // Reused functions from apple-calendar.js
@@ -61,7 +61,8 @@ function buildCalDAVICS(event, householdZone = null) {
   // sondern eine Uhrzeit ohne Uhr.
   // Start/Ende mit der eigenen Wiederholungsregel in Einklang (#986); ein
   // importiertes DTSTART bleibt unberuehrt (#756).
-  const when = eventDateTimeFields(outboundEvent(event), householdZone);
+  const outboundRow = outboundEvent(event);
+  const when = eventDateTimeFields(outboundRow, householdZone);
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -86,7 +87,7 @@ function buildCalDAVICS(event, householdZone = null) {
   if (event.recurrence_rule) {
     lines.push(rruleLine(event.recurrence_rule));
   }
-  lines.push(...icalAlarmLinesForEvent(event, db.get()));
+  lines.push(...icalAlarmLinesForEvent(event, db.get(), { outbound: outboundRow }));
 
   lines.push('END:VEVENT', 'END:VCALENDAR');
   return lines.join('\r\n');
@@ -946,7 +947,7 @@ async function runSync({ createClient } = {}) {
   const conn = db.get();
   const selEventsWithUid = conn.prepare(`
     SELECT id, outbound_dirty, calendar_ref_id, start_datetime, color, color_modified,
-           caldav_account_id, external_object_url
+           caldav_account_id, external_object_url, recurrence_rule, series_authored
     FROM calendar_events
     WHERE external_calendar_id = ? AND external_source = 'caldav'
     ORDER BY id
@@ -1019,7 +1020,8 @@ async function runSync({ createClient } = {}) {
         all_day = ?, location = ?, recurrence_rule = ?, tzid = ?,
         color = CASE WHEN color_modified = 0 THEN ? ELSE color END,
         calendar_ref_id = ?,
-        external_object_url = COALESCE(?, external_object_url)
+        external_object_url = COALESCE(?, external_object_url),
+        series_authored = ?
     WHERE id = ?
       AND (   title               IS NOT ?
            OR description         IS NOT ?
@@ -1032,6 +1034,7 @@ async function runSync({ createClient } = {}) {
            OR color               IS NOT CASE WHEN color_modified = 0 THEN ? ELSE color END
            OR calendar_ref_id     IS NOT ?
            OR external_object_url IS NOT COALESCE(?, external_object_url)
+           OR series_authored     IS NOT ?
           )
   `);
   // Eingebrannte Kalenderfarbe aus der Zeit vor #891 loesen (#1270). Bis
@@ -1364,10 +1367,17 @@ async function runSync({ createClient } = {}) {
                 // umgefärbt hat (color_modified = 0); Titel/Zeit bleiben remote-geführt.
                 // Dieselben Werte binden die SET-Liste und den Vergleich in der
                 // WHERE-Klausel, weshalb sie zweimal übergeben werden.
+                //
+                // DIE MARKE `series_authored` (#1935) faellt, wenn hier ein
+                // anderer Start oder eine andere Regel in die Zeile kommt, als
+                // dort stand - auch der ausgerichtete Start, den Yuvomi selbst
+                // hinaufgegeben hat (services/outbound-dtstart.js).
+                // Geschrieben wird wie bisher.
                 const values = [
                   ev.summary, ev.description, ev.dtstart, ev.dtend,
                   ev.allDay ? 1 : 0, ev.location, ev.rrule, ev.tzid ?? null, evColor, calRefId,
                   obj.url ?? null,
+                  authoredAfterInbound(existing, { start_datetime: ev.dtstart, recurrence_rule: ev.rrule }),
                 ];
                 // `hasColor`, nicht `evColor`: auch eine COLOR-Zeile mit einem
                 // unlesbaren Wert (etwa #RRGGBBAA) sagt, dass der Server ueber

@@ -16,6 +16,7 @@ import {
   decorateEventCompletions,
   setEventCompletion,
 } from '../../services/calendar-event-completions.js';
+import { startOrRuleChanged } from '../../services/outbound-dtstart.js';
 import { resolveProjectedEventRows } from '../../services/calendar-event-reader.js';
 import { hasExplicitZone, householdTimeZone, shiftDateKey, utcToWall } from '../../utils/timezone.js';
 import {
@@ -606,8 +607,10 @@ router.post('/', async (req, res) => {
            attachment_name, attachment_mime, attachment_size, attachment_data, attachment_document_id,
            target_caldav_account_id, target_caldav_calendar_url, target_google_calendar_id,
            target_outlook_account_id, target_outlook_calendar_id, visibility,
-           countdown, local_calendar_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           countdown, local_calendar_id, series_authored)
+        -- series_authored = 1: Start und Regel stammen aus Yuvomi und bleiben
+        -- es, auch wenn der Upload die Zeile zum Spiegel macht (#1935).
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
       `).run(
         vTitle.value, vDesc.value,
         vStart.value, vEnd.value,
@@ -1079,6 +1082,38 @@ router.put('/:id', async (req, res) => {
     // Color state is independent from edits to other event fields. Only an actual
     // case-insensitive color change marks this as a local color choice.
     const asColorKey = (value) => (value == null ? null : String(value).toLowerCase());
+
+    // Die Farbe führt ihren eigenen Zustand (#899). `user_modified` bedeutet
+    // "an diesem Termin wurde etwas bearbeitet" und wird oben bei JEDEM Feld
+    // gesetzt; der Inbound der Anbieter las es trotzdem als "die Farbe wird ab
+    // jetzt lokal geführt". Eine Titeländerung fror damit die Farbspalte
+    // dauerhaft ein - eine Umfärbung auf dem Server kam nie mehr an.
+    //
+    // Gesetzt wird deshalb nur bei einer ECHTEN Umfärbung: `color` mitgeschickt
+    // UND ein anderer Wert als bisher. Ein Formular, das die unveränderte Farbe
+    // brav mitschickt, ist keine. Einmal gesetzt bleibt das Flag stehen, auch
+    // wenn die Farbe später wieder geleert wird - genau dieser Zustand
+    // (`color IS NULL AND color_modified = 1`) ist das ausdrückliche Leeren, das
+    // der Ausgang spiegeln darf.
+    //
+    // Verglichen wird ohne Rücksicht auf die Schreibweise: `#ff6347` und
+    // `#FF6347` sind dieselbe Farbe, und die beiden treffen wirklich
+    // aufeinander - der Sync legt seinen Hex in Großbuchstaben ab
+    // (`utils/ical-color.js`). Der Farbwähler im Client vergleicht aus
+    // demselben Grund über `sameColor()`.
+    // WER START ODER REGEL IN YUVOMI AENDERT, HAT SIE VERFASST (#1935) - auch
+    // an einer eingelesenen Serie. Die Marke entscheidet, ob der ausgehende
+    // Weg den Start auf die eigene Regel ausrichtet (services/outbound-dtstart.js).
+    // Verglichen wird der BEGINN, nicht der Text: das Formular schickt die
+    // Wanduhrzeit des Haushalts, ein eingelesener Termin liegt als Zeitpunkt in
+    // der Zeile. Am Text gemessen setzte jede Titelaenderung die Marke, und die
+    // eingelesene Serie ginge danach mit einem anderen DTSTART zurueck (#756).
+    const seriesAuthoredHere = startOrRuleChanged(event, {
+      start_datetime: startDanach,
+      all_day: all_day !== undefined ? all_day : event.all_day,
+      recurrence_rule: regelDanach,
+    }, zoneOpts.zone);
+
     const colorChanged = colorTouched && asColorKey(colorVal) !== asColorKey(event.color);
     const colorModified = colorChanged ? 1 : event.color_modified;
 
@@ -1163,7 +1198,10 @@ router.put('/:id', async (req, res) => {
             -- App), darf eine gesetzte Markierung nicht stillschweigend löschen.
             countdown       = ?,
             user_modified   = ?,
-            color_modified  = ?
+            color_modified  = ?,
+            -- Wer Start oder Regel hier aendert, hat sie ab jetzt verfasst
+            -- (#1935); jede andere Bearbeitung laesst die Marke, wie sie ist.
+            series_authored = CASE WHEN ? THEN 1 ELSE series_authored END
         WHERE id = ?
       `).run(
         title?.trim()  ?? null,
@@ -1193,6 +1231,7 @@ router.put('/:id', async (req, res) => {
         req.body.countdown !== undefined ? (req.body.countdown ? 1 : 0) : event.countdown,
         userModified,
         colorModified,
+        seriesAuthoredHere ? 1 : 0,
         id
       );
       // Eine lokale Farbwahl macht einen gespiegelten Termin dauerhaft zu
