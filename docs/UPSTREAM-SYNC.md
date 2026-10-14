@@ -857,7 +857,12 @@ Version metadata is synchronized at `2.77.1` in the root package, both root
 lockfile fields, `public/sw.js`, and current release metadata. Focused
 validation passed for the waste, Google local-day, health, wall, budget,
 restore/rekey, backup, CalDAV, series-end, housekeeping, read-only UI,
-migration, and schema-reconcile suites; the restore/rekey suite had 15 passed,
-1 environment-specific skip, and 0 failures. `git diff --check` is clean. The
-detached full `npm test` is the final validation step before fast-forwarding
-`custom` and pushing both `main` and `custom` without force.
+migration, schema-reconcile, suite-chain, and changelog suites; the
+restore/rekey suite had 15 passed and 1 environment-specific skip, with 0
+failures. The two local-day suites were added to the main npm test chain, and
+the intentional custom v2.77.1 release-note difference is recorded in the
+released-section guard. `git diff --check` is clean. The detached full
+`npm test` completed with exit code 0 on 2026-10-15 (the baseline includes the
+project's existing environment-specific skips). The temporary integration
+branch is ready to fast-forward into `custom` and push both `main` and
+`custom` without force.
