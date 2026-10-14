@@ -810,3 +810,54 @@ CalDAV Todo origin (7/7), CalDAV HTTP refusals (68/68), CalDAV own UID
 MCP, and dashboard suites. `git diff --check` is clean. The final full
 `npm test` remains the last validation step before fast-forwarding `custom`
 and pushing both `main` and `custom` without force.
+
+## Current sync checkpoint (2026-10-14, v2.77.1)
+
+The upstream remote was refreshed from `369958246ea6` to
+`0109e2f355b8848963b9fc4dbfc6453e89d2d13a` (`v2.77.1`). Local `main` was
+already fast-forwarded to that exact upstream tip. A later refresh found no
+new `upstream/main` commit; two unrelated upstream topic branches were left
+out. The selective integration continued on
+`custom-upstream-selective-2026-10-14` from custom `0bb28c5da08c5b1d8128f141910e93ef153ed6f7`;
+the upstream branch was not merged wholesale.
+
+All sixteen commits after `v2.77.0` were reviewed and integrated in upstream
+order:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `8279b0bd7` (#1972) | Waste source errors use the app's sentence. | Adopted as `978a13e90`; retained custom source-state and localization contracts. The appended schema change was relocated to custom migration 257 because custom v247 is already a released subscription migration. |
+| `4989d5bb5` (#1975) | A dated Google series ends on the same local-day occurrence. | Adopted as `950c91d8f`; retained custom calendar-zone and recurrence semantics. |
+| `a3dc4a419` (#1956) | An inbound calendar echo preserves the entered aligned series start and related state. | Manually composed as `9452d488b`; retained custom provider, reminder, and read-only boundaries. The appended snapshot column was relocated to custom migration 258 because custom v248 is already the CalDAV account migration. |
+| `41e33f5be` (#1971) | Health error toasts use the app's sentence. | Adopted as `dea66a9f4`; retained custom health permissions and localization. |
+| `84c4d1274` | Publishes v2.77.1 release metadata. | Adopted as `eaa32f929`; synchronized current package, lockfile, service-worker, release, and installer metadata. |
+| `2291c4c4a` (#1987) | A lifted modal footer finds its form by id. | Adopted as `0521f2961`; retained custom modal and save behavior. |
+| `c08b1a6dc` (#1988) | Only administrators are offered housekeeping profile writes. | Adopted as `1b3e5fe93`; retained custom permission gates. |
+| `e5473cf0c` (#1978) | Wall tests wait for the real requests before asserting. | Adopted as `8e6b4519d`; retained the custom wall asynchronous behavior. |
+| `ba7341555` (#1979) | Repository paths are compared in POSIX form on Windows. | Adopted as `3328cd928`; test-infrastructure only. |
+| `100909c65` (#1980) | Verdict scripts use their path and close the migration database. | Adopted as `b76fa76f6`; test-infrastructure only. |
+| `0b0ccd6e3` (#1981) | Rekey tests place TMP/TEMP beside TMPDIR. | Adopted as `e6a8170c0`; test-infrastructure only. |
+| `d311e30ea` (#1982) | Windows skips chmod-only permission cases. | Adopted as `f60ca81f5`; test-infrastructure only. |
+| `3ea49f388` (#1983) | Installer env helper input is passed through stdin. | Adopted as `38ae6fdb9`; retained installer quoting behavior. |
+| `64aebddf6` (#1984) | Instance-lock waiting tests use a shorter attempt. | Adopted as `b27239e57`; test-infrastructure only. |
+| `48fd2bc13` (#1968) | Budget category and subcategory rows show their share of the total. | Adopted as `ce2eefcdd`; retained custom budget account, visibility, and timezone semantics. |
+| `0109e2f35` (#1989) | A repeat-option series end lands on the same occurrence in every calendar. | Adopted as `fa29d39fb`; retained custom RRULE read-only and provider-target boundaries. |
+
+The migration conflict was resolved append-only: existing custom migrations
+247 and 248 remain unchanged, while the two newly imported upstream migrations
+run as custom 257 and 258. The migration test, schema mirror, and CalDAV
+account migration test all pass. The calendar echo overlap was composed across
+Google, CalDAV, and Apple: when `isEcho` is true, provider VALARM data from the
+aligned push does not move the local reminder; non-echo inbound changes still
+use the normal provider-reminder path. The echo fixture removes the unrelated
+household default before inserting its one explicit reminder, so it tests the
+contract rather than test setup order.
+
+Version metadata is synchronized at `2.77.1` in the root package, both root
+lockfile fields, `public/sw.js`, and current release metadata. Focused
+validation passed for the waste, Google local-day, health, wall, budget,
+restore/rekey, backup, CalDAV, series-end, housekeeping, read-only UI,
+migration, and schema-reconcile suites; the restore/rekey suite had 15 passed,
+1 environment-specific skip, and 0 failures. `git diff --check` is clean. The
+detached full `npm test` is the final validation step before fast-forwarding
+`custom` and pushing both `main` and `custom` without force.
