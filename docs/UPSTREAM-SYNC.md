@@ -866,3 +866,61 @@ released-section guard. `git diff --check` is clean. The detached full
 project's existing environment-specific skips). The temporary integration
 branch is ready to fast-forward into `custom` and push both `main` and
 `custom` without force.
+
+## Current sync checkpoint (2026-10-15, v2.77.2)
+
+The upstream remote was refreshed from `0109e2f355b8848963b9fc4dbfc6453e89d2d13a`
+(`v2.77.1`) to `aef025b2c3585e2949aa338ca340b69d681ada43` (`v2.77.2`). Local
+`main` was fast-forwarded to that exact upstream tip. The selective integration
+started from custom `fde184c94c6a5c891702360cee7fc2a130fa0ea5` on
+`custom-upstream-selective-2026-10-15`; upstream was not merged wholesale.
+
+All sixteen new upstream commits were reviewed and integrated in upstream order:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `bbfedbf3d` | Documents expose localized structured errors. | Manually composed as `16c71c72d`; retained custom folder/expiry behavior and completed every locale. |
+| `b8580fd00` | Calendar naive starts are interpreted in the household time zone. | Manually composed as `ab439de40`; retained custom outbound-row and visibility semantics. |
+| `ea5424a9a` | Recipe errors use localized causes and late UI handling. | Manually composed as `2610d8ca7`; retained the custom test wrapper. |
+| `0ff66984b` | Subscription errors use localized causes and reload safely. | Manually composed as `ad3d36482`; retained custom subscription state and test coverage. |
+| `46ef04016` | Subscription booking waits for the rate before recording. | Adopted as `8c4e68a7e`; preserved the custom wrapper and race suite. |
+| `befb6c137` | Reactivation after the last paid day is handled correctly. | Adopted as `fc6db2d84`. |
+| `576392957` | Docker checks runtime dependencies before starting. | Manually composed as `9e1a6b8af`; retained custom China holidays and used native `fetch`. |
+| `a6a1396b7` | Contributing documentation links its references. | Adopted as `3ba2cc0f7`. |
+| `fa4305ecf` | Completed subscriptions cannot be paid again. | Adopted as `f758a5519`. |
+| `9c1cadb07` | Publishes v2.77.2 release metadata. | Manually composed as `94b5d46e4`; synchronized package, lockfile, service-worker, release, and installer metadata. |
+| `b25b29e2b` | Unknown time zones fall back to UTC. | Adopted as `207057659`. |
+| `0a1fc4d88` | Modules handle GitHub secondary limits, replacement restarts, and staging locks. | Adopted as `4f9aa8b93`; retained custom module safety behavior. |
+| `cb6d4f6b7` | Extensions can add a Settings sheet. | Adopted as `5210960eb`; retained route/title and permission boundaries. |
+| `f25e0677e` | Birthdays and name days receive their own revocable feed. | Manually composed as `ee8e66ea2`; relocated the birthday-feed schema change to custom migration 259 because custom migrations already reached 258. |
+| `01ad25501` | Documents late answers update only the originating page state. | Adopted as `d7f45d3ca`. |
+| `aef025b2c` | A late modal success closes only its originating dialog. | Adopted as `3d7b3c511`; retained the custom modal contract. |
+
+The main conflict points were localized error handling, calendar timezone
+conversion, the runtime dependency checker, custom holiday data, the active
+test-chain wrapper, extension Settings sheets, and append-only migration
+numbering. Migration 249 from upstream remains the calendar search-trigger
+migration; the birthday feed uses custom migration 259 and does not rewrite any
+released migration. Two integration follow-ups were needed: `f84481a78`
+consolidated the timezone specification after the release conflict, and
+`2bf2f5e80` removed a duplicate timezone import. The final audit fix is
+`f3383aecf`, which captures the asset-cost modal context before asynchronous
+saves and removes stale zero-count server-error baselines.
+
+Version metadata is synchronized at `2.77.2` in the root package, both root
+lockfile fields, `public/sw.js`, and release metadata. Focused validation passed
+for recipes errors, subscription errors, booking races, runtime dependencies,
+birthday ICS, naive-start timezone handling, modules, Settings navigation, and
+modal late-close behavior. The targeted frontend audit passed 486/486. The
+full `npm test` completed with `FINAL_EXIT=0`: 24,176 TAP tests were observed,
+24,154 passed, 0 failed, and 22 were environment-specific skips; no `not ok`
+marker was present. `git diff --check`, JavaScript syntax checks, all 60 JSON
+files, and the 259-entry unique ordered migration sequence also passed.
+
+The previous custom push was documentation-only and was excluded by
+`.github/workflows/docker-publish-feature-work.yml` (`docs/**` and Markdown
+are ignored), so it did not rebuild `ghcr.io/ulsklyc/yuvomi:custom`. This
+checkpoint includes application and Docker/runtime code changes; the next
+ordinary push of `custom` should therefore trigger that workflow. The temporary
+integration branch is ready to fast-forward into `custom` and push both `main`
+and `custom` without force.
