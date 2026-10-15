@@ -2298,6 +2298,8 @@
             "newCalendarNameLabel": "Új naptár neve",
             "errorNoCalendarName": "Adj meg egy nevet az új naptárhoz."
         },
+        "birthdayFeedTitle": "Születésnaptár exportálása",
+        "birthdayFeedDescription": "Minden mentett születésnap és névnap évente ismétlődő egész napos eseményként, emlékeztető nélkül is. Bármely ICS-t támogató naptáralkalmazásban használható.",
         "feedExportTitle": "Naptár-feed exportálása",
         "feedExportDescription": "Iratkozzon fel a Yuvomi naptárára csak olvasható módban az Apple Naptárban, a Google Naptárban vagy a Thunderbirdben.",
         "feedExportInactive": "Az export feed ki van kapcsolva.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Eltávolítás",
         "displayRemoveDeviceConfirm": "Eltávolítod ennek az eszköznek a bejegyzését?",
         "displayRemoveDeviceDetail": "A bejegyzés végleg eltűnik a listáról. Ezt nem lehet visszavonni.",
-        "displayRemoveDeviceActive": "Ez az eszköz még párosítva van. Előbb vond vissza."
+        "displayRemoveDeviceActive": "Ez az eszköz még párosítva van. Előbb vond vissza.",
+        "feedExportIncludeBirthdays": "Születésnapok felvétele",
+        "feedExportIncludeBirthdaysHint": "Külön születésnapi naptárra feliratkozva kapcsolja ki, hogy a születésnapok és névnapok ne jelenjenek meg kétszer.",
+        "birthdayFeedHint": "A hivatkozás birtokában bárki láthatja a háztartás összes mentett születésnapját és névnapját, emlékeztető nélkül is. Csak saját eszközein használja."
     },
     "login": {
         "tagline": "Üdv újra a családi tervezőben.",

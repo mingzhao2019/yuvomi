@@ -2471,7 +2471,9 @@
         "backupWebdavNeverUploaded": "Zatím žádné nahrání",
         "backupWebdavSaved": "Konfigurace WebDAV uložena.",
         "backupWebdavEnvHint": "Konfigurace je řízena proměnnými prostředí a nelze ji zde upravovat.",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "CalDAV kalendáře",
+        "birthdayFeedTitle": "Exportovat kalendář narozenin",
+        "birthdayFeedDescription": "Všechny uložené narozeniny a svátky jako každoroční celodenní události, i bez připomínek. Odebírejte v libovolné kalendářové aplikaci podporující ICS.",
         "feedExportTitle": "Exportovat kalendářní kanál",
         "feedExportDescription": "Přihlas se k odběru svého kalendáře Yuvomi pouze pro čtení v aplikaci Apple Kalendář, Google Kalendář nebo Thunderbird.",
         "feedExportInactive": "Exportní kanál je deaktivován.",
@@ -3376,7 +3378,10 @@
         "displayRemoveDevice": "Odstranit",
         "displayRemoveDeviceConfirm": "Odstranit záznam tohoto zařízení?",
         "displayRemoveDeviceDetail": "Záznam ze seznamu nadobro zmizí. Tuto akci nelze vzít zpět.",
-        "displayRemoveDeviceActive": "Toto zařízení je stále spárované. Nejprve ho odvolejte."
+        "displayRemoveDeviceActive": "Toto zařízení je stále spárované. Nejprve ho odvolejte.",
+        "feedExportIncludeBirthdays": "Zahrnout narozeniny",
+        "feedExportIncludeBirthdaysHint": "Při samostatném odběru narozenin vypněte tuto možnost, aby se narozeniny a svátky nezobrazovaly dvakrát.",
+        "birthdayFeedHint": "Kdokoli s tímto odkazem uvidí všechny narozeniny a svátky uložené v domácnosti, i bez připomínek. Používejte jej pouze na vlastních zařízeních."
     },
     "login": {
         "tagline": "Vítejte zpět ve svém rodinném plánovači.",

@@ -2327,7 +2327,9 @@
         "caldavRefreshCalendars": "Actualiser les agendas",
         "caldavSyncFailed": "Échec de la synchronisation CalDAV",
         "caldavSyncSuccess": "Synchronisation CalDAV réussie",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "Agendas CalDAV",
+        "birthdayFeedTitle": "Exporter le calendrier des anniversaires",
+        "birthdayFeedDescription": "Tous les anniversaires et fêtes enregistrés comme événements annuels sur une journée, même sans rappel. Compatible avec toute application de calendrier prenant en charge ICS.",
         "feedExportTitle": "Exporter le flux calendrier",
         "feedExportDescription": "Abonnez-vous à votre calendrier Yuvomi en lecture seule dans Apple Calendrier, Google Agenda ou Thunderbird.",
         "feedExportInactive": "Le flux d'export est désactivé.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Supprimer",
         "displayRemoveDeviceConfirm": "Supprimer l'entrée de cet appareil ?",
         "displayRemoveDeviceDetail": "L'entrée disparaît définitivement de la liste. Cette action est irréversible.",
-        "displayRemoveDeviceActive": "Cet appareil est encore appairé. Révoquez-le d'abord."
+        "displayRemoveDeviceActive": "Cet appareil est encore appairé. Révoquez-le d'abord.",
+        "feedExportIncludeBirthdays": "Inclure les anniversaires",
+        "feedExportIncludeBirthdaysHint": "Désactivez cette option avec un abonnement séparé aux anniversaires pour éviter les doublons des anniversaires et fêtes.",
+        "birthdayFeedHint": "Toute personne disposant de ce lien peut voir tous les anniversaires et fêtes enregistrés dans le foyer, même sans rappel. Utilisez-le uniquement sur vos propres appareils."
     },
     "login": {
         "tagline": "Bon retour sur votre planificateur familial.",

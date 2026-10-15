@@ -657,7 +657,7 @@ test('Mitglieder erreichen ihre eigenen Termin-Vorgaben', () => {
   const sheet = findSettingsLeaf('/settings/personal/calendar', member);
   assert.equal(sheet?.id, 'module-calendar');
   assert.deepEqual(settingsSheetSections(sheet, member).map((entry) => entry.id),
-    ['personal-calendar', 'personal-calendar-subscriptions', 'personal-feeds']);
+    ['personal-calendar', 'personal-calendar-subscriptions', 'personal-feeds', 'feed-birthdays']);
   // Der haushaltweite Teil bleibt adminOnly.
   assert.deepEqual(settingsSheetSections(sheet, admin).filter((entry) => entry.adminOnly).map((entry) => entry.id),
     ['modules-calendar', 'sync-calendar']);
@@ -3179,6 +3179,7 @@ test('R14: jeder Export steht im Blatt seines Moduls', async () => {
   assert.equal(home('personal-feeds').sheetId, 'module-calendar', 'der Kalender-Feed bleibt im Kalender');
   assert.equal(home('personal-feeds').props?.part, 'calendar');
   for (const [id, sheet, part] of [
+    ['feed-birthdays', 'module-calendar', 'birthdays'],
     ['feed-schedule', 'module-schedule', 'schedule'],
     ['feed-cycle', 'module-health', 'cycle'],
     ['feed-inventory', 'module-inventory', 'inventory'],
@@ -3364,9 +3365,9 @@ test('R16: ein Blatt mit mehr als drei Abschnitten fuehrt Sprungmarken auf seine
 
   const calendar = settingsSheetJumpTargets(sheet('module-calendar'), admin);
   assert.deepEqual(calendar.map((target) => target.id),
-    ['personal-calendar', 'personal-calendar-subscriptions', 'personal-feeds', 'modules-calendar', 'sync-calendar'],
+    ['personal-calendar', 'personal-calendar-subscriptions', 'personal-feeds', 'feed-birthdays', 'modules-calendar', 'sync-calendar'],
     'in der Reihenfolge des Blatts: erst "Fuer mich", dann der Haushalt');
-  assert.equal(calendar[4].url, '/settings/modules/calendar?section=sync-calendar', 'dasselbe Ziel wie die Umleitungen');
+  assert.equal(calendar[5].url, '/settings/modules/calendar?section=sync-calendar', 'dasselbe Ziel wie die Umleitungen');
   assert.equal(calendar[0].labelKey, 'settings.pageCalendarDefaults', 'die Marke heisst wie der Abschnitt in der Registry');
 
   // Drei Abschnitte sind ein Blick, keine Navigation.
@@ -3678,7 +3679,7 @@ test('R17: kein Einstellungsblatt rendert eine Karte mit genau einem Bedieneleme
     'personal-appearance', 'personal-notifications', 'admin-family', 'modules-countdowns',
     'personal-calendar', 'personal-feeds', 'modules-calendar', 'options-schedule', 'options-tasks',
     'options-budget', 'options-housekeeping', 'options-health', 'modules-rewards', 'personal-health',
-    'feed-schedule', 'feed-cycle', 'feed-inventory', 'feed-waste',
+    'feed-birthdays', 'feed-schedule', 'feed-cycle', 'feed-inventory', 'feed-waste',
   ];
   for (const id of GROUPED) {
     const html = rendered.get(id) ?? '';
@@ -4130,4 +4131,43 @@ test('Eigenes Modul: die Dateigroesse folgt der Locale', async () => {
   // Kein von Hand gebautes Kuerzel mehr.
   const src = await readFile(new URL('../public/settings/pages/modules-install.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, ''), /toFixed\(|['`] ?MB['`]|['`] ?KB['`]/);
+});
+
+
+test('birthday subscription belongs to calendar settings and explains its household-wide contents under the link', async () => {
+  const { FEEDS } = await import('../public/settings/pages/personal-feeds.js');
+  assert.equal(FEEDS.birthdays.path, '/birthdays/feed');
+  assert.equal(FEEDS.birthdays.text.hint(), 'settings.birthdayFeedHint');
+  const section = SETTINGS_SECTIONS.find(item => item.id === 'feed-birthdays');
+  assert.equal(section.props.part, 'birthdays');
+  assert.equal(section.sheetId, 'module-calendar');
+  assert.equal(section.adminOnly, false);
+});
+
+
+test('calendar feed birthday switch persists changes and restores its visual state after an API failure', async () => {
+  const { render } = await import('../public/settings/pages/personal-feeds.js');
+  const previous = globalThis.__apiStub;
+  const previousWindow = globalThis.window;
+  globalThis.window = { yuvomi: { showToast() {} } };
+  const input = { checked: true, disabled: false, addEventListener(_type, listener) { this.change = listener; } };
+  let html = '';
+  const host = { dataset: { part: 'calendar' }, replaceChildren() {}, insertAdjacentHTML(_where, markup) { html = markup; },
+    querySelector(selector) { return selector === '#feed-include-birthdays' ? input : null; } };
+  const writes = [];
+  try {
+    globalThis.__apiStub = { get: async () => ({ data: { url: 'https://example.test/feed/calendar/token.ics', includeBirthdays: true } }),
+      put: async (path, body) => { writes.push([path, body]); } };
+    await render(host);
+    assert.match(html, /id="feed-include-birthdays"/);
+    input.checked = false;
+    await input.change({ currentTarget: input });
+    assert.deepEqual(writes, [['/calendar/feed', { includeBirthdays: false }]]);
+    assert.equal(input.disabled, false);
+    globalThis.__apiStub.put = async () => { throw new Error('Rejected'); };
+    input.checked = true;
+    await input.change({ currentTarget: input });
+    assert.equal(input.checked, false, 'failed save restores the previous choice');
+    assert.equal(input.disabled, false);
+  } finally { globalThis.__apiStub = previous; globalThis.window = previousWindow; }
 });

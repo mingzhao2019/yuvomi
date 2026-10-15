@@ -2427,7 +2427,9 @@
         "backupWebdavNeverUploaded": "Noch kein Upload",
         "backupWebdavSaved": "WebDAV-Konfiguration gespeichert.",
         "backupWebdavEnvHint": "Die Konfiguration wird über Umgebungsvariablen gesteuert und kann hier nicht bearbeitet werden.",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "CalDAV Kalender",
+        "birthdayFeedTitle": "Geburtstagskalender exportieren",
+        "birthdayFeedDescription": "Alle gespeicherten Geburtstage und Namenstage als jährliche ganztägige Termine, auch ohne Erinnerung. In jeder Kalender-App mit ICS-Unterstützung abonnierbar.",
         "feedExportTitle": "Kalender-Feed exportieren",
         "feedExportDescription": "Abonniere deinen Yuvomi-Kalender schreibgeschützt in Apple Kalender, Google Kalender oder Thunderbird.",
         "feedExportInactive": "Der Export-Feed ist deaktiviert.",
@@ -3288,7 +3290,10 @@
         "displayRemoveDevice": "Entfernen",
         "displayRemoveDeviceConfirm": "Eintrag dieses Geräts entfernen?",
         "displayRemoveDeviceDetail": "Der Eintrag verschwindet endgültig aus der Liste. Das lässt sich nicht rückgängig machen.",
-        "displayRemoveDeviceActive": "Dieses Gerät ist noch gekoppelt. Widerrufe es zuerst."
+        "displayRemoveDeviceActive": "Dieses Gerät ist noch gekoppelt. Widerrufe es zuerst.",
+        "feedExportIncludeBirthdays": "Geburtstage einschließen",
+        "feedExportIncludeBirthdaysHint": "Bei einem separaten Geburtstagsabo ausschalten, damit Geburtstage und Namenstage nicht doppelt erscheinen.",
+        "birthdayFeedHint": "Wer diesen Link hat, kann alle im Haushalt gespeicherten Geburtstage und Namenstage sehen, auch ohne Erinnerung. Nur auf eigenen Geräten verwenden."
     },
     "login": {
         "tagline": "Willkommen zurück bei deinem Familienplaner.",

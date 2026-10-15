@@ -23,6 +23,8 @@ Every table: `id INTEGER PRIMARY KEY`, `created_at TEXT`, `updated_at TEXT` (ISO
 | oidc_sub | TEXT | OIDC subject identifier from the provider, nullable. Populated on first SSO login. |
 | oidc_provider | TEXT | OIDC issuer URL of the provider that set `oidc_sub`, nullable. Partial UNIQUE index on `(oidc_sub, oidc_provider)` WHERE NOT NULL. |
 | calendar_feed_token | TEXT | Secret token authenticating the user's read-only ICS export feed, nullable. Partial UNIQUE index on `calendar_feed_token` WHERE NOT NULL. |
+| birthday_feed_token | TEXT | Independent birthday ICS subscription secret, nullable, uniquely indexed (migration 259); cleared when its owner is deactivated. |
+| calendar_feed_include_birthdays | INTEGER | Personal calendar-feed switch (0/1, default 1; migration 259). Turning it off excludes generated birthdays and name days from that feed without changing the app layer or the separate birthday feed. |
 | calendar_feed_show_assignees | INTEGER | Opt-in flag (0/1, default 0): when set, the read-only ICS export feed appends the assigned members to each event's `SUMMARY`, e.g. `Pool party (Mom, Dad)`. |
 | onboarding_version | INTEGER | NOT NULL, default 0 (migration v168) — the walkthrough version this account has seen |
 | changelog_seen_version | TEXT | Nullable (migration v173) — the INSTALLED version at this account's last look at the changelog. Drives the "New in your app" list |
@@ -86,7 +88,7 @@ links made the delete fail with a bare 500. The rule now lives in
   whoever issues it, so a token a former administrator issued for another account is a secret
   in their hand), open invitations it created are revoked and open display pairing codes it
   issued are spent (a device already paired stays: its secret only ever went to that device,
-  and `display_devices` does not record who paired it), the five feed tokens are cleared, password reset tokens, two-factor recovery codes,
+  and `display_devices` does not record who paired it), the six feed tokens are cleared, password reset tokens, two-factor recovery codes,
   idempotency keys, push subscriptions, personal notification channels, reminders not yet delivered
   and care grants held as caregiver are removed, `outlook_accounts.owner_user_id` and the default
   assignee of synced calendars are cleared. `oidc_sub` stays bound, so the SSO callback finds the
@@ -2667,6 +2669,31 @@ person. No country- or name-based lookup is performed.
 | reminder_offset | TEXT | Minutes before 12:00 on the birthday in the household time zone, as text ("1440" = 1 day before), or "custom"; "" = no reminder and no calendar event; NULL = on the day itself. The editor creates birthdays with "1440"; the import from Contacts, a household member's birthday, a split-expense guest and POST without the field store NULL. POST/PUT accept whole minutes from 0 to 10069920 (999 weeks); on PUT, a value equal to the stored one passes unchanged, so rows written before the check (older editors offered "15", "60", "20160"; the API took anything) stay editable |
 | reminder_custom_amount | INTEGER | Amount for custom offset, 1-999, nullable (NULL counts as 1) |
 | reminder_custom_unit | TEXT | Unit for custom offset: "minutes", "hours", "days", "weeks", nullable (NULL counts as days) |
+
+
+### Birthday ICS subscription
+
+Settings → Calendar → Birthday calendar export provides a separate subscription URL at
+`/feed/birthdays/:token.ics`. Every authenticated member manages their own link through
+`GET /api/v1/birthdays/feed`, `POST /api/v1/birthdays/feed/regenerate` and
+`DELETE /api/v1/birthdays/feed`. Tokens are independent of the general calendar feed,
+are rate limited, and stop working after rotation, revocation or account deactivation.
+The content is household-wide: all saved birthdays with a birth date and all saved name days,
+including records with reminders turned off, as transparent yearly all-day events. The feed ignores
+the household Birthdays module switch because it is the module's own export (DECISIONS.md, entry 11).
+Names follow the household language; stable birthday and name-day IDs identify events separately.
+Birth years, notes and photos are omitted.
+February 29 birthdays and name days recur on the last day of February: February 29 in leap
+years and February 28 otherwise, matching the app. The URL can be subscribed to in
+any calendar app or service that supports ICS. For example, in Home Assistant use
+[Remote Calendar](https://www.home-assistant.io/integrations/remote_calendar):
+Settings → Devices & services → Add Integration → Remote Calendar, then paste the HTTP(S) URL.
+The existing general calendar feed includes generated birthday and name-day events by default.
+Its personal "Include birthdays" switch (`users.calendar_feed_include_birthdays`, via
+`PUT /api/v1/calendar/feed` with `includeBirthdays`) can exclude them to avoid duplicates when
+subscribing to both feeds. The household Birthdays module switch continues to suppress birthdays
+in the mixed calendar feed. Local-calendar feeds continue to exclude generated events; the app
+keeps its existing birthday layer filter and reminder-based visibility.
 
 ### API Tokens
 Named Bearer / X-API-Key tokens for non-interactive external integrations. Admin-only creation and revocation. Token values are SHA-256-hashed at rest; the plaintext is shown only once after creation.

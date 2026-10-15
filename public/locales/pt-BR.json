@@ -2330,6 +2330,8 @@
         "caldavSyncFailed": "Falha na sincronização CalDAV",
         "caldavSyncSuccess": "Sincronização CalDAV concluída",
         "caldavTitle": "Calendários CalDAV",
+        "birthdayFeedTitle": "Exportar calendário de aniversários",
+        "birthdayFeedDescription": "Todos os aniversários e dias do nome salvos como eventos anuais de dia inteiro, mesmo sem lembretes. Compatível com qualquer aplicativo de calendário com suporte a ICS.",
         "feedExportTitle": "Exportar feed de calendário",
         "feedExportDescription": "Assine o seu calendário Yuvomi somente para leitura no Calendário da Apple, Google Calendar ou Thunderbird.",
         "feedExportInactive": "O feed de exportação está desativado.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Remover",
         "displayRemoveDeviceConfirm": "Remover a entrada deste dispositivo?",
         "displayRemoveDeviceDetail": "A entrada some da lista de forma definitiva. Isto não pode ser anulado.",
-        "displayRemoveDeviceActive": "Este dispositivo ainda está pareado. Revogue-o primeiro."
+        "displayRemoveDeviceActive": "Este dispositivo ainda está pareado. Revogue-o primeiro.",
+        "feedExportIncludeBirthdays": "Incluir aniversários",
+        "feedExportIncludeBirthdaysHint": "Desative ao assinar o calendário separado de aniversários para evitar aniversários e dias do nome duplicados.",
+        "birthdayFeedHint": "Qualquer pessoa com este link pode ver todos os aniversários e dias do nome salvos na família, mesmo sem lembretes. Use apenas nos seus próprios dispositivos."
     },
     "login": {
         "tagline": "Bem-vindo de volta ao seu planejador familiar.",

@@ -2571,7 +2571,9 @@
         "caldavRefreshCalendars": "تحديث التقويمات",
         "caldavSyncFailed": "فشلت مزامنة CalDAV",
         "caldavSyncSuccess": "نجحت مزامنة CalDAV",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "تقويمات CalDAV",
+        "birthdayFeedTitle": "تصدير تقويم أعياد الميلاد",
+        "birthdayFeedDescription": "جميع أعياد الميلاد وأيام الأسماء المحفوظة كأحداث سنوية طوال اليوم، حتى دون تذكيرات. يمكن الاشتراك بأي تطبيق تقويم يدعم ICS.",
         "feedExportTitle": "تصدير تغذية التقويم",
         "feedExportDescription": "اشترك في تقويم Yuvomi الخاص بك للقراءة فقط في تقويم Apple أو تقويم Google أو Thunderbird.",
         "feedExportInactive": "تغذية التصدير معطّلة.",
@@ -3581,7 +3583,10 @@
         "displayRemoveDevice": "إزالة",
         "displayRemoveDeviceConfirm": "هل تريد إزالة إدخال هذا الجهاز؟",
         "displayRemoveDeviceDetail": "يختفي الإدخال من القائمة نهائيًا. ولا يمكن التراجع عن ذلك.",
-        "displayRemoveDeviceActive": "هذا الجهاز ما زال مقترنًا. أبطِله أولًا."
+        "displayRemoveDeviceActive": "هذا الجهاز ما زال مقترنًا. أبطِله أولًا.",
+        "feedExportIncludeBirthdays": "تضمين أعياد الميلاد",
+        "feedExportIncludeBirthdaysHint": "عطّل هذا الخيار عند الاشتراك في موجز أعياد الميلاد المنفصل لتجنب تكرار أعياد الميلاد وأيام الأسماء.",
+        "birthdayFeedHint": "يمكن لأي شخص لديه هذا الرابط رؤية جميع أعياد الميلاد وأيام الأسماء المحفوظة في المنزل، حتى دون تذكيرات. استخدمه على أجهزتك الخاصة فقط."
     },
     "login": {
         "tagline": "مرحبًا بعودتك إلى منظّم عائلتك.",

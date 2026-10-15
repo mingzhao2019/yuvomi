@@ -2566,7 +2566,9 @@
         "backupWebdavNeverUploaded": "Brak przesłanych kopii",
         "backupWebdavSaved": "Konfiguracja WebDAV zapisana.",
         "backupWebdavEnvHint": "Konfiguracja jest kontrolowana przez zmienne środowiskowe i nie można jej tu edytować.",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "Kalendarze CalDAV",
+        "birthdayFeedTitle": "Eksportuj kalendarz urodzin",
+        "birthdayFeedDescription": "Wszystkie zapisane urodziny i imieniny jako coroczne wydarzenia całodniowe, także bez przypomnień. Subskrybuj w dowolnej aplikacji kalendarza obsługującej ICS.",
         "feedExportTitle": "Eksportuj kanał kalendarza",
         "feedExportDescription": "Subskrybuj swój kalendarz Yuvomi w trybie tylko do odczytu w Kalendarzu Apple, Kalendarzu Google lub Thunderbird.",
         "feedExportInactive": "Kanał eksportu jest wyłączony.",
@@ -3492,7 +3494,10 @@
         "displayRemoveDevice": "Usuń",
         "displayRemoveDeviceConfirm": "Usunąć wpis tego urządzenia?",
         "displayRemoveDeviceDetail": "Wpis zniknie z listy na stałe. Tego nie można cofnąć.",
-        "displayRemoveDeviceActive": "To urządzenie jest nadal sparowane. Najpierw je unieważnij."
+        "displayRemoveDeviceActive": "To urządzenie jest nadal sparowane. Najpierw je unieważnij.",
+        "feedExportIncludeBirthdays": "Uwzględniaj urodziny",
+        "feedExportIncludeBirthdaysHint": "Wyłącz przy osobnej subskrypcji urodzin, aby uniknąć podwójnych urodzin i imienin.",
+        "birthdayFeedHint": "Każdy, kto ma ten link, może zobaczyć wszystkie urodziny i imieniny zapisane w gospodarstwie domowym, także bez przypomnień. Używaj go tylko na własnych urządzeniach."
     },
     "login": {
         "tagline": "Witaj ponownie w swoim planerze rodzinnym.",

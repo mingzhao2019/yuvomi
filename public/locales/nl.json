@@ -2367,7 +2367,9 @@
         "backupWebdavNeverUploaded": "Nog geen upload",
         "backupWebdavSaved": "WebDAV-configuratie opgeslagen.",
         "backupWebdavEnvHint": "De configuratie wordt beheerd via omgevingsvariabelen en kan hier niet worden bewerkt.",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "CalDAV-kalenders",
+        "birthdayFeedTitle": "Verjaardagskalender exporteren",
+        "birthdayFeedDescription": "Alle opgeslagen verjaardagen en naamdagen als jaarlijkse gebeurtenissen voor de hele dag, ook zonder herinnering. Te abonneren in elke agenda-app met ICS-ondersteuning.",
         "feedExportTitle": "Agenda-feed exporteren",
         "feedExportDescription": "Abonneer je alleen-lezen op je Yuvomi-agenda in Apple Agenda, Google Agenda of Thunderbird.",
         "feedExportInactive": "De exportfeed is uitgeschakeld.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Verwijderen",
         "displayRemoveDeviceConfirm": "Vermelding van dit apparaat verwijderen?",
         "displayRemoveDeviceDetail": "De vermelding verdwijnt definitief uit de lijst. Dit kan niet ongedaan worden gemaakt.",
-        "displayRemoveDeviceActive": "Dit apparaat is nog gekoppeld. Trek het eerst in."
+        "displayRemoveDeviceActive": "Dit apparaat is nog gekoppeld. Trek het eerst in.",
+        "feedExportIncludeBirthdays": "Verjaardagen opnemen",
+        "feedExportIncludeBirthdaysHint": "Schakel dit uit bij een apart verjaardagsabonnement om dubbele verjaardagen en naamdagen te voorkomen.",
+        "birthdayFeedHint": "Iedereen met deze link kan alle opgeslagen verjaardagen en naamdagen van het huishouden zien, ook zonder herinnering. Gebruik de link alleen op je eigen apparaten."
     },
     "login": {
         "tagline": "Welkom terug bij je gezinsplanner.",

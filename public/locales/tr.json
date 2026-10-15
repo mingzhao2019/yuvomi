@@ -2327,7 +2327,9 @@
         "caldavRefreshCalendars": "Takvimleri yenile",
         "caldavSyncFailed": "CalDAV eşitlemesi başarısız",
         "caldavSyncSuccess": "CalDAV eşitlemesi başarılı",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "CalDAV takvimleri",
+        "birthdayFeedTitle": "Doğum günü takvimini dışa aktar",
+        "birthdayFeedDescription": "Hatırlatıcıları kapalı olanlar dahil, kayıtlı tüm doğum günleri ve isim günleri yıllık tam gün etkinlikleridir. ICS destekleyen her takvim uygulamasında abone olunabilir.",
         "feedExportTitle": "Takvim akışını dışa aktar",
         "feedExportDescription": "Yuvomi takvimine Apple Takvim, Google Takvim veya Thunderbird'de salt okunur olarak abone ol.",
         "feedExportInactive": "Dışa aktarma akışı devre dışı.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Kaldır",
         "displayRemoveDeviceConfirm": "Bu cihazın kaydı kaldırılsın mı?",
         "displayRemoveDeviceDetail": "Kayıt listeden kalıcı olarak silinir. Bu geri alınamaz.",
-        "displayRemoveDeviceActive": "Bu cihaz hâlâ eşleştirilmiş. Önce iptal edin."
+        "displayRemoveDeviceActive": "Bu cihaz hâlâ eşleştirilmiş. Önce iptal edin.",
+        "feedExportIncludeBirthdays": "Doğum günlerini dahil et",
+        "feedExportIncludeBirthdaysHint": "Ayrı doğum günü akışına abone olduğunuzda doğum günlerinin ve isim günlerinin yinelenmesini önlemek için kapatın.",
+        "birthdayFeedHint": "Bu bağlantıya sahip herkes, hatırlatıcıları kapalı olanlar dahil evde kayıtlı tüm doğum günlerini ve isim günlerini görebilir. Yalnızca kendi cihazlarınızda kullanın."
     },
     "login": {
         "tagline": "Aile planlayıcına tekrar hoş geldin.",

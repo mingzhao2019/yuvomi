@@ -2404,7 +2404,9 @@
         "backupWebdavNeverUploaded": "Belum ada unggahan",
         "backupWebdavSaved": "Konfigurasi WebDAV disimpan.",
         "backupWebdavEnvHint": "Konfigurasi dikendalikan melalui variabel lingkungan dan tidak dapat diubah di sini.",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "Kalender CalDAV",
+        "birthdayFeedTitle": "Ekspor kalender ulang tahun",
+        "birthdayFeedDescription": "Semua ulang tahun dan hari nama tersimpan sebagai acara tahunan sepanjang hari, termasuk tanpa pengingat. Berlangganan melalui aplikasi kalender apa pun yang mendukung ICS.",
         "feedExportTitle": "Ekspor umpan kalender",
         "feedExportDescription": "Berlangganan kalender Yuvomi Anda hanya-baca di Apple Calendar, Google Calendar, atau Thunderbird.",
         "feedExportInactive": "Umpan ekspor dinonaktifkan.",
@@ -3288,7 +3290,10 @@
         "displayRemoveDevice": "Hapus",
         "displayRemoveDeviceConfirm": "Hapus entri perangkat ini?",
         "displayRemoveDeviceDetail": "Entri hilang dari daftar untuk selamanya. Ini tidak bisa dibatalkan.",
-        "displayRemoveDeviceActive": "Perangkat ini masih dipasangkan. Cabut dulu."
+        "displayRemoveDeviceActive": "Perangkat ini masih dipasangkan. Cabut dulu.",
+        "feedExportIncludeBirthdays": "Sertakan ulang tahun",
+        "feedExportIncludeBirthdaysHint": "Nonaktifkan saat berlangganan feed ulang tahun terpisah agar ulang tahun dan hari nama tidak muncul dua kali.",
+        "birthdayFeedHint": "Siapa pun yang memiliki tautan ini dapat melihat semua ulang tahun dan hari nama tersimpan dalam rumah tangga, termasuk tanpa pengingat. Gunakan hanya di perangkat Anda sendiri."
     },
     "login": {
         "tagline": "Selamat datang kembali di perencana keluarga Anda.",

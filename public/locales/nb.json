@@ -2391,6 +2391,8 @@
         "backupWebdavSaved": "WebDAV-konfigurasjon lagret.",
         "backupWebdavEnvHint": "Konfigurasjonen styres av miljøvariabler og kan ikke redigeres her.",
         "caldavTitle": "CalDAV-kalendere",
+        "birthdayFeedTitle": "Eksporter bursdagskalender",
+        "birthdayFeedDescription": "Alle lagrede fødselsdager og navnedager som årlige heldagshendelser, også uten påminnelser. Abonner i en kalenderapp som støtter ICS.",
         "feedExportTitle": "Eksporter kalenderstrøm",
         "feedExportDescription": "Abonner på din Yuvomi-kalender i skrivebeskyttet modus i Apple Kalender, Google Kalender eller Thunderbird.",
         "feedExportInactive": "Eksportstrømmen er deaktivert.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Fjern",
         "displayRemoveDeviceConfirm": "Fjerne oppføringen for denne enheten?",
         "displayRemoveDeviceDetail": "Oppføringen forsvinner fra listen for godt. Dette kan ikke gjøres om.",
-        "displayRemoveDeviceActive": "Denne enheten er fortsatt paret. Trekk den tilbake først."
+        "displayRemoveDeviceActive": "Denne enheten er fortsatt paret. Trekk den tilbake først.",
+        "feedExportIncludeBirthdays": "Ta med fødselsdager",
+        "feedExportIncludeBirthdaysHint": "Slå av når du abonnerer på den separate fødselsdagskalenderen for å unngå doble fødselsdager og navnedager.",
+        "birthdayFeedHint": "Alle med lenken kan se alle lagrede fødselsdager og navnedager i husholdningen, også uten påminnelser. Bruk den bare på dine egne enheter."
     },
     "login": {
         "tagline": "Velkommen tilbake til familieplanleggeren din.",

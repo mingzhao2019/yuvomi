@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   administrators. Disabled modules disappear from the list; module APIs remain responsible
   for enforcing roles and permissions.
 
+- **Birthdays and name days have their own calendar feed.** Settings → Calendar includes an
+  independent ICS subscription for all saved birthdays and name days, including records with reminders disabled. Subscribe using any calendar app
+  or service that supports ICS. The feed uses yearly all-day events and can be rotated or disabled
+  without changing other calendar subscriptions. A personal "Include birthdays" switch on the
+  existing calendar feed is on by default; turn it off when using both feeds to avoid duplicates.
+
 ### Fixed
 
 - **A server whose `TZ` names an unknown time zone now runs in UTC.** Without a household time zone

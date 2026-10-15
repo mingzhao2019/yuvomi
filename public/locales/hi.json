@@ -2327,7 +2327,9 @@
         "caldavRefreshCalendars": "कैलेंडर रीफ़्रेश करें",
         "caldavSyncFailed": "CalDAV सिंक विफल",
         "caldavSyncSuccess": "CalDAV सिंक सफल",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "CalDAV कैलेंडर",
+        "birthdayFeedTitle": "जन्मदिन कैलेंडर निर्यात करें",
+        "birthdayFeedDescription": "सभी सहेजे गए जन्मदिन और नाम-दिवस सालाना पूरे दिन के कार्यक्रमों के रूप में, रिमाइंडर बंद होने पर भी। ICS का समर्थन करने वाले किसी भी कैलेंडर ऐप में सदस्यता लें।",
         "feedExportTitle": "कैलेंडर फ़ीड निर्यात करें",
         "feedExportDescription": "Apple कैलेंडर, Google कैलेंडर या Thunderbird में अपने Yuvomi कैलेंडर को केवल पढ़ने के लिए सब्सक्राइब करें।",
         "feedExportInactive": "निर्यात फ़ीड अक्षम है।",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "हटाएँ",
         "displayRemoveDeviceConfirm": "इस डिवाइस की प्रविष्टि हटाएँ?",
         "displayRemoveDeviceDetail": "प्रविष्टि सूची से हमेशा के लिए हट जाएगी। इसे वापस नहीं लिया जा सकता।",
-        "displayRemoveDeviceActive": "यह डिवाइस अभी जुड़ा हुआ है। पहले इसे रद्द करें।"
+        "displayRemoveDeviceActive": "यह डिवाइस अभी जुड़ा हुआ है। पहले इसे रद्द करें।",
+        "feedExportIncludeBirthdays": "जन्मदिन शामिल करें",
+        "feedExportIncludeBirthdaysHint": "अलग जन्मदिन फ़ीड की सदस्यता लेते समय इसे बंद करें ताकि जन्मदिन और नाम-दिवस दो बार न दिखें।",
+        "birthdayFeedHint": "इस लिंक वाला कोई भी व्यक्ति घर के सभी सहेजे गए जन्मदिन और नाम-दिवस देख सकता है, रिमाइंडर बंद होने पर भी। इसे केवल अपने उपकरणों पर इस्तेमाल करें।"
     },
     "login": {
         "tagline": "अपने पारिवारिक प्लानर में फिर से आपका स्वागत है।",

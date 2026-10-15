@@ -111,7 +111,7 @@ export function calendarPaths() {
     },
     '/api/v1/calendar/feed': {
       get: op({ summary: 'Get personal ICS export feed status', tag: 'Calendar' }),
-      put: op({ summary: 'Set personal ICS export feed options (showAssignees)', tag: 'Calendar', stateChanging: true, requestBody: jsonBody(null) }),
+      put: op({ summary: 'Set personal ICS export feed options (showAssignees, includeBirthdays)', tag: 'Calendar', stateChanging: true, requestBody: jsonBody(null, 'At least one boolean: showAssignees or includeBirthdays. Birthday inclusion defaults to true and affects only this member’s calendar feed.') }),
       delete: op({ summary: 'Disable personal ICS export feed', tag: 'Calendar', stateChanging: true }),
     },
     '/api/v1/calendar/feed/regenerate': {

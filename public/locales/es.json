@@ -2327,7 +2327,9 @@
         "caldavRefreshCalendars": "Actualizar calendarios",
         "caldavSyncFailed": "Error en la sincronización CalDAV",
         "caldavSyncSuccess": "Sincronización CalDAV correcta",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "Calendarios CalDAV",
+        "birthdayFeedTitle": "Exportar calendario de cumpleaños",
+        "birthdayFeedDescription": "Todos los cumpleaños y onomásticas guardados como eventos anuales de todo el día, incluso sin recordatorios. Suscríbete con cualquier calendario compatible con ICS.",
         "feedExportTitle": "Exportar feed de calendario",
         "feedExportDescription": "Suscríbete a tu calendario de Yuvomi en modo solo lectura en Calendario de Apple, Google Calendar o Thunderbird.",
         "feedExportInactive": "El feed de exportación está desactivado.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Eliminar",
         "displayRemoveDeviceConfirm": "¿Eliminar la entrada de este dispositivo?",
         "displayRemoveDeviceDetail": "La entrada desaparece de la lista de forma definitiva. Esto no se puede deshacer.",
-        "displayRemoveDeviceActive": "Este dispositivo sigue vinculado. Revócalo primero."
+        "displayRemoveDeviceActive": "Este dispositivo sigue vinculado. Revócalo primero.",
+        "feedExportIncludeBirthdays": "Incluir cumpleaños",
+        "feedExportIncludeBirthdaysHint": "Desactívalo si te suscribes al calendario de cumpleaños separado para evitar cumpleaños y onomásticas duplicados.",
+        "birthdayFeedHint": "Cualquiera con este enlace puede ver todos los cumpleaños y onomásticas guardados en el hogar, incluso sin recordatorios. Úsalo solo en tus propios dispositivos."
     },
     "login": {
         "tagline": "Bienvenido de nuevo a tu planificador familiar.",

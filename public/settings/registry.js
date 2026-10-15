@@ -415,10 +415,22 @@ export const SETTINGS_SECTIONS = freezeEntries([
     options: [
       { key: 'settings.feedExportTitle', terms: ['ICS', 'iCal'] },
       'settings.feedExportShowAssignees',
+      'settings.feedExportIncludeBirthdays',
     ],
     adminOnly: false,
     loader: () => import('/settings/pages/personal-feeds.js'),
     props: { part: 'calendar' },
+  },
+  {
+    id: 'feed-birthdays',
+    sheetId: 'module-calendar',
+    scope: 'mine',
+    labelKey: 'settings.birthdayFeedTitle',
+    descriptionKey: 'settings.birthdayFeedDescription',
+    options: [{ key: 'settings.birthdayFeedTitle', terms: ['ICS', 'iCal', 'Home Assistant'] }],
+    adminOnly: false,
+    loader: () => import('/settings/pages/personal-feeds.js'),
+    props: { part: 'birthdays' },
   },
   {
     id: 'modules-calendar',

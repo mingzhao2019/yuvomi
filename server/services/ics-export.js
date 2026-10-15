@@ -324,7 +324,8 @@ function buildFeed(conn, userId, now = new Date(), tz = householdTimeZone(conn),
   // sie nicht mit; nach dem Wiedereinschalten holt der naechste Abruf sie zurueck.
   // Der Feed selbst bleibt auch bei abgeschaltetem Kalender erreichbar - er ist
   // die eigene Ausgabe des Moduls, keine Mischstelle (docs/DECISIONS.md 11).
-  const withoutBirthdays = birthdaysSwitchedOff(conn) ? `
+  const withoutBirthdays = (birthdaysSwitchedOff(conn)
+    || (!options.localCalendarId && !getFeedIncludeBirthdays(conn, userId))) ? `
     AND ${notBirthdayEventSql('e')}` : '';
 
   const queriedRows = conn.prepare(`
@@ -483,6 +484,16 @@ function findUserIdByFeedToken(conn, token) {
   return null;
 }
 
+function getFeedIncludeBirthdays(conn, userId) {
+  const row = conn.prepare('SELECT calendar_feed_include_birthdays AS v FROM users WHERE id = ?').get(userId);
+  return row?.v !== 0;
+}
+
+function setFeedIncludeBirthdays(conn, userId, value) {
+  conn.prepare('UPDATE users SET calendar_feed_include_birthdays = ? WHERE id = ?').run(value ? 1 : 0, userId);
+  return value;
+}
+
 function getFeedShowAssignees(conn, userId) {
   const row = conn.prepare(
     `SELECT calendar_feed_show_assignees AS v FROM users WHERE id = ?`
@@ -500,6 +511,7 @@ export {
   escapeICSText, foldLine, buildFeed, buildCalendarFeed,
   getFeedToken, regenerateFeedToken, clearFeedToken, findUserIdByFeedToken,
   getFeedShowAssignees, setFeedShowAssignees,
+  getFeedIncludeBirthdays, setFeedIncludeBirthdays,
   resolveFeedZone, stampProp,
 };
 

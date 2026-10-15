@@ -2410,7 +2410,9 @@
         "backupWebdavNeverUploaded": "No upload yet",
         "backupWebdavSaved": "WebDAV configuration saved.",
         "backupWebdavEnvHint": "Configuration is controlled by environment variables and cannot be edited here.",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "CalDAV Calendars",
+        "birthdayFeedTitle": "Birthday calendar export",
+        "birthdayFeedDescription": "All saved birthdays and name days as yearly all-day events, including those with reminders off. Subscribe in any calendar app that supports ICS.",
         "feedExportTitle": "Export calendar feed",
         "feedExportDescription": "Subscribe to your Yuvomi calendar read-only in Apple Calendar, Google Calendar, or Thunderbird.",
         "feedExportInactive": "The export feed is disabled.",
@@ -3274,7 +3276,10 @@
         "displayRemoveDevice": "Remove",
         "displayRemoveDeviceConfirm": "Remove the entry for this device?",
         "displayRemoveDeviceDetail": "The entry disappears from the list for good. This cannot be undone.",
-        "displayRemoveDeviceActive": "This device is still paired. Revoke it first."
+        "displayRemoveDeviceActive": "This device is still paired. Revoke it first.",
+        "feedExportIncludeBirthdays": "Include birthdays",
+        "feedExportIncludeBirthdaysHint": "Turn this off when you subscribe to the separate birthday feed to avoid duplicate birthdays and name days.",
+        "birthdayFeedHint": "Anyone with this link can see every birthday and name day saved in the household, including those with reminders off. Only use it on your own devices."
     },
     "login": {
         "tagline": "Welcome back to your family planner.",

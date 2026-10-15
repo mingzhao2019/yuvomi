@@ -2489,7 +2489,9 @@
         "caldavRefreshCalendars": "Обновить календари",
         "caldavSyncFailed": "Не удалось выполнить синхронизацию CalDAV",
         "caldavSyncSuccess": "Синхронизация CalDAV выполнена",
-        "caldavTitle": "CalDAV",
+        "caldavTitle": "Календари CalDAV",
+        "birthdayFeedTitle": "Экспорт календаря дней рождения",
+        "birthdayFeedDescription": "Все сохранённые дни рождения и именины как ежегодные события на весь день, даже без напоминаний. Подписка доступна в любом календаре с поддержкой ICS.",
         "feedExportTitle": "Экспорт ленты календаря",
         "feedExportDescription": "Подпишитесь на свой календарь Yuvomi только для чтения в Apple Calendar, Google Calendar или Thunderbird.",
         "feedExportInactive": "Лента экспорта отключена.",
@@ -3478,7 +3480,10 @@
         "displayRemoveDevice": "Удалить",
         "displayRemoveDeviceConfirm": "Удалить запись этого устройства?",
         "displayRemoveDeviceDetail": "Запись исчезнет из списка навсегда. Это нельзя отменить.",
-        "displayRemoveDeviceActive": "Это устройство ещё подключено. Сначала отзовите его."
+        "displayRemoveDeviceActive": "Это устройство ещё подключено. Сначала отзовите его.",
+        "feedExportIncludeBirthdays": "Включать дни рождения",
+        "feedExportIncludeBirthdaysHint": "Отключите при отдельной подписке на дни рождения, чтобы дни рождения и именины не дублировались.",
+        "birthdayFeedHint": "Любой, у кого есть эта ссылка, увидит все дни рождения и именины, сохранённые в семье, даже без напоминаний. Используйте её только на собственных устройствах."
     },
     "login": {
         "tagline": "С возвращением в ваш семейный планировщик.",
