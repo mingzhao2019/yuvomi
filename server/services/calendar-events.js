@@ -9,7 +9,6 @@ import { visibilityWhere } from './visibility.js';
 import {
   hasExplicitZone, householdTimeZone, localToUTC, storedToInstantIso, utcToWall,
 } from '../utils/timezone.js';
-} from '../utils/timezone.js';
 
 const DEFAULT_EXPANSION_ITERATIONS = 1000;
 export const MAX_EXPANSION_ITERATIONS = 100000;
