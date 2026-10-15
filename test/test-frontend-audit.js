@@ -7318,6 +7318,8 @@ test('jede Route erklärt ihren Dokumenttitel, und jeder erklärte Key existiert
     'jedes Settings-Blatt braucht den Sektionstitel');
   assert.match(router, /HEALTH_ROUTES\.map\([\s\S]*?titleKey:\s*'nav\.health'/,
     'jede Health-Route braucht den Sektionstitel');
+  assert.match(router, /extensionSettingsPaths\(\)\.map\([\s\S]{0,200}?titleKey:\s*'nav\.settings'/,
+    'extension settings sheets need the Settings title');
 
   // Kein toter Key: routeTitle() ruft t() darauf auf, und ein fehlender Key
   // liefert den Key selbst als Titel - sichtbar erst im Browser-Tab.
@@ -7330,7 +7332,7 @@ test('jede Route erklärt ihren Dokumenttitel, und jeder erklärte Key existiert
     `titleKey ohne Eintrag in de.json: ${missing.join(', ')}`);
 
   // Und der Titel wird AUS der Tabelle gelesen, nicht aus einer zweiten Liste.
-  assert.match(router, /ROUTES\.find\(\(route\) => route\.path === path\)\?\.titleKey/,
+  assert.match(router, /allRoutes\(\)\.find\(\(route\) => route\.path === path\)\?\.titleKey/,
     'routeTitle muss ROUTES lesen');
   assert.doesNotMatch(router, /const map = \{\s*\n\s*'\/':\s*t\(/,
     'die abgelöste Titel-Map darf nicht zurückkommen');

@@ -6091,6 +6091,9 @@ modules/
 | `version` | | Semver string, displayed in Settings. |
 | `description` | | Short description shown in Settings. |
 | `style` | | Relative `.css` file loaded only for this module's page. |
+| `settings.entry` | | Relative `.js` file exporting `render(container, { section, user, query })`; adds a sheet under Settings → Modules. The module `style` is not loaded there. |
+| `settings.sections` | with `settings` | Non-empty array of `mine` and/or `household`, no duplicates, no default. `mine` is shown to members with access to the module, `household` only to administrators. Visibility only; the module API enforces permissions. |
+| `settings.labelKey` | | i18n key for the sheet title; falls back to the navigation label. |
 | `icon` | | Lucide icon name for the module's navigation entry. |
 | `accent` | | `#RRGGBB` color used for menu highlighting. |
 | `menu.show` | | Set `false` to hide from navigation. |

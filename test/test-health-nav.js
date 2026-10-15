@@ -210,7 +210,7 @@ test('router.js: jede /health-Route traegt nav.health als Titel', () => {
   const src = read('public/router.js');
   assert.match(src, /HEALTH_ROUTES\.map\([\s\S]{0,200}?titleKey:\s*'nav\.health'/,
     'die Health-Routen muessen ihren Titel selbst fuehren');
-  assert.match(src, /ROUTES\.find\(\(route\) => route\.path === path\)\?\.titleKey/,
+  assert.match(src, /allRoutes\(\)\.find\(\(route\) => route\.path === path\)\?\.titleKey/,
     'routeTitle muss den Titel aus ROUTES lesen');
 });
 

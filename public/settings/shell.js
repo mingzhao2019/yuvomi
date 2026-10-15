@@ -18,6 +18,7 @@ import {
   settingsSheetJumpTargets,
   settingsSheetSections,
   settingsSheetsForDomain,
+  settingsLeafLabel, settingsLeafDescription,
 } from './registry.js';
 
 // Unter dieser Schwelle ist ein Blatt gefuehlt sofort da; ein Skelett waere
@@ -76,7 +77,8 @@ function createIcon(name, className) {
 function createLeafMark(entry, className) {
   const mark = document.createElement('span');
   mark.className = entry.module ? `${className} vivid-mark` : className;
-  if (entry.module) mark.style.setProperty('--seal-accent', moduleAccentVar(entry.module));
+  if (entry.extensionModule) mark.style.setProperty('--seal-accent', entry.extensionModule.accent);
+  else if (entry.module) mark.style.setProperty('--seal-accent', moduleAccentVar(entry.module));
   mark.setAttribute('aria-hidden', 'true');
   mark.appendChild(createIcon(entry.icon, `${className}-glyph`));
   return mark;
@@ -122,7 +124,7 @@ function createNavigationLink(entry, activeLeaf) {
   link.dataset.leafId = entry.id;
   link.append(
     createLeafMark(entry, 'settings-shell__navigation-link-icon'),
-    document.createTextNode(t(entry.labelKey)),
+    document.createTextNode(settingsLeafLabel(entry, t)),
   );
   if (entry.id === activeLeaf?.id) {
     link.classList.add('settings-shell__navigation-link--active');
@@ -207,7 +209,7 @@ function createNavigationSearch(navigation, domains, user, activeLeaf) {
       ...hits.leaves.map((entry) => createNavigationResult({
         entry,
         href: entry.path,
-        label: t(entry.labelKey),
+        label: settingsLeafLabel(entry, t),
         context: domainLabels.get(entry.domainId) ?? '',
         activeLeaf,
       })),
@@ -215,7 +217,7 @@ function createNavigationSearch(navigation, domains, user, activeLeaf) {
         entry: leaf,
         href: settingsSectionUrl(leaf, section.id),
         label,
-        context: t(leaf.labelKey),
+        context: settingsLeafLabel(leaf, t),
         activeLeaf,
         exact: false,
       })),
@@ -223,7 +225,7 @@ function createNavigationSearch(navigation, domains, user, activeLeaf) {
         entry: leaf,
         href: settingsOptionUrl(leaf, key),
         label,
-        context: t(leaf.labelKey),
+        context: settingsLeafLabel(leaf, t),
         activeLeaf,
         exact: false,
       })),
@@ -354,11 +356,11 @@ function createOverviewRow(entry) {
 
   const label = document.createElement('span');
   label.className = 'settings-overview__row-title';
-  label.textContent = t(entry.labelKey);
+  label.textContent = settingsLeafLabel(entry, t);
 
   const description = document.createElement('span');
   description.className = 'settings-overview__row-description';
-  description.textContent = t(entry.descriptionKey);
+  description.textContent = settingsLeafDescription(entry, t);
 
   copy.append(label, description);
   link.append(
@@ -453,7 +455,7 @@ function createOptionRow({ leaf, href, label }) {
   title.textContent = label;
   const context = document.createElement('span');
   context.className = 'settings-overview__row-context';
-  context.textContent = t(leaf.labelKey);
+  context.textContent = settingsLeafLabel(leaf, t);
   copy.append(title, context);
   link.append(copy, createIcon('chevron-right', 'settings-overview__row-chevron'));
   return link;
@@ -596,7 +598,7 @@ function createBreadcrumb(domain, leaf) {
 
   const currentItem = document.createElement('li');
   currentItem.className = 'settings-breadcrumb__item settings-breadcrumb__item--current';
-  currentItem.textContent = t(leaf.labelKey);
+  currentItem.textContent = settingsLeafLabel(leaf, t);
   currentItem.setAttribute('aria-current', 'page');
 
   for (const item of [settingsItem, domainItem, currentItem]) {
@@ -620,13 +622,17 @@ function createLeafHeader(leaf) {
 
   const heading = document.createElement('h1');
   heading.className = 'settings-leaf-header__title';
-  heading.textContent = t(leaf.labelKey);
+  heading.textContent = settingsLeafLabel(leaf, t);
 
-  const description = document.createElement('p');
-  description.className = 'settings-leaf-header__description';
-  description.textContent = t(leaf.descriptionKey);
-
-  header.append(heading, description);
+  header.appendChild(heading);
+  // Extension sheets without a manifest description get no empty paragraph.
+  const text = settingsLeafDescription(leaf, t);
+  if (text) {
+    const description = document.createElement('p');
+    description.className = 'settings-leaf-header__description';
+    description.textContent = text;
+    header.appendChild(description);
+  }
   return header;
 }
 
@@ -650,7 +656,7 @@ function moduleEnabled(moduleId) {
  * Uebersicht und Einstellungen sind gesperrt (nie aus) und bekommen keine Zeile.
  */
 function createModuleStatus(leaf, user) {
-  if (!leaf.module || leaf.module === 'dashboard') return null;
+  if (!leaf.module || leaf.module === 'dashboard' || leaf.extensionModule) return null;
   const enabled = moduleEnabled(leaf.module);
   const row = document.createElement('div');
   row.className = `settings-sheet-status settings-sheet-status--${enabled ? 'on' : 'off'}`;
@@ -659,7 +665,7 @@ function createModuleStatus(leaf, user) {
   state.className = 'settings-sheet-status__state';
   state.append(
     createIcon(enabled ? 'circle-check' : 'circle-off', 'settings-sheet-status__icon'),
-    document.createTextNode(t(enabled ? 'settings.moduleStatusOn' : 'settings.moduleStatusOff', { module: t(leaf.labelKey) })),
+    document.createTextNode(t(enabled ? 'settings.moduleStatusOn' : 'settings.moduleStatusOff', { module: settingsLeafLabel(leaf, t) })),
   );
   row.appendChild(state);
 
@@ -886,7 +892,7 @@ async function renderSheetSection(host, section, user, query) {
       const module = await section.loader();
       if (typeof module.render !== 'function') throw new TypeError('Settings leaf must export render()');
       host.replaceChildren();
-      await module.render(host, { user, query });
+      await module.render(host, { user, query, section: section.scope });
       hydrateIcons(host);
       // Jeder fertige Abschnitt zieht seine Sprungmarke nach - auch einer, der
       // erst nach der Wartefrist des Blatts ankommt.
@@ -1230,4 +1236,4 @@ export async function renderSettingsShell(container, {
 }
 
 /** Nur fuer Tests (test-settings-navigation.js). */
-export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink };
+export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink, renderLeafContent };

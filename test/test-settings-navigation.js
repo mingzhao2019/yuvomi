@@ -75,6 +75,92 @@ import {
 
 const member = { role: 'member' };
 const admin = { role: 'admin' };
+
+test('extension settings sheet renders each section once inside its scope block', async () => {
+  const registry = await import('../public/settings/registry.js');
+  const { __test } = await import('/settings/shell.js');
+  const { installMiniDom, MiniElement } = await import('./mini-dom.js');
+  const restore = installMiniDom();
+  // The mini DOM has no selectors on purpose; this sheet only needs class lookups.
+  const { querySelector, querySelectorAll } = MiniElement.prototype;
+  const walk = (node) => (node.childNodes ?? []).flatMap((child) => [child, ...walk(child)]);
+  MiniElement.prototype.querySelectorAll = function (selector) {
+    const name = selector.replace(/^:scope > /, '').slice(1);
+    return walk(this).filter((node) => node.className?.split(' ').includes(name));
+  };
+  MiniElement.prototype.querySelector = function (selector) { return this.querySelectorAll(selector)[0] ?? null; };
+  const entry = `data:text/javascript,${encodeURIComponent(`
+    export async function render(container, { section, user, query }) {
+      container.textContent = JSON.stringify({ section, userId: user.id, source: query.get('source') });
+    }
+  `)}`;
+  registry.setExtensionSettingsModules([{
+    id: 'section-test', name: 'Section test', enabled: true, status: 'enabled',
+    settings: { entry, sections: ['household', 'mine'] },
+  }]);
+  try {
+    const path = '/settings/modules/ext/section-test';
+    const domain = SETTINGS_DOMAINS.find((item) => item.id === 'modules');
+    for (const [user, expected] of [
+      [{ id: 1, role: 'admin' }, ['mine', 'household']],
+      [{ id: 2, role: 'member' }, ['mine']],
+    ]) {
+      const content = document.createElement('div');
+      const leaf = registry.findSettingsLeaf(path, user);
+      await __test.renderLeafContent(content, leaf, domain, user, new URLSearchParams('source=direct'));
+      const scopes = [...content.querySelectorAll('.settings-scope')];
+      assert.deepEqual(scopes.map((group) => group.className), expected.map((scope) => `settings-scope settings-scope--${scope}`));
+      for (const [index, group] of scopes.entries()) {
+        const hosts = group.querySelectorAll('.settings-sheet-section');
+        assert.equal(hosts.length, 1, 'each declared section renders once');
+        assert.deepEqual(JSON.parse(hosts[0].textContent), { section: expected[index], userId: user.id, source: 'direct' });
+      }
+      assert.equal(content.querySelector('.settings-leaf-header__description'), null,
+        'a module without description gets no empty paragraph');
+    }
+  } finally {
+    Object.assign(MiniElement.prototype, { querySelector, querySelectorAll });
+    registry.setExtensionSettingsModules([]);
+    restore();
+  }
+});
+
+test('extension settings sheet carries the navigation name and icon of its module', async () => {
+  const registry = await import('../public/settings/registry.js');
+  const base = { id: 'name-test', name: 'Manifest name', enabled: true, status: 'enabled', menu: { label: 'Menu label' } };
+  const label = (module) => {
+    registry.setExtensionSettingsModules([module]);
+    return registry.settingsLeafLabel(registry.findSettingsLeaf('/settings/modules/ext/name-test', { role: 'admin' }), (key) => key);
+  };
+  try {
+    assert.equal(label({ ...base, settings: { entry: '/x.js', sections: ['mine'] } }), 'Menu label');
+    assert.equal(label({ ...base, settings: { entry: '/x.js', sections: ['mine'], labelKey: 'settings.title' } }), 'Menu label',
+      'an untranslated settings.labelKey falls back to the navigation name');
+    assert.equal(label({ ...base, menu: {}, settings: { entry: '/x.js', sections: ['mine'] } }), 'Manifest name');
+    const icon = (module) => {
+      registry.setExtensionSettingsModules([{ ...base, settings: { entry: '/x.js', sections: ['mine'] }, ...module }]);
+      return registry.findSettingsLeaf('/settings/modules/ext/name-test', { role: 'admin' }).icon;
+    };
+    assert.equal(icon({ icon: 'star', menu: { icon: 'sparkles' } }), 'sparkles');
+    assert.equal(icon({ icon: 'star', menu: {} }), 'star');
+    assert.equal(icon({ menu: {} }), 'box');
+  } finally {
+    registry.setExtensionSettingsModules([]);
+  }
+});
+
+test('router wires extension settings sheets into routes, titles and module sync', async () => {
+  const router = await readFile(new URL('../public/router.js', import.meta.url), 'utf8');
+  const sync = router.slice(router.indexOf('async function syncThirdPartyModules('), router.indexOf('function allRoutes('));
+  assert.match(sync, /setExtensionModules\(_thirdPartyModules\);\s*setExtensionSettingsModules\(_thirdPartyModules\);/,
+    'the settings sheets follow the same module list as the navigation');
+  const routes = router.slice(router.indexOf('function allRoutes('));
+  assert.match(routes, /const settingsRoutes = extensionSettingsPaths\(\)\.map\([\s\S]{0,200}?page: '\/pages\/settings\.js'[\s\S]{0,120}?titleKey: 'nav\.settings'/);
+  assert.match(routes, /return \[\.\.\.ROUTES, \.\.\.settingsRoutes, \.\.\.moduleRoutes\];/);
+  const title = router.slice(router.indexOf('function routeTitle('), router.indexOf('function updateBranding('));
+  assert.match(title, /allRoutes\(\)\.find\(\(route\) => route\.path === path\)\?\.titleKey/,
+    'an extension sheet reads its Settings title from the generated route');
+});
 const registryTranslationKeys = [
   ...SETTINGS_DOMAINS.map((domain) => domain.labelKey),
   ...SETTINGS_LEAVES.flatMap((leaf) => [leaf.labelKey, leaf.descriptionKey]),
@@ -3767,7 +3853,7 @@ test('R17: die Sprungmarken heissen wie die Ueberschriften der Abschnitte, nicht
   assert.match(fn, /link\.textContent = text/);
   assert.match(shell, /link\.dataset\.jumpSection = target\.id/, 'die Marke weiss, zu welchem Traeger sie gehoert');
   const section = shell.slice(shell.indexOf('async function renderSheetSection('), shell.indexOf('async function renderLeafContent('));
-  assert.match(section, /await module\.render\(host, \{ user, query \}\);[\s\S]*?syncJumpLabels\(host\.closest\?\.\('\.settings-leaf'\)\)/,
+  assert.match(section, /await module\.render\(host, \{ user, query, section: section\.scope \}\);[\s\S]*?syncJumpLabels\(host\.closest\?\.\('\.settings-leaf'\)\)/,
     'jeder fertige Abschnitt zieht seine Marke nach, auch nach der Wartefrist');
   const leaf = shell.slice(shell.indexOf('async function renderLeafContent('), shell.indexOf('function levelScopedHeadings('));
   assert.match(leaf, /await awaitSections\([\s\S]*?\);[\s\S]*?jump\?\.classList\.remove\('settings-sheet-jump--pending'\)/,

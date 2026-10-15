@@ -10,6 +10,7 @@ modules/
     module.json
     index.js
     style.css
+    settings.js
 ```
 
 The folder name must match the manifest `id`. A module installed from Settings gets its folder named after the `id` automatically (see [Installing From Settings](#installing-from-settings)), so the folder in a repository or archive may be called anything.
@@ -25,6 +26,7 @@ The folder name must match the manifest `id`. A module installed from Settings g
   "description": "Adds a small page to Yuvomi.",
   "entry": "index.js",
   "style": "style.css",
+  "settings": { "entry": "settings.js", "sections": ["mine", "household"], "labelKey": "settings.title" },
   "icon": "box",
   "accent": "#6366F1",
   "menu": {
@@ -50,6 +52,19 @@ Required fields:
 Optional fields:
 
 - `style`: a relative `.css` file loaded only for this module page.
+- `settings.entry`: optional relative `.js` file exporting `render(container, { section, user, query })`.
+  It adds a sheet at Settings -> Modules -> your module, even when `menu.show` is false.
+  The sheet uses the same icon as the navigation entry, and the module accent. Disabled or errored modules have no sheet.
+- `settings.sections`: required when `settings` is present. A non-empty array containing `mine`,
+  `household` or both, without duplicates. There is no default; missing or invalid sections
+  error the module. `mine` is shown to every member with access to the module; `household`
+  only to administrators. A household-only sheet is not offered to other members in the list,
+  in search results or by direct URL.
+  This is only a visibility gate. The module's own API must enforce roles and `ext:<module-id>`
+  permissions for every settings action. JavaScript assets remain readable to authenticated
+  users; hiding a sheet neither grants nor enforces API permissions.
+- `settings.labelKey`: optional extension locale key for the sheet title. If it is absent or
+  has no translation, the sheet uses the same name as the navigation.
 - `menu.show`: set to `false` if the module should not appear in the left menu.
 - `menu.label`, `menu.icon`, `menu.order`: left-menu label, Lucide icon name, and order.
 - `accent`: a `#RRGGBB` color. It is your module's **tone**: the app exposes it as
@@ -75,6 +90,38 @@ Optional fields:
   measured modes; `full` and `split` roots take the shell height, so a body section can scroll
   internally without your CSS sizing the page. `full` is the one mode whose body has no gutter.
 - `page.navigation` / `page.responsive`: currently `standard` only.
+
+## Settings Entry
+
+A settings entry uses the same protected module asset route, relative path validation,
+module enable check, and browser CSP as the main page entry. It renders inside a Settings
+sheet. The entry is imported only when the sheet opens. It is not a separate iframe or security
+sandbox; browser code has the same trust boundary as any extension page.
+
+Settings helpers and class names are not part of the module contract; build the sheet's
+content with the module's own means. The manifest `style` is not loaded on the sheet: the
+sheet's look stays with the app.
+
+The shell calls `render` once per visible declared section, each time with its own container
+inside the matching "For me" or "For the household" block. Personal sections come first.
+`section` is `mine` or `household`; `user` is the current user and `query` contains the URL
+parameters. Render only the content for the supplied section. The block already has an
+`<h2>` title, so headings inside a section start at `<h3>`.
+
+```js
+import { t } from '/i18n.js';
+
+export async function render(container, { section, user, query }) {
+  const heading = document.createElement('h3');
+  heading.textContent = t(`extensions.example-module.settings.${section}`);
+  container.replaceChildren(heading);
+}
+```
+
+The URL is `/settings/modules/ext/<module-id>`; direct links and Settings search use the same
+sheet and visibility rules. The module's settings entry should be a separate file from its main
+page if it needs different controls. The `modules/` directory contains no committed
+example module; the manifest and entry above are the example.
 
 ## Client Entry
 

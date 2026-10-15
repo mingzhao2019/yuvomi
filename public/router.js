@@ -72,7 +72,7 @@ import { handleMasterDetailPopstate } from '/utils/master-detail.js';
 import '/components/datepicker.js';
 import { NAV_ICONS, MODULE_ICON, moduleIconEl } from '/nav-icons.js';
 import {
-  RENAMED_SETTINGS_SOURCE_PATHS, SETTINGS_LEAVES, searchSettings, settingsOptionUrl, settingsSectionUrl,
+  RENAMED_SETTINGS_SOURCE_PATHS, SETTINGS_LEAVES, extensionSettingsPaths, setExtensionSettingsModules, settingsLeafLabel, searchSettings, settingsOptionUrl, settingsSectionUrl,
 } from '/settings/registry.js';
 import {
   NAV_SECTION,
@@ -545,11 +545,12 @@ function setAppVersion(version) {
  * Seitenwechsel in einer SPA bekommt (WCAG 2.4.2, Level A). Zugleich Tab-Text,
  * Verlaufseintrag und Lesezeichen.
  *
- * Die Titel kommen aus ROUTES, nicht aus einer zweiten Liste daneben - siehe
- * die Begründung am Kopf der Routentabelle.
+ * Die Titel kommen aus den Routen selbst (ROUTES plus die zur Laufzeit
+ * erzeugten), nicht aus einer zweiten Liste daneben - siehe die Begründung am
+ * Kopf der Routentabelle.
  */
 function routeTitle(path) {
-  const titleKey = ROUTES.find((route) => route.path === path)?.titleKey;
+  const titleKey = allRoutes().find((route) => route.path === path)?.titleKey;
   if (titleKey) return t(titleKey);
 
   // Dritt-Module bringen ihren Titel im eigenen Manifest mit; sie stehen nicht
@@ -775,6 +776,7 @@ async function syncThirdPartyModules() {
     _thirdPartyModules = selectThirdPartyModuleList(_thirdPartyModules, { ok: false });
   }
   setExtensionModules(_thirdPartyModules);
+  setExtensionSettingsModules(_thirdPartyModules);
   setExtensionNavMap(_thirdPartyModules);
   await reloadExtensionLocales(_thirdPartyModules);
 }
@@ -815,7 +817,10 @@ function allRoutes() {
       module: `third-party-${module.id}`,
       thirdPartyModule: module,
     }));
-  return [...ROUTES, ...moduleRoutes];
+  const settingsRoutes = extensionSettingsPaths().map((path) => ({
+    path, page: '/pages/settings.js', requiresAuth: true, module: 'settings', titleKey: 'nav.settings',
+  }));
+  return [...ROUTES, ...settingsRoutes, ...moduleRoutes];
 }
 
 /**
@@ -3319,13 +3324,13 @@ function paletteLocal(q) {
     const found = searchSettings(q, { user: routerState.currentUser, translate: t });
     const settingsLabel = t('nav.settings');
     found.leaves.forEach((leaf) => settings.push({
-      label: t(leaf.labelKey), route: leaf.path, context: settingsLabel, module: 'settings',
+      label: settingsLeafLabel(leaf, t), route: leaf.path, context: settingsLabel, module: 'settings',
     }));
     found.sections.forEach(({ leaf, section, label }) => settings.push({
-      label, route: settingsSectionUrl(leaf, section.id), context: t(leaf.labelKey), module: 'settings',
+      label, route: settingsSectionUrl(leaf, section.id), context: settingsLeafLabel(leaf, t), module: 'settings',
     }));
     found.options.forEach(({ leaf, key, label }) => settings.push({
-      label, route: settingsOptionUrl(leaf, key), context: t(leaf.labelKey), module: 'settings',
+      label, route: settingsOptionUrl(leaf, key), context: settingsLeafLabel(leaf, t), module: 'settings',
     }));
   }
   const visible = new Set(targets.map((item) => item.module));
@@ -4045,12 +4050,14 @@ async function disableFailedThirdPartyModule(moduleId) {
     await api.patch(`/modules/${encodeURIComponent(moduleId)}`, { enabled: false });
     // Only remove locally if admin successfully disabled it
     _thirdPartyModules = _thirdPartyModules.filter((module) => module.id !== moduleId);
+    setExtensionSettingsModules(_thirdPartyModules);
     rebuildNavigation();
   } catch (err) {
     // Non-admins cannot disable modules; keep module visible
     // For actual failures (not 403), still remove from local state to avoid broken UI
     if (err?.status !== 403) {
       _thirdPartyModules = _thirdPartyModules.filter((module) => module.id !== moduleId);
+      setExtensionSettingsModules(_thirdPartyModules);
       rebuildNavigation();
     }
   }
