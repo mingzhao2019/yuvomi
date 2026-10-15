@@ -21363,8 +21363,6 @@ const SERVER_TEXT_OPEN = new Map([
   ['pages/notes.js', 5],
   ['pages/pantry.js', 6],
   ['pages/schedule.js', 1],
-  ['pages/subscriptions.js', 8],
-  ['pages/tasks.js', 1],
   ['settings/module-install-errors.js', 1],
   ['settings/pages/modules-kitchen.js', 1],
 ]);

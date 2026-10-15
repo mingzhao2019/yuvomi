@@ -7,6 +7,7 @@ import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/p
 import {
   openModal,
   closeModal,
+  captureModalContext,
   confirmModal,
   refocusAfterRender,
 } from '/components/modal.js';
@@ -947,6 +948,7 @@ async function saveAsset(panel, item, photoData) {
   const payload = buildPayload(panel, item, photoData);
   const saveButton = panel.querySelector('#asset-cost-save');
   if (saveButton) saveButton.disabled = true;
+  const modalContext = captureModalContext();
   let createdDefaults = null;
   try {
     if (item) await api.put(`/inventory/items/${item.id}`, payload);
@@ -975,7 +977,7 @@ async function saveAsset(panel, item, photoData) {
       state.assetDefaultVisibility = createdDefaults.visibility;
       state.assetDefaultAssigneeIds = createdDefaults.assigneeIds;
     }
-    await closeModal({ force: true });
+    await closeModal({ force: true, context: modalContext });
     renderBody();
     refocusAfterRender();
     window.yuvomi?.showToast(item ? tr('updated') : tr('created'), 'success');
