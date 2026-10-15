@@ -1040,7 +1040,6 @@ them with 400 (see the Reminders section), because the run would recreate them w
 | recurrence_parent_id | INTEGER | Self foreign key to the recurring master with ON DELETE CASCADE, nullable (migration v204) |
 | recurrence_id | TEXT | Original recurrence slot of a linked replacement, not its possibly moved displayed start, nullable (migration v204) |
 | overridden_fields | TEXT | Canonical JSON array naming the fields intentionally owned by a linked replacement, nullable (migration v204) |
-| tzid | TEXT | IANA time zone of a synced recurring series (e.g. `Europe/Berlin`), nullable (migration v97). Lets the expansion keep the local wall-clock time across DST; NULL = floating/UTC. Written by CalDAV, Apple and - since v2.27.0 (#829) - Google, which sends the zone in `start.timeZone` |
 | tzid | TEXT | IANA time zone of a synced recurring series (e.g. `Europe/Berlin`), nullable (migration v97). Lets the expansion keep the local wall-clock time across DST; NULL = floating/UTC. Written by CalDAV, Apple and - since v2.27.0 (#829) - Google, which sends the zone in `start.timeZone`. A zoneless `start_datetime` next to a `tzid` (what saving an imported series from the form writes) holds the household's wall clock and is read in the household zone, never the process zone (`storedToInstantIso()` / `storedToWall()` in `server/utils/timezone.js`, #1993) |
 | subscription_id | INTEGER | FK → ICS Subscriptions (CASCADE delete) |
 | user_modified | INTEGER | 0/1 — marks a mirrored event as locally edited for the general event fields |
