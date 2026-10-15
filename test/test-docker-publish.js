@@ -70,12 +70,15 @@ test('Docker publishing injects the immutable Git revision into the image', () =
     'The per-commit revision must not invalidate stable runtime filesystem layers',
   );
 
-  const buildStep = namedWorkflowStep(workflow, 'Build and push');
-  assert.match(buildStep, /uses: docker\/build-push-action@/);
-  assert.match(
-    buildStep,
-    /build-args:\s*\|\s*APP_BUILD_REVISION=\$\{\{ github\.sha \}\}/,
-  );
+  for (const [name, source] of [['main', workflow], ['custom', featureWorkflow]]) {
+    const buildStep = namedWorkflowStep(source, 'Build and push');
+    assert.match(buildStep, /uses: docker\/build-push-action@/, `${name} workflow uses Docker Buildx`);
+    assert.match(
+      buildStep,
+      /build-args:\s*\|\s*APP_BUILD_REVISION=\$\{\{ github\.sha \}\}/,
+      `${name} workflow must inject the immutable Git revision`,
+    );
+  }
 });
 
 test('every base image is pinned to a digest, and both stages share it', () => {
