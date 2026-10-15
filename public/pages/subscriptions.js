@@ -4,7 +4,7 @@
  */
 
 import { api } from '/api.js';
-import { closeModal, confirmModal, confirmOverModal, openModal, advancedSection, reportFieldError, refocusAfterRender, captureModalContext, isModalContextCurrent } from '/components/modal.js';
+import { closeModal, confirmModal, confirmOverModal, openModal, advancedSection, reportFieldError, refocusAfterRender, captureModalContext, isModalContextCurrent, isOwnModalOpen } from '/components/modal.js';
 import {
   formatDate,
   getLocale,
@@ -1821,7 +1821,9 @@ async function saveSubscription(panel, existing, searchedLogoData = null) {
     };
     if (existing) await api.put(`/budget/subscriptions/${existing.id}`, payload);
     else await api.post('/budget/subscriptions', payload);
-    await closeModal({ force: true });
+    // Nur DIESEN Dialog: einen inzwischen geoeffneten anderen laesst die
+    // spaete Antwort stehen (#1997).
+    await closeModal({ force: true, context: dialog });
     if (await reload(undefined, { motion: true, owner })) refocusAfterRender();
     window.yuvomi?.showToast(t(existing ? 'subscriptions.savedToast' : 'subscriptions.addedToast'), 'success');
   } catch (err) {
@@ -2039,12 +2041,13 @@ async function openSettingsModal() {
           return;
         }
         const owner = pageOwner();
+        const dialog = captureModalContext();
         try {
           await api.put('/budget/subscriptions/settings', {
             monthly_budget: Number(panel.querySelector('#subscriptions-budget').value),
             base_currency: baseCurrency,
           });
-          await closeModal({ force: true });
+          await closeModal({ force: true, context: dialog });
           if (await reload({ refreshRates: true }, { owner })) refocusAfterRender();
           window.yuvomi?.showToast(t('subscriptions.settingsSaved'), 'success');
         } catch (err) {
@@ -2111,8 +2114,16 @@ async function saveMetadata(write, goneId = null) {
     reportError(err, { owner, dialog, goneId, reopen: openMetadataModal });
     return false;
   }
-  await closeModal({ force: true });
-  if (await reload(undefined, { owner })) {
+  // Nur DIESEN Dialog schliessen, und nur ihn neu aufbauen: hat der Nutzer
+  // inzwischen einen anderen geoeffnet, schloesse openMetadataModal() ihn
+  // ebenso wie ein closeModal() ohne Kontext (#1997).
+  const own = isOwnModalOpen(dialog);
+  await closeModal({ force: true, context: dialog });
+  // Auch das Laden danach braucht Zeit: was der Nutzer IN DIESER Zeit oeffnet,
+  // gehoert ebenso ihm. Der Kontext von jetzt (eigener Dialog zu) muss nach dem
+  // Laden noch gelten - sonst hat inzwischen ein anderer Dialog den Slot.
+  const afterClose = captureModalContext();
+  if (await reload(undefined, { owner }) && own && isModalContextCurrent(afterClose)) {
     refocusAfterRender();
     openMetadataModal();
   }

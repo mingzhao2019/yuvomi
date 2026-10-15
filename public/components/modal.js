@@ -90,9 +90,26 @@ let modalState = 'idle';
 export function captureModalContext() {
   return {
     generation: _modalGeneration,
+    // Der Dialog selbst, fuer closeModal({ context }): nur DIESEN darf ein
+    // spaeter Ablauf schliessen (#1997).
+    overlay: activeOverlay,
     route: `${window.location.pathname}${window.location.search}${window.location.hash}`,
     pageRoot: document.getElementById('main-content')?.firstElementChild ?? null,
   };
+}
+
+/**
+ * Ob der Dialog, der bei captureModalContext() offen war, noch der offene ist -
+ * derselbe Knoten, auch nach einer Rueckfrage, die ihn geparkt und
+ * zurueckgegeben hat. Die Regel hinter closeModal({ context }) (#1997); eine
+ * Seite fragt sie selbst nur fuer das, was AN DIESEM DIALOG haengt (etwa den
+ * Fokus nach dem Schliessen zurueckzutragen).
+ */
+export function isOwnModalOpen(context) {
+  // Schliessend zaehlt nicht als offen: activeOverlay zeigt bis _doClose()
+  // noch auf den Knoten, waehrend er schon ausfaehrt - der Nutzer hat ihn
+  // dann bewusst zugemacht, und nichts soll ihn danach neu aufbauen (Codex an #2021).
+  return Boolean(context?.overlay) && context.overlay === activeOverlay && modalState !== 'closing';
 }
 
 /** Ob seit captureModalContext() weder Dialog noch Seiteninstanz wechselte. */
@@ -676,6 +693,18 @@ function _suspendActiveModal() {
   return token;
 }
 
+/**
+ * Geparkte Dialoge, deren Ablauf inzwischen fertig ist (#1997): closeModal({
+ * context }) traf sie unter einer Rueckfrage an. Beim Zurueckholen gehen sie
+ * zu; bestaetigt der Nutzer stattdessen das Verwerfen, gehen sie ohnehin zu.
+ */
+const _closeOnResume = new WeakSet();
+
+/** Geparkt heisst: noch im Dokument und `inert` - das setzt nur _suspendActiveModal. */
+function _isParked(overlay) {
+  return Boolean(overlay?.isConnected) && overlay.inert === true && overlay !== activeOverlay;
+}
+
 // Dialog beendet, Modal darunter lebt weiter → exakt wiederherstellen.
 function _resumeSuspendedModal({ overlay, id, title, titleId, snapshot, dirtyGuard = true, restoreFocus, trigger }) {
   /* ES GIBT NICHTS ZURUECKZUHOLEN, WENN DER KNOTEN WEG IST (#871).
@@ -717,6 +746,8 @@ function _resumeSuspendedModal({ overlay, id, title, titleId, snapshot, dirtyGua
   if (trigger?.isConnected && overlay.contains(trigger) && typeof trigger.focus === 'function') {
     trigger.focus();
   }
+  // Waehrend er geparkt lag, ist sein Speichern fertig geworden (#1997).
+  if (_closeOnResume.delete(overlay)) closeModal({ force: true });
 }
 
 /**
@@ -757,6 +788,8 @@ async function _askOverSuspended(ask, suspended) {
 // machen, damit die nachfolgende Schließ-Logik es regulär abräumt. Der geparkte
 // Fokus kommt mit, sonst läuft der Focus-Restore in _doClose ins Leere.
 function _discardSuspendedModal({ overlay, restoreFocus }) {
+  // Geht ohnehin zu - ein gemerktes spaetes Schliessen ist damit erledigt.
+  _closeOnResume.delete(overlay);
   // Auch der Weg nach draußen hebt inert auf: das Overlay durchläuft noch die
   // reguläre Schließ-Logik samt Animation und soll dabei kein Sonderzustand sein.
   overlay.inert = false;
@@ -1702,13 +1735,43 @@ export function openModal({
 // --------------------------------------------------------
 
 /**
+ * EIN SPAETER ABLAUF SCHLIESST NUR SEINEN EIGENEN DIALOG (#1997). Es gibt einen
+ * einzigen Modal-Slot, und `closeModal()` ohne Weiteres schliesst, was gerade
+ * darin liegt. Wer erst nach einem `await` schliesst (Speichern kam an,
+ * Verknuepfen ist durch), trifft so den Dialog, den der Nutzer INZWISCHEN
+ * geoeffnet hat - samt allem, was er dort schon eingetippt hat, denn
+ * `force: true` fragt nicht nach. Deshalb haelt der Aufrufer VOR der Anfrage
+ * `captureModalContext()` fest und reicht es hier als `context` herein:
+ * geschlossen wird nur, wenn noch genau dieser Dialog im Slot liegt.
+ *
+ * Verglichen wird der Overlay-Knoten, nicht die Generation und nicht die
+ * Route. Die Generation zaehlt jedes openModal(), auch die Rueckfrage
+ * „Aenderungen verwerfen?", die den Dialog nur parkt und ihn danach als
+ * DENSELBEN Knoten zurueckgibt - sein Erfolg muesste ihn weiter schliessen
+ * duerfen. Ein neu geoeffneter Dialog ist dagegen immer ein neuer Knoten, auch
+ * wenn er dieselbe Maske zeigt. Die Seite spielt fuer das Schliessen keine
+ * Rolle: liegt der eigene Dialog noch offen, ist Schliessen richtig, gleich
+ * was die Seite darunter inzwischen neu gezeichnet hat.
+ *
+ * @param {{ force?: boolean, context?: ReturnType<typeof captureModalContext> | null }} [options]
  * @returns {Promise<boolean>} ob der Dialog wirklich zugeht. `false` heisst
  *   ausschliesslich: der Nutzer hat das Verwerfen ungespeicherter Aenderungen
  *   abgelehnt, das Modal bleibt offen. Die Zurueck-Geste braucht diese
  *   Unterscheidung (#871) - ohne sie verloere ein abgelehntes Schliessen den
- *   History-Marker, und die naechste Geste fuehre aus der Seite heraus.
+ *   History-Marker, und die naechste Geste fuehre aus der Seite heraus. Ist
+ *   der Dialog aus `context` schon weg, ist das ebenfalls `true`: er ist zu,
+ *   und der Dialog, der jetzt offen ist, geht diesen Aufrufer nichts an.
  */
-export async function closeModal({ force = false } = {}) {
+export async function closeModal({ force = false, context = null } = {}) {
+  if (context && !isOwnModalOpen(context)) {
+    // Geparkt statt ersetzt: der eigene Dialog liegt unter einer Rueckfrage
+    // („Aenderungen verwerfen?") und kommt bei „Abbrechen" zurueck. Ihn jetzt
+    // zu schliessen, schloesse die Rueckfrage; ihn stehen zu lassen, liesse
+    // einen schon gespeicherten Dialog offen (Speichern-Knopf noch gesperrt).
+    // Also merken - _resumeSuspendedModal schliesst ihn, sobald er zurueck ist.
+    if (_isParked(context.overlay)) _closeOnResume.add(context.overlay);
+    return true;
+  }
   // Bereits im Schließ-Lauf? Erneute Aufrufe (z.B. schnelles Doppel-Schließen,
   // Hardware-Back) ignorieren - der Dialog geht ohnehin zu, also `true`.
   if (!activeOverlay || modalState === 'closing') return true;
