@@ -235,9 +235,9 @@
 }
 
 /* Mobiles Umbrechen kommt jetzt aus .page-toolbar--wrap (layout.css): Titel und
- * Suche teilen die erste Zeile, die Datums-Navigation (.cal-toolbar__month =
- * Center-Slot) folgt als eigene Zeile, danach kommen die übrigen Aktionen und
- * die Ansicht.
+ * Datums-Navigation (.cal-toolbar__month = Center-Slot) nutzen die erste
+ * verfügbare Zeile; die drei Kalenderwerkzeuge bleiben als eine Gruppe
+ * zusammen und können gemeinsam darunter stehen.
  *
  * Das Scrollen der Ansichts-Leiste stand hier als Modul-Rezept - ohne
  * `min-width: 0`, also scrollte sie zwar, schrumpfte aber nie: in `uk` lief der
@@ -327,12 +327,13 @@
   display: none;
 }
 
-/* MOBIL TITEL UND ZEITRAUM IN EINER ZEILE (custom calendar compact header).
+/* MOBIL TITEL, ZEITRAUM UND WERKZEUGE (custom calendar compact header).
  *
- * Der Zeitraum steht neben dem Titel. Die drei Kalenderwerkzeuge bleiben als
- * Gruppe in ihrer eigenen, rechtsbuendigen Zeile: `display: contents` wuerde
- * ihre Flex-Reihenfolge aufloesen und bei knapper Breite den Filter neben den
- * Zeitraum schieben, waehrend Suche und Menue in die naechste Zeile fallen. */
+ * Die Bar selbst loest sich in den Kopf auf, damit die mobile Werkzeuggruppe
+ * an dessen Ende stehen kann. Die Gruppe bleibt aber ein eigenes Flex-Item:
+ * nur die Bar darf `display: contents` sein. Würde auch die Gruppe aufgelöst,
+ * könnte bei knapper Breite der Filter neben den Zeitraum rutschen, während
+ * Suche und Ansichtsmenü in die nächste Zeile fallen. */
 @media (max-width: 639px) {
   .cal-toolbar__views {
     display: none;
@@ -342,9 +343,17 @@
    * Kopf"): Werkzeuge in Zeile 1 sind die eine benannte Abweichung von der
    * Kopfregel, und die Kennklasse im Markup ist ihre Erlaubnis
    * (test:mobile-chrome prueft jede Regel, die eine Bar-Zeile aufloest). */
-  .page-toolbar--period-title.cal-toolbar > .cal-toolbar__bar,
-  .page-toolbar--period-title.cal-toolbar .cal-toolbar__tools {
+  .page-toolbar--period-title.cal-toolbar > .cal-toolbar__bar {
     display: contents;
+  }
+
+  .page-toolbar--period-title.cal-toolbar .cal-toolbar__tools {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    order: 1;
+    gap: 0;
+    margin-inline-start: auto;
   }
 
   .cal-toolbar__tools-btn {
@@ -363,15 +372,16 @@
     flex-shrink: 0;
   }
 
-  /* Eingeklappt ist der Titel nur noch fuer Vorlesehilfen da - die Werkzeuge
-   * rutschen dann an das Zeilenende statt an den Anfang. */
+  /* Der Gruppenrand schiebt die drei Werkzeuge gemeinsam ans Zeilenende; der
+   * einzelne Filter darf innerhalb der Gruppe keinen zweiten Rechtsschub
+   * erzeugen. */
   .cal-toolbar__filter-btn {
-    margin-inline-start: auto;
+    margin-inline-start: 0;
   }
 
   .page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center {
-    order: 2;
-    flex-basis: 100%;
+    order: 0;
+    flex-basis: 0;
   }
 
   /* EINGEKLAPPT EINE ZEILE (R17 Schritt 5, Critique 2026-10-07 A1 P1).

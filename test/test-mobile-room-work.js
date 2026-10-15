@@ -226,10 +226,16 @@ test('M5: mobil ersetzt das Menue das Segment, und die Werkzeuge bleiben eine re
   assert.equal(declarations(calendarCss, '.cal-toolbar__views', { media: MOBILE }).display, 'none');
   const bar = declarations(calendarCss, '.page-toolbar--period-title.cal-toolbar > .cal-toolbar__bar', { media: MOBILE });
   assert.equal(bar.display, 'contents', 'die Bar-Zeile loest sich auf - ihre Werkzeuge ruecken in die Titelzeile');
+  const tools = declarations(calendarCss, '.page-toolbar--period-title.cal-toolbar .cal-toolbar__tools', { media: MOBILE });
+  assert.equal(tools.display, 'flex', 'die drei mobilen Werkzeuge bleiben ein gemeinsames Flex-Item');
+  assert.equal(tools.order, '1', 'die Gruppe steht nach Titel und Zeitraum');
+  assert.equal(tools['margin-inline-start'], 'auto', 'die gemeinsame Gruppe sitzt rechts');
+  assert.equal(declarations(calendarCss, '.cal-toolbar__filter-btn', { media: MOBILE })['margin-inline-start'], '0',
+    'der Filter erzeugt innerhalb der Gruppe keinen zweiten Rechtsschub');
   const center = declarations(calendarCss, '.page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center', { media: MOBILE });
-  assert.equal(center['flex-basis'], '100%', 'der Zeitraum behaelt die zweite Zeile fuer sich (Label nicht angeschnitten)');
+  assert.equal(center['flex-basis'], '0', 'der Zeitraum kann sich die obere Zeile mit der Werkzeuggruppe teilen');
   assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn', { media: MOBILE }).order, '1');
-  assert.equal(center.order, '2', 'Werkzeuge vor dem Zeitraum: sie stehen in Zeile 1');
+  assert.equal(center.order, '0', 'der Zeitraum steht vor der gemeinsamen Werkzeuggruppe');
   const html = calendar.toolbarHtml();
   const toolsStart = html.indexOf('class="cal-toolbar__tools"');
   const toolsEnd = html.indexOf('</div>', toolsStart);
