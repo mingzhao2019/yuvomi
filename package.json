@@ -197,6 +197,7 @@
     "test:sw-precache": "node --test test/test-sw-precache.js",
     "test:modal-utils": "node --loader ./test/test-browser-loader.mjs test/test-modal-utils.js",
     "test:modal-dead-time": "node --loader ./test/test-browser-loader.mjs --test test/test-modal-dead-time.js",
+    "test:modal-dialog": "node --loader ./test/test-browser-loader.mjs --test test/test-modal-dialog.js",
     "test:prompt-modal": "node --loader ./test/test-browser-loader.mjs --test test/test-prompt-modal.js",
     "test:popover-menu": "node --loader ./test/test-browser-loader.mjs --test test/test-popover-menu.js",
     "test:master-detail": "node --loader ./test/test-browser-loader.mjs --test test/test-master-detail.js",

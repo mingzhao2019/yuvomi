@@ -183,10 +183,27 @@ html.page-swapping .fab-layer .page-fab {
   pointer-events: none;
 }
 
+/* Die Bilder von Wurzel und Kopf blenden auf dem Token. */
 ::view-transition-old(root),
 ::view-transition-new(root),
 ::view-transition-old(page-toolbar),
 ::view-transition-new(page-toolbar) {
+  animation-duration: var(--duration-md);
+  animation-timing-function: var(--ease-out);
+}
+
+/* AUCH DIE GRUPPEN laufen auf dem Token, nicht auf dem UA-Default (Critique
+ * 2026-10-16, A5). Die Gruppe `root` lief 250ms und hielt die ganze
+ * Transition 50ms laenger offen als ihre Blende - gemessen 306-316ms vom
+ * Start bis `finished`, und solange schluckt sie Tipps (siehe oben).
+ * NUR DIE GRUPPEN: die Bilder erben Dauer und Verzug von ihrer Gruppe
+ * (UA-Stylesheet, `inherit`). Die stehenden Namen unten setzen ihre Gruppe auf
+ * `animation: none` und damit auf 0s - ihre Bilder erben die 0s und zeigen
+ * sofort das lebende Bild. Eine Dauer an `::view-transition-new(*)` braeche
+ * genau das: gemessen blendete die Seitenleiste dann 200ms mit sich selbst
+ * (die `:not(:only-child)`-Regeln unten greifen im gemessenen Chrome nicht).
+ * `*` hat die Spezifitaet 0, die benannten Regeln schlagen es. */
+::view-transition-group(*) {
   animation-duration: var(--duration-md);
   animation-timing-function: var(--ease-out);
 }
@@ -224,12 +241,6 @@ html.page-swapping .fab-layer .page-fab {
   animation: none;
 }
 
-::view-transition-old(kitchen-tabs):only-child,
-::view-transition-new(kitchen-tabs):only-child {
-  animation-duration: var(--duration-md);
-  animation-timing-function: var(--ease-out);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .page-transition--in {
     animation: none;
@@ -238,12 +249,22 @@ html.page-swapping .fab-layer .page-fab {
   #main-content {
     transition: none;
   }
-  /* utils/view-transition.js startet unter reduzierter Bewegung gar keine
-   * Transition; das hier haelt auch den Fall still, in dem doch eine laeuft. */
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) {
+  /* BEWEGUNG FAELLT WEG, UEBERBLENDEN BLEIBT - auch beim Seitenwechsel
+   * (Critique 2026-10-16, A5). Bis dahin startete utils/view-transition.js
+   * unter reduzierter Bewegung gar keine Transition, und der Rueckfall
+   * `.page-transition--in` war eine Animation, die reset.css auf 0s setzt:
+   * Mehr-Blatt und Popover blendeten, der Seitenwechsel schnitt hart. Jetzt
+   * laeuft die Transition, nur die GRUPPEN stehen (sie tragen Lage und
+   * Groesse, also Bewegung); die Bilder blenden kurz ueber. */
+  ::view-transition-group(*) {
     animation: none !important;
+  }
+  /* Nur Wurzel und Kopf: die stehenden Namen erben weiter 0s (oben). */
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(page-toolbar),
+  ::view-transition-new(page-toolbar) {
+    animation-duration: var(--duration-sm);
   }
 }
 
@@ -269,7 +290,7 @@ html.page-swapping .fab-layer .page-fab {
   /* Bewusste Layout-Transition (Detector layout-transition, geprüft): das Offline-
    * Banner schiebt den Inhalt hinunter - echte Layout-Höhe, per transform nicht
    * animierbar. Selten (nur bei Offline-Wechsel); reduced-motion schaltet sie ab. */
-  transition: padding-top var(--duration-md) ease;
+  transition: padding-top var(--duration-md) var(--ease-out);
   background-color: var(--color-bg);
 }
 
@@ -983,7 +1004,15 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   margin-block: calc(-1 * var(--space-0h));
 }
 
-/* App-Launcher-Raster: EINE Matrix, vier Spalten, keine Bereichskoepfe.
+/* App-Launcher-Raster: vier Spalten je Sektion der Seitenleiste.
+ *
+ * DIE BEREICHSKOEPFE SIND ZURUECK (Critique 2026-10-16): 16 Ziele ohne
+ * Gliederung waren fuer einen Erstnutzer eine Wand. Sie stehen als kompakte
+ * Beschriftung im Stil der Seitenleiste (`.more-sheet__section-label`,
+ * Schriftrolle in typography.css) direkt ueber ihrem Raster - ein Label von
+ * ~16px plus `--space-2h` Luft zur vorigen Gruppe, nicht die Koepfe mit
+ * eigenem Abstand von frueher. Was unten steht, ist die Geschichte der
+ * flachen Fassung; Spalten, Fuge und Label-Rezept gelten weiter.
  *
  * HIER STANDEN DREI SPALTEN, weil bei vier die Zelle (~80px auf 375px)
  * schmaler war als „Haushaltshilfe" und der Name gebrochen wurde. Der Befund
@@ -1002,6 +1031,22 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
  * die Bereiche mit" - ist mit den Koepfen entfallen; die zwei uebrigen tragen.
  * Das farbige Siegel bleibt der Held: --shadow-xs auf Surface ist die leiseste
  * Flaeche der App und tritt hinter es zurueck. */
+.more-sheet__group + .more-sheet__group,
+.more-sheet__grid + .more-sheet__group {
+  margin-block-start: var(--space-2h);
+}
+
+.more-sheet__section-label {
+  color: var(--color-text-tertiary);
+  /* Die Textkante steht auf der Kachelkante; 4px binden das Label an sein
+   * Raster, die Luft zur vorigen Gruppe traegt die Gruppe (oben). */
+  padding-inline: var(--space-1);
+  margin-block-end: var(--space-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .more-sheet__grid {
   display: grid;
   /* minmax(0, 1fr), nicht 1fr: `1fr` ist minmax(AUTO, 1fr) und laesst die
@@ -1019,9 +1064,10 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;
+  /* Der Hub federt, die Blende nicht (`--sheet-fade-in`, tokens.css). */
   transition:
     transform var(--sheet-in),
-    opacity var(--sheet-in),
+    opacity var(--sheet-fade-in),
     translate var(--duration-lg) var(--ease-out);
 }
 
@@ -1590,7 +1636,7 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;
-  transition: transform var(--sheet-in), opacity var(--sheet-in);
+  transition: transform var(--sheet-in), opacity var(--sheet-fade-in);
 }
 
 /* Gruppiert Kopf + Treffer + Schließen. Auf Mobile transparent und
@@ -2118,10 +2164,7 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 .filter-chip--active svg,
 .contact-filter-chip--active svg,
 .group-toggle__btn--active svg,
-.documents-view-toggle__btn--active svg,
 .segmented__item.is-active svg,
-.cal-toolbar__view-btn--active svg,
-.cal-toolbar__search-btn--active svg,
 .perm-seg__opt.is-active svg {
   /* 30 % statt 16 %: auf Tab-Bar-Größe (20px) las die schwächere Füllung
    * weiter als Outline (Finish-Verdict Fundament-Phase, Fix 8). */
@@ -4133,6 +4176,21 @@ html.fab-steady .page-fab {
 
 }
 
+/* EINE TITELLAGE IN JEDEM MODUL (D8, Critique 2026-10-16). Unter 768px ist
+ * die Zeile des Titels mindestens ein Ziel hoch, und der Titel steht darin
+ * mittig. Ohne das richtete sich seine Lage nach den Nachbarn: neben den
+ * 48px-Knoepfen der Titelzeile stand die Schrift 3px tiefer als allein
+ * (y 11 gegen 8), und beim Modulwechsel sprang der Large Title.
+ * `align-content` zentriert im Block, die Ellipse der Basisregel bleibt.
+ * NUR UNTER 768px, gemessen: ab dort steht neben dem Titel nichts (ausser
+ * im Kalender), und die Mindesthoehe kostete jeden Kopf 7px (122 -> 129). */
+@media (max-width: 767px) {
+  .page-toolbar:not(.page-toolbar--in-group) > .page-toolbar__title {
+    min-block-size: var(--target-base);
+    align-content: center;
+  }
+}
+
 /* WERKZEUGE IN DER TITELZEILE (R16, Critique 2026-10-05 P1 mobil; DESIGN.md,
  * Kopfregel mobil 1a).
  *
@@ -4341,6 +4399,15 @@ html.fab-steady .page-fab {
      * schwebt. Die Icon-Form ist ein QUADRAT, also nennt sie alle drei
      * Breitenachsen. */
     min-width: var(--target-base);
+    /* DIE EINE HAUT DER KOPF-ICON-KNOEPFE (D1, Critique 2026-10-16): Ring wie
+     * `.btn--secondary.btn--icon` - 1.5px in --color-border, rund, ohne Grund,
+     * das Zeichen im Akzent (Regel unten). Bis dahin stand die Lupe nackt
+     * neben beringtem Filter und „..." und las sich wie ein Rest. Der Ring
+     * sitzt an der Huelle (`label`), nicht am Feld: in dieser Form ist sie ein
+     * Knopf, und mit Fokus oder Begriff kehrt der Feldkanon zurueck. */
+    block-size: var(--target-base);
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-full);
   }
 
   .page-toolbar
@@ -4354,11 +4421,13 @@ html.fab-steady .page-fab {
      * bleibt damit nur der Placeholder - das Icon sagt dasselbe kuerzer. */
     color: transparent;
     /* DIE ICON-FORM IST DIE DER FAMILIE, nicht ein leeres Feld. Der Feldkanon
-     * (1.5px --color-border auf Surface) sagt "hier wird getippt"; in der
-     * Icon-Rolle waere das ein Versprechen, das der Knopf nicht haelt, und
-     * daneben stuenden drei echte `.btn--icon` in Ghost-Optik. Also uebernimmt
-     * er ihre: keine Kante, kein Grund, und der Fokusring der Basisregel
-     * kommt zurueck, sobald das Feld wieder eins ist. */
+     * (Flaeche, Kontrollkante) sagt "hier wird getippt"; in der Icon-Rolle
+     * waere das ein Versprechen, das der Knopf nicht haelt. Das Feld nimmt
+     * Kante und Grund deshalb ganz zurueck - den Ring der Kopf-Icon-Haut
+     * traegt die Huelle (Regel oben, D1) -, und es fuellt sie genau: ihre
+     * Kante liegt innen. */
+    min-height: 0;
+    block-size: calc(var(--target-base) - 2 * 1.5px);
     border-color: transparent;
     background: transparent;
   }
@@ -4390,6 +4459,7 @@ html.fab-steady .page-fab {
     inset-inline: 0;
     margin-inline: auto;
     transform: translateY(-50%);
+    color: var(--color-accent);
   }
 
   /* Ein Slot, der NUR die Suche traegt, gibt ihre Breite mit ab - sonst
@@ -4788,6 +4858,20 @@ a.popover-menu__item {
 
 .filter-sheet__group + .filter-sheet__group {
   margin-top: var(--space-5);
+}
+
+/* Die Chipreihe EINER Achse (utils/filter-sheet.js, filterChipsHtml). Sie
+ * stand in tasks.css und galt damit nur dort - der Kalender, der dasselbe
+ * Blatt seit D2 traegt, bekam Chips ohne Abstand. Folgt sie einem Schalter
+ * („Mir zugewiesen" ueber den Personen), haelt sie Abstand zu ihm. */
+.filter-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.toggle-row + .filter-panel__chips {
+  margin-top: var(--space-2);
 }
 
 .filter-sheet__heading {
@@ -5505,23 +5589,17 @@ p.field-hint--warn[hidden] {
     background-color: var(--color-surface-3);
   }
 
-  /* ── Aktiv: Hintergrund-Highlight + Akzent-Indikator ── */
+  /* ── Aktiv: Schrift in der Stimme, die FLAECHE traegt die Pille ──
+   *
+   * Hier standen eine statische Toenung und ein 3px-Akzentstreifen links. In
+   * der Liste schaltete `.nav-sidebar__items--liquid` beide ab, der gepinnte
+   * Eintrag (Einstellungen) liegt aber ausserhalb der Liste und trug sie
+   * weiter - als einzige Zeile der Leiste (Critique 2026-10-16). Seit er eine
+   * eigene Pille mitbringt (router.js, `nav-sidebar__indicator--pinned`),
+   * hat keine Zeile mehr Bedarf an Streifen oder Toenung. */
   .nav-sidebar .nav-item[aria-current="page"] {
     color: var(--color-accent);
     font-weight: var(--font-weight-semibold);
-    background-color: color-mix(in srgb, var(--color-accent) var(--tint-state), transparent);
-  }
-
-  /* Akzentstreifen links */
-  .nav-sidebar .nav-item[aria-current="page"]::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: var(--space-2);
-    bottom: var(--space-2);
-    width: 3px;
-    border-radius: 0 var(--radius-full) var(--radius-full) 0;
-    background: var(--color-accent);
   }
 
   /* DRUCK OHNE SCHRUMPFEN (Nav-Polish 2026-10-15). Hier stand `scale(0.97)`
@@ -5896,6 +5974,116 @@ p.field-hint--warn[hidden] {
 @media (min-width: 768px) {
   .modal-overlay {
     padding: var(--space-6);
+  }
+}
+
+/* DAS GETEILTE MODAL IST EIN NATIVES <dialog> (D7, Critique 2026-10-16).
+ *
+ * `showModal()` legt es in die Top-Layer: der Hintergrund wird inert, Tab
+ * bleibt im Dialog, und kein `z-index` der Seite kommt mehr darueber. Der
+ * Knoten bleibt die Flaeche ueber dem ganzen Bild, die das Panel unten
+ * (Telefon) oder mittig (Desktop) haelt - ein Klick daneben trifft ihn, wie
+ * vorher das Overlay-Div. Das UA-Blatt eines Dialogs (Rand, Polster, Canvas-
+ * Grund, `max-width/height` fuer :modal) wird zurueckgenommen, die Polster
+ * oben (Safe-Areas) gelten weiter.
+ *
+ * DIE ABDUNKLUNG LIEGT AUF `::backdrop`, solange der Dialog in der Top-Layer
+ * steht - die Werte sind dieselben wie am Overlay (die Regeln oben, glass.css
+ * und die Rueckfaelle fuer reduzierte Transparenz fuehren `::backdrop` in
+ * ihrer Liste). Im Ausgang verlaesst der Dialog die Top-Layer sofort
+ * (modal.js, _leaveTopLayer: die Seite ist dann schon wieder bedienbar), und
+ * ohne Top-Layer gibt es kein `::backdrop` - dann traegt der Knoten die
+ * Abdunklung wieder selbst und blendet sie aus. Beide Zustaende zeigen
+ * dieselbe Flaeche, der Wechsel liegt im selben Frame.
+ *
+ * Die selbstgebauten `.modal-overlay`-Divs (Hilfe, Kalender-Symbolwahl)
+ * behalten ihre Flaeche: die Regeln hier gelten nur dem `<dialog>`. */
+dialog.modal-overlay {
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: inherit;
+  /* Ein Wisch ueber das Blatt kettet nicht an die Seite darunter. */
+  overscroll-behavior: contain;
+}
+
+/* Nur in der Top-Layer (`[open]` setzt erst showModal()): ohne sie - im
+ * Ausgang, oder in einem Browser ohne showModal() (Safari vor 15.4, die
+ * Mindestversion ist 14.1) - traegt der Knoten die Abdunklung wie bisher. */
+dialog.modal-overlay[open] {
+  background-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Geschlossen (`[open]` fehlt) blendet das UA-Blatt den Dialog aus; im
+ * Ausgang soll er noch zu sehen sein. */
+dialog.modal-overlay.modal-overlay--closing {
+  display: flex;
+}
+
+dialog.modal-overlay::backdrop {
+  background-color: color-mix(in srgb, var(--color-accent) var(--tint-wash), var(--color-overlay-glass));
+  backdrop-filter: var(--blur-xs) saturate(120%);
+  -webkit-backdrop-filter: var(--blur-xs) saturate(120%);
+  animation: modal-overlay-in var(--duration-md) var(--ease-out) forwards;
+  /* Ein Scroll ueber dem Grund bleibt dort (overflow macht ihn zum
+   * Scroll-Container, erst dann greift overscroll-behavior). */
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* EIGENE NATIVE DIALOGE IM BILD DES MODALS (D7): Symbolauswahl und
+ * Bildzuschnitt sind selbst ein `<dialog>` mit `showModal()`. Sie tragen
+ * dieselbe Tafel (Radius, Kante, Schatten wie `.modal-panel`), denselben Grund
+ * und dieselbe Bewegung: mobil ein Blatt vom unteren Rand (`--sheet-in`/
+ * `--sheet-out`), am Desktop Scale-in und ein kurzes Zuruecknehmen. Vorher
+ * lagen sie auf einem flachen eigenen Grund und verschwanden hart. Den
+ * Ausgang startet utils/dialog-surface.js (`.dialog-surface--closing`). */
+dialog.dialog-surface {
+  padding: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  color: inherit;
+  box-shadow: var(--shadow-lg);
+  overscroll-behavior: contain;
+}
+
+dialog.dialog-surface::backdrop {
+  background-color: color-mix(in srgb, var(--color-accent) var(--tint-wash), var(--color-overlay-glass));
+  backdrop-filter: var(--blur-xs) saturate(120%);
+  -webkit-backdrop-filter: var(--blur-xs) saturate(120%);
+  animation: modal-overlay-in var(--duration-md) var(--ease-out) forwards;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+dialog.dialog-surface.dialog-surface--closing {
+  animation: modal-scale-out var(--duration-sm) var(--ease-out) forwards;
+  pointer-events: none;
+}
+
+dialog.dialog-surface.dialog-surface--closing::backdrop {
+  animation: modal-overlay-out var(--duration-sm) var(--ease-out) forwards;
+}
+
+/* Die Einfahrt steht wie die der Tafel in glass.css (Abschnitt 18). */
+@media (max-width: 767px) {
+  /* Am unteren Rand wie das Dialog-Blatt, mit demselben Abstand. */
+  dialog.dialog-surface {
+    margin: auto auto max(var(--space-3), env(safe-area-inset-bottom));
+  }
+
+  dialog.dialog-surface.dialog-surface--closing {
+    animation: sheet-out var(--sheet-out) forwards;
+  }
+
+  dialog.dialog-surface.dialog-surface--closing::backdrop {
+    animation-duration: var(--duration-md);
   }
 }
 
@@ -6794,6 +6982,12 @@ p.field-hint--warn[hidden] {
   .modal-overlay.modal-overlay--closing {
     animation: none;
   }
+
+  /* KEINE BEWEGUNG, ABER EINE BLENDE (Critique 2026-10-16): die schreibt
+   * modal.js bzw. utils/dialog-surface.js per Web Animations (nur Opacity,
+   * `--duration-sm`). Eine CSS-Transition griffe hier nicht - die Einfahrt
+   * haelt Opacity per `animation ... forwards` fest, und der Wechsel aus der
+   * Top-Layer im Ausgang verwirft den Vorher-Stil (gemessen, Chrome 155). */
 }
 
 /* --------------------------------------------------------
@@ -7628,16 +7822,9 @@ textarea::placeholder {
     justify-content: flex-start;
   }
 
-  /* PHYSISCH, nicht logisch (R18, Schritt 7): der Datepicker ist physisch
-   * gebaut - Knopf rechts, `padding-right` haelt ihm Platz (datepicker.css),
-   * in jeder Schreibrichtung. `padding-inline-start: 0` nahm in `ar` und `fa`
-   * genau dieses rechte Polster: Datum und Uhrzeit lagen unter ihrem Knopf
-   * (gesehen bei 390x844). Links faellt das Polster, damit der Wert in LTR in
-   * der Flucht des Etiketts beginnt; in RTL beginnt er neben dem Knopf. */
-  .form-rows > .form-row--wide:not(.form-row--stacked) > .form-row__control > yuvomi-datepicker .ydp__input {
-    padding-left: 0;
-    text-align: start;
-  }
+  /* (Hier fiel das linke Polster des Datumsfelds, damit der randlose Wert in
+   * der Flucht des Etiketts begann. Seit das Feld seinen Kasten traegt
+   * (Critique 2026-10-16), behaelt es sein Polster.) */
 }
 
 @container form-rows (max-width: 20rem) {
@@ -7771,10 +7958,13 @@ textarea::placeholder {
   border-color: var(--color-danger);
 }
 
-/* ── In der Zeile: Datum und Uhrzeit als Wert ──
- * Der Datepicker bleibt, was er ist (getipptes Feld + Kalender-Knopf), nur
- * ohne Kasten: der Wert steht rechtsbuendig vor seinem Zeichen. Die Breite ist
- * die des Werts, nicht die der Zeile. */
+/* ── In der Zeile: Datum und Uhrzeit als FELD ──
+ * Der Datepicker bleibt, was er ist (getipptes Feld + Kalender-Knopf), und
+ * seit der Critique 2026-10-16 (D4) auch MIT Kasten: „Gemessen am" stand als
+ * nackter Text in der Zeile und las sich wie eine Angabe, nicht wie ein Feld.
+ * Datum und Uhrzeit sehen in beiden Formular-Dialekten wie ein Eingabefeld
+ * aus; nur die randlose Auswahl (select) traegt ihr Zeichen statt einer Kante.
+ * Die Breite ist die des Werts, nicht die der Zeile. */
 .form-row__control > yuvomi-datepicker {
   flex: 0 1 auto;
   inline-size: 10rem;
@@ -7808,15 +7998,6 @@ textarea::placeholder {
 
 .form-row__control > yuvomi-datepicker .ydp__input {
   min-height: var(--target-md);
-  border-color: transparent;
-  background-color: transparent;
-  color: var(--color-text-secondary);
-  text-align: end;
-}
-
-.form-row__control > yuvomi-datepicker .ydp__input:focus {
-  border-color: var(--color-accent);
-  color: var(--color-text-primary);
 }
 
 /* Gesperrt wie die randlose Auswahl darueber, aus demselben Grund: in Ruhe
@@ -9121,19 +9302,6 @@ textarea::placeholder {
 }
 
 /* --------------------------------------------------------
- * Listen-Eintritt
- * `.list-stagger` (Container-Klasse mit gestaffelten Delays) ist mit dem
- * Toter-Selektoren-Aufraeumen 2026-08-31 entfallen - null Nutzer im Markup.
- * Die Keyframes bleiben: der No-Results-Reset der Dokumente (weiter oben)
- * blendet mit ihnen ein.
- * -------------------------------------------------------- */
-@keyframes list-item-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-
-/* --------------------------------------------------------
  * Swipe Affordance Hint
  * Einmalig per JS: .swipe-row--hint auf das erste Element.
  * Gibt nach Seitenladezeit einen kurzen Nudge-Hinweis.
@@ -9192,6 +9360,15 @@ textarea::placeholder {
  * Form und ihre Nachschlage-Selektoren; nur die Richtungsangabe faellt weg.
  * Steht NACH der Basisregel: gleiche Spezifitaet, die Reihenfolge entscheidet. */
 .swipe-row--static::after {
+  content: none;
+}
+
+/* EINE ZEILE MIT SICHTBAREM MEHR-KNOPF ZEIGT KEINEN WISCH-CHEVRON (R18, D6).
+ * Das ">" am Rand heisst auf dem Telefon "tippe fuer Detail" (Re-Critique
+ * 2026-09-28, A4 P2-5) - neben dem Mehr-Knopf waere es ein drittes Zeichen am
+ * Zeilenende fuer einen Weg, den der Knopf schon sichtbar traegt. Wischen
+ * bleibt Zusatzweg; der einmalige Nudge (`swipe-row--hint`) lehrt ihn. */
+.swipe-row:has(.row-action--more)::after {
   content: none;
 }
 
@@ -9255,8 +9432,11 @@ textarea::placeholder {
   }
 
   /* Ohne Blur braucht der Modal-Backdrop wieder volle Deckkraft, damit das
-   * dahinterliegende Modul nicht unscharf-frei durchscheint. */
-  .modal-overlay {
+   * dahinterliegende Modul nicht unscharf-frei durchscheint. Dasselbe fuer
+   * den Grund des nativen Dialogs (D7). */
+  .modal-overlay,
+  dialog.modal-overlay::backdrop,
+  dialog.dialog-surface::backdrop {
     background-color: var(--color-overlay);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -9633,11 +9813,6 @@ textarea.input { resize: vertical; }
   z-index: 1;
 }
 
-/* Kein linker Akzentbalken wenn Liquid-Indikator aktiv */
-.nav-sidebar__items--liquid .nav-item[aria-current="page"]::before {
-  display: none;
-}
-
 /* Kein statischer Hintergrund und kein Shadow-Highlight wenn Indikator aktiv */
 .nav-sidebar__items--liquid .nav-item[aria-current="page"] {
   background: transparent !important;
@@ -9649,6 +9824,22 @@ textarea.input { resize: vertical; }
 .nav-sidebar__items--liquid .nav-item:hover:not([aria-current="page"]) {
   background: transparent !important;
   box-shadow: none !important;
+}
+
+/* DIE PILLE DES GEPINNTEN EINTRAGS (Critique 2026-10-16). Dieselbe Klasse wie
+ * die Listenpille, also dasselbe Material (glass.css) und derselbe Uebergang;
+ * nur die Geometrie ist die der Zeile selbst - der Eintrag traegt den Einzug
+ * der Pille schon als Rand (Regel "Geometrie der Pille", oben). Hinter Zeichen
+ * und Wort per eigenem Stapelkontext; aufgerufen und hergeglitten von
+ * positionSidebarIndicator() (router.js). */
+.nav-sidebar > .nav-item--pinned-end {
+  isolation: isolate;
+}
+
+.nav-sidebar__indicator--pinned {
+  inset: 0;
+  height: auto;
+  z-index: -1;
 }
 
 /* ── Sidebar: Abschnittsbezeichnung (z.B. "Haushalt") ──
@@ -9770,13 +9961,16 @@ textarea.input { resize: vertical; }
     transform: none;
   }
 
-  /* `transition-property`, nicht der Shorthand: die offene Regel oben fuehrt
-   * `transform` in ihrer Transition und schluege diese hier (zwei Klassen
-   * gegen eine) - der Hub kaeme unter reduzierter Bewegung zurueck. */
+  /* Der volle Shorthand an DERSELBEN Spezifitaet wie die offene Regel oben
+   * (die Regel `.more-sheet` darueber verloere gegen sie, der Hub kaeme unter
+   * reduzierter Bewegung zurueck). Hier stand `transition-property: opacity`:
+   * damit nahm die Blende Dauer und Kurve vom ERSTEN Eintrag der offenen Liste
+   * - dem Hub mit seiner Feder (gemessen `cubic-bezier(0.34, 1.56, ...)` unter
+   * reduzierter Bewegung, Critique 2026-10-16). */
   .more-sheet[aria-hidden="false"] {
     opacity: 1;
     transform: none;
-    transition-property: opacity;
+    transition: opacity var(--transition-fast);
   }
 
   /* Der Backdrop bewegt sich nie, er blendet nur - dieselbe Ersatz-Blende wie

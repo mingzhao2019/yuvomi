@@ -2218,7 +2218,10 @@ function renderFamilyWidget(users, data, { manageHref = null } = {}) {
     : esc(t('dashboard.familyDayCalm'));
 
   return `<div class="widget widget--family">
-    ${widgetHeader('family', t('dashboard.familyTitle'), null, manageHref, manageHref ? t('dashboard.manage') : null, 'contacts')}
+    ${/* EIN WORT FUER DEN KOPF-LINK (Critique 2026-10-16): jede Kachel fuehrt
+         mit „Alle" zu ihrer Seite, nur die Familie sagte „Verwalten" - fuer
+         denselben Weg, die ganze Liste. */ ''}
+    ${widgetHeader('family', t('dashboard.familyTitle'), null, manageHref, null, 'contacts')}
     <div class="family-widget">
       <div class="family-widget__list">
         ${sharedRow}
@@ -4192,17 +4195,17 @@ function renderDashboardOverview(user, editing = false, weather = null, scope = 
                ein sechstes Ziel (gemessen: 52px je Slot, "Übersicht" und
                "Aufgaben" brechen), also steht sie hier, wo man ankommt - ein
                Icon-Knopf wie die zwei daneben. -->
-          ${onDisplay ? '' : `<button class="dashboard-icon-btn" id="dashboard-search"
+          ${onDisplay ? '' : `<button class="btn btn--secondary btn--icon dashboard-icon-btn" id="dashboard-search"
                   aria-label="${t('nav.search')}"
                   title="${t('nav.search')}" aria-haspopup="dialog">
             <i data-lucide="search" aria-hidden="true"></i>
           </button>`}
-          <button class="dashboard-icon-btn" id="dashboard-wall-enter"
+          <button class="btn btn--secondary btn--icon dashboard-icon-btn" id="dashboard-wall-enter"
                   aria-label="${t('dashboard.wallEnter')}"
                   title="${t('dashboard.wallEnter')}">
             <i data-lucide="maximize-2" aria-hidden="true"></i>
           </button>
-          ${onDisplay ? '' : `<button class="dashboard-icon-btn" id="dashboard-customize-btn"
+          ${onDisplay ? '' : `<button class="btn btn--secondary btn--icon dashboard-icon-btn" id="dashboard-customize-btn"
                   aria-label="${t('dashboard.customize')}"
                   title="${t('dashboard.customize')}">
             <i data-lucide="settings-2" aria-hidden="true"></i>

@@ -24,7 +24,6 @@
         "filtersOpen": "Open filters",
         "filtersActive": "{{count}} filters active",
         "filtersActive_one": "1 filter active",
-        "filtersReset": "Clear all filters",
         "filtersResetDefault": "Reset filters",
         "close": "Close",
         "add": "Add",
@@ -67,6 +66,7 @@
         "errorServer": "Server error. Please try again later.",
         "errorRestoreInProgress": "A backup is being restored right now. Your change was not saved, try again in a minute.",
         "errorTimeout": "The connection took too long. Please try again.",
+        "errorRateLimited": "Too many requests right now. Wait a moment, then try again.",
         "requiredFields": "Please fill in all required fields.",
         "invalidInput": "Invalid input.",
         "togglePasswordVisibility": "Toggle password visibility",
@@ -1160,7 +1160,6 @@
         "filtersPeople": "People",
         "filtersActive": "{{count}} filters active",
         "filtersActive_one": "1 filter active",
-        "filtersReset": "Clear all filters",
         "filtersDisplay": "Display",
         "openInMap": "Open in Maps",
         "detailPaneLabel": "Event details",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "Discard changes?",
         "unsavedChangesDetail": "Your entries in this form will be lost.",
         "discardChanges": "Discard",
-        "moreSettings": "More settings"
+        "moreSettings": "More settings",
+        "moreDetails": "More details"
     },
     "rrule": {
         "freqNone": "No recurrence",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Day"
+            },
+            "intensity": {
+                "none": "Not specified",
+                "low": "Light",
+                "moderate": "Moderate",
+                "high": "High"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "Odometer over time",
         "detailPaneLabel": "Item details",
         "pickOne": "Choose an item",
-        "pickOneHint": "Details, deadlines and history appear here."
+        "pickOneHint": "Details, deadlines and history appear here.",
+        "moreDetailsHint": "Purchase, warranty, photo, documents"
     },
     "documentAttach": {
         "label": "Attachments",

@@ -26,7 +26,6 @@
         "filtersActive_one": "{{count}} активный фильтр",
         "filtersActive_few": "{{count}} активных фильтра",
         "filtersActive_many": "Активных фильтров: {{count}}",
-        "filtersReset": "Снять все фильтры",
         "filtersResetDefault": "Сбросить фильтры",
         "close": "Закрыть",
         "add": "Добавить",
@@ -69,6 +68,7 @@
         "errorServer": "Ошибка сервера. Повторите попытку позже.",
         "errorRestoreInProgress": "Сейчас восстанавливается резервная копия. Ваше изменение не сохранено, попробуйте снова через минуту.",
         "errorTimeout": "Соединение заняло слишком много времени. Попробуйте снова.",
+        "errorRateLimited": "Сейчас слишком много запросов. Подождите немного и попробуйте снова.",
         "requiredFields": "Заполните все обязательные поля.",
         "invalidInput": "Недопустимый ввод.",
         "togglePasswordVisibility": "Показать/скрыть пароль",
@@ -1294,6 +1294,8 @@
         "filtersActive": "Активных фильтров: {{count}}",
         "filtersActive_one": "{{count}} активный фильтр",
         "filtersReset": "Снять все фильтры",
+        "filtersActive_few": "{{count}} активных фильтра",
+        "filtersActive_many": "Активных фильтров: {{count}}",
         "filtersDisplay": "Отображение",
         "agendaDayEmpty": "Ничего не запланировано",
         "openInMap": "Открыть в Картах",
@@ -3555,7 +3557,8 @@
         "unsavedChanges": "Сбросить изменения?",
         "unsavedChangesDetail": "Введённые в форму данные будут потеряны.",
         "discardChanges": "Сбросить",
-        "moreSettings": "Дополнительные настройки"
+        "moreSettings": "Дополнительные настройки",
+        "moreDetails": "Дополнительно"
     },
     "rrule": {
         "freqNone": "Без повтора",
@@ -5407,6 +5410,12 @@
             },
             "col": {
                 "day": "День"
+            },
+            "intensity": {
+                "none": "Не указано",
+                "low": "Низкая",
+                "moderate": "Средняя",
+                "high": "Высокая"
             }
         },
         "export": {
@@ -6508,7 +6517,8 @@
         "trackedDateInDays_few": "Через {{count}} дня",
         "trackedDateInDays_many": "Через {{count}} дн.",
         "trackedDateOverdueDays_few": "Просрочено на {{count}} дня",
-        "trackedDateOverdueDays_many": "Просрочено на {{count}} дн."
+        "trackedDateOverdueDays_many": "Просрочено на {{count}} дн.",
+        "moreDetailsHint": "Покупка, гарантия, фото, документы"
     },
     "documentAttach": {
         "label": "Вложения",

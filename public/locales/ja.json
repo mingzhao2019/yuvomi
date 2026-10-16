@@ -24,7 +24,6 @@
         "filtersOpen": "フィルターを開く",
         "filtersActive": "フィルター {{count}} 件が有効",
         "filtersActive_one": "フィルター 1 件が有効",
-        "filtersReset": "すべてのフィルターを解除",
         "filtersResetDefault": "フィルターをリセット",
         "close": "閉じる",
         "add": "追加",
@@ -67,6 +66,7 @@
         "errorServer": "サーバーエラーが発生しました。後でもう一度お試しください。",
         "errorRestoreInProgress": "現在バックアップを復元しています。変更は保存されませんでした。1分後にもう一度お試しください。",
         "errorTimeout": "接続に時間がかかりすぎました。もう一度お試しください。",
+        "errorRateLimited": "現在リクエストが多すぎます。少し待ってから、もう一度お試しください。",
         "requiredFields": "必須項目をすべて入力してください。",
         "invalidInput": "無効な入力です。",
         "togglePasswordVisibility": "パスワードを表示/非表示",
@@ -1159,7 +1159,6 @@
         "filtersPeople": "メンバー",
         "filtersActive": "フィルター {{count}} 件が有効",
         "filtersActive_one": "フィルター 1 件が有効",
-        "filtersReset": "すべてのフィルターを解除",
         "filtersDisplay": "表示",
         "agendaDayEmpty": "予定なし",
         "openInMap": "地図で開く",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "変更を破棄しますか？",
         "unsavedChangesDetail": "このフォームに入力した内容は失われます。",
         "discardChanges": "破棄",
-        "moreSettings": "詳細設定"
+        "moreSettings": "詳細設定",
+        "moreDetails": "その他の項目"
     },
     "rrule": {
         "freqNone": "繰り返しなし",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "日"
+            },
+            "intensity": {
+                "none": "指定なし",
+                "low": "軽め",
+                "moderate": "中程度",
+                "high": "高め"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "走行距離の推移",
         "detailPaneLabel": "持ち物の詳細",
         "pickOne": "持ち物を選択",
-        "pickOneHint": "詳細・期限・履歴がここに表示されます。"
+        "pickOneHint": "詳細・期限・履歴がここに表示されます。",
+        "moreDetailsHint": "購入・保証・写真・書類"
     },
     "documentAttach": {
         "label": "添付",

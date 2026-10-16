@@ -24,7 +24,6 @@
         "filtersOpen": "Filter öffnen",
         "filtersActive": "{{count}} Filter aktiv",
         "filtersActive_one": "1 Filter aktiv",
-        "filtersReset": "Alle Filter aufheben",
         "filtersResetDefault": "Filter zurücksetzen",
         "close": "Schließen",
         "add": "Hinzufügen",
@@ -67,6 +66,7 @@
         "errorServer": "Serverfehler. Bitte versuche es später erneut.",
         "errorRestoreInProgress": "Gerade wird ein Backup wiederhergestellt. Deine Änderung wurde nicht gespeichert, versuche es in einer Minute erneut.",
         "errorTimeout": "Die Verbindung hat zu lange gedauert. Bitte erneut versuchen.",
+        "errorRateLimited": "Gerade kommen zu viele Anfragen an. Warte einen Moment und versuche es dann erneut.",
         "requiredFields": "Bitte alle Pflichtfelder ausfüllen.",
         "invalidInput": "Ungültige Eingabe.",
         "togglePasswordVisibility": "Passwort anzeigen/verbergen",
@@ -1174,7 +1174,6 @@
         "filtersPeople": "Personen",
         "filtersActive": "{{count}} Filter aktiv",
         "filtersActive_one": "1 Filter aktiv",
-        "filtersReset": "Alle Filter aufheben",
         "filtersDisplay": "Darstellung",
         "openInMap": "In Maps öffnen",
         "detailPaneLabel": "Termindetails",
@@ -3365,7 +3364,8 @@
         "unsavedChanges": "Änderungen verwerfen?",
         "unsavedChangesDetail": "Deine Eingaben in diesem Formular gehen verloren.",
         "discardChanges": "Verwerfen",
-        "moreSettings": "Weitere Einstellungen"
+        "moreSettings": "Weitere Einstellungen",
+        "moreDetails": "Weitere Angaben"
     },
     "rrule": {
         "freqNone": "Keine Wiederholung",
@@ -4805,7 +4805,7 @@
                 "weight": "Gewicht",
                 "height": "Größe",
                 "headCircumference": "Kopfumfang",
-                "spo2": "Sauerstoffsättigung",
+                "spo2": "Sauerstoff­sättigung",
                 "temp": "Temperatur",
                 "sleep": "Schlaf",
                 "mood": "Stimmung"
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Tag"
+            },
+            "intensity": {
+                "none": "Keine Angabe",
+                "low": "Leicht",
+                "moderate": "Mittel",
+                "high": "Hoch"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "Kilometerstand über die Zeit",
         "detailPaneLabel": "Gegenstandsdetails",
         "pickOne": "Wähle einen Gegenstand",
-        "pickOneHint": "Angaben, Fristen und Verlauf erscheinen hier."
+        "pickOneHint": "Angaben, Fristen und Verlauf erscheinen hier.",
+        "moreDetailsHint": "Kauf, Garantie, Foto, Dokumente"
     },
     "documentAttach": {
         "label": "Anhänge",

@@ -220,29 +220,21 @@ test('M5: der Kopf traegt ein Ansichtsmenue mit genau einer gewaehlten Ansicht',
   }
 });
 
-test('M5: mobil ersetzt das Menue das Segment, und die Werkzeuge bleiben eine rechte Gruppe', () => {
-  assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn').display, 'none', 'am Desktop waehlt das Segment');
-  assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn', { media: MOBILE }).display, 'inline-flex');
+// D1 (Critique 2026-10-16): der Ausloeser ist ein Pop-up-Knopf mit dem Wort der
+// Ansicht (`.cal-toolbar__view-menu`) und steht mit dem Zeitraum in Zeile 2;
+// Lupe und Filter folgen dem Titel in Zeile 1 (DOM-Reihenfolge, der Zeitraum
+// rueckt per `order` dahinter).
+test('M5: mobil ersetzt das Menue das Segment, und der Kopf hat zwei Zeilen', () => {
+  assert.equal(declarations(calendarCss, '.cal-toolbar__view-menu').display, 'none', 'am Desktop waehlt das Segment');
+  assert.equal(declarations(calendarCss, '.cal-toolbar__view-menu', { media: MOBILE }).display, 'inline-flex');
   assert.equal(declarations(calendarCss, '.cal-toolbar__views', { media: MOBILE }).display, 'none');
   const bar = declarations(calendarCss, '.page-toolbar--period-title.cal-toolbar > .cal-toolbar__bar', { media: MOBILE });
   assert.equal(bar.display, 'contents', 'die Bar-Zeile loest sich auf - ihre Werkzeuge ruecken in die Titelzeile');
-  const tools = declarations(calendarCss, '.page-toolbar--period-title.cal-toolbar .cal-toolbar__tools', { media: MOBILE });
-  assert.equal(tools.display, 'flex', 'die drei mobilen Werkzeuge bleiben ein gemeinsames Flex-Item');
-  assert.equal(tools.order, '1', 'die Gruppe steht nach Titel und Zeitraum');
-  assert.equal(tools['margin-inline-start'], 'auto', 'die gemeinsame Gruppe sitzt rechts');
-  assert.equal(declarations(calendarCss, '.cal-toolbar__filter-btn', { media: MOBILE })['margin-inline-start'], '0',
-    'der Filter erzeugt innerhalb der Gruppe keinen zweiten Rechtsschub');
   const center = declarations(calendarCss, '.page-toolbar.cal-toolbar.page-toolbar--wrap > .page-toolbar__center', { media: MOBILE });
-  assert.equal(center['flex-basis'], '0', 'der Zeitraum kann sich die obere Zeile mit der Werkzeuggruppe teilen');
-  assert.equal(declarations(calendarCss, '.cal-toolbar__tools-btn', { media: MOBILE }).order, '1');
-  assert.equal(center.order, '0', 'der Zeitraum steht vor der gemeinsamen Werkzeuggruppe');
-  const html = calendar.toolbarHtml();
-  const toolsStart = html.indexOf('class="cal-toolbar__tools"');
-  const toolsEnd = html.indexOf('</div>', toolsStart);
-  const toolsHtml = html.slice(toolsStart, toolsEnd);
-  for (const id of ['cal-filters', 'cal-search', 'cal-views-menu']) {
-    assert(toolsHtml.includes(`id="${id}"`), `${id} muss in der gemeinsamen Werkzeuggruppe stehen`);
-  }
+  assert.equal(center['flex-basis'], '100%', 'der Zeitraum behaelt die zweite Zeile fuer sich (Label nicht angeschnitten)');
+  assert.equal(center.order, '2', 'Werkzeuge vor dem Zeitraum: sie stehen in Zeile 1');
+  const stepper = declarations(calendarCss, '.cal-toolbar__stepper', { media: MOBILE });
+  assert.equal(stepper.flex, '1 1 0', 'der Stepper nimmt den Rest der Zeile neben dem Pop-up-Knopf');
 });
 
 test('M5: Termintitel der Woche brechen nach Blockhoehe um statt nowrap', () => {
@@ -297,9 +289,10 @@ test('M13: der Titel ist nicht kleiner als der Text, auf keiner Breite', () => {
 test('M13: mobil ist die Karte kompakt - drei Zeilen Vorschau, Fusszeile ohne Kreisflaeche', () => {
   const content = declarations(notesCss, '.note-card__content', { media: MOBILE });
   assert.equal(content['-webkit-line-clamp'], '3', 'Vorschau drei Zeilen statt zwoelf');
-  const del = declarations(notesCss, '.note-card__delete', { media: MOBILE });
-  assert.match(del['margin-block'] ?? '', /var\(--target-base\)/,
-    'Loeschen haengt seine volle Trefflaeche in die Polsterung statt die Zeile zu strecken');
+  // Seit D6 (Critique 2026-10-16) steht Loeschen im Mehr-Knopf der Karte.
+  const more = declarations(notesCss, '.note-card__more', { media: MOBILE });
+  assert.match(more['margin-block'] ?? '', /var\(--target-base\)/,
+    'der Mehr-Knopf haengt seine volle Trefflaeche in die Polsterung statt die Zeile zu strecken');
 });
 
 // Re-Critique 2026-09-28 (P8 / A3 P3-2): mobil brach der Detail-Fuss einer

@@ -46,8 +46,8 @@ import { othersCanRead } from '/utils/household.js';
 import { wireTablist } from '/utils/tablist.js';
 import { installPopoverMenus } from '/utils/popover-menu.js';
 import { rowActionHtml, rowMenuHtml } from '/utils/row-action.js';
-import { filterButtonHtml } from '/utils/filter-sheet.js';
-import { attachSegmentIndicator } from '/utils/segment-indicator.js';
+import { filterButtonHtml, openFilterSheet, filterChipsHtml, filtersAsPopover } from '/utils/filter-sheet.js';
+import { attachSegmentIndicator, afterGlideStart } from '/utils/segment-indicator.js';
 import { wirePeriodSwipe } from '/utils/period-swipe.js';
 import { isNavModuleReadOnly } from '/permissions.js';
 // EINE Schalterform, auch hier. Das Primitiv liegt unter `/settings/`, weil
@@ -74,6 +74,7 @@ import { dayHeading, dayHeadingLabel } from '/utils/day-label.js';
 import { maxUploadBytes, maxUploadMb } from '/utils/upload-limit.js';
 import { emptyStateHTML, emptyHintHTML, mountLoadError } from '/utils/empty-state.js';
 import { formatChineseLunarDate, shouldDisplayChineseLunar } from '/utils/lunar.js';
+import { overlayHost } from '/utils/overlay-host.js';
 import { isPermAdmin, moduleAccess } from '/permissions.js';
 import { pathAccess } from '/utils/module-access.js';
 import {
@@ -424,7 +425,9 @@ function openIconPickerDialog(selectedIcon, onSelect, onClose = () => {}) {
   });
 
   overlay.appendChild(panel);
-  document.body.appendChild(overlay);
+  // In den Termin-Dialog, aus dem die Wahl aufgeht: ausserhalb des modalen
+  // <dialog> waere sie inert und laege darunter (D7, utils/overlay-host.js).
+  overlayHost().appendChild(overlay);
   document.addEventListener('keydown', onKeydown);
   panel.querySelector('#event-icon-dialog-search')?.focus();
   if (window.lucide) lucide.createIcons({ el: panel });
@@ -527,6 +530,9 @@ let state = {
   // falsche Art, eine zweite Lesart anzubieten.
   monthTitles: false,      // Monat am Telefon: Titelzeilen statt Punkte
   scheduleDisplay: 'compact',
+  // Woche mobil: Ganztags-Zeile aufgeklappt (renderWeekView). Gilt fuer die
+  // Sitzung, damit Blaettern den gewaehlten Zustand behaelt.
+  alldayExpanded: false,
   offlineSince:  null,     // Date des letzten Cache-Stands, wenn offline bedient
   defaultDuration: 60,     // Standard-Termindauer (Minuten) aus den Präferenzen
   defaultReminders: [],    // persönliche Standard-Erinnerungen
@@ -2403,33 +2409,45 @@ function periodArrowKeys(rtl = typeof document !== 'undefined' && document.docum
  * ihrem Ende, auf jeder Breite an derselben Stelle. Die Ueberlappungswarnung
  * bleibt im Aktions-Slot: sie ist eine Meldung, kein Werkzeug.
  */
-function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '' } = {}) {
+function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '', searchValue = '' } = {}) {
+  // DER KOPF-WERKZEUG-SLOT (D1, Critique 2026-10-16). Am Desktop EINE Zeile:
+  // Titel, Zeitraum, dahinter das Ansichts-Segment, dann Suchfeld und Filter,
+  // zuletzt Verwalten und die angedockte Pille. Bis dahin stand das Segment in
+  // einer eigenen zweiten Zeile (125px Kopf, ~540px Leerraum neben dem
+  // Stepper), und gesucht wurde ueber einen eigenen Knopf, der erst eine
+  // Leiste unter dem Kopf aufdeckte - als einziges Modul ohne das Feld im Kopf.
+  //
+  // Mobil (unter 640px) loest sich die Bar-Zeile auf (calendar.css): Lupe und
+  // Filter stehen am Ende der Titelzeile, die Ansichtswahl als Pop-up-Knopf
+  // mit dem NAMEN der Ansicht am Ende der Zeitraum-Zeile (`viewMenuHtml`).
   return `
     <h1 class="page-toolbar__title">${t('calendar.title')}</h1>
-    <div class="page-toolbar__center cal-toolbar__month">${periodNavHtml()}</div>
-    ${/* Der Aktions-Slot traegt die Ueberlappungswarnung und - am
-          Zeigergeraet - den angedockten FAB (#fab-new-event, dockFabIntoToolbar
-          in router.js). Einen eigenen Kopfknopf gibt es nicht mehr
-          (Re-Critique 2026-09-27, D3); renderToolbar() haengt den angedockten
-          FAB beim Neubau des Kopfs wieder ein. */ ''}
+    <div class="page-toolbar__center cal-toolbar__month">
+      <div class="cal-toolbar__stepper">${periodNavHtml()}</div>
+      ${viewMenuHtml()}
+    </div>
+    ${/* Der Aktions-Slot traegt die Ueberlappungswarnung, "Kalender verwalten"
+          und - am Zeigergeraet - den angedockten FAB (#fab-new-event,
+          dockFabIntoToolbar in router.js). renderToolbar() haengt den
+          angedockten FAB beim Neubau des Kopfs wieder ein. */ ''}
     <div class="page-toolbar__actions">
       ${scheduleWarningHtml}
-      ${moduleAccess('calendar') === 'write' ? `<button class="btn btn--icon cal-toolbar__calendars-btn" id="cal-calendars"
+      ${/* Verwalten ist ein Werkzeug, kein Datum: eigenes Zeichen (Kalender mit
+            Zahnrad) und dieselbe Kopf-Icon-Haut wie Lupe und Filter. Das nackte
+            `calendar-days` daneben las sich wie ein zweiter "Heute"-Knopf. */ ''}
+      ${moduleAccess('calendar') === 'write' ? `<button class="btn btn--secondary btn--icon cal-toolbar__calendars-btn" id="cal-calendars"
         aria-label="${t('calendar.manageCalendars')}" title="${t('calendar.manageCalendars')}" aria-haspopup="dialog">
-        <i data-lucide="calendar-days" aria-hidden="true"></i>
+        <i data-lucide="calendar-cog" class="icon-md" aria-hidden="true"></i>
       </button>` : ''}
     </div>
-    <!-- Bar-Zeile des Kopfs (Werkzeugzeilen-Regel, layout.css): das Ansichts-
-         Segment hatte im Actions-Slot bei 1280px 212px fuer 245px Inhalt -
-         "Agenda" lag hinter dem Fade und das Monatslabel daneben ellipsierte
-         auf seine 7ch-Untergrenze. Der neutrale Wrapper haelt das Well des
-         Segments auf intrinsischer Breite; die Zeile gehoert trotzdem ihm. -->
     <div class="page-toolbar__bar cal-toolbar__bar">
       <!-- „Ansicht", nicht „Kalender": die Tablist hiess wie die H1 darueber, und
-           ein Screenreader kuendigte zweimal hintereinander „Kalender" an. -->
-      <div class="cal-toolbar__views" role="tablist" aria-label="${t('calendar.viewSwitcher')}">
+           ein Screenreader kuendigte zweimal hintereinander „Kalender" an.
+           Die Optik ist das Kanon-Segment (.segmented, panel.css) mit der
+           gleitenden Kapsel (attachSegmentIndicator) - kein eigenes Well mehr. -->
+      <div class="segmented cal-toolbar__views" role="tablist" aria-label="${t('calendar.viewSwitcher')}">
         ${VIEWS.map((v) => `
-          <button class="cal-toolbar__view-btn ${v === state.view ? 'cal-toolbar__view-btn--active' : ''}"
+          <button class="segmented__item cal-toolbar__view-btn${v === state.view ? ' is-active' : ''}"
                   role="tab" id="cal-view-tab-${v}" data-tab-id="${v}"
                   aria-keyshortcuts="${CAL_SHORTCUT_KEYS.views[v]}"
                   aria-selected="${v === state.view ? 'true' : 'false'}"
@@ -2437,11 +2455,24 @@ function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '' } = {}) {
                   tabindex="${v === state.view ? '0' : '-1'}">${VIEW_LABELS()[v]}</button>
         `).join('')}
       </div>
-      <div class="cal-toolbar__tools">
+      <div class="page-toolbar__tools cal-toolbar__tools" role="search">
+        ${/* DIE SUCHE IST DAS EINE FELD (renderPageSearch), wie in jedem Modul:
+              am Desktop ein Feld, unter 768px die Icon-Form der Shell, die zum
+              Feld aufgeht - an ERSTER Stelle der Werkzeuggruppe. Sie bleibt eine
+              Volltextsuche am Server, deren Treffer die Ansicht ersetzen: ab dem
+              ersten Zeichen, und mit dem leeren Feld kommt die Ansicht zurueck. */ ''}
+        ${renderPageSearch({
+          id: 'cal-search-input',
+          label: t('calendar.searchOpen'),
+          // Kurz, weil das Feld in der einen Kopfzeile schmal werden darf; der
+          // Name des Felds ("Termine suchen") steht im Label.
+          placeholder: t('search.placeholder'),
+          value: searchValue,
+          clearLabel: t('common.searchClear'),
+          className: 'cal-toolbar__search',
+        })}
         ${/* DER GETEILTE FILTERKNOPF (R17 Z1, A1 P2-3): Zahl als Badge wie in
-              jedem Modul (utils/filter-sheet.js), der Name nennt sie. Hier stand
-              eine Kopie mit eigener Badge-Klasse - das Vorbild, von dem der
-              Baustein abgeschrieben war, lief seitdem neben ihm her. */ ''}
+              jedem Modul (utils/filter-sheet.js), der Name nennt sie. */ ''}
         ${filterButtonHtml({
           id: 'cal-filters',
           count: filterCount,
@@ -2452,31 +2483,19 @@ function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '' } = {}) {
           },
           className: 'cal-toolbar__filter-btn',
         })}
-        <!-- KEIN aria-controls im geschlossenen Zustand: die Suchleiste entsteht
-             erst beim Öffnen (openCalendarSearch), und ein Verweis auf eine ID, die
-             es noch nicht gibt, kündigt einem Screenreader ein Ziel an, das nicht
-             existiert. Gesetzt wird es dort, wo die Leiste entsteht, und beim
-             Schließen wieder entfernt - dieselbe Regel wie in utils/sub-tabs.js:
-             ohne aufgelöstes Ziel bleibt das Attribut weg. -->
-        <button type="button" class="btn btn--secondary btn--icon cal-toolbar__search-btn" id="cal-search"
-                aria-label="${t('calendar.searchOpen')}" title="${t('calendar.searchOpen')}"
-                aria-expanded="false" data-collapse-fold>
-          <i data-lucide="search" class="icon-md" aria-hidden="true"></i>
-        </button>
-        ${viewMenuHtml()}
+        <span id="cal-search-live" class="sr-only" role="status" aria-live="polite"></span>
       </div>
     </div>
   `;
 }
 
 /**
- * MOBIL STEHT DIE ANSICHTSWAHL IM WERKZEUGMENUE (R9 M5, A8 P2-3).
+ * MOBIL STEHT DIE ANSICHTSWAHL IN EINEM POP-UP-KNOPF (R9 M5, A8 P2-3; D1).
  *
- * Gemessen 390x844 vorher: der Kopf hatte drei Zeilen und 166px - Titel,
- * Zeitraum, Ansichts-Segment mit Filter und Suche. Wie in Apples Kalender
- * waehlt man die Ansicht unter 640px aus einem Menue (calendar.css blendet
- * dort das Segment aus und dieses Menue ein); darueber bleibt das Segment,
- * und das Menue ist unsichtbar. Beide steuern dieselbe Tablist
+ * Vier Ansichten passen bei 390px nicht als Segment neben den Zeitraum. Wie in
+ * Apples Kalender waehlt man sie unter 640px aus einem Menue (calendar.css
+ * blendet dort das Segment aus und diesen Knopf ein); darueber bleibt das
+ * Segment, und der Knopf ist unsichtbar. Beide steuern dieselbe Tablist
  * (`viewTabs.setActive`), der Speicher und die Kuerzel m/w/d/a laufen
  * unveraendert ueber deren `onChange`.
  *
@@ -2488,11 +2507,14 @@ function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '' } = {}) {
 const VIEW_ICONS = { month: 'calendar-days', week: 'calendar-range', day: 'calendar-1', agenda: 'list' };
 
 /**
- * DER KNOPF ZEIGT DIE AKTIVE ANSICHT (R17, E11; Critique 2026-10-07 A2 P2).
- * Hinter "..." stand mobil nirgends im Kopf, in welcher Ansicht man ist - das
- * Segment, das es am Desktop sagt, ist unter 640px ausgeblendet. Der Knopf
- * traegt jetzt die Glyphe der aktiven Ansicht (dieselbe wie ihr Menue-Eintrag)
- * und nennt sie im Namen: "Ansicht: Woche". Das Menue bleibt.
+ * DER KNOPF NENNT DIE AKTIVE ANSICHT IN WORTEN, SEIN ZEICHEN STEHT (D1,
+ * Critique 2026-10-16; vorher R17 E11). E11 hatte dem Knopf die Glyphe der
+ * aktiven Ansicht gegeben - damit wechselte das Zeichen eines Knopfs mit
+ * seinem Zustand, und ein Erstnutzer erkannte ihn nach dem Wechsel nicht
+ * wieder. Jetzt ist er ein Pop-up-Knopf wie bei Apple: das Wort der Ansicht
+ * ("Woche") und dahinter das feste Auf/Ab-Zeichen einer Auswahl. Er steht am
+ * Ende der Zeitraum-Zeile, die dafuer den Reset auf den Wert legt
+ * (calendar.css). Der Name bleibt "Ansicht: Woche".
  */
 function viewMenuLabel(current = state.view) {
   return `${t('calendar.viewSwitcher')}: ${VIEW_LABELS()[current] ?? ''}`;
@@ -2501,10 +2523,11 @@ function viewMenuLabel(current = state.view) {
 function viewMenuHtml(current = state.view) {
   const label = viewMenuLabel(current);
   return `
-        <button type="button" class="btn btn--secondary btn--icon cal-toolbar__tools-btn popover-menu__trigger" id="cal-views-menu"
+        <button type="button" class="btn btn--secondary cal-toolbar__view-menu popover-menu__trigger" id="cal-views-menu"
                 popovertarget="cal-views-menu-panel" aria-haspopup="menu" aria-expanded="false" data-collapse-fold-menu
                 data-view="${esc(current)}" aria-label="${esc(label)}" title="${esc(label)}">
-          <i data-lucide="${VIEW_ICONS[current] ?? VIEW_ICONS.month}" class="icon-md" aria-hidden="true"></i>
+          <span class="cal-toolbar__view-menu-label" aria-hidden="true">${esc(VIEW_LABELS()[current] ?? '')}</span>
+          <i data-lucide="chevrons-up-down" class="icon-sm" aria-hidden="true"></i>
         </button>
         <div class="popover-menu" id="cal-views-menu-panel" popover role="menu">
           ${VIEWS.map((v) => `
@@ -2520,24 +2543,20 @@ function viewMenuHtml(current = state.view) {
 
 /** Den Haken im Ansichtsmenue der aktuellen Ansicht nachziehen. */
 function syncViewMenu(root = _container) {
-  let active = null;
   for (const item of root?.querySelectorAll?.('[data-cal-view]') ?? []) {
     const on = item.dataset.calView === state.view;
-    if (on) active = item;
     item.setAttribute('aria-checked', String(on));
     item.querySelector('.popover-menu__item-check')?.classList.toggle('popover-menu__item-check--hidden', !on);
   }
-  // Der Ausloeser zieht mit (E11): Glyphe und Name der aktiven Ansicht. Die
-  // Glyphe ist die des Menue-Eintrags, als Kopie - sie ist dort schon
-  // gezeichnet, ein zweiter Lucide-Lauf ueber den Kopf entfaellt.
+  // Der Ausloeser zieht Wort und Namen nach; sein Zeichen bleibt stehen.
   const trigger = root?.querySelector?.('#cal-views-menu');
   if (!trigger || trigger.dataset.view === state.view) return;
   trigger.dataset.view = state.view;
   const label = viewMenuLabel(state.view);
   trigger.setAttribute('aria-label', label);
   trigger.setAttribute('title', label);
-  const glyph = active?.firstElementChild?.cloneNode(true);
-  if (glyph) trigger.replaceChildren(glyph);
+  const word = trigger.querySelector('.cal-toolbar__view-menu-label');
+  if (word) word.textContent = VIEW_LABELS()[state.view] ?? '';
 }
 
 function renderToolbar() {
@@ -2572,8 +2591,11 @@ function renderToolbar() {
   // stand danach ohne Primaeraktion da. Umgehaengt wird der Knoten selbst -
   // seine Verdrahtung (findPageFab unten in render) haengt an ihm.
   const dockedFab = bar.querySelector('.page-fab');
+  // DAS SUCHFELD UEBERLEBT DEN NEUBAU: Wert und Fokus gehen sonst bei jedem
+  // Filterwechsel verloren, waehrend die Treffer noch stehen.
+  const searchHadFocus = bar.querySelector('#cal-search-input') === document.activeElement;
   bar.replaceChildren();
-  bar.insertAdjacentHTML('beforeend', toolbarHtml({ filterCount, scheduleWarningHtml }));
+  bar.insertAdjacentHTML('beforeend', toolbarHtml({ filterCount, scheduleWarningHtml, searchValue: searchActive ? searchQuery : '' }));
   if (dockedFab) bar.querySelector('.page-toolbar__actions')?.appendChild(dockedFab);
 
   if (window.lucide) lucide.createIcons({ el: bar });
@@ -2584,7 +2606,7 @@ function renderToolbar() {
   bar.querySelector('#cal-next').addEventListener('click', () => navigate(1));
   bar.querySelector('#cal-calendars')?.addEventListener('click', openLocalCalendarsModal);
   bar.querySelector('#cal-today').addEventListener('click', goToday);
-  bar.querySelector('#cal-search').addEventListener('click', openCalendarSearch);
+  wireCalendarSearch(bar, { focus: searchHadFocus });
   bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters);
   // Der Filterknopf kommt aus dem geteilten Baustein; die Marke fuer die
   // Faltung im eingeklappten Kopf (calendar.css) setzt deshalb das Modul.
@@ -2604,11 +2626,16 @@ function renderToolbar() {
   wireScrollFade(bar.querySelector('.cal-toolbar__views'));
   viewTabs = wireTablist(bar.querySelector('.cal-toolbar__views'), {
     activeId: state.view,
-    activeClass: 'cal-toolbar__view-btn--active',
+    activeClass: 'is-active',
     onChange: async (view) => {
       if (searchActive) closeCalendarSearch({ restoreView: false });
       state.view = view;
       setSavedCalendarView(view);
+      // ERST GLEITET DIE KAPSEL, DANN BAUT DIE ANSICHT (Critique 2026-10-16,
+      // A5). Der Wochenaufbau belegt den Hauptthread bis zu 350ms; faellt der
+      // Start der Gleitbewegung in denselben Frame, sprang die Kapsel. Ein
+      // Frame Vorlauf, danach laeuft sie im Compositor weiter.
+      await afterGlideStart();
       await reloadForView();
       updateLabel();
       renderView();
@@ -2619,6 +2646,62 @@ function renderToolbar() {
   // jedem Filterwechsel NEU gebaut - der Schluessel laesst die neue Kapsel
   // dort ansetzen, wo die alte stand, statt aufzuspringen.
   attachSegmentIndicator(bar.querySelector('.cal-toolbar__views'), { key: 'calendar-views' });
+  watchToolbarFit(bar);
+}
+
+/**
+ * EINE ZEILE NUR, WENN SIE PASST (D1; Sonde 19, #882).
+ *
+ * Ab 1024px traegt der Kalenderkopf Zeitraum, Segment, Suchfeld, Filter,
+ * Verwalten und die Pille in EINER Zeile - aber nur, wenn die Content-Spalte
+ * sie hergibt. Neben der Seitenleiste (1024-1279px) und in langen Locales (uk:
+ * "Порядок денний") reicht sie nicht. CSS allein kann das nicht entscheiden:
+ * per `order` steht die Bar-Zeile vor den Aktionen, und bricht sie um, nimmt
+ * sie Verwalten und Pille mit in Zeile 2 - die Titelzeile baut dann zwei
+ * Zeilen, genau der #882-Fall. Darum misst dieser Waechter: passt die Summe
+ * der Titelzeile plus dem MINDESTMASS der Bar-Zeile (Segment, Filter, ein
+ * schmales Suchfeld), setzt er `cal-toolbar--one-row`; sonst steht die
+ * Bar-Zeile kontrolliert als eigene, volle zweite Zeile unter Titel, Zeitraum
+ * und Aktionen (die Werkzeugzeilen-Regel der Shell). Die Breiten, die er
+ * liest, haengen nicht vom Modus ab - die Entscheidung pendelt nicht.
+ */
+const ONE_ROW_MEDIA = '(min-width: 1024px)';
+// Das schmalste Suchfeld, das in der einen Zeile noch eins ist (Lupe, Polster,
+// "Suchen…" lesbar). Schmaler waere es ein Feld, das man nicht lesen kann.
+const SEARCH_MIN_PX = 160;
+let toolbarFitObserver = null;
+
+function syncToolbarFit(bar) {
+  if (!bar?.isConnected) return;
+  const wide = window.matchMedia?.(ONE_ROW_MEDIA).matches;
+  if (!wide) {
+    bar.classList.remove('cal-toolbar--one-row');
+    return;
+  }
+  const cs = getComputedStyle(bar);
+  const inner = bar.clientWidth - parseFloat(cs.paddingInlineStart || 0) - parseFloat(cs.paddingInlineEnd || 0);
+  const gap = parseFloat(cs.columnGap) || 0;
+  const row = [...bar.children].filter((c) => !c.classList.contains('page-toolbar__bar')
+    && getComputedStyle(c).display !== 'none' && c.getBoundingClientRect().width > 0);
+  const views = bar.querySelector('.cal-toolbar__views');
+  const filter = bar.querySelector('#cal-filters');
+  const toolsGap = parseFloat(getComputedStyle(bar.querySelector('.cal-toolbar__tools') ?? bar).columnGap) || 0;
+  const barGap = parseFloat(getComputedStyle(bar.querySelector('.page-toolbar__bar') ?? bar).columnGap) || 0;
+  const barMin = (views?.scrollWidth ?? 0) + barGap + SEARCH_MIN_PX + toolsGap + (filter?.getBoundingClientRect().width ?? 0);
+  const need = row.reduce((sum, c) => sum + c.getBoundingClientRect().width, 0) + barMin + gap * row.length;
+  bar.classList.toggle('cal-toolbar--one-row', need <= inner);
+}
+
+function watchToolbarFit(bar) {
+  syncToolbarFit(bar);
+  if (typeof ResizeObserver !== 'function') return;
+  // EIN Beobachter je Kopf: renderToolbar() laeuft bei jedem Filterwechsel,
+  // der Kopf-Knoten bleibt derselbe.
+  if (toolbarFitObserver?.target === bar) return;
+  toolbarFitObserver?.observer.disconnect();
+  const observer = new ResizeObserver(() => syncToolbarFit(bar));
+  observer.observe(bar);
+  toolbarFitObserver = { target: bar, observer };
 }
 
 function updateLabel() {
@@ -4326,6 +4409,33 @@ function renderWeekView(container) {
   const scheduleBlocks = schedule.map((items) => state.scheduleDisplay === 'blocks' ? items.filter((entry) => scheduleHasTimes(entry) && !scheduleIsFullDayShift(entry)) : []);
   const scheduleLayouts = scheduleBlocks.map((items) => layoutScheduleBlocks(items));
   const waste = days.map((d) => wasteOccurrencesOnDay(d));
+  // EINE ZEILE GANZTAEGIGES, DER REST HINTER „+n" (Critique 2026-10-16, P2
+  // mobil). Das Band stand bei vier Eintraegen an einem Tag 104px hoch und
+  // schob 08:00 aus dem Bild (erster Termin y=266). Mobil zeigt jede Zelle
+  // eingeklappt ihren ersten Eintrag und daneben „+n"; die Zahl und die
+  // Beschriftung „ganztaegig" klappen die ganze Zeile auf und wieder zu.
+  // Am Desktop (sieben Spalten, Platz in der Hoehe) bleibt alles offen.
+  // Mehrtaegige Baender zaehlen mit: jedes stand in einer eigenen Zeile ueber
+  // den Zellen, und drei davon schoben das Raster ebenso weit hinunter wie drei
+  // Eintraege an einem Tag. Eingeklappt stehen sie deshalb als Eintrag in jeder
+  // Zelle, die sie beruehren (`bandEvs`); erst aufgeklappt laufen sie wieder
+  // als ein Band ueber ihre Spalten.
+  const bandEvs = days.map((d) => eventsOnDay(d).filter((ev) => isAllDayLike(ev) && band.events.has(ev)));
+  const alldayCounts = days.map((d, i) => holidaysOnDay(d).length + scheduleChips[i].length
+    + waste[i].length + bandEvs[i].length + alldayEvs[i].length + tasksOnDay(d).length);
+  const alldayFolds = isMobile && (alldayCounts.some((n) => n > 1) || band.laneCount > 1);
+  const alldayOpen = alldayFolds && state.alldayExpanded;
+  const bandsFolded = alldayFolds && !alldayOpen;
+  const laneCount = bandsFolded ? 0 : band.laneCount;
+  const alldayMore = (n) => (alldayFolds && n > 1
+    ? `<button type="button" class="allday-more" data-allday-toggle aria-expanded="${alldayOpen}"
+         aria-label="${esc(t('calendar.moreEvents', { count: n - 1 }))}">+${n - 1}</button>`
+    : '');
+  const alldayLabel = alldayFolds
+    ? `<button type="button" class="calendar-all-day-label calendar-all-day-label--toggle" data-allday-toggle aria-expanded="${alldayOpen}" style="grid-row:1 / -1">
+         <span>${t('calendar.allDayShort')}</span><i data-lucide="chevron-down" class="icon-sm" aria-hidden="true"></i>
+       </button>`
+    : `<div class="calendar-all-day-label" style="grid-row:1 / -1">${t('calendar.allDayShort')}</div>`;
 
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
@@ -4345,12 +4455,12 @@ function renderWeekView(container) {
         }).join('')}
       </div>
       <!-- Ganztägige Ereignisse -->
-      <div class="allday-row allday-row--week" style="display:grid;grid-template-columns:var(--cal-gutter-width) repeat(${colCount},1fr);grid-template-rows:repeat(${band.laneCount + 1},auto);">
-        <div class="calendar-all-day-label" style="grid-row:1 / -1">${t('calendar.allDayShort')}</div>
+      <div class="allday-row allday-row--week${alldayFolds ? ' allday-row--fold' : ''}${alldayOpen ? ' is-expanded' : ''}" style="display:grid;grid-template-columns:var(--cal-gutter-width) repeat(${colCount},1fr);grid-template-rows:repeat(${laneCount + 1},auto);">
+        ${alldayLabel}
         ${days.map((d, i) => `<div class="allday-col" style="grid-column:${i + 2};grid-row:1 / -1" aria-hidden="true"></div>`).join('')}
-        ${band.bands.map(renderWeekBand).join('')}
+        ${bandsFolded ? '' : band.bands.map(renderWeekBand).join('')}
         ${days.map((d, i) => `
-          <div class="allday-cell" style="grid-column:${i + 2};grid-row:${band.laneCount + 1}">
+          <div class="allday-cell" style="grid-column:${i + 2};grid-row:${laneCount + 1}">
             ${holidaysOnDay(d).map((h) => `
               <div class="allday-holiday" style="--holi-color:${esc(h.color)};--holi-ink:${esc(getReadableTextColor(h.color))}" title="${esc(h.name)}">
                 <span>${esc(h.name)}</span>
@@ -4358,8 +4468,10 @@ function renderWeekView(container) {
             `).join('')}
             ${scheduleChips[i].map((entry) => renderScheduleChip(entry, 'allday-holiday', { showFullRange: true, clickable: true })).join('')}
             ${waste[i].map((occ) => renderWasteChip(occ)).join('')}
+            ${bandsFolded ? bandEvs[i].map((ev) => renderAllDayEvent(ev, d)).join('') : ''}
             ${alldayEvs[i].map((ev) => renderAllDayEvent(ev, d)).join('')}
             ${tasksOnDay(d).map(renderTaskChip).join('')}
+            ${alldayMore(alldayCounts[i])}
           </div>
         `).join('')}
       </div>
@@ -4429,7 +4541,20 @@ function renderWeekView(container) {
     },
   });
 
-  container.querySelector('.allday-row').addEventListener('click', (e) => {
+  const alldayRow = container.querySelector('.allday-row');
+  alldayRow.addEventListener('click', (e) => {
+    const foldToggle = e.target.closest('[data-allday-toggle]');
+    if (foldToggle) {
+      state.alldayExpanded = !alldayRow.classList.contains('is-expanded');
+      alldayRow.classList.toggle('is-expanded', state.alldayExpanded);
+      for (const btn of alldayRow.querySelectorAll('[data-allday-toggle]')) {
+        btn.setAttribute('aria-expanded', String(state.alldayExpanded));
+      }
+      // Die „+n"-Knoepfe verschwinden beim Aufklappen: der Fokus bleibt bei
+      // der Beschriftung, die die Zeile wieder zuklappt.
+      if (foldToggle.classList.contains('allday-more')) alldayRow.querySelector('.calendar-all-day-label--toggle')?.focus();
+      return;
+    }
     if (handleCalendarTaskToggle(e)) return;
     if (handleCalendarEventToggle(e)) return;
     const taskChip = e.target.closest('.cal-task-chip');
@@ -5576,24 +5701,30 @@ function availableLayers() {
   return rows;
 }
 
-/** Die Personenzeilen des Filterblatts: Name, Haekchen und die Scheibe mit Initialen. */
-function personFilterRowsHtml(people) {
-  return people.map((u) => toggleRowHtml({
+/**
+ * Die Personen des Filterblatts als CHIPS (D2, utils/filter-sheet.js): je
+ * Person ein Chip mit ihrer Scheibe, dahinter „Nicht zugewiesen" (#1064).
+ *
+ * Leeres Set heisst ALLE - dann ist KEIN Chip an, wie im Aufgabenblatt. Bis
+ * zum geteilten Baustein standen hier Haken, die bei „alle" samt und sonders
+ * an waren; das erste Abwaehlen waehlte die uebrigen aus. Ein Chip sagt das
+ * Gegenteil und ist damit lesbarer: an ist, wonach gefiltert wird.
+ */
+function personFilterChipsHtml(people) {
+  const items = people.map((u) => ({
+    value: String(u.id),
     label: u.display_name ?? '',
-    // Leeres Set heisst ALLE - die Haekchen stehen dann auf „an", weil genau
-    // das der sichtbare Zustand ist. Wer das erste abwaehlt, waehlt damit die
-    // uebrigen aus; das ist die Lesart, die Apple in derselben Liste hat.
-    checked: state.people.size === 0 || state.people.has(u.id),
-    // ZWEI NAMEN FUER DIESELBE FARBE, und das ist kein Tippfehler in einer
-    // der beiden Quellen: `/family/members` liefert die Spalte roh als
-    // `avatar_color`, waehrend `assigned_users` sie im JSON auf `color`
-    // umbenennt (services/calendar-events.js:17). Wer nur einen der beiden
-    // Namen liest, bekommt an einer der beiden Stellen `undefined` - hier
-    // stand zuerst `u.color` und die Scheiben blieben in jeder Zeile leer.
+    active: state.people.has(u.id),
+    // ZWEI NAMEN FUER DIESELBE FARBE: `/family/members` liefert sie roh als
+    // `avatar_color`, `assigned_users` benennt sie auf `color` um
+    // (services/calendar-events.js:17).
     swatchColor: u.avatar_color ?? u.color ?? null,
     swatchLabel: initials(u.display_name),
-    attrs: { 'data-filter-person': String(u.id) },
-  })).join('');
+  }));
+  if (people.length) {
+    items.push({ value: UNASSIGNED, label: t('calendar.filterUnassigned'), active: state.people.has(UNASSIGNED) });
+  }
+  return filterChipsHtml('person', t('calendar.filtersPeople'), items);
 }
 
 /**
@@ -5610,6 +5741,7 @@ function buildLayerRowsHtml(layers) {
       label: row.label,
       checked: row.checked,
       swatchColor: row.color,
+      control: 'switch',
       attrs: { 'data-filter-layer': row.key },
     });
     if (row.key !== 'waste' || !state.layerWaste) return rowHtml;
@@ -5617,6 +5749,7 @@ function buildLayerRowsHtml(layers) {
       label: wt.name ?? '',
       checked: state.wasteVisibleTypeIds.size === 0 || state.wasteVisibleTypeIds.has(wt.id),
       swatchColor: wt.color,
+      control: 'switch',
       attrs: { 'data-filter-waste-type': String(wt.id) },
     })).join('');
     return typeRows ? `${rowHtml}<div class="cal-filters__nested">${typeRows}</div>` : rowHtml;
@@ -5706,7 +5839,8 @@ async function copyText(value, toastKey) {
   input.readOnly = true;
   input.style.position = 'fixed';
   input.style.opacity = '0';
-  document.body.appendChild(input);
+  // Im offenen Dialog, sonst nimmt das Feld keinen Fokus (D7).
+  overlayHost().appendChild(input);
   const previousFocus = document.activeElement;
   let copied = false;
   try {
@@ -5849,12 +5983,40 @@ async function openLocalCalendarsModal() {
   });
 }
 
+/**
+ * Das Filterblatt des Kalenders - der EINE Baustein (utils/filter-sheet.js,
+ * D2) wie in den Aufgaben: Personen als Chips mit „Mir zugewiesen" als erstem
+ * Schalter darueber, Kalender und Ebenen als Schalter, die Darstellung
+ * abgesetzt am Ende, „Filter zuruecksetzen" in der Fusszeile. Am Desktop
+ * haengt es als Popover am Knopf (`anchor`), schmaler ist es das Blatt.
+ *
+ * Bis zu diesem Umbau baute der Kalender Blatt und Popover selbst (Haken
+ * statt Chips, eigene Popover-Klasse, eigener Reset-Text) - das Vorbild, von
+ * dem der Baustein abgeschrieben war, lief daneben weiter.
+ */
 function openCalendarFilters() {
   const layers = availableLayers();
   const people = state.users ?? [];
   const sources = calendarSources();
+  const asPopover = filtersAsPopover();
 
-  const layerRows = buildLayerRowsHtml(layers);
+  const groups = [];
+
+  // PERSONEN ZUERST, „Mir zugewiesen" als erster Schalter darin - dieselbe
+  // Stelle wie im Aufgabenblatt. Am Wandtablett nicht: „mir" waere das
+  // Display-Konto, dem nie ein Termin zugewiesen ist.
+  const meRow = (people.length > 1 && state.currentUserId != null && !isDisplayUser(state.user))
+    ? toggleRowHtml({
+      label: t('calendar.assignedToMe'),
+      icon: 'user',
+      checked: state.assignedToMe,
+      control: 'switch',
+      attrs: { 'data-filter-mine': 'true' },
+    })
+    : '';
+  if (meRow || people.length) {
+    groups.push({ heading: t('calendar.filtersPeople'), html: meRow + (people.length ? personFilterChipsHtml(people) : '') });
+  }
 
   // Je Kalender und Abo ein Schalter (#1064), mit der Farbe, die seine Termine
   // tragen. Neben den Ebenen, nicht in ihnen: eine Ebene ist eine Sorte Eintrag,
@@ -5863,115 +6025,30 @@ function openCalendarFilters() {
     label: s.name || t('calendar.detailCalendar'),
     checked: !state.hiddenSources.has(s.key),
     swatchColor: s.color,
+    control: 'switch',
     attrs: { 'data-filter-source': s.key },
   })).join('');
+  if (sourceRows) groups.push({ heading: t('calendar.filtersSources'), html: sourceRows });
+
+  const layerRows = buildLayerRowsHtml(layers);
+  if (layerRows) groups.push({ heading: t('calendar.filtersLayers'), html: `<div id="cal-filters-layers">${layerRows}</div>` });
 
   // Der Anzeigemodus des Schichtplans ist KEIN Filter - er nimmt nichts weg,
-  // er zeigt dasselbe anders. Er steht trotzdem hier, weil er im Kopf als
-  // Text-Chip neben den Ebenen hing und dort dieselbe Zeile kostete; im Blatt
-  // hat er als beschrifteter Schalter zum ersten Mal einen Zustand, den man
-  // ablesen kann statt ihn aus der Knopfbeschriftung zu erschliessen (der
-  // Chip hiess „Volle Bloecke", wenn er sie NICHT zeigte).
-  // S-16: die EN-Beschriftung wurde von "Full blocks" (Insider-Jargon,
-  // erklaerte sich nur ueber den vorherigen Chip-Text) auf eine Beschreibung
-  // der WIRKUNG umbenannt; eine eigene Hinweiszeile darunter nennt zusaetzlich
-  // den AUS-Zustand explizit (das ist der Vorgabewert - S-16 aendert ihn
-  // nicht), damit der Schalter vorhersagbar ist, ohne ihn erst umzulegen.
-  const scheduleDisplayRow = scheduleEnabled()
-    ? toggleRowHtml({
-      label: t('schedule.fullBlocks'),
-      checked: state.scheduleDisplay === 'blocks',
-      attrs: { 'data-filter-schedule-display': 'true' },
-    }) + `<p class="form-hint">${t('schedule.fullBlocksHint')}</p>`
-    : '';
-
-  const meRow = (people.length > 1 && state.currentUserId != null && !isDisplayUser(state.user))
-    ? toggleRowHtml({
-      label: t('calendar.assignedToMe'),
-      checked: state.assignedToMe,
-      attrs: { 'data-filter-mine': 'true' },
-    })
-    : '';
-
-  const personRows = personFilterRowsHtml(people);
-
-  // „Nicht zugewiesen" als Eintrag der Personenachse (#1064): dieselbe Lesart
-  // wie eine Person - leeres Set heisst alle, also steht er dann auf „an".
-  const unassignedRow = people.length ? toggleRowHtml({
-    label: t('calendar.filterUnassigned'),
-    checked: state.people.size === 0 || state.people.has(UNASSIGNED),
-    attrs: { 'data-filter-person': UNASSIGNED },
-  }) : '';
-
-  const content = `
-    <div class="cal-filters">
-      ${layerRows ? `
-        <section class="cal-filters__group">
-          <h3 class="cal-filters__heading">${t('calendar.filtersLayers')}</h3>
-          <div id="cal-filters-layers">${layerRows}</div>
-        </section>
-      ` : ''}
-      ${sourceRows ? `
-        <section class="cal-filters__group">
-          <h3 class="cal-filters__heading">${t('calendar.filtersSources')}</h3>
-          ${sourceRows}
-        </section>
-      ` : ''}
-      ${(meRow || personRows) ? `
-        <section class="cal-filters__group">
-          <h3 class="cal-filters__heading">${t('calendar.filtersPeople')}</h3>
-          ${meRow}
-          ${personRows}
-          ${unassignedRow}
-        </section>
-      ` : ''}
-      ${scheduleDisplayRow ? `
-        <section class="cal-filters__group">
-          <h3 class="cal-filters__heading">${t('calendar.filtersDisplay')}</h3>
-          ${scheduleDisplayRow}
-        </section>
-      ` : ''}
-    </div>
-    <!-- DAS AUFHEBEN STEHT IN DER FUSSZEILE, nicht unter der letzten Gruppe
-         (Critique 2026-09-24). Am Ende des Koerpers lag es bei 1280x800 unter
-         der Falz des 752px hohen Blatts: wer alles zuruecknehmen wollte, musste
-         erst an allen Schaltern vorbeiscrollen. mountFooter() hebt die Zeile
-         aus dem scrollenden Koerper an den Rand des Blatts - auf jeder Breite
-         sichtbar, ohne zu scrollen. -->
-    <div class="modal-panel__footer">
-      <button type="button" class="btn btn--secondary" id="cal-filters-reset">
-        ${t('calendar.filtersReset')}
-      </button>
-    </div>
-  `;
-
-  // `dirtyGuard: false`, weil dieses Blatt ein ANSICHTSBLATT ist und kein
-  // Formular: jeder Schalter darin wirkt beim Umlegen sofort und ist im selben
-  // Moment gespeichert (die `change`-Handler unten schreiben Zustand und
-  // Speicher direkt). Es gibt hier keinen Speichern-Knopf - und damit auch
-  // nichts, was ein „Aenderungen verwerfen?" beim Schliessen verwerfen koennte.
-  // Der Standard-Waechter fragte trotzdem, sobald man eine Ebene ein- oder
-  // ausblendete, und sein „Verwerfen" nahm die Ebene dann nicht zurueck.
-  // AM DESKTOP EIN POPOVER AM KNOPF (Re-Critique 2026-09-28, A2 P2-7): das
-  // zentrierte Blatt mit Blur-Backdrop verdeckte genau den Kalender, dessen
-  // Aenderung ein Haken live ausloest. Ab 1024px haengen die Filter ohne
-  // Abdunkeln am Filterknopf (Apple Kalender); schmaler bleibt das Blatt.
-  const asPopover = filtersAsPopover();
-  // Ein Klick auf den Knopf bei offenem Popover schliesst es zuerst per
-  // Light-Dismiss (pointerdown) - derselbe Klick oeffnete es sonst sofort
-  // wieder. So wirkt der Knopf wie ein Umschalter.
-  if (asPopover && Date.now() - filtersPopoverClosedAt < 300) return;
-  let panel;
-  let closeFilters;
-  if (asPopover) {
-    panel = openFiltersPopover(content);
-    closeFilters = () => panel.hidePopover?.();
-  } else {
-    openSharedModal({ title: t('calendar.filters'), content, size: 'sm', initialFocus: 'none', dirtyGuard: false });
-    panel = document.querySelector('#shared-modal-overlay .modal-panel');
-    closeFilters = () => closeModal({ force: true });
+  // er zeigt dasselbe anders. Deshalb abgesetzt am Ende (`variant: 'view'`),
+  // wie „Gruppieren nach" im Aufgabenblatt. S-16: die Beschriftung nennt die
+  // WIRKUNG, die Hinweiszeile darunter den AUS-Zustand (Vorgabe).
+  if (scheduleEnabled()) {
+    groups.push({
+      heading: t('calendar.filtersDisplay'),
+      variant: 'view',
+      html: toggleRowHtml({
+        label: t('schedule.fullBlocks'),
+        checked: state.scheduleDisplay === 'blocks',
+        control: 'switch',
+        attrs: { 'data-filter-schedule-display': 'true' },
+      }) + `<p class="form-hint">${t('schedule.fullBlocksHint')}</p>`,
+    });
   }
-  if (!panel) return;
 
   const LAYER_STATE = {
     holidays:  ['layerHolidays',  LAYER_HOLIDAYS_KEY],
@@ -5981,10 +6058,16 @@ function openCalendarFilters() {
     birthdays: ['layerBirthdays', LAYER_BIRTHDAYS_KEY],
   };
 
-  panel.addEventListener('change', (e) => {
-    const input = e.target;
-    if (!(input instanceof HTMLInputElement)) return;
+  // Nach jeder Wahl: Kopf (Zaehler) und Ansicht neu. Der Kopf baut seinen
+  // Knopf neu - offen bleibt das Popover trotzdem, es sucht ihn per `anchor`.
+  const afterChange = () => {
+    renderToolbar();
+    if (asPopover) _container?.querySelector('#cal-filters')?.setAttribute('aria-expanded', 'true');
+    renderView();
+  };
 
+  const onChange = (input, panel) => {
+    if (!(input instanceof HTMLInputElement)) return;
     const layerKey = input.dataset.filterLayer;
     if (layerKey && LAYER_STATE[layerKey]) {
       const [field, storageKey] = LAYER_STATE[layerKey];
@@ -6004,7 +6087,8 @@ function openCalendarFilters() {
     } else if (input.dataset.filterWasteType) {
       const id = Number(input.dataset.filterWasteType);
       const options = wasteTypeOptions();
-      // Derselbe Sprung aus „alle" heraus wie beim Personenfilter oben.
+      // Der Sprung aus „alle" heraus: das erste Abwaehlen macht aus dem leeren
+      // Set die Menge der uebrigen.
       if (state.wasteVisibleTypeIds.size === 0) {
         for (const wt of options) state.wasteVisibleTypeIds.add(wt.id);
       }
@@ -6027,33 +6111,13 @@ function openCalendarFilters() {
         state.hiddenSources.set(key, { name: quelle?.name ?? '', color: quelle?.color ?? null });
       }
       persistHiddenSources();
-    } else if (input.dataset.filterPerson) {
-      const raw = input.dataset.filterPerson;
-      const id = raw === UNASSIGNED ? UNASSIGNED : Number(raw);
-      // Der Sprung aus „alle" heraus: das erste Abwaehlen macht aus dem leeren
-      // Set die Menge der UEBRIGEN. Ohne diesen Schritt haette ein Klick auf
-      // ein Haekchen, das „alle" bedeutet, gar nichts getan. „Nicht zugewiesen"
-      // gehoert zu den uebrigen (#1064).
-      if (state.people.size === 0) {
-        for (const u of state.users ?? []) state.people.add(u.id);
-        state.people.add(UNASSIGNED);
-      }
-      if (input.checked) state.people.add(id);
-      else state.people.delete(id);
-      // Wieder ALLE gewaehlt heisst wieder „kein Filter" - sonst bliebe ein
-      // Filter aktiv, der nichts wegnimmt, und der Zaehler am Knopf loege.
-      if (state.people.size === (state.users ?? []).length + 1) state.people.clear();
-      persistPeopleFilter();
     } else {
       return;
     }
+    afterChange();
+  };
 
-    renderToolbar();
-    if (asPopover) _container?.querySelector('#cal-filters')?.setAttribute('aria-expanded', 'true');
-    renderView();
-  });
-
-  panel.querySelector('#cal-filters-reset')?.addEventListener('click', () => {
+  const onReset = () => {
     state.layerHolidays = true;
     state.layerSchool = true;
     state.layerSchedule = true;
@@ -6076,82 +6140,41 @@ function openCalendarFilters() {
       localStorage.setItem(ASSIGNED_TO_ME_KEY, '0');
     } catch {}
     persistPeopleFilter();
-    closeFilters();
     renderToolbar();
     renderView();
+  };
+
+  // `dirtyGuard: false` setzt der Baustein: ein ANSICHTSBLATT, jeder Schalter
+  // wirkt beim Umlegen sofort, es gibt nichts zu verwerfen.
+  const panel = openFilterSheet({
+    title: t('calendar.filters'),
+    groups,
+    onChange,
+    onReset,
+    anchor: () => _container?.querySelector('#cal-filters') ?? null,
   });
-}
+  if (!panel) return;
 
-const FILTERS_POPOVER_QUERY = '(min-width: 1024px)';
-let filtersPopoverClosedAt = 0;
-
-function filtersAsPopover() {
-  if (typeof HTMLElement === 'undefined' || !('popover' in HTMLElement.prototype)) return false;
-  return window.matchMedia?.(FILTERS_POPOVER_QUERY)?.matches === true;
-}
-
-/**
- * Die Filter als natives Popover (Top-Layer, Light-Dismiss und Esc vom
- * Browser) am Filterknopf. Die Position rechnet JS - dieselbe Rechnung wie
- * utils/popover-menu.js (rechtsbuendig unter dem Ausloeser, im Fenster
- * gehalten); CSS-Anchor-Positioning fehlt noch in zu vielen Browsern. Der
- * Knopf wird bei jedem Haken NEU gebaut (renderToolbar()), deshalb sucht jede
- * Stelle ihn frisch statt eine alte Referenz zu halten.
- */
-function openFiltersPopover(content) {
-  document.getElementById('cal-filters-popover')?.remove();
-  const trigger = () => _container?.querySelector('#cal-filters') ?? null;
-  const pop = document.createElement('div');
-  pop.id = 'cal-filters-popover';
-  pop.className = 'cal-filters-popover';
-  pop.setAttribute('popover', 'auto');
-  pop.setAttribute('role', 'dialog');
-  pop.setAttribute('aria-labelledby', 'cal-filters-popover-title');
-  pop.insertAdjacentHTML('beforeend', `<h2 class="cal-filters-popover__title" id="cal-filters-popover-title">${esc(t('calendar.filters'))}</h2>${content}`);
-  document.body.appendChild(pop);
-  window.lucide?.createIcons({ el: pop });
-  // DER FOKUS GEHT AN DEN KNOPF ZURUECK, und zwar VOR dem Schliessen: nach
-  // Esc fiel er sonst aus dem verschwindenden Popover auf den Scrollport
-  // (gemessen: #main-content), bevor `toggle` ueberhaupt lief. Ein Klick
-  // daneben auf ein anderes Bedienelement setzt seinen Fokus danach trotzdem
-  // selbst - der Light-Dismiss laeuft auf pointerdown, der Fokus erst mit
-  // mousedown.
-  pop.addEventListener('beforetoggle', (event) => {
-    if (event.newState === 'closed' && pop.contains(document.activeElement)) trigger()?.focus();
+  // PERSONEN-CHIPS: Klick statt `change`. Leeres Set heisst alle; wer wieder
+  // ALLE waehlt, hat keinen Filter mehr - sonst bliebe einer aktiv, der nichts
+  // wegnimmt, und der Zaehler am Knopf loege.
+  panel.addEventListener('click', (e) => {
+    const chip = e.target.closest?.('[data-filter="person"]');
+    if (!chip) return;
+    const raw = chip.dataset.value;
+    const id = raw === UNASSIGNED ? UNASSIGNED : Number(raw);
+    if (state.people.has(id)) state.people.delete(id);
+    else state.people.add(id);
+    if (state.people.size === people.length + 1) state.people.clear();
+    persistPeopleFilter();
+    panel.querySelectorAll('[data-filter="person"]').forEach((el) => {
+      const v = el.dataset.value === UNASSIGNED ? UNASSIGNED : Number(el.dataset.value);
+      const on = state.people.has(v);
+      el.classList.toggle('filter-chip--active', on);
+      el.setAttribute('aria-pressed', String(on));
+    });
+    afterChange();
   });
-  pop.addEventListener('toggle', (event) => {
-    const open = event.newState === 'open';
-    trigger()?.setAttribute('aria-expanded', String(open));
-    if (open) return;
-    filtersPopoverClosedAt = Date.now();
-    // Erst NACH dem Ausgang aus dem Baum (calendar.css: --duration-xs, das
-    // Popover bleibt per `allow-discrete` so lange im Top-Layer). Ein
-    // sofortiges remove() schnitt ihn ab. Ein erneutes Oeffnen davor raeumt
-    // den alten Knoten selbst (erste Zeile von openFiltersPopover).
-    setTimeout(() => pop.remove(), durationToken('--duration-xs', 120) + 40);
-  });
-  pop.showPopover();
-  positionFiltersPopover(pop, trigger());
-  trigger()?.setAttribute('aria-expanded', 'true');
-  pop.querySelector('input, button')?.focus();
-  return pop;
-}
-
-function positionFiltersPopover(pop, anchor) {
-  if (!anchor) return;
-  const rect = anchor.getBoundingClientRect();
-  const gap = 4;
-  const margin = 8;
-  const width = pop.offsetWidth || 360;
-  const left = Math.min(Math.max(margin, rect.right - width), window.innerWidth - width - margin);
-  const top = rect.bottom + gap;
-  pop.style.left = `${Math.round(left)}px`;
-  pop.style.top = `${Math.round(top)}px`;
-  pop.style.maxHeight = `${Math.round(window.innerHeight - top - margin)}px`;
-  // Es waechst aus der Ecke am Knopf (calendar.css): der Ursprung ist die
-  // Stelle des Popovers, unter der die Knopfkante steht - auch wenn das
-  // Fenster es von dort weggeschoben hat.
-  pop.style.transformOrigin = `${Math.round(Math.min(Math.max(0, rect.right - left), width))}px 0`;
 }
 
 /**
@@ -6258,54 +6281,45 @@ function persistHiddenSources() {
   } catch {}
 }
 
-function openCalendarSearch() {
-  if (searchActive) {
-    _container.querySelector('#cal-search-input')?.focus();
+/**
+ * DIE SUCHE IST DAS FELD IM KOPF (D1, Critique 2026-10-16).
+ *
+ * Bis dahin deckte ein eigener Knopf eine Suchleiste UNTER dem Kopf auf, mit
+ * eigenem Schliessen-Knopf - das einzige Modul ohne das Feld im Kopf. Jetzt
+ * steht `renderPageSearch` im Werkzeug-Slot: am Desktop als Feld, unter 768px
+ * in der Icon-Form der Shell. Was bleibt, ist das Verhalten einer
+ * Volltextsuche am Server: ab dem ersten Zeichen ersetzen Hinweis, Treffer
+ * oder Leermeldung die Ansicht; das leere Feld (Loeschen-Knopf, Esc oder
+ * Zuruecktippen) gibt sie zurueck. Esc im leeren Feld laesst den Fokus los.
+ */
+function wireCalendarSearch(bar, { focus = false } = {}) {
+  const handle = wirePageSearch(bar, { id: 'cal-search-input', onQuery: onCalendarSearchInput, delay: 220 });
+  const input = handle?.input;
+  if (!input) return;
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    if (input.value) {
+      handle.clear();
+      closeCalendarSearch();
+    } else {
+      input.blur();
+    }
+  });
+  if (focus) input.focus();
+}
+
+function onCalendarSearchInput(raw) {
+  if (!String(raw ?? '').trim()) {
+    closeCalendarSearch();
     return;
   }
-  const toolbar = _container.querySelector('#cal-toolbar');
-  if (!toolbar) return;
-  searchActive  = true;
-  searchQuery   = '';
-  searchResults = [];
-
-  const toggle = _container.querySelector('#cal-search');
-  toggle?.setAttribute('aria-expanded', 'true');
-  // Erst jetzt gibt es ein Ziel, also erst jetzt der Verweis darauf.
-  toggle?.setAttribute('aria-controls', 'cal-search-bar');
-  toggle?.classList.add('cal-toolbar__search-btn--active');
-
-  toolbar.insertAdjacentHTML('afterend', `
-    <div class="cal-search" id="cal-search-bar" role="search">
-      ${renderPageSearch({
-        id: 'cal-search-input',
-        label: t('calendar.searchPlaceholder'),
-        clearLabel: t('common.searchClear'),
-        className: 'cal-search__field',
-      })}
-      <button class="btn btn--icon cal-search__close" id="cal-search-close"
-              aria-label="${esc(t('calendar.searchClose'))}" title="${esc(t('calendar.searchClose'))}">
-        <i data-lucide="x" aria-hidden="true"></i>
-      </button>
-      <span id="cal-search-live" class="sr-only" role="status" aria-live="polite"></span>
-    </div>
-  `);
-
-  const bar   = _container.querySelector('#cal-search-bar');
-  const input = bar.querySelector('#cal-search-input');
-  if (window.lucide) lucide.createIcons({ el: bar });
-
-  renderCalendarSearchState('hint');
-
-  // Die geteilte Verdrahtung: sie blendet den Loeschen-Knopf der Kapsel ein und
-  // leert mit ihm die Suche (page-search.css unterdrueckt das native Kreuz).
-  wirePageSearch(bar, { id: 'cal-search-input', onQuery: runCalendarSearch, delay: 220 });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); closeCalendarSearch(); }
-  });
-  bar.querySelector('#cal-search-close').addEventListener('click', () => closeCalendarSearch());
-
-  input.focus();
+  if (!searchActive) {
+    searchActive  = true;
+    searchQuery   = '';
+    searchResults = [];
+  }
+  runCalendarSearch(raw);
 }
 
 function closeCalendarSearch({ restoreView = true } = {}) {
@@ -6313,29 +6327,17 @@ function closeCalendarSearch({ restoreView = true } = {}) {
   searchActive  = false;
   searchQuery   = '';
   searchResults = [];
-  _container.querySelector('#cal-search-bar')?.remove();
-
-  const toggle = _container.querySelector('#cal-search');
-  toggle?.setAttribute('aria-expanded', 'false');
-  // Die Leiste ist gerade entfernt worden - der Verweis geht mit ihr.
-  toggle?.removeAttribute('aria-controls');
-  toggle?.classList.remove('cal-toolbar__search-btn--active');
-
+  // Das Feld leert sich mit (ein gefundener Termin, ein Ansichtswechsel):
+  // ein stehender Begriff ueber der wiederhergestellten Ansicht behauptete
+  // eine Suche, die nicht mehr laeuft.
+  const input = _container?.querySelector?.('#cal-search-input');
+  if (input && input.value) {
+    input.value = '';
+    const clear = input.closest('.page-search__control')?.querySelector('[data-page-search-clear]');
+    if (clear) clear.hidden = true;
+  }
+  setSearchLive('');
   if (restoreView) renderView();
-  headerToolFocusTarget(toggle)?.focus();
-}
-
-/**
- * Wohin der Fokus zurueckgeht, wenn ein Werkzeug des Kopfs fertig ist. Sonst
- * das Werkzeug selbst - eingeklappt am Telefon (R17) ist es aber ins
- * Ansichtsmenue gefaltet und nicht im Bild: `focus()` auf ein `display: none`
- * tut nichts, und der Fokus fiele nach Esc in der Suche auf das Dokument.
- * Dann geht er an den Knopf, ueber den das Werkzeug erreicht wurde.
- */
-function headerToolFocusTarget(tool) {
-  if (!tool) return null;
-  if (tool.getClientRects().length > 0) return tool;
-  return tool.closest('.cal-toolbar')?.querySelector('[data-collapse-fold-menu]') ?? tool;
 }
 
 async function runCalendarSearch(raw) {
@@ -6513,13 +6515,15 @@ async function openFoundEvent(ev) {
 }
 
 export const __test = {
+  // Sonde 19 (#882): eine Zeile nur, wenn sie passt.
+  syncToolbarFit,
   // R17 Schritt 8: der Fokus nach der Suche, wenn ihr Knopf gefaltet ist.
   closeSearchForTest(container) { _container = container; searchActive = true; closeCalendarSearch({ restoreView: false }); },
   // #1504: der Wechsel ueber die Telefonschwelle, gemessen am echten Renderer.
   onPhoneQueryChange,
   setContainerForTest(container) { _container = container; },
   // test:initials: die Scheibe einer Person im Filterblatt.
-  personFilterRowsHtml,
+  personFilterChipsHtml,
   playViewSwap,
   eventBlockAttrs,
   // R10 L5: Liste + Detail der Agenda - Auswahl-ID und ihr Termin.

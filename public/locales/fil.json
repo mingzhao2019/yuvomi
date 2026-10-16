@@ -24,7 +24,6 @@
         "filtersOpen": "Buksan ang mga filter",
         "filtersActive": "{{count}} aktibong filter",
         "filtersActive_one": "{{count}} aktibong filter",
-        "filtersReset": "Alisin ang lahat ng filter",
         "filtersResetDefault": "I-reset ang mga filter",
         "close": "Isara",
         "add": "Idagdag",
@@ -67,6 +66,7 @@
         "errorServer": "May error sa server. Pakisubukang muli mamaya.",
         "errorRestoreInProgress": "May nire-restore na backup ngayon. Hindi na-save ang iyong pagbabago, subukang muli pagkalipas ng isang minuto.",
         "errorTimeout": "Masyadong tumagal ang koneksyon. Pakisubukang muli.",
+        "errorRateLimited": "Masyadong maraming kahilingan ngayon. Maghintay sandali, saka subukang muli.",
         "requiredFields": "Pakipunan ang lahat ng kinakailangang field.",
         "invalidInput": "Hindi wastong input.",
         "togglePasswordVisibility": "I-toggle ang pagpapakita ng password",
@@ -1173,7 +1173,6 @@
         "filtersPeople": "Mga tao",
         "filtersActive": "{{count}} aktibong filter",
         "filtersActive_one": "{{count}} aktibong filter",
-        "filtersReset": "Alisin ang lahat ng filter",
         "filtersDisplay": "Pagpapakita",
         "agendaDayEmpty": "Walang nakaplano",
         "openInMap": "Buksan sa Maps",
@@ -3365,7 +3364,8 @@
         "unsavedChanges": "Itapon ang mga pagbabago?",
         "unsavedChangesDetail": "Mawawala ang mga inilagay mo sa form na ito.",
         "discardChanges": "Itapon",
-        "moreSettings": "Higit pang setting"
+        "moreSettings": "Higit pang setting",
+        "moreDetails": "Iba pang detalye"
     },
     "rrule": {
         "freqNone": "Walang pag-uulit",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Araw"
+            },
+            "intensity": {
+                "none": "Hindi tinukoy",
+                "low": "Magaan",
+                "moderate": "Katamtaman",
+                "high": "Mataas"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "Odometer sa paglipas ng panahon",
         "detailPaneLabel": "Detalye ng gamit",
         "pickOne": "Pumili ng gamit",
-        "pickOneHint": "Dito lalabas ang mga detalye, deadline at kasaysayan."
+        "pickOneHint": "Dito lalabas ang mga detalye, deadline at kasaysayan.",
+        "moreDetailsHint": "Pagbili, warranty, larawan, mga dokumento"
     },
     "documentAttach": {
         "label": "Mga kalakip",

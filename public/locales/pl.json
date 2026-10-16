@@ -26,7 +26,6 @@
         "filtersActive_one": "1 aktywny filtr",
         "filtersActive_few": "{{count}} aktywne filtry",
         "filtersActive_many": "Aktywne filtry: {{count}}",
-        "filtersReset": "Wyczyść wszystkie filtry",
         "filtersResetDefault": "Wyczyść filtry",
         "close": "Zamknij",
         "add": "Dodaj",
@@ -69,6 +68,7 @@
         "errorServer": "Błąd serwera. Spróbuj ponownie później.",
         "errorRestoreInProgress": "Trwa właśnie przywracanie kopii zapasowej. Twoja zmiana nie została zapisana, spróbuj ponownie za minutę.",
         "errorTimeout": "Połączenie trwało zbyt długo. Spróbuj ponownie.",
+        "errorRateLimited": "Zbyt wiele żądań w tej chwili. Poczekaj chwilę i spróbuj ponownie.",
         "requiredFields": "Wypełnij wszystkie wymagane pola.",
         "invalidInput": "Nieprawidłowe dane.",
         "togglePasswordVisibility": "Pokaż/ukryj hasło",
@@ -1308,6 +1308,8 @@
         "filtersActive": "Aktywne filtry: {{count}}",
         "filtersActive_one": "1 aktywny filtr",
         "filtersReset": "Wyczyść wszystkie filtry",
+        "filtersActive_few": "{{count}} aktywne filtry",
+        "filtersActive_many": "Aktywne filtry: {{count}}",
         "filtersDisplay": "Wyświetlanie",
         "agendaDayEmpty": "Nic zaplanowane",
         "openInMap": "Otwórz w mapach",
@@ -3569,7 +3571,8 @@
         "unsavedChanges": "Odrzucić zmiany?",
         "unsavedChangesDetail": "Twoje wpisy w tym formularzu zostaną utracone.",
         "discardChanges": "Odrzuć",
-        "moreSettings": "Więcej ustawień"
+        "moreSettings": "Więcej ustawień",
+        "moreDetails": "Więcej informacji"
     },
     "rrule": {
         "freqNone": "Bez powtarzania",
@@ -5407,6 +5410,12 @@
             },
             "col": {
                 "day": "Dzień"
+            },
+            "intensity": {
+                "none": "Nie podano",
+                "low": "Niska",
+                "moderate": "Umiarkowana",
+                "high": "Wysoka"
             }
         },
         "export": {
@@ -6508,7 +6517,8 @@
         "trackedDateInDays_few": "Za {{count}} dni",
         "trackedDateInDays_many": "Za {{count}} dni",
         "trackedDateOverdueDays_few": "{{count}} dni po terminie",
-        "trackedDateOverdueDays_many": "{{count}} dni po terminie"
+        "trackedDateOverdueDays_many": "{{count}} dni po terminie",
+        "moreDetailsHint": "Zakup, gwarancja, zdjęcie, dokumenty"
     },
     "documentAttach": {
         "label": "Załączniki",

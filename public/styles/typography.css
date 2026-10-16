@@ -205,7 +205,6 @@
 .event-icon-picker__category-label,
 .budget-chart-block__title,
 .loan-report__section-title,
-.contact-group__header,
 .day-header__name,
 .meal-slot__type-label,
 .week-gutter-label {
@@ -234,6 +233,7 @@
  * ("Haushalt", "Schule") lasen in Versal + Tracking geschrien (Critique P2).
  * ------------------------------------------------------------------------ */
 .nav-section-label,
+.more-sheet__section-label,
 .settings-shell__navigation-heading,
 .kanban-col__title {
   font-size: var(--text-xs);

@@ -239,7 +239,9 @@ test('Essensplan bei `read`: die Karte oeffnet die Leseansicht und traegt keine 
   // `delete-meal` stand hier bis R18 (2026-10-07): die Karte traegt keinen
   // Papierkorb mehr, Loeschen lebt im Dialog (deleteMeal, unten geprueft).
   assert.doesNotMatch(voll, /delete-meal/, 'die Karte traegt auch mit Schreibrecht keinen Papierkorb');
-  for (const erwartet of ['edit-meal', 'transfer-meal', 'add-meal']) {
+  // `add-meal` steht seit D5 (Critique 2026-10-16) nur noch in LEEREN Zellen -
+  // dort prueft ihn „ein leerer Platz ist nur Zustand" unten im Gegenfall.
+  for (const erwartet of ['edit-meal', 'transfer-meal']) {
     assert.match(voll, new RegExp(`data-action="${erwartet}"`), `Gegenfall: ${erwartet} steht mit Schreibrecht da`);
   }
   assert.match(voll, /meal-card__drag/, 'Gegenfall: der Ziehgriff');
@@ -491,8 +493,11 @@ test('Essensplan: die Zieh-Verdrahtung folgt einem Rechtewechsel in beide Richtu
       };
       const zeigerRunter = (k) => {
         let verhindert = 0;
+        // Gefangen wird am gedrueckten Element, nicht an der Karte (Mausklick,
+        // Critique 2026-10-16) - der Zaehler sitzt deshalb am Ziel und zaehlt fuer die Karte.
         grid.handler.pointerdown[0]({ pointerType: 'mouse', pointerId: 1, clientX: 5, clientY: 5,
-          target: { closest: (sel) => (sel === '.meal-card' ? k : null) }, preventDefault() { verhindert += 1; } });
+          target: { closest: (sel) => (sel === '.meal-card' ? k : null), setPointerCapture() { k.gefangen += 1; } },
+          preventDefault() { verhindert += 1; } });
         return { gefangen: k.gefangen, verhindert };
       };
       rechte(LESEN);

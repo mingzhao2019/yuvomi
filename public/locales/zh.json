@@ -24,7 +24,6 @@
         "filtersOpen": "打开筛选",
         "filtersActive": "{{count}} 个筛选条件生效",
         "filtersActive_one": "1 个筛选条件生效",
-        "filtersReset": "清除所有筛选",
         "filtersResetDefault": "重置筛选",
         "close": "关闭",
         "add": "添加",
@@ -67,6 +66,7 @@
         "errorServer": "服务器错误。请稍后重试。",
         "errorRestoreInProgress": "正在恢复备份。你的更改未保存，请一分钟后再试。",
         "errorTimeout": "连接超时。请重试。",
+        "errorRateLimited": "当前请求过多。请稍候片刻再重试。",
         "requiredFields": "请填写所有必填字段。",
         "invalidInput": "输入无效。",
         "togglePasswordVisibility": "显示/隐藏密码",
@@ -1159,7 +1159,6 @@
         "filtersPeople": "成员",
         "filtersActive": "{{count}} 个筛选条件生效",
         "filtersActive_one": "1 个筛选条件生效",
-        "filtersReset": "清除所有筛选",
         "filtersDisplay": "显示",
         "agendaDayEmpty": "没有安排",
         "openInMap": "在地图中打开",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "放弃更改？",
         "unsavedChangesDetail": "你在此表单中的输入将丢失。",
         "discardChanges": "放弃",
-        "moreSettings": "更多设置"
+        "moreSettings": "更多设置",
+        "moreDetails": "更多信息"
     },
     "rrule": {
         "freqNone": "不重复",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "日"
+            },
+            "intensity": {
+                "none": "未指定",
+                "low": "低",
+                "moderate": "中",
+                "high": "高"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "里程随时间变化",
         "detailPaneLabel": "物品详情",
         "pickOne": "选择一个物品",
-        "pickOneHint": "详细信息、期限和历史记录会显示在这里。"
+        "pickOneHint": "详细信息、期限和历史记录会显示在这里。",
+        "moreDetailsHint": "购买、保修、照片、文档"
     },
     "documentAttach": {
         "label": "附件",

@@ -436,8 +436,27 @@
    der Blatt-Titel die einzige sichtbare Hauptueberschrift (test:typography).
    -------------------------------------------------------- */
 
-@media (min-width: 768px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .settings-page--leaf .settings-shell-header {
+    display: none;
+  }
+}
+
+/* AB 1024px TRAEGT DER KOPF EINES BLATTS DEN MODULNAMEN (D8, Critique
+ * 2026-10-16): Siegel und Titel wie in jedem Modul, der Rueckweg ist dort
+ * die Seitenleiste. Darunter ist der Kopf der Rueckweg allein. */
+.settings-toolbar__module-title {
+  margin: 0;
+}
+
+@media (max-width: 1023px) {
+  .settings-toolbar__module-title {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .settings-shell-header .settings-toolbar__back {
     display: none;
   }
 }
@@ -1167,7 +1186,7 @@
   /* Die Grundform der Seitenleiste; sichtbar wird sie erst an der Schwelle. */
   .settings-shell__navigation {
     position: sticky;
-    top: calc(var(--space-4) + var(--safe-area-inset-top));
+    top: calc(var(--settings-head-block, 0px) + var(--space-4) + var(--safe-area-inset-top));
     align-self: start;
   }
 }
@@ -1184,10 +1203,11 @@
   .settings-shell__navigation {
     display: block;
     position: sticky;
-    top: calc(var(--space-4) + var(--safe-area-inset-top));
+    top: calc(var(--settings-head-block, 0px) + var(--space-4) + var(--safe-area-inset-top));
     /* Minus `--shell-tail`: die klebende Liste endet ueber dem, was unten
-     * fest steht (Installationsbanner), wie jede klebende Spalte. */
-    max-height: calc(var(--viewport-height) - var(--space-8) - var(--shell-tail, 0px));
+     * fest steht (Installationsbanner), wie jede klebende Spalte. Minus
+     * `--settings-head-block`: oben klebt der Kopf (shell.js, watchHeadBlock). */
+    max-height: calc(var(--viewport-height) - var(--settings-head-block, 0px) - var(--space-8) - var(--shell-tail, 0px));
     overflow-y: auto;
     overscroll-behavior: contain;
   }

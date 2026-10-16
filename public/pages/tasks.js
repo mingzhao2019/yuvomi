@@ -34,7 +34,8 @@ import { errorSentence } from '/utils/friendly-error.js';
 import { setBulkPill, clearBulkPill } from '/utils/bulk-pill.js';
 import { isSoloHousehold, hidesPrivacyControls } from '/utils/household.js';
 import { popoverMenuHtml, installPopoverMenus, pageToolsMenuHtml, pageToolsActionEl, syncPopoverMenuItem } from '/utils/popover-menu.js';
-import { filterButtonHtml, syncFilterButton, openFilterSheet } from '/utils/filter-sheet.js';
+import { filterButtonHtml, syncFilterButton, openFilterSheet, filterChipsHtml } from '/utils/filter-sheet.js';
+import { initials } from '/utils/initials.js';
 import { toggleRowHtml } from '/settings/components.js';
 import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
@@ -4875,7 +4876,16 @@ function statusDeviationCount() {
  */
 function toolsMenuItems() {
   const isList = state.viewMode === 'list';
-  const items = [];
+  // DIE ANSICHT IM MENUE, NUR UNTER 768px (D1; tasks.css blendet je Breite
+  // EINEN der beiden Wege aus, wie in den Dokumenten). Darueber waehlt das
+  // Segment im Kopf.
+  const items = [{
+    group: t('tasks.viewToggleLabel'),
+    items: [
+      { action: 'view-list', label: t('tasks.listView'), icon: 'list', checked: isList, attrs: { 'data-view-choice': 'list' } },
+      { action: 'view-kanban', label: t('tasks.kanbanView'), icon: 'columns', checked: state.viewMode === 'kanban', attrs: { 'data-view-choice': 'kanban' } },
+    ],
+  }, { separator: true }];
   if (!readOnly()) {
     items.push({ action: 'bulk-select', label: t('tasks.bulkSelect'), icon: 'list-checks',
       checked: state.bulkSelectMode, disabled: !isList });
@@ -4902,12 +4912,6 @@ function toolsMenuItems() {
   return items;
 }
 
-/** Ein Filter-Chip im Blatt: Button mit aria-pressed, Wert am Knoten. */
-function filterChipHtml({ filter, value, label, active }) {
-  return `<button type="button" class="filter-chip filter-chip--sm${active ? ' filter-chip--active' : ''}"
-    data-filter="${esc(filter)}" data-value="${esc(String(value))}" aria-pressed="${active}">${esc(label)}</button>`;
-}
-
 /**
  * Die Gruppen des Filterblatts, als `{ heading, html }` fuer openFilterSheet.
  *
@@ -4916,21 +4920,20 @@ function filterChipHtml({ filter, value, label, active }) {
  *
  * - Zuletzt verwendet: die gemerkten Sets als Aktions-Chips (kein Ein/Aus,
  *   deshalb ohne aria-pressed), zuerst, weil sie die schnellste Wahl sind.
- * - Anzeigen: „Mir zugewiesen" und „Geplante anzeigen" als Schalter - die
- *   beiden Chips, die vorher dauerhaft in der Zeile unter dem Kopf standen.
+ * - Anzeigen: „Bis heute faellig" als Schalter.
+ * - „Mir zugewiesen" ist der erste Schalter der Personengruppe, darunter die
+ *   Personen-Chips - dieselbe Stelle wie im Kalender (utils/filter-sheet.js,
+ *   „Der eine Filterblatt-Baustein").
  * - Gruppieren nach: nur in der Liste; das Brett gruppiert nach Status.
  * - Status (nicht im Kanban, Audit A1-07), Prioritaet, Person, Kategorie
  *   (D#1017), Tag: je Wert ein Chip, Mehrfachauswahl je Achse (#671).
  */
 function filterSheetGroups() {
   const groups = [];
-  const chipsHtml = (key, label, items) => `
-    <div class="filter-panel__chips" role="group" aria-label="${esc(label)}">
-      ${items.map((item) => filterChipHtml({
-        filter: key, value: item.value, label: item.label,
-        active: key === 'tag' ? hasTagFilter(item.value) : hasFilter(key, item.value),
-      })).join('')}
-  </div>`;
+  const chipsHtml = (key, label, items) => filterChipsHtml(key, label, items.map((item) => ({
+    ...item,
+    active: key === 'tag' ? hasTagFilter(item.value) : hasFilter(key, item.value),
+  })));
 
   const statusLabels = STATUS_LABELS();
   const priorityLabels = PRIORITY_LABELS();
@@ -4959,16 +4962,9 @@ function filterSheetGroups() {
     });
   }
 
-  const showRows = [];
-  // Am Wandtablett nicht (#1808): „mir" waere das Display-Konto, dem nie eine
-  // Aufgabe zugewiesen ist - der Schalter leerte die Liste.
-  if (state.users.length > 1 && state.currentUserId != null && !actingAsDisplay()) {
-    showRows.push(toggleRowHtml({ label: t('tasks.assignedToMe'), icon: 'user', checked: isAssignedToMe(),
-      attrs: { 'data-filter-mine': 'true' } }));
-  }
-  showRows.push(toggleRowHtml({ label: t('tasks.filterDueToday'), icon: 'calendar-check', checked: state.dueToday,
-    attrs: { 'data-filter-due-today': 'true' } }));
-  groups.push({ heading: t('tasks.filterGroupShow'), html: showRows.join('') });
+  groups.push({ heading: t('tasks.filterGroupShow'),
+    html: toggleRowHtml({ label: t('tasks.filterDueToday'), icon: 'calendar-check', checked: state.dueToday,
+      control: 'switch', attrs: { 'data-filter-due-today': 'true' } }) });
 
   if (state.viewMode !== 'kanban') {
     groups.push({ heading: t('tasks.filterGroupStatus'),
@@ -4977,8 +4973,18 @@ function filterSheetGroups() {
   groups.push({ heading: t('tasks.filterGroupPriority'),
     html: chipsHtml('priority', t('tasks.filterGroupPriority'), PRIORITIES().map((p) => ({ value: p.value, label: p.label }))) });
   if (state.users.length > 1) {
+    // Am Wandtablett nicht (#1808): „mir" waere das Display-Konto, dem nie eine
+    // Aufgabe zugewiesen ist - der Schalter leerte die Liste.
+    const mine = state.currentUserId != null && !actingAsDisplay()
+      ? toggleRowHtml({ label: t('tasks.assignedToMe'), icon: 'user', checked: isAssignedToMe(),
+        control: 'switch', attrs: { 'data-filter-mine': 'true' } })
+      : '';
     groups.push({ heading: t('tasks.filterGroupPerson'),
-      html: chipsHtml('assigned_to', t('tasks.filterGroupPerson'), state.users.map((u) => ({ value: String(u.id), label: u.display_name }))) });
+      html: mine + chipsHtml('assigned_to', t('tasks.filterGroupPerson'), state.users.map((u) => ({
+        value: String(u.id), label: u.display_name,
+        // Die Scheibe der Person wie im Kalenderblatt (utils/filter-sheet.js).
+        swatchColor: u.avatar_color ?? null, swatchLabel: initials(u.display_name),
+      }))) });
   }
   // KATEGORIE UND TAG SIND EINGEKLAPPT, SOLANGE NICHTS GEWAEHLT IST (Critique
   // 2026-10-05, R16). Das Blatt mass 35 Bedienelemente und 1084px in 591px;
@@ -5015,7 +5021,7 @@ function filterSheetGroups() {
         </div>`);
   }
   viewRows.push(toggleRowHtml({ label: t('tasks.showFuture'), icon: 'calendar-clock', checked: state.showFuture,
-    attrs: { 'data-filter-future': 'true' } }));
+    control: 'switch', attrs: { 'data-filter-future': 'true' } }));
   groups.push({ heading: t('tasks.viewToggleLabel'), variant: 'view', html: viewRows.join('') });
   return groups;
 }
@@ -5083,9 +5089,8 @@ function openTaskFilters(container) {
     // dahinter bleibt sichtbar und filtert live.
     anchor: () => container?.querySelector?.('#tasks-filter-btn') ?? null,
     groups: filterSheetGroups(),
-    // Nicht „Alle Filter aufheben": der Knopf stellt den Standard her (Status
-    // „Offen"), und so heisst er auch.
-    resetLabel: t('common.filtersResetDefault'),
+    // Der Reset-Text ist der des Bausteins („Filter zuruecksetzen"): der Knopf
+    // stellt den Standard her (Status „Offen"), wie der des Kalenders seinen.
     onChange: (input) => onFilterSheetChange(input, container),
     onReset: () => { resetTaskFilters(container); },
   });
@@ -6860,7 +6865,7 @@ function syncViewChrome(container) {
 
   container.querySelectorAll('#view-toggle [data-view]').forEach((b) => {
     const on = b.dataset.view === mode;
-    b.classList.toggle('group-toggle__btn--active', on);
+    b.classList.toggle('is-active', on);
     b.setAttribute('aria-pressed', String(on));
   });
 
@@ -6908,6 +6913,8 @@ function syncViewChrome(container) {
   // Sperre der beiden Eintraege, die an der Ansicht haengen, zieht es nach.
   const menu = container.querySelector('#tasks-tools-menu');
   syncPopoverMenuItem(menu, 'toggle-history', isHistory);
+  syncPopoverMenuItem(menu, 'view-list', mode === 'list');
+  syncPopoverMenuItem(menu, 'view-kanban', mode === 'kanban');
   syncPopoverMenuItem(menu, 'bulk-select', state.bulkSelectMode);
   const bulkItem = menu?.querySelector('.popover-menu__item[data-action="bulk-select"]');
   if (bulkItem) bulkItem.disabled = !isList;
@@ -7005,6 +7012,12 @@ function wireToolbar(container) {
     switch (item.dataset.action) {
       case 'toggle-history':
         setViewMode(container, state.viewMode === 'history' ? (state.viewBeforeHistory || 'list') : 'history');
+        break;
+      case 'view-list':
+        setViewMode(container, 'list');
+        break;
+      case 'view-kanban':
+        setViewMode(container, 'kanban');
         break;
       case 'bulk-select':
         toggleBulkSelect(container);
@@ -8172,7 +8185,7 @@ export async function render(container, { user, signal } = {}) {
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
     <div class="tasks-page app-page app-page--full${state.viewMode !== 'kanban' ? ' app-page--list-detail' : ''}" data-composition="full">
-      <div class="page-toolbar page-toolbar--wrap tasks-toolbar">
+      <div class="page-toolbar page-toolbar--wrap page-toolbar--title-tools tasks-toolbar">
         <h1 class="page-toolbar__title">${t('tasks.title')}</h1>
         <button type="button" class="btn btn--ghost btn--icon tasks-toolbar__search-trigger"
                 id="tasks-search-trigger" aria-controls="tasks-search" aria-expanded="false"
@@ -8199,19 +8212,28 @@ export async function render(container, { user, signal } = {}) {
                beschriftet, die ZAHL am Knopf sagt, dass etwas gesetzt ist
                (Kalender-Muster). Der Verlauf ist keine dritte Ansicht der
                Aufgaben, sondern eine Liste von Vorgaengen: er steht im Menue. -->
-          <div class="group-toggle group-toggle--icons" id="view-toggle" role="group" aria-label="${t('tasks.viewToggleLabel')}">
-            <button type="button" class="group-toggle__btn ${isKanban || isHistory ? '' : 'group-toggle__btn--active'}" data-view="list"
+          ${/* DIE ANSICHTSWAHL IST DAS KANON-SEGMENT (D1, Critique 2026-10-16):
+                `.segmented` in der Icon-Variante mit gleitender Kapsel statt des
+                eigenen `.group-toggle`. Unter 768px steht sie als Einfachauswahl
+                im Werkzeugmenue (wie in den Dokumenten): Lupe, Filter und Menue
+                passen dann neben den Large Title, und die zweite Kopfzeile
+                entfaellt (Kopfregel mobil 1a). */ ''}
+          <div class="segmented segmented--icons tasks-view-toggle" id="view-toggle" role="group" aria-label="${t('tasks.viewToggleLabel')}">
+            <button type="button" class="segmented__item${isKanban || isHistory ? '' : ' is-active'}" data-view="list"
                     title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}" aria-pressed="${!isKanban && !isHistory}">
-              <i data-lucide="list" class="icon-md group-toggle__icon" aria-hidden="true"></i>
-              <span class="group-toggle__label">${t('tasks.listView')}</span>
+              <i data-lucide="list" class="icon-md" aria-hidden="true"></i>
+              <span class="tasks-view-toggle__label">${t('tasks.listView')}</span>
             </button>
-            <button type="button" class="group-toggle__btn ${isKanban ? 'group-toggle__btn--active' : ''}" data-view="kanban"
+            <button type="button" class="segmented__item${isKanban ? ' is-active' : ''}" data-view="kanban"
                     title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}" aria-pressed="${isKanban}">
-              <i data-lucide="columns" class="icon-md group-toggle__icon" aria-hidden="true"></i>
-              <span class="group-toggle__label">${t('tasks.kanbanView')}</span>
+              <i data-lucide="columns" class="icon-md" aria-hidden="true"></i>
+              <span class="tasks-view-toggle__label">${t('tasks.kanbanView')}</span>
             </button>
           </div>
-          ${filterButtonHtml({ id: 'tasks-filter-btn', count: activeFilterCount(), showLabel: true, className: 'tasks-toolbar__filter' })}
+          ${/* D2: der Ausloeser ist ein Kopf-Icon-Knopf, die Zahl aktiver Filter
+                steht als Badge daran - kein Wort "Filter" mehr, das mobil die
+                Titelzeile sprengte. */ ''}
+          ${filterButtonHtml({ id: 'tasks-filter-btn', count: activeFilterCount(), className: 'tasks-toolbar__filter' })}
           ${/* Alles, was die Seite VERWALTET statt zeigt, steht beschriftet
                 im Menue (documents-tools-btn). Die schreibenden Eintraege
                 fehlen bei Nur-lesen (#467), der Verlauf bleibt: er zeigt nur. */ ''}

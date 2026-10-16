@@ -1317,9 +1317,18 @@ function paintMoreSheetBadges(sheet) {
 }
 
 /**
- * Baut den dynamischen Body des „Mehr“-Sheets: EIN vierspaltiges Modul-Raster
- * und darunter, im selben Raster, die monochrome System-Reihe (Einstellungen ·
+ * Baut den dynamischen Body des „Mehr“-Sheets: die Module in den Sektionen
+ * der Seitenleiste (je ein vierspaltiges Raster unter ihrem Namen) und
+ * darunter, im selben Raster, die monochrome System-Reihe (Einstellungen ·
  * Hilfe · Änderungen · Abmelden).
+ *
+ * DIE SEKTIONEN SIND ZURUECK (Critique 2026-10-16, Jordan): 16 Ziele als
+ * flaches Raster waren fuer einen Erstnutzer eine Wand - er fand „Entsorgung"
+ * nicht dort, wo die Seitenleiste am Desktop sie unter „Haushalt" zeigt. Die
+ * Beschriftungen tragen den Stil der Seitenleiste (`.nav-section-label`,
+ * typography.css) und sitzen eng an ihrem Raster; der Hoehenpreis, der sie
+ * am 2026-08-13 gekostet hatte (unten), ist mit der kompakten Zeile kleiner.
+ * Die Absaetze darunter sind die damalige Begruendung - Geschichte.
  *
  * Gibt EINEN Knoten in einem Array zurück (`.more-sheet__body`, der Scroller);
  * beide Aufrufer spreizen das Ergebnis und bleiben davon unberührt.
@@ -1349,6 +1358,46 @@ function paintMoreSheetBadges(sheet) {
  * Sprachwechsel / Modul-Toggle / Settings-Besuch das Layout.
  * Handle + Suchleiste bleiben davon unberührt (sie tragen Event-Wiring).
  */
+/**
+ * Die Module des Mehr-Blatts, gruppiert nach `section` in der gelieferten
+ * Reihenfolge. Eine Sektion ohne Namen (Uebersicht) steht als Raster ohne
+ * Kopf - dieselbe Regel wie HEADERLESS_SECTIONS der Seitenleiste.
+ *
+ * @param {Array<object>} modules  bereits nach Sektion sortiert
+ * @returns {HTMLElement[]}
+ */
+function moreSheetSections(modules) {
+  const out = [];
+  let current = null;
+  let grid = null;
+  for (const item of modules) {
+    const section = item.section ?? null;
+    if (!grid || section !== current) {
+      current = section;
+      grid = document.createElement('div');
+      grid.className = 'more-sheet__grid';
+      const labelKey = section && section !== NAV_SECTION.overview ? NAV_SECTION_LABEL_KEYS[section] : null;
+      if (labelKey) {
+        const group = document.createElement('div');
+        group.className = 'more-sheet__group';
+        group.setAttribute('role', 'group');
+        const labelId = `more-section-${section}`;
+        group.setAttribute('aria-labelledby', labelId);
+        const label = document.createElement('div');
+        label.className = 'more-sheet__section-label';
+        label.id = labelId;
+        label.textContent = t(labelKey);
+        group.append(label, grid);
+        out.push(group);
+      } else {
+        out.push(grid);
+      }
+    }
+    grid.appendChild(moreItemEl(item));
+  }
+  return out;
+}
+
 function buildMoreSheetBody() {
   /* EIN scrollender Körper zwischen Griff und Suche und dem Blattrand.
    *
@@ -1373,14 +1422,12 @@ function buildMoreSheetBody() {
   const secondary = secondaryMobileItems();
   const settingsItem = secondary.find((item) => item.module === 'settings');
 
-  // Ein flaches Raster in der Reihenfolge der Sidebar. Die Sortierung nach
-  // Sektion steckt schon in secondaryMobileItems(); hier wird sie nur nicht
-  // mehr mit Überschriften nachgezeichnet.
+  // Je Sektion der Seitenleiste EIN Raster unter ihrem Namen. Die Sortierung
+  // nach Sektion steckt schon in secondaryMobileItems() (sortNavigationItems);
+  // hier wird sie nachgezeichnet, wie die Seitenleiste es tut - eine benannte
+  // Gruppe (role="group" + aria-labelledby), damit die Ordnung auch hoerbar ist.
   const modules = secondary.filter((item) => item.module !== 'settings');
-  const grid = document.createElement('div');
-  grid.className = 'more-sheet__grid';
-  modules.forEach((item) => grid.appendChild(moreItemEl(item)));
-  nodes.push(grid);
+  nodes.push(...moreSheetSections(modules));
 
   const divider = document.createElement('div');
   divider.className = 'more-sheet__divider';
@@ -1633,9 +1680,10 @@ async function renderPage(route, previousPath = null, scrollTarget = 0) {
       animate: shouldAnimate,
     });
 
-    // Mit View Transition macht der Browser die Blende. Ohne sie (keine API,
-    // reduzierte Bewegung, verdeckter Tab) eine reine Blende ohne Versatz und
-    // ohne Feder: `.page-transition--in`.
+    // Mit View Transition macht der Browser die Blende - seit 2026-10-16 auch
+    // unter reduzierter Bewegung (utils/view-transition.js). Ohne sie (keine
+    // API, verdeckter Tab) eine reine Blende ohne Versatz und ohne Feder:
+    // `.page-transition--in`.
     if (shouldAnimate && !transition) {
       pageWrapper.classList.add('page-transition--in');
 
@@ -2562,7 +2610,9 @@ const SHORTCUTS = [
     // Ausserhalb des Kalenders war `f` ein stiller No-Op (Critique 2026-08-31,
     // Alex-Persona): erst hinwechseln, dann suchen - ein Griff, ein Ziel.
     if (location.pathname !== '/calendar') await navigate('/calendar');
-    document.querySelector('#cal-search')?.click();
+    // Die Suche ist ein Feld im Kopf (renderPageSearch, Critique 2026-10-16);
+    // mobil klappt die Lupe ueber :focus-within zum Feld auf.
+    document.querySelector('#cal-search-input')?.focus();
   } },
   { key: '?',   description: () => t('shortcuts.help'),    action: () => showHelpModal() },
   { key: 'g d', description: () => t('shortcuts.goDash'),  action: () => navigate('/') },
@@ -3980,6 +4030,17 @@ function sidebarNavItems() {
       // ":last-child a". Der Aufrufer erkennt sie und hängt den Eintrag
       // ausserhalb des Scrollers ein.
       el.classList.add('nav-item--pinned-end');
+      // DIESELBE PILLE AUCH HIER (Critique 2026-10-16, R18/D6). Der Eintrag
+      // liegt ausserhalb des Scrollers, die Pille der Liste erreicht ihn also
+      // nie - er trug deshalb noch den alten 3px-Streifen und eine statische
+      // Toenung. Jetzt bringt er eine eigene Pille mit (dieselbe Klasse, also
+      // dasselbe Material), und positionSidebarIndicator() laesst sie von der
+      // Stelle der Listenpille hergleiten.
+      const pill = document.createElement('span');
+      pill.className = 'nav-sidebar__indicator nav-sidebar__indicator--pinned';
+      pill.setAttribute('aria-hidden', 'true');
+      pill.style.opacity = '0';
+      el.prepend(pill);
       elements.push(el);
       return;
     }
@@ -4235,6 +4296,30 @@ function placeNavIndicator(indicator, apply) {
 }
 
 /**
+ * Laesst die Pille des gepinnten Eintrags von einer Bildschirmhoehe her an
+ * ihren Platz gleiten (FLIP): erst ohne Uebergang auf den Startpunkt, dann
+ * mit dem Uebergang der Pille (layout.css, reduced-motion schaltet ihn ab)
+ * zurueck auf null. `fromTop` null heisst: ohne Weg einblenden.
+ */
+function glidePillFrom(pill, fromTop) {
+  if (pill.style.opacity !== '0') return;
+  if (fromTop != null) {
+    pill.style.opacity = '';
+    startGlideAt(pill, fromTop - pill.getBoundingClientRect().top);
+  }
+  pill.style.transform = '';
+  pill.style.opacity = '';
+}
+
+/** Setzt eine Pille ohne Uebergang auf einen Startpunkt; der naechste Wert gleitet. */
+function startGlideAt(pill, y) {
+  pill.style.transition = 'none';
+  pill.style.transform = `translateY(${y}px)`;
+  pill.getBoundingClientRect();
+  pill.style.transition = '';
+}
+
+/**
  * Positioniert den morphenden Indikator in der Sidebar auf dem aktiven Nav-Item.
  */
 function positionSidebarIndicator() {
@@ -4242,10 +4327,28 @@ function positionSidebarIndicator() {
   const indicator = container?.querySelector('.nav-sidebar__indicator');
   if (!indicator) return;
   const active = container.querySelector('.nav-item[aria-current="page"]');
+  const pinnedPill = document.querySelector('.nav-sidebar > .nav-item--pinned-end > .nav-sidebar__indicator--pinned');
   if (!active) {
+    // Der gepinnte Eintrag (Einstellungen) ist aktiv: seine eigene Pille
+    // gleitet von dort her, wo die Listenpille gerade stand, und die
+    // Listenpille tritt ab. Ohne sichtbare Vorgaengerin erscheint sie still.
+    if (pinnedPill?.parentElement?.getAttribute('aria-current') === 'page') {
+      const from = indicator.style.opacity !== '0' && indicator.getClientRects().length
+        ? indicator.getBoundingClientRect().top : null;
+      glidePillFrom(pinnedPill, from);
+    }
     indicator.style.opacity = '0';
     return;
   }
+  // Zurueck in die Liste: die Listenpille startet an der Stelle der
+  // gepinnten (unterhalb der Liste, vom Scroller beschnitten) und gleitet
+  // herauf - dieselbe Bewegung in die Gegenrichtung.
+  // Nur ein schon platzierter Indikator gleitet - die erste Platzierung
+  // springt weiter (placeNavIndicator).
+  if (pinnedPill && pinnedPill.style.opacity !== '0' && indicator.dataset.placed === '1') {
+    startGlideAt(indicator, pinnedPill.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop);
+  }
+  if (pinnedPill) pinnedPill.style.opacity = '0';
   // Aktives Item in den Sichtbereich holen (Audit F-01): bei überlaufender
   // Liste lagen Item UND Pille sonst unsichtbar unterhalb der Falte — die
   // Navigation verlor ihren „Du bist hier"-Anker. Manuelles Scrollen statt

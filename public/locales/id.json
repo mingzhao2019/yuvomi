@@ -24,7 +24,6 @@
         "filtersOpen": "Buka filter",
         "filtersActive": "{{count}} filter aktif",
         "filtersActive_one": "1 filter aktif",
-        "filtersReset": "Hapus semua filter",
         "filtersResetDefault": "Atur ulang filter",
         "close": "Tutup",
         "add": "Tambah",
@@ -67,6 +66,7 @@
         "errorServer": "Kesalahan server. Coba lagi nanti.",
         "errorRestoreInProgress": "Cadangan sedang dipulihkan saat ini. Perubahan Anda tidak disimpan, coba lagi dalam satu menit.",
         "errorTimeout": "Koneksi terlalu lama. Silakan coba lagi.",
+        "errorRateLimited": "Terlalu banyak permintaan saat ini. Tunggu sebentar, lalu coba lagi.",
         "requiredFields": "Harap isi semua bidang wajib.",
         "invalidInput": "Masukan tidak valid.",
         "togglePasswordVisibility": "Tampilkan/sembunyikan kata sandi",
@@ -1173,7 +1173,6 @@
         "filtersPeople": "Orang",
         "filtersActive": "{{count}} filter aktif",
         "filtersActive_one": "1 filter aktif",
-        "filtersReset": "Hapus semua filter",
         "filtersDisplay": "Tampilan",
         "agendaDayEmpty": "Tidak ada rencana",
         "openInMap": "Buka di Maps",
@@ -3365,7 +3364,8 @@
         "unsavedChanges": "Buang perubahan?",
         "unsavedChangesDetail": "Isian kamu di formulir ini akan hilang.",
         "discardChanges": "Buang",
-        "moreSettings": "Pengaturan lain"
+        "moreSettings": "Pengaturan lain",
+        "moreDetails": "Detail lainnya"
     },
     "rrule": {
         "freqNone": "Tanpa pengulangan",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Hari"
+            },
+            "intensity": {
+                "none": "Tidak ditentukan",
+                "low": "Ringan",
+                "moderate": "Sedang",
+                "high": "Tinggi"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "Odometer dari waktu ke waktu",
         "detailPaneLabel": "Detail barang",
         "pickOne": "Pilih barang",
-        "pickOneHint": "Detail, tenggat, dan riwayat muncul di sini."
+        "pickOneHint": "Detail, tenggat, dan riwayat muncul di sini.",
+        "moreDetailsHint": "Pembelian, garansi, foto, dokumen"
     },
     "documentAttach": {
         "label": "Lampiran",

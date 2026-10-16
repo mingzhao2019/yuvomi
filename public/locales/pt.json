@@ -24,7 +24,6 @@
         "filtersOpen": "Abrir filtros",
         "filtersActive": "{{count}} filtros ativos",
         "filtersActive_one": "{{count}} filtro ativo",
-        "filtersReset": "Limpar todos os filtros",
         "filtersResetDefault": "Repor filtros",
         "close": "Fechar",
         "add": "Adicionar",
@@ -67,6 +66,7 @@
         "errorServer": "Erro no servidor. Por favor, tente mais tarde.",
         "errorRestoreInProgress": "Está a ser restaurado um backup neste momento. A sua alteração não foi guardada, tente novamente dentro de um minuto.",
         "errorTimeout": "A ligação demorou demasiado. Por favor, tente novamente.",
+        "errorRateLimited": "Demasiados pedidos neste momento. Aguarde um instante e tente novamente.",
         "requiredFields": "Preencha todos os campos obrigatórios.",
         "invalidInput": "Entrada inválida.",
         "togglePasswordVisibility": "Mostrar/ocultar senha",
@@ -1159,7 +1159,6 @@
         "filtersPeople": "Pessoas",
         "filtersActive": "{{count}} filtros ativos",
         "filtersActive_one": "{{count}} filtro ativo",
-        "filtersReset": "Limpar todos os filtros",
         "filtersDisplay": "Apresentação",
         "agendaDayEmpty": "Nada planeado",
         "openInMap": "Abrir no Maps",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "Descartar alterações?",
         "unsavedChangesDetail": "Os teus dados neste formulário serão perdidos.",
         "discardChanges": "Descartar",
-        "moreSettings": "Mais definições"
+        "moreSettings": "Mais definições",
+        "moreDetails": "Mais detalhes"
     },
     "rrule": {
         "freqNone": "Sem repetição",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Dia"
+            },
+            "intensity": {
+                "none": "Não indicada",
+                "low": "Ligeira",
+                "moderate": "Moderada",
+                "high": "Alta"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "Odômetro ao longo do tempo",
         "detailPaneLabel": "Detalhes do objeto",
         "pickOne": "Escolha um objeto",
-        "pickOneHint": "Os detalhes, prazos e o histórico aparecem aqui."
+        "pickOneHint": "Os detalhes, prazos e o histórico aparecem aqui.",
+        "moreDetailsHint": "Compra, garantia, fotografia, documentos"
     },
     "documentAttach": {
         "label": "Anexos",

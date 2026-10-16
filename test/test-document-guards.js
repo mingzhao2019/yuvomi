@@ -276,6 +276,45 @@ async function visitViews(page, where, visit) {
   }
 }
 
+/**
+ * Die Sichten, die nur im Werkzeugmenue waehlbar sind (D1, Critique 2026-10-16).
+ *
+ * Unter 768px steht die Ansichtswahl einiger Module nicht als Segment im Kopf,
+ * sondern als Einfachauswahl im "..."-Menue (Aufgaben Liste/Brett, Dokumente
+ * Raster/Liste) - der Umschalter ist dort ausgeblendet, und `visitViews` sieht
+ * nur, was sichtbar ist. Ohne diesen Weg erreichte Sonde 7 das Board mobil nie
+ * mehr, und die Ausnahme `kanban-card` stand ohne Fundstelle da.
+ *
+ * Geklickt wird der Menue-Eintrag selbst (`[data-view-choice]`), also derselbe
+ * Weg, den die App geht - ueber den delegierten Handler des Kopfs, nicht ueber
+ * Speicher-Schluessel. Nur Eintraege, deren Gruppe in dieser Breite gilt (ab
+ * 768px blendet das Modul die Gruppe aus, dann waehlt das Segment). Danach
+ * zurueck auf die Ausgangssicht: die Wahl wird gespeichert und traefe sonst die
+ * naechste Route.
+ */
+async function visitMenuViews(page, where, visit) {
+  const choices = await page.evaluate(() => [...document.querySelectorAll('.popover-menu__item[data-view-choice]')]
+    .filter((item) => {
+      const group = item.closest('.popover-menu__group') ?? item;
+      return getComputedStyle(group).display !== 'none';
+    })
+    .map((item) => ({ view: item.dataset.viewChoice, on: item.getAttribute('aria-checked') === 'true' })));
+  const start = choices.find((c) => c.on)?.view;
+  if (!start) return;
+  const pick = (view) => page.evaluate((v) => {
+    const item = document.querySelector(`.popover-menu__item[data-view-choice="${CSS.escape(v)}"]`);
+    if (!item) return false;
+    item.click();
+    return true;
+  }, view);
+  for (const { view, on } of choices) {
+    if (on || !(await pick(view))) continue;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await visit(`${where}:menu-${view}`);
+  }
+  if (await pick(start)) await new Promise((resolve) => setTimeout(resolve, 600));
+}
+
 before(async () => {
   harness = await startHarness();
 });
@@ -467,23 +506,33 @@ test('der verspaetete Erstfokus nimmt dem fortgesetzten Speichern-Tor den Fokus 
       return document.activeElement?.id;
     }), 'slow-title', 'ohne spaeter gewaehlten Fokus landet der Erstfokus wie bisher im ersten Feld');
 
-    // Wie das Datepicker-Popover: ein Fokusziel direkt unter body, AUSSERHALB des
-    // Modals, ohne dass das Modal inert wird (Befund aus der claude-review zu #1193).
+    // Wie das Datepicker-Popover: ein Fokusziel AUSSERHALB der Tafel, ohne dass das
+    // Modal inert wird (Befund aus der claude-review zu #1193). Seit D7 ist das
+    // Modal ein natives <dialog> mit showModal(): alles ausserhalb ist inert, ein
+    // Popover direkt unter body nimmt gar keinen Fokus an (gemessen). Echte
+    // Popover haengen deshalb ueber `overlayHost()` im Dialog, neben der Tafel -
+    // genau dort, wo der Datepicker sie hinhaengt. Die Sonde nimmt denselben Weg
+    // und prueft zuerst, dass das Popover den Fokus WIRKLICH hatte; sonst
+    // bestaetigte sie eine Wahl, die nie stattfand.
     await page.evaluate(() => window.slowGate.modal.closeModal({ force: true }));
     await openSlow('Slow editor with a popover');
-    assert.equal(await page.evaluate(async () => {
+    assert.deepEqual(await page.evaluate(async () => {
+      const { overlayHost } = await import('/utils/overlay-host.js');
       const popover = document.createElement('div');
       popover.id = 'slow-popover';
       popover.setAttribute('popover', 'manual');
       popover.tabIndex = -1;
-      document.body.appendChild(popover);
+      overlayHost().appendChild(popover);
       popover.showPopover?.();
       popover.focus();
+      const took = document.activeElement?.id;
+      const outsidePanel = !popover.closest('.modal-panel');
       await new Promise((resolve) => setTimeout(resolve, 2000));
       const focus = document.activeElement?.id;
       popover.remove();
-      return focus;
-    }), 'slow-popover', 'der Erstfokus-Timer darf den Fokus nicht aus einem Popover unter body ziehen');
+      return { took, outsidePanel, focus };
+    }), { took: 'slow-popover', outsidePanel: true, focus: 'slow-popover' },
+    'der Erstfokus-Timer darf den Fokus nicht aus einem Popover ueber der Tafel ziehen');
 
     // Faellt der Fokus nur auf body, weil der Ausloeser weggerendert wurde, ist
     // das keine Wahl: das Modal bekommt seinen Erstfokus trotzdem.
@@ -501,9 +550,9 @@ test('der verspaetete Erstfokus nimmt dem fortgesetzten Speichern-Tor den Fokus 
       return document.activeElement?.id;
     }), 'slow-title', 'ein auf body gefallener Fokus ist keine Wahl - das erste Feld bekommt ihn trotzdem');
 
-    // Tab waehrend der Verzoegerung landet auf der Seite DAHINTER (nicht inert, der
-    // Trap haengt nur am Panel). Das ist keine Wahl: der Fokus muss in den Dialog
-    // (zweite Runde der Review zu #1193).
+    // Tab waehrend der Verzoegerung landete auf der Seite DAHINTER (zweite Runde
+    // der Review zu #1193). Seit D7 ist sie inert und nimmt den Fokus gar nicht
+    // erst; die Zusage bleibt dieselbe: der Fokus muss in den Dialog.
     await page.evaluate(() => {
       window.slowGate.modal.closeModal({ force: true });
       document.getElementById('slow-background')?.remove();
@@ -2219,7 +2268,12 @@ test('Sonde 7 - eine Zeilenfolge ist keine Spalte aus Karten', async () => {
       // Auf einem Blatt nur der Zustand selbst - siehe `isLeaf`: zwei der drei
       // Umschaltergruppen in den Einstellungen schreiben eine Einstellung.
       if (isLeaf(name)) await note(name);
-      else await visitViews(page, name, note);
+      else {
+        await visitViews(page, name, note);
+        // Mobil steht Liste/Brett der Aufgaben im Menue (D1) - ohne diesen
+        // Weg saehe die Sonde das Board nur am Desktop.
+        await visitMenuViews(page, name, note);
+      }
     }
     await page.close();
     perDevice.set(device, found);
@@ -2427,8 +2481,16 @@ test('Sonde 8 - ein Kopf mit Lead-Zone traegt seine Linie erst angedockt, und do
   // die triviale Haelfte der Regel, und genau die andere war kaputt.
   assert.ok(headsSeen >= ROUTE_NAMES.length - 3,
     `Nur ${headsSeen} Modulkoepfe von ${ROUTE_NAMES.length} Routen gesehen - die Sonde erreicht die Koepfe nicht mehr.`);
-  assert.ok(leadHeads >= 5,
-    `Nur ${leadHeads} Koepfe mit Lead-Zone gesehen (gemessen: 10). Ohne sie prueft diese Sonde nur, `
+  // DIE ZAHL IST GEMESSEN UND SIE SINKT MIT ABSICHT. Die "10" stammte aus der
+  // Zeit vor der Kopfregel 1a (R16): seither stehen die Werkzeuge vieler Koepfe
+  // in der Titelzeile, und ein einzeiliger Kopf hat keine Lead-Zone. Mit D1
+  // (Critique 2026-10-16) wurde auch der Aufgabenkopf einzeilig (120 -> 65px).
+  // Gemessen 2026-10-16 bei 375px: vier Koepfe mit Lead-Zone - Kalender,
+  // Budget (Zeitraum-Kopf, gedeckelt), Belohnungen, Haushaltshilfe (Band ueber
+  // der Reiterleiste). Das sind beide Andock-Bauarten; faellt eine davon weg,
+  // wird die Sonde rot statt still trivial.
+  assert.ok(leadHeads >= 4,
+    `Nur ${leadHeads} Koepfe mit Lead-Zone gesehen (gemessen 2026-10-16: 4). Ohne sie prueft diese Sonde nur, `
     + 'dass einzeilige Koepfe eine Linie tragen.');
 
   assert.deepEqual(findings, [],

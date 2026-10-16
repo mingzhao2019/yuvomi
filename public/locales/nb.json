@@ -24,7 +24,6 @@
         "filtersOpen": "Åpne filtre",
         "filtersActive": "{{count}} aktive filtre",
         "filtersActive_one": "1 aktivt filter",
-        "filtersReset": "Tøm alle filtre",
         "filtersResetDefault": "Nullstill filtre",
         "close": "Lukk",
         "add": "Legg til",
@@ -67,6 +66,7 @@
         "errorServer": "Serverfeil. Vennligst prøv igjen senere.",
         "errorRestoreInProgress": "En sikkerhetskopi blir gjenopprettet akkurat nå. Endringen din ble ikke lagret, prøv igjen om et minutt.",
         "errorTimeout": "Tilkoblingen tok for lang tid. Vennligst prøv igjen.",
+        "errorRateLimited": "For mange forespørsler akkurat nå. Vent litt, og prøv igjen.",
         "requiredFields": "Vennligst fyll ut alle påkrevde felt.",
         "invalidInput": "Ugyldig inndata.",
         "togglePasswordVisibility": "Veksle passordvisning",
@@ -1156,7 +1156,6 @@
         "filtersPeople": "Personer",
         "filtersActive": "{{count}} aktive filtre",
         "filtersActive_one": "1 aktivt filter",
-        "filtersReset": "Tøm alle filtre",
         "filtersDisplay": "Visning",
         "agendaDayEmpty": "Ingenting planlagt",
         "openInMap": "Åpne i Kart",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "Forkast endringer?",
         "unsavedChangesDetail": "Inntastinger i dette skjemaet vil gå tapt.",
         "discardChanges": "Forkast",
-        "moreSettings": "Flere innstillinger"
+        "moreSettings": "Flere innstillinger",
+        "moreDetails": "Flere detaljer"
     },
     "rrule": {
         "freqNone": "Ingen gjentakelse",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Dag"
+            },
+            "intensity": {
+                "none": "Ikke angitt",
+                "low": "Lav",
+                "moderate": "Middels",
+                "high": "Høy"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "detailPaneLabel": "Elementdetaljer",
         "pickOne": "Velg et element",
         "pickOneHint": "Detaljer, frister og historikk vises her.",
-        "backToInventory": "Tilbake til inventaret"
+        "backToInventory": "Tilbake til inventaret",
+        "moreDetailsHint": "Kjøp, garanti, bilde, dokumenter"
     },
     "documentAttach": {
         "label": "Vedlegg",

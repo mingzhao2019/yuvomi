@@ -26,7 +26,6 @@
         "filtersActive_one": "{{count}} активний фільтр",
         "filtersActive_few": "{{count}} активні фільтри",
         "filtersActive_many": "Активних фільтрів: {{count}}",
-        "filtersReset": "Зняти всі фільтри",
         "filtersResetDefault": "Скинути фільтри",
         "close": "Закрити",
         "add": "Додати",
@@ -69,6 +68,7 @@
         "errorServer": "Помилка сервера. Спробуйте пізніше.",
         "errorRestoreInProgress": "Зараз відновлюється резервна копія. Вашу зміну не збережено, спробуйте ще раз за хвилину.",
         "errorTimeout": "З'єднання тривало занадто довго. Спробуйте ще раз.",
+        "errorRateLimited": "Зараз забагато запитів. Зачекайте трохи й спробуйте ще раз.",
         "requiredFields": "Заповніть усі обов’язкові поля.",
         "invalidInput": "Некоректне введення.",
         "togglePasswordVisibility": "Показати/приховати пароль",
@@ -1294,6 +1294,8 @@
         "filtersActive": "Активних фільтрів: {{count}}",
         "filtersActive_one": "{{count}} активний фільтр",
         "filtersReset": "Зняти всі фільтри",
+        "filtersActive_few": "{{count}} активні фільтри",
+        "filtersActive_many": "Активних фільтрів: {{count}}",
         "filtersDisplay": "Відображення",
         "agendaDayEmpty": "Нічого не заплановано",
         "openInMap": "Відкрити на картах",
@@ -3555,7 +3557,8 @@
         "unsavedChanges": "Відхилити зміни?",
         "unsavedChangesDetail": "Введені у форму дані буде втрачено.",
         "discardChanges": "Відхилити",
-        "moreSettings": "Додаткові налаштування"
+        "moreSettings": "Додаткові налаштування",
+        "moreDetails": "Додатково"
     },
     "rrule": {
         "freqNone": "Без повторення",
@@ -5407,6 +5410,12 @@
             },
             "col": {
                 "day": "День"
+            },
+            "intensity": {
+                "none": "Не вказано",
+                "low": "Низька",
+                "moderate": "Середня",
+                "high": "Висока"
             }
         },
         "export": {
@@ -6508,7 +6517,8 @@
         "trackedDateInDays_few": "Через {{count}} дні",
         "trackedDateInDays_many": "Через {{count}} дн.",
         "trackedDateOverdueDays_few": "Прострочено на {{count}} дні",
-        "trackedDateOverdueDays_many": "Прострочено на {{count}} дн."
+        "trackedDateOverdueDays_many": "Прострочено на {{count}} дн.",
+        "moreDetailsHint": "Купівля, гарантія, фото, документи"
     },
     "documentAttach": {
         "label": "Вкладення",

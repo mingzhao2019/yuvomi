@@ -32,7 +32,8 @@ import { budgetCategoryLabel } from '/utils/category-labels.js';
 import { trendMarkup, leadCardClass } from '/utils/metric-card.js';
 import { installPopoverMenus } from '/utils/popover-menu.js';
 import { LOAN_SORTS, DEFAULT_LOAN_SORT, normalizeLoanSort, sortLoans, groupLoans } from '/utils/loan-order.js';
-import { rowActionHtml, rowMenuHtml } from '/utils/row-action.js';
+import { rowMenuHtml } from '/utils/row-action.js';
+import { categoryColorIndex, categoryColor } from '/utils/budget-category-colors.js';
 import { metricGlanceHtml, wireMetricGlance, glanceLeadClass } from '/utils/metric-glance.js';
 import { intervalUnitLabel } from '/rrule-ui.js';
 import { appendCurrencyOptions } from '/settings/currency.js';
@@ -1228,6 +1229,8 @@ function renderBody() {
       budgetMode: state.budgetMode, scope: state.scope,
       formatAmount, categoryLabel, esc,
       expenseCategories: expenseCategories(),
+      // Identitaetsfarbe je Kategorie wie in Uebersicht und Statistik (D9).
+      categoryColor: (category) => categoryColor(categoryColorIndex(state.summary?.byCategory), category),
     }).catch((err) => console.error('[Budget] plans render error:', err));
     return;
   }
@@ -1801,7 +1804,13 @@ function toggleCategoryChart() {
  * die eingeklappten Bereiche aus. Ab 640px bleibt alles wie es war (Karten,
  * Top 3, Zweispalter ab 960px Container). Der Traeger ist `.row-carrier`,
  * keine Kennzahl-Karte: eine Zeile, die zusammenfasst und aufklappt, wie die
- * Gruppenzeilen in Apple Wallet und Einstellungen. */
+ * Gruppenzeilen in Apple Wallet und Einstellungen.
+ *
+ * EINZEILIG BIS AUFGEKLAPPT (Critique 2026-10-16, P2 mobil): Saldo-Zeile plus
+ * Ein/Aus-Zeile plus Kategorien-Zeile standen zusammen 136px hoch, die erste
+ * Buchung bei y=354. `budget-glance--fold` stellt Etikett und Saldo in EINE
+ * Zeile; Ein/Aus und die Kategorien-Zeile erscheinen erst, wenn die Bilanz
+ * aufgeklappt ist (panel.css). Die Zahl fuehrt weiter, eine Stufe kleiner. */
 function balanceGlanceHtml(s, { expensesOnly, forecast, balanceTone }) {
   const tone = forecast ? 'forecast'
     : balanceTone === 'metric-card--balance-positive' ? 'positive'
@@ -1816,7 +1825,7 @@ function balanceGlanceHtml(s, { expensesOnly, forecast, balanceTone }) {
         </span>`;
   const count = s.byCategory?.length ?? 0;
   return `
-    <div class="row-carrier budget-glance ${glanceLeadClass(lead.value)}">
+    <div class="row-carrier budget-glance budget-glance--fold ${glanceLeadClass(lead.value)}">
       <button type="button" class="budget-glance__row budget-glance__balance" id="budget-balance-more"
               aria-expanded="${state.balanceExpanded ? 'true' : 'false'}" aria-controls="budget-balance-details">
         <span class="budget-glance__lead">
@@ -1894,6 +1903,10 @@ function listToolsMenuHtml() {
 function renderCategoryBars(byCategory) {
   const blocks = categoryBlocks(byCategory);
   const leadKind = chartLeadKind(blocks);
+  // DIE KATEGORIE TRAEGT IHRE FARBE (Critique 2026-10-16, D9): dieselbe wie
+  // im Plan und in der Statistik (utils/budget-category-colors.js), statt
+  // aller Ausgabenbalken im Modulton.
+  const colors = categoryColorIndex(byCategory);
 
   return CHART_BLOCKS.filter(({ kind }) => blocks[kind].length).map(({ kind, labelKey }) => {
     const rows = blocks[kind];
@@ -1935,7 +1948,7 @@ function renderCategoryBars(byCategory) {
               >
               <span class="budget-bar-row__label" title="${label}">${label}</span>
               <span class="budget-bar-row__track" style="--bar-visible:${r.amount !== 0 ? 1 : 0}">
-                <span class="budget-bar-row__fill budget-bar-row__fill--${kind}" style="--bar-scale:${scale.toFixed(4)}" data-bar-key="${kind}:${esc(String(r.category))}"></span>
+                <span class="budget-bar-row__fill budget-bar-row__fill--${kind}" style="--bar-scale:${scale.toFixed(4)}${kind === 'expenses' && categoryColor(colors, r.category) ? `;--bar-fill:${categoryColor(colors, r.category)}` : ''}" data-bar-key="${kind}:${esc(String(r.category))}"></span>
               </span>
               <span class="budget-bar-row__amount">${amountByRole(r.amount, 'flow').text}${kind === 'expenses' ? shareHtml(r.amount, total) : ''}</span>
             </button>`;
@@ -1984,6 +1997,8 @@ function subcategoryRows(category, entries) {
     (total, row) => total + Math.abs(row.amount),
     0
   );
+  // Die Unterkategorien tragen die Farbe ihrer Kategorie (D9).
+  const parentFill = kind === 'expenses' ? categoryColor(categoryColorIndex(state.summary?.byCategory), category) : null;
   return rows.map((row) => {
     const selected = state.subcategoryFilter?.category === category
       && state.subcategoryFilter.key === row.key;
@@ -1997,7 +2012,7 @@ function subcategoryRows(category, entries) {
         <span class="budget-bar-row__label">${esc(row.label)}</span>
         <span class="budget-bar-row__track">
           <span class="budget-bar-row__fill budget-bar-row__fill--${kind}"
-                style="--bar-scale:${scale}"></span>
+                style="--bar-scale:${scale}${parentFill ? `;--bar-fill:${parentFill}` : ''}"></span>
         </span>
         <span class="budget-bar-row__amount">
           ${amountByRole(row.amount, 'flow').text}${kind === 'expenses' && row.amount !== 0 ? shareHtml(row.amount, categoryTotal) : ''}
@@ -2674,11 +2689,16 @@ function renderAccountsPage() {
           </span>
           <span class="budget-account__figures">
             <span class="budget-account__balance ${balClass}">${formatAmount(a.current_balance)}</span>
-            <span class="budget-account__starting">${t('budget.startingBalanceShort')} ${formatAmount(a.starting_balance)}</span>
+            <span class="budget-account__starting">${t('budget.startingBalanceShort')} <span class="budget-account__starting-amount">${formatAmount(a.starting_balance)}</span></span>
           </span>
         </button>
-        ${ro ? '' : `<div class="row-actions budget-account__actions">${rowActionHtml({
-          icon: 'pencil', label: t('common.editNamed', { name: a.name }), attrs: { 'data-edit': a.id },
+        ${/* EIN OEFFNEN-WEG (D6): der Zeilentipp oeffnet den Kontoauszug; das
+              Konto selbst bearbeitet der Eintrag im Mehr-Knopf statt eines
+              zweiten Stifts am Zeilenende. */ ''}
+        ${ro ? '' : `<div class="row-actions budget-account__actions">${rowMenuHtml({
+          id: `budget-account-menu-${a.id}`,
+          label: t('common.moreActionsNamed', { name: a.name }),
+          items: [{ action: 'account-edit', icon: 'pencil', label: t('common.edit'), attrs: { 'data-edit': a.id } }],
         })}</div>`}
       </div>`;
   }).join('');
@@ -3253,7 +3273,9 @@ function wireLoanCards(root, open = openLoanReport) {
     card.addEventListener('click', (event) => {
       // Knoepfe tragen ihre eigene Handlung - der Titelknopf oeffnet schon
       // selbst, "Rate buchen" und der Filter sollen den Bericht nicht mitoeffnen.
-      if (event.target.closest('button, a')) return;
+      // Das Menue des Mehr-Knopfs haengt im DOM der Karte: ein Tipp auf seine
+      // Polsterung ist kein Tipp auf die Karte.
+      if (event.target.closest('button, a, .popover-menu')) return;
       openById(card.dataset.loanId);
     });
   });
@@ -3561,15 +3583,22 @@ function renderLoanCard(loan) {
       <div class="budget-loan-card__main">
         <div class="budget-loan-card__title-row">
           ${/* Der Titel IST der Weg in den Bericht (Muster budget-account__main):
-              * ein echter Knopf, damit Tastatur und Screenreader ihn erreichen. */ ''}
+              * ein echter Knopf, damit Tastatur und Screenreader ihn erreichen.
+              * EIN OEFFNEN-WEG (Critique 2026-10-16, D6): Titel und Karte
+              * oeffnen; der Chevron ist weg (er heisst "navigiert", hier geht
+              * ein Blatt auf), der Trichter steht als Eintrag im Mehr-Knopf -
+              * ein Umschalter mit Haken, der Zustand bleibt ansagbar. */ ''}
           <button type="button" class="budget-loan-card__open" data-loan-id="${loan.id}" aria-haspopup="dialog">
             <span class="budget-loan-card__title">${esc(loan.title)}</span>
-            <i data-lucide="chevron-right" class="budget-loan-card__chevron icon-sm" aria-hidden="true"></i>
           </button>
-          ${rowActionHtml({
-    icon: 'filter', action: 'loan-filter', className: 'budget-loan-card__filter',
-    label: t('budget.filterLoanNamed', { name: loan.title }),
-    attrs: { 'data-id': loan.id, 'aria-pressed': String(state.loanFilterId === loan.id) },
+          ${rowMenuHtml({
+    id: `budget-loan-menu-${loan.id}`,
+    label: t('common.moreActionsNamed', { name: loan.title }),
+    className: 'budget-loan-card__more',
+    items: [
+      { action: 'loan-filter', id: loan.id, icon: 'filter', label: t('budget.filterLoanTransactions'),
+        checked: state.loanFilterId === loan.id },
+    ],
   })}
         </div>
         <div class="budget-loan-card__meta">${t(isBorrowedLoan(loan)

@@ -1181,6 +1181,8 @@ const PENDING = {
   // getrennte Listen) mit eigenen direkten Loeschaktionen; diese vier Stellen
   // sind keine neuen Aenderungen dieses Syncs. Wer eine davon anfasst, zieht
   // sie auf `rowMenuHtml()` um und senkt die Zahl.
+  // 2026-10-16 (Critique D6): Notizen und Haushaltshilfe-Besuche loeschen
+  // ueber ihren Mehr-Knopf.
   'row-danger-visible': {
     'public/pages/asset-cost.js': 1,
     'public/components/category-manager.js': 1,
@@ -1189,8 +1191,6 @@ const PENDING = {
     'public/pages/contacts.js': 1,
     'public/pages/health-fasting.js': 1,
     'public/pages/health.js': 2,
-    'public/pages/housekeeping.js': 1,
-    'public/pages/notes.js': 1,
     'public/pages/subscriptions.js': 1,
     'public/pages/tasks.js': 3,
     'public/settings/pages/admin-api.js': 1,

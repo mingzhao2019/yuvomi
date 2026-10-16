@@ -1556,10 +1556,6 @@
   cursor: default;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 .weather-widget__inner {
   display: flex;
   flex-direction: column;
@@ -2466,9 +2462,16 @@ svg.weather-forecast__icon {
   to   { opacity: 0; }
 }
 
+/* DIE SCHWEBENDE TAFEL, NICHT KARTE MIT RAND (Critique 2026-10-16; Detektor
+ * `gpt-thin-border-wide-shadow`). Die Karte trug eine 1px-Haarlinie UND den
+ * 28px-Schatten `--shadow-lg` - zwei Kanten fuer eine Flaeche. Sie schwebt
+ * ueber dem verschwommenen Grund wie Dialog und Mehr-Blatt und nimmt deren
+ * Material: `--glass-shadow-lg` bringt Tiefe und den feinen Lichtring in
+ * einem, `--glass-inset-elevated` die Lichtkante oben (glass.css, R18). Keine
+ * eigene Linie mehr. */
 .onboarding-card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border-subtle);
+  border: none;
   border-radius: var(--radius-xl);
   padding: var(--space-8);
   max-width: 360px;
@@ -2478,7 +2481,7 @@ svg.weather-forecast__icon {
   align-items: center;
   gap: var(--space-4);
   text-align: center;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--glass-shadow-lg), var(--glass-inset-elevated);
 }
 
 /* Der Schritt in der stehenden Karte (dashboard.js, showOnboarding): er traegt
@@ -3214,25 +3217,17 @@ button.today-cockpit__more--link {
   min-width: 0;
 }
 
+/* DIE KOPF-ICON-HAUT DER SHELL (D1, Critique 2026-10-16): Haut, Tinte und
+ * Hover kommen aus `.btn.btn--secondary.btn--icon` im Markup, wie Lupe,
+ * Filter und „..." in jedem Modulkopf. Hier standen bis dahin graue Kreise
+ * ohne Rahmen (eigene Flaeche --neutral-200) - die dritte Haut fuer denselben
+ * Kopfknopf. Es bleibt nur, was der Uebersicht gehoert: die Groesse. */
 .dashboard-icon-btn {
-  /* HIG-Kreis-Button (Apple-Toolbar-Muster): graue Kreisfläche, kein Rahmen. */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: var(--target-lg);
   height: var(--target-lg);
+  padding: 0;
   border-radius: var(--radius-full);
-  border: none;
-  background: var(--neutral-200);
-  color: var(--color-text-secondary);
   flex: 0 0 auto;
-  transition: color var(--transition-fast), background-color var(--transition-fast);
-}
-
-.dashboard-icon-btn:hover,
-.dashboard-icon-btn:focus-visible {
-  color: var(--color-text-primary);
-  background: var(--neutral-250);
 }
 
 .dashboard-icon-btn svg {

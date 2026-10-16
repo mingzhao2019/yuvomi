@@ -24,7 +24,6 @@
         "filtersOpen": "Mở bộ lọc",
         "filtersActive": "{{count}} bộ lọc đang bật",
         "filtersActive_one": "1 bộ lọc đang bật",
-        "filtersReset": "Xóa tất cả bộ lọc",
         "filtersResetDefault": "Đặt lại bộ lọc",
         "close": "Đóng",
         "add": "Thêm",
@@ -67,6 +66,7 @@
         "errorServer": "Lỗi máy chủ. Vui lòng thử lại sau.",
         "errorRestoreInProgress": "Một bản sao lưu đang được khôi phục. Thay đổi của bạn chưa được lưu, hãy thử lại sau một phút.",
         "errorTimeout": "Kết nối quá lâu. Vui lòng thử lại.",
+        "errorRateLimited": "Hiện có quá nhiều yêu cầu. Vui lòng đợi một lát rồi thử lại.",
         "requiredFields": "Vui lòng điền tất cả các trường bắt buộc.",
         "invalidInput": "Đầu vào không hợp lệ.",
         "togglePasswordVisibility": "Hiện/ẩn mật khẩu",
@@ -1159,7 +1159,6 @@
         "filtersPeople": "Mọi người",
         "filtersActive": "{{count}} bộ lọc đang bật",
         "filtersActive_one": "1 bộ lọc đang bật",
-        "filtersReset": "Xóa tất cả bộ lọc",
         "filtersDisplay": "Hiển thị",
         "agendaDayEmpty": "Không có kế hoạch",
         "openInMap": "Mở trong Bản đồ",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "Bỏ qua các thay đổi?",
         "unsavedChangesDetail": "Nội dung bạn đã nhập trong biểu mẫu này sẽ bị mất.",
         "discardChanges": "Bỏ qua",
-        "moreSettings": "Cài đặt khác"
+        "moreSettings": "Cài đặt khác",
+        "moreDetails": "Thông tin thêm"
     },
     "rrule": {
         "freqNone": "Không lặp lại",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Ngày"
+            },
+            "intensity": {
+                "none": "Không chỉ định",
+                "low": "Nhẹ",
+                "moderate": "Vừa",
+                "high": "Cao"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "Đồng hồ đo quãng đường theo thời gian",
         "detailPaneLabel": "Chi tiết đồ vật",
         "pickOne": "Chọn một đồ vật",
-        "pickOneHint": "Thông tin, thời hạn và lịch sử hiển thị ở đây."
+        "pickOneHint": "Thông tin, thời hạn và lịch sử hiển thị ở đây.",
+        "moreDetailsHint": "Mua, bảo hành, ảnh, tài liệu"
     },
     "documentAttach": {
         "label": "Tệp đính kèm",

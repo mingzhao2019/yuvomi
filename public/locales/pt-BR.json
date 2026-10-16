@@ -24,7 +24,6 @@
         "filtersOpen": "Abrir filtros",
         "filtersActive": "{{count}} filtros ativos",
         "filtersActive_one": "{{count}} filtro ativo",
-        "filtersReset": "Limpar todos os filtros",
         "filtersResetDefault": "Redefinir filtros",
         "close": "Fechar",
         "add": "Adicionar",
@@ -66,6 +65,7 @@
         "errorNotFound": "O registro não foi encontrado.",
         "errorServer": "Erro no servidor. Por favor, tente mais tarde.",
         "errorTimeout": "A conexão demorou demais. Por favor, tente novamente.",
+        "errorRateLimited": "Muitas solicitações no momento. Aguarde um instante e tente novamente.",
         "requiredFields": "Preencha todos os campos obrigatórios.",
         "invalidInput": "Entrada inválida.",
         "togglePasswordVisibility": "Mostrar/ocultar senha",
@@ -1154,7 +1154,6 @@
         "filtersPeople": "Pessoas",
         "filtersActive": "{{count}} filtros ativos",
         "filtersActive_one": "{{count}} filtro ativo",
-        "filtersReset": "Limpar todos os filtros",
         "filtersDisplay": "Apresentação",
         "agendaDayEmpty": "Nada planejado",
         "openInMap": "Abrir no Maps",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "Descartar alterações?",
         "unsavedChangesDetail": "Seus dados neste formulário serão perdidos.",
         "discardChanges": "Descartar",
-        "moreSettings": "Mais configurações"
+        "moreSettings": "Mais configurações",
+        "moreDetails": "Mais detalhes"
     },
     "rrule": {
         "freqNone": "Sem repetição",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Dia"
+            },
+            "intensity": {
+                "none": "Não informada",
+                "low": "Leve",
+                "moderate": "Moderada",
+                "high": "Alta"
             }
         },
         "export": {
@@ -5770,7 +5776,8 @@
         "detailPaneLabel": "Detalhes do item",
         "pickOne": "Escolha um item",
         "pickOneHint": "Os detalhes, os prazos e o histórico aparecem aqui.",
-        "backToInventory": "Voltar ao inventário"
+        "backToInventory": "Voltar ao inventário",
+        "moreDetailsHint": "Compra, garantia, foto, documentos"
     },
     "join": {
         "title": "Configure sua conta",

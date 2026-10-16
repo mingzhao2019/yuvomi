@@ -542,6 +542,13 @@ function updateHealthFab(activeRoute) {
       setPageFabAction(_fab, { hidden: !canEditFor(activity.personId, activity.meId), label: t('health.activity.add'), dockLabel: t('newLabel.healthActivity'), onClick: () => openActivityModal(null) }); break;
     case '/health/nutrition':
       setPageFabAction(_fab, { hidden: !canEditFor(nutrition.personId, nutrition.meId), label: t('health.nutrition.add'), dockLabel: t('newLabel.healthNutrition'), onClick: () => openNutritionModal(null) }); break;
+    case '/health/fasting':
+      // EIN WEG JE BEREICH (Critique 2026-10-16, D5): ein abgeschlossenes
+      // Fasten trug man ueber einen Knopf im Leerzustand ODER im Kopf des
+      // Verlaufs nach, ohne FAB. Jetzt ist es der FAB wie in jedem Bereich
+      // (am Desktop die Pille „+ Fasten"). Der Timer bleibt, was er ist: ein
+      // Bedienelement des laufenden Fastens, kein Anlege-Weg.
+      setPageFabAction(_fab, { hidden: !_fastingCreate, label: t('health.fasting.backfill'), dockLabel: t('health.fasting.title'), onClick: () => _fastingCreate?.() }); break;
     default:
       // Das Nomen bleibt stehen: der Router dockt den Knopf am Desktop nur beim
       // Seitenaufbau an und nur mit `data-dock-label`. Wer auf der Uebersicht
@@ -1508,6 +1515,11 @@ function renderCards() {
   host.replaceChildren();
   host.insertAdjacentHTML('beforeend', cards);
   if (window.lucide) window.lucide.createIcons({ el: host });
+  // Die Mini-Trendlinien zeichnen sich wie das Detail-Diagramm EINMAL je
+  // Messgroesse und Sitzung ein (Critique 2026-10-16, A5: sie standen ohne
+  // jede Einblendung da). Ohne Achse beschneidet der Helfer das ganze Bild.
+  host.querySelectorAll('.metric-card__spark').forEach((spark) =>
+    drawChartOnce(`health-spark-${spark.closest('[data-type]')?.dataset.type ?? ''}`, { lines: spark }));
 
   host.querySelectorAll('.metric-card--select').forEach((card) =>
     card.addEventListener('click', () => {
@@ -1630,6 +1642,26 @@ function cardMarkup(metric, series, { phone = false } = {}) {
       ${latest ? sparklineMarkup(series.points, 'value_num', metric) : ''}
       ${metaHtml}
     </button>`;
+}
+
+/**
+ * Laesst die Diagramme eines Bereichs (Aktivitaet, Laborwerte, Zyklus-Trends)
+ * sich EINMAL je Sitzung einzeichnen (Critique 2026-10-16, A5: sie standen ohne
+ * jede Einblendung da, waehrend Budget-Berichte und Vitalkurven sich
+ * einzeichnen). Linien haengen an `.health-chart__lines`, Balken tragen
+ * `.chart__bar`; Raster und Achse stehen. Den Merker benennt das Diagramm
+ * selbst (`aria-label`), ein neuer Analyt ist ein neues Diagramm, eine neue
+ * Woche nicht. Der Helfer ist `drawChartOnce` (utils/ux.js).
+ * @param {ParentNode|null} root
+ * @param {string} prefix  Bereich, Teil des Merkers
+ */
+function drawHealthCharts(root, prefix) {
+  root?.querySelectorAll?.('svg.health-chart').forEach((svg) => {
+    drawChartOnce(`${prefix}:${svg.getAttribute('aria-label') ?? ''}`, {
+      lines: svg.querySelector('.health-chart__lines'),
+      bars: svg.querySelectorAll('.chart__bar'),
+    });
+  });
 }
 
 // Mini-Trendlinie für die Metrik-Karte: gibt der Karte Sub-Domänen-Charakter, ohne
@@ -4045,7 +4077,8 @@ function labDetailMarkup() {
           </thead>
           <tbody>${results.map(resultRowMarkup).join('')}</tbody>
         </table>
-      </div>`
+      </div>
+      ${resultListMarkup(results)}`
     : emptyHintHTML(t('health.labs.noAnalytes'));
 
   return `
@@ -4076,6 +4109,34 @@ function resultRowMarkup(r) {
       <td class="health-lab-table__ref">${esc(refText)}</td>
       <td class="health-lab-table__flag">${flagIndicatorMarkup(r.flag)}</td>
     </tr>`;
+}
+
+/* LABORWERTE MOBIL ALS ZEILEN (Critique 2026-10-16). Unter 640px war der
+ * Befund eine Tabelle, die seitlich scrollte: Analyt, Wert und Referenz
+ * passten, die Bewertung („Niedrig") lag rechts ausserhalb des Bilds - genau
+ * die Angabe, fuer die man den Befund oeffnet. Mobil steht jeder Analyt jetzt
+ * als Zeile: links der Name, rechts der Wert, darunter Referenz und
+ * Bewertung als Text mit Pfeil. Auffaellige Werte (niedrig/hoch) stehen
+ * vorn, sonst bleibt die Reihenfolge des Befunds. Die Tabelle bleibt ab
+ * 640px; beide Fassungen stehen im Markup, CSS zeigt je Breite eine
+ * (`display: none` nimmt die andere auch aus dem Accessibility-Baum). */
+function resultListMarkup(results) {
+  const abnormal = (r) => r.flag === 'low' || r.flag === 'high';
+  const ordered = [...results.filter(abnormal), ...results.filter((r) => !abnormal(r))];
+  return `
+    <ul class="health-lab-rows">${ordered.map((r) => {
+    const unit = r.unit ? ` ${esc(r.unit)}` : '';
+    const refText = referenceLabel(r.ref_low, r.ref_high);
+    const ref = refText === '-' ? '' : `<span class="health-lab-rows__ref">${esc(t('health.labs.col.reference'))} ${esc(refText)}</span>`;
+    const flag = r.flag && LAB_FLAGS.includes(r.flag) ? flagIndicatorMarkup(r.flag) : '';
+    return `
+      <li class="health-lab-rows__row${abnormal(r) ? ` health-lab-rows__row--${esc(r.flag)}` : ''}">
+        <span class="health-lab-rows__analyte">${esc(r.analyte)}</span>
+        <span class="health-lab-rows__value">${esc(fmtNum(r.value_num))}${unit}</span>
+        ${ref || flag ? `<span class="health-lab-rows__meta">${ref}${flag}</span>` : ''}
+      </li>`;
+  }).join('')}
+    </ul>`;
 }
 
 function referenceLabel(refLow, refHigh) {
@@ -4213,9 +4274,11 @@ function labTrendChart(points, analyteName) {
     <svg class="chart health-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(ariaLabel)}">
       ${grid}
       ${band}
-      <polyline fill="none" stroke="var(--module-health)" stroke-width="2"
-        stroke-linejoin="round" stroke-linecap="round" points="${linePts}" />
-      ${dots}
+      <g class="health-chart__lines">
+        <polyline fill="none" stroke="var(--module-health)" stroke-width="2"
+          stroke-linejoin="round" stroke-linecap="round" points="${linePts}" />
+        ${dots}
+      </g>
       ${xLabels}
     </svg>
     ${table}
@@ -4230,6 +4293,7 @@ const FLAG_DOT_COLORS = {
 };
 
 function wireLabs() {
+  drawHealthCharts(labs.root, 'health-labs');
   wireTablistKeys(labs.root);
   installPopoverMenus(labs.root);
   labs.root.querySelectorAll('.health-person-switcher [data-person-id]').forEach((chip) =>
@@ -4274,6 +4338,7 @@ function wireLabs() {
 
 // Verdrahtet nur die Detail-internen Steuerelemente neu (nach Trend-Wechsel).
 function wireLabsDetail() {
+  drawHealthCharts(labs.root, 'health-labs');
   if (!readOnly()) {
     labs.root.querySelector('[data-action="lab-edit"]')?.addEventListener('click', (e) => {
       const id = Number(e.currentTarget.dataset.reportId);
@@ -4738,6 +4803,7 @@ function renderActivityShell() {
     ${totals.count === 0 ? '' : `<div class="health-activity__log">${activityLogMarkup(weekRows)}</div>`}
   `);
   if (window.lucide) window.lucide.createIcons({ el: activity.root });
+  drawHealthCharts(activity.root, 'health-activity');
   wireActivity();
   refreshHealthFab();
 }
@@ -4797,7 +4863,7 @@ function activityChartMarkup(summary) {
     const label = t(ACTIVITY_WEEKDAY_LABEL_KEYS[b.weekday ?? i]);
     const minutes = t('health.activity.unit.min', { value: fmtNum(b.durationMin) });
     const bar = b.durationMin > 0
-      ? `<path class="health-activity-chart__bar${isToday ? ' health-activity-chart__bar--today' : ''}" d="${activityBarPath(x, y, barW, bottom)}"><title>${esc(`${label}: ${minutes}`)}</title></path>`
+      ? `<path class="health-activity-chart__bar${isToday ? ' health-activity-chart__bar--today' : ''} chart__bar" d="${activityBarPath(x, y, barW, bottom)}"><title>${esc(`${label}: ${minutes}`)}</title></path>`
       : '';
     // Der Wert steht nur am heutigen Balken (R18): eine Zahl an jedem Balken
     // waere eine zweite Achse; alle sieben stehen in der Tabelle darunter.
@@ -4861,6 +4927,29 @@ function activityLogMarkup(rows) {
     <ul class="health-activity-list">${rows.map((r) => activityRowMarkup(r, own)).join('')}</ul>`;
 }
 
+/* INTENSITAET IST EINE AUSWAHL, KEIN FREITEXT (Critique 2026-10-16). Das
+ * Feld war ein Textfeld, der Bestand (Demo, Import) schreibt aber die Werte
+ * `low`/`moderate`/`high` - in der Liste stand dann englisches „high" in
+ * deutscher Oberflaeche. Jetzt waehlt man aus drei uebersetzten Stufen und
+ * speichert weiter genau diese Schluessel. Ein freier Altwert, der keine
+ * Stufe ist, bleibt als eigene Option stehen und gewaehlt - Speichern
+ * verliert ihn nicht, die Liste zeigt ihn wie geschrieben. */
+const INTENSITY_LEVELS = ['low', 'moderate', 'high'];
+
+function intensityLabel(value) {
+  const key = String(value ?? '').trim().toLowerCase();
+  return INTENSITY_LEVELS.includes(key) ? t(`health.activity.intensity.${key}`) : String(value ?? '');
+}
+
+function intensityOptionsHtml(current) {
+  const raw = String(current ?? '').trim();
+  const known = INTENSITY_LEVELS.includes(raw.toLowerCase()) ? raw.toLowerCase() : '';
+  const legacy = raw && !known ? `<option value="${esc(raw)}" selected>${esc(raw)}</option>` : '';
+  return `<option value=""${raw ? '' : ' selected'}>${esc(t('health.activity.intensity.none'))}</option>`
+    + INTENSITY_LEVELS.map((level) => `<option value="${level}"${known === level ? ' selected' : ''}>${esc(t(`health.activity.intensity.${level}`))}</option>`).join('')
+    + legacy;
+}
+
 function activityRowMarkup(row, own) {
   const preset = activityType(row.type);
   const icon = preset ? preset.icon : 'activity';
@@ -4875,7 +4964,7 @@ function activityRowMarkup(row, own) {
   if (row.duration_min != null) meta.push(t('health.activity.unit.min', { value: fmtNum(row.duration_min) }));
   if (row.distance_km != null) meta.push(t('health.activity.unit.km', { value: fmtNum(row.distance_km) }));
   if (row.calories != null) meta.push(t('health.activity.unit.kcal', { value: fmtNum(row.calories) }));
-  if (row.intensity) meta.push(row.intensity);
+  if (row.intensity) meta.push(intensityLabel(row.intensity));
   const metaHtml = meta.length
     ? `<span class="health-activity-row__meta">${meta.map((m) => `<span class="health-activity-row__chip">${esc(m)}</span>`).join('')}</span>`
     : '';
@@ -4990,7 +5079,7 @@ function openActivityModal(row, opts = {}) {
         <div class="modal-grid modal-grid--2">
           <div class="form-field">
             <label class="label" for="activity-intensity">${esc(t('health.activity.field.intensity'))}</label>
-            <input class="input" id="activity-intensity" type="text" maxlength="30" value="${esc(val(row?.intensity))}">
+            <select class="input" id="activity-intensity">${intensityOptionsHtml(row?.intensity)}</select>
           </div>
           <div class="form-field">
             <label class="label" for="activity-visibility">${esc(t('health.activity.field.visibility'))}</label>
@@ -5232,13 +5321,14 @@ function renderPreventionShell() {
     ${preventionDueSectionMarkup()}
     ${groups.length
       ? `<div class="health-prevention__records">${groups.map((rows) => preventionGroupMarkup(rows, own)).join('')}</div>`
-      // EIN LEERZUSTAND MIT WEG (R14 P4, A6 P2-7): vorher „Noch keine
-      // Eintraege." als Zeile, ohne Weg und ohne zu sagen, was hier erscheint.
+      // EIN LEERZUSTAND, DER SAGT, WAS HIER ERSCHEINT (R14 P4, A6 P2-7) -
+      // OHNE ZWEITEN ANLEGE-KNOPF (Critique 2026-10-16, D5): der FAB
+      // „+ Vorsorge" ist der eine Weg, hier stand er ein zweites Mal als
+      // Primaerknopf direkt daneben.
       : emptyStateHTML({
         icon: 'syringe',
         title: t('health.prevention.emptyTitle'),
         description: t('health.prevention.emptyDesc'),
-        action: own && !readOnly() ? { label: t('health.prevention.add'), icon: 'plus', attrs: { id: 'health-prevention-empty-add' } } : null,
       })}
   `);
   if (window.lucide) window.lucide.createIcons({ el: prevention.root });
@@ -5324,7 +5414,6 @@ function wirePrevention() {
   // Der Riegel vor der einen schreibenden Verdrahtung dieses Tabs (#1265).
   if (readOnly()) return;
 
-  prevention.root.querySelector('#health-prevention-empty-add')?.addEventListener('click', () => openPreventionModal(null));
   prevention.root.querySelectorAll('[data-prevention-edit]').forEach((btn) =>
     btn.addEventListener('click', () => {
       const id = Number(btn.dataset.preventionEdit);
@@ -5694,12 +5783,12 @@ function renderNutritionShell() {
     ${entries.length
       ? `<h3 class="health-nutrition__entries-title u-section-title">${esc(t('health.nutrition.entriesTitle'))}</h3>
       <ul class="health-nutrition-row-list">${entries.map((row) => nutritionRowMarkup(row, own)).join('')}</ul>`
-      // EIN LEERZUSTAND MIT WEG (R14 P4, A6 P2-7) statt Titel plus Hinweiszeile.
+      // EIN LEERZUSTAND (R14 P4, A6 P2-7) statt Titel plus Hinweiszeile -
+      // ohne zweiten Anlege-Knopf neben dem FAB „+ Mahlzeit" (D5, 2026-10-16).
       : emptyStateHTML({
         icon: 'salad',
         title: t('health.nutrition.emptyTitle'),
         description: t('health.nutrition.emptyDesc'),
-        action: own && !readOnly() ? { label: t('health.nutrition.add'), icon: 'plus', attrs: { id: 'health-nutrition-empty-add' } } : null,
       })}
   `);
   if (window.lucide) window.lucide.createIcons({ el: nutrition.root });
@@ -5718,8 +5807,13 @@ function nutritionTodaySectionMarkup(own) {
   // was wie ein erreichtes Ziel aussaehe.
   const body = target
     ? `<ul class="health-nutrition-progress">${NUTRIENTS.map((n) => nutritionProgressRowMarkup(n, summary)).join('')}</ul>`
-    : `${emptyHintHTML(t('health.nutrition.targetNone'))}
-       <p class="form-hint">${esc(t('health.nutrition.targetNoneHint'))}</p>`;
+    // EINE FLUCHT (Critique 2026-10-16): der zentrierte Leerhinweis stand
+    // ueber einer linksbuendigen Erklaerung - zwei Achsen in drei Zeilen. Beide
+    // Saetze stehen jetzt links unter dem Abschnittstitel.
+    : `<div class="health-nutrition-today__none">
+         <p class="health-nutrition-today__none-title">${esc(t('health.nutrition.targetNone'))}</p>
+         <p class="form-hint">${esc(t('health.nutrition.targetNoneHint'))}</p>
+       </div>`;
 
   const editBtn = own
     ? `<button type="button" class="btn btn--secondary btn--sm" data-nutrition-target
@@ -5817,7 +5911,6 @@ function wireNutrition() {
   if (readOnly()) return;
 
   nutrition.root.querySelector('[data-nutrition-target]')?.addEventListener('click', () => openNutritionTargetModal());
-  nutrition.root.querySelector('#health-nutrition-empty-add')?.addEventListener('click', () => openNutritionModal(null));
 
   nutrition.root.querySelectorAll('[data-nutrition-edit]').forEach((btn) =>
     btn.addEventListener('click', () => {
@@ -6829,12 +6922,19 @@ function maybeMountCycle(activeRoute) {
   mountCycle();
 }
 
+// Der Nachtrag des Fastens, wie ihn das Fasten-Modul freigibt (nur in der
+// eigenen Ansicht mit Schreibrecht) - `null` heisst: kein FAB.
+let _fastingCreate = null;
+
 function maybeMountFasting(activeRoute) {
   if (activeRoute !== '/health/fasting' || !fastingEnabled) return;
   const root = _container?.querySelector('[data-fasting-root]');
   if (!root) return;
   root.dataset.fastingMounted = 'true';
-  import('/pages/health-fasting.js').then(({ mountFasting }) => mountFasting(root, { userId: vitals.meId })).catch((error) => {
+  import('/pages/health-fasting.js').then(({ mountFasting }) => mountFasting(root, {
+    userId: vitals.meId,
+    onCreateAction: (fn) => { _fastingCreate = fn; refreshHealthFab(); },
+  })).catch((error) => {
     // Die Ueberschrift ist der Satz. `error.message` ist der Text des Browsers
     // oder des Servers, unuebersetzt (#1909) - er gehoert in die Konsole.
     console.error('[Health] fasting mount error:', error);
@@ -7003,11 +7103,8 @@ function renderCycleShell() {
     icon: 'droplet',
     title: t('health.cycle.emptyTitle'),
     description: t('health.cycle.emptyDesc'),
-    // Ohne eigenen Zyklus - und ohne Schreibrecht auf das Modul - gibt es hier
-    // nichts einzutragen: der CTA entfaellt, die Aussage bleibt.
-    action: darf
-      ? { label: t('health.cycle.emptyCta'), icon: 'plus', attrs: { 'data-action': 'cycle-first' } }
-      : undefined,
+    // KEIN ZWEITER ANLEGE-KNOPF (Critique 2026-10-16, D5): „Erste Periode
+    // erfassen" oeffnete denselben Dialog wie der FAB „+ Periode" daneben.
   })}`);
     if (window.lucide) window.lucide.createIcons({ el: cycle.root });
     wireCycle();
@@ -7992,9 +8089,11 @@ function simpleLineChartMarkup({ points, titleText, formatPointTooltip, formatTa
       <div class="health-chart-section__head"><div class="health-chart-section__title">${esc(titleText)}</div></div>
       <svg class="chart health-chart" viewBox="0 0 ${W} ${H}" role="img"${chartRatioAttr(geo)} aria-label="${esc(titleText)}">
         ${grid}
-        ${area}
-        ${polylines}
-        ${dots}
+        <g class="health-chart__lines">
+          ${area}
+          ${polylines}
+          ${dots}
+        </g>
         ${xLabels}
       </svg>
       ${table}
@@ -8051,7 +8150,7 @@ function cycleLengthTrendChartMarkup(trend) {
     const typical = isTypicalCycleLength(e.days);
     const color = typical ? 'var(--module-health)' : 'var(--color-warning)';
     const label = `${formatDate(e.date)}: ${t('health.cycle.unit.days', { value: fmtNum(e.days), count: e.days })} (${typicalLabel(typical)})`;
-    return `<rect x="${(cx - barW / 2).toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${(bottom - by).toFixed(1)}" rx="2" fill="${color}"><title>${esc(label)}</title></rect>`;
+    return `<rect class="chart__bar" x="${(cx - barW / 2).toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${(bottom - by).toFixed(1)}" rx="2" fill="${color}"><title>${esc(label)}</title></rect>`;
   }).join('');
 
   const grid = chartGridMarkup(min, max, (val, whole) => (whole ? String(Math.round(val)) : fmtNum(val)), geo, steps);
@@ -8328,7 +8427,7 @@ function flowLoadTrendChartMarkup(trend) {
     // das darf im Hover/der Tabelle nicht verschwinden.
     const daysText = t('health.cycle.unit.days', { value: fmtNum(e.loggedDays), count: e.loggedDays });
     const label = `${formatDate(e.date)}: ${t('health.cycle.trends.flowLoadValue', { load: fmtNum(e.load, { maximumFractionDigits: 0 }), days: daysText })}`;
-    return `<rect x="${(cx - barW / 2).toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${(bottom - by).toFixed(1)}" rx="2" fill="var(--module-health)"><title>${esc(label)}</title></rect>`;
+    return `<rect class="chart__bar" x="${(cx - barW / 2).toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${(bottom - by).toFixed(1)}" rx="2" fill="var(--module-health)"><title>${esc(label)}</title></rect>`;
   }).join('');
 
   const grid = chartGridMarkup(min, max, (val, whole) => (whole ? String(Math.round(val)) : fmtNum(val)), geo, steps);
@@ -8584,6 +8683,7 @@ function cycleFooterMarkup(canEdit, prediction = null) {
 // --------------------------------------------------------
 
 function wireCycle() {
+  drawHealthCharts(cycle.root, 'health-cycle');
   wireTablistKeys(cycle.root);
   installPopoverMenus(cycle.root);
   cycle.root.querySelectorAll('.health-person-switcher [data-person-id]').forEach((chip) =>
@@ -8625,7 +8725,6 @@ function wireCycle() {
       if (p) openPeriodModal(p);
     }));
 
-  cycle.root.querySelector('[data-action="cycle-first"]')?.addEventListener('click', () => openPeriodModal(null));
   cycle.root.querySelector('[data-action="cycle-start-period"]')?.addEventListener('click', () => cycleStartPeriodToday());
   cycle.root.querySelector('[data-action="cycle-end-period"]')?.addEventListener('click', () => cycleEndPeriodToday());
   cycle.root.querySelector('[data-action="cycle-log-today"]')?.addEventListener('click', () => openDayLogModal(todayKey()));

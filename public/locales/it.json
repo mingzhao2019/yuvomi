@@ -24,7 +24,6 @@
         "filtersOpen": "Apri filtri",
         "filtersActive": "{{count}} filtri attivi",
         "filtersActive_one": "1 filtro attivo",
-        "filtersReset": "Rimuovi tutti i filtri",
         "filtersResetDefault": "Reimposta filtri",
         "close": "Chiudi",
         "add": "Aggiungi",
@@ -67,6 +66,7 @@
         "errorServer": "Errore del server. Riprova più tardi.",
         "errorRestoreInProgress": "È in corso il ripristino di un backup. La modifica non è stata salvata, riprova tra un minuto.",
         "errorTimeout": "La connessione ha impiegato troppo tempo. Riprova.",
+        "errorRateLimited": "Troppe richieste in questo momento. Attendi un attimo, poi riprova.",
         "requiredFields": "Compila tutti i campi obbligatori.",
         "invalidInput": "Input non valido.",
         "togglePasswordVisibility": "Mostra/nascondi password",
@@ -1159,7 +1159,6 @@
         "filtersPeople": "Persone",
         "filtersActive": "{{count}} filtri attivi",
         "filtersActive_one": "1 filtro attivo",
-        "filtersReset": "Rimuovi tutti i filtri",
         "filtersDisplay": "Visualizzazione",
         "agendaDayEmpty": "Niente in programma",
         "openInMap": "Apri in Maps",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "Scartare le modifiche?",
         "unsavedChangesDetail": "I dati inseriti in questo modulo andranno persi.",
         "discardChanges": "Scarta",
-        "moreSettings": "Altre impostazioni"
+        "moreSettings": "Altre impostazioni",
+        "moreDetails": "Altri dettagli"
     },
     "rrule": {
         "freqNone": "Nessuna ripetizione",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "Giorno"
+            },
+            "intensity": {
+                "none": "Non indicata",
+                "low": "Bassa",
+                "moderate": "Moderata",
+                "high": "Alta"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "Contachilometri nel tempo",
         "detailPaneLabel": "Dettagli dell'oggetto",
         "pickOne": "Scegli un oggetto",
-        "pickOneHint": "Qui compaiono dettagli, scadenze e cronologia."
+        "pickOneHint": "Qui compaiono dettagli, scadenze e cronologia.",
+        "moreDetailsHint": "Acquisto, garanzia, foto, documenti"
     },
     "documentAttach": {
         "label": "Allegati",

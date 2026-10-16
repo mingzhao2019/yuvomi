@@ -24,7 +24,6 @@
         "filtersOpen": "باز کردن فیلترها",
         "filtersActive": "{{count}} فیلتر فعال",
         "filtersActive_one": "{{count}} فیلتر فعال",
-        "filtersReset": "برداشتن همه فیلترها",
         "filtersResetDefault": "بازنشانی فیلترها",
         "close": "بستن",
         "add": "افزودن",
@@ -67,6 +66,7 @@
         "errorServer": "خطای سرور. لطفاً بعداً دوباره تلاش کنید.",
         "errorRestoreInProgress": "در حال بازیابی یک پشتیبان هستیم. تغییر شما ذخیره نشد، یک دقیقه دیگر دوباره تلاش کنید.",
         "errorTimeout": "اتصال بیش از حد طول کشید. لطفاً دوباره تلاش کنید.",
+        "errorRateLimited": "در حال حاضر درخواست‌های زیادی ارسال شده است. کمی صبر کنید و دوباره تلاش کنید.",
         "requiredFields": "لطفاً همه فیلدهای الزامی را پر کنید.",
         "invalidInput": "ورودی نامعتبر.",
         "togglePasswordVisibility": "نمایش/پنهان‌سازی رمز عبور",
@@ -1173,7 +1173,6 @@
         "filtersPeople": "افراد",
         "filtersActive": "{{count}} فیلتر فعال",
         "filtersActive_one": "{{count}} فیلتر فعال",
-        "filtersReset": "برداشتن همه فیلترها",
         "filtersDisplay": "نمایش",
         "agendaDayEmpty": "چیزی برنامه‌ریزی نشده",
         "openInMap": "باز کردن در نقشه",
@@ -3365,7 +3364,8 @@
         "unsavedChanges": "تغییرات نادیده گرفته شوند؟",
         "unsavedChangesDetail": "ورودی‌های تو در این فرم از بین می‌روند.",
         "discardChanges": "نادیده گرفتن",
-        "moreSettings": "تنظیمات بیشتر"
+        "moreSettings": "تنظیمات بیشتر",
+        "moreDetails": "جزئیات بیشتر"
     },
     "rrule": {
         "freqNone": "بدون تکرار",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "روز"
+            },
+            "intensity": {
+                "none": "مشخص نشده",
+                "low": "کم",
+                "moderate": "متوسط",
+                "high": "زیاد"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "کیلومتر شمار در طول زمان",
         "detailPaneLabel": "جزئیات وسیله",
         "pickOne": "یک وسیله انتخاب کنید",
-        "pickOneHint": "جزئیات، مهلت‌ها و سابقه اینجا نمایش داده می‌شوند."
+        "pickOneHint": "جزئیات، مهلت‌ها و سابقه اینجا نمایش داده می‌شوند.",
+        "moreDetailsHint": "خرید، ضمانت، عکس، اسناد"
     },
     "documentAttach": {
         "label": "پیوست‌ها",

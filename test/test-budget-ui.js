@@ -522,10 +522,11 @@ test('Einfachauswahl-Leisten melden ihren Zustand über aria-checked', () => {
   assert.match(budget, /role="radio" data-tab-id="\$\{id\}" aria-checked="\$\{on\}"/, 'Darlehensstatus');
   assert.match(splitExpenses, /role="radio" data-tab-id="\$\{id\}" aria-checked="\$\{on\}"/, 'Gruppenstatus');
   assert.match(budget, /role="radio"[\s\S]{0,200}aria-checked="\$\{on\}"/, 'Kontofarbe');
-  // Der Filter-Trichter je Darlehenszeile bleibt ein einzelner Toggle-Button -
-  // seit dem Komponenten-Kanon (2026-09-26) als Zeilenaktion aus rowActionHtml();
-  // gerendert prueft ihn test-budget-readonly-ui (Darlehenskarte).
-  assert.match(budget, /action: 'loan-filter'[\s\S]{0,200}'aria-pressed': String\(/);
+  // Der Filter-Trichter je Darlehenskarte steht seit D6 (Critique 2026-10-16)
+  // als Eintrag im Mehr-Knopf - ein Umschalter, der seinen Zustand als
+  // menuitemcheckbox (aria-checked aus `checked`) ansagt; gerendert prueft ihn
+  // test-budget-readonly-ui (Darlehenskarte).
+  assert.match(budget, /action: 'loan-filter'[\s\S]{0,200}checked: state\.loanFilterId === loan\.id/);
 });
 
 // --------------------------------------------------------
@@ -546,8 +547,12 @@ test('Trendkurve und Donut haben eine Textalternative mit Werten', () => {
 });
 
 test('Donut-Palette wiederholt keine Farbe und borgt keine Modul-Akzente', () => {
-  const palette = stats.match(/const DONUT_COLORS = \[[\s\S]*?\];/);
-  assert.ok(palette, 'DONUT_COLORS fehlt');
+  // Die Palette steht seit der Critique 2026-10-16 (D9) an EINER Stelle, die
+  // Uebersicht, Plan und Statistik teilen; die Statistik bezieht sie von dort.
+  const colorsSrc = read('../public/utils/budget-category-colors.js');
+  const palette = colorsSrc.match(/export const CATEGORY_SERIES_COLORS = Object\.freeze\(\[[\s\S]*?\]\);/);
+  assert.ok(palette, 'CATEGORY_SERIES_COLORS fehlt');
+  assert.match(stats, /const DONUT_COLORS = CATEGORY_SERIES_COLORS;/, 'die Statistik nimmt die geteilte Palette');
   assert.doesNotMatch(palette[0], /--module-/, 'Modul-Akzente tragen eine andere Bedeutung');
   const colors = [...palette[0].matchAll(/--chart-series-\d/g)].map((m) => m[0]);
   assert.equal(new Set(colors).size, colors.length, 'doppelte Farbe in der Palette');
@@ -594,7 +599,12 @@ test('keine Datenreihe deckt sich mit dem Modulton einer Seite, die Diagramme ze
   const pagesDir = new URL('../public/pages/', import.meta.url);
   const users = readdirSync(pagesDir)
     .filter((f) => f.endsWith('.js'))
-    .filter((f) => read(`../public/pages/${f}`).includes('--chart-series-'));
+    // Seit der Critique 2026-10-16 steht die Budget-Palette in
+    // utils/budget-category-colors.js: wer sie importiert, bezieht sie.
+    .filter((f) => {
+      const src = read(`../public/pages/${f}`);
+      return src.includes('--chart-series-') || src.includes('/utils/budget-category-colors.js');
+    });
   assert.ok(
     users.length >= 2,
     `Nur ${users.length} Seite(n) beziehen --chart-series-. Hat sich die Schreibweise geändert? `
@@ -2600,7 +2610,9 @@ test('Budgetkopf traegt page-toolbar--period: eingeklappt verlaesst der Titel da
   // Erlaubt ist deshalb nur, was der eingeklappte Kalenderkopf wirklich ordnet:
   // der Center-Slot (Stepper rueckt in Zeile 1) und die Werkzeuge, die ins
   // Ansichtsmenue falten. Jede weitere Regel ist rot, bis sie hier steht.
-  const ALLOWED_COLLAPSED = [/> \.page-toolbar__center$/, /\[data-collapse-fold\]/];
+  // D1 (2026-10-16): dazu das Wort im Pop-up-Knopf der Ansicht - eingeklappt
+  // teilt der Knopf die Zeile mit dem Stepper und behaelt nur sein Zeichen.
+  const ALLOWED_COLLAPSED = [/> \.page-toolbar__center$/, /\[data-collapse-fold\]/, / \.cal-toolbar__view-menu-label$/];
   const strangers = [...eachRule(calendarCss)]
     .filter((r) => /\.is-collapsed/.test(r.selector))
     .flatMap((r) => r.selector.split(',').map((part) => part.trim()))
@@ -3968,7 +3980,9 @@ test('Darlehenskarte: ein fokussierbarer Knopf oeffnet den Bericht, die Karte bl
   assert.match(knopf[0], /data-loan-id="9"/);
   assert.match(knopf[0], /aria-haspopup="dialog"/, 'der Knopf sagt an, dass er ein Blatt oeffnet');
   assert.match(knopf[1], /Autokredit &lt;&amp;&gt;/, 'der sichtbare Titel ist der Name des Knopfs, escaped');
-  assert.match(knopf[1], /data-lucide="chevron-right"[^>]*aria-hidden="true"/, 'Chevron als sichtbare Affordanz');
+  // Seit D6 (Critique 2026-10-16) ohne Chevron: er heisst "navigiert", hier
+  // geht ein Blatt auf (aria-haspopup="dialog" sagt es dem Screenreader).
+  assert.doesNotMatch(knopf[1], /chevron-right/, 'kein Chevron fuer ein Blatt');
   assert.doesNotMatch(karte, /<div class="budget-loan-card__title">/, 'kein toter Titel neben dem Knopf');
 
   // Verdrahtung als Programm: ein Stub-Wurzelknoten gibt Knopf und Karte
@@ -5057,7 +5071,7 @@ test('#1593: Unterkategorien zeigen den Gesamtwert und folgen der bekannten Reih
 
   const scales = (html, kind) =>
     [...html.matchAll(new RegExp(
-      `class="budget-bar-row__fill budget-bar-row__fill--${kind}"\\s+style="--bar-scale:([\\d.]+)"`,
+      `class="budget-bar-row__fill budget-bar-row__fill--${kind}"\\s+style="--bar-scale:([\\d.]+)[^"]*"`,
       'g',
     ))].map((match) => Number(match[1]));
 
@@ -5626,7 +5640,7 @@ test('R18: je Geld-Reiter fuehrt EINE Zahl, mobil in der Kurzzeile und in der Ke
 
   // Uebersicht: Saldo fuehrt - in der Kurzzeile und als Karte; die Reihe weiss es.
   const html = uebersicht({ month: monthKey(0), entries: [zeile()], summary: summe });
-  assert.match(html, /<div class="row-carrier budget-glance budget-glance--lead[^"]*">\s*<button[^>]*id="budget-balance-more"/);
+  assert.match(html, /<div class="row-carrier budget-glance budget-glance--fold budget-glance--lead[^"]*">\s*<button[^>]*id="budget-balance-more"/);
   assert.match(html, /<div class="metric-grid metric-grid--led">/);
   const leads = html.match(/class="metric-card [^"]*metric-card--lead\b[^"]*"/g) ?? [];
   assert.equal(leads.length, 1, 'genau EINE Karte fuehrt');
@@ -6255,4 +6269,55 @@ test('#1844: der Sprung zum Abo nimmt die Filter der Abo-Liste weg - das Abo, zu
   const clear = handler.indexOf('clearSubscriptionFilters()');
   const wechsel = handler.indexOf("_tablist?.setActive('subscriptions'");
   assert.ok(clear > -1 && clear < wechsel, 'erst die Filter, dann der Wechsel');
+});
+
+/* Critique 2026-10-16 (Block G6): die Kurzzeile der Uebersicht ist mobil EINE
+ * Zeile, bis man sie aufklappt (erste Buchung y=384 -> 285 bei 390x844); der
+ * Startsaldo eines Kontos bricht nicht mehr von seinem Betrag; eine Kategorie
+ * traegt in Uebersicht, Plan und Statistik DIESELBE Farbe (D9), der Zustand
+ * des Plans spricht ueber Text und Icon. */
+test('Critique 2026-10-16: Kurzzeile einzeilig bis aufgeklappt, Startsaldo beim Betrag, eine Farbe je Kategorie (D9)', () => {
+  const summe = { income: 3000, expenses: -950, balance: 2050, byCategory: [
+    { category: 'housing', income: 0, expenses: -700, total: -700 },
+    { category: 'food', income: 0, expenses: -250, total: -250 },
+  ], pending: { count: 0 } };
+  const html = uebersicht({ month: monthKey(0), entries: [zeile()], summary: summe });
+  assert.match(html, /<div class="row-carrier budget-glance budget-glance--fold budget-glance--lead/, 'die Uebersicht faltet ihre Kurzzeile');
+
+  const panel = [...eachRule(read('../public/styles/panel.css'))];
+  const hides = panel.find((r) => /display:\s*none/.test(r.body)
+    && r.selector.includes('.budget-glance--fold .budget-glance__balance[aria-expanded="false"] .budget-glance__flows'));
+  assert.ok(hides, 'eingeklappt keine Ein/Aus-Zeile');
+  assert.match(hides.selector, /\.budget-glance--fold:has\(\.budget-glance__balance\[aria-expanded="false"\]\) \.budget-glance__categories/,
+    'eingeklappt keine Kategorien-Zeile');
+  const lead = panel.find((r) => r.selector.trim() === '.budget-glance--fold.budget-glance--lead .budget-glance__lead');
+  assert.match(lead?.body ?? '', /flex-direction:\s*row/, 'Etikett und Saldo in EINER Zeile');
+
+  // Konten: der Betrag des Startsaldos bricht nie, mobil zieht die Zeile in die Textspalte.
+  const budgetJs = read('../public/pages/budget.js');
+  assert.match(budgetJs, /<span class="budget-account__starting">\$\{t\('budget\.startingBalanceShort'\)\} <span class="budget-account__starting-amount">/);
+  const css = [...eachRule(budgetCss)];
+  assert.match(css.find((r) => r.selector.trim() === '.budget-account__starting-amount')?.body ?? '', /white-space:\s*nowrap/);
+  const phone = (r) => r.at.some((a) => /max-width:\s*639px/.test(a));
+  assert.ok(css.some((r) => phone(r) && r.selector.trim() === '.budget-account__figures' && /display:\s*contents/.test(r.body)),
+    'mobil loest sich die Saldo-Spalte auf');
+  assert.ok(css.some((r) => phone(r) && r.selector.trim() === '.budget-account__starting' && /grid-column:\s*2/.test(r.body)),
+    'mobil steht der Startsaldo in der Textspalte');
+
+  // D9: die Uebersicht faerbt mit der geteilten Zuordnung (groesste Ausgabe zuerst).
+  const bars = budgetUi.renderCategoryBars(summe.byCategory);
+  assert.match(bars, /style="--bar-scale:[\d.]+;--bar-fill:var\(--chart-series-1\)" data-bar-key="expenses:housing"/, 'Wohnen: Serie 1');
+  assert.match(bars, /style="--bar-scale:[\d.]+;--bar-fill:var\(--chart-series-2\)" data-bar-key="expenses:food"/, 'Ernaehrung: Serie 2');
+  // Plan: der Balken traegt die Kategoriefarbe, nicht den Zustand.
+  const plans = read('../public/pages/budget-plans.js');
+  assert.match(plans, /const fill = view\.ctx\.categoryColor\?\.\(p\.category\);/);
+  assert.match(plans, /style="--plan-fill:\$\{fill\}"/);
+  assert.match(budgetJs, /categoryColor: \(category\) => categoryColor\(categoryColorIndex\(state\.summary\?\.byCategory\), category\)/,
+    'der Plan bekommt dieselbe Zuordnung wie die Uebersicht');
+  const fillRule = css.find((r) => r.selector.trim() === '.budget-plan-row__fill');
+  assert.match(fillRule?.body ?? '', /background-color:\s*var\(--plan-fill/, 'Planbalken: Kategoriefarbe');
+  assert.doesNotMatch(fillRule?.body ?? '', /--plan-tone-color/, 'der Zustand faerbt den Balken nicht mehr um');
+  assert.match(plans, /data-lucide="\$\{stateIcon\}"/, 'der Zustand spricht mit Icon und Text');
+  assert.match(stats, /import \{ CATEGORY_SERIES_COLORS, categoryColorIndex \} from '\/utils\/budget-category-colors\.js';/,
+    'die Statistik nimmt dieselbe Zuordnung');
 });

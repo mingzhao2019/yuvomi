@@ -24,7 +24,6 @@
         "filtersOpen": "फ़िल्टर खोलें",
         "filtersActive": "{{count}} फ़िल्टर सक्रिय",
         "filtersActive_one": "{{count}} फ़िल्टर सक्रिय",
-        "filtersReset": "सभी फ़िल्टर हटाएँ",
         "filtersResetDefault": "फ़िल्टर रीसेट करें",
         "close": "बंद करें",
         "add": "जोड़ें",
@@ -67,6 +66,7 @@
         "errorServer": "सर्वर त्रुटि। कृपया बाद में पुनः प्रयास करें।",
         "errorRestoreInProgress": "अभी एक बैकअप रिस्टोर हो रहा है। आपका बदलाव सहेजा नहीं गया, एक मिनट बाद फिर से कोशिश करें।",
         "errorTimeout": "कनेक्शन बहुत देर से हुआ। कृपया पुनः प्रयास करें।",
+        "errorRateLimited": "अभी बहुत सारे अनुरोध आ रहे हैं। थोड़ा रुकें, फिर पुनः प्रयास करें।",
         "requiredFields": "कृपया सभी आवश्यक फ़ील्ड भरें.",
         "invalidInput": "अमान्य इनपुट.",
         "togglePasswordVisibility": "पासवर्ड दिखाएं/छिपाएं",
@@ -1159,7 +1159,6 @@
         "filtersPeople": "लोग",
         "filtersActive": "{{count}} फ़िल्टर सक्रिय",
         "filtersActive_one": "{{count}} फ़िल्टर सक्रिय",
-        "filtersReset": "सभी फ़िल्टर हटाएँ",
         "filtersDisplay": "प्रदर्शन",
         "agendaDayEmpty": "कुछ भी नियोजित नहीं",
         "openInMap": "मानचित्र में खोलें",
@@ -3351,7 +3350,8 @@
         "unsavedChanges": "बदलाव छोड़ें?",
         "unsavedChangesDetail": "इस फ़ॉर्म में तुम्हारी प्रविष्टियाँ खो जाएँगी।",
         "discardChanges": "छोड़ें",
-        "moreSettings": "अधिक सेटिंग्स"
+        "moreSettings": "अधिक सेटिंग्स",
+        "moreDetails": "और विवरण"
     },
     "rrule": {
         "freqNone": "कोई दोहराव नहीं",
@@ -5153,6 +5153,12 @@
             },
             "col": {
                 "day": "दिन"
+            },
+            "intensity": {
+                "none": "निर्दिष्ट नहीं",
+                "low": "हल्की",
+                "moderate": "मध्यम",
+                "high": "उच्च"
             }
         },
         "export": {
@@ -6200,7 +6206,8 @@
         "odometerChartTitle": "समय के साथ ओडोमीटर",
         "detailPaneLabel": "वस्तु का विवरण",
         "pickOne": "कोई वस्तु चुनें",
-        "pickOneHint": "विवरण, समय-सीमाएँ और इतिहास यहाँ दिखेंगे।"
+        "pickOneHint": "विवरण, समय-सीमाएँ और इतिहास यहाँ दिखेंगे।",
+        "moreDetailsHint": "खरीद, वारंटी, फ़ोटो, दस्तावेज़"
     },
     "documentAttach": {
         "label": "अनुलग्नक",

@@ -539,9 +539,19 @@ function renderToolbar(toolbar, content, { activeLeaf, domain }) {
     label.className = 'settings-toolbar__back-label';
     label.textContent = t('settings.title');
     back.append(createIcon('chevron-left', 'settings-toolbar__back-icon'), label);
+    // DER MODULKOPF WIE UEBERALL (D8, Critique 2026-10-16). Am Desktop stand
+    // ueber einem Blatt kein Kopf - die Einstellungen waren das einzige Modul
+    // ohne Siegel und Titelzeile, und ihr Blatt begann 12px hoeher als jedes
+    // andere Modul. Ab 1024px traegt der Kopf jetzt den Modulnamen (settings.css
+    // blendet je Breite Rueckweg ODER Titel aus). Kein <h1>: auf einem Blatt
+    // ist der Blatt-Titel die eine Hauptueberschrift (test:typography); der
+    // Name hier ist die Ortsangabe der Shell wie in jedem Modul.
+    const moduleTitle = document.createElement('p');
+    moduleTitle.className = 'page-toolbar__title settings-toolbar__module-title';
+    moduleTitle.textContent = t('settings.title');
     toolbar.dataset.mode = 'leaf';
     toolbar.classList.remove('page-toolbar--title-tools');
-    toolbar.replaceChildren(back);
+    toolbar.replaceChildren(back, moduleTitle);
     hydrateIcons(toolbar);
     return;
   }
@@ -1128,6 +1138,34 @@ function watchSplit(container, page, { user, domainId }) {
   splitObserver.observe(page);
 }
 
+/**
+ * DIE SEITENLEISTE KLEBT UNTER DEM KOPF, NICHT DARUNTER (Re-Critique
+ * 2026-10-16). Seit der Kopf am Desktop den Modulnamen traegt (D8), klebt er
+ * 69px hoch ueber dem Scrollport. Die Leiste klebte weiter bei `--space-4`:
+ * gescrollt lagen ihre ersten 53px unter dem Kopf, in Ruhe ragte sie 69px
+ * unter das Fenster, und der aktive Link eines Modul-Blatts stand bei y=929
+ * von 900 - `revealActiveNavigationLink` hielt ihn nur in der Leiste sichtbar,
+ * nicht im Fenster. Gemessen statt als Token, wie im Inventar: der Kopf
+ * bricht in langen Locales um und ist unter 1024px ein anderer.
+ */
+let headObserver = null;
+function watchHeadBlock(page, toolbar) {
+  headObserver?.disconnect();
+  headObserver = null;
+  const sync = () => page.style.setProperty('--settings-head-block', `${toolbar.offsetHeight}px`);
+  sync();
+  if (typeof ResizeObserver !== 'function') return;
+  headObserver = new ResizeObserver(() => {
+    if (!page.isConnected) {
+      headObserver?.disconnect();
+      headObserver = null;
+      return;
+    }
+    sync();
+  });
+  headObserver.observe(toolbar);
+}
+
 export async function renderSettingsShell(container, {
   user,
   leaf = null,
@@ -1178,6 +1216,7 @@ export async function renderSettingsShell(container, {
     body.appendChild(shell);
     page.append(toolbar, body);
     container.replaceChildren(page);
+    watchHeadBlock(page, toolbar);
     // Sidebar-Icons einmalig bei der Montage hydrieren; die Detail-Icons werden
     // pro Render separat (nur im Content-Bereich) hydriert.
     hydrateIcons(navigation);
