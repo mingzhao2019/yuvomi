@@ -3285,7 +3285,9 @@ async function saveDocument(event, doc, panel) {
         'success',
       );
     }
-    closeModal({ force: true });
+    // Nur DIESEN Dialog: hat der Nutzer ihn waehrend des Speicherns geschlossen
+    // und einen anderen geoeffnet, bleibt der andere samt Eingaben offen (#1997).
+    closeModal({ force: true, context: modalContext });
     await loadDocuments();
     if (!stillShown(owner)) return;
     renderAll({ motion: true });
@@ -3360,6 +3362,8 @@ function openFolderModal({ parentId = null } = {}) {
         const parent = parentSelect.value ? Number(parentSelect.value) : null;
         error.hidden = true;
         const owner = _container;
+        // Der Dialog dieser Handlung, vor der Anfrage gemerkt (#1997).
+        const modalContext = captureModalContext();
         try {
           const res = await api.post('/documents/folders', { name: input.value.trim(), parent_id: parent });
           // Der Elternteil wird aufgeklappt - ein neuer Ordner, den man nicht
@@ -3374,7 +3378,8 @@ function openFolderModal({ parentId = null } = {}) {
           if (stillShown(owner)) state.folderId = String(res.data?.id || '');
           await loadFolders();
           await loadDocuments();
-          closeModal({ force: true });
+          // Nur diesen Dialog, nie einen inzwischen geoeffneten anderen (#1997).
+          closeModal({ force: true, context: modalContext });
           if (!stillShown(owner)) return;
           applyFilters();
           renderAll();
@@ -3653,7 +3658,8 @@ async function linkDmsDocument(item, accountId) {
       category: 'other',
       visibility: 'family',
     });
-    closeModal({ force: true });
+    // Nur den Verknuepfen-Dialog, nie einen inzwischen geoeffneten anderen (#1997).
+    closeModal({ force: true, context: modalContext });
     await loadDocuments();
     if (!stillShown(owner)) return true;
     renderAll({ motion: true });
