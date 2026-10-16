@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Google Calendar: a connection Google no longer accepts asks to reconnect** (#2019). When
+  Google refused the stored sign-in, for example after the seven days a project in the publishing
+  status Testing allows, Settings still showed Google as connected while nothing synced, and
+  deletions waiting for Google could be dropped. The card now says the sign-in has expired and
+  offers **Reconnect**, syncing pauses until then, and pending changes stay queued. A new sign-in
+  token that Google hands out during a refresh is now kept as well.
+
 - **A dropdown's open list stays dark in dark mode** (#2022). In Chrome on Windows the list
   of a dropdown inside a form row, such as the type of a health measurement, turned white once
   the pointer left it, with light text on it that was hard to read. The list now keeps the

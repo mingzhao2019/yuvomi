@@ -866,7 +866,36 @@ function buildGoogleProvider(googleStatus, user) {
 
   const status = document.createElement('p');
   status.className = 'settings-sync-info__status';
-  status.textContent = providerConnectionStatus(googleStatus);
+  // Google hat das Token abgelehnt (#2019): derselbe Text wie bei Outlook statt
+  // "Verbunden", denn ohne neues OAuth synchronisiert hier nichts mehr.
+  const reauth = Boolean(googleStatus?.connected && googleStatus.needsReauth);
+
+  // EINE Stelle für jede Google-Antwort, die das abgelehnte Token meldet: der
+  // Status oben ist dann veraltet, also neu holen und die Karte im neuen Zustand
+  // aufbauen. Jeder Aufruf der Karte läuft über `googleCall` und damit hier
+  // vorbei (Kalenderauswahl, Kalender an/aus, Jetzt synchronisieren,
+  // Schreibschutz). Status und Trennen fragen Google nicht. Der Fehler geht danach mit `reauthHandled` weiter:
+  // der Aufrufer nimmt seinen Zustand zurück, zeigt aber keinen Toast mehr.
+  const handleReauth = async (err) => {
+    if (err?.data?.reason !== GOOGLE_REAUTH_REASON) return false;
+    const fresh = await api.get('/calendar/google/status').catch(() => null);
+    // Nur wenn die Karte wirklich neu steht: sonst zeigt der Aufrufer den
+    // ursprünglichen Fehler, statt still auf einer veralteten Karte zu bleiben.
+    if (!fresh?.needsReauth) return false;
+    section.replaceWith(buildGoogleProvider(fresh, user));
+    return true;
+  };
+  const googleCall = async (request) => {
+    try {
+      return await request();
+    } catch (err) {
+      if (await handleReauth(err)) err.reauthHandled = true;
+      throw err;
+    }
+  };
+  status.textContent = reauth
+    ? t('settings.outlookReauthRequired')
+    : providerConnectionStatus(googleStatus);
   section.appendChild(status);
   appendSyncError(status, googleStatus?.lastError);
 
@@ -889,14 +918,29 @@ function buildGoogleProvider(googleStatus, user) {
     return section;
   }
 
-  if (googleStatus.connected && user?.role === 'admin') {
-    section.appendChild(buildGoogleCalendarPicker());
-    section.appendChild(buildGoogleReadonlyToggle(googleStatus));
+  // Auswahl und Schreibschutz brauchen ein gültiges Token - bis zum neuen
+  // Verbinden bleiben sie weg, statt mit einem Fehler zu laden.
+  if (googleStatus.connected && !reauth && user?.role === 'admin') {
+    // Stellt erst der Kalenderabruf fest, dass Google das Token ablehnt, ist der
+    // Status oben veraltet: neu holen und die Karte im neuen Zustand aufbauen.
+    section.appendChild(buildGoogleCalendarPicker(googleCall));
+    section.appendChild(buildGoogleReadonlyToggle(googleStatus, googleCall));
   }
 
   const actions = document.createElement('div');
   actions.className = 'settings-sync-actions';
-  if (googleStatus.connected) {
+  if (googleStatus.connected && reauth) {
+    if (user?.role === 'admin') {
+      const reconnect = document.createElement('a');
+      reconnect.href = '/api/v1/calendar/google/auth';
+      reconnect.className = 'btn btn--primary';
+      reconnect.textContent = t('settings.outlookReconnect');
+      actions.appendChild(reconnect);
+      actions.appendChild(buildGoogleDisconnectButton(googleStatus));
+    } else {
+      section.appendChild(buildProviderHint(t('settings.googleOnlyAdmin')));
+    }
+  } else if (googleStatus.connected) {
     const syncBtn = document.createElement('button');
     syncBtn.type = 'button';
     syncBtn.className = 'btn btn--secondary';
@@ -905,9 +949,10 @@ function buildGoogleProvider(googleStatus, user) {
       syncBtn.disabled = true;
       syncBtn.textContent = t('settings.synchronizing');
       try {
-        await api.post('/calendar/google/sync', {});
+        await googleCall(() => api.post('/calendar/google/sync', {}));
         showToast(t('settings.syncSuccess', { provider: 'Google Calendar' }), 'success');
       } catch (err) {
+        if (err.reauthHandled) return;
         showToast(err.message || t('common.errorGeneric'), 'danger');
       } finally {
         syncBtn.disabled = false;
@@ -917,31 +962,7 @@ function buildGoogleProvider(googleStatus, user) {
     actions.appendChild(syncBtn);
 
     if (user?.role === 'admin') {
-      const disconnectBtn = document.createElement('button');
-      disconnectBtn.type = 'button';
-      disconnectBtn.className = 'btn btn--danger-outline';
-      disconnectBtn.textContent = t('settings.disconnect');
-      disconnectBtn.addEventListener('click', async () => {
-        if (!await confirmModal(t('settings.googleDisconnectConfirm'),
-          { danger: true, detail: t('settings.googleDisconnectConfirmDetail') })) return;
-        const deleteEvents = await askDeleteMirrored(googleStatus.mirroredEvents);
-        try {
-          // Die Zahl statt der blossen Trennmeldung, wenn geraeumt wurde: sonst
-          // bliebe der zweite Teil der Aktion unbestaetigt (#820). Wie bei CalDAV.
-          const res = await api.delete(`/calendar/google/disconnect?deleteEvents=${deleteEvents ? 'true' : 'false'}`);
-          const removed = res?.removed ?? 0;
-          showToast(
-            removed
-              ? t('settings.syncCleanup.removed', { count: removed })
-              : t('settings.disconnectedToast', { provider: 'Google Calendar' }),
-            'default',
-          );
-          window.yuvomi?.navigate(SYNC_CALENDAR_HREF);
-        } catch (err) {
-          showToast(err.message || t('common.errorGeneric'), 'danger');
-        }
-      });
-      actions.appendChild(disconnectBtn);
+      actions.appendChild(buildGoogleDisconnectButton(googleStatus));
     }
   } else if (user?.role === 'admin') {
     const connect = document.createElement('a');
@@ -956,6 +977,35 @@ function buildGoogleProvider(googleStatus, user) {
   if (cleanup) section.appendChild(cleanup);
 
   return section;
+}
+
+/** Trennen-Knopf der Google-Karte: im verbundenen wie im abgelehnten Zustand. */
+function buildGoogleDisconnectButton(googleStatus) {
+  const disconnectBtn = document.createElement('button');
+  disconnectBtn.type = 'button';
+  disconnectBtn.className = 'btn btn--danger-outline';
+  disconnectBtn.textContent = t('settings.disconnect');
+  disconnectBtn.addEventListener('click', async () => {
+    if (!await confirmModal(t('settings.googleDisconnectConfirm'),
+      { danger: true, detail: t('settings.googleDisconnectConfirmDetail') })) return;
+    const deleteEvents = await askDeleteMirrored(googleStatus.mirroredEvents);
+    try {
+      // Die Zahl statt der blossen Trennmeldung, wenn geraeumt wurde: sonst
+      // bliebe der zweite Teil der Aktion unbestaetigt (#820). Wie bei CalDAV.
+      const res = await api.delete(`/calendar/google/disconnect?deleteEvents=${deleteEvents ? 'true' : 'false'}`);
+      const removed = res?.removed ?? 0;
+      showToast(
+        removed
+          ? t('settings.syncCleanup.removed', { count: removed })
+          : t('settings.disconnectedToast', { provider: 'Google Calendar' }),
+        'default',
+      );
+      window.yuvomi?.navigate(SYNC_CALENDAR_HREF);
+    } catch (err) {
+      showToast(err.message || t('common.errorGeneric'), 'danger');
+    }
+  });
+  return disconnectBtn;
 }
 
 /**
@@ -1068,7 +1118,10 @@ function buildProviderHint(text) {
   return hint;
 }
 
-function buildGoogleCalendarPicker() {
+/** Grund, mit dem /calendar/google/calendars ein abgelehntes Token meldet (#2019). */
+const GOOGLE_REAUTH_REASON = 'google_reauth_required';
+
+function buildGoogleCalendarPicker(googleCall) {
   const group = document.createElement('div');
   group.className = 'form-group settings-google-calendars';
 
@@ -1099,7 +1152,7 @@ function buildGoogleCalendarPicker() {
 
   (async () => {
     try {
-      const { data } = await api.get('/calendar/google/calendars');
+      const { data } = await googleCall(() => api.get('/calendar/google/calendars'));
       const calendars = data || [];
       list.replaceChildren();
       for (const cal of calendars) {
@@ -1134,19 +1187,20 @@ function buildGoogleCalendarPicker() {
           const enabled = checkbox.checked;
           await withBusy(checkbox, async () => {
             try {
-              await api.patch('/calendar/google/calendars', { calendarId: cal.id, enabled });
+              await googleCall(() => api.patch('/calendar/google/calendars', { calendarId: cal.id, enabled }));
               showToast(
                 enabled ? t('settings.calendarEnabled') : t('settings.calendarDisabled'),
                 'success',
               );
             } catch (err) {
               checkbox.checked = !enabled;
-              showToast(err.message || t('common.errorGeneric'), 'danger');
+              if (!err.reauthHandled) showToast(err.message || t('common.errorGeneric'), 'danger');
             }
           });
         });
       }
     } catch (err) {
+      if (err.reauthHandled) return;
       const p = document.createElement('p');
       p.className = 'form-hint';
       p.textContent = err.message || t('common.errorGeneric');
@@ -1157,7 +1211,7 @@ function buildGoogleCalendarPicker() {
   return group;
 }
 
-function buildGoogleReadonlyToggle(googleStatus) {
+function buildGoogleReadonlyToggle(googleStatus, googleCall) {
   const group = document.createElement('div');
   group.className = 'form-group';
 
@@ -1178,10 +1232,10 @@ function buildGoogleReadonlyToggle(googleStatus) {
     const enabled = checkbox.checked;
     await withBusy(checkbox, async () => {
       try {
-        await api.put('/calendar/google/readonly', { readonly: enabled });
+        await googleCall(() => api.put('/calendar/google/readonly', { readonly: enabled }));
       } catch (err) {
         checkbox.checked = !enabled;
-        showToast(err.message || t('common.errorGeneric'), 'danger');
+        if (!err.reauthHandled) showToast(err.message || t('common.errorGeneric'), 'danger');
       }
     });
   });
@@ -2052,3 +2106,6 @@ export async function render(container, { user, query } = {}) {
 
   window.lucide?.createIcons({ el: container });
 }
+
+// Für die Suite: die Google-Karte für sich, ohne die ganze Seite (#2019).
+export const __test = { buildGoogleProvider };
