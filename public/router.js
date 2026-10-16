@@ -1865,9 +1865,10 @@ function renderAppShell(container) {
   const syncSidebarIndicator = () => {
     requestAnimationFrame(() => positionSidebarIndicator());
   };
-  // In collapsed mode the section headers are hidden. Expanding the rail on
-  // hover/focus puts them back into layout, which shifts the nav items down.
-  // Re-sync the active pill after those layout changes.
+  // Seit dem Nav-Polish 2026-10-15 stehen die Zeilen eingeklappt und
+  // ausgeklappt auf derselben Hoehe (Sektionslabels behalten ihre Zeile).
+  // Das Nachziehen der Aktiv-Pille bleibt als Sicherung, falls sich die
+  // Zeilen beim Auf- und Zuklappen doch einmal verschieben.
   sidebar.addEventListener('mouseenter', syncSidebarIndicator);
   sidebar.addEventListener('mouseleave', syncSidebarIndicator);
   sidebar.addEventListener('focusin', syncSidebarIndicator);
@@ -2014,6 +2015,7 @@ function renderAppShell(container) {
     const tabIndicator = document.createElement('div');
     tabIndicator.className = 'nav-bottom__indicator';
     tabIndicator.setAttribute('aria-hidden', 'true');
+    tabIndicator.style.opacity = '0';
     bottomNav.appendChild(tabIndicator);
   }
 
@@ -3913,6 +3915,9 @@ function sidebarNavItems() {
   const indicator = document.createElement('div');
   indicator.className = 'nav-sidebar__indicator';
   indicator.setAttribute('aria-hidden', 'true');
+  // Unsichtbar bis zur ersten Platzierung (placeNavIndicator), sonst steht er
+  // einen Frame lang auf dem ersten Eintrag.
+  indicator.style.opacity = '0';
   elements.push(indicator);
 
   const hover = document.createElement('div');
@@ -4208,6 +4213,28 @@ function replaceNavIcon(container, selector, lucideIconName) {
 }
 
 /**
+ * Setzt einen Aktiv-Indikator. Die ERSTE Platzierung eines frisch gebauten
+ * Indikators springt: er entsteht bei translate 0, also auf dem ersten Eintrag,
+ * und glitt beim Laden (und nach jedem Neubau der Leiste) sichtbar vom ersten
+ * Eintrag zum aktiven - gemessen 150ms von "Uebersicht" zu "Kalender". Gleiten
+ * ist die Antwort auf einen Wechsel, nicht auf das Erscheinen.
+ *
+ * "Platziert" ist nur ein GEZEICHNETER Indikator. Die Sidebar ist unter 1024px
+ * ausgeblendet, die Tab-Leiste darueber; der jeweils verborgene Indikator hat
+ * keine Geometrie. Wurde er trotzdem markiert, glitt er beim Drehen eines
+ * Tablets ueber die Schwelle aus der Nullposition herein (Codex-Review zu #2025).
+ */
+function placeNavIndicator(indicator, apply) {
+  const first = indicator.dataset.placed !== '1';
+  if (first) indicator.style.transition = 'none';
+  apply();
+  if (!first) return;
+  indicator.getBoundingClientRect();
+  indicator.style.transition = '';
+  if (indicator.getClientRects().length) indicator.dataset.placed = '1';
+}
+
+/**
  * Positioniert den morphenden Indikator in der Sidebar auf dem aktiven Nav-Item.
  */
 function positionSidebarIndicator() {
@@ -4236,8 +4263,10 @@ function positionSidebarIndicator() {
   // Pille vertikal im Item zentrieren — aus realen Höhen, token-unabhängig.
   // offsetTop ist scroll-unabhängig relativ zum (position:relative) Container.
   const centerOffset = (active.offsetHeight - indicator.getBoundingClientRect().height) / 2;
-  indicator.style.transform = `translateY(${top + centerOffset}px)`;
-  indicator.style.opacity = '';
+  placeNavIndicator(indicator, () => {
+    indicator.style.transform = `translateY(${top + centerOffset}px)`;
+    indicator.style.opacity = '';
+  });
 }
 
 // Seitliche Luft zur Slot-Kante und Maximalbreite der Aktiv-Kapsel. Eine
@@ -4277,10 +4306,12 @@ function positionTabIndicator() {
   // Border-Kante - ohne den Abzug sitzt die Kapsel 1px zu tief.
   const top = wr.top - nr.top - nav.clientTop;
   const left = ar.left - nr.left + (ar.width - width) / 2;
-  indicator.style.width = `${width}px`;
-  indicator.style.height = `${wr.height}px`;
-  indicator.style.transform = `translate(${left}px, ${top}px)`;
-  indicator.style.opacity = '';
+  placeNavIndicator(indicator, () => {
+    indicator.style.width = `${width}px`;
+    indicator.style.height = `${wr.height}px`;
+    indicator.style.transform = `translate(${left}px, ${top}px)`;
+    indicator.style.opacity = '';
+  });
 }
 
 function sidebarKitchenEl() {
@@ -4382,7 +4413,11 @@ function setMoreButtonState(moreBtn, activeSecondary) {
     }
   } else {
     moreBtn.removeAttribute('aria-current');
-    moreBtn.style.setProperty('--item-module-accent', 'var(--color-accent)');
+    // In Ruhe OHNE Modulton: die Angabe faellt weg, und das Zeichen steht
+    // tertiaer wie nach `moreNavButtonEl()` (Begruendung dort). Hier stand
+    // `var(--color-accent)` - nach jeder Navigation sah der Ueberlauf damit
+    // aus wie der aktive Tab, obwohl der Aufbau es richtig machte.
+    moreBtn.style.removeProperty('--item-module-accent');
   }
 
   // Der Änderungsverlauf liegt auf Mobil im „Mehr"-Sheet: steht ein Update an,
