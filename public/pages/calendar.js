@@ -1749,16 +1749,24 @@ function taskChipAriaLabel(task) {
   return [
     t('calendar.taskChipAriaLabel', { title: task.title }),
     priority ? `${t('tasks.priorityLabel')}: ${t(priority)}` : '',
-    // Reine Wanduhrzeit: formatTime faengt sie vor jeder Zonenrechnung ab.
-    task.due_time ? formatTime(task.due_time.slice(0, 5)) : '',
+    taskTimeLabel(task),
   ].filter(Boolean).join(', ');
+}
+
+/**
+ * Die Faelligkeit einer Aufgabe im Zeitformat der Region (#2018): der Chip
+ * zeigte `due_time` roh und damit auch im 12-Stunden-Format „14:30". Reine
+ * Wanduhrzeit: formatTime faengt sie vor jeder Zonenrechnung ab.
+ */
+function taskTimeLabel(task) {
+  return task.due_time ? formatTime(String(task.due_time).slice(0, 5)) : '';
 }
 
 function renderTaskChip(task, { interactive = true, agenda = false, agendaDate = '', icon = true } = {}) {
   const priority = task.priority || 'none';
   const done     = task.status === 'done';
   const label    = esc(task.title);
-  const dueTime = task.due_time ? formatTime(task.due_time) : '';
+  const dueTime = taskTimeLabel(task);
   // `remind_at` is stored as UTC without a trailing Z for compatibility with
   // the existing reminder-offset helpers. Parse it as an instant before
   // applying the household display zone; treating it as wall-clock text would
