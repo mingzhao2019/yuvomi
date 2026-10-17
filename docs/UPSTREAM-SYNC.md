@@ -924,3 +924,52 @@ checkpoint includes application and Docker/runtime code changes; the next
 ordinary push of `custom` should therefore trigger that workflow. The temporary
 integration branch is ready to fast-forward into `custom` and push both `main`
 and `custom` without force.
+
+## Current sync checkpoint (2026-10-17, v2.77.2)
+
+The upstream remote was refreshed from `aef025b2c3585e2949aa338ca340b69d681ada43`
+(`v2.77.2`) to `5f752e7a2` (`v2.77.2`). Local `main` was fast-forwarded to
+that exact upstream tip. The selective integration started from custom
+`3e50a97a1` on `custom-upstream-selective-2026-10-17`; upstream was not merged
+wholesale.
+
+All nine new upstream commits were reviewed and integrated in upstream order:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `3c40f34a9` (#2017) | Links folders as junctions on Windows and skips POSIX-only cases. | Adopted as `4b852fd0d`; test-infrastructure only. |
+| `d89dd391e` (#2025) | Polishes the phone tab bar and desktop sidebar navigation. | Adopted as `9a0e9a284`; retained custom navigation and calendar behavior. |
+| `b97a9b375` (#2026) | Calendar task times follow the selected time format. | Manually composed as `01841aec1`; retained custom task reminders, statuses, toggles, and agenda behavior. |
+| `8c6534e32` (#2022, #2027) | Dropdown lists keep the dark theme. | Adopted as `e2d2a4e80`. |
+| `bcef4f33d` (#1997, #2030) | A late document success closes only its own dialog. | Adopted as `f32d09379`; retained custom document state behavior. |
+| `c6f7ed305` (#2019, #2029) | Refused Google tokens request reconnection instead of appearing connected. | Manually composed as `7acc1f802`, with follow-up `d0b035a18`; retained the custom scheduler and test-chain behavior. |
+| `008a3738684` (#2040) | Unifies header tools, adds real dialogs, and gives phones more room. | Manually composed as `cb0105e4b`; used the upstream shared mobile header layout while retaining custom lunar/task/calendar behavior and locale coverage. |
+| `19c580c6b` (#2044) | Makes Manage calendars reachable on tablets and phones. | Adopted as `101faa03e`. |
+| `5f752e7a2` (#2045) | Makes the Manage calendars create row fit on a phone. | Adopted as `db7f29f04`. |
+
+The main semantic overlap decisions were to preserve custom calendar task
+reminders/status controls and lunar-date behavior while taking the upstream
+shared phone header/tool layout; retain the custom Google scheduler guard and
+test wrapper; and keep the custom frontend audit and motion budgets. The
+upstream UI merge left duplicate plural keys in five locales, so
+`4f85946da` removes those ten duplicate entries and restores canonical JSON
+ordering without changing translations. The motion threshold was aligned to
+the merged 248px contract, and stale `calendar.filtersReset` entries were
+removed from the five affected locales in `7835e823e`.
+
+Version metadata remains synchronized at `2.77.2`; none of these nine commits
+publishes a new release. Focused validation passed for the frontend audit
+(501/501), calendar (318), motion, Google outbound (121/121), suite-chain,
+calendar/mobile, dialog, task-filter, Google re-auth, and related UI suites.
+The optional browser dialog-a11y check still depends on the environment's
+missing `axe-core/axe.min.js`; it was not a product assertion failure. The
+full `npm test` completed with exit code 0 on 2026-10-17: 24,298 TAP tests
+were observed, 24,276 passed, 0 failed, and 22 were skipped. `git diff --check`
+and the i18n canonical-format check both pass.
+
+This checkpoint contains application, UI, server, and test changes rather
+than documentation-only changes. After the `custom` push,
+`.github/workflows/docker-publish-feature-work.yml` should therefore run and
+rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
+ready to fast-forward into `custom` and push both `main` and `custom` without
+force.
