@@ -1331,8 +1331,6 @@
         "monthDayEntries_many": "{{count}} wpisów",
         "overrideOrphanConfirmTitle_few": "Zachować {{count}} zmienione wystąpienia?",
         "overrideOrphanConfirmTitle_many": "Zachować zmienione wystąpienia ({{count}})?",
-        "filtersActive_few": "{{count}} aktywne filtry",
-        "filtersActive_many": "Aktywne filtry: {{count}}",
         "monthDayMoreTitles_few": "i jeszcze {{count}}",
         "monthDayMoreTitles_many": "i jeszcze {{count}}",
         "localCalendarLabel": "Kalendarz",

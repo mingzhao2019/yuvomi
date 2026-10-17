@@ -1317,8 +1317,6 @@
         "monthDayEntries_many": "{{count}} записей",
         "overrideOrphanConfirmTitle_few": "Сохранить {{count}} изменённых повтора?",
         "overrideOrphanConfirmTitle_many": "Сохранить изменённые повторы ({{count}})?",
-        "filtersActive_few": "{{count}} активных фильтра",
-        "filtersActive_many": "Активных фильтров: {{count}}",
         "monthDayMoreTitles_few": "и ещё {{count}}",
         "monthDayMoreTitles_many": "и ещё {{count}}",
         "localCalendarLabel": "Календарь",

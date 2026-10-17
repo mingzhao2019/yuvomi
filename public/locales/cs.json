@@ -1246,7 +1246,6 @@
         "monthDayMoreTitles_other": "a ještě {{count}}",
         "monthDayEntries_few": "{{count}} položky",
         "overrideOrphanConfirmTitle_few": "Ponechat {{count}} upravené výskyty?",
-        "filtersActive_few": "{{count}} aktivní filtry",
         "monthDayMoreTitles_few": "a ještě {{count}}",
         "localCalendarLabel": "Kalendář",
         "defaultLocalCalendar": "Kalendář",
