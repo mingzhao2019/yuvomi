@@ -1293,7 +1293,6 @@
         "filtersPeople": "Люди",
         "filtersActive": "Активних фільтрів: {{count}}",
         "filtersActive_one": "{{count}} активний фільтр",
-        "filtersReset": "Зняти всі фільтри",
         "filtersActive_few": "{{count}} активні фільтри",
         "filtersActive_many": "Активних фільтрів: {{count}}",
         "filtersDisplay": "Відображення",

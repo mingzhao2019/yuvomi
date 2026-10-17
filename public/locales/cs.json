@@ -1227,7 +1227,6 @@
         "filtersPeople": "Osoby",
         "filtersActive": "Aktivní filtry: {{count}}",
         "filtersActive_one": "1 aktivní filtr",
-        "filtersReset": "Zrušit všechny filtry",
         "filtersActive_few": "{{count}} aktivní filtry",
         "filtersDisplay": "Zobrazení",
         "agendaDayEmpty": "Nic naplánováno",

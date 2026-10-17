@@ -1359,7 +1359,6 @@
         "filtersPeople": "الأشخاص",
         "filtersActive": "{{count}} عوامل تصفية نشطة",
         "filtersActive_one": "عامل تصفية واحد نشط",
-        "filtersReset": "إزالة كل عوامل التصفية",
         "filtersActive_few": "{{count}} عوامل تصفية نشطة",
         "filtersActive_two": "عاملا تصفية نشطان",
         "filtersActive_many": "{{count}} عامل تصفية نشطًا",

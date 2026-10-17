@@ -30,7 +30,7 @@ test('Kalender-Toolbar verwendet nur den Filterblatt-Einstieg', () => {
   const body = source.slice(start, end);
   assert(body.includes('const scheduleWarningHtml ='),
     'renderToolbar muss die Schichtwarnung weiter aus dem aktuellen Zustand ableiten');
-  assert(body.includes('toolbarHtml({ filterCount, scheduleWarningHtml })'),
+  assert(body.includes('toolbarHtml({ filterCount, scheduleWarningHtml, searchValue:'),
     'renderToolbar muss den gemeinsamen Toolbar-Baustein verwenden');
   assert(body.includes("bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters)"),
     'der Filterknopf muss das Filterblatt oeffnen');
@@ -42,7 +42,7 @@ test('Kalender-Toolbar verwendet nur den Filterblatt-Einstieg', () => {
   const actions = html.indexOf('class="page-toolbar__actions"');
   const bar = html.indexOf('class="page-toolbar__bar');
   const filters = html.indexOf('id="cal-filters"');
-  const search = html.indexOf('id="cal-search"');
+  const search = html.indexOf('id="cal-search-input"');
   assert(actions >= 0 && bar > actions && filters > bar && search > bar,
     'Filter und Suche müssen im gemeinsamen Baustein hinter dem Aktions-Slot in der Bar-Zeile stehen');
   const actionsHtml = html.slice(actions, bar);
@@ -4464,7 +4464,7 @@ test('Aufgabe im Kalender: die Uhrzeit am Chip folgt dem Zeitformat (#2018)', ()
       const html = calendarHelpers.renderTaskChip(task, opts);
       assert(!html.includes('14:30'), `der Chip zeigt die Rohzeit statt des Zeitformats: ${html}`);
       assert(/title="Steuer · 2:30 PM"/.test(html), `der Tooltip nennt die Zeit nicht im Zeitformat: ${html}`);
-      assert(/<span>Steuer · 2:30 PM<\/span>/.test(html), `der Chiptext nennt die Zeit nicht im Zeitformat: ${html}`);
+      assert(/<span[^>]*>Steuer · 2:30 PM<\/span>/.test(html), `der Chiptext nennt die Zeit nicht im Zeitformat: ${html}`);
     }
     assert(calendarHelpers.taskChipAriaLabel(task).endsWith(', 2:30 PM'), 'der gesprochene Name nennt dieselbe Zeit');
   } finally {

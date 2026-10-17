@@ -1307,7 +1307,6 @@
         "filtersPeople": "Osoby",
         "filtersActive": "Aktywne filtry: {{count}}",
         "filtersActive_one": "1 aktywny filtr",
-        "filtersReset": "Wyczyść wszystkie filtry",
         "filtersActive_few": "{{count}} aktywne filtry",
         "filtersActive_many": "Aktywne filtry: {{count}}",
         "filtersDisplay": "Wyświetlanie",
