@@ -504,6 +504,60 @@ test('swapPage: der erste Tipp waehrend der Blende bricht sie ab, danach haengt 
   }
 });
 
+test('swapPage R19: der Tipp, der die Blende abbricht, kommt nach ihrem Ende an seinem Ziel an', async () => {
+  // Er traf <html>, sein `click` ebenfalls (gemeinsamer Vorfahr von Druck und
+  // Loslassen) - in schneller Folge ging so etwa jeder achte Tipp verloren.
+  const { swapPage } = await import('../public/utils/view-transition.js');
+  const env = stubDocument();
+  const html = { tag: 'html', classList: { add: () => {}, remove: () => {}, contains: () => false } };
+  const clicked = [];
+  const button = { click: () => clicked.push('nav') };
+  env.doc.documentElement = html;
+  env.doc.body = { tag: 'body' };
+  env.doc.elementFromPoint = (x, y) => (x === 30 && y === 700 ? button : null);
+  globalThis.document = env.doc;
+  globalThis.matchMedia = () => ({ matches: false });
+  try {
+    const { finished } = await swapPage(() => { env.content.current = env.toolbarNew; }, { content: env.content, from: '/tasks', animate: true });
+    const down = env.listeners.find((l) => l.type === 'pointerdown' && l.capture);
+    const click = env.listeners.find((l) => l.type === 'click' && l.capture);
+    assert.ok(click, 'kein Zuhoerer fuer den verlorenen click');
+    down.fn({ target: html, button: 0, isPrimary: true, clientX: 30, clientY: 700 });
+    let stopped = false;
+    click.fn({ target: html, preventDefault: () => {}, stopImmediatePropagation: () => { stopped = true; } });
+    assert.ok(stopped, 'der click auf <html> geht nicht weiter');
+    await finished;
+    await Promise.resolve();
+    assert.deepEqual(clicked, ['nav'], 'der Tipp kommt nicht am Element unter dem Finger an');
+    assert.equal(env.listeners.filter((l) => l.type === 'click').length, 0, 'der Zuhoerer bleibt nach dem Nachreichen');
+
+    // Fand der click sein Ziel selbst, wird nichts nachgereicht.
+    const again = await swapPage(() => {}, { content: env.content, from: '/notes', animate: true });
+    env.listeners.find((l) => l.type === 'pointerdown').fn({ target: html, button: 0, clientX: 30, clientY: 700 });
+    env.listeners.find((l) => l.type === 'click').fn({ target: button, preventDefault: () => { throw new Error('angehalten'); } });
+    await again.finished;
+    await Promise.resolve();
+    assert.deepEqual(clicked, ['nav'], 'ein click mit eigenem Ziel wurde ein zweites Mal ausgeloest');
+
+    // Ohne click (gewischt): der Zuhoerer geht nach dem Fenster von selbst.
+    const swipe = await swapPage(() => {}, { content: env.content, from: '/meals', animate: true });
+    env.listeners.find((l) => l.type === 'pointerdown').fn({ target: html, button: 0, clientX: 30, clientY: 700 });
+    await swipe.finished;
+    await new Promise((r) => setTimeout(r, 1100));
+    assert.equal(env.listeners.filter((l) => l.type === 'click').length, 0, 'ein Zuhoerer ohne click haengt weiter');
+
+    // Der Router reicht erst nach, wenn seine Navigation durch ist: navigate()
+    // verwirft jeden Aufruf, solange `isNavigating` steht (im Browser gemessen:
+    // ohne das kam der erste Tipp einer Runde nicht an).
+    const router = readFileSync(new URL('../public/router.js', import.meta.url), 'utf8');
+    assert.match(router, /await swapPage\(swap, \{[^}]*whenSettled: navigationIdle,/);
+    assert.match(router, /function navigationIdle\(\) \{[\s\S]*?routerState\.isNavigating/);
+  } finally {
+    delete globalThis.document;
+    delete globalThis.matchMedia;
+  }
+});
+
 test('swapPage: ein zweiter Wechsel vor dem Ende des ersten behaelt den Kopfnamen', async () => {
   // Zwei Tipps innerhalb der Transition: der Browser verwirft die erste, ihr
   // `finished` loest auf, waehrend die zweite ihr altes Bild noch nicht
@@ -920,6 +974,11 @@ function motionEl(key, top = 0) {
   return el;
 }
 
+/** Hat stagger diese Zeile angesetzt? Seit R19 eine Animation mit Startpunkt 0 und `fill: 'backwards'`. */
+const staggered = (el) => el.calls.some((c) => c.keyframes[0]?.opacity === 0 && c.timing?.fill === 'backwards');
+/** Animiert ein Aufruf Layout (Hoehe, Abstaende)? Die gehaltene geschlossene Form zaehlt nicht, sie bewegt nichts. */
+const animatesLayout = (call) => call.keyframes.some((k) => 'height' in k) && call.keyframes[0]?.height !== call.keyframes.at(-1)?.height;
+
 const motionHost = (rows) => {
   const host = motionEl('host');
   host.rows = rows;
@@ -1026,8 +1085,8 @@ test('redrawList: ein Aufbau aus dem Leeren staffelt - einmal je Traeger - und k
     const drawn = redrawList(host, () => { renders += 1; host.rows = [a, b]; }, opts);
     assert.equal(renders, 2, 'render laeuft je Aufruf genau einmal');
     assert.equal(drawn.first, true);
-    assert.equal(a.style.opacity, '0', 'stagger hat die Zeilen angesetzt');
-    assert.equal(a.calls.length, 0, 'der Aufbau klappt nichts auf');
+    assert.ok(staggered(a), 'stagger hat die Zeilen angesetzt');
+    assert.ok(!a.calls.some(animatesLayout), 'der Aufbau klappt nichts auf');
 
     // Derselbe Traeger zeigt zwischendurch etwas anderes (anderer Reiter) und
     // baut die Liste dann wieder auf: keine Zeile gilt als "neu", und das
@@ -1038,7 +1097,7 @@ test('redrawList: ein Aufbau aus dem Leeren staffelt - einmal je Traeger - und k
     const again = redrawList(host, () => { host.rows = [a2, b2]; }, opts);
     assert.equal(again.entered, 0);
     assert.equal(a2.calls.length + b2.calls.length, 0, 'kein Aufklappen jeder Zeile beim Zurueckkehren');
-    assert.equal(a2.style.opacity, undefined, 'und kein zweites Staffeln');
+    assert.ok(!staggered(a2), 'und kein zweites Staffeln');
   } finally { restore(); }
   // stagger raeumt seine Inline-Werte per Timer ab - abwarten, damit kein Test daran haengt.
   await new Promise((r) => setTimeout(r, 500));
@@ -1056,10 +1115,12 @@ test('redrawList: eine neue Zeile klappt ein (ohne FLIP darueber), eine reine Um
     const a2 = motionEl('a', 0); const c2 = motionEl('c', 48); const b2 = motionEl('b', 96);
     const entered = redrawList(host, () => { host.rows = [a2, c2, b2]; }, opts);
     assert.deepEqual(entered, { first: false, entered: 1, moved: 0 });
-    assert.equal(c2.calls.length, 1, 'die neue Zeile zieht ihre Hoehe auf');
-    assert.equal(c2.calls[0].keyframes[0].height, '0px');
-    assert.equal(c2.calls[0].keyframes[1].height, '48px');
-    assert.equal(b2.calls.length, 0, 'der Nachbar folgt dem Layout - kein zweiter Versatz per FLIP');
+    // Seit R19 ohne Hoehenanimation (expandIn, test:ux-utils): die neue Zeile
+    // blendet ein, ihre Nachbarn im DOM gleiten per FLIP aus der Lage ohne sie.
+    assert.equal(c2.calls.length, 1, 'die neue Zeile tritt ein');
+    assert.equal(c2.calls[0].keyframes[0].opacity, 0);
+    assert.ok(c2.calls[0].keyframes.every((f) => !('height' in f)), 'keine Hoehe in den Keyframes');
+    assert.equal(b2.calls.length, 0, 'kein zweiter Versatz aus dem Listen-FLIP obendrauf');
 
     // Reine Umsortierung: b vor a.
     const b3 = motionEl('b', 0); const a3 = motionEl('a', 48); const c3 = motionEl('c', 96);
@@ -1081,15 +1142,49 @@ test('redrawList/collapseRow: unter reduzierter Bewegung laeuft nur das Neuzeich
     const a = motionEl('a', 0);
     const host = motionHost([a]);
     redrawList(host, () => {}, opts);
-    assert.equal(a.style.opacity, undefined, 'kein gestaffeltes Einblenden');
+    assert.equal(a.calls.length, 0, 'kein gestaffeltes Einblenden');
     const a2 = motionEl('a', 48); const n = motionEl('n', 0);
     let ran = 0;
     redrawList(host, () => { ran += 1; host.rows = [n, a2]; }, opts);
     assert.equal(ran, 1);
     assert.equal(n.calls.length + a2.calls.length, 0, 'weder Aufklappen noch FLIP');
     await collapseRow(a2);
-    assert.equal(a2.calls.length, 0, 'kein Ausklappen');
+    // R19: blenden statt springen. Die Zeile geht per opacity, danach haelt
+    // sie die geschlossene Form - nichts davon bewegt sich.
+    assert.ok(a2.calls.length > 0, 'die Zeile verschwindet ohne Blende');
+    assert.ok(!a2.calls.some(animatesLayout), 'kein Ausklappen');
+    assert.ok(a2.calls.every((c) => c.keyframes.every((k) => !('transform' in k))), 'keine Bewegung unter reduzierter Bewegung');
   } finally { restore(); }
+});
+
+test('collapseOut R19: nur transform und opacity - die Nachbarn gleiten per FLIP, unter reduzierter Bewegung blenden sie', async () => {
+  for (const reduced of [false, true]) {
+    const restore = motionEnv({ reduced });
+    try {
+      const { collapseOut } = await import('../public/utils/ux.js');
+      const neighbour = motionEl('n', 48);
+      const row = motionEl('row', 0);
+      row.nextElementSibling = neighbour;
+      // Die gehaltene geschlossene Form nimmt der Zeile ihren Platz: der
+      // Nachbar steht danach 48px hoeher.
+      const animate = row.animate.bind(row);
+      row.animate = (keyframes, timing) => {
+        if (keyframes.some((k) => k.height === '0px')) neighbour.top = 0;
+        return animate(keyframes, timing);
+      };
+      await collapseOut(row);
+      assert.ok(!row.calls.some(animatesLayout), `${reduced}: die Zeile animiert Layout`);
+      assert.ok(row.calls.some((c) => c.keyframes.at(-1).height === '0px' && c.timing.fill === 'forwards'),
+        `${reduced}: die Zeile bleibt nicht zu, bis die Liste neu gezeichnet ist`);
+      assert.equal(neighbour.calls.length, 1, `${reduced}: der Nachbar springt`);
+      const [{ keyframes }] = neighbour.calls;
+      if (reduced) {
+        assert.deepEqual(keyframes.map((k) => Object.keys(k)), [['opacity'], ['opacity']], 'reduziert: blenden, nicht gleiten');
+      } else {
+        assert.deepEqual(keyframes, [{ transform: 'translate(0px, 48px)' }, { transform: 'none' }], 'der Nachbar gleitet nur mit transform');
+      }
+    } finally { restore(); }
+  }
 });
 
 test('collapseRow: klappt die Zeile aus, mit der letzten Zeile die Gruppe - und loest auch ohne finish auf', async () => {
@@ -1102,23 +1197,26 @@ test('collapseRow: klappt die Zeile aus, mit der letzten Zeile die Gruppe - und 
     const started = Date.now();
     await collapseRow(row); // `finished` loest in motionEl NIE auf
     assert.ok(Date.now() - started < 1000, 'der Timer loest auf, nicht das Ereignis');
-    assert.equal(row.calls.length, 1);
-    assert.equal(row.calls[0].keyframes[1].height, '0px');
-    assert.equal(row.calls[0].timing.fill, 'forwards', 'bleibt zu, bis die Liste neu gezeichnet ist');
-    assert.equal(row.calls[0].timing.duration, 250, '--duration-lg');
+    // R19: erst die Blende (opacity + transform, Compositor), dann die
+    // gehaltene geschlossene Form in einem Frame.
+    assert.equal(row.calls.length, 2);
+    assert.deepEqual(Object.keys(row.calls[0].keyframes[1]).sort(), ['opacity', 'transform']);
+    assert.equal(row.calls[1].keyframes[1].height, '0px');
+    assert.equal(row.calls[1].timing.fill, 'forwards', 'bleibt zu, bis die Liste neu gezeichnet ist');
+    assert.equal(row.calls[0].timing.duration, 150, '60 % von --duration-lg');
 
     const group = motionEl('group');
     const only = motionEl('x');
     group.querySelectorAll = () => [only];
     await collapseRow(only, { group, selector: '.row' });
     assert.equal(only.calls.length, 0);
-    assert.equal(group.calls.length, 1, 'die Gruppe geht mit ihrer letzten Zeile');
+    assert.equal(group.calls.length, 2, 'die Gruppe geht mit ihrer letzten Zeile');
 
     const group2 = motionEl('group2');
     const one = motionEl('y');
     group2.querySelectorAll = () => [one, motionEl('z')];
     await collapseRow(one, { group: group2, selector: '.row' });
-    assert.equal(one.calls.length, 1);
+    assert.equal(one.calls.length, 2);
     assert.equal(group2.calls.length, 0);
   } finally { restore(); }
 });
@@ -1337,7 +1435,8 @@ test('Diagramme: Kurven und Ring der Berichte zeichnen sich einmal ein (drawChar
   assert.match(stats, /drawChartOnce\('budget-stats-trend', \{ lines: host\.querySelector\('\.budget-stats__lines'\) \}\);/);
   assert.match(stats, /drawChartOnce\('budget-stats-donut', \{ arcs: host\.querySelectorAll\('\.budget-stats__donut circle'\) \}\);/);
   // Das Ringsegment traegt "Laenge Umfang" - daraus liest der Helfer den Startwert.
-  assert.match(stats, /stroke-dasharray="\$\{\(frac \* C\)\.toFixed\(2\)\} \$\{C\.toFixed\(2\)\}"/);
+  // R19: je Segment 2 Einheiten Fuge (DONUT_GAP), der Strich bleibt ein Bogen.
+  assert.match(stats, /stroke-dasharray="\$\{Math\.max\(frac \* C - gap, 0\.5\)\.toFixed\(2\)\} \$\{C\.toFixed\(2\)\}"/);
   // Der Helfer selbst: ohne fill (Endzustand = Markup), einmal je Sitzung.
   const ux = publicSource('utils/ux.js');
   const fn = ux.slice(ux.indexOf('export function drawChartOnce('), ux.indexOf('function settleAnimation('));
@@ -1584,8 +1683,10 @@ test('R18: der Aufgaben-Dialog schliesst mit dem Speichern - die aufziehende Zei
 // --------------------------------------------------------------------------
 const DRILL_DOWN_HOSTS = [
   ['settings/shell.js', /const drill = existingShell && !isSplit\(shell\) && wasLeaf !== Boolean\(activeLeaf\)\s*\? \(activeLeaf \? 1 : -1\)\s*: 0;/, 'Einstellungen: Uebersicht <-> Blatt, nur ohne Seitenleiste'],
-  ['settings/shell.js', /if \(drill\) swapContent\(content, null, \{ direction: drill \}\);\s*if \(toolbar\) renderToolbar\(toolbar, content, \{ activeLeaf, domain: leafDomain \}\);\s*await renderLeafContent\(/, 'Einstellungen: das Blatt gleitet mit seinem Geruest herein - vor dem Laden gestartet, nicht danach'],
-  ['settings/shell.js', /renderOverview\(content, domains, user\);[\s\S]{0,200}if \(drill\) swapContent\(content, null, \{ direction: drill \}\);/, 'Einstellungen: zurueck zur Uebersicht'],
+  // R19: mit ALTEM Bild (swapRegion) - hinein schiebt sich das Blatt darueber,
+  // zurueck schiebt es sich hinaus; der synchrone Teil laeuft im Wechsel.
+  ['settings/shell.js', /await swapRegion\(content, \(\) => \{\s*if \(toolbar\) renderToolbar\(toolbar, content, \{ activeLeaf, domain: leafDomain \}\);\s*loading = renderLeafContent\(content, activeLeaf, leafDomain, user, query\);\s*\}, \{ direction: drill \}\);\s*await loading;/, 'Einstellungen: das Blatt gleitet mit seinem Geruest herein - vor dem Laden gestartet, nicht danach'],
+  ['settings/shell.js', /if \(drill\) await swapRegion\(content, paintOverview, \{ direction: drill \}\);/, 'Einstellungen: zurueck zur Uebersicht'],
   ['pages/health.js', /const drill = !narrow \? 0 : id === HEALTH_OVERVIEW_ID \? -1 : previous === HEALTH_OVERVIEW_ID \? 1 : 0;\s*if \(previous && previous !== id\) markAreaEntering\(route, drill\);/, 'Gesundheit: Uebersicht <-> Bereich, nur schmal'],
   ['pages/health.js', /if \(panel\) swapContent\(panel, null, \{ direction \}\);/, 'Gesundheit: ueber den geteilten Helfer'],
 ];
@@ -1781,18 +1882,14 @@ test('R18: der FAB steht ueber den Wechsel, poppt nur ohne Vorgaenger, und seine
   assert.ok(held >= 0 && held < swap.indexOf('content.replaceChildren(pageWrapper)') && held < swap.indexOf('clearPageFab();'), 'der Vorgaenger wird vor dem Inhaltstausch festgehalten');
   const hold = router.slice(router.indexOf('function holdFabAcrossSwap('), router.indexOf('function holdFabAcrossSwap(') + 700);
   assert.match(hold, /classList\.toggle\('fab-steady', /, 'fab-in nur ohne Vorgaenger');
-  assert.match(hold, /classList\.toggle\('fab-holding', /, 'die Reserve der Kapsel haelt');
-  // Losgelassen wird nach dem letzten adoptPageFab() - und auch, wenn der Aufbau scheitert.
-  assert.match(router, /const pageFab = adoptPageFab\(\);\s*releaseFabHold\(\);/);
-  const render = router.slice(router.indexOf('async function renderPage('), router.indexOf('const pageFab = adoptPageFab();'));
-  const tail = router.slice(router.indexOf('const pageFab = adoptPageFab();'));
-  assert.match(tail.slice(0, tail.indexOf('\nasync function ') > 0 ? tail.indexOf('\nasync function ') : 6000), /\} catch \(err\) \{[\s\S]{0,400}releaseFabHold\(\);/, 'ein gescheiterter Aufbau laesst die Reserve nicht stehen');
-  assert.ok(render.length > 0);
+  // Seit der Re-Kritik 2026-10-17 steht die FAB-Reserve der Kapsel immer
+  // (layout.css) - es gibt nichts mehr ueber den Aufbau zu halten.
+  assert.doesNotMatch(router, /fab-holding|releaseFabHold/, 'kein Halten der Reserve mehr');
 
   assert.match(ruleBodies('layout.css', 'html.fab-steady .page-fab').join(';'), /animation:\s*none/);
   const reserve = [...eachRule(css('layout.css'))].find((r) => /padding-inline-end:\s*calc\(var\(--fab-size\)/.test(r.body) && /\.nav-bottom__items/.test(r.selector));
   assert.ok(reserve, 'die FAB-Reserve der Kapsel fehlt');
-  assert.ok(selectorList(reserve.selector).map((s) => s.replace(/\s+/g, ' ')).includes('html.fab-holding .nav-bottom__items'), 'die Reserve haelt waehrend des Aufbaus');
+  assert.equal(reserve.selector.trim(), '.nav-bottom__items', 'die Reserve haengt an keiner Bedingung - sie steht auch im Aufbau');
   // Kaltstart: die Einfahrt gibt es weiter.
   assert.match(ruleBodies('layout.css', '.page-fab').join(';'), /animation:\s*fab-in var\(--duration-xl\) var\(--ease-out\) backwards/);
 });
@@ -1806,17 +1903,16 @@ test('R18: stagger startet nicht unter der Seitenblende - und holt es danach nic
     const host = motionEl('host');
     const rows = [motionEl('a'), motionEl('b')];
     stagger(rows, { host });
-    assert.equal(rows[0].style.opacity, undefined, 'unter der Blende setzt nichts die Zeilen auf 0');
-    assert.equal(rows[0].style.transform, undefined);
+    assert.equal(rows[0].calls.length, 0, 'unter der Blende setzt nichts die Zeilen auf 0');
     // Die Blende WAR das Einblenden dieses Aufbaus: ein spaeteres Neuzeichnen staffelt nicht nach.
     classes.delete('page-swapping');
     const again = [motionEl('a'), motionEl('b')];
     stagger(again, { host });
-    assert.equal(again[0].style.opacity, undefined, 'der Merker ist verbraucht');
+    assert.equal(again[0].calls.length, 0, 'der Merker ist verbraucht');
     // Ohne Seitenwechsel (Kaltstart, Reiter im Modul) staffelt es wie bisher.
     const fresh = [motionEl('x')];
     stagger(fresh, { host: motionEl('anderer') });
-    assert.equal(fresh[0].style.opacity, '0');
+    assert.ok(staggered(fresh[0]));
   } finally { restore(); }
   await new Promise((r) => setTimeout(r, 500));
 });
@@ -2270,4 +2366,216 @@ test('Kalender: die Ansicht baut erst, wenn die Kapsel gleitet (afterGlideStart 
   const glide = change.indexOf('await afterGlideStart();');
   assert.ok(glide > -1, 'der Wechsel wartet den Start der Gleitbewegung ab');
   assert.ok(glide < change.indexOf('await reloadForView();') && glide < change.indexOf('renderView();'), 'vor dem teuren Aufbau, nicht danach');
+});
+
+// --------------------------------------------------------------------------
+// R19, Bewegung unter Last: DAS SKELETT KOMMT SPAET UND SCHIMMERT AUF DEM
+// COMPOSITOR. Der Schimmer lief ueber `background-position` (Paint in jedem
+// Frame, auf jeder Linie, genau waehrend des Starts), und die Linien standen
+// ab dem ersten Frame da - auch wenn der Inhalt 80ms spaeter kam.
+// --------------------------------------------------------------------------
+test('R19: das Skelett blendet nach --duration-sm ein und schimmert nur mit transform', () => {
+  const layout = [...eachRule(css('layout.css'))];
+  const base = layout.find((r) => r.selector.trim() === '.skeleton' && r.at.length === 0);
+  assert.ok(base, '.skeleton hat keine Basisregel in layout.css');
+  assert.match(base.body, /animation:\s*skeleton-in\s+var\(--duration-\w+\)\s+var\(--ease-[\w-]+\)\s+var\(--duration-sm\)\s+backwards/,
+    'die Linien stehen ab dem ersten Frame - ein Aufblitzen fuer 80ms ist Flackern, kein Status');
+  assert.doesNotMatch(base.body, /background-size|background-position/);
+  const sheen = layout.find((r) => r.selector.trim() === '.skeleton::after' && r.at.length === 0);
+  assert.ok(sheen, 'kein Schimmer-Band als ::after');
+  assert.match(sheen.body, /animation:\s*skeleton-shimmer\b/);
+  const frames = keyframesBody('skeleton-shimmer');
+  assert.match(frames, /transform:/);
+  assert.doesNotMatch(frames, /background-position/, 'der Schimmer malt wieder in jedem Frame');
+  for (const file of allSheets) {
+    for (const rule of eachRule(css(file))) {
+      if (/(^|[\s,])\.skeleton(?![\w-])/.test(rule.selector)) {
+        assert.doesNotMatch(rule.body, /background-(size|position)/, `${file}: ${rule.selector} bringt den alten Schimmer zurueck`);
+      }
+    }
+  }
+  const reduced = layout.find((r) => r.selector.trim() === '.skeleton::after' && r.at.some((a) => /prefers-reduced-motion:\s*reduce/.test(a)));
+  assert.ok(reduced && /animation:\s*none/.test(reduced.body), 'unter reduzierter Bewegung schimmert es weiter');
+});
+
+test('R19: die Uebersicht blendet vom Skelett zum Inhalt ueber swapContent', () => {
+  const src = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
+  assert.match(src, /const fromSkeleton = Boolean\(shell\.querySelector\('\.widget-skeleton'\)\)\s*&& !document\.documentElement\.classList\.contains\('page-swapping'\);/);
+  assert.match(src, /swapContent\(shell, \(\) => setHtml\(shell, `[\s\S]*?`\), \{ animate: fromSkeleton \}\);/);
+});
+
+/* 12. GERICHTETER WECHSEL EINER REGION (R19, Critique 2026-10-16): der
+ *     Kalender-Ansichtswechsel war eine reine Blende ohne raeumliche
+ *     Fortfuehrung, der Drill-down (Einstellungen, Gesundheit) zeigte nur den
+ *     neuen Inhalt. swapRegion (utils/content-swap.js) nimmt das alte Bild per
+ *     View Transition auf und gibt die Richtung als Typ an layout.css. */
+function regionEnv({ api = true, types = true, modal = false } = {}) {
+  const log = [];
+  const classes = new Set();
+  const listeners = [];
+  let resolveFinished;
+  const host = motionEl('region');
+  host.isConnected = true;
+  host.closest = () => null;
+  const doc = {
+    visibilityState: 'visible',
+    documentElement: {
+      dir: '',
+      // add/remove: die Marke geht seit Review #2049 (Runde 2) ueber
+      // holdPageSwapping() in utils/view-transition.js, wie bei swapPage.
+      classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c) },
+    },
+    querySelector: (sel) => (modal && sel === ':modal' ? { tagName: 'DIALOG' } : null),
+    addEventListener: (type, fn, opts) => listeners.push({ type, fn, capture: Boolean(opts?.capture) }),
+    removeEventListener: (type, fn) => {
+      const i = listeners.findIndex((l) => l.type === type && l.fn === fn);
+      if (i >= 0) listeners.splice(i, 1);
+    },
+    startViewTransition: api ? (arg) => {
+      log.push(`start name=${host.style.viewTransitionName} chrome=${classes.has('page-swapping')} types=${arg.types.join(',')}`);
+      const updateCallbackDone = Promise.resolve().then(arg.update);
+      return {
+        updateCallbackDone,
+        ready: updateCallbackDone,
+        finished: new Promise((r) => { resolveFinished = r; }),
+        skipTransition: () => { log.push('skip'); resolveFinished(); },
+      };
+    } : undefined,
+  };
+  const saved = { document: globalThis.document, CSS: globalThis.CSS, window: globalThis.window };
+  globalThis.document = doc;
+  globalThis.CSS = { supports: (q) => types && /active-view-transition-type/.test(q) };
+  globalThis.window = { matchMedia: () => ({ matches: false }) };
+  return {
+    host, log, classes, listeners,
+    finish: () => resolveFinished(),
+    restore: () => { for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete globalThis[k]; else globalThis[k] = v; } },
+  };
+}
+
+test('swapRegion: altes Bild per View Transition, Richtung als Typ, Name nur fuer die Dauer', async () => {
+  const env = regionEnv();
+  try {
+    const { swapRegion, regionSwapType } = await import('../public/utils/content-swap.js');
+    assert.deepEqual([1, -1, 0, 3, -2].map(regionSwapType), ['region-forward', 'region-back', 'region-fade', 'region-forward', 'region-back']);
+    let ran = 0;
+    const { transition, finished } = await swapRegion(env.host, () => { ran += 1; env.log.push('update'); }, { direction: 1 });
+    assert.equal(transition, true);
+    assert.equal(ran, 1, 'der Tausch laeuft genau einmal');
+    assert.deepEqual(env.log, ['start name=region-swap chrome=true types=region-forward', 'update'],
+      'Name und stehendes Chrome VOR dem alten Bild, der Tausch im Callback');
+    assert.equal(env.host.calls.length, 0, 'keine zweite Blende per WAAPI obendrauf');
+    // Ein Tipp waehrend des Wechsels beendet ihn.
+    env.listeners.find((l) => l.type === 'pointerdown' && l.capture)?.fn();
+    await finished;
+    assert.ok(env.log.includes('skip'), 'der erste Tipp bricht den Wechsel ab');
+    assert.equal(env.host.style.viewTransitionName, '', 'danach ist der Name frei');
+    assert.equal(env.classes.has('page-swapping'), false, 'und das Glas der Kapsel blurrt wieder');
+    assert.equal(env.listeners.length, 0, 'kein Zuhoerer bleibt haengen');
+  } finally {
+    env.restore();
+  }
+});
+
+/* Review #2049, Runde 2: swapRegion und swapPage teilen `html.page-swapping`.
+ * Tippt jemand waehrend eines Regionswechsels (Einstellungen, Kalender) in
+ * die Navigation, bricht der pointerdown den Regionswechsel ab, und der click
+ * startet swapPage - das dieselbe Klasse setzt. Das spaete `finally` des
+ * Regionswechsels nahm sie dem laufenden Seitenwechsel wieder weg:
+ * Navigation, Seitenleiste und FAB verloren mitten im Wechsel ihre Namen.
+ * Die Marke gehoert jetzt allen Haltern zugleich und faellt mit dem letzten. */
+test('swapRegion und swapPage: wer zuerst endet, nimmt dem anderen die Chrome-Namen nicht', async () => {
+  for (const order of [['region', 'page'], ['page', 'region']]) {
+    const env = regionEnv();
+    const classes = env.classes;
+    const finishers = {};
+    globalThis.document.startViewTransition = (arg) => {
+      const update = typeof arg === 'function' ? arg : arg.update;
+      const updateCallbackDone = Promise.resolve().then(update);
+      let resolve;
+      const finished = new Promise((r) => { resolve = r; });
+      finishers[typeof arg === 'function' ? 'page' : 'region'] = resolve;
+      return { updateCallbackDone, ready: updateCallbackDone, finished, skipTransition: () => resolve() };
+    };
+    try {
+      const { swapRegion } = await import('../public/utils/content-swap.js');
+      const { swapPage } = await import('../public/utils/view-transition.js');
+      const content = { querySelector: () => null };
+      const started = {};
+      for (const which of order) {
+        started[which] = which === 'region'
+          ? await swapRegion(env.host, () => {}, { direction: 1 })
+          : await swapPage(() => {}, { content, from: '/settings', animate: true });
+        assert.equal(started[which].transition, true, `${which} laeuft als View Transition`);
+      }
+      assert.equal(classes.has('page-swapping'), true);
+      finishers[order[0]]();
+      await started[order[0]].finished;
+      assert.equal(classes.has('page-swapping'), true,
+        `${order.join(' -> ')}: das Ende von ${order[0]} nimmt dem laufenden ${order[1]} die Chrome-Namen`);
+      finishers[order[1]]();
+      await started[order[1]].finished;
+      assert.equal(classes.has('page-swapping'), false, `${order.join(' -> ')}: nach dem letzten Wechsel bleibt die Marke stehen`);
+    } finally {
+      env.restore();
+    }
+  }
+});
+
+test('swapRegion: ohne Typen-Unterstuetzung oder API faellt es auf swapContent zurueck', async () => {
+  for (const opts of [{ types: false }, { api: false }]) {
+    const env = regionEnv(opts);
+    try {
+      const { swapRegion } = await import('../public/utils/content-swap.js');
+      let ran = 0;
+      const { transition } = await swapRegion(env.host, () => { ran += 1; }, { direction: -1 });
+      assert.equal(transition, false, JSON.stringify(opts));
+      assert.equal(ran, 1, 'der Inhalt steht trotzdem');
+      assert.equal(env.host.calls.length, 1, 'die 8px-Einblende in Schrittrichtung');
+      assert.equal(env.host.style.viewTransitionName ?? '', '', 'kein Name ohne Transition');
+    } finally {
+      env.restore();
+    }
+  }
+});
+
+/* Der Kalender startet den Wechsel erst, wenn die Daten der neuen Ansicht da
+ * sind. Wer in der Zeit schon "Neuer Termin" tippt, hat den Dialog offen, wenn
+ * die Transition beginnt - sie liefe hinter ihm, und solange sie laeuft, trifft
+ * Chromium nur <html>: der erste Tipp im Dialog (Speichern) verpuffte. Gesehen
+ * im document-guards-Handlauf R19 ("neue Serie bleibt sichtbar", beide
+ * Varianten), nachgestellt mit Playwright: Speichern 3 von 3 Mal geschluckt. */
+test('swapRegion: hinter einem offenen Dialog kein Wechsel per View Transition', async () => {
+  const env = regionEnv({ modal: true });
+  try {
+    const { swapRegion } = await import('../public/utils/content-swap.js');
+    let ran = 0;
+    const { transition } = await swapRegion(env.host, () => { ran += 1; }, { direction: 1 });
+    assert.equal(transition, false, 'ein Dialog liegt ueber der Region - keine Transition, die seine Tipps schluckt');
+    assert.equal(env.log.filter((l) => l.startsWith('start')).length, 0, 'startViewTransition wird nicht gerufen');
+    assert.equal(ran, 1, 'der Inhalt steht trotzdem');
+    assert.equal(env.host.calls.length, 1, 'die Region tauscht per swapContent (sperrt keine Eingabe)');
+    assert.equal(env.classes.has('page-swapping'), false, 'kein stehendes Chrome ohne Wechsel');
+    assert.equal(env.listeners.length, 0, 'kein Tipp-Zuhoerer');
+  } finally {
+    env.restore();
+  }
+});
+
+test('swapRegion CSS: vorwaerts schiebt herein, zurueck schiebt hinaus, reduzierte Bewegung blendet nur', () => {
+  const rules = [...eachRule(css('layout.css'))];
+  const top = rules.filter((r) => !r.at.length);
+  const find = (sel) => top.find((r) => r.selector.replace(/\s+/g, ' ').trim() === sel);
+  assert.match(find('html:active-view-transition-type(region-forward)::view-transition-new(region-swap)')?.body ?? '', /animation-name:\s*region-arrive/);
+  assert.match(find('html:active-view-transition-type(region-back)::view-transition-old(region-swap)')?.body ?? '', /animation-name:\s*region-leave[\s\S]*z-index:\s*1/,
+    'zurueck liegt die alte Ebene oben und schiebt sich hinaus');
+  assert.match(find('::view-transition-group(region-swap)')?.body ?? '', /overflow:\s*clip/, 'nichts gleitet ueber die Region hinaus');
+  assert.match(find('::view-transition-old(region-swap), ::view-transition-new(region-swap)')?.body ?? '', /mix-blend-mode:\s*normal/);
+  assert.match(find('html:active-view-transition-type(region-forward, region-back, region-fade)::view-transition-old(root)')?.body ?? '', /display:\s*none/,
+    'die Wurzel zeigt nur ihr lebendes Bild - keine eingefrorene Segment-Kapsel');
+  const reduced = rules.filter((r) => r.at.some((a) => /prefers-reduced-motion:\s*reduce/.test(a)) && /region-swap/.test(r.selector));
+  assert.equal(reduced.length, 2, 'reduzierte Bewegung: alte und neue Ebene');
+  for (const r of reduced) assert.match(r.body, /animation-name:\s*region-fade-(in|out)/, `nur Blende: ${r.body}`);
+  const keyframes = css('layout.css');
+  assert.match(keyframes, /@keyframes region-fade-in \{\s*from \{ opacity: 0; \}/, 'die Blende hat keinen Versatz');
 });

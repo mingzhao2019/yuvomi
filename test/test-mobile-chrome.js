@@ -203,7 +203,7 @@ test('(4) die Suche nimmt mobil ihre Icon-Form auch in einem Wrapper-Slot', () =
   // statt nackt neben beringtem Filter und „..." zu stehen.
   assert.match(decl(rule.body, 'border') ?? '', /^1\.5px solid var\(--color-border\)$/, 'Ring der Kopf-Icon-Haut an der Huelle');
   assert.equal(decl(rule.body, 'border-radius'), 'var(--radius-full)', 'rund wie die Icon-Knoepfe daneben');
-  const glyph = rules(layoutCss).find((r) => /\.page-toolbar\s+\.page-search:not\(:focus-within\)[^,]*\.page-search__icon/.test(r.selector));
+  const glyph = rules(layoutCss).find((r) => /\.page-toolbar\s+\.page-search(?::not\(\.page-search--field\))?:not\(:focus-within\)[^,]*\.page-search__icon/.test(r.selector));
   assert.equal(glyph && decl(glyph.body, 'color'), 'var(--color-accent)', 'das Zeichen in der Tinte von btn--secondary');
   const wrapper = rules(layoutCss).filter((r) => r.selector.includes(':has(> .page-search:only-child')
     && decl(r.body, 'flex') === '0 0 auto');
@@ -395,14 +395,25 @@ test('R16: Werkzeuge in der Titelzeile - nur markiert, nur mobil, nie neben eine
   assert.ok(own.length >= 1, 'die Regel fehlt in layout.css');
   for (const r of own) {
     assert.equal(r.file, 'layout.css', `${r.file}: die Variante gehoert der Shell (${r.selector})`);
-    assert.ok(r.at.some((a) => /max-width:\s*767px/.test(a)),
-      `${r.selector}: nur unter 768px - ab dort hat die Titelzeile Feld und angedockte Pille`);
+    // Bis 1023px (R19): auch das Tablet (834px) traegt die Werkzeuge in der
+    // Titelzeile - vorher 118px Kopf in zwei Zeilen, jetzt 69px. Ab 1024px hat
+    // die Titelzeile Feld und angedockte Pille.
+    assert.ok(r.at.some((a) => /max-width:\s*1023px/.test(a)),
+      `${r.selector}: nur unter 1024px - ab dort hat die Titelzeile Feld und angedockte Pille`);
   }
   const title = own.find((r) => r.selector.endsWith(':not(.page-toolbar--in-group) > .page-toolbar__title')
     && /flex:\s*1 1 0/.test(r.body));
   assert.ok(title, 'der Titel gibt nach (Basis 0) - die Knoepfe haben kein Label zum Anschneiden');
   assert.match(title.body, /white-space:\s*nowrap/, 'ein langer Titel kuerzt, er bricht nicht um (Kopfhoehe je Sprache gleich)');
   assert.match(title.body, /text-overflow:\s*ellipsis/);
+  // Re-Kritik 2026-10-17: auf dem Tablet stand "Aufgab..." (150 > 141px)
+  // neben einem 386px-Suchfeld. Ab 768px nimmt der Titel seine Breite (bis zur
+  // halben Zeile), die Suche gibt nach.
+  const tablet = own.find((r) => r.selector.endsWith(':not(.page-toolbar--in-group) > .page-toolbar__title')
+    && r.at.some((a) => /min-width:\s*768px/.test(a) && /max-width:\s*1023px/.test(a)));
+  assert.match(tablet?.body ?? '', /flex:\s*0 0 auto/, 'Tablet: der Titel gibt nicht nach');
+  assert.match(tablet?.body ?? '', /max-inline-size:\s*50%/, 'Tablet: ein sehr langer Titel kuerzt weiter, ab der halben Zeile');
+  assert.ok(!tablet?.at.some((a) => /max-width:\s*767px/.test(a)), 'das Telefon behaelt Basis 0');
 
   const design = read('../DESIGN.md');
   assert.match(design, /\*\*1a\. Werkzeuge in der Titelzeile\.\*\*/, 'DESIGN.md benennt die Regel');
@@ -532,4 +543,89 @@ test('D8: die Titelzeile hat eine feste Mindesthoehe, die Einstellungen tragen a
     'der Blattkopf verschwindet nur zwischen 768 und 1023px (dort traegt der Breadcrumb den Rueckweg), nicht am Desktop');
   assert.match(read('../public/settings/pages/personal-account.js'), /<h2 class="settings-section__title sr-only">\$\{t\('settings\.sectionAccount'\)\}/,
     '"Mein Konto" bleibt in der Gliederung, aber unsichtbar');
+});
+
+// Critique R19: auf /settings/personal/notifications stand "Mehr" nach einem
+// Kaltstart ohne Aktivzustand - der Router markierte das Ziel erst nach dem
+// Rendern der Seite (gemessen 3,3 s), und ein Neuaufbau der Leiste reichte
+// den rohen Pfad herein, zu dem es kein Ziel gibt. Ein Text-Guard; der Lauf im
+// Browser steht im Handoff der Runde (vorher false, nachher aria-current=page).
+test('"Mehr" ist auf einem Einstellungsblatt sofort aktiv, auch nach dem Kaltstart (Critique R19)', () => {
+  const router = read('../public/router.js');
+  const nav = router.slice(router.indexOf('function updateNav('), router.indexOf('const kitchenDestination = currentKitchenDestination();', router.indexOf('function updateNav(')));
+  assert.match(nav, /const path = topLevelSection\(rawPath\);/, 'updateNav kuerzt den Pfad nicht auf seine Sektion');
+  const render = router.slice(router.indexOf('async function renderPage('));
+  const shell = render.slice(0, render.indexOf('checkForUpdate();'));
+  assert.match(shell, /renderAppShell\(app\);[\s\S]*updateNav\(routerState\.currentPath\);/,
+    'beim Kaltstart wird das Ziel erst nach dem Rendern der Seite markiert');
+});
+
+// R19 (Critique 2026-10-16, Persona Casey): DIE TABS STEHEN STILL. Ohne FAB
+// verteilten sich die fuenf Tabs auf die volle Kapsel (62 gegen 73px bei
+// 390px) - jeder Wechsel auf einen Budget-Reiter ohne Neu-Aktion, nach
+// Belohnungen oder in die Einstellungen schob die Ziele unter dem Daumen.
+// Re-Kritik 2026-10-17: R19 kuerzte dafuer die Kapsel ohne Knopf (8-334
+// statt 8-382px) - linksbuendig vor einem Loch, und ihr Ende sprang je Reiter.
+// Jetzt steht die Reserve immer: Kapsel, Tabs und Knopfplatz bleiben stehen.
+test('Re-Kritik: die FAB-Reserve der Kapsel steht immer - Kapselbreite und Tabs springen nicht je Seite oder Reiter', () => {
+  const all = rules(layoutCss);
+  const conditional = all.filter((r) => r.selector.endsWith('.nav-bottom__items') && /page-fab|fab-holding/.test(r.selector));
+  assert.deepEqual(conditional.map((r) => r.selector), [], 'keine Kapselregel fragt, ob die Seite einen FAB hat');
+  const reserve = all.find((r) => !r.at.length && r.selector.trim() === '.nav-bottom__items' && decl(r.body, 'padding-inline-end'));
+  assert.match(decl(reserve?.body ?? '', 'padding-inline-end') ?? '', /^calc\(var\(--fab-size\) \+ var\(--nav-fab-inset\)\)$/,
+    'die Reserve ist der Knopf plus sein Abstand zur Kante');
+  assert.ok(!all.some((r) => r.selector.endsWith('.nav-bottom__items') && decl(r.body, 'inline-size')),
+    'keine eigene Breite der Kapsel ohne Knopf');
+});
+
+// R19 (Entscheidung Ulas 2026-10-16): DIE KAPSEL MINIMIERT BEIM LESEN.
+test('R19: die Kapsel minimiert beim Abwaertsscrollen - flacher, ohne Labels, Ziele und Zone bleiben', () => {
+  const all = rules(layoutCss);
+  const tokens = read('../public/styles/tokens.css');
+  assert.match(tokens, /--nav-height-minimized:\s*calc\(var\(--target-base\) \+ var\(--space-2\)\);/,
+    'minimiert ist die Kapsel ein Ziel hoch plus Luft - die Tabs behalten ihre Trefferflaeche');
+  const compact = (r) => r.at.some((a) => /max-width:\s*1023px/.test(a));
+  const capsule = all.find((r) => compact(r) && r.selector === '.nav-bottom--minimized:not(:focus-within) .nav-bottom__items');
+  assert.equal(capsule && decl(capsule.body, 'min-height'), 'var(--nav-height-minimized)');
+  const label = all.find((r) => compact(r) && r.selector === '.nav-bottom--minimized:not(:focus-within) .nav-item__label');
+  assert.ok(label, 'die Labels blenden minimiert aus');
+  assert.equal(decl(label.body, 'opacity'), '0');
+  assert.equal(decl(label.body, 'display'), null, 'unsichtbar, nicht entfernt - der Name des Tabs bleibt im Baum');
+  assert.equal(decl(label.body, 'visibility'), null);
+  const fab = all.find((r) => compact(r) && r.selector.startsWith('html.nav-minimized') && r.selector.includes('.page-fab-group')
+    && !r.selector.includes('rtl'));
+  assert.match(decl(fab?.body ?? '', 'translate') ?? '', /var\(--nav-fab-shift\) var\(--nav-fab-shift\)/,
+    'der FAB rueckt konzentrisch nach - per translate, ohne Layout');
+  assert.ok(all.some((r) => r.selector.includes('rtl') && r.selector.includes('nav-minimized')), 'auch unter dir=rtl');
+  const calm = all.filter((r) => r.at.some((a) => /prefers-reduced-motion:\s*reduce/.test(a))
+    && r.selector.includes('.nav-bottom__items') && r.selector.includes('.nav-item__label'));
+  assert.ok(calm.some((r) => decl(r.body, 'transition') === 'none'), 'reduzierte Bewegung: Zustandswechsel ohne Gleiten');
+  const router = read('../public/router.js');
+  // Review #2049: an der JEWEILS aktuellen Kapsel - renderAppShell() baut sie neu.
+  assert.match(router, /navMinimizer = bindNavMinimize\(navMinimizer, nav\)/, 'der Router verdrahtet die Minimierung an der aktuellen Kapsel');
+  assert.doesNotMatch(router, /!navMinimizer\)/, 'ein vorhandener Minimierer darf eine neue Kapsel nicht ausschliessen');
+  assert.match(router, /function updateNav\(rawPath\) \{\n[^\n]*\n\s*navMinimizer\?\.expand\(\);/,
+    'jeder Seitenwechsel beginnt mit ausgefahrener Kapsel');
+});
+
+// R19 (Critique 2026-10-16 P2 mobil): DIE TAB-LEISTE IST DIE TITELZEILE.
+// Schichtplan, Belohnungen und Haushaltshilfe massen 121/121/129px bei 390px
+// (Large Title ueber den Reitern), jetzt 65px; bei 834px 118-130 -> 69px.
+const TABS_TITLE_MODULES = ['pages/housekeeping.js', 'pages/rewards.js', 'pages/schedule.js'];
+test('R19: Schichtplan, Belohnungen und Haushaltshilfe fuehren ihre Reiter in der Titelzeile', () => {
+  for (const f of TABS_TITLE_MODULES) {
+    assert.match(read(`../public/${f}`), /<header class="page-toolbar [^"]*\bpage-toolbar--tabs-title\b/, `${f}: der Kopf traegt die Variante`);
+  }
+  const own = rules(layoutCss).filter((r) => r.selector.includes('.page-toolbar--tabs-title'));
+  const at = (r, px) => r.at.some((a) => new RegExp(`max-width:\\s*${px}px`).test(a));
+  const bar = own.find((r) => at(r, 1023) && r.selector.endsWith('> .page-toolbar__bar'));
+  assert.equal(bar && decl(bar.body, 'flex'), '1 1 0', 'die Leiste nimmt den Rest der Titelzeile und scrollt dort');
+  assert.equal(decl(bar.body, 'block-size'), 'auto', 'so hoch wie ihre Reiter, nicht wie eine eigene Leistenzeile');
+  assert.ok(own.every((r) => at(r, 1023) || at(r, 767)), 'nur unter 1024px - am Desktop bleibt die Bar-Zeile eine eigene Zeile');
+  const title = own.find((r) => at(r, 767) && r.selector.endsWith('> .page-toolbar__title'));
+  assert.equal(title && decl(title.body, 'clip-path'), 'inset(50%)', 'unter 768px weicht der Titel aus dem Bild ...');
+  assert.equal(decl(title.body, 'display'), null, '... nicht aus dem Baum: das <h1> bleibt die Seitenueberschrift');
+  assert.ok(own.some((r) => at(r, 767) && r.selector.endsWith('> .module-seal--head') && decl(r.body, 'display') === 'none'),
+    'das Siegel geht mit (die vier Reiter der Haushaltshilfe brauchen 351 von 358px)');
+  assert.ok(read('../DESIGN.md').includes('page-toolbar--tabs-title'), 'DESIGN.md nennt die Variante');
 });

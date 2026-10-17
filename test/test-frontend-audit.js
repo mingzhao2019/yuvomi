@@ -573,7 +573,7 @@ test('an announced update stops the router from loading further page modules (#6
   // fliegt dann als SyntaxError auf. Erlaubt ist deshalb nur noch der Reload.
   assert.match(router, /shellStale\s*=\s*true;/, 'SW_UPDATED must mark the running shell as stale');
   assert.match(router, /if \(shellStale && reloadOnce\(\)\)/, 'importPage() must reload instead of importing a page module');
-  assert.match(router, /function prefetchRoute\(path\) \{[\s\S]*?if \(shellStale\) return;/, 'prefetchRoute() must stop warming modules after an update');
+  assert.match(router, /function prefetchRoute\(path(?:, \{ now = false \} = \{\})?\) \{[\s\S]*?if \(shellStale\) return;/, 'prefetchRoute() must stop warming modules after an update');
   assert.doesNotMatch(
     router,
     /SW_UPDATED[\s\S]{0,400}moduleCache\.clear\(\)/,
@@ -2815,7 +2815,7 @@ test('settings shell falls back to the domains overview for orphaned active leav
   // Ein Blatt ohne verfuegbaren Bereich meldet sich und faellt auf die Wurzel
   // (die gruppierte Liste) zurueck, statt ein Blatt ohne Rueckweg zu rendern.
   assert.match(source, /if \(activeLeaf && !leafDomain\)\s*\{[\s\S]*?console\.error\(/);
-  assert.match(source, /if \(activeLeaf && leafDomain\)\s*\{[\s\S]*?await renderLeafContent\(content,\s*activeLeaf,\s*leafDomain,\s*user,\s*query\)[\s\S]*?return;\s*\}\s*renderOverview\(content,\s*domains,\s*user\)/);
+  assert.match(source, /if \(activeLeaf && leafDomain\)\s*\{[\s\S]*?await renderLeafContent\(content,\s*activeLeaf,\s*leafDomain,\s*user,\s*query\)[\s\S]*?return;\s*\}\s*(?:const paintOverview = \(\) => \{\s*)?renderOverview\(content,\s*domains,\s*user\)/);
 });
 
 test('router hides inactive overlays from keyboard focus', () => {
@@ -5719,7 +5719,9 @@ test('die Rückfrage der Pille bricht um, statt zu kappen', () => {
   assert.ok(choices, 'Abbrechen und Bestätigen brauchen einen gemeinsamen Träger');
   assert.match(choices.body, /flex-shrink:\s*0/,
     'das Paar wandert als Ganzes, es schrumpft nicht');
-  assert.match(read('../public/utils/bulk-pill.js'), /class(?:Name)?\s*=\s*'list-bulkbar__choices'/,
+  // Seit R19 baut dieselbe Fabrik auch die Auswahl in der Detailspalte - die
+  // Klasse steht dort als Zweig (`pane ? ... : 'list-bulkbar__choices'`).
+  assert.match(read('../public/utils/bulk-pill.js'), /class(?:Name)?\s*=\s*(?:pane \? '[\w-]+' : )?'list-bulkbar__choices'/,
     'die Fabrik muss das Paar auch bauen - eine CSS-Regel ohne Knoten ist keine Zusicherung');
 
   // UND KEINE SCHWELLE DANEBEN. Stünde der Bestätigungszustand zusätzlich in
@@ -6544,17 +6546,20 @@ test('Tasks toolbar follows the mobile header rule: one tools menu, "Filter (n)"
   for (const id of ['btn-bulk-select', 'btn-manage-categories', 'btn-manage-tags']) {
     assert.doesNotMatch(tasksPage, new RegExp(`id="${id}"`), `#${id} steht wieder lose im Kopf`);
   }
-  for (const action of ['bulk-select', 'toggle-history', 'manage-categories', 'manage-tags']) {
+  for (const action of ['bulk-select', 'view-history', 'manage-categories', 'manage-tags']) {
     assert.match(tasksPage, new RegExp(`action: '${action}'`), `das Werkzeugmenue bietet "${action}" nicht an`);
   }
-  assert.doesNotMatch(markup, /data-view="history"/, 'der Verlauf ist ein Menue-Schalter, keine dritte Ansicht im Segment');
+  // R19 (Critique 2026-10-16): der Verlauf ist die DRITTE Ansicht im Segment.
+  // Als Menue-Schalter zeigte das Segment waehrend des Verlaufs nichts aktiv.
+  assert.match(markup, /data-view="kanban"[\s\S]*?data-view="history"[\s\S]*?aria-pressed="\$\{isHistory\}"/, 'der Verlauf hat ein Segment mit aria-pressed');
+  assert.doesNotMatch(tasksPage, /action: 'toggle-history'/, 'kein Haken-Schalter mehr fuer den Verlauf');
   // D1/D2 (Critique 2026-10-16): die Ansichtswahl ist das Kanon-Segment, der
   // Filter ein Kopf-Icon mit Zaehler, und mobil steht der Kopf in EINER Zeile
   // (`page-toolbar--title-tools`) - die Ansicht dann als Einfachauswahl im Menue.
   assert.match(markup, /<div class="segmented segmented--icons tasks-view-toggle" id="view-toggle"/, 'Ansichtswahl = .segmented');
   assert.doesNotMatch(markup, /class="group-toggle/, 'kein eigenes .group-toggle mehr als Ansichtswahl');
   assert.doesNotMatch(markup, /showLabel:\s*true/, 'der Filter ist ein Icon-Knopf mit Zaehler, keine Text-Pille');
-  for (const action of ['view-list', 'view-kanban']) {
+  for (const action of ['view-list', 'view-kanban', 'view-history']) {
     assert.match(tasksPage, new RegExp(`action: '${action}'`), `das Werkzeugmenue bietet "${action}" (mobil) an`);
   }
   assert.ok([...eachRule(tasksCss)].some((r) => r.selector.trim() === '.tasks-view-toggle' && r.at.some((a) => /max-width:\s*767px/.test(a)) && /display:\s*none/.test(r.body)),
@@ -6687,88 +6692,22 @@ test('showToast is never called with an unsupported variant', () => {
   }
 });
 
-// Critique R17: fuenf angepinnte Notizen in vier Spalten liessen die fuenfte
-// allein in ihrer Zeile (240 von 996px, 432px hoch), und „Weitere Notizen"
-// begann erst bei y=988 - der Gruppenkopf spannte ueber alle Spalten und machte
-// immer eine neue Zeile auf. Jetzt fliesst die naechste Gruppe in die
-// angebrochene Zeile. Das Raster BLEIBT das Raster (Guard darunter).
-test('R17: die weiteren Notizen fliessen in die angebrochene Zeile der angepinnten', () => {
+// Critique R17 liess den Kopf "Weitere Notizen" in die angebrochene Zeile der
+// angepinnten Notizen fliessen. R19 (Critique 2026-10-16): seine Karten liefen
+// darunter ab Spalte 1 weiter und mischten sich bei 1440 zwischen die
+// angepinnten. Jede Gruppe beginnt wieder eine eigene Zeile, und wo der
+// Browser grid-lanes kann, packt er die Karten ohne Luecke.
+test('R19: jede Notizgruppe beginnt eine eigene Zeile, grid-lanes als Fortschritt', () => {
   const page = read('../public/pages/notes.js');
-  const fnSrc = (name) => {
-    const start = page.indexOf(`function ${name}(`);
-    assert.ok(start > 0, `${name} fehlt`);
-    return page.slice(start, page.indexOf('\n}\n', start) + 2);
-  };
-  // GEFAHREN, nicht gelesen: beide Funktionen aus dem Quelltext, mit einem Raster, das mitschreibt.
-  const run = new Function('getComputedStyle', `${fnSrc('groupFlow')}\n${fnSrc('syncGroupFlow')}\nreturn { groupFlow, syncGroupFlow };`);
-  const makeEl = (classes) => {
-    const set = new Set(classes);
-    const props = new Map();
-    return {
-      classList: { add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c) },
-      style: { setProperty: (k, v) => props.set(k, v), removeProperty: (k) => props.delete(k) },
-      props, has: (c) => set.has(c),
-    };
-  };
-  const makeGrid = (pinnedCount, restCount, columns) => {
-    const titles = restCount && pinnedCount ? [makeEl(['notes-group__title']), makeEl(['notes-group__title'])] : [];
-    const pinned = Array.from({ length: pinnedCount }, () => makeEl(['note-card', 'note-card--pinned']));
-    const all = () => [...titles, ...pinned];
-    const grid = {
-      titles, pinned, columns,
-      querySelectorAll: (sel) => {
-        if (sel === '.notes-group__title') return titles;
-        if (sel === '.note-card--pinned') return pinned;
-        if (sel === '.note-card--trailing') return all().filter((el) => el.has('note-card--trailing'));
-        return [];
-      },
-    };
-    return grid;
-  };
-  const { groupFlow, syncGroupFlow } = run((grid) => ({ gridTemplateColumns: Array.from({ length: grid.columns }, () => '232.5px').join(' ') }));
-
-  assert.deepEqual(groupFlow(5, 4), { trailing: 1, labelStart: 2 }, 'fuenf in vier Spalten: eine Nachzueglerin, der Kopf beginnt in Spalte 2');
-  assert.deepEqual(groupFlow(5, 3), { trailing: 2, labelStart: 3 });
-  assert.equal(groupFlow(8, 4).trailing, 0, 'eine volle Zeile bricht wie bisher');
-  assert.equal(groupFlow(5, 1).trailing, 0, 'eine Spalte (Telefon): nichts aendert sich');
-  assert.equal(groupFlow(0, 4).trailing, 0);
-
-  const grid = makeGrid(5, 3, 4);
-  syncGroupFlow(grid);
-  assert.deepEqual(grid.pinned.map((el) => el.has('note-card--trailing')), [false, false, false, false, true]);
-  assert.equal(grid.titles[1].has('notes-group__title--inline'), true, 'der Kopf „Weitere Notizen" reiht sich ein');
-  assert.equal(grid.titles[1].props.get('--notes-label-start'), '2');
-  assert.equal(grid.titles[0].has('notes-group__title--inline'), false, 'der erste Kopf spannt weiter ueber alle Spalten');
-  // Die Breite wechselt (drei Spalten): der alte Stand wird abgeraeumt, nicht ueberlagert.
-  grid.columns = 3;
-  syncGroupFlow(grid);
-  assert.deepEqual(grid.pinned.map((el) => el.has('note-card--trailing')), [false, false, false, true, true]);
-  assert.equal(grid.titles[1].props.get('--notes-label-start'), '3');
-  // Telefon: alles zurueck.
-  grid.columns = 1;
-  syncGroupFlow(grid);
-  assert.equal(grid.pinned.some((el) => el.has('note-card--trailing')), false);
-  assert.equal(grid.titles[1].has('notes-group__title--inline'), false);
-  assert.equal(grid.titles[1].props.has('--notes-label-start'), false);
-  // Ohne zweite Gruppe (nur Angepinnte) gibt es keinen Kopf, der sich einreihen koennte.
-  const only = makeGrid(5, 0, 4);
-  syncGroupFlow(only);
-  assert.equal(only.pinned.some((el) => el.has('note-card--trailing')), false);
-
-  // Verdrahtung: in der Zeichenfunktion (die Listenbewegung misst direkt danach) und beim Breitenwechsel.
-  const draw = fnSrc('drawGrid');
-  assert.match(draw, /insertAdjacentHTML\('beforeend', html\);[\s\S]*syncGroupFlow\(grid\);/);
-  assert.match(page, /new ResizeObserver\(\(\) => \{[\s\S]{0,300}syncGroupFlow\(grid\);/);
-
-  // CSS: nur im Zeilenraster, und die Gruppenkoepfe bleiben Koepfe.
-  const css = read('../public/styles/notes.css');
-  const rows = [...eachRule(css)].filter((r) => r.at.some((a) => /@supports not \(grid-template-rows: masonry\)/.test(a)));
-  const inline = rows.find((r) => r.selector.trim() === '.notes-group__title.notes-group__title--inline');
-  assert.match(inline?.body ?? '', /grid-column:\s*var\(--notes-label-start, 1\) \/ -1/, 'von der ersten freien Spalte bis zum Rand');
-  assert.match(inline?.body ?? '', /align-self:\s*end/, 'der Kopf bleibt bei seinen Karten');
-  assert.match(rows.find((r) => r.selector.trim() === '.note-card--trailing')?.body ?? '', /grid-row:\s*span 2/,
-    'die Nachzueglerin steht neben Kopf UND erster Kartenzeile');
+  assert.doesNotMatch(page, /syncGroupFlow|groupFlow|notes-group__title--inline|note-card--trailing/, 'kein Einreihen des Kopfes mehr');
   assert.match(page, /heading\(t\('notes\.groupPinned'\)\)[\s\S]{0,120}heading\(t\('notes\.groupOthers'\)\)/, 'beide Gruppenlabel bleiben');
+  const css = read('../public/styles/notes.css');
+  const rules = [...eachRule(css)];
+  assert.match(rules.find((r) => r.selector.trim() === '.notes-group__title' && !r.at.length)?.body ?? '', /grid-column:\s*1 \/ -1/, 'der Kopf spannt ueber alle Spalten');
+  assert.ok(!rules.some((r) => /notes-group__title--inline|note-card--trailing/.test(r.selector)), 'keine Einreihe-Regeln');
+  const lanes = rules.find((r) => r.selector.trim() === '.notes-grid' && r.at.some((a) => /@supports \(display: grid-lanes\)/.test(a)));
+  assert.match(lanes?.body ?? '', /display:\s*grid-lanes/, 'grid-lanes unter @supports');
+  assert.match(css, /\.notes-grid\[aria-busy="true"\] \{\s*display: block;/, 'das Laden schlaegt grid-lanes');
 });
 
 test('responsive adaptation keeps Notes vertical and prevents intrinsic-width overflow', () => {
@@ -7015,7 +6954,10 @@ test('polished rounded cards use subtle full borders instead of thick accent cap
 test('hardening keeps Birthday rows on one line with extreme localized content', () => {
   const birthdays = read('../public/styles/birthdays.css');
 
-  for (const part of ['__name', '__meta', '__notes']) {
+  // Der NAME folgt seit R19 der einen Titelregel (typography.css: hoechstens
+  // zwei Zeilen, dann Ellipse; Guard in test:typography) - die Metazeile und
+  // die Notiz bleiben einzeilig gekappt.
+  for (const part of ['__meta', '__notes']) {
     const body = cssRuleBody(birthdays, `.birthday-item${part}`);
     assert.ok(body, `.birthday-item${part} muss eine Regel haben`);
     assert.match(body, /overflow:\s*hidden/,
@@ -7028,8 +6970,7 @@ test('hardening keeps Birthday rows on one line with extreme localized content',
   for (const part of ['__name', '__meta', '__notes']) {
     assert.match(cssRuleBody(birthdays, `.birthday-item${part}`), /unicode-bidi:\s*plaintext/);
   }
-  // Der Name darf nicht umbrechen, sonst ist die Zeile wieder zweizeilig.
-  assert.match(cssRuleBody(birthdays, '.birthday-item__name'), /white-space:\s*nowrap/);
+  assert.doesNotMatch(cssRuleBody(birthdays, '.birthday-item__name'), /white-space:\s*nowrap/, 'keine eigene einzeilige Fassung mehr');
   // Und die Notiz haengt an der BREITE, nicht am Geraet.
   assert.match(birthdays, /@container birthdays-list \(min-width:[^)]+\)\s*\{\s*\.birthday-item__notes/,
     'die Notiz erscheint ueber einen Container-Query am Traeger, nicht ueber einen Viewport-Breakpoint');
@@ -7114,8 +7055,11 @@ test('phase 3 Tasks bulk actions appear only in select mode, in the shell pill (
   const tasksPage = read('../public/pages/tasks.js');
   const tasksCss = read('../public/styles/tasks.css');
 
-  assert.match(tasksPage, /if \(!state\.bulkSelectMode \|\| readOnly\(\)\) \{ clearBulkPill\(\); return; \}/);
-  assert.match(tasksPage, /setBulkPill\(\{ label: t\('tasks\.bulkSelectedCount'/);
+  // R19: die Sammelaktionen gehen ueber den Baustein Liste + Detail - in der
+  // Spalte „N ausgewaehlt", im Brett und unter der Schwelle weiter die Pille
+  // (setSelectionBulk, test:master-detail).
+  assert.match(tasksPage, /if \(!state\.bulkSelectMode \|\| readOnly\(\)\) \{ setSelectionBulk\(taskMd, null\); return; \}/);
+  assert.match(tasksPage, /setSelectionBulk\(taskMd, \{ label: t\('tasks\.bulkSelectedCount'/);
   assert.doesNotMatch(tasksPage, /bulk-actions-bar/, 'keine eigene Leiste ueber der Liste mehr');
   // Der Schalter steht im Werkzeugmenue und meldet seinen Zustand als Haken
   // (menuitemcheckbox), nicht mehr als aria-pressed eines Kopfknopfs.
@@ -7268,15 +7212,13 @@ test('phase 4 keeps Kitchen navigation identity stable', () => {
 
 test('global navigation groups domains with translated section labels', () => {
   const routerSource = read('../public/router.js');
-
-  // The grouped main-app navigation references every section label key and
-  // resolves section labels through t().
-  assert.match(routerSource, /'nav\.sectionOverview'/);
-  assert.match(routerSource, /'nav\.sectionPlan'/);
-  assert.match(routerSource, /'nav\.sectionHousehold'/);
-  assert.match(routerSource, /'nav\.sectionPeople'/);
-  assert.match(routerSource, /'nav\.sectionFinance'/);
-  assert.match(routerSource, /'nav\.sectionCustomModules'/);
+  // R19: die Namen-Tabelle steht nur noch in settings/module-order.js (der
+  // Router hatte eine Abschrift); der Router loest sie ueber navSectionLabelKey.
+  const orderSource = read('../public/settings/module-order.js');
+  assert.match(routerSource, /navSectionLabelKey\(/);
+  for (const key of ['sectionOverview', 'sectionPlan', 'sectionHousehold', 'sectionPeople', 'sectionFinance', 'sectionCustomModules']) {
+    assert.match(orderSource, new RegExp(`'nav\\.${key}'`));
+  }
   assert.match(routerSource, /t\(labelKey\)/);
 
   // The replaced household section label is no longer referenced.
@@ -7660,19 +7602,23 @@ test('calendar metadata uses lucide icon markup instead of visible emoji', () =>
   assert.match(source, /class="calendar-meta-icon icon-sm"/, 'metadata icons should use tokenized icon classes');
 });
 
-test('desktop Meals and Calendar date-navigation icons use the accent color', () => {
-  const meals = read('../public/styles/meals.css');
-  const calendar = read('../public/styles/calendar.css');
-
-  // BEIDE tragen die Stimme, und das ist die Aufloesung eines Widerspruchs, den
-  // dieser Guard selbst dokumentiert hat: Mahlzeiten folgte der frueheren
-  // Module-Accent-Leads-Rule, der Kalender „bewusst noch nicht" - zwei
-  // Datums-Navigationen desselben Bauteils in zwei Farbgrammatiken, seit einem
-  // Durchgang, der nie kam. Die Eine-Stimme-Regel (DESIGN.md, 2026-08-10)
-  // beantwortet das an der Wurzel: `.btn--icon` ist eine geteilte Variante und
-  // tut in jedem Modul dasselbe. Der Modulton steht im Kopf am Siegel.
-  assert.match(cssRuleBody(meals, '.week-nav .btn--icon'), /color:\s*var\(--color-accent\)/);
-  assert.match(cssRuleBody(calendar, '.cal-toolbar__nav .btn--icon'), /color:\s*var\(--color-accent\)/);
+// R19 (Critique 2026-10-16, "Zeitraum-Stepper: drei Bauarten"): EIN Stepper -
+// Pfeile neutral, wie Kalender und Budget. Der Essensplan faerbte sie im
+// Akzent (meals.css), und der Kalender trug eine tote Akzentregel an einer
+// Klasse ohne Markup (`.cal-toolbar__nav`), die dieser Guard noch forderte.
+// Kein Blatt faerbt die Pfeile eines Zeitraum-Steppers um.
+test('R19: die Pfeile jedes Zeitraum-Steppers stehen neutral, kein Modul faerbt sie', () => {
+  const ARROW = /period-stepper__(?:prev|next)|(?:week-nav|cal-toolbar__nav|budget-nav|cal-toolbar)\s+\.btn--icon/;
+  const offenders = [];
+  for (const file of readdirSync(new URL('../public/styles/', import.meta.url)).filter((f) => f.endsWith('.css'))) {
+    for (const rule of eachRule(read(`../public/styles/${file}`))) {
+      if (ARROW.test(rule.selector) && /(?:^|[;\s{])color\s*:/.test(rule.body)) offenders.push(`${file}: ${rule.selector.trim()}`);
+    }
+  }
+  assert.deepEqual(offenders, [], 'eigene Pfeilfarbe im Zeitraum-Stepper');
+  for (const page of ['meals', 'calendar', 'budget']) {
+    assert.match(read(`../public/pages/${page}.js`), /periodStepperHtml\(\{/, `${page}: der Stepper kommt aus utils/period-stepper.js`);
+  }
 });
 
 test('calendar attachment removal control honors its hidden state', () => {
@@ -8425,7 +8371,7 @@ test('Feldkanten tragen --color-border-control und halten 3:1 auf jedem Feldgrun
     // Die Icon-Form der Kopfsuche (D1): ohne Fokus und ohne Begriff ist die
     // Huelle ein Knopf in der Kopf-Icon-Haut (Ring wie `.btn--secondary`), das
     // Feld darin traegt weder Kante noch Grund. Mit Fokus wird sie wieder Feld.
-    ['.page-toolbar .page-search:not(:focus-within):not(:has(input:not(:placeholder-shown)))', 'Icon-Form der Kopfsuche; ein Knopf in der Kopf-Icon-Haut, kein Feld'],
+    ['.page-toolbar .page-search:not(.page-search--field):not(:focus-within):not(:has(input:not(:placeholder-shown)))', 'Icon-Form der Kopfsuche; ein Knopf in der Kopf-Icon-Haut, kein Feld (ausser --field, R19)'],
     ['.section-toolbar .page-search:not(:focus-within):not(:has(input:not(:placeholder-shown)))', 'Icon-Form der Abschnittssuche; derselbe Knopf'],
     ['.search-overlay__header', 'Kopf des Such-Overlays; Trennlinie zur Trefferliste'],
     // `.search-overlay__panel` stand hier bis R18 (2026-10-07): die Palette traegt
@@ -10347,8 +10293,9 @@ test('contacts bulk selection is opt-in and hidden by default', () => {
     'die eigene Auswahlleiste ist entfallen - die Sammelaktion ist die geteilte Pille');
   assert.doesNotMatch(contactsCss, /\.contacts-selectbar/,
     'und ihre Regeln stehen nicht mehr im Modul-Stylesheet');
-  assert.match(contactsPage, /from '\/utils\/bulk-pill\.js'/);
-  assert.match(contactsPage, /if \(!state\.selectMode\) \{ clearBulkPill\(\); return; \}/,
+  // R19: ueber den Baustein Liste + Detail (Pille mobil, Spalte am Desktop).
+  assert.match(contactsPage, /setSelectionBulk\(md, \{ label: t\('contacts\.selectCount'/);
+  assert.match(contactsPage, /if \(!state\.selectMode\) \{ setSelectionBulk\(md, null\); return; \}/,
     'ohne Auswahlmodus steht keine Pille');
 
   // Sammel-Löschen mit Undo-Toast
@@ -10979,6 +10926,29 @@ test('priority badges and meal labels meet WCAG AA contrast in both themes', () 
       const mealColor = resolveColor(mealToken, map);
       const mealRatio = contrastRatio(mealColor, surface);
       assert.ok(mealRatio >= 4.5, `${theme}: ${mealToken} is ${mealRatio.toFixed(2)}:1`);
+    }
+  }
+});
+
+// R19 (Critique 2026-10-16): Fruehstueck #A85D00 und Snack #C2410C waren kaum
+// zu trennen, Abendessen trug das Markenviolett. Die vier Mahlzeittoene liegen
+// jetzt in beiden Themes deutlich auseinander (Rotanteil-Abstand als grobe
+// Huerde), und keiner ist der Akzent.
+test('R19: Mahlzeittoene sind vier Toene, und keiner ist der Akzent', () => {
+  const tokens = read('../public/styles/tokens.css');
+  const rootBlock = tokens.match(/:root\s*\{([\s\S]*?)\n\}/);
+  const light = parseTokenMap(rootBlock[1]);
+  const dark = new Map(light);
+  for (const [key, value] of parseTokenMap(darkAttrBlock(tokens)[1])) dark.set(key, value);
+  const meals = ['--meal-breakfast', '--meal-lunch', '--meal-dinner', '--meal-snack'];
+  for (const [theme, map] of [['light', light], ['dark', dark]]) {
+    const rgb = (name) => { const h = resolveColor(name, map).replace('#', ''); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+    const accent = resolveColor('--color-accent', map).toLowerCase();
+    for (const m of meals) assert.notEqual(resolveColor(m, map).toLowerCase(), accent, `${theme}: ${m} ist der Akzent`);
+    for (let i = 0; i < meals.length; i++) for (let j = i + 1; j < meals.length; j++) {
+      const [a, b] = [rgb(meals[i]), rgb(meals[j])];
+      const dist = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      assert.ok(dist >= 80, `${theme}: ${meals[i]} und ${meals[j]} liegen nur ${dist.toFixed(0)} auseinander`);
     }
   }
 });
@@ -20967,7 +20937,7 @@ const ALIAS_PENDING = new Set([
   '../public/pages/rewards.js', '../public/pages/calendar.js', '../public/pages/setup.js',
   '../public/pages/join.js', '../public/pages/login.js', '../public/pages/reset-password.js',
   '../public/pages/forgot-password.js', '../public/components/user-multi-select.js',
-  '../public/components/tag-manager.js', '../public/settings/pages/admin-email.js',
+  '../public/components/tag-manager.js',
   '../public/settings/pages/modules-health.js',
 ]);
 
@@ -22001,16 +21971,41 @@ test('D5: die Schnellzeile des Einkaufs traegt die Kapsel+Fill-Haut der Suche', 
 
 // Critique 2026-10-16 (Jordan): das Mehr-Blatt zeigte 16 Ziele als flaches
 // Raster ohne die Sektionen der Seitenleiste. Jetzt je Sektion eine benannte
-// Gruppe mit ihrem Raster - dieselben Namen (NAV_SECTION_LABEL_KEYS) und
-// dieselbe Schriftrolle wie die Seitenleiste.
-test('Mehr-Blatt: die Module stehen in den Sektionen der Seitenleiste', () => {
+// Gruppe - dieselben Namen und dieselbe Schriftrolle wie die Seitenleiste.
+// R19 (Ulas 2026-10-16): die Gruppen sind ZEILENLISTEN wie in den
+// iOS-Einstellungen, kein Vierer-Raster mehr (724px hoch, Gruppen mit ein bis
+// zwei Kacheln in vier Spalten).
+test('Mehr-Blatt: die Module stehen als Zeilenliste in den Sektionen der Seitenleiste', () => {
   const router = read('../public/router.js');
   const body = router.slice(router.indexOf('function buildMoreSheetBody()'), router.indexOf('\n}\n', router.indexOf('function buildMoreSheetBody()')));
-  assert.match(body, /nodes\.push\(\.\.\.moreSheetSections\(modules\)\);/, 'das Blatt baut seine Module ueber die Sektionen');
+  assert.match(body, /nodes\.push\(\.\.\.moreSheetSections\(modules, labelCounts\)\);/, 'das Blatt baut seine Module ueber die Sektionen');
   const fn = router.slice(router.indexOf('function moreSheetSections('), router.indexOf('function buildMoreSheetBody()'));
-  assert.match(fn, /NAV_SECTION_LABEL_KEYS\[section\]/, 'die Namen der Seitenleiste');
+  assert.match(fn, /navSectionLabelKey\(section, /, 'die Namen (und die Kopf-Regel) der Seitenleiste');
   assert.match(fn, /setAttribute\('role', 'group'\)[\s\S]*?setAttribute\('aria-labelledby', labelId\)/, 'hoerbar gruppiert wie die Seitenleiste');
+  assert.match(fn, /className = 'more-sheet__list'/, 'je Gruppe EINE Zeilenliste');
+  assert.doesNotMatch(router, /more-sheet__grid/, 'kein Raster mehr im Blatt');
   const typo = [...eachRule(read('../public/styles/typography.css'))];
   const role = typo.find((r) => r.selector.split(',').map((x) => x.trim()).includes('.nav-section-label'));
   assert.ok(role && role.selector.includes('.more-sheet__section-label'), 'dieselbe Schriftrolle wie die Sektionsnamen der Seitenleiste');
+  const layout = [...eachRule(read('../public/styles/layout.css'))].filter((r) => !r.at.length);
+  const rule = (sel) => layout.find((r) => r.selector.trim() === sel)?.body ?? '';
+  assert.doesNotMatch(read('../public/styles/layout.css'), /\.more-sheet__grid\b/, 'die Rasterregel ist weg');
+  assert.match(rule('.more-item'), /display:\s*flex;[\s\S]*align-items:\s*center/, 'die Zeile: Siegel, Name, Badge, Pfeil nebeneinander');
+  assert.match(rule('.more-item'), /min-block-size:\s*var\(--target-base\)/, 'jede Zeile ist ein volles Ziel (am Finger 48px)');
+  assert.doesNotMatch(rule('.more-item'), /flex-direction:\s*column/, 'keine Kachel (Icon ueber Name) mehr');
+  assert.match(rule('.more-item__label'), /white-space:\s*nowrap/, 'der Name steht auf einer Zeile, ohne Silbentrennung');
+  assert.match(router, /chevron\.dataset\.lucide = 'chevron-right'/, 'der Pfeil am Zeilenende sagt: fuehrt weiter');
+});
+
+// R19 (Critique 2026-10-16, "Notizen-Pin-Gewichte"): die Nadel zeichnete mit
+// `icon-sm` 12px neben dem 18px-Mehr-Knopf derselben Karte - bei gleicher
+// Strichstaerke kleiner und fetter zugleich. Sie teilt jetzt die Groesse der
+// Zeilenaktion, aus derselben Regel.
+test('R19: die Nadel der Notizkarte zeichnet so gross wie die Zeilenaktion daneben', () => {
+  const notes = read('../public/pages/notes.js');
+  const pin = notes.slice(notes.indexOf('function pinMarkup('), notes.indexOf('\n}\n', notes.indexOf('function pinMarkup(')));
+  assert.doesNotMatch(pin, /data-lucide="pin" class="icon-sm"/, 'die Nadel traegt keine eigene Kleingroesse mehr');
+  const layout = [...eachRule(read('../public/styles/layout.css'))].filter((r) => !r.at.length);
+  const size = layout.find((r) => r.selector.split(',').map((x) => x.trim()).includes('.row-action svg'));
+  assert.ok(size && size.selector.includes('.note-card__pin svg'), 'Nadel und Zeilenaktion teilen EINE Groessenregel');
 });

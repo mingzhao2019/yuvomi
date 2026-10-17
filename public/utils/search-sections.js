@@ -226,3 +226,99 @@ export function paletteCommands(query, { places = [], settings = [], actions = [
     actions: hitActions.slice(0, cap),
   };
 }
+
+/* ── Zuletzt geoeffnet (R19, Critique 2026-10-16, Alex) ──
+ * ⌘K mit leerem Feld zeigte nur die Modul-Kacheln. Eine Palette ist fuer den
+ * Wiederholer da: was man gerade geoeffnet hat, will man als Naechstes wieder
+ * oeffnen (Raycast, Linear, Spotlight).
+ *
+ * GEMERKT WIRD NUR EIN ZIEL, NIE SEIN NAME (Sicherheits-Review R19). Die erste
+ * Fassung legte Titel und Kontext von Datentreffern im localStorage ab -
+ * Gesundheit, Dokumente, private Notizen - und die ueberlebten das Abmelden;
+ * am geteilten Familien-Tablett oder Wand-Display las sie der Naechste. Jetzt
+ * stehen dort nur `route` und `module`, und gemerkt werden nur ORTE (Ziele
+ * der Navigation, Einstellungsblaetter), keine Datentreffer: deren Namen
+ * liessen sich beim Anzeigen nicht frisch und mit Rechtepruefung holen, ohne
+ * je Art eine eigene Abfrage. Den Namen ermittelt die Anzeige aus der
+ * aktuellen Navigation bzw. den Einstellungsblaettern (`resolve` in
+ * visibleRecent); was dort nicht mehr steht (abgeschaltet, kein Recht),
+ * faellt weg. Und beim Abmelden gehen alle Listen (forgetAllRecent).
+ *
+ * Je Konto und Geraet, hoechstens RECENT_MAX Eintraege, der neueste zuerst,
+ * je Ziel einmal. Der Speicher ist eine Zugabe: wirft er (Safari privat,
+ * voll), bleibt die Liste leer, nichts bricht. */
+export const RECENT_MAX = 5;
+export const RECENT_KEY_PREFIX = 'yuvomi-palette-recent:';
+
+/** Speicher-Schluessel je Konto - ein geteiltes Tablett mischt sonst Familien. */
+export function recentStorageKey(userId) {
+  return `${RECENT_KEY_PREFIX}${userId ?? 'anon'}`;
+}
+
+/** Ein Eintrag ist brauchbar, wenn er ein Ziel IN der App und ein Modul hat. */
+function isRecentEntry(entry) {
+  return Boolean(entry)
+    && typeof entry.module === 'string' && entry.module !== ''
+    && typeof entry.route === 'string' && entry.route.startsWith('/') && !entry.route.startsWith('//');
+}
+
+/**
+ * Die Liste nach dem Oeffnen von `entry`: vorn eingereiht, das alte Vorkommen
+ * desselben Ziels entfernt, auf RECENT_MAX gekuerzt. Behalten werden NUR
+ * `route` und `module` - was der Aufrufer sonst mitgibt (Titel, Kontext),
+ * landet nie im Speicher. Reine Funktion.
+ * @returns {Array<{route: string, module: string}>}
+ */
+export function pushRecent(list, entry, max = RECENT_MAX) {
+  const prior = Array.isArray(list) ? list.filter(isRecentEntry).map(({ route, module }) => ({ route, module })) : [];
+  if (!isRecentEntry(entry)) return prior.slice(0, max);
+  const clean = { route: entry.route, module: entry.module };
+  return [clean, ...prior.filter((e) => e.route !== clean.route)].slice(0, max);
+}
+
+/** Liest die Liste; alles Unlesbare ist eine leere Liste. */
+export function readRecent(storage, userId) {
+  try {
+    const parsed = JSON.parse(storage?.getItem(recentStorageKey(userId)) ?? '[]');
+    return pushRecent(Array.isArray(parsed) ? parsed : [], null);
+  } catch {
+    return [];
+  }
+}
+
+/** Merkt ein geoeffnetes Ziel; ein werfender Speicher ist kein Fehler. */
+export function rememberRecent(storage, userId, entry) {
+  const next = pushRecent(readRecent(storage, userId), entry);
+  try { storage?.setItem(recentStorageKey(userId), JSON.stringify(next)); } catch { /* nur Zugabe */ }
+  return next;
+}
+
+/**
+ * Vergisst ALLE Listen auf diesem Geraet (jedes Konto) - beim Abmelden und
+ * wenn die Sitzung ablaeuft (forgetSessionState im Router).
+ */
+export function forgetAllRecent(storage) {
+  try {
+    const keys = [];
+    for (let i = 0; i < (storage?.length ?? 0); i++) {
+      const key = storage.key(i);
+      if (typeof key === 'string' && key.startsWith(RECENT_KEY_PREFIX)) keys.push(key);
+    }
+    for (const key of keys) storage.removeItem(key);
+  } catch { /* nur Zugabe */ }
+}
+
+/**
+ * Die Liste zum Anzeigen: jeder Eintrag bekommt seinen Namen JETZT aus
+ * `resolve(entry)` (aktuelle Navigation, Einstellungsblaetter) - liefert der
+ * nichts (Modul abgeschaltet, ausgeblendet, kein Recht, Blatt weg), faellt
+ * der Eintrag heraus, statt auf eine Tuer zu zeigen, die nicht mehr aufgeht.
+ * @param {Array<{route: string, module: string}>} list
+ * @param {(entry: {route: string, module: string}) => ({label: string, context?: string}|null)} resolve
+ */
+export function visibleRecent(list, resolve) {
+  return (Array.isArray(list) ? list : []).filter(isRecentEntry).flatMap((entry) => {
+    const found = typeof resolve === 'function' ? resolve(entry) : null;
+    return found?.label ? [{ ...entry, label: found.label, context: found.context || '' }] : [];
+  });
+}

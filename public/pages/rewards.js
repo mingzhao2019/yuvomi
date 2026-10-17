@@ -301,11 +301,11 @@ function renderShell(container) {
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
     <div class="rewards-page app-page app-page--dashboard app-page--columns" data-composition="dashboard">
-      <header class="page-toolbar page-toolbar--narrow rewards-toolbar">
+      <header class="page-toolbar page-toolbar--narrow page-toolbar--tabs-title rewards-toolbar">
         <h1 class="page-toolbar__title" id="rewards-title">${esc(t('rewards.title'))}</h1>
         <div class="page-toolbar__actions"></div>
         <nav class="rewards-tabs page-toolbar__bar" role="tablist" aria-label="${esc(t('rewards.title'))}">
-          ${tabButton('overview', t('rewards.tabOverview'))}
+          ${tabButton('overview', t('rewards.tabPoints'))}
           ${tabButton('catalog', t('rewards.tabCatalog'))}
           ${tabButton('ledger', t('rewards.tabLedger'))}
         </nav>
@@ -612,20 +612,35 @@ function renderOverview(el) {
           </div>` : '';
   // Anfragen und Punktestaende links, die letzten Buchungen ab der
   // Split-Schwelle rechts daneben (mobil darunter) - `.page-columns`.
+  /* DEINE PUNKTE ZUERST (R19, Critique 2026-10-16, Persona Emma, 8): ihre 30
+   * Punkte standen als zweite Zeile unter Leos 60, an der Faltkante, unter
+   * Anfrage und Taschengeld. Wer selbst sammelt und kein Elternteil ist (und
+   * nicht am Wandtablett handelt), sieht oben die eigene Karte: Stand, Weg
+   * zur naechsten Praemie, Anfragen. Die Punktestaende darunter nennen nur
+   * noch die anderen. */
+  const me = state.overview?.me;
+  const own = !isAdmin() && !actingAsDisplay() ? list.find((m) => m.id === me) : null;
+  const others = own ? list.filter((m) => m.id !== me) : list;
+  const ownSection = own ? `
+      <section class="rw-section rw-section--own">
+        <h2 class="rw-section__title u-section-title">${esc(t('rewards.yourPoints'))}</h2>
+        <ul class="row-carrier rw-standings rw-standings--own">${renderStandingRow(own)}</ul>
+      </section>` : '';
   el.insertAdjacentHTML('beforeend', `
     <div class="rewards-content__inner">
       ${renderPageColumns({
         main: `
+      ${ownSection}
       ${renderSetupHints()}
       ${renderPendingPanel()}
       ${renderMoneySection()}
-      <section class="rw-section">
+      ${others.length ? `<section class="rw-section">
         <div class="rw-section__head">
           <h2 class="rw-section__title u-section-title">${esc(t('rewards.standings'))}</h2>
           ${adminBar}
         </div>
-        <ul class="row-carrier rw-standings">${list.map(renderStandingRow).join('')}</ul>
-      </section>`,
+        <ul class="row-carrier rw-standings">${others.map(renderStandingRow).join('')}</ul>
+      </section>` : ''}`,
         rail: renderRecentLedger(),
       })}
     </div>`);

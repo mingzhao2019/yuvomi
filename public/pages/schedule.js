@@ -10,7 +10,7 @@ import { openModal, closeModal, confirmModal, confirmOverModal, advancedSection,
 import { makeSortable } from '/utils/sortable.js';
 import { memberRanks, memberRankOf } from '/utils/member-order.js';
 import { createPageFab, setPageFabAction } from '/utils/fab.js';
-import { emptyStateHTML } from '/utils/empty-state.js';
+import { emptyStateHTML, loadErrorHTML, mountLoadError } from '/utils/empty-state.js';
 import { rowActionHtml, rowMenuHtml } from '/utils/row-action.js';
 import { installPopoverMenus } from '/utils/popover-menu.js';
 import { wireScrollFade } from '/utils/ux.js';
@@ -33,6 +33,8 @@ let scheduleTablist = null;
 let currentUserId = null;
 let canManageOthers = false;
 let activeView = 'overview';
+// Der letzte Ladeversuch scheiterte: update() rendert dann ganz neu (render()).
+let loadFailed = false;
 // Der Vorgabewert oben gilt nur, bevor jemals entschieden wurde - render()
 // setzt ihn beim ALLERERSTEN Laden dieses Moduls (in dieser Sitzung) auf den
 // Startreiter "Vergleich" (R17, siehe dort), aber niemals danach: `activeView` ist ausdruecklich
@@ -712,8 +714,10 @@ async function activateView(view, { step = null } = {}) {
     try { await refreshOverview(); }
     catch (error) {
       if (requestId !== overviewRequestId) return; // eine juengere Anfrage entscheidet, nicht diese veraltete
-      overview = { ...overview, loading: false, error: true };
-      window.yuvomi?.showToast(scheduleErrorMessage(error), 'danger');
+      // Das Fehlerobjekt selbst, und KEIN Toast (Critique R19): der
+      // Fehlerzustand der Flaeche nennt die Ursache aus dem Fehler und bleibt
+      // stehen - ein Toast daneben sagte dasselbe ein zweites Mal.
+      overview = { ...overview, loading: false, error };
     }
     if (requestId === overviewRequestId) {
       if (hold) swapPeriod(bodyEl(), step, renderPage);
@@ -728,8 +732,7 @@ async function activateView(view, { step = null } = {}) {
   try { await refreshStatistics(); }
   catch (error) {
     if (requestId !== statisticsRequestId) return;
-    statistics = { ...statistics, loading: false, error: true };
-    window.yuvomi?.showToast(scheduleErrorMessage(error), 'danger');
+    statistics = { ...statistics, loading: false, error };
   }
   if (requestId === statisticsRequestId) renderPage();
 }
@@ -944,7 +947,7 @@ async function pickShiftIcon(button) {
   const hidden = form?.elements?.icon;
   if (!hidden) return;
   const { openIconPicker } = await import('/components/icon-picker.js');
-  const chosen = await openIconPicker(hidden.value || null);
+  const chosen = await openIconPicker(hidden.value || null, { owner: button });
   if (chosen === undefined) return;
   hidden.value = chosen ?? '';
   setShiftIconButtonIcon(button, chosen);
@@ -1414,6 +1417,17 @@ function setStatisticsRange(range) {
   statistics = { ...statistics, range, entries: [], bounds: null, loading: false, error: false };
   ++statisticsRequestId;
   renderPage();
+  applyStatistics();
+}
+
+/**
+ * KEIN ANWENDEN-KNOPF (R19, Critique 2026-10-16): wer Person oder Zeitraum
+ * wechselte, sah bis zum Tipp auf "Auswertung anzeigen" die alten oder gar
+ * keine Zahlen. Jede Aenderung im Filter rechnet jetzt sofort neu - ueber
+ * denselben Weg wie vorher das Absenden (submitForm, Generationszaehler).
+ */
+function applyStatistics() {
+  root?.querySelector('form[data-form="statistics"]')?.requestSubmit?.();
 }
 
 function renderStatistics() {
@@ -1453,9 +1467,15 @@ function renderStatistics() {
   const results = statistics.loading
     ? scheduleLoadingHtml({ rows: 3, lines: 2 })
     : statistics.error
-      ? emptyStateHTML({ variant: 'error', title: t('common.errorGeneric'), description: t('common.loadErrorDescription'), action: { label: t('common.retry'), icon: 'refresh-cw', attrs: { 'data-action': 'retry-statistics' } } })
+      ? loadErrorHTML({ title: t('common.errorGeneric'), error: statistics.error, attrs: { 'data-action': 'retry-statistics' } })
       : !bounds
       ? '<p class="card card--padded schedule-stat-empty" role="status">' + esc(t('schedule.invalidRange')) + '</p>'
+      : !statistics.entries.length
+      // LEER IST EIN ZUSTAND, KEINE ZWEI LEEREN KARTEN (R19): ohne einen
+      // Eintrag im Zeitraum standen "0 Schichten", "0 h" und zwei Karten mit
+      // "Keine Daten". Jetzt EIN Leerzustand, der Zeitraum und Person nennt.
+      ? '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: formatDate(bounds.from), to: formatDate(bounds.to) })) + '</p>'
+        + emptyStateHTML({ icon: 'chart-column', title: t('schedule.noStatistics') })
       : '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: formatDate(bounds.from), to: formatDate(bounds.to) })) + '</p>'
       + '<div class="metric-grid schedule-stat-metrics' + (overtime?.over ? ' schedule-stat-metrics--with-overtime' : '') + '">'
       + '<article class="metric-card"><div class="metric-card__label">' + esc(t('schedule.shiftCounts')) + '</div><div class="metric-card__value">' + esc(String(summary.totalCount)) + '</div><div class="metric-card__note">' + esc(t('schedule.shifts')) + '</div></article>'
@@ -1498,7 +1518,7 @@ function renderStatistics() {
     + '<select class="form-input schedule-stat-range__select" name="statistics_range" aria-label="' + esc(t('schedule.statisticsRange')) + '">'
     + STATISTICS_RANGES.map(([value, label]) => '<option value="' + value + '"' + (range === value ? ' selected' : '') + '>' + esc(t(label)) + '</option>').join('')
     + '</select></div>' + (controls ? '<div class="schedule-stat-dates">' + controls + '</div>' : '')
-    + '<div class="schedule-stat-filter-actions"><button class="btn btn--primary">' + esc(t('schedule.applyStatistics')) + '</button>'
+    + '<div class="schedule-stat-filter-actions">'
     + '<button type="button" class="btn btn--secondary" data-action="print-statistics"><i data-lucide="printer" aria-hidden="true"></i>' + esc(t('schedule.print')) + '</button></div></form>'
     + results + '</section>';
 }
@@ -1956,7 +1976,7 @@ function renderOverview() {
     return `<section class="schedule-overview">${header}${scheduleLoadingHtml({ rows: Math.max(2, overview.selectedIds.length), lines: 1 })}</section>`;
   }
   if (overview.error) {
-    return `<section class="schedule-overview">${header}${emptyStateHTML({ variant: 'error', title: t('common.errorGeneric'), description: t('common.loadErrorDescription'), action: { label: t('common.retry'), icon: 'refresh-cw', attrs: { 'data-action': 'retry-overview' } } })}</section>`;
+    return `<section class="schedule-overview">${header}${loadErrorHTML({ title: t('common.errorGeneric'), error: overview.error, attrs: { 'data-action': 'retry-overview' } })}</section>`;
   }
 
   if (!overview.selectedIds.length) {
@@ -2035,7 +2055,12 @@ function navigateToView(id) {
  * `.page-toolbar__actions` survives every subsequent tab change instead of
  * being destroyed along with a full-page reset.
  */
-function renderShell() {
+/**
+ * Kopf der Seite: Titel und Reiter. Unter 1024px SIND die Reiter der Titel
+ * (`.page-toolbar--tabs-title`, das h1 tritt zurueck) - deshalb baut auch der
+ * Ladefehler in render() diesen Kopf, statt die Seite ohne ihn zu zeigen.
+ */
+function scheduleHeadHtml(current = activeView) {
   // DER PLAN ZUERST (Entscheidung R17, E1). "Vergleich" - die Woche als Raster -
   // ist das, wofuer jemand den Schichtplan oeffnet; bis R17 stand er als
   // letzter Reiter hinter drei Reitern Stammdaten und verlangte dort erst eine
@@ -2046,15 +2071,19 @@ function renderShell() {
     ['patterns', t('schedule.planning')],
     ['statistics', t('schedule.statistics')],
   ];
-  root.replaceChildren();
-  root.insertAdjacentHTML('beforeend', `<div class="schedule-page app-page app-page--full" data-composition="full">
-    <header class="page-toolbar schedule-toolbar">
+  return `<header class="page-toolbar page-toolbar--tabs-title schedule-toolbar">
       <h1 class="page-toolbar__title">${esc(t('schedule.title'))}</h1>
       <div class="page-toolbar__actions"></div>
       <div class="sub-tabs-bar schedule-tabs page-toolbar__bar" role="tablist" aria-label="${esc(t('schedule.title'))}">
-        ${tabs.map(([id, label]) => `<button class="sub-tab${id === activeView ? ' sub-tab--active' : ''}" id="schedule-tab-${id}" type="button" role="tab" data-tab-id="${id}" aria-controls="schedule-body" aria-selected="${id === activeView ? 'true' : 'false'}" tabindex="${id === activeView ? '0' : '-1'}">${esc(label)}</button>`).join('')}
+        ${tabs.map(([id, label]) => `<button class="sub-tab${id === current ? ' sub-tab--active' : ''}" id="schedule-tab-${id}" type="button" role="tab" data-tab-id="${id}" aria-controls="schedule-body" aria-selected="${id === current ? 'true' : 'false'}" tabindex="${id === current ? '0' : '-1'}">${esc(label)}</button>`).join('')}
       </div>
-    </header>
+    </header>`;
+}
+
+function renderShell() {
+  root.replaceChildren();
+  root.insertAdjacentHTML('beforeend', `<div class="schedule-page app-page app-page--full" data-composition="full">
+    ${scheduleHeadHtml()}
     <div class="schedule-today-slot"></div>
     <div class="schedule-body" id="schedule-body" role="tabpanel" tabindex="0"></div>
   </div>`);
@@ -2091,6 +2120,9 @@ function renderShell() {
     if (event.target.matches('.schedule-stat-range__select')) {
       // Das schmale Gegenstueck zum Segment (R9 M11) - derselbe Wechsel.
       setStatisticsRange(event.target.value);
+    } else if (event.target.closest('form[data-form="statistics"]')) {
+      // Person, Monate oder Tage: sofort neu rechnen (applyStatistics).
+      applyStatistics();
     } else if (event.target.closest('[data-ms-input="overview-people"]')) {
       // Auswahl ist rein clientseitig - kein Fetch, nur eine Neuzeichnung
       // (siehe Kommentar an overview weiter oben).
@@ -3057,9 +3089,14 @@ async function submitForm(event) {
     // (saveCreatedSchedule(), saveShiftTypeEdit(), savePatternEdit()). Dieser
     // Delegierte an `root` sieht nur noch den Filter der Auswertung.
   } catch (error) {
-    if (form.dataset.form === 'statistics' && statisticsRequest === statisticsRequestId) {
-      statistics = { ...statistics, loading: false, error: true };
-      renderPage();
+    if (form.dataset.form === 'statistics') {
+      // Die Flaeche zeigt den Fehler selbst - kein Toast daneben (Critique R19).
+      // Eine ueberholte Anfrage schweigt: die juengere entscheidet.
+      if (statisticsRequest === statisticsRequestId) {
+        statistics = { ...statistics, loading: false, error };
+        renderPage();
+      }
+      return;
     }
     window.yuvomi?.showToast(scheduleErrorMessage(error), 'danger');
   }
@@ -3336,8 +3373,8 @@ async function reloadAfterWrite() {
   if (activeView !== 'overview') return;
   const requestId = ++overviewRequestId;
   try { await refreshOverview(); }
-  catch {
-    if (requestId === overviewRequestId) overview = { ...overview, loading: false, error: true };
+  catch (error) {
+    if (requestId === overviewRequestId) overview = { ...overview, loading: false, error };
   }
 }
 
@@ -3345,7 +3382,46 @@ export async function render(container, { user } = {}) {
   root = container;
   currentUserId = user?.id ?? null;
   canManageOthers = user?.role === 'admin';
-  await load();
+  // EIN LADEFEHLER IST EIN ZUSTAND DER SEITE (R19, Critique 2026-10-16).
+  // load() warf bis hierher durch render() in den Fehlerbildschirm des
+  // Routers - unter 429 (Rate-Limit hinter einem Proxy) stand der Schichtplan
+  // als "Seite konnte nicht geladen werden" da. Jetzt zeigt die Seite selbst
+  // den geteilten Ladefehler (Ursache aus dem Fehler, Status in den Details)
+  // mit "Erneut versuchen", wie Haushaltshilfe und Abos.
+  //
+  // DER KOPF BLEIBT STEHEN (Re-Kritik 2026-10-17): unter 1024px sind die
+  // Reiter der Titel - ein Fehler, der die ganze Seite ersetzte, liess auf
+  // dem Telefon nur "Etwas ist schiefgelaufen" ohne jeden Hinweis, wo man
+  // ist. Der Fehler steht jetzt im Inhalt unter Titel und Reitern. Ein Reiter
+  // laedt neu (update() gibt nach einem Ladefehler false zurueck, der Router
+  // rendert die Seite also ganz).
+  loadFailed = false;
+  try {
+    await load();
+  } catch (error) {
+    if (root !== container) return;
+    loadFailed = true;
+    const shownView = scheduleViewFromPath(window.location?.pathname ?? '') ?? activeView;
+    container.replaceChildren();
+    container.insertAdjacentHTML('beforeend', `<div class="schedule-page app-page app-page--full" data-composition="full">
+    ${scheduleHeadHtml(shownView)}
+    <div class="schedule-body" id="schedule-body" role="tabpanel" tabindex="0"></div>
+  </div>`);
+    const tabsEl = container.querySelector('.schedule-tabs');
+    scheduleTablist = wireTablist(tabsEl, {
+      activeId: shownView,
+      manualActivation: true,
+      onChange: (id) => navigateToView(id),
+    });
+    attachSegmentIndicator(tabsEl);
+    mountLoadError(container.querySelector('.schedule-body'), {
+      title: t('common.errorOccurred'),
+      error,
+      retryLabel: t('common.retry'),
+      onRetry: () => render(container, { user }),
+    });
+    return;
+  }
   // S-10: ein ausdruecklicher Tab-Deep-Link (Dashboard-Kachel, Erinnerung,
   // ein gemerkter Browser-Verlaufseintrag) gewinnt IMMER - er ist eine
   // explizite Anfrage, keine geerbte Sitzungsvorgabe. Nur die nackte Wurzel
@@ -3412,7 +3488,7 @@ export async function render(container, { user } = {}) {
  * Rendern (hier nur, wenn der Container bereits verschwunden ist).
  */
 export async function update({ path } = {}) {
-  if (!root?.isConnected) return false;
+  if (!root?.isConnected || loadFailed) return false;
   const requestedView = scheduleViewFromPath(path || window.location.pathname);
   const nextView = requestedView ?? activeView;
   const resolvedRoute = scheduleRouteForView(nextView);
@@ -3429,4 +3505,4 @@ export async function update({ path } = {}) {
 // bereits pur bzw. nehmen ihre Eingabe jetzt als Parameter statt sie fest aus
 // `state` zu lesen - ein Test kann so echte Tage hineingeben und das Ergebnis
 // pruefen, statt nur zu belegen, dass der Funktionsname im Quelltext steht.
-export const __test = { availableTypeFields, shiftTypeFieldsEditor, syncTypeFieldPicker, editorAction, shiftTypeRow, patternRow, patternDaysEditorHtml, patternSaveOrder, initialOverviewSelection, renderOverview, renderToday, overviewLaneHeader, planningPanel, scheduleFabIntent, renderStatistics, patternFields, formField, shiftFields, reminderOffsetField, emptyShiftTypesState, emptyPatternState, emptyOverrideState, emptyExtraShiftsState, emptyCustomFieldsState, customFieldsSection, scheduleState: () => state, userOptions, setOwnerContext, overrideGroups, extraGroups, patternsInMemberOrder, rangeDifference, wireRangeFollow, reportReversedRange, saveCreatedSchedule, setShiftIconButtonIcon, overtimeInfo, sameFieldValues, overlayMeta, buildOverviewLanes, normalizeOverviewSelection, computeActiveHours, collapsedMinutes, isOvernightEntry, touchesVisibleDay, overviewFetchRange, patternDaysExceedingCycleLength, scheduleErrorMessage, cycleDayNextDate, cycleDayHeaderLabel, windowsOverlap, findOverlappingActivePattern, resolveWinningPatternId, scheduleEntryMatchKey };
+export const __test = { setStatisticsEntries: (entries) => { statistics = { ...statistics, entries }; }, availableTypeFields, shiftTypeFieldsEditor, syncTypeFieldPicker, editorAction, shiftTypeRow, patternRow, patternDaysEditorHtml, patternSaveOrder, initialOverviewSelection, renderOverview, renderToday, overviewLaneHeader, planningPanel, scheduleFabIntent, renderStatistics, patternFields, formField, shiftFields, reminderOffsetField, emptyShiftTypesState, emptyPatternState, emptyOverrideState, emptyExtraShiftsState, emptyCustomFieldsState, customFieldsSection, scheduleState: () => state, userOptions, setOwnerContext, overrideGroups, extraGroups, patternsInMemberOrder, rangeDifference, wireRangeFollow, reportReversedRange, saveCreatedSchedule, setShiftIconButtonIcon, overtimeInfo, sameFieldValues, overlayMeta, buildOverviewLanes, normalizeOverviewSelection, computeActiveHours, collapsedMinutes, isOvernightEntry, touchesVisibleDay, overviewFetchRange, patternDaysExceedingCycleLength, scheduleErrorMessage, cycleDayNextDate, cycleDayHeaderLabel, windowsOverlap, findOverlappingActivePattern, resolveWinningPatternId, scheduleEntryMatchKey };

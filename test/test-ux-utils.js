@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { eachRule } from './css-rules.js';
 
 // Minimales Window/Navigator-Mock für Node
-const { stagger, vibrate, withBusy, scheduleUndoableDelete, wireSwipeToDismiss, wireCollapsingHeader, collapseOut, expandIn, watchNavCapsuleHeight, wireScrollFade } = await (async () => {
+const { stagger, vibrate, withBusy, scheduleUndoableDelete, wireSwipeToDismiss, wireCollapsingHeader, collapseOut, expandIn, watchNavCapsuleHeight, wireScrollFade, nextNavMinimized, NAV_MINIMIZE_DOWN, NAV_MINIMIZE_UP, bindNavMinimize } = await (async () => {
   global.window = {
     matchMedia: () => ({ matches: false }),
     addEventListener: () => {},
@@ -33,12 +33,34 @@ global.localStorage = {
 
 const { parseDateInput, isDateInputValid, parseTimeInput, formatTimeInput } = await import('../public/i18n.js');
 
-test('stagger: setzt opacity:0 auf alle Elemente', () => {
-  const els = [{ style: {} }, { style: {} }, { style: {} }];
-  stagger(els, { delay: 0, duration: 0 });
-  assert.equal(els[0].style.opacity, '0');
-  assert.equal(els[1].style.opacity, '0');
-  assert.equal(els[2].style.opacity, '0');
+/** Eine Zeile, die ihre Animationen mitschreibt (stagger laeuft seit R19 ueber WAAPI). */
+const animRow = (extra = {}) => {
+  const el = { style: {}, calls: [], ...extra };
+  el.animate = (keyframes, timing) => { el.calls.push({ keyframes, timing }); return { finished: Promise.resolve() }; };
+  return el;
+};
+
+/*
+ * WEB ANIMATIONS STATT TIMER-KETTE (Critique R19): je Zeile EINE Animation,
+ * der Versatz ist ihr `delay`, `fill: 'backwards'` haelt sie bis zum Einsatz
+ * unsichtbar. Nur der Startpunkt steht da - das Ziel ist das Stylesheet.
+ * Kein Inline-Wert, kein Timer (vorher zwei setTimeout je Zeile).
+ */
+test('stagger: je Zeile eine Animation von opacity 0, mit Versatz als delay und ohne Inline-Wert', () => {
+  const els = [animRow(), animRow(), animRow()];
+  stagger(els, { delay: 30, duration: 200 });
+  els.forEach((el, i) => {
+    assert.equal(el.calls.length, 1, `Zeile ${i}: keine Animation`);
+    const [{ keyframes, timing }] = el.calls;
+    assert.deepEqual(keyframes, [{ opacity: 0, transform: 'translateY(8px)', offset: 0 }], 'nur der Start, das Ziel ist das Stylesheet');
+    assert.equal(timing.delay, i * 30);
+    assert.equal(timing.fill, 'backwards');
+    assert.equal(timing.duration, 200);
+    assert.equal(el.style.opacity, undefined, 'kein Inline-Wert');
+  });
+  const src = readFileSync(new URL('../public/utils/ux.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('export function stagger('), src.indexOf('export function vibrate('));
+  assert.doesNotMatch(body, /setTimeout\(/, 'stagger ist wieder eine Timer-Kette');
 });
 
 test('date inputs: accept slash, dot, and hyphen separators for DMY dates', () => {
@@ -117,17 +139,17 @@ test('stagger: tut nichts bei prefers-reduced-motion', () => {
  * Traeger. Deshalb die Zeilen hier FRISCH je Aufruf, der Traeger derselbe.
  */
 function fakeRows(host, n = 3) {
-  return Array.from({ length: n }, () => ({ style: {}, parentElement: host }));
+  return Array.from({ length: n }, () => animRow({ parentElement: host }));
 }
 
 test('stagger: blendet je Listentraeger nur beim ersten Aufbau ein, nicht bei jedem Neuzeichnen', () => {
   const host = { contains: () => true, parentElement: null };
   const first = fakeRows(host);
   stagger(first, { host, delay: 0, duration: 0 });
-  assert.equal(first[0].style.opacity, '0', 'Vorbedingung: der erste Aufbau blendet ein');
+  assert.equal(first[0].calls.length, 1, 'Vorbedingung: der erste Aufbau blendet ein');
   const again = fakeRows(host);
   stagger(again, { host, delay: 0, duration: 0 });
-  assert.equal(again[0].style.opacity, undefined,
+  assert.equal(again[0].calls.length, 0,
     'das Neuzeichnen derselben Liste hat wieder eingeblendet - die Liste faehrt nach jedem Abhaken neu ein');
 });
 
@@ -136,7 +158,7 @@ test('stagger: ohne host gilt der gemeinsame Vorfahr der Zeilen als Traeger', ()
   stagger(fakeRows(host), { delay: 0, duration: 0 });
   const again = fakeRows(host);
   stagger(again, { delay: 0, duration: 0 });
-  assert.equal(again[0].style.opacity, undefined, 'zweiter Aufruf am selben Vorfahr hat wieder eingeblendet');
+  assert.equal(again[0].calls.length, 0, 'zweiter Aufruf am selben Vorfahr hat wieder eingeblendet');
 });
 
 test('stagger: ein Aufruf ohne Zeilen verbraucht den ersten Aufbau nicht (Skelett, Leerzustand)', () => {
@@ -144,7 +166,7 @@ test('stagger: ein Aufruf ohne Zeilen verbraucht den ersten Aufbau nicht (Skelet
   stagger([], { host });
   const rows = fakeRows(host);
   stagger(rows, { host, delay: 0, duration: 0 });
-  assert.equal(rows[0].style.opacity, '0', 'die erste echte Liste nach einem leeren Aufruf blendet nicht mehr ein');
+  assert.equal(rows[0].calls.length, 1, 'die erste echte Liste nach einem leeren Aufruf blendet nicht mehr ein');
 });
 
 test('stagger: ein neuer Traeger (Seite neu aufgebaut) blendet wieder ein', () => {
@@ -153,7 +175,7 @@ test('stagger: ein neuer Traeger (Seite neu aufgebaut) blendet wieder ein', () =
   stagger(fakeRows(a), { host: a, delay: 0, duration: 0 });
   const rows = fakeRows(b);
   stagger(rows, { host: b, delay: 0, duration: 0 });
-  assert.equal(rows[0].style.opacity, '0');
+  assert.equal(rows[0].calls.length, 1);
 });
 
 /*
@@ -182,16 +204,27 @@ test('stagger: jeder Aufruf in public/ nennt seinen Listentraeger (host)', () =>
   assert.deepEqual(offenders, [], `stagger() ohne host:\n${offenders.join('\n')}`);
 });
 
-test('collapseOut/expandIn: loesen ohne Animation sofort auf (reduzierte Bewegung, kein animate)', async () => {
+test('collapseOut/expandIn: loesen ohne Animation sofort auf; unter reduzierter Bewegung wird nur geblendet', async () => {
   await collapseOut(null);
   await expandIn({ style: {} });
+  const prevGcs = global.getComputedStyle;
+  global.getComputedStyle = () => ({ getPropertyValue: () => '', opacity: '1' });
   global.window.matchMedia = () => ({ matches: true });
-  let animated = false;
-  const el = { style: {}, animate: () => { animated = true; } };
-  await collapseOut(el);
-  await expandIn(el);
-  global.window.matchMedia = () => ({ matches: false });
-  assert.equal(animated, false, 'unter prefers-reduced-motion darf keine Hoehe animieren');
+  const frames = [];
+  const el = { style: {}, animate: (k) => { frames.push(...k); return { finished: Promise.resolve() }; } };
+  try {
+    await expandIn(el);
+    assert.equal(frames.length, 0, 'unter prefers-reduced-motion zieht keine Hoehe auf');
+    await collapseOut(el);
+  } finally {
+    global.window.matchMedia = () => ({ matches: false });
+    global.getComputedStyle = prevGcs;
+  }
+  // R19: blenden statt springen - die Zeile geht per opacity, und was danach
+  // gilt, ist die gehaltene geschlossene Form (ein Frame, keine Bewegung).
+  const moving = frames.filter((f) => !('height' in f));
+  assert.ok(moving.length > 0, 'unter reduzierter Bewegung blendet die Zeile nicht einmal aus');
+  assert.ok(moving.every((f) => Object.keys(f).every((k) => k === 'opacity')), 'unter reduzierter Bewegung bewegt sich etwas');
 });
 
 /**
@@ -201,7 +234,7 @@ test('collapseOut/expandIn: loesen ohne Animation sofort auf (reduzierte Bewegun
  * Gemessen wird ueber den AUFRUF (collapseOut/expandIn mit gestubtem
  * `animate`), die Kurve selbst aus tokens.css (x1 + x2 = 1, y1 + y2 = 1).
  */
-test('collapseOut/expandIn: Hoehe laeuft auf der symmetrischen Kurve --ease-in-out', async () => {
+test('collapseOut/expandIn: Blende, Nachruecken und Aufziehen laufen auf der symmetrischen Kurve --ease-in-out', async () => {
   const tokens = { '--ease-out': 'cubic-bezier(0.16, 1, 0.3, 1)', '--ease-in-out': 'cubic-bezier(0.42, 0, 0.58, 1)', '--duration-lg': '250ms' };
   const docEl = {};
   const prevDoc = global.document;
@@ -214,15 +247,17 @@ test('collapseOut/expandIn: Hoehe laeuft auf der symmetrischen Kurve --ease-in-o
   const el = {
     style: {},
     getBoundingClientRect: () => ({ height: 40 }),
-    animate: (_frames, opts) => { easings.push(opts.easing); return { finished: Promise.resolve() }; },
+    animate: (frames, opts) => { if (frames.length > 1 && !('height' in frames[1] && frames[0].height === frames[1].height)) easings.push(opts.easing); return { finished: Promise.resolve() }; },
   };
   try {
-    await collapseOut(el);
+    await collapseOut(el, { duration: 10 });
     await expandIn(el);
   } finally {
     global.document = prevDoc;
     global.getComputedStyle = prevGcs;
   }
+  // Blende (collapseOut, Schritt 1) und Aufziehen; die gehaltene geschlossene
+  // Form ist keine Bewegung und hat keine Kurve.
   assert.deepEqual(easings, [tokens['--ease-in-out'], tokens['--ease-in-out']]);
 
   const css = readFileSync(new URL('../public/styles/tokens.css', import.meta.url), 'utf8');
@@ -231,6 +266,50 @@ test('collapseOut/expandIn: Hoehe laeuft auf der symmetrischen Kurve --ease-in-o
   const [x1, y1, x2, y2] = m[1].split(',').map(Number);
   assert.ok(Math.abs(x1 + x2 - 1) < 1e-9 && Math.abs(y1 + y2 - 1) < 1e-9,
     `--ease-in-out ist nicht symmetrisch: ${m[1]}`);
+});
+
+// R19 (Critique 2026-10-16, "expandIn ohne Hoehenanimation"): das Element
+// steht sofort in voller Hoehe und blendet per opacity/transform ein; die
+// Nachbarn gleiten per FLIP nur mit transform. Gemessen am Aufruf: kein
+// Keyframe mit Hoehe oder Abstand, und die Nachbarn bekommen eine
+// translate-Animation aus der Lage OHNE das Element (display: none).
+test('expandIn R19: keine Hoehenanimation - Blende am Element, FLIP an den Nachbarn', async () => {
+  const prevGcs = global.getComputedStyle;
+  const prevDoc = global.document;
+  global.document = { documentElement: {}, body: {} };
+  global.getComputedStyle = () => ({ getPropertyValue: () => '', opacity: '1', overflowY: 'visible' });
+  const calls = [];
+  const parent = { nextElementSibling: null, parentElement: null };
+  const el = { style: {}, isConnected: true, parentElement: parent, animate: (k, o) => { calls.push({ who: 'el', k, o }); return { finished: Promise.resolve() }; } };
+  let hiddenWhileMeasured = null;
+  const neighbour = {
+    style: {},
+    nextElementSibling: null,
+    getBoundingClientRect: () => {
+      if (hiddenWhileMeasured === null) hiddenWhileMeasured = el.style.display === 'none';
+      return { left: 0, top: el.style.display === 'none' ? 100 : 140, width: 300, height: 40 };
+    },
+    animate: (k, o) => { calls.push({ who: 'n', k, o }); return { finished: Promise.resolve(), cancel() {} }; },
+    getAnimations: () => [],
+  };
+  el.nextElementSibling = neighbour;
+  try {
+    await expandIn(el, { duration: 10 });
+  } finally {
+    global.getComputedStyle = prevGcs;
+    global.document = prevDoc;
+  }
+  const layoutKeys = ['height', 'paddingTop', 'paddingBottom', 'marginTop', 'marginBottom', 'borderTopWidth', 'borderBottomWidth'];
+  const own = calls.filter((c) => c.who === 'el');
+  assert.equal(own.length, 1, 'eine Animation am Element');
+  assert.ok(own[0].k.every((f) => Object.keys(f).every((key) => !layoutKeys.includes(key))), `keine Hoehe/Abstaende: ${JSON.stringify(own[0].k)}`);
+  assert.equal(own[0].k[0].opacity, 0, 'blendet von 0 ein');
+  assert.equal(hiddenWhileMeasured, true, 'die alte Lage der Nachbarn ist die ohne das Element');
+  assert.equal(el.style.display, undefined, 'das Element steht danach wie vorher (kein display-Rest)');
+  const glide = calls.filter((c) => c.who === 'n');
+  assert.ok(glide.length >= 1, 'die Nachbarn gleiten');
+  assert.ok(glide.every((c) => c.k.every((f) => Object.keys(f).every((key) => key === 'transform' || key === 'offset' || key === 'composite'))),
+    `Nachbarn nur per transform: ${JSON.stringify(glide.map((c) => c.k))}`);
 });
 
 test('vibrate: tut nichts wenn API nicht vorhanden', () => {
@@ -1673,5 +1752,122 @@ test('toggleRegion: auf faellt hidden sofort, zu erst nach dem Einklappen - auch
   } finally {
     if (savedGcs === undefined) delete global.getComputedStyle; else global.getComputedStyle = savedGcs;
     if (savedDoc === undefined) delete global.document; else global.document = savedDoc;
+  }
+});
+
+/*
+ * R19 (Entscheidung Ulas 2026-10-16): DIE KAPSEL MINIMIERT BEIM LESEN.
+ * Die Entscheidung ist eine reine Funktion - Schwellen, Richtung und die
+ * Ausnahmen oben/Ende/ohne Geste stehen hier ohne DOM.
+ */
+test('nextNavMinimized: abwaerts aus einer Geste minimiert, aufwaerts, oben und am Ende faehrt sie aus', () => {
+  const open = { minimized: false, travel: 0 };
+  const step = (s, top, delta, { max = 2000, gesture = true } = {}) => nextNavMinimized(s, { top, max, delta, gesture });
+  // Kleine Strecken summieren sich in einer Richtung.
+  let s = step(open, 100, 10);
+  assert.equal(s.minimized, false);
+  s = step(s, 120, NAV_MINIMIZE_DOWN - 10);
+  assert.equal(s.minimized, true, `ab ${NAV_MINIMIZE_DOWN}px abwaerts`);
+  // Ein Zittern gegen die Richtung setzt die Strecke zurueck, faehrt aber nicht aus.
+  s = step(s, 117, -3);
+  assert.equal(s.minimized, true, 'drei Pixel zurueck sind kein Aufwaertsscrollen');
+  s = step(s, 100, -(NAV_MINIMIZE_UP - 3));
+  assert.equal(s.minimized, false, `ab ${NAV_MINIMIZE_UP}px aufwaerts`);
+  // Ohne Geste (Scroll-Restore, scrollIntoView) minimiert nichts ...
+  assert.equal(step(open, 500, 400, { gesture: false }).minimized, false, 'ein Restore liest nicht');
+  // ... aber zurueck geht es immer, auch im Nachschwung ohne Finger.
+  assert.equal(step({ minimized: true, travel: 40 }, 300, -40, { gesture: false }).minimized, false);
+  // Oben und am Seitenende ist sie ganz da.
+  assert.deepEqual(step({ minimized: true, travel: 80 }, 4, 0), open, 'oben');
+  assert.deepEqual(step({ minimized: true, travel: 80 }, 1999, 30), open, 'am Ende');
+  // Ohne Bewegung (waagerechte Leiste) aendert sich nichts.
+  const held = { minimized: true, travel: 30 };
+  assert.equal(step(held, 300, 0), held);
+});
+
+// Review #2049: renderAppShell() baut die Shell bei Logout/Login neu, mit einer
+// NEUEN Kapsel. Der Router hielt den alten Minimierer (`!navMinimizer`), der an
+// der abgehaengten Kapsel hing - die neue minimierte nie. bindNavMinimize haengt
+// den alten ab und legt fuer die neue Kapsel einen neuen an.
+test('bindNavMinimize: eine neue Kapsel bekommt einen neuen Minimierer, der alte haengt ab', () => {
+  const savedElement = globalThis.Element;
+  globalThis.Element = class {};
+  const listeners = new Map();
+  const classes = (set = new Set()) => ({
+    set,
+    contains: (c) => set.has(c),
+    toggle: (c, on) => { if (on) set.add(c); else set.delete(c); return on; },
+    remove: (c) => set.delete(c),
+  });
+  const doc = {
+    documentElement: { classList: classes() },
+    addEventListener: (type, fn) => listeners.set(`${type}`, [...(listeners.get(type) ?? []), fn]),
+    removeEventListener: (type, fn) => listeners.set(type, (listeners.get(type) ?? []).filter((f) => f !== fn)),
+  };
+  const makeNav = () => ({ classList: classes(), getClientRects: () => [{}] });
+  const port = Object.assign(new globalThis.Element(), {
+    scrollTop: 100, scrollHeight: 3000, clientHeight: 800,
+    closest: (sel) => (sel === '.app-content' ? {} : null),
+  });
+  const fire = (type, target) => (listeners.get(type) ?? []).forEach((fn) => fn({ target }));
+  const readDown = () => {
+    fire('wheel', port);
+    fire('scroll', port);
+    port.scrollTop += NAV_MINIMIZE_DOWN + 6;
+    fire('scroll', port);
+  };
+  try {
+    const oldNav = makeNav();
+    const first = bindNavMinimize(null, oldNav, { doc });
+    readDown();
+    assert.equal(oldNav.classList.contains('nav-bottom--minimized'), true, 'die erste Kapsel minimiert beim Lesen');
+    assert.equal(doc.documentElement.classList.contains('nav-minimized'), true);
+    assert.equal(bindNavMinimize(first, oldNav, { doc }), first, 'dieselbe Kapsel behaelt ihren Minimierer');
+
+    // Logout/Login: renderAppShell() setzt eine neue Kapsel ein.
+    const newNav = makeNav();
+    const second = bindNavMinimize(first, newNav, { doc });
+    assert.notEqual(second, first, 'die neue Kapsel bekommt einen eigenen Minimierer');
+    assert.equal(listeners.get('scroll').length, 1, 'der alte hoert nicht mehr zu');
+    assert.equal(doc.documentElement.classList.contains('nav-minimized'), false,
+      'der Zustand der alten Kapsel bleibt nicht am Root haengen');
+    port.scrollTop = 100;
+    readDown();
+    assert.equal(newNav.classList.contains('nav-bottom--minimized'), true, 'die neue Kapsel minimiert');
+    second.expand();
+    assert.equal(newNav.classList.contains('nav-bottom--minimized'), false, 'expand() trifft die neue Kapsel');
+    second.destroy();
+  } finally {
+    globalThis.Element = savedElement;
+  }
+});
+
+test('watchNavCapsuleHeight: minimiert oder auf dem Rueckweg misst die Kapsel nicht - die Zone steht still (R19)', () => {
+  const saved = globalThis.ResizeObserver;
+  const observers = [];
+  globalThis.ResizeObserver = class {
+    constructor(cb) { this.cb = cb; observers.push(this); }
+    observe() {}
+    disconnect() {}
+  };
+  const props = new Map();
+  const root = { style: { setProperty: (k, v) => props.set(k, v), removeProperty: (k) => props.delete(k) } };
+  let state = '';
+  const items = { isConnected: true, closest: (sel) => (state && sel.includes(state) ? {} : null) };
+  try {
+    watchNavCapsuleHeight(items, root);
+    const fire = (blockSize) => observers[0].cb([{ target: items, borderBoxSize: [{ blockSize }] }]);
+    fire(64);
+    state = 'nav-bottom--minimized';
+    fire(56);
+    assert.equal(props.get('--nav-capsule-height'), '64px', 'minimiert gilt die ausgefahrene Hoehe weiter');
+    state = 'nav-bottom--settling';
+    fire(60);
+    assert.equal(props.get('--nav-capsule-height'), '64px', 'Zwischenhoehen auf dem Rueckweg zaehlen nicht');
+    state = '';
+    fire(72);
+    assert.equal(props.get('--nav-capsule-height'), '72px', 'ausgefahren misst sie wieder');
+  } finally {
+    globalThis.ResizeObserver = saved;
   }
 });

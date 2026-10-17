@@ -190,9 +190,18 @@
     line-height: var(--line-height-tight);
     text-wrap: balance;
   }
+}
 
+/* Bis 1023px (R19, Tablet): Titel und Zeitraum teilen die Zeile auch bei
+ * 834px (layout.css `--period-inline`), die Notiz der Reiter ohne Zeitraum
+ * steht am Zeilenende. Vorher mass der Kopf dort 170-174px in drei Zeilen. */
+@media (max-width: 1023px) {
   .page-toolbar.page-toolbar--period-inline.page-toolbar--wrap:not(.page-toolbar--in-group) > .budget-nav__month:has(.budget-nav__note:not([hidden])) {
     flex: 1 1 0;
+  }
+
+  .page-toolbar.page-toolbar--period-inline:not(.page-toolbar--in-group):has(.budget-nav__note:not([hidden])) > .page-toolbar__title {
+    flex: 0 1 auto;
   }
 
   .page-toolbar--period-inline .budget-nav__note:not([hidden]) {
@@ -204,8 +213,13 @@
     line-height: var(--line-height-tight);
   }
 
-  .page-toolbar.page-toolbar--period-inline:not(.page-toolbar--in-group):has(.budget-nav__note:not([hidden])) > .page-toolbar__title {
-    flex: 0 1 auto;
+  /* EINGEKLAPPT (R19): die Reiter teilen die Zeile mit dem Stepper. Eine
+   * Notiz statt Stepper ist eine Bildunterschrift - sie weicht, und die
+   * Leiste nimmt die ganze Zeile. Ebenso die Wippe "Mein Budget / Haushalt":
+   * oben kommt beides wieder. */
+  .page-toolbar.budget-nav.page-toolbar--capped.is-collapsed > .budget-nav__month:has(.budget-nav__note:not([hidden])),
+  .page-toolbar.budget-nav.page-toolbar--capped.is-collapsed > .budget-scope {
+    display: none;
   }
 }
 
@@ -1684,7 +1698,9 @@ button.budget-bar-row:focus-visible {
   height: 6px;
   overflow: hidden;
   border-radius: var(--radius-full);
-  background: var(--color-surface-2);
+  /* Die Bahn ist eine Mulde (--color-fill-well), kein Loch (R19): dunkel war
+   * --color-surface-2 das Fast-Schwarz #0F0E0D unter der Karte. */
+  background: var(--color-fill-well);
 }
 
 .budget-loan-card__progress span {
@@ -2178,11 +2194,10 @@ button.budget-bar-row:focus-visible {
  *
  * ZWEI ECHTE ABWEICHUNGEN BLEIBEN, und beide haben einen Grund:
  *
- * 1. Der TITEL bricht nicht um. `.list-row__name` erlaubt das
- *    (`overflow-wrap: anywhere`), weil ein Artikelname im Einkauf vollständig
- *    lesbar sein muss. Eine Buchungsliste wird dagegen an ihrem rechten Rand
- *    gelesen - die Beträge müssen auf einer Rasterlinie stehen, und eine Zeile,
- *    die wegen ihres Titels zweizeilig wird, verschiebt den Takt.
+ * 1. (Bis R19 brach der TITEL hier nie um - eine eigene, vierte Titelregel.
+ *    Seit der Critique vom 2026-10-16 gilt auch hier die eine Titelregel aus
+ *    typography.css: hoechstens zwei Zeilen, dann Ellipse. Die Betraege
+ *    stehen in ihrer eigenen Spalte und bleiben auf ihrer Rasterlinie.)
  * 2. Der BETRAG steht rechts vom Text und links von der Bedienzone. Das ist
  *    eine dritte Spalte, die keine andere Zeile der App hat.
  *
@@ -2222,18 +2237,11 @@ button.budget-bar-row:focus-visible {
 .budget-entry--upcoming .budget-entry__indicator--income   { color: var(--color-success); }
 .budget-entry--upcoming .budget-entry__indicator--expenses { color: var(--color-text-tertiary); }
 
-/* Siehe Abweichung 1 über `.budget-entry`. */
-.budget-entry__title {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* Der Titel ist ein BUTTON (Tastatur-/SR-Zugang der Edit-Fläche; role=button
  * auf der Zeile war axe nested-interactive, siehe budget.js). Optisch bleibt
  * er die Textzeile - der Reset gilt nur dem Button-UA-Stylesheet. */
 button.budget-entry__title {
-  display: block;
+  /* Anzeige und Kappung (hoechstens zwei Zeilen) aus der Titelregel. */
   width: 100%;
   background: none;
   border: 0;
@@ -2278,6 +2286,18 @@ button.budget-entry__title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* EINE RATENZEILE KAPPT IHRE RATE NICHT (R19): sie traegt nur Datum und
+ * "Rate 10 von 312" - beides ist die Auskunft, nichts davon darf hinten
+ * wegfallen. Die Zeile bricht zwischen den beiden Angaben um (die Rate ist
+ * in sich unumbrechbar, budget.js renderLoanPaymentEntry). */
+.budget-entry--loan .budget-entry__meta {
+  white-space: normal;
+}
+
+.budget-entry__installment {
+  white-space: nowrap;
 }
 
 /* DAS KONTO IST EINE FRAGE DER BREITE, NICHT DES GERÄTS - deshalb der
@@ -2600,6 +2620,24 @@ button.budget-entry__title {
 }
 
 .budget-bar-row--compare .budget-bar-row__delta .metric-card__trend {
+  white-space: nowrap;
+}
+
+/* Das Ziel als Text (Critique R19): "von 1.700 €" unter dem Betrag, vor der
+ * Veraenderung. Die Marke auf der Bahn war bis dahin nur per `title` erklaert -
+ * am Touchgeraet gar nicht, fuer Screenreader nie. */
+.budget-bar-row--compare .budget-bar-row__delta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  column-gap: var(--space-2);
+}
+
+.budget-bar-row__of {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -2971,13 +3009,19 @@ button.budget-entry__title {
 .budget-plan-row--tone-over { --plan-tone-color: var(--color-danger);  }
 
 .budget-plan-row__top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
-.budget-plan-row__label { font-weight: var(--font-weight-medium); color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* UMBRECHEN, NICHT KUERZEN (R19, Critique 2026-10-16): bei 390px blieben dem
+ * Namen neben "371,40 € / 400,00 €" rund 170px, und "Koerperpflege / Gesun..."
+ * und "Freizeit und Unterhalt..." waren gekappt - dieselbe Regel, die die
+ * Statistik daneben schon traegt (`.budget-bar-row__label`). Der Betrag steht
+ * auf der ersten Zeile des Namens (baseline). */
+.budget-plan-row__label { flex: 1 1 auto; min-width: 0; font-weight: var(--font-weight-medium); color: var(--color-text-primary); overflow-wrap: anywhere; hyphens: auto; }
 .budget-plan-row__amounts { font-size: var(--text-sm); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .budget-plan-row__amounts strong { color: var(--color-text-primary); font-weight: var(--font-weight-semibold); }
 
 .budget-plan-row__track {
   height: var(--space-2);
-  background-color: var(--color-surface-2);
+  /* Mulde statt Loch (R19, siehe .budget-loan-card__progress). */
+  background-color: var(--color-fill-well);
   border-radius: var(--radius-full);
   overflow: hidden;
 }

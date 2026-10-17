@@ -1855,20 +1855,20 @@ test('Mahlzeit-Dialog: Name zuerst auf jedem Weg, Mahlzeitart als Chips wie im R
     'der Slot-Knopf sagt, dass er aus dem Slot kommt');
 });
 
-// Re-Critique 2026-09-28 (P11 / A4 P2-8): der Rezept-Aufklapper oeffnete
-// hart. Der Zustand bleibt `hidden` (sichtbarer Default, auch headless), die
-// Bewegung kommt aus dem geteilten Paar expandIn/collapseOut (utils/ux.js) -
-// Oeffnen zieht auf, Schliessen klappt erst ein und versteckt dann.
-test('Rezepte mobil: der Aufklapper zieht auf und klappt ein, statt zu springen', () => {
+// Re-Critique 2026-09-28 (P11 / A4 P2-8) zog den Rezept-Aufklapper mit
+// expandIn/collapseOut auf. Seit R19 (Critique 2026-10-16, "Zeilentipp hat
+// vier Bedeutungen") gibt es ihn nicht mehr: mobil OEFFNET die Zeile das
+// Rezept als Leseblatt (openDetailView), wie Kontakte, Inventar, Aufgaben.
+test('Rezepte mobil: die Zeile oeffnet ein Leseblatt, sie klappt nichts auf', () => {
   const recipesSrc = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
-  assert(/import \{[^}]*\bexpandIn\b[^}]*\bcollapseOut\b[^}]*\} from '\/utils\/ux\.js'|import \{[^}]*\bcollapseOut\b[^}]*\bexpandIn\b[^}]*\} from '\/utils\/ux\.js'/.test(recipesSrc),
-    'das geteilte Paar aus utils/ux.js');
-  const branch = recipesSrc.slice(recipesSrc.indexOf("if (btn.dataset.action === 'toggle-detail') {"),
-    recipesSrc.indexOf("if (btn.dataset.action === 'edit') {"));
-  assert(/panel\.hidden = false;[\s\S]*expandIn\(panel\)/.test(branch), 'Oeffnen: sichtbar machen, dann aufziehen');
-  assert(/collapseOut\(panel\)\.then\([\s\S]*panel\.hidden = true/.test(branch), 'Schliessen: erst einklappen, dann verstecken');
-  assert(/getAnimations(?:\?\.)?\(\)\.forEach\(\(a\) => a\.cancel\(\)\)/.test(branch),
-    'die gehaltene Einklapp-Animation (fill: forwards) wird danach verworfen - sonst oeffnete das Panel beim naechsten Mal auf Hoehe 0');
+  const narrow = recipesSrc.slice(recipesSrc.indexOf('function openRecipeNarrow('), recipesSrc.indexOf('function syncRowMode('));
+  assert(/if \(btn\.dataset\.action === 'open-detail'\) \{\s*openRecipeSheet\(recipe\);/.test(narrow), 'der Tipp oeffnet das Leseblatt');
+  assert(!/expandIn|collapseOut|aria-expanded/.test(narrow), 'kein Aufklapper mehr');
+  const sheet = recipesSrc.slice(recipesSrc.indexOf('function openRecipeSheet('), recipesSrc.indexOf('function openRecipeNarrow('));
+  assert(/openDetailView\(\{/.test(sheet), 'dasselbe Blatt wie die anderen Module');
+  assert(/fillRecipeDetail\(detail, recipe\)/.test(sheet), 'derselbe Inhalt wie die Detailspalte');
+  assert(/narrow: 'sheet'/.test(recipesSrc), 'der Baustein fuehrt die Rezepte unter der Schwelle als Blatt');
+  assert(!/class="recipe-detail"[^]*?hidden = true|detail\.hidden = true/.test(recipesSrc), 'kein verstecktes Panel je Zeile');
 });
 
 // Re-Critique 2026-09-28 (P7 / A4 P2-7): die Mahlzeit-Typen im
@@ -1907,6 +1907,24 @@ test('Zutatenzeile: Name allein in Zeile eins, Menge und Kategorie teilen Zeile 
   }
   assert(rules.some((r) => r.selector.trim() === '.ingredient-row > .row-action' && /grid-area:\s*remove/.test(r.body)),
     'der Entfernen-Knopf steht in Zeile eins neben dem Namen');
+});
+
+// R19 (Critique 2026-10-16): "Rezepte-Werkzeugzeile mobil 65px nur fuer die
+// Lupe". Die Zeile unter der Kuechen-Leiste traegt nur die Suche - dort bleibt
+// sie ein Feld (`.page-search--field`), statt zur Icon-Form zu schrumpfen.
+test('R19: die Rezeptsuche ist mobil ein Feld, keine Lupe in einer eigenen Zeile', () => {
+  const recipes = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
+  assert(/className: 'recipes-search page-toolbar__center page-search--field'/.test(recipes), 'die Rezeptsuche traegt --field');
+  const layout = [...eachRule(readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8'))];
+  const phone = layout.filter((r) => r.at.some((a) => /max-width:\s*767px/.test(a)));
+  const iconForm = phone.filter((r) => /\.page-toolbar \.page-search:[^,{]*:not\(:focus-within\)/.test(r.selector));
+  assert(iconForm.length >= 4, `Icon-Form-Regeln gefunden: ${iconForm.length}`);
+  for (const r of iconForm) {
+    for (const part of r.selector.split(',').filter((x) => /\.page-toolbar/.test(x))) {
+      assert(/\.page-search:not\(\.page-search--field\)/.test(part), `Icon-Form ohne Ausnahme: ${part.trim()}`);
+    }
+  }
+  assert(phone.some((r) => /\.page-toolbar \.page-search\.page-search--field/.test(r.selector) && /flex:\s*1 1 auto/.test(r.body)), 'das Feld fuellt die Zeile');
 });
 
 // --------------------------------------------------------

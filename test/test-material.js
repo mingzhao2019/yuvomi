@@ -196,7 +196,9 @@ test('R18: die Innenradien der schwebenden Flaechen sind konzentrisch', () => {
   const menu = px('var(--radius-glass-inner)');
   // [innen, aussen, Abstand zur Kante der Flaeche, Name]
   const pairs = [
-    [first(LAYOUT, '.more-item'), outer, px('var(--space-3)'), 'Kachel im Mehr-Blatt (12px Seitenpolster)'],
+    // R19: das Mehr-Blatt ist eine gruppierte Zeilenliste - die Rundung traegt
+    // der Traeger der Zeilen, nicht mehr jede Kachel.
+    [first(LAYOUT, '.more-sheet__list'), outer, px('var(--space-3)'), 'Zeilenliste im Mehr-Blatt (12px Seitenpolster)'],
     [first(LAYOUT, '.more-action'), outer, px('var(--space-4)'), 'Systemzeile im Mehr-Blatt (16px Polster unten)'],
     [first(LAYOUT, '.search-section__rows', (at) => /min-width:\s*768px/.test(at)), outer, px('var(--space-4)'),
       'Treffertraeger der Palette (16px Polster)'],
@@ -426,8 +428,10 @@ test('R18: das Marken-Lichtfeld steht still, ohne Filter, und faellt unter den a
   assert.equal(DARK_ATTR.get('--_brand-field-opacity'), DARK_MEDIA.get('--_brand-field-opacity'), 'beide Dark-Bloecke gleich');
   assert.ok(DARK_ATTR.get('--_brand-field-opacity'), 'das Feld hat einen Dark-Wert');
 
-  // Traeger: die Shell der Zugangsseiten und das Ladebild - und nichts, was
-  // sich bewegt.
+  // Traeger: die Shell der Zugangsseiten, das Ladebild und der Zustand, der
+  // das Ladebild ersetzt, wenn die Sitzung gerade nicht pruefbar ist
+  // (Critique R19, utils/session-unreachable.js) - alle drei VOR der App -
+  // und nichts, was sich bewegt.
   const carriers = [];
   for (const file of styleFiles()) {
     for (const rule of eachRule(read(`../public/styles/${file}`))) {
@@ -436,7 +440,7 @@ test('R18: das Marken-Lichtfeld steht still, ohne Filter, und faellt unter den a
       assert.doesNotMatch(rule.body, /animation|(?:^|;)\s*filter\s*:|transform\s*:/, `${rule.selector}: das Feld steht still`);
     }
   }
-  assert.deepEqual(carriers.sort(), ['.app-loading', '.app-shell:has(.auth-page)'], 'das Feld lebt nur vor der App');
+  assert.deepEqual(carriers.sort(), ['.app-loading', '.app-shell:has(.auth-page)', '.app-shell:has(> .session-unreachable)'].sort(), 'das Feld lebt nur vor der App');
 });
 
 /**

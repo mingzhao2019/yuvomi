@@ -4,7 +4,7 @@
  */
 
 import { api } from '/api.js';
-import { closeModal, confirmModal, confirmOverModal, openModal, advancedSection, reportFieldError, refocusAfterRender, captureModalContext, isModalContextCurrent, isOwnModalOpen } from '/components/modal.js';
+import { closeModal, confirmModal, confirmOverModal, openModal, advancedSection, reportFieldError, reportFieldErrors, refocusAfterRender, captureModalContext, isModalContextCurrent, isOwnModalOpen } from '/components/modal.js';
 import {
   formatDate,
   getLocale,
@@ -797,7 +797,7 @@ function renderSummary() {
   // dann „0,00 €" mit leerem Balken, direkt neben „Kein Budgetlimit -
   // Unbegrenzt". Wo kein Budget gesetzt ist, gibt es keine Zahl dafuer; den
   // Zustand nennt die Karte daneben. Drei Karten sind die Grundform der Reihe
-  // (panel.css), `--quad` traegt die Reihe nur mit vier.
+  // (panel.css) - seit R19 auch MIT Budget: es steht in der Kostenkarte.
   const budgetFlow = hasBudget
     ? { label: t(isOverBudget ? 'subscriptions.overBudget' : 'subscriptions.remainingBudget'),
       amount: money(Math.abs(summary.remaining_budget)), tone: isOverBudget ? 'negative' : '' }
@@ -812,21 +812,22 @@ function renderSummary() {
     lead: true,
     flows: [{ label: t('subscriptions.activeCount', { count: summary.active_count }) }, budgetFlow],
   })}
-    <section class="metric-grid metric-grid--led${hasBudget ? ' metric-grid--quad' : ''} budget-glance-details${state.summaryExpanded ? ' is-expanded' : ''}" id="subscriptions-summary-details">
+    <section class="metric-grid metric-grid--led budget-glance-details${state.summaryExpanded ? ' is-expanded' : ''}" id="subscriptions-summary-details">
+      ${/* KOSTEN UND BUDGET IN EINER KARTE (R19, Critique 2026-10-16). Zwei
+         Karten sagten "113,60 €" und "90,00 €" nebeneinander, den Vergleich
+         musste man selbst ziehen. Jetzt "113,60 € von 90,00 €" mit dem Balken
+         darunter - dieselbe Form wie das Ziel im Plan (budget.planTargetOf);
+         die Reihe hat damit immer drei Karten. */ ''}
       <article class="metric-card ${leadCardClass(money(used))}">
         <div class="metric-card__label">${t('subscriptions.monthlyCost')}</div>
-        <div class="metric-card__value">${money(used)}</div>
-        <div class="metric-card__note">${t('subscriptions.activeCount', { count: summary.active_count })}</div>
-      </article>
-      ${hasBudget ? `<article class="metric-card">
-        <div class="metric-card__label">${t('subscriptions.monthlyBudget')}</div>
-        <div class="metric-card__value">${money(budget)}</div>
-        <div class="metric-card__progress${isOverBudget ? ' metric-card__progress--over' : isNearBudget ? ' metric-card__progress--near' : ''}"
+        <div class="metric-card__value">${money(used)}${hasBudget ? ` <span class="metric-card__of">${esc(t('budget.planTargetOf', { amount: money(budget) }))}</span>` : ''}</div>
+        ${hasBudget ? `<div class="metric-card__progress${isOverBudget ? ' metric-card__progress--over' : isNearBudget ? ' metric-card__progress--near' : ''}"
              role="progressbar" aria-label="${esc(t('subscriptions.monthlyBudget'))}"
              aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}" aria-valuetext="${realPercentage}%">
           <span style="--fill:${percentage / 100}"></span>
-        </div>
-      </article>` : ''}
+        </div>` : ''}
+        <div class="metric-card__note">${t('subscriptions.activeCount', { count: summary.active_count })}</div>
+      </article>
       <article class="metric-card${isOverBudget ? ' metric-card--over' : ''}">
         <div class="metric-card__label">${isOverBudget ? '<i data-lucide="triangle-alert" class="icon-sm" aria-hidden="true"></i>' : ''}${hasBudget ? (isOverBudget ? t('subscriptions.overBudget') : t('subscriptions.remainingBudget')) : t('subscriptions.noBudgetLimit')}</div>
         <div class="metric-card__value">${hasBudget ? money(Math.abs(summary.remaining_budget)) : t('subscriptions.unlimited')}</div>
@@ -1092,6 +1093,12 @@ function renderCard(subscription) {
             ${status.badgeClass === 'subscription-status--active' ? '' : `<span class="subscription-status ${status.badgeClass}">${status.label}</span>`}
           </span>
           <span class="subscription-card__meta">
+            ${/* SCHMAL STEHT DIE BESCHREIBUNG IN DER META-ZEILE (R19, Critique
+                 2026-10-16): hinter dem Namen blieben ihr bei 390px 40-60px
+                 ("Lind...", "Bis zu 6 Ko..."), der Name selbst kuerzte mit
+                 ("Microsoft 365 Fa..."). Immer genau eine der beiden Fassungen
+                 (subscriptions.css), wie beim Turnus. */ ''}
+            <span class="subscription-card__meta-desc">${esc(subscription.description || rowCategoryLabel(subscription))}</span>
             ${completed ? '' : `<span class="subscription-card__due${overdue ? ' subscription-card__due--overdue' : ''}"><i data-lucide="${overdue ? 'triangle-alert' : 'calendar-clock'}" aria-hidden="true"></i><span>${formatDate(subscription.next_payment_date)} ·</span> <span>${dueLabel(subscription)}</span></span>`}
             <span class="subscription-card__meta-cycle">${cycleLabel(subscription)}</span>
             <span class="subscription-card__meta-extra">${esc(rowPaymentMethodLabel(subscription))}</span>
@@ -1725,16 +1732,18 @@ async function saveSubscription(panel, existing, searchedLogoData = null) {
   if (readOnly()) return;
   const dateInput = panel.querySelector('#subscription-next-date');
   const currencyInput = panel.querySelector('#subscription-currency');
-  if (!isDateInputValid(dateInput.value)) {
+  // Alle Feldfehler auf einmal, Fokus aufs erste im Bild (Critique R19): bis
+  // hierher brach die Pruefung beim ersten ab, ein Fehler je Klick.
+  const fieldErrors = [];
+  const nextDateValid = isDateInputValid(dateInput.value);
+  if (!nextDateValid) {
     // Fehler am Feld statt als ortloser Toast (geteiltes Muster, Critique P1).
-    reportFieldError(dateInput, t('subscriptions.invalidDate'));
-    return;
+    fieldErrors.push([dateInput, t('subscriptions.invalidDate')]);
   }
   if (!currencyInput.value) {
     // Die Meldung klebt am sichtbaren Suchfeld der Combobox, nicht am
     // versteckten Wert-Input.
-    reportFieldError(panel.querySelector('#subscription-currency-search'), t('subscriptions.currencyRequired'));
-    return;
+    fieldErrors.push([panel.querySelector('#subscription-currency-search'), t('subscriptions.currencyRequired')]);
   }
   // Ende-Bedingung (#594): nur das aktive Zusatzfeld liefert einen Wert.
   const endType = panel.querySelector('#subscription-end-type').value;
@@ -1744,28 +1753,24 @@ async function saveSubscription(panel, existing, searchedLogoData = null) {
   if (endType === 'on_date') {
     const endDateInput = panel.querySelector('#subscription-end-date');
     if (!isDateInputValid(endDateInput.value)) {
-      reportFieldError(endDateInput, t('subscriptions.invalidDate'));
-      return;
-    }
-    endDate = parseDateInput(endDateInput.value);
-    // Dieselbe Regel wie der Server (endConfigErrors), vor dem Absenden und am
-    // Feld statt als Toast (Review-Runde 1 zu #2010). Ein abgeschlossenes Abo
-    // mit Enddatum steht immer nach seinem Ende: wer es wieder aufnimmt,
-    // braucht ein spaeteres. Bleibt es abgeschlossen, gilt der Vergleich nicht.
-    if (!staysCompleted && endDate < parseDateInput(dateInput.value)) {
-      reportFieldError(endDateInput, t('subscriptions.errorEndBeforeNextPayment'));
-      return;
+      fieldErrors.push([endDateInput, t('subscriptions.invalidDate')]);
+    } else {
+      endDate = parseDateInput(endDateInput.value);
+      // Dieselbe Regel wie der Server (endConfigErrors), vor dem Absenden und am
+      // Feld statt als Toast (Review-Runde 1 zu #2010). Ein abgeschlossenes Abo
+      // mit Enddatum steht immer nach seinem Ende: wer es wieder aufnimmt,
+      // braucht ein spaeteres. Bleibt es abgeschlossen, gilt der Vergleich nicht.
+      if (nextDateValid && !staysCompleted && endDate < parseDateInput(dateInput.value)) {
+        fieldErrors.push([endDateInput, t('subscriptions.errorEndBeforeNextPayment')]);
+      }
     }
   } else if (endType === 'after_count') {
     const countInput = panel.querySelector('#subscription-end-count');
     const count = Number(countInput.value);
     if (!Number.isInteger(count) || count < 1) {
-      reportFieldError(countInput, t('subscriptions.endCountInvalid'));
-      return;
-    }
-    if (!staysCompleted && count <= Number(existing?.occurrences_done || 0)) {
-      reportFieldError(countInput, t('subscriptions.errorOccurrenceCountTooLow'));
-      return;
+      fieldErrors.push([countInput, t('subscriptions.endCountInvalid')]);
+    } else if (!staysCompleted && count <= Number(existing?.occurrences_done || 0)) {
+      fieldErrors.push([countInput, t('subscriptions.errorOccurrenceCountTooLow')]);
     }
     occurrenceCount = count;
   }
@@ -1773,19 +1778,20 @@ async function saveSubscription(panel, existing, searchedLogoData = null) {
   // sich das vorhandene Abo überhaupt noch speichern lässt. Das gilt aber fürs
   // ganze Feld: ohne diese Prüfung wäre aus 12,5 JPY anschliessend auch
   // 12,555 JPY speicherbar, also mehr Bruch als die feste Schrittweite zuliess.
+  // Ohne Waehrung gibt es kein Raster - dann meldet nur das Waehrungsfeld.
   const amountInput = panel.querySelector('#subscription-amount');
   const amountValue = Number(amountInput.value);
   const targetCurrency = currencyInput.value.trim().toUpperCase();
-  if (!amountIsSavable(amountValue, targetCurrency, {
+  if (targetCurrency && !amountIsSavable(amountValue, targetCurrency, {
     original: existing?.amount ?? null,
     originalCurrency: existing?.currency ?? null,
   })) {
-    reportFieldError(amountInput, t('common.amountPrecisionRequired', {
+    fieldErrors.push([amountInput, t('common.amountPrecisionRequired', {
       currency: targetCurrency,
       step: smallestUnitLabel(targetCurrency),
-    }));
-    return;
+    })]);
   }
+  if (reportFieldErrors(fieldErrors)) return;
 
   const submit = panel.querySelector('[type="submit"]');
   submit.disabled = true;

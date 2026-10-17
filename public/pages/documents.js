@@ -24,7 +24,8 @@ import { rowActionHtml } from '/utils/row-action.js';
 import { hidesPrivacyControls } from '/utils/household.js';
 import { withChosenPeople } from '/utils/people-picker.js';
 import { maxUploadBytes } from '/utils/upload-limit.js';
-import { mountEmptyState } from '/utils/empty-state.js';
+import { holdDocumentAttachStyle } from '/components/document-attach.js';
+import { mountEmptyState, mountSearchEmpty } from '/utils/empty-state.js';
 import { subtreeIds, folderPath, flattenFolderTree } from '/utils/folder-tree.js';
 import { dateStatus } from '/utils/date-status.js';
 import { expiryChipSpec, expiryViewerSpec } from '/utils/document-expiry.js';
@@ -1126,14 +1127,13 @@ async function probeOtherStatusSearch() {
 }
 
 function emptyStateFor() {
+  // Die leere SUCHE baut der geteilte Leerzustand (searchEmptyOptions, R19):
+  // Titel „Keine Treffer", Begriff als Chip, „Suche zuruecksetzen". Hier
+  // stehen nur die Wege, die es nur in den Dokumenten gibt.
   if (state.query) {
     return {
-      variant: 'no-results',
-      icon: 'search-x',
-      title: t('documents.emptySearchTitle'),
-      description: t('documents.emptySearchDescription', { query: state.queryText }),
+      search: true,
       actions: [
-        { id: 'documents-empty-clear-search', label: t('common.searchClear'), icon: 'x', variant: 'primary' },
         ...(otherStatusHits() > 0
           ? [{
             id: 'documents-empty-other-status',
@@ -1191,22 +1191,32 @@ function emptyStateFor() {
 
 function renderEmptyState(list) {
   const empty = emptyStateFor();
+  const actions = empty.actions.map((action) => ({
+    label: action.label,
+    icon: action.icon,
+    tone: action.variant,
+    attrs: { id: action.id },
+  }));
   // Suche und Filter sind Reaktionen auf eine Eingabe und werden als
   // `no-results` angesagt; „noch nichts hochgeladen" ist gewoehnlicher
   // Seiteninhalt. Der Unterschied stand bisher nur im Text.
-  mountEmptyState(list, {
-    variant: empty.variant,
-    className: 'documents-empty-state',
-    icon: empty.icon,
-    title: empty.title,
-    description: empty.description,
-    actions: empty.actions.map((action) => ({
-      label: action.label,
-      icon: action.icon,
-      tone: action.variant,
-      attrs: { id: action.id },
-    })),
-  });
+  if (empty.search) {
+    mountSearchEmpty(list, {
+      query: state.queryText,
+      resetAttrs: { id: 'documents-empty-clear-search' },
+      actions,
+      className: 'documents-empty-state',
+    });
+  } else {
+    mountEmptyState(list, {
+      variant: empty.variant,
+      className: 'documents-empty-state',
+      icon: empty.icon,
+      title: empty.title,
+      description: empty.description,
+      actions,
+    });
+  }
   list.querySelector('#documents-empty-upload')?.addEventListener('click', () => openDocumentModal());
   list.querySelector('#documents-empty-folder')?.addEventListener('click', () => openFolderModal());
   list.querySelector('#documents-empty-clear-search')?.addEventListener('click', () => clearSearch());
@@ -2727,6 +2737,7 @@ function openDocumentModal(doc = null) {
 
 function bindDropzone(panel) {
   const dropzone = panel.querySelector('#document-dropzone');
+  holdDocumentAttachStyle(dropzone);
   const input = panel.querySelector('#document-file');
   const selected = panel.querySelector('#document-selected-file');
   const nameField = panel.querySelector('#document-name');
@@ -4020,7 +4031,7 @@ function openDocumentViewer(doc) {
   }
 }
 
-const PDF_EMBED_FRAGMENT = '#toolbar=0&navpanes=0&view=FitH';
+const PDF_EMBED_FRAGMENT = '#toolbar=0&navpanes=0&view=Fit&zoom=page-fit';
 
 function renderViewerContent(doc, previewUrl, downloadUrl) {
   const kind = previewKind(doc.mime_type);
@@ -4035,7 +4046,11 @@ function renderViewerContent(doc, previewUrl, downloadUrl) {
       // Betrachter von Chromium und Firefox liest die PDF-Open-Parameter im
       // Fragment. `toolbar=0` nimmt seine Leiste (zweite Kopfzeile mit Zoom,
       // Druck, Download in fremder Optik unter der eigenen), `navpanes=0` die
-      // Seitenleiste, `view=FitH` passt die Seite in die Breite. Safari kennt
+      // Seitenleiste. SEITE EINPASSEN (R19, Critique 2026-10-16): `view=FitH`
+      // passte die Seite in die Breite, und am Desktop standen davon rund 44 %
+      // im Bild - eine Vorschau, die man erst scrollen muss. `view=Fit`
+      // (Chromium) und `zoom=page-fit` (pdf.js in Firefox) zeigen die ganze
+      // erste Seite; Lesen im Detail bleibt "In neuem Tab oeffnen". Safari kennt
       // sie nicht - der Rueckfall ist der Stand davor. Zoom und Druck bleiben
       // ueber "In neuem Tab oeffnen" (dort MIT Leiste: die Adresse traegt das
       // Fragment nicht) und den Download der eigenen Leiste.

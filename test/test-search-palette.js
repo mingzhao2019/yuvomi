@@ -308,3 +308,85 @@ test('A1 P1-1: router.js verdrahtet die Combobox nach jedem Rendern der Palette'
   assert.doesNotMatch(init, /hits\[[^\]]*\]\.focus\(\)|\.focus\(\);\s*\} else if \(idx/,
     'die Pfeile schieben den Fokus nicht mehr aus dem Feld');
 });
+
+// R19 (Critique 2026-10-16, Alex): ⌘K mit leerem Feld zeigte kein „zuletzt
+// geoeffnet". Gemerkt werden ORTE aus der Palette - je Konto, hoechstens
+// fuenf, der neueste zuerst, je Ziel einmal.
+// Sicherheits-Review R19: im Speicher stehen nur Ziel und Modul, nie ein Name
+// oder Kontext (Datentreffer aus Gesundheit, Dokumenten, privaten Notizen
+// ueberlebten das Abmelden), und beim Abmelden gehen alle Listen.
+test('R19: zuletzt geoeffnet - nur Ziel und Modul im Speicher, je Konto, neueste zuerst', async () => {
+  const { pushRecent, readRecent, rememberRecent, visibleRecent, recentStorageKey, RECENT_MAX } = await import('../public/utils/search-sections.js');
+  let list = [];
+  for (let i = 1; i <= 7; i++) list = pushRecent(list, { route: `/m${i}`, module: `m${i}` });
+  assert.equal(list.length, RECENT_MAX);
+  assert.deepEqual(list.map((e) => e.route), ['/m7', '/m6', '/m5', '/m4', '/m3']);
+  list = pushRecent(list, { route: '/m5', module: 'm5' });
+  assert.deepEqual(list.map((e) => e.route), ['/m5', '/m7', '/m6', '/m4', '/m3'], 'dasselbe Ziel rueckt nach vorn statt doppelt');
+  assert.equal(pushRecent([], { route: 'https://evil.example/', module: 'x' }).length, 0, 'nur Ziele in der App');
+  assert.equal(pushRecent([], { route: '//evil.example/', module: 'x' }).length, 0);
+  const store = new Map();
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
+  rememberRecent(storage, 1, { route: '/health?open=3', module: 'health', label: 'Blutdruck 180/110', context: 'Befund' });
+  const raw = store.get(recentStorageKey(1));
+  assert.doesNotMatch(raw, /Blutdruck|Befund|label|context/, `ein Name liegt im Speicher: ${raw}`);
+  assert.deepEqual(JSON.parse(raw), [{ route: '/health?open=3', module: 'health' }]);
+  rememberRecent(storage, 2, { route: '/budget', module: 'budget' });
+  assert.deepEqual(readRecent(storage, 1).map((e) => e.module), ['health'], 'ein Konto sieht nicht die Liste eines anderen');
+  store.set(recentStorageKey(3), '{kaputt');
+  assert.deepEqual(readRecent(storage, 3), [], 'Unlesbares ist eine leere Liste');
+  store.set(recentStorageKey(4), JSON.stringify([{ route: '/notes', module: 'notes', label: 'alt gespeichert' }]));
+  assert.deepEqual(readRecent(storage, 4), [{ route: '/notes', module: 'notes' }], 'ein alter Name wird nicht wieder hervorgeholt');
+  const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
+  assert.deepEqual(readRecent(throwing, 1), []);
+  assert.doesNotThrow(() => rememberRecent(throwing, 1, { route: '/a', module: 'a' }));
+  const resolve = ({ module }) => (module === 'calendar' ? { label: 'Kalender' } : null);
+  assert.deepEqual(visibleRecent([{ route: '/budget', module: 'budget' }, { route: '/calendar', module: 'calendar' }], resolve),
+    [{ route: '/calendar', module: 'calendar', label: 'Kalender', context: '' }], 'der Name kommt beim Anzeigen, Unaufloesbares faellt heraus');
+});
+
+test('R19: beim Abmelden gehen alle Listen, nur diese', async () => {
+  const { forgetAllRecent, recentStorageKey } = await import('../public/utils/search-sections.js');
+  const store = new Map([[recentStorageKey(1), '[]'], [recentStorageKey(2), '[]'], ['yuvomi-theme', 'dark']]);
+  const storage = {
+    get length() { return store.size; },
+    key: (i) => [...store.keys()][i] ?? null,
+    removeItem: (k) => store.delete(k),
+  };
+  forgetAllRecent(storage);
+  assert.deepEqual([...store.keys()], ['yuvomi-theme']);
+  assert.doesNotThrow(() => forgetAllRecent(null));
+  const forget = router.slice(router.indexOf('function forgetSessionState()'), router.indexOf('// Session abgelaufen'));
+  assert.match(forget, /forgetAllRecent\(safeLocalStorage\(\)\)/, 'forgetSessionState (Abmelden, abgelaufene Sitzung) leert sie');
+});
+
+test('R19: die leere Palette zeigt "Zuletzt geoeffnet", gemerkt werden nur Orte, ohne Namen', () => {
+  const hint = router.slice(router.indexOf('function renderSearchHint()'), router.indexOf("const scopes = document.createElement('div');", router.indexOf('function renderSearchHint()')));
+  assert.match(hint, /visibleRecent\(readRecent\(safeLocalStorage\(\), routerState\.currentUser\?\.id\), recentPlace\(navItems\(\)\)\)/,
+    'gelesen je Konto, Namen frisch aus Navigation und Einstellungen');
+  assert.match(hint, /paletteRowsSection\(t\('search\.recentLabel'\)/, 'eine benannte Gruppe in der Bauart der Treffer');
+  assert.equal(de.search.recentLabel, 'Zuletzt geöffnet');
+  for (const call of router.match(/rememberRecent\([^;]*\);/g) ?? []) {
+    assert.match(call, /\{ route: item\.route, module: item\.module \}/, `nur Ziel und Modul: ${call}`);
+  }
+  const make = router.slice(router.indexOf('function makeSection('), router.indexOf('// 1. GEHE ZU'));
+  assert.match(make, /remember = false/, 'Datentreffer merken sich nicht (Standard aus)');
+  const goTo = router.slice(router.indexOf("makeSection(t('search.goTo')"), router.indexOf("makeSection(t('search.newSection')"));
+  assert.match(goTo, /remember: true/, 'nur die Orte');
+  const place = router.slice(router.indexOf('function recentPlace('), router.indexOf('function paletteRowsSection('));
+  assert.match(place, /findSettingsLeaf\(/, 'ein Einstellungsblatt nur, wenn der Betrachter es sehen darf');
+  const rows = router.slice(router.indexOf('function paletteRowsSection('), router.indexOf('/** Text mit markierten Fundstellen'));
+  assert.match(rows, /btn\.className = 'search-result'/, 'dieselbe Zeile wie ein Treffer - die Combobox zaehlt .search-result');
+});
+
+// R19: der Dialog hinter `?` und „Tastenkombinationen" hiess „Hilfe" und
+// zeigte am Desktop nur Kuerzel. Er heisst jetzt, was er zeigt - am Finger
+// (Klartext-Hilfe ohne Kuerzel) bleibt es „Hilfe".
+test('R19: der Kuerzel-Dialog heisst "Tastenkombinationen", die Klartext-Hilfe "Hilfe"', () => {
+  const help = router.slice(router.indexOf('function showHelpModal('), router.indexOf('// Update-Hinweis (#490)'));
+  assert.match(help, /const helpTitle = coarsePointer \? t\('help\.title'\) : t\('shortcuts\.help'\);/);
+  assert.match(help, /setAttribute\('aria-label', helpTitle\)/, 'der Name des Dialogs');
+  assert.match(help, /modal-panel__title">\$\{esc\(helpTitle\)\}/, 'die sichtbare Ueberschrift');
+  assert.doesNotMatch(help, /t\('help\.title'\)\)/, 'kein fester Titel "Hilfe" mehr im Kopf');
+  assert.equal(de.shortcuts.help, 'Tastenkombinationen');
+});

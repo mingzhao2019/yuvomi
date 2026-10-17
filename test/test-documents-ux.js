@@ -30,8 +30,10 @@ test('der Leerzustand unterscheidet Suche, Filter, Archiv und Erstnutzung', () =
   // Vorher gab es EINEN Zustand: eine Suche ohne Treffer behauptete "Noch keine
   // Dokumente" und bot Hochladen an, während der Ordner-Browser daneben 6 zählte.
   assert.match(page, /function emptyStateFor\(\)/);
+  // Die leere SUCHE baut seit R19 der geteilte Baustein (mountSearchEmpty).
+  assert.match(page, /if \(state\.query\) \{\s*return \{\s*search: true,/);
+  assert.match(page, /mountSearchEmpty\(list, \{/);
   for (const key of [
-    'documents.emptySearchTitle',
     'documents.emptyFilterTitle',
     'documents.emptyArchivedTitle',
     'documents.emptyTitle',
@@ -1408,8 +1410,9 @@ test('Einzel-Archivieren meldet einen Fehler statt ihn zu verschlucken', () => {
 test('die Leermeldung nennt den Suchbegriff so, wie er getippt wurde', () => {
   // Gesucht "Kassenbon", gemeldet "kassenbon": die Seite zitierte ihre
   // normalisierte Vergleichsform statt der Eingabe.
-  const empty = fnBody('emptyStateFor', 'renderEmptyState');
-  assert.match(empty, /t\('documents\.emptySearchDescription', \{ query: state\.queryText \}\)/);
+  // Der Begriff steht seit R19 als Chip im geteilten Leerzustand - roh, wie
+  // getippt (queryText), nicht in der Vergleichsform.
+  assert.match(page, /mountSearchEmpty\(list, \{\s*query: state\.queryText,/);
   assert.match(page, /state\.queryText = String\(value \?\? ''\)\.trim\(\);/);
   assert.match(fnBody('clearSearch', 'resetFilters'), /state\.queryText = '';/);
   // Leeren zeichnet auch die Zaehler neu: sie zaehlen unter der Suche, und
@@ -2003,7 +2006,8 @@ test('der Betrachter ist schmal vollflaechig, und der Meta-Block klappt hinter d
 // R18 (2026-10-07): Betrachter ohne fremde Werkzeugleiste, Luft unter der Filterleiste
 
 test('R18: der PDF-Betrachter am Desktop blendet die Leiste des Browsers aus, der neue Tab behaelt sie', () => {
-  assert.match(page, /const PDF_EMBED_FRAGMENT = '#toolbar=0&navpanes=0&view=FitH';/);
+  // R19: die ganze Seite statt der Breite (FitH zeigte am Desktop ~44 % der Seite).
+  assert.match(page, /const PDF_EMBED_FRAGMENT = '#toolbar=0&navpanes=0&view=Fit&zoom=page-fit';/);
   const viewer = page.slice(page.indexOf('function renderViewerContent('), page.indexOf('function renderViewerContent(') + 2200);
   assert.match(viewer, /<iframe class="document-viewer__pdf" src="\$\{previewUrl\}\$\{PDF_EMBED_FRAGMENT\}"/,
     'das Fragment haengt an der Adresse des eingebetteten Betrachters');

@@ -209,7 +209,24 @@ const STUBS = {
       globalThis.__reportFieldError?.(...args);
       return false;
     };
+    // Wie das Original (components/modal.js): alle Eintraege mit Feld, je Feld
+    // der erste - ueber __reportFieldError gemeldet, in der Reihenfolge der
+    // Liste (eine Dokumentreihenfolge kennt der Stub nicht).
+    export const reportFieldErrors = (errors) => {
+      const seen = new Set();
+      let any = false;
+      for (const entry of errors ?? []) {
+        if (!Array.isArray(entry) || !entry[0] || seen.has(entry[0])) continue;
+        seen.add(entry[0]);
+        any = true;
+        globalThis.__reportFieldError?.(entry[0], entry[1]);
+      }
+      return any;
+    };
     export const mountFooter = () => null;
+    // Wer sehen will, WOHIN ein Formular sich legt (R19, Bearbeiten in der
+    // Detailspalte), setzt globalThis.__dockNextModal.
+    export const dockNextModal = (...args) => globalThis.__dockNextModal?.(...args);
     export const refreshDirtySnapshot = () => {};
     // Der Tausch selbst muss laufen, genau einmal und synchron. Wer die
     // Dirty-Basis dahinter messen will, haengt die ECHTE Funktion aus
@@ -266,6 +283,30 @@ const STUBS = {
       return { update: () => true, isOpen: () => true };
     };
     export const closeDetailView = () => {};
+    // Dieselbe Regel wie im Original (R19): Bearbeiten als der eine
+    // Primaerknopf am Ende, andere Primaerknoepfe treten zurueck.
+    export const withPrimaryEdit = (actions = [], edit = null) => {
+      const list = (actions ?? []).filter(Boolean);
+      if (!edit) return list;
+      return [...list.map((a) => (a.variant === 'primary' ? { ...a, variant: 'secondary' } : a)), { icon: 'pencil', ...edit, variant: 'primary' }];
+    };
+    // Der Fuss als schlichte Knopfreihe - genug fuer Tests, die nach einer
+    // id oder einem Primaerknopf fragen.
+    export const detailFooterEl = (actions = []) => {
+      const visible = (actions ?? []).filter((a) => a && !a.hidden);
+      if (!visible.length || typeof document === 'undefined') return null;
+      const footer = document.createElement('div');
+      footer.className = 'detail-view__footer';
+      for (const action of visible) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn--' + (action.variant ?? 'secondary');
+        if (action.id) btn.id = action.id;
+        btn.textContent = action.label ?? '';
+        if (typeof action.onClick === 'function') btn.addEventListener('click', () => action.onClick({ close: () => {}, button: btn }));
+        footer.appendChild(btn);
+      }
+      return footer;
+    };
     export const detailRowEl = () => null;
     export const visibilityRow = () => ({ icon: 'users', label: '', value: '' });
     export const assignedRow = () => ({ icon: 'user', label: '', value: '' });
@@ -312,6 +353,14 @@ const STUBS = {
       globalThis.__motionStub?.('swapContent', host, opts);
       if (typeof update === 'function') update();
       return null;
+    }
+    export const REGION_NAME = 'region-swap';
+    export function canSwapRegion() { return false; }
+    export function regionSwapType(d) { return d > 0 ? 'region-forward' : d < 0 ? 'region-back' : 'region-fade'; }
+    export async function swapRegion(host, update, opts = {}) {
+      globalThis.__motionStub?.('swapRegion', host, opts);
+      if (typeof update === 'function') await update();
+      return { transition: false, finished: Promise.resolve() };
     }
   `,
   '/utils/list-motion.js': `
@@ -378,6 +427,9 @@ const STUBS = {
     // die echte Komponente. Ohne das bleibt es beim leeren Markup wie bisher.
     export const bindUserMultiSelect = (...args) => globalThis.__bindUserMultiSelect?.(...args);
     export const renderAvatarStack = (...args) => globalThis.__renderAvatarStack?.(...args) ?? '';
+    // Der geteilte Nachname (Chips ohne "Johnson"): Suiten, die ihn pruefen,
+    // setzen globalThis.__sharedSurname auf die echte Funktion; sonst keiner.
+    export const sharedSurname = (...args) => globalThis.__sharedSurname?.(...args) ?? '';
   `,
   '/utils/shopping-categories.js': `
     export const DEFAULT_CATEGORY_NAME = 'Sonstiges';

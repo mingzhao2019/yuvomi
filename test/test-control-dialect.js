@@ -703,6 +703,7 @@ const NOT_HEAD_SEARCH = new Map([
   ['doc-attach-picker__search', 'Dokument-Auswahldialog'],
   ['settings-shell__navigation-search', 'Seitenleiste der Einstellungen'],
   ['page-toolbar__center', 'der Slot der Shell selbst'],
+  ['page-search--field', 'Modifier der Shell (R19): die Kopfsuche bleibt mobil ein Feld; Geometrie EINMAL in layout.css'],
 ]);
 export function headSearchClasses(jsFiles) {
   const out = new Set();
@@ -1182,10 +1183,9 @@ const PENDING = {
   // sind keine neuen Aenderungen dieses Syncs. Wer eine davon anfasst, zieht
   // sie auf `rowMenuHtml()` um und senkt die Zahl.
   // 2026-10-16 (Critique D6): Notizen und Haushaltshilfe-Besuche loeschen
-  // ueber ihren Mehr-Knopf.
+  // ueber ihren Mehr-Knopf. R19 Schritt 4: der Kategorien-Verwalter auch.
   'row-danger-visible': {
     'public/pages/asset-cost.js': 1,
-    'public/components/category-manager.js': 1,
     'public/components/tag-manager.js': 1,
     'public/components/task-detail.js': 1,
     'public/pages/contacts.js': 1,

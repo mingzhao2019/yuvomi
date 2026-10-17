@@ -22,6 +22,7 @@ import { redrawList, collapseRow } from '/utils/list-motion.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
 import { amountPlaceholder, amountStep, amountIsSavable, smallestUnitLabel } from '/utils/money.js';
 import { maxUploadBytes, maxUploadMb } from '/utils/upload-limit.js';
+import { holdDocumentAttachStyle } from '/components/document-attach.js';
 import { isNavModuleReadOnly } from '/permissions.js';
 import { pathAccess, mayWritePath } from '/utils/module-access.js';
 import { todayKey } from '/utils/date.js';
@@ -401,7 +402,7 @@ function renderShell(container) {
   // Liste auf dem Lesemass, daneben Kennzahlen bzw. das Protokoll.
   container.insertAdjacentHTML('beforeend', `
     <section class="housekeeping-page app-page app-page--dashboard app-page--columns" data-composition="dashboard" aria-labelledby="housekeeping-title">
-      <header class="page-toolbar page-toolbar--narrow housekeeping-toolbar">
+      <header class="page-toolbar page-toolbar--narrow page-toolbar--tabs-title housekeeping-toolbar">
         <h1 class="page-toolbar__title" id="housekeeping-title">${esc(t('housekeeping.title'))}</h1>
         <div class="page-toolbar__actions"></div>
         <nav class="housekeeping-tabs page-toolbar__bar" role="tablist" aria-label="${esc(t('housekeeping.bottomNav'))}">
@@ -620,8 +621,10 @@ function renderDashboard(content) {
     // Balken skalierte deshalb nicht mit seiner Karte. Der Wert ist DATEN
     // (0..1), die Geometrie gehoert dem Stylesheet; dieselbe Bauart wie
     // `--span-from/--span-to` am Wetterbalken und `--bar-scale` im Budget.
-    // Der Mindestanteil haelt einen Monat ohne Zahlung sichtbar.
-    const scale = Math.max(0.06, row.total / maxPayment);
+    // Der Mindestanteil haelt einen kleinen Betrag sichtbar. Ein Monat OHNE
+    // Zahlung bleibt leer (R19): seit der Server alle sechs Monate liefert,
+    // stuende sonst ueber jeder Null ein Stummel, als waere etwas gezahlt.
+    const scale = row.total > 0 ? Math.max(0.06, row.total / maxPayment) : 0;
     // Wert sichtbar am Balken statt nur im Hover-title: das Chart trug sonst
     // keine ablesbare Achse oder Zahl (Audit A2-23).
     return `
@@ -2156,6 +2159,7 @@ function openVisitEditModal(visit, content, { onDone } = {}) {
     minutesInput?.addEventListener('input', updateComputed);
     updateComputed();
   }
+  holdDocumentAttachStyle(panel?.querySelector('#housekeeping-receipt-dropzone'));
   const receiptInput = panel?.querySelector('#housekeeping-receipt-file');
   const receiptSelected = panel?.querySelector('#housekeeping-receipt-selected');
   receiptInput?.addEventListener('change', () => {

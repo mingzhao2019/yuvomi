@@ -1,8 +1,8 @@
 import { t } from '/i18n.js';
 import { moduleAccentVar } from '/utils/module-accent.js';
-import { renderSkeletonList } from '/utils/skeleton.js';
+import { renderSkeletonList, placeSkeletonUntilContent } from '/utils/skeleton.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
-import { swapContent } from '/utils/content-swap.js';
+import { swapRegion } from '/utils/content-swap.js';
 import { createRetryState } from './components.js';
 import { watchLeafForms } from './dirty-guard.js';
 import { KITCHEN_CHILD_IDS } from './module-order.js';
@@ -74,11 +74,19 @@ function createIcon(name, className) {
  * @param {string} className Klasse der Marke in ihrem Umfeld (Geometrie)
  * @returns {HTMLElement}
  */
+/* EINE FORM FUER JEDE MARKE (R19, Critique 2026-10-16: "gemischte Icon-Stile
+ * in der Einstellungsliste"). Module standen als gefuellte Kachel im Vollton,
+ * alles andere (Konto, Haushalt, System) als blasse Mulde mit grauer Glyphe -
+ * zwei Formen in einer Liste. Jetzt ist jede Marke eine gefuellte Kachel wie
+ * in den iOS-Einstellungen; die FARBE bleibt die Aussage der Vollton-Regel:
+ * ein Modul traegt seinen Ton, Konfiguration ohne Modul das Grau der
+ * Einstellungen (--module-settings). */
 function createLeafMark(entry, className) {
   const mark = document.createElement('span');
-  mark.className = entry.module ? `${className} vivid-mark` : className;
+  mark.className = `${className} vivid-mark`;
   if (entry.extensionModule) mark.style.setProperty('--seal-accent', entry.extensionModule.accent);
   else if (entry.module) mark.style.setProperty('--seal-accent', moduleAccentVar(entry.module));
+  else mark.style.setProperty('--seal-accent', 'var(--module-settings)');
   mark.setAttribute('aria-hidden', 'true');
   mark.appendChild(createIcon(entry.icon, `${className}-glyph`));
   return mark;
@@ -884,7 +892,10 @@ function syncJumpLabels(leafContainer) {
     const host = leafContainer.querySelector(`#${CSS.escape(sheetSectionId(link.dataset.jumpSection))}`);
     // Ein Abschnitt ohne eigene Ueberschrift (ein Feed: ein Schalter, der
     // seinen Namen selbst traegt) heisst wie seine erste Zeile.
-    const heading = host?.querySelector('.settings-section__title, .settings-navigation-panel__title')
+    // `.settings-card__title` gehoert dazu (R19): ein Abschnitt, dessen erste
+    // Ueberschrift ein Kartentitel ist (Gesundheit: "Vorsorge-Arten"), hiess
+    // in der Marke noch wie sein Registry-Blatt ("Gesundheit").
+    const heading = host?.querySelector('.settings-section__title, .settings-navigation-panel__title, .settings-card__title')
       ?? host?.querySelector('.settings-group .toggle-row__label, .settings-group .settings-setting-row__label');
     const text = collapseText(heading?.textContent);
     if (text && link.textContent !== text) link.textContent = text;
@@ -964,7 +975,13 @@ async function renderLeafContent(content, leaf, domain, user, query) {
   }
 
   const sections = settingsSheetSections(leaf, user);
-  const scoped = Boolean(leaf.module);
+  // REICHWEITEN-UEBERSCHRIFTEN NUR, WO ES ZWEI REICHWEITEN GIBT (R19,
+  // Critique 2026-10-16: "gestapelte Ueberschriften"). Ein Modulblatt mit nur
+  // EINER Reichweite trug sie trotzdem - "Fuer den Haushalt" ueber
+  // "Essensplan" ueber "Sichtbare Mahlzeiten": drei Koepfe, von denen der
+  // oberste nichts unterschied. Ob ein Blatt ganz dem Haushalt gehoert, sagt
+  // dort schon die Statuszeile darueber.
+  const scoped = Boolean(leaf.module) && new Set(sections.map((section) => section.scope)).size > 1;
   const status = createModuleStatus(leaf, user);
   if (status) leafContainer.appendChild(status);
   // Sprungmarken (R16): nur in Blaettern mit mehr als drei Abschnitten.
@@ -1012,13 +1029,12 @@ async function renderLeafContent(content, leaf, domain, user, query) {
   // Der Blattwechsel laedt Module und danach deren Daten. aria-busy gilt
   // sofort; das Skelett kommt erst nach einer kurzen Frist, damit ein Blatt aus
   // dem Modul-Cache nicht kurz aufblitzt.
+  // Das Skelett raeumt sich selbst, sobald ein Abschnitt Inhalt hat - auch
+  // wenn der Abschnitt seinen Inhalt HINTER das Skelett haengt, statt den
+  // Traeger zu ersetzen (Critique R19, placeSkeletonUntilContent).
   leafContainer.setAttribute('aria-busy', 'true');
   const skeletonTimer = setTimeout(() => {
-    for (const [host] of hosts) {
-      if (host.isConnected && !host.firstChild) {
-        host.insertAdjacentHTML('beforeend', renderSkeletonList({ rows: 2, lines: 3 }));
-      }
-    }
+    for (const [host] of hosts) placeSkeletonUntilContent(host, renderSkeletonList({ rows: 2, lines: 3 }));
   }, SKELETON_DELAY_MS);
 
   const finishLeaf = () => {
@@ -1261,15 +1277,32 @@ export async function renderSettingsShell(container, {
     // Teil von renderLeafContent setzt Kopf und Blatt noch in diesem Takt ein,
     // das Blatt gleitet also mit seinem Geruest herein, nicht erst nach den
     // Abschnitten.
-    if (drill) swapContent(content, null, { direction: drill });
+    //
+    // SEIT R19 MIT ALTEM BILD (swapRegion, utils/content-swap.js): hinein
+    // schiebt sich das Blatt ueber die Uebersicht, zurueck schiebt es sich
+    // hinaus - vorher kam nur das neue Bild 8px von der Seite, die alte Ebene
+    // war schlagartig weg. Der synchrone Teil laeuft im Wechsel, das Laden
+    // danach wie bisher.
+    if (drill) {
+      let loading = null;
+      await swapRegion(content, () => {
+        if (toolbar) renderToolbar(toolbar, content, { activeLeaf, domain: leafDomain });
+        loading = renderLeafContent(content, activeLeaf, leafDomain, user, query);
+      }, { direction: drill });
+      await loading;
+      return;
+    }
     if (toolbar) renderToolbar(toolbar, content, { activeLeaf, domain: leafDomain });
     await renderLeafContent(content, activeLeaf, leafDomain, user, query);
     return;
   }
-  renderOverview(content, domains, user);
-  hydrateIcons(content);
-  if (drill) swapContent(content, null, { direction: drill });
-  if (toolbar) renderToolbar(toolbar, content, {});
+  const paintOverview = () => {
+    renderOverview(content, domains, user);
+    hydrateIcons(content);
+    if (toolbar) renderToolbar(toolbar, content, {});
+  };
+  if (drill) await swapRegion(content, paintOverview, { direction: drill });
+  else paintOverview();
   revealOverviewSection(content, focusDomain?.id);
   if (page) watchSplit(container, page, { user, domainId: focusDomain?.id ?? null });
 }

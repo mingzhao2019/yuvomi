@@ -124,7 +124,10 @@
   border-radius: var(--radius-xs);
 }
 
-/* Die neutrale Grundform gilt nur, WO keine Marke sie traegt: `.vivid-mark`
+/* SEIT R19 TRAEGT JEDE MARKE `.vivid-mark` (shell.js createLeafMark): die
+ * neutrale Grundform unten ist entfallen, Konfiguration ohne Modul steht im
+ * Grau der Einstellungen. Was folgt, ist die Geschichte der Mulde:
+ * Die neutrale Grundform galt nur, WO keine Marke sie traegt: `.vivid-mark`
  * steht in layout.css, diese Datei laedt danach, und bei gleicher Spezifitaet
  * gewinnt die spaetere - die Marke waere eine Klasse ohne Wirkung.
  *
@@ -136,18 +139,9 @@
  * Kacheln neben 25 nackten Glyphen und dunkel als 29 gleichwertige Zeilen.
  * Ein Licht/Dunkel-Paritaetsbruch, und die Vollton-Regel benennt fuer ihre
  * neutrale Gegenrichtung ausdruecklich `--color-fill-well`. */
-.settings-shell__navigation-link-icon:not(.vivid-mark) {
-  color: var(--color-text-secondary);
-  background: var(--color-fill-well);
-}
-
 .settings-shell__navigation-link-icon-glyph {
   width: var(--space-4);
   height: var(--space-4);
-}
-
-.settings-shell__navigation-link--active .settings-shell__navigation-link-icon:not(.vivid-mark) {
-  color: var(--color-accent);
 }
 
 /* EINE Spalte, die schrumpfen darf. Ohne `minmax(0, 1fr)` war die Spalte
@@ -309,11 +303,6 @@
   width: var(--target-md);
   height: var(--target-md);
   border-radius: var(--radius-sm);
-}
-
-.settings-overview__row-mark:not(.vivid-mark) {
-  color: var(--module-settings);
-  background: var(--color-surface-2);
 }
 
 .settings-overview__row-mark-glyph {
@@ -810,6 +799,30 @@
   margin-bottom: var(--space-3);
 }
 
+/* KEINE KARTE IN DER KARTE (R19): steht eine Zeilengruppe IN einer Karte
+ * (Konto: Kontaktdaten, Passwort), traegt die Karte die Flaeche - die Gruppe
+ * legt ihren eigenen Grund, Schatten und Radius ab und fluchtet mit dem
+ * Kartentext; die Haarlinien zwischen den Zeilen bleiben. */
+.settings-card .row-carrier.settings-group {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.settings-card .settings-group > .settings-setting-row {
+  padding-inline: 0;
+}
+
+/* Dasselbe fuer die Schalterzeile (R19): ihr Polster sitzt am `label.toggle-row`
+ * und an der Sekundaerzeile, nicht an der Zeile - in der Karte fluchten beide
+ * mit dem Kartentext wie jede andere Zeile. */
+.settings-card .settings-group > .settings-setting-row--switch > .toggle-row,
+.settings-card .settings-group > .settings-setting-row--switch > .settings-setting-row__description,
+.settings-card .settings-group > .settings-setting-row--switch > .form-hint,
+.settings-card .settings-group > .settings-setting-row--switch > .form-error {
+  padding-inline: 0;
+}
+
 .settings-group > .settings-setting-row {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-4);
@@ -882,6 +895,16 @@
   inline-size: 6rem;
   max-inline-size: 100%;
   text-align: end;
+}
+
+/* EIN TEXTFELD NIMMT DIE HALBE ZEILE (Re-Kritik 2026-10-17). Ohne Breite blieb
+ * es bei seiner Vorgabe von 20 Zeichen: am Desktop 201px in einer 680px-Zeile,
+ * eine E-Mail-Adresse oder WebDAV-Adresse lief darin ab dem 25. Zeichen weg.
+ * Es fuellt jetzt die Deckelung der Bedienspalte (50cqi). Nur als einziges
+ * Kind - steht ein Knopf daneben, teilen sich beide die Spalte wie bisher. */
+.settings-group .settings-setting-row__control > input.form-input:only-child:is([type="text"], [type="email"], [type="tel"], [type="url"], [type="password"], [type="search"], :not([type])) {
+  inline-size: 50cqi;
+  max-inline-size: 100%;
 }
 
 /* Fehlerzeile und verborgene Zusatzhinweise einer Zeile stehen im Textblock. */
@@ -1977,6 +2000,21 @@
   align-self: flex-start;
 }
 
+/* Einladen und Anlegen nebeneinander unter der Mitgliederliste (R19). */
+.settings-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* DIE EIGENE ZEILE (R19): "Ich" hinter dem eigenen Namen, leise wie die
+ * Meta-Zeile - wie "(Ich)" in der Familienfreigabe. */
+.settings-member__self {
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
+}
+
 .settings-token-output {
   padding: var(--space-3);
   /* Inset-Well statt Kasten in der Karte (tokens.css). */
@@ -2304,27 +2342,9 @@
    Meal-Type-Toggles
    -------------------------------------------------------- */
 
-.meal-type-toggles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-/* Die Haushaltsnamen der vier Slots (#1058) - zweiter Block derselben Karte,
-   weil "welche Slots" und "wie sie heissen" eine Einstellung sind.
-   Der Titel darueber braucht einen eigenen Abstand: `.settings-card__title`
-   traegt `margin: 0 0 space-3` und ist auf den ERSTEN Titel einer Karte
-   gerechnet. Als zweiter sass er sonst buendig auf der letzten Schalterzeile
-   (gemessen: 0px Luecke). */
-.meal-type-names {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.meal-type-toggles + .settings-card__title {
-  margin-top: var(--space-5);
-}
+/* Schalter und Namen der vier Slots (#1058) stehen seit R19 als gruppierte
+   Zeilen (`.settings-group`, oben) - die eigenen Abstaende der frueheren
+   Karte sind entfallen. */
 
 .toggle-row:focus-within {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
@@ -2517,28 +2537,15 @@
   margin-top: var(--space-2);
 }
 
-/* Enable-toggle row: label links, toggle rechts */
-.settings-webdav-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) 0 var(--space-3);
-  border-bottom: var(--space-px) solid var(--color-border);
-  margin-bottom: var(--space-1);
-}
+/* Die eigene Schalterleiste der WebDAV-Formulare ist entfallen (R19): der
+ * Schalter ist eine Zeile der Gruppe (settingSwitchRowHtml) wie jede andere. */
 
-.settings-webdav-toggle-row .form-label {
-  margin: 0;
-}
-
-/* Die Schalterzeile fuellt ihren Traeger: Label links, Schalter an der
- * rechten Kante wie jede andere Einstellung (toggleRowHtml, control:
- * 'switch'). Als einzelnes Flex-Kind war sie nur so breit wie ihr Text, und
- * der Schalter klebte am Label. */
-.settings-webdav-toggle-row > .toggle-row {
-  flex: 1;
-  min-width: 0;
+/* Die Betreuer-Auswahl im Mitglied-Dialog: eine Chip-Gruppe mit eigenem
+ * Etikett, keine Zeile - sie steht ueber den Zeilen des Dialogs (R19). */
+.settings-member-caregivers {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
 }
 
 /* Password-Eingabe mit Reveal-Button nebeneinander */
@@ -2684,6 +2691,7 @@
 .settings-google-calendars {
   display: grid;
   gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 /* Serverseitige Einschränkung, keine Fehlermeldung: der Hinweis steht als Text

@@ -43,6 +43,7 @@ import {
   COCKPIT_COVERED_WIDGETS,
   nearestPreset, sameWidgetConfig, suggestGridHoleFill, rowFillSpans,
   dashboardQuery, dashboardQueryFiltersCounts, dashboardRequest, normalizeShoppingListSelection,
+  fetchPendingReminders,
 } from '/utils/dashboard-widgets.js';
 import { EVENT_LIMIT_STEPS, EVENT_LIMIT_DEFAULT, clampEventLimit } from '/utils/dashboard-event-limit.js';
 import {
@@ -63,12 +64,11 @@ import { emptyHintHTML } from '/utils/empty-state.js';
 import { quickLinkHost } from '/utils/quick-link-url.js';
 import { hasIcon } from '/utils/lucide-icons.js';
 import { prefersInkText } from '/utils/contrast.js';
-import { openQuickLinksManager } from '/components/quick-links-manager.js';
 import { attachOverlay, pushOverlay, dropOverlay, isOverlayOpen } from '/utils/overlay-history.js';
 import { mealTypeList, primeMealTypeNames } from '/utils/meal-types.js';
 import { recipeThumbHtml, wireRecipeThumbs } from '/utils/recipe-thumb.js';
 import { wireNoteCategoryOverflow } from '/utils/note-category-overflow.js';
-import { installPopoverMenus } from '/utils/popover-menu.js';
+import { installPopoverMenus, popoverMenuHtml } from '/utils/popover-menu.js';
 import { nextRewardGoal } from '/utils/reward-goal.js';
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
@@ -511,7 +511,10 @@ function showOnboarding(appContainer, onDone) {
 // Erststart sichtbar, wo sie sich wieder einblenden lassen. Danach nie wieder.
 function maybeHintCustomize(container) {
   if (localStorage.getItem(CUSTOMIZE_HINT_KEY)) return;
-  const btn = container.querySelector('#dashboard-customize-btn');
+  // Mobil steht der Einstieg im Menue (R19) - der Hinweis gehoert dem
+  // sichtbaren Knopf.
+  const btn = [...container.querySelectorAll('#dashboard-customize-btn, .dashboard-tools-btn')]
+    .find((el) => el.getClientRects?.().length !== 0);
   if (!btn) return;
   const clear = () => {
     btn.classList.remove('dashboard-icon-btn--hint');
@@ -2183,11 +2186,21 @@ function renderFamilyWidget(users, data, { manageHref = null } = {}) {
       status = esc(t('dashboard.todayFree'));
       free = true;
     }
+    // MOBIL EINE AVATAR-REIHE (R19, Entscheidung Ulas 2026-10-16): dort steht
+    // je Person nur das Gesicht mit der Zahl offener Aufgaben und der Vorname
+    // (dashboard.css, `.family-member__face` / `__short`); Name und Satz
+    // bleiben im Baum und sind der Name fuer Screenreader. Zahl und Vorname
+    // sind Malerei (`aria-hidden`), der Satz sagt dasselbe.
+    const firstName = String(u.display_name || '').trim().split(/\s+/)[0] || '';
     return `
       <div class="family-member">
-        <span class="family-widget-avatar" style="background:${esc(u.avatar_color || AVATAR_FALLBACK_COLOR)};color:${getReadableTextColor(u.avatar_color || AVATAR_FALLBACK_COLOR)}">
-          ${u.avatar_data ? `<img src="${esc(u.avatar_data)}" alt="" loading="lazy">` : esc(initials(u.display_name))}
+        <span class="family-member__face">
+          <span class="family-widget-avatar" style="background:${esc(u.avatar_color || AVATAR_FALLBACK_COLOR)};color:${getReadableTextColor(u.avatar_color || AVATAR_FALLBACK_COLOR)}">
+            ${u.avatar_data ? `<img src="${esc(u.avatar_data)}" alt="" loading="lazy">` : esc(initials(u.display_name))}
+          </span>
+          ${open > 0 ? `<span class="family-member__count" aria-hidden="true">${esc(getNumberFormat().format(open))}</span>` : ''}
         </span>
+        <span class="family-member__short" aria-hidden="true">${esc(firstName)}</span>
         <span class="family-member__body">
           <span class="family-member__name">${esc(u.display_name)}</span>
           <span class="family-member__status${free ? ' family-member__status--free' : ''}">${status}</span>
@@ -4121,7 +4134,7 @@ function renderDashboardOverview(user, editing = false, weather = null, scope = 
   // setzen darf, ist Admin (#827).
   // `offerNew: false` im Fehlerzustand: wie der Speed-Dial dort (#634-Kommentar
   // bei initFab) kein Anlegen in Module, deren Daten nicht geladen sind.
-  const { followsDefault = true, canPublish = false, offerNew = true } = scope;
+  const { followsDefault = true, canPublish = false, offerNew = true, weatherCard = false } = scope;
   const dateLabel = mastheadDateLabel();
   // EIN WANDTABLETT BEKOMMT ZWEI KNOEPFE NICHT, WEIL BEIDE NUR SCHEITERN
   // KOENNEN (#1808). "Anpassen" endet in `PUT /preferences`, und ein Display
@@ -4142,7 +4155,7 @@ function renderDashboardOverview(user, editing = false, weather = null, scope = 
       <div class="dashboard-overview__header${editing ? ' dashboard-overview__header--editing' : ''}">
         <span class="dashboard-overview__date">${dateLabel}</span>
         <h2 class="dashboard-overview__title dashboard-overview__title--${greetingPeriod()}">${greeting(user.display_name)}</h2>
-        ${mastheadWeatherHtml(weather)}
+        ${mastheadWeatherHtml(weather, { card: weatherCard })}
         <div class="dashboard-overview__tools">
           ${editing ? `
           <!-- Die Beruhigung stand nur im Toast NACH dem Speichern, die
@@ -4210,6 +4223,22 @@ function renderDashboardOverview(user, editing = false, weather = null, scope = 
                   title="${t('dashboard.customize')}">
             <i data-lucide="settings-2" aria-hidden="true"></i>
           </button>`}
+          ${/* MOBIL IST DAS EIN MENUE (R19, Entscheidung Ulas 2026-10-16): der
+               Wand-Modus wandert ins Anpassen-Menue. Drei Icon-Knoepfe ueber dem
+               Gruss waren zwei zu viel fuer eine Handlung, die man auf dem
+               Telefon fast nie braucht. Unter 768px steht dieses Menue statt
+               der beiden Knoepfe davor (dashboard.css), seine Eintraege klicken
+               sie - ein Handler je Handlung, je Breite ein Weg. */ ''}
+          ${onDisplay ? '' : popoverMenuHtml({
+            id: 'dashboard-tools-menu',
+            label: t('dashboard.customize'),
+            icon: 'settings-2',
+            triggerClass: 'btn btn--secondary btn--icon dashboard-icon-btn dashboard-tools-btn',
+            items: [
+              { action: 'dashboard-customize', icon: 'layout-grid', label: t('dashboard.customizeTitle') },
+              { action: 'dashboard-wall', icon: 'maximize-2', label: t('dashboard.wallEnter') },
+            ],
+          })}
           ${offerNew && onDesktopStage() ? renderNewPill() : ''}`}
         </div>
       </div>
@@ -4338,7 +4367,9 @@ function restoreFocusAfterRebuild(container, candidates) {
     const el = isRow
       ? container.querySelectorAll(candidate.selector)[candidate.index]
       : container.querySelector(candidate);
-    if (el && !el.disabled) {
+    // Ein Knopf, der bei dieser Breite nicht gerendert ist (Anpassen mobil im
+    // Menue, R19), nimmt keinen Fokus - weiter zum naechsten Kandidaten.
+    if (el && !el.disabled && el.getClientRects?.().length !== 0) {
       if (isRow) el.focus({ preventScroll: candidate.preventScroll });
       else el.focus();
       return el;
@@ -5395,11 +5426,16 @@ function weatherTempBand(temp, units) {
 // (Apple-Today-Muster) statt einer eigenen Karte - die Karte bleibt als Opt-in
 // für Wandtablets im Anpassen-Tray. Kein Echo: ist die Karte sichtbar, reicht
 // der Aufrufer kein weather herein und die Zeile entfällt.
-function mastheadWeatherHtml(weather) {
+function mastheadWeatherHtml(weather, { card = false } = {}) {
   if (!weather?.current) return '';
   const desc = weatherDescText(weather, weather.current.desc);
+  // MIT KARTE NUR MOBIL (R19, Entscheidung Ulas 2026-10-16): die Wetterkarte
+  // stand auf dem Telefon bei y 1438 - die Kurzzeile unterm Gruss sagt das
+  // Jetzt sofort, die Karte weiter unten behaelt die Vorhersage. Ab 768px,
+  // wo die Karte neben dem Kopf im Bild steht, schliessen sich beide weiter
+  // aus (`--card`, dashboard.css).
   return `
-    <p class="dashboard-overview__weather"${weatherToneAttr(weather.current.icon)}>
+    <p class="dashboard-overview__weather${card ? ' dashboard-overview__weather--card' : ''}"${weatherToneAttr(weather.current.icon)}>
       ${weatherIconHtml(weather, weather.current.icon, 'dashboard-overview__weather-icon', 18, desc)}
       <span>${esc(String(weather.current.temp))}${weatherUnitSymbol(weather.units)} · ${esc(desc)}</span>
     </p>`;
@@ -6591,7 +6627,12 @@ function wireLinks(container, rerender, { editing = false, user = null } = {}) {
   // dort zieht man Kacheln, man bearbeitet ihren Inhalt nicht.
   if (!editing) {
     container.querySelectorAll('[data-quick-links-manage]').forEach((el) => {
-      el.addEventListener('click', () => openQuickLinksManager({ onChange: rerender }));
+      // Erst beim Tipp geladen (Critique R19): der Verwalter samt Sortierung
+      // lag sonst in der Startkette jeder Uebersicht, geoeffnet wird er selten.
+      el.addEventListener('click', async () => {
+        const { openQuickLinksManager } = await import('/components/quick-links-manager.js');
+        openQuickLinksManager({ onChange: rerender });
+      });
     });
   }
 
@@ -7639,14 +7680,20 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // Aufgabe", "Neuer Termin" ...) fuehrte mitten aus der Anordnung hinaus
     // und stand ueber den Bearbeiten-Leisten der unteren Kacheln (A7 P2-1).
     setCustomizeFabHidden(isCustomizing);
-    setHtml(shell, `
+    // VOM SKELETT ZUM INHALT BLENDET ES (Critique R19): vorher ein harter
+    // Schnitt, die Kacheln standen von einem Frame auf den anderen da. Nur
+    // dieser eine Uebergang - ein Neuaufbau ueber vorhandenem Inhalt bleibt
+    // still, und unter der Seitenblende ist die Blende schon das Einblenden.
+    const fromSkeleton = Boolean(shell.querySelector('.widget-skeleton'))
+      && !document.documentElement.classList.contains('page-swapping');
+    swapContent(shell, () => setHtml(shell, `
       <section class="dashboard-masthead dashboard-masthead--${greetingPeriod()}${mastheadSlim}">
-        ${renderDashboardOverview(user, isCustomizing, weatherCardShown ? null : weather, { followsDefault, canPublish })}
+        ${renderDashboardOverview(user, isCustomizing, weather, { followsDefault, canPublish, weatherCard: weatherCardShown })}
         ${cockpitHtml}
       </section>
       ${renderDashboardLayout(cfg, data, weather, currency, { editing: isCustomizing, visibleMealTypes, glanceHidden: !glanceVisible, familyManage: familyManageHref(user) })}
       ${isCustomizing ? renderCustomizeFootnote({ followsDefault, canPublish }) : ''}
-    `);
+    `), { animate: fromSkeleton });
     wireLinks(container, rerender, { editing: isCustomizing, user });
     disposeFastingClock = wireFastingWidget(container, rerender, refreshDashboardData, data.fasting, signal);
     // Retry einer isolierten Widget-Fehlerkachel: da /dashboard aggregiert lädt,
@@ -7688,6 +7735,13 @@ export async function render(container, { user, signal: routeSignal = null } = {
       focusAfterRebuild = ['#dashboard-customize-cancel'];
       rebuildDashboard(widgetConfig);
     }, { signal: signal });
+    // Die Eintraege des mobilen Anpassen-Menues loesen die Knoepfe aus, die sie
+    // dort ersetzen - derselbe Weg, dieselbe Rueckmeldung.
+    container.querySelector('#dashboard-tools-menu')?.addEventListener('click', (event) => {
+      const action = event.target.closest('[data-action]')?.dataset.action;
+      if (action === 'dashboard-customize') container.querySelector('#dashboard-customize-btn')?.click();
+      if (action === 'dashboard-wall') container.querySelector('#dashboard-wall-enter')?.click();
+    }, { signal: signal });
     container.querySelector('#dashboard-customize-save')?.addEventListener('click', saveDashboardConfig, { signal: signal });
     container.querySelector('#dashboard-customize-cancel')?.addEventListener('click', requestCancelDashboardConfig, { signal: signal });
     // Zwei Orte je Knopf (Leiste breit, Fussnote schmal), ein Handler.
@@ -7708,7 +7762,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     restoreFocusAfterRebuild(container, [
       keepFocus,
       ...(focusAfterRebuild ?? []),
-      ...(hadFocus && modeChanged ? ['#dashboard-customize-btn'] : []),
+      ...(hadFocus && modeChanged ? ['#dashboard-customize-btn', '.dashboard-tools-btn'] : []),
     ]);
     focusAfterRebuild = null;
     playTileFlip(shell, tileRectsBefore);
@@ -7919,7 +7973,7 @@ function todayFingerprint(data, cfg, now = new Date()) {
  * auch hier die Haushaltsfassung ab, und die ist leer - eine Erinnerung gilt
  * der Person, die um sie gebeten hat, nicht der Kueche (#1817).
  */
-async function loadPendingReminders(request = (path) => path, get = (path) => api.get(path)) {
+async function loadPendingReminders(request = (path) => path, get = (path) => fetchPendingReminders(path, { get: (p) => api.get(p) })) {
   try {
     const res = await get(request('/reminders/pending'));
     return Array.isArray(res?.data) ? res.data : [];

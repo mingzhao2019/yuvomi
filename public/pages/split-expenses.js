@@ -568,9 +568,23 @@ function renderSummary() {
   if (count) count.textContent = String(state.groups.length);
   const owedText = totalsText(owed);
   const owingText = totalsText(owing);
+  // DER BEREICH STEHT IM LABEL (Critique R19, P1 Desktop-Komposition). Die
+  // Kacheln gehoeren der gewaehlten Gruppe, die dritte Kachel „Aktive Gruppen"
+  // aber allen - nebeneinander lasen sich „Du schuldest 24,14 €" und „2" als
+  // EINE Aussage, und mobil steht die Gruppenwahl erst unter den Zahlen. Jetzt
+  // nennen beide Betraege ihre Gruppe, und die Gruppenzahl steht nur noch am
+  // Kopf der Liste, die sie zaehlt (`#split-group-count`).
+  const group = state.groups.find((g) => g.id === state.activeGroupId)?.name;
+  const owedLabel = group ? t('splitExpenses.youAreOwedInGroup', { group }) : t('splitExpenses.youAreOwed');
+  const owingLabel = group ? t('splitExpenses.youOweInGroup', { group }) : t('splitExpenses.youOwe');
   const glance = _container.querySelector('#split-glance');
   if (glance) {
     const expanded = summary?.classList?.contains('is-expanded') ?? false;
+    // DIE KURZZEILE NENNT DIE GRUPPE NICHT (R19, Critique 2026-10-16). Sie steht
+    // nur schmal, und dort direkt ueber der Gruppenwahl, die den Namen schon
+    // traegt; mit ihm brach "Du bekommst in Haushalt" bei 390px in zwei Zeilen
+    // und "Du schuldest in Haushalt 24,14 €" stand daneben gedraengt. Die
+    // Karten (breit, und aufgeklappt) behalten das Label mit Gruppe.
     setHtml(glance, metricGlanceHtml({
       id: 'split-glance-more',
       controls: 'split-summary',
@@ -588,16 +602,12 @@ function renderSummary() {
   // (`tone` nur mit Betrag), die Karten jetzt auch.
   setHtml(summary, `
     <div class="metric-card${owed.length ? ' metric-card--positive' : ''}">
-      <div class="metric-card__label">${t('splitExpenses.youAreOwed')}</div>
+      <div class="metric-card__label">${esc(owedLabel)}</div>
       <div class="metric-card__value">${owedText}</div>
     </div>
     <div class="metric-card${owing.length ? ' metric-card--negative' : ''}">
-      <div class="metric-card__label">${t('splitExpenses.youOwe')}</div>
+      <div class="metric-card__label">${esc(owingLabel)}</div>
       <div class="metric-card__value">${owingText}</div>
-    </div>
-    <div class="metric-card split-summary-groups">
-      <div class="metric-card__label">${isArchivedView() ? t('splitExpenses.statusArchived') : t('splitExpenses.activeGroups')}</div>
-      <div class="metric-card__value">${state.groups.length}</div>
     </div>
   `);
 }

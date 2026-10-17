@@ -1,8 +1,12 @@
 /**
  * Modul: UX Utilities
  * Zweck: Wiederverwendbare Animationshelfer (Stagger, Vibration)
- * Abhängigkeiten: keine
+ * Abhängigkeiten: ./flip.js (Nachbarn einer ausklappenden Zeile)
  */
+// Relativ (wie flip.js umgekehrt): im Browser dieselbe Modul-URL wie
+// '/utils/flip.js'. Der Kreis ux <-> flip ist harmlos, beide lesen einander
+// erst beim Aufruf.
+import { flipSnapshotElements, flipPlayElements } from './flip.js';
 
 /**
  * Listen, deren erster Aufbau schon eingeblendet hat (Critique 2026-09-26, A3 P1-4).
@@ -64,32 +68,23 @@ export function stagger(elements, { host = null, delay = 30, duration = duration
   // waehrend die Seite noch blendete. Der Merker oben ist verbraucht, ein
   // spaeteres Neuzeichnen holt es nicht nach.
   if (typeof document !== 'undefined' && document.documentElement?.classList?.contains('page-swapping')) return;
+  // WEB ANIMATIONS STATT TIMER-KETTE (Critique R19). Vorher setzte stagger
+  // `opacity`/`transform`/`transition` inline und raeumte sie mit zwei
+  // setTimeout je Zeile wieder ab - unter Last (4x CPU) kamen die Timer zu
+  // spaet, und jede Zeile stand bis dahin mit einem Inline-Wert da, der ihre
+  // Zustandsregeln schlug (#1230). Jetzt traegt eine Animation je Zeile den
+  // Versatz als `delay`; `fill: 'backwards'` haelt sie vor ihrem Einsatz
+  // unsichtbar, und nach dem Ende gilt ohne Aufraeumen wieder das Stylesheet.
+  // Ohne `animate` (alter Browser, Node-Test ohne Stub) erscheint die Zeile
+  // einfach - das ist der Endzustand. NUR der Startpunkt steht da (`offset: 0`):
+  // das Ziel ist der Wert des Stylesheets, also auch das 0.45 einer
+  // abgehakten Einkaufszeile, nicht ein fest verdrahtetes 1.
+  const easing = easingToken('--ease-out', 'ease-out');
   els.forEach((el, i) => {
-    const itemDelay = i < max ? i * delay : max * delay;
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(8px)';
-    // Dauer (--duration-md) und Kurve aus den Token: der Inline-Wert darf auf
-    // eine Custom Property zeigen, der Rueckleser unten vergleicht, was der
-    // Browser daraus serialisiert.
-    el.style.transition = `opacity ${duration}ms var(--ease-out), transform ${duration}ms var(--ease-out)`;
-    // Zurückgelesen statt als Literal verglichen: der Browser serialisiert
-    // Inline-Werte selbst, und nur so erkennt das Aufräumen seine eigenen.
-    const own = { opacity: el.style.opacity, transform: el.style.transform, transition: el.style.transition };
-    setTimeout(() => {
-      // DAS EINBLENDEN ENDET AUF DEM STYLESHEET, NICHT AUF EINEM INLINE-WERT
-      // (#1230). Hier stand `opacity = '1'`, und das blieb inline stehen: es
-      // schlug jede Zustandsregel der Zeile selbst - `.shopping-item--checked`
-      // griff nur unter prefers-reduced-motion, die Drag-Geister
-      // (`.sortable-ghost`) blieben deckend. Das Leeren blendet über die noch
-      // stehende Transition auf den Wert des Stylesheets ein. Geräumt wird nur,
-      // was noch der eigene Wert ist - eine Wischgeste kann inzwischen ihr
-      // eigenes transform gesetzt haben.
-      if (el.style.opacity === own.opacity) el.style.opacity = '';
-      if (el.style.transform === own.transform) el.style.transform = '';
-      setTimeout(() => {
-        if (el.style.transition === own.transition) el.style.transition = '';
-      }, duration);
-    }, itemDelay);
+    if (typeof el?.animate !== 'function') return;
+    el.animate([{ opacity: 0, transform: 'translateY(8px)', offset: 0 }], {
+      duration, delay: i < max ? i * delay : max * delay, easing, fill: 'backwards',
+    });
   });
 }
 
@@ -184,13 +179,6 @@ export function easingToken(name, fallback = 'ease-out') {
 /** Die Blockmasse, die beim Einklappen mit auf null gehen: Hoehe, Innen- und Aussenabstand, Rahmen. */
 const BLOCK_PROPS = ['height', 'paddingTop', 'paddingBottom', 'marginTop', 'marginBottom', 'borderTopWidth', 'borderBottomWidth'];
 
-function blockFrame(el) {
-  const cs = getComputedStyle(el);
-  const frame = { height: `${el.getBoundingClientRect().height}px`, opacity: cs.opacity };
-  for (const p of BLOCK_PROPS.slice(1)) frame[p] = cs[p];
-  return frame;
-}
-
 function closedFrame() {
   const frame = { opacity: '0' };
   for (const p of BLOCK_PROPS) frame[p] = '0px';
@@ -198,60 +186,127 @@ function closedFrame() {
 }
 
 /**
- * Hoehe einer Zeile oder Gruppe weich auf null nehmen - der Austritt, nach dem
- * die Nachbarn nachruecken statt zu springen (Critique 2026-09-26, A3 P1-4).
+ * Eine Zeile oder Gruppe gehen lassen - der Austritt, nach dem die Nachbarn
+ * nachruecken statt zu springen (Critique 2026-09-26, A3 P1-4).
  *
- * WARUM WEB ANIMATIONS UND NICHT `interpolate-size` ODER `grid-template-rows`:
- * `height: auto -> 0` per `interpolate-size` kann Safari nicht (dort spraenge
- * die Zeile), und der `1fr -> 0fr`-Trick braucht einen Wrapper um jede Zeile -
- * in Listen, deren Markup drei Module teilen. Gemessen wird die echte Hoehe in
- * px, von dort geht es auf 0; das kann jede Engine.
+ * NUR TRANSFORM UND OPACITY (Critique R19). Bis hierher lief die Hoehe samt
+ * Innen- und Aussenabstand per Web Animations von ihrem Mass auf null. Das ist
+ * Layout in jedem Frame, fuer die Zeile UND alles darunter - am gedrosselten
+ * Telefon (4x CPU) sprang es in Stufen. Jetzt in zwei Schritten, beide auf dem
+ * Compositor:
+ *   1. Die Zeile blendet aus und wird dabei ein wenig kleiner (opacity,
+ *      transform) - die Nachbarn stehen still.
+ *   2. Sie faellt in EINEM Frame auf null (die geschlossene Form, gehalten mit
+ *      `fill: 'forwards'` wie bisher), und die Nachbarn gleiten per FLIP
+ *      (utils/flip.js) nur mit `transform` von ihrer alten Lage in die neue.
+ * Unter `prefers-reduced-motion` blendet die Zeile nur aus, und die Nachbarn
+ * blenden an ihrer neuen Stelle ein, statt hart um die Zeilenhoehe zu springen
+ * (gemessen vorher: 49px Sprung).
  *
- * Das Element bleibt danach auf null stehen (`fill: 'forwards'`) - der Aufrufer
- * zeichnet die Liste neu oder entfernt es. Unter `prefers-reduced-motion`
- * springt es wie bisher. Das Promise loest auch ohne `finish` auf: im verdeckten
- * Tab und an einem abgehaengten Element kommt das Ereignis nicht zuverlaessig.
+ * DER VERTRAG BLEIBT: Das Element bleibt danach auf null stehen, der Aufrufer
+ * zeichnet die Liste neu oder entfernt es; wer es zurueckholt, verwirft die
+ * Animationen (`getAnimations().forEach(a => a.cancel())`) und setzt
+ * `overflow` zurueck. Wird die Blende in Schritt 1 so abgebrochen, faellt
+ * Schritt 2 aus. Das Promise loest auch ohne `finish` auf: im verdeckten Tab
+ * und an einem abgehaengten Element kommt das Ereignis nicht zuverlaessig.
+ *
+ * Kurve fuer Blende und Nachruecken: das symmetrische `--ease-in-out` (Runde 3,
+ * Entscheid 26.09.: `--ease-out` warf die Nachbarn in den ersten 60ms fast ganz
+ * nach oben - ein Ruck statt eines Nachrueckens).
  *
  * @param {Element} el
  * @param {Object} [opts]
- * @param {number} [opts.duration] - ms, Standard `--duration-lg`
+ * @param {number} [opts.duration] - ms des Nachrueckens, Standard `--duration-lg`
  * @returns {Promise<void>}
  */
 export function collapseOut(el, { duration = durationToken('--duration-lg', 250) } = {}) {
   if (!el || typeof el.animate !== 'function') return Promise.resolve();
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
-  el.style.overflow = 'hidden';
-  const anim = el.animate([blockFrame(el), closedFrame()], {
-    duration, easing: easingToken('--ease-in-out', 'ease-in-out'), fill: 'forwards',
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const easing = easingToken('--ease-in-out', 'ease-in-out');
+  const fadeMs = reduced ? durationToken('--duration-sm', 150) : Math.round(duration * 0.6);
+  const from = getComputedStyle(el).opacity;
+  const leaving = el.animate(reduced
+    ? [{ opacity: from }, { opacity: 0 }]
+    : [{ opacity: from, transform: 'none' }, { opacity: 0, transform: 'scale(0.97)' }],
+  { duration: fadeMs, easing, fill: 'forwards' });
+  return settleAnimation(leaving, fadeMs).then(() => {
+    // Abgebrochen (eine Gegenbewegung hat die Zeile zurueckgeholt) oder
+    // inzwischen ausgehaengt: kein zweiter Schritt.
+    if (leaving.playState === 'idle' || el.isConnected === false) return undefined;
+    const neighbours = followingNeighbours(el);
+    const before = flipSnapshotElements(neighbours);
+    el.style.overflow = 'hidden';
+    el.animate([closedFrame(), closedFrame()], { duration: 1, fill: 'forwards' });
+    if (!reduced) {
+      flipPlayElements(before, { duration, easing });
+      return settle(duration);
+    }
+    const blendMs = durationToken('--duration-sm', 150);
+    for (const [n] of before) {
+      if (typeof n.animate === 'function') n.animate([{ opacity: 0 }, { opacity: 1 }], { duration: blendMs, easing });
+    }
+    return settle(blendMs);
   });
-  return settleAnimation(anim, duration);
+}
+
+const settle = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Was nachrueckt, wenn `el` auf null faellt: die folgenden Geschwister, und
+ * die seiner Vorfahren bis zum naechsten Scrollbereich (eine Zeile in einer
+ * Gruppe schiebt auch die Gruppen darunter). Gedeckelt - weiter unten liegt,
+ * was ohnehin niemand sieht.
+ */
+function followingNeighbours(el, limit = 60) {
+  const out = [];
+  let node = el;
+  for (let depth = 0; node && depth < 4 && out.length < limit; depth += 1) {
+    for (let s = node.nextElementSibling; s && out.length < limit; s = s.nextElementSibling) out.push(s);
+    const parent = node.parentElement;
+    if (!parent || parent === document.body || /^(auto|scroll)$/.test(getComputedStyle(parent).overflowY)) break;
+    node = parent;
+  }
+  return out;
 }
 
 /**
- * Das Gegenstueck: ein gerade eingesetztes Element von null auf seine Hoehe
- * aufziehen (aufgeklappte Gruppe, eine per „Rueckgaengig" zurueckgekehrte
- * Zeile). Ohne `fill` - am Ende gilt wieder das Stylesheet.
+ * Das Gegenstueck: ein gerade eingesetztes Element erscheinen lassen
+ * (aufgeklappte Gruppe, eine per „Rueckgaengig" zurueckgekehrte Zeile, eine
+ * Feldmeldung). Ohne `fill` - am Ende gilt wieder das Stylesheet.
  *
- * `absorbGap`: das Element ist Kind eines Flex- oder Grid-Traegers mit `gap`.
- * Der Abstand gehoert dem Traeger und steht im selben Frame da, in dem das
- * Kind erscheint - die Nachbarn spraengen um genau diesen Betrag, bevor die
- * Hoehe ueberhaupt waechst. Ein negativer Aussenabstand im ersten Frame nimmt
- * ihn mit auf null (Feldmeldung im `.form-field`, gap 4px, R18).
+ * OHNE HOEHENANIMATION (R19, Critique 2026-10-16), gespiegelt zu collapseOut:
+ * bis hierher zog die Hoehe samt Innen- und Aussenabstand per Web Animations
+ * von null auf ihr Mass - Layout in jedem Frame fuer das Element und alles
+ * darunter. Jetzt steht das Element sofort in seiner vollen Hoehe und blendet
+ * mit einer kleinen Skalierung ein (opacity, transform); die Nachbarn gleiten
+ * per FLIP (utils/flip.js) nur mit `transform` von dort, wo sie ohne das
+ * Element standen, an ihre neue Stelle. Die alte Lage misst EIN Frame mit
+ * `display: none` am Element - darin faellt auch der `gap` des Traegers weg,
+ * den die alte Option `absorbGap` von Hand mitnehmen musste.
+ * `interpolate-size`/`calc-size()` (Guide animate-to-intrinsic-sizes) waere
+ * wieder eine Hoehenanimation und damit Layout je Frame.
+ *
+ * Unter `prefers-reduced-motion` steht das Element ohne Bewegung da.
  */
-export function expandIn(el, { duration = durationToken('--duration-lg', 250), absorbGap = false } = {}) {
+export function expandIn(el, { duration = durationToken('--duration-lg', 250) } = {}) {
   if (!el || typeof el.animate !== 'function') return Promise.resolve();
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
-  const prevOverflow = el.style.overflow;
-  el.style.overflow = 'hidden';
-  const closed = closedFrame();
-  if (absorbGap && el.parentElement) {
-    const gap = parseFloat(getComputedStyle(el.parentElement).rowGap);
-    if (gap > 0) closed.marginTop = `${-gap}px`;
+  const easing = easingToken('--ease-in-out', 'ease-in-out');
+  const neighbours = el.style && el.isConnected !== false ? followingNeighbours(el) : [];
+  let before = null;
+  if (neighbours.length) {
+    const prevDisplay = el.style.display;
+    el.style.display = 'none';
+    before = flipSnapshotElements(neighbours);
+    el.style.display = prevDisplay;
   }
-  const anim = el.animate([closed, blockFrame(el)], {
-    duration, easing: easingToken('--ease-in-out', 'ease-in-out'),
-  });
-  return settleAnimation(anim, duration).then(() => { el.style.overflow = prevOverflow; });
+  const opacity = getComputedStyle(el).opacity || '1';
+  const anim = el.animate([
+    { opacity: 0, transform: 'scale(0.97)' },
+    { opacity, transform: 'none' },
+  ], { duration, easing });
+  if (before) flipPlayElements(before, { duration, easing });
+  return settleAnimation(anim, duration);
 }
 
 /** Letzte Absicht je Region (offen/zu): ein Zuklappen, das ein Oeffnen ueberholt hat, raeumt nicht ab. */
@@ -1431,6 +1486,10 @@ export function watchNavCapsuleHeight(items, root = document.documentElement) {
       observer.disconnect();
       return;
     }
+    // Minimiert (watchNavMinimize) oder auf dem Rueckweg zaehlt die Kapsel
+    // nicht: die Zone darunter haelt die ausgefahrene Hoehe, sonst rueckten
+    // Nachlauf und Toasts bei jedem Scroll um 8px.
+    if (items.closest?.('.nav-bottom--minimized, .nav-bottom--settling')) return;
     const height = entry?.borderBoxSize?.[0]?.blockSize ?? entry?.target?.offsetHeight ?? 0;
     // 0 heisst: nicht gerendert (Desktop mit Sidebar, Wand-Modus).
     // Ungerundet: aufgerundet reservierte die Zone bei 60,09px schon 61, und
@@ -1440,4 +1499,126 @@ export function watchNavCapsuleHeight(items, root = document.documentElement) {
   });
   observer.observe(items);
   return observer;
+}
+
+/**
+ * DIE KAPSEL MACHT BEIM LESEN PLATZ (iOS-26-Muster, Critique R19 / Entscheidung
+ * Ulas 2026-10-16). Wer im Inhalt abwaerts scrollt, liest: die Kapsel minimiert
+ * sich - Labels blenden aus, sie wird flacher, der FAB bleibt. Aufwaerts, oben
+ * und am Seitenende faehrt sie wieder aus; dort sucht man den naechsten Ort.
+ *
+ * Die Entscheidung ist eine reine Funktion, damit Schwellen und Ausnahmen ohne
+ * DOM pruefbar sind. `travel` sammelt die Strecke in EINER Richtung - ein
+ * Zittern von 3px gegen die Leserichtung setzt sie zurueck, statt die Kapsel
+ * pendeln zu lassen.
+ *   - oben (`top` <= 8) und am Ende (Rest <= 2): immer ausgefahren
+ *   - abwaerts >= NAV_MINIMIZE_DOWN, und nur aus einer Nutzergeste (`gesture`):
+ *     ein Scroll-Restore oder `scrollIntoView` liest nicht
+ *   - aufwaerts >= NAV_MINIMIZE_UP: ausgefahren, auch im Nachschwung ohne
+ *     Geste - sonst bliebe die Kapsel nach einem Wisch an den Anfang klein
+ *
+ * @param {{minimized: boolean, travel: number}} state
+ * @param {{top: number, max: number, delta: number, gesture: boolean}} step
+ * @returns {{minimized: boolean, travel: number}}
+ */
+export const NAV_MINIMIZE_DOWN = 24;
+export const NAV_MINIMIZE_UP = 16;
+export function nextNavMinimized(state, { top, max, delta, gesture }) {
+  if (top <= 8 || max - top <= 2) return { minimized: false, travel: 0 };
+  if (!delta) return state;
+  const travel = Math.sign(delta) === Math.sign(state.travel) ? state.travel + delta : delta;
+  if (travel <= -NAV_MINIMIZE_UP) return { minimized: false, travel };
+  if (travel >= NAV_MINIMIZE_DOWN && gesture) return { minimized: true, travel };
+  return { minimized: state.minimized, travel };
+}
+
+/**
+ * Verdrahtet `nextNavMinimized` an die Bottom-Nav. Zugehoert wird jedem
+ * senkrechten Scrollport im Inhalt (`.app-content` und die eigenen Ports der
+ * gedeckelten Module) - Dialoge, Blaetter und Popover zaehlen nicht, sie
+ * liegen ueber der Seite. Waagerechte Leisten aendern `scrollTop` nicht und
+ * fallen damit von selbst heraus.
+ *
+ * KEIN LAYOUT-SHIFT: die Kapsel liegt ausser Fluss, und ihre Hoehe zaehlt nur
+ * ausgefahren - `watchNavCapsuleHeight` misst nicht, solange sie minimiert ist
+ * oder zurueckgleitet (`--settling`). Nachlauf, Toasts und Mehr-Blatt stehen
+ * also still; nur der FAB rueckt in die flachere Kapsel nach (layout.css).
+ *
+ * @param {Element} nav - `.nav-bottom`
+ * @param {{ doc?: Document, settleMs?: number }} [opts]
+ * @returns {{ nav: Element, expand: () => void, destroy: () => void }|null}
+ */
+export function watchNavMinimize(nav, { doc = document, settleMs = 450 } = {}) {
+  if (!nav) return null;
+  const last = new WeakMap();
+  let state = { minimized: false, travel: 0 };
+  let gestureAt = -Infinity;
+  let settleTimer = 0;
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+  const apply = (minimized) => {
+    if (minimized === nav.classList.contains('nav-bottom--minimized')) return;
+    clearTimeout(settleTimer);
+    nav.classList.toggle('nav-bottom--minimized', minimized);
+    doc.documentElement.classList.toggle('nav-minimized', minimized);
+    // Zurueck gleitet sie ueber Zwischenhoehen - die duerfen die Zone nicht
+    // verschieben. Nach der Transition gilt wieder die Messung.
+    nav.classList.toggle('nav-bottom--settling', !minimized);
+    if (!minimized) settleTimer = setTimeout(() => nav.classList.remove('nav-bottom--settling'), settleMs);
+  };
+
+  const inContent = (el) => el instanceof Element
+    && Boolean(el.closest('.app-content'))
+    && !el.closest('dialog, [popover], .modal-overlay, .more-sheet');
+
+  const onGesture = (e) => { if (inContent(e.target)) gestureAt = now(); };
+  const onScroll = (e) => {
+    const port = e.target;
+    if (!inContent(port)) return;
+    // Nur wo die Kapsel steht (unter 1024px); am Desktop gibt es nichts zu minimieren.
+    if (!nav.getClientRects().length) return;
+    const top = port.scrollTop;
+    const prev = last.get(port) ?? top;
+    last.set(port, top);
+    state = nextNavMinimized(state, {
+      top,
+      max: port.scrollHeight - port.clientHeight,
+      delta: top - prev,
+      gesture: now() - gestureAt < 1200,
+    });
+    apply(state.minimized);
+  };
+  const GESTURES = ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'keydown'];
+  doc.addEventListener('scroll', onScroll, { capture: true, passive: true });
+  for (const type of GESTURES) doc.addEventListener(type, onGesture, { capture: true, passive: true });
+
+  return {
+    nav,
+    expand: () => { state = { minimized: false, travel: 0 }; apply(false); },
+    destroy: () => {
+      clearTimeout(settleTimer);
+      doc.removeEventListener('scroll', onScroll, { capture: true });
+      for (const type of GESTURES) doc.removeEventListener(type, onGesture, { capture: true });
+      // Der Root-Zustand gehoert der Kapsel, die ihn gesetzt hat; eine
+      // Nachfolgerin beginnt ausgefahren.
+      doc.documentElement.classList.remove('nav-minimized');
+    },
+  };
+}
+
+/**
+ * Haelt die Minimierung an DER Kapsel, die gerade steht (Review #2049).
+ * renderAppShell() baut die Shell bei Logout/Login neu; der Minimierer der
+ * alten Kapsel hing an einem abgehaengten Knoten, und die neue minimierte nie.
+ * Dieselbe Kapsel behaelt ihren Minimierer, eine neue bekommt einen neuen,
+ * der alte haengt ab.
+ *
+ * @param {ReturnType<typeof watchNavMinimize>} current
+ * @param {Element|null} nav - die aktuelle `.nav-bottom`
+ * @param {{ doc?: Document, settleMs?: number }} [opts]
+ */
+export function bindNavMinimize(current, nav, opts) {
+  if (current && current.nav === nav) return current;
+  if (current) current.destroy();
+  return watchNavMinimize(nav, opts);
 }
