@@ -848,8 +848,10 @@ async function runSync() {
     jobs.push(Promise.resolve().then(run).catch((e) => logSync.error(`${name} error:`, e.message)));
   };
 
-  const { connected: googleConnected } = googleCalendar.getStatus();
-  if (googleConnected) {
+  // Ein abgelehntes Token (#2019) steht auf der Karte; jeder Takt schriebe
+  // sonst denselben Fehler ins Log, ohne dass ein Lauf etwas ändern könnte.
+  const { connected: googleConnected, needsReauth: googleNeedsReauth } = googleCalendar.getStatus();
+  if (googleConnected && !googleNeedsReauth) {
     schedule('Google', () => googleCalendar.sync());
   }
 
