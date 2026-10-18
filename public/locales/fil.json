@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Mabubura kasama nito ang {{count}} araw ng cycle nito. Hindi ito maibabalik.",
         "icon": "Icon",
         "chooseIcon": "Pumili ng icon",
-        "print": "I-print",
         "overtime": "Overtime",
         "overtimeNote": "Higit sa {{hours}} oras sa 7 magkakasunod na araw sa saklaw na ito",
         "reminderToggle": "Paalalahanan ako bago magsimula ang aking shift",
@@ -6523,8 +6522,6 @@
         "plannedNote": "nakaplano",
         "reminderLeadTime": "Agwat bago magpaalala",
         "settingsSaved": "Nai-save.",
-        "overviewEmptyTitle": "Pumili ng mga tao na ikukumpara",
-        "overviewEmptyDescription": "Pumili sa itaas ng kahit isang miyembro ng sambahayan para makita ang lingguhang iskedyul nang magkatabi.",
         "presetCodes": {
             "early": "U",
             "late": "H",

@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "유일한 주기 하루도 함께 삭제됩니다. 되돌릴 수 없습니다.",
         "icon": "아이콘",
         "chooseIcon": "아이콘 선택",
-        "print": "인쇄",
         "overtime": "초과 근무",
         "overtimeNote": "이 기간 중 연속 7일 동안 {{hours}}시간 초과",
         "reminderToggle": "근무 시작 전 알림",
@@ -6523,8 +6522,6 @@
         "plannedNote": "계획됨",
         "reminderLeadTime": "미리 알림 시간",
         "settingsSaved": "저장했습니다.",
-        "overviewEmptyTitle": "비교할 사람을 선택하세요",
-        "overviewEmptyDescription": "위에서 한 명 이상의 가족 구성원을 선택하면 주간 일정을 나란히 볼 수 있습니다.",
         "presetCodes": {
             "early": "오전",
             "late": "오후",

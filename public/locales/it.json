@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Il suo unico giorno di ciclo viene eliminato con essa. L'operazione non può essere annullata.",
         "icon": "Icona",
         "chooseIcon": "Scegli icona",
-        "print": "Stampa",
         "overtime": "Straordinario",
         "overtimeNote": "Oltre {{hours}} h in 7 giorni consecutivi di questo intervallo",
         "reminderToggle": "Avvisami prima dell'inizio del mio turno",
@@ -6523,8 +6522,6 @@
         "plannedNote": "pianificate",
         "reminderLeadTime": "Anticipo",
         "settingsSaved": "Salvato.",
-        "overviewEmptyTitle": "Scegli le persone da confrontare",
-        "overviewEmptyDescription": "Seleziona sopra almeno un membro della famiglia per vedere gli orari settimanali affiancati.",
         "presetCodes": {
             "early": "M",
             "late": "S",

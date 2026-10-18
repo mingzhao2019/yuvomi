@@ -1,6 +1,6 @@
 import { api } from '/api.js';
 import { getLocale, getNumberFormat, t } from '/i18n.js';
-import { esc } from '/utils/html.js';
+import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { errorSentence } from '/utils/friendly-error.js';
 import { todayKey } from '/utils/timezone.js';
 import { renderPageSearch, wirePageSearch, wirePageSearchReveal } from '/utils/page-search.js';
@@ -19,6 +19,7 @@ import {
 import { attachOverlay } from '/utils/overlay-history.js';
 import { rowActionHtml } from '/utils/row-action.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
+import { isImeComposing } from '/utils/ux.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_SYMBOLS = { CNY: '¥', EUR: '€', USD: '$' };
@@ -527,7 +528,7 @@ function formContent(item) {
         ${renderUserMultiSelect(state.members, selectedIds, 'asset_assigned', 'common.visibility.assignees')}
       </div>
       <div class="asset-cost-form__name-row">
-        <div class="form-group"><label class="form-label" for="asset-cost-name">${esc(tr('name'))}</label><input id="asset-cost-name" class="form-input" type="text" required value="${esc(imageQuery)}"></div>
+        <div class="form-group"><label class="form-label" for="asset-cost-name">${esc(tr('name'))}${REQUIRED_MARK}</label><input id="asset-cost-name" class="form-input" type="text" required value="${esc(imageQuery)}"></div>
         <button type="button" class="asset-cost-image-search-trigger btn btn--secondary" data-open-image-search ${imageQuery.trim() ? '' : 'disabled'} title="${esc(tr('searchImages'))}" aria-label="${esc(tr('searchImages'))}">
           <i data-lucide="search" aria-hidden="true"></i>
         </button>
@@ -551,8 +552,8 @@ function formContent(item) {
         </select></div>
       </div>
       <div class="asset-cost-form__row">
-        <div class="form-group"><label class="form-label" for="asset-cost-purchase-date">${esc(tr('purchaseDate'))}</label><yuvomi-datepicker id="asset-cost-purchase-date" type="date" required label="${esc(tr('purchaseDate'))}" value="${esc(item?.purchase_date || '')}"></yuvomi-datepicker></div>
-        <div class="form-group"><label class="form-label" for="asset-cost-purchase-price">${esc(tr('purchasePrice'))}</label><input id="asset-cost-purchase-price" class="form-input" type="number" min="0" step="0.01" inputmode="decimal" required value="${item?.purchase_price == null ? '' : esc(item.purchase_price)}"></div>
+        <div class="form-group"><label class="form-label" for="asset-cost-purchase-date">${esc(tr('purchaseDate'))}${REQUIRED_MARK}</label><yuvomi-datepicker id="asset-cost-purchase-date" type="date" required label="${esc(tr('purchaseDate'))}" value="${esc(item?.purchase_date || '')}"></yuvomi-datepicker></div>
+        <div class="form-group"><label class="form-label" for="asset-cost-purchase-price">${esc(tr('purchasePrice'))}${REQUIRED_MARK}</label><input id="asset-cost-purchase-price" class="form-input" type="number" min="0" step="0.01" inputmode="decimal" required value="${item?.purchase_price == null ? '' : esc(item.purchase_price)}"></div>
       </div>
       <div class="asset-cost-form__row">
         <div class="form-group"><label class="form-label" for="asset-cost-currency">${esc(tr('currencyField'))}</label><input id="asset-cost-currency" class="form-input" type="text" maxlength="3" minlength="3" value="${esc(item?.currency || state.householdCurrency)}"></div>
@@ -804,7 +805,7 @@ function openImageSearchDialog(formPanel, setPhoto) {
   dialog.querySelector('[data-image-search-close]').addEventListener('click', close);
   submitButton.addEventListener('click', runSearch);
   queryInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !isImeComposing(event)) {
       event.preventDefault();
       runSearch();
     }

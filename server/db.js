@@ -11178,7 +11178,10 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 250,
+    version: 260,
+    // Upstream R20 called this migration 250. Custom already uses v250-v259,
+    // so the same new migration is appended here as v260; existing versions
+    // are never renumbered.
     description: 'housekeeping: open payment tasks belong to the adults who pay',
     // DER OFFENE ALTBESTAND DER ZAHLUNGSAUFGABEN (R20, Ulas 2026-10-17). Seit
     // R20 entsteht eine Zahlungsaufgabe auf `assignees`, zugewiesen der Person,
@@ -11275,7 +11278,10 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 251,
+    version: 261,
+    // Upstream R20 called this migration 251. Custom already uses v250-v259,
+    // so the same new migration is appended here as v261; existing versions
+    // are never renumbered.
     description: 'users: avatar_key, a random key per profile picture for its address',
     // Listen tragen statt der Data-URL die Adresse `/api/v1/people/:id/avatar?v=`
     // (services/person-avatar.js), und `v` ist dieser Schluessel. ZWEI AUFGABEN:

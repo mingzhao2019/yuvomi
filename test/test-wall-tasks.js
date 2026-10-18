@@ -1107,7 +1107,7 @@ test('Erinnerungen: Glocke und Uebersicht teilen sich beim Start EINEN Abruf', a
   const bellSrc = readFileSync(new URL('../public/reminders.js', import.meta.url), 'utf8');
   assert.match(bellSrc, /await fetchPendingReminders\(dashboardRequest\('\/reminders\/pending', \{ wall \}\), \{ get: \(path\) => api\.get\(path\), fresh \}\)/);
   assert.doesNotMatch(bellSrc, /api\.get\(dashboardRequest\('\/reminders\/pending'/);
-  assert.match(bellSrc, /function refresh\(\) \{\s*poll\(\{ fresh: true \}\);/);
+  assert.match(bellSrc, /function refresh\(\) \{\s*(?:return\s+)?poll\(\{ fresh: true \}\);/);
   assert.match(bellSrc, /\/dismiss`, \{\}\);\s*forgetPendingReminders\(\);/);
   assert.match(bellSrc, /function stop\(\) \{[\s\S]*?forgetPendingReminders\(\);[\s\S]*?\n\}/);
 });

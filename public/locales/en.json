@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Its one cycle day goes with it. This cannot be undone.",
         "icon": "Icon",
         "chooseIcon": "Choose icon",
-        "print": "Print",
         "overtime": "Overtime",
         "overtimeNote": "Above {{hours}} h in a 7-day stretch of this range",
         "reminderToggle": "Remind me before my shift starts",
@@ -6523,8 +6522,6 @@
         "plannedNote": "planned",
         "reminderLeadTime": "Lead time",
         "settingsSaved": "Saved.",
-        "overviewEmptyTitle": "Pick people to compare",
-        "overviewEmptyDescription": "Select at least one household member above to see their weekly timetables side by side.",
         "presetCodes": {
             "early": "E",
             "late": "L",

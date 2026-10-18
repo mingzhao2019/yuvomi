@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "इसका {{count}} चक्र दिन भी इसके साथ हट जाएगा। इसे वापस नहीं किया जा सकता।",
         "icon": "आइकन",
         "chooseIcon": "आइकन चुनें",
-        "print": "प्रिंट करें",
         "overtime": "ओवरटाइम",
         "overtimeNote": "इस अवधि में लगातार 7 दिनों में {{hours}} घं से अधिक",
         "reminderToggle": "मेरी शिफ़्ट शुरू होने से पहले मुझे याद दिलाएँ",
@@ -6523,8 +6522,6 @@
         "plannedNote": "नियोजित",
         "reminderLeadTime": "पहले से याद दिलाने का समय",
         "settingsSaved": "सहेजा गया।",
-        "overviewEmptyTitle": "तुलना के लिए लोग चुनें",
-        "overviewEmptyDescription": "साप्ताहिक समय-सारिणी साथ-साथ देखने के लिए ऊपर कम से कम एक सदस्य चुनें।",
         "presetCodes": {
             "early": "सु",
             "late": "शा",

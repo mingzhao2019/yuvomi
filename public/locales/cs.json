@@ -6629,7 +6629,6 @@
         "deletePatternDetail_one": "Jeho jediný den cyklu zmizí s ním. Nelze vrátit zpět.",
         "icon": "Ikona",
         "chooseIcon": "Vybrat ikonu",
-        "print": "Tisk",
         "overtime": "Přesčas",
         "overtimeNote": "Přes {{hours}} h během 7 po sobě jdoucích dnů v tomto období",
         "reminderToggle": "Upozornit před začátkem mé směny",
@@ -6687,8 +6686,6 @@
         "reminderLeadTime": "Předstih",
         "settingsSaved": "Uloženo.",
         "cycleDaysHint_few": "Cyklus se opakuje každé {{count}} dny od začátku cyklu - dny před ním následují stejný rytmus pozpátku.",
-        "overviewEmptyTitle": "Vyberte osoby k porovnání",
-        "overviewEmptyDescription": "Vyberte výše alespoň jednoho člena domácnosti a zobrazte týdenní rozvrhy vedle sebe.",
         "presetCodes": {
             "early": "R",
             "late": "O",

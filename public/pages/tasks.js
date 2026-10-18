@@ -41,7 +41,6 @@ import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { todayKey, parseLocalDateKey } from '/utils/date.js';
 import { nowFields, zonedDateKey, zonedTimeKey } from '/utils/timezone.js';
-import { mountMasterDetail, splitViewDetailHtml } from '/utils/master-detail.js';
 import { mountMasterDetail, splitViewDetailHtml, setSelectionBulk } from '/utils/master-detail.js';
 import { historyDayLabel } from '/utils/day-label.js';
 import {
@@ -3038,7 +3037,7 @@ function wireMentionSuggest(field) {
     if (!box || !matches.length) return;
     if (e.key === 'ArrowDown')      { e.preventDefault(); active = (active + 1) % matches.length; render(); }
     else if (e.key === 'ArrowUp')   { e.preventDefault(); active = (active - 1 + matches.length) % matches.length; render(); }
-    else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); apply(matches[active]); }
+    else if ((e.key === 'Enter' && !isImeComposing(e)) || e.key === 'Tab') { e.preventDefault(); apply(matches[active]); }
     else if (e.key === 'Escape')    { e.stopPropagation(); close(); }
   });
 

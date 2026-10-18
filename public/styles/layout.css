@@ -5797,13 +5797,13 @@ p.field-hint--warn[hidden] {
 
   html.sidebar-resizing,
   html.sidebar-resizing * {
-    cursor: col-resize !important;
-    user-select: none !important;
+    cursor: col-resize;
+    user-select: none;
   }
 
   html.sidebar-resizing .nav-sidebar,
   html.sidebar-resizing .app-content {
-    transition: none !important;
+    transition: none;
   }
 
   @media (prefers-reduced-motion: reduce) {

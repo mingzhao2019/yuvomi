@@ -465,7 +465,8 @@ function resolveEventBackground(ev) {
  * Ersetzt die frühere vollgesättigte Füllung + getContrastColor-Textfarbe.
  */
 function eventSurfaceStyle(ev) {
-  return `--ev-color:${esc(resolveEventColor(ev))};`;
+  const color = ev?.completed ? 'var(--color-text-tertiary)' : resolveEventColor(ev);
+  return `--ev-color:${esc(color)};`;
 }
 
 /**
@@ -2759,7 +2760,6 @@ function updateLabel() {
   const lbl = _container.querySelector('#cal-label');
   if (!lbl) return;
   const d    = new Date(state.cursor + 'T00:00:00');
-  const year = d.getFullYear();
   const mon  = MONTH_NAMES()[d.getMonth()];
 
   // The period context is already obvious from the calendar and navigation;
@@ -2774,7 +2774,7 @@ function updateLabel() {
     // ist (Audit A1-19). Das Label nennt stattdessen den sichtbaren Bereich.
     lbl.textContent = window.matchMedia(MOBILE_MEDIA_QUERY).matches
       ? t('calendar.dayRangeLabel', { from: formatDayMonth(mobileWeekDays(state.cursor)[0]), to: formatPreferredDate(mobileWeekDays(state.cursor)[2]) })
-      : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon, year });
+      : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon });
   }
   // Die Tagesansicht nennt den vollstaendigen lokalisierten Wochentag; das
   // Datum bleibt kompakt und ohne Jahr, damit die Kopfzeile trotzdem ruhig

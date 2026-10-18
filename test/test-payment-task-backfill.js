@@ -32,7 +32,12 @@ const { default: housekeepingRouter } = await import('../server/routes/housekeep
 const { router: authRouter } = await import('../server/auth.js');
 const { default: permissionsRouter } = await import('../server/routes/permissions.js');
 const db = dbmod.get();
-const migration250 = dbmod.MIGRATIONS.find((m) => m.version === 250);
+// Upstream called this migration 250. Custom already uses v250-v259, so the
+// append-only integration carries it as the next available version.
+const paymentTaskMigration = dbmod.MIGRATIONS.find(
+  (m) => m.description === 'housekeeping: open payment tasks belong to the adults who pay',
+);
+assert.ok(paymentTaskMigration, 'die Zahlungsaufgaben-Migration ist vorhanden');
 
 function addUser(username, role, familyRole) {
   return Number(db.prepare(`
@@ -88,7 +93,7 @@ test('ohne aktiven Admin: eine Aufgabe ohne moegliche Eigentuemerin wird privat,
   const adults = legacyPaymentTask(ADULT);
   const viaRuntime = legacyPaymentTask(KID, { assign: [KID, ADULT] });
 
-  migration250.up(db);
+  paymentTaskMigration.up(db);
   normalizePaymentTaskAudience(db, viaRuntime.taskId);
 
   // Fail-closed (Ulas 2026-10-18): nie auf `all` - privat fuer die
@@ -128,7 +133,7 @@ test('Migration 250 zieht nur OFFENE verknuepfte Zahlungsaufgaben nach, und zwei
     INSERT INTO tasks (title, status, created_by) VALUES ('Fenster putzen', 'open', ?)
   `).run(KID).lastInsertRowid);
 
-  migration250.up(db);
+  paymentTaskMigration.up(db);
   const first = Object.fromEntries(Object.entries({ byAdult, byKid, inProgress, done, archived, byGone })
     .map(([k, t]) => [k, taskState(t.taskId)]));
 
@@ -142,7 +147,7 @@ test('Migration 250 zieht nur OFFENE verknuepfte Zahlungsaufgaben nach, und zwei
     'ein deaktiviertes Konto ist keine zahlende Person');
   assert.deepEqual(taskState(notPayment), UNTOUCHED(KID), 'eine Aufgabe ohne Besuch ist keine Zahlungsaufgabe');
 
-  migration250.up(db);
+  paymentTaskMigration.up(db);
   for (const [k, t] of Object.entries({ byAdult, byKid, inProgress, done, archived, byGone })) {
     assert.deepEqual(taskState(t.taskId), first[k], `zweiter Lauf: ${k}`);
   }
@@ -218,12 +223,12 @@ test('eine schon gewaehlte Sichtbarkeit bleibt beim Bearbeiten stehen', async ()
 // Migration und Laufzeitregel (Aequivalenz)
 // --------------------------------------------------------------------------
 
-// Migration 250 traegt eine EINGEFRORENE Kopie der Regel aus
+// Die Zahlungsaufgaben-Migration traegt eine EINGEFRORENE Kopie der Regel aus
 // services/payment-task-audience.js (eine Migration importiert nie Laufzeit-
 // Code). Heute muessen beide auf denselben Daten dasselbe ergeben. Weicht die
 // Laufzeitregel spaeter BEWUSST ab, wird dieser Test mit Begruendung angepasst
 // - nie die Migration.
-test('Migration 250 und die Laufzeitregel liefern auf denselben Daten dasselbe', async () => {
+test('Die Zahlungsaufgaben-Migration und die Laufzeitregel liefern auf denselben Daten dasselbe', async () => {
   const { normalizePaymentTaskAudience } = await import('../server/services/payment-task-audience.js');
   // Rollenprofil ohne Betraege fuer 'relative', eine Mitglied-Zeile oeffnet es
   // fuer eine Person wieder: beide Ebenen muss die Kopie lesen wie die Regel.
@@ -264,7 +269,7 @@ test('Migration 250 und die Laufzeitregel liefern auf denselben Daten dasselbe',
     }
   });
 
-  migration250.up(db);
+  paymentTaskMigration.up(db);
   const viaMigration = fixtures.map((t) => taskState(t.taskId));
   restore();
   assert.deepEqual(fixtures.map((t) => taskState(t.taskId)), before, 'Ausgangslage wiederhergestellt');

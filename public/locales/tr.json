@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Tek döngü günü onunla birlikte silinir. Bu işlem geri alınamaz.",
         "icon": "Simge",
         "chooseIcon": "Simge seç",
-        "print": "Yazdır",
         "overtime": "Fazla mesai",
         "overtimeNote": "Bu aralıkta art arda 7 günde {{hours}} saatin üzerinde",
         "reminderToggle": "Vardiyam başlamadan önce hatırlat",
@@ -6523,8 +6522,6 @@
         "plannedNote": "planlanan",
         "reminderLeadTime": "Önceden hatırlatma",
         "settingsSaved": "Kaydedildi.",
-        "overviewEmptyTitle": "Karşılaştırılacak kişileri seç",
-        "overviewEmptyDescription": "Haftalık programları yan yana görmek için yukarıdan en az bir hane üyesi seç.",
         "presetCodes": {
             "early": "S",
             "late": "A",

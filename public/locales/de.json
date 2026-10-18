@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Der eine Zyklustag dieses Musters geht mit verloren. Das lässt sich nicht rückgängig machen.",
         "icon": "Symbol",
         "chooseIcon": "Symbol wählen",
-        "print": "Drucken",
         "overtime": "Überstunden",
         "overtimeNote": "Über {{hours}} Std. in 7 aufeinanderfolgenden Tagen dieses Zeitraums",
         "reminderToggle": "Vor Schichtbeginn erinnern",
@@ -6523,8 +6522,6 @@
         "plannedNote": "geplant",
         "reminderLeadTime": "Vorlauf",
         "settingsSaved": "Gespeichert.",
-        "overviewEmptyTitle": "Personen zum Vergleichen auswählen",
-        "overviewEmptyDescription": "Wähle oben mindestens ein Haushaltsmitglied aus, um die Wochenpläne nebeneinander zu sehen.",
         "presetCodes": {
             "early": "F",
             "late": "S",

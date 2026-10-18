@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "{{count}} dia de ciclo desaparece com ela. Não é possível anular.",
         "icon": "Ícone",
         "chooseIcon": "Escolher ícone",
-        "print": "Imprimir",
         "overtime": "Horas extra",
         "overtimeNote": "Mais de {{hours}} h em 7 dias consecutivos deste período",
         "reminderToggle": "Avisar-me antes do início do meu turno",
@@ -6523,8 +6522,6 @@
         "plannedNote": "previstas",
         "reminderLeadTime": "Antecedência",
         "settingsSaved": "Guardado.",
-        "overviewEmptyTitle": "Escolhe pessoas para comparar",
-        "overviewEmptyDescription": "Seleciona acima pelo menos um membro do agregado para ver os horários semanais lado a lado.",
         "presetCodes": {
             "early": "M",
             "late": "T",

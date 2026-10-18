@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "De ene cyclusdag ervan gaat mee verloren. Dit kan niet ongedaan worden gemaakt.",
         "icon": "Pictogram",
         "chooseIcon": "Pictogram kiezen",
-        "print": "Afdrukken",
         "overtime": "Overuren",
         "overtimeNote": "Meer dan {{hours}} u in 7 opeenvolgende dagen van deze periode",
         "reminderToggle": "Herinner me voordat mijn dienst begint",
@@ -6523,8 +6522,6 @@
         "plannedNote": "gepland",
         "reminderLeadTime": "Voorlooptijd",
         "settingsSaved": "Opgeslagen.",
-        "overviewEmptyTitle": "Kies personen om te vergelijken",
-        "overviewEmptyDescription": "Selecteer hierboven minstens één huisgenoot om de weekroosters naast elkaar te zien.",
         "presetCodes": {
             "early": "V",
             "late": "L",

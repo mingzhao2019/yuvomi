@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Dess enda cykeldag försvinner med den. Det går inte att ångra.",
         "icon": "Ikon",
         "chooseIcon": "Välj ikon",
-        "print": "Skriv ut",
         "overtime": "Övertid",
         "overtimeNote": "Över {{hours}} tim under 7 dagar i följd i denna period",
         "reminderToggle": "Påminn mig innan mitt skift börjar",
@@ -6523,8 +6522,6 @@
         "plannedNote": "planerade",
         "reminderLeadTime": "Förvarning",
         "settingsSaved": "Sparat.",
-        "overviewEmptyTitle": "Välj personer att jämföra",
-        "overviewEmptyDescription": "Välj minst en hushållsmedlem ovan för att se veckoscheman sida vid sida.",
         "presetCodes": {
             "early": "M",
             "late": "K",

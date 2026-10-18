@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Satu-satunya hari siklusnya ikut terhapus. Tidak dapat dibatalkan.",
         "icon": "Ikon",
         "chooseIcon": "Pilih ikon",
-        "print": "Cetak",
         "overtime": "Lembur",
         "overtimeNote": "Lebih dari {{hours}} jam dalam 7 hari berturut-turut pada rentang ini",
         "reminderToggle": "Ingatkan saya sebelum shift saya mulai",
@@ -6523,8 +6522,6 @@
         "plannedNote": "terencana",
         "reminderLeadTime": "Waktu pengingat sebelumnya",
         "settingsSaved": "Tersimpan.",
-        "overviewEmptyTitle": "Pilih orang untuk dibandingkan",
-        "overviewEmptyDescription": "Pilih setidaknya satu anggota keluarga di atas untuk melihat jadwal mingguan berdampingan.",
         "presetCodes": {
             "early": "P",
             "late": "SO",

@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "唯一の周期日も一緒に削除されます。元に戻せません。",
         "icon": "アイコン",
         "chooseIcon": "アイコンを選ぶ",
-        "print": "印刷",
         "overtime": "残業",
         "overtimeNote": "この期間中、連続7日間で{{hours}}時間を超過",
         "reminderToggle": "シフト開始前に通知する",
@@ -6523,8 +6522,6 @@
         "plannedNote": "予定",
         "reminderLeadTime": "事前通知",
         "settingsSaved": "保存しました。",
-        "overviewEmptyTitle": "比較するメンバーを選択",
-        "overviewEmptyDescription": "上で1人以上の家族メンバーを選ぶと、週間予定を並べて表示できます。",
         "presetCodes": {
             "early": "早",
             "late": "遅",

@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "{{count}} jour de cycle disparaît avec lui. Cette action est irréversible.",
         "icon": "Icône",
         "chooseIcon": "Choisir une icône",
-        "print": "Imprimer",
         "overtime": "Heures supplémentaires",
         "overtimeNote": "Plus de {{hours}} h sur 7 jours consécutifs dans cette période",
         "reminderToggle": "Me rappeler avant le début de mon poste",
@@ -6523,8 +6522,6 @@
         "plannedNote": "prévues",
         "reminderLeadTime": "Délai",
         "settingsSaved": "Enregistré.",
-        "overviewEmptyTitle": "Choisissez des personnes à comparer",
-        "overviewEmptyDescription": "Sélectionnez ci-dessus au moins un membre du foyer pour voir les emplois du temps hebdomadaires côte à côte.",
         "presetCodes": {
             "early": "M",
             "late": "S",

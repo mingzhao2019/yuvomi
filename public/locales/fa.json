@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "{{count}} روز چرخه آن نیز همراه با آن حذف می‌شود. قابل بازگشت نیست.",
         "icon": "نماد",
         "chooseIcon": "انتخاب آیکون",
-        "print": "چاپ",
         "overtime": "اضافه‌کاری",
         "overtimeNote": "بیش از {{hours}} ساعت در ۷ روز پیاپی از این بازه",
         "reminderToggle": "پیش از شروع شیفتم به من یادآوری کن",
@@ -6523,8 +6522,6 @@
         "plannedNote": "برنامه‌ریزی‌شده",
         "reminderLeadTime": "زمان یادآوری پیش از شروع",
         "settingsSaved": "ذخیره شد.",
-        "overviewEmptyTitle": "افرادی را برای مقایسه انتخاب کن",
-        "overviewEmptyDescription": "بالا دست‌کم یک عضو خانواده را انتخاب کن تا برنامه‌های هفتگی را کنار هم ببینی.",
         "presetCodes": {
             "early": "ص",
             "late": "ع",

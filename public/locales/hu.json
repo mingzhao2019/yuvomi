@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Az egyetlen ciklusnapja is törlődik vele. Nem vonható vissza.",
         "icon": "Ikon",
         "chooseIcon": "Ikon választása",
-        "print": "Nyomtatás",
         "overtime": "Túlóra",
         "overtimeNote": "Több mint {{hours}} óra 7 egymást követő napon ebben az időszakban",
         "reminderToggle": "Emlékeztessen a műszakom kezdete előtt",
@@ -6523,8 +6522,6 @@
         "plannedNote": "tervezett",
         "reminderLeadTime": "Előzetes idő",
         "settingsSaved": "Mentve.",
-        "overviewEmptyTitle": "Válassz személyeket az összehasonlításhoz",
-        "overviewEmptyDescription": "Válassz fent legalább egy háztartástagot, hogy a heti beosztásokat egymás mellett lásd.",
         "presetCodes": {
             "early": "DE",
             "late": "DU",

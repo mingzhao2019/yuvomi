@@ -6781,7 +6781,6 @@
         "deletePatternDetail_one": "Jego jedyny dzień cyklu przepadnie razem z nim. Nie można tego cofnąć.",
         "icon": "Ikona",
         "chooseIcon": "Wybierz ikonę",
-        "print": "Drukuj",
         "overtime": "Nadgodziny",
         "overtimeNote": "Ponad {{hours}} godz. w 7 kolejnych dniach tego zakresu",
         "reminderToggle": "Przypomnij mi przed rozpoczęciem mojej zmiany",
@@ -6841,8 +6840,6 @@
         "settingsSaved": "Zapisano.",
         "cycleDaysHint_few": "Cykl powtarza się co {{count}} dni od początku cyklu - dni wcześniejsze podążają za tym samym rytmem wstecz.",
         "cycleDaysHint_many": "Cykl powtarza się co {{count}} dni od początku cyklu - dni wcześniejsze podążają za tym samym rytmem wstecz.",
-        "overviewEmptyTitle": "Wybierz osoby do porównania",
-        "overviewEmptyDescription": "Wybierz powyżej co najmniej jednego członka gospodarstwa domowego, aby zobaczyć tygodniowe plany obok siebie.",
         "presetCodes": {
             "early": "P",
             "late": "PP",

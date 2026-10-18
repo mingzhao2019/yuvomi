@@ -6467,7 +6467,6 @@
         "deletePatternDetail_one": "Ngày chu kỳ duy nhất sẽ bị xóa cùng. Không thể hoàn tác.",
         "icon": "Biểu tượng",
         "chooseIcon": "Chọn biểu tượng",
-        "print": "In",
         "overtime": "Làm thêm giờ",
         "overtimeNote": "Trên {{hours}} giờ trong 7 ngày liên tiếp của khoảng thời gian này",
         "reminderToggle": "Nhắc tôi trước khi ca của tôi bắt đầu",
@@ -6523,8 +6522,6 @@
         "plannedNote": "dự kiến",
         "reminderLeadTime": "Thời gian nhắc trước",
         "settingsSaved": "Đã lưu.",
-        "overviewEmptyTitle": "Chọn người để so sánh",
-        "overviewEmptyDescription": "Chọn phía trên ít nhất một thành viên gia đình để xem lịch trình hằng tuần cạnh nhau.",
         "presetCodes": {
             "early": "S",
             "late": "C",
