@@ -37,13 +37,14 @@ import { renderAvatarStack } from '/components/user-multi-select.js';
 import { isSoloHousehold } from '/utils/household.js';
 import { toggleRegion, durationToken, easingToken } from '/utils/ux.js';
 import { swapContent } from '/utils/content-swap.js';
+import { brandMarkSvg } from '/utils/brand-mark.js';
 import { findSettingsLeaf } from '/settings/registry.js';
 import {
   WIDGET_SIZE_PRESETS, WIDGET_SIZE_OPTIONS,
   COCKPIT_COVERED_WIDGETS,
   nearestPreset, sameWidgetConfig, suggestGridHoleFill, rowFillSpans,
   dashboardQuery, dashboardQueryFiltersCounts, dashboardRequest, normalizeShoppingListSelection,
-  fetchPendingReminders,
+  fetchPendingReminders, childDefaultWidgetConfig,
 } from '/utils/dashboard-widgets.js';
 import { EVENT_LIMIT_STEPS, EVENT_LIMIT_DEFAULT, clampEventLimit } from '/utils/dashboard-event-limit.js';
 import {
@@ -92,6 +93,23 @@ let calendarShowLunar = false;
  * Sie gilt ohnehin nur auf `/` (isWallRoute). */
 let _wallOverlay = null;
 let _wallLeave = null;
+
+/* WOHIN DER FOKUS NACH DEM MODUSWECHSEL GEHT (R20, Re-Critique 2026-10-17 A1
+ * P2-6). Start und Ausstieg bauen die ganze Seite neu (`rerender`), und danach
+ * stand der Fokus auf <body>: wer per Tastatur „Wand-Modus starten" drueckte,
+ * fand sich nirgends, und nach Esc wieder am Dokumentanfang. Die Absicht
+ * ueberlebt den Neuaufbau hier, weil `render()` eine neue Closure baut:
+ *   'enter' -> die Wandflaeche selbst (`#wall-surface`, tabindex=-1): ein
+ *              ruhiger Einstieg, kein Knopf - ein Enter dort beendete sonst
+ *              gleich wieder, was gerade begonnen hat;
+ *   'leave' -> der Knopf, der die Wand wieder oeffnet (am Finger das Menue).
+ * Einmal gelesen, dann vergessen. */
+let _wallFocusIntent = null;
+function takeWallFocusIntent(kind) {
+  if (_wallFocusIntent !== kind) return false;
+  _wallFocusIntent = null;
+  return true;
+}
 
 function holdWallMarker(leave) {
   _wallLeave = leave;
@@ -327,12 +345,30 @@ function getOnboardingSteps() {
   // bekommt weder Bottom-Bar- noch Wischgesten-Text. Gleicher Breakpoint wie
   // der Sidebar-Umbruch (layout.css, min-width: 1024px).
   const desktop = window.matchMedia('(min-width: 1024px)').matches;
+  // DIE MARKE UND DIE ECHTEN KNOEPFE (Re-Critique 2026-10-17, A1): der
+  // Rundgang begann mit einem Lucide-Haus statt der Bildmarke und beschrieb
+  // Leiste und Plus-Knopf nur in Worten. Schritt 1 traegt jetzt das Zeichen
+  // (utils/brand-mark.js), Schritt 2 und 3 zeigen auf das Bedienelement, das
+  // der Text nennt (`target`, siehe placeSpotlight in showOnboarding).
   return [
-    { icon: 'home',         title: t('onboarding.step1Title', { name: appName }), body: t('onboarding.step1Body') },
-    { icon: 'navigation',   title: t('onboarding.step2Title'), body: t(desktop ? 'onboarding.step2BodyDesktop' : 'onboarding.step2Body') },
-    { icon: 'plus-circle',  title: t('onboarding.step3Title'), body: t(desktop ? 'onboarding.step3BodyDesktop' : 'onboarding.step3Body') },
+    { mark: true,           title: t('onboarding.step1Title', { name: appName }), body: t('onboarding.step1Body') },
+    { icon: 'navigation',   title: t('onboarding.step2Title'), body: t(desktop ? 'onboarding.step2BodyDesktop' : 'onboarding.step2Body'),
+      target: () => document.querySelector(desktop ? '.nav-sidebar' : '.nav-bottom__items') },
+    { icon: 'plus-circle',  title: t('onboarding.step3Title'), body: t(desktop ? 'onboarding.step3BodyDesktop' : 'onboarding.step3Body'),
+      target: () => [...document.querySelectorAll('.page-fab')].find(isShownOnScreen) ?? null },
   ];
 }
+
+/** Steht das Element sichtbar im Fenster? (Ziel eines Rundgang-Schritts) */
+function isShownOnScreen(el) {
+  if (!el || !el.getClientRects().length) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0
+    && r.top < window.innerHeight && r.left < window.innerWidth;
+}
+
+/** Abstand des Lichtrings um das gezeigte Bedienelement, in px. */
+const ONBOARDING_SPOT_PAD = 6;
 
 function showOnboarding(appContainer, onDone) {
   const steps = getOnboardingSteps();
@@ -386,7 +422,38 @@ function showOnboarding(appContainer, onDone) {
   const stepEl = document.createElement('div');
   stepEl.className = 'onboarding-step';
   card.appendChild(stepEl);
+
+  /* DER LICHTRING (Re-Critique 2026-10-17, A1 "kein Bezug auf echte
+   * Bedienelemente"). Nennt ein Schritt die Leiste oder den Plus-Knopf, liegt
+   * ueber genau diesem Knopf ein Ausschnitt: der Ring traegt den Abdunkler als
+   * Schatten nach aussen (`box-shadow` mit 100vmax Spreizung), das Overlay
+   * selbst wird dafuer klar. So steht das echte Element scharf im Bild, der
+   * Rest gedimmt - ohne Maske, ohne Kopie des Elements. Klicks faengt weiter
+   * das Overlay; der Ring ist reine Anzeige (aria-hidden), der Text bleibt die
+   * Aussage. Findet sich das Ziel nicht (Modul ohne Plus, ausgeblendete
+   * Leiste), bleibt der Schritt so, wie er vorher war: Tafel auf Unschaerfe. */
+  const spot = document.createElement('div');
+  spot.className = 'onboarding-spotlight';
+  spot.setAttribute('aria-hidden', 'true');
+  overlay.appendChild(spot);
   overlay.appendChild(card);
+
+  function placeSpotlight() {
+    const target = steps[current].target?.();
+    const shown = isShownOnScreen(target);
+    overlay.classList.toggle('onboarding-overlay--spot', shown);
+    if (!shown) return;
+    const r = target.getBoundingClientRect();
+    const radius = parseFloat(getComputedStyle(target).borderTopLeftRadius) || 0;
+    const pad = ONBOARDING_SPOT_PAD;
+    spot.style.setProperty('--spot-x', `${Math.round(r.left - pad)}px`);
+    spot.style.setProperty('--spot-y', `${Math.round(r.top - pad)}px`);
+    spot.style.setProperty('--spot-w', `${Math.round(r.width + pad * 2)}px`);
+    spot.style.setProperty('--spot-h', `${Math.round(r.height + pad * 2)}px`);
+    spot.style.setProperty('--spot-r', `${Math.round(Math.min(radius + pad, (r.height + pad * 2) / 2))}px`);
+  }
+  const onResize = () => placeSpotlight();
+  window.addEventListener('resize', onResize);
 
   function fitSteps() {
     stepEl.style.minBlockSize = '';
@@ -407,10 +474,18 @@ function showOnboarding(appContainer, onDone) {
     const isLast = current === steps.length - 1;
     stepEl.replaceChildren();
 
-    const icon = document.createElement('i');
-    icon.dataset.lucide = step.icon;
-    icon.className = 'onboarding-icon';
-    icon.setAttribute('aria-hidden', 'true');
+    let icon;
+    if (step.mark) {
+      icon = document.createElement('span');
+      icon.className = 'onboarding-mark';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.insertAdjacentHTML('beforeend', brandMarkSvg());
+    } else {
+      icon = document.createElement('i');
+      icon.dataset.lucide = step.icon;
+      icon.className = 'onboarding-icon';
+      icon.setAttribute('aria-hidden', 'true');
+    }
 
     const title = document.createElement('h2');
     title.className = 'onboarding-title';
@@ -469,6 +544,7 @@ function showOnboarding(appContainer, onDone) {
     stepEl.appendChild(actions);
 
     if (window.lucide) window.lucide.createIcons({ el: stepEl });
+    placeSpotlight();
     return nextBtn;
   }
 
@@ -477,6 +553,7 @@ function showOnboarding(appContainer, onDone) {
     if (finished) return;
     finished = true;
     document.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('resize', onResize);
     localStorage.setItem(ONBOARDING_KEY, '1');
     // Am Konto vermerken, nicht nur am Geraet: sonst zeigt ein neues Geraet
     // oder ein privates Fenster den Rundgang erneut, obwohl das Konto ihn
@@ -1184,7 +1261,27 @@ function mealCookPerson(meal, users) {
   };
 }
 
-function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, includeMeals = true, now = new Date() } = {}) {
+/* WER SCHAUT (R20, Kinder-Standards). Die Seite setzt das in `render()`; die
+ * Programmzeilen fragen es, damit ein Kind seine Aufgaben zuerst sieht. */
+let dashboardViewer = null;
+
+/** Ein Kinderkonto, das der Vorgabe folgt, bekommt die Kinder-Vorgabe der Kacheln. */
+function childDefaultFor(config, user, followsDefault) {
+  return followsDefault && user?.family_role === 'child' ? childDefaultWidgetConfig(config) : config;
+}
+
+/* Gehoert eine Aufgabe NUR anderen? Fuer ein Kind ruecken solche Zeilen ans
+ * Ende des Blatts (und fallen zuerst unter „+N weitere"): eigene und
+ * niemandem zugewiesene Aufgaben zuerst. Erwachsene sehen das Blatt wie
+ * bisher - ihre Rolle ist es, den Ueberblick ueber alle zu haben. Nichts
+ * verschwindet, die Aufgabenliste zeigt weiter alles. */
+function taskForOthersOnly(task, viewer) {
+  if (viewer?.family_role !== 'child' || viewer?.id == null) return false;
+  const people = Array.isArray(task?.assigned_users) ? task.assigned_users : [];
+  return people.length > 0 && !people.some((person) => person?.id === viewer.id);
+}
+
+function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, includeMeals = true, now = new Date(), viewer = dashboardViewer } = {}) {
   const highlights = buildTodayHighlights(data);
   const todayKey = zonedDateKey(now);
   const nowStamp = householdNowStamp(now);
@@ -1247,10 +1344,14 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
       // auf einem Geraet in New York stand an „bis 18:00" in Berlin „bis 00:00".
       const dueTime = !overdue && task.due_time ? String(task.due_time).slice(0, 5) : null;
       const dueValid = dueTime && /^\d{2}:\d{2}$/.test(dueTime);
+      const othersOnly = taskForOthersOnly(task, viewer);
+      const baseKey = overdue ? '00:00' : dueValid ? dueTime : '00:02';
       rows.push({
         kind: 'task',
         objectId: task.id,
-        sortKey: overdue ? '00:00' : dueValid ? dueTime : '00:02',
+        // '~' sortiert hinter jede Uhrzeit: fremde Aufgaben eines Kindes am Ende.
+        sortKey: othersOnly ? `~${baseKey}` : baseKey,
+        othersOnly,
         timeLabel: overdue ? t('dashboard.overdue') : dueValid ? t('dashboard.todayUntil', { time: formatTime(`${task.due_date}T${dueTime}`) }) : '',
         overdue,
         title: task.title,
@@ -1263,7 +1364,7 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
         route: '/tasks',
         who: task.assigned_users?.[0] ?? null,
         people: task.assigned_users ?? [],
-        priority: overdue ? 10 : 30,
+        priority: othersOnly ? 90 : overdue ? 10 : 30,
         open: true,
       });
     }
@@ -1302,7 +1403,8 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
   // Ohne sie verspräche die Fläche abends „nichts mehr", während der
   // Schulausflug-Zettel morgen früh abgegeben werden muss.
   const allTasks = Array.isArray(data?.urgentTasks) ? data.urgentTasks : Array.isArray(data?.tasks) ? data.tasks : [];
-  const nextDueTask = allTasks.find((task) => task.due_date && task.due_date > todayKey) ?? null;
+  const laterTasks = allTasks.filter((task) => task.due_date && task.due_date > todayKey);
+  const nextDueTask = laterTasks.find((task) => !taskForOthersOnly(task, viewer)) ?? laterTasks[0] ?? null;
 
   return {
     rows,
@@ -3683,7 +3785,9 @@ const PROGRAM_ROW_CAP_PHONE = 2;
 const OVERDUE_GROUP_MIN = 2;
 
 function groupOverdueRows(rows) {
-  const overdue = rows.filter((row) => row.kind === 'task' && row.overdue);
+  // Fremde Aufgaben eines Kindes (`othersOnly`) gehen nicht in die Gruppe, die
+  // oben steht - sie bleiben einzeln am Ende des Blatts.
+  const overdue = rows.filter((row) => row.kind === 'task' && row.overdue && !row.othersOnly);
   if (overdue.length < OVERDUE_GROUP_MIN) return rows;
   const seen = new Set();
   const people = [];
@@ -3755,6 +3859,7 @@ function buildTodayCockpitModel(data, cfg = [], {
   cap = onPhoneStage() ? PROGRAM_ROW_CAP_PHONE : PROGRAM_ROW_CAP,
   now = new Date(),
   groupOverdue = onPhoneStage(),
+  viewer = dashboardViewer,
 } = {}) {
   // Kein Echo: ist das Modul-Widget einer Domäne sichtbar, entfallen ihre
   // Programm-Zeilen — jede Domäne hat genau eine Repräsentation (Cockpit ODER
@@ -3767,7 +3872,7 @@ function buildTodayCockpitModel(data, cfg = [], {
   const includeMeals = domainInCockpit('meals');
   const includeShopping = domainInCockpit('shopping');
 
-  const program = buildTodayProgram(data, { includeTasks, includeCalendar, includeMeals, now });
+  const program = buildTodayProgram(data, { includeTasks, includeCalendar, includeMeals, now, viewer });
 
   // Die uebrigen Quellen des Blatts (Dosen, Freigaben, Abfuhr, Geburtstag,
   // Schicht, Erinnerungen, Haushaltshilfe) sprechen ueber den Beitrags-Vertrag
@@ -6132,9 +6237,14 @@ function createWallFit(win, signal) {
  * merkte, wenn sie fehlte.
  */
 function rebuildWall(container, shell, { data, weather, failed, updatedAt, rerender, signal, fit, screensaverEnabled = false }) {
+  // Der stille Neuaufbau (Minutentakt, Timer) nimmt den Fokus mit, statt ihn
+  // auf <body> fallen zu lassen - dasselbe Paar wie in rebuildDashboard.
+  const doc = globalThis.document;
+  const { key: keepFocus } = captureRebuildFocus(shell, doc?.activeElement, doc?.body);
   setHtml(shell, renderWallSurface(data, weather, { failed, updatedAt, screensaverEnabled }));
   if (globalThis.window?.lucide) globalThis.window.lucide.createIcons({ el: shell });
   wireWallSurface(container, rerender, signal);
+  restoreFocusAfterRebuild(container, [keepFocus, takeWallFocusIntent('enter') ? '#wall-surface' : null]);
   // Die Titel unter den Gesichtern folgen dem Platz: nach jedem Aufbau von der
   // obersten Stufe hinab.
   return fit.show(shell, data);
@@ -6243,7 +6353,7 @@ function renderWallSurface(data, weather, { failed = false, loading = false, upd
     : '<p class="wall__updated"></p>';
 
   return `
-    <div class="wall">
+    <div class="wall" id="wall-surface" tabindex="-1" aria-label="${esc(t('settings.wallModeLabel'))}" role="region">
       ${renderClockWidget({ wall: true })}
       <div class="wall__stage${failed || loading ? ' wall__stage--single' : ''}">${main}</div>
       ${timer.display}
@@ -6312,6 +6422,7 @@ function wireWallExit(container, rerender, signal) {
   const leave = () => {
     releaseWallMarker();
     exitWallMode();
+    _wallFocusIntent = 'leave';
     // Der Toast sagt, WO der Weg zurueck liegt - wer versehentlich aussteigt,
     // soll nicht suchen muessen. Der Name kommt aus dem Schluessel des Knopfes
     // statt aus dem Satz: sonst driftet die Wegbeschreibung, sobald der Knopf
@@ -6831,6 +6942,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
   const controller = createPageController(routeSignal);
   _fabController = controller;
   const { signal } = controller;
+  dashboardViewer = user ?? null;
 
   // Der Wand-Modus ist ein Zustand DIESER Seite, kein zweiter Ort: die Route,
   // die Daten, der stille Refresh und die Echo-Regel bleiben dieselben - nur
@@ -6973,7 +7085,11 @@ export async function render(container, { user, signal: routeSignal = null } = {
       region: prefsRes.data?.region,
       locale: getLocale(),
     });
-    widgetConfig = normalizeDashboardConfigWithExtensions(prefsRes.data?.dashboard_widgets ?? buildDefaultWidgetConfig());
+    widgetConfig = childDefaultFor(
+      normalizeDashboardConfigWithExtensions(prefsRes.data?.dashboard_widgets ?? buildDefaultWidgetConfig()),
+      user,
+      prefsRes.data?.dashboard_follows_default !== false,
+    );
     savedWidgetConfig = widgetConfig.map((w) => ({ ...w }));
     /* WIDGET-OPTIONEN KOMMEN EINEN SCHRITT ZU SPAET (#814): die Uebersicht und
      * die Praeferenzen laufen absichtlich parallel los, aber welche Filter
@@ -7248,7 +7364,11 @@ export async function render(container, { user, signal: routeSignal = null } = {
     const previousQuery = dashboardQuery(savedWidgetConfig);
     try {
       const res = await api.put('/preferences', { dashboard_widgets: null, dashboard_today_glance: null });
-      widgetConfig = normalizeDashboardConfigWithExtensions(res.data?.dashboard_widgets ?? buildDefaultWidgetConfig());
+      widgetConfig = childDefaultFor(
+        normalizeDashboardConfigWithExtensions(res.data?.dashboard_widgets ?? buildDefaultWidgetConfig()),
+        user,
+        true,
+      );
       glanceVisible = res.data?.dashboard_today_glance !== false;
     } catch {
       window.yuvomi?.showToast(t('common.errorGeneric'), 'danger');
@@ -7718,6 +7838,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     }, { signal: signal });
     container.querySelector('#dashboard-wall-enter')?.addEventListener('click', () => {
       enterWallMode();
+      _wallFocusIntent = 'enter';
       // EIN KNOPF OHNE WORT SCHALTET DIE GANZE SHELL AB (#1559, D#1494): wer
       // ihn aus Neugier antippt, steht ohne Seitenleiste und Tab-Leiste da.
       // Eine Zeile sagt, was das ist und wie man herauskommt - der Name des
@@ -7744,6 +7865,18 @@ export async function render(container, { user, signal: routeSignal = null } = {
     }, { signal: signal });
     container.querySelector('#dashboard-customize-save')?.addEventListener('click', saveDashboardConfig, { signal: signal });
     container.querySelector('#dashboard-customize-cancel')?.addEventListener('click', requestCancelDashboardConfig, { signal: signal });
+    // ESC BEENDET DAS ANPASSEN (R20, Re-Critique 2026-10-17 A1 P3), wie
+    // "Abbrechen": mit Rueckfrage, wenn etwas geaendert ist. Nicht, solange
+    // ein Dialog oder Menue offen ist - deren Esc gehoert ihnen.
+    if (isCustomizing) {
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || event.defaultPrevented || !isCustomizing) return;
+        if (document.querySelector('dialog[open], .modal-overlay, [popover].is-open, .popover-menu.is-open')) return;
+        try { if (document.querySelector(':popover-open')) return; } catch { /* ohne Popover-API gibt es keins */ }
+        event.preventDefault();
+        requestCancelDashboardConfig();
+      }, { signal: signal });
+    }
     // Zwei Orte je Knopf (Leiste breit, Fussnote schmal), ein Handler.
     container.querySelectorAll('[data-customize-reset]').forEach((btn) => btn.addEventListener('click', resetDashboardConfig, { signal: signal }));
     container.querySelectorAll('[data-customize-publish]').forEach((btn) => btn.addEventListener('click', publishHouseholdDefault, { signal: signal }));
@@ -7763,6 +7896,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
       keepFocus,
       ...(focusAfterRebuild ?? []),
       ...(hadFocus && modeChanged ? ['#dashboard-customize-btn', '.dashboard-tools-btn'] : []),
+      ...(takeWallFocusIntent('leave') ? ['#dashboard-wall-enter', '.dashboard-tools-btn'] : []),
     ]);
     focusAfterRebuild = null;
     playTileFlip(shell, tileRectsBefore);
@@ -8003,7 +8137,7 @@ async function loadScheduleSlice(day) {
   };
 }
 
-export const __test = { customizeLeaveAllowed, setCustomizeFabHidden, renderCalendarWidget, renderRewardsWidget, loadScheduleSlice, renderUrgentTasks, renderUpcomingEvents, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderPantryWidget, renderFamilyWidget, renderCountdowns, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, planWallWhoLines, fitWallWho, createWallFit, rebuildWall, WALL_WHO_LADDER, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWeatherUnavailable, weatherAvailableFrom, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles, renderGridHint, captureTileRects, playTileFlip, playGridShift, familyManageHref, customizeHasChanges, todayMoreRoute, wireTodayMore, wireTodayOverdue, renderWidgetSizeMenu, renderNewPill, renderCustomizeFootnote, applyRowFill, focusKeyOf, captureRebuildFocus, restoreFocusAfterRebuild, shoppingSoleListRoute };
+export const __test = { childDefaultFor, taskForOthersOnly, customizeLeaveAllowed, setCustomizeFabHidden, renderCalendarWidget, renderRewardsWidget, loadScheduleSlice, renderUrgentTasks, renderUpcomingEvents, buildTodayHighlights, buildTodayProgram, buildTodayCockpitModel, renderTodayCockpit, renderPinnedNotes, renderScheduleWidget, renderWasteWidget, renderPantryWidget, renderFamilyWidget, renderCountdowns, formatDueDate, normalizeVisibleMealTypes, renderTodayMeals, calendarEventRoute, eventOccurrenceDateKey, eventStartDate, renderWallSurface, renderWallWho, planWallWhoLines, fitWallWho, createWallFit, rebuildWall, WALL_WHO_LADDER, renderDashboardOverview, selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey, weatherMotionAttr, weatherTempBand, weatherDayLabel, weatherTodayRange, renderWeatherWidget, renderWeatherUnavailable, weatherAvailableFrom, renderWallWeather, relativeDateLabel, listRowCap, openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles, renderGridHint, captureTileRects, playTileFlip, playGridShift, familyManageHref, customizeHasChanges, todayMoreRoute, wireTodayMore, wireTodayOverdue, renderWidgetSizeMenu, renderNewPill, renderCustomizeFootnote, applyRowFill, focusKeyOf, captureRebuildFocus, restoreFocusAfterRebuild, shoppingSoleListRoute };
 
 // `signal` ist der Controller des Aufbaus, der die Wetterkarte gezeichnet hat
 // (#976/#977). Vorher las diese Funktion das Modul-Feld `_fabController` -

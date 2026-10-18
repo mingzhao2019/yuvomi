@@ -47,6 +47,11 @@ const STUBS = {
       logout: async () => ({ ok: true }),
       updateProfile: async () => ({ user: null }),
     };
+    export const email = {
+      getConfig: async () => ({ data: null }),
+      saveConfig: async () => ({ data: null }),
+      test: async () => ({ data: null }),
+    };
     export const notifications = {
       providers: async () => ({ data: [] }),
       listChannels: async () => ({ data: [] }),
@@ -208,6 +213,11 @@ const STUBS = {
     export const reportFieldError = (...args) => {
       globalThis.__reportFieldError?.(...args);
       return false;
+    };
+    // Das Gegenstueck: wer sehen will, dass ein Handler einen alten
+    // Feldfehler raeumt, setzt globalThis.__clearFieldError.
+    export const clearFieldError = (...args) => {
+      globalThis.__clearFieldError?.(...args);
     };
     // Wie das Original (components/modal.js): alle Eintraege mit Feld, je Feld
     // der erste - ueber __reportFieldError gemeldet, in der Reihenfolge der

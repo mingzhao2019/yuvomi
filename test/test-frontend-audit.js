@@ -1719,6 +1719,16 @@ test('personal device leaf owns PWA installation state and disconnect cleanup', 
   assert.match(source, /id="pwa-install-status"[^>]*aria-live=/);
   assert.match(source, /id="pwa-install-error"[^>]*role="alert"/);
   assert.match(source, /id="pwa-install-btn"[^>]*aria-describedby="pwa-install-status pwa-install-error"/);
+  // R20 (Re-Critique 2026-10-17 a5 P2-9): kein deaktivierter Primaerknopf ohne
+  // Weg dahinter. Installiert und nicht verfuegbar verschwindet der Knopf, der
+  // Status traegt die Auskunft (wo es die Installation gibt).
+  const branch = (from, to) => source.slice(source.indexOf(from), source.indexOf(to, source.indexOf(from)));
+  assert.match(branch("t('settings.pwaInstallInstalled')", 'return;'), /button\.hidden = true/, 'installiert: kein Knopf');
+  assert.match(branch("t('settings.pwaInstallUnavailable')", '};'), /button\.hidden = true/, 'nicht verfuegbar: kein Knopf');
+  assert.match(branch("t('settings.pwaInstallReady')", 'return;'), /button\.disabled = false/);
+  assert.match(source, /button\.hidden = false;\s*\n\s*if \(state\.installed\)/, 'jeder Zustand setzt den Knopf zuerst wieder sichtbar');
+  const de = JSON.parse(read('../public/locales/de.json')).settings.pwaInstallUnavailable;
+  assert.match(de, /Browsermenü[\s\S]*Safari[\s\S]*HTTPS/, 'der Status nennt den Weg statt nur "nicht verfuegbar"');
 });
 
 test('module-specific settings leaves exist and export async render functions', () => {
@@ -7013,13 +7023,42 @@ test('route failures expose a localized recoverable alert instead of raw technic
   // Renderers (`error` -> `role="alert"`, utils/empty-state.js) statt aus einem
   // setAttribute hier. Geprueft wird deshalb die Variante - die Rolle selbst
   // haelt der Renderer-Guard weiter oben fest.
-  assert.match(router, /function renderError\(container,\s*err\)[\s\S]*emptyStateEl\(\{[\s\S]{0,200}?variant:\s*'error'/);
-  assert.match(router, /function renderError\(container,\s*err\)[\s\S]*description:\s*friendlyError\(err\)/);
+  // Seit der Re-Critique 2026-10-17 nimmt renderError den Seitennamen mit
+  // (Test darunter); die Ursache bleibt friendlyError(err).
+  assert.match(router, /function renderError\(container,\s*err[,)][\s\S]*emptyStateEl\(\{[\s\S]{0,1200}?variant:\s*'error'/);
+  assert.match(router, /function renderError\(container,\s*err[,)][\s\S]*const cause = friendlyError\(err\);[\s\S]*description:[^\n]*: cause,/);
   assert.match(router, /state\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
   assert.match(friendly, /Failed to fetch\|NetworkError\|Load failed/i);
   assert.match(friendly, /return t\(['"]common\.errorServer['"]\)/);
   assert.match(friendly, /err\?\.name === ['"]TypeError['"][\s\S]*return t\(['"]common\.unexpectedError['"]\)/);
   assert.match(notesPage, /catch \(err\)\s*\{[\s\S]*console\.error\([\s\S]*throw err;/);
+});
+
+// Re-Critique 2026-10-17 (A1, Shell): der Fehlerbildschirm einer Seite war
+// austauschbar - "Etwas ist schiefgelaufen." und nur "Neu laden", obwohl die
+// Shell steht und nur EINE Seite gescheitert ist. Er nennt jetzt die Seite mit
+// ihrem Namen aus der Navigation, sagt, dass der Rest weiterlaeuft, und bietet
+// den Weg zur Uebersicht (ausser auf der Uebersicht selbst). Ohne Shell (Start
+// gescheitert) bleibt der allgemeine Titel.
+test('Re-Critique 2026-10-17: der Fehlerbildschirm nennt die Seite und fuehrt zur Uebersicht', () => {
+  const router = read('../public/router.js');
+  const fn = router.slice(router.indexOf('function renderError('), router.indexOf('function errorDetails('));
+  assert.match(fn, /^function renderError\(container, err, \{ page = null, home = false \} = \{\}\)/);
+  assert.match(fn, /title: page \? t\('common\.pageFailedTitle', \{ page \}\) : t\('common\.errorOccurred'\)/);
+  assert.match(fn, /description: page \? `\$\{cause\} \$\{t\('common\.pageFailedHint'\)\}` : cause,/);
+  assert.match(fn, /actions: home\s*\? \[reload, \{ label: t\('common\.toOverview'\)[^\n]*onClick: \(\) => navigate\('\/'\) \}\]\s*: \[reload\]/);
+  assert.match(fn, /className: 'page-crash'/);
+  // Der Aufrufer im Seitenwechsel reicht Namen und Rueckweg herein; der Start
+  // ohne Shell ruft ohne.
+  assert.match(router, /renderError\(errorHost, err, \{\s*page: navCatalog\(\)\.find\(\(n\) => n\.path === route\.path\)\?\.label \?\? null,\s*home: route\.path !== '\/',\s*\}\)/);
+  assert.match(router, /renderError\(document\.getElementById\('app'\), err\);/);
+  // Region-Fokusziel ohne Rahmen um die halbe Seite (wie .page-unreachable).
+  assert.match(read('../public/styles/layout.css'), /\.page-crash:focus,\s*\.page-crash:focus-visible \{\s*outline: none;/);
+  for (const loc of readdirSync(new URL('../public/locales/', import.meta.url)).filter((f) => f.endsWith('.json'))) {
+    const common = JSON.parse(read(`../public/locales/${loc}`)).common;
+    assert.match(common.pageFailedTitle, /\{\{page\}\}/, loc);
+    assert.ok(common.pageFailedHint && common.toOverview, loc);
+  }
 });
 
 test('Notes keeps user colours off the reading surface', () => {
@@ -18405,6 +18444,16 @@ test('PAGE-019: der Liste-+-Detail-Baustein misst die Modulflaeche an der Schwel
   assert.ok(listMin >= 420 && listMax <= 520 && listMin < listMax,
     `PAGE-019: Listenbahn ${listMin}-${listMax}px liegt nicht in 420-520px`);
 
+  // Die zweite Stufe (Re-Critique 2026-10-17): sobald der Baustein auf seinem
+  // Deckel steht (Content-Spalte + 2 Desktop-Gutter), nimmt die Liste
+  // --layout-list-wide. Die Zahl der Abfrage ist genau dieser Deckel.
+  const capPx = Number(tokens.match(/--content-max-width:\s*([0-9]+)px/)[1])
+    + 2 * Number(tokens.match(/--space-8:\s*([0-9]+)px/)[1]);
+  assert.match(tokens, /:root[\s\S]*@media[^{]*\{[^}]*--page-gutter:\s*var\(--space-8\)/, 'der Desktop-Gutter ist --space-8');
+  const capRem = capPx / 16;
+  const listWide = rem('--layout-list-wide') * 16;
+  assert.ok(listWide > listMax && listWide <= 720, `PAGE-019: --layout-list-wide ${listWide}px muss zwischen Listenbahn und Lesemass liegen`);
+  let wideGrid = null;
   let containerRule = null;
   let hiddenOutside = false;
   let shownInside = false;
@@ -18417,6 +18466,11 @@ test('PAGE-019: der Liste-+-Detail-Baustein misst die Modulflaeche an der Schwel
     if (!/@container\s+module-surface/.test(chain)) continue;
     const width = chain.match(/min-width:\s*([0-9.]+)rem/);
     assert.ok(width, `PAGE-019: @container module-surface ohne min-width in rem (${chain})`);
+    if (Number(width[1]) === capRem) {
+      assert.equal(sel, '.split-view', `PAGE-019: die Deckel-Stufe ${capRem}rem traegt nur die Listenbahn`);
+      wideGrid = body;
+      continue;
+    }
     assert.equal(Number(width[1]), threshold,
       `PAGE-019: Schwelle in layout.css ${width[1]}rem, tokens.css --layout-split-threshold ${threshold}rem - `
       + '@container kann keine Variable lesen, beide Stellen muessen gleich stehen');
@@ -18432,6 +18486,7 @@ test('PAGE-019: der Liste-+-Detail-Baustein misst die Modulflaeche an der Schwel
   let splitQueries = 0;
   for (const file of readdirSync(new URL('../public/styles/', import.meta.url)).filter((name) => name.endsWith('.css'))) {
     for (const m of read(`../public/styles/${file}`).matchAll(splitQuery)) {
+      if (file === 'layout.css' && m[1] === 'module-surface' && `${m[2]}${m[3]}` === `${capRem}rem`) continue;
       splitQueries += 1;
       assert.equal(`${m[2]}${m[3]}`, `${threshold}rem`,
         `PAGE-019: ${file} schaltet @container ${m[1]} bei ${m[2]}${m[3]}, tokens.css --layout-split-threshold steht bei ${threshold}rem`);
@@ -18461,6 +18516,29 @@ test('PAGE-019: der Liste-+-Detail-Baustein misst die Modulflaeche an der Schwel
     'PAGE-019: .split-view muss ab der Schwelle auf --content-max-width + 2 Gutter gedeckelt sein (Fluchtlinie Kopf)');
   assert.match(gridInside, /margin-inline:\s*auto/,
     'PAGE-019: der gedeckelte Baustein steht mittig wie die Content-Spalte des Kopfs');
+  assert.ok(wideGrid && /grid-template-columns:\s*var\(--layout-list-wide\)\s+minmax\(0,\s*1fr\)/.test(wideGrid),
+    `PAGE-019: ab ${capRem}rem (Deckel) nimmt die Liste --layout-list-wide - sonst kuerzt sie bei 1920, waehrend daneben Platz steht`);
+  // Tablet unter der Schwelle: die Liste steht auf der Breite ihres Kopfs.
+  const tablet = [...eachRule(layout)].find(({ selector, at }) => selector.trim() === '.app-page--list-detail > *'
+    && at.join(' ').includes('(min-width: 640px) and (max-width: 1023px)'));
+  assert.ok(tablet && /--page-measure:\s*100%/.test(tablet.body), 'PAGE-019: am Tablet laeuft die Liste so breit wie ihr Kopf');
+});
+
+// Re-Critique 2026-10-17 (A2): in einer Gruppe mit nur einer Zeile blendete
+// list-row.css den Sortiergriff per `display: none` aus, tasks.css nahm dort
+// seine Spalte weg - Menge, Avatare und Mehr-Knopf standen in der Einzelzeile
+// um die Griffbreite weiter rechts (Einkauf 390: x 314 statt 276, Aufgaben
+// 324 statt 282). Der Griff bleibt unsichtbar stehen, die Spalte bleibt.
+test('Zeilen: der Griff der Einzelzeile haelt seinen Platz, die Bedienzone springt nicht', () => {
+  const listRow = [...eachRule(read('../public/styles/list-row.css'))]
+    .find(({ selector, at }) => !at.length && selector.includes('.row-carrier > .swipe-row:only-child .list-row__drag'));
+  assert.ok(listRow, 'die Einzelzeilen-Regel des Griffs fehlt');
+  assert.match(listRow.body, /visibility:\s*hidden/, 'unsichtbar, nicht entfernt');
+  assert.doesNotMatch(listRow.body, /display:\s*none/, 'display: none nimmt der Bedienzone die Breite');
+  const tasks = read('../public/styles/tasks.css');
+  assert.doesNotMatch(tasks, /\.swipe-row:not\(:only-child\) \.task-card__main:has\(> \.list-row__drag\)/,
+    'die Griffspalte der Aufgabenzeile gilt auch in der Einzelzeile');
+  assert.match(tasks, /\.task-card__main:has\(> \.list-row__drag\) \{\s*grid-template-columns: auto minmax\(0, 1fr\) auto auto;/);
 });
 
 test('PAGE-020: eine Aussenkante je Modul - kein Reiter schaltet das Mass oder den Kopf um', () => {
@@ -18922,7 +19000,8 @@ test('router: ein AbortController je Seitenaufbau, abgebrochen vor dem naechsten
   const router = withoutBlockComments(read('../public/router.js'));
   const renderPage = router.slice(router.indexOf('async function renderPage('));
   assert.ok(renderPage.length > 100, 'renderPage() nicht gefunden');
-  const abortAt = renderPage.indexOf('_pageController?.abort();');
+  // R20: mit festem Grund (PAGE_LEFT, router.js) - derselbe Abbruch an derselben Stelle.
+  const abortAt = renderPage.indexOf('_pageController?.abort(PAGE_LEFT);');
   const createAt = renderPage.indexOf('_pageController = new AbortController();');
   const renderAt = renderPage.indexOf('module.render(target, context)');
   assert.ok(abortAt > 0 && createAt > abortAt && renderAt > createAt,
@@ -22008,4 +22087,181 @@ test('R19: die Nadel der Notizkarte zeichnet so gross wie die Zeilenaktion daneb
   const layout = [...eachRule(read('../public/styles/layout.css'))].filter((r) => !r.at.length);
   const size = layout.find((r) => r.selector.split(',').map((x) => x.trim()).includes('.row-action svg'));
   assert.ok(size && size.selector.includes('.note-card__pin svg'), 'Nadel und Zeilenaktion teilen EINE Groessenregel');
+});
+
+// R20 D1 (Re-Critique 2026-10-17, A2 P1-2): das Kaestchen der Einkaufszeile
+// zog seine Kante aus der Kartenkante (--color-border) und stand gerendert bei
+// 1,32:1 hell und 1,47:1 dunkel - das meistgetippte Bedienelement des Moduls
+// war das blasseste. Es teilt jetzt die Ruhe des Abhakkreises (.check-ring,
+// 2px --color-text-tertiary): EINE Tonregel fuer alles, was sich abhaken
+// laesst, und 3:1 (WCAG 1.4.11) auf Grund und eigener Flaeche.
+test('R20: das Einkaufskaestchen traegt die Ruhe des Abhakkreises und haelt 3:1', () => {
+  const shopping = [...eachRule(read('../public/styles/shopping.css'))].filter((r) => !r.at.length);
+  const box = shopping.find((r) => r.selector.trim() === '.item-check::before');
+  assert.ok(box, 'shopping.css fuehrt das Kaestchen als `.item-check::before`');
+  const ring = [...eachRule(read('../public/styles/list-row.css'))].find((r) => r.selector.trim() === '.check-ring::after');
+  const edgeOf = (body) => body.match(/border:\s*([^;]+);/)?.[1].trim();
+  assert.equal(edgeOf(box.body), edgeOf(ring.body), 'Kaestchen und Abhakkreis tragen dieselbe Kante');
+  const token = edgeOf(box.body).match(/var\((--[\w-]+)\)/)?.[1];
+  const { light, dark } = themeTokenMaps();
+  for (const [theme, map] of [['light', light], ['dark', dark]]) {
+    const edge = resolveColor(token, map);
+    for (const ground of ['--color-surface', '--color-bg']) {
+      const ratio = contrastRatio(edge, resolveColor(ground, map));
+      assert.ok(ratio >= 3, `${theme}: Kaestchenkante ${token} auf ${ground} nur ${ratio.toFixed(2)}:1`);
+    }
+  }
+});
+
+// R20 D3 (Re-Critique 2026-10-17, A1 P2-5 / A2 P2-2): der Auswahlmodus der
+// Aufgaben am Telefon - Kapsel und FAB blieben unter der Pille stehen, der
+// Wisch-Pfeil blieb an der Zeile, ein Tipp auf die Metazeile waehlte nicht,
+// die gewaehlte Zeile war nur am Kreis zu erkennen, und am Desktop las sich
+// die Markierung der offenen Zeile bei „0 ausgewaehlt" wie ein erster Haken.
+test('R20: der Auswahlmodus nimmt Kapsel, FAB und Wisch-Pfeil weg, die ganze Zeile waehlt', () => {
+  const layout = [...eachRule(read('../public/styles/layout.css'))];
+  const top = (sel) => layout.find((r) => !r.at.length && r.selector.trim() === sel);
+  const narrow = (sel) => layout.find((r) => r.at.some((a) => /max-width:\s*1023px/.test(a)) && r.selector.trim() === sel);
+  assert.match(top('html:has(.app-page.is-selecting) .page-fab')?.body ?? '', /display:\s*none/, 'der FAB tritt ab - in der Shell, fuer jede Seite mit Modus');
+  assert.match(narrow('html:has(.app-page.is-selecting) .nav-bottom')?.body ?? '', /display:\s*none/, 'mobil tritt auch die Kapsel ab');
+  assert.ok(narrow('html:has(.app-page.is-selecting) .shell-bottom-stack:not([data-dock])'), 'die Pille rueckt an den Platz der Kapsel');
+  assert.match(top('.app-page.is-selecting .swipe-row::after')?.body ?? '', /content:\s*none/, 'kein Wisch-Pfeil an einer Zeile, die man waehlt');
+  assert.doesNotMatch(read('../public/styles/contacts.css'), /html:has\(\.contacts-page\.is-selecting\)/, 'keine zweite Fassung in den Kontakten');
+
+  const tasks = read('../public/pages/tasks.js');
+  const list = tasks.slice(tasks.indexOf('function renderTaskList('), tasks.indexOf('function renderTaskList(') + 600);
+  assert.match(list, /classList\.toggle\('is-selecting', state\.bulkSelectMode\)/, 'der Modus steht an der Seitenwurzel');
+  const wire = tasks.slice(tasks.indexOf('function wireTaskList('), tasks.indexOf("const action = target.dataset.action;", tasks.indexOf('function wireTaskList(')));
+  assert.match(wire, /if \(!target\) \{[\s\S]*state\.bulkSelectMode[\s\S]*toggleTaskSelection\(circle, container\)/, 'ein Tipp ohne Ziel waehlt im Modus die Zeile');
+  assert.match(tasks, /task-card--selected/, 'die gewaehlte Zeile traegt eine Klasse');
+  const css = [...eachRule(read('../public/styles/tasks.css'))].filter((r) => !r.at.length);
+  assert.ok(css.some((r) => r.selector.includes('.tasks-page .task-card--selected > .task-card__main') && /--color-accent/.test(r.body)), 'die gewaehlte Zeile ist im App-Akzent getoent');
+  assert.ok(css.some((r) => r.selector.trim() === '.tasks-page.is-selecting .task-card.is-selected:not(.task-card--selected)' && /transparent/.test(r.body)), 'die Spalten-Markierung schweigt waehrend der Auswahl');
+});
+
+// R20 D4 (Re-Critique 2026-10-17, A1 P2-6): der Wand-Modus verlor den Fokus an
+// <body> - nach dem Start und nach Esc -, die Timer-Kapseln hatten kein
+// sichtbares Wort, und die Zaehlmarke deckte bei 1280x800 79 bis 118px² der
+// Initialen zu.
+test('R20: der Wand-Modus fuehrt den Fokus, benennt den Timer und laesst die Initialen frei', () => {
+  const dash = read('../public/pages/dashboard.js');
+  assert.match(dash, /<div class="wall" id="wall-surface" tabindex="-1"/, 'die Flaeche ist der Landeplatz des Fokus');
+  const enter = dash.slice(dash.indexOf("querySelector('#dashboard-wall-enter')?.addEventListener('click'"));
+  assert.match(enter.slice(0, 200), /_wallFocusIntent = 'enter'/, 'der Start merkt sich, wohin der Fokus soll');
+  const wall = dash.slice(dash.indexOf('function rebuildWall('), dash.indexOf('function renderWallWeather('));
+  assert.match(wall, /captureRebuildFocus\(/, 'der stille Neuaufbau nimmt den Fokus mit');
+  assert.match(wall, /takeWallFocusIntent\('enter'\) \? '#wall-surface'/, 'nach dem Start steht er auf der Flaeche');
+  const leave = dash.slice(dash.indexOf('function wireWallExit('), dash.indexOf('function wireWallExit(') + 400);
+  assert.match(leave, /_wallFocusIntent = 'leave'/, 'der Ausstieg merkt sich den Rueckweg');
+  assert.match(dash, /takeWallFocusIntent\('leave'\) \? \['#dashboard-wall-enter', '\.dashboard-tools-btn'\]/, 'nach Esc steht er auf dem Knopf, der die Wand wieder oeffnet');
+
+  const timer = read('../public/components/wall-timer.js');
+  assert.match(timer, /role="group" aria-labelledby="wall-timer-presets-label"/, 'die sichtbare Zeile ist der Name der Gruppe');
+  assert.match(timer, /class="wall__timer-presets-label" id="wall-timer-presets-label"/);
+
+  const css = [...eachRule(read('../public/styles/dashboard.css'))].filter((r) => !r.at.length);
+  const count = css.find((r) => r.selector.trim() === '.wall-who__count');
+  assert.match(count?.body ?? '', /inset-inline-start:\s*calc\(100% - var\(--space-3\)\)/, 'die Marke waechst vom Gesicht weg, nicht ueber die Buchstaben');
+  assert.doesNotMatch(count?.body ?? '', /inset-inline-end/);
+  assert.ok(css.some((r) => r.selector.trim() === '.wall-who__list--tasks .wall-who__mark' && /display:\s*contents/.test(r.body)), 'mit Titeln steht die Marke hinter dem Namen');
+});
+
+// R20 D6 (Re-Critique 2026-10-17, A3 Sam): Enter auf einen leeren Monatstag
+// landete auf dem Reiter „Tag" - jetzt auf dem Hinweis im Raster des Tages.
+test('R20: ein leerer Tag gibt den Fokus an seinen Hinweis, nicht an den Reiter', () => {
+  const cal = read('../public/pages/calendar.js');
+  assert.match(cal, /class="day-view__empty-hint" id="day-empty-hint" tabindex="-1"/, 'der Hinweis kann den Fokus nehmen');
+  const fn = cal.slice(cal.indexOf('function focusFirstDayEntry('), cal.indexOf('function focusFirstDayEntry(') + 400);
+  assert.match(fn, /\?\? body\?\.querySelector\('#day-empty-hint'\)/, 'ohne Eintrag der Hinweis');
+  assert.ok(fn.indexOf('#day-empty-hint') < fn.indexOf('#cal-view-tab-day'), 'der Reiter ist nur noch der letzte Rueckfall');
+});
+
+// R20 D7 (Re-Critique 2026-10-17, A5 Sam): am Desktop 30 Tab-Stopps (Suche und
+// Seitenleiste) vor dem ersten Feld eines Einstellungsblatts. Eine Sprungmarke
+// steht als erster Stopp der Leiste und fuehrt ins Blatt.
+test('R20: die Einstellungsleiste beginnt mit einer Sprungmarke ins Blatt', () => {
+  const shell = read('../public/settings/shell.js');
+  const nav = shell.slice(shell.indexOf('function createNavigation('), shell.indexOf('function createSheetSkipLink('));
+  assert.match(nav, /createNavigationSearch\([^)]*\);\s*navigation\.prepend\(createSheetSkipLink\(\)\);/, 'VOR der Suche, also der erste Stopp');
+  const skip = shell.slice(shell.indexOf('function createSheetSkipLink('), shell.indexOf('const SKIP_TARGET'));
+  assert.match(skip, /link\.className = 'sr-only settings-shell__skip'/, 'dasselbe Muster wie die Marke der Shell');
+  assert.match(skip, /event\.preventDefault\(\)/, 'ein Fokuswechsel, kein Hash');
+  assert.match(skip, /first\.focus\(\)/);
+  assert.match(shell, /content\.id = 'settings-sheet';/);
+  const css = [...eachRule(read('../public/styles/settings.css'))];
+  assert.ok(css.some((r) => r.selector.trim() === '.settings-page:not(.settings-page--leaf) .settings-shell__skip' && /display:\s*none/.test(r.body)), 'ohne Blatt keine Marke');
+});
+
+// R20 D8 (Re-Critique 2026-10-17, A5 P2-7): das „Einnahmeprotokoll" war ein
+// `summary` mit `display: flex` - ohne Dreieck, ohne Chevron, 40px hoch, und
+// las sich wie eine Ueberschrift.
+test('R20: der Aufklapper des Einnahmeprotokolls zeigt, dass er aufgeht, und hat volle Zielhoehe', () => {
+  const health = read('../public/pages/health.js');
+  assert.match(health, /<details class="health-medlog">\s*<summary>[\s\S]*?data-lucide="chevron-down" class="health-medlog__chevron"/, 'der Chevron steht im summary');
+  const css = [...eachRule(read('../public/styles/health.css'))].filter((r) => !r.at.length);
+  const rule = (sel) => css.find((r) => r.selector.trim() === sel)?.body ?? '';
+  assert.match(rule('.health-medlog summary'), /min-height:\s*var\(--target-base\)/, 'am Finger 48px');
+  assert.match(rule('.health-medlog[open] .health-medlog__chevron'), /rotate\(180deg\)/, 'offen dreht er sich');
+});
+
+// R20 D9 (a11y-Baseline origin/main, axe 4.14): label-content-name-mismatch auf
+// 60 Ansichten (serious) und drei Landmark-Befunde. Je Template ein Satz:
+// sichtbarer Text muss im Namen stehen (WCAG 2.5.3), sonst traegt der Inhalt den
+// Namen und die Handlung steht als sr-only-Nachsatz.
+test('R20: sichtbare Etiketten stehen im Namen, und es gibt genau einen Hauptbereich', () => {
+  const router = read('../public/router.js');
+  const sync = router.slice(router.indexOf('function syncSidebarAccount('), router.indexOf('function syncSidebarAccount(') + 2200);
+  assert.match(sync, /avatar\.dataset\.initials = initials\(displayName\)/, 'Initialen des Kontoknopfs als Zeichnung');
+  assert.doesNotMatch(sync, /avatar\.textContent = initials/, 'kein Textknoten „LI" im Etikett');
+  assert.match(read('../public/styles/layout.css'), /\.nav-sidebar__avatar\[data-initials\]::before \{\s*content: attr\(data-initials\);/);
+  const rewards = read('../public/pages/rewards.js');
+  assert.match(rewards, /class="rw-avatar rw-avatar--initials" aria-hidden="true" data-initials=/);
+  assert.match(read('../public/styles/rewards.css'), /\.rw-avatar--initials::before \{ content: attr\(data-initials\); \}/);
+
+  const fab = read('../public/utils/fab.js');
+  assert.match(fab, /export function syncFabName\(/, 'eine Namensregel fuer den FAB');
+  const dock = router.slice(router.indexOf('function dockFabIntoToolbar('), router.indexOf('function markFabShortcut('));
+  assert.match(dock, /syncFabName\(fab\);/, 'angedockt heisst er, was er zeigt');
+  assert.match(router.slice(router.indexOf('function undockFabFromToolbar(')).slice(0, 600), /syncFabName\(fab\);/, 'schwebend wieder sein Satz');
+
+  const cal = read('../public/pages/calendar.js');
+  const cell = cal.slice(cal.indexOf('function renderMonthDay('), cal.indexOf('function renderMonthDay(') + 7000);
+  assert.doesNotMatch(cell, /role="gridcell"[^>]*aria-label=/, 'die Monatszelle hat kein aria-label mehr');
+  assert.match(cell, /<span class="sr-only month-day__label">\$\{esc\(monthDayAriaLabel\(/, 'dieselbe Zusammenfassung als Inhalt');
+  assert.match(cell, /<div class="month-day__visual" aria-hidden="true">/);
+  assert.match(read('../public/styles/calendar.css'), /\.month-day__visual \{\s*display: contents;/, 'die Geometrie bleibt');
+
+  assert.match(read('../public/pages/health.js'), /const parts = \[String\(Number\(String\(c\.dateKey\)\.slice\(8, 10\)\)\), formatDate\(c\.dateKey\)\];/, 'Zyklustag: die Ziffer zuerst');
+  assert.match(read('../public/utils/sub-tabs.js'), /btn\.append\(document\.createTextNode\(' '\), badge\);/, '„Einkauf 23" statt „Einkauf23"');
+  const budget = read('../public/pages/budget.js');
+  assert.match(budget, /<button class="budget-account__main" type="button" data-drill="\$\{a\.id\}">/, 'Kontozeile ohne aria-label');
+  assert.match(budget, /<span class="sr-only">, \$\{esc\(t\('budget\.showAccountTransactions'\)\)\}<\/span>/);
+  const split = read('../public/pages/split-expenses.js');
+  assert.doesNotMatch(split, /class="split-expense" data-(?:expense|recurring)-id="[^"]*"[^>]*aria-label=/, 'Ausgleichszeilen ohne aria-label');
+  assert.doesNotMatch(split, /<main class=/, 'kein zweites <main> im Budget-Reiter');
+  assert.match(read('../public/pages/housekeeping.js'), /<div class="metric-grid budget-glance-details housekeeping-task-summary" role="group"/, 'keine zweite Region „Aufgaben"');
+});
+
+// DIE !important-SPERRKLINKE (R20, Entscheidung Ulas 2026-10-18). `@layer`
+// ist vertagt, bis das Mindestziel Chrome 99 / Firefox 97 / Safari 15.4 traegt
+// (docs/DECISIONS.md); bis dahin darf die Zahl der echten `!important` nur
+// sinken. Zaehlregel: jede Deklaration mit `!important` in einer Regel, die
+// `eachRule()` in public/styles/*.css liefert - Kommentare zaehlen nicht,
+// `@media`/`@supports`/`@container` zaehlen mit, `@keyframes` nicht (dort
+// ignoriert der Browser `!important` ohnehin). vendor/ liegt nicht unter
+// public/styles. Stand 2026-10-18: 34. Wer eins entfernt, senkt die Zahl.
+const IMPORTANT_CEILING = 34;
+test('!important-Sperrklinke: echte !important-Deklarationen in public/styles werden nicht mehr', () => {
+  const dir = new URL('../public/styles/', import.meta.url);
+  const found = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.css'))) {
+    for (const rule of eachRule(readFileSync(new URL(file, dir), 'utf8'))) {
+      for (const decl of rule.body.split(';')) {
+        if (/!\s*important/i.test(decl)) found.push(`${file}: ${rule.selector.slice(0, 50)} { ${decl.trim()} }`);
+      }
+    }
+  }
+  assert.ok(found.length > 20, `Reichweite: nur ${found.length} Treffer - zaehlt der Scanner noch?`);
+  assert.ok(found.length <= IMPORTANT_CEILING,
+    `${found.length} echte !important statt hoechstens ${IMPORTANT_CEILING}. Neue Vorrangregel ueber Spezifitaet oder Quellreihenfolge loesen, nicht ueber !important:\n${found.join('\n')}`);
 });

@@ -42,6 +42,9 @@
         "errorOccurred": "Noe gikk galt.",
         "unexpectedError": "En uventet feil oppstod.",
         "errorDetails": "Tekniske detaljer",
+        "pageFailedTitle": "Siden {{page}} kan ikke åpnes akkurat nå",
+        "pageFailedHint": "Alle andre deler fungerer som før.",
+        "toOverview": "Til oversikten",
         "errorGeneric": "En feil oppstod.",
         "updateAvailable": "Oppdatering tilgjengelig - last inn siden på nytt for å få den nyeste versjonen.",
         "titleRequired": "Tittel er påkrevd",
@@ -84,7 +87,10 @@
         },
         "toShoppingListNamed": "Legg til {{title}} i handlelisten",
         "emailInUse": "Denne e-postadressen tilhører allerede en annen konto.",
+        "emailInvalid": "Skriv inn en gyldig e-postadresse.",
         "sessionUnreachableTitle": "Tilkoblingen ble brutt",
+        "serverNotReadyTitle": "Serveren er ikke klar akkurat nå",
+        "rateLimitedTitle": "For mange forespørsler",
         "sessionRetryHint": "Du forblir pålogget. Nytt forsøk om {{seconds}} s.",
         "sessionRetrying": "Prøver på nytt…",
         "searchNoResultsTitle": "Ingen treff",
@@ -1553,10 +1559,12 @@
         "deleteLoanPaymentConfirm": "Slett denne lånebetalingen?",
         "loanRemainingAmount": "Gjenstående",
         "loanRemainingPrincipal": "Utestående saldo",
+        "loanOwedToYou": "Du har fortsatt til gode",
         "loanStillToPay": "Gjenstår å betale",
         "loanPrincipalAmount": "Lånebeløp",
         "loanRemainingInstallments": "Gjenværende avdrag",
         "loanPaidAmount": "Betalt",
+        "loanReceivedAmount": "Tilbakebetalt",
         "loansEmpty": "Ingen aktive lån.",
         "loanInstallmentMeta": "{{paid}} av {{total}} avdrag betalt",
         "loanRemainingOf": "av {{total}}",
@@ -1568,7 +1576,8 @@
         "loanSortBalance": "Laveste utestående saldo først",
         "loanSortActive": "Sorter: {{sort}}",
         "loanPaidStatus": "Betalt",
-        "markLoanPaid": "Marker som betalt",
+        "loanBookInstallment": "Registrer avdrag",
+        "loanReceiveRepayment": "Tilbakebetaling mottatt",
         "loanBorrowerLabel": "Låntaker",
         "loanDirectionLabel": "Lånetype",
         "loanDirectionLent": "Utlånt (betalt tilbake til meg)",
@@ -1736,8 +1745,6 @@
         "accountType_credit": "Kredittkort",
         "accountType_investment": "Investering",
         "accountType_other": "Annet",
-        "viewAccountTransactions": "Vis transaksjoner for {{name}}",
-        "currentBalance": "Nåværende saldo",
         "clearAccountFilter": "Tøm kontofilter",
         "archivedBadge": "Arkivert",
         "showArchivedAccounts": "Vis arkiverte",
@@ -1780,6 +1787,7 @@
         "statsPointsLabel": "Verdier for trendlinje",
         "statsPointLabel": "{{period}}: inntekt {{income}}, utgifter {{expenses}}",
         "statsPointLabelCumulative": "Opp til {{period}}: inntekt {{income}}, utgifter {{expenses}}",
+        "statsPlannedRest": "+ {{amount}} planlagt",
         "receiptsLabel": "Kvitteringer",
         "receiptsHint": "Kvittering eller faktura for denne transaksjonen.",
         "receiptDocumentName": "Kvittering: {{title}} ({{date}})",
@@ -1828,7 +1836,8 @@
         "ledgerSortDate": "Etter dato",
         "ledgerSortAmount": "Etter beløp",
         "ledgerSortActive": "Sortering: {{sort}}",
-        "ledgerAccountsAll": "Alle kontoer"
+        "ledgerAccountsAll": "Alle kontoer",
+        "showAccountTransactions": "Vis transaksjoner"
     },
     "settings": {
         "healthCycleEnableLabel": "Tilby syklusen i husstanden",
@@ -2030,6 +2039,8 @@
         "confirmPasswordLabel": "Bekreft nytt passord",
         "savePassword": "Lagre passord",
         "passwordMismatch": "Passordene stemmer ikke overens.",
+        "currentPasswordWrong": "Det nåværende passordet stemmer ikke.",
+        "passwordTooShort": "Minst 8 tegn.",
         "passwordSavedToast": "Passordet ble endret.",
         "oidcLinkTitle": "Single sign-on",
         "oidcLinkHint": "Koble SSO-kontoen din til denne slik at innlogging via leverandøren fører deg hit i stedet for å opprette en ny konto.",
@@ -2139,6 +2150,7 @@
         "familyRoleGrandparent": "Besteforelder",
         "familyRoleRelative": "Slektning",
         "familyRoleOther": "Familiemedlem",
+        "childStartHint": "Nye barnekontoer starter uten Budsjett og faste og ser Husholdningshjelp bare for lesing, uten lønn og betalinger. Du kan endre dette senere under «Roller og tillatelser».",
         "systemAdminLabel": "Systemadministrator",
         "systemAdminHint": "Systemadministratorer kan administrere applikasjonsinnstillinger, integrasjoner, API-tokener og familiekontoer.",
         "systemAdminBadge": "Systemadministrator",
@@ -2155,7 +2167,7 @@
         "removeMemberNamed": "Fjern {{name}}",
         "memberDeactivatedToast": "{{name}} er deaktivert. Oppføringene beholdes.",
         "memberFormerBadge": "Tidligere medlem",
-        "memberOrderHint": "Denne rekkefølgen gjelder for hele husstanden: kalenderen, timeplanen og alle lister med personer følger den. Endre den ved å dra i et håndtak, eller sett fokus på det og trykk på piltastene. Nye medlemmer kommer etterpå, sortert etter navn.",
+        "memberOrderHint": "Denne rekkefølgen gjelder i hele husstanden. Dra i et håndtak eller bruk piltastene for å endre den.",
         "logout": "Logg ut",
         "logoutConfirm": "Logg ut fra denne enheten?",
         "synchronizing": "Synkroniserer...",
@@ -2207,7 +2219,7 @@
         "pwaInstallTitle": "Installer Yuvomi på denne enheten",
         "pwaInstallChecking": "Sjekker om installasjon er tilgjengelig...",
         "pwaInstallReady": "Yuvomi kan installeres som en app på denne enheten.",
-        "pwaInstallUnavailable": "Installasjon er ikke tilgjengelig i denne nettleseren akkurat nå.",
+        "pwaInstallUnavailable": "Denne nettleseren tilbyr ikke installering her. I Chrome og Edge finner du det i nettlesermenyen, i Safari under Del > Legg til i Dock eller Legg til på Hjem-skjerm. Uten en HTTPS-adresse tilbyr ingen nettleser det.",
         "pwaInstallInstalled": "Yuvomi er allerede installert på denne enheten.",
         "pwaInstallIosHint": "På iPhone eller iPad, bruk Del-menyen og velg Legg til på hjemmeskjerm.",
         "pwaInstallButton": "Installer app",
@@ -2568,7 +2580,7 @@
         "deleteCardDAVAccountConfirm": "Dine synkroniserte kontakter blir værende, men mister CardDAV-koblingen.",
         "housekeepingPaymentsTitle": "Betalingsoppgaver",
         "housekeepingPaymentTasksLabel": "Opprett en betalingsoppgave ved hver innsjekk for housekeeping",
-        "housekeepingPaymentTasksHint": "Når denne er aktivert, opprettes det en oppgave for å betale den ansatte ved hver innsjekk. Ved å fullføre denne oppgaven markeres besøksbetalingen som betalt.",
+        "housekeepingPaymentTasksHint": "Når denne er aktivert, opprettes det en oppgave for å betale den ansatte ved hver innsjekk. Ved å fullføre denne oppgaven markeres besøksbetalingen som betalt. Bare den som sjekker inn og administratorene ser den.",
         "housekeepingPaymentTasksSaved": "Innstilling for housekeeping-betaling lagret.",
         "tasksSubtasksExpandedTitle": "Underoppgaver",
         "tasksSubtasksExpandedHint": "Velg om underoppgaver for oppgaver skal vises åpne som standard.",
@@ -3287,7 +3299,25 @@
         "displayRemoveDeviceActive": "Denne enheten er fortsatt paret. Trekk den tilbake først.",
         "feedExportIncludeBirthdays": "Ta med fødselsdager",
         "feedExportIncludeBirthdaysHint": "Slå av når du abonnerer på den separate fødselsdagskalenderen for å unngå doble fødselsdager og navnedager.",
-        "birthdayFeedHint": "Alle med lenken kan se alle lagrede fødselsdager og navnedager i husholdningen, også uten påminnelser. Bruk den bare på dine egne enheter."
+        "birthdayFeedHint": "Alle med lenken kan se alle lagrede fødselsdager og navnedager i husholdningen, også uten påminnelser. Bruk den bare på dine egne enheter.",
+        "skipToSheet": "Gå til innstillingen",
+        "screensaverOffTitle": "Bildeskjermsparer",
+        "screensaverNeedsImmich": "Skjermspareren starter når en administrator har koblet til Immich. Deretter stiller du inn ventetid, klokke og bildeutsnitt for denne enheten her.",
+        "screensaverConnectImmich": "Koble til Immich",
+        "weatherPlaceLabel": "Sted",
+        "weatherPlaceHint": "Søket skjer hos værtjenesten Open-Meteo. Bare stedsnavnet sendes.",
+        "weatherPlacePlaceholder": "By eller postnummer",
+        "weatherPlaceSearch": "Søk",
+        "weatherPlaceCurrent": "Nå: {{place}}",
+        "weatherPlaceNone": "Ingen sted valgt ennå.",
+        "weatherPlaceResultsLabel": "Steder funnet",
+        "weatherPlacePick": "Velg stedet ditt fra listen.",
+        "weatherPlaceChosen": "{{place}} valgt. Lagre for å bruke det.",
+        "weatherPlaceRequired": "Søk etter et sted og velg det fra listen.",
+        "weatherPlaceTooShort": "Skriv minst to tegn.",
+        "weatherPlaceNotFound": "Fant ikke noe sted med dette navnet. Legg til landet, f.eks. «Bø, Norge».",
+        "weatherPlaceUnavailable": "Stedssøket er ikke tilgjengelig akkurat nå. Prøv igjen om litt, eller skriv inn koordinatene for hånd.",
+        "weatherManualTitle": "Koordinater for hånd"
     },
     "login": {
         "tagline": "Velkommen tilbake til familieplanleggeren din.",
@@ -3586,7 +3616,8 @@
         "resultCountMany": "{{count}} resultater",
         "goTo": "Gå til",
         "newSection": "Ny",
-        "recentLabel": "Nylig åpnet"
+        "recentLabel": "Nylig åpnet",
+        "createTaskNamed": "Opprett «{{title}}» som oppgave"
     },
     "onboarding": {
         "step1Title": "Velkommen til {{name}}",
@@ -3604,7 +3635,9 @@
     },
     "offline": {
         "banner": "Uten nett - kobler til på nytt…",
-        "staleData": "Uten nett - per: {{time}}"
+        "staleData": "Uten nett - per: {{time}}",
+        "pageTitle": "Du er frakoblet",
+        "pageDescription": "Denne siden trenger tilkobling. Så snart enheten er tilkoblet igjen, lastes den av seg selv."
     },
     "shortcuts": {
         "search": "Åpne søk",
@@ -3983,7 +4016,6 @@
         "taskFrequency": "Frekvens (dager)",
         "createTask": "Opprett oppgave",
         "taskCreatedToast": "Husarbeid opprettet.",
-        "dashboard": "Oversikt",
         "reports": "Rapporter",
         "visitsThisMonth": "Besøk denne måneden",
         "lastVisit": "Siste besøk",
@@ -4112,7 +4144,12 @@
         "currentMonth": "Nåværende",
         "noVisitReportsInMonth": "Ingen personalebesøk registrert i {{month}}.",
         "settledAdminOnly": "Kun en administrator kan endre eller slette det",
-        "reportVisitsCount": "Besøk"
+        "reportVisitsCount": "Besøk",
+        "amountsPermissionLabel": "Se lønn og betalinger",
+        "errorAmountsHidden": "Bare den som kan se beløpene for husholdningshjelpen, kan registrere en betaling.",
+        "notHereToday": "Ikke kommet ennå i dag",
+        "tabVisits": "Besøk",
+        "tabChores": "Gjøremål"
     },
     "userMultiSelect": {
         "moreUsers": "mer",
@@ -4145,7 +4182,6 @@
         "noBalances": "Alle er gjort opp.",
         "noExpenses": "Ingen utgifter samsvarer med dette visningsfilteret.",
         "noActivity": "Ingen aktivitet ennå.",
-        "owes": "skylder",
         "system": "System",
         "quickGroceries": "Legg til utgift fra dagligvarehandel",
         "quickSchool": "Splitt skoleutgifter",
@@ -4295,8 +4331,11 @@
         "reversePaymentConfirmDetail": "{{payer}} til {{payee}}, {{amount}}. En motpost kansellerer betalingen og saldoene går tilbake til det de var. Betalingen blir værende i aktiviteten, markert som reversert.",
         "loadMoreActivity": "Last mer",
         "expenseDeleted": "Slettet",
-        "youAreOwedInGroup": "Du har til gode i {{group}}",
-        "youOweInGroup": "Du skylder i {{group}}"
+        "youAreOwedInGroup": "{{group}}: Du har til gode",
+        "youOweInGroup": "{{group}}: Du skylder",
+        "debtYouOwe": "Du skylder {{name}}",
+        "debtOwesYou": "{{name}} skylder deg",
+        "debtOwes": "{{from}} skylder {{to}}"
     },
     "wmo": {
         "0": "Skyfri",
@@ -4391,6 +4430,15 @@
         "test": "Test tilkobling",
         "testSuccess": "Test-e-post ble sendt med suksess.",
         "testFailed": "Test feilet: {{error}}",
+        "portInvalid": "Skriv inn en port fra {{min}} til {{max}}.",
+        "testFailedNotConfigured": "Skriv først inn SMTP-vert og avsenderadresse.",
+        "testFailedAuth": "Serveren avviste brukernavnet eller passordet.",
+        "testFailedConnection": "Serveren kan ikke nås på denne verten og porten.",
+        "testFailedTls": "Den krypterte tilkoblingen mislyktes. Sjekk kryptering og port.",
+        "testFailedRejected": "Serveren godtok ikke testmeldingen. Sjekk avsenderadressen.",
+        "testFailedUnknown": "Testmeldingen kunne ikke sendes.",
+        "testNoRecipient": "Testmeldingen går til din egen e-postadresse, som mangler. Legg den inn under Konto → E-post.",
+        "testNoRecipientLink": "Åpne konto",
         "saveFailed": "Lagring feilet: {{error}}",
         "saved": "Innstillinger lagret."
     },
@@ -4929,7 +4977,6 @@
                 "daily": "Daglig",
                 "none": "Ingen tidsrom ennå.",
                 "delete": "Slett tidsrom",
-                "newHint": "Lagre medisinen først, så kan du legge til tidsrom.",
                 "timeRequired": "Tid er påkrevd."
             },
             "weekday": {
@@ -5832,7 +5879,9 @@
         "mappingProfileStatusAmbiguousType": "Tvetydig - flere typer deler dette navnet",
         "icsCalendarName": "Avfallshenting",
         "icsPickupSummary": "Henting av {{name}}",
-        "addTypeFirstHint": "Legg til en type først."
+        "addTypeFirstHint": "Legg til en type først.",
+        "intervalDecrease": "Reduser intervallet",
+        "intervalIncrease": "Øk intervallet"
     },
     "rewards": {
         "title": "Belønninger",
@@ -6469,7 +6518,20 @@
         "compactDisplay": "Kompakt",
         "total": "Totalt",
         "recurring": "Gjentakende",
-        "replaceExisting": "Erstatt det som allerede er planlagt"
+        "replaceExisting": "Erstatt det som allerede er planlagt",
+        "presetCodes": {
+            "early": "T",
+            "late": "S",
+            "night": "N",
+            "day": "D",
+            "vacation": "F",
+            "sick": "SY",
+            "exam": "EK",
+            "lecture": "FL",
+            "seminar": "SE",
+            "lab": "LAB"
+        },
+        "typesWithTime": "Med klokkeslett"
     },
     "pairDisplay": {
         "title": "Par nettbrett",
