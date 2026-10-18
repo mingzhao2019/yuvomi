@@ -851,7 +851,7 @@ function applyStartPreferences(res) {
   }
 }
 
-async function syncThirdPartyModules() {
+async function syncThirdPartyModules({ forceLocales = false } = {}) {
   try {
     const res = await api.get('/modules');
     _thirdPartyModules = selectThirdPartyModuleList(_thirdPartyModules, { ok: true, data: res?.data });
@@ -861,7 +861,7 @@ async function syncThirdPartyModules() {
   setExtensionModules(_thirdPartyModules);
   setExtensionSettingsModules(_thirdPartyModules);
   setExtensionNavMap(_thirdPartyModules);
-  await reloadExtensionLocales(_thirdPartyModules);
+  await reloadExtensionLocales(_thirdPartyModules, { force: forceLocales });
 }
 
 function moduleSnapshot() {
@@ -877,6 +877,9 @@ function moduleSnapshot() {
 function startThirdPartyModulePolling() {
   if (_moduleRefreshTimer || ['split_guest', 'display'].includes(routerState.currentUser?.access_scope)) return;
   _moduleRefreshTimer = setInterval(async () => {
+    // Ein verborgener Tab fragt nicht ab: niemand sieht die Navigation, und
+    // der naechste Takt nach der Rueckkehr holt den Stand nach.
+    if (document.hidden) return;
     const before = moduleSnapshot();
     await syncThirdPartyModules();
     if (before !== moduleSnapshot()) rebuildNavigation();
@@ -4392,7 +4395,9 @@ function setMobileNavOrder(order) {
 }
 
 async function refreshThirdPartyModules() {
-  await syncThirdPartyModules();
+  // Nach Installation oder Update: Sprachdateien koennen sich bei gleicher
+  // Version geaendert haben, deshalb ohne Fingerabdruck-Vergleich neu laden.
+  await syncThirdPartyModules({ forceLocales: true });
   rebuildNavigation();
 }
 

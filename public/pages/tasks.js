@@ -9,7 +9,7 @@ import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } fro
 import { openModal as openSharedModal, closeModal, whenModalClosed, wireBlurValidation, validateAll, btnSuccess, btnError, btnLoading, promptModal, confirmModal, advancedSection, refocusAfterRender } from '/components/modal.js';
 import { openDetailView, closeDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { whenHistorySettled } from '/utils/overlay-history.js';
-import { stagger, vibrate, scheduleUndoableDelete, acknowledgeCheck, collapseOut, expandIn, wireScrollFade } from '/utils/ux.js';
+import { stagger, vibrate, scheduleUndoableDelete, acknowledgeCheck, collapseOut, expandIn, wireScrollFade, isImeComposing } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
 import { t, getLocale, formatDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { esc, REQUIRED_MARK, renderMarkdownLight } from '/utils/html.js';
@@ -1005,7 +1005,7 @@ function wireTagEditor(panel) {
   };
 
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if ((e.key === 'Enter' || e.key === ',') && !isImeComposing(e)) {
       // Enter darf im Tag-Feld nicht das Formular abschicken.
       e.preventDefault();
       commit();
