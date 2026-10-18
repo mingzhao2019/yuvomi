@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Task, calendar and Overview lists load much faster in households with profile pictures.**
+  Every task, event, note, housekeeping visit and money ledger row used to carry the full profile
+  picture of its person, and a task twice. With 200 tasks and five pictures the task list weighed
+  17 MB, and over plain HTTP in a home network about 13 MB of it crossed the wire on every load. The
+  rows now carry a short picture address instead, and the browser loads each picture once (now
+  about 215 KB, under 5 KB compressed). Pictures still show offline where the list does.
+  **API:** requests with an API token see no change and keep receiving data URLs. For the app
+  itself (session and wall display) the fields `assigned_avatar`, `assigned_users[].avatar_data`
+  (tasks, events), `creator_avatar` (notes), `worker_avatar_data` (housekeeping visits),
+  `user_avatar` and `person_avatar` (completion feed, money ledger) hold
+  `/api/v1/people/{id}/avatar?v=...`, served by the new `GET /api/v1/people/{id}/avatar`. Member
+  lists and the profile endpoints keep the data URL.
+
 ### Fixed
 
 - **Typing Japanese, Korean or Chinese no longer saves half a word.** In these languages Enter

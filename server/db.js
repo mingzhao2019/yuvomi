@@ -11274,6 +11274,43 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    version: 251,
+    description: 'users: avatar_key, a random key per profile picture for its address',
+    // Listen tragen statt der Data-URL die Adresse `/api/v1/people/:id/avatar?v=`
+    // (services/person-avatar.js), und `v` ist dieser Schluessel. ZWEI AUFGABEN:
+    //   - Er wechselt mit JEDEM neuen Bild - der Offline-Cache des Service
+    //     Workers ist nach der Adresse geschluesselt, eine gleiche Adresse zeigte
+    //     offline das alte Bild (die Laenge der Data-URL reichte nicht).
+    //   - Er ist nicht zu raten - die Route gibt das Bild nur mit ihm heraus.
+    //     Mit einer Zaehlversion holte jede Sitzung und jedes Wanddisplay per
+    //     Durchzaehlen der ids auch Bilder von Personen, die es in keiner Zeile
+    //     sieht (Hauspersonal, Ausgaben-Gaeste, deaktivierte Konten).
+    // Beides Codex-Review zu #2056.
+    //
+    // TRIGGER STATT DER SCHREIBSTELLEN: das Bild wird an fuenf Stellen
+    // geschrieben, und eine neue sechste vergaesse den Schluessel still.
+    // `reconcileCriticalSchema()` legt Spalte, Schluessel und Trigger nach,
+    // wenn eine Datei sie verloren hat.
+    up: `
+      ALTER TABLE users ADD COLUMN avatar_key TEXT;
+      UPDATE users SET avatar_key = lower(hex(randomblob(16)))
+        WHERE avatar_data IS NOT NULL AND avatar_data <> '';
+      CREATE TRIGGER IF NOT EXISTS trg_users_avatar_key_update
+        AFTER UPDATE OF avatar_data ON users FOR EACH ROW
+        WHEN NEW.avatar_data IS NOT OLD.avatar_data
+        BEGIN
+          UPDATE users SET avatar_key = CASE
+            WHEN NEW.avatar_data IS NULL OR NEW.avatar_data = '' THEN NULL
+            ELSE lower(hex(randomblob(16))) END
+          WHERE id = OLD.id;
+        END;
+      CREATE TRIGGER IF NOT EXISTS trg_users_avatar_key_insert
+        AFTER INSERT ON users FOR EACH ROW
+        WHEN NEW.avatar_data IS NOT NULL AND NEW.avatar_data <> ''
+        BEGIN UPDATE users SET avatar_key = lower(hex(randomblob(16))) WHERE id = NEW.id; END;
+    `,
+  },
 ];
 
 /**
@@ -11289,6 +11326,37 @@ const MIGRATIONS = [
  * und werden mit ihrem gespeicherten Wortlaut wieder angelegt. Die Aufrufer
  * sorgen fuer die Transaktion.
  */
+/** Die Trigger aus Migration 251, derselbe Wortlaut; die Migration bleibt eingefroren. */
+function createAvatarKeyTriggers(database) {
+  database.exec(`
+    CREATE TRIGGER IF NOT EXISTS trg_users_avatar_key_update
+      AFTER UPDATE OF avatar_data ON users FOR EACH ROW
+      WHEN NEW.avatar_data IS NOT OLD.avatar_data
+      BEGIN
+        UPDATE users SET avatar_key = CASE
+          WHEN NEW.avatar_data IS NULL OR NEW.avatar_data = '' THEN NULL
+          ELSE lower(hex(randomblob(16))) END
+        WHERE id = OLD.id;
+      END;
+    CREATE TRIGGER IF NOT EXISTS trg_users_avatar_key_insert
+      AFTER INSERT ON users FOR EACH ROW
+      WHEN NEW.avatar_data IS NOT NULL AND NEW.avatar_data <> ''
+      BEGIN UPDATE users SET avatar_key = lower(hex(randomblob(16))) WHERE id = NEW.id; END;
+  `);
+}
+
+/**
+ * Nachtrag zu einer nachgetragenen `users.avatar_key` (reconcileCriticalSchema):
+ * Schluessel fuer die vorhandenen Bilder und die Trigger aus Migration 251.
+ */
+function backfillAvatarKey(database) {
+  database.exec(`
+    UPDATE users SET avatar_key = lower(hex(randomblob(16)))
+      WHERE avatar_data IS NOT NULL AND avatar_data <> '' AND avatar_key IS NULL
+  `);
+  createAvatarKeyTriggers(database);
+}
+
 function backfillSeriesAuthored(database) {
   const triggers = database.prepare(`
     SELECT name, sql FROM sqlite_master
@@ -11548,6 +11616,13 @@ const CRITICAL_COLUMNS = [
   // Zeile anfasst) und jede Buchung eines Pushs. Kein Nachtrag: NULL heisst
   // "kein Schnappschuss", der Abruf nimmt den Weg von vorher.
   { table: 'calendar_events', column: 'outbound_snapshot', type: 'TEXT' },
+  // #2056: v251 traegt den Schluessel des Profilbilds nach; ohne die Spalte
+  // scheitern Aufgaben, Termine, Notizen, Uebersicht, Housekeeping und die
+  // Taschengeld-Buchungen (ihre Bildadresse liest sie). MIT NACHTRAG: die
+  // Schluessel der vorhandenen Bilder und die Trigger, die ihn bei jedem neuen
+  // Bild neu wuerfeln, kommen mit der Spalte.
+  { table: 'users', column: 'avatar_key', type: 'TEXT',
+    backfill: backfillAvatarKey },
 ];
 
 /**
@@ -11599,6 +11674,47 @@ function reconcileCriticalSchema(database = db) {
     } catch (err) {
       log.error(`Schema-Reconciliation ${table}.${column} fehlgeschlagen:`, err?.message || err);
     }
+  }
+  reconcileAvatarKeyTriggers(database);
+}
+
+/**
+ * Die Schluessel-Trigger der Profilbilder (Migration 251) - auch wenn NUR sie
+ * fehlen. Der Nachtrag oben laeuft nur mit einer neu angelegten Spalte; ein
+ * Neubau von `users` nimmt Trigger aber nicht mit, und ohne sie behielte ein
+ * neues Bild seinen alten Schluessel (Codex-Review zu #2056). Die Reparatur
+ * wuerfelt dann alle Schluessel neu - was ohne Trigger geschrieben wurde,
+ * steht sonst unter einer falschen oder gar keiner Adresse.
+ */
+function reconcileAvatarKeyTriggers(database) {
+  try {
+    const columns = database.prepare('PRAGMA table_info(users)').all();
+    if (!columns.some((c) => c.name === 'avatar_key')) return;
+    const present = database.prepare(`
+      SELECT COUNT(*) AS n FROM sqlite_master
+      WHERE type = 'trigger' AND name IN ('trg_users_avatar_key_update', 'trg_users_avatar_key_insert')
+    `).get().n;
+    if (present === 2) return;
+    // JEDER SCHLUESSEL NEU, nicht nur die fehlenden: ohne die Trigger kann ein
+    // Bild unter dem alten Schluessel ersetzt worden sein, und dessen
+    // `immutable`-Adresse zeigte aus dem Cache weiter das alte Bild.
+    database.exec('SAVEPOINT reconcile_avatar_key');
+    try {
+      createAvatarKeyTriggers(database);
+      database.exec(`
+        UPDATE users SET avatar_key = CASE
+          WHEN avatar_data IS NULL OR avatar_data = '' THEN NULL
+          ELSE lower(hex(randomblob(16))) END
+      `);
+      database.exec('RELEASE SAVEPOINT reconcile_avatar_key');
+    } catch (err) {
+      database.exec('ROLLBACK TO SAVEPOINT reconcile_avatar_key');
+      database.exec('RELEASE SAVEPOINT reconcile_avatar_key');
+      throw err;
+    }
+    log.warn('Schema-Drift behoben: Trigger fuer users.avatar_key fehlten, wurden neu angelegt und alle Schluessel neu gewuerfelt (#2056).');
+  } catch (err) {
+    log.error('Schema-Reconciliation der avatar_key-Trigger fehlgeschlagen:', err?.message || err);
   }
 }
 

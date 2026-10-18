@@ -1988,7 +1988,7 @@ cdb.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL,
     password_hash TEXT NOT NULL, avatar_color TEXT NOT NULL DEFAULT '#007AFF',
-    avatar_data TEXT
+    avatar_data TEXT, avatar_key TEXT
   );
   CREATE TABLE external_calendars (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2440,7 +2440,7 @@ test('getUpcomingEvents: private ICS-Termine fremder User werden ausgeblendet', 
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL,
       password_hash TEXT NOT NULL, avatar_color TEXT NOT NULL DEFAULT '#007AFF',
-      avatar_data TEXT
+      avatar_data TEXT, avatar_key TEXT
     );
     CREATE TABLE calendar_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
