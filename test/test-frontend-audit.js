@@ -573,7 +573,7 @@ test('an announced update stops the router from loading further page modules (#6
   // fliegt dann als SyntaxError auf. Erlaubt ist deshalb nur noch der Reload.
   assert.match(router, /shellStale\s*=\s*true;/, 'SW_UPDATED must mark the running shell as stale');
   assert.match(router, /if \(shellStale && reloadOnce\(\)\)/, 'importPage() must reload instead of importing a page module');
-  assert.match(router, /function prefetchRoute\(path(?:, \{ now = false \} = \{\})?\) \{[\s\S]*?if \(shellStale\) return;/, 'prefetchRoute() must stop warming modules after an update');
+  assert.match(router, /function prefetchRoute\(path(?:, \{ now = false(?:, priority = null)? \} = \{\})?\) \{[\s\S]*?if \(shellStale\) return;/, 'prefetchRoute() must stop warming modules after an update');
   assert.doesNotMatch(
     router,
     /SW_UPDATED[\s\S]{0,400}moduleCache\.clear\(\)/,
@@ -22608,3 +22608,158 @@ test('a starred label marks a required field, and a required field in a mixed fo
   assert.deepEqual(reqNoStar, [], `required ohne Stern in einem gemischten Formular:\n${reqNoStar.join('\n')}`);
 });
 
+/**
+ * DIE RUECKKEHR IN DEN TAB LAEDT NUR, WAS ALT IST (Modern-Web-Guidance-Audit,
+ * Befund 13). Jeder Wechsel zurueck in den Tab holte `/dashboard` samt
+ * Erinnerungen neu und baute die ganze Uebersicht auf - auch nach fuenf
+ * Sekunden in einem anderen Tab. Jetzt nur, wenn der letzte Stand aelter als
+ * eine Minute ist oder der Haushaltstag gewechselt hat; Gruss, Datum und Uhr
+ * ziehen weiter immer nach. Gefahren wird die ECHTE Pruefung aus dashboard.js.
+ */
+test('dashboard: returning to the tab refreshes only a stale overview', () => {
+  const src = read('../public/pages/dashboard.js');
+  const start = src.indexOf('function staleOnReturn(');
+  assert.ok(start > 0, 'staleOnReturn() fehlt in dashboard.js');
+  const body = src.slice(start, src.indexOf('\n}\n', start) + 3);
+  const minMs = Number(src.match(/const RETURN_REFRESH_MIN_MS = ([\d_]+);/)?.[1]?.replace(/_/g, ''));
+  assert.equal(minMs, 60_000, 'eine Minute Mindestalter');
+  const staleOnReturn = new Function('RETURN_REFRESH_MIN_MS', `${body}; return staleOnReturn;`)(minMs);
+  const at = new Date('2026-10-18T10:00:00Z');
+  const later = (ms) => new Date(at.getTime() + ms);
+  assert.equal(staleOnReturn({ loadedAt: null, loadedDay: null }, { now: at, today: '2026-10-18' }), true, 'nie geladen');
+  assert.equal(staleOnReturn({ loadedAt: at, loadedDay: '2026-10-18' }, { now: later(5_000), today: '2026-10-18' }), false, 'fuenf Sekunden weg: kein Neuaufbau');
+  assert.equal(staleOnReturn({ loadedAt: at, loadedDay: '2026-10-18' }, { now: later(60_000), today: '2026-10-18' }), true, 'eine Minute: neu laden');
+  assert.equal(staleOnReturn({ loadedAt: at, loadedDay: '2026-10-18' }, { now: later(5_000), today: '2026-10-19' }), true, 'der Tag hat gewechselt');
+
+  const handler = src.slice(src.indexOf("document.addEventListener('visibilitychange'"), src.indexOf("document.addEventListener('visibilitychange'") + 2200);
+  assert.match(handler, /if \(staleOnReturn\(\{ loadedAt: freshAt, loadedDay: freshDay \}, \{ now: new Date\(\), today: householdToday\(\) \}\)\) refreshDashboardData\(\);/,
+    'der Handler fragt staleOnReturn(), bevor er neu laedt');
+  assert.deepEqual(src.match(/lastLoadedAt = new Date\(\);/g), ['lastLoadedAt = new Date();'], 'jeder Ladepunkt geht durch markLoaded()');
+  assert.match(src, /const markLoaded = \(day, \{ partial = false \} = \{\}\) => \{ lastLoadedAt = new Date\(\); if \(!partial\) \{ freshAt = lastLoadedAt; freshDay = day; \} \};/,
+    'markLoaded() rechnet den Tag nicht selbst aus, ein Teilstand zaehlt nicht als frisch');
+  // Der Server legt den Tag beim EINGANG der Anfrage fest. Kommt die Antwort
+  // nach Mitternacht an, ist sie trotzdem der alte Tag - gemerkt wird also der
+  // Tag von vor der Anfrage, sonst haelt die Rueckkehr gestern fuer heute.
+  const calls = [...src.matchAll(/markLoaded\((\w+)(, \{ partial: true \})?\);/g)];
+  assert.equal(calls.length, 3, 'drei Ladepunkte');
+  for (const call of calls) {
+    const arg = call[1];
+    const decl = src.lastIndexOf(`const ${arg} = householdToday();`, call.index);
+    assert.ok(decl > 0, `${arg} ist nicht vor dem Ladepunkt festgehalten`);
+    assert.match(src.slice(decl, call.index), /api\.get\(overviewRequest\(/, `${arg} wird vor der Anfrage festgehalten, nicht danach`);
+  }
+  // Der Filterwechsel holt nur /dashboard und reicht Erinnerungen und
+  // Dienstplan vom alten Stand weiter - das ist kein frischer Stand, sonst
+  // unterdrueckte die Rueckkehr in den Tab binnen einer Minute deren Refresh.
+  const partialOf = (head) => {
+    const at = src.indexOf(head);
+    assert.ok(at > 0, `${head} fehlt`);
+    return /markLoaded\(\w+, \{ partial: true \}\);/.test(src.slice(at, src.indexOf('\n  }\n', at)));
+  };
+  assert.equal(partialOf('async function reloadIfQueryChanged('), true, 'der Filterwechsel ist ein Teilstand');
+  assert.equal(partialOf('async function refreshDashboardData('), false, 'der stille Refresh holt alles und ist frisch');
+});
+
+/**
+ * DAS VORWAERMEN IM LEERLAUF DRAENGT SICH NICHT VOR (Modern-Web-Guidance-
+ * Audit, Befund 11). `warmPrimaryRoutes()` legt fuer jedes Hauptziel ein
+ * `modulepreload` an - rund 19 Module, ~2 MB JS -, und modulepreload laedt mit
+ * hoher Prioritaet. Was nur vielleicht gebraucht wird, traegt
+ * `fetchpriority="low"`; ein Vorwaermen aus einer Absicht (Zeiger/Fokus auf
+ * einem Link) und die Startroute bleiben beim Standard. Gefahren werden die
+ * ECHTEN Funktionen aus router.js.
+ */
+test('router: idle warm-up preloads at low priority, intent and the start route do not', () => {
+  const router = read('../public/router.js');
+  const fn = (head) => {
+    const start = router.indexOf(head);
+    assert.ok(start >= 0, `${head} nicht gefunden`);
+    return router.slice(start, router.indexOf('\n}\n', start) + 3);
+  };
+  const links = [];
+  const env = {
+    document: { createElement: () => ({}), head: { appendChild: (l) => links.push(l) } },
+    allRoutes: () => [{ path: '/tasks', page: '/pages/tasks.js', module: 'tasks' }, { path: '/notes', page: '/pages/notes.js', module: 'notes' }],
+    moduleCache: new Map(),
+    shellStale: false,
+    navItems: () => [{ path: '/tasks' }, { path: '/notes' }],
+    routerState: { currentPath: '/' },
+    navigator: { connection: null },
+    window: {},
+    requestIdleCallback: undefined,
+    setTimeout: (f) => f(),
+  };
+  const make = new Function(...Object.keys(env), `
+    const _prefetchedPages = new Set();
+    const _prefetchedStyles = new Set();
+    ${fn('function prefetchRoute(')}
+    ${fn('function warmPrimaryRoutes(')}
+    return { prefetchRoute, warmPrimaryRoutes };`);
+  const { prefetchRoute, warmPrimaryRoutes } = make(...Object.values(env));
+  warmPrimaryRoutes();
+  const warm = links.filter((l) => l.rel === 'modulepreload');
+  assert.equal(warm.length, 2, 'beide Hauptziele vorgewaermt');
+  assert.deepEqual(warm.map((l) => l.fetchPriority), ['low', 'low'], 'das Vorwaermen im Leerlauf laedt mit niedriger Prioritaet');
+  links.length = 0;
+  env.allRoutes = undefined;
+  const intent = make(...Object.values({ ...env, allRoutes: () => [{ path: '/budget', page: '/pages/budget.js', module: 'budget' }] }));
+  intent.prefetchRoute('/budget');
+  assert.equal(links.find((l) => l.rel === 'modulepreload')?.fetchPriority, undefined, 'ein Vorwaermen aus Absicht bleibt beim Standard');
+});
+
+/**
+ * EIN @import KOSTET KEINE EIGENE RUNDREISE (Modern-Web-Guidance-Audit,
+ * Befund 12). dashboard.css, health.css und budget.css ziehen weitere Blaetter
+ * per `@import` - der Browser sieht sie erst, wenn das erste Blatt geladen und
+ * gelesen ist. Der Router laedt sie deshalb gleich mit (`preload`), sobald er
+ * das Seitenblatt laedt oder vorwaermt. Die Tabelle dafuer (PAGE_STYLE_IMPORTS)
+ * muss genau die @import-Zeilen der Blaetter nennen.
+ */
+test('router: every page sheet @import is preloaded alongside its sheet', () => {
+  const router = read('../public/router.js');
+  const table = router.match(/const PAGE_STYLE_IMPORTS = Object\.freeze\((\{[\s\S]*?\})\);/)?.[1];
+  assert.ok(table, 'PAGE_STYLE_IMPORTS fehlt in router.js');
+  const declared = new Function(`return ${table};`)();
+  const actual = {};
+  for (const file of readdirSync(new URL('../public/styles/', import.meta.url))) {
+    if (!file.endsWith('.css')) continue;
+    const imports = [...read(`../public/styles/${file}`).matchAll(/^@import url\('([^']+)'\);/gm)].map((m) => m[1]);
+    if (imports.length) actual[`/styles/${file}`] = imports;
+  }
+  assert.deepEqual(declared, actual, 'PAGE_STYLE_IMPORTS weicht von den @import-Zeilen ab');
+  const load = router.slice(router.indexOf('function loadPageStyle('), router.indexOf('function loadPageStyle(') + 1600);
+  assert.match(load, /preloadStyleImports\(href\);/, 'loadPageStyle() laedt die Importe mit');
+  const prefetch = router.slice(router.indexOf('function prefetchRoute('), router.indexOf('function prefetchRoute(') + 2600);
+  assert.match(prefetch, /preloadStyleImports\(cssHref\);/, 'prefetchRoute() waermt die Importe mit vor');
+});
+
+/**
+ * LANGE LISTEN RECHNEN NUR, WAS IN SICHT IST (Modern-Web-Guidance-Audit,
+ * Befund 18; Guide defer-rendering-heavy-content). Gemessen bei 4x CPU: der
+ * Wechsel nach /contacts mit 500 Kontakten hielt die Seite 781 ms am Stueck
+ * (22.000 Knoten), /recipes mit 300 Rezepten 460 ms; mit `content-visibility`
+ * je Zeile 568 bzw. 357 ms. Die Zeilenhoehe steht als `contain-intrinsic-size`
+ * dabei, sonst springt der Bildlaufbalken. Notizen bleiben aussen vor: ihr
+ * Raster (Masonry/grid-lanes) verteilt Karten nach Hoehe auf Spalten, und
+ * Platzhalterhoehen liessen Karten beim Scrollen die Spalte wechseln.
+ */
+test('long contact and recipe lists skip rendering rows out of view', () => {
+  const expect = [
+    ['../public/styles/contacts.css', '.contact-group__list > .contact-item'],
+    ['../public/styles/recipes.css', '.recipes-list .recipe-row-item'],
+  ];
+  for (const [file, selector] of expect) {
+    const rule = [...eachRule(read(file))].find((r) => r.selector.replace(/\s+/g, ' ').trim() === selector
+      && r.at.some((at) => /@supports \(content-visibility: auto\)/.test(at)));
+    assert.ok(rule, `${file}: ${selector} ohne content-visibility unter @supports`);
+    assert.match(rule.body, /content-visibility:\s*auto/);
+    const size = rule.body.match(/contain-intrinsic-size:\s*(auto none auto \d+px)/)?.[1];
+    assert.ok(size, `${selector}: ohne gemerkte Hoehe springt der Bildlaufbalken`);
+    // `auto none` versteht Chrome erst ab 117; Chrome 87-116 kennt
+    // content-visibility schon und verwuerfe nur die Hoehe - Zeilen ohne
+    // Platzhalter. Die Weiche fragt deshalb den ganzen Wert ab.
+    assert.ok(rule.at.some((at) => at.includes('(contain-intrinsic-size: auto none auto 1px)')),
+      `${selector}: @supports prueft contain-intrinsic-size nicht mit`);
+  }
+  assert.ok(![...eachRule(read('../public/styles/notes.css'))].some((r) => /content-visibility/.test(r.body)), 'Notizen bleiben ohne (Masonry-Spalten)');
+});

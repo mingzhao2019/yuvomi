@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `user_avatar` and `person_avatar` (completion feed, money ledger) hold
   `/api/v1/people/{id}/avatar?v=...`, served by the new `GET /api/v1/people/{id}/avatar`. Member
   lists and the profile endpoints keep the data URL.
+- **The Overview no longer rebuilds every time you switch back to its tab.** Returning to the tab
+  reloaded the whole Overview, even after a few seconds elsewhere. It now reloads only when its data
+  is older than a minute or the day has changed; the greeting, date and clock still update at once.
+- **Pages with an extra stylesheet show up sooner.** The Overview, Health and Budget pull in further
+  stylesheets that the browser only discovered after loading the first one. They now load in
+  parallel.
+- **Warming up the other pages in the background no longer competes with the page you are on.**
+  After the start, Yuvomi preloads the main pages while the browser is idle; these downloads now ask
+  for low priority.
+- **Long contact and recipe lists open faster.** The browser now skips rows outside the visible
+  area until you scroll near them. Measured on a slowed-down device, opening 500 contacts blocked
+  the page for about 0.8 s, now about 0.55 s; 300 recipes went from about 0.45 s to under 0.4 s.
 
 ### Fixed
 

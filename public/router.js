@@ -284,6 +284,31 @@ function updateThemeColorForRoute(route) {
 // --------------------------------------------------------
 let activePageStyle = null;
 
+// DIE @import-ZEILEN DER SEITENBLAETTER, damit der Browser sie gleich mitlaedt
+// (Modern-Web-Guidance-Audit, Befund 12). Ein `@import` sieht er erst, wenn
+// das Blatt darueber geladen und gelesen ist - eine zweite Rundreise vor dem
+// ersten Bild der Seite. `preloadStyleImports()` legt sie als `preload` daneben,
+// das `@import` findet die Antwort dann schon vor. Die Tabelle haelt ein Guard
+// in test:frontend-audit gleich mit den @import-Zeilen in public/styles/.
+const PAGE_STYLE_IMPORTS = Object.freeze({
+  '/styles/budget.css': ['/styles/split-expenses.css', '/styles/subscriptions.css'],
+  '/styles/dashboard.css': ['/styles/fasting-controls.css'],
+  '/styles/health.css': ['/styles/fasting-controls.css'],
+});
+const _preloadedStyleImports = new Set();
+
+function preloadStyleImports(href) {
+  for (const imported of PAGE_STYLE_IMPORTS[href] ?? []) {
+    if (_preloadedStyleImports.has(imported)) continue;
+    _preloadedStyleImports.add(imported);
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'style';
+    link.href = imported;
+    document.head.appendChild(link);
+  }
+}
+
 function loadPageStyle(moduleName, routeStyle = null) {
   if (!moduleName && !routeStyle) return { ready: Promise.resolve(), cleanup: () => {}, abandon: () => {} };
   const href = routeStyle || `/styles/${moduleName}.css`;
@@ -291,6 +316,7 @@ function loadPageStyle(moduleName, routeStyle = null) {
     return { ready: Promise.resolve(), cleanup: () => {}, abandon: () => {} };
   }
 
+  preloadStyleImports(href);
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = href;
@@ -467,7 +493,7 @@ async function importPage(pagePath) {
 const _prefetchedPages = new Set();
 const _prefetchedStyles = new Set();
 
-function prefetchRoute(path, { now = false } = {}) {
+function prefetchRoute(path, { now = false, priority = null } = {}) {
   if (!path) return;
   // Nach angekündigtem Update nichts mehr vorwärmen: ein modulepreload zieht den
   // kompletten Modulgraph in die Modul-Map und würde neue Seitenmodule gegen die
@@ -481,6 +507,14 @@ function prefetchRoute(path, { now = false } = {}) {
     const link = document.createElement('link');
     link.rel = 'modulepreload';
     link.href = route.page;
+    // modulepreload laedt mit hoher Prioritaet. Das Vorwaermen im Leerlauf
+    // (warmPrimaryRoutes, rund 19 Module) gibt `low` mit, damit es nichts
+    // verdraengt, was die offene Seite gerade braucht; ohne Unterstuetzung
+    // bleibt es beim Standard (Modern-Web-Guidance-Audit, Befund 11). Die
+    // statischen Importe der Seite holt Chrome dabei nicht mit (gemessen:
+    // 15 Seitenmodule, alle `Low`, keine Abhaengigkeit); die kommen erst
+    // beim Aufruf.
+    if (priority) link.fetchPriority = priority;
     document.head.appendChild(link);
   }
 
@@ -497,6 +531,9 @@ function prefetchRoute(path, { now = false } = {}) {
     link.as = 'style';
     link.href = cssHref;
     document.head.appendChild(link);
+    // Die Startroute laedt ihre Importe gleich mit; beim Vorwaermen im
+    // Leerlauf genuegt das, was loadPageStyle() beim Aufruf nachholt.
+    if (now) preloadStyleImports(cssHref);
   }
 }
 
@@ -509,7 +546,7 @@ function warmPrimaryRoutes() {
   const run = () => {
     try {
       navItems().forEach((item) => {
-        if (item.path && item.path !== routerState.currentPath) prefetchRoute(item.path);
+        if (item.path && item.path !== routerState.currentPath) prefetchRoute(item.path, { priority: 'low' });
       });
     } catch { /* Prefetch ist rein spekulativ — Fehler nie eskalieren. */ }
   };

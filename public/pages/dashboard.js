@@ -145,6 +145,19 @@ const ONBOARDING_TITLE_ID = 'onboarding-step-title';
 const APP_NAME_STORAGE_KEY = 'yuvomi-app-name';
 const CUSTOMIZE_HINT_KEY = 'yuvomi-dash-customize-hint';
 
+// DIE RUECKKEHR IN DEN TAB LAEDT NUR, WAS ALT IST (Modern-Web-Guidance-Audit,
+// Befund 13). Jeder Wechsel zurueck holte `/dashboard` samt Erinnerungen neu
+// und baute die ganze Uebersicht auf, auch nach Sekunden in einem anderen Tab.
+// Neu geladen wird, wenn der Stand aelter als eine Minute ist oder der
+// Haushaltstag seitdem gewechselt hat ("Heute" waere sonst gestern).
+const RETURN_REFRESH_MIN_MS = 60_000;
+
+function staleOnReturn({ loadedAt, loadedDay }, { now, today }) {
+  if (!loadedAt) return true;
+  if (loadedDay !== today) return true;
+  return now.getTime() - loadedAt.getTime() >= RETURN_REFRESH_MIN_MS;
+}
+
 /* DER TAG EINES TERMINS IST DER TAG DER HAUSHALTSZONE, nicht der des Browsers.
  *
  * Hier stand `toLocalDateKey(new Date(value))`, und das las einen
@@ -7052,7 +7065,17 @@ export async function render(container, { user, signal: routeSignal = null } = {
   // Bleibt `null`, solange nichts geladen wurde: eine Uhrzeit ohne Daten
   // dahinter waere die falscheste aller Angaben.
   let lastLoadedAt = null;
+  // Zeit und Haushaltstag des letzten VOLLEN Stands - die Rueckkehr in den
+  // Tab vergleicht sie. Gemerkt wird der Tag VOR der Anfrage: der Server legt
+  // ihn beim Eingang fest, und eine Antwort, die erst nach Mitternacht
+  // ankommt, zeigt noch den alten Tag. Ein Teilstand (`partial`, der
+  // Filterwechsel) reicht Erinnerungen und Dienstplan vom alten Stand weiter
+  // und zaehlt deshalb nicht als frisch.
+  let freshAt = null;
+  let freshDay = null;
+  const markLoaded = (day, { partial = false } = {}) => { lastLoadedAt = new Date(); if (!partial) { freshAt = lastLoadedAt; freshDay = day; } };
   try {
+    const requestDay = householdToday();
     const [dashRes, weatherRes, prefsRes, remindersRes] = await Promise.all([
       api.get(overviewRequest(layoutHintQuery('/dashboard'))),
       api.get(`/weather?lang=${encodeURIComponent(getLocale())}`).catch(() => ({ data: null })),
@@ -7127,7 +7150,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     screensaverEnabled = Boolean(prefsRes.data?.screensaver_enabled);
     currency     = prefsRes.data?.currency ?? 'EUR';
     visibleMealTypes = normalizeVisibleMealTypes(prefsRes.data?.visible_meal_types);
-    lastLoadedAt = new Date();
+    markLoaded(requestDay);
   } catch (err) {
     console.error('[Dashboard] Ladefehler:', err.message, 'Status:', err.status ?? 'network');
     loadFailed = true;
@@ -7221,6 +7244,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
   async function reloadIfQueryChanged(previousQuery) {
     if (dashboardQuery(widgetConfig) === previousQuery) return;
     try {
+      const requestDay = householdToday();
       const fresh = await api.get(overviewRequest(dashboardQuery(widgetConfig)));
       localizeEventLists(fresh);
       fresh.cycle = data.cycle;
@@ -7229,7 +7253,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
       fresh.pendingReminders = data.pendingReminders;
       data = fresh;
       setCountdownAvailability(data?.countdowns);
-      lastLoadedAt = new Date();
+      markLoaded(requestDay, { partial: true });
     } catch { /* der alte Stand bleibt stehen, statt die Seite zu leeren */ }
   }
 
@@ -7954,6 +7978,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     if (isCustomizing || loadFailed || refreshInFlight) return;
     refreshInFlight = true;
     try {
+      const requestDay = householdToday();
       const fresh = await api.get(overviewRequest(dashboardQuery(widgetConfig)));
       if (signal.aborted) return;
       localizeEventLists(fresh);
@@ -7979,7 +8004,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
       fresh.pendingReminders = await loadPendingReminders(overviewRequest);
       if (signal.aborted) return;
       data = fresh;
-      lastLoadedAt = new Date();
+      markLoaded(requestDay);
       rebuildDashboard(widgetConfig);
     } catch { /* Hintergrund-Refresh: bewusst still */ }
     finally { refreshInFlight = false; }
@@ -8008,8 +8033,9 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // Hintergrund-Tabs bekommen gedrosselte Timer: die Uhr könnte beim
     // Zurückkehren Minuten nachhängen und muss sofort nachziehen (#651).
     updateClockWidget(container);
-    // Inhalte ziehen nach, nicht nur Gruß/Datum/Uhr (Paket 2).
-    refreshDashboardData();
+    // Inhalte ziehen nach, nicht nur Gruß/Datum/Uhr (Paket 2) - aber nur ein
+    // alter Stand (staleOnReturn, oben).
+    if (staleOnReturn({ loadedAt: freshAt, loadedDay: freshDay }, { now: new Date(), today: householdToday() })) refreshDashboardData();
   }, { signal: signal });
 
   // Der Minutentakt der Uhr traegt die Nachtabsenkung mit: um 22:00 und um
