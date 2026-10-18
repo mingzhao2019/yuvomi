@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **On the overview, the people of an event sit at the end of its line in right-to-left
+  languages.** In Arabic and Persian they sat right after the event's title instead. Left-to-right
+  layouts are unchanged.
 - **Typing Japanese, Korean or Chinese no longer saves half a word.** In these languages Enter
   first confirms the character conversion. Dialogs, tag and mention fields, suggestion lists and
   the comboboxes used to act on that Enter and saved or picked the text while it was still being
