@@ -973,3 +973,59 @@ than documentation-only changes. After the `custom` push,
 rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
 ready to fast-forward into `custom` and push both `main` and `custom` without
 force.
+
+## Current sync checkpoint (2026-10-18, v2.78.0)
+
+The upstream remote was refreshed from `5f752e7a2` (`v2.77.2`) to
+`6f55537756010f333796922187ac9834eec1af66` (`v2.78.0`). Local `main` was
+fast-forwarded to that exact upstream tip. The selective integration started
+from custom `52753477d` on `custom-upstream-selective-2026-10-18`; upstream was
+not merged wholesale.
+
+All seven new upstream commits were reviewed and integrated in upstream order:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `7cc3332e4` (#2049) | Interface critique R19: faster start, responsive layout, shared list/detail building blocks, and navigation polish. | Adopted as `34a3d18e7`; retained custom asset-cost, lunar, reminder, and module-route boundaries. |
+| `db96a27ee` (#2053) | Interface critique R20: honest numbers, child defaults, faster lists, and the module pass. | Adopted as `26eb43766`; retained custom calendar, dashboard, sync, and test-wrapper contracts. |
+| `741b0ad23` | Publishes v2.78.0 release metadata. | Adopted as `e2fb91eef`; synchronized package, lockfile, service-worker, and release metadata. |
+| `11918c5b4` (#2055) | Web-guidance quick wins: IME handling, time-zone behavior, safe links, autofill, picker Escape, and polling. | Adopted as `12d8ffe7e`; retained custom synchronization behavior. |
+| `2741cee7d` (#2056) | List rows carry avatar addresses instead of embedding picture data URLs. | Adopted as `fa1a80242`; applied the avatar URL expression to all task-list query paths. |
+| `685fdaa5b` (#2058) | Forced-colors visibility, dialog focus, and inert modal layers. | Adopted as `2a2786846`; retained the custom modal and focus contracts. |
+| `6f5553775` (#2059) | Sign-in and required-field accessibility guidance. | Adopted as `113a9ed4b`; completed the locale, form-error, and required-label integration. |
+
+The main semantic conflict points were the custom calendar lunar/reminder and
+provider behavior, the asset-cost household route, the root test wrapper, the
+dashboard child defaults, the task/list query shape, and the 25-locale merge.
+Existing custom migrations 250-259 are released and unchanged. Upstream's
+logical migrations 250 and 251 were therefore appended as custom migrations
+260 and 261; the payment-task regression test locates its migration by
+description rather than assuming the upstream number. The mobile calendar
+window contract and dashboard weather test export were restored after the
+upstream merge. Stale duplicate calendar-window tests, a duplicate task
+import, two missing locale keys, three obsolete Chinese inventory keys, six
+custom `!important` declarations, and missing asset-cost required markers were
+also resolved without weakening the audits.
+
+Version metadata is synchronized at `2.78.0` in the root package, both root
+lockfile fields, `public/sw.js`, and release metadata. Focused validation has
+passed for migrations (4/4), payment-task backfill (9/9), avatar URLs (16/16),
+background inertness (5/5), calendar (324/324 plus delete and overlap suites),
+dashboard and dashboard-week, task and sync suites, lunar, mobile Chrome,
+frontend audit (523/523), read-only UI (221/221), account-form errors (5/5),
+suite-chain (12/12), translated i18n (100/100), wall tasks (53/53), and the
+append-only migration audit (4/4). `git diff --check` is clean.
+
+The full-run follow-ups found and fixed three integration issues before the
+final pass: custom IME guards in the asset-cost/task inputs, duplicate locale
+key ordering, and the missing `/utils/lunar.js` startup preload. The next
+full run exposed only a stale wall-task source regex; it now accepts the
+custom `refresh()` Promise-returning contract. The final full `npm test`
+completed on 2026-10-19 with exit code 0; the suite reported no failures,
+with only the documented root-only permission cases skipped.
+
+This checkpoint contains application, UI, server, migration, and test changes
+rather than documentation-only changes. After the `custom` push,
+`.github/workflows/docker-publish-feature-work.yml` should therefore run and
+rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
+ready to fast-forward into `custom` and push both branches without force.
