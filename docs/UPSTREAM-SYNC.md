@@ -1072,3 +1072,60 @@ rather than documentation-only changes. After the `custom` push,
 `.github/workflows/docker-publish-feature-work.yml` should therefore run and
 rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
 ready to fast-forward into `custom` and push both branches without force.
+
+## Current sync checkpoint (2026-10-19, v2.78.0; follow-up)
+
+The upstream remote was refreshed from
+`fdb9a4c1bb0e73da24f3721a413f068d0e1e88ca` (`v2.78.0`) to
+`e42ed8579eba9c9e9746d815dcad1fa95dc1f3ab` (`v2.78.0`). Local `main` was
+fast-forwarded to that exact upstream tip. The selective integration started
+from custom `ff4f5cd22` on `custom-upstream-selective-2026-10-19`; upstream was
+not merged wholesale.
+
+All eleven new upstream commits were reviewed and integrated in upstream
+order:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `e050065b3` (#2068) | Saves a new medication and its plan in one transaction. | Adopted as `5f98eb1e7`; retained custom health contracts. |
+| `0370e246e` (#2072) | Revalidates avatar images instead of caching them for a year. | Adopted as `162e066e0`. |
+| `35c342f4c` (#2070) | Cleans up a session that ends on the sign-in page. | Adopted as `2c6809afe`. |
+| `a984f9de9` (#1998, #2071) | Counts down to the household day rather than the process zone's day. | Adopted as `3dad05516`; retained custom timezone contracts. |
+| `5a8d27859` (#2073) | Prevents a failed reload after a save from saving twice. | Adopted as `4f747cd7b`; added the reload guard to custom asset, calendar, and task save paths. |
+| `5da3e033c` (#1836, #2074) | Records task completion for every completion path. | Adopted as `576d798be`; retained custom task-list and Microsoft To Do semantics. |
+| `bfa7b63bb` (#1703, #2079) | Hides the change-password card for passwordless accounts. | Adopted as `4e8b4a4c9`. |
+| `fca11f1e6` (#2035, #2080) | Stops an old Google sync after reconnect or disconnect. | Adopted as `528df3534`. |
+| `f50a55381` (#2078, #2081) | Keeps completion records aligned when CalDAV changes only hierarchy. | Adopted as `3a57317ce`. |
+| `5f59aa164` (#1992, #2082) | Sends an old form's UNTIL as the series' last day. | Adopted as `8dea1007e`; retained custom reminder imports and outbound rules. |
+| `e42ed8579` (#2034, #2083) | Keeps occurrence local time across the clock-change day. | Adopted as `81e455c8f`. |
+
+The main semantic conflict points were the custom test chain, countdown
+timezone behavior, task completion sources, Microsoft To Do status handling,
+legacy recurrence imports, and append-only migration numbering. Upstream's
+logical migration 252 collided with the released custom task-order migration
+252, so the same schema change was appended as custom migration 262; no
+released custom migration was rewritten. Microsoft To Do status transitions
+now use the shared completion synchronizer while preserving the custom import
+intent behavior. The custom save paths use the upstream reload-after-save
+guard, and the two locales missing the merged medication stock-error key were
+completed. The follow-up implementation is `dd76f967e`.
+
+Version metadata remains synchronized at `2.78.0`; these commits do not
+publish a new release. Focused validation passed for health API (155/155),
+health medications (47/47), task-completion writers (23/23), the upstream
+avatar/session/countdown/account/Google/recurrence/DST suites, schedule
+(148/148), frontend audit (531/531), JSON and JavaScript syntax checks, and
+`git diff --check`.
+
+A full `npm test` was launched after the focused fixes and ran through the
+long database-recovery, task, cleanup, and calendar portions without a
+captured `not ok` result. The terminal session exited before returning its
+final exit code, so this checkpoint does not claim an independently verified
+full-suite pass; the focused results above are the certified validation for
+this integration.
+
+This checkpoint contains application, migration, test, and locale changes
+rather than documentation-only changes. After the `custom` push,
+`.github/workflows/docker-publish-feature-work.yml` should therefore run and
+rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
+ready to fast-forward into `custom` and push both branches without force.
