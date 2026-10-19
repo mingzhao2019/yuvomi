@@ -3136,7 +3136,7 @@ function commentsNode(task) {
       field.value = '';
       await reloadAfterSave(() => load());
     } catch (err) {
-      window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+      window.yuvomi.showToast(errorSentence(err), 'danger');
     } finally {
       submit.disabled = false;
     }
