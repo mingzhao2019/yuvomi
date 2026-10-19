@@ -668,7 +668,8 @@
         "kanbanArchiveDone": "Arquivar todas as concluídas",
         "kanbanArchiveDoneConfirm": "Arquivar todas as tarefas concluídas desta coluna?",
         "kanbanArchiveDoneAction": "Arquivar",
-        "filterDueToday": "Com prazo até hoje"
+        "filterDueToday": "Com prazo até hoje",
+        "errorTaskGone": "Esta tarefa já não existe."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} item excluído.",
@@ -1280,7 +1281,9 @@
         "checkConflict": "A nota foi alterada entretanto. Ela será recarregada.",
         "pinnedState": "Fixada",
         "checklistDone": "Concluído",
-        "checklistOpen": "Aberto"
+        "checklistOpen": "Aberto",
+        "errorNoteGone": "Esta nota já não existe.",
+        "errorSelectedCategoryGone": "Uma categoria escolhida já não existe."
     },
     "markdown": {
         "bold": "Negrito (Ctrl+B)",
@@ -1402,7 +1405,9 @@
         "selectNamed": "Selecionar {{name}}",
         "bulkDeleteConfirm": "Eliminar {{count}} contactos?",
         "bulkDeleteConfirm_one": "Eliminar {{count}} contacto?",
-        "bulkDeletedToast": "{{count}} contatos excluídos"
+        "bulkDeletedToast": "{{count}} contatos excluídos",
+        "errorContactGone": "Este contacto já não existe.",
+        "errorSelectedCategoryGone": "A categoria escolhida já não existe."
     },
     "budget": {
         "title": "Orçamento",
@@ -3579,7 +3584,8 @@
         "importSubmit": "Adicionar {{count}}",
         "importSuccess": "{{count}} aniversários adicionados.",
         "importNothingSelected": "Selecione pelo menos um contato.",
-        "importSelected": "{{count}} contatos selecionados"
+        "importSelected": "{{count}} contatos selecionados",
+        "errorBirthdayGone": "Este aniversário já não existe."
     },
     "reminders": {
         "sectionTitle": "Lembrete",
@@ -6264,7 +6270,15 @@
         "detailPaneLabel": "Detalhes do objeto",
         "pickOne": "Escolha um objeto",
         "pickOneHint": "Os detalhes, prazos e o histórico aparecem aqui.",
-        "moreDetailsHint": "Compra, garantia, fotografia, documentos"
+        "moreDetailsHint": "Compra, garantia, fotografia, documentos",
+        "errorItemGone": "Este objeto já não existe.",
+        "errorTrackedDateGone": "Este prazo já não existe.",
+        "errorSelectedLocationGone": "A localização escolhida já não existe.",
+        "errorBookingGone": "Este movimento já não existe.",
+        "errorBookingAlreadyLinked": "Este movimento já está associado.",
+        "errorLocationExists": "Esta localização já existe aqui. Escolha outro nome.",
+        "errorLocationGone": "Esta localização já não existe.",
+        "errorCategoryGone": "Esta categoria já não existe."
     },
     "documentAttach": {
         "label": "Anexos",

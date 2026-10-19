@@ -194,6 +194,7 @@ function loadItems({ category, locationId, status, q } = {}, userId, admin = fal
 function validateItemFields(body) {
   const values = {};
   const results = [];
+  let locationGone = false;
 
   const vName = str(body.name, 'Name', { max: MAX_TITLE });
   results.push(vName);
@@ -223,7 +224,10 @@ function validateItemFields(body) {
     results.push(vLoc);
     if (vLoc.value !== null) {
       const exists = db.get().prepare('SELECT id FROM inventory_locations WHERE id = ?').get(vLoc.value);
-      if (!exists) results.push({ error: 'Location not found.' });
+      if (!exists) {
+        locationGone = true;
+        results.push({ error: 'Location not found.' });
+      }
     }
     values.location_id = vLoc.value;
   }
@@ -357,7 +361,9 @@ function validateItemFields(body) {
   // Constraints) - ein weggelassenes Foto wird NULL, nicht "unveraendert".
   values.photo_data = vPhoto.value ?? null;
 
-  return { values, errors: collectErrors(results) };
+  const errors = collectErrors(results);
+  const reason = locationGone && errors.length === 1 ? 'inventory_selected_location_not_found' : undefined;
+  return { values, errors, reason };
 }
 
 // --------------------------------------------------------
@@ -392,7 +398,7 @@ router.get('/:id', (req, res) => {
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const item = loadItem(vId.value, userId, isAdmin(req), budgetViewer(req), documentViewer(req));
-    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     res.json({ data: item });
   } catch (err) {
     log.error('GET /:id error:', err);
@@ -428,9 +434,11 @@ router.post('/', (req, res) => {
       const vEntryId = idParam(rawEntryId, 'Buchung');
       if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
       entry = visibleEntry(vEntryId.value, budgetViewer(req));
-      if (!entry) return res.status(404).json({ error: 'Booking not found.', code: 404 });
+      if (!entry) return res.status(404).json({ error: 'Booking not found.', code: 404, reason: 'inventory_booking_not_found' });
       const linkError = linkabilityError(entry);
-      if (linkError) return res.status(linkError.code).json({ error: linkError.error, code: linkError.code });
+      if (linkError) return res.status(linkError.code).json({
+        error: linkError.error, code: linkError.code, ...(linkError.reason ? { reason: linkError.reason } : {}),
+      });
 
       const priceOmitted = req.body.purchase_price === undefined || req.body.purchase_price === null || req.body.purchase_price === '';
       if (priceOmitted && !entryHasLinks(entry.id)) {
@@ -438,8 +446,8 @@ router.post('/', (req, res) => {
       }
     }
 
-    const { values, errors } = validateItemFields(effectiveBody);
-    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
+    const { values, errors, reason } = validateItemFields(effectiveBody);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400, ...(reason ? { reason } : {}) });
 
     const { values: trackedDateValues, errors: trackedDateErrors } = validateTrackedDatesInput(req.body.tracked_dates);
     if (trackedDateErrors.length) return res.status(400).json({ error: trackedDateErrors.join(' '), code: 400 });
@@ -513,7 +521,7 @@ router.put('/:id', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
     if (req.body.asset_scope !== undefined && req.body.asset_scope !== item.asset_scope) {
@@ -525,8 +533,8 @@ router.put('/:id', (req, res) => {
     const assigned = validateAssignedUserIds(req.body.assigned_user_ids);
     if (assigned.error) return res.status(400).json({ error: assigned.error, code: 400 });
 
-    const { values, errors } = validateItemFields(req.body);
-    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
+    const { values, errors, reason } = validateItemFields(req.body);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400, ...(reason ? { reason } : {}) });
 
     let trackedDateValues = null;
     if (req.body.tracked_dates !== undefined) {
@@ -605,7 +613,7 @@ router.post('/:id/entries', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
 
@@ -627,7 +635,9 @@ router.post('/:id/entries', (req, res) => {
 
     const budget = budgetViewer(req);
     const result = linkEntry({ itemId: item.id, entryId: vEntryId.value, role: vRole.value, amountShare, viewer: budget });
-    if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
+    if (result.error) return res.status(result.code).json({
+      error: result.error, code: result.code, ...(result.reason ? { reason: result.reason } : {}),
+    });
 
     res.status(201).json({ data: loadItem(item.id, userId, admin, budget, documentViewer(req)) });
   } catch (err) {
@@ -647,7 +657,7 @@ router.delete('/:id/entries/:entryId', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
 
@@ -656,7 +666,9 @@ router.delete('/:id/entries/:entryId', (req, res) => {
 
     const budget = budgetViewer(req);
     const result = unlinkEntry({ itemId: item.id, entryId: vEntryId.value, viewer: budget });
-    if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
+    if (result.error) return res.status(result.code).json({
+      error: result.error, code: result.code, ...(result.reason ? { reason: result.reason } : {}),
+    });
 
     res.json({ data: loadItem(item.id, userId, admin, budget, documentViewer(req)) });
   } catch (err) {
@@ -678,9 +690,8 @@ router.post('/:id/dates/:dateId/complete', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item || !canReadItem(item, userId, admin)) {
-      return res.status(404).json({ error: 'Item not found.', code: 404 });
-    }
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) {
       return res.status(403).json({ error: 'Not authorized.', code: 403 });
     }
@@ -689,7 +700,9 @@ router.post('/:id/dates/:dateId/complete', (req, res) => {
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const result = completeTrackedDate({ item, dateId: vDateId.value, values: value, userId });
-    if (result.error) return res.status(result.code).json({ error: result.error, code: result.code });
+    if (result.error) return res.status(result.code).json({
+      error: result.error, code: result.code, ...(result.reason ? { reason: result.reason } : {}),
+    });
 
     const budget = budgetViewer(req);
     const viewer = documentViewer(req);
@@ -710,9 +723,8 @@ router.get('/:id/service-log', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item || !canReadItem(item, userId, admin)) {
-      return res.status(404).json({ error: 'Item not found.', code: 404 });
-    }
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     res.json({ data: loadServiceLog(item.id) });
   } catch (err) {
     log.error('GET /:id/service-log error:', err);
@@ -727,9 +739,8 @@ router.post('/:id/service-log', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item || !canReadItem(item, userId, admin)) {
-      return res.status(404).json({ error: 'Item not found.', code: 404 });
-    }
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) {
       return res.status(403).json({ error: 'Not authorized.', code: 403 });
     }
@@ -754,9 +765,8 @@ router.put('/:id/service-log/:logId', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item || !canReadItem(item, userId, admin)) {
-      return res.status(404).json({ error: 'Item not found.', code: 404 });
-    }
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) {
       return res.status(403).json({ error: 'Not authorized.', code: 403 });
     }
@@ -782,9 +792,8 @@ router.delete('/:id/service-log/:logId', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item || !canReadItem(item, userId, admin)) {
-      return res.status(404).json({ error: 'Item not found.', code: 404 });
-    }
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) {
       return res.status(403).json({ error: 'Not authorized.', code: 403 });
     }
@@ -806,9 +815,8 @@ router.get('/:id/history', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item || !canReadItem(item, userId, admin)) {
-      return res.status(404).json({ error: 'Item not found.', code: 404 });
-    }
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     res.json({ data: loadHistory(item.id, budgetViewer(req), documentViewer(req)) });
   } catch (err) {
     log.error('GET /:id/history error:', err);
@@ -826,9 +834,8 @@ router.delete('/:id', (req, res) => {
     const userId = actorId(req);
     const admin = isAdmin(req);
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
-    if (!item || !canReadItem(item, userId, admin)) {
-      return res.status(404).json({ error: 'Item not found.', code: 404 });
-    }
+    if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
+    if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (!canEditItem(item, userId, admin)) {
       return res.status(403).json({ error: 'Not authorized.', code: 403 });
     }
@@ -839,7 +846,7 @@ router.delete('/:id', (req, res) => {
       return db.get().prepare('DELETE FROM inventory_items WHERE id = ?').run(vId.value);
     })();
 
-    if (deleted.changes === 0) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    if (deleted.changes === 0) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     res.status(204).end();
   } catch (err) {
     log.error('DELETE /:id error:', err);

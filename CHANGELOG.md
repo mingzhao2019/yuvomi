@@ -37,6 +37,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Budget category bars are one color again, and their stripes stand at 45 degrees (#2084).**
+  Every expense bar in the Overview and in Statistics started with a short stroke in the module
+  color instead of the category color, which was most visible on short bars. The two striped
+  categories (the sixth and seventh color, striped so they stay apart with color vision
+  deficiencies) showed their stripes almost upright on short bars instead of diagonal, which read
+  as a rendering error. Both now follow the category: the stroke takes its color, and the stripes
+  keep their angle at any bar length.
+- **Saving in a Health dialog no longer closes a dialog you opened in the meantime (#1997).**
+  Measurements, medications and dose entries, lab reports, activities, prevention records,
+  nutrition entries and targets, periods, cycle days, the cycle history import and the cycle
+  settings now close only the dialog the save came from. If you had closed it and opened another one
+  before the answer arrived, the other one stays open with what you typed in it.
+- **Saving in a Waste or Shopping dialog no longer closes a dialog you opened in the meantime (#1997).**
+  In Waste, waste types, collection schedules, one-off pickups, moved pickups, sources, the calendar
+  import, mapping profiles and reminder settings now close only the dialog the save or delete came
+  from. In Shopping, the same holds for editing an item, sending, duplicating, moving ticked items to
+  the pantry and taking ingredients from the meal plan, and for the reload after something was deleted
+  elsewhere. If you had closed the dialog and opened another one before the answer arrived, the other
+  one stays open with what you typed in it.
+- **Saving in a Schedule, budget plan or family settings dialog no longer closes a dialog you opened
+  in the meantime (#1997).** In Schedule, adding and editing shift types, patterns, exceptions and
+  extra shifts and saving a custom field now close only the dialog the save came from, also after
+  the overlap or range question. The same holds for setting and removing a budget plan, adding and
+  editing a household member, the prevention types in the Health settings and the recipe provider
+  accounts in the Kitchen settings. If you had closed the dialog and opened another one before the
+  answer arrived, the other one stays open with what you typed in it.
+- **Inventory, notes, contacts and birthdays: an error message is in your language and names the
+  cause** (#1909). These pages showed the server's own text when something could not be saved,
+  pinned, completed or deleted, whatever the app language, in English or in German - for example
+  "Notiz nicht gefunden" in an English session when somebody else in the household had deleted the
+  note in the meantime. An item, tracked date, booking, note, contact or birthday that no longer
+  exists, a location or note category chosen in the form that was deleted in the meantime, and a
+  booking that is already linked now get a sentence in the language of the app. When the thing
+  itself is gone, the page takes it out of the list and closes the dialog of the action; deleting
+  something somebody else has already deleted counts as done instead of bringing the row back with
+  an error, also when you delete several contacts at once. When only the chosen location or note
+  category is gone, the form stays open with your input and offers the current ones; a booking
+  noted for a new item that is gone is dropped from the form. A picture that cannot be used for an
+  item or a birthday keeps its own message, and any other failure there shows the general message
+  instead of the browser's own text. When a list cannot be refreshed after you change locations or
+  categories, the message says why (offline, server, too many requests) instead of the server's
+  text. The contact import still names the field a vCard was rejected for. For API clients: those
+  answers of `/api/v1/inventory`, `/api/v1/notes`, `/api/v1/contacts` and `/api/v1/birthdays` carry
+  a `reason` next to `error` (`inventory_item_not_found`, `inventory_tracked_date_not_found`,
+  `inventory_booking_not_found`, `inventory_booking_already_linked`,
+  `inventory_selected_location_not_found`, `notes_note_not_found`,
+  `notes_selected_category_not_found`, `category_exists`, `contacts_contact_not_found`,
+  `birthdays_birthday_not_found`), the German texts of those answers are now English, and the
+  status codes are unchanged.
+- **Saving in a Budget or Housekeeping dialog no longer closes a dialog you opened in the meantime (#1997).**
+  In Budget, entries, loans, accounts (save and archive) and confirming a planned entry now close only
+  the dialog the save came from. In Housekeeping, the same holds for adding and editing a task,
+  editing a visit and saving a staff member. If you had closed the dialog and opened another one
+  before the answer arrived, the other one stays open with what you typed in it.
+- **Tasks, inventory locations and categories, contact form: an error message is in your language**
+  (#1909). The tasks page showed the server's or the browser's own text when ticking off, moving,
+  archiving, sorting, tagging, saving or deleting a task failed, for example "Task not found." in a
+  German session. It now says the sentence of the app; a task that somebody else deleted or made
+  private in the meantime is named as such, the list is reloaded, an open edit form for it closes,
+  and deleting a task that is already gone counts as done, also when you delete several at once.
+  The managers for inventory locations and categories now say "this location already exists here"
+  and "this location (or category) no longer exists" in your language instead of the server's
+  English text, and deleting one somebody else already removed counts as done. In the contact form,
+  a chosen category that was deleted in the meantime keeps the form open with your input and offers
+  the current categories. For API clients: those answers carry a `reason` next to `error`
+  (`tasks_task_not_found`, `inventory_location_exists`, `inventory_location_not_found`,
+  `inventory_category_not_found`, `category_exists` for inventory categories,
+  `contacts_selected_category_not_found`), and the status codes are unchanged.
 - **Recurring events on the day the clocks change are no longer an hour off (#2034).**
   A series with its own time zone, for example a daily 01:30 event in Berlin, showed the occurrence
   on the day of the clock change one hour early or late, both in the calendar and in subscribed

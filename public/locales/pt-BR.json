@@ -668,7 +668,8 @@
         "taskListTasksNotDeletable": "Esta lista contém uma tarefa que não pode eliminar. Não foi alterado nada.",
         "taskListSyncRequired": "Desligue a sincronização desta lista antes de a eliminar.",
         "taskListSyncDisabled": "Sincronização desligada",
-        "taskListDeleted": "Lista de tarefas eliminada."
+        "taskListDeleted": "Lista de tarefas eliminada.",
+        "errorTaskGone": "Esta tarefa não existe mais."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} item excluído.",
@@ -1280,7 +1281,9 @@
         "checkConflict": "A nota foi alterada entretanto. Ela será recarregada.",
         "pinnedState": "Fixada",
         "checklistDone": "Concluído",
-        "checklistOpen": "Aberto"
+        "checklistOpen": "Aberto",
+        "errorNoteGone": "Esta nota não existe mais.",
+        "errorSelectedCategoryGone": "Uma categoria selecionada não existe mais."
     },
     "markdown": {
         "bold": "Negrito (Ctrl+B)",
@@ -1402,7 +1405,9 @@
         "bulkDeleteConfirm": "Eliminar {{count}} contatos?",
         "bulkDeleteConfirm_one": "Eliminar {{count}} contato?",
         "bulkDeletedToast": "{{count}} contatos excluídos",
-        "emailLockedHint": "Estes endereços pertencem à conta deste membro. Apenas o próprio membro ou um administrador pode alterá-los."
+        "emailLockedHint": "Estes endereços pertencem à conta deste membro. Apenas o próprio membro ou um administrador pode alterá-los.",
+        "errorContactGone": "Este contato não existe mais.",
+        "errorSelectedCategoryGone": "A categoria selecionada não existe mais."
     },
     "budget": {
         "title": "Orçamento",
@@ -3579,7 +3584,8 @@
         "importSubmit": "Adicionar {{count}}",
         "importSuccess": "{{count}} aniversários adicionados.",
         "importNothingSelected": "Selecione pelo menos um contato.",
-        "importSelected": "{{count}} contatos selecionados"
+        "importSelected": "{{count}} contatos selecionados",
+        "errorBirthdayGone": "Este aniversário não existe mais."
     },
     "reminders": {
         "sectionTitle": "Lembrete",
@@ -5834,7 +5840,15 @@
         "pickOne": "Escolha um item",
         "pickOneHint": "Os detalhes, os prazos e o histórico aparecem aqui.",
         "backToInventory": "Voltar ao inventário",
-        "moreDetailsHint": "Compra, garantia, foto, documentos"
+        "moreDetailsHint": "Compra, garantia, foto, documentos",
+        "errorItemGone": "Este item não existe mais.",
+        "errorTrackedDateGone": "Este prazo não existe mais.",
+        "errorSelectedLocationGone": "A localização selecionada não existe mais.",
+        "errorBookingGone": "Esta transação não existe mais.",
+        "errorBookingAlreadyLinked": "Esta transação já está vinculada.",
+        "errorLocationExists": "Este local já existe aqui. Escolha outro nome.",
+        "errorLocationGone": "Este local não existe mais.",
+        "errorCategoryGone": "Esta categoria não existe mais."
     },
     "join": {
         "title": "Configure sua conta",

@@ -668,7 +668,8 @@
         "kanbanArchiveDone": "Archivia tutte le completate",
         "kanbanArchiveDoneConfirm": "Archiviare tutte le attività completate di questa colonna?",
         "kanbanArchiveDoneAction": "Archivia",
-        "filterDueToday": "In scadenza entro oggi"
+        "filterDueToday": "In scadenza entro oggi",
+        "errorTaskGone": "Questa attività non esiste più."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} articolo eliminato.",
@@ -1280,7 +1281,9 @@
         "checkConflict": "La nota è stata modificata nel frattempo. Verrà ricaricata.",
         "pinnedState": "Fissata",
         "checklistDone": "Completato",
-        "checklistOpen": "Aperto"
+        "checklistOpen": "Aperto",
+        "errorNoteGone": "Questa nota non esiste più.",
+        "errorSelectedCategoryGone": "Una categoria selezionata non esiste più."
     },
     "markdown": {
         "bold": "Grassetto (Ctrl+B)",
@@ -1402,7 +1405,9 @@
         "selectNamed": "Seleziona {{name}}",
         "bulkDeleteConfirm": "Eliminare {{count}} contatti?",
         "bulkDeleteConfirm_one": "Eliminare {{count}} contatto?",
-        "bulkDeletedToast": "{{count}} contatti eliminati"
+        "bulkDeletedToast": "{{count}} contatti eliminati",
+        "errorContactGone": "Questo contatto non esiste più.",
+        "errorSelectedCategoryGone": "La categoria selezionata non esiste più."
     },
     "budget": {
         "title": "Bilancio",
@@ -3579,7 +3584,8 @@
         "importSubmit": "Aggiungi {{count}}",
         "importSuccess": "{{count}} compleanni aggiunti.",
         "importNothingSelected": "Seleziona almeno un contatto.",
-        "importSelected": "{{count}} contatti selezionati"
+        "importSelected": "{{count}} contatti selezionati",
+        "errorBirthdayGone": "Questo compleanno non esiste più."
     },
     "reminders": {
         "sectionTitle": "Promemoria",
@@ -6264,7 +6270,15 @@
         "detailPaneLabel": "Dettagli dell'oggetto",
         "pickOne": "Scegli un oggetto",
         "pickOneHint": "Qui compaiono dettagli, scadenze e cronologia.",
-        "moreDetailsHint": "Acquisto, garanzia, foto, documenti"
+        "moreDetailsHint": "Acquisto, garanzia, foto, documenti",
+        "errorItemGone": "Questo oggetto non esiste più.",
+        "errorTrackedDateGone": "Questa scadenza non esiste più.",
+        "errorSelectedLocationGone": "La posizione selezionata non esiste più.",
+        "errorBookingGone": "Questo movimento non esiste più.",
+        "errorBookingAlreadyLinked": "Questo movimento è già collegato.",
+        "errorLocationExists": "Questa posizione esiste già qui. Scegli un altro nome.",
+        "errorLocationGone": "Questa posizione non esiste più.",
+        "errorCategoryGone": "Questa categoria non esiste più."
     },
     "documentAttach": {
         "label": "Allegati",

@@ -821,7 +821,8 @@
         "documentsCount_many": "{{count}} مستندًا",
         "tagsSkippedLocked_few": "تم تخطي {{count}} مهام مقفلة.",
         "tagsSkippedLocked_two": "تم تخطي مهمتين مقفلتين.",
-        "tagsSkippedLocked_many": "تم تخطي {{count}} مهمة مقفلة."
+        "tagsSkippedLocked_many": "تم تخطي {{count}} مهمة مقفلة.",
+        "errorTaskGone": "هذه المهمة لم تعد موجودة."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وجبات",
@@ -1503,7 +1504,9 @@
         "checkConflict": "تم تغيير الملاحظة في هذه الأثناء. سيتم إعادة تحميلها.",
         "pinnedState": "مثبتة",
         "checklistDone": "منجز",
-        "checklistOpen": "مفتوح"
+        "checklistOpen": "مفتوح",
+        "errorNoteGone": "هذه الملاحظة لم تعد موجودة.",
+        "errorSelectedCategoryGone": "إحدى الفئات المحددة لم تعد موجودة."
     },
     "markdown": {
         "bold": "عريض (Ctrl+B)",
@@ -1628,7 +1631,9 @@
         "bulkDeleteConfirm_few": "حذف {{count}} جهات اتصال؟",
         "bulkDeleteConfirm_two": "حذف جهتي اتصال؟",
         "bulkDeleteConfirm_many": "حذف {{count}} جهة اتصال؟",
-        "bulkDeletedToast": "تم حذف {{count}} جهة اتصال"
+        "bulkDeletedToast": "تم حذف {{count}} جهة اتصال",
+        "errorContactGone": "جهة الاتصال هذه لم تعد موجودة.",
+        "errorSelectedCategoryGone": "الفئة المحددة لم تعد موجودة."
     },
     "budget": {
         "title": "الميزانية",
@@ -3898,7 +3903,8 @@
         "importSubmit": "إضافة {{count}}",
         "importSuccess": "تمت إضافة {{count}} عيد ميلاد.",
         "importNothingSelected": "يرجى اختيار جهة اتصال واحدة على الأقل.",
-        "importSelected": "تم تحديد {{count}} جهة اتصال"
+        "importSelected": "تم تحديد {{count}} جهة اتصال",
+        "errorBirthdayGone": "عيد الميلاد هذا لم يعد موجودًا."
     },
     "reminders": {
         "sectionTitle": "تذكير",
@@ -6727,7 +6733,15 @@
         "trackedDateOverdueDays_few": "متأخر {{count}} أيام",
         "trackedDateOverdueDays_two": "متأخر يومين",
         "trackedDateOverdueDays_many": "متأخر {{count}} يومًا",
-        "moreDetailsHint": "الشراء، الضمان، الصورة، المستندات"
+        "moreDetailsHint": "الشراء، الضمان، الصورة، المستندات",
+        "errorItemGone": "هذا الغرض لم يعد موجودًا.",
+        "errorTrackedDateGone": "هذا الموعد لم يعد موجودًا.",
+        "errorSelectedLocationGone": "لم يعد الموقع المحدد موجودًا.",
+        "errorBookingGone": "هذه المعاملة لم تعد موجودة.",
+        "errorBookingAlreadyLinked": "هذه المعاملة مرتبطة بالفعل.",
+        "errorLocationExists": "هذا الموقع موجود هنا بالفعل. اختر اسمًا آخر.",
+        "errorLocationGone": "هذا الموقع لم يعد موجودًا.",
+        "errorCategoryGone": "هذه الفئة لم تعد موجودة."
     },
     "documentAttach": {
         "label": "المرفقات",

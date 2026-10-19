@@ -21896,6 +21896,11 @@ const ERROR_MESSAGE_CLEAN = [
   'utils/document-folder-delete.js',
   'pages/recipes.js',
   'pages/subscriptions.js',
+  'pages/inventory.js',
+  'pages/notes.js',
+  'pages/contacts.js',
+  'pages/birthdays.js',
+  'pages/tasks.js',
 ];
 
 test('der Leser fuer err.message sieht beide Schreibweisen und keinen Kommentar (#1909)', () => {

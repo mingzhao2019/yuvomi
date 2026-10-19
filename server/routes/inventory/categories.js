@@ -83,7 +83,7 @@ router.post('/', requireAdmin, (req, res) => {
 router.put('/:key', requireAdmin, (req, res) => {
   try {
     const cat = db.get().prepare('SELECT * FROM inventory_categories WHERE key = ?').get(req.params.key);
-    if (!cat) return res.status(404).json({ error: 'Category not found.', code: 404 });
+    if (!cat) return res.status(404).json({ error: 'Category not found.', code: 404, reason: 'inventory_category_not_found' });
 
     const vName = str(req.body.name, 'Name', { max: MAX_SHORT });
     if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
@@ -125,7 +125,7 @@ router.delete('/:key', requireAdmin, (req, res) => {
       });
     }
     const cat = db.get().prepare('SELECT * FROM inventory_categories WHERE key = ?').get(req.params.key);
-    if (!cat) return res.status(404).json({ error: 'Category not found.', code: 404 });
+    if (!cat) return res.status(404).json({ error: 'Category not found.', code: 404, reason: 'inventory_category_not_found' });
 
     const result = db.get().transaction(() => {
       const reassigned = db.get()

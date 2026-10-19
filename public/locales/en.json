@@ -668,7 +668,8 @@
         "kanbanArchiveDone": "Archive all done",
         "kanbanArchiveDoneConfirm": "Archive every done task in this column?",
         "kanbanArchiveDoneAction": "Archive",
-        "filterDueToday": "Due by today"
+        "filterDueToday": "Due by today",
+        "errorTaskGone": "This task no longer exists."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} item deleted.",
@@ -1280,7 +1281,9 @@
         "checkConflict": "The note has changed in the meantime. It will be reloaded.",
         "pinnedState": "Pinned",
         "checklistDone": "Done",
-        "checklistOpen": "Open"
+        "checklistOpen": "Open",
+        "errorNoteGone": "This note no longer exists.",
+        "errorSelectedCategoryGone": "A selected category no longer exists."
     },
     "markdown": {
         "bold": "Bold (Ctrl+B)",
@@ -1402,7 +1405,9 @@
         "selectNamed": "Select {{name}}",
         "bulkDeleteConfirm": "Delete {{count}} contacts?",
         "bulkDeleteConfirm_one": "Delete {{count}} contact?",
-        "bulkDeletedToast": "{{count}} contacts deleted"
+        "bulkDeletedToast": "{{count}} contacts deleted",
+        "errorContactGone": "This contact no longer exists.",
+        "errorSelectedCategoryGone": "The selected category no longer exists."
     },
     "budget": {
         "title": "Budget",
@@ -3541,7 +3546,8 @@
         "importSubmit": "Add {{count}}",
         "importSuccess": "{{count}} birthdays added.",
         "importNothingSelected": "Please select at least one contact.",
-        "importSelected": "{{count}} contacts selected"
+        "importSelected": "{{count}} contacts selected",
+        "errorBirthdayGone": "This birthday no longer exists."
     },
     "recipes": {
         "mealTypeNone": "No meal",
@@ -6264,7 +6270,15 @@
         "detailPaneLabel": "Item details",
         "pickOne": "Choose an item",
         "pickOneHint": "Details, deadlines and history appear here.",
-        "moreDetailsHint": "Purchase, warranty, photo, documents"
+        "moreDetailsHint": "Purchase, warranty, photo, documents",
+        "errorItemGone": "This item no longer exists.",
+        "errorTrackedDateGone": "This deadline no longer exists.",
+        "errorSelectedLocationGone": "The selected location no longer exists.",
+        "errorBookingGone": "This booking no longer exists.",
+        "errorBookingAlreadyLinked": "This booking is already linked.",
+        "errorLocationExists": "This location already exists here. Choose a different name.",
+        "errorLocationGone": "This location no longer exists.",
+        "errorCategoryGone": "This category no longer exists."
     },
     "documentAttach": {
         "label": "Attachments",

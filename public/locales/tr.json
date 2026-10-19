@@ -668,7 +668,8 @@
         "kanbanArchiveDone": "Tamamlananların hepsini arşivle",
         "kanbanArchiveDoneConfirm": "Bu sütundaki tüm tamamlanan görevler arşivlensin mi?",
         "kanbanArchiveDoneAction": "Arşivle",
-        "filterDueToday": "Son tarihi bugüne kadar"
+        "filterDueToday": "Son tarihi bugüne kadar",
+        "errorTaskGone": "Bu görev artık yok."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} ürün silindi.",
@@ -1280,7 +1281,9 @@
         "checkConflict": "Not bu arada değişti. Yeniden yüklenecek.",
         "pinnedState": "Sabitlenmiş",
         "checklistDone": "Tamamlandı",
-        "checklistOpen": "Açık"
+        "checklistOpen": "Açık",
+        "errorNoteGone": "Bu not artık yok.",
+        "errorSelectedCategoryGone": "Seçilen kategorilerden biri artık mevcut değil."
     },
     "markdown": {
         "bold": "Kalın (Ctrl+B)",
@@ -1402,7 +1405,9 @@
         "selectNamed": "{{name}} kişisini seç",
         "bulkDeleteConfirm": "{{count}} kişi silinsin mi?",
         "bulkDeleteConfirm_one": "{{count}} kişi silinsin mi?",
-        "bulkDeletedToast": "{{count}} kişi silindi"
+        "bulkDeletedToast": "{{count}} kişi silindi",
+        "errorContactGone": "Bu kişi artık yok.",
+        "errorSelectedCategoryGone": "Seçilen kategori artık mevcut değil."
     },
     "budget": {
         "title": "Bütçe",
@@ -3579,7 +3584,8 @@
         "importSubmit": "{{count}} ekle",
         "importSuccess": "{{count}} doğum günü eklendi.",
         "importNothingSelected": "Lütfen en az bir kişi seçin.",
-        "importSelected": "{{count}} kişi seçildi"
+        "importSelected": "{{count}} kişi seçildi",
+        "errorBirthdayGone": "Bu doğum günü artık yok."
     },
     "reminders": {
         "sectionTitle": "Hatırlatıcı",
@@ -6264,7 +6270,15 @@
         "detailPaneLabel": "Eşya ayrıntıları",
         "pickOne": "Bir eşya seçin",
         "pickOneHint": "Ayrıntılar, süreler ve geçmiş burada görünür.",
-        "moreDetailsHint": "Satın alma, garanti, fotoğraf, belgeler"
+        "moreDetailsHint": "Satın alma, garanti, fotoğraf, belgeler",
+        "errorItemGone": "Bu eşya artık yok.",
+        "errorTrackedDateGone": "Bu tarih artık yok.",
+        "errorSelectedLocationGone": "Seçilen konum artık mevcut değil.",
+        "errorBookingGone": "Bu işlem artık yok.",
+        "errorBookingAlreadyLinked": "Bu işlem zaten bağlı.",
+        "errorLocationExists": "Bu konum burada zaten var. Başka bir ad seçin.",
+        "errorLocationGone": "Bu konum artık yok.",
+        "errorCategoryGone": "Bu kategori artık yok."
     },
     "documentAttach": {
         "label": "Ekler",

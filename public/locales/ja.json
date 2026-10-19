@@ -668,7 +668,8 @@
         "kanbanArchiveDone": "完了をすべてアーカイブ",
         "kanbanArchiveDoneConfirm": "この列の完了したタスクをすべてアーカイブしますか？",
         "kanbanArchiveDoneAction": "アーカイブ",
-        "filterDueToday": "今日までが期限"
+        "filterDueToday": "今日までが期限",
+        "errorTaskGone": "このタスクはもう存在しません。"
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} 件を削除しました。",
@@ -1280,7 +1281,9 @@
         "checkConflict": "メモはその間に変更されました。再読み込みします。",
         "pinnedState": "ピン留め済み",
         "checklistDone": "完了",
-        "checklistOpen": "未完了"
+        "checklistOpen": "未完了",
+        "errorNoteGone": "このメモはもうありません。",
+        "errorSelectedCategoryGone": "選択したカテゴリの一つがもう存在しません。"
     },
     "markdown": {
         "bold": "太字 (Ctrl+B)",
@@ -1402,7 +1405,9 @@
         "selectNamed": "{{name}} を選択",
         "bulkDeleteConfirm": "{{count}} 件の連絡先を削除しますか?",
         "bulkDeleteConfirm_one": "{{count}} 件の連絡先を削除しますか?",
-        "bulkDeletedToast": "連絡先 {{count}} 件を削除しました"
+        "bulkDeletedToast": "連絡先 {{count}} 件を削除しました",
+        "errorContactGone": "この連絡先はもうありません。",
+        "errorSelectedCategoryGone": "選択したカテゴリーはもう存在しません。"
     },
     "budget": {
         "title": "家計",
@@ -3579,7 +3584,8 @@
         "importSubmit": "{{count}} 件を追加",
         "importSuccess": "{{count}} 件の誕生日を追加しました。",
         "importNothingSelected": "少なくとも 1 件の連絡先を選択してください。",
-        "importSelected": "{{count}} 件の連絡先を選択"
+        "importSelected": "{{count}} 件の連絡先を選択",
+        "errorBirthdayGone": "この誕生日はもうありません。"
     },
     "reminders": {
         "sectionTitle": "リマインダー",
@@ -6264,7 +6270,15 @@
         "detailPaneLabel": "持ち物の詳細",
         "pickOne": "持ち物を選択",
         "pickOneHint": "詳細・期限・履歴がここに表示されます。",
-        "moreDetailsHint": "購入・保証・写真・書類"
+        "moreDetailsHint": "購入・保証・写真・書類",
+        "errorItemGone": "この持ち物はもうありません。",
+        "errorTrackedDateGone": "この期限はもうありません。",
+        "errorSelectedLocationGone": "選択した場所はもう存在しません。",
+        "errorBookingGone": "この取引はもうありません。",
+        "errorBookingAlreadyLinked": "この取引はすでに関連付けられています。",
+        "errorLocationExists": "この場所はすでにここにあります。別の名前を選んでください。",
+        "errorLocationGone": "この場所はもう存在しません。",
+        "errorCategoryGone": "このカテゴリーはもう存在しません。"
     },
     "documentAttach": {
         "label": "添付",

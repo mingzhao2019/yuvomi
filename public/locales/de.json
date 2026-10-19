@@ -684,7 +684,8 @@
         "kanbanArchiveDone": "Alles Erledigte archivieren",
         "kanbanArchiveDoneConfirm": "Alle erledigten Aufgaben in dieser Spalte archivieren?",
         "kanbanArchiveDoneAction": "Archivieren",
-        "filterDueToday": "Bis heute fällig"
+        "filterDueToday": "Bis heute fällig",
+        "errorTaskGone": "Diese Aufgabe gibt es nicht mehr."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} Artikel gelöscht.",
@@ -1296,7 +1297,9 @@
         "checkConflict": "Die Notiz wurde inzwischen geändert. Sie wird neu geladen.",
         "pinnedState": "Angepinnt",
         "checklistDone": "Erledigt",
-        "checklistOpen": "Offen"
+        "checklistOpen": "Offen",
+        "errorNoteGone": "Diese Notiz gibt es nicht mehr.",
+        "errorSelectedCategoryGone": "Eine gewählte Kategorie gibt es nicht mehr."
     },
     "markdown": {
         "bold": "Fett (Strg+B)",
@@ -1418,7 +1421,9 @@
         "selectNamed": "{{name}} auswählen",
         "bulkDeleteConfirm": "{{count}} Kontakte löschen?",
         "bulkDeleteConfirm_one": "{{count}} Kontakt löschen?",
-        "bulkDeletedToast": "{{count}} Kontakte gelöscht"
+        "bulkDeletedToast": "{{count}} Kontakte gelöscht",
+        "errorContactGone": "Diesen Kontakt gibt es nicht mehr.",
+        "errorSelectedCategoryGone": "Die gewählte Kategorie gibt es nicht mehr."
     },
     "budget": {
         "title": "Budget",
@@ -3557,7 +3562,8 @@
         "importSubmit": "{{count}} übernehmen",
         "importSuccess": "{{count}} Geburtstage übernommen.",
         "importNothingSelected": "Bitte mindestens einen Kontakt auswählen.",
-        "importSelected": "{{count}} Kontakte ausgewählt"
+        "importSelected": "{{count}} Kontakte ausgewählt",
+        "errorBirthdayGone": "Diesen Geburtstag gibt es nicht mehr."
     },
     "recipes": {
         "mealTypeNone": "Keine Mahlzeit",
@@ -6264,7 +6270,15 @@
         "detailPaneLabel": "Gegenstandsdetails",
         "pickOne": "Wähle einen Gegenstand",
         "pickOneHint": "Angaben, Fristen und Verlauf erscheinen hier.",
-        "moreDetailsHint": "Kauf, Garantie, Foto, Dokumente"
+        "moreDetailsHint": "Kauf, Garantie, Foto, Dokumente",
+        "errorItemGone": "Diesen Gegenstand gibt es nicht mehr.",
+        "errorTrackedDateGone": "Diese Frist gibt es nicht mehr.",
+        "errorSelectedLocationGone": "Den gewählten Ort gibt es nicht mehr.",
+        "errorBookingGone": "Diese Buchung gibt es nicht mehr.",
+        "errorBookingAlreadyLinked": "Diese Buchung ist bereits verknüpft.",
+        "errorLocationExists": "Diesen Ort gibt es hier schon. Wähle einen anderen Namen.",
+        "errorLocationGone": "Diesen Ort gibt es nicht mehr.",
+        "errorCategoryGone": "Diese Kategorie gibt es nicht mehr."
     },
     "documentAttach": {
         "label": "Anhänge",
