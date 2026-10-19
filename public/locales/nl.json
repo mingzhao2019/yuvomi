@@ -669,7 +669,9 @@
         "kanbanArchiveDoneConfirm": "Alle afgeronde taken in deze kolom archiveren?",
         "kanbanArchiveDoneAction": "Archiveren",
         "filterDueToday": "Uiterlijk vandaag te doen",
-        "errorTaskGone": "Deze taak bestaat niet meer."
+        "errorTaskGone": "Deze taak bestaat niet meer.",
+        "errorParentGone": "De taak waar deze subtaak bij hoort bestaat niet meer.",
+        "errorCommentGone": "Deze opmerking bestaat niet meer."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} artikel verwijderd.",
@@ -6551,7 +6553,13 @@
             "seminar": "WC",
             "lab": "PR"
         },
-        "typesWithTime": "Met tijden"
+        "typesWithTime": "Met tijden",
+        "errorShiftTypeGone": "Dit diensttype bestaat niet meer.",
+        "errorSelectedShiftTypeGone": "Het gekozen diensttype bestaat niet meer.",
+        "errorCustomFieldGone": "Dit veld bestaat niet meer.",
+        "errorSelectedCustomFieldGone": "Een van de gekozen velden bestaat niet meer.",
+        "errorPatternGone": "Dit roosterpatroon bestaat niet meer.",
+        "errorEntryGone": "Deze vermelding bestaat niet meer."
     },
     "pairDisplay": {
         "title": "Tablet koppelen",

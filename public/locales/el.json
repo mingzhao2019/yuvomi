@@ -669,7 +669,9 @@
         "kanbanArchiveDoneConfirm": "Αρχειοθέτηση όλων των ολοκληρωμένων εργασιών αυτής της στήλης;",
         "kanbanArchiveDoneAction": "Αρχειοθέτηση",
         "filterDueToday": "Λήξη έως σήμερα",
-        "errorTaskGone": "Αυτή η εργασία δεν υπάρχει πια."
+        "errorTaskGone": "Αυτή η εργασία δεν υπάρχει πια.",
+        "errorParentGone": "Η εργασία στην οποία ανήκει αυτή η υποεργασία δεν υπάρχει πια.",
+        "errorCommentGone": "Αυτό το σχόλιο δεν υπάρχει πια."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} είδος διαγράφηκε.",
@@ -6551,7 +6553,13 @@
             "seminar": "ΣΕ",
             "lab": "ΕΡ"
         },
-        "typesWithTime": "Με ώρα"
+        "typesWithTime": "Με ώρα",
+        "errorShiftTypeGone": "Αυτός ο τύπος βάρδιας δεν υπάρχει πια.",
+        "errorSelectedShiftTypeGone": "Ο επιλεγμένος τύπος βάρδιας δεν υπάρχει πια.",
+        "errorCustomFieldGone": "Αυτό το πεδίο δεν υπάρχει πια.",
+        "errorSelectedCustomFieldGone": "Ένα από τα επιλεγμένα πεδία δεν υπάρχει πια.",
+        "errorPatternGone": "Αυτός ο κύκλος βαρδιών δεν υπάρχει πια.",
+        "errorEntryGone": "Αυτή η καταχώριση δεν υπάρχει πια."
     },
     "pairDisplay": {
         "title": "Σύζευξη tablet",

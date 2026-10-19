@@ -720,7 +720,9 @@
         "pointsSummary_few": "{{count}} body",
         "documentsCount_few": "Dokumenty: {{count}}",
         "tagsSkippedLocked_few": "Přeskočeny {{count}} zamčené úkoly.",
-        "errorTaskGone": "Tento úkol už neexistuje."
+        "errorTaskGone": "Tento úkol už neexistuje.",
+        "errorParentGone": "Nadřazený úkol tohoto podúkolu už neexistuje.",
+        "errorCommentGone": "Tento komentář už neexistuje."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} jídla",
@@ -6715,7 +6717,13 @@
             "seminar": "SE",
             "lab": "LAB"
         },
-        "typesWithTime": "S časem"
+        "typesWithTime": "S časem",
+        "errorShiftTypeGone": "Tento typ směny už neexistuje.",
+        "errorSelectedShiftTypeGone": "Vybraný typ směny už neexistuje.",
+        "errorCustomFieldGone": "Toto pole už neexistuje.",
+        "errorSelectedCustomFieldGone": "Jedno z vybraných polí už neexistuje.",
+        "errorPatternGone": "Tento cyklus směn už neexistuje.",
+        "errorEntryGone": "Tento záznam už neexistuje."
     },
     "pairDisplay": {
         "title": "Spárovat tablet",

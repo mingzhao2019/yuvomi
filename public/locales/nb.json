@@ -669,7 +669,9 @@
         "taskListSyncRequired": "Koble fra synkroniseringen for denne listen før du sletter den.",
         "taskListSyncDisabled": "Synkronisering frakoblet",
         "taskListDeleted": "Oppgavelisten er slettet.",
-        "errorTaskGone": "Denne oppgaven finnes ikke lenger."
+        "errorTaskGone": "Denne oppgaven finnes ikke lenger.",
+        "errorParentGone": "Oppgaven denne underoppgaven hører til finnes ikke lenger.",
+        "errorCommentGone": "Denne kommentaren finnes ikke lenger."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} vare slettet.",
@@ -6551,7 +6553,13 @@
             "seminar": "SE",
             "lab": "LAB"
         },
-        "typesWithTime": "Med klokkeslett"
+        "typesWithTime": "Med klokkeslett",
+        "errorShiftTypeGone": "Denne vakttypen finnes ikke lenger.",
+        "errorSelectedShiftTypeGone": "Den valgte vakttypen finnes ikke lenger.",
+        "errorCustomFieldGone": "Dette feltet finnes ikke lenger.",
+        "errorSelectedCustomFieldGone": "Ett av de valgte feltene finnes ikke lenger.",
+        "errorPatternGone": "Denne planen finnes ikke lenger.",
+        "errorEntryGone": "Denne oppføringen finnes ikke lenger."
     },
     "pairDisplay": {
         "title": "Par nettbrett",
