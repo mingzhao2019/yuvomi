@@ -11317,9 +11317,12 @@ const MIGRATIONS = [
         BEGIN UPDATE users SET avatar_key = lower(hex(randomblob(16))) WHERE id = NEW.id; END;
     `,
   },
+  // Upstream called this v252, but custom already uses v252 for task order.
+  // Keep the migration append-only and give the same schema change the next
+  // available custom version instead of colliding with an existing one.
   {
-    version: 252,
-    description: 'task_completions: source, so a completion taken over by the CalDAV sync is told apart (#1836)',
+    version: 262,
+    description: 'task_completions: source, so a completion taken over by the CalDAV sync is told apart (#1836; upstream v252)',
     // Der eingehende CalDAV-Sync schreibt seit #1836 einen Erledigungseintrag,
     // wenn eine gespiegelte Aufgabe auf dem Telefon abgehakt wurde. Er hat keine
     // handelnde Person, `user_id` bleibt NULL - und NULL hiess bisher "die
@@ -11644,7 +11647,7 @@ const CRITICAL_COLUMNS = [
   // Bild neu wuerfeln, kommen mit der Spalte.
   { table: 'users', column: 'avatar_key', type: 'TEXT',
     backfill: backfillAvatarKey },
-  // #1836: v252 traegt die Quelle einer Erledigung nach; ohne die Spalte
+  // #1836: custom v262 (upstream v252) traegt die Quelle einer Erledigung nach; ohne die Spalte
   // scheitert jeder Uebergang nach 'done' (der Eintrag schreibt sie, die
   // Aufgabenaenderung rollt mit zurueck) und jeder Verlauf (er liest sie). Kein
   // Nachtrag: NULL heisst "in Yuvomi abgehakt".

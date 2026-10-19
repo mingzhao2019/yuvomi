@@ -28,7 +28,7 @@ import {
   clearMicrosoftTodoCompletionIntent,
   markMicrosoftTodoCompletionIntentReconciled,
   microsoftTodoCompletionIntent,
-  revokeCompletion,
+  syncTaskCompletion,
 } from './task-completions.js';
 
 const log = createLogger('MicrosoftToDo');
@@ -730,10 +730,8 @@ function applyRemoteTasks(
         list.id,
         old.id,
       );
-      if (Object.prototype.hasOwnProperty.call(remote, 'status')
-        && old.status === 'done'
-        && values.status !== 'done') {
-        revokeCompletion(database, old.id);
+      if (Object.prototype.hasOwnProperty.call(remote, 'status')) {
+        syncTaskCompletion(database, old.id, old.status, values.status, ownerId);
       }
       applyRemoteReminder(database, old.id, ownerId, remote);
       updated += 1;

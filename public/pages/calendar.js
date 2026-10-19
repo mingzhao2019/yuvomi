@@ -1890,7 +1890,7 @@ async function toggleCalendarTaskStatus(taskId, control) {
     await api.patch(`/tasks/${encodeURIComponent(taskId)}/status`, { status: next });
     refreshReminders();
     if (state.rangeFrom && state.rangeTo) {
-      await loadRange(state.rangeFrom, state.rangeTo);
+      await reloadAfterSave(() => loadRange(state.rangeFrom, state.rangeTo));
       renderView();
     }
   } catch (err) {

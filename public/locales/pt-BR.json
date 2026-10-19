@@ -5026,7 +5026,8 @@
                 "earlyConfirm": "Registrar a dose antes de terminar o intervalo mínimo?",
                 "earlyDetail": "A próxima dose só está prevista a partir das {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Registrar mesmo assim"
-            }
+            },
+            "stockUpdateFailed": "A dose foi registrada, mas não foi possível atualizar o estoque."
         },
         "prevention": {
             "title": "Prevenção e vacinas",

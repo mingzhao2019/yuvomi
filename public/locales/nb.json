@@ -5026,7 +5026,8 @@
                 "earlyConfirm": "Loggfør denne dosen før minimumsintervallet er passert?",
                 "earlyDetail": "Neste dose er ikke klar før {{time}} ({{remaining}}).",
                 "earlyConfirmAction": "Loggfør likevel"
-            }
+            },
+            "stockUpdateFailed": "Dosen er registrert, men beholdningen kunne ikke oppdateres."
         },
         "prevention": {
             "title": "Forebyggende behandling og vaksiner",

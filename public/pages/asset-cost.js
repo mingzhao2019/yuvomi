@@ -20,6 +20,7 @@ import { attachOverlay } from '/utils/overlay-history.js';
 import { rowActionHtml } from '/utils/row-action.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { isImeComposing } from '/utils/ux.js';
+import { reloadAfterSave } from '/utils/reload-after-save.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_SYMBOLS = { CNY: '¥', EUR: '€', USD: '$' };
@@ -972,7 +973,7 @@ async function saveAsset(panel, item, photoData) {
       // report only the optional preference failure to avoid duplicate saves.
       window.yuvomi?.showToast(tr('defaultsSaveFailed'), 'danger');
     }
-    await loadData();
+    await reloadAfterSave(() => loadData());
     if (createdDefaults) {
       state.assetDefaultScope = createdDefaults.scope;
       state.assetDefaultVisibility = createdDefaults.visibility;
@@ -996,7 +997,7 @@ async function removeAsset(item) {
   if (!confirmed) return;
   try {
     await api.delete(`/inventory/items/${item.id}`);
-    await loadData();
+    await reloadAfterSave(() => loadData());
     renderBody();
     refocusAfterRender();
     window.yuvomi?.showToast(tr('deleted'), 'success');

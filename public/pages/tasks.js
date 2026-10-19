@@ -3120,7 +3120,7 @@ function commentsNode(task) {
     try {
       await api.post(`/tasks/${task.id}/comments`, { comment: value });
       field.value = '';
-      await load();
+      await reloadAfterSave(() => load());
     } catch (err) {
       window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
     } finally {
@@ -3372,7 +3372,7 @@ async function advanceTaskStatus(task, status, button, container) {
     // Der Status steht bereits beim Server - eine Verwerfen-Frage danach böte
     // an, etwas rückgängig zu machen, was gar nicht mehr aussteht (#625).
     await closeDetailView({ force: true });
-    await loadTasks(container);
+    await reloadAfterSave(() => loadTasks(container));
     refocusAfterRender();
   } catch (err) {
     task.status = previous;
@@ -3878,7 +3878,7 @@ async function handleAddSubtask(parentId, container) {
     // Elternkarte, aber sie muss nicht dasein. Die Leseansicht kann ohne sie
     // geöffnet worden sein.
     if (container) {
-      await loadTasks(container);
+      await reloadAfterSave(() => loadTasks(container));
       refocusAfterRender();
     }
     return res.data ?? null;
