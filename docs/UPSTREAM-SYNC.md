@@ -1051,8 +1051,8 @@ ported together with the new commit: server responses now carry the structured
 reasons, the note-category service preserves its reason, and the four affected
 pages close or refresh only for the exact gone case. Task error toasts now use
 `errorSentence()` throughout the migrated task page. No migration numbering or
-released custom migrations changed. The follow-up implementation is
-`b661e185f`.
+released custom migrations changed. The follow-up implementations are
+`b661e185f` and `ec8e33453`.
 
 Focused validation passed: inventory/notes/contacts/birthdays errors (24/24),
 task errors (9/9), friendly-error mapping (23/23), OpenAPI structure (21/21),
