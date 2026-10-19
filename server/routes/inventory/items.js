@@ -362,8 +362,10 @@ function validateItemFields(body) {
   values.photo_data = vPhoto.value ?? null;
 
   const errors = collectErrors(results);
-  const reason = locationGone && errors.length === 1 ? 'inventory_selected_location_not_found' : undefined;
-  return { values, errors, reason };
+  const gone = locationGone && errors.length === 1
+    ? { reason: 'inventory_selected_location_not_found' }
+    : {};
+  return { values, errors, ...gone };
 }
 
 // --------------------------------------------------------

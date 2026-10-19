@@ -2697,7 +2697,7 @@ function subtaskListNode(task, container) {
         if (container) await loadTasks(container);
       } catch (err) {
         paint(row, previous, s.title);
-        window.yuvomi.showToast(err.message, 'danger');
+        window.yuvomi.showToast(errorSentence(err), 'danger');
       } finally {
         row.disabled = false;
       }
@@ -2898,7 +2898,7 @@ function commentRowNode(comment, { onChanged }) {
         },
         restore: (err) => {
           row.hidden = false;
-          if (err) window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+          if (err) window.yuvomi.showToast(errorSentence(err), 'danger');
         },
       });
     });
@@ -2951,7 +2951,7 @@ function startCommentEdit(row, comment, { onChanged }) {
       await onChanged();
     } catch (err) {
       save.disabled = false;
-      window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+      window.yuvomi.showToast(errorSentence(err), 'danger');
     }
   });
 
@@ -3393,7 +3393,7 @@ async function advanceTaskStatus(task, status, button, container) {
     stop();
     // Gescheitert ist ein Schreibvorgang, kein Laden - tasks.loadError („Aufgabe
     // konnte nicht geladen werden") beschriebe den falschen Vorgang.
-    window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+    window.yuvomi.showToast(errorSentence(err), 'danger');
   }
 }
 
@@ -3414,7 +3414,7 @@ async function toggleTaskArchive(task, button, container) {
     refocusAfterRender();
   } catch (err) {
     stop();
-    window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+    window.yuvomi.showToast(errorSentence(err), 'danger');
   }
 }
 
@@ -3885,7 +3885,7 @@ async function handleDeleteTask(id, container) {
     },
     restore: (err) => {
       if (itemEl) itemEl.style.display = '';
-      if (err) window.yuvomi.showToast(err.message ?? t('common.unknownError'), 'danger');
+      if (err) window.yuvomi.showToast(errorSentence(err), 'danger');
     },
   });
 }
@@ -3911,7 +3911,7 @@ async function handleAddSubtask(parentId, container) {
     }
     return res.data ?? null;
   } catch (err) {
-    window.yuvomi.showToast(err.message, 'danger');
+    window.yuvomi.showToast(errorSentence(err), 'danger');
     return null;
   }
 }
@@ -5908,7 +5908,7 @@ async function handleDeleteTaskList(item, container) {
       window.yuvomi.showToast(t('tasks.taskListTasksNotDeletable'), 'danger');
       return;
     }
-    window.yuvomi.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+    window.yuvomi.showToast(errorSentence(err), 'danger');
   }
 }
 
