@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Recurring events on the day the clocks change are no longer an hour off (#2034).**
+  A series with its own time zone, for example a daily 01:30 event in Berlin, showed the occurrence
+  on the day of the clock change one hour early or late, both in the calendar and in subscribed
+  calendars. Each occurrence now keeps its local time. Where that time does not exist on the day the
+  clocks go forward (02:30 in Berlin), the occurrence moves forward by the skipped hour; where it
+  exists twice when the clocks go back, the first one counts. Occurrences you deleted or changed keep
+  their place.
 - **Older series ends now reach Google, CalDAV, iCloud and the calendar feed on the same last day Yuvomi shows (#1992).**
   Before #1989 the repeat form saved a series end as the end of the UTC day, and series saved that
   way still carry it. For a series without its own time zone Yuvomi ends it on that date, while
