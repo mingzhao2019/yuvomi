@@ -1029,3 +1029,46 @@ rather than documentation-only changes. After the `custom` push,
 `.github/workflows/docker-publish-feature-work.yml` should therefore run and
 rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
 ready to fast-forward into `custom` and push both branches without force.
+
+## Current sync checkpoint (2026-10-19, v2.78.0)
+
+The upstream remote was refreshed from
+`6f55537756010f333796922187ac9834eec1af66` (`v2.78.0`) to
+`fdb9a4c1bb0e73da24f3721a413f068d0e1e88ca` (`v2.78.0`). Local `main` was
+fast-forwarded to that exact upstream tip. The selective integration started
+from custom `0ea2c56d3` on `custom-upstream-selective-2026-10-19`; upstream was
+not merged wholesale.
+
+All seven new upstream commits were reviewed and integrated in upstream order:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `c8b02a38d` (#2060) | Audits web guidance around tab return, warm-up priority, `@import`, and long lists. | Adopted as `958704191`; retained custom frontend contracts. |
+| `902201ed4` (#1788) | Makes avatar stacks overlap consistently in RTL. | Adopted as `a100be130`. |
+| `e422e4a83` (#1990, #2033) | Shares one constant-time token lookup across calendar, waste, and birthday feeds. | Adopted as `f80eb3ac0`; retained custom feed behavior. |
+| `380248c18` (#2016) | Runs env-prefixed test scripts through a Windows-compatible launcher. | Manually resolved as `462be3f1e`; retained the custom root test chain and adapted its env-prefixed scripts. |
+| `384fa0244` (#2065) | Finds modules by GitHub topic instead of a curated index. | Adopted as `3b09dfd76`. |
+| `08f840aa4` (#2066) | Closes an open row menu when the content below it scrolls. | Adopted as `128268ddc`. |
+| `fdb9a4c1b` (#2067) | Stops recipe thumbnail requests from flooding the provider rate limit. | Manually resolved as `c3a32b9c6`; retained custom test ordering and provider behavior. |
+
+The main conflict points were the custom root test chain and the custom
+environment-prefixed test entries. The final follow-up `ae3001fa3` adds the
+new upstream focused suites to the root chain, routes the custom notes/contacts
+budget test through `scripts/with-env.mjs`, and sets task document preview
+images to lazy/asynchronous decoding before assigning `src`, matching the
+thumbnail-loading contract without changing the custom task UI. No migration
+numbering or released custom migrations 250-259 changed.
+
+Version metadata remains synchronized at `2.78.0`; these commits do not
+publish a new release. Focused validation passed for env handling, image-rate
+limiting, recipe thumbnail laziness, recipe routes, OpenAPI structure, the
+frontend audit, popover/menu behavior, initials, ICS export, inventory
+deadlines, and household-member guards. The full `npm test` completed on
+2026-10-19 with exit code 0 and no failures; the root-only permission skips
+were expected for this environment. `git diff --check` is clean.
+
+This checkpoint contains application, test, and runtime behavior changes
+rather than documentation-only changes. After the `custom` push,
+`.github/workflows/docker-publish-feature-work.yml` should therefore run and
+rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
+ready to fast-forward into `custom` and push both branches without force.
