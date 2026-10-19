@@ -36,6 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A new medication is saved together with its intake plan, or not at all.** If saving one of
+  the plan's times failed, the medication itself was already stored. Cancelling the dialog then
+  left it behind without its plan and without showing it in the list, so it was easy to add it a
+  second time. The medication and its plan are now saved in one step; if that fails, nothing is
+  stored and the dialog keeps everything you entered, so Save simply tries again (#2054).
+  **API:** `POST /api/v1/health/medications` accepts an optional `schedules` array and writes the
+  medication and its schedules in one transaction.
 - **Large imported recipe collections no longer lock up the app with "Too many requests" (#2048).**
   On iPhone and in Firefox the recipe list fetched the picture of every imported recipe at once
   instead of only those on screen, and each picture went to Mealie or Tandoor again on every visit.
