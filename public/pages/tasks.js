@@ -2761,9 +2761,10 @@ function documentListNode(docs) {
       link.rel = 'noopener';
       link.title = doc.name || '';
       const img = document.createElement('img');
-      img.src = `/api/v1/documents/${doc.id}/preview`;
-      img.alt = doc.name || '';
       img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = doc.name || '';
+      img.src = `/api/v1/documents/${doc.id}/preview`;
       link.appendChild(img);
       grid.appendChild(link);
     }
