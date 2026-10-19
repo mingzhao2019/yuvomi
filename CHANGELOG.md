@@ -37,6 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Reconnecting or disconnecting Google Calendar now stops a sync that is still running (#2035).**
+  A sync that was waiting on Google while you reconnected, perhaps with another account, or
+  disconnected used to carry on with the old connection: it could still send queued changes to the
+  previous account, import its events after the disconnect, and leave its progress and errors on the
+  new connection. It now stops at its next step, and the new connection's own sync takes over. A
+  reconnect also no longer removes calendars from the selection based on the calendar list of an
+  account that was replaced in the meantime.
 - **An account that signs in only through single sign-on no longer sees a change-password form.**
   Such an account has no password, yet the account page asked it for the current one, so the form
   could never succeed. The card now only appears for accounts that have a password, linked to a
