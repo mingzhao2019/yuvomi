@@ -97,7 +97,8 @@
         "searchNoResultsDescription": "Inget matchar din sökning.",
         "searchNoResultsFilteredDescription": "Inget matchar din sökning och dina filter.",
         "searchReset": "Återställ sökning",
-        "passwordMinLength": "Minst 8 tecken."
+        "passwordMinLength": "Minst 8 tecken.",
+        "savedReloadFailed": "Ändringen är sparad, men vyn kunde inte uppdateras. Läs in sidan igen om något saknas."
     },
     "kitchen": {
         "noShoppingLists": "Det finns ingen inköpslista än.",

@@ -97,7 +97,8 @@
         "searchNoResultsDescription": "検索に一致する項目はありません。",
         "searchNoResultsFilteredDescription": "検索とフィルターに一致する項目はありません。",
         "searchReset": "検索をリセット",
-        "passwordMinLength": "8文字以上。"
+        "passwordMinLength": "8文字以上。",
+        "savedReloadFailed": "変更は保存されましたが、表示を更新できませんでした。足りないものがあればページを再読み込みしてください。"
     },
     "kitchen": {
         "noShoppingLists": "買い物リストがまだありません。",

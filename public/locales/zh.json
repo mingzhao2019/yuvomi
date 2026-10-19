@@ -97,7 +97,8 @@
         "searchNoResultsDescription": "没有与你的搜索匹配的内容。",
         "searchNoResultsFilteredDescription": "没有与你的搜索和筛选条件匹配的内容。",
         "searchReset": "重置搜索",
-        "passwordMinLength": "至少 8 个字符。"
+        "passwordMinLength": "至少 8 个字符。",
+        "savedReloadFailed": "更改已保存，但无法刷新视图。如有缺失，请重新加载页面。"
     },
     "kitchen": {
         "noShoppingLists": "还没有购物清单。",

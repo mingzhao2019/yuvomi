@@ -97,7 +97,8 @@
         "searchNoResultsDescription": "Không có mục nào khớp với tìm kiếm của bạn.",
         "searchNoResultsFilteredDescription": "Không có mục nào khớp với tìm kiếm và bộ lọc của bạn.",
         "searchReset": "Đặt lại tìm kiếm",
-        "passwordMinLength": "Ít nhất 8 ký tự."
+        "passwordMinLength": "Ít nhất 8 ký tự.",
+        "savedReloadFailed": "Thay đổi đã được lưu nhưng không thể làm mới chế độ xem. Hãy tải lại trang nếu thiếu thứ gì đó."
     },
     "kitchen": {
         "noShoppingLists": "Chưa có danh sách mua sắm.",

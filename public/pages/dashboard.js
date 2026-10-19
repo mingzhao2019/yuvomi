@@ -72,6 +72,7 @@ import { recipeThumbHtml, wireRecipeThumbs } from '/utils/recipe-thumb.js';
 import { wireNoteCategoryOverflow } from '/utils/note-category-overflow.js';
 import { installPopoverMenus, popoverMenuHtml } from '/utils/popover-menu.js';
 import { nextRewardGoal } from '/utils/reward-goal.js';
+import { reloadAfterSave } from '/utils/reload-after-save.js';
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
@@ -7302,7 +7303,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
             rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig));
             if (wasteOptionsBeforeUndo !== JSON.stringify(widgetConfig.find((w) => w.id === 'waste')?.options ?? null)) data.waste = undefined;
             if (widgetConfig.some((w) => w.id === 'waste' && w.visible)) await ensureWasteSlice();
-            await reloadIfQueryChanged(queryBeforeUndo);
+            await reloadAfterSave(() => reloadIfQueryChanged(queryBeforeUndo));
           } catch {
             window.yuvomi?.showToast(t('common.errorGeneric'), 'danger');
           }
@@ -7439,7 +7440,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
         rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig));
         if (wasteOptionsBeforeUndo !== JSON.stringify(widgetConfig.find((w) => w.id === 'waste')?.options ?? null)) data.waste = undefined;
         if (widgetConfig.some((w) => w.id === 'waste' && w.visible)) await ensureWasteSlice();
-        await reloadIfQueryChanged(queryBeforeUndo);
+        await reloadAfterSave(() => reloadIfQueryChanged(queryBeforeUndo));
       } catch {
         window.yuvomi?.showToast(t('common.errorGeneric'), 'danger');
       }

@@ -49,6 +49,7 @@ import { compareMembers, memberRanks, memberRankOf } from '/utils/member-order.j
 import { isNavModuleReadOnly } from '/permissions.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { createLatestResponseApplier } from '/utils/document-folder-delete.js';
+import { reloadAfterSave } from '/utils/reload-after-save.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -3000,7 +3001,7 @@ function openAccountModal(account = null) {
         try {
           await api.put(`/budget/accounts/${account.id}`, { archived: nextArchived });
           closeModal({ force: true });
-          await loadAccounts();
+          await reloadAfterSave(() => loadAccounts());
           renderBody();
           refocusAfterRender();
           window.yuvomi?.showToast(nextArchived ? t('budget.accountArchivedToast') : t('budget.accountRestoredToast'), 'success');
@@ -3070,7 +3071,7 @@ function openAccountModal(account = null) {
             await api.post('/budget/accounts', body);
           }
           closeModal({ force: true });
-          await loadAccounts();
+          await reloadAfterSave(() => loadAccounts());
           renderBody();
           refocusAfterRender();
           window.yuvomi?.showToast(isEdit ? t('budget.accountSavedToast') : t('budget.accountAddedToast'), 'success');
@@ -4451,7 +4452,7 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
         if (!name?.trim()) return;
         try {
           const res = await api.post('/budget/categories', { name: name.trim(), type: currentType });
-          await loadBudgetMeta();
+          await reloadAfterSave(() => loadBudgetMeta());
           updateCategoryOptions(res.data.key);
           window.yuvomi?.showToast(t('budget.categoryAddedToast'), 'success');
         } catch (err) {
@@ -4471,7 +4472,7 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
         if (!name?.trim()) return;
         try {
           const res = await api.post(`/budget/categories/${encodeURIComponent(category)}/subcategories`, { name: name.trim() });
-          await loadBudgetMeta();
+          await reloadAfterSave(() => loadBudgetMeta());
           updateSubcategoryOptions(res.data.key);
           window.yuvomi?.showToast(t('budget.subcategoryAddedToast'), 'success');
         } catch (err) {
@@ -4612,7 +4613,7 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
           if (mode === 'create') {
             const res = await api.post('/budget', await withReceipts());
             state.entries.unshift(res.data);
-            await reloadMonth();
+            await reloadAfterSave(() => reloadMonth());
             closeModal({ force: true });
             redrawEntries();
             window.yuvomi?.showToast(t('budget.addedToast'), 'success');
@@ -4671,14 +4672,14 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
               if (idx !== -1) state.entries[idx] = res.data;
               window.yuvomi?.showToast(t('budget.savedToast'), 'success');
             }
-            await reloadMonth();
+            await reloadAfterSave(() => reloadMonth());
             renderBody();
             refocusAfterRender();
           } else {
             const res = await api.put(`/budget/${entry.id}`, await withReceipts());
             const idx = state.entries.findIndex((e) => e.id === entry.id);
             if (idx !== -1) state.entries[idx] = res.data;
-            await reloadMonth();
+            await reloadAfterSave(() => reloadMonth());
             closeModal({ force: true });
             renderBody();
             window.yuvomi?.showToast(t('budget.savedToast'), 'success');
@@ -5616,7 +5617,7 @@ async function saveLoanFromPanel(panel, saveBtn, { loan = null, closeAfterSave =
     } else {
       await api.post('/budget/loans', body);
     }
-    await reloadMonth();
+    await reloadAfterSave(() => reloadMonth());
     if (closeAfterSave) closeModal({ force: true });
     renderBody();
     window.yuvomi?.showToast(isEdit ? t('budget.loanSavedToast') : t('budget.loanAddedToast'), 'success');
@@ -5675,7 +5676,7 @@ async function markLoanPayment(id) {
       paid_date: paidDate,
     });
     const paymentId = res.data?.payment?.id;
-    await reloadMonth();
+    await reloadAfterSave(() => reloadMonth());
     renderBody();
     vibrate(30);
 
@@ -5806,7 +5807,7 @@ async function openConfirmBookingModal(id) {
         try {
           await api.patch(`/budget/${id}/confirm`, { amount: value, date: date || undefined });
           closeModal({ force: true });
-          await reloadMonth();
+          await reloadAfterSave(() => reloadMonth());
           renderBody();
           refocusAfterRender();
           window.yuvomi?.showToast(t('budget.confirmSaved'), 'success');
