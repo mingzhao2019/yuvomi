@@ -1030,6 +1030,43 @@ rather than documentation-only changes. After the `custom` push,
 rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
 ready to fast-forward into `custom` and push both branches without force.
 
+## Current sync checkpoint (2026-10-19, v2.78.0; localized-error follow-up)
+
+The upstream remote was refreshed from
+`e42ed8579eba9c9e9746d815dcad1fa95dc1f3ab` (`v2.78.0`) to
+`b8550e515b0d20a21a0a857236a1e73cc5041db2` (`v2.78.0`). Local `main` was
+fast-forwarded to that exact upstream tip. The selective integration started
+from custom `ff4f5cd22` on `custom-upstream-selective-2026-10-19`; upstream was
+not merged wholesale.
+
+The one new upstream commit was reviewed and integrated:
+
+| Upstream commit | Behavior | Integration result |
+| --- | --- | --- |
+| `b8550e515` (#2094) | Gives task, inventory, contact, birthday, and note failures structured reasons and localized client messages. | Adopted as `8ec71f9c9`; preserved custom inventory access controls, task UI, and the custom root test chain. |
+
+The custom branch had not previously carried the upstream parent behavior for
+the #1909 inventory/note/contact/birthday error contract. That baseline was
+ported together with the new commit: server responses now carry the structured
+reasons, the note-category service preserves its reason, and the four affected
+pages close or refresh only for the exact gone case. Task error toasts now use
+`errorSentence()` throughout the migrated task page. No migration numbering or
+released custom migrations changed. The follow-up implementation is
+`b661e185f`.
+
+Focused validation passed: inventory/notes/contacts/birthdays errors (24/24),
+task errors (9/9), friendly-error mapping (23/23), OpenAPI structure (21/21),
+and frontend audit (531/531). JavaScript syntax checks and `git diff --check`
+also passed. The previously launched full `npm test` session had lost its
+final exit code; this checkpoint therefore does not claim a new full-suite
+pass.
+
+This checkpoint contains application, server, test, locale, and audit changes
+rather than documentation-only changes. After the `custom` push,
+`.github/workflows/docker-publish-feature-work.yml` should therefore run and
+rebuild `ghcr.io/ulsklyc/yuvomi:custom`. The temporary integration branch is
+ready to fast-forward into `custom` and push both branches without force.
+
 ## Current sync checkpoint (2026-10-19, v2.78.0)
 
 The upstream remote was refreshed from
