@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **An account that signs in only through single sign-on no longer sees a change-password form.**
+  Such an account has no password, yet the account page asked it for the current one, so the form
+  could never succeed. The card now only appears for accounts that have a password, linked to a
+  provider or not. For such an account the page subtitle no longer mentions a password, and the
+  single sign-on card now says to ask an administrator to set one instead of "Set a password first"
+  (#1703).
 - **A task ticked off in Apple Reminders or another synced reminders app now counts as done (#1836).**
   It used to be marked done without a record of when, so it was missing from the task history, and
   an overdue one disappeared from the wall display instead of getting its check mark. It now shows
