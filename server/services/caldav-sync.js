@@ -37,7 +37,7 @@ import {
   icalAlarmLinesForEvent,
   reminderAtsFromIcalAlarms,
 } from './calendar-event-reminders.js';
-import { authoredAfterInbound, outboundEvent } from './outbound-dtstart.js';
+import { authoredAfterInbound, outboundEvent, outboundRecurrenceRule } from './outbound-dtstart.js';
 import { icsReading, icsSnapshot, isEcho } from './outbound-echo.js';
 import { followInboundStartChange } from './calendar-occurrence-overrides.js';
 
@@ -87,9 +87,10 @@ function buildCalDAVICS(event, householdZone = null) {
   if (colorName) lines.push(`COLOR:${colorName}`);
 
   // Ein reines Datum als UNTIL wird neben einem getimten DTSTART zum Ende des
-  // Ortstags in UTC (#1974, utils/rrule-until.js).
+  // Ortstags in UTC (#1974, utils/rrule-until.js); ein UNTIL aus dem alten
+  // Formular an einer eigenen Serie ohne Zone zuvor zum Datum (#1992).
   if (event.recurrence_rule) {
-    lines.push(rruleLine(rruleForDtstart(event.recurrence_rule, when)));
+    lines.push(rruleLine(rruleForDtstart(outboundRecurrenceRule(event), when)));
   }
   lines.push(...icalAlarmLinesForEvent(event, db.get(), { outbound: outboundRow }));
 
