@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Wall display shows today's meals, shopping count, housekeeping status, waste pickups, and
+  expiring pantry items** (#1903). Paired wall displays previously showed only the calendar,
+  tasks, rewards, and weather sections of the today sheet. The dashboard now delivers the five
+  missing sources to display sessions with the same narrow fields the wall tile uses: meal title,
+  type, and cook - no private notes or recipe content; shopping open-item count; housekeeping
+  presence, worker name, and check-in time - without the unpaid amount or visit count;
+  waste-pickup type names and icons; and expiring pantry items. Individual module routes for
+  these remain closed to displays. Paired displays pick this up with the update - no
+  configuration needed.
+
+- **Stock: every batch now belongs to a household product** (part 1 of #1448). Nothing changes on
+  the page yet. Batches with the same name, compared trimmed, case-insensitive and with collapsed
+  whitespace, and the same unit share one product; existing stock is grouped once on update. The
+  product is the groundwork for a minimum over all batches, recipe matches that survive the last
+  bottle, and a grouped stock page. For API clients, pantry items additionally return
+  `product_id`; a batch whose name or unit is edited moves to the matching product.
+
 ### Changed
 
 - **A single occurrence of a calendar series is now named by its original start time (#2034).**
