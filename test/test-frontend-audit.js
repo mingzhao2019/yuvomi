@@ -21980,7 +21980,7 @@ test('die Abfuhr-Seite gibt den gespeicherten Fehlertext einer Quelle nie aus (#
     'pages/waste.js gibt `last_error` aus - den Satz aus last_error_reason/last_error_params bauen (lastFailureSentence)');
 });
 
-/* DER GESPEICHERTE FEHLERTEXT EINES REZEPTDIENST-KONTOS (#1909, Migration 255).
+/* DER GESPEICHERTE FEHLERTEXT EINES REZEPTDIENST-KONTOS (#1909, Migration 265).
  *
  * `account.lastError` (GET /recipe-providers/status) ist der rohe Text des
  * Adapters oder des Netzes ("Mealie request failed (401)", "getaddrinfo

@@ -357,7 +357,7 @@ test('POST /sync: Nicht-Admin → 403', async () => {
 });
 
 // --------------------------------------------------------------------------
-// Der Fall des letzten Fehlschlags (#1909, Migration 255): Verbindungstest und
+// Der Fall des letzten Fehlschlags (#1909, Migration 265): Verbindungstest und
 // Sync speichern ihn neben `last_error`, /status liefert ihn, ein Erfolg leert ihn.
 // --------------------------------------------------------------------------
 test('Verbindungstest und Sync speichern den Fall des Fehlschlags, /status liefert ihn, ein Erfolg leert ihn (#1909)', () => withEnv('true', async () => {

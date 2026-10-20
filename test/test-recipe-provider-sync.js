@@ -407,7 +407,7 @@ test('sync(): eine Lookup-Ablehnung schreibt last_error MIT dem Schalter, ein an
 });
 
 // --------------------------------------------------------------------------
-// DER FALL DES LETZTEN FEHLSCHLAGS (#1909, Migration 255). Die Konto-Karte
+// DER FALL DES LETZTEN FEHLSCHLAGS (#1909, Migration 265). Die Konto-Karte
 // sagt ihn als Satz der App; `last_error` bleibt der rohe Text fuer Log und
 // API. Der Fake wirft dieselben KLASSEN wie die echten Adapter (Status aus
 // #request, Netzcode, BlockedAddressError, SyntaxError) - welche das sind,

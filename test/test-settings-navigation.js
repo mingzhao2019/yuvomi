@@ -4762,7 +4762,7 @@ test('#1909: die Karte eines Rezeptdienstes sagt die Ursache des letzten Fehlsch
       [{ lastErrorReason: 'recipe_providers_sync_bad_response' }, 'settings.recipeProviderErrorSyncBadResponse'],
       // Derselbe Fall wie beim Anlegen, derselbe Satz mit dem Schalter.
       [{ lastErrorReason: 'recipe_providers_private_network' }, 'settings.recipeProviderErrorPrivateNetwork'],
-      // Ohne gespeicherten Fall (Bestand vor Migration 255, ein Wurf ohne
+      // Ohne gespeicherten Fall (Bestand vor Migration 265, ein Wurf ohne
       // Klasse), mit unbekanntem Fall oder ohne die Zahl: der allgemeine Satz.
       [{}, 'settings.recipeProviderErrorSyncUnknown'],
       [{ lastErrorReason: null, lastErrorParams: null }, 'settings.recipeProviderErrorSyncUnknown'],

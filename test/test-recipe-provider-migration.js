@@ -195,14 +195,14 @@ test('migration v134: partieller UNIQUE-Index und ON-DELETE-CASCADE bleiben unte
 });
 
 // --------------------------------------------------------------------------
-// Migration v255 (#1909): ein Konto merkt sich den FALL seines letzten
+// Migration v265 (#1909): ein Konto merkt sich den FALL seines letzten
 // Fehlschlags neben dem Text. Bestandszeilen behalten ihren Text und bekommen
 // keinen Fall (NULL) - die Karte sagt dann den allgemeinen Satz, bis der
 // naechste Abgleich seinen Fall schreibt.
 // --------------------------------------------------------------------------
 
-test('migration v255: last_error_reason/last_error_params kommen dazu, Bestand behaelt last_error, ohne Fall', (t) => {
-  const db = buildMigratedDatabase(MIGRATIONS.filter(({ version }) => version <= 254));
+test('migration v265: last_error_reason/last_error_params kommen dazu, Bestand behaelt last_error, ohne Fall', (t) => {
+  const db = buildMigratedDatabase(MIGRATIONS.filter(({ version }) => version <= 264));
   t.after(() => db.close());
   const userId = db.prepare(`
     INSERT INTO users (username, display_name, password_hash, role) VALUES ('admin', 'Admin', 'hash', 'admin')
@@ -214,9 +214,9 @@ test('migration v255: last_error_reason/last_error_params kommen dazu, Bestand b
   const columnsBefore = db.prepare('PRAGMA table_info(recipe_provider_accounts)').all().map((c) => c.name);
   assert.equal(columnsBefore.includes('last_error_reason'), false);
 
-  const v255 = MIGRATIONS.find(({ version }) => version === 255);
-  assert.ok(v255, 'v255 steht in MIGRATIONS');
-  applyMigration(db, v255);
+  const v265 = MIGRATIONS.find(({ version }) => version === 265);
+  assert.ok(v265, 'v265 steht in MIGRATIONS');
+  applyMigration(db, v265);
 
   const columns = db.prepare('PRAGMA table_info(recipe_provider_accounts)').all();
   for (const name of ['last_error_reason', 'last_error_params']) {
@@ -229,5 +229,5 @@ test('migration v255: last_error_reason/last_error_params kommen dazu, Bestand b
   assert.deepEqual(row, { last_error: 'Mealie request failed (401)', last_error_reason: null, last_error_params: null });
 
   // Ein zweiter Lauf (etwa eine teilweise angewandte Datenbank) bricht nicht ab.
-  assert.doesNotThrow(() => v255.up(db));
+  assert.doesNotThrow(() => v265.up(db));
 });

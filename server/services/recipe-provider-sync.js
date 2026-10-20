@@ -202,7 +202,7 @@ async function syncAccount(account) {
 
 /**
  * Schreibt den letzten Fehlschlag auf ein Konto: Text, Fall und Zahlen gehen
- * immer ZUSAMMEN (#1909, Migration 255). Ein neuer Text ohne Fall raeumt den
+ * immer ZUSAMMEN (#1909, Migration 265). Ein neuer Text ohne Fall raeumt den
  * alten Fall mit ab, sonst sagte die Karte den Satz eines frueheren
  * Fehlschlags. Auch der Verbindungstest (routes/recipe-providers.js) schreibt
  * hierueber.

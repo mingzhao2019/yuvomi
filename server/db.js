@@ -11342,8 +11342,10 @@ const MIGRATIONS = [
       ALTER TABLE task_completions ADD COLUMN source TEXT;
     `,
   },
+  // Upstream called this migration v253, but custom already uses v253-v262.
+  // Keep the schema history append-only and carry the same change as v263.
   {
-    version: 253,
+    version: 263,
     description: 'Pantry: a household product above the batch, every batch belongs to one (#1448)',
     // A STOCK ROW STAYS ONE BATCH (comment at v108), AND NOW BELONGS TO A
     // PRODUCT. What is really a statement about the product - the minimum, later
@@ -11394,7 +11396,7 @@ const MIGRATIONS = [
     // stored; a name with nothing left gets a product of its own with NULL
     // key; name and category from the most recently updated batch, author and
     // created_at from the oldest; the pantry_items triggers rest so batches
-    // keep their updated_at). It reads and writes only what exists at v253 and
+    // keep their updated_at). It reads and writes only what exists at v263 and
     // imports nothing, so a later change to the live grouping
     // (the grouping in server/services/pantry-products.js, which
     // the start of the server uses for batches without a product) or to the
@@ -11448,8 +11450,10 @@ const MIGRATIONS = [
       log.info(`Grouped ${rows.length} pantry batch(es) into ${groups.size} product(s).`);
     },
   },
+  // Upstream called this migration v254, but custom already uses v253-v262.
+  // Keep the schema history append-only and carry the same change as v264.
   {
-    version: 254,
+    version: 264,
     description: 'Birthdays and contacts: a birthday without a year (#2095)',
     // A BIRTHDAY CAN BE A DAY AND A MONTH. iCloud stores one without a year with
     // the placeholder year 1604 and marks it, `BDAY;X-APPLE-OMIT-YEAR=1604:
@@ -11475,8 +11479,10 @@ const MIGRATIONS = [
         WHERE substr(birthday, 1, 5) = '1604-';
     `,
   },
+  // Upstream called this migration v255, but custom already uses v253-v262.
+  // Keep the schema history append-only and carry the same change as v265.
   {
-    version: 255,
+    version: 265,
     description: 'recipe providers: an account remembers the case of its last failed sync',
     // DER FALL DES LETZTEN FEHLSCHLAGS STEHT NEBEN SEINEM TEXT (#1909), wie bei
     // den Abfuhr-Quellen (Migration 247). Bisher trug ein Rezeptdienst-Konto nur
@@ -11539,7 +11545,7 @@ function backfillAvatarKey(database) {
   createAvatarKeyTriggers(database);
 }
 
-/** Der Nachtrag aus Migration 254, derselbe Wortlaut; die Migration bleibt eingefroren. */
+/** Der Nachtrag aus Migration 264, derselbe Wortlaut; die Migration bleibt eingefroren. */
 function backfillBirthdayYearUnknown(database) {
   database.exec(`
     UPDATE birthdays SET birth_date = '2000' || substr(birth_date, 5), year_unknown = 1
@@ -11547,7 +11553,7 @@ function backfillBirthdayYearUnknown(database) {
   `);
 }
 
-/** Der Nachtrag aus Migration 254 fuer Kontakte, derselbe Wortlaut. */
+/** Der Nachtrag aus Migration 264 fuer Kontakte, derselbe Wortlaut. */
 function backfillContactBirthdayYearUnknown(database) {
   database.exec(`
     UPDATE contacts SET birthday = '2000' || substr(birthday, 5), birthday_year_unknown = 1
@@ -11826,7 +11832,7 @@ const CRITICAL_COLUMNS = [
   // Aufgabenaenderung rollt mit zurueck) und jeder Verlauf (er liest sie). Kein
   // Nachtrag: NULL heisst "in Yuvomi abgehakt".
   { table: 'task_completions', column: 'source', type: 'TEXT' },
-  // #2095: v254 traegt "Jahr unbekannt" an Geburtstag und Kontakt nach; ohne die
+  // #2095: v264 traegt "Jahr unbekannt" an Geburtstag und Kontakt nach; ohne die
   // Spalten scheitern Kalender, Uebersicht und Geburtstagsliste (sie lesen sie,
   // um Jahr und Alter wegzulassen). MIT NACHTRAG: Apples Platzhalterjahr 1604
   // wird mit der Spalte umgestellt, wie in der Migration.
@@ -11934,13 +11940,13 @@ function reconcileAvatarKeyTriggers(database) {
 /**
  * Stock batches without a matching product join one at start (#1448).
  *
- * Since migration 253 every write path fills `pantry_items.product_id`. An older
+ * Since migration 263 every write path fills `pantry_items.product_id`. An older
  * version started on this database with DB_ALLOW_NEWER_SCHEMA does not know the
  * column: the batches it creates arrive without a product, and a batch it
  * renames keeps a product whose name or unit it no longer has. Both are grouped
  * by groupBatchesIntoProducts(), the live grouping, with the runtime key the
  * writers use (productKey): a batch adopted here joins exactly the product a
- * write through the API would have put it in. Migration 253 carries its own
+ * write through the API would have put it in. Migration 263 carries its own
  * frozen copy of key and grouping instead; test:pantry-products asserts that
  * the two agree today. A product left without batches stays.
  *

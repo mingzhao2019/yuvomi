@@ -927,7 +927,7 @@ const REASONS_PASSED_THROUGH = new Map([
       + 'PATCH /:id: setModuleEnabled setzt nur busy (409) und not_writable (503); '
       + 'die beiden 403 der Modul-Installation (module_web_install_disabled, module_session_required) schickt die Route als Literal, vor dem Body' }],
   // Der Fall eines gescheiterten Abgleichs eines Rezeptdienstes (#1909,
-  // Migration 255, services/recipe-providers/failure.js): eine kleine feste
+  // Migration 265, services/recipe-providers/failure.js): eine kleine feste
   // Menge recipe_providers_sync_* plus recipe_providers_private_network. Er wird
   // am Konto gespeichert und reist im Rumpf einer 200 (POST .../sync mit
   // failed: true, POST .../test mit ok: false) - nie an einer 403. Der Fall

@@ -51,7 +51,7 @@ db.exec(`
 `);
 db.exec(MIGRATIONS_SQL[85]);  // calendar_event_exceptions
 db.exec(MIGRATIONS_SQL[179]); // generated birthday/name-day joins
-db.exec(MIGRATIONS_SQL[254]); // birthday without a year, read by the calendar join
+db.exec(MIGRATIONS_SQL[264]); // birthday without a year, read by the calendar join
 db.exec(MIGRATIONS_SQL[44]); // search index rebuilt by migration 194
 db.exec(MIGRATIONS_SQL[204]); // linked occurrence overrides
 db.exec(MIGRATIONS_SQL[255]); // local calendars

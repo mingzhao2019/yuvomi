@@ -310,7 +310,7 @@ test('jeder Fall hat seinen Satz in jeder Sprache, und der Server nennt ihn', ()
     // Rezeptdienste in den Kuechen-Einstellungen (#1909); die echte Antwort
     // misst test:recipe-provider-routes.
     '../server/routes/recipe-providers.js',
-    // Der Fall eines gescheiterten Abgleichs (#1909, Migration 255); gespeichert
+    // Der Fall eines gescheiterten Abgleichs (#1909, Migration 265); gespeichert
     // und ausgeliefert misst ihn test:recipe-provider-routes, je Klasse
     // test:recipe-provider-adapter am echten Server.
     '../server/services/recipe-providers/failure.js',

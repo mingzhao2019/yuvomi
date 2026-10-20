@@ -199,14 +199,14 @@ test('POST /import: 400 bei zu vielen IDs (> 500)', async () => {
 // --------------------------------------------------------------------------
 // Geburtstag ohne Jahr (#2095)
 // --------------------------------------------------------------------------
-test('Migration 254: Apples 1604 wird zu "Jahr unbekannt", an Kontakt und Geburtstag', async () => {
+test('Migration 264: Apples 1604 wird zu "Jahr unbekannt", an Kontakt und Geburtstag', async () => {
   const { default: Database } = await import('better-sqlite3-multiple-ciphers');
   const { join } = await import('node:path');
   const { tempDir } = await import('./tmp-dir.js');
   const { MIGRATIONS, migrate } = dbmod;
   const fresh = new Database(join(tempDir('yuvomi-bday-yearless-'), 'db.sqlite'));
   try {
-    migrate(fresh, MIGRATIONS.filter((m) => m.version <= 253));
+    migrate(fresh, MIGRATIONS.filter((m) => m.version <= 263));
     const uid = fresh.prepare(`INSERT INTO users (username, display_name, password_hash, role) VALUES ('m','M','x','member')`).run().lastInsertRowid;
     const apple = fresh.prepare(`INSERT INTO contacts (name, category, birthday) VALUES ('Apple', 'misc', '1604-03-15')`).run().lastInsertRowid;
     const leap = fresh.prepare(`INSERT INTO contacts (name, category, birthday) VALUES ('Leap', 'misc', '1604-02-29')`).run().lastInsertRowid;

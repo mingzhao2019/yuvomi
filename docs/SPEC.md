@@ -910,7 +910,7 @@ something without their reference; this row is nothing but the reference, and a 
 batch rather than a product, so once it is gone the statement has no subject left. Because the link
 lives in its own table, the cascade can never reach the ingredient: the recipe keeps it, unmatched.
 
-### Recipe Provider Accounts (migration v118, v119, v134, v255)
+### Recipe Provider Accounts (migration v118, v119, v134, v265)
 Connections to a self-hosted recipe provider instance ([Mealie](https://mealie.io) or [Tandoor](https://tandoor.dev))
 for the Recipes module. Admin-managed in Settings → Kitchen. The mirror is **read-only**: the provider
 stays the source of truth for recipe content, so editing or deleting a mirrored recipe returns 403
@@ -928,8 +928,8 @@ server-side (not merely hidden in the UI) - "Duplicate" forks one into an editab
 | created_at / updated_at | TEXT | ISO 8601 (`updated_at` via trigger) |
 | last_sync | TEXT | nullable |
 | last_error | TEXT | nullable - raw message of the last failed sync or connection test (adapter or network text), for logs and API clients |
-| last_error_reason | TEXT | nullable (migration v255, #1909) - the case of that failure, see below; `NULL` for a failure without a known case and for failures stored before v255 |
-| last_error_params | TEXT | nullable (migration v255) - JSON with the numbers of that case (`{"status": 502}`), `NULL` otherwise |
+| last_error_reason | TEXT | nullable (migration v265, #1909) - the case of that failure, see below; `NULL` for a failure without a known case and for failures stored before v265 |
+| last_error_params | TEXT | nullable (migration v265) - JSON with the numbers of that case (`{"status": 502}`), `NULL` otherwise |
 
 `base_url` is UNIQUE so the same provider server cannot be added twice and mirror every recipe in
 duplicate. Deleting an account cascades to its mirrored recipes.
@@ -959,7 +959,7 @@ answer an admin gets without it: the account form refuses a local name or privat
 network call and names the switch, and a hostname that resolves into a private network gets the same
 hint on the connection test, the account card and after a failed sync.
 
-**Why the last sync failed (#1909, migration v255).** `server/services/recipe-providers/failure.js`
+**Why the last sync failed (#1909, migration v265).** `server/services/recipe-providers/failure.js`
 classifies a failed sync or connection test by the class of the error, never by the wording of its
 message: `recipe_providers_sync_auth_failed` (the provider answered 401/403),
 `recipe_providers_sync_wrong_url` (404), `recipe_providers_sync_http_status` (any other status, with
@@ -991,9 +991,9 @@ and translated for the seeded names only, so a household that renames one keeps 
 | icon | TEXT | NOT NULL (default 'package') |
 | sort_order | INTEGER | NOT NULL (default 0) |
 
-### Pantry Items (migration v108, v109, v253)
+### Pantry Items (migration v108, v109, v263)
 What is actually in the house. One row is one batch: two packs of milk with different best-before
-dates are two rows. Since v253 (#1448) every batch belongs to a household product (Pantry Products
+dates are two rows. Since v263 (#1448) every batch belongs to a household product (Pantry Products
 below); the pages and the API still read the batch.
 
 | Column | Type | Constraint |
@@ -1007,7 +1007,7 @@ below); the pages and the API still read the batch.
 | min_quantity | REAL | nullable; at or below this amount the item counts as running low |
 | notes | TEXT | |
 | created_by | INTEGER | FK → Users (**SET NULL**, nullable since v109) — the pantry is household property, not private property, so removing a member must not delete the household's stock (v1.55.0) |
-| product_id | INTEGER | FK → Pantry Products (**CASCADE**), nullable (v253) - set in the same transaction by every write of name, unit or category (`assignPantryProduct()` in `server/services/pantry-products.js`); a changed name or unit moves the batch to the matching product. Deleting a product deletes its batches; nothing deletes a product yet |
+| product_id | INTEGER | FK → Pantry Products (**CASCADE**), nullable (v263) - set in the same transaction by every write of name, unit or category (`assignPantryProduct()` in `server/services/pantry-products.js`); a changed name or unit moves the batch to the matching product. Deleting a product deletes its batches; nothing deletes a product yet |
 
 Expiry and stock status are derived in the client, not stored: "expired" depends on the user's local
 calendar day, and the server reasons in UTC. The threshold for "expiring soon" is seven days.
@@ -1040,7 +1040,7 @@ clamp, so an upgrade cannot fire every soon-expiring item at once on the first m
 `pantry_item` reminders are **derived, not entered**: `POST`, `PUT` and both `DELETE` paths reject
 them with 400 (see the Reminders section), because the run would recreate them within a minute.
 
-### Pantry Products (migration v253, #1448)
+### Pantry Products (migration v263, #1448)
 A household product above the batches. Identity is the household's own wording, not a guess
 (DECISIONS.md, section 7): a batch whose name and unit match a product joins it, a new name or unit
 creates one. A product outlives its last batch. The minimum, the target and the preferred shop move
@@ -1055,7 +1055,7 @@ here in later steps of #1448.
 | created_by | INTEGER | FK → Users (SET NULL) |
 | | | UNIQUE (name_key, unit) |
 
-Migration 253 grouped the existing batches with a frozen copy of the key and of the grouping, kept
+Migration 263 grouped the existing batches with a frozen copy of the key and of the grouping, kept
 inside the migration entry; name and category came from the most recently updated batch of each
 group. Batches that arrive without a product, or whose name or unit no longer match their product
 (written or renamed by an older version under `DB_ALLOW_NEWER_SCHEMA`), are grouped at start by the
@@ -2052,7 +2052,7 @@ Primary key: `(note_id, category_id)`.
 | organization | TEXT | nullable |
 | job_title | TEXT | nullable |
 | birthday | TEXT | DATE, nullable |
-| birthday_year_unknown | INTEGER | 0/1, NOT NULL default 0 (migration v254, #2095) - only day and month of `birthday` are known; `birthday` then carries the placeholder year 2000 |
+| birthday_year_unknown | INTEGER | 0/1, NOT NULL default 0 (migration v264, #2095) - only day and month of `birthday` are known; `birthday` then carries the placeholder year 2000 |
 | website | TEXT | nullable |
 | photo | TEXT | Base64 data URL, nullable |
 | nickname | TEXT | nullable |
@@ -2709,7 +2709,7 @@ split-expense guest made from a contact). A member's linked birthday carries it 
 `birth_year_unknown` in the user and member reads; profile and member editor offer the same choice,
 and a profile save only drops the flag when a different date arrives. The contact parsers (CardDAV
 sync and `.vcf` import) read Apple's `BDAY;X-APPLE-OMIT-YEAR=1604:1604-03-15`, a bare year 1604 and
-vCard 4 `--0315`/`--03-15` as a birthday without a year. Migration 254 converted stored 1604 dates
+vCard 4 `--0315`/`--03-15` as a birthday without a year. Migration 264 converted stored 1604 dates
 (Apple's placeholder, never a real birth year) on contacts and birthdays, and the sync corrects a
 contact still stored as 1604, or fills in a year the card has gained, even where the column is not
 empty; a year entered locally stays. The vCard export writes such a birthday in Apple's 3.0 form, as
@@ -2719,7 +2719,7 @@ sabre/vobject does. The separate birthday feed is unchanged: it never carried a 
 |--------|------|-----------|
 | name | TEXT | NOT NULL |
 | birth_date | TEXT | DATE (YYYY-MM-DD), NOT NULL |
-| year_unknown | INTEGER | 0/1, NOT NULL default 0 (migration v254, #2095) - the year of birth is unknown; `birth_date` then carries the placeholder year 2000 |
+| year_unknown | INTEGER | 0/1, NOT NULL default 0 (migration v264, #2095) - the year of birth is unknown; `birth_date` then carries the placeholder year 2000 |
 | name_day | TEXT | Month and day (`MM-DD`), nullable |
 | notes | TEXT | nullable |
 | photo_data | TEXT | Base64 data URL (≤ 5 MB), nullable |
