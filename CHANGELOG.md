@@ -78,6 +78,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The meal plan now follows the household week-start setting, just like the calendar (#2075).**
+  Both the server (`GET /meals`, "add week to shopping list") and the frontend week-grid previously
+  hard-coded Monday as the week start. Both now read the household `week_start` preference
+  (monday / sunday / saturday), so a Sunday-first household sees Sun-Sat in the meal plan and
+  the shopping-list transfer covers those same seven days.
 - **Overview: the Calendar and Tasks tiles follow their size, so a small tile no longer stretches
   its row (#2087).** A small (1x1) Calendar tile showed five, eight or twelve appointments and a
   small Tasks tile five tasks, so their neighbours in the same row grew taller and showed "+N more"
