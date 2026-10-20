@@ -6057,8 +6057,6 @@
         "importDiagnosticDuplicateInstance": "{{count}} zduplikowanych terminów odbioru (ta sama tożsamość) scalono w jeden.",
         "importDiagnosticDuplicateInstance_one": "{{count}} zduplikowany termin odbioru (ta sama tożsamość) scalono w jeden.",
         "importDiagnosticOther": "Jeden wpis kalendarza nie ma oczekiwanego formatu.",
-        "importDiagnosticDuplicateInstance_few": "{{count}} zduplikowane terminy odbioru (ta sama tożsamość) scalono w jeden.",
-        "importDiagnosticDuplicateInstance_many": "{{count}} zduplikowanych terminów odbioru (ta sama tożsamość) scalono w jeden.",
         "importUnresolvedBlockingError": "Najpierw rozwiąż wszystkie blokujące ostrzeżenia albo jawnie pomiń odpowiednie wydarzenia.",
         "importIgnoreLabel": "Ignoruj",
         "importCreateNewType": "Utwórz nowy rodzaj odpadów",

@@ -5927,7 +5927,6 @@
         "importDiagnosticDuplicateInstance": "{{count}} duplicitních termínů svozu (stejná identita) bylo sloučeno do jednoho.",
         "importDiagnosticDuplicateInstance_one": "{{count}} duplicitní termín svozu (stejná identita) byl sloučen do jednoho.",
         "importDiagnosticOther": "Jedna položka kalendáře neodpovídá očekávanému formátu.",
-        "importDiagnosticDuplicateInstance_few": "{{count}} duplicitní termíny svozu (stejná identita) byly sloučeny do jednoho.",
         "importUnresolvedBlockingError": "Nejprve vyřešte všechna blokující upozornění, nebo explicitně přeskočte dotčené události.",
         "importIgnoreLabel": "Ignorovat",
         "importCreateNewType": "Vytvořit nový druh odpadu",
