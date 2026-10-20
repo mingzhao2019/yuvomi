@@ -870,6 +870,11 @@ const REASONS_PASSED_THROUGH = new Map([
   ], why: 'FastingError: jeder Grund aus fail(403, ...)' }],
   ['routes/health/visibility-defaults.js: error.reason', { sites: 1, at403: [['FASTING_CAPABILITY_REQUIRED', 'services/fasting.js']],
     why: 'requireFastingCapability wirft nur diesen' }],
+  // Inventory item validation and entry-link helpers return typed 400/404/409
+  // failures; none of these pass-through paths can produce a 403.
+  ['routes/inventory/items.js: linkError.reason', { sites: 1, at403: [], why: 'linkabilityError: feste 400' }],
+  ['routes/inventory/items.js: reason (Kurzform)', { sites: 2, at403: [], why: 'validateItemFields: feste 400' }],
+  ['routes/inventory/items.js: result.reason', { sites: 3, at403: [], why: 'Inventory-Link- und Tracking-Fehler: 400, 404 oder 409' }],
   ['routes/split-expenses.js: err.reason', { sites: 1, at403: [],
     why: 'Refusal: ein Grund nur an 409 (email_in_use, group_archived); die 403 dort tragen keinen' }],
   ['auth.js: err.code', { sites: 1, at403: [], why: 'feste 409 (2FA)' }],
@@ -880,6 +885,7 @@ const REASONS_PASSED_THROUGH = new Map([
   // Wandtabletts kommt mit Literal vom Riegel.
   // Die zweite Stelle ist die Logzeile daneben, keine Antwort.
   ['auth.js: err.reason', { sites: 2, at403: [], why: 'Gravatar-Import: 400/404/413/415/502 oder 500, nie 403' }],
+  ['routes/notes.js: error.reason', { sites: 1, at403: [], why: 'categoryErrorResponse: NoteCategoryInputError liefert feste 400' }],
   ['routes/notes.js: result.reason', { sites: 1, at403: [], why: 'feste 409' }],
   // SMTP (Re-Critique 2026-10-17): die Absage beim Speichern und der Fall der
   // Testmail. Beides reist an einer festen 400 bzw. in einer 200, nie an 403.
