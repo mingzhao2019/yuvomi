@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **"Manage participants" in rewards now lives in a More-actions menu.** The section header showed
+  two equally-weighted buttons; only "Grant bonus" stays as the primary section action. "Manage
+  participants" is reached via the ⋯ button next to it.
+- **"Add recurring expense" moved to the recurring-expenses section header.** The button used to
+  appear below the list; it now sits in the section title row.
+- **"Add group" in split expenses is now in the More menu next to the group search.** The bare +
+  icon button in the Groups panel header has moved into the ⋯ More menu.
 - **A single occurrence of a calendar series is now named by its original start time (#2034).**
   Until now an occurrence was named by a day, and around a clock change two occurrences could share
   that day - deleting one of them could hide both. An occurrence is now named exactly as calendar

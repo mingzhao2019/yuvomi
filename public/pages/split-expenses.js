@@ -10,7 +10,7 @@ import { openDetailView } from '/components/detail-view.js';
 import { t, formatDate, getLocale, getNumberFormat, dateInputPlaceholder, parseDateInput, isDateInputValid } from '/i18n.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { rowActionHtml } from '/utils/row-action.js';
-import { installPopoverMenus } from '/utils/popover-menu.js';
+import { installPopoverMenus, popoverMenuHtml } from '/utils/popover-menu.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { stagger } from '/utils/ux.js';
 import { redrawList, collapseRow } from '/utils/list-motion.js';
@@ -213,9 +213,12 @@ export async function render(container, { user, embedded = false, onAddableChang
     clearLabel: t('common.searchClear'),
     className: 'split-search',
   })}
-            ${readOnly() ? '' : `<button class="btn btn--icon" id="split-add-group" aria-label="${t('splitExpenses.addGroup')}" ${isSplitGuest() ? 'hidden' : ''}>
-              <i data-lucide="plus" aria-hidden="true"></i>
-            </button>`}
+            ${readOnly() || isSplitGuest() ? '' : popoverMenuHtml({
+    id: 'split-section-tools',
+    label: t('common.moreActions'),
+    items: [{ icon: 'plus', label: t('splitExpenses.addGroup'), action: 'add-group' }],
+    triggerClass: 'btn btn--secondary btn--icon btn--sm split-section-tools',
+  })}
           </div>
           <!-- Geteilter Umschalter-Baustein des Budget-Moduls statt eigener
                Pillen-Optik, und role="radiogroup" statt role="group": eine
@@ -531,7 +534,7 @@ async function loadMemberCandidates() {
 }
 
 function bindShell() {
-  _container.querySelector('#split-add-group')?.addEventListener('click', () => openGroupModal());
+  _container.querySelector('[data-action="add-group"]')?.addEventListener('click', () => openGroupModal());
   _container.querySelector('#split-add-expense')?.addEventListener('click', () => openExpenseModal());
   findPageFab('split-fab')?.addEventListener('click', () => openExpenseModal());
   // 250ms wie vorher: die Suche laedt die Gruppen vom Server neu.
@@ -878,7 +881,7 @@ function drawMain(main) {
   const toolsOnly = canAct;
   const balanceActions = canAct ? `
           <div class="split-section-actions">
-            <button class="btn btn--secondary" id="split-settle">
+            <button class="btn btn--secondary btn--sm" id="split-settle">
               <i data-lucide="hand-coins" class="icon-md" aria-hidden="true"></i>
               ${t('splitExpenses.settle')}
             </button>
@@ -931,6 +934,9 @@ function drawMain(main) {
       <section class="split-section">
         <div class="split-section-head">
           <${SectionTag} class="split-section-title u-section-title">${t('budget.recurringLabel')}</${SectionTag}>
+          ${canAct ? `<button type="button" class="btn btn--secondary btn--sm split-recurring-add" data-recurring-add>
+            <i data-lucide="plus" class="icon-md" aria-hidden="true"></i>${esc(t('splitExpenses.recurring.add'))}
+          </button>` : ''}
         </div>
         <div id="split-recurring-list">${renderRecurring(archived || ro)}</div>
       </section>
@@ -952,6 +958,7 @@ function drawMain(main) {
   main.querySelector('#split-invite')?.addEventListener('click', () => openMemberModal());
   main.querySelector('.split-activity')?.addEventListener('click', onActivityClick);
   main.querySelector('#split-expense-list')?.addEventListener('click', onExpenseListClick);
+  main.querySelector('[data-recurring-add]')?.addEventListener('click', () => openRecurringModal());
   main.querySelector('#split-recurring-list')?.addEventListener('click', onRecurringClick);
 }
 
@@ -1149,11 +1156,7 @@ function mayActOnRecurring(recurring) {
  * sobald eine Bearbeitung sie repariert hat.
  */
 function renderRecurring(asList = false) {
-  const add = asList ? '' : `
-    <button type="button" class="btn btn--secondary split-recurring-add" data-recurring-add>
-      <i data-lucide="plus" class="icon-md" aria-hidden="true"></i>${esc(t('splitExpenses.recurring.add'))}
-    </button>`;
-  if (!state.recurring.length) return `<div class="split-muted">${t('splitExpenses.recurring.empty')}</div>${add}`;
+  if (!state.recurring.length) return `<div class="split-muted">${t('splitExpenses.recurring.empty')}</div>`;
   const rows = state.recurring.map((recurring) => {
     const paused = Boolean(recurring.paused_at);
     const when = paused
@@ -1187,12 +1190,11 @@ function renderRecurring(asList = false) {
     : `<button type="button" class="split-expense" data-recurring-view="${recurring.id}">${body}</button>`}
       </div>`;
   }).join('');
-  return `<div class="row-carrier">${rows}</div>${add}`;
+  return `<div class="row-carrier">${rows}</div>`;
 }
 
 /** Delegierter Klick in der Serienliste. */
 function onRecurringClick(e) {
-  if (e.target.closest('[data-recurring-add]')) return openRecurringModal();
   const toggle = e.target.closest('[data-recurring-toggle]');
   if (toggle) return toggleRecurring(Number(toggle.dataset.recurringToggle));
   const row = e.target.closest('[data-recurring-view], [data-recurring-id]');
@@ -2733,6 +2735,7 @@ export const __test = {
   renderRecurring, onRecurringClick, toggleRecurring, openRecurringModal, recurringReadSections, recurringSplitValues, changedRecurringFields,
   renderMainForTest(container) { _container = container; renderMain(); },
   renderGroupsForTest(container) { _container = container; renderGroups(); },
+  bindShellForTest(container) { _container = container; bindShell(); _statusTablist = null; },
   // R10 L11: die Gruppenzahl steht am Kopf der Liste (test-split-activity-ui.js).
   renderSummaryForTest(container) { _container = container; renderSummary(); },
   // R17/E5: der eigene Saldo der gewaehlten Gruppe und die Summe aller Gruppen.
