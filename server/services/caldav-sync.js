@@ -1547,12 +1547,18 @@ async function runSync({ createClient } = {}) {
         await outbound.releaseLeftoverUploads(client, {
           source: 'caldav', accountId: account.id, calendarUrls: ownCalendarUrls,
         });
+        // Ein Stoppsignal für Löschen und Ändern dieses Kontos (#1863).
+        const stop = outbound.createRefusalStop();
         await processPendingDeletions(client, 'caldav', objectIndex, ownCalendarUrls, {
           accountId: account.id, complete: fetchedEveryCalendar, outcome: deletions,
-          isSelected: selectionOf(account.id),
+          isSelected: selectionOf(account.id), stop,
         });
         if (deletions.sent) log.info(`${deletions.sent} pending deletion(s) applied on the server.`);
         reportWaitingDeletions(account);
+        const pushed = await processPendingUpdates(client, 'caldav', objectIndex, calendarsByUrl, {
+          accountId: account.id, fullRun: true, stop,
+        });
+        if (pushed) log.info(`${pushed} local change(s) pushed to the server.`);
       } catch (err) {
         log.error(`Outbound changes failed for account ${account.id}:`, err.message);
       }
@@ -1581,7 +1587,7 @@ async function runSync({ createClient } = {}) {
 
           // Der Kalender hat in diesem Lauf schon abgelehnt: nicht für jeden
           // wartenden Termin dieselbe Absage abholen.
-          if (uploadGate.isClosed(targetCal.url)) continue;
+          if (stop.blocks(targetCal.url) || uploadGate.isClosed(targetCal.url)) continue;
 
           const uid     = outbound.eventUidFor(event.id);
           const icsData = buildCalDAVICS(event, householdZone);
@@ -1608,7 +1614,9 @@ async function runSync({ createClient } = {}) {
           accountChangedCount++;
         } catch (err) {
           const calendarUrl = event.target_caldav_calendar_url;
-          if (!uploadGate.refused(calendarUrl, err)) {
+          const refused = uploadGate.refused(calendarUrl, err);
+          if (refused) stop.trip(err, calendarUrl);
+          if (!refused) {
             log.error(`Failed to upload event ${event.id} to CalDAV:`, err.message);
           }
         }
@@ -1619,7 +1627,7 @@ async function runSync({ createClient } = {}) {
       // hinter einem unabhängigen, bereits wartenden Update zu verstecken.
       try {
         const pushed = await processPendingUpdates(client, 'caldav', objectIndex, calendarsByUrl, uploadGate, {
-          accountId: account.id, fullRun: true,
+          accountId: account.id, fullRun: true, stop,
         });
         if (pushed) log.info(`${pushed} local change(s) pushed to the server.`);
       } catch (err) {

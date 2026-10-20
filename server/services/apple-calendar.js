@@ -644,8 +644,12 @@ async function runSync({ makeClient } = {}) {
     // Auftrag hat sein Ziel erreicht (#1884). Die Auflistung ist oben als
     // nicht leer befunden.
     outbound.dropDeletionsOfMissingCalendars('apple', { listedUrls: calendars.map((cal) => cal.url) });
-    const removed = await processPendingDeletions(client, 'apple', objectIndex, ownCalendarUrls);
+    // Ein Stoppsignal für Löschen und Ändern (#1863).
+    const stop = outbound.createRefusalStop();
+    const removed = await processPendingDeletions(client, 'apple', objectIndex, ownCalendarUrls, { stop });
     if (removed) log.info(`${removed} pending deletion(s) applied in iCloud.`);
+    const pushed = await processPendingUpdates(client, 'apple', objectIndex, calendarsByUrl, { stop });
+    if (pushed) log.info(`${pushed} local change(s) pushed to iCloud.`);
   } catch (err) {
     log.error('Outbound changes failed:', err.message);
   }
@@ -663,7 +667,7 @@ async function runSync({ makeClient } = {}) {
   // dieses Laufs dieselbe Absage: nach der ersten ist Schluss, und es gibt EINE
   // Zeile mit der Anzahl statt einer je Termin.
   for (const listed of localEvents) {
-    if (!defaultCal || uploadGate.isClosed(defaultCal.url)) continue;
+    if (!defaultCal || stop.blocks(defaultCal.url) || uploadGate.isClosed(defaultCal.url)) continue;
     // Frisch lesen (#1862): die Liste stammt von vor der Schleife, und jeder
     // Upload davor war ein await. Wer inzwischen bearbeitet wurde, geht mit
     // dem Stand von jetzt hinauf; wer gelöscht wurde oder nicht mehr wartet,
@@ -693,7 +697,9 @@ async function runSync({ makeClient } = {}) {
         wantsUploadHere: stillWantsUpload, snapshot: icsSnapshot(event, icsData, uid, householdZone),
       });
     } catch (err) {
-      if (!uploadGate.refused(defaultCal.url, err)) {
+      const refused = uploadGate.refused(defaultCal.url, err);
+      if (refused) stop.trip(err, defaultCal.url);
+      if (!refused) {
         log.error(`Outbound error for event ${event.id}:`, err.message);
       }
     }
@@ -703,7 +709,7 @@ async function runSync({ makeClient } = {}) {
   // kostet eine Ablehnung genau einen Versuch, ohne einen lokalen Upload
   // hinter einem unabhängigen, bereits wartenden Update zu verstecken.
   try {
-    const pushed = await processPendingUpdates(client, 'apple', objectIndex, calendarsByUrl, uploadGate);
+    const pushed = await processPendingUpdates(client, 'apple', objectIndex, calendarsByUrl, uploadGate, { stop });
     if (pushed) log.info(`${pushed} local change(s) pushed to iCloud.`);
   } catch (err) {
     log.error('Outbound changes failed:', err.message);

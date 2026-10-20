@@ -2,6 +2,9 @@
 
 Vollständige, annotierte Liste aller `npm run test:*`-Suiten - welche Suite deckt welche Invariante ab.
 
+CalDAV-Fehlerbehandlung (#2133) wird in `test:caldav-http-refusals` mit kontoweiten
+Absagen, Stoppsignalen und nicht verbrauchten Wiederholungsversuchen geprüft.
+
 `test:task-filters` deckt zusätzlich #1373 ab: Der Filterknopf bleibt auf kleinen Bildschirmen
 erreichbar, Escape und „Fertig" schließen das Panel, und wiederholtes Rendern stapelt keine
 Escape-Handler.
