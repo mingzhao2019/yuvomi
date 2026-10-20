@@ -127,6 +127,7 @@ const APP_SHELL = [
   '/utils/chart.js',
   '/utils/color.js',
   '/utils/event-color.js',
+  '/utils/contact-limits.js',
   '/utils/contact-name.js',
   '/utils/contrast.js',
   '/utils/countdown.js',
