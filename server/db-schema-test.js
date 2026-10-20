@@ -1725,10 +1725,21 @@ const MIGRATIONS_SQL = {
     CREATE UNIQUE INDEX idx_users_birthday_feed_token ON users(birthday_feed_token)
       WHERE birthday_feed_token IS NOT NULL;
   `,
+  262: `
+    ALTER TABLE task_completions ADD COLUMN source TEXT;
+  `,
   // Upstream v254 is appended as v264 on custom, which already uses v253-v262.
   264: `
     ALTER TABLE birthdays ADD COLUMN year_unknown INTEGER NOT NULL DEFAULT 0 CHECK(year_unknown IN (0, 1));
     ALTER TABLE contacts ADD COLUMN birthday_year_unknown INTEGER NOT NULL DEFAULT 0 CHECK(birthday_year_unknown IN (0, 1));
+  `,
+  // Upstream v257 is appended as v267 on custom, which already uses v257 for waste.
+  267: `
+    ALTER TABLE budget_entries ADD COLUMN transfer_entry_id INTEGER NULL REFERENCES budget_entries(id) ON DELETE CASCADE;
+    CREATE INDEX idx_budget_transfer ON budget_entries(transfer_entry_id);
+    INSERT OR IGNORE INTO budget_subcategories (key, category_key, name, sort_order)
+      SELECT 'saving', key, 'Savings', 5 FROM budget_categories
+      WHERE key = 'financial_other';
   `,
 };
 
