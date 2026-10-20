@@ -71,6 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Overview: the Calendar and Tasks tiles follow their size, so a small tile no longer stretches
+  its row (#2087).** A small (1x1) Calendar tile showed five, eight or twelve appointments and a
+  small Tasks tile five tasks, so their neighbours in the same row grew taller and showed "+N more"
+  above empty space. Both now show three entries like every other small list, followed by a note
+  when more are waiting; on the phone the Tasks tile shows three in every size. In the tall sizes
+  the "How many appointments?" option (5, 8 or 12) now decides how many grid rows the Calendar tile
+  spans (2, 3 or 4), so a longer list makes a taller tile instead of a taller row; your saved size
+  and option stay as they are. Appointments that already ended today take only the rows left over
+  by upcoming ones, at most two, and the rest still fold into "+N earlier today". The wall display
+  keeps its own limit.
+
 - **Kitchen settings: a recipe provider says why its last sync failed, in your language** (#1909).
   The account card in Settings > Kitchen showed the raw text of the last failed sync or connection
   test, for example "Mealie request failed (401)", "getaddrinfo ENOTFOUND mealie" or "HTTP 404". It
