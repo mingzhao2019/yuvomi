@@ -2128,8 +2128,9 @@ function showImportResult({ imported, withBirthday, failedList, lastName, lastEr
   let type;
   if (imported === 0) {
     // Alles fehlgeschlagen: konkrete Ursache nennen (Recovery), Retry via Aktion.
-    const reason = window.yuvomi?.friendlyError?.(lastError) || lastError?.message || '';
-    message = t('contacts.importError', { error: reason });
+    // Ein abgewiesenes Feld nennt der Server als `reason` (#1909), der Satz
+    // dazu nennt das Feld und seine Grenze - nie der Text des Servers.
+    message = t('contacts.importError', { error: errorSentence(lastError) });
     type = 'danger';
   } else if (imported === 1 && details.length === 0) {
     // Persönlicher Einzel-Import: Name statt Zähler (Prinzip „persönlich").
