@@ -2160,18 +2160,21 @@ test('POST /:id/exceptions — nur Eigentümer oder Admin dürfen EXDATE setzen'
 
 test('POST /:id/exceptions - recurrence_id in Format A, kein Vorkommen 400 (#2034)', async () => {
   const serie = insertEvent({ title: 'EXC-A', start_datetime: '2042-03-01T09:00', recurrence_rule: 'FREQ=DAILY', created_by: MARIA.id });
-  const exact = await call('POST', `/${serie}/exceptions`, { actor: TOM, body: { recurrence_id: '2042-03-06T09:00:00' } });
+  // custom keeps EXDATE writes creator/admin-only; exercise the new exact-key
+  // behavior with the series creator while the existing authorization test
+  // above continues to cover the non-owner 403 boundary.
+  const exact = await call('POST', `/${serie}/exceptions`, { actor: MARIA, body: { recurrence_id: '2042-03-06T09:00:00' } });
   assert.equal(exact.status, 201);
   assert.equal(exact.body.data.recurrence_id, '2042-03-06T09:00:00');
-  const offRule = await call('POST', `/${serie}/exceptions`, { actor: TOM, body: { recurrence_id: '2042-03-06T10:00:00' } });
+  const offRule = await call('POST', `/${serie}/exceptions`, { actor: MARIA, body: { recurrence_id: '2042-03-06T10:00:00' } });
   assert.equal(offRule.status, 400);
   assert.equal(offRule.body.reason, 'invalid_recurrence_id');
-  const malformed = await call('POST', `/${serie}/exceptions`, { actor: TOM, body: { recurrence_id: '06.03.2042' } });
+  const malformed = await call('POST', `/${serie}/exceptions`, { actor: MARIA, body: { recurrence_id: '06.03.2042' } });
   assert.equal(malformed.status, 400);
   // Beide 400er tragen einen Grund (#1909-Muster), der Browser hat fuer
   // beide einen Satz.
   assert.equal(malformed.body.reason, 'malformed_recurrence_id');
-  const malformedDate = await call('POST', `/${serie}/exceptions`, { actor: TOM, body: { date: '06.03.2042' } });
+  const malformedDate = await call('POST', `/${serie}/exceptions`, { actor: MARIA, body: { date: '06.03.2042' } });
   assert.equal(malformedDate.status, 400);
   assert.equal(malformedDate.body.reason, 'malformed_recurrence_id');
   assert.deepEqual(db.prepare(

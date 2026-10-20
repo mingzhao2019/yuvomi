@@ -1,6 +1,6 @@
 import { recipeProviders } from '/api.js';
 import { formatDate, formatTime, t } from '/i18n.js';
-import { closeModal, confirmModal, openModal, refocusAfterRender } from '/components/modal.js';
+import { captureModalContext, closeModal, confirmModal, openModal, refocusAfterRender } from '/components/modal.js';
 import {
   createInlineError,
   createRetryState,
@@ -265,9 +265,11 @@ function openProviderLinkModal(account, refresh) {
         e.preventDefault();
         errorEl.hidden = true;
         const external_url = panel.querySelector('#recipe-provider-link-external-url').value.trim();
+        // 关闭请求发起时的弹窗，不误关请求期间新打开的弹窗 (#1997)。
+        const modalContext = captureModalContext();
         try {
           await recipeProviders.updateAccount(account.id, { external_url });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           showToast(t('settings.recipeProviderAccountUpdated'), 'success');
           await refresh();
           refocusAfterRender();
@@ -395,9 +397,10 @@ function bindProviderAddButton(container) {
             return;
           }
 
+          const modalContext = captureModalContext();
           try {
             await recipeProviders.createAccount({ provider, name, base_url, external_url, api_token });
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             showToast(t('settings.recipeProviderAccountAdded'), 'success');
             await loadProviderAccounts(container);
             refocusAfterRender();
@@ -488,3 +491,6 @@ export async function render(container, { user }) {
   bindProviderAddButton(container);
   await loadProviderAccounts(container);
 }
+
+// #1997: 测试两个配方源弹窗的保存路径，确保上下文一路传到关闭动作。
+export const __test = { openProviderLinkModal, bindProviderAddButton };

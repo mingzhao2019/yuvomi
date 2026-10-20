@@ -293,7 +293,10 @@ test('Neue Startzeit einer Serie ohne Einzelvorkommen-Recht: die Ausnahme wander
   // Ein Ausgangsziel nimmt der Serie die verknuepften Einzelvorkommen; PUT
   // laeuft dann ohne `updateSeriesWithOverrides`.
   const id = insertSeries({ title: 'Mit Ziel', start: '2035-05-01T09:00', end: '2035-05-01T10:00', rule: 'FREQ=DAILY' });
-  db.prepare("UPDATE calendar_events SET target_google_calendar_id = 'family@test' WHERE id = ?").run(id);
+  // custom keeps the legacy EXDATE endpoint closed once an outbound target is
+  // attached. Create this deletion-only exception while the series is local;
+  // attaching the target afterwards is the state whose whole-series rekey is
+  // being checked here.
   const { base, close } = await startApp(calendarRouter);
   try {
     const exception = await fetch(`${base}/${id}/exceptions`, {
@@ -301,6 +304,7 @@ test('Neue Startzeit einer Serie ohne Einzelvorkommen-Recht: die Ausnahme wander
       body: JSON.stringify({ recurrence_id: keyShownOn(id, 'Europe/Berlin', '2035-05-03') }),
     });
     assert.equal(exception.status, 201);
+    db.prepare("UPDATE calendar_events SET target_google_calendar_id = 'family@test' WHERE id = ?").run(id);
     const res = await fetch(`${base}/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ start_datetime: '2035-05-01T10:30', end_datetime: '2035-05-01T11:30' }),
