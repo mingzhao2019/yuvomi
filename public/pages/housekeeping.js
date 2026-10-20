@@ -6,6 +6,7 @@
 
 import { api, auth } from '/api.js';
 import { t, formatDate, formatDayMonth, formatTime, getLocale, getNumberFormat } from '/i18n.js';
+import { birthDateText, birthDateControlHtml, wireBirthDateField } from '/utils/birth-date.js';
 import { esc } from '/utils/html.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod } from '/utils/period-stepper.js';
 import { metricGlanceHtml, wireMetricGlance } from '/utils/metric-glance.js';
@@ -2313,7 +2314,7 @@ function openStaffReadModal(worker) {
           ${worker.username ? row('housekeeping.workerUsername', esc(worker.username)) : ''}
           ${worker.phone ? row('housekeeping.workerPhone', esc(worker.phone)) : ''}
           ${worker.email ? row('housekeeping.workerEmail', esc(worker.email)) : ''}
-          ${worker.birth_date ? row('housekeeping.workerBirthDate', esc(formatDate(worker.birth_date))) : ''}
+          ${worker.birth_date ? row('housekeeping.workerBirthDate', esc(birthDateText(worker.birth_date, worker.birth_year_unknown))) : ''}
           ${amountsHidden(worker.daily_rate) ? '' : `${row('housekeeping.rateType', esc(t(hourly ? 'housekeeping.rateHourly' : 'housekeeping.rateDaily')))}
           ${hourly
     ? row('housekeeping.hourlyRate', esc(money(worker.hourly_rate)))
@@ -2371,10 +2372,14 @@ function openStaffModal(worker, content, options = {}) {
             <span>${esc(t('housekeeping.workerEmail'))}</span>
             <input name="email" type="email" autocomplete="email" value="${esc(item.email || '')}">
           </label>
-          <label class="housekeeping-field">
-            <span>${esc(t('housekeeping.workerBirthDate'))}</span>
-            <yuvomi-datepicker name="birth_date" type="date" value="${esc(item.birth_date || '')}"></yuvomi-datepicker>
-          </label>
+          <div class="housekeeping-field">
+            <span id="housekeeping-worker-birth-date-label">${esc(t('housekeeping.workerBirthDate'))}</span>
+            ${birthDateControlHtml({
+              id: 'housekeeping-worker-birth-date',
+              value: item.birth_date || '',
+              yearUnknown: item.birth_year_unknown,
+            })}
+          </div>
           <label class="housekeeping-field">
             <span>${esc(t('housekeeping.rateType'))}</span>
             <select name="rate_type">
@@ -2420,6 +2425,10 @@ function openStaffModal(worker, content, options = {}) {
       </form>
     `,
     onSave: (panel) => {
+      // Geburtstag ohne Jahr wie im Geburtstags-Editor (#2095).
+      const workerBirthField = panel.querySelector('#housekeeping-worker-birth-date')
+        ? wireBirthDateField(panel, 'housekeeping-worker-birth-date')
+        : null;
       panel.querySelector('#housekeeping-worker-form')?.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!mayManageWorkers()) return;
@@ -2449,6 +2458,11 @@ function openStaffModal(worker, content, options = {}) {
           rateField?.focus();
           return;
         }
+        const workerBirth = workerBirthField?.read() ?? { date: null, yearUnknown: false, complete: true };
+        if (workerBirth.yearUnknown && !workerBirth.complete) {
+          window.yuvomi?.showToast(t('birthdays.yearlessIncomplete'), 'warning');
+          return;
+        }
         try {
           await api.post('/housekeeping/worker', {
             id: fields.id.value || null,
@@ -2456,7 +2470,8 @@ function openStaffModal(worker, content, options = {}) {
             username: fields.username.value.trim() || null,
             phone: fields.phone.value.trim() || null,
             email: fields.email.value.trim() || null,
-            birth_date: fields.birth_date.value || null,
+            birth_date: workerBirth.date || null,
+            birth_year_unknown: workerBirth.yearUnknown,
             daily_rate: Number(fields.daily_rate.value || 0),
             rate_type: fields.rate_type.value,
             hourly_rate: Number(fields.hourly_rate?.value || 0),
