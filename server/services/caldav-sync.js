@@ -1539,6 +1539,9 @@ async function runSync({ createClient } = {}) {
       // Weg zum Objekt für Bestandstermine erst aus dessen Abruf bekannt wird;
       // der Inbound überspringt dafür alles, was hier noch aussteht.
       const uploadGate = createUploadGate();
+      // Ein Stoppsignal für Löschen und Ändern dieses Kontos (#1863). Es gilt
+      // auch für die nachfolgende Schleife lokaler Neuanlagen.
+      const stop = outbound.createRefusalStop();
       try {
         // Gemeldet wird, was der Server gelöscht hat - nicht, was ohne Anfrage fiel.
         const deletions = { sent: 0 };
@@ -1547,18 +1550,12 @@ async function runSync({ createClient } = {}) {
         await outbound.releaseLeftoverUploads(client, {
           source: 'caldav', accountId: account.id, calendarUrls: ownCalendarUrls,
         });
-        // Ein Stoppsignal für Löschen und Ändern dieses Kontos (#1863).
-        const stop = outbound.createRefusalStop();
         await processPendingDeletions(client, 'caldav', objectIndex, ownCalendarUrls, {
           accountId: account.id, complete: fetchedEveryCalendar, outcome: deletions,
           isSelected: selectionOf(account.id), stop,
         });
         if (deletions.sent) log.info(`${deletions.sent} pending deletion(s) applied on the server.`);
         reportWaitingDeletions(account);
-        const pushed = await processPendingUpdates(client, 'caldav', objectIndex, calendarsByUrl, {
-          accountId: account.id, fullRun: true, stop,
-        });
-        if (pushed) log.info(`${pushed} local change(s) pushed to the server.`);
       } catch (err) {
         log.error(`Outbound changes failed for account ${account.id}:`, err.message);
       }
@@ -1587,7 +1584,11 @@ async function runSync({ createClient } = {}) {
 
           // Der Kalender hat in diesem Lauf schon abgelehnt: nicht für jeden
           // wartenden Termin dieselbe Absage abholen.
-          if (stop.blocks(targetCal.url) || uploadGate.isClosed(targetCal.url)) continue;
+          // Das Stoppsignal gilt für wartende Löschungen und Änderungen. Eine
+          // lokale Neuanlage muss trotzdem den eigenen 412-Stand übernehmen
+          // können, wenn ein vorheriges Entfernen desselben Objekts abgelehnt
+          // wurde (#1863, eigene UID/412-Recovery).
+          if (uploadGate.isClosed(targetCal.url)) continue;
 
           const uid     = outbound.eventUidFor(event.id);
           const icsData = buildCalDAVICS(event, householdZone);

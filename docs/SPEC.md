@@ -2262,7 +2262,7 @@ including three-decimal currencies. The Savings chart bucket (`__saving__`) sele
 |--------|------|-----------|
 | title | TEXT | NOT NULL |
 | amount | REAL | NOT NULL (positive = income, negative = expense) |
-| transfer_entry_id | INTEGER | Nullable FK → Budget Entries(id), ON DELETE CASCADE; reciprocal partner ID for an account transfer, NULL for an ordinary entry (migration v257) |
+| transfer_entry_id | INTEGER | Nullable FK → Budget Entries(id), ON DELETE CASCADE; reciprocal partner ID for an account transfer, NULL for an ordinary entry (migration v267; upstream v257) |
 | category | TEXT | FK → Budget Categories (by key), NOT NULL |
 | subcategory | TEXT | FK → Budget Subcategories (by key), default '' |
 | date | TEXT | DATE, NOT NULL |
@@ -2609,7 +2609,7 @@ scheduler to deliver due reminders as system notifications even when the PWA is 
 | user_agent | TEXT | Nullable — device/browser label |
 | created_at | TEXT | ISO 8601 datetime, default now |
 | last_used_at | TEXT | ISO 8601 datetime, nullable — updated on each successful push |
-| wall_paused_at | TEXT | ISO 8601 datetime, nullable - set while the device is showing the wall (wall mode switched on for this device and the route is `/`); delivery is skipped while set. Expires after 12 hours so a device that was killed with the wall up resumes automatically. The page reports its wall state at boot and on `visibilitychange`, and renews the pause hourly while the wall stays active (migration v256). |
+| wall_paused_at | TEXT | ISO 8601 datetime, nullable - set while the device is showing the wall (wall mode switched on for this device and the route is `/`); delivery is skipped while set. Expires after 12 hours so a device that was killed with the wall up resumes automatically. The page reports its wall state at boot and on `visibilitychange`, and renews the pause hourly while the wall stays active (migration v266; upstream v256). |
 
 VAPID keys are generated on first use and stored in **Sync Config** (`push_vapid_public`,
 `push_vapid_private`); they can be overridden via `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` env vars.

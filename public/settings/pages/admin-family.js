@@ -1369,4 +1369,8 @@ export async function render(container, { user } = {}) {
 
 // Der Avatar als Programm (test:initials): welche Zeichen ohne Bild auf der
 // Scheibe stehen.
-export const __test = { childStartHintHtml, bindChildStartHint, addMemberFormHtml, addInviteFormHtml, avatarHtml, memberHtml, orderableIds, movedOrder, orderedMembers, wireMemberOrder, renderMemberList };
+export const __test = {
+  childStartHintHtml, bindChildStartHint, addMemberFormHtml, addInviteFormHtml,
+  avatarHtml, memberHtml, orderableIds, movedOrder, orderedMembers, wireMemberOrder,
+  renderMemberList, openEditMemberModal,
+};

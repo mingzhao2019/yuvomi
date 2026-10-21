@@ -31,7 +31,8 @@ import { tempDir } from './tmp-dir.js';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret';
 process.env.DB_PATH = join(tempDir('yuvomi-seriesmig-'), 'unused.db');
 const { MIGRATIONS, migrate } = await import('../server/db.js');
-const { generateRecurringInstances } = await import('../server/routes/budget/helpers.js');
+const { generateRecurringInstances, occurrenceDatesInMonth } =
+  await import('../server/routes/budget/helpers.js');
 
 const V = MIGRATIONS.find((m) => m.description === 'Budget: a series keeps its own definition, the first booking is an ordinary entry (#1035)');
 const V_START = MIGRATIONS.find((m) => m.description === 'Budget: a series keeps its own start date and freezes the old grid (#1545, #1585)');
@@ -255,7 +256,12 @@ test('das Loeschen der ersten Buchung nimmt Definition und Zustaendige mit', () 
 // Starttag) nach der Migration angelegt hat, wie es jede laufende
 // Installation zwischen v228 und v229 tut.
 
-const V229 = MIGRATIONS.find((m) => m.description === 'Budget: a series keeps its own start date (#1545)');
+// Upstream calls this migration v229. Custom already carried the same
+// append-only migration as v239 and later documented the grid-freeze follow-up
+// in its description, so identify the stable issue/semantic prefix instead of
+// requiring upstream's historical wording verbatim.
+const V229 = MIGRATIONS.find((m) => m.description.startsWith('Budget: a series keeps its own start date')
+  && m.description.includes('#1545'));
 
 /** Stand direkt vor v229: echte Kette bis v228, Bestand aus legacyDb() plus Nachzuegler. */
 function v228Db() {

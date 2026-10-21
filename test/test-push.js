@@ -153,7 +153,9 @@ function makeDb() {
   `);
   db.exec(MIGRATIONS.find((m) => m.version === 60).up);
   // Die Wand-Pause (#1904) kommt aus der echten Migration, nicht von Hand.
-  MIGRATIONS.find((m) => m.version === 256).up(db);
+  // Upstream nennt sie v256; in custom ist v256 bereits belegt, daher hängt
+  // die append-only Fortsetzung dieselbe Migration unter v266 an.
+  MIGRATIONS.find((m) => m.version === 266).up(db);
   db.prepare("INSERT INTO users (id, username) VALUES (1,'alice'),(2,'bob')").run();
   return db;
 }

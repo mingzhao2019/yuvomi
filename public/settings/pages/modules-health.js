@@ -9,7 +9,7 @@
 import { api } from '/api.js';
 import { t } from '/i18n.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
-import { openModal, closeModal, confirmOverModal, refocusAfterRender } from '/components/modal.js';
+import { openModal, closeModal, captureModalContext, confirmOverModal, refocusAfterRender } from '/components/modal.js';
 import { intervalMonthsToInput, intervalInputToMonths } from '/utils/health-prevention.js';
 import { rowActionHtml } from '/utils/row-action.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
@@ -130,6 +130,7 @@ function reportError(err, modalContext) {
 
 function openTypeModal(type) {
   const isEdit = !!type;
+  const modalContext = captureModalContext();
   const val = (v) => (v == null ? '' : String(v));
   const interval = intervalMonthsToInput(type?.default_interval_months ?? null);
 
@@ -205,7 +206,7 @@ function openTypeModal(type) {
           } catch (err) {
             if (!isAlreadyDeleted(err, 'health_prevention_type_not_found')) throw err;
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('settings.healthPreventionTypeDeleted'), 'success');
           await reload();
           refocusAfterRender();
@@ -242,7 +243,7 @@ function openTypeModal(type) {
           } else {
             await api.post('/health/prevention/types', body);
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('settings.healthPreventionTypeSaved'), 'success');
           await reloadAfterSave(() => reload());
           refocusAfterRender();

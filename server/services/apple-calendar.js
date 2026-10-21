@@ -634,6 +634,9 @@ async function runSync({ makeClient } = {}) {
   // Inbound überspringt dafür alles, was hier noch aussteht.
   // --------------------------------------------------------
   const uploadGate = createUploadGate();
+  // Ein Stoppsignal für Löschen und Ändern (#1863). Es gilt auch für die
+  // nachfolgende Schleife lokaler Neuanlagen.
+  const stop = outbound.createRefusalStop();
   try {
     // Die Reste nie bestätigter Uploads entfernen (#1882).
     await outbound.releaseLeftoverUploads(client, {
@@ -644,8 +647,6 @@ async function runSync({ makeClient } = {}) {
     // Auftrag hat sein Ziel erreicht (#1884). Die Auflistung ist oben als
     // nicht leer befunden.
     outbound.dropDeletionsOfMissingCalendars('apple', { listedUrls: calendars.map((cal) => cal.url) });
-    // Ein Stoppsignal für Löschen und Ändern (#1863).
-    const stop = outbound.createRefusalStop();
     const removed = await processPendingDeletions(client, 'apple', objectIndex, ownCalendarUrls, { stop });
     if (removed) log.info(`${removed} pending deletion(s) applied in iCloud.`);
     const pushed = await processPendingUpdates(client, 'apple', objectIndex, calendarsByUrl, { stop });
@@ -667,7 +668,10 @@ async function runSync({ makeClient } = {}) {
   // dieses Laufs dieselbe Absage: nach der ersten ist Schluss, und es gibt EINE
   // Zeile mit der Anzahl statt einer je Termin.
   for (const listed of localEvents) {
-    if (!defaultCal || stop.blocks(defaultCal.url) || uploadGate.isClosed(defaultCal.url)) continue;
+    // Das Stoppsignal gilt für wartende Löschungen und Änderungen. Eine lokale
+    // Neuanlage muss trotzdem den eigenen 412-Stand übernehmen können, wenn
+    // ein vorheriges Entfernen desselben Objekts abgelehnt wurde.
+    if (!defaultCal || uploadGate.isClosed(defaultCal.url)) continue;
     // Frisch lesen (#1862): die Liste stammt von vor der Schleife, und jeder
     // Upload davor war ein await. Wer inzwischen bearbeitet wurde, geht mit
     // dem Stand von jetzt hinauf; wer gelöscht wurde oder nicht mehr wartet,
