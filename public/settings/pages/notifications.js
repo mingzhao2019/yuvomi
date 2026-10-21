@@ -5,7 +5,7 @@
 import { t } from '/i18n.js';
 import { pushSupported, pushStatus, enablePush, disablePush, repairPush } from '/push.js';
 import { api, notifications } from '/api.js';
-import { confirmModal } from '/components/modal.js';
+import { confirmModal, reportFieldErrors, constraintErrors } from '/components/modal.js';
 import { esc } from '/utils/html.js';
 import { getPwaInstallState } from '/utils/pwa-install.js';
 import { toggleRowHtml, settingSwitchRowHtml } from '/settings/components.js';
@@ -272,7 +272,7 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
     // genau dann nicht, wenn er gebraucht wird.
     const notReady = providerNotReady(providers, channel.provider);
     list.insertAdjacentHTML('beforeend', `
-      <form class="settings-card settings-form notification-channel-form" data-channel-index="${index}" data-channel-scope="${scope}" data-channel-id="${esc(channel.id ?? '')}">
+      <form class="settings-card settings-form notification-channel-form" data-channel-index="${index}" data-channel-scope="${scope}" data-channel-id="${esc(channel.id ?? '')}" novalidate>
         <h3 class="settings-card__title">${esc(channel.name || t('settings.notificationChannelAdd'))}</h3>
         <div class="form-field">
           <label class="form-label" for="notification-provider-${suffix}">${t('settings.notificationChannelProvider')}</label>
@@ -597,6 +597,8 @@ async function setupChannelControls(container) {
     const form = event.target.closest?.('.notification-channel-form');
     if (!form) return;
     event.preventDefault();
+    // KEINE BROWSER-BLASEN (Critique R21): `novalidate`, die Regeln des Markups melden sich am Feld (constraintErrors, components/modal.js).
+    if (reportFieldErrors(constraintErrors(form))) return;
     const id = form.dataset.channelId;
     try {
       const body = readChannelForm(form);

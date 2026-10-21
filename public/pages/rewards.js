@@ -13,7 +13,7 @@ import { initials } from '/utils/initials.js';
 import { getReadableTextColor, AVATAR_FALLBACK_COLOR } from '/utils/color.js';
 import { openModal, closeModal, captureModalContext, captureOpenContext, isModalContextCurrent, confirmModal, confirmOverModal, refocusAfterRender } from '/components/modal.js';
 import { createPageFab, setPageFabAction } from '/utils/fab.js';
-import { rowActionHtml } from '/utils/row-action.js';
+import { rowActionHtml, rowMenuHtml } from '/utils/row-action.js';
 import { installPopoverMenus, popoverMenuHtml } from '/utils/popover-menu.js';
 import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
@@ -1177,6 +1177,7 @@ function openBonusModal() {
   const members = enrolledMembers();
   if (!members.length) { confirmModal(t('rewards.emptyOverviewAdmin'), { confirmLabel: t('rewards.gotIt') }); return; }
   openModal({
+    staged: true, // Buehne zuerst, Felder nach dem ersten Bild (modal.js, R21 a6)
     title: t('rewards.grantBonus'),
     content: `
       <form id="rw-bonus-form" novalidate>
@@ -1233,6 +1234,7 @@ function openRewardModal(item) {
   if (readOnly()) return;
   const isEdit = !!item;
   openModal({
+    staged: !isEdit, // Buehne zuerst, Felder nach dem ersten Bild (modal.js, R21 a6)
     title: isEdit ? t('rewards.editReward') : t('rewards.addReward'),
     content: `
       <form id="rw-reward-form" novalidate>
@@ -1557,10 +1559,23 @@ function renderMoneyRow(account) {
           <button class="btn btn--secondary btn--sm" type="button" data-money-book="${account.id}">
             <i data-lucide="banknote" aria-hidden="true"></i>${esc(t('rewards.money.book'))}
           </button>
-          ${rowActionHtml({ icon: 'calendar-clock', label: `${t('rewards.money.planTitle')}: ${account.display_name}`, attrs: { 'data-money-plan': account.id } })}
-          ${/* Schliessen nur, wo der Server sagt, dass nichts mehr daran haengt
-                (kein Plan, Saldo null, nichts offen) - sonst wiese er es ab. */ ''}
-          ${account.closable ? rowActionHtml({ icon: 'x', label: `${t('rewards.money.closeAccount')}: ${account.display_name}`, attrs: { 'data-money-close': account.id } }) : ''}
+          ${/* PLAN UND SCHLIESSEN IM MEHR-KNOPF (R21, D10 Zeilen-Endzone:
+                EINE sichtbare Handlung, dahinter der Mehr-Knopf). Hier standen
+                Buchen, ein Plan-Zeichen und ein Schliessen-Kreuz nebeneinander -
+                drei Knoepfe, zwei davon ohne Wort. Die Eintraege tragen dieselben
+                Haken wie die Knoepfe vorher (wireMoney). Schliessen nur, wo der
+                Server sagt, dass nichts mehr daran haengt (kein Plan, Saldo
+                null, nichts offen) - sonst wiese er es ab. */ ''}
+          ${rowMenuHtml({
+            id: `rw-money-menu-${account.id}`,
+            label: t('common.moreActionsNamed', { name: account.display_name }),
+            items: [
+              { action: 'money-plan', icon: 'calendar-clock', label: t('rewards.money.planTitle'), attrs: { 'data-money-plan': account.id } },
+              account.closable
+                ? { action: 'money-close', icon: 'x', label: t('rewards.money.closeAccount'), danger: true, attrs: { 'data-money-close': account.id } }
+                : null,
+            ],
+          })}
         </div>`
     : (mine && !account.former && !readOnly()) ? `
         <div class="rw-standing__actions">
@@ -1568,9 +1583,15 @@ function renderMoneyRow(account) {
                   ${account.balance_minor > 0 ? '' : 'disabled'}>
             <i data-lucide="arrow-up-from-line" aria-hidden="true"></i>${esc(t('rewards.money.withdraw'))}
           </button>
-          <button class="btn btn--ghost btn--sm" type="button" data-money-request="deposit" data-member="${account.id}">
-            <i data-lucide="arrow-down-to-line" aria-hidden="true"></i>${esc(t('rewards.money.deposit'))}
-          </button>
+          ${/* Einzahlen ist die seltenere Anfrage: Eintrag im Mehr-Knopf
+                (R21, D10), Abheben bleibt die eine sichtbare Handlung. */ ''}
+          ${rowMenuHtml({
+            id: `rw-money-menu-${account.id}`,
+            label: t('common.moreActionsNamed', { name: account.display_name }),
+            items: [
+              { action: 'money-deposit', icon: 'arrow-down-to-line', label: t('rewards.money.deposit'), attrs: { 'data-money-request': 'deposit', 'data-member': account.id } },
+            ],
+          })}
         </div>` : '';
   return `
     <li class="list-row rw-standing rw-money">
