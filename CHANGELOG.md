@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.79.0] - 2026-10-22
+
 ### Added
 - **You can move money between two budget accounts.** (#1061, from D#781) Use the budget
   entry dialog, with category and subcategory selection. The linked outgoing and incoming entries
@@ -21,12 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Transfers chart section. Transfers require both accounts to use the same currency; currency exchanges
   are not supported. The amount field follows the source account's currency. Existing transfers
   remain editable after account or household currency changes when their accounts stay the same.
+  **API:** `POST /api/v1/budget/transfers` creates a transfer, `GET` and
+  `PUT /api/v1/budget/transfers/{id}` read and correct one booking, and `PUT .../{id}/series`
+  changes a recurring one. Entries carry the read-only `transfer_entry_id` and, in the list,
+  `transfer_account_id`; the month summary carries `transfers`.
 
 - **A device showing the wall display gets no personal push notifications** (#1904). Reminders,
   task-comment mentions, and medication doses are personal and would disturb a tablet mounted in
   the kitchen. While the wall is up, the device reports its state to the server and delivery is
   paused for it. The pause expires after 12 hours so a device that was switched off with the wall
   up heals on its own; a device that comes back alive renews it automatically.
+  **API:** `PUT /api/v1/push/wall-mode` with `endpoint` and `active` sets or clears the pause for
+  that device.
 
 - **Wall display shows today's meals, shopping count, housekeeping status, waste pickups, and
   expiring pantry items** (#1903). Paired wall displays previously showed only the calendar,
@@ -244,7 +252,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A contact and its birthday lead to each other.** When a birthday was imported from a contact,
   the contact's birthday line now offers "Show in birthdays", and the birthday offers "Show contact"
   next to its date - one tap instead of switching modules and searching. The link only shows when
-  you can open the other module.
+  you can open the other module. **API:** contacts carry `birthday_id`, the birthday imported from
+  that contact or `null`; it is always `null` for a caller who may not read the calendar, which
+  birthdays belong to.
 
 - **Shift plan, rewards and household help name themselves on a phone again.** Below 768 pixels
   the three showed only their tabs, so nothing on screen said where you were. The header now
@@ -408,6 +418,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Long contact and recipe lists open faster.** The browser now skips rows outside the visible
   area until you scroll near them. Measured on a slowed-down device, opening 500 contacts blocked
   the page for about 0.8 s, now about 0.55 s; 300 recipes went from about 0.45 s to under 0.4 s.
+- **The module guide says how to find third-party modules (#746).** Yuvomi keeps no curated list of
+  modules. `MODULES.md` now points to the GitHub topic `yuvomi-module`, says that nothing found
+  there is tested or recommended by this project, and asks module authors to set the topic on their
+  repository. Why there is no curated index is recorded in `docs/DECISIONS.md`, entry 15.
+- **The API reference lists the waste, shift schedule and birthday calendar feeds (#1990).**
+  `/feed/waste/{token}.ics`, `/feed/schedule/{token}.ics` and `/feed/birthdays/{token}.ics` were
+  served but missing from the OpenAPI document. The calendar, waste and birthday feeds now share one
+  token lookup; their behavior is unchanged.
 
 - **Swiping through the calendar now turns the page.** In month, week and day view the next or
   previous period now comes along with your finger, while the hour column and the weekday row stay
@@ -863,6 +881,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stored and the dialog keeps everything you entered, so Save simply tries again (#2054).
   **API:** `POST /api/v1/health/medications` accepts an optional `schedules` array and writes the
   medication and its schedules in one transaction.
+- **Saving in a rewards dialog no longer closes a dialog you opened in the meantime (#1997).**
+  Redeeming a reward, granting bonus points, adding or editing a reward, booking pocket money,
+  setting a pocket-money plan and opening a pocket-money account now close only the dialog the save
+  came from. If you had closed the dialog and opened another one before the answer arrived, the
+  other one stays open with what you typed in it.
 
 - **Large imported recipe collections no longer lock up the app with "Too many requests" (#2048).**
   On iPhone and in Firefox the recipe list fetched the picture of every imported recipe at once
