@@ -37,6 +37,7 @@ import {
   icalAlarmLinesForEvent,
   reminderAtsFromIcalAlarms,
 } from './calendar-event-reminders.js';
+import { normalizeCalColor, calendarDisplayName } from '../utils/calendar-meta.js';
 import { authoredAfterInbound, outboundEvent, outboundRecurrenceRule } from './outbound-dtstart.js';
 import { icsReading, icsSnapshot, isEcho } from './outbound-echo.js';
 import { followInboundStartChange } from './calendar-occurrence-overrides.js';
@@ -363,13 +364,6 @@ function legacyCalendarColors(conn, accountId, serverCalendars = []) {
   return colors;
 }
 
-function normalizeCalColor(c) {
-  if (!c) return null;
-  if (/^#[0-9a-fA-F]{8}$/.test(c)) return c.slice(0, 7); // strip alpha
-  if (/^#[0-9a-fA-F]{6}$/.test(c)) return c;
-  return null;
-}
-
 // --------------------------------------------------------
 // Credentials Helpers
 // --------------------------------------------------------
@@ -467,7 +461,7 @@ async function addAccount(name, caldavUrl, username, password, { createClient } 
     const calendarData = [];
     for (const cal of eventCalendars(calendars)) {
       const calColor = normalizeCalColor(cal.calendarColor) || '#4A90E2';
-      const calName = cal.displayName || 'Unnamed Calendar';
+      const calName = calendarDisplayName(cal.displayName, 'Unnamed Calendar');
 
       db.get().prepare(`
         INSERT INTO caldav_calendar_selection (account_id, calendar_url, calendar_name, calendar_color, enabled)
@@ -569,7 +563,7 @@ async function updateAccount(accountId, { name, caldavUrl, username, password, c
       // Insert new selections
       for (const cal of eventCalendars(calendars)) {
         const calColor = normalizeCalColor(cal.calendarColor) || '#4A90E2';
-        const calName = cal.displayName || 'Unnamed Calendar';
+        const calName = calendarDisplayName(cal.displayName, 'Unnamed Calendar');
 
         db.get().prepare(`
           INSERT INTO caldav_calendar_selection (account_id, calendar_url, calendar_name, calendar_color, enabled)
@@ -757,7 +751,7 @@ async function getCalendars(accountId, { refresh = false, createClient } = {}) {
   const result = [];
   for (const cal of eventCalendars(calendars)) {
     const calColor = normalizeCalColor(cal.calendarColor) || '#4A90E2';
-    const calName = cal.displayName || 'Unnamed Calendar';
+    const calName = calendarDisplayName(cal.displayName, 'Unnamed Calendar');
     // Bekannter Kalender behaelt seinen Stand, ein neu gemeldeter kommt
     // abgewaehlt - dieselbe Opt-in-Regel wie beim Anlegen des Kontos (#732).
     const enabled = previous.get(cal.url) ?? false;
@@ -1601,7 +1595,7 @@ async function runSync({ createClient } = {}) {
 
           const calRefId  = upsertExternalCalendar(
             'caldav', event.target_caldav_calendar_url,
-            targetCal.displayName || event.target_caldav_calendar_url, null
+            calendarDisplayName(targetCal.displayName, event.target_caldav_calendar_url), null
           );
           // Gebucht wird gegen den Stand NACH dem await (bookEventUpload).
           const booked = outbound.bookEventUpload(event, {
