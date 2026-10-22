@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   path as calendar names and kept a line break or surrounding spaces from the server. They are now
   trimmed the same way, and an empty name falls back to the usual default. Existing accounts pick
   up the clean names with "Refresh addressbooks" in the CardDAV settings.
+- **Long region and language names are no longer cut off in the appearance settings on a
+  phone.** (#2151) A region such as "United Arab Emirates" or a data language such as "Brazilian
+  Portuguese" ended in "…" on a narrow screen. The setting now shows a short form ("UAE",
+  "Portuguese (BR)"), and the hint below starts with the full name ("Currently United Arab
+  Emirates."). Countries with a region per language show the language as a code ("Canada (FR)").
+  Other names stay as they are.
 - **An error that arrives late no longer pushes aside the dialog you opened in the meantime.**
   (#2134) A few places show their error as a dialog after a request fails, or ask a question
   built from the server's answer: deciding a reward request, closing a pocket-money account or
