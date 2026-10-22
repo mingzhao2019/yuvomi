@@ -334,6 +334,7 @@
     "test:password-normalization": "node --experimental-sqlite --test test/test-password-normalization.js",
     "test:invites": "node scripts/with-env.mjs DB_PATH=:memory: node --experimental-sqlite test/test-invites.js",
     "test:child-start-permissions": "node --experimental-sqlite --test test/test-child-start-permissions.js",
+    "test:child-health-defaults-migration": "node --experimental-sqlite --test test/test-child-health-defaults-migration.js",
     "test:payment-task-backfill": "node --experimental-sqlite --test test/test-payment-task-backfill.js",
     "test:reminders": "node --experimental-sqlite test/test-reminders.js",
     "test:multi-reminders": "node --test test/test-multi-reminders.js",
