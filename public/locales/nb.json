@@ -5826,6 +5826,7 @@
         "weekdaySat": "Lør",
         "weekdaySun": "Søn",
         "intervalLabelWeekly": "Hver N. uke",
+        "intervalLabelMonthly": "Hver N. måned",
         "anchorDateLabel": "Første henting",
         "monthDayLabel": "Dag i måneden",
         "monthDayLastDay": "Siste dag i måneden",

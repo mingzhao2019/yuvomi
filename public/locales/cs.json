@@ -5948,6 +5948,7 @@
         "weekdaySat": "so",
         "weekdaySun": "ne",
         "intervalLabelWeekly": "Každých N týdnů",
+        "intervalLabelMonthly": "Každých N měsíců",
         "anchorDateLabel": "První svoz",
         "monthDayLabel": "Den v měsíci",
         "monthDayLastDay": "Poslední den měsíce",

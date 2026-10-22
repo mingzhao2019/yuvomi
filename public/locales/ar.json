@@ -6210,6 +6210,7 @@
         "weekdaySat": "السبت",
         "weekdaySun": "الأحد",
         "intervalLabelWeekly": "كل N أسابيع",
+        "intervalLabelMonthly": "كل N أشهر",
         "anchorDateLabel": "أول عملية جمع",
         "monthDayLabel": "يوم الشهر",
         "monthDayLastDay": "آخر يوم في الشهر",
