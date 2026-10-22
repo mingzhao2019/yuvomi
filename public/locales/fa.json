@@ -6638,7 +6638,6 @@
         "templateUniversity": "دانشگاه",
         "overview": "نمای کلی",
         "overviewPeopleLabel": "مقایسه افراد",
-        "continuesUntil": "…تا {{time}} ادامه دارد",
         "overviewEmptyTitle": "افرادی را برای مقایسه انتخاب کن",
         "overviewEmptyDescription": "بالا دست‌کم یک عضو خانواده را انتخاب کن تا برنامه‌های هفتگی را کنار هم ببینی.",
         "noShiftTypesHint": "هنوز نوع شیفتی وجود ندارد - ابتدا یکی در تب انواع شیفت بسازید.",

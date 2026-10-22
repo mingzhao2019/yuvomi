@@ -6638,7 +6638,6 @@
         "templateUniversity": "Università",
         "overview": "Panoramica",
         "overviewPeopleLabel": "Confronta persone",
-        "continuesUntil": "…continua fino alle {{time}}",
         "overviewEmptyTitle": "Scegli le persone da confrontare",
         "overviewEmptyDescription": "Seleziona sopra almeno un membro della famiglia per vedere gli orari settimanali affiancati.",
         "noShiftTypesHint": "Ancora nessun tipo di turno - creane prima uno nella scheda Tipi di turno.",

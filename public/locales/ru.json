@@ -6954,7 +6954,6 @@
         "templateUniversity": "Университет",
         "overview": "Обзор",
         "overviewPeopleLabel": "Сравнить людей",
-        "continuesUntil": "…продолжается до {{time}}",
         "overviewEmptyTitle": "Выберите людей для сравнения",
         "overviewEmptyDescription": "Выберите выше хотя бы одного члена семьи, чтобы увидеть недельные расписания рядом друг с другом.",
         "noShiftTypesHint": "Пока нет типов смен - сначала создайте один на вкладке «Типы смен».",

@@ -6638,7 +6638,6 @@
         "templateUniversity": "Universitet",
         "overview": "Översikt",
         "overviewPeopleLabel": "Jämför personer",
-        "continuesUntil": "…fortsätter till {{time}}",
         "overviewEmptyTitle": "Välj personer att jämföra",
         "overviewEmptyDescription": "Välj minst en hushållsmedlem ovan för att se veckoscheman sida vid sida.",
         "noShiftTypesHint": "Inga skifttyper ännu - skapa en först på fliken Skifttyper.",

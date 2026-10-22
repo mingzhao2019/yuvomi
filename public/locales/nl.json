@@ -6638,7 +6638,6 @@
         "templateUniversity": "Universiteit",
         "overview": "Overzicht",
         "overviewPeopleLabel": "Personen vergelijken",
-        "continuesUntil": "…loopt door tot {{time}}",
         "overviewEmptyTitle": "Kies personen om te vergelijken",
         "overviewEmptyDescription": "Selecteer hierboven minstens één huisgenoot om de weekroosters naast elkaar te zien.",
         "noShiftTypesHint": "Nog geen diensttypes - maak er eerst een aan op het tabblad Diensttypes.",

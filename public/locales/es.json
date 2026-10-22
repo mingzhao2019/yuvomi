@@ -6638,7 +6638,6 @@
         "templateUniversity": "Universidad",
         "overview": "Resumen",
         "overviewPeopleLabel": "Comparar personas",
-        "continuesUntil": "…continúa hasta las {{time}}",
         "overviewEmptyTitle": "Elige personas para comparar",
         "overviewEmptyDescription": "Selecciona arriba al menos un miembro del hogar para ver los horarios semanales uno junto al otro.",
         "noShiftTypesHint": "Aún no hay tipos de turno - crea uno primero en la pestaña Tipos de turno.",

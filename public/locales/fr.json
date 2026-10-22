@@ -6638,7 +6638,6 @@
         "templateUniversity": "Université",
         "overview": "Aperçu",
         "overviewPeopleLabel": "Comparer des personnes",
-        "continuesUntil": "…se poursuit jusqu’à {{time}}",
         "overviewEmptyTitle": "Choisissez des personnes à comparer",
         "overviewEmptyDescription": "Sélectionnez ci-dessus au moins un membre du foyer pour voir les emplois du temps hebdomadaires côte à côte.",
         "noShiftTypesHint": "Aucun type de poste pour l'instant - créez-en un d'abord dans l'onglet Types de poste.",

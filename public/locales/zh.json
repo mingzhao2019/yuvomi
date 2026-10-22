@@ -6638,7 +6638,6 @@
         "templateUniversity": "大学",
         "overview": "概览",
         "overviewPeopleLabel": "比较成员",
-        "continuesUntil": "…持续到 {{time}}",
         "overviewEmptyTitle": "选择要比较的成员",
         "overviewEmptyDescription": "在上方至少选择一名家庭成员,即可并排查看每周时间表。",
         "noShiftTypesHint": "还没有班次类型 - 请先在\"班次类型\"标签页中创建一个。",

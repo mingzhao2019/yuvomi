@@ -6954,7 +6954,6 @@
         "templateUniversity": "Університет",
         "overview": "Огляд",
         "overviewPeopleLabel": "Порівняти людей",
-        "continuesUntil": "…триває до {{time}}",
         "overviewEmptyTitle": "Виберіть людей для порівняння",
         "overviewEmptyDescription": "Виберіть вище принаймні одного члена родини, щоб побачити тижневі розклади поруч.",
         "noShiftTypesHint": "Ще немає типів змін - спершу створіть один на вкладці «Типи змін».",

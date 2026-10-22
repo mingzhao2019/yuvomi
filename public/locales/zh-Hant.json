@@ -161,7 +161,8 @@
         "rewards": "獎勵",
         "pantry": "庫存",
         "inventory": "物品",
-        "schedule": "排班"
+        "schedule": "排班",
+        "assetCost": "资产"
     },
     "dashboard": {
         "title": "概覽",
@@ -417,7 +418,16 @@
         "nutritionEntries_one": "今天 {{count}} 筆紀錄",
         "weatherUnavailable": "目前無法取得天氣資訊",
         "wallScreensaverNone": "螢幕保護程式無法使用。",
-        "wallScreensaverStart": "螢幕保護"
+        "wallScreensaverStart": "螢幕保護",
+        "familyMembers": "家庭成员",
+        "budgetOverview": "预算概览",
+        "metricVisits": "{{count}} 次上门",
+        "metricVisits_one": "{{count}} 次上门",
+        "assetsPurchaseTotal": "购买总价",
+        "assetsCurrentDailyCost": "当前日均成本",
+        "assetsActive": "服役中",
+        "assetsRetired": "已退役",
+        "assetsSold": "已卖出"
     },
     "tasks": {
         "resetOrder": "自動排序",
@@ -641,7 +651,36 @@
         "kanbanArchiveDoneAction": "歸檔",
         "errorTaskGone": "此任務已不存在。",
         "errorParentGone": "此子任務所屬的任務已不存在。",
-        "errorCommentGone": "此評論已不存在。"
+        "errorCommentGone": "此評論已不存在。",
+        "subtaskPrompt": "子任务：",
+        "bulkSelectAll": "选择当前可见的全部",
+        "bulkClearSelection": "清除选择",
+        "todoRecurrenceEditHint": "此任务的重复规则由 Microsoft To Do 管理。请在 Microsoft To Do 中修改或取消重复。",
+        "taskListLabel": "任务列表",
+        "taskSourceLabel": "来源",
+        "taskSourceSelect": "选择来源",
+        "taskListShortLabel": "列表",
+        "taskListSelect": "选择列表",
+        "taskListSelectSource": "请先选择来源",
+        "taskListResetToSource": "显示此来源的所有任务",
+        "taskListSortAlphabetical": "按名称排序",
+        "taskListSortAlphabeticalDisable": "恢复手动顺序",
+        "taskListSortAlphabeticalOn": "已按名称排序。",
+        "taskListSortAlphabeticalOff": "已恢复手动顺序。",
+        "taskListReorderHandle": "调整顺序：{{name}}",
+        "taskListReorderHint": "拖动排序，或使用上下箭头调整",
+        "taskListReorderAnnounce": "{{name}}，第 {{position}} 项，共 {{total}} 项",
+        "taskListOrderSaveError": "无法保存任务列表顺序。",
+        "filterGroupSchedule": "计划",
+        "includeFuture": "包含未开始的任务",
+        "taskListLocal": "本地",
+        "taskListDelete": "删除任务列表",
+        "taskListDeleteConfirm": "要删除任务列表“{{name}}”以及其中所有本地任务吗？",
+        "taskListDeleteDetail": "此列表中的任务、子任务、提醒和任务关联都会在本地删除。远程列表及其任务不会改变。",
+        "taskListTasksNotDeletable": "此列表包含你无法删除的任务，未做任何更改。",
+        "taskListSyncRequired": "请先解除此列表的同步，再删除它。",
+        "taskListSyncDisabled": "已解除同步",
+        "taskListDeleted": "任务列表已删除。"
     },
     "shopping": {
         "itemsRemovedToast_one": "已刪除 {{count}} 件商品。",
@@ -912,7 +951,7 @@
         "dayEmptyHintPointer": "還沒有日程。按兩下時間即可建立。",
         "dayEmptyHintTouch": "還沒有日程。長按時間即可建立。",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "第 {{week}} 週 · {{month}} {{year}}",
+        "weekNumberLabel": "第 {{week}} 週 · {{month}}",
         "titleLabel": "標題",
         "titlePlaceholder": "例如：牙醫預約",
         "allDayToggle": "全天",
@@ -1183,7 +1222,10 @@
         "localCalendarEventCount_one": "{{count}} 個活動",
         "sidebarLabel": "日曆側邊欄",
         "upNextTitle": "接下來",
-        "upNextEmpty": "未來三週沒有安排。"
+        "upNextEmpty": "未來三週沒有安排。",
+        "completed": "已完成",
+        "markComplete": "将 {{title}} 标记为已完成",
+        "markIncomplete": "将 {{title}} 标记为未完成"
     },
     "noteCategories": {
         "categories": "分類",
@@ -1846,7 +1888,8 @@
         "ledgerSortAmount": "依金額",
         "ledgerSortActive": "排序：{{sort}}",
         "ledgerAccountsAll": "所有帳戶",
-        "showAccountTransactions": "檢視交易"
+        "showAccountTransactions": "檢視交易",
+        "loansSummary": "{{count}} 笔进行中 · 剩余 {{amount}}"
     },
     "settings": {
         "healthCycleEnableLabel": "在家庭中提供週期",
@@ -2963,8 +3006,8 @@
         "notificationChannelNtfyPassword": "ntfy 密碼",
         "notificationChannelWebhookToken": "Bearer 令牌（可選）",
         "notificationChannelWebhookTemplate": "負載模板（可選）",
-        "notificationChannelWebhookTemplatePlaceholder": "{\"content\": \"{{title}} - {{body}}\"}",
-        "notificationChannelWebhookTemplateHint": "留空則傳送 Yuvomi 的預設正文。可用佔位符：{{title}}, {{body}}, {{url}}, {{tag}}.",
+        "notificationChannelWebhookTemplatePlaceholder": "{\"event\":\"notification\",\"notification\":{\"title\":\"{{title}}\",\"body\":\"{{body}}\",\"description\":\"{{description}}\"}}",
+        "notificationChannelWebhookTemplateHint": "留空則傳送 Yuvomi 的預設正文。點擊資訊圖示可查看所有可用欄位。",
         "notificationChannelSave": "儲存頻道",
         "notificationChannelSaved": "頻道已儲存。",
         "notificationChannelTest": "傳送測試",
@@ -3308,7 +3351,67 @@
         "weatherPlaceUnavailable": "地點搜尋暫時無法使用。請稍後重試，或手動輸入座標。",
         "weatherManualTitle": "手動輸入座標",
         "backupDropzoneTitleTouch": "點選以選擇備份檔案",
-        "installModuleDropzoneTitleTouch": "點選以選擇 ZIP 檔案"
+        "installModuleDropzoneTitleTouch": "點選以選擇 ZIP 檔案",
+        "inventoryFeedInactive": "匯出訂閱源已停用。",
+        "inventoryFeedActivate": "啟用訂閱源",
+        "cycleFeedInactive": "导出订阅源已停用。",
+        "cycleFeedActivate": "启用订阅源",
+        "holidayCountryListPartial": "无法加载完整国家列表，仍可使用中国和当前已保存的国家。",
+        "lunarCalendarTitle": "农历显示",
+        "lunarCalendarLabel": "显示农历日期",
+        "lunarCalendarHint": "在首页和日历中显示中国农历日期。",
+        "lunarCalendarSaved": "农历显示设置已保存。",
+        "calendarDefaultsTitle": "日历事件默认值",
+        "calendarDefaultsDescription": "适用于本地新建、同步导入和现有未来日程。",
+        "scheduleFeedInactive": "导出订阅源已停用。",
+        "scheduleFeedActivate": "启用订阅源",
+        "outlookTodoLists": "Microsoft To Do 列表",
+        "outlookTodoListsHint": "启用的列表会显示在 Tasks 左侧，并参与双向同步。",
+        "outlookFullSyncHint": "全量同步：Outlook 日历和 Microsoft To Do",
+        "outlookSyncStartDate": "导入起始日期",
+        "outlookSyncStartDateHint": "选择绝对日期。默认从六个月前开始。修改后只影响后续导入，已经存在的日程会保留。",
+        "outlookSyncStartDateSaved": "导入起始日期已保存。",
+        "outlookConflictTitle": "Outlook 日程冲突",
+        "outlookConflictHint": "Yuvomi 和 Outlook 都修改了这个日程，请选择要保留的版本。",
+        "outlookConflictLocal": "Yuvomi",
+        "outlookConflictRemote": "Outlook",
+        "outlookConflictKeepLocal": "保留 Yuvomi",
+        "outlookConflictUseRemote": "使用 Outlook",
+        "outlookConflictResolved": "冲突选择已保存。",
+        "outlookConflictRemoteDeleted": "已在 Outlook 中删除",
+        "outlookTodoListsEmpty": "尚未发现 Microsoft To Do 列表。",
+        "outlookTodoSelectAll": "全选",
+        "outlookTodoRefresh": "刷新 To Do 列表",
+        "outlookTodoRefreshed": "To Do 列表已刷新。",
+        "outlookSelectionSaved": "日历和 To Do 列表选择已保存。",
+        "outlookSelectionSavedShort": "✓ 已保存",
+        "notificationPersonalTitle": "个人通知",
+        "notificationPersonalDescription": "个人 Webhook 和 message-pusher 频道只向你自己的通知地址发送通知。",
+        "notificationHouseholdTitle": "家庭通知",
+        "notificationHouseholdDescription": "家庭频道接收家庭范围内的通知，只有管理员可以管理。",
+        "notificationChannelPersonalEmpty": "尚未配置个人频道。",
+        "notificationChannelTemplateHint": "留空则发送 Yuvomi 的默认正文。点击信息图标可查看所有可用字段。",
+        "notificationChannelTemplateHelpLabel": "查看模板字段说明",
+        "notificationChannelTemplateCopy": "复制示例",
+        "notificationChannelTemplateCopied": "示例已复制。",
+        "notificationChannelTemplateCopyFailed": "复制失败，请手动选择示例文本复制。",
+        "notificationChannelTemplateHelp": "字段：{{title}}=模块；{{body}}=通知内容；{{description}}=任务/事件描述；{{details}}=其他详情；{{entityType}}/{{entityId}}=来源；{{dueDate}}/{{dueTime}}=截止日期/时间；{{startDate}}/{{startTime}}=开始日期/时间；{{endDate}}/{{endTime}}=事件结束日期/时间；{{remindAt}}=提醒时间；{{sentAt}}=发送时间；{{url}}/{{tag}}=目标和标识；{{priority}}=传输优先级；{{category}}/{{taskPriority}}/{{status}}=任务信息；{{location}}/{{allDay}}=事件信息。示例：{\"event\":\"notification\",\"notification\":{\"title\":\"{{title}}\",\"body\":\"{{body}}\"}}。Webhook 模板是 JSON，文本字段建议加引号；message-pusher 模板是纯文本；message-pusher 的提醒/发送时间按家庭时区显示，字段为空时会省略整行，链接仅在配置 BASE_URL 时生成绝对地址。",
+        "notificationChannelMessagePusherUsername": "message-pusher 用户名",
+        "notificationChannelMessagePusherMethod": "请求方式",
+        "notificationChannelMessagePusherFormat": "POST 格式",
+        "notificationChannelMessagePusherChannel": "推送方式（可选）",
+        "notificationChannelMessagePusherField": "正文参数",
+        "notificationChannelMessagePusherContent": "content（Markdown）",
+        "notificationChannelMessagePusherDescription": "description",
+        "notificationChannelMessagePusherTemplate": "消息模板（可选）",
+        "notificationChannelMessagePusherTemplatePlaceholder": "🔔 {{title}}\n📌 {{body}}\n📄 {{description}}\n⏰ 截止：{{dueDate}} {{dueTime}}\n🚀 开始：{{startDate}} {{startTime}}",
+        "notificationChannelMessagePusherTemplateHint": "留空以保留当前消息。点击信息图标可查看所有字段。",
+        "notificationChannelMessagePusherTokenQuery": "将 token 放入 URL 查询参数",
+        "notificationChannelMessagePusherHint": "默认推荐 POST + JSON。GET 或 URL token 可能会把 token 写入代理和服务器日志。",
+        "calendarDefaultAllDayReminderTimeLabel": "全天事件提醒时间",
+        "calendarDefaultAllDayReminderTimeHint": "全天事件没有远程提醒时，在事件当天此本地时间提醒。",
+        "wasteFeedInactive": "尚未启用。",
+        "wasteFeedActivate": "启用订阅源"
     },
     "login": {
         "tagline": "歡迎回來。你的家，盡在一處。",
@@ -3616,7 +3719,8 @@
         "offsetAfterStart": "事件開始之後",
         "afterStartHint": "此提醒在事件開始之後（{{when}}），儲存時不會改變。選擇一個提前量即可移動它。",
         "afterStartNeedsLeadTime": "對於系列中的單個事件，提醒只能儲存為提前量。請為此提醒選擇一個提前量，或將其移除。",
-        "readOnlyNotice": "提醒歸日曆所有。沒有日曆的寫入權限時，此設定保持不變。"
+        "readOnlyNotice": "提醒歸日曆所有。沒有日曆的寫入權限時，此設定保持不變。",
+        "offset30min": "提前30分钟"
     },
     "onboarding": {
         "step1Title": "歡迎使用{{name}}",
@@ -4160,7 +4264,8 @@
         "errorTaskGone": "該任務已不存在。",
         "errorAlreadyCheckedOut": "該家政人員已簽退。",
         "errorAlreadyCheckedIn": "該家政人員已簽到。",
-        "allVisitsInReport": "在報告中檢視所有上門記錄"
+        "allVisitsInReport": "在報告中檢視所有上門記錄",
+        "createTask": "创建任务"
     },
     "userMultiSelect": {
         "moreUsers": "更多",
@@ -4691,7 +4796,9 @@
         "accountUsernameLabel": "註冊帳號",
         "accountUsernameHint": "電子郵件地址或使用者名稱。這不是密碼欄位，Yuvomi 不儲存密碼。",
         "detailAmountLabel": "金額",
-        "detailNextPaymentLabel": "下次付款"
+        "detailNextPaymentLabel": "下次付款",
+        "listCount": "{{count}} 个订阅",
+        "listCount_one": "{{count}} 个订阅"
     },
     "health": {
         "fasting": {
@@ -4787,7 +4894,8 @@
             "statsWeekly": "過去七天的斷食",
             "allTime": "全部歷史",
             "thisYear": "今年",
-            "last30Days": "最近30天"
+            "last30Days": "最近30天",
+            "applyFilter": "应用日期"
         },
         "tabs": {
             "overview": "概覽",
@@ -5037,7 +5145,8 @@
                 "earlyConfirm": "在最短間隔結束前記錄這次服用嗎？",
                 "earlyDetail": "下一次服用要到 {{time}} 之後（{{remaining}}）。",
                 "earlyConfirmAction": "仍然記錄"
-            }
+            },
+            "stockUpdateFailed": "已记录服用，但未能更新库存。"
         },
         "prevention": {
             "title": "預防保健與疫苗接種",
@@ -5078,7 +5187,8 @@
                 "intervalMonths": "間隔",
                 "nextDueOn": "下次到期日（覆寫）",
                 "reminderOffsetDays": "提醒提前天數"
-            }
+            },
+            "noRecords": "暂无记录。"
         },
         "labs": {
             "title": "化驗值",
@@ -5301,7 +5411,8 @@
                 "fertilitySuppressedNote": "易孕期已暫停：激素避孕。",
                 "nextPeriodRangeSub": "平均：{{date}}",
                 "partnerNextPeriod": "{{name}}的月經預計將於{{date}}開始。",
-                "partnerNextPeriodNeutral": "伴侶提醒-月經"
+                "partnerNextPeriodNeutral": "伴侶提醒-月經",
+                "regularity": "规律性"
             },
             "stats": {
                 "source": {
@@ -5647,7 +5758,8 @@
             "unit": {
                 "kcal": "千卡",
                 "g": "克"
-            }
+            },
+            "noEntries": "暂无记录。"
         },
         "errorVitalGone": "該測量值已不存在。",
         "errorMedicationGone": "該藥物已不存在。",
@@ -5897,7 +6009,8 @@
         "icsCalendarName": "垃圾收運",
         "icsPickupSummary": "收運：{{name}}",
         "intervalDecrease": "縮短間隔",
-        "intervalIncrease": "延長間隔"
+        "intervalIncrease": "延長間隔",
+        "addTypeFirstHint": "请先添加一个类型。"
     },
     "rewards": {
         "title": "獎勵",
@@ -6294,7 +6407,8 @@
         "errorBookingAlreadyLinked": "這筆帳目已連結。",
         "errorLocationExists": "此處已有同名位置。請換一個名稱。",
         "errorLocationGone": "這個位置已不存在。",
-        "errorCategoryGone": "這個類別已不存在。"
+        "errorCategoryGone": "這個類別已不存在。",
+        "backToInventory": "返回物品"
     },
     "documentAttach": {
         "label": "附件",
@@ -6366,7 +6480,8 @@
         "rewards": "獎品",
         "rewardsBonus": "獎勵",
         "scheduleShiftType": "班次類型",
-        "scheduleEntry": "條目"
+        "scheduleEntry": "條目",
+        "assetCost": "资产"
     },
     "iconPicker": {
         "title": "選擇圖示",
@@ -6563,7 +6678,16 @@
         "errorCustomFieldGone": "此欄位已不存在。",
         "errorSelectedCustomFieldGone": "所選欄位中有一個已不存在。",
         "errorPatternGone": "此排班週期已不存在。",
-        "errorEntryGone": "此條目已不存在。"
+        "errorEntryGone": "此條目已不存在。",
+        "createPattern": "创建排班周期",
+        "date": "日期",
+        "compactDisplay": "紧凑",
+        "applyStatistics": "显示统计",
+        "total": "合计",
+        "recurring": "重复",
+        "replaceExisting": "替换已安排的内容",
+        "discardCycleDayEditsDetail": "如果继续，你对此排班周期的周期天数或详情所做的未保存更改将会丢失。",
+        "overviewClearSelection": "清除选择"
     },
     "pairDisplay": {
         "title": "配對平板",

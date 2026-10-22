@@ -7113,7 +7113,6 @@
         "templateUniversity": "الجامعة",
         "overview": "نظرة عامة",
         "overviewPeopleLabel": "مقارنة الأشخاص",
-        "continuesUntil": "…يستمر حتى {{time}}",
         "overviewEmptyTitle": "اختر أشخاصًا للمقارنة",
         "overviewEmptyDescription": "اختر أعلاه فردًا واحدًا على الأقل من أفراد الأسرة لرؤية الجداول الأسبوعية جنبًا إلى جنب.",
         "noShiftTypesHint": "لا توجد أنواع مناوبات بعد - أنشئ واحدًا أولًا من تبويب أنواع المناوبات.",

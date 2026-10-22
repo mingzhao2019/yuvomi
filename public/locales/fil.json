@@ -6638,7 +6638,6 @@
         "templateUniversity": "Unibersidad",
         "overview": "Pangkalahatang-tanaw",
         "overviewPeopleLabel": "Ikumpara ang mga tao",
-        "continuesUntil": "…magpapatuloy hanggang {{time}}",
         "overviewEmptyTitle": "Pumili ng mga tao na ikukumpara",
         "overviewEmptyDescription": "Pumili sa itaas ng kahit isang miyembro ng sambahayan para makita ang lingguhang iskedyul nang magkatabi.",
         "noShiftTypesHint": "Wala pang uri ng shift - gumawa muna ng isa sa tab na Mga uri ng shift.",

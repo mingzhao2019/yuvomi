@@ -6638,7 +6638,6 @@
         "templateUniversity": "Üniversite",
         "overview": "Genel bakış",
         "overviewPeopleLabel": "Kişileri karşılaştır",
-        "continuesUntil": "…{{time}} saatine kadar sürüyor",
         "overviewEmptyTitle": "Karşılaştırılacak kişileri seç",
         "overviewEmptyDescription": "Haftalık programları yan yana görmek için yukarıdan en az bir hane üyesi seç.",
         "noShiftTypesHint": "Henüz vardiya türü yok - önce Vardiya türleri sekmesinde bir tane oluşturun.",

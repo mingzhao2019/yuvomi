@@ -6638,7 +6638,6 @@
         "templateUniversity": "विश्वविद्यालय",
         "overview": "अवलोकन",
         "overviewPeopleLabel": "लोगों की तुलना करें",
-        "continuesUntil": "…{{time}} तक जारी है",
         "overviewEmptyTitle": "तुलना के लिए लोग चुनें",
         "overviewEmptyDescription": "साप्ताहिक समय-सारिणी साथ-साथ देखने के लिए ऊपर कम से कम एक सदस्य चुनें।",
         "noShiftTypesHint": "अभी तक कोई शिफ़्ट प्रकार नहीं है - पहले शिफ़्ट के प्रकार टैब में एक बनाएँ।",

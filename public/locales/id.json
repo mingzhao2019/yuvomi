@@ -6638,7 +6638,6 @@
         "templateUniversity": "Universitas",
         "overview": "Ringkasan",
         "overviewPeopleLabel": "Bandingkan orang",
-        "continuesUntil": "…berlanjut hingga {{time}}",
         "overviewEmptyTitle": "Pilih orang untuk dibandingkan",
         "overviewEmptyDescription": "Pilih setidaknya satu anggota keluarga di atas untuk melihat jadwal mingguan berdampingan.",
         "noShiftTypesHint": "Belum ada jenis shift - buat satu dulu di tab Jenis shift.",

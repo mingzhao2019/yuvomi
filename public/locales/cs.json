@@ -6801,7 +6801,6 @@
         "templateUniversity": "Univerzita",
         "overview": "Přehled",
         "overviewPeopleLabel": "Porovnat osoby",
-        "continuesUntil": "…pokračuje do {{time}}",
         "overviewEmptyTitle": "Vyberte osoby k porovnání",
         "overviewEmptyDescription": "Vyberte výše alespoň jednoho člena domácnosti a zobrazte týdenní rozvrhy vedle sebe.",
         "noShiftTypesHint": "Zatím žádné typy směn - nejprve nějaký vytvořte na kartě Typy směn.",

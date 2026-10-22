@@ -6638,7 +6638,6 @@
         "templateUniversity": "Universität",
         "overview": "Übersicht",
         "overviewPeopleLabel": "Personen vergleichen",
-        "continuesUntil": "…geht bis {{time}}",
         "overviewEmptyTitle": "Personen zum Vergleichen auswählen",
         "overviewEmptyDescription": "Wähle oben mindestens ein Haushaltsmitglied aus, um die Wochenpläne nebeneinander zu sehen.",
         "noShiftTypesHint": "Noch keine Schichtarten - lege zuerst eine im Tab „Schichtarten\" an.",
