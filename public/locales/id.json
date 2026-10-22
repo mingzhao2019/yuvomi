@@ -2920,7 +2920,9 @@
             "BS": "Bahama",
             "DO": "Republik Dominika",
             "GB": "Inggris Raya",
+            "HK": "Hong Kong",
             "KN": "Saint Kitts",
+            "MO": "Makau",
             "PH": "Filipina",
             "SA": "Arab Saudi",
             "TT": "Trinidad & Tobago",
@@ -2929,7 +2931,9 @@
         },
         "languageShort": {
             "nb": "Norwegia",
-            "ptBR": "Portugis (Brasil)"
+            "ptBR": "Portugis (Brasil)",
+            "zh": "Tionghoa Sederhana",
+            "zhHant": "Tionghoa Trad."
         },
         "regionAdminOnly": "Hanya administrator yang dapat mengubah wilayah dan mata uang.",
         "formatsHouseholdHint": "Format tanggal dan waktu berlaku untuk seluruh rumah tangga. Setiap anggota dapat mengubahnya.",

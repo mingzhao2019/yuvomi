@@ -33,6 +33,7 @@ import {
   resolveRegion,
   regionLabel,
   regionShortLabel,
+  languageLabel,
   languageShortLabel,
   languageShortKey,
   SHORT_NAME_COUNTRIES,
@@ -198,11 +199,7 @@ function regionOptions(selectedRegion) {
 }
 
 function localeLabel(locale) {
-  try {
-    return new Intl.DisplayNames([getLocale()], { type: 'language' }).of(locale) || locale;
-  } catch {
-    return locale;
-  }
+  return languageLabel(locale, getLocale());
 }
 
 /**
