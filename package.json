@@ -441,6 +441,7 @@
     "test:oidc-contact": "node --experimental-sqlite --experimental-test-module-mocks --test test/test-oidc-contact.js",
     "test:oidc-error-log": "node --experimental-sqlite --test test/test-oidc-error-log.js",
     "test:oidc-redirect-uri": "node --experimental-sqlite --test test/test-oidc-redirect-uri.js",
+    "test:oidc-token-auth": "node --test test/test-oidc-token-auth.js",
     "test:oidc-email-link": "node --experimental-sqlite --experimental-test-module-mocks --test test/test-oidc-email-link.js",
     "test:family-contacts": "node --experimental-sqlite test/test-family-contacts.js",
     "test:family-routes": "node --experimental-sqlite --test test/test-family-routes.js",
