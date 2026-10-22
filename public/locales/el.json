@@ -1347,6 +1347,8 @@
         "mvRemove": "Αφαίρεση καταχώρισης",
         "birthdayLabel": "Γενέθλια",
         "showBirthday": "Εμφάνιση στα γενέθλια",
+        "addToBirthdays": "Προσθήκη στα γενέθλια",
+        "addedToBirthdays": "Προστέθηκε στα γενέθλια.",
         "birthdayHint": "Εμφανίζεται και στο ημερολόγιο μέσω της εισαγωγής γενεθλίων.",
         "phonePlaceholder": "+30 …",
         "phonePreview": "Προεπισκόπηση: {{value}}",

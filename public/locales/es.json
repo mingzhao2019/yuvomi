@@ -1347,6 +1347,8 @@
         "mvRemove": "Quitar entrada",
         "birthdayLabel": "Cumpleaños",
         "showBirthday": "Ver en cumpleaños",
+        "addToBirthdays": "Añadir a cumpleaños",
+        "addedToBirthdays": "Añadido a cumpleaños.",
         "birthdayHint": "También aparece en el calendario mediante la importación de cumpleaños.",
         "phonePlaceholder": "+34 …",
         "phonePreview": "Vista previa: {{value}}",
