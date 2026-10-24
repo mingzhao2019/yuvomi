@@ -3283,7 +3283,9 @@ test('R8 H9: eine Messung oeffnet sich mit Bestand, Loeschen steht links im Dial
   const loeschen = fuss.indexOf('data-action="vital-delete"');
   assert.ok(loeschen >= 0, 'Loeschen steht im Dialogfuss');
   assert.ok(loeschen < fuss.indexOf('data-action="cancel"'), 'links vor Abbrechen und Speichern (Kanon)');
-  assert.match(fuss, /btn--danger-outline" data-action="vital-delete"[^>]* style="margin-inline-end:auto"/);
+  // Den Anfangsrand haelt `.modal-panel__delete` (decorateFooterDelete), kein Inline-Stil (R22 D12).
+  assert.match(fuss, /btn--danger-outline" data-action="vital-delete"/);
+  assert.doesNotMatch(fuss, /style="/);
   // Mobil ist Loeschen ein Papierkorb ohne Wort (R9 M8, modal.js); sein Name
   // kommt aus data-delete-name - ohne nahm modal.js das erste Feld ("128").
   assert.match(fuss, /data-action="vital-delete" data-delete-name="health\.vitals\.metric\.bp"/, 'der Papierkorb nennt die Metrik');
@@ -5310,8 +5312,11 @@ test('Kanon R5: der Lesedialog einer Notiz fuehrt "Bearbeiten" als Primaerknopf,
     const offen = mitEchtemMarkdown(() => withAccess({ notes: 'write' }, () => (
       modalOptionen(() => notes.openNoteModal({ mode: 'edit', note: notiz() }))
     )));
-    assert.match(offen.content, /<button type="button" class="btn btn--primary" id="note-modal-edit" data-reader-only>common\.edit<\/button>/);
-    assert.match(offen.content, /id="note-modal-delete"[^>]*>\s*<i data-lucide="trash-2"/, 'Loeschen als Textknopf mit Icon, links');
+    // R22 D20: Detail-Fuss-Kanon wie das Leseblatt der Kontakte - Bearbeiten
+    // gefuellt MIT Stift, Loeschen in der Leseansicht leise (danger-ghost).
+    assert.match(offen.content, /<button type="button" class="btn btn--primary" id="note-modal-edit" data-reader-only>\s*<i data-lucide="pencil" class="icon-md" aria-hidden="true"><\/i><span class="btn__label">common\.edit<\/span>/);
+    assert.match(offen.content, /class="btn btn--danger-ghost" id="note-modal-delete">\s*<i data-lucide="trash-2"/, 'Loeschen leise als Textknopf mit Icon, links');
+    assert.doesNotMatch(offen.content, /id="note-modal-delete"[^>]*style=/, 'den Anfangsrand haelt .modal-panel__delete, kein Inline-Style');
     const neu = withAccess({ notes: 'write' }, () => modalOptionen(() => notes.openNoteModal({ mode: 'create' })));
     assert.doesNotMatch(neu.content, /note-modal-edit/, 'eine neue Notiz oeffnet im Editor - dort gibt es nichts umzuschalten');
   } finally {
@@ -5456,4 +5461,45 @@ test('R8 H14: Dokument-Auswahl ist ein Auswahlkreis mit Objektnamen, keine nativ
     documentsPage.setContainerForTest(null);
     globalThis.document = echtesDocument;
   }
+});
+
+// R22, D7: Geburtstag und Kontakt verknuepfen.
+test('D7: der Import-Eintrag traegt user-plus, nicht download - er holt Menschen, keine Datei', () => {
+  withAccess({ calendar: 'write', contacts: 'read' }, () => {
+    const html = birthdays.importActionHtml();
+    assert.match(html, /user-plus/);
+    assert.doesNotMatch(html, /"download"|data-lucide="download"/);
+  });
+});
+
+test('D7: der Dialog verknuepft nur mit Kontakte-Sicht und nie einen Mitglieder-Geburtstag', () => {
+  withAccess({ calendar: 'write', contacts: 'read' }, () => {
+    assert.equal(birthdays.mayLinkContacts({ id: 1 }), true);
+    assert.equal(birthdays.mayLinkContacts(null), true, 'auch beim Anlegen');
+    assert.equal(birthdays.mayLinkContacts({ id: 1, family_user_id: 3 }), false, 'Mitglieder haengen am Konto');
+  });
+  withAccess({ calendar: 'write', contacts: 'none' }, () => {
+    assert.equal(birthdays.mayLinkContacts({ id: 1 }), false, 'ohne Kontakte nur "Keiner" und ein 403');
+  });
+  const html = birthdays.contactLinkFieldHtml({ id: 1, contact_id: 7, contact_name: 'Mike <M>' });
+  assert.match(html, /<option value="7" selected>Mike &lt;M&gt;<\/option>/, 'der verknuepfte steht sofort, mit esc()');
+  assert.match(html, /aria-describedby="bd-contact-hint"/);
+});
+
+test('D7: der Hinweis "Ein Kontakt heisst genauso" nur mit Schreibrecht und nur unverknuepft', () => {
+  const vorschlag = { id: 1, name: 'Mike', birth_date: '1985-11-02', contact_id: null, suggested_contact_id: 7 };
+  const hinweis = (b) => birthdays.birthdayPaneSections(b).some((r) => r?.action?.id === 'birthday-detail-link');
+  withAccess({ calendar: 'write' }, () => {
+    assert.equal(hinweis(vorschlag), true);
+    assert.equal(hinweis({ ...vorschlag, contact_id: 7 }), false, 'verknuepft: kein Hinweis');
+    assert.equal(hinweis({ ...vorschlag, suggested_contact_id: undefined }), false);
+  });
+  withAccess({ calendar: 'read' }, () => {
+    assert.equal(hinweis(vorschlag), false, 'Nur-lesen: nichts zu tun, also keine Zeile');
+  });
+});
+
+test('D7/a3 Klein: das Datum im Detailkopf traegt sein Etikett', () => {
+  const head = birthdays.birthdayDetailHead({ id: 1, name: 'Mike', next_birthday: '2026-11-02', next_age: 41, days_until: 10 });
+  assert.match(head.subtitle, /^birthdays\.nextBirthdayOn/, 'zwei Daten untereinander, eins davon ohne Namen');
 });

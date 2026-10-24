@@ -570,7 +570,7 @@ function syncAllBirthdayReminders(database, userId, from = new Date()) {
  * einen Geburtstag gekoppelt sind (haushaltsweit, nicht pro Nutzer).
  *
  * @param {object} database
- * @returns {{ withBirthday: Array<{id:number,name:string,birthday:string,birthday_year_unknown:boolean,already_imported:boolean}>, withoutBirthday: Array<{id:number,name:string}> }}
+ * @returns {{ withBirthday: Array<{id:number,name:string,birthday:string,birthday_year_unknown:boolean,already_imported:boolean}>, withoutBirthday: Array<{id:number,name:string,already_imported:boolean}> }}
  */
 function listBirthdayImportCandidates(database) {
   const rows = database.prepare(`
@@ -597,7 +597,9 @@ function listBirthdayImportCandidates(database) {
         already_imported: r.already_imported === 1,
       });
     } else {
-      withoutBirthday.push({ id: r.id, name: r.name });
+      // Auch ohne Datum verknuepfbar (R22, D7: der Geburtstag-Dialog bietet
+      // jeden Kontakt an, der noch keinen Eintrag traegt).
+      withoutBirthday.push({ id: r.id, name: r.name, already_imported: r.already_imported === 1 });
     }
   }
   return { withBirthday, withoutBirthday };
@@ -652,6 +654,42 @@ function importBirthdaysFromContacts(database, contactIds, userId, from = new Da
   return { imported, skipped };
 }
 
+/**
+ * DER GLEICHE NAME (Critique R22, D7). Ein Geburtstag und ein Kontakt, die
+ * gleich heissen und nicht verknuepft sind, bekommen auf BEIDEN Seiten den
+ * ruhigen Hinweis "heisst genauso" mit "Verknuepfen". Damit beide Seiten
+ * dasselbe Paar sehen, vergleichen sie mit EINEM Schluessel - hier, in JS.
+ *
+ * Bis hierher rechnete der Geburtstag den Kontaktnamen in SQL (`lower(trim())`)
+ * und seinen eigenen in JS (`trim().toLowerCase()`). SQLite senkt nur ASCII:
+ * "Özlem" blieb "Özlem", JS machte "özlem" daraus, und der Hinweis fehlte
+ * genau bei Namen mit Umlaut oder Akzent am Anfang. NFC dazu, damit ein
+ * zerlegt gespeichertes "é" (CardDAV) dem getippten gleicht.
+ * @param {unknown} name
+ * @returns {string}
+ */
+function sameNameKey(name) {
+  return String(name ?? '').normalize('NFC').trim().toLowerCase();
+}
+
+/**
+ * Der eine unverknuepfte Geburtstag, der so heisst wie ein Kontakt - die
+ * Gegenrichtung zu `suggested_contact_id` (routes/birthdays.js). Gezaehlt
+ * werden wie dort nur Eintraege ohne Verknuepfung und keine
+ * Mitglieder-Geburtstage (die haengen am Konto, nicht an einem Kontakt). Zwei
+ * gleichnamige Geburtstage sind eine Frage, kein Vorschlag: dann `null`.
+ * @param {import('better-sqlite3').Database} database
+ * @param {unknown} name  der Name des Kontakts
+ * @returns {number|null}
+ */
+function sameNameBirthdayId(database, name) {
+  const key = sameNameKey(name);
+  if (!key) return null;
+  const rows = database.prepare('SELECT id, name FROM birthdays WHERE contact_id IS NULL AND family_user_id IS NULL').all();
+  const hits = rows.filter((row) => sameNameKey(row.name) === key);
+  return hits.length === 1 ? hits[0].id : null;
+}
+
 export {
   BIRTHDAY_COLOR,
   BIRTHDAY_RRULE,
@@ -673,6 +711,8 @@ export {
   nextNameDayDate,
   placeholderBirthDate,
   retitleBirthdayEvents,
+  sameNameBirthdayId,
+  sameNameKey,
   syncAllBirthdayReminders,
   syncBirthdayArtifacts,
   validateYearUnknown,

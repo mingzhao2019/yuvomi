@@ -3,6 +3,8 @@ import { moduleAccentVar } from '/utils/module-accent.js';
 import { renderSkeletonList, placeSkeletonUntilContent } from '/utils/skeleton.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { swapRegion } from '/utils/content-swap.js';
+import { wireScrollFade } from '/utils/ux.js';
+import { MODULE_ICON, moduleIconHTML } from '/nav-icons.js';
 import { createRetryState } from './components.js';
 import { watchLeafForms } from './dirty-guard.js';
 import { KITCHEN_CHILD_IDS } from './module-order.js';
@@ -288,7 +290,65 @@ function createNavigation(domains, user, activeLeaf) {
 
   createNavigationSearch(navigation, domains, user, activeLeaf);
   navigation.prepend(createSheetSkipLink());
+  navigation.appendChild(createNavigationIndex(navigation, domains));
   return navigation;
+}
+
+/**
+ * DIE BEREICHE ALS WEG, WENN DIE LISTE UEBERLAEUFT (R22, D13; Critique a5).
+ * 29 Eintraege in drei Gruppen: bei 1280x800 stand "Module" unter der Falz,
+ * und die Leiste scrollt fuer sich ohne sichtbaren Balken - sie sah aus wie
+ * vollstaendig. Kein Umbau der Liste: am unteren Rand klebt eine Zeile mit
+ * den drei Gruppennamen, ein Tipp scrollt die Leiste zur Gruppe, die Gruppe
+ * am oberen Rand ist markiert. Nur, solange die Liste ueberlaeuft und nicht
+ * gesucht wird (settings.css, `--overflowing`).
+ */
+function createNavigationIndex(navigation, domains) {
+  const index = document.createElement('div');
+  index.className = 'settings-shell__navigation-index';
+  index.setAttribute('role', 'group');
+  index.setAttribute('aria-label', t('search.goTo'));
+  const buttons = domains.map((domain) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'settings-shell__navigation-index-item';
+    button.dataset.domainId = domain.id;
+    button.textContent = t(domain.labelKey);
+    button.addEventListener('click', () => {
+      const group = navigation.querySelector(`.settings-shell__navigation-group[data-domain-id="${domain.id}"]`);
+      if (!group) return;
+      const search = navigation.querySelector('.settings-shell__navigation-search');
+      const covered = search ? search.getBoundingClientRect().bottom - navigation.getBoundingClientRect().top : 0;
+      navigation.scrollTop += group.getBoundingClientRect().top - navigation.getBoundingClientRect().top - Math.max(0, covered);
+    });
+    return button;
+  });
+  index.append(...buttons);
+
+  // Welche Gruppe steht oben? Die letzte, deren Kopf die Suchkante erreicht hat.
+  const markCurrent = () => {
+    const search = navigation.querySelector('.settings-shell__navigation-search');
+    const edge = (search ?? navigation).getBoundingClientRect().bottom + 1;
+    let current = null;
+    for (const group of navigation.querySelectorAll('.settings-shell__navigation-group')) {
+      if (group.getBoundingClientRect().top <= edge || !current) current = group.dataset.domainId;
+    }
+    for (const button of buttons) button.classList.toggle('is-current', button.dataset.domainId === current);
+  };
+  const syncOverflow = () => {
+    if (!navigation.isConnected) return;
+    const was = navigation.classList.contains('settings-shell__navigation--overflowing');
+    const now = navigation.scrollHeight > navigation.clientHeight + 2;
+    navigation.classList.toggle('settings-shell__navigation--overflowing', now);
+    // Erscheint die Zeile, verdeckt sie unten eine Zeile: der aktive Eintrag
+    // bleibt sichtbar.
+    if (now && !was) revealActiveNavigationLink(navigation);
+    markCurrent();
+  };
+  navigation.addEventListener('scroll', markCurrent, { passive: true });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(syncOverflow).observe(navigation);
+  requestAnimationFrame(syncOverflow);
+  return index;
 }
 
 /**
@@ -355,8 +415,13 @@ function revealActiveNavigationLink(navigation) {
   // einer skalierenden Eintrittsanimation weichen die beiden voneinander ab.
   const scale = (view.height > 0 && navigation.offsetHeight > 0) ? view.height / navigation.offsetHeight : 1;
   const top = view.top + covered;
+  // Unten klebt die Bereichszeile (createNavigationIndex), solange die Liste
+  // ueberlaeuft: was sie verdeckt, zaehlt wie die Suche oben.
+  const index = navigation.querySelector('.settings-shell__navigation-index');
+  const indexBox = index && index.getClientRects().length ? index.getBoundingClientRect() : null;
+  const bottom = indexBox ? Math.min(view.bottom, indexBox.top) : view.bottom;
   if (box.top < top) navigation.scrollTop -= (top - box.top) / scale;
-  else if (box.bottom > view.bottom) navigation.scrollTop += (box.bottom - view.bottom) / scale;
+  else if (box.bottom > bottom) navigation.scrollTop += (box.bottom - bottom) / scale;
 }
 
 // Aktualisiert nur den Aktivzustand der bestehenden Navigation, ohne die Links
@@ -678,7 +743,20 @@ function createLeafHeader(leaf, user) {
 
   const heading = document.createElement('h1');
   heading.className = 'settings-leaf-header__title';
-  heading.textContent = settingsLeafLabel(leaf, t);
+  // DAS SIEGEL STEHT AM TITEL, NICHT AM RUECKWEG (R22, D13; Critique a5).
+  // Mobil stand das Zahnrad im Kopf neben "< Einstellungen" - der Kopf
+  // blendet dort den Modulnamen aus, und das Siegel haengte an einem Wort,
+  // das nicht mehr stand. Wie im Gesundheitsbereich ("< Gesundheit", darunter
+  // Siegel + Large Title) traegt es jetzt der Blatt-Titel; settings.css zeigt
+  // es nur dort, wo der Kopf es nicht traegt (unter 1024px). Die Kopfrolle
+  // (`module-seal--head`) baut nur die Shell; dieses Siegel nennt seine
+  // Herkunft (settings.css) und hat den Large-Title-Rang. Dekor: der
+  // Titel daneben und der Rueckweg nennen das Modul schon.
+  const seal = document.createElement('span');
+  seal.className = 'module-seal settings-leaf-header__seal';
+  seal.setAttribute('aria-hidden', 'true');
+  seal.insertAdjacentHTML('beforeend', moduleIconHTML(MODULE_ICON.settings));
+  heading.append(seal, settingsLeafLabel(leaf, t));
 
   header.appendChild(heading);
   // Extension sheets without a manifest description get no empty paragraph.
@@ -909,6 +987,12 @@ function createSheetJump(leaf, user, leafContainer, headingId) {
     list.appendChild(item);
   }
   nav.appendChild(list);
+  // DIE ZEILE ZEIGT, DASS ES WEITERGEHT (R22, D13; Critique a5 P3): mobil
+  // scrollt sie ohne Leiste - im Gesundheitsblatt 540px Marken in 366px, und
+  // die Kante schnitt das letzte Wort ab, als sei die Zeile zu Ende. Der
+  // geteilte Anriss (wireScrollFade, wie Tab-Leisten); ab 768px
+  // bricht die Zeile um und laeuft nicht ueber, dort bleibt er aus.
+  wireScrollFade(list);
   return nav;
 }
 
@@ -1051,6 +1135,7 @@ async function renderLeafContent(content, leaf, domain, user, query) {
       title.id = `settings-scope-${leaf.id}-${scope}`;
       title.textContent = t(scope === 'mine' ? 'settings.scopeMine' : 'settings.scopeHousehold');
       group.setAttribute('aria-labelledby', title.id);
+      group.dataset.pending = '';
       group.appendChild(title);
       leafContainer.appendChild(group);
       parent = group;
@@ -1060,6 +1145,7 @@ async function renderLeafContent(content, leaf, domain, user, query) {
       host.className = 'settings-sheet-section';
       host.id = sheetSectionId(section.id);
       host.dataset.sectionId = section.id;
+      host.dataset.pending = '';
       if (section.props?.part) host.dataset.part = section.props.part;
       parent.appendChild(host);
       hosts.push([host, section]);
@@ -1073,12 +1159,12 @@ async function renderLeafContent(content, leaf, domain, user, query) {
   // wenn der Abschnitt seinen Inhalt HINTER das Skelett haengt, statt den
   // Traeger zu ersetzen (Critique R19, placeSkeletonUntilContent).
   leafContainer.setAttribute('aria-busy', 'true');
-  const skeletonTimer = setTimeout(() => {
-    for (const [host] of hosts) placeSkeletonUntilContent(host, renderSkeletonList({ rows: 2, lines: 3 }));
-  }, SKELETON_DELAY_MS);
+  const reveal = revealSectionsInOrder(hosts.map(([host]) => host), leafContainer);
+  const skeletonTimer = setTimeout(reveal.placeSkeleton, SKELETON_DELAY_MS);
 
   const finishLeaf = () => {
     clearTimeout(skeletonTimer);
+    reveal.all();
     // Kam das Blatt erst nach einem Wechsel zu Ende, steht schon ein anderes:
     // dann weder Fokus noch Formularwache fuer ein abgehaengtes Blatt.
     if (!leafContainer.isConnected) return;
@@ -1103,12 +1189,74 @@ async function renderLeafContent(content, leaf, domain, user, query) {
   // Nicht blockierend: ein haengender Abschnitt haelt weder die Shell noch die
   // Navigationssperre des Routers (siehe SECTION_WAIT_MS).
   await awaitSections(
-    hosts.map(([host, section]) => renderSheetSection(host, section, user, query)),
+    hosts.map(([host, section]) => renderSheetSection(host, section, user, query).finally(() => reveal.done(host))),
     finishLeaf,
   );
   // Nach der Frist stehen die Marken in jedem Fall, notfalls mit dem
-  // Rueckfallnamen eines Abschnitts, der noch laedt.
+  // Rueckfallnamen eines Abschnitts, der noch laedt - und jeder Abschnitt
+  // steht im Fluss, ein haengender mit seinem eigenen Skelett.
+  clearTimeout(skeletonTimer);
+  reveal.all({ skeletons: true });
   jump?.classList.remove('settings-sheet-jump--pending');
+}
+
+/**
+ * EIN ABSCHNITT ERSCHEINT GANZ UND IN DER REIHENFOLGE DES BLATTS (Critique R22,
+ * D4). Die Traeger standen leer im Blatt und fuellten sich, wie ihre Daten
+ * kamen: jeder fertige Abschnitt schob die darunter weg (Kaltstart mobil
+ * Mitglieder CLS 0,25, Kalender 0,53, Gesundheit 0,20; Desktop Kalender 0,13).
+ * Jetzt liegt ein Traeger, bis sein render() fertig ist UND alle darueber
+ * stehen, ausserhalb des Flusses (`[data-pending]`, settings.css: absolut,
+ * unsichtbar, voll breit - er misst sich beim Aufbau wie im Fluss). Erscheinen
+ * kann so nur, was unter allem Sichtbaren liegt, und nichts Sichtbares rueckt.
+ * Ein Reichweitenblock folgt seinem ersten Traeger. Das Skelett steht an der
+ * Kante zum ersten wartenden Traeger und ist bei jedem Schritt ein NEUER Knoten
+ * - ein verschobenes Skelett waere selbst ein Sprung.
+ *
+ * @param {HTMLElement[]} hosts  Traeger in Dokumentreihenfolge
+ * @param {HTMLElement} leafContainer
+ */
+function revealSectionsInOrder(hosts, leafContainer) {
+  const finished = new Set();
+  let next = 0;
+  let skeleton = null;
+  let skeletonDue = false;
+  const show = (host) => {
+    delete host.dataset.pending;
+    const group = host.parentElement;
+    if (group && group !== leafContainer) delete group.dataset.pending;
+  };
+  const frontier = () => {
+    skeleton?.remove();
+    skeleton = null;
+    const host = hosts[next];
+    if (!skeletonDue || !host) return;
+    const group = host.parentElement;
+    const anchor = group && group !== leafContainer && group.dataset.pending !== undefined ? group : host;
+    anchor.insertAdjacentHTML('beforebegin', renderSkeletonList({ rows: 2, lines: 3 }));
+    skeleton = anchor.previousElementSibling;
+  };
+  return {
+    done(host) {
+      finished.add(host);
+      if (hosts[next] !== host) return;
+      while (next < hosts.length && finished.has(hosts[next])) show(hosts[next++]);
+      frontier();
+    },
+    placeSkeleton() {
+      skeletonDue = true;
+      frontier();
+    },
+    all({ skeletons = false } = {}) {
+      skeletonDue = false;
+      frontier();
+      for (; next < hosts.length; next += 1) {
+        const host = hosts[next];
+        show(host);
+        if (skeletons && !finished.has(host)) placeSkeletonUntilContent(host, renderSkeletonList({ rows: 2, lines: 3 }));
+      }
+    },
+  };
 }
 
 /**
@@ -1363,4 +1511,4 @@ export async function renderSettingsShell(container, {
 }
 
 /** Nur fuer Tests (test-settings-navigation.js). */
-export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink, renderLeafContent };
+export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink, renderLeafContent, revealSectionsInOrder };

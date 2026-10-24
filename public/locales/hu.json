@@ -680,7 +680,12 @@
         "filterDueToday": "Ma vagy korábban esedékes",
         "errorTaskGone": "Ez a feladat már nem létezik.",
         "errorParentGone": "Ennek az alfeladatnak a szülőfeladata már nem létezik.",
-        "errorCommentGone": "Ez a hozzászólás már nem létezik."
+        "errorCommentGone": "Ez a hozzászólás már nem létezik.",
+        "kanbanShowMore": "{{count}} további megjelenítése",
+        "kanbanShowMore_one": "{{count}} további megjelenítése",
+        "doneByMenuItem": "Elvégezte: …",
+        "checkedDoneNamed": "„{{title}}” kész.",
+        "checkedOpenNamed": "„{{title}}” újra nyitott."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} elem törölve.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Megjelenítés a születésnapoknál",
         "addToBirthdays": "Hozzáadás a születésnapokhoz",
         "addedToBirthdays": "Hozzáadva a születésnapokhoz.",
+        "birthdaySuggestValue": "Egy születésnap ugyanezt a nevet viseli, de nincs összekapcsolva.",
+        "linkedToBirthday": "Összekapcsolva a születésnappal.",
         "birthdayHint": "A születésnap-importtal a naptárban is megjelenik.",
         "phonePlaceholder": "+36 …",
         "phonePreview": "Előnézet: {{value}}",
@@ -2191,7 +2198,6 @@
         "gravatarErrorStale": "A képed, a címed vagy a fiókod megváltozott, miközben a kép lekérése zajlott. Semmi sem lett mentve.",
         "gravatarErrorNotMember": "Gravatart csak a háztartás tagjai kérhetnek le.",
         "profileSavedToast": "Profil frissítve.",
-        "editMemberLabel": "Szerkesztés",
         "editMemberTitle": "Családtag szerkesztése",
         "saveMember": "Mentés",
         "memberUpdatedToast": "{{name}} frissítve.",
@@ -2427,7 +2433,6 @@
         "memberContactBirthdayHint": "Ez a tag automatikusan szinkronizálva van a Kapcsolatokkal és a Születésnapokkal.",
         "memberBirthDateInvalid": "Adjon meg egy érvényes születésnapi dátumot a kiválasztott formátumban.",
         "memberPhoneMeta": "Telefon: {{value}}",
-        "memberBirthdayMeta": "Születésnap: {{date}}",
         "tabBackup": "Biztonsági mentés kezelése",
         "sectionBackup": "Biztonsági mentés kezelése",
         "backupDownloadTitle": "Adatbázis biztonsági mentés letöltése",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Jóváhagyások és alapértelmezett pontok beállítása új feladatokhoz.",
         "sheetHealthDescription": "Saját nézetek, a ciklus és a megelőzési típusok.",
         "displaysTitle": "Fali táblagépek",
-        "displaysHint": "A fali táblagép saját fiókot kap, amelyet csak ez az eszköz használhat. Nem családtag, nem jelentkezik be, és csak azt látja, ami a háztartás számára látható. Az áttekintése a háztartás alapértelmezését követi, ha pedig nincs beállítva, a szokásos elrendezést. A fali mód nem ezt követi: mindig az órát, a napi programot, azt, hogy ma kin a sor, és az időjárást mutatja.",
+        "displaysLead": "A fali táblagép saját fiókot kap, amelyet csak ez az eszköz használhat. Nem családtag, nem jelentkezik be, és csak azt látja, ami a háztartás számára látható.",
+        "displaysMore": "Az áttekintése a háztartás alapértelmezését követi, ha pedig nincs beállítva, a szokásos elrendezést. A fali mód nem ezt követi: mindig az órát, a napi programot, azt, hogy ma kin a sor, és az időjárást mutatja.",
+        "hintMore": "Bővebben",
+        "weatherHouseholdLinkHint": "Adminként te állítod be a háztartás helyét.",
+        "wallDisplaysLinkHint": "A csak fali kijelzőként használt táblagép saját fiókot kap bejelentkezés nélkül.",
+        "displaysWallModeLinkHint": "A fali módot magán a táblagépen kapcsolod be.",
         "displaysAreasHint": "Ezeket mutatja: {{areas}}.",
         "displayDeviceNameLabel": "A táblagép neve",
         "displayDeviceNameHint": "Például „Konyha” vagy „Előszoba” - csak a listán belüli megkülönböztetéshez.",
@@ -3635,7 +3645,16 @@
         "yearlessDayLabel": "A születésnap napja",
         "yearlessMonthPlaceholder": "Hónap",
         "yearlessDayPlaceholder": "Nap",
-        "yearlessIncomplete": "Válaszd ki a születésnap hónapját és napját."
+        "yearlessIncomplete": "Válaszd ki a születésnap hónapját és napját.",
+        "nextBirthdayOn": "Következő születésnap: {{date}}",
+        "contactLinkLabel": "Összekapcsolás névjeggyel",
+        "contactLinkNone": "Nincs",
+        "contactLinkHint": "A két bejegyzés ezután egymásra mutat. A dátum külön marad.",
+        "contactSuggestLabel": "Névjegy",
+        "contactSuggestValue": "Egy névjegy ugyanezt a nevet viseli, de nincs összekapcsolva.",
+        "linkContact": "Összekapcsolás",
+        "linkedToast": "Összekapcsolva a névjeggyel.",
+        "errorContactLinked": "Ez a névjegy már egy másik születésnaphoz van kapcsolva."
     },
     "recipes": {
         "mealTypeNone": "Nincs étkezés",
@@ -3714,7 +3733,7 @@
         "resultCountMany": "{{count}} találat",
         "goTo": "Ugrás ide",
         "newSection": "Új létrehozása",
-        "recentLabel": "Legutóbb megnyitott",
+        "recentLabel": "Legutóbb meglátogatott",
         "createTaskNamed": "„{{title}}” létrehozása feladatként",
         "hintMove": "Kijelölés",
         "hintOpen": "Megnyitás"
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigáció és modulok",
         "step2Body": "Az alsó sáv közvetlenül a legfontosabb területekre visz. A többi modult a „Több” alatt találja.",
         "step3Title": "Gyors kezdés",
-        "step3Body": "A jobb alsó + gombbal bárhol új bejegyzést hozhatsz létre. Húzd a listaelemeket balra vagy jobbra a gyorsműveletekhez.",
+        "step3Body": "A jobb alsó + gombbal bárhol új bejegyzést hozhatsz létre. A Feladatok, a Bevásárlás és a Készlet listáiban húzd az elemeket balra vagy jobbra a gyorsműveletekhez.",
         "next": "Következő",
         "done": "Kezdés",
         "skip": "Kihagyás",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Tartozásod",
         "debtYouOwe": "Ön tartozik neki: {{name}}",
         "debtOwesYou": "{{name}} tartozik Önnek",
-        "debtOwes": "{{from}} tartozik neki: {{to}}"
+        "debtOwes": "{{from}} tartozik neki: {{to}}",
+        "balanced": "Rendezve",
+        "balancedInGroup": "{{group}}: Rendezve"
     },
     "wmo": {
         "0": "Tiszta égbolt",
@@ -4526,7 +4547,8 @@
         "tooShort": "A jelszónak legalább 8 karakter hosszúnak kell lennie.",
         "invalidToken": "Ez a visszaállító link érvénytelen vagy lejárt - kérjen egy újat.",
         "missingToken": "Ez a visszaállító link hiányos - kérjen egy újat.",
-        "requestNew": "Új link kérése"
+        "requestNew": "Új link kérése",
+        "invalidTitle": "Érvénytelen link"
     },
     "email": {
         "host": "SMTP-kiszolgáló",
@@ -5043,7 +5065,7 @@
             "noMeds": "Még nincsenek gyógyszerek.",
             "logTitle": "Bevételi napló",
             "personsLabel": "Személy",
-            "take": "Bevéve",
+            "take": "Bevétel",
             "skip": "Kihagyás",
             "dueToday": {
                 "title": "Mai teendők",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Szükség szerint",
-                "take": "Bevétel most",
-                "takeFor": "{{medication}} bevétele most",
                 "nextAt": "Legkorábban {{time}}",
                 "remainingHm": "még {{hours}} ó {{minutes}} p",
                 "remainingM": "még {{minutes}} p",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Ehhez nem elég a pont.",
         "errorNotParticipating": "Ez a személy nem gyűjt pontokat.",
         "errorMoneyAccountGone": "Ez a számla már nem létezik.",
-        "errorMoneyPlanGone": "Ez a terv már nem létezik."
+        "errorMoneyPlanGone": "Ez a terv már nem létezik.",
+        "ownLedger": "Saját tételeid"
     },
     "datepicker": {
         "openCalendar": "Naptár megnyitása",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Ez a tétel már kapcsolva van.",
         "errorLocationExists": "Ez a hely már létezik itt. Válassz másik nevet.",
         "errorLocationGone": "Ez a hely már nem létezik.",
-        "errorCategoryGone": "Ez a kategória már nem létezik."
+        "errorCategoryGone": "Ez a kategória már nem létezik.",
+        "editItem": "Tárgy szerkesztése"
     },
     "documentAttach": {
         "label": "Mellékletek",
@@ -6436,13 +6458,14 @@
         "mismatch": "A jelszavak nem egyeznek.",
         "tooShort": "A jelszónak legalább 8 karakter hosszúnak kell lennie.",
         "invalidToken": "Ez a meghívó érvénytelen, lejárt vagy már felhasználták - kérjen új linket.",
-        "missingToken": "Ez a meghívólink érvénytelen vagy lejárt - kérjen egy újat.",
         "usernameRequired": "Válassz felhasználónevet.",
         "usernameInvalid": "A felhasználónév 3 és 64 karakter közötti lehet, és csak betűket, számokat, pontot, kötőjelet és aláhúzást tartalmazhat.",
         "usernameTaken": "Ez a felhasználónév már foglalt.",
         "error": "A fiókot nem sikerült létrehozni. Próbáld újra.",
         "displayNameTooLong": "A megjelenő név legfeljebb 128 karakter lehet.",
-        "previewFailed": "A meghívót most nem sikerült ellenőrizni. Töltsd újra az oldalt egy pillanat múlva."
+        "previewFailed": "A meghívót most nem sikerült ellenőrizni. Töltsd újra az oldalt egy pillanat múlva.",
+        "invalidTitle": "Érvénytelen meghívó",
+        "toLogin": "Tovább a bejelentkezéshez"
     },
     "newLabel": {
         "tasks": "Feladat",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Ez a mező már nem létezik.",
         "errorSelectedCustomFieldGone": "Az egyik kiválasztott mező már nem létezik.",
         "errorPatternGone": "Ez a műszakciklus már nem létezik.",
-        "errorEntryGone": "Ez a bejegyzés már nem létezik."
+        "errorEntryGone": "Ez a bejegyzés már nem létezik.",
+        "overviewPeopleCount": "Személyek összehasonlítása ({{count}})"
     },
     "pairDisplay": {
         "title": "Táblagép párosítása",

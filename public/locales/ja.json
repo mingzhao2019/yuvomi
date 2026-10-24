@@ -680,7 +680,12 @@
         "filterDueToday": "今日までが期限",
         "errorTaskGone": "このタスクはもう存在しません。",
         "errorParentGone": "このサブタスクの親タスクはもう存在しません。",
-        "errorCommentGone": "このコメントはもう存在しません。"
+        "errorCommentGone": "このコメントはもう存在しません。",
+        "kanbanShowMore": "さらに{{count}}件表示",
+        "kanbanShowMore_one": "さらに{{count}}件表示",
+        "doneByMenuItem": "実行した人 …",
+        "checkedDoneNamed": "「{{title}}」を完了しました。",
+        "checkedOpenNamed": "「{{title}}」を未完了に戻しました。"
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} 件を削除しました。",
@@ -1349,6 +1354,8 @@
         "showBirthday": "誕生日で表示",
         "addToBirthdays": "誕生日に追加",
         "addedToBirthdays": "誕生日に追加しました。",
+        "birthdaySuggestValue": "同じ名前の誕生日がありますが、リンクされていません。",
+        "linkedToBirthday": "誕生日とリンクしました。",
         "birthdayHint": "誕生日のインポートでカレンダーにも表示されます。",
         "phonePlaceholder": "+81 …",
         "phonePreview": "プレビュー: {{value}}",
@@ -2080,7 +2087,6 @@
         "gravatarErrorStale": "画像の取得中に、画像、アドレス、またはアカウントが変更されました。何も保存されていません。",
         "gravatarErrorNotMember": "Gravatar を取得できるのは世帯のメンバーだけです。",
         "profileSavedToast": "プロフィールを更新しました。",
-        "editMemberLabel": "編集",
         "editMemberTitle": "家族メンバーを編集",
         "saveMember": "メンバーを保存",
         "memberUpdatedToast": "{{name}} を更新しました。",
@@ -2266,7 +2272,6 @@
         "memberContactBirthdayHint": "このメンバーは連絡先と誕生日と自動的に同期されます。",
         "memberBirthDateInvalid": "選択した日付形式で有効な生年月日を入力してください。",
         "memberPhoneMeta": "電話: {{value}}",
-        "memberBirthdayMeta": "誕生日: {{date}}",
         "tabBackup": "バックアップ管理",
         "sectionBackup": "バックアップ管理",
         "backupDownloadTitle": "データベースバックアップをダウンロード",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "新しいタスクの承認と既定ポイントを設定します。",
         "sheetHealthDescription": "自分の表示、周期、予防の種類。",
         "displaysTitle": "壁掛けタブレット",
-        "displaysHint": "壁掛けタブレットには、この端末だけが使える専用のアカウントが割り当てられます。家族メンバーではなく、ログインもせず、世帯に公開されているものだけを表示します。ダッシュボードは世帯の既定に従い、既定がなければ標準のレイアウトになります。ウォールモードはこの既定に従わず、常に時刻、今日の予定、今日の担当、天気を表示します。",
+        "displaysLead": "壁掛けタブレットには、この端末だけが使える専用のアカウントが割り当てられます。家族メンバーではなく、ログインもせず、世帯に公開されているものだけを表示します。",
+        "displaysMore": "ダッシュボードは世帯の既定に従い、既定がなければ標準のレイアウトになります。ウォールモードはこの既定に従わず、常に時刻、今日の予定、今日の担当、天気を表示します。",
+        "hintMore": "詳しく見る",
+        "weatherHouseholdLinkHint": "管理者として世帯の場所を設定できます。",
+        "wallDisplaysLinkHint": "壁掛け表示専用のタブレットには、ログイン不要の専用アカウントが割り当てられます。",
+        "displaysWallModeLinkHint": "ウォールモードはタブレット本体でオンにします。",
         "displaysAreasHint": "表示するもの: {{areas}}。",
         "displayDeviceNameLabel": "タブレットの名前",
         "displayDeviceNameHint": "例えば「キッチン」や「廊下」など - この一覧で見分けるためだけに使います。",
@@ -3603,7 +3613,7 @@
         "resultCountMany": "{{count}} 件の結果",
         "goTo": "移動",
         "newSection": "新規作成",
-        "recentLabel": "最近開いた項目",
+        "recentLabel": "最近開いた場所",
         "createTaskNamed": "「{{title}}」をタスクとして作成",
         "hintMove": "選択",
         "hintOpen": "開く"
@@ -3675,7 +3685,16 @@
         "yearlessDayLabel": "誕生日の日",
         "yearlessMonthPlaceholder": "月",
         "yearlessDayPlaceholder": "日",
-        "yearlessIncomplete": "誕生日の月と日を選択してください。"
+        "yearlessIncomplete": "誕生日の月と日を選択してください。",
+        "nextBirthdayOn": "次の誕生日は{{date}}",
+        "contactLinkLabel": "連絡先とリンク",
+        "contactLinkNone": "なし",
+        "contactLinkHint": "2つの項目が互いにたどれるようになります。日付は別々のままです。",
+        "contactSuggestLabel": "連絡先",
+        "contactSuggestValue": "同じ名前の連絡先がありますが、リンクされていません。",
+        "linkContact": "リンク",
+        "linkedToast": "連絡先とリンクしました。",
+        "errorContactLinked": "この連絡先はすでに別の誕生日とリンクされています。"
     },
     "reminders": {
         "sectionTitle": "リマインダー",
@@ -3725,7 +3744,7 @@
         "step2Title": "ナビゲーションとモジュール",
         "step2Body": "画面下部のバーから主要なエリアに直接移動できます。その他のモジュールは「もっと見る」にあります。",
         "step3Title": "さっそく始めよう",
-        "step3Body": "右下の＋ボタンでどこでも新しい項目を作成できます。リスト項目を左右にスワイプするとクイック操作が使えます。",
+        "step3Body": "右下の＋ボタンでどこでも新しい項目を作成できます。タスク・買い物・在庫では、項目を左右にスワイプするとクイック操作が使えます。",
         "next": "次へ",
         "done": "はじめる",
         "skip": "スキップ",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: 支払う額",
         "debtYouOwe": "{{name}}さんに支払い",
         "debtOwesYou": "{{name}}さんから受け取り",
-        "debtOwes": "{{from}}さんから{{to}}さんへ支払い"
+        "debtOwes": "{{from}}さんから{{to}}さんへ支払い",
+        "balanced": "精算済み",
+        "balancedInGroup": "{{group}}: 精算済み"
     },
     "wmo": {
         "0": "快晴",
@@ -4526,7 +4547,8 @@
         "tooShort": "パスワードは8文字以上にしてください。",
         "invalidToken": "このリセット用リンクは無効か期限切れです - 新しいリンクをリクエストしてください。",
         "missingToken": "このリセット用リンクは不完全です - 新しいリンクをリクエストしてください。",
-        "requestNew": "新しいリンクをリクエスト"
+        "requestNew": "新しいリンクをリクエスト",
+        "invalidTitle": "リンクが無効です"
     },
     "email": {
         "host": "SMTP ホスト",
@@ -4896,7 +4918,7 @@
         "tabs": {
             "overview": "概要",
             "vitals": "バイタル",
-            "meds": "薬",
+            "meds": "服薬",
             "prevention": "予防",
             "labs": "検査値",
             "activity": "アクティビティ",
@@ -5022,7 +5044,7 @@
         },
         "meds": {
             "doseQty": "{{count}}×",
-            "title": "薬",
+            "title": "服薬",
             "emptyTitle": "まだ薬がありません",
             "emptyDesc": "スケジュールとリマインダー付きの薬がここに表示されます。",
             "add": "薬を追加",
@@ -5043,7 +5065,7 @@
             "noMeds": "薬はまだありません。",
             "logTitle": "服用記録",
             "personsLabel": "人",
-            "take": "服用済み",
+            "take": "服用",
             "skip": "スキップ",
             "dueToday": {
                 "title": "今日の予定",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "必要時",
-                "take": "今すぐ服用",
-                "takeFor": "{{medication}} を今すぐ服用",
                 "nextAt": "最短で {{time}}",
                 "remainingHm": "あと {{hours}} 時間 {{minutes}} 分",
                 "remainingM": "あと {{minutes}} 分",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "ポイントが足りません。",
         "errorNotParticipating": "この人はポイントを貯めていません。",
         "errorMoneyAccountGone": "この口座はもう存在しません。",
-        "errorMoneyPlanGone": "このプランはもう存在しません。"
+        "errorMoneyPlanGone": "このプランはもう存在しません。",
+        "ownLedger": "自分の記録"
     },
     "datepicker": {
         "openCalendar": "カレンダーを開く",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "この取引はすでに関連付けられています。",
         "errorLocationExists": "この場所はすでにここにあります。別の名前を選んでください。",
         "errorLocationGone": "この場所はもう存在しません。",
-        "errorCategoryGone": "このカテゴリーはもう存在しません。"
+        "errorCategoryGone": "このカテゴリーはもう存在しません。",
+        "editItem": "持ち物を編集"
     },
     "documentAttach": {
         "label": "添付",
@@ -6436,13 +6458,14 @@
         "mismatch": "パスワードが一致しません。",
         "tooShort": "パスワードは8文字以上にしてください。",
         "invalidToken": "この招待は無効か、期限切れか、すでに使用されています - 新しいリンクを依頼してください。",
-        "missingToken": "この招待リンクは無効か期限切れです - 新しいリンクを依頼してください。",
         "usernameRequired": "ユーザー名を選んでください。",
         "usernameInvalid": "ユーザー名は3〜64文字で、英数字、ドット、ハイフン、アンダースコアのみ使用できます。",
         "usernameTaken": "このユーザー名はすでに使われています。",
         "error": "アカウントを作成できませんでした。もう一度お試しください。",
         "displayNameTooLong": "表示名は128文字までです。",
-        "previewFailed": "招待をいま確認できませんでした。しばらくしてからページを再読み込みしてください。"
+        "previewFailed": "招待をいま確認できませんでした。しばらくしてからページを再読み込みしてください。",
+        "invalidTitle": "招待が無効です",
+        "toLogin": "ログインへ"
     },
     "newLabel": {
         "tasks": "タスク",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "この項目はもう存在しません。",
         "errorSelectedCustomFieldGone": "選択した項目の一つはもう存在しません。",
         "errorPatternGone": "このシフトパターンはもう存在しません。",
-        "errorEntryGone": "この項目はもう存在しません。"
+        "errorEntryGone": "この項目はもう存在しません。",
+        "overviewPeopleCount": "メンバーを比較 ({{count}})"
     },
     "pairDisplay": {
         "title": "タブレットをペアリング",

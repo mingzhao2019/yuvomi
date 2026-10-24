@@ -680,7 +680,12 @@
         "filterDueToday": "Échéance jusqu’à aujourd’hui",
         "errorTaskGone": "Cette tâche n’existe plus.",
         "errorParentGone": "La tâche dont dépend cette sous-tâche n’existe plus.",
-        "errorCommentGone": "Ce commentaire n’existe plus."
+        "errorCommentGone": "Ce commentaire n’existe plus.",
+        "kanbanShowMore": "Afficher {{count}} de plus",
+        "kanbanShowMore_one": "Afficher {{count}} de plus",
+        "doneByMenuItem": "Fait par …",
+        "checkedDoneNamed": "« {{title}} » terminé.",
+        "checkedOpenNamed": "« {{title}} » de nouveau ouvert."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} article supprimé.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Afficher dans les anniversaires",
         "addToBirthdays": "Ajouter aux anniversaires",
         "addedToBirthdays": "Ajouté aux anniversaires.",
+        "birthdaySuggestValue": "Un anniversaire porte le même nom, mais n’est pas lié.",
+        "linkedToBirthday": "Lié à l’anniversaire.",
         "birthdayHint": "Apparaît aussi dans le calendrier via l'import des anniversaires.",
         "phonePlaceholder": "+33 …",
         "phonePreview": "Aperçu : {{value}}",
@@ -2080,7 +2087,6 @@
         "gravatarErrorStale": "Votre image, votre adresse ou votre compte a changé pendant la récupération de l'image. Rien n'a été enregistré.",
         "gravatarErrorNotMember": "Seuls les membres du foyer peuvent récupérer un Gravatar.",
         "profileSavedToast": "Profil mis à jour.",
-        "editMemberLabel": "Modifier",
         "editMemberTitle": "Modifier le membre de la famille",
         "saveMember": "Enregistrer le membre",
         "memberUpdatedToast": "{{name}} mis à jour.",
@@ -2266,7 +2272,6 @@
         "memberContactBirthdayHint": "Ce membre est automatiquement synchronisé avec les Contacts et les Anniversaires.",
         "memberBirthDateInvalid": "Utilisez une date de naissance valide dans le format sélectionné.",
         "memberPhoneMeta": "Téléphone : {{value}}",
-        "memberBirthdayMeta": "Anniversaire : {{date}}",
         "tabBackup": "Gestion des sauvegardes",
         "sectionBackup": "Gestion des sauvegardes",
         "backupDownloadTitle": "Télécharger la sauvegarde de la base",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Définir les validations et les points par défaut des nouvelles tâches.",
         "sheetHealthDescription": "Vos affichages, le cycle et les types de prévention.",
         "displaysTitle": "Tablettes murales",
-        "displaysHint": "Une tablette murale reçoit son propre compte, utilisable uniquement par cet appareil. Ce n'est pas un membre de la famille, elle ne se connecte pas et ne voit que ce qui est visible par le foyer. Son aperçu suit le réglage par défaut du foyer ou, à défaut, la disposition standard. Le mode mural ne suit pas ce réglage : il affiche toujours l'heure, le programme du jour, qui s'y colle et la météo.",
+        "displaysLead": "Une tablette murale reçoit son propre compte, utilisable uniquement par cet appareil. Ce n'est pas un membre de la famille, elle ne se connecte pas et ne voit que ce qui est visible par le foyer.",
+        "displaysMore": "Son aperçu suit le réglage par défaut du foyer ou, à défaut, la disposition standard. Le mode mural ne suit pas ce réglage : il affiche toujours l'heure, le programme du jour, qui s'y colle et la météo.",
+        "hintMore": "En savoir plus",
+        "weatherHouseholdLinkHint": "En tant qu'administrateur, tu définis l'emplacement du foyer.",
+        "wallDisplaysLinkHint": "Une tablette qui sert uniquement d'écran mural reçoit son propre compte, sans connexion.",
+        "displaysWallModeLinkHint": "Tu actives le mode mural directement sur la tablette.",
         "displaysAreasHint": "Elle affiche : {{areas}}.",
         "displayDeviceNameLabel": "Nom de la tablette",
         "displayDeviceNameHint": "Par exemple « Cuisine » ou « Entrée » - uniquement pour les distinguer dans cette liste.",
@@ -3603,7 +3613,7 @@
         "resultCountMany": "{{count}} résultats",
         "goTo": "Aller à",
         "newSection": "Créer",
-        "recentLabel": "Ouverts récemment",
+        "recentLabel": "Visités récemment",
         "createTaskNamed": "Créer « {{title}} » comme tâche",
         "hintMove": "Sélectionner",
         "hintOpen": "Ouvrir"
@@ -3675,7 +3685,16 @@
         "yearlessDayLabel": "Jour de l’anniversaire",
         "yearlessMonthPlaceholder": "Mois",
         "yearlessDayPlaceholder": "Jour",
-        "yearlessIncomplete": "Sélectionnez le mois et le jour de l’anniversaire."
+        "yearlessIncomplete": "Sélectionnez le mois et le jour de l’anniversaire.",
+        "nextBirthdayOn": "Prochain anniversaire le {{date}}",
+        "contactLinkLabel": "Lier à un contact",
+        "contactLinkNone": "Aucun",
+        "contactLinkHint": "Les deux fiches renvoient alors l’une à l’autre. La date reste distincte.",
+        "contactSuggestLabel": "Contact",
+        "contactSuggestValue": "Un contact porte le même nom, mais n’est pas lié.",
+        "linkContact": "Lier",
+        "linkedToast": "Lié au contact.",
+        "errorContactLinked": "Ce contact est déjà lié à un autre anniversaire."
     },
     "reminders": {
         "sectionTitle": "Rappel",
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigation & modules",
         "step2Body": "La barre du bas mène directement aux espaces les plus importants. Tous les autres modules se trouvent sous « Plus ».",
         "step3Title": "Démarrer rapidement",
-        "step3Body": "Le bouton + en bas de l'écran crée de nouvelles entrées partout. Balayez les éléments de liste vers la gauche ou la droite pour des actions rapides.",
+        "step3Body": "Le bouton + en bas de l'écran crée de nouvelles entrées partout. Dans Tâches, Courses et Réserve, balayez les éléments vers la gauche ou la droite pour des actions rapides.",
         "next": "Suivant",
         "done": "Commencer",
         "skip": "Passer",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}} : Tu dois",
         "debtYouOwe": "Vous devez à {{name}}",
         "debtOwesYou": "{{name}} vous doit",
-        "debtOwes": "{{from}} doit à {{to}}"
+        "debtOwes": "{{from}} doit à {{to}}",
+        "balanced": "Réglé",
+        "balancedInGroup": "{{group}} : Réglé"
     },
     "wmo": {
         "0": "Ciel dégagé",
@@ -4526,7 +4547,8 @@
         "tooShort": "Le mot de passe doit comporter au moins 8 caractères.",
         "invalidToken": "Ce lien de réinitialisation est invalide ou a expiré - demandez-en un nouveau.",
         "missingToken": "Ce lien de réinitialisation est incomplet - demandez-en un nouveau.",
-        "requestNew": "Demander un nouveau lien"
+        "requestNew": "Demander un nouveau lien",
+        "invalidTitle": "Lien invalide"
     },
     "email": {
         "host": "Hôte SMTP",
@@ -5043,7 +5065,7 @@
             "noMeds": "Aucun médicament pour l'instant.",
             "logTitle": "Journal des prises",
             "personsLabel": "Personne",
-            "take": "Pris",
+            "take": "Prendre",
             "skip": "Ignorer",
             "dueToday": {
                 "title": "À faire aujourd'hui",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Au besoin",
-                "take": "Prendre maintenant",
-                "takeFor": "Prendre {{medication}} maintenant",
                 "nextAt": "Au plus tôt à {{time}}",
                 "remainingHm": "encore {{hours}} h {{minutes}} min",
                 "remainingM": "encore {{minutes}} min",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Les points ne suffisent pas pour cela.",
         "errorNotParticipating": "Cette personne ne cumule pas de points.",
         "errorMoneyAccountGone": "Ce compte n’existe plus.",
-        "errorMoneyPlanGone": "Ce plan n’existe plus."
+        "errorMoneyPlanGone": "Ce plan n’existe plus.",
+        "ownLedger": "Tes opérations"
     },
     "datepicker": {
         "openCalendar": "Ouvrir le calendrier",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Cette écriture est déjà liée.",
         "errorLocationExists": "Cet emplacement existe déjà ici. Choisissez un autre nom.",
         "errorLocationGone": "Cet emplacement n’existe plus.",
-        "errorCategoryGone": "Cette catégorie n’existe plus."
+        "errorCategoryGone": "Cette catégorie n’existe plus.",
+        "editItem": "Modifier l’objet"
     },
     "documentAttach": {
         "label": "Pièces jointes",
@@ -6436,13 +6458,14 @@
         "mismatch": "Les mots de passe ne correspondent pas.",
         "tooShort": "Le mot de passe doit comporter au moins 8 caractères.",
         "invalidToken": "Cette invitation est invalide, expirée ou déjà utilisée - demandez un nouveau lien.",
-        "missingToken": "Ce lien d'invitation est invalide ou a expiré - demandez-en un nouveau.",
         "usernameRequired": "Veuillez choisir un nom d'utilisateur.",
         "usernameInvalid": "Le nom d'utilisateur doit comporter de 3 à 64 caractères et ne peut contenir que des lettres, des chiffres, des points, des tirets et des tirets bas.",
         "usernameTaken": "Ce nom d'utilisateur est déjà pris.",
         "error": "Le compte n'a pas pu être créé. Veuillez réessayer.",
         "displayNameTooLong": "Le nom affiché ne peut pas dépasser 128 caractères.",
-        "previewFailed": "L'invitation n'a pas pu être vérifiée pour le moment. Rechargez la page dans un instant."
+        "previewFailed": "L'invitation n'a pas pu être vérifiée pour le moment. Rechargez la page dans un instant.",
+        "invalidTitle": "Invitation invalide",
+        "toLogin": "Aller à la connexion"
     },
     "newLabel": {
         "tasks": "Tâche",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Ce champ n’existe plus.",
         "errorSelectedCustomFieldGone": "L’un des champs choisis n’existe plus.",
         "errorPatternGone": "Ce roulement n’existe plus.",
-        "errorEntryGone": "Cette entrée n’existe plus."
+        "errorEntryGone": "Cette entrée n’existe plus.",
+        "overviewPeopleCount": "Comparer des personnes ({{count}})"
     },
     "pairDisplay": {
         "title": "Appairer la tablette",

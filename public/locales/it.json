@@ -680,7 +680,12 @@
         "filterDueToday": "In scadenza entro oggi",
         "errorTaskGone": "Questa attività non esiste più.",
         "errorParentGone": "L’attività a cui appartiene questo sotto-compito non esiste più.",
-        "errorCommentGone": "Questo commento non esiste più."
+        "errorCommentGone": "Questo commento non esiste più.",
+        "kanbanShowMore": "Mostra {{count}} in più",
+        "kanbanShowMore_one": "Mostra {{count}} in più",
+        "doneByMenuItem": "Svolto da …",
+        "checkedDoneNamed": "«{{title}}» fatto.",
+        "checkedOpenNamed": "«{{title}}» di nuovo aperto."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} articolo eliminato.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Mostra nei compleanni",
         "addToBirthdays": "Aggiungi ai compleanni",
         "addedToBirthdays": "Aggiunto ai compleanni.",
+        "birthdaySuggestValue": "Un compleanno ha lo stesso nome, ma non è collegato.",
+        "linkedToBirthday": "Collegato al compleanno.",
         "birthdayHint": "Compare anche nel calendario tramite l’importazione dei compleanni.",
         "phonePlaceholder": "+39 …",
         "phonePreview": "Anteprima: {{value}}",
@@ -2080,7 +2087,6 @@
         "gravatarErrorStale": "La tua immagine, il tuo indirizzo o il tuo account è cambiato mentre l'immagine veniva recuperata. Non è stato salvato nulla.",
         "gravatarErrorNotMember": "Solo i membri della famiglia possono recuperare un Gravatar.",
         "profileSavedToast": "Profilo aggiornato.",
-        "editMemberLabel": "Modifica",
         "editMemberTitle": "Modifica membro della famiglia",
         "saveMember": "Salva membro",
         "memberUpdatedToast": "{{name}} aggiornato.",
@@ -2266,7 +2272,6 @@
         "memberContactBirthdayHint": "Questo membro viene sincronizzato automaticamente con i Contatti e i Compleanni.",
         "memberBirthDateInvalid": "Usa una data di nascita valida nel formato selezionato.",
         "memberPhoneMeta": "Telefono: {{value}}",
-        "memberBirthdayMeta": "Compleanno: {{date}}",
         "tabBackup": "Gestione backup",
         "sectionBackup": "Gestione backup",
         "backupDownloadTitle": "Scarica backup del database",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Imposta approvazioni e punti predefiniti per le nuove attività.",
         "sheetHealthDescription": "Le tue viste, il ciclo e i tipi di prevenzione.",
         "displaysTitle": "Tablet da parete",
-        "displaysHint": "Un tablet da parete riceve un account proprio, utilizzabile solo da questo dispositivo. Non è un membro della famiglia, non accede e vede solo ciò che è visibile alla famiglia. La sua panoramica segue l'impostazione predefinita della famiglia o, se non è impostata, la disposizione standard. La modalità parete non la segue: mostra sempre ora, programma del giorno, a chi tocca oggi e meteo.",
+        "displaysLead": "Un tablet da parete riceve un account proprio, utilizzabile solo da questo dispositivo. Non è un membro della famiglia, non accede e vede solo ciò che è visibile alla famiglia.",
+        "displaysMore": "La sua panoramica segue l'impostazione predefinita della famiglia o, se non è impostata, la disposizione standard. La modalità parete non la segue: mostra sempre ora, programma del giorno, a chi tocca oggi e meteo.",
+        "hintMore": "Scopri di più",
+        "weatherHouseholdLinkHint": "Come amministratore imposti la posizione della famiglia.",
+        "wallDisplaysLinkHint": "Un tablet usato solo come schermo da parete riceve un account proprio senza accesso.",
+        "displaysWallModeLinkHint": "La modalità parete si attiva sul tablet stesso.",
         "displaysAreasHint": "Mostra: {{areas}}.",
         "displayDeviceNameLabel": "Nome del tablet",
         "displayDeviceNameHint": "Ad esempio «Cucina» o «Ingresso» - serve solo a distinguerli in questo elenco.",
@@ -3603,7 +3613,7 @@
         "resultCountMany": "{{count}} risultati",
         "goTo": "Vai a",
         "newSection": "Crea nuovo",
-        "recentLabel": "Aperti di recente",
+        "recentLabel": "Visitati di recente",
         "createTaskNamed": "Crea «{{title}}» come attività",
         "hintMove": "Seleziona",
         "hintOpen": "Apri"
@@ -3675,7 +3685,16 @@
         "yearlessDayLabel": "Giorno del compleanno",
         "yearlessMonthPlaceholder": "Mese",
         "yearlessDayPlaceholder": "Giorno",
-        "yearlessIncomplete": "Seleziona il mese e il giorno del compleanno."
+        "yearlessIncomplete": "Seleziona il mese e il giorno del compleanno.",
+        "nextBirthdayOn": "Prossimo compleanno il {{date}}",
+        "contactLinkLabel": "Collega a un contatto",
+        "contactLinkNone": "Nessuno",
+        "contactLinkHint": "Le due voci rimandano così l’una all’altra. La data resta separata.",
+        "contactSuggestLabel": "Contatto",
+        "contactSuggestValue": "Un contatto ha lo stesso nome, ma non è collegato.",
+        "linkContact": "Collega",
+        "linkedToast": "Collegato al contatto.",
+        "errorContactLinked": "Questo contatto è già collegato a un altro compleanno."
     },
     "reminders": {
         "sectionTitle": "Promemoria",
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigazione e moduli",
         "step2Body": "La barra in basso porta direttamente alle aree più importanti. Tutti gli altri moduli si trovano in «Altro».",
         "step3Title": "Inizia subito",
-        "step3Body": "Con il pulsante + in basso crei nuove voci ovunque. Scorri gli elementi delle liste a sinistra o destra per le azioni rapide.",
+        "step3Body": "Con il pulsante + in basso crei nuove voci ovunque. In Compiti, Spesa e Dispensa scorri gli elementi a sinistra o destra per le azioni rapide.",
         "next": "Avanti",
         "done": "Inizia",
         "skip": "Salta",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Devi",
         "debtYouOwe": "Devi a {{name}}",
         "debtOwesYou": "{{name}} ti deve",
-        "debtOwes": "{{from}} deve a {{to}}"
+        "debtOwes": "{{from}} deve a {{to}}",
+        "balanced": "Saldato",
+        "balancedInGroup": "{{group}}: Saldato"
     },
     "wmo": {
         "0": "Cielo sereno",
@@ -4526,7 +4547,8 @@
         "tooShort": "La password deve contenere almeno 8 caratteri.",
         "invalidToken": "Questo link di reimpostazione non è valido o è scaduto - richiedine uno nuovo.",
         "missingToken": "Questo link di reimpostazione è incompleto - richiedine uno nuovo.",
-        "requestNew": "Richiedi un nuovo link"
+        "requestNew": "Richiedi un nuovo link",
+        "invalidTitle": "Link non valido"
     },
     "email": {
         "host": "Host SMTP",
@@ -5043,7 +5065,7 @@
             "noMeds": "Ancora nessun farmaco.",
             "logTitle": "Registro assunzioni",
             "personsLabel": "Persona",
-            "take": "Assunto",
+            "take": "Prendi",
             "skip": "Salta",
             "dueToday": {
                 "title": "In scadenza oggi",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Al bisogno",
-                "take": "Prendi ora",
-                "takeFor": "Prendi {{medication}} ora",
                 "nextAt": "Non prima delle {{time}}",
                 "remainingHm": "ancora {{hours}} h {{minutes}} min",
                 "remainingM": "ancora {{minutes}} min",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "I punti non bastano per questo.",
         "errorNotParticipating": "Questa persona non accumula punti.",
         "errorMoneyAccountGone": "Questo conto non esiste più.",
-        "errorMoneyPlanGone": "Questo piano non esiste più."
+        "errorMoneyPlanGone": "Questo piano non esiste più.",
+        "ownLedger": "I tuoi movimenti"
     },
     "datepicker": {
         "openCalendar": "Apri calendario",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Questo movimento è già collegato.",
         "errorLocationExists": "Questa posizione esiste già qui. Scegli un altro nome.",
         "errorLocationGone": "Questa posizione non esiste più.",
-        "errorCategoryGone": "Questa categoria non esiste più."
+        "errorCategoryGone": "Questa categoria non esiste più.",
+        "editItem": "Modifica oggetto"
     },
     "documentAttach": {
         "label": "Allegati",
@@ -6436,13 +6458,14 @@
         "mismatch": "Le password non coincidono.",
         "tooShort": "La password deve contenere almeno 8 caratteri.",
         "invalidToken": "Questo invito non è valido, è scaduto o è già stato usato - chiedi un nuovo link.",
-        "missingToken": "Questo link di invito non è valido o è scaduto - chiedine uno nuovo.",
         "usernameRequired": "Scegli un nome utente.",
         "usernameInvalid": "Il nome utente deve avere da 3 a 64 caratteri e può contenere solo lettere, numeri, punti, trattini e trattini bassi.",
         "usernameTaken": "Questo nome utente è già in uso.",
         "error": "Non è stato possibile creare l'account. Riprova.",
         "displayNameTooLong": "Il nome visualizzato può contenere al massimo 128 caratteri.",
-        "previewFailed": "Non è stato possibile verificare l'invito in questo momento. Ricarica la pagina tra un istante."
+        "previewFailed": "Non è stato possibile verificare l'invito in questo momento. Ricarica la pagina tra un istante.",
+        "invalidTitle": "Invito non valido",
+        "toLogin": "Vai al login"
     },
     "newLabel": {
         "tasks": "Compito",
@@ -6468,7 +6491,7 @@
         "wasteSchedule": "Calendario",
         "housekeepingWorker": "Collaboratore domestico",
         "healthVitals": "Misurazione",
-        "healthCycle": "Ciclo",
+        "healthCycle": "Mestruazioni",
         "healthMeds": "Farmaco",
         "healthPrevention": "Controllo",
         "healthLabs": "Referto",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Questo campo non esiste più.",
         "errorSelectedCustomFieldGone": "Uno dei campi scelti non esiste più.",
         "errorPatternGone": "Questa rotazione non esiste più.",
-        "errorEntryGone": "Questa voce non esiste più."
+        "errorEntryGone": "Questa voce non esiste più.",
+        "overviewPeopleCount": "Confronta persone ({{count}})"
     },
     "pairDisplay": {
         "title": "Associa tablet",

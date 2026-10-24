@@ -82,6 +82,14 @@
   min-height: var(--target-base);
 }
 
+/* Die Listen-Kapseln stehen im Kopf neben "..." und "+ Artikel" - am Zeiger
+ * ab 1024px dieselben 40px wie ihre Nachbarn (R22, D8; vorher 44). */
+@media (min-width: 1024px) and (hover: hover) {
+  .list-tab {
+    min-height: var(--target-md);
+  }
+}
+
 .list-tab:hover:not(.list-tab--active) {
   border-color: var(--color-text-secondary);
   color: var(--color-text-primary);
@@ -145,6 +153,15 @@
 @media (min-width: 1024px) {
   .list-tab__new {
     min-height: var(--target-base);
+  }
+}
+
+/* Am Zeiger mit den Kapseln auf --target-md (R22, D8, Regel bei `.list-tab`). */
+@media (min-width: 1024px) and (hover: hover) {
+  .list-tab__new {
+    width: var(--target-md);
+    height: var(--target-md);
+    min-height: var(--target-md);
   }
 }
 
@@ -251,7 +268,8 @@
 
 .shopping-import-meals-form {
   display: grid;
-  gap: var(--space-3);
+  /* Feldtakt des Dialogs (layout.css "EIN FELDTAKT IM DIALOG"). */
+  gap: var(--space-4);
 }
 
 /* Der mobile Kopf und seine vierte Ausbaustufe eines Umbruch-Managements sind
@@ -449,8 +467,11 @@
   .quick-add__form {
     /* Das Namensfeld behaelt die Haelfte, Menge und Kategorie teilen sich den
      * Rest wieder 2:3. Hier stand fuer die Menge eine feste Spur von 80px: der
-     * Platzhalter passte in 12 von 24 Sprachen nicht hinein („Quantit", #1372). */
-    grid-template-columns: minmax(0, 5fr) minmax(0, 2fr) minmax(0, 3fr) var(--target-base);
+     * Platzhalter passte in 12 von 24 Sprachen nicht hinein („Quantit", #1372).
+     * DIE KATEGORIE BEHAELT IHR WORT (R22 S9, Critique a2): in der ersten der
+     * zwei Spalten (1280) blieben ihr 116px, „Sonstig..." - die Untergrenze
+     * 8.5rem traegt „Sonstiges" samt Chevron, das Namensfeld gibt dafuer nach. */
+    grid-template-columns: minmax(0, 5fr) minmax(0, 2fr) minmax(8.5rem, 3fr) var(--target-base);
   }
 
   .quick-add__input-wrap {
@@ -617,6 +638,18 @@
   gap: var(--space-3);
 }
 
+/* DIE ERSTE GRUPPE STEHT NICHT AN DER KANTE (R22 D15). Am Finger begann der
+ * Kopf „Obst & Gemuese" 0px unter der Haarlinie des Kuechenkopfs (121 ->
+ * 121) - halb verdeckt, waehrend Vorrat, Rezepte und Aufgaben 12-16px Luft
+ * lassen. Dieselbe Stufe wie der Gruppenabstand dieser Seite. Mit Zeiger und
+ * bei offener Schnellzeile steht diese darueber und bringt ihre Luft mit
+ * (`.quick-add`, unten --space-3). */
+@media (hover: none) {
+  .shopping-page:not(.shopping-page--adding) .list-scroller {
+    padding-block-start: var(--space-3);
+  }
+}
+
 .shopping-page .list-group {
   gap: var(--space-1);
 }
@@ -686,6 +719,28 @@
   }
 }
 
+/* UND IN DER KATEGORIE ERST AB ZEILE 20 (Critique R22, D4/D22): die erste
+ * Kategorie steht oben ganz, und am Desktop (Spalten) gilt die Gruppenregel
+ * gar nicht - 150 Artikel rechneten dort jede Zeile. Die ersten 19 Zeilen einer
+ * Kategorie stehen immer; der Rest haelt seine Content-Box (48px in jeder
+ * Breite gemessen, 390 bis 1920 - die Haarlinie ist der Rand der Zeile). Weil
+ * der Platzhalter die echte Hoehe IST, wechselt in den Spalten keine Kategorie
+ * beim Scrollen die Spalte; deshalb gilt diese Regel auch ab 60rem. Die Zeile
+ * ist selbst `overflow: hidden` (Wischbuehne). */
+/* Dieselbe Content-Box traegt der Platzhalter einer Zeile, die beim ersten
+ * Aufbau erst nach dem Bild kommt (Critique R22-F, F2.1; utils/row-fill.js,
+ * list-row.css) - ohne @supports, er gilt in jedem Browser. */
+.shopping-page .items-lanes > .list-group .row-carrier {
+  --row-pending-size: 48px;
+}
+
+@supports (content-visibility: auto) and (contain-intrinsic-size: auto none auto 1px) {
+  .shopping-page .items-lanes > .list-group .row-carrier > .swipe-row:nth-child(n+20) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 48px;
+  }
+}
+
 @container shopping-surface (min-width: 60rem) {
   /* Die Kategorie kappt weiter ueber `--page-measure` (list-row.css) - hier
    * ist das Mass die Spalte selbst, wie im Liste-+-Detail-Baustein. */
@@ -702,6 +757,30 @@
   .shopping-page .items-lanes > .list-group {
     break-inside: avoid;
     margin-block-end: var(--space-3);
+  }
+
+  /* IN DEN SPALTEN RECHNET NUR, WAS IN SICHT IST - MIT DER ECHTEN HOEHE
+   * (Critique R22-F, F2.2). Die Gruppenregel der einen Spalte (oben) fehlt
+   * hier, weil ein geschaetzter Platzhalter Kategorien beim Scrollen die Spalte
+   * wechseln liess. So rechnete jede Aenderung die ganzen Spalten neu: gemessen
+   * am Laptop bei 4x CPU 26 ms je kleinem Anlass, 35-46 ms je Happen beim
+   * Aufbau, 370-400 ms der Wechsel in den Einkauf.
+   *
+   * Jetzt merkt sich jede Kategorie ihre GEZEICHNETE Hoehe (`auto`, die Zahl
+   * dahinter gilt nie: sie ist vor dem Aufschieben schon einmal ganz gelegt),
+   * und aufgeschoben wird erst, wenn die Huelle `is-sized` traegt - shopping.js
+   * setzt das nach dem ersten gezeichneten Bild jedes Aufbaus. Gemessen: Lage
+   * und Spalte jeder Kategorie unveraendert, auch ueber den ganzen Bildlauf,
+   * und 13 statt 26 ms je kleinem Anlass. */
+  .shopping-page .items-lanes > .list-group {
+    contain-intrinsic-size: auto none auto 125px;
+  }
+
+  @supports (content-visibility: auto) and (contain-intrinsic-size: auto none auto 1px) {
+    .shopping-page .items-lanes.is-sized > .list-group + .list-group {
+      content-visibility: auto;
+      overflow-clip-margin: var(--space-2);
+    }
   }
 
   /* Die Eingabezeile endet mit der ersten Spalte statt mitten in der zweiten. */

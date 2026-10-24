@@ -33,6 +33,43 @@ function commonHost(els) {
 }
 
 /**
+ * DIE ZEICHEN EINER LANGEN LISTE KOMMEN IN SICHT-REIHENFOLGE (R20 Aufgaben,
+ * seit R22 geteilt mit dem Einkauf, D22). Jede Zeile traegt Lucide-Platzhalter;
+ * `createIcons` ueber die ganze Liste ersetzte bei 260 Zeilen rund tausend im
+ * Frame des Wechsels. Was nicht in einer Zeile steht (Gruppenkoepfe,
+ * Leerzustand) und die ersten `rowsNow` Zeilen bekommen ihre Zeichen sofort,
+ * der Rest danach in Happen je Task, sodass ein Tipp dazwischen drankommt.
+ * JE ZEILE, NICHT JE GRUPPE: eine Gruppe mit 120 Aufgaben war vorher ein
+ * einziger Happen im Frame des Wechsels. Ein neueres Zeichnen derselben Liste
+ * bricht den Rest ab; was nicht mehr im Dokument haengt, bleibt liegen.
+ *
+ * @param {Element} listEl
+ * @param {object} opts
+ * @param {string} opts.rowSelector  Selektor einer Zeile
+ * @param {number} [opts.rowsNow=30] so viele Zeilen sofort - mehr stehen auf keinem Bildschirm
+ * @param {number} [opts.chunk=120]  so viele Zeichen je Nachlauf-Task
+ */
+const iconRuns = new WeakMap();
+
+export function drawIconsInSightOrder(listEl, { rowSelector, rowsNow = 30, chunk = 120 } = {}) {
+  if (!window.lucide || !listEl) return;
+  const run = (iconRuns.get(listEl) ?? 0) + 1;
+  iconRuns.set(listEl, run);
+  const later = new Set([...listEl.querySelectorAll(rowSelector)].slice(rowsNow));
+  const rest = [];
+  for (const node of listEl.querySelectorAll('i[data-lucide]')) {
+    if (later.size && later.has(node.closest(rowSelector))) rest.push(node);
+    else window.lucide.createIcons({ el: node });
+  }
+  const next = () => {
+    if (iconRuns.get(listEl) !== run) return;
+    for (const node of rest.splice(0, chunk)) if (node.isConnected) window.lucide.createIcons({ el: node });
+    if (rest.length) setTimeout(next, 0);
+  };
+  if (rest.length) setTimeout(next, 0);
+}
+
+/**
  * Gestaffeltes Einblenden einer NodeList oder eines Arrays von Elementen -
  * EINMAL je Listentraeger (siehe `staggeredHosts`).
  * Maximal MAX_STAGGER Elemente werden verzögert, der Rest sofort eingeblendet.
@@ -450,6 +487,31 @@ function glideThenClose(items, { duration, easing }) {
  * Gruppe schiebt auch die Gruppen darunter). Gedeckelt - weiter unten liegt,
  * was ohnehin niemand sieht.
  */
+/**
+ * DIE TEILE IN DEN ZEILEN DES KOPFES GLEITEN MIT (R22-F, F1 Punkt 4). Der
+ * FLIP beim Ein- und Ausklappen hielt nur die direkten Kinder des Kopfes -
+ * aber beim Umordnen rueckt auch IN einer Zeile etwas: im Kalender der
+ * Zeitraum (x 64 -> 16, die Pfeile treten zurueck) und die Ansichtswahl
+ * (x 282 -> 186), beide zwei, drei Ebenen tief. Gemessen mobil in der Agenda
+ * CLS 0,0047 je Umschalten. Die Ebenen zwei und drei gleiten jetzt mit; sie
+ * stehen in Dokumentreihenfolge HINTER ihren Vorfahren, und holdThenGlide
+ * misst jedes Element erst, nachdem sein Vorfahr schon gehalten ist - der
+ * Versatz eines Kindes ist damit nur noch sein eigener Weg in der Zeile, und
+ * beide laufen mit derselben Kurve, also ist die Summe der alte Weg.
+ * Nur was gerade gezeichnet ist (ein verborgenes Element hat keine alte Lage)
+ * und keine Zeichen (SVG, `<i>`): sie gehen mit ihrem Knopf, und ein Zeichen
+ * mit eigener `transform`-Transition (der Pfeil der Ansichtswahl) liefe sonst
+ * ueber die Transition statt zu springen - gemessen schlechter (0,0001).
+ * @param {Element} toolbar
+ * @returns {Element[]}
+ */
+function nestedHeadParts(toolbar) {
+  if (typeof toolbar?.querySelectorAll !== 'function') return [];
+  return [...toolbar.querySelectorAll(':scope > * > *, :scope > * > * > *')]
+    .filter((el) => el.namespaceURI === 'http://www.w3.org/1999/xhtml' && el.tagName !== 'I'
+      && el.getClientRects().length > 0);
+}
+
 function followingNeighbours(el, limit = 60) {
   const out = [];
   let node = el;
@@ -1098,7 +1160,7 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
   let gliding = null;
   const setCollapsed = (on, states) => {
     if (states.every((c) => toolbar.classList.contains(c) === on)) return;
-    const moving = [...toolbar.children, ...followingNeighbours(toolbar)];
+    const moving = [...toolbar.children, ...nestedHeadParts(toolbar), ...followingNeighbours(toolbar)];
     const before = flipSnapshotElements(moving);
     if (on) toolbar.classList.add(...states, 'was-collapsed');
     else toolbar.classList.remove(...states);
@@ -1146,6 +1208,62 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
     const fold = toolbar.classList.contains('page-toolbar--fold-row') && foldH > 0;
     if (!fold && !toolbar.classList.contains('page-toolbar--capped')) return;
     setCollapsed(Boolean(e.detail?.collapsed), fold ? ['is-collapsed'] : ['is-collapsed', 'is-docked']);
+  };
+
+  // DIE FALTZEILE KOMMT BEIM HOCHSCROLLEN ZURUECK (R22 D15). Bis R21 kam
+  // sie erst ganz oben wieder (scrollTop < 8): wer im Einkauf mitten in der
+  // Liste die Liste wechseln oder suchen wollte, scrollte bis zum Anfang.
+  // Jetzt entscheidet die RICHTUNG - Safaris Werkzeugleiste, Apples
+  // `hidesBarsOnSwipe`: 24px abwaerts falten sie, 40px aufwaerts holen sie
+  // zurueck. Die Strecke zaehlt ab dem Wendepunkt (`dirAnchor` haelt den
+  // tiefsten bzw. hoechsten Stand seit der letzten Entscheidung), damit ein
+  // Zittern des Fingers nichts ausloest. Scroll-getrieben (CSS) geht das
+  // nicht: eine Zeitleiste kennt die Lage, nicht die Richtung.
+  // WAS DER UMBAU SELBST AUSLOEST, ZAEHLT NICHT. Faltet die Zeile, waechst
+  // der Port um ihre Hoehe; am Listenende klemmt der Browser dann scrollTop
+  // zurueck - ein Scroll „nach oben" ohne Finger, der die Zeile sofort
+  // zurueckholte und so pendelte. Aendert sich die Hoehe des Ports oder
+  // gleitet der Kopf noch, setzt das nur den Wendepunkt neu.
+  // Die 65-px-Koepfe der uebrigen Module bleiben bei der Lage-Regel unten.
+  const FOLD_DOWN_PX = 24;
+  const REVEAL_UP_PX = 40;
+  let dirPort = null;
+  let dirClient = 0;
+  let dirAnchor = 0;
+  const foldByDirection = (port, top) => {
+    const client = port.clientHeight;
+    const collapsed = toolbar.classList.contains('is-collapsed');
+    // Ein neuer Port beginnt ausgeklappt am Listenanfang: die erste Geste
+    // urteilt wie bis R21 nach der Lage (> 24px faltet).
+    if (port !== dirPort) {
+      dirPort = port;
+      dirClient = client;
+      dirAnchor = collapsed ? top : 0;
+    } else if (client !== dirClient || gliding) {
+      dirClient = client;
+      dirAnchor = top;
+      return;
+    }
+    if (top < 8) {
+      setCollapsed(false, ['is-collapsed']);
+      dirAnchor = top;
+      return;
+    }
+    if (collapsed) {
+      if (dirAnchor - top >= REVEAL_UP_PX) {
+        setCollapsed(false, ['is-collapsed']);
+        dirAnchor = top;
+      } else {
+        dirAnchor = Math.max(dirAnchor, top);
+      }
+      return;
+    }
+    if (top > 24 && top - dirAnchor >= FOLD_DOWN_PX) {
+      setCollapsed(true, ['is-collapsed']);
+      dirAnchor = top;
+    } else {
+      dirAnchor = Math.min(dirAnchor, top);
+    }
   };
 
   // Hysterese, damit der Kopf nicht um seine eigene Schwelle flattert.
@@ -1203,6 +1321,10 @@ export function wireCollapsingHeader(toolbar, opts = {}) {
     // Ab hier nur noch der Nutzer (siehe `gestureTarget` oben).
     if (!gestureTarget || !port.contains(gestureTarget)) return;
     const top = port.scrollTop;
+    if (fold) {
+      foldByDirection(port, top);
+      return;
+    }
     // `was-collapsed`: ab jetzt darf der Titel beim Ausklappen einblenden
     // (layout.css, `page-title-settle-back`) - nicht schon beim Seitenaufbau.
     if (top > 24) setCollapsed(true, states);

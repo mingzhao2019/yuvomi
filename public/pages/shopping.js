@@ -4,9 +4,10 @@
  * Abhängigkeiten: /api.js
  */
 
+import { beginRowFill, drawRowIcons, flushRowFill, afterNextPaint } from '/utils/row-fill.js';
 import { api } from '/api.js';
-import { stagger, vibrate, scheduleUndoableDelete, collapseOut, expandIn, acknowledgeCheck, durationToken, isImeComposing } from '/utils/ux.js';
-import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
+import { stagger, vibrate, scheduleUndoableDelete, collapseOut, expandIn, acknowledgeCheck, durationToken, isImeComposing, drawIconsInSightOrder } from '/utils/ux.js';
+import { wireSwipeRows, maybeShowSwipeHint, deferredRevealHtml } from '/utils/swipe-row.js';
 import { flipSnapshot, flipPlay } from '/utils/flip.js';
 import { t } from '/i18n.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
@@ -1308,7 +1309,7 @@ function renderListContent(container) {
 
     <!-- Artikel-Liste; Inhalt via mountItems(), damit der Leerzustand über den
          geteilten Renderer läuft statt als HTML-String hier drin. -->
-    <div class="list-scroller page-scrollport items-list" id="items-list"></div>
+    <div class="list-scroller page-scrollport items-list" data-scroll-port="shopping" id="items-list"></div>
 
     <!-- Ansage für Umsortierungen (#678), wie im Kategorie-Manager: das
          aria-label des Griffs allein ist zu leise - ob ein Screenreader die
@@ -1329,8 +1330,12 @@ function renderListContent(container) {
   updateItemsList(container);
 
   // Für den ganzen Inhalt, nicht nur die Liste: Quick-Add und Kopfzeile tragen
-  // eigene Icons. Der Lauf in updateItemsList hat die Zeilen schon ersetzt.
-  if (window.lucide) window.lucide.createIcons({ el: content });
+  // eigene Icons. Die Zeilen zeichnet updateItemsList in Sicht-Reihenfolge
+  // (`drawItemIcons`) - ein Lauf ueber den ganzen Inhalt holte die
+  // aufgeschobenen sofort nach.
+  if (window.lucide) {
+    for (const el of content.children) if (el.id !== 'items-list') window.lucide.createIcons({ el });
+  }
   wireAutocomplete(container);
   wireQuickAdd(container);
   syncQuickAddDisclosure(container, false);
@@ -1383,15 +1388,37 @@ function mountItems(listEl, container) {
     return;
   }
 
+  // DER ERSTE AUFBAU ZEICHNET NUR, WAS IM BILD STEHT (Critique R22-F, F2.1):
+  // jede andere Zeile steht als Platzhalter in ihrer Hoehe (48px, die
+  // Spalten verteilen also schon richtig) und kommt in Happen nach
+  // (utils/row-fill.js). Jeder spaetere Aufbau zeichnet ganz.
+  const fill = beginRowFill(listEl, { group: '.list-group' });
   listEl.replaceChildren();
   // EINE HUELLE UM DIE GRUPPEN (R11 H5): sie ist die Flaeche, die am Desktop
   // in zwei Spalten packt (shopping.css, `.items-lanes`). Der Scroller selbst
   // kann das nicht - mit begrenzter Hoehe liefe Multicol seitlich ueber.
   // Mobil ist sie `display: contents` und aendert nichts.
-  listEl.insertAdjacentHTML('beforeend', `<div class="items-lanes">${renderItems()}</div>`);
+  listEl.insertAdjacentHTML('beforeend', `<div class="items-lanes">${renderItems(fill.rows)}</div>`);
+  // DIE SPALTEN SCHIEBEN AUF, WAS NICHT IN SICHT IST - erst nachdem jede
+  // Kategorie einmal ganz gelegt ist und sich ihre Hoehe gemerkt hat
+  // (shopping.css, `.items-lanes.is-sized`; Critique R22-F F2.2).
+  const lanes = listEl.querySelector('.items-lanes');
+  afterNextPaint().then(() => { if (lanes?.isConnected) lanes.classList.add('is-sized'); });
+  // Nachgekommene Zeilen bekommen Zeichen und Wischgeste wie die ersten.
+  fill.start({
+    onRows: (rows) => {
+      drawRowIcons(rows);
+      if (container && !readOnly()) wireSwipeGestures(container);
+    },
+  });
 }
 
-function renderItems() {
+/**
+ * @param {(items: object[], render: (item: object) => string) => string} [rowsHtml]
+ *   baut die Zeilen einer Kategorie - der erste Aufbau setzt dort Platzhalter
+ *   (utils/row-fill.js)
+ */
+function renderItems(rowsHtml = (items, render) => items.map(render).join('')) {
   const { groups, ticked } = listSections(state.items);
   pruneCollapsedCategories(groups);
   // Geteilte Gruppen-Grammatik (styles/list-row.css): .list-group ordnet,
@@ -1421,7 +1448,7 @@ function renderItems() {
         <span class="list-group__count">${items.length}</span>
       </h2>
       <div class="row-carrier" id="${rowsId}" ${collapsed ? 'hidden' : ''}>
-        ${items.map(renderItem).join('')}
+        ${rowsHtml(items, renderItem)}
       </div>
     </div>`;
   }).join('') + renderTickedSection(ticked);
@@ -1565,13 +1592,13 @@ function renderItem(item) {
   const ro = readOnly();
   return `
     <div class="swipe-row${ro ? ' swipe-row--static' : ''}" data-swipe-id="${item.id}" data-swipe-checked="${checkedOf(item)}">
-      ${ro ? '' : `<div class="swipe-reveal swipe-reveal--done swipe-reveal--leading" aria-hidden="true">
+      ${ro ? '' : `<div class="swipe-reveal swipe-reveal--done swipe-reveal--leading" aria-hidden="true">${deferredRevealHtml(`
         <i data-lucide="${isDone ? 'rotate-ccw' : 'check'}" class="icon-xl" aria-hidden="true"></i>
-        <span>${isDone ? t('shopping.swipeBack') : t('shopping.swipeCheck')}</span>
+        <span>${isDone ? t('shopping.swipeBack') : t('shopping.swipeCheck')}</span>`)}
       </div>
-      <div class="swipe-reveal swipe-reveal--delete swipe-reveal--trailing" aria-hidden="true">
+      <div class="swipe-reveal swipe-reveal--delete swipe-reveal--trailing" aria-hidden="true">${deferredRevealHtml(`
         <i data-lucide="trash-2" class="icon-xl" aria-hidden="true"></i>
-        <span>${t('shopping.swipeDelete')}</span>
+        <span>${t('shopping.swipeDelete')}</span>`)}
       </div>`}
       <div class="list-row shopping-item ${isDone ? 'shopping-item--checked' : ''}${ro ? ' shopping-item--static' : ''}"
            data-item-id="${item.id}">
@@ -1599,6 +1626,7 @@ function renderItem(item) {
           ${rowMenuHtml({
             id: `shopping-item-menu-${item.id}`,
             label: t('common.moreActionsNamed', { name: item.name }),
+            defer: true,
             items: [
               { action: 'item-details', id: item.id, icon: 'pencil', label: t('common.edit') },
               { action: 'delete-item', id: item.id, icon: 'trash-2', label: t('common.delete'), danger: true },
@@ -2567,12 +2595,13 @@ function updateItemRow(container, item) {
 
   // Swipe-Affordance (links) spiegelt den neuen Status
   const reveal = row.querySelector('.swipe-reveal--done');
+  // Bleibt aufgeschoben, wie die Zeile sie gebaut hat (`deferredRevealHtml`):
+  // erst die naechste Geste haengt sie ein.
   if (reveal) {
     reveal.replaceChildren();
-    reveal.insertAdjacentHTML('beforeend', `
+    reveal.insertAdjacentHTML('beforeend', deferredRevealHtml(`
       <i data-lucide="${isDone ? 'rotate-ccw' : 'check'}" class="icon-xl" aria-hidden="true"></i>
-      <span>${isDone ? t('shopping.swipeBack') : t('shopping.swipeCheck')}</span>`);
-    if (window.lucide) window.lucide.createIcons({ el: reveal });
+      <span>${isDone ? t('shopping.swipeBack') : t('shopping.swipeCheck')}</span>`));
   }
 }
 
@@ -2805,7 +2834,7 @@ function openItemDetails(itemId, container) {
             * bei Mahlzeit und Rezept, und derselbe Weg wie Wisch und Knopf
             * (`deleteItemUndoable`: sofort weg, fuenf Sekunden Rueckgaengig). */ ''}
         <div class="modal-panel__footer modal-panel__footer--plain">
-          <button type="button" class="btn btn--danger-outline" id="item-details-delete" data-delete-name="${esc(item.name)}" style="margin-inline-end:auto"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>
+          <button type="button" class="btn btn--danger-outline" id="item-details-delete" data-delete-name="${esc(item.name)}"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>
           <button type="button" class="btn btn--secondary" id="item-details-cancel">${t('common.cancel')}</button>
           <button type="submit" class="btn btn--primary">${t('common.save')}</button>
         </div>
@@ -2951,6 +2980,20 @@ function dropHiddenRows(listEl, before) {
   }
 }
 
+/** So viele Zeilen bekommen ihre Zeichen sofort - mehr stehen auf keinem Bildschirm. */
+const ICON_ROWS_NOW = 30;
+
+/**
+ * DIE ZEICHEN DER LISTE KOMMEN IN SICHT-REIHENFOLGE (Critique R22, D22; der
+ * Baustein ist `drawIconsInSightOrder` in utils/ux.js, wie bei den Aufgaben).
+ * Jede Zeile traegt Haken, Mehr-Knopf und Griff als Lucide-Platzhalter; bei
+ * 259 Artikeln ersetzte `createIcons` rund 800 davon im Frame des Wechsels
+ * (100 ms bei 4x CPU am Laptop).
+ */
+function drawItemIcons(listEl) {
+  drawIconsInSightOrder(listEl, { rowSelector: '.swipe-row', rowsNow: ICON_ROWS_NOW });
+}
+
 function updateItemsList(container) {
   const listEl = container.querySelector('#items-list');
   if (listEl) {
@@ -2964,7 +3007,7 @@ function updateItemsList(container) {
     // nachgelagerte #empty-cta-shopping-Listener entfällt damit.
     mountItems(listEl, container);
     flipPlay(listEl, '.swipe-row[data-swipe-id]', 'data-swipe-id', before);
-    if (window.lucide) window.lucide.createIcons({ el: listEl });
+    drawItemIcons(listEl);
     stagger(listEl.querySelectorAll('.shopping-item'), { host: listEl });
     // Regel 3 in utils/module-access.js: Wischen und Ziehen haben kein Markup,
     // das man wegnehmen koennte - bei `read` bleibt die VERDRAHTUNG aus. Ein
@@ -3589,21 +3632,67 @@ async function loadCategories({ keepOnError = false } = {}) {
  * (der Preis laesst sich trotzdem eintragen), ohne Waehrung gilt EUR. Ein
  * Einkaufszettel, der wegen eines Nebenfeldes gar nicht aufgeht, waere der
  * schlechtere Tausch. */
+//
+// NEBENEINANDER, NICHT NACHEINANDER (Critique R22, D22): die Waehrung wartete
+// auf die Laeden, obwohl sie nichts von ihnen braucht - eine ganze Runde mehr
+// vor den Artikeln (400 ms Latenz: Artikel erst nach 2,1 s).
 async function loadStores({ keepOnError = false } = {}) {
-  try {
-    const data   = await api.get('/shopping/stores');
-    state.stores = data.data ?? [];
-  } catch {
-    if (!keepOnError) state.stores = [];
-  }
-  try {
-    const prefs    = await api.get('/preferences');
-    state.currency = prefs.data?.currency ?? 'EUR';
-  } catch { /* EUR bleibt */ }
+  const [stores, prefs] = await Promise.allSettled([api.get('/shopping/stores'), api.get('/preferences')]);
+  if (stores.status === 'fulfilled') state.stores = stores.value.data ?? [];
+  else if (!keepOnError) state.stores = [];
+  if (prefs.status === 'fulfilled') state.currency = prefs.value.data?.currency ?? 'EUR';
 }
 
-async function loadItems(listId) {
+/**
+ * DIE ARTIKEL LAUFEN MIT DER LISTE LOS, WENN IHRE ID SCHON BEKANNT IST
+ * (Critique R22, D22). Der Aufbau wartete auf `/shopping`, um die erste Liste
+ * zu kennen, und fragte erst dann nach ihren Artikeln - eine Runde mehr als
+ * die Aufgaben. Bekannt ist die Id aus `?list=`, aus dem letzten Besuch in
+ * dieser Sitzung oder, nach einem Neuladen, aus dem Merker des Geraets
+ * (`firstListStorageKey`). Die Anfrage beginnt in der Ladeordnung wie jede
+ * andere (`beginLoad`); `loadItems` nimmt sie, wenn die Liste die gewaehlte
+ * ist, sonst laeuft sie ins Leere und schliesst nur ihre Nummer ab
+ * (`dropItemsPrefetch`). Die Wahl der Liste selbst aendert sich nicht.
+ */
+const FIRST_LIST_VERSION = 1;
+
+function firstListStorageKey(userId) {
+  return `yuvomi:shopping:firstList:v${FIRST_LIST_VERSION}:${userId ?? 'anon'}`;
+}
+
+function rememberedFirstList(userId) {
+  try {
+    return parseInt(localStorage.getItem(firstListStorageKey(userId)), 10) || null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberFirstList(userId, listId) {
+  try {
+    if (listId) localStorage.setItem(firstListStorageKey(userId), String(listId));
+    else localStorage.removeItem(firstListStorageKey(userId));
+  } catch { /* Privatmodus: dann eben eine Runde mehr */ }
+}
+
+function prefetchItems(listId) {
+  if (!listId) return null;
   const startedAt = beginLoad();
+  const response = api.getWithSource(`/shopping/${listId}/items`);
+  // Wer sie nie abholt, soll keine unbehandelte Ablehnung hinterlassen.
+  response.catch(() => {});
+  return { listId, startedAt, response };
+}
+
+function dropItemsPrefetch(prefetched) {
+  if (!prefetched) return;
+  const done = () => endLoad(prefetched.startedAt);
+  prefetched.response.then(done, done);
+}
+
+async function loadItems(listId, { prefetched = null } = {}) {
+  const own = prefetched?.listId === listId ? prefetched : null;
+  const startedAt = own ? own.startedAt : beginLoad();
   // try/finally um den ganzen Rundlauf: die Ladeordnung schliesst ihn ab, ob
   // er angewandt, verworfen oder gescheitert ist (siehe `endLoad`).
   try {
@@ -3611,7 +3700,7 @@ async function loadItems(listId) {
     // Workers steht (`API_CACHE_WHITELIST` in sw.js): faellt das Netz aus, kommt
     // die zuletzt gecachte Antwort mit Status 200 zurueck, und die ist von einer
     // frischen sonst nicht zu unterscheiden.
-    const { data, fromCache } = await api.getWithSource(`/shopping/${listId}/items`);
+    const { data, fromCache } = await (own ? own.response : api.getWithSource(`/shopping/${listId}/items`));
     // Ein Rundlauf kann von einem Listenwechsel ueberholt werden. Alle sechs
     // Aufrufer laden die GERADE aktive Liste - `switchList` setzt
     // `state.activeListId` sogar vor dem Warten -, die Antworten kommen aber in
@@ -4520,6 +4609,46 @@ async function openCategoryManager(container, { fromDeepLink = false } = {}) {
 // Haupt-Render
 // --------------------------------------------------------
 
+/**
+ * Die Daten des Seitenaufbaus: Kategorien, Laeden samt Waehrung und Listen
+ * nebeneinander, die Artikel der gewaehlten Liste - und, wenn deren Id schon
+ * bekannt ist, ebenfalls gleich mit (`prefetchItems`). Eigene Funktion, damit
+ * die Reihenfolge der Anfragen ohne Seitenaufbau pruefbar ist
+ * (test:shopping-gone-reload, R22).
+ */
+async function loadPageData() {
+  state.itemsError = null;
+  try {
+    // loadCategories() und loadLists() fangen selbst; der äußere catch ist das
+    // Netz für alles Unerwartete und bildet es auf denselben Fehlerzustand ab,
+    // statt die Ausnahme in den globalen Fehlerbildschirm laufen zu lassen.
+    const listParam = parseInt(new URLSearchParams(window.location.search).get('list'), 10) || null;
+    const prefetched = prefetchItems(listParam ?? state.lists[0]?.id ?? rememberedFirstList(state.currentUserId));
+    await Promise.all([loadCategories(), loadStores(), loadLists()]);
+    if (!state.listsError) rememberFirstList(state.currentUserId, state.lists[0]?.id);
+    if (!state.listsError && state.lists.length) {
+      const target = listParam && state.lists.find((l) => l.id === listParam);
+      state.activeListId = target ? target.id : state.lists[0].id;
+      state.collapsedCategories = loadCollapsedCategories(state.currentUserId, state.activeListId);
+      state.tickedOpen = loadTickedOpen(state.currentUserId, state.activeListId);
+      if (prefetched?.listId !== state.activeListId) dropItemsPrefetch(prefetched);
+      try {
+        await loadItems(state.activeListId, { prefetched });
+      } catch (err) {
+        console.error('[Shopping] loadItems Fehler:', err);
+        clearItems();
+        state.activeList = state.lists.find((l) => l.id === state.activeListId) ?? null;
+        state.itemsError = err;
+      }
+    } else {
+      dropItemsPrefetch(prefetched);
+    }
+  } catch (err) {
+    console.error('[Shopping] Ladefehler:', err);
+    state.listsError = err;
+  }
+}
+
 export async function render(container, { user, signal: routeSignal = null } = {}) {
   state.currentUserId = user?.id ?? null;
   _routeSignal = routeSignal;
@@ -4564,31 +4693,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
   // beim Wechsel Mahlzeiten -> Einkauf aus und sprang nach dem Laden zurueck,
   // statt zu stehen wie in den drei Geschwister-Tabs (Integration Runde 3).
   const kitchenBar = renderKitchenTabsBar(container, '/shopping');
-  state.itemsError = null;
-  try {
-    // loadCategories() und loadLists() fangen selbst; der äußere catch ist das
-    // Netz für alles Unerwartete und bildet es auf denselben Fehlerzustand ab,
-    // statt die Ausnahme in den globalen Fehlerbildschirm laufen zu lassen.
-    await Promise.all([loadCategories(), loadStores(), loadLists()]);
-    if (!state.listsError && state.lists.length) {
-      const listParam = parseInt(new URLSearchParams(window.location.search).get('list'), 10) || null;
-      const target = listParam && state.lists.find((l) => l.id === listParam);
-      state.activeListId = target ? target.id : state.lists[0].id;
-      state.collapsedCategories = loadCollapsedCategories(state.currentUserId, state.activeListId);
-      state.tickedOpen = loadTickedOpen(state.currentUserId, state.activeListId);
-      try {
-        await loadItems(state.activeListId);
-      } catch (err) {
-        console.error('[Shopping] loadItems Fehler:', err);
-        clearItems();
-        state.activeList = state.lists.find((l) => l.id === state.activeListId) ?? null;
-        state.itemsError = err;
-      }
-    }
-  } catch (err) {
-    console.error('[Shopping] Ladefehler:', err);
-    state.listsError = err;
-  }
+  await loadPageData();
 
   // Alles ausser der Leiste abraeumen: sie bleibt eingehaengt, damit ihre
   // Kapsel weitergleitet und der waagrechte Scrollstand nicht zurueckspringt.
@@ -4690,6 +4795,9 @@ export async function render(container, { user, signal: routeSignal = null } = {
  * Beim Ankommen ueber einen Link sieht dem Aufklappen ohnehin niemand zu.
  */
 function revealHighlightedItem(container, id) {
+  // Die angesteuerte Zeile muss stehen, auch wenn sie im ersten Aufbau erst
+  // spaeter gekommen waere (utils/row-fill.js).
+  flushRowFill(container.querySelector?.('#items-list') ?? null);
   const el = container.querySelector(`.shopping-item[data-item-id="${id}"]`);
   if (!el) return;
   const rowsEl = el.closest('.row-carrier');
@@ -4736,6 +4844,10 @@ export const __test = {
   toggleShoppingItem,
   listToolsItems,
   loadItems,
+  // R22 (D22): die Anfragen des Seitenaufbaus - Waehrung neben den Laeden,
+  // Artikel mit der schon bekannten Listen-Id neben den Listen - und die
+  // Zeichen der Liste in Sicht-Reihenfolge.
+  loadPageData, firstListStorageKey, drawItemIcons, ICON_ROWS_NOW,
   deleteItemUndoable,
   clearCheckedUndoable,
   // Der Dialog rendert ueber den Modal-Stub des Loaders; die Tests greifen
@@ -4788,6 +4900,7 @@ export const __test = {
   // global, und eine Wasserstandsmarke aus einem frueheren Fall verwirft die
   // Auffrischung des naechsten. Aufraeumen gehoert an den ANFANG jedes Falls.
   clearItems,
+  loadsInFlightForTest: () => _loadsInFlight.size,
   resetLoadOrderForTest: () => { _appliedLoad.clear(); settledAt.clear(); _loadsInFlight.clear(); _itemsListId = null; _appliedListsLoad = 0; },
   // Live-Aktualisierung: der Plan ist reine Logik (Serverstand vorher/nachher),
   // das Nachladen und die Verdrahtung laufen ueber den api-Stub.

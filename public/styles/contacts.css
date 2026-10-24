@@ -58,17 +58,11 @@
   display: none;
 }
 
-/* AM ZEIGERGERAET BRICHT DIE REIHE UM (R10 L8, A5 P2-6). Eine Maus hat keine
- * waagerechte Geste: in der 424px-Listenspur standen bei 1440 nur vier von
- * zehn Chips sichtbar, der Rest hinter einem Scroller ohne Balken. Mit nur
- * belegten Kategorien (contacts.js) sind es wenige, und die passen in zwei
- * Reihen. Am Finger bleibt der Querscroller - dort ist Wischen die Geste. */
-@media (hover: hover) and (pointer: fine) {
-  .contacts-filters {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-}
+/* EINE REIHE IN JEDER BREITE (Critique R22, D20). Am Zeigergeraet brach sie
+ * seit R10 L8 in zwei Reihen um (1280/1440: rund 48px mehr Kopf ueber der
+ * Liste). Jetzt scrollt sie wie mobil: Fade an der Kante (`wireScrollFade`),
+ * das Mausrad bewegt sie waagerecht (`wireWheelToRow` in contacts.js), die
+ * Tastatur holt den fokussierten Chip ins Bild. `test:contacts-list-detail`. */
 
 /* Die Reihe endet an der Lesekante wie die Gruppen darunter: im Port ist sie
  * so breit wie der Port (1156px bei 1440), die Traeger aber kappen aufs
@@ -176,14 +170,22 @@
  * Befund 18; Guide defer-rendering-heavy-content). 500 Kontakte sind 22.000
  * Knoten; der Wechsel nach /contacts hielt die Seite bei 4x CPU 781 ms am
  * Stueck, mit dieser Regel 568 ms. Zeilen ausserhalb der Sicht ueberspringt
- * der Browser, bis sie in die Naehe kommen; die Hoehe (65px, gemessen) steht
- * als Platzhalter da, `auto` merkt sich danach die echte - der Bildlaufbalken
- * springt nicht. Fokusringe liegen in der Zeile innen und bleiben ganz
- * (im Browser geprueft). Ohne Unterstuetzung bleibt alles, wie es war. */
+ * der Browser, bis sie in die Naehe kommen; `auto` merkt sich danach die
+ * echte Hoehe - der Bildlaufbalken springt nicht. Fokusringe liegen in der
+ * Zeile innen und bleiben ganz (im Browser geprueft). Ohne Unterstuetzung
+ * bleibt alles, wie es war.
+ *
+ * ERST AB ZEILE 20, UND DER PLATZHALTER IST DIE CONTENT-BOX (Critique R22, D4).
+ * `contain-intrinsic-size` gilt der Content-Box; hier standen die 65px der
+ * ganzen Zeile, die mit 16px Polster als 81 statt 64 lag. Beim Aufbau
+ * schrumpften die Zeilen an der Falz in den ersten Frames und zogen die
+ * Gruppen darunter hoch: CLS 0,098 mobil bei 4x CPU, 0,018 am Desktop. Die
+ * ersten 19 Zeilen einer Gruppe stehen immer (sie sind die Falz), der Rest
+ * haelt seine echte Content-Hoehe (48px, gemessen 390 und 1280px). */
 @supports (content-visibility: auto) and (contain-intrinsic-size: auto none auto 1px) {
-  .contact-group__list > .contact-item {
+  .contact-group__list > .contact-item:nth-child(n+20) {
     content-visibility: auto;
-    contain-intrinsic-size: auto none auto 65px;
+    contain-intrinsic-size: auto none auto 48px;
   }
 }
 
@@ -411,10 +413,12 @@
 /* Vor- und Nachname sind ein Feldpaar (#535): die Legende trägt die
    Pflicht-Markierung für beide zusammen ("Name *"), die Einzel-Labels bleiben
    unmarkiert - Pflicht ist die Gruppe, nicht jedes Feld. */
+/* Ohne eigene Marge: der Dialog-Rumpf setzt den Feldtakt per `gap` (layout.css,
+   "EIN FELDTAKT IM DIALOG"); die 16px hier standen darauf - 32px am Desktop. */
 .contact-modal__name-group {
   border: none;
   padding: 0;
-  margin: 0 0 var(--space-4);
+  margin: 0;
   min-width: 0;
 }
 
@@ -439,8 +443,10 @@
     gap: var(--space-1);
   }
 
+  /* 24px wie gedacht: Rumpf-Luecke (--space-4) plus --space-2. Die alte
+     --space-6 stand auf der Luecke und ergab 40px. */
   .contact-modal__name-group {
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-2);
   }
 }
 

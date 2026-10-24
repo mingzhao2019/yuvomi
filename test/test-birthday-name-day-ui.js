@@ -284,6 +284,9 @@ test('der Editor zeigt ohne Jahr Monat und Tag statt des Datumswaehlers', () => 
   assert.match(yearless, /value="02" selected/);
   assert.match(yearless, /value="29" selected/, 'der 29.02. ist waehlbar');
   assert.match(yearless, /id="bd-birth-date-year-unknown" checked/);
+  // R22 D20: "Jahr unbekannt" ist ein Schalter (an/aus), kein Haken in einer Auswahl.
+  assert.match(yearless, /<label class="toggle birth-date-field__toggle">\s*<input type="checkbox" role="switch" id="bd-birth-date-year-unknown" checked>\s*<span class="toggle__track" aria-hidden="true"><\/span>/);
+  assert.doesNotMatch(yearless, /form-check/, 'die native Checkbox ist weg');
 
   const known = birthDateFieldHtml({ id: 'bd-birth-date', label: 'L', value: '1990-03-15' });
   assert.match(known, /value="1990-03-15"/);
@@ -306,8 +309,9 @@ test('Mitglied ohne Geburtsjahr: Liste ohne 2000, Editoren mit "Jahr unbekannt"'
   try {
     const row = family.memberHtml({ id: 5, username: 'gast', display_name: 'Gast', role: 'member', family_role: 'other',
       birth_date: '2000-03-15', birth_year_unknown: true }, 1);
-    assert.match(row, /15\. März/);
-    assert.doesNotMatch(row, /2000/);
+    // Seit R22 (D13) steht der Geburtstag gar nicht mehr in der Mitgliederzeile -
+    // erst recht kein Platzhalterjahr; Tag und Monat zeigt der Editor.
+    assert.doesNotMatch(row, /2000|15\. März/);
   } finally {
     delete globalThis.__locale;
   }

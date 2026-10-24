@@ -40,6 +40,7 @@ import { MODULE_ICON } from '/nav-icons.js';
 import { zonedDateKey, zonedTimeKey } from '/utils/timezone.js';
 import { housekeepingSinceLabel } from '/utils/day-label.js';
 import { pantryExpiryPhrase } from '/utils/pantry-status.js';
+import { shiftTypeLabel } from '/utils/shift-label.js';
 
 /** Zeitlose Plaetze im Tag - dieselben drei Stufen, die das Programm schon kennt. */
 export const SORT_DUE_NOW = '00:00';
@@ -115,7 +116,8 @@ export const TODAY_SHEET_SOURCES = [
         sub: open === 1 || !next?.name ? t('dashboard.todayDose') : t('dashboard.todayNextUp', { event: next.name }),
         icon: MODULE_ICON.health,
         tone: 'health',
-        route: '/health',
+        // Der Bereich, in dem eingenommen wird - nicht die Wurzel (R22, D3).
+        route: '/health/meds',
         who: null,
         priority: 10,
         open: true,
@@ -223,7 +225,8 @@ export const TODAY_SHEET_SOURCES = [
           sub: b.kind === 'name_day' ? t('birthdays.nameDay') : t('contacts.birthdayLabel'),
           icon: MODULE_ICON.birthdays,
           tone: 'birthdays',
-          route: '/birthdays',
+          // Der Geburtstag selbst (`?open=`, R22 D3), wie aus der Suche.
+          route: b.id != null ? `/birthdays?open=${encodeURIComponent(String(b.id))}` : '/birthdays',
           who: null,
           priority: 60,
           open: false,
@@ -280,7 +283,7 @@ export const TODAY_SHEET_SOURCES = [
           objectId: type.id ?? null,
           sortKey: start ?? SORT_ALL_DAY,
           timeLabel: start && end ? `${formatTime(start)} - ${formatTime(end)}` : '',
-          title: type.short_code ? `${type.short_code} · ${type.name}` : type.name,
+          title: shiftTypeLabel(type),
           sub: t('nav.schedule'),
           icon: MODULE_ICON.schedule,
           tone: 'schedule',

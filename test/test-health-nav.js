@@ -631,32 +631,55 @@ test('R14 P3: vor den hochgezogenen Karten steht eine Ueberschrift eine Ebene da
 // R14 P4 (A6 P2-7): „Noch keine Eintraege." zentriert oben, ohne Weg - in der
 // 676px-Detailspalte 21 % genutzt. Jetzt der geteilte Leerzustand mit Titel,
 // Satz und dem Anlege-Weg (nur mit Schreibrecht).
-test('R14 P4 + D5: Vorsorge, Naehrwerte und Zyklus leer = EIN Leerzustand, der FAB ist der eine Anlege-Weg', () => {
+test('R22 D12: ein Leerzustand je Ebene - der leere Bereich mit Aktion, die leere Karte als ruhige Zeile', () => {
   const fnBody = (name) => {
     const start = HEALTH_JS.indexOf(`function ${name}(`);
     assert.ok(start >= 0, `${name} fehlt`);
     return HEALTH_JS.slice(start, HEALTH_JS.indexOf('\n}\n', start));
   };
-  const prev = fnBody('renderPreventionShell');
-  assert.doesNotMatch(prev, /emptyHintHTML\(t\('health\.prevention\.noRecords'\)\)/, 'Vorsorge: keine nackte Hinweiszeile mehr');
-  assert.match(prev, /emptyStateHTML\(\{[\s\S]*?title: t\('health\.prevention\.emptyTitle'\)/, 'Vorsorge: Leerzustand mit Titel');
-  // D5 (Critique 2026-10-16): der Leerzustand stand mit einem violetten
-  // „Eintrag hinzufuegen" direkt neben dem FAB, der dasselbe oeffnet.
-  assert.doesNotMatch(HEALTH_JS, /health-prevention-empty-add|health-nutrition-empty-add|data-action': 'cycle-first'/,
-    'kein zweiter Anlege-Knopf neben dem FAB');
-  const fab = fnBody('updateHealthFab');
-  for (const [route, opener] of [['prevention', 'openPreventionModal'], ['nutrition', 'openNutritionModal'], ['cycle', 'openPeriodModal']]) {
-    const at = fab.indexOf(`case '/health/${route}':`);
-    assert.ok(at >= 0 && fab.slice(at, fab.indexOf('break;', at)).includes(`${opener}(null)`), `${route}: der FAB legt an`);
+  // BEREICH: Glyphe, Titel, Satz, Aktion - eine Bauform fuer alle leeren Bereiche.
+  const area = fnBody('areaEmptyHtml');
+  assert.match(area, /icon: panel\.icon,\s*title: t\(panel\.emptyTitleKey\),\s*description: t\(panel\.emptyDescKey\)/);
+  assert.match(area, /tone: 'secondary'/, 'neben dem FAB mit demselben Verb ruhig, nicht ein zweiter violetter Knopf (D5)');
+  for (const [fn, route, id] of [
+    ['vitalsEmptyRowMarkup', 'vitals', 'vitals-add-first'],
+    ['renderMedsShell', 'meds', 'meds-add-first'],
+    ['renderLabsShell', 'labs', 'labs-add-first'],
+    ['renderActivityShell', 'activity', 'activity-add'],
+    ['renderPreventionShell', 'prevention', 'prevention-add-first'],
+    ['renderNutritionShell', 'nutrition', 'nutrition-add-first'],
+  ]) {
+    const body = fnBody(fn);
+    assert.match(body, new RegExp(`areaEmptyHtml\\('/health/${route}'`), `${route}: der Leerzustand der Bereiche`);
+    assert.match(body, new RegExp(`id: '${id}'`), `${route}: mit der Anlege-Aktion`);
   }
-  assert.match(fab, /case '\/health\/fasting':[\s\S]*?hidden: !_fastingCreate[\s\S]*?dockLabel: t\('health\.fasting\.title'\)/,
-    'Fasten: der Nachtrag ist der FAB (am Desktop „+ Fasten"), nur wo er erlaubt ist');
+  assert.match(HEALTH_JS, /querySelector\('\[data-action="meds-add-first"\]'\)\?\.addEventListener\('click', \(\) => openMedModal\(null\)\)/);
+  assert.match(HEALTH_JS, /querySelector\('\[data-action="labs-add-first"\]'\)\?\.addEventListener\('click', \(\) => openLabModal\(null\)\)/);
+  assert.match(fnBody('renderLabsShell'), /if \(!labs\.reports\.length\) \{[\s\S]*?return;\s*\}/, 'Labor: ohne Befund keine Auswahl "Waehle einen Befund"');
+  assert.match(fnBody('renderMedsShell'), /if \(!meds\.list\.length\) \{[\s\S]*?return;\s*\}/, 'Medikamente: ohne Medikament kein "Heute ist nichts faellig"');
+  // KARTE: die ruhige Zeile, nie ein nackter grauer Satz.
+  for (const fn of ['dueTodayMarkup', 'overviewDueMarkup', 'overviewUpcomingMarkup']) {
+    const body = HEALTH_JS.slice(HEALTH_JS.indexOf(`function ${fn}(`), HEALTH_JS.indexOf('\n}\n', HEALTH_JS.indexOf(`function ${fn}(`)));
+    assert.match(body, /cardEmptyRowHtml\(/, `${fn}: die ruhige Zeile`);
+    assert.doesNotMatch(body, /emptyHintHTML\(|reminders-empty/, `${fn}: kein nackter Satz`);
+  }
+  assert.match(fnBody('renderActivityShell'), /cardEmptyRowHtml\(t\('health\.activity\.noData'\), \{ action: canAdd/, 'leere Woche: Zeile mit Erfassen');
+  // EIN VERB JE AKTION: Zyklus und Fasten ohne Kopf-Aktion, der Inhalt traegt sie.
+  const fab = fnBody('updateHealthFab');
+  for (const route of ['cycle', 'fasting']) {
+    const at = fab.indexOf(`case '/health/${route}':`);
+    assert.match(fab.slice(at, fab.indexOf('break;', at)), /hidden: true/, `${route}: keine Kopf-Aktion neben der des Inhalts`);
+  }
+  for (const [route, opener] of [['prevention', 'openPreventionModal'], ['nutrition', 'openNutritionModal']]) {
+    const at = fab.indexOf(`case '/health/${route}':`);
+    assert.ok(fab.slice(at, fab.indexOf('break;', at)).includes(`${opener}(null)`), `${route}: der FAB legt weiter an`);
+  }
   const fasting = readFileSync(new URL('../public/pages/health-fasting.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(fasting, /data-fasting-backfill/, 'Fasten: kein Nachtragen-Knopf mehr in Leerzustand und Verlaufskopf');
-  assert.match(fasting, /view\.onCreateAction\?\.\(\(\) => void creator\(true\)\);/, 'Fasten: gibt seinen Nachtrag an den FAB');
-  const nut = fnBody('renderNutritionShell');
-  assert.doesNotMatch(nut, /emptyHintHTML\(t\('health\.nutrition\.noEntries'\)\)/, 'Naehrwerte: keine nackte Hinweiszeile mehr');
-  assert.match(nut, /emptyStateHTML\(\{[\s\S]*?title: t\('health\.nutrition\.emptyTitle'\)/);
+  assert.match(fasting, /action: writable \? \{ label: t\('health\.fasting\.backfill'\), icon: 'plus', tone: 'secondary', attrs: \{ 'data-fasting-backfill': '' \} \} : undefined/,
+    'Fasten: der Nachtrag ist die Aktion des Leerzustands');
+  assert.match(fasting, /<h3 class="u-section-title">\$\{esc\(t\('health\.fasting\.history'\)\)\}<\/h3>\$\{writable \? `<button type="button" class="btn btn--ghost btn--sm" data-fasting-backfill>/,
+    'Fasten: und ein Knopf im Kopf des Verlaufs');
+  assert.doesNotMatch(fasting, /onCreateAction/, 'Fasten: kein Nachtrag mehr ueber den FAB');
 });
 
 // R14 P8 (A6 P2-5): die Vorsorge trug zwei native Datumsfelder, direkt neben
@@ -711,6 +734,27 @@ test('R14 P6: die Kopf-Pille nennt je Bereich ihr Objekt', () => {
   }
   const de = JSON.parse(read('public/locales/de.json')).newLabel;
   for (const k of keys) assert.ok(!['Eintrag', 'Einheit'].includes(de[k]), `de ${k}: „${de[k]}" ist kein Objekt`);
+  // R22 S10 (D12, „Bereichsname nicht dreifach"): am Desktop stand „Vorsorge"
+  // in der Bereichsliste, im Detailkopf UND in der Kopf-Pille („+ Vorsorge").
+  // Die Pille nennt das Objekt, nicht den Bereich - wie en „Checkup", sv
+  // „Undersökning".
+  // Sammel-Ticket R22-F, F4.6: in JEDER Sprache, nicht nur an der Referenz.
+  // Zehn Sprachen wiederholten den Bereich: Medikamente in id/ja/ko/uk/vi/zh/
+  // zh-Hant (ohne Numerus: Bereich und Objekt ein Wort - der Bereich heisst
+  // dort jetzt nach der Einnahme, ja „服薬", zh „用药", ko „복약", vi „Dùng
+  // thuốc", id „Obat-obatan"; uk nennt das Objekt „Препарат"), it Zyklus,
+  // nb Aktivitaet, sv Laborwerte.
+  const areaOf = { healthVitals: 'vitals', healthCycle: 'cycle', healthMeds: 'meds', healthPrevention: 'prevention', healthLabs: 'labs', healthActivity: 'activity', healthNutrition: 'nutrition' };
+  const repeats = [];
+  for (const file of readdirSync(join(ROOT, 'public/locales')).filter((f) => f.endsWith('.json'))) {
+    const locale = JSON.parse(read(`public/locales/${file}`));
+    for (const k of keys) {
+      const area = locale.health.tabs[areaOf[k]];
+      if (locale.newLabel[k].toLocaleLowerCase() === area.toLocaleLowerCase()) repeats.push(`${file} ${k}: „${area}"`);
+    }
+    assert.equal(locale.health.meds.title, locale.health.tabs.meds, `${file}: Medikamente heissen in Liste und Detailkopf verschieden`);
+  }
+  assert.deepEqual(repeats, [], 'die Pille wiederholt den Bereichsnamen');
 });
 
 /* R18 (Ursache zu #1770): DIE "HEUTE"-REGION SPRINGT NICHT INS BILD.
@@ -797,4 +841,96 @@ test('R18: kein Bereich laedt mehr mit dem Wort "Lade..." - jeder traegt ein Ske
   assert.match(fn, /renderSkeletonChart\(\{ charts: 2 \}\)/);
   assert.match(fn, /renderSkeletonList\(\{ rows: 3, lines: 2 \}\)/);
   assert.match(HEALTH_JS, /import \{ renderSkeletonList, renderSkeletonChart \} from '\/utils\/skeleton\.js';/);
+});
+
+// Critique R22 (D4, a6): das Skelett der Heute-Region kennt die Hoehe des
+// Inhalts erst ab dem zweiten Aufruf. Beim ersten fehlte ihm die Kurzzeile, und
+// die Bereichsliste rutschte mit den Daten von y=577 auf y=639 (CLS 0,023 bei
+// 390x844, 4x CPU); ein Konto mit weniger Faelligem zog sie hoch. Solange die
+// Region wartet, haelt die Liste ihren Platz unsichtbar - und ein haengender
+// Abruf verbirgt sie hoechstens PRIORITY_WAIT_MS lang.
+test('R22 D4: die Bereichsliste erscheint erst, wenn ueber ihr nichts mehr waechst - nie dauerhaft verborgen', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const rules = [...eachRule(read('public/styles/health.css'))].filter((r) => !r.at.length);
+  const wait = rules.find((r) => /\.health-priority-region\[data-health-priority-pending\]\s*~\s*\.health-areas/.test(r.selector));
+  assert.ok(wait, 'die Liste steht waehrend des Wartens sichtbar - sie rutscht mit den Daten');
+  assert.match(wait.body, /visibility:\s*hidden/, 'verborgen, aber an ihrem Platz (kein display: none - sonst springt sie beim Erscheinen)');
+  assert.doesNotMatch(wait.body, /display:/);
+  const render = HEALTH_JS.slice(HEALTH_JS.indexOf('export async function render('));
+  assert.match(HEALTH_JS, /const PRIORITY_WAIT_MS = \d+;/);
+  assert.match(render, /if \(_priorityPending\) \{\s*const giveUp = setTimeout\(\(\) => \{\s*if \(!_priorityPending\) return;\s*_priorityPending = false;\s*syncPriorityRegion\(\);\s*\}, PRIORITY_WAIT_MS\);\s*signal\?\.addEventListener\('abort', \(\) => clearTimeout\(giveUp\)/,
+    'ohne Frist verbirgt ein haengender Abruf die Navigation');
+});
+
+// ── R22 S8 (Critique a5, D12): Gesundheit ──────────────────────────────────
+
+// Gemessen 1280x800 vorher: Detailkopf y=69 (klebte bei top 0 direkt unter dem
+// Modulkopf), Bereichsliste daneben y=85; beim Scrollen liefen Kacheln durch den
+// Spalt und unter den runden Ecken durch. Nachher: Kopf y=85 in Ruhe UND beim
+// Kleben, ein Grundstreifen im Seitengrund dahinter.
+test('R22 D12: der Detailkopf fluchtet mit der Bereichsliste und klebt mit Abstand auf einem Grundstreifen', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const rules = [...eachRule(read('public/styles/health.css'))];
+  const head = rules.find((r) => r.selector.trim() === '.health-split > .split-view__detail .split-view__detail-head');
+  assert.ok(head, 'Regel fehlt');
+  assert.match(head.body, /margin-block-start:\s*var\(--space-4\)/, 'in Ruhe auf der Hoehe der Liste');
+  assert.match(head.body, /top:\s*var\(--space-4\)/, 'klebt mit demselben Abstand');
+  assert.match(head.body, /box-shadow:\s*var\(--shadow-sm\),\s*0 0 0 var\(--space-2\) var\(--color-bg\),\s*0 calc\(-1 \* var\(--space-4\)\) 0 var\(--space-2\) var\(--color-bg\)/,
+    'Grundstreifen: Ring um die Ecken und der Spalt bis zur Spaltenkante, der eigene Schatten zuoberst');
+  assert.match(head.body, /margin-block-end:\s*var\(--space-3\)/, 'der Ring (--space-2) bleibt unter der Luft zum Inhalt');
+});
+
+test('R22 D12: Einnehmen heisst ueberall so und behaelt sein Wort - auch die Bedarfsdosis', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const prn = HEALTH_JS.slice(HEALTH_JS.indexOf('function prnRowMarkup('), HEALTH_JS.indexOf('function prnListMarkup('));
+  assert.match(prn, /<span class="health-prn__take-label">\$\{esc\(t\('health\.meds\.take'\)\)\}<\/span>/, 'dasselbe Verb wie die geplante Dosis');
+  assert.match(prn, /aria-label="\$\{esc\(t\('health\.meds\.takeNamed', \{ name: med\.name \}\)\)\}"/, 'der Name beginnt mit dem sichtbaren Wort');
+  assert.match(prn, /class="icon-md health-dose__take-icon"/, 'dieselbe Tablette wie bei der geplanten Dosis');
+  const rules = [...eachRule(read('public/styles/health.css'))];
+  const hidesWord = rules.filter((r) => /\.health-(?:dose|prn)__take-label/.test(r.selector) && /display:\s*none/.test(r.body));
+  assert.deepEqual(hidesWord.map((r) => `${r.at.join(' ')} ${r.selector}`), [], 'keine Breite nimmt dem Knopf sein Wort');
+  // Bei 1920 brach "Ibuprofen · 400 / mg" neben "Noch nicht geno...": bis 32rem steht der Name allein.
+  const wrap = rules.find((r) => r.at.some((a) => /list-rows \(max-width:\s*32rem\)/.test(a)) && r.selector.trim() === '.health-prn > .health-dose__name');
+  assert.match(wrap?.body ?? '', /flex:\s*1 0 100%/);
+  assert.equal(read('public/locales/de.json').includes('"takeFor"'), false, 'der zweite Wortlaut ist weg');
+});
+
+test('R22 D12: das Erfassen-Formular steht in EINEM Traeger, der Tag-Titel bricht nicht vor dem Punkt', () => {
+  const fn = HEALTH_JS.slice(HEALTH_JS.indexOf('function openVitalModal('), HEALTH_JS.indexOf('onSave(panel) {', HEALTH_JS.indexOf('function openVitalModal(')));
+  const groups = fn.match(/formRowsHtml\(/g) ?? [];
+  assert.equal(groups.length, 1, 'Art, Werte, Zeitpunkt und Sichtbarkeit in einem Traeger - durchgehende Haarlinien');
+  assert.match(fn, /formRowsHtml\(\[\s*formRowHtml\(\{\s*label: t\('health\.vitals\.field\.type'\)[\s\S]*?`<div class="form-rows" id="vital-value-fields">/,
+    'die Werte stehen als Glied in der Gruppe');
+  assert.match(HEALTH_JS, /title: `\$\{t\('health\.cycle\.dayLog\.title'\)\}\\u00A0· \$\{formatDate\(key\)\}`/, 'geschuetztes Leerzeichen vor dem Trenner');
+});
+
+// Sammel-Ticket R22-F, F4.5: der Einnehmen-Knopf trug seine Tablette am Desktop
+// nur auf der Medikamente-Seite - unter 26rem Zeilenbreite (Uebersicht 300-380px,
+// jedes Telefon) fiel sie weg. Gemessen mit Tablette 320-1920px in sechs Sprachen:
+// kein Ueberlauf, gleiche Zeilenhoehe. Keine Breite nimmt sie mehr.
+test('F4.5: Einnehmen traegt seine Tablette auf jeder Seite und bei jeder Breite', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const hides = [...eachRule(read('public/styles/health.css'))]
+    .filter((r) => /\.health-dose__take-icon/.test(r.selector) && /display:\s*none/.test(r.body));
+  assert.deepEqual(hides.map((r) => `${r.at.join(' ')} ${r.selector}`), [], 'eine Breite nimmt dem Knopf die Tablette - Uebersicht und Medikamente-Seite sahen verschieden aus');
+  assert.match(HEALTH_JS, /health-dose__take"[^>]*><i data-lucide="pill" class="icon-md health-dose__take-icon"/, 'die geplante Dosis traegt die Tablette');
+});
+
+// Nebenbefund zu F4.5: der Knopf "Einnehmen" hiess in 26 von 27 Sprachen wie
+// der ZUSTAND danach - en "Taken", fr "Pris", ja "服用済み" -, sein Name aber
+// "Take {{name}}". Ein Knopf, der "Taken" sagt, liest sich als erledigt, und
+// das sichtbare Wort stand nicht im Namen (WCAG 2.5.3 Label in Name: wer
+// "Taken" spricht, trifft "Take Vitamin D3" nicht). Das Wort ist jetzt das
+// Verb aus dem eigenen `takeNamed` jeder Sprache.
+test('F4.5: Einnehmen ist in jeder Sprache ein Verb, und sein Wort steht im Namen (WCAG 2.5.3)', () => {
+  const dir = join(ROOT, 'public/locales');
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+  assert.ok(files.length >= 27, `nur ${files.length} Sprachen`);
+  const missing = [];
+  for (const file of files) {
+    const meds = JSON.parse(readFileSync(join(dir, file), 'utf8')).health.meds;
+    const named = meds.takeNamed.replace('{{name}}', '').toLocaleLowerCase();
+    if (!named.includes(meds.take.toLocaleLowerCase())) missing.push(`${file}: "${meds.take}" / "${meds.takeNamed}"`);
+  }
+  assert.deepEqual(missing, [], 'das sichtbare Wort fehlt im Namen des Knopfs');
 });

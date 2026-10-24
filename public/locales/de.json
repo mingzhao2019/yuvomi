@@ -177,7 +177,7 @@
         "resultCountMany": "{{count}} Ergebnisse",
         "goTo": "Gehe zu",
         "newSection": "Neu anlegen",
-        "recentLabel": "Zuletzt geöffnet",
+        "recentLabel": "Zuletzt besucht",
         "createTaskNamed": "„{{title}}“ als Aufgabe anlegen",
         "hintMove": "Auswählen",
         "hintOpen": "Öffnen"
@@ -698,7 +698,12 @@
         "filterDueToday": "Bis heute fällig",
         "errorTaskGone": "Diese Aufgabe gibt es nicht mehr.",
         "errorParentGone": "Die Aufgabe zu dieser Teilaufgabe gibt es nicht mehr.",
-        "errorCommentGone": "Diesen Kommentar gibt es nicht mehr."
+        "errorCommentGone": "Diesen Kommentar gibt es nicht mehr.",
+        "kanbanShowMore": "{{count}} weitere anzeigen",
+        "kanbanShowMore_one": "{{count}} weitere anzeigen",
+        "doneByMenuItem": "Erledigt von …",
+        "checkedDoneNamed": "„{{title}}“ erledigt.",
+        "checkedOpenNamed": "„{{title}}“ wieder offen."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} Artikel gelöscht.",
@@ -1368,6 +1373,8 @@
         "showBirthday": "In Geburtstagen anzeigen",
         "addToBirthdays": "Zu Geburtstagen hinzufügen",
         "addedToBirthdays": "Zu Geburtstagen hinzugefügt.",
+        "birthdaySuggestValue": "Ein Geburtstag heißt genauso, ist aber nicht verknüpft.",
+        "linkedToBirthday": "Mit dem Geburtstag verknüpft.",
         "birthdayHint": "Erscheint über den Geburtstags-Import auch im Kalender.",
         "phonePlaceholder": "+49 …",
         "phonePreview": "Vorschau: {{value}}",
@@ -2233,7 +2240,6 @@
         "gravatarErrorStale": "Dein Bild, deine Adresse oder dein Konto hat sich geändert, während das Bild geholt wurde. Es wurde nichts gespeichert.",
         "gravatarErrorNotMember": "Nur Mitglieder des Haushalts können ein Gravatar holen.",
         "profileSavedToast": "Profil aktualisiert.",
-        "editMemberLabel": "Bearbeiten",
         "editMemberTitle": "Familienmitglied bearbeiten",
         "saveMember": "Mitglied speichern",
         "memberUpdatedToast": "{{name}} aktualisiert.",
@@ -2456,7 +2462,6 @@
         "memberContactBirthdayHint": "Dieses Mitglied wird automatisch mit Kontakten und Geburtstagen synchronisiert.",
         "memberBirthDateInvalid": "Bitte ein gültiges Geburtstagsdatum im ausgewählten Format verwenden.",
         "memberPhoneMeta": "Telefon: {{value}}",
-        "memberBirthdayMeta": "Geburtstag: {{date}}",
         "sectionBackup": "Backup-Verwaltung",
         "backupDownloadTitle": "Datenbank-Backup herunterladen",
         "backupDownloadHint": "Erstellt ein konsistentes SQLite-Backup aller Anwendungsdaten.",
@@ -3310,7 +3315,12 @@
         "sheetRewardsDescription": "Freigaben und Standard-Punkte für neue Aufgaben festlegen.",
         "sheetHealthDescription": "Eigene Ansichten, den Zyklus und die Vorsorge-Arten festlegen.",
         "displaysTitle": "Wandtabletts",
-        "displaysHint": "Ein Wandtablett bekommt ein eigenes Konto, das nur dieses Gerät benutzen kann. Es ist kein Familienmitglied, meldet sich nicht an und sieht nur, was für den Haushalt sichtbar ist. Seine Übersicht folgt der Vorgabe des Haushalts, sonst der Standardanordnung. Der Wand-Modus folgt ihr nicht: Er zeigt immer Uhrzeit, Tagesprogramm, wer heute dran ist und das Wetter.",
+        "displaysLead": "Ein Wandtablett bekommt ein eigenes Konto, das nur dieses Gerät benutzen kann. Es ist kein Familienmitglied, meldet sich nicht an und sieht nur, was für den Haushalt sichtbar ist.",
+        "displaysMore": "Seine Übersicht folgt der Vorgabe des Haushalts, sonst der Standardanordnung. Der Wand-Modus folgt ihr nicht: Er zeigt immer Uhrzeit, Tagesprogramm, wer heute dran ist und das Wetter.",
+        "hintMore": "Mehr dazu",
+        "weatherHouseholdLinkHint": "Den Haushaltsstandort legst du als Admin fest.",
+        "wallDisplaysLinkHint": "Ein Tablett, das nur als Wand dient, bekommt ein eigenes Konto ohne Anmeldung.",
+        "displaysWallModeLinkHint": "Den Wand-Modus schaltest du auf dem Tablett selbst ein.",
         "displaysAreasHint": "Es zeigt {{areas}}.",
         "displayDeviceNameLabel": "Name des Tablets",
         "displayDeviceNameHint": "Zum Beispiel „Küche“ oder „Flur“ - nur zur Unterscheidung in dieser Liste.",
@@ -3653,7 +3663,16 @@
         "yearlessDayLabel": "Tag des Geburtstags",
         "yearlessMonthPlaceholder": "Monat",
         "yearlessDayPlaceholder": "Tag",
-        "yearlessIncomplete": "Bitte Monat und Tag des Geburtstags auswählen."
+        "yearlessIncomplete": "Bitte Monat und Tag des Geburtstags auswählen.",
+        "nextBirthdayOn": "Nächster Geburtstag am {{date}}",
+        "contactLinkLabel": "Mit Kontakt verknüpfen",
+        "contactLinkNone": "Keiner",
+        "contactLinkHint": "Beide Einträge führen dann zueinander. Das Datum bleibt getrennt.",
+        "contactSuggestLabel": "Kontakt",
+        "contactSuggestValue": "Ein Kontakt heißt genauso, ist aber nicht verknüpft.",
+        "linkContact": "Verknüpfen",
+        "linkedToast": "Mit dem Kontakt verknüpft.",
+        "errorContactLinked": "Dieser Kontakt ist schon mit einem anderen Geburtstag verknüpft."
     },
     "recipes": {
         "mealTypeNone": "Keine Mahlzeit",
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigation & Module",
         "step2Body": "Die Leiste unten führt direkt zu den wichtigsten Bereichen. Alle weiteren Module findest du unter „Mehr“.",
         "step3Title": "Schnell loslegen",
-        "step3Body": "Mit dem +-Knopf unten rechts erstellst du überall neue Einträge. Wische Listeneinträge nach links oder rechts für Schnellaktionen.",
+        "step3Body": "Mit dem +-Knopf unten rechts erstellst du überall neue Einträge. In Aufgaben, Einkauf und Vorrat wischst du Einträge nach links oder rechts für Schnellaktionen.",
         "next": "Weiter",
         "done": "Loslegen",
         "skip": "Überspringen",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Du schuldest",
         "debtYouOwe": "Du schuldest {{name}}",
         "debtOwesYou": "{{name}} schuldet dir",
-        "debtOwes": "{{from}} schuldet {{to}}"
+        "debtOwes": "{{from}} schuldet {{to}}",
+        "balanced": "Ausgeglichen",
+        "balancedInGroup": "{{group}}: Ausgeglichen"
     },
     "wmo": {
         "0": "Klarer Himmel",
@@ -4526,7 +4547,8 @@
         "tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein.",
         "invalidToken": "Dieser Link zum Zurücksetzen ist ungültig oder abgelaufen - fordere einen neuen an.",
         "missingToken": "Dieser Link zum Zurücksetzen ist unvollständig - fordere einen neuen an.",
-        "requestNew": "Neuen Link anfordern"
+        "requestNew": "Neuen Link anfordern",
+        "invalidTitle": "Link ungültig"
     },
     "email": {
         "host": "SMTP-Host",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Bei Bedarf",
-                "take": "Jetzt nehmen",
-                "takeFor": "{{medication}} jetzt nehmen",
                 "nextAt": "Frühestens {{time}}",
                 "remainingHm": "noch {{hours}} Std. {{minutes}} Min.",
                 "remainingM": "noch {{minutes}} Min.",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Dafür reichen die Punkte nicht.",
         "errorNotParticipating": "Diese Person sammelt keine Punkte.",
         "errorMoneyAccountGone": "Dieses Konto gibt es nicht mehr.",
-        "errorMoneyPlanGone": "Diesen Plan gibt es nicht mehr."
+        "errorMoneyPlanGone": "Diesen Plan gibt es nicht mehr.",
+        "ownLedger": "Deine Buchungen"
     },
     "datepicker": {
         "openCalendar": "Kalender öffnen",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Diese Buchung ist bereits verknüpft.",
         "errorLocationExists": "Diesen Ort gibt es hier schon. Wähle einen anderen Namen.",
         "errorLocationGone": "Diesen Ort gibt es nicht mehr.",
-        "errorCategoryGone": "Diese Kategorie gibt es nicht mehr."
+        "errorCategoryGone": "Diese Kategorie gibt es nicht mehr.",
+        "editItem": "Gegenstand bearbeiten"
     },
     "documentAttach": {
         "label": "Anhänge",
@@ -6436,13 +6458,14 @@
         "mismatch": "Die Passwörter stimmen nicht überein.",
         "tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein.",
         "invalidToken": "Diese Einladung ist ungültig, abgelaufen oder schon eingelöst - bitte um einen neuen Link.",
-        "missingToken": "Dieser Einladungslink ist ungültig oder abgelaufen - bitte um einen neuen.",
         "usernameRequired": "Bitte wähle einen Benutzernamen.",
         "usernameInvalid": "Der Benutzername muss 3 bis 64 Zeichen lang sein und darf nur Buchstaben, Zahlen, Punkt, Bindestrich und Unterstrich enthalten.",
         "usernameTaken": "Dieser Benutzername ist bereits vergeben.",
         "error": "Das Konto konnte nicht erstellt werden. Bitte versuche es noch einmal.",
         "displayNameTooLong": "Der Anzeigename darf höchstens 128 Zeichen lang sein.",
-        "previewFailed": "Die Einladung konnte gerade nicht geprüft werden. Bitte lade die Seite in einem Moment neu."
+        "previewFailed": "Die Einladung konnte gerade nicht geprüft werden. Bitte lade die Seite in einem Moment neu.",
+        "invalidTitle": "Einladung ungültig",
+        "toLogin": "Zur Anmeldung"
     },
     "newLabel": {
         "tasks": "Aufgabe",
@@ -6470,7 +6493,7 @@
         "healthVitals": "Messwert",
         "healthCycle": "Periode",
         "healthMeds": "Medikament",
-        "healthPrevention": "Vorsorge",
+        "healthPrevention": "Untersuchung",
         "healthLabs": "Befund",
         "healthActivity": "Training",
         "healthNutrition": "Mahlzeit",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Dieses Feld gibt es nicht mehr.",
         "errorSelectedCustomFieldGone": "Ein gewähltes Feld gibt es nicht mehr.",
         "errorPatternGone": "Diesen Schichtplan gibt es nicht mehr.",
-        "errorEntryGone": "Diesen Eintrag gibt es nicht mehr."
+        "errorEntryGone": "Diesen Eintrag gibt es nicht mehr.",
+        "overviewPeopleCount": "Personen vergleichen ({{count}})"
     },
     "pairDisplay": {
         "title": "Tablet koppeln",

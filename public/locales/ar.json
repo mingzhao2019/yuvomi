@@ -833,7 +833,15 @@
         "tagsSkippedLocked_many": "تم تخطي {{count}} مهمة مقفلة.",
         "errorTaskGone": "هذه المهمة لم تعد موجودة.",
         "errorParentGone": "المهمة التي تنتمي إليها هذه المهمة الفرعية لم تعد موجودة.",
-        "errorCommentGone": "هذا التعليق لم يعد موجودًا."
+        "errorCommentGone": "هذا التعليق لم يعد موجودًا.",
+        "kanbanShowMore": "عرض {{count}} أخرى",
+        "kanbanShowMore_one": "عرض {{count}} آخر",
+        "kanbanShowMore_few": "عرض {{count}} أخرى",
+        "kanbanShowMore_two": "عرض {{count}} أخرى",
+        "kanbanShowMore_many": "عرض {{count}} أخرى",
+        "doneByMenuItem": "أنجزها …",
+        "checkedDoneNamed": "تم إنجاز «{{title}}».",
+        "checkedOpenNamed": "«{{title}}» مفتوحة مجددًا."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} وجبات",
@@ -1572,6 +1580,8 @@
         "showBirthday": "عرض في أعياد الميلاد",
         "addToBirthdays": "إضافة إلى أعياد الميلاد",
         "addedToBirthdays": "تمت الإضافة إلى أعياد الميلاد.",
+        "birthdaySuggestValue": "يوجد عيد ميلاد بالاسم نفسه لكنه غير مرتبط.",
+        "linkedToBirthday": "تم الربط بعيد الميلاد.",
         "birthdayHint": "يظهر أيضًا في التقويم عبر استيراد أعياد الميلاد.",
         "phonePlaceholder": "+966 …",
         "phonePreview": "معاينة: {{value}}",
@@ -2318,7 +2328,6 @@
         "gravatarErrorStale": "تغيّرت صورتك أو عنوانك أو حسابك أثناء جلب الصورة. لم يُحفظ أي شيء.",
         "gravatarErrorNotMember": "لا يمكن جلب صورة Gravatar إلا لأفراد الأسرة.",
         "profileSavedToast": "تم تحديث الملف الشخصي.",
-        "editMemberLabel": "تعديل",
         "editMemberTitle": "تعديل فرد العائلة",
         "saveMember": "حفظ الفرد",
         "memberUpdatedToast": "تم تحديث {{name}}.",
@@ -2510,7 +2519,6 @@
         "memberContactBirthdayHint": "تتم مزامنة هذا العضو تلقائيًا مع جهات الاتصال وأعياد الميلاد.",
         "memberBirthDateInvalid": "استخدم تاريخ ميلاد صحيحًا بالتنسيق المحدد.",
         "memberPhoneMeta": "الهاتف: {{value}}",
-        "memberBirthdayMeta": "عيد الميلاد: {{date}}",
         "tabBackup": "إدارة النسخ الاحتياطي",
         "sectionBackup": "إدارة النسخ الاحتياطي",
         "backupDownloadTitle": "تنزيل نسخة احتياطية من قاعدة البيانات",
@@ -3560,7 +3568,12 @@
         "sheetRewardsDescription": "تحديد الموافقات والنقاط الافتراضية للمهام الجديدة.",
         "sheetHealthDescription": "عروضك الخاصة والدورة وأنواع الوقاية.",
         "displaysTitle": "الأجهزة اللوحية الجدارية",
-        "displaysHint": "يحصل الجهاز اللوحي الجداري على حساب خاص به لا يستخدمه سوى هذا الجهاز. وهو ليس فردًا من العائلة، ولا يسجّل الدخول، ولا يرى إلا ما هو ظاهر للأسرة. تتبع لوحته الإعداد الافتراضي للأسرة، أو التخطيط القياسي إن لم يُحدَّد إعداد. وضع الحائط لا يتبع هذا الإعداد: يعرض دائمًا الوقت وبرنامج اليوم ومن عليه الدور اليوم والطقس.",
+        "displaysLead": "يحصل الجهاز اللوحي الجداري على حساب خاص به لا يستخدمه سوى هذا الجهاز. وهو ليس فردًا من العائلة، ولا يسجّل الدخول، ولا يرى إلا ما هو ظاهر للأسرة.",
+        "displaysMore": "تتبع لوحته الإعداد الافتراضي للأسرة، أو التخطيط القياسي إن لم يُحدَّد إعداد. وضع الحائط لا يتبع هذا الإعداد: يعرض دائمًا الوقت وبرنامج اليوم ومن عليه الدور اليوم والطقس.",
+        "hintMore": "معرفة المزيد",
+        "weatherHouseholdLinkHint": "بصفتك مسؤولًا، تحدد موقع الأسرة.",
+        "wallDisplaysLinkHint": "الجهاز اللوحي الذي يعمل كشاشة حائط فقط يحصل على حساب خاص به دون تسجيل دخول.",
+        "displaysWallModeLinkHint": "تشغّل وضع الحائط على الجهاز اللوحي نفسه.",
         "displaysAreasHint": "يعرض: {{areas}}.",
         "displayDeviceNameLabel": "اسم الجهاز اللوحي",
         "displayDeviceNameHint": "مثل «المطبخ» أو «الممر» - للتمييز بينها في هذه القائمة فقط.",
@@ -3919,7 +3932,7 @@
         "resultCountMany": "{{count}} نتائج",
         "goTo": "انتقل إلى",
         "newSection": "إنشاء جديد",
-        "recentLabel": "فُتح مؤخرًا",
+        "recentLabel": "زرتها مؤخرًا",
         "createTaskNamed": "إنشاء „{{title}}“ كمهمة",
         "hintMove": "تحديد",
         "hintOpen": "فتح"
@@ -3994,7 +4007,16 @@
         "yearlessDayLabel": "يوم عيد الميلاد",
         "yearlessMonthPlaceholder": "الشهر",
         "yearlessDayPlaceholder": "اليوم",
-        "yearlessIncomplete": "اختر شهر ويوم عيد الميلاد."
+        "yearlessIncomplete": "اختر شهر ويوم عيد الميلاد.",
+        "nextBirthdayOn": "عيد الميلاد القادم في {{date}}",
+        "contactLinkLabel": "ربط بجهة اتصال",
+        "contactLinkNone": "لا شيء",
+        "contactLinkHint": "عندها يقود كل من الإدخالين إلى الآخر. يبقى التاريخ منفصلًا.",
+        "contactSuggestLabel": "جهة الاتصال",
+        "contactSuggestValue": "توجد جهة اتصال بالاسم نفسه لكنها غير مرتبطة.",
+        "linkContact": "ربط",
+        "linkedToast": "تم الربط بجهة الاتصال.",
+        "errorContactLinked": "جهة الاتصال هذه مرتبطة بالفعل بعيد ميلاد آخر."
     },
     "reminders": {
         "sectionTitle": "تذكير",
@@ -4044,7 +4066,7 @@
         "step2Title": "التنقل والوحدات",
         "step2Body": "الشريط السفلي يأخذك مباشرة إلى أهم الأقسام. تجد بقية الوحدات تحت «المزيد».",
         "step3Title": "ابدأ بسرعة",
-        "step3Body": "زر + في الزاوية السفلية ينشئ إدخالات جديدة في أي مكان. اسحب عناصر القائمة يمينًا أو يسارًا للإجراءات السريعة.",
+        "step3Body": "زر + في الزاوية السفلية ينشئ إدخالات جديدة في أي مكان. في المهام والتسوق والمؤن اسحب العناصر يمينًا أو يسارًا للإجراءات السريعة.",
         "next": "التالي",
         "done": "لنبدأ",
         "skip": "تخطي",
@@ -4803,7 +4825,9 @@
         "youOweInGroup": "{{group}}: عليك",
         "debtYouOwe": "أنت مدين لـ {{name}}",
         "debtOwesYou": "{{name}} مدين لك",
-        "debtOwes": "{{from}} مدين لـ {{to}}"
+        "debtOwes": "{{from}} مدين لـ {{to}}",
+        "balanced": "متسوّى",
+        "balancedInGroup": "{{group}}: متسوّى"
     },
     "wmo": {
         "0": "سماء صافية",
@@ -4884,7 +4908,8 @@
         "tooShort": "يجب ألا تقل كلمة المرور عن 8 أحرف.",
         "invalidToken": "رابط إعادة التعيين هذا غير صالح أو منتهي الصلاحية - اطلب رابطًا جديدًا.",
         "missingToken": "رابط إعادة التعيين هذا غير مكتمل - اطلب رابطًا جديدًا.",
-        "requestNew": "طلب رابط جديد"
+        "requestNew": "طلب رابط جديد",
+        "invalidTitle": "الرابط غير صالح"
     },
     "email": {
         "host": "خادم SMTP",
@@ -5419,7 +5444,7 @@
             "noMeds": "لا توجد أدوية بعد.",
             "logTitle": "سجل التناول",
             "personsLabel": "الشخص",
-            "take": "تم التناول",
+            "take": "تناول",
             "skip": "تخطّي",
             "dueToday": {
                 "title": "مستحق اليوم",
@@ -5504,8 +5529,6 @@
             },
             "prn": {
                 "title": "عند الحاجة",
-                "take": "تناول الآن",
-                "takeFor": "تناول {{medication}} الآن",
                 "nextAt": "في أقرب وقت {{time}}",
                 "remainingHm": "بقي {{hours}} س {{minutes}} د",
                 "remainingM": "بقي {{minutes}} د",
@@ -6570,7 +6593,8 @@
         "errorNotEnoughPoints": "النقاط لا تكفي لهذا.",
         "errorNotParticipating": "هذا الشخص لا يجمع النقاط.",
         "errorMoneyAccountGone": "هذا الحساب لم يعد موجودًا.",
-        "errorMoneyPlanGone": "هذه الخطة لم تعد موجودة."
+        "errorMoneyPlanGone": "هذه الخطة لم تعد موجودة.",
+        "ownLedger": "معاملاتك"
     },
     "datepicker": {
         "openCalendar": "فتح التقويم",
@@ -6867,7 +6891,8 @@
         "errorBookingAlreadyLinked": "هذه المعاملة مرتبطة بالفعل.",
         "errorLocationExists": "هذا الموقع موجود هنا بالفعل. اختر اسمًا آخر.",
         "errorLocationGone": "هذا الموقع لم يعد موجودًا.",
-        "errorCategoryGone": "هذه الفئة لم تعد موجودة."
+        "errorCategoryGone": "هذه الفئة لم تعد موجودة.",
+        "editItem": "تعديل الغرض"
     },
     "documentAttach": {
         "label": "المرفقات",
@@ -6902,13 +6927,14 @@
         "mismatch": "كلمتا المرور غير متطابقتين.",
         "tooShort": "يجب ألا تقل كلمة المرور عن 8 أحرف.",
         "invalidToken": "هذه الدعوة غير صالحة أو منتهية أو تم استخدامها بالفعل - اطلب رابطًا جديدًا.",
-        "missingToken": "رابط الدعوة هذا غير صالح أو منتهي الصلاحية - اطلب رابطًا جديدًا.",
         "usernameRequired": "اختر اسم مستخدم.",
         "usernameInvalid": "يجب أن يتكون اسم المستخدم من 3 إلى 64 حرفًا وألا يحتوي إلا على حروف وأرقام ونقاط وشرطات وشرطات سفلية.",
         "usernameTaken": "اسم المستخدم هذا مستخدم بالفعل.",
         "error": "تعذر إنشاء الحساب. حاول مرة أخرى.",
         "displayNameTooLong": "يجب ألا يزيد الاسم المعروض عن 128 حرفًا.",
-        "previewFailed": "تعذر التحقق من الدعوة الآن. أعد تحميل الصفحة بعد قليل."
+        "previewFailed": "تعذر التحقق من الدعوة الآن. أعد تحميل الصفحة بعد قليل.",
+        "invalidTitle": "الدعوة غير صالحة",
+        "toLogin": "الانتقال إلى تسجيل الدخول"
     },
     "newLabel": {
         "tasks": "مهمة",
@@ -7161,7 +7187,8 @@
         "errorCustomFieldGone": "هذا الحقل لم يعد موجودًا.",
         "errorSelectedCustomFieldGone": "أحد الحقول المختارة لم يعد موجودًا.",
         "errorPatternGone": "دورة المناوبات هذه لم تعد موجودة.",
-        "errorEntryGone": "هذا الإدخال لم يعد موجودًا."
+        "errorEntryGone": "هذا الإدخال لم يعد موجودًا.",
+        "overviewPeopleCount": "مقارنة الأشخاص ({{count}})"
     },
     "pairDisplay": {
         "title": "اقتران الجهاز اللوحي",

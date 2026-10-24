@@ -680,7 +680,12 @@
         "filterDueToday": "Son tarihi bugüne kadar",
         "errorTaskGone": "Bu görev artık yok.",
         "errorParentGone": "Bu alt görevin ait olduğu görev artık yok.",
-        "errorCommentGone": "Bu yorum artık yok."
+        "errorCommentGone": "Bu yorum artık yok.",
+        "kanbanShowMore": "{{count}} tane daha göster",
+        "kanbanShowMore_one": "{{count}} tane daha göster",
+        "doneByMenuItem": "Yapan …",
+        "checkedDoneNamed": "\"{{title}}\" tamamlandı.",
+        "checkedOpenNamed": "\"{{title}}\" yeniden açık."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} ürün silindi.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Doğum günlerinde göster",
         "addToBirthdays": "Doğum günlerine ekle",
         "addedToBirthdays": "Doğum günlerine eklendi.",
+        "birthdaySuggestValue": "Aynı ada sahip bir doğum günü var ama bağlı değil.",
+        "linkedToBirthday": "Doğum gününe bağlandı.",
         "birthdayHint": "Doğum günü içe aktarımıyla takvimde de görünür.",
         "phonePlaceholder": "+90 …",
         "phonePreview": "Önizleme: {{value}}",
@@ -2080,7 +2087,6 @@
         "gravatarErrorStale": "Resim alınırken resminiz, adresiniz veya hesabınız değişti. Hiçbir şey kaydedilmedi.",
         "gravatarErrorNotMember": "Yalnızca hane üyeleri Gravatar alabilir.",
         "profileSavedToast": "Profil güncellendi.",
-        "editMemberLabel": "Düzenle",
         "editMemberTitle": "Aile üyesini düzenle",
         "saveMember": "Üyeyi kaydet",
         "memberUpdatedToast": "{{name}} güncellendi.",
@@ -2266,7 +2272,6 @@
         "memberContactBirthdayHint": "Bu üye otomatik olarak Kişiler ve Doğum Günleri ile senkronize edilir.",
         "memberBirthDateInvalid": "Seçilen tarih formatında geçerli bir doğum tarihi kullanın.",
         "memberPhoneMeta": "Telefon: {{value}}",
-        "memberBirthdayMeta": "Doğum günü: {{date}}",
         "tabBackup": "Yedek yönetimi",
         "sectionBackup": "Yedek yönetimi",
         "backupDownloadTitle": "Veritabanı yedeğini indir",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Yeni görevler için onayları ve varsayılan puanları ayarla.",
         "sheetHealthDescription": "Kendi görünümlerin, döngü ve önleme türleri.",
         "displaysTitle": "Duvar tabletleri",
-        "displaysHint": "Duvar tableti, yalnızca bu cihazın kullanabileceği kendi hesabını alır. Aile üyesi değildir, oturum açmaz ve yalnızca ev halkına görünen şeyleri görür. Genel bakışı hane varsayılanını, ayarlanmamışsa standart düzeni izler. Duvar modu bunu izlemez: her zaman saati, günün programını, bugün kimin sırası olduğunu ve hava durumunu gösterir.",
+        "displaysLead": "Duvar tableti, yalnızca bu cihazın kullanabileceği kendi hesabını alır. Aile üyesi değildir, oturum açmaz ve yalnızca ev halkına görünen şeyleri görür.",
+        "displaysMore": "Genel bakışı hane varsayılanını, ayarlanmamışsa standart düzeni izler. Duvar modu bunu izlemez: her zaman saati, günün programını, bugün kimin sırası olduğunu ve hava durumunu gösterir.",
+        "hintMore": "Daha fazla bilgi",
+        "weatherHouseholdLinkHint": "Yönetici olarak hane konumunu sen belirlersin.",
+        "wallDisplaysLinkHint": "Yalnızca duvar ekranı olarak kullanılan bir tablet, oturum açmadan kendi hesabını alır.",
+        "displaysWallModeLinkHint": "Duvar modunu tabletin kendisinde açarsın.",
         "displaysAreasHint": "Gösterdikleri: {{areas}}.",
         "displayDeviceNameLabel": "Tabletin adı",
         "displayDeviceNameHint": "Örneğin “Mutfak” veya “Koridor” - yalnızca bu listede ayırt etmek için.",
@@ -3603,7 +3613,7 @@
         "resultCountMany": "{{count}} sonuç",
         "goTo": "Git",
         "newSection": "Yeni oluştur",
-        "recentLabel": "Son açılanlar",
+        "recentLabel": "Son ziyaret edilenler",
         "createTaskNamed": "“{{title}}” görevini oluştur",
         "hintMove": "Seç",
         "hintOpen": "Aç"
@@ -3675,7 +3685,16 @@
         "yearlessDayLabel": "Doğum gününün günü",
         "yearlessMonthPlaceholder": "Ay",
         "yearlessDayPlaceholder": "Gün",
-        "yearlessIncomplete": "Doğum gününün ayını ve gününü seçin."
+        "yearlessIncomplete": "Doğum gününün ayını ve gününü seçin.",
+        "nextBirthdayOn": "Sonraki doğum günü {{date}}",
+        "contactLinkLabel": "Kişiye bağla",
+        "contactLinkNone": "Hiçbiri",
+        "contactLinkHint": "İki kayıt böylece birbirine yönlendirir. Tarih ayrı kalır.",
+        "contactSuggestLabel": "Kişi",
+        "contactSuggestValue": "Aynı ada sahip bir kişi var ama bağlı değil.",
+        "linkContact": "Bağla",
+        "linkedToast": "Kişiye bağlandı.",
+        "errorContactLinked": "Bu kişi zaten başka bir doğum gününe bağlı."
     },
     "reminders": {
         "sectionTitle": "Hatırlatıcı",
@@ -3725,7 +3744,7 @@
         "step2Title": "Gezinme ve Modüller",
         "step2Body": "Alttaki çubuk sizi doğrudan en önemli alanlara götürür. Diğer tüm modülleri “Daha Fazla” altında bulursunuz.",
         "step3Title": "Hızlıca başlayın",
-        "step3Body": "Alt köşedeki + düğmesiyle her yerde yeni kayıt oluşturursun. Hızlı işlemler için liste öğelerini sola veya sağa kaydır.",
+        "step3Body": "Alt köşedeki + düğmesiyle her yerde yeni kayıt oluşturursun. Görevler, Alışveriş ve Kiler’de hızlı işlemler için öğeleri sola veya sağa kaydır.",
         "next": "İleri",
         "done": "Başla",
         "skip": "Atla",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Borcun",
         "debtYouOwe": "{{name}} kişisine borçlusun",
         "debtOwesYou": "{{name}} sana borçlu",
-        "debtOwes": "{{from}}, {{to}} kişisine borçlu"
+        "debtOwes": "{{from}}, {{to}} kişisine borçlu",
+        "balanced": "Hesap kapalı",
+        "balancedInGroup": "{{group}}: Hesap kapalı"
     },
     "wmo": {
         "0": "Açık",
@@ -4526,7 +4547,8 @@
         "tooShort": "Parola en az 8 karakter olmalı.",
         "invalidToken": "Bu sıfırlama bağlantısı geçersiz veya süresi dolmuş - yenisini isteyin.",
         "missingToken": "Bu sıfırlama bağlantısı eksik - yenisini isteyin.",
-        "requestNew": "Yeni bağlantı iste"
+        "requestNew": "Yeni bağlantı iste",
+        "invalidTitle": "Geçersiz bağlantı"
     },
     "email": {
         "host": "SMTP sunucusu",
@@ -5043,7 +5065,7 @@
             "noMeds": "Henüz ilaç yok.",
             "logTitle": "Alım kaydı",
             "personsLabel": "Kişi",
-            "take": "Alındı",
+            "take": "Al",
             "skip": "Atla",
             "dueToday": {
                 "title": "Bugün yapılacak",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Gerektiğinde",
-                "take": "Şimdi al",
-                "takeFor": "{{medication}} şimdi alınsın",
                 "nextAt": "En erken {{time}}",
                 "remainingHm": "{{hours}} sa {{minutes}} dk kaldı",
                 "remainingM": "{{minutes}} dk kaldı",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Bunun için puan yetmiyor.",
         "errorNotParticipating": "Bu kişi puan toplamıyor.",
         "errorMoneyAccountGone": "Bu hesap artık yok.",
-        "errorMoneyPlanGone": "Bu plan artık yok."
+        "errorMoneyPlanGone": "Bu plan artık yok.",
+        "ownLedger": "Hareketlerin"
     },
     "datepicker": {
         "openCalendar": "Takvimi aç",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Bu işlem zaten bağlı.",
         "errorLocationExists": "Bu konum burada zaten var. Başka bir ad seçin.",
         "errorLocationGone": "Bu konum artık yok.",
-        "errorCategoryGone": "Bu kategori artık yok."
+        "errorCategoryGone": "Bu kategori artık yok.",
+        "editItem": "Eşyayı düzenle"
     },
     "documentAttach": {
         "label": "Ekler",
@@ -6436,13 +6458,14 @@
         "mismatch": "Parolalar eşleşmiyor.",
         "tooShort": "Parola en az 8 karakter olmalı.",
         "invalidToken": "Bu davet geçersiz, süresi dolmuş ya da zaten kullanılmış - yeni bir bağlantı isteyin.",
-        "missingToken": "Bu davet bağlantısı geçersiz veya süresi dolmuş - yenisini isteyin.",
         "usernameRequired": "Bir kullanıcı adı seç.",
         "usernameInvalid": "Kullanıcı adı 3 ile 64 karakter arasında olmalı ve yalnızca harf, rakam, nokta, tire ve alt çizgi içerebilir.",
         "usernameTaken": "Bu kullanıcı adı zaten alınmış.",
         "error": "Hesap oluşturulamadı. Lütfen tekrar dene.",
         "displayNameTooLong": "Görünen ad en fazla 128 karakter olabilir.",
-        "previewFailed": "Davet şu anda denetlenemedi. Lütfen birazdan sayfayı yeniden yükle."
+        "previewFailed": "Davet şu anda denetlenemedi. Lütfen birazdan sayfayı yeniden yükle.",
+        "invalidTitle": "Geçersiz davet",
+        "toLogin": "Girişe git"
     },
     "newLabel": {
         "tasks": "Görev",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Bu alan artık yok.",
         "errorSelectedCustomFieldGone": "Seçilen alanlardan biri artık yok.",
         "errorPatternGone": "Bu vardiya düzeni artık yok.",
-        "errorEntryGone": "Bu kayıt artık yok."
+        "errorEntryGone": "Bu kayıt artık yok.",
+        "overviewPeopleCount": "Kişileri karşılaştır ({{count}})"
     },
     "pairDisplay": {
         "title": "Tableti eşleştir",

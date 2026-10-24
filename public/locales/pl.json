@@ -185,7 +185,7 @@
         "resultCountMany": "{{count}} wyników",
         "goTo": "Przejdź do",
         "newSection": "Utwórz nowe",
-        "recentLabel": "Ostatnio otwierane",
+        "recentLabel": "Ostatnio odwiedzane",
         "createTaskNamed": "Utwórz „{{title}}” jako zadanie",
         "hintMove": "Zaznacz",
         "hintOpen": "Otwórz"
@@ -800,7 +800,14 @@
         "tagsSkippedLocked_many": "Pominięto {{count}} zablokowanych zadań.",
         "errorTaskGone": "To zadanie już nie istnieje.",
         "errorParentGone": "Zadanie nadrzędne tego podzadania już nie istnieje.",
-        "errorCommentGone": "Ten komentarz już nie istnieje."
+        "errorCommentGone": "Ten komentarz już nie istnieje.",
+        "kanbanShowMore": "Pokaż {{count}} więcej",
+        "kanbanShowMore_one": "Pokaż {{count}} więcej",
+        "kanbanShowMore_few": "Pokaż {{count}} więcej",
+        "kanbanShowMore_many": "Pokaż {{count}} więcej",
+        "doneByMenuItem": "Wykonał(a) …",
+        "checkedDoneNamed": "„{{title}}” zrobione.",
+        "checkedOpenNamed": "„{{title}}” znowu otwarte."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} posiłki",
@@ -1516,6 +1523,8 @@
         "showBirthday": "Pokaż w urodzinach",
         "addToBirthdays": "Dodaj do urodzin",
         "addedToBirthdays": "Dodano do urodzin.",
+        "birthdaySuggestValue": "Urodziny o tej samej nazwie nie są połączone.",
+        "linkedToBirthday": "Połączono z urodzinami.",
         "birthdayHint": "Dzięki importowi urodzin pojawia się też w kalendarzu.",
         "phonePlaceholder": "+48 …",
         "phonePreview": "Podgląd: {{value}}",
@@ -2391,7 +2400,6 @@
         "gravatarErrorStale": "Twój obraz, adres lub konto zmieniły się podczas pobierania obrazu. Nic nie zostało zapisane.",
         "gravatarErrorNotMember": "Tylko członkowie gospodarstwa domowego mogą pobrać Gravatar.",
         "profileSavedToast": "Profil zaktualizowany.",
-        "editMemberLabel": "Edytuj",
         "editMemberTitle": "Edytuj członka rodziny",
         "saveMember": "Zapisz członka",
         "memberUpdatedToast": "{{name}} zaktualizowany.",
@@ -2581,7 +2589,6 @@
         "memberContactBirthdayHint": "Ten członek będzie automatycznie synchronizowany z kontaktami i urodzinami.",
         "memberBirthDateInvalid": "Proszę użyć prawidłowej daty urodzin w wybranym formacie.",
         "memberPhoneMeta": "Telefon: {{value}}",
-        "memberBirthdayMeta": "Urodziny: {{date}}",
         "sectionBackup": "Zarządzanie kopiami",
         "backupDownloadTitle": "Pobierz kopię bazy danych",
         "backupDownloadHint": "Tworzy spójną kopię SQLite wszystkich danych aplikacji.",
@@ -3488,7 +3495,12 @@
         "sheetRewardsDescription": "Ustaw zatwierdzanie i domyślne punkty dla nowych zadań.",
         "sheetHealthDescription": "Własne widoki, cykl i rodzaje profilaktyki.",
         "displaysTitle": "Tablety ścienne",
-        "displaysHint": "Tablet ścienny otrzymuje własne konto, z którego może korzystać tylko to urządzenie. Nie jest członkiem rodziny, nie loguje się i widzi tylko to, co jest widoczne dla gospodarstwa domowego. Jego przegląd korzysta z domyślnego układu domu, a gdy go nie ustawiono, z układu standardowego. Tryb ścienny z niego nie korzysta: zawsze pokazuje godzinę, plan dnia, kto dziś ma dyżur i pogodę.",
+        "displaysLead": "Tablet ścienny otrzymuje własne konto, z którego może korzystać tylko to urządzenie. Nie jest członkiem rodziny, nie loguje się i widzi tylko to, co jest widoczne dla gospodarstwa domowego.",
+        "displaysMore": "Jego przegląd korzysta z domyślnego układu domu, a gdy go nie ustawiono, z układu standardowego. Tryb ścienny z niego nie korzysta: zawsze pokazuje godzinę, plan dnia, kto dziś ma dyżur i pogodę.",
+        "hintMore": "Więcej informacji",
+        "weatherHouseholdLinkHint": "Jako administrator ustawiasz lokalizację domu.",
+        "wallDisplaysLinkHint": "Tablet, który służy tylko jako ekran ścienny, dostaje własne konto bez logowania.",
+        "displaysWallModeLinkHint": "Tryb ścienny włączasz na samym tablecie.",
         "displaysAreasHint": "Pokazuje: {{areas}}.",
         "displayDeviceNameLabel": "Nazwa tabletu",
         "displayDeviceNameHint": "Na przykład „Kuchnia” lub „Przedpokój” - służy tylko do rozróżnienia na tej liście.",
@@ -3861,7 +3873,16 @@
         "yearlessDayLabel": "Dzień urodzin",
         "yearlessMonthPlaceholder": "Miesiąc",
         "yearlessDayPlaceholder": "Dzień",
-        "yearlessIncomplete": "Wybierz miesiąc i dzień urodzin."
+        "yearlessIncomplete": "Wybierz miesiąc i dzień urodzin.",
+        "nextBirthdayOn": "Następne urodziny: {{date}}",
+        "contactLinkLabel": "Połącz z kontaktem",
+        "contactLinkNone": "Brak",
+        "contactLinkHint": "Oba wpisy będą wtedy prowadzić do siebie nawzajem. Data pozostaje osobna.",
+        "contactSuggestLabel": "Kontakt",
+        "contactSuggestValue": "Kontakt o tej samej nazwie nie jest połączony.",
+        "linkContact": "Połącz",
+        "linkedToast": "Połączono z kontaktem.",
+        "errorContactLinked": "Ten kontakt jest już połączony z innymi urodzinami."
     },
     "recipes": {
         "mealTypeNone": "Brak posiłku",
@@ -3937,7 +3958,7 @@
         "step2Title": "Nawigacja i moduły",
         "step2Body": "Pasek na dole prowadzi bezpośrednio do najważniejszych obszarów. Pozostałe moduły znajdziesz pod „Więcej”.",
         "step3Title": "Szybki start",
-        "step3Body": "Przycisk + w dolnym rogu tworzy nowe wpisy w każdym miejscu. Przesuń element listy w lewo lub w prawo, aby użyć szybkich akcji.",
+        "step3Body": "Przycisk + w dolnym rogu tworzy nowe wpisy w każdym miejscu. W Zadaniach, Zakupach i Spiżarni przesuń element w lewo lub w prawo, aby użyć szybkich akcji.",
         "next": "Dalej",
         "done": "Zaczynamy",
         "skip": "Pomiń",
@@ -4684,7 +4705,9 @@
         "youOweInGroup": "{{group}}: Jesteś winien",
         "debtYouOwe": "Do oddania dla {{name}}",
         "debtOwesYou": "{{name}} ma ci oddać",
-        "debtOwes": "{{from}} jest winien {{to}}"
+        "debtOwes": "{{from}} jest winien {{to}}",
+        "balanced": "Rozliczone",
+        "balancedInGroup": "{{group}}: Rozliczone"
     },
     "wmo": {
         "0": "Bezchmurnie",
@@ -4764,7 +4787,8 @@
         "tooShort": "Hasło musi mieć co najmniej 8 znaków.",
         "invalidToken": "Ten link do resetowania jest nieprawidłowy lub wygasł - poproś o nowy.",
         "missingToken": "Ten link do resetowania jest niepełny - poproś o nowy.",
-        "requestNew": "Poproś o nowy link"
+        "requestNew": "Poproś o nowy link",
+        "invalidTitle": "Nieprawidłowy link"
     },
     "email": {
         "host": "Host SMTP",
@@ -5293,7 +5317,7 @@
             "noMeds": "Brak leków.",
             "logTitle": "Dziennik przyjmowania",
             "personsLabel": "Osoba",
-            "take": "Przyjęto",
+            "take": "Przyjmij",
             "skip": "Pomiń",
             "dueToday": {
                 "title": "Na dziś",
@@ -5378,8 +5402,6 @@
             },
             "prn": {
                 "title": "W razie potrzeby",
-                "take": "Przyjmij teraz",
-                "takeFor": "Przyjmij {{medication}} teraz",
                 "nextAt": "Najwcześniej o {{time}}",
                 "remainingHm": "jeszcze {{hours}} godz. {{minutes}} min",
                 "remainingM": "jeszcze {{minutes}} min",
@@ -6432,7 +6454,8 @@
         "errorNotEnoughPoints": "Na to nie wystarczy punktów.",
         "errorNotParticipating": "Ta osoba nie zbiera punktów.",
         "errorMoneyAccountGone": "To konto już nie istnieje.",
-        "errorMoneyPlanGone": "Ten plan już nie istnieje."
+        "errorMoneyPlanGone": "Ten plan już nie istnieje.",
+        "ownLedger": "Twoje wpisy"
     },
     "datepicker": {
         "openCalendar": "Otwórz kalendarz",
@@ -6712,7 +6735,8 @@
         "errorBookingAlreadyLinked": "Ta transakcja jest już powiązana.",
         "errorLocationExists": "To miejsce już tu istnieje. Wybierz inną nazwę.",
         "errorLocationGone": "To miejsce już nie istnieje.",
-        "errorCategoryGone": "Ta kategoria już nie istnieje."
+        "errorCategoryGone": "Ta kategoria już nie istnieje.",
+        "editItem": "Edytuj przedmiot"
     },
     "documentAttach": {
         "label": "Załączniki",
@@ -6746,13 +6770,14 @@
         "mismatch": "Hasła nie są zgodne.",
         "tooShort": "Hasło musi mieć co najmniej 8 znaków.",
         "invalidToken": "To zaproszenie jest nieprawidłowe, wygasło lub zostało już wykorzystane - poproś o nowy link.",
-        "missingToken": "Ten link z zaproszeniem jest nieprawidłowy lub wygasł - poproś o nowy.",
         "usernameRequired": "Wybierz nazwę użytkownika.",
         "usernameInvalid": "Nazwa użytkownika musi mieć od 3 do 64 znaków i może zawierać wyłącznie litery, cyfry, kropki, myślniki i podkreślenia.",
         "usernameTaken": "Ta nazwa użytkownika jest już zajęta.",
         "error": "Nie udało się utworzyć konta. Spróbuj ponownie.",
         "displayNameTooLong": "Nazwa wyświetlana może mieć najwyżej 128 znaków.",
-        "previewFailed": "Nie udało się teraz sprawdzić zaproszenia. Odśwież stronę za chwilę."
+        "previewFailed": "Nie udało się teraz sprawdzić zaproszenia. Odśwież stronę za chwilę.",
+        "invalidTitle": "Nieprawidłowe zaproszenie",
+        "toLogin": "Przejdź do logowania"
     },
     "newLabel": {
         "tasks": "Zadanie",
@@ -7001,7 +7026,8 @@
         "errorCustomFieldGone": "To pole już nie istnieje.",
         "errorSelectedCustomFieldGone": "Jedno z wybranych pól już nie istnieje.",
         "errorPatternGone": "Ten cykl zmian już nie istnieje.",
-        "errorEntryGone": "Ten wpis już nie istnieje."
+        "errorEntryGone": "Ten wpis już nie istnieje.",
+        "overviewPeopleCount": "Porównaj osoby ({{count}})"
     },
     "pairDisplay": {
         "title": "Sparuj tablet",

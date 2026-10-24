@@ -680,7 +680,12 @@
         "taskListDeleted": "Oppgavelisten er slettet.",
         "errorTaskGone": "Denne oppgaven finnes ikke lenger.",
         "errorParentGone": "Oppgaven denne underoppgaven hører til finnes ikke lenger.",
-        "errorCommentGone": "Denne kommentaren finnes ikke lenger."
+        "errorCommentGone": "Denne kommentaren finnes ikke lenger.",
+        "kanbanShowMore": "Vis {{count}} til",
+        "kanbanShowMore_one": "Vis {{count}} til",
+        "doneByMenuItem": "Fullført av …",
+        "checkedDoneNamed": "«{{title}}» utført.",
+        "checkedOpenNamed": "«{{title}}» er åpen igjen."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} vare slettet.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Vis i bursdager",
         "addToBirthdays": "Legg til i bursdager",
         "addedToBirthdays": "Lagt til i bursdager.",
+        "birthdaySuggestValue": "En bursdag har samme navn, men er ikke koblet.",
+        "linkedToBirthday": "Koblet til bursdagen.",
         "birthdayHint": "vises også i kalenderen via bursdagsimport.",
         "phonePlaceholder": "+1 …",
         "phonePreview": "Forhåndsvisning: {{value}}",
@@ -2191,7 +2198,6 @@
         "gravatarErrorStale": "Bildet, adressen eller kontoen din ble endret mens bildet ble hentet. Ingenting ble lagret.",
         "gravatarErrorNotMember": "Bare medlemmer av husstanden kan hente en Gravatar.",
         "profileSavedToast": "Profil oppdatert.",
-        "editMemberLabel": "Rediger",
         "editMemberTitle": "Rediger familiemedlem",
         "saveMember": "Lagre medlem",
         "memberUpdatedToast": "{{name}} ble oppdatert.",
@@ -2414,7 +2420,6 @@
         "memberContactBirthdayHint": "Dette medlemmet synkroniseres automatisk med Kontakter og Bursdager.",
         "memberBirthDateInvalid": "Bruk en gyldig fødselsdato i det valgte datoformatet.",
         "memberPhoneMeta": "Telefon: {{value}}",
-        "memberBirthdayMeta": "Fødselsdag: {{date}}",
         "tabBackup": "Administrer sikkerhetskopier",
         "sectionBackup": "Administrer sikkerhetskopier",
         "backupDownloadTitle": "Last ned databasereserve",
@@ -3238,7 +3243,12 @@
         "sheetRewardsDescription": "Sett godkjenninger og standardpoeng for nye oppgaver.",
         "sheetHealthDescription": "Egne visninger, syklusen og forebyggingstypene.",
         "displaysTitle": "Nettbrett",
-        "displaysHint": "Et nettbrett får sin egen konto som kun denne enheten kan bruke. Det er ikke et familiemedlem, det logger ikke inn, og det ser bare det som er synlig for husholdningen. Oversikten følger husstandens standard, eller standardoppsettet hvis ingen er satt. Veggmodus følger den ikke: den viser alltid klokken, dagens program, hvem som er på vakt i dag og været.",
+        "displaysLead": "Et nettbrett får sin egen konto som kun denne enheten kan bruke. Det er ikke et familiemedlem, det logger ikke inn, og det ser bare det som er synlig for husholdningen.",
+        "displaysMore": "Oversikten følger husstandens standard, eller standardoppsettet hvis ingen er satt. Veggmodus følger den ikke: den viser alltid klokken, dagens program, hvem som er på vakt i dag og været.",
+        "hintMore": "Les mer",
+        "weatherHouseholdLinkHint": "Som administrator angir du husstandens posisjon.",
+        "wallDisplaysLinkHint": "Et nettbrett som bare brukes som veggskjerm, får sin egen konto uten innlogging.",
+        "displaysWallModeLinkHint": "Veggmodus slår du på på selve nettbrettet.",
         "displaysAreasHint": "Det viser {{areas}}.",
         "displayDeviceNameLabel": "Navn",
         "displayDeviceNameHint": "For eksempel «Kjøkken» eller «Gang» - kun for å skille dem fra hverandre i denne listen.",
@@ -3635,7 +3645,16 @@
         "yearlessDayLabel": "Bursdagsdag",
         "yearlessMonthPlaceholder": "Måned",
         "yearlessDayPlaceholder": "Dag",
-        "yearlessIncomplete": "Velg både måned og dag for bursdagen."
+        "yearlessIncomplete": "Velg både måned og dag for bursdagen.",
+        "nextBirthdayOn": "Neste bursdag {{date}}",
+        "contactLinkLabel": "Koble til kontakt",
+        "contactLinkNone": "Ingen",
+        "contactLinkHint": "Da leder begge oppføringene til hverandre. Datoen holdes atskilt.",
+        "contactSuggestLabel": "Kontakt",
+        "contactSuggestValue": "En kontakt har samme navn, men er ikke koblet.",
+        "linkContact": "Koble",
+        "linkedToast": "Koblet til kontakten.",
+        "errorContactLinked": "Denne kontakten er allerede koblet til en annen bursdag."
     },
     "recipes": {
         "mealTypeNone": "Intet måltid",
@@ -3714,7 +3733,7 @@
         "resultCountMany": "{{count}} resultater",
         "goTo": "Gå til",
         "newSection": "Ny",
-        "recentLabel": "Nylig åpnet",
+        "recentLabel": "Nylig besøkt",
         "createTaskNamed": "Opprett «{{title}}» som oppgave",
         "hintMove": "Velg",
         "hintOpen": "Åpne"
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigasjon og moduler",
         "step2Body": "Linjen nederst tar deg rett til de viktigste områdene. Alle andre moduler finner du under «Mer».",
         "step3Title": "Kom i gang raskt",
-        "step3Body": "Pluss-knappen i hjørnet nederst oppretter nye oppføringer hvor som helst. Sveip listeelementer til venstre eller høyre for hurtighandlinger.",
+        "step3Body": "Pluss-knappen i hjørnet nederst oppretter nye oppføringer hvor som helst. I Oppgaver, Shopping og Spiskammer sveiper du elementer til venstre eller høyre for hurtighandlinger.",
         "next": "Neste",
         "done": "Kom i gang",
         "skip": "Hopp over",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Du skylder",
         "debtYouOwe": "Du skylder {{name}}",
         "debtOwesYou": "{{name}} skylder deg",
-        "debtOwes": "{{from}} skylder {{to}}"
+        "debtOwes": "{{from}} skylder {{to}}",
+        "balanced": "Gjort opp",
+        "balancedInGroup": "{{group}}: Gjort opp"
     },
     "wmo": {
         "0": "Skyfri",
@@ -4526,7 +4547,8 @@
         "tooShort": "Passordet må være minst 8 tegn langt.",
         "invalidToken": "Denne tilbakestillingslenken er ugyldig eller utløpt - be om en ny.",
         "missingToken": "Denne tilbakestillingslenken er ufullstendig - be om en ny.",
-        "requestNew": "Be om en ny lenke"
+        "requestNew": "Be om en ny lenke",
+        "invalidTitle": "Ugyldig lenke"
     },
     "email": {
         "host": "SMTP-vert",
@@ -5043,7 +5065,7 @@
             "noMeds": "Ingen medisiner ennå.",
             "logTitle": "Inntakslogg",
             "personsLabel": "Person",
-            "take": "Tatt",
+            "take": "Ta",
             "skip": "Hopp over",
             "takeNamed": "Ta {{name}}",
             "skipNamed": "Hopp over {{name}}",
@@ -5130,8 +5152,6 @@
             },
             "prn": {
                 "title": "Ved behov",
-                "take": "Ta nå",
-                "takeFor": "Ta {{medication}} nå",
                 "nextAt": "Tidligst {{time}}",
                 "remainingHm": "{{hours}} t {{minutes}} min igjen",
                 "remainingM": "{{minutes}} min igjen",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Poengene strekker ikke til for dette.",
         "errorNotParticipating": "Denne personen samler ikke poeng.",
         "errorMoneyAccountGone": "Denne kontoen finnes ikke lenger.",
-        "errorMoneyPlanGone": "Denne planen finnes ikke lenger."
+        "errorMoneyPlanGone": "Denne planen finnes ikke lenger.",
+        "ownLedger": "Dine posteringer"
     },
     "datepicker": {
         "openCalendar": "Åpne kalender",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Denne bestillingen er allerede koblet.",
         "errorLocationExists": "Denne lokasjonen finnes allerede her. Velg et annet navn.",
         "errorLocationGone": "Denne lokasjonen finnes ikke lenger.",
-        "errorCategoryGone": "Denne kategorien finnes ikke lenger."
+        "errorCategoryGone": "Denne kategorien finnes ikke lenger.",
+        "editItem": "Rediger element"
     },
     "documentAttach": {
         "label": "Vedlegg",
@@ -6436,13 +6458,14 @@
         "mismatch": "Passordene stemmer ikke overens.",
         "tooShort": "Passordet må være minst 8 tegn langt.",
         "invalidToken": "Denne invitasjonen er ugyldig, utløpt eller allerede brukt - be om en ny lenke.",
-        "missingToken": "Denne invitasjonslenken er ugyldig eller utløpt - be om en ny.",
         "usernameRequired": "Vennligst velg et brukernavn.",
         "usernameInvalid": "Brukernavnet må være mellom 3 og 64 tegn langt og kan bare inneholde bokstaver, tall, punktum, bindestrek og understrek.",
         "usernameTaken": "Dette brukernavnet er allerede i bruk.",
         "error": "Kontoen kunne ikke opprettes. Vennligst prøv igjen.",
         "displayNameTooLong": "Visningsnavnet kan være maksimalt 128 tegn langt.",
-        "previewFailed": "Invitasjonen kunne ikke kontrolleres akkurat nå. Vennligst last inn siden på nytt om et øyeblikk."
+        "previewFailed": "Invitasjonen kunne ikke kontrolleres akkurat nå. Vennligst last inn siden på nytt om et øyeblikk.",
+        "invalidTitle": "Ugyldig invitasjon",
+        "toLogin": "Gå til pålogging"
     },
     "newLabel": {
         "tasks": "Oppgave",
@@ -6471,7 +6494,7 @@
         "healthMeds": "Medisinering",
         "healthPrevention": "Undersøkelse",
         "healthLabs": "Rapport",
-        "healthActivity": "Aktivitet",
+        "healthActivity": "Treningsøkt",
         "healthNutrition": "Måltid",
         "rewards": "Belønning",
         "rewardsBonus": "Bonus",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Dette feltet finnes ikke lenger.",
         "errorSelectedCustomFieldGone": "Ett av de valgte feltene finnes ikke lenger.",
         "errorPatternGone": "Denne planen finnes ikke lenger.",
-        "errorEntryGone": "Denne oppføringen finnes ikke lenger."
+        "errorEntryGone": "Denne oppføringen finnes ikke lenger.",
+        "overviewPeopleCount": "Sammenlign personer ({{count}})"
     },
     "pairDisplay": {
         "title": "Par nettbrett",

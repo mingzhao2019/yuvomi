@@ -680,7 +680,12 @@
         "taskListTasksNotDeletable": "此列表包含你无法删除的任务，未做任何更改。",
         "taskListSyncRequired": "请先解除此列表的同步，再删除它。",
         "taskListSyncDisabled": "已解除同步",
-        "taskListDeleted": "任务列表已删除。"
+        "taskListDeleted": "任务列表已删除。",
+        "kanbanShowMore": "顯示另外 {{count}} 項",
+        "kanbanShowMore_one": "顯示另外 {{count}} 項",
+        "doneByMenuItem": "完成者 …",
+        "checkedDoneNamed": "「{{title}}」已完成。",
+        "checkedOpenNamed": "「{{title}}」已重新開啟。"
     },
     "shopping": {
         "itemsRemovedToast_one": "已刪除 {{count}} 件商品。",
@@ -1349,6 +1354,8 @@
         "showBirthday": "在生日中檢視",
         "addToBirthdays": "新增到生日",
         "addedToBirthdays": "已新增到生日。",
+        "birthdaySuggestValue": "有一個同名生日，但尚未連結。",
+        "linkedToBirthday": "已連結到生日。",
         "birthdayHint": "透過生日匯入也會顯示在日曆中。",
         "phonePlaceholder": "+86 …",
         "phonePreview": "預覽：{{value}}",
@@ -2080,7 +2087,6 @@
         "gravatarErrorStale": "取得圖片期間，你的圖片、地址或帳戶發生了變化。未儲存任何內容。",
         "gravatarErrorNotMember": "只有家庭成員才能取得 Gravatar。",
         "profileSavedToast": "個人資料已更新。",
-        "editMemberLabel": "編輯",
         "editMemberTitle": "編輯家庭成員",
         "saveMember": "儲存成員",
         "memberUpdatedToast": "{{name}} 已更新。",
@@ -2266,7 +2272,6 @@
         "memberContactBirthdayHint": "此成員自動與聯絡人和生日同步。",
         "memberBirthDateInvalid": "請使用所選日期格式的有效出生日期。",
         "memberPhoneMeta": "電話：{{value}}",
-        "memberBirthdayMeta": "生日：{{date}}",
         "tabBackup": "備份管理",
         "sectionBackup": "備份管理",
         "backupDownloadTitle": "下載資料庫備份",
@@ -3236,7 +3241,12 @@
         "sheetRewardsDescription": "為新任務設定審批和預設積分。",
         "sheetHealthDescription": "你自己的檢視、週期和預防類型。",
         "displaysTitle": "壁掛平板",
-        "displaysHint": "壁掛平板會獲得一個專屬帳戶，只有這台裝置能使用。它不是家庭成員，不會登入，只能看到對家庭公開的內容。它的概覽跟隨家庭預設版面，未設定時使用標準版面。壁掛模式不跟隨它：始終顯示時間、今日安排、今天輪到誰以及天氣。",
+        "displaysLead": "壁掛平板會獲得一個專屬帳戶，只有這台裝置能使用。它不是家庭成員，不會登入，只能看到對家庭公開的內容。",
+        "displaysMore": "它的概覽跟隨家庭預設版面，未設定時使用標準版面。壁掛模式不跟隨它：始終顯示時間、今日安排、今天輪到誰以及天氣。",
+        "hintMore": "了解更多",
+        "weatherHouseholdLinkHint": "身為管理員，你可以設定家庭位置。",
+        "wallDisplaysLinkHint": "只當壁掛螢幕使用的平板會有自己的帳號，無需登入。",
+        "displaysWallModeLinkHint": "壁掛模式要在平板本身開啟。",
         "displaysAreasHint": "它會顯示：{{areas}}。",
         "displayDeviceNameLabel": "平板名稱",
         "displayDeviceNameHint": "例如「廚房」或「走廊」 - 僅用於在此列表中區分。",
@@ -3603,7 +3613,7 @@
         "resultCountMany": "{{count}} 個結果",
         "goTo": "前往",
         "newSection": "新建",
-        "recentLabel": "最近開啟",
+        "recentLabel": "最近造訪",
         "createTaskNamed": "將「{{title}}」建立為任務",
         "hintMove": "選擇",
         "hintOpen": "開啟"
@@ -3675,7 +3685,16 @@
         "yearlessDayLabel": "生日日期",
         "yearlessMonthPlaceholder": "月份",
         "yearlessDayPlaceholder": "日期",
-        "yearlessIncomplete": "請選擇生日的月份和日期。"
+        "yearlessIncomplete": "請選擇生日的月份和日期。",
+        "nextBirthdayOn": "下次生日：{{date}}",
+        "contactLinkLabel": "連結聯絡人",
+        "contactLinkNone": "無",
+        "contactLinkHint": "兩個項目將可互相跳轉。日期仍各自獨立。",
+        "contactSuggestLabel": "聯絡人",
+        "contactSuggestValue": "有一位同名聯絡人，但尚未連結。",
+        "linkContact": "連結",
+        "linkedToast": "已連結到聯絡人。",
+        "errorContactLinked": "這位聯絡人已連結到另一個生日。"
     },
     "reminders": {
         "sectionTitle": "提醒",
@@ -3725,7 +3744,7 @@
         "step2Title": "導航與模組",
         "step2Body": "底部列可直接進入最重要的區域。其他模組都在「更多」中。",
         "step3Title": "快速開始",
-        "step3Body": "右下角的 + 按鈕可隨處建立新條目。左右滑動列表項可使用快捷操作。",
+        "step3Body": "右下角的 + 按鈕可隨處建立新條目。在任務、購物和庫存中，左右滑動項目可使用快捷操作。",
         "next": "下一步",
         "done": "開始使用",
         "skip": "跳過",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}：你應付",
         "debtYouOwe": "你欠 {{name}}",
         "debtOwesYou": "{{name}} 欠你",
-        "debtOwes": "{{from}} 欠 {{to}}"
+        "debtOwes": "{{from}} 欠 {{to}}",
+        "balanced": "已結清",
+        "balancedInGroup": "{{group}}：已結清"
     },
     "wmo": {
         "0": "晴天",
@@ -4526,7 +4547,8 @@
         "tooShort": "密碼至少需要 8 個字元。",
         "invalidToken": "此重設連結無效或已過期 - 請重新申請一個。",
         "missingToken": "此重設連結不完整 - 請重新申請一個。",
-        "requestNew": "申請新連結"
+        "requestNew": "申請新連結",
+        "invalidTitle": "連結無效"
     },
     "email": {
         "host": "SMTP 主機",
@@ -4896,7 +4918,7 @@
         "tabs": {
             "overview": "概覽",
             "vitals": "生命體徵",
-            "meds": "藥物",
+            "meds": "用藥",
             "prevention": "預防",
             "labs": "化驗值",
             "activity": "活動",
@@ -5022,7 +5044,7 @@
         },
         "meds": {
             "doseQty": "{{count}}×",
-            "title": "藥物",
+            "title": "用藥",
             "emptyTitle": "還沒有藥物",
             "emptyDesc": "帶用藥計劃和提醒的藥物將顯示在這裡。",
             "add": "新增藥物",
@@ -5043,7 +5065,7 @@
             "noMeds": "暫無藥物。",
             "logTitle": "服藥記錄",
             "personsLabel": "成員",
-            "take": "已服用",
+            "take": "服用",
             "skip": "跳過",
             "takeNamed": "服用 {{name}}",
             "skipNamed": "跳過 {{name}}",
@@ -5130,8 +5152,6 @@
             },
             "prn": {
                 "title": "按需",
-                "take": "立即服用",
-                "takeFor": "立即服用 {{medication}}",
                 "nextAt": "最早 {{time}}",
                 "remainingHm": "還有 {{hours}} 小時 {{minutes}} 分鐘",
                 "remainingM": "還有 {{minutes}} 分鐘",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "積分不足。",
         "errorNotParticipating": "此人不累積積分。",
         "errorMoneyAccountGone": "該帳戶已不存在。",
-        "errorMoneyPlanGone": "該計劃已不存在。"
+        "errorMoneyPlanGone": "該計劃已不存在。",
+        "ownLedger": "你的紀錄"
     },
     "datepicker": {
         "openCalendar": "開啟日曆",
@@ -6404,7 +6425,8 @@
         "errorLocationExists": "此處已有同名位置。請換一個名稱。",
         "errorLocationGone": "這個位置已不存在。",
         "errorCategoryGone": "這個類別已不存在。",
-        "backToInventory": "返回物品"
+        "backToInventory": "返回物品",
+        "editItem": "編輯物品"
     },
     "documentAttach": {
         "label": "附件",
@@ -6436,13 +6458,14 @@
         "mismatch": "兩次輸入的密碼不一致。",
         "tooShort": "密碼至少需要 8 個字元。",
         "invalidToken": "此邀請無效、已過期或已被使用 - 請索取新連結。",
-        "missingToken": "此邀請連結無效或已過期 - 請索取新連結。",
         "usernameRequired": "請選擇一個使用者名稱。",
         "usernameInvalid": "使用者名稱需為 3 到 64 個字元，且只能包含字母、數字、點、連字元和下劃線。",
         "usernameTaken": "該使用者名稱已被佔用。",
         "error": "無法建立帳戶，請重試。",
         "displayNameTooLong": "顯示名稱最多 128 個字元。",
-        "previewFailed": "目前無法檢查該邀請，請稍後重新載入頁面。"
+        "previewFailed": "目前無法檢查該邀請，請稍後重新載入頁面。",
+        "invalidTitle": "邀請無效",
+        "toLogin": "前往登入"
     },
     "newLabel": {
         "tasks": "任務",
@@ -6683,7 +6706,8 @@
         "recurring": "重复",
         "replaceExisting": "替换已安排的内容",
         "discardCycleDayEditsDetail": "如果继续，你对此排班周期的周期天数或详情所做的未保存更改将会丢失。",
-        "overviewClearSelection": "清除选择"
+        "overviewClearSelection": "清除选择",
+        "overviewPeopleCount": "比較成員 ({{count}})"
     },
     "pairDisplay": {
         "title": "配對平板",

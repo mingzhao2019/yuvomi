@@ -680,7 +680,12 @@
         "filterDueToday": "Vencen hasta hoy",
         "errorTaskGone": "Esta tarea ya no existe.",
         "errorParentGone": "La tarea a la que pertenece esta subtarea ya no existe.",
-        "errorCommentGone": "Este comentario ya no existe."
+        "errorCommentGone": "Este comentario ya no existe.",
+        "kanbanShowMore": "Mostrar {{count}} más",
+        "kanbanShowMore_one": "Mostrar {{count}} más",
+        "doneByMenuItem": "Hecho por …",
+        "checkedDoneNamed": "«{{title}}» hecho.",
+        "checkedOpenNamed": "«{{title}}» abierto de nuevo."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} artículo eliminado.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Ver en cumpleaños",
         "addToBirthdays": "Añadir a cumpleaños",
         "addedToBirthdays": "Añadido a cumpleaños.",
+        "birthdaySuggestValue": "Un cumpleaños tiene el mismo nombre, pero no está vinculado.",
+        "linkedToBirthday": "Vinculado al cumpleaños.",
         "birthdayHint": "También aparece en el calendario mediante la importación de cumpleaños.",
         "phonePlaceholder": "+34 …",
         "phonePreview": "Vista previa: {{value}}",
@@ -2080,7 +2087,6 @@
         "gravatarErrorStale": "Tu imagen, tu dirección o tu cuenta cambió mientras se obtenía la imagen. No se guardó nada.",
         "gravatarErrorNotMember": "Solo los miembros del hogar pueden obtener un Gravatar.",
         "profileSavedToast": "Perfil actualizado.",
-        "editMemberLabel": "Editar",
         "editMemberTitle": "Editar miembro de la familia",
         "saveMember": "Guardar miembro",
         "memberUpdatedToast": "{{name}} actualizado.",
@@ -2266,7 +2272,6 @@
         "memberContactBirthdayHint": "Este miembro se sincroniza automáticamente con Contactos y Cumpleaños.",
         "memberBirthDateInvalid": "Usa una fecha de nacimiento válida en el formato seleccionado.",
         "memberPhoneMeta": "Teléfono: {{value}}",
-        "memberBirthdayMeta": "Cumpleaños: {{date}}",
         "tabBackup": "Gestión de copias",
         "sectionBackup": "Gestión de copias",
         "backupDownloadTitle": "Descargar copia de la base de datos",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Fija aprobaciones y puntos predeterminados para tareas nuevas.",
         "sheetHealthDescription": "Tus vistas, el ciclo y los tipos de prevención.",
         "displaysTitle": "Tabletas de pared",
-        "displaysHint": "Una tableta de pared recibe su propia cuenta, que solo puede usar este dispositivo. No es un miembro de la familia, no inicia sesión y solo ve lo que es visible para el hogar. Su panel sigue la configuración predeterminada del hogar o, si no hay ninguna, la disposición estándar. El modo pared no la sigue: muestra siempre la hora, el programa del día, a quién le toca hoy y el tiempo.",
+        "displaysLead": "Una tableta de pared recibe su propia cuenta, que solo puede usar este dispositivo. No es un miembro de la familia, no inicia sesión y solo ve lo que es visible para el hogar.",
+        "displaysMore": "Su panel sigue la configuración predeterminada del hogar o, si no hay ninguna, la disposición estándar. El modo pared no la sigue: muestra siempre la hora, el programa del día, a quién le toca hoy y el tiempo.",
+        "hintMore": "Más información",
+        "weatherHouseholdLinkHint": "Como administrador, defines la ubicación del hogar.",
+        "wallDisplaysLinkHint": "Una tableta que solo sirve de pantalla de pared recibe su propia cuenta sin inicio de sesión.",
+        "displaysWallModeLinkHint": "El modo pared se activa en la propia tableta.",
         "displaysAreasHint": "Muestra: {{areas}}.",
         "displayDeviceNameLabel": "Nombre de la tableta",
         "displayDeviceNameHint": "Por ejemplo «Cocina» o «Pasillo» - solo para distinguirlas en esta lista.",
@@ -3603,7 +3613,7 @@
         "resultCountMany": "{{count}} resultados",
         "goTo": "Ir a",
         "newSection": "Crear nuevo",
-        "recentLabel": "Abiertos recientemente",
+        "recentLabel": "Visitados recientemente",
         "createTaskNamed": "Crear «{{title}}» como tarea",
         "hintMove": "Seleccionar",
         "hintOpen": "Abrir"
@@ -3675,7 +3685,16 @@
         "yearlessDayLabel": "Día del cumpleaños",
         "yearlessMonthPlaceholder": "Mes",
         "yearlessDayPlaceholder": "Día",
-        "yearlessIncomplete": "Selecciona el mes y el día del cumpleaños."
+        "yearlessIncomplete": "Selecciona el mes y el día del cumpleaños.",
+        "nextBirthdayOn": "Próximo cumpleaños el {{date}}",
+        "contactLinkLabel": "Vincular con un contacto",
+        "contactLinkNone": "Ninguno",
+        "contactLinkHint": "Así ambas entradas llevan la una a la otra. La fecha sigue siendo independiente.",
+        "contactSuggestLabel": "Contacto",
+        "contactSuggestValue": "Un contacto tiene el mismo nombre, pero no está vinculado.",
+        "linkContact": "Vincular",
+        "linkedToast": "Vinculado al contacto.",
+        "errorContactLinked": "Este contacto ya está vinculado a otro cumpleaños."
     },
     "reminders": {
         "sectionTitle": "Recordatorio",
@@ -3725,7 +3744,7 @@
         "step2Title": "Navegación y módulos",
         "step2Body": "La barra inferior te lleva directamente a las áreas más importantes. Encontrarás el resto de módulos en «Más».",
         "step3Title": "Empieza rápido",
-        "step3Body": "Con el botón + de la esquina inferior creas nuevas entradas en cualquier parte. Desliza los elementos de las listas a izquierda o derecha para acciones rápidas.",
+        "step3Body": "Con el botón + de la esquina inferior creas nuevas entradas en cualquier parte. En Tareas, Compras y Despensa, desliza los elementos a izquierda o derecha para acciones rápidas.",
         "next": "Siguiente",
         "done": "Empezar",
         "skip": "Omitir",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Debes",
         "debtYouOwe": "Debes a {{name}}",
         "debtOwesYou": "{{name}} te debe",
-        "debtOwes": "{{from}} debe a {{to}}"
+        "debtOwes": "{{from}} debe a {{to}}",
+        "balanced": "Saldado",
+        "balancedInGroup": "{{group}}: Saldado"
     },
     "wmo": {
         "0": "Cielo despejado",
@@ -4526,7 +4547,8 @@
         "tooShort": "La contraseña debe tener al menos 8 caracteres.",
         "invalidToken": "Este enlace para restablecer no es válido o ha caducado - solicita uno nuevo.",
         "missingToken": "Este enlace para restablecer está incompleto - solicita uno nuevo.",
-        "requestNew": "Solicitar un enlace nuevo"
+        "requestNew": "Solicitar un enlace nuevo",
+        "invalidTitle": "Enlace no válido"
     },
     "email": {
         "host": "Servidor SMTP",
@@ -5043,7 +5065,7 @@
             "noMeds": "Aún no hay medicamentos.",
             "logTitle": "Registro de tomas",
             "personsLabel": "Persona",
-            "take": "Tomado",
+            "take": "Tomar",
             "skip": "Omitir",
             "dueToday": {
                 "title": "Para hoy",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Según necesidad",
-                "take": "Tomar ahora",
-                "takeFor": "Tomar {{medication}} ahora",
                 "nextAt": "Como muy pronto a las {{time}}",
                 "remainingHm": "quedan {{hours}} h {{minutes}} min",
                 "remainingM": "quedan {{minutes}} min",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "No hay puntos suficientes para esto.",
         "errorNotParticipating": "Esta persona no acumula puntos.",
         "errorMoneyAccountGone": "Esta cuenta ya no existe.",
-        "errorMoneyPlanGone": "Este plan ya no existe."
+        "errorMoneyPlanGone": "Este plan ya no existe.",
+        "ownLedger": "Tus movimientos"
     },
     "datepicker": {
         "openCalendar": "Abrir calendario",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Este movimiento ya está vinculado.",
         "errorLocationExists": "Esta ubicación ya existe aquí. Elige otro nombre.",
         "errorLocationGone": "Esta ubicación ya no existe.",
-        "errorCategoryGone": "Esta categoría ya no existe."
+        "errorCategoryGone": "Esta categoría ya no existe.",
+        "editItem": "Editar objeto"
     },
     "documentAttach": {
         "label": "Adjuntos",
@@ -6436,13 +6458,14 @@
         "mismatch": "Las contraseñas no coinciden.",
         "tooShort": "La contraseña debe tener al menos 8 caracteres.",
         "invalidToken": "Esta invitación no es válida, ha caducado o ya se ha utilizado - pide un enlace nuevo.",
-        "missingToken": "Este enlace de invitación no es válido o ha caducado - pide uno nuevo.",
         "usernameRequired": "Elige un nombre de usuario.",
         "usernameInvalid": "El nombre de usuario debe tener entre 3 y 64 caracteres y solo puede contener letras, números, puntos, guiones y guiones bajos.",
         "usernameTaken": "Ese nombre de usuario ya está en uso.",
         "error": "No se ha podido crear la cuenta. Inténtalo de nuevo.",
         "displayNameTooLong": "El nombre visible puede tener como máximo 128 caracteres.",
-        "previewFailed": "No se ha podido comprobar la invitación en este momento. Vuelve a cargar la página en unos instantes."
+        "previewFailed": "No se ha podido comprobar la invitación en este momento. Vuelve a cargar la página en unos instantes.",
+        "invalidTitle": "Invitación no válida",
+        "toLogin": "Ir al inicio de sesión"
     },
     "newLabel": {
         "tasks": "Tarea",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Este campo ya no existe.",
         "errorSelectedCustomFieldGone": "Uno de los campos elegidos ya no existe.",
         "errorPatternGone": "Esta rotación ya no existe.",
-        "errorEntryGone": "Esta entrada ya no existe."
+        "errorEntryGone": "Esta entrada ya no existe.",
+        "overviewPeopleCount": "Comparar personas ({{count}})"
     },
     "pairDisplay": {
         "title": "Vincular tableta",

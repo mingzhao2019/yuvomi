@@ -591,6 +591,32 @@ test('swapPage R20: was ausfaehrt, steht vor dem alten Bild am Ende - kein Mehr-
     'settleClosingOverlays beendet die Ausfahrt von Mehr-Blatt und Abdunklung nicht');
 });
 
+/**
+ * Critique R22-F (F2.1): DER FRAME DES WECHSELS RECHNET NUR, WAS ER BRAUCHT.
+ * Gemessen im Frame jedes Wechsels (mobil, 4x CPU): `getAnimations()` am
+ * Mehr-Blatt 16-20 ms Stil auch ohne Blatt, die verborgene Seitenleiste bzw.
+ * Tab-Leiste 7-8 ms Layout fuer einen Indikator ohne Geometrie, und
+ * `createIcons` ueber `#app` klonte jedes schon gezeichnete Zeichen des
+ * neuen Skeletts noch einmal (lucide-scope.js waehlt `[data-lucide]`).
+ */
+test('R22-F F2.1: Seitenwechsel ohne Ausfahrt-Stil, ohne verborgene Indikatoren, ohne zweites Zeichnen', () => {
+  const router = readFileSync(new URL('../public/router.js', import.meta.url), 'utf8');
+  const settle = router.slice(router.indexOf('function settleClosingOverlays()'), router.indexOf('// Modul-Cache'));
+  assert.match(settle, /if \(performance\.now\(\) - _sheetClosingSince > SHEET_SETTLE_WINDOW_MS\) return;\n\s*document\.querySelectorAll\('\.more-sheet, \.more-backdrop'\)/,
+    'settleClosingOverlays fragt getAnimations() auch ohne fahrendes Blatt');
+  assert.match(router.slice(router.indexOf('function closeSheet(')), /setOverlayInteractive\(sheet, false\);\n\s*_sheetClosingSince = performance\.now\(\);/,
+    'das Schliessen merkt sich nicht, wann die Ausfahrt begann');
+  const fn = (name) => router.slice(router.indexOf(`function ${name}(`), router.indexOf('\n}\n', router.indexOf(`function ${name}(`)));
+  assert.match(fn('positionSidebarIndicator'), /^function positionSidebarIndicator\(instant = false\) \{[\s\S]*?if \(!isDesktopViewport\(\)\) return;\n\s*const container/,
+    'die Seitenleiste misst auch unter 1024px');
+  assert.match(fn('positionTabIndicator'), /^function positionTabIndicator\(instant = false\) \{[\s\S]*?if \(isDesktopViewport\(\)\) return;\n\s*const nav/,
+    'die Tab-Leiste misst auch ab 1024px');
+  const nav = fn('updateNav');
+  assert.match(nav, /for \(const node of navRoot\.querySelectorAll\('i\[data-lucide\]'\)\) window\.lucide\.createIcons\(\{ el: node \}\);/,
+    'updateNav zeichnet mehr als die offenen Platzhalter');
+  assert.doesNotMatch(nav, /createIcons\(navRoot \? \{ el: navRoot \}/);
+});
+
 // Critique R21 (D1): das neue Bild zeigte das Skelett - 0 von 6 Wechseln mit
 // Inhalt im neuen Bild, der echte Inhalt sprang 45-123 ms (4x CPU 139-245 ms)
 // spaeter mitten in die Blende. Der Callback wartet jetzt auf den Render der
@@ -689,42 +715,91 @@ test('swapPage D1: was laeuft, setzt nach dem Warten dort fort, wo das alte Bild
   }
 });
 
-// Critique R21 (D11): zwischen zwei Kuechen-Reitern blendete die Kontextzeile
-// (Wochenschritt <-> Suche) 200ms doppelt belichtet mit der Seite. Sie wechselt
-// jetzt mit dem Tipp, nur der Koerper blendet - ueber den Typ `kitchen`.
-test('swapPage D11: zwischen Kuechen-Reitern blendet nur der Koerper (Typ kitchen)', async () => {
+// Critique R22 (D1, a1 P2): der Wechsel zwischen gleichrangigen Zielen blendete
+// 200ms - gemessen 13-15 Frames Doppelbelichtung, die Pille stand nach rund
+// 120ms am Ziel, der Inhalt erst nach 294-394ms deckend. Jetzt haelt die
+// Transition nur das alte Bild bis zum ersten Render und schneidet dann; der
+// eigene Typ `kitchen` (R21 D11, nur der Koerper blendete) ist darin aufgegangen.
+test('swapPage D1: der Seitenwechsel schneidet - html.page-cut fuer die Dauer, keine Blende in Wurzel und Kopf', async () => {
   const { swapPage } = await import('../public/utils/view-transition.js');
-  for (const supported of [true, false]) {
-    const env = stubDocument();
-    const start = env.doc.startViewTransition;
-    let arg = null;
-    env.doc.startViewTransition = (a) => { arg = a; return start(typeof a === 'function' ? a : a.update); };
-    globalThis.document = env.doc;
-    globalThis.matchMedia = () => ({ matches: false });
-    globalThis.CSS = { supports: (q) => supported && /active-view-transition-type/.test(q) };
-    try {
-      let swapped = false;
-      const { finished } = await swapPage(() => { swapped = true; }, { content: env.content, from: '/meals', animate: true, types: ['kitchen'] });
-      assert.equal(swapped, true, 'der Tausch lief nicht');
-      if (supported) assert.deepEqual(arg?.types, ['kitchen'], 'der Typ erreicht die Transition nicht');
-      else assert.equal(typeof arg, 'function', 'ohne Typen-Unterstuetzung laeuft der Wechsel wie bisher');
-      env.finish();
-      await finished;
-    } finally {
-      delete globalThis.document;
-      delete globalThis.matchMedia;
-      delete globalThis.CSS;
-    }
+  const classes = new Set();
+  const env = stubDocument();
+  const start = env.doc.startViewTransition;
+  env.doc.documentElement = { classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c) } };
+  const atStart = [];
+  env.doc.startViewTransition = (a) => { atStart.push(classes.has('page-cut')); return start(a); };
+  globalThis.document = env.doc;
+  globalThis.matchMedia = () => ({ matches: false });
+  try {
+    const first = await swapPage(() => {}, { content: env.content, from: '/tasks', animate: true });
+    assert.deepEqual(atStart, [true], 'page-cut steht nicht, wenn der Browser das alte Bild aufnimmt');
+    const finishFirst = env.finish;
+    // Ein zweiter Wechsel vor dem Ende des ersten: das Ende des ersten nimmt
+    // dem zweiten den Schnitt nicht weg.
+    const env2 = stubDocument();
+    env.doc.startViewTransition = (a) => { atStart.push(classes.has('page-cut')); return env2.doc.startViewTransition(a); };
+    const second = await swapPage(() => {}, { content: env.content, from: '/notes', animate: true });
+    finishFirst();
+    await first.finished;
+    assert.ok(classes.has('page-cut'), 'das Ende des ueberholten Wechsels nahm dem laufenden den Schnitt');
+    env2.finish();
+    await second.finished;
+    assert.ok(!classes.has('page-cut'), 'page-cut bleibt nach dem Wechsel stehen - auch Theme-Wechsel schnitten dann');
+  } finally {
+    delete globalThis.document;
+    delete globalThis.matchMedia;
   }
-  const rules = [...eachRule(css('layout.css'))].filter((r) => !r.at.length);
-  const body = (sel) => rules.find((r) => r.selector.replace(/\s+/g, '') === sel)?.body ?? '';
-  assert.match(body('html:active-view-transition-type(kitchen)::view-transition-old(page-toolbar)'), /display:\s*none/,
-    'die alte Kontextzeile blendet weiter doppelt belichtet');
-  assert.match(body('html:active-view-transition-type(kitchen)::view-transition-new(page-toolbar)'), /animation:\s*none/,
-    'die neue Kontextzeile steht nicht mit dem Tipp');
+
+  const rules = [...eachRule(css('layout.css'))];
+  const plain = rules.filter((r) => !r.at.length);
+  const bodiesOf = (sel) => plain.filter((r) => selectorList(r.selector).some((x) => x.replace(/\s+/g, '') === sel)).map((r) => r.body).join(';');
+  for (const img of ['old(root)', 'old(page-toolbar)']) {
+    assert.match(bodiesOf(`html.page-cut::view-transition-${img}`), /display:\s*none/, `${img}: das alte Bild blendet weiter aus - Doppelbelichtung`);
+  }
+  for (const img of ['new(root)', 'new(page-toolbar)', 'group(root)']) {
+    assert.match(bodiesOf(`html.page-cut::view-transition-${img}`), /animation:\s*none/, `${img}: das neue Bild blendet weiter ein`);
+  }
+  // Der Schnitt ist eine Klasse, kein Typ: er gilt auch, wo der Browser
+  // `:active-view-transition-type()` nicht kennt.
+  assert.deepEqual(rules.filter((r) => /active-view-transition-type\(kitchen\)/.test(r.selector)).map((r) => r.selector), [],
+    'der Typ kitchen ist im Schnitt aufgegangen');
+  assert.deepEqual(rules.filter((r) => /\.page-transition--in/.test(r.selector)).map((r) => r.selector), [],
+    'kein Rueckfall blendet die Seite ohne View Transition');
   const router = readFileSync(new URL('../public/router.js', import.meta.url), 'utf8');
-  assert.match(router, /await swapPage\(swap, \{[^}]*types: isKitchenRoute\(previousPath\) && isKitchenRoute\(route\.path\) \? \['kitchen'\] : \[\],/,
-    'der Router setzt den Typ nicht fuer einen Wechsel innerhalb der Kueche');
+  assert.doesNotMatch(router, /types: isKitchenRoute/, 'der Router setzt noch einen eigenen Typ fuer die Kueche');
+});
+
+// Critique R22 (D1): Pille und Inhalt wechseln im selben Frame. Der Tausch
+// selbst setzt die Navigation (`onSwap` im Update-Callback), die Pille springt;
+// vorher setzte navigate() sie vor dem Laden und sie glitt 100-250ms vor dem
+// Inhalt ans Ziel.
+test('navigate D1: die Navigation wechselt im Tausch und springt - vorab nur, wenn das Laden die Frist reisst', async () => {
+  const { createNavigateHarness } = await import('./router-navigate-harness.js');
+  const { NAV_ACK_MS } = await import('../public/utils/router-navigate.js');
+  const { FIRST_RENDER_WAIT_MS } = await import('../public/utils/view-transition.js');
+  assert.equal(NAV_ACK_MS, FIRST_RENDER_WAIT_MS, 'die Frist der Quittung und die des alten Bildes laufen auseinander');
+
+  const user = { id: 1, role: 'admin' };
+  const fast = createNavigateHarness({ user });
+  await fast.navigate('/', true);
+  fast.setShell(true);
+  const before = fast.log.nav.length;
+  await fast.navigate('/tasks', true);
+  const started = fast.log.renderStarted.at(-1);
+  assert.equal(started.nav, before, 'die Navigation zeigte das Ziel, bevor die Seite getauscht war');
+  const swapNav = fast.log.nav[before];
+  assert.deepEqual(swapNav, { path: '/tasks', instant: true }, 'im Tausch springt die Pille nicht an ihr Ziel');
+
+  // Ein langsames Seitenmodul (erster Besuch, langsames Netz): nach der Frist
+  // quittiert die Navigation vorab, gleitend - und der Tausch setzt sie nicht doppelt.
+  const slow = createNavigateHarness({ user, onRender: (route) => (route.path === '/budget' ? new Promise((r) => setTimeout(r, NAV_ACK_MS + 120)) : null) });
+  await slow.navigate('/', true);
+  slow.setShell(true);
+  const mark = slow.log.nav.length;
+  await slow.navigate('/budget', true);
+  const during = slow.log.nav.slice(mark).filter((n) => n.path === '/budget');
+  assert.equal(during[0]?.instant, false, 'ein Laden ueber die Frist laesst den Tipp ohne Antwort');
+  assert.ok(!during.slice(1).some((n) => n.instant), 'der Tausch setzt die schon quittierte Navigation noch einmal');
 });
 
 test('swapPage: ein zweiter Wechsel vor dem Ende des ersten behaelt den Kopfnamen', async () => {
@@ -844,7 +919,7 @@ test('View Transition: ein Bild, das unter einer stehenden Gruppe blendet, haelt
   }
 });
 
-test('reduzierte Bewegung: der Seitenwechsel blendet - die Gruppen stehen, die Bilder blenden kurz', async () => {
+test('reduzierte Bewegung: Theme-Wechsel und Regionen blenden - die Gruppen stehen, die Bilder blenden kurz', async () => {
   const { swapPage, swapTheme } = await import('../public/utils/view-transition.js');
   for (const [name, run] of [['swapPage', (env) => swapPage(() => {}, { content: env.content })], ['swapTheme', () => swapTheme(() => {})]]) {
     const env = stubDocument();
@@ -3034,4 +3109,71 @@ test('swapRegion CSS: vorwaerts schiebt herein, zurueck schiebt hinaus, reduzier
   for (const r of reduced) assert.match(r.body, /animation-name:\s*region-fade-(in|out)/, `nur Blende: ${r.body}`);
   const keyframes = css('layout.css');
   assert.match(keyframes, /@keyframes region-fade-in \{\s*from \{ opacity: 0; \}/, 'die Blende hat keinen Versatz');
+});
+
+// R22 (S4): Der Hover der Buchung im Budget-Journal schaltet, er blendet nicht.
+// Gemessen am 1280er Journal beim Mausrad-Scrollen mit dem Zeiger ueber der
+// Liste: mit der 150-ms-Blende der Zeile 11-22 von 300 Frames ueber 33 ms,
+// ohne sie 0. Am Zeiger traegt die Zeile deshalb keine Transition; am Finger
+// bleibt der Press-Baustein unveraendert.
+test('R22: die Buchungszeile traegt am Zeiger keine Hover-Blende', () => {
+  const rules = [...eachRule(css('budget.css'))].filter((r) => r.at.some((a) => /\(hover:\s*hover\)/.test(a))
+    && r.selector.split(',').some((s) => s.trim() === '.budget-entry.list-row'));
+  assert.ok(rules.some((r) => /(?:^|;)\s*transition:\s*none/.test(r.body)),
+    'unter @media (hover: hover) fehlt `.budget-entry.list-row { transition: none }` - jede Zeile unter dem Zeiger blendet beim Scrollen');
+});
+
+// R22 (S4, D8): DER DRUCKZUSTAND HAT ZWEI STUFEN. Vorher standen sechs
+// Literale (0.92 FAB, 0.94 Zeilenaktion, 0.96 Reiter, 0.98 Knopf und Karte,
+// 0.985 Suchfeld im Mehr-Blatt), und Chips, Segmente, Menueeintraege, Notiz-
+// und Mahlzeitkarte quittierten den Druck gar nicht.
+const PRESS_SCALE = { '--press-scale-sm': '0.95', '--press-scale-lg': '0.98' };
+// [Datei, Selektor der :active-Regel (Anfang), Stufe]
+const PRESSABLE = [
+  ['filter-chip.css', '.filter-chip:active', 'sm'],
+  ['panel.css', '.segmented__item:active', 'sm'],
+  ['sub-tabs.css', '.sub-tab:active', 'sm'],
+  ['layout.css', '.popover-menu__item:active', 'sm'],
+  ['layout.css', '.btn--icon:active', 'sm'],
+  ['layout.css', '.row-action:active', 'sm'],
+  ['layout.css', '.page-fab:active', 'sm'],
+  ['layout.css', '.btn:active', 'lg'],
+  ['layout.css', '.card--interactive:active', 'lg'],
+  ['panel.css', '.metric-card--tile:active', 'lg'],
+  ['notes.css', '.note-card:active', 'lg'],
+  ['meals.css', '.meal-card:active', 'lg'],
+];
+
+test('R22: die zwei Druckstufen stehen als Token in tokens.css', () => {
+  const tokens = css('tokens.css');
+  for (const [name, value] of Object.entries(PRESS_SCALE)) {
+    assert.match(tokens, new RegExp(`${name}:\\s*${value.replace('.', '\\.')};`), `${name} fehlt oder traegt nicht ${value}`);
+  }
+});
+
+test('R22: kein :active setzt eine Skala als Literal - nur ueber --press-scale-sm/-lg', () => {
+  const offenders = [];
+  for (const file of allSheets) {
+    for (const rule of eachRule(css(file))) {
+      if (!/:active(?!-view-transition)/.test(rule.selector)) continue;
+      const transform = rule.body.match(/(?:^|;)\s*transform:\s*([^;]+)/)?.[1] ?? '';
+      for (const m of transform.matchAll(/scale\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)) {
+        if (!/^\s*var\(--press-scale-(?:sm|lg)\)\s*$/.test(m[1])) offenders.push(`${file}: ${rule.selector.replace(/\s+/g, ' ').slice(0, 80)} -> scale(${m[1]})`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], offenders.join('\n'));
+});
+
+test('R22: Chips, Segmente, Menueeintraege und Karten quittieren den Druck mit ihrer Stufe', () => {
+  const failures = [];
+  for (const [file, start, step] of PRESSABLE) {
+    const rule = [...eachRule(css(file))].find((r) => r.at.length === 0
+      && r.selector.split(',').some((s) => s.trim().startsWith(start)));
+    if (!rule) { failures.push(`${file}: keine :active-Regel fuer ${start}`); continue; }
+    if (!new RegExp(`transform:[^;]*scale\\(var\\(--press-scale-${step}\\)\\)`).test(rule.body)) {
+      failures.push(`${file}: ${start} gibt nicht die Stufe ${step} nach`);
+    }
+  }
+  assert.deepEqual(failures, [], failures.join('\n'));
 });

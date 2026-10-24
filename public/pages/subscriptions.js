@@ -30,7 +30,7 @@ import { rowActionHtml, rowMenuHtml } from '/utils/row-action.js';
 import { installPopoverMenus } from '/utils/popover-menu.js';
 import { sortableSet, restoreOrder } from '/utils/sortable.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
-import { metricGlanceHtml, wireMetricGlance } from '/utils/metric-glance.js';
+import { metricGlanceHtml, wireMetricGlance, metricGlanceSkeletonHtml, metricCardsSkeletonHtml } from '/utils/metric-glance.js';
 import { toggleRowHtml } from '/settings/components.js';
 import { leadCardClass } from '/utils/metric-card.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
@@ -369,7 +369,9 @@ export async function render(target, { user } = {}) {
            Liste, waehrend "Transaktionen" und "Kategorie-Budgets" nebenan
            ueber ihrem Traeger stehen. Jetzt h2.u-section-title mit den
            Werkzeugen rechts, darunter der Zeilentraeger (.row-carrier). -->
-      <div class="subscriptions-summary" id="subscriptions-summary"></div>
+      <div class="subscriptions-summary" id="subscriptions-summary">${/* Der Kennzahl-Slot steht ab dem ersten Bild in seiner Form (R22, D4). */ ''}${metricGlanceSkeletonHtml({ lead: true })}
+        <section class="metric-grid metric-grid--led budget-glance-details" aria-hidden="true">${metricCardsSkeletonHtml(3)}</section>
+      </div>
       <section class="subscriptions-list-section" aria-labelledby="subscriptions-list-title">
         <div class="subscriptions-section-head section-toolbar">
           <div class="subscriptions-section-head__lead">
@@ -1090,7 +1092,7 @@ function renderCard(subscription) {
              data-id="${subscription.id}" style="--subscription-color:${esc(brandColor)}">
       <button type="button" class="subscription-card__main list-row__main--interactive"
               data-action="${ro ? 'view' : 'edit'}">
-        <span class="subscription-card__brand">
+        <span class="subscription-card__brand budget-tile">
           ${subscription.logo_data
             ? `<img src="${esc(subscription.logo_data)}" alt="">`
             : `<span>${esc(subscription.name.slice(0, 2).toUpperCase())}</span>`}
@@ -1122,9 +1124,25 @@ function renderCard(subscription) {
         </span>
         ${ro ? '' : `<span class="sr-only">${t('common.edit')}</span>`}
       </button>
-      ${canRenew ? `<div class="row-actions subscription-card__actions">
-        ${rowActionHtml({ icon: 'calendar-check', action: 'renew', label: t('subscriptions.markRenewedNamed', { name: subscription.name }) })}
-      </div>` : ''}
+      ${/* DIE ENDZONE WIE IN JEDEM BUDGET-REITER (R22, D9 nach R21-D10):
+           [eine Handlung][Mehr-Knopf]. Bis dahin stand am Zeiger nur der
+           Kalenderhaken und am Finger ein Wisch-Chevron - Loeschen gab es nur
+           per Geste und im Dialog. Der Mehr-Knopf traegt Verlaengern und
+           Loeschen sichtbar auf jedem Geraet; der Haken bleibt am Zeiger die
+           EINE Handlung davor, am Finger ist er das Wischen zum Zeilenanfang. */ ''}
+      ${ro ? '' : `<div class="row-actions subscription-card__actions">
+        ${canRenew ? rowActionHtml({ icon: 'calendar-check', action: 'renew', label: t('subscriptions.markRenewedNamed', { name: subscription.name }) }) : ''}
+        ${rowMenuHtml({
+          id: `subscription-menu-${subscription.id}`,
+          label: t('common.moreActionsNamed', { name: subscription.name }),
+          className: 'row-action--slim',
+          defer: true,
+          items: [
+            canRenew ? { action: 'renew', icon: 'calendar-check', label: t('subscriptions.markRenewed') } : null,
+            { action: 'delete', icon: 'trash-2', label: t('common.delete'), danger: true },
+          ],
+        })}
+      </div>`}
     </article>
     </div>
   `;
@@ -1500,7 +1518,7 @@ export function openSubscriptionModal(subscription = null) {
 
   const advancedFieldsHtml = `
       <section class="subscription-form__section">
-        <h3><i data-lucide="tags" aria-hidden="true"></i>${t('subscriptions.organizationDetails')}</h3>
+        <h3 class="subscription-form__title">${t('subscriptions.organizationDetails')}</h3>
         <div class="subscription-form__organization-grid">
           ${metaComboboxMarkup('subscription-category', subscription?.category_id || '')}
           ${metaComboboxMarkup('subscription-method', subscription?.payment_method_id || '')}
@@ -1512,7 +1530,7 @@ export function openSubscriptionModal(subscription = null) {
       </section>
 
       <section class="subscription-form__section">
-        <h3><i data-lucide="panel-top" aria-hidden="true"></i>${t('subscriptions.serviceDetails')}</h3>
+        <h3 class="subscription-form__title">${t('subscriptions.serviceDetails')}</h3>
         <div class="form-group">
           <label class="form-label" for="subscription-account">${t('subscriptions.accountUsernameLabel')}</label>
           <input class="form-input" type="text" id="subscription-account" maxlength="200"
@@ -1565,7 +1583,7 @@ export function openSubscriptionModal(subscription = null) {
       </section>
 
       <section class="subscription-form__section">
-        <h3><i data-lucide="receipt-text" aria-hidden="true"></i>${t('subscriptions.billingDetails')}</h3>
+        <h3 class="subscription-form__title">${t('subscriptions.billingDetails')}</h3>
         <div class="subscription-form__billing-grid">
           <div class="form-group">
             <label class="form-label" for="subscription-amount">${t('subscriptions.amountLabel')}${REQUIRED_MARK}</label>
@@ -1598,7 +1616,7 @@ export function openSubscriptionModal(subscription = null) {
       </section>
 
       <section class="subscription-form__section">
-        <h3><i data-lucide="calendar-clock" aria-hidden="true"></i>${t('subscriptions.renewalDetails')}</h3>
+        <h3 class="subscription-form__title">${t('subscriptions.renewalDetails')}</h3>
         ${toggleRowHtml({
           label: t('subscriptions.reminderEnabledLabel'), control: 'switch',
           checked: subscription?.reminder_enabled !== false,
@@ -1640,8 +1658,8 @@ export function openSubscriptionModal(subscription = null) {
       ${advancedSection(advancedFieldsHtml, { open: advancedOpen })}
       <div class="modal-panel__footer subscriptions-modal-footer">
         ${edit ? `<button type="button" class="btn btn--danger-outline" id="subscription-delete"
-                aria-label="${esc(t('common.deleteNamed', { name: subscription.name }))}" style="margin-inline-end:auto">
-          <i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i><span>${esc(t('common.delete'))}</span>
+                aria-label="${esc(t('common.deleteNamed', { name: subscription.name }))}">
+          <i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}
         </button>` : ''}
         <button class="btn btn--secondary" type="button" id="subscription-cancel">${t('common.cancel')}</button>
         <button class="btn btn--primary" type="submit">${edit ? t('common.save') : t('common.add')}</button>

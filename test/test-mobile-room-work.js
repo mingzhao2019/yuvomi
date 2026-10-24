@@ -123,6 +123,13 @@ test('M1: die Metazeile endet mit Ellipse statt mit einem Schnitt', () => {
   assert.equal(label['white-space'], 'nowrap');
   const due = declarations(tasksCss, '.task-card__meta > .due-date');
   assert.equal(due['min-width'], '0', 'ohne min-width 0 schrumpft der Flex-Chip nie und die Zeile klippt');
+  // Summe der Schrumpffaktoren unter 1 verteilt nur diesen Bruchteil des
+  // Ueberlaufs: mit 0.01 nahm die Faelligkeit allein 1 % auf, der Rest schnitt
+  // die Bueroklammer ab (R22-Sichtpruefung, 184px Inhalt in 178px).
+  assert.ok(Number(due['flex-shrink']) >= 1, `die Faelligkeit muss den Ueberlauf allein aufnehmen koennen (flex-shrink ${due['flex-shrink']})`);
+  assert.equal(declarations(tasksCss, '.task-card__meta > .task-card__docs')['flex-shrink'], '0', 'die Bueroklammer schrumpft nie');
+  const tagShrink = Number(declarations(tasksCss, '.task-card__meta > .task-tag').flex?.split(/\s+/)[1]);
+  assert.ok(tagShrink > Number(due['flex-shrink']), 'das Etikett gibt zuerst nach, dann die Faelligkeit');
 });
 
 // --------------------------------------------------------------------------
@@ -297,6 +304,21 @@ test('M13: mobil ist die Karte kompakt - drei Zeilen Vorschau, Fusszeile ohne Kr
   const more = declarations(notesCss, '.note-card__more', { media: MOBILE });
   assert.match(more['margin-block'] ?? '', /var\(--target-base\)/,
     'der Mehr-Knopf haengt seine volle Trefflaeche in die Polsterung statt die Zeile zu strecken');
+});
+
+// Critique R22-F (F2.3): mobil standen bei 390x844 drei Notizen ganz im ersten
+// Bild (Karte 158px: Titel plus drei Zeilen Vorschau), die vierte lief unter
+// die Tab-Leiste. Eine Karte zeigt mobil drei TEXTzeilen: mit Titel zwei
+// Zeilen Vorschau, ohne Titel drei - 133px, vier Notizen ganz im Bild.
+test('R22-F F2.3: mobil drei Textzeilen je Karte - mit Titel zwei Zeilen Vorschau', () => {
+  const titled = declarations(notesCss, '.note-card__title + .note-card__content', { media: MOBILE });
+  assert.equal(titled['-webkit-line-clamp'], '2', 'mit Titel: zwei Zeilen Vorschau');
+  assert.equal(titled['line-clamp'], '2');
+  assert.equal(declarations(notesCss, '.note-card__content', { media: MOBILE })['-webkit-line-clamp'], '3', 'ohne Titel bleibt es bei drei');
+  assert.equal(declarations(notesCss, '.note-card__title + .note-card__content')['-webkit-line-clamp'], undefined, 'nur mobil');
+  // Die Regel greift nur, wenn der Inhalt dem Titel unmittelbar folgt.
+  const html = notes.renderNoteCard({ id: 6, title: 'Einkauf', content: 'Milch', color: '#ffcc00', pinned: 0 });
+  assert.match(html, /<\/h2>\s*<div class="note-card__content">/, 'zwischen Titel und Vorschau steht nichts');
 });
 
 // Re-Critique 2026-09-28 (P8 / A3 P3-2): mobil brach der Detail-Fuss einer

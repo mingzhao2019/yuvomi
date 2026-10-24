@@ -2174,7 +2174,8 @@ test('die Widget-Optionen sind auch am ausgeblendeten Widget erreichbar (#814)',
   // Die Ablage der ausgeblendeten Widgets traegt den Knopf.
   const tray = source.match(/function renderHiddenWidgetsTray[\s\S]*?\n}/);
   assert.ok(tray, 'renderHiddenWidgetsTray nicht gefunden');
-  assert.match(tray[0], /data-widget-options=/,
+  // Seit R22 (D16) als Eintrag im Menue am Chip (`'data-widget-options': w.id`).
+  assert.match(tray[0], /data-widget-options=|'data-widget-options': w\.id/,
     'die Ablage bietet keine Optionen an - am ausgeblendeten Widget waeren sie unerreichbar');
 
   // Und sie werden auch verdrahtet: die Ablage liegt AUSSERHALB des Grids, ein
@@ -3137,7 +3138,7 @@ test('Aktiv-Indikatoren erscheinen am Ziel: die erste Platzierung gleitet nicht 
     const body = functionBody(source, name);
     assert.ok(body, `${name} fehlt`);
     assert.match(body, /placeNavIndicator\(indicator,/, `${name} platziert ueber placeNavIndicator`);
-    assert.doesNotMatch(body.replace(/placeNavIndicator\(indicator, \(\) => \{[\s\S]*?\n  \}\);/, ''), /indicator\.style\.transform =/, `${name} setzt transform nur in placeNavIndicator`);
+    assert.doesNotMatch(body.replace(/placeNavIndicator\(indicator, \(\) => \{[\s\S]*?\n  \}(?:, instant)?\);/, ''), /indicator\.style\.transform =/, `${name} setzt transform nur in placeNavIndicator`);
   }
   // Ein FLIP-Start (startGlideAt) ist ein Gleiten als Antwort auf einen
   // Wechsel - erlaubt nur fuer einen schon PLATZIERTEN Indikator, sonst kaeme
@@ -3383,7 +3384,8 @@ test('mobile navigation Quiet Precision keeps state feedback stable and accessib
   assert.match(focusWellRule, /outline:\s*var\(--focus-ring-width\)\s+solid\s+var\(--focus-ring-color\)/);
   assert.match(focusWellRule, /outline-offset:\s*var\(--focus-ring-offset\)/);
   assert.match(focusWellRule, /--focus-ring-color:\s*var\(--color-accent\)/);
-  assert.match(pressedWellRule, /transform:\s*translateY\(var\(--space-px\)\) scale\(0\.96\)/);
+  // Die Stufe kommt seit R22 aus dem Druckzustand-Token (tokens.css), kein Literal.
+  assert.match(pressedWellRule, /transform:\s*translateY\(var\(--space-px\)\) scale\(var\(--press-scale-sm\)\)/);
   assert.doesNotMatch(layout, /(^|\n)\.nav-item:active\s*\{[\s\S]*?transform:/);
   assert.doesNotMatch(layout, /\.nav-bottom \.nav-item:active\s*\{[\s\S]*?transform:/);
   // EINE Tint-Schicht: der Akzent-Fill sitzt am Indikator selbst; das ::before
@@ -6823,7 +6825,7 @@ test('Notes follow the mobile header rule: chips inside the port, category manag
   const notesPage = read('../public/pages/notes.js');
   // Die Chipreihe stand fest zwischen Kopf und Port und kostete dauerhaft 65px
   // (A8). Sie ist jetzt das erste Kind des Ports und scrollt mit weg.
-  const port = notesPage.indexOf('<div class="notes-scroll page-scrollport">');
+  const port = notesPage.indexOf('<div class="notes-scroll page-scrollport" data-scroll-port="notes">');
   const chips = notesPage.indexOf('id="notes-filters"');
   const grid = notesPage.indexOf('<div id="notes-grid"');
   assert.ok(port > -1 && chips > port && grid > chips,
@@ -7405,7 +7407,10 @@ test('#1372 quick-add fields stretch with their row, and no translated field get
   // EINE Grammatik fuer Format-Gate und Wert: `5`, `0.5` und `.5`. Ein Leser,
   // der nur `\d+(?:\.\d+)?` kennt, nimmt aus `.5fr` die 5 und dreht den
   // Vergleich Kategorie > Menge still um.
-  const FLEX_TRACK = /^minmax\(0,\s*(\d+(?:\.\d+)?|\.\d+)fr\)$/;
+  // Eine UNTERGRENZE in rem ist keine feste Spur (R22 S9): sie waechst mit dem
+  // fr-Anteil weiter und kuerzt hoechstens das Namensfeld - die Kategorie
+  // behaelt bei 1280 „Sonstiges" statt „Sonstig...".
+  const FLEX_TRACK = /^minmax\((?:0|\d+(?:\.\d+)?rem),\s*(\d+(?:\.\d+)?|\.\d+)fr\)$/;
   const frOf = (track) => Number(FLEX_TRACK.exec(track)?.[1] ?? NaN);
 
   const templates = rules
@@ -7777,7 +7782,8 @@ test('phase 6 shared sub-tabs support keyboard tab navigation', () => {
 // --------------------------------------------------------
 
 test('calendar week-view time labels use a readable text token, not the disabled token', () => {
-  const calendar = read('../public/styles/calendar.css');
+  // Die Stundenachse steht seit R22 (D6) im geteilten Zeitraster.
+  const calendar = read('../public/styles/time-grid.css');
   const body = cssRuleBody(calendar, '.week-view__time-label');
 
   assert.match(body, /color:\s*var\(--color-text-tertiary\)/, 'time labels must use --color-text-tertiary for WCAG AA contrast');
@@ -8271,16 +8277,14 @@ test('calendar draws its gutter from the shared page token and compacts weekday 
     /\.calendar-page\s*\{[^}]*padding(-inline)?:\s*var\(--space-/,
     'calendar must not reintroduce a module-specific page gutter (#577)',
   );
-  assert.match(
-    calendar,
-    /@media \(min-width:\s*1024px\)[\s\S]*?\.week-view__day-header\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center/,
-    'desktop weekday and date should sit side by side',
-  );
-  assert.match(
-    calendar,
-    /@media \(min-width:\s*1024px\)[\s\S]*?\.week-view__day-num\s*\{[\s\S]*?width:\s*var\(--target-sm\);[\s\S]*?height:\s*var\(--target-sm\)/,
-    'desktop date markers should use the compact touch-size token',
-  );
+  // Der Tageskopf ist seit R22 (D6) das geteilte Zeitraster (time-grid.css),
+  // EINE Form auf jeder Breite (seit 2026-09-24): Kuerzel und Ziffer nebeneinander.
+  const grid = read('../public/styles/time-grid.css');
+  assert.match(cssRuleBody(grid, '.week-view__day-header'), /display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center/,
+    'weekday and date should sit side by side');
+  assert.match(cssRuleBody(grid, '.week-view__day-num'), /width:\s*var\(--target-sm\);[\s\S]*?height:\s*var\(--target-sm\)/,
+    'date markers should use the compact touch-size token');
+  assert.match(calendar, /^@import url\('\/styles\/time-grid\.css'\);/m, 'calendar.css bindet das Zeitraster ein');
 });
 
 // Bis Block 2 (2026-08-10) verglich dieser Guard genau zwei Namen
@@ -8659,13 +8663,15 @@ test('Feldkanten tragen --color-border-control und halten 3:1 auf jedem Feldgrun
     // R21 S7 (D9): die kompakte eine Kopfzeile des Kalenders ab 1024px nimmt
     // dieselbe Icon-Form (calendar.css, `cal-toolbar--compact`).
     ['.page-toolbar.cal-toolbar--compact .page-toolbar__tools > label.page-search:not(:focus-within):not(:has(input:not(:placeholder-shown)))', 'Icon-Form der Kalendersuche in der kompakten Kopfzeile; derselbe Knopf'],
+    // Ihr Rueckfall ohne `:has()` (R22-F): Stand "Begriff steht" als Klasse.
+    ['.page-toolbar.cal-toolbar--compact .page-toolbar__tools > label.page-search:not(:focus-within):not(.is-filled)', 'Icon-Form der Kalendersuche ohne :has(); derselbe Knopf'],
     ['.search-overlay__header', 'Kopf des Such-Overlays; Trennlinie zur Trefferliste'],
     // `.search-overlay__panel` stand hier bis R18 (2026-10-07): die Palette traegt
     // seither die Glaskante der schwebenden Flaechen (--glass-border), keine
     // Kartenkante mehr.
     ['.search-result + .search-result', 'Trennlinie zwischen zwei Treffern'],
-    ['.search-scope', 'Bereichs-Chip in der Suche; ein Knopf, kein Feld'],
-    ['.search-scope:hover', 'Hover desselben Chips'],
+    // `.search-scope` stand hier bis R22 (D16): die Kacheln der leeren Palette
+    // sind Zeilen geworden.
     ['.rrule-fields', 'Gruppe der Wiederholungsfelder; Gruppenkante, die Felder darin tragen ihre eigene'],
     ['.schedule-day-row-fields', 'Gruppe der Felder eines Wochentags; linke Gruppenlinie'],
     ['.note-category-selection', 'Chip der gewaehlten Notiz-Kategorie; Knopf, kein Feld'],
@@ -11864,6 +11870,104 @@ test('die Icon-Skala hat genau einen Namen pro Stufe', () => {
   assert.equal(new Set(values).size, values.length, 'zwei --icon-*-Tokens haben denselben px-Wert');
 });
 
+// R22 (S4, D8): DIE GLYPHE IM KNOPF HAT EINE GRUNDGROESSE. Ohne Klasse
+// zeichnete Lucide 24px, und so standen in einem Kopf 16er neben 24er Glyphen
+// (Zeitraum-Pfeile, Belohnungen "Bonus vergeben"/"Auszahlen", Haushaltshilfe
+// "Kommen"/"Gehen", das angedockte Plus). Die Zeilenglyphe ist ein Token statt
+// eines 18px-Literals, die Uebersicht fuehrt Kopfknopf und Glyphe der Shell,
+// und ein Chip zeichnet in einer Groesse.
+test('D8: .btn > svg misst --icon-md, Zeilenglyphe und Chip-Glyphe aus Tokens', () => {
+  const layout = [...eachRule(read('../public/styles/layout.css'))];
+  const sel = (r) => r.selector.split(',').map((x) => x.replace(/\s+/g, ' ').trim());
+  const base = layout.find((r) => r.at.length === 0 && sel(r).includes(':where(.btn) > svg'));
+  assert.ok(base, 'die Grundregel `:where(.btn) > svg` fehlt in layout.css - eine Glyphe ohne Klasse zeichnet 24px');
+  assert.match(base.body, /width:\s*var\(--icon-md\)/);
+  assert.match(base.body, /height:\s*var\(--icon-md\)/);
+  const docked = layout.find((r) => sel(r).includes('.page-fab--docked > svg'));
+  assert.ok(docked && /width:\s*var\(--icon-md\)/.test(docked.body), 'das angedockte Plus traegt die 24px des schwebenden Kreises in die Textkapsel');
+
+  const tokens = read('../public/styles/tokens.css');
+  assert.match(tokens, /--icon-row:\s*18px;/, '--icon-row fehlt in tokens.css');
+  const row = layout.find((r) => sel(r).includes('.row-action svg'));
+  assert.ok(row && /width:\s*var\(--icon-row\)/.test(row.body), '.row-action svg liest nicht --icon-row');
+  const folder = [...eachRule(read('../public/styles/documents.css'))].find((r) => sel(r).includes('.documents-folder-item__menu svg'));
+  assert.ok(folder && /width:\s*var\(--icon-row\)/.test(folder.body), 'der Ordner-Kebab zeichnet kleiner als jede andere Zeilenaktion');
+
+  const dash = [...eachRule(read('../public/styles/dashboard.css'))].filter((r) => sel(r).some((x) => x.startsWith('.dashboard-icon-btn')));
+  for (const r of dash) {
+    assert.doesNotMatch(r.body, /(?:^|;)\s*(?:width|height):\s*(?:18px|var\(--target-lg\))/, `Uebersicht-Kopf mit eigener Groesse: ${r.selector}`);
+  }
+  assert.ok(dash.some((r) => r.at.some((a) => /min-width:\s*1024px\)\s*and\s*\(hover:\s*hover/.test(a)) && /min-height:\s*var\(--target-md\)/.test(r.body)),
+    'der Uebersicht-Kopf misst am Zeiger nicht --target-md wie jeder Modulkopf');
+
+  const chip = [...eachRule(read('../public/styles/filter-chip.css'))].find((r) => sel(r).includes('.filter-chip > svg'));
+  assert.ok(chip && /width:\s*var\(--icon-md\)/.test(chip.body), 'die Chip-Glyphe hat keine Groesse - 12px im Vorrat, 16px in Kontakten');
+  assert.doesNotMatch(read('../public/pages/pantry.js'), /class="filter-chip[^`]*?<i data-lucide="[^"]*" class="icon-sm"/,
+    'der Vorrat setzt seine Chip-Glyphe wieder auf --icon-sm');
+});
+
+// R22 (S4, D8): BEDIENELEMENTE EINER ZEILE TEILEN EINE HOEHE. Am Zeiger ab
+// 1024px misst der Kopf --target-md (40px), am Finger --target-base. Gemessen
+// vorher bei 1280: Reiter (Kueche, Budget, Belohnungen, Haushaltshilfe,
+// Schichtplan) und Listen-Kapseln 44 neben 40er Knoepfen, die Lupe des
+// Kalenders 44, der Dokumenten-Status 50 neben 40er Chips; Kalender-Segment
+// 15px statt 14px Schrift.
+test('D8: eine Hoehe je Kopfzeile - Reiter, Listen-Kapseln, Kalender-Lupe und Status-Segment', () => {
+  const pointerDesk = (r) => r.at.some((a) => /min-width:\s*1024px\)\s*and\s*\(hover:\s*hover/.test(a));
+  const sel = (r) => r.selector.split(',').map((x) => x.replace(/\s+/g, ' ').trim());
+  const find = (file, selector, pred = () => true) => [...eachRule(read(`../public/styles/${file}`))]
+    .filter((r) => sel(r).includes(selector) && pred(r));
+  assert.ok(find('sub-tabs.css', '.sub-tab', pointerDesk).some((r) => /height:\s*var\(--target-md\)/.test(r.body)),
+    'die Reiter messen am Zeiger nicht --target-md');
+  assert.ok(find('shopping.css', '.list-tab', pointerDesk).some((r) => /min-height:\s*var\(--target-md\)/.test(r.body)),
+    'die Listen-Kapseln messen am Zeiger nicht --target-md');
+  assert.ok(find('shopping.css', '.list-tab__new', pointerDesk).some((r) => /height:\s*var\(--target-md\)/.test(r.body)),
+    'das Listen-Plus misst am Zeiger nicht --target-md');
+  const lupe = '.page-toolbar.cal-toolbar--compact .page-toolbar__tools > label.page-search:not(:focus-within):not(:has(input:not(:placeholder-shown)))';
+  assert.ok(find('calendar.css', lupe, pointerDesk).some((r) => /block-size:\s*var\(--target-md\)/.test(r.body)),
+    'die Icon-Form der Kalender-Suche misst am Zeiger nicht --target-md');
+  const status = [...eachRule(read('../public/styles/panel.css'))].filter((r) => sel(r).includes('.documents-status .segmented__item'));
+  assert.ok(status.some((r) => /min-height:\s*calc\(var\(--target-base\)\s*-\s*4 \* var\(--space-px\)\)/.test(r.body)),
+    'der Dokumenten-Status rechnet nicht wie das Kopf-Segment (aussen = Zielgroesse)');
+  assert.ok(status.some((r) => /--target-md/.test(r.body)), 'der Dokumenten-Status misst am Zeiger nicht die 40px der Chips');
+  // Die Icon-Knoepfe und die Suche im Kopf schalten nach Breite UND Zeiger wie `.btn`.
+  for (const s of ['.section-toolbar .btn--icon', '.section-toolbar .page-search__input']) {
+    assert.ok(find('layout.css', s, pointerDesk).some((r) => /min-height:\s*var\(--target-md\)/.test(r.body)),
+      `${s} misst am Zeiger nicht --target-md - der Abschnittskopf ist eine Werkzeugzeile wie der Seitenkopf`);
+  }
+  const head = find('layout.css', '.page-toolbar .btn--icon', (r) => r.at.length > 0);
+  assert.ok(head.length && head.every(pointerDesk), 'die 40px-Regel der Kopf-Icon-Knoepfe schaltet nur nach der Breite - am Touch-Tablet stehen sie neben 48er Textknoepfen');
+});
+
+// R22 (S4, D8): EIN ZEILENEINZUG. Die geteilte Zeile (`.list-row`) steht
+// waagerecht auf --space-3 (12px), die benannte Stufe `--roomy` und Zeilen, die
+// mit einem 16er Traeger fluchten (Dosis, Besuche), auf --space-4. Gemessen bei
+// 390px standen zwei Listen darunter auf 8px: Aufgaben (die mobile Polsterung
+// galt auch waagerecht) und Agenda (eigene Polsterung rundum).
+const ROW_CLASSES = ['list-row', 'agenda-event', 'task-card__main', 'shopping-item', 'recipe-row', 'pantry-row',
+  'contact-item', 'birthday-item', 'budget-entry', 'document-row', 'documents-folder-item', 'rw-standing',
+  'rw-ledger-row', 'health-dose', 'health-area-row', 'housekeeping-visit-row'];
+test('D8: keine Zeilenliste steht waagerecht unter dem Einzug der geteilten Zeile', () => {
+  const narrow = /var\(--space-(?:0h|1|1h|2)\)|\b0\b|\d+px/;
+  const leaf = new RegExp(`\\.(?:${ROW_CLASSES.join('|')})(?![\\w-])[^\\s>+~]*$`);
+  const offenders = [];
+  for (const { file, css } of stylesheetFiles()) {
+    for (const { selector, body, at } of eachRule(css)) {
+      if (!selector.split(',').some((x) => leaf.test(x.trim()))) continue;
+      const decl = (prop) => body.match(new RegExp(`(?:^|;)\\s*${prop}:\\s*([^;]+)`))?.[1]?.trim();
+      const pad = decl('padding');
+      const inline = decl('padding-inline');
+      const parts = pad ? pad.split(/\s+(?![^(]*\))/) : [];
+      const padInline = parts.length === 1 ? parts[0] : parts.length >= 2 ? parts[1] : null;
+      const effective = inline ?? (pad && !/--list-row-pad/.test(pad) ? padInline : null);
+      if (effective && narrow.test(effective)) offenders.push(`${file}: ${selector.trim().slice(0, 70)} -> ${effective} ${at.join(' ')}`);
+      const rowPad = decl('--list-row-pad');
+      if (rowPad && narrow.test(rowPad) && !inline) offenders.push(`${file}: ${selector.trim().slice(0, 70)} --list-row-pad ${rowPad} gilt auch waagerecht ${at.join(' ')}`);
+    }
+  }
+  assert.deepEqual(offenders, [], offenders.join('\n'));
+});
+
 test('Dialoge laufen über die Modal-Komponente, nicht über native Browser-Dialoge', () => {
   // window.confirm blockiert den Thread, ignoriert das Design-System, hat
   // keinen Fokus-Trap und keine Danger-Farbe. confirmModal/promptModal/
@@ -12257,6 +12361,17 @@ for (const { cls, props } of SHARED_CLASSES) {
     assert.deepEqual(copies, [], `eine Kopie von .${cls} in einem Seiten-Blatt - die Regel ist global, die Kopie verdeckt, wenn sie fehlt`);
   });
 }
+
+// R22 (S4): Hinweistexte brechen ohne Waise. `.form-hint` steht in fast jedem
+// Modul und unter jeder Einstellungsgruppe (`.settings-group__footer` traegt
+// die Klasse mit); der Detektor meldete im Fuss der Konto-Seite ein einzelnes
+// Wort in der letzten Zeile.
+test('.form-hint bricht seine letzten Zeilen mit text-wrap: pretty', () => {
+  const base = [...eachRule(read('../public/styles/layout.css'))]
+    .find((r) => r.at.length === 0 && r.selector.split(',').map((x) => x.trim()).includes('.form-hint'));
+  assert.ok(base, '.form-hint hat keine Basisregel in layout.css');
+  assert.match(base.body, /text-wrap:\s*pretty/, 'der Hinweis bricht wie Fliesstext ohne Ausgleich - ein Wort bleibt allein in der letzten Zeile');
+});
 
 // KLEIN HEISST SCHMALER, NICHT UNTER DIE ZIELGROESSE (2026-09-24). Der kleine
 // Knopf stand in rewards.css auf `--target-sm` (32px, laut tokens.css „kein
@@ -12801,7 +12916,7 @@ test('der Einkaufs-Handler schreibt nicht in einen abgehaengten Container', () =
 // ab (auch `switchList` und den Laden-Manager, die aelter sind als #1066).
 test('shopping: eine ueberholte Artikel-Antwort fasst den Stand nicht mehr an', () => {
   const src = read('../public/pages/shopping.js');
-  const fn  = src.match(/async function loadItems\(listId\)[\s\S]*?\n\}/)?.[0] ?? '';
+  const fn  = src.match(/async function loadItems\(listId[^)]*\)[\s\S]*?\n\}/)?.[0] ?? '';
   assert.ok(fn, 'loadItems nicht gefunden');
   // Vor JEDER Zuweisung an den geteilten Stand, nicht irgendwo in der Funktion.
   const wache = fn.indexOf('if (state.activeListId !== listId) return;');
@@ -13143,7 +13258,9 @@ test('Render-Funktionen mit mehreren Aufrufern materialisieren ihre Icons selbst
 
     for (const [name, body] of fns) {
       if (!/\.(insertAdjacentHTML|replaceChildren)\s*\(/.test(body)) continue;
-      if (!/data-lucide=/.test(body)) continue;
+      // Was in ein `<template>` geht (R22, swipe-row.js `deferredRevealHtml`),
+      // materialisiert erst, wer es einhaengt - hier waere es ein Leerlauf.
+      if (!/data-lucide=/.test(body.replace(/deferredRevealHtml\(`[\s\S]*?`\)/g, ''))) continue;
       if (materialises(body)) continue;
       if (/document\.createElement\(/.test(body) && /\breturn\b/.test(body)) continue; // Element-Fabrik
 
@@ -15838,6 +15955,27 @@ test('the status bar colour is the page background, in both themes', () => {
 });
 
 /**
+ * Die Offline-Seite spricht nur Farben, die DESIGN.md kennt.
+ *
+ * `offline.html` laedt kein tokens.css (der Service Worker liefert sie ohne
+ * Netz aus) und spiegelt deshalb ihre Token als Literale. Der Detektor liest die
+ * Palette aus dem `colors:`-Kopf von DESIGN.md; fehlte dort ein Dark-Wert, meldete
+ * er ihn bei jedem Lauf als Drift (R22: #47423B, #B4AEA5). Geprueft werden die
+ * Deklarationen, nicht die Kommentare - dort stehen bewusst die alten Werte.
+ */
+test('offline.html declares only colours named in the DESIGN.md palette', () => {
+  const design = read('../DESIGN.md');
+  const head = design.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? '';
+  const palette = new Set([...head.matchAll(/^\s+[\w-]+:\s*"(#[0-9A-Fa-f]{6})"/gm)].map((m) => m[1].toUpperCase()));
+  assert.ok(palette.size > 20, `der colors:-Kopf von DESIGN.md liess sich nicht lesen (${palette.size} Werte)`);
+  const offline = withoutBlockComments(read('../public/offline.html'));
+  const declared = [...offline.matchAll(/--[\w-]+\s*:\s*(#[0-9A-Fa-f]{6})\s*;/g)].map((m) => m[1].toUpperCase());
+  assert.ok(declared.length >= 10, `offline.html: erwartet die gespiegelten Token, gefunden ${declared.length}`);
+  const missing = [...new Set(declared.filter((hex) => !palette.has(hex)))];
+  assert.deepEqual(missing, [], `offline.html deklariert Farben ausserhalb des DESIGN.md-Kopfs: ${missing.join(', ')}`);
+});
+
+/**
  * Ein Zeilenkoerper, der den ganzen Zeileninhalt umschliesst, traegt kein
  * aria-label.
  *
@@ -17014,6 +17152,27 @@ test('Wand-Leser: jede Hoehen-Einheit ist eine Skala, nur die Bildschirmhoehe ni
   assert.equal(hits('font-size: clamp(1rem, 3vmin, 2rem)'), 0);
   assert.equal(hits('font-size: 12vw'), 0);
   assert.equal(hits('--wall-gap: 3vmax'), 0);
+});
+
+// R22 S8 (Critique a5): hochkant (834x1112) standen zwei Programmtitel und die
+// Wetterzeile abgeschnitten ueber einem Drittel leerer Flaeche. Hochkant ist
+// die Hoehe da: zwei Titelzeilen, die Wetterzeile bricht um. Quer bleibt es bei
+// einer Zeile. Die Wetterregel muss NACH der Grundregel stehen (gleiche
+// Spezifitaet), sonst gewinnt deren `nowrap` - so stand sie im ersten Wurf.
+test('hochkant tragen die Wandzeilen zwei Titelzeilen, die Wetterzeile bricht um', () => {
+  const rules = [...eachRule(read('../public/styles/dashboard.css'))];
+  const portrait = (sel) => rules.filter((r) => r.at.some((a) => /\(orientation:\s*portrait\)/.test(a)) && r.selector.trim() === sel);
+  const [title] = portrait('.wall-row__title');
+  assert.ok(title, 'keine Hochkant-Regel fuer den Programmtitel');
+  assert.match(title.body, /line-clamp:\s*2/);
+  const [desc] = portrait('.wall-weather__desc');
+  assert.ok(desc, 'keine Hochkant-Regel fuer die Wetterzeile');
+  assert.match(desc.body, /white-space:\s*normal/);
+  assert.match(desc.body, /line-clamp:\s*2/);
+  const baseIdx = rules.findIndex((r) => !r.at.length && r.selector.trim() === '.wall-weather__desc');
+  assert.ok(rules.indexOf(desc) > baseIdx, 'die Hochkant-Regel steht vor der Grundregel und verliert gegen deren nowrap');
+  const base = rules.find((r) => !r.at.length && r.selector.trim() === '.wall-row__title');
+  assert.match(base.body, /line-clamp:\s*1/, 'quer bleibt es bei einer Zeile');
 });
 
 test('die Distanzskala der Wand haengt an der KNAPPEN Seite, nicht an der Hoehe', () => {
@@ -22466,6 +22625,12 @@ test('D3: die Unternavigation der Module ist Text, keine Icon-Reiter', () => {
     assert.match(src, /class="[^"]*\bsub-tab\b/, `Vorbedingung: ${page} rendert Reiter`);
     assert.doesNotMatch(src, /sub-tab__icon/, `${page}: Reiter tragen nur ihr Wort`);
   }
+  // R22 S9 (Critique 2026-10-22, a2 P3): die Kueche trug am Desktop als
+  // einzige Leiste eine Glyphe vor jedem Reiter-Wort.
+  const kitchen = read('../public/utils/kitchen-tabs.js');
+  const tabs = kitchen.slice(kitchen.indexOf('const TABS = () => ['), kitchen.indexOf('].filter', kitchen.indexOf('const TABS = () => [')));
+  assert.match(tabs, /labelKey: 'nav\.pantry'/, 'Vorbedingung: die Kuechen-Reiter');
+  assert.doesNotMatch(tabs, /icon:/, 'kitchen: Reiter tragen nur ihr Wort');
 });
 
 // D5 (Critique 2026-10-16): Quick-Add im Einkauf ist die benannte Ausnahme vom
@@ -22514,6 +22679,71 @@ test('Mehr-Blatt: die Module stehen als Zeilenliste in den Sektionen der Seitenl
   assert.doesNotMatch(rule('.more-item'), /flex-direction:\s*column/, 'keine Kachel (Icon ueber Name) mehr');
   assert.match(rule('.more-item__label'), /white-space:\s*nowrap/, 'der Name steht auf einer Zeile, ohne Silbentrennung');
   assert.match(router, /chevron\.dataset\.lucide = 'chevron-right'/, 'der Pfeil am Zeilenende sagt: fuehrt weiter');
+});
+
+// R22 D14 (Critique 2026-10-22, a1 P1/P2): bei 390x844 mit Sicherheitszone
+// 59px stand das Blatt bei y 32 unter der Statusleiste, 97px Module lagen ohne
+// Hinweis unter der Kante, und Budget stand namenlos am Ende unter "Menschen".
+test('R22 D14: das Mehr-Blatt bleibt unter der Statusleiste, blendet die Kante und nennt jede Sektion', () => {
+  const router = read('../public/router.js');
+  const fn = router.slice(router.indexOf('function moreSheetSections('), router.indexOf('function buildMoreSheetBody()'));
+  assert.match(fn, /navSectionLabelKey\(section, labelCounts\.get\(section\), \{ standalone: true \}\)/, 'im Blatt bekommt jede Sektion ihren Kopf');
+  const body = router.slice(router.indexOf('function buildMoreSheetBody()'), router.indexOf('\n}\n', router.indexOf('function buildMoreSheetBody()')));
+  assert.match(body, /wireScrollFade\(body, \{ axis: 'y' \}\)/, 'der Koerper meldet verborgene Module ueber die Kantenblende');
+  const layout = [...eachRule(read('../public/styles/layout.css'))].filter((r) => !r.at.length);
+  const rule = (sel) => layout.find((r) => r.selector.trim() === sel)?.body ?? '';
+  assert.match(rule('.more-sheet'), /max-block-size:[^;]*var\(--safe-area-inset-top\)/, 'die Obergrenze zieht die Sicherheitszone oben ab');
+  for (const sel of ['.more-sheet__body.has-fade-end', '.more-sheet__body.has-fade-start', '.more-sheet__body.has-fade-start.has-fade-end']) {
+    assert.match(rule(sel), /(?:^|[;\s])mask-image:\s*linear-gradient\(to bottom/, `${sel}: Blende an der Kante`);
+  }
+});
+
+// R22 D17 (Critique 2026-10-22, a2 P2): ab 640px reservierte der
+// Personenstapel eine Spalte ueber beide Zeilen - bei 1280 mass die Metazeile
+// 194 von 420px, "Heute faellig" und das Etikett endeten in Ellipse. Sie
+// laeuft jetzt unter den Avatar, ohne die Zeile zu strecken (Platzhalter D4).
+test('R22 D17: die Metazeile der Aufgabe laeuft am Desktop unter den Avatar', () => {
+  const rules = [...eachRule(read('../public/styles/tasks.css'))]
+    .filter((r) => r.at.some((a) => /min-width:\s*640px/.test(a)));
+  const body = (sel) => rules.find((r) => r.selector.trim() === sel)?.body ?? '';
+  assert.match(body('.task-card__main:has(> .avatar-stack)'), /display:\s*grid/, 'mit Avatar ein Raster');
+  assert.match(body('.task-card__main:has(> .avatar-stack) > .task-card__body'), /display:\s*contents/);
+  assert.match(body('.task-card__main:has(> .avatar-stack) .task-card__meta'), /grid-column:\s*2 \/ 4/, 'die Metazeile spannt bis unter den Stapel');
+  const avatar = body('.task-card__main > .avatar-stack');
+  assert.match(avatar, /grid-row:\s*1 \/ span 2/, 'der Stapel liegt ueber beiden Zeilen - in Zeile 1 allein streckte er sie um 1px');
+  assert.match(avatar, /align-self:\s*start/);
+});
+
+// R22 S9 (Critique 2026-10-22, a2 Klein): Rezepte-Liste und -Detail begannen
+// 16px auseinander (141 gegen 125) - die Liste traegt den oberen Auslauf ihres
+// Scrollports, das Detail nicht.
+test('R22: das Rezept-Detail fluchtet oben mit der Liste', () => {
+  const rules = [...eachRule(read('../public/styles/recipes.css'))].filter((r) => !r.at.length);
+  const pane = rules.find((r) => r.selector.trim() === '.recipes-page .split-view__detail')?.body ?? '';
+  const list = rules.find((r) => r.selector.trim() === '.recipes-list')?.body ?? '';
+  const top = /padding-block-start:\s*(var\(--space-\d+\))/.exec(list)?.[1];
+  assert.ok(top, 'Vorbedingung: der Auslauf der Liste');
+  assert.match(pane, new RegExp(`margin-block-start:\\s*${top.replace(/[()]/g, '\\$&')}`), 'dieselbe Stufe am Detail');
+  assert.match(pane, /max-block-size:\s*calc\(100% - var\(--space-8\)\)/, 'und die Hoehe haelt beide Raender frei');
+});
+
+// R22 S9 (Critique 2026-10-22, a2 Klein): bei 1280 blieben der Kategorie der
+// Schnellzeile 116px - „Sonstig...". Sie hat eine Untergrenze.
+test('R22: die Kategorie der Einkaufs-Schnellzeile behaelt am Desktop ihr Wort', () => {
+  const rules = [...eachRule(read('../public/styles/shopping.css'))]
+    .filter((r) => r.at.some((a) => /min-width:\s*1024px/.test(a)) && r.selector.trim() === '.quick-add__form');
+  assert.match(rules.map((r) => r.body).join(';'), /grid-template-columns:\s*minmax\(0, 5fr\) minmax\(0, 2fr\) minmax\(8\.5rem, 3fr\)/);
+});
+
+// R22 D15 (Critique 2026-10-22, a2 Klein): am Finger begann die erste
+// Einkaufsgruppe 0px unter der Haarlinie des Kuechenkopfs, Vorrat, Rezepte und
+// Aufgaben lassen 12-16px. Die Schnellzeile (Zeiger) bringt ihre Luft mit.
+test('R22 D15: die erste Einkaufsgruppe steht am Finger eine Stufe unter der Kopfkante', () => {
+  const rules = [...eachRule(read('../public/styles/shopping.css'))];
+  const touch = rules.find((r) => r.at.some((a) => /hover:\s*none/.test(a))
+    && r.selector.trim() === '.shopping-page:not(.shopping-page--adding) .list-scroller');
+  assert.ok(touch, 'eine Regel fuer den Port am Finger, solange die Schnellzeile zu ist');
+  assert.match(touch.body, /padding-block-start:\s*var\(--space-3\)/);
 });
 
 // R19 (Critique 2026-10-16, "Notizen-Pin-Gewichte"): die Nadel zeichnete mit
@@ -23168,8 +23398,8 @@ test('router: every page sheet @import is preloaded alongside its sheet', () => 
  */
 test('long contact and recipe lists skip rendering rows out of view', () => {
   const expect = [
-    ['../public/styles/contacts.css', '.contact-group__list > .contact-item'],
-    ['../public/styles/recipes.css', '.recipes-list .recipe-row-item'],
+    ['../public/styles/contacts.css', '.contact-group__list > .contact-item:nth-child(n+20)'],
+    ['../public/styles/recipes.css', '.recipes-list .recipe-row-item:nth-child(n+20)'],
   ];
   for (const [file, selector] of expect) {
     const rule = [...eachRule(read(file))].find((r) => r.selector.replace(/\s+/g, ' ').trim() === selector
@@ -23185,6 +23415,128 @@ test('long contact and recipe lists skip rendering rows out of view', () => {
       `${selector}: @supports prueft contain-intrinsic-size nicht mit`);
   }
   assert.ok(![...eachRule(read('../public/styles/notes.css'))].some((r) => /content-visibility/.test(r.body)), 'Notizen bleiben ohne (Masonry-Spalten)');
+});
+
+/**
+ * R22 D4 (a3/a6 P2 Kontakte): KEIN SPRUNG DURCH DEN PLATZHALTER. Zeilenweise
+ * aufgeschoben wird erst ab Zeile 20 - die Falz steht immer -, und
+ * `contain-intrinsic-size` ist die CONTENT-Box, nicht die Zeile: die Kontakte
+ * trugen 65px, die mit 16px Polster als 81 statt 64 lagen, und beim Aufbau
+ * zogen die schrumpfenden Zeilen die Gruppen darunter hoch (CLS 0,098 mobil
+ * bei 4x CPU, 0,018 am Desktop; Budget 62 statt 45). Die Zahlen sind gemessen
+ * (390 und 1280px); wer die Zeile umbaut, misst neu.
+ */
+test('R22 D4: zeilenweise erst ab Zeile 20, Platzhalter = Content-Box der Zeile', () => {
+  const rows = [
+    ['../public/styles/contacts.css', '.contact-group__list > .contact-item', 48],
+    ['../public/styles/recipes.css', '.recipes-list .recipe-row-item', 64],
+    ['../public/styles/budget.css', '.budget-list > .list-row', 45],
+    // R22 S3 (D22): Aufgaben und Einkauf auch IN der Gruppe - eine Gruppe mit
+    // 120 Zeilen rechnete jede. Content-Box gemessen 390-1920px.
+    ['../public/styles/tasks.css', '.task-group .row-carrier > .swipe-row', 85],
+    ['../public/styles/shopping.css', '.shopping-page .items-lanes > .list-group .row-carrier > .swipe-row', 48],
+  ];
+  for (const [file, row, contentBox] of rows) {
+    const rules = [...eachRule(read(file))].filter((r) => /content-visibility:\s*auto/.test(r.body));
+    const rule = rules.find((r) => r.selector.split(',').some((sel) => sel.replace(/\s+/g, ' ').trim().startsWith(row)));
+    assert.ok(rule, `${file}: keine aufgeschobene Zeile ${row}`);
+    for (const sel of rule.selector.split(',')) {
+      assert.match(sel.trim(), /:nth-child\(n\+20\)$/, `${sel.trim()}: auch Zeilen in der Falz werden aufgeschoben - sie springen beim Aufbau`);
+    }
+    const size = Number(rule.body.match(/contain-intrinsic-size:\s*auto none auto (\d+)px/)?.[1]);
+    assert.equal(size, contentBox, `${row}: der Platzhalter ist nicht die Content-Box (${contentBox}px gemessen)`);
+  }
+  // Ab 640px steht die Aufgabenzeile einzeilig in der Metazeile: 80px.
+  const wide = [...eachRule(read('../public/styles/tasks.css'))].find((r) => r.selector.trim() === '.task-group .row-carrier > .swipe-row:nth-child(n+20)'
+    && r.at.some((at) => /min-width:\s*640px/.test(at)));
+  assert.match(wide?.body ?? '', /contain-intrinsic-size:\s*auto none auto 80px/, 'Aufgaben ab 640px: Platzhalter 80px (gemessen 834 und 1920)');
+  // Der Einkauf in JEDER Breite: am Desktop gilt die Gruppenregel nicht, und
+  // weil der Platzhalter die echte Zeile ist, wechselt keine Kategorie die Spalte.
+  const shopRow = [...eachRule(read('../public/styles/shopping.css'))].find((r) => /\.row-carrier > \.swipe-row:nth-child/.test(r.selector));
+  assert.ok(!shopRow.at.some((at) => /@container/.test(at)), 'Einkaufszeilen: auch ab 60rem aufschieben');
+});
+
+/**
+ * Critique R22-F (F2.1): LANGE LISTEN ZEICHNEN BEIM ERSTEN AUFBAU NUR, WAS IM
+ * BILD STEHT (utils/row-fill.js). Der Wechsel in die Aufgaben (261 Eintraege)
+ * hielt das alte Bild mobil bei 4x CPU 276 ms, der Einkauf am Laptop 396 ms.
+ * Jede andere Zeile steht als Platzhalter in IHRER Hoehe da: dieselbe
+ * Content-Box wie der D4-Platzhalter oben, sonst wuerde der Bildlauf beim
+ * Nachfuellen laenger und im Einkauf wechselten Kategorien die Spalte.
+ */
+test('R22-F F2.1: Aufgaben und Einkauf bauen ihre Zeilen ueber row-fill, Platzhalter = Content-Box', () => {
+  const tasks = read('../public/pages/tasks.js');
+  const list = tasks.slice(tasks.indexOf('function renderTaskList('), tasks.indexOf('function activeFilterCount('));
+  assert.match(list, /const fill = beginRowFill\(listEl, \{ group: '\.task-group' \}\);/, 'Aufgaben: der Aufbau der Liste beginnt keine Fuellung');
+  assert.match(list, /renderTaskGroups\(filteredTasks\(\), state\.groupMode, fill\.rows\)/, 'Aufgaben: die Zeilen kommen nicht ueber fill.rows');
+  assert.match(list, /fill\.start\(\{ onRows: \(rows\) => \{ drawRowIcons\(rows\); wireSwipeGestures\(container\); \} \}\)/,
+    'Aufgaben: nachgekommene Zeilen brauchen Zeichen und Wischgeste');
+  assert.match(tasks, /if \(initial\) flushRowFill\(container\.querySelector\('#task-list'\)\);/, 'Aufgaben: ein Deep-Link findet seine Zeile nicht');
+
+  const shop = read('../public/pages/shopping.js');
+  const mount = shop.slice(shop.indexOf('function mountItems('), shop.indexOf('function renderItems('));
+  assert.match(mount, /const fill = beginRowFill\(listEl, \{ group: '\.list-group' \}\);/, 'Einkauf: der Aufbau der Liste beginnt keine Fuellung');
+  assert.match(mount, /renderItems\(fill\.rows\)/);
+  assert.match(mount, /fill\.start\(/);
+  assert.match(shop.slice(shop.indexOf('function revealHighlightedItem(')), /^\s*flushRowFill\(/m, 'Einkauf: die angesteuerte Zeile muss stehen');
+
+  const carrier = [...eachRule(read('../public/styles/list-row.css'))].find((r) => r.selector.trim() === '.row-carrier > .row-pending');
+  assert.match(carrier?.body ?? '', /box-sizing:\s*content-box/, 'der Platzhalter misst die Content-Box wie contain-intrinsic-size');
+  assert.match(carrier?.body ?? '', /block-size:\s*var\(--row-pending-size/);
+
+  const pending = (file, selector, media) => [...eachRule(read(file))].find((r) => r.selector.trim() === selector
+    && (media ? r.at.some((at) => at.includes(media)) : !r.at.length))?.body.match(/--row-pending-size:\s*(\d+)px/)?.[1];
+  const intrinsic = (file, selector, media) => [...eachRule(read(file))].find((r) => r.selector.trim() === selector
+    && (media ? r.at.some((at) => at.includes(media)) : !r.at.some((at) => /min-width/.test(at))))?.body.match(/contain-intrinsic-size:\s*auto none auto (\d+)px/)?.[1];
+  const tRow = '.task-group .row-carrier > .swipe-row:nth-child(n+20)';
+  assert.equal(pending('../public/styles/tasks.css', '.task-group .row-carrier'), intrinsic('../public/styles/tasks.css', tRow), 'Aufgaben schmal');
+  assert.equal(pending('../public/styles/tasks.css', '.task-group .row-carrier', 'min-width: 640px'), intrinsic('../public/styles/tasks.css', tRow, 'min-width: 640px'), 'Aufgaben ab 640px');
+  assert.equal(pending('../public/styles/shopping.css', '.shopping-page .items-lanes > .list-group .row-carrier'),
+    intrinsic('../public/styles/shopping.css', '.shopping-page .items-lanes > .list-group .row-carrier > .swipe-row:nth-child(n+20)'), 'Einkauf');
+  assert.ok(pending('../public/styles/tasks.css', '.task-group .row-carrier'), 'Aufgaben: kein Platzhalterwert');
+});
+
+// Was am ersten Aufbau haengt: der Rueckweg zeichnet ganz (D2 - die Zeilen ueber
+// dem Ziel brauchen ihre echte Hoehe), eine nachgekommene Zeile bekommt ihre
+// Wischgeste genau einmal, und die Spalten-Abfrage der Aufgaben laesst mobil
+// das erzwungene Layout aus (4x CPU: 13-18 ms im Frame des Wechsels).
+test('R22-F F2.1: Rueckweg ganz, Wischgeste einmal je Zeile, Spalten-Abfrage nur ab 65rem', () => {
+  const router = read('../public/router.js');
+  assert.match(router, /noteRestoringScroll\(scrollTarget > 0 \|\| Boolean\(portTargets\)\);\n\s*renderPromise = module\.render\(target, context\);/,
+    'der Router sagt den Listen nicht, dass ein Rueckweg laeuft');
+  assert.match(router, /return Promise\.resolve\(renderPromise\)\.then\(\(\) => \{\n\s*noteRestoringScroll\(false\);/);
+  assert.match(read('../public/utils/row-fill.js'), /&& !isRestoringScroll\(\)/);
+
+  const swipe = read('../public/utils/swipe-row.js');
+  assert.match(swipe, /if \(wiredRows\.has\(row\)\) return;\n\s*const cardEl = row\.querySelector\(card\);\n\s*if \(!cardEl\) return;\n\s*wiredRows\.add\(row\);/,
+    'eine Zeile bekaeme beim erneuten Verdrahten ihre Zuhoerer doppelt');
+
+  const tasks = read('../public/pages/tasks.js');
+  assert.match(tasks, /claimInitial: sheetFor == null,[\s\S]{0,400}?splitMedia: '\(min-width: 65rem\)',/, 'mountMasterDetail fragt mobil die Box ab');
+  assert.match(tasks.slice(tasks.indexOf('function syncSplitHeight(')), /const split = \(typeof window\.matchMedia !== 'function' \|\| window\.matchMedia\('\(min-width: 65rem\)'\)\.matches\)\n\s*&& getComputedStyle\(detail\)\.display !== 'none';/,
+    'syncSplitHeight erzwingt mobil ein Layout');
+});
+
+/**
+ * Critique R22-F (F2.2): DIE SPALTEN DES EINKAUFS RECHNEN NUR, WAS IN SICHT
+ * IST. Ab 60rem fehlte die Gruppenregel (geschaetzte Platzhalter liessen
+ * Kategorien die Spalte wechseln) - jede Aenderung legte beide Spalten ganz
+ * neu (Laptop 4x CPU: 26 ms je kleinem Anlass, 35-46 ms je Happen). Jetzt
+ * merkt sich jede Kategorie ihre gezeichnete Hoehe (`auto`), und aufgeschoben
+ * wird erst ab `is-sized`, das shopping.js nach dem ersten Bild setzt.
+ */
+test('R22-F F2.2: Einkaufsspalten schieben erst nach dem ersten Bild auf, mit gemerkter Hoehe', () => {
+  const rules = [...eachRule(read('../public/styles/shopping.css'))];
+  const wide = (r) => r.at.some((at) => at === '@container shopping-surface (min-width: 60rem)');
+  const remember = rules.find((r) => wide(r) && r.selector.trim() === '.shopping-page .items-lanes > .list-group' && /contain-intrinsic-size/.test(r.body));
+  assert.match(remember?.body ?? '', /contain-intrinsic-size:\s*auto none auto \d+px/, 'ohne `auto` gilt der Schaetzwert - Kategorien wechselten die Spalte');
+  assert.doesNotMatch(remember.body, /content-visibility/, 'aufgeschoben vor dem ersten Bild: es gaebe keine gemerkte Hoehe');
+  const lazy = rules.find((r) => wide(r) && /content-visibility:\s*auto/.test(r.body));
+  assert.equal(lazy?.selector.trim(), '.shopping-page .items-lanes.is-sized > .list-group + .list-group');
+  const shop = read('../public/pages/shopping.js');
+  const mount = shop.slice(shop.indexOf('function mountItems('), shop.indexOf('function renderItems('));
+  assert.match(mount, /afterNextPaint\(\)\.then\(\(\) => \{ if \(lanes\?\.isConnected\) lanes\.classList\.add\('is-sized'\); \}\);/,
+    'die Huelle bekommt is-sized nicht nach dem ersten Bild');
 });
 
 /**
@@ -23243,7 +23595,7 @@ test('R21 S8: Agenda, Vorrat, Inventar, Budget und Einkauf rechnen nur, was in S
     ['../public/styles/calendar.css', '.agenda-day + .agenda-day'],
     ['../public/styles/pantry.css', '.pantry-group + .pantry-group'],
     ['../public/styles/inventory.css', '.inventory-list > .list-group + .list-group'],
-    ['../public/styles/budget.css', '.budget-list > .list-row, .budget-ledger-section__rows > .list-row'],
+    ['../public/styles/budget.css', '.budget-list > .list-row:nth-child(n+20), .budget-ledger-section__rows > .list-row:nth-child(n+20)'],
     ['../public/styles/shopping.css', '.shopping-page .items-lanes > .list-group + .list-group'],
   ];
   for (const [file, selector] of expect) {
@@ -23258,4 +23610,180 @@ test('R21 S8: Agenda, Vorrat, Inventar, Budget und Einkauf rechnen nur, was in S
   const shop = [...eachRule(read('../public/styles/shopping.css'))].find((r) => /content-visibility/.test(r.body));
   assert.ok(shop.at.some((at) => /@container shopping-surface \(width < 60rem\)/.test(at)),
     'Einkauf: in Spalten/Masonry wechselten Gruppen mit Platzhalterhoehe beim Scrollen die Spalte');
+});
+
+/*
+ * Sammel-Ticket R22-F, F4.1: "Dialog-Feldtakt". Die Feldgruppe trug ihre
+ * Marge (--space-4) auch dort, wo der Behaelter den Takt schon per `gap`
+ * setzt - Dialog-Rumpf, "Weitere Angaben", Feldpaare. Gemessen mobil: 32px
+ * zwischen zwei Feldern im Mahlzeiten-/Budget-/Kontakt-Dialog, 16px im
+ * Aufgaben-Dialog, 28px im Inventar und im Abo-Dialog. Neun Felder flickten
+ * das mit `style="margin:0"`, sieben im Aufgaben-Dialog mit
+ * `style="margin-top"`. Jetzt EINE Regel in layout.css.
+ *
+ * Der zweite Test faengt den naechsten Gap-Behaelter: jede Klasse, die eine
+ * Basisregel zur Flex-/Grid-Flaeche mit `gap` macht und die im Markup direkt
+ * ein `.form-group` umschliesst, steht in der Liste der Regel (oder hat eine
+ * eigene `> .form-group`-Regel ohne Marge). Ausgenommen: `.form-group` selbst
+ * (ein Feld mit Unterfeldern) und `.settings-form` (Seitenformular der
+ * Einstellungen, kein Dialog - eigener Takt, eigenes Ticket).
+ */
+const FIELD_RHYTHM_EXEMPT = new Map([
+  ['form-group', 'ein Feld mit Unterfeldern, kein Behaelter'],
+  ['settings-form', 'Seitenformular der Einstellungen, kein Dialog'],
+]);
+
+function fieldRhythmRules() {
+  const css = read('../public/styles/layout.css');
+  return [...eachRule(css)].filter((r) => r.at.length === 0
+    && /(?:^|;)\s*margin-bottom:\s*0\s*;/.test(r.body)
+    && /\.form-group\b/.test(r.selector));
+}
+
+function isListMembers(selector, tail) {
+  const out = new Set();
+  for (const part of splitSelectorList(selector)) {
+    const s = part.replace(/\s+/g, ' ').trim();
+    if (!s.endsWith(tail)) continue;
+    const head = s.slice(0, -tail.length).trim();
+    const m = /^:is\((.*)\)$/.exec(head);
+    for (const cls of (m ? m[1].split(',') : [head])) out.add(cls.trim());
+  }
+  return out;
+}
+
+test('F4.1 Dialog-Feldtakt: eine Regel nimmt dem Feld im Gap-Behaelter die Marge, kein Feld traegt eine Inline-Marge', () => {
+  const rules = fieldRhythmRules();
+  const direct = new Set(rules.flatMap((r) => [...isListMembers(r.selector, '> .form-group')]));
+  for (const cls of ['.modal-panel__body', '.form-advanced__body', '.form-stack', '.form-pair', '.modal-grid']) {
+    assert.ok(direct.has(cls), `${cls} > .form-group: Luecke UND Marge - 32px statt 16px zwischen zwei Feldern`);
+  }
+  const trailing = new Set(rules.flatMap((r) => [...isListMembers(r.selector, '> * > .form-group:last-child')]));
+  for (const cls of ['.modal-panel__body', '.form-advanced__body', '.form-stack']) {
+    assert.ok(trailing.has(cls), `${cls} > * > .form-group:last-child: der Block haelt die Marge seines letzten Feldes vor der Luecke fest`);
+  }
+  assert.ok(!rules.some((r) => /\.modal-panel__body \.form-group:last-child/.test(r.selector)),
+    'das letzte Feld JEDES Blocks im Dialog verlor seine Marge - im Block-Fluss ist sie der Abstand zum naechsten Geschwister');
+  const stack = [...eachRule(read('../public/styles/layout.css'))].find((r) => r.at.length === 0 && r.selector.trim() === '.form-stack');
+  assert.match(stack?.body ?? '', /gap:\s*var\(--space-4\)/);
+  assert.match(read('../public/pages/tasks.js'), /<form id="task-form" class="form-stack" novalidate>/,
+    'der Aufgaben-Dialog setzt den Takt per gap statt mit Inline-Margen');
+
+  const offenders = [];
+  for (const file of walkJsFiles('../public/').filter((f) => !f.startsWith(VENDOR_PREFIX))) {
+    const src = read(file);
+    for (const m of src.matchAll(/<(?:div|label|fieldset)\b[^<>]*\bclass="form-group\b[^"]*"[^<>]*\bstyle="[^"]*\bmargin\b/g)) {
+      offenders.push(`${file}:${src.slice(0, m.index).split('\n').length}`);
+    }
+  }
+  assert.deepEqual(offenders, [], 'Inline-Marge an einer Feldgruppe - der Behaelter setzt den Takt (layout.css "EIN FELDTAKT IM DIALOG")');
+});
+
+test('F4.1 Dialog-Feldtakt: jeder Gap-Behaelter, der Felder umschliesst, steht in der Regel', () => {
+  const sheets = readdirSync(new URL('../public/styles/', import.meta.url)).filter((f) => f.endsWith('.css'));
+  const allRules = sheets.flatMap((f) => [...eachRule(read(`../public/styles/${f}`))]);
+  const covered = new Set(fieldRhythmRules().flatMap((r) => [...isListMembers(r.selector, '> .form-group')]));
+  for (const r of allRules) {
+    if (!/(?:^|;)\s*margin(?:-bottom)?:\s*0\s*;/.test(r.body)) continue;
+    for (const part of splitSelectorList(r.selector)) {
+      const m = /^(\.[\w-]+) > \.form-group$/.exec(part.replace(/\s+/g, ' ').trim());
+      if (m) covered.add(m[1]);
+    }
+  }
+  const wrappers = new Map();
+  const wrap = /<(?:div|form|fieldset|section)\b[^<>]*?\bclass="([^"$]*)"[^<>]*>\s*(?:\$\{[^}]*\}\s*)?<(?:div|label|fieldset)\b[^<>]*\bclass="form-group\b/g;
+  for (const file of walkJsFiles('../public/').filter((f) => !f.startsWith(VENDOR_PREFIX))) {
+    for (const m of read(file).matchAll(wrap)) {
+      for (const cls of m[1].split(/\s+/).filter(Boolean)) if (!wrappers.has(cls)) wrappers.set(cls, file);
+    }
+  }
+  assert.ok(wrappers.size > 10, `der Markup-Scan fand nur ${wrappers.size} Behaelter - Muster pruefen`);
+  const missing = [];
+  for (const [cls, file] of wrappers) {
+    if (FIELD_RHYTHM_EXEMPT.has(cls)) continue;
+    const gapRule = allRules.find((r) => r.at.length === 0
+      && splitSelectorList(r.selector).some((s) => s.trim() === `.${cls}`)
+      && /(?:^|;)\s*display:\s*(?:inline-)?(?:flex|grid)\s*;/.test(r.body)
+      && /(?:^|;)\s*(?:row-)?gap:/.test(r.body));
+    if (gapRule && !covered.has(`.${cls}`)) missing.push(`.${cls} (${file})`);
+  }
+  assert.deepEqual(missing, [], 'Gap-Behaelter mit Feldern ohne Eintrag in layout.css "EIN FELDTAKT IM DIALOG": Luecke + Marge doppeln den Abstand');
+});
+
+/*
+ * Sammel-Ticket R22-F, F4.2: KEIN `:has()` IN EINER GEMISCHTEN SELEKTORLISTE.
+ * `:has()` ist unvergebend: ein Browser ohne `:has()` (Chrome < 105, Firefox
+ * < 121, Firefox ESR 115) verwirft die GANZE Liste `.a, .b:has(.c)`, also auch
+ * `.a`, das er kennt. Im Bestand standen neun solche Listen (Budget-Kopf,
+ * Dokument-Betrachter, Haushaltshilfe, Inventar, Werkzeugzeile, Suche,
+ * Budget-Blick, Schichtplan-Formular, Aufteilung). Eine eigene Regel je
+ * `:has()`-Selektor - oder das `:has()` in `:is()`/`:where()`, deren Liste
+ * vergebend ist.
+ */
+function bareHas(selector) {
+  let out = '';
+  for (let i = 0; i < selector.length; i += 1) {
+    if (selector.startsWith(':is(', i) || selector.startsWith(':where(', i)) {
+      let depth = 0;
+      let j = selector.indexOf('(', i);
+      for (; j < selector.length; j += 1) {
+        if (selector[j] === '(') depth += 1;
+        if (selector[j] === ')') { depth -= 1; if (depth === 0) break; }
+      }
+      i = j;
+      continue;
+    }
+    out += selector[i];
+  }
+  return out.includes(':has(');
+}
+
+function walkCssFiles(dir) {
+  const entries = readdirSync(new URL(dir, import.meta.url), { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const path = `${dir}${entry.name}`;
+    if (entry.isDirectory()) return entry.name === 'vendor' ? [] : walkCssFiles(`${path}/`);
+    return entry.isFile() && entry.name.endsWith('.css') ? [path] : [];
+  });
+}
+
+test('F4.2: kein :has() in einer gemischten Selektorliste (ohne :has() faellt sonst die ganze Regel)', () => {
+  assert.equal(bareHas('.a:has(.b)'), true);
+  assert.equal(bareHas(':is(.a:has(.b))'), false, ':is() ist vergebend');
+  assert.equal(bareHas('.a:not(:has(.b))'), true, ':not() ist es nicht');
+  const mixed = [];
+  const files = walkCssFiles('../public/');
+  assert.ok(files.length > 30, `nur ${files.length} Stylesheets gefunden`);
+  for (const file of files) {
+    for (const rule of eachRule(read(file))) {
+      const parts = splitSelectorList(rule.selector);
+      const withHas = parts.filter(bareHas);
+      if (withHas.length && withHas.length < parts.length) {
+        mixed.push(`${file.replace('../public/', '')}: ${rule.selector.replace(/\s+/g, ' ').trim()}`);
+      }
+    }
+  }
+  assert.deepEqual(mixed, [], 'eigene Regel je :has()-Selektor oder :is()/:where() drumherum');
+});
+
+/*
+ * Sammel-Ticket R22-F, F4.8: DER PLATZHALTER DER AUFGABENZEILE NEBEN DER
+ * DETAILSPALTE. Ab 1280px misst die Listenbahn 420-520px; bis ~440px bricht der
+ * Titel einer Aufgabe mit Personen um (Content-Box 100,6 statt 80px). Gemessen
+ * beim Nachzeichnen von `.row-pending` (Demo-Haushalt, 1280x800): 4 von 6
+ * Platzhaltern 20,6px zu kurz, Sprung 82px - nachher 4 von 6 auf 0,4px genau.
+ * Die Breite der BAHN entscheidet (Container `list-rows`), nicht das Fenster;
+ * Platzhalter und `contain-intrinsic-size` tragen denselben Wert.
+ */
+test('F4.8: in der schmalen Listenbahn traegt der Aufgaben-Platzhalter die zweizeilige Zeile', () => {
+  const rules = [...eachRule(read('../public/styles/tasks.css'))];
+  const band = (r) => r.at.some((a) => /@container list-rows \(max-width: 27\.5rem\)/.test(a)) && r.at.some((a) => /@media \(min-width: 640px\)/.test(a));
+  const pending = rules.find((r) => band(r) && r.selector.trim() === '.task-group .row-carrier > .row-pending');
+  const intrinsic = rules.find((r) => band(r) && r.selector.trim() === '.task-group .row-carrier > .swipe-row:nth-child(n+20)');
+  const px = (body, re) => Number(body?.match(re)?.[1]);
+  const p = px(pending?.body, /--row-pending-size:\s*(\d+)px/);
+  const i = px(intrinsic?.body, /contain-intrinsic-size:\s*auto none auto (\d+)px/);
+  assert.equal(p, 101, 'Platzhalter neben der Detailspalte: 100,6px gemessen, nicht 80');
+  assert.equal(i, p, 'contain-intrinsic-size und Platzhalter muessen dieselbe Content-Box tragen');
+  assert.ok(intrinsic.at.some((a) => /@supports \(content-visibility: auto\)/.test(a)), 'ohne @supports greift contain-intrinsic-size auch ohne content-visibility');
 });

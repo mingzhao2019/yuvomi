@@ -2398,40 +2398,63 @@ svg.weather-forecast__icon {
   color: var(--color-accent);
 }
 
-/* Chip plus Optionen-Knopf (#814): zwei Knoepfe, die zusammengehoeren, aber
- * nicht ineinander liegen duerfen. Die Gruppe haelt sie im Umbruch beisammen. */
+/* Chip plus Menue (#814, seit R22 D16 ein geteilter Knopf): zwei Knoepfe, die
+ * zusammengehoeren, aber nicht ineinander liegen duerfen. Die Gruppe haelt sie
+ * im Umbruch beisammen; geteilt teilen sie EINE Pille - links einblenden, rechts
+ * der Pfeil ins Menue mit „einblenden" und „Optionen fuer ...", getrennt durch
+ * die gemeinsame Kante. Vorher stand der Regler als freier Kreis daneben. */
 .widget-restore-chip-group {
   display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
+  align-items: stretch;
 }
 
-.widget-restore-chip__options {
+.widget-restore-chip-group--split > .widget-restore-chip {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  padding-inline-end: var(--space-2);
+}
+
+.widget-restore-chip__more {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--target-md);
-  height: var(--target-md);
+  min-width: var(--target-md);
+  min-height: var(--target-md);
+  padding-inline: var(--space-2);
+  margin-inline-start: -1px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  border-start-end-radius: var(--radius-full);
+  border-end-end-radius: var(--radius-full);
   background: var(--color-surface-elevated);
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
-.widget-restore-chip__options:hover {
+.widget-restore-chip__more > svg {
+  width: var(--space-4);
+  height: var(--space-4);
+}
+
+.widget-restore-chip__more:hover,
+.widget-restore-chip__more[aria-expanded="true"] {
   background: var(--color-surface-elevated-hover);
   border-color: var(--color-accent);
 }
 
-.widget-restore-chip__options:focus-visible {
+.widget-restore-chip__more:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
+.widget-restore-chip__more:active {
+  transform: scale(var(--press-scale-sm));
+}
+
 @media (pointer: coarse) {
-  .widget-restore-chip__options {
+  .widget-restore-chip__more {
     min-width: var(--target-base);
     min-height: var(--target-base);
   }
@@ -3035,8 +3058,10 @@ button.today-cockpit__more--link {
 }
 
 /* Die aufgeklappten verdeckten Zeilen (Codex an #1485) setzen die Liste fort:
- * dieselbe Haarlinie zur letzten sichtbaren Zeile. */
-.today-cockpit__rows + .today-cockpit__rows--more {
+ * dieselbe Haarlinie zur letzten sichtbaren Zeile - seit R22 (D16) auch, wenn
+ * die Einkaufszeile vor dem Aufklapper steht. */
+.today-cockpit__rows + .today-cockpit__rows--more,
+.today-cockpit-card + .today-cockpit__rows--more {
   border-top: 1px solid var(--color-border-subtle);
 }
 
@@ -3057,13 +3082,42 @@ button.today-cockpit__more--link {
   }
 
   .today-cockpit__rows--split > .today-cockpit-card--col2 {
-    border-left: 1px solid var(--color-border-subtle);
+    border-inline-start: 1px solid var(--color-border-subtle);
   }
 
-  /* Die erste Zeile der rechten Spalte steht oben am Traeger - dort gehoert
-   * keine Haarlinie hin, auch wenn sie im Markup auf eine Zeile folgt. */
-  .today-cockpit__rows--split > .today-cockpit-card--col-start {
+  /* DIE SPALTE TRENNT, NICHT DIE ZEILE (R22 D16). Die Haarlinien liefen ueber
+   * beide Spalten durch - drei durchgehende Linien bei 1440, das Blatt las
+   * sich zeilenweise (links, rechts, links ...), obwohl es spaltenweise
+   * gefuellt ist. Jetzt traegt jede Spalte ihre eigenen, eingerueckten
+   * Trenner (das Polster der Zeile, --space-4), und am Spaltentrenner bleibt
+   * eine Luecke: zwei Listen nebeneinander, keine Tabelle. */
+  .today-cockpit__rows--split > .today-cockpit-card + .today-cockpit-card {
     border-top: none;
+  }
+
+  .today-cockpit__rows--split > .today-cockpit-card {
+    position: relative;
+  }
+
+  .today-cockpit__rows--split > .today-cockpit-card:not(:first-child):not(.today-cockpit-card--col-start)::before {
+    content: '';
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: var(--space-4);
+    block-size: 1px;
+    background-color: var(--color-border-subtle);
+    pointer-events: none;
+  }
+
+  /* Die letzte Zeile einer ungeraden Zahl spannt unter beiden Spalten; ihre
+   * Linie laeuft ueber die volle Breite, weil sie beide Spalten abschliesst. */
+  .today-cockpit__rows--split > .today-cockpit-card--span {
+    grid-column: 1 / -1;
+    grid-row: calc(var(--today-rows-per-column, 1) + 1);
+  }
+
+  .today-cockpit__rows--split > .today-cockpit-card--span::before {
+    inset-inline: 0;
   }
 }
 
@@ -3317,18 +3371,28 @@ button.today-cockpit__more--link {
  * Hover kommen aus `.btn.btn--secondary.btn--icon` im Markup, wie Lupe,
  * Filter und „..." in jedem Modulkopf. Hier standen bis dahin graue Kreise
  * ohne Rahmen (eigene Flaeche --neutral-200) - die dritte Haut fuer denselben
- * Kopfknopf. Es bleibt nur, was der Uebersicht gehoert: die Groesse. */
+ * Kopfknopf.
+ *
+ * SEIT R22 (D8) AUCH DIE GROESSE DER SHELL: hier standen 48px und eine
+ * 18px-Glyphe, waehrend jeder Modulkopf am Zeiger 40px und 16px fuehrt
+ * (`.page-toolbar .btn--icon`, `.btn > svg`). Die Flaeche kommt jetzt aus
+ * `.btn--icon` (`--target-base`, am Finger 48px), am Zeiger ab 1024px aus
+ * derselben Regel wie die Modulkoepfe; die Glyphe aus der Grundregel. */
 .dashboard-icon-btn {
-  width: var(--target-lg);
-  height: var(--target-lg);
   padding: 0;
-  border-radius: var(--radius-full);
   flex: 0 0 auto;
 }
 
-.dashboard-icon-btn svg {
-  width: 18px;
-  height: 18px;
+/* Am Zeiger reichen die 40px der Desktop-Welt (--target-md, Zielgroessen-Regel
+ * in tokens.css §11b); das Kriterium ist die Zeigerfaehigkeit, nicht die
+ * Breite (2026-09-23, gemessen 40x40 am 1180er Touch-Tablet). Bis R22 setzte
+ * die Regel `width`/`height`, und das `min-height` von `.btn--icon`
+ * (--target-base, 44px) schlug sie: der Kopf mass 44 neben 40er Nachbarn. */
+@media (min-width: 1024px) and (hover: hover) {
+  .dashboard-icon-btn {
+    min-height: var(--target-md);
+    min-width: var(--target-md);
+  }
 }
 
 /* Einmaliger Erststart-Hinweis: sanfter Akzent-Puls, der zeigt, wo Widgets
@@ -3349,17 +3413,6 @@ button.today-cockpit__more--link {
   .dashboard-icon-btn--hint {
     animation: none;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--active-module-accent, var(--color-accent)) var(--tint-shadow), transparent);
-  }
-}
-
-/* Am Zeiger reichen die 40px der Desktop-Welt (--target-md, Zielgroessen-Regel
- * in tokens.css §11b). Die Regel hing bis 2026-09-23 allein an der BREITE und
- * nahm damit auch dem Touch-Tablet ab 1024px seine Fingergroesse - gemessen
- * 40x40 bei 1180px. Das Kriterium ist die Zeigerfaehigkeit, nicht die Breite. */
-@media (min-width: 1024px) and (hover: hover) {
-  .dashboard-icon-btn {
-    width: var(--target-md);
-    height: var(--target-md);
   }
 }
 
@@ -3972,6 +4025,57 @@ button.today-cockpit__more--link {
 .dashboard .rewards-widget__footer,
 .dashboard .family-widget__footer {
   margin-block-start: auto;
+}
+
+/* DIE EIGENE BELOHNUNGSKACHEL STEHT OBEN (R22 D16). Im Kindkonto ist sie die
+ * erste Kachel neben Familie und Geburtstagen und wird so hoch wie die beiden:
+ * die Fussregel darueber schob die Freigabe-Zeile 230px unter Punkte und
+ * Balken (1440), dazwischen stand leere Flaeche, und die Zeile las sich als
+ * Fuss einer anderen Kachel. Die Anfrage gehoert zum Ziel, das sie betrifft:
+ * sie folgt dem Inhalt, der Rest der Kachel bleibt unten frei. */
+.dashboard .rewards-widget--self > .rewards-widget__footer {
+  margin-block-start: 0;
+}
+
+/* DER VERLAUF FUELLT DEN UEBERSCHUSS, GANZE ZEILEN ODER KEINE (R22 S10).
+ * In der 1x1-Kachel hat die Liste keine eigene Hoehe (`flex-basis: 0`): sie
+ * bekommt nur, was die Reihe der Kachel ueber ihren Inhalt hinaus gibt. Damit
+ * keine Zeile angeschnitten steht, laeuft die Liste als umbrechende Spalte -
+ * was nicht ganz passt, bricht in eine zweite Spalte rechts ausserhalb der
+ * Flaeche und ist weg. Das leere `::before` haelt die erste Spalte, damit auch
+ * die erste Zeile (mit der Ueberschrift) weicht, wenn sie nicht ganz passt.
+ * Ohne Ueberschuss (eine Reihe kurzer Kacheln) ist die Liste 0px hoch. */
+.dashboard .rewards-widget--self > .rewards-recent--fill {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  /* Der Spaltenabstand der Kachel (`.rewards-widget`, gap) zaehlte sonst auch
+   * fuer die leere Liste: die Kachel wuchs um 12px. Die Ueberschrift der
+   * ersten Zeile traegt den Abstand selbst. */
+  margin-block-start: calc(-1 * var(--space-3));
+}
+
+.rewards-recent--fill::before {
+  content: '';
+  inline-size: 100%;
+  block-size: 0;
+}
+
+.rewards-recent--fill > .rewards-recent__row {
+  inline-size: 100%;
+}
+
+.rewards-recent--fill > .rewards-recent__row:first-child::before {
+  content: attr(data-recent-title);
+  grid-column: 1 / -1;
+  padding-block-start: var(--space-5);
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-medium);
 }
 
 .dashboard .widget__empty {
@@ -5743,11 +5847,6 @@ button.today-cockpit__more--link {
     align-items: stretch;
   }
 
-  .dashboard-icon-btn {
-    width: var(--target-lg);
-    height: var(--target-lg);
-  }
-
   .today-cockpit {
     gap: var(--space-2);
     padding: var(--space-3) 0 0;
@@ -6068,6 +6167,21 @@ button.today-cockpit__more--link {
   .wall-row__title {
     -webkit-line-clamp: 2;
     line-clamp: 2;
+  }
+}
+
+/* HOCHKANT IST DIE HOEHE DA, DIE BREITE NICHT (R22, Critique a5). Ein Tablett
+ * hochkant (834x1112) traegt zwei Spalten, die Programmspalte ist 470px breit,
+ * und bei 33px Titelgroesse standen "Geburtstagstorte..." und
+ * "Buechereiausweise..." abgeschnitten - ueber einem Drittel leerer Flaeche.
+ * Quer bleibt es bei einer Zeile (dort rechnet die Hoehe oben); hochkant
+ * reichen vier Zeilen mit je zwei Titelzeilen weit in den freien Raum. Die
+ * Wetterzeile bricht dort ebenfalls um (unter `.wall-weather__desc`). */
+@media (orientation: portrait) {
+  .wall-row__title {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    text-wrap: balance;
   }
 }
 
@@ -6414,6 +6528,18 @@ button.today-cockpit__more--link {
   white-space: nowrap;
   font-size: var(--wall-row-sub);
   color: var(--color-text-secondary);
+}
+
+/* Hochkant zwei Zeilen statt "Leichter Nieselregen · Dortmun..." in 240px
+ * (R22, siehe `.wall-row__title`). */
+@media (orientation: portrait) {
+  .wall-weather__desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
 }
 
 .wall-weather__forecast {

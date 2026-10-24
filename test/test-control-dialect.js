@@ -1796,7 +1796,10 @@ test('Kopfsuche: EINE Breite als Token und EINE Stelle, beides in page-search.cs
   assert.match(desk.body, /max-width:\s*var\(--page-search-width\)/);
   assert.match(desk.body, /flex:\s*0 1 var\(--page-search-width\)/);
   assert.match(desk.body, /margin-inline-start:\s*0/, 'keine Suche am Zeilenende (Notizen, Einstellungen)');
-  assert.match(desk.selector, /\.page-toolbar__center:has\(> label\.page-search:only-child\)/, 'ein Wrapper-Slot nur mit der Suche ist dieselbe Stelle');
+  // Eigene Regel (F4.2): in einer Liste mit dem :has() fiel ohne :has() auch die Suche selbst.
+  const slot = [...eachRule(css)].find((r) => r.at.some((a) => /min-width:\s*1024px/.test(a)) && /\.page-toolbar__center:has\(> label\.page-search:only-child\)/.test(r.selector));
+  assert.ok(slot, 'ein Wrapper-Slot nur mit der Suche ist dieselbe Stelle');
+  assert.equal(slot.body.replace(/\s+/g, ' '), desk.body.replace(/\s+/g, ' '), 'Slot und Suche teilen dieselbe Breite');
 });
 
 test('jedes Suchfeld aus renderPageSearch ist verdrahtet: wirePageSearch mit derselben id in derselben Datei', () => {
@@ -1828,8 +1831,105 @@ test('Dialog-Fussleisten schieben mit logischem Rand: kein Inline-Stil setzt mar
       if (/style="[^"]*margin-(?:left|right)\s*:\s*auto/.test(line)) offenders.push(`${file}:${i + 1}`);
     });
   }
-  assert.ok(JS.some(({ src }) => /style="[^"]*margin-inline-end\s*:\s*auto/.test(src)), 'Vorbedingung: der Scanner sieht Inline-Stile');
+  // Seit R22 (S10) traegt kein Fuss mehr einen Inline-Rand (Guard weiter
+  // unten); die Vorbedingung ist deshalb nur noch, dass der Scanner Inline-Stile
+  // ueberhaupt sieht.
+  assert.ok(JS.some(({ src }) => /style="[^"]*margin[\w-]*\s*:/.test(src)), 'Vorbedingung: der Scanner sieht Inline-Stile');
   assert.deepEqual(offenders, []);
+});
+
+test('R22 D20: die Formular-Fuesse von Notizen, Kontakten und Geburtstagen tragen keinen Inline-Stil', () => {
+  // Den Anfangsrand des Loeschen-Knopfs haelt seit R16 EINE Regel an
+  // `.modal-panel__delete` (layout.css, gesetzt von decorateFooterDelete) -
+  // das `style="margin-inline-end:auto"` je Modul war ein Rest davon. Die
+  // drei Module dieses Schritts sind frei; die uebrigen (Budget, Abos,
+  // Gesundheit, Entsorgung, Schnelllinks) folgen in ihren Schritten.
+  const offenders = [];
+  for (const { file, src } of JS) {
+    if (!/pages\/(notes|contacts|birthdays)\.js$/.test(file)) continue;
+    src.split('\n').forEach((line, i) => {
+      if (/<button[^>]*(?:modal-delete|cm-delete|bd-delete)[^>]*style="/.test(line)
+        || /btn--danger-outline"[^>]*style="/.test(line)) offenders.push(`${file}:${i + 1}`);
+    });
+  }
+  assert.equal(JS.filter(({ file }) => /pages\/(notes|contacts|birthdays)\.js$/.test(file)).length, 3, 'Vorbedingung: der Scanner sieht die drei Seiten');
+  assert.deepEqual(offenders, []);
+});
+
+test('R22 D9: die Dialog-Fuesse von Budget, Plan und Abos tragen keinen Inline-Stil', () => {
+  // Wie die drei Module aus D20: den Anfangsrand haelt `.modal-panel__delete`
+  // (layout.css), die Gruppe Abbrechen/Speichern `.modal-panel__footer-group`.
+  // Ein `<span>` um das Wort am Loeschen-Knopf blieb mobil sichtbar, weil
+  // decorateFooterDelete nur loses Wort und `.btn__label` zur Wortspanne macht.
+  const PAGES = /pages\/(budget|budget-plans|subscriptions)\.js$/;
+  const offenders = [];
+  for (const { file, src } of JS) {
+    if (!PAGES.test(file)) continue;
+    src.split('\n').forEach((line, i) => {
+      if (/btn--danger-outline"[^>]*style="/.test(line)
+        || /style="[^"]*margin-inline-end\s*:\s*auto/.test(line)
+        || /style="display:flex;gap:var\(--space-\d\)/.test(line)) offenders.push(`${file}:${i + 1}`);
+    });
+    for (const m of src.matchAll(/btn--danger-outline"[^>]*>\s*<i data-lucide="trash-2"[^>]*><\/i><span>/g)) {
+      offenders.push(`${file}: <span> am Loeschen-Wort (${m.index})`);
+    }
+  }
+  assert.equal(JS.filter(({ file }) => PAGES.test(file)).length, 3, 'Vorbedingung: der Scanner sieht die drei Seiten');
+  assert.deepEqual(offenders, []);
+});
+
+test('R22 S10: kein Dialogfuss der App schiebt oder gruppiert per Inline-Stil', () => {
+  // Der Rest nach D9/D12/D20: Entsorgung, Schnelllinks, Aufteilung, Einkauf,
+  // Aufgaben, Mahlzeit, Rezept und Kalender trugen noch je ein
+  // `style="margin-inline-end:auto"` am Loeschen-Knopf oder ein
+  // `style="display:flex;gap:..."` um Abbrechen und Speichern. Den Anfangsrand
+  // geben `.modal-panel__delete` und `.modal-panel__footer-start`, die Gruppe
+  // `.modal-panel__footer-group` (layout.css) - jetzt in JEDEM Skript der App.
+  const offenders = [];
+  for (const { file, src } of JS) {
+    if (!/^public\/(pages|settings|components|utils)\//.test(file)) continue;
+    src.split('\n').forEach((line, i) => {
+      if (/style="[^"]*margin-inline-end\s*:\s*auto/.test(line)
+        || /style="display:flex;gap:var\(--space-\d\)/.test(line)) offenders.push(`${file}:${i + 1}`);
+    });
+  }
+  assert.ok(JS.filter(({ file }) => /^public\/pages\//.test(file)).length > 20, 'Vorbedingung: der Scanner sieht die Seiten');
+  assert.deepEqual(offenders, []);
+  const layout = CSS.find(({ file }) => file === 'public/styles/layout.css')?.src ?? '';
+  const push = [...eachRule(layout)].find((r) => /\.modal-panel__footer > \.modal-panel__footer-start/.test(r.selector));
+  assert.ok(push && /margin-inline-end:\s*auto/.test(push.body), '.modal-panel__footer-start schiebt den Rest ans Ende');
+  // Ohne `:has()` (Chrome 87) verwirft der Browser eine Selektorliste ganz:
+  // der Schub am Loeschen-Knopf steht deshalb in einer Regel ohne `:has()`.
+  const del = [...eachRule(layout)].find((r) => /\.modal-panel__footer > \.modal-panel__delete(?![\w-])/.test(r.selector) && /margin-inline-end:\s*auto/.test(r.body));
+  assert.ok(del && !/:has\(/.test(del.selector), `der Schub am Loeschen-Knopf haengt an keiner :has()-Liste: ${del?.selector}`);
+});
+
+test('R22 D12: die Dialog-Fuesse der Gesundheit und ihres Einstellungsblatts tragen keinen Inline-Stil', () => {
+  // Dieselbe Regel wie D9/D20: den Anfangsrand des Loeschen-Knopfs haelt
+  // `.modal-panel__delete` (layout.css, decorateFooterDelete). Neun Dialoge der
+  // Gesundheit (Messung, Einnahme, Medikament, Befund, Training, Vorsorge,
+  // Naehrwerte, Periode, Tag) und die Vorsorge-Art im Einstellungsblatt
+  // schoben ihn noch je selbst weg.
+  const PAGES = /(pages\/health(?:-fasting)?\.js|settings\/pages\/modules-health\.js)$/;
+  const offenders = [];
+  for (const { file, src } of JS) {
+    if (!PAGES.test(file)) continue;
+    src.split('\n').forEach((line, i) => {
+      if (/btn--danger-outline"[^>]*style="/.test(line)
+        || /style="[^"]*margin-inline-end\s*:\s*auto/.test(line)) offenders.push(`${file}:${i + 1}`);
+    });
+  }
+  assert.equal(JS.filter(({ file }) => PAGES.test(file)).length, 3, 'Vorbedingung: der Scanner sieht die drei Dateien');
+  assert.deepEqual(offenders, []);
+});
+
+test('R22 D20: der Notiz-Lesedialog wechselt das Gewicht von Loeschen mit der Ansicht (Detail-Fuss-Kanon)', () => {
+  // Leseansicht wie das Leseblatt der Kontakte (danger-ghost), Editor wie
+  // jeder Dialogfuss (danger-outline) - derselbe Knopf, syncFooter() schaltet.
+  const notes = JS.find(({ file }) => file.endsWith('pages/notes.js')).src;
+  const sync = notes.slice(notes.indexOf('function syncFooter(view)'), notes.indexOf('function animatePane('));
+  assert.match(sync, /classList\.toggle\('btn--danger-ghost', view === 'read'\)/);
+  assert.match(sync, /classList\.toggle\('btn--danger-outline', view !== 'read'\)/);
 });
 
 test('Auswahlkreis: EIN Baustein in der Shell (layout.css), jede Mehrfachauswahl nutzt ihn (R8 H14)', () => {

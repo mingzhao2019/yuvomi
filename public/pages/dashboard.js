@@ -73,6 +73,7 @@ import { wireNoteCategoryOverflow } from '/utils/note-category-overflow.js';
 import { installPopoverMenus, popoverMenuHtml } from '/utils/popover-menu.js';
 import { nextRewardGoal } from '/utils/reward-goal.js';
 import { reloadAfterSave } from '/utils/reload-after-save.js';
+import { shiftTypeLabel } from '/utils/shift-label.js';
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
@@ -413,9 +414,13 @@ function getOnboardingSteps() {
   // Leiste und Plus-Knopf nur in Worten. Schritt 1 traegt jetzt das Zeichen
   // (utils/brand-mark.js), Schritt 2 und 3 zeigen auf das Bedienelement, das
   // der Text nennt (`target`, siehe placeSpotlight in showOnboarding).
+  // SCHRITT 2 ZEIGT MODULE, KEINEN KOMPASS (R22 S9, Critique a1): `navigation`
+  // ist in Lucide der Ortungspfeil - er las sich als „Standort", der Text
+  // spricht von Leiste und Modulen. Schritt 3 verspricht das Wischen nur dort,
+  // wo es Zeilen gibt, die es koennen (Aufgaben, Einkauf, Vorrat).
   return [
     { mark: true,           title: t('onboarding.step1Title', { name: appName }), body: t('onboarding.step1Body') },
-    { icon: 'navigation',   title: t('onboarding.step2Title'), body: t(desktop ? 'onboarding.step2BodyDesktop' : 'onboarding.step2Body'),
+    { icon: 'layout-grid',  title: t('onboarding.step2Title'), body: t(desktop ? 'onboarding.step2BodyDesktop' : 'onboarding.step2Body'),
       target: () => document.querySelector(desktop ? '.nav-sidebar' : '.nav-bottom__items') },
     { icon: 'plus-circle',  title: t('onboarding.step3Title'), body: t(desktop ? 'onboarding.step3BodyDesktop' : 'onboarding.step3Body'),
       target: () => [...document.querySelectorAll('.page-fab')].find(isShownOnScreen) ?? null },
@@ -1449,7 +1454,9 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
       sub: MEAL_LABELS()[highlights.mealType] ?? t('dashboard.todayDinner'),
       icon: MEAL_ICONS[highlights.mealType] ?? 'utensils',
       tone: 'dinner',
-      route: '/meals',
+      // Die Mahlzeit selbst, nicht die Wurzel des Plans (R22, D3): der
+      // Essensplan holt ihre Karte ins Bild und oeffnet ihr Blatt.
+      route: highlights.meal.id != null ? `/meals?open=${encodeURIComponent(String(highlights.meal.id))}` : '/meals',
       // Wer kocht (#1679): dasselbe Ueberlappungszeichen wie bei Termin und
       // Aufgabe - "wen geht es an" ist bei einer Mahlzeit der Koch. Ohne Koch
       // bleibt die Zeile, wie sie war.
@@ -2415,7 +2422,7 @@ function renderFamilyWidget(users, data, { manageHref = null } = {}) {
     const myShift = scheduleEntriesToday.find((entry) => Number(entry.user_id) === Number(u.id) && entry.shift_type);
     if (myShift) {
       const type = myShift.shift_type;
-      parts.push(esc(type.short_code ? `${type.short_code} · ${type.name}` : type.name));
+      parts.push(esc(shiftTypeLabel(type)));
     }
     const open = openByUser.get(u.id) ?? 0;
     if (open > 0) parts.push(esc(t('dashboard.memberOpenTasks', { count: open })));
@@ -3136,6 +3143,24 @@ function renderRewardsSelf(me, rewards, spans) {
   // Praemien- und Geld-Anfragen (#1734) zusammen: der Server fuehrt sie
   // getrennt, die Kachel sagt, wie viele warten.
   const pending = (Number(rewards.pending) || 0) + (Number(rewards.moneyPending) || 0);
+  // DIE KLEINE KACHEL FUELLT NUR, WAS IHR DIE REIHE SCHENKT (R22 S10, aus S9).
+  // 1x1 neben Familie und Geburtstagen streckt die Reihe sie auf deren Hoehe,
+  // und unter Ziel und Anfrage stand leere Flaeche. Der Verlauf steht deshalb
+  // auch hier - aber in einer Flaeche ohne eigene Hoehe (dashboard.css,
+  // `.rewards-recent--fill`): er nimmt nur den Ueberschuss, ganze Zeilen oder
+  // keine. In einer Reihe kurzer Kacheln bleibt die Kachel so kurz wie bisher.
+  const fill = recentCap === 0
+    ? (Array.isArray(rewards.recent) ? rewards.recent : []).slice(0, 3)
+    : [];
+  const fillHTML = fill.length ? `
+      <ul class="rewards-recent rewards-recent--fill" aria-label="${esc(t('dashboard.rewardsRecent'))}">
+        ${fill.map((row, i) => `
+          <li class="rewards-recent__row"${i === 0 ? ` data-recent-title="${esc(t('dashboard.rewardsRecent'))}"` : ''}>
+            <span class="rewards-recent__delta">+${esc(formatPoints(row.delta))}</span>
+            <span class="rewards-recent__reason">${esc(row.reason || t(`rewards.ledgerType.${row.type}`))}</span>
+            <span class="rewards-recent__when">${esc(earnedWhenLabel(row.created_at))}</span>
+          </li>`).join('')}
+      </ul>` : '';
   return `
     <div class="widget__body rewards-widget rewards-widget--self">
       <div class="rewards-self">
@@ -3146,6 +3171,7 @@ function renderRewardsSelf(me, rewards, spans) {
         ${recentHTML}
       </div>
       ${pending > 0 ? rewardsFooterHTML(t('dashboard.rewardsOwnPending', { count: pending })) : ''}
+      ${fillHTML}
     </div>`;
 }
 
@@ -3556,7 +3582,7 @@ function renderScheduleWidget(schedule, users, size) {
       ? `<img src="${esc(user.avatar_data)}" alt="" loading="lazy">`
       : esc(initials(user?.display_name ?? ''));
     const shiftLabel = type
-      ? esc(type.short_code ? `${type.short_code} · ${type.name}` : type.name)
+      ? esc(shiftTypeLabel(type))
       : esc(t('schedule.freeDay'));
     const swatchColor = type ? type.color : 'var(--color-border)';
     // Eigene Punkt-Klasse statt `.schedule-swatch` (schedule.css): router.js
@@ -4403,17 +4429,31 @@ function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(),
   // Die Sammelzeile gibt es nur auf dem Telefon; dort teilt sich die Liste nie.
   const grouped = model.rows.some((row) => row.kind === 'overdue');
   const split = model.rows.length >= 2 && !grouped;
-  const perColumn = Math.ceil(model.rows.length / 2);
+  // BEI UNGERADER ZAHL SPANNT DIE LETZTE ZEILE (R22 D16). Mit `ceil` blieb
+  // rechts unten eine leere Zelle, und die Haarlinie darueber endete im Nichts.
+  // Jetzt teilen sich die ersten 2k Zeilen die Spalten, die letzte steht ueber
+  // die volle Breite darunter - gelesen wird links, rechts, dann „und zuletzt".
+  const perColumn = Math.floor(model.rows.length / 2);
+  const columnClass = (index) => {
+    if (!split) return '';
+    if (index >= perColumn * 2) return ' today-cockpit-card--span';
+    if (index < perColumn) return '';
+    return ` today-cockpit-card--col2${index === perColumn ? ' today-cockpit-card--col-start' : ''}`;
+  };
   listRows.push(...model.rows.map((row, index) => (row.kind === 'overdue'
     ? renderTodayOverdueGroup(row, overdueOpen)
-    : renderTodayRow(row, split && index >= perColumn
-      ? ` today-cockpit-card--col2${index === perColumn ? ' today-cockpit-card--col-start' : ''}`
-      : ''))));
+    : renderTodayRow(row, columnClass(index)))));
   const parts = [];
   const foldShopping = Boolean(model.shopping) && model.overflow > 0 && !model.moreRoute && onPhoneStage();
   if (listRows.length) {
     parts.push(`<div class="today-cockpit__rows${split ? ' today-cockpit__rows--split' : ''}"${split ? ` style="--today-rows-per-column:${perColumn}"` : ''}>${listRows.join('')}</div>`);
   }
+  // DER EINKAUF STEHT VOR DEM AUFKLAPPER (R22 D16). Er folgte „+4 weitere
+  // heute" und las sich wie eine der verdeckten Zeilen, die schon aufgeklappt
+  // ist. Er ist die zeitlose Schlusszeile des SICHTBAREN Programms; der
+  // Aufklapper schliesst das Blatt ab. Auf dem Telefon klappt er weiter mit
+  // (`foldShopping`, R14).
+  if (model.shopping && !foldShopping) parts.push(renderTodayRow(model.shopping));
   if (model.overflow > 0 && model.moreRoute) {
     const moreText = esc(t('dashboard.todayMore', { count: model.overflow }));
     parts.push(`<a href="${esc(model.moreRoute)}" class="today-cockpit__more today-cockpit__more--link" data-route="${esc(model.moreRoute)}">
@@ -4435,7 +4475,6 @@ function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(),
           <span>${esc(moreOpen ? lessText : moreText)}</span><i data-lucide="chevron-down" class="icon-sm today-cockpit__more-icon" aria-hidden="true"></i>
         </button>`);
   }
-  if (model.shopping && !foldShopping) parts.push(renderTodayRow(model.shopping));
   if (model.coda) parts.push(`<div class="today-cockpit__coda">${esc(model.coda)}</div>`);
 
   // Deckt der Nutzer alle vier Domänen über Widgets ab, wäre das Cockpit leer —
@@ -5348,22 +5387,36 @@ function renderHiddenWidgetsTray(cfg, glanceHidden = false) {
    * Seite: das Cockpit und das Kopfband sprechen ueber dieselben Aufgaben.
    * Ohne diesen Knopf muesste man die Kachel erst einblenden, um einzustellen,
    * was die Kachel gar nicht zeigt. Deshalb eine Gruppe statt eines Chips: ein
-   * Knopf im Knopf waere kein gueltiges Markup. */
-  const chips = glanceChip + hidden.map((w) => `
-    <div class="widget-restore-chip-group">
+   * Knopf im Knopf waere kein gueltiges Markup.
+   *
+   * DIE OPTIONEN STEHEN AM CHIP, IN EINEM MENUE MIT WORT (R22 D16). Bis R21
+   * stand neben vier der Chips ein freier Regler-Kreis ohne Wort - 17 Chips
+   * und vier unbeschriftete Knoepfe, die keiner einem Chip zuordnete. Jetzt
+   * ist der Chip ein geteilter Knopf: links „einblenden" mit einem Tipp wie
+   * bisher, rechts am selben Pill ein Pfeil mit dem Menue „<Kachel>
+   * einblenden" und „Optionen fuer <Kachel>". */
+  const chips = glanceChip + hidden.map((w) => {
+    const label = widgetLabel(w.id);
+    const menu = widgetHasOptions(w.id) ? popoverMenuHtml({
+      id: `widget-restore-menu-${w.id}`,
+      label: t('common.moreActionsNamed', { name: label }),
+      icon: 'chevron-down',
+      triggerClass: 'widget-restore-chip__more',
+      items: [
+        { action: 'widget-show', icon: 'plus', label: t('dashboard.customizeShow', { widget: label }), attrs: { 'data-widget-show': w.id } },
+        { action: 'widget-options', icon: 'sliders-horizontal', label: t('dashboard.optionsFor', { widget: label }), attrs: { 'data-widget-options': w.id } },
+      ],
+    }) : '';
+    return `
+    <div class="widget-restore-chip-group${menu ? ' widget-restore-chip-group--split' : ''}">
       <button type="button" class="widget-restore-chip" data-widget-show="${esc(w.id)}"
-              aria-label="${esc(t('dashboard.customizeShow', { widget: widgetLabel(w.id) }))}">
+              aria-label="${esc(t('dashboard.customizeShow', { widget: label }))}">
         <i data-lucide="${widgetIcon(w.id)}" class="widget-restore-chip__icon" aria-hidden="true"></i>
-        <span class="widget-restore-chip__label">${esc(widgetLabel(w.id))}</span>
+        <span class="widget-restore-chip__label">${esc(label)}</span>
         <i data-lucide="plus" class="widget-restore-chip__add" aria-hidden="true"></i>
-      </button>
-      ${widgetHasOptions(w.id) ? `
-      <button type="button" class="widget-restore-chip__options" data-widget-options="${esc(w.id)}"
-              aria-label="${esc(t('dashboard.optionsFor', { widget: widgetLabel(w.id) }))}"
-              title="${esc(t('dashboard.optionsFor', { widget: widgetLabel(w.id) }))}">
-        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
-      </button>` : ''}
-    </div>`).join('');
+      </button>${menu}
+    </div>`;
+  }).join('');
   return `
     <section class="widget-restore" aria-label="${t('dashboard.customizeHiddenTitle')}">
       <h3 class="widget-restore__title">${t('dashboard.customizeHiddenTitle')}</h3>
@@ -6983,6 +7036,63 @@ async function openTaskFromOverview(taskId, container, rerender, user) {
   }
 }
 
+/**
+ * Der Termin hinter einer Kalender-Adresse (`/calendar?open=<id>&date=..`) -
+ * oder null. Heute-Blatt, Termin-Kachel und Countdown nennen ihren Termin so.
+ */
+export function eventLinkOf(route) {
+  if (typeof route !== 'string' || !route.startsWith('/calendar?')) return null;
+  const params = new URLSearchParams(route.slice('/calendar?'.length));
+  const id = params.get('open');
+  if (!id || !/^\d+$/.test(id)) return null;
+  return { id, date: params.get('date') };
+}
+
+/**
+ * Ob eine Zeile der Uebersicht zu einem Termin gehoert, den das Blatt gerade
+ * loescht (R22-F). `scope` ist die Angabe des Kalenders
+ * (scheduleCalendarDeleteWithUndo): ein Einzeltermin oder die ganze Serie
+ * nimmt alle seine Zeilen mit, "nur dieser" den einen Tag, "dieser und
+ * folgende" alle Tage ab dem Vorkommen.
+ */
+export function eventRowRemovedBy(link, scope) {
+  if (!link || !scope) return false;
+  const ids = [scope.eventId, scope.seriesId].filter((id) => id != null).map(String);
+  if (!ids.includes(String(link.id))) return false;
+  if (scope.scope === 'this') return !link.date || link.date === scope.occurrenceDate;
+  if (scope.scope === 'following') {
+    const from = String(scope.recurrenceId ?? '').slice(0, 10);
+    return !link.date || !from || link.date >= from;
+  }
+  return true;
+}
+
+/**
+ * DER TERMIN OEFFNET UEBER DER UEBERSICHT (Critique R22, D3), wie die
+ * Aufgabe daneben (openTaskFromOverview): das Blatt des Kalenders, die
+ * Uebersicht bleibt stehen. Seit R22-F wird dort auch bearbeitet und
+ * geloescht: danach zeichnet sich die Uebersicht neu (`rerender`), und
+ * waehrend der Rueckgaengig-Frist sind die Zeilen des Termins ausgeblendet.
+ * Scheitert das Laden, fuehrt die Zeile wie bisher in den Kalender - ein
+ * Fehler soll den Weg nicht verschliessen.
+ */
+async function openEventFromOverview(link, anchor, { container = null, rerender = null, user = null } = {}) {
+  const onRemoving = (scope, removing) => {
+    container?.querySelectorAll('[data-route]').forEach((row) => {
+      if (eventRowRemovedBy(eventLinkOf(row.dataset.route), scope)) row.hidden = removing;
+    });
+  };
+  try {
+    const { openEventById } = await import('/pages/calendar.js');
+    await openEventById(link.id, { date: link.date, anchor, user, onChanged: rerender, onRemoving });
+  } catch (err) {
+    console.error('[Dashboard] Termin konnte nicht geöffnet werden:', err);
+    const params = new URLSearchParams({ open: link.id });
+    if (link.date) params.set('date', link.date);
+    window.yuvomi.navigate(`/calendar?${params.toString()}`);
+  }
+}
+
 // --------------------------------------------------------
 // Navigations-Links verdrahten
 // --------------------------------------------------------
@@ -7007,7 +7117,12 @@ function wireLinks(container, rerender, { editing = false, user = null } = {}) {
       });
       return;
     }
-    const go = () => window.yuvomi.navigate(el.dataset.route);
+    // Ein Termin oeffnet sein Blatt ueber der Uebersicht (R22, D3); Cmd- und
+    // Mittelklick auf einen Link behalten unten ihren neuen Tab.
+    const eventLink = editing ? null : eventLinkOf(el.dataset.route);
+    const go = eventLink
+      ? () => openEventFromOverview(eventLink, el, { container, rerender, user })
+      : () => window.yuvomi.navigate(el.dataset.route);
     if (el.tagName === 'A') {
       el.addEventListener('click', (e) => {
         // DER BROWSER BEHÄLT SEINEN KLICK. Ein bedingungsloses

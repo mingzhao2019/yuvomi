@@ -177,7 +177,7 @@
         "resultCountMany": "{{count}} na mga resulta",
         "goTo": "Pumunta sa",
         "newSection": "Gumawa ng bago",
-        "recentLabel": "Kamakailang binuksan",
+        "recentLabel": "Kamakailang binisita",
         "createTaskNamed": "Gawing gawain ang “{{title}}”",
         "hintMove": "Pumili",
         "hintOpen": "Buksan"
@@ -698,7 +698,12 @@
         "filterDueToday": "Nakatakda hanggang ngayon",
         "errorTaskGone": "Wala na ang gawaing ito.",
         "errorParentGone": "Wala na ang gawaing kinabibilangan ng subtask na ito.",
-        "errorCommentGone": "Wala na ang komentong ito."
+        "errorCommentGone": "Wala na ang komentong ito.",
+        "kanbanShowMore": "Ipakita ang {{count}} pa",
+        "kanbanShowMore_one": "Ipakita ang {{count}} pa",
+        "doneByMenuItem": "Ginawa ni …",
+        "checkedDoneNamed": "Tapos na ang \"{{title}}\".",
+        "checkedOpenNamed": "Bukas muli ang \"{{title}}\"."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} ang item na natanggal.",
@@ -1368,6 +1373,8 @@
         "showBirthday": "Ipakita sa mga kaarawan",
         "addToBirthdays": "Idagdag sa mga kaarawan",
         "addedToBirthdays": "Naidagdag sa mga kaarawan.",
+        "birthdaySuggestValue": "May kaarawan na kapareho ng pangalan pero hindi naka-link.",
+        "linkedToBirthday": "Na-link sa kaarawan.",
         "birthdayHint": "Lumalabas din sa kalendaryo sa pamamagitan ng pag-import ng kaarawan.",
         "phonePlaceholder": "+63 …",
         "phonePreview": "Preview: {{value}}",
@@ -2233,7 +2240,6 @@
         "gravatarErrorStale": "Nagbago ang iyong larawan, address o account habang kinukuha ang larawan. Walang na-save.",
         "gravatarErrorNotMember": "Mga miyembro lang ng sambahayan ang makakakuha ng Gravatar.",
         "profileSavedToast": "Na-update ang profile.",
-        "editMemberLabel": "I-edit",
         "editMemberTitle": "I-edit ang miyembro ng pamilya",
         "saveMember": "I-save ang miyembro",
         "memberUpdatedToast": "Na-update si {{name}}.",
@@ -2456,7 +2462,6 @@
         "memberContactBirthdayHint": "Awtomatikong nagsi-sync ang miyembrong ito sa Mga Kontak at Mga Kaarawan.",
         "memberBirthDateInvalid": "Gumamit ng wastong petsa ng kaarawan sa napiling format ng petsa.",
         "memberPhoneMeta": "Telepono: {{value}}",
-        "memberBirthdayMeta": "Kaarawan: {{date}}",
         "sectionBackup": "Pamamahala ng Backup",
         "backupDownloadTitle": "I-download ang backup ng database",
         "backupDownloadHint": "Gumawa ng konsistenteng SQLite backup ng lahat ng datos ng aplikasyon.",
@@ -3310,7 +3315,12 @@
         "sheetRewardsDescription": "Itakda ang mga pag-apruba at default na puntos para sa mga bagong gawain.",
         "sheetHealthDescription": "Sarili mong mga view, ang cycle at ang mga uri ng prevention.",
         "displaysTitle": "Mga wall tablet",
-        "displaysHint": "Ang wall tablet ay may sariling account na ang device na ito lang ang makakagamit. Hindi ito miyembro ng pamilya, hindi ito nagla-log in, at nakikita lang nito ang nakikita ng sambahayan. Sumusunod ang overview nito sa default ng sambahayan, o sa karaniwang layout kung walang nakatakda. Hindi ito sinusunod ng wall mode: palagi nitong ipinapakita ang oras, programa ng araw, kung sino ang naka-duty at ang panahon.",
+        "displaysLead": "Ang wall tablet ay may sariling account na ang device na ito lang ang makakagamit. Hindi ito miyembro ng pamilya, hindi ito nagla-log in, at nakikita lang nito ang nakikita ng sambahayan.",
+        "displaysMore": "Sumusunod ang overview nito sa default ng sambahayan, o sa karaniwang layout kung walang nakatakda. Hindi ito sinusunod ng wall mode: palagi nitong ipinapakita ang oras, programa ng araw, kung sino ang naka-duty at ang panahon.",
+        "hintMore": "Alamin pa",
+        "weatherHouseholdLinkHint": "Bilang admin, ikaw ang nagtatakda ng lokasyon ng sambahayan.",
+        "wallDisplaysLinkHint": "Ang tablet na pang-wall display lang ay may sariling account na walang pag-log in.",
+        "displaysWallModeLinkHint": "Sa mismong tablet mo bubuksan ang wall mode.",
         "displaysAreasHint": "Ipinapakita nito ang: {{areas}}.",
         "displayDeviceNameLabel": "Pangalan ng tablet",
         "displayDeviceNameHint": "Halimbawa “Kusina” o “Pasilyo” - para lang mapagkaiba ang mga ito sa listahang ito.",
@@ -3653,7 +3663,16 @@
         "yearlessDayLabel": "Araw ng kaarawan",
         "yearlessMonthPlaceholder": "Buwan",
         "yearlessDayPlaceholder": "Araw",
-        "yearlessIncomplete": "Piliin ang buwan at araw ng kaarawan."
+        "yearlessIncomplete": "Piliin ang buwan at araw ng kaarawan.",
+        "nextBirthdayOn": "Susunod na kaarawan sa {{date}}",
+        "contactLinkLabel": "I-link sa contact",
+        "contactLinkNone": "Wala",
+        "contactLinkHint": "Magtuturo na ang dalawang entry sa isa't isa. Hiwalay pa rin ang petsa.",
+        "contactSuggestLabel": "Contact",
+        "contactSuggestValue": "May contact na kapareho ng pangalan pero hindi naka-link.",
+        "linkContact": "I-link",
+        "linkedToast": "Na-link sa contact.",
+        "errorContactLinked": "Naka-link na ang contact na ito sa ibang kaarawan."
     },
     "recipes": {
         "mealTypeNone": "Walang pagkain",
@@ -3725,7 +3744,7 @@
         "step2Title": "Nabigasyon at mga Modyul",
         "step2Body": "Dinadala ka ng bar sa ibaba nang direkta sa pinakamahahalagang bahagi. Makikita mo ang iba pang module sa ilalim ng “Higit pa”.",
         "step3Title": "Magsimula agad",
-        "step3Body": "Ang + na button sa ibabang sulok ay gumagawa ng bagong entry kahit saan. I-swipe ang mga item sa listahan pakaliwa o pakanan para sa mabibilis na aksyon.",
+        "step3Body": "Ang + na button sa ibabang sulok ay gumagawa ng bagong entry kahit saan. Sa Mga Gawain, Pamimili at Paminggalan, i-swipe ang mga item pakaliwa o pakanan para sa mabibilis na aksyon.",
         "next": "Susunod",
         "done": "Magsimula",
         "skip": "Laktawan",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: May utang ka",
         "debtYouOwe": "May utang ka kay {{name}}",
         "debtOwesYou": "May utang sa iyo si {{name}}",
-        "debtOwes": "{{from}} may utang kay {{to}}"
+        "debtOwes": "{{from}} may utang kay {{to}}",
+        "balanced": "Ayos na",
+        "balancedInGroup": "{{group}}: Ayos na"
     },
     "wmo": {
         "0": "Maaliwalas na langit",
@@ -4526,7 +4547,8 @@
         "tooShort": "Dapat may hindi bababa sa 8 karakter ang password.",
         "invalidToken": "Hindi wasto o expired na ang reset link na ito - humiling ng bago.",
         "missingToken": "Kulang ang reset link na ito - humiling ng bago.",
-        "requestNew": "Humiling ng bagong link"
+        "requestNew": "Humiling ng bagong link",
+        "invalidTitle": "Hindi wastong link"
     },
     "email": {
         "host": "SMTP host",
@@ -5043,7 +5065,7 @@
             "noMeds": "Wala pang gamot.",
             "logTitle": "Talaan ng pag-inom",
             "personsLabel": "Tao",
-            "take": "Nainom",
+            "take": "Inumin",
             "skip": "Laktawan",
             "dueToday": {
                 "title": "Nakatakda ngayon",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Kapag kailangan",
-                "take": "Inumin ngayon",
-                "takeFor": "Inumin ang {{medication}} ngayon",
                 "nextAt": "Pinakamaaga sa {{time}}",
                 "remainingHm": "{{hours}} oras {{minutes}} min pa",
                 "remainingM": "{{minutes}} min pa",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Hindi sapat ang mga puntos para dito.",
         "errorNotParticipating": "Hindi nangongolekta ng puntos ang taong ito.",
         "errorMoneyAccountGone": "Wala na ang account na ito.",
-        "errorMoneyPlanGone": "Wala na ang planong ito."
+        "errorMoneyPlanGone": "Wala na ang planong ito.",
+        "ownLedger": "Iyong mga entry"
     },
     "datepicker": {
         "openCalendar": "Buksan ang kalendaryo",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Naka-link na ang transaksyong ito.",
         "errorLocationExists": "Umiiral na ang lokasyong ito rito. Pumili ng ibang pangalan.",
         "errorLocationGone": "Wala na ang lokasyong ito.",
-        "errorCategoryGone": "Wala na ang kategoryang ito."
+        "errorCategoryGone": "Wala na ang kategoryang ito.",
+        "editItem": "I-edit ang gamit"
     },
     "documentAttach": {
         "label": "Mga kalakip",
@@ -6436,13 +6458,14 @@
         "mismatch": "Hindi magkatugma ang mga password.",
         "tooShort": "Dapat may hindi bababa sa 8 karakter ang password.",
         "invalidToken": "Hindi wasto, expired na, o nagamit na ang imbitasyong ito - humingi ng bagong link.",
-        "missingToken": "Hindi wasto o expired na ang invitation link na ito - humingi ng bago.",
         "usernameRequired": "Pumili ng username.",
         "usernameInvalid": "Dapat may 3 hanggang 64 na karakter ang username at maaari lamang maglaman ng mga titik, numero, tuldok, gitling at underscore.",
         "usernameTaken": "Nagamit na ang username na ito.",
         "error": "Hindi nagawa ang account. Pakisubukang muli.",
         "displayNameTooLong": "Dapat hindi hihigit sa 128 karakter ang pangalang ipapakita.",
-        "previewFailed": "Hindi masuri ang imbitasyon sa ngayon. Pakireload ang pahina maya-maya."
+        "previewFailed": "Hindi masuri ang imbitasyon sa ngayon. Pakireload ang pahina maya-maya.",
+        "invalidTitle": "Hindi wastong imbitasyon",
+        "toLogin": "Pumunta sa pag-log in"
     },
     "newLabel": {
         "tasks": "Gawain",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Wala na ang field na ito.",
         "errorSelectedCustomFieldGone": "Wala na ang isa sa mga napiling field.",
         "errorPatternGone": "Wala na ang pattern ng shift na ito.",
-        "errorEntryGone": "Wala na ang entry na ito."
+        "errorEntryGone": "Wala na ang entry na ito.",
+        "overviewPeopleCount": "Ikumpara ang mga tao ({{count}})"
     },
     "pairDisplay": {
         "title": "Ipares ang tablet",

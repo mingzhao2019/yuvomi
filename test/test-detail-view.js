@@ -309,7 +309,9 @@ test('das alte Termin-Popup ist rückstandslos entfernt', async () => {
 test('jeder Weg zu einem Termin führt in die Detailansicht', async () => {
   const src = await calendarJs();
   // Seit R10 (L5) mit der Detailspalte der Agenda als drittem Ort - derselbe Einstieg.
-  assert.match(src, /async function openEventDetail\(ev, anchor = null, \{ pane = null \} = \{\}\)/, 'ein einziger Einstieg');
+  // Seit R22-F auch ueber der Uebersicht (openEventById ruft denselben Einstieg).
+  assert.match(src, /async function openEventDetail\(ev, anchor = null, \{ pane = null, formReady: formReadyExtra = null \} = \{\}\)/, 'ein einziger Einstieg');
+  assert.match(src, /await openEventDetail\(ev, anchor, \{ formReady: away\?\.ready \}\);/, 'auch der Termin ueber der Uebersicht');
   assert.match(src, /import \{ openDetailView.*\} from '\/components\/detail-view\.js'/);
 
   // Kein Aufrufpfad darf an der Detailansicht vorbei ins Formular führen; der
@@ -357,8 +359,10 @@ test('das Formular wartet auf die Erinnerungen, die Leseansicht nicht', async ()
 
   // Das Formular dagegen MUSS sie haben: saveEvent liest die Erinnerungen aus
   // den Formularzeilen und löscht die des Termins, wenn es keine findet.
-  assert.match(fn, /ready:\s*remindersReady/, 'der Wechsel ins Formular wartet auf die Erinnerungen');
-  assert.match(fn, /standalone:\s*async[\s\S]*?await remindersReady/, 'der Desktop-Weg ebenso');
+  // Seit R22-F zusammen mit dem Formular-Zustand ueber einer fremden Seite.
+  assert.match(fn, /const formReady = Promise\.all\(\[remindersReady, formReadyExtra\]\);/, 'das Formular wartet auf die Erinnerungen');
+  assert.match(fn, /ready:\s*formReady/, 'der Wechsel ins Formular wartet auf die Erinnerungen');
+  assert.match(fn, /standalone:\s*async[\s\S]*?await formReady/, 'der Desktop-Weg ebenso');
   assert.match(fn, /view\.update\(/, 'die Erinnerungszeile wird nachgetragen');
 });
 
@@ -1292,7 +1296,8 @@ test('R19: Bearbeiten ist ueberall der eine Primaerknopf am Ende des Fusses', as
   // weiter destruktiv gefaerbt), Bearbeiten steht als Stift vor dem vollen
   // Erledigen (Ulas 2026-10-16).
   const task = readFileSync(new URL('../public/components/task-detail.js', import.meta.url), 'utf8');
-  assert.match(task, /const overflowIds = \['task-detail-start', 'task-detail-archive', 'task-detail-delete'\];/);
+  // Seit R22 (D17) steht auch „Wer hat erledigt?" im Menue, als erster Eintrag.
+  assert.match(task, /const overflowIds = \[DOER_BUTTON_ID, 'task-detail-start', 'task-detail-archive', 'task-detail-delete'\];/);
   const more = task.slice(task.indexOf('function wireDetailMoreMenu('), task.indexOf('const DOER_BUTTON_ID'));
   assert.match(more, /popover-menu__item--danger/, 'Loeschen bleibt im Menue destruktiv');
   const css = await detailCss();

@@ -7,6 +7,7 @@
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal as closeSharedModal, selectModal, confirmModal, askOverModal, advancedSection, wireBlurValidation, reportFieldError, reportFieldErrors, refocusAfterRender, swapFieldsKeepingDirtyBase, captureModalContext, isOwnModalOpen } from '/components/modal.js';
 import { stagger, scheduleUndoableDelete, wireScrollFade, isImeComposing } from '/utils/ux.js';
+import { releaseAddressOnClose } from '/utils/master-detail.js';
 import { t, formatDate, formatDayMonth, formatDateInput, parseDateInput, isDateInputValid } from '/i18n.js';
 import { esc, REQUIRED_MARK, externalHref } from '/utils/html.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod, periodArrowKeys, wirePeriodArrowKeys } from '/utils/period-stepper.js';
@@ -698,7 +699,7 @@ function mealsToolsMenuHtml() {
 function mealsLayoutHtml() {
   const ro = readOnly();
   return `<div class="meals-layout${ro ? ' meals-layout--rail-hidden' : ''}">
-        <div class="week-grid page-scrollport" id="week-grid">
+        <div class="week-grid page-scrollport" data-scroll-port="meals" id="week-grid">
           <div style="grid-column:1/-1">${renderSkeletonList({ rows: 5, lines: 2 })}</div>
         </div>
         ${ro ? '' : '<aside class="recipe-sidebar" id="recipe-sidebar"></aside>'}
@@ -771,6 +772,7 @@ export async function render(container, { user }) {
   wireNav();
   wireRecipeSidebar();
   wireRailToggle();
+  openMealFromQuery();
 
   // `?.`: bei `read` steht kein FAB im Markup. Der Riegel selbst sitzt in
   // openMealModal() - dort muenden alle Anlegewege.
@@ -778,6 +780,26 @@ export async function render(container, { user }) {
     const firstType = state.visibleMealTypes[0] ?? 'lunch';
     openMealModal({ mode: 'create', date: today, mealType: firstType });
   });
+}
+
+/**
+ * `/meals?open=<id>` - DIE MAHLZEIT AUS DER UEBERSICHT (Critique R22, D3).
+ * Die Zeile im Heute-Blatt fuehrte auf die Wurzel des Essensplans, und die
+ * Mahlzeit, von der sie sprach, musste man darin erst finden. Jetzt steht ihre
+ * Karte im Bild und ihr Blatt geht auf - derselbe Weg wie ein Tipp auf die
+ * Karte (Bearbeiten, bei `read` die Leseansicht). Ein eigenes Blatt UEBER der
+ * Uebersicht gibt es fuer Mahlzeiten nicht (kein Einzelabruf, das Formular
+ * haengt an Listen und Mitgliedern dieser Seite) - deshalb das Modul mit
+ * Fokus. Der Parameter geht mit dem Blatt (R22, D2).
+ */
+function openMealFromQuery() {
+  const raw = new URLSearchParams(window.location.search).get('open');
+  if (!raw || !/^\d+$/.test(raw)) return;
+  const btn = _container?.querySelector(`.meal-card__open[data-meal-id="${raw}"]`);
+  if (!btn) return;
+  btn.closest('.meal-card')?.scrollIntoView({ block: 'nearest' });
+  btn.click();
+  releaseAddressOnClose('open', raw);
 }
 
 // --------------------------------------------------------
@@ -1267,11 +1289,16 @@ function renderSlot(date, type, mealsForDay, dayCol, typeRow) {
               aria-label="${esc(t('meals.dragHandle', { title: meal.title }))}">
           <i data-lucide="grip-vertical" class="icon-md" aria-hidden="true"></i>
         </span>`}
+        ${/* DIE ZEICHEN NENNEN SICH UNTER DEM ZEIGER (R22 S9, Critique a2): Kochmuetze
+             und Wagen standen ohne Wort auf jeder Karte - ein Wort passt in die
+             148px-Spalte nicht neben zwei Ziele, also traegt `title` den Namen,
+             den `aria-label` dem Vorleser schon gab. */ ''}
         <div class="meal-card__actions">
           ${meal.recipe_id && recipesReachable() ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
             data-action="open-linked-recipe"
             href="/recipes?open=${encodeURIComponent(meal.recipe_id)}"
             aria-label="${esc(t('meals.viewRecipeNamed', { title: meal.title }))}"
+            title="${esc(t('meals.openRecipe'))}"
           ><i data-lucide="chef-hat" class="icon-md" aria-hidden="true"></i></a>`
           : externalHref(meal.recipe_url) ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
             data-action="open-recipe"
@@ -1279,11 +1306,13 @@ function renderSlot(date, type, mealsForDay, dayCol, typeRow) {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="${esc(t('meals.openRecipeNamed', { title: meal.title }))}"
+            title="${esc(t('meals.openRecipe'))}"
           ><i data-lucide="link" class="icon-md" aria-hidden="true"></i></a>` : ''}
           ${canTransfer ? `<button class="meal-card__action-btn meal-card__action-btn--shopping"
             data-action="transfer-meal"
             data-meal-id="${meal.id}"
             aria-label="${esc(t('common.toShoppingListNamed', { title: meal.title }))}"
+            title="${esc(t('common.toShoppingList'))}"
           ><i data-lucide="shopping-cart" class="icon-md" aria-hidden="true"></i></button>` : ''}
 ${/* KEIN PAPIERKORB AUF DER KARTE (Entscheidung 2026-10-07, benannte
                Ausnahme vom Mehr-Knopf): 27 Karten trugen als einziges
@@ -2651,7 +2680,7 @@ function buildModalContent({ mode, date, mealType, meal, recipeId = null }) {
         * Mahlzeit sonst nur ueber den Papierkorb der Karte loeschbar. Es geht
         * denselben Weg wie dort (`deleteMeal`: Serienabfrage, Rueckgaengig). */ ''}
     <div class="modal-panel__footer modal-panel__footer--plain">
-      ${isEdit ? `<button type="button" class="btn btn--danger-outline" id="modal-delete" data-delete-name="${esc(meal.title)}" style="margin-inline-end:auto"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>` : ''}
+      ${isEdit ? `<button type="button" class="btn btn--danger-outline" id="modal-delete" data-delete-name="${esc(meal.title)}"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>` : ''}
       <button class="btn btn--secondary" id="modal-cancel">${t('common.cancel')}</button>
       <button class="btn btn--primary" id="modal-save">${isEdit ? t('common.save') : t('common.add')}</button>
     </div>`;

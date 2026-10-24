@@ -680,7 +680,12 @@
         "filterDueToday": "Uiterlijk vandaag te doen",
         "errorTaskGone": "Deze taak bestaat niet meer.",
         "errorParentGone": "De taak waar deze subtaak bij hoort bestaat niet meer.",
-        "errorCommentGone": "Deze opmerking bestaat niet meer."
+        "errorCommentGone": "Deze opmerking bestaat niet meer.",
+        "kanbanShowMore": "Toon {{count}} meer",
+        "kanbanShowMore_one": "Toon {{count}} meer",
+        "doneByMenuItem": "Gedaan door …",
+        "checkedDoneNamed": "‘{{title}}’ klaar.",
+        "checkedOpenNamed": "‘{{title}}’ weer open."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} artikel verwijderd.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Tonen bij verjaardagen",
         "addToBirthdays": "Toevoegen aan verjaardagen",
         "addedToBirthdays": "Toegevoegd aan verjaardagen.",
+        "birthdaySuggestValue": "Een verjaardag heeft dezelfde naam, maar is niet gekoppeld.",
+        "linkedToBirthday": "Gekoppeld aan de verjaardag.",
         "birthdayHint": "Verschijnt via de verjaardagsimport ook in de kalender.",
         "phonePlaceholder": "+31 …",
         "phonePreview": "Voorbeeld: {{value}}",
@@ -2191,7 +2198,6 @@
         "gravatarErrorStale": "Je afbeelding, adres of account is gewijzigd terwijl de afbeelding werd opgehaald. Er is niets opgeslagen.",
         "gravatarErrorNotMember": "Alleen leden van het huishouden kunnen een Gravatar ophalen.",
         "profileSavedToast": "Profiel bijgewerkt.",
-        "editMemberLabel": "Bewerken",
         "editMemberTitle": "Gezinslid bewerken",
         "saveMember": "Lid opslaan",
         "memberUpdatedToast": "{{name}} bijgewerkt.",
@@ -2377,7 +2383,6 @@
         "memberContactBirthdayHint": "Dit lid wordt automatisch gesynchroniseerd met Contacten en Verjaardagen.",
         "memberBirthDateInvalid": "Gebruik een geldige geboortedatum in het geselecteerde datumformaat.",
         "memberPhoneMeta": "Telefoon: {{value}}",
-        "memberBirthdayMeta": "Verjaardag: {{date}}",
         "tabBackup": "Back-upbeheer",
         "sectionBackup": "Back-upbeheer",
         "backupDownloadTitle": "Database-back-up downloaden",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Stel goedkeuringen en standaardpunten voor nieuwe taken in.",
         "sheetHealthDescription": "Eigen weergaven, de cyclus en de preventiesoorten.",
         "displaysTitle": "Wandtablets",
-        "displaysHint": "Een wandtablet krijgt een eigen account dat alleen dit apparaat kan gebruiken. Het is geen gezinslid, meldt zich niet aan en ziet alleen wat zichtbaar is voor het huishouden. Het overzicht volgt de standaard van het huishouden, of de standaardindeling als er geen is ingesteld. De wandmodus volgt die niet: hij toont altijd tijd, dagprogramma, wie vandaag aan de beurt is en het weer.",
+        "displaysLead": "Een wandtablet krijgt een eigen account dat alleen dit apparaat kan gebruiken. Het is geen gezinslid, meldt zich niet aan en ziet alleen wat zichtbaar is voor het huishouden.",
+        "displaysMore": "Het overzicht volgt de standaard van het huishouden, of de standaardindeling als er geen is ingesteld. De wandmodus volgt die niet: hij toont altijd tijd, dagprogramma, wie vandaag aan de beurt is en het weer.",
+        "hintMore": "Meer informatie",
+        "weatherHouseholdLinkHint": "Als beheerder stel je de locatie van het huishouden in.",
+        "wallDisplaysLinkHint": "Een tablet die alleen als wandscherm dient, krijgt een eigen account zonder aanmelden.",
+        "displaysWallModeLinkHint": "De wandmodus zet je op de tablet zelf aan.",
         "displaysAreasHint": "Het toont {{areas}}.",
         "displayDeviceNameLabel": "Naam van het tablet",
         "displayDeviceNameHint": "Bijvoorbeeld “Keuken” of “Gang” - alleen om ze in deze lijst uit elkaar te houden.",
@@ -3635,7 +3645,16 @@
         "yearlessDayLabel": "Dag van de verjaardag",
         "yearlessMonthPlaceholder": "Maand",
         "yearlessDayPlaceholder": "Dag",
-        "yearlessIncomplete": "Selecteer de maand en dag van de verjaardag."
+        "yearlessIncomplete": "Selecteer de maand en dag van de verjaardag.",
+        "nextBirthdayOn": "Volgende verjaardag op {{date}}",
+        "contactLinkLabel": "Koppelen aan contact",
+        "contactLinkNone": "Geen",
+        "contactLinkHint": "Beide items verwijzen dan naar elkaar. De datum blijft apart.",
+        "contactSuggestLabel": "Contact",
+        "contactSuggestValue": "Een contact heeft dezelfde naam, maar is niet gekoppeld.",
+        "linkContact": "Koppelen",
+        "linkedToast": "Gekoppeld aan het contact.",
+        "errorContactLinked": "Dit contact is al gekoppeld aan een andere verjaardag."
     },
     "recipes": {
         "mealTypeNone": "Geen maaltijd",
@@ -3714,7 +3733,7 @@
         "resultCountMany": "{{count}} resultaten",
         "goTo": "Ga naar",
         "newSection": "Nieuw aanmaken",
-        "recentLabel": "Recent geopend",
+        "recentLabel": "Recent bezocht",
         "createTaskNamed": "„{{title}}” als taak aanmaken",
         "hintMove": "Selecteren",
         "hintOpen": "Openen"
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigatie & Modules",
         "step2Body": "De balk onderaan brengt je direct naar de belangrijkste onderdelen. Alle andere modules vind je onder ‘Meer’.",
         "step3Title": "Snel aan de slag",
-        "step3Body": "Met de +-knop rechtsonder maak je overal nieuwe items aan. Veeg lijstitems naar links of rechts voor snelle acties.",
+        "step3Body": "Met de +-knop rechtsonder maak je overal nieuwe items aan. In Taken, Boodschappen en Voorraad veeg je items naar links of rechts voor snelle acties.",
         "next": "Volgende",
         "done": "Aan de slag",
         "skip": "Overslaan",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Je bent schuldig",
         "debtYouOwe": "Je bent {{name}} nog schuldig",
         "debtOwesYou": "{{name}} is jou nog schuldig",
-        "debtOwes": "{{from}} is schuldig aan {{to}}"
+        "debtOwes": "{{from}} is schuldig aan {{to}}",
+        "balanced": "Vereffend",
+        "balancedInGroup": "{{group}}: Vereffend"
     },
     "wmo": {
         "0": "Heldere lucht",
@@ -4526,7 +4547,8 @@
         "tooShort": "Het wachtwoord moet minstens 8 tekens lang zijn.",
         "invalidToken": "Deze resetlink is ongeldig of verlopen - vraag een nieuwe aan.",
         "missingToken": "Deze resetlink is onvolledig - vraag een nieuwe aan.",
-        "requestNew": "Nieuwe link aanvragen"
+        "requestNew": "Nieuwe link aanvragen",
+        "invalidTitle": "Link ongeldig"
     },
     "email": {
         "host": "SMTP-host",
@@ -5043,7 +5065,7 @@
             "noMeds": "Nog geen medicijnen.",
             "logTitle": "Innamelogboek",
             "personsLabel": "Persoon",
-            "take": "Ingenomen",
+            "take": "Innemen",
             "skip": "Overslaan",
             "dueToday": {
                 "title": "Vandaag te doen",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Zo nodig",
-                "take": "Nu innemen",
-                "takeFor": "{{medication}} nu innemen",
                 "nextAt": "Op zijn vroegst om {{time}}",
                 "remainingHm": "nog {{hours}} u {{minutes}} min",
                 "remainingM": "nog {{minutes}} min",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Daarvoor zijn er niet genoeg punten.",
         "errorNotParticipating": "Deze persoon spaart geen punten.",
         "errorMoneyAccountGone": "Deze rekening bestaat niet meer.",
-        "errorMoneyPlanGone": "Dit plan bestaat niet meer."
+        "errorMoneyPlanGone": "Dit plan bestaat niet meer.",
+        "ownLedger": "Jouw boekingen"
     },
     "datepicker": {
         "openCalendar": "Kalender openen",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Deze boeking is al gekoppeld.",
         "errorLocationExists": "Deze locatie bestaat hier al. Kies een andere naam.",
         "errorLocationGone": "Deze locatie bestaat niet meer.",
-        "errorCategoryGone": "Deze categorie bestaat niet meer."
+        "errorCategoryGone": "Deze categorie bestaat niet meer.",
+        "editItem": "Voorwerp bewerken"
     },
     "documentAttach": {
         "label": "Bijlagen",
@@ -6436,13 +6458,14 @@
         "mismatch": "De wachtwoorden komen niet overeen.",
         "tooShort": "Het wachtwoord moet minstens 8 tekens lang zijn.",
         "invalidToken": "Deze uitnodiging is ongeldig, verlopen of al gebruikt - vraag om een nieuwe link.",
-        "missingToken": "Deze uitnodigingslink is ongeldig of verlopen - vraag om een nieuwe.",
         "usernameRequired": "Kies een gebruikersnaam.",
         "usernameInvalid": "De gebruikersnaam moet 3 tot 64 tekens lang zijn en mag alleen letters, cijfers, punten, streepjes en underscores bevatten.",
         "usernameTaken": "Deze gebruikersnaam is al in gebruik.",
         "error": "Het account kon niet worden aangemaakt. Probeer het opnieuw.",
         "displayNameTooLong": "De weergavenaam mag maximaal 128 tekens lang zijn.",
-        "previewFailed": "De uitnodiging kon nu niet worden gecontroleerd. Laad de pagina zo meteen opnieuw."
+        "previewFailed": "De uitnodiging kon nu niet worden gecontroleerd. Laad de pagina zo meteen opnieuw.",
+        "invalidTitle": "Uitnodiging ongeldig",
+        "toLogin": "Naar inloggen"
     },
     "newLabel": {
         "tasks": "Taak",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Dit veld bestaat niet meer.",
         "errorSelectedCustomFieldGone": "Een van de gekozen velden bestaat niet meer.",
         "errorPatternGone": "Dit roosterpatroon bestaat niet meer.",
-        "errorEntryGone": "Deze vermelding bestaat niet meer."
+        "errorEntryGone": "Deze vermelding bestaat niet meer.",
+        "overviewPeopleCount": "Personen vergelijken ({{count}})"
     },
     "pairDisplay": {
         "title": "Tablet koppelen",

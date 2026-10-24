@@ -10,13 +10,15 @@ import { openModal as openSharedModal, closeModal, confirmModal, confirmOverModa
 import { attachOverlay } from '/utils/overlay-history.js';
 import { inertOutside } from '/utils/background-inert.js';
 import { openDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
-import { mountMasterDetail, splitViewDetailHtml } from '/utils/master-detail.js';
+import { mountMasterDetail, splitViewDetailHtml, releaseAddressOnClose } from '/utils/master-detail.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete, vibrate, durationToken, requestHeadCollapse } from '/utils/ux.js';
 import { t, getLocale, formatDate as formatPreferredDate, formatDayMonth, formatMonthYear, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { esc, fmtLocation, REQUIRED_MARK } from '/utils/html.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod } from '/utils/period-stepper.js';
 import { swapRegion } from '/utils/content-swap.js';
 import { initials } from '/utils/initials.js';
+import { shiftTypeLabel } from '/utils/shift-label.js';
+import { hourOffset, alignedHourScroll, hourGutterLabel, compactHourLabel, timeGridDayHeadHtml, timeGridHoursHtml, timeGridHourLinesHtml, timeGridNowLineHtml } from '/utils/time-grid.js';
 import { shiftEndDateKey, isEndBeforeStart, weekStartIndex, weekdayOrder,
          monthPeriodKeys, startOfLocalWeekKey, addLocalDays, defaultDateInPeriod,
          isWeekendKey } from '/utils/date.js';
@@ -288,21 +290,12 @@ const HOLIDAY_PUBLIC_FALLBACK = '#FF3B30';
 const HOLIDAY_SCHOOL_FALLBACK = '#34C759';
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/* DIE STUNDENHOEHE STEHT IN tokens.css UND NUR DORT.
- *
- * Sie stand hier als `HOUR_HEIGHT = 56` und dort als `--cal-hour-height: 56px`:
- * zwei Schreibweisen desselben Werts, von denen eine still veralten kann - wer
- * das Token anfasst, verschiebt die Stundenlinien und laesst die Termine
- * stehen, ohne dass ein Test das sieht. Positionen werden deshalb als calc()
- * gegen den Token-Namen ausgedrueckt; wer die Hoehe wirklich in Pixeln braucht
- * (Klick auf eine Uhrzeit, Scroll zur aktuellen Stunde), misst sie am Element.
- *
- * Es bleibt EIN Variablenname. Die Tagesansicht ist dichter (40px statt 56px),
- * aber sie sagt das in ihrem eigenen CSS - `.day-view` ueberschreibt
- * --cal-hour-height mit --cal-hour-height-day, und alles darin (Zeitspalte,
- * Stundenlinien, Termine, Now-Linie) folgt automatisch. JS kennt die Dichte
- * gar nicht, es kennt nur den Bezug. */
-const HOUR_VAR = '--cal-hour-height';
+/* DIE STUNDENHOEHE STEHT IN tokens.css UND NUR DORT - `hourOffset()` und die
+ * Scroll-Regel zur laufenden Stunde kommen aus dem geteilten Zeitraster
+ * (utils/time-grid.js), das auch der Schichtplan nutzt. Die Tagesansicht ist
+ * dichter (40px statt 56px), aber sie sagt das in ihrem eigenen CSS -
+ * `.day-view` ueberschreibt --cal-hour-height mit --cal-hour-height-day, und
+ * alles darin folgt automatisch. JS kennt die Dichte gar nicht. */
 
 /**
  * Darf dieser Nutzer in den Kalender schreiben? (#467)
@@ -321,11 +314,6 @@ const HOUR_VAR = '--cal-hour-height';
  */
 function readOnly() {
   return isNavModuleReadOnly('calendar');
-}
-
-/** Vertikaler Versatz einer Minutenzahl als calc() gegen die Stundenhoehe. */
-function hourOffset(minutes) {
-  return `calc(var(${HOUR_VAR}) * ${Math.round((minutes / 60) * 1e4) / 1e4})`;
 }
 
 /** Gemessene Stundenhoehe einer 24-Stunden-Spalte (Klick- und Scroll-Mathematik). */
@@ -735,41 +723,8 @@ function formatDate(dateStr, { long = false, weekday = false } = {}) {
   return formatPreferredDate(dateStr);
 }
 
-function calendarLunarDate(dateStr) {
-  return state.showLunar ? formatChineseLunarDate(dateStr) : '';
-}
-
-function formatCalendarDate(dateStr, options = {}) {
-  const { long = false, weekday = false } = options;
-  const dayMonth = formatDayMonth(dateStr);
-  const base = weekday
-    ? `${long ? DAY_NAMES_LONG()[new Date(dateStr + 'T00:00:00').getDay()] : DAY_NAMES_SHORT()[new Date(dateStr + 'T00:00:00').getDay()]}, ${dayMonth}`
-    : dayMonth;
-  const lunar = calendarLunarDate(dateStr);
-  return lunar ? `${base} · ${lunar}` : base;
-}
-
-/**
- * Die Beschriftung der Stundenspalte - volle Stunden, also ohne „:00" im
- * 12-Stunden-Format („8 AM" statt „8:00 AM").
- *
- * Die Spalte ist mobil 44px breit (--cal-gutter-width, Critique 2026-09-24:
- * 64px von 375 waren ein Sechstel der Breite fuer eine Beschriftung).
- * „12:00 PM" braucht bei 12px rund 50px und passt dort nicht hinein; „12 PM"
- * ist die Form, die Apple Kalender und Fantastical in ihrer Stundenleiste
- * fuehren. Im 24-Stunden-Format bleibt es bei formatTime: „08:00" passt, und
- * die Schreibweise der Locale (Punkt in `id`, persische Ziffern in `fa`)
- * kommt nur von dort.
- */
-function hourGutterLabel(hour) {
-  return compactHourLabel(formatTime(`${pad(hour)}:00`));
-}
-
-/** „8:00 AM" -> „8 AM"; alles andere (24-Stunden-Schreibweisen) bleibt. */
-function compactHourLabel(full) {
-  const twelve = String(full).match(/^(\d{1,2}):00 ([AP]M)$/);
-  return twelve ? `${twelve[1]} ${twelve[2]}` : full;
-}
+// hourGutterLabel()/compactHourLabel(): die Beschriftung der Stundenachse
+// steht im geteilten Zeitraster (utils/time-grid.js).
 
 function formatDateTime(datetimeStr) {
   if (!datetimeStr) return '';
@@ -2210,6 +2165,34 @@ async function loadUsers() {
   state.userDirectory = directory;
 }
 
+/**
+ * Was das Terminformular aus den Praeferenzen liest: Wochenstart, Dauer,
+ * Erinnerungen, "mir zuweisen", Sync-Ziel und der Speicherort fuer Anhaenge.
+ * Die Kalenderseite holt sie beim Aufbau; ein Termin, der UEBER einer anderen
+ * Seite bearbeitet wird (openEventById), holt sie selbst (loadAwayFormContext).
+ */
+function applyEventFormPreferences(prefs = {}, documentOptions = {}) {
+  state.holidayPrefs  = prefs ?? {};
+  state.weekStart     = weekStartIndex(prefs?.week_start);
+  state.defaultDuration = Number(prefs?.calendar_default_duration) || 60;
+  // Standardwerte für neue Termine (#497/#498).
+  state.defaultReminders = Array.isArray(prefs?.calendar_default_reminders)
+    ? prefs.calendar_default_reminders.map(Number)
+    : [15];
+  state.defaultAllDayReminderTime = /^\d{2}:\d{2}$/.test(
+    prefs?.calendar_default_all_day_reminder_time || '',
+  ) ? prefs.calendar_default_all_day_reminder_time : '09:00';
+  state.showLunar = shouldDisplayChineseLunar({
+    enabled: prefs?.calendar_show_lunar,
+    region: prefs?.region,
+    locale: getLocale(),
+  });
+  state.defaultAssignMe  = !!prefs?.calendar_default_assign_me;
+  // Standard-Sync-Ziel für eigene neue Termine (#620).
+  state.defaultSyncTarget = prefs?.calendar_default_target || '';
+  state.documentUploadBackend = documentOptions?.active_upload_backend ?? 'local';
+}
+
 // --------------------------------------------------------
 // Entry Point
 // --------------------------------------------------------
@@ -2329,25 +2312,7 @@ export async function render(container, { user, signal } = {}) {
     api.get('/documents/meta/options').catch(() => ({ data: {} })),
   ]);
   toolbarEl.inert = false;
-  state.holidayPrefs  = prefsRes.data ?? {};
-  state.weekStart     = weekStartIndex(prefsRes.data?.week_start);
-  state.defaultDuration = Number(prefsRes.data?.calendar_default_duration) || 60;
-  // Standardwerte für neue Termine (#497/#498).
-  state.defaultReminders = Array.isArray(prefsRes.data?.calendar_default_reminders)
-    ? prefsRes.data.calendar_default_reminders.map(Number)
-    : [15];
-  state.defaultAllDayReminderTime = /^\d{2}:\d{2}$/.test(
-    prefsRes.data?.calendar_default_all_day_reminder_time || '',
-  ) ? prefsRes.data.calendar_default_all_day_reminder_time : '09:00';
-  state.showLunar = shouldDisplayChineseLunar({
-    enabled: prefsRes.data?.calendar_show_lunar,
-    region: prefsRes.data?.region,
-    locale: getLocale(),
-  });
-  state.defaultAssignMe  = !!prefsRes.data?.calendar_default_assign_me;
-  // Standard-Sync-Ziel für eigene neue Termine (#620).
-  state.defaultSyncTarget = prefsRes.data?.calendar_default_target || '';
-  state.documentUploadBackend = documentOptionsRes.data?.active_upload_backend ?? 'local';
+  applyEventFormPreferences(prefsRes.data, documentOptionsRes.data);
   state.layerHolidays = localStorage.getItem(LAYER_HOLIDAYS_KEY) !== 'false';
   state.layerSchool   = localStorage.getItem(LAYER_SCHOOL_KEY)   !== 'false';
   state.layerBirthdays = localStorage.getItem(LAYER_BIRTHDAYS_KEY) !== 'false';
@@ -2421,6 +2386,9 @@ export async function render(container, { user, signal } = {}) {
       // Deep-Link landet trotzdem in der Leseansicht, nur ohne Verankerung.
       openEventDetail(occurrence);
     }
+    // Die Leseansicht schliesst - `?open=` geht mit ihr (R22, D2); in der
+    // Agenda-Spalte ist die Adresse die Auswahl und bleibt.
+    releaseAddressOnClose('open', params.get('open'), { signal });
   }
 }
 
@@ -2506,7 +2474,10 @@ function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '', searchValue = 
   return `
     <h1 class="page-toolbar__title">${t('calendar.title')}</h1>
     <div class="page-toolbar__center cal-toolbar__month">
-      <div class="cal-toolbar__stepper">${periodNavHtml()}</div>
+      ${/* Der Ort im angedockten Kopf (R22, D20): eingeklappt geht der Titel
+            aus dem Bild, und das Telefon nennt „Kalender" klein ueber dem
+            Zeitraum. Dekor fuer Sehende - das <h1> bleibt der Seitentitel. */ ''}
+      <div class="cal-toolbar__stepper"><span class="cal-toolbar__place" aria-hidden="true">${esc(t('calendar.title'))}</span>${periodNavHtml()}</div>
       ${viewMenuHtml()}
     </div>
     ${/* Der Aktions-Slot traegt die Ueberlappungswarnung, "Kalender verwalten"
@@ -2653,6 +2624,9 @@ function syncViewMenu(root = _container) {
   if (word) word.textContent = VIEW_LABELS()[state.view] ?? '';
 }
 
+/** Welches Markup ein Kopf zuletzt bekam (renderToolbar baut Gleiches nicht neu). */
+const builtToolbars = new WeakMap();
+
 function renderToolbar() {
   const bar = _container.querySelector('#cal-toolbar');
   if (!bar) return;
@@ -2688,8 +2662,20 @@ function renderToolbar() {
   // DAS SUCHFELD UEBERLEBT DEN NEUBAU: Wert und Fokus gehen sonst bei jedem
   // Filterwechsel verloren, waehrend die Treffer noch stehen.
   const searchHadFocus = bar.querySelector('#cal-search-input') === document.activeElement;
+  // DERSELBE KOPF WIRD NICHT ZWEIMAL GEBAUT (R22-F, F1 Punkt 5). render()
+  // baut ihn vor den Daten und danach noch einmal - meist mit demselben
+  // Markup (keine Filter, keine Warnung). Der zweite Neubau kostete beim
+  // Seitenwechsel Icons, Beobachter, Segment-Kapsel und zwei erzwungene
+  // Layouts im selben Frame. Steht schon genau dieser Kopf da, wird nur der
+  // Zeitraum nachgefuehrt: er haengt am Wochenstart aus den Praeferenzen.
+  const html = toolbarHtml({ filterCount, scheduleWarningHtml, searchValue: searchActive ? searchQuery : '' });
+  if (builtToolbars.get(bar) === html && bar.querySelector('#cal-label')) {
+    updateLabel();
+    return;
+  }
+  builtToolbars.delete(bar);
   bar.replaceChildren();
-  bar.insertAdjacentHTML('beforeend', toolbarHtml({ filterCount, scheduleWarningHtml, searchValue: searchActive ? searchQuery : '' }));
+  bar.insertAdjacentHTML('beforeend', html);
   if (dockedFab) bar.querySelector('.page-toolbar__actions')?.appendChild(dockedFab);
 
   if (window.lucide) lucide.createIcons({ el: bar });
@@ -2741,6 +2727,7 @@ function renderToolbar() {
   // dort ansetzen, wo die alte stand, statt aufzuspringen.
   attachSegmentIndicator(bar.querySelector('.cal-toolbar__views'), { key: 'calendar-views' });
   watchToolbarFit(bar);
+  builtToolbars.set(bar, html);
 }
 
 /**
@@ -2867,9 +2854,15 @@ function periodLabelFallbacks() {
 }
 
 function fitPeriodLabel(lbl) {
+  // ERST FRAGEN, OB ES EINE KUERZERE FASSUNG GIBT, DANN MESSEN (R22-F, F1
+  // Punkt 5). Die Messung erzwingt mitten im Aufbau ein Layout (4x CPU je
+  // 5-6 ms, beim Seitenwechsel zweimal); Monat und Desktop-Woche haben gar
+  // keine Ersatzfassung - dort kuerzt die Ellipse, und gemessen wurde umsonst.
+  const fallbacks = periodLabelFallbacks();
+  if (!fallbacks.length) return;
   // Ohne Layout (verborgen, Test-Umgebung) gibt es nichts zu messen.
   if (!(lbl?.clientWidth > 0) || lbl.scrollWidth <= lbl.clientWidth) return;
-  for (const text of periodLabelFallbacks()) {
+  for (const text of fallbacks) {
     lbl.textContent = text;
     if (lbl.scrollWidth <= lbl.clientWidth) return;
   }
@@ -3745,7 +3738,7 @@ function renderMonthView(container) {
       <div class="month-weekdays" role="row">
         ${weekdayOrder(state.weekStart).map((idx) => `<div class="month-weekday" role="columnheader" aria-label="${esc(DAY_NAMES_LONG()[idx])}">${DAY_NAMES_SHORT()[idx]}</div>`).join('')}
       </div>
-      <div class="month-grid${split ? '' : ' page-scrollport'}" id="month-grid" role="rowgroup">
+      <div class="month-grid${split ? '' : ' page-scrollport'}" data-scroll-port="calendar-month" id="month-grid" role="rowgroup">
         ${Array.from({ length: weeks }, (_, w) => {
           const week = days.slice(w * 7, w * 7 + 7);
           // Baender nur am Desktop: am Telefon sagt der Punkt je Tag „hier ist
@@ -4072,7 +4065,7 @@ function monthListHtml() {
       </div>
       ${/* data-head-collapse="module": das Scrollen der Liste faltet den Kopf
             nicht selbst - er folgt dem Raster (syncMonthCollapse, D9). */ ''}
-      <div class="agenda-view month-list__rows page-scrollport" id="month-list-rows" data-head-collapse="module"></div>
+      <div class="agenda-view month-list__rows page-scrollport" id="month-list-rows" data-scroll-port="calendar-month-list" data-head-collapse="module"></div>
     </section>
   `;
 }
@@ -4091,7 +4084,7 @@ function monthListHtml() {
 // "17.10.2026 Samstag", die Agenda "Heute Samstag, 17. Oktober" - derselbe Tag
 // in zwei Schreibweisen. Liste, Agenda und Suchtreffer tragen jetzt denselben
 // Kopf aus agendaDayHeadHtml (utils/day-label.js dayHeading).
-function renderMonthList(list = _container?.querySelector('#month-list')) {
+function renderMonthList(list = _container?.querySelector('#month-list'), { fresh = false } = {}) {
   if (!list) return;
   const date = state.cursor;
 
@@ -4117,7 +4110,10 @@ function renderMonthList(list = _container?.querySelector('#month-list')) {
     })
     : `<div class="agenda-day" data-date="${esc(date)}">${dayGroupHtml(group)}</div>`);
   _monthListQuietUntil = performance.now() + 250;
-  rows.scrollTop = 0;
+  // Eine eben gebaute Liste steht oben. Das Setzen erzwang sonst mitten im
+  // Aufbau das erste volle Layout der Seite (R22-F, F1 Punkt 5: 4x CPU 14 ms
+  // Layout plus 4 ms Stil); ein anderer Tag in derselben Liste setzt zurueck.
+  if (!fresh) rows.scrollTop = 0;
   if (window.lucide) lucide.createIcons({ el: list });
 }
 
@@ -4168,7 +4164,7 @@ function wireMonthList(view, list) {
   const rows = list.querySelector('#month-list-rows');
   const grid = view.querySelector('#month-grid');
   syncMonthCollapse(view, list);
-  renderMonthList(list);
+  renderMonthList(list, { fresh: true });
 
   let lastTop = 0;
   let hold = false;
@@ -4391,7 +4387,12 @@ function renderMonthDay(date, inMonth, { selected = false, selWeek = false, spli
   const daySchedule = scheduleEntriesOnDay(date);
   const dayWaste = wasteOccurrencesOnDay(date);
   const isToday  = date === state.today;
-  const classes  = monthDayClasses(date, inMonth, state.today, { selected, selWeek });
+  // `month-day--shifts` gibt den Strichen am Kopf ihren Bezugsrahmen. Eine
+  // Klasse aus dem Renderer statt `:has()`: ohne `:has()` (Chrome < 105, die
+  // Mindestversion ist 87) fiele die Regel weg, und die Striche jeder Zelle
+  // stuenden an derselben Ecke des Rasters (R22, S10).
+  const classes  = monthDayClasses(date, inMonth, state.today, { selected, selWeek })
+    + (daySchedule.length ? ' month-day--shifts' : '');
 
   // Alle Chips (Feiertagsband, Termine, Aufgaben) bis zu einem großzügigen Puffer
   // ins DOM rendern; welche sichtbar bleiben, entscheidet fitMonthDayCells aus der
@@ -4401,7 +4402,10 @@ function renderMonthDay(date, inMonth, { selected = false, selWeek = false, spli
   // damit "+N" auch die nicht gerenderten Überzähligen mitzählt. Reihenfolge
   // Feiertag -> Schichtplan -> Waste -> Termin -> Aufgabe. Waste bleibt wie der
   // Schichtplan ungekappt (typischerweise 0-2 Abholungen je Tag).
-  const total     = dayHols.length + daySchedule.length + dayWaste.length + evs.length + dayTasks.length;
+  // Die Schichten zaehlen fuer den Namen der Zelle, nicht fuer „+N weitere":
+  // sie stehen als Streifen am Kopf, nicht als Zeile (D5, monthShiftMarksHtml).
+  const labelTotal = dayHols.length + daySchedule.length + dayWaste.length + evs.length + dayTasks.length;
+  const total     = labelTotal - daySchedule.length;
   const holShown  = dayHols.slice(0, MONTH_DAY_MAX_CHIPS);
   const evShown   = chipEvs.slice(0, Math.max(0, MONTH_DAY_MAX_CHIPS - holShown.length));
   const taskShown = dayTasks.slice(0, Math.max(0, MONTH_DAY_MAX_CHIPS - holShown.length - evShown.length));
@@ -4412,7 +4416,7 @@ function renderMonthDay(date, inMonth, { selected = false, selWeek = false, spli
     </div>
   `).join('');
 
-  const scheduleHtml = daySchedule.map((entry) => `<div class="month-day__holiday schedule-entry" style="--holi-color:${esc(entry.shift_type.color)}" title="${esc(scheduleEntryTitle(entry))}"><span>${esc(scheduleEntryLabel(entry))}</span></div>`).join("");
+  const scheduleHtml = monthShiftMarksHtml(daySchedule);
 
   const wasteHtml = dayWaste.map((occ) => renderWasteChip(occ, { className: 'month-day__holiday', icon: false })).join('');
 
@@ -4448,13 +4452,13 @@ function renderMonthDay(date, inMonth, { selected = false, selWeek = false, spli
   return `
     <div class="${classes}" data-date="${date}" data-total="${total}"
          role="gridcell" tabindex="${focusable ? '0' : '-1'}"${isToday ? ' aria-current="date"' : ''}${split ? ` aria-selected="${selected ? 'true' : 'false'}"` : ''}>
-      <span class="sr-only month-day__label">${esc(monthDayAriaLabel(date, total, evs, { tasks: dayTasks, others: [...dayHols.map((h) => h.name), ...daySchedule.map(scheduleEntryLabel)], isToday }))}</span>
+      <span class="sr-only month-day__label">${esc(monthDayAriaLabel(date, labelTotal, evs, { tasks: dayTasks, others: [...dayHols.map((h) => h.name), ...daySchedule.map(scheduleEntryLabel)], isToday }))}</span>
       <div class="month-day__visual" aria-hidden="true">
       <div class="month-day__number">${new Date(date + 'T00:00:00').getDate()}</div>
       ${calendarLunarDate(date) ? `<div class="month-day__lunar">${esc(calendarLunarDate(date))}</div>` : ''}
+      ${scheduleHtml}
       ${band?.depth ? `<div class="month-day__lanes" style="--lanes:${band.depth}"></div>` : ''}
       ${holHtml}
-      ${scheduleHtml}
       ${wasteHtml}
       ${evHtml}
       ${taskHtml}
@@ -4604,6 +4608,19 @@ function scheduleEntryLabel(entry) {
   return owner ? shift + " · " + owner : shift;
 }
 
+/**
+ * DIE GANZTAGSZEILE NENNT KUERZEL UND INITIALEN (Critique R22, a3 P1, D5).
+ * „F · Linda Johnson" plus „06:00 - 14:00" passte in keine Spalte der Woche:
+ * bei 1280 stand vom Etikett 0 px, sichtbar blieb „10:00 - 10:00 +1 · 2...".
+ * Jetzt „F · LJ" - wer, steht in den Initialen wie in jedem Avatar der App,
+ * der volle Text im zugaenglichen Namen und im Detail beim Tipp.
+ */
+function scheduleEntryShortLabel(entry) {
+  const shift = entry.shift_type.short_code || entry.shift_type.name;
+  const owner = scheduleOwnerName(entry);
+  return owner ? shift + " · " + initials(owner) : shift;
+}
+
 // Note plus jedes ueberlagerungssichtbare eigene Feld mit einem Wert (Migration
 // 181) - dieselbe Berechnung wie schedule.js' overlayMeta(), hier eigenstaendig
 // nachgebaut statt importiert: diese Datei haelt schon fuer jede andere
@@ -4664,16 +4681,36 @@ function scheduleEntryMatchKey(entry) {
 // `clickable` haengt die Detail-Modal-Ausloesung an (role=button + Schluessel) -
 // nur Woche/Tag, Monat behaelt sein Navigieren-zum-Tag, Agenda bleibt inert
 // (ausserhalb des Umfangs dieser Aenderung).
+// D5 (R22): in Woche und Tag (`clickable`) traegt der Chip die Kurzform
+// „F · LJ" vor der Uhrzeit; die Uhrzeit faellt weg, wo sie nicht ganz passt
+// (calendar.css, Umbruch in eine abgeschnittene zweite Zeile). Der volle
+// Text steht im zugaenglichen Namen. Die Agenda nennt die Person ausgeschrieben.
 function renderScheduleChip(entry, className = 'allday-holiday', { showFullRange = false, clickable = false } = {}) {
   const type = entry.shift_type;
-  const label = scheduleEntryLabel(entry);
+  const label = clickable ? scheduleEntryShortLabel(entry) : scheduleEntryLabel(entry);
   const start = type.start_time
     ? '<small class="schedule-entry__start">' + esc(showFullRange ? scheduleTimeLabel(type, { suffix: false }) : formatTime(type.start_time)) + '</small>'
     : '';
   const detailAttrs = clickable
-    ? ` role="button" tabindex="0" data-action="view-schedule-entry" data-schedule-key="${esc(scheduleEntryMatchKey(entry))}"`
+    ? ` role="button" tabindex="0" data-action="view-schedule-entry" data-schedule-key="${esc(scheduleEntryMatchKey(entry))}" aria-label="${esc(scheduleEntryTitle(entry))}"`
     : '';
-  return `<div class="${className} schedule-entry" style="--holi-color:${esc(type.color)}" title="${esc(scheduleEntryTitle(entry))}"${detailAttrs}><span>${esc(label)}</span>${scheduleEntryExtraBadge(entry)}${start}</div>`;
+  return `<div class="${className} schedule-entry" style="--holi-color:${esc(type.color)}" title="${esc(scheduleEntryTitle(entry))}"${detailAttrs}><span class="schedule-entry__label">${esc(label)}${scheduleEntryExtraBadge(entry)}</span>${start}</div>`;
+}
+
+/**
+ * DIE SCHICHT IM MONAT IST EIN STREIFEN AM TAGESKOPF, KEINE TERMINZEILE
+ * (Critique R22, a3 P1, D5). „F · Linda Johnson" stand als erste Zeile in
+ * jeder Werktagszelle, und die Termine des Tages rutschten hinter „+4
+ * weitere". Jetzt traegt der Kopf der Zelle bis zu drei kurze Striche in der
+ * Farbe der Schicht und „+N" fuer den Rest; wer welche Schicht hat, sagt die
+ * Tagesliste (Telefon) bzw. der Tag (Tipp), und der Name der Zelle nennt sie.
+ */
+const MONTH_SHIFT_MARKS = 3;
+function monthShiftMarksHtml(entries) {
+  if (!entries.length) return '';
+  const shown = entries.slice(0, MONTH_SHIFT_MARKS);
+  const rest = entries.length - shown.length;
+  return `<div class="month-day__shifts">${shown.map((entry) => `<span class="month-day__shift" style="--holi-color:${esc(entry.shift_type.color)}"></span>`).join('')}${rest > 0 ? `<span class="month-day__shifts-more">+${rest}</span>` : ''}</div>`;
 }
 
 /**
@@ -4694,7 +4731,7 @@ function scheduleEntryOriginLabel(entry) {
 
 function renderScheduleEntryDetailContent(entry) {
   const type = entry.shift_type;
-  const label = esc(type.short_code ? `${type.short_code} · ${type.name}` : type.name);
+  const label = esc(shiftTypeLabel(type));
   const time = esc(scheduleTimeLabel(type));
   const owner = scheduleOwnerName(entry);
   const overlayFields = (type.fields ?? []).filter((field) => entry.field_values?.[field.id]);
@@ -4927,12 +4964,17 @@ function renderWeekView(container) {
         ${days.map((d) => {
           const dt = new Date(d + 'T00:00:00');
           // Der Kopf fuehrt in den Tag - als Knopf, nicht nur als Klickflaeche.
-          return `<div class="week-view__day-header" data-date="${d}" role="button" tabindex="0"
-               aria-label="${esc(t('calendar.monthOpenDay', { date: formatDate(d, { long: true, weekday: true }) }))}"${d === state.today ? ' aria-current="date"' : ''}>
-            <div class="week-view__day-name">${DAY_NAMES_SHORT()[dt.getDay()]}</div>
-            <div class="week-view__day-num ${d === state.today ? 'week-view__day-num--today' : ''}">${dt.getDate()}</div>
-            ${calendarLunarDate(d) ? `<div class="week-view__day-lunar">${esc(calendarLunarDate(d))}</div>` : ''}
-          </div>`;
+          // Die Form (Kuerzel, Ziffer, Heute-Kreis) ist die des geteilten
+          // Zeitrasters (utils/time-grid.js), dieselbe wie im Schichtplan.
+          const head = timeGridDayHeadHtml({
+            dayName: DAY_NAMES_SHORT()[dt.getDay()],
+            dayNum: dt.getDate(),
+            isToday: d === state.today,
+            attrs: { 'data-date': d, role: 'button', tabindex: '0', 'aria-label': t('calendar.monthOpenDay', { date: formatDate(d, { long: true, weekday: true }) }) },
+          });
+          return head.replace("</div>", calendarLunarDate(d)
+            ? `<div class="week-view__day-lunar">${esc(calendarLunarDate(d))}</div></div>`
+            : "</div>");
         }).join('')}
       </div>
       <!-- Ganztägige Ereignisse -->
@@ -4956,27 +4998,19 @@ function renderWeekView(container) {
           </div>
         `).join('')}
       </div>
-      <div class="week-view__scroll page-scrollport" id="week-scroll">
+      <div class="week-view__scroll page-scrollport" data-scroll-port="calendar-week" id="week-scroll">
         <div class="week-view__body">
-          <div class="week-view__times">
-            ${Array.from({ length: 24 }, (_, h) => `
-              <div class="week-view__time-slot">
-                <span class="week-view__time-label">${h === 0 ? '' : hourGutterLabel(h)}</span>
-              </div>
-            `).join('')}
+          <div class="week-view__times">${timeGridHoursHtml(hourGutterLabel)}
           </div>
           <div class="week-view__columns" id="week-cols"
                style="display:grid;grid-template-columns:repeat(${colCount},1fr);">
             ${days.map((d, i) => `
-              <div class="week-view__col" data-date="${d}">
-                ${Array.from({ length: 24 }, (_, h) => `
-                  <div class="week-view__hour-line" style="top:${hourOffset(h * 60)};"></div>
-                `).join('')}
+              <div class="week-view__col" data-date="${d}">${timeGridHourLinesHtml()}
                 ${chronological([
                   ...scheduleBlocks[i].map((entry) => ({ range: scheduleBlockTimeRange(entry), html: () => renderScheduleTimeBlock(entry, 'week-event', scheduleLayouts[i].get(entry)) })),
                   ...timedEvs[i].map((ev) => ({ range: timeRangeForEvent(ev, d), html: () => renderWeekEvent(ev, layouts[i].get(ev), d) })),
                 ])}
-                ${d === state.today ? `<div class="week-view__now-line" id="now-line" style="top:${hourOffset(nowMinutes())};"></div>` : ''}
+                ${d === state.today ? timeGridNowLineHtml(nowMinutes(), { id: 'now-line' }) : ''}
               </div>
             `).join('')}
           </div>
@@ -5222,9 +5256,47 @@ function wireTimeGridCreate(surface, {
       vibrate(15);
     }, GRID_PRESS_MS);
   });
+  // DER HOVER TOENT DAS BAND, NICHT DIE SPALTE (Critique R22, a3 P3, D20).
+  // `:hover` an der Spalte faerbte den ganzen Tag (548 x 960 px) - ein
+  // Zeiger ueber 10 Uhr sagte nichts ueber 10 Uhr. Jetzt steht unter dem
+  // Zeiger genau die Stunde, die ein Doppelklick anlegt (clickedTime(), wie
+  // der Platzhalter des langen Drucks). Nur mit echtem Zeiger; je Frame
+  // hoechstens eine Messung.
+  const hoverable = typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  let band = null;
+  let hoverEvent = null;
+  let hoverFrame = 0;
+  const hideBand = () => {
+    if (hoverFrame) cancelAnimationFrame(hoverFrame);
+    hoverFrame = 0;
+    hoverEvent = null;
+    band?.remove();
+  };
+  const paintBand = () => {
+    hoverFrame = 0;
+    const e = hoverEvent;
+    hoverEvent = null;
+    const slot = e ? slotAt(e) : null;
+    if (!slot?.col || typeof document === 'undefined') { band?.remove(); return; }
+    if (!band) {
+      band = document.createElement('div');
+      band.className = 'cal-hover-slot';
+      band.setAttribute('aria-hidden', 'true');
+      band.style.height = hourOffset(60);
+    }
+    const [hour, minute] = slot.time.split(':').map(Number);
+    const top = hourOffset(hour * 60 + minute);
+    if (band.parentElement !== slot.col) slot.col.append(band);
+    if (band.style.top !== top) band.style.top = top;
+  };
   surface.addEventListener('pointermove', (e) => {
     if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > GRID_PRESS_SLOP) clear();
+    if (!hoverable || e.pointerType !== 'mouse') return;
+    hoverEvent = e;
+    if (!hoverFrame) hoverFrame = requestAnimationFrame(paintBand);
   });
+  surface.addEventListener('pointerleave', hideBand);
+  scroller?.addEventListener('scroll', hideBand, { passive: true });
   surface.addEventListener('pointerup', () => {
     const slot = press?.armed ? press.slot : null;
     clear();
@@ -5264,51 +5336,8 @@ function scrollToHour(scroll, body) {
   });
 }
 
-/** Ab dieser Stunde zeigt das Zeitraster den Tag, wenn jetzt dabei Platz hat. */
-const MORNING_HOUR = 7;
-/** Ab dieser Stunde ist es frueher Morgen, nicht mehr Nacht: das Raster zeigt
- * schon den kommenden Tag ab MORNING_HOUR (Re-Kritik 2026-10-17). */
-const EARLY_HOUR = MORNING_HOUR - 2;
-
-/**
- * DIE ERSTE SICHTBARE STUNDE STEHT GANZ DA (R19, Critique 2026-10-16). Der
- * Raster-Scroller sprang auf "jetzt minus 80px" - mitten in eine Stunde, und
- * am Abend auf das Scrollende, das genauso mitten in einer Stunde liegt: mobil
- * stand die Reihe 14/15 Uhr halb unter der Ganztagszone, ihre Uhrzeit und
- * Terminkoepfe angeschnitten. Jetzt rundet der Startpunkt auf die volle
- * Stunde ab, auch dort, wo das Scrollende ihn deckelt.
- *
- * DER MORGEN STEHT DA, WO JETZT DANEBEN PLATZ HAT (R19, Critique 2026-10-16).
- * "Eine gute Stunde vor jetzt" liess am Desktop den Vormittag unsichtbar: um
- * 15 Uhr begann die Woche bei 13 Uhr, obwohl das Raster 18 Stunden fasst.
- * Mit `visible` (Hoehe des Scrollers) beginnt die Ansicht um MORNING_HOUR,
- * solange die laufende Stunde darunter noch ganz hineinpasst; sonst so spaet
- * wie noetig, damit sie unten steht. Ohne `visible` bleibt es bei "eine gute
- * Stunde vor jetzt".
- *
- * FRUEH AM MORGEN ZEIGT SIE DEN TAG, NICHT DIE NACHT (Re-Kritik 2026-10-17):
- * um 05:49 begann die Woche bei 04:00 und zeigte bis 15:30 - drei Stunden
- * leere Nacht vor dem ersten Termin. Ab EARLY_HOUR (zwei Stunden vor dem
- * Morgen) beginnt sie um MORNING_HOUR; die laufende Stunde liegt dann knapp
- * darueber, der Tag, der gleich beginnt, steht ganz da. Tief in der Nacht
- * (Nachtschicht, Wickeln) bleibt es bei einer Stunde vor jetzt.
- * @param {{hour: number, hourHeight: number, max: number, visible?: number}} opts
- * @returns {number} scrollTop in px, ein Vielfaches der Stundenhoehe
- */
-function alignedHourScroll({ hour, hourHeight, max, visible }) {
-  if (!(hourHeight > 0)) return 0;
-  let wanted;
-  if (visible > 0) {
-    const fits = Math.floor(visible / hourHeight + 1e-6);
-    const night = hour < EARLY_HOUR ? Math.max(0, hour - 1) : MORNING_HOUR;
-    const topHour = Math.max(hour + 1 - fits, Math.min(MORNING_HOUR, night));
-    wanted = Math.max(0, topHour) * hourHeight;
-  } else {
-    wanted = Math.max(0, hour * hourHeight - 80);
-  }
-  const capped = Math.min(wanted, Math.max(0, max));
-  return Math.floor(capped / hourHeight + 1e-6) * hourHeight;
-}
+// MORNING_HOUR, EARLY_HOUR und alignedHourScroll() stehen im geteilten
+// Zeitraster (utils/time-grid.js): dieselbe Regel gilt im Schichtplan.
 
 /**
  * EIN ZEITFORMAT FUER DEN GANZEN KALENDER (Critique 2026-09-24, P2).
@@ -5661,19 +5690,11 @@ function renderDayView(container) {
           ${tasksOnDay(state.cursor).map(renderTaskChip).join('')}
         </div>
       </div>` : ''}
-      <div class="day-view__scroll page-scrollport" id="day-scroll">
+      <div class="day-view__scroll page-scrollport" data-scroll-port="calendar-day" id="day-scroll">
         <div class="day-view__body">
-          <div class="day-view__times">
-            ${Array.from({ length: 24 }, (_, h) => `
-              <div class="week-view__time-slot">
-                <span class="week-view__time-label">${h === 0 ? '' : hourGutterLabel(h)}</span>
-              </div>
-            `).join('')}
+          <div class="day-view__times">${timeGridHoursHtml(hourGutterLabel)}
           </div>
-          <div class="day-view__col" data-date="${state.cursor}" id="day-col">
-            ${Array.from({ length: 24 }, (_, h) => `
-              <div class="week-view__hour-line" style="top:${hourOffset(h * 60)};"></div>
-            `).join('')}
+          <div class="day-view__col" data-date="${state.cursor}" id="day-col">${timeGridHourLinesHtml()}
             ${chronological([
               ...scheduleBlocks.map((entry) => ({ range: scheduleBlockTimeRange(entry), html: () => renderScheduleTimeBlock(entry, 'day-event', scheduleLayout.get(entry)) })),
               ...timed.map((ev) => ({ range: timeRangeForEvent(ev, state.cursor), html: () => renderDayEvent(ev, layout.get(ev), state.cursor) })),
@@ -5837,8 +5858,17 @@ function miniMonthWanted() {
 }
 
 /** Steht die Spalte (Container-Abfrage) - oder ist sie unter der Schwelle verborgen? */
+// Die Leiste steht erst ab dieser Breite der Kalenderseite (calendar.css,
+// `@container cal-page (min-width: 86.25rem)`). Die Seite ist nie breiter als
+// das Fenster: darunter steht sie sicher nicht.
+const SIDEBAR_MIN_MEDIA = '(min-width: 86.25rem)';
 function sidebarShown(aside) {
-  return Boolean(aside) && !aside.hidden && getComputedStyle(aside).display !== 'none';
+  if (!aside || aside.hidden) return false;
+  // ERST DAS FENSTER, DANN DIE BOX (R22-F, F1 Punkt 5). getComputedStyle
+  // muss hier die Container-Abfrage aufloesen und erzwang mitten im Aufbau
+  // ein Layout (4x CPU 5-6 ms) - auch am Telefon, wo die Leiste nie steht.
+  if (typeof window.matchMedia === 'function' && !window.matchMedia(SIDEBAR_MIN_MEDIA).matches) return false;
+  return getComputedStyle(aside).display !== 'none';
 }
 
 function miniMonthHtml() {
@@ -6297,6 +6327,8 @@ function mountAgendaDetail(container) {
   const open = new URLSearchParams(location.search).get('open');
   _agendaMd = mountMasterDetail({
     root,
+    // Die Schwelle von `module-surface` (layout.css): darunter nie eine Spalte.
+    splitMedia: '(min-width: 65rem)',
     claimInitial: !(open && /^\d+$/.test(open)),
     renderDetail: (id, body, ctx) => {
       const taskId = taskIdForAgendaMdId(id);
@@ -6363,7 +6395,7 @@ function renderAgendaView(container) {
   container.replaceChildren();
   container.insertAdjacentHTML('beforeend', `
     <div class="split-view calendar-agenda-split">
-    <div class="agenda-view page-scrollport split-view__list" id="agenda-view">
+    <div class="agenda-view page-scrollport split-view__list" data-scroll-port="calendar-agenda" id="agenda-view">
       ${groups.length === 0
         ? emptyStateHTML({
           icon: 'calendar-plus',
@@ -7322,7 +7354,7 @@ function renderCalendarSearchResults(body) {
   }
 
   body.insertAdjacentHTML('beforeend', `
-    <div class="agenda-view page-scrollport cal-search-results" id="cal-search-results">
+    <div class="agenda-view page-scrollport cal-search-results" data-scroll-port="calendar-search" id="cal-search-results">
       <p class="cal-search-results__count" aria-hidden="true">${esc(calendarSearchCountLabel())}</p>
       ${groups.map(({ date, events }) => `
         <div class="agenda-day" data-date="${esc(date)}">
@@ -7396,6 +7428,8 @@ async function openFoundEvent(ev) {
 }
 
 export const __test = {
+  renderMonthList,
+  sidebarShown,
   alignedHourScroll,
   // R19: die Seitenleiste ab ca. 1600px - Mini-Monat, Filter aus EINER Quelle, Als Naechstes.
   miniMonthHtml, sidebarFiltersHtml, calendarFilterParts, upNextEvents,
@@ -7894,10 +7928,105 @@ function renderEventDetail(ev, reminders = []) {
 }
 
 /**
+ * DER TERMIN UEBER DER UEBERSICHT (Critique R22, D3). Die Zeilen des
+ * Heute-Blatts und der Termin-Kachel fuehrten auf `/calendar?open=..` - der
+ * Tipp verliess die Uebersicht, waehrend eine Aufgabe in derselben Liste ihr
+ * Blatt ueber ihr oeffnete (`openTaskById`). Jetzt geht auch der Termin als
+ * Blatt ueber der Seite auf, aus der getippt wurde (mit Anker am Desktop als
+ * Popover) - dieselbe Ansicht wie im Kalender (openEventDetail).
+ *
+ * BEARBEITEN UND LOESCHEN BLEIBEN DORT (R22-F, F1 Punkt 1). Bis dahin trug
+ * das Blatt nur "Im Kalender oeffnen": Formular und Loeschen hingen am
+ * Zustand der Kalenderseite (Mitglieder, Kalender, Praeferenzen, Neuzeichnen
+ * der Ansicht), und Bearbeiten hiess, die Uebersicht zu verlassen. Jetzt holt
+ * das Blatt, was das Formular braucht, selbst (loadAwayFormContext, neben dem
+ * Oeffnen her - die Leseansicht wartet nicht darauf), und nach Speichern,
+ * Zuruecksetzen oder Loeschen meldet es sich bei der Seite darunter
+ * (`onChanged`) statt eine Kalenderansicht neu zu zeichnen, die nicht steht.
+ * Beim Loeschen blendet `onRemoving` die Zeilen des Termins fuer die
+ * Rueckgaengig-Frist aus, wie der Kalender seinen Chip. Der Fuss ist damit
+ * derselbe wie im Kalender ([Loeschen] ... [Bearbeiten]); "Im Kalender
+ * oeffnen" daneben entfiel - es war der Umweg zum Bearbeiten, und als dritter
+ * Knopf brach es den Fuss im Popover (286px) in drei Zeilen.
+ *
+ * Ein Vorkommen einer Serie kommt aus dem Tag (`date`), wie beim Deep-Link
+ * des Kalenders (findDeepLinkedOccurrence): ohne es zeigte das Blatt den
+ * Serienstart.
+ * @param {string|number} id
+ * @param {{ date?: string|null, anchor?: HTMLElement|null, user?: object|null,
+ *           onChanged?: () => (void|Promise<void>),
+ *           onRemoving?: (scope: object, removing: boolean) => void }} [options]
+ */
+export async function openEventById(id, { date = null, anchor = null, user = null, onChanged = null, onRemoving = null } = {}) {
+  // Steht die Kalenderseite, gehoert der Zustand ihr; sonst holt das Blatt
+  // ihn selbst, und zwar sofort - parallel zum Termin.
+  const away = hostedHere() ? null : { onChanged, onRemoving, ready: loadAwayFormContext(user).catch(() => {}) };
+  const res = await api.get(`/calendar/${encodeURIComponent(String(id))}`);
+  if (!res?.data) throw new Error(t('calendar.loadError'));
+  const base = localizeBirthdayEvent(res.data);
+  const day = validDateParam(date) || localDate(base.start_datetime);
+  let ev = base;
+  if (base.recurrence_rule && day) {
+    try {
+      const range = await api.get(`/calendar?from=${day}&to=${day}`);
+      ev = findDeepLinkedOccurrence((range?.data ?? []).map(localizeBirthdayEvent), base, day);
+    } catch { /* der Serienstart bleibt die Antwort - besser als kein Blatt */ }
+  }
+  // Haushaltshilfe-Besuche haben ihr eigenes Modul (wie openEventDetail).
+  if (ev.housekeeping_visit_id) {
+    window.yuvomi.navigate(`/housekeeping?editVisit=${ev.housekeeping_visit_id}`);
+    return;
+  }
+  _away = away;
+  await openEventDetail(ev, anchor, { formReady: away?.ready });
+}
+
+/**
+ * Das Blatt eines Termins ueber einer fremden Seite (openEventById), oder
+ * null. Gesetzt beim Oeffnen; gelesen wird es nur, solange die Kalenderseite
+ * NICHT steht (hostedHere) - steht sie, gilt ihr eigener Weg.
+ * @type {null | { onChanged: Function|null, onRemoving: Function|null, ready: Promise<void> }}
+ */
+let _away = null;
+
+/** Steht die Kalenderseite gerade im Dokument? */
+function hostedHere() {
+  return Boolean(_container?.isConnected);
+}
+
+/** Der Termin ist geschrieben: die Seite darunter frischt auf. */
+async function notifyAwayChanged() {
+  if (hostedHere() || !_away?.onChanged) return;
+  try { await _away.onChanged(); } catch (err) { console.warn('[Calendar] Seite unter dem Blatt nicht aufgefrischt:', err); }
+}
+
+/**
+ * Was das Terminformular braucht, ohne dass die Kalenderseite stand:
+ * Mitglieder (Zuweisung, Sichtbarkeit), eigene Kalender, die Praeferenzen und
+ * der Speicherort fuer Anhaenge - dieselben vier Aufrufe wie render().
+ */
+async function loadAwayFormContext(user) {
+  state.today = todayKey();
+  if (user) {
+    state.currentUserId = user.id ?? null;
+    state.user = user;
+  }
+  const [,, prefsRes, documentOptionsRes] = await Promise.all([
+    loadUsers(),
+    loadLocalCalendars(),
+    api.get('/preferences').catch(() => ({ data: {} })),
+    api.get('/documents/meta/options').catch(() => ({ data: {} })),
+  ]);
+  applyEventFormPreferences(prefsRes?.data, documentOptionsRes?.data);
+}
+
+/**
  * Der einzige Einstieg in einen bestehenden Termin. Ohne Anker (Deep-Link,
  * Suchtreffer) wird daraus ein Sheet, mit Anker am Desktop ein Popover.
+ * `formReady`: das Formular wartet zusaetzlich darauf (Termin ueber einer
+ * fremden Seite, openEventById).
  */
-async function openEventDetail(ev, anchor = null, { pane = null } = {}) {
+async function openEventDetail(ev, anchor = null, { pane = null, formReady: formReadyExtra = null } = {}) {
   // Haushaltshilfe-Besuche werden in ihrem eigenen Modul bearbeitet; der Umweg
   // über eine Detailansicht führte sonst ins Leere. (In der Detailspalte der
   // Agenda stehen sie gar nicht erst zur Wahl - agendaMdId().)
@@ -7913,6 +8042,9 @@ async function openEventDetail(ev, anchor = null, { pane = null } = {}) {
   // nach. Die Sync-Ziele braucht nur das Formular, die lädt erst dessen mount().
   let reminders = [];
   const remindersReady = loadReminderForEvent(reminderOwnerId(ev)).then((r) => { reminders = r; });
+  // Das Formular braucht beides: die Erinnerungen und - ueber einer fremden
+  // Seite - Mitglieder, Kalender und Praeferenzen (openEventById).
+  const formReady = Promise.all([remindersReady, formReadyExtra]);
 
   // LOESCHEN, ZURUECKSETZEN UND BEARBEITEN FALLEN WEG, DIE KARTE BLEIBT (#467).
   // "In Karte oeffnen" ist der einzige Eintrag dieser Fusszeile, der nichts
@@ -7956,7 +8088,8 @@ async function openEventDetail(ev, anchor = null, { pane = null } = {}) {
           // nach dem Verwerfen von Änderungen, die der Reset ohnehin
           // zurückgenommen hat (#625).
           await close({ force: true });
-          await reloadAfterSave(() => reloadForView());
+          if (hostedHere()) await reloadAfterSave(() => reloadForView());
+          else await notifyAwayChanged();
           window.yuvomi?.showToast(t('calendar.ics.resetToast'), 'success');
         } catch (err) {
           // Server-Meldung bevorzugen (nutzerorientiert), sonst lokalisierter
@@ -7990,7 +8123,7 @@ async function openEventDetail(ev, anchor = null, { pane = null } = {}) {
       // diese Sperre baute ein sofortiger Klick auf „Bearbeiten" das Formular
       // ohne Erinnerungszeilen auf - und saveEvent löscht die Erinnerungen des
       // Termins, wenn es keine Zeile findet.
-      ready: remindersReady,
+      ready: formReady,
       mount: (panel, pane) => {
         pane.insertAdjacentHTML('beforeend', buildEventModalContent({ mode: 'edit', event: ev, reminder: reminders }));
         wireEventForm(panel, { mode: 'edit', event: ev, reminder: reminders });
@@ -8000,7 +8133,7 @@ async function openEventDetail(ev, anchor = null, { pane = null } = {}) {
         // Wer waehrend des Wartens einen anderen Dialog oeffnet oder die
         // Seite verlaesst, bekommt das Formular nicht darueber gelegt (#1997).
         const context = captureOpenContext();
-        await remindersReady;
+        await formReady;
         if (!isModalContextCurrent(context)) return;
         openEventModal({ mode: 'edit', event: ev, reminder: reminders });
       },
@@ -8402,11 +8535,11 @@ function reminderRowHtml({ offset = '0', amount = 1, unit = 'days', storedAt = n
       </div>
       ${afterStart ? `<p class="form-hint field-hint--warn js-reminder-after-start-hint" role="status"><i data-lucide="alert-triangle" aria-hidden="true"></i><span>${t('reminders.afterStartHint', { when: esc(when) })}</span></p>` : ''}
       <div class="modal-grid modal-grid--2 reminder-custom js-reminder-custom" ${isCustom ? '' : 'hidden'}>
-        <div class="form-group" style="margin:0">
+        <div class="form-group">
           <label class="form-label">${t('reminders.customAmountLabel')}</label>
           <input class="form-input js-reminder-custom-amount" type="number" min="1" max="999" value="${amount}">
         </div>
-        <div class="form-group" style="margin:0">
+        <div class="form-group">
           <label class="form-label">${t('reminders.customUnitLabel')}</label>
           <select class="form-input js-reminder-custom-unit">
             <option value="minutes" ${unit === 'minutes' ? 'selected' : ''}>${t('reminders.customMinutes')}</option>
@@ -9637,7 +9770,7 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
       ${isEdit ? `<button class="btn btn--danger-outline" id="modal-delete">
         <i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${t('common.delete')}
       </button>` : '<div></div>'}
-      <div style="display:flex;gap:var(--space-3)">
+      <div class="modal-panel__footer-group">
         <button type="button" class="btn btn--secondary" id="modal-cancel">${t('common.cancel')}</button>
         <button class="btn btn--primary" id="modal-save">${isEdit ? t('common.save') : t('common.add')}</button>
       </div>
@@ -10066,7 +10199,10 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
     }
     if (savedEventId) refreshReminders();
 
-    if (reloadAfter) {
+    // Ueber einer fremden Seite (openEventById) gibt es keine Ansicht, die
+    // neu zu laden waere: die Seite darunter frischt sich selbst auf.
+    const hosted = hostedHere();
+    if (reloadAfter && hosted) {
       const reload = await reloadAfterSave(() => reloadCalendarEventsOnly());
       // Scheitert das Neuladen oder kommt es aus dem Cache, kennt der Zustand
       // die neue Serie nicht. Dann steht sie wie vor dem Neuladen als
@@ -10078,7 +10214,8 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
     }
 
     closeModal({ force: true, context: dialog });
-    renderView();
+    if (hosted) renderView();
+    else await notifyAwayChanged();
     window.yuvomi?.showToast(mode === 'create' ? t('calendar.createdToast') : t('calendar.savedToast'), 'success');
   } catch (err) {
     // Server-Validierungsmeldung bevorzugen, sonst lokalisierter Fallback; der
@@ -10090,17 +10227,51 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
   }
 }
 
+/**
+ * Wer nach einem Loeschen neu zeichnet. Steht die Kalenderseite, ihre Ansicht
+ * (wie bisher). Ueber einer fremden Seite (openEventById) gibt es keine: der
+ * erste Aufruf von `render` (optimistisch, sofort) blendet die Zeilen des
+ * Termins dort aus (`onRemoving`), jeder spaetere (Rueckgaengig) holt sie
+ * zurueck; nach dem Schreiben frischt die Seite sich auf (`onChanged`) - ihre
+ * neuen Zeilen kennen den Termin dann nicht mehr.
+ * @param {object} deleteScope  dieselbe Angabe wie fuer den Kalenderzustand
+ */
+function deleteViewHooks(deleteScope) {
+  const away = _away;
+  if (hostedHere() || !away) {
+    return {
+      isViewActive: () => Boolean(_container?.isConnected),
+      reloadEvents: reloadCalendarRangeAfterDelete,
+      keepFocus: renderKeepingFocus,
+      refocusAfterUndo: refocusAfterRender,
+      render: renderView,
+    };
+  }
+  let removed = false;
+  return {
+    isViewActive: () => !hostedHere(),
+    reloadEvents: notifyAwayChanged,
+    keepFocus: (renderNow) => renderNow(),
+    refocusAfterUndo: () => {},
+    render: () => {
+      try { away.onRemoving?.(deleteScope, !removed); } catch { /* die Seite darunter ist weg */ }
+      removed = true;
+    },
+  };
+}
+
 async function deleteEvent(event) {
   const target = event?.series_id
     ? calendarOccurrenceDeleteTarget(event, 'series')
     : { method: 'delete', path: `/calendar/${event.id}` };
+  const deleteScope = {
+    eventId: event.id,
+    seriesId: event?.series_id ?? event.id,
+    scope: 'all',
+  };
   scheduleCalendarDeleteWithUndo({
     state,
-    deleteScope: {
-      eventId: event.id,
-      seriesId: event?.series_id ?? event.id,
-      scope: 'all',
-    },
+    deleteScope,
     message: t('calendar.deletedToast'),
     schedule: scheduleUndoableDelete,
     requestDelete: async ({ keepalive }) => {
@@ -10113,15 +10284,11 @@ async function deleteEvent(event) {
       await api.delete(target.path, { keepalive });
       if (!keepalive) refreshReminders();
     },
-    isViewActive: () => Boolean(_container?.isConnected),
-    reloadEvents: reloadCalendarRangeAfterDelete,
-    keepFocus: renderKeepingFocus,
-    refocusAfterUndo: refocusAfterRender,
+    ...deleteViewHooks(deleteScope),
     handleError: (err) => window.yuvomi?.showToast(
       err.data?.error ?? t('calendar.deleteError'),
       'danger',
     ),
-    render: renderView,
   });
 }
 
@@ -10329,28 +10496,25 @@ async function requestDeleteEvent(event) {
  * das erste der Serie, verschwindet sie ganz. Optimistisch + Undo.
  */
 async function deleteThisAndFollowing(event) {
+  const deleteScope = {
+    eventId: event.id,
+    seriesId: event.series_id,
+    scope: 'following',
+    recurrenceId: event.recurrence_id,
+  };
   scheduleCalendarDeleteWithUndo({
     state,
-    deleteScope: {
-      eventId: event.id,
-      seriesId: event.series_id,
-      scope: 'following',
-      recurrenceId: event.recurrence_id,
-    },
+    deleteScope,
     message: t('calendar.deletedToast'),
     schedule: scheduleUndoableDelete,
     requestDelete: ({ keepalive }) => requestCalendarOccurrenceDelete({
       api, event, scope: 'following', keepalive,
     }),
-    isViewActive: () => Boolean(_container?.isConnected),
-    reloadEvents: reloadCalendarRangeAfterDelete,
-    keepFocus: renderKeepingFocus,
-    refocusAfterUndo: refocusAfterRender,
+    ...deleteViewHooks(deleteScope),
     handleError: (err) => window.yuvomi?.showToast(
       occurrenceErrorMessage(err) ?? err.data?.error ?? t('calendar.deleteError'),
       'danger',
     ),
-    render: renderView,
   });
 }
 
@@ -10359,27 +10523,24 @@ async function deleteThisAndFollowing(event) {
  * Entfernung und Undo-Toast wie beim regulären Löschen.
  */
 async function deleteSingleOccurrence(event) {
+  const deleteScope = {
+    eventId: event.id,
+    seriesId: event.series_id,
+    scope: 'this',
+    occurrenceDate: event.start_datetime.slice(0, 10),
+  };
   scheduleCalendarDeleteWithUndo({
     state,
-    deleteScope: {
-      eventId: event.id,
-      seriesId: event.series_id,
-      scope: 'this',
-      occurrenceDate: event.start_datetime.slice(0, 10),
-    },
+    deleteScope,
     message: t('calendar.deletedToast'),
     schedule: scheduleUndoableDelete,
     requestDelete: ({ keepalive }) => requestCalendarOccurrenceDelete({
       api, event, scope: 'this', keepalive,
     }),
-    isViewActive: () => Boolean(_container?.isConnected),
-    reloadEvents: reloadCalendarRangeAfterDelete,
-    keepFocus: renderKeepingFocus,
-    refocusAfterUndo: refocusAfterRender,
+    ...deleteViewHooks(deleteScope),
     handleError: (err) => window.yuvomi?.showToast(
       occurrenceErrorMessage(err) ?? err.data?.error ?? t('calendar.deleteError'),
       'danger',
     ),
-    render: renderView,
   });
 }

@@ -23,6 +23,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { register } from 'node:module';
 import express from 'express';
+import { eachRule } from './css-rules.js';
 
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'dashboard-rewards-test-secret';
@@ -252,9 +253,25 @@ test('Groessen: die Kachel entscheidet, wie viel davon steht', () => {
   const recent = [1, 2, 3].map((n) => ({ delta: n, reason: `R${n}`, type: 'earn', created_at: '2026-09-01T08:00:00Z' }));
   const kid = (size) => renderRewardsWidget({ view: 'self', me: 7, standings: [emma(45)], catalog: [KINO], recent }, size);
   const rowsOf = (html) => (html.match(/rewards-recent__row"/g) || []).length;
-  assert.equal(rowsOf(kid('1x1')), 0, '1x1 traegt nur den Weg zum Ziel');
+  // R22 S10: 1x1 traegt den Weg zum Ziel - und den Verlauf nur als Fuellung
+  // dessen, was die Reihe der Kachel schenkt (`.rewards-recent--fill`, ohne
+  // eigene Hoehe). Breit und hoch steht er wie bisher in `.rewards-self__recent`.
+  const fillOf = (html) => html.match(/<ul class="rewards-recent rewards-recent--fill"[\s\S]*?<\/ul>/)?.[0] ?? '';
+  const small = kid('1x1');
+  assert.doesNotMatch(small, /rewards-self__recent/, '1x1 hat keinen eigenen Verlaufsblock');
+  assert.equal(rowsOf(fillOf(small)), 3, 'der Verlauf fuellt hoechstens drei Zeilen');
+  assert.match(fillOf(small), /<li class="rewards-recent__row" data-recent-title="dashboard\.rewardsRecent">/, 'die erste Zeile traegt die Ueberschrift');
   assert.equal(rowsOf(kid('2x1')), 2);
   assert.equal(rowsOf(kid('1x2')), 3);
+  assert.equal(fillOf(kid('2x1')) + fillOf(kid('1x2')), '', 'breit und hoch keine Fuellung');
+  const css = readFileSync(new URL('../public/styles/dashboard.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const fill = rules.find((r) => r.selector.trim() === '.dashboard .rewards-widget--self > .rewards-recent--fill');
+  assert.match(fill?.body ?? '', /flex:\s*1 1 0/, 'die Fuellung hat keine eigene Hoehe');
+  assert.match(fill?.body ?? '', /flex-wrap:\s*wrap/, 'was nicht ganz passt, bricht aus der Flaeche');
+  assert.match(fill?.body ?? '', /overflow:\s*hidden/);
+  assert.match(fill?.body ?? '', /margin-block-start:\s*calc\(-1 \* var\(--space-3\)\)/, 'die leere Liste nimmt den Spaltenabstand zurueck (sonst +12px)');
+  assert.ok(rules.some((r) => r.selector.trim() === '.rewards-recent--fill::before' && /block-size:\s*0/.test(r.body)), 'ein leerer Halter fuer die erste Spalte');
   assert.equal(progressValue(kid('1x1')), 75, 'der Balken bleibt auf jeder Groesse');
 
   const kids = ['Anna', 'Ben', 'Carla'].map((name, i) => ({ id: 20 + i, display_name: name, balance: 10 }));
@@ -929,6 +946,10 @@ test('Belohnungen: das Kind sieht seine eigene Karte "Deine Punkte -> naechste P
     assert.match(card, /role="progressbar"[^>]*aria-valuenow="75"/, '30 von 40 - der Weg als Balken');
     assert.doesNotMatch(card, /rw-redeem-open/, '30 reicht fuer nichts: kein Einloese-Knopf');
     assert.match(card, /rw-own__history/, 'der eigene Verlauf bleibt erreichbar');
+    // R22 S9 (Persona Emma): Reiter, Seitenspalte und Knopf hiessen alle
+    // „Verlauf" und fuehrten an zwei Orte - der Knopf nennt die EIGENEN Buchungen.
+    assert.match(card, /rw-own__history"[^>]*>rewards\.ownLedger</, 'der Knopf heisst nicht wie der Reiter');
+    assert.doesNotMatch(card, />rewards\.tabLedger</, 'kein drittes „Verlauf" in der eigenen Karte');
     assert.doesNotMatch(card, /rw-standing__id/, 'keine Rangzeile in der eigenen Karte');
     assert.doesNotMatch(el.html.slice(others), /data-member="3"/, 'unten stehen nur die anderen');
 
@@ -947,4 +968,18 @@ test('Belohnungen: das Kind sieht seine eigene Karte "Deine Punkte -> naechste P
   } finally {
     Object.assign(s, vorher);
   }
+});
+
+// R22 S9 (Critique 2026-10-22, a2): bei 1280 mit Seitenspalte liessen drei
+// Spalten dem Ziel der eigenen Karte 220px - „Eine Stunde zocken" brach um,
+// rechts standen zwei Knoepfe. Unter 48rem Kartenbreite stehen sie darunter.
+test('R22: die eigene Punktekarte gibt dem Ziel die Breite, die Knoepfe ruecken unter Stand und Ziel', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { eachRule } = await import('./css-rules.js');
+  const rules = [...eachRule(readFileSync(new URL('../public/styles/rewards.css', import.meta.url), 'utf8'))];
+  const own = rules.find((r) => r.selector.trim() === '.rw-section--own' && !r.at.length);
+  assert.match(own?.body ?? '', /container:\s*rw-own \/ inline-size/);
+  const narrow = rules.filter((r) => r.at.some((a) => /@container rw-own \(max-width: 48rem\)/.test(a)));
+  assert.match(narrow.find((r) => r.selector.trim() === '.rw-own')?.body ?? '', /grid-template-columns:\s*auto minmax\(0, 1fr\)/);
+  assert.match(narrow.find((r) => r.selector.trim() === '.rw-own__actions')?.body ?? '', /grid-column:\s*1 \/ -1/);
 });

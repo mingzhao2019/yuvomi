@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 // `panel instanceof HTMLElement` steht als Typwaechter in onToggle.
 global.HTMLElement = class HTMLElement {};
 
-const { installPopoverMenus, pageToolsMenuHtml, popoverMenuHtml } = await import('../public/utils/popover-menu.js');
+const { installPopoverMenus, pageToolsMenuHtml, popoverMenuHtml, showPopoverMenuAt } = await import('../public/utils/popover-menu.js');
 
 /** Kleinstes Element, das die Selektorwege des Moduls bedient. */
 function el(selector, attrs = {}) {
@@ -546,4 +546,92 @@ test('#2041: ein aus dem DOM genommenes Menue raeumt seinen Listener beim naechs
     assert.equal(panel.closedCount, 0, 'ein abgehaengtes Panel wird nicht mehr angefasst');
     assert.equal(doc.scrollListeners().length, 0, 'der Listener des abgehaengten Panels bleibt haengen');
   });
+});
+
+/**
+ * R22 (Critique a2 P2 "lange Listen", D22): EIN ZEILENMENUE ENTSTEHT ERST
+ * BEIM OEFFNEN. Jede Aufgabe trug zwei Menues samt Eintraegen und Zeichen im
+ * Baum (39 von 83 Knoten je Zeile); `defer: true` legt die Eintraege in ein
+ * `<template>`, und `beforetoggle` haengt sie vor dem Oeffnen ein - samt
+ * ihrer Zeichen. Ohne `defer` bleibt alles, wie es war.
+ */
+test('R22 D22: ein aufgeschobenes Menue baut seine Eintraege erst beim Oeffnen', () => {
+  const items = [{ action: 'edit-task', id: 7, label: 'Bearbeiten', icon: 'pencil' }];
+  const html = popoverMenuHtml({ id: 'task-menu-7', label: 'Mehr', items, defer: true });
+  const panelHtml = html.slice(html.indexOf('<div class="popover-menu"')).trim();
+  assert.match(panelHtml, /^<div class="popover-menu" id="task-menu-7" popover role="menu"><template data-popover-entries>[\s\S]*data-action="edit-task" data-id="7"[\s\S]*<\/template><\/div>$/,
+    'die Eintraege stehen nicht im Template - sie kosten jede Zeile Knoten und Zeichen');
+  assert.match(html, /popovertarget="task-menu-7"/, 'der Ausloeser bleibt, wie er war');
+  assert.doesNotMatch(popoverMenuHtml({ id: 'm', label: 'Mehr', items }), /<template/, 'ohne defer bleibt das Menue sofort gebaut');
+
+  const root = makeRoot();
+  const content = { fragment: true };
+  const swapped = [];
+  const icons = [];
+  const tpl = { content, replaceWith(node) { swapped.push(node); } };
+  const panel = el('.popover-menu');
+  panel.querySelector = (sel) => (/^:scope > template\[data-popover-entries\]$/.test(sel) && !swapped.length ? tpl : null);
+  global.window.lucide = { createIcons: ({ el: scope }) => icons.push(scope) };
+  try {
+    root.fire('beforetoggle', { target: panel, newState: 'open' });
+    assert.deepEqual(swapped, [content], 'beim Oeffnen haengt das Template seine Eintraege ein');
+    assert.deepEqual(icons, [panel], 'die Zeichen der Eintraege entstehen mit, im Panel');
+    root.fire('beforetoggle', { target: panel, newState: 'open' });
+    assert.equal(swapped.length, 1, 'ein zweites Oeffnen baut nichts nach');
+  } finally {
+    delete global.window.lucide;
+  }
+});
+
+// R22 S9: die Personenauswahl der Aufgabenzeile hat keinen sichtbaren
+// Ausloeser - ihr Knopf steht unsichtbar am Zeilenanfang. Rechtsbuendig an ihm
+// gerechnet hing das Menue am Laptop 148px links vom Rechtsklick ueber der
+// Seitenleiste. Ein Kontextmenue geht am Zeiger auf, und der Punkt gilt nur
+// fuer dieses eine Oeffnen.
+test('R22: ein Kontextmenue oeffnet am Zeiger und vergisst den Punkt beim Schliessen', () => {
+  const root = makeRoot();
+  const panel = makeMenu();
+  panel.dataset = {};
+  panel.open = false;
+  panel.matches = (sel) => (sel === ':popover-open' ? panel.open : sel === '.popover-menu');
+  panel.showPopover = () => { panel.open = true; open(root, panel); };
+
+  assert.equal(showPopoverMenuAt(panel, { x: 452, y: 356 }), true);
+  assert.equal(panel.style.left, '452px', 'die linke Kante steht am Zeiger, nicht rechtsbuendig am Ausloeser (100px)');
+  assert.equal(panel.style.top, '356px');
+  assert.equal(panel.style.transformOrigin, 'top left', 'es waechst aus der Ecke am Zeiger');
+
+  // Rechts und unten kein Platz: es kippt auf die andere Seite des Punkts.
+  root.fire('toggle', { target: panel, newState: 'closed' });
+  panel.open = false;
+  showPopoverMenuAt(panel, { x: 1000, y: 750 });
+  assert.equal(panel.style.left, '800px');
+  assert.equal(panel.style.top, '702px');
+  assert.equal(panel.style.transformOrigin, 'bottom right');
+
+  // Ein Ausloeser im Fuss (Aufgabendetail, D17): das Menue steht UEBER dem
+  // Punkt, solange dort Platz ist.
+  root.fire('toggle', { target: panel, newState: 'closed' });
+  panel.open = false;
+  showPopoverMenuAt(panel, { x: 300, y: 600, above: true });
+  assert.equal(panel.style.top, '552px', 'ueber dem Punkt: Oberkante = Punkt - Hoehe');
+  assert.equal(panel.style.transformOrigin, 'bottom left');
+
+  root.fire('toggle', { target: panel, newState: 'closed' });
+  assert.equal(panel.dataset.anchorX, undefined, 'geschlossen gilt wieder der Ausloeser');
+  assert.equal(panel.dataset.anchorAbove, undefined);
+  panel.open = false;
+  open(root, panel);
+  assert.equal(panel.style.left, '100px', 'ohne Punkt rechnet das Menue wie bisher am Ausloeser');
+});
+
+test('R22: ohne Panel oeffnet nichts, und ein Punkt ohne Zahl faellt auf den Ausloeser zurueck', () => {
+  assert.equal(showPopoverMenuAt(null, { x: 1, y: 1 }), false);
+  const root = makeRoot();
+  const panel = makeMenu();
+  panel.dataset = {};
+  panel.matches = (sel) => sel === '.popover-menu';
+  panel.showPopover = () => open(root, panel);
+  showPopoverMenuAt(panel, { x: Number.NaN, y: 4 });
+  assert.equal(panel.style.left, '100px');
 });

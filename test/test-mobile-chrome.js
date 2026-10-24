@@ -329,12 +329,18 @@ test('R17 Z1: nur der markierte Zeitraum-Kopf loest seine Bar-Zeile in die Titel
 // R20 6c: seitdem falten die Pfeile, Filter und Wort der Ansicht bleiben.
 test('R17: der Kalenderkopf ist eingeklappt EINE Zeile, und was weicht, kommt im Menue wieder', () => {
   const calendarCss = read('../public/styles/calendar.css');
-  const collapsed = rules(calendarCss).filter((r) => /\.cal-toolbar\.page-toolbar--capped\.is-collapsed/.test(r.selector));
+  const collapsedAll = rules(calendarCss).filter((r) => /\.cal-toolbar\.page-toolbar--capped\.is-collapsed/.test(r.selector));
+  const phoneOnly = (r) => r.at.some((a) => /max-width:\s*639px/.test(a)) && !r.at.some((a) => /min-width/.test(a));
+  const collapsed = collapsedAll.filter(phoneOnly);
   assert.ok(collapsed.length >= 2, 'calendar.css traegt die Regeln fuer den eingeklappten Kopf');
-  for (const r of collapsed) {
-    assert.ok(r.at.some((a) => /max-width:\s*639px/.test(a)),
-      `"${r.selector}" gilt nur, wo das Ansichtsmenue steht (unter 640px) - darueber gibt es kein Menue, in das gefaltet wird`);
+  for (const r of collapsedAll) {
     assert.match(r.selector, /\.page-toolbar--period-title/, 'nur im markierten Zeitraum-Kopf');
+    // Gefaltet wird nur, wo das Ansichtsmenue steht (unter 640px) - darueber
+    // gibt es kein Menue, in das gefaltet wird. Ab 640px darf der eingeklappte
+    // Kopf ordnen (S10: Ort ueber dem Zeitraum am Tablet), aber nichts weglassen.
+    if (phoneOnly(r)) continue;
+    assert.ok(decl(r.body, 'display') !== 'none' && !/data-collapse-fold/.test(r.selector),
+      `"${r.selector}" faltet ausserhalb des Telefons - darueber gibt es kein Menue, in das gefaltet wird`);
   }
   const center = collapsed.find((r) => /> \.page-toolbar__center$/.test(r.selector));
   assert.equal(center && decl(center.body, 'order'), '0', 'der Zeitraum rueckt in Zeile 1, vor die Werkzeuge');
@@ -642,7 +648,7 @@ test('R19: die Kapsel minimiert beim Abwaertsscrollen - flacher, ohne Labels, Zi
   // Review #2049: an der JEWEILS aktuellen Kapsel - renderAppShell() baut sie neu.
   assert.match(router, /navMinimizer = bindNavMinimize\(navMinimizer, nav\)/, 'der Router verdrahtet die Minimierung an der aktuellen Kapsel');
   assert.doesNotMatch(router, /!navMinimizer\)/, 'ein vorhandener Minimierer darf eine neue Kapsel nicht ausschliessen');
-  assert.match(router, /function updateNav\(rawPath\) \{\n[^\n]*\n\s*navMinimizer\?\.expand\(\);/,
+  assert.match(router, /function updateNav\(rawPath(?:, opts)?\) \{\n[^\n]*\n\s*navMinimizer\?\.expand\(\);/,
     'jeder Seitenwechsel beginnt mit ausgefahrener Kapsel');
 });
 
@@ -792,6 +798,17 @@ test('R21: minimiert staucht sich die Kapsel per scale, ohne ihre Layout-Hoehe z
 // Koerpers (390x844: y 753-802 unter dem Blattende 764; 375x667 ganz
 // ausserhalb), und die Modullisten standen als weisse Karten mit Schatten auf
 // dem weissen Blatt.
+// R22 S10 (aus S9): bei 375x667 brach „Einstellungen" in der Systemreihe des
+// Mehr-Blatts als „Einstel-lungen" - 69px fuer ein Wort von rund 72px in 11px.
+// Die vier Ziele tragen keinen Innenrand in der Breite; der Raster-Gap trennt.
+test('R22 S10: die Systemreihe des Mehr-Blatts gibt ihren Worten die ganze Spalte', () => {
+  const action = rules(layoutCss).find((r) => r.selector.trim() === '.more-action' && !r.at.length);
+  const padding = decl(action?.body ?? '', 'padding') ?? '';
+  assert.match(padding, /^\S+\s+0$/, `die Ziele haben keinen Innenrand in der Breite (gefunden: ${padding})`);
+  const system = rules(layoutCss).find((r) => r.selector.trim() === '.more-sheet__system' && !r.at.length);
+  assert.ok(decl(system?.body ?? '', 'gap'), 'den Abstand gibt das Raster');
+});
+
 test('R21 S7: das Mehr-Blatt hat einen festen Fuss und gruppierten Grund', () => {
   const router = read('../public/router.js');
   const build = router.slice(router.indexOf('function buildMoreSheetBody('), router.indexOf('async function renderPage('));

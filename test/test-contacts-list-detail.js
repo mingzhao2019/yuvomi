@@ -323,14 +323,54 @@ test('Kontaktfilter: nur belegte Kategorien, die aktive bleibt, und mit einer Ka
   }
 });
 
-test('Kontaktfilter: die Gruppe heisst nach ihrer Frage, und am Zeigergeraet bricht die Reihe um', () => {
+test('Kontaktfilter: die Gruppe heisst nach ihrer Frage, und die Reihe bleibt EINE Reihe - auch am Zeigergeraet (R22 D20)', () => {
   const js = read('../public/pages/contacts.js');
   assert.match(js, /id="contacts-filters" role="group" aria-label="\$\{t\('contacts\.categoryLabel'\)\}"/,
     'die Gruppe hiess „Alle" - der Name des ersten Chips, nicht der Frage');
   const css = read('../public/styles/contacts.css');
-  const wrap = [...eachRule(css)].find((r) => r.selector.trim() === '.contacts-filters'
-    && r.at.some((a) => /hover:\s*hover/.test(a) && /pointer:\s*fine/.test(a)));
-  assert.ok(wrap && /flex-wrap:\s*wrap/.test(wrap.body), 'eine Maus hat keine waagerechte Geste');
+  const wrap = [...eachRule(css)].filter((r) => /\.contacts-filters\b/.test(r.selector)
+    && (/flex-wrap:\s*wrap/.test(r.body) || /overflow-x:\s*visible/.test(r.body)));
+  assert.deepEqual(wrap.map((r) => r.selector), [],
+    'am Desktop brach die Reihe in zwei um (1280: rund 48px mehr Kopf) - sie scrollt jetzt mit Fade wie mobil');
+  assert.match(js, /wireScrollFade\(_container\.querySelector\('#contacts-filters'\)\);\s*wireWheelToRow\(_container\.querySelector\('#contacts-filters'\)\)/,
+    'Fade an der Kante und das Mausrad bewegt die Reihe');
+});
+
+test('R22 D20: das Mausrad bewegt die Chipreihe waagerecht, bis sie am Ende ist - dann scrollt die Seite', () => {
+  let handler = null;
+  const row = {
+    scrollLeft: 0, scrollWidth: 900, clientWidth: 400,
+    addEventListener(type, fn, opts) { if (type === 'wheel') { handler = fn; assert.equal(opts?.passive, false, 'sonst greift preventDefault nicht'); } },
+  };
+  Object.defineProperty(row, 'scrollLeft', {
+    get() { return this._x ?? 0; },
+    set(v) { this._x = Math.max(0, Math.min(v, this.scrollWidth - this.clientWidth)); },
+  });
+  contacts.wireWheelToRow(row);
+  assert.ok(handler, 'die Reihe hoert auf das Rad');
+  const rad = (over) => {
+    const e = { deltaX: 0, deltaY: 100, ctrlKey: false, prevented: false, preventDefault() { this.prevented = true; }, ...over };
+    handler(e);
+    return e.prevented;
+  };
+  assert.equal(rad({}), true, 'senkrechtes Rad bewegt die Reihe');
+  assert.equal(row.scrollLeft, 100);
+  row.scrollLeft = 500;
+  assert.equal(rad({}), false, 'am Ende geht das Rad an die Seite weiter - nie fest');
+  assert.equal(rad({ deltaX: 30 }), false, 'eine echte Waagerecht-Geste bleibt beim Browser');
+  assert.equal(rad({ ctrlKey: true }), false, 'Strg+Rad zoomt');
+  row.scrollWidth = 300;
+  row.scrollLeft = 0;
+  assert.equal(rad({}), false, 'ohne Ueberlauf nichts zu bewegen');
+});
+
+test('R22 D7: ein ueber den Geburtstag verknuepfter Kontakt ohne eigenes Datum zeigt das verknuepfte - und den Weg', () => {
+  const rows = contacts.renderContactDetail({ id: 9, name: 'Mike', birthday: null, birthday_id: 4, birthday_link_date: '1985-11-02', birthday_link_year_unknown: 0 });
+  const row = rows.find((r) => r.icon === 'cake');
+  assert.ok(row?.value, 'ohne Wert fiele die Zeile weg und mit ihr der Rueckweg');
+  assert.equal(row.action?.label, 'contacts.showBirthday');
+  const eigen = contacts.renderContactDetail({ id: 9, name: 'Mike', birthday: '1985-11-03', birthday_id: 4, birthday_link_date: '1985-11-02' });
+  assert.match(eigen.find((r) => r.icon === 'cake').value, /03|3/, 'das eigene Datum des Kontakts geht vor');
 });
 
 test('Neuer Kontakt ist nicht als „Arzt" vorbelegt: aktive Filterkategorie, sonst misc (Re-Critique 2026-09-28 P2-5)', () => {
@@ -479,6 +519,82 @@ test('#2149: unverknuepft bietet die Geburtstagszeile "Zu Geburtstagen hinzufueg
     clearPermissions();
     if (savedDisabled === undefined) delete yuvomi.isModuleDisabled;
     else yuvomi.isModuleDisabled = savedDisabled;
+  }
+});
+
+/* R22 D7: DER HINWEIS "HEISST GENAUSO" AUCH IM KONTAKT. Der Geburtstag zeigte
+ * ihn (birthdays.js, contactSuggestionRow), der Kontakt nicht. Jetzt traegt
+ * der Kontakt `suggested_birthday_id` (routes/contacts.js), und die Ansicht
+ * zeigt dieselbe ruhige Zeile mit "Verknuepfen" - nur mit Schreibrecht auf
+ * Geburtstage, und dann ohne "Hinzufuegen" an der Datumszeile: das legte
+ * einen zweiten Geburtstag fuer denselben Menschen an. */
+test('R22 D7: gleichnamiger Geburtstag - der Kontakt zeigt den Hinweis mit "Verknuepfen"', async () => {
+  const { setPermissions, clearPermissions } = await import('../public/permissions.js');
+  const SAME = { id: 9, name: 'Tante', birthday: '1970-05-04', birthday_year_unknown: 0, birthday_id: null, suggested_birthday_id: 31 };
+  const hintOf = (c) => contacts.renderContactDetail(c).find((r) => r?.action?.id === 'contact-detail-birthday-link') ?? null;
+  const yuvomi = globalThis.window.yuvomi;
+  const savedDisabled = yuvomi.isModuleDisabled;
+  try {
+    setPermissions({ admin: false, modules: { calendar: 'write', contacts: 'read' }, widgets: {}, capabilities: {} });
+    const hint = hintOf(SAME);
+    assert.ok(hint, 'die Zeile steht da');
+    assert.equal(hint.value, 'contacts.birthdaySuggestValue');
+    assert.equal(hint.action.label, 'birthdays.linkContact', 'dasselbe Wort wie auf der Geburtstagsseite');
+    assert.equal(hint.action.icon, 'link');
+    const dateRow = contacts.renderContactDetail(SAME).find((r) => r?.icon === 'cake' && r.label === 'contacts.birthdayLabel');
+    assert.equal(dateRow?.action ?? null, null, 'kein "Hinzufuegen" neben dem Hinweis - es legte einen zweiten Geburtstag an');
+    assert.ok(hintOf({ ...SAME, birthday: null }), 'auch ohne eigenes Datum');
+    assert.equal(hintOf({ ...SAME, suggested_birthday_id: undefined }), null, 'ohne Vorschlag keine Zeile');
+    assert.equal(hintOf({ ...SAME, birthday_id: 31 }), null, 'verknuepft keine Zeile');
+
+    setPermissions({ admin: false, modules: { calendar: 'read' }, widgets: {}, capabilities: {} });
+    assert.equal(hintOf(SAME), null, 'calendar: read - nichts zu tun, also keine Zeile');
+    setPermissions({ admin: false, modules: { calendar: 'write' }, widgets: {}, capabilities: {} });
+    yuvomi.isModuleDisabled = (key) => key === 'birthdays';
+    assert.equal(hintOf(SAME), null, 'haushaltweit abgeschaltet');
+  } finally {
+    clearPermissions();
+    if (savedDisabled === undefined) delete yuvomi.isModuleDisabled;
+    else yuvomi.isModuleDisabled = savedDisabled;
+  }
+});
+
+test('R22 D7: Verknuepfen schreibt den Geburtstag und liest den Kontakt neu', async () => {
+  const { setPermissions, clearPermissions } = await import('../public/permissions.js');
+  const yuvomi = globalThis.window.yuvomi;
+  const savedToast = yuvomi.showToast;
+  const calls = [];
+  const toasts = [];
+  yuvomi.showToast = (message, type) => toasts.push({ message, type });
+  let linked = 31;
+  globalThis.__apiStub = {
+    put: (path, body) => { calls.push(['PUT', path, body]); return { data: { id: 31, contact_id: 9 } }; },
+    get: (path) => { calls.push(['GET', path]); return { data: { id: 9, name: 'Tante', birthday_id: linked } }; },
+  };
+  contacts.state.contacts = [{ id: 9, name: 'Tante', birthday_id: null }];
+  setPermissions({ admin: false, modules: { calendar: 'write', contacts: 'read' }, widgets: {}, capabilities: {} });
+  try {
+    const seen = [];
+    const button = { disabled: false, isConnected: true };
+    const loaded = await contacts.linkContactToBirthday({ id: 9, name: 'Tante' }, 31, { button, onLinked: (c) => seen.push(c) });
+    assert.deepEqual(calls[0], ['PUT', '/birthdays/31', { contact_id: 9 }], 'der Geburtstag bekommt den Kontakt');
+    assert.deepEqual(calls[1], ['GET', '/contacts/9']);
+    assert.equal(loaded?.birthday_id, 31);
+    assert.equal(seen[0]?.birthday_id, 31, 'die Ansicht zeichnet mit Verknuepfung neu');
+    assert.equal(contacts.state.contacts[0].birthday_id, 31);
+    assert.deepEqual(toasts.at(-1), { message: 'contacts.linkedToBirthday', type: 'success' });
+
+    linked = null;
+    const again = await contacts.linkContactToBirthday({ id: 9, name: 'Tante' }, 31, { button });
+    assert.equal(again, null);
+    assert.equal(toasts.at(-1)?.type, 'danger');
+    assert.equal(button.disabled, false);
+  } finally {
+    clearPermissions();
+    delete globalThis.__apiStub;
+    contacts.state.contacts = [];
+    if (savedToast === undefined) delete yuvomi.showToast;
+    else yuvomi.showToast = savedToast;
   }
 });
 

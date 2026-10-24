@@ -33,6 +33,8 @@
  *   - Pocket money (Emma: account, monthly plan, scheduled credits, a parent bonus,
  *     an approved and an open withdrawal; Leo has no account yet)
  *   - Budget subscriptions (streaming, storage, gym - mixed billing cycles, one ending)
+ *   - Schedule (Linda rotating early/late weeks, Alex nights, on-call extras and a
+ *     vacation override in this and next week)
  *   - Household preferences (EUR, dd.mm.yyyy, 24h, weather = Dortmund)
  *
  * Login for all demo users: <username> / demo1234
@@ -209,6 +211,9 @@ const WIPE = [
   // inventory_categories fehlt aus demselben Grund wie pantry_locations und
   // shopping_categories - es ist Referenzdatum aus Migration 145, nicht Demo-Inhalt.
   // inventory_locations dagegen legt keine Migration an, die kommen aus diesem Seed.
+  // Fristen und Wartungsheft (R22, D21) stehen vor den Gegenstaenden aus
+  // demselben Grund.
+  'inventory_item_service_log', 'inventory_item_dates',
   'inventory_item_documents', 'inventory_items', 'inventory_locations',
   'reminders',
   'event_assignments', 'task_assignments', 'task_tags', 'task_documents', 'calendar_events', 'tasks',
@@ -226,6 +231,11 @@ const WIPE = [
   'reward_ledger', 'reward_redemptions', 'reward_participants', 'reward_catalog',
   'reward_allowances', 'reward_money_accounts',
   'budget_subscriptions',
+  // Schichtplan: Werte, Felder und Erinnerungsanker vor ihren Eintraegen, die
+  // Schichtarten zuletzt (RESTRICT von Mustertagen, Ausnahmen und Extras).
+  'schedule_custom_field_values', 'schedule_shift_type_fields', 'schedule_custom_fields',
+  'schedule_reminder_entries', 'schedule_extra_shifts', 'schedule_overrides',
+  'schedule_pattern_days', 'schedule_patterns', 'schedule_shift_types',
   'users',
 ];
 const wipe = db.transaction(() => {
@@ -1023,6 +1033,9 @@ const documents = [
   [L('Receipt - Weekly Groceries', 'Kassenbon - Wocheneinkauf'), L('REWE - week 1',                        'REWE - KW 1'),                         'finance',     'family',     'receipts',  'receipt_rewe.jpg',        'image/jpeg',      92000,  lindaId],
   [L('Invoice - Electricity',      'Rechnung - Strom'),          L('Monthly instalment',                   'Monatlicher Abschlag'),                'finance',     'family',     'receipts',  'invoice_electricity.pdf', 'application/pdf', 71000,  alexId],
   [L('Receipt - Football Boots',   'Kassenbon - Fußballschuhe'), L('Sports shop - size 35',                'Sportgeschäft - Größe 35'),            'finance',     'family',     'receipts',  'receipt_boots.jpg',       'image/jpeg',      68000,  lindaId],
+  // Der Beleg zur Waschmaschine im Inventar (R22, D21) - die Notiz des
+  // Gegenstands sagt "Beleg in Dokumenten", jetzt haengt er dort auch dran.
+  [L('Invoice - Washing Machine',  'Rechnung - Waschmaschine'),  L('Miele WWD660 - ten-year warranty',     'Miele WWD660 - zehn Jahre Garantie'),  'finance',     'family',     'receipts',  'invoice_washing_machine.pdf', 'application/pdf', 88000, alexId],
 ];
 const documentIdByName = {};
 for (const [name, description, category, visibility, folder, original, mime, size, created_by] of documents) {
@@ -1586,6 +1599,7 @@ const insertInvItem = db.prepare(`
   VALUES (@name, @brand, @model, @serial, @cat, @loc, @date, @price, 'EUR', @vendor,
           @warranty, @cond, 'active', @notes, @by)
 `);
+const invItemId = {};
 // Die Mischung ist absichtlich: ein Posten mit laufender Garantie, einer mit
 // abgelaufener, ein teures Fahrzeug und ein billiges Werkzeug. Genau daran
 // haengt der Nutzen des Moduls - Kaufpreis, Garantie und Ort an einem Ort -
@@ -1601,7 +1615,7 @@ const insertInvItem = db.prepare(`
    L('Ten-year warranty, receipt in Documents', 'Zehn Jahre Garantie, Beleg in Dokumenten')],
   [L('Family car', 'Familienauto'), 'Škoda', 'Octavia Combi', 'TMBJJ7NE0J0123456', 'vehicles', 'garage',
    -1250, 18900.00, L('Dealership', 'Autohaus'), 24, 'good',
-   L('Next inspection in spring', 'Nächste HU im Frühjahr')],
+   L('Winter tyres in the basement', 'Winterreifen im Keller')],
   [L("Emma's bike", 'Emmas Fahrrad'), 'Cube', 'Acid 240', 'CU240-77120', 'sports', 'garage',
    -300, 449.00, L('Bike shop', 'Fahrradladen'), 24, 'good', null],
   [L('Cordless drill', 'Akkuschrauber'), 'Bosch', 'GSR 18V-55', '3601JJ2000', 'household', 'basement',
@@ -1611,11 +1625,93 @@ const insertInvItem = db.prepare(`
    L('Warranty expired', 'Garantie abgelaufen')],
   [L('Monitor', 'Monitor'), 'Dell', 'U2723QE', 'CN-0M4H2X', 'electronics', 'office',
    -95, 549.00, 'Dell', 36, 'new', null],
-].forEach(([name, brand, model, serial, cat, loc, dayOffset, price, vendor, warranty, cond, notes]) =>
-  insertInvItem.run({
+].forEach(([name, brand, model, serial, cat, loc, dayOffset, price, vendor, warranty, cond, notes]) => {
+  invItemId[serial] = insertInvItem.run({
     name, brand, model, serial, cat, loc: invLocationId[loc],
     date: daysFromNow(dayOffset), price, vendor, warranty, cond, notes, by: alexId,
-  }));
+  }).lastInsertRowid;
+});
+
+/* DAS INVENTAR ZEIGT SEIN ZUSAMMENSPIEL (R22, D21; Critique a4 P3). Bis dahin
+ * standen acht Gegenstaende ohne einen Beleg, ohne Frist und ohne Wartung da -
+ * "Braucht Aufmerksamkeit 0", und keine Detailansicht zeigte, wozu das Modul
+ * Dokumente, Fristen und das Wartungsheft verbindet. Jetzt:
+ * - die Waschmaschine traegt ihre Rechnung aus den Dokumenten,
+ * - das Familienauto eine Hauptuntersuchung in drei Wochen (alle 24 Monate) -
+ *   die eine Frist, die "Braucht Aufmerksamkeit" auf 1 setzt -, einen
+ *   Kilometerstand und eine Inspektion im Wartungsheft. */
+const washingMachineReceipt = documentIdByName[L('Invoice - Washing Machine', 'Rechnung - Waschmaschine')];
+if (washingMachineReceipt) {
+  db.prepare('INSERT INTO inventory_item_documents (item_id, document_id, created_by) VALUES (?, ?, ?)')
+    .run(invItemId['31-4471902'], washingMachineReceipt, alexId);
+}
+const carId = invItemId.TMBJJ7NE0J0123456;
+db.prepare("UPDATE inventory_items SET odometer = ?, odometer_unit = 'km', odometer_on = ? WHERE id = ?")
+  .run(48300, daysFromNow(-12), carId);
+db.prepare(`
+  INSERT INTO inventory_item_dates (item_id, label, date, reminder_offset_days, interval_months, created_by)
+  VALUES (?, ?, ?, 30, 24, ?)
+`).run(carId, L('Vehicle inspection', 'Hauptuntersuchung'), daysFromNow(21), alexId);
+db.prepare(`
+  INSERT INTO inventory_item_dates (item_id, label, date, reminder_offset_days, interval_months, created_by)
+  VALUES (?, ?, ?, 30, 12, ?)
+`).run(carId, L('Service', 'Inspektion'), daysFromNow(185), alexId);
+db.prepare(`
+  INSERT INTO inventory_item_service_log (item_id, item_date_id, label, performed_on, odometer, vendor, note, created_by)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`).run(carId, null, L('Service', 'Inspektion'), daysFromNow(-180), 41200, L('Dealership', 'Autohaus'),
+  L('Oil change, brake fluid, wiper blades', 'Ölwechsel, Bremsflüssigkeit, Wischerblätter'), alexId);
+
+// ── Schedule ─────────────────────────────────────────────────────────────────
+
+console.log('Inserting schedule…');
+// DER SCHICHTPLAN STEHT IN DER LAUFENDEN WOCHE (R22, D21). Ohne ihn zeigte die
+// Demo weder die Schichten im Kalender noch das Wochenraster des Schichtplans,
+// und jede Critique legte sie erst per API an. Zwei Personen mit Plan, dazu ein
+// Tag mit vier Eintraegen (Linda Frueh + Bereitschaft, Alex Nacht +
+// Bereitschaft): der Monat zeigt dort drei Marken und „+1", die Woche die
+// Ganztagszeile mit Kuerzel und Initialen. Alles relativ zum Montag dieser
+// Woche (weekDayKey), damit jeder Seed-Tag dasselbe Bild hat.
+const insertShiftType = db.prepare(`
+  INSERT INTO schedule_shift_types (name, short_code, start_time, end_time, color, icon, created_by)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+const shiftTypeId = {};
+[
+  ['early',   L('Early shift', 'Frühschicht'),   L('E', 'F'), '06:00', '14:00', '#0891B2', 'sunrise'],
+  ['late',    L('Late shift', 'Spätschicht'),    L('L', 'S'), '14:00', '22:00', '#D946EF', 'sunset'],
+  ['night',   L('Night shift', 'Nachtschicht'),  'N',         '22:00', '06:00', '#3B82F6', 'moon'],
+  ['oncall',  L('On call', 'Bereitschaft'),      L('OC', 'B'), '18:00', '22:00', '#D97706', 'phone'],
+  ['vacation', L('Vacation', 'Urlaub'),          L('V', 'U'), null,    null,    '#78808C', 'tree-palm'],
+].forEach(([key, name, code, start, end, color, icon]) => {
+  shiftTypeId[key] = insertShiftType.run(name, code, start, end, color, icon, lindaId).lastInsertRowid;
+});
+const insertPattern = db.prepare(`
+  INSERT INTO schedule_patterns (user_id, name, anchor_date, cycle_length, valid_from, is_active)
+  VALUES (?, ?, ?, ?, ?, 1)
+`);
+const insertPatternDay = db.prepare(`
+  INSERT INTO schedule_pattern_days (pattern_id, position, shift_type_id) VALUES (?, ?, ?)
+`);
+// Linda: zwei Wochen Wechselschicht - diese Woche Frueh, die naechste Spaet,
+// Wochenende frei (eine Position ohne Zeile ist frei).
+const lindaPattern = insertPattern.run(lindaId, L('Rotating shifts', 'Wechselschicht'), weekDayKey(0), 14, weekDayKey(-56)).lastInsertRowid;
+for (let position = 0; position < 14; position++) {
+  if (position % 7 > 4) continue;
+  insertPatternDay.run(lindaPattern, position, position < 7 ? shiftTypeId.early : shiftTypeId.late);
+}
+// Alex: drei Naechte am Wochenanfang, jede Woche.
+const alexPattern = insertPattern.run(alexId, L('Night duty', 'Nachtdienst'), weekDayKey(0), 7, weekDayKey(-56)).lastInsertRowid;
+for (const position of [0, 1, 2]) insertPatternDay.run(alexPattern, position, shiftTypeId.night);
+const insertExtraShift = db.prepare(`
+  INSERT INTO schedule_extra_shifts (user_id, date_key, shift_type_id, note, created_by) VALUES (?, ?, ?, ?, ?)
+`);
+insertExtraShift.run(lindaId, weekDayKey(2), shiftTypeId.oncall, null, lindaId);
+insertExtraShift.run(alexId, weekDayKey(2), shiftTypeId.oncall, null, alexId);
+// Naechsten Montag hat Alex Urlaub statt Nacht: eine Ausnahme ohne Uhrzeit.
+db.prepare(`
+  INSERT INTO schedule_overrides (user_id, date_key, shift_type_id, note) VALUES (?, ?, ?, ?)
+`).run(alexId, weekDayKey(7), shiftTypeId.vacation, null);
 
 // ── Reminders ────────────────────────────────────────────────────────────────
 

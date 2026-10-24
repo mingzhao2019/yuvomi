@@ -12,7 +12,7 @@ import { uniqueKey } from '../utils/category-slug.js';
 import { composeDisplayName, normalizeNameParts } from '../../public/utils/contact-name.js';
 import { CONTACT_PHONE_MAX_LENGTH } from '../../public/utils/contact-limits.js';
 import { toE164, defaultCountryFromConfig } from '../utils/phone.js';
-import { birthDateInput, placeholderBirthDate, validateYearUnknown } from '../services/birthdays.js';
+import { birthDateInput, placeholderBirthDate, validateYearUnknown, sameNameBirthdayId } from '../services/birthdays.js';
 import { mayReadModule } from '../permissions.js';
 import {
   contactActorFromRequest, mayChangeContactEmails, bodyChangesContactEmails,
@@ -466,7 +466,9 @@ const CONTACT_SELECT = `
          u.display_name  AS family_display_name,
          u.avatar_color  AS family_avatar_color,
          u.avatar_data   AS family_avatar_data,
-         (SELECT b.id FROM birthdays b WHERE b.contact_id = contacts.id) AS birthday_id
+         (SELECT b.id FROM birthdays b WHERE b.contact_id = contacts.id) AS birthday_id,
+         (SELECT b.birth_date FROM birthdays b WHERE b.contact_id = contacts.id) AS birthday_link_date,
+         (SELECT b.year_unknown FROM birthdays b WHERE b.contact_id = contacts.id) AS birthday_link_year_unknown
     FROM contacts
     LEFT JOIN users u ON u.id = contacts.family_user_id`;
 
@@ -480,10 +482,41 @@ const CONTACT_SELECT = `
  * Mischstelle wie der Import in die Gegenrichtung (routes/birthdays.js,
  * `contactsHidden`). Wer den Kalender nicht lesen darf, bekommt keine id:
  * sie verriete sonst, wer im Geburtstagsmodul steht.
+ *
+ * SEIT R22 (D7) VERKNUEPFT AUCH DER GEBURTSTAG-DIALOG, und dann hat der Kontakt
+ * oft selbst kein Datum: die Zeile "Geburtstag" fiele weg und mit ihr der Weg
+ * zurueck. `birthday_link_date`/`_year_unknown` sind das Datum des
+ * verknuepften Eintrags - zum ANZEIGEN, wo der Kontakt keins traegt. Das Datum
+ * des Kontakts selbst bleibt unberuehrt (#2124 bleibt eigenstaendig). Dieselbe
+ * Schranke wie die id: ohne Kalender-Leserecht nichts.
  */
 function withBirthdayLink(req, contact) {
   if (!contact || mayReadModule(req, 'calendar')) return contact;
-  return { ...contact, birthday_id: null };
+  return { ...contact, birthday_id: null, birthday_link_date: null, birthday_link_year_unknown: null };
+}
+
+/**
+ * DER RUHIGE HINWEIS AUCH IM KONTAKT (Critique R22, D7). Der Geburtstag zeigt
+ * "Ein Kontakt heisst genauso" (`suggested_contact_id`, routes/birthdays.js);
+ * die Gegenrichtung fehlte, und wer vom Kontakt aus kam, sah nie, dass es den
+ * Menschen schon als Geburtstag gibt. `suggested_birthday_id` ist der eine
+ * unverknuepfte Geburtstag mit demselben Namen (derselbe Schluessel,
+ * `sameNameKey`).
+ *
+ * Nur am EINZELNEN Kontakt (GET/PUT /:id): die Leseansicht laedt ihn ohnehin
+ * nach, und die Liste muesste sonst je Zeile alle Geburtstage durchgehen.
+ * Dieselbe Schranke wie `birthday_id` (ohne Kalender-Leserecht nichts, es
+ * verriete die Namen im Geburtstagsmodul), und nichts fuer einen schon
+ * verknuepften Kontakt oder den einer Haushaltshilfe, den die Geburtstagsseite
+ * nie vorschlaegt.
+ */
+function withBirthdaySuggestion(req, contact) {
+  if (!contact || contact.birthday_id || !mayReadModule(req, 'calendar')) return contact;
+  if (contact.family_user_id && db.get().prepare('SELECT 1 FROM housekeeping_workers WHERE user_id = ?').get(contact.family_user_id)) {
+    return contact;
+  }
+  const id = sameNameBirthdayId(db.get(), contact.name);
+  return id ? { ...contact, suggested_birthday_id: id } : contact;
 }
 
 /**
@@ -855,7 +888,7 @@ router.put('/:id', (req, res) => {
 
     res.json({
       data: {
-        ...withBirthdayLink(req, updated),
+        ...withBirthdaySuggestion(req, withBirthdayLink(req, updated)),
         ...multiValueFields
       }
     });
@@ -925,7 +958,7 @@ router.get('/:id', (req, res) => {
 
     res.json({
       data: {
-        ...withBirthdayLink(req, contact),
+        ...withBirthdaySuggestion(req, withBirthdayLink(req, contact)),
         ...multiValueFields
       }
     });

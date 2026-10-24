@@ -177,7 +177,7 @@
         "resultCountMany": "{{count}} hasil",
         "goTo": "Buka",
         "newSection": "Buat baru",
-        "recentLabel": "Baru dibuka",
+        "recentLabel": "Baru dikunjungi",
         "createTaskNamed": "Buat “{{title}}” sebagai tugas",
         "hintMove": "Pilih",
         "hintOpen": "Buka"
@@ -698,7 +698,12 @@
         "filterDueToday": "Jatuh tempo hingga hari ini",
         "errorTaskGone": "Tugas ini sudah tidak ada.",
         "errorParentGone": "Tugas induk subtugas ini sudah tidak ada.",
-        "errorCommentGone": "Komentar ini sudah tidak ada."
+        "errorCommentGone": "Komentar ini sudah tidak ada.",
+        "kanbanShowMore": "Tampilkan {{count}} lagi",
+        "kanbanShowMore_one": "Tampilkan {{count}} lagi",
+        "doneByMenuItem": "Dikerjakan oleh …",
+        "checkedDoneNamed": "\"{{title}}\" selesai.",
+        "checkedOpenNamed": "\"{{title}}\" terbuka lagi."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} item dihapus.",
@@ -1368,6 +1373,8 @@
         "showBirthday": "Tampilkan di ulang tahun",
         "addToBirthdays": "Tambahkan ke ulang tahun",
         "addedToBirthdays": "Ditambahkan ke ulang tahun.",
+        "birthdaySuggestValue": "Ada ulang tahun dengan nama yang sama, tetapi belum ditautkan.",
+        "linkedToBirthday": "Ditautkan ke ulang tahun.",
         "birthdayHint": "Juga muncul di kalender lewat impor ulang tahun.",
         "phonePlaceholder": "+62 …",
         "phonePreview": "Pratinjau: {{value}}",
@@ -2233,7 +2240,6 @@
         "gravatarErrorStale": "Gambar, alamat, atau akun Anda berubah saat gambar sedang diambil. Tidak ada yang disimpan.",
         "gravatarErrorNotMember": "Hanya anggota rumah tangga yang dapat mengambil Gravatar.",
         "profileSavedToast": "Profil diperbarui.",
-        "editMemberLabel": "Ubah",
         "editMemberTitle": "Ubah anggota keluarga",
         "saveMember": "Simpan anggota",
         "memberUpdatedToast": "{{name}} diperbarui.",
@@ -2419,7 +2425,6 @@
         "memberContactBirthdayHint": "Anggota ini otomatis disinkronkan dengan kontak dan ulang tahun.",
         "memberBirthDateInvalid": "Gunakan tanggal ulang tahun yang valid dalam format yang dipilih.",
         "memberPhoneMeta": "Telepon: {{value}}",
-        "memberBirthdayMeta": "Ulang tahun: {{date}}",
         "sectionBackup": "Manajemen Cadangan",
         "backupDownloadTitle": "Unduh cadangan basis data",
         "backupDownloadHint": "Membuat cadangan SQLite yang konsisten dari semua data aplikasi.",
@@ -3310,7 +3315,12 @@
         "sheetRewardsDescription": "Atur persetujuan dan poin bawaan untuk tugas baru.",
         "sheetHealthDescription": "Tampilanmu sendiri, siklus, dan jenis pencegahan.",
         "displaysTitle": "Tablet dinding",
-        "displaysHint": "Tablet dinding mendapat akun sendiri yang hanya bisa dipakai perangkat ini. Ia bukan anggota keluarga, tidak masuk log, dan hanya melihat apa yang terlihat oleh rumah tangga. Ikhtisarnya mengikuti bawaan rumah tangga, atau tata letak standar jika belum diatur. Mode dinding tidak mengikutinya: selalu menampilkan jam, program hari ini, siapa yang bertugas, dan cuaca.",
+        "displaysLead": "Tablet dinding mendapat akun sendiri yang hanya bisa dipakai perangkat ini. Ia bukan anggota keluarga, tidak masuk log, dan hanya melihat apa yang terlihat oleh rumah tangga.",
+        "displaysMore": "Ikhtisarnya mengikuti bawaan rumah tangga, atau tata letak standar jika belum diatur. Mode dinding tidak mengikutinya: selalu menampilkan jam, program hari ini, siapa yang bertugas, dan cuaca.",
+        "hintMore": "Selengkapnya",
+        "weatherHouseholdLinkHint": "Sebagai admin, kamu menetapkan lokasi rumah tangga.",
+        "wallDisplaysLinkHint": "Tablet yang hanya menjadi layar dinding mendapat akun sendiri tanpa masuk log.",
+        "displaysWallModeLinkHint": "Mode dinding kamu aktifkan di tablet itu sendiri.",
         "displaysAreasHint": "Yang ditampilkan: {{areas}}.",
         "displayDeviceNameLabel": "Nama tablet",
         "displayDeviceNameHint": "Misalnya “Dapur” atau “Lorong” - hanya untuk membedakannya dalam daftar ini.",
@@ -3653,7 +3663,16 @@
         "yearlessDayLabel": "Tanggal ulang tahun",
         "yearlessMonthPlaceholder": "Bulan",
         "yearlessDayPlaceholder": "Hari",
-        "yearlessIncomplete": "Pilih bulan dan tanggal ulang tahun."
+        "yearlessIncomplete": "Pilih bulan dan tanggal ulang tahun.",
+        "nextBirthdayOn": "Ulang tahun berikutnya pada {{date}}",
+        "contactLinkLabel": "Tautkan ke kontak",
+        "contactLinkNone": "Tidak ada",
+        "contactLinkHint": "Kedua entri lalu saling mengarah. Tanggalnya tetap terpisah.",
+        "contactSuggestLabel": "Kontak",
+        "contactSuggestValue": "Ada kontak dengan nama yang sama, tetapi belum ditautkan.",
+        "linkContact": "Tautkan",
+        "linkedToast": "Ditautkan ke kontak.",
+        "errorContactLinked": "Kontak ini sudah ditautkan ke ulang tahun lain."
     },
     "recipes": {
         "mealTypeNone": "Tanpa waktu makan",
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigasi & Modul",
         "step2Body": "Bilah di bawah membawa Anda langsung ke area terpenting. Semua modul lainnya ada di bawah “Lainnya”.",
         "step3Title": "Mulai dengan cepat",
-        "step3Body": "Tombol + di sudut bawah membuat entri baru di mana saja. Geser item daftar ke kiri atau kanan untuk aksi cepat.",
+        "step3Body": "Tombol + di sudut bawah membuat entri baru di mana saja. Di Tugas, Belanja, dan Persediaan, geser item ke kiri atau kanan untuk aksi cepat.",
         "next": "Lanjut",
         "done": "Mulai",
         "skip": "Lewati",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Kamu berutang",
         "debtYouOwe": "Anda berutang kepada {{name}}",
         "debtOwesYou": "{{name}} berutang kepada Anda",
-        "debtOwes": "{{from}} berutang kepada {{to}}"
+        "debtOwes": "{{from}} berutang kepada {{to}}",
+        "balanced": "Lunas",
+        "balancedInGroup": "{{group}}: Lunas"
     },
     "wmo": {
         "0": "Langit cerah",
@@ -4526,7 +4547,8 @@
         "tooShort": "Kata sandi harus minimal 8 karakter.",
         "invalidToken": "Tautan atur ulang ini tidak valid atau sudah kedaluwarsa - minta yang baru.",
         "missingToken": "Tautan atur ulang ini tidak lengkap - minta yang baru.",
-        "requestNew": "Minta tautan baru"
+        "requestNew": "Minta tautan baru",
+        "invalidTitle": "Tautan tidak valid"
     },
     "email": {
         "host": "Host SMTP",
@@ -4896,7 +4918,7 @@
         "tabs": {
             "overview": "Ringkasan",
             "vitals": "Tanda vital",
-            "meds": "Obat",
+            "meds": "Obat-obatan",
             "prevention": "Pencegahan",
             "labs": "Hasil lab",
             "activity": "Aktivitas",
@@ -5022,7 +5044,7 @@
         },
         "meds": {
             "doseQty": "{{count}}×",
-            "title": "Obat",
+            "title": "Obat-obatan",
             "emptyTitle": "Belum ada obat",
             "emptyDesc": "Obat dengan jadwal minum dan pengingat muncul di sini.",
             "add": "Tambah obat",
@@ -5043,7 +5065,7 @@
             "noMeds": "Belum ada obat.",
             "logTitle": "Log konsumsi",
             "personsLabel": "Orang",
-            "take": "Diminum",
+            "take": "Minum",
             "skip": "Lewati",
             "dueToday": {
                 "title": "Jatuh tempo hari ini",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Sesuai kebutuhan",
-                "take": "Minum sekarang",
-                "takeFor": "Minum {{medication}} sekarang",
                 "nextAt": "Paling cepat {{time}}",
                 "remainingHm": "sisa {{hours}} j {{minutes}} mnt",
                 "remainingM": "sisa {{minutes}} mnt",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Poin tidak cukup untuk ini.",
         "errorNotParticipating": "Orang ini tidak mengumpulkan poin.",
         "errorMoneyAccountGone": "Rekening ini sudah tidak ada.",
-        "errorMoneyPlanGone": "Rencana ini sudah tidak ada."
+        "errorMoneyPlanGone": "Rencana ini sudah tidak ada.",
+        "ownLedger": "Catatanmu"
     },
     "datepicker": {
         "openCalendar": "Buka kalender",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Transaksi ini sudah ditautkan.",
         "errorLocationExists": "Lokasi ini sudah ada di sini. Pilih nama lain.",
         "errorLocationGone": "Lokasi ini sudah tidak ada.",
-        "errorCategoryGone": "Kategori ini sudah tidak ada."
+        "errorCategoryGone": "Kategori ini sudah tidak ada.",
+        "editItem": "Ubah barang"
     },
     "documentAttach": {
         "label": "Lampiran",
@@ -6436,13 +6458,14 @@
         "mismatch": "Kata sandi tidak cocok.",
         "tooShort": "Kata sandi harus minimal 8 karakter.",
         "invalidToken": "Undangan ini tidak valid, kedaluwarsa, atau sudah dipakai - minta tautan baru.",
-        "missingToken": "Tautan undangan ini tidak valid atau sudah kedaluwarsa - minta yang baru.",
         "usernameRequired": "Pilih nama pengguna.",
         "usernameInvalid": "Nama pengguna harus 3 sampai 64 karakter dan hanya boleh berisi huruf, angka, titik, tanda hubung, dan garis bawah.",
         "usernameTaken": "Nama pengguna ini sudah dipakai.",
         "error": "Akun tidak dapat dibuat. Silakan coba lagi.",
         "displayNameTooLong": "Nama tampilan paling banyak 128 karakter.",
-        "previewFailed": "Undangan tidak dapat diperiksa saat ini. Silakan muat ulang halaman sebentar lagi."
+        "previewFailed": "Undangan tidak dapat diperiksa saat ini. Silakan muat ulang halaman sebentar lagi.",
+        "invalidTitle": "Undangan tidak valid",
+        "toLogin": "Ke halaman masuk"
     },
     "newLabel": {
         "tasks": "Tugas",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Bidang ini sudah tidak ada.",
         "errorSelectedCustomFieldGone": "Salah satu bidang yang dipilih sudah tidak ada.",
         "errorPatternGone": "Pola shift ini sudah tidak ada.",
-        "errorEntryGone": "Entri ini sudah tidak ada."
+        "errorEntryGone": "Entri ini sudah tidak ada.",
+        "overviewPeopleCount": "Bandingkan orang ({{count}})"
     },
     "pairDisplay": {
         "title": "Pasangkan tablet",

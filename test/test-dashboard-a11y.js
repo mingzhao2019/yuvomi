@@ -860,3 +860,157 @@ test('R20: Esc beendet das Anpassen wie "Abbrechen", nicht an einem offenen Dial
   assert.match(block, /dialog\[open\]/, 'ein offener Dialog behaelt sein Esc');
   assert.match(block, /requestCancelDashboardConfig\(\)/, 'derselbe Weg wie der Knopf, mit Rueckfrage');
 });
+
+/* DIE ZIELE DES HEUTE-BLATTS (Critique R22, D3, a6 P2). Termin, Mahlzeit,
+ * Medikament und Haushaltshilfe fuehrten ungleich weit: der Termin verliess die
+ * Uebersicht (/calendar?open=7), die Aufgabe oeffnete ihr Blatt ueber ihr, und
+ * Mahlzeit und Dosis landeten an der Wurzel ihres Moduls ohne Fokus. Jetzt
+ * oeffnet der Termin sein Leseblatt ueber der Uebersicht (calendar.js
+ * openEventById, wie openTaskById), und wo es kein Blatt gibt, nennt die Zeile
+ * ihr Objekt: Mahlzeit `?open=`, Dosis der Bereich, Geburtstag `?open=`.
+ * Gemessen im Browser (s1/probes/dash.mjs): Termin -> "/" mit Blatt. */
+test('R22 D3: ein Termin aus der Uebersicht oeffnet sein Blatt ueber ihr, die anderen Zeilen nennen ihr Objekt', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { eventLinkOf } = await import('../public/pages/dashboard.js');
+  assert.deepEqual(eventLinkOf('/calendar?open=7&date=2026-10-23'), { id: '7', date: '2026-10-23' });
+  assert.deepEqual(eventLinkOf('/calendar?open=7'), { id: '7', date: null });
+  assert.equal(eventLinkOf('/calendar?date=2026-10-23'), null, 'ein Tag ist kein Termin');
+  assert.equal(eventLinkOf('/calendar?open=7.2026-10-23'), null, 'die Auswahl-Form der Agenda bleibt dem Kalender');
+  assert.equal(eventLinkOf('/tasks?open=7'), null);
+
+  const dash = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
+  const wire = dash.slice(dash.indexOf('function wireLinks('), dash.indexOf('function reorderWidgetConfig('));
+  assert.match(wire, /const eventLink = editing \? null : eventLinkOf\(el\.dataset\.route\);/);
+  assert.match(wire, /\? \(\) => openEventFromOverview\(eventLink, el, \{ container, rerender, user \}\)/, 'der Termin geht ueber das Blatt, nicht ueber navigate()');
+  assert.match(dash, /const \{ openEventById \} = await import\('\/pages\/calendar\.js'\);/, 'nachgeladen wie die Aufgabe');
+  const cal = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  assert.match(cal, /export async function openEventById\(id, \{ date = null, anchor = null, user = null, onChanged = null, onRemoving = null \} = \{\}\)/);
+
+  const { buildTodayProgram } = __test;
+  // Jede Tageszeit belegt: selectTodayMeal waehlt nach der Uhr, gefunden wird immer id 16.
+  const meals = Object.fromEntries(['breakfast', 'lunch', 'dinner'].map((type) => [type, { id: 16, title: 'Porridge' }]));
+  const program = buildTodayProgram({ todayMeals: meals, upcomingEvents: [], urgentTasks: [] }, { includeTasks: false, includeCalendar: false });
+  const meal = (Array.isArray(program) ? program : program.rows).find((row) => row.kind === 'meal');
+  assert.equal(meal?.route, '/meals?open=16', 'die Mahlzeit nennt sich selbst');
+  assert.match(dash, /route: highlights\.meal\.id != null \? `\/meals\?open=\$\{encodeURIComponent\(String\(highlights\.meal\.id\)\)\}` : '\/meals',/);
+
+  const { TODAY_SHEET_SOURCES } = await import('../public/utils/today-sheet.js');
+  const ctx = { todayKey: '2026-10-23', tomorrowKey: '2026-10-24', nowTime: '09:00', existing: [] };
+  const doses = TODAY_SHEET_SOURCES.find((s) => s.id === 'doses').collect({ health: { dosesTotal: 1, dosesTaken: 0, nextDose: { name: 'Eisen', time: '08:00' } } }, ctx);
+  assert.equal(doses[0].route, '/health/meds', 'die Dosis fuehrt in den Bereich, in dem eingenommen wird');
+  const birthdays = TODAY_SHEET_SOURCES.find((s) => s.id === 'birthdays').collect({ birthdays: [{ id: 4, name: 'Oma', days_until: 0 }] }, ctx);
+  assert.equal(birthdays[0].route, '/birthdays?open=4', 'der Geburtstag nennt sich selbst');
+});
+
+// R22-F (F1 Punkt 1): das Blatt eines Termins ueber der Uebersicht trug nur
+// "Im Kalender oeffnen" - Bearbeiten hiess, die Uebersicht zu verlassen
+// (gemessen 390/1440: Fuss ["Im Kalender oeffnen"], kein Bearbeiten). Jetzt
+// bietet es Loeschen und Bearbeiten wie im Kalender, holt Mitglieder, Kalender
+// und Praeferenzen fuer das Formular selbst und meldet sich nach dem
+// Schreiben bei der Uebersicht. Am echten Aufrufer: openEventById mit den
+// Stubs aus test-browser-loader.mjs (Detailansicht, API, Rueckgaengig).
+test('R22-F: ein Termin wird ueber der Uebersicht bearbeitet und geloescht, die Uebersicht frischt auf', async () => {
+  globalThis.window ??= {};
+  globalThis.window.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+  globalThis.ResizeObserver ??= class { observe() {} disconnect() {} };
+  const priorYuvomi = globalThis.window.yuvomi;
+  const navigated = [];
+  globalThis.window.yuvomi = { showToast: () => {}, navigate: (to) => navigated.push(to) };
+  const event = { id: 7, title: 'Sportfest', start_datetime: '2026-10-23', end_datetime: '2026-10-23', all_day: 1, assigned_users: [], external_source: 'local' };
+  const calls = [];
+  let opened = null;
+  let undo = null;
+  globalThis.__apiStub = {
+    get: async (path) => {
+      calls.push(`GET ${path}`);
+      if (path === '/calendar/7') return { data: event };
+      if (path === '/family/members') return { data: [{ id: 1, display_name: 'Linda' }, { id: 2, display_name: 'Alex' }] };
+      if (path === '/calendar/calendars') return { data: [{ id: 3, name: 'Familie', is_default: 1 }] };
+      if (path === '/preferences') return { data: { calendar_default_duration: 45 } };
+      return { data: [] };
+    },
+    delete: async (path) => { calls.push(`DELETE ${path}`); return { data: null }; },
+  };
+  globalThis.__openDetailView = (opts) => { opened = opts; };
+  globalThis.__undoStub = (opts) => { undo = opts; };
+  const changed = [];
+  const removing = [];
+  try {
+    const { openEventById, __test: cal } = await import('../public/pages/calendar.js');
+    await openEventById(7, {
+      date: '2026-10-23',
+      user: { id: 1, role: 'admin' },
+      onChanged: () => { changed.push('rerender'); },
+      onRemoving: (scope, on) => removing.push([scope.eventId, on]),
+    });
+    assert.ok(opened, 'das Blatt geht auf');
+    const ids = (opened.actions ?? []).map((a) => a.id);
+    assert.ok(ids.includes('detail-delete'), `Loeschen steht im Fuss: ${ids}`);
+    assert.ok(!ids.includes('detail-open-calendar'), 'kein Umweg in den Kalender mehr');
+    assert.equal(typeof opened.edit?.mount, 'function', 'Bearbeiten steht im Blatt');
+    await opened.edit.ready;
+    assert.deepEqual(cal.state.users.map((u) => u.display_name), ['Linda', 'Alex'], 'die Mitglieder fuer die Zuweisung sind geladen');
+    assert.equal(cal.state.localCalendars.length, 1, 'die eigenen Kalender sind geladen');
+    assert.equal(cal.state.defaultDuration, 45, 'die Praeferenzen sind angewandt');
+    assert.equal(navigated.length, 0, 'kein Modulwechsel');
+
+    // Loeschen: die Zeile geht sofort, Rueckgaengig holt sie zurueck.
+    await opened.actions.find((a) => a.id === 'detail-delete').onClick({ close: async () => {} });
+    assert.deepEqual(removing, [[7, true]], 'die Zeilen des Termins sind ausgeblendet');
+    assert.ok(undo, 'Loeschen mit Rueckgaengig');
+    undo.restore();
+    assert.deepEqual(removing, [[7, true], [7, false]], 'Rueckgaengig blendet sie wieder ein');
+
+    // Noch einmal, jetzt bis zum Schreiben: danach frischt die Uebersicht auf.
+    undo = null;
+    await opened.actions.find((a) => a.id === 'detail-delete').onClick({ close: async () => {} });
+    await undo.commit({ keepalive: false });
+    assert.ok(calls.includes('DELETE /calendar/7'), 'der Termin ist geloescht');
+    assert.deepEqual(changed, ['rerender'], 'die Uebersicht frischt nach dem Schreiben auf');
+    assert.equal(navigated.length, 0, 'auch danach kein Modulwechsel');
+  } finally {
+    delete globalThis.__apiStub;
+    delete globalThis.__openDetailView;
+    delete globalThis.__undoStub;
+    globalThis.window.yuvomi = priorYuvomi;
+  }
+
+  // Speichern: ohne Kalenderseite zeichnet es keine Ansicht, es meldet sich.
+  const { readFileSync } = await import('node:fs');
+  const cal = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const save = cal.slice(cal.indexOf('async function saveEvent('), cal.indexOf('async function deleteEvent('));
+  assert.match(save, /if \(hosted\) renderView\(\);\n    else await notifyAwayChanged\(\);/, 'Speichern frischt die Seite unter dem Blatt auf');
+  assert.match(save, /if \(reloadAfter && hosted\)/, 'und laedt keine Kalenderansicht, die nicht steht');
+
+  // Welche Zeilen der Uebersicht ein Loeschen mitnimmt.
+  const { eventRowRemovedBy } = await import('../public/pages/dashboard.js');
+  const row = (id, date) => ({ id: String(id), date });
+  assert.equal(eventRowRemovedBy(row(7, '2026-10-23'), { eventId: 7, seriesId: 7, scope: 'all' }), true);
+  assert.equal(eventRowRemovedBy(row(8, '2026-10-23'), { eventId: 7, seriesId: 7, scope: 'all' }), false, 'ein anderer Termin bleibt');
+  assert.equal(eventRowRemovedBy(row(7, '2026-10-24'), { eventId: 7, seriesId: 7, scope: 'this', occurrenceDate: '2026-10-23' }), false, 'nur dieser Tag');
+  assert.equal(eventRowRemovedBy(row(7, '2026-10-23'), { eventId: 7, seriesId: 7, scope: 'this', occurrenceDate: '2026-10-23' }), true);
+  assert.equal(eventRowRemovedBy(row(7, '2026-10-22'), { eventId: 7, seriesId: 7, scope: 'following', recurrenceId: '2026-10-23' }), false, 'vor dem Vorkommen bleibt');
+  assert.equal(eventRowRemovedBy(row(7, '2026-10-30'), { eventId: 7, seriesId: 7, scope: 'following', recurrenceId: '2026-10-23' }), true, 'danach geht mit');
+});
+
+// R22 D16 (Critique 2026-10-22, a1 P3): neben vier Chips der Ablage stand ein
+// freier Regler-Kreis ohne Wort. Die Optionen stehen jetzt AM Chip - ein
+// geteilter Knopf, dessen Pfeil ein Menue mit Wort oeffnet.
+test('R22 D16: die Optionen einer ausgeblendeten Kachel stehen am Chip, in einem Menue mit Wort', async () => {
+  global.window ??= { yuvomi: null };
+  const html = renderDashboardLayout([
+    { id: 'notes', visible: true, size: '1x1' },
+    { id: 'tasks', visible: false, size: '1x1' },
+    { id: 'clock', visible: false, size: '1x1' },
+  ], {}, null, 'EUR', { editing: true });
+  const tray = html.slice(html.indexOf('class="widget-restore"'), html.indexOf('id="dashboard-widget-grid"'));
+  assert.ok(tray.length > 0, 'Reichweite: die Ablage steht da');
+  assert.doesNotMatch(tray, /widget-restore-chip__options/, 'kein freier Regler-Kreis mehr');
+  const split = tray.slice(tray.indexOf('widget-restore-chip-group--split'));
+  assert.match(split, /data-widget-show="tasks"/, 'der Chip blendet weiter mit einem Tipp ein');
+  assert.match(split, /class="widget-restore-chip__more popover-menu__trigger"[^>]*aria-haspopup="menu"/, 'am Chip der Pfeil ins Menue');
+  assert.match(split, /role="menuitem"[\s\S]*?data-widget-show="tasks"[\s\S]*?role="menuitem"[\s\S]*?data-widget-options="tasks"/,
+    'das Menue nennt beide Handlungen mit Wort');
+  const clock = tray.slice(tray.indexOf('data-widget-show="clock"') - 200, tray.indexOf('data-widget-show="clock"'));
+  assert.doesNotMatch(clock, /--split/, 'ohne Optionen bleibt es ein einfacher Chip');
+});

@@ -136,6 +136,22 @@ test('tasks: the dialog asks when, who and how important before the free-text no
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'title, due, assignee, priority, note, more settings');
 });
 
+// R22 D17 (Critique 2026-10-22, a2 Klein): `modal-grid--2` fiel unter 480px
+// Modalbreite einspaltig - Faelligkeit und Uhrzeit standen am Telefon in zwei
+// vollen Zeilen. Sie teilen sich eine Zeile, solange zwei 8rem-Spalten passen.
+test('tasks: due date and time share one row that only stacks when two columns no longer fit', () => {
+  setHouseholdSize(2);
+  const html = taskDialog({ task: null, users: [ANNA, CLARA] });
+  const date = html.indexOf('id="task-due-date"');
+  const row = html.lastIndexOf('<div class="', html.lastIndexOf('<div class="form-group">', date) - 1);
+  const cls = html.slice(row, html.indexOf('>', row));
+  assert.match(cls, /\bform-pair\b/, 'the pair measures its columns, not the window');
+  assert.doesNotMatch(cls, /modal-grid--2/, 'no longer the grid that stacks below 480px');
+  const time = html.indexOf('id="task-due-time"');
+  const rowEnd = html.indexOf('task_assigned');
+  assert.ok(time > date && time < rowEnd, 'time follows in the same pair, before the people');
+});
+
 test('tasks: an empty recurrence and an empty reminder wait behind "more settings"', () => {
   setHouseholdSize(2);
   const html = taskDialog({ task: null, users: [ANNA, CLARA] });
@@ -205,11 +221,17 @@ test('tasks: a task that is already done or filed away offers no doer picker', (
 function doerList() {
   const listeners = {};
   const panel = {
-    open: false, shown: 0,
+    open: false, shown: 0, dataset: {}, at: null,
     matches(sel) { return sel === ':popover-open' && this.open; },
-    showPopover() { this.open = true; this.shown += 1; },
+    showPopover() {
+      this.open = true; this.shown += 1;
+      this.at = this.dataset.anchorX == null ? null : [Number(this.dataset.anchorX), Number(this.dataset.anchorY)];
+    },
   };
-  const card = { querySelector: (sel) => (sel.startsWith('.popover-menu') ? panel : null) };
+  const card = {
+    querySelector: (sel) => (sel.startsWith('.popover-menu') ? panel : null),
+    getBoundingClientRect: () => ({ left: 252, top: 336, bottom: 416 }),
+  };
   const target = { closest: (sel) => (sel === '.task-card' ? card : null) };
   const list = {
     addEventListener(type, fn, opts) {
@@ -284,6 +306,35 @@ test('tasks: the context menu (right click, menu key) opens the same doer panel'
   assert.equal(panel.shown, 2);
   assert.equal(fire('click').defaultPrevented, false,
     'ein Rechtsklick hinterlaesst keinen Riegel, der den naechsten echten Klick schluckt');
+});
+
+// R22 S9: der Knopf der Auswahl steht unsichtbar am Zeilenanfang. An ihm
+// gerechnet hing das Menue am Laptop ueber der Seitenleiste neben der Liste -
+// es gehoert dorthin, wo die Zeile angefasst wurde.
+test('tasks: the doer menu opens where the row was pressed, the menu key at the row start', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  tasks.state.bulkSelectMode = false;
+  const { list, panel, fire } = doerList();
+  tasks.wireDoerContextMenu(list);
+
+  fire('contextmenu', { clientX: 452, clientY: 356 });
+  assert.deepEqual(panel.at, [452, 356], 'ein Rechtsklick ohne laufenden Druck: am Zeiger');
+
+  panel.open = false; panel.dataset = {};
+  fire('pointerdown', { pointerType: 'mouse', button: 2, clientX: 500, clientY: 380 });
+  fire('contextmenu', { clientX: 500, clientY: 380 });
+  fire('pointerup', { pointerType: 'mouse', button: 2 }); t.mock.timers.tick(1);
+  assert.deepEqual(panel.at, [500, 380], 'ein Rechtsklick mit Druck: nach dem Loslassen am Zeiger');
+
+  panel.open = false; panel.dataset = {};
+  fire('pointerdown', { clientX: 120, clientY: 300 });
+  t.mock.timers.tick(600);
+  fire('pointerup'); t.mock.timers.tick(1);
+  assert.deepEqual(panel.at, [120, 300], 'ein Long-Press: am Finger');
+
+  panel.open = false; panel.dataset = {};
+  fire('contextmenu', { clientX: 0, clientY: 0 });
+  assert.deepEqual(panel.at, [264, 416], 'die Menue-Taste hat keinen Zeiger: unter dem Zeilenanfang');
 });
 
 test('tasks: in select mode a long press selects, it does not ask for a person', (t) => {

@@ -943,6 +943,73 @@ body.task-list-resizing * {
   }
 }
 
+/* UND IN DER GRUPPE ERST AB ZEILE 20 (Critique R22, D4/D22). Die Gruppenregel
+ * oben laesst die erste Gruppe ganz stehen - eine Gruppe mit 150 Aufgaben
+ * ("Ohne Datum", eine Kategorie) rechnete jede ihrer Zeilen. Die ersten 19
+ * Zeilen jeder Gruppe stehen immer (sie sind die Falz), der Rest haelt als
+ * Platzhalter seine Content-Box: 85px unter 640px, 80px darueber (gemessen mit
+ * Titel, Faelligkeit, Prioritaet und Kategorie: 84,6 mobil, 80 Tablet und
+ * 1920; 1280/1440 mit Detailspalte 100,6 - seit F4.8 traegt die schmale
+ * Bahn bis 27,5rem dafuer eine eigene Stufe, unten). Die Zeile ist selbst
+ * `overflow: hidden` (Wischbuehne, layout.css) - die Paint-Containment
+ * schneidet nichts ab, was nicht ohnehin geschnitten wird. Wer die Zeile
+ * umbaut, misst neu (test:frontend-audit). Neu gemessen R22 S9 nach dem
+ * 12px-Einzug mobil (S4) und der Metazeile unter dem Avatar (D17), 211
+ * Aufgaben: 84,6 mobil, 80 Tablet und 1920, 100,6 mit Detailspalte -
+ * unveraendert. */
+/* Dieselbe Content-Box traegt der Platzhalter einer Zeile, die beim ersten
+ * Aufbau erst nach dem Bild kommt (Critique R22-F, F2.1; utils/row-fill.js,
+ * list-row.css) - ohne @supports, er gilt in jedem Browser. */
+.task-group .row-carrier {
+  --row-pending-size: 85px;
+}
+
+@media (min-width: 640px) {
+  .task-group .row-carrier {
+    --row-pending-size: 80px;
+  }
+}
+
+@supports (content-visibility: auto) and (contain-intrinsic-size: auto none auto 1px) {
+  .task-group .row-carrier > .swipe-row:nth-child(n+20) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 85px;
+  }
+
+  @media (min-width: 640px) {
+    .task-group .row-carrier > .swipe-row:nth-child(n+20) {
+      contain-intrinsic-size: auto none auto 80px;
+    }
+  }
+}
+
+/* DIE SCHMALE LISTENBAHN NEBEN DER DETAILSPALTE (Sammel-Ticket R22-F, F4.8).
+ * Ab 1280px teilt sich die Seite in Liste und Detail; die Bahn misst dann
+ * 420-520px, und bis ~440px bricht der Titel einer Aufgabe mit Personen in
+ * zwei Zeilen: Content-Box 100,6 statt 80px. Der Platzhalter blieb 80px -
+ * gemessen beim Nachzeichnen von `.row-pending` (Demo-Haushalt, 1280x800):
+ * 4 von 6 Zeilen 20,6px laenger, Sprung 82px. Die Frage gehoert der BAHN,
+ * nicht dem Fenster (Container `list-rows` an `.row-carrier`): bis 27,5rem
+ * ist die typische Zeile zweizeilig (1280: 7 von 11, 1350: 6 von 11), ab
+ * 446px einzeilig (1440: 9 von 11). Gesetzt an der Zeile und am
+ * Platzhalter selbst - ein Container fragt nur fuer seine Kinder. Unter
+ * 640px gilt die Telefonzeile (85px) und ihre eigene Rechnung. */
+@media (min-width: 640px) {
+  @container list-rows (max-width: 27.5rem) {
+    .task-group .row-carrier > .row-pending {
+      --row-pending-size: 101px;
+    }
+  }
+
+  @supports (content-visibility: auto) and (contain-intrinsic-size: auto none auto 1px) {
+    @container list-rows (max-width: 27.5rem) {
+      .task-group .row-carrier > .swipe-row:nth-child(n+20) {
+        contain-intrinsic-size: auto none auto 101px;
+      }
+    }
+  }
+}
+
 /* --------------------------------------------------------
  * Swipe-Wrapper - Task-spezifische Styles
  * Basis-Styles (.swipe-row, .swipe-reveal und alle drei Reveal-Rollen)
@@ -1472,7 +1539,9 @@ body.task-list-resizing * {
  * Auskunft. Der Marker selbst schrumpft nie - er ist zwei bis drei Zeichen breit
  * und ist genau die Stelle, an der steht, dass etwas fehlt. */
 .task-card__meta > .task-tag {
-  flex: 0 1 auto;
+  /* 100: das Etikett gibt zuerst nach, bis an seine Mindestbreite, bevor die
+   * Faelligkeit (Faktor 1, unten) ihre Ellipse zeigt. */
+  flex: 0 100 auto;
   /* 24px, WEIL DIE ZEILE PLATZ HAT. Ein Etikett, das anfassbar ist (der
    * Filter-Tag setzt den Filter), darf die Spacing-Ausnahme von WCAG 2.5.8 nur
    * nehmen, wenn es sie BRAUCHT - sitzt es in einer Zeile, die ihm die vollen
@@ -1533,8 +1602,15 @@ body.task-list-resizing * {
      * bricht seit dem Schnitt nicht mehr um (siehe .task-card__meta), damit
      * trägt die Polsterung die Höhe allein: 12px oben und unten ergaben 71px
      * je Zeile, 8px ergeben 58px - bei unveränderter Zielgröße, weil die
-     * Trefferfläche des Titels an --list-row-pad hängt und mitwandert. */
+     * Trefferfläche des Titels an --list-row-pad hängt und mitwandert.
+     *
+     * NUR SENKRECHT (R22, D8): der Takt ist eine Frage der Hoehe. Waagerecht
+     * stand die Zeile damit auf 8px Einzug, die einzige Zeilenliste der App
+     * unter den 12px der geteilten Zeile (`.list-row`) - der Haken klebte
+     * naeher an der Kartenkante als jedes Bedienelement in Einkauf, Vorrat
+     * oder Geburtstagen. */
     --list-row-pad: var(--space-2);
+    padding-inline: var(--space-3);
   }
 
   /* DER MEHR-KNOPF BLEIBT AUCH AUF DEM TELEFON (R18, D6). Hier stand bis
@@ -1687,15 +1763,80 @@ body.task-list-resizing * {
   }
 }
 
+/* DIE METAZEILE LAEUFT UNTER DEN AVATAR (R22 D17). Ab 640px stand der
+ * Personenstapel als eigene Flex-Spalte ueber beide Zeilen: bei 1280 mass die
+ * Metazeile 194 von 420px, und „Heute faellig" samt Etikett endeten in drei
+ * von vier Zeilen mit Ellipse - neben 36px leerer Flaeche unter dem Avatar.
+ * Jetzt ein Raster wie mobil: der Stapel steht in der Titelzeile, die
+ * Metazeile spannt darunter bis an seine Endkante. Mehr-Knopf und Griff
+ * reihen sich als implizite Spalten ueber beide Zeilen an (ohne leere Spur,
+ * also ohne doppelten Spaltenabstand, wenn einer fehlt). Ohne Avatar bleibt
+ * die Flexzeile: dort spannt die Metazeile ohnehin schon den ganzen Koerper. */
+@media (min-width: 640px) {
+  .task-card__main:has(> .avatar-stack) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-auto-columns: auto;
+    row-gap: 0;
+  }
+
+  .task-card__main:has(> .avatar-stack) > .task-card__body {
+    display: contents;
+  }
+
+  .task-card__main:has(> .avatar-stack) > .task-status-btn,
+  .task-card__main:has(> .avatar-stack) > .select-circle {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .task-card__main:has(> .avatar-stack) .task-card__title {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .task-card__main:has(> .avatar-stack) .task-card__meta {
+    grid-column: 2 / 4;
+    grid-row: 2;
+  }
+
+  /* Ueber beide Zeilen gelegt, oben ausgerichtet: in Zeile 1 allein haette
+   * der 24px-Stapel die 22,8px der Titelzeile gestreckt - jede Zeile 1px
+   * hoeher, und der Platzhalter der langen Listen (85/80px, D4) stimmte
+   * nicht mehr. Die Metazeile ist mittig in ihren 25px; die 1,2px, die der
+   * Stapel in sie hineinreicht, beruehren keinen Chip. */
+  .task-card__main > .avatar-stack {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+
+  .task-card__main:has(> .avatar-stack) > :is(.row-action--more, .list-row__drag) {
+    grid-row: 1 / span 2;
+  }
+}
+
 /* DIE METAZEILE ENDET MIT ELLIPSE, NICHT MIT EINEM SCHNITT (R9 M1). Gemessen
  * stand „Überfällig - 24.0" hart abgeschnitten da: die Faelligkeit schrumpfte
  * nie (`flex-shrink: 0` oben), und `text-overflow` greift am Flex-Chip nicht.
  * Jetzt gibt sie nach - mit winzigem Gewicht, damit ein Etikett daneben
  * zuerst bis auf seine Mindestbreite nachgibt (die Rangfolge von oben bleibt)
- * - und ihr Label traegt die Ellipse. */
+ * - und ihr Label traegt die Ellipse.
+ *
+ * DAS GEWICHT IST 1, NICHT 0.01 (R22-Sichtpruefung). Ist die Summe der
+ * Schrumpffaktoren kleiner als 1, verteilt Flexbox nur diesen Bruchteil des
+ * Ueberlaufs: steht die Faelligkeit allein (mobil ohne Etikett, oder das
+ * Etikett schon an seiner Mindestbreite), nahm sie 1 % auf, und der Rest
+ * schnitt das Ende der Zeile ab - gemessen 184px Inhalt in 178px, die
+ * Bueroklammer halb. Die Rangfolge traegt jetzt das Etikett mit Faktor 100
+ * (oben), und die Bueroklammer ist ein Zeichen mit Zahl, das nie schrumpft. */
 .task-card__meta > .due-date {
-  flex-shrink: 0.01;
+  flex-shrink: 1;
   min-width: 0;
+}
+
+.task-card__meta > .task-card__docs {
+  flex-shrink: 0;
 }
 
 .due-date__label {
@@ -2377,6 +2518,35 @@ body.task-list-resizing * {
  * stummen Lücke (Audit P3). Beim Ziehen einer Karte wird die Spalte zur sichtbaren
  * Ablagefläche ("Hierher ziehen"), damit auch leere Spalten als Ziel erkennbar
  * sind - die icon-only-Statusbuttons bleiben die tastaturfreundliche Alternative. */
+/* "N WEITERE ANZEIGEN" AM ENDE EINER GEDECKELTEN SPALTE (R22, D17;
+ * tasks.js KANBAN_COL_CAP). Eine ruhige Textzeile in Kartenbreite, keine
+ * Karte: sie ist eine Handlung, kein Objekt - deshalb ohne Flaeche und
+ * Schatten, in der Sekundaerfarbe, getoent erst unter dem Zeiger. Touch-Ziel
+ * wie jede Zeile (`--target-base`). */
+.kanban-col__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  min-block-size: var(--target-base);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+@media (hover: hover) {
+  .kanban-col__more:hover {
+    background-color: var(--color-surface-2);
+  }
+}
+
 .kanban-col__empty {
   display: flex;
   align-items: center;

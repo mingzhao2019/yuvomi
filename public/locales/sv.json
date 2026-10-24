@@ -680,7 +680,12 @@
         "filterDueToday": "Förfaller senast i dag",
         "errorTaskGone": "Den här uppgiften finns inte längre.",
         "errorParentGone": "Uppgiften som den här deluppgiften hör till finns inte längre.",
-        "errorCommentGone": "Den här kommentaren finns inte längre."
+        "errorCommentGone": "Den här kommentaren finns inte längre.",
+        "kanbanShowMore": "Visa {{count}} till",
+        "kanbanShowMore_one": "Visa {{count}} till",
+        "doneByMenuItem": "Gjord av …",
+        "checkedDoneNamed": "”{{title}}” klar.",
+        "checkedOpenNamed": "”{{title}}” öppen igen."
     },
     "shopping": {
         "itemsRemovedToast_one": "{{count}} vara borttagen.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Visa i födelsedagar",
         "addToBirthdays": "Lägg till i födelsedagar",
         "addedToBirthdays": "Tillagd i födelsedagar.",
+        "birthdaySuggestValue": "En födelsedag har samma namn men är inte kopplad.",
+        "linkedToBirthday": "Kopplad till födelsedagen.",
         "birthdayHint": "Visas också i kalendern via födelsedagsimporten.",
         "phonePlaceholder": "+46 …",
         "phonePreview": "Förhandsvisning: {{value}}",
@@ -2080,7 +2087,6 @@
         "gravatarErrorStale": "Din bild, din adress eller ditt konto ändrades medan bilden hämtades. Ingenting sparades.",
         "gravatarErrorNotMember": "Bara medlemmar i hushållet kan hämta en Gravatar.",
         "profileSavedToast": "Profilen uppdaterades.",
-        "editMemberLabel": "Redigera",
         "editMemberTitle": "Redigera familjemedlem",
         "saveMember": "Spara medlem",
         "memberUpdatedToast": "{{name}} uppdaterad.",
@@ -2266,7 +2272,6 @@
         "memberContactBirthdayHint": "Den här medlemmen synkroniseras automatiskt med Kontakter och Födelsedagar.",
         "memberBirthDateInvalid": "Använd ett giltigt födelsedatum i det valda datumformatet.",
         "memberPhoneMeta": "Telefon: {{value}}",
-        "memberBirthdayMeta": "Födelsedag: {{date}}",
         "tabBackup": "Backuphantering",
         "sectionBackup": "Backuphantering",
         "backupDownloadTitle": "Ladda ner databasbackup",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Ställ in godkännanden och standardpoäng för nya uppgifter.",
         "sheetHealthDescription": "Egna vyer, cykeln och förebyggande typer.",
         "displaysTitle": "Väggplattor",
-        "displaysHint": "En väggplatta får ett eget konto som bara den här enheten kan använda. Den är inte en familjemedlem, loggar inte in och ser bara det som är synligt för hushållet. Dess översikt följer hushållets standard, eller standardlayouten om ingen är inställd. Väggläget följer den inte: det visar alltid klockslag, dagens program, vem som står på tur och vädret.",
+        "displaysLead": "En väggplatta får ett eget konto som bara den här enheten kan använda. Den är inte en familjemedlem, loggar inte in och ser bara det som är synligt för hushållet.",
+        "displaysMore": "Dess översikt följer hushållets standard, eller standardlayouten om ingen är inställd. Väggläget följer den inte: det visar alltid klockslag, dagens program, vem som står på tur och vädret.",
+        "hintMore": "Läs mer",
+        "weatherHouseholdLinkHint": "Som administratör anger du hushållets plats.",
+        "wallDisplaysLinkHint": "En platta som bara används som väggskärm får ett eget konto utan inloggning.",
+        "displaysWallModeLinkHint": "Väggläget slår du på på själva plattan.",
         "displaysAreasHint": "Den visar {{areas}}.",
         "displayDeviceNameLabel": "Plattans namn",
         "displayDeviceNameHint": "Till exempel ”Köket” eller ”Hallen” - bara för att skilja dem åt i den här listan.",
@@ -3603,7 +3613,7 @@
         "resultCountMany": "{{count}} resultat",
         "goTo": "Gå till",
         "newSection": "Skapa ny",
-        "recentLabel": "Nyligen öppnade",
+        "recentLabel": "Nyligen besökta",
         "createTaskNamed": "Skapa ”{{title}}” som uppgift",
         "hintMove": "Välj",
         "hintOpen": "Öppna"
@@ -3675,7 +3685,16 @@
         "yearlessDayLabel": "Dag för födelsedagen",
         "yearlessMonthPlaceholder": "Månad",
         "yearlessDayPlaceholder": "Dag",
-        "yearlessIncomplete": "Välj månad och dag för födelsedagen."
+        "yearlessIncomplete": "Välj månad och dag för födelsedagen.",
+        "nextBirthdayOn": "Nästa födelsedag {{date}}",
+        "contactLinkLabel": "Koppla till kontakt",
+        "contactLinkNone": "Ingen",
+        "contactLinkHint": "Då leder båda posterna till varandra. Datumet hålls separat.",
+        "contactSuggestLabel": "Kontakt",
+        "contactSuggestValue": "En kontakt har samma namn men är inte kopplad.",
+        "linkContact": "Koppla",
+        "linkedToast": "Kopplad till kontakten.",
+        "errorContactLinked": "Den här kontakten är redan kopplad till en annan födelsedag."
     },
     "reminders": {
         "sectionTitle": "Påminnelse",
@@ -3725,7 +3744,7 @@
         "step2Title": "Navigering och moduler",
         "step2Body": "Fältet längst ner tar dig direkt till de viktigaste områdena. Alla andra moduler hittar du under ”Mer”.",
         "step3Title": "Kom igång snabbt",
-        "step3Body": "Med +-knappen i nedre hörnet skapar du nya poster överallt. Svep listobjekt åt vänster eller höger för snabbåtgärder.",
+        "step3Body": "Med +-knappen i nedre hörnet skapar du nya poster överallt. I Uppgifter, Shopping och Skafferi sveper du objekt åt vänster eller höger för snabbåtgärder.",
         "next": "Nästa",
         "done": "Kom igång",
         "skip": "Skippa",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Du är skyldig",
         "debtYouOwe": "Du är skyldig {{name}}",
         "debtOwesYou": "{{name}} är skyldig dig",
-        "debtOwes": "{{from}} är skyldig {{to}}"
+        "debtOwes": "{{from}} är skyldig {{to}}",
+        "balanced": "Kvitt",
+        "balancedInGroup": "{{group}}: Kvitt"
     },
     "wmo": {
         "0": "Klart",
@@ -4526,7 +4547,8 @@
         "tooShort": "Lösenordet måste vara minst 8 tecken långt.",
         "invalidToken": "Den här återställningslänken är ogiltig eller har gått ut - begär en ny.",
         "missingToken": "Den här återställningslänken är ofullständig - begär en ny.",
-        "requestNew": "Begär en ny länk"
+        "requestNew": "Begär en ny länk",
+        "invalidTitle": "Ogiltig länk"
     },
     "email": {
         "host": "SMTP-värd",
@@ -5043,7 +5065,7 @@
             "noMeds": "Inga mediciner ännu.",
             "logTitle": "Intagslogg",
             "personsLabel": "Person",
-            "take": "Taget",
+            "take": "Ta",
             "skip": "Hoppa över",
             "dueToday": {
                 "title": "Att göra idag",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Vid behov",
-                "take": "Ta nu",
-                "takeFor": "Ta {{medication}} nu",
                 "nextAt": "Tidigast {{time}}",
                 "remainingHm": "{{hours}} tim {{minutes}} min kvar",
                 "remainingM": "{{minutes}} min kvar",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Poängen räcker inte till det här.",
         "errorNotParticipating": "Den här personen samlar inte poäng.",
         "errorMoneyAccountGone": "Det här kontot finns inte längre.",
-        "errorMoneyPlanGone": "Den här planen finns inte längre."
+        "errorMoneyPlanGone": "Den här planen finns inte längre.",
+        "ownLedger": "Dina poster"
     },
     "datepicker": {
         "openCalendar": "Öppna kalender",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Den här transaktionen är redan kopplad.",
         "errorLocationExists": "Den här platsen finns redan här. Välj ett annat namn.",
         "errorLocationGone": "Den här platsen finns inte längre.",
-        "errorCategoryGone": "Den här kategorin finns inte längre."
+        "errorCategoryGone": "Den här kategorin finns inte längre.",
+        "editItem": "Redigera föremål"
     },
     "documentAttach": {
         "label": "Bilagor",
@@ -6436,13 +6458,14 @@
         "mismatch": "Lösenorden stämmer inte överens.",
         "tooShort": "Lösenordet måste vara minst 8 tecken långt.",
         "invalidToken": "Inbjudan är ogiltig, har gått ut eller har redan använts - be om en ny länk.",
-        "missingToken": "Den här inbjudningslänken är ogiltig eller har gått ut - be om en ny.",
         "usernameRequired": "Välj ett användarnamn.",
         "usernameInvalid": "Användarnamnet måste vara 3 till 64 tecken långt och får bara innehålla bokstäver, siffror, punkter, bindestreck och understreck.",
         "usernameTaken": "Användarnamnet är redan taget.",
         "error": "Kontot kunde inte skapas. Försök igen.",
         "displayNameTooLong": "Visningsnamnet får vara högst 128 tecken långt.",
-        "previewFailed": "Inbjudan kunde inte kontrolleras just nu. Ladda om sidan om en stund."
+        "previewFailed": "Inbjudan kunde inte kontrolleras just nu. Ladda om sidan om en stund.",
+        "invalidTitle": "Ogiltig inbjudan",
+        "toLogin": "Till inloggningen"
     },
     "newLabel": {
         "tasks": "Uppgift",
@@ -6471,7 +6494,7 @@
         "healthCycle": "Mens",
         "healthMeds": "Medicin",
         "healthPrevention": "Undersökning",
-        "healthLabs": "Provsvar",
+        "healthLabs": "Labbrapport",
         "healthActivity": "Träningspass",
         "healthNutrition": "Måltid",
         "rewards": "Belöning",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Det här fältet finns inte längre.",
         "errorSelectedCustomFieldGone": "Ett av de valda fälten finns inte längre.",
         "errorPatternGone": "Den här skiftcykeln finns inte längre.",
-        "errorEntryGone": "Den här posten finns inte längre."
+        "errorEntryGone": "Den här posten finns inte längre.",
+        "overviewPeopleCount": "Jämför personer ({{count}})"
     },
     "pairDisplay": {
         "title": "Parkoppla platta",

@@ -680,7 +680,12 @@
         "filterDueToday": "Hạn đến hôm nay",
         "errorTaskGone": "Công việc này không còn tồn tại.",
         "errorParentGone": "Công việc chứa nhiệm vụ phụ này không còn tồn tại.",
-        "errorCommentGone": "Bình luận này không còn tồn tại."
+        "errorCommentGone": "Bình luận này không còn tồn tại.",
+        "kanbanShowMore": "Hiện thêm {{count}} mục",
+        "kanbanShowMore_one": "Hiện thêm {{count}} mục",
+        "doneByMenuItem": "Do … làm",
+        "checkedDoneNamed": "Đã hoàn thành \"{{title}}\".",
+        "checkedOpenNamed": "\"{{title}}\" đang mở lại."
     },
     "shopping": {
         "itemsRemovedToast_one": "Đã xóa {{count}} mục.",
@@ -1349,6 +1354,8 @@
         "showBirthday": "Xem trong sinh nhật",
         "addToBirthdays": "Thêm vào sinh nhật",
         "addedToBirthdays": "Đã thêm vào sinh nhật.",
+        "birthdaySuggestValue": "Có một sinh nhật trùng tên nhưng chưa được liên kết.",
+        "linkedToBirthday": "Đã liên kết với sinh nhật.",
         "birthdayHint": "Cũng xuất hiện trong lịch qua tính năng nhập sinh nhật.",
         "phonePlaceholder": "+84 …",
         "phonePreview": "Xem trước: {{value}}",
@@ -2191,7 +2198,6 @@
         "gravatarErrorStale": "Ảnh, địa chỉ hoặc tài khoản của bạn đã thay đổi trong khi đang tải ảnh. Không có gì được lưu.",
         "gravatarErrorNotMember": "Chỉ thành viên trong gia đình mới có thể tải Gravatar.",
         "profileSavedToast": "Hồ sơ đã cập nhật.",
-        "editMemberLabel": "Sửa",
         "editMemberTitle": "Sửa thành viên gia đình",
         "saveMember": "Lưu thành viên",
         "memberUpdatedToast": "{{name}} đã được cập nhật.",
@@ -2377,7 +2383,6 @@
         "memberContactBirthdayHint": "Thành viên này được tự động đồng bộ với Liên hệ và Sinh nhật.",
         "memberBirthDateInvalid": "Sử dụng ngày sinh hợp lệ ở định dạng ngày đã chọn.",
         "memberPhoneMeta": "Điện thoại: {{value}}",
-        "memberBirthdayMeta": "Sinh nhật: {{date}}",
         "tabBackup": "Quản lý Sao lưu",
         "sectionBackup": "Quản lý Sao lưu",
         "backupDownloadTitle": "Tải xuống bản sao lưu cơ sở dữ liệu",
@@ -3292,7 +3297,12 @@
         "sheetRewardsDescription": "Đặt phê duyệt và điểm mặc định cho việc mới.",
         "sheetHealthDescription": "Chế độ xem của riêng bạn, chu kỳ và các loại phòng ngừa.",
         "displaysTitle": "Máy tính bảng gắn tường",
-        "displaysHint": "Máy tính bảng gắn tường có tài khoản riêng mà chỉ thiết bị này dùng được. Nó không phải là thành viên gia đình, không đăng nhập và chỉ thấy những gì hiển thị cho hộ gia đình. Trang tổng quan của nó theo mặc định của gia đình, hoặc bố cục chuẩn nếu chưa đặt. Chế độ treo tường không theo mặc định đó: nó luôn hiện giờ, chương trình trong ngày, hôm nay tới lượt ai và thời tiết.",
+        "displaysLead": "Máy tính bảng gắn tường có tài khoản riêng mà chỉ thiết bị này dùng được. Nó không phải là thành viên gia đình, không đăng nhập và chỉ thấy những gì hiển thị cho hộ gia đình.",
+        "displaysMore": "Trang tổng quan của nó theo mặc định của gia đình, hoặc bố cục chuẩn nếu chưa đặt. Chế độ treo tường không theo mặc định đó: nó luôn hiện giờ, chương trình trong ngày, hôm nay tới lượt ai và thời tiết.",
+        "hintMore": "Tìm hiểu thêm",
+        "weatherHouseholdLinkHint": "Là quản trị viên, bạn đặt vị trí của hộ gia đình.",
+        "wallDisplaysLinkHint": "Máy tính bảng chỉ dùng làm màn hình treo tường sẽ có tài khoản riêng, không cần đăng nhập.",
+        "displaysWallModeLinkHint": "Bạn bật chế độ treo tường ngay trên máy tính bảng.",
         "displaysAreasHint": "Nó hiển thị: {{areas}}.",
         "displayDeviceNameLabel": "Tên máy tính bảng",
         "displayDeviceNameHint": "Ví dụ “Nhà bếp” hoặc “Hành lang” - chỉ để phân biệt trong danh sách này.",
@@ -3635,7 +3645,16 @@
         "yearlessDayLabel": "Ngày sinh nhật",
         "yearlessMonthPlaceholder": "Tháng",
         "yearlessDayPlaceholder": "Ngày",
-        "yearlessIncomplete": "Chọn cả tháng và ngày sinh nhật."
+        "yearlessIncomplete": "Chọn cả tháng và ngày sinh nhật.",
+        "nextBirthdayOn": "Sinh nhật tiếp theo vào {{date}}",
+        "contactLinkLabel": "Liên kết với liên hệ",
+        "contactLinkNone": "Không",
+        "contactLinkHint": "Khi đó hai mục sẽ dẫn đến nhau. Ngày vẫn tách riêng.",
+        "contactSuggestLabel": "Liên hệ",
+        "contactSuggestValue": "Có một liên hệ trùng tên nhưng chưa được liên kết.",
+        "linkContact": "Liên kết",
+        "linkedToast": "Đã liên kết với liên hệ.",
+        "errorContactLinked": "Liên hệ này đã được liên kết với một sinh nhật khác."
     },
     "recipes": {
         "mealTypeNone": "Không có bữa ăn",
@@ -3714,7 +3733,7 @@
         "resultCountMany": "{{count}} kết quả",
         "goTo": "Đi tới",
         "newSection": "Tạo mới",
-        "recentLabel": "Mở gần đây",
+        "recentLabel": "Đã xem gần đây",
         "createTaskNamed": "Tạo “{{title}}” thành việc cần làm",
         "hintMove": "Chọn",
         "hintOpen": "Mở"
@@ -3725,7 +3744,7 @@
         "step2Title": "Điều hướng & Các mô-đun",
         "step2Body": "Thanh bên dưới đưa bạn thẳng đến những khu vực quan trọng nhất. Các mô-đun còn lại nằm trong “Thêm”.",
         "step3Title": "Bắt đầu nhanh chóng",
-        "step3Body": "Nút + ở góc dưới tạo mục mới ở mọi nơi. Vuốt các mục trong danh sách sang trái hoặc phải để dùng thao tác nhanh.",
+        "step3Body": "Nút + ở góc dưới tạo mục mới ở mọi nơi. Trong Nhiệm vụ, Mua sắm và Kho dự trữ, vuốt các mục sang trái hoặc phải để dùng thao tác nhanh.",
         "next": "Tiếp theo",
         "done": "Bắt đầu",
         "skip": "Bỏ qua",
@@ -4448,7 +4467,9 @@
         "youOweInGroup": "{{group}}: Bạn nợ",
         "debtYouOwe": "Bạn nợ {{name}}",
         "debtOwesYou": "{{name}} nợ bạn",
-        "debtOwes": "{{from}} nợ {{to}}"
+        "debtOwes": "{{from}} nợ {{to}}",
+        "balanced": "Đã thanh toán xong",
+        "balancedInGroup": "{{group}}: Đã thanh toán xong"
     },
     "wmo": {
         "0": "Trời quang",
@@ -4526,7 +4547,8 @@
         "tooShort": "Mật khẩu phải dài ít nhất 8 ký tự.",
         "invalidToken": "Liên kết đặt lại này không hợp lệ hoặc đã hết hạn - hãy yêu cầu liên kết mới.",
         "missingToken": "Liên kết đặt lại này không đầy đủ - hãy yêu cầu liên kết mới.",
-        "requestNew": "Yêu cầu liên kết mới"
+        "requestNew": "Yêu cầu liên kết mới",
+        "invalidTitle": "Liên kết không hợp lệ"
     },
     "email": {
         "host": "Máy chủ SMTP",
@@ -4896,7 +4918,7 @@
         "tabs": {
             "overview": "Tổng quan",
             "vitals": "Chỉ số sinh tồn",
-            "meds": "Thuốc",
+            "meds": "Dùng thuốc",
             "prevention": "Phòng ngừa",
             "labs": "Xét nghiệm",
             "activity": "Hoạt động",
@@ -5022,7 +5044,7 @@
         },
         "meds": {
             "doseQty": "{{count}}×",
-            "title": "Thuốc",
+            "title": "Dùng thuốc",
             "emptyTitle": "Chưa có thuốc",
             "emptyDesc": "Thuốc kèm lịch và nhắc nhở sẽ hiển thị ở đây.",
             "add": "Thêm thuốc",
@@ -5043,7 +5065,7 @@
             "noMeds": "Chưa có thuốc.",
             "logTitle": "Nhật ký uống thuốc",
             "personsLabel": "Người",
-            "take": "Đã dùng",
+            "take": "Uống",
             "skip": "Bỏ qua",
             "dueToday": {
                 "title": "Cần làm hôm nay",
@@ -5128,8 +5150,6 @@
             },
             "prn": {
                 "title": "Khi cần",
-                "take": "Uống ngay",
-                "takeFor": "Uống {{medication}} ngay",
                 "nextAt": "Sớm nhất lúc {{time}}",
                 "remainingHm": "còn {{hours}} giờ {{minutes}} phút",
                 "remainingM": "còn {{minutes}} phút",
@@ -6158,7 +6178,8 @@
         "errorNotEnoughPoints": "Không đủ điểm cho việc này.",
         "errorNotParticipating": "Người này không tích điểm.",
         "errorMoneyAccountGone": "Tài khoản này không còn nữa.",
-        "errorMoneyPlanGone": "Kế hoạch này không còn nữa."
+        "errorMoneyPlanGone": "Kế hoạch này không còn nữa.",
+        "ownLedger": "Giao dịch của bạn"
     },
     "datepicker": {
         "openCalendar": "Mở lịch",
@@ -6404,7 +6425,8 @@
         "errorBookingAlreadyLinked": "Giao dịch này đã được liên kết.",
         "errorLocationExists": "Vị trí này đã có ở đây. Hãy chọn tên khác.",
         "errorLocationGone": "Vị trí này không còn tồn tại.",
-        "errorCategoryGone": "Danh mục này không còn tồn tại."
+        "errorCategoryGone": "Danh mục này không còn tồn tại.",
+        "editItem": "Sửa món đồ"
     },
     "documentAttach": {
         "label": "Tệp đính kèm",
@@ -6436,13 +6458,14 @@
         "mismatch": "Mật khẩu không khớp.",
         "tooShort": "Mật khẩu phải dài ít nhất 8 ký tự.",
         "invalidToken": "Lời mời này không hợp lệ, đã hết hạn hoặc đã được dùng - hãy xin liên kết mới.",
-        "missingToken": "Liên kết mời này không hợp lệ hoặc đã hết hạn - hãy xin liên kết mới.",
         "usernameRequired": "Hãy chọn một tên đăng nhập.",
         "usernameInvalid": "Tên đăng nhập phải dài từ 3 đến 64 ký tự và chỉ gồm chữ cái, chữ số, dấu chấm, dấu gạch ngang và gạch dưới.",
         "usernameTaken": "Tên đăng nhập này đã được dùng.",
         "error": "Không tạo được tài khoản. Vui lòng thử lại.",
         "displayNameTooLong": "Tên hiển thị dài tối đa 128 ký tự.",
-        "previewFailed": "Hiện chưa kiểm tra được lời mời. Vui lòng tải lại trang sau giây lát."
+        "previewFailed": "Hiện chưa kiểm tra được lời mời. Vui lòng tải lại trang sau giây lát.",
+        "invalidTitle": "Lời mời không hợp lệ",
+        "toLogin": "Đến đăng nhập"
     },
     "newLabel": {
         "tasks": "Nhiệm vụ",
@@ -6683,7 +6706,8 @@
         "errorCustomFieldGone": "Trường này không còn tồn tại.",
         "errorSelectedCustomFieldGone": "Một trong các trường đã chọn không còn tồn tại.",
         "errorPatternGone": "Chu kỳ ca này không còn tồn tại.",
-        "errorEntryGone": "Mục này không còn tồn tại."
+        "errorEntryGone": "Mục này không còn tồn tại.",
+        "overviewPeopleCount": "So sánh mọi người ({{count}})"
     },
     "pairDisplay": {
         "title": "Ghép nối máy tính bảng",

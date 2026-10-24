@@ -23,7 +23,7 @@ import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { mealTypeList, ensureMealTypeNames } from '/utils/meal-types.js';
 import { recipeThumbEl, recipeHeroEl } from '/utils/recipe-thumb.js';
 import { navModuleAccess } from '/permissions.js';
-import { mountMasterDetail, splitViewDetailHtml, detailPaneHeaderEl } from '/utils/master-detail.js';
+import { mountMasterDetail, splitViewDetailHtml, detailPaneHeaderEl, releaseAddressOnClose } from '/utils/master-detail.js';
 import { openDetailView, closeDetailView, detailFooterEl, withPrimaryEdit } from '/components/detail-view.js';
 import { mayWritePath } from '/utils/module-access.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
@@ -368,7 +368,11 @@ function openRecipeFromQuery() {
   if (_md?.isSplit()) return;
 
   const recipe = state.recipes.find((r) => r.id === id);
-  if (recipe && row.querySelector('[data-action="open-detail"]')) openRecipeSheet(recipe);
+  if (recipe && row.querySelector('[data-action="open-detail"]')) {
+    openRecipeSheet(recipe);
+    // Das Leseblatt schliesst - `?open=` geht mit ihm (R22, D2).
+    releaseAddressOnClose('open', raw);
+  }
 }
 
 /**
@@ -479,6 +483,7 @@ export async function render(container) {
 
   const list = document.createElement('div');
   list.className = 'list-scroller page-scrollport recipes-list split-view__list';
+  list.dataset.scrollPort = 'recipes';
   list.id = 'recipes-list';
   // Lade-Skeleton bis loadRecipes() aufgelöst ist (Router blendet den Wrapper
   // bereits vor dem Daten-await ein).
@@ -1211,7 +1216,7 @@ function fillRecipeDetail(detail, recipe) {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.insertAdjacentHTML('beforeend',
-      '<i data-lucide="external-link" class="icon-sm" aria-hidden="true"></i>');
+      '<i data-lucide="external-link" class="icon-md" aria-hidden="true"></i>');
     const linkLabel = document.createElement('span');
     linkLabel.textContent = t('recipes.openLink');
     link.appendChild(linkLabel);
@@ -1393,7 +1398,7 @@ function pantryMatchBulkEl(recipe) {
   btn.className = 'btn btn--ghost recipe-detail__match-open';
   btn.dataset.action = 'match-ingredients';
   btn.dataset.id = String(recipe.id);
-  btn.insertAdjacentHTML('beforeend', '<i data-lucide="link" class="icon-sm" aria-hidden="true"></i>');
+  btn.insertAdjacentHTML('beforeend', '<i data-lucide="link" class="icon-md" aria-hidden="true"></i>');
   const label = document.createElement('span');
   label.textContent = t('recipes.ingredientMatchOpen', { count: open.length });
   btn.appendChild(label);
@@ -1679,7 +1684,7 @@ function recipeModalFooterHtml(isEdit, recipe) {
   const canDelete = isEdit && recipe?.source === 'native';
   return `
       <div class="modal-panel__footer modal-panel__footer--plain">
-        ${canDelete ? `<button type="button" class="btn btn--danger-outline" id="recipe-delete" style="margin-inline-end:auto"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>` : ''}
+        ${canDelete ? `<button type="button" class="btn btn--danger-outline" id="recipe-delete"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${esc(t('common.delete'))}</button>` : ''}
         <button class="btn btn--secondary" id="recipe-cancel">${t('common.cancel')}</button>
         <button class="btn btn--primary" id="recipe-save">${isEdit ? t('common.save') : t('common.add')}</button>
       </div>`;

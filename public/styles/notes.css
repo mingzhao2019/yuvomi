@@ -258,6 +258,14 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Die Karte quittiert den Tipp mit der grossen Stufe (tokens.css,
+ * Druckzustand); am Finger gab es bisher gar kein Zeichen. Nadel und Mehr
+ * druecken sie nicht mit - nur die Oeffnen-Flaeche. */
+.note-card:active:not(:has(button:not(.note-card__open):active, [role="button"]:active)) {
+  transform: scale(var(--press-scale-lg));
+  transition-duration: var(--duration-2xs);
+}
+
 /* EINE KARTENHAUT (Critique 2026-10-16). Angepinnt trug die Karte einen
  * 2px-Ring, den staerkeren Schatten und eine Nadel auf eigener Scheibe - eine
  * zweite Haut neben der normalen. Den Zustand sagen jetzt die Nadel in voller
@@ -648,6 +656,20 @@
     line-height: var(--line-height-base);
     -webkit-line-clamp: 3;
     line-clamp: 3;
+  }
+
+  /* DREI TEXTZEILEN JE KARTE, NICHT VIER (Critique R22-F, F2.3). Mit Titel
+   * trug die Karte Titel plus drei Zeilen Vorschau, 158px - im ersten Bild
+   * standen bei 390x844 drei Notizen ganz, die vierte lief unter die
+   * Tab-Leiste. Eine Karte mit Titel zeigt mobil zwei Zeilen Vorschau (der
+   * Titel ist die dritte), eine ohne Titel weiter drei: 133px, vier Notizen
+   * ganz im ersten Bild. Das Raster bleibt, wie es ist; die ganze Notiz steht
+   * einen Tipp entfernt. Checklisten zaehlen nicht mit - sie sind auf der
+   * Karte bedienbar und werden nicht gekappt (line-clamp greift in
+   * Flex-Zeilen nicht). */
+  .note-card__title + .note-card__content {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .note-card__footer {

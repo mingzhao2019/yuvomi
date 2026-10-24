@@ -17,7 +17,7 @@ import { emptyHintEl, emptyStateEl } from '/utils/empty-state.js';
 import { wireScrollFade, wireCollapsingHeader, watchNavCapsuleHeight, bindNavMinimize } from '/utils/ux.js';
 import { TOAST_SURFACES } from '/utils/toast-surface.js';
 import { inertOutside } from '/utils/background-inert.js';
-import { showToast } from '/utils/toast-show.js';
+import { showToast, endFeedbackToasts } from '/utils/toast-show.js';
 import { unknownPathDetour, publicPathDetour, detourPaths } from '/utils/unknown-route.js';
 import { createNavigate, prefetchPathOf, focusMainAfterNavigation, unlessAborted, isCurrentAddress } from '/utils/router-navigate.js';
 import { pageMountTarget } from '/utils/page-mount.js';
@@ -40,7 +40,7 @@ import { SCHEDULE_ROUTES } from '/utils/schedule-tabs.js';
 import { activityType } from '/utils/health-activity.js';
 import {
   SEARCH_SECTIONS, NEW_ACTIONS, searchResultCount, markSegments, paletteCommands, paletteStatusText,
-  readRecent, rememberRecent, visibleRecent, forgetAllRecent,
+  readRecent, rememberRecent, visibleRecent, forgetAllRecent, RECENT_MAX,
 } from '/utils/search-sections.js';
 import { buildHelpRows } from '/utils/help.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
@@ -65,7 +65,13 @@ import { syncWallMode, onWallActiveChange, isWallActive } from '/utils/wall-mode
 import {
   rememberScrollPosition,
   scrollPositionFor,
+  portPositionsFor,
   forgetScrollPositions,
+  adoptEntryKey,
+  entryKeyOf,
+  captureScrollPorts,
+  restoreScrollPorts,
+  noteRestoringScroll,
 } from '/utils/scroll-restore.js';
 import { openModal, confirmModal } from '/components/modal.js';
 import { armScreensaver, disarmScreensaver } from '/components/photo-screensaver.js';
@@ -292,8 +298,10 @@ let activePageStyle = null;
 // in test:frontend-audit gleich mit den @import-Zeilen in public/styles/.
 const PAGE_STYLE_IMPORTS = Object.freeze({
   '/styles/budget.css': ['/styles/split-expenses.css', '/styles/subscriptions.css'],
+  '/styles/calendar.css': ['/styles/time-grid.css'],
   '/styles/dashboard.css': ['/styles/fasting-controls.css'],
   '/styles/health.css': ['/styles/fasting-controls.css'],
+  '/styles/schedule.css': ['/styles/time-grid.css'],
 });
 const _preloadedStyleImports = new Set();
 
@@ -383,6 +391,41 @@ function scrollPageToTop() {
 }
 
 /**
+ * DER RUECKWEG KENNT DEN EINTRAG UND DIE INNEREN PORTS (Critique R22, D2).
+ *
+ * `_shownEntryKey` ist der Schluessel des History-Eintrags, dessen Seite
+ * gerade steht - gesetzt, sobald eine Navigation ihren Eintrag geschrieben
+ * hat (der `updateNav`-Aufruf in navigate() kommt in beiden Wegen danach,
+ * voll und weich). Beim Verlassen gilt er: nach einem Zurueck zeigt
+ * `history.state` schon auf das ZIEL, der verlassene Eintrag ist nur noch
+ * hier bekannt. `_pendingPortTargets` traegt die Port-Staende vom
+ * Scrollziel in navigate() zu renderPage(), das sie nach dem Render setzt.
+ */
+let _shownEntryKey = null;
+let _pendingPortTargets = null;
+
+function noteShownEntry() {
+  _shownEntryKey = adoptEntryKey(history, location.pathname);
+}
+
+/** updateNav() fuer navigate(): erst den Eintrag festhalten, der jetzt steht. */
+function updateNavForEntry(section, opts) {
+  noteShownEntry();
+  updateNav(section, opts);
+}
+
+function rememberLeavingPage(path, top) {
+  const main = document.getElementById('main-content');
+  rememberScrollPosition(_shownEntryKey ?? path, top, captureScrollPorts(main));
+}
+
+function scrollTargetFor(path, { restore = false } = {}) {
+  const key = restore ? (entryKeyOf(history.state) ?? path) : path;
+  _pendingPortTargets = portPositionsFor(key, { restore });
+  return scrollPositionFor(key, { restore });
+}
+
+/**
  * DER GRUND, MIT DEM EINE SEITE ABGEBROCHEN WIRD - EINMAL ERZEUGT (R20).
  * `abort()` ohne Grund baut bei jedem Aufruf eine neue `AbortError`-Ausnahme,
  * und deren Stapel haelt die Funktionen fest, die gerade liefen - den
@@ -400,7 +443,18 @@ const PAGE_LEFT = new DOMException('The page was left.', 'AbortError');
  * Ausfahrt ist eine CSS-Transition; `finish()` setzt sie auf ihren Endwert,
  * und `getAnimations()` holt eine noch nicht gestartete vorher in den Stil.
  */
+/**
+ * Wann das Mehr-Blatt zuletzt zu fahren begann. NUR DANN gibt es eine
+ * Ausfahrt zu beenden (Critique R22-F, F2.1): `getAnimations()` holt den Stil
+ * des ganzen Dokuments nach, und das kostete bei JEDEM Seitenwechsel 16-20 ms
+ * im Frame des Tauschs (4x CPU) - auch ueber die Tab-Leiste, wo kein Blatt
+ * offen war. Die Ausfahrt dauert `--sheet-out`; die Frist laesst Luft.
+ */
+let _sheetClosingSince = -Infinity;
+const SHEET_SETTLE_WINDOW_MS = 1000;
+
 function settleClosingOverlays() {
+  if (performance.now() - _sheetClosingSince > SHEET_SETTLE_WINDOW_MS) return;
   document.querySelectorAll('.more-sheet, .more-backdrop').forEach((el) => {
     el.getAnimations?.().forEach((anim) => anim.finish());
   });
@@ -632,6 +686,12 @@ function topLevelSection(path) {
   return path ?? '/';
 }
 
+/** Das Modul einer Adresse fuer die Toast-Regel (D18): die Kueche zaehlt als eines. */
+function moduleSectionOf(path) {
+  if (!path) return null;
+  return isKitchenRoute(path) ? '/kitchen' : topLevelSection(path);
+}
+
 function getAppName() {
   return localStorage.getItem(APP_NAME_STORAGE_KEY) || DEFAULT_APP_NAME;
 }
@@ -785,7 +845,13 @@ const navigate = createNavigate(routerState, {
   // Nur ein 401 fuehrt zur Anmeldung; jeder andere Fehler der Sitzungspruefung
   // zeichnet diesen Zustand in #app und versucht selbst erneut (Critique R19).
   showSessionUnreachable: (err, retry) => showSessionUnreachable(document.getElementById('app'), err, retry),
-  rememberScrollPosition, scrollPositionFor, renderPage, adoptPageFab, updateNav, topLevelSection,
+  // Scrollstand je History-Eintrag samt inneren Ports (R22, D2): dieselben
+  // Namen, der Router legt Eintragsschluessel und Ports darunter.
+  rememberScrollPosition: rememberLeavingPage,
+  scrollPositionFor: scrollTargetFor,
+  renderPage, adoptPageFab,
+  updateNav: updateNavForEntry,
+  topLevelSection,
   syncWallMode, applyModuleAccentForRoute, updateThemeColorForRoute, updateBranding,
   focusMainContentAfterNavigation, showToast, t,
 });
@@ -1524,7 +1590,12 @@ function moreSheetSections(modules, labelCounts) {
       list.className = 'more-sheet__list';
       const group = document.createElement('div');
       group.className = 'more-sheet__group';
-      const labelKey = section == null ? null : navSectionLabelKey(section, labelCounts.get(section));
+      // IM BLATT TRAEGT AUCH EINE SEKTION MIT NUR EINEM EINTRAG IHREN NAMEN
+      // (R22 D14). In der Seitenleiste haengt sich Budget ohne Kopf an, sie ist
+      // ganz zu sehen. Im Blatt stand die Zeile namenlos UNTER „Menschen", am
+      // Ende eines Scrollers, der bei 390x844 97px verbarg - sie las als
+      // vierter Eintrag der Gruppe davor, oder sie fehlte ganz.
+      const labelKey = section == null ? null : navSectionLabelKey(section, labelCounts.get(section), { standalone: true });
       if (labelKey) {
         group.setAttribute('role', 'group');
         const labelId = `more-section-${section}`;
@@ -1653,6 +1724,11 @@ function buildMoreSheetBody() {
   foot.appendChild(system);
 
   body.append(...nodes);
+  // DER KOERPER SAGT, DASS ER WEITERGEHT (R22 D14). Bei 390x844 lagen 97px,
+  // bei 375x667 287px Module unter der Kante - mit Haarlinie und fester
+  // Systemreihe darunter sah das Blatt vollstaendig aus. Dieselbe Kantenblende
+  // wie die Seitenleiste (has-fade-start/-end, layout.css).
+  wireScrollFade(body, { axis: 'y' });
   return [body, foot];
 }
 
@@ -1661,8 +1737,11 @@ function buildMoreSheetBody() {
  * @param {{ path: string, page: string }} route
  * @param {string|null} previousPath - Pfad vor der Navigation (null beim Kaltstart)
  * @param {number} scrollTarget - Scrollstand der Zielseite (0 vorwärts, gemerkt bei popstate)
+ * @param {{ signal?: AbortSignal|null, onSwap?: (() => void)|null }} [opts]
+ *   `onSwap` laeuft im Tausch selbst - die Navigation setzt dort ihre Pille,
+ *   im selben Frame wie den neuen Inhalt (Critique R22, D1)
  */
-async function renderPage(route, previousPath = null, scrollTarget = 0, { signal = null } = {}) {
+async function renderPage(route, previousPath = null, scrollTarget = 0, { signal = null, onSwap = null } = {}) {
   const app = document.getElementById('app');
 
   // Den Ladebildschirm (#app-loading) blendet hier bewusst nichts aus: er steht
@@ -1759,6 +1838,18 @@ async function renderPage(route, previousPath = null, scrollTarget = 0, { signal
 
     let pageWrapper = null;
     let renderPromise = null;
+    // Die inneren Ports des Rueckwegs (D2): genommen, nicht gelesen - eine
+    // weiche Navigation danach soll sie nicht erben. Gesetzt werden sie wie
+    // `scrollTarget` nach dem Render, und ein Port, dessen Zeilen erst danach
+    // kommen, wird nachgezogen (utils/scroll-restore.js).
+    const portTargets = _pendingPortTargets;
+    _pendingPortTargets = null;
+    let stopPortRestore = null;
+    const restorePorts = () => {
+      if (!portTargets || signal?.aborted) return;
+      stopPortRestore?.();
+      stopPortRestore = restoreScrollPorts(content, portTargets, { signal: _pageController?.signal ?? signal });
+    };
     // Der SYNCHRONE Teil des Wechsels: Inhalt tauschen, Scrollport zuruecksetzen,
     // alte Seite abbauen, render() starten. Er ist der Update-Callback der View
     // Transition - der Browser haelt bis zu seinem Ende das alte Bild, es gibt
@@ -1811,6 +1902,11 @@ async function renderPage(route, previousPath = null, scrollTarget = 0, { signal
       // Und die Filter-Popover (Aufgaben, Kalender): sie haengen an
       // `document.body` und schliessen nur per Light-Dismiss von selbst.
       dismissFilterPopovers();
+      // DIE RUECKMELDUNG ENDET MIT IHREM MODUL (Critique R22, D18): der Toast
+      // "Aufgabe erledigt - Rueckgaengig" wanderte in den Einkauf mit (a2,
+      // Casey). Ihre Handlung gilt (utils/toast-show.js); zwischen den Reitern
+      // der Kueche bleibt sie - die Kueche ist EIN Modul der Navigation.
+      if (moduleSectionOf(previousPath) !== moduleSectionOf(route.path)) endFeedbackToasts();
       style.cleanup();
       // Lebenszyklus-Vertrag (#976): der Router besitzt EIN AbortController je
       // Seitenaufbau und bricht ihn hier ab, wo die Route ersetzt wird. Die
@@ -1823,6 +1919,11 @@ async function renderPage(route, previousPath = null, scrollTarget = 0, { signal
       // naechsten Seite.
       _pageController?.abort(PAGE_LEFT);
       _pageController = new AbortController();
+
+      // DIE NAVIGATION ZEIGT DEN ORT IM FRAME SEINES INHALTS (Critique R22, D1):
+      // Pille, Aktivzustand und Statusleiste wechseln hier, im Update-Callback
+      // der View Transition, und erscheinen mit dem neuen Bild.
+      onSwap?.();
 
       // Teardown abgeschlossen: ein evtl. gemerktes Soft-Update-Ziel ist jetzt
       // ungültig, bis das neue Modul erfolgreich gerendert hat.
@@ -1847,6 +1948,11 @@ async function renderPage(route, previousPath = null, scrollTarget = 0, { signal
       const context = route.thirdPartyModule
         ? { user: routerState.currentUser, page: { ...route.thirdPartyModule.page }, signal: _pageController.signal }
         : { user: routerState.currentUser, signal: _pageController.signal };
+      // Ein Rueckweg mit gemerktem Stand: lange Listen zeichnen dann ganz
+      // statt in Happen (utils/row-fill.js) - die Zeilen ueber dem Ziel
+      // brauchen ihre echte Hoehe. Der synchrone Teil von render() liest es,
+      // der Rest nach seinem Daten-await; zurueck nimmt es das Setzen unten.
+      noteRestoringScroll(scrollTarget > 0 || Boolean(portTargets));
       renderPromise = module.render(target, context);
 
       // Schon jetzt umziehen, nicht erst nach den Daten: die meisten Seiten legen
@@ -1864,10 +1970,12 @@ async function renderPage(route, previousPath = null, scrollTarget = 0, { signal
       // Router wiederholt es unten fuer eine Seite, die die Frist verpasst.
       // Ein Fehler der Seite gehoert dem `await` unten, nicht diesem Zweig.
       return Promise.resolve(renderPromise).then(() => {
+        noteRestoringScroll(false);
         if (signal?.aborted) return;
         if (scrollTarget > 0) content.scrollTop = scrollTarget;
+        restorePorts();
         adoptPageFab();
-      }, () => {});
+      }, () => { noteRestoringScroll(false); });
     };
 
     // Wird die Navigation erst NACH dem Tausch ueberholt, verliert die neue
@@ -1882,29 +1990,16 @@ async function renderPage(route, previousPath = null, scrollTarget = 0, { signal
       // solange `isNavigating` steht.
       whenSettled: navigationIdle,
       settle: settleClosingOverlays,
-      // ZWISCHEN ZWEI KUECHEN-REITERN BLENDET NUR DER KOERPER (Critique R21,
-      // D11): Leiste und Kontextzeile sind das Bedienelement, die Zeile wechselt
-      // mit dem Tipp statt doppelt belichtet zu blenden (layout.css, `kitchen`).
-      types: isKitchenRoute(previousPath) && isKitchenRoute(route.path) ? ['kitchen'] : [],
+      // Zwischen zwei Kuechen-Reitern schneidet der Wechsel wie ueberall
+      // (R22, D1) - der eigene Typ `kitchen` (R21, D11: nur der Koerper blendet)
+      // ist darin aufgegangen.
     });
 
-    // Mit View Transition macht der Browser die Blende - seit 2026-10-16 auch
-    // unter reduzierter Bewegung (utils/view-transition.js). Ohne sie (keine
-    // API, verdeckter Tab) eine reine Blende ohne Versatz und ohne Feder:
-    // `.page-transition--in`.
-    if (shouldAnimate && !transition) {
-      pageWrapper.classList.add('page-transition--in');
-
-      // navigating-Klasse nach Ende der Einblend-Animation entfernen.
-      // Fallback-Timeout falls animationend nicht feuert (z.B. prefers-reduced-motion).
-      const navEndTimeout = setTimeout(() => {
-        document.documentElement.classList.remove('navigating');
-      }, 300);
-      pageWrapper.addEventListener('animationend', () => {
-        clearTimeout(navEndTimeout);
-        document.documentElement.classList.remove('navigating');
-      }, { once: true });
-    } else if (transition) {
+    // DER WECHSEL SCHNEIDET (Critique R22, D1): mit View Transition haelt der
+    // Browser nur das alte Bild bis zum ersten Render; ohne sie (keine API,
+    // verdeckter Tab) steht die neue Seite sofort - keine Blende, auch nicht
+    // als Rueckfall.
+    if (transition) {
       // Die Transition haelt das Bild bis zu ihrem Ende; erst dann darf das
       // Glas im Inhalt zurueck.
       finished.then(() => document.documentElement.classList.remove('navigating'));
@@ -1925,10 +2020,12 @@ async function renderPage(route, previousPath = null, scrollTarget = 0, { signal
     // seine volle Höhe hat. Best effort - ist die Seite kürzer als beim Verlassen
     // (gefilterte Liste, gelöschter Eintrag), klemmt der Browser auf sein Maximum.
     if (scrollTarget > 0) content.scrollTop = scrollTarget;
+    restorePorts();
 
     // Ab hier kann das Modul Soft-Navigationen bedienen (sofern es update() bietet).
     routerState._renderedModule = module;
     routerState._renderedModuleName = route.module;
+    rememberVisitedPlace(route);
 
     wirePageToolbars();
 
@@ -3552,6 +3649,7 @@ function initMoreSheet(container, openSearch) {
       dropOverlay(token);
     }
     setOverlayInteractive(sheet, false);
+    _sheetClosingSince = performance.now();
     releaseSheetBackground?.();
     releaseSheetBackground = null;
     sheet.removeEventListener('keydown', moreSheetTrap);
@@ -3696,55 +3794,45 @@ function initSearch(container) {
     setStatus('');
     results.appendChild(emptyHintEl(t('search.emptyHint')));
 
-    // ZULETZT GEOEFFNET (R19): was zuletzt aus der Palette geoeffnet wurde,
-    // steht vor den Kacheln - die Palette ist fuer den Wiederholer da. Nur,
-    // was heute noch erreichbar ist (visibleRecent); leer heisst: kein Kopf.
-    const recent = visibleRecent(readRecent(safeLocalStorage(), routerState.currentUser?.id), recentPlace(navItems()));
-    if (recent.length) {
-      results.appendChild(paletteRowsSection(t('search.recentLabel'), recent, {
+    // ZULETZT BESUCHT UND NEU ANLEGEN STATT 19 KACHELN (R22 D16). Die leere
+    // Palette zeigte jedes Ziel der Seitenleiste als Kachel - dieselbe Liste
+    // ein zweites Mal, 442px am Laptop, 771px am Telefon. Die Palette ist fuer
+    // den Wiederholer da: oben die zuletzt besuchten Orte (hoechstens fuenf,
+    // lokal je Konto, der offene Ort nicht), darunter die haeufigsten
+    // Anlege-Befehle. Beides als Zeilen in der Bauart der Treffer
+    // (paletteRowsSection), mit dem Siegel ihres Moduls. Noch nichts besucht
+    // (erste Sitzung): die ersten Ziele der Navigation, als „Gehe zu".
+    const targets = navItems();
+    const here = routerState._renderedModuleName;
+    const recent = visibleRecent(readRecent(safeLocalStorage(), routerState.currentUser?.id), recentPlace(targets))
+      .filter((item) => item.module !== here)
+      .slice(0, RECENT_MAX);
+    const fallback = recent.length ? [] : targets
+      .filter((item) => item.module !== 'dashboard' && item.module !== here)
+      .slice(0, RECENT_MAX)
+      .map((item) => ({ label: item.label, route: item.navHref ?? item.path, module: item.module }));
+    const close = () => closeSearch({ restoreFocus: false });
+    if (recent.length || fallback.length) {
+      results.appendChild(paletteRowsSection(t(recent.length ? 'search.recentLabel' : 'search.goTo'), recent.length ? recent : fallback, {
         title: (item) => item.label,
         meta: (item) => item.context || '',
         go: (item) => navigate(item.route),
-      }, () => closeSearch({ restoreFocus: false })));
+      }, close));
     }
-
-    const scopes = document.createElement('div');
-    scopes.className = 'search-scopes';
-    const scopesHeading = document.createElement('h3');
-    scopesHeading.className = 'search-section__heading';
-    scopesHeading.textContent = t('search.scopesLabel');
-    scopes.appendChild(scopesHeading);
-    const list = document.createElement('div');
-    list.className = 'search-scopes__list';
-    // ALLE SICHTBAREN ZIELE, nicht die durchsuchten Module: "Direkt oeffnen"
-    // kannte Schichtplan, Haushaltshilfe, Belohnungen und Mahlzeiten nicht,
-    // weil die Suche dort keine Daten hat (Re-Critique 2026-09-28, A1 P2-1).
-    navItems().forEach((item) => {
-      const scope = { label: item.label, route: item.navHref ?? item.path };
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'search-scope';
-      // Markensiegel (Herkunfts-Regel, Block 2): die Kachel benennt ihr
-      // Zielmodul ueber Familienton + Icon.
-      const seal = document.createElement('span');
-      seal.className = 'module-seal module-seal--sm search-scope__seal';
-      seal.setAttribute('aria-hidden', 'true');
-      const accent = item.accent ? `var(--${item.accent}, var(--color-accent))` : moduleAccentVar(item.module);
-      if (accent) seal.style.setProperty('--seal-accent', accent);
-      seal.appendChild(moduleIconEl(item.icon));
-      const label = document.createElement('span');
-      label.textContent = scope.label;
-      btn.append(seal, label);
-      btn.addEventListener('click', () => {
-        closeSearch({ restoreFocus: false });
-        navigate(scope.route);
-      });
-      list.appendChild(btn);
-    });
-    scopes.appendChild(list);
-    results.appendChild(scopes);
-    // Die Kacheln sind per Pfeil erreichbar, aber nichts ist vorgewaehlt:
-    // Enter auf ein leeres Feld oeffnet keine Kachel.
+    const visible = new Set(targets.map((item) => item.module));
+    const actions = NEW_ACTIONS
+      .filter((action) => visible.has(action.module) && navModuleAccess(action.module) === 'write')
+      .slice(0, PALETTE_EMPTY_ACTIONS)
+      .map((action) => ({ label: t(action.labelKey), route: action.route, module: action.module }));
+    if (actions.length) {
+      results.appendChild(paletteRowsSection(t('search.newSection'), actions, {
+        title: (item) => item.label,
+        go: async (item) => { await navigate(item.route); triggerPageFab(); },
+        remember: false,
+      }, close));
+    }
+    // Die Zeilen sind per Pfeil erreichbar, aber nichts ist vorgewaehlt:
+    // Enter auf ein leeres Feld oeffnet keine.
     combo.refresh({ preselect: false });
     // Auch aus dem input-Handler (< 2 Zeichen) aufgerufen, wo openSearch die
     // Icons nicht nachzieht — daher hier selbst rendern.
@@ -3882,6 +3970,25 @@ function initSearch(container) {
   return openSearch;
 }
 
+/** Wie viele Anlege-Befehle die leere Palette zeigt (R22 D16: vier bis sechs). */
+const PALETTE_EMPTY_ACTIONS = 5;
+
+/**
+ * ZULETZT BESUCHT (R22 D16): jeder Modulbesuch landet in der Liste der leeren
+ * Palette, nicht nur ein Ort, der aus ihr geoeffnet wurde. Gemerkt wird das
+ * Navigationsziel (der Eintrag der Seitenleiste), nie ein `?open=` oder ein
+ * Datensatz - dieselbe Zusage wie in R19: nur Ziel und Modul. Die Uebersicht
+ * ist der Ausgangspunkt, kein Ziel; Einstellungen merkt sich das Blatt selbst
+ * ueber die Palette.
+ */
+function rememberVisitedPlace(route) {
+  if (!route?.module || route.module === 'dashboard' || route.module === 'settings') return;
+  const target = navItems().find((nav) => nav.module === route.module);
+  if (!target) return;
+  const item = { route: target.navHref ?? target.path, module: target.module };
+  rememberRecent(safeLocalStorage(), routerState.currentUser?.id, { route: item.route, module: item.module });
+}
+
 /** localStorage, oder null, wo schon der Zugriff wirft (Safari privat, Policy). */
 function safeLocalStorage() {
   try { return window.localStorage; } catch { return null; }
@@ -3911,7 +4018,7 @@ function recentPlace(targets) {
  * (`.search-section` + `.search-result`), damit Combobox, Pfeiltasten und
  * Haut dieselben sind (utils/palette-combobox.js zaehlt `.search-result`).
  */
-function paletteRowsSection(label, items, { title, meta, go }, onClose) {
+function paletteRowsSection(label, items, { title, meta, go, remember = true }, onClose) {
   const section = document.createElement('div');
   section.className = 'search-section';
   const heading = document.createElement('h3');
@@ -3923,6 +4030,16 @@ function paletteRowsSection(label, items, { title, meta, go }, onClose) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'search-result';
+    // Das Siegel des Ziels, wie unter „Gehe zu" (R20): die Gruppe mischt Module.
+    if (item.module && MODULE_ICON[item.module]) {
+      btn.classList.add('search-result--sealed');
+      const sealEl = document.createElement('span');
+      sealEl.className = 'module-seal module-seal--sm search-result__seal';
+      sealEl.setAttribute('aria-hidden', 'true');
+      sealEl.style.setProperty('--seal-accent', moduleAccentVar(item.module));
+      sealEl.appendChild(moduleIconEl(MODULE_ICON[item.module]));
+      btn.appendChild(sealEl);
+    }
     const titleEl = document.createElement('span');
     titleEl.className = 'search-result__title';
     titleEl.textContent = title(item);
@@ -3936,7 +4053,7 @@ function paletteRowsSection(label, items, { title, meta, go }, onClose) {
     }
     btn.addEventListener('click', () => {
       onClose();
-      rememberRecent(safeLocalStorage(), routerState.currentUser?.id, { route: item.route, module: item.module });
+      if (remember) rememberRecent(safeLocalStorage(), routerState.currentUser?.id, { route: item.route, module: item.module });
       go(item);
     });
     rows.appendChild(btn);
@@ -4705,9 +4822,12 @@ function replaceNavIcon(container, selector, lucideIconName) {
  * ausgeblendet, die Tab-Leiste darueber; der jeweils verborgene Indikator hat
  * keine Geometrie. Wurde er trotzdem markiert, glitt er beim Drehen eines
  * Tablets ueber die Schwelle aus der Nullposition herein (Codex-Review zu #2025).
+ *
+ * `instant` springt auch einen platzierten Indikator: im Seitentausch steht er
+ * im Frame des neuen Inhalts am Ziel (Critique R22, D1).
  */
-function placeNavIndicator(indicator, apply) {
-  const first = indicator.dataset.placed !== '1';
+function placeNavIndicator(indicator, apply, instant = false) {
+  const first = instant || indicator.dataset.placed !== '1';
   if (first) indicator.style.transition = 'none';
   apply();
   if (!first) return;
@@ -4722,9 +4842,9 @@ function placeNavIndicator(indicator, apply) {
  * mit dem Uebergang der Pille (layout.css, reduced-motion schaltet ihn ab)
  * zurueck auf null. `fromTop` null heisst: ohne Weg einblenden.
  */
-function glidePillFrom(pill, fromTop) {
+function glidePillFrom(pill, fromTop, instant = false) {
   if (pill.style.opacity !== '0') return;
-  if (fromTop != null) {
+  if (fromTop != null && !instant) {
     pill.style.opacity = '';
     startGlideAt(pill, fromTop - pill.getBoundingClientRect().top);
   }
@@ -4743,7 +4863,14 @@ function startGlideAt(pill, y) {
 /**
  * Positioniert den morphenden Indikator in der Sidebar auf dem aktiven Nav-Item.
  */
-function positionSidebarIndicator() {
+function positionSidebarIndicator(instant = false) {
+  // NUR DIE SICHTBARE LEISTE MISST (Critique R22-F, F2.1): unter 1024px ist
+  // die Seitenleiste `display: none` und ihr Indikator ohne Geometrie - das
+  // Messen zwang trotzdem Stil und Layout der ganzen neuen Seite in den Frame
+  // des Wechsels (Aufgaben mobil 4x CPU: 7-8 ms, je Aufruf). Wer die Schwelle
+  // ueberquert, platziert ueber `resize`; placeNavIndicator markiert ohnehin
+  // nur Gezeichnetes.
+  if (!isDesktopViewport()) return;
   const container = document.querySelector('.nav-sidebar__items');
   const indicator = container?.querySelector('.nav-sidebar__indicator');
   if (!indicator) return;
@@ -4756,7 +4883,7 @@ function positionSidebarIndicator() {
     if (pinnedPill?.parentElement?.getAttribute('aria-current') === 'page') {
       const from = indicator.style.opacity !== '0' && indicator.getClientRects().length
         ? indicator.getBoundingClientRect().top : null;
-      glidePillFrom(pinnedPill, from);
+      glidePillFrom(pinnedPill, from, instant);
     }
     indicator.style.opacity = '0';
     return;
@@ -4766,7 +4893,7 @@ function positionSidebarIndicator() {
   // herauf - dieselbe Bewegung in die Gegenrichtung.
   // Nur ein schon platzierter Indikator gleitet - die erste Platzierung
   // springt weiter (placeNavIndicator).
-  if (pinnedPill && pinnedPill.style.opacity !== '0' && indicator.dataset.placed === '1') {
+  if (!instant && pinnedPill && pinnedPill.style.opacity !== '0' && indicator.dataset.placed === '1') {
     startGlideAt(indicator, pinnedPill.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop);
   }
   if (pinnedPill) pinnedPill.style.opacity = '0';
@@ -4790,7 +4917,7 @@ function positionSidebarIndicator() {
   placeNavIndicator(indicator, () => {
     indicator.style.transform = `translateY(${top + centerOffset}px)`;
     indicator.style.opacity = '';
-  });
+  }, instant);
 }
 
 // Seitliche Luft zur Slot-Kante und Maximalbreite der Aktiv-Kapsel. Eine
@@ -4807,7 +4934,9 @@ const TAB_INDICATOR_MAX_WIDTH = 64;
  * die Label-Grundlinie frei bleibt und die Kapsel weder in die Safe-Area noch
  * an die Bar-Kante läuft.
  */
-function positionTabIndicator() {
+function positionTabIndicator(instant = false) {
+  // Dasselbe umgekehrt: ab 1024px ist die Tab-Leiste verborgen (layout.css).
+  if (isDesktopViewport()) return;
   const nav = document.querySelector('.nav-bottom');
   const indicator = nav?.querySelector('.nav-bottom__indicator');
   if (!indicator || !nav) return;
@@ -4835,7 +4964,7 @@ function positionTabIndicator() {
     indicator.style.height = `${wr.height}px`;
     indicator.style.transform = `translate(${left}px, ${top}px)`;
     indicator.style.opacity = '';
-  });
+  }, instant);
 }
 
 function sidebarKitchenEl() {
@@ -4959,7 +5088,7 @@ function setMoreButtonState(moreBtn, activeSecondary) {
   replaceNavIcon(moreBtn, '.nav-item__icon', 'more-horizontal');
 }
 
-function updateNav(rawPath) {
+function updateNav(rawPath, opts) {
   // Ein neuer Ort beginnt oben - mit ausgefahrener Kapsel (R19).
   navMinimizer?.expand();
   // EINE SEKTION JE ZIEL, an jedem Aufruf (Critique R19). Die Navigation
@@ -5020,11 +5149,29 @@ function updateNav(rawPath) {
     setMoreButtonState(moreBtn, activeSecondary);
   }
 
+  // NUR, WAS NOCH NICHT GEZEICHNET IST (Critique R22-F, F2.1). Der Lauf ueber
+  // `#app` nahm jedes schon gezeichnete `<svg data-lucide>` noch einmal
+  // (lucide-scope.js waehlt `[data-lucide]`) - im Seitentausch also auch das
+  // ganze Skelett der neuen Seite, Zeichen fuer Zeichen geklont. Gezeichnet
+  // werden muessen nur die Platzhalter `<i>`, die die Navigation neu setzt.
   if (window.lucide) {
     const navRoot = document.getElementById('app');
-    window.lucide.createIcons(navRoot ? { el: navRoot } : undefined);
+    if (navRoot) {
+      for (const node of navRoot.querySelectorAll('i[data-lucide]')) window.lucide.createIcons({ el: node });
+    } else {
+      window.lucide.createIcons();
+    }
   }
 
+  // IM TAUSCH SPRINGT DIE PILLE (Critique R22, D1): dort ruft der Seitenwechsel
+  // updateNav auf, und der neue Inhalt steht im naechsten gezeichneten Frame.
+  // Ein rAF liefe erst in diesem Frame und die Pille glitte danach noch; sie
+  // gehoert aber an ihr Ziel, wenn der Inhalt da ist - nicht vorher, nicht danach.
+  if (opts?.instant) {
+    positionSidebarIndicator(true);
+    positionTabIndicator(true);
+    return;
+  }
   requestAnimationFrame(() => {
     positionSidebarIndicator();
     positionTabIndicator();
@@ -5195,6 +5342,9 @@ window.addEventListener('popstate', (e) => {
     // ueber einem offenen Dialog meint die Geste den Dialog (#871).
     const handled = overlay || handleMasterDetailPopstate();
     if (!handled) navigate(target, false);
+    // Die Seite bleibt, der Eintrag wechselt: ab jetzt gilt SEIN Schluessel
+    // fuer das naechste Verlassen (D2).
+    else if (!overlay) noteShownEntry();
   });
 });
 

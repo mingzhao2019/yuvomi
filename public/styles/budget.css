@@ -131,9 +131,14 @@
 /* Kontexttext für Tabs ohne Zeitbezug: hält den Kopf-Slot besetzt, ohne sich als
  * Bedienelement anzubieten. Bewusst leiser als das Monatslabel - er beantwortet
  * eine Frage („welcher Zeitraum gilt hier?"), er stellt keine. */
+/* AM DESKTOP STEHT DIE NOTIZ, WO DER MONAT BEGINNT (R22, D9): mittig im
+ * 780px-Slot stand "Alle Darlehen" frei zwischen Titel und Kopfpille (1280:
+ * x 700), weit weg vom Ort des Monats (Pfeil bei x 365). Sie beginnt jetzt am
+ * Anfang des Slots - neben dem Titel, wie der Stepper. Schmal steht sie am
+ * Zeilenende (unten). */
 .budget-nav__note {
   flex: 1;
-  text-align: center;
+  text-align: start;
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
 }
@@ -189,14 +194,22 @@
     line-height: var(--line-height-tight);
     text-wrap: balance;
   }
+
 }
 
 /* Bis 1023px (R19, Tablet): Titel und Zeitraum teilen die Zeile auch bei
  * 834px (layout.css `--period-inline`), die Notiz der Reiter ohne Zeitraum
  * steht am Zeilenende. Vorher mass der Kopf dort 170-174px in drei Zeilen. */
 @media (max-width: 1023px) {
+  /* DER SLOT BEHAELT DIE BREITE DES STEPPERS (R22, aus S2 gemessen). Mit
+   * `flex: 1 1 0` wuchs er fuer die Notiz auf die freie Zeile: mobil 192 ->
+   * 206px, am Tablet 240 -> 642px, und der Tausch Monat <-> Notiz schob den
+   * Slot beim Reiterwechsel (Layout-Shift 0,0005 mobil, 0,012 am Tablet).
+   * Jetzt ist er so breit wie Pfeil + Label + Pfeil; die Notiz bricht darin
+   * hoechstens zweizeilig um (unten). */
   .page-toolbar.page-toolbar--period-inline.page-toolbar--wrap:not(.page-toolbar--in-group) > .budget-nav__month:has(.budget-nav__note:not([hidden])) {
-    flex: 1 1 0;
+    flex: 0 0 auto;
+    inline-size: calc(var(--target-base) * 2 + var(--space-12) * 3);
   }
 
   .page-toolbar.page-toolbar--period-inline:not(.page-toolbar--in-group):has(.budget-nav__note:not([hidden])) > .page-toolbar__title {
@@ -216,9 +229,23 @@
    * Notiz statt Stepper ist eine Bildunterschrift - sie weicht, und die
    * Leiste nimmt die ganze Zeile. Ebenso die Wippe "Mein Budget / Haushalt":
    * oben kommt beides wieder. */
-  .page-toolbar.budget-nav.page-toolbar--capped.is-collapsed > .budget-nav__month:has(.budget-nav__note:not([hidden])),
   .page-toolbar.budget-nav.page-toolbar--capped.is-collapsed > .budget-scope {
     display: none;
+  }
+
+  /* Eigene Regel: ein `:has()` in einer Selektorliste verwirft ohne
+   * `:has()`-Unterstuetzung die ganze Liste (F4.2). */
+  .page-toolbar.budget-nav.page-toolbar--capped.is-collapsed > .budget-nav__month:has(.budget-nav__note:not([hidden])) {
+    display: none;
+  }
+}
+
+/* Unter 768px ist das Label 96 statt 144px breit (oben) - der Notiz-Slot
+ * ebenso. Steht nach der Tablet-Regel: gleiche Spezifitaet, die Reihenfolge
+ * entscheidet. */
+@media (max-width: 767px) {
+  .page-toolbar.page-toolbar--period-inline.page-toolbar--wrap:not(.page-toolbar--in-group) > .budget-nav__month:has(.budget-nav__note:not([hidden])) {
+    inline-size: calc(var(--target-base) * 2 + var(--space-12) * 2);
   }
 }
 
@@ -702,20 +729,42 @@
   outline-offset: var(--focus-ring-offset-inset);
 }
 
-/* Konto-Kachel: dieselbe Regel wie beim Abo-Monogramm — die Kontofarbe trägt
- * Fläche und Rahmen, das Icon kommt aus dem Text-Token. Vorher kamen Icon und
- * Grund aus derselben Nutzerfarbe; das Verhältnis hing damit an der Datenlage
- * und fiel bei hellen Kontofarben unter die 3:1 für nicht-textuelle Inhalte. */
-.budget-account__icon {
+/* DIE LEAD-KACHEL: EINE BAUFORM FUER DEN ZEILENANFANG IM BUDGET (R22, D9).
+ * Konten (Kontofarbe + Kontoart-Zeichen), Abos (Marken- oder Kategoriefarbe,
+ * Logo oder Initialen als FUELLUNG der Kachel) und Ausgaben der Aufteilung
+ * (Kategorie-Zeichen) trugen drei Kacheln: 40px mit Rand und 14/45 % als
+ * Literal, 40px auf deckender Flaeche, 42px grau ohne Rand. Jetzt eine Regel:
+ * die Farbe (`--tile-color`) traegt Flaeche und Kante in den Toenungsstufen
+ * aus tokens.css, Zeichen und Schrift kommen aus dem Text-Token - so haengt der
+ * Kontrast nie an der Datenlage (helle Kontofarben fielen sonst unter 3:1).
+ * Ohne Farbe steht die Kachel neutral. Der Journal-Punkt bleibt Punkt (D9). */
+.budget-tile {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border: 1px solid color-mix(in srgb, var(--account-accent) 45%, transparent);
+  inline-size: var(--target-md);
+  block-size: var(--target-md);
+  overflow: hidden;
+  border: var(--space-px) solid color-mix(in srgb, var(--tile-color, var(--color-text-tertiary)) var(--tint-hint), transparent);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--account-accent) 14%, transparent);
+  background: color-mix(in srgb, var(--tile-color, var(--color-text-tertiary)) var(--tint-surface), transparent);
   color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.budget-tile > svg {
+  inline-size: var(--icon-md);
+  block-size: var(--icon-md);
+}
+
+.budget-tile > img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.budget-account__icon {
+  --tile-color: var(--account-accent);
 }
 
 .budget-account__body {
@@ -1013,6 +1062,17 @@
   .metric-grid--quad { --summary-cards: 2; }
 }
 
+/* EINE LANGE LEITZAHL BRICHT DIE VIERERZEILE FRUEHER (R22 S10, aus S7). Am
+ * Tablet (834px) stand die Restschuld „174.644,93 €" mit 182px in einer
+ * 166px-Karte und lief in die Nachbarkarte (768px: 149px). Eine Leitzahl mit
+ * Laengenstufe (`leadStep`, ab 11 Zeichen) braucht in Title 1 bis ~200px; vier
+ * Karten geben das erst ab ~928px Zeile her. Darunter zwei mal zwei - die Zahl
+ * bleibt in ihrem Grad, statt in der Zeile zu schrumpfen. Ab 960px steht die
+ * Reihe ohnehin als Seitenspalte (unten, `.budget-loans`). */
+@container budget-page (max-width: 927px) {
+  .metric-grid--quad.metric-grid--long-lead { --summary-cards: 2; }
+}
+
 /* Kopfzeile der Monatsbilanz: Titel links, „Nur Ausgaben" rechts.
  *
  * Der Umschalter stand vorher in einer eigenen 40px-Zeile rechtsbuendig ueber
@@ -1029,52 +1089,12 @@
   max-width: var(--page-measure, none);
 }
 
-/* Kompakt aussehen, voll treffen (Zielgroessen-Regel, tokens.css): die Pille
- * bleibt 32px hoch, ihre Treffflaeche waechst per ::before auf --target-base
- * (44px am Zeiger, 48px am Finger). Freistehend - kein gleichartiges Ziel
- * daneben -, also gilt die volle Zielgroesse. */
+/* "Nur Ausgaben" ist seit R22 (D9) der geteilte Chip (`.filter-chip--sm`,
+ * filter-chip.css): 40px am Zeiger wie die Werkzeugzeile daneben, 48px am
+ * Finger - die eigene 32px-Pille mit ihrer per ::before gedehnten
+ * Treffflaeche ist entfallen. Hier bleibt nur, dass er nicht schrumpft. */
 .budget-expenses-toggle {
-  position: relative;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: var(--target-sm);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border-subtle);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
-}
-
-.budget-expenses-toggle::before {
-  content: '';
-  position: absolute;
-  inset-inline: 0;
-  top: 50%;
-  height: var(--target-base);
-  transform: translateY(-50%);
-}
-
-.budget-expenses-toggle:hover {
-  background: color-mix(in srgb, var(--module-accent, var(--color-accent)) var(--tint-state), transparent);
-  color: var(--color-text-primary);
-}
-
-.budget-expenses-toggle--active {
-  background: color-mix(in srgb, var(--module-accent, var(--color-accent)) var(--tint-state), var(--color-surface));
-  border-color: color-mix(in srgb, var(--module-accent, var(--color-accent)) var(--tint-hint), transparent);
-  color: var(--color-text-primary);
-}
-
-.budget-expenses-toggle:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
 }
 
 @container budget-page (min-width: 480px) {
@@ -1698,12 +1718,12 @@ button.budget-bar-row:focus-visible {
 
 /* Beschriftet den Hauptbetrag verzinster Darlehen als Restschuld. Ohne das Label
    liest sich die Zahl wie die Summe der Restraten - genau die Verwechslung, die
-   der getrennte Ausweis von Restschuld und Restzahlungssumme auflöst. Als Eyebrow
-   gesetzt, damit es nicht mit der Bezugsgröße darunter verschwimmt. */
-.budget-loan-card__amount-label {
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  font-weight: var(--font-weight-semibold);
+   der getrennte Ausweis von Restschuld und Restzahlungssumme auflöst. Seit R22
+   (D9) kein Versal-Eyebrow ueber der Zahl mehr, sondern der Anfang der
+   Bezugszeile darunter ("Restschuld · von 180.000,00 €"), im Gewicht der Zeile. */
+.budget-loan-card__amounts .budget-loan-card__amount-label {
+  display: inline;
+  font-weight: var(--font-weight-medium);
 }
 
 /* Budget-Gegenwert eines Fremdwährungs-Darlehens (#582): bewusst leiser als der
@@ -2151,14 +2171,16 @@ button.budget-bar-row:focus-visible {
 
 /* LANGE LISTEN RECHNEN NUR, WAS IN SICHT IST (Critique R21 S8; dieselbe Regel
  * wie Kontakte und Rezepte, je Zeile): ein Monat mit vielen Buchungen haelt
- * sonst jede Zeile im Stil- und Layoutlauf, auch die weit unter der Falz. Die
- * Zeile ist 62px hoch (gemessen 390 und 1280px); ihre Trennlinie ist ihr
- * eigener Rand und bleibt, der Fokusring darf ueber die Kante. */
+ * sonst jede Zeile im Stil- und Layoutlauf, auch die weit unter der Falz. Ihre
+ * Trennlinie ist ihr eigener Rand und bleibt, der Fokusring darf ueber die
+ * Kante. Seit R22 (D4) wie die Kontakte: erst ab Zeile 20, und der Platzhalter
+ * ist die Content-Box (45px, gemessen 390 und 1280px) - die 62px der ganzen
+ * Zeile lagen mit Polster und Rand als 79 statt 61 da. */
 @supports (content-visibility: auto) and (contain-intrinsic-size: auto none auto 1px) {
-  .budget-list > .list-row,
-  .budget-ledger-section__rows > .list-row {
+  .budget-list > .list-row:nth-child(n+20),
+  .budget-ledger-section__rows > .list-row:nth-child(n+20) {
     content-visibility: auto;
-    contain-intrinsic-size: auto none auto 62px;
+    contain-intrinsic-size: auto none auto 45px;
     overflow-clip-margin: var(--space-1);
   }
 }
@@ -2323,6 +2345,19 @@ button.budget-bar-row:focus-visible {
   cursor: pointer;
 }
 
+/* DER HOVER DER BUCHUNG SCHALTET, ER BLENDET NICHT (R22). Beim Mausrad-
+ * Scrollen wandert jede Zeile unter dem Zeiger durch Hover hinein und wieder
+ * heraus, und die 150-ms-Blende der Zeile (list-row.css) liess dabei laufend
+ * zwei Zeilen zugleich neu malen: 1280er Journal 11-22 von 300 Frames ueber
+ * 33 ms, ohne die Blende 0 (gleiche Laufart, Zeiger ueber der Liste). Der
+ * Wechsel bleibt derselbe Ton, nur ohne Zwischenstufen; am Finger (kein
+ * Hover) gilt die Blende des Press-Bausteins unveraendert. */
+@media (hover: hover) {
+  .budget-entry.list-row {
+    transition: none;
+  }
+}
+
 .budget-entry:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset-inset);
@@ -2335,11 +2370,23 @@ button.budget-bar-row:focus-visible {
   flex-shrink: 0;
 }
 
-/* Einnahmen duerfen gruen leuchten, Ausgaben sind der Normalfall und stehen
- * neutral (C1). Der Punkt ist Zweitkanal - das Vorzeichen am Betrag sagt die
- * Richtung auch ohne Farbe. */
+/* DER PUNKT TRAEGT DIE FARBE DER KATEGORIE (R22, D9). Bis dahin sagte er das
+ * Vorzeichen, das der Betrag schon traegt (C1: Einnahmen gruen, Ausgaben grau);
+ * dieselbe Kategorie stand im Ring und in den Balken in ihrer Farbe und im
+ * Journal grau. Jetzt kommt die Farbe einer Ausgabe aus derselben Zuordnung
+ * (`--entry-color`, budget.js entryPaint); ohne Katalogkategorie bleibt der
+ * Punkt neutral. Einnahmen haben keine Serienfarbe und bleiben gruen. */
 .budget-entry__indicator--income   { background-color: var(--color-success); }
-.budget-entry__indicator--expenses { background-color: var(--color-text-tertiary); }
+.budget-entry__indicator--expenses { background-color: var(--entry-color, var(--color-text-tertiary)); }
+
+/* Schraffierte Serien (Tritanopie-Zweitkanal, budget-category-colors.js) tragen
+ * im 8px-Punkt keine Schraffur, sondern Ring und Kern - eine Form, die der
+ * hohle Ring einer kommenden Buchung (unten) nicht hat. Erwartet (Streifen)
+ * und kommend (hohler Ring) sagen ihren Zustand vor der Textur. */
+.budget-entry:not(.budget-entry--pending):not(.budget-entry--upcoming) .budget-entry__indicator--expenses[data-texture="hatch"] {
+  background: radial-gradient(closest-side, var(--entry-color) 50%, transparent 56%);
+  box-shadow: inset 0 0 0 var(--space-px) var(--entry-color);
+}
 
 /* Noch nicht passiert (Datum nach heute): der Punkt wird zum Ring - Form statt
  * Farbe, der Betrag behaelt seinen Ton (#1230 fuer erwartete Buchungen). */
@@ -2349,7 +2396,7 @@ button.budget-bar-row:focus-visible {
 }
 
 .budget-entry--upcoming .budget-entry__indicator--income   { color: var(--color-success); }
-.budget-entry--upcoming .budget-entry__indicator--expenses { color: var(--color-text-tertiary); }
+.budget-entry--upcoming .budget-entry__indicator--expenses { color: var(--entry-color, var(--color-text-tertiary)); }
 
 /* Der Titel ist ein BUTTON (Tastatur-/SR-Zugang der Edit-Fläche; role=button
  * auf der Zeile war axe nested-interactive, siehe budget.js). Optisch bleibt
@@ -2502,7 +2549,27 @@ button.budget-entry__title {
 .budget-type-toggle {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  /* NIE SCHMALER ALS SEIN WORT (Sammel-Ticket R22-F, F4.4). Gleich breite
+   * Spalten (`minmax(0, 1fr)`) gaben "Umbuchung" am Telefon 78,5px fuer 80,5px
+   * Text: das Wort lief ueber sein Segment und stand 2px an der Leistenkante,
+   * auf Italienisch, Spanisch, Portugiesisch und Vietnamesisch 3-5px darueber
+   * hinaus. Jetzt mindestens die eigene Breite, der Rest gleich verteilt - wo
+   * Platz ist, bleiben die Segmente gleich breit. */
+  grid-auto-columns: minmax(max-content, 1fr);
+}
+
+/* Im schmalen Dialog reicht die Innenpolsterung des Kanons (--space-3) fuer
+ * vier Woerter nicht: 4 x 24px Polster + Text > 316px Leiste. Der Text haelt
+ * seine 14px (D8), Polster und Fuge geben nach; die Zeile bleibt 48px hoch.
+ * Gemessen 390px: Portugiesisch 5,8px ueber der Kante -> 2,7px davor. */
+@container modal-body (max-width: 480px) {
+  .budget-type-toggle {
+    gap: var(--space-0h);
+  }
+
+  .budget-type-toggle .segmented__item {
+    padding-inline: var(--space-1h);
+  }
 }
 
 /* Rate eines Darlehens (#859): Der Umschalter zeigt die Zuordnung, nimmt sie aber
@@ -2576,6 +2643,44 @@ button.budget-entry__title {
   font-size: var(--text-xl);
   font-weight: var(--font-weight-semibold);
   font-variant-numeric: tabular-nums;
+}
+
+/* Die Waehrung als Suffix IM Feld (R22, D9): sie steht am Zeilenende des
+ * Felds, in Sekundaerfarbe und Textgroesse des Werts, und nimmt keine Zeiger -
+ * der Tipp darauf trifft das Feld. Das Feld haelt ihr den Platz frei. */
+.budget-amount-field {
+  position: relative;
+}
+
+.budget-amount-field > .budget-amount-input {
+  inline-size: 100%;
+  padding-inline-end: calc(var(--space-3) + 3ch);
+}
+
+.budget-amount-field__unit {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: var(--space-3);
+  display: flex;
+  align-items: center;
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+/* Datum und Konto in einer Zeile (budget.js openBudgetModal). Zwei Spalten,
+ * solange jede ihre ~150px hat; die Gruppen tragen ihren Abstand nicht selbst
+ * (der Zeilenabstand gehoert dem Dialog). */
+.budget-entry-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  gap: var(--space-3);
+}
+
+.budget-entry-pair > .form-group {
+  margin-bottom: 0;
+  min-inline-size: 0;
 }
 
 .budget-inline-modal {

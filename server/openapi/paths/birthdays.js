@@ -14,7 +14,7 @@ function withBadRequest(status, description, extra = {}) {
 }
 
 export function birthdaysPaths() {
-  return {
+  return withCaseReasons({
     '/api/v1/birthdays': {
       get: op({ summary: 'List birthdays', tag: 'Birthdays' }),
       post: op({
@@ -23,7 +23,10 @@ export function birthdaysPaths() {
         tag: 'Birthdays',
         stateChanging: true,
         requestBody: jsonBody('#/components/schemas/BirthdayCreateInput'),
-        responses: withBadRequest(201, 'Birthday created'),
+        responses: withBadRequest(201, 'Birthday created', {
+          403: { $ref: '#/components/responses/Forbidden' },
+          409: { description: 'The contact is already linked to another birthday' },
+        }),
       }),
     },
     '/api/v1/birthdays/upcoming': {
@@ -85,9 +88,13 @@ export function birthdaysPaths() {
         params: [idParam()],
         stateChanging: true,
         requestBody: jsonBody('#/components/schemas/BirthdayUpdateInput'),
-        responses: withBadRequest(200, 'Birthday updated', { 404: { description: 'Birthday not found' } }),
+        responses: withBadRequest(200, 'Birthday updated', {
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: { description: 'Birthday not found' },
+          409: { description: 'The contact is already linked to another birthday' },
+        }),
       }),
       delete: op({ summary: 'Delete birthday', tag: 'Birthdays', params: [idParam()], stateChanging: true }),
     },
-  };
+  });
 }
