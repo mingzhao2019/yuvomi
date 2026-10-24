@@ -156,6 +156,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now its first line in normal size instead of small grey text at the end, the guided setup names
   the Node.js versions the installer accepts (22.14+ or 23.6+, it said 22+), and the install link
   in the top row is plain "Install", since only the NAS route takes minutes.
+- **yuvomi.cloud tells an invited family member what to do.** The page spoke to whoever sets
+  Yuvomi up, and someone who only got a link found no word for them. Under the three family
+  scenes a small card now walks through it: open the invite link (it works for seven days), choose
+  a username if the invite leaves it open and your own password - none with single sign-on - then
+  sign in and put Yuvomi on the home screen from the app's Install offer or, on iPhone and iPad,
+  from the Share menu.
+- **The install guide shows its first command on a phone screen.** At 390 by 844 the first
+  command block started well below the screen. The heading, its sentence and the spacing between
+  the tabs, the requirements, the opening note and the Docker/Podman switch are tighter on a phone,
+  the opening note of each path drops its box there, and step titles and explanations are one size
+  smaller. Nothing is left out, the tabs keep their finger size, and on a computer the page is
+  unchanged.
+- **The "Open Yuvomi" card at the end of the install guide sits on the page like the other cards.**
+  It carried the wide shadow of a floating panel, a grey haze in light mode and a second ring
+  beside its border in dark mode, and now has the same shallow shadow as the rest.
+- **The README's install section fits on one screen of a laptop.** It was the longest part of the
+  page. It now shows the app stores as one line with links and the Docker way as the commands to
+  run, with the key warning between them; Podman, Proxmox, the guided setup and the encryption key
+  details fold away below, next to requirements and network, and the full guides are linked. The
+  module groups show the app's Kitchen (Meals, Recipes, Shopping, Pantry) under Household, a short
+  paragraph tells an invited family member how to join, and the language count and the RAM figure
+  each appear once.
 - **Contacts, birthdays and notes read more alike.** The category chips in Contacts stay in one
   row on a wide screen too and scroll sideways with a fade at the edge, also with the mouse wheel,
   instead of taking a second row. An opened note ends like an opened contact: a quiet Delete at
