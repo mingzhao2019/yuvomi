@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   token the form reset the person to the first entry of the list, so the next token silently acted as
   someone else. The token form also names the Pantry module in the scope table instead of "pantry",
   fits the custom date and time on a phone, and labels "Acts as" in every language.
+- **A household member's contact knows their profile birthday** (#2214). The contact card of a
+  household member offered "Add to Birthdays" as soon as it carried a birth date, although the
+  member already had a birthday from their profile, and using it or the birthday import would
+  have added the same person a second time. The contact now offers "Show in Birthdays" for that
+  entry, the import lists the person as already there and skips them, and a hand-made birthday
+  can no longer be linked to that contact. Who may not read the calendar still sees no birthday
+  on the contact.
 - **The Apple Calendar card shows the app-specific password path as plain text, and it is current.**
   The hint printed `<strong>` tags around the address in every language. It now names Apple's
   current path, account.apple.com > Sign-In and Security > App-Specific Passwords, in each
