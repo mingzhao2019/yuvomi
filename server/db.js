@@ -11578,7 +11578,39 @@ const MIGRATIONS = [
       `).run();
     },
   },
+  // Upstream calls this migration v259, but custom v259 is already the
+  // independently revocable birthday feed. Keep the history append-only.
+  {
+    version: 269,
+    description: 'Shopping: a waiting move of a mirrored item remembers when it began (#1911; upstream v259)',
+    // EIN WARTENDER UMZUG BEKOMMT EIN ENDE (#1911). Ein Umzug (#1700, v243)
+    // wartet, solange die Server-Liste seines Objekts nicht eingeschaltet ist -
+    // ohne Zaehler und ohne Uhr, also fuer immer, mit einem Eintrag, der am
+    // alten Platz weiterlebt. `outbound_move_since` ist der Zeitpunkt, an dem
+    // die Vormerkung gesetzt wurde (UTC, `datetime('now')`); nach der Frist
+    // geht die Zeile auf die Liste ihres Objekts zurueck.
+    //
+    // NACHTRAG: ein schon wartender Umzug beginnt seine Frist mit dem Update,
+    // nicht mit einem geratenen Zeitpunkt davor - sonst ginge er beim ersten
+    // Lauf danach ohne Frist zurueck.
+    up(db) {
+      const has = db.prepare('PRAGMA table_info(shopping_items)').all().some((c) => c.name === 'outbound_move_since');
+      if (!has) db.exec('ALTER TABLE shopping_items ADD COLUMN outbound_move_since TEXT');
+      backfillShoppingMoveSince(db);
+    },
+  },
 ];
+
+/**
+ * Der Nachtrag aus Migration 269 (#1911; upstream v259): wartende Umzuege beginnen ihre
+ * Frist jetzt. Die Migration steht append-only hinter dem lokalen Bestand.
+ */
+function backfillShoppingMoveSince(database) {
+  database.exec(`
+    UPDATE shopping_items SET outbound_move_since = datetime('now')
+     WHERE outbound_move = 1 AND outbound_move_since IS NULL
+  `);
+}
 
 /**
  * Der Nachtrag zu Migration 256 (#1935): lokale Zeilen sind hier verfasst.
@@ -11884,6 +11916,12 @@ const CRITICAL_COLUMNS = [
   // Sofortversuch.
   { table: 'shopping_items', column: 'outbound_move', type: 'INTEGER NOT NULL DEFAULT 0' },
   { table: 'shopping_items', column: 'outbound_move_attempts', type: 'INTEGER NOT NULL DEFAULT 0' },
+  // #1911: custom v269 (upstream v259) traegt den Beginn eines Umzugs nach;
+  // ohne die Spalte scheitert jeder Umzug eines gespiegelten Artikels (die Route
+  // schreibt sie) und jeder Lauf (er liest sie). Der Nachtrag startet wartende
+  // Umzuege mit der Spalte, wie in der Migration.
+  { table: 'shopping_items', column: 'outbound_move_since', type: 'TEXT',
+    backfill: backfillShoppingMoveSince },
   // #1935: v256 traegt nach, wer Start und Regel eines Termins verfasst hat;
   // ohne die Spalte scheitert das Anlegen jedes Termins und jeder Abruf von
   // Google, CalDAV und iCloud (er liest sie, bevor er die Zeile anfasst).
