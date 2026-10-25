@@ -1910,7 +1910,9 @@
         "ledgerSortActive": "排序：{{sort}}",
         "ledgerAccountsAll": "所有帳戶",
         "showAccountTransactions": "檢視交易",
-        "loansSummary": "{{count}} 笔进行中 · 剩余 {{amount}}"
+        "loansSummary": "{{count}} 笔进行中 · 剩余 {{amount}}",
+        "summaryTransfersIn": "轉入",
+        "summaryTransfersOut": "轉出"
     },
     "settings": {
         "healthCycleEnableLabel": "在家庭中提供週期",

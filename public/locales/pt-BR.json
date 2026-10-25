@@ -1910,7 +1910,9 @@
         "ledgerSortAmount": "Por valor",
         "ledgerSortActive": "Ordenação: {{sort}}",
         "ledgerAccountsAll": "Todas as contas",
-        "showAccountTransactions": "Ver lançamentos"
+        "showAccountTransactions": "Ver lançamentos",
+        "summaryTransfersIn": "Recebidas",
+        "summaryTransfersOut": "Enviadas"
     },
     "settings": {
         "healthCycleEnableLabel": "Oferecer o ciclo na casa",
