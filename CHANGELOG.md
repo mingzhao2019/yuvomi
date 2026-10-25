@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Birthday import offers "Select all" and "Deselect all".** Select every contact
+  with a birthday that has not already been imported, or clear the selection, with
+  one button above the list. Large selections are imported in batches. If a later
+  batch fails, the saved count remains visible in the warning and the list is
+  refreshed; retrying reports the total across successful batches.
+
 ### Fixed
 - **A new event appears at its time in the calendar right away.** After adding an event, the
   agenda (and every other day list) showed it below all other events of that day until the next
