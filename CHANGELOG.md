@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scopes` stay optional for integrations that create tokens themselves.
 
 ### Fixed
+- **A CalDAV rate limit or outage no longer sends a moved shopping item back (#2137).** When a
+  target reminder list responds with 429 or 5xx while a shopping item is being moved there, the move
+  now waits instead of counting as a failure, so five such answers no longer return the item to
+  its old list. After a rate limit, an outage or a dropped connection the sync sends nothing more
+  to that account until the next pass.
 - **An iCalendar feed with a quoted parameter containing a colon is no longer mis-parsed (#2189).**
   A property such as `DESCRIPTION;ALTREP="data:text/html,Spritzen":Spritzen` was split on the first
   colon, so the description shown was the whole `ALTREP="data:text/html,Spritzen"` value instead of
