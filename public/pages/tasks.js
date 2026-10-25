@@ -10,9 +10,10 @@ import { openModal as openSharedModal, closeModal, whenModalClosed, wireBlurVali
 import { openDetailView, closeDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { whenHistorySettled } from '/utils/overlay-history.js';
 import { beginRowFill, drawRowIcons, flushRowFill } from '/utils/row-fill.js';
-import { stagger, vibrate, scheduleUndoableDelete, acknowledgeCheck, collapseOut, expandIn, wireScrollFade, isImeComposing, drawIconsInSightOrder } from '/utils/ux.js';
+import { stagger, vibrate, scheduleUndoableDelete, offerUndo, acknowledgeCheck, collapseOut, expandIn, wireScrollFade, isImeComposing, drawIconsInSightOrder } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint, deferredRevealHtml } from '/utils/swipe-row.js';
 import { t, getLocale, formatDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK, renderMarkdownLight } from '/utils/html.js';
 import { splitKeepingLineEndings } from '/utils/markdown-checklist.js';
 import { rowActionHtml, rowMenuHtml } from '/utils/row-action.js';
@@ -30,13 +31,13 @@ import '/components/category-manager.js';
 import '/components/tag-manager.js';
 import { findPageFab } from '/utils/fab.js';
 import { rowActionEl } from '/utils/row-action.js';
-import { isNavModuleReadOnly, navModuleAccess } from '/permissions.js';
+import { isNavModuleReadOnly, navModuleAccess, canReorderTasks as mayReorderHousehold } from '/permissions.js';
 import { setBulkPill, clearBulkPill } from '/utils/bulk-pill.js';
 import { isSoloHousehold, hidesPrivacyControls } from '/utils/household.js';
 import { popoverMenuHtml, installPopoverMenus, pageToolsMenuHtml, pageToolsActionEl, syncPopoverMenuItem, showPopoverMenuAt } from '/utils/popover-menu.js';
 import { filterButtonHtml, syncFilterButton, openFilterSheet, filterChipsHtml } from '/utils/filter-sheet.js';
 import { initials } from '/utils/initials.js';
-import { toggleRowHtml } from '/settings/components.js';
+import { toggleRowHtml, formSwitchRowHtml } from '/settings/components.js';
 import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { todayKey, parseLocalDateKey } from '/utils/date.js';
@@ -406,7 +407,7 @@ function renderStartDateBadge(startDateStr) {
   const startKey = String(startDateStr).slice(0, 10);
   if (startKey <= todayKey()) return '';
   return `<span class="due-date">
-    <i data-lucide="calendar-clock" class="icon-sm" aria-hidden="true"></i> <span class="due-date__label">${t('tasks.startsOn', { date: formatDate(startKey) })}</span>
+    <i data-lucide="calendar-clock" class="icon-sm" aria-hidden="true"></i> <span class="due-date__label">${t('tasks.startsOn', { date: dateText(startKey) })}</span>
   </span>`;
 }
 
@@ -648,29 +649,30 @@ function renderTaskCard(task, opts = {}) {
                Der Fortschritts-Umschalter bleibt: er klappt nur auf und zu
                (READ_SAFE_ACTIONS) und zeigt, was man gerade auswaehlt. */''}
           ${darfAbhaken && !selecting ? `
-          <button class="subtask-item__checkbox ${s.status === 'done' ? 'subtask-item__checkbox--done' : ''}"
+          <button class="subtask-item__checkbox check-ring check-ring--sm${s.status === 'done' ? ' check-ring--done' : ''}"
                   data-action="toggle-subtask" data-id="${s.id}"
                   data-status="${s.status}" aria-label="${t('tasks.subtaskMarkDone', { title: esc(s.title) })}">
-            ${s.status === 'done' ? '<i data-lucide="check" class="subtask-item__checkbox-icon" aria-hidden="true"></i>' : ''}
+            <i data-lucide="check" class="check-ring__check" aria-hidden="true"></i>
           </button>` : `
-          <span class="subtask-item__checkbox subtask-item__checkbox--static ${s.status === 'done' ? 'subtask-item__checkbox--done' : ''}"
+          <span class="subtask-item__checkbox subtask-item__checkbox--static check-ring check-ring--sm check-ring--static${s.status === 'done' ? ' check-ring--done' : ''}"
                 role="img" aria-label="${esc(`${s.title}: ${statusLabel(s.status)}`)}">
-            ${s.status === 'done' ? '<i data-lucide="check" class="subtask-item__checkbox-icon" aria-hidden="true"></i>' : ''}
+            <i data-lucide="check" class="check-ring__check" aria-hidden="true"></i>
           </span>`}
           <span class="subtask-item__title">${esc(s.title)}</span>
-          ${!selecting && canEditTaskDefinition(s, task) ? `
-          <div class="subtask-item__actions">
-            <button type="button" class="row-action subtask-item__action"
-                    data-action="rename-subtask" data-id="${s.id}" data-title="${esc(s.title)}"
-                    aria-label="${t('tasks.subtaskRename', { title: esc(s.title) })}">
-              <i data-lucide="pencil" aria-hidden="true"></i>
-            </button>
-            <button type="button" class="row-action row-action--danger subtask-item__action"
-                    data-action="delete-subtask" data-id="${s.id}" data-title="${esc(s.title)}"
-                    aria-label="${t('tasks.subtaskDelete', { title: esc(s.title) })}">
-              <i data-lucide="trash-2" aria-hidden="true"></i>
-            </button>
-          </div>` : ''}
+          ${/* UMBENENNEN UND LOESCHEN IM ZEILENMENUE (R23, D7): Stift und
+               Papierkorb standen dauerhaft an jeder Teilaufgabe - zwei
+               Handlungen neben dem Haken, der Papierkorb sichtbar rot. Dieselbe
+               Endzone wie die Aufgabe darueber: EIN Mehr-Knopf. */ ''}
+          ${!selecting && canEditTaskDefinition(s, task) ? rowMenuHtml({
+            id: `subtask-menu-${s.id}`,
+            label: t('common.moreActionsNamed', { name: s.title }),
+            className: 'subtask-item__action',
+            defer: true,
+            items: [
+              { action: 'rename-subtask', id: s.id, icon: 'pencil', label: t('common.edit'), attrs: { 'data-title': s.title } },
+              { action: 'delete-subtask', id: s.id, icon: 'trash-2', label: t('common.delete'), danger: true, attrs: { 'data-title': s.title } },
+            ],
+          }) : ''}
         </div>`).join('')
     : '';
 
@@ -866,8 +868,10 @@ function sortTasksManual(a, b, now) {
  * Auswahlflaeche), nicht bei `tasks: read` und nicht am Wandtablett.
  */
 function canReorderTasks(groupMode) {
+  // Die Handordnung gehoert dem Haushalt (R23, D15): ohne
+  // `tasks_reorder_family` liest man sie, Griffe und "Zuruecksetzen" fehlen.
   return groupMode === 'category' && state.viewMode === 'list'
-    && !state.bulkSelectMode && !readOnly() && !actingAsDisplay();
+    && !state.bulkSelectMode && !readOnly() && !actingAsDisplay() && mayReorderHousehold();
 }
 
 /** Der Knopf am Gruppenkopf, der die Gruppe zur automatischen Reihenfolge zurueckbringt. */
@@ -919,7 +923,7 @@ function renderTaskGroups(tasks, groupMode, rowsHtml = (items, render) => items.
         // Der CTA klickt den FAB, und den gibt es bei `tasks: read` nicht mehr.
         // Ohne diese Zeile blieb er als einziger Knopf einer leeren Seite
         // stehen und tat beim Antippen nichts.
-        action: readOnly() ? undefined : { label: t('tasks.emptyAction'), icon: 'plus', attrs: { id: 'empty-cta-tasks' } },
+        action: readOnly() ? undefined : { tone: 'secondary', label: t('tasks.emptyAction'), icon: 'plus', attrs: { id: 'empty-cta-tasks' } },
       });
   }
 
@@ -1265,7 +1269,7 @@ function renderModalContent({ task = null, users = [], reminder = null } = {}) {
   // Prioritaet und Kategorie stehen nicht mehr in der Zusammenfassung: sie
   // stehen offen im Hauptteil (A3 P1-2, siehe unten).
   const advancedSummary = [];
-  if (isEdit && task.start_date) advancedSummary.push(formatDate(task.start_date));
+  if (isEdit && task.start_date) advancedSummary.push(dateText(task.start_date));
   const summaryPoints = isEdit ? Number(task.points) : prefillPoints;
   if (summaryPoints > 0) advancedSummary.push(t('tasks.pointsSummary', { count: summaryPoints }));
   if (isEdit && task.tags?.length) advancedSummary.push(task.tags.join(', '));
@@ -1330,13 +1334,10 @@ function renderModalContent({ task = null, users = [], reminder = null } = {}) {
            Ausgeschaltet steht er seit R19 hinter dem Aufklapper, dessen Zeile
            ihn nennt (countdownTucked oben). -->
       <div class="form-group">
-        <label class="toggle" style="margin:0">
-          <input type="checkbox" id="task-countdown" name="countdown" aria-describedby="task-countdown-hint"
-                 ${task?.countdown ? 'checked' : ''}>
-          <span class="toggle__track"></span>
-          <span>${t('tasks.countdownToggle')}</span>
-        </label>
-        <p class="task-field-hint" id="task-countdown-hint">${t('tasks.countdownHint')}</p>
+        ${formSwitchRowHtml({
+          label: t('tasks.countdownToggle'), checked: Boolean(task?.countdown),
+          hint: t('tasks.countdownHint'), hintId: 'task-countdown-hint', attrs: { id: 'task-countdown', name: 'countdown' },
+        })}
         <!-- DER SCHALTER SPERRT SICH SELBST, statt sich auf die Zeile darueber
              zu verlassen. Ein Hinweis ist keine Fehlervermeidung: ohne
              Faelligkeit war der Schalter voll bedienbar, speicherte, meldete
@@ -1425,13 +1426,10 @@ ${syncTargetFieldHtml(task)}
            die Sperre das Aendern. In einem Ein-Personen-Haushalt sagen beide
            nichts, also verschwinden sie zusammen (isSoloHousehold). -->
       <div class="form-group"${hidesPrivacyControls('tasks') ? ' hidden' : ''}>
-        <label class="toggle" style="margin:0">
-          <input type="checkbox" id="task-locked" name="locked" aria-describedby="task-locked-hint"
-                 ${task?.locked ? 'checked' : ''}>
-          <span class="toggle__track"></span>
-          <span>${t('tasks.lockedToggle')}</span>
-        </label>
-        <p class="task-field-hint" id="task-locked-hint">${t('tasks.lockedHint')}</p>
+        ${formSwitchRowHtml({
+          label: t('tasks.lockedToggle'), checked: Boolean(task?.locked),
+          hint: t('tasks.lockedHint'), hintId: 'task-locked-hint', attrs: { id: 'task-locked', name: 'locked' },
+        })}
       </div>
 
       ${renderDocumentAttachField({
@@ -2057,31 +2055,70 @@ async function toggleTaskStatus(id, currentStatus, doneByUserId = null) {
  * @param {string} nextStatus der Status NACH dem Wechsel
  * @param {object} response die Antwort von `toggleTaskStatus`
  */
-function acknowledgeStatusToggle(container, taskId, nextStatus, response) {
-  window.yuvomi.showToast(
-    seriesDoneText(response) ?? statusToggleSentence(taskId, nextStatus),
-    'default',
-    5000,
-    async () => {
-      try {
-        await toggleTaskStatus(taskId, nextStatus);
+function acknowledgeStatusToggle(container, taskId, nextStatus, response, before = null) {
+  // DIE QUITTUNG NENNT DIE AUFGABE AUCH NACH DEM AUSTRITT (Critique R23, N1).
+  // `before` ist der Stand von VOR dem Haken: nach `reloadWithRowMotion` steht
+  // eine erledigte Aufgabe, die der Filter ausblendet, nicht mehr in
+  // `state.tasks`, und der Satz fiel auf das titellose "Als erledigt markiert."
+  // zurueck - R22-D17 griff genau dort nicht, wo die Zeile geht.
+  const snap = before ?? taskSnapshot(taskId);
+  // ELTERNAUFGABE MIT OFFENEN TEILAUFGABEN (R23, D6): sie schloss still, die
+  // offenen Teilaufgaben blieben unsichtbar zurueck. Der Toast sagt es und
+  // bietet "Alle abhaken" an; zurueck geht es ueber den Haken der Zeile.
+  if (nextStatus === 'done' && snap?.openSubtaskIds.length && !seriesDoneText(response)) {
+    const ids = snap.openSubtaskIds;
+    offerUndo({
+      message: t('tasks.doneSubtasksOpen', { title: snap.title, count: ids.length }),
+      label: t('tasks.checkAllSubtasks'),
+      undo: async () => {
+        for (const id of ids) await api.patch(`/tasks/${id}/status`, { status: 'done' });
         await reloadWithRowMotion(container, taskId);
-      } catch (err) {
+        window.yuvomi.showToast(t('tasks.subtasksAllDone', { title: snap.title }), 'success');
+      },
+      onError: async (err) => {
         window.yuvomi.showToast(errorSentence(err), 'danger');
         await reloadIfTaskGone(err, container);
-      }
+      },
+    });
+    return;
+  }
+  offerUndo({
+    message: seriesDoneText(response) ?? statusToggleSentence(taskId, nextStatus, snap?.title),
+    undo: async () => {
+      await toggleTaskStatus(taskId, nextStatus);
+      await reloadWithRowMotion(container, taskId);
     },
-  );
+    onError: async (err) => {
+      window.yuvomi.showToast(errorSentence(err), 'danger');
+      await reloadIfTaskGone(err, container);
+    },
+  });
+}
+
+/**
+ * Was die Quittung von einer Aufgabe braucht, gelesen VOR dem Statuswechsel:
+ * Titel und die offenen Teilaufgaben, die man sehen darf.
+ * @returns {{ title: string, openSubtaskIds: number[] } | null}
+ */
+function taskSnapshot(taskId) {
+  const task = state.tasks.find((x) => String(x.id) === String(taskId));
+  if (!task) return null;
+  const subs = Array.isArray(task.subtasks) ? task.subtasks : [];
+  return {
+    title: task.title,
+    openSubtaskIds: subs.filter((sub) => sub && sub.status !== 'done' && sub.id != null).map((sub) => sub.id),
+  };
 }
 
 /**
  * DIE QUITTUNG NENNT DIE AUFGABE (R22 D17). „Als erledigt markiert." sagte
  * nicht, WAS - nach einem Wisch ist die Zeile weg, und wer zwei schnell
  * nacheinander abhakt, sieht zwei gleiche Saetze (der zweite ersetzt den
- * ersten, D18). Ohne Titel (Zeile schon aus dem Zustand) bleibt der alte Satz.
+ * ersten, D18). Ohne Titel (weder vorher gemerkt noch im Zustand) bleibt der
+ * alte Satz.
  */
-function statusToggleSentence(taskId, nextStatus) {
-  const title = state.tasks.find((x) => String(x.id) === String(taskId))?.title;
+function statusToggleSentence(taskId, nextStatus, knownTitle = null) {
+  const title = knownTitle ?? state.tasks.find((x) => String(x.id) === String(taskId))?.title;
   if (title) return t(nextStatus === 'done' ? 'tasks.checkedDoneNamed' : 'tasks.checkedOpenNamed', { title });
   return t(nextStatus === 'done' ? 'tasks.swipedDoneToast' : 'tasks.swipedOpenToast');
 }
@@ -2145,7 +2182,7 @@ function reminderWhenText(reminder) {
   if (!reminder?.remind_at) return '';
   const at = parseRemindAtAsUtc(reminder.remind_at);
   if (Number.isNaN(at.getTime())) return '';
-  return `${formatDate(at)} ${formatTime(at)} ${timeSuffix()}`.trimEnd();
+  return `${dateText(at)} ${formatTime(at)} ${timeSuffix()}`.trimEnd();
 }
 
 /**
@@ -2245,11 +2282,7 @@ function renderReminderSection(task = null, reminder = null) {
   return `
     <div class="reminder-section"${lockedDue}>
       <div class="reminder-section__header">
-        <label class="toggle" style="margin:0">
-          <input type="checkbox" id="reminder-toggle" ${hasReminder ? 'checked' : ''}${off}>
-          <span class="toggle__track"></span>
-          <span class="reminder-section__title">${t('reminders.enableLabel')}</span>
-        </label>
+        ${formSwitchRowHtml({ label: t('reminders.enableLabel'), checked: hasReminder, disabled: Boolean(off), attrs: { id: 'reminder-toggle' } })}
       </div>
       ${locked ? `<p class="task-field-hint">${t('reminders.readOnlyNotice')}</p>` : ''}
       <div id="reminder-fields" class="reminder-fields" ${hasReminder ? '' : 'style="display:none"'}>
@@ -4008,27 +4041,35 @@ async function handleRenameSubtask(id, currentTitle, container) {
   }
 }
 
-async function handleDeleteSubtask(id, title, container) {
-  // Rückfrage, weil Löschen der einzige Weg ohne Rückweg ist - abhaken lässt
-  // sich zurücknehmen, das hier nicht.
-  const ok = await confirmModal(t('tasks.subtaskDeleteConfirm', { title }), {
-    confirmLabel: t('common.delete'),
-    danger: true,
-    detail: t('tasks.subtaskDeleteDetail'),
+function handleDeleteSubtask(id, title, container) {
+  // LOESCHEN MIT RUECKWEG STATT RUECKFRAGE (R23 D6, Rest aus S5). Eine
+  // Teilaufgabe ist kein Behaelter - nichts haengt an ihr, also keine Kaskade,
+  // die eine Rueckfrage rechtfertigte. Wie die Aufgabe selbst: sofort weg,
+  // fuenf Sekunden "Rueckgaengig", erst dann der Server. Ausgeblendet wird
+  // jede Darstellung der Zeile (Liste und Detailspalte).
+  const els = [...container.querySelectorAll(`[data-subtask-id="${CSS.escape(String(id))}"]`)];
+  // Der Fokus stand auf dem Menue der Zeile, die gleich abtritt: er geht an
+  // den Fortschritts-Umschalter der Elternaufgabe, nicht ins Leere.
+  const parentToggle = els[0]?.closest('[data-task-id]')?.querySelector('[data-action="toggle-subtasks"]');
+  for (const el of els) el.hidden = true;
+  if (els.some((el) => el.contains(document.activeElement)) || document.activeElement === document.body) parentToggle?.focus();
+  scheduleUndoableDelete({
+    message: t('common.deletedNamed', { name: title }),
+    commit: async ({ keepalive }) => {
+      try {
+        await api.delete(`/tasks/${id}`, { keepalive });
+      } catch (err) {
+        // SCHON GELOESCHT IST EIN ERFOLG (#1909): jemand anderes war schneller.
+        if (!isAlreadyDeleted(err, 'tasks_task_not_found')) throw err;
+      }
+      if (keepalive) return;
+      await loadTasks(container);
+    },
+    restore: (err) => {
+      for (const el of els) el.hidden = false;
+      if (err) window.yuvomi.showToast(errorSentence(err), 'danger');
+    },
   });
-  if (!ok) return;
-  try {
-    try {
-      await api.delete(`/tasks/${id}`);
-    } catch (err) {
-      // SCHON GELOESCHT IST EIN ERFOLG (#1909): jemand anderes war schneller.
-      if (!isAlreadyDeleted(err, 'tasks_task_not_found')) throw err;
-    }
-    await loadTasks(container);
-    refocusAfterRender();
-  } catch (err) {
-    window.yuvomi.showToast(errorSentence(err), 'danger');
-  }
 }
 
 // --------------------------------------------------------
@@ -4120,7 +4161,7 @@ function renderKanbanCard(task) {
   // die Aufgabe die ganze Zeit behalten hat.
   const next = archived ? task.status : kanbanNextStatus(task.status);
   const icon = archived ? 'archive-restore'
-    : next === 'done' ? 'check' : next === 'in_progress' ? 'circle-play' : 'rotate-ccw';
+    : next === 'done' ? 'check' : next === 'in_progress' ? 'circle-dot-dashed' : 'rotate-ccw';
   const nextLabel = archived
     ? t('tasks.unarchiveButton')
     : next === 'done'
@@ -4151,7 +4192,7 @@ function renderKanbanCard(task) {
       <!-- Button statt div: einziger Tastaturweg in die Kartendetails; der
            Board-Klick-Handler fängt ihn über die umschließende
            .kanban-card[data-task-id]. -->
-      <button type="button" class="kanban-card__title u-card-title u-compact">${esc(task.title)}</button>
+      <button type="button" class="kanban-card__title u-row-title">${esc(task.title)}</button>
       <div class="kanban-card__meta">
         ${renderPriorityBadge(task.priority)}
         ${due ? `<span class="due-date ${due.cls}"><i data-lucide="clock" class="icon-sm" aria-hidden="true"></i> ${due.label}</span>` : ''}
@@ -4940,7 +4981,7 @@ function openHistoryEntry(id, trigger, container) {
  * die Spalte zieht dann nach (syncHistoryPane); `quiet`: die Aenderung kam
  * aus der Spalte selbst, sie zeigt sie schon.
  */
-async function loadHistory(container, { append = false, afterWrite = false, quiet = false } = {}) {
+async function loadHistory(container, { append = false, afterWrite = false, quiet = false, beforeRender = null } = {}) {
   // Ein zweiter Aufruf, waehrend einer laeuft, WARTET auf den ersten und faehrt
   // dann selbst - er wird nicht verworfen. Ein blosses `return` hier hatte den
   // Klick auf ein Personen-Chip stillschweigend geschluckt: `userId` war schon
@@ -4971,7 +5012,10 @@ async function loadHistory(container, { append = false, afterWrite = false, quie
   } finally {
     state.history.loading = null;
     release();
-    renderHistory(container, { afterWrite, quiet });
+    // `beforeRender` (setViewMode): stellt den Kopf im selben Task um, in dem
+    // der Verlauf zeichnet - oder sagt `false`, wenn inzwischen eine andere
+    // Ansicht gewaehlt ist.
+    if (!beforeRender || beforeRender() !== false) renderHistory(container, { afterWrite, quiet });
   }
 }
 
@@ -5001,6 +5045,8 @@ function renderTaskList(container, { paneQuiet = false } = {}) {
   // Kontakten): die Shell nimmt daran Kapsel und FAB weg (layout.css,
   // "Auswahlmodus"), die Zeilen ihren Wisch-Pfeil.
   container.querySelector('.tasks-page')?.classList.toggle('is-selecting', state.bulkSelectMode);
+  // Gruppieren und Auswahl entscheiden, ob es eine Handordnung gibt.
+  syncSortMode(container);
   // VOR dem Ladefehler der Aufgaben: der Verlauf hat seinen eigenen Bestand und
   // seinen eigenen Fehler. Ein gescheitertes `/tasks` sagt nichts darüber, ob
   // die Vorgänge zu haben sind - stünde die Weiche danach, zeigte der Verlauf
@@ -5140,6 +5186,11 @@ function toolsMenuItems() {
   if (!readOnly()) {
     items.push({ action: 'bulk-select', label: t('tasks.bulkSelect'), icon: 'list-checks',
       checked: state.bulkSelectMode, disabled: !isList });
+    // Nur am Finger (layout.css): holt die Griffe der Handordnung zurueck
+    // (R23, D13, list-row.css). Abgeschaltet, wo es keine Handordnung gibt
+    // (syncSortMode).
+    items.push({ action: 'sort-mode', label: t('common.sortMode'), icon: 'arrow-up-down',
+      checked: false, disabled: !canReorderTasks(state.groupMode) });
     // Nur waehrend der Auswahl sichtbar (syncBulkMenu): die drei Sammelaktionen,
     // die in der einzeiligen Pille keinen Platz haben.
     items.push(
@@ -6842,10 +6893,11 @@ function wireSwipeGestures(container) {
         // Neuzeichnen (auch im Fehlerfall) bringt eine frische Karte.
         const card = row.querySelector('.task-card');
         if (card) card.style.visibility = 'hidden';
+        const before = taskSnapshot(taskId);
         try {
           const response = await toggleTaskStatus(taskId, capturedStatus);
           await reloadWithRowMotion(container, taskId);
-          acknowledgeStatusToggle(container, taskId, nextStatus, response);
+          acknowledgeStatusToggle(container, taskId, nextStatus, response, before);
         } catch (err) {
           window.yuvomi.showToast(toggleFailedSentence(err, taskId, nextStatus), 'danger');
           await loadTasks(container);
@@ -7108,16 +7160,20 @@ function wireTaskReorder(container) {
  * Die Suche bleibt im Desktop-Raster als unsichtbarer Platzhalter, damit der
  * Wechsel zwischen Liste, Brett und Verlauf nicht horizontal springt.
  */
+function syncViewToggle(container) {
+  container.querySelectorAll('#view-toggle [data-view]').forEach((b) => {
+    const on = b.dataset.view === state.viewMode;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+
 function syncViewChrome(container) {
   const mode = state.viewMode;
   const isList = mode === 'list';
   const isHistory = mode === 'history';
 
-  container.querySelectorAll('#view-toggle [data-view]').forEach((b) => {
-    const on = b.dataset.view === mode;
-    b.classList.toggle('is-active', on);
-    b.setAttribute('aria-pressed', String(on));
-  });
+  syncViewToggle(container);
 
   // EIN KOPF, EINE BREITE (#1012, nach der Kalender-Entscheidung vom
   // 2026-08-27): der Kopf steht ueber drei Koerpern und haelt die Kante des
@@ -7151,10 +7207,21 @@ function syncViewChrome(container) {
   // zeigt Vorgaenge - ein Statusfilter darueber waere eine Auswahl, die nichts
   // veraendern kann. Die Gruppierung steht im Filterblatt und fragt dort beim
   // Oeffnen selbst nach der Ansicht.
+  //
+  // DER KOPF BEHAELT SEINE FORM (R23, D13; Critique G2 "Verlauf verschiebt
+  // Kopf"). Der Filterknopf verschwand im Verlauf mit `hidden`, und Segment,
+  // Menue und Primaerknopf rueckten um seine 48px nach rechts - der Kopf
+  // sprang bei jedem Wechsel. Er bleibt jetzt stehen und ist nur
+  // abgeschaltet: wie ein ausgegrautes Werkzeug in Apples Werkzeugleisten, die
+  // ihre Belegung je Ansicht nicht umbauen. Die Suche steht links vor dem
+  // Segment, ihr Weggang verschiebt nichts, was rechts steht.
   const search = container.querySelector('.tasks-toolbar__search');
   if (search) search.classList.toggle('tasks-toolbar__search--inactive', isHistory);
   const filterBtn = container.querySelector('#tasks-filter-btn');
-  if (filterBtn) filterBtn.hidden = isHistory;
+  if (filterBtn) {
+    filterBtn.hidden = false;
+    filterBtn.disabled = isHistory;
+  }
   if (!isList) {
     state.bulkSelectMode = false;
     state.selectedTaskIds.clear();
@@ -7168,12 +7235,41 @@ function syncViewChrome(container) {
   syncPopoverMenuItem(menu, 'bulk-select', state.bulkSelectMode);
   const bulkItem = menu?.querySelector('.popover-menu__item[data-action="bulk-select"]');
   if (bulkItem) bulkItem.disabled = !isList;
+  syncSortMode(container);
   // Die Auswahl zu LEEREN raeumt die Pille nicht weg: sie steht, bis
   // updateBulkActionsBar sie abraeumt. Ohne diesen Aufruf blieb
   // „Erledigt / Archivieren / Loeschen" ueber dem Verlauf stehen - mit leerer
   // Auswahl, also Kapseln ohne Gegenstand.
   updateBulkActionsBar(container);
 }
+
+/**
+ * SORTIERMODUS AM FINGER (R23, D13). Ohne schwebenden Zeiger stehen die Griffe
+ * der Handordnung nur, solange die Seitenwurzel `.is-sorting` traegt
+ * (list-row.css) - Mehr-Knopf und Griff lagen sonst nebeneinander an der
+ * Daumenkante. Der Eintrag im Werkzeugmenue schaltet um und traegt den Haken;
+ * wo es keine Handordnung gibt (anderes Gruppieren, Brett, Verlauf, Auswahl,
+ * ohne Recht), ist er abgeschaltet und der Modus aus.
+ */
+function setSortMode(container, on) {
+  const page = container.querySelector('.tasks-page');
+  const allowed = canReorderTasks(state.groupMode);
+  page?.classList.toggle('is-sorting', Boolean(on && allowed));
+  syncSortMode(container);
+}
+
+function syncSortMode(container) {
+  const page = container.querySelector('.tasks-page');
+  const allowed = canReorderTasks(state.groupMode);
+  if (!allowed) page?.classList.remove('is-sorting');
+  const menu = container.querySelector('#tasks-tools-menu');
+  syncPopoverMenuItem(menu, 'sort-mode', Boolean(page?.classList.contains('is-sorting')));
+  const item = menu?.querySelector('.popover-menu__item[data-action="sort-mode"]');
+  if (item) item.disabled = !allowed;
+}
+
+/** Zaehler der Ansichtswechsel - nur der juengste zeichnet (setViewMode). */
+let viewSwitchSeq = 0;
 
 /** Nimmt die Ansicht die volle Content-Spalte ein? */
 function isKanbanMode() {
@@ -7211,31 +7307,40 @@ function setViewMode(container, mode) {
   // Wechsel selbst schreibt keinen Zurueck-Schritt.
   taskMd?.clear({ history: 'replace', repick: true });
   renderFilters(container);
-  syncViewChrome(container);
+  // Das Segment antwortet sofort (die Kapsel gleitet), der Koerper erst, wenn
+  // die neue Ansicht steht.
+  syncViewToggle(container);
 
-  // Skeleton-Flash: einen Frame Render-Feedback geben, dann Ansicht aufbauen
-  const listEl = container.querySelector('#task-list');
-  if (listEl) listEl.style.opacity = '0.4';
-  const restore = () => {
-    const el = container.querySelector('#task-list');
-    if (el) { el.style.transition = 'opacity var(--transition-fast)'; el.style.opacity = ''; }
+  // KEIN ZWISCHENBILD (R23, D13; Critique G2: 13-76 ms blasse Liste, Shift
+  // 0,61). Bis hier dimmte der Wechsel die alte Ansicht auf 0,4 und stellte
+  // Kopfmass und Spaltenform (`is-reading-measure`, Liste + Detail) sofort um -
+  // die alte Liste stand ein paar Frames blass in der Breite des Bretts. Jetzt
+  // bleibt die alte Ansicht unveraendert stehen, bis die neue geladen ist; dann
+  // tauschen Kopf und Koerper im selben Task, also im selben Bild (R22-D1: ein
+  // Schnitt, kein Sprung). Ein zweiter Wechsel waehrend des Ladens gewinnt:
+  // der erste zeichnet dann nichts mehr.
+  const seq = ++viewSwitchSeq;
+  const current = () => seq === viewSwitchSeq && state.viewMode === mode;
+  const swap = () => {
+    if (!current()) return false;
+    syncViewChrome(container);
+    return true;
   };
-  requestAnimationFrame(() => {
-    // Der Verlauf holt Vorgaenge, die beiden anderen Ansichten Aufgaben -
-    // zwei Abfragen, und der Umschalter darf nicht die falsche fahren. Ein
-    // gemeinsames loadTasks() haette den Verlauf mit einer Aufgabenliste
-    // befuellt, die er gar nicht anzeigt.
-    if (state.viewMode === 'history') {
-      loadHistory(container).finally(restore);
-      return;
-    }
-    // Task-Menge neu laden: der Kanban lädt alle Stati (kein status-Param),
-    // die Liste wendet den Statusfilter wieder an (Audit A1-07/P3). Fällt bei
-    // Netzfehler auf ein reines Re-Render der vorhandenen Aufgaben zurück.
-    loadTasks(container).catch(() => renderTaskList(container)).finally(() => {
-      updateBulkActionsBar(container);
-      restore();
-    });
+  // Der Verlauf holt Vorgaenge, die beiden anderen Ansichten Aufgaben - zwei
+  // Abfragen, und der Umschalter darf nicht die falsche fahren. Ein
+  // gemeinsames loadTasks() haette den Verlauf mit einer Aufgabenliste
+  // befuellt, die er gar nicht anzeigt.
+  if (mode === 'history') {
+    loadHistory(container, { beforeRender: swap });
+    return;
+  }
+  // Task-Menge neu laden: der Kanban lädt alle Stati (kein status-Param),
+  // die Liste wendet den Statusfilter wieder an (Audit A1-07/P3). Fällt bei
+  // Netzfehler auf ein reines Re-Render der vorhandenen Aufgaben zurück.
+  fetchTasks().catch(() => {}).then(() => {
+    if (!swap()) return;
+    renderTaskList(container);
+    updateBulkActionsBar(container);
   });
 }
 
@@ -7270,6 +7375,9 @@ function wireToolbar(container) {
         break;
       case 'bulk-select':
         toggleBulkSelect(container);
+        break;
+      case 'sort-mode':
+        setSortMode(container, !container.querySelector('.tasks-page')?.classList.contains('is-sorting'));
         break;
       case 'bulk-archive':
         runBulkAction('archive', container);
@@ -7807,12 +7915,13 @@ function wireTaskList(container) {
       // Die Haltezeit laeuft ab dem Tipp, neben dem Roundtrip - ein langsames
       // Netz verlaengert sie nicht noch einmal (EXIT_HOLD_MS).
       const holdUntil = performance.now() + EXIT_HOLD_MS;
+      const before = taskSnapshot(id);
       try {
         const response = await toggleTaskStatus(id, status);
         await settled;
         await reloadWithRowMotion(container, id, { holdUntil });
         // Derselbe Rückweg wie beim Wischen - und dieselbe Quittung.
-        acknowledgeStatusToggle(container, id, nextStatus, response);
+        acknowledgeStatusToggle(container, id, nextStatus, response, before);
       } catch (err) {
         window.yuvomi.showToast(toggleFailedSentence(err, id, nextStatus), 'danger');
         await loadTasks(container);
@@ -7849,7 +7958,7 @@ function wireTaskList(container) {
       // Neuzeichnen wartet auf beides (R18 - vorher kam der Haken erst mit der
       // Antwort, und die Quittung spielte auf JEDER erledigten Teilaufgabe).
       const subtaskDone = target.dataset.status !== 'done';
-      target.classList.toggle('subtask-item__checkbox--done', subtaskDone);
+      target.classList.toggle('check-ring--done', subtaskDone);
       const settled = acknowledgeCheck(target, { checked: subtaskDone });
       try {
         await toggleSubtaskStatus(id, target.dataset.status);
@@ -7857,7 +7966,7 @@ function wireTaskList(container) {
         await loadTasks(container);
       } catch (err) {
         // Der vorgezogene Haken geht zurueck - der Server kennt ihn nicht.
-        target.classList.toggle('subtask-item__checkbox--done', !subtaskDone);
+        target.classList.toggle('check-ring--done', !subtaskDone);
         window.yuvomi.showToast(errorSentence(err), 'danger');
         await reloadIfTaskGone(err, container);
       }
@@ -7909,7 +8018,7 @@ function wireTaskList(container) {
     }
 
     if (action === 'delete-subtask') {
-      await handleDeleteSubtask(id, target.dataset.title, container);
+      handleDeleteSubtask(id, target.dataset.title, container);
     }
   });
 }

@@ -290,16 +290,17 @@ test('die geteilte Leseansicht zeichnet Gruppen mit Titel und laesst leere ganz 
   }
 });
 
-test('in der Spalte: Kennzahlen als Zeilen ohne Wortbruch, nicht als drei 136px-Kacheln (A8 P1-2)', async () => {
+test('in der Spalte: Kennzahlen als Karten zu zweit, nicht als Tabelle und nicht als drei 136px-Kacheln (A8 P1-2, R23 D12)', async () => {
   const { eachRule } = await import('./css-rules.js');
   const css = readFileSync(new URL('../public/styles/inventory.css', import.meta.url), 'utf8');
   const inSplit = [...eachRule(css)].filter((r) => r.at.some((a) => /module-surface/.test(a)));
   const body = (sel) => inSplit.filter((r) => r.selector.trim() === sel).map((r) => r.body).join(';');
-  assert.match(body('.inventory-list .metric-grid'), /grid-template-columns:\s*minmax\(0, 1fr\)/, 'eine Kennzahl je Zeile');
-  assert.match(body('.inventory-list .metric-grid > .metric-card'), /flex-direction:\s*row/, 'Wort links, Zahl rechts');
-  const label = body('.inventory-list .metric-grid .metric-card__label');
-  assert.match(label, /overflow-wrap:\s*normal/, 'kein Bruch mitten im Wort („AUFMERKSAMKE/IT")');
-  assert.match(label, /white-space:\s*nowrap/);
+  assert.match(body('.inventory-list .metric-grid'), /--summary-cards:\s*2/, 'zwei Karten je Zeile - keine 136px-Kacheln');
+  assert.match(body('.inventory-list .metric-grid > .metric-card:last-child:nth-child(odd)'), /grid-column:\s*1\s*\/\s*-1/, 'die dritte Karte nimmt die volle Zeile');
+  // Die Karte bleibt eine Kennzahlkarte: keine Zeilen-Umbauten, kein eigener Wertgrad.
+  const all = [...eachRule(css)].map((r) => `${r.selector} {${r.body}}`).join('\n');
+  assert.doesNotMatch(all, /\.inventory-list \.metric-grid > \.metric-card \{[^}]*flex-direction:\s*row/, 'keine Tabellenzeile');
+  assert.doesNotMatch(all, /\.inventory-list \.metric-grid \.metric-card__value \{[^}]*font-size/, 'kein eigener Wertgrad');
 });
 
 // Review R11: der Kilometerstand-Trend rechnet X nach dem Datum. Zwei
@@ -416,7 +417,9 @@ test('E3: ein Chip zeigt nur seine Kategorie (nach Ort gruppiert) und ersetzt di
     assert.equal(hist.state?.path, '/inventory?category=electronics', 'der Router liest `path` bei popstate');
     const groups = inventory.visibleGroups();
     assert.deepEqual(groups.flatMap((g) => g.items.map((i) => i.id)).sort(), [42, 8].sort());
-    assert.ok(groups.every((g) => g.icon === 'map-pin'), 'unter einem Chip gruppiert der Ort - der Kategoriename stuende sonst doppelt');
+    // Die Gruppen nach Ort tragen die Ort-ID als Schluessel (oder "ohne Ort"), die nach
+    // Kategorie den Kategorienamen; das Ort-Zeichen gibt es seit R23 (D10) nicht mehr.
+    assert.ok(groups.every((g) => /^(\d+|__unlocated__)$/.test(g.key)), 'unter einem Chip gruppiert der Ort - der Kategoriename stuende sonst doppelt');
     inventory.selectCategory(null);
     assert.deepEqual(entries(), ['/inventory'], '„Alle" nimmt die Kategorie aus der Adresse');
     inventory.selectCategory('sports');
@@ -577,4 +580,21 @@ test('R22: `?open=` oeffnet auch am Telefon das Blatt des Gegenstands', async ()
   const mount = src.slice(src.indexOf('_md = mountMasterDetail({'), src.indexOf('onModeChange: onInventoryModeChange'));
   assert.match(mount, /deepLinkNarrow: true,/);
   assert.match(mount, /openNarrow: openItemNarrow,/, 'das Blatt, das der Link oeffnet');
+});
+
+// R23 S11 (optimize): versteckt geladen erschien die Chipreihe mit den Daten
+// und schob Liste und Detail um ihre Hoehe nach unten (1440x900, 4x CPU:
+// Layout-Shift 0,035). Sie haelt ihren Platz, bis die Chips entschieden sind.
+test('R23: die Kategorie-Reihe haelt ihren Platz, bis die Daten da sind', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const src = readFileSync(new URL('../public/pages/inventory.js', import.meta.url), 'utf8');
+  const render = src.slice(src.indexOf('export async function render('));
+  assert.match(render.slice(0, render.indexOf("page.append(toolbar, filters, split, fab);")), /filters\.dataset\.pending = '';/);
+  assert.doesNotMatch(render.slice(0, render.indexOf("page.append(toolbar, filters, split, fab);")), /filters\.hidden = true;/, 'nicht versteckt starten');
+  const update = src.slice(src.indexOf('function updateFilterChips()'), src.indexOf('function computeMetrics('));
+  assert.ok(update.indexOf("host.removeAttribute('data-pending');") > 0 && update.indexOf("host.removeAttribute('data-pending');") < update.indexOf('host.hidden ='),
+    'erst mit den Daten entscheidet sich, ob es Chips gibt');
+  const css = readFileSync(new URL('../public/styles/inventory.css', import.meta.url), 'utf8');
+  const pending = [...eachRule(css)].filter((r) => r.selector.trim() === '.inventory-filters[data-pending]');
+  assert.ok(pending.some((r) => /min-block-size:\s*calc\(var\(--target-md\) \+ 2 \* var\(--space-3\)\)/.test(r.body)), 'eine Chiphoehe plus Polster');
 });

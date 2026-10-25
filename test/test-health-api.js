@@ -2189,3 +2189,113 @@ test('#2054: ohne schedules bleibt die Antwort die bisherige Zeile', async () =>
   assert.equal('schedules' in res.body.data, false);
   await call('DELETE', `/medications/${res.body.data.id}`);
 });
+
+// --------------------------------------------------------
+// Rueckgaengig nach "Eingenommen" nimmt Dosis UND Bestand zurueck (R23, D6)
+//
+// Bis R23 korrigierte das Zuruecknehmen nur den Eintrag (#701), nie den
+// Bestand: eine versehentlich getippte Dosis kostete eine Tablette, die noch im
+// Schrank lag. Der Toast bot gar keinen Rueckweg an.
+// --------------------------------------------------------
+
+test('R23 D6: /take meldet stock_deducted, /undo stellt Eintrag und Bestand wieder her', async () => {
+  asA();
+  const med = await call('POST', '/medications', { name: 'Undo-Plan', stock_qty: 6 });
+  const id = med.body.data.id;
+  const sched = await call('POST', `/medications/${id}/schedules`, { time_of_day: '08:00', dose_qty: 2 });
+  assert.equal(sched.status, 201);
+  const pending = await call('POST', `/medications/${id}/logs`, { scheduled_at: '2026-06-06T08:00', schedule_id: sched.body.data.id });
+  const lid = pending.body.data.id;
+  const taken = await call('POST', `/logs/${lid}/take`, { stock_deduct: 2 });
+  assert.equal(taken.body.stock_deducted, 2, 'die Antwort nennt, was abging');
+  assert.equal(stockOf(id), 4);
+  const undo = await call('POST', `/logs/${lid}/undo`, { stock_credit: taken.body.stock_deducted });
+  assert.equal(undo.status, 200);
+  assert.equal(undo.body.data.status, 'pending', 'ein geplanter Eintrag steht wieder aus');
+  assert.equal(undo.body.data.taken_at, null);
+  assert.equal(stockOf(id), 6, 'der Bestand ist wieder voll');
+  const again = await call('POST', `/logs/${lid}/undo`, { stock_credit: 2 });
+  assert.equal(again.status, 409, 'ein zweites Rueckgaengig schreibt nichts gut');
+  assert.equal(stockOf(id), 6);
+});
+
+test('R23 D6: Bedarfsdosis - /undo loescht den Eintrag und schreibt nur das wirklich Abgezogene gut', async () => {
+  asA();
+  const med = await call('POST', '/medications', { name: 'Undo-Bedarf', prn: true, stock_qty: 0.5 });
+  const id = med.body.data.id;
+  const res = await call('POST', `/medications/${id}/logs`, { status: 'taken', dose_qty: 1, stock_deduct: 1 });
+  assert.equal(res.status, 201);
+  assert.equal(res.body.stock_deducted, 0.5, 'nur der Rest ging ab');
+  assert.equal(stockOf(id), 0);
+  const undo = await call('POST', `/logs/${res.body.data.id}/undo`, { stock_credit: res.body.stock_deducted });
+  assert.equal(undo.status, 200);
+  assert.equal(undo.body.data.removed, true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM medication_logs WHERE medication_id = ?').get(id).n, 0);
+  assert.equal(stockOf(id), 0.5, 'nicht mehr als vorher');
+});
+
+test('R23 D6: /undo nach "Ausgelassen" schreibt nichts gut, ohne Bestand bleibt er leer, fremd ist 404', async () => {
+  asA();
+  const med = await call('POST', '/medications', { name: 'Undo-Skip', stock_qty: 3 });
+  const id = med.body.data.id;
+  const skipped = await call('POST', `/medications/${id}/logs`, { scheduled_at: '2026-06-07T08:00', status: 'skipped' });
+  const undo = await call('POST', `/logs/${skipped.body.data.id}/undo`, { stock_credit: 2 });
+  assert.equal(undo.status, 200);
+  assert.equal(undo.body.data.removed, true, 'ohne Zeitplan war der Eintrag die Tat selbst');
+  assert.equal(stockOf(id), 3, 'ausgelassen hat nichts abgezogen, also nichts gutzuschreiben');
+  const bare = await call('POST', '/medications', { name: 'Undo-Ohne' });
+  const log = await call('POST', `/medications/${bare.body.data.id}/logs`, { status: 'taken', stock_deduct: 1 });
+  assert.equal(log.body.stock_deducted, 0);
+  await call('POST', `/logs/${log.body.data.id}/undo`, { stock_credit: 1 });
+  assert.equal(stockOf(bare.body.data.id), null, 'ohne gefuehrten Bestand entsteht keiner');
+  const neg = await call('POST', `/medications/${id}/logs`, { status: 'taken', stock_deduct: 1 });
+  assert.equal((await call('POST', `/logs/${neg.body.data.id}/undo`, { stock_credit: -1 })).status, 400);
+  session = { userId: userB, role: 'member' };
+  assert.equal((await call('POST', `/logs/${neg.body.data.id}/undo`, { stock_credit: 1 })).status, 404);
+  asA();
+});
+
+test('R23 Sicherheit: /undo schreibt nie mehr gut als die Dosis des Eintrags', async () => {
+  asA();
+  const med = await call('POST', '/medications', { name: 'Undo-Deckel', stock_qty: 10 });
+  const id = med.body.data.id;
+  const taken = await call('POST', `/medications/${id}/logs`, { status: 'taken', dose_qty: 1, stock_deduct: 1 });
+  assert.equal(stockOf(id), 9);
+  await call('POST', `/logs/${taken.body.data.id}/undo`, { stock_credit: 500 });
+  assert.equal(stockOf(id), 10, 'gedeckelt auf die Dosis');
+  const noDose = await call('POST', `/medications/${id}/logs`, { status: 'taken' });
+  await call('POST', `/logs/${noDose.body.data.id}/undo`, { stock_credit: 5 });
+  assert.equal(stockOf(id), 10, 'ohne Dosis keine Gutschrift');
+});
+
+test('R23 S11: GET /medications?include=schedules,logs bringt Plaene und Eintraege der gelisteten Medikamente mit', async () => {
+  // N+1: der Einstieg in die Gesundheit schickte je Medikament zwei Anfragen.
+  // Die Liste traegt sie jetzt selbst - und nur fuer die Medikamente, die der
+  // Betrachter ohnehin lesen darf.
+  asA();
+  const mine = (await call('POST', '/medications', { name: 'Buendel-Eigen' })).body.data.id;
+  await call('POST', `/medications/${mine}/schedules`, { time_of_day: '07:30' });
+  const inWindow = (await call('POST', `/medications/${mine}/logs`, { scheduled_at: '2031-03-10T07:30' })).body.data.id;
+  await call('POST', `/medications/${mine}/logs`, { scheduled_at: '2031-01-01T07:30' });
+  asB();
+  const shared = (await call('POST', '/medications', { name: 'Buendel-Familie', visibility: 'family' })).body.data.id;
+  const sharedLog = (await call('POST', `/medications/${shared}/logs`, { scheduled_at: '2031-03-11T09:00' })).body.data.id;
+  const hidden = (await call('POST', '/medications', { name: 'Buendel-Privat' })).body.data.id;
+  await call('POST', `/medications/${hidden}/logs`, { scheduled_at: '2031-03-11T09:00' });
+
+  asA();
+  const res = await call('GET', '/medications?include=schedules,logs&logs_from=2031-03-01T00:00&logs_to=2031-03-31T23:59');
+  assert.equal(res.status, 200);
+  const byId = new Map(res.body.data.map((m) => [m.id, m]));
+  assert.equal(byId.has(hidden), false, 'Bobs privates Medikament bleibt draussen');
+  assert.deepEqual(byId.get(mine).schedules.map((s) => s.time_of_day), ['07:30']);
+  assert.deepEqual(byId.get(mine).logs.map((l) => l.id), [inWindow], 'nur Eintraege im Fenster');
+  assert.deepEqual(byId.get(shared).logs.map((l) => l.id), [sharedLog]);
+  assert.deepEqual(byId.get(shared).schedules, []);
+  const allLogIds = res.body.data.flatMap((m) => m.logs.map((l) => l.medication_id));
+  assert.ok(!allLogIds.includes(hidden), 'kein Eintrag eines fremden privaten Medikaments');
+
+  const plain = await call('GET', '/medications');
+  assert.ok(plain.body.data.every((m) => !('schedules' in m) && !('logs' in m)), 'ohne include bleibt die Liste, wie sie war');
+  for (const id of [mine, shared, hidden]) db.prepare('DELETE FROM medications WHERE id = ?').run(id);
+});

@@ -271,11 +271,13 @@
  *     darueber waere ihr Geist.
  *   - `kitchen-tabs` (kitchen-tabs.css): derselbe Knoten vorher und nachher,
  *     ebenso nur lebend - seine Kapsel gleitet dort zum Ziel.
- *   - `page-toolbar` (per Inline-Stil am ersten Kopf): Kopf steht, sein
- *     Inhalt blendet mit der Wurzel ueber. Die Gruppe selbst bewegt sich
- *     nicht (`animation: none`) - kein Kopf gleitet.
- * Kommt ein Name nur auf EINER Seite vor (Kueche betreten/verlassen), blendet
- * er wie die Wurzel (`:only-child` laesst die Standard-Blende stehen).
+ *   - `page-toolbar` (per Inline-Stil am ersten Kopf): Kopf steht, die
+ *     Gruppe bewegt sich nicht (`animation: none`) - kein Kopf gleitet. Beim
+ *     Seitenwechsel schneidet sein Inhalt mit der Wurzel (`html.page-cut`);
+ *     ueberblendet wird er nur beim Theme-Wechsel.
+ * Kommt ein Name nur auf EINER Seite vor (Kueche betreten/verlassen), folgt
+ * er der Wurzel (`:only-child` laesst ihre Regel stehen: Schnitt beim
+ * Seitenwechsel, Blende beim Theme).
  * -------------------------------------------------------- */
 /* Die Chrome-Namen stehen NUR waehrend des Wechsels:
  * swapPage setzt `html.page-swapping` vor startViewTransition und nimmt es nach
@@ -1339,7 +1341,7 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 /* DIE KANTE SAGT „ES GEHT WEITER" (R22 D14): wireScrollFade (router.js,
  * buildMoreSheetBody) setzt has-fade-start/-end, solange ueber oder unter dem
  * Sichtfenster Module liegen. Dieselbe Blende wie die Seitenleiste, eine
- * Stufe kuerzer (--space-6): die Zeilen sind 48px hoch, und eine Blende ueber
+ * Stufe kuerzer (--space-6): die Zeilen sind 44px hoch, und eine Blende ueber
  * zwei Drittel der letzten sichtbaren Zeile nimmt ihr den Namen. */
 .more-sheet__body.has-fade-end {
   mask-image: linear-gradient(to bottom, var(--mask-opaque) calc(100% - var(--space-6)), transparent);
@@ -1356,8 +1358,12 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   -webkit-mask-image: linear-gradient(to bottom, transparent, var(--mask-opaque) var(--space-6), var(--mask-opaque) calc(100% - var(--space-6)), transparent);
 }
 
+/* 6px ZWISCHEN DEN GRUPPEN (R23): mit 12px und 48px-Zeilen stand Budget bei
+ * 390x844 61px unter der Falz des Blatts - siehe die Zeilenhoehe unten. Die
+ * Gruppen trennt ihr Kopf und ihre eigene Flaeche, nicht die Luft dazwischen;
+ * mit 8px fehlten der letzten Zeile noch 5px. */
 .more-sheet__group + .more-sheet__group {
-  margin-block-start: var(--space-3);
+  margin-block-start: var(--space-1h);
 }
 
 .more-sheet__section-label {
@@ -1675,14 +1681,20 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 /* ── More-Item: Modulzeile (Siegel · Name · Badge · Pfeil) ──
  * Die Zeile der iOS-Einstellungen: das Vollton-Siegel vorn nennt das Modul,
  * der Name steht in der Lesegroesse der App auf EINER Zeile, Zaehlbadge und
- * Pfeil sitzen am Ende. Die ganze Zeile ist das Ziel, mindestens
- * --target-base hoch (am Finger 48px). */
+ * Pfeil sitzen am Ende. Die ganze Zeile ist das Ziel.
+ *
+ * 44px, NICHT 48 (R23, Entscheidung S8/S9): die Zeilen stehen IN EINER REIHE
+ * (Zielgroessen-Regel, tokens.css §11b: dort gilt WCAG 2.5.8, die Reihe traegt
+ * ihre Dichte gemeinsam) - die 48px von `--target-base` am Finger sind das
+ * Mass fuer ein FREISTEHENDES Ziel. 44 ist das Mass der Listen in Apples
+ * Einstellungen: Mulde (32px) plus 6px Polster je Seite. Mit 48 stand Budget
+ * bei 390x844 61px unter der Falz, jetzt im Bild. */
 .more-item {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-block-size: var(--target-base);
+  min-block-size: calc(var(--target-sm) + 2 * var(--space-1h));
   padding: var(--space-1h) var(--space-2) var(--space-1h) var(--space-3);
   color: var(--color-text-primary);
   text-decoration: none;
@@ -1732,7 +1744,7 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   text-align: center;
   font-variant-numeric: tabular-nums;
   /* NEUTRAL, obwohl das Mehr-Blatt eine Mischstelle ist: die Herkunft nennt in
-   * dieser Zeile bereits das Vollton-Siegel davor. Die ZAHL nennt keine -
+   * dieser Zeile bereits das Zeichen in der Mulde davor. Die ZAHL nennt keine -
    * sie zaehlt (Skalen-Regel, Gegenrichtung). */
   background-color: var(--color-fill-well);
   color: var(--color-text-secondary);
@@ -1749,22 +1761,27 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
   color: var(--color-accent);
 }
 
-/* Das Markensiegel traegt das Modul (Block 2): Vollton-Scheibe im
- * Familienton. Form und Material kommen vom .module-seal-Baustein; hier
- * stehen nur die Zeilengroesse und die Akzent-Weiterleitung. 32px in einer
- * 48px-Zeile - das Verhaeltnis der iOS-Einstellungen (29 in 44). */
+/* DAS MODULZEICHEN IN EINER LISTE IST DIE MULDE DER SEITENLEISTE (R23, D9).
+ * Hier stand bis R23 die Vollton-Scheibe des Markensiegels: dasselbe Modul
+ * hatte in der Seitenleiste eine getoente Mulde, im Mehr-Blatt eine Vollton-
+ * Scheibe, in der Kapsel das nackte Zeichen und in den Einstellungen eine
+ * Verlaufskachel - vier Formen fuer eine Bedeutung (Critique S-P2-2, G6-4).
+ * Eine Liste antwortet auf "wohin", nicht auf "woher": der Vollton bleibt den
+ * Absendern (Seitenkopf-Siegel, Widget, Palette), die Listen tragen die Mulde.
+ * Dieselbe Geste wie `.nav-sidebar .nav-item__icon-well`: 8 % Tinte im Grund
+ * (hell vertieft, dunkel gehoben), die Vertiefung eines Felds, das Zeichen im
+ * Modulton. 32px in einer 48px-Zeile - das Verhaeltnis der iOS-Einstellungen
+ * (29 in 44); das Zeichen 20px, wie 18 in der 26px-Mulde der Seitenleiste. */
 .more-item__icon-well {
-  --seal-accent: var(--item-module-accent, var(--color-text-secondary));
-  --seal-icon: var(--icon-md);
+  display: grid;
+  place-items: center;
   width: var(--target-sm);
   height: var(--target-sm);
   flex-shrink: 0;
-  /* Der Inset-Specular kommt aus den Tokens (haengt am
-   * --glass-inset-strength-Schalter und faellt unter
-   * prefers-reduced-transparency / prefers-contrast mit). */
-  box-shadow:
-    var(--glass-inset-elevated),
-    var(--glass-inset-bottom-base);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-text-primary) var(--tint-wash), transparent);
+  box-shadow: var(--glass-inset-input);
+  color: var(--item-module-accent, var(--color-text-secondary));
 }
 
 /* Aktives Modul (Sheet auf dieser Route geöffnet): Akzent-Ring am Siegel
@@ -1775,8 +1792,8 @@ html:has(.list-bulkbar) yuvomi-install-prompt {
 }
 
 .more-item__icon {
-  width: var(--icon-md);
-  height: var(--icon-md);
+  width: var(--icon-lg);
+  height: var(--icon-lg);
   flex-shrink: 0;
 }
 
@@ -3078,6 +3095,19 @@ html.fab-steady .page-fab {
   min-width: 0;
 }
 
+/* AB 1024px GIBT DIE SUCHE NACH, NICHT DIE AKTIONEN (R23, D13; Critique G0
+ * S-P2-1). Mit `min-width: 0` schrumpften bei 1024 beide - Suche und Slot -, und
+ * der Slot schob seinen Primaerknopf 24px ueber die eigene Kante: "+ Aufgabe"
+ * stand 8 statt 32px vor dem Fensterrand. Die Aktionen sind Knoepfe fester
+ * Breite; das Suchfeld ist das Element, das schmaler werden darf (es bleibt
+ * bedienbar und waechst beim Fokus nicht ueber seinen Platz hinaus). Unter
+ * 1024px gilt die Regel oben - dort faltet der Large-Title-Kopf anders. */
+@media (min-width: 1024px) {
+  .page-toolbar__actions {
+    flex-shrink: 0;
+  }
+}
+
 /* Unter 1024px dockt nichts in den Slot (dockFabIntoToolbar), er bleibt in
  * Modulen mit Tab-Zeile leer - bricht im umbrechenden Kopf aber auf eine
  * eigene Null-Zeile und bringt deren row-gap mit: +8px Kopf in Gesundheit und
@@ -3736,6 +3766,15 @@ html.fab-steady .page-fab {
 
   .split-view__detail:focus-visible {
     outline-offset: var(--focus-ring-offset-inset);
+  }
+
+  /* NICHTS ZU WAEHLEN, KEINE AUFFORDERUNG (R23 S11, Critique G2 P3 "Verlauf
+   * leer: Waehle eine Aufgabe"). Zeigt die Liste ihren Leerzustand (nichts
+   * erledigt, keine Treffer, leeres Modul), bat die Spalte daneben trotzdem
+   * "Waehle eine Aufgabe" - eine Bitte ohne Gegenstand. Dann tritt die Karte
+   * ab und haelt nur ihren Platz; steht doch ein Eintrag darin, bleibt sie. */
+  .split-view:has(> .split-view__list .empty-state) > .split-view__detail:has(> .split-view__empty:not([hidden])) {
+    visibility: hidden;
   }
 
   /* Die ausgewaehlte Zeile - „das steht rechts". Nur in der Spaltenform;
@@ -7053,6 +7092,13 @@ dialog.dialog-surface.dialog-surface--closing::backdrop {
   text-wrap: balance;
 }
 
+/* Der Titel als ruhiger Einstieg (modal.js: per Zeiger geoeffnet, kein Feld;
+ * Fingergeraete beim Wechsel nach "Bearbeiten"). Er ist kein Steuerelement -
+ * ein Ring um eine Ueberschrift verspraeche eine Bedienung, die es nicht gibt. */
+.modal-panel__title[tabindex="-1"]:focus {
+  outline: none;
+}
+
 /* DIE TITELKANTE STEHT, WIE LANG DER TITEL AUCH IST (Critique R21). Der Kopf
  * zentrierte seine Kinder senkrecht: ein einzeiliger Titel stand mittig neben
  * den 48px-Knoepfen (Oberkante 25px), ein zweizeiliger fuellte ihre Hoehe und
@@ -7380,6 +7426,11 @@ dialog.dialog-surface.dialog-surface--closing::backdrop {
   color: var(--color-text-tertiary);
 }
 
+/* Der Rundgang aus der Hilfe (R23 S10): ein leiser Knopf unter dem Handbuch. */
+.help-tour {
+  margin: var(--space-3) 0 0;
+}
+
 /* „Neu in deiner App" (#496): der Block, mit dem die Ansicht oeffnet. Traegt
  * als einziger die Akzentfarbe - er ist die Antwort auf die Frage, mit der
  * jemand herkommt, die Versionsliste darunter ist das Archiv. */
@@ -7406,6 +7457,20 @@ dialog.dialog-surface.dialog-surface--closing::backdrop {
   margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--color-text-tertiary);
+}
+
+/* Der ganze Verlauf liegt auf GitHub (R23 D14): ein Link unter der Karte der
+ * laufenden Version, unterstrichen wie jeder Link im Text (.help-guide a). */
+.changelog-all {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+}
+
+.changelog-all a {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Der Vorspann ist die Zeile, die man scannt - er traegt das Gewicht, die
@@ -7729,11 +7794,15 @@ dialog.dialog-surface.dialog-surface--closing::backdrop {
  * #872 bleibt), und `min-width: 0` plus `overflow-wrap: anywhere` halten auch
  * das längste Wort im Fuß statt ihn nach links hinauszuschieben.
  *
+ * `--delete-worded` (R23): steht neben Loeschen hoechstens EINE beschriftete
+ * Aktion (die Leseansicht: [Loeschen][Icon][Bearbeiten]), ist Platz fuer das
+ * Wort - dort bleibt der Knopf, wie er am Desktop steht.
+ *
  * Die Grenze ist die kanonische Mobil-Grenze (tokens.css §11c, `--bp-mobile`),
  * nicht die „~430px" der Critique: jedes Telefon im Hochformat liegt darunter,
  * und eine eigene Zahl wäre der sechste Breakpoint der App. */
 @media (max-width: 639px) {
-  .modal-panel__footer .btn.modal-panel__delete {
+  .modal-panel__footer:not(.modal-panel__footer--delete-worded) .btn.modal-panel__delete {
     flex: none;
     width: var(--target-base);
     min-width: var(--target-base);
@@ -7746,12 +7815,12 @@ dialog.dialog-surface.dialog-surface--closing::backdrop {
     color: var(--color-danger);
   }
 
-  .modal-panel__footer .btn.modal-panel__delete:hover {
+  .modal-panel__footer:not(.modal-panel__footer--delete-worded) .btn.modal-panel__delete:hover {
     background: var(--color-danger-light);
     color: var(--color-danger-ink);
   }
 
-  .modal-panel__footer .modal-panel__delete .modal-panel__delete-label {
+  .modal-panel__footer:not(.modal-panel__footer--delete-worded) .modal-panel__delete .modal-panel__delete-label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -8194,15 +8263,6 @@ dialog.dialog-surface.dialog-surface--closing::backdrop {
 .row-action--danger:hover {
   background: var(--color-danger-light);
   color: var(--color-danger-ink);
-}
-
-.row-action--success {
-  color: var(--color-success);
-}
-
-.row-action--success:hover {
-  background: var(--color-success-light);
-  color: var(--color-success-ink);
 }
 
 /* Die Nadel der Notizkarte ist eine Zeilenaktion in eigener Lage (oben in
@@ -8862,14 +8922,17 @@ textarea::placeholder {
  * ihr eigenes Polster und ihre Rundung gehoeren der freistehenden Form. Mit
  * Hinweis steht sie in `.form-switch` (formSwitchRowHtml, settings/
  * components.js, R19) - Schalter oben, Hinweis darunter, eine Zeile. */
+/* Seit R23 (D8) traegt jeder Moduldialog seine Schalter als `.form-switch`,
+ * auch ausserhalb von `.form-rows` (in `.form-group`): dort gilt dasselbe -
+ * das Label fluchtet mit den Feldlabels, kein Polster, keine Hover-Flaeche. */
 .form-rows > .toggle-row,
-.form-rows > .form-switch > .toggle-row {
+.form-switch > .toggle-row {
   padding-inline: 0;
   border-radius: 0;
 }
 
 .form-rows > .toggle-row:hover,
-.form-rows > .form-switch > .toggle-row:hover {
+.form-switch > .toggle-row:hover {
   background-color: transparent;
 }
 
@@ -8877,6 +8940,10 @@ textarea::placeholder {
   margin: calc(-1 * var(--space-1)) 0 var(--space-2);
 }
 
+/* Im Zeilentraeger (`.form-rows`) steht das Label in Zeilengroesse; in einem
+ * Dialog mit Labels UEBER den Feldern (`.form-group`) bleibt es bei der
+ * Groesse der Schalterzeile (text-sm) - eine Stufe ueber den Feldlabels, nicht
+ * zwei (R23, D8, im Browser verglichen). */
 .form-rows > .toggle-row--switch .toggle-row__label,
 .form-rows > .form-switch > .toggle-row--switch .toggle-row__label {
   font-size: var(--text-base);
@@ -9321,7 +9388,7 @@ textarea::placeholder {
     transparent 75%
   );
   transform: translateX(-100%);
-  animation: skeleton-shimmer 1.5s var(--ease-in-out) var(--duration-sm) infinite;
+  animation: skeleton-shimmer var(--shimmer-period) var(--ease-in-out) var(--duration-sm) infinite;
 }
 
 @keyframes skeleton-in {
@@ -9680,6 +9747,27 @@ html:has(.app-page.is-selecting) .page-fab {
   display: none;
 }
 
+/* Der Sortiermodus ist ein Werkzeug fuer den Finger (list-row.css, R23 D13):
+ * am Zeiger steht der Griff ohnehin, der Eintrag haette keine Wirkung. */
+@media (hover: hover) {
+  .popover-menu__item[data-action="sort-mode"] {
+    display: none;
+  }
+}
+
+/* ANGEDOCKT HAELT ER SEINEN PLATZ (R23, D13; Critique G2 "Bulk verschiebt
+ * Kopf"). Ab 1024px steht der FAB als Textknopf im Kopf (`.page-fab--docked`,
+ * dockFabIntoToolbar). Mit `display: none` rueckten Segment und Menue um seine
+ * Breite nach rechts, sobald die Auswahl begann, und zurueck, wenn sie endete.
+ * Er wird unsichtbar und unbedienbar (visibility nimmt ihn auch aus Tab-Folge
+ * und Baum), die Zeile behaelt ihre Form. */
+@media (min-width: 1024px) {
+  html:has(.app-page.is-selecting) .page-fab.page-fab--docked {
+    display: inline-flex;
+    visibility: hidden;
+  }
+}
+
 html:has(.app-page.is-selecting) {
   --fab-safe-zone: 0px;
 }
@@ -9701,6 +9789,20 @@ html:has(.app-page.is-selecting) {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* DIE PILLE TRITT VOR EINEM DIALOG AB (Critique R23, G3/K2). Der Stapel liegt
+ * ueber Dialogen, damit eine Meldung waehrend eines Dialogs sichtbar bleibt
+ * (#1421, die Ausweich-Regel in DESIGN.md) - fuer die Sammel-Pille gilt das
+ * nicht: sie ist eine Bedienung fuer die Liste DARUNTER, und ueber dem Dialog
+ * „In den Vorrat" stand „3 Artikel abgehakt · In den Vorrat · Löschen" als
+ * zweite, konkurrierende Fusszeile, deren Löschen ins Leere griff. Generisch,
+ * fuer jeden Dialog und jedes Blatt, statt in jedem Aufrufer: sie kehrt zurueck,
+ * wenn der Dialog geht, und steht nur noch, wenn ihre Teilmenge noch besteht. */
+html:has(.modal-overlay) .bulk-pill-layer,
+html:has(.more-sheet[aria-hidden="false"]) .bulk-pill-layer,
+html:has(.search-overlay--visible) .bulk-pill-layer {
+  display: none;
 }
 
 /* ZWISCHEN 768 UND 1023px STEHT DIE TAB-LEISTE NOCH.
@@ -10515,7 +10617,7 @@ button.btn--loading:is(:enabled, :disabled) {
 }
 
 .swipe-row--hint > :first-child {
-  animation: swipe-nudge 800ms var(--ease-out) 1200ms both;
+  animation: swipe-nudge var(--hint-nudge) var(--ease-out) var(--hint-delay) both;
 }
 
 [dir='rtl'] .swipe-row--hint > :first-child {
@@ -11453,13 +11555,38 @@ p.field-hint--warn svg {
    Kontakte und Dokumente seit R8 H14). Ein Knopf mit `aria-pressed` und
    einem Namen mit Objekt ("<Titel> auswaehlen"); er ERSETZT Statuskreis und
    Zeilen-Picker, die Leiste dazu ist die Bulk-Pille (utils/bulk-pill.js).
-   20px-Ring in der Tertiaerfarbe, gewaehlt gefuellt im App-Akzent mit Haken
-   (NICHT im Modulton: bei den Aufgaben ist der Gruen und vom erledigten Haken
-   nicht zu unterscheiden), Trefflaeche --target-base. Er steht in der Shell,
+   20px-Ring in der Tertiaerfarbe, gewaehlt UMRANDET im App-Akzent mit Haken
+   (seit R23 D7 ungefuellt - gefuellt ist "erledigt"; und NICHT im Modulton:
+   bei den Aufgaben ist der Gruen), Trefflaeche --target-base. Er steht in der Shell,
    weil Modul-CSS nur auf seiner Route laedt - vorher trugen documents.css und
    contacts.css je eine gleichlautende Kopie. Wie er in einer Zeile sitzt
    (Ausgleich, disabled), bleibt Sache des Moduls.
    ================================================================ */
+/* ================================================================
+   DAS ZIEHBILD UND SEIN PLATZ (Critique R23, N3) - fuer jede sortierbare
+   Liste (utils/sortable.js). Bis R23 stand die Zeile zweimal da: der Platz an
+   der Zielstelle als 40-%-Abbild (je Modul eine Kopie dieser Regel) und das
+   mitgefuehrte Abbild in SortableJS' 80 % - zwei halbe Zeilen, keine ganze.
+   Jetzt: der Platz ist ein LEERER Schlitz in der Hoehe der Zeile (getoent,
+   gestrichelt im Modulton, Inhalt unsichtbar), das Abbild ist die Zeile
+   selbst, deckend und gehoben (die Module geben ihm Schatten und Flaeche).
+   Die 0.8, die SortableJS als Inline-Stil an den Klon schreibt, nimmt
+   utils/sortable.js zurueck (`liftDragImage`) - ein `!important` hier haette
+   die Sperrklinke gerissen, und eine Option dafuer hat SortableJS nicht.
+   ================================================================ */
+.sortable-ghost {
+  opacity: 1;
+  background-color: color-mix(in srgb, var(--module-accent, var(--color-accent)) var(--tint-state), transparent);
+  outline: var(--space-px) dashed var(--module-accent, var(--color-accent));
+  outline-offset: calc(var(--space-px) * -1);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+.sortable-ghost > * {
+  visibility: hidden;
+}
+
 .select-circle {
   width: var(--target-base);
   height: var(--target-base);
@@ -11496,8 +11623,15 @@ p.field-hint--warn svg {
 }
 
 .select-circle--on::after {
+  /* UMRANDET, NICHT GEFUELLT (R23, D7): ein gefuellter Kreis mit Haken ist
+   * das Zeichen fuer "erledigt" (`.check-ring--done`). Gewaehlt heisst: Ring
+   * und Haken im App-Akzent, die Flaeche bleibt leer. */
   border-color: var(--color-accent);
-  background-color: var(--color-accent);
+  background-color: transparent;
+}
+
+.select-circle--on {
+  color: var(--color-accent);
 }
 
 .select-circle__check {

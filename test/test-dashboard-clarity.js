@@ -1101,9 +1101,11 @@ test('#1454: die Geburtstagszeile sagt Wochentag, Tag+Monat oder Datum mit Jahr'
     ], '1x2', 4);
     assert.deepEqual(metaOf(html, 'birthday-widget-item__meta'), [
       'common.today',
-      `${wd('2026-09-26')} · dashboard.daysLeft{"count":3}`,
-      'DM:2026-10-15 · dashboard.daysLeft{"count":22}',
-      '2027-01-05 · dashboard.daysLeft{"count":104}',
+      // R23 (D11): der Abstand wie im Geburtstagsmodul ("in 3 Tagen", jenseits
+      // eines Monats grob), nicht "3 Tage" wie eine Dauer.
+      `${wd('2026-09-26')} · in 3 Tagen`,
+      'DM:2026-10-15 · in 22 Tagen',
+      '2027-01-05 · in 3 Monaten',
     ]);
   });
 });
@@ -1149,7 +1151,8 @@ test('#1454: der letzte Besuch liest rueckwaerts, ohne Jahr', () => {
       const note = (lastVisit) => __test.selectMetricTiles({ health, housekeeping: hk(lastVisit) }, 'EUR')
         .find((tile) => tile.id === 'housekeeping').note;
       assert.equal(note('2026-09-22T07:00:00.000Z'), 'dashboard.housekeepingLastVisit{"date":"common.yesterday"}');
-      assert.equal(note('2026-09-10T07:00:00.000Z'), 'dashboard.housekeepingLastVisit{"date":"DM:2026-09-10T07:00:00.000Z"}');
+      // Seit R23 S11 ueber dateText: der Tag der Haushaltszone, dann ohne Jahr.
+      assert.equal(note('2026-09-10T07:00:00.000Z'), 'dashboard.housekeepingLastVisit{"date":"DM:2026-09-10"}');
       const widget = __test.renderHousekeepingWidget(hk('2026-09-22T07:00:00.000Z'), 'EUR');
       assert.match(widget, /dashboard\.housekeepingLastVisit\{"date":"common\.yesterday"\}/,
         'Kachel und Widget sagen dasselbe');

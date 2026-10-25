@@ -748,8 +748,10 @@ export function scanSettingsCheckbox(src, file) {
  * Lebendig und deshalb ausgenommen: `<i>` OHNE data-lucide, das die App selbst
  * als Balken bzw. Farbscheibe rendert (subscriptions.js).
  */
+// Der Abo-Balken (`.subscriptions-chart-row__track i`) stand hier bis R23; seit
+// er die Fuellung der Kategoriezeile ist (`.budget-bar-row__fill`), gibt es
+// die Regel nicht mehr.
 const LIVE_I_RULES = new Map([
-  ['.subscriptions-chart-row__track i', 'Balken: <i style="width:..."> in subscriptions.js (Diagrammzeile)'],
   ['.subscriptions-metadata-row__view > i', 'Farbscheibe: <i style="background:..."> in subscriptions.js (Kategorie)'],
 ]);
 const TYPE_I = /(?:^|[\s>+~(])i(?=$|[.:[\s>+~,)])/;
@@ -1227,7 +1229,7 @@ test('Scanner: dead-i-rule faengt die reine i-Regel und laesst den svg-Zweig und
     .a i { color: red; }
     .b > i { width: 1px; }
     .c i, .c svg { width: 2px; }
-    .subscriptions-chart-row__track i { height: 100%; }
+    .subscriptions-metadata-row__view > i { background: red; }
     .d .icon { color: blue; }
     @media (min-width: 1px) { .e i[data-lucide] { margin: 0; } }`;
   assert.deepEqual(scanDeadIRules(css).map((f) => f.what), ['.a i', '.b > i', '.e i[data-lucide]']);
@@ -1625,7 +1627,6 @@ const PENDING = {
     'public/components/task-detail.js': 1,
     'public/pages/documents.js': 2,
     'public/pages/health-fasting.js': 1,
-    'public/pages/health.js': 1,
     'public/pages/housekeeping.js': 1,
     'public/pages/tasks.js': 2,
     'public/settings/pages/personal-calendar-subscriptions.js': 1,
@@ -2061,4 +2062,265 @@ test('Pillen-Rueckfrage: die Detailzeile nimmt eine ganze Zeile und bricht innen
   assert.match(rule.body, /flex:\s*1\s+0\s+100%|flex-basis:\s*100%/, 'eine eigene Zeile');
   assert.match(rule.body, /white-space:\s*normal/, 'bricht innen um');
   assert.match(rule.body, /font-size:\s*var\(--text-/, 'Schriftgroesse aus den Tokens');
+});
+
+// R23 D8 (Critique 2026-10-24 Q2): EIN Schalter in den Moduldialogen. Bis R23
+// standen drei Bauformen nebeneinander - die nackte `.toggle`-Bahn mit Text
+// rechts (ohne role=switch), `.rw-switch`/`.form-check` als System-Checkbox und
+// der Settings-Schalter. Jetzt: Moduldialoge bauen ihn mit formSwitchRowHtml
+// (settings/components.js, Label links, role=switch). Eine freistehende
+// `.toggle`-Bahn bleibt nur, wo eine Zeile ihren Namen schon traegt (Teilnehmer,
+// Overlay-Feld, Jahr unbekannt) - dann aber mit role=switch.
+test('D8: kein Moduldialog baut einen Schalter von Hand (role=switch, keine System-Checkbox als Schalter)', () => {
+  const files = ALL_FILES.map((path) => ({ path, rel: relative(REPO, path).split(sep).join('/') }))
+    .filter((f) => /^public\/(?:(?:pages|components|utils)\/.*|[^/]+)\.js$/.test(f.rel) && !f.rel.endsWith('.min.js'));
+  assert.ok(files.length > 50, 'die Suche sieht die Module');
+  const offenders = [];
+  for (const { path, rel } of files) {
+    const src = readFileSync(path, 'utf8');
+    for (const m of src.matchAll(/<label class="toggle\b[^"]*"[^>]*>\s*(?:'\s*\+\s*')?<input\b([^>]*)>/g)) {
+      if (!/role="switch"/.test(m[1])) offenders.push(`${rel}: .toggle ohne role=switch`);
+    }
+    for (const m of src.matchAll(/class="(form-check|rw-switch)\b/g)) offenders.push(`${rel}: ${m[1]}`);
+  }
+  assert.deepEqual(offenders, []);
+});
+
+// Critique R23 (N3): EIN Ziehbild. Der Platz an der Zielstelle war je Modul ein
+// 40-%-Abbild der Zeile und das mitgefuehrte Abbild SortableJS' 80 % - die Zeile
+// stand zweimal halb da, und die Nachbarn federten mit `--ease-glass`.
+test('N3: der Ziehplatz ist ein leerer Schlitz, das Ziehbild deckend, die Kurve ohne Feder', () => {
+  const cssFiles = ALL_FILES.filter((f) => f.endsWith('.css'));
+  const ghostRules = [];
+  for (const path of cssFiles) {
+    for (const rule of eachRule(readFileSync(path, 'utf8'))) {
+      if (/\.sortable-(?:ghost|drag)\b/.test(rule.selector) && /(?:^|;)\s*opacity\s*:/.test(rule.body)) {
+        ghostRules.push(`${relative(REPO, path).split(sep).join('/')}: ${rule.selector.trim()}`);
+      }
+    }
+  }
+  assert.deepEqual(ghostRules.sort(), ['public/styles/layout.css: .sortable-ghost'],
+    'die Deckung des Platzes steht EINMAL in layout.css, das Ziehbild traegt keine eigene');
+  const layout = [...eachRule(readFileSync(join(PUBLIC, 'styles/layout.css'), 'utf8'))];
+  const ghost = layout.find((r) => r.selector.trim() === '.sortable-ghost' && !r.at.length);
+  assert.match(ghost.body, /opacity:\s*1\b/);
+  assert.ok(layout.some((r) => r.selector.trim() === '.sortable-ghost > *' && /visibility:\s*hidden/.test(r.body)), 'der Inhalt des Platzes ist unsichtbar');
+  const sortable = readFileSync(join(PUBLIC, 'utils/sortable.js'), 'utf8');
+  assert.match(sortable, /onStart\(\) \{ liftDragImage\(\); \}/, 'die Inline-0.8 von SortableJS wird zurueckgenommen');
+  assert.match(sortable, /clone\.style\.opacity = ''/);
+  assert.match(sortable, /easing: easingToken\('--ease-out'/);
+  assert.doesNotMatch(sortable, /--ease-glass'/);
+});
+
+// Critique R23 (D10, G3/G4): ein Gruppentitel IN einer Liste ist Wort plus
+// Zaehlstand, ohne Zeichen. Einkauf, Vorrat und Inventar stellten das
+// Kategorie- bzw. Ort-Icon davor - gegen den Kanon "Ueberschrift ueber Inhalt"
+// (DESIGN.md, Icon vor dem Titel). Das Icon bleibt im Kategorie-Verwalter und in
+// den Auswahlen. Gelesen wird je Fundstelle von `list-group__title` bis zum
+// Zaehlstand; nur der Auf/Zu-Winkel darf darin stehen.
+test('D10: kein Gruppentitel einer Liste traegt ein Zeichen (nur der Auf/Zu-Winkel)', () => {
+  const files = ALL_FILES.filter((f) => /\/pages\/[^/]+\.js$/.test(f.split(sep).join('/')));
+  const offenders = [];
+  let sites = 0;
+  for (const path of files) {
+    const src = readFileSync(path, 'utf8');
+    for (const m of src.matchAll(/list-group__title/g)) {
+      const rest = src.slice(m.index, m.index + 700);
+      const end = rest.indexOf('list-group__count');
+      if (end < 0) continue;
+      sites += 1;
+      for (const icon of rest.slice(0, end).matchAll(/data-lucide="([^"]+)"/g)) {
+        if (icon[1] !== 'chevron-down') offenders.push(`${relative(REPO, path).split(sep).join('/')}: ${icon[1]}`);
+      }
+    }
+  }
+  assert.ok(sites >= 5, `Vorbedingung: der Scanner sieht die Gruppentitel (${sites})`);
+  assert.deepEqual(offenders, []);
+});
+
+// Critique R23 (G4 "Kategoriebalken drei Bauformen"): die Abo-Aufteilung baute
+// ihren Balken selbst (8px-Literal, --color-surface-3, <i> mit width-Prozent im
+// Modulton, Name abgeschnitten). Jetzt teilt sie Bahn und Fuellung mit der
+// Kategoriezeile von Uebersicht und Statistik.
+test('Kategoriebalken: die Abo-Aufteilung nimmt Bahn und Fuellung der Kategoriezeile (R23)', () => {
+  const subsJs = readFileSync(join(PUBLIC, 'pages/subscriptions.js'), 'utf8');
+  assert.match(subsJs, /class="subscriptions-chart-row__track" aria-hidden="true"><span class="budget-bar-row__fill budget-bar-row__fill--expenses" style="--bar-scale:/);
+  assert.doesNotMatch(subsJs, /<i style="width:/, 'kein eigener Balken per width');
+  const budget = [...eachRule(readFileSync(join(PUBLIC, 'styles/budget.css'), 'utf8'))];
+  const track = budget.find((r) => !r.at.length && /\.budget-bar-row__track\b/.test(r.selector) && /\.subscriptions-chart-row__track\b/.test(r.selector));
+  assert.ok(track, 'eine Regel fuer beide Bahnen');
+  assert.match(track.body, /background-color:\s*var\(--color-fill-well\)/);
+  const subs = [...eachRule(readFileSync(join(PUBLIC, 'styles/subscriptions.css'), 'utf8'))];
+  const own = subs.filter((r) => /\.subscriptions-chart-row__track\b/.test(r.selector) && /(?:height|background)\s*:/.test(r.body));
+  assert.deepEqual(own.map((r) => r.selector.trim()), [], 'keine zweite Bahn in subscriptions.css');
+  const label = subs.find((r) => r.selector.trim() === '.subscriptions-chart-row__label');
+  assert.doesNotMatch(label?.body ?? 'nowrap', /nowrap|ellipsis/, 'der Name bricht um, wie in der Kategoriezeile');
+});
+
+// --------------------------------------------------------------------------
+// R23 S8 (D13, Layout): die Regeln, die eine Breite, eine Spalte oder ein
+// Wechsel einhalten muss. Gemessen im Browser (handoff-8), hier als Form
+// gepinnt, damit sie nicht still zurueckfallen.
+// --------------------------------------------------------------------------
+const readPub = (rel) => readFileSync(join(PUBLIC, rel), 'utf8');
+const rulesOf = (rel) => [...eachRule(readPub(rel))];
+const fnBody = (src, start, end) => src.slice(src.indexOf(start), src.indexOf(end, src.indexOf(start) + start.length));
+
+test('R23 D13: Kanban-Wechsel ohne Zwischenbild - alte Ansicht bleibt, Kopf und Koerper tauschen zusammen', () => {
+  const tasks = readPub('pages/tasks.js');
+  const set = fnBody(tasks, 'function setViewMode(', '\n}\n');
+  assert.doesNotMatch(set, /style\.opacity\s*=\s*'0\.4'/, 'kein Dimmen der alten Ansicht (blasses Zwischenbild, Critique G2)');
+  assert.doesNotMatch(set, /requestAnimationFrame/, 'kein Aufbau ein Bild spaeter');
+  const syncBeforeSwap = set.indexOf('syncViewChrome(container)');
+  assert.ok(syncBeforeSwap > set.indexOf('const swap = '), 'syncViewChrome laeuft nur im Tausch, nicht vor dem Laden');
+  assert.match(set, /syncViewToggle\(container\)/, 'das Segment antwortet sofort');
+  assert.match(set, /loadHistory\(container, \{ beforeRender: swap \}\)/, 'der Verlauf tauscht im selben Task, in dem er zeichnet');
+  assert.match(set, /if \(!swap\(\)\) return;\s*renderTaskList\(container\)/, 'Liste und Brett zeichnen direkt nach dem Tausch');
+});
+
+test('R23 D13: der Kopf der Aufgaben behaelt seine Form - Filter abgeschaltet statt weg, angedockter FAB unsichtbar statt weg', () => {
+  const chrome = fnBody(readPub('pages/tasks.js'), 'function syncViewChrome(', '\n}\n');
+  assert.doesNotMatch(chrome, /filterBtn\.hidden\s*=\s*isHistory/, 'der Filterknopf verschwand im Verlauf und schob Segment und Menue');
+  assert.match(chrome, /filterBtn\.disabled\s*=\s*isHistory/);
+  const docked = rulesOf('styles/layout.css').find((r) => r.selector.includes('.is-selecting) .page-fab.page-fab--docked'));
+  assert.ok(docked, 'Regel fuer den angedockten FAB im Auswahlmodus fehlt');
+  assert.ok(docked.at.some((a) => /min-width:\s*1024px/.test(a)), 'nur dort, wo er angedockt ist');
+  assert.match(docked.body, /visibility:\s*hidden/);
+  assert.match(docked.body, /display:\s*inline-flex/, 'er behaelt seinen Platz in der Zeile');
+});
+
+test('R23 D13: ab 1024px gibt die Suche nach, die Aktionen schrumpfen nicht (1024: "+ Aufgabe" ragte 24px hinaus)', () => {
+  const r = rulesOf('styles/layout.css').find((x) => x.selector.trim() === '.page-toolbar__actions'
+    && x.at.some((a) => /min-width:\s*1024px/.test(a)) && /flex-shrink/.test(x.body));
+  assert.ok(r, '.page-toolbar__actions { flex-shrink: 0 } ab 1024px fehlt');
+  assert.match(r.body, /flex-shrink:\s*0/);
+});
+
+test('R23 D13: der Kalender bleibt ab 1600px auf der Inhaltsspalte (Titelkante wie jedes Modul)', () => {
+  const cal = rulesOf('styles/calendar.css').filter((r) => r.at.some((a) => /cal-page \(min-width: 86\.25rem\)/.test(a)));
+  assert.ok(cal.length, 'die Seitenleisten-Abfrage fehlt - der Test liest calendar.css nicht mehr');
+  assert.ok(!cal.some((r) => /--page-inline-pad:\s*var\(--page-gutter\)/.test(r.body)),
+    'Kopf und Rahmen rueckten auf den Seitenrand: Titel bei 1920 auf x 252 statt 430');
+});
+
+test('R23 D13: Einkauf - die Spaltenzuordnung friert beim Laden ein und folgt beim Abhaken nicht dem Ausgleich', () => {
+  const css = rulesOf('styles/shopping.css').find((r) => r.selector.includes('.items-lanes.is-frozen > .list-group[data-lane-break]'));
+  assert.ok(css && /break-before:\s*column/.test(css.body), 'der eingefrorene Umbruch fehlt');
+  assert.ok(css.at.some((a) => /shopping-surface \(min-width: 60rem\)/.test(a)), 'nur in den Spalten');
+  const js = readPub('pages/shopping.js');
+  const mount = fnBody(js, 'function mountItems(', '\n}\n');
+  assert.match(mount, /applyLaneFreeze\(lanes\)/, 'jeder Neubau setzt den gemerkten Umbruch wieder');
+  assert.match(mount, /afterNextPaint\(\)\.then\(\(\) => \{[\s\S]*freezeLanes\(lanes\)/, 'gemessen wird nach dem ersten Bild');
+  assert.match(fnBody(js, 'function syncGroupChrome(', '\n}\n'), /applyLaneFreeze\(/, 'eine geleerte Kategorie gibt den Umbruch weiter');
+  assert.match(fnBody(js, 'async function switchList(', '\n}\n'), /laneBreak = \{ listId: null, key: null \}/, 'Listenwechsel verteilt neu');
+  assert.match(fnBody(js, 'export async function render(', '\n}\n'), /laneBreak = \{ listId: null, key: null \}/, 'Seitenaufbau verteilt neu');
+});
+
+test('R23 D13: am Finger steht der Griff nur im Sortiermodus (Aufgaben, Einkauf)', () => {
+  const r = rulesOf('styles/list-row.css').find((x) => /:is\(\.tasks-page, \.shopping-page\):not\(\.is-sorting\) \.list-row__drag/.test(x.selector));
+  assert.ok(r, 'die Sortiermodus-Regel fehlt');
+  assert.ok(r.at.some((a) => /hover:\s*none/.test(a)), 'nur ohne schwebenden Zeiger');
+  assert.match(r.body, /display:\s*none/);
+  const item = rulesOf('styles/layout.css').find((x) => x.selector.includes('[data-action="sort-mode"]'));
+  assert.ok(item && item.at.some((a) => /hover:\s*hover/.test(a)), 'am Zeiger hat der Menueeintrag keine Wirkung und fehlt');
+  assert.match(readPub('pages/tasks.js'), /action: 'sort-mode'/);
+  assert.match(readPub('pages/shopping.js'), /action: 'sort-mode'/);
+  assert.match(readPub('pages/shopping.js'), /action === 'sort-mode'/);
+  assert.match(readPub('pages/tasks.js'), /case 'sort-mode':/);
+});
+
+test('R23 D13: Wochenplan - Rezepte als Leiste unter dem Plan, unter 72rem der Typ als Zeilenkopf und sieben Tage ab 128px', () => {
+  const rules = rulesOf('styles/meals.css');
+  const layout = rules.find((r) => r.selector.trim() === '.meals-layout' && /container:\s*meals-board/.test(r.body));
+  assert.ok(layout, '.meals-layout misst sich nicht als Flaeche');
+  assert.match(layout.body, /grid-template-columns:\s*minmax\(0, 1fr\)/, 'keine Spalte rechts mehr');
+  assert.match(layout.body, /grid-template-rows:\s*minmax\(0, 1fr\) auto/, 'die Leiste hat ihre eigene Zeile');
+  const narrow = rules.filter((r) => r.at.some((a) => /meals-board \(width < 72rem\)/.test(a)));
+  const grid = narrow.find((r) => r.selector.trim() === '.week-grid');
+  assert.ok(grid && /repeat\(7, minmax\(128px, 1fr\)\)/.test(grid.body), 'sieben Tage mit mindestens 128px');
+  assert.ok(narrow.some((r) => r.selector.trim() === '.week-gutter-label' && /grid-column:\s*1 \/ -1/.test(r.body)), 'der Typ steht ueber seiner Reihe');
+  assert.ok(!rules.some((r) => r.selector.trim() === '.meals-layout' && /320px|272px/.test(r.body)), 'keine Rezeptspalte von 272/320px mehr');
+  const meals = readPub('pages/meals.js');
+  assert.doesNotMatch(fnBody(meals, 'function wireRailToggle(', '\n}\n'), /grid\.scrollWidth > grid\.clientWidth/,
+    'die Leiste klappt nicht mehr von selbst ein - sie nimmt der Woche keine Breite');
+});
+
+test('R23 D13: Mahlzeit aus einem Rezept zeigt dessen Zutaten zum Lesen, "Anpassen" macht eigene Zeilen daraus', () => {
+  const meals = readPub('pages/meals.js');
+  const of = fnBody(meals, 'function recipeIngredientsOf(', '\n}\n');
+  assert.match(of, /if \(!meal\?\.recipe_id \|\| meal\.ingredients\?\.length\) return \[\]/, 'nur ohne eigene Zutaten - die Regel des Servers');
+  const build = fnBody(meals, 'function buildModalContent(', '\n}\n');
+  assert.match(build, /recipeIngredientsOf\(isEdit \? meal : null\)/);
+  assert.match(build, /meal-recipe-ingredients__list/);
+  assert.match(build, /id="meal-own-ingredients" hidden/, 'die eigenen Zeilen stehen bereit, verborgen');
+  assert.match(meals, /#meal-recipe-ingredients-edit'\)\?\.addEventListener\('click'/, '"Anpassen" ist verdrahtet');
+  assert.match(fnBody(meals, 'function mealReadHtml(', '\n}\n'), /recipeIngredientsOf\(meal\)/, 'auch die Leseansicht nennt sie');
+});
+
+test('R23 D13: Aufteilung mobil - die offene Gruppensuche nimmt die zweite Zeile, der Mehr-Knopf bleibt beim Titel', () => {
+  const rules = rulesOf('styles/split-expenses.css').filter((r) => r.at.length === 0
+    && r.selector.includes('.split-panel-head.section-toolbar > label.split-search:'));
+  assert.ok(rules.some((r) => r.selector.includes(':focus-within')), 'mit Fokus');
+  assert.ok(rules.some((r) => r.selector.includes(':has(input:not(:placeholder-shown))')), 'mit Begriff');
+  for (const r of rules) assert.match(r.body, /flex:\s*1 0 100%/);
+});
+
+test('R23 D13: Einkauf - Quick-Add meldet einen Artikel ausserhalb des Bilds, die Listenleiste traegt den Anriss', () => {
+  const js = readPub('pages/shopping.js');
+  assert.match(fnBody(js, 'function announceAddedOutOfSight(', '\n}\n'), /if \(inSight\) return;/, 'kein Toast je Artikel, wenn die Zeile im Bild steht');
+  assert.match(js, /announceAddedOutOfSight\(container, data\.data\)/);
+  assert.match(fnBody(js, 'function renderTabs(', '\n}\n'), /wireScrollFade\(bar\)/);
+});
+
+/*
+ * R23 D14 (Kanon D5): "Ein Leerzustand neben dem FAB hat keine zweite
+ * Primaeraktion." Der Kanon stand seit 2026-10-16 in DESIGN.md, ein Guard fehlte -
+ * die Critique vom 24.10. fand den Primaerknopf trotzdem in Einkauf, Dokumente,
+ * Aufgaben, Notizen, Kontakten, Budget, Rezepten. Gescannt wird jeder Aufruf von
+ * emptyStateHTML/emptyStateEl/mountEmptyState in einer Seite mit FAB, dessen
+ * Aktion als Objekt-Literal mit `label:` im Aufruf steht: die Aktion traegt
+ * `tone: 'secondary'`. Ausgenommen sind Fehler/kein Treffer (eigener Ton) und
+ * Stellen, deren Kommentar im Aufruf sagt, dass dort KEIN FAB steht.
+ */
+function emptyStateCallsWithPrimary(src) {
+  const out = [];
+  const re = /(?:emptyState(?:HTML|El)|mountEmptyState)\((?:[^,()]*,\s*)?\{/g;
+  let m;
+  while ((m = re.exec(src))) {
+    let depth = 0;
+    let j = m.index + m[0].length - 1;
+    for (; j < src.length; j++) {
+      if (src[j] === '{') depth++;
+      else if (src[j] === '}' && --depth === 0) break;
+    }
+    const call = src.slice(m.index, j + 1);
+    if (/variant:\s*'(?:error|no-results)'/.test(call)) continue;
+    const action = /\baction:\s*[^{}]*?\{\s*label:/.exec(call);
+    if (!action) continue;
+    if (/kein FAB/.test(call)) continue;
+    const body = call.slice(action.index, call.indexOf('}', action.index) + 1);
+    if (!/tone:\s*'secondary'/.test(body)) out.push(src.slice(0, m.index).split('\n').length);
+  }
+  return out;
+}
+
+test('R23 D14: ein Leerzustand neben dem FAB hat keine zweite Primaeraktion', () => {
+  // Proben: positiv und negativ, damit ein blinder Scanner nicht gruen ist.
+  assert.deepEqual(emptyStateCallsWithPrimary("emptyStateHTML({ title: 'x', action: { label: 'y', icon: 'plus' } })"), [1]);
+  assert.deepEqual(emptyStateCallsWithPrimary("emptyStateHTML({ title: 'x', action: { label: 'y', tone: 'secondary' } })"), []);
+  assert.deepEqual(emptyStateCallsWithPrimary("mountEmptyState(el, { title: 'x', action: ro ? null : {\n label: 'y' } })"), [1]);
+  assert.deepEqual(emptyStateCallsWithPrimary("emptyStateHTML({ variant: 'error', action: { label: 'y' } })"), []);
+  const pagesDir = fileURLToPath(new URL('../public/pages/', import.meta.url));
+  const offenders = [];
+  for (const file of readdirSync(pagesDir).filter((f) => f.endsWith('.js'))) {
+    const src = readFileSync(join(pagesDir, file), 'utf8');
+    if (!/createPageFab|pageFabHtml|setPageFabAction|class="page-fab"/.test(src)) continue;
+    for (const line of emptyStateCallsWithPrimary(src)) offenders.push(`${file}:${line}`);
+  }
+  assert.deepEqual(offenders, [], 'Leerzustand mit Primaeraktion neben einem FAB - tone: \'secondary\', oder im Aufruf begruenden, dass dort kein FAB steht');
+  // Die Dokumente bauen ihre Aktionen als Liste mit `variant` (emptyStateFor).
+  const docs = readFileSync(join(pagesDir, 'documents.js'), 'utf8');
+  const empty = docs.slice(docs.indexOf('function emptyStateFor()'), docs.indexOf('function renderEmptyState('));
+  assert.doesNotMatch(empty, /variant: 'primary'/, 'Dokumente: kein Primaerknopf im Leerzustand');
+  assert.match(empty, /t\('documents\.emptyFolderTitle', \{ name: folder\.name \}\)/, 'ein leerer Ordner ist ein Ort, kein Filter ohne Treffer');
 });

@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **A "First steps" card after the welcome tour.** When an admin finishes the tour, the
+  Overview shows three ways to set up the household: invite your household, choose your
+  modules, and check region and time zone. Each is ticked off when done (the household counts
+  as invited once it has two members), and the card disappears when all three are done or when
+  you close it. Existing households do not see it. The tour itself now has a "Back" button from
+  its second step on, and "Take the tour" in Help shows it again at any time.
+- **Children can read what others put into Calendar, Notes and Inventory, but only change their
+  own.** Five new permissions in Roles & permissions decide this per member or family role:
+  change other people's events, notes and items, see purchase prices in Inventory, and change
+  the family order of tasks. Every existing account keeps them, so nothing changes in a household
+  that is already running. New child accounts start without them and with Waste read-only: a
+  child adds its own appointments and notes and edits them, sees family events and notes, and
+  opens them as a read view that says who created them, without edit or delete buttons. An
+  event a child is assigned to counts as its own. The server enforces the same rule for the app,
+  API tokens and the MCP bridge, and without the price permission the purchase price and its
+  currency are missing from every Inventory response. Contacts are not covered yet: a contact
+  does not record who created it. The family role "Child" now lists what new child accounts get
+  on top, and inviting a child no longer says the member sees every module.
 - **A contact with a birthday can be added to Birthdays from its detail view** (#2149). Until now
   only contacts whose birthday had been imported showed a way to Birthdays. A contact with a birth
   date but no birthday entry now offers "Add to birthdays" in its birthday row. It creates the same
@@ -35,6 +53,235 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   D/M/YYYY. TWD, HKD and MOP can now be picked anywhere a currency is chosen.
 
 ### Changed
+- **The call button in the contact list is no longer green.** It now looks like every other row
+  action, so a list full of phone numbers reads calmer. The contact's detail view still shows
+  "Call" in the module colour as its main action.
+- **More dates drop the year when it is this year.** Documents, Rewards, Pantry, task details and
+  comments, Housekeeping and the Overview now write dates the way the rest of the app does:
+  "24.10." in the current year, the full date only for other years.
+- **Whole days in the shift schedule next to the sidebar.** At 1024 px the week showed a 4 px
+  sliver of its first day beside the hour column; it now shows as many whole days as fit and
+  scrolls by full days.
+- **Every date in the app follows the same rule.** Health, Shift schedule, Inventory, Calendar,
+  Split expenses, search results and the settings pages now also write "24.10." in the current
+  year and the full date only for other years, chart axes included. "Last synced" and similar
+  stamps add "Uhr" after the time where your language uses it, and day, week and agenda headings
+  in the Calendar keep the year as orientation.
+- **Health entries open with a tap on the whole row.** Vaccinations, nutrition entries, past
+  periods and the values inside a lab report open for editing anywhere on the row, like the
+  training log and measurements - no small pencil to aim for.
+- **One way back when editing a contact.** "Cancel" now returns to the contact instead of closing
+  the whole sheet, and the extra "Back" button above it is gone - as in Recipes, Notes and
+  Inventory.
+- **Quieter lists and dialogs.** When a list shows "No results" or has nothing in it yet, the
+  empty detail column beside it no longer asks you to pick something. The Tasks view switch reads
+  "List · Kanban · History" instead of repeating "view", the button that moves a Kanban card to "In
+  progress" no longer looks like a play button, and naming dialogs (new list, new category, rename)
+  no longer end their question with a colon.
+- **Deleting a subtask can be undone instead of asking first, and far-off subscription payments
+  read in months.** A deleted subtask disappears at once with "Undo" in the notice, like a task. A
+  subscription due in more than a month now says "in 5 months" next to its date instead of "Due in
+  140 days". A money amount with too many decimals in Rewards is explained in the same words as
+  everywhere else.
+- **The selected segment is easier to see in light mode too.** The chosen option in segmented
+  controls and kitchen tabs now has a thin edge in both themes, so it stands out from its track at
+  the 3:1 contrast that control states need.
+- **Health, the agenda and the permissions page open faster, and four pages no longer jump while
+  they load.** Health now loads each medication's plans and doses together with the medication
+  list instead of two extra requests per medication (21 instead of 27 requests to open Health). The
+  calendar agenda draws the days on screen first and the rest right after, and the roles and
+  permissions page only lays out the module groups in view. The Inventory category chips, the
+  meal plan's week label and the top of the permissions page hold their place from the first
+  frame instead of pushing the page down or up when the data arrives.
+- **Rewards: "Bonus" is the add button on the Points tab as well.** Parents now find "Bonus" as
+  the add button on Points and History and "Reward" on Rewards, so the header button never
+  disappears when switching tabs, and the second "Grant bonus" button next to the standings is
+  gone. "Manage participants" stays in the "..." menu there.
+- **Small clarity fixes in Birthdays and Documents.** "More details" in the birthday dialog now
+  lists what it holds (contact, name day, notes and reminder), and "Import from contacts" shows
+  the contacts icon instead of an "add person" icon. In Documents a file that is too large is
+  reported as soon as you pick or drop it, not only after filling in the form.
+- **Settings read better on a phone.** Text fields such as display name, phone and e-mail now
+  sit under their label on a phone instead of sharing the row half and half. The week start
+  preview reads like the calendar's weekday header instead of a row of buttons, and the
+  "Account / Household / Modules" bar under the settings list marks the group you are looking
+  at, including the group of the open page. The settings search also finds everyday words
+  such as "dark mode", "passcode", "kiosk" or "24-hour" in every language.
+- **Calendar sync has its own settings page.** CalDAV, Google, Apple and Outlook accounts and
+  "Fill in assignments" now live on "Calendar sync", right after "Calendar" in Settings, instead of
+  at the end of a very long calendar page. Old links and the return from Google or Outlook
+  sign-in land there. Roles & permissions, Active modules and "Fill in assignments" now start
+  with one sentence or two and keep the rest behind "Learn more".
+- **Sign-in and first setup point at the field that needs fixing.** A missing username, a too
+  short password or passwords that do not match now show their message right under that field,
+  and the cursor moves there. Wrong credentials put the message and the cursor on the password,
+  which is selected for retyping. The setup form no longer shows dots as placeholders that
+  looked already filled in, and focuses the first field on a computer. Pairing a wall tablet
+  shows the app mark like the other sign-in pages and checks the ten characters before trying,
+  so a mistyped code no longer uses up an attempt. The offline page names the home server
+  instead of the internet connection.
+- **The change history shows your version, not every version.** "What's new" now lists the
+  release you run, an available update and what arrived since you last looked, followed by a
+  link to the full history on GitHub that says it is in English. Before, every release since
+  the beginning stood in one very long English page.
+- **The housekeeping visit report can be edited from where you read it.** The visit report now
+  offers "Edit" next to "Mark as paid" instead of a "Cancel" that had nothing to cancel, and
+  its date row says "Visit date" rather than "Last visit". Checking in now confirms with the
+  helper's name, like checking out. German and French call a visit a visit throughout, where
+  some dialogs and messages used a second word.
+- **Fasting starts from the add button, and the cycle view explains only what it shows.** In
+  Health, "Start fast" is now the add button of the Fasting area, like every other area,
+  and disappears while a fast runs, when the ring offers "Finish fast". Logging a past fast and
+  the fasting settings moved into a "..." menu next to "I started earlier", replacing the gear
+  button. The cycle calendar legend now lists only the marks the shown month contains, the
+  hint about the Overview tile is gone, and adding nutrition says "Log nutrition" instead of
+  "Add entry".
+- **Empty pages no longer show a second main button next to the add button.** Tasks, Notes,
+  Contacts, Budget, Recipes, the calendar agenda, Rewards and Documents now offer their "Add"
+  in an empty state as a quiet outlined button, so the add button stays the one main action.
+  An empty shopping list shows no button at all, since the quick entry field sits right above
+  it. An empty folder in Documents now says that the folder is empty and offers uploading into
+  it, instead of "No documents in this selection" with "Reset filters".
+- **Waste shows each pickup once.** The type cards under "Types & schedules" now only say how
+  often a schedule runs, since the next pickup already stands in "Upcoming pickups" beside them. A
+  card still says when a schedule is paused or has no pickup ahead. "Add type" moved from the
+  header into the "..." menu once the first type exists, so "Schedule" is the one button there,
+  and the empty texts now describe what is below them: the templates and the import.
+- **Shifts show as time blocks in the calendar, and the month view explains its shift marks.**
+  In week and day view a shift with a start and end time now sits in the hour grid like an
+  event, instead of a short code such as "N · AJ" in the all-day row. Shifts without times and
+  24-hour shifts stay in the all-day row, and "Show shifts as time blocks" in the filter sheet
+  still switches back. Under "Display" the filter sheet now lists every shift type in view with
+  its color mark, short code and name, so the colored marks in the month view can be read. In
+  the shift plan the add button says "Schedule" and is also there in the overview, the short
+  Planning tab no longer pushes the header open when you switch to it, and free days appear next
+  to the shift count instead of as a bar among the shift types.
+- **The Overview starts higher on a phone, and the wall display fits a tablet.** On a phone the
+  weather now sits under the date beside the header buttons, and the "Today" sheet no longer
+  carries a visible heading, so the first entry moves up by about 60 px. The titles in the sheet
+  line up whether or not an entry shows a person. On the wall display the number at each face
+  now matches the list under it: a person's events and cooking are listed by name before their
+  tasks. When a tablet is too small for all entries, for example 768 x 1024 upright, the day plan
+  moves its last entries into "+N more today" until the screen fits, instead of running off the
+  bottom. On the Overview, "N to approve" in Rewards now follows the standings instead of
+  sitting at the bottom of a tall tile.
+- **The shift plan overview reads like the calendar and keeps its place.** Shifts on the hour
+  grid now look like calendar events, with a colored edge and tinted text instead of a dot.
+  Days snap to the hour column when scrolling sideways, and on a phone whole days fit the
+  screen, so the first day is no longer half hidden under the hours. Switching tabs no longer
+  folds the header open and shut, and coming back to the overview shows the current hour again
+  instead of midnight.
+- **Health has one place for the person you are viewing.** The person picker now sits at the
+  right of the page header on the overview and in every area, at every width; on a phone it
+  shows as the person's initials. Opening an area no longer makes the header twice as tall, so
+  the page no longer jumps. Entries in the training log and in "Recent measurements" open when
+  tapped anywhere on the row instead of only on a small pencil.
+- **Contacts keep their title while selecting, and a missing name is shown at the field.** In
+  selection mode the header drops its menu, so "Contacts" is no longer cut to "Cont..." on a
+  phone. Saving a contact without a name now marks the first-name field instead of showing a
+  message at the bottom. Initials skip a leading title such as "Dr." or "Prof.", so "Dr. Anna
+  Weber" shows AW everywhere in the app. The contact list no longer slides down when the
+  category chips appear after loading.
+- **The calendar month stays even on a tablet, and wide screens show each filter once.** Between
+  640 and 1023 px an entry in the month grid is one line again, cut with an ellipsis, so every
+  week keeps the same height. With the side panel visible on a wide screen, the filter sheet
+  only holds layers and display, since calendars and people are already in the panel; its
+  counter and reset follow suit. "Open in Maps" now fits beside the place on a phone instead
+  of taking a line of its own.
+- **Every module fits in the "More" sheet on a phone.** Its rows are now 44 px high, the size of
+  the lists in the system settings, so Budget is visible without scrolling on a 390 x 844 screen.
+- **The meal plan shows the whole week on a laptop.** Recipes now sit in a strip below the plan
+  instead of a column beside it, so the week keeps the full width. Below about 1150 px of plan
+  width the meal type moves from its own column into a heading above its row, and all seven days
+  fit from a 1280 px window on, with Monday no longer scrolled out of view. A meal planned from a
+  recipe now lists the recipe's ingredients in its dialog; "Adjust" turns them into the meal's own
+  ingredients.
+- **Lists keep their columns and headers in place.** On the desktop Shopping list a category no
+  longer jumps to the other column when an item is checked off; the columns are set when the
+  list opens. The Tasks header no longer shifts when switching to History or starting a
+  selection, and switching to the Kanban board no longer shows a faded list first. List and
+  detail views give the list at least 480 px, so task titles wrap less at 1280 px. From a 1600 px
+  window on, the Calendar stays on the same content column as every other module.
+- **On phones, the drag handle in Tasks and Shopping appears only when reordering.** Each row
+  showed its menu and its handle side by side at the thumb's edge. The handle now comes back with
+  "Reorder" in the page menu; with a mouse it stays where it was.
+- **Smaller layout fixes.** The More sheet shows a group heading only for groups with at least
+  two entries, so Budget stands without "Finance". In the command palette, one or two letters
+  only match the start of a word for places and settings. Tapping a meal or a budget entry on a
+  phone no longer opens the keyboard. A new shopping item that lands out of view is announced
+  with its category. At 1024 px the primary button no longer sticks out of the header. The list
+  chips in Shopping fade at the edge when there are more lists than fit. The group search in
+  Split expenses no longer pushes the menu button onto a line of its own.
+- **Dates, times and distances read the same in every module.** Shift times in the Shift
+  planner now follow the 12-hour setting like the Calendar does, and every time span is written
+  as "06:00 - 14:00". A date leaves out the year when it is the current one ("Sat, 24.10."
+  instead of "24.10.2026"), and a week range names the year at most once. How far away a day is
+  reads "in 6 days" everywhere: Waste, Birthdays and the Overview no longer say "6 days" like a
+  duration, and beyond a month they count in weeks, months and years. Percentages follow the
+  household's number format. The category totals on the Budget overview no longer put a minus
+  in front of every amount under "Expenses".
+- **The leading figure of each money view has one fixed size.** Balance, net worth, remaining
+  debt and monthly subscription costs stand at 34 px in the side column and at 28 px in a row and
+  on the phone, instead of anywhere between 18 and 48 px depending on how long the amount is.
+  They only get smaller when they would not fit. The subscription budget ("of 90.00 EUR") moved
+  into the note below the figure. Inventory shows its figures as cards in the list column too,
+  and the cycle statistics in Health use the same figure cards as every other module. Kanban
+  cards, meals and loan cards title their items like list rows. Search fields share one
+  placeholder pattern without trailing dots, and shift times in the calendar agenda are no
+  longer printed in 10 px.
+- **Module icons in lists look the same everywhere.** The More sheet and the module lists in
+  Settings (Active modules, Navigation) now show each module's icon in the same soft tinted well
+  as the sidebar. Before, the More sheet used solid colour discs and Settings used gradient tiles,
+  so one module had four looks. Page headers, widgets and search keep the solid seal.
+- **Group headings in Shopping, Pantry and Inventory are words only.** The category and location
+  icons in front of each group heading are gone; they stay in the category manager and in pickers.
+- **The selected segment is easier to see in dark mode.** The chosen option in segmented controls
+  and tab bars now has a visible edge in the dark theme instead of a barely lighter fill.
+- **A loan card keeps its actions together.** "Book instalment" and the "More" button now sit side
+  by side at the bottom right of the card, where every other row in Budget keeps its actions.
+- **Subscription charts use the same bars as the rest of Budget.** "By category" and "By payment
+  method" now grow and look like the category bars in Overview and Statistics, and long names wrap
+  instead of being cut off.
+- **Delete keeps its word on the phone where there is room.** In the read view of a recipe,
+  contact or note, Delete now shows its label next to Edit instead of a bare red bin.
+- **A search in Calendar with no results looks like every other search.** It shows "No results",
+  the search term, and one button to clear the search, without a second "New event" button next
+  to the add button.
+- **One check mark for everything you tick off.** Subtasks (in the list, in the detail view and
+  on the phone sheet) and checklists in notes and task descriptions now use the same round check
+  as tasks, filled green with a tick when done; before, the same gesture had a square, a small
+  circle icon and a box. Renaming and deleting a subtask moved into its row menu, so the row no
+  longer shows a pencil and a red bin next to every step. In multi-select, a chosen row is marked
+  with an outlined accent circle and tick instead of a filled one, so it no longer looks done.
+- **Dialogs use one switch, mark every required field and start in the right field.** On/off
+  options in the dialogs of Calendar, Tasks, Budget, Subscriptions, Notes, Shopping, Pantry,
+  Waste, Meals, Shift schedule and Rewards are switches with the label on the left, as in
+  Settings, and screen readers announce them as switches; before there were three different
+  controls, some without a name. Required fields carry the star in Birthdays, Shift schedule,
+  Housekeeping, Waste and Health readings, optional fields no longer say "(optional)" next to
+  starred ones, and Birthdays and transfers show every missing field at the field at once instead
+  of one toast or one error per click. A dialog now opens in its first required field you type
+  into, not on a logo upload, a type picker or a switch. Settings use one file picker (the drop
+  zone of the backup page, now also for calendar import) and one colour picker.
+- **Dragging a row to reorder it looks like moving one row.** The gap where the row will land is
+  an empty, outlined slot, and the row under your finger is fully opaque; before, both were
+  half-transparent copies, and the neighbouring rows overshot and bounced as they made room.
+- **Status actions say what they did and can be undone, instead of asking first.** Approving or
+  rejecting a reward, checking a housekeeper out, taking or skipping a dose and marking a
+  subscription paid no longer ask for confirmation. The toast names the object ("“Ibuprofen”
+  taken.", "Maria checked out.", "“Netflix” paid - next payment on 20 Nov 2026.") and offers
+  Undo, which takes the action back on the server: the request is open again with the balance as
+  before, the visit is open again, the dose and the stock it took are restored, due date, count and
+  bookings of the subscription are as before. Undo works for a few minutes and for whoever did it.
+  Deleting a subscription, an inventory item, an empty account, a shared expense, a dose entry,
+  an activity, a period or a day entry no longer asks either: the item goes at once and is only
+  removed for good when the toast ends. A confirmation remains where more goes with it - a
+  medication with its log, a lab report with its values, an account with bookings. Completing a
+  task now names it even when it leaves the list, and a task with open subtasks says how many are
+  left and offers "Check off all". After checking out, the housekeeping row shows the visit as a
+  time span and offers "Check in again" as a secondary button, so a second tap no longer starts a
+  second visit by accident. In the API, the answers of dose bookings carry `stock_deducted`, and
+  the undo routes are documented in the OpenAPI description.
 - **The five pages of yuvomi.cloud share one header and one footer.** The landing page, the
   install guide and the three legal pages had four different top bars, three footers and three
   kinds of language switch between them. Every page now carries the same bar - logo, language,
@@ -388,6 +635,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in step 2 and only promises swiping where lists swipe.
 
 ### Fixed
+- **A birthday under another name is no longer added twice.** A contact called "Aunt Ingrid"
+  whose birth date matched the birthday "Ingrid Miller" was added as a second entry for the same
+  person, because only equal names were recognised. When exactly one unlinked birthday falls on
+  the same day (and in the same year, if both know it), the contact now asks "Link to Ingrid
+  Miller?" instead of offering "Add to birthdays", and the import from contacts shows "Link" in
+  that row instead of a checkbox. Twins and other people sharing a date can still be added by hand.
+- **A PDF opened with the mouse keeps the focus you give it.** After switching pages, the document
+  viewer could take a mouse click for a key press and pull the focus back out of the PDF, so text
+  could not be selected. It now goes by your last input, like every other dialog. Settings >
+  Notifications shows its empty channel list like every other empty list.
+- **A deleted dose no longer lingers in the Health overview.** Deleting a dose entry in Medications
+  removed it there at once, but the Health overview kept counting and listing it until the undo
+  window was over.
+- **Open tasks no longer look done in Calendar.** Task chips in week, day and agenda views showed
+  a ticked box; they now show the open circle that tasks use.
+- **Opening a document with a tap no longer rings the close button.** Dialogs without fields, like
+  the document viewer, put the focus on their title after a tap or click. With the keyboard the
+  close button still gets the focus and its ring.
+- **Health keeps the person you picked across all areas.** Choosing a family member in Vitals
+  and then opening Medications showed your own data again, and a value could end up with the
+  wrong person. The choice now holds for the whole Health module until the tab is closed, every
+  area names the person you are recording for, and the area list no longer shows your own latest
+  values while someone else is selected.
+- **The permissions sheet fits on a phone again.** Each name in the rights matrix took 12rem of
+  height on narrow screens, which made the sheet about 12,000 pixels long.
+- **Deleting a budget account no longer strips other members' private entries of it.** In
+  personal budget mode an account could carry private entries of someone else that the person
+  deleting it neither saw nor counted, so the account looked empty, went away with an undo, and
+  those entries silently lost their account and balance. Those entries now keep it: for their
+  owner the account stays as an archived one, for everyone else it is deleted as before.
+- **An amount typed with a thousands separator is no longer saved as a thousandth of it.** In
+  Budget (entries, accounts, transfers, confirmations, plans, loans), Subscriptions, Inventory
+  and Housekeeping the amount fields were number fields, and the browser read "1.200" under a
+  German region as 1.2 and saved it without a word, while "1.234,56" was refused with a hint
+  about steps of "0.01". Every money field now works like the one in Split expenses: it takes
+  the notation of the household region, shows a stored amount as "1200,50", and names the
+  problem at the field - a thousands separator with an example, not a number, not above zero,
+  or more decimals than the currency has, the smallest step written the region's way ("0,01").
+  A price in the shopping list now names the same reasons instead of "Please enter a valid
+  amount".
+- **A search in Split expenses that finds no group says so once.** It showed "No expense
+  groups yet" twice and a balance of zero next to it, although the groups exist. The list now
+  shows the usual "No results" with the search term and "Reset search", and the figure above it
+  is the total across all groups. The transaction search in Budget and the subscription search
+  use the same "No results" state with a way back.
+- **The kitchen no longer puts the same ingredient on the shopping list twice.** Planning two
+  meals from one recipe put "Onions" on the list twice, and importing the week afterwards a third
+  time; only a recipe checked what was already there. Recipes, the meal card, "From the meal plan"
+  and the pantry basket now follow one rule: an item of the same name that is still open on the
+  list is skipped - regardless of case and spaces, also for names with umlauts - while a checked
+  item does not count, because the next dish needs it again. Two rows of one name in one transfer
+  become one item. The message says what happened: "5 ingredients added to Weekly shop. 2 were
+  already on it." "From the meal plan" now also takes the meals planned from a recipe, which it
+  skipped before (in the demo household 5 of 8 meals), counts only what is new in its preview,
+  and can be undone like every other transfer.
+- **Putting the shopping away no longer leaves duplicates in the pantry, and it can be undone.**
+  "Move into the pantry" put every item into one storage location and joined an item with
+  existing stock only if name, unit, location and best-before date matched exactly - in the demo
+  household 6 of 10 items ended up as a second row, "Milk 2 l" in the cupboard next to the litre
+  in the fridge. Each row now has its own location, preset from the stock of the same name, else
+  from where the household keeps most items of that category, else from "All to" at the top,
+  which sets every row at once. The unit is read from the amount in the language of the app
+  ("2 cans", "1 pack", "500g"), and an item joins the existing batch at the same place when the
+  units fit - grams and kilograms, millilitres and litres are converted - and the best-before
+  dates are the same or one is empty. The message now offers Undo, which takes back what was
+  added to the pantry and brings the items back onto the list. The bar for checked items no
+  longer stands over the dialog it opened, or over any other dialog.
 - **yuvomi.cloud names all 27 languages.** The landing page and the web installer section of the
   install guide still said 26 after Traditional Chinese arrived. On the platform cards "Start here"
   in German no longer covers the Docker and Podman logos, and the README's number row says

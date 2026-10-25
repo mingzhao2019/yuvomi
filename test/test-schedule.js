@@ -1779,7 +1779,8 @@ test('renderPage() preserves the #main-content scroll position across its own DO
   const schedulePage = readFileSync(new URL('../public/pages/schedule.js', import.meta.url), 'utf8');
   const body = schedulePage.slice(schedulePage.indexOf('function renderPage()'), schedulePage.indexOf('function updateScheduleFab()'));
   assert.match(body, /const scrollPort = document\.getElementById\('main-content'\);/);
-  assert.match(body, /const scrollTop = scrollPort\?\.scrollTop \?\? 0;/, 'must capture the scroll position before body.replaceChildren() runs');
+  // R23: the SAME tab keeps its position; a new tab starts at the top (below a docked bar).
+  assert.match(body, /const scrollTop = sameView \? \(scrollPort\?\.scrollTop \?\? 0\) : lead;/, 'must capture the scroll position before body.replaceChildren() runs');
   assert.match(body, /if \(scrollPort\) scrollPort\.scrollTop = scrollTop;/, 'must restore the scroll position after the DOM rebuild completes');
   const saveIndex = body.indexOf('const scrollTop = scrollPort');
   const rebuildIndex = body.indexOf('body.replaceChildren()');
@@ -1884,9 +1885,16 @@ test('the Statistics tab offers a print action that leaves nav/tabs/filters off 
   assert.match(printBlock, /\.schedule-stat-filter-actions/, 'Save/Print buttons must not print themselves');
 });
 
-test('calendar defaults to compact Schedule strips, includes their start time, and keeps 24-hour shifts in their start-day strip', () => {
+// R23 D14: Zeitbloecke sind die Vorgabe, die kompakten Chips eine bewusste Wahl;
+// die Striche im Monat haben eine Legende im Filterblatt.
+test('calendar defaults to Schedule time blocks, keeps compact strips as a choice, and keeps 24-hour shifts in their start-day strip', () => {
   const calendarPage = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
-  assert.match(calendarPage, /scheduleDisplay: 'compact'/);
+  assert.match(calendarPage, /scheduleDisplay: 'blocks'/);
+  assert.match(calendarPage, /state\.scheduleDisplay = localStorage\.getItem\(SCHEDULE_DISPLAY_KEY\) === 'compact' \? 'compact' : 'blocks';/, 'nur wer Chips gewaehlt hat, behaelt sie');
+  assert.match(calendarPage, /t\('schedule\.fullBlocksHint'\)\}<\/p>` \+ scheduleLegendHtml\(\)/, 'die Legende steht im Filterblatt beim Anzeigeschalter');
+  const legend = calendarPage.slice(calendarPage.indexOf('function scheduleLegendHtml()'), calendarPage.indexOf('function scheduleLegendHtml()') + 1400);
+  assert.match(legend, /class="month-day__shift"/, 'derselbe Strich wie am Tageskopf');
+  assert.match(legend, /passesPersonFilters\(scheduleAsAssignable\(entry\)\)/, 'nur was die Personenwahl zeigt');
   assert.match(calendarPage, /schedule-entry__start/);
   assert.match(calendarPage, /function scheduleIsFullDayShift\(entry\)/);
   assert.match(calendarPage, /scheduleHasTimes\(entry\) && !scheduleIsFullDayShift\(entry\)/);
@@ -2351,7 +2359,10 @@ test('R17/E1: "Today" is one line of chips, not a card of list rows', async () =
     assert.equal((html.match(/class="schedule-today__entry /g) || []).length, 2, 'one chip per entry');
     assert.doesNotMatch(html, /list-row|row-carrier|<p>/, 'no list rows, no carrier');
     assert.equal((html.match(/role="button" tabindex="0" data-action="view-schedule-entry"/g) || []).length, 2, 'each chip still opens the detail (S-17)');
-    assert.match(html, /F · Frueh<\/span><span class="schedule-today__meta">Ada · 06:00-14:00</);
+    // R23 (D11): die Spanne geht durch utils/date-format.js (12 h, Trenner der
+    // Sprache) - im Loader ist t() der Schluessel samt Parametern. Vorher stand
+    // hier die rohe Zeichenkette "06:00-14:00".
+    assert.ok(html.includes('F · Frueh</span><span class="schedule-today__meta">Ada · calendar.dayRangeLabel{&quot;from&quot;:&quot;06:00&quot;,&quot;to&quot;:&quot;14:00&quot;}<'), html);
     st.entries = [];
     assert.match(__test.renderToday(), /^<span class="schedule-today__empty">/);
   } finally {
@@ -2561,7 +2572,7 @@ test('the reminder-offset select accepts a custom value beyond the fixed presets
 test('an overnight shift\'s continuation fragment in Overview names its end time, not the full origin-day range (S-30)', () => {
   const schedulePage = readFileSync(new URL('../public/pages/schedule.js', import.meta.url), 'utf8');
   const fnBody = schedulePage.slice(schedulePage.indexOf('function overviewEntryBlock('), schedulePage.indexOf('function scheduleOverviewEntryTitle('));
-  assert.match(fnBody, /entry\.__continuation\s*\n\s*\? t\('schedule\.continuesUntil', \{ time: type\.end_time \}\)/, 'a continuation block must use a distinct label naming only the end time, not clockLabel()\'s full origin-day range');
+  assert.match(fnBody, /entry\.__continuation\s*\n\s*\? t\('schedule\.continuesUntil', \{ time: clockText\(type\.end_time, \{ suffix: false \}\) \}\)/, 'a continuation block must use a distinct label naming only the end time, not clockLabel()\'s full origin-day range');
 });
 
 test('an "overtime tracking" toggle exists separate from the weekly-hours number, and turning it off suppresses the overtime card entirely (S-24)', () => {
@@ -2803,21 +2814,88 @@ test('ein Anlege-Verb im Schichtplan: jedes Anlegen heisst "hinzufuegen"', () =>
   }
 });
 
-test('Feiertag und Planblock tragen einen Farbpunkt statt eines Randstreifens', async () => {
+// R23 (Critique G1 P2, "zwei Blocksprachen im Zeitraster"): auf der Achse
+// spricht der Schichtblock wie der Termin im Kalender (Vollton-Kante,
+// Mischtinte, Titel halbfett); den Punkt tragen nur Eintraege OHNE Stunde -
+// Feiertag und Ganztagszone -, wie die Schicht-Chips des Kalenders.
+test('Planblock auf der Achse wie der Kalender-Termin, Punkt nur ohne Stunde', async () => {
   const { eachRule } = await import('./css-rules.js');
   const scheduleCss = readFileSync(new URL('../public/styles/schedule.css', import.meta.url), 'utf8');
-  const rules = [...eachRule(scheduleCss)];
-  const stripe = /border-(?:inline-start|left)\s*:\s*(?:[2-9]|\d{2,})px/;
-  for (const selector of ['.schedule-overview__holiday', '.schedule-overview__block']) {
-    const own = rules.filter((r) => r.selector.split(',').some((part) => part.trim().startsWith(selector)));
-    assert.ok(own.length > 0, `Vorbedingung: ${selector} hat Regeln`);
-    assert.ok(!own.some((r) => stripe.test(r.body) || /border-inline-start\s*:[^;]*var\(--(?:holi|schedule)-color\)/.test(r.body)),
-      `${selector}: kein farbiger Streifen an der Startkante (Detektor side-tab)`);
-  }
-  assert.ok(rules.some((r) => /\.schedule-overview__block-title::before/.test(r.selector) && /background\s*:\s*var\(--dot-color\)/.test(r.body)),
-    'der Planblock zeigt seine Farbe als Punkt vor dem Titel');
-  assert.ok(rules.some((r) => /\.schedule-overview__holiday > span::before/.test(r.selector)),
-    'der Feiertag ebenso');
+  const calendarCss = readFileSync(new URL('../public/styles/calendar.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(scheduleCss)].filter((r) => !r.at.length);
+  const timed = rules.find((r) => r.selector.trim() === '.schedule-overview__block:not(.schedule-overview__block--allday)');
+  assert.ok(timed, 'eine Regel fuer den Block mit Uhrzeit');
+  const week = [...eachRule(calendarCss)].find((r) => r.selector.trim() === '.week-event' && !r.at.length);
+  assert.match(week.body, /border-inline-start:\s*var\(--cal-event-edge\) solid var\(--ev-color\)/, 'Vorbedingung: das Rezept des Kalenders');
+  assert.match(timed.body, /border-inline-start:\s*var\(--cal-event-edge\) solid var\(--schedule-color\)/, 'dieselbe Vollton-Kante');
+  assert.match(timed.body, /color:\s*color-mix\(in srgb, var\(--schedule-color\) 35%, var\(--color-text-primary\)\)/, 'dieselbe Mischtinte');
+  const title = rules.find((r) => r.selector.trim() === '.schedule-overview__block:not(.schedule-overview__block--allday) .schedule-overview__block-title');
+  assert.match(title?.body ?? '', /font-weight:\s*var\(--font-weight-semibold\)/, 'Titel halbfett wie .week-event__title');
+  // Der Punkt: Feiertag und Ganztag, nie der Block auf der Achse.
+  const dot = rules.filter((r) => /::before/.test(r.selector) && /background\s*:\s*var\(--dot-color\)/.test(r.body));
+  const dotSelectors = dot.flatMap((r) => r.selector.split(',').map((x) => x.trim()));
+  assert.ok(dotSelectors.includes('.schedule-overview__holiday > span::before'), 'der Feiertag traegt den Punkt');
+  assert.ok(dotSelectors.includes('.schedule-overview__block--allday .schedule-overview__block-title::before'), 'der Ganztagseintrag traegt den Punkt');
+  assert.ok(!dotSelectors.includes('.schedule-overview__block-title::before'), 'der Block auf der Achse traegt keinen Punkt mehr');
+  const stripe = /border-(?:inline-start|left)\s*:/;
+  const holiday = rules.filter((r) => r.selector.split(',').some((part) => part.trim().startsWith('.schedule-overview__holiday')));
+  assert.ok(!holiday.some((r) => stripe.test(r.body)), 'der Feiertag bleibt ohne Kante');
+});
+
+// R23 (Critique G1 P2): am Telefon stand der erste sichtbare Tag halb unter
+// der Stundenachse, und ein Reiterwechsel klappte den Kopf auf und zu.
+test('Uebersicht: Tage rasten an der Achse ein, am Telefon ganze Tage; ein Reiterwechsel haelt seinen Stand', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const css = readFileSync(new URL('../public/styles/schedule.css', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../public/pages/schedule.js', import.meta.url), 'utf8');
+  const router = readFileSync(new URL('../public/utils/router-navigate.js', import.meta.url), 'utf8');
+  const all = [...eachRule(css)];
+  const scroller = all.find((r) => r.selector.trim() === '.schedule-overview__scroll' && !r.at.length);
+  assert.match(scroller.body, /scroll-snap-type:\s*x mandatory/);
+  assert.match(scroller.body, /scroll-padding-inline-start:\s*var\(--cal-gutter-width\)/, 'eingerastet wird an der Kante der Achse');
+  const day = all.find((r) => r.selector.trim() === '.schedule-overview__day' && !r.at.length);
+  assert.match(day.body, /scroll-snap-align:\s*start/);
+  const phone = all.find((r) => r.selector.trim() === '.schedule-overview' && r.at.some((a) => /max-width:\s*767px/.test(a)));
+  assert.ok(phone && phone.at.some((a) => /@supports/.test(a) || /round\(/.test(a)), 'nur wo round() gilt');
+  assert.match(phone.body, /--schedule-day-fit:\s*max\(1, min\(var\(--schedule-days, 7\), round\(down, 3 \/ var\(--schedule-lanes, 1\), 1\)\)\)/, 'drei Tage bei einer Person, sonst einer, nie mehr als die Ansicht hat');
+  assert.match(phone.body, /--schedule-columns:[^;]*\/ var\(--schedule-day-fit\)/, 'ein Tag ist der Rest neben der Achse, geteilt durch diese Zahl');
+  // Der Reiterwechsel setzt seinen Stand selbst, der Router nicht noch einmal.
+  assert.match(js, /return 'own-scroll';/, 'update() meldet den eigenen Stand');
+  assert.match(router, /if \(main && !\(handled === 'own-scroll' && pushState\)\) main\.scrollTop = scrollTarget;/, 'der Router laesst ihn stehen, Zurueck stellt weiter her');
+  assert.match(js, /const scrollTop = sameView \? \(scrollPort\?\.scrollTop \?\? 0\) : lead;/, 'ein neuer Reiter beginnt oben, unter einer angedockten Leiste');
+});
+
+// R23 S11b (Rest aus S9): bei 1024px war der Weg (108px) kuerzer als ein Tag
+// (112px) - vom ersten Tag stand ein 4px-Streifen neben der Achse, der Rest
+// darunter. Neben der Seitenleiste passen jetzt so viele GANZE Tage, wie das
+// Mindestmass erlaubt; gemessen am Abschnitt (cqi), nicht am Viewport.
+test('Uebersicht neben der Seitenleiste: ganze Tage, gemessen am Abschnitt', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const css = readFileSync(new URL('../public/styles/schedule.css', import.meta.url), 'utf8');
+  const wide = [...eachRule(css)].find((r) => r.selector.trim() === '.schedule-overview' && r.at.some((a) => /min-width:\s*768px/.test(a)));
+  assert.ok(wide, 'eine Regel ab 768px');
+  assert.ok(wide.at.some((a) => /@supports/.test(a)), 'nur wo Laengen geteilt werden koennen');
+  assert.match(wide.body, /container-type:\s*inline-size/, 'der Abschnitt ist sein eigenes Mass');
+  assert.match(wide.body, /--schedule-day-room:\s*calc\(100cqi - var\(--cal-gutter-width\)\)/);
+  assert.match(wide.body, /--schedule-day-fit:\s*max\(1, min\(var\(--schedule-days, 7\), round\(down, var\(--schedule-day-room\) \/ \(var\(--schedule-lanes, 1\) \* var\(--schedule-lane-min\)\), 1\)\)\)/, 'so viele ganze Tage, wie das Mindestmass erlaubt');
+  assert.match(wide.body, /--schedule-columns:[^;]*calc\(var\(--schedule-day-room\) \/ var\(--schedule-day-fit\)\)/, 'die ganzen Tage teilen sich die Breite');
+});
+
+// R23 S10 (Rest aus S9): die Planung ist mobil kuerzer als Port + Lead-Zone -
+// der Browser kappte den Stand, der Kopf klappte beim Wechsel auf (0,029/0,032).
+test('ein kurzer Reiter bekommt unter angedocktem Kopf genau den fehlenden Nachlauf', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const js = readFileSync(new URL('../public/pages/schedule.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../public/styles/schedule.css', import.meta.url), 'utf8');
+  const body = js.slice(js.indexOf('function renderPage()'), js.indexOf('function updateScheduleFab()'));
+  assert.match(body, /if \(!sameView\) body\.style\.removeProperty\('--schedule-tail'\);/, 'ein neuer Reiter misst ohne alten Nachlauf');
+  assert.match(body, /const deficit = lead - \(scrollPort\.scrollHeight - scrollPort\.clientHeight\);/, 'gemessen an der Lead-Zone, nicht an einer Zahl');
+  assert.match(body, /body\.style\.setProperty\('--schedule-tail', `\$\{tail\}px`\);/);
+  const tailAt = body.indexOf("setProperty('--schedule-tail'");
+  const restoreAt = body.indexOf('scrollPort.scrollTop = scrollTop;');
+  assert.ok(tailAt > 0 && tailAt < restoreAt, 'der Nachlauf steht, bevor der Stand gesetzt wird');
+  const rule = [...eachRule(css)].find((r) => r.selector.trim() === '.schedule-body' && !r.at.length);
+  assert.match(rule?.body ?? '', /padding-block-end:\s*var\(--schedule-tail, 0\)/, 'ohne Mangel kein Nachlauf');
 });
 
 test('das Gueltigkeitsfenster eines Musters steht hinter "Weitere Einstellungen", offen sobald gesetzt (W2/A2)', async () => {
@@ -2869,13 +2947,19 @@ test('jedes Feld der Schichtplan-Dialoge hat einen zugaenglichen Namen (A2 P1-1)
     const labelled = new Set([...html.matchAll(/<label\b[^>]*\sfor="([^"]+)"/g)].map((m) => m[1]));
     const controls = [...html.matchAll(/<(input|select|textarea)\b([^>]*)>/g)].filter((m) => !/\stype="hidden"/.test(m[2]));
     assert.ok(controls.length >= 10, 'die Stichprobe deckt die Dialogfelder ab');
-    for (const [tag, , attrs] of controls) {
+    for (const match of controls) {
+      const [tag, , attrs] = match;
       const id = /\sid="([^"]+)"/.exec(attrs)?.[1];
+      // Die Schalterzeile (formSwitchRowHtml, R23 D8): das Label umschliesst Text UND Schalter.
+      const before = html.slice(0, match.index);
+      const open = before.lastIndexOf('<label');
+      const wrapping = open >= 0 && before.indexOf('</label>', open) < 0
+        && /<span class="toggle-row__label">[^<]+<\/span>/.test(before.slice(open));
       const byFor = id && labelled.has(id);
       const byAria = /\saria-label="[^"]+"/.test(attrs);
       const refs = /\saria-labelledby="([^"]+)"/.exec(attrs)?.[1]?.split(/\s+/) ?? [];
       const byRef = refs.length > 0 && refs.every((ref) => ids.has(ref));
-      assert.ok(byFor || byAria || byRef, `ohne Namen: ${tag.slice(0, 80)}`);
+      assert.ok(byFor || byAria || byRef || wrapping, `ohne Namen: ${tag.slice(0, 80)}`);
     }
     for (const [picker] of html.matchAll(/<yuvomi-datepicker\b[^>]*>/g)) {
       assert.match(picker, /\slabel="[^"]+"/, 'die Datumsauswahl benennt ihr inneres Feld selbst');
@@ -2954,6 +3038,8 @@ test('P4: planning without any shift type is ONE empty state that leads to the s
     assert.match(withType, /schedule-library--overrides/, 'mit Schichtart kommen die drei Abschnitte zurueck');
     assert.doesNotMatch(withType, /go-to-shift-types/);
     assert.equal(__test.scheduleFabIntent('patterns').view, 'patterns');
+    // R23 S10: die Uebersicht legt einen Plan an (vorher kein Anlegeweg).
+    assert.equal(__test.scheduleFabIntent('overview').view, 'patterns', 'die Uebersicht oeffnet denselben Plan-Dialog');
   } finally {
     Object.assign(st, before);
   }
@@ -3629,4 +3715,17 @@ test('R22 D5: das Kuerzel doppelt den Namen nicht, und kein Ort schreibt das Eti
     const src = readFileSync(new URL(`../public/${file}`, import.meta.url), 'utf8');
     assert.doesNotMatch(src, /short_code\}? ?(?:\+ ' · ' \+|· \$\{)/, `${file}: das Etikett kommt aus shiftTypeLabel()`);
   }
+});
+
+// R23 S10 (Critique G1 P3, D14): der FAB nennt den Plan, nicht "Eintrag", und
+// steht auch auf der Uebersicht; freie Tage sind kein Balken unter den Schichten.
+test('FAB nennt den Schichtplan und fehlt nur in der Auswertung; freie Tage stehen in der Notiz', () => {
+  const js = readFileSync(new URL('../public/pages/schedule.js', import.meta.url), 'utf8');
+  const fab = js.slice(js.indexOf('function updateScheduleFab()'), js.indexOf('function updateScheduleFab()') + 2600);
+  assert.match(fab, /patterns: t\('schedule\.addPlan'\)/);
+  assert.match(fab, /patterns: t\('newLabel\.schedulePlan'\)/);
+  assert.match(fab, /hidden: readOnly\(\) \|\| activeView === 'statistics',/, 'die Uebersicht behaelt ihren Anlegeweg');
+  const stats = js.slice(js.indexOf('function renderStatistics()'), js.indexOf('function renderStatistics()') + 6000);
+  assert.doesNotMatch(stats, /countItems\.push/, 'kein Balken fuer freie Tage');
+  assert.match(stats, /t\('schedule\.freeDaysCount', \{ count: summary\.freeDays \}\)/);
 });

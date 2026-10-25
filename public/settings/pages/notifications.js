@@ -7,6 +7,7 @@ import { pushSupported, pushStatus, enablePush, disablePush, repairPush } from '
 import { api, notifications } from '/api.js';
 import { confirmModal, reportFieldErrors, constraintErrors } from '/components/modal.js';
 import { esc } from '/utils/html.js';
+import { emptyStateHTML } from '/utils/empty-state.js';
 import { getPwaInstallState } from '/utils/pwa-install.js';
 import { toggleRowHtml, settingSwitchRowHtml } from '/settings/components.js';
 
@@ -250,7 +251,11 @@ function renderChannelList(container, channels, providers = DEFAULT_PROVIDERS, s
     const emptyKey = scope === 'user'
       ? 'settings.notificationChannelPersonalEmpty'
       : 'settings.notificationChannelEmpty';
-    list.insertAdjacentHTML('beforeend', `<p class="form-hint">${t(emptyKey)}</p>`);
+    // DER LEERZUSTAND IST DER BAUSTEIN (R23 S11, Critique G6 P2): hier stand
+    // ein nackter Hinweissatz, jede andere leere Liste der Einstellungen
+    // zeigt den kompakten Leerzustand (modules-navigation.js). Der Anlegeweg
+    // steht darueber im Formular.
+    list.insertAdjacentHTML('beforeend', emptyStateHTML({ compact: true, description: t(emptyKey) }));
     return;
   }
   channels.forEach((rawChannel, index) => {
@@ -783,4 +788,4 @@ export async function render(container, { user } = {}) {
 // DOM-Ausschnitt und damit ohne Browser pruefbar. Sie hat zwei Fehler getragen,
 // die ein Textguard nicht gesehen haette: ein verstecktes `type="email"`, das
 // das Absenden blockiert, und einen Hinweis, der beim Anlegen nie erscheint.
-export const __test = { updateProviderVisibility, setBlockActive, providerNotReady, channelDefaults, usesBaseUrl, readChannelForm };
+export const __test = { updateProviderVisibility, setBlockActive, providerNotReady, channelDefaults, usesBaseUrl, readChannelForm, renderChannelList };

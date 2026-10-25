@@ -10,7 +10,8 @@ import { setExtensionModules, selectThirdPartyModuleList } from '/utils/extensio
 import { initExtensionI18n, moduleDisplayLabel, reloadExtensionLocales } from '/utils/extension-i18n.js';
 import { clearApiCache, onServiceWorkerUpdate, UPDATE_RELOAD_DELAY_MS } from '/sw-register.js';
 import { forgetLayoutHint } from '/utils/dashboard-layout-hint.js';
-import { initI18n, getLocale, t, formatDate, formatTime } from '/i18n.js';
+import { initI18n, getLocale, t, formatTime } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { esc } from '/utils/html.js';
 import { initials } from '/utils/initials.js';
 import { emptyHintEl, emptyStateEl } from '/utils/empty-state.js';
@@ -59,7 +60,7 @@ import {
   applyNavBadges, setNavBadge, resetNavBadges, navBadgeRoutes,
   moduleCountsFrom, navBadgeCountsFrom,
 } from '/utils/nav-badges.js';
-import { isNewerVersion, displayVersion, releasesNewForMe, pendingUpdateFor } from '/utils/version.js';
+import { isNewerVersion, displayVersion, releasesNewForMe, pendingUpdateFor, changelogReleasesToShow } from '/utils/version.js';
 import { setMaxUploadBytes } from '/utils/upload-limit.js';
 import { syncWallMode, onWallActiveChange, isWallActive } from '/utils/wall-mode.js';
 import {
@@ -73,7 +74,7 @@ import {
   restoreScrollPorts,
   noteRestoringScroll,
 } from '/utils/scroll-restore.js';
-import { openModal, confirmModal } from '/components/modal.js';
+import { openModal, confirmModal, closeModal } from '/components/modal.js';
 import { armScreensaver, disarmScreensaver } from '/components/photo-screensaver.js';
 import { installPopoverMenus } from '/utils/popover-menu.js';
 import { prefersInkText } from '/utils/contrast.js';
@@ -1569,13 +1570,12 @@ function paintMoreSheetBadges(sheet) {
  * Die Module des Mehr-Blatts, gruppiert nach `section` in der gelieferten
  * Reihenfolge: je Sektion EINE Liste (`.more-sheet__list`), benannt wie in der
  * Seitenleiste. Ob eine Sektion einen Kopf bekommt, entscheidet ihre Groesse
- * in der SEITENLEISTE (`labelCounts`), nicht im Blatt: die Favoriten der
- * Leiste fehlen hier, und „Planen" darf nicht namenlos werden, nur weil
- * Kalender und Aufgaben unten in der Leiste stehen - die Gruppen sind
- * dieselben wie am Desktop.
+ * IM BLATT (`labelCounts`, R23 D13): erst ab zwei Eintraegen gliedert ein Kopf
+ * etwas. Die Favoriten der unteren Leiste fehlen hier; steht von „Planen" nur
+ * noch ein Ziel im Blatt, steht es ohne Kopf da wie Budget.
  *
  * @param {Array<object>} modules  bereits nach Sektion sortiert
- * @param {Map<number, number>} labelCounts  Eintraege je Sektion in der Seitenleiste
+ * @param {Map<number, number>} labelCounts  Eintraege je Sektion im Blatt
  * @returns {HTMLElement[]}
  */
 function moreSheetSections(modules, labelCounts) {
@@ -1590,12 +1590,16 @@ function moreSheetSections(modules, labelCounts) {
       list.className = 'more-sheet__list';
       const group = document.createElement('div');
       group.className = 'more-sheet__group';
-      // IM BLATT TRAEGT AUCH EINE SEKTION MIT NUR EINEM EINTRAG IHREN NAMEN
-      // (R22 D14). In der Seitenleiste haengt sich Budget ohne Kopf an, sie ist
-      // ganz zu sehen. Im Blatt stand die Zeile namenlos UNTER „Menschen", am
-      // Ende eines Scrollers, der bei 390x844 97px verbarg - sie las als
-      // vierter Eintrag der Gruppe davor, oder sie fehlte ganz.
-      const labelKey = section == null ? null : navSectionLabelKey(section, labelCounts.get(section), { standalone: true });
+      // EIN KOPF ERST AB ZWEI EINTRAEGEN - GEZAEHLT IM BLATT (R23, D13;
+      // Critique G0 S-P2-3). R22 (D14) gab jeder Sektion ihren Namen, damit
+      // Budget nicht als vierter Eintrag von „Menschen" las; der Kopf
+      // „Finanzen" ueber genau einem Ziel kostete aber die Zeile, die Budget
+      // bei 390x844 unter die Falz schob (y 703-751, Koerper endet 671). Jetzt
+      // gilt dieselbe Regel wie in der Seitenleiste, gemessen an DIESER Liste:
+      // ein einzelner Eintrag steht ohne Kopf, und der Abstand zwischen den
+      // Gruppen (`.more-sheet__group + .more-sheet__group`) trennt ihn von der
+      // Gruppe davor.
+      const labelKey = section == null ? null : navSectionLabelKey(section, labelCounts.get(section));
       if (labelKey) {
         group.setAttribute('role', 'group');
         const labelId = `more-section-${section}`;
@@ -1643,7 +1647,7 @@ function buildMoreSheetBody() {
   // hier wird sie nachgezeichnet, wie die Seitenleiste es tut - eine benannte
   // Gruppe (role="group" + aria-labelledby), damit die Ordnung auch hoerbar ist.
   const modules = secondary.filter((item) => item.module !== 'settings');
-  const labelCounts = navSectionEntryCounts(navItems().filter((item) => item.module !== 'settings'));
+  const labelCounts = navSectionEntryCounts(modules);
   nodes.push(...moreSheetSections(modules, labelCounts));
 
   // DER FUSS STEHT FEST, NICHT IM SCROLLER (R21 S7, D7: "Mehr-Blatt mit
@@ -3167,7 +3171,23 @@ function showHelpModal() {
           ${esc(t('help.guideLink'))}
         </a>
         <span class="help-guide__hint">${esc(t('help.guideHint'))}</span>
+      </p>
+      <!-- DER RUNDGANG LAESST SICH WIEDERHOLEN (R23 S10, Critique G6 P3 "Hilfe
+           nur Kuerzel"). Die Hilfe trug am Zeiger nur die Tastenkuerzel; wer den
+           Rundgang uebersprungen hatte, kam nie wieder an ihn. Der Knopf fuehrt
+           auf die Uebersicht und zeigt ihn dort (dashboard.js, REPLAY_TOUR_KEY). -->
+      <p class="help-tour">
+        <button type="button" class="btn btn--secondary btn--sm" data-help-tour>
+          <i data-lucide="play-circle" aria-hidden="true"></i>${esc(t('help.replayTour'))}
+        </button>
       </p>`,
+    onSave(panel) {
+      panel.querySelector('[data-help-tour]')?.addEventListener('click', () => {
+        try { sessionStorage.setItem('yuvomi-replay-tour', '1'); } catch { /* ohne Speicher kein Rundgang */ }
+        closeModal({ force: true });
+        navigate('/');
+      });
+    },
   });
 }
 
@@ -3504,7 +3524,19 @@ function renderChangelog(panel, payload) {
   // die Antwort "nichts Neues" - jedes Mal.
   const seenInstalled = changelogSeen().version || '';
   appendWhatsNew(fragment, releases, currentVersion, seenInstalled);
-  for (const release of releases) appendReleaseCard(fragment, release, currentVersion);
+  for (const release of changelogReleasesToShow(releases, currentVersion, seenInstalled)) {
+    appendReleaseCard(fragment, release, currentVersion);
+  }
+  // Der ganze Verlauf liegt auf GitHub, auf Englisch - der Link sagt beides.
+  const more = document.createElement('p');
+  more.className = 'changelog-all';
+  const link = document.createElement('a');
+  link.href = CHANGELOG_URL;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = t('changelog.allReleases');
+  more.appendChild(link);
+  fragment.appendChild(more);
   list.appendChild(fragment);
   markChangelogSeen(latestVersion);
 }
@@ -3533,6 +3565,8 @@ function markChangelogSeen(latestVersion) {
   api.post('/auth/changelog-seen', latestVersion ? { latest: String(latestVersion) } : {})
     .catch(() => { /* still: siehe oben */ });
 }
+
+const CHANGELOG_URL = 'https://github.com/ulsklyc/yuvomi/blob/main/CHANGELOG.md';
 
 function showChangelogModal() {
   openModal({
@@ -4234,7 +4268,7 @@ function renderSearchResults(container, data, onClose, { local = { places: [], a
   // `dateKey` ist der Kalendertag in der ANZEIGEZONE: der Termin-Treffer baut
   // daraus den Tag seines Links (#1607), und ein synchronisierter Termin liegt
   // als Instant in der Zeile - sein UTC-Tag waere der falsche.
-  const fmt = { formatDate, formatTime, activityLabel, dateKey: zonedDateKey };
+  const fmt = { dateText, formatTime, activityLabel, dateKey: zonedDateKey };
   if (data) {
     SEARCH_SECTIONS.forEach((section) => {
       const hits = Array.isArray(data?.[section.bucket]) ? data[section.bucket] : [];
@@ -4992,9 +5026,9 @@ function moreItemEl({ path, navHref, label, icon, module: mod, accent, navId }) 
   if (accent) a.style.setProperty('--item-module-accent', accent);
   else if (mod) a.style.setProperty('--item-module-accent', moduleAccentVar(mod));
   const well = document.createElement('div');
-  // Markensiegel (Block 2): das Well nimmt Form und Material vom Baustein,
-  // die Zeilengroesse und die Akzent-Weiterleitung stehen in layout.css.
-  well.className = 'module-seal more-item__icon-well';
+  // Die Mulde der Seitenleiste (R23, D9), kein Siegel: eine Liste nennt das
+  // Ziel, der Vollton gehoert den Absendern. Form und Ton stehen in layout.css.
+  well.className = 'more-item__icon-well';
   well.appendChild(moduleIconEl(icon, 'more-item__icon'));
   const span = document.createElement('span');
   span.className = 'more-item__label';

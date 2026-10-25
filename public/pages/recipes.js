@@ -4,12 +4,13 @@
  */
 
 import { api } from '/api.js';
-import { t, formatDate, formatDateInput, parseDateInput, isDateInputValid } from '/i18n.js';
+import { t, formatDateInput, parseDateInput, isDateInputValid } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK, externalHref } from '/utils/html.js';
 import { openModal as openSharedModal, closeModal as closeSharedModal, advancedSection, wireBlurValidation, reportFieldError, refocusAfterRender, captureModalContext, captureOpenContext, isModalContextCurrent, isOwnModalOpen } from '/components/modal.js';
 import { DEFAULT_CATEGORY_NAME, categoryLabel } from '/utils/shopping-categories.js';
 import { renderKitchenTabsBar } from '/utils/kitchen-tabs.js';
-import { resolveShoppingTarget, announceTransfer, mayTransferRecipeToShopping } from '/utils/kitchen-transfer.js';
+import { resolveShoppingTarget, announceTransfer, transferMessage, mayTransferRecipeToShopping } from '/utils/kitchen-transfer.js';
 import { popoverMenuHtml, installPopoverMenus } from '/utils/popover-menu.js';
 import { ingredientRowHTML } from '/utils/ingredient-row.js';
 import { scheduleUndoableDelete } from '/utils/ux.js';
@@ -1409,7 +1410,7 @@ function pantryMatchBulkEl(recipe) {
 function pantryOptionLabel(item) {
   const teile = [item.name];
   if (item.location_name) teile.push(item.location_name);
-  if (item.expires_on) teile.push(formatDate(item.expires_on));
+  if (item.expires_on) teile.push(dateText(item.expires_on));
   return teile.join(' · ');
 }
 
@@ -2031,7 +2032,7 @@ async function planRecipe(recipe, btn) {
           await api.post('/meals', mealPayloadFromRecipe(recipe, date, mealType));
           closeSharedModal({ force: true, context: dialog });
           window.yuvomi?.showToast(
-            t('recipes.planSuccess', { name: recipe.title, date: formatDate(date) }),
+            t('recipes.planSuccess', { name: recipe.title, date: dateText(date, { weekday: true }) }),
             'success',
           );
         } catch (err) {
@@ -2089,12 +2090,15 @@ async function transferRecipe(recipe, btn) {
       // Rücknahme über den geteilten Baustein: dieser Pfad überträgt am meisten
       // auf einmal - eine ganze Zutatenliste - in eine Liste, die der Nutzer
       // gerade nicht ansieht (Audit 2026-07-30, P1-B).
+      //
+      // Was schon darauf stand, nennt der Satz mit (R23, D2): vorher sagte er
+      // "3 Zutaten übernommen" und verschwieg die zwei, die er übersprungen hat.
       announceTransfer({
-        message: t('recipes.toShoppingSuccess', { count: added, list: target.name }),
+        message: transferMessage('recipes.toShoppingSuccess', { added, skipped, list: target.name }),
         addedIds: res.data?.added_ids ?? [],
       });
     } else if (skipped > 0) {
-      window.yuvomi?.showToast(t('recipes.toShoppingAllPresent'), 'info');
+      window.yuvomi?.showToast(t('kitchen.transferAllPresent'), 'info');
     } else {
       window.yuvomi?.showToast(t('recipes.toShoppingNoIngredients'), 'info');
     }

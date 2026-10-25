@@ -12,8 +12,10 @@
  */
 
 import { api } from '/api.js';
-import { t, formatDate, getLocale } from '/i18n.js';
+import { t } from '/i18n.js';
+import { dateText, dateRangeText, dateWithDistanceText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
+import { formSwitchRowHtml } from '/settings/components.js';
 import { todayKey, addLocalDays, parseLocalDateKey, toLocalDateKey } from '/utils/date.js';
 import { openModal, closeModal, captureModalContext, captureOpenContext, isModalContextCurrent, confirmModal, confirmOverModal, btnLoading, refocusAfterRender, reportFieldError } from '/components/modal.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
@@ -28,7 +30,6 @@ import { isNavModuleReadOnly } from '/permissions.js';
 import { createPageController } from '/utils/page-lifecycle.js';
 import { USER_COLORS } from '/utils/color.js';
 import { redrawList } from '/utils/list-motion.js';
-import { daysBetweenDateKeys, countdownPhrase } from '/utils/countdown.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
 import { maxUploadBytes, maxUploadMb } from '/utils/upload-limit.js';
 import { reloadAfterSave } from '/utils/reload-after-save.js';
@@ -185,7 +186,7 @@ function originBadges(occurrence) {
   const parts = [];
   if (occurrence.moved) {
     const original = occurrence.origins.find((o) => o.kind === 'schedule' && o.original_date)?.original_date;
-    parts.push(`<span class="waste-badge waste-badge--moved">${esc(t('waste.movedFromBadge', { date: original ? formatDate(original) : '' }))}</span>`);
+    parts.push(`<span class="waste-badge waste-badge--moved">${esc(t('waste.movedFromBadge', { date: original ? dateText(original) : '' }))}</span>`);
   }
   if (occurrence.coalesced) {
     parts.push(`<span class="waste-badge waste-badge--coalesced" title="${esc(t('waste.coalescedHint'))}">${esc(t('waste.coalescedHint'))}</span>`);
@@ -221,25 +222,17 @@ const READ_SAFE_ACTIONS = new Set(['open-source', 'toggle-upcoming-rest']);
 
 /**
  * Pure: wann eine Abholung ist, so wie man danach fragt (Critique R17, E2):
- * Wochentag, Datum und der Abstand - "Fr, 09.10.2026 · 2 Tage". Bis R17 stand
+ * Wochentag, Datum und der Abstand - "Fr., 30.10. · in 6 Tagen". Bis R17 stand
  * dort nur "09.10.2026": ob das diese oder naechste Woche ist und an welchem
  * Tag die Tonne raus muss, rechnete man selbst.
  *
- * Der Abstand ist die Stufung der Uebersicht (countdownPhrase(): Heute, Morgen,
- * n Tage, ca. n Wochen), gerechnet auf den KEYS der Haushaltszone; der
- * Wochentag kommt aus dem UTC-Mittag des Keys mit `timeZone: 'UTC'` - beides
- * sieht nie eine Browserzone. Ein vergangener Tag traegt keinen Abstand.
+ * Seit R23 (D11) die Regel von utils/date-format.js: "in 6 Tagen" statt
+ * "6 Tage" (las sich wie eine Dauer), das Jahr nur ausserhalb des laufenden,
+ * heute und morgen als Wort allein. Gerechnet auf den KEYS der Haushaltszone;
+ * ein vergangener Tag traegt keinen Abstand.
  */
 function pickupWhenLabel(dateKey, today = todayKey()) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey ?? ''));
-  if (!match) return formatDate(dateKey);
-  const noon = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12));
-  const weekday = new Intl.DateTimeFormat(getLocale(), { weekday: 'short', timeZone: 'UTC' }).format(noon);
-  const date = `${weekday}, ${formatDate(dateKey)}`;
-  const days = daysBetweenDateKeys(today, dateKey);
-  if (days === null || days < 0) return date;
-  const phrase = countdownPhrase(days);
-  return `${date} · ${t(phrase.key, phrase.count === undefined ? undefined : { count: phrase.count })}`;
+  return dateWithDistanceText(dateKey, { today, past: false });
 }
 
 function occurrenceRowHtml(occurrence) {
@@ -283,7 +276,7 @@ function occurrenceRowHtml(occurrence) {
   // sehen"). Dieselbe Bedingung traegt deshalb jetzt beides: Knopf und Menue.
   // Der Name des Menueknopfs nennt Art UND Tag: dieselbe Abfallart steht in
   // der aufgeklappten Liste mehrfach.
-  const occurrenceName = `${occurrence.type_name ?? ''}, ${formatDate(occurrence.date_key)}`;
+  const occurrenceName = `${occurrence.type_name ?? ''}, ${dateText(occurrence.date_key)}`;
   const actions = (readOnly() || !menuItems) ? '' : `
       <div class="row-actions">
         <button type="button" class="row-action" popovertarget="${menuId}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t('common.moreActionsNamed', { name: occurrenceName }))}">
@@ -442,6 +435,11 @@ function nextOccurrenceForSchedule(scheduleId) {
 }
 
 function scheduleRowHtml(schedule) {
+  // DIE KARTE NENNT DIE REGEL, NICHT DEN TERMIN (R23 D14, Critique G2 P2).
+  // „Naechste Abholung: Mo, 26.10. · in 2 Tagen" stand hier UND zwei Spalten
+  // daneben in „Naechste Abholungen" - dieselbe Zeile zweimal. Die Karte sagt
+  // jetzt nur noch, wie oft; eine Zeile darunter nur, wenn sie etwas anderes
+  // weiss als die Liste: pausiert, oder keine Abholung mehr in Sicht.
   const next = nextOccurrenceForSchedule(schedule.id);
   // Nur-lesen: die Zeile bleibt LESBAR, verliert aber jede Schreib-Affordanz -
   // auch die des Haupt-Feldes, das sonst als role="button" den Bearbeiten-Dialog
@@ -462,10 +460,10 @@ function scheduleRowHtml(schedule) {
         <i data-lucide="repeat" aria-hidden="true"></i>
         <span class="list-row__body">
           <span class="list-row__name">${esc(recurrenceSummary(schedule))}</span>
-          <span class="list-row__meta">
+          ${(schedule.active && next) ? '' : `<span class="list-row__meta">
             ${schedule.active ? '' : `<span class="waste-badge waste-badge--paused">${esc(t('waste.pausedBadge'))}</span>`}
-            ${next ? esc(t('waste.nextPickupLabel')) + ': ' + esc(pickupWhenLabel(next.date_key)) : esc(t('waste.noUpcomingPickup'))}
-          </span>
+            ${next ? '' : esc(t('waste.noUpcomingPickup'))}
+          </span>`}
         </span>
       </div>
       ${ro ? '' : `
@@ -605,12 +603,12 @@ function isOnboarding(s) {
  * drei "Noch nichts"-Bloecke untereinander (Abholungen, Abfallarten,
  * Quellen), der erste Weg lag mobil bei y683 unter dem Erinnerungs-Toast.
  * Abholungen und Quellen haben ohne Abfallart nichts zu sagen - sie kommen
- * mit den Daten. Der Kopfknopf "Abfallart hinzufuegen" faellt dann ebenfalls
- * weg: der FAB traegt in diesem Zustand genau diese Aktion (fabIntent).
+ * mit den Daten. Einen Kopfknopf "Abfallart hinzufuegen" gibt es seit R23
+ * nicht mehr (D14): nach der ersten steht sie im Menue, davor im FAB.
  */
 function sectionVisibility(s) {
   const onboarding = isOnboarding(s);
-  return { upcoming: !onboarding, sources: !onboarding, addTypeButton: !onboarding };
+  return { upcoming: !onboarding, sources: !onboarding };
 }
 
 /**
@@ -656,10 +654,13 @@ function presetLabel(preset) {
 function onboardingHtml({ readOnly: ro, emptyHtml = null }) {
   // `emptyHtml` nur fuer den Test (die DOM-Attrappe dort baut keinen
   // Leerzustand); die Seite laesst ihn weg.
+  // Der Satz beschreibt, was darunter steht (R23 S10, Critique G2 P3: er
+  // nannte "Restmuell, Bio, Papier" ueber Chips, die anders heissen, und
+  // keinen Import). Nur-lesen hat weder Vorlagen noch Import - dort der Titel allein.
   const empty = emptyHtml ?? emptyStateHTML({
     icon: 'trash-2',
     title: t('waste.emptyTypesTitle'),
-    description: t('waste.emptyTypesDescription'),
+    description: ro ? '' : t('waste.emptyTypesDescription'),
   });
   if (ro) return `<div class="waste-onboarding">${empty}</div>`;
   const chips = TYPE_PRESETS.map((preset) => `
@@ -782,7 +783,7 @@ function sourceRowHtml(source) {
   const badge = sourceHealthBadgeInfo(source);
   const isUrl = source.kind === 'url';
   const coverage = source.coverage_start
-    ? `${esc(formatDate(source.coverage_start))} - ${esc(formatDate(source.coverage_end))}`
+    ? esc(dateRangeText(source.coverage_start, source.coverage_end))
     : esc(t('waste.sourceNoCoverage'));
   // A URL source's own row action is a manual refresh (fetch now) or, once
   // needs_mapping is set, a review action that opens the same mapping wizard
@@ -1412,10 +1413,7 @@ function openScheduleModal(type, schedule = null) {
     <div class="form-group" id="wsm-monthly-fields" ${kind === 'monthly_fixed_day' ? '' : 'hidden'}>
       <label class="form-label" for="wsm-month-day">${t('waste.monthDayLabel')}</label>
       <input type="number" class="form-input" id="wsm-month-day" min="1" max="31" value="${esc(String((schedule?.month_day ?? -1) === -1 ? 1 : schedule.month_day))}">
-      <label class="form-check">
-        <input type="checkbox" id="wsm-last-day"${schedule?.month_day === -1 ? ' checked' : ''}>
-        <span>${t('waste.monthDayLastDay')}</span>
-      </label>
+      ${formSwitchRowHtml({ label: t('waste.monthDayLastDay'), checked: schedule?.month_day === -1, attrs: { id: 'wsm-last-day' } })}
     </div>
     <div class="form-group" id="wsm-ordinal-fields" ${isOrdinal ? '' : 'hidden'}>
       <label class="form-label" for="wsm-ordinal-position">${t('waste.ordinalPositionLabel')}</label>
@@ -1432,7 +1430,7 @@ function openScheduleModal(type, schedule = null) {
       ${intervalStepperHtml(schedule?.interval ?? 1)}
     </div>
     <div class="form-group">
-      <label class="form-label" for="wsm-anchor">${t('waste.anchorDateLabel')}</label>
+      <label class="form-label" for="wsm-anchor">${t('waste.anchorDateLabel')}${REQUIRED_MARK}</label>
       <yuvomi-datepicker required id="wsm-anchor" name="anchor_date" type="date" value="${esc(schedule?.anchor_date ?? todayKey())}"></yuvomi-datepicker>
     </div>
     <div class="form-group">
@@ -1440,11 +1438,7 @@ function openScheduleModal(type, schedule = null) {
       <yuvomi-datepicker id="wsm-valid-until" name="valid_until" type="date" value="${esc(schedule?.valid_until ?? '')}"></yuvomi-datepicker>
     </div>
     <div class="form-group">
-      <label class="toggle">
-        <input type="checkbox" id="wsm-active"${schedule?.active === 0 ? '' : ' checked'}>
-        <span class="toggle__track"></span>
-        <span>${t('waste.activeLabel')}</span>
-      </label>
+      ${formSwitchRowHtml({ label: t('waste.activeLabel'), checked: schedule?.active !== 0, attrs: { id: 'wsm-active' } })}
     </div>
     <div class="modal-panel__footer modal-panel__footer--plain">
       ${isEdit ? `<button type="button" class="btn btn--danger-outline" id="wsm-delete"><i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${t('common.delete')}</button>` : ''}
@@ -1565,7 +1559,7 @@ function openPickupModal(pickup = null) {
       <select class="form-input" id="wpm-type">${typeOptions}</select>
     </div>
     <div class="form-group">
-      <label class="form-label" for="wpm-date">${t('waste.pickupDateLabel')}</label>
+      <label class="form-label" for="wpm-date">${t('waste.pickupDateLabel')}${REQUIRED_MARK}</label>
       <yuvomi-datepicker required id="wpm-date" name="date" type="date" value="${esc(pickup?.date ?? todayKey())}"></yuvomi-datepicker>
     </div>
     <div class="form-group">
@@ -2039,8 +2033,8 @@ function openSourceModal(source) {
     </div>
     <div class="waste-source-detail__meta">
       ${isUrl && source.url ? `<p>${esc(t('waste.sourceUrlLabel'))}: ${esc(source.url)}</p>` : ''}
-      ${source.coverage_start ? `<p>${esc(t('waste.sourceCoverageLabel'))}: ${esc(formatDate(source.coverage_start))} - ${esc(formatDate(source.coverage_end))}</p>` : ''}
-      ${source.last_success_at ? `<p>${esc(t('waste.sourceLastImportedLabel'))}: ${esc(formatDate(source.last_success_at.slice(0, 10)))}</p>` : ''}
+      ${source.coverage_start ? `<p>${esc(t('waste.sourceCoverageLabel'))}: ${esc(dateRangeText(source.coverage_start, source.coverage_end))}</p>` : ''}
+      ${source.last_success_at ? `<p>${esc(t('waste.sourceLastImportedLabel'))}: ${esc(dateText(source.last_success_at))}</p>` : ''}
       ${source.last_error ? `<p class="waste-source-detail__error">${esc(lastFailureSentence(source))}</p>` : ''}
       ${badge ? `<span class="waste-badge waste-badge--${badge.code}">${esc(t(badge.labelKey))}</span>` : ''}
     </div>
@@ -2297,10 +2291,7 @@ function openUrlSourceWizard() {
 function reminderSettingRowHtml(setting) {
   return `
     <div class="waste-reminder-setting-row" data-type-id="${setting.type_id}">
-      <label class="waste-reminder-setting-row__enable">
-        <input type="checkbox" data-role="reminder-enabled" ${setting.enabled ? 'checked' : ''}>
-        <span>${esc(setting.type_name)}</span>
-      </label>
+      ${formSwitchRowHtml({ label: setting.type_name, checked: Boolean(setting.enabled), attrs: { 'data-role': 'reminder-enabled' } })}
       <div class="waste-reminder-setting-row__fields"${setting.enabled ? '' : ' hidden'}>
         <label class="form-label" for="rem-offset-${setting.type_id}">${t('waste.reminderOffsetDaysLabel')}</label>
         <input type="number" class="form-input" id="rem-offset-${setting.type_id}" data-role="reminder-offset"
@@ -2528,10 +2519,12 @@ function renderPage() {
           id: 'waste-page-menu',
           label: t('waste.moreActions'),
           items: [
-            // NUR UNTER 768px SICHTBAR (waste.css): dort hat der beschriftete
-            // Kopfknopf keine Zeile mehr und wird nach der Label-Verlust-Regel
-            // zum Eintrag seines Menues. Ab 768px steht der Knopf, und der
-            // Eintrag ist ausgeblendet - es bleibt je Breite EIN Weg.
+            // DIE ABFALLART STEHT NACH DER ERSTEN IM MENUE (R23 D14, Critique
+            // G2 Frage 3). Bis R23 stand ab 768px ein beschrifteter Kopfknopf
+            // „Abfallart hinzufuegen" neben dem Primaerknopf „Termin" - zwei
+            // Anlegewege im Kopf, und der seltenere war der breitere. Eine
+            // Abfallart legt ein Haushalt drei-, viermal an; danach ist sie
+            // ein Werkzeug. Im Onboarding traegt der FAB den Weg (waste.css).
             { action: 'add-type', label: t('waste.addType'), icon: 'plus' },
             // Die Einzelabholung ist die Ausnahme zum Termin, den der
             // Primaerknopf anlegt (Entscheidung R17, E2) - ein Werkzeug, kein
@@ -2545,10 +2538,6 @@ function renderPage() {
             { action: 'open-reminder-settings', label: t('waste.reminderSettingsAction'), icon: 'bell' },
           ],
         }),
-        `<button type="button" class="btn btn--secondary" id="waste-add-type-btn" data-action="add-type">
-          <i data-lucide="plus" class="icon-md" aria-hidden="true"></i>
-          <span>${esc(t('waste.addType'))}</span>
-        </button>`,
       ].join('\n')),
     }),
     body: renderPageBody({

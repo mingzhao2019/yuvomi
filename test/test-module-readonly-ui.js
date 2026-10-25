@@ -493,11 +493,14 @@ test('und an der Zeile der Leseansicht - dort war es nur noch nicht schaedlich',
 });
 
 test('dasselbe an der Teilaufgabe - dort seit #1209', () => {
-  const zeichen = ['subtask-item__checkbox', 'subtask-item__checkbox--done', 'subtask-item__checkbox--static'];
-  assert.equal(effektiverWert(TASKS_CSS, zeichen, 'border-color', ':hover'), null);
-  assert.equal(effektiverWert(TASKS_CSS, zeichen, 'border-color'), 'var(--color-success)');
+  // Seit R23 (D7) traegt die Teilaufgabe denselben Ring (`.check-ring--sm`):
+  // die Regeln stehen in list-row.css, also misst der Test die Kaskade.
+  const KASKADE = `${readFileSync(new URL('../public/styles/list-row.css', import.meta.url), 'utf8')}\n${TASKS_CSS}`;
+  const zeichen = ['subtask-item__checkbox', 'subtask-item__checkbox--static', 'check-ring', 'check-ring--sm', 'check-ring--done', 'check-ring--static'];
+  assert.equal(effektiverWert(KASKADE, zeichen, 'border-color', ':hover::after'), null);
+  assert.equal(effektiverWert(KASKADE, zeichen, 'border-color', '::after'), 'var(--color-success)');
   assert.match(
-    effektiverWert(TASKS_CSS, ['subtask-item__checkbox', 'subtask-item__checkbox--done'], 'border-color', ':hover') ?? '',
+    effektiverWert(KASKADE, ['subtask-item__checkbox', 'check-ring', 'check-ring--sm', 'check-ring--done'], 'border-color', ':hover::after') ?? '',
     /module-accent/,
   );
 });
@@ -1174,32 +1177,39 @@ test('openEventModal() riegelt ALLE Anlegewege an einer Stelle ab', () => {
 });
 
 test('requestDeleteEvent() riegelt alle drei Serien-Löschwege ab', () => {
+  // Seit R23 (D5) fragt der Riegel je Termin: mayChangeEvent() schliesst
+  // readOnly() ein und sperrt dazu fremde Termine ohne `calendar_edit_others`.
   const fn = CAL_CODE.slice(CAL_CODE.indexOf('async function requestDeleteEvent(event) {'));
-  assert.ok(fn.indexOf('if (readOnly()) return;') > -1 && fn.indexOf('if (readOnly()) return;') < 200);
+  const riegel = fn.indexOf('if (!mayChangeEvent(event)) return;');
+  assert.ok(riegel > -1 && riegel < 400);
+  assert.match(CAL_CODE, /function mayChangeEvent\(ev\) \{\s*if \(readOnly\(\) \|\| !ev\) return false;/);
 });
 
-test('Kalender: FAB und beide Leerzustands-CTAs hängen an readOnly()', () => {
+test('Kalender: FAB und der Leerzustands-CTA der Agenda hängen an readOnly()', () => {
   // Einen eigenen Kopfknopf gibt es nicht mehr (Re-Critique 2026-09-27, D3):
   // am Zeigergeraet dockt die Shell den FAB in den Kopf.
   assert.doesNotMatch(CAL_CODE, /toolbar-new-btn(?![\w-])/, 'kein zweiter Primaerknopf neben dem FAB');
   for (const [name, muster] of [
     ['der FAB', /\$\{readOnly\(\) \? '' : `\s*<button class="page-fab" id="fab-new-event"/],
-    ['der Agenda-CTA', /action: readOnly\(\) \? undefined : \{ label: t\('calendar\.newEvent'\), attrs: \{ id: 'agenda-empty-cta' \} \}/],
-    ['der Such-CTA', /\$\{readOnly\(\) \? '' : `<button class="btn btn--secondary" id="cal-search-empty-cta">/],
+    ['der Agenda-CTA', /action: readOnly\(\) \? undefined : \{ tone: 'secondary', label: t\('calendar\.newEvent'\), attrs: \{ id: 'agenda-empty-cta' \} \}/],
   ]) {
     assert.match(CAL_CODE, muster, `${name} muss bei 'calendar: read' verschwinden`);
   }
+  // Die leere Suche traegt seit R23 keinen Anlegeknopf mehr (geteilter Baustein,
+  // "Suche zuruecksetzen" liest nur).
+  assert.doesNotMatch(CAL_CODE, /cal-search-empty-cta/, 'kein Anlegen in der leeren Suche');
 });
 
 test('Kalender-Detailansicht: Löschen, Zurücksetzen und Bearbeiten fallen weg, die Karte bleibt', () => {
-  assert.match(CAL_CODE, /const actions = readOnly\(\) \? \[\] : \[\{\s*id: 'detail-delete'/,
+  // `locked` = !mayChangeEvent(ev): Nur-lesen ODER fremder Termin ohne Recht (R23).
+  assert.match(CAL_CODE, /const locked = !mayChangeEvent\(ev\);\s*const actions = locked \? \[\] : \[\{\s*id: 'detail-delete'/,
     'die Fußzeile fängt bei Nur-lesen leer an');
   assert.match(
     CAL_CODE,
-    /ev\.external_source === 'ics'\s*&&\s*\(ev\.user_modified === 1 \|\| ev\.reminder_suppressed === 1\)\s*&&\s*!readOnly\(\)/,
+    /ev\.external_source === 'ics'\s*&&\s*\(ev\.user_modified === 1 \|\| ev\.reminder_suppressed === 1\)\s*&&\s*!locked/,
     'auch das Zurücksetzen eines ICS-Termins ist ein Schreibvorgang',
   );
-  assert.match(CAL_CODE, /edit: readOnly\(\) \? undefined : \{/,
+  assert.match(CAL_CODE, /edit: locked \? undefined : \{/,
     'ohne Mounter baut die geteilte Ansicht keinen Bearbeiten-Knopf');
   // Und die einzige nicht schreibende Aktion bleibt bedingungslos drin - seit
   // R10 als Folgeaktion der Ort-Zeile (mapRowAction), nicht im Fuss.
@@ -2414,7 +2424,7 @@ test('Geburtstagszeile mit `calendar: read`: beide Handlungen weg, die Auskunft 
     // Nichts davon war ein Zustand, der ohne die Knoepfe unlesbar wuerde - die
     // Zeile traegt ihre Auskunft selbst, und sie ist wirklich gerendert.
     assert.match(html, /Oma Erna/);
-    assert.match(html, /birthdays\.inDays/);
+    assert.match(html, /in 12 Tagen/, 'der Abstand bleibt (R23: utils/date-format.js)');
     assert.match(html, /birthdays\.turnsAge/);
     assert.match(html, /Mag Kuchen/);
     assert.match(html, /data-id="9"/);
@@ -2792,14 +2802,19 @@ async function geburtstagSpeichern(eintrag, { mode = 'edit', bedienen = async ()
   globalThis.window.yuvomi = globalThis.window.yuvomi ?? {};
   const toasts = [];
   globalThis.window.yuvomi.showToast = (text, art) => { toasts.push({ text, art }); };
+  // Feldfehler (R23, D8): wo das Formular einen Fehler an ein Feld schreibt.
+  const felder = [];
+  const vorherFeld = globalThis.__reportFieldError;
+  globalThis.__reportFieldError = (feld, text) => { felder.push({ feld: Object.keys(el).find((k) => el[k] === feld) ?? '?', text }); };
   try {
     await el['#bd-save'].feuern('click');
   } finally {
     globalThis.__apiStub = vorher.api;
     globalThis.window.yuvomi.showToast = vorher.toast;
+    globalThis.__reportFieldError = vorherFeld;
     birthdays.state.birthdays = vorher.liste;
   }
-  if (roh) return { gesendet, toasts, el };
+  if (roh) return { gesendet, toasts, felder, el };
   assert.equal(gesendet.length, 1, 'genau ein Schreibaufruf - sonst misst der Test den Speichern-Weg nicht');
   return gesendet[0];
 }
@@ -2824,7 +2839,7 @@ test('Jahr unbekannt: der Editor schickt Monat, Tag und die Marke (#2095)', asyn
   assert.equal(mitJahr.body.year_unknown, false);
   assert.equal(mitJahr.body.birth_date, '1950-04-03');
 
-  const { gesendet, toasts } = await geburtstagSpeichern(geburtstag(), {
+  const { gesendet, toasts, felder } = await geburtstagSpeichern(geburtstag(), {
     roh: true,
     bedienen: async (el) => {
       el['#bd-birth-date-year-unknown'].checked = true;
@@ -2832,7 +2847,29 @@ test('Jahr unbekannt: der Editor schickt Monat, Tag und die Marke (#2095)', asyn
     },
   });
   assert.equal(gesendet.length, 0, 'ohne Tag geht nichts an den Server');
-  assert.ok(toasts.some((x) => x.text === 'birthdays.yearlessIncomplete'), JSON.stringify(toasts));
+  // R23 (D8): der Fehler steht am Feld, nicht als Toast.
+  assert.deepEqual(felder, [{ feld: '#bd-birth-date-month', text: 'birthdays.yearlessIncomplete' }], JSON.stringify({ felder, toasts }));
+  assert.deepEqual(toasts, []);
+});
+
+test('Geburtstag: Name und Datum sind Pflicht, der Fehler steht am Feld (R23, D8)', async () => {
+  const { gesendet, toasts, felder } = await geburtstagSpeichern(geburtstag(), {
+    roh: true,
+    bedienen: async (el) => {
+      el['#bd-name'].value = '  ';
+      el['#bd-birth-date'].value = '';
+    },
+  });
+  assert.equal(gesendet.length, 0);
+  assert.deepEqual(felder.map((f) => f.feld), ['#bd-name', '#bd-birth-date'], JSON.stringify({ felder, toasts }));
+  assert.deepEqual(toasts, [], 'kein Sammel-Toast');
+  const html = withAccess({ calendar: 'write' }, () => modalOptionen(
+    () => birthdays.openBirthdayModal({ mode: 'create', birthday: null }),
+  )).content;
+  assert.match(html, /for="bd-name">[^<]*<span class="required-marker"/, 'Stern am Namen');
+  assert.match(html, /id="bd-name"[^>]*\srequired/, 'und required');
+  assert.match(html, /for="bd-birth-date" id="bd-birth-date-label">[^<]*<span class="required-marker"/, 'Stern am Datum');
+  assert.match(html, /<yuvomi-datepicker id="bd-birth-date" type="date" required/, 'und required');
 });
 
 test('eigene Angabe mit ungueltiger Anzahl: der Editor speichert nicht und sagt es ueber t() (Nachzug zu #1384)', async () => {
@@ -3253,7 +3290,10 @@ test('Vitalwerte-Historie mit `health: read`: die Messung bleibt, ihr Bearbeiten
       const html = health.recentMeasurementsMarkup(gewicht());
       // R8 H9: die Zeile oeffnet Bearbeiten (Stift) statt nur zu loeschen.
       assert.match(html, /data-vital-edit="41"/);
-      assert.match(html, /health\.vitals\.editMeasurement/);
+      // R23: die ganze Zeile ist der Knopf, kein Stift am Ende; ihr Name ist
+      // ihr Inhalt (Tag und Wert), kein aria-label, das ihn ersetzt.
+      assert.match(html, /<li class="list-row health-recent__row">\s*<button type="button" class="list-row__main list-row__main--interactive health-recent__open" data-vital-edit="41"/);
+      assert.doesNotMatch(html, /data-lucide="pencil"/);
       assert.doesNotMatch(html, /data-delete-vital/, 'Loeschen steht im Dialogfuss, nicht mehr in der Zeile');
     });
     withAccess({ health: 'read' }, () => {
@@ -3312,7 +3352,8 @@ test('R18: "Messwert erfassen" spricht in Formularzeilen - der Blutdruck ist EIN
   assert.match(neu, /<div class="form-field">\s*<label class="form-label" for="vital-note">/);
 
   const bp = health.valueFieldsMarkup('bp', { id: 1, type: 'bp', value_num: 128, value_num2: 84, value_num3: 66 });
-  assert.match(bp, /<span class="form-row__label" id="vital-pair-label">health\.vitals\.metric\.bp<\/span>/, 'die Zeile heisst "Blutdruck"');
+  assert.match(bp, /<span class="form-row__label" id="vital-pair-label">health\.vitals\.metric\.bp<span class="required-marker" aria-hidden="true"> \*<\/span><\/span>/,
+    'die Zeile heisst "Blutdruck" und traegt den Stern (R23, D8) - stumm fuer den Namen der Gruppe');
   assert.match(bp, /<span class="form-composite" role="group" aria-labelledby="vital-pair-label">/);
   assert.match(bp, /id="vital-sys" aria-label="health\.vitals\.field\.systolic" value="128">/);
   assert.match(bp, /<span class="form-composite__sep" aria-hidden="true">\/<\/span>/);
@@ -3452,8 +3493,11 @@ test('Codex an #1485: ein Blutdruck in kPa bleibt beim Speichern einer Notiz kPa
 test('R8 H9: ein Laborwert laesst sich korrigieren, nicht nur loeschen', () => {
   const analyt = { id: 3, analyte: 'Ferritin', value_num: 88, unit: 'ng/ml', ref_low: 30, ref_high: 300, flag: 'normal' };
   const zeile = health.resultEditRowMarkup(analyt);
-  assert.match(zeile, /data-result-edit="3"/, 'die Zeile traegt einen Stift');
-  assert.match(zeile, /common\.editNamed/, 'mit dem Objektnamen');
+  assert.match(zeile, /data-result-edit="3"/, 'die Zeile oeffnet den Wert');
+  // R23 S11b: DIE ZEILE OEFFNET - Analyt, Wert und Markierung sind der Knopf
+  // (`.list-row__main--interactive`), sein Name ist der Inhalt; kein Stift.
+  assert.match(zeile, /<li class="list-row health-results-row"[^>]*>\s*<button type="button" class="list-row__main list-row__main--interactive health-results-row__open" data-result-edit="3">\s*<span class="health-results-row__analyte">Ferritin<\/span>/);
+  assert.doesNotMatch(zeile, /data-lucide="pencil"|common\.editNamed/, 'kein Stift neben dem Papierkorb');
   assert.match(zeile, /data-result-del="3"/);
   const form = health.resultFormMarkup(analyt);
   assert.match(form, /id="res-analyte"[^>]*value="Ferritin"/, 'das Formular traegt den Bestand');
@@ -3662,7 +3706,13 @@ test('Befund-Detail mit `health: read`: kein Bearbeiten, die Tabelle steht volls
 
 test('Aktivitaetszeile: Bearbeiten weg, Strecke und Dauer bleiben', () => {
   const zeile = { id: 21, type: 'run', performed_at: '2026-06-14', duration_min: 45, distance_km: 8.2, calories: 510, note: 'Waldweg' };
-  assert.match(health.activityRowMarkup(zeile, true), /data-activity-edit="21"/);
+  const eigen = health.activityRowMarkup(zeile, true);
+  assert.match(eigen, /data-activity-edit="21"/);
+  // R23 (Critique G5 P2): DIE ZEILE OEFFNET - der Koerper ist der Knopf
+  // (`.list-row__main--interactive` streckt sich ueber die Zeile), kein Stift.
+  assert.match(eigen, /<li class="list-row health-activity-row">/);
+  assert.match(eigen, /<button type="button" class="list-row__main list-row__main--interactive health-activity-row__body" data-activity-edit="21">/);
+  assert.doesNotMatch(eigen, /row-action|data-lucide="pencil"/, 'kein Stift als einziges Ziel');
   const html = health.activityRowMarkup(zeile, false);
   assert.doesNotMatch(html, /data-activity-edit/);
   assert.doesNotMatch(html, /<button/);
@@ -3672,7 +3722,12 @@ test('Aktivitaetszeile: Bearbeiten weg, Strecke und Dauer bleiben', () => {
 
 test('Vorsorge-Zeile: Bearbeiten weg, Datum und Charge bleiben', () => {
   const zeile = { id: 33, given_on: '2026-03-02', dose_number: 2, provider: 'Dr. Meier', batch: 'X-42', note: 'gut vertragen' };
-  assert.match(health.preventionRowMarkup(zeile, true), /data-prevention-edit="33"/);
+  const eigen = health.preventionRowMarkup(zeile, true);
+  assert.match(eigen, /data-prevention-edit="33"/);
+  // R23 S11b: DIE ZEILE OEFFNET wie Trainings-Log und Messungen (S9) - der
+  // Koerper ist der Knopf, kein Stift am Ende.
+  assert.match(eigen, /<li class="list-row health-prevention-row"[^>]*>\s*<button type="button" class="list-row__main list-row__main--interactive health-prevention-row__body" data-prevention-edit="33">/);
+  assert.doesNotMatch(eigen, /row-action|data-lucide="pencil"/, 'kein Stift als einziges Ziel');
   const html = health.preventionRowMarkup(zeile, false);
   assert.doesNotMatch(html, /data-prevention-edit/);
   assert.doesNotMatch(html, /<button/);
@@ -3787,7 +3842,11 @@ test('Zyklus-Kalender: die eigene Zelle bleibt ansagbar, die fremde bleibt verst
 
 test('Zyklus-Historie und -Fuss: Bearbeiten, Einfuhr und Einstellungen weg, der Export bleibt', () => {
   mitView('cycle', { meId: 1, personId: 1, periods: [periode()], logs: [], settings: {}, __reset: { periods: [], logs: [] } }, () => {
-    assert.match(health.cycleHistoryMarkup(true), /data-cycle-edit="55"/);
+    const eigen = health.cycleHistoryMarkup(true);
+    assert.match(eigen, /data-cycle-edit="55"/);
+    // R23 S11b: DIE ZEILE OEFFNET - Zeitraum und Dauer sind der Knopf.
+    assert.match(eigen, /<li class="list-row cycle-history__row">[\s\S]*?<button type="button" class="list-row__main list-row__main--interactive cycle-history__body" data-cycle-edit="55">/);
+    assert.doesNotMatch(eigen, /row-action|data-lucide="pencil"/, 'kein Stift als einziges Ziel');
     const historie = health.cycleHistoryMarkup(false);
     assert.doesNotMatch(historie, /data-cycle-edit/);
     assert.doesNotMatch(historie, /<button/);
@@ -4643,7 +4702,7 @@ test('Profil bei `housekeeping: read`: die Leseansicht zeigt jeden Wert des Bear
   const werte = [
     ['Ana Lopez', 'Ana Lopez'], ['ana.l', 'ana.l'], ['0151 2345', '0151 2345'],
     ['ana@example.org', 'ana@example.org'], ['1990-04-12', '1990-04-12'],
-    ['housekeeping.rateHourly', 'housekeeping.rateHourly'], ['value="14.50"', '14,50'],
+    ['housekeeping.rateHourly', 'housekeeping.rateHourly'], ['value="14,50"', '14,50'],
     ['housekeeping.scheduleTwiceMonthly', 'housekeeping.scheduleTwiceMonthly'],
     ['#12AB34', '#12AB34'], ['#FF8800', '#FF8800'], ['Schluessel beim Nachbarn', 'Schluessel beim Nachbarn'],
   ];
@@ -4676,7 +4735,7 @@ test('Besuch bei `housekeeping: read`: der Einsatzbericht zeigt jeden Wert des E
   });
   const werte = [
     ['2026-08-06', '2026-08-06'], ['value="135"', '135'], ['31,50', '31,50'],
-    ['value="4.00"', '4,00'], ['Beleg - Ana - 06.08.', 'Beleg - Ana - 06.08.'],
+    ['value="4,00"', '4,00'], ['Beleg - Ana - 06.08.', 'Beleg - Ana - 06.08.'],
   ];
 
   const [editor] = mitModal(() => withAccess({ housekeeping: 'write' }, () => hk.openVisitEditModal(stunden, hkContainer())));
@@ -5464,10 +5523,11 @@ test('R8 H14: Dokument-Auswahl ist ein Auswahlkreis mit Objektnamen, keine nativ
 });
 
 // R22, D7: Geburtstag und Kontakt verknuepfen.
-test('D7: der Import-Eintrag traegt user-plus, nicht download - er holt Menschen, keine Datei', () => {
+test('D7: der Import-Eintrag traegt das Kontakte-Zeichen, nicht download - er holt Menschen, keine Datei', () => {
   withAccess({ calendar: 'write', contacts: 'read' }, () => {
     const html = birthdays.importActionHtml();
-    assert.match(html, /user-plus/);
+    // R23 S10: `book-user` (das Zeichen der Kontakte) statt `user-plus`.
+    assert.match(html, /book-user/);
     assert.doesNotMatch(html, /"download"|data-lucide="download"/);
   });
 });
@@ -5502,4 +5562,28 @@ test('D7: der Hinweis "Ein Kontakt heisst genauso" nur mit Schreibrecht und nur 
 test('D7/a3 Klein: das Datum im Detailkopf traegt sein Etikett', () => {
   const head = birthdays.birthdayDetailHead({ id: 1, name: 'Mike', next_birthday: '2026-11-02', next_age: 41, days_until: 10 });
   assert.match(head.subtitle, /^birthdays\.nextBirthdayOn/, 'zwei Daten untereinander, eins davon ohne Namen');
+});
+
+// R23 S10 (Critique G1 P3): "Weitere Angaben" im Geburtstag nennt seinen
+// Inhalt, und der Import aus den Kontakten traegt das Zeichen der Kontakte.
+test('R23: Geburtstag - der Aufklapper sagt, was drin ist; der Import zeigt das Kontakte-Zeichen', () => {
+  const src = readFileSync(new URL('../public/pages/birthdays.js', import.meta.url), 'utf8');
+  assert.match(src, /hint: birthdayAdvancedTopics\(mayLinkContacts\(birthday\)\)/);
+  const fn = src.slice(src.indexOf('function birthdayAdvancedTopics('), src.indexOf('function birthdayPreviewHtml('));
+  for (const key of ['newLabel.contacts', 'birthdays.nameDayLabel', 'birthdays.notesLabel', 'reminders.sectionTitle']) assert.ok(fn.includes(`t('${key}')`), key);
+  assert.match(fn, /new Intl\.ListFormat\(getLocale\(\)/);
+  assert.match(src, /\{ action: 'import-contacts', label: t\('birthdays\.importButton'\), icon: 'book-user' \}/);
+});
+
+// R23 G5-P2 (Ulas 25.10.): heisst ein Kontakt anders, hat aber denselben
+// Geburtstag wie ein Eintrag, legte der Haken im Import still eine zweite Zeile
+// an. Die Zeile fragt jetzt "Mit X verknuepfen?" und hat keinen Haken.
+test('R23 G5-P2: Importzeile mit Vorschlag fragt "Mit X verknuepfen?" statt anzulegen', () => {
+  const plain = { id: 4, name: 'Tante Ingrid', birthday: '1961-09-17', birthday_year_unknown: false, already_imported: false };
+  assert.match(birthdays.importCandidateRowHtml(plain), /type="checkbox" value="4"/, 'ohne Vorschlag: der Haken');
+  const html = birthdays.importCandidateRowHtml({ ...plain, suggested_birthday_id: 31, suggested_birthday_name: 'Ingrid <b>' });
+  assert.doesNotMatch(html, /type="checkbox"/, 'kein Haken, der eine zweite Zeile anlegt');
+  assert.match(html, /data-import-link="31" data-contact-id="4"/);
+  assert.match(html, /birthdays\.importLinkSuggest/);
+  assert.match(html, /birthdays\.linkContact/);
 });

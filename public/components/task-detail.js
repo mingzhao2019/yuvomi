@@ -30,7 +30,8 @@
  */
 
 import { api } from '/api.js';
-import { t, formatDate, formatTime } from '/i18n.js';
+import { t, formatTime } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { openDetailView, closeDetailView, visibilityRow } from '/components/detail-view.js';
 import { closeModal, btnLoading, refocusAfterRender } from '/components/modal.js';
 import { recurrenceRow } from '/rrule-ui.js';
@@ -306,13 +307,22 @@ function subtaskListNode(task, ctx) {
       row.setAttribute('aria-pressed', String(status === 'done'));
       row.setAttribute('aria-label', t('tasks.subtaskMarkDone', { title }));
     }
+    // DERSELBE RING WIE IN DER ZEILE (R23, D7): `.check-ring--sm`, erledigt in
+    // Erfolgsfarbe mit Haken - bis R23 ein Lucide-Kreis von 12px, das dritte
+    // Zeichen fuer dieselbe Geste. Die Zeile ist der Knopf, der Ring nur Bild.
+    const ring = document.createElement('span');
+    ring.className = ['detail-subtask__ring', 'check-ring', 'check-ring--sm', 'check-ring--static',
+      status === 'done' ? 'check-ring--done' : ''].filter(Boolean).join(' ');
+    ring.setAttribute('aria-hidden', 'true');
     const icon = document.createElement('i');
-    icon.dataset.lucide = status === 'done' ? 'check-circle-2' : 'circle';
-    icon.className = 'icon-sm';
+    icon.dataset.lucide = 'check';
+    icon.className = 'check-ring__check';
     icon.setAttribute('aria-hidden', 'true');
+    ring.appendChild(icon);
     const label = document.createElement('span');
+    label.className = 'detail-subtask__title';
     label.textContent = title;
-    row.replaceChildren(icon, label);
+    row.replaceChildren(ring, label);
     if (window.lucide) window.lucide.createIcons({ el: row });
   };
 
@@ -605,8 +615,8 @@ function commentRowNode(comment, { onChanged, ctx }) {
   when.className = 'task-comment__when';
   const at = new Date(comment.updated_at || comment.created_at);
   when.textContent = comment.updated_at
-    ? t('tasks.commentEditedAt', { date: formatDate(at), time: formatTime(at) })
-    : `${formatDate(at)} ${formatTime(at)}`;
+    ? t('tasks.commentEditedAt', { date: dateText(at), time: formatTime(at) })
+    : `${dateText(at)} ${formatTime(at)}`;
 
   head.append(author, when);
 
@@ -919,7 +929,7 @@ function taskReminderSummary(reminders) {
     .map((r) => {
       if (!r?.remind_at) return '';
       const at = parseRemindAtAsUtc(r.remind_at);
-      return `${formatDate(at)} ${formatTime(at)}`.trim();
+      return `${dateText(at)} ${formatTime(at)}`.trim();
     })
     .filter(Boolean)
     .join(', ');
@@ -946,14 +956,14 @@ function renderTaskDetail(task, reminders = [], ctx) {
     { icon: 'circle-dot', label: t('tasks.statusLabel'), value: STATUS_LABELS()[task.status] ?? task.status },
     // Eigene Zeile statt eines Ersatzes für den Status: die Ablage sagt etwas
     // ANDERES als „offen/erledigt", nicht dasselbe anders (#688).
-    { icon: 'archive', label: t('tasks.archivedLabel'), value: isArchived(task) ? formatDate(task.archived_at) : '' },
+    { icon: 'archive', label: t('tasks.archivedLabel'), value: isArchived(task) ? dateText(task.archived_at) : '' },
     { icon: 'flag', label: t('tasks.priorityLabel'), node: priorityNode(task.priority) },
     // Nur wenn gesetzt - eine Zeile "nicht gesperrt" an jeder Aufgabe waere
     // Rauschen. Die leere `value` blendet die Zeile aus (#830).
     { icon: 'lock', label: t('tasks.lockedLabel'), value: task.locked ? t('tasks.lockedDetail') : '' },
     // FAELLIGKEIT und PERSONEN stehen seit R18 im Kopf (taskDetailHead): "Heute
     // faellig" als die eine Angabe ueber den Zeilen, die Personen als Avatare.
-    { icon: 'calendar-clock', label: t('tasks.startDateLabel'), value: task.start_date ? formatDate(task.start_date) : '' },
+    { icon: 'calendar-clock', label: t('tasks.startDateLabel'), value: task.start_date ? dateText(task.start_date) : '' },
     recurrenceRow(task.recurrence_rule, { fromCompletion: !!task.recurrence_from_completion }),
     { icon: 'folder', label: t('tasks.categoryLabel'), value: task.category && task.category !== FALLBACK_CATEGORY ? catLabel(task.category, ctx.categories) : '' },
     { icon: 'list', label: t('tasks.taskListLabel'), value: taskListLabel(task.task_list, ctx.taskLists) },

@@ -66,7 +66,7 @@ export function budgetPaths() {
     },
     '/api/v1/budget/accounts/{id}': {
       put: op({ summary: 'Update account (credit cards also take credit_bank and credit_limit)', tag: 'Budget', params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
-      delete: op({ summary: 'Delete account without linked transfers (ordinary entries are kept, account_id cleared)', tag: 'Budget', description: 'Returns 409 with reason account_has_transfers while linked transfers reference this account. Archive it with PUT instead.', params: [idParam()], stateChanging: true }),
+      delete: op({ summary: 'Delete account without linked transfers (ordinary entries are kept, account_id cleared)', tag: 'Budget', description: 'Returns 409 with reason account_has_transfers while linked transfers reference this account. Entries the caller cannot see (private entries of other members in personal mode) keep the account: it then stays for them as an archived account, while the caller gets the same 204 and no longer sees it. Archive it with PUT instead.', params: [idParam()], stateChanging: true }),
     },
     '/api/v1/budget/loans': {
       get: op({ summary: 'List loans and repayment summary', tag: 'Budget', description: 'Each loan carries `due_day` (1 to 31, or `null`), `next_due_month` (`YYYY-MM`) and `next_due_date` (`YYYY-MM-DD`): the due day in the month the next installment is due, clamped to the last day of a shorter month. For a loan without a due day, `next_due_date` is the 1st of `next_due_month` when that month lies before the household\'s current month (a booking date, not a due date), and `null` for an installment due in the current or a later month. Both are `null` once the loan is settled. `projected_end_month` (`YYYY-MM`) is the month of the last installment: the remaining installments counted from the later of `next_due_month` and the household\'s current month, following the payments actually booked for a loan with interest; `null` once settled and for a loan whose installment does not cover its interest. A loan with interest carries `interest.current_rate`, the rate that applies today: that of the installment due in the household\'s current month, at least the next unrecorded one (the fixed rate during the fixed-rate period, the follow-up rate after it). `summary.by_direction.borrowed` and `summary.by_direction.lent` carry the summary figures per direction (`count`, `active_count`, `has_interest`, `total_amount`, `paid_amount`, `remaining_amount`, `remaining_principal`, `remaining_installments`): a borrowed balance is owed by the household, a lent one is owed to it. The top-level figures add both directions.' }),
@@ -158,7 +158,10 @@ export function budgetPaths() {
       post: op({ summary: 'Find selectable logo options from a website URL or service name', tag: 'Budget', stateChanging: true, requestBody: jsonBody(null) }),
     },
     '/api/v1/budget/subscriptions/{id}/renew': {
-      post: op({ summary: 'Advance a subscription to its next renewal date, or complete it when its end condition is reached', description: 'Preserves `reminder_enabled`. A renewed subscription with reminders disabled has no reminder row.', tag: 'Budget', params: [idParam()], stateChanging: true }),
+      post: op({ summary: 'Advance a subscription to its next renewal date, or complete it when its end condition is reached', description: 'Preserves `reminder_enabled`. A renewed subscription with reminders disabled has no reminder row. Besides `data` the answer carries `undo: { token }`; the state before the payment stays on the server, and POST /renew/undo with that token takes the payment back (R23).', tag: 'Budget', params: [idParam()], stateChanging: true }),
+    },
+    '/api/v1/budget/subscriptions/{id}/renew/undo': {
+      post: op({ summary: 'Take a payment back (undo a renewal)', description: 'Body: { token } from the `undo` block of POST /renew. Valid for the latest payment only, for the account that paid, within 10 minutes; the bookings involved come from what the renewal recorded on the server, never from the request. Due date and payment count go back, a completion is lifted, the booking of the next payment that the renewal created is deleted, and the paid booking is the linked next-payment booking again (rewritten from the subscription). Only valid while the subscription is exactly what ONE renewal made of the recorded state; otherwise (or with an unknown, used or expired token) 409 with `reason: "subscriptions_renew_undo_stale"`. Same write rule as PUT.', tag: 'Budget', params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
     },
     '/api/v1/budget/subscriptions/{id}': {
       put: op({ summary: 'Update subscription', description: 'Optional boolean `reminder_enabled`: false removes the payment reminder; true schedules it using `reminder_days`. Omitting the field preserves its current value. Changing it does not pause the subscription or remove its budget expense.', tag: 'Budget', params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
@@ -181,6 +184,7 @@ const CASE_REASONS = {
     delete: SUBSCRIPTION_GONE,
   },
   '/api/v1/budget/subscriptions/{id}/renew': { post: `${SUBSCRIPTION_GONE}, \`subscriptions_subscription_completed\` (409, the subscription is completed; reactivate it first)` },
+  '/api/v1/budget/subscriptions/{id}/renew/undo': { post: `${SUBSCRIPTION_GONE}, \`subscriptions_renew_undo_stale\` (409, somebody renewed or edited the subscription since)` },
   '/api/v1/budget/subscriptions/categories': { post: '`subscriptions_category_exists` (409)' },
   '/api/v1/budget/subscriptions/categories/{id}': {
     put: '`subscriptions_category_not_found` (404), `subscriptions_category_exists` (409)',

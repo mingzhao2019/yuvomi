@@ -4,8 +4,10 @@
  * Abhängigkeiten: /i18n.js
  */
 
-import { t, formatDate, formatDateInput, parseDateInput, isDateInputValid } from '/i18n.js';
+import { t, formatDateInput, parseDateInput, isDateInputValid } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { hasExplicitZone, isValidTimeZone, wallTimeValue } from '/utils/timezone.js';
+import { formSwitchRowHtml } from '/settings/components.js';
 
 const FREQ_OPTIONS = () => [
   { value: '',        label: t('rrule.freqNone') },
@@ -254,11 +256,11 @@ export function monthEndHintText(startDate, { expandsFromStart = false, rule = n
   }
 
   if (dateKey === firstDate) {
-    return t('rrule.lastDayOfMonthHintSame', { date: formatDate(dateKey) });
+    return t('rrule.lastDayOfMonthHintSame', { date: dateText(dateKey, { year: true }) });
   }
   return t('rrule.lastDayOfMonthHintOverride', {
-    startDate: formatDate(dateKey),
-    firstDate: formatDate(firstDate),
+    startDate: dateText(dateKey, { year: true }),
+    firstDate: dateText(firstDate, { year: true }),
   });
 }
 
@@ -387,13 +389,10 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
              kurzen Monat. Nur bei MONTHLY sichtbar, aus demselben Grund, aus
              dem buildRRule sie nur dort schreibt. -->
         <div class="rrule-monthday" id="${prefix}-rrule-monthday" ${parsed.freq === 'MONTHLY' ? '' : 'hidden'}>
-          <label class="toggle" style="margin:0">
-            <input type="checkbox" id="${prefix}-rrule-last-day" ${parsed.lastDay ? 'checked' : ''}${
-              parsed.lastDay ? ` aria-describedby="${prefix}-rrule-monthday-hint"` : ''
-            }>
-            <span class="toggle__track"></span>
-            <span>${t('rrule.lastDayOfMonth')}</span>
-          </label>
+          ${formSwitchRowHtml({ label: t('rrule.lastDayOfMonth'), checked: Boolean(parsed.lastDay), attrs: {
+            id: `${prefix}-rrule-last-day`,
+            'aria-describedby': parsed.lastDay ? `${prefix}-rrule-monthday-hint` : null,
+          } })}
           <!-- DAS EINGETRAGENE DATUM BLEIBT STEHEN (#960) - was daraus folgt,
                ist aber in den beiden Modulen VERSCHIEDEN, und ein Hinweis, der
                das Gegenteil verspricht, ist schlimmer als keiner.
@@ -414,11 +413,7 @@ export function renderRRuleFields(prefix, existingRule, opts = {}) {
 
         ${allowFromCompletion ? `
         <div class="rrule-anchor">
-          <label class="toggle" style="margin:0">
-            <input type="checkbox" id="${prefix}-rrule-from-completion" ${fromCompletion ? 'checked' : ''}${disabledAttr}>
-            <span class="toggle__track"></span>
-            <span>${t('rrule.fromCompletionLabel')}</span>
-          </label>
+          ${formSwitchRowHtml({ label: t('rrule.fromCompletionLabel'), checked: Boolean(fromCompletion), disabled, attrs: { id: `${prefix}-rrule-from-completion` } })}
           <p class="rrule-anchor__hint">${t('rrule.fromCompletionHint')}</p>
         </div>` : ''}
 
@@ -498,7 +493,7 @@ export function describeRRule(rule, opts = {}) {
   let rhythm = parts.join(' ');
   if (opts.fromCompletion) rhythm += ` · ${t('rrule.summaryFromCompletion')}`;
   if (p.count) return `${rhythm} · ${t('rrule.summaryCount', { count: p.count })}`;
-  if (p.until) return `${rhythm} · ${t('rrule.summaryUntil', { date: formatDate(p.until) })}`;
+  if (p.until) return `${rhythm} · ${t('rrule.summaryUntil', { date: dateText(p.until) })}`;
   return rhythm;
 }
 

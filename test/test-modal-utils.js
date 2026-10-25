@@ -1602,6 +1602,40 @@ test('Erstfokus: ein ausdrueckliches Ziel traegt dieselbe Wache, "none" plant ni
   }
 });
 
+/* R23 (D13): BEARBEITEN HOLT AM FINGER KEINE TASTATUR. Wer eine Mahlzeit oder
+ * eine Buchung antippt, will sie meist ansehen; der Feldfokus fuhr die
+ * Tastatur hoch (Critique G3, Rest S1). `initialFocus: 'edit'` gibt ohne
+ * schwebenden Zeiger dem Titel des Blatts den Fokus, am Zeiger dem ersten Feld. */
+test('Erstfokus "edit": am Finger der Titel (ohne Ring), am Zeiger das erste Feld (R23 D13)', () => {
+  const vorherMM = global.matchMedia;
+  for (const finger of [true, false]) {
+    const lage = erstfokusLage();
+    try {
+      global.matchMedia = (q) => ({ matches: finger && q === '(hover: none)' });
+      const attrs = {};
+      const titel = lage.knoten('modal-title', true);
+      Object.assign(titel, { hasAttribute: (n) => n in attrs, setAttribute: (n, v) => { attrs[n] = v; } });
+      const container = { ...lage.container, querySelector: (sel) => (sel === '.modal-panel__title' ? titel : lage.feld) };
+      global.document.activeElement = lage.knoten('karte-draussen', false);
+      modalTest.applyInitialFocus(container, 'edit');
+      lage.ausloesen();
+      if (finger) {
+        assert.equal(global.document.activeElement, titel, 'am Finger nimmt der Titel den Fokus - keine Tastatur');
+        assert.equal(attrs.tabindex, '-1', 'programmatisch fokussierbar, nicht in der Tab-Folge');
+      } else {
+        assert.equal(global.document.activeElement, lage.feld, 'am Zeiger bleibt es beim ersten Feld');
+      }
+    } finally {
+      lage.aufraeumen();
+      global.matchMedia = vorherMM;
+    }
+  }
+  const meals = readFileSync(new URL('../public/pages/meals.js', import.meta.url), 'utf8');
+  const budget = readFileSync(new URL('../public/pages/budget.js', import.meta.url), 'utf8');
+  assert.match(meals, /initialFocus: isEdit \? 'edit' : 'first-field'/, 'die Mahlzeit-Karte oeffnet das Bearbeiten mit der Regel');
+  assert.match(budget, /initialFocus: isEdit \? 'edit' : 'first-field'/, 'die Buchung ebenso - kein Eigenbau mehr');
+});
+
 /* Review zu #1193: der Datepicker oeffnet sein Popover unter document.body und
  * fokussiert synchron hinein - AUSSERHALB des Modal-Containers. Eine Wache, die
  * nur im Modal nachsieht, riss den Fokus aus dem offenen Kalender. */
@@ -1737,6 +1771,7 @@ test('M8: der Loeschen-Knopf im Fuss wird erkannt, bekommt Symbol, Wortspanne un
     assert.ok(del.classList.contains('modal-panel__delete'));
     assert.ok(footer.classList.contains('modal-panel__footer--has-delete'));
     assert.ok(footer.classList.contains('modal-panel__footer--one-row'), 'Dreiheit Loeschen/Abbrechen/Primaer steht in einer Zeile');
+    assert.equal(footer.classList.contains('modal-panel__footer--delete-worded'), false, 'in der Dreiheit wird Loeschen mobil der Papierkorb');
     const label = del.childNodes.find((n) => n.nodeType === 1 && n.classList.contains('modal-panel__delete-label'));
     assert.equal(label?.textContent, 'Loeschen', 'das Wort steht in einer eigenen Spanne, die das CSS mobil ausblendet');
     assert.equal(del.childNodes[0].tagName, 'SVG', 'fehlendes Papierkorb-Symbol kommt dazu');
@@ -1795,6 +1830,17 @@ test('M8: data-delete-name und ein vorhandenes aria-label gewinnen; off und die 
     ] });
     decorateFooterDelete(konto);
     assert.ok(konto.classList.contains('modal-panel__footer--one-row'), 'ein Icon-Knopf daneben zaehlt nicht als beschriftete Aktion');
+
+    // R23 (Critique G3/G5): die Leseansicht [Loeschen][Duplizieren-Icon][Bearbeiten]
+    // hat Platz - Loeschen behaelt mobil sein Wort.
+    const lese = el('div', { cls: ['modal-panel__footer'], kids: [
+      withText(el('button', { cls: ['btn', 'btn--danger-ghost'] }), 'Loeschen'),
+      el('button', { cls: ['btn', 'btn--ghost', 'btn--icon'] }),
+      withText(el('button', { cls: ['btn', 'btn--primary'] }), 'Bearbeiten'),
+    ] });
+    decorateFooterDelete(lese);
+    assert.ok(lese.classList.contains('modal-panel__footer--delete-worded'), 'eine beschriftete Nachbarin: das Wort bleibt');
+    assert.equal(detail.classList.contains('modal-panel__footer--delete-worded'), false, 'drei Nachbarinnen: Papierkorb');
   } finally {
     global.document.createElement = savedCreate;
     globalThis.window = savedWindow;
@@ -1812,11 +1858,12 @@ test('M8: mobil ist Loeschen ein Icon-Knopf der Zielgroesse, das Wort nur fuer d
   const css = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
   const mobile = [...eachRule(css)].filter((r) => r.at.some((a) => /max-width:\s*639px/.test(a)));
   const rule = (sel) => mobile.find((r) => r.selector.split(',').map((s) => s.trim()).includes(sel))?.body ?? '';
-  const btn = rule('.modal-panel__footer .btn.modal-panel__delete');
+  // R23: die Regeln gelten nur dort, wo das Wort keinen Platz hat (nicht `--delete-worded`).
+  const btn = rule('.modal-panel__footer:not(.modal-panel__footer--delete-worded) .btn.modal-panel__delete');
   assert.match(btn, /width:\s*var\(--target-base\)/, 'Treffflaeche der Geraeteklasse (44 Zeiger / 48 Finger)');
   assert.match(btn, /min-width:\s*var\(--target-base\)/);
   assert.match(btn, /padding:\s*0/);
-  const label = rule('.modal-panel__footer .modal-panel__delete .modal-panel__delete-label');
+  const label = rule('.modal-panel__footer:not(.modal-panel__footer--delete-worded) .modal-panel__delete .modal-panel__delete-label');
   assert.match(label, /position:\s*absolute/, 'das Wort verlaesst das Bild ...');
   assert.match(label, /clip:\s*rect\(0,\s*0,\s*0,\s*0\)/, '... aber nicht den Baum (sr-only, nicht display:none)');
   assert.doesNotMatch(label, /display:\s*none/);
@@ -2491,4 +2538,78 @@ test('R21 S7: ein Feld, das schon oben im Blatt steht, rollt den Koerper nicht',
   assert.match(fn, /e\.target\.closest\('\.modal-panel__body'\)/, 'gemessen wird am Scrollport des Blatts');
   assert.match(fn, /if \(top >= box\.top && top < box\.top \+ box\.height \/ 2\) return;/, 'oben im Bild bleibt alles stehen');
   assert.ok(fn.indexOf('return;') < fn.indexOf('scrollIntoView'), 'erst pruefen, dann rollen');
+});
+
+// Critique R23 (D8): der Erstfokus geht ins erste PFLICHTFELD zum Tippen, dann ins
+// erste Feld zum Tippen, erst dann irgendwohin - nicht auf die Logo-Dateiwahl des
+// Abos, die Typ-Auswahl des Vitalwerts oder einen Schalter.
+test('firstEntryField: Pflichtfeld zum Tippen vor Tippfeld vor Auswahl/Schalter/Datei', async () => {
+  const { firstEntryField } = await import('../public/components/modal.js');
+  assert.equal(typeof firstEntryField, 'function');
+  const asked = [];
+  const root = (answers) => ({
+    querySelectorAll(sel) { asked.push(sel); const hit = answers.find(([re]) => re(sel))?.[1]; return hit ? [].concat(hit) : []; },
+  });
+  const required = { id: 'name' };
+  const typed = { id: 'qty' };
+  const anyField = { id: 'select' };
+  // 1. Gibt es ein Pflichtfeld zum Tippen, gewinnt es - die erste Frage gilt ihm.
+  assert.equal(firstEntryField(root([[(s) => /\[required\]/.test(s), required], [() => true, anyField]])), required);
+  const first = asked[0];
+  assert.match(first, /\[required\]/);
+  for (const type of ['checkbox', 'radio', 'file', 'color', 'hidden']) {
+    assert.match(first, new RegExp(`:not\\(\\[type="${type}"\\]\\)`), `${type} ist kein Feld zum Tippen`);
+  }
+  assert.doesNotMatch(first, /\bselect\b/, 'eine Auswahl ist kein Feld zum Tippen');
+  // 2. Ohne Pflichtfeld das erste Tippfeld, 3. sonst irgendein Feld.
+  asked.length = 0;
+  assert.equal(firstEntryField(root([[(s) => !/\[required\]/.test(s) && /textarea/.test(s) && !/select/.test(s), typed], [(s) => /select/.test(s), anyField]])), typed);
+  asked.length = 0;
+  assert.equal(firstEntryField(root([[(s) => /select/.test(s), anyField]])), anyField);
+  assert.equal(asked.length, 3, 'die Auswahl kommt erst als dritte Frage');
+  // 4. Ein Feld in einer verborgenen Gruppe zaehlt nicht (Entsorgung: Monatsfelder
+  // einer woechentlichen Regel) - sonst liefe der Fokus ins Leere.
+  const hidden = { id: 'month-day', closest: (sel) => (/\[hidden\]/.test(sel) ? {} : null) };
+  const visible = { id: 'interval', closest: () => null };
+  assert.equal(firstEntryField(root([[(s) => !/\[required\]/.test(s) && /textarea/.test(s) && !/select/.test(s), [hidden, visible]]])), visible);
+});
+
+test('firstEntryField traegt jeden Erstfokus des Dialogs (Oeffnen, Einfahrt, Bearbeiten)', () => {
+  const src = readFileSync(fileURLToPath(new URL('../public/components/modal.js', import.meta.url)), 'utf8');
+  // Oeffnen und Einfahrt fragen seit R23 (D13) beide resolveInitialFocus, das
+  // firstEntryField einmal ruft; dazu der Wechsel ins Formular (focusFirstField).
+  assert.equal((src.match(/firstEntryField\((?:container|panel)\)/g) ?? []).length, 2);
+  assert.equal((src.match(/(?<!function )resolveInitialFocus\((?:container|panel), initialFocus\)/g) ?? []).length, 2,
+    'Oeffnen und Einfahrt nehmen denselben Weg');
+  assert.doesNotMatch(src, /querySelector\(FIRST_FIELD\) \?\? \w+\.querySelector\(FOCUSABLE\)/);
+});
+
+// R23 (Critique G4): ohne Feld fiel der Erstfokus aufs X, und nach einem Tipp
+// zeichnete Chromium den Ring daran. Per Zeiger geoeffnet nimmt der Titel den
+// Fokus; per Tastatur (der Ausloeser zeigte seinen Ring) bleibt es beim X.
+test('Erstfokus: ohne Feld nimmt per Zeiger der Titel den Fokus, per Tastatur das X (R23)', () => {
+  for (const keyboard of [false, true]) {
+    const lage = erstfokusLage();
+    try {
+      const attrs = new Map();
+      const titel = { id: 'title', isConnected: true, hasAttribute: (n) => attrs.has(n), setAttribute: (n, v) => attrs.set(n, v), focus() { global.document.activeElement = titel; } };
+      const x = { id: 'close', isConnected: true, matches: (sel) => sel === '.modal-panel__close', focus() { global.document.activeElement = x; } };
+      lage.container.querySelector = (sel) => (sel === '.modal-panel__title' ? titel : null);
+      const ausloeser = lage.knoten('zeile', false);
+      ausloeser.matches = (sel) => sel === ':focus-visible' && keyboard;
+      global.document.activeElement = ausloeser;
+      modalTest.applyInitialFocus(lage.container, x);
+      lage.ausloesen();
+      if (keyboard) {
+        assert.equal(global.document.activeElement, x, 'per Tastatur: das X, mit Ring');
+      } else {
+        assert.equal(global.document.activeElement, titel, 'per Zeiger: der Titel');
+        assert.equal(attrs.get('tabindex'), '-1', 'der Titel wird programmatisch fokussierbar, nicht Teil der Tab-Kette');
+      }
+    } finally {
+      lage.aufraeumen();
+    }
+  }
+  const css = readFileSync(fileURLToPath(new URL('../public/styles/layout.css', import.meta.url)), 'utf8');
+  assert.match(css, /\.modal-panel__title\[tabindex="-1"\]:focus \{\s*outline: none;/, 'kein Ring um den Titel');
 });

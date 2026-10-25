@@ -655,3 +655,114 @@ test('POST /redemptions - zwei gleichzeitige Anfragen auf die letzte Einheit: nu
     assert.equal(getBalance(db, a.id) + getBalance(db, b.id), 190, 'nur einmal abgebucht');
   });
 });
+
+// ── R23, D6: eine Entscheidung zuruecknehmen (Rueckgaengig im Toast) ──────────
+// "Freigegeben" stand ohne Rueckweg da, das harmlosere Ablehnen fragte nach.
+// Jetzt fragt keine der beiden, und `reopen` nimmt sie am Server ECHT zurueck.
+
+test('R23 D6: reopen nach Freigabe - Anfrage offen, Punkte bleiben reserviert, Einheit wieder frei', async () => {
+  const kid = freshKid(100);
+  const item = (await call('POST', '/catalog', { body: { name: 'Undo-Kino', cost: 30, quantity: 1 } })).body.data.id;
+  const req = await call('POST', '/redemptions', { actor: kid, body: { catalog_id: item } });
+  assert.equal(req.status, 201);
+  const id = req.body.data.id;
+  assert.equal(getBalance(db, kid.id), 70, 'beim Stellen reserviert');
+  assert.equal((await call('PATCH', `/redemptions/${id}`, { body: { action: 'fulfill' } })).status, 200);
+  const back = await call('PATCH', `/redemptions/${id}`, { body: { action: 'reopen' } });
+  assert.equal(back.status, 200, JSON.stringify(back.body));
+  assert.equal(back.body.data.status, 'pending');
+  assert.equal(back.body.data.decided_by, null);
+  assert.equal(getBalance(db, kid.id), 70, 'die Reservierung steht wie vor der Freigabe');
+  // Die eine Einheit ist wieder frei: dieselbe Anfrage laesst sich erneut freigeben.
+  assert.equal((await call('PATCH', `/redemptions/${id}`, { body: { action: 'fulfill' } })).status, 200);
+  assert.equal((await call('PATCH', `/redemptions/${id}`, { body: { action: 'reopen' } })).status, 200);
+  assert.equal((await call('PATCH', `/redemptions/${id}`, { body: { action: 'reopen' } })).status, 409, 'offen ist nichts zurueckzunehmen');
+});
+
+test('R23 D6: reopen nach Ablehnen nimmt genau die Rueckbuchung zurueck - und nur, solange das Guthaben reicht', async () => {
+  const kid = freshKid(40);
+  const item = (await call('POST', '/catalog', { body: { name: 'Undo-Eis', cost: 25 } })).body.data.id;
+  const id = (await call('POST', '/redemptions', { actor: kid, body: { catalog_id: item } })).body.data.id;
+  assert.equal(getBalance(db, kid.id), 15);
+  await call('PATCH', `/redemptions/${id}`, { body: { action: 'reject' } });
+  assert.equal(getBalance(db, kid.id), 40, 'Ablehnen bucht zurueck');
+  const back = await call('PATCH', `/redemptions/${id}`, { body: { action: 'reopen' } });
+  assert.equal(back.status, 200);
+  assert.equal(getBalance(db, kid.id), 15, 'wieder reserviert, ohne zweite Buchung');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reward_ledger WHERE redemption_id = ? AND type = 'reversal'").get(id).n, 0);
+  // Das Guthaben reicht nicht mehr: die Ablehnung bleibt.
+  await call('PATCH', `/redemptions/${id}`, { body: { action: 'reject' } });
+  postLedger(db, { userId: kid.id, delta: -30, type: 'adjust', reason: 'ausgegeben', createdBy: ADMIN.id });
+  const refused = await call('PATCH', `/redemptions/${id}`, { body: { action: 'reopen' } });
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.reason, 'insufficient_points');
+  assert.equal(db.prepare('SELECT status FROM reward_redemptions WHERE id = ?').get(id).status, 'rejected');
+});
+
+test('R23 D6: reopen nur durch den, der entschied, und nur kurz danach', async () => {
+  const kid = freshKid(50);
+  const item = (await call('POST', '/catalog', { body: { name: 'Undo-Buch', cost: 10 } })).body.data.id;
+  const id = (await call('POST', '/redemptions', { actor: kid, body: { catalog_id: item } })).body.data.id;
+  await call('PATCH', `/redemptions/${id}`, { body: { action: 'fulfill' } });
+  assert.equal((await call('PATCH', `/redemptions/${id}`, { actor: kid, body: { action: 'reopen' } })).status, 403);
+  db.prepare("UPDATE reward_redemptions SET decided_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-11 minutes') WHERE id = ?").run(id);
+  const late = await call('PATCH', `/redemptions/${id}`, { body: { action: 'reopen' } });
+  assert.equal(late.status, 409);
+  assert.equal(late.body.reason, 'rewards_reopen_expired');
+});
+
+test('R23 D6: reopen einer freigegebenen Geld-Einzahlung nimmt die Gutschrift zurueck', async () => {
+  const kid = freshKid(0);
+  assert.equal((await call('POST', '/money/accounts', { body: { user_id: kid.id } })).status, 201);
+  const dep = await call('POST', '/redemptions', { actor: kid, body: { kind: 'deposit', amount: '2.50' } });
+  assert.equal(dep.status, 201, JSON.stringify(dep.body));
+  const money = () => db.prepare("SELECT COALESCE(SUM(delta), 0) AS n FROM reward_ledger WHERE user_id = ? AND unit = 'money'").get(kid.id).n;
+  assert.equal((await call('PATCH', `/redemptions/${dep.body.data.id}`, { body: { action: 'fulfill' } })).status, 200);
+  assert.equal(money(), 250);
+  const back = await call('PATCH', `/redemptions/${dep.body.data.id}`, { body: { action: 'reopen' } });
+  assert.equal(back.status, 200, JSON.stringify(back.body));
+  assert.equal(back.body.data.status, 'pending');
+  assert.equal(money(), 0, 'die Einzahlung ist zurueckgenommen');
+});
+
+test('R23 Sicherheit: eine Auto-Erfuellung laesst sich nicht oeffnen und zurueckziehen (Punkte bleiben weg)', async () => {
+  const kid = freshKid(60);
+  const item = (await call('POST', '/catalog', { body: { name: 'Undo-Auto', cost: 20 } })).body.data.id;
+  db.prepare("INSERT INTO sync_config (key, value) VALUES ('rewards_require_approval','0') ON CONFLICT(key) DO UPDATE SET value='0'").run();
+  try {
+    const req = await call('POST', '/redemptions', { actor: kid, body: { catalog_id: item } });
+    assert.equal(req.status, 201);
+    assert.equal(req.body.data.status, 'fulfilled', 'ohne Freigabepflicht sofort erfuellt');
+    const reopen = await call('PATCH', `/redemptions/${req.body.data.id}`, { actor: kid, body: { action: 'reopen' } });
+    assert.equal(reopen.status, 403);
+    const cancel = await call('PATCH', `/redemptions/${req.body.data.id}`, { actor: kid, body: { action: 'cancel' } });
+    assert.equal(cancel.status, 409, 'erfuellt bleibt erfuellt');
+    assert.equal(getBalance(db, kid.id), 40, 'die Punkte bleiben ausgegeben');
+    // Auch ein Admin, der fuer das Kind ohne Freigabe einloest, oeffnet das nicht.
+    const byAdmin = await call('POST', '/redemptions', { body: { catalog_id: item, user_id: kid.id } });
+    assert.equal(byAdmin.body.data.status, 'fulfilled');
+    assert.equal((await call('PATCH', `/redemptions/${byAdmin.body.data.id}`, { body: { action: 'reopen' } })).status, 403);
+  } finally {
+    db.prepare("DELETE FROM sync_config WHERE key='rewards_require_approval'").run();
+  }
+  // Das eigene Zurueckziehen bleibt umkehrbar - es reserviert nur wieder.
+  const pend = (await call('POST', '/redemptions', { actor: kid, body: { catalog_id: item } })).body.data.id;
+  assert.equal(getBalance(db, kid.id), 0);
+  await call('PATCH', `/redemptions/${pend}`, { actor: kid, body: { action: 'cancel' } });
+  assert.equal(getBalance(db, kid.id), 20);
+  const back = await call('PATCH', `/redemptions/${pend}`, { actor: kid, body: { action: 'reopen' } });
+  assert.equal(back.status, 200);
+  assert.equal(getBalance(db, kid.id), 0, 'wieder reserviert');
+  assert.equal((await call('PATCH', `/redemptions/${pend}`, { actor: kid, body: { action: 'fulfill' } })).status, 403);
+});
+
+test('R23: ein Admin, der fuer ein Kind beantragt und spaeter freigibt, nimmt die Freigabe zurueck', async () => {
+  const kid = freshKid(40);
+  const item = (await call('POST', '/catalog', { body: { name: 'Undo-Stellvertretend', cost: 15 } })).body.data.id;
+  const id = (await call('POST', '/redemptions', { body: { catalog_id: item, user_id: kid.id } })).body.data.id;
+  db.prepare("UPDATE reward_redemptions SET created_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 minutes') WHERE id = ?").run(id);
+  assert.equal((await call('PATCH', `/redemptions/${id}`, { body: { action: 'fulfill' } })).status, 200);
+  const back = await call('PATCH', `/redemptions/${id}`, { body: { action: 'reopen' } });
+  assert.equal(back.status, 200, JSON.stringify(back.body));
+  assert.equal(getBalance(db, kid.id), 25, 'weiter reserviert');
+});

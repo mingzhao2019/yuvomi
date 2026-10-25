@@ -6,12 +6,16 @@
  * Familienobjekte werden von Admins verwaltet; persoenliche Objekte von ihrer
  * Erstellerin bzw. ihrem Ersteller. Sichtbarkeit und Freigaben entsprechen dem
  * Aufgaben-/Kalender-Modell, werden aber fuer jeden Lesepfad serverseitig
- * durchgesetzt.
+ * durchgesetzt. Inventar ist ausserdem Haushaltseigentum; created_by bleibt der
+ * Herkunftsnachweis und ist seit R23 die Grundlage fuer die Fremdobjekt-Regel.
+ * Ohne inventory_edit_others aendert ein Konto nur freigegebene eigene
+ * Gegenstaende; ohne inventory_view_prices fehlen Kaufpreis und Waehrung.
  */
 
 import express from 'express';
 import * as db from '../../db.js';
 import { createLogger } from '../../logger.js';
+import { mayChangeRecord, requestHasCapability, sendNotOwner } from '../../permissions.js';
 import {
   str, oneOf, num, date, id as idParam, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT,
 } from '../../middleware/validate.js';
@@ -118,6 +122,45 @@ function locationPath(locationId) {
   if (loc.parent_id == null) return loc.name;
   const parent = db.get().prepare('SELECT name FROM inventory_locations WHERE id = ?').get(loc.parent_id);
   return parent ? `${parent.name} · ${loc.name}` : loc.name;
+}
+
+// PREISE NUR MIT RECHT (R23, D5). Wie die Betraege der Haushaltshilfe: die
+// Felder fehlen in der Antwort, statt leer dazustehen - ein null hiesse
+// kein Preis eingetragen, und das waere eine Falschaussage. Verknuepfte
+// Buchungen bleiben Sache des Budgetrechts (budgetViewer), wie bisher.
+const PRICE_FIELDS = ['purchase_price', 'currency'];
+
+function viewsPrices(req) {
+  return requestHasCapability(db.get(), req, 'inventory_view_prices');
+}
+
+function withoutPrices(item) {
+  if (!item) return item;
+  const out = { ...item };
+  for (const field of PRICE_FIELDS) delete out[field];
+  return out;
+}
+
+function presentItem(item, req, prices = viewsPrices(req)) {
+  return prices ? item : withoutPrices(item);
+}
+
+// Fremde Gegenstaende duerfen nur mit R23-Recht geaendert werden. Die lokale
+// Inventarregel fuer Familienobjekte bleibt dabei staerker: sie bleiben
+// administrativ, waehrend persoenliche Objekte per Capability freigegeben
+// werden koennen.
+function refuseForeignItem(req, res, item) {
+  const userId = actorId(req);
+  const admin = isAdmin(req);
+  const own = item?.created_by != null && Number(item.created_by) === Number(userId);
+  if (canEditItem(item, userId, admin)) return false;
+  if (item?.asset_scope === 'family' && !admin) {
+    sendNotOwner(res);
+    return true;
+  }
+  if (mayChangeRecord(db.get(), req, 'inventory_edit_others', own)) return false;
+  sendNotOwner(res);
+  return true;
 }
 
 function decorateItem(item, userId, admin, assignedUsers, linkedEntries) {
@@ -384,7 +427,15 @@ router.get('/', (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : undefined;
     const userId = actorId(req);
 
-    res.json({ data: loadItems({ category, locationId, status, q }, userId, isAdmin(req), budgetViewer(req), documentViewer(req)) });
+    const prices = viewsPrices(req);
+    const items = loadItems(
+      { category, locationId, status, q },
+      userId,
+      isAdmin(req),
+      budgetViewer(req),
+      documentViewer(req),
+    );
+    res.json({ data: prices ? items : items.map(withoutPrices) });
   } catch (err) {
     log.error('GET / error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -401,7 +452,7 @@ router.get('/:id', (req, res) => {
     const userId = actorId(req);
     const item = loadItem(vId.value, userId, isAdmin(req), budgetViewer(req), documentViewer(req));
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
-    res.json({ data: item });
+    res.json({ data: presentItem(item, req) });
   } catch (err) {
     log.error('GET /:id error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -447,6 +498,10 @@ router.post('/', (req, res) => {
         effectiveBody = { ...req.body, purchase_price: Math.abs(entry.amount) };
       }
     }
+
+    // Wer keine Preise sieht, schreibt auch keine (wie die Haushaltshilfe):
+    // kein mitgeschickter Preis, keine Vorbelegung aus der Buchung.
+    if (!viewsPrices(req)) effectiveBody = { ...effectiveBody, purchase_price: null, currency: null };
 
     const { values, errors, reason } = validateItemFields(effectiveBody);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400, ...(reason ? { reason } : {}) });
@@ -504,7 +559,7 @@ router.post('/', (req, res) => {
       linkEntry({ itemId: result.lastInsertRowid, entryId: entry.id, role: 'purchase', amountShare: null, viewer: budget });
     }
 
-    res.status(201).json({ data: loadItem(result.lastInsertRowid, userId, admin, budget, viewer) });
+    res.status(201).json({ data: presentItem(loadItem(result.lastInsertRowid, userId, admin, budget, viewer), req) });
   } catch (err) {
     if (sendDocumentDeletionConflict(res, err)) return;
     if (sendDocumentLinkRefusal(res, err)) return;
@@ -525,7 +580,7 @@ router.put('/:id', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    if (refuseForeignItem(req, res, item)) return;
     if (req.body.asset_scope !== undefined && req.body.asset_scope !== item.asset_scope) {
       return res.status(400).json({ error: 'Asset scope cannot be changed after creation.', code: 400 });
     }
@@ -535,7 +590,12 @@ router.put('/:id', (req, res) => {
     const assigned = validateAssignedUserIds(req.body.assigned_user_ids);
     if (assigned.error) return res.status(400).json({ error: assigned.error, code: 400 });
 
-    const { values, errors, reason } = validateItemFields(req.body);
+    // Volles Replace - ausser beim Preis, den diese Person nicht sieht: der
+    // gespeicherte bleibt stehen, statt still geleert zu werden.
+    const body = viewsPrices(req)
+      ? req.body
+      : { ...req.body, purchase_price: item.purchase_price, currency: item.currency };
+    const { values, errors, reason } = validateItemFields(body);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400, ...(reason ? { reason } : {}) });
 
     let trackedDateValues = null;
@@ -596,7 +656,7 @@ router.put('/:id', (req, res) => {
       });
     }
 
-    res.json({ data: loadItem(item.id, userId, admin, budget, viewer) });
+    res.json({ data: presentItem(loadItem(item.id, userId, admin, budget, viewer), req) });
   } catch (err) {
     if (sendDocumentDeletionConflict(res, err)) return;
     if (sendDocumentLinkRefusal(res, err)) return;
@@ -617,7 +677,7 @@ router.post('/:id/entries', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    if (refuseForeignItem(req, res, item)) return;
 
     const vEntryId = idParam(req.body.entry_id, 'Buchung');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
@@ -641,7 +701,7 @@ router.post('/:id/entries', (req, res) => {
       error: result.error, code: result.code, ...(result.reason ? { reason: result.reason } : {}),
     });
 
-    res.status(201).json({ data: loadItem(item.id, userId, admin, budget, documentViewer(req)) });
+    res.status(201).json({ data: presentItem(loadItem(item.id, userId, admin, budget, documentViewer(req)), req) });
   } catch (err) {
     log.error('POST /:id/entries error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -661,7 +721,7 @@ router.delete('/:id/entries/:entryId', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    if (refuseForeignItem(req, res, item)) return;
 
     const vEntryId = idParam(req.params.entryId, 'Buchung-ID');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
@@ -672,7 +732,7 @@ router.delete('/:id/entries/:entryId', (req, res) => {
       error: result.error, code: result.code, ...(result.reason ? { reason: result.reason } : {}),
     });
 
-    res.json({ data: loadItem(item.id, userId, admin, budget, documentViewer(req)) });
+    res.json({ data: presentItem(loadItem(item.id, userId, admin, budget, documentViewer(req)), req) });
   } catch (err) {
     log.error('DELETE /:id/entries/:entryId error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -694,9 +754,7 @@ router.post('/:id/dates/:dateId/complete', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) {
-      return res.status(403).json({ error: 'Not authorized.', code: 403 });
-    }
+    if (refuseForeignItem(req, res, item)) return;
 
     const { value, errors } = validateCompletionInput(req.body, item);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
@@ -708,7 +766,7 @@ router.post('/:id/dates/:dateId/complete', (req, res) => {
 
     const budget = budgetViewer(req);
     const viewer = documentViewer(req);
-    res.status(201).json({ data: loadItem(item.id, userId, admin, budget, viewer) });
+    res.status(201).json({ data: presentItem(loadItem(item.id, userId, admin, budget, viewer), req) });
   } catch (err) {
     log.error('POST /:id/dates/:dateId/complete error:', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
@@ -743,9 +801,7 @@ router.post('/:id/service-log', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) {
-      return res.status(403).json({ error: 'Not authorized.', code: 403 });
-    }
+    if (refuseForeignItem(req, res, item)) return;
 
     const { value, errors } = validateServiceLogInput(req.body, item);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
@@ -769,9 +825,7 @@ router.put('/:id/service-log/:logId', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) {
-      return res.status(403).json({ error: 'Not authorized.', code: 403 });
-    }
+    if (refuseForeignItem(req, res, item)) return;
 
     const baseline = odometerBaselineExcluding(item, item.id, vLogId.value);
     const { value, errors } = validateServiceLogInput(req.body, baseline);
@@ -796,9 +850,7 @@ router.delete('/:id/service-log/:logId', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) {
-      return res.status(403).json({ error: 'Not authorized.', code: 403 });
-    }
+    if (refuseForeignItem(req, res, item)) return;
 
     const deleted = deleteServiceLogEntry({ itemId: item.id, logId: vLogId.value });
     if (deleted.changes === 0) return res.status(404).json({ error: 'Service log entry not found.', code: 404 });
@@ -838,9 +890,7 @@ router.delete('/:id', (req, res) => {
     const item = db.get().prepare('SELECT * FROM inventory_items WHERE id = ?').get(vId.value);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404, reason: 'inventory_item_not_found' });
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    if (!canEditItem(item, userId, admin)) {
-      return res.status(403).json({ error: 'Not authorized.', code: 403 });
-    }
+    if (refuseForeignItem(req, res, item)) return;
 
     const deleted = db.get().transaction(() => {
       db.get().prepare("DELETE FROM reminders WHERE entity_type = 'inventory_item' AND entity_id = ?").run(vId.value);

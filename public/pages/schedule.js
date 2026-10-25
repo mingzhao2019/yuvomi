@@ -1,6 +1,7 @@
 import { api } from '/api.js';
-import { t, formatDate, formatDayMonth, getNumberFormat } from '/i18n.js';
-import { esc } from '/utils/html.js';
+import { t, formatDayMonth, getNumberFormat } from '/i18n.js';
+import { shiftTimeText, clockText, dateRangeText, dateText } from '/utils/date-format.js';
+import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { periodStepperHtml, swapPeriod, periodArrowKeys, wirePeriodArrowKeys } from '/utils/period-stepper.js';
 import { swapContent } from '/utils/content-swap.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
@@ -17,7 +18,7 @@ import { installPopoverMenus } from '/utils/popover-menu.js';
 import { wireScrollFade } from '/utils/ux.js';
 import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
-import { toggleRowHtml } from '/settings/components.js';
+import { toggleRowHtml, formSwitchRowHtml } from '/settings/components.js';
 import { renderAvatarStack, sharedSurname } from '/components/user-multi-select.js';
 import { openFilterSheet, filterChipsHtml } from '/utils/filter-sheet.js';
 import { hourOffset, alignedHourScroll, timeGridDayHeadHtml, timeGridHoursHtml, timeGridHourLinesHtml, timeGridNowLineHtml } from '/utils/time-grid.js';
@@ -278,12 +279,10 @@ const canWrite = (userId) => !readOnly() && (canManageOthers || Number(userId) =
 // verlaesslich in 403.
 const canEditType = (type) => !readOnly() && (canManageOthers
   || (type?.created_by != null && Number(type.created_by) === Number(currentUserId)));
-const clockLabel = (shiftType) => {
-  if (!shiftType?.start_time || !shiftType?.end_time) return t('schedule.allDay');
-  const crossesDay = shiftType.end_time <= shiftType.start_time;
-  const fullDay = shiftType.end_time === shiftType.start_time;
-  return `${shiftType.start_time}-${shiftType.end_time}${crossesDay ? ' +1' : ''}${fullDay ? ' · 24 h' : ''}`;
-};
+// Die Spanne im Zeitformat des Nutzers (R23, D11): hier stand sie roh als
+// "22:00-06:00", auch wer 12 Stunden eingestellt hat, und anders als dieselbe
+// Schicht im Kalender. Jetzt fragen beide utils/date-format.js.
+const clockLabel = (shiftType) => shiftTimeText(shiftType) || t('schedule.allDay');
 
 // DER SATZ DER APP, NIE DER DES SERVERS (#1909). Bis dahin ordnete diese
 // Seite drei Texte des Servers an ihrem WORTLAUT einem Satz zu (S-02) und
@@ -649,9 +648,8 @@ function overtimeInfo(entries, weeklyHours = DEFAULT_WEEKLY_HOURS) {
 // Formular statt einer Karte lebt.
 function reminderOffsetField(selectedMinutes) {
   const active = selectedMinutes != null;
-  const nameId = toggleNameId();
-  return '<div class="form-field schedule-active-field"><span class="form-label" id="' + nameId + '">' + esc(t('schedule.extraReminderOffset')) + '</span><label class="toggle"><input name="reminder_enabled" type="checkbox" aria-labelledby="' + nameId + '"' + (active ? ' checked' : '') + '><span class="toggle__track"></span></label></div>'
-    + '<select class="form-input" name="reminder_offset_minutes" aria-labelledby="' + nameId + '"' + (active ? '' : ' disabled') + '>' + reminderOffsetOptions(selectedMinutes) + '</select>';
+  return formSwitchRowHtml({ label: t('schedule.extraReminderOffset'), checked: active, attrs: { name: 'reminder_enabled' } })
+    + '<select class="form-input" name="reminder_offset_minutes" aria-label="' + esc(t('schedule.extraReminderOffset')) + '"' + (active ? '' : ' disabled') + '>' + reminderOffsetOptions(selectedMinutes) + '</select>';
 }
 
 function statisticsSummary() {
@@ -732,6 +730,8 @@ let pendingTabDirection = null;
 // Die naechste fertige Uebersicht stellt die Seite auf die laufende Stunde
 // (alignOverviewToNow()) - beim Oeffnen des Reiters und bei "Heute".
 let overviewAlignPending = false;
+// Welcher Reiter zuletzt gezeichnet wurde (renderPage: neuer Reiter beginnt oben).
+let renderedView = null;
 
 /**
  * `step` setzt nur das Blaettern in der Uebersicht: dann bleibt der gezeigte
@@ -949,7 +949,12 @@ function setOwnerContext({ users = [], people = [], patterns = [], overrides = [
 // der Symbol-Knopf ueber seinen Text.
 let formFieldSeq = 0;
 const LABELABLE_CONTROL = /<(input|select|textarea)\b(?![^>]*\stype="hidden")([^>]*)>/;
-function formField(label, control, className = '') {
+// DER STERN FOLGT DER PFLICHT (R23, D8, Q1): traegt das Feld `required`, steht
+// hinter seinem Label `REQUIRED_MARK` - die Dialoge mischen Pflicht- und
+// Kannfelder. Filterzeilen (Statistik-Zeitraum) fragen nichts ab, was man
+// vergessen koennte, und schalten ihn mit `{ star: false }` ab.
+const REQUIRED_CONTROL = /^\s*<(?:input|select|textarea|yuvomi-datepicker)\b(?![^>]*type="color")[^>]*\srequired\b/;
+function formField(label, control, className = '', { star = true } = {}) {
   let html = control;
   let forAttr = '';
   const match = LABELABLE_CONTROL.exec(control);
@@ -959,13 +964,8 @@ function formField(label, control, className = '') {
     if (!own) html = control.slice(0, match.index) + '<' + match[1] + ' id="' + id + '"' + control.slice(match.index + 1 + match[1].length);
     forAttr = ' for="' + id + '"';
   }
-  return '<div class="form-field ' + className + '"><label class="form-label"' + forAttr + '>' + esc(label) + '</label>' + html + '</div>';
-}
-
-// Ein Schalter, dessen sichtbarer Name NEBEN seinem <label class="toggle">
-// steht (das Label umschliesst nur die Spur), hat ohne Verweis keinen Namen.
-function toggleNameId() {
-  return 'schedule-field-' + (++formFieldSeq);
+  const mark = star && REQUIRED_CONTROL.test(control) ? REQUIRED_MARK : '';
+  return '<div class="form-field ' + className + '"><label class="form-label"' + forAttr + '>' + esc(label) + mark + '</label>' + html + '</div>';
 }
 
 function shiftFields(type = {}) {
@@ -1011,12 +1011,11 @@ async function pickShiftIcon(button) {
 function patternFields(pattern = {}) {
   const active = pattern.is_active === false || pattern.is_active === 0 ? '' : ' checked';
   const hasWindow = Boolean(pattern.valid_from || pattern.valid_until);
-  const activeNameId = toggleNameId();
   return [
     formField(t('schedule.name'), '<input class="form-input" required name="name" maxlength="200" value="' + esc(pattern.name ?? '') + '">'),
     formField(t('schedule.anchorDate'), '<yuvomi-datepicker required name="anchor_date" type="date" label="' + esc(t('schedule.anchorDate')) + '" value="' + esc(pattern.anchor_date ?? todayKey()) + '"></yuvomi-datepicker>'),
     formField(t('schedule.cycleLength'), '<input class="form-input" required name="cycle_length" type="number" min="1" max="366" value="' + esc(String(pattern.cycle_length ?? 7)) + '">'),
-    '<div class="form-field schedule-active-field"><span class="form-label" id="' + activeNameId + '">' + esc(t('schedule.active')) + '</span><label class="toggle"><input name="is_active" type="checkbox" aria-labelledby="' + activeNameId + '"' + active + '><span class="toggle__track"></span></label></div>',
+    formSwitchRowHtml({ label: t('schedule.active'), checked: Boolean(active), attrs: { name: 'is_active' } }),
     advancedSection([
       formField(t('schedule.validFrom'), '<yuvomi-datepicker name="valid_from" type="date" label="' + esc(t('schedule.validFrom')) + '" value="' + esc(pattern.valid_from ?? '') + '"></yuvomi-datepicker>'),
       formField(t('schedule.validUntil'), '<yuvomi-datepicker name="valid_until" type="date" label="' + esc(t('schedule.validUntil')) + '" value="' + esc(pattern.valid_until ?? '') + '"></yuvomi-datepicker>'),
@@ -1095,7 +1094,7 @@ function shiftTypeFieldRow(field) {
   return '<div class="schedule-type-field-row" data-type-field-row data-custom-field-id="' + field.id + '">'
     + '<button type="button" class="schedule-type-field-row__handle" aria-hidden="true" tabindex="-1"><i data-lucide="grip-vertical" aria-hidden="true"></i></button>'
     + '<span class="schedule-type-field-row__name">' + esc(field.name) + '</span>'
-    + '<label class="toggle schedule-type-field-row__overlay"><input type="checkbox" data-show-in-overlay' + (field.show_in_overlay ? ' checked' : '') + '><span class="toggle__track"></span>' + esc(t('schedule.showInOverlay')) + '</label>'
+    + '<label class="toggle schedule-type-field-row__overlay"><input type="checkbox" role="switch" data-show-in-overlay' + (field.show_in_overlay ? ' checked' : '') + '><span class="toggle__track" aria-hidden="true"></span>' + esc(t('schedule.showInOverlay')) + '</label>'
     + '<button type="button" class="btn btn--secondary btn--icon" data-action="move-type-field" data-direction="up" aria-label="' + esc(t('schedule.moveUp')) + '"><i data-lucide="chevron-up" aria-hidden="true"></i></button>'
     + '<button type="button" class="btn btn--secondary btn--icon" data-action="move-type-field" data-direction="down" aria-label="' + esc(t('schedule.moveDown')) + '"><i data-lucide="chevron-down" aria-hidden="true"></i></button>'
     + rowActionHtml({ icon: 'x', action: 'remove-type-field', label: t('common.removeNamed', { name: field.name }) })
@@ -1391,7 +1390,7 @@ function overrideRows() {
     const swatchColor = type ? type.color : 'var(--color-border)';
     const typeLabel = type ? (shiftTypeLabel(type)) : t('schedule.freeDay');
     const meta = [userName(group.user_id), typeLabel, group.note].filter(Boolean).join(' · ');
-    const label = group.from === group.to ? formatDate(group.from) : `${formatDate(group.from)} - ${formatDate(group.to)}`;
+    const label = dateRangeText(group.from, group.to);
     const actions = canWrite(group.user_id)
       ? editDeleteMenu({
         key: `override-${group.user_id}-${group.from}`,
@@ -1462,7 +1461,7 @@ function extraRows() {
     const swatchColor = type ? type.color : 'var(--color-border)';
     const typeLabel = type ? (shiftTypeLabel(type)) : '';
     const meta = [userName(group.user_id), typeLabel, group.note].filter(Boolean).join(' · ');
-    const label = group.from === group.to ? formatDate(group.from) : `${formatDate(group.from)} - ${formatDate(group.to)}`;
+    const label = dateRangeText(group.from, group.to);
     const icon = type?.icon ? '<i data-lucide="' + esc(type.icon) + '" class="schedule-type-icon" aria-hidden="true"></i>' : '';
     const actions = canWrite(group.user_id)
       ? editDeleteMenu({
@@ -1518,17 +1517,16 @@ function renderStatistics() {
   const selectedUser = statistics.userId || currentUserId;
   const range = statistics.range;
   const countItems = [...summary.values];
-  if (summary.freeDays) countItems.push({ type: { name: t('schedule.freeDays'), short_code: '', color: 'var(--color-text-secondary)' }, count: summary.freeDays, minutes: 0, hasHours: false });
   const hourItems = summary.values.filter((item) => item.hasHours);
   const controls = range === 'months'
-    ? formField(t('schedule.monthFrom'), '<input class="form-input" required type="month" name="month_from" value="' + esc(statistics.monthFrom || monthKey()) + '">')
-      + formField(t('schedule.monthTo'), '<input class="form-input" required type="month" name="month_to" value="' + esc(statistics.monthTo || monthKey()) + '">')
+    ? formField(t('schedule.monthFrom'), '<input class="form-input" required type="month" name="month_from" value="' + esc(statistics.monthFrom || monthKey()) + '">', '', { star: false })
+      + formField(t('schedule.monthTo'), '<input class="form-input" required type="month" name="month_to" value="' + esc(statistics.monthTo || monthKey()) + '">', '', { star: false })
     : range === 'custom'
       // S-06: "Valid from/until" ist Muster-Vokabular (patternFields() oben) -
       // ein Berichtszeitraum ist kein Gueltigkeitsfenster. rangeFrom/rangeTo
       // sind dieselben Schluessel, die Override-/Extra-Bereiche schon tragen.
-      ? formField(t('schedule.rangeFrom'), '<yuvomi-datepicker required name="from" type="date" label="' + esc(t('schedule.rangeFrom')) + '" value="' + esc(statistics.from || bounds?.from || todayKey()) + '"></yuvomi-datepicker>')
-        + formField(t('schedule.rangeTo'), '<yuvomi-datepicker required name="to" type="date" label="' + esc(t('schedule.rangeTo')) + '" value="' + esc(statistics.to || bounds?.to || todayKey()) + '"></yuvomi-datepicker>')
+      ? formField(t('schedule.rangeFrom'), '<yuvomi-datepicker required name="from" type="date" label="' + esc(t('schedule.rangeFrom')) + '" value="' + esc(statistics.from || bounds?.from || todayKey()) + '"></yuvomi-datepicker>', '', { star: false })
+        + formField(t('schedule.rangeTo'), '<yuvomi-datepicker required name="to" type="date" label="' + esc(t('schedule.rangeTo')) + '" value="' + esc(statistics.to || bounds?.to || todayKey()) + '"></yuvomi-datepicker>', '', { star: false })
       : '';
   // Ohne `bounds` gibt es keine Auswertung, sondern einen ungueltigen Zeitraum:
   // `statisticBounds()` antwortet mit null, `refreshStatistics()` wirft, und der
@@ -1551,11 +1549,11 @@ function renderStatistics() {
       // LEER IST EIN ZUSTAND, KEINE ZWEI LEEREN KARTEN (R19): ohne einen
       // Eintrag im Zeitraum standen "0 Schichten", "0 h" und zwei Karten mit
       // "Keine Daten". Jetzt EIN Leerzustand, der Zeitraum und Person nennt.
-      ? '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: formatDate(bounds.from), to: formatDate(bounds.to) })) + '</p>'
+      ? '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: dateText(bounds.from), to: dateText(bounds.to) })) + '</p>'
         + emptyStateHTML({ icon: 'chart-column', title: t('schedule.noStatistics') })
-      : '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: formatDate(bounds.from), to: formatDate(bounds.to) })) + '</p>'
+      : '<p class="schedule-stat-period u-meta">' + esc(t('schedule.statisticsFor', { user: userName(selectedUser), from: dateText(bounds.from), to: dateText(bounds.to) })) + '</p>'
       + '<div class="metric-grid schedule-stat-metrics' + (overtime?.over ? ' schedule-stat-metrics--with-overtime' : '') + '">'
-      + '<article class="metric-card"><div class="metric-card__label">' + esc(t('schedule.shiftCounts')) + '</div><div class="metric-card__value">' + esc(String(summary.totalCount)) + '</div><div class="metric-card__note">' + esc(t('schedule.shifts')) + '</div></article>'
+      + '<article class="metric-card"><div class="metric-card__label">' + esc(t('schedule.shiftCounts')) + '</div><div class="metric-card__value">' + esc(String(summary.totalCount)) + '</div><div class="metric-card__note">' + esc(summary.freeDays ? t('schedule.shifts') + ' · ' + t('schedule.freeDaysCount', { count: summary.freeDays }) : t('schedule.shifts')) + '</div></article>'
       // Re-Critique 2026-09-28 (A2 P2-4): die Kachel zeigt die SUMME und heisst
       // so - vorher "Stunden je Schichtart" ueber einer Gesamtzahl. Die Summen
       // stehen nur hier; die Karten darunter tragen keine "Gesamt"-Zeile mehr.
@@ -1941,7 +1939,7 @@ function overviewEntryBlock(entry) {
   // Schicht heute erneut um 22 Uhr. Ein eigener, kuerzerer Text nennt nur das
   // Ende und benennt die Fortsetzung, statt die Herkunftszeile zu wiederholen.
   const timeLine = entry.__continuation
-    ? t('schedule.continuesUntil', { time: type.end_time })
+    ? t('schedule.continuesUntil', { time: clockText(type.end_time, { suffix: false }) })
     : overlay ? `${clockLabel(type)} · ${overlay}` : clockLabel(type);
   return `<div class="schedule-overview__block"${entry.__continuation ? '' : ` data-start="${startMin}"`} style="top:${hourOffset(startMin)};height:calc(${hourOffset(duration)} - 2px);--schedule-color:${esc(type.color)}" title="${esc(scheduleOverviewEntryTitle(entry))}"${detailAttrs}><span class="schedule-overview__block-title">${esc(label)}</span><small class="schedule-overview__block-time">${esc(timeLine)}</small></div>`;
 }
@@ -1968,8 +1966,8 @@ function overviewPeopleButtonHtml() {
 function overviewToolbarHtml(weekDays) {
   const showsToday = weekDays.includes(todayKey());
   const weekLabel = overview.viewMode === 'day'
-    ? formatDayMonth(weekDays[0])
-    : `${formatDayMonth(weekDays[0])} - ${formatDayMonth(weekDays[weekDays.length - 1])}`;
+    ? dateText(weekDays[0])
+    : dateRangeText(weekDays[0], weekDays[weekDays.length - 1]);
   const viewToggle = `<div class="segmented schedule-overview__mode" role="group" aria-label="${esc(t('calendar.viewWeek'))}/${esc(t('calendar.viewDay'))}">
     <button type="button" class="segmented__item${overview.viewMode === 'week' ? ' is-active' : ''}" data-action="overview-view-mode" data-mode="week" aria-pressed="${overview.viewMode === 'week' ? 'true' : 'false'}">${esc(t('calendar.viewWeek'))}</button>
     <button type="button" class="segmented__item${overview.viewMode === 'day' ? ' is-active' : ''}" data-action="overview-view-mode" data-mode="day" aria-pressed="${overview.viewMode === 'day' ? 'true' : 'false'}">${esc(t('calendar.viewDay'))}</button>
@@ -2032,7 +2030,7 @@ function renderOverview() {
       .map((h) => `<div class="schedule-overview__holiday" style="--holi-color:${esc(h.color)}" title="${esc(h.name)}"><span>${esc(h.name)}</span></div>`).join('');
     // Der Tageskopf fuehrt in den Tag, wie im Kalender - nur in der Woche.
     const attrs = overview.viewMode === 'week'
-      ? { role: 'button', tabindex: '0', 'data-action': 'overview-open-day', 'data-date': dateKey, 'aria-label': t('calendar.monthOpenDay', { date: formatDate(dateKey) }) }
+      ? { role: 'button', tabindex: '0', 'data-action': 'overview-open-day', 'data-date': dateKey, 'aria-label': t('calendar.monthOpenDay', { date: dateText(dateKey) }) }
       : { 'data-date': dateKey };
     const laneCells = lanes.map((lane) => `<div class="schedule-overview__lane-cell" data-user="${lane.userId}">${showLaneHeads ? overviewLaneHeader(lane.userId, surname) : ''}${lane.entries.filter((entry) => !overviewIsTimed(entry)).map(overviewEntryBlock).join('')}</div>`).join('');
     return `<div class="schedule-overview__day-head">${timeGridDayHeadHtml({
@@ -2240,7 +2238,7 @@ function openOverviewPeople() {
 
 function renderScheduleWarnings() {
   if (!state.warnings.length) return '';
-  return '<div class="schedule-warnings" role="status">' + state.warnings.map((warning) => '<p>' + esc(t('schedule.overlapWarning', { date: formatDate(warning.date_key), user: userName(warning.user_id) })) + '</p>').join('') + '</div>';
+  return '<div class="schedule-warnings" role="status">' + state.warnings.map((warning) => '<p>' + esc(t('schedule.overlapWarning', { date: dateText(warning.date_key), user: userName(warning.user_id) })) + '</p>').join('') + '</div>';
 }
 
 // Ein Reiterwechsel ist eine Navigation: Adresse UND Verlaufseintrag. Bis R17
@@ -2386,7 +2384,25 @@ function renderPage() {
   // visible; restoring the scroll position afterward papers over it for
   // every tab uniformly rather than special-casing statistics.
   const scrollPort = document.getElementById('main-content');
-  const scrollTop = scrollPort?.scrollTop ?? 0;
+  // EIN NEUER REITER BEGINNT OBEN (R23, Critique G1 P2). Hier wurde auch beim
+  // Reiterwechsel der Stand der Uebersicht zurueckgeschrieben (mobil 732px):
+  // der kuerzere Reiter kappte ihn, der Kopf klappte auf und gleich wieder zu
+  // (zwei Spruenge, 0,035 und 0,038). Neu gezeichnet wird derselbe Reiter mit
+  // seinem Stand (Statistik-Fokus, unten); ein anderer beginnt bei 0 - die
+  // Uebersicht stellt sich danach selbst auf die laufende Stunde.
+  //
+  // UND DER ANGEDOCKTE KOPF BLEIBT ANGEDOCKT. Oben heisst dann: unter der
+  // Leiste, nicht unter dem Large Title - der Stand ist genau die Lead-Zone
+  // des Kopfs (sein negatives `top`, utils/ux.js). Sonst klappte jeder Wechsel
+  // aus der Uebersicht den Kopf auf und zog die Reiter unter dem Finger um
+  // 35px weg. Traegt der neue Reiter die Hoehe nicht, kappt der Browser den
+  // Stand, und der Kopf klappt auf - die Reserve-Regel der Shell.
+  const sameView = renderedView === activeView;
+  renderedView = activeView;
+  const headBar = root?.querySelector('.schedule-toolbar');
+  const docked = Boolean(headBar?.classList.contains('is-docked'));
+  const lead = docked ? Math.max(0, -parseFloat(getComputedStyle(headBar).top) || 0) : 0;
+  const scrollTop = sameView ? (scrollPort?.scrollTop ?? 0) : lead;
   // Repaint statt Neubau: wireTablist() haelt Klasse/aria-selected/tabindex der
   // schon bestehenden Knoepfe selbst nach (sync() loest dabei bewusst KEIN
   // erneutes onChange aus - activeView aendert sich hier ueber Wege, die die
@@ -2456,6 +2472,27 @@ function renderPage() {
   if (statRange) attachSegmentIndicator(statRange, { key: 'schedule-stat-range' });
   const overviewMode = body.querySelector('[data-action="overview-view-mode"]')?.parentElement;
   if (overviewMode) attachSegmentIndicator(overviewMode, { key: 'schedule-overview-mode' });
+  // EIN KURZER REITER TRAEGT DEN ANGEDOCKTEN KOPF (R23 S10, Rest aus S9).
+  // Die Planung ist mobil kuerzer als Port + Lead-Zone: der Browser kappte den
+  // Stand, der Kopf klappte auf und zog die Reiter um 35px unter dem Finger
+  // weg (zwei Spruenge 0,029/0,032). Ein Reiterwechsel ist keine Geste - er
+  // haelt den Kopf so, wie der Nutzer ihn verlassen hat. Fehlt dem neuen
+  // Reiter die Hoehe, bekommt er sie als Nachlauf am Ende (`--schedule-tail`),
+  // genau so viel wie fehlt; derselbe Reiter neu gezeichnet behaelt ihn.
+  if (!sameView) body.style.removeProperty('--schedule-tail');
+  if (scrollPort && !sameView && lead > 0) {
+    // scrollHeight steht nie unter clientHeight: ist der Reiter kuerzer als
+    // der Port, verschwindet der erste Nachlauf in der Luecke bis zur Kante -
+    // jedes weitere Messen legt den Rest nach (hoechstens vier Layouts, kein
+    // Raten an der Shell).
+    let tail = 0;
+    for (let i = 0; i < 4; i++) {
+      const deficit = lead - (scrollPort.scrollHeight - scrollPort.clientHeight);
+      if (deficit <= 0) break;
+      tail += Math.ceil(deficit);
+      body.style.setProperty('--schedule-tail', `${tail}px`);
+    }
+  }
   if (scrollPort) scrollPort.scrollTop = scrollTop;
   // Beim Oeffnen der Uebersicht (und bei "Heute") steht die Seite auf der
   // laufenden Stunde; Blaettern und Personenwahl behalten den Scrollstand.
@@ -2519,7 +2556,11 @@ function wireShiftTypeFieldSortables(body) {
  * die Entsorgung ohne Abfallart.
  */
 function scheduleFabIntent(view = activeView) {
-  const target = view === 'patterns' && planningNeedsShiftTypes() ? 'shifts' : view;
+  // DIE UEBERSICHT HAT EINEN ANLEGEWEG (R23 S10, Critique G1 P3): sie ist der
+  // Startreiter, und wer dort eine Luecke sieht, legt den Plan von hier an -
+  // derselbe Dialog wie in der Planung, kein Umweg ueber den Reiter.
+  const planned = view === 'overview' ? 'patterns' : view;
+  const target = planned === 'patterns' && planningNeedsShiftTypes() ? 'shifts' : planned;
   return { view: target };
 }
 
@@ -2532,23 +2573,26 @@ function updateScheduleFab() {
   // Verbphrase war mit 193px der breiteste Kopfknopf der App, Re-Critique
   // 2026-09-27 A8 P3-3). Nie der Tabname: ein eigenes Kurzwort ("Planning")
   // sah am Docking-Ort aus, als liesse sich der Tab selbst antippen (S-09).
+  // R23 D14: „Eintrag" sagte nicht, was entsteht - die Planung legt
+  // Schichtplaene an (Muster, Ausnahme, Zusatzschicht); das Nomen ist dasselbe
+  // Wort, das die Ueberlappungswarnung schon benutzt.
   const labels = {
     shifts: t('schedule.createShiftType'),
-    patterns: t('schedule.addEntry'),
+    patterns: t('schedule.addPlan'),
   };
   const nouns = {
     shifts: t('newLabel.scheduleShiftType'),
-    patterns: t('newLabel.scheduleEntry'),
+    patterns: t('newLabel.schedulePlan'),
   };
   setPageFabAction(scheduleFab, {
     label: labels[intent.view],
     // Auf den Lese-Tabs versteckt, aber mit Nomen: ohne `data-dock-label`
     // dockte der Knopf nach einem Einstieg ueber Statistik/Uebersicht nie an.
     dockLabel: nouns[intent.view] || scheduleFab.dataset.dockLabel || nouns.shifts,
-    // Statistics und Overview sind beide reine Leseansichten - kein "Anlegen".
-    // Ausgeblendet ist nicht dasselbe wie unerreichbar (siehe readOnly()/
+    // Die Auswertung ist eine reine Leseansicht - kein "Anlegen"; die
+    // Uebersicht legt seit R23 einen Plan an (scheduleFabIntent). Ausgeblendet ist nicht dasselbe wie unerreichbar (siehe readOnly()/
     // action()) - der Handler bleibt trotzdem gesperrt.
-    hidden: readOnly() || activeView === 'statistics' || activeView === 'overview',
+    hidden: readOnly() || activeView === 'statistics',
     onClick: () => openScheduleCreateModal(scheduleFabIntent(activeView).view),
   });
 }
@@ -2884,7 +2928,7 @@ async function saveCreatedSchedule(event) {
           // Ende von saveCreatedSchedule() schliesst stattdessen.
           const confirmed = await confirmOverModal(
             t('schedule.fillRangeConfirmTitle'),
-            { confirmLabel: t('schedule.fillRange'), detail: t('schedule.fillRangeConfirmDetail', { from: formatDate(data.range_from), to: formatDate(data.range_to), type: typeLabel }), closeOnConfirm: false },
+            { confirmLabel: t('schedule.fillRange'), detail: t('schedule.fillRangeConfirmDetail', { from: dateText(data.range_from), to: dateText(data.range_to), type: typeLabel }), closeOnConfirm: false },
           );
           if (!confirmed) return;
           await api.post('/schedule/overrides/fill', { user_id: userId, from: data.range_from, to: data.range_to, shift_type_id: shiftTypeId, note: data.note, field_values: fieldValues });
@@ -2918,7 +2962,7 @@ async function saveCreatedSchedule(event) {
       // noch vorfinden, nicht ein bereits geschlossenes Modal.
       const confirmed = await confirmOverModal(
         t('schedule.fillRangeConfirmTitle'),
-        { confirmLabel: t('schedule.save'), detail: t('schedule.fillRangeConfirmDetail', { from: formatDate(data.from), to: formatDate(data.to), type: typeLabel }), closeOnConfirm: false },
+        { confirmLabel: t('schedule.save'), detail: t('schedule.fillRangeConfirmDetail', { from: dateText(data.from), to: dateText(data.to), type: typeLabel }), closeOnConfirm: false },
       );
       if (!confirmed) return;
       await api.post('/schedule/overrides/fill', { user_id: userId, from: data.from, to: data.to, shift_type_id: shiftTypeId, note: data.note, field_values: fieldValues });
@@ -3592,7 +3636,7 @@ async function action(event) {
       const { from, to, userId } = button.dataset;
       const confirmed = await confirmModal(
         t('schedule.deleteOverrideRangeTitle'),
-        { danger: true, confirmLabel: t('schedule.delete'), detail: t('schedule.deleteOverrideRangeDetail', { from: formatDate(from), to: formatDate(to), user: userName(userId) }) },
+        { danger: true, confirmLabel: t('schedule.delete'), detail: t('schedule.deleteOverrideRangeDetail', { from: dateText(from), to: dateText(to), user: userName(userId) }) },
       );
       if (!confirmed) return;
       gefragt = true;
@@ -3618,7 +3662,7 @@ async function action(event) {
       const { from, to, userId } = button.dataset;
       const confirmed = await confirmModal(
         t('schedule.deleteOverrideRangeTitle'),
-        { danger: true, confirmLabel: t('schedule.delete'), detail: t('schedule.deleteOverrideRangeDetail', { from: formatDate(from), to: formatDate(to), user: userName(userId) }) },
+        { danger: true, confirmLabel: t('schedule.delete'), detail: t('schedule.deleteOverrideRangeDetail', { from: dateText(from), to: dateText(to), user: userName(userId) }) },
       );
       if (!confirmed) return;
       gefragt = true;
@@ -3782,6 +3826,10 @@ export async function update({ path } = {}) {
   }
   if (nextView !== activeView) {
     await activateView(nextView);
+    // Den Stand des neuen Reiters hat renderPage() gesetzt (oben bzw. unter
+    // der angedockten Leiste, die Uebersicht auf der laufenden Stunde) - der
+    // Router setzt ihn nicht noch einmal auf 0 (utils/router-navigate.js).
+    return 'own-scroll';
   }
   return true;
 }

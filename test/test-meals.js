@@ -653,7 +653,11 @@ test('formatWeekLabel() trennt mit Bindestrich, nicht mit Halbgeviertstrich', ()
     try {
       const label = mealsUi.formatWeekLabel('2026-09-14');
       assert(!/[\u2013\u2014]/.test(label), `Wochenlabel (${narrow ? 'schmal' : 'breit'}) enthaelt einen Gedankenstrich: ${label}`);
-      assert(/ - /.test(label), 'die beiden Enden trennt „ - "');
+      // Breit seit R23 (D11) ueber utils/date-format.js: der Trenner kommt aus
+      // calendar.dayRangeLabel ("{{from}} - {{to}}"), im Loader der Schluessel
+      // samt Parametern - und das Jahr steht nicht an beiden Enden.
+      if (narrow) assert(/ - /.test(label), 'die beiden Enden trennt „ - "');
+      else assert(label === 'calendar.dayRangeLabel{"from":"2026-09-14","to":"2026-09-20"}', `breit: ${label}`);
     } finally {
       globalThis.window = zuvorWindow;
     }
@@ -1689,8 +1693,12 @@ test('A4 P1: vor der Entscheidung der Rezept-Spalte scrollt das Board nicht zu �
     mealsUi.revealToday(b.grid);
     assert(b.calls.length === 0, `das Board scrollte bei offener Spalte zu heute (${b.calls.length}x) - danach klappt die Spalte zu und der Montag liegt unter der Gutter`);
     mealsUi.wireRailToggle();
-    assert(!b.railOpen(), 'ohne Merker klappt die Spalte zu, wenn die Woche mit ihr nicht passt');
-    assert(b.calls.length === 0, 'mit zugeklappter Spalte passt die Woche - kein Scroll, der Montag bleibt stehen');
+    // R23 (D13): die Rezepte stehen als Leiste UNTER dem Plan und nehmen der
+    // Woche keine Breite - ohne Merker bleibt sie offen, nichts klappt von
+    // selbst zu. Erst nach der Entscheidung holt das Board "heute" in den Blick.
+    assert(b.railOpen(), 'ohne Merker bleibt die Leiste offen - sie kostet die Woche keine Breite mehr');
+    assert(b.calls.length === 1 && b.calls[0].inline === 'center',
+      `heute ist verdeckt und kommt genau einmal, NACH der Entscheidung, in den Blick (${b.calls.length}x)`);
   });
 });
 
@@ -1987,12 +1995,20 @@ test('R19: die Rezeptsuche ist mobil ein Feld, keine Lupe in einer eigenen Zeile
   assert(phone.some((r) => /\.page-toolbar \.page-search\.page-search--field/.test(r.selector) && /flex:\s*1 1 auto/.test(r.body)), 'das Feld fuellt die Zeile');
 });
 
-// --------------------------------------------------------
-// Ergebnis
-// --------------------------------------------------------
-console.log(`\n[Meals-Test] Ergebnis: ${passed} bestanden, ${failed} fehlgeschlagen\n`);
-if (failed > 0) process.exit(1);
 
+// R23 S11 (optimize): leer bis nach dem Laden schob das Wochenlabel den
+// Pfeil „›" beim ersten Zeichnen um seine Breite (Load-Shift #week-next
+// 0,0019 mobil, 4x CPU). Der Wert steht jetzt vor dem ersten await.
+test('R23: das Wochenlabel steht vor dem ersten Laden', () => {
+  const at = mealsSource.indexOf('export async function render(');
+  const body = mealsSource.slice(at, mealsSource.indexOf('\n}\n', at));
+  const label = body.indexOf('updateWeekLabel();');
+  const firstAwait = body.indexOf('await ');
+  assert(label > 0 && label < firstAwait, 'updateWeekLabel() laeuft vor dem ersten await in render()');
+});
+
+// Stand bis R23 S11 HINTER dem Ergebnis: lief, zaehlte aber nie - rot
+// waere die Suite trotzdem gruen gewesen.
 // R20 (Re-Critique 2026-10-17 a2 P3): die Typ-Chips im Mahlzeit- und im
 // Rezept-Dialog standen ohne die Mahlzeit-Toene des Plans.
 test('R20: die Typ-Chips tragen den Punkt ihres Mahlzeit-Tons, in beiden Dialogen', () => {
@@ -2007,3 +2023,9 @@ test('R20: die Typ-Chips tragen den Punkt ihres Mahlzeit-Tons, in beiden Dialoge
   const recipes = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
   assert(/class="filter-chip recipe-meal-types__chip" data-meal-type=/.test(recipes), 'der Rezept-Dialog ebenso');
 });
+
+// --------------------------------------------------------
+// Ergebnis
+// --------------------------------------------------------
+console.log(`\n[Meals-Test] Ergebnis: ${passed} bestanden, ${failed} fehlgeschlagen\n`);
+if (failed > 0) process.exit(1);

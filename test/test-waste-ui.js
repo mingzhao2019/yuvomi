@@ -674,33 +674,19 @@ test('WASTE_TYPE_COLORS ist die geteilte Palette, und Sperrmuell traegt nicht me
 // Nur-lesen-Mitglied ins Markup rutscht.
 // -------------------------------------------------------------------------
 
-test('die Seite hat einen sichtbaren, beschrifteten Weg zur ersten Abfallart, und das Ueberlaufmenue bietet ihn nicht doppelt an', () => {
-  // Vorher lagen ALLE vier Aktionen hinter dem unbeschrifteten "..." - eine
-  // frische Installation zeigte keinen einzigen sichtbaren Weg zur ersten
-  // Abfallart.
-  //
-  // SEKUNDAER FESTGENAGELT, nicht nur "irgendein Knopf": ab 1024px dockt der
-  // FAB in dieselbe Werkzeugleiste (dockFabIntoToolbar in router.js) und
-  // rendert dort als gefuellte Primaerpille. Als `btn--primary` standen hier
-  // zwei gefuellte Violettknoepfe nebeneinander, und die Seite sagte nicht
-  // mehr, welcher der Hauptweg ist (Eine-Stimme-Regel, DESIGN.md). Keine
-  // statische Pruefung faengt das, weil beide Knoepfe je fuer sich
-  // regelkonform sind - erst ihre Nachbarschaft ist der Fehler. Deshalb steht
-  // die Variante hier ausdruecklich im Test und nicht nur im Kommentar.
-  assert.match(WASTE_SRC, /class="btn btn--secondary" id="waste-add-type-btn" data-action="add-type"/);
-  assert.doesNotMatch(WASTE_CODE, /class="btn btn--primary" id="waste-add-type-btn"/);
-  // Und genau einmal als Knopf. Seit R16 (Kopfregel mobil 1a) gibt es den
-  // Menueeintrag wieder, aber nie NEBEN dem Knopf: unter 768px traegt die
-  // Titelzeile nur Icon-Knoepfe, der beschriftete Knopf ist dort ausgeblendet
-  // und der Eintrag steht; ab 768px umgekehrt. Je Breite EIN Weg.
-  assert.equal((WASTE_SRC.match(/data-action="add-type"/g) ?? []).length, 1);
-  assert.equal((WASTE_CODE.match(/action: 'add-type'/g) ?? []).length, 1);
+test('die erste Abfallart traegt der FAB, jede weitere steht im Menue - kein Kopfknopf daneben (R23 D14)', () => {
+  // Bis R23 stand ab 768px ein beschrifteter Kopfknopf "Abfallart hinzufuegen"
+  // neben dem Primaerknopf "Termin": zwei Anlegewege im Kopf, der seltenere
+  // breiter. Jetzt: ohne Abfallart heisst der FAB "Abfallart" (fabIntent),
+  // danach ist sie ein Eintrag im "..."-Menue - in jeder Breite.
+  assert.doesNotMatch(WASTE_SRC, /id="waste-add-type-btn"/, 'kein Kopfknopf mehr');
+  assert.equal((WASTE_CODE.match(/action: 'add-type'/g) ?? []).length, 1, 'genau ein Menueeintrag');
   const wasteCss = readFileSync(new URL('../public/styles/waste.css', import.meta.url), 'utf8');
-  const hides = (sel, media) => [...eachRule(wasteCss)].some((r) => r.selector.trim() === sel
+  const hides = (sel, media) => [...eachRule(wasteCss)].some((r) => r.selector.split(',').map((x) => x.trim()).includes(sel)
     && /display:\s*none/.test(r.body) && (media ? r.at.some((a) => media.test(a)) : r.at.length === 0));
-  assert.ok(hides('#waste-add-type-btn', /max-width:\s*767px/), 'unter 768px weicht der Kopfknopf dem Menueeintrag');
-  assert.ok(hides('#waste-page-menu [data-action="add-type"]', /min-width:\s*768px/), 'ab 768px weicht der Eintrag dem Knopf');
+  assert.ok(!hides('#waste-page-menu [data-action="add-type"]', /min-width:\s*768px/), 'der Eintrag steht in jeder Breite');
   assert.ok(hides('.waste-page--onboarding #waste-page-menu [data-action="add-type"]'), 'im Onboarding traegt der FAB den Weg');
+  assert.equal(fabIntent({ types: [] }).creates, 'type', 'ohne Abfallart legt der FAB sie an');
   // Die drei uebrigen Kopf-Aktionen bleiben im Menue.
   for (const a of ['open-import', 'open-url-source', 'open-reminder-settings']) {
     assert.match(WASTE_SRC, new RegExp(`action: '${a}'`), `${a} gehoert weiter ins Ueberlaufmenue`);
@@ -841,9 +827,9 @@ test('isOnboarding: nur ohne jede Abfallart, nicht beim Laden, nicht bei nur arc
 
 test('sectionVisibility: im Onboarding nur EIN Block, Abholungen und Quellen erst mit Daten', () => {
   const on = sectionVisibility({ types: [], loading: false, error: null });
-  assert.deepEqual(on, { upcoming: false, sources: false, addTypeButton: false });
+  assert.deepEqual(on, { upcoming: false, sources: false });
   const full = sectionVisibility({ types: [{ id: 1, archived: false }], loading: false, error: null });
-  assert.deepEqual(full, { upcoming: true, sources: true, addTypeButton: true });
+  assert.deepEqual(full, { upcoming: true, sources: true });
 });
 
 test('onboardingHtml: Vorlagen als direkt anlegbare Chips plus ICS-Import, ein Leerzustand', () => {
@@ -905,7 +891,7 @@ test('#1775: sind alle Abfallarten archiviert, traegt die Seite die Klasse, die 
 // ---------------------------------------------------------------------------
 
 test('R17/E2: die Einzelabholung steht im Werkzeugmenue, der Termin-Dialog waehlt seine Abfallart', () => {
-  const menu = WASTE_SRC.slice(WASTE_SRC.indexOf("id: 'waste-page-menu'"), WASTE_SRC.indexOf('id="waste-add-type-btn"'));
+  const menu = WASTE_SRC.slice(WASTE_SRC.indexOf("id: 'waste-page-menu'"), WASTE_SRC.indexOf("id: 'waste-page-menu'") + 3000);
   assert.match(menu, /\{ action: 'add-pickup', label: t\('waste\.addPickup'\), icon: 'calendar-plus' \}/);
   assert.match(WASTE_CODE, /kind === 'add-pickup'\) \{[\s\S]{0,200}?else openPickupModal\(\);/, 'der Eintrag oeffnet den Dialog der Einzelabholung');
   const css = readFileSync(new URL('../public/styles/waste.css', import.meta.url), 'utf8');
@@ -926,27 +912,33 @@ test('R17/E2: die Einzelabholung steht im Werkzeugmenue, der Termin-Dialog waehl
   assert.match(modal, /const typeId = typeSelect \? Number\(typeSelect\.value\) : type\.id;/);
 });
 
-test('R17/E2: eine Abholung nennt Wochentag, Datum und Abstand', () => {
-  // t() ist im Loader der Schluessel plus seine Parameter, formatDate() gibt
-  // den Key zurueck: geprueft wird die Zusammensetzung, nicht die Uebersetzung.
+test('R17/E2 + R23/D11: eine Abholung nennt Wochentag, Datum und "in N Tagen"', () => {
+  // t() ist im Loader der Schluessel plus seine Parameter, formatDate() und
+  // formatDayMonth() geben den Key zurueck: geprueft wird die Zusammensetzung.
+  // Der Abstand kommt aus Intl.RelativeTimeFormat (getLocale() = 'de'), nicht
+  // mehr aus "dashboard.daysLeft" ("2 Tage" las sich wie eine Dauer).
   const today = '2026-10-07'; // Mittwoch
-  assert.equal(__test.pickupWhenLabel('2026-10-07', today), 'Mi, 2026-10-07 · common.today');
-  assert.equal(__test.pickupWhenLabel('2026-10-08', today), 'Do, 2026-10-08 · common.tomorrow');
-  assert.equal(__test.pickupWhenLabel('2026-10-09', today), 'Fr, 2026-10-09 · dashboard.daysLeft{"count":2}');
-  assert.equal(__test.pickupWhenLabel('2026-12-21', today), 'Mo, 2026-12-21 · dashboard.countdownMonths{"count":2}');
-  assert.equal(__test.pickupWhenLabel('2026-10-05', today), 'Mo, 2026-10-05', 'ein vergangener Tag traegt keinen Abstand');
+  const wd = (key) => new Intl.DateTimeFormat('de', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${key}T12:00:00Z`));
+  // Jede Haelfte haelt mit geschuetzten Leerzeichen zusammen; verglichen wird der Text.
+  const label = (key) => __test.pickupWhenLabel(key, today).replace(/\u00a0/g, ' ');
+  assert.equal(__test.pickupWhenLabel('2026-10-07', today), 'common.today', 'heute: das Wort allein');
+  assert.equal(__test.pickupWhenLabel('2026-10-08', today), 'common.tomorrow');
+  assert.equal(label('2026-10-09'), `${wd('2026-10-09')}, 2026-10-09 · in 2 Tagen`);
+  assert.equal(label('2026-12-21'), `${wd('2026-12-21')}, 2026-12-21 · in 2 Monaten`);
+  assert.equal(label('2026-10-05'), `${wd('2026-10-05')}, 2026-10-05`, 'ein vergangener Tag traegt keinen Abstand');
+  assert.match(__test.pickupWhenLabel('2026-10-09', today), /^[^ ]+ · [^ ]+$/, 'umbrechen darf nur der Trenner');
   // Der Wochentag haengt am KEY, nicht an der Zone des Prozesses.
   const before = process.env.TZ;
   try {
     for (const zone of ['Pacific/Auckland', 'America/Los_Angeles']) {
       process.env.TZ = zone;
-      assert.equal(__test.pickupWhenLabel('2026-10-09', today), 'Fr, 2026-10-09 · dashboard.daysLeft{"count":2}', zone);
+      assert.equal(label('2026-10-09'), `${wd('2026-10-09')}, 2026-10-09 · in 2 Tagen`, zone);
     }
   } finally {
     if (before === undefined) delete process.env.TZ; else process.env.TZ = before;
   }
   const row = __test.occurrenceRowHtml({ key: 'k', type_id: 1, type_name: 'Papier', date_key: '2099-01-02', origins: [] });
-  assert.match(row, /<span class="list-row__meta">Fr, 2099-01-02 · /, 'die Abholzeile traegt das Label');
+  assert.ok(row.replace(/\u00a0/g, ' ').includes(`<span class="list-row__meta">${new Intl.DateTimeFormat('de', { weekday: 'short', timeZone: 'UTC' }).format(new Date('2099-01-02T12:00:00Z'))}, 2099-01-02 · `), 'die Abholzeile traegt das Label');
 });
 
 test('R17/E2: eine Abfallart mit anstehender Abholung sagt nicht "Noch kein Termin"', () => {
@@ -954,7 +946,8 @@ test('R17/E2: eine Abfallart mit anstehender Abholung sagt nicht "Noch kein Term
     { type_id: 2, date_key: '2099-01-02', origins: [{ kind: 'one_off' }] },
     { type_id: 2, date_key: '2099-02-02', origins: [{ kind: 'one_off' }] },
   ];
-  assert.match(__test.typeWithoutScheduleLine(2, occurrences), /^waste\.nextPickupLabel: Fr, 2099-01-02/, 'die naechste Abholung dieser Art');
+  const wd = new Intl.DateTimeFormat('de', { weekday: 'short', timeZone: 'UTC' }).format(new Date('2099-01-02T12:00:00Z'));
+  assert.ok(__test.typeWithoutScheduleLine(2, occurrences).replace(/\u00a0/g, ' ').startsWith(`waste.nextPickupLabel: ${wd}, 2099-01-02`), 'die naechste Abholung dieser Art');
   assert.equal(__test.typeWithoutScheduleLine(1, occurrences), 'waste.noSchedulesYet', 'wirklich nichts: der bisherige Satz');
   assert.match(WASTE_SRC, /const line = typeWithoutScheduleLine\(type\.id\);/, 'die Karte liest die Zeile dort (typeWithoutScheduleHtml)');
 });
@@ -1003,7 +996,6 @@ test('Onboarding-CSS: Abholungen, Quellen, Abschnittstitel und Kopfknopf treten 
     '.waste-page--onboarding .waste-upcoming-section',
     '.waste-page--onboarding .waste-sources-section',
     '.waste-page--onboarding .waste-types-section .waste-section-title',
-    '.waste-page--onboarding #waste-add-type-btn',
   ]) assert.ok(hidden.includes(sel), `${sel} fehlt`);
   // #1771: ab der Schwelle des Spaltenrasters ueberspannt der Leerzustand beide
   // Spuren, sonst steht er links der Mitte neben einer leeren Spalte. Die
@@ -1039,8 +1031,9 @@ test('R17 E6: Wochentage sind Chips mit Zustand, "Aktiv" ist ein Schalter', () =
   assert.deepEqual(__test.weekdayPickerValue(root), ['MO', 'TH']);
 
   const modal = WASTE_SRC.slice(WASTE_SRC.indexOf('function openScheduleModal(type, schedule = null) {'), WASTE_SRC.indexOf('function openPickupModal('));
-  assert.match(modal, /<label class="toggle">\s*<input type="checkbox" id="wsm-active"[^>]*>\s*<span class="toggle__track"><\/span>/,
-    '"Aktiv" traegt die Schalter-Bahn');
+  // Seit R23 (D8) die Schalterzeile der Moduldialoge (role=switch, Label links).
+  assert.match(modal, /formSwitchRowHtml\(\{ label: t\('waste\.activeLabel'\), checked: schedule\?\.active !== 0, attrs: \{ id: 'wsm-active' \} \}\)/,
+    '"Aktiv" ist der Schalter der Moduldialoge');
   assert.match(modal, /body\.weekdays = weekdayPickerValue\(panel\)/, 'der Speicherweg liest die Chips');
   assert.match(modal, /wireWeekdayPicker\(panel\)/, 'und die Chips sind verdrahtet');
 });
@@ -1167,4 +1160,17 @@ test('Termin-Dialog: der Wechsel der Wiederholung tauscht das Intervall-Label mi
   assert.equal(d.label(), 'waste.intervalLabelWeekly');
   d.chooseKind('monthly_ordinal_weekday');
   assert.equal(d.label(), 'waste.intervalLabelMonthly');
+});
+
+// R23 S10 (Critique G2 P2/P3, D14): die Typkarte nennt nur die Regel - die
+// naechste Abholung steht schon in "Naechste Abholungen"; der Leertext
+// beschreibt, was darunter steht, und Nur-lesen bekommt keinen Satz ueber Vorlagen.
+test('Typkarte ohne doppelte naechste Abholung, Leertext passend zu Vorlagen und Import', () => {
+  const row = WASTE_CODE.slice(WASTE_CODE.indexOf('function scheduleRowHtml('), WASTE_CODE.indexOf('function typeWithoutScheduleLine('));
+  assert.doesNotMatch(row, /waste\.nextPickupLabel/, 'die Serie wiederholt den Termin nicht');
+  assert.match(row, /\(schedule\.active && next\) \? '' :/, 'eine Zeile darunter nur bei pausiert oder ohne Abholung');
+  const ob = WASTE_CODE.slice(WASTE_CODE.indexOf('function onboardingHtml('), WASTE_CODE.indexOf('function onboardingHtml(') + 900);
+  assert.match(ob, /description: ro \? '' : t\('waste\.emptyTypesDescription'\)/);
+  const de = JSON.parse(readFileSync(new URL('../public/locales/de.json', import.meta.url), 'utf8')).waste;
+  assert.doesNotMatch(de.emptyUpcomingDescription, /Abfallart und einen Termin/, 'die Liste erscheint erst mit Abfallart - sie verlangt keine zweite');
 });

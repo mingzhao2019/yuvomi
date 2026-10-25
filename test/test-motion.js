@@ -250,7 +250,6 @@ const MOTION_EXCEPTIONS = new Map([
   ['calendar.css: .cal-press-ghost', 'Fortschritt des Langdrucks: laeuft linear mit der Haltezeit (--cal-press-ms), keine Bewegungskurve'],
   ['layout.css: .search-overlay', '`visibility 0s linear <Verzoegerung>`: diskreter Schalter nach der Blende, keine Bewegung'],
   ['layout.css: .swipe-reveal', 'folgt dem Finger: die Deckkraft wird je Frame gesetzt, linear glaettet nur'],
-  ['layout.css: .swipe-row--hint > :first-child', 'einmaliger Wisch-Hinweis (Onboarding), nicht im Arbeitsfluss'],
   ['dashboard.css: .dashboard-icon-btn--hint', 'einmaliger Hinweis-Puls (3 Wiederholungen), nicht im Arbeitsfluss'],
   ['health.css: .cycle-ring__now', 'Hinweis-Puls am heutigen Tag (3 Wiederholungen), nicht im Arbeitsfluss'],
   ['screensaver.css: .photo-screensaver img', 'Bildschirmschoner: langsame Ueberblendung zwischen Fotos, kein Bedienmoment'],
@@ -1659,7 +1658,7 @@ test('Listenbewegung: Module, die ihre Zeilen neu bauen, nutzen list-motion bzw.
   const modules = [
     ['housekeeping', /redrawList\(content, \(\) => drawTasks\(content\)/, 'Aufgabenliste'],
     ['housekeeping', /collapseRow\(row\)\.then\(repaint\)/, 'geloeschte Aufgabe klappt aus'],
-    ['rewards', /await collapseRow\(row, \{ group:/, 'entschiedene Anfrage klappt aus'],
+    ['rewards', /await collapseRow\(rowEl, \{ group:/, 'entschiedene Anfrage klappt aus'],
     ['waste', /redrawList\(host, \(\) => drawUpcoming\(host\)/, 'Abholungen'],
     ['waste', /redrawList\(host, \(\) => drawTypes\(host\)/, 'Abfallarten'],
     ['waste', /redrawList\(host, \(\) => drawSources\(host\)/, 'Quellen'],
@@ -1708,11 +1707,11 @@ test('Listenbewegung R17: Notizen, Dokumente, Kontakte, Budget, Inventar, Abos, 
     ['budget', /summaryWith\(state\.summary, \[entry\], -1\);[\s\S]{0,260}collapseEntryThenRedraw\(id\);/, 'geloeschte Buchung klappt aus'],
     ['budget', /closeModal\(\{ force: true \}\);\s*redrawEntries\(\);\s*window\.yuvomi\?\.showToast\(t\('budget\.addedToast'\)/, 'neue Buchung zieht auf'],
     ['inventory', /redrawList\(host, renderListBody, \{ selector: INVENTORY_ITEM_ROW, keyAttr: 'data-id' \}\)/, 'Gegenstaende'],
-    ['inventory', /await collapseRow\(_container\?\.querySelector\(`#inventory-list \.list-row\[data-id="\$\{item\.id\}"\]`\)/, 'geloeschter Gegenstand klappt aus'],
+    ['inventory', /await collapseRow\(_container\?\.querySelector\(`#inventory-list \.list-row\[data-id="\$\{id\}"\]`\)/, 'geloeschter Gegenstand klappt aus'],
     ['subscriptions', /redrawList\(content, drawContent, \{ selector: SUBSCRIPTION_ROW, keyAttr: 'data-swipe-id' \}\)/, 'Abos'],
     ['subscriptions', /await collapseRow\(container\.querySelector\(`#subscriptions-list \.swipe-row\[data-swipe-id=/, 'geloeschtes Abo klappt aus'],
     ['split-expenses', /redrawList\(main, \(\) => drawMain\(main\), \{ selector: SPLIT_ROW, keyAttr: 'data-row-key' \}\)/, 'Ausgaben und Serien'],
-    ['split-expenses', /await collapseSplitRow\(`expense-\$\{expense\.id\}`\);\s*renderAll\(\{ motion: true \}\)/, 'geloeschte Ausgabe klappt aus'],
+    ['split-expenses', /await collapseSplitRow\(`expense-\$\{id\}`\);\s*renderAll\(\{ motion: true \}\)/, 'geloeschte Ausgabe klappt aus'],
     ['split-expenses', /await collapseSplitRow\(`recurring-\$\{recurring\.id\}`\);\s*renderAll\(\{ motion: true \}\)/, 'geloeschte Serie klappt aus'],
     ['split-expenses', /renderAll\(\);[\s\S]{0,260}swapContent\(_container\?\.querySelector\(`#split-main \[data-row-key="recurring-\$\{id\}"\]`\) \?\? null, null\);/, 'Pausieren/Fortsetzen blendet die Serienzeile'],
     ['birthdays', /redrawList\(host, \(\) => drawList\(host, \{ repaint \}\), \{ selector: BIRTHDAY_ROW, keyAttr: 'data-swipe-id' \}\)/, 'Liste'],
@@ -3176,4 +3175,21 @@ test('R22: Chips, Segmente, Menueeintraege und Karten quittieren den Druck mit i
     }
   }
   assert.deepEqual(failures, [], failures.join('\n'));
+});
+
+// R23 S11 (Critique G0 S-P3-3): Schimmer und Wisch-Hinweis standen als
+// Literale in layout.css (1.5s, 800ms, 1200ms) - auch die Schleife traegt
+// ihre Zeit aus tokens.css, wie der Spinner (--spin-period).
+test('R23: Lade-Schimmer und Wisch-Hinweis lesen ihre Zeiten aus Tokens', () => {
+  const layout = [...eachRule(css('layout.css'))];
+  const shimmer = layout.filter((r) => /skeleton-shimmer/.test(r.body));
+  const nudge = layout.filter((r) => /swipe-nudge/.test(r.body) && /animation:/.test(r.body));
+  assert.ok(shimmer.length && nudge.length, 'beide Stellen gefunden');
+  for (const r of [...shimmer, ...nudge]) {
+    const anim = /animation:\s*([^;]+)/.exec(r.body)?.[1] ?? '';
+    assert.doesNotMatch(anim, /(?<![\w.-])\d*\.?\d+m?s\b/, `${r.selector}: Literal-Zeit in "${anim}"`);
+  }
+  for (const name of ['--shimmer-period', '--hint-nudge', '--hint-delay']) {
+    assert.match(css('tokens.css'), new RegExp(`${name}:\\s*\\d*\\.?\\d+m?s;`), `${name} fehlt in tokens.css`);
+  }
 });

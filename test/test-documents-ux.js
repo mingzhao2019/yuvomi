@@ -48,7 +48,7 @@ test('Such- und Filter-Leerzustand bieten die auflösende Aktion an, nicht "Hoch
   assert.match(page, /function resetFilters\(\)/);
   assert.match(page, /function clearSearch\(\)/);
   // Die Suchvariante darf nicht die Upload-Aktion als Primäraktion führen.
-  const searchBranch = page.slice(page.indexOf('if (state.query)'), page.indexOf('if (hasActiveFilter())'));
+  const searchBranch = page.slice(page.indexOf('if (state.query)'), page.indexOf('const folderOnly'));
   assert.doesNotMatch(searchBranch, /documents-empty-upload/);
 });
 
@@ -936,9 +936,9 @@ test('der Viewer nennt das Ablaufdatum in seiner Meta-Zeile', () => {
   assert.match(viewer, /\$\{expiryViewerHtml\(doc\)\}/);
   const fn = page.slice(page.indexOf('function expiryViewerHtml('), page.indexOf('function storageBadgeHtml'));
   assert.match(fn, /expiryViewerSpec\(dateStatus\(doc\.expires_at\)\)/);
-  // Das Datum ist ein Tagesschluessel: formatDate() liest ihn als Wanduhrzeit,
+  // Das Datum ist ein Tagesschluessel: dateText() liest ihn als Schluessel,
   // ein Umweg ueber new Date()/toISOString() kippte je nach Zone auf den Vortag.
-  assert.match(fn, /formatDate\(spec\.dateKey\)/);
+  assert.match(fn, /dateText\(spec\.dateKey\)/);
   assert.doesNotMatch(fn, /new Date|toISOString/);
   assert.match(fn, /esc\(/);
 });
@@ -2202,11 +2202,19 @@ test('R21 S8: der Betrachter zeigt sofort das Poster der Kachel und ein Ladezeic
 test('R22 D11: Liste als Standard, Datum und Groesse auch schmal, FAB mit Plus', () => {
   assert.match(page, /view: localStorage\.getItem\('yuvomi-documents-view'\) \|\| 'list',/, 'ohne gespeicherte Wahl die Liste - auf jedem Geraet');
   assert.match(page, /id="fab-new-document"[^>]*>\s*<i data-lucide="plus"/);
-  assert.match(page, /renderMeta\(doc, \{ showSize: false, stats: `<span class="document-row__meta-stats">\$\{formatDate\(doc\.updated_at\)\} · \$\{formatFileSize\(doc\.file_size\)\}<\/span>` \}\)/);
+  assert.match(page, /renderMeta\(doc, \{ showSize: false, stats: `<span class="document-row__meta-stats">\$\{dateText\(doc\.updated_at\)\} · \$\{formatFileSize\(doc\.file_size\)\}<\/span>` \}\)/);
   const meta = page.slice(page.indexOf('function renderMeta('), page.indexOf('function docSupportsThumbnail('));
   assert.ok(meta.indexOf('${stats}') < meta.indexOf('${categoryLabel}</span>'), 'Datum und Groesse stehen vor der Kategorie (die nennt das Zeichen)');
   const css = read('../public/styles/documents.css');
   const rules = [...eachRule(css)].filter((r) => r.selector.trim() === '.document-row__meta > .document-row__meta-stats');
   assert.ok(rules.some((r) => !r.at.length && /display:\s*none/.test(r.body)), 'breit aus dem Baum');
   assert.ok(rules.some((r) => r.at.some((a) => /list-rows \(max-width: 30rem\)/.test(a)) && /display:\s*inline-flex/.test(r.body)), 'schmal sichtbar');
+});
+
+// R23 S10 (Critique G4 P3): eine zu grosse Datei meldet sich bei der Wahl,
+// nicht erst beim Absenden.
+test('R23: die Ablage prueft die Groesse gleich bei der Wahl', () => {
+  const fn = page.slice(page.indexOf('function bindDropzone('), page.indexOf('function reportDropzoneError('));
+  assert.match(fn, /const tooBig = files\.find\(\(file\) => file\.size > maxSize\);/);
+  assert.match(fn, /setTimeout\(\(\) => reportDropzoneError\(form, t\('documents\.fileTooLargeNamed', \{ name: tooBig\.name \}\)\), 0\)/);
 });

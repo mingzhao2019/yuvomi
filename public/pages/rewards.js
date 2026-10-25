@@ -7,8 +7,10 @@
  */
 
 import { api } from '/api.js';
-import { t, formatDate, getLocale, getNumberFormat } from '/i18n.js';
+import { t, getLocale, getNumberFormat } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
+import { formSwitchRowHtml } from '/settings/components.js';
 import { initials } from '/utils/initials.js';
 import { getReadableTextColor, AVATAR_FALLBACK_COLOR } from '/utils/color.js';
 import { openModal, closeModal, captureModalContext, captureOpenContext, isModalContextCurrent, confirmModal, confirmOverModal, refocusAfterRender } from '/components/modal.js';
@@ -17,7 +19,7 @@ import { rowActionHtml, rowMenuHtml } from '/utils/row-action.js';
 import { installPopoverMenus, popoverMenuHtml } from '/utils/popover-menu.js';
 import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
-import { wireScrollFade, stagger } from '/utils/ux.js';
+import { wireScrollFade, stagger, offerUndo } from '/utils/ux.js';
 import { swapContent } from '/utils/content-swap.js';
 import { collapseRow } from '/utils/list-motion.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
@@ -26,9 +28,10 @@ import { renderPageColumns } from '/utils/page-layout.js';
 import { isNavModuleReadOnly } from '/permissions.js';
 import { isRedeemable, nextRewardGoal } from '/utils/reward-goal.js';
 import {
-  formatMoney, amountPlaceholder, amountExample, amountInputProblem,
+  formatMoney, amountPlaceholder, amountInputProblem,
   amountToInput, currencyFractionDigits, toDecimalString,
 } from '/utils/money.js';
+import { amountProblemText } from '/utils/amount-field.js';
 import { reloadAfterSave } from '/utils/reload-after-save.js';
 import { errorSentence, isAlreadyDeleted, isGone } from '/utils/friendly-error.js';
 
@@ -334,7 +337,13 @@ function updateRewardsFab() {
   if (readOnly()) { setPageFabAction(fab, { hidden: true, dockLabel: keepNoun() }); return; }
   if (state.tab === 'catalog' && isAdmin()) {
     setPageFabAction(fab, { label: t('rewards.addReward'), dockLabel: t('newLabel.rewards'), onClick: () => openRewardModal(null) });
-  } else if (state.tab === 'ledger' && isAdmin()) {
+  } else if ((state.tab === 'ledger' || (state.tab === 'overview' && balances().length)) && isAdmin()) {
+    // DER BONUS IST DER FAB, AUCH AUF "PUNKTE" (R23 S10, Critique G2 P3:
+    // "Kopfpille wechselt", "Bonus doppelt", "zwei Abschnittsaktionen"). Bis
+    // R23 stand er dort als Abschnittsknopf neben den Punktestaenden (#1787)
+    // und im Verlauf als FAB - zwei Bauformen fuer dieselbe Handlung, und auf
+    // "Punkte" fehlte die Kopfpille ganz. Jetzt traegt jeder Reiter fuer Eltern
+    // seine Pille; ohne Teilnehmende gibt es niemandem einen Bonus.
     setPageFabAction(fab, { label: t('rewards.grantBonus'), dockLabel: t('newLabel.rewardsBonus'), onClick: () => openBonusModal() });
   } else {
     setPageFabAction(fab, { hidden: true, dockLabel: keepNoun() });
@@ -698,10 +707,9 @@ function renderOverview(el) {
     icons(el);
     return;
   }
-  // Zwei Kopfaktionen fuer Eltern (#1787). Der Bonus ist die haeufigere und
-  // steht als die staerkere am Ende; er oeffnet denselben Dialog wie der FAB
-  // im Verlauf. Beide reisen als EINE Gruppe, damit ein schmaler Kopf sie
-  // gemeinsam unter den Titel legt statt eine allein in die zweite Zeile.
+  // Der Bonus steht seit R23 als FAB auf diesem Reiter (updateRewardsFab,
+  // vorher Abschnittsknopf hier, #1787). Im Kopf der Punktestaende bleibt das
+  // "..." mit "Teilnehmende verwalten".
   const adminBar = isAdmin() && !readOnly() ? `
           <div class="rw-section__actions">
             ${popoverMenuHtml({
@@ -710,7 +718,6 @@ function renderOverview(el) {
     items: [{ icon: 'users-round', label: t('rewards.manageParticipants'), action: 'manage-participants' }],
     triggerClass: 'btn btn--secondary btn--icon btn--sm rw-section-tools',
   })}
-            <button class="btn btn--secondary btn--sm rw-grant-bonus" type="button"><i data-lucide="plus" aria-hidden="true"></i>${esc(t('rewards.grantBonus'))}</button>
           </div>` : '';
   // Anfragen und Punktestaende links, die letzten Buchungen ab der
   // Split-Schwelle rechts daneben (mobil darunter) - `.page-columns`.
@@ -753,7 +760,6 @@ function wireOverview(el) {
     document.querySelector('.rewards-tabs [data-tab-id="ledger"]')?.click();
   });
   el.querySelector('[data-action="manage-participants"]')?.addEventListener('click', openParticipantsModal);
-  el.querySelector('.rw-grant-bonus')?.addEventListener('click', () => openBonusModal());
   el.querySelectorAll('.rw-redeem-open').forEach((btn) => {
     btn.addEventListener('click', () => openRedeemModal(Number(btn.dataset.member)));
   });
@@ -840,7 +846,8 @@ function renderCatalog(el) {
       <h2 class="sr-only">${esc(t('rewards.tabCatalog'))}</h2>` : '';
   if (!items.length) {
     const action = isAdmin() && !readOnly()
-      ? { label: t('rewards.addReward'), icon: 'plus', className: 'rw-add-reward' }
+      // Sekundaer: der FAB "Praemie" steht daneben (Kanon D5, R23 D14).
+      ? { label: t('rewards.addReward'), icon: 'plus', tone: 'secondary', className: 'rw-add-reward' }
       : null;
     el.insertAdjacentHTML('beforeend',
       `<div class="rewards-content__inner">${emptyState('gift', t('rewards.emptyCatalogTitle'), isAdmin() ? t('rewards.emptyCatalogAdmin') : t('rewards.emptyCatalogMember'), action)}</div>`);
@@ -903,7 +910,7 @@ function ledgerRowHtml(row) {
         <span class="rw-ledger-row__icon rw-ledger-row__icon--${esc(row.type)}"><i data-lucide="${LEDGER_ICON[row.type] || 'circle'}" aria-hidden="true"></i></span>
         <div class="list-row__main">
           <p class="list-row__name rw-ledger-row__reason">${esc(ledgerReason(row))}</p>
-          <p class="list-row__meta rw-ledger-row__meta">${esc(row.user_name)} · ${esc(formatDate(row.created_at))}</p>
+          <p class="list-row__meta rw-ledger-row__meta">${esc(row.user_name)} · ${esc(dateText(row.created_at))}</p>
         </div>
         <span class="rw-delta ${positive ? 'rw-delta--pos' : 'rw-delta--neg'}">${positive ? '+' : '−'}${fmtPoints(Math.abs(row.delta))}</span>
       </li>`;
@@ -1109,46 +1116,33 @@ async function openRedeemModal(memberId, presetItemId = null) {
 
 async function decideRedemption(id, action, btn) {
   if (readOnly()) return;
-  const gefragt = action === 'reject' || action === 'cancel';
-  // Eine Geld-Anfrage hat nichts reserviert (#1734): der Satz "die Punkte
-  // werden zurueckgebucht" waere bei ihr falsch.
-  const geld = isMoneyRequest(state.redemptions.find((r) => r.id === id));
-  if (gefragt && geld) {
-    const ok = await confirmModal(
-      action === 'reject' ? t('rewards.money.confirmReject') : t('rewards.money.confirmCancel'),
-      { confirmLabel: action === 'reject' ? t('rewards.reject') : t('common.cancel') },
-    );
-    if (!ok) return;
-  } else if (gefragt) {
-    // Kein `danger`: der Server bucht die reservierten Punkte per `reversal`
-    // zurück (routes/rewards.js), es geht also kein Guthaben verloren. Die
-    // Anfrage bleibt als entschieden stehen und lässt sich neu stellen, solange
-    // die Belohnung aktiv im Katalog steht - `POST /redemptions` verlangt
-    // `is_active = 1`. Ist sie inzwischen gelöscht, war das Löschen der
-    // Belohnung die endgültige Handlung, und die trägt ihr eigenes `danger`.
-    // Rot faerben wuerde hier eine Endgueltigkeit behaupten, die die
-    // Entscheidung selbst nicht hat.
-    const ok = await confirmModal(
-      action === 'reject' ? t('rewards.confirmReject') : t('rewards.confirmCancel'),
-      { confirmLabel: action === 'reject' ? t('rewards.reject') : t('common.cancel') },
-    );
-    if (!ok) return;
-  }
+  // KEINE RUECKFRAGE MEHR, AN KEINER DER DREI ENTSCHEIDUNGEN (Critique R23, D6).
+  // Bis dahin fragte das harmlosere Ablehnen nach (die Punkte gehen ja zurueck),
+  // und das Freigeben - der eine Schritt, nach dem das Kind etwas bekommt - lief
+  // ohne Rueckweg durch (N4). Jetzt nimmt "Rueckgaengig" im Toast jede
+  // Entscheidung am Server zurueck (`reopen`, routes/rewards.js): die Anfrage
+  // steht wieder offen, das Guthaben wie vorher.
+  const row = state.redemptions.find((r) => r.id === id) ?? null;
   if (btn) btn.disabled = true;
   const context = captureModalContext();
   try {
     await api.patch(`/rewards/redemptions/${id}`, { action });
-    const msg = action === 'fulfill' ? t('rewards.toastApproved')
-      : action === 'reject' ? t('rewards.toastRejected') : t('rewards.toastCancelled');
-    toast(msg, action === 'fulfill' ? 'success' : 'default');
+    offerUndo({
+      message: decisionSentence(row, action),
+      undo: async () => {
+        await api.patch(`/rewards/redemptions/${id}`, { action: 'reopen' });
+        await reloadAfterSave(() => refreshActiveTab());
+      },
+      onError: async (err) => {
+        toast(rewardsErrorSentence(err), 'danger');
+        await refreshActiveTab();
+      },
+    });
     // Die entschiedene Anfrage klappt aus, bevor die Liste ohne sie neu steht;
     // mit der letzten geht der ganze Abschnitt (Titel + Traeger).
-    const row = btn?.closest?.('.rw-pending');
-    await collapseRow(row, { group: row?.closest?.('.rw-section'), selector: '.rw-pending' });
+    const rowEl = btn?.closest?.('.rw-pending');
+    await collapseRow(rowEl, { group: rowEl?.closest?.('.rw-section'), selector: '.rw-pending' });
     await reloadAfterSave(() => refreshActiveTab());
-    // Nur nach der Rueckfrage: "Einloesen" fragt nicht, schliesst also keinen
-    // Dialog, und das Nachfassen griffe auf den Merker eines frueheren zurueck (#1083).
-    if (gefragt) refocusAfterRender();
   } catch (err) {
     if (btn) btn.disabled = false;
     // VERGRIFFEN IST KEIN FEHLSCHLAG, SONDERN EINE ENTSCHIEDENE ANFRAGE (#1310).
@@ -1180,6 +1174,24 @@ async function decideRedemption(id, action, btn) {
       refocusAfterRender();
     }
   }
+}
+
+/**
+ * "<Objekt> <Verb>" fuer eine Entscheidung (R23, D6): welche Praemie, fuer
+ * wen. Das Kind, das seine eigene Anfrage zurueckzieht, braucht keinen Namen.
+ */
+function decisionSentence(row, action) {
+  const reward = !row ? '' : isMoneyRequest(row)
+    ? t(row.kind === 'deposit' ? 'rewards.money.ledgerDeposit' : 'rewards.money.ledgerWithdrawal')
+    : row.reward_name;
+  if (!reward) {
+    return action === 'fulfill' ? t('rewards.toastApproved')
+      : action === 'reject' ? t('rewards.toastRejected') : t('rewards.toastCancelled');
+  }
+  if (action === 'cancel') return t('rewards.toastCancelledNamed', { reward });
+  const name = row.user_name || '';
+  if (!name) return t(action === 'fulfill' ? 'rewards.toastApproved' : 'rewards.toastRejected');
+  return t(action === 'fulfill' ? 'rewards.toastApprovedNamed' : 'rewards.toastRejectedNamed', { reward, name });
 }
 
 function openBonusModal() {
@@ -1272,10 +1284,7 @@ function openRewardModal(item) {
           <textarea class="input" id="rw-reward-desc" rows="2" maxlength="500" placeholder="${esc(t('rewards.descPlaceholder'))}">${esc(item?.description ?? '')}</textarea>
         </div>
         ${isEdit ? `
-          <label class="rw-switch">
-            <input type="checkbox" id="rw-reward-active" ${item.is_active !== 0 ? 'checked' : ''}>
-            <span>${esc(t('rewards.activeLabel'))}</span>
-          </label>` : ''}
+          ${formSwitchRowHtml({ label: t('rewards.activeLabel'), checked: item.is_active !== 0, attrs: { id: 'rw-reward-active' } })}` : ''}
         <div id="rw-reward-error" class="form-error" role="alert" hidden></div>
         <div class="modal-panel__footer modal-panel__footer--plain">
           ${isEdit ? `<button type="button" class="btn btn--danger-outline" id="rw-reward-delete">${esc(t('common.delete'))}</button>` : ''}
@@ -1372,9 +1381,9 @@ async function openParticipantsModal() {
           <li class="rw-participant">
             ${avatar(m, 36)}
             <span class="rw-participant__name">${esc(m.display_name)}</span>
-            <label class="rw-switch rw-switch--compact">
-              <input type="checkbox" data-participant="${m.id}" ${m.enabled ? 'checked' : ''}>
-              <span class="rw-switch__track" aria-hidden="true"></span>
+            <label class="toggle rw-participant__switch">
+              <input type="checkbox" role="switch" data-participant="${m.id}" aria-label="${esc(m.display_name)}" ${m.enabled ? 'checked' : ''}>
+              <span class="toggle__track" aria-hidden="true"></span>
             </label>
           </li>`).join('')}
       </ul>
@@ -1423,7 +1432,7 @@ async function openMemberDetail(memberId) {
     const positive = row.delta > 0;
     return `<li class="list-row rw-ledger-row rw-ledger-row--compact">
       <span class="rw-ledger-row__icon rw-ledger-row__icon--${esc(row.type)}"><i data-lucide="${LEDGER_ICON[row.type] || 'circle'}" aria-hidden="true"></i></span>
-      <div class="list-row__main"><p class="list-row__name rw-ledger-row__reason">${esc(ledgerReason(row))}</p><p class="list-row__meta rw-ledger-row__meta">${esc(formatDate(row.created_at))}</p></div>
+      <div class="list-row__main"><p class="list-row__name rw-ledger-row__reason">${esc(ledgerReason(row))}</p><p class="list-row__meta rw-ledger-row__meta">${esc(dateText(row.created_at))}</p></div>
       <span class="rw-delta ${positive ? 'rw-delta--pos' : 'rw-delta--neg'}">${positive ? '+' : '−'}${fmtPoints(Math.abs(row.delta))}</span>
     </li>`;
   }).join('') : `<li class="list-row rw-ledger-row rw-ledger-row--compact"><p class="list-row__meta rw-ledger-row__meta">${esc(t('rewards.emptyLedgerBody'))}</p></li>`;
@@ -1550,7 +1559,7 @@ function moneyPlanLine(plan) {
   const amount = fmtMoney(plan.amount_minor, plan);
   const rhythm = t(plan.frequency === 'weekly' ? 'rewards.money.planWeekly' : 'rewards.money.planMonthly', { amount });
   if (plan.paused) return `${rhythm} · ${t('rewards.money.planPaused')}`;
-  return `${rhythm} · ${t('rewards.money.nextCredit', { date: formatDate(plan.next_run_date) })}`;
+  return `${rhythm} · ${t('rewards.money.nextCredit', { date: dateText(plan.next_run_date) })}`;
 }
 
 function renderMoneyRow(account) {
@@ -1665,17 +1674,6 @@ function wireMoney(el) {
 }
 
 /** Der Satz zu einem Grund aus amountInputProblem() - dieselben Texte wie in den geteilten Ausgaben. */
-function moneyAmountProblemText(problem, ctx) {
-  const currency = moneyCurrencyCode(ctx);
-  if (problem === 'grouped') return t('common.amountGrouped', { example: amountExample(currency) });
-  if (problem === 'invalid') return t('common.amountInvalid', { example: amountExample(currency) });
-  if (problem === 'notPositive') return t('common.amountNotPositive');
-  // Der kleinste Schritt nach den Stellen des SERVERS, nicht nach `Intl`.
-  const digits = moneyDigits(ctx);
-  const step = getNumberFormat({ minimumFractionDigits: digits, maximumFractionDigits: digits }).format(1 / 10 ** digits);
-  return t('common.amountPrecisionRequired', { currency, step });
-}
-
 /**
  * Warum der Text im Betragsfeld nicht gesendet werden kann - oder `null`.
  * Gruppierung, Schreibweise und Vorzeichen prueft `amountInputProblem()`; wie
@@ -1695,7 +1693,9 @@ function moneyAmountProblem(text, ctx) {
 function readMoneyAmount(input, errEl, ctx) {
   const problem = moneyAmountProblem(input.value, ctx);
   if (problem) {
-    errEl.textContent = moneyAmountProblemText(problem, ctx);
+    // Der EINE Satzbaustein (utils/amount-field.js, D1); die Stellen des
+    // kleinsten Schritts nach dem SERVER, nicht nach `Intl`.
+    errEl.textContent = amountProblemText(problem, moneyCurrencyCode(ctx), { digits: moneyDigits(ctx) });
     errEl.hidden = false;
     input.setAttribute('aria-invalid', 'true');
     return null;
@@ -1891,10 +1891,7 @@ function openMoneyPlanModal(memberId) {
           <select class="input" id="rw-plan-monthday">${days}</select>
           <p class="rw-hint">${esc(t('rewards.money.dayOfMonthHint'))}</p>
         </div>
-        <label class="rw-switch">
-          <input type="checkbox" id="rw-plan-paused" ${plan?.paused ? 'checked' : ''}>
-          <span>${esc(t('rewards.money.pausePlan'))}</span>
-        </label>
+        ${formSwitchRowHtml({ label: t('rewards.money.pausePlan'), checked: Boolean(plan?.paused), attrs: { id: 'rw-plan-paused' } })}
         <div id="rw-money-error" class="form-error" role="alert" hidden></div>
         <div class="modal-panel__footer modal-panel__footer--plain">
           ${plan ? `<button type="button" class="btn btn--danger-outline" id="rw-plan-remove">${esc(t('rewards.money.removePlan'))}</button>` : ''}
@@ -2062,7 +2059,7 @@ function moneyLedgerRowHtml(row) {
   const positive = row.delta > 0;
   // Eine Gutschrift nach Plan nennt den Termin, fuer den sie gilt - nachgebucht
   // traegt sie sonst nur den Tag, an dem der Server wieder lief.
-  const when = formatDate(kind === 'allowance' ? row.allowance_date : row.created_at);
+  const when = dateText(kind === 'allowance' ? row.allowance_date : row.created_at);
   return `<li class="list-row rw-ledger-row rw-ledger-row--compact">
       <span class="rw-ledger-row__icon rw-ledger-row__icon--${positive ? 'bonus' : 'redeem'}"><i data-lucide="${MONEY_LEDGER_ICON[kind]}" aria-hidden="true"></i></span>
       <div class="list-row__main">

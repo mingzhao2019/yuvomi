@@ -5,12 +5,13 @@
  */
 
 import { api } from '/api.js';
-import { openModal as openSharedModal, closeModal, btnError, advancedSection, reportFieldError, captureModalContext } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, btnError, advancedSection, reportFieldError, captureModalContext, decorateFooterDelete } from '/components/modal.js';
 import { wireCategoryScopeHelp } from '/components/category-manager.js';
 import { stagger, vibrate, scheduleUndoableDelete, wireScrollFade, acknowledgeCheck, isImeComposing } from '/utils/ux.js';
 import { redrawList } from '/utils/list-motion.js';
 import { t } from '/i18n.js';
 import { esc, renderMarkdownLight } from '/utils/html.js';
+import { formSwitchRowHtml } from '/settings/components.js';
 import { rowMenuHtml } from '/utils/row-action.js';
 import { splitKeepingLineEndings } from '/utils/markdown-checklist.js';
 import { renderMarkdownToolbar, wireMarkdownToolbar } from '/utils/markdown-toolbar.js';
@@ -35,7 +36,7 @@ import {
   moveCategoryPickerOption,
 } from '/utils/note-category-picker.js';
 import { NOTE_CATEGORY_NAME_MAX_LENGTH } from '/utils/note-category-name.js';
-import { isNavModuleReadOnly } from '/permissions.js';
+import { canChangeRecord, isNavModuleReadOnly } from '/permissions.js';
 import { errorSentence, isAlreadyDeleted } from '/utils/friendly-error.js';
 
 // --------------------------------------------------------
@@ -107,6 +108,21 @@ function readOnly() {
 }
 
 /**
+ * Darf ich DIESE Notiz aendern (R23, D5)? Ohne `notes_edit_others` nur meine
+ * eigenen: fremde gehen als Leseansicht auf, Nadel und Mehr-Menue fehlen an
+ * ihrer Karte. Das Abhaken einer Checkliste bleibt allen offen, die schreiben
+ * duerfen - es ist Benutzen, nicht Umschreiben (server/routes/notes.js).
+ */
+function mayChange(note) {
+  if (readOnly() || !note) return false;
+  return canChangeRecord('notes', Number(note.created_by) === Number(state.user?.id));
+}
+
+function noteById(id) {
+  return state.notes.find((n) => n.id === Number(id));
+}
+
+/**
  * Die Stecknadel einer Karte - Bedienelement, Zeichen oder nichts.
  *
  * DIE ANTWORT FOLGT DEM DATENSATZ, nicht dem Zugriff (#1252): eine angepinnte
@@ -126,7 +142,7 @@ function readOnly() {
 // angepinnt (notes.css), offen in Tertiaerfarbe heisst nicht; die Beschriftung
 // nennt weiter die Handlung.
 function pinMarkup(note) {
-  if (!readOnly()) {
+  if (mayChange(note)) {
     return `<button class="note-card__pin" data-action="pin" data-id="${note.id}"
               aria-label="${note.pinned ? t('notes.unpinAction') : t('notes.pinAction')}">
         <i data-lucide="pin" aria-hidden="true"></i>
@@ -329,6 +345,8 @@ export async function render(container, { user, signal }) {
     // steht unter dem Riegel.
     const schreibweg = e.target.closest('[data-action="pin"], [data-action="delete"], .note-md-box[data-md-line]');
     if (schreibweg && readOnly()) { e.stopPropagation(); return; }
+    const notenweg = e.target.closest('[data-action="pin"], [data-action="delete"]');
+    if (notenweg && !mayChange(noteById(notenweg.dataset.id))) { e.stopPropagation(); return; }
 
     const pinBtn = e.target.closest('[data-action="pin"]');
     if (pinBtn) { e.stopPropagation(); await togglePin(parseInt(pinBtn.dataset.id, 10)); return; }
@@ -638,7 +656,7 @@ function notesEmptyStateHtml(isFiltered) {
     title: t('notes.emptyTitle'),
     description: ro ? '' : t('notes.emptyDescription'),
     hint: ro ? '' : t('emptyHint.notes'),
-    action: ro ? null : { label: t('notes.emptyAction'), icon: 'plus', attrs: { id: 'empty-cta-notes' } },
+    action: ro ? null : { tone: 'secondary', label: t('notes.emptyAction'), icon: 'plus', attrs: { id: 'empty-cta-notes' } },
   });
 }
 
@@ -708,7 +726,7 @@ function renderNoteCard(note, { headingLevel = 2 } = {}) {
           ${/* LOESCHEN IM MEHR-KNOPF (R18, D6, Critique 2026-10-16): der
               * Papierkorb stand offen auf jeder Karte - die lauteste Farbe
               * der Wand gehoerte der seltensten Handlung. */ ''}
-          ${readOnly() ? '' : rowMenuHtml({
+          ${!mayChange(note) ? '' : rowMenuHtml({
     id: `note-menu-${note.id}`,
     label: t('common.moreActionsNamed', { name: noteName(note) }),
     className: 'note-card__more',
@@ -870,12 +888,18 @@ function openNoteFromQuery(loc = window.location, hist = window.history) {
  * mitgehen, welche es sind, entscheidet das Recht.
  */
 function openNoteReadModal(note) {
+  // Fremde Notiz ohne Recht (R23, D5): der Grund steht im Dialog, statt dass
+  // der Bearbeiten-Reiter still fehlt.
+  const foreign = !readOnly() && note.creator_name
+    ? `<p class="form-hint note-read__owner">${esc(t('common.foreignReadOnlyHint', { name: note.creator_name }))}</p>`
+    : '';
   openSharedModal({
     title: note.title && note.title.trim() ? note.title : t('notes.viewNote'),
     size: 'lg',
     content: `
     <div class="note-modal" data-view="read" data-note-id="${note.id}" style="--note-color:${esc(note.color)};">
       <div class="note-read-view" data-pane="read" tabindex="-1">
+        ${foreign}
         ${renderNoteReadHtml(note.content, { live: true, categories: note.categories || [] })}
       </div>
     </div>`,
@@ -888,7 +912,7 @@ function openNoteReadModal(note) {
 function openNoteModal({ mode, note = null }) {
   // Der Riegel steht VOR jeder Vorbereitung: der Anlegeweg entfaellt ganz, ein
   // bestehender Zettel geht als Leseansicht auf.
-  if (readOnly()) {
+  if (readOnly() || (mode === 'edit' && note && !mayChange(note))) {
     if (mode === 'edit' && note) openNoteReadModal(note);
     return;
   }
@@ -962,11 +986,7 @@ function openNoteModal({ mode, note = null }) {
         </div>
       </div>
       <div class="form-group">
-        <label class="toggle">
-          <input type="checkbox" id="note-pinned" ${isEdit && note.pinned ? 'checked' : ''}>
-          <span class="toggle__track"></span>
-          <span>${t('notes.pinnedLabel')}</span>
-        </label>
+        ${formSwitchRowHtml({ label: t('notes.pinnedLabel'), checked: Boolean(isEdit && note.pinned), attrs: { id: 'note-pinned' } })}
       </div>`,
       { open: isEdit && (!!note.pinned || (!!note.color && note.color !== NOTE_COLORS[0])) })}
       </div>
@@ -1030,6 +1050,9 @@ function openNoteModal({ mode, note = null }) {
         readerOnly.forEach((el) => { el.style.display = view === 'read' ? '' : 'none'; });
         deleteBtn?.classList.toggle('btn--danger-ghost', view === 'read');
         deleteBtn?.classList.toggle('btn--danger-outline', view !== 'read');
+        // Lesend steht Loeschen mobil mit Wort, im Editor als Papierkorb neben
+        // Abbrechen/Speichern (R23, modal.js `--delete-worded`).
+        decorateFooterDelete(deleteBtn?.closest('.modal-panel__footer') ?? null);
       }
 
       function animatePane(pane) {
@@ -1566,7 +1589,7 @@ function openNoteCategoryManager() {
 // --------------------------------------------------------
 
 async function togglePin(id) {
-  if (readOnly()) return;
+  if (!mayChange(noteById(id))) return;
   try {
     const res  = await api.patch(`/notes/${id}/pin`, {});
     const note = state.notes.find((n) => n.id === id);
@@ -1597,15 +1620,19 @@ async function reloadNotes() {
 }
 
 async function deleteNote(id) {
-  if (readOnly()) return;
+  if (!mayChange(noteById(id))) return;
   closeModal({ force: true });
   const note = state.notes.find((n) => n.id === id);
   state.notes = state.notes.filter((n) => n.id !== id);
   renderNotesAndFilters({ motion: true });
   vibrate([30, 50, 30]);
 
+  // Der Toast nennt die Notiz (Critique R23, D6): "Notiz geloescht" sagte nach
+  // zwei schnellen Loeschungen nicht, welche zurueckkaeme. Ohne Titel bleibt
+  // der allgemeine Satz.
+  const name = String(note?.title ?? '').trim();
   scheduleUndoableDelete({
-    message: t('notes.deletedToast'),
+    message: name ? t('common.deletedNamed', { name }) : t('notes.deletedToast'),
     commit: async ({ keepalive }) => {
       try {
         await api.delete(`/notes/${id}`, { keepalive });

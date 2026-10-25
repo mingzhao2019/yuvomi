@@ -1307,7 +1307,7 @@ test('ohne Cursor bleibt es bei heute', () => {
   assert(newEventDate('day', '', TODAY) === TODAY, 'leerer Cursor fällt auf heute zurück');
 });
 
-test('jedes „+" ohne angeklickten Tag reicht ein Datum durch (nur die Suche nicht)', () => {
+test('jedes „+" ohne angeklickten Tag reicht ein Datum durch', () => {
   const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '');
@@ -1315,11 +1315,12 @@ test('jedes „+" ohne angeklickten Tag reicht ein Datum durch (nur die Suche ni
   // deckt der Guard N Fundstellen ab statt der Regel, und ein neuer Knopf fiele
   // still durch.
   const creates = src.match(/openEventModal\(\{\s*mode:\s*'create'[^)]*\)/g) || [];
-  assert(creates.length >= 5, `zu wenige create-Aufrufe gefunden (${creates.length}) - Regex greift nicht mehr`);
+  assert(creates.length >= 4, `zu wenige create-Aufrufe gefunden (${creates.length}) - Regex greift nicht mehr`);
+  // Der einzige Weg ohne Datum war der Knopf im Leerzustand der Suche; seit R23
+  // zeigt die leere Suche den geteilten Baustein ohne zweiten Anlegeknopf.
   const withoutDate = creates.filter((call) => !/\bdate:/.test(call));
-  assert(withoutDate.length === 1,
-    `genau ein „+" darf ohne Datum öffnen (der Leerzustand der Suche, dort steht kein Zeitraum `
-    + `auf dem Schirm), gefunden: ${withoutDate.length} - ${withoutDate.join(' | ')}`);
+  assert(withoutDate.length === 0,
+    `jedes „+" oeffnet mit Datum, gefunden ohne: ${withoutDate.length} - ${withoutDate.join(' | ')}`);
 });
 
 // --------------------------------------------------------
@@ -3537,9 +3538,12 @@ function fakeAgendaContainer() {
   const container = fakeContainer();
   // Seit R10 (L5) steht die Agenda in Liste + Detail: `.calendar-agenda-split`
   // gibt es im Textstub nicht, der Baustein haengt sich dann nicht ein.
+  // Seit R23 S11 setzt die Agenda ihre Tage IN die Liste (`#agenda-view`,
+  // utils/row-fill.js): der Stub haengt sie an denselben Text.
+  const list = { ...fakeDomElement(), insertAdjacentHTML: (pos, chunk) => container.insertAdjacentHTML(pos, chunk), isConnected: false };
   return {
     ...container,
-    querySelector: (sel) => (sel === '.calendar-agenda-split' ? null : container.querySelector(sel)),
+    querySelector: (sel) => (sel === '.calendar-agenda-split' ? null : sel === '#agenda-view' ? list : container.querySelector(sel)),
     querySelectorAll: () => [],
     get html() { return container.html; },
   };
@@ -6620,7 +6624,8 @@ test('R19 Popover und Tageskopf: Spanne bricht nicht, Ort nicht im Wort, ein Kop
   const wrap = rules.find((r) => r.selector.trim() === '.detail-row:has(> .detail-row__action)');
   assert(/flex-wrap:\s*wrap/.test(wrap?.body ?? ''), 'die Aktion einer Zeile rueckt bei Platzmangel darunter');
   const text = rules.find((r) => r.selector.trim() === '.detail-row:has(> .detail-row__action) > .detail-row__text');
-  assert(/flex:\s*1 1 10rem/.test(text?.body ?? ''), 'der Wert beansprucht seine Mindestbreite');
+  // R23: 8rem statt 10rem - mit 10rem passte die Aktion am Telefon nie daneben.
+  assert(/flex:\s*1 1 8rem/.test(text?.body ?? ''), 'der Wert beansprucht seine Mindestbreite');
 });
 
 // R20 (E1-Befund, Kalender 1920 CLS 0,136): die Spalte der Seitenleiste steht
@@ -7171,6 +7176,73 @@ test('R21 S9b: Monatschip und Monatsband teilen ein Polster von mindestens 3px',
   }
   assert(/--month-band-h:\s*calc\(var\(--text-xs\) \* 1\.4 \+ 2 \* var\(--cal-chip-pad-block\)\)/.test(body('.month-grid')),
     'die Spur der Monatsbaender rechnet nicht mit dem Polster des Chips');
+});
+
+// R23 (Critique G1 P3 "doppelte Kalender-Steuerung ab 1920"): neben der
+// Seitenleiste fuehrte das Filterblatt Personen und Kalender ein zweites Mal,
+// und sein Zaehler zaehlte sie mit. Eine Achse, ein Ort je Breite.
+test('R23: steht die Seitenleiste, traegt das Filterblatt nur Ebenen und Anzeige', () => {
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const fnOf = (name) => { const at = src.indexOf(`function ${name}(`); return src.slice(at, src.indexOf('\n}\n', at)); };
+  assert(/return sidebarShown\(_container\?\.querySelector\('#cal-sidebar'\)\);/.test(fnOf('railCarriesFilters')), 'die Frage ist dieselbe wie die der Leiste');
+  const sheet = fnOf('openCalendarFilters');
+  assert(/const rail = railCarriesFilters\(\);/.test(sheet), 'das Blatt fragt die Leiste');
+  assert(/if \(!rail && \(meRow \|\| peopleChips\)\) groups\.push\(\{ heading: t\('calendar\.filtersPeople'\)/.test(sheet), 'Personen nur ohne Leiste');
+  assert(/if \(!rail && \(sourceRows \|\| manageRow\)\) groups\.push\(\{ heading: t\('calendar\.filtersSources'\)/.test(sheet), 'Kalender nur ohne Leiste');
+  assert(/if \(!rail\) \{\s*state\.assignedToMe = false;\s*state\.people\.clear\(\);/.test(sheet), 'Zuruecksetzen laesst die Achsen der Leiste stehen');
+  const count = fnOf('activeFilterCount');
+  for (const axis of ['state.assignedToMe', 'state.people.size > 0', 'state.hiddenSources?.size > 0']) {
+    assert(count.includes(`if (!rail && ${axis})`), `der Zaehler zaehlt ${axis} nur ohne Leiste`);
+  }
+  assert(/if \(!first\) renderToolbar\(\);/.test(fnOf('wireSidebar')), 'erscheint oder geht die Leiste, zaehlt der Knopf neu');
+});
+
+// R23 (Critique G1 P3 "Maps eigene Zeile mobil"): mit 10rem stand "In Maps
+// oeffnen" auf dem Telefon nie neben dem Ort.
+test('R23: die Folgeaktion einer Detailzeile passt am Telefon neben ihren Wert', () => {
+  const css = readFileSync(new URL('../public/styles/detail-view.css', import.meta.url), 'utf8');
+  const rule = [...eachRule(css)].find((r) => r.selector.trim() === '.detail-row:has(> .detail-row__action) > .detail-row__text');
+  assert(/flex:\s*1 1 8rem/.test(rule?.body ?? ''), `Basis 8rem, nicht 10rem (${rule?.body})`);
+});
+
+// R23 S11 (optimize): der Wechsel in die Agenda hielt das alte Bild 205 ms
+// (1440, 4x CPU) - 31 Tage Markup fuer ein Bild, das fuenf zeigt. Die Tage
+// ausser Sicht kommen in Happen (utils/row-fill.js), ihr Platzhalter hat
+// dieselbe Schaetzhoehe wie `content-visibility`. Ein Neuzeichnen IN der
+// Agenda und ein Sprungziel (`?open=`) zeichnen ganz.
+test('R23: die Agenda zeichnet beim Wechsel erst die Tage im Bild, der Platzhalter misst wie content-visibility', () => {
+  const src = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
+  const fnOf = (name) => { const at = src.indexOf(`function ${name}(`); return src.slice(at, src.indexOf('\n}\n', at)); };
+  const view = fnOf('renderAgendaView');
+  assert(/beginRowFill\(agenda, \{ progressive: agendaFillWanted\(\) \}\)/.test(view), 'die Agenda baut ueber beginRowFill');
+  assert(/fill\.rows\(groups, agendaDayHtml\)/.test(view) && /fill\.start\(\{ onRows: drawRowIcons \}\)/.test(view),
+    'Einheit ist der Tag, nachkommende Tage bekommen ihre Zeichen');
+  const wanted = fnOf('agendaFillWanted');
+  assert(/_renderedView === 'agenda'\) return false/.test(wanted), 'ein Neuzeichnen in der Agenda zeichnet ganz');
+  assert(/get\('open'\)/.test(wanted), 'ein Sprungziel zeichnet ganz');
+  assert(/_renderedView = state\.view;/.test(fnOf('renderView')), 'renderView merkt sich die gezeichnete Ansicht');
+  assert(/_renderedView = null;/.test(src.slice(src.indexOf('export async function render('), src.indexOf('bindPageListeners();', src.indexOf('export async function render(')))),
+    'jeder Seitenaufbau beginnt ohne gezeichnete Ansicht');
+  const css = readFileSync(new URL('../public/styles/calendar.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const cv = rules.find((r) => r.selector.trim() === '.agenda-day + .agenda-day' && /content-visibility/.test(r.body));
+  const ph = rules.find((r) => r.selector.trim() === '.agenda-view > .row-pending');
+  assert(/contain-intrinsic-size:\s*auto none auto var\(--agenda-day-estimate\)/.test(cv?.body ?? ''), `content-visibility liest die Schaetzhoehe (${cv?.body})`);
+  assert(/block-size:\s*var\(--agenda-day-estimate\)/.test(ph?.body ?? ''), `der Platzhalter liest dieselbe (${ph?.body})`);
+});
+
+// R23 S11: ein Intl.DateTimeFormat je Sprache und Jahresform, nicht je Tag.
+test('R23: dayHeading baut seinen Formatierer einmal', () => {
+  const Real = Intl.DateTimeFormat;
+  let built = 0;
+  Intl.DateTimeFormat = function (...args) { built += 1; return new Real(...args); };
+  try {
+    const today = headToday();
+    for (let i = 2; i < 40; i++) dayHeading(headAddDays(today, i));
+  } finally {
+    Intl.DateTimeFormat = Real;
+  }
+  assert(built <= 2, `38 Tage, ${built} Formatierer`);
 });
 
 // --------------------------------------------------------

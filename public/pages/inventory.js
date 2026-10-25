@@ -9,6 +9,7 @@
 
 import { api } from '/api.js';
 import { t } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { metricGlanceHtml, wireMetricGlance } from '/utils/metric-glance.js';
 import {
@@ -17,7 +18,6 @@ import {
   advancedSection,
   wireBlurValidation,
   reportFieldError,
-  confirmModal,
   refocusAfterRender,
   captureModalContext,
   captureOpenContext,
@@ -28,15 +28,17 @@ import { renderSkeletonList } from '/utils/skeleton.js';
 import { emptyStateEl, searchEmptyOptions } from '/utils/empty-state.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { pageToolsMenuHtml, pageToolsActionEl, installPopoverMenus } from '/utils/popover-menu.js';
-import { formatMoney } from '/utils/money.js';
+import { formatMoney, parseAmountInput, amountToInput } from '/utils/money.js';
+import { amountInputAttrs, amountFieldError } from '/utils/amount-field.js';
 import { todayKey } from '/utils/date.js';
-import { formatDate, getLocale, getNumberFormat } from '/i18n.js';
+import { getLocale, getNumberFormat } from '/i18n.js';
 import { renderDocumentAttachField, bindDocumentAttachField } from '/components/document-attach.js';
 import { pathAccess, mayWritePath } from '/utils/module-access.js';
+import { canChangeRecord, canSeeInventoryPrices } from '/permissions.js';
 import { warrantyStatus, hasUpcomingDeadline, dateStatus, countUpcomingDeadlines, deadlineChipSpec } from '/utils/inventory-warranty.js';
 import { openDetailView, closeDetailView } from '/components/detail-view.js';
 import { mountMasterDetail, splitViewDetailHtml } from '/utils/master-detail.js';
-import { wireScrollFade } from '/utils/ux.js';
+import { wireScrollFade, scheduleUndoableDelete } from '/utils/ux.js';
 import { redrawList, collapseRow } from '/utils/list-motion.js';
 import { attachOverlay, whenHistorySettled } from '/utils/overlay-history.js';
 import { inertOutside } from '/utils/background-inert.js';
@@ -82,6 +84,20 @@ const state = {
  */
 function readOnly() {
   return !mayWritePath('/inventory');
+}
+
+// Wer bin ich - fuer "eigen" (R23, D5). Kommt aus render({ user }).
+let _userId = null;
+
+/**
+ * Darf ich DIESEN Gegenstand aendern? Ohne `inventory_edit_others` nur, was ich
+ * angelegt habe: ein fremder steht als vollstaendige Leseansicht da, ohne
+ * Bearbeiten, Loeschen und "Erledigt" (der Server antwortet sonst 403
+ * `not_owner`).
+ */
+function mayChangeItem(item) {
+  if (readOnly() || !item) return false;
+  return canChangeRecord('inventory', item.created_by != null && Number(item.created_by) === Number(_userId));
 }
 
 async function loadLocations() {
@@ -388,6 +404,7 @@ function updateFilterChips() {
   const host = _container?.querySelector('#inventory-filters');
   if (!host) return;
   const chips = categoryChips();
+  host.removeAttribute('data-pending');
   host.hidden = chips.length === 0;
   host.replaceChildren();
   if (!chips.length) return;
@@ -456,7 +473,8 @@ function renderMetrics() {
     label: t('inventory.metricItemsLabel'),
     value: String(count),
     flows: [
-      { label: t('inventory.metricValueLabel'), amount: formatMoney(totalValue, _householdCurrency) },
+      // Ohne Preisrecht (R23) gibt es keinen Wert - die Antwort traegt keine Preise.
+      canSeeInventoryPrices() ? { label: t('inventory.metricValueLabel'), amount: formatMoney(totalValue, _householdCurrency) } : null,
       // Eine leere Kennzahl entfaellt in der Kurzzeile.
       needsAttention > 0 ? { label: t('inventory.metricAttentionLabel'), amount: String(needsAttention) } : null,
     ],
@@ -466,10 +484,10 @@ function renderMetrics() {
         <div class="metric-card__label">${esc(t('inventory.metricItemsLabel'))}</div>
         <div class="metric-card__value">${count}</div>
       </div>
-      <div class="metric-card">
+      ${canSeeInventoryPrices() ? `<div class="metric-card">
         <div class="metric-card__label">${esc(t('inventory.metricValueLabel'))}</div>
         <div class="metric-card__value">${esc(formatMoney(totalValue, _householdCurrency))}</div>
-      </div>
+      </div>` : ''}
       ${/* NULL IST KEIN WEG (R22, a4 Klein): "Braucht Aufmerksamkeit 0" stand
            in Akzenttinte als Knopf da und versprach einen Filter, der eine
            leere Liste zeigt. Ohne Frist und ohne aktiven Filter ist die Zeile
@@ -489,14 +507,15 @@ function renderMetrics() {
  * Gruppiert nach Kategorie, in der Reihenfolge von state.categories
  * (DB-Sortierung), unbekannte Kategorien ans Ende - gleiches Muster wie
  * public/pages/shopping.js#groupItemsByCategory. Anders als dort liefert
- * die API bereits category_name/category_icon je Item mit (JOIN gegen
- * inventory_categories), also keine separate catIcon()-Nachschau noetig.
+ * die API bereits category_name je Item mit (JOIN gegen inventory_categories).
+ * Der Gruppentitel traegt kein Zeichen (R23, D10); das Kategorie-Icon steht
+ * im Kategorie-Verwalter und in der Auswahl.
  */
 function groupItemsByCategory(items) {
   const grouped = new Map();
   for (const item of items) {
     if (!grouped.has(item.category)) {
-      grouped.set(item.category, { key: item.category, name: itemCategoryLabel(item), icon: item.category_icon || 'package', items: [] });
+      grouped.set(item.category, { key: item.category, name: itemCategoryLabel(item), items: [] });
     }
     grouped.get(item.category).items.push(item);
   }
@@ -536,7 +555,7 @@ function groupItemsByLocation(items) {
     const root = item.location_id != null ? lookup.get(item.location_id) : null;
     const key = root ? String(root.id) : UNLOCATED_KEY;
     if (!grouped.has(key)) {
-      grouped.set(key, { key, name: root ? root.name : t('inventory.unlocated'), icon: 'map-pin', items: [] });
+      grouped.set(key, { key, name: root ? root.name : t('inventory.unlocated'), items: [] });
     }
     grouped.get(key).items.push(item);
   }
@@ -558,7 +577,6 @@ function renderGroupedItems(groups) {
   return groups.map((g) => `
     <div class="list-group" data-group-key="${esc(g.key)}">
       <div class="list-group__title">
-        <i data-lucide="${esc(g.icon)}" class="icon-sm" aria-hidden="true"></i>
         ${esc(g.name)}
         <span class="list-group__count">${g.items.length}</span>
       </div>
@@ -581,7 +599,7 @@ function renderGroupedItems(groups) {
 function deadlineChipHtml(item) {
   const spec = deadlineChipSpec(item);
   if (!spec) return '';
-  const date = formatDate(spec.endDateKey);
+  const date = dateText(spec.endDateKey);
   let text;
   if (spec.kind === 'warranty') {
     text = spec.state === 'expired' ? t('inventory.warrantyChipExpired') : t('inventory.warrantyChipUntil', { date });
@@ -623,7 +641,7 @@ function renderItemRow(item) {
         </span>
         ${item.location_path ? `<span class="list-row__meta">${esc(item.location_path)}</span>` : ''}
       </button>
-      <span class="inventory-row__value">${item.purchase_price != null ? esc(formatMoney(item.purchase_price, item.currency)) : ''}</span>
+      ${canSeeInventoryPrices() ? `<span class="inventory-row__value">${item.purchase_price != null ? esc(formatMoney(item.purchase_price, item.currency)) : ''}</span>` : ''}
     </div>`;
 }
 
@@ -807,7 +825,7 @@ function renderListBody() {
 
 async function loadItems() {
   const res = await api.get('/inventory/items');
-  state.items = res.data;
+  state.items = (res.data ?? []).filter((entry) => !pendingItemDeletes.has(entry.id));
 }
 
 /**
@@ -907,7 +925,7 @@ function warrantyDetailValue(item) {
   // Der Key direkt, ohne Date-Umweg: `new Date(key + 'T00:00:00')` ist
   // Mitternacht der BROWSER-Zone, und in einer Haushaltszone westlich davon
   // faellt der angezeigte Tag dann auf den Vortag (#829 Teil 3).
-  const formattedDate = formatDate(status.endDateKey);
+  const formattedDate = dateText(status.endDateKey);
   let stand;
   if (status.state === 'expired') stand = t('inventory.warrantyStatusExpired', { date: formattedDate });
   else if (status.state === 'expiring') stand = t('inventory.warrantyStatusExpiringSoon', { count: status.days });
@@ -940,7 +958,7 @@ function trackedDateDetailEntries(item) {
     const distanceHint = d.interval_distance
       ? t('inventory.trackedDateDistanceHint', { value: formatOdometer(d.interval_distance), count: d.interval_distance, unit: odometerUnitLabel(item.odometer_unit) })
       : '';
-    const sub = [countdown ? `${formatDate(d.date)} · ${countdown}` : formatDate(d.date), distanceHint, ...trackedDateFormOnlyValues(d)]
+    const sub = [countdown ? `${dateText(d.date)} · ${countdown}` : dateText(d.date), distanceHint, ...trackedDateFormOnlyValues(d)]
       .filter(Boolean).join(' · ');
     return { text: d.label, sub };
   });
@@ -1008,7 +1026,7 @@ function historyEntryLine(entry, odometerUnit) {
   label.textContent = entry.label;
   main.appendChild(label);
 
-  const subParts = [formatDate(entry.date)];
+  const subParts = [dateText(entry.date)];
   if (entry.type === 'service_log') {
     if (entry.vendor) subParts.push(entry.vendor);
     if (entry.odometer != null) {
@@ -1073,13 +1091,13 @@ function odometerChartMarkup(points, unit) {
 
   const spine = points.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
   const area = `<polygon class="inventory-chart__area" points="${x(0).toFixed(1)},${bottom.toFixed(1)} ${spine} ${x(points.length - 1).toFixed(1)},${bottom.toFixed(1)}" />`;
-  const dots = points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="3.5" fill="var(--module-inventory)"><title>${esc(`${formatDate(p.date)}: ${formatOdometer(p.value)} ${unit}`)}</title></circle>`).join('');
+  const dots = points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="3.5" fill="var(--module-inventory)"><title>${esc(`${dateText(p.date)}: ${formatOdometer(p.value)} ${unit}`)}</title></circle>`).join('');
 
   const grid = chartGridMarkup(min, max, (val) => formatOdometer(Math.round(val)), CHART, steps);
-  const xLabels = chartTimeLabelsMarkup(from, to, formatDate);
+  const xLabels = chartTimeLabelsMarkup(from, to, dateText);
   const titleText = t('inventory.odometerChartTitle');
   const table = chartTableMarkup(titleText, [t('inventory.completePerformedOnLabel'), t('inventory.odometerLabel')],
-    points.map((p) => [formatDate(p.date), `${formatOdometer(p.value)} ${unit}`]));
+    points.map((p) => [dateText(p.date), `${formatOdometer(p.value)} ${unit}`]));
 
   return `
     <div class="inventory-chart-section">
@@ -1187,7 +1205,7 @@ function attachmentDetailEntries(attachments) {
 function renderItemDetail(item, history, onDoneTrackedDate, historyLoadFailed) {
   const bookingEntries = (item.linked_entries || []).map((link) => ({
     text: `${link.title} · ${formatMoney(link.amount, _householdCurrency)}`,
-    sub: `${roleLabel(link.role)} · ${formatDate(link.date)}`,
+    sub: `${roleLabel(link.role)} · ${dateText(link.date)}`,
   }));
   const attachmentEntries = attachmentDetailEntries(item.attachments);
 
@@ -1205,8 +1223,8 @@ function renderItemDetail(item, history, onDoneTrackedDate, historyLoadFailed) {
         { icon: 'building-2', label: t('inventory.brandLabel'), value: item.brand || '' },
         { icon: 'package', label: t('inventory.modelLabel'), value: item.model || '' },
         { icon: 'hash', label: t('inventory.serialNumberLabel'), value: item.serial_number || '' },
-        { icon: 'calendar', label: t('inventory.purchaseDateLabel'), value: item.purchase_date ? formatDate(item.purchase_date) : '' },
-        { icon: 'banknote', label: t('inventory.purchasePriceLabel'), value: item.purchase_price != null ? formatMoney(item.purchase_price, item.currency) : '' },
+        { icon: 'calendar', label: t('inventory.purchaseDateLabel'), value: item.purchase_date ? dateText(item.purchase_date) : '' },
+        { icon: 'banknote', label: t('inventory.purchasePriceLabel'), value: canSeeInventoryPrices() && item.purchase_price != null ? formatMoney(item.purchase_price, item.currency) : '' },
         { icon: 'store', label: t('inventory.vendorLabel'), value: item.vendor || '' },
         // Konto, unter dem das Geraet registriert ist (#1004) - eine Adresse oder ein
         // Benutzername, nie ein Passwort. Steht bei den uebrigen Herkunftsangaben,
@@ -1261,7 +1279,7 @@ function formatOdometer(value) {
 function odometerDetailValue(item) {
   if (item.odometer == null) return '';
   const value = `${formatOdometer(item.odometer)} ${odometerUnitLabel(item.odometer_unit)}`;
-  return item.odometer_on ? `${value} · ${formatDate(item.odometer_on)}` : value;
+  return item.odometer_on ? `${value} · ${dateText(item.odometer_on)}` : value;
 }
 
 /**
@@ -1291,7 +1309,7 @@ async function openItemDetail(item, { pane = null, signal = null } = {}) {
   // gewaehlt sein - dann gehoert die Spalte ihr, nicht diesem Gegenstand.
   if (signal?.aborted) return;
 
-  const ro = readOnly();
+  const ro = !mayChangeItem(item);
   const onDoneTrackedDate = ro ? null : async (trackedDate) => {
     if (pane) {
       // In der Spalte liegt kein Overlay offen: die Abschluss-Karte geht direkt
@@ -1355,6 +1373,7 @@ async function openItemDetail(item, { pane = null, signal = null } = {}) {
       onClick: async ({ close }) => {
         await close({ force: true });
         await removeItem(item);
+        refocusAfterRender();
       },
     }] : [],
     edit: item.can_edit && !ro ? {
@@ -1383,7 +1402,7 @@ async function openItemDetail(item, { pane = null, signal = null } = {}) {
  * @returns {Promise<boolean>} true, wenn die Frist erledigt wurde
  */
 function openCompletionSheet(item, trackedDate) {
-  if (readOnly()) return Promise.resolve(false);
+  if (!mayChangeItem(item)) return Promise.resolve(false);
   return new Promise((resolve) => {
     let settled = false;
     const settle = (result) => { if (!settled) { settled = true; resolve(result); } };
@@ -1610,7 +1629,7 @@ function openBookingPicker(panel, { initialMonth, includeRole = false } = {}) {
         listEl.insertAdjacentHTML('beforeend', `
           <button class="inventory-booking-picker__item" type="button" data-picker-item="${entry.id}">
             <span class="inventory-booking-picker__item-title">${esc(entry.title)}</span>
-            <span class="inventory-booking-picker__item-meta">${esc(formatDate(entry.date))}</span>
+            <span class="inventory-booking-picker__item-meta">${esc(dateText(entry.date))}</span>
             <span class="inventory-booking-picker__item-amount">${esc(formatMoney(entry.amount, _householdCurrency))}</span>
           </button>`);
       }
@@ -1686,7 +1705,7 @@ function renderLinkedEntries(panel, item) {
     <div class="inventory-linked-entry-row" data-entry-id="${link.entry_id}">
       <span class="inventory-linked-entry-row__title">${esc(link.title)}</span>
       <span class="inventory-linked-entry-row__role">${esc(roleLabel(link.role))}</span>
-      <span class="inventory-linked-entry-row__date">${esc(formatDate(link.date))}</span>
+      <span class="inventory-linked-entry-row__date">${esc(dateText(link.date))}</span>
       <span class="inventory-linked-entry-row__amount">${esc(formatMoney(link.amount, _householdCurrency))}</span>
       <button class="btn btn--icon btn--sm" type="button" data-remove-entry="${link.entry_id}"
               aria-label="${esc(t('inventory.removeBookingAction', { title: link.title }))}">
@@ -1722,7 +1741,7 @@ function updateWarrantyStatus(panel) {
   // Der Key direkt, ohne Date-Umweg: `new Date(key + 'T00:00:00')` ist
   // Mitternacht der BROWSER-Zone, und in einer Haushaltszone westlich davon
   // faellt der angezeigte Tag dann auf den Vortag (#829 Teil 3).
-  const formattedDate = formatDate(status.endDateKey);
+  const formattedDate = dateText(status.endDateKey);
   if (status.state === 'expired') {
     statusEl.textContent = t('inventory.warrantyStatusExpired', { date: formattedDate });
   } else if (status.state === 'expiring') {
@@ -1851,6 +1870,14 @@ function photoPreviewHtml(photoData) {
  *
  * @returns {{title: string, content: string, wire: (panel: HTMLElement) => void}}
  */
+/**
+ * Die Waehrung eines Kaufpreises: die gespeicherte des Gegenstands, sonst die
+ * des Haushalts (so legt der Server ihn auch an).
+ */
+function itemCurrency(item) {
+  return item?.currency || _householdCurrency || 'EUR';
+}
+
 function buildItemForm({ mode, item = null }) {
   const isEdit = mode === 'edit';
   // Verknuepfte Buchungen kommen aus dem Budget: ohne dessen Leserecht liefert
@@ -1910,10 +1937,10 @@ function buildItemForm({ mode, item = null }) {
             <yuvomi-datepicker id="inv-purchase-date" type="date"
                                value="${esc(isEdit && item.purchase_date ? item.purchase_date : '')}"></yuvomi-datepicker>
           </div>
-          <div class="form-group">
+          ${canSeeInventoryPrices() ? `<div class="form-group">
             <label class="form-label" for="inv-purchase-price">${esc(t('inventory.purchasePriceLabel'))}</label>
-            <input id="inv-purchase-price" class="form-input" type="number" min="0" step="0.01" inputmode="decimal">
-          </div>
+            <input id="inv-purchase-price" class="form-input"${amountInputAttrs(itemCurrency(item))}>
+          </div>` : ''}
         </div>
         ${!isEdit && showsBookings ? `
         <div class="form-group">
@@ -2039,7 +2066,8 @@ function buildItemForm({ mode, item = null }) {
     panel.querySelector('#inv-name').value = isEdit ? item.name : '';
     panel.querySelector('#inv-category').value = isEdit ? item.category : 'other';
     panel.querySelector('#inv-location').value = isEdit && item.location_id ? String(item.location_id) : '';
-    panel.querySelector('#inv-purchase-price').value = isEdit && item.purchase_price != null ? String(item.purchase_price) : '';
+    const priceField = panel.querySelector('#inv-purchase-price');
+    if (priceField) priceField.value = isEdit && item.purchase_price != null ? amountToInput(item.purchase_price, itemCurrency(item)) : '';
     panel.querySelector('#inv-status').value = isEdit ? item.status : 'active';
     panel.querySelector('#inv-brand').value = isEdit && item.brand ? item.brand : '';
     panel.querySelector('#inv-model').value = isEdit && item.model ? item.model : '';
@@ -2182,7 +2210,7 @@ function buildItemForm({ mode, item = null }) {
         });
         if (window.lucide) window.lucide.createIcons({ el: chip });
         const priceInput = panel.querySelector('#inv-purchase-price');
-        if (!priceInput.value.trim()) priceInput.value = String(Math.abs(picked.entry.amount));
+        if (priceInput && !priceInput.value.trim()) priceInput.value = amountToInput(Math.abs(picked.entry.amount), itemCurrency(item));
       });
     }
 
@@ -2212,6 +2240,7 @@ function openItemModal(mode, item = null) {
   // Leerzustand, Tastenkuerzel „n" (klickt den FAB), Enter auf der Zeile und
   // „Bearbeiten" aus der Detailspalte.
   if (readOnly()) return;
+  if (mode === 'edit' && !mayChangeItem(item)) return;
   const form = buildItemForm({ mode, item });
   // Anlegen: Buehne zuerst, Felder nach dem ersten Bild (modal.js `staged`, R21 a6).
   openSharedModal({ title: form.title, size: 'md', content: form.content, onSave: form.wire, staged: mode === 'create' });
@@ -2224,7 +2253,15 @@ async function saveItem(panel, mode, item, attachments, pickedBooking, photoData
   const name = nameInput.value.trim();
   if (!name) { reportFieldError(nameInput, t('common.nameRequired')); return; }
 
-  const priceRaw = panel.querySelector('#inv-purchase-price').value.trim();
+  // Der Kaufpreis als TEXT (D1): "1.200" unter de ist abgewiesen und benannt,
+  // nie still 1,2. 0 ist erlaubt (Geschenk), leer heisst "kein Preis".
+  // Ohne Preisrecht (R23) steht das Feld nicht da; der Server laesst den
+  // gespeicherten Preis dann stehen.
+  const priceInput = panel.querySelector('#inv-purchase-price');
+  const priceProblem = priceInput ? amountFieldError(priceInput, itemCurrency(item), {
+    sign: 'nonNegative', original: item?.purchase_price ?? null, originalCurrency: item?.currency ?? null,
+  }) : null;
+  if (priceProblem) { reportFieldError(...priceProblem); return; }
   const warrantyRaw = panel.querySelector('#inv-warranty').value.trim();
   const category = panel.querySelector('#inv-category').value;
   // Kilometerstand ist auf odometer-tragende Kategorien begrenzt - unabhaengig
@@ -2238,7 +2275,7 @@ async function saveItem(panel, mode, item, attachments, pickedBooking, photoData
     category,
     location_id: panel.querySelector('#inv-location').value || null,
     purchase_date: panel.querySelector('#inv-purchase-date').value || null,
-    purchase_price: priceRaw === '' ? null : Number(priceRaw),
+    ...(priceInput ? { purchase_price: parseAmountInput(priceInput.value) } : {}),
     status: panel.querySelector('#inv-status').value,
     brand: panel.querySelector('#inv-brand').value.trim() || null,
     model: panel.querySelector('#inv-model').value.trim() || null,
@@ -2315,41 +2352,46 @@ async function offerCurrentLocations(panel) {
   select.focus();
 }
 
+/** Gegenstaende in der Ruecknahmefrist: lokal weg, am Server noch da (R23, D6). */
+const pendingItemDeletes = new Set();
+
+// LOESCHEN MIT RUECKGAENGIG STATT RUECKFRAGE (Critique R23, D6). Ein Gegenstand
+// ist kein Behaelter: was an ihm haengt (Fristen, Wartungsbuch, Verknuepfungen),
+// geht mit ihm, und bis die Frist des Toasts endet, ist am Server nichts davon
+// geschehen (`scheduleUndoableDelete`).
 async function removeItem(item) {
-  if (readOnly()) return;
-  const ok = await confirmModal(t('inventory.deleteConfirm', { name: item.name }), {
-    danger: true,
-    detail: t('inventory.deleteConfirmDetail'),
+  if (!mayChangeItem(item)) return;
+  const id = item.id;
+  pendingItemDeletes.add(id);
+  state.items = state.items.filter((entry) => entry.id !== id);
+  // Die Zeile klappt aus, die Nachbarn ruecken nach - erst dann steht die
+  // Liste ohne sie neu (ohne Bewegung loest collapseRow sofort auf).
+  await collapseRow(_container?.querySelector(`#inventory-list .list-row[data-id="${id}"]`) ?? null);
+  await whenHistorySettled();
+  renderList({ repaint: true, motion: true });
+  updateAttentionBadge();
+  scheduleUndoableDelete({
+    commit: async ({ keepalive } = {}) => {
+      try {
+        await api.delete(`/inventory/items/${id}`, { keepalive });
+      } catch (err) {
+        // SCHON GELOESCHT IST EIN ERFOLG (#1909): ein anderes Haushaltsmitglied
+        // war schneller. Gegenstaende haben keine Sichtbarkeit - die 404 heisst
+        // nur "gibt es nicht mehr". Alles andere bleibt ein Fehler.
+        if (!isAlreadyDeleted(err, 'inventory_item_not_found')) throw err;
+      }
+      pendingItemDeletes.delete(id);
+    },
+    restore: async (err) => {
+      pendingItemDeletes.delete(id);
+      if (err) window.yuvomi?.showToast(errorSentence(err), 'danger');
+      try { await loadItems(); } catch { /* der Stand von eben bleibt */ }
+      if (!_container?.isConnected) return;
+      renderList({ repaint: true, motion: true });
+      updateAttentionBadge();
+    },
+    message: t('common.deletedNamed', { name: item.name }),
   });
-  if (!ok) return;
-  try {
-    try {
-      await api.delete(`/inventory/items/${item.id}`);
-    } catch (err) {
-      // SCHON GELOESCHT IST EIN ERFOLG (#1909): ein anderes Haushaltsmitglied
-      // war schneller. Gegenstaende haben keine Sichtbarkeit - die 404 heisst
-      // nur "gibt es nicht mehr". Alles andere bleibt ein Fehler.
-      if (!isAlreadyDeleted(err, 'inventory_item_not_found')) throw err;
-    }
-    await loadItems();
-    // Die Zeile klappt aus, die Nachbarn ruecken nach - erst dann steht die
-    // Liste ohne sie neu (ohne Bewegung loest collapseRow sofort auf).
-    await collapseRow(_container?.querySelector(`#inventory-list .list-row[data-id="${item.id}"]`) ?? null);
-    // ERST WENN DIE HISTORY WIEDER DER SEITE GEHOERT (R17). Die Rueckfrage
-    // gibt ihren Marker per `history.back()` zurueck, und das kommt erst nach
-    // ihrem Ausblenden an (~220ms). Antwortet der Server schneller, raeumte der
-    // Listenaufbau `?open=<id>` vom MARKER-Eintrag ab - das `back()` trug den
-    // Browser danach auf den Eintrag darunter, und in der Adresse stand wieder
-    // der geloeschte Gegenstand (gemessen bei aktiver Suche: Spalte leer,
-    // Adresse `?open=9`; ein Neuladen zeigte „nicht gefunden").
-    await whenHistorySettled();
-    renderList({ repaint: true, motion: true });
-    refocusAfterRender();
-    updateAttentionBadge();
-    window.yuvomi?.showToast(t('inventory.deleted'), 'success');
-  } catch (err) {
-    window.yuvomi?.showToast(errorSentence(err), 'danger');
-  }
 }
 
 /**
@@ -2375,6 +2417,7 @@ function inventoryToolsHtml() {
 export async function render(container, { user, signal } = {}) {
   _container = container;
   state.currentUser = user || null;
+  _userId = user?.id ?? null;
   _md = null;
 
   const page = document.createElement('div');
@@ -2420,7 +2463,11 @@ export async function render(container, { user, signal } = {}) {
   filters.id = 'inventory-filters';
   filters.setAttribute('role', 'group');
   filters.setAttribute('aria-label', t('inventory.filterGroupLabel'));
-  filters.hidden = true;
+  // Die Reihe haelt ihren Platz, bis die Daten da sind (R23 S11, wie die
+  // Kontakte): versteckt geladen erschien sie mit den Chips und schob Liste
+  // und Detail um ihre Hoehe nach unten (1440x900, 4x CPU: Layout-Shift
+  // 0,035). Ob es Chips gibt, entscheidet erst updateFilterChips().
+  filters.dataset.pending = '';
 
   const list = document.createElement('div');
   list.className = 'inventory-list split-view__list';
@@ -2563,7 +2610,7 @@ export async function render(container, { user, signal } = {}) {
       openNarrow: openItemNarrow,
       onEnter: (id) => {
         const item = state.items.find((i) => String(i.id) === id);
-        if (item && !readOnly()) openItemModal('edit', item);
+        if (item && mayChangeItem(item)) openItemModal('edit', item);
       },
       onModeChange: onInventoryModeChange,
     });

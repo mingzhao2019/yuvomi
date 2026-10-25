@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import express from 'express';
 import * as db from '../db.js';
 import { createLogger } from '../logger.js';
@@ -972,6 +973,10 @@ router.post('/:id/renew', async (req, res) => {
     // bezahlten Buchung stehen im selben synchronen Schritt wie das Lesen
     // oben (#2004).
     const { paid } = renewBooking(current, resolveRenewal(current));
+    // Der Rueckweg des Toasts (R23, D6): was vor der Zahlung stand, AM SERVER
+    // gemerkt. Der Client bekommt nur eine Marke - keine Buchungs-Id, die er
+    // gegen eine fremde tauschen koennte (Sicherheitspruefung zu R23).
+    const undo = rememberRenewal(current, actorId(req));
     let row;
     try {
       let fetched = null;
@@ -993,11 +998,120 @@ router.post('/:id/renew', async (req, res) => {
       if (!row) throw new SubscriptionGoneError();
     }
     syncReminder(row);
-    res.json({ data: decorate(row) });
+    // Die Buchung, die DIESES Verlaengern als naechste anlegte: nur sie darf das
+    // Zuruecknehmen loeschen (ein spaeterer Sync koennte sie ersetzen).
+    noteRenewalNextEntry(id, undo.token, row.budget_entry_id ?? null);
+    res.json({ data: decorate(row), undo: { token: undo.token } });
   } catch (err) {
     if (err instanceof SubscriptionGoneError) return subscriptionGone(res);
     log.error('POST /:id/renew error:', err);
     res.status(500).json({ error: 'Subscription renewal could not be saved.', code: 500 });
+  }
+});
+
+/** So lange nach dem Bezahlen nimmt "Rueckgaengig" es zurueck (Minuten). */
+const RENEW_UNDO_MINUTES = 10;
+/**
+ * Der Stand vor einer Zahlung, je Abo der juengste, im Speicher des Servers
+ * (Sicherheitspruefung zu R23). Bis dahin trug der Client ihn samt der
+ * bezahlten Buchungs-Id zurueck, und die Route haengte die genannte Buchung an
+ * das Abo - eine fremde Buchung gleicher Kategorie und gleichen Datums haette
+ * genuegt. Jetzt kennt der Client nur eine Marke; Buchungen, Zaehler und
+ * `enabled` kommen aus dem, was das Verlaengern selbst hier abgelegt hat. Nach
+ * einem Neustart ist der Rueckweg weg - er ist der eines Toasts.
+ */
+const renewalUndo = new Map();
+
+function rememberRenewal(current, userId) {
+  const token = crypto.randomBytes(16).toString('hex');
+  renewalUndo.set(current.id, {
+    token, userId, at: Date.now(),
+    paid_entry_id: current.enabled ? (current.budget_entry_id ?? null) : null,
+    next_entry_id: null,
+    next_payment_date: current.next_payment_date,
+    occurrences_done: Number(current.occurrences_done || 0),
+    enabled: current.enabled ? 1 : 0,
+  });
+  return { token };
+}
+
+function noteRenewalNextEntry(id, token, entryId) {
+  const saved = renewalUndo.get(id);
+  if (saved?.token === token) saved.next_entry_id = entryId;
+}
+
+/** Der gemerkte Stand, wenn Marke, Person und Frist passen - und dann verbraucht. */
+function takeRenewal(id, token, userId) {
+  const saved = renewalUndo.get(id);
+  if (!saved || typeof token !== 'string' || saved.token !== token || saved.userId !== userId
+    || Date.now() - saved.at > RENEW_UNDO_MINUTES * 60_000) return null;
+  renewalUndo.delete(id);
+  return saved;
+}
+
+/*
+ * EINE ZAHLUNG ZURUECKNEHMEN (Critique R23, D6). "Bezahlt" fragte vorher nach,
+ * weil ein zweiter Wisch nichts zurueckholte (N4: Rueckfrage am Rueckweg statt
+ * eines Rueckwegs). Jetzt fragt nichts vorher, und der Toast nimmt die Zahlung
+ * ECHT zurueck: Faelligkeit und Zaehler stehen wie vorher, ein Abschluss ist
+ * aufgehoben, die beim Bezahlen angelegte Buchung der naechsten Zahlung ist
+ * weg, und die bezahlte Buchung ist wieder die verknuepfte "naechste Zahlung" -
+ * der Sync schreibt sie danach aus der Zeile, wie vor dem Tipp.
+ *
+ * Body: { token } aus der Antwort von POST /:id/renew. Er gilt nur fuer die
+ * juengste Zahlung, fuer den, der bezahlt hat, und nur, wenn die Zeile genau
+ * der Stand ist, den EIN Verlaengern aus dem gemerkten macht - sonst hat
+ * seither jemand anderes bezahlt oder bearbeitet, und die Antwort ist 409.
+ */
+router.post('/:id/renew/undo', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const current = loadSubscription(id);
+    if (!current) return subscriptionGone(res);
+    if (!mayEditSub(req, current)) return res.status(403).json({ error: 'You cannot modify this subscription.', code: 403 });
+    const stale = () => res.status(409).json({ error: 'The subscription changed since this payment.', code: 409, reason: 'subscriptions_renew_undo_stale' });
+    const saved = takeRenewal(id, req.body?.token, actorId(req));
+    if (!saved) return stale();
+    const prev = { ...current, next_payment_date: saved.next_payment_date, occurrences_done: saved.occurrences_done };
+    const step = resolveRenewal(prev);
+    if (step.nextDate !== current.next_payment_date || step.occurrencesDone !== Number(current.occurrences_done || 0)
+      || Boolean(step.completed) !== Boolean(current.completed_at)
+      || (current.budget_entry_id ?? null) !== saved.next_entry_id) return stale();
+    const paid = saved.paid_entry_id == null ? null : db.get().prepare(`
+      SELECT id FROM budget_entries
+      WHERE id = ? AND category = 'subscriptions' AND date = ?
+        AND NOT EXISTS (SELECT 1 FROM budget_subscriptions s WHERE s.budget_entry_id = budget_entries.id)
+    `).get(saved.paid_entry_id, saved.next_payment_date);
+    if (saved.paid_entry_id != null && !paid) return stale();
+    const prevDate = { value: saved.next_payment_date };
+    const prevDone = saved.occurrences_done;
+    const b = { enabled: saved.enabled };
+    // Bis hierher kein await: Pruefen und Zuruecksetzen in einem synchronen Schritt.
+    db.get().transaction(() => {
+      if (current.budget_entry_id) db.get().prepare('DELETE FROM budget_entries WHERE id = ?').run(current.budget_entry_id);
+      db.get().prepare(`
+        UPDATE budget_subscriptions
+        SET next_payment_date = ?, occurrences_done = ?, budget_entry_id = ?,
+            enabled = CASE WHEN ? THEN ? ELSE enabled END,
+            completed_at = CASE WHEN ? THEN NULL ELSE completed_at END
+        WHERE id = ?
+      `).run(prevDate.value, prevDone, paid?.id ?? null, step.completed ? 1 : 0, b.enabled ? 1 : 0, step.completed ? 1 : 0, id);
+    })();
+    let row;
+    try {
+      row = await syncBudgetExpense(id);
+    } catch (err) {
+      if (err instanceof SubscriptionGoneError) throw err;
+      log.warn(`Undo of renewal ${id} saved; its booking amount waits for the exchange rate:`, err.message);
+      row = loadSubscription(id);
+      if (!row) throw new SubscriptionGoneError();
+    }
+    syncReminder(row);
+    res.json({ data: decorate(row) });
+  } catch (err) {
+    if (err instanceof SubscriptionGoneError) return subscriptionGone(res);
+    log.error('POST /:id/renew/undo error:', err);
+    res.status(500).json({ error: 'Subscription renewal could not be taken back.', code: 500 });
   }
 });
 

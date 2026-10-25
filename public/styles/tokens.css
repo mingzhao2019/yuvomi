@@ -1182,10 +1182,28 @@
    * AA ueber alle neun Familien, knappster Wert Gesundheit 4,51:1, Kontakte
    * 5,05, Dokumente 5,08, Uebersicht 5,16. Heller geht nicht: --_neutral-300
    * druckte Gesundheit auf 3,68. Guard: test-frontend-audit.js, "der
-   * Segmentdaumen ist heller als seine Bahn". */
+   * Segmentdaumen ist heller als seine Bahn".
+   *
+   * DUNKEL TRAEGT DER DAUMEN EINE KANTE (R23, Critique G6-1). 1,19:1 ist ein
+   * Abstand, kein Zustand: die Grenze des gewaehlten Segments muss als Grafik
+   * 3:1 halten (WCAG 1.4.11), und der Schatten, der hell die Kante zeichnet,
+   * ist auf Kohle wirkungslos. Die Kante ist die Feldkante
+   * (--color-border-control, #857F76): 3,16:1 gegen die Bahn #37332E. Heller
+   * fuellen geht nicht (siehe oben, die Tinte darauf), also zeichnet ein 1px-
+   * Innenring die Form.
+   *
+   * HELL TRAEGT ER DIESELBE KANTE (R23 S11). Weiss auf der Bahn #EDEAE3 ist
+   * 1,20:1, und der Schatten zeichnet die Form nur optisch - als Grenze eines
+   * Zustands zaehlt er nicht (WCAG 1.4.11 gilt fuer beide Themes). Die helle
+   * Feldkante (--color-border-control, #8C8880) haelt gegen die Bahn nur
+   * 2,94:1 - sie ist gegen Weiss gerechnet. Der Ring nimmt deshalb in beiden
+   * Themes dieselbe Farbe #857F76: hell 3,30:1 gegen die Bahn, 3,97:1 gegen
+   * den Daumen; der Schatten bleibt als Tiefe. Guard: test-frontend-audit.js,
+   * "der Segmentdaumen hat in jedem Theme eine 3:1-Kante". */
+  --_seg-active-ring:  #857F76;
   --_seg-active-bg:    var(--_color-surface);
   --seg-active-bg:     var(--_seg-active-bg);
-  --seg-active-shadow: var(--shadow-xs);
+  --seg-active-shadow: inset 0 0 0 1px var(--_seg-active-ring), var(--shadow-xs);
 
   /* --------------------------------------------------------
    * 7. Overlay / Backdrop
@@ -1635,8 +1653,11 @@
    * 65rem = 1040px Modulflaeche: ein 1280er-Laptop (1060px neben der
    * Seitenleiste) bekommt Liste + Detail (420 + 24 + ~560), auch mit einer
    * klassischen 15-17px-Bildlaufleiste an #main-content. Bis R10 stand hier
-   * 75rem, und 1280 fiel auf den Einspalter mit Modal zurueck (A3 P2-2). */
-  --layout-list-min: 26.25rem;
+   * 75rem, und 1280 fiel auf den Einspalter mit Modal zurueck (A3 P2-2).
+   * MINDESTENS 480px LISTE (R23, D13): mit 420px blieben dem Aufgabentitel bei
+   * 1280 194px, und 11 von 11 Titeln brachen um (Critique G2). Das Detail
+   * behaelt bei 1280 rund 500px; ab 1220px Flaeche traegt die 40-%-Formel. */
+  --layout-list-min: 30rem;
   --layout-list-max: 32.5rem;
   /* Listenbahn, sobald der Baustein auf der Content-Spalte steht (Modulflaeche
    * ab 84rem = 1280 + 2 x 32px Gutter, layout.css): dann waechst er nicht
@@ -1848,6 +1869,14 @@
    * noch" in drei Stimmen. Eine Schleife, kein Uebergang: deshalb ausserhalb
    * der --duration-Stufen. Unter reduzierter Bewegung dreht er weiter (reset.css). */
   --spin-period: 700ms;
+  /* DIE ANDEREN BEIDEN ZEITEN AUSSERHALB DER STUFEN (R23 S11, Critique G0
+   * S-P3-3): sie standen als Literale in layout.css. Der Lade-Schimmer ist
+   * eine Schleife wie der Spinner (eine Bahn ueber das Skelett); der
+   * Wisch-Hinweis ist ein einmaliger Stups an einer neuen Zeile - seine
+   * Dauer und die Wartezeit davor, damit er erst nach dem Aufbau kommt. */
+  --shimmer-period: 1.5s;
+  --hint-nudge: 800ms;
+  --hint-delay: 1200ms;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   /* Symmetrische Kurve fuer Hoehenwechsel (Einklappen/Aufziehen von Zeilen und
@@ -2405,6 +2434,8 @@
     --_color-switch-off:   #948E85;  /* = --_neutral-500 */
     /* Der Segmentdaumen: eine Stufe UEBER der Bahn (#37332E), Begruendung im :root-Block. */
     --_seg-active-bg:      #443E37;  /* = --_neutral-250 */
+    /* Und seine Kante (R23, G6-1): 3,16:1 gegen die Bahn. Als Hex = --color-border-control. */
+    --_seg-active-ring:    #857F76;
 
     --_sidebar-bg:           #221F1D;
     --_sidebar-shadow-light: rgba(255, 255, 255, 0.04);
@@ -2687,6 +2718,8 @@
     --_color-switch-off:   #948E85;  /* = --_neutral-500 */
     /* Der Segmentdaumen: eine Stufe UEBER der Bahn (#37332E), Begruendung im :root-Block. */
     --_seg-active-bg:      #443E37;  /* = --_neutral-250 */
+    /* Und seine Kante (R23, G6-1): 3,16:1 gegen die Bahn. Als Hex = --color-border-control. */
+    --_seg-active-ring:    #857F76;
 
     /* Sidebar */
     --_sidebar-bg:           #221F1D;

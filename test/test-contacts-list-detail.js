@@ -543,6 +543,10 @@ test('R22 D7: gleichnamiger Geburtstag - der Kontakt zeigt den Hinweis mit "Verk
     assert.equal(hint.action.icon, 'link');
     const dateRow = contacts.renderContactDetail(SAME).find((r) => r?.icon === 'cake' && r.label === 'contacts.birthdayLabel');
     assert.equal(dateRow?.action ?? null, null, 'kein "Hinzufuegen" neben dem Hinweis - es legte einen zweiten Geburtstag an');
+    // R23 G5-P2: gleicher Tag, anderer Name - der Satz nennt den Geburtstag.
+    const sameDay = hintOf({ ...SAME, suggested_birthday_name: 'Ingrid Mueller' });
+    assert.equal(sameDay?.value, 'contacts.birthdaySuggestSameDate{"name":"Ingrid Mueller"}', 'gleicher Tag: "Mit X verknuepfen?"');
+    assert.equal(sameDay.action.label, 'birthdays.linkContact');
     assert.ok(hintOf({ ...SAME, birthday: null }), 'auch ohne eigenes Datum');
     assert.equal(hintOf({ ...SAME, suggested_birthday_id: undefined }), null, 'ohne Vorschlag keine Zeile');
     assert.equal(hintOf({ ...SAME, birthday_id: 31 }), null, 'verknuepft keine Zeile');
@@ -692,4 +696,46 @@ test('Liste und Detail zeigen eine Telefonnummer in derselben Form', async () =>
   } finally {
     __primePhoneLib(null);
   }
+});
+
+// R23 (Critique G5 P2/P3): im Auswahlmodus kuerzte der Titel auf "Kont..."
+// (390px: Suche, "Abbrechen" und "..." daneben), und "Name noetig" kam als
+// Toast statt am Feld.
+test('R23: im Auswahlmodus tritt das Menue ab, der Name meldet sich am Feld', () => {
+  const css = read('../public/styles/contacts.css');
+  const hide = [...eachRule(css)].find((r) => r.selector.trim() === '.contacts-page.is-selecting .contacts-toolbar .page-tools-btn');
+  assert.ok(hide && /display:\s*none/.test(hide.body), 'das Menue weicht im Auswahlmodus');
+  const js = read('../public/pages/contacts.js');
+  const exit = js.slice(js.indexOf('function exitSelectMode()'), js.indexOf('function syncSelectChrome()'));
+  assert.ok(exit.indexOf("classList.remove('is-selecting')") > -1
+    && exit.indexOf("classList.remove('is-selecting')") < exit.indexOf(".page-tools-btn')?.focus()"),
+    'erst die Klasse, dann der Fokus - ein ausgeblendeter Knopf nimmt keinen');
+  assert.match(js, /if \(!name && reportFieldErrors\(\[\[panel\.querySelector\('#cm-first-name'\), t\('contacts\.nameRequiredHint'\)\]\]\)\) return;/);
+  assert.doesNotMatch(js, /showToast\(t\('contacts\.nameRequiredHint'\)/, 'kein Toast mehr fuer ein Feld');
+});
+
+// R23: die Chipreihe erschien erst mit den Daten, und die Liste rutschte um
+// ihre Hoehe nach unten (390x844 Layout-Shift 0,068 bei 4x CPU).
+test('R23: die Chipreihe haelt ihren Platz, bis die Kontakte geladen sind', () => {
+  const css = read('../public/styles/contacts.css');
+  const rules = [...eachRule(css)];
+  assert.ok(!rules.some((r) => r.selector.trim() === '.contacts-filters:empty' && /display:\s*none/.test(r.body)), 'leer heisst nicht weg, solange geladen wird');
+  const hide = rules.find((r) => r.selector.trim() === '.contacts-filters:empty:not([data-pending])');
+  assert.ok(hide && /display:\s*none/.test(hide.body), 'erst nach dem Laden faellt eine leere Reihe weg');
+  const js = read('../public/pages/contacts.js');
+  assert.match(js, /id="contacts-filters" role="group" aria-label="\$\{t\('contacts\.categoryLabel'\)\}" data-pending><\/div>/, 'die Marke steht im ersten Bild');
+  const fn = js.slice(js.indexOf('function renderCategoryFilters()'), js.indexOf('function openContactCategoryManager()'));
+  assert.match(fn, /bar\.removeAttribute\('data-pending'\);/, 'und faellt beim ersten Zeichnen mit Daten');
+});
+
+// R23 S11b (Critique G5 P3): "Kontakt bearbeiten" hatte mobil drei Ausgaenge
+// (Zurueck, x, Abbrechen), und Abbrechen schloss das ganze Blatt. Die
+// Detailansicht erkennt ein Abbrechen nur an `data-action="close-modal"` (R19,
+// detail-view.js) - dann ist es der Weg zurueck in die Leseansicht, und das
+// Kopf-"Zurueck" faellt weg, wie in Rezepten, Notizen und Inventar.
+test('Kontakt bearbeiten: Abbrechen ist der eine Rueckweg in die Leseansicht', () => {
+  const js = read('../public/pages/contacts.js');
+  assert.match(js, /<button type="button" class="btn btn--secondary" id="cm-cancel" data-action="close-modal">/);
+  const dv = read('../public/components/detail-view.js');
+  assert.match(dv, /state\.formCancel = state\.formFooter\?\.querySelector\('\[data-action="close-modal"\]'\)/, 'daran erkennt die Detailansicht das Abbrechen');
 });

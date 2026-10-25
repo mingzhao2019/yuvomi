@@ -1189,8 +1189,8 @@ test('Buchung: die Leseansicht zeigt jeden Wert des Bearbeiten-Dialogs', async (
     subcategory: 'power', account_id: 4, visibility: 'private', attachments: [beleg],
   });
   const werte = {
-    'budget.amountLabel': [[/id="bm-amount"[^>]*value="1014\.00"/, /id="type-expense"[^>]*aria-checked="true"/], /^-1\.014,00\s€$/],
-    'budget.detailDateLabel': [[/id="bm-date"\s+value="2026-06-03"/], /^2026-06-03$/],
+    'budget.amountLabel': [[/id="bm-amount"[^>]*value="1014,00"/, /id="type-expense"[^>]*aria-checked="true"/], /^-1\.014,00\s€$/],
+    'budget.detailDateLabel': [[/id="bm-date"\s+value="2026-06-03"/], /^[^,\s]+, 2026-06-03$/],
     'budget.categoryLabel': [[/<option value="housing" selected>budget\.categoryHousing</], /^budget\.categoryHousing$/],
     'budget.subcategoryLabel': [[/<option value="power" selected>Strom</], /^Strom$/],
     'budget.accountLabel': [[/<option value="4" selected>Girokonto</], /^Girokonto$/],
@@ -1198,7 +1198,7 @@ test('Buchung: die Leseansicht zeigt jeden Wert des Bearbeiten-Dialogs', async (
     'budget.responsibleLabel': [[/value="3"[^>]*checked/], /^Emma$/],
     'budget.recurringLabel': [
       [/id="bm-recurring" checked/, /<option value="monthly" selected>/, /id="bm-interval-count"[^>]*value="1"/,
-        /id="bm-virtual" checked/, /id="bm-confirm-first" checked/],
+        /id="bm-virtual"[^>]*checked/, /id="bm-confirm-first"[^>]*checked/],
       /^budget\.intervalMonthly · budget\.virtualBudgetLabel · budget\.confirmFirstLabel$/],
     'budget.receiptsLabel': [[/Rechnung\.pdf/], belegLink(5, 'Rechnung.pdf')],
   };
@@ -1244,13 +1244,13 @@ test('Abo: die Leseansicht zeigt jeden Wert des Bearbeiten-Dialogs - ohne Handlu
     end_type: 'on_date', end_date: '2026-12-31', brand_color: '#E50914',
   });
   const werte = {
-    'subscriptions.detailAmountLabel': [[/id="subscription-amount"[^>]*value="12\.99"/, /id="subscription-currency" type="hidden" value="EUR"/],
+    'subscriptions.detailAmountLabel': [[/id="subscription-amount"[^>]*value="12,99"/, /id="subscription-currency" type="hidden" value="EUR"/],
       /^12,99\s€ · subscriptions\.monthlyEquivalent\{"amount":"12,99\s€"\}$/],
-    'subscriptions.filterLabelStatus': [[/id="subscription-enabled" type="checkbox" checked/], /^subscriptions\.active$/],
+    'subscriptions.filterLabelStatus': [[/role="switch" id="subscription-enabled"[^>]*checked/], /^subscriptions\.active$/],
     'subscriptions.descriptionLabel': [[/id="subscription-description"[^>]*value="Premium"/], /^Premium$/],
     'subscriptions.billingCycleLabel': [[/id="subscription-cycle" type="hidden" value="monthly"/, /id="subscription-interval"[^>]*value="1"/],
       /^subscriptions\.cycle\.monthly$/],
-    'subscriptions.detailNextPaymentLabel': [[/id="subscription-next-date"[^>]*value="2026-10-01"/], /^2026-10-01 · subscriptions\./],
+    'subscriptions.detailNextPaymentLabel': [[/id="subscription-next-date"[^>]*value="2026-10-01"/], /^[^,\s]+, 2026-10-01 · subscriptions\./],
     'subscriptions.reminderDaysLabel': [[/id="subscription-reminder"[^>]*value="3"/], /^subscriptions\.reminderMeta\{"count":3\}$/],
     'subscriptions.endLabel': [[/id="subscription-end-date"[^>]*value="2026-12-31"/], /^subscriptions\.endsOn\{"date":"2026-12-31"\}$/],
     'subscriptions.categoryLabel': [[/id="subscription-category" type="hidden" value="2"/], /^Streaming$/],
@@ -1516,7 +1516,7 @@ test('Kontoauszug: der Kreditrahmen aus dem Konto-Dialog steht im Kopf - in beid
   const karte = konto({ type: 'credit', credit_limit: 2000, credit_bank: 'Hausbank', available_limit: 1500, currency: 'EUR' });
   // Der Dialog zeigt den Rahmen mit Schreibrecht roh im Feld - sonst mass die Zeile unten nichts.
   const editor = mitKonten([karte], () => withAccess({ budget: 'write' }, () => modalOptionen(() => budget.openAccountModal(karte))));
-  assert.match(editor.content, /id="am-credit-limit"[^>]*value="2000"/);
+  assert.match(editor.content, /id="am-credit-limit"[^>]*value="2000,00"/);
   const kopf = (modus, account) => mitKonten([account], () => withAccess({ budget: modus }, () => {
     const vorher = budget.state.accountFilterId;
     budget.state.accountFilterId = account.id;

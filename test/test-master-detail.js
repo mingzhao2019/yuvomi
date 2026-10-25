@@ -941,9 +941,13 @@ test('Schwelle: ein 1280er-Laptop bekommt Liste + Detail, auch mit klassischer B
   assert.ok(threshold <= surface1280,
     `Schwelle ${threshold}px > Modulflaeche ${surface1280}px bei 1280 - der Laptop bekommt kein Liste + Detail`);
   // Und nach unten begrenzt: Liste + Luecke + ein lesbares Detail muessen passen.
+  // R23 (D13): die Liste hat mindestens 480px - mit 420 blieben dem
+  // Aufgabentitel bei 1280 194px (Critique G2). Das Detail traegt dafuer an
+  // der Schwelle selbst 472px, bei 1280 gemessen 492px.
   const listMin = px('--layout-list-min', 'rem');
-  assert.ok(threshold - listMin - 24 - 2 * 32 >= 480,
-    `Schwelle ${threshold}px laesst dem Detail unter 480px - zu schmal zum Lesen`);
+  assert.ok(listMin >= 480, `Listenbahn ${listMin}px < 480px - die Titel brechen bei 1280 wieder um`);
+  assert.ok(threshold - listMin - 24 - 2 * 32 >= 460,
+    `Schwelle ${threshold}px laesst dem Detail unter 460px - zu schmal zum Lesen`);
 });
 
 test('Detailfuss: klebt unten in der Spalte, einreihig, und steht bei kurzem Inhalt an der Unterkante (L6)', () => {
@@ -1361,4 +1365,20 @@ test('R22-F: unter splitMedia fragt der Baustein die Box nicht ab', () => {
   const cal = readFileSync(new URL('../public/pages/calendar.js', import.meta.url), 'utf8');
   const agenda = cal.slice(cal.indexOf('function mountAgendaDetail('), cal.indexOf('function mountAgendaDetail(') + 1200);
   assert.match(agenda, /splitMedia: '\(min-width: 65rem\)'/, 'die Agenda nennt die Schwelle von module-surface (layout.css)');
+});
+
+// R23 S11 (Critique G2 P3): zeigt die Liste ihren Leerzustand, bat die Spalte
+// daneben trotzdem "Waehle eine Aufgabe". Dann tritt die leere Karte ab.
+test('R23: ohne etwas zu waehlen steht keine Aufforderung in der Spalte', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const css = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
+  const rule = [...eachRule(css)].find((r) => r.selector.replace(/\s+/g, ' ').trim()
+    === '.split-view:has(> .split-view__list .empty-state) > .split-view__detail:has(> .split-view__empty:not([hidden]))');
+  assert.ok(rule, 'die Regel fehlt');
+  assert.match(rule.body, /visibility:\s*hidden/, 'die Karte haelt ihren Platz, zeigt aber nichts');
+  assert.ok(rule.at.some((at) => /@container module-surface \(min-width: 65rem\)/.test(at)), 'nur in der Spaltenform');
+  // Die Klasse des Leerzustands der Spalte selbst darf die Regel nicht ausloesen:
+  // sie steht in der Detailspalte, nicht in der Liste.
+  const md = readFileSync(new URL('../public/utils/master-detail.js', import.meta.url), 'utf8');
+  assert.match(md, /<div class="split-view__empty" data-md-empty>/);
 });

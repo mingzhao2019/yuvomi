@@ -1,5 +1,6 @@
 import { api } from '/api.js';
-import { formatDate, formatTime, getLocale, t } from '/i18n.js';
+import { getLocale, t } from '/i18n.js';
+import { dateTimeText } from '/utils/date-format.js';
 import { esc } from '/utils/html.js';
 import { weekStartIndex, weekdayOrder } from '/utils/date.js';
 import { bindInstantSwitch, settingRowHtml, settingSwitchRowHtml } from '/settings/components.js';
@@ -35,7 +36,7 @@ function formatSyncTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return t('settings.holidayNeverSynced');
   return t('settings.holidayLastSync', {
-    date: `${formatDate(date)} ${formatTime(date)}`.trim(),
+    date: dateTimeText(date),
   });
 }
 
@@ -152,7 +153,7 @@ function renderPage(container, preferences) {
             ${settingRowHtml({
               label: t('settings.holidayPublicColor'), labelFor: 'holiday-public-color',
               attrs: { id: 'holiday-public-color-group', hidden: !preferences.holiday_show_public },
-              control: `<input class="form-input" type="color" id="holiday-public-color" value="${esc(preferences.holiday_public_color)}">`,
+              control: `<input class="settings-color-button" type="color" id="holiday-public-color" value="${esc(preferences.holiday_public_color)}">`,
             })}
             ${settingSwitchRowHtml({
               label: t('settings.holidaySchoolLabel'),
@@ -163,7 +164,7 @@ function renderPage(container, preferences) {
             ${settingRowHtml({
               label: t('settings.holidaySchoolColor'), labelFor: 'holiday-school-color',
               attrs: { id: 'holiday-school-color-group', hidden: !preferences.holiday_show_school },
-              control: `<input class="form-input" type="color" id="holiday-school-color" value="${esc(preferences.holiday_school_color)}">`,
+              control: `<input class="settings-color-button" type="color" id="holiday-school-color" value="${esc(preferences.holiday_school_color)}">`,
             })}
           </div>
           <div id="holidays-form-error" class="form-error" role="alert" hidden></div>

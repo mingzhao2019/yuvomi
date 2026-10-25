@@ -170,6 +170,9 @@ const STUBS = {
   `,
   '/components/modal.js': `
     export const openModal = (...args) => globalThis.__openModal?.(...args);
+    // Die letzte Eingabe (Taste oder Zeiger); wer den Tastaturweg meint, setzt
+    // globalThis.__lastInputKeyboard = true.
+    export const lastInputWasKeyboard = () => globalThis.__lastInputKeyboard === true;
     // Suiten, die pruefen wollen, OB und WANN ein Handler schliesst (das
     // Formular bleibt nach einem Abbrechen offen), setzen globalThis.__closeModal.
     // Liefert, was der Haken liefert: das Original sagt mit false, dass das
@@ -241,6 +244,7 @@ const STUBS = {
       typeof globalThis.__constraintErrors === 'function' ? globalThis.__constraintErrors(...args) : []
     );
     export const mountFooter = () => null;
+    export const decorateFooterDelete = () => [];
     // Wer sehen will, WOHIN ein Formular sich legt (R19, Bearbeiten in der
     // Detailspalte), setzt globalThis.__dockNextModal.
     export const dockNextModal = (...args) => globalThis.__dockNextModal?.(...args);
@@ -349,6 +353,12 @@ const STUBS = {
     // setzen globalThis.__undoStub = (opts) => {} und bekommen commit/restore
     // in die Hand - dasselbe Muster wie __apiStub in /api.js.
     export const scheduleUndoableDelete = (opts) => { globalThis.__undoStub?.(opts); };
+    // Die Quittung einer Statusaktion (R23, D6): dieselbe Form wie das Original,
+    // damit ein Test am showToast-Stub Satz und Rueckgaengig in die Hand bekommt.
+    export const offerUndo = ({ message, undo, onError, label, duration = 5000 }) => {
+      const run = async () => { try { await undo(); } catch (err) { onError?.(err); } };
+      return globalThis.window?.yuvomi?.showToast?.(message, 'default', duration, label ? { label, onClick: run } : run) === true;
+    };
     // Im Test gibt es keine Animation, die ausspielen koennte - der Aufrufer
     // awaitet das Ergebnis, also loest der Stub sofort auf.
     export const acknowledgeCheck = () => Promise.resolve();

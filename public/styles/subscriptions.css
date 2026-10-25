@@ -70,6 +70,14 @@
     padding-block: 0;
   }
 
+  /* Die Monatskosten fuehren die Spalte wie Saldo und Restschuld (R23, D12):
+   * die Spalte meldet sich als Spalte, die Leitzahl steht in Large Title und
+   * die uebrigen in Title 2 - bis R23 stand sie hier in 28px, daneben 18px. */
+  .budget-page .subscriptions-summary > .metric-grid--led {
+    --metric-rail: ;
+    --metric-quiet-size: var(--text-2xl);
+  }
+
   .budget-page .subscriptions-list-section {
     grid-column: 1;
     grid-row: 1 / span 2;
@@ -296,25 +304,19 @@
   font-size: var(--text-sm);
 }
 
+/* EIN KATEGORIEBALKEN IM BUDGET (R23, Critique G4 "drei Bauformen"). Die
+ * Abo-Aufteilung trug eine eigene: Name 14px in Primaertinte und abgeschnitten,
+ * 8px-Literal auf --color-surface-3, ein <i> mit width-Prozent im Modulton.
+ * Jetzt spricht sie die Sprache der Kategoriezeile der Uebersicht und
+ * Statistik (`.budget-bar-row`, budget.css): Name als Fussnote in
+ * Sekundaertinte, umbrechend statt gekappt; Bahn und Fuellung SIND deren
+ * Bausteine (die Bahn teilt sich die Regel mit `.budget-bar-row__track`, die
+ * Fuellung ist `.budget-bar-row__fill--expenses`, waechst per scaleX). */
 .subscriptions-chart-row__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.subscriptions-chart-row__track {
-  display: block;
-  height: 8px;
-  overflow: hidden;
-  border-radius: var(--radius-full);
-  background: var(--color-surface-3);
-}
-
-.subscriptions-chart-row__track i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--module-accent);
+  font-size: var(--type-caption);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .subscriptions-chart-row > strong {
@@ -674,7 +676,6 @@
  * .btn--icon auf --target-base); ein Modul, das sie neu beantwortet, gibt eine
  * zweite Antwort auf eine Shell-Frage. */
 
-.subscriptions-enabled-row,
 .subscriptions-metadata-add,
 .subscriptions-logo-search,
 .subscriptions-settings-section {
@@ -893,15 +894,6 @@
   outline-offset: var(--focus-ring-offset-inset);
 }
 
-.subscriptions-enabled-row > div {
-  display: grid;
-  gap: var(--space-0h);
-}
-
-.subscriptions-enabled-row small {
-  color: var(--color-text-secondary);
-}
-
 /* Abschnitt in der Einstellungskarte: Inset-Well statt Kasten (tokens.css). */
 .subscriptions-settings-section {
   justify-content: space-between;
@@ -916,11 +908,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-}
-
-.subscriptions-enabled-row {
-  justify-content: space-between;
-  min-height: 44px;
 }
 
 .subscriptions-modal-footer {

@@ -54,7 +54,15 @@
  * es schon traegt) und die Desktop-Kappung, die genau dieses Polster
  * gegenrechnete.
  * -------------------------------------------------------- */
-.contacts-filters:empty {
+/* DIE REIHE HAELT IHREN PLATZ, BIS DIE DATEN DA SIND (R23). Leer ist sie,
+ * solange die Kontakte laden, und erschien dann mit ihren Chips: die Liste
+ * darunter rutschte um die Hoehe der Reihe nach unten (390x844: y 65 -> 129,
+ * Layout-Shift 0,068 bei 4x CPU; 1440: 0,013). `data-pending` steht im Markup
+ * und faellt beim ersten Zeichnen mit Daten (renderCategoryFilters); erst dann
+ * entscheidet, ob es Chips gibt. Ein Adressbuch mit weniger als zwei
+ * Kategorien rueckt dann einmal nach oben - der seltene Fall statt des
+ * haeufigen. */
+.contacts-filters:empty:not([data-pending]) {
   display: none;
 }
 
@@ -373,7 +381,7 @@
 }
 
 /* Zeilen-Aktionen (Anrufen/Mehr) nutzen die geteilte .row-action-Grammatik aus
- * layout.css (Audit F1). Anrufen trägt row-action--success (grün, semantisch);
+ * layout.css (Audit F1), seit R23 auch Anrufen neutral wie jede Zeilenaktion;
  * der tel:-Link braucht nur noch text-decoration: none. */
 .contact-item__actions .row-action[href] {
   text-decoration: none;
@@ -864,3 +872,14 @@
    @container-Kappung auf die Bahnbreite (424px bei 1440), die gegen die
    Shell-Regel (0,2,1) ohnehin nicht mehr ankam. test-contacts-list-detail.js
    haelt die Ungleichung. */
+
+/* IM AUSWAHLMODUS TRITT DAS MENUE AB (R23, Critique G5 P2). Neben Suche,
+ * „Abbrechen" und „..." blieben dem Titel bei 390px 108px - „Kont...". Sein
+ * einziger Eintrag fuer diesen Moment („Auswaehlen") ist gesperrt, die
+ * anderen (Kategorien, Import, Export) gehoeren nicht in eine Auswahl;
+ * „Abbrechen" steht an seiner Stelle am Ende der Zeile, wie in Apples Listen
+ * im Bearbeiten-Modus. Beim Verlassen kommt es zurueck und nimmt den Fokus
+ * (contacts.js exitSelectMode). */
+.contacts-page.is-selecting .contacts-toolbar .page-tools-btn {
+  display: none;
+}

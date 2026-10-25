@@ -6,7 +6,6 @@
 import { api } from '/api.js';
 import { closeModal, confirmModal, confirmOverModal, openModal, advancedSection, reportFieldError, reportFieldErrors, constraintErrors, refocusAfterRender, captureModalContext, captureOpenContext, isModalContextCurrent, isOwnModalOpen } from '/components/modal.js';
 import {
-  formatDate,
   getLocale,
   getNumberFormat,
   isDateInputValid,
@@ -14,14 +13,17 @@ import {
   t,
 } from '/i18n.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
-import { isImeComposing } from '/utils/ux.js';
+import { isImeComposing, offerUndo, scheduleUndoableDelete } from '/utils/ux.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
-import { emptyStateHTML, mountLoadError } from '/utils/empty-state.js';
+import { emptyStateHTML, searchEmptyHTML, mountLoadError } from '/utils/empty-state.js';
 import { todayKey } from '/utils/date.js';
+import { dateText, percentText, daysFromTodayText } from '/utils/date-format.js';
+import { COUNTDOWN_EXACT_DAYS } from '/utils/countdown.js';
 import { CURRENCY_CODES } from '/utils/currency-codes.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
 import { redrawList, collapseRow } from '/utils/list-motion.js';
-import { formatMoney, amountPlaceholder, amountStep, applyAmountFormat, amountIsSavable, smallestUnitLabel, amountFieldValue } from '/utils/money.js';
+import { formatMoney, parseAmountInput } from '/utils/money.js';
+import { amountInputAttrs, setAmountCurrency, amountFieldError } from '/utils/amount-field.js';
 import { attachOverlay } from '/utils/overlay-history.js';
 import { inertOutside } from '/utils/background-inert.js';
 import { isNavModuleReadOnly } from '/permissions.js';
@@ -31,8 +33,8 @@ import { installPopoverMenus } from '/utils/popover-menu.js';
 import { sortableSet, restoreOrder } from '/utils/sortable.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { metricGlanceHtml, wireMetricGlance, metricGlanceSkeletonHtml, metricCardsSkeletonHtml } from '/utils/metric-glance.js';
-import { toggleRowHtml } from '/settings/components.js';
-import { leadCardClass } from '/utils/metric-card.js';
+import { toggleRowHtml, formSwitchRowHtml } from '/settings/components.js';
+import { leadCardClass, fitMetricLeads } from '/utils/metric-card.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
 import { reloadAfterSave } from '/utils/reload-after-save.js';
 
@@ -192,6 +194,8 @@ const READ_SAFE_ACTIONS = new Set(['view']);
 function setHtml(element, html) {
   element.replaceChildren();
   element.insertAdjacentHTML('afterbegin', html);
+  // Leitzahl in fester Stufe, kleiner nur bei Ueberlauf (R23, D12).
+  fitMetricLeads(element);
 }
 
 // Format aus utils/money.js - EINE Quelle für das ganze Budget-Modul. Vorher
@@ -290,6 +294,11 @@ function dueLabel(subscription) {
   if (days < 0) return t('subscriptions.overdueDays', { count: Math.abs(days) });
   if (days === 0) return t('subscriptions.dueToday');
   if (days === 1) return t('subscriptions.dueTomorrow');
+  // UEBER EINEN MONAT DIE GROBE STUFE (R23 D11, Rest aus S7): "Faellig in
+  // 140 Tagen" verlangte Kopfrechnen fuer eine Jahreszahlung. Wie jeder
+  // Abstand in der App (utils/date-format.js): bis 30 Tage genau, dann
+  // Wochen, Monate, Jahre - das Datum davor nennt den Tag.
+  if (days > COUNTDOWN_EXACT_DAYS) return daysFromTodayText(days);
   return t('subscriptions.dueInDays', { count: days });
 }
 
@@ -326,7 +335,7 @@ async function loadOnce({ refreshRates = false } = {}) {
   }
   if (outdated()) return newest();
   const [list, meta, settings] = answers;
-  state.subscriptions = list.data?.subscriptions || [];
+  state.subscriptions = (list.data?.subscriptions || []).filter((entry) => !pendingDeletes.has(entry.id));
   state.summary = list.data?.summary || null;
   state.rates = list.data?.rates || null;
   state.meta = meta.data || state.meta;
@@ -827,13 +836,15 @@ function renderSummary() {
          die Reihe hat damit immer drei Karten. */ ''}
       <article class="metric-card ${leadCardClass(money(used))}">
         <div class="metric-card__label">${t('subscriptions.monthlyCost')}</div>
-        <div class="metric-card__value">${money(used)}${hasBudget ? ` <span class="metric-card__of">${esc(t('budget.planTargetOf', { amount: money(budget) }))}</span>` : ''}</div>
+        <div class="metric-card__value">${money(used)}</div>
         ${hasBudget ? `<div class="metric-card__progress${isOverBudget ? ' metric-card__progress--over' : isNearBudget ? ' metric-card__progress--near' : ''}"
              role="progressbar" aria-label="${esc(t('subscriptions.monthlyBudget'))}"
-             aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}" aria-valuetext="${realPercentage}%">
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}" aria-valuetext="${esc(percentText(realPercentage))}">
           <span style="--fill:${percentage / 100}"></span>
         </div>` : ''}
-        <div class="metric-card__note">${t('subscriptions.activeCount', { count: summary.active_count })}</div>
+        ${/* "VON X" IN DER NOTIZ (R23, D12): neben dem Wert machte es die
+           Kennzahl laenger, als ihre Stufe traegt, und zwang sie kleiner. */ ''}
+        <div class="metric-card__note">${hasBudget ? `${esc(t('budget.planTargetOf', { amount: money(budget) }))} · ` : ''}${t('subscriptions.activeCount', { count: summary.active_count })}</div>
       </article>
       ${/* DIE WARNUNG STEHT EINMAL (R21 S7, Critique a4 "Warnung doppelt"): der
          Balken der Kostenkarte daneben steht ueber 100 % schon im Danger-Ton
@@ -842,7 +853,7 @@ function renderSummary() {
       <article class="metric-card">
         <div class="metric-card__label">${isOverBudget ? '<i data-lucide="triangle-alert" class="icon-sm" aria-hidden="true"></i>' : ''}${hasBudget ? (isOverBudget ? t('subscriptions.overBudget') : t('subscriptions.remainingBudget')) : t('subscriptions.noBudgetLimit')}</div>
         <div class="metric-card__value">${hasBudget ? money(Math.abs(summary.remaining_budget)) : t('subscriptions.unlimited')}</div>
-        <div class="metric-card__note">${hasBudget ? `${realPercentage}% ${t('subscriptions.budgetUsed')}` : (readOnly() ? '' : t('subscriptions.setBudgetHint'))}${isOverBudget ? ` <button type="button" class="subscriptions-over-budget-action" id="subscriptions-over-budget-action">${t('subscriptions.overBudgetAction')}</button>` : ''}</div>
+        <div class="metric-card__note">${hasBudget ? `${esc(percentText(realPercentage))} ${t('subscriptions.budgetUsed')}` : (readOnly() ? '' : t('subscriptions.setBudgetHint'))}${isOverBudget ? ` <button type="button" class="subscriptions-over-budget-action" id="subscriptions-over-budget-action">${t('subscriptions.overBudgetAction')}</button>` : ''}</div>
       </article>
       <article class="metric-card">
         <div class="metric-card__label">${t('subscriptions.yearlyProjection')}</div>
@@ -984,8 +995,8 @@ function renderBreakdown(title, rows) {
       <div class="subscriptions-chart__card">
       ${rows.length ? `<ul class="subscriptions-chart-rows">${rows.map((row) => `
         <li class="subscriptions-chart-row">
-          <span class="subscriptions-chart-row__label" title="${esc(row.label)}">${esc(row.label)}</span>
-          <span class="subscriptions-chart-row__track" aria-hidden="true"><i style="width:${Math.round((row.amount / max) * 100)}%"></i></span>
+          <span class="subscriptions-chart-row__label">${esc(row.label)}</span>
+          <span class="subscriptions-chart-row__track" aria-hidden="true"><span class="budget-bar-row__fill budget-bar-row__fill--expenses" style="--bar-scale:${(row.amount / max).toFixed(4)}"></span></span>
           <strong>${money(row.amount)}</strong>
           <span class="subscriptions-chart-row__share">${percent.format(row.amount / total)}</span>
         </li>
@@ -1010,11 +1021,12 @@ function statusMeta(subscription) {
 // Ende-Zeile in der Card (#594): abgeschlossen, Enddatum oder Restzahlungen.
 function endInfoLabel(subscription) {
   if (subscription.status === 'completed') {
-    const day = subscription.completed_at ? String(subscription.completed_at).slice(0, 10) : null;
-    return { icon: 'circle-check', text: day ? t('subscriptions.completedOn', { date: formatDate(day) }) : t('subscriptions.completed') };
+    // completed_at ist ein ZEITPUNKT: dateText rechnet ihn in die Haushaltszone
+    // (R23) - der abgeschnittene UTC-String nannte abends den Folgetag.
+    return { icon: 'circle-check', text: subscription.completed_at ? t('subscriptions.completedOn', { date: dateText(subscription.completed_at) }) : t('subscriptions.completed') };
   }
   if (subscription.end_type === 'on_date' && subscription.end_date) {
-    return { icon: 'calendar-x', text: t('subscriptions.endsOn', { date: formatDate(subscription.end_date) }) };
+    return { icon: 'calendar-x', text: t('subscriptions.endsOn', { date: dateText(subscription.end_date) }) };
   }
   if (subscription.end_type === 'after_count') {
     return { icon: 'list-ordered', text: t('subscriptions.endsAfter', { count: Number(subscription.occurrences_remaining ?? 0) }) };
@@ -1110,7 +1122,7 @@ function renderCard(subscription) {
                  ("Microsoft 365 Fa..."). Immer genau eine der beiden Fassungen
                  (subscriptions.css), wie beim Turnus. */ ''}
             <span class="subscription-card__meta-desc">${esc(subscription.description || rowCategoryLabel(subscription))}</span>
-            ${completed ? '' : `<span class="subscription-card__due${overdue ? ' subscription-card__due--overdue' : ''}"><i data-lucide="${overdue ? 'triangle-alert' : 'calendar-clock'}" aria-hidden="true"></i><span>${formatDate(subscription.next_payment_date)} ·</span> <span>${dueLabel(subscription)}</span></span>`}
+            ${completed ? '' : `<span class="subscription-card__due${overdue ? ' subscription-card__due--overdue' : ''}"><i data-lucide="${overdue ? 'triangle-alert' : 'calendar-clock'}" aria-hidden="true"></i><span>${esc(dateText(subscription.next_payment_date))} ·</span> <span>${dueLabel(subscription)}</span></span>`}
             <span class="subscription-card__meta-cycle">${cycleLabel(subscription)}</span>
             <span class="subscription-card__meta-extra">${esc(rowPaymentMethodLabel(subscription))}</span>
             ${completed ? '' : `<span class="subscription-card__meta-extra"><i data-lucide="${subscription.reminder_enabled === false ? 'bell-off' : 'bell'}" aria-hidden="true"></i>${subscription.reminder_enabled === false ? t('subscriptions.noReminder') : t('subscriptions.reminderMeta', { count: subscription.reminder_days })}</span>`}
@@ -1196,13 +1208,15 @@ function renderEmpty() {
   // erste braucht eine Anlegen-Aktion, der zweite einen Weg zurück. Die
   // Variante traegt den Unterschied jetzt mit: `no-results` wird als
   // `role="status"` angesagt und fuehrt einen sekundaeren CTA.
+  //
+  // Seit Critique R23 (Q4) der geteilte Leerzustand der Suche: Suchbegriff und
+  // Filter als Chips, "Suche zuruecksetzen" nimmt beides zurueck - dieselbe
+  // Form wie in Budget, Kontakten und Notizen statt eines eigenen "Filter"-Satzes.
   if (hasActiveFilters()) {
-    return emptyStateHTML({
-      variant: 'no-results',
-      icon: 'filter-x',
-      title: t('subscriptions.noMatchesTitle'),
-      description: t('subscriptions.noMatchesDescription'),
-      action: { label: t('subscriptions.resetFilters'), attrs: { id: 'subscriptions-empty-reset' } },
+    return searchEmptyHTML({
+      query: state.query,
+      filters: activeFilters().map((filter) => filter.value),
+      resetAttrs: { id: 'subscriptions-empty-reset' },
     });
   }
   // Bei `budget: read` bleibt nur der Titel: Beschreibung und CTA sind die
@@ -1408,7 +1422,7 @@ function subscriptionReadSections(subscription) {
     { icon: 'calendar-clock', label: t('subscriptions.detailNextPaymentLabel'),
       // Abgeschlossen: keine naechste Zahlung (#2009, wie die Karte).
       value: subscription.next_payment_date && !isCompleted(subscription)
-        ? `${formatDate(subscription.next_payment_date)} · ${dueLabel(subscription)}` : '' },
+        ? `${dateText(subscription.next_payment_date, { weekday: true })} · ${dueLabel(subscription)}` : '' },
     // Abgeschlossen: keine Erinnerung (#2011) - syncReminder hat sie entfernt.
     { icon: subscription.reminder_enabled === false ? 'bell-off' : 'bell', label: t('subscriptions.reminderDaysLabel'),
       value: isCompleted(subscription) ? '' : subscription.reminder_enabled === false ? t('subscriptions.noReminder') : t('subscriptions.reminderMeta', { count: subscription.reminder_days }) },
@@ -1541,16 +1555,10 @@ export function openSubscriptionModal(subscription = null) {
           <label class="form-label" for="subscription-notes">${t('subscriptions.notesLabel')}</label>
           <textarea class="form-input" id="subscription-notes" rows="3">${esc(subscription?.notes || '')}</textarea>
         </div>
-        <div class="subscriptions-enabled-row">
-          <div>
-            <strong>${t('subscriptions.enabledLabel')}</strong>
-            <small>${t('subscriptions.enabledHint')}</small>
-          </div>
-          <label class="toggle">
-            <input id="subscription-enabled" type="checkbox" ${subscription?.enabled === false ? '' : 'checked'}>
-            <span class="toggle__track"></span>
-          </label>
-        </div>
+        ${formSwitchRowHtml({
+          label: t('subscriptions.enabledLabel'), checked: subscription?.enabled !== false,
+          hint: t('subscriptions.enabledHint'), hintId: 'subscription-enabled-hint', attrs: { id: 'subscription-enabled' },
+        })}
       </section>`;
 
   const content = `
@@ -1587,11 +1595,7 @@ export function openSubscriptionModal(subscription = null) {
         <div class="subscription-form__billing-grid">
           <div class="form-group">
             <label class="form-label" for="subscription-amount">${t('subscriptions.amountLabel')}${REQUIRED_MARK}</label>
-            <input class="form-input" id="subscription-amount" type="number"
-                   min="0"
-                   step="${amountStep(formCurrency, subscription?.amount ?? '')}"
-                   placeholder="${amountPlaceholder(formCurrency)}"
-                   inputmode="decimal" required value="${esc(amountFieldValue(subscription?.amount ?? '', formCurrency))}">
+            <input class="form-input" id="subscription-amount"${amountInputAttrs(formCurrency, subscription?.amount ?? '')} required>
           </div>
           ${comboboxMarkup({
             id: 'subscription-currency',
@@ -1625,7 +1629,7 @@ export function openSubscriptionModal(subscription = null) {
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label" for="subscription-next-date">${t('subscriptions.nextPaymentLabel')}${REQUIRED_MARK}</label>
-            <yuvomi-datepicker id="subscription-next-date" type="date"
+            <yuvomi-datepicker id="subscription-next-date" type="date" required
                    value="${esc(subscription?.next_payment_date || todayKey())}"></yuvomi-datepicker>
             ${isCompleted(subscription) ? `<p class="form-hint" id="subscription-next-date-hint">${t('subscriptions.nextPaymentCompletedHint')}</p>` : ''}
           </div>
@@ -1683,11 +1687,10 @@ export function openSubscriptionModal(subscription = null) {
         }
       };
       wireCombobox(panel, 'subscription-currency');
-      // Ohne `required`: ein Abo darf 0 kosten (Gratis-Tarif, Server prüft
-      // amount >= 0), die Untergrenze bleibt also bei null statt bei einer
-      // kleinsten Einheit.
+      // Ein Abo darf 0 kosten (Gratis-Tarif, Server prüft amount >= 0): das
+      // Speichern prueft deshalb mit `sign: 'nonNegative'`.
       panel.querySelector('#subscription-currency').addEventListener('change', (event) => {
-        applyAmountFormat(panel.querySelector('#subscription-amount'), event.target.value);
+        setAmountCurrency(panel.querySelector('#subscription-amount'), event.target.value);
       });
       wireCombobox(panel, 'subscription-cycle');
       wireCombobox(panel, 'subscription-category');
@@ -1808,23 +1811,20 @@ async function saveSubscription(panel, existing, searchedLogoData = null) {
     }
     occurrenceCount = count;
   }
-  // Bei einem Bestandsbetrag neben dem Raster liefert amountStep "any", damit
-  // sich das vorhandene Abo überhaupt noch speichern lässt. Das gilt aber fürs
-  // ganze Feld: ohne diese Prüfung wäre aus 12,5 JPY anschliessend auch
-  // 12,555 JPY speicherbar, also mehr Bruch als die feste Schrittweite zuliess.
-  // Ohne Waehrung gibt es kein Raster - dann meldet nur das Waehrungsfeld.
+  // Der Betrag als TEXT (D1): "1.200" unter de ist abgewiesen und benannt,
+  // nie still 1,2. Ein Bestandsbetrag neben dem Raster bleibt unangetastet
+  // speicherbar (`original`), ein neuer nicht. Ohne Waehrung gibt es kein
+  // Raster - dann meldet fuer die Stellen nur das Waehrungsfeld. Leer meldet
+  // `constraintErrors` unten (Pflichtfeld).
   const amountInput = panel.querySelector('#subscription-amount');
-  const amountValue = Number(amountInput.value);
   const targetCurrency = currencyInput.value.trim().toUpperCase();
-  if (targetCurrency && !amountIsSavable(amountValue, targetCurrency, {
+  const amountProblem = amountFieldError(amountInput, targetCurrency || state.settings.base_currency, {
+    sign: 'nonNegative',
     original: existing?.amount ?? null,
     originalCurrency: existing?.currency ?? null,
-  })) {
-    fieldErrors.push([amountInput, t('common.amountPrecisionRequired', {
-      currency: targetCurrency,
-      step: smallestUnitLabel(targetCurrency),
-    })]);
-  }
+    precision: Boolean(targetCurrency),
+  });
+  if (amountProblem) fieldErrors.push(amountProblem);
   // KEINE BROWSER-BLASEN (Critique R21): `novalidate`, die Regeln des Markups melden sich am Feld (constraintErrors, components/modal.js).
   // Was die eigenen Pruefungen oben schon nennen, steht nicht doppelt.
   for (const entry of constraintErrors(panel.querySelector('#subscription-form'))) {
@@ -1843,7 +1843,7 @@ async function saveSubscription(panel, existing, searchedLogoData = null) {
     const payload = {
       name: panel.querySelector('#subscription-name').value.trim(),
       description: panel.querySelector('#subscription-description').value.trim() || null,
-      amount: Number(panel.querySelector('#subscription-amount').value),
+      amount: parseAmountInput(panel.querySelector('#subscription-amount').value),
       currency: panel.querySelector('#subscription-currency').value.trim().toUpperCase(),
       billing_cycle: panel.querySelector('#subscription-cycle').value,
       cycle_interval: Number(panel.querySelector('#subscription-interval').value),
@@ -1990,26 +1990,39 @@ function openLogoPickerModal(panel, initialQuery, onSelect) {
 }
 
 // Eine Zahlung zu buchen schiebt das Faelligkeitsdatum und legt einen
-// Budget-Eintrag an. Beides ist mit einem zweiten Wisch NICHT umkehrbar - anders
-// als das Abhaken einer Aufgabe, das dieselbe Kante traegt. Deshalb fragt die
-// Aktion nach, und deshalb fragt sie an BEIDEN Wegen nach, Geste wie Knopf: eine
-// Bestaetigung, die nur an einem der beiden haengt, ist keine Regel, sondern
-// eine Eigenschaft des Wegs.
+// Budget-Eintrag an. Bis R23 fragte die Aktion deshalb an BEIDEN Wegen nach
+// (Geste wie Knopf), weil sich nichts zurueckholen liess - die Rueckfrage stand
+// an der Stelle eines Rueckwegs (N4). Seit R23 (D6) nimmt "Rueckgaengig" im
+// Toast die Zahlung am Server ECHT zurueck (POST /renew/undo: Datum, Zaehler,
+// Abschluss, beide Buchungen), und keiner der beiden Wege fragt mehr.
 async function renewSubscription(subscription) {
   if (readOnly()) return;
   // Ein abgeschlossenes Abo hat keine naechste Zahlung (#2011): weder Knopf
-  // noch Geste fragen nach, der Server lehnt es ohnehin ab.
+  // noch Geste tun etwas, der Server lehnt es ohnehin ab.
   if (isCompleted(subscription)) return;
-  const confirmed = await confirmModal(
-    t('subscriptions.renewConfirm', { name: subscription.name }),
-    { detail: t('subscriptions.renewConfirmDetail', { date: formatDate(subscription.next_payment_date) }) });
-  if (!confirmed) return;
   const owner = pageOwner();
   try {
     const response = await api.post(`/budget/subscriptions/${subscription.id}/renew`, {});
     if (await reloadAfterSave(() => reload(undefined, { motion: true, owner }))) refocusAfterRender();
     const completed = response.data?.status === 'completed';
-    window.yuvomi?.showToast(t(completed ? 'subscriptions.completedToast' : 'subscriptions.renewedToast'), 'success');
+    const message = completed
+      ? t('subscriptions.completedNamed', { name: subscription.name })
+      : t('subscriptions.renewedNamed', { name: subscription.name, date: dateText(response.data?.next_payment_date, { weekday: true }) });
+    if (!response.undo?.token) {
+      window.yuvomi?.showToast(message, 'success');
+      return;
+    }
+    offerUndo({
+      message,
+      undo: async () => {
+        await api.post(`/budget/subscriptions/${subscription.id}/renew/undo`, response.undo);
+        if (await reload(undefined, { motion: true, owner })) refocusAfterRender();
+      },
+      onError: async (err) => {
+        await reportError(err, { owner });
+        if (isCurrentOwner(owner)) await reload(undefined, { owner, quiet: true });
+      },
+    });
   } catch (err) {
     await reportError(err, { owner });
     // Schon abgeschlossen (#2011): die Karte war veraltet - ein anderes
@@ -2021,31 +2034,43 @@ async function renewSubscription(subscription) {
   }
 }
 
+/**
+ * Abos in der Ruecknahmefrist: lokal schon weg, am Server noch da, bis ihr
+ * Loeschen nach der Frist des Toasts laeuft. Ein Neuladen in dieser Zeit
+ * (Speichern eines anderen Abos) holte sie sonst zurueck.
+ */
+const pendingDeletes = new Set();
+
+// LOESCHEN MIT RUECKGAENGIG STATT RUECKFRAGE (Critique R23, D6). Das Loeschen
+// laeuft erst, wenn die Frist des Toasts endet (`scheduleUndoableDelete`):
+// bis dahin ist am Server nichts geschehen - auch nicht an Erinnerungen und
+// der Buchung der naechsten Zahlung, die mit dem Abo gehen.
 async function deleteSubscription(subscription) {
   if (readOnly()) return;
-  const confirmed = await confirmModal(t('subscriptions.deleteConfirm', { name: subscription.name }),
-    { danger: true, detail: t('subscriptions.deleteConfirmDetail') });
-  if (!confirmed) return;
   const owner = pageOwner();
-  try {
-    await api.delete(`/budget/subscriptions/${subscription.id}`);
-  } catch (err) {
-    // SCHON GELOESCHT IST EIN ERFOLG (#1909): ein anderes Haushaltsmitglied war
-    // schneller. Die 404 eines Abos heisst nur das - die Route liest es ohne
-    // Sichtbarkeitsfilter, ein fremdes privates Abo endet dort mit 403.
-    if (!isAlreadyDeleted(err, 'subscriptions_subscription_not_found')) {
-      reportError(err, { owner });
-      return;
-    }
-  }
-  // Die Zeile klappt aus, die Nachbarn ruecken nach - erst dann steht die
-  // Liste ohne sie neu (der Server hat schon geloescht; ohne Bewegung loest
-  // collapseRow sofort auf). Ist die Seite inzwischen eine andere Instanz,
-  // bleibt sie unberuehrt; der Toast sagt trotzdem, dass geloescht ist.
-  if (isCurrentOwner(owner)) await collapseRow(container.querySelector(`#subscriptions-list .swipe-row[data-swipe-id="${subscription.id}"]`));
-  // Ob gerade geloescht oder schon geloescht: die Liste kommt vom Server.
+  const id = subscription.id;
+  pendingDeletes.add(id);
+  if (isCurrentOwner(owner)) await collapseRow(container.querySelector(`#subscriptions-list .swipe-row[data-swipe-id="${id}"]`));
+  state.subscriptions = state.subscriptions.filter((entry) => entry.id !== id);
   if (await reload(undefined, { motion: true, owner })) refocusAfterRender();
-  window.yuvomi?.showToast(t('subscriptions.deletedToast'), 'success');
+  scheduleUndoableDelete({
+    commit: async ({ keepalive } = {}) => {
+      try {
+        await api.delete(`/budget/subscriptions/${id}`, { keepalive });
+      } catch (err) {
+        // SCHON GELOESCHT IST EIN ERFOLG (#1909): ein anderes Haushaltsmitglied
+        // war schneller.
+        if (!isAlreadyDeleted(err, 'subscriptions_subscription_not_found')) throw err;
+      }
+      pendingDeletes.delete(id);
+    },
+    restore: async (err) => {
+      pendingDeletes.delete(id);
+      if (err) await reportError(err, { owner });
+      if (isCurrentOwner(owner) && await reload(undefined, { motion: true, owner })) refocusAfterRender();
+    },
+    message: t('common.deletedNamed', { name: subscription.name }),
+  });
 }
 
 async function openSettingsModal() {
@@ -2054,10 +2079,7 @@ async function openSettingsModal() {
     <form id="subscriptions-settings-form" novalidate>
       <div class="form-group">
         <label class="form-label" for="subscriptions-budget">${t('subscriptions.monthlyBudgetLabel')}</label>
-        <input class="form-input" id="subscriptions-budget" type="number" min="0"
-               step="${amountStep(state.settings.base_currency, state.settings.monthly_budget)}"
-               placeholder="${amountPlaceholder(state.settings.base_currency)}"
-               value="${state.settings.monthly_budget}">
+        <input class="form-input" id="subscriptions-budget"${amountInputAttrs(state.settings.base_currency, state.settings.monthly_budget)}>
       </div>
       ${comboboxMarkup({
         id: 'subscriptions-base-currency',
@@ -2082,7 +2104,7 @@ async function openSettingsModal() {
     onSave(panel) {
       wireCombobox(panel, 'subscriptions-base-currency');
       panel.querySelector('#subscriptions-base-currency').addEventListener('change', (event) => {
-        applyAmountFormat(panel.querySelector('#subscriptions-budget'), event.target.value);
+        setAmountCurrency(panel.querySelector('#subscriptions-budget'), event.target.value);
       });
       panel.querySelector('#subscriptions-settings-cancel').addEventListener('click', closeModal);
       panel.querySelector('#subscriptions-settings-form').addEventListener('submit', async (event) => {
@@ -2095,24 +2117,22 @@ async function openSettingsModal() {
           reportFieldError(panel.querySelector('#subscriptions-base-currency-search'), t('subscriptions.currencyRequired'));
           return;
         }
-        // Auch hier gilt: bei einem Bestandsbudget neben dem Raster steht das
-        // Feld auf step="any", die Prüfung muss also hier stattfinden.
-        const budgetInput = panel.querySelector('#subscriptions-budget');
-        if (!amountIsSavable(Number(budgetInput.value), baseCurrency, {
+        // Der Betrag als TEXT (D1); ein Bestandsbudget neben dem Raster bleibt
+        // unangetastet speicherbar. Leer heisst kein Budget (0).
+        const budgetProblem = amountFieldError(panel.querySelector('#subscriptions-budget'), baseCurrency, {
+          sign: 'nonNegative',
           original: state.settings.monthly_budget ?? null,
           originalCurrency: state.settings.base_currency ?? null,
-        })) {
-          reportFieldError(budgetInput, t('common.amountPrecisionRequired', {
-            currency: baseCurrency,
-            step: smallestUnitLabel(baseCurrency),
-          }));
+        });
+        if (budgetProblem) {
+          reportFieldError(...budgetProblem);
           return;
         }
         const owner = pageOwner();
         const dialog = captureModalContext();
         try {
           await api.put('/budget/subscriptions/settings', {
-            monthly_budget: Number(panel.querySelector('#subscriptions-budget').value),
+            monthly_budget: parseAmountInput(panel.querySelector('#subscriptions-budget').value) ?? 0,
             base_currency: baseCurrency,
           });
           await closeModal({ force: true, context: dialog });
@@ -2517,6 +2537,7 @@ export const __test = {
   reload, renewSubscription, deleteSubscription, openSettingsModal, openMetadataModal, openLogoPickerModal,
   // #2152: die Zeilen des Verwalten-Dialogs (test:manager-endzone).
   metadataRows, persistMetaOrder,
+  dueLabel,
   // Eine neue Instanz der Seite, wie ein render() sie anlegt.
   setContainerForTest: (target) => { container = target; pageGeneration += 1; },
 };

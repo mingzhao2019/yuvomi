@@ -6,18 +6,19 @@
 
 import { beginRowFill, drawRowIcons, flushRowFill, afterNextPaint } from '/utils/row-fill.js';
 import { api } from '/api.js';
-import { stagger, vibrate, scheduleUndoableDelete, collapseOut, expandIn, acknowledgeCheck, durationToken, isImeComposing, drawIconsInSightOrder } from '/utils/ux.js';
+import { stagger, vibrate, scheduleUndoableDelete, collapseOut, expandIn, acknowledgeCheck, durationToken, isImeComposing, drawIconsInSightOrder, wireScrollFade } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint, deferredRevealHtml } from '/utils/swipe-row.js';
 import { flipSnapshot, flipPlay } from '/utils/flip.js';
 import { t } from '/i18n.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
+import { formSwitchRowHtml } from '/settings/components.js';
 import { formRowsHtml, formRowHtml } from '/utils/form-row.js';
 import { readRowHtml, readDetailsLabel } from '/utils/read-row.js';
 import { promptModal, openModal, closeModal, captureModalContext, captureOpenContext, isModalContextCurrent, confirmModal, reportFieldError, refocusAfterRender } from '/components/modal.js';
 import { DEFAULT_CATEGORY_NAME, categoryLabel } from '/utils/shopping-categories.js';
 import { addLocalDays, todayKey } from '/utils/date.js';
 import { renderKitchenTabsBar, refreshKitchenBadges } from '/utils/kitchen-tabs.js';
-import { mayImportMealPlan, mayTransferShoppingToPantry } from '/utils/kitchen-transfer.js';
+import { mayImportMealPlan, mayTransferShoppingToPantry, announceTransfer, transferMessage } from '/utils/kitchen-transfer.js';
 import { mayWritePath } from '/utils/module-access.js';
 import { mountEmptyState, mountLoadError } from '/utils/empty-state.js';
 import { pageToolsMenuHtml, installPopoverMenus } from '/utils/popover-menu.js';
@@ -27,6 +28,9 @@ import { findPageFab } from '/utils/fab.js';
 import { setBulkPill, clearBulkPill, bulkPillLayer } from '/utils/bulk-pill.js';
 import { makeSortable } from '/utils/sortable.js';
 import { amountPlaceholder, formatMoney, currencyFractionDigits, centsToAmountInput, amountInputToCents, toDecimalString, breaksOffAtSeparator } from '/utils/money.js';
+import { amountFieldError } from '/utils/amount-field.js';
+import { PANTRY_UNITS } from '/utils/pantry-units.js';
+import { ingredientMatchKey } from '/utils/ingredient-match-key.js';
 import { startLiveFeed } from '/utils/live-feed.js';
 import { createPageController } from '/utils/page-lifecycle.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
@@ -36,11 +40,6 @@ import { reloadAfterSave } from '/utils/reload-after-save.js';
 // --------------------------------------------------------
 // Konstanten
 // --------------------------------------------------------
-
-/** Icon für eine Kategorie (aus state.categories, Fallback 'tag'). */
-function catIcon(name) {
-  return state.categories.find((c) => c.name === name)?.icon ?? 'tag';
-}
 
 /** Kategorienamen in DB-Reihenfolge. */
 function categoryNames() {
@@ -953,6 +952,10 @@ function listToolsItems() {
       : []),
     { action: 'send-list', label: t('shopping.sendList'), icon: 'mail' },
     { separator: true },
+    // Nur am Finger (layout.css): holt die Griffe der Handsortierung zurueck,
+    // die dort sonst neben dem Mehr-Knopf an der Daumenkante lagen (R23, D13,
+    // list-row.css).
+    { action: 'sort-mode', label: t('common.sortMode'), icon: 'arrow-up-down', checked: sortingMode },
     { action: 'manage-categories', label: t('shopping.manageCategories'), icon: 'tags' },
     { action: 'manage-stores', label: t('shopping.manageStores'), icon: 'store' },
     { separator: true },
@@ -963,6 +966,15 @@ function listToolsItems() {
 function renderTabs(container) {
   const bar = container.querySelector('#list-tabs-bar');
   if (!bar) return;
+  // DIE LEISTE SAGT, DASS SIE WEITERGEHT (R23, D13; Critique G3 "Listen-Chips:
+  // + Neue Liste unter ..."). Mit zwei Listen lief sie am Telefon ueber, und
+  // der Neu-Knopf stand angeschnitten hinter dem Werkzeugmenue - ohne Anriss
+  // sah die Leiste vollstaendig aus. Einmal je Leiste verdrahtet (die Leiste
+  // bleibt, nur ihr Inhalt wechselt).
+  if (bar.dataset && !bar.dataset.fadeWired) {
+    bar.dataset.fadeWired = '1';
+    wireScrollFade(bar);
+  }
 
   const tabsHtml = state.lists.map((list) => {
     const unchecked = list.item_total - list.item_checked;
@@ -1021,6 +1033,18 @@ function renderTabs(container) {
     </button>`}
   `);
   if (window.lucide) window.lucide.createIcons({ el: bar });
+  // Die gewaehlte Liste steht im Bild, auch wenn sie weiter rechts liegt -
+  // nur wenn sie WECHSELT: ein Zaehlerstand baut die Leiste auch neu, und der
+  // Daumen, der sie gerade quer geschoben hat, soll sie dort finden.
+  if (bar.dataset && bar.dataset.activeList !== String(state.activeListId)) {
+    bar.dataset.activeList = String(state.activeListId);
+    const active = bar.querySelector('.list-tab--active');
+    if (active && bar.scrollWidth > bar.clientWidth) {
+      const a = active.getBoundingClientRect();
+      const b = bar.getBoundingClientRect();
+      if (a.left < b.left || a.right > b.right) bar.scrollLeft += a.left - b.left - (b.width - a.width) / 2;
+    }
+  }
 
   // KUECHENKOPF (Kopfregel mobil, 2026-09-26): das Menue der gewaehlten Liste
   // ist das EINE Werkzeugmenue des Kopfs und steht im __actions-Slot - wie im
@@ -1170,25 +1194,13 @@ async function openDuplicateListDialog(container) {
                value="${esc(t('shopping.duplicateDefaultName', { name: source.name }))}" autocomplete="off">
       </div>
       <div class="form-group">
-        <label class="toggle">
-          <input type="checkbox" id="duplicate-reset-checked" checked>
-          <span class="toggle__track"></span>
-          <span>${esc(t('shopping.duplicateResetChecked'))}</span>
-        </label>
+        ${formSwitchRowHtml({ label: t('shopping.duplicateResetChecked'), checked: true, attrs: { id: 'duplicate-reset-checked' } })}
       </div>
       <div class="form-group">
-        <label class="toggle">
-          <input type="checkbox" id="duplicate-keep-quantities" checked>
-          <span class="toggle__track"></span>
-          <span>${esc(t('shopping.duplicateKeepQuantities'))}</span>
-        </label>
+        ${formSwitchRowHtml({ label: t('shopping.duplicateKeepQuantities'), checked: true, attrs: { id: 'duplicate-keep-quantities' } })}
       </div>
       <div class="form-group">
-        <label class="toggle">
-          <input type="checkbox" id="duplicate-keep-notes" checked>
-          <span class="toggle__track"></span>
-          <span>${esc(t('shopping.duplicateKeepNotes'))}</span>
-        </label>
+        ${formSwitchRowHtml({ label: t('shopping.duplicateKeepNotes'), checked: true, attrs: { id: 'duplicate-keep-notes' } })}
       </div>
       <div class="modal-panel__footer modal-panel__footer--plain">
         <button type="button" class="btn btn--secondary" data-action="close-modal">${esc(t('common.cancel'))}</button>
@@ -1267,6 +1279,7 @@ function renderListContent(container) {
       // Zustand war der einzige der vier ohne Hinweis (Critique 2026-07-29).
       hint: ro ? undefined : t('shopping.noListsHint'),
       action: ro ? null : {
+        tone: 'secondary',
         label: t('shopping.newListButton'),
         icon: 'plus',
         onClick: () => container.querySelector('[data-action="new-list"]')?.click(),
@@ -1379,11 +1392,8 @@ function mountItems(listEl, container) {
       title: t('shopping.emptyList'),
       description: ro ? undefined : t('shopping.emptyListDescription'),
       hint: ro || !pantryTransferOffered() ? undefined : t('emptyHint.shopping'),
-      action: ro ? null : {
-        label: t('shopping.emptyAction'),
-        icon: 'plus',
-        onClick: () => document.querySelector('.page-fab')?.click(),
-      },
+      // KEIN KNOPF (R23 D14, Critique G3 P2): er klickte nur den FAB, und
+      // ueber der leeren Liste steht die Schnelleingabe - zwei Wege genuegen.
     });
     return;
   }
@@ -1403,7 +1413,12 @@ function mountItems(listEl, container) {
   // Kategorie einmal ganz gelegt ist und sich ihre Hoehe gemerkt hat
   // (shopping.css, `.items-lanes.is-sized`; Critique R22-F F2.2).
   const lanes = listEl.querySelector('.items-lanes');
-  afterNextPaint().then(() => { if (lanes?.isConnected) lanes.classList.add('is-sized'); });
+  applyLaneFreeze(lanes);
+  afterNextPaint().then(() => {
+    if (!lanes?.isConnected) return;
+    lanes.classList.add('is-sized');
+    freezeLanes(lanes);
+  });
   // Nachgekommene Zeilen bekommen Zeichen und Wischgeste wie die ersten.
   fill.start({
     onRows: (rows) => {
@@ -1411,6 +1426,64 @@ function mountItems(listEl, container) {
       if (container && !readOnly()) wireSwipeGestures(container);
     },
   });
+}
+
+/*
+ * DIE SPALTEN BLEIBEN, WIE SIE BEIM LADEN STANDEN (R23, D13; Critique G3
+ * P1/P2 "Kategorien wechseln Spalte beim Abhaken"). Am Desktop verteilt
+ * Multicol die Kategorien auf zwei Spalten und gleicht nach jeder
+ * Hoehenaenderung neu aus: ein abgehakter Artikel machte „Fleisch & Fisch"
+ * um eine Zeile kuerzer, und die Kategorie sprang in die linke Spalte - unter
+ * dem Finger, der gerade die naechste Zeile treffen wollte.
+ *
+ * Nach dem ersten Bild einer Liste merkt sich die Seite, mit welcher
+ * Kategorie die zweite Spalte beginnt, und erzwingt dort den Umbruch
+ * (`break-before: column`, shopping.css). Mit genau einem erzwungenen Umbruch
+ * und zwei Spalten kann der Ausgleich nichts mehr verschieben: links steht,
+ * was davor kommt, rechts der Rest. Neu bestimmt wird nur beim Laden und beim
+ * Listenwechsel (switchList setzt zurueck); jeder Neubau dazwischen setzt den
+ * gemerkten Umbruch wieder. Leert sich die Kategorie am Umbruch, wandert er
+ * auf die naechste sichtbare (syncGroupChrome).
+ */
+let laneBreak = { listId: null, key: null };
+
+/** Sortiermodus am Finger (R23, D13, list-row.css): Griffe nur, solange er an ist. */
+let sortingMode = false;
+
+/** Schluessel einer Gruppe fuer den Spaltenumbruch: Kategorie oder „Abgehakt". */
+function laneKey(groupEl) {
+  return groupEl.classList.contains('item-ticked') ? '\u0000ticked' : (groupEl.dataset.category ?? '');
+}
+
+function laneGroups(lanes) {
+  return Array.from(lanes?.children ?? []).filter((el) => el.classList?.contains('list-group'));
+}
+
+/** Setzt den gemerkten Umbruch auf die Gruppe mit diesem Schluessel (oder die naechste sichtbare). */
+function applyLaneFreeze(lanes) {
+  if (!lanes || laneBreak.listId !== state.activeListId || laneBreak.key == null) return;
+  const groups = laneGroups(lanes);
+  let target = groups.find((g) => laneKey(g) === laneBreak.key) ?? null;
+  if (target?.hidden) target = groups.slice(groups.indexOf(target) + 1).find((g) => !g.hidden) ?? null;
+  for (const g of groups) g.toggleAttribute('data-lane-break', g === target);
+  lanes.classList.toggle('is-frozen', Boolean(target));
+}
+
+/** Liest nach dem ersten Bild, wo die zweite Spalte beginnt - nur einmal je Liste. */
+function freezeLanes(lanes) {
+  if (laneBreak.listId === state.activeListId && laneBreak.key != null) return;
+  if (getComputedStyle(lanes).columnCount !== '2') return;
+  const box = lanes.getBoundingClientRect();
+  const mid = box.left + box.width / 2;
+  const rtl = getComputedStyle(lanes).direction === 'rtl';
+  const first = laneGroups(lanes).find((g) => {
+    if (g.hidden) return false;
+    const b = g.getBoundingClientRect();
+    return rtl ? b.right <= mid : b.left >= mid;
+  });
+  if (!first) return;
+  laneBreak = { listId: state.activeListId, key: laneKey(first) };
+  applyLaneFreeze(lanes);
 }
 
 /**
@@ -1442,7 +1515,6 @@ function renderItems(rowsHtml = (items, render) => items.map(render).join('')) {
                 aria-expanded="${collapsed ? 'false' : 'true'}" aria-controls="${rowsId}">
           <i data-lucide="chevron-down" aria-hidden="true"
              class="list-group__chevron${collapsed ? ' list-group__chevron--collapsed' : ''}"></i>
-          <i data-lucide="${catIcon(cat)}" class="icon-sm" aria-hidden="true"></i>
           <span>${esc(categoryLabel(cat))}</span>
         </button>
         <span class="list-group__count">${items.length}</span>
@@ -1456,7 +1528,7 @@ function renderItems(rowsHtml = (items, render) => items.map(render).join('')) {
 
 /**
  * Der Abschnitt „Abgehakt" (#1816): EINE Gruppe am Listenende, von Haus aus
- * zu. Dieselbe Grammatik wie ein Kategoriekopf - Knopf im h2, Winkel, Zeichen,
+ * zu. Dieselbe Grammatik wie ein Kategoriekopf - Knopf im h2, Winkel, Wort,
  * Zaehlstand -, damit er sich bedient wie die Gruppen darueber.
  *
  * DER ZAEHLSTAND GEHOERT ZUM NAMEN DES KNOPFS (`aria-labelledby` auf Wort und
@@ -1477,7 +1549,6 @@ function renderTickedSection(ticked) {
                 aria-labelledby="shopping-ticked-label shopping-ticked-count">
           <i data-lucide="chevron-down" aria-hidden="true"
              class="list-group__chevron${open ? '' : ' list-group__chevron--collapsed'}"></i>
-          <i data-lucide="check" class="icon-sm" aria-hidden="true"></i>
           <span id="shopping-ticked-label">${t('shopping.tickedSection')}</span>
         </button>
         <span class="list-group__count" id="shopping-ticked-count">${ticked.length}</span>
@@ -1975,6 +2046,34 @@ function resetQuickAddCategory(catSelect) {
  */
 let quickAddCategoryChosen = false;
 
+/**
+ * DIE EINGABE SAGT, WO DER ARTIKEL GELANDET IST (R23, D13; Critique G3
+ * "Quick-Add mobil ohne Rueckmeldung"). Am Telefon steht die neue Zeile in
+ * ihrer Kategorie, oft unter der Tastatur oder weit unten - das Feld leerte
+ * sich, und sonst geschah sichtbar nichts. Liegt die Zeile ausserhalb des
+ * Bilds, nennt ein Toast Artikel und Kategorie; steht sie im Bild, ist sie
+ * selbst die Rueckmeldung (kein Toast je Artikel beim schnellen Erfassen).
+ */
+function announceAddedOutOfSight(container, item) {
+  if (!item?.id) return;
+  const row = container.querySelector(`#items-list .swipe-row[data-swipe-id="${item.id}"]`);
+  const port = container.querySelector('#items-list');
+  // Ohne Zeile und Traeger laesst sich nichts sagen (kein Toast auf Verdacht).
+  if (!row || !port || typeof row.getBoundingClientRect !== 'function') return;
+  let inSight = false;
+  if (shown(row)) {
+    const r = row.getBoundingClientRect();
+    const p = port.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const bottom = Math.min(p.bottom, vv ? vv.offsetTop + vv.height : window.innerHeight);
+    inSight = r.top >= p.top && r.bottom <= bottom;
+  }
+  if (inSight) return;
+  window.yuvomi?.showToast?.(t('shopping.itemAddedToast', {
+    name: item.name, category: categoryLabel(item.category),
+  }), 'info');
+}
+
 function wireQuickAdd(container) {
   const form = container.querySelector('#quick-add-form');
   if (!form) return;
@@ -2032,6 +2131,7 @@ function wireQuickAdd(container) {
         updateItemsList(container);
         updateListCounter(state.activeListId, 1, 0);
         renderTabs(container);
+        announceAddedOutOfSight(container, data.data);
       }
       nameInput.value = '';
       qtyInput.value  = '';
@@ -2419,6 +2519,8 @@ function syncGroupChrome(listEl) {
     if (countEl) countEl.textContent = String(count);
     groupEl.hidden = count === 0;
   });
+  // Der Spaltenumbruch folgt einer geleerten Kategorie auf die naechste.
+  applyLaneFreeze(listEl.querySelector('.items-lanes'));
 }
 
 /**
@@ -2885,12 +2987,16 @@ function openItemDetails(itemId, container) {
         // als Gleitkomma summiert sich sichtbar falsch, und die Historie, die
         // spaeter darauf aufbaut, addiert genau solche Zahlen. Ein leeres Feld
         // heisst "kein Preis", nicht "null Cent".
-        const priceRoh = priceEl?.value.trim() ?? '';
-        const priceCents = priceRoh === '' ? null : amountInputToCents(priceRoh, state.currency);
-        if (priceRoh !== '' && priceCents === null) {
-          reportFieldError(priceEl, t('budget.validAmountRequired'));
+        // Der Grund steht benannt am Feld (D1): "1.200" unter de ist gruppiert,
+        // nicht "ungueltig". 0 ist erlaubt (gratis), leer heisst "kein Preis".
+        const priceProblem = amountFieldError(priceEl, state.currency, { sign: 'nonNegative' });
+        if (priceProblem) {
+          reportFieldError(...priceProblem);
           return;
         }
+        const priceRoh = priceEl?.value.trim() ?? '';
+        const priceCents = priceRoh === '' ? null : amountInputToCents(priceRoh, state.currency);
+        const modalContext = captureModalContext();
         try {
           // Der Laden kommt als Name herein, die Zeile speichert eine ID. Ein
           // Name, den es noch nicht gibt, entsteht hier - der Server gibt bei
@@ -2925,7 +3031,7 @@ function openItemDetails(itemId, container) {
           acknowledgeOwnChange(data);
           // Umgezogen ist er, wenn die Antwort die erbetene Liste traegt.
           if (payload.list_id !== undefined && data.data.list_id === payload.list_id) {
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             itemMovedAway(container, data.data, fromListId);
             return;
           }
@@ -2940,7 +3046,7 @@ function openItemDetails(itemId, container) {
           // Neuaufbau aus dem Bestand.
           const aktuell = state.items.find((i) => i.id === item.id);
           if (!aktuell) {
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             updateItemsList(container);
             return;
           }
@@ -2949,7 +3055,7 @@ function openItemDetails(itemId, container) {
           // force: der Dirty-Guard vergleicht gegen den Snapshot vom Öffnen und
           // sähe die gerade gespeicherten Felder als ungespeicherte Änderungen.
           // Ohne das fragte Speichern „Änderungen verwerfen?" (Issue #625).
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           // Ein Kategoriewechsel verschiebt die Zeile in eine andere Gruppe - das
           // kann keine Zeilen-Auffrischung leisten, dafür muss die Liste neu
           // gruppiert werden. Sonst genügt der schonende Weg, der die
@@ -3025,15 +3131,56 @@ function updateItemsList(container) {
 }
 
 /**
+ * Die Einheiten des Vorrats, wie man sie in eine Einkaufsmenge schreibt.
+ *
+ * Bis R23 las die Zerlegung nur g/kg/ml/l, „2 Dosen" und „1 Packung" landeten
+ * bei „Stück" - und die Uebernahme legte damit eine zweite Zeile neben die
+ * Dosen im Regal (Critique R23, G3: shopping.js ~3080). Gelesen werden jetzt die
+ * metrischen Symbole, die Namen der Einheiten in der eingestellten Sprache in
+ * allen Pluralformen (dieselben Keys, die der Vorrat anzeigt - so passt die
+ * Liste zu jeder der 27 Sprachen, ohne einen zweiten Wortschatz zu pflegen) und
+ * die englischen Kurzformen, die Etiketten und Rezepte sprachuebergreifend
+ * benutzen. Kein Raten darueber hinaus: ein unbekanntes Wort bleibt „Stück",
+ * und der Dialog zeigt die Einheit in einem Feld, das sich korrigieren laesst.
+ */
+const UNIT_SHORTHANDS = Object.freeze({
+  pcs: ['pc', 'pcs', 'piece', 'pieces'],
+  pkg: ['pkg', 'pack', 'packs', 'pck', 'pkt'],
+  can: ['can', 'cans', 'tin', 'tins'],
+  bottle: ['bottle', 'bottles', 'btl'],
+  jar: ['jar', 'jars'],
+  bag: ['bag', 'bags'],
+});
+
+function pantryUnitWords(units) {
+  const words = new Map();
+  const add = (word, unit) => {
+    const key = String(word ?? '').trim().toLocaleLowerCase().replace(/\.$/, '');
+    if (key && !words.has(key)) words.set(key, unit);
+  };
+  for (const unit of units) {
+    add(unit, unit);
+    const base = `pantry.units.${unit}`;
+    for (const count of [undefined, 0, 1, 2, 3, 5, 11, 21, 0.5]) {
+      const label = t(base, count === undefined ? undefined : { count });
+      if (label !== base) add(label, unit);
+    }
+    for (const word of UNIT_SHORTHANDS[unit] ?? []) add(word, unit);
+  }
+  return words;
+}
+
+/**
  * Zerlegt den Freitext einer Einkaufsmenge in Zahl + Vorrats-Einheit.
  *
- * Bewusst nur die international geschriebenen metrischen Symbole: das Feld ist
- * Freitext in der Sprache des Haushalts, und ein deutschsprachiger Wortschatz
- * („Packung", „Dose") würde in 22 der 23 Sprachen ins Leere greifen. Zahl und
- * g/kg/ml/l sind sprachunabhängig und tragen den Großteil des Nutzens; alles
- * andere landet bei „Stück" und lässt sich im Dialog in einem Griff ändern.
+ * Zahl und Einheit sind getrennt gelesen: die Zahl sprachunabhaengig ueber die
+ * Region (unten), die Einheit ueber `pantryUnitWords()` oben. Alles andere
+ * landet bei „Stück" und lässt sich im Dialog in einem Griff ändern.
+ *
+ * @param {string} raw
+ * @param {Map<string,string>} [unitWords]  Wort -> Einheit; Standard: die Einheiten in der aktuellen Sprache
  */
-function parseShoppingQuantity(raw) {
+function parseShoppingQuantity(raw, unitWords = pantryUnitWords(PANTRY_UNITS)) {
   const fallback = { quantity: 1, unit: 'pcs' };
   const text = String(raw ?? '').trim();
   if (!text) return fallback;
@@ -3057,11 +3204,9 @@ function parseShoppingQuantity(raw) {
   const decimal = toDecimalString(text, { freeText: true });
   if (!decimal) return fallback;
 
-  // Die Einheit braucht eine Wortgrenze davor, sonst schluckt `\b` sie bei
-  // Schreibweisen wie „3x" nicht und die Menge fiele auf 1 zurück.
   // Der Trenner ist hier immer der Punkt - die Umschrift oben hat den der Region
   // bereits übersetzt.
-  const match = decimal.match(/^(\d+(?:\.\d+)?)\s*(?:(kg|g|ml|l)\b)?/i);
+  const match = decimal.match(/^(\d+(?:\.\d+)?)/);
   if (!match) return fallback;
 
   // Bricht die Zahl mitten in einem Trennzeichen ab, ist sie nicht gelesen,
@@ -3073,22 +3218,73 @@ function parseShoppingQuantity(raw) {
   //
   // Über die geteilte Prüfung aus utils/money.js, die genau die Trennzeichen der
   // wählbaren Regionen kennt: „irgendein Zeichen zwischen zwei Ziffern" war zu
-  // breit und traf „2x500 g" mit, also die Multiplikator-Schreibweise, die zwei
-  // Zeilen weiter oben ausdrücklich lesbar bleiben soll.
-  if (breaksOffAtSeparator(decimal.slice(match[1].length))) return fallback;
+  // breit und traf „2x500 g" mit, also die Multiplikator-Schreibweise, die
+  // ausdrücklich lesbar bleiben soll.
+  const rest = decimal.slice(match[1].length);
+  if (breaksOffAtSeparator(rest)) return fallback;
 
   const quantity = Number(match[1]);
   if (!Number.isFinite(quantity) || quantity <= 0) return fallback;
 
-  return { quantity, unit: match[2] ? match[2].toLowerCase() : 'pcs' };
+  // Das Wort direkt hinter der Zahl, mit oder ohne Leerzeichen („500g",
+  // „2 Dosen"). Nur Buchstaben und ein Abkuerzungspunkt: „2 x 500 g" liest das
+  // „x", kennt es nicht und bleibt bei Stück - die 2 ist die Menge.
+  const word = rest.match(/^\s*([\p{L}]+\.?)/u)?.[1] ?? '';
+  const unit = word ? unitWords.get(word.toLocaleLowerCase().replace(/\.$/, '')) : null;
+  return { quantity, unit: unit ?? 'pcs' };
 }
 
 /**
- * Übernahme-Dialog „Einkauf → Vorrat". Ein gemeinsamer Lagerort für alle
- * Artikel plus Menge/Einheit je Zeile: nach dem Einkauf räumt man einen Beutel
- * an einen Ort ein, nicht zwölf Artikel an zwölf Orte. Haltbarkeitsdaten bleiben
- * hier bewusst außen vor - sie sind die Ausnahme, nicht die Regel, und im
- * Vorrat einen Tap entfernt.
+ * Wo und in welcher Einheit ein eingekaufter Artikel im Vorrat landet (R23, D3).
+ *
+ * Bis R23 galt EIN Lagerort fuer den ganzen Einkauf, und die Einheit kam allein
+ * aus dem Freitext: die Milch ging in den Vorratsschrank, und „Milch" ohne Menge
+ * stand als „1 Stück" neben dem Liter im Kuehlschrank (Critique R23, G3 P1: 6
+ * Dubletten aus 10 Artikeln). Jetzt je Zeile vorbelegt, in dieser Reihenfolge:
+ *
+ *  1. Es gibt den Artikel schon (gleicher Name, normalisiert wie das Produkt):
+ *     sein Lagerort, und seine Einheit, wenn die Menge selbst keine nennt.
+ *  2. Sonst die Kategorie: der Ort, an dem der Haushalt die meisten Artikel
+ *     dieser Einkaufskategorie lagert - gelernt aus dem eigenen Bestand, keine
+ *     Tabelle, die in 27 Sprachen und jedem Haushalt anders stimmen muesste.
+ *  3. Sonst die Kopfauswahl „Alle nach …" (der erste Ort).
+ *
+ * @returns {{ quantity: number, unit: string, locationId: string, source: 'stock'|'category'|'default' }}
+ */
+function pantryTransferPreset(item, pantry, unitWords, fallbackLocationId) {
+  const parsed = parseShoppingQuantity(item.quantity, unitWords);
+  const key = ingredientMatchKey(item.name);
+  const stock = pantry.items.filter((p) => key && ingredientMatchKey(p.name) === key);
+  if (stock.length) {
+    const same = stock.find((p) => p.unit === parsed.unit) ?? stock[0];
+    return {
+      quantity: parsed.quantity,
+      unit: parsed.unit === 'pcs' ? same.unit : parsed.unit,
+      locationId: same.location_id == null ? '' : String(same.location_id),
+      source: 'stock',
+    };
+  }
+  const counts = new Map();
+  for (const p of pantry.items) {
+    if (p.category !== item.category || p.location_id == null) continue;
+    counts.set(p.location_id, (counts.get(p.location_id) ?? 0) + 1);
+  }
+  const [best] = [...counts.entries()].sort((x, y) => y[1] - x[1]);
+  if (best) return { quantity: parsed.quantity, unit: parsed.unit, locationId: String(best[0]), source: 'category' };
+  return { quantity: parsed.quantity, unit: parsed.unit, locationId: fallbackLocationId, source: 'default' };
+}
+
+/**
+ * Übernahme-Dialog „Einkauf → Vorrat". Menge, Einheit und Lagerort je Zeile,
+ * vorbelegt aus dem eigenen Bestand (`pantryTransferPreset`), dazu „Alle nach …"
+ * im Kopf fuer den Einkauf, der in einen Beutel und an einen Ort geht.
+ * Haltbarkeitsdaten bleiben hier bewusst außen vor - sie sind die Ausnahme,
+ * nicht die Regel, und im Vorrat einen Tap entfernt.
+ *
+ * Zusammengefuehrt wird auf dem Server (routes/pantry.js, import-shopping): eine
+ * Zeile wandert in die passende Charge, statt daneben eine zweite anzulegen.
+ * Und der ganze Vorgang ist zuruecknehmbar - die Uebernahme war bis R23 der
+ * einzige Kuechenweg, der ohne Rueckgaengig schrieb und dabei die Liste leerte.
  */
 async function openPantryTransfer(container) {
   // Der Uebertrag schreibt in den VORRAT (Pfad-Guard `pantry`) - die Frage
@@ -3100,32 +3296,43 @@ async function openPantryTransfer(container) {
   // Kommt die Antwort erst, nachdem der Nutzer einen anderen Dialog geoeffnet
   // oder die Seite verlassen hat, geht dieser Dialog nicht mehr auf (#1997).
   const context = captureOpenContext();
-  let locations = [];
+  // Bestand UND Orte in einem Aufruf: die Vorbelegung braucht beides.
+  let pantry;
   try {
-    const res = await api.get('/pantry/locations');
-    locations = res.data ?? [];
+    const res = await api.get('/pantry');
+    pantry = { items: res.data ?? [], locations: res.locations ?? [] };
   } catch (err) {
     reportError(err, container);
     return;
   }
 
-  const { PANTRY_UNITS } = await import('/utils/pantry-units.js');
   const { locationLabel } = await import('/utils/pantry-locations.js');
   if (!isModalContextCurrent(context)) return;
+
+  const { locations } = pantry;
+  const fallbackLocationId = locations.length ? String(locations[0].id) : '';
+  const unitWords = pantryUnitWords(PANTRY_UNITS);
 
   const unitOptions = (selected) => PANTRY_UNITS
     .map((u) => `<option value="${esc(u)}" ${u === selected ? 'selected' : ''}>${esc(t(`pantry.units.${u}`))}</option>`)
     .join('');
+  const locationOptions = (selected) => [
+    `<option value="" ${selected === '' ? 'selected' : ''}>${esc(t('pantry.unlocated'))}</option>`,
+    ...locations.map((loc) => `<option value="${loc.id}" ${String(loc.id) === selected ? 'selected' : ''}>${esc(locationLabel(loc.name))}</option>`),
+  ].join('');
 
   const rows = checked.map((item) => {
-    const parsed = parseShoppingQuantity(item.quantity);
+    const preset = pantryTransferPreset(item, pantry, unitWords, fallbackLocationId);
     return `
-      <li class="pantry-transfer__row" data-id="${item.id}">
+      <li class="pantry-transfer__row" data-id="${item.id}" data-preset="${preset.source}">
         <span class="pantry-transfer__name">${esc(item.name)}</span>
         <input class="form-input pantry-transfer__qty" type="number" min="0" step="any" inputmode="decimal"
-               value="${parsed.quantity}" aria-label="${esc(`${t('pantry.quantityLabel')}: ${item.name}`)}">
+               value="${preset.quantity}" aria-label="${esc(`${t('pantry.quantityLabel')}: ${item.name}`)}">
         <select class="form-input pantry-transfer__unit" aria-label="${esc(`${t('pantry.unitLabel')}: ${item.name}`)}">
-          ${unitOptions(parsed.unit)}
+          ${unitOptions(preset.unit)}
+        </select>
+        <select class="form-input pantry-transfer__loc" aria-label="${esc(`${t('pantry.locationLabel')}: ${item.name}`)}">
+          ${locationOptions(preset.locationId)}
         </select>
       </li>`;
   }).join('');
@@ -3135,38 +3342,35 @@ async function openPantryTransfer(container) {
     size: 'lg',
     content: `
       <p class="pantry-transfer__intro">${esc(t('shopping.toPantryDescription', { count: checked.length }))}</p>
-      <div class="form-group">
-        <label class="form-label" for="pantry-transfer-location">${esc(t('pantry.locationLabel'))}</label>
-        <select id="pantry-transfer-location" class="form-input">
-          <option value="">${esc(t('pantry.unlocated'))}</option>
-          ${locations.map((loc) => `<option value="${loc.id}">${esc(locationLabel(loc.name))}</option>`).join('')}
-        </select>
+      <div class="form-group pantry-transfer__all">
+        <label class="form-label" for="pantry-transfer-location">${esc(t('shopping.toPantryAllTo'))}</label>
+        <select id="pantry-transfer-location" class="form-input">${locationOptions(fallbackLocationId)}</select>
       </div>
       <ul class="pantry-transfer__list">${rows}</ul>
-      <!-- Geteiltes .form-check (layout.css): 20px-Box in Modul-Akzent, Label mit
-           eigener Trefferflaeche. Das war die folgenreichste Checkbox des Moduls -
+      <!-- Der Schalter der Moduldialoge (formSwitchRowHtml, R23 D8). Das war die
+           folgenreichste Checkbox des Moduls -
            sie loescht die eingekauften Artikel von der Liste, ist standardmaessig
            aktiv, und war als nackte System-Checkbox in System-Groesse die
            unauffaelligste (Critique 2026-07-30, P2). Der Default bleibt aktiv: wer
-           eingekauft und eingeraeumt hat, will nicht doppelt kaufen.
+           eingekauft und eingeraeumt hat, will nicht doppelt kaufen. Seit R23
+           steht das Abraeumen unter demselben Rueckgaengig wie die Uebernahme.
            Das Abraeumen ist ein DELETE im EINKAUF: ohne dessen Schreibrecht
-           entfaellt die Checkbox, sonst endete der Uebertrag danach im 403 (#1265). -->
-      ${readOnly() ? '' : `<label class="form-check pantry-transfer__clear">
-        <input type="checkbox" id="pantry-transfer-clear" checked>
-        <span>${esc(t('shopping.toPantryClearList'))}</span>
-      </label>`}
+           entfaellt der Schalter, sonst endete der Uebertrag danach im 403 (#1265). -->
+      ${readOnly() ? '' : formSwitchRowHtml({ label: t('shopping.toPantryClearList'), checked: true, attrs: { id: 'pantry-transfer-clear' } })}
       <div class="modal-panel__footer modal-panel__footer--plain">
         <button type="button" class="btn btn--secondary" data-action="close-modal">${esc(t('common.cancel'))}</button>
         <button type="button" class="btn btn--primary" id="pantry-transfer-confirm">${esc(t('common.apply'))}</button>
       </div>`,
     onSave(panel) {
-      // Der erste Ort ist der wahrscheinlichste Standardwert; er ist zugleich
-      // der, den der Haushalt in der Lagerort-Verwaltung nach oben sortiert hat.
-      if (locations.length) panel.querySelector('#pantry-transfer-location').value = String(locations[0].id);
+      // „Alle nach …" gilt fuer ALLE Zeilen, auch die vorbelegten: es ist die
+      // ausdrueckliche Sammelwahl, und eine Zeile laesst sich danach einzeln
+      // zuruecksetzen.
+      panel.querySelector('#pantry-transfer-location')?.addEventListener('change', (e) => {
+        for (const select of panel.querySelectorAll('.pantry-transfer__loc')) select.value = e.currentTarget.value;
+      });
 
       panel.querySelector('#pantry-transfer-confirm').addEventListener('click', async (e) => {
         const btn = e.currentTarget;
-        const locationId = panel.querySelector('#pantry-transfer-location').value || null;
         // Beim Absenden neu gefragt: die Rechte koennen sich geaendert haben,
         // waehrend der Dialog offen stand.
         const clearList = !readOnly() && Boolean(panel.querySelector('#pantry-transfer-clear')?.checked);
@@ -3176,43 +3380,50 @@ async function openPantryTransfer(container) {
           shopping_item_id: Number(row.dataset.id),
           quantity: Number(row.querySelector('.pantry-transfer__qty').value) || 1,
           unit: row.querySelector('.pantry-transfer__unit').value,
-          location_id: locationId,
+          location_id: row.querySelector('.pantry-transfer__loc')?.value || null,
         }));
 
+        const modalContext = captureModalContext();
         btn.disabled = true;
         try {
           const res = await api.post('/pantry/import-shopping', { list_id: listId, items });
           const stored = (res.data?.added ?? 0) + (res.data?.merged ?? 0);
+          const changes = res.data?.changes ?? [];
 
-          if (clearList && stored) {
-            // Zweiter, getrennter Aufruf: der Vorrats-Router räumt bewusst
-            // nichts im Einkauf ab, damit ein `pantry:write`-Token dort keine
-            // Daten löschen kann (siehe routes/pantry.js).
-            await api.delete(`/shopping/${listId}/items/checked`);
-            const removed = checked.length;
-            state.items = state.items.filter((i) => !checkedOf(i));
-            updateItemsList(container);
-            updateListCounter(listId, -removed, -removed);
-            renderTabs(container);
-          }
-
-          closeModal({ force: true });
-          // Der Vorrat ist ein einziges Ziel, der Toast nennt ihn also schon. Was er
-          // NICHT nennt, ist der Lagerort - und der ist die Wahl, die der Nutzer im
-          // Dialog gerade getroffen hat.
-          const locationName = locationId
-            ? (locations.find((l) => String(l.id) === String(locationId))?.name ?? '')
-            : '';
-          window.yuvomi.showToast(
-            stored
-              ? (locationName
-                ? t('shopping.toPantryDoneAt', { count: stored, location: locationLabel(locationName) })
-                : t('shopping.toPantryDone', { count: stored }))
-              : t('shopping.toPantryNothing'),
-            stored ? 'success' : 'info'
-          );
+          closeModal({ force: true, context: modalContext });
           // Der Vorrats-Tab zeigt jetzt eine andere Zahl.
           refreshKitchenBadges();
+          if (!stored) {
+            window.yuvomi.showToast(t('shopping.toPantryNothing'), 'info');
+            return;
+          }
+          // Der Toast nennt den Ort, wenn ALLES an einen ging - sonst den Vorrat.
+          const places = new Set(items.map((i) => i.location_id ?? ''));
+          const [onlyPlace] = places;
+          const locationName = places.size === 1 && onlyPlace
+            ? (locations.find((l) => String(l.id) === String(onlyPlace))?.name ?? '')
+            : '';
+          const message = locationName
+            ? t('shopping.toPantryDoneAt', { count: stored, location: locationLabel(locationName) })
+            : t('shopping.toPantryDone', { count: stored });
+
+          // Die Ruecknahme zieht im Vorrat genau ab, was die Uebernahme
+          // dazugelegt hat (POST /pantry/import-shopping/undo). Ohne Schreibrecht
+          // im Einkauf oder ohne Haken raeumt sie nur den Vorrat zurueck.
+          const undoPantry = async () => {
+            if (!changes.length) return;
+            try {
+              await api.post('/pantry/import-shopping/undo', { changes });
+              refreshKitchenBadges();
+            } catch (err) {
+              reportError(err, container);
+            }
+          };
+          if (clearList) {
+            clearCheckedUndoable(container, { message, onUndo: undoPantry });
+          } else {
+            scheduleUndoableDelete({ message, commit: async () => {}, restore: (err) => { if (!err) undoPantry(); } });
+          }
         } catch (err) {
           btn.disabled = false;
           reportError(err, container);
@@ -3334,7 +3545,7 @@ function updateCheckedActions(container, { userChecked = false } = {}) {
  * delegierten Klick-Handler von `container`; die Pille lebt seitdem in der
  * Shell und ist von dort aus nicht mehr erreichbar - sie ruft direkt.
  */
-function clearCheckedUndoable(container) {
+function clearCheckedUndoable(container, { message = null, onUndo = null } = {}) {
   if (readOnly()) return;
   const checked = state.items.filter((i) => checkedOf(i));
   const count   = checked.length;
@@ -3357,7 +3568,10 @@ function clearCheckedUndoable(container) {
   renderTabs(container);
 
   scheduleUndoableDelete({
-    message: t('shopping.itemsRemovedToast', { count }),
+    // Die Uebernahme in den Vorrat raeumt ueber denselben Weg ab und bringt
+    // ihren eigenen Satz und ihre eigene Ruecknahme mit (R23, D3): EIN Toast,
+    // EIN Rueckgaengig fuer Liste und Vorrat.
+    message: message ?? t('shopping.itemsRemovedToast', { count }),
     commit: async ({ keepalive }) => {
       let response;
       try {
@@ -3398,6 +3612,9 @@ function clearCheckedUndoable(container) {
       updateListCounter(listId, count, count);
       renderTabs(container);
       if (err) reportError(err, container);
+      // Nur das Rueckgaengig nimmt auch den Vorrat zurueck - ein gescheitertes
+      // Abraeumen laesst die gelungene Uebernahme stehen.
+      else onUndo?.();
     },
   });
 }
@@ -3518,17 +3735,26 @@ function openMealPlanImport(container) {
         try {
           const data = await api.post(`/shopping/${state.activeListId}/import-meal-plan`, { from, to, preview: true });
           const transferred = Number(data.data?.transferred) || 0;
+          const added = Number(data.data?.added) || 0;
+          const skipped = Number(data.data?.skipped) || 0;
           const meals = Number(data.data?.meals) || 0;
           // Zwei Zahlachsen, eine Pluralmechanik: t() dekliniert nur über
           // `count`. Die Mahlzeiten-Angabe kommt deshalb als eigener, selbst
           // pluralisierter Teilstring herein (Audit A2-21: "aus 1 Mahlzeiten").
-          previewEl.textContent = transferred
-            ? t('shopping.importMealsPreview', {
-              count: transferred,
+          //
+          // Gezaehlt wird, was NEU auf die Liste kommt (R23, D2) - vorher die
+          // Zahl der Quellzutaten, die zusammengefasste und schon vorhandene
+          // mitzaehlte. Was schon darauf steht, sagt ein zweiter Satz.
+          const parts = [];
+          if (added) {
+            parts.push(t('shopping.importMealsPreview', {
+              count: added,
               mealsText: t('shopping.importMealsPreviewMeals', { count: meals }),
-            })
-            : t('shopping.importMealsEmpty');
-          submitBtn.disabled = !transferred;
+            }));
+          }
+          if (skipped) parts.push(t(added ? 'shopping.importMealsPreviewSkipped' : 'kitchen.transferAllPresent', { count: skipped }));
+          previewEl.textContent = transferred ? parts.join(' ') : t('shopping.importMealsEmpty');
+          submitBtn.disabled = !added;
         } catch {
           previewEl.textContent = '';
           // Vorschau fehlgeschlagen: nicht sperren. Der Nutzer soll es versuchen
@@ -3546,10 +3772,17 @@ function openMealPlanImport(container) {
         const to = panel.querySelector('#shopping-import-to')?.value || '';
         if (!from || !to) return;
         if (!mayImportMealPlan(state.activeListId)) return;
+        const modalContext = captureModalContext();
         try {
-          const data = await api.post(`/shopping/${state.activeListId}/import-meal-plan`, { from, to });
+          const listId = state.activeListId;
+          const data = await api.post(`/shopping/${listId}/import-meal-plan`, { from, to });
           if (!data.data?.transferred) {
             window.yuvomi.showToast(t('shopping.importMealsEmpty'), 'default');
+            return;
+          }
+          if (!data.data.added) {
+            closeModal({ force: true, context: modalContext });
+            window.yuvomi.showToast(t('kitchen.transferAllPresent'), 'info');
             return;
           }
           await reloadAfterSave(() => Promise.all([loadLists(), loadItems(state.activeListId)]));
@@ -3558,9 +3791,26 @@ function openMealPlanImport(container) {
           wireListContentEvents(container);
           // force: siehe openItemDetails - ein geänderter Zeitraum ist nach dem
           // Import nichts, was noch zu verwerfen wäre.
-          closeModal({ force: true });
-          const count = Number(data.data.transferred) || 0;
-          window.yuvomi.showToast(t('meals.transferSuccess', { count }), 'success');
+          closeModal({ force: true, context: modalContext });
+          // Derselbe Satz und dasselbe Rueckgaengig wie an Karte und Rezept
+          // (R23, D2). Bis dahin stand hier ein Toast ohne Ruecknahme, der die
+          // Quellzutaten zaehlte und den Listennamen als leeren Platzhalter
+          // trug ("3 Zutaten auf  übernommen.").
+          const listName = state.lists.find((l) => l.id === listId)?.name ?? '';
+          announceTransfer({
+            message: transferMessage('meals.transferSuccess', {
+              added: Number(data.data.added) || 0, skipped: Number(data.data.skipped) || 0, list: listName,
+            }),
+            addedIds: data.data.added_ids ?? [],
+            ingredientIds: data.data.ingredient_ids ?? [],
+            onUndone: async () => {
+              if (state.activeListId !== listId) return;
+              await Promise.all([loadLists(), loadItems(listId)]);
+              renderTabs(container);
+              renderListContent(container);
+              wireListContentEvents(container);
+            },
+          });
         } catch (err) {
           reportError(err, container);
         }
@@ -3776,6 +4026,8 @@ async function switchList(listId, container) {
   clearBulkPill();
   // Die Pause gehoert den Zeilen der alten Liste (#1816).
   resetPlacementHold();
+  // Eine andere Liste verteilt ihre Spalten neu (Spaltenumbruch, freezeLanes).
+  laneBreak = { listId: null, key: null };
   state.activeListId = listId;
   state.collapsedCategories = loadCollapsedCategories(state.currentUserId, listId);
   state.tickedOpen = loadTickedOpen(state.currentUserId, listId);
@@ -4276,6 +4528,13 @@ function wireListContentEvents(container) {
       openStoreManager(container);
     }
 
+    // ---- Sortiermodus am Finger (R23, D13) ----
+    if (action === 'sort-mode') {
+      sortingMode = !sortingMode;
+      container.querySelector('.shopping-page')?.classList.toggle('is-sorting', sortingMode);
+      renderTabs(container);
+    }
+
     if (action === 'import-meals') {
       openMealPlanImport(container);
     }
@@ -4662,6 +4921,10 @@ export async function render(container, { user, signal: routeSignal = null } = {
   // und mit dem Verlassen der Seite.
   resetPlacementHold();
   routeSignal?.addEventListener?.('abort', resetPlacementHold, { once: true });
+  // Jeder Seitenaufbau verteilt die Spalten neu (freezeLanes, R23 D13) und
+  // beginnt ohne Sortiermodus.
+  laneBreak = { listId: null, key: null };
+  sortingMode = false;
   // VOR dem Laden: die erste Laufnummern-Abfrage laeuft neben dem Laden der
   // Seite. Die Reihenfolge der beiden Antworten ist damit NICHT entschieden -
   // und muss es nicht sein: die Artikel-Antwort traegt ihre Laufnummer, und
@@ -4818,6 +5081,8 @@ export const __test = {
   // Mengen-Zerlegung fuer den Vorrats-Uebertrag: haengt an der Format-Locale,
   // ist also nur verhaltensgetrieben pruefbar (siehe test-shopping-ux.js).
   parseShoppingQuantity,
+  pantryUnitWords,
+  pantryTransferPreset,
   // Kategorie-Einklappen (#1039): reine Schluessel-/Speicherfunktionen, ohne
   // DOM. `state` bleibt bewusst ERREICHBAR, nicht ERSETZBAR - Tests lesen und
   // schreiben ihre Felder direkt, wie beim Muster in test-health-meds.js.

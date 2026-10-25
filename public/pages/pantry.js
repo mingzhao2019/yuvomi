@@ -8,7 +8,8 @@
  */
 
 import { api } from '/api.js';
-import { t, getNumberFormat, formatDate } from '/i18n.js';
+import { t, getNumberFormat } from '/i18n.js';
+import { dateText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { readRowHtml, readRowHintEl } from '/utils/read-row.js';
 import {
@@ -23,7 +24,7 @@ import {
   refocusAfterRender,
 } from '/components/modal.js';
 import { renderKitchenTabsBar } from '/utils/kitchen-tabs.js';
-import { resolveShoppingTarget, announceTransfer, mayTransferPantryToShopping } from '/utils/kitchen-transfer.js';
+import { resolveShoppingTarget, announceTransfer, transferMessage, mayTransferPantryToShopping } from '/utils/kitchen-transfer.js';
 import { mayWritePath } from '/utils/module-access.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
@@ -258,11 +259,11 @@ function groupedItems(items) {
   const groups = [];
   for (const loc of state.locations) {
     const rows = byLocation.get(loc.id);
-    if (rows?.length) groups.push({ key: loc.id, label: locationLabel(loc.name), icon: loc.icon, items: rows });
+    if (rows?.length) groups.push({ key: loc.id, label: locationLabel(loc.name), items: rows });
   }
   const orphans = byLocation.get('none');
   if (orphans?.length) {
-    groups.push({ key: 'none', label: t('pantry.unlocated'), icon: 'package', items: orphans });
+    groups.push({ key: 'none', label: t('pantry.unlocated'), items: orphans });
   }
   return groups;
 }
@@ -680,8 +681,6 @@ function drawList(list) {
     if (group.label) {
       const heading = document.createElement('h2');
       heading.className = 'list-group__title';
-      heading.insertAdjacentHTML('beforeend',
-        `<i data-lucide="${esc(group.icon || 'package')}" class="icon-sm" aria-hidden="true"></i>`);
       const name = document.createElement('span');
       name.textContent = group.label;
       const count = document.createElement('span');
@@ -712,8 +711,8 @@ function drawList(list) {
 // 10" uebertoente die Fristen. Das Panel beantwortet jetzt nur, was nicht
 // warten kann; "Fast leer" bleibt Chip plus Warenkorb an der Zeile.
 const WATCH_SECTIONS = [
-  { key: 'expired', label: 'pantry.filterExpired', icon: 'circle-alert', tone: 'danger' },
-  { key: 'soon', label: 'pantry.filterSoon', icon: 'clock', tone: 'warning' },
+  { key: 'expired', label: 'pantry.filterExpired', tone: 'danger' },
+  { key: 'soon', label: 'pantry.filterSoon', tone: 'warning' },
 ];
 
 /**
@@ -778,7 +777,6 @@ function renderWatch() {
     el.className = 'list-group pantry-watch__group';
     const heading = document.createElement('h2');
     heading.className = 'list-group__title';
-    heading.insertAdjacentHTML('beforeend', `<i data-lucide="${esc(section.icon)}" class="icon-sm" aria-hidden="true"></i>`);
     const label = document.createElement('span');
     label.textContent = t(section.label);
     const count = document.createElement('span');
@@ -975,7 +973,7 @@ function rowEl(item) {
   if (item.expires_on) {
     const expiry = document.createElement('span');
     expiry.className = 'pantry-row__expiry';
-    expiry.textContent = ` · ${t('pantry.bestBefore', { date: formatDate(item.expires_on) })}`;
+    expiry.textContent = ` · ${t('pantry.bestBefore', { date: dateText(item.expires_on) })}`;
     meta.appendChild(expiry);
   }
   // Im gefilterten (flachen) Modus trägt die Meta-Zeile den Lagerort, den sonst
@@ -1374,9 +1372,7 @@ async function sendToShopping(items, btn) {
     // Typ, nicht die Liste - bei mehreren Listen bleibt damit offen, auf welche
     // (Critique 2026-07-30, P1). Der Name steht hier ohnehin fest: entweder gibt es
     // nur eine Liste, oder der Nutzer hat sie gerade ausgewählt.
-    const message = skipped
-      ? `${t('pantry.toShoppingDone', { count: added, list: target.name })} ${t('pantry.toShoppingSkipped', { count: skipped })}`
-      : t('pantry.toShoppingDone', { count: added, list: target.name });
+    const message = transferMessage('pantry.toShoppingDone', { added, skipped, list: target.name });
 
     // Meldung, Standzeit, Tab-Zahl und Rücknahme kommen aus dem geteilten
     // Baustein. Der Warenkorb ist der Pfad, den man am leichtesten versehentlich
@@ -1410,7 +1406,7 @@ function itemReadHtml(item) {
         ${readRowHtml({ icon: 'hash', label: t('pantry.quantityLabel'), value: amount(item.quantity) })}
         ${readRowHtml({ icon: 'map-pin', label: t('pantry.locationLabel'), value: item.location_name ? locationLabel(item.location_name) : t('pantry.unlocated') })}
         ${readRowHtml({ icon: 'tag', label: t('pantry.categoryLabel'), value: item.category ? categoryLabel(item.category) : '' })}
-        ${readRowHtml({ icon: 'calendar', label: t('pantry.expiresLabel'), value: item.expires_on ? formatDate(item.expires_on) : '' })}
+        ${readRowHtml({ icon: 'calendar', label: t('pantry.expiresLabel'), value: item.expires_on ? dateText(item.expires_on) : '' })}
         ${readRowHtml({ icon: 'triangle-alert', label: t('pantry.minQuantityLabel'), value: item.min_quantity != null ? amount(item.min_quantity) : '' })}
         ${readRowHtml({ icon: 'align-left', label: t('pantry.notesLabel'), value: item.notes || '', multiline: true })}
       </div>

@@ -5,7 +5,7 @@
  */
 
 import { api } from '/api.js';
-import { openModal as openSharedModal, closeModal, advancedSection, refocusAfterRender, captureModalContext, captureOpenContext, isModalContextCurrent } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, advancedSection, refocusAfterRender, captureModalContext, captureOpenContext, isModalContextCurrent, reportFieldErrors } from '/components/modal.js';
 import { errorSentence, isAlreadyDeleted, loadErrorSentence } from '/utils/friendly-error.js';
 import { openDetailView, leaveDetailTo } from '/components/detail-view.js';
 import { stagger, vibrate, wireScrollFade, scheduleUndoableDelete } from '/utils/ux.js';
@@ -269,7 +269,7 @@ export async function render(container, { user, signal } = {}) {
       <div id="contacts-status" class="sr-only" role="status" aria-live="polite"></div>
       <div class="split-view contacts-split">
         <div id="contacts-list" class="contacts-list page-scrollport split-view__list" data-scroll-port="contacts" aria-busy="true">
-          <div class="contacts-filters page-chip-row" id="contacts-filters" role="group" aria-label="${t('contacts.categoryLabel')}"></div>
+          <div class="contacts-filters page-chip-row" id="contacts-filters" role="group" aria-label="${t('contacts.categoryLabel')}" data-pending></div>
           <div id="contacts-rows" class="contacts-rows">${renderSkeletonList({ rows: 6, lines: 2 })}</div>
         </div>
         ${splitViewDetailHtml({
@@ -513,6 +513,9 @@ function filterCategoryKeys() {
 function renderCategoryFilters() {
   const bar = _container?.querySelector('#contacts-filters');
   if (!bar) return;
+  // Die Reihe haelt ihren Platz, bis die Daten da sind (contacts.css, R23):
+  // gerufen wird hier erst mit ihnen.
+  bar.removeAttribute('data-pending');
   const active = state.activeCategory;
   const keys = filterCategoryKeys();
   // Nur neu bauen, wenn sich die Menge der Chips geaendert hat: renderList()
@@ -664,6 +667,7 @@ function contactsEmptyStateHtml(filtered) {
     description: ro ? '' : t('contacts.emptyDescription'),
     hint: ro ? '' : t('emptyHint.contacts'),
     action: ro ? null : {
+      tone: 'secondary',
       label: t('contacts.emptyAction'),
       icon: 'plus',
       attrs: { 'data-action': 'empty-cta' },
@@ -892,10 +896,12 @@ function renderContactItem(c) {
   }
 
   // Primäre, stets sichtbare Zeilenaktion: Anrufen (falls Telefon vorhanden).
+  // Neutral wie jede Zeilenaktion (R23, Ulas 25.10.; bis dahin gruen nach
+  // Audit F1) - die Modulfarbe traegt "Anrufen" in der Leseansicht.
   // Der Name nennt die Person: zwoelf Zeilen, die alle "Anrufen" heissen, sind
   // fuer einen Screenreader eine Zeile.
   const callBtn = c.phone
-    ? `<a href="tel:${esc(c.phone)}" data-phone-raw="${esc(c.phone)}" class="row-action row-action--success" aria-label="${esc(t('contacts.callNamed', { name: c.name }))}">
+    ? `<a href="tel:${esc(c.phone)}" data-phone-raw="${esc(c.phone)}" class="row-action" aria-label="${esc(t('contacts.callNamed', { name: c.name }))}">
          <i data-lucide="phone" aria-hidden="true"></i>
        </a>`
     : '';
@@ -1557,7 +1563,7 @@ function buildContactForm({ mode, contact = null }) {
         <i data-lucide="trash-2" class="icon-md" aria-hidden="true"></i>${t('common.delete')}
       </button>` : '<div></div>'}
       <div class="contact-modal__footer-actions">
-        <button class="btn btn--secondary" id="cm-cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn btn--secondary" id="cm-cancel" data-action="close-modal">${t('common.cancel')}</button>
         <button class="btn btn--primary" id="cm-save">${isEdit ? t('common.save') : t('common.add')}</button>
       </div>
     </div>`;
@@ -1566,6 +1572,12 @@ function buildContactForm({ mode, contact = null }) {
     title: isEdit ? t('contacts.editContact') : t('contacts.newContact'),
     content,
     wire(panel) {
+      // EIN RUECKWEG IM BEARBEITEN (R23 S11b, Critique G5 P3; Kanon R19 in
+      // detail-view.js): mit `data-action="close-modal"` erkennt die
+      // Detailansicht das Abbrechen als den Weg zurueck in die Leseansicht und
+      // nimmt ihr Kopf-"Zurueck" weg. Vorher standen mobil drei Ausgaenge da
+      // (Zurueck, x, Abbrechen), und Abbrechen schloss das ganze Blatt. Der
+      // eigene Listener bleibt fuer den Anlege-Dialog ohne Leseansicht.
       panel.querySelector('#cm-cancel').addEventListener('click', closeModal);
 
       // Mehrwert-Gruppen: Zeile ergänzen/entfernen (Telefon + E-Mail).
@@ -1675,11 +1687,10 @@ function buildContactForm({ mode, contact = null }) {
           return;
         }
 
-        if (!name) {
-          window.yuvomi?.showToast(t('contacts.nameRequiredHint'), 'danger');
-          panel.querySelector('#cm-first-name').focus();
-          return;
-        }
+        // DER FEHLER STEHT AM FELD (R23, Critique G5 P3; D8 wie Geburtstage):
+        // vorher ein Toast, der das Feld nicht nannte - jetzt die Meldung am
+        // Vornamen (aria-invalid, aria-describedby), der Fokus darin.
+        if (!name && reportFieldErrors([[panel.querySelector('#cm-first-name'), t('contacts.nameRequiredHint')]])) return;
 
         saveBtn.disabled    = true;
         saveBtn.textContent = '…';
@@ -1791,8 +1802,10 @@ function exitSelectMode() {
   // Menue-Knopf, ueber den man hineingekommen ist - sonst faellt er auf <body>.
   const refocus = _container.querySelector('#contacts-select-cancel')?.contains(document.activeElement);
   syncSelectChrome();
-  if (refocus) _container.querySelector('.contacts-toolbar .page-tools-btn')?.focus();
+  // ERST die Klasse, DANN der Fokus: im Auswahlmodus ist das Menue
+  // ausgeblendet (contacts.css, R23) und nimmt keinen Fokus an.
   _container.querySelector('.contacts-page')?.classList.remove('is-selecting');
+  if (refocus) _container.querySelector('.contacts-toolbar .page-tools-btn')?.focus();
   setSelectionBulk(md, null);
   renderList();
 }
@@ -2139,7 +2152,11 @@ function birthdaySuggestionRow(contact, onLinked = null) {
   return {
     icon: 'cake',
     label: t('nav.birthdays'),
-    value: t('contacts.birthdaySuggestValue'),
+    // Gleicher Tag, anderer Name (R23): der Satz nennt den Geburtstag, weil
+    // der Leser ihn sonst nicht wiedererkennt.
+    value: contact.suggested_birthday_name
+      ? t('contacts.birthdaySuggestSameDate', { name: contact.suggested_birthday_name })
+      : t('contacts.birthdaySuggestValue'),
     action: {
       id: 'contact-detail-birthday-link',
       label: t('birthdays.linkContact'),

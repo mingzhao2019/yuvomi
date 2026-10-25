@@ -246,7 +246,6 @@
  * Card-/Item-Titel
  * ------------------------------------------------------------------------ */
 .u-card-title,
-.budget-loan-card__title,
 .document-card__title,
 .document-row__title,
 .document-viewer__unsupported-title,
@@ -285,9 +284,7 @@
 .documents-folder-item__name,
 .document-dropzone__title,
 .dms-result__title,
-.meal-card__title,
 .housekeeping-section-heading span,
-.reminder-section__title,
 .cat-row__name,
 .cat-subrow__name,
 /* Gruppentitel über den Modul-Listen ("Übersicht", "Planen"). Sie standen in
@@ -311,10 +308,13 @@
  * Registrierung darueber, obwohl sie Zeilen sind). Kanon ist der haeufigste:
  * 16px, medium.
  *
- * DIE GRENZE ZUR HEADLINE: ein KARTEN-Titel (Rezeptkarte, Darlehen, Widget,
- * Kanban-Karte, Notizkarte) bleibt Headline bzw. ihre Dichte-Variante - eine
- * Karte ist ein Objekt mit eigener Flaeche und fuehrt ihren Titel als
- * Ueberschrift. Eine ZEILE steht in einem Traeger neben ihresgleichen; ihr
+ * DIE GRENZE ZUR HEADLINE: ein KARTEN-Titel (Rezeptkarte, Widget, Notizkarte)
+ * bleibt Headline bzw. ihre Dichte-Variante - eine Karte ist ein Objekt mit
+ * eigener Flaeche und fuehrt ihren Titel als Ueberschrift. KANBAN-KARTE,
+ * MAHLZEIT UND DARLEHEN NICHT MEHR (R23, N2): ihre Karten stehen gestapelt
+ * neben ihresgleichen wie Zeilen und tragen denselben Gegenstand wie die
+ * Zeile der Nachbaransicht (Aufgabe in Liste und Kanban, Mahlzeit in Woche und
+ * Tag) - 15/600 dort neben 16/500 hier hiess: eine Aufgabe, zwei Stimmen. Eine ZEILE steht in einem Traeger neben ihresgleichen; ihr
  * Name ist Lesetext mit Betonung, keine Ueberschrift. Wer `.list-row` traegt,
  * nimmt diese Rolle - ueber `.list-row__name` am Namen oder, wo der Name ein
  * eigenes Element mit eigener Geometrie ist, ueber die Registrierung hier.
@@ -331,6 +331,8 @@
 .u-row-title,
 .settings-scope .settings-card__title,
 .list-row__name,
+.budget-loan-card__title,
+.meal-card__title,
 .agenda-event__title,
 .contact-item__name,
 .subscription-card__name,
@@ -609,7 +611,12 @@
   width: 1em;
   height: 1em;
   border: 1.5px solid color-mix(in srgb, currentColor 50%, transparent);
-  border-radius: var(--radius-xs);
+  /* DER RING DER AUFGABEN (R23, D7), nicht das Kaestchen: eine Checkliste in
+   * Notiz oder Aufgabenbeschreibung ist dieselbe Geste wie das Abhaken einer
+   * Teilaufgabe. In em, weil sie mit dem Text der Karte skaliert, und im Ton
+   * der Karte (`currentColor`), weil Notizen eigene Flaechenfarben tragen;
+   * erledigt in Erfolgsfarbe wie jeder Ring. */
+  border-radius: var(--radius-full);
 }
 /* Antippbares Kaestchen (#704). Ein <button role="checkbox"> statt des
    dekorativen <span>: sichtbar ist es dasselbe Quadrat, es tilgt nur die
@@ -650,8 +657,8 @@ button.note-md-box:focus-visible {
   opacity: 0.65;
 }
 .note-md-check.is-checked .note-md-box {
-  background: color-mix(in srgb, currentColor 70%, transparent);
-  border-color: color-mix(in srgb, currentColor 70%, transparent);
+  background: var(--color-success);
+  border-color: var(--color-success);
   /* Die Quittung des Tipps (#704) startet der Handler (acknowledgeCheck in
    * utils/ux.js), nicht diese Zustandsregel: hier lief sie bei jedem Zeichnen
    * einer Notiz an jedem schon gesetzten Haken (R18, Guard test:motion). */
@@ -659,11 +666,11 @@ button.note-md-box:focus-visible {
 .note-md-check.is-checked .note-md-box::after {
   content: '';
   position: absolute;
-  inset-inline-start: 0.28em;
-  top: 0.02em;
-  width: 0.3em;
-  height: 0.6em;
-  border: solid var(--color-surface);
+  inset-inline-start: 0.3em;
+  top: 0.1em;
+  width: 0.25em;
+  height: 0.5em;
+  border: solid var(--color-ink-on-vivid);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }

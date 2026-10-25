@@ -715,3 +715,96 @@ test('der Hinweis zum Nutzerhandbuch entschuldigt sich nicht (Critique R21)', ()
     assert.doesNotMatch(hint, /zurückliegen|lag behind|veraltet|out of date/i, `${locale}: ${hint}`);
   }
 });
+
+// R23 (Critique S-P3-2): Suchplatzhalter standen in fuenf Formen - "…", "...",
+// " …", ohne Zeichen, "durchsuchen" neben "suchen" fuer dieselbe Seitensuche.
+// EIN Muster: kein Auslassungszeichen am Ende, in keiner Sprache; im Deutschen
+// heisst die Suche einer Seite "‹Gegenstand› durchsuchen".
+test('Suchplatzhalter: ein Muster, kein Auslassungszeichen am Ende (R23)', () => {
+  const files = readdirSync(LOCALES_DIR).filter((f) => f.endsWith('.json'));
+  const isSearchKey = (key) => /(^search\.placeholder$|[sS]earch[A-Za-z]*Placeholder$|\.searchGroups$|\.searchLabel$)/.test(key);
+  for (const file of files) {
+    for (const [key, value] of flatten(JSON.parse(readLocale(file.replace(/\.json$/, ''))))) {
+      if (!isSearchKey(key) || typeof value !== 'string') continue;
+      assert.doesNotMatch(value, /(…|\.\.\.)\s*$/, `${file}: ${key} = ${value}`);
+    }
+  }
+  const de = flatten(JSON.parse(readLocale('de')));
+  for (const key of ['tasks.searchPlaceholder', 'notes.searchPlaceholder', 'recipes.searchPlaceholder', 'birthdays.searchPlaceholder',
+    'documents.searchPlaceholder', 'subscriptions.searchPlaceholder', 'pantry.searchPlaceholder', 'inventory.searchPlaceholder',
+    'splitExpenses.searchGroups', 'settings.searchLabel']) {
+    assert.match(de.get(key), / durchsuchen$/, `de: ${key} = ${de.get(key)}`);
+  }
+});
+
+// R23 S11 (Critique G2 P3 "Ansicht dreifach"): die Ansichtswahl der Aufgaben
+// heisst "Ansicht", und ihre Eintraege hiessen "Listenansicht" und
+// "Kanban-Ansicht" - dreimal dasselbe Wort in einer Leiste. Die Eintraege
+// nennen nur noch, WAS angezeigt wird.
+test('die Ansichten der Aufgaben wiederholen den Namen der Ansichtswahl nicht', () => {
+  const hits = [];
+  for (const locale of LOCALES) {
+    const map = flatten(JSON.parse(readLocale(locale)));
+    const group = String(map.get('tasks.viewToggleLabel') ?? '').trim().toLowerCase();
+    if (!group) continue;
+    for (const key of ['tasks.listView', 'tasks.kanbanView']) {
+      const value = String(map.get(key) ?? '').toLowerCase();
+      if (value.includes(group)) hits.push(`${locale}: ${key} "${map.get(key)}" enthaelt "${group}"`);
+    }
+  }
+  assert.deepEqual(hits, []);
+});
+
+// R23 S11 (Critique G3 P3 "Listenname-Dialog Doppelpunkt"): die Fragen der
+// Eingabedialoge stammten aus window.prompt() und endeten auf einen
+// Doppelpunkt. Im Dialog sind sie Ueberschrift und Feldname - ohne ihn.
+test('kein Eingabedialog fragt mit einem Doppelpunkt am Ende', () => {
+  const hits = [];
+  for (const locale of LOCALES) {
+    for (const [key, value] of flatten(JSON.parse(readLocale(locale)))) {
+      if (/Prompt$/.test(key) && /[:：]\s*$/.test(String(value))) hits.push(`${locale}: ${key} "${value}"`);
+    }
+  }
+  assert.deepEqual(hits, []);
+});
+
+test('ein Wert mit Schlusspunkt am Satzende ergibt keinen doppelten Punkt', async () => {
+  const GLOBALS = ['localStorage', 'fetch', 'document', 'window', 'navigator', 'CustomEvent'];
+  const saved = new Map(GLOBALS.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
+  const store = new Map([['yuvomi-locale', 'de']]);
+  const define = (name, value) => Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
+  define('localStorage', {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => { store.set(key, String(value)); },
+    removeItem: (key) => { store.delete(key); },
+  });
+  define('fetch', async (url) => {
+    const file = String(url).replace(/^\/locales\//, '');
+    return { ok: true, json: async () => JSON.parse(readFileSync(new URL(`../public/locales/${file}`, import.meta.url), 'utf8')) };
+  });
+  define('document', { documentElement: { lang: '', dir: '' } });
+  define('window', { dispatchEvent: () => true });
+  define('navigator', { languages: ['de'], language: 'de' });
+  define('CustomEvent', class { constructor(type, init) { this.type = type; this.detail = init?.detail; } });
+  const i18n = await import('../public/i18n.js');
+  try {
+    await i18n.initI18n();
+    await i18n.setLocale('de');
+    // R23: dateText schreibt im laufenden Jahr "30.09." - vorher "30.09..".
+    assert.equal(i18n.t('subscriptions.renewedNamed', { name: 'Netz', date: '30.09.' }),
+      '„Netz“ bezahlt - nächste Zahlung am 30.09.');
+    assert.equal(i18n.t('subscriptions.renewedNamed', { name: 'Netz', date: '30.09.2027' }),
+      '„Netz“ bezahlt - nächste Zahlung am 30.09.2027.');
+    // Nur der Punkt direkt hinter dem Platzhalter verschmilzt.
+    assert.equal(i18n.t('housekeeping.paymentTaskDescription', { date: '30.09.', amount: '5 €' }),
+      'Besuch am 30.09. Offener Betrag: 5 €.');
+    // Ein fehlender Parameter bleibt samt Satzpunkt sichtbar stehen.
+    assert.equal(i18n.t('subscriptions.renewedNamed', { name: 'Netz' }),
+      '„Netz“ bezahlt - nächste Zahlung am {{date}}.');
+  } finally {
+    for (const [name, descriptor] of saved) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else delete globalThis[name];
+    }
+  }
+});

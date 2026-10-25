@@ -354,7 +354,25 @@ test('A-9/B-1: der Kalender traegt eine 4-stufige Flow-Skala + einen Log-Punkt-L
   assert.match(fn, /health\.cycle\.legend\.logged/, 'Legendeneintrag fuer den einfachen Log-Punkt fehlt');
   assert.match(fn, /cycle-legend__flow-row/, 'kompakte Flow-Skalen-Zeile fehlt');
   // Eine einzige Zeile fuer alle vier Stufen - "Keep the legend from exploding".
-  assert.match(fn, /FLOW_LEVELS\.map/, 'die vier Stufen muessen aus FLOW_LEVELS kommen, nicht hartkodiert sein');
+  assert.match(fn, /FLOW_LEVELS\.filter/, 'die Stufen muessen aus FLOW_LEVELS kommen, nicht hartkodiert sein');
+});
+
+// R23 S10 (distill, Critique G5 P3 "Zyklus drei Legenden"): die Kalender-
+// Legende erklaert nur, was der gerenderte Monat zeigt - wie bisher schon
+// "Eisprung bestaetigt" und PMS.
+test('R23: die Zyklus-Legende nennt nur, was der Monat zeigt', () => {
+  const cal = functionSource('cycleCalendarMarkup');
+  assert.match(cal, /const seen = new Set\(\);/);
+  for (const what of ['today', 'logged', 'fertile', 'ovulation', 'intimacy']) {
+    assert.match(cal, new RegExp(`seen\\.add\\('${what}'\\)`), `${what} wird gezaehlt`);
+  }
+  assert.match(cal, /seen\.add\(c\.predicted \? 'predicted' : 'period'\)/);
+  assert.match(cal, /if \(c\.inMonth\) \{/, 'nur Tage des Monats zaehlen');
+  assert.match(cal, /cycleLegendMarkup\(\{ hasConfirmedOvulation, showPms: pmsVisibleInMonth, own, seen \}\)/);
+  const legend = functionSource('cycleLegendMarkup');
+  assert.match(legend, /\]\.filter\(\(item\) => shows\(item\.what\)\);/);
+  assert.match(legend, /FLOW_LEVELS\.filter\(\(f\) => shows\(`flow:\$\{f\.value\}`\)\)/, 'nur die Staerken, die im Monat stehen');
+  assert.match(legend, /if \(!rows && !heartRow && !pmsRow && !flowScale\) return '';/, 'ein leerer Monat traegt keine Legende');
 });
 
 test('T2: bestätigtes Fenster (BBT) traegt eine eigene Klasse, getrennt von "predicted"', () => {
@@ -376,7 +394,7 @@ test('Intimitäts-Marker nur in der eigenen Ansicht, eigene Kalender-Ecke', () =
   assert.match(fn, /l\.intimacy/, 'Intimitäts-Filter auf cycle.logs fehlt');
   assert.match(fn, /cycle-cal__intimacy-icon/, 'Herz-Marker-Klasse fehlt');
   const legendFn = functionSource('cycleLegendMarkup');
-  assert.match(legendFn, /own\s*\n?\s*\?\s*`<span class="cycle-legend__item">.*heart/, 'Legendeneintrag muss own-gated sein');
+  assert.match(legendFn, /own && shows\('intimacy'\)\s*\n?\s*\?\s*`<span class="cycle-legend__item">.*heart/, 'Legendeneintrag muss own-gated sein');
 });
 
 // pmsWindow() wird nicht mehr INNERHALB von cycleCalendarMarkup() aufgerufen -
@@ -525,16 +543,23 @@ test('Beifang: Karten der Uebersicht auf der Radius-Skala, Disclaimer im Lesemas
 // Bereichsliste, „Heute faellig" bei y=658, „Schnell erfassen" bei y=1916. Am
 // Desktop fehlte der Detailspalte ein Kopf mit dem Bereichsnamen (nur sr-only).
 
-test('R14 P3/P6: der Umzugsplan - Desktop Detailkopf, Bereich schmal Kopfzeile, Telefon-Uebersicht vor die Liste', async () => {
+// R23 (Critique G5 P2 "Personenwahl an drei Orten"): die Pille stand im
+// Detailkopf, in der Zeile „‹ Gesundheit" und im Streifen vor der Liste; der
+// Tipp in einen Bereich hob den Kopf von 65 auf 113px. Jetzt EIN Ort: der
+// Seitenkopf, in jeder Breite und jeder Ansicht.
+test('R14 P3/P6 + R23: der Umzugsplan - die Person immer in den Kopf, Telefon-Uebersicht Heute vor die Liste', async () => {
   const { hoistPlan } = await import('../public/utils/health-hoist.js');
-  assert.deepEqual(hoistPlan({ split: true, overview: false, phone: false }), [{ part: 'person', slot: 'detail' }]);
-  assert.deepEqual(hoistPlan({ split: true, overview: true, phone: false }), [{ part: 'person', slot: 'detail' }]);
-  assert.deepEqual(hoistPlan({ split: false, overview: false, phone: true }), [{ part: 'person', slot: 'toolbar' }],
-    'Bereichsseite: die Pille teilt die Zeile mit „‹ Gesundheit" statt eine eigene zu kosten');
+  const person = [{ part: 'person', slot: 'toolbar' }];
+  assert.deepEqual(hoistPlan({ split: true, overview: false, phone: false }), person, 'Desktop: Kopf, nicht Detailkopf');
+  assert.deepEqual(hoistPlan({ split: true, overview: true, phone: false }), person);
+  assert.deepEqual(hoistPlan({ split: false, overview: false, phone: true }), person, 'Bereich: derselbe Ort');
+  assert.deepEqual(hoistPlan({ split: false, overview: true, phone: false }), person, 'Tablet-Uebersicht: derselbe Ort');
   assert.deepEqual(hoistPlan({ split: false, overview: true, phone: true }).map((p) => `${p.part}>${p.slot}`),
-    ['person>priority', 'banner>priority', 'brief>priority', 'due>priority', 'quick>priority'],
-    'Telefon-Uebersicht: Person, Hinweis, der Satz (R21 D6), Heute faellig, Schnell erfassen stehen VOR der Bereichsliste');
-  assert.deepEqual(hoistPlan({ split: false, overview: true, phone: false }), [], 'Tablet: das Raster bleibt, wie es ist');
+    ['person>toolbar', 'banner>priority', 'brief>priority', 'due>priority', 'quick>priority'],
+    'Telefon-Uebersicht: Hinweis, der Satz (R21 D6), Heute faellig, Schnell erfassen stehen VOR der Bereichsliste; die Person im Kopf');
+  for (const plan of [hoistPlan({ split: true, overview: true, phone: false }), hoistPlan({ split: false, overview: true, phone: true })]) {
+    assert.ok(!plan.some((p) => p.slot === 'detail'), 'kein Detailkopf-Ziel mehr');
+  }
 });
 
 test('R14 P3/P6: der Umzug haengt verdrahtete Knoten um und bringt sie zurueck oder verwirft sie', async () => {
@@ -567,9 +592,11 @@ test('R14 P3/P6: der Umzug haengt verdrahtete Knoten um und bringt sie zurueck o
   const slots = { toolbar, detail, priority };
 
   applyHoistPlan(hoistPlan({ split: false, overview: true, phone: true }), { panel, slots });
-  assert.deepEqual(priority.children, [person, due, quick], 'in Planreihenfolge vor der Liste');
+  assert.deepEqual(priority.children, [due, quick], 'in Planreihenfolge vor der Liste');
+  assert.deepEqual(toolbar.children, [person], 'die Person im Kopf (R23)');
   applyHoistPlan(hoistPlan({ split: true, overview: true, phone: false }), { panel, slots });
-  assert.deepEqual(detail.children, [person], 'Desktop: die Pille steht im Detailkopf');
+  assert.deepEqual(toolbar.children, [person], 'Desktop: dieselbe Pille am selben Ort');
+  assert.equal(detail.children.length, 0, 'kein Detailkopf-Ziel');
   assert.equal(priority.children.length, 0);
   assert.deepEqual(grid.children.map((c) => c.cls), ['health-overview__card--due', 'health-overview__card--other', 'health-overview__card--quick'],
     'die Karten stehen wieder an ihrem Platz im Raster');
@@ -579,7 +606,7 @@ test('R14 P3/P6: der Umzug haengt verdrahtete Knoten um und bringt sie zurueck o
   const frisch = root.children[0];
   applyHoistPlan(hoistPlan({ split: false, overview: false, phone: true }), { panel, slots });
   assert.deepEqual(toolbar.children, [frisch], 'die FRISCHE Pille zieht um');
-  assert.equal(detail.children.length, 0, 'die alte ist weg, nicht doppelt zurueck im Panel');
+  assert.ok(!toolbar.children.includes(person), 'die alte ist weg, nicht doppelt zurueck im Panel');
   assert.equal(root.children.filter((c) => c.cls === 'health-person-switcher').length, 0);
 });
 
@@ -664,11 +691,17 @@ test('R22 D12: ein Leerzustand je Ebene - der leere Bereich mit Aktion, die leer
     assert.doesNotMatch(body, /emptyHintHTML\(|reminders-empty/, `${fn}: kein nackter Satz`);
   }
   assert.match(fnBody('renderActivityShell'), /cardEmptyRowHtml\(t\('health\.activity\.noData'\), \{ action: canAdd/, 'leere Woche: Zeile mit Erfassen');
-  // EIN VERB JE AKTION: Zyklus und Fasten ohne Kopf-Aktion, der Inhalt traegt sie.
+  // EIN VERB JE AKTION: der Zyklus ohne Kopf-Aktion, der Inhalt traegt sie.
+  // Das Fasten seit R23 D14 umgekehrt: der FAB heisst "Fasten starten", der
+  // Ring traegt keinen Startknopf mehr (nur noch "Beenden" bei laufendem Fasten).
   const fab = fnBody('updateHealthFab');
-  for (const route of ['cycle', 'fasting']) {
-    const at = fab.indexOf(`case '/health/${route}':`);
-    assert.match(fab.slice(at, fab.indexOf('break;', at)), /hidden: true/, `${route}: keine Kopf-Aktion neben der des Inhalts`);
+  {
+    const at = fab.indexOf(`case '/health/cycle':`);
+    assert.match(fab.slice(at, fab.indexOf('break;', at)), /hidden: true/, 'cycle: keine Kopf-Aktion neben der des Inhalts');
+    const ft = fab.indexOf(`case '/health/fasting':`);
+    const fcase = fab.slice(ft, fab.indexOf('break;', ft));
+    assert.match(fcase, /hidden: !fastingIntent\.canStart/, 'fasting: der FAB nur, wenn ein Start moeglich ist');
+    assert.match(fcase, /label: t\('health\.fasting\.start'\)/, 'fasting: der FAB heisst "Fasten starten"');
   }
   for (const [route, opener] of [['prevention', 'openPreventionModal'], ['nutrition', 'openNutritionModal']]) {
     const at = fab.indexOf(`case '/health/${route}':`);
@@ -677,8 +710,12 @@ test('R22 D12: ein Leerzustand je Ebene - der leere Bereich mit Aktion, die leer
   const fasting = readFileSync(new URL('../public/pages/health-fasting.js', import.meta.url), 'utf8');
   assert.match(fasting, /action: writable \? \{ label: t\('health\.fasting\.backfill'\), icon: 'plus', tone: 'secondary', attrs: \{ 'data-fasting-backfill': '' \} \} : undefined/,
     'Fasten: der Nachtrag ist die Aktion des Leerzustands');
-  assert.match(fasting, /<h3 class="u-section-title">\$\{esc\(t\('health\.fasting\.history'\)\)\}<\/h3>\$\{writable \? `<button type="button" class="btn btn--ghost btn--sm" data-fasting-backfill>/,
-    'Fasten: und ein Knopf im Kopf des Verlaufs');
+  // R23 D14: Nachtragen und Einstellungen im "..." des Rings, nicht als Knoepfe.
+  assert.doesNotMatch(fasting, /btn btn--ghost btn--sm" data-fasting-backfill/, 'Fasten: kein Geisterknopf mehr am Verlauf');
+  assert.match(fasting, /\{ action: 'fasting-backfill', label: t\('health\.fasting\.backfill'\)/, 'Fasten: der Nachtrag steht im Mehr-Menue');
+  assert.match(fasting, /\{ action: 'fasting-settings', label: t\('nav\.settings'\)/, 'Fasten: die Einstellungen ebenso (kein Zahnrad in der Aktionszeile)');
+  assert.doesNotMatch(fasting, /t\(active \? 'health\.fasting\.finish' : 'health\.fasting\.start'\)/, 'Fasten: kein Startknopf im Ring neben dem FAB');
+  assert.match(fasting, /view\.onIntent\?\.\(\{ canStart: !active, start: \(\) => toggleFasting\(null\) \}\)/, 'Fasten: der FAB erfaehrt, ob er starten darf');
   assert.doesNotMatch(fasting, /onCreateAction/, 'Fasten: kein Nachtrag mehr ueber den FAB');
 });
 
@@ -783,8 +820,9 @@ test('R18: die Heute-Region steht auf dem Telefon vom ersten Bild an - mit Skele
   //    beim ersten Abgleich fort, vor den Daten.
   const fn = HEALTH_JS.slice(HEALTH_JS.indexOf('function prioritySkeletonMarkup()'), HEALTH_JS.indexOf('function syncPriorityRegion()'));
   assert.match(fn, /class="health-priority-skeleton" data-health-priority-skeleton aria-hidden="true"/);
-  assert.match(fn, /health-priority-skeleton__pill[\s\S]*health-priority-skeleton__card--due[\s\S]*health-priority-skeleton__card--quick/,
-    'die Form dessen, was kommt: Pille, Heute faellig, Schnell erfassen');
+  assert.match(fn, /health-priority-skeleton__card--due[\s\S]*health-priority-skeleton__card--quick/,
+    'die Form dessen, was kommt: Heute faellig, Schnell erfassen');
+  assert.doesNotMatch(fn, /health-priority-skeleton__pill/, 'die Pille steht seit R23 im Kopf, nicht im Streifen');
   assert.match(body('.health-priority-skeleton'), /display:\s*none/, 'ohne die Marke steht kein Skelett');
   const show = rules.find((r) => /\[data-health-priority-pending\]\s*>\s*\.health-priority:empty\s*~\s*\.health-priority-skeleton/.test(r.selector));
   assert.ok(show && /display:\s*flex/.test(show.body), 'es steht nur, solange die Region wartet UND ihr Ziel leer ist');
@@ -901,7 +939,7 @@ test('R22 D12: das Erfassen-Formular steht in EINEM Traeger, der Tag-Titel brich
   assert.equal(groups.length, 1, 'Art, Werte, Zeitpunkt und Sichtbarkeit in einem Traeger - durchgehende Haarlinien');
   assert.match(fn, /formRowsHtml\(\[\s*formRowHtml\(\{\s*label: t\('health\.vitals\.field\.type'\)[\s\S]*?`<div class="form-rows" id="vital-value-fields">/,
     'die Werte stehen als Glied in der Gruppe');
-  assert.match(HEALTH_JS, /title: `\$\{t\('health\.cycle\.dayLog\.title'\)\}\\u00A0· \$\{formatDate\(key\)\}`/, 'geschuetztes Leerzeichen vor dem Trenner');
+  assert.match(HEALTH_JS, /title: `\$\{t\('health\.cycle\.dayLog\.title'\)\}\\u00A0· \$\{dateText\(key\)\}`/, 'geschuetztes Leerzeichen vor dem Trenner');
 });
 
 // Sammel-Ticket R22-F, F4.5: der Einnehmen-Knopf trug seine Tablette am Desktop

@@ -1,5 +1,6 @@
 import { api } from '/api.js';
-import { formatDate, formatTime, t } from '/i18n.js';
+import { t } from '/i18n.js';
+import { dateTimeText } from '/utils/date-format.js';
 import { esc } from '/utils/html.js';
 import { confirmModal, refocusAfterRender } from '/components/modal.js';
 import { rowMenuHtml } from '/utils/row-action.js';
@@ -10,6 +11,7 @@ import {
   bindDisclosure,
   createDisclosure,
   createInfoList,
+  hintFoldHtml,
   thirdPartyStatusLabel,
   toggleRowHtml,
 } from '/settings/components.js';
@@ -247,7 +249,7 @@ function rowHtml(row) {
 
   return `
     <div class="settings-module-row settings-module-row--fixed${menuClass} ${stateClass}${row.hasError ? ' settings-module-row--error' : ''}" data-module-row-id="${esc(row.id)}">
-      <div class="settings-module-row__icon vivid-mark"${accentStyle}>
+      <div class="settings-module-row__icon"${accentStyle}>
         ${moduleIconHTML(row.icon)}
       </div>
       <div class="settings-module-row__body">
@@ -276,7 +278,7 @@ function rowHtml(row) {
 function installedAtText(install) {
   const date = install?.installedAt ? new Date(install.installedAt) : null;
   if (!date || Number.isNaN(date.getTime())) return t('settings.moduleDetailUnknown');
-  return `${formatDate(date)} ${formatTime(date)}`.trim();
+  return dateTimeText(date);
 }
 
 /**
@@ -606,7 +608,8 @@ async function renderActiveModules(container, user) {
     <section class="settings-section">
       <section class="settings-navigation-panel">
         <h2 class="settings-navigation-panel__title">${t('settings.activeModulesTitle')}</h2>
-        <p class="form-hint">${t('settings.activeModulesHint')}</p>
+        ${/* Hoechstens ein Satz vor dem ersten Feld (R23 D14), der Rest hinter "Mehr dazu". */ ''}
+        ${hintFoldHtml({ lead: t('settings.activeModulesHint'), moreHtml: `<p>${esc(t('settings.activeModulesHintMore'))}</p>` })}
         <div class="settings-navigation-groups" id="module-toggles">
           ${NAV_SECTIONS.map((section) => sectionHtml(section, rows)).join('')}
         </div>

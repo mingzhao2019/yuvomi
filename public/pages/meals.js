@@ -8,13 +8,15 @@ import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal as closeSharedModal, selectModal, confirmModal, askOverModal, advancedSection, wireBlurValidation, reportFieldError, reportFieldErrors, refocusAfterRender, swapFieldsKeepingDirtyBase, captureModalContext, isOwnModalOpen } from '/components/modal.js';
 import { stagger, scheduleUndoableDelete, wireScrollFade, isImeComposing } from '/utils/ux.js';
 import { releaseAddressOnClose } from '/utils/master-detail.js';
-import { t, formatDate, formatDayMonth, formatDateInput, parseDateInput, isDateInputValid } from '/i18n.js';
+import { t, formatDayMonth, formatDateInput, parseDateInput, isDateInputValid } from '/i18n.js';
+import { dateRangeText, dateText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK, externalHref } from '/utils/html.js';
+import { formSwitchRowHtml } from '/settings/components.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod, periodArrowKeys, wirePeriodArrowKeys } from '/utils/period-stepper.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
 import { DEFAULT_CATEGORY_NAME, categoryLabel } from '/utils/shopping-categories.js';
 import { renderKitchenTabsBar } from '/utils/kitchen-tabs.js';
-import { resolveShoppingTarget, announceTransfer, mountMissingShoppingList, mayTransferMealToShopping } from '/utils/kitchen-transfer.js';
+import { resolveShoppingTarget, announceTransfer, transferMessage, mountMissingShoppingList, mayTransferMealToShopping } from '/utils/kitchen-transfer.js';
 import { ingredientRowHTML } from '/utils/ingredient-row.js';
 import { addLocalDays, startOfLocalWeekKey, weekStartIndex, todayKey } from '/utils/date.js';
 import { normalizeRecipeMealTypes, recipeSupportsMealType, recipeAllowsMealType } from '/utils/recipe-meal-types.js';
@@ -365,9 +367,10 @@ function formatWeekLabel(monday) {
   // gesparte Breite ist hier der knappere Preis - eine Woche wie
   // "28.12. - 03.01." bleibt trotzdem eindeutig genug fuer den Kopf einer
   // Seite, die ohnehin "diese Woche" zeigt.
-  const from = narrow ? formatDayMonth(monday) : formatDate(monday);
-  const to = narrow ? formatDayMonth(sunday) : formatDate(sunday);
-  return `${from} - ${to}`;
+  // Breit (R23, D11): das Jahr hoechstens einmal und nur ausserhalb des
+  // laufenden - "19.10.2026 - 25.10.2026" trug es doppelt (utils/date-format.js).
+  if (!narrow) return dateRangeText(monday, sunday);
+  return `${formatDayMonth(monday)} - ${formatDayMonth(sunday)}`;
 }
 
 /**
@@ -685,7 +688,7 @@ function mealsToolsMenuHtml() {
     label: t('common.moreActions'),
     items: [
       { action: 'randomize-plan', label: t('meals.randomizePlan'), icon: 'shuffle' },
-      { action: 'toggle-rail', label: t('meals.showRecipes'), icon: 'panel-right', checked: true },
+      { action: 'toggle-rail', label: t('meals.showRecipes'), icon: 'panel-bottom', checked: true },
     ],
   });
 }
@@ -761,6 +764,10 @@ export async function render(container, { user }) {
   // (PR #1200 Review, Befund 5). startWeek() korrigiert beides nach dem Laden.
   state.currentWeek = getWeekStartOf(today);
   syncTodayButton();
+  // Der Wert steht vom ersten Bild an (R23 S11): leer schob der Stepper „›"
+  // beim ersten renderWeekGrid() um die Breite des Labels nach rechts
+  // (Load-Shift #week-next 0,0019 mobil, 4x CPU).
+  updateWeekLabel();
 
   // Listenressourcen parallel zu loadPreferences() starten; loadWeek()
   // wartet, bis startWeek() den korrekten Wochenanfang gesetzt hat.
@@ -809,12 +816,11 @@ function openMealFromQuery() {
 const RAIL_STORAGE_KEY = 'yuvomi-meals-rail';
 
 /**
- * Klappt die Rezept-Spalte weg. Sie belegt auf 1024-1439px 272px und ab 1440px
- * 320px - genau die Breite, die dem Board für den siebten Tag fehlt: mit ihr
- * sind Samstag und Sonntag nur über horizontales Scrollen erreichbar, ohne sie
- * passen alle sieben Spalten in voller Breite (Critique 2026-07-29). Die
- * Mindestbreite der Tagesspalten bleibt unangetastet, damit die Namen nicht
- * wieder silbenweise brechen (siehe Kommentar an .week-grid in meals.css).
+ * Blendet die Rezept-Leiste unter dem Plan aus und ein. Bis R23 war sie eine
+ * Spalte rechts (272-320px) und kostete die Woche ihren sechsten und siebten
+ * Tag (Critique 2026-07-29); seit D13 steht sie unter dem Plan und nimmt ihm
+ * keine Breite. Der Schalter bleibt fuer alle, die den Platz in der Hoehe
+ * lieber dem Plan geben.
  */
 function wireRailToggle() {
   // Der Schalter ist ein Eintrag im Werkzeugmenue (Kopfregel mobil) - vorher
@@ -845,16 +851,14 @@ function wireRailToggle() {
   // die es geht - passt die Woche mit offener Spalte? -, und nur dann
   // einklappen. Eine bewusste Entscheidung des Nutzers überschreibt den
   // Default dauerhaft (localStorage).
+  //
+  // SEIT R23 (D13) STEHT DIE LEISTE UNTER DEM PLAN und nimmt der Woche keine
+  // Breite mehr - die Messung oben hat nichts mehr zu entscheiden: offen,
+  // solange niemand sie bewusst geschlossen hat.
   let hidden = false;
   let gespeichert = null;
   try { gespeichert = localStorage.getItem(RAIL_STORAGE_KEY); } catch { /* ignore */ }
-  if (gespeichert) {
-    hidden = gespeichert === 'hidden';
-  } else {
-    const grid = _container.querySelector('#week-grid');
-    const desktop = !window.matchMedia?.('(max-width: 639px)').matches;
-    hidden = Boolean(desktop && grid && grid.scrollWidth > grid.clientWidth + 1);
-  }
+  if (gespeichert) hidden = gespeichert === 'hidden';
   apply(hidden);
   // Jetzt steht die Breite des Boards fest - erst jetzt die Frage, ob „heute"
   // verdeckt ist (revealToday).
@@ -1052,7 +1056,13 @@ function revealToday(grid) {
     if (todayHeader) {
       const gridBox = grid.getBoundingClientRect();
       const todayBox = todayHeader.getBoundingClientRect();
-      const gutter = grid.querySelector('.week-gutter-label')?.getBoundingClientRect().width ?? 0;
+      // Die Breite der TYPSPALTE, nicht des Labels: unter 72rem steht der Typ
+      // als Zeilenkopf ueber seinen Plaetzen (meals.css, R23 D13), die Spalte
+      // misst dann 0.
+      const cols = typeof getComputedStyle === 'function' ? getComputedStyle(grid).gridTemplateColumns : '';
+      const gutter = cols
+        ? (parseFloat(cols) || 0)
+        : (grid.querySelector('.week-gutter-label')?.getBoundingClientRect().width ?? 0);
       const verdeckt = todayBox.left < gridBox.left + gutter || todayBox.right > gridBox.right;
       if (verdeckt) todayHeader.scrollIntoView({ inline: 'center', block: 'nearest' });
     }
@@ -1083,6 +1093,7 @@ function renderRecipeSidebar() {
       title: t('recipes.emptyTitle'),
       description: t('recipes.emptyDescription'),
       action: {
+        tone: 'secondary',
         label: t('recipes.emptyAction'),
         icon: 'plus',
         onClick: () => window.yuvomi?.navigate('/recipes'),
@@ -1167,6 +1178,9 @@ function renderRecipeSidebar() {
   });
 
   sidebar.appendChild(list);
+  // Die Leiste scrollt quer (R23, D13): der Anriss sagt, dass rechts weitere
+  // Rezepte liegen.
+  wireScrollFade(list);
 }
 
 /**
@@ -1561,11 +1575,7 @@ function openRandomizeModal() {
     size: 'sm',
     content: `
       <div class="meal-randomize-modal">
-        <label class="toggle meal-randomize-modal__toggle">
-          <input type="checkbox" id="meal-randomize-replace">
-          <span class="toggle__track"></span>
-          <span>${t('meals.randomizeReplaceExisting')}</span>
-        </label>
+        ${formSwitchRowHtml({ label: t('meals.randomizeReplaceExisting'), attrs: { id: 'meal-randomize-replace' } })}
         <!-- Vorschau statt Blindflug: der Lauf füllt bis zu 28 Slots und kann
              eine ganze geplante Woche überschreiben. Vorher nannte der Dialog
              weder das eine noch das andere (Critique 2026-07-29). -->
@@ -2009,7 +2019,9 @@ function formatScaledQuantity(value) {
  */
 function mealReadHtml(meal) {
   const typeLabel = MEAL_TYPES().find((mt) => mt.key === meal.meal_type)?.label ?? '';
-  const ingredients = (meal.ingredients ?? []).map((ing) => {
+  // Ohne eigene Zutaten gelten die des Rezepts (recipeIngredientsOf, R23 D13).
+  const ownOrRecipe = meal.ingredients?.length ? meal.ingredients : recipeIngredientsOf(meal);
+  const ingredients = ownOrRecipe.map((ing) => {
     const line = ing.quantity ? `${ing.quantity} · ${ing.name}` : ing.name;
     return ing.category ? `${line} (${categoryLabel(ing.category)})` : line;
   }).join('\n');
@@ -2027,7 +2039,7 @@ function mealReadHtml(meal) {
   return `
     <div class="meal-read detail-view" data-view="read" data-meal-id="${esc(String(meal.id))}">
       <div class="detail-view__rows">
-        ${readRowHtml({ icon: 'calendar', label: t('meals.dateLabel'), value: meal.date ? formatDate(meal.date) : '' })}
+        ${readRowHtml({ icon: 'calendar', label: t('meals.dateLabel'), value: meal.date ? dateText(meal.date, { weekday: true }) : '' })}
         ${readRowHtml({ icon: 'utensils', label: t('meals.mealTypeLabel'), value: typeLabel })}
         ${cookHtml ? readRowHtml({ icon: 'cooking-pot', label: t('meals.cookLabel'), valueHtml: cookHtml }) : ''}
         ${readRowHtml({ icon: 'list', label: t('meals.ingredientsLabel'), value: ingredients, multiline: true })}
@@ -2035,7 +2047,7 @@ function mealReadHtml(meal) {
         ${readRowHtml({ icon: 'align-left', label: t('meals.notesLabel'), value: meal.notes || '', multiline: true })}
         ${readRowHtml({ icon: 'link', label: t('meals.recipeUrlLabel'), valueHtml: link })}
         ${readRowHtml({ icon: 'repeat-2', label: t('meals.recurrenceBadge'), value: meal.recurrence_template_id ? t('meals.recurrenceWeekly') : '' })}
-        ${readRowHtml({ icon: 'calendar-range', label: t('meals.recurrenceUntilLabel'), value: meal.recurrence_template_id && meal.recurrence_end_date ? formatDate(meal.recurrence_end_date) : '' })}
+        ${readRowHtml({ icon: 'calendar-range', label: t('meals.recurrenceUntilLabel'), value: meal.recurrence_template_id && meal.recurrence_end_date ? dateText(meal.recurrence_end_date) : '' })}
       </div>
     </div>`;
 }
@@ -2081,6 +2093,8 @@ function openMealModal(opts) {
     title: isEdit ? t('meals.editMeal') : t('meals.addMealTitle'),
     content,
     size: 'md',
+    // Die Karte antippen holt am Finger keine Tastatur (R23, D13).
+    initialFocus: isEdit ? 'edit' : 'first-field',
     onSave(panel) {
       wireMealTypeChips(panel);
       // Zutaten
@@ -2102,6 +2116,8 @@ function openMealModal(opts) {
         if (!recipe) return;
 
         currentAppliedRecipe = recipe;
+        // Ein anderes Rezept fuellt die Zeilen selbst - die Leseliste weicht.
+        recipeIngredientsToRows(panel);
 
         panel.querySelector('#modal-title').value = recipe.title || '';
         panel.querySelector('#modal-notes').value = recipe.notes || '';
@@ -2123,6 +2139,10 @@ function openMealModal(opts) {
       recipeSelect?.addEventListener('change', () => {
         if (recipeScaleInput) recipeScaleInput.value = '1';
         applyRecipe(recipeSelect.value);
+      });
+      panel.querySelector('#meal-recipe-ingredients-edit')?.addEventListener('click', () => {
+        recipeIngredientsToRows(panel, recipeIngredientsOf(meal));
+        panel.querySelector('#ingredient-list .ingredient-row input')?.focus();
       });
 
       // Namensfeld als Combobox (Re-Kritik 2026-09-28, A4 P1-1): ein
@@ -2238,11 +2258,13 @@ function openMealModal(opts) {
             // Dieselbe Meldung, Standzeit und Rücknahme wie am Slot-Knopf: es ist
             // derselbe Transfer, nur ein anderer Auslöser.
             announceTransfer({
-              message: t('meals.transferSuccess', {
-                count: res.data.transferred,
+              message: transferMessage('meals.transferSuccess', {
+                added: res.data.transferred,
+                skipped: res.data.skipped ?? 0,
                 list: state.lists.find((l) => l.id === listId)?.name ?? '',
               }),
               addedIds: res.data.added_ids ?? [],
+              ingredientIds: res.data.ingredient_ids ?? [],
               onUndone: async () => {
                 await loadWeek(state.currentWeek);
                 renderWeekGrid();
@@ -2250,8 +2272,17 @@ function openMealModal(opts) {
               },
             });
           } else {
-            window.yuvomi?.showToast(t('meals.transferAlreadyDone'), 'info');
-            btn.disabled = false;
+            // Alles stand schon auf der Liste (R23, D2): die Zutaten gelten
+            // trotzdem als uebernommen, also zeichnet die Woche neu, und der
+            // Dialog schliesst - es gibt nichts mehr zu tun.
+            if (res.data.skipped > 0) {
+              await reloadAfterSave(() => loadWeek(state.currentWeek));
+              closeModal({ force: true, context: dialog });
+              renderWeekGrid();
+            } else {
+              btn.disabled = false;
+            }
+            window.yuvomi?.showToast(t('kitchen.transferAllPresent'), 'info');
           }
         } catch (err) {
           window.yuvomi?.showToast(err.data?.error ?? t('common.unknownError'), 'danger');
@@ -2470,6 +2501,46 @@ function wireMealTypeChips(panel) {
   });
 }
 
+/**
+ * Die Zutaten, die fuer eine Mahlzeit aus dem REZEPT gelten: nur solange sie
+ * keine eigenen hat (dieselbe Regel wie der Server, mealPlanSource).
+ */
+function recipeIngredientsOf(meal) {
+  if (!meal?.recipe_id || meal.ingredients?.length) return [];
+  const recipe = state.recipes.find((r) => r.id === meal.recipe_id);
+  return Array.isArray(recipe?.ingredients) ? recipe.ingredients : [];
+}
+
+/**
+ * Macht aus der Leseliste der Rezeptzutaten eigene, bearbeitbare Zeilen -
+ * beim Tipp auf "Anpassen" und wenn ein anderes Rezept gewaehlt wird (das
+ * die Zeilen ohnehin neu fuellt).
+ */
+function recipeIngredientsToRows(panel, ingredients = null) {
+  const block = panel.querySelector('#meal-recipe-ingredients');
+  const own = panel.querySelector('#meal-own-ingredients');
+  // Nur solange die Leseliste steht (die eigenen Zeilen verborgen sind).
+  if (!block || !own || own.hidden !== true) return;
+  const list = own.querySelector('#ingredient-list');
+  if (ingredients && list) {
+    list.replaceChildren();
+    list.insertAdjacentHTML('beforeend', ingredients.map((ing) => ingredientRowHTML({
+      name: ing.name,
+      quantity: ing.quantity ?? '',
+      category: ing.category ?? DEFAULT_CATEGORY_NAME,
+      categories: mealCategories(),
+    })).join(''));
+    if (window.lucide) window.lucide.createIcons({ el: list });
+  }
+  block.querySelector('.meal-recipe-ingredients__head')?.remove();
+  block.querySelector('.meal-recipe-ingredients__list')?.remove();
+  own.hidden = false;
+  const label = document.createElement('label');
+  label.className = 'form-label';
+  label.textContent = t('meals.ingredientsLabel');
+  block.prepend(label);
+}
+
 function buildModalContent({ mode, date, mealType, meal, recipeId = null }) {
   const isEdit   = mode === 'edit';
   const isRecurring = isEdit && meal.recurrence_template_id;
@@ -2583,12 +2654,7 @@ function buildModalContent({ mode, date, mealType, meal, recipeId = null }) {
 
     ${isEdit ? '' : `
     <div class="meal-recurrence-option">
-      <label class="toggle">
-        <input type="checkbox" id="modal-repeat-weekly">
-        <span class="toggle__track"></span>
-        <span>${t('meals.recurrenceLabel')}</span>
-      </label>
-      <p class="form-hint">${t('meals.recurrenceHint')}</p>
+      ${formSwitchRowHtml({ label: t('meals.recurrenceLabel'), hint: t('meals.recurrenceHint'), hintId: 'modal-repeat-weekly-hint', attrs: { id: 'modal-repeat-weekly' } })}
       <div class="form-group" id="modal-repeat-until-group" hidden>
         <label class="form-label" for="modal-repeat-until">${t('meals.recurrenceUntilLabel')}</label>
         <yuvomi-datepicker type="date" id="modal-repeat-until" value=""></yuvomi-datepicker>
@@ -2638,7 +2704,27 @@ function buildModalContent({ mode, date, mealType, meal, recipeId = null }) {
         <i data-lucide="plus" class="icon-md" aria-hidden="true"></i>
         ${t('meals.addIngredient')}
       </button>`;
-  const ingredientsHtml = ingCount > 0
+  // DIE ZUTATEN DES REZEPTS STEHEN DA (R23, D13; Critique G3 "Mahlzeit-Dialog
+  // zeigt Rezeptzutaten nicht"). Eine Mahlzeit aus einem Rezept hat keine
+  // eigenen Zutaten, bis sie zum ersten Mal auf eine Liste geht - es gelten
+  // die des Rezepts (services/kitchen-handover.js, mealPlanSource). Der Dialog
+  // zeigte dort ein leeres Feld "Zutaten" und behauptete damit, die Mahlzeit
+  // brauche nichts. Jetzt stehen sie als Liste zum Lesen; "Anpassen" macht sie
+  // zu eigenen Zeilen dieser Mahlzeit (recipeIngredientsToRows).
+  const recipeIngs = recipeIngredientsOf(isEdit ? meal : null);
+  const ingredientsHtml = recipeIngs.length
+    ? `
+    <div class="form-group meal-recipe-ingredients" id="meal-recipe-ingredients">
+      <div class="meal-recipe-ingredients__head">
+        <span class="form-label" id="meal-recipe-ingredients-label">${t('meals.recipeIngredientsLabel')}</span>
+        <button type="button" class="btn btn--ghost btn--sm" id="meal-recipe-ingredients-edit">${t('meals.recipeIngredientsEdit')}</button>
+      </div>
+      <ul class="meal-recipe-ingredients__list" aria-labelledby="meal-recipe-ingredients-label">
+        ${recipeIngs.map((ing) => `<li>${ing.quantity ? `<span class="meal-recipe-ingredients__qty">${esc(ing.quantity)}</span> ` : ''}${esc(ing.name)}</li>`).join('')}
+      </ul>
+      <div id="meal-own-ingredients" hidden>${ingFieldsHtml}</div>
+    </div>`
+    : ingCount > 0
     ? `<div class="meal-ingredients-fold" id="modal-ingredients-fold">
       ${advancedSection(ingFieldsHtml, { label: ingredientsFoldLabel(ingCount) })}
     </div>`
@@ -2909,15 +2995,24 @@ async function transferMeal(mealId, btn) {
       // `on_shopping_list` zurück, die Zutaten sind danach wieder offen - und die
       // Kachel zeigt den Übernahme-Knopf wieder an.
       announceTransfer({
-        message: t('meals.transferSuccess', { count: res.data.transferred, list: target.name }),
+        message: transferMessage('meals.transferSuccess', {
+          added: res.data.transferred, skipped: res.data.skipped ?? 0, list: target.name,
+        }),
         addedIds: res.data.added_ids ?? [],
+        ingredientIds: res.data.ingredient_ids ?? [],
         onUndone: async () => {
           await loadWeek(state.currentWeek);
           renderWeekGrid();
         },
       });
     } else {
-      window.yuvomi?.showToast(t('meals.transferAlreadyDone'), 'info');
+      // Alles stand schon darauf (R23, D2) - die Kachel zeigt danach keinen
+      // Uebernahme-Knopf mehr, die Zutaten gelten als uebernommen.
+      if (res.data.skipped > 0) {
+        await reloadAfterSave(() => loadWeek(state.currentWeek));
+        renderWeekGrid();
+      }
+      window.yuvomi?.showToast(t('kitchen.transferAllPresent'), 'info');
     }
   } catch (err) {
     window.yuvomi?.showToast(err.data?.error ?? t('common.errorGeneric'), 'danger');
