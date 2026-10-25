@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Google Calendar explains its own setup instead of stopping at "Not configured"** (#2221). An admin
+  whose server has no Google credentials yet used to see only "Not configured (missing .env
+  variables)", twice. The Google card now names the variables that are still missing, shows the
+  redirect URI to register at Google with a copy button and warns when Google would refuse it (an IP
+  address or plain HTTP), lists the four steps, links the full guide and offers the ways that need
+  no Google setup at all: subscribe to the calendar's secret iCal address or import it once as an
+  .ics file. The status route reports only the names of missing variables, never their values, and
+  not to API tokens or the wall display.
+
 ## [2.81.0] - 2026-10-25
 
 ### Added
@@ -38,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pulls it from `main` every night, so the template never pins an older version. The installer
   schema tests check that every field exists in the stack and that no field locks a setting.
 
-### Fixed
+ ### Fixed
 - **The currency and long time zones are no longer cut off in the appearance settings on a
   phone** (#2166). A currency read like "AED - United Arab Emirates Dirham" and ended in "…" on
   a narrow screen, and so did five time zones such as "North Dakota/New Salem". The currency
