@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A new event appears at its time in the calendar right away.** After adding an event, the
+  agenda (and every other day list) showed it below all other events of that day until the next
+  reload, whatever its start time. The same happened when an edit moved an event to another time
+  of day. The event is now sorted into place as soon as it is saved.
+
 ## [2.80.0] - 2026-10-25
 
 ### Added
