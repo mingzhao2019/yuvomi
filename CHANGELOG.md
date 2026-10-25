@@ -17,6 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   .ics file. The status route reports only the names of missing variables, never their values, and
   not to API tokens or the wall display.
 
+### Changed
+- **A new API token now starts with an expiry and a module limit.** Until now a token created with
+  only a name never expired and could do everything the selected person may do. The form now offers
+  30 days, 90 days (preselected), 1 year, a custom date or no expiration, and shows the end date; the
+  module limit is on, with the read/write table open. No expiration and full access are still
+  available, as a deliberate choice. Existing tokens and the API are unchanged: `expires_at` and
+  `scopes` stay optional for integrations that create tokens themselves.
+
+### Fixed
+- **Creating a second API token no longer switches "Acts as" to another person.** After the first
+  token the form reset the person to the first entry of the list, so the next token silently acted as
+  someone else. The token form also names the Pantry module in the scope table instead of "pantry",
+  fits the custom date and time on a phone, and labels "Acts as" in every language.
+
 ## [2.81.0] - 2026-10-25
 
 ### Added
