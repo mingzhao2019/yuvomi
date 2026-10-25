@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The hint printed `<strong>` tags around the address in every language. It now names Apple's
   current path, account.apple.com > Sign-In and Security > App-Specific Passwords, in each
   language's own wording; the CalDAV and CardDAV password hints point to account.apple.com too.
+- **"Manage participants" opens its dialog again when nobody collects points yet** (#2210). Since
+  v2.79.0 the button in the empty Points tab did nothing: it carried a different hook than the
+  same entry in the standings menu, and only the menu entry was wired. With no participants this
+  button is the only way to enroll the first family member. Both now share one hook, and a test
+  checks that each of them opens the dialog.
 
 ## [2.81.0] - 2026-10-25
 
