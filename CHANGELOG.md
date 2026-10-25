@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.81.0] - 2026-10-25
+
 ### Added
 - **Birthday import offers "Select all" and "Deselect all".** Select every contact
   with a birthday that has not already been imported, or clear the selection, with
@@ -88,6 +90,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tokens; note and shift colors show as a colored ring, and empty checklist boxes keep their
   edge. Tints elsewhere stay plain, as the browser table in the installation guide describes;
   current browsers are unchanged ([#2184](https://github.com/ulsklyc/yuvomi/issues/2184)).
+
+### Security
+
+- **Updated three production dependencies for published advisories** (#2192, #2193, #2194).
+  `body-parser` 2.4.0 stops a compressed request body with trailing bytes from tying up the
+  server (denial of service). `nodemailer` 10.1.4 fixes three cases in which its address parser
+  read part of a quoted name or comment as an extra recipient. `ip-address` 10.7.4 no longer spends quadratic
+  time on a long IPv6 zone identifier.
 
 ## [2.80.0] - 2026-10-25
 
