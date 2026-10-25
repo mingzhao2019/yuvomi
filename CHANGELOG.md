@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refreshed; retrying reports the total across successful batches.
 
 ### Fixed
+- **Creating a recipe through the MCP bridge no longer ends in "Internal error"** (#2197). When
+  an assistant put the recipe fields next to `operation_key` instead of into `payload`,
+  `call_api_operation` sent the request without a body and the recipe routes failed on it. The
+  bridge now answers that the body belongs in `payload`, and a required body that is missing goes
+  out as an empty object, so the route says which field is missing. The recipe routes themselves
+  answer a request without a body, or with ingredients that are not a list, with 400 instead of
+  500. Events, shopping items and tasks were not affected because they have MCP tools of their
+  own; recipes are only reachable through the bridge.
 - **A new event appears at its time in the calendar right away.** After adding an event, the
   agenda (and every other day list) showed it below all other events of that day until the next
   reload, whatever its start time. The same happened when an edit moved an event to another time
