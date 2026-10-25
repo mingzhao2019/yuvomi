@@ -1,10 +1,12 @@
-<!-- version: 2.79.0 -->
-This update reworks how Yuvomi looks and moves on every screen, and adds money transfers between budget accounts.
+<!-- version: 2.80.0 -->
+This update makes every module behave the same way and adds Traditional Chinese as the 27th language.
 
-Moving between pages now fades straight into the finished page, the calendar turns its periods with a swipe, and ticked-off items glide away without the list jumping. Text uses one calm type scale across all modules, the Overview and Health open as a short briefing of what matters today, and red in the budget only marks what needs doing. Forms point out problems right at the field, every list row works the same way, and many screens use the space on wide displays and on phones better. Add sheets open faster, and long lists scroll more smoothly.
+Switching between sections is now instant, long task and shopping lists open faster, and back and forward return to where you were in every list. Dialogs use one kind of switch, mark every required field and start in the right field. Status actions such as ticking off or archiving say what they did and can be undone, instead of asking first. Dates, times and amounts read the same in every module, and the year is left out when it is this year.
 
-In the budget you can now move money between two of your accounts. Paired wall displays now also show today's meals, the shopping count, household help, waste pickups and expiring pantry items, and a device showing the wall pauses personal push notifications. Error messages appear in your language in more places, and a late answer after saving closes only its own dialog.
+Contacts with a birthday can be added to Birthdays straight from their detail view, and a birthday can be linked to a contact by hand. A new "First steps" card follows the welcome tour. Calendar sync has its own settings page, shifts appear as time blocks in the calendar, and fasting now starts from the add button. Traditional Chinese covers the app and both installers, and TWD, HKD and MOP can be picked as currencies.
 
-Seven database migrations run automatically on first start. They prepare profile picture addresses, CalDAV task completions, pantry products, birthdays without a year, recipe sync errors, the wall push pause and budget transfers. Existing pantry stock is grouped into household products once, as groundwork for later pantry features; nothing changes on the page yet. No action is needed. As always, a backup before updating is a good idea.
+Several fixes are included: an amount typed with a thousands separator is no longer saved as a fraction of it, deleting a budget account no longer touches other members' private entries, putting the shopping away no longer duplicates pantry items, and SSO sign-in with Gitea works again.
 
-Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.79.0
+One database migration runs automatically on first start: child accounts created before the previous version start without the cycle tab in Health, as new child accounts already do. The child can turn it back on. No action is needed. As always, a backup before updating is a good idea.
+
+Full release notes are available at https://github.com/ulsklyc/yuvomi/releases/tag/v2.80.0

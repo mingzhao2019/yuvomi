@@ -1,6 +1,6 @@
 {
   "name": "yuvomi",
-  "version": "2.79.0",
+  "version": "2.80.0",
   "description": "Self-hosted family planner - calendar, tasks, shopping, meal planning, budget and more. Private, open-source, no subscription.",
   "main": "server/index.js",
   "type": "module",
@@ -391,7 +391,7 @@
     "test:caldav-todo-origin": "node --experimental-sqlite --test test/test-caldav-todo-origin.js",
     "test:caldav-reminders": "node scripts/with-env.mjs TZ=Europe/Berlin DB_PATH=:memory: node --experimental-sqlite test/test-caldav-reminders.js",
     "test:caldav-calendar-meta": "node --experimental-sqlite --test test/test-caldav-calendar-meta.js",
-    "test:caldav-object-urls":"node --test test/test-caldav-object-urls.js",
+    "test:caldav-object-urls": "node --test test/test-caldav-object-urls.js",
     "test:caldav-http-refusals": "node --experimental-sqlite --test test/test-caldav-http-refusals.js",
     "test:caldav-own-uid": "node --experimental-sqlite --test test/test-caldav-own-uid.js",
     "test:caldav-deselected-deletions": "node --experimental-sqlite --test test/test-caldav-deselected-deletions.js",

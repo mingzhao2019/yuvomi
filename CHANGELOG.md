@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.80.0] - 2026-10-25
+
 ### Added
 - **A "First steps" card after the welcome tour.** When an admin finishes the tour, the
   Overview shows three ways to set up the household: invite your household, choose your
