@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stays open with your selection, offers the current folders with the top level chosen and shows a
   fresh preview, so one click uploads again. If only a folder inside the target went away, the
   target stays chosen and the preview creates that folder anew.
+- **A too large receipt for a housekeeping visit says so** (#2258). Saving a visit with a receipt
+  above the upload limit showed only that the visit could not be saved. The dialog now names the
+  limit before anything is sent and stays open with your entries.
 - **A too large event attachment says so** (#2255). Saving an event with a file above the upload
   limit showed only that the event could not be saved. The dialog now names the limit before
   anything is sent and stays open with your entries.
