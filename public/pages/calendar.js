@@ -1831,14 +1831,14 @@ function renderTaskChip(task, { interactive = true, agenda = false, agendaDate =
   const reminderTime = reminderInstant && !Number.isNaN(reminderInstant.getTime())
     ? formatTime(reminderInstant) : '';
   const reminderText = [
-    reminderDate ? formatPreferredDate(reminderDate) : '',
+    reminderDate ? dateText(reminderDate) : '',
     reminderTime,
   ].filter(Boolean).join(' ');
   const dueSuffix = dueTime ? ` · ${dueTime}` : '';
   const reminderSuffix = reminderText ? ` · 🔔 ${reminderText}` : '';
   const detailStr = `${dueSuffix}${reminderSuffix}`;
   const agendaReminderText = reminderTime
-    ? `${agendaDate && reminderDate === agendaDate ? '' : reminderDate ? `${formatPreferredDate(reminderDate)} ` : ''}${reminderTime}`.trim()
+    ? `${agendaDate && reminderDate === agendaDate ? '' : reminderDate ? `${dateText(reminderDate)} ` : ''}${reminderTime}`.trim()
     : '';
   const agendaMeta = [
     dueTime ? `⏰ ${dueTime}` : '',
@@ -2946,7 +2946,7 @@ function updateLabel() {
     // ein "KW 30"-Label würde dann einen Bereich behaupten, der nicht zu sehen
     // ist (Audit A1-19). Das Label nennt stattdessen den sichtbaren Bereich.
     lbl.textContent = window.matchMedia(MOBILE_MEDIA_QUERY).matches
-      ? t('calendar.dayRangeLabel', { from: formatDayMonth(mobileWeekDays(state.cursor)[0]), to: formatPreferredDate(mobileWeekDays(state.cursor)[2]) })
+      ? dateRangeText(mobileWeekDays(state.cursor)[0], mobileWeekDays(state.cursor)[2])
       : t('calendar.weekNumberLabel', { week: getWeekNumber(state.cursor), month: mon });
   }
   // Die Tagesansicht nennt den vollstaendigen lokalisierten Wochentag; das
@@ -7569,6 +7569,7 @@ export const __test = {
   resetUpNext() { _upNext = { events: null, loading: null, day: null, error: null }; },
   // Sonde 19 (#882): eine Zeile nur, wenn sie passt.
   syncToolbarFit, periodLabelFallbacks, fitPeriodLabel, miniMonthWanted,
+  updateLabel,
   // R17 Schritt 8: der Fokus nach der Suche, wenn ihr Knopf gefaltet ist.
   closeSearchForTest(container) { _container = container; searchActive = true; closeCalendarSearch({ restoreView: false }); },
   // #1504: der Wechsel ueber die Telefonschwelle, gemessen am echten Renderer.

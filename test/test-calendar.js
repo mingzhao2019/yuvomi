@@ -834,6 +834,9 @@ test('Agenda: Events und Tasks werden innerhalb eines Tages nach der frühesten 
 test('Agenda: Task chip 显示截止时间和提醒时间', () => {
   const day = '2026-09-28';
   setDisplayTimeZone('UTC');
+  const previousFormatTime = globalThis.__formatTime;
+  globalThis.__formatTime = (value) => value instanceof Date
+    ? value.toISOString().slice(11, 16) : String(value);
   try {
     const html = calendarHelpers.renderTaskChip({
       id: 1,
@@ -851,7 +854,35 @@ test('Agenda: Task chip 显示截止时间和提醒时间', () => {
     assert(!/data-md-id/.test(calendarHelpers.renderTaskChip({ id: 1, title: '任务' })),
       '其他日历视图的任务芯片不应抢占议程选择键');
   } finally {
+    globalThis.__formatTime = previousFormatTime;
     setDisplayTimeZone(null);
+  }
+});
+
+test('Task chips: reminders retain their display-zone date in every calendar view', () => {
+  const previousZone = displayTimeZone();
+  const previousFormatTime = globalThis.__formatTime;
+  const previousFormatDayMonth = globalThis.__formatDayMonth;
+  setDisplayTimeZone('Europe/Helsinki');
+  globalThis.__formatTime = (value) => value instanceof Date
+    ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Helsinki', hour: '2-digit', minute: '2-digit' }).format(value)
+    : String(value);
+  globalThis.__formatDayMonth = (value) => `date:${value}`;
+  try {
+    const task = { id: 9, title: 'Reminder', remind_at: '2026-09-01T22:15:00', status: 'open' };
+    for (const opts of [{}, { interactive: false, icon: false }, { agenda: true, agendaDate: '2026-09-01' }]) {
+      const html = calendarHelpers.renderTaskChip(task, opts);
+      assert(html.includes('2026-09-02'), 'the reminder date must follow the household zone across midnight');
+      assert(html.includes('01:15'), 'the reminder time must follow the same household zone');
+    }
+    const sameDay = calendarHelpers.renderTaskChip(task, { agenda: true, agendaDate: '2026-09-02' });
+    assert(sameDay.includes('cal-task-chip__meta">🔔 01:15</span>'), 'the current agenda day needs only the reminder time');
+    const noReminder = calendarHelpers.renderTaskChip({ ...task, remind_at: null });
+    assert(!noReminder.includes('🔔'), 'a task without a reminder must not acquire one');
+  } finally {
+    globalThis.__formatTime = previousFormatTime;
+    globalThis.__formatDayMonth = previousFormatDayMonth;
+    setDisplayTimeZone(previousZone);
   }
 });
 
@@ -6999,6 +7030,29 @@ test('R21 S9a: der Tag blaettert um seine Spalte, der Nachbar zeigt nur seine Sp
  * Desktop en "Wednesday, 21.10.2026" um 20px. Statt der Ellipse nimmt das Label
  * die kuerzere Fassung desselben Zeitraums - ohne das laufende Jahr, mit dem
  * kurzen Wochentag. Ein anderes Jahr bleibt stehen. */
+test('Mobile week: the rendered period label covers all three days, including a year boundary', () => {
+  const s = calendarHelpers.state;
+  const previousState = { view: s.view, cursor: s.cursor, today: s.today };
+  const previousWindow = globalThis.window;
+  const label = { textContent: '', setAttribute() {}, clientWidth: 0 };
+  try {
+    globalThis.window = { ...(previousWindow ?? {}), matchMedia: () => ({ matches: true }) };
+    calendarHelpers.setContainerForTest({ querySelector: (selector) => selector === '#cal-label' ? label : null });
+    s.view = 'week';
+    s.today = '2026-10-26';
+    for (const [from, to] of [['2026-10-26', '2026-10-28'], ['2026-12-31', '2027-01-02']]) {
+      s.cursor = from;
+      calendarHelpers.updateLabel();
+      assert(label.textContent === `calendar.dayRangeLabel${JSON.stringify({ from, to })}`,
+        `the mobile week must render its actual date range: ${label.textContent}`);
+    }
+  } finally {
+    Object.assign(s, previousState);
+    globalThis.window = previousWindow;
+    calendarHelpers.setContainerForTest(null);
+  }
+});
+
 test('R21 S7: das Zeitraum-Label nimmt die kuerzere Fassung, bevor es kappt', () => {
   const s = calendarHelpers.state;
   const prev = { view: s.view, cursor: s.cursor, today: s.today };
