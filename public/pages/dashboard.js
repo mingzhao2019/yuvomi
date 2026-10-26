@@ -7007,20 +7007,32 @@ function wireNewMenu(container, signal) {
     const item = event.target.closest?.('[data-new-route]');
     if (!item) return;
     item.closest('[popover]')?.hidePopover?.();
-    const route = item.dataset.newRoute;
-    await window.yuvomi.navigate(route);
-    const btnSelector = FAB_NEW_BTN[route];
-    if (btnSelector) document.querySelector(btnSelector)?.click();
+    await openNewTarget(item.dataset.newRoute);
   }, { signal });
 }
 
-// "Neu"-Button-Selector auf der jeweiligen Zielseite
+/**
+ * DER ANLEGEN-KNOPF DER ZIELSEITE, ALS ID. Pille und Speed-Dial wechseln ins
+ * Modul und klicken dort seinen FAB. Bis DW-P1-1 stand hier ein Selektor je
+ * Ziel, und `'#btn-new-task'` ueberlebte die Umbenennung in `fab-new-task`
+ * (#1483): "+ Neu > Aufgabe" landete wortlos in der Liste. Eine Id fuer
+ * `findPageFab()` statt eines Selektors - der FAB lebt nach `adoptPageFab()`
+ * in der Shell-Layer, und dort sucht ihn nur diese eine Stelle. Dass jede Id
+ * im Markup ihrer Zielseite steht, haelt `test:dashboard-clarity`.
+ */
 const FAB_NEW_BTN = {
-  '/tasks':    '#btn-new-task',
-  '/calendar': '#fab-new-event',
-  '/shopping': '#fab-new-item',
-  '/notes':    '#fab-new-note',
+  '/tasks':    'fab-new-task',
+  '/calendar': 'fab-new-event',
+  '/shopping': 'fab-new-item',
+  '/notes':    'fab-new-note',
 };
+
+/** Ins Modul wechseln und sein Anlegen-Blatt oeffnen - der eine Weg fuer Pille und Speed-Dial. */
+async function openNewTarget(route) {
+  await window.yuvomi.navigate(route);
+  const id = FAB_NEW_BTN[route];
+  if (id) findPageFab(id)?.click();
+}
 
 function renderFab() {
   // Am Desktop steht Anlegen als Pille im Kopf (renderNewPill).
@@ -7113,9 +7125,7 @@ function initFab(signal) {
   fabActions.querySelectorAll('[data-route]').forEach((el) => {
     const go = async () => {
       toggleFab(false);
-      await window.yuvomi.navigate(el.dataset.route);
-      const btnSelector = FAB_NEW_BTN[el.dataset.route];
-      if (btnSelector) document.querySelector(btnSelector)?.click();
+      await openNewTarget(el.dataset.route);
     };
     el.addEventListener('click', go);
     el.addEventListener('keydown', (e) => {
@@ -8837,7 +8847,7 @@ export const __test = {
   openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles,
   renderGridHint, captureTileRects, playTileFlip, playGridShift, familyManageHref,
   customizeHasChanges, todayMoreRoute, wireTodayMore, wireTodayOverdue, renderWidgetSizeMenu,
-  renderNewPill, renderCustomizeFootnote, applyRowFill, focusKeyOf, captureRebuildFocus,
+  renderNewPill, FAB_ACTIONS, FAB_NEW_BTN, wireNewMenu, initFab, renderCustomizeFootnote, applyRowFill, focusKeyOf, captureRebuildFocus,
   restoreFocusAfterRebuild, shoppingSoleListRoute, programRowsThatFit, PROGRAM_ROW_CAP_PHONE,
   createPhoneProgramFit,
 };
