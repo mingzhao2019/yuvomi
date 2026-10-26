@@ -7,6 +7,7 @@ import { bindInstantSwitch, settingRowHtml, settingSwitchRowHtml } from '/settin
 import { wireTablist } from '/utils/tablist.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { getPreferences, savePreferences } from '/settings/preferences-cache.js';
+import { errorSentence, loadErrorSentence } from '/utils/friendly-error.js';
 
 // Wochenstart-Optionen; Labels aus dem bestehenden Kalender-i18n (kein neuer
 // Übersetzungsbedarf für die Wochentagsnamen).
@@ -608,7 +609,7 @@ function bindWeekStart(container, preferences) {
         reverting = true;
         tablist.setActive(previous); // Rollback bei Fehler
         reverting = false;
-        window.yuvomi?.showToast(error.message || t('common.errorGeneric'), 'danger');
+        window.yuvomi?.showToast(errorSentence(error, 'settings.preferenceSaveFailed'), 'danger');
       }
     },
   });
@@ -638,7 +639,7 @@ async function bindEvents(container, preferences) {
     } catch (error) {
       persistedDuration = previous;
       durationSelect.value = previous; // Rollback bei Fehler
-      window.yuvomi?.showToast(error.message || t('common.errorGeneric'), 'danger');
+      window.yuvomi?.showToast(errorSentence(error, 'settings.preferenceSaveFailed'), 'danger');
     } finally {
       if (durationSelect.isConnected) durationSelect.disabled = false;
     }
@@ -690,7 +691,7 @@ async function bindEvents(container, preferences) {
   };
 
   const showDiscoveryError = (error) => {
-    errorElement.textContent = error.message || t('common.errorGeneric');
+    errorElement.textContent = loadErrorSentence(error) ?? t('common.errorGeneric');
     errorElement.hidden = false;
   };
 
@@ -788,7 +789,7 @@ async function bindEvents(container, preferences) {
       discoveryState.persistedGroup = preferenceData.holiday_group;
       window.yuvomi?.showToast(t('settings.holidaySaved'), 'success');
     } catch (error) {
-      errorElement.textContent = error.message || t('common.errorGeneric');
+      errorElement.textContent = errorSentence(error, 'settings.preferenceSaveFailed');
       errorElement.hidden = false;
     }
   });
@@ -831,7 +832,7 @@ async function bindEvents(container, preferences) {
       }
       window.yuvomi?.showToast(t('settings.holidaySynced'), 'success');
     } catch (error) {
-      window.yuvomi?.showToast(error.message || t('settings.holidaySyncError'), 'danger');
+      window.yuvomi?.showToast(errorSentence(error, 'settings.holidaySyncError'), 'danger');
     } finally {
       updateSyncState();
     }
