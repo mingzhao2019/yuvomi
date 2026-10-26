@@ -5305,7 +5305,14 @@
         "endsAfter_two": "المتبقّي: دفعتان",
         "endsAfter_many": "المتبقّي: {{count}} دفعة",
         "renewedNamed": "تم دفع «{{name}}» - الدفعة التالية في {{date}}.",
-        "completedNamed": "تم دفع «{{name}}» وإنهاؤه."
+        "completedNamed": "تم دفع «{{name}}» وإنهاؤه.",
+        "accountHint": "تُقيَّد كل دفعة من هذا الاشتراك على هذا الحساب. غيّر دفعة واحدة من الميزانية.",
+        "accountArchivedHint": "هذا الحساب مؤرشف. يُقيِّد الاشتراك دون حساب حتى تختار حسابًا آخر.",
+        "accountArchivedOption": "{{name}} (مؤرشف)",
+        "accountArchivedMeta": "{{name}} مؤرشف - يُقيَّد دون حساب",
+        "visibilityHint_private": "أنت وحدك ترى هذا الاشتراك ودفعاته.",
+        "visibilityHint_shared": "يرى جميع أفراد الأسرة هذا الاشتراك ودفعاته.",
+        "errorAccountGone": "لم يعد الحساب المحدد موجودًا."
     },
     "health": {
         "fasting": {

@@ -5046,7 +5046,14 @@
         "filtersActive_few": "Filtry (aktivní: {{count}})",
         "endsAfter_few": "Zbývají {{count}} platby",
         "renewedNamed": "„{{name}}“ zaplaceno - další platba {{date}}.",
-        "completedNamed": "„{{name}}“ zaplaceno a ukončeno."
+        "completedNamed": "„{{name}}“ zaplaceno a ukončeno.",
+        "accountHint": "Každá platba tohoto předplatného se zaúčtuje na tento účet. Jednotlivou platbu změníš v rozpočtu.",
+        "accountArchivedHint": "Tento účet je archivovaný. Předplatné se účtuje bez účtu, dokud nevybereš jiný.",
+        "accountArchivedOption": "{{name}} (archivováno)",
+        "accountArchivedMeta": "{{name}} archivováno - účtuje se bez účtu",
+        "visibilityHint_private": "Toto předplatné a jeho platby vidíš jen ty.",
+        "visibilityHint_shared": "Celá domácnost vidí toto předplatné a jeho platby.",
+        "errorAccountGone": "Vybraný účet už neexistuje."
     },
     "health": {
         "fasting": {
