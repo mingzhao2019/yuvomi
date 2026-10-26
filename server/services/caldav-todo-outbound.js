@@ -286,6 +286,14 @@ export function detachAccountRows(accountId) {
   // FK on tasks.task_list_id turns this into an unassigned local task; older
   // schemas simply have no task_lists table and are left untouched.
   removeCalDavTaskLists(accountId);
+  // Das Upload-Ziel lokaler Aufgaben trägt ebenso keinen Fremdschlüssel
+  // (#1885). Ohne Ziel bleibt die Aufgabe lokal und wird nie gesendet - wie
+  // jede Zeile ohne Konto. Einkaufsposten tragen kein eigenes Ziel: sie erben
+  // es von der Listenzuordnung, und die fällt per CASCADE mit dem Konto.
+  db.get().prepare(`
+    UPDATE tasks SET target_caldav_account_id = NULL, target_caldav_list_url = NULL
+     WHERE target_caldav_account_id = ?
+  `).run(accountId);
   return detached;
 }
 
