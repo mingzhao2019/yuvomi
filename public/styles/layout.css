@@ -8635,6 +8635,7 @@ textarea::placeholder {
 :is(.modal-panel__body, .form-advanced__body, .form-stack, .form-pair, .modal-grid,
     .rrule-row, .reminder-fields, .reminder-section,
     .subscription-form__identity-fields, .subscription-form__billing-grid,
+    .asset-cost-form__row, .asset-cost-form__name-row,
     .shopping-import-meals-form, .settings-name-color-row) > .form-group,
 :is(.modal-panel__body, .form-advanced__body, .form-stack, .birthday-modal__identity) > * > .form-group:last-child {
   margin-bottom: 0;

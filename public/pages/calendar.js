@@ -723,6 +723,20 @@ function formatDate(dateStr, { long = false, weekday = false } = {}) {
   return formatPreferredDate(dateStr);
 }
 
+function calendarLunarDate(dateStr) {
+  return state.showLunar ? formatChineseLunarDate(dateStr) : '';
+}
+
+function formatCalendarDate(dateStr, options = {}) {
+  const { long = false, weekday = false } = options;
+  const dayMonth = formatDayMonth(dateStr);
+  const base = weekday
+    ? `${long ? DAY_NAMES_LONG()[new Date(dateStr + 'T00:00:00').getDay()] : DAY_NAMES_SHORT()[new Date(dateStr + 'T00:00:00').getDay()]}, ${dayMonth}`
+    : dayMonth;
+  const lunar = calendarLunarDate(dateStr);
+  return lunar ? `${base} · ${lunar}` : base;
+}
+
 // hourGutterLabel()/compactHourLabel(): die Beschriftung der Stundenachse
 // steht im geteilten Zeitraster (utils/time-grid.js).
 

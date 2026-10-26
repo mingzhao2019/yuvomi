@@ -2818,6 +2818,8 @@ async function saveCreatedSchedule(event) {
   if (reportFieldErrors(constraintErrors(form))) return;
   const data = formData(form);
   if (reportReversedRange(form, data)) return;
+  // 在任何重叠确认或请求前记住发起保存的对话框上下文。
+  const modalContext = captureModalContext();
   try {
     if (form.dataset.form === 'shift-create') await api.post('/schedule/shift-types', data);
     if (form.dataset.form === 'pattern-create') {
@@ -2952,7 +2954,7 @@ async function saveCreatedSchedule(event) {
     }
     await reloadAfterSave(() => reloadAfterWrite());
     renderPage();
-    await closeModal({ force: true });
+    await closeModal({ force: true, context: modalContext });
     window.yuvomi?.showToast(t('schedule.saved'), 'success');
   } catch (error) {
     // Der Dialog bleibt offen mit der Eingabe; nur der Satz.
@@ -3154,6 +3156,7 @@ async function saveShiftTypeEdit(event) {
   // traegt `novalidate`, die Regeln des Markups melden sich am Feld.
   if (reportFieldErrors(constraintErrors(form))) return;
   const id = form.dataset.id;
+  const modalContext = captureModalContext();
   // ZWEI Schreibvorgaenge hinter EINEM "Speichern": die Stammdaten und die
   // Felder. Scheitert der zweite (ein gewaehltes Feld wurde inzwischen
   // geloescht), ist der erste schon geschrieben.
@@ -3166,7 +3169,7 @@ async function saveShiftTypeEdit(event) {
     // Geschrieben ist: erst schliessen, dann neu bauen. Die Zeile mit dem
     // ausloesenden "Bearbeiten" entsteht dabei neu - refocusAfterRender()
     // zieht den Fokus dorthin nach statt ihn auf <body> fallen zu lassen.
-    await closeModal({ force: true });
+    await closeModal({ force: true, context: modalContext });
     await reloadAfterSave(() => reloadAfterWrite());
     renderPage();
     refocusAfterRender();
@@ -3265,6 +3268,7 @@ async function savePatternEdit(event) {
     reportFieldError(form.querySelector('[name="cycle_length"]'), t('schedule.cycleLengthTooShort', conflict));
     return;
   }
+  const modalContext = captureModalContext();
   try {
     // S-05: ein Umschalten von aus -> an kann denselben stillen
     // Ueberlappungs-Sieg ausloesen wie ein neu angelegter aktiver Plan.
@@ -3288,7 +3292,7 @@ async function savePatternEdit(event) {
     // Geschrieben ist: erst schliessen, dann neu bauen. Die Zeile mit dem
     // ausloesenden "Bearbeiten" entsteht dabei neu - refocusAfterRender()
     // zieht den Fokus dorthin nach statt ihn auf <body> fallen zu lassen.
-    await closeModal({ force: true });
+    await closeModal({ force: true, context: modalContext });
     await reloadAfterSave(() => reloadAfterWrite());
     renderPage();
     refocusAfterRender();
@@ -3802,7 +3806,7 @@ export const __test = {
   },
   setShiftIconButtonIcon, overtimeInfo, sameFieldValues, overlayMeta, buildOverviewLanes,
   normalizeOverviewSelection, setOverviewForTest: (next) => { overview = { ...overview, ...next }; },
-  computeActiveHours, collapsedMinutes, isOvernightEntry, touchesVisibleDay, overviewEntryBlock,
+  isOvernightEntry, overviewEntryBlock,
   alignOverviewToNow, syncOverviewDock, pinnedTitleShift, pinOverviewTitles, overviewFetchRange,
   patternDaysExceedingCycleLength, scheduleErrorMessage, cycleDayNextDate, cycleDayHeaderLabel,
   windowsOverlap, findOverlappingActivePattern, resolveWinningPatternId, scheduleEntryMatchKey,

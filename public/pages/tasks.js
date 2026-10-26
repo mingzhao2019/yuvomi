@@ -2287,11 +2287,11 @@ function renderReminderSection(task = null, reminder = null) {
           </div>
         </div>
         <div class="modal-grid modal-grid--2" id="reminder-absolute-fields" style="${showAbsolute ? '' : 'display:none'};margin-top:var(--space-3)">
-          <div class="form-group" style="margin:0">
+          <div class="form-group">
             <label class="label" for="reminder-absolute-date">${t('reminders.dateLabel')}</label>
             <yuvomi-datepicker type="date" id="reminder-absolute-date" value="${esc(resolved.date || '')}"${off}></yuvomi-datepicker>
           </div>
-          <div class="form-group" style="margin:0">
+          <div class="form-group">
             <label class="label" for="reminder-absolute-time">${t('reminders.timeLabel')}</label>
             <yuvomi-datepicker type="time" id="reminder-absolute-time" value="${esc(resolved.time || '')}"${off}></yuvomi-datepicker>
           </div>
