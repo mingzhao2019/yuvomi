@@ -235,6 +235,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   button is the only way to enroll the first family member. Both now share one hook, and a test
   checks that each of them opens the dialog.
 
+### Security
+- **The Docker image runs on Node.js 24.22.1, which fixes CVE-2026-111497** (#2286). The Brotli
+  decoder built into Node.js could write past its buffer on a crafted compressed stream, which can
+  crash the server or, in the worst case, run code. The image was pinned to an earlier Node.js 24
+  release that does not have the fix.
+
 ## [2.81.0] - 2026-10-25
 
 ### Added
