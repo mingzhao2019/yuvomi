@@ -244,11 +244,13 @@ export function createPushService({
     let sent = 0;
     for (const sub of subs) {
       // Auch Bestandszeilen von vor der Pruefung beim Speichern: ein Endpoint
-      // ins eigene Netz wird nie angefasst. Geloggt nur der Host - der volle
+      // ins eigene Netz wird nie angefasst und wie ein erloschenes Abo (404/410)
+      // entfernt - zustellbar wird er nie. Geloggt nur der Host - der volle
       // Endpoint traegt ein Geraete-Token.
       const target = checkPushEndpoint(sub.endpoint);
       if (!target.ok) {
-        log.warn(`Refusing Web Push to a non-public endpoint (subscription ${sub.id}, host=${pushHost(sub.endpoint)}, reason=${target.reason})`);
+        getDb().prepare('DELETE FROM push_subscriptions WHERE id = ?').run(sub.id);
+        log.warn(`Removed push subscription ${sub.id} with a non-public endpoint (host=${pushHost(sub.endpoint)}, reason=${target.reason})`);
         continue;
       }
       const subscription = { endpoint: target.href, keys: { p256dh: sub.p256dh, auth: sub.auth } };

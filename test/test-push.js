@@ -834,7 +834,7 @@ test('POST /subscribe weist einen Endpoint ins eigene Netz ab und speichert nich
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get().n, 0);
 });
 
-test('sendPushToUser sendet nie an eine Bestandszeile mit internem Endpoint', async () => {
+test('sendPushToUser sendet nie an eine Bestandszeile mit internem Endpoint und entfernt sie', async () => {
   const db = makeDb();
   const webpush = makeWebpushMock();
   db.prepare("INSERT INTO push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (1,'https://169.254.169.254/x','p','a'),(1,'https://push/ok','p','a')").run();
@@ -842,8 +842,8 @@ test('sendPushToUser sendet nie an eine Bestandszeile mit internem Endpoint', as
   const sent = await svc.sendPushToUser(1, { title: 't' });
   assert.equal(sent, 1);
   assert.deepEqual(webpush.calls.map((c) => c.endpoint), ['https://push/ok']);
-  // Nicht geloescht: die Zeile bleibt, sie wird nur nie beliefert.
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions').get().n, 2);
+  // Wie ein erloschenes Abo entfernt: zustellbar wird diese Zeile nie.
+  assert.deepEqual(db.prepare('SELECT endpoint FROM push_subscriptions').all().map((r) => r.endpoint), ['https://push/ok']);
 });
 
 test('POST /test mit echtem web-push verbindet nie zu einem Loopback-Endpoint', async () => {
