@@ -1,4 +1,4 @@
-import { op, jsonBody, idParam } from '../helpers.js';
+import { op, jsonBody, idParam, withCaseReasons } from '../helpers.js';
 
 // POST und PUT pruefen ihre Felder und antworten mit 400 (validateReminder()
 // und die Nachbarn in server/routes/birthdays.js); `op()` fuehrt ohne
@@ -14,7 +14,7 @@ function withBadRequest(status, description, extra = {}) {
 }
 
 export function birthdaysPaths() {
-  return withCaseReasons({
+  return withCaseReasons('birthdays', CASE_REASONS, {
     '/api/v1/birthdays': {
       get: op({ summary: 'List birthdays', tag: 'Birthdays' }),
       post: op({
@@ -98,3 +98,13 @@ export function birthdaysPaths() {
     },
   });
 }
+
+// #1909: die Faelle, die ein Nutzer erreicht, tragen einen `reason` neben dem
+// englischen `error` - je Operation der Satz, der sie nennt.
+const BIRTHDAY_GONE = '`birthdays_birthday_not_found` (404, the birthday does not exist - deleted)';
+// D7 (Critique R22): POST und PUT verknuepfen per `contact_id`.
+const CONTACT_LINK = '`birthdays_contact_linked` (409, the contact is already linked to another birthday), `birthdays_selected_contact_not_found` (400, no such contact)';
+const CASE_REASONS = {
+  '/api/v1/birthdays': { post: CONTACT_LINK },
+  '/api/v1/birthdays/{id}': { put: `${BIRTHDAY_GONE}, ${CONTACT_LINK}`, delete: BIRTHDAY_GONE },
+};
