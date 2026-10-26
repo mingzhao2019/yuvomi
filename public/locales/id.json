@@ -4133,7 +4133,8 @@
             "reasonNameTooLong": "Nama file atau folder terlalu panjang.",
             "reasonTooDeep": "Jalur melebihi batas lima tingkat folder.",
             "reasonParentFailed": "Folder induk tidak dapat dibuat.",
-            "reasonRateLimited": "Server sedang menerima terlalu banyak permintaan. Coba unggah lagi nanti."
+            "reasonRateLimited": "Server sedang menerima terlalu banyak permintaan. Coba unggah lagi nanti.",
+            "folderGoneReplanned": "Sebuah folder dari unggahan ini telah dihapus sementara itu. Pratinjau menampilkan keadaan saat ini - mulai unggahan lagi."
         },
         "selectDone": "Selesai",
         "errorFolderGone": "Folder ini sudah tidak ada.",
