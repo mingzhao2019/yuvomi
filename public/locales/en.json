@@ -977,7 +977,7 @@
         "dayEmptyHintPointer": "No events yet. Double-click a time to add one.",
         "dayEmptyHintTouch": "No events yet. Touch and hold a time to add one.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "W{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "W{{week}} · {{month}}",
         "titleLabel": "Title",
         "titlePlaceholder": "e.g. Dentist",
         "allDayToggle": "All day",

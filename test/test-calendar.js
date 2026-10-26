@@ -2429,6 +2429,31 @@ test('Kalender-Zeitraumlabels verzichten auf das redundante Jahr', () => {
     'die Wochenansicht darf das Jahr nicht an das Periodenlabel übergeben');
 });
 
+test('Desktop week labels resolve every translation placeholder in every locale', () => {
+  const s = calendarHelpers.state;
+  const previousState = { view: s.view, cursor: s.cursor, today: s.today };
+  const previousWindow = globalThis.window;
+  const label = { textContent: '', setAttribute() {}, clientWidth: 0 };
+  try {
+    globalThis.window = { ...(previousWindow ?? {}), matchMedia: () => ({ matches: false }) };
+    calendarHelpers.setContainerForTest({ querySelector: (selector) => selector === '#cal-label' ? label : null });
+    Object.assign(s, { view: 'week', cursor: '2026-09-21', today: '2026-09-21' });
+    calendarHelpers.updateLabel();
+    const values = JSON.parse(label.textContent.slice('calendar.weekNumberLabel'.length));
+    const locales = new URL('../public/locales/', import.meta.url);
+    for (const file of readdirSync(locales).filter((name) => name.endsWith('.json'))) {
+      const text = JSON.parse(readFileSync(new URL(file, locales), 'utf8')).calendar.weekNumberLabel;
+      const rendered = text.replace(/\{\{(\w+)\}\}/g, (placeholder, key) => values[key] ?? placeholder);
+      assert(!rendered.includes('{{'), `${file}: unresolved week label: ${rendered}`);
+      assert(rendered.includes('39'), `${file}: the label must include the displayed week number`);
+    }
+  } finally {
+    Object.assign(s, previousState);
+    globalThis.window = previousWindow;
+    calendarHelpers.setContainerForTest(null);
+  }
+});
+
 // DIE TITELFASSUNG LAESST DER TAGESLISTE PLATZ (Critique 2026-09-24, Rest 2):
 // mit 80px je Woche blieben der Liste bei 375x812 genau 81px, im Sechs-
 // Wochen-Monat nichts. Die Wochen teilen sich jetzt ein festes Budget.

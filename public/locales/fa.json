@@ -995,7 +995,7 @@
         "dayEmptyHintPointer": "هنوز رویدادی نیست. روی یک ساعت دوبار کلیک کن تا اضافه کنی.",
         "dayEmptyHintTouch": "هنوز رویدادی نیست. یک ساعت را لمس کن و نگه دار تا اضافه کنی.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "هفته {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "هفته {{week}} · {{month}}",
         "titleLabel": "عنوان",
         "titlePlaceholder": "مثلاً دندان‌پزشک",
         "allDayToggle": "تمام‌روز",

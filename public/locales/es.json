@@ -977,7 +977,7 @@
         "dayEmptyHintPointer": "Aún no hay citas. Haz doble clic en una hora para crear una.",
         "dayEmptyHintTouch": "Aún no hay citas. Mantén pulsada una hora para crear una.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Sem. {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Sem. {{week}} · {{month}}",
         "titleLabel": "Título",
         "titlePlaceholder": "Ej. Dentista",
         "allDayToggle": "Todo el día",

@@ -1119,7 +1119,7 @@
         "dayEmptyHintPointer": "Поки немає подій. Двічі клацніть на часі, щоб створити.",
         "dayEmptyHintTouch": "Поки немає подій. Торкніться й утримуйте час, щоб створити.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Т{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Т{{week}} · {{month}}",
         "titleLabel": "Заголовок",
         "titlePlaceholder": "напр. Стоматолог",
         "allDayToggle": "Весь день",

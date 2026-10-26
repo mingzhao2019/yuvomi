@@ -995,7 +995,7 @@
         "dayEmptyHintPointer": "Wala pang kaganapan. I-double click ang isang oras para magdagdag.",
         "dayEmptyHintTouch": "Wala pang kaganapan. Pindutin nang matagal ang isang oras para magdagdag.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "L{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "L{{week}} · {{month}}",
         "titleLabel": "Pamagat",
         "titlePlaceholder": "hal. Dentista",
         "allDayToggle": "Buong araw",

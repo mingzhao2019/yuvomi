@@ -977,7 +977,7 @@
         "dayEmptyHintPointer": "Nessun appuntamento. Fai doppio clic su un orario per crearne uno.",
         "dayEmptyHintTouch": "Nessun appuntamento. Tieni premuto un orario per crearne uno.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "S{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "S{{week}} · {{month}}",
         "titleLabel": "Titolo",
         "titlePlaceholder": "es. Dentista",
         "allDayToggle": "Tutto il giorno",

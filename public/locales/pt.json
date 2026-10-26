@@ -977,7 +977,7 @@
         "dayEmptyHintPointer": "Ainda sem eventos. Faz duplo clique numa hora para criar um.",
         "dayEmptyHintTouch": "Ainda sem eventos. Mantém premida uma hora para criar um.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Sem {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Sem {{week}} · {{month}}",
         "titleLabel": "Título",
         "titlePlaceholder": "Ex.: Dentista",
         "allDayToggle": "Dia inteiro",

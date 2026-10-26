@@ -1189,7 +1189,7 @@
         "dayEmptyHintPointer": "لا مواعيد بعد. انقر نقرًا مزدوجًا على وقت لإضافة موعد.",
         "dayEmptyHintTouch": "لا مواعيد بعد. المس وقتًا مع الاستمرار لإضافة موعد.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "الأسبوع {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "الأسبوع {{week}} · {{month}}",
         "titleLabel": "العنوان",
         "titlePlaceholder": "مثال: طبيب الأسنان",
         "allDayToggle": "طوال اليوم",

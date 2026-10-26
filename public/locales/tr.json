@@ -977,7 +977,7 @@
         "dayEmptyHintPointer": "Henüz etkinlik yok. Eklemek için bir saate çift tıkla.",
         "dayEmptyHintTouch": "Henüz etkinlik yok. Eklemek için bir saate basılı tut.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "H{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "H{{week}} · {{month}}",
         "titleLabel": "Başlık",
         "titlePlaceholder": "örn. Diş hekimi",
         "allDayToggle": "Tüm gün",

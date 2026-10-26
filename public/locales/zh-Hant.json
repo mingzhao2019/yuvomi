@@ -974,7 +974,7 @@
         "dayEmptyHintPointer": "還沒有日程。按兩下時間即可建立。",
         "dayEmptyHintTouch": "還沒有日程。長按時間即可建立。",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "第 {{week}} 週 · {{month}} {{year}}",
+        "weekNumberLabel": "第 {{week}} 週 · {{month}}",
         "titleLabel": "標題",
         "titlePlaceholder": "例如：牙醫預約",
         "allDayToggle": "全天",

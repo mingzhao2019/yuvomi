@@ -974,7 +974,7 @@
         "dayEmptyHintPointer": "Ingen hendelser ennå. Dobbeltklikk på et tidspunkt for å legge til en.",
         "dayEmptyHintTouch": "Ingen hendelser ennå. Trykk og hold på et tidspunkt for å legge til en.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Uke {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Uke {{week}} · {{month}}",
         "titleLabel": "Tittel",
         "titlePlaceholder": "f.eks. Tannlege",
         "allDayToggle": "Hele dagen",

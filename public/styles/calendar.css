@@ -386,6 +386,36 @@
 /* `.cal-toolbar__nav` (samt Akzentfarbe der Pfeile) ist entfallen (R19): kein
  * Markup traegt die Klasse mehr, die Pfeile kommen aus utils/period-stepper.js
  * und stehen neutral wie in jedem Zeitraum-Kopf. */
+/* Die Navigation bleibt auch dann sichtbar, wenn Safari nach einem
+ * Ansichtswechsel die SVG-Glyphe nicht zeichnet. Die Chevron-Kontur gehoert
+ * zum Knopf selbst; ihr Trefferziel und die Beschriftung bleiben unveraendert. */
+.cal-toolbar__stepper > :is(.period-stepper__prev, .period-stepper__next)::before {
+  content: '';
+  display: block;
+  inline-size: var(--space-1h);
+  block-size: var(--space-1h);
+  border-inline-start: var(--space-0h) solid currentColor;
+  border-block-end: var(--space-0h) solid currentColor;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.cal-toolbar__stepper > .period-stepper__next::before {
+  transform: rotate(225deg);
+}
+
+html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__prev::before {
+  transform: rotate(315deg);
+}
+
+html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
+  transform: rotate(135deg);
+}
+
+.cal-toolbar__stepper > :is(.period-stepper__prev, .period-stepper__next) > :is(svg, i) {
+  display: none;
+}
+
 .cal-toolbar__label {
   font-size: var(--text-base);
   font-weight: var(--font-weight-semibold);

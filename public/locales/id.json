@@ -995,7 +995,7 @@
         "dayEmptyHintPointer": "Belum ada acara. Klik dua kali pada waktu untuk menambahkan.",
         "dayEmptyHintTouch": "Belum ada acara. Tekan lama pada waktu untuk menambahkan.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Minggu {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Minggu {{week}} · {{month}}",
         "titleLabel": "Judul",
         "titlePlaceholder": "mis. Dokter gigi",
         "allDayToggle": "Sepanjang hari",

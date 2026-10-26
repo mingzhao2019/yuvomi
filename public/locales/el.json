@@ -977,7 +977,7 @@
         "dayEmptyHintPointer": "Δεν υπάρχουν ραντεβού. Κάνε διπλό κλικ σε μια ώρα για να προσθέσεις.",
         "dayEmptyHintTouch": "Δεν υπάρχουν ραντεβού. Πάτησε παρατεταμένα μια ώρα για να προσθέσεις.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "Εβδ{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "Εβδ{{week}} · {{month}}",
         "titleLabel": "Τίτλος",
         "titlePlaceholder": "π.χ. Οδοντίατρος",
         "allDayToggle": "Όλη μέρα",

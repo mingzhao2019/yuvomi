@@ -995,7 +995,7 @@
         "dayEmptyHintPointer": "Noch keine Termine. Doppelklicke auf eine Uhrzeit, um einen Termin anzulegen.",
         "dayEmptyHintTouch": "Noch keine Termine. Halte eine Uhrzeit gedrückt, um einen Termin anzulegen.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "KW {{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "KW {{week}} · {{month}}",
         "titleLabel": "Titel",
         "titlePlaceholder": "z.B. Zahnarzt",
         "allDayToggle": "Ganztägig",

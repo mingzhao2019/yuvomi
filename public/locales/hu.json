@@ -977,7 +977,7 @@
         "dayEmptyHintPointer": "Még nincs esemény. Kattints duplán egy időpontra a létrehozáshoz.",
         "dayEmptyHintTouch": "Még nincs esemény. Tartsd lenyomva egy időpontot a létrehozáshoz.",
         "dayRangeLabel": "{{from}} - {{to}}",
-        "weekNumberLabel": "H{{week}} · {{month}} {{year}}",
+        "weekNumberLabel": "H{{week}} · {{month}}",
         "titleLabel": "Cím",
         "titlePlaceholder": "pl. Fogorvos",
         "allDayToggle": "Egész nap",
