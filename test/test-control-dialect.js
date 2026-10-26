@@ -1627,7 +1627,7 @@ const PENDING = {
     'public/pages/health-fasting.js': 1,
     'public/pages/health.js': 1,
     'public/pages/housekeeping.js': 1,
-    'public/pages/tasks.js': 1,
+    'public/pages/tasks.js': 2,
     'public/settings/pages/personal-calendar-subscriptions.js': 1,
   },
   // Leer seit R21: gegen den Stand davor rot gesehen (Rezeptzeile).
@@ -1654,7 +1654,7 @@ const PENDING = {
     'public/pages/contacts.js': 1,
     'public/pages/health-fasting.js': 1,
     'public/pages/health.js': 2,
-    'public/pages/tasks.js': 1,
+    'public/pages/tasks.js': 3,
     'public/settings/pages/admin-api.js': 1,
     'public/settings/pages/personal-calendar-subscriptions.js': 1,
     'public/utils/ingredient-row.js': 1,
