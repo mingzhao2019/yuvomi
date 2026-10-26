@@ -5068,6 +5068,7 @@
             "saveError": "Målingen kunne ikke lagres.",
             "invalidValue": "Vennligst skriv inn gyldige verdier.",
             "range": {
+                "day": "Dag",
                 "week": "Uke",
                 "month": "Måned",
                 "year": "År"
@@ -5107,6 +5108,7 @@
                 "family": "Familie"
             },
             "sparse": "For få målinger til å vise en trend.",
+            "bandValue": "{{mean}}, fra {{low}} til {{high}}",
             "recentMeasurements": "Nylige målinger",
             "deleteMeasurement": "Slett måling {{value}} fra {{date}}",
             "measurementDeleted": "Måling slettet",

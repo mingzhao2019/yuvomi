@@ -5068,6 +5068,7 @@
             "saveError": "Pengukuran tidak dapat disimpan.",
             "invalidValue": "Harap masukkan nilai yang valid.",
             "range": {
+                "day": "Hari",
                 "week": "Minggu",
                 "month": "Bulan",
                 "year": "Tahun"
@@ -5107,6 +5108,7 @@
                 "family": "Keluarga"
             },
             "sparse": "Terlalu sedikit pengukuran untuk menampilkan tren.",
+            "bandValue": "{{mean}}, dari {{low}} hingga {{high}}",
             "recentMeasurements": "Pengukuran terakhir",
             "deleteMeasurement": "Hapus pengukuran {{value}} dari {{date}}",
             "measurementDeleted": "Pengukuran dihapus",

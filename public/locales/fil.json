@@ -5068,6 +5068,7 @@
             "saveError": "Hindi ma-save ang sukat.",
             "invalidValue": "Pakilagay ang wastong halaga.",
             "range": {
+                "day": "Araw",
                 "week": "Linggo",
                 "month": "Buwan",
                 "year": "Taon"
@@ -5107,6 +5108,7 @@
                 "family": "Pamilya"
             },
             "sparse": "Kulang ang sukat para magpakita ng takbo.",
+            "bandValue": "{{mean}}, mula {{low}} hanggang {{high}}",
             "recentMeasurements": "Mga kamakailang sukat",
             "deleteMeasurement": "Tanggalin ang sukat na {{value}} ({{date}})",
             "measurementDeleted": "Natanggal ang sukat",

@@ -5068,6 +5068,7 @@
             "saveError": "اندازه‌گیری ذخیره نشد.",
             "invalidValue": "لطفاً مقادیر معتبری وارد کنید.",
             "range": {
+                "day": "روز",
                 "week": "هفته",
                 "month": "ماه",
                 "year": "سال"
@@ -5107,6 +5108,7 @@
                 "family": "خانواده"
             },
             "sparse": "اندازه‌گیری‌ها برای نمایش روند بسیار کم است.",
+            "bandValue": "{{mean}}، از {{low}} تا {{high}}",
             "recentMeasurements": "آخرین اندازه‌گیری‌ها",
             "deleteMeasurement": "حذف اندازه‌گیری {{value}} ({{date}})",
             "measurementDeleted": "اندازه‌گیری حذف شد",

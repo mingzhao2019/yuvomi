@@ -5326,6 +5326,7 @@
             "saveError": "Не удалось сохранить измерение.",
             "invalidValue": "Введите корректные значения.",
             "range": {
+                "day": "День",
                 "week": "Неделя",
                 "month": "Месяц",
                 "year": "Год"
@@ -5365,6 +5366,7 @@
                 "family": "Семья"
             },
             "sparse": "Слишком мало измерений для отображения тренда.",
+            "bandValue": "{{mean}}, от {{low}} до {{high}}",
             "recentMeasurements": "Последние измерения",
             "deleteMeasurement": "Удалить измерение {{value}} от {{date}}",
             "measurementDeleted": "Измерение удалено",
