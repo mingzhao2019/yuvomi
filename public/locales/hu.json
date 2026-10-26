@@ -827,7 +827,11 @@
         "tickedSection": "Kipipálva",
         "itemBackToast": "„{{name}}” újra a listán van.",
         "itemStateOpen": "nincs kipipálva",
-        "itemAddedToast": "„{{name}}” hozzáadva ide: „{{category}}”."
+        "itemAddedToast": "„{{name}}” hozzáadva ide: „{{category}}”.",
+        "moveReturned": {
+            "refused": "„{{item}}” visszakerült ide: „{{back}}”. A szerver nem fogadta el itt: „{{target}}”.",
+            "waited": "„{{item}}” nem került át ide: „{{target}}”. A(z) „{{back}}” szinkronizálása több mint egy hete ki van kapcsolva. A tétel újra megjelenik itt: „{{back}}”, amint bekapcsolod a listát."
+        }
     },
     "meals": {
         "ingredientCount_one": "{{count}} hozzávaló",

@@ -827,7 +827,11 @@
         "tickedSection": "Spuntati",
         "itemBackToast": "«{{name}}» è di nuovo nella lista.",
         "itemStateOpen": "non spuntato",
-        "itemAddedToast": "\"{{name}}\" aggiunto in \"{{category}}\"."
+        "itemAddedToast": "\"{{name}}\" aggiunto in \"{{category}}\".",
+        "moveReturned": {
+            "refused": "«{{item}}» è tornato in «{{back}}»: il server non l’ha accettato in «{{target}}».",
+            "waited": "«{{item}}» non è stato spostato in «{{target}}»: la sincronizzazione di «{{back}}» è disattivata da oltre una settimana. L’articolo ricomparirà in «{{back}}» non appena riattivi quella lista."
+        }
     },
     "meals": {
         "ingredientCount_one": "{{count}} ingrediente",

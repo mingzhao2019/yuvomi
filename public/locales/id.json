@@ -845,7 +845,11 @@
         "tickedSection": "Sudah dicentang",
         "itemBackToast": "\"{{name}}\" kembali ada di daftar.",
         "itemStateOpen": "belum dicentang",
-        "itemAddedToast": "\"{{name}}\" ditambahkan ke \"{{category}}\"."
+        "itemAddedToast": "\"{{name}}\" ditambahkan ke \"{{category}}\".",
+        "moveReturned": {
+            "refused": "\"{{item}}\" kembali ke \"{{back}}\": server tidak menerimanya di \"{{target}}\".",
+            "waited": "\"{{item}}\" tidak dipindahkan ke \"{{target}}\": sinkronisasi \"{{back}}\" sudah lebih dari seminggu nonaktif. Item akan muncul lagi di \"{{back}}\" setelah daftar itu diaktifkan."
+        }
     },
     "meals": {
         "ingredientCount_one": "{{count}} bahan",

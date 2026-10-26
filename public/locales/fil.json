@@ -845,7 +845,11 @@
         "tickedSection": "Mga naka-check",
         "itemBackToast": "Nasa listahan na ulit ang \"{{name}}\".",
         "itemStateOpen": "hindi pa naka-check",
-        "itemAddedToast": "Naidagdag ang \"{{name}}\" sa \"{{category}}\"."
+        "itemAddedToast": "Naidagdag ang \"{{name}}\" sa \"{{category}}\".",
+        "moveReturned": {
+            "refused": "Bumalik ang \"{{item}}\" sa \"{{back}}\": hindi ito tinanggap ng server sa \"{{target}}\".",
+            "waited": "Hindi nailipat ang \"{{item}}\" sa \"{{target}}\": mahigit isang linggo nang naka-off ang pag-sync ng \"{{back}}\". Lalabas ulit ang item sa \"{{back}}\" kapag binuksan ang listahang iyon."
+        }
     },
     "meals": {
         "ingredientCount_one": "{{count}} sangkap",

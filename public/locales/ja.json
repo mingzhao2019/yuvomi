@@ -827,7 +827,11 @@
         "tickedSection": "チェック済み",
         "itemBackToast": "「{{name}}」をリストに戻しました。",
         "itemStateOpen": "未チェック",
-        "itemAddedToast": "「{{name}}」を「{{category}}」に追加しました。"
+        "itemAddedToast": "「{{name}}」を「{{category}}」に追加しました。",
+        "moveReturned": {
+            "refused": "「{{item}}」は「{{back}}」に戻りました。サーバーが「{{target}}」への追加を受け付けませんでした。",
+            "waited": "「{{item}}」は「{{target}}」に移動されませんでした。「{{back}}」の同期が1週間以上オフになっています。リストをオンにすると、「{{back}}」に再び表示されます。"
+        }
     },
     "meals": {
         "ingredientCount_one": "{{count}} 品の材料",

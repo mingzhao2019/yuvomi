@@ -827,7 +827,11 @@
         "tickedSection": "İşaretlenenler",
         "itemBackToast": "„{{name}}” yeniden listede.",
         "itemStateOpen": "işaretlenmedi",
-        "itemAddedToast": "\"{{name}}\", \"{{category}}\" altına eklendi."
+        "itemAddedToast": "\"{{name}}\", \"{{category}}\" altına eklendi.",
+        "moveReturned": {
+            "refused": "„{{item}}” yeniden „{{back}}” listesinde: sunucu onu „{{target}}” listesinde kabul etmedi.",
+            "waited": "„{{item}}”, „{{target}}” listesine taşınmadı: „{{back}}” listesinin eşitlemesi bir haftadan uzun süredir kapalı. Liste açıldığında ürün „{{back}}” listesinde yeniden görünecek."
+        }
     },
     "meals": {
         "ingredientCount_one": "{{count}} malzeme",

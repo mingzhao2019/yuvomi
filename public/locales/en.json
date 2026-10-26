@@ -827,7 +827,11 @@
         "tickedSection": "Checked off",
         "itemBackToast": "\"{{name}}\" is back on the list.",
         "itemStateOpen": "not checked off",
-        "itemAddedToast": "\"{{name}}\" added under \"{{category}}\"."
+        "itemAddedToast": "\"{{name}}\" added under \"{{category}}\".",
+        "moveReturned": {
+            "refused": "\"{{item}}\" is back on \"{{back}}\": the server did not accept it in \"{{target}}\".",
+            "waited": "\"{{item}}\" was not moved to \"{{target}}\": syncing for \"{{back}}\" has been off for over a week. The item will show up on \"{{back}}\" again once that list is switched on."
+        }
     },
     "meals": {
         "ingredientCount_one": "{{count}} ingredient",
