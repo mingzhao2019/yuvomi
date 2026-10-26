@@ -23,6 +23,7 @@ import {
 import { isBlockedAddress, readPrivateNetworkOptIn, createGuardedLookup, BlockedAddressError } from '../utils/ssrf.js';
 import { safeRequest } from '../utils/http.js';
 import { followInboundStartChange } from './calendar-occurrence-overrides.js';
+import { storeImportedExceptions } from './imported-occurrence-key.js';
 
 const log = createLogger('ICS');
 
@@ -419,11 +420,6 @@ async function importToLocal(userId, { ics, url, color, localCalendarId = null }
       AND ${localCalendarIdSql()} = ?
     LIMIT 1
   `);
-  // EXDATE-Ausnahmen der importierten Serie (#513): dieselbe Tabelle wie
-  // lokal ausgenommene Einzeltermine (#489), matcht per Instanz-Datum.
-  const insertException = db.get().prepare(
-    'INSERT OR IGNORE INTO calendar_event_exceptions (event_id, exception_date) VALUES (?, ?)'
-  );
 
   let imported = 0;
   let skipped  = 0;
@@ -456,8 +452,10 @@ async function importToLocal(userId, { ics, url, color, localCalendarId = null }
           { explicit: remoteReminderAts.length > 0, explicitClearsSuppression: false },
         );
         // EXDATE nur übernehmen, wenn die Serie erhalten blieb (localRule != null).
+        // Schluessel in Format A, wo die Uhr der Zeile das Vorkommen kennt
+        // (#2000, #2034 Schritt 5).
         if (localRule && Array.isArray(ev.exdates) && ev.exdates.length) {
-          for (const exDate of ev.exdates) insertException.run(eventId, exDate);
+          storeImportedExceptions(db.get(), eventId, ev);
         }
         imported++;
       } catch (err) {
