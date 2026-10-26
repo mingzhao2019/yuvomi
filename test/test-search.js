@@ -48,6 +48,7 @@ db.exec(MIGRATIONS_SQL[66]);
 db.exec(MIGRATIONS_SQL[207]);
 // Migration 216: FTS triggers + backfill for waste_types.
 db.exec(MIGRATIONS_SQL[216]);
+db.exec(MIGRATIONS_SQL[272]); // Notes visibility for search (#1514).
 
 console.log('\n[Search-Test] FTS5-Volltextsuche\n');
 

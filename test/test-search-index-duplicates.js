@@ -60,7 +60,8 @@ function buildDatabase(upTo = Infinity) {
   // Frage, ob Waste zu diesem historischen Stand schon existierte, nichts zu
   // tun. Ohne das schlaegt jeder runSearch()-Aufruf hier mit "no such table"
   // fehl, sobald `upTo` (wie meistens) unter 190 liegt.
-  for (const version of [207, 216]) {
+  // Notes visibility is added by local migration 272.
+  for (const version of [207, 216, 272]) {
     if (upTo >= version) continue;
     const migration = MIGRATIONS.find((m) => m.version === version);
     if (typeof migration.up === 'function') migration.up(db);
