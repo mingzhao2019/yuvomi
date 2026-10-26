@@ -314,6 +314,9 @@ test('jeder Fall hat seinen Satz in jeder Sprache, und der Server nennt ihn', ()
     // und ausgeliefert misst ihn test:recipe-provider-routes, je Klasse
     // test:recipe-provider-adapter am echten Server.
     '../server/services/recipe-providers/failure.js',
+    // Vorrat (#1448): ein Produkt, das wieder Chargen hat, bleibt; die echte
+    // Antwort misst test:pantry-routes.
+    '../server/routes/pantry.js',
     // Kalender-Verwaltung (#1909); die echte Antwort misst
     // test:calendar-local-calendars.
     '../server/routes/calendar/local-calendars.js', '../server/services/local-calendars.js',
