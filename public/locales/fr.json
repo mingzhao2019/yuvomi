@@ -6363,6 +6363,7 @@
         "statusLost": "Perdu",
         "notesLabel": "Note",
         "notesPlaceholder": "p. ex. le ticket de caisse est dans le classeur",
+        "deleteConfirmDetail": "L'objet est retiré immédiatement et définitivement de l'inventaire, il n'y a pas de corbeille pour le récupérer.",
         "created": "Objet ajouté.",
         "updated": "Objet mis à jour.",
         "emptyTitle": "Votre inventaire est encore vide",

@@ -6363,6 +6363,7 @@
         "statusLost": "Kayıp",
         "notesLabel": "Not",
         "notesPlaceholder": "örn. fiş klasörde",
+        "deleteConfirmDetail": "Eşya envanterden hemen ve kalıcı olarak kaldırılır; geri alınabileceği bir çöp kutusu yoktur.",
         "created": "Eşya eklendi.",
         "updated": "Eşya güncellendi.",
         "emptyTitle": "Envanteriniz henüz boş",

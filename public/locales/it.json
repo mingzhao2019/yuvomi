@@ -6363,6 +6363,7 @@
         "statusLost": "Perso",
         "notesLabel": "Nota",
         "notesPlaceholder": "es. lo scontrino è nel raccoglitore",
+        "deleteConfirmDetail": "L'oggetto viene rimosso dall'inventario subito e in modo definitivo, non c'è un cestino da cui recuperarlo.",
         "created": "Oggetto aggiunto.",
         "updated": "Oggetto aggiornato.",
         "emptyTitle": "Il tuo inventario è ancora vuoto",

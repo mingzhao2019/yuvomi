@@ -6363,6 +6363,7 @@
         "statusLost": "Verloren",
         "notesLabel": "Notiz",
         "notesPlaceholder": "z. B. Kaufbeleg liegt im Ordner",
+        "deleteConfirmDetail": "Der Gegenstand wird sofort endgültig aus dem Inventar gelöscht, einen Papierkorb gibt es nicht.",
         "created": "Gegenstand hinzugefügt.",
         "updated": "Gegenstand aktualisiert.",
         "emptyTitle": "Das Inventar ist noch leer",

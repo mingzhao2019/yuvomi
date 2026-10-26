@@ -6363,6 +6363,7 @@
         "statusLost": "Hilang",
         "notesLabel": "Catatan",
         "notesPlaceholder": "mis. struk ada di map",
+        "deleteConfirmDetail": "Barang langsung dihapus permanen dari inventaris, tidak ada tempat sampah untuk memulihkannya.",
         "created": "Barang ditambahkan.",
         "updated": "Barang diperbarui.",
         "emptyTitle": "Inventaris Anda masih kosong",

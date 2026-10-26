@@ -6363,6 +6363,7 @@
         "statusLost": "Förlorat",
         "notesLabel": "Anteckning",
         "notesPlaceholder": "t.ex. kvittot ligger i pärmen",
+        "deleteConfirmDetail": "Föremålet tas bort från inventarierna direkt och permanent, det finns ingen papperskorg att återställa från.",
         "created": "Föremål tillagt.",
         "updated": "Föremål uppdaterat.",
         "emptyTitle": "Dina inventarier är fortfarande tomma",

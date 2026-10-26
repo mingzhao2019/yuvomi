@@ -6363,6 +6363,7 @@
         "statusLost": "Lost",
         "notesLabel": "Note",
         "notesPlaceholder": "e.g. receipt is in the folder",
+        "deleteConfirmDetail": "The item is permanently removed from the inventory right away, there is no trash to recover it from.",
         "created": "Item added.",
         "updated": "Item updated.",
         "emptyTitle": "Your inventory is still empty",

@@ -6363,6 +6363,7 @@
         "statusLost": "Đã mất",
         "notesLabel": "Ghi chú",
         "notesPlaceholder": "vd. hóa đơn nằm trong hồ sơ",
+        "deleteConfirmDetail": "Món đồ sẽ bị xóa vĩnh viễn khỏi tài sản ngay lập tức, không có thùng rác để khôi phục.",
         "created": "Đã thêm món đồ.",
         "updated": "Đã cập nhật món đồ.",
         "emptyTitle": "Tài sản của bạn vẫn trống",

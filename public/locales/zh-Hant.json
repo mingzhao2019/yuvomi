@@ -6363,6 +6363,7 @@
         "statusLost": "已丟失",
         "notesLabel": "備註",
         "notesPlaceholder": "例如 收據在資料夾裡",
+        "deleteConfirmDetail": "該物品會立即從物品清單中永久刪除，沒有可恢復的回收站。",
         "created": "物品已新增。",
         "updated": "物品已更新。",
         "emptyTitle": "你的物品清單還是空的",
@@ -6551,7 +6552,6 @@
         "rewards": "獎品",
         "rewardsBonus": "獎勵",
         "scheduleShiftType": "班次類型",
-        "scheduleEntry": "條目",
         "assetCost": "资产",
         "schedulePlan": "排班週期"
     },
@@ -6761,6 +6761,7 @@
         "overviewClearSelection": "清除选择",
         "overviewPeopleCount": "比較成員 ({{count}})",
         "addPlan": "新增排班週期",
+        "freeDays": "休息日",
         "freeDaysCount": "休息日：{{count}}"
     },
     "pairDisplay": {

@@ -5921,6 +5921,7 @@
         "statusLost": "Perdido",
         "notesLabel": "Observações",
         "notesPlaceholder": "Ex.: a nota fiscal está na pasta",
+        "deleteConfirmDetail": "O item será excluído permanentemente do inventário e não poderá ser recuperado.",
         "created": "Item adicionado.",
         "updated": "Item atualizado.",
         "emptyTitle": "Seu inventário está vazio",
@@ -6092,7 +6093,6 @@
         "rewards": "Prêmio",
         "rewardsBonus": "Bônus",
         "scheduleShiftType": "Tipo de turno",
-        "scheduleEntry": "Registro",
         "assetCost": "Asset",
         "schedulePlan": "Escala"
     },
@@ -6541,6 +6541,7 @@
         "errorEntryGone": "Esta entrada não existe mais.",
         "overviewPeopleCount": "Comparar pessoas ({{count}})",
         "addPlan": "Adicionar escala",
+        "freeDays": "Dias de folga",
         "freeDaysCount": "Dias de folga: {{count}}"
     },
     "waste": {

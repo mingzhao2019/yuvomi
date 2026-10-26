@@ -6363,6 +6363,7 @@
         "statusLost": "Perdido",
         "notesLabel": "Nota",
         "notesPlaceholder": "p. ej. el ticket está en la carpeta",
+        "deleteConfirmDetail": "El objeto se elimina del inventario de inmediato y de forma definitiva; no hay papelera desde la que recuperarlo.",
         "created": "Objeto añadido.",
         "updated": "Objeto actualizado.",
         "emptyTitle": "Tu inventario todavía está vacío",

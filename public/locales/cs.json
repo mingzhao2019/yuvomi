@@ -6521,6 +6521,7 @@
         "statusLost": "Ztraceno",
         "notesLabel": "Poznámka",
         "notesPlaceholder": "např. účtenka je v šanonu",
+        "deleteConfirmDetail": "Věc se z inventáře odstraní okamžitě a natrvalo, žádný koš k obnovení neexistuje.",
         "created": "Věc přidána.",
         "updated": "Věc aktualizována.",
         "emptyTitle": "Váš inventář je zatím prázdný",

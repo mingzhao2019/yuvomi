@@ -6667,6 +6667,7 @@
         "statusLost": "Zgubiony",
         "notesLabel": "Notatka",
         "notesPlaceholder": "np. paragon jest w segregatorze",
+        "deleteConfirmDetail": "Przedmiot zostanie natychmiast i trwale usunięty z inwentarza; nie ma kosza, z którego można go przywrócić.",
         "created": "Przedmiot dodany.",
         "updated": "Przedmiot zaktualizowany.",
         "emptyTitle": "Twój inwentarz jest jeszcze pusty",

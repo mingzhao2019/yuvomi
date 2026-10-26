@@ -6363,6 +6363,7 @@
         "statusLost": "紛失",
         "notesLabel": "メモ",
         "notesPlaceholder": "例: レシートはファイルの中",
+        "deleteConfirmDetail": "この持ち物は直ちに完全に削除されます。復元できるゴミ箱はありません。",
         "created": "持ち物を追加しました。",
         "updated": "持ち物を更新しました。",
         "emptyTitle": "持ち物はまだ登録されていません",

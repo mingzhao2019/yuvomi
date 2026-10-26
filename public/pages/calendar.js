@@ -1761,7 +1761,7 @@ async function toggleCalendarEventCompletion(eventId, completionKey, control) {
       item.completed_at = previousCompletedAt;
     });
     updateCalendarEventCompletionState(eventId, completionKey, previous);
-    window.yuvomi?.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+    window.yuvomi?.showToast(errorSentence(err, 'calendar.saveError'), 'danger');
   } finally {
     const selector = `[data-calendar-event-action="toggle"][data-event-id="${CSS.escape(String(eventId))}"][data-completion-key="${CSS.escape(String(completionKey))}"]`;
     [...(_container?.querySelectorAll(selector) ?? [])].forEach((item) => { item.disabled = false; });
@@ -1912,7 +1912,7 @@ async function toggleCalendarTaskStatus(taskId, control) {
   } catch (err) {
     task.status = previous;
     updateCalendarTaskChipState(taskId, previous);
-    window.yuvomi?.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+    window.yuvomi?.showToast(errorSentence(err, 'calendar.saveError'), 'danger');
   } finally {
     const current = [...(_container?.querySelectorAll('.cal-task-chip') ?? [])]
       .find((chip) => String(chip.dataset.taskId) === String(taskId))

@@ -1030,9 +1030,12 @@ function openTaskCreateModal(content) {
         // Doppeltipp auf eine Vorlage legte sie zweimal an.
         if (busy || readOnly()) return;
         busy = true;
+        // Geschlossen wird nur dieser Dialog, nicht einer, der waehrend der
+        // Anfrage aufgegangen ist (#1997).
+        const modalContext = captureModalContext();
         const ok = await createTask(payload, content);
         busy = false;
-        if (ok) closeModal({ force: true });
+        if (ok) closeModal({ force: true, context: modalContext });
       };
       panel.querySelectorAll('[data-template-index]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -2116,6 +2119,7 @@ function openTaskEditModal(task, content) {
         const fields = event.currentTarget.elements;
         const frequencyDays = Number(fields.frequency_days.value);
         if (!fields.name.value.trim() || !fields.area.value.trim() || !Number.isInteger(frequencyDays) || frequencyDays < 1) return;
+        const modalContext = captureModalContext();
         try {
           await api.patch(`/housekeeping/decay-tasks/${task.id}`, {
             name: fields.name.value.trim(),
@@ -2124,7 +2128,7 @@ function openTaskEditModal(task, content) {
           });
           window.yuvomi?.showToast(t('housekeeping.taskUpdatedToast'), 'success');
           await reloadAfterSave(() => loadData());
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           renderTasks(content);
         } catch (err) {
           await reportWriteError(err);
@@ -2272,6 +2276,7 @@ function openVisitEditModal(visit, content, { onDone } = {}) {
           return;
         }
         let receiptDocumentId = visit.receipt_document_id || null;
+        const modalContext = captureModalContext();
         try {
           if (file) {
             const receipt = await api.post('/documents', {
@@ -2308,7 +2313,7 @@ function openVisitEditModal(visit, content, { onDone } = {}) {
           await reloadAfterSave(() => loadData());
           state.staffLogMonth = dateValue.slice(0, 7);
           await reloadAfterSave(() => loadStaffVisits());
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           (onDone || renderStaff)(content);
         } catch (err) {
           // Der Dialog bleibt offen mit der Eingabe; nur der Satz (#1909).
@@ -2526,6 +2531,7 @@ function openStaffModal(worker, content, options = {}) {
           window.yuvomi?.showToast(t('birthdays.yearlessIncomplete'), 'warning');
           return;
         }
+        const modalContext = captureModalContext();
         try {
           await api.post('/housekeeping/worker', {
             id: fields.id.value || null,
@@ -2548,7 +2554,7 @@ function openStaffModal(worker, content, options = {}) {
           await auth.me().catch(() => {});
           window.yuvomi?.showToast(t('housekeeping.workerSavedToast'), 'success');
           await reloadAfterSave(() => loadData());
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           if (typeof options.afterSave === 'function') options.afterSave();
           else renderStaff(content);
         } catch (err) {

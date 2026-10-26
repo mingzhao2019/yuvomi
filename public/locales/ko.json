@@ -6363,6 +6363,7 @@
         "statusLost": "분실",
         "notesLabel": "메모",
         "notesPlaceholder": "예: 영수증은 서류철에 있음",
+        "deleteConfirmDetail": "물건은 즉시 소지품에서 영구 삭제되며, 복원할 수 있는 휴지통이 없습니다.",
         "created": "물건을 추가했습니다.",
         "updated": "물건을 업데이트했습니다.",
         "emptyTitle": "아직 등록된 소지품이 없습니다",

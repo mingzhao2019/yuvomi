@@ -6363,6 +6363,7 @@
         "statusLost": "Perdido",
         "notesLabel": "Nota",
         "notesPlaceholder": "p. ex. o talão está na pasta",
+        "deleteConfirmDetail": "O objeto é removido do inventário de imediato e em definitivo; não há reciclagem de onde o recuperar.",
         "created": "Objeto adicionado.",
         "updated": "Objeto atualizado.",
         "emptyTitle": "O seu inventário ainda está vazio",

@@ -6363,6 +6363,7 @@
         "statusLost": "Verloren",
         "notesLabel": "Notitie",
         "notesPlaceholder": "bijv. de kassabon zit in de map",
+        "deleteConfirmDetail": "Het voorwerp wordt meteen definitief uit de inventaris verwijderd, er is geen prullenbak om het terug te halen.",
         "created": "Voorwerp toegevoegd.",
         "updated": "Voorwerp bijgewerkt.",
         "emptyTitle": "Je inventaris is nog leeg",

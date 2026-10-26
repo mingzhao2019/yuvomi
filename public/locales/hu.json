@@ -6363,6 +6363,7 @@
         "statusLost": "Elveszett",
         "notesLabel": "Megjegyzés",
         "notesPlaceholder": "pl. a blokk a mappában van",
+        "deleteConfirmDetail": "A tárgy azonnal és véglegesen törlődik a leltárból; nincs lomtár, ahonnan visszaállítható lenne.",
         "created": "Tárgy hozzáadva.",
         "updated": "Tárgy frissítve.",
         "emptyTitle": "A leltára még üres",

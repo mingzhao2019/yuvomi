@@ -6363,6 +6363,7 @@
         "statusLost": "Tapt",
         "notesLabel": "Notat",
         "notesPlaceholder": "f.eks. kvitteringen ligger i mappen",
+        "deleteConfirmDetail": "Elementet fjernes permanent fra beholdningen umiddelbart, det finnes ingen søppelkurv for å gjenopprette det fra.",
         "created": "Vare lagt til.",
         "updated": "Vare oppdatert.",
         "emptyTitle": "Beholdningen din er fortsatt tom",
@@ -6551,7 +6552,6 @@
         "rewards": "Belønning",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Vakttype",
-        "scheduleEntry": "Oppføring",
         "assetCost": "Eiendel",
         "schedulePlan": "Vaktplan"
     },
@@ -6761,6 +6761,7 @@
         "errorEntryGone": "Denne oppføringen finnes ikke lenger.",
         "overviewPeopleCount": "Sammenlign personer ({{count}})",
         "addPlan": "Legg til vaktplan",
+        "freeDays": "Fridager",
         "freeDaysCount": "Fridager: {{count}}"
     },
     "pairDisplay": {

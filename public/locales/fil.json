@@ -6363,6 +6363,7 @@
         "statusLost": "Nawala",
         "notesLabel": "Tala",
         "notesPlaceholder": "hal. nasa folder ang resibo",
+        "deleteConfirmDetail": "Agad at permanenteng aalisin ang gamit sa imbentaryo, walang basurahan na mapagbabawian nito.",
         "created": "Naidagdag ang gamit.",
         "updated": "Na-update ang gamit.",
         "emptyTitle": "Wala pang laman ang imbentaryo mo",
