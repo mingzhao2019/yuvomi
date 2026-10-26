@@ -7623,7 +7623,7 @@ export const __test = {
   restorePeopleFilter,
   restoreAssignedToMe,
   restoreHiddenSources,
-  localCalendarDisplayName, eventLocalCalendarDisplayName, renderLocalCalendarRow, moveLocalCalendar, copyText, openLocalCalendarsModal, localCalendarState: state,
+  localCalendarDisplayName, eventLocalCalendarDisplayName, renderLocalCalendarRow, moveLocalCalendar, localCalendarUploadsToIcloud, syncLocalCalendarUploadHint, copyText, openLocalCalendarsModal, localCalendarState: state,
   persistHiddenSources,
   activeFilterCount,
   UNASSIGNED,
@@ -9007,7 +9007,23 @@ async function loadSyncTargets(selectElement, currentEvent = null) {
     }
     selectElement.value = value;
   } else if (currentEvent?.target_caldav_account_id && currentEvent?.target_caldav_calendar_url) {
-    selectElement.value = caldavTargetValue(currentEvent.target_caldav_account_id, currentEvent.target_caldav_calendar_url);
+    const value = caldavTargetValue(currentEvent.target_caldav_account_id, currentEvent.target_caldav_calendar_url);
+    // Wie bei Google: ein gespeichertes Ziel, das die Liste nicht mehr nennt
+    // (inzwischen nur lesbar geteilt, #1840, oder abgewaehlt), bleibt als
+    // Option stehen. Sonst stuende das Feld leer, und schon das Umbenennen
+    // des Termins schickte `null` und leerte sein Ziel still. Der Server
+    // nimmt das unveraenderte Ziel an (`caldavTargetOffered`) und schickt
+    // nichts dorthin, solange der Kalender keine neuen Termine annimmt.
+    if (!Array.from(selectElement.options).some((o) => o.value === value)) {
+      const group = document.createElement('optgroup');
+      group.label = t('calendar.syncTargetCaldavGroup');
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = currentEvent.target_caldav_calendar_url;
+      group.appendChild(option);
+      selectElement.appendChild(group);
+    }
+    selectElement.value = value;
   } else if (currentEvent?.target_outlook_account_id && currentEvent?.target_outlook_calendar_id) {
     selectElement.value = outlookTargetValue(currentEvent.target_outlook_account_id, currentEvent.target_outlook_calendar_id);
   } else if (!currentEvent) {
@@ -9043,6 +9059,37 @@ function defaultLocalCalendar() {
   return state.localCalendars.find((calendar) => calendar.is_default)
     ?? state.localCalendars[0]
     ?? null;
+}
+
+/**
+ * Laedt der gewaehlte Kalender zu iCloud hoch (#1927)? Dann sagt eine ruhige
+ * Zeile unter der Kalenderwahl, dass der Termin dorthin geht - in dem Moment,
+ * in dem die Wahl das wahr macht, und ohne Rueckfrage beim Speichern. Wer
+ * meldet, ob ein Kalender hochlaedt, ist der Server (`uploads_to_icloud`,
+ * dieselbe Bedingung, mit der der Sync-Lauf startet); ohne die alte
+ * Apple-Verbindung bleibt das Formular, wie es war.
+ */
+function localCalendarUploadsToIcloud(id) {
+  return state.localCalendars.some((item) => Number(item.id) === Number(id) && item.uploads_to_icloud);
+}
+
+function syncLocalCalendarUploadHint(panel) {
+  const select = panel.querySelector('#event-local-calendar');
+  const hint = panel.querySelector('#event-local-calendar-upload-hint');
+  if (!select || !hint) return;
+  const uploads = localCalendarUploadsToIcloud(select.value);
+  hint.hidden = !uploads;
+  // Ein verborgenes Ziel von aria-describedby liest der Screenreader trotzdem
+  // vor: der Verweis steht nur, solange die Zeile gilt.
+  if (uploads) select.setAttribute('aria-describedby', hint.id);
+  else select.removeAttribute('aria-describedby');
+}
+
+function wireLocalCalendarUploadHint(panel) {
+  const select = panel.querySelector('#event-local-calendar');
+  if (!select) return;
+  select.addEventListener('change', () => syncLocalCalendarUploadHint(panel));
+  syncLocalCalendarUploadHint(panel);
 }
 
 function populateLocalCalendarSelect(selectElement, currentEvent = null) {
@@ -9332,6 +9379,7 @@ function wireEventForm(panel, { mode, event = null, reminder = null }) {
 
   // Populate the local calendar destination when several calendars exist.
   populateLocalCalendarSelect(panel.querySelector('#event-local-calendar'), event);
+  wireLocalCalendarUploadHint(panel);
 
   // Load unified sync targets (Google + CalDAV)
   const syncTargetSelect = panel.querySelector('#event-sync-target');
@@ -9845,6 +9893,7 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
     ${state.localCalendars.length > 1 && (!isEdit || event.local_calendar_id) ? `<div class="form-group">
       <label class="form-label" for="event-local-calendar">${t('calendar.localCalendarLabel')}</label>
       <select class="form-input" id="event-local-calendar"></select>
+      <p class="form-hint" id="event-local-calendar-upload-hint" hidden>${t('calendar.localCalendarUploadsHint')}</p>
     </div>` : ''}
 
     <div class="form-group">
@@ -10423,6 +10472,7 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
       // mit allen Eingaben offen und bietet die aktuellen Kalender an.
       await loadLocalCalendars();
       populateLocalCalendarSelect(overlay.querySelector('#event-local-calendar'), event);
+      syncLocalCalendarUploadHint(overlay);
     }
   }
 }

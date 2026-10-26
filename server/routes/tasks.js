@@ -75,7 +75,7 @@ function pushToMicrosoftTodo(what, options = {}) {
  * @returns {{ok: true, target: object|null}
  *          |{ok: false, error: string}} target === null heißt "nur lokal".
  */
-function resolveTaskSyncTarget(value) {
+function resolveTaskSyncTarget(value, current = null) {
   const parsed = parseSyncTargetValue(value);
   if (parsed === null) {
     return { ok: false, error: 'sync_target: erwartet ein gültiges CalDAV- oder Microsoft-To-Do-Ziel oder einen leeren Wert.' };
@@ -108,11 +108,18 @@ function resolveTaskSyncTarget(value) {
   }
 
   const allowed = db.get().prepare(`
-    SELECT list_name FROM caldav_reminder_selection
+    SELECT list_name, writable FROM caldav_reminder_selection
      WHERE account_id = ? AND list_url = ? AND enabled = 1 AND target_module = 'tasks'
   `).get(parsed.accountId, parsed.calendarUrl);
   if (!allowed) {
     return { ok: false, error: 'sync_target: Diese Erinnerungsliste ist für Aufgaben nicht freigegeben.' };
+  }
+  // Preserve existing targets that became read-only, but refuse new uploads.
+  const unchanged = current
+    && current.target_caldav_account_id === parsed.accountId
+    && current.target_caldav_list_url === parsed.calendarUrl;
+  if (allowed.writable === 0 && !unchanged) {
+    return { ok: false, error: 'sync_target: this list does not accept new entries.' };
   }
   return {
     ok: true,
@@ -953,7 +960,9 @@ router.delete('/lists/:id', (req, res) => {
 // was das Dropdown braucht. Keine Server-URLs, keine Zugangsdaten - die
 // Kontenverwaltung bleibt admin-only.
 //
-// Angeboten wird ausschließlich, was der Haushalt für Aufgaben freigegeben hat.
+// Angeboten wird ausschließlich, was der Haushalt für Aufgaben freigegeben hat
+// und was neue Einträge annimmt (#1840: eine nur lesbar geteilte Liste wiese
+// jeden Upload ab; `writable` NULL heisst, der Server sagt es nicht).
 // Eine Liste, die auf den Einkauf zeigt, gehört nicht in dieses Feld: eine
 // Aufgabe dorthin zu schieben hieße, sie als Einkaufsposten zurückzubekommen.
 // Muss wie /categories vor den /:id-Routen stehen, sonst matcht „sync-targets" als :id.
@@ -974,6 +983,7 @@ router.get('/sync-targets', (req, res) => {
         FROM caldav_reminder_selection s
         JOIN caldav_accounts a ON a.id = s.account_id
        WHERE s.enabled = 1 AND s.target_module = 'tasks'
+         AND (s.writable IS NULL OR s.writable = 1)
        ORDER BY a.name, s.list_name
     `).all();
     const microsoftTodo = taskListsTableExists()
@@ -1926,7 +1936,7 @@ router.put('/:id', (req, res) => {
     let syncTarget;
     const targetEditable = !['caldav', 'microsoft_todo'].includes(task.external_source);
     if (req.body.sync_target !== undefined && targetEditable && !task.parent_task_id) {
-      const resolved = resolveTaskSyncTarget(req.body.sync_target);
+      const resolved = resolveTaskSyncTarget(req.body.sync_target, task);
       if (!resolved.ok) return res.status(400).json({ error: resolved.error, code: 400 });
       syncTarget = resolved.target;
     }
