@@ -90,7 +90,7 @@ test('desktop week uses the real Chinese translation without an unresolved year'
 });
 
 test('both arrows remain drawn and clickable without any SVG, in every view and reset state', async () => {
-  for (const width of [1440, 1280, 834, 390]) {
+  for (const width of [1440, 1280, 1024, 834, 768, 390]) {
     await page.setViewport({ width, height: 900 });
     for (const view of ['month', 'week', 'day', 'agenda']) {
       for (const away of [false, true]) {
@@ -104,6 +104,27 @@ test('both arrows remain drawn and clickable without any SVG, in every view and 
           await page.click(selector);
         }
         assert.deepEqual(await page.evaluate(() => window.toolbarClicks), ['cal-prev', 'cal-next']);
+      }
+    }
+  }
+});
+
+test('desktop navigation reserves space for every control, including the hidden today button', async () => {
+  for (const width of [1440, 1280, 1024, 834, 768]) {
+    await page.setViewport({ width, height: 900 });
+    for (const view of ['month', 'week', 'day', 'agenda']) {
+      for (const away of [false, true]) {
+        await mount(view, { away });
+        const result = await page.evaluate(() => {
+          const center = document.querySelector('#cal-toolbar > .page-toolbar__center').getBoundingClientRect();
+          const controls = ['cal-prev', 'cal-label', 'cal-next', 'cal-today'].map((id) => {
+            const rect = document.getElementById(id).getBoundingClientRect();
+            return { id, contained: rect.left >= center.left - 0.5 && rect.right <= center.right + 0.5 };
+          });
+          return controls;
+        });
+        assert.ok(result.every((item) => item.contained),
+          `${width}px ${view} away=${away}: ${JSON.stringify(result)}`);
       }
     }
   }

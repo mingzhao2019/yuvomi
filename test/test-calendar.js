@@ -4309,6 +4309,18 @@ test('Zeitraum-Label: Basis 0 statt Textbreite, damit die Pfeile nicht springen'
     `das Label muss flex: 1 1 0 tragen (feste Breite aus dem Rest der Zeile), hat: ${label.body.match(/flex:[^;]+/)?.[0]}`);
 });
 
+test('Zeitraum-Label: intrinsische Breite reserviert auch in WebKit den Platz der Flex-Basis', () => {
+  const rules = [...eachRule(calendarCss)];
+  for (const width of [768, 1024]) {
+    const label = rules.find((r) => r.selector.trim() === '.cal-toolbar__label'
+      && r.at.some((a) => a.includes(`min-width: ${width}px`)));
+    const basis = label?.body.match(/flex:\s*0\s+[01]\s+([^;]+);/)?.[1].trim();
+    const preferred = label?.body.match(/inline-size:\s*([^;]+);/)?.[1].trim();
+    assert(basis && preferred === basis,
+      `${width}px: inline-size muss der flex-basis entsprechen, sonst ueberdeckt die Ansichtswahl in WebKit den Weiter-Pfeil`);
+  }
+});
+
 /* DIE STUNDENLEISTE PASST IN 44px. „12:00 PM" braucht ~50px; im
  * 12-Stunden-Format beschriftet sie volle Stunden ohne „:00". */
 test('Stundenleiste: volle Stunden, im 12-Stunden-Format ohne „:00"', () => {

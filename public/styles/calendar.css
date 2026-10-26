@@ -386,9 +386,8 @@
 /* `.cal-toolbar__nav` (samt Akzentfarbe der Pfeile) ist entfallen (R19): kein
  * Markup traegt die Klasse mehr, die Pfeile kommen aus utils/period-stepper.js
  * und stehen neutral wie in jedem Zeitraum-Kopf. */
-/* Die Navigation bleibt auch dann sichtbar, wenn Safari nach einem
- * Ansichtswechsel die SVG-Glyphe nicht zeichnet. Die Chevron-Kontur gehoert
- * zum Knopf selbst; ihr Trefferziel und die Beschriftung bleiben unveraendert. */
+/* Die Chevron-Kontur gehoert zum Knopf selbst, unabhaengig vom Icon-Renderer;
+ * ihr Trefferziel und die Beschriftung bleiben unveraendert. */
 .cal-toolbar__stepper > :is(.period-stepper__prev, .period-stepper__next)::before {
   content: '';
   display: block;
@@ -450,6 +449,10 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
 @media (min-width: 768px) {
   .cal-toolbar__label {
     flex: 0 1 15rem;
+    /* WebKit sizes the display:contents stepper's parent from this label's
+     * intrinsic width, not its flex-basis. Declare the same preferred width
+     * so the following view switcher cannot cover the navigation buttons. */
+    inline-size: 15rem;
   }
 }
 
@@ -556,6 +559,7 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
    * gemacht (113 statt 69px, gemessen). */
   .cal-toolbar__label {
     flex: 0 0 11.75rem;
+    inline-size: 11.75rem;
     font-size: var(--text-lg);
     font-weight: var(--font-weight-bold);
     letter-spacing: var(--tracking-tight);

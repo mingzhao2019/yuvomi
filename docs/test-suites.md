@@ -3,8 +3,12 @@
 Vollständige, annotierte Liste aller `npm run test:*`-Suiten - welche Suite deckt welche Invariante ab.
 
 `npm run test:calendar-toolbar-browser` prüft den echten chinesischen Wochenkopf sowie
-beide Kalenderpfeile ohne SVG-Zeichnung: vier Ansichten, vier Bildschirmbreiten,
+beide Kalenderpfeile ohne SVG-Zeichnung: vier Ansichten, sechs Bildschirmbreiten,
 aktueller und abweichender Zeitraum, Klickziele und gespiegelte RTL-Richtung.
+Die gesamte Navigation einschließlich des unsichtbaren Heute-Knopfs muss in
+ihrem Slot bleiben. `test:calendar` sichert dazu die intrinsische Labelbreite
+an beiden Desktop-Breakpoints: WebKit berücksichtigte hier mit `display: contents`
+nur die Textbreite statt der Flex-Basis und ließ die Ansichtswahl den Pfeil verdecken.
 Die Suite gehört zu `test:document-guards` und braucht keinen Anwendungsserver.
 
 CalDAV-Fehlerbehandlung (#2133) wird in `test:caldav-http-refusals` mit kontoweiten
