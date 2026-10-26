@@ -6,7 +6,7 @@
 import express from 'express';
 import * as db from '../db.js';
 import { createLogger } from '../logger.js';
-import { pushService as defaultPushService } from '../services/push.js';
+import { checkPushEndpoint, pushService as defaultPushService } from '../services/push.js';
 
 const log = createLogger('PushRoutes');
 
@@ -29,6 +29,12 @@ export function buildRouter({ pushService = defaultPushService, database } = {})
       const { endpoint, keys } = req.body || {};
       if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
         return res.status(400).json({ error: 'endpoint und keys (p256dh, auth) sind erforderlich.', code: 400 });
+      }
+      // Ein Endpoint ist ein Ziel, an das der Server spaeter selbst sendet:
+      // nur oeffentliche https-Adressen, wie sie jeder Push-Dienst vergibt.
+      // Der Versand prueft erneut (Bestandszeilen, DNS beim Verbindungsaufbau).
+      if (!checkPushEndpoint(endpoint).ok) {
+        return res.status(400).json({ error: 'endpoint must be a public https address.', code: 400 });
       }
       const ua = req.get('user-agent') || null;
       getDb().prepare(`

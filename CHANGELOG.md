@@ -254,6 +254,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   crash the server or, in the worst case, run code. The image was pinned to an earlier Node.js 24
   release that does not have the fix.
 
+### Security
+
+- **Web Push delivery now goes through the SSRF guard and has a time limit.** A push subscription
+  is only accepted for a public `https` address, as every push service hands out, and delivery
+  connects through the same check at socket lookup that the other outbound integrations use, so a
+  subscription can no longer make the server connect into its own network. Existing subscriptions
+  with such an address are skipped and logged with their host. Each delivery now gives up after 10
+  seconds, so an unresponsive push target no longer holds up reminders.
+
 ## [2.81.0] - 2026-10-25
 
 ### Added
