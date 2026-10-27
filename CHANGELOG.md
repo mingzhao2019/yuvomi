@@ -189,6 +189,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scopes` stay optional for integrations that create tokens themselves.
 
 ### Fixed
+- **Settings - Wall tablets names the pairing address before a code exists** (#2294). A tablet
+  pairs at your instance's `/pair` address, not through the sign-in page, but the page only said
+  so next to a freshly generated code. It now shows the two steps and the full address up front,
+  so an admin who opens the page first - or whose instance signs in through OIDC only - knows
+  where the tablet goes.
 - **A recurring event from a one-time calendar import keeps its time zone** (#2306). An imported
   weekly appointment at 17:00 in Vienna moved to 16:00 after the clocks changed, and an occurrence
   the file had cancelled after the change could show up again or take its neighbour with it. The
