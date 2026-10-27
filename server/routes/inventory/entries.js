@@ -22,7 +22,7 @@ const router = express.Router();
 // --------------------------------------------------------
 router.get('/:entryId/items', (req, res) => {
   try {
-    const vEntryId = idParam(req.params.entryId, 'Buchung-ID');
+    const vEntryId = idParam(req.params.entryId, 'entryId');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
     const budget = budgetViewer(req);
     const userId = budget.userId;

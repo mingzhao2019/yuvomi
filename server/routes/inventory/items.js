@@ -239,31 +239,31 @@ function validateItemFields(body) {
   const results = [];
   let locationGone = false;
 
-  const vName = str(body.name, 'Name', { max: MAX_TITLE });
+  const vName = str(body.name, 'name', { max: MAX_TITLE });
   results.push(vName);
   values.name = vName.value;
 
-  const vBrand = str(body.brand, 'Marke', { max: MAX_SHORT, required: false });
+  const vBrand = str(body.brand, 'brand', { max: MAX_SHORT, required: false });
   results.push(vBrand);
   values.brand = vBrand.value;
 
-  const vModel = str(body.model, 'Modell', { max: MAX_SHORT, required: false });
+  const vModel = str(body.model, 'model', { max: MAX_SHORT, required: false });
   results.push(vModel);
   values.model = vModel.value;
 
-  const vSerial = str(body.serial_number, 'Seriennummer', { max: MAX_SHORT, required: false });
+  const vSerial = str(body.serial_number, 'serial_number', { max: MAX_SHORT, required: false });
   results.push(vSerial);
   values.serial_number = vSerial.value;
 
   const categoryKeys = validCategoryKeys();
-  const vCategory = oneOf(body.category || 'other', categoryKeys, 'Kategorie');
+  const vCategory = oneOf(body.category || 'other', categoryKeys, 'category');
   results.push(vCategory);
   values.category = vCategory.value ?? 'other';
 
   if (body.location_id === null || body.location_id === '' || body.location_id === undefined) {
     values.location_id = null;
   } else {
-    const vLoc = idParam(body.location_id, 'Ort');
+    const vLoc = idParam(body.location_id, 'location_id');
     results.push(vLoc);
     if (vLoc.value !== null) {
       const exists = db.get().prepare('SELECT id FROM inventory_locations WHERE id = ?').get(vLoc.value);
@@ -275,7 +275,7 @@ function validateItemFields(body) {
     values.location_id = vLoc.value;
   }
 
-  const vPurchaseDate = date(body.purchase_date, 'Kaufdatum');
+  const vPurchaseDate = date(body.purchase_date, 'purchase_date');
   results.push(vPurchaseDate);
   values.purchase_date = vPurchaseDate.value;
 
@@ -290,9 +290,9 @@ function validateItemFields(body) {
   if (body.purchase_price === null || body.purchase_price === '' || body.purchase_price === undefined) {
     values.purchase_price = null;
   } else {
-    const vPrice = num(body.purchase_price, 'Kaufpreis');
+    const vPrice = num(body.purchase_price, 'purchase_price');
     results.push(vPrice);
-    if (vPrice.value !== null && vPrice.value < 0) results.push({ error: 'Kaufpreis darf nicht negativ sein.' });
+    if (vPrice.value !== null && vPrice.value < 0) results.push({ error: 'purchase_price must not be negative.' });
     values.purchase_price = vPrice.value;
   }
 
@@ -327,7 +327,7 @@ function validateItemFields(body) {
     values.currency = currency;
   }
 
-  const vVendor = str(body.vendor, 'Haendler', { max: MAX_SHORT, required: false });
+  const vVendor = str(body.vendor, 'vendor', { max: MAX_SHORT, required: false });
   results.push(vVendor);
   values.vendor = vVendor.value;
 
@@ -337,17 +337,17 @@ function validateItemFields(body) {
   // Topf: ein Benutzername ohne sein Passwort ist ein Telefonbucheintrag.
   // Haushaltsweit sichtbar wie jede andere Spalte dieser Tabelle - inventory_items
   // hat weder owner_id noch visibility (#467, Entscheidung in #1004).
-  const vAccount = str(body.account_username, 'Konto', { max: MAX_SHORT, required: false });
+  const vAccount = str(body.account_username, 'account_username', { max: MAX_SHORT, required: false });
   results.push(vAccount);
   values.account_username = vAccount.value;
 
   if (body.warranty_months === null || body.warranty_months === '' || body.warranty_months === undefined) {
     values.warranty_months = null;
   } else {
-    const vWarranty = num(body.warranty_months, 'Garantiemonate');
+    const vWarranty = num(body.warranty_months, 'warranty_months');
     results.push(vWarranty);
     if (vWarranty.value !== null && (!Number.isInteger(vWarranty.value) || vWarranty.value < 0 || vWarranty.value > 600)) {
-      results.push({ error: 'Garantiemonate muss eine ganze Zahl zwischen 0 und 600 sein.' });
+      results.push({ error: 'warranty_months must be a whole number from 0 to 600.' });
     }
     values.warranty_months = vWarranty.value;
   }
@@ -363,10 +363,10 @@ function validateItemFields(body) {
     if (body.odometer === null || body.odometer === '' || body.odometer === undefined) {
       values.odometer = null;
     } else {
-      const vOdometer = num(body.odometer, 'Kilometerstand');
+      const vOdometer = num(body.odometer, 'odometer');
       results.push(vOdometer);
       if (vOdometer.value !== null && (!Number.isInteger(vOdometer.value) || vOdometer.value < 0)) {
-        results.push({ error: 'Kilometerstand darf nicht negativ sein.' });
+        results.push({ error: 'odometer must be a whole number of at least 0.' });
       }
       values.odometer = vOdometer.value;
     }
@@ -374,26 +374,26 @@ function validateItemFields(body) {
     if (body.odometer_unit === null || body.odometer_unit === '' || body.odometer_unit === undefined) {
       values.odometer_unit = values.odometer != null ? 'km' : null;
     } else {
-      const vUnit = oneOf(body.odometer_unit, ODOMETER_UNITS, 'Einheit');
+      const vUnit = oneOf(body.odometer_unit, ODOMETER_UNITS, 'odometer_unit');
       results.push(vUnit);
       values.odometer_unit = vUnit.value;
     }
 
-    const vOdometerOn = date(body.odometer_on, 'Ablesedatum');
+    const vOdometerOn = date(body.odometer_on, 'odometer_on');
     results.push(vOdometerOn);
     values.odometer_on = vOdometerOn.value
       ?? (values.odometer != null ? todayKey(db.get(), new Date()) : null);
   }
 
-  const vCondition = oneOf(body.condition || 'good', CONDITIONS, 'Zustand');
+  const vCondition = oneOf(body.condition || 'good', CONDITIONS, 'condition');
   results.push(vCondition);
   values.condition = vCondition.value ?? 'good';
 
-  const vStatus = oneOf(body.status || 'active', STATUSES, 'Status');
+  const vStatus = oneOf(body.status || 'active', STATUSES, 'status');
   results.push(vStatus);
   values.status = vStatus.value ?? 'active';
 
-  const vNotes = str(body.notes, 'Notiz', { max: MAX_TEXT, required: false });
+  const vNotes = str(body.notes, 'notes', { max: MAX_TEXT, required: false });
   results.push(vNotes);
   values.notes = vNotes.value;
 
@@ -447,7 +447,7 @@ router.get('/', (req, res) => {
 // --------------------------------------------------------
 router.get('/:id', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const item = loadItem(vId.value, userId, isAdmin(req), budgetViewer(req), documentViewer(req));
@@ -484,7 +484,7 @@ router.post('/', (req, res) => {
     let entry = null;
     const rawEntryId = req.body.entry_id;
     if (rawEntryId !== undefined && rawEntryId !== null && rawEntryId !== '') {
-      const vEntryId = idParam(rawEntryId, 'Buchung');
+      const vEntryId = idParam(rawEntryId, 'entry_id');
       if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
       entry = visibleEntry(vEntryId.value, budgetViewer(req));
       if (!entry) return res.status(404).json({ error: 'Booking not found.', code: 404, reason: 'inventory_booking_not_found' });
@@ -573,7 +573,7 @@ router.post('/', (req, res) => {
 // --------------------------------------------------------
 router.put('/:id', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -670,7 +670,7 @@ router.put('/:id', (req, res) => {
 // --------------------------------------------------------
 router.post('/:id/entries', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -679,18 +679,18 @@ router.post('/:id/entries', (req, res) => {
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (refuseForeignItem(req, res, item)) return;
 
-    const vEntryId = idParam(req.body.entry_id, 'Buchung');
+    const vEntryId = idParam(req.body.entry_id, 'entry_id');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
 
-    const vRole = oneOf(req.body.role || 'purchase', ROLES, 'Rolle');
+    const vRole = oneOf(req.body.role || 'purchase', ROLES, 'role');
     if (vRole.error) return res.status(400).json({ error: vRole.error, code: 400 });
 
     let amountShare = null;
     if (req.body.amount_share !== undefined && req.body.amount_share !== null && req.body.amount_share !== '') {
-      const vShare = num(req.body.amount_share, 'Anteil');
+      const vShare = num(req.body.amount_share, 'amount_share');
       if (vShare.error) return res.status(400).json({ error: vShare.error, code: 400 });
       if (vShare.value !== null && vShare.value < 0) {
-        return res.status(400).json({ error: 'Anteil darf nicht negativ sein.', code: 400 });
+        return res.status(400).json({ error: 'amount_share must not be negative.', code: 400 });
       }
       amountShare = vShare.value;
     }
@@ -714,7 +714,7 @@ router.post('/:id/entries', (req, res) => {
 // --------------------------------------------------------
 router.delete('/:id/entries/:entryId', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -723,7 +723,7 @@ router.delete('/:id/entries/:entryId', (req, res) => {
     if (!canReadItem(item, userId, admin)) return res.status(404).json({ error: 'Item not found.', code: 404 });
     if (refuseForeignItem(req, res, item)) return;
 
-    const vEntryId = idParam(req.params.entryId, 'Buchung-ID');
+    const vEntryId = idParam(req.params.entryId, 'entryId');
     if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
 
     const budget = budgetViewer(req);
@@ -744,9 +744,9 @@ router.delete('/:id/entries/:entryId', (req, res) => {
 // --------------------------------------------------------
 router.post('/:id/dates/:dateId/complete', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
-    const vDateId = idParam(req.params.dateId, 'Frist-ID');
+    const vDateId = idParam(req.params.dateId, 'dateId');
     if (vDateId.error) return res.status(400).json({ error: vDateId.error, code: 400 });
 
     const userId = actorId(req);
@@ -778,7 +778,7 @@ router.post('/:id/dates/:dateId/complete', (req, res) => {
 // --------------------------------------------------------
 router.get('/:id/service-log', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -794,7 +794,7 @@ router.get('/:id/service-log', (req, res) => {
 
 router.post('/:id/service-log', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -816,9 +816,9 @@ router.post('/:id/service-log', (req, res) => {
 // PUT is a full replacement. Omitted optional fields are cleared.
 router.put('/:id/service-log/:logId', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
-    const vLogId = idParam(req.params.logId, 'Eintrag-ID');
+    const vLogId = idParam(req.params.logId, 'logId');
     if (vLogId.error) return res.status(400).json({ error: vLogId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -841,9 +841,9 @@ router.put('/:id/service-log/:logId', (req, res) => {
 
 router.delete('/:id/service-log/:logId', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
-    const vLogId = idParam(req.params.logId, 'Eintrag-ID');
+    const vLogId = idParam(req.params.logId, 'logId');
     if (vLogId.error) return res.status(400).json({ error: vLogId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -864,7 +864,7 @@ router.delete('/:id/service-log/:logId', (req, res) => {
 // Read-only aggregation of service log, visible linked bookings, and documents.
 router.get('/:id/history', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
@@ -883,7 +883,7 @@ router.get('/:id/history', (req, res) => {
 // --------------------------------------------------------
 router.delete('/:id', (req, res) => {
   try {
-    const vId = idParam(req.params.id, 'Gegenstand-ID');
+    const vId = idParam(req.params.id, 'id');
     if (vId.error) return res.status(400).json({ error: vId.error, code: 400 });
     const userId = actorId(req);
     const admin = isAdmin(req);
