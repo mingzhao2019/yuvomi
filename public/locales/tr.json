@@ -1260,6 +1260,7 @@
         "errorSelectedCalendarGone": "Seçilen takvim artık yok.",
         "errorSeriesNoOccurrence": "Bu tekrarla başlangıç tarihinden itibaren hiç etkinlik olmazdı.",
         "localCalendarUploadsHint": "Bu takvimdeki etkinlikler Apple Calendar üzerinden iCloud’a yüklenir.",
+        "overlapOpenSchedule": "Vardiya planını aç",
         "syncTargetNoCalendarForPeople": "Hiçbir takvimin varsayılan ataması tam olarak bu kişiler değil, bu yüzden atama bir takvim seçmez. Bunun yerine: {{target}}."
     },
     "noteCategories": {

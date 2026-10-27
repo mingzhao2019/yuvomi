@@ -1260,6 +1260,7 @@
         "errorSelectedCalendarGone": "Le calendrier choisi n’existe plus.",
         "errorSeriesNoOccurrence": "Avec cette répétition, il n’y aurait aucun événement à partir de la date de début.",
         "localCalendarUploadsHint": "Les événements de cet agenda sont envoyés vers iCloud via Apple Calendar.",
+        "overlapOpenSchedule": "Ouvrir le planning",
         "syncTargetNoCalendarForPeople": "Aucun calendrier n’a exactement ces personnes comme attribution par défaut, l’attribution n’en choisit donc aucun. Utilisé à la place : {{target}}."
     },
     "noteCategories": {

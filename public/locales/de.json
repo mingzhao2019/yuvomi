@@ -1278,6 +1278,7 @@
         "errorSelectedCalendarGone": "Den gewählten Kalender gibt es nicht mehr.",
         "errorSeriesNoOccurrence": "Mit dieser Wiederholung gäbe es ab dem Startdatum keinen einzigen Termin.",
         "localCalendarUploadsHint": "Termine in diesem Kalender werden über Apple Calendar zu iCloud hochgeladen.",
+        "overlapOpenSchedule": "Schichtplan öffnen",
         "syncTargetNoCalendarForPeople": "Kein Kalender hat genau diese Personen als Standard-Zuweisung, darum wählt die Zuweisung keinen. Stattdessen gilt: {{target}}."
     },
     "noteCategories": {

@@ -1260,6 +1260,7 @@
         "errorSelectedCalendarGone": "Lịch đã chọn không còn tồn tại.",
         "errorSeriesNoOccurrence": "Với kiểu lặp lại này sẽ không có sự kiện nào từ ngày bắt đầu.",
         "localCalendarUploadsHint": "Sự kiện trong lịch này được tải lên iCloud qua Apple Calendar.",
+        "overlapOpenSchedule": "Mở lịch làm việc",
         "syncTargetNoCalendarForPeople": "Không có lịch nào có đúng những người này làm người được giao mặc định, nên việc giao không chọn lịch nào. Thay vào đó dùng: {{target}}."
     },
     "noteCategories": {

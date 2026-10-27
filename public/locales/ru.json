@@ -1414,6 +1414,7 @@
         "errorSelectedCalendarGone": "Выбранного календаря больше нет.",
         "errorSeriesNoOccurrence": "При таком повторе с даты начала не было бы ни одного события.",
         "localCalendarUploadsHint": "События этого календаря загружаются в iCloud через Apple Calendar.",
+        "overlapOpenSchedule": "Открыть график смен",
         "syncTargetNoCalendarForPeople": "Ни у одного календаря назначение по умолчанию не совпадает ровно с этими людьми, поэтому назначение не выбирает календарь. Вместо этого: {{target}}."
     },
     "noteCategories": {

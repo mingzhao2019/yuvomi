@@ -1338,6 +1338,7 @@
         "errorSelectedCalendarGone": "Vybraný kalendář už neexistuje.",
         "errorSeriesNoOccurrence": "S tímto opakováním by od data zahájení nebyl žádný termín.",
         "localCalendarUploadsHint": "Události v tomto kalendáři se nahrávají do iCloudu přes Apple Calendar.",
+        "overlapOpenSchedule": "Otevřít rozpis směn",
         "syncTargetNoCalendarForPeople": "Žádný kalendář nemá jako výchozí přiřazení přesně tyto osoby, proto přiřazení žádný nevybere. Místo toho platí: {{target}}."
     },
     "noteCategories": {

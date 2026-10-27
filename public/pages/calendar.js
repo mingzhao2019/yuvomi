@@ -9,7 +9,7 @@ import { renderRRuleFields, bindRRuleEvents, getRRuleValues, recurrenceRow } fro
 import { openModal as openSharedModal, closeModal, confirmModal, confirmOverModal, askOverModal, promptModal, advancedSection, wireBlurValidation, reportFieldError, reportFieldErrors, refocusAfterRender, renderKeepingFocus, captureModalContext, captureOpenContext, isModalContextCurrent } from '/components/modal.js';
 import { attachOverlay } from '/utils/overlay-history.js';
 import { inertOutside } from '/utils/background-inert.js';
-import { openDetailView, visibilityRow, assignedRow } from '/components/detail-view.js';
+import { openDetailView, leaveDetailTo, visibilityRow, assignedRow } from '/components/detail-view.js';
 import { mountMasterDetail, splitViewDetailHtml, releaseAddressOnClose } from '/utils/master-detail.js';
 import { beginRowFill, drawRowIcons } from '/utils/row-fill.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete, vibrate, durationToken, requestHeadCollapse } from '/utils/ux.js';
@@ -2281,7 +2281,9 @@ export async function render(container, { user, signal } = {}) {
       ${/* `page-toolbar--period-title`: die benannte Variante „Zeitraum-Kopf"
             (DESIGN.md, Kopfregel mobil) - der Titel ist ein navigierbarer
             Zeitraum, und nur ein so markierter Kopf darf seine Werkzeuge mobil
-            in Zeile 1 neben den Titel stellen (calendar.css, test:mobile-chrome). */ ''}
+            in Zeile 1 neben den Titel stellen (calendar.css, test:mobile-chrome).
+            Der sichtbare Modulname und die beiden Pfeile um den kompakten
+            Zeitraum bleiben in dieser Installation erhalten. */ ''}
       <div class="page-toolbar page-toolbar--wrap page-toolbar--period page-toolbar--period-title cal-toolbar" id="cal-toolbar">
         <h1 class="page-toolbar__title">${t('calendar.title')}</h1>
         <div class="page-toolbar__actions"></div>
@@ -2473,7 +2475,8 @@ function periodNavHtml() {
     // `data-collapse-fold`: eingeklappt (mobil) weichen die Pfeile ins
     // Ansichtsmenue (R20 6c, calendar.css; die Stellvertreter baut utils/ux.js).
     prev: { id: 'cal-prev', label: labels.prev, title: true, keys: `${CAL_SHORTCUT_KEYS.prev} ${keys.prev}`, attrs: { 'data-collapse-fold': true } },
-    value: { id: 'cal-label', className: 'cal-toolbar__label' },
+    // `page-toolbar__period-title`: die Titelrolle der Shell-Variante (#1797).
+    value: { id: 'cal-label', className: 'cal-toolbar__label page-toolbar__period-title' },
     next: { id: 'cal-next', label: labels.next, title: true, keys: `${CAL_SHORTCUT_KEYS.next} ${keys.next}`, attrs: { 'data-collapse-fold': true } },
     // "Heute" liegt mobil auf dem Wert und deckt eingeklappt das ganze Label;
     // im laufenden Zeitraum ist er inert und kommt auch im Menue nicht vor.
@@ -2518,10 +2521,15 @@ function periodArrowKeys(rtl = typeof document !== 'undefined' && document.docum
  * je nach Kollaps-Zustand standen sie links (ausgeklappt, Monat) oder rechts
  * (eingeklappt, Woche/Tag/Agenda). Die Bar-Zeile hat daneben ~98px frei und
  * steht in jeder Ansicht und jedem Zustand gleich - also stehen sie dort, an
- * ihrem Ende, auf jeder Breite an derselben Stelle. Die Ueberlappungswarnung
- * bleibt im Aktions-Slot: sie ist eine Meldung, kein Werkzeug.
+ * ihrem Ende, auf jeder Breite an derselben Stelle.
+ *
+ * DIE UEBERLAPPUNGSWARNUNG STEHT IM STATUS-SLOT DER TITELZEILE (#1462). Im
+ * Aktions-Slot baute sie unter 1024px eine eigene Kopfzeile (der Slot ist dort
+ * sonst leer und ausgeblendet). Der Slot folgt dem Zeitraum: mobil steht er in
+ * Zeile 1 vor Lupe und Filter, eingeklappt hinter dem Zeitraum, am Desktop
+ * zwischen Zeitraum und Ansichtswahl (`scheduleStatusHtml`).
  */
-function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '', searchValue = '' } = {}) {
+function toolbarHtml({ filterCount = 0, statusHtml = '', searchValue = '' } = {}) {
   // DER KOPF-WERKZEUG-SLOT (D1, Critique 2026-10-16). Am Desktop EINE Zeile:
   // Titel, Zeitraum, dahinter das Ansichts-Segment, dann Suchfeld und Filter,
   // zuletzt Verwalten und die angedockte Pille. Bis dahin stand das Segment in
@@ -2541,12 +2549,12 @@ function toolbarHtml({ filterCount = 0, scheduleWarningHtml = '', searchValue = 
       <div class="cal-toolbar__stepper"><span class="cal-toolbar__place" aria-hidden="true">${esc(t('calendar.title'))}</span>${periodNavHtml()}</div>
       ${viewMenuHtml()}
     </div>
-    ${/* Der Aktions-Slot traegt die Ueberlappungswarnung, "Kalender verwalten"
+    ${statusHtml}
+    ${/* Der Aktions-Slot traegt "Kalender verwalten"
           und - am Zeigergeraet - den angedockten FAB (#fab-new-event,
           dockFabIntoToolbar in router.js). renderToolbar() haengt den
           angedockten FAB beim Neubau des Kopfs wieder ein. */ ''}
     <div class="page-toolbar__actions">
-      ${scheduleWarningHtml}
       ${/* Verwalten ist ein Werkzeug, kein Datum: eigenes Zeichen (Kalender mit
             Zahnrad) und dieselbe Kopf-Icon-Haut wie Lupe und Filter. Das nackte
             `calendar-days` daneben las sich wie ein zweiter "Heute"-Knopf. */ ''}
@@ -2685,6 +2693,52 @@ function syncViewMenu(root = _container) {
   if (word) word.textContent = VIEW_LABELS()[state.view] ?? '';
 }
 
+/** Der volle Satz einer Ueberlappung (Name des Zeichens, Zeile im Blatt). */
+function overlapSentence(warning) {
+  return t('schedule.overlapWarning', { date: dateText(warning.date_key), user: scheduleOwnerName(warning) });
+}
+
+/**
+ * DAS STATUS-ZEICHEN DER UEBERLAPPUNG (#1462, Shell-Slot `.page-toolbar__status`).
+ *
+ * Ein Knopf, kein stummer Hinweis: unter 1024px steht nur das Zeichen (eine
+ * Zeile mehr kostete den Raster 48px), sein Name ist der volle Satz, und ein
+ * Tipp oeffnet ihn mit dem Weg zum Schichtplan (`openScheduleWarnings`). Ab
+ * 1024px steht der kurze Text daneben, wie bisher. Der kurze Text ist Teil des
+ * vollen Satzes - der sichtbare Name steckt im zugaenglichen (WCAG 2.5.3).
+ * Ohne Ueberlappung gibt es keinen Slot, also auch keine Breite.
+ */
+function scheduleStatusHtml(warnings = []) {
+  if (!warnings.length) return '';
+  const sentence = overlapSentence(warnings[0]);
+  return `<div class="page-toolbar__status" role="status">
+      <button type="button" class="btn btn--ghost page-toolbar__status-btn cal-toolbar__schedule-warning" id="cal-overlap"
+              aria-haspopup="dialog" aria-label="${esc(sentence)}" title="${esc(sentence)}">
+        <i data-lucide="triangle-alert" class="icon-md" aria-hidden="true"></i>
+        <span class="page-toolbar__status-text">${esc(t('schedule.overlapWarningShort'))}</span>
+      </button>
+    </div>`;
+}
+
+/** Alle Ueberlappungen als Blatt (mobil) oder Popover am Zeichen (ab 768px). */
+function openScheduleWarnings(anchor) {
+  const warnings = state.scheduleWarnings ?? [];
+  if (!warnings.length) return;
+  openDetailView({
+    title: t('schedule.overlapWarningShort'),
+    anchor,
+    size: 'sm',
+    sections: warnings.map((w) => ({ icon: 'triangle-alert', value: overlapSentence(w), multiline: true })),
+    actions: moduleAccess('schedule') === 'none' ? [] : [{
+      id: 'cal-overlap-schedule',
+      label: t('calendar.overlapOpenSchedule'),
+      variant: 'primary',
+      icon: 'calendar-clock',
+      onClick: () => leaveDetailTo('/schedule'),
+    }],
+  });
+}
+
 /** Welches Markup ein Kopf zuletzt bekam (renderToolbar baut Gleiches nicht neu). */
 const builtToolbars = new WeakMap();
 
@@ -2703,16 +2757,10 @@ function renderToolbar() {
   // weg?"), und der Rest steht beschriftet im Blatt (openCalendarFilters).
   const filterCount = activeFilterCount();
 
-  // DIE UEBERLAPPUNGSWARNUNG BLEIBT IM KOPF. Sie ist eine Meldung mit
-  // `role="status"`, kein Filter - im Blatt waere sie hinter einem Klick
-  // versteckt, und eine Warnung, die man erst oeffnen muss, ist keine.
-  const scheduleWarningHtml = (scheduleEnabled() && state.scheduleWarnings.length) ? `
-    <span class="cal-toolbar__schedule-warning" role="status"
-          title="${esc(t('schedule.overlapWarning', { date: dateText(state.scheduleWarnings[0].date_key), user: scheduleOwnerName(state.scheduleWarnings[0]) }))}">
-      <i data-lucide="triangle-alert" class="icon-sm" aria-hidden="true"></i>
-      <span>${t('schedule.overlapWarningShort')}</span>
-    </span>
-  ` : '';
+  // DIE UEBERLAPPUNGSWARNUNG BLEIBT IM KOPF. Sie ist eine Meldung, kein
+  // Filter - im Filterblatt waere sie hinter einem Klick versteckt, und eine
+  // Warnung, die man erst suchen muss, ist keine. Seit #1462 im Status-Slot.
+  const statusHtml = scheduleEnabled() ? scheduleStatusHtml(state.scheduleWarnings) : '';
 
   // DER ANGEDOCKTE FAB UEBERLEBT DEN NEUBAU. Die Shell hat ihn nach dem
   // ersten Aufbau in `.page-toolbar__actions` gehaengt (dockFabIntoToolbar);
@@ -2729,7 +2777,7 @@ function renderToolbar() {
   // Seitenwechsel Icons, Beobachter, Segment-Kapsel und zwei erzwungene
   // Layouts im selben Frame. Steht schon genau dieser Kopf da, wird nur der
   // Zeitraum nachgefuehrt: er haengt am Wochenstart aus den Praeferenzen.
-  const html = toolbarHtml({ filterCount, scheduleWarningHtml, searchValue: searchActive ? searchQuery : '' });
+  const html = toolbarHtml({ filterCount, statusHtml, searchValue: searchActive ? searchQuery : '' });
   if (builtToolbars.get(bar) === html && bar.querySelector('#cal-label')) {
     updateLabel();
     return;
@@ -2747,6 +2795,7 @@ function renderToolbar() {
   bar.querySelector('#cal-next').addEventListener('click', () => navigate(1));
   bar.querySelector('#cal-calendars')?.addEventListener('click', openLocalCalendarsModal);
   bar.querySelector('#cal-today').addEventListener('click', goToday);
+  bar.querySelector('#cal-overlap')?.addEventListener('click', (e) => openScheduleWarnings(e.currentTarget));
   wireCalendarSearch(bar, { focus: searchHadFocus });
   // Der Filter faltet seit R20 (6c) nicht mehr: der kompakte Kopf zeigt ihn.
   bar.querySelector('#cal-filters').addEventListener('click', openCalendarFilters);
@@ -2788,6 +2837,7 @@ function renderToolbar() {
   // dort ansetzen, wo die alte stand, statt aufzuspringen.
   attachSegmentIndicator(bar.querySelector('.cal-toolbar__views'), { key: 'calendar-views' });
   watchToolbarFit(bar);
+  watchLabelFit(bar.querySelector('#cal-label'));
   builtToolbars.set(bar, html);
 }
 
@@ -2819,6 +2869,9 @@ let toolbarFitObserver = null;
 // dem Bild, und die Rechnung darf nicht davon abhaengen, in welcher Form der
 // Kopf gerade steht (sonst pendelt sie).
 let calendarsBtnWidth = 0;
+// Breite des Ueberlappungs-Status MIT Wort, gemessen, solange es steht - aus
+// demselben Grund: die Rechnung darf nicht an der gezeigten Form haengen.
+let statusTextWidth = 0;
 
 /* DIE KOMPAKTE EINE ZEILE (Critique R21, D9: "Kalenderkopf bei 1280 einzeilig,
  * Suche als Icon-Knopf"). Bei 1280 fehlten der einen Zeile 153px (de): sie
@@ -2833,7 +2886,7 @@ function syncToolbarFit(bar) {
   if (!bar?.isConnected) return;
   const wide = window.matchMedia?.(ONE_ROW_MEDIA).matches;
   if (!wide) {
-    bar.classList.remove('cal-toolbar--one-row', 'cal-toolbar--compact');
+    bar.classList.remove('cal-toolbar--one-row', 'cal-toolbar--compact', 'page-toolbar--status-icon');
     return;
   }
   const cs = getComputedStyle(bar);
@@ -2852,11 +2905,27 @@ function syncToolbarFit(bar) {
   const toolsGap = parseFloat(getComputedStyle(bar.querySelector('.cal-toolbar__tools') ?? bar).columnGap) || 0;
   const barGap = parseFloat(getComputedStyle(bar.querySelector('.page-toolbar__bar') ?? bar).columnGap) || 0;
   const barRest = (views?.scrollWidth ?? 0) + barGap + toolsGap + (filter?.getBoundingClientRect().width ?? 0);
-  const rowNeed = row.reduce((sum, c) => sum + c.getBoundingClientRect().width, 0) + gap * row.length + manageFold;
+  // DER STATUS GIBT SEIN WORT ZUERST AB (#1462, Sonde 19): gerechnet wird mit
+  // dem Wort; steht gerade nur das Zeichen, kommt die Differenz dazu.
+  const status = bar.querySelector('.page-toolbar__status-btn');
+  const iconWidth = statusIconWidth(bar);
+  const statusIcon = Boolean(status) && bar.classList.contains('page-toolbar--status-icon');
+  if (status && !statusIcon) statusTextWidth = status.getBoundingClientRect().width;
+  const statusSave = status ? Math.max(0, statusTextWidth - iconWidth) : 0;
+  const rowNeed = row.reduce((sum, c) => sum + c.getBoundingClientRect().width, 0) + gap * row.length + manageFold
+    + (statusIcon ? statusSave : 0);
   const full = rowNeed + barRest + SEARCH_MIN_PX <= inner;
   const compact = !full && rowNeed - manageFree + barRest + searchIconWidth(bar) <= inner;
-  bar.classList.toggle('cal-toolbar--one-row', full || compact);
-  bar.classList.toggle('cal-toolbar--compact', compact);
+  const compactIcon = !full && !compact && statusSave > 0
+    && rowNeed - statusSave - manageFree + barRest + searchIconWidth(bar) <= inner;
+  bar.classList.toggle('cal-toolbar--one-row', full || compact || compactIcon);
+  bar.classList.toggle('cal-toolbar--compact', compact || compactIcon);
+  bar.classList.toggle('page-toolbar--status-icon', compactIcon || (statusSave > 0 && !full && !compact && rowNeed > inner));
+}
+
+/** Breite der Zeichen-Form des Status (Zielgroesse am Zeiger, --target-md). */
+function statusIconWidth(bar) {
+  return parseFloat(getComputedStyle(bar).getPropertyValue?.('--target-md')) || 40;
 }
 
 /** Breite der Such-Icon-Form (die Zielgroesse der Shell, --target-base). */
@@ -2884,6 +2953,27 @@ function watchToolbarFit(bar) {
   });
   observer.observe(bar);
   toolbarFitObserver = { target: bar, observer };
+}
+
+/* DAS LABEL MISST NEU, WENN SEINE BOX SICH AENDERT, NICHT NUR DER KOPF (#1462).
+ * Eingeklappt rueckt der Zeitraum in Zeile 1 - die Breite des Kopfs bleibt,
+ * die des Labels nicht. Mit dem Ueberlappungszeichen in dieser Zeile hatte es
+ * bei 390px 109 statt 158px und kappte „26.10. - 25.11.2026" mit Ellipse,
+ * obwohl die kuerzere Fassung ohne Jahr passt (fitPeriodLabel). */
+let labelFitObserver = null;
+function watchLabelFit(lbl) {
+  if (!lbl || typeof ResizeObserver !== 'function') return;
+  if (labelFitObserver?.target === lbl) return;
+  labelFitObserver?.observer.disconnect();
+  let lastWidth = 0;
+  const observer = new ResizeObserver(() => {
+    const width = Math.round(lbl.clientWidth);
+    if (width === lastWidth) return;
+    if (lastWidth) updateLabel();
+    lastWidth = width;
+  });
+  observer.observe(lbl);
+  labelFitObserver = { target: lbl, observer };
 }
 
 /**
@@ -2927,6 +3017,79 @@ function fitPeriodLabel(lbl) {
     lbl.textContent = text;
     if (lbl.scrollWidth <= lbl.clientWidth) return;
   }
+}
+
+/**
+ * DAS JAHR IM ZEITRAUM-TITEL (#1797). Ab 1024px steht es in der
+ * Sekundaerfarbe, wie Apples Kalender „Oktober 2026" setzt - aber nur, wo es
+ * ein eigenes Wort ist (Monat, Kalenderwoche; im Koreanischen und Japanischen
+ * samt Jahreszeichen). In einem Datum („21.10.2026") bleibt es Teil des Datums.
+ */
+function periodTitleParts(text, year) {
+  const m = new RegExp(`(^|\\s)(${year}(?:[年년]|(?!\\d)))`).exec(text ?? '');
+  if (!m) return null;
+  const start = m.index + m[1].length;
+  return { before: text.slice(0, start), year: m[2], after: text.slice(start + m[2].length) };
+}
+
+function setPeriodTitle(lbl, text) {
+  const parts = periodTitleParts(text, state.cursor.slice(0, 4));
+  if (!parts || typeof lbl.replaceChildren !== 'function') {
+    lbl.textContent = text;
+    return;
+  }
+  const year = document.createElement('span');
+  year.className = 'page-toolbar__period-year';
+  year.textContent = parts.year;
+  lbl.replaceChildren(parts.before, year, parts.after);
+}
+
+/**
+ * DIE PFEILE STEHEN STILL, AUCH OHNE FESTE LABELBREITE (#1797). Ab 1024px
+ * stehen die Pfeile vor dem Titel; was hinter ihm steht („Heute", die
+ * Ansichtswahl, die Werkzeuge), rueckte mit jeder Textbreite. Der Titel nimmt
+ * deshalb die Breite der laengsten Fassung SEINER Ansicht in diesem Jahr
+ * (zwoelf Monate, sieben Wochentage) - gemessen einmal je Ansicht, Sprache und
+ * Jahr, nicht bei jedem Schritt.
+ */
+let periodTitleMeasure = { key: '', px: 0 };
+function periodTitleCandidates(year) {
+  if (state.view === 'month') return Array.from({ length: 12 }, (_, i) => formatMonthYear(year, i + 1));
+  if (state.view === 'week') return MONTH_NAMES().map((month) => t('calendar.weekNumberLabel', { week: 52, month, year }));
+  if (state.view === 'day') {
+    return Array.from({ length: 7 }, (_, i) => dayHeadingText(addDays(state.cursor, i), { long: true, year: true }));
+  }
+  return null;
+}
+
+function syncPeriodTitleWidth(lbl) {
+  // Ohne Layout (Testumgebung, verborgen) gibt es nichts zu messen.
+  if (!lbl.style) return;
+  if (!window.matchMedia?.(ONE_ROW_MEDIA).matches || !lbl.isConnected) {
+    lbl.style.removeProperty('--period-title-min');
+    return;
+  }
+  const year = Number(state.cursor.slice(0, 4));
+  const key = `${state.view}|${document.documentElement.lang}|${year}`;
+  if (periodTitleMeasure.key !== key) {
+    const texts = periodTitleCandidates(year);
+    let px = 0;
+    if (texts) {
+      const probes = texts.map((text) => {
+        const probe = document.createElement('span');
+        probe.className = `${lbl.className} page-toolbar__period-probe`;
+        probe.setAttribute('aria-hidden', 'true');
+        setPeriodTitle(probe, text);
+        lbl.after(probe);
+        return probe;
+      });
+      px = Math.ceil(Math.max(...probes.map((p) => p.getBoundingClientRect().width)));
+      probes.forEach((p) => p.remove());
+    }
+    periodTitleMeasure = { key, px };
+  }
+  if (periodTitleMeasure.px > 0) lbl.style.setProperty('--period-title-min', `${periodTitleMeasure.px}px`);
+  else lbl.style.removeProperty('--period-title-min');
 }
 
 function updateLabel() {
@@ -7570,6 +7733,8 @@ export const __test = {
   // Sonde 19 (#882): eine Zeile nur, wenn sie passt.
   syncToolbarFit, periodLabelFallbacks, fitPeriodLabel, miniMonthWanted,
   updateLabel,
+  // #1797/#1462: der Zeitraum als Titel, die Ueberlappung als Status-Zeichen.
+  periodTitleParts, scheduleStatusHtml, openScheduleWarnings,
   // R17 Schritt 8: der Fokus nach der Suche, wenn ihr Knopf gefaltet ist.
   closeSearchForTest(container) { _container = container; searchActive = true; closeCalendarSearch({ restoreView: false }); },
   // #1504: der Wechsel ueber die Telefonschwelle, gemessen am echten Renderer.

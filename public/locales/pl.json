@@ -1432,6 +1432,7 @@
         "errorSelectedCalendarGone": "Wybrany kalendarz już nie istnieje.",
         "errorSeriesNoOccurrence": "Przy tym powtarzaniu od daty rozpoczęcia nie byłoby ani jednego wydarzenia.",
         "localCalendarUploadsHint": "Wydarzenia z tego kalendarza są przesyłane do iCloud przez Apple Calendar.",
+        "overlapOpenSchedule": "Otwórz grafik",
         "syncTargetNoCalendarForPeople": "Żaden kalendarz nie ma dokładnie tych osób jako domyślnego przypisania, więc przypisanie nie wybiera kalendarza. Zamiast tego: {{target}}."
     },
     "noteCategories": {

@@ -1260,6 +1260,7 @@
         "errorSelectedCalendarGone": "Το επιλεγμένο ημερολόγιο δεν υπάρχει πια.",
         "errorSeriesNoOccurrence": "Με αυτή την επανάληψη δεν θα υπήρχε κανένα συμβάν από την ημερομηνία έναρξης.",
         "localCalendarUploadsHint": "Τα συμβάντα αυτού του ημερολογίου ανεβαίνουν στο iCloud μέσω του Apple Calendar.",
+        "overlapOpenSchedule": "Άνοιγμα βαρδιών",
         "syncTargetNoCalendarForPeople": "Κανένα ημερολόγιο δεν έχει ακριβώς αυτά τα άτομα ως προεπιλεγμένη ανάθεση, οπότε η ανάθεση δεν επιλέγει κανένα. Χρησιμοποιείται αντί αυτού: {{target}}."
     },
     "noteCategories": {

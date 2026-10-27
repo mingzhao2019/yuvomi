@@ -1259,6 +1259,7 @@
         "errorSelectedCalendarGone": "Den valgte kalenderen finnes ikke lenger.",
         "errorSeriesNoOccurrence": "Med denne gjentakelsen ville det ikke vært en eneste avtale fra startdatoen.",
         "localCalendarUploadsHint": "Avtaler i denne kalenderen lastes opp til iCloud via Apple Calendar.",
+        "overlapOpenSchedule": "Åpne planlegging",
         "syncTargetNoCalendarForPeople": "Ingen kalender har nøyaktig disse personene som standardansvarlige, så tildelingen velger ingen. Brukes i stedet: {{target}}."
     },
     "noteCategories": {

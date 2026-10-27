@@ -1492,6 +1492,7 @@
         "errorSelectedCalendarGone": "التقويم المختار لم يعد موجودًا.",
         "errorSeriesNoOccurrence": "مع هذا التكرار لن يكون هناك أي موعد ابتداءً من تاريخ البداية.",
         "localCalendarUploadsHint": "تُرفع أحداث هذا التقويم إلى iCloud عبر Apple Calendar.",
+        "overlapOpenSchedule": "فتح جدول المناوبات",
         "syncTargetNoCalendarForPeople": "لا يوجد تقويم إسناده الافتراضي هؤلاء الأشخاص تمامًا، لذلك لا يختار الإسناد تقويمًا. المستخدم بدلًا من ذلك: {{target}}."
     },
     "noteCategories": {
