@@ -992,7 +992,8 @@ async function runSync({ createClient: makeClient } = {}) {
       // `complete` heißt: jede Liste dieses Moduls wurde abgerufen. Nur dann ist
       // ein Tombstone ohne auffindbares Objekt wirklich erledigt statt bloß
       // unerreichbar - dieselbe Vorsicht wie beim Prune (#508).
-      // Ein Stoppsignal für Löschen und Ändern aller Module dieses Kontos (#1863).
+      // Ein Stoppsignal für jede schreibende Phase aller Module dieses Kontos
+      // (#1863, #2135): Löschen, Ändern, Aufräumen, Uploads und Mitnahmen.
       const stop = createRefusalStop();
       for (const module of ['tasks', 'shopping']) {
         const complete = !incompleteModules.has(module);
@@ -1017,7 +1018,7 @@ async function runSync({ createClient: makeClient } = {}) {
       // der sie nicht importiert hat, und vor den Uploads: eine Zeile mit
       // neuem Ziel in diesem Konto geht so nicht neben ihren Rest.
       try {
-        const cleared = await todoOutbound.releaseLeftoverTodoUploads(client, account.id, { clientFor });
+        const cleared = await todoOutbound.releaseLeftoverTodoUploads(client, account.id, { clientFor, stop });
         if (cleared) log.info(`${cleared} leftover(s) of unconfirmed uploads removed from the server.`);
       } catch (err) {
         log.error(`Removing leftovers of unconfirmed uploads failed for account ${account.id}:`, err.message);
@@ -1036,7 +1037,7 @@ async function runSync({ createClient: makeClient } = {}) {
             .filter(([, cal]) => cal)
         );
         const created = await todoOutbound.processPendingCreations(
-          client, account.id, 'tasks', taskLists
+          client, account.id, 'tasks', taskLists, { stop }
         );
         totalPushed += created;
         if (created) log.info(`${created} locally created task(s) uploaded to the server.`);
@@ -1058,7 +1059,8 @@ async function runSync({ createClient: makeClient } = {}) {
           client,
           account.id,
           shoppingSelections.map((s) => ({ listUrl: s.list_url, targetListId: s.target_list_id })),
-          shoppingLists
+          shoppingLists,
+          { stop }
         );
         totalPushed += created;
         if (created) log.info(`${created} locally created shopping item(s) uploaded to the server.`);

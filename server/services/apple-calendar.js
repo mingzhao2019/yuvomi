@@ -646,14 +646,15 @@ async function runSync({ makeClient } = {}) {
   // zum Objekt für Bestandstermine erst aus dessen Abruf bekannt wird; der
   // Inbound überspringt dafür alles, was hier noch aussteht.
   // --------------------------------------------------------
-  const uploadGate = createUploadGate();
-  // Ein Stoppsignal für Löschen und Ändern (#1863). Es gilt auch für die
-  // nachfolgende Schleife lokaler Neuanlagen.
+  // Ein Stoppsignal für jede schreibende Phase (#1863, #2135): Aufräumen,
+  // Löschen, Ändern und Uploads. Nach der ersten kontoweiten Absage geht in
+  // diesem Lauf nichts mehr an das Konto.
   const stop = outbound.createRefusalStop();
+  const uploadGate = createUploadGate(stop);
   try {
     // Die Reste nie bestätigter Uploads entfernen (#1882).
     await outbound.releaseLeftoverUploads(client, {
-      source: 'apple', wantsUploadHere: stillWantsUpload, calendarUrls: ownCalendarUrls,
+      source: 'apple', wantsUploadHere: stillWantsUpload, calendarUrls: ownCalendarUrls, stop,
     });
     // iCloud kennt keine Auswahl, also keinen abgewählten Kalender. Was es
     // gibt, ist der Kalender, den die Auflistung nicht mehr nennt: sein
@@ -662,8 +663,6 @@ async function runSync({ makeClient } = {}) {
     outbound.dropDeletionsOfMissingCalendars('apple', { listedUrls: calendars.map((cal) => cal.url) });
     const removed = await processPendingDeletions(client, 'apple', objectIndex, ownCalendarUrls, { stop });
     if (removed) log.info(`${removed} pending deletion(s) applied in iCloud.`);
-    const pushed = await processPendingUpdates(client, 'apple', objectIndex, calendarsByUrl, { stop });
-    if (pushed) log.info(`${pushed} local change(s) pushed to iCloud.`);
   } catch (err) {
     log.error('Outbound changes failed:', err.message);
   }
@@ -684,9 +683,8 @@ async function runSync({ makeClient } = {}) {
   // dieses Laufs dieselbe Absage: nach der ersten ist Schluss, und es gibt EINE
   // Zeile mit der Anzahl statt einer je Termin.
   for (const listed of localEvents) {
-    // Das Stoppsignal gilt für wartende Löschungen und Änderungen. Eine lokale
-    // Neuanlage muss trotzdem den eigenen 412-Stand übernehmen können, wenn
-    // ein vorheriges Entfernen desselben Objekts abgelehnt wurde.
+    // Kontoweite Absagen stoppen jeden Schreibweg; eine einzelne 403
+    // verhindert nicht die Uebernahme eines eigenen frueheren Uploads.
     if (!defaultCal || uploadGate.isClosed(defaultCal.url)) continue;
     // Frisch lesen (#1862): die Liste stammt von vor der Schleife, und jeder
     // Upload davor war ein await. Wer inzwischen bearbeitet wurde, geht mit

@@ -1587,20 +1587,22 @@ async function runSync({ createClient } = {}) {
         }
       }
 
+      // Ein Stoppsignal für jede schreibende Phase dieses Kontos (#1863,
+      // #2135): Aufräumen, Löschen, Ändern und Uploads. Nach der ersten
+      // kontoweiten Absage geht in diesem Lauf nichts mehr an das Konto.
+      const stop = outbound.createRefusalStop();
+
       // Ausgehende Löschungen und Änderungen (#593). Nach dem Inbound, weil der
       // Weg zum Objekt für Bestandstermine erst aus dessen Abruf bekannt wird;
       // der Inbound überspringt dafür alles, was hier noch aussteht.
-      const uploadGate = createUploadGate();
-      // Ein Stoppsignal für Löschen und Ändern dieses Kontos (#1863). Es gilt
-      // auch für die nachfolgende Schleife lokaler Neuanlagen.
-      const stop = outbound.createRefusalStop();
+      const uploadGate = createUploadGate(stop);
       try {
         // Gemeldet wird, was der Server gelöscht hat - nicht, was ohne Anfrage fiel.
         const deletions = { sent: 0 };
         // Die Reste nie bestätigter Uploads entfernen (#1882), in den
         // Kalendern, die dieser Lauf abgerufen hat.
         await outbound.releaseLeftoverUploads(client, {
-          source: 'caldav', accountId: account.id, calendarUrls: ownCalendarUrls,
+          source: 'caldav', accountId: account.id, calendarUrls: ownCalendarUrls, stop,
         });
         await processPendingDeletions(client, 'caldav', objectIndex, ownCalendarUrls, {
           accountId: account.id, complete: fetchedEveryCalendar, outcome: deletions,
@@ -1637,10 +1639,8 @@ async function runSync({ createClient } = {}) {
 
           // Der Kalender hat in diesem Lauf schon abgelehnt: nicht für jeden
           // wartenden Termin dieselbe Absage abholen.
-          // Das Stoppsignal gilt für wartende Löschungen und Änderungen. Eine
-          // lokale Neuanlage muss trotzdem den eigenen 412-Stand übernehmen
-          // können, wenn ein vorheriges Entfernen desselben Objekts abgelehnt
-          // wurde (#1863, eigene UID/412-Recovery).
+          // Kontoweite Absagen stoppen jeden Schreibweg; eine einzelne 403
+          // verhindert nicht die Uebernahme eines eigenen frueheren Uploads.
           if (uploadGate.isClosed(targetCal.url)) continue;
 
           // Nimmt der Kalender laut seinen Rechten keine neuen Termine an
