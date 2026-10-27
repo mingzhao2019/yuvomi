@@ -1259,7 +1259,8 @@
         "errorEventGone": "Este evento ya no existe.",
         "errorSelectedCalendarGone": "El calendario elegido ya no existe.",
         "errorSeriesNoOccurrence": "Con esta repetición no habría ningún evento a partir de la fecha de inicio.",
-        "localCalendarUploadsHint": "Los eventos de este calendario se suben a iCloud a través de Apple Calendar."
+        "localCalendarUploadsHint": "Los eventos de este calendario se suben a iCloud a través de Apple Calendar.",
+        "syncTargetNoCalendarForPeople": "Ningún calendario tiene exactamente a estas personas como asignación predeterminada, así que la asignación no elige ninguno. Se usa en su lugar: {{target}}."
     },
     "noteCategories": {
         "categories": "Categorías",
@@ -2327,7 +2328,10 @@
             "errorNoCalendarName": "Introduce un nombre para el calendario nuevo.",
             "dropzoneTitle": "Arrastra aquí un archivo ICS o elige uno",
             "dropzoneTitleTouch": "Toca para elegir un archivo ICS",
-            "dropzoneHint": "Solo archivos .ics"
+            "dropzoneHint": "Solo archivos .ics",
+            "assigneesLabel": "Asignar a",
+            "assigneesHint": "Los eventos nuevos reciben a estas personas. Un evento ya importado con el mismo ID las recibe además - aunque su asignación se haya quitado a mano.",
+            "successWithAssigned": "Importados: {{imported}}, ya existían: {{skipped}}, de ellos ahora asignados: {{assigned}}."
         },
         "memberPhoneLabel": "Número de teléfono (opcional)",
         "memberEmailLabel": "Correo electrónico (opcional)",
@@ -3072,10 +3076,7 @@
         "notificationChannelDeleteConfirmDetail": "Por este canal ya no saldrá ninguna notificación, tampoco las urgentes. La dirección y las credenciales habrá que introducirlas de nuevo para otro canal.",
         "apiTokensMcpHint": "Estos tokens también funcionan como tokens Bearer para el endpoint MCP en /mcp (p. ej. en Claude Desktop, para crear tareas, artículos de la compra y eventos mediante IA).",
         "sync": {
-            "defaultAssignee": "Asignación predeterminada",
             "defaultAssigneeNone": "Ninguno",
-            "defaultAssigneeHint": "Los eventos recién sincronizados se asignan automáticamente a esta persona.",
-            "defaultAssigneeRoutingHint": "Asignación predeterminada: los eventos de un calendario reciben a la persona elegida allí, y un evento nuevo asignado solo a esa persona se crea en ese calendario. Se aplica a calendarios de Google y CalDAV, no a Apple ni Outlook.",
             "backfillTitle": "Completar asignaciones",
             "backfillDescription": "La asignación predeterminada solo se aplica a las citas importadas después de configurarla. Aquí puedes aplicarla una vez a las citas ya importadas de todas las cuentas.",
             "backfillAction": "Aplicar a las citas existentes",
@@ -3095,7 +3096,10 @@
             "backfillMovedNext": "Mostrar siguientes",
             "backfillMovedAll": "Seleccionar todas",
             "backfillMovedChange": "De {{from}} a {{to}}",
-            "backfillDescriptionMore": "Las citas sin asignar la reciben directamente. Las citas que aún llevan la asignación predeterminada de otro calendario aparecen una a una para que elijas. Cualquier otra asignación no cambia."
+            "backfillDescriptionMore": "Las citas sin asignar la reciben directamente. Las citas que aún llevan la asignación predeterminada de otro calendario aparecen una a una para que elijas. Cualquier otra asignación no cambia.",
+            "defaultAssignees": "Asignación predeterminada",
+            "defaultAssigneesHint": "Los eventos sincronizados nuevos se asignan automáticamente a estas personas. La primera define el color.",
+            "defaultAssigneesRoutingHint": "Asignación predeterminada: los eventos de un calendario reciben las personas elegidas allí, y un evento nuevo asignado exactamente a esas personas se crea en ese calendario. Se aplica a calendarios de Google y CalDAV, no a Apple ni Outlook."
         },
         "calendarDefaultsTitle": "Valores predeterminados de eventos de calendario",
         "calendarDefaultsDescription": "Se aplica a eventos locales nuevos, importaciones sincronizadas y eventos futuros existentes.",
@@ -3508,7 +3512,10 @@
         "caldavCalendarReadOnlyWaiting": "Solo lectura: {{count}} eventos pendientes de subir aquí no llegarán",
         "reminderListReadOnly": "Solo lectura: aquí no se pueden guardar entradas nuevas",
         "reminderListReadOnlyWaiting_one": "Solo lectura: {{count}} entrada pendiente de subir aquí no llegará",
-        "reminderListReadOnlyWaiting": "Solo lectura: {{count}} entradas pendientes de subir aquí no llegarán"
+        "reminderListReadOnlyWaiting": "Solo lectura: {{count}} entradas pendientes de subir aquí no llegarán",
+        "reminderListAssigneesTasksOnly": "Las personas solo se pueden fijar para listas que van a Tareas.",
+        "syncAssigneeNotMember": "Aquí solo se pueden elegir miembros del hogar.",
+        "syncAssigneeUnknown": "Esta persona ya no existe. Recarga la página."
     },
     "login": {
         "tagline": "Bienvenido de nuevo. Tu hogar en un solo lugar.",

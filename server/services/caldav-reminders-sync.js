@@ -22,6 +22,10 @@ import { ensureCalDavTaskList } from './task-lists.js';
 import { createRefusalStop } from './calendar-outbound.js';
 import { runSerialized } from '../utils/sync-lock.js';
 import { calendarDisplayName } from '../utils/calendar-meta.js';
+import { readAllDefaultAssignees, readDefaultAssignees, writeDefaultAssignees } from './default-assignees.js';
+
+/** Standard-Personen fuer eine Liste, die nicht auf Aufgaben zeigt (#1221): die Route antwortet 400. */
+export class ReminderListAssigneeError extends Error {}
 
 // --------------------------------------------------------
 // Pure Mapping Helpers
@@ -140,17 +144,20 @@ async function getReminderLists(accountId, { refresh = false, createClient: make
   // VTODO-Sammlungen bei jedem Seitenaufruf erneut das Netz.
   if (!refresh && account.reminders_discovered_at) {
     const rows = db.get().prepare(`
-      SELECT list_url, list_name, target_module, enabled, writable
+      SELECT id, list_url, list_name, target_module, enabled, writable
       FROM caldav_reminder_selection
       WHERE account_id = ?
       ORDER BY list_name
     `).all(accountId);
+    const sets = readAllDefaultAssignees(db.get(), 'reminderList');
 
     return rows.map(r => ({
       listUrl:      r.list_url,
       listName:     r.list_name,
       targetModule: r.target_module,
       enabled:      r.enabled === 1,
+      // Standard-Personen neuer Aufgaben aus dieser Liste (#1221).
+      defaultAssigneeUserIds: sets.get(Number(r.id)) ?? [],
       // Nimmt die Liste neue Einträge an (#1840)? null: der Server sagt es
       // nicht. Dazu, was auf den Upload hierher wartet.
       writable:       writableFromColumn(r.writable),
@@ -167,7 +174,7 @@ async function getReminderLists(accountId, { refresh = false, createClient: make
   for (const cal of lists) {
     const name     = calendarDisplayName(cal.displayName, 'Reminders');
     const existing = db.get().prepare(
-      'SELECT target_module, enabled FROM caldav_reminder_selection WHERE account_id = ? AND list_url = ?'
+      'SELECT id, target_module, enabled FROM caldav_reminder_selection WHERE account_id = ? AND list_url = ?'
     ).get(accountId, cal.url);
 
     const targetModule = existing ? existing.target_module : 'tasks';
@@ -189,6 +196,7 @@ async function getReminderLists(accountId, { refresh = false, createClient: make
 
     result.push({
       listUrl: cal.url, listName: name, targetModule, enabled: enabled === 1,
+      defaultAssigneeUserIds: existing ? readDefaultAssignees(db.get(), 'reminderList', existing.id) : [],
       writable: writableFromColumn(writableColumn(cal)),
     });
   }
@@ -233,7 +241,14 @@ function ensureShoppingList(sel) {
   return id;
 }
 
-function updateReminderSelection(accountId, listUrl, { enabled, targetModule } = {}) {
+/**
+ * @param {number} accountId
+ * @param {string} listUrl
+ * @param {{ enabled?: boolean, targetModule?: string, defaultAssigneeUserIds?: number[] }} [changes]
+ *   `defaultAssigneeUserIds` (#1221): von der Route geprueft; nur fuer eine
+ *   Liste, die auf Aufgaben zeigt - fuer eine Einkaufsliste wirft der Aufruf.
+ */
+function updateReminderSelection(accountId, listUrl, { enabled, targetModule, defaultAssigneeUserIds } = {}) {
   const account = getAccountById(accountId);
   if (!account) {
     throw new Error(`Account ${accountId} not found.`);
@@ -251,6 +266,10 @@ function updateReminderSelection(accountId, listUrl, { enabled, targetModule } =
     throw new Error('Invalid target module (expected "tasks" or "shopping").');
   }
   const newEnabled = enabled === undefined ? sel.enabled : (enabled ? 1 : 0);
+  // Ein Einkaufseintrag hat keine Person (#1221).
+  if (defaultAssigneeUserIds !== undefined && defaultAssigneeUserIds.length && newModule !== 'tasks') {
+    throw new ReminderListAssigneeError('Default assignees can only be set for a list mapped to Tasks.');
+  }
 
   let targetListId = sel.target_list_id;
   if (newModule === 'shopping' && newEnabled === 1) {
@@ -266,6 +285,9 @@ function updateReminderSelection(accountId, listUrl, { enabled, targetModule } =
     SET enabled = ?, target_module = ?, target_list_id = ?
     WHERE account_id = ? AND list_url = ?
   `).run(newEnabled, newModule, targetListId, accountId, listUrl);
+  if (defaultAssigneeUserIds !== undefined) {
+    writeDefaultAssignees(db.get(), 'reminderList', sel.id, defaultAssigneeUserIds);
+  }
 
   log.info(`Reminder selection updated: account ${accountId}, list ${listUrl}, module=${newModule}, enabled=${newEnabled}`);
   return { success: true };
@@ -275,11 +297,27 @@ function updateReminderSelection(accountId, listUrl, { enabled, targetModule } =
 // Upsert Helpers (Inbound: Server → Yuvomi)
 // --------------------------------------------------------
 
+/**
+ * Standard-Personen einer Erinnerungsliste (#1221) an eine NEU eingelesene
+ * Aufgabe - dieselben zwei Stellen wie jede Zuweisung einer Aufgabe
+ * (`tasks.assigned_to` fuer die erste, `task_assignments` fuer alle). Nur
+ * beim ersten Einlesen: was danach an der Aufgabe zugewiesen oder von Hand
+ * entfernt wird, fasst der Sync nicht mehr an, wie bei Kalendern (#459). Ein
+ * VTODO traegt keine Person, also geht nichts zurueck zum Server.
+ * Verwaiste Personen fallen heraus (readDefaultAssignees liest ueber users).
+ */
+function assignListDefault(d, taskId, userIds) {
+  if (!taskId || !userIds?.length) return;
+  d.prepare('UPDATE tasks SET assigned_to = ? WHERE id = ? AND assigned_to IS NULL').run(userIds[0], taskId);
+  const ins = d.prepare('INSERT OR IGNORE INTO task_assignments (task_id, user_id) VALUES (?, ?)');
+  for (const userId of userIds) ins.run(taskId, userId);
+}
+
 // Die Objekt-URL (obj.url des Abrufs) wandert bei jedem Upsert mit: ohne sie ist
 // ein gespiegelter Eintrag für spätere Änderungen und Löschungen unerreichbar
 // (#617). COALESCE, weil ein Abruf ohne URL den gespeicherten Wert nicht
 // entwerten darf.
-function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOptions = null, { completions: explicitCompletions = null } = {}) {
+function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOptions = null, { completions: explicitCompletions = null, defaultAssignees: explicitAssignees = [] } = {}) {
   const d = db.get();
   const taskListId = taskListOrOptions && typeof taskListOrOptions === 'object'
     ? null
@@ -287,6 +325,9 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOpti
   const completions = taskListOrOptions && typeof taskListOrOptions === 'object'
     ? taskListOrOptions.completions ?? null
     : explicitCompletions;
+  const defaultAssignees = taskListOrOptions && typeof taskListOrOptions === 'object'
+    ? taskListOrOptions.defaultAssignees ?? []
+    : explicitAssignees;
   const { date, time } = splitDue(todo.due, householdTimeZone(d));
 
   // Zeile und Tags in einer Transaktion. Der STATUS einer schon gespiegelten
@@ -327,6 +368,7 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOpti
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'caldav', ?, ?${listValues})
       `).run(...params);
       taskId = row.lastInsertRowid;
+      assignListDefault(d, Number(taskId), defaultAssignees);
     }
 
     // Derselbe Erledigungseintrag wie beim Abhaken in Yuvomi (#1836): ohne ihn
@@ -656,6 +698,9 @@ async function runSync({ createClient: makeClient } = {}) {
   let totalPushed      = 0;
   let successfulAccounts = 0;
 
+  // Standard-Personen je Liste (#1221), einmal je Lauf aufgeloest.
+  const listAssignees = new Map();
+
   for (const account of accounts) {
     try {
       const enabledLists = db.get().prepare(`
@@ -855,13 +900,14 @@ async function runSync({ createClient: makeClient } = {}) {
               if (module === 'shopping') {
                 upsertShoppingItem(sel, todo, account.id, obj.url || null);
               } else {
+                if (!listAssignees.has(sel.id)) listAssignees.set(sel.id, readDefaultAssignees(db.get(), 'reminderList', sel.id));
                 const taskId = upsertTask(
                   todo,
                   account.id,
                   createdBy,
                   obj.url || null,
                   taskListId,
-                  { completions: completionTransitions },
+                  { completions: completionTransitions, defaultAssignees: listAssignees.get(sel.id) },
                 );
                 taskRelations.set(todo.uid, {
                   taskId,
