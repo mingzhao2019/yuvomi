@@ -214,6 +214,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scopes` stay optional for integrations that create tokens themselves.
 
 ### Fixed
+- **A subscription or loan payment booked to an account in another currency is in that account's
+  currency** (#2302). An account in US dollars got its subscription payments and loan installments
+  in the household currency, so its balance added dollars and euros as if they were one. A
+  subscription now converts its payment into the account's currency with the cached exchange rate;
+  a loan installment books unconverted when the loan is in the account's currency, with the loan's
+  fixed rate when the account is in the household currency, and through both rates for a third
+  currency - without a known rate the installment is refused instead of booked with a wrong
+  amount. Archiving, deleting or switching the currency of an account converts the subscription
+  payment still waiting on it. Bookings made before this update stay as they are and count as the
+  account's currency: payments a subscription or loan booked earlier on such an account are still
+  in the household currency and can be corrected by hand.
 - **Settings - Wall tablets names the pairing address before a code exists** (#2294). A tablet
   pairs at your instance's `/pair` address, not through the sign-in page, but the page only said
   so next to a freshly generated code. It now shows the two steps and the full address up front,
@@ -388,6 +399,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hands out, and both parsers have to read the same host. A stored subscription with such an
   address is removed on its next delivery, like the others.
 
+- **An account's currency must be a real currency code** (#2302). The budget API stored any text up
+  to eight characters as an account currency, and a code like "XYZ1" stopped the whole budget page
+  from rendering for everyone in the household. Accounts now take only the supported ISO 4217
+  codes, and the app shows an unusable stored code in the household currency instead of failing.
 - **The Docker image runs on Node.js 24.22.1, which fixes CVE-2026-111497** (#2286). The Brotli
   decoder built into Node.js could write past its buffer on a crafted compressed stream, which can
   crash the server or, in the worst case, run code. The image was pinned to an earlier Node.js 24
