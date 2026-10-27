@@ -78,7 +78,7 @@ function pushToMicrosoftTodo(what, options = {}) {
 function resolveTaskSyncTarget(value, current = null) {
   const parsed = parseSyncTargetValue(value);
   if (parsed === null) {
-    return { ok: false, error: 'sync_target: erwartet ein gültiges CalDAV- oder Microsoft-To-Do-Ziel oder einen leeren Wert.' };
+    return { ok: false, error: 'sync_target must be a valid CalDAV or Microsoft To Do target, or empty.' };
   }
   if (parsed.kind === 'local') return { ok: true, target: null };
   if (parsed.kind === 'microsoft_todo') {
@@ -104,7 +104,7 @@ function resolveTaskSyncTarget(value, current = null) {
   if (parsed.kind !== 'caldav') {
     // Aufgaben kennen neben CalDAV jetzt Microsoft To Do. Andere Kalenderziele
     // bleiben unzulässig: ein "google:"-Wert wäre eine stille Nullaktion.
-    return { ok: false, error: 'sync_target: Aufgaben lassen sich nur mit einer freigegebenen Aufgabenliste abgleichen.' };
+    return { ok: false, error: 'sync_target: tasks sync only with an enabled task list.' };
   }
 
   const allowed = db.get().prepare(`
@@ -112,7 +112,7 @@ function resolveTaskSyncTarget(value, current = null) {
      WHERE account_id = ? AND list_url = ? AND enabled = 1 AND target_module = 'tasks'
   `).get(parsed.accountId, parsed.calendarUrl);
   if (!allowed) {
-    return { ok: false, error: 'sync_target: Diese Erinnerungsliste ist für Aufgaben nicht freigegeben.' };
+    return { ok: false, error: 'sync_target: this reminder list is not enabled for tasks.' };
   }
   // Preserve existing targets that became read-only, but refuse new uploads.
   const unchanged = current
@@ -1240,7 +1240,7 @@ router.delete('/tags/:tag', (req, res) => {
 // POST /api/v1/tasks/categories  Body: { name } → { data: TaskCategory }
 router.post('/categories', (req, res) => {
   try {
-    const vName = v.str(req.body.name, 'Name', { max: v.MAX_SHORT });
+    const vName = v.str(req.body.name, 'name', { max: v.MAX_SHORT });
     if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
 
     const conflict = db.get().prepare(`
@@ -1399,7 +1399,7 @@ router.put('/categories/:key', (req, res) => {
     const cat = db.get().prepare('SELECT * FROM task_categories WHERE key = ?').get(req.params.key);
     if (!cat) return res.status(404).json({ error: 'Category not found.', code: 404 });
 
-    const vName = v.str(req.body.name, 'Name', { max: v.MAX_SHORT });
+    const vName = v.str(req.body.name, 'name', { max: v.MAX_SHORT });
     if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
 
     const conflict = db.get().prepare(`
@@ -1759,7 +1759,7 @@ router.post('/', (req, res) => {
       if (!parent || !mayAccessTask(parent, req.authUserId || req.session.userId))
         return res.status(404).json({ error: 'Parent task not found.', code: 404, reason: 'tasks_parent_not_found' });
       if (parent.parent_task_id)
-        return res.status(400).json({ error: 'Maximal 2 Verschachtelungsebenen erlaubt.', code: 400 });
+        return res.status(400).json({ error: 'At most 2 levels of nesting are allowed.', code: 400 });
       // Einen Punkt an eine gesperrte Checkliste zu haengen aendert, was die
       // Aufgabe verlangt - der offensichtlichste Weg um die Sperre herum (#830).
       if (!mayEditTaskDefinition(parent, req)) return res.status(403).json(LOCKED_ERROR);
