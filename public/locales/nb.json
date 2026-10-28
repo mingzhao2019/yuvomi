@@ -404,6 +404,7 @@
         "todayUntil": "innen {{time}}",
         "todayMore": "+{{count}} til i dag",
         "todayLess": "Vis mindre",
+        "todayShowDay": "Vis hele dagen",
         "todayMore_one": "+{{count}} til i dag",
         "todayOverdueCount": "{{count}} forfalt",
         "todayOverdueCount_one": "{{count}} forfalt",
@@ -436,7 +437,17 @@
         "metricVisits": "{{count}} besøk",
         "metricVisits_one": "{{count}} besøk",
         "wallScreensaverNone": "Skjermsparer ikke tilgjengelig.",
-        "wallScreensaverStart": "Skjermsparer"
+        "wallScreensaverStart": "Skjermsparer",
+        "todaySummaryEventsAhead": "{{count}} hendelser igjen",
+        "todaySummaryEventsAhead_one": "{{count}} hendelse igjen",
+        "todaySummaryOverdue": "{{count}} forfalte oppgaver",
+        "todaySummaryOverdue_one": "{{count}} forfalt oppgave",
+        "todayTimelineLabel": "Dagens forløp",
+        "todayTimelineEveryone": "Alle",
+        "todayTimelinePast": "over",
+        "todayTimelineRunning": "pågår nå",
+        "todayTimelineNext": "neste",
+        "todayAlsoTitle": "Også i dag"
     },
     "tasks": {
         "resetOrder": "Sorter automatisk",

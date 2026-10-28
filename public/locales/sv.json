@@ -359,6 +359,7 @@
         "todayUntil": "senast {{time}}",
         "todayMore": "+{{count}} till idag",
         "todayLess": "Visa färre",
+        "todayShowDay": "Visa hela dagen",
         "todayMore_one": "+{{count}} till idag",
         "memberOpenTasks": "{{count}} uppgifter",
         "memberOpenTasks_one": "{{count}} uppgift",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "{{count}} försenade",
         "todayOverdueCount_one": "{{count}} försenad",
         "wallScreensaverNone": "Skärmsläckare ej tillgänglig.",
-        "wallScreensaverStart": "Skärmsläckare"
+        "wallScreensaverStart": "Skärmsläckare",
+        "todaySummaryEventsAhead": "{{count}} händelser kvar",
+        "todaySummaryEventsAhead_one": "{{count}} händelse kvar",
+        "todaySummaryOverdue": "{{count}} försenade uppgifter",
+        "todaySummaryOverdue_one": "{{count}} försenad uppgift",
+        "todayTimelineLabel": "Dagens förlopp",
+        "todayTimelineEveryone": "Alla",
+        "todayTimelinePast": "slut",
+        "todayTimelineRunning": "pågår",
+        "todayTimelineNext": "härnäst",
+        "todayAlsoTitle": "Även i dag"
     },
     "tasks": {
         "resetOrder": "Sortera automatiskt",

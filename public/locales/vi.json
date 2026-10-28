@@ -359,6 +359,7 @@
         "todayUntil": "trước {{time}}",
         "todayMore": "+{{count}} mục nữa hôm nay",
         "todayLess": "Ẩn bớt",
+        "todayShowDay": "Hiện cả ngày",
         "todayMore_one": "+{{count}} mục nữa hôm nay",
         "memberOpenTasks": "{{count}} việc",
         "memberOpenTasks_one": "{{count}} việc",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "{{count}} quá hạn",
         "todayOverdueCount_one": "{{count}} quá hạn",
         "wallScreensaverNone": "Trình bảo vệ màn hình không khả dụng.",
-        "wallScreensaverStart": "Trình bảo vệ màn hình"
+        "wallScreensaverStart": "Trình bảo vệ màn hình",
+        "todaySummaryEventsAhead": "còn {{count}} sự kiện",
+        "todaySummaryEventsAhead_one": "còn {{count}} sự kiện",
+        "todaySummaryOverdue": "{{count}} nhiệm vụ quá hạn",
+        "todaySummaryOverdue_one": "{{count}} nhiệm vụ quá hạn",
+        "todayTimelineLabel": "Dòng thời gian hôm nay",
+        "todayTimelineEveryone": "Mọi người",
+        "todayTimelinePast": "đã kết thúc",
+        "todayTimelineRunning": "đang diễn ra",
+        "todayTimelineNext": "tiếp theo",
+        "todayAlsoTitle": "Hôm nay còn có"
     },
     "tasks": {
         "resetOrder": "Sắp xếp tự động",

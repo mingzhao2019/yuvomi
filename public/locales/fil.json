@@ -377,6 +377,7 @@
         "todayUntil": "bago mag-{{time}}",
         "todayMore": "mga {{count}} pa ngayon",
         "todayLess": "Ipakita ang mas kaunti",
+        "todayShowDay": "Ipakita ang buong araw",
         "todayMore_one": "{{count}} pa ngayon",
         "memberOpenTasks": "{{count}} na gawain",
         "memberOpenTasks_one": "{{count}} na mga gawain",
@@ -454,7 +455,17 @@
         "todayOverdueCount": "{{count}} lampas na sa takdang araw",
         "todayOverdueCount_one": "{{count}} lampas na sa takdang araw",
         "wallScreensaverNone": "Hindi available ang screensaver.",
-        "wallScreensaverStart": "Screensaver"
+        "wallScreensaverStart": "Screensaver",
+        "todaySummaryEventsAhead": "{{count}} kaganapan pa",
+        "todaySummaryEventsAhead_one": "{{count}} kaganapan pa",
+        "todaySummaryOverdue": "{{count}} gawaing lampas na sa taning",
+        "todaySummaryOverdue_one": "{{count}} gawaing lampas na sa taning",
+        "todayTimelineLabel": "Takbo ng araw",
+        "todayTimelineEveryone": "Lahat",
+        "todayTimelinePast": "tapos na",
+        "todayTimelineRunning": "kasalukuyang nagaganap",
+        "todayTimelineNext": "susunod",
+        "todayAlsoTitle": "Ngayong araw din"
     },
     "tasks": {
         "resetOrder": "Awtomatikong ayusin",

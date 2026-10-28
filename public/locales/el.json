@@ -359,6 +359,7 @@
         "todayUntil": "έως {{time}}",
         "todayMore": "+{{count}} ακόμη σήμερα",
         "todayLess": "Εμφάνιση λιγότερων",
+        "todayShowDay": "Εμφάνιση όλης της ημέρας",
         "todayMore_one": "+{{count}} ακόμη σήμερα",
         "memberOpenTasks": "{{count}} εργασίες",
         "memberOpenTasks_one": "{{count}} εργασία",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "{{count}} εκπρόθεσμες",
         "todayOverdueCount_one": "{{count}} εκπρόθεσμη",
         "wallScreensaverNone": "Η προφύλαξη οθόνης δεν είναι διαθέσιμη.",
-        "wallScreensaverStart": "Προφύλαξη οθόνης"
+        "wallScreensaverStart": "Προφύλαξη οθόνης",
+        "todaySummaryEventsAhead": "απομένουν {{count}} συμβάντα",
+        "todaySummaryEventsAhead_one": "απομένει {{count}} συμβάν",
+        "todaySummaryOverdue": "{{count}} εκπρόθεσμες εργασίες",
+        "todaySummaryOverdue_one": "{{count}} εκπρόθεσμη εργασία",
+        "todayTimelineLabel": "Η μέρα σε χρονολόγιο",
+        "todayTimelineEveryone": "Όλοι",
+        "todayTimelinePast": "ολοκληρώθηκε",
+        "todayTimelineRunning": "σε εξέλιξη",
+        "todayTimelineNext": "επόμενο",
+        "todayAlsoTitle": "Επίσης σήμερα"
     },
     "tasks": {
         "resetOrder": "Αυτόματη ταξινόμηση",

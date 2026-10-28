@@ -359,6 +359,7 @@
         "todayUntil": "avant {{time}}",
         "todayMore": "+{{count}} de plus aujourd'hui",
         "todayLess": "Afficher moins",
+        "todayShowDay": "Afficher toute la journée",
         "todayMore_one": "+{{count}} de plus aujourd'hui",
         "memberOpenTasks": "{{count}} tâches",
         "memberOpenTasks_one": "{{count}} tâche",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "{{count}} en retard",
         "todayOverdueCount_one": "{{count}} en retard",
         "wallScreensaverNone": "Économiseur d'écran non disponible.",
-        "wallScreensaverStart": "Économiseur d'écran"
+        "wallScreensaverStart": "Économiseur d'écran",
+        "todaySummaryEventsAhead": "encore {{count}} événements",
+        "todaySummaryEventsAhead_one": "encore {{count}} événement",
+        "todaySummaryOverdue": "{{count}} tâches en retard",
+        "todaySummaryOverdue_one": "{{count}} tâche en retard",
+        "todayTimelineLabel": "Déroulé de la journée",
+        "todayTimelineEveryone": "Tous",
+        "todayTimelinePast": "terminé",
+        "todayTimelineRunning": "en cours",
+        "todayTimelineNext": "à suivre",
+        "todayAlsoTitle": "Aussi aujourd’hui"
     },
     "tasks": {
         "resetOrder": "Trier automatiquement",

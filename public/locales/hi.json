@@ -359,6 +359,7 @@
         "todayUntil": "{{time}} तक",
         "todayMore": "+{{count}} और आज",
         "todayLess": "कम दिखाएं",
+        "todayShowDay": "पूरा दिन दिखाएं",
         "todayMore_one": "+{{count}} और आज",
         "memberOpenTasks": "{{count}} कार्य",
         "memberOpenTasks_one": "{{count}} कार्य",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "{{count}} अतिदेय",
         "todayOverdueCount_one": "{{count}} अतिदेय",
         "wallScreensaverNone": "स्क्रीनसेवर उपलब्ध नहीं है।",
-        "wallScreensaverStart": "स्क्रीनसेवर"
+        "wallScreensaverStart": "स्क्रीनसेवर",
+        "todaySummaryEventsAhead": "{{count}} कार्यक्रम बाकी",
+        "todaySummaryEventsAhead_one": "{{count}} कार्यक्रम बाकी",
+        "todaySummaryOverdue": "{{count}} कार्य अतिदेय",
+        "todaySummaryOverdue_one": "{{count}} कार्य अतिदेय",
+        "todayTimelineLabel": "आज की समयरेखा",
+        "todayTimelineEveryone": "सभी",
+        "todayTimelinePast": "समाप्त",
+        "todayTimelineRunning": "अभी चल रहा है",
+        "todayTimelineNext": "अगला",
+        "todayAlsoTitle": "आज और भी"
     },
     "tasks": {
         "resetOrder": "अपने-आप क्रमबद्ध करें",

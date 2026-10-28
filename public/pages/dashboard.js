@@ -35,7 +35,7 @@ import { pantryQuantityLabel } from '/utils/pantry-units.js';
 import { findPageFab } from '/utils/fab.js';
 import { setLeaveGuard } from '/utils/leave-guard.js';
 import { openModal, closeModal, confirmModal, refocusAfterRender } from '/components/modal.js';
-import { renderAvatarStack } from '/components/user-multi-select.js';
+import { renderAvatarStack, sharedSurname } from '/components/user-multi-select.js';
 import { isSoloHousehold } from '/utils/household.js';
 import { toggleRegion, durationToken, easingToken } from '/utils/ux.js';
 import { swapContent } from '/utils/content-swap.js';
@@ -78,6 +78,8 @@ import { installPopoverMenus, popoverMenuHtml } from '/utils/popover-menu.js';
 import { nextRewardGoal } from '/utils/reward-goal.js';
 import { reloadAfterSave } from '/utils/reload-after-save.js';
 import { shiftTypeLabel } from '/utils/shift-label.js';
+import { layoutTodayTimeline, timelineScale, timelineHourCovered } from '/utils/today-timeline.js';
+import { hourGutterLabel } from '/utils/time-grid.js';
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
@@ -1382,6 +1384,49 @@ function taskForOthersOnly(task, viewer) {
   return people.length > 0 && !people.some((person) => person?.id === viewer.id);
 }
 
+/**
+ * Die Zeile eines Termins im Heute-Blatt - in der Liste und als aufgeklappte
+ * Zeile unter der Zeitleiste (renderTodayTimeline), damit beide dieselbe
+ * Anatomie tragen.
+ */
+function todayEventRow(event, span) {
+  // Der Platz im Tag nach der Wanduhr des HAUSHALTS: hier stand
+  // `getHours()` eines Date, also die Zone des Geraets (#1457). Was schon
+  // vor heute begann, steht oben bei den ganztaegigen.
+  const time = !span.allDay && !span.carried ? zonedTimeKey(event.start_datetime) : '';
+  return {
+    kind: 'event',
+    objectId: event.id,
+    completed: !!event.completed,
+    sortKey: time || '00:01',
+    timeLabel: overviewEventTime(event, span),
+    title: event.title,
+    // Die Herkunft statt des Wortes „Termin" (#1698): der Name des
+    // Kalenders, im Heute-Blatt wie an der Wand. „Frueh" ist erst mit
+    // „Niklas Arbeitskalender" darunter eine Auskunft. Ein Termin, der nur
+    // in Yuvomi lebt, hat keinen Kalendernamen - er behaelt das Wort.
+    sub: eventCalendarName(event) || t('dashboard.todayEvent'),
+    // Das ENDE bleibt der Wand vorbehalten (entschieden in #1698): es reist
+    // neben `timeLabel` mit, und nur `renderWallRow` schreibt es dahinter.
+    // Das Blatt nennt weiter den Beginn allein.
+    wallTimeEnd: wallEventEnd(event, span),
+    icon: 'calendar',
+    tone: 'event',
+    route: calendarEventRoute(event),
+    who: event.assigned_users?.[0] ?? null,
+    // ALLE Zugewiesenen, nicht nur das eine Gesicht der Zeile (#1828): die
+    // Wand zaehlt den Termin bei jeder Person (rowPeopleIds).
+    people: event.assigned_users ?? [],
+    // Das am Termin gewaehlte Icon (#1829). `icon` bleibt das Zeichen des
+    // Moduls; wer das eigene zeigt, fragt hasEventIcon().
+    eventIcon: event.icon ?? null,
+    // Beitrags-Vertrag (utils/today-sheet.js): ein Termin ist ein Rahmen
+    // des Tages, kein Auftrag - er haelt die Coda nicht auf.
+    priority: 40,
+    open: false,
+  };
+}
+
 function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, includeMeals = true, now = new Date(), viewer = dashboardViewer } = {}) {
   const highlights = buildTodayHighlights(data);
   const todayKey = zonedDateKey(now);
@@ -1396,41 +1441,7 @@ function buildTodayProgram(data, { includeTasks = true, includeCalendar = true, 
       // Das Blatt verspricht, was heute NOCH ansteht (#1449): ein beendeter
       // Termin verlaesst es. Die Termin-Kachel behaelt ihn zurueckgetreten.
       if (eventHasEnded(event, nowStamp)) continue;
-      // Der Platz im Tag nach der Wanduhr des HAUSHALTS: hier stand
-      // `getHours()` eines Date, also die Zone des Geraets (#1457). Was schon
-      // vor heute begann, steht oben bei den ganztaegigen.
-      const time = !span.allDay && !span.carried ? zonedTimeKey(event.start_datetime) : '';
-      rows.push({
-        kind: 'event',
-        objectId: event.id,
-        completed: !!event.completed,
-        sortKey: time || '00:01',
-        timeLabel: overviewEventTime(event, span),
-        title: event.title,
-        // Die Herkunft statt des Wortes „Termin" (#1698): der Name des
-        // Kalenders, im Heute-Blatt wie an der Wand. „Frueh" ist erst mit
-        // „Niklas Arbeitskalender" darunter eine Auskunft. Ein Termin, der nur
-        // in Yuvomi lebt, hat keinen Kalendernamen - er behaelt das Wort.
-        sub: eventCalendarName(event) || t('dashboard.todayEvent'),
-        // Das ENDE bleibt der Wand vorbehalten (entschieden in #1698): es reist
-        // neben `timeLabel` mit, und nur `renderWallRow` schreibt es dahinter.
-        // Das Blatt nennt weiter den Beginn allein.
-        wallTimeEnd: wallEventEnd(event, span),
-        icon: 'calendar',
-        tone: 'event',
-        route: calendarEventRoute(event),
-        who: event.assigned_users?.[0] ?? null,
-        // ALLE Zugewiesenen, nicht nur das eine Gesicht der Zeile (#1828): die
-        // Wand zaehlt den Termin bei jeder Person (rowPeopleIds).
-        people: event.assigned_users ?? [],
-        // Das am Termin gewaehlte Icon (#1829). `icon` bleibt das Zeichen des
-        // Moduls; wer das eigene zeigt, fragt hasEventIcon().
-        eventIcon: event.icon ?? null,
-        // Beitrags-Vertrag (utils/today-sheet.js): ein Termin ist ein Rahmen
-        // des Tages, kein Auftrag - er haelt die Coda nicht auf.
-        priority: 40,
-        open: false,
-      });
+      rows.push(todayEventRow(event, span));
     }
   }
 
@@ -3898,9 +3909,11 @@ function renderTodayRow(row, extraClass = '') {
   // Trailing-Detail ist die ZEIT, kein Zähler mehr: die Programm-Zeile
   // beantwortet „wann", und dieselbe Badge-Form für drei Bedeutungen
   // (Anzahl/offen/Alter) war ein Critique-Befund (H6).
+  // „in 25 Min" spricht im Ton seines Moduls (Entwurf „Heute wichtig"), alles
+  // Spaetere sekundaer; die Einkaufszeile hat keine Zeit und zeigt ihren Weg.
   const time = row.timeLabel
-    ? `<span class="today-cockpit-card__time${row.overdue ? ' today-cockpit-card__time--overdue' : ''}">${esc(row.timeLabel)}</span>`
-    : '';
+    ? `<span class="today-cockpit-card__time${row.overdue ? ' today-cockpit-card__time--overdue' : ''}${row.soon ? ' today-cockpit-card__time--soon' : ''}">${esc(row.timeLabel)}</span>`
+    : row.chevron ? '<i data-lucide="chevron-right" class="icon-sm today-cockpit-card__chevron" aria-hidden="true"></i>' : '';
   const completion = row.kind === 'event' && row.completed
     ? `<span class="today-cockpit-card__completion" title="${esc(t('calendar.completed'))}" aria-label="${esc(t('calendar.completed'))}"><i data-lucide="check" aria-hidden="true"></i></span>`
     : '';
@@ -3934,7 +3947,7 @@ function renderTodayRow(row, extraClass = '') {
   // Johnson Einverstaendnis fuer ...". Das Paar ist hier nur Bild; der Name
   // folgt als eigener Text hinter Titel und Modul - dieselbe Auskunft, in der
   // Reihenfolge, in der man eine Zeile liest.
-  const whoName = mark ? `<span class="sr-only">, ${esc(row.who?.display_name ?? '')}</span>` : '';
+  const whoName = mark && !row.namesInSub ? `<span class="sr-only">, ${esc(row.who?.display_name ?? '')}</span>` : '';
   const inner = `
       <span class="${mark ? 'seal-pair' : ''}"${mark ? ' aria-hidden="true"' : ''}><span class="module-seal today-cockpit-card__icon">${programRowGlyph(row)}</span>${mark}</span>
       <span class="today-cockpit-card__body">
@@ -3992,6 +4005,8 @@ const PROGRAM_ROW_CAP_PHONE = 2;
 
 /** Zuletzt gemessene Zeilenzahl je Fensterhoehe (fitPhoneProgram). */
 let phoneProgramFit = null;
+/** Zuletzt gemessene Hoehe der Ueberschrift „Ausserdem heute" (D6). */
+let phoneDividerHeight = null;
 
 function phoneProgramCap() {
   const height = globalThis.window?.innerHeight;
@@ -4014,11 +4029,18 @@ function phoneProgramCap() {
  * 744 von 764), und die Einkaufszeile darunter stand bei 744-809 halb hinter der
  * Kapsel. Was ohne Ueberlauf unter den Zeilen bleibt, zaehlt jetzt mit; passt es
  * nicht, faltet die Einkaufszeile mit der letzten Zeile in "+N weitere". */
-function programRowsThatFit({ fold, rowsTop, rowHeight, trailing, total, rest = 0 }) {
+/* DIE UEBERSCHRIFT ZWISCHEN DEN TEILEN ZAEHLT MIT (D6). Steht nach den `lead`
+ * Zeilen der Leiste noch eine des Rests, traegt die Liste „Ausserdem heute"
+ * (`divider` hoch) - die Rechnung nimmt sie nur dann mit, wenn der Deckel
+ * ueber `lead` hinausreicht. */
+function programRowsThatFit({ fold, rowsTop, rowHeight, trailing, total, rest = 0, lead = 0, divider = 0 }) {
   if (!(rowHeight > 0) || !(total > 0)) return PROGRAM_ROW_CAP_PHONE;
   const room = fold - rowsTop;
-  if (total * rowHeight + rest <= room) return total;
-  return Math.max(PROGRAM_ROW_CAP_PHONE, Math.min(total - 1, Math.floor((room - trailing) / rowHeight)));
+  const dividerFor = (cap) => (lead > 0 && cap > lead ? divider : 0);
+  if (total * rowHeight + dividerFor(total) + rest <= room) return total;
+  let fit = Math.floor((room - trailing) / rowHeight);
+  if (dividerFor(fit)) fit = Math.max(lead, Math.floor((room - trailing - divider) / rowHeight));
+  return Math.max(PROGRAM_ROW_CAP_PHONE, Math.min(total - 1, fit));
 }
 
 /**
@@ -4054,9 +4076,17 @@ function measurePhoneProgram(shell, { shrinkOnly = false } = {}) {
   // ist es gemessen, sonst steckt die Einkaufszeile im Ueberlauf und zaehlt
   // als eine Zeile (gleiche Karte), die Coda mit ihrer Hoehe.
   const coda = section.querySelector('.today-cockpit__coda')?.getBoundingClientRect().height ?? 0;
+  // Die Ueberschrift „Ausserdem heute" (D6): gezeichnet ist sie gemessen,
+  // sonst gilt der zuletzt gemessene Wert, beim ersten Mal eine halbe Zeile.
+  const lead = Number(section.dataset.programLead) || 0;
+  const drawnAlso = section.querySelector('.today-cockpit__also--row:not(.today-cockpit__rows--more *)');
+  if (drawnAlso) phoneDividerHeight = drawnAlso.getBoundingClientRect().height;
+  const divider = lead ? phoneDividerHeight ?? rowHeight / 2 : 0;
+  // Bildet die Einkaufszeile den Rest allein, steht die Ueberschrift vor ihr.
+  const shoppingDivider = section.dataset.programShopping === '1' && lead >= total ? divider : 0;
   const rest = shown >= total
     ? trailing
-    : (section.dataset.programShopping === '1' ? rowHeight : 0) + coda;
+    : (section.dataset.programShopping === '1' ? rowHeight + shoppingDivider : 0) + coda;
   const geometry = {
     fold: foldViewport + scrollTop - gap,
     rowsTop: rowsRect.top + scrollTop,
@@ -4064,6 +4094,8 @@ function measurePhoneProgram(shell, { shrinkOnly = false } = {}) {
     trailing,
     total,
     rest,
+    lead,
+    divider,
   };
   // Ein leerer Tag hat eine Zustandszeile und nichts zu deckeln.
   if (!geometry.total) return null;
@@ -4084,6 +4116,16 @@ function measurePhoneProgram(shell, { shrinkOnly = false } = {}) {
   return cap === shown ? null : cap;
 }
 
+/**
+ * Die erste Schaetzung der Buehne (todayStage) kannte das Blatt noch nicht:
+ * jetzt steht es, und ist es schmaler oder breiter als geschaetzt, zeichnet es
+ * sich im selben Task neu - bevor der Browser ein Bild davon malt.
+ */
+function refitTodayStage(shell, render) {
+  const drawn = shell?.querySelector?.('.today-cockpit')?.dataset.todayStage;
+  if (drawn && drawn !== todayStage()) replaceProgramSheet(shell, render());
+}
+
 /** Tauscht das Heute-Blatt gegen eine neu gezeichnete Fassung (gleicher Platz). */
 function replaceProgramSheet(shell, html) {
   shell.querySelector('.today-cockpit')?.insertAdjacentHTML('afterend', html);
@@ -4099,15 +4141,14 @@ function replaceProgramSheet(shell, html) {
  * Buehne zwischen Telefon und breit wechselt, baut die Uebersicht neu. */
 function createPhoneProgramFit(win, signal, rebuild) {
   let frame = 0;
-  let phone = onPhoneStage();
   win.addEventListener('resize', () => {
     if (frame) return;
     frame = win.requestAnimationFrame(() => {
       frame = 0;
-      const now = onPhoneStage();
-      const crossed = now !== phone;
-      phone = now;
-      rebuild(crossed);
+      // Die Buehne, fuer die das Blatt gezeichnet ist, gegen die gemessene:
+      // Telefon, schmal oder breit (todayStage).
+      const drawn = win.document?.querySelector?.('.today-cockpit')?.dataset?.todayStage;
+      rebuild(Boolean(drawn) && drawn !== todayStage());
     });
   }, { signal, passive: true });
   signal.addEventListener('abort', () => win.cancelAnimationFrame(frame), { once: true });
@@ -4192,17 +4233,31 @@ function todaySheetSpeaks(data, cfg, now = new Date()) {
   return speakingSourceIds(data, todaySheetContextFor(cfg, now));
 }
 
+/**
+ * Spricht eine Domaene im Heute-Blatt? Kein Echo: ist das Modul-Widget einer
+ * Domaene sichtbar, entfallen ihre Programm-Zeilen - jede Domaene hat genau
+ * eine Repraesentation (Cockpit ODER Widget), statt dieselbe Aufgabe/Termin
+ * doppelt zu zeigen. Die Zeitleiste fragt dieselbe Regel, bevor es das Modell
+ * gibt.
+ */
+function todayDomainSpeaks(cfg, module) {
+  const widgetShown = Array.isArray(cfg) && cfg.some((w) => w.id === module && w.visible);
+  return !window.yuvomi?.isModuleDisabled(module) && !widgetShown;
+}
+
 function buildTodayCockpitModel(data, cfg = [], {
   cap = onPhoneStage() ? phoneProgramCap() : PROGRAM_ROW_CAP,
   now = new Date(),
   groupOverdue = onPhoneStage(),
+  isDisplay = false,
+  timeline = null,
+  // Breit (false) verlassen die Eintraege der Leiste die Liste; darunter
+  // (true) SIND ihre kommenden Eintraege die Zeilen (timelineSheetRows).
+  timelineRows = false,
   viewer = dashboardViewer,
 } = {}) {
-  // Kein Echo: ist das Modul-Widget einer Domäne sichtbar, entfallen ihre
-  // Programm-Zeilen — jede Domäne hat genau eine Repräsentation (Cockpit ODER
-  // Widget), statt dieselbe Aufgabe/Termin doppelt zu zeigen.
   const widgetShown = (id) => Array.isArray(cfg) && cfg.some((w) => w.id === id && w.visible);
-  const domainInCockpit = (module) => !window.yuvomi?.isModuleDisabled(module) && !widgetShown(module);
+  const domainInCockpit = (module) => todayDomainSpeaks(cfg, module);
 
   const includeTasks = domainInCockpit('tasks');
   const includeCalendar = domainInCockpit('calendar');
@@ -4210,6 +4265,17 @@ function buildTodayCockpitModel(data, cfg = [], {
   const includeShopping = domainInCockpit('shopping');
 
   const program = buildTodayProgram(data, { includeTasks, includeCalendar, includeMeals, now, viewer });
+  // Unter der breiten Buehne kommen Termine, Mahlzeiten und die eigene
+  // Schicht aus der Leiste (timelineSheetRows), nicht aus `upcomingEvents`
+  // und der einen Mahlzeit des Programms. Ohne Kalender im Blatt gibt es
+  // keine Leiste und keinen Tausch.
+  const rowsFromTimeline = timelineRows && includeCalendar;
+  if (rowsFromTimeline) {
+    program.rows = [
+      ...program.rows.filter((row) => !TIMELINE_PROGRAM_KINDS.has(row.kind)),
+      ...timelineSheetRows(data, timeline, now),
+    ];
+  }
 
   // Die uebrigen Quellen des Blatts (Dosen, Freigaben, Abfuhr, Geburtstag,
   // Schicht, Erinnerungen, Haushaltshilfe) sprechen ueber den Beitrags-Vertrag
@@ -4218,8 +4284,28 @@ function buildTodayCockpitModel(data, cfg = [], {
   // Wand fragen beide hier; die Wand reicht nur keine Kachel-Konfiguration mit.
   const sheetContext = todaySheetContextFor(cfg, now, program.rows);
   const contributed = collectSourceRows(data, sheetContext);
-  const programRows = groupOverdue ? groupOverdueRows(program.rows) : program.rows;
-  const sheet = composeTodaySheet([...programRows, ...contributed.rows], { cap });
+  // DER TERMIN STEHT EINMAL (Ulas, 2026-10-26). Traegt die Zeitleiste einen
+  // Termin als Block, verlaesst seine Zeile die Liste: der Block klappt sie
+  // unter der Leiste auf (renderTodayTimeline). Ganztaegiges hat keinen Block
+  // und bleibt. `existing` oben sieht weiter alle Zeilen - eine Erinnerung an
+  // einen Termin der Leiste bleibt so dessen Echo und keine eigene Zeile.
+  // Seit der Critique (Befund 3) gilt das fuer alles, was die Leiste traegt:
+  // Termin, ganztaegiger Termin, Mahlzeit, die eigene Schicht.
+  // Unter der breiten Buehne stehen die Eintraege der Leiste schon in
+  // `program.rows`; die Beitraege verlieren nur ihre Doppel (die Schicht).
+  const inTimeline = timelineRowKeys(timeline);
+  const notInTimeline = (row) => !inTimeline.has(`${row.kind}:${row.objectId}`);
+  const listed = inTimeline.size && !rowsFromTimeline ? program.rows.filter(notInTimeline) : program.rows;
+  // ZWEI TEILE (D6, composeTodaySheet): unter der breiten Buehne fuehren die
+  // Eintraege der Leiste, der Rest steht unter „Ausserdem heute". Der erste
+  // Eintrag mit Uhrzeit - was gerade laeuft, sonst das Naechste - bleibt
+  // unter jedem Deckel sichtbar, auch wenn Ganztaegiges ihn fuellt.
+  const lead = rowsFromTimeline ? listed.filter((row) => row.timelineKey) : null;
+  const own = lead ? listed.filter((row) => !row.timelineKey) : listed;
+  const programRows = groupOverdue ? groupOverdueRows(own) : own;
+  const anchor = (lead ?? []).reduce((best, row) => (/^\d{2}:\d{2}$/.test(String(row.sortKey)) && row.sortKey > '00:02'
+    && (!best || row.sortKey < best.sortKey) ? row : best), null);
+  const sheet = composeTodaySheet([...programRows, ...(inTimeline.size ? contributed.rows.filter(notInTimeline) : contributed.rows)], { cap, lead, anchor });
   const visibleRows = sheet.rows;
   const overflow = sheet.overflow;
 
@@ -4288,7 +4374,9 @@ function buildTodayCockpitModel(data, cfg = [], {
   // Schichtplan-Kachel mehr etwas behauptet.
   const scheduleWidgetVisible = !window.yuvomi?.isModuleDisabled('schedule') && widgetShown('schedule');
   let state = null;
-  if (!sheet.allRows.length && !scheduleWidgetVisible) {
+  // Steht in der Leiste noch etwas aus, ist der Tag weder frei noch durch.
+  const timelineAhead = (timeline?.lanes ?? []).some((lane) => lane.items.some((item) => item.state !== 'past'));
+  if (!sheet.allRows.length && !scheduleWidgetVisible && !timelineAhead) {
     // „Alles erledigt" sagt auch eine Quelle, deren Offenes heute geschafft
     // ist (alle Dosen genommen) - sonst hiesse derselbe Tag „Heute frei".
     const sayAllDone = (includeTasks && program.tasksDoneToday > 0) || contributed.settled;
@@ -4328,8 +4416,11 @@ function buildTodayCockpitModel(data, cfg = [], {
   // (`codaAllowed`): unter einer offenen Dosis, einer wartenden Freigabe oder
   // der Tonne am Morgen ist „nichts mehr" keine Entwarnung, sondern ein
   // Widerspruch zur Zeile darueber.
+  // Die Coda schliesst auch eine Leiste ab, deren Termine noch ausstehen und
+  // deren Zeilen deshalb nicht in der Liste stehen - sonst fiele unter einem
+  // Tag nur aus Terminen die Warnung vor der Morgen-Frist weg (Critique P3).
   let coda = null;
-  if (codaAllowed(sheet)) {
+  if (codaAllowed(sheet) || (timelineAhead && !sheet.allRows.length)) {
     const tomorrowKey = sheetContext.tomorrowKey;
     const tomorrowTask = includeTasks && program.nextDueTask?.due_date === tomorrowKey ? program.nextDueTask : null;
     coda = tomorrowTask
@@ -4343,7 +4434,10 @@ function buildTodayCockpitModel(data, cfg = [], {
   // Zeilen hinter dem Deckel liegen.
   const hidden = sheet.allRows.filter((row) => !visibleRows.includes(row));
   const moreRoute = overflow > 0 ? todayMoreRoute(hidden, sheetContext.todayKey) : null;
-  return { rows: visibleRows, allRows: sheet.allRows, hiddenRows: hidden, overflow, moreRoute, state, shopping, coda };
+  // `lead`: wie viele Zeilen der Leiste es gibt und wie viele davon stehen
+  // (D6) - die verdeckten folgen in `hiddenRows` derselben Gliederung.
+  const leadPart = lead ? { shown: sheet.leadShown, total: lead.length } : null;
+  return { rows: visibleRows, allRows: sheet.allRows, hiddenRows: hidden, overflow, moreRoute, state, shopping, coda, includeCalendar, includeTasks, lead: leadPart };
 }
 
 /* „+N WEITERE HEUTE" FUEHRT DORTHIN, WO DIE VERSTECKTEN ZEILEN STEHEN
@@ -4423,85 +4517,1045 @@ function wireTodayOverdue(root) {
  * Der Aufklapp-Knopf des Ueberlaufs: schaltet die verdeckten Zeilen an Ort und
  * Stelle, ohne das Blatt neu zu zeichnen - so bleibt der Fokus auf dem Knopf,
  * und ein zweiter Tipp klappt wieder zu.
+ *
+ * Unter der breiten Buehne steuert auch das Bild ueber den Zeilen dieselbe
+ * Region (renderTodayPeek, `data-today-peek`): beide Knoepfe sagen
+ * denselben Zustand, und nur der Tipp aufs Bild fuehrt danach zur ersten
+ * kommenden Zeile. `+N weitere` behaelt den Fokus: das Aufgeklappte steht
+ * direkt ueber ihm, das Bild dagegen liegt ueber allen Zeilen.
  */
 function wireTodayMore(root) {
-  root.querySelectorAll('[data-today-more]').forEach((btn) => {
+  const toggles = [...root.querySelectorAll('[data-today-more]')];
+  toggles.forEach((btn) => {
     btn.addEventListener('click', () => {
       const open = btn.getAttribute('aria-expanded') !== 'true';
-      const region = root.querySelector(`#${btn.getAttribute('aria-controls')}`);
+      const controls = btn.getAttribute('aria-controls');
+      const region = root.querySelector(`#${controls}`);
       toggleRegion(region, open);
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      const label = btn.querySelector('span');
-      if (label) label.textContent = open ? btn.dataset.lessLabel : btn.dataset.moreLabel;
+      for (const toggle of toggles) {
+        if (toggle !== btn && toggle.getAttribute('aria-controls') !== controls) continue;
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        const label = toggle.dataset.lessLabel ? toggle.querySelector('span') : null;
+        if (label) label.textContent = open ? toggle.dataset.lessLabel : toggle.dataset.moreLabel;
+      }
       todayMoreOpen = open;
+      if (open && btn.dataset.todayPeek != null) revealTodayPeekTarget(region, btn.dataset.peekTarget);
     });
   });
 }
 
-function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(), moreOpen = todayMoreOpen, overdueOpen = todayOverdueOpen, cap } = {}) {
-  const model = buildTodayCockpitModel(data, cfg, { now, ...(cap ? { cap } : {}) });
+/** Minute des Tages (0-1439) aus einem Wert, gelesen in der Wanduhr des Haushalts. */
+function householdMinuteOf(value) {
+  const [hour, minute] = String(zonedTimeKey(value) || '').split(':').map(Number);
+  return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
+}
 
-  /* DIE BREITE BUEHNE TRAEGT ZWEI SPALTEN ZEILEN (Critique 23.09.2026). Am
-   * Desktop ist das Blatt 1140px breit, und eine Zeile nutzte davon ~200px
-   * Text - dazwischen lag ein leeres Band bis zur Uhrzeit. Ab einer
-   * Containerbreite (dashboard.css, `today-cockpit__rows--split`) laufen die
-   * Zeilen deshalb in zwei Spalten, SPALTENWEISE: links die fruehe, rechts die
-   * spaete Haelfte des Tages, damit das Programm von oben nach unten gelesen
-   * bleibt. Die Haelfte steht hier, weil nur das Markup die Zahl kennt; auf
-   * schmaler Buehne haben die Klassen keine Wirkung, das Blatt bleibt eine
-   * Liste in unveraenderter Hoehe. */
-  const listRows = [];
-  if (model.state) listRows.push(renderTodayStateRow(model.state));
-  // Die Sammelzeile gibt es nur auf dem Telefon; dort teilt sich die Liste nie.
-  const grouped = model.rows.some((row) => row.kind === 'overdue');
-  const split = model.rows.length >= 2 && !grouped;
-  // BEI UNGERADER ZAHL SPANNT DIE LETZTE ZEILE (R22 D16). Mit `ceil` blieb
-  // rechts unten eine leere Zelle, und die Haarlinie darueber endete im Nichts.
-  // Jetzt teilen sich die ersten 2k Zeilen die Spalten, die letzte steht ueber
-  // die volle Breite darunter - gelesen wird links, rechts, dann „und zuletzt".
-  const perColumn = Math.floor(model.rows.length / 2);
-  const columnClass = (index) => {
-    if (!split) return '';
-    if (index >= perColumn * 2) return ' today-cockpit-card--span';
-    if (index < perColumn) return '';
-    return ` today-cockpit-card--col2${index === perColumn ? ' today-cockpit-card--col-start' : ''}`;
-  };
-  listRows.push(...model.rows.map((row, index) => (row.kind === 'overdue'
-    ? renderTodayOverdueGroup(row, overdueOpen)
-    : renderTodayRow(row, columnClass(index)))));
-  const parts = [];
-  const foldShopping = Boolean(model.shopping) && model.overflow > 0 && !model.moreRoute && onPhoneStage();
-  if (listRows.length) {
-    parts.push(`<div class="today-cockpit__rows${split ? ' today-cockpit__rows--split' : ''}"${split ? ` style="--today-rows-per-column:${perColumn}"` : ''}>${listRows.join('')}</div>`);
+/** Minute des Tages aus einer Wanduhrzeit 'HH:MM' (Schicht, Nennzeit einer Mahlzeit). */
+function clockMinute(time) {
+  const match = /^(\d{2}):(\d{2})/.exec(String(time ?? ''));
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+/**
+ * Wann etwas dran ist, relativ zu jetzt (Critique 2026-10-26, Befund 5):
+ * unter einer Stunde „in 25 Min" - im Ton des Moduls -, spaeter mit der Uhrzeit
+ * davor („15:00 · in 2 Std."), denn eine gerundete Stunde allein verlangt
+ * Kopfrechnen. Ueber Intl.RelativeTimeFormat, damit jede Sprache ihre Kurzform
+ * hat. `null`, wenn es schon begonnen hat.
+ */
+function relativeWhen(minuteOfDay, now, clock = '') {
+  const nowMinute = householdMinuteOf(now);
+  if (nowMinute == null || minuteOfDay == null || minuteOfDay <= nowMinute) return null;
+  const delta = minuteOfDay - nowMinute;
+  const format = new Intl.RelativeTimeFormat(getLocale(), { numeric: 'always', style: 'short' });
+  if (delta < 60) return { label: format.format(delta, 'minute'), soon: true };
+  const relative = format.format(Math.round(delta / 60), 'hour');
+  return { label: clock ? `${clock} · ${relative}` : relative, soon: false };
+}
+
+/**
+ * DIE TERMINE VON HEUTE, EINMAL (Entwurf „Heute wichtig", 2026-10-26).
+ *
+ * Aus BEIDEN Terminlisten der Antwort: `upcomingEvents` haelt die Kachel-
+ * Liste samt ihrem Deckel von fuenf Kommenden, `familyEvents` je Mitglied die
+ * heute beendeten und die naechsten (#1449). Erst zusammen tragen sie einen
+ * vollen Tag. Doppelte fallen ueber denselben Schluessel wie serverseitig
+ * (`id@start`). Beendete bleiben hier stehen: die Leiste zeigt den Tag, die
+ * Liste darunter nur, was noch kommt.
+ *
+ * @returns {{ timed: object[], allDay: object[] }}  `timed` fuer die Achse
+ *   (Minuten in der Haushaltszone), `allDay` fuer das Band ueber ihr
+ */
+function todayEventsForTimeline(data, now = new Date()) {
+  const todayKey = zonedDateKey(now);
+  const memberIds = (Array.isArray(data?.users) ? data.users : []).map((user) => user.id);
+  const seen = new Set();
+  const timed = [];
+  const allDay = [];
+  for (const key of ['upcomingEvents', 'familyEvents']) {
+    for (const event of Array.isArray(data?.[key]) ? data[key] : []) {
+      const id = `${event.id}@${event.start_datetime}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const span = overviewEventSpan(event, todayKey);
+      if (span.day !== todayKey) continue;
+      const peopleIds = (event.assigned_users ?? []).map((user) => user.id);
+      const base = {
+        id: event.id,
+        peopleIds,
+        title: event.title,
+        kind: 'event',
+        tone: 'calendar',
+        key: id,
+        sheetRow: timelineEventRow(event, span, memberIds),
+      };
+      if (span.allDay) {
+        allDay.push(base);
+        continue;
+      }
+      const start = span.carried ? 0 : householdMinuteOf(event.start_datetime);
+      if (start == null) continue;
+      const endRaw = String(event.end_datetime || '');
+      const endsToday = endRaw.length > 10 && zonedDateKey(endRaw) <= todayKey;
+      // Was ueber Mitternacht reicht, endet auf der Achse am Tagesende.
+      const end = endRaw.length > 10 ? (endsToday ? householdMinuteOf(endRaw) : 24 * 60) : start;
+      const timeLabel = overviewEventTime(event, span);
+      const endLabel = endsToday && end > start ? formatTime(endRaw) : '';
+      timed.push({
+        ...base,
+        start,
+        end: end ?? start,
+        // Sichtbar der Beginn allein, wie in der Terminzeile (#1698); das Ende
+        // traegt die Breite des Blocks und der zugaengliche Name (Befund 4).
+        timeLabel,
+        endLabel,
+        // Die aufgeklappte Zeile nennt Beginn UND Ende (timelineDetailRow) -
+        // ausser beim Uebertrag von gestern, der schon „bis 10:00" sagt.
+        rangeLabel: endLabel && !span.carried ? `${timeLabel} - ${endLabel}` : '',
+      });
+    }
   }
-  // DER EINKAUF STEHT VOR DEM AUFKLAPPER (R22 D16). Er folgte „+4 weitere
-  // heute" und las sich wie eine der verdeckten Zeilen, die schon aufgeklappt
-  // ist. Er ist die zeitlose Schlusszeile des SICHTBAREN Programms; der
-  // Aufklapper schliesst das Blatt ab. Auf dem Telefon klappt er weiter mit
-  // (`foldShopping`, R14).
-  if (model.shopping && !foldShopping) parts.push(renderTodayRow(model.shopping));
+  return { timed, allDay };
+}
+
+/**
+ * Die Zeile, die ein Block unter der Leiste aufklappt: dieselbe wie in der
+ * Liste, mit der Zuweisung. Das Siegel-Paar zeigt EIN Gesicht (whoMark); geht
+ * der Termin mehrere an, nennt die Unterzeile alle (#1828) - im Solo-Haushalt
+ * niemanden. Gehoert er dem ganzen Haushalt (alle Mitglieder zugewiesen),
+ * steht kein einzelnes Gesicht am Siegel, sondern „Alle" in der Unterzeile:
+ * er steht in der Spur „Alle", und Alex' Avatar daran sagte etwas anderes
+ * (Critique 2026-10-26).
+ */
+function timelineEventRow(event, span, memberIds = []) {
+  const row = todayEventRow(event, span);
+  const people = isSoloHousehold() ? [] : (event.assigned_users ?? []);
+  const everyone = memberIds.length >= 2 && memberIds.every((id) => people.some((person) => person.id === id));
+  if (everyone) {
+    row.who = null;
+    row.sub = `${row.sub} · ${t('dashboard.todayTimelineEveryone')}`;
+  } else if (people.length > 1) {
+    // Bei geteiltem Nachnamen die Vornamen (R19), wie in den Spuren.
+    const surname = sharedSurname(people);
+    const given = (name) => (surname && name.endsWith(` ${surname}`) ? name.slice(0, -(surname.length + 1)) : name);
+    row.sub = `${row.sub} · ${people.map((person) => given(String(person.display_name ?? ''))).join(', ')}`;
+    // Die Unterzeile nennt schon alle - der Name hinter dem Avatar entfaellt,
+    // sonst hoerte der Screenreader die erste Person zweimal.
+    row.namesInSub = true;
+  }
+  return row;
+}
+
+/**
+ * DIE MAHLZEITEN ALS PUNKT, NICHT ALS BLOCK (Critique 2026-10-26, Befund 3,
+ * Ulas: „nur Echtes"). Ihr Platz ist die Nennzeit des Typs (MEAL_SORT_TIME),
+ * nach der das Blatt sie ohnehin sortiert - eine Uhrzeit, die niemand
+ * eingetragen hat. Eine erfundene Stunde Dauer und ein „laeuft gerade"
+ * behaupteten mehr; der Punkt sagt nur „um diese Zeit, ungefaehr". Er klappt
+ * die Zeile der Mahlzeit auf; in der Liste steht sie dann nicht noch einmal.
+ */
+function todayMealsForTimeline(data) {
+  const labels = MEAL_LABELS();
+  return (Array.isArray(data?.todayMeals) ? data.todayMeals : [])
+    .filter((meal) => MEAL_SORT_TIME[meal?.meal_type])
+    .map((meal) => {
+      const time = MEAL_SORT_TIME[meal.meal_type];
+      const start = clockMinute(time);
+      const label = labels[meal.meal_type] ?? t('dashboard.todayDinner');
+      return {
+        id: meal.id,
+        start,
+        end: start,
+        point: true,
+        peopleIds: [],
+        title: label,
+        timeLabel: formatTime(time),
+        endLabel: '',
+        kind: 'meal',
+        tone: 'meals',
+        key: `meal-${meal.id}`,
+        sheetRow: {
+          kind: 'meal',
+          objectId: meal.id ?? null,
+          sortKey: time,
+          timeLabel: '',
+          title: meal.title,
+          sub: `${label} · ${formatTime(time)}`,
+          icon: MEAL_ICONS[meal.meal_type] ?? 'utensils',
+          tone: 'dinner',
+          route: meal.id != null ? `/meals?open=${encodeURIComponent(String(meal.id))}` : '/meals',
+          who: mealCookPerson(meal, data?.users),
+          // Dieselbe Stelle im Deckel wie die Mahlzeit des Programms
+          // (buildTodayProgram): eine Auskunft, die zuletzt weicht.
+          priority: 80,
+          open: false,
+        },
+      };
+    });
+}
+
+/**
+ * DIE EIGENE SCHICHT IN DER EIGENEN SPUR (Critique 2026-10-26, Befund 3). Die
+ * Schicht hat Beginn und Ende - echte Zeit, die bisher unter „+N weitere"
+ * steckte. Die Antwort traegt nur die EIGENE (`myShiftsToday`); die der
+ * anderen zeigt die Schichtplan-Kachel. Ohne Uhrzeit hat sie keinen Platz.
+ */
+function todayShiftsForTimeline(data, viewer) {
+  if (viewer?.id == null) return [];
+  return (Array.isArray(data?.myShiftsToday) ? data.myShiftsToday : []).flatMap((entry) => {
+    const type = entry.shift_type ?? {};
+    const start = clockMinute(type.start_time);
+    const endClock = clockMinute(type.end_time);
+    if (start == null || endClock == null) return [];
+    const end = entry.crosses_midnight || endClock <= start ? 24 * 60 : endClock;
+    const startTime = String(type.start_time).slice(0, 5);
+    const endTime = String(type.end_time).slice(0, 5);
+    return [{
+      id: type.id,
+      start,
+      end,
+      peopleIds: [viewer.id],
+      title: shiftTypeLabel(type),
+      timeLabel: formatTime(startTime),
+      endLabel: end < 24 * 60 ? formatTime(endTime) : '',
+      kind: 'shift',
+      tone: 'schedule',
+      key: `shift-${type.id}`,
+      sheetRow: {
+        kind: 'shift',
+        objectId: type.id ?? null,
+        sortKey: startTime,
+        timeLabel: `${formatTime(startTime)} - ${formatTime(endTime)}`,
+        title: shiftTypeLabel(type),
+        sub: t('nav.schedule'),
+        icon: MODULE_ICON.schedule,
+        tone: 'schedule',
+        route: '/schedule',
+        who: viewer,
+        // Wie die Schicht des Beitrags-Vertrags (utils/today-sheet.js): ein
+        // Rahmen des Tages, kein Auftrag.
+        priority: 50,
+        open: false,
+      },
+    }];
+  });
+}
+
+/**
+ * Die Leiste als Modell - null, wenn heute nichts eine Uhrzeit hat. Traegt
+ * dazu das Band der ganztaegigen Termine (`allDay`) und den Schluessel des
+ * naechsten kommenden Eintrags (`nextKey`, Befund 2: „Als Naechstes" spricht
+ * in der Leiste, nicht als zweite Zeile daneben).
+ */
+function buildTodayTimeline(data, { now = new Date(), includeMeals = false, includeShifts = false, viewer = dashboardViewer } = {}) {
+  const { timed, allDay } = todayEventsForTimeline(data, now);
+  if (includeMeals) timed.push(...todayMealsForTimeline(data));
+  if (includeShifts) timed.push(...todayShiftsForTimeline(data, viewer));
+  const members = (Array.isArray(data?.users) ? data.users : []).map((user) => ({
+    ...user,
+    // renderAvatarStack liest `color`, die Mitgliederliste traegt `avatar_color`.
+    color: user.color ?? user.avatar_color,
+  }));
+  const layout = layoutTodayTimeline(timed, {
+    nowMinute: householdMinuteOf(now),
+    members,
+    solo: isSoloHousehold(),
+  });
+  if (!layout) return null;
+  const upcoming = layout.lanes.flatMap((lane) => lane.items).filter((item) => item.state === 'next');
+  const next = upcoming.reduce((best, item) => (!best || item.start < best.start ? item : best), null);
+  return { ...layout, allDay, members, nextKey: next?.key ?? null };
+}
+
+/** Alles, was die Leiste traegt, als `art:id` - diese Zeilen verlassen die Liste. */
+function timelineRowKeys(timeline) {
+  if (!timeline) return new Set();
+  const items = [...timeline.lanes.flatMap((lane) => lane.items), ...(timeline.allDay ?? [])];
+  return new Set(items.map((item) => `${item.kind}:${item.id}`));
+}
+
+/* Die Arten, die das Programm selbst baut und die die Leiste ebenfalls traegt. */
+const TIMELINE_PROGRAM_KINDS = new Set(['event', 'meal']);
+
+/**
+ * DAS BILD UND DER TEXT ERZAEHLEN DENSELBEN TAG (Critique 2026-10-26, Lauf 2,
+ * D1). Unter der breiten Buehne ist die Leiste eine stumme Kurzfassung, und
+ * ihre Zeilen kamen aus `upcomingEvents` (Server-Deckel fuenf) plus EINER
+ * Mahlzeit: der Filmabend um 20:00 stand im Bild und nie als Text, das
+ * vergangene Mittagessen und die beendete Fruehschicht standen als Text, aber
+ * nicht mehr im Bild. Jetzt kommen die Zeilen aus demselben Modell wie die
+ * Balken: was dort nicht vorbei ist (`state !== 'past'`, eine Mahlzeit ist es,
+ * sobald ihre Zeit da war), ueber die Zeile, die auch der Block aufklappt.
+ * Ein Termin fuer zwei steht in zwei Spuren und EINMAL als Zeile. Das
+ * Ganztaegige bleibt Zeile - es hat keinen Balken, aber dieselbe Quelle.
+ */
+function timelineSheetRows(data, timeline, now = new Date()) {
+  const rows = [];
+  const seen = new Set();
+  const allDay = timeline?.allDay ?? todayEventsForTimeline(data, now).allDay;
+  for (const item of allDay) {
+    if (seen.has(item.key)) continue;
+    seen.add(item.key);
+    rows.push({ ...item.sheetRow, timelineKey: item.key });
+  }
+  for (const item of (timeline?.lanes ?? []).flatMap((lane) => lane.items)) {
+    if (item.state === 'past' || seen.has(item.key)) continue;
+    seen.add(item.key);
+    const row = item.kind === 'meal' ? timelineMealRow(item) : { ...item.sheetRow };
+    rows.push({ ...(item.state === 'now' ? runningRow(row) : row), timelineKey: item.key });
+  }
+  return rows;
+}
+
+/* WAS LAEUFT, SAGT ES (Critique 2026-10-26, Lauf 2, D6). Ein laufender Termin
+ * stand mit seinem Beginn da („16:00") - um 16:30 eine Uhrzeit von gestern,
+ * neben „in 25 Min" darunter. Jetzt steht dort „laeuft gerade" im Ton des
+ * Moduls; Beginn und Ende nennt der Block und die Zeile dahinter. Der
+ * Uebertrag von gestern behaelt sein „bis 10:00" (kein Beginn heute), die
+ * Schicht ihre Spanne. */
+function runningRow(row) {
+  if (row.kind !== 'event' || !/^\d{2}:\d{2}$/.test(String(row.sortKey)) || row.sortKey <= '00:02') return row;
+  return { ...row, timeLabel: t('dashboard.todayTimelineRunning'), soon: true };
+}
+
+/**
+ * DER KOPF ZAEHLT, WAS NOCH KOMMT - AUF JEDER BUEHNE (Ulas, 2026-10-26, D5).
+ * Breit zaehlte er den ganzen Tag samt Vergangenem („11 Termine"), darunter
+ * nur die kommenden Zeilen („6 Termine"): dieselbe Familie, derselbe Moment,
+ * zwei Zahlen. Jetzt zaehlt jede Buehne aus derselben Quelle wie die Zeilen
+ * unter der Kurzfassung (timelineSheetRows) - laufende, kommende und
+ * ganztaegige Termine, einmal je Termin - und sagt es: „noch 6 Termine". Ist
+ * keiner mehr uebrig, entfaellt der Teil. Der Minutentakt baut neu, sobald ein
+ * Termin endet (todayFingerprint, `ended`).
+ */
+function todayEventsAhead(data, timeline, now = new Date()) {
+  return timelineSheetRows(data, timeline, now).filter((row) => row.kind === 'event').length;
+}
+
+/* Die Mahlzeit nennt ihre Zeit rechts (withRelativeWhen); die Unterzeile
+ * traegt nur ihre Art, wie die Mahlzeit des Programms. */
+const timelineMealRow = (item) => ({ ...item.sheetRow, sub: item.title, timeLabel: item.timeLabel });
+
+/**
+ * DIE AUFGEKLAPPTE ZEILE NENNT DIE SPANNE (Critique 2026-10-26, Lauf 2). Der
+ * Block zeigt seine Dauer nur als Breite, die Zeile darunter jetzt in Worten:
+ * „15:00 - 16:00" und den vollen Titel, den ein schmaler Block abschneidet.
+ * Die Liste bleibt beim Beginn allein (#1698); ein Punkt (Mahlzeit) hat keine
+ * Dauer und nennt seinen Beginn, die Schicht traegt ihre Spanne schon.
+ */
+function timelineDetailRow(item) {
+  if (item.kind === 'meal') return timelineMealRow(item);
+  return item.rangeLabel ? { ...item.sheetRow, timeLabel: item.rangeLabel } : item.sheetRow;
+}
+
+/* DIE SUMME IM KOPF: der Tag in einem Satz, bevor man eine Zeile liest
+ * („noch 6 Termine · 1 Aufgabe ueberfaellig"). Nur, was das Blatt selbst
+ * spricht: Termine, wenn der Kalender im Blatt spricht (Kein-Echo-Regel),
+ * Ueberfaelliges, wenn die Aufgaben es tun. Ohne beides steht keine Summe da -
+ * „0 Termine" waere ein Satz ueber nichts. */
+function todaySummary(data, model, timeline = null, now = new Date()) {
+  const parts = [];
+  const events = model.includeCalendar ? todayEventsAhead(data, timeline, now) : 0;
+  if (events > 0) parts.push(t('dashboard.todaySummaryEventsAhead', { count: events }));
+  if (model.includeTasks) {
+    const overdue = model.allRows
+      .flatMap((row) => (row.kind === 'overdue' ? row.members ?? [] : [row]))
+      .filter((row) => row.kind === 'task' && row.overdue).length;
+    if (overdue > 0) parts.push(t('dashboard.todaySummaryOverdue', { count: overdue }));
+  }
+  return parts.join(' · ');
+}
+
+/** Der Ton eines Eintrags der Leiste: das Modul, aus dem er kommt. */
+const TIMELINE_TONES = { calendar: 'calendar', meals: 'meals', schedule: 'schedule' };
+const timelineTone = (item) => `var(--module-${TIMELINE_TONES[item.tone] ?? 'calendar'})`;
+
+/**
+ * DIE ZEITLEISTE DES TAGES (Entwurf „Heute wichtig", 2026-10-26; Modell in
+ * utils/today-timeline.js). Eine Spur fuer den Haushalt, eine je Person mit
+ * etwas Gezeitetem heute; Vergangenes tritt zurueck, ein Strich sagt „jetzt",
+ * das Ganztaegige steht als Band ueber der Achse.
+ *
+ * NUR AUF DER BREITEN BUEHNE (ab 900px Containerbreite, todayStage). Darunter
+ * - Telefon, Tablet hochkant, schmale Spalte - steht die Kurzfassung, und die
+ * Termine bleiben Zeilen: eine Stunde waere dort schmaler als ihr Titel
+ * (Critique 2026-10-26, Befund 1).
+ *
+ * DER BLOCK KLAPPT SEINEN EINTRAG AUF (Ulas, 2026-10-26): seine Zeile -
+ * Siegel, Zuweisung, Kalender - steht unter der Leiste, ein zweiter Klick
+ * klappt sie zu, Esc auch. Die Zeile oeffnet das Objekt wie jede Zeile des
+ * Blatts. Die Leiste ist EIN Tab-Stopp (roving tabindex), Pfeiltasten wandern
+ * zwischen den Bloecken, Tab fuehrt weiter zur aufgeklappten Zeile (Befund 4).
+ * Der zugaengliche Name eines Blocks nennt Person, Titel, Beginn und Ende und
+ * den Zustand: „Emma: Schule, 08:00 bis 13:00, laeuft gerade".
+ */
+function renderTodayTimeline(timeline, now = new Date(), openKey = null) {
+  if (!timeline) return '';
+  const nowMinute = householdMinuteOf(now);
+  // Stunden, Gitter, Bloecke, Strich und Fahne stehen auf DERSELBEN gewichteten
+  // Achse (timelineScale, D7); im gestauchten Teil spricht nur jede k-te Stunde.
+  const hours = timeline.marks.map((mark) => {
+    const classes = ['today-timeline__hour'];
+    if (mark.odd) classes.push('today-timeline__hour--odd');
+    if (mark.sparse) classes.push('today-timeline__hour--sparse');
+    if (timeline.now != null && timelineHourCovered(timeline.scale, mark.minute, nowMinute)) classes.push('today-timeline__hour--covered');
+    return `<span class="${classes.join(' ')}" data-minute="${mark.minute}" style="--tl-at:${mark.at}">${esc(axisHourLabel(mark.minute))}</span>`;
+  }).join('');
+  const grid = `<div class="today-timeline__grid" aria-hidden="true">${timeline.marks.map((mark) => `<span style="--tl-at:${mark.at}"></span>`).join('')}</div>`;
+  const stateLabel = { past: t('dashboard.todayTimelinePast'), now: t('dashboard.todayTimelineRunning') };
+  const solo = timeline.lanes.length === 1 && timeline.lanes[0].key === 'all' && isSoloHousehold();
+  // Der geteilte Nachname steht nicht in jeder Spur (R19): „Johnson" viermal
+  // unterscheidet niemanden. Der volle Name bleibt der zugaengliche Name.
+  const surname = sharedSurname(timeline.lanes.map((lane) => lane.member).filter(Boolean));
+  const shortName = (full) => (surname && full.endsWith(` ${surname}`) ? full.slice(0, -(surname.length + 1)) : full);
+  const everyone = t('dashboard.todayTimelineEveryone');
+  // EIN Tab-Stopp: der aufgeklappte Eintrag, sonst der naechste, sonst der erste.
+  const allKeys = [...(timeline.allDay ?? []).map((item) => item.key), ...timeline.lanes.flatMap((lane) => lane.items.map((item) => item.key))];
+  const focusKey = [openKey, timeline.nextKey, allKeys[0]].find((key) => key && allKeys.includes(key));
+  let focusTaken = false;
+  const tabindex = (key) => {
+    if (focusTaken || key !== focusKey) return ' tabindex="-1"';
+    focusTaken = true;
+    return '';
+  };
+  const button = (item, laneName, { allDay = false } = {}) => {
+    const next = item.key === timeline.nextKey;
+    const when = next ? relativeWhen(item.start, now, item.timeLabel) : null;
+    // EINE QUELLE FUER „WANN" (Critique 2026-10-26, Lauf 2, D2): das Naechste
+    // nennt seine Zeit in der Fahne ueber der Achse, nicht im Block - auch wo
+    // der Block breit genug waere. Zweimal „15:00 · in 2 Std." uebereinander
+    // waere dieselbe Auskunft doppelt, und nur die Fahne fuehrt der
+    // Minutentakt nach (updateTodayTimelineNow). Der Block traegt den Titel;
+    // der zugaengliche Name behaelt die Zeit (data-timeline-when, ebenfalls
+    // nachgefuehrt).
+    const visibleTime = allDay || when ? '' : item.timeLabel;
+    // Nach „in 2 Std." setzt ein Komma ab, sonst laese es sich „in 2 Std. bis 16:00".
+    const until = item.endLabel ? `${next && when ? ',' : ''} ${t('dashboard.todayUntil', { time: item.endLabel })}` : '';
+    const state = next ? t('dashboard.todayTimelineNext') : stateLabel[item.state] ?? '';
+    const classes = ['today-timeline__event', `today-timeline__event--${item.state ?? 'next'}`];
+    if (next) classes.push('today-timeline__event--upnext');
+    if (item.point) classes.push('today-timeline__event--point');
+    // DER VOLLE TITEL ALS TOOLTIP (D7): wo der Block ihn kuerzt, zeigt ihn der
+    // Zeiger samt Beginn - nur der Beginn, wie ueberall im Blatt (#1698); die
+    // Spanne nennt die aufgeklappte Zeile. Der zugaengliche Name bleibt der
+    // Inhalt des Knopfs.
+    const clock = allDay ? '' : item.timeLabel || '';
+    const tooltip = clock ? `${item.title} · ${clock}` : item.title;
+    return `<button type="button" class="${classes.join(' ')}" data-timeline-event="${esc(item.key)}"${tabindex(item.key)}
+                    aria-expanded="${item.key === openKey ? 'true' : 'false'}" aria-controls="today-timeline-detail" title="${esc(tooltip)}">
+              <span class="sr-only">${esc(laneName)}: </span><span class="today-timeline__title">${esc(item.title)}</span>${
+      visibleTime ? `<span class="today-timeline__time"><span class="sr-only">, </span>${esc(visibleTime)}</span>` : ''}${
+      when ? `<span class="sr-only" data-timeline-when>, ${esc(spokenWhen(when, item.timeLabel))}</span>` : ''}${
+      until ? `<span class="sr-only">${esc(until)}</span>` : ''}${state ? `<span class="sr-only">, ${esc(state)}</span>` : ''}
+            </button>`;
+  };
+  const band = (timeline.allDay ?? []).length ? `
+      <div class="today-timeline__allday">
+        <span class="today-timeline__allday-label">${esc(t('dashboard.allDay'))}</span>
+        <ul class="today-timeline__allday-list" aria-label="${esc(t('dashboard.allDay'))}">${
+      timeline.allDay.map((item) => `<li style="--c:${timelineTone(item)}">${button({ ...item, state: 'next' }, laneNameFor(item, timeline, everyone), { allDay: true })}</li>`).join('')
+    }</ul>
+      </div>` : '';
+  const lanes = timeline.lanes.map((lane) => {
+    const name = lane.member ? lane.member.display_name ?? '' : everyone;
+    const face = lane.member
+      ? renderAvatarStack([lane.member], { size: 28, maxVisible: 1 })
+      : `<span class="today-timeline__everyone" aria-hidden="true"><i data-lucide="users" class="icon-sm"></i></span>`;
+    const label = solo ? '' : `<span class="today-timeline__who" aria-hidden="true">${face}<span class="today-timeline__name">${esc(shortName(name))}</span></span>`;
+    const items = lane.items.map((item) => `
+          <li class="today-timeline__slot${item.point ? ' today-timeline__slot--point' : ''}" data-timeline-at="${item.start}" style="--tl-left:${item.left};--tl-width:${item.width};--tl-row:${item.row};--c:${timelineTone(item)}">
+            ${button(item, shortName(name))}
+          </li>`).join('');
+    return `
+        <div class="today-timeline__lane" style="--tl-rows:${lane.rows}">
+          ${label}
+          <ul class="today-timeline__track" aria-label="${esc(name)}">${items}</ul>
+        </div>`;
+  }).join('');
+  const nowMarker = timeline.now == null ? '' : `
+      <div class="today-timeline__past" aria-hidden="true"></div>
+      <div class="today-timeline__now" aria-hidden="true"><span class="today-timeline__now-time">${esc(formatTime(now))}</span></div>`;
+  // Je Eintrag EINE Zeile, auch wenn er in zwei Spuren steht.
+  const details = new Map();
+  for (const item of [...(timeline.allDay ?? []), ...timeline.lanes.flatMap((lane) => lane.items)]) {
+    if (!details.has(item.key)) details.set(item.key, timelineDetailRow(item));
+  }
+  const open = details.has(openKey) ? openKey : null;
+  const detail = `
+    <div class="today-timeline__detail" id="today-timeline-detail"${open ? '' : ' hidden'}>${
+      [...details].map(([key, row]) => `<div class="today-timeline__detail-row" data-timeline-detail="${esc(key)}"${key === open ? '' : ' hidden'}>${renderTodayRow(row)}</div>`).join('')
+    }</div>`;
+  return `${band}
+    <div class="today-timeline${solo ? ' today-timeline--solo' : ''}" role="group" aria-label="${esc(t('dashboard.todayTimelineLabel'))}"
+         data-timeline-start="${timeline.start}" data-timeline-end="${timeline.end}"${timeline.knee == null ? '' : ` data-timeline-knee="${timeline.knee}"`}${timeline.now == null ? '' : ` style="--tl-now:${timeline.now}"`}>
+      <div class="today-timeline__axis" aria-hidden="true">${hours}${renderTimelineFlag(timeline, now)}</div>
+      ${grid}
+      ${lanes}
+      ${nowMarker}
+    </div>${detail}`;
+}
+
+/** Wessen ein ganztaegiger Termin ist - fuer den zugaenglichen Namen seines Bands. */
+function laneNameFor(item, timeline, everyone) {
+  const people = (timeline.members ?? []).filter((member) => item.peopleIds.includes(member.id));
+  if (!people.length || people.length === (timeline.members ?? []).length) return everyone;
+  return people.map((person) => person.display_name ?? '').join(', ');
+}
+
+/**
+ * Die Stunde an der Achse, kurz wie im Entwurf: „07" statt „07:00", im
+ * 12-Stunden-Format „7 AM" (hourGutterLabel). Die Schreibweise der Locale
+ * bleibt (Punkt in `id`, persische Ziffern in `fa`) - gekuerzt wird nur ein
+ * „:00"/„.00" am Ende.
+ */
+function axisHourLabel(minute) {
+  const full = hourGutterLabel(minute / 60);
+  return full.replace(/^(\S+?)[:.]\D?[0０۰٠]{2}$/u, '$1');
+}
+
+/** Was der zugaengliche Name des Naechsten sagt: „in 25 Min, 15:00" - unter einer Stunde mit der Uhrzeit dahinter. */
+const spokenWhen = (when, clock) => (when.soon && clock ? `${when.label}, ${clock}` : when.label);
+
+/**
+ * DAS NAECHSTE SPRICHT, AUCH WENN SEIN BLOCK SCHMAL IST (Critique 2026-10-26,
+ * Lauf 2, D2). Bei 1440 war eine Stunde 59px breit - unter der Schwelle des
+ * Blocks (5rem) faellt seine Uhrzeit weg, und ausgerechnet beim Naechsten
+ * fehlte „15:00 · in 1 Std.". Die Fahne steht in der Achse ueber dem
+ * Blockanfang, geformt wie die Jetzt-Pille, aber im Ton des Moduls (--c):
+ * die Pille sagt „jetzt", die Fahne „das kommt". Sie ist Bild (aria-hidden),
+ * den Satz traegt der Block selbst („..., als Naechstes").
+ *
+ * Wo sie genau steht, entscheidet das Stylesheet (`.today-timeline__flag`):
+ * am Blockanfang, aber nie unter der Jetzt-Pille - die hat Vorrang und die
+ * Fahne weicht nach hinten aus - und nie ueber das Achsenende hinaus. Die
+ * Breiten dafuer misst placeTodayTimelineFlag.
+ */
+function renderTimelineFlag(timeline, now) {
+  const item = timeline.lanes.flatMap((lane) => lane.items).find((entry) => entry.key === timeline.nextKey);
+  const when = item ? relativeWhen(item.start, now, item.timeLabel) : null;
+  if (!when) return '';
+  return `<span class="today-timeline__flag" data-timeline-flag aria-hidden="true" data-flag-at="${item.start}" data-flag-clock="${esc(item.timeLabel)}" style="--tl-at:${item.left};--c:${timelineTone(item)}">${esc(when.label)}</span>`;
+}
+
+/* Abstand zwischen Fahne und dem, dem sie ausweicht (Jetzt-Pille, Stunde). */
+const TIMELINE_FLAG_GAP = 4;
+
+/**
+ * Misst, was das Stylesheet fuer die Lage der Fahne braucht: die halbe Breite
+ * der Jetzt-Pille (`--tl-now-half`, die Fahne beginnt erst dahinter) und die
+ * eigene Breite (`--tl-flag-w`, sie endet spaetestens am Achsenende). Die
+ * Stunden, die danach unter ihr liegen, schweigen wie die unter der Pille.
+ * Laeuft beim Verdrahten, im Minutentakt und wenn die Leiste ihre Breite
+ * aendert (ResizeObserver in wireTodayTimeline).
+ */
+function placeTodayTimelineFlag(timeline) {
+  const flag = timeline?.querySelector?.('[data-timeline-flag]');
+  if (!flag) return;
+  const pill = timeline.querySelector('.today-timeline__now-time');
+  const half = pill ? pill.getBoundingClientRect().width / 2 + TIMELINE_FLAG_GAP : 0;
+  flag.style.setProperty('--tl-now-half', `${half}px`);
+  flag.style.setProperty('--tl-flag-w', `${flag.getBoundingClientRect().width}px`);
+  const box = flag.getBoundingClientRect();
+  for (const hour of timeline.querySelectorAll('.today-timeline__hour[data-minute]')) {
+    const rect = hour.getBoundingClientRect();
+    const under = !flag.hidden && rect.right > box.left - TIMELINE_FLAG_GAP && rect.left < box.right + TIMELINE_FLAG_GAP;
+    hour.classList.toggle('today-timeline__hour--flagged', under);
+  }
+}
+
+/**
+ * DIE KURZFASSUNG (Entwurf, mobil): je Spur ein 6px-Balken, ein 20px-Gesicht
+ * statt des Namens, die Stunden in GLEICHEN Schritten (Critique 2026-10-26:
+ * 07/11/15/19/22 las sich ungleich), der Jetzt-Strich. Sie ist Bild
+ * (aria-hidden) - die Termine stehen darunter als Zeilen, denn ein Balken
+ * traegt weder Text noch ein eigenes Tippziel. Gilt auf dem Telefon und unter
+ * 900px Containerbreite.
+ *
+ * MOBIL VERSCHENKT DAS BILD KEINEN PLATZ (Critique 2026-10-26, Lauf 2, D3).
+ * Gemessen 390x844: 148px hoch, gut ein Viertel der Karte, fuer fuenf Spuren,
+ * von denen einige nur noch Vergangenes trugen. Jetzt:
+ *   - NUR SPUREN MIT KOMMENDEM. Eine Spur, deren Tag durch ist, sagt nichts,
+ *     was die Zeilen darunter brauchen; in einer Spur mit Kommendem bleiben
+ *     die vergangenen Balken grau stehen - sie zeigen die Form des Tages.
+ *     Hat keine Spur mehr etwas vor sich, entfaellt das Bild ganz: dann
+ *     sprechen die Zeilen und die Coda.
+ *   - PACKREIHEN ALS TEILSPUREN. Die Kurzfassung las `item.row` aus packLane
+ *     nicht: Zahnarzt 11-12 und Team-Call 11:30-12:30 verschmolzen zu einem
+ *     Balken, der Elternsprechtag 09-11 lag unsichtbar im Schichtbalken.
+ *     Eine Fuge (2px Flaeche um den spaeteren Balken) haette nur die Kante
+ *     gezeigt - ein Termin, der ganz in einem anderen liegt, bliebe verdeckt.
+ *     Eine duenne Zeile je Reihe zeigt jeden Termin ganz; bis drei Reihen
+ *     passen neben das 20px-Gesicht, ohne die Spur zu erhoehen.
+ */
+function renderTodayMiniTimeline(timeline, now = new Date()) {
+  if (!timeline) return '';
+  const ahead = timeline.lanes.filter((lane) => lane.items.some((item) => item.state !== 'past'));
+  if (!ahead.length) return '';
+  const span = timeline.end - timeline.start;
+  // LINEAR, NICHT GEWICHTET (D7): die Kurzfassung zeigt die Form des ganzen
+  // Tages in gleichen Schritten; die gestauchte Vergangenheit gilt nur der
+  // breiten Leiste, deren Bloecke Titel tragen.
+  const linear = timelineScale({ start: timeline.start, end: timeline.end });
+  const step = Math.ceil(span / 60 / 5) * 60;
+  const marks = [];
+  for (let minute = timeline.start; minute <= timeline.end; minute += step) marks.push(minute);
+  // Die Marke unter der Jetzt-Pille schweigt; schmal deckt die Pille mehr Zeit.
+  const nowMinute = householdMinuteOf(now);
+  const covered = (minute) => timeline.now != null && nowMinute != null && Math.abs(minute - nowMinute) < span / 12;
+  const axis = marks.map((minute) => `<span${covered(minute) ? ' class="today-timeline__hour--covered"' : ''} style="--tl-at:${linear.x(minute)}">${esc(axisHourLabel(minute))}</span>`).join('');
+  const solo = timeline.lanes.length === 1 && timeline.lanes[0].key === 'all' && isSoloHousehold();
+  const lanes = ahead.map((lane) => {
+    const face = lane.member
+      ? renderAvatarStack([lane.member], { size: 20, maxVisible: 1 })
+      : '<span class="today-timeline__everyone today-timeline__everyone--sm"><i data-lucide="users" class="icon-sm"></i></span>';
+    const rows = Math.max(1, lane.rows ?? 1);
+    const bars = lane.items.map((item) => `<i class="today-timeline__bar${item.state === 'past' ? ' today-timeline__bar--past' : ''}${item.point ? ' today-timeline__bar--point' : ''}" style="--tl-left:${linear.x(item.start)};--tl-width:${linear.width(item.start, item.end)};--tl-row:${item.row ?? 0};--c:${timelineTone(item)}"></i>`).join('');
+    return `${solo ? '' : `<span class="today-timeline__face">${face}</span>`}<div class="today-timeline__bars" style="--tl-rows:${rows}">${bars}</div>`;
+  }).join('');
+  const nowMarker = timeline.now == null ? '' : `<div class="today-timeline__now"><span class="today-timeline__now-time">${esc(formatTime(now))}</span></div>`;
+  return `
+    <div class="today-timeline today-timeline--mini${solo ? ' today-timeline--solo' : ''}" aria-hidden="true"
+         data-timeline-start="${timeline.start}" data-timeline-end="${timeline.end}" style="--tl-span:${span}${timeline.now == null ? '' : `;--tl-now:${linear.x(nowMinute)}`}">
+      <div class="today-timeline__axis">${axis}</div>
+      ${lanes}
+      ${nowMarker}
+    </div>`;
+}
+
+/**
+ * DAS GANZE BILD IST EIN TIPPZIEL (Critique 2026-10-26, Lauf 2, D3): die
+ * Kurzfassung hatte null Tippziele, und wer den Tag darin sah, musste den
+ * kleinen Link `+N weitere` darunter suchen. Gibt es Verdecktes, liegt
+ * ueber dem Bild EIN Knopf (oder Link, wenn `+N weitere` in eine Ansicht
+ * fuehrt) mit demselben Ziel wie `+N weitere`: dieselbe Region, dasselbe
+ * aria-expanded. Das Bild bleibt aria-hidden, der Knopf hat einen eigenen
+ * Namen (`Ganzen Tag zeigen`), den Inhalt tragen die Zeilen. Ohne
+ * Ueberlauf gibt es nichts zu oeffnen - dann ist das Bild nur Bild, ohne
+ * Fokusstopp.
+ *
+ * Als Geschwister ueber dem Bild und nicht als Huelle: ein <button> darf
+ * keine <div> enthalten, und ein Knopf in einer aria-hidden-Huelle waere ein
+ * Fokusstopp ohne Namen.
+ * @param {string} picture  renderTodayMiniTimeline
+ * @param {{ route?: string|null, open?: boolean, target?: string }} [peek]
+ *   route: Ziel von `+N weitere`; sonst klappt der Knopf die Region auf
+ */
+function renderTodayPeek(picture, peek = null) {
+  if (!picture) return '';
+  const label = esc(t('dashboard.todayShowDay'));
+  let hit = '';
+  if (peek?.route) {
+    hit = `<a href="${esc(peek.route)}" class="today-timeline-peek__hit" data-route="${esc(peek.route)}" aria-label="${label}"></a>`;
+  } else if (peek) {
+    hit = `<button type="button" class="today-timeline-peek__hit" id="today-cockpit-peek" data-today-more data-today-peek
+          aria-expanded="${peek.open ? 'true' : 'false'}" aria-controls="today-cockpit-more"${peek.target ? ` data-peek-target="${esc(peek.target)}"` : ''} aria-label="${label}"></button>`;
+  }
+  return `<div class="today-timeline-peek${hit ? ' today-timeline-peek--action' : ''}">${picture}${hit}</div>`;
+}
+
+/**
+ * Wohin der Knopf ueber dem Bild nach dem Aufklappen fuehrt: zur ersten
+ * kommenden Zeile unter den bisher verdeckten (Termin, Mahlzeit, Schicht mit
+ * Uhrzeit nach jetzt) - das, wonach man gefragt hat, als man den ganzen Tag
+ * sehen wollte. Sonst die erste verdeckte Zeile mit Objekt. `kind:id`.
+ */
+function todayPeekTarget(hidden, now) {
+  const nowKey = zonedTimeKey(now);
+  const upcoming = (row) => ['event', 'meal', 'shift'].includes(row?.kind)
+    && /^\d{2}:\d{2}$/.test(String(row.sortKey)) && row.sortKey > '00:02' && row.sortKey > nowKey;
+  const row = hidden.find((r) => upcoming(r) && r.objectId != null) ?? hidden.find((r) => r?.objectId != null);
+  return row ? `${row.kind}:${row.objectId}` : '';
+}
+
+/**
+ * Nach dem Aufklappen ueber das Bild: Fokus und Blick auf die Zielzeile
+ * (todayPeekTarget), sonst auf die erste Zeile der Region. `block: 'nearest'`
+ * mit dem scroll-padding des Scrollports (layout.css, --nav-tail): die Zeile
+ * landet ueber der Kapsel, nicht dahinter.
+ */
+function revealTodayPeekTarget(region, target) {
+  if (!region?.querySelector) return;
+  const [kind, id] = String(target ?? '').split(':');
+  const quote = (value) => (globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/["\\]/g, '\\$&'));
+  const row = (kind && id ? region.querySelector(`[data-object-kind="${quote(kind)}"][data-object-id="${quote(id)}"]`) : null)
+    ?? region.querySelector('a[href], button');
+  if (!row) return;
+  row.focus?.({ preventScroll: true });
+  const still = globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  row.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+}
+
+/** Aufgeklappt bleibt aufgeklappt, auch wenn der Minutentakt das Blatt neu zeichnet. */
+let todayTimelineOpen = null;
+
+/* Welcher Block die Zeile aufgeklappt hat, als Schluessel und Stelle unter den
+ * Bloecken mit diesem Schluessel: ein Termin fuer zwei steht in zwei Spuren,
+ * und Esc gibt den Fokus dem zurueck, der ihn geoeffnet hat - auch nach einem
+ * Neuaufbau im Minutentakt. */
+let todayTimelineOwner = null;
+
+/* Misst die Fahne nach, wenn die Leiste ihre Breite aendert; einer je Aufbau. */
+let todayFlagObserver = null;
+
+/**
+ * Ein Block klappt seine Zeile unter der Leiste auf, ein zweiter Klick auf
+ * denselben klappt sie zu, ein Klick auf einen anderen wechselt; Esc klappt zu
+ * und gibt den Fokus an DEN Block zurueck, der sie geoeffnet hat. Die Leiste
+ * ist ein Tab-Stopp (roving tabindex): links/rechts, Pos1 und Ende wandern in
+ * der Lesereihenfolge, hoch/runter wechseln die Spur - zum Block der
+ * Nachbarspur, dessen Beginn dem eigenen am naechsten liegt (Critique
+ * 2026-10-26, Lauf 2: hoch/runter liefen wie links/rechts).
+ *
+ * DIE ZEILE GLEITET AUF WIE „+N WEITERE" (Critique 2026-10-26, Lauf 2): bis
+ * hierher schaltete nur `hidden`, und das Raster darunter sprang um 81px,
+ * waehrend „+N weitere" daneben 250ms glitt. Jetzt dieselbe Regel
+ * (toggleRegion: Hoehe per FLIP der Nachbarn, unter reduzierter Bewegung nur
+ * eine Blende). Wechselt die Auswahl bei offener Zeile, bleibt die Hoehe
+ * stehen und nur der Inhalt blendet ueber - mit dem Inhaltswechsel der App
+ * (swapContent), nicht mit einer eigenen Kurve.
+ */
+function wireTodayTimeline(root) {
+  const region = root?.querySelector?.('#today-timeline-detail');
+  if (!region) return;
+  const buttons = [...root.querySelectorAll('[data-timeline-event]')];
+  const keyOf = (btn) => btn.dataset.timelineEvent;
+  const sameKey = (key) => buttons.filter((btn) => keyOf(btn) === key);
+  // Die Spuren in Lesereihenfolge: das Band des Ganztaegigen, dann je Person.
+  const laneOf = (btn) => btn.closest('ul');
+  const lanes = [...new Set(buttons.map(laneOf))];
+  let owner = todayTimelineOwner?.key === todayTimelineOpen
+    ? sameKey(todayTimelineOpen)[todayTimelineOwner.nth] ?? null
+    : null;
+  const setOpen = (next, from = null) => {
+    const switching = todayTimelineOpen != null && next != null && !region.hidden;
+    todayTimelineOpen = next;
+    owner = next == null ? null : from;
+    todayTimelineOwner = owner ? { key: next, nth: sameKey(next).indexOf(owner) } : null;
+    for (const other of buttons) other.setAttribute('aria-expanded', keyOf(other) === next ? 'true' : 'false');
+    if (next == null) {
+      toggleRegion(region, false);
+      return;
+    }
+    const rows = [...region.querySelectorAll('[data-timeline-detail]')];
+    const showRow = () => {
+      for (const row of rows) row.hidden = row.dataset.timelineDetail !== next;
+    };
+    if (switching) swapContent(rows.find((row) => row.dataset.timelineDetail === next) ?? null, showRow);
+    else showRow();
+    // Auch beim Wechsel: ein Zuklappen, das gerade laeuft, haelt hier an.
+    toggleRegion(region, true);
+  };
+  const focusButton = (btn) => {
+    if (!btn) return;
+    for (const other of buttons) other.setAttribute('tabindex', other === btn ? '0' : '-1');
+    btn.focus();
+  };
+  // Der Block der Nachbarspur, dessen Beginn dem eigenen am naechsten liegt;
+  // im Band (ohne Beginn) der erste. Gleich nah gewinnt der fruehere.
+  const across = (btn, step) => {
+    const lane = lanes[lanes.indexOf(laneOf(btn)) + step];
+    if (!lane) return null;
+    const startOf = (other) => Number(other.closest('[data-timeline-at]')?.dataset.timelineAt ?? NaN);
+    const at = startOf(btn);
+    const distance = (other) => (Number.isFinite(at) && Number.isFinite(startOf(other)) ? Math.abs(startOf(other) - at) : 0);
+    return buttons.filter((other) => laneOf(other) === lane)
+      .reduce((best, other) => (!best || distance(other) < distance(best) ? other : best), null);
+  };
+  buttons.forEach((btn, index) => {
+    btn.addEventListener('click', () => {
+      const key = keyOf(btn);
+      setOpen(todayTimelineOpen === key ? null : key, btn);
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        focusButton(across(btn, e.key === 'ArrowUp' ? -1 : 1));
+        return;
+      }
+      const move = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: buttons.length - 1 }[e.key];
+      if (move != null) {
+        e.preventDefault();
+        focusButton(buttons[Math.max(0, Math.min(buttons.length - 1, move))]);
+      }
+    });
+  });
+  const close = (e) => {
+    if (e.key !== 'Escape' || todayTimelineOpen == null) return;
+    const back = owner ?? sameKey(todayTimelineOpen)[0];
+    e.preventDefault();
+    setOpen(null);
+    focusButton(back);
+  };
+  region.addEventListener('keydown', close);
+  for (const btn of buttons) btn.addEventListener('keydown', close);
+  const timeline = root.querySelector('.today-timeline:not(.today-timeline--mini)');
+  todayFlagObserver?.disconnect();
+  todayFlagObserver = null;
+  if (timeline?.querySelector('[data-timeline-flag]')) {
+    placeTodayTimelineFlag(timeline);
+    if (typeof ResizeObserver === 'function') {
+      todayFlagObserver = new ResizeObserver(() => placeTodayTimelineFlag(timeline));
+      todayFlagObserver.observe(timeline);
+    }
+  }
+}
+
+/**
+ * Der Jetzt-Strich wandert mit dem Minutentakt, ohne das Blatt neu zu bauen:
+ * der Fingerabdruck des Tages (todayFingerprint) aendert sich erst, wenn ein
+ * Eintrag beginnt oder endet - dann baut die Uebersicht ohnehin neu.
+ * Dazwischen setzt diese Funktion nur die Lage und die Uhrzeit, und die Fahne
+ * des Naechsten zaehlt herunter („in 25 Min" -> „in 24 Min"), samt dem
+ * zugaenglichen Namen ihres Blocks. Hat er begonnen, schweigt sie, bis der
+ * Neuaufbau den naechsten nennt.
+ */
+function updateTodayTimelineNow(root, now = new Date()) {
+  const timeline = root?.querySelector?.('.today-timeline');
+  if (!timeline) return;
+  const flag = timeline.querySelector('[data-timeline-flag]');
+  if (flag) {
+    const clock = flag.dataset.flagClock ?? '';
+    const when = relativeWhen(Number(flag.dataset.flagAt), now, clock);
+    flag.hidden = !when;
+    if (when) {
+      flag.textContent = when.label;
+      for (const spoken of timeline.querySelectorAll('[data-timeline-when]')) spoken.textContent = `, ${spokenWhen(when, clock)}`;
+    }
+  }
+  const start = Number(timeline.dataset.timelineStart);
+  const end = Number(timeline.dataset.timelineEnd);
+  const minute = householdMinuteOf(now);
+  if (!(end > start) || minute == null || minute < start || minute > end) {
+    placeTodayTimelineFlag(timeline);
+    return;
+  }
+  // Dasselbe Knie, mit dem die Leiste gezeichnet ist (data-timeline-knee):
+  // springt es zur vollen Stunde, baut der Fingerabdruck ohnehin neu. Die
+  // Kurzfassung traegt keins und bleibt linear.
+  const kneeAttr = timeline.dataset.timelineKnee;
+  const scale = timelineScale({ start, end, knee: kneeAttr == null || kneeAttr === '' ? null : Number(kneeAttr) });
+  timeline.style.setProperty('--tl-now', String(scale.x(minute)));
+  for (const hour of timeline.querySelectorAll('.today-timeline__hour[data-minute]')) {
+    hour.classList.toggle('today-timeline__hour--covered', timelineHourCovered(scale, Number(hour.dataset.minute), minute));
+  }
+  const label = timeline.querySelector('.today-timeline__now-time');
+  if (label) label.textContent = formatTime(now);
+  placeTodayTimelineFlag(timeline);
+}
+
+/* „ALS NAECHSTES" (Entwurf „Heute wichtig", 2026-10-26): auf der breiten
+ * Buehne drei Zellen nebeneinander - das Naechste, das Ueberfaellige, der
+ * Einkauf zuletzt. Was nicht passt, zaehlt „+N weitere" in der Fussleiste.
+ * Die Termine stehen dort in der Zeitleiste, nicht in der Liste. */
+const PROGRAM_STRIP_CAP = 3;
+
+/* Unter der breiten Buehne (Tablet, schmale Spalte) stehen die Zeilen
+ * untereinander, so viele wie der Entwurf mobil zeigt. */
+const PROGRAM_COMPACT_CAP = 4;
+
+/* DIE DREI BUEHNEN DES BLATTS (Critique 2026-10-26, Befund 1): `phone` (die
+ * Telefon-Buehne, dynamischer Deckel), `compact` (unter 900px Containerbreite:
+ * Kurzfassung plus Zeilen - dort waere eine Stunde schmaler als ihr Titel und
+ * ein Block auf Touch 35px breit) und `wide` (Leiste mit Bloecken). Gemessen
+ * wird das Blatt selbst, beim ersten Aufbau der Inhaltsbereich; ohne DOM
+ * (Tests) gilt `wide`. Wechselt die Buehne beim Groessenziehen, baut die
+ * Uebersicht neu (createPhoneProgramFit). */
+const TODAY_COMPACT_WIDTH = 900;
+let todayLastWidth = null;
+
+function todayStage() {
+  if (onPhoneStage()) return 'phone';
+  const doc = globalThis.document;
+  const sheet = doc?.querySelector?.('.today-cockpit');
+  const content = doc?.querySelector?.('.app-content');
+  const width = sheet?.clientWidth || (content?.clientWidth ? content.clientWidth - 2 * PAGE_PAD_ESTIMATE : 0) || todayLastWidth;
+  if (width) todayLastWidth = width;
+  return width && width < TODAY_COMPACT_WIDTH ? 'compact' : 'wide';
+}
+
+/* Das Seitenpolster des Inhaltsbereichs, nur fuer die erste Schaetzung, bevor
+ * es das Blatt gibt; danach misst todayStage das Blatt selbst. */
+const PAGE_PAD_ESTIMATE = 32;
+
+/**
+ * Wann ein Termin oder eine Mahlzeit dran ist, relativ zu jetzt: „in 25 Min"
+ * im Ton des Moduls (unter einer Stunde), spaeter „15:00 · in 2 Std." (relativeWhen). Ueber
+ * Intl.RelativeTimeFormat, damit jede Sprache ihre eigene Kurzform hat.
+ * Aufgaben behalten ihr „bis 18:00" - eine Frist ist kein Beginn.
+ */
+function withRelativeWhen(row, now) {
+  if (!row || !['event', 'meal'].includes(row.kind)) return row;
+  const time = String(row.sortKey ?? '');
+  if (!/^\d{2}:\d{2}$/.test(time) || time <= '00:02') return row;
+  const when = relativeWhen(clockMinute(time), now, formatTime(time));
+  return when ? { ...row, timeLabel: when.label, soon: when.soon } : row;
+}
+
+/**
+ * DAS NAECHSTE ZUERST (Entwurf: „naechster Termin/Mahlzeit, Ueberfaelliges,
+ * Einkauf zuletzt"). Der Deckel haelt Offenes vorn (composeTodaySheet), und so
+ * rutschte das Abendessen um 18:30 hinter „+N weitere". Hier rueckt der
+ * frueheste kommende Termin oder die Mahlzeit an die erste Stelle - steht er
+ * hinter dem Deckel, tauscht er mit der letzten sichtbaren Zeile. Die Zahl
+ * hinter „+N weitere" bleibt dieselbe; ihr Ziel rechnet neu.
+ */
+function nextFirst(model, now) {
+  // In zwei Teilen (D6) steht die Leiste schon chronologisch vorn, und der
+  // Deckel haelt ihr Naechstes (composeTodaySheet, anchor) - ein Vorziehen
+  // stellte es vor das Ganztaegige und das Laufende.
+  if (model.lead) return model;
+  const nowKey = zonedTimeKey(now);
+  const upcoming = (row) => ['event', 'meal'].includes(row?.kind)
+    && /^\d{2}:\d{2}$/.test(String(row.sortKey)) && row.sortKey > '00:02' && row.sortKey > nowKey;
+  const soonest = (list) => list.reduce((best, row, index) => (upcoming(row) && (best < 0 || row.sortKey < list[best].sortKey) ? index : best), -1);
+  const visible = soonest(model.rows);
+  const hiddenIndex = soonest(model.hiddenRows);
+  if (hiddenIndex >= 0 && model.rows.length && model.rows.at(-1).kind !== 'overdue' && (visible < 0 || model.hiddenRows[hiddenIndex].sortKey < model.rows[visible].sortKey)) {
+    const promoted = model.hiddenRows[hiddenIndex];
+    const demoted = model.rows.at(-1);
+    const hiddenRows = [demoted, ...model.hiddenRows.filter((_, i) => i !== hiddenIndex)];
+    return {
+      ...model,
+      rows: [promoted, ...model.rows.slice(0, -1)],
+      hiddenRows,
+      moreRoute: todayMoreRoute(hiddenRows, zonedDateKey(now)),
+    };
+  }
+  if (visible <= 0) return model;
+  return { ...model, rows: [model.rows[visible], ...model.rows.slice(0, visible), ...model.rows.slice(visible + 1)] };
+}
+
+function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(), moreOpen = todayMoreOpen, overdueOpen = todayOverdueOpen, timelineOpen = todayTimelineOpen, cap, stage = todayStage(), viewer = dashboardViewer } = {}) {
+  const phone = stage === 'phone';
+  const wide = stage === 'wide';
+  // Die Leiste nur, wenn der Kalender im Blatt spricht: neben einer sichtbaren
+  // Termin-Kachel waere sie deren Echo. Unter der breiten Buehne ist sie die
+  // stumme Kurzfassung (6px-Balken, kein Text); dort bleiben die Termine Zeilen.
+  const timeline = todayDomainSpeaks(cfg, 'calendar')
+    ? buildTodayTimeline(data, { now, viewer, includeMeals: todayDomainSpeaks(cfg, 'meals'), includeShifts: todayDomainSpeaks(cfg, 'schedule') })
+    : null;
+  // Breit nimmt die Leiste ihre Eintraege aus der Liste; darunter speist sie
+  // die Zeilen (timelineSheetRows) - Bild und Text aus einem Modell.
+  const timelineOptions = { timeline, timelineRows: !wide };
+  const stageCap = cap ? { cap } : phone ? {} : { cap: wide ? PROGRAM_STRIP_CAP : PROGRAM_COMPACT_CAP };
+  let model = buildTodayCockpitModel(data, cfg, { now, ...timelineOptions, ...stageCap });
+  // Breit ist der Einkauf eine der drei Zellen - die letzte.
+  if (wide && !cap && model.shopping && model.rows.length >= PROGRAM_STRIP_CAP) {
+    model = buildTodayCockpitModel(data, cfg, { now, ...timelineOptions, cap: PROGRAM_STRIP_CAP - 1 });
+  }
+
+  // „Heute frei" unter einer Leiste voller beendeter Termine widerspraeche ihr:
+  // der Tag war nicht frei, er ist durch.
+  const state = model.state && timeline && model.state.icon === 'sparkles'
+    ? { ...model.state, title: t('dashboard.todayNothingElse') }
+    : model.state;
+  model = nextFirst(model, now);
+  const rows = model.rows.map((row) => withRelativeWhen(row, now));
+  const shopping = model.shopping ? { ...model.shopping, chevron: true } : null;
+
+  const parts = [];
+  // Die Kurzfassung steht vorn, ihr Knopf kennt aber erst unten das Ziel von
+  // „+N weitere" (renderTodayPeek) - sie wird dort eingesetzt.
+  const picture = timeline && !wide ? renderTodayMiniTimeline(timeline, now) : '';
+  if (timeline && wide) parts.push(renderTodayTimeline(timeline, now, timelineOpen));
+
+  const listRows = [];
+  if (state) listRows.push(renderTodayStateRow(state));
+  listRows.push(...rows.map((row) => (row.kind === 'overdue'
+    ? renderTodayOverdueGroup(row, overdueOpen)
+    : renderTodayRow(row))));
+  const foldShopping = Boolean(shopping) && model.overflow > 0 && !model.moreRoute && !wide;
+  // „AUSSERDEM HEUTE" AUCH UNTER DER BREITEN BUEHNE (D6): zwischen den
+  // Eintraegen der Leiste und dem Rest, nur wenn beide Teile stehen - in der
+  // Liste, vor der Einkaufszeile (wenn sie allein den Rest bildet) oder in den
+  // aufgeklappten Zeilen, je nachdem, wo der Rest beginnt. Eine Ueberschrift,
+  // damit der Screenreader die Gliederung hoert und anspringen kann.
+  const lead = model.lead;
+  const leadShown = lead?.shown ?? 0;
+  const also = `<h3 class="today-cockpit__also today-cockpit__also--row">${esc(t('dashboard.todayAlsoTitle'))}</h3>`;
+  const alsoInRows = leadShown > 0 && rows.length > leadShown;
+  const alsoBeforeShopping = !alsoInRows && leadShown > 0 && Boolean(shopping) && !foldShopping;
+  if (alsoInRows) listRows.splice((state ? 1 : 0) + leadShown, 0, also);
+  // Breit steht der Einkauf als letzte Zelle in der Leiste; darunter bleibt er
+  // die Schlusszeile unter den Zeilen und klappt mit (R14).
+  if (wide && shopping) listRows.push(renderTodayRow(shopping));
+  if (listRows.length) {
+    const cols = Math.min(PROGRAM_STRIP_CAP, Math.max(1, listRows.length));
+    // „AUSSERDEM HEUTE" (Critique 2026-10-26, Befund 2): breit nennt die Leiste
+    // das Naechste selbst, der Streifen traegt den Rest des Tages - und sagt es.
+    if (wide && timeline && rows.length) parts.push(`<p class="today-cockpit__also">${esc(t('dashboard.todayAlsoTitle'))}</p>`);
+    parts.push(wide
+      ? `<div class="today-cockpit__rows today-cockpit__rows--next" style="--today-next-cols:${cols}">${listRows.join('')}</div>`
+      : `<div class="today-cockpit__rows">${listRows.join('')}</div>`);
+  }
+  if (!wide && shopping && !foldShopping) parts.push(`${alsoBeforeShopping ? also : ''}${renderTodayRow(shopping)}`);
+
+  // DIE FUSSLEISTE: links die Coda, rechts „+N weitere" (Entwurf). Beide
+  // zugleich gibt es nicht - neben verdeckten Zeilen waere „nichts mehr"
+  // gelogen (codaAllowed).
+  //
+  // UNTER DER BREITEN BUEHNE IST „+N WEITERE" DIE LETZTE ZEILE (Critique
+  // 2026-10-26, Lauf 2, D3): gemessen 390x844 trug ein 71-75px hohes Fussband
+  // nur diesen einen Link. Jetzt steht er als schlanke Zeile im Raster der
+  // Zeilen (44px, Text an der Titelkante); die Coda behaelt ihren Fuss. Breit
+  // bleibt der Fuss, wie er ist: dort steht der Link rechts unter drei Zellen
+  // nebeneinander, eine Zeile im Raster gibt es nicht.
+  const moreRow = wide ? '' : ' today-cockpit__more--row';
+  let more = '';
+  let peek = null;
   if (model.overflow > 0 && model.moreRoute) {
-    const moreText = esc(t('dashboard.todayMore', { count: model.overflow }));
-    parts.push(`<a href="${esc(model.moreRoute)}" class="today-cockpit__more today-cockpit__more--link" data-route="${esc(model.moreRoute)}">
-          <span>${moreText}</span><i data-lucide="chevron-right" class="icon-sm" aria-hidden="true"></i>
-        </a>`);
+    peek = { route: model.moreRoute };
+    more = `<a href="${esc(model.moreRoute)}" class="today-cockpit__more today-cockpit__more--link${moreRow}" data-route="${esc(model.moreRoute)}">
+          <span>${esc(t('dashboard.todayMore', { count: model.overflow }))}</span><i data-lucide="chevron-right" class="icon-sm" aria-hidden="true"></i>
+        </a>`;
   } else if (model.overflow > 0) {
     // Keine Ansicht zeigt alle verdeckten Zeilen (todayMoreRoute): sie stehen
     // hier, zugeklappt, und der Knopf darunter klappt sie auf. Auf dem Telefon
-    // klappt die Einkaufszeile mit (R14): sie ist zeitlos, und als eigene
-    // Zeile unter dem Knopf schob sie das erste Widget um 64px weiter hinab.
-    const hidden = foldShopping ? [...model.hiddenRows, model.shopping] : model.hiddenRows;
+    // klappt die Einkaufszeile mit (R14).
+    const hidden = (foldShopping ? [...model.hiddenRows, shopping] : model.hiddenRows).map((row) => withRelativeWhen(row, now));
+    // Die verdeckten Zeilen der Leiste stehen vorn (composeTodaySheet); folgt
+    // ihnen der Rest und hat ihn oben noch keine Ueberschrift eingeleitet,
+    // beginnt er hier.
+    const hiddenLead = lead ? lead.total - lead.shown : 0;
+    const alsoInMore = Boolean(lead?.total) && !alsoInRows && !alsoBeforeShopping && hidden.length > hiddenLead;
+    const hiddenRowsHtml = (list) => list.map((row, index) => `${alsoInMore && index === hiddenLead ? also : ''}${renderTodayRow(row)}`).join('');
     const moreText = t('dashboard.todayMore', { count: hidden.length });
     const lessText = t('dashboard.todayLess');
-    parts.push(`<div class="today-cockpit__rows today-cockpit__rows--more" id="today-cockpit-more"${moreOpen ? '' : ' hidden'}>${
-      hidden.map((row) => renderTodayRow(row)).join('')}</div>`);
-    parts.push(`<button type="button" class="today-cockpit__more today-cockpit__more--link" data-today-more
+    peek = { open: moreOpen, target: todayPeekTarget(hidden, now) };
+    parts.push(`<div class="today-cockpit__rows today-cockpit__rows--more${wide ? ' today-cockpit__rows--next' : ''}" id="today-cockpit-more"${wide ? ` style="--today-next-cols:${Math.min(PROGRAM_STRIP_CAP, hidden.length)}"` : ''}${moreOpen ? '' : ' hidden'}>${
+      hiddenRowsHtml(hidden)}</div>`);
+    more = `<button type="button" class="today-cockpit__more today-cockpit__more--link${moreRow}" data-today-more
           aria-expanded="${moreOpen ? 'true' : 'false'}" aria-controls="today-cockpit-more"
           data-more-label="${esc(moreText)}" data-less-label="${esc(lessText)}">
           <span>${esc(moreOpen ? lessText : moreText)}</span><i data-lucide="chevron-down" class="icon-sm today-cockpit__more-icon" aria-hidden="true"></i>
-        </button>`);
+        </button>`;
   }
-  if (model.coda) parts.push(`<div class="today-cockpit__coda">${esc(model.coda)}</div>`);
+  if (!wide && more) parts.push(more);
+  const footMore = wide ? more : '';
+  if (model.coda || footMore) {
+    parts.push(`<div class="today-cockpit__foot">${model.coda ? `<span class="today-cockpit__coda">${esc(model.coda)}</span>` : ''}${footMore}</div>`);
+  }
+  if (picture) parts.unshift(renderTodayPeek(picture, peek));
 
   // Deckt der Nutzer alle vier Domänen über Widgets ab, wäre das Cockpit leer —
   // dann entfällt der ganze Abschnitt statt einer leeren Kopfzeile. Im
@@ -4518,21 +5572,33 @@ function renderTodayCockpit(data, cfg = [], editing = false, { now = new Date(),
       <i data-lucide="eye-off" aria-hidden="true"></i>
     </button>` : '';
 
-  // Mobil klappt das Band im Anpassen-Modus auf diese Kopfzeile zusammen
-  // (dashboard.css, `.today-cockpit--editing`): angeordnet wird dort nichts,
-  // und sein Inhalt schob das erste Rasterwidget bis an den Bildschirmrand.
+  const summary = todaySummary(data, model, timeline, now);
+
+  /* DER KOPF STEHT IN DER KARTE (Entwurf): Siegel der Uebersicht, Titel, die
+   * Summe des Tages - auf jeder Buehne. Im Anpassen-Modus steht er ueber der
+   * Karte: mobil klappt das Band dort auf diese Kopfzeile zusammen
+   * (dashboard.css, `.today-cockpit--editing`), und der Ausblenden-Knopf
+   * muss sichtbar bleiben. */
+  const header = `
+      <div class="today-cockpit__header">
+        <span class="module-seal today-cockpit__seal" aria-hidden="true">${moduleIconHTML('sun-moon')}</span>
+        <div class="today-cockpit__heading">
+          <h2 id="today-cockpit-title" tabindex="-1">${esc(t('dashboard.todayTitle'))}</h2>
+          ${summary ? `<p class="today-cockpit__summary">${esc(summary)}</p>` : ''}
+        </div>
+        ${hideBtn}
+      </div>`;
+
   // Zeilenzahl und Tagesumfang stehen am Blatt, damit `measurePhoneProgram`
   // nach dem Zeichnen nachrechnen kann, ohne das Modell ein zweites Mal zu bauen.
-  const fit = onPhoneStage() && !editing
-    ? ` data-program-cap="${model.rows.length}" data-program-total="${model.allRows.length}"${model.shopping ? ' data-program-shopping="1"' : ''}`
+  const fit = phone && !editing
+    ? ` data-program-cap="${model.rows.length}" data-program-total="${model.allRows.length}"${model.shopping ? ' data-program-shopping="1"' : ''}${lead?.total ? ` data-program-lead="${lead.total}"` : ''}`
     : '';
   return `
-    <section class="today-cockpit${editing ? ' today-cockpit--editing' : ''}" aria-labelledby="today-cockpit-title"${fit}>
-      <div class="today-cockpit__header">
-        <h2 id="today-cockpit-title">${esc(t('dashboard.todayTitle'))}</h2>
-        ${hideBtn}
-      </div>
+    <section class="today-cockpit${editing ? ' today-cockpit--editing' : ''}" aria-labelledby="today-cockpit-title" data-today-stage="${stage}"${fit}>
+      ${editing ? header : ''}
       <div class="today-cockpit__grid">
+        ${editing ? '' : header}
         ${parts.join('')}
       </div>
     </section>
@@ -4754,6 +5820,7 @@ const FOCUS_IDENTITY_ATTRS = [
 
 function focusKeyOf(el) {
   if (el.id) return `#${CSS.escape(el.id)}`;
+  if (el.hasAttribute('data-timeline-event')) return timelineFocusKeyOf(el);
   const attr = FOCUS_IDENTITY_ATTRS.find((a) => el.hasAttribute(a));
   if (!attr) return rowFocusKeyOf(el);
   const value = el.getAttribute(attr);
@@ -4828,6 +5895,44 @@ function rowsLeaving(shell, nextHtml, doc = typeof document === 'undefined' ? nu
     const key = rowFocusKeyOf(row);
     return Boolean(key) && !next.querySelector(key.selector);
   });
+}
+
+/**
+ * EIN BLOCK DER ZEITLEISTE (Critique 2026-10-26, Lauf 2). Er hat weder Id noch
+ * Ziel, und nach jedem stillen Neuaufbau (Minutentakt, Beginn eines Termins)
+ * stand der Fokus auf <body>. Sein Schluessel ist der Eintrag und die Stelle
+ * unter den Bloecken desselben Eintrags - ein Termin fuer zwei steht in zwei
+ * Spuren, und der Fokus bleibt in der eigenen.
+ */
+function timelineFocusKeyOf(el) {
+  const selector = `[data-timeline-event="${CSS.escape(el.getAttribute('data-timeline-event'))}"]`;
+  const root = el.closest('#dashboard-shell') ?? el.ownerDocument;
+  const index = Math.max(0, [...(root?.querySelectorAll?.(selector) ?? [])].indexOf(el));
+  return { selector, index, preventScroll: true };
+}
+
+/**
+ * DER FOKUS UEBERLEBT DEN WECHSEL DER BUEHNE (Critique 2026-10-26, Lauf 2).
+ * Zieht man das Fenster ueber 900px Blattbreite, baut die Uebersicht neu
+ * (createPhoneProgramFit), und was eben fokussiert war, gibt es auf der neuen
+ * Buehne nicht: breit steht ein Termin als Block, schmal als Zeile. Danach
+ * stand der Fokus auf <body>. Die Ersatzkandidaten, wenn das Element selbst
+ * nicht wiederkommt: zum Block die Zeile mit demselben Ziel (die aufgeklappte
+ * Zeile des Blocks nennt es), dann der Tab-Stopp der Leiste, zuletzt der Kopf
+ * des Blatts.
+ * @returns {Array<string|object>} Kandidaten fuer restoreFocusAfterRebuild
+ */
+function todayFocusFallbacks(active) {
+  const sheet = active?.closest?.('.today-cockpit');
+  if (!sheet) return [];
+  const key = active.getAttribute?.('data-timeline-event');
+  const detail = key == null ? null : [...sheet.querySelectorAll('[data-timeline-detail]')].find((row) => row.dataset.timelineDetail === key);
+  const route = detail?.querySelector('[data-route]')?.getAttribute('data-route');
+  return [
+    ...(route ? [{ selector: `.today-cockpit__rows [data-route="${CSS.escape(route)}"]`, index: 0, preventScroll: true }] : []),
+    '.today-timeline [data-timeline-event]:not([tabindex="-1"])',
+    '#today-cockpit-title',
+  ];
 }
 
 /**
@@ -7282,6 +8387,7 @@ async function openEventFromOverview(link, anchor, { container = null, refresh =
 function wireLinks(container, refresh, { editing = false, user = null } = {}) {
   wireTodayMore(container);
   wireTodayOverdue(container);
+  wireTodayTimeline(container);
   container.querySelectorAll('[data-route]').forEach((el) => {
     if (el.id === 'fab-main' || el.closest('#fab-actions')) return;
     if (editing && el.closest('.widget-wrapper--editing')) return;
@@ -8476,6 +9582,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // Wer hatte den Fokus? Nach dem setHtml gibt es sein Element nicht mehr
     // (captureRebuildFocus / restoreFocusAfterRebuild).
     const { key: keepFocus, had: hadFocus } = captureRebuildFocus(shell, document.activeElement, document.body);
+    const todayFallback = hadFocus ? todayFocusFallbacks(document.activeElement) : [];
     const modeChanged = renderedCustomizing !== null && renderedCustomizing !== isCustomizing;
     // Nur eine Geste IM Anpassen-Modus gleitet (playTileFlip): beim Betreten
     // und Verlassen wachsen und schwinden die Bearbeiten-Leisten aller Kacheln,
@@ -8523,6 +9630,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
         const tighter = measurePhoneProgram(shell, { shrinkOnly: true });
         if (tighter) replaceProgramSheet(shell, renderTodayCockpit(data, cfg, isCustomizing, { cap: tighter }));
       }
+      refitTodayStage(shell, () => renderTodayCockpit(data, cfg, isCustomizing));
     }, { animate: fromSkeleton });
     // Was ein Blatt UEBER der Uebersicht aendert (Erledigen, Bearbeiten,
     // Loeschen, Fasten), gleicht still ab: kein Skelett, Scroll und Fokus
@@ -8611,6 +9719,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
       ...(focusAfterRebuild ?? []),
       ...(hadFocus && modeChanged ? ['#dashboard-customize-btn', '.dashboard-tools-btn'] : []),
       ...(takeWallFocusIntent('leave') ? ['#dashboard-wall-enter', '.dashboard-tools-btn'] : []),
+      ...todayFallback,
     ]);
     focusAfterRebuild = null;
     playTileFlip(shell, tileRectsBefore);
@@ -8815,6 +9924,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
   startClockTicker(container, signal, () => {
     if (wallMode) syncWallMode(location.pathname);
     followDayBoundaries();
+    updateTodayTimelineNow(container);
   });
 
   // 30-Minuten Auto-Refresh für Wetter (inkl. optionaler Standort-Aktualisierung).
@@ -8895,9 +10005,27 @@ function todayFingerprint(data, cfg, now = new Date()) {
     .flatMap((key) => (Array.isArray(data[key]) ? data[key] : []))
     .filter((event) => eventHasEnded(event, nowStamp))
     .map((event) => `${event.id}@${event.start_datetime}`);
+  // Und die Mahlzeit, deren Zeit da war, und die beendete eigene Schicht: unter
+  // der breiten Buehne verlassen sie die Zeilen (timelineSheetRows), ohne dass
+  // ein Termin endet.
+  const timeline = buildTodayTimeline(data, { now, includeMeals: true, includeShifts: true });
+  const items = (timeline?.lanes ?? []).flatMap((lane) => lane.items);
+  const passed = items
+    .filter((item) => item.kind !== 'event' && item.state === 'past')
+    .map((item) => item.key);
+  // UND WAS BEGONNEN HAT (Critique 2026-10-26, Lauf 2): breit stehen die
+  // Termine in keiner Zeile, und ein Beginn aenderte nichts am Stempel - der
+  // Block hiess weiter „als Naechstes", seine Fahne zaehlte ins Leere, und der
+  // naechste kam erst dran, wenn irgendwo etwas endete.
+  const running = items.filter((item) => item.state === 'now').map((item) => item.key);
   return JSON.stringify([
     model.rows.map((row) => [row.kind, row.objectId ?? row.members?.map((m) => m.objectId), row.title, row.open, Boolean(row.overdue)]),
-    model.overflow, Boolean(model.coda), Boolean(model.state), ended,
+    model.overflow, Boolean(model.coda), Boolean(model.state), ended, [...new Set(passed)],
+    timeline?.nextKey ?? null, [...new Set(running)],
+    // DAS KNIE DER ACHSE (D7): es springt zur vollen Stunde, und mit ihm jede
+    // Lage der Leiste - dann baut die Uebersicht neu; dazwischen wandert nur
+    // der Strich (updateTodayTimelineNow).
+    timeline?.knee ?? null,
   ]);
 }
 
@@ -9039,3 +10167,11 @@ Object.assign(__test, { renderBudgetWidget });
 // Test-Tor fuer die Kalender-Auswahl der Kalender-Kachel (#2062).
 Object.assign(__test, { loadCalendarSources });
 Object.assign(__test, { renderCountdowns, renderHousekeepingWidget, renderCycleWidget, todayFingerprint });
+
+// Test-Tor fuer die Zeitleiste (Critique 2026-10-26, Lauf 2): Verdrahtung,
+// Minutentakt, Fahne und der Fokus ueber den Buehnenwechsel.
+Object.assign(__test, { wireTodayTimeline, updateTodayTimelineNow, placeTodayTimelineFlag, todayFocusFallbacks });
+// D3 (Lauf 2): das Bild als Tippziel auf dem Telefon.
+Object.assign(__test, { renderTodayMiniTimeline, renderTodayPeek, todayPeekTarget, revealTodayPeekTarget });
+// D6 (Lauf 2): die Gliederung unter der breiten Buehne gegen das Modell der Leiste.
+Object.assign(__test, { buildTodayTimeline });

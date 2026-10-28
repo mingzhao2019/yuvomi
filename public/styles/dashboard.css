@@ -2811,16 +2811,785 @@ svg.weather-forecast__icon {
   container: today-cockpit / inline-size;
 }
 
+/* DER KOPF STEHT IN DER KARTE (Entwurf „Heute wichtig", 2026-10-26): Siegel
+ * der Uebersicht, Titel, die Summe des Tages. Im Anpassen-Modus steht er ueber
+ * der Karte (renderTodayCockpit) und traegt den Ausblenden-Knopf. */
 .today-cockpit__header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--space-3);
+}
+
+.today-cockpit__grid > .today-cockpit__header {
+  padding: var(--space-5) var(--space-6) var(--space-4);
 }
 
 .today-cockpit__header h2 {
   margin: 0;
   color: var(--color-text-primary);
+}
+
+.today-cockpit__seal {
+  --seal-accent: var(--module-dashboard);
+}
+
+/* Titel und Summe teilen eine Grundlinie: „Heute wichtig  9 Termine · 1 Aufgabe
+ * ueberfaellig". Die Summe ist Sekundaerstimme, kein zweiter Titel; bricht sie
+ * in einer langen Sprache um, geht sie unter den Titel. */
+.today-cockpit__heading {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  row-gap: var(--space-0h);
+  min-width: 0;
+}
+
+.today-cockpit__summary {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--type-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* DIE ZEITLEISTE DES TAGES (Entwurf „Heute wichtig"; renderTodayTimeline).
+ * Links die Namensspalte, rechts die Achse; jede Spur ist eine Zeile des
+ * Rasters (`display: contents` auf der Spur), damit Name und Balken auf einer
+ * Hoehe stehen. Der Block ist der Ton seines Moduls - Kalender oder Essen -
+ * in der Toenungsleiter: Fuellung `--tint-surface`, Schrift `--tint-ink`. */
+.today-timeline {
+  --tl-pad-inline: var(--space-6);
+  --tl-pad-top: 0%;
+  --tl-pad-bottom: 0%;
+  --tl-axis: calc(var(--space-5) + var(--space-0h));
+  --tl-label: calc(var(--space-16) * 2 + var(--space-1));
+  /* 48px Spur, damit der Block 40px hoch ist - die Zielgroesse der Maus
+   * (--target-md); auf Touch gilt die schmale Buehne mit Zeilen (todayStage). */
+  --tl-lane: var(--space-12);
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--tl-label) minmax(0, 1fr);
+  padding: 0 var(--tl-pad-inline);
+}
+
+/* Im Solo-Haushalt gibt es eine Spur und niemanden zu benennen. */
+.today-timeline--solo {
+  --tl-label: 0%;
+}
+
+.today-timeline__axis {
+  grid-column: 2;
+  position: relative;
+  block-size: var(--tl-axis);
+  color: var(--color-text-tertiary);
+  font-size: var(--type-micro);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-height-tight);
+}
+
+.today-timeline__hour {
+  position: absolute;
+  inset-inline-start: calc(var(--tl-at) * 100%);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* Die erste Stunde steht an der Kante und ragte sonst in die Namensspalte. */
+.today-timeline__hour:first-child {
+  transform: none;
+}
+
+/* Die Stunde unter der Jetzt-Pille schweigt (Entwurf: „18" fehlt neben 18:05). */
+.today-timeline__hour--covered {
+  visibility: hidden;
+}
+
+/* Im gestauchten Teil vor dem Knie spricht nur jede k-te Stunde
+ * (timelineHourMarks): enger stuenden die Zahlen aneinander. */
+.today-timeline__hour--sparse {
+  visibility: hidden;
+}
+
+.today-timeline__lane {
+  display: contents;
+}
+
+.today-timeline__who {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2h);
+  min-width: 0;
+  block-size: var(--tl-lane);
+  padding-inline-end: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-medium);
+}
+
+.today-timeline__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* „Alle": dieselbe Scheibe wie ein Avatar, neutral, mit dem Zeichen fuer den
+ * Haushalt statt Initialen. */
+.today-timeline__everyone {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--space-6) + var(--space-1));
+  block-size: calc(var(--space-6) + var(--space-1));
+  border-radius: var(--radius-full);
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
+}
+
+/* Die Spur: Haarlinie oben. Ihre Hoehe ist eine Reihe je gleichzeitigem
+ * Termin (packLane). */
+.today-timeline__track {
+  grid-column: 2;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  block-size: calc(var(--tl-rows, 1) * var(--tl-lane));
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* EINE FEINE LINIE JE STUNDE, auf der gewichteten Achse (D7): vor dem Knie
+ * stehen die Linien enger - sie zeigen, dass die Vergangenheit gestaucht,
+ * nicht weggelassen ist. Ein Hintergrund in gleichen Schritten (frueher je
+ * Spur) kann das nicht; die Linien liegen als eigene Ebene unter den Spuren,
+ * von der Achse bis zum Ende der letzten. */
+.today-timeline__grid {
+  position: absolute;
+  inset-block: var(--tl-axis) 0;
+  inset-inline-start: calc(var(--tl-pad-inline) + var(--tl-label));
+  inline-size: calc(100% - 2 * var(--tl-pad-inline) - var(--tl-label));
+  pointer-events: none;
+}
+
+.today-timeline__grid > span {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(var(--tl-at) * 100%);
+  inline-size: 1px;
+  background: var(--color-border-subtle);
+}
+
+.today-timeline__slot {
+  /* Der Block fragt seine eigene Breite (unten): schmal traegt er zwei
+   * Titelzeilen statt Titel und Uhrzeit. */
+  container: tl-slot / inline-size;
+  position: absolute;
+  inset-block-start: calc(var(--tl-row, 0) * var(--tl-lane) + var(--space-1));
+  inset-inline-start: calc(var(--tl-left) * 100%);
+  inline-size: calc(var(--tl-width) * 100% - var(--space-0h));
+  block-size: calc(var(--tl-lane) - var(--space-2));
+}
+
+.today-timeline__event {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-0h);
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  padding-inline: var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--c) var(--tint-surface), var(--color-surface));
+  color: color-mix(in srgb, var(--c) var(--tint-ink), var(--color-text-primary));
+  font: inherit;
+  line-height: var(--line-height-tight);
+  text-align: start;
+  white-space: nowrap;
+  overflow: clip;
+  cursor: pointer;
+  appearance: none;
+  transition: background-color var(--transition-fast);
+}
+
+@media (hover: hover) {
+  .today-timeline__event:hover {
+    background: color-mix(in srgb, var(--c) var(--tint-raised), var(--color-surface));
+  }
+}
+
+/* Ring aussen wie am Kalenderblock: innen laege er auf der Toenung. */
+.today-timeline__event:focus-visible {
+  position: relative;
+  z-index: 3;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.today-timeline__title,
+.today-timeline__time {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.today-timeline__title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.today-timeline__time {
+  color: color-mix(in srgb, var(--c) var(--tint-hint), var(--color-text-secondary));
+  font-size: var(--type-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* EIN SCHMALER BLOCK TRAEGT DEN TITEL, NICHT DIE UHRZEIT. Unter der Schwelle
+ * bricht der Titel mit Silbentrennung in zwei Zeilen, die Uhrzeit geht - der
+ * zugaengliche Name behaelt sie (sie bleibt im Dokument). */
+@container tl-slot (max-width: 5rem) {
+  .today-timeline__event {
+    padding-inline: var(--space-1h);
+  }
+
+  /* Trennen nur an Silbengrenzen, nie mitten im Wort (Critique 2026-10-26:
+   * „Schul e", „Frü h…"): ein Wort, das auch getrennt nicht passt, endet in
+   * der Ellipse der zweiten Zeile. Die Ellipse JE ZEILE (text-overflow) faellt
+   * weg - sie setzte „Ölwe…" in die erste Zeile und „sel" darunter (Lauf 2);
+   * einzeilige Titel breiter Bloecke behalten sie. */
+  .today-timeline__title {
+    display: -webkit-box;
+    text-overflow: clip;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    hyphens: auto;
+    hyphenate-limit-chars: 6 3 3;
+    -webkit-hyphenate-limit-before: 3;
+    -webkit-hyphenate-limit-after: 3;
+  }
+
+  .today-timeline__time {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+/* GESTAUCHT SPRICHT NUR DER TON (Re-Kritik 2026-10-26, D7): vor dem Knie der
+ * gewichteten Achse wird ein Block 30px schmal, eine Mahlzeit hat keinen Platz
+ * fuer ihren Typ. Statt Buchstabenresten („Zał arz", „M..") bleibt die Flaeche
+ * bzw. der Punkt; der Titel bleibt im Dokument (zugaenglicher Name) und steht
+ * im title des Blocks. */
+@container tl-slot (max-width: 3rem) {
+  .today-timeline__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+@container tl-slot (max-width: 5.5rem) {
+  .today-timeline__event--point .today-timeline__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+/* DIE MAHLZEIT IST EIN PUNKT, KEIN BLOCK (Critique 2026-10-26, Befund 3):
+ * ihre Zeit ist die Nennzeit des Typs, keine eingetragene Dauer. Der Knopf
+ * beginnt an der Zeit mit einem Punkt und traegt den Typ daneben, so breit
+ * wie sein Text. */
+.today-timeline__slot--point {
+  /* Die Marke ist so breit wie ihr Text, hoechstens so breit wie die Spanne,
+   * die sie in der Spur belegt (TIMELINE_POINT_SPAN). Der Slot bleibt
+   * Groessen-Container - seine Breite steht fest -, damit gestaucht der Typ
+   * wegfallen kann (oben). */
+  container: tl-slot / inline-size;
+}
+
+.today-timeline__slot--point > .today-timeline__event {
+  inline-size: auto;
+  max-inline-size: 100%;
+}
+
+.today-timeline__event--point {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-1h);
+  padding-inline: var(--space-1h) var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+.today-timeline__event--point::before {
+  content: '';
+  flex-shrink: 0;
+  inline-size: var(--space-2);
+  block-size: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--c);
+}
+
+.today-timeline__event--point .today-timeline__time {
+  display: none;
+}
+
+/* DAS NAECHSTE SPRICHT IN DER LEISTE (Critique 2026-10-26, Befund 2; Lauf 2,
+ * D2): eine Sprosse hoeher und am Anfang eine 2px-Kante in seinem Ton - der
+ * Mast unter der Fahne, die seine Zeit nennt. Vorher stand es nur eine Sprosse
+ * ueber dem Nachbarn (1,14:1) und sah aus wie der gewaehlte Block. Die Kante
+ * steht innen, der Ring der Auswahl aussen: beide zugleich bleiben lesbar. */
+.today-timeline__event--upnext {
+  background: color-mix(in srgb, var(--c) var(--tint-raised), var(--color-surface));
+  border-inline-start: 2px solid var(--c);
+}
+
+/* Der Punkt (Mahlzeit) hat seinen Mast schon: den Punkt an der Zeit. */
+.today-timeline__event--point.today-timeline__event--upnext {
+  border-inline-start: none;
+}
+
+/* DIE FAHNE DES NAECHSTEN (renderTimelineFlag): in der Achse, Mass und Form
+ * der Jetzt-Pille, aber in der Toenungsleiter seines Moduls statt im Akzent -
+ * „jetzt" bleibt die lauteste Stelle der Leiste. Tinte --tint-ink auf
+ * --tint-raised: hell 6,14:1 (Kalender) und 5,39:1 (Essen), dunkel 5,10:1 und
+ * 5,04:1; die 1px-Kante (--tint-hint) hebt sie von der Flaeche ab.
+ *
+ * DIE LAGE: am Blockanfang (--tl-at), aber nie vor dem Ende der Jetzt-Pille
+ * (--tl-now plus deren halbe Breite, gemessen von placeTodayTimelineFlag) und
+ * nie ueber das Achsenende hinaus (--tl-flag-w). Stehen beide Grenzen gegen-
+ * einander, gewinnt die Pille: clamp() nimmt dann die untere. */
+.today-timeline__flag {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: calc(var(--tl-axis) / 2 - var(--space-1));
+  inset-inline-start: clamp(
+    calc(var(--tl-now, -10) * 100% + var(--tl-now-half, var(--space-6))),
+    calc(var(--tl-at) * 100%),
+    calc(100% - var(--tl-flag-w, 0px))
+  );
+  padding: var(--space-0h) var(--space-1h);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--c) var(--tint-raised), var(--color-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) var(--tint-hint), transparent);
+  color: color-mix(in srgb, var(--c) var(--tint-ink), var(--color-text-primary));
+  font-size: var(--type-micro);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
+/* Die Stunde unter der Fahne schweigt wie die unter der Jetzt-Pille. */
+.today-timeline__hour--flagged {
+  visibility: hidden;
+}
+
+/* DAS GANZTAEGIGE ALS BAND UEBER DER ACHSE (Critique 2026-10-26, Befund 3):
+ * es hat keinen Ort auf der Zeit, aber einen im Tag. Pillen im Ton des
+ * Moduls, jede klappt ihre Zeile auf wie ein Block. */
+/* Das Band steht VOR der Leiste, nicht in ihr: so darf es umbrechen, ohne
+ * dass Jetzt-Strich und Vergangenes (an der Achse gemessen) verrutschen. Es
+ * fluchtet mit der Namensspalte der Leiste. */
+.today-timeline__allday {
+  display: grid;
+  grid-template-columns: calc(var(--space-16) * 2 + var(--space-1)) minmax(0, 1fr);
+  padding-inline: var(--space-6);
+  align-items: center;
+  margin-block-end: var(--space-2);
+}
+
+.today-timeline__allday-label {
+  color: var(--color-text-tertiary);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-medium);
+}
+
+.today-timeline__allday-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1h);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.today-timeline__allday-list .today-timeline__event {
+  inline-size: auto;
+  block-size: auto;
+  min-block-size: var(--target-md);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-full);
+}
+
+/* VORBEI TRITT ZURUECK, ES VERSCHWINDET NICHT. Die Liste darunter verspricht,
+ * was noch kommt (#1449); die Leiste zeigt, was der Tag war. */
+.today-timeline__event--past {
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
+}
+
+.today-timeline__event--past .today-timeline__time {
+  color: var(--color-text-secondary);
+}
+
+@media (hover: hover) {
+  .today-timeline__event--past:hover {
+    background: var(--color-surface-elevated-hover);
+  }
+}
+
+/* DER GEWAEHLTE BLOCK TRAEGT EINEN RING AUSSEN in seinem Ton, mit einer
+ * Fuge in der Flaechenfarbe - der Zeiger auf die Zeile darunter (Critique
+ * 2026-10-26, Lauf 2: er war dieselbe Optik wie das Naechste). Vergangenes
+ * bleibt grau und bekommt denselben Ring. Er hebt sich ueber die Nachbarn,
+ * deren Kante er sonst unterliefe. */
+.today-timeline__event[aria-expanded="true"] {
+  position: relative;
+  z-index: 2;
+  background: color-mix(in srgb, var(--c) var(--tint-raised), var(--color-surface));
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--c);
+}
+
+.today-timeline__event--past[aria-expanded="true"] {
+  background: var(--color-surface-elevated-hover);
+}
+
+/* Gewaehlt UND fokussiert: der Fokusring liegt genau dort, wo der Ring der
+ * Auswahl laege. Die Auswahl rueckt deshalb an die Kante, der Fokusring
+ * umschliesst sie - zwei Ringe, zwei Farben, keiner verdeckt den anderen. */
+.today-timeline__event[aria-expanded="true"]:focus-visible {
+  z-index: 3;
+  box-shadow: 0 0 0 2px var(--c);
+}
+
+/* Das Vergangene und der Strich liegen ueber den Spuren, unter den Bloecken
+ * (pointer-events: none). Ihre Lage rechnet sich aus der Namensspalte und dem
+ * Anteil `--tl-now`, den der Minutentakt nachfuehrt (updateTodayTimelineNow). */
+.today-timeline__past,
+.today-timeline__now {
+  position: absolute;
+  inset-block-end: 0;
+  pointer-events: none;
+}
+
+.today-timeline__past {
+  inset-block-start: var(--tl-axis);
+  inset-inline-start: calc(var(--tl-pad-inline) + var(--tl-label));
+  inline-size: calc((100% - 2 * var(--tl-pad-inline) - var(--tl-label)) * var(--tl-now, 0));
+  background: color-mix(in srgb, var(--color-text-primary) calc(var(--tint-wash) / 3), transparent);
+}
+
+/* Der Jetzt-Strich im Akzent mit der Uhrzeit als Pille in der Achse. Die
+ * Tinte der Pille ist `--color-ink-on-vivid`: weiss auf dem hellen, dunkel
+ * auf dem aufgehellten Akzent des Dark - weiss hielte dort keine 4,5:1. */
+.today-timeline__now {
+  z-index: 2;
+  inset-block-start: calc(var(--tl-axis) / 2 + var(--space-1));
+  inset-inline-start: calc(var(--tl-pad-inline) + var(--tl-label) + (100% - 2 * var(--tl-pad-inline) - var(--tl-label)) * var(--tl-now, 0));
+  inline-size: 2px;
+  margin-inline-start: -1px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+
+.today-timeline__now-time {
+  position: absolute;
+  inset-block-start: calc(var(--space-2) * -1);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-0h) var(--space-1h);
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: var(--color-ink-on-vivid);
+  font-size: var(--type-micro);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
+/* Bis 1000px traegt jede zweite Stunde ihre Zahl - die Linie bleibt. */
+@container today-cockpit (max-width: 1000px) {
+  .today-timeline__hour--odd {
+    visibility: hidden;
+  }
+}
+
+/* DIE AUFGEKLAPPTE ZEILE unter der Leiste: dieselbe Anatomie wie die Zeilen
+ * darunter, getrennt per Haarlinie. */
+.today-timeline__detail {
+  margin-block-start: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* Die Zeit steht am Titel, nicht 1000px weiter am rechten Rand (Lauf 2):
+ * die Zeile steht allein unter der Leiste, ohne Nachbarn, deren Zeiten eine
+ * Spalte bilden. */
+.today-timeline__detail-row > .today-cockpit-card {
+  grid-template-columns: calc(var(--target-sm) + var(--space-5) - var(--space-2)) minmax(0, max-content) auto;
+  justify-content: start;
+  border-top: none;
+}
+
+/* DIE KURZFASSUNG AUF DEM TELEFON (renderTodayMiniTimeline): ein 20px-Gesicht
+ * je Spur, ein 6px-Balken je Packreihe, fuenf Stunden an der Achse. Bild,
+ * kein Bedienteil - das Tippziel liegt daneben (`.today-timeline-peek__hit`).
+ *
+ * DICHTER (Critique 2026-10-26, Lauf 2, D3): 148px fuer fuenf Spuren waren
+ * ein Viertel der Karte. Balken 10 -> 6px, Spurabstand 6 -> 4px, und nur noch
+ * Spuren mit Kommendem (dashboard.js): drei Spuren samt Achse ~90px. */
+.today-timeline--mini {
+  --tl-label: calc(var(--space-6) + var(--space-1));
+  --tl-pad-inline: var(--space-6);
+  --tl-axis: var(--space-4);
+  --tl-bar: var(--space-1h);
+  --tl-bar-gap: var(--space-0h);
+  row-gap: var(--space-1);
+  align-items: center;
+}
+
+/* DAS BILD ALS EIN TIPPZIEL (renderTodayPeek): gibt es Verdecktes, liegt ein
+ * Knopf ueber der ganzen Kurzfassung - mindestens Zielhoehe, die Luft zur
+ * Liste darunter gehoert mit zur Flaeche. Ohne Verdecktes ist die Huelle nur
+ * Abstand. Der Knopf ist leer und durchsichtig: zu sehen ist das Bild, zu
+ * hoeren sein Name. */
+.today-timeline-peek {
+  position: relative;
+  isolation: isolate;
+  padding-block-end: var(--space-3);
+}
+
+.today-timeline-peek--action {
+  display: grid;
+  align-content: center;
+  min-block-size: var(--target-base);
+}
+
+.today-timeline-peek__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.today-timeline-peek__hit:focus-visible {
+  outline-offset: var(--focus-ring-offset-inset);
+  background: color-mix(in srgb, var(--color-text-primary) var(--tint-state), transparent);
+}
+
+@media (hover: hover) {
+  .today-timeline-peek__hit:hover {
+    background: color-mix(in srgb, var(--color-text-primary) var(--tint-state), transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-timeline-peek__hit {
+    transition: none;
+  }
+}
+
+.today-timeline--mini .today-timeline__axis {
+  block-size: var(--space-4);
+  margin-block-end: var(--space-0h);
+}
+
+/* Gleiche Schritte (renderTodayMiniTimeline): jede Marke an ihrer Zeit, die
+ * erste buendig links, die letzte buendig rechts. */
+.today-timeline--mini .today-timeline__axis > span {
+  position: absolute;
+  inset-inline-start: calc(var(--tl-at) * 100%);
+  transform: translateX(-50%);
+}
+
+.today-timeline--mini .today-timeline__axis > span:first-child {
+  transform: none;
+}
+
+.today-timeline--mini .today-timeline__axis > span:last-child {
+  transform: translateX(-100%);
+}
+
+.today-timeline__bar--point {
+  inline-size: var(--space-2h);
+  margin-inline-start: calc(var(--space-2h) / -2);
+}
+
+/* Unter der Kurzfassung beginnen die Zeilen mit einer Haarlinie; den Abstand
+ * dazu traegt die Huelle (`.today-timeline-peek`), damit er Tippflaeche ist. */
+.today-timeline-peek + .today-cockpit__rows {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.today-timeline__face {
+  display: inline-flex;
+  grid-column: 1;
+}
+
+.today-timeline__everyone--sm {
+  inline-size: var(--space-5);
+  block-size: var(--space-5);
+}
+
+.today-timeline__everyone--sm svg {
+  inline-size: var(--space-3);
+  block-size: var(--space-3);
+}
+
+/* JE PACKREIHE EINE TEILSPUR (Critique 2026-10-26, Lauf 2, D3): zwei
+ * Termine zur selben Zeit stehen uebereinander statt ineinander, mit 2px
+ * Fuge in der Farbe der Rinne - die Spur wird hoeher, nicht breiter. */
+.today-timeline__bars {
+  --tl-rows: 1;
+  grid-column: 2;
+  position: relative;
+  block-size: calc(var(--tl-rows) * var(--tl-bar) + (var(--tl-rows) - 1) * var(--tl-bar-gap));
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-3);
+}
+
+.today-timeline__bar {
+  position: absolute;
+  inset-block-start: calc(var(--tl-row, 0) * (var(--tl-bar) + var(--tl-bar-gap)));
+  inset-inline-start: calc(var(--tl-left) * 100%);
+  block-size: var(--tl-bar);
+  inline-size: calc(var(--tl-width) * 100%);
+  border-radius: var(--radius-full);
+  background: var(--c);
+}
+
+.today-timeline__bar--past {
+  background: color-mix(in srgb, var(--color-text-tertiary) calc(var(--tint-hint) - 5%), var(--color-surface-3));
+}
+
+.today-timeline--mini .today-timeline__now {
+  inset-block-start: var(--space-3);
+  inset-block-end: calc(var(--space-1) * -1);
+}
+
+.today-timeline--mini .today-timeline__now-time {
+  inset-block-start: calc(var(--space-4) * -1);
+  padding: 0 var(--space-1h);
+}
+
+/* „ALS NAECHSTES" (Entwurf): breit drei Zellen nebeneinander, getrennt durch
+ * senkrechte Haarlinien, ueber der Leiste eine waagerechte. Die Zelle ist die
+ * Zeile des Blatts - dieselbe Anatomie, nur nebeneinander. */
+.today-cockpit__rows.today-cockpit__rows--next {
+  grid-template-columns: repeat(var(--today-next-cols, 3), minmax(0, 1fr));
+  margin-block-start: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.today-cockpit__rows--next > .today-cockpit-card {
+  padding: var(--space-4) var(--space-6);
+}
+
+.today-cockpit__rows--next > .today-cockpit-card + .today-cockpit-card {
+  border-top: none;
+  border-inline-start: 1px solid var(--color-border-subtle);
+}
+
+/* Eine Zelle in einer neuen Reihe (aufgeklappte „+N weitere") beginnt ohne
+ * senkrechte Linie und mit einer waagerechten darueber. */
+.today-cockpit__rows--next > .today-cockpit-card:nth-child(3n + 1) {
+  border-inline-start: none;
+}
+
+.today-cockpit__rows--next > .today-cockpit-card:nth-child(n + 4) {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.today-cockpit__rows--more.today-cockpit__rows--next {
+  margin-block-start: 0;
+}
+
+/* „Ausserdem heute" (Critique 2026-10-26, Befund 2): die Ueberschrift des
+ * Streifens, sobald die Leiste das Naechste selbst nennt. Sie traegt die
+ * Haarlinie, die sonst der Streifen traegt. */
+.today-cockpit__also {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-3) var(--space-6) 0;
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.today-cockpit__also + .today-cockpit__rows--next {
+  margin-block-start: 0;
+  border-top: none;
+}
+
+/* UNTER DER BREITEN BUEHNE STEHT SIE IN DER LISTE (Critique 2026-10-26,
+ * Lauf 2, D6): zwischen den Eintraegen der Leiste und dem Rest, an der
+ * Vorderkante der Zeilen. Sie traegt die Haarlinie der Zeile darunter; ueber
+ * dem Text mehr Luft als darunter, dort steht schon das Polster der Zeile. */
+.today-cockpit__also--row {
+  margin: 0;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+/* Beginnt der Rest erst in den aufgeklappten Zeilen, traegt deren Kante die Linie. */
+.today-cockpit__rows--more > .today-cockpit__also--row:first-child {
+  border-top: none;
+}
+
+/* „in 25 Min" spricht im Ton seines Moduls (Entwurf; Critique 2026-10-26,
+ * Befund 5 - die Klasse stand im Markup, die Regel fehlte). */
+.today-cockpit-card__time--soon {
+  color: color-mix(in srgb, var(--today-card-accent) var(--tint-ink), var(--color-text-primary));
+  font-weight: var(--font-weight-semibold);
+}
+
+/* DIE FUSSLEISTE: links die Coda, rechts „+N weitere" - eine Zeile. */
+.today-cockpit__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-md);
+  padding: var(--space-3) var(--space-6) calc(var(--space-3) + var(--space-0h));
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.today-cockpit__foot > .today-cockpit__coda,
+.today-cockpit__foot > .today-cockpit__more {
+  padding: 0;
+  border-top: none;
+}
+
+/* Rechts, so breit wie sein Text - auch der Aufklapp-Knopf, der sonst ueber
+ * die ganze Breite lief und sein Chevron 1100px vom Wort entfernt trug. */
+.today-cockpit__foot > .today-cockpit__more {
+  width: auto;
+  margin-inline-start: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-timeline__event {
+    transition: none;
+  }
 }
 
 /* Inset-Grouped-Liste (Apple-Systemapp-Muster, z.B. Erinnerungen-Widget):
@@ -3072,6 +3841,21 @@ button.today-cockpit__more--link {
   transform: rotate(180deg);
 }
 
+/* „+N WEITERE" ALS LETZTE ZEILE (Critique 2026-10-26, Lauf 2, D3): unter der
+ * breiten Buehne kein eigenes Fussband mehr, sondern eine schlanke Zeile im
+ * Raster der Zeilen - Text an der Titelkante, Chevron am Ende, Zielhoehe. */
+.today-cockpit__more--row {
+  display: grid;
+  grid-template-columns: calc(var(--target-sm) + var(--space-5) - var(--space-2)) minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  min-height: var(--target-base);
+  padding: var(--space-2) var(--space-4);
+}
+
+.today-cockpit__more--row > span {
+  grid-column: 2;
+}
+
 /* DIE SAMMELZEILE DER UEBERFAELLIGEN (R14, dashboard.js groupOverdueRows).
  * Sie ist ein Aufklapp-Knopf ohne Route, zeigt aber dieselbe Beruehrung wie
  * jede Zeile mit Ziel - im Ton ihres Raums. Am Ende stehen die gestapelten
@@ -3161,61 +3945,6 @@ button.today-cockpit__more--link {
   border-top: 1px solid var(--color-border-subtle);
 }
 
-/* ZWEI SPALTEN AB 720PX CONTAINERBREITE (Critique 23.09.2026). Das Blatt ist am
- * Desktop 1140px breit; eine Zeile ueber die volle Breite hielt den Titel links
- * und die Uhrzeit ueber 900px davon entfernt rechts - das Auge musste die Zeile
- * absuchen. Zwei Spalten halbieren den Weg und die Hoehe. Gefuellt wird
- * SPALTENWEISE (grid-auto-flow: column): links die fruehere, rechts die spaetere
- * Haelfte, das Programm liest sich weiter von oben nach unten. Die Zahl der
- * Zeilen je Spalte setzt das Markup (`--today-rows-per-column`), weil nur es sie
- * kennt. Unter 720px - Telefon, Tablet hochkant, Desktop mit schmaler Spalte -
- * bleibt es die eine Liste in unveraenderter Hoehe. */
-@container today-cockpit (min-width: 720px) {
-  .today-cockpit__rows--split {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: repeat(var(--today-rows-per-column, 1), auto);
-    grid-auto-flow: column;
-  }
-
-  .today-cockpit__rows--split > .today-cockpit-card--col2 {
-    border-inline-start: 1px solid var(--color-border-subtle);
-  }
-
-  /* DIE SPALTE TRENNT, NICHT DIE ZEILE (R22 D16). Die Haarlinien liefen ueber
-   * beide Spalten durch - drei durchgehende Linien bei 1440, das Blatt las
-   * sich zeilenweise (links, rechts, links ...), obwohl es spaltenweise
-   * gefuellt ist. Jetzt traegt jede Spalte ihre eigenen, eingerueckten
-   * Trenner (das Polster der Zeile, --space-4), und am Spaltentrenner bleibt
-   * eine Luecke: zwei Listen nebeneinander, keine Tabelle. */
-  .today-cockpit__rows--split > .today-cockpit-card + .today-cockpit-card {
-    border-top: none;
-  }
-
-  .today-cockpit__rows--split > .today-cockpit-card {
-    position: relative;
-  }
-
-  .today-cockpit__rows--split > .today-cockpit-card:not(:first-child):not(.today-cockpit-card--col-start)::before {
-    content: '';
-    position: absolute;
-    inset-block-start: 0;
-    inset-inline: var(--space-4);
-    block-size: 1px;
-    background-color: var(--color-border-subtle);
-    pointer-events: none;
-  }
-
-  /* Die letzte Zeile einer ungeraden Zahl spannt unter beiden Spalten; ihre
-   * Linie laeuft ueber die volle Breite, weil sie beide Spalten abschliesst. */
-  .today-cockpit__rows--split > .today-cockpit-card--span {
-    grid-column: 1 / -1;
-    grid-row: calc(var(--today-rows-per-column, 1) + 1);
-  }
-
-  .today-cockpit__rows--split > .today-cockpit-card--span::before {
-    inset-inline: 0;
-  }
-}
 
 /* Sehr schmale Container (iPhone-SE-Klasse): die Liste ist bereits einspaltig;
  * die Regel bleibt als bewusster, getesteter Fallback erhalten (Container-Query
@@ -5970,22 +6699,43 @@ button.today-cockpit__more--link {
     gap: var(--space-2);
   }
 
-  /* DAS BLATT STEHT MOBIL OHNE SICHTBARE UEBERSCHRIFT (R23, Critique G1 P2).
-   * Direkt unter dem Gruss ist es das erste und lauteste Element; „Heute
-   * wichtig" darueber kostete 34px vor der ersten Zeile und sagte, was der
-   * Gruss schon sagt. Die h2 bleibt im Dokument (Landmarke, aria-labelledby);
-   * im Anpassen-Modus steht sie wieder, dort traegt die Zeile den Ausblenden-
-   * Knopf. */
-  .today-cockpit:not(.today-cockpit--editing) > .today-cockpit__header {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
+  /* DER KOPF STEHT MOBIL IN DER KARTE (Entwurf „Heute wichtig", 2026-10-26;
+   * loest R23 G1 P2 ab, Ulas' Wahl). Bis hierher stand das Blatt mobil ohne
+   * sichtbare Ueberschrift. Der Entwurf setzt sie kompakt in die Karte: kleines
+   * Siegel, Titel, die Summe rechtsbuendig in Footnote - der Gruss sagt
+   * „Guten Tag", die Kopfzeile sagt, was der Tag ist. */
+  .today-cockpit__grid > .today-cockpit__header {
+    gap: var(--space-2h);
+    padding: var(--space-4) var(--space-4) var(--space-3);
+  }
+
+  .today-cockpit__seal {
+    width: calc(var(--space-6) + var(--space-0h));
+    height: calc(var(--space-6) + var(--space-0h));
+  }
+
+  .today-cockpit__heading {
+    flex-wrap: nowrap;
+  }
+
+  .today-cockpit__summary {
+    margin-inline-start: auto;
+    font-size: var(--type-caption);
     white-space: nowrap;
-    border: 0;
+  }
+
+  .today-timeline--mini {
+    --tl-pad-inline: var(--space-4);
+  }
+
+  .today-cockpit__foot {
+    padding-inline: var(--space-4);
+  }
+
+  /* Dieselbe Kante wie die Zeilen, die mobil mit 12px Polster stehen. */
+  .today-cockpit__more--row,
+  .today-cockpit__also--row {
+    padding-inline: var(--space-3);
   }
 
   /* Die Inset-Grouped-Liste bleibt auch mobil einspaltig (Apple-Muster:

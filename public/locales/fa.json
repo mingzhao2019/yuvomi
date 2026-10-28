@@ -377,6 +377,7 @@
         "todayUntil": "تا {{time}}",
         "todayMore": "+{{count}} مورد دیگر امروز",
         "todayLess": "نمایش کمتر",
+        "todayShowDay": "نمایش کل روز",
         "todayMore_one": "+{{count}} مورد دیگر امروز",
         "memberOpenTasks": "{{count}} وظیفه",
         "memberOpenTasks_one": "{{count}} وظیفه",
@@ -454,7 +455,17 @@
         "todayOverdueCount": "{{count}} معوق",
         "todayOverdueCount_one": "{{count}} معوق",
         "wallScreensaverNone": "محافظ صفحه در دسترس نیست.",
-        "wallScreensaverStart": "محافظ صفحه"
+        "wallScreensaverStart": "محافظ صفحه",
+        "todaySummaryEventsAhead": "{{count}} رویداد باقی مانده",
+        "todaySummaryEventsAhead_one": "{{count}} رویداد باقی مانده",
+        "todaySummaryOverdue": "{{count}} کار معوق",
+        "todaySummaryOverdue_one": "{{count}} کار معوق",
+        "todayTimelineLabel": "روند امروز",
+        "todayTimelineEveryone": "همه",
+        "todayTimelinePast": "تمام‌شده",
+        "todayTimelineRunning": "در جریان",
+        "todayTimelineNext": "بعدی",
+        "todayAlsoTitle": "همچنین امروز"
     },
     "tasks": {
         "resetOrder": "مرتب‌سازی خودکار",

@@ -359,6 +359,7 @@
         "todayUntil": "entro le {{time}}",
         "todayMore": "+{{count}} altri oggi",
         "todayLess": "Mostra meno",
+        "todayShowDay": "Mostra tutta la giornata",
         "todayMore_one": "+{{count}} altro oggi",
         "memberOpenTasks": "{{count}} attività",
         "memberOpenTasks_one": "{{count}} attività",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "{{count}} scadute",
         "todayOverdueCount_one": "{{count}} scaduta",
         "wallScreensaverNone": "Salvaschermo non disponibile.",
-        "wallScreensaverStart": "Salvaschermo"
+        "wallScreensaverStart": "Salvaschermo",
+        "todaySummaryEventsAhead": "ancora {{count}} eventi",
+        "todaySummaryEventsAhead_one": "ancora {{count}} evento",
+        "todaySummaryOverdue": "{{count}} attività scadute",
+        "todaySummaryOverdue_one": "{{count}} attività scaduta",
+        "todayTimelineLabel": "Andamento della giornata",
+        "todayTimelineEveryone": "Tutti",
+        "todayTimelinePast": "terminato",
+        "todayTimelineRunning": "in corso",
+        "todayTimelineNext": "il prossimo",
+        "todayAlsoTitle": "Oggi anche"
     },
     "tasks": {
         "resetOrder": "Ordina automaticamente",

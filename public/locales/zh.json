@@ -359,6 +359,7 @@
         "todayUntil": "{{time}}前",
         "todayMore": "另有{{count}}项",
         "todayLess": "收起",
+        "todayShowDay": "显示全天",
         "todayMore_one": "另有{{count}}项",
         "memberOpenTasks": "{{count}}项任务",
         "memberOpenTasks_one": "{{count}}项任务",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "已逾期 {{count}} 项",
         "todayOverdueCount_one": "已逾期 {{count}} 项",
         "wallScreensaverNone": "屏幕保护程序不可用。",
-        "wallScreensaverStart": "屏幕保护"
+        "wallScreensaverStart": "屏幕保护",
+        "todaySummaryEventsAhead": "还有 {{count}} 个日程",
+        "todaySummaryEventsAhead_one": "还有 {{count}} 个日程",
+        "todaySummaryOverdue": "{{count}} 项任务已逾期",
+        "todaySummaryOverdue_one": "{{count}} 项任务已逾期",
+        "todayTimelineLabel": "今日时间轴",
+        "todayTimelineEveryone": "所有人",
+        "todayTimelinePast": "已结束",
+        "todayTimelineRunning": "进行中",
+        "todayTimelineNext": "下一个",
+        "todayAlsoTitle": "今天还有"
     },
     "tasks": {
         "resetOrder": "自动排序",

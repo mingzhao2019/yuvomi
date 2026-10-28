@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Today at a glance shows the shape of the day.** The sheet is one card now: the overview's seal,
+  the title and the day in one line ("6 events left · 1 task overdue"), then a timeline with a lane for the
+  household and one for everyone with something timed today - appointments, your own shift, planned
+  meals as a dot at their usual time - and all-day appointments as a band above it. What is over steps
+  back to grey, a violet line marks now, and the next thing coming is raised with an edge in its
+  module's colour and a flag above where it starts ("15:00 · in 2 hrs", counting down each minute),
+  readable even on a block too narrow for its time. The hours ahead get the width: what lies more
+  than an hour back is squeezed into at most a third of the timeline (every second hour labelled
+  there), so later titles are no longer cut off, and the layout only shifts on the hour. A block
+  shows its full title and start on hover. A click on a block rings it and slides its row
+  open below - start and end, the full title, who it is for and which calendar - and the row opens it;
+  the timeline is one tab stop, left and right move along, up and down switch lanes, and Esc folds
+  the row and returns to the block you opened. A screen reader hears "Emma: School, 08:00 until 13:00,
+  in progress", and focus stays put when the sheet rebuilds or the window crosses 900px. Below it, "Also today" holds what has no place
+  on the timeline in three cells, shopping last, and a footer line carries the closing sentence or
+  "+N more". Under a sheet width of 900px - tablets, narrow windows, phones - the timeline is a compact
+  strip of bars - only lanes with something still ahead, appointments at the same time on thin rows of their own instead of one merged bar - and tapping it unfolds the whole day like "+N more", which now sits as the last row instead of a footer of its own. Every bar still ahead is a row below it, behind "+N more" if need be: each
+  appointment once, even when it is for two people, meals and your shift until their time has passed.
+  These rows lead in order of time, all-day ones on top, and one in progress says "in progress" instead
+  of its start; "Also today" follows with tasks, medication, shopping and the rest. When space runs
+  short the rest gives way first, so what is running or next stays in view.
+  The header counts the same on every width: the appointments still ahead - in progress, coming and
+  all-day - and says so ("6 events left"), dropping the part once none is left. A coming one names
+  "15:00 · in 2 hrs" or "in 25 min" in its module's colour. The timeline only appears when the Calendar tile is not on the overview, so
+  it never repeats it.
 - **A closed app opened without a connection shows your saved lists** (#2293). Until now only an
   app left in the background kept them; a fresh start without signal stopped at "server can't be
   reached". Now calendar, tasks, the shopping list, contacts and the overview open on the state

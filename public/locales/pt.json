@@ -359,6 +359,7 @@
         "todayUntil": "até às {{time}}",
         "todayMore": "+{{count}} mais hoje",
         "todayLess": "Mostrar menos",
+        "todayShowDay": "Mostrar o dia inteiro",
         "todayMore_one": "+{{count}} mais hoje",
         "memberOpenTasks": "{{count}} tarefas",
         "memberOpenTasks_one": "{{count}} tarefa",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "{{count}} atrasadas",
         "todayOverdueCount_one": "{{count}} atrasada",
         "wallScreensaverNone": "Proteção de ecrã não disponível.",
-        "wallScreensaverStart": "Proteção de ecrã"
+        "wallScreensaverStart": "Proteção de ecrã",
+        "todaySummaryEventsAhead": "faltam {{count}} eventos",
+        "todaySummaryEventsAhead_one": "falta {{count}} evento",
+        "todaySummaryOverdue": "{{count}} tarefas atrasadas",
+        "todaySummaryOverdue_one": "{{count}} tarefa atrasada",
+        "todayTimelineLabel": "Cronologia do dia",
+        "todayTimelineEveryone": "Todos",
+        "todayTimelinePast": "terminado",
+        "todayTimelineRunning": "a decorrer",
+        "todayTimelineNext": "a seguir",
+        "todayAlsoTitle": "Também hoje"
     },
     "tasks": {
         "resetOrder": "Ordenar automaticamente",

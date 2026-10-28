@@ -359,6 +359,7 @@
         "todayUntil": "{{time}}まで",
         "todayMore": "他{{count}}件",
         "todayLess": "表示を減らす",
+        "todayShowDay": "1日全体を表示",
         "todayMore_one": "他{{count}}件",
         "memberOpenTasks": "タスク{{count}}件",
         "memberOpenTasks_one": "タスク{{count}}件",
@@ -436,7 +437,17 @@
         "todayOverdueCount": "期限切れ {{count}}件",
         "todayOverdueCount_one": "期限切れ {{count}}件",
         "wallScreensaverNone": "スクリーンセーバーを開始できません。",
-        "wallScreensaverStart": "スクリーンセーバー"
+        "wallScreensaverStart": "スクリーンセーバー",
+        "todaySummaryEventsAhead": "残りの予定 {{count}} 件",
+        "todaySummaryEventsAhead_one": "残りの予定 {{count}} 件",
+        "todaySummaryOverdue": "期限切れのタスク {{count}} 件",
+        "todaySummaryOverdue_one": "期限切れのタスク {{count}} 件",
+        "todayTimelineLabel": "今日のタイムライン",
+        "todayTimelineEveryone": "全員",
+        "todayTimelinePast": "終了",
+        "todayTimelineRunning": "進行中",
+        "todayTimelineNext": "次の予定",
+        "todayAlsoTitle": "今日のほかの予定"
     },
     "tasks": {
         "resetOrder": "自動で並べ替え",
