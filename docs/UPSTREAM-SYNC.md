@@ -28,11 +28,11 @@ Last verified: **2026-10-28 UTC**.
 | --- | --- | --- |
 | `main`, `upstream/main` | `c77bc34d1be8030c88b154ffb6a85b3295077008` | Local upstream v2.82.0 baseline is synchronized through the latest two fixes. |
 | `origin/main` | `548b6d0a3f1b8262133790bd3e0417c08e8ede94` | Last pushed upstream baseline; delivery of the new `main` tip is pending authorization. |
-| `custom`, `origin/custom` | `3c06b9facb5a37808b97e642e6907bebd10cffe6` | Custom branch before the current selective integration. |
-| `custom-upstream-selective-2026-10-28` | `0b2181e06` | Current integration branch; pending fast-forward into `custom`. |
+| `custom` | Local tip after the current selective integration. | Ready for the authorized delivery push. |
+| `origin/custom` | `3c06b9facb5a37808b97e642e6907bebd10cffe6` | Last pushed custom state before this synchronization. |
 
-The previous remote branch pairs matched; the current integration intentionally
-leaves the new upstream tip and custom integration local until delivery:
+The previous remote branch pairs matched; the new upstream tip and custom
+integration remain local until delivery:
 
 ```text
 main...upstream/main   0 0
