@@ -27,16 +27,15 @@ Last verified: **2026-10-28 UTC**.
 | Reference | Commit | Meaning |
 | --- | --- | --- |
 | `main`, `upstream/main` | `c77bc34d1be8030c88b154ffb6a85b3295077008` | Local upstream v2.82.0 baseline is synchronized through the latest two fixes. |
-| `origin/main` | `548b6d0a3f1b8262133790bd3e0417c08e8ede94` | Last pushed upstream baseline; delivery of the new `main` tip is pending authorization. |
-| `custom` | Local tip after the current selective integration. | Ready for the authorized delivery push. |
-| `origin/custom` | `3c06b9facb5a37808b97e642e6907bebd10cffe6` | Last pushed custom state before this synchronization. |
+| `origin/main` | `c77bc34d1be8030c88b154ffb6a85b3295077008` | Remote upstream baseline matches local `main`. |
+| `custom` | Local tip after the current selective integration. | Remote delivery is complete. |
+| `origin/custom` | Matches local `custom`. | Remote delivery is complete. |
 
-The previous remote branch pairs matched; the new upstream tip and custom
-integration remain local until delivery:
+Both branch pairs now match after delivery:
 
 ```text
 main...upstream/main   0 0
-custom...origin/custom  0 0
+custom...origin/custom 0 0
 ```
 
 The release metadata is `2.82.0`. The destructive upstream commit
