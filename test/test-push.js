@@ -820,6 +820,35 @@ test('checkPushEndpoint: nur oeffentliche https-Ziele', async () => {
   }
 });
 
+// web-push liest den Endpoint mit dem alten url.parse, die Pruefung mit WHATWG.
+// url.parse schneidet einen Hostnamen am ersten Zeichen ab, das es dort nicht
+// erwartet - aus `127.0.0.1{.evil.com` (fuer WHATWG ein Domainname) wird das
+// IP-Literal 127.0.0.1, und fuer ein Literal fragt Node den Guard-Lookup nie.
+test('checkPushEndpoint: url.parse und WHATWG sehen denselben Host', async () => {
+  const { checkPushEndpoint } = await import('../server/services/push.js');
+  const { parse } = await import('node:url');
+  for (const bad of [
+    'https://127.0.0.1{.evil.com/x',
+    'https://169.254.169.254{.evil.com/latest/meta-data',
+    'https://10.0.0.5}.evil.com/x',
+    'https://192.168.1.10`.evil.com/x',
+    'https://127.0.0.1|.evil.com/x',
+    'https://127.0.0.1~.evil.com/x',
+    'https://127.0.0.1!.evil.com/x',
+    'https://127.0.0.1$.evil.com/x',
+    "https://127.0.0.1'.evil.com/x",
+    'https://localhost{.evil.com/x',
+  ]) {
+    const res = checkPushEndpoint(bad);
+    assert.equal(res.ok, false, bad);
+  }
+  for (const ok of ['https://fcm.googleapis.com/fcm/send/abc', 'https://web.push.apple.com/abc']) {
+    const res = checkPushEndpoint(ok);
+    assert.equal(res.ok, true, ok);
+    assert.equal(parse(res.href).hostname, new URL(res.href).hostname, ok);
+  }
+});
+
 test('POST /subscribe weist einen Endpoint ins eigene Netz ab und speichert nichts', async () => {
   const db = makeDb();
   const app = await startApp(db, makeWebpushMock());

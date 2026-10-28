@@ -249,6 +249,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checks that each of them opens the dialog.
 
 ### Security
+- **Web Push delivery no longer reaches the server's own network through a malformed address**
+  (completes the 2.81.1 fix). The push library reads a subscription address with an older parser
+  than the check before it, and for some unusual characters in the host the two disagreed, so a
+  crafted address could pass the check and still be sent to an internal address. A push address
+  now has to be a plain host name made of letters, digits, hyphens and dots, as every push service
+  hands out, and both parsers have to read the same host. A stored subscription with such an
+  address is removed on its next delivery, like the others.
+
 - **The Docker image runs on Node.js 24.22.1, which fixes CVE-2026-111497** (#2286). The Brotli
   decoder built into Node.js could write past its buffer on a crafted compressed stream, which can
   crash the server or, in the worst case, run code. The image was pinned to an earlier Node.js 24

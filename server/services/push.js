@@ -5,6 +5,7 @@
  */
 import https from 'node:https';
 import { isIP } from 'node:net';
+import { parse as legacyParseUrl } from 'node:url';
 import webpushDefault from 'web-push';
 import * as dbModule from '../db.js';
 import { createLogger } from '../logger.js';
@@ -49,6 +50,14 @@ export const PUSH_SEND_TIMEOUT_MS = 10_000;
  * `https://127.0.0.1/`); gesendet wird an sie, damit Pruefung und Versand
  * dieselbe Adresse sehen.
  *
+ * DERSELBE HOST AUCH FUER web-push: Es liest den Endpoint mit dem alten
+ * `url.parse`, und das schneidet einen Hostnamen am ersten Zeichen ab, das es
+ * dort nicht erwartet. Aus `127.0.0.1{.evil.com` (fuer WHATWG ein Domainname,
+ * also erst beim Lookup geprueft) wurde so das Literal 127.0.0.1, verbunden
+ * ohne Lookup. Deshalb nur Hostnamen aus Buchstaben, Ziffern, `-` und `.` - so
+ * sieht jeder Push-Dienst aus - und zur Sicherheit derselbe Host in beiden
+ * Parsern.
+ *
  * @returns {{ ok: true, href: string, host: string } | { ok: false, reason: string }}
  */
 export function checkPushEndpoint(endpoint) {
@@ -65,6 +74,12 @@ export function checkPushEndpoint(endpoint) {
   if (url.username || url.password) return { ok: false, reason: 'invalid' };
   const hostname = normalizeHostname(url.hostname).replace(/\.$/, '');
   if (!hostname) return { ok: false, reason: 'invalid' };
+  if (!isIP(hostname) && !/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/.test(hostname)) {
+    return { ok: false, reason: 'invalid' };
+  }
+  if (normalizeHostname(legacyParseUrl(url.href).hostname ?? '').replace(/\.$/, '') !== hostname) {
+    return { ok: false, reason: 'invalid' };
+  }
   if (isBlockedHostname(hostname)) return { ok: false, reason: 'private' };
   if (isIP(hostname) && isBlockedAddress(hostname)) return { ok: false, reason: 'private' };
   return { ok: true, href: url.href, host: url.host };
