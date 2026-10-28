@@ -5457,7 +5457,9 @@ test('U2: "+ Neu" oeffnet das Anlegen-Blatt ueber der Uebersicht - kein navigate
     const { render, __test } = await import('../public/pages/dashboard.js');
     // The preceding quiet-refresh case uses the same fixture user and leaves
     // the real return memo populated. This case deliberately verifies the
-    // initial server response, so isolate it from that cache.
+    // initial server response, so isolate it from that cache. Without this
+    // reset, a slow runner could first render the preceding test's memo and
+    // fetch this case's rows only after settle().
     __test.setOverviewMemo(null);
     await render(container, { user, signal: controller.signal });
     await settle();
