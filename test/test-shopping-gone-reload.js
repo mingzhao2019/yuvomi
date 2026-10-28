@@ -304,7 +304,7 @@ test('Ist die aktive Liste weg, faellt die Seite auf die erste verbliebene - und
   assert.equal(shopping.state.activeListId, 2);
   assert.deepEqual(shopping.state.items.map((i) => i.id), [20]);
   assert.deepEqual(shopping.state.lists.map((l) => l.id), [2]);
-  assert.deepEqual(geschlossen, [{ force: true }]);
+  assert.deepEqual(geschlossen, [{ force: true, context: 'test-modal-context' }]);
 });
 
 test('Ist die letzte Liste weg, zeigt die Seite den Leerzustand', async () => {
@@ -332,7 +332,7 @@ test('Dialog zu einem Artikel, den es nicht mehr gibt: er geht zu', async () => 
   const geschlossen = await mit(stub, () => dialog().submit());
 
   assert.deepEqual(toasts, [['shopping.errorItemGone', 'danger']]);
-  assert.deepEqual(geschlossen, [{ force: true }]);
+  assert.deepEqual(geschlossen, [{ force: true, context: 'test-modal-context' }]);
 });
 
 test('Dialog, dessen Artikel noch da ist (der Laden ist weg): er bleibt mit den Eingaben offen', async () => {

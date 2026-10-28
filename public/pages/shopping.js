@@ -1138,10 +1138,11 @@ async function openSendListDialog(container) {
         const select = panel.querySelector('#send-list-recipient');
         const userId = Number(select.value);
         const name = members.find((m) => m.id === userId)?.display_name ?? '';
+        const modalContext = captureModalContext();
         btn.disabled = true;
         try {
           await api.post(`/shopping/${listId}/send`, { userId });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           // BEWUSST KEIN success-Toast. Die Erfolgsmeldungen der App zeigen
           // nach 50 Bestaetigungen keine Flaeche mehr (`TOAST_SUCCESS_MAX` in
           // utils/toast-show.js; angesagt werden sie weiter) - richtig fuer
@@ -1217,6 +1218,7 @@ async function openDuplicateListDialog(container) {
         const resetChecked   = panel.querySelector('#duplicate-reset-checked').checked;
         const keepQuantities = panel.querySelector('#duplicate-keep-quantities').checked;
         const keepNotes      = panel.querySelector('#duplicate-keep-notes').checked;
+        const modalContext = captureModalContext();
 
         btn.disabled = true;
         try {
@@ -1226,7 +1228,7 @@ async function openDuplicateListDialog(container) {
           const itemTotal   = state.items.length;
           const itemChecked = resetChecked ? 0 : state.items.filter(checkedOf).length;
           state.lists.push({ ...data.data, item_total: itemTotal, item_checked: itemChecked });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await switchList(data.data.id, container);
           refocusAfterRender();
         } catch (err) {
@@ -2948,7 +2950,9 @@ function openItemDetails(itemId, container) {
     // Der Dialog meldet sich ab, wenn er zugeht (siehe `reloadAfterGone`).
     onClose: () => { if (_itemDialog?.id === item.id) _itemDialog = null; },
     onSave: (panel) => {
-      _itemDialog = { id: item.id, panel };
+      // `context`: das Nachladen nach "gibt es nicht mehr" schliesst genau
+      // diesen Dialog, nicht einen, der inzwischen offen ist (#1997).
+      _itemDialog = { id: item.id, panel, context: captureModalContext() };
       const form    = panel.querySelector('#item-details-form');
       const nameEl  = panel.querySelector('#item-details-name');
       const qtyEl   = panel.querySelector('#item-details-qty');
@@ -4344,6 +4348,10 @@ function reloadAfterGone(container) {
 async function reloadAfterGoneOnce(container) {
   const signal = _liveController?.signal ?? NEVER_ABORTED;
   const listBefore = state.activeListId;
+  // Der Dialog, der offen war, als das Nachladen begann: nur ihn darf es am
+  // Ende schliessen, nicht einen, den der Nutzer waehrenddessen geoeffnet hat
+  // (#1997).
+  const modalContext = captureModalContext();
   await Promise.all([
     loadCategories({ keepOnError: true }),
     loadStores({ keepOnError: true }),
@@ -4366,7 +4374,7 @@ async function reloadAfterGoneOnce(container) {
     && !state.items.some((i) => i.id === dialog.id);
   if (listGone || itemGone) {
     _itemDialog = null;
-    await closeModal({ force: true });
+    await closeModal({ force: true, context: itemGone ? dialog.context : modalContext });
   } else if (dialog) {
     refreshItemDialogChoices(dialog.panel);
   }

@@ -158,6 +158,14 @@ function refuseForeignItem(req, res, item) {
     sendNotOwner(res);
     return true;
   }
+  // Eine persoenliche Sache, die der Ersteller gezielt einzelnen Personen
+  // freigibt, bleibt fuer diese Personen lese-only. Das allgemeine R23-Recht
+  // fuer fremde Haushaltsgegenstaende darf diese engere Freigabe nicht in
+  // einen Schreib- oder Loeschweg verwandeln.
+  if (item?.asset_scope === 'personal' && item.visibility === 'assignees') {
+    sendNotOwner(res);
+    return true;
+  }
   if (mayChangeRecord(db.get(), req, 'inventory_edit_others', own)) return false;
   sendNotOwner(res);
   return true;
@@ -299,10 +307,10 @@ function validateItemFields(body) {
   if (body.sold_price === null || body.sold_price === '' || body.sold_price === undefined) {
     values.sold_price = null;
   } else {
-    const vSoldPrice = num(body.sold_price, 'Verkaufspreis');
+    const vSoldPrice = num(body.sold_price, 'sold_price');
     results.push(vSoldPrice);
     if (vSoldPrice.value !== null && vSoldPrice.value < 0) {
-      results.push({ error: 'Verkaufspreis darf nicht negativ sein.' });
+      results.push({ error: 'sold_price must not be negative.' });
     }
     values.sold_price = vSoldPrice.value;
   }
@@ -310,11 +318,11 @@ function validateItemFields(body) {
   if (body.target_days === null || body.target_days === '' || body.target_days === undefined) {
     values.target_days = null;
   } else {
-    const vTargetDays = num(body.target_days, 'Zielnutzungstage');
+    const vTargetDays = num(body.target_days, 'target_days');
     results.push(vTargetDays);
     if (vTargetDays.value !== null
       && (!Number.isInteger(vTargetDays.value) || vTargetDays.value <= 0)) {
-      results.push({ error: 'Zielnutzungstage muss eine positive ganze Zahl sein.' });
+      results.push({ error: 'target_days must be a positive integer.' });
     }
     values.target_days = vTargetDays.value;
   }

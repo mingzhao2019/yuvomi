@@ -324,7 +324,7 @@ describe('#1270 - der Umzug nimmt die unangetastete Standard-Zuweisung mit', () 
     assert.equal(reassignDefaultOnCalendarMove(db, imported.id, {
       fromCalRefId: refA,
       toCalRefId: refB,
-      toDefaultUserId: BEN,
+      toDefaultUserIds: BEN,
     }), true);
     assert.deepEqual(assignmentsOf(imported.id), [BEN]);
 

@@ -516,7 +516,7 @@
         "createdToast": "任务已创建。",
         "deletedToast": "任务已删除。",
         "loadError": "任务加载失败。",
-        "subtaskPrompt": "子任务：",
+        "subtaskPrompt": "子任务",
         "kanbanOpen": "待处理",
         "kanbanInProgress": "进行中",
         "kanbanDone": "已完成",

@@ -219,7 +219,7 @@ function bindEvents(container) {
       window.yuvomi?.showToast(t('settings.calendarDefaultsSaved'), 'success');
     } catch (error) {
       allDayTimeInput.value = persistedAllDayTime;
-      window.yuvomi?.showToast(error.message || t('common.errorGeneric'), 'danger');
+      window.yuvomi?.showToast(errorSentence(error, 'settings.preferenceSaveFailed'), 'danger');
     } finally {
       if (allDayTimeInput.isConnected) allDayTimeInput.disabled = false;
     }

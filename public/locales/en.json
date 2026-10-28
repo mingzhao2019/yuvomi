@@ -542,7 +542,7 @@
         "bulkArchived": "Tasks archived.",
         "bulkDeleted": "Tasks deleted.",
         "loadError": "Task could not be loaded.",
-        "subtaskPrompt": "Subtask:",
+        "subtaskPrompt": "Subtask",
         "kanbanOpen": "Open",
         "kanbanInProgress": "In Progress",
         "kanbanDone": "Done",

@@ -540,7 +540,7 @@
         "bulkArchived": "Các nhiệm vụ đã được lưu trữ.",
         "bulkDeleted": "Các nhiệm vụ đã bị xóa.",
         "loadError": "Không thể tải nhiệm vụ.",
-        "subtaskPrompt": "Nhiệm vụ phụ:",
+        "subtaskPrompt": "Nhiệm vụ phụ",
         "kanbanOpen": "Mở",
         "kanbanInProgress": "Đang tiến hành",
         "kanbanDone": "Hoàn thành",

@@ -5454,7 +5454,11 @@ test('U2: "+ Neu" oeffnet das Anlegen-Blatt ueber der Uebersicht - kein navigate
   const settle = async () => { for (let i = 0; i < 30; i += 1) await new Promise((resolve) => setImmediate(resolve)); };
   const controller = new AbortController();
   try {
-    const { render } = await import('../public/pages/dashboard.js');
+    const { render, __test } = await import('../public/pages/dashboard.js');
+    // The preceding quiet-refresh case uses the same fixture user and leaves
+    // the real return memo populated. This case deliberately verifies the
+    // initial server response, so isolate it from that cache.
+    __test.setOverviewMemo(null);
     await render(container, { user, signal: controller.signal });
     await settle();
     nodeAssert.match(shellHtml, /data-task-id="5"/, 'Reichweite: die Aufgabenkachel steht');

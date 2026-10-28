@@ -219,7 +219,9 @@ test('R23: ohne Kanal zeigt die Liste den kompakten Leerzustand', async () => {
   const list = { replaceChildren: () => { html = ''; }, insertAdjacentHTML: (_pos, chunk) => { html += chunk; } };
   const restore = installMiniDom();
   try {
-    __test.renderChannelList({ querySelector: (sel) => (sel === '#notification-channel-list' ? list : null) }, []);
+    __test.renderChannelList({
+      querySelector: (sel) => (sel === '#notification-channel-list-household' ? list : null),
+    }, []);
   } finally {
     restore();
   }

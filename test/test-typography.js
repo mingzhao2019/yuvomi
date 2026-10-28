@@ -1121,6 +1121,8 @@ test('R21 S5: die Uebersicht traegt 14 und 12 nur an Bedienelementen, Badges, Av
     ['.week-strip__weekday', 'Mikro-Label der Wochenleiste'], ['.week-strip__date', 'Ziffer im Tageskaestchen'],
     ['.weather-forecast__label', 'Mikro-Label der Vorhersage'], ['.weather-forecast__temps', 'Mikro-Label der Vorhersage'],
     ['.dashboard-overview__date', 'Mikro-Label ueber dem Gruss (versal)'], ['.quick-link-tile__name', 'Mikro-Label unter dem Symbol'],
+    ['.assets-widget__metric-label', 'Mikro-Label der Asset-Kennzahl'],
+    ['.assets-widget__statuses', 'Mikro-Labels der Asset-Statuszeile'],
     ['.fab-action__label', 'Bedienelement'], ['.widget-restore-chip', 'Bedienelement'], ['.dashboard-customize-scope', 'Bedienelement'],
     ['.widget-restore__title', 'Anpassen-Ablage (Bedienflaeche)'], ['.dashboard-customize-footnote', 'Anpassen-Fussnote (Bedienflaeche)'],
     ['.quick-link-manage-row__host', 'Verwalten-Dialog (Formular)'], ['.quick-link-manage-row__locked', 'Verwalten-Dialog (Formular)'],

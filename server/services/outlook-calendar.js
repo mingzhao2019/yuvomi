@@ -786,7 +786,7 @@ function setCalendarSelection(accountId, calendarIds, database = db.get(), { tra
 function setCalendarSyncStartDate(accountId, calendarId, syncStartDate) {
   const value = syncStartDate === null || syncStartDate === '' ? null : syncStartDate;
   if (value !== null && (!isValidDateKey(value) || value.length !== 10)) {
-    throw new Error('syncStartDate muss ein gültiges Datum im Format YYYY-MM-DD sein.');
+    throw new Error('syncStartDate must be a valid date in YYYY-MM-DD format.');
   }
   const result = db.get().prepare(`
     UPDATE outlook_calendar_selection

@@ -789,6 +789,6 @@ test('der Guard aus (6) erkennt den Schaden, gegen den er gebaut ist', () => {
   assert.ok(hit(f8, /haengt an das Wand-Tablet hakt/), f8.join(' | '));
   const f9 = factFindings({ ...real, auth: real.auth.replace("router.post('/logout-others'", "router.post('/logout-all'") });
   assert.ok(hit(f9, /README\.de\.md: haengt an andere Sitzungen beenden/), f9.join(' | '));
-  const f10 = factFindings(withReadme('en', 'with swipe gestures, an import from the meal plan', 'with swipe gestures and one-tap import from the meal plan'));
+  const f10 = factFindings(withReadme('en', 'with swipe gestures and an import from the meal plan', 'with swipe gestures and one-tap import from the meal plan'));
   assert.ok(hit(f10, /README\.md sagt wieder \/one-tap import/), f10.join(' | '));
 });

@@ -1103,7 +1103,6 @@
 }
 
 .event-item__time {
-  font-size: var(--type-secondary);
   color: var(--color-text-tertiary);
   margin-top: 1px;
   display: flex;
@@ -5592,7 +5591,6 @@ button.today-cockpit__more--link {
 
 .countdown-item__title {
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5647,7 +5645,6 @@ button.today-cockpit__more--link {
  * hier dieselbe, an der der Text von exakt auf grob schaltet. */
 .countdown-item__days {
   color: var(--color-text-secondary);
-  font-weight: var(--font-weight-bold);
   white-space: nowrap;
 }
 

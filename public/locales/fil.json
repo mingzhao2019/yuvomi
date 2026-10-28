@@ -535,7 +535,7 @@
         "createdToast": "Nagawa ang gawain.",
         "deletedToast": "Natanggal ang gawain.",
         "loadError": "Hindi ma-load ang gawain.",
-        "subtaskPrompt": "Subtask:",
+        "subtaskPrompt": "Subtask",
         "kanbanOpen": "Bukas",
         "kanbanInProgress": "Ginagawa",
         "kanbanDone": "Tapos",

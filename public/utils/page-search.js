@@ -67,7 +67,7 @@ export function wirePageSearch(container, { id, onQuery, delay = 200 } = {}) {
   const root = input.closest('.page-search');
   const syncClear = () => {
     if (clearBtn) clearBtn.hidden = !input.value;
-    root?.classList.toggle('is-filled', Boolean(input.value));
+    root?.classList?.toggle('is-filled', Boolean(input.value));
   };
   let timer;
   input.addEventListener('input', () => {

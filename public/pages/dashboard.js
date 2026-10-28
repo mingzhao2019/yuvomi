@@ -2040,6 +2040,8 @@ const TILE_PARTS = Object.freeze({
   quickLinksPad: 12,
   quickLinkTile: 100.3,
   quickLinkGap: 8,
+  // Asset summary: two metrics, the status line and the distribution bar.
+  assets: 114,
 });
 
 /** Die Spalten, die eine Groesse ab 768px belegt: 1 oder 2 (3x/4x auch 2+). */
@@ -2299,7 +2301,7 @@ function renderCountdowns(allItems, size, total = null) {
           <div class="list-row__name countdown-item__title${completedEvent ? ' countdown-item__title--completed' : ''}">${esc(c.title)}</div>
           ${meta}
           ${completedEvent ? `
-          <div class="countdown-item__meta">
+          <div class="list-row__meta countdown-item__meta">
               <span class="countdown-item__completed" title="${esc(t('calendar.completed'))}">
                 <i data-lucide="archive-restore" class="icon-xs" aria-hidden="true"></i>
                 <span>${esc(t('calendar.completed'))}</span>
@@ -7427,7 +7429,7 @@ function dashboardTileRenderers(cfg, data, weather, currency, { visibleMealTypes
     meals: (size) => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes, data.users, size),
     notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size, data.notesTotal),
     shopping: (size) => renderShoppingTile(data, size),
-    assets: () => renderAssetsWidget(data.assets ?? {}, currency),
+    assets: (size) => renderAssetsWidget(data.assets ?? {}, currency, size),
     // Hier ankommen heisst eingerichtet (`isWidgetModuleEnabled`); fehlt das
     // Wetter trotzdem, sagt die Kachel es, statt zu verschwinden.
     weather: (size) => (weather ? renderWeatherWidget(weather, size) : renderWeatherUnavailable(size)),
@@ -7659,7 +7661,7 @@ function renderWidgetError(id) {
 // Assets-Widget
 // --------------------------------------------------------
 
-function renderAssetsWidget(summary = {}, currency = 'EUR') {
+function renderAssetsWidget(summary = {}, currency = 'EUR', size = '1x1') {
   const total = Number(summary?.total) || 0;
   const rows = Array.isArray(summary?.currencies) ? summary.currencies : [];
   const selected = rows.find((row) => String(row.currency).toUpperCase() === String(currency).toUpperCase());
@@ -7672,7 +7674,8 @@ function renderAssetsWidget(summary = {}, currency = 'EUR') {
     sold: Number(summary?.sold) || 0,
   };
   const share = (value) => total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
-  return `<div class="widget widget--assets">
+  const span = tileSpanAttrs(() => ({ body: TILE_PARTS.assets }), size);
+  return `<div class="widget widget--assets"${span}>
     ${widgetHeader('assets', t('nav.assetCost'), total, '/asset-cost', null, 'asset-cost')}
     <div class="assets-widget__body">
       <div class="assets-widget__metrics">
@@ -11435,13 +11438,18 @@ export const __test = {
   selectMetricTiles, METRIC_TILE_ORDER, PROGRAM_ROW_CAP, WALL_ROW_CAP, weatherToneKey,
   weatherMotionAttr, weatherTempBand, weatherSpanModel, weatherDayLabel, weatherTodayRange,
   renderWeatherWidget, renderWeatherUnavailable, weatherAvailableFrom, renderWallWeather,
-  relativeDateLabel, listRowCap, calendarRowCap, calendarListRowsOf, renderDashboardSkeleton,
+  relativeDateLabel, listRowCap, calendarRowCap, calendarTileModel, tileSpanOf, renderDashboardSkeleton,
   openWidgetOptions, renderFab, widgetHeader, renderDashboardLayout, renderMetricTiles,
   renderGridHint, captureTileRects, playTileFlip, playGridShift, familyManageHref,
   customizeHasChanges, todayMoreRoute, wireTodayMore, wireTodayOverdue, renderWidgetSizeMenu,
   renderNewPill, FAB_ACTIONS, FAB_NEW_BTN, wireNewMenu, initFab, renderCustomizeFootnote, applyRowFill, focusKeyOf, captureRebuildFocus,
   restoreFocusAfterRebuild, shoppingSoleListRoute, programRowsThatFit, PROGRAM_ROW_CAP_PHONE,
-  createPhoneProgramFit,
+  createPhoneProgramFit, rememberGridHint, carryTileSizes, watchTileSizes, createPendingIcons,
+  measureTileFlip, startTileFlip, arrangeChildren, placeBefore, focusTarget, nearestScrollDelta,
+  tileDrawKey, dashboardTileRenderers, dashboardTileListed, renderWidgetBody, renderWidgetWrapper,
+  NEW_SHEETS, rowsArriving, shownRowKeys, gridHoleSuggestion, renderWidgetError,
+  renderWidgetCustomizeControls, renderWidgetTileMenu, syncCustomizeControls, wireLinks,
+  renderFastingWidget, renderNutritionWidget, renderQuickLinks, renderShoppingLists,
 };
 
 // `signal` ist der Controller des Aufbaus, der die Wetterkarte gezeichnet hat

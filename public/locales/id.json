@@ -535,7 +535,7 @@
         "createdToast": "Tugas dibuat.",
         "deletedToast": "Tugas dihapus.",
         "loadError": "Tugas tidak dapat dimuat.",
-        "subtaskPrompt": "Subtugas:",
+        "subtaskPrompt": "Subtugas",
         "kanbanOpen": "Terbuka",
         "kanbanInProgress": "Sedang dikerjakan",
         "kanbanDone": "Selesai",

@@ -501,6 +501,9 @@
 .cycle-history__meta,
 .cycle-preg__meta,
 .fasting-hero__meta,
+/* Asset costs and calendar task chips are the same Footnote role. */
+.asset-cost-card__meta,
+.cal-task-chip__meta,
 /* Uebersicht: jede Kachelzeile unter einem Namen */
 .dashboard-overview__weather,
 .today-cockpit-card__sub,

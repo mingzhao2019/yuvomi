@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.82.0] - 2026-10-28
+
 ### Added
 - **Today at a glance shows the shape of the day.** The sheet is one card now: the overview's seal,
   the title and the day in one line ("6 events left · 1 task overdue"), then a timeline with a lane for the
@@ -151,6 +153,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no Google setup at all: subscribe to the calendar's secret iCal address or import it once as an
   .ics file. The status route reports only the names of missing variables, never their values, and
   not to API tokens or the wall display.
+- **Yuvomi has a Portainer app template.** `deploy/portainer/portainer-template.json` deploys the
+  existing Portainer stack (`docs/docker-compose.portainer.yml`) and asks only for the session
+  secret, the database encryption key, the host port and the base URL. It is meant for the
+  [Lissy93/portainer-templates](https://github.com/Lissy93/portainer-templates) catalog, which
+  pulls it from `main` every night, so the template never pins an older version. The installer
+  schema tests check that every field exists in the stack and that no field locks a setting.
 - **Stock: the page lists products, with their batches underneath** (part 2 of #1448). Without a
   filter, stock is sorted into sections by category, in the order of your shopping categories.
   A product with one batch looks as before and now names its storage location. A product with
@@ -591,6 +599,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   host only. Each delivery now gives up after 10 seconds, so an unresponsive push target no longer
   holds up reminders.
 
+## [2.81.2] - 2026-10-28
+
+### Security
+- **Web Push delivery no longer reaches the server's own network through a malformed address**
+  (completes the 2.81.1 fix). The push library reads a subscription address with an older parser
+  than the check before it, and for some unusual characters in the host the two disagreed, so a
+  crafted address could pass the check and still be sent to an internal address. A push address
+  now has to be a plain host name made of letters, digits, hyphens and dots, as every push service
+  hands out, and both parsers have to read the same host. A stored subscription with such an
+  address is removed on its next delivery, like the others.
+
+## [2.81.1] - 2026-10-28
+
+### Security
+- **The Docker image runs on Node.js 24.22.1, which fixes CVE-2026-111497** (#2286). The Brotli
+  decoder built into Node.js could write past its buffer on a crafted compressed stream, which can
+  crash the server or, in the worst case, run code. The image was pinned to an earlier Node.js 24
+  release that does not have the fix.
+- **Web Push delivery now goes through the SSRF guard and has a time limit.** A push subscription
+  is only accepted for a public `https` address, as every push service hands out, and delivery
+  connects through the same check at socket lookup that the other outbound integrations use, so a
+  subscription can no longer make the server connect into its own network. Existing subscriptions
+  with such an address are removed on the next delivery, like an expired one, and logged with their
+  host only. Each delivery now gives up after 10 seconds, so an unresponsive push target no longer
+  holds up reminders.
+
 ## [2.81.0] - 2026-10-25
 
 ### Added
@@ -607,20 +641,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no CalDAV server itself) and how Home Assistant fits in (ICS feeds, webhooks and the REST API with
   per-module tokens, no official integration). Each answer is held against the code by the landing
   page tests.
-- **Google Calendar explains its own setup instead of stopping at "Not configured"** (#2221). An admin
-  whose server has no Google credentials yet used to see only "Not configured (missing .env
-  variables)", twice. The Google card now names the variables that are still missing, shows the
-  redirect URI to register at Google with a copy button and warns when Google would refuse it (an IP
-  address or plain HTTP), lists the four steps, links the full guide and offers the ways that need
-  no Google setup at all: subscribe to the calendar's secret iCal address or import it once as an
-  .ics file. The status route reports only the names of missing variables, never their values, and
-  not to API tokens or the wall display.
-- **Yuvomi has a Portainer app template.** `deploy/portainer/portainer-template.json` deploys the
-  existing Portainer stack (`docs/docker-compose.portainer.yml`) and asks only for the session
-  secret, the database encryption key, the host port and the base URL. It is meant for the
-  [Lissy93/portainer-templates](https://github.com/Lissy93/portainer-templates) catalog, which
-  pulls it from `main` every night, so the template never pins an older version. The installer
-  schema tests check that every field exists in the stack and that no field locks a setting.
 
 ### Fixed
 - **The currency and long time zones are no longer cut off in the appearance settings on a

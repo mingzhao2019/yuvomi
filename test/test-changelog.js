@@ -521,6 +521,9 @@ test('jeder getaggte Release hat einen CHANGELOG-Eintrag, keine Version doppelt'
 const RELEASED_SECTION_EDITS = {
   // These are established custom-branch history edits from before this sync.
   // Keep the exact hashes so later changes to the same released sections still fail.
+  // v2.82.0 intentionally omits upstream's destructive cross-account deduplication
+  // entry and keeps the custom branch's migration/account wording.
+  '2.82.0': '677ba309338c',
   '2.77.1': '50bb81d64389',
   '2.75.0': 'a7b765b32669',
   '2.74.0': '89431a723f78',

@@ -516,7 +516,7 @@
         "createdToast": "कार्य बनाया गया।",
         "deletedToast": "कार्य हटाया गया।",
         "loadError": "कार्य लोड नहीं हो सका।",
-        "subtaskPrompt": "उपकार्य:",
+        "subtaskPrompt": "उपकार्य",
         "kanbanOpen": "खुला",
         "kanbanInProgress": "प्रगति में",
         "kanbanDone": "पूर्ण",

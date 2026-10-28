@@ -941,7 +941,7 @@ function bindDeviceDisplay(container) {
       window.yuvomi?.showToast(t('settings.lunarCalendarSaved'), 'success');
     } catch (error) {
       lunarToggle.checked = !value;
-      window.yuvomi?.showToast(error.message || t('common.errorGeneric'), 'danger');
+      window.yuvomi?.showToast(errorSentence(error, 'settings.preferenceSaveFailed'), 'danger');
     } finally {
       if (lunarToggle.isConnected) lunarToggle.disabled = false;
     }

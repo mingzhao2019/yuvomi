@@ -2189,8 +2189,8 @@ function renderCategoryBars(byCategory) {
               aria-pressed="${selected ? 'true' : 'false'}"
               >
               <span class="budget-bar-row__label" title="${label}">${label}</span>
-              <span class="budget-bar-row__track" style="--bar-visible:${r.amount !== 0 ? 1 : 0}">
-                <span class="budget-bar-row__fill budget-bar-row__fill--${kind}" style="--bar-scale:${scale.toFixed(4)}${kind === 'expenses' && categoryColor(colors, r.category) ? `;--bar-fill:${categoryColor(colors, r.category)}` : ''}"${kind === 'expenses' && categoryTexture(colors, r.category) ? ` data-texture="${categoryTexture(colors, r.category)}"` : ''} data-bar-key="${kind}:${esc(String(r.category))}"></span>
+              <span class="budget-bar-row__track" style="--bar-visible:${r.amount !== 0 ? 1 : 0}${kind === 'expenses' && categoryColor(colors, r.category) ? `;--bar-fill:${categoryColor(colors, r.category)}` : ''}">
+                <span class="budget-bar-row__fill budget-bar-row__fill--${kind}" style="--bar-scale:${scale.toFixed(4)}"${kind === 'expenses' && categoryTexture(colors, r.category) ? ` data-texture="${categoryTexture(colors, r.category)}"` : ''} data-bar-key="${kind}:${esc(String(r.category))}"></span>
               </span>
               <span class="budget-bar-row__amount">${blockAmountText(r.amount, kind)}${kind === 'expenses' ? shareHtml(r.amount, total) : ''}</span>
             </button>`;
@@ -2254,9 +2254,9 @@ function subcategoryRows(category, entries) {
               data-subcategory-filter="${esc(row.key)}"
               aria-pressed="${selected ? 'true' : 'false'}">
         <span class="budget-bar-row__label">${esc(row.label)}</span>
-        <span class="budget-bar-row__track">
+        <span class="budget-bar-row__track"${parentFill ? ` style="--bar-fill:${parentFill}"` : ''}>
           <span class="budget-bar-row__fill budget-bar-row__fill--${kind}"
-                style="--bar-scale:${scale}${parentFill ? `;--bar-fill:${parentFill}` : ''}"${parentTexture ? ` data-texture="${parentTexture}"` : ''}></span>
+                style="--bar-scale:${scale}"${parentTexture ? ` data-texture="${parentTexture}"` : ''}></span>
         </span>
         <span class="budget-bar-row__amount">
           ${amountByRole(row.amount, 'flow', { currency: viewCurrency() }).text}${kind === 'expenses' && row.amount !== 0 ? shareHtml(row.amount, categoryTotal) : ''}
@@ -3183,9 +3183,10 @@ function openAccountModal(account = null) {
       panel.querySelector('#am-archive')?.addEventListener('click', async () => {
         if (readOnly()) return;
         const nextArchived = !account.archived;
+        const modalContext = captureModalContext();
         try {
           await api.put(`/budget/accounts/${account.id}`, { archived: nextArchived });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => loadAccounts());
           renderBody();
           refocusAfterRender();
@@ -3249,6 +3250,7 @@ function openAccountModal(account = null) {
           }),
         ])) return;
 
+        const modalContext = captureModalContext();
         saveBtn.disabled = true;
         saveBtn.textContent = '…';
         try {
@@ -3262,7 +3264,7 @@ function openAccountModal(account = null) {
           } else {
             await api.post('/budget/accounts', body);
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => loadAccounts());
           renderBody();
           refocusAfterRender();
@@ -4795,6 +4797,7 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
 
         const amount = currentType === 'expense' ? -absVal : absVal;
 
+        const modalContext = captureModalContext();
         saveBtn.disabled    = true;
         saveBtn.textContent = '…';
 
@@ -4830,7 +4833,7 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
             const res = await api.post('/budget', await withReceipts());
             state.entries.unshift(res.data);
             await reloadAfterSave(() => reloadMonth());
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             redrawEntries();
             window.yuvomi?.showToast(t('budget.addedToast'), 'success');
           } else if (entry.recurrence_parent_id || (entry.is_recurring && recurring)) {
@@ -4849,7 +4852,7 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
             // Serie liefe mit Erfolgs-Toast still weiter.
             saveBtn.disabled = false;
             saveBtn.textContent = t('common.save');
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             const scope = await recurringChoiceModal({
               title: t('budget.recurringSeriesScope'),
               thisLabel: t('budget.recurringThisOnly'),
@@ -4896,7 +4899,7 @@ function openBudgetModal({ mode, entry = null, initialType = '', period = null }
             const idx = state.entries.findIndex((e) => e.id === entry.id);
             if (idx !== -1) state.entries[idx] = res.data;
             await reloadAfterSave(() => reloadMonth());
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             renderBody();
             window.yuvomi?.showToast(t('budget.savedToast'), 'success');
           }
@@ -5835,6 +5838,7 @@ async function saveLoanFromPanel(panel, saveBtn, { loan = null, closeAfterSave =
   if (accountSel) body.account_id = accountSel.value === '' ? null : parseInt(accountSel.value, 10);
 
   const saveLabel = isEdit ? t('common.save') : t('common.add');
+  const modalContext = captureModalContext();
   saveBtn.disabled = true;
   saveBtn.textContent = '…';
   // Gezahlte Raten gegen die abgeleitete Laufzeit (#1656) - nur wo es etwas zu
@@ -5855,7 +5859,7 @@ async function saveLoanFromPanel(panel, saveBtn, { loan = null, closeAfterSave =
       await api.post('/budget/loans', body);
     }
     await reloadAfterSave(() => reloadMonth());
-    if (closeAfterSave) closeModal({ force: true });
+    if (closeAfterSave) closeModal({ force: true, context: modalContext });
     renderBody();
     window.yuvomi?.showToast(isEdit ? t('budget.loanSavedToast') : t('budget.loanAddedToast'), 'success');
   } catch (err) {
@@ -6037,9 +6041,10 @@ async function openConfirmBookingModal(id) {
         if (rejectAmount(amountEl, currency, { original: absAmount })) return;
         const value = parseAmountInput(amountEl.value);
         const date = panel.querySelector('#cb-date').value;
+        const modalContext = captureModalContext();
         try {
           await api.patch(`/budget/${id}/confirm`, { amount: value, date: date || undefined });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadMonth());
           renderBody();
           refocusAfterRender();
@@ -6454,6 +6459,8 @@ export const __test = {
   // den er mit Schreibrecht zeigt, im Bericht steht (P6-Muster).
   openLoanModal,
   openAccountModal,
+  // #1997: das Buchen einer vorgemerkten Buchung, bis in seinen Speichern-Weg.
+  openConfirmBookingModal,
   // renderBody() schreibt in den Seitencontainer statt Markup zurueckzugeben;
   // derselbe Griff wie updateTabsForTest oben laesst den ECHTEN Render-Pfad
   // des Buchungs-Tabs laufen, statt seinen Quelltext zu lesen.

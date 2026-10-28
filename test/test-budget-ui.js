@@ -6885,8 +6885,8 @@ test('Critique 2026-10-16: Kurzzeile einzeilig bis aufgeklappt, Startsaldo beim 
   budgetUi.state.meta = { ...vorherMeta, expenseCategories: [{ key: 'housing', name: 'Housing' }, { key: 'food', name: 'Food' }] };
   let bars;
   try { bars = budgetUi.renderCategoryBars(summe.byCategory); } finally { budgetUi.state.meta = vorherMeta; }
-  assert.match(bars, /style="--bar-scale:[\d.]+;--bar-fill:var\(--chart-series-1\)" data-bar-key="expenses:housing"/, 'Wohnen: Serie 1');
-  assert.match(bars, /style="--bar-scale:[\d.]+;--bar-fill:var\(--chart-series-2\)" data-bar-key="expenses:food"/, 'Ernaehrung: Serie 2');
+  assert.match(bars, /<span class="budget-bar-row__track" style="--bar-visible:1;--bar-fill:var\(--chart-series-1\)">\s*<span class="budget-bar-row__fill budget-bar-row__fill--expenses" style="--bar-scale:[\d.]+"[^>]*data-bar-key="expenses:housing"/, 'Wohnen: Serie 1');
+  assert.match(bars, /<span class="budget-bar-row__track" style="--bar-visible:1;--bar-fill:var\(--chart-series-2\)">\s*<span class="budget-bar-row__fill budget-bar-row__fill--expenses" style="--bar-scale:[\d.]+"[^>]*data-bar-key="expenses:food"/, 'Ernaehrung: Serie 2');
   // Plan: der Balken traegt die Kategoriefarbe, nicht den Zustand.
   const plans = read('../public/pages/budget-plans.js');
   assert.match(plans, /const fill = view\.ctx\.categoryColor\?\.\(p\.category\);/);

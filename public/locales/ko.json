@@ -535,7 +535,7 @@
         "createdToast": "할 일이 생성되었습니다.",
         "deletedToast": "할 일이 삭제되었습니다.",
         "loadError": "할 일을 불러오지 못했습니다.",
-        "subtaskPrompt": "하위 작업:",
+        "subtaskPrompt": "하위 작업",
         "kanbanOpen": "미완료",
         "kanbanInProgress": "진행 중",
         "kanbanDone": "완료",

@@ -20,18 +20,16 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-const chain = pkg.scripts['test-chain'] ?? pkg.scripts.test;
-// custom 保留一条包含定制模块测试的独立链；上游的根 test 链不应把这些
-// 已经由 test:custom 覆盖的套件误报为“未接入”。npm 会自动执行 custom
-// 的 pre/test/post 生命周期，因此三段都纳入检查，避免 posttest 中的套件
-// 被误报为未接入。所有链仍共用同一套 browser/文件引用规则。
-const testChains = [
-  chain,
-  pkg.scripts.test,
+const rootChains = [...new Set([pkg.scripts.test, pkg.scripts['test-chain']].filter(Boolean))];
+const customChains = [
   pkg.scripts['test:custom'],
   pkg.scripts['pretest:custom'],
   pkg.scripts['posttest:custom'],
 ].filter(Boolean);
+// custom 保留一条包含定制模块测试的独立链；上游的根 test 链和并行
+// test-chain 是两种互斥执行方式，分别检查每条根链内部不重复。npm 会自动
+// 执行 custom 的 pre/test/post 生命周期，因此它们作为实际附加链单独计数。
+const testChains = [...rootChains, ...customChains];
 
 test('fasting slices execute each owned suite exactly once', () => {
   for (const [script, file] of [
@@ -53,11 +51,19 @@ test('fasting slices execute each owned suite exactly once', () => {
   ]) {
     assert.ok(pkg.scripts[script], `${script} has its own entry point`);
     assert.ok(pkg.scripts[script].includes(`test/${file}`), `${file} belongs to ${script}`);
-    const occurrences = testChains.reduce(
-      (count, chainText) => count + [...chainText.matchAll(new RegExp(`npm run ${script}(?![\\w:.-])`, 'g'))].length,
-      0,
+    const occurrencesIn = (chainText) => [...chainText.matchAll(
+      new RegExp(`npm run ${script}(?![\\w:.-])`, 'g'),
+    )].length;
+    assert.deepEqual(
+      rootChains.map(occurrencesIn),
+      rootChains.map(() => 1),
+      `${script} must run exactly once in each root chain`,
     );
-    assert.equal(occurrences, 1);
+    assert.equal(
+      customChains.reduce((count, chainText) => count + occurrencesIn(chainText), 0),
+      0,
+      `${script} must not be duplicated by the custom lifecycle`,
+    );
     assert.equal(
       Object.entries(pkg.scripts).filter(([name, command]) => name.startsWith('test:') && command.includes(`test/${file}`)).length,
       1,

@@ -535,7 +535,7 @@
         "createdToast": "کار ایجاد شد.",
         "deletedToast": "کار حذف شد.",
         "loadError": "کار بارگذاری نشد.",
-        "subtaskPrompt": "زیرکار:",
+        "subtaskPrompt": "زیرکار",
         "kanbanOpen": "باز",
         "kanbanInProgress": "در حال انجام",
         "kanbanDone": "انجام‌شده",

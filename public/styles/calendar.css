@@ -3496,8 +3496,6 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
 .agenda-entries .cal-task-chip__meta {
   margin-top: var(--space-0h);
   color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-regular);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

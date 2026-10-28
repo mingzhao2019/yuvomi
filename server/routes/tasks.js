@@ -88,7 +88,7 @@ function resolveTaskSyncTarget(value, current = null) {
          AND external_account_id = ? AND external_list_id = ? AND enabled = 1
     `).get(parsed.accountId, parsed.listId);
     if (!allowed) {
-      return { ok: false, error: 'sync_target: Diese Microsoft-To-Do-Liste ist nicht freigegeben oder nicht vorhanden.' };
+      return { ok: false, error: 'sync_target: This Microsoft To Do list is not enabled or does not exist.' };
     }
     return {
       ok: true,

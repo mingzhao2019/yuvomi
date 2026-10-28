@@ -818,18 +818,18 @@ router.patch('/:id/completion', (req, res) => {
 
     const id = parseInt(req.params.id, 10);
     if (!Number.isInteger(id) || id < 1)
-      return res.status(400).json({ error: 'Ungültige ID.', code: 400 });
+      return res.status(400).json({ error: 'Invalid ID.', code: 400 });
     if (typeof req.body?.completed !== 'boolean')
-      return res.status(400).json({ error: 'completed muss ein Boolean sein.', code: 400 });
+      return res.status(400).json({ error: 'completed must be a boolean.', code: 400 });
 
     const event = loadVisibleEvent(id, req);
-    if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
+    if (!event) return res.status(404).json({ error: 'Calendar event not found.', code: 404 });
 
     const occurrenceKey = typeof req.body.occurrence_key === 'string'
       ? req.body.occurrence_key.trim()
       : '';
     if (!completionOccurrenceExists(event, occurrenceKey)) {
-      return res.status(400).json({ error: 'occurrence_key gehört nicht zu diesem Termin.', code: 400 });
+      return res.status(400).json({ error: 'occurrence_key does not belong to this event.', code: 400 });
     }
 
     const completion = setEventCompletion(db.get(), {
@@ -841,7 +841,7 @@ router.patch('/:id/completion', (req, res) => {
     res.json({ data: completion });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
@@ -2021,7 +2021,7 @@ router.post('/:id/exceptions', (req, res) => {
     if (!event) return sendEventGone(res);
     if (refuseForeignEvent(req, res, event)) return;
     if (!event.recurrence_rule)
-      return res.status(400).json({ error: 'Termin ist keine Serie.', code: 400 });
+      return res.status(400).json({ error: 'The event is not a series.', code: 400 });
     const hasOutboundTarget = event.target_google_calendar_id != null
       || event.target_caldav_account_id != null
       || !!event.target_caldav_calendar_url
@@ -2029,16 +2029,16 @@ router.post('/:id/exceptions', (req, res) => {
       || !!event.target_outlook_calendar_id;
     if (event.external_source !== 'local'
         || event.calendar_ref_id || event.subscription_id || hasOutboundTarget) {
-      return res.status(400).json({ error: 'Externe Serien können nicht einzeln ausgenommen werden.', code: 400 });
+      return res.status(400).json({ error: 'External series cannot exclude individual occurrences.', code: 400 });
     }
 
     const userId = getUserId(req);
     const isAdmin = isAdminUser(req);
     if (!isAdmin && Number(event.created_by) !== Number(userId)) {
-      return res.status(403).json({ error: 'Nicht autorisiert.', code: 403 });
+      return res.status(403).json({ error: 'Not authorized.', code: 403 });
     }
     if (!isLocallyOwnedSeries(db.get(), event)) {
-      return res.status(400).json({ error: 'Externe Serien können nicht einzeln ausgenommen werden.', code: 400 });
+      return res.status(400).json({ error: 'External series cannot exclude individual occurrences.', code: 400 });
     }
 
     // A legacy EXDATE can coexist with a local outbound target or generated

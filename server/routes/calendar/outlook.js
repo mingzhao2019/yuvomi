@@ -163,10 +163,10 @@ router.patch('/outlook/accounts/:id/calendars', requireAdmin, (req, res) => {
     if (syncStartDate !== undefined
         && syncStartDate !== null
         && typeof syncStartDate !== 'string') {
-      return res.status(400).json({ error: 'syncStartDate muss ein Datum oder null sein.', code: 400 });
+      return res.status(400).json({ error: 'syncStartDate must be a date or null.', code: 400 });
     }
     if (enabled === undefined && syncStartDate === undefined) {
-      return res.status(400).json({ error: 'Keine Kalender-Einstellung angegeben.', code: 400 });
+      return res.status(400).json({ error: 'No calendar setting was provided.', code: 400 });
     }
     const result = syncStartDate !== undefined
       ? outlookCalendar.setCalendarSyncStartDate(accountId, calendarId, syncStartDate)
@@ -196,7 +196,7 @@ router.get('/outlook/conflicts', requireAdmin, (req, res) => {
   try {
     const status = req.query.status || 'pending';
     if (!['pending', 'resolved'].includes(status)) {
-      return res.status(400).json({ error: 'status muss pending oder resolved sein.', code: 400 });
+      return res.status(400).json({ error: 'status must be pending or resolved.', code: 400 });
     }
     res.json({ data: outlookCalendar.listConflicts({ status }) });
   } catch (err) {
@@ -213,7 +213,7 @@ router.post('/outlook/conflicts/:id/resolve', requireAdmin, async (req, res) => 
   try {
     const conflictId = parseInt(req.params.id, 10);
     if (!Number.isInteger(conflictId) || conflictId < 1) {
-      return res.status(400).json({ error: 'Ungültige Konflikt-ID.', code: 400 });
+      return res.status(400).json({ error: 'Invalid conflict ID.', code: 400 });
     }
     const result = outlookCalendar.resolveConflict(conflictId, req.body?.resolution);
     // A resolution is an explicit user decision. Push it immediately so the
@@ -259,10 +259,10 @@ router.patch('/outlook/accounts/:id/todo-lists', requireAdmin, (req, res) => {
     const accountId = parseInt(req.params.id, 10);
     const { listId, enabled } = req.body;
     if (!listId || typeof listId !== 'string') {
-      return res.status(400).json({ error: 'listId fehlt oder ist ungültig.', code: 400 });
+      return res.status(400).json({ error: 'listId is missing or invalid.', code: 400 });
     }
     if (typeof enabled !== 'boolean') {
-      return res.status(400).json({ error: 'enabled muss ein Boolean sein.', code: 400 });
+      return res.status(400).json({ error: 'enabled must be a boolean.', code: 400 });
     }
     const result = microsoftTodo.setTaskListEnabled(accountId, listId, enabled);
     res.json({ data: result });
@@ -285,7 +285,7 @@ router.put('/outlook/accounts/:id/selections', requireAdmin, (req, res) => {
       && value.every((id) => typeof id === 'string' && id.length > 0);
     if (!validIds(calendarIds) || !validIds(todoListIds)) {
       return res.status(400).json({
-        error: 'calendarIds und todoListIds müssen Arrays nichtleerer Strings sein.',
+        error: 'calendarIds and todoListIds must be arrays of non-empty strings.',
         code: 400,
       });
     }

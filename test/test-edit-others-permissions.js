@@ -212,8 +212,9 @@ test('Notizen: Erwachsene loeschen weiter fremde Notizen (Standard allow)', asyn
 
 function item(createdBy, name = 'Bohrmaschine', price = 129.9) {
   return Number(db.prepare(`
-    INSERT INTO inventory_items (name, category, purchase_price, currency, created_by)
-    VALUES (?, 'other', ?, 'EUR', ?)
+    INSERT INTO inventory_items
+      (name, category, purchase_price, currency, created_by, asset_scope, visibility)
+    VALUES (?, 'other', ?, 'EUR', ?, 'personal', 'all')
   `).run(name, price, createdBy).lastInsertRowid);
 }
 

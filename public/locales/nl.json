@@ -540,7 +540,7 @@
         "bulkArchived": "Taken gearchiveerd.",
         "bulkDeleted": "Taken verwijderd.",
         "loadError": "Taak kon niet worden geladen.",
-        "subtaskPrompt": "Subtaak:",
+        "subtaskPrompt": "Subtaak",
         "kanbanOpen": "Open",
         "kanbanInProgress": "In uitvoering",
         "kanbanDone": "Klaar",

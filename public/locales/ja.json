@@ -516,7 +516,7 @@
         "createdToast": "タスクを作成しました。",
         "deletedToast": "タスクを削除しました。",
         "loadError": "タスクの読み込みに失敗しました。",
-        "subtaskPrompt": "サブタスク：",
+        "subtaskPrompt": "サブタスク",
         "kanbanOpen": "未着手",
         "kanbanInProgress": "進行中",
         "kanbanDone": "完了",

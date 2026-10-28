@@ -516,7 +516,7 @@
         "createdToast": "Görev oluşturuldu.",
         "deletedToast": "Görev silindi.",
         "loadError": "Görev yüklenemedi.",
-        "subtaskPrompt": "Alt görev:",
+        "subtaskPrompt": "Alt görev",
         "kanbanOpen": "Açık",
         "kanbanInProgress": "Devam Ediyor",
         "kanbanDone": "Tamamlandı",

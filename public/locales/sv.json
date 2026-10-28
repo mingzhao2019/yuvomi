@@ -516,7 +516,7 @@
         "createdToast": "Uppgift skapad.",
         "deletedToast": "Uppgiften raderad.",
         "loadError": "Uppgiften kunde inte laddas.",
-        "subtaskPrompt": "Deluppgift:",
+        "subtaskPrompt": "Deluppgift",
         "kanbanOpen": "Öppna",
         "kanbanInProgress": "Pågår",
         "kanbanDone": "Slutfört",

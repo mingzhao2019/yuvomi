@@ -516,7 +516,7 @@
         "createdToast": "Η εργασία δημιουργήθηκε.",
         "deletedToast": "Η εργασία διαγράφηκε.",
         "loadError": "Δεν ήταν δυνατή η φόρτωση της εργασίας.",
-        "subtaskPrompt": "Υποεργασία:",
+        "subtaskPrompt": "Υποεργασία",
         "kanbanOpen": "Ανοιχτό",
         "kanbanInProgress": "Σε εξέλιξη",
         "kanbanDone": "Ολοκληρώθηκε",

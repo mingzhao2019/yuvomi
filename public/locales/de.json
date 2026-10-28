@@ -535,7 +535,7 @@
         "createdToast": "Aufgabe erstellt.",
         "deletedToast": "Aufgabe gelöscht.",
         "loadError": "Aufgabe konnte nicht geladen werden.",
-        "subtaskPrompt": "Teilaufgabe:",
+        "subtaskPrompt": "Teilaufgabe",
         "kanbanOpen": "Offen",
         "kanbanInProgress": "In Bearbeitung",
         "kanbanDone": "Erledigt",

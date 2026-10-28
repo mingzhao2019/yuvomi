@@ -540,7 +540,7 @@
         "bulkArchived": "Feladatok archiválva.",
         "bulkDeleted": "Feladatok törölve.",
         "loadError": "A feladatot nem sikerült betölteni.",
-        "subtaskPrompt": "Alfeladat:",
+        "subtaskPrompt": "Alfeladat",
         "kanbanOpen": "Nyitott",
         "kanbanInProgress": "Folyamatban",
         "kanbanDone": "Befejezett",

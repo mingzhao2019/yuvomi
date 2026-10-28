@@ -791,18 +791,18 @@ router.put('/', (req, res) => {
       || asset_summary_theme !== undefined
     ) {
       if (!req.authUserId) {
-        return res.status(401).json({ error: 'Authentifizierung erforderlich.', code: 401 });
+        return res.status(401).json({ error: 'Authentication required.', code: 401 });
       }
       if (asset_default_scope !== undefined) {
         if (!ASSET_DEFAULT_SCOPES.includes(asset_default_scope)) {
-          return res.status(400).json({ error: 'Ungültiger Standard-Asset-Typ.', reason: 'asset_default_scope_invalid', code: 400 });
+          return res.status(400).json({ error: 'Invalid default asset type.', reason: 'asset_default_scope_invalid', code: 400 });
         }
         if (asset_default_scope === 'family' && !isAdminRequest(req)) {
           return res.status(403).json({ error: 'Admin access required.', reason: 'asset_default_scope_forbidden', code: 403 });
         }
       }
       if (asset_default_visibility !== undefined && !ASSET_DEFAULT_VISIBILITIES.includes(asset_default_visibility)) {
-        return res.status(400).json({ error: 'Ungültige Standard-Sichtbarkeit.', reason: 'asset_default_visibility_invalid', code: 400 });
+        return res.status(400).json({ error: 'Invalid default visibility.', reason: 'asset_default_visibility_invalid', code: 400 });
       }
       if (asset_default_assignee_ids !== undefined) {
         const assigned = validateAssignedUserIds(asset_default_assignee_ids === null ? [] : asset_default_assignee_ids);
@@ -812,10 +812,10 @@ router.put('/', (req, res) => {
         normalizedAssetAssigneeIds = assigned.value;
       }
       if (asset_cost_metric !== undefined && !ASSET_COST_METRICS.includes(asset_cost_metric)) {
-        return res.status(400).json({ error: 'Ungültige Kostenansicht.', reason: 'asset_cost_metric_invalid', code: 400 });
+        return res.status(400).json({ error: 'Invalid cost metric.', reason: 'asset_cost_metric_invalid', code: 400 });
       }
       if (asset_summary_theme !== undefined && !ASSET_SUMMARY_THEMES.includes(asset_summary_theme)) {
-        return res.status(400).json({ error: 'Ungültiges Übersichtsdesign.', reason: 'asset_summary_theme_invalid', code: 400 });
+        return res.status(400).json({ error: 'Invalid summary theme.', reason: 'asset_summary_theme_invalid', code: 400 });
       }
       if (asset_default_scope !== undefined) cfgUserSet('asset_default_scope', req.authUserId, asset_default_scope);
       if (asset_default_visibility !== undefined) cfgUserSet('asset_default_visibility', req.authUserId, asset_default_visibility);
@@ -1188,7 +1188,7 @@ router.put('/', (req, res) => {
       if (typeof calendar_default_all_day_reminder_time !== 'string'
           || !ALL_DAY_REMINDER_TIME_RE.test(calendar_default_all_day_reminder_time)) {
         return res.status(400).json({
-          error: 'calendar_default_all_day_reminder_time muss eine Uhrzeit im Format HH:MM sein',
+          error: 'calendar_default_all_day_reminder_time must be a time in HH:MM format.',
           code: 400,
         });
       }
@@ -1228,7 +1228,7 @@ router.put('/', (req, res) => {
       if (calendar_show_lunar === null) {
         cfgUserDelete('calendar_show_lunar', req.authUserId);
       } else if (typeof calendar_show_lunar !== 'boolean') {
-        return res.status(400).json({ error: 'calendar_show_lunar muss ein Boolean sein', code: 400 });
+        return res.status(400).json({ error: 'calendar_show_lunar must be a boolean.', code: 400 });
       } else {
         cfgUserSet('calendar_show_lunar', req.authUserId, calendar_show_lunar ? '1' : '0');
       }

@@ -9,6 +9,7 @@ import {
   closeModal,
   captureModalContext,
   confirmModal,
+  reportFieldError,
   refocusAfterRender,
 } from '/components/modal.js';
 import {
@@ -21,6 +22,8 @@ import { rowActionHtml } from '/utils/row-action.js';
 import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { isImeComposing } from '/utils/ux.js';
 import { reloadAfterSave } from '/utils/reload-after-save.js';
+import { parseAmountInput } from '/utils/money.js';
+import { amountInputAttrs, amountFieldError } from '/utils/amount-field.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_SYMBOLS = { CNY: '¥', EUR: '€', USD: '$' };
@@ -511,6 +514,7 @@ function formContent(item) {
   const visibility = item?.visibility || state.assetDefaultVisibility || (scope === 'family' ? 'all' : 'private');
   const selectedIds = item?.assigned_user_ids || item?.assigned_users?.map((user) => user.id) || state.assetDefaultAssigneeIds;
   const imageQuery = item?.name || '';
+  const formCurrency = String(item?.currency || state.householdCurrency || 'EUR').toUpperCase();
   return `
     <div class="asset-cost-form">
       ${item && !item.can_edit ? `<p class="asset-cost-readonly"><i data-lucide="eye" aria-hidden="true"></i>${esc(tr('sharedReadOnly'))}</p>` : ''}
@@ -554,7 +558,7 @@ function formContent(item) {
       </div>
       <div class="asset-cost-form__row">
         <div class="form-group"><label class="form-label" for="asset-cost-purchase-date">${esc(tr('purchaseDate'))}${REQUIRED_MARK}</label><yuvomi-datepicker id="asset-cost-purchase-date" type="date" required label="${esc(tr('purchaseDate'))}" value="${esc(item?.purchase_date || '')}"></yuvomi-datepicker></div>
-        <div class="form-group"><label class="form-label" for="asset-cost-purchase-price">${esc(tr('purchasePrice'))}${REQUIRED_MARK}</label><input id="asset-cost-purchase-price" class="form-input" type="number" min="0" step="0.01" inputmode="decimal" required value="${item?.purchase_price == null ? '' : esc(item.purchase_price)}"></div>
+        <div class="form-group"><label class="form-label" for="asset-cost-purchase-price">${esc(tr('purchasePrice'))}${REQUIRED_MARK}</label><input id="asset-cost-purchase-price" class="form-input"${amountInputAttrs(formCurrency, item?.purchase_price ?? '')} required></div>
       </div>
       <div class="asset-cost-form__row">
         <div class="form-group"><label class="form-label" for="asset-cost-currency">${esc(tr('currencyField'))}</label><input id="asset-cost-currency" class="form-input" type="text" maxlength="3" minlength="3" value="${esc(item?.currency || state.householdCurrency)}"></div>
@@ -563,7 +567,7 @@ function formContent(item) {
       <details class="asset-cost-form__advanced" ${item?.sold_date || item?.sold_price != null || item?.retired_date ? 'open' : ''}>
         <summary>${esc(tr('advanced'))}</summary>
         <div class="asset-cost-form__row"><div class="form-group"><label class="form-label" for="asset-cost-sold-date">${esc(tr('soldDate'))}</label><yuvomi-datepicker id="asset-cost-sold-date" type="date" label="${esc(tr('soldDate'))}" value="${esc(item?.sold_date || '')}"></yuvomi-datepicker></div>
-        <div class="form-group"><label class="form-label" for="asset-cost-sold-price">${esc(tr('soldPrice'))}</label><input id="asset-cost-sold-price" class="form-input" type="number" min="0" step="0.01" inputmode="decimal" value="${item?.sold_price == null ? '' : esc(item.sold_price)}"></div></div>
+        <div class="form-group"><label class="form-label" for="asset-cost-sold-price">${esc(tr('soldPrice'))}</label><input id="asset-cost-sold-price" class="form-input"${amountInputAttrs(formCurrency, item?.sold_price ?? '')}></div></div>
         <div class="form-group"><label class="form-label" for="asset-cost-retired-date">${esc(tr('retiredDate'))}</label><yuvomi-datepicker id="asset-cost-retired-date" type="date" label="${esc(tr('retiredDate'))}" value="${esc(item?.retired_date || '')}"></yuvomi-datepicker></div>
       </details>
       <div class="form-group"><label class="form-label" for="asset-cost-notes">${esc(tr('notes'))}</label><textarea id="asset-cost-notes" class="form-input" rows="3">${esc(item?.notes || '')}</textarea></div>
@@ -838,20 +842,20 @@ function controlValue(panel, selector) {
 }
 
 function buildPayload(panel, item, photoData) {
-  const optionalNumber = (selector) => {
+  const optionalAmount = (selector) => {
     const value = panel.querySelector(selector).value.trim();
-    return value === '' ? null : Number(value);
+    return value === '' ? null : parseAmountInput(value);
   };
   const payload = {
     name: panel.querySelector('#asset-cost-name').value.trim(),
     category: panel.querySelector('#asset-cost-category').value,
     purchase_date: controlValue(panel, '#asset-cost-purchase-date') || null,
-    purchase_price: optionalNumber('#asset-cost-purchase-price'),
+    purchase_price: optionalAmount('#asset-cost-purchase-price'),
     currency: panel.querySelector('#asset-cost-currency').value.trim().toUpperCase(),
     status: panel.querySelector('#asset-cost-status').value,
     target_days: optionalNumber('#asset-cost-target-days'),
     sold_date: controlValue(panel, '#asset-cost-sold-date') || null,
-    sold_price: optionalNumber('#asset-cost-sold-price'),
+    sold_price: optionalAmount('#asset-cost-sold-price'),
     retired_date: controlValue(panel, '#asset-cost-retired-date') || null,
     notes: panel.querySelector('#asset-cost-notes').value.trim() || null,
     photo_data: photoData || null,
@@ -942,11 +946,21 @@ function openAssetModal(item = null) {
 async function saveAsset(panel, item, photoData) {
   const name = panel.querySelector('#asset-cost-name').value.trim();
   const purchaseDate = controlValue(panel, '#asset-cost-purchase-date');
-  const purchasePrice = panel.querySelector('#asset-cost-purchase-price').value.trim();
+  const purchaseInput = panel.querySelector('#asset-cost-purchase-price');
+  const soldInput = panel.querySelector('#asset-cost-sold-price');
+  const purchasePrice = purchaseInput.value.trim();
   const currency = panel.querySelector('#asset-cost-currency').value.trim();
   if (!name) return window.yuvomi?.showToast(tr('nameRequired'), 'danger');
   if (!purchaseDate || purchasePrice === '') return window.yuvomi?.showToast(tr('purchaseRequired'), 'danger');
   if (!/^[A-Za-z]{3}$/.test(currency)) return window.yuvomi?.showToast(tr('invalidCurrency'), 'danger');
+  const purchaseProblem = amountFieldError(purchaseInput, currency, {
+    sign: 'nonNegative', original: item?.purchase_price ?? null, originalCurrency: item?.currency ?? null,
+  });
+  if (purchaseProblem) { reportFieldError(...purchaseProblem); return; }
+  const soldProblem = amountFieldError(soldInput, currency, {
+    sign: 'nonNegative', original: item?.sold_price ?? null, originalCurrency: item?.currency ?? null,
+  });
+  if (soldProblem) { reportFieldError(...soldProblem); return; }
   const payload = buildPayload(panel, item, photoData);
   const saveButton = panel.querySelector('#asset-cost-save');
   if (saveButton) saveButton.disabled = true;

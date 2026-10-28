@@ -516,7 +516,7 @@
         "createdToast": "Compito creato.",
         "deletedToast": "Compito eliminato.",
         "loadError": "Impossibile caricare il compito.",
-        "subtaskPrompt": "Sotto-compito:",
+        "subtaskPrompt": "Sotto-compito",
         "kanbanOpen": "Da fare",
         "kanbanInProgress": "In corso",
         "kanbanDone": "Completato",

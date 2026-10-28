@@ -516,7 +516,7 @@
         "createdToast": "Tarea creada.",
         "deletedToast": "Tarea eliminada.",
         "loadError": "No se pudo cargar la tarea.",
-        "subtaskPrompt": "Subtarea:",
+        "subtaskPrompt": "Subtarea",
         "kanbanOpen": "Abierta",
         "kanbanInProgress": "En progreso",
         "kanbanDone": "Completada",

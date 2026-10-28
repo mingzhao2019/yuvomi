@@ -524,7 +524,7 @@
         "unarchivedToast": "Tarefa restaurada.",
         "archivedLabel": "Arquivada em",
         "loadError": "Falha ao carregar a tarefa.",
-        "subtaskPrompt": "Subtarefa:",
+        "subtaskPrompt": "Subtarefa",
         "kanbanOpen": "Aberto",
         "kanbanInProgress": "Em andamento",
         "kanbanDone": "Concluído",
