@@ -11883,6 +11883,16 @@ const MIGRATIONS = [
       CREATE INDEX idx_waste_imported_pickups_source_date ON waste_imported_pickups(source_id, date_key);
     `,
   },
+  {
+    version: 278,
+    description: 'users: a member colour is #RRGGBB or the default',
+    // The member colour is rendered inside style attributes. Existing values
+    // that are not a six-digit hex colour must fall back to the default.
+    up: `
+      UPDATE users SET avatar_color = '#007AFF'
+       WHERE avatar_color NOT GLOB '#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]';
+    `,
+  },
 ];
 
 /**
