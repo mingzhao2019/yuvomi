@@ -26,14 +26,17 @@ Last verified: **2026-10-28 UTC**.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main`, `origin/main` | `548b6d0a3f1b8262133790bd3e0417c08e8ede94` | Upstream v2.82.0 baseline is synchronized. |
-| `custom`, `origin/custom` | `d4eb245bff304d287d6da5fc1f7d5cdfaf54dfca` | Selective upstream integration is complete and the remote matches the local branch. |
+| `main`, `upstream/main` | `c77bc34d1be8030c88b154ffb6a85b3295077008` | Local upstream v2.82.0 baseline is synchronized through the latest two fixes. |
+| `origin/main` | `548b6d0a3f1b8262133790bd3e0417c08e8ede94` | Last pushed upstream baseline; delivery of the new `main` tip is pending authorization. |
+| `custom`, `origin/custom` | `3c06b9facb5a37808b97e642e6907bebd10cffe6` | Custom branch before the current selective integration. |
+| `custom-upstream-selective-2026-10-28` | `0b2181e06` | Current integration branch; pending fast-forward into `custom`. |
 
-Both branch pairs now match:
+The previous remote branch pairs matched; the current integration intentionally
+leaves the new upstream tip and custom integration local until delivery:
 
 ```text
 main...upstream/main   0 0
-custom...origin/custom 0 0
+custom...origin/custom  0 0
 ```
 
 The release metadata is `2.82.0`. The destructive upstream commit
@@ -41,9 +44,16 @@ The release metadata is `2.82.0`. The destructive upstream commit
 excluded because it conflicts with the custom task-list/account identity
 contract and can delete existing data.
 
-The focused checks for the affected areas pass. The full `npm test` gate was
-stopped at the operator's request after running for an excessive duration; no
-full-suite pass is claimed here.
+The new upstream commits are `aec5cf0cb` (full-cell API-token scope targets)
+and `c77bc34d1` (member-colour validation and safe rendering). Both were
+adopted. The upstream migration 269 became custom migration 278 because
+custom already uses migration numbers 269–277; the upstream destructive
+migration 268 was not adopted.
+
+Focused checks pass: avatar colour 6/6, token scopes 16/16, dashboard 189/189,
+frontend audit 563/563, and migration append-only 4/4. The full `npm test`
+and the aggregate browser guard chain were not run per the operator's request;
+those scopes remain unverified.
 
 There is no temporary integration branch left in the local repository.
 Product-specific behavior remains authoritative on `custom`; the full list is
