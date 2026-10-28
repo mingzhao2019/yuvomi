@@ -22,27 +22,35 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-10-19 UTC**.
+Last verified: **2026-10-28 UTC**.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main`, `origin/main` | `b8550e515b0d20a21a0a857236a1e73cc5041db2` | Upstream baseline is synchronized. |
-| `custom` | Local custom integration plus one unpushed documentation-only cleanup commit. | Working branch. |
-| `origin/custom` | `8d8e5eed8b5cbef36dae27b06d1175f3f0ad276a` | Last pushed custom integration state. |
+| `main`, `upstream/main`, `origin/main` | `548b6d0a3f1b8262133790bd3e0417c08e8ede94` | Upstream v2.82.0 baseline is synchronized. |
+| `custom` | `ccbf260f8` | Selective upstream integration is complete; the status-document commit follows this integration commit. |
+| `origin/custom` | `04bbfbccc21e2e4d39cd44bef4d33f1f23c71d5d` | Last pushed custom state before this synchronization; the authorized push will update it. |
 
-At the last remote synchronization, both branch pairs matched:
+Before the current push, `main` already matched its upstream and origin
+counterparts. `custom` is intentionally ahead of `origin/custom` until the
+authorized push completes:
 
 ```text
 main...upstream/main   0 0
-custom...origin/custom 0 0
+custom...origin/custom 1 0
 ```
 
-The current local-only documentation cleanup makes `custom...origin/custom`
-`1 0` until this commit is explicitly pushed.
+The release metadata is `2.82.0`. The destructive upstream commit
+`cd1ee47be` (cross-account duplicate-row deletion) remains intentionally
+excluded because it conflicts with the custom task-list/account identity
+contract and can delete existing data.
 
-The release metadata is `2.78.0`. There is no temporary integration branch
-left in the local repository. Product-specific behavior remains authoritative
-on `custom`; the full list is maintained in [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
+The focused checks for the affected areas pass. The full `npm test` gate was
+stopped at the operator's request after running for an excessive duration; no
+full-suite pass is claimed here.
+
+There is no temporary integration branch left in the local repository.
+Product-specific behavior remains authoritative on `custom`; the full list is
+maintained in [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
 
 ## Custom boundaries to preserve
 
