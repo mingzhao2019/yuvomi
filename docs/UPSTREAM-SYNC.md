@@ -27,16 +27,13 @@ Last verified: **2026-10-28 UTC**.
 | Reference | Commit | Meaning |
 | --- | --- | --- |
 | `main`, `upstream/main`, `origin/main` | `548b6d0a3f1b8262133790bd3e0417c08e8ede94` | Upstream v2.82.0 baseline is synchronized. |
-| `custom` | `ccbf260f8` | Selective upstream integration is complete; the status-document commit follows this integration commit. |
-| `origin/custom` | `04bbfbccc21e2e4d39cd44bef4d33f1f23c71d5d` | Last pushed custom state before this synchronization; the authorized push will update it. |
+| `custom`, `origin/custom` | `d4eb245bff304d287d6da5fc1f7d5cdfaf54dfca` | Selective upstream integration is complete and the remote matches the local branch. |
 
-Before the current push, `main` already matched its upstream and origin
-counterparts. `custom` is intentionally ahead of `origin/custom` until the
-authorized push completes:
+Both branch pairs now match:
 
 ```text
 main...upstream/main   0 0
-custom...origin/custom 1 0
+custom...origin/custom 0 0
 ```
 
 The release metadata is `2.82.0`. The destructive upstream commit
