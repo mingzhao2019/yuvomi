@@ -103,7 +103,8 @@ function onPhone(fn) {
     globalThis.window = prev;
   }
 }
-const taskRows = (html) => (html.match(/class="task-item"/g) ?? []).length;
+// Was ohne Streckung steht: Zusatzzeilen (U14, `data-fill-row`) zeigt erst applyRowFill.
+const taskRows = (html) => (html.match(/<div class="list-row task-item"[^>]*>/g) ?? []).filter((tag) => !tag.includes('data-fill-row')).length;
 
 test('Aufgaben: die Kachel folgt ihrer Groesse wie jede Liste (#2087)', () => {
   const tasks = Array.from({ length: 5 }, (_, i) => ({ id: i + 1, title: `Aufgabe ${i}`, priority: 'none', status: 'open' }));
@@ -177,7 +178,7 @@ test('Einkauf: jede Listenzeile fuehrt zu IHRER Liste, per Klick und per Tastatu
     return {
       tagName: m[1].toUpperCase(),
       id: '',
-      isListRow: /class="shopping-widget-list"/.test(m[2]),
+      isListRow: /class="list-row shopping-widget-list"/.test(m[2]),
       attrs: m[2],
       dataset: { route: unesc(m[3]) },
       closest: () => null,
@@ -238,7 +239,7 @@ test('Einkauf: jede Listenzeile fuehrt zu IHRER Liste, per Klick und per Tastatu
 function rowRoutesOf(html, className) {
   const unesc = (v) => v.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
   return [...html.matchAll(/<[a-z]+\b([^>]*\bdata-route="([^"]*)"[^>]*)>/g)]
-    .filter((m) => new RegExp(`class="${className}(?:["\\s])`).test(m[1]))
+    .filter((m) => new RegExp(`class="(?:list-row )?${className}(?:["\\s])`).test(m[1]))
     .map((m) => unesc(m[2]));
 }
 
@@ -751,7 +752,7 @@ const ev = (id, title, start, end, people, allDay = 0) => ({
 
 /** Der Status-Text der Zeile, die mit diesem Namen beginnt. */
 function rowStatus(html, name) {
-  const rows = html.split('<div class="family-member');
+  const rows = html.split('<div class="list-row family-member');
   const row = rows.find((chunk) => chunk.includes(`family-member__name">${name}<`));
   if (!row) return null;
   return (/family-member__status[^"]*">([\s\S]*?)<\/span>/.exec(row) || [])[1]?.trim() ?? null;
@@ -904,37 +905,55 @@ test('FLIP: jede Kachel laeuft von ihrer alten Lage in die neue, statt zu spring
     flipTile('shown', box(0, 400, 100, 100)),
   ];
   const root = { querySelectorAll: (sel) => (sel === '#dashboard-widget-grid > .widget-wrapper[data-widget-id]' ? tiles : []) };
-  const timing = { duration: 250, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' };
-  const played = __test.playTileFlip(root, before, { reduced: false, timing });
+  const played = __test.playTileFlip(root, before, { reduced: false });
   const [moved, grown, shrunk, still, shown] = tiles;
 
   assert.equal(played.length, 4, 'die ruhende Kachel bewegt sich nicht');
   assert.deepEqual(moved.calls[0].keyframes.map((k) => k.transform), ['translate(-100px, 0px)', 'none']);
-  assert.equal(moved.calls[0].timing.duration, 250);
+  // DW-P2-2: `--ease-out` + `--duration-lg` wie das Raster (playGridShift), nicht
+  // die Glasfeder - sie schoss 35/53 px uebers Ziel. Im Test ohne Stylesheet
+  // gelten die Rueckfaelle der Tokens.
+  for (const tile of [moved, grown, shrunk, shown]) {
+    assert.deepEqual(tile.calls[0].timing, { duration: 250, easing: 'ease-out' }, 'Dauer und Kurve aus --duration-lg / --ease-out');
+  }
   assert.match(grown.calls[0].keyframes[0].clipPath, /^inset\(0px 100px 0px 0px/, 'wer waechst, deckt seine neue Flaeche von der alten Groesse aus auf');
   assert.match(grown.calls[0].keyframes[1].clipPath, /^inset\(0px 0px 0px 0px/);
   assert.equal(shrunk.calls[0].keyframes[0].opacity, 0.6, 'wer schrumpft, blendet den umgebrochenen Inhalt auf');
   assert.equal(still.calls.length, 0);
   assert.equal(shown.calls[0].keyframes[0].opacity, 0, 'eine wieder eingeblendete Kachel hat keine Vorlage und blendet ein');
 
-  // Reduzierte Bewegung: es bleibt beim Sprung - und ohne Vorher-Messung auch.
+  // DW-P3-9: unter reduzierter Bewegung kein Weg, aber auch kein stummer
+  // Sprung - was sich bewegt haette, blendet 0,4 -> 1 in --duration-sm
+  // (das Muster von swapContent). Die ruhende Kachel bleibt ruhig.
   for (const t of tiles) t.calls = [];
-  assert.deepEqual(__test.playTileFlip(root, before, { reduced: true, timing }), []);
-  assert.deepEqual(__test.playTileFlip(root, null, { reduced: false, timing }), []);
+  const reduced = __test.playTileFlip(root, before, { reduced: true });
+  assert.equal(reduced.length, 4);
+  for (const tile of [moved, grown, shrunk, shown]) {
+    assert.deepEqual(tile.calls[0].keyframes, [{ opacity: 0.4 }, { opacity: 1 }], 'nur Deckkraft, kein transform, kein clip-path');
+    assert.deepEqual(tile.calls[0].timing, { duration: 150, easing: 'ease-out' });
+  }
+  assert.equal(still.calls.length, 0);
+  for (const t of tiles) t.calls = [];
+  assert.deepEqual(__test.playTileFlip(root, null, { reduced: false }), [], 'ohne Vorher-Messung kein Gleiten');
   assert.ok(tiles.every((t) => t.calls.length === 0));
 });
 
-test('FLIP haengt am Neuaufbau: vorher messen, nach dem setHtml abspielen - nur innerhalb des Anpassen-Modus', async () => {
+test('FLIP haengt am Neuaufbau: vorher messen, nach dem setHtml abspielen - im Anpassen-Modus und beim stillen Abgleich', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
   const body = src.match(/function rebuildDashboard\(cfg\) \{[\s\S]*?\n {2}\}\n/)?.[0];
   assert.ok(body, 'rebuildDashboard() nicht gefunden - die Signatur greift nicht mehr');
-  const capture = body.search(/const tileRectsBefore = isCustomizing && renderedCustomizing === true \? captureTileRects\(shell\) : null;/);
+  // U1 b: auch ein stiller Abgleich gleitet (die Spanne einer Kachel folgt ihren
+  // Daten) - nicht aus dem Skelett und nicht beim Moduswechsel.
+  const quiet = body.search(/const quietRebuild = !isCustomizing && !modeChanged && !shell\.querySelector\('\.widget-skeleton'\);/);
+  const capture = body.search(/const tileRectsBefore = \(isCustomizing && renderedCustomizing === true\) \|\| quietRebuild \? captureTileRects\(shell\) : null;/);
   // Das Markup kommt seit DW-P1-2 aus dashboardShellHtml(cfg).
   const rebuild = body.search(/setHtml\(shell, html\);/);
-  const play = body.search(/playTileFlip\(shell, tileRectsBefore\)/);
-  assert.ok(capture > -1 && rebuild > -1 && play > -1, 'Messen, Neuaufbau und Abspielen stehen alle drei im Neuaufbau');
-  assert.ok(capture < rebuild && rebuild < play, 'erst messen, dann neu bauen, dann abspielen');
+  const restore = body.search(/if \(scroller && scroller\.scrollTop !== keptScroll\) scroller\.scrollTop = keptScroll;/);
+  const play = body.search(/if \(tileRectsBefore\?\.size\) playTileFlip\(shell, tileRectsBefore\)/);
+  assert.ok(quiet > -1 && capture > -1 && rebuild > -1 && play > -1, 'Messen, Neuaufbau und Abspielen stehen alle drei im Neuaufbau');
+  assert.ok(quiet < capture && capture < rebuild && rebuild < restore && restore < play,
+    'erst messen, dann neu bauen, die Scrolllage zurueck, dann abspielen');
   assert.ok(capture < body.indexOf('renderedCustomizing = isCustomizing;'),
     'gemessen wird, bevor der Modus des letzten Aufbaus ueberschrieben ist - sonst gleitet auch das Betreten des Modus');
 });
@@ -980,8 +999,14 @@ test('Anpassen-Modus: das Raster traegt eine Kante, keine Toenung ueber allen Ka
   const rules = [...eachRule(css)].filter((r) => r.selector.split(',').some((s) => s.trim().startsWith('.dashboard__grid--editing')));
   assert.ok(rules.length > 0, 'die Regel fuer das Raster im Anpassen-Modus fehlt');
   assert.ok(rules.some((r) => /border:\s*1px dashed/.test(r.body)), 'die Kante bleibt');
-  assert.deepEqual(rules.filter((r) => /background(-color|-image)?\s*:/.test(r.body)).map((r) => r.selector), [],
-    'keine Flaeche ueber dem ganzen Raster');
+  // U1 b / DW-P2-9: ab 768px liegt die Kante ausserhalb (outline) - ein Polster
+  // machte die Spalten im Anpassen-Modus schmaler als danach.
+  assert.ok(rules.some((r) => r.selector.trim() === '.dashboard__grid--editing' && r.at.some((a) => /min-width:\s*768px/.test(a))
+    && /outline:[^;]*dashed/.test(r.body) && /padding:\s*0/.test(r.body)), 'breit: die Kante als outline, ohne Polster');
+  // Flaechen tragen nur die Leiste und der Geist einer Fuellung, nie das Raster.
+  assert.deepEqual(rules.filter((r) => /background(-color|-image)?\s*:/.test(r.body)
+    && !/widget-edit-controls|::after/.test(r.selector)).map((r) => r.selector), [],
+  'keine Flaeche ueber dem ganzen Raster');
 });
 
 // --------------------------------------------------------
@@ -1093,7 +1118,7 @@ test('#1455: leerer Mahlzeiten-Slot und Sparquote ohne Einnahmen zeigen "-"', ()
 // Dieselbe Stufung wie `relativeDateLabel` gilt jetzt fuer alles Kommende der
 // Uebersicht; der letzte Besuch liest rueckwaerts (`earnedWhenLabel`). Nennt
 // die Zeile daneben schon „Heute"/„Morgen", steht das Wort einmal da.
-const metaOf = (html, cls) => [...html.matchAll(new RegExp(`class="${cls}">([^<]*)<`, 'g'))].map((m) => m[1]);
+const metaOf = (html, cls) => [...html.matchAll(new RegExp(`class="(?:list-row__meta )?${cls}">([^<]*)<`, 'g'))].map((m) => m[1]);
 
 test('#1454: die Geburtstagszeile sagt Wochentag, Tag+Monat oder Datum mit Jahr', () => {
   at(CRITIQUE_NOW, 'Europe/Berlin', () => {
@@ -1352,9 +1377,10 @@ test('R18: die umgestellten Inhaltsklassen der Uebersicht stehen auf der Lese-Le
     '.budget-widget__savings span': '--type-caption',
     '.budget-widget__savings strong': '--type-card-title',
     '.budget-widget__flow-item > strong': '--type-caption',
-    '.birthday-widget-item__name': '--type-secondary',
-    '.birthday-widget-item__age': '--type-caption',
-    '.rewards-member__name': '--type-secondary',
+    // Die Zeilentitel und Endangaben der Listen-Kacheln (Geburtstage,
+    // Belohnungen) stehen seit DW-P1-4 in den Rollen der geteilten Zeile
+    // (`.list-row__name` 16/500, `.list-row__end` 13/600) - gehalten von
+    // test:typography "R21 S5 + DW-P1-4".
   };
   const rules = [...eachRule(css)];
   for (const [selector, token] of Object.entries(expected)) {
@@ -1367,7 +1393,7 @@ test('R18: die umgestellten Inhaltsklassen der Uebersicht stehen auf der Lese-Le
     assert.ok(sized.some((r) => r.at.length === 0 && new RegExp(`font-size:\\s*var\\(${token}\\)`).test(r.body)), `${selector}: Basis ${token}`);
   }
   // Kein Fett auf den Nebenwerten: semibold traegt die Zahl, bold bleibt Kennzahl und Avatar.
-  for (const selector of ['.budget-widget__savings strong', '.budget-widget__flow-item > strong', '.birthday-widget-item__age']) {
+  for (const selector of ['.budget-widget__savings strong', '.budget-widget__flow-item > strong']) {
     const body = rules.filter((r) => r.at.length === 0 && r.selector.split(',').some((s) => s.trim() === selector)).map((r) => r.body).join(';');
     assert.match(body, /font-weight:\s*var\(--font-weight-semibold\)/, selector);
   }
@@ -1482,13 +1508,13 @@ test('R19 mobil: die Familie ist eine Avatar-Reihe mit Zaehler, Name und Satz bl
   // Gesicht las sich wie eine Benachrichtigung - eins wovon? Vor der Zahl
   // steht das Zeichen der Aufgaben (MODULE_ICON.tasks), dasselbe wie in der
   // Leiste; die Zahl allein sagte nichts.
-  assert.match(html, /<span class="family-member__face">[\s\S]*?class="family-widget-avatar"[\s\S]*?<span class="family-member__count" aria-hidden="true"><i data-lucide="check-square" class="family-member__count-icon"><\/i>2<\/span>/,
+  assert.match(html, /<span class="list-row__lead family-member__face">[\s\S]*?class="family-widget-avatar"[\s\S]*?<span class="family-member__count" aria-hidden="true"><i data-lucide="check-square" class="family-member__count-icon"><\/i>2<\/span>/,
     'die Zahl offener Aufgaben steht als Marke am Gesicht, mit dem Aufgaben-Zeichen als Einheit');
   const badge = [...eachRule(css)].filter((r) => r.selector.trim() === '.family-member__count-icon');
   assert.ok(badge.some((r) => /inline-size:\s*var\(--icon-sm\)/.test(r.body)), 'das Zeichen hat die Groesse eines Inline-Markers');
   assert.equal((html.match(/family-member__count"/g) || []).length, 1, 'nur wer offene Aufgaben hat, traegt eine Marke');
   assert.match(html, /<span class="family-member__short" aria-hidden="true">Alex<\/span>/, 'der Vorname unter dem Gesicht');
-  assert.match(html, /<span class="family-member__name">Alex<\/span>/, 'der volle Name bleibt der Name fuer Screenreader');
+  assert.match(html, /<span class="list-row__name family-member__name">Alex<\/span>/, 'der volle Name bleibt der Name fuer Screenreader');
   const phone = css.slice(css.indexOf('MOBIL IST DIE FAMILIE EINE AVATAR-REIHE'));
   const block = phone.slice(phone.indexOf('@media (max-width: 639px) {'), phone.indexOf('\n}\n') + 2);
   assert.match(block, /\.family-widget__list \{[^}]*flex-flow:\s*row wrap/, 'eine Reihe statt einer Liste');
@@ -1515,11 +1541,16 @@ test('R21 S7 mobil: ab sechs Gesichtern liegt keine Marke auf dem Nachbarn, der 
   assert.match(narrow.body, /inset-inline-end:\s*calc\(-1 \* var\(--space-1\)\)/);
   // Teilt nur ein Teil der Familie den Termin, stehen die Namen statt "Alle":
   // sie kuerzen, der Termin nicht.
+  // DW-P2-10: der Termin nimmt die volle Breite - kein Prozentdeckel mehr (60 %
+  // eines inhaltsbreiten Koerpers kuerzten "20:00 Filmabend" auf 82px neben
+  // "Alle"); die Namen schrumpfen zuerst, hundertfach schneller als er.
   const name = rules.find((r) => r.selector.trim() === '.family-member--shared .family-member__name');
-  assert.match(name.body, /flex:\s*0 1 auto/, 'die Namensliste darf schrumpfen');
+  const shrink = (body) => Number(/flex:\s*0 (\d+) auto/.exec(body)?.[1]);
+  assert.ok(shrink(name.body) >= 100, 'die Namensliste schrumpft zuerst');
   assert.match(name.body, /min-inline-size:\s*0/);
   const status = rules.find((r) => r.selector.trim() === '.family-member--shared .family-member__status');
-  assert.ok(status && /flex:\s*0 0 auto/.test(status.body), 'der Termin behaelt seine Breite');
+  assert.ok(status && shrink(status.body) === 1, 'der Termin schrumpft erst, wenn die Namen am Ende sind');
+  assert.doesNotMatch(status.body, /max-inline-size:\s*\d+%/, 'kein Prozentdeckel am Termin');
 });
 
 test('R19 mobil: die Wetterzeile steht im Masthead auch neben der Karte, breit schliessen sich beide aus', async () => {
@@ -1602,7 +1633,7 @@ test('R21 Rueckweg: die Nachfrage vergleicht den Inhalt, nicht die Reihenfolge d
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
   const render = src.slice(src.indexOf('export async function render('));
-  assert.match(render, /: memo \? '' : renderDashboardSkeleton\(\)/, 'mit gemerktem Stand steht wieder ein Skelett im ersten Bild');
+  assert.match(render, /: memo \? '' : renderDashboardSkeleton\(user, \{ head \}\)/, 'mit gemerktem Stand steht wieder ein Skelett im ersten Bild');
   assert.match(render, /= memo\s*\? \[memo\.data, memo\.weatherRes, \{ data: memo\.prefs \}, memo\.data\.pendingReminders\]\s*: await Promise\.all\(/,
     'der gemerkte Stand wird nicht ohne Anfrage gezeichnet');
   assert.match(render, /if \(memo\) refreshDashboardData\(\{ onlyIfChanged: true \}\);/, 'nach dem Zeichnen aus dem Stand fragt die Seite nicht nach');
@@ -1733,43 +1764,72 @@ test('DW-P1-1: jedes "+ Neu"-Ziel nennt eine Id, die seine Zielseite traegt', as
   }
 });
 
-test('DW-P1-1: Pille und Speed-Dial klicken nach dem Wechsel den Knopf der Zielseite', async () => {
+test('DW-P1-1 + U2: ohne Blatt ueber der Uebersicht wechseln Pille und Speed-Dial ins Modul und klicken dort den Knopf', async () => {
   const targets = __test.FAB_NEW_BTN;
   assert.ok(targets, 'FAB_NEW_BTN ist nicht erreichbar');
   // Die Zielseiten tragen die Knoepfe, die ihr Markup traegt (vorige Probe).
   const real = ['fab-new-task', 'fab-new-event', 'fab-new-item', 'fab-new-note'];
-  await withNewTargets(async ({ visited, clicked, pageIds }) => {
-    real.forEach((id) => pageIds.add(id));
-    // Pille (Desktop): Klick auf einen Menuepunkt im Seiten-Container.
-    const container = stubEl();
-    __test.wireNewMenu(container, new AbortController().signal);
-    const onClick = container.listeners.find((l) => l.type === 'click' && !l.opts?.capture)?.fn;
-    assert.ok(onClick, 'wireNewMenu haengt keinen Klick an den Container');
-    for (const route of Object.keys(targets)) {
-      const item = stubEl({ dataset: { newRoute: route } });
-      await onClick({ target: { closest: (sel) => (sel === '[data-new-route]' ? item : null) } });
-    }
-    assert.deepEqual(visited, Object.keys(targets));
-    assert.deepEqual(clicked, real, 'Pille: jedes Ziel oeffnet sein Anlegen-Blatt');
+  // Seit U2 oeffnen Aufgabe, Termin und Notiz ihr Blatt ueber der Uebersicht
+  // (test:dashboard). Der Weg ins Modul bleibt fuer Einkauf - und fuer jedes
+  // Ziel, dessen Blatt nicht laedt: hier scheitern alle Blaetter.
+  const sheets = __test.NEW_SHEETS;
+  const original = { ...sheets };
+  for (const route of Object.keys(sheets)) sheets[route] = async () => { throw new Error('offline'); };
+  const origError = console.error;
+  console.error = () => {};
+  try {
+    await withNewTargets(async ({ visited, clicked, pageIds }) => {
+      real.forEach((id) => pageIds.add(id));
+      // Pille (Desktop): Klick auf einen Menuepunkt im Seiten-Container.
+      const container = stubEl();
+      __test.wireNewMenu(container, new AbortController().signal);
+      const onClick = container.listeners.find((l) => l.type === 'click' && !l.opts?.capture)?.fn;
+      assert.ok(onClick, 'wireNewMenu haengt keinen Klick an den Container');
+      for (const route of Object.keys(targets)) {
+        const item = stubEl({ dataset: { newRoute: route } });
+        await onClick({ target: { closest: (sel) => (sel === '[data-new-route]' ? item : null) } });
+      }
+      assert.deepEqual(visited, Object.keys(targets));
+      assert.deepEqual(clicked, real, 'Pille: jedes Ziel oeffnet sein Anlegen-Blatt');
 
-    // Speed-Dial (Telefon): der Knopf lebt in der Shell-Layer, findPageFab findet ihn.
-    visited.length = 0;
-    clicked.length = 0;
-    const items = Object.keys(targets).map((route) => stubEl({ dataset: { route } }));
-    const fabActions = stubEl({ querySelectorAll: (sel) => (sel === '[data-route]' ? items : []) });
-    const group = stubEl({ querySelector: (sel) => (sel === '#fab-actions' ? fabActions : null) });
-    const fabMain = stubEl({ closest: (sel) => (sel === '.page-fab-group' ? group : null) });
-    const getById = globalThis.document.getElementById;
-    globalThis.document.getElementById = (id) => (id === 'fab-main' ? fabMain : getById(id));
-    __test.initFab(new AbortController().signal);
-    for (const el of items) {
-      const go = el.listeners.find((l) => l.type === 'click')?.fn;
-      assert.ok(go, `Speed-Dial: ${el.dataset.route} ist nicht verdrahtet`);
-      await go();
-      // `go` wartet auf den Wechsel und klickt dann - einen Takt Luft fuer den Klick.
-      await new Promise((r) => setImmediate(r));
-    }
-    assert.deepEqual(visited, Object.keys(targets));
-    assert.deepEqual(clicked, real, 'Speed-Dial: jedes Ziel oeffnet sein Anlegen-Blatt');
+      // Speed-Dial (Telefon): der Knopf lebt in der Shell-Layer, findPageFab findet ihn.
+      visited.length = 0;
+      clicked.length = 0;
+      const items = Object.keys(targets).map((route) => stubEl({ dataset: { route } }));
+      const fabActions = stubEl({ querySelectorAll: (sel) => (sel === '[data-route]' ? items : []) });
+      const group = stubEl({ querySelector: (sel) => (sel === '#fab-actions' ? fabActions : null) });
+      const fabMain = stubEl({ closest: (sel) => (sel === '.page-fab-group' ? group : null) });
+      const getById = globalThis.document.getElementById;
+      globalThis.document.getElementById = (id) => (id === 'fab-main' ? fabMain : getById(id));
+      __test.initFab(new AbortController().signal);
+      for (const el of items) {
+        const go = el.listeners.find((l) => l.type === 'click')?.fn;
+        assert.ok(go, `Speed-Dial: ${el.dataset.route} ist nicht verdrahtet`);
+        await go();
+        // `go` wartet auf den Wechsel und klickt dann - einen Takt Luft fuer den Klick.
+        await new Promise((r) => setImmediate(r));
+      }
+      assert.deepEqual(visited, Object.keys(targets));
+      assert.deepEqual(clicked, real, 'Speed-Dial: jedes Ziel oeffnet sein Anlegen-Blatt');
+    });
+  } finally {
+    console.error = origError;
+    Object.assign(sheets, original);
+  }
+});
+
+test('U2: jedes Blatt ueber der Uebersicht ruft eine Anlegen-Funktion, die sein Modul exportiert', async () => {
+  const { readFileSync } = await import('node:fs');
+  const sheets = __test.NEW_SHEETS;
+  assert.ok(sheets, 'NEW_SHEETS ist nicht erreichbar');
+  await withNewTargets(async () => {
+    const offered = __test.FAB_ACTIONS().map((a) => a.route);
+    for (const route of Object.keys(sheets)) assert.ok(offered.includes(route), `${route}: ein Blatt fuer ein Ziel, das "+ Neu" nicht anbietet`);
   });
+  for (const [route, open] of Object.entries(sheets)) {
+    const m = /import\('([^']+)'\)\)\.(\w+)\(/.exec(String(open));
+    assert.ok(m, `${route}: das Blatt laedt sein Modul nicht beim Tipp nach`);
+    const src = readFileSync(new URL(`../public${m[1]}`, import.meta.url), 'utf8');
+    assert.match(src, new RegExp(`export async function ${m[2]}\\(`), `${m[1]} exportiert ${m[2]} nicht - "+ Neu" fiele still ins Modul zurueck`);
+  }
 });

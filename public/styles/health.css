@@ -2188,32 +2188,8 @@ button.health-med-card:hover {
   margin-block-end: 0;
 }
 
-/* EINE RUHIGE ZEILE STATT LEERER KACHELN (R21, D6): "Noch keine Messwerte"
- * und daneben die Erfassen-Aktion. In der Uebersichtskarte steht sie auf der
- * Karte; auf der Vitalwerte-Seite traegt sie die Flaeche einer Zeile selbst. */
-.health-overview__empty-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
-  min-block-size: var(--target-base);
-}
-
-.health-overview__empty-text {
-  font-size: var(--type-secondary);
-  color: var(--color-text-secondary);
-}
-
-/* DIESELBE ZEILE AUF EIGENER FLAECHE (R22, D12): wo sie nicht in einer
- * Karte steht ("Heute faellig" im Medikamentenbereich, eine leere Woche der
- * Aktivitaet), traegt sie die Flaeche einer Karte selbst. */
-.health-overview__empty-row--surface {
-  padding: var(--space-2) var(--space-4);
-  background-color: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-}
+/* Die ruhige Zeile eines leeren Abschnitts (R21 D6, R22 D12) steht seit DW p7
+ * als `.card-empty-row` in layout.css: die Kacheln der Uebersicht teilen sie. */
 
 /* Der Leerzustand der Vitalwerte steht im Kachelraster und nimmt die Zeile. */
 .health-vitals__empty {
@@ -4075,7 +4051,8 @@ button.cycle-cal__day:not(:disabled):hover { background: var(--color-surface-2);
 .fasting-panel { display: grid; gap: var(--space-6); }
 .fasting-card { padding: var(--space-5); border-radius: var(--radius-md); background: var(--color-surface-work); box-shadow: var(--shadow-sm); }
 .fasting-hero { text-align: center; align-items: center; padding: var(--space-5); }
-.fasting-hero__timer { font-size: var(--text-3xl); line-height: var(--line-height-tight); font-variant-numeric: tabular-nums; font-weight: var(--font-weight-bold); overflow-wrap: anywhere; }
+/* Der Timer ist die Kennzahl der Karte: Title 1 semibold (test:typography). */
+.fasting-hero__timer { font-size: var(--text-3xl); line-height: var(--line-height-tight); font-variant-numeric: tabular-nums; font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; }
 .fasting-dial__days { display: block; margin-top: var(--space-2); color: var(--color-text-secondary); }
 .fasting-hero__remaining { font-weight: var(--font-weight-semibold); }
 .fasting-hero__meta { margin-block: var(--space-2) var(--space-4); color: var(--color-text-secondary); }

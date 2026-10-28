@@ -75,7 +75,7 @@ typography:
   title-1:
     fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', Roboto, Arial, sans-serif"
     fontSize: "1.75rem"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: 1.21
     letterSpacing: "-0.015em"
   title-2:
@@ -208,7 +208,7 @@ components:
   widget-header:
     backgroundColor: "{colors.surface} (bandlos seit 2026-08-17; Absender ist das Vollton-Siegel)"
     padding: "12px 16px 8px (die .widget__header-Basisregel; keine Dashboard-Sonderregel mehr)"
-    height: "52px (Titelzeile 32px + 12/8px Polster; keine Kante, keine min-height)"
+    height: "52px (Titelzeile 32px + 12/8px Polster; keine Kante, keine min-height); unter 640px 44px (8/4px Polster, DW-P2-10)"
   day-sheet:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.xl}"
@@ -994,11 +994,15 @@ Subheadline 15, Footnote 13, Caption 2 11.
 - **Large Title** (bold, 34px, lh 1.21, Tracking -0.015em): Seitentitel, Dashboard-Gruss und
   seit Runde 3 auch der Anmelde-Titel; bleibt auf Desktop stabil 34px. Traegt IMMER
   Label-Farbe.
-- **Title 1** (bold, 28px, lh 1.21, Tracking -0.015em, `tabular-nums`): die KENNZAHL einer
+- **Title 1** (semibold, 28px, lh 1.21, Tracking -0.015em, `tabular-nums`): die KENNZAHL einer
   Karte, nicht eine Ueberschrift - der Kontosaldo, die Temperatur, die Uhrzeit der
   Uhr-Kachel. Sie steht gestapelt (kleines Label darueber, Zahl darunter), nie als Zahl am
   rechten Ende einer Beschriftungszeile: so gebaut ist sie anatomisch dasselbe wie die
-  Nebenzeile darunter, und die Hauptaussage der Karte sieht aus wie ihre Fussnote.
+  Nebenzeile darunter, und die Hauptaussage der Karte sieht aus wie ihre Fussnote. **Semibold
+  seit 2026-10-26** (DW-P2-7 Nachtrag, Entscheidung Ulas): Leitzahl und ruhige Werte standen seit
+  R23 D12 auf 600, alle anderen Kennzahlen auf 700 - eine Rolle in zwei Gewichten. Wie bei Apple
+  (Health, Wallet) hebt sich die Kennzahl durch ihre Groesse ab; Guard `test:typography` "Title 1
+  traegt semibold" (jede Regel mit Title-1-Groesse oder auf `.metric-card__value`).
 - **Title 2** (bold, 22px, Tracking -0.015em, `text-wrap: balance`): Modul-Kopf-Titel im
   Canonical Page Head - EINE Rolle fuer alle Module, Settings-Leaf und Split.
 - **Title 3** (semibold, 20px, lh 1.3): Bereichs-Ueberschrift in Satzschreibung.
@@ -1206,7 +1210,11 @@ das Verhaeltnis haelt.
   Einkauf in der einen Spalte. Zeilenweise gilt es seit R22 (D4) erst ab der zwanzigsten Zeile
   (`:nth-child(n+20)`), und der Platzhalter ist die Content-Box der echten Zeile (Kontakte 48,
   Buchungen 45, Rezepte 64px) - mit "je Zeile" ab der ersten sprang die Liste beim Aufbau
-  (Kontakte CLS 0,098 -> 0). Immer unter `@supports` mit
+  (Kontakte CLS 0,098 -> 0). Die Kacheln der Uebersicht ab der zweiten Reihe ebenso (DW-P2-4);
+  ihr Platzhalter ist die Hoehe aus dem letzten Bild (`--tile-block-size`), weil jeder Neuaufbau
+  neue Knoten zeichnet und `auto` sich nur den Knoten merkt - ab 768px die Hoehe aus ihren Daten
+  (`--tile-rows` mal Spur, U1 b), ohne `auto`, damit eine kuerzer gewordene Kachel keine alte Hoehe
+  mitbringt. Immer unter `@supports` mit
   `contain-intrinsic-size: auto none auto <gemessene Hoehe>` (sonst springt der Bildlaufbalken),
   und `overflow-clip-margin` fuer Schatten und Fokusring des Traegers, die die
   Paint-Containment an der Gruppenkante sonst abschnitte. Nicht dort, wo Spalten oder Masonry
@@ -1445,7 +1453,11 @@ das Verhaeltnis haelt.
   erscheinen erst nach `--duration-sm` (kommt der Inhalt schneller, sieht man sie nie; die
   Kartenflaechen stehen sofort und halten das Layout), der Schimmer ist ein Band als `::after`,
   das per `transform` gleitet (vorher `background-position`: Paint je Frame). Die Uebersicht
-  blendet vom Skelett zum Inhalt ueber `swapContent`. `stagger` laeuft seit R19 ueber Web
+  blendet vom Skelett zum Inhalt ueber `swapContent`. Ihr Skelett hat die Zielform (DW-P2-5):
+  der Kopf in den Klassen des echten (Datum, Gruss, Werkzeuge), das Heute-Blatt mit Zeilen, die
+  Kacheln aus dem zuletzt GEZEICHNETEN Raster (`rememberGridHint`) samt Packung, und die Hoehe des
+  Kopfbands je Fenstergroesse aus dem letzten Bild (`headHint`) - das Raster beginnt dort, wo es
+  gleich steht. `stagger` laeuft seit R19 ueber Web
   Animations mit `delay` und `fill: backwards` statt ueber Timer und Inline-Werte.
   **Kein Sprung beim Aufbau (R22, D4):** was nach dem ersten Bild kommt, darf nichts
   Sichtbares verschieben - auch nicht nach einer Eingabe (Reiterwechsel), wo CLS den Sprung
@@ -1885,7 +1897,7 @@ Schlaf +30 Min. und ..."), ohne Vorwert der letzte Wert, ohne Messung kein Satz.
 und Betrag, nie eine Bewertung - die Zahl gehoert der Person, das Urteil ihrer Aerztin. Mobil zieht er
 mit "Heute faellig" vor die Bereichsliste. **Was nicht gemessen ist, bekommt keine
 Kachel:** keine grauen Felder mit "-" (ein Kind ohne Messung hatte neun, 145.200px² am Laptop), sondern
-EINE ruhige Zeile "Noch keine Messwerte" mit der Erfassen-Aktion (`.health-overview__empty-row`); die
+EINE ruhige Zeile "Noch keine Messwerte" mit der Erfassen-Aktion (`.card-empty-row`, seit DW p7 geteilt); die
 Vitalwerte-Seite listet leere Messarten auf jeder Breite in "Weitere Messwerte". **Die Kurven sind
 ablesbar:** Mindestspanne je Messart (`minSpan` in utils/health-vitals.js, z. B. Blutzucker 40 mg/dL -
 drei Werte zwischen 88 und 90 standen vorher auf einer 0,5er-Achse), die Einheit am obersten
@@ -1898,7 +1910,11 @@ Guards: `test:health-vitals` ("R21 D6"), `test:health-nav` (Umzugsplan).
 zeigt `areaEmptyHtml`: Glyphe des Bereichs, Titel, Satz und die Anlege-Aktion (sekundaer -
 FAB bzw. Kopf-Pille tragen dasselbe Verb violett); ein leerer ABSCHNITT in einem Bereich mit
 Inhalt ist die ruhige Zeile `cardEmptyRowHtml` (Satz + Erfassen, wo es etwas zu erfassen gibt;
-ausserhalb einer Karte mit eigener Flaeche `--surface`). Nie ein nackter grauer Satz, nie eine
+ausserhalb einer Karte mit eigener Flaeche `--surface`). Seit DW p7 steht sie in
+utils/empty-state.js (`.card-empty-row`, layout.css) und traegt auch die leeren Kacheln der
+Uebersicht: die Aktion bleibt am Zeilenende und bricht nie unter den Satz, der Satz gibt nach;
+wo der Satz das Objekt nennt, traegt die Aktion nur das Verb ("Hinzufuegen") und verweist per
+`aria-describedby` auf ihn. Nie ein nackter grauer Satz, nie eine
 Auswahl ohne Auswahl ("Waehle einen Befund" ohne Befund). Wo der Inhalt die Hauptaktion traegt
 (Zyklus: "Periode gestartet"), entfaellt die Kopf-Aktion; Nachtragen steht am Verlauf und im
 Leerzustand. **Das Fasten seit R23 D14 umgekehrt:** der FAB bzw. die Kopf-Pille heisst „Fasten
@@ -2112,7 +2128,7 @@ sind Dokumente (ein Werkzeugmenue), Kalender (Filterblatt, Dialogfuss) und der B
 | Name einer Zeile | Rolle **Zeilentitel**: 16px medium (Abschnitt Typography) | `.list-row__name` / `.u-row-title` (typography.css) | 15/600, 16/400, 17/600 je Modul |
 | Abschnitt als Auszug eines Reiters | der Abschnittstitel IST der Weg: Knopf im `h2.u-section-title` mit Pfeil | `.section-title-link` (layout.css) | "Alle anzeigen"-Knopf daneben, Nachbau je Modul |
 | Ueberschrift ueber Inhalt | **Gruppentitel IN einer Liste** = `.list-group__title` (12px Versalien), Wort plus Zaehlstand, OHNE Zeichen (R23 D10: Einkauf, Vorrat, Inventar trugen das Kategorie-/Ort-Icon; es bleibt im Kategorie-Verwalter und in den Auswahlen; Guard `test:control-dialect` "D10: kein Gruppentitel ..."). **Abschnittstitel einer Flaeche** = `h2.u-section-title` (20px semibold) AUF DER BUEHNE, ueber der Karte oder dem Traeger, Werkzeuge rechts daneben; ohne Icon. Wiederholt er den Namen des offenen Reiters, steht er nur in der Gliederung (`.sr-only`) | list-row.css, typography.css | Titel in der Karte, `div` ohne Ueberschriftenrolle, Icon vor dem Titel |
-| Betrag in Zeile oder Karte | semibold, `tabular-nums`; Ton nur mit Aussage (Zuwachs gruen, Schuld rot, **null neutral**). Fett bleibt der Kennzahl (`.metric-card__value`, Title 1) | `--font-weight-semibold`; `test:budget-ui` | 600 / 700 / 900 je Reiter, Gewicht als Literal oder mit `!important`, "0,00 €" in Erfolgsgruen |
+| Betrag in Zeile oder Karte | semibold, `tabular-nums`; Ton nur mit Aussage (Zuwachs gruen, Schuld rot, **null neutral**). Die Kennzahl (`.metric-card__value`, Title 1) ist ebenfalls semibold und hebt sich durch ihre Groesse ab (seit 2026-10-26) | `--font-weight-semibold`; `test:budget-ui` | 600 / 700 / 900 je Reiter, Gewicht als Literal oder mit `!important`, "0,00 €" in Erfolgsgruen |
 | Zeitraum blaettern | EINE Reihenfolge im Markup (= Tab-Folge): Pfeil zurueck, Wert, Pfeil vor, DAHINTER der Reset ("Heute"/"Aktuell" - ein Reset, kein Schritt). Die Pfeile nennen ihr OBJEKT ("Vorherige Woche", "Naechster Monat"), der Wert haelt eine feste Breite, damit kein Pfeil wandert. Kalender, Wochenplan, Budget, Berichte der Haushaltshilfe und seit R16 der Schichtplan (dort im Koerper: "Schichtplan" + Stepper passen mobil nicht in eine Kopfzeile). Gleiches gilt seit R17 fuer die Berichte der Haushaltshilfe: "Haushaltshilfe" (ca. 236px) + Stepper (192px) > 358px, und als eigene Kopfzeile schob der Zeitraum die Reiterleiste um 52px nach unten - er steht unter 1024px als Zeile UNTER den Reitern, zwischen Kopf und Inhalt (`#housekeeping-period`); ab 1024px haengt `placeReportPeriod()` denselben Knoten als Center-Slot in die Titelzeile (E16: dort sprang nie etwas, und unter den Reitern scrollte der Monat weg) | `periodStepperHtml()` + `syncPeriodReset()` (utils/period-stepper.js) in Kalender, Essensplan, Budget, Haushaltshilfe/Berichte und Schichtplan/Vergleich; Module behalten ids und Klassen, die Shell haengt an `period-stepper__*`. Der Reset zeigt sich nur neben dem laufenden Zeitraum (`.is-current` + `inert`, Fokus vorher zum Zurueck-Pfeil). **Seit R21 blaettern Links/Rechts, solange der Fokus auf dem Stepper steht** (Pfeil, Wert oder Reset; RTL gespiegelt, `aria-keyshortcuts` an den Pfeilen): `wirePeriodArrowKeys()` am Traeger der Pfeile, nie am Seitencontainer - im Kalender gelten die Pfeile seitenweit (router.js). Derselbe Griff blaettert im Dokumentbetrachter durch die sichtbare Liste (Vor/Zurueck-Paar vorn in der Leiste; seit R22 ein eigenes Kind der Meta-Zeile, am Listenrand der fehlende Pfeil gedimmt statt einer Luecke, mobil in der Zeile des Kategorie-Knopfs). **Steht statt des Steppers eine Notiz (Budget: Konten, Abos, Darlehen), haelt ihr Slot die Breite des Steppers** (R22: mobil 2 x `--target-base` + 96px, Tablet + 144px; vorher wuchs er in die freie Zeile, Layout-Shift beim Reiterwechsel 0,0005 / 0,012 -> 0) **und beginnt am Desktop, wo der Monat beginnt** (`text-align: start`; `test:budget-ui` "Kopfnotiz"). **Die Pfeile stehen neutral (R19)**, kein Modul faerbt sie um (der Essensplan trug sie im Akzent; Guard `test:frontend-audit`). Im Essensplan bleibt der Stepper in der Zeile UNTER der Kuechen-Leiste - die Leiste ist der gemeinsame Kopf von vier Reitern. **Mobil in der Titelzeile (`--period-inline`, Budget) liegt der Reset durchsichtig UEBER dem Wert:** Tipp aufs Monatslabel springt zurueck, der Wert steht im Modulton, solange man daneben steht; Name und Tab-Stopp bleiben | `< Heute > Wert`, Pfeile namens "Zurueck"/"Weiter", Reihenfolge per CSS-`order` |
 | Kennzahl einer Flaeche | EINE Karte, EIN Wert-Grad: am Desktop `.metric-grid` mit Title 1 (28px) - auch in einer Seitenspalte, die EINE Karte je Zeile stapelt (die Spalte sagt es der Zeile mit `--summary-cards: 1` + `--metric-value-size`); mobil die Kurzzeile, bei einer einzigen Zahl ohne Aufklapper (`metricGlanceHtml()` ohne `controls`). Seit R18 FUEHRT je Geld-Reiter eine Zahl: `lead: true` in der Kurzzeile, `.metric-card--lead` in der Reihe `.metric-grid--led` (Large Title 34 in der Seitenspalte, sonst Title 1, kleiner nur bei Ueberlauf - R23 D12; die uebrigen treten zurueck). **Eine Saldo-Aussage (R22, D9):** die Aufteilung nennt die Richtung, die nicht null ist ("Du schuldest", "Du bekommst" oder "Ausgeglichen"), EINE Karte - beide nur bei zwei Waehrungen in beide Richtungen. Eine Seitenspalte beginnt an der Werkzeuglinie der Liste und stapelt Karten in Inhaltshoehe (`grid-auto-rows: auto`, `padding-block: 0`; Abos wie Darlehen). Eine Darlehenskarte fuehrt mit ihrer Zahl, "Restschuld" steht leise in der Bezugszeile, kein Versal-Eyebrow | `.metric-grid`, `.metric-grid--rail`, `.budget-glance*` (panel.css), utils/metric-glance.js, utils/metric-card.js | 20px in der Seitenleiste neben 28px in der Zeile, Zweier-Reihe mit 144px-Karten, Karte statt Kurzzeile unter 640px |
 | Reiter-Skelett im Budget (R16) | Kennzahlen (s. o.), dann je Abschnitt `.u-section-title` AUF DER BUEHNE mit den Werkzeugen rechts (`.section-toolbar`), darunter der Zeilentraeger (`.row-carrier`). Karten nur, wo ein OBJEKT eine Karte ist (Darlehen, Gruppe, Konto). Statistik: Verlauf und Anteilsring teilen Zeile 1, die Balken nehmen darunter die Bahn; mobil steht der Ring als Kopf der Kategorieliste | budget.js, subscriptions.js, split-expenses.js, budget-stats.js | Titel in der Karte (`.subscriptions-list-section`, `.split-card`), Kartentitel 17px als Abschnittstitel, Ring in einer Leiste, die unter ihm leer bleibt |
@@ -2492,9 +2508,9 @@ als freistehend. Drei `--high`-Chips blieben so gemeldet, waehrend die uebrigen 
 erkannt wurden. Die Sonde fuehrt jetzt zusaetzlich jede EINZELKLASSE - dieselbe Blindheit, die
 Sonde 6 hatte, als sie nach `.metric-grid` fragte und die Reihe nicht sah.
 
-**Gemessen wird die TREFFERFLAECHE, nicht die Box.** `.weather-widget__refresh` ist 34x34
-gross und dehnt seine Flaeche per `::before` auf `--target-base` aus; eine Box-Messung meldet
-ihn als Verstoss, obwohl der Finger 44px findet. Das ist zugleich das Rezept fuer „kompakt
+**Gemessen wird die TREFFERFLAECHE, nicht die Box.** `.weather-widget__refresh` ist am Zeiger
+40x40 gross wie die Kopfknoepfe und dehnt seine Flaeche per `::before` auf `--target-base` aus;
+eine Box-Messung meldet ihn als Verstoss, obwohl der Zeiger 44px findet. Das ist zugleich das Rezept fuer „kompakt
 aussehen, voll treffen".
 
 **Wo gedehnt wird, gehoert die sichtbare Flaeche immer dem eigenen Ziel** (2026-09-24). Die
@@ -2677,30 +2693,85 @@ SEITENWECHSEL am Netz, zeichnet `showPageUnreachable()` denselben Ton in den Inh
 selbst neu; der Absturzbildschirm bleibt Fehlern im Code der Seite. Das Offline-Banner steht am
 Desktop rechts der schwebenden Seitenleiste (`--sidebar-width` + `--sidebar-float-gap`).
 
-**Die Fusszeilen-Regel (v2.6.0). Ueberschuessige Hoehe wird Atem, nicht Loch.** Eine Karte
-mit Fusszeile streckt ihren Koerper (`flex: 1`) und verankert die Fusszeile unten
-(`margin-block-start: auto`), damit der Ueberschuss ZWISCHEN Inhalt und Abschluss faellt
-statt hinter den Abschluss.
+**Die Fusszeilen-Regel (v2.6.0, neu gefasst mit U1 b). Eine Fusszeile schliesst an, sie wird nicht
+verankert.** Seit eine Kachel so hoch ist wie ihr Inhalt (Raster-Regel darunter), gibt es keinen
+Ueberschuss mehr, den der Anker (`margin-block-start: auto` am Fuss, Koerper `flex: 1`) zwischen
+Inhalt und Abschluss legen muesste: der Fuss steht unter der letzten Zeile. Der Anker bleibt fuer
+den einen Fall, in dem eine Kachel doch Hoehe bekommt - wenn sie ein echtes Loch im Raster
+schliesst: dann fuellt eine Liste den Platz mit weiteren geladenen Zeilen (U14, "Hoehe wird
+Inhalt" unten), und nur was danach bleibt, faellt zwischen Inhalt und Abschluss statt hinter den
+Abschluss. Vorher
+war der Anker die Regel: die Zeilenhoehen richteten sich nach den 1x1-Kacheln, und "Familie" stand
+mit 319px Inhalt in 489px Karte.
 
-Der Anlass ist eine Eigenheit jedes Rasters: die Zeilenhoehen richten sich nach den
-1x1-Kacheln, eine 1x2-Karte bekommt also die Summe zweier Zeilen plus Gap. Gemessen waren
-das 489px Karte gegen 319px Inhalt bei „Familie" und 294px bei „Budget" - und weil jeder
-Koerper oben klebte, sass der Rest als toter Block unter dem letzten Element. Mit dem Anker
-liest die Karte als bewusst gesetzter Rahmen aus Kopf, Inhalt und Fuss. Die Regel gilt fuer
-JEDE Karte mit Fusszeile, nicht nur fuer die zwei, die heute zu kurz sind.
+**Die Kachel der Uebersicht ist so hoch wie ihre Daten** (U1 b, DW-P1-3, Ulas 2026-10-26;
+`docs/DECISIONS.md` Nr. 16 - revidiert R10 L9 und R21 D5). Ab 768px rechnet das Raster in feinen
+Spuren (`--dashboard-row-unit`, 4px); jede Kachel belegt so viele, wie ihr Inhalt hoch ist: so
+viele Zeilen, wie die Daten hergeben und ihre Groesse erlaubt (die gewaehlte Groesse ist die
+OBERGRENZE, `listRowCap`, beim Kalender die Stufe), mal der Zeilenhoehe, dazu Kopf und Polster;
+leer genau eine Zeile (`.card-empty-row`). Der Renderer sagt es aus seinen Daten, bevor das Raster
+ausgelegt wird (`contentSpanRows`, `data-span-rows`, `--tile-rows`) - keine Messung, in jedem
+Browser dasselbe Raster, und Skelett und Layout-Hinweis kennen dieselbe Spanne. Damit das stimmt,
+hat eine Zeile ab 768px eine HOEHE (54px, Name und Metazeile je einzeilig; benannte Ausnahme der
+Titelregel R19) und die Kacheln ohne Zeilen eine Hoehe je Groesse und Datenlage (`TILE_PARTS`):
+Notizen schmal eine, breit drei Spalten mit genau zwei Vorschauzeilen, Schnellzugriffe drei bzw.
+sechs je Reihe, das Fasten schmal mit untereinander stehenden Knoepfen. Dieselbe Ausnahme traegt
+die Kennzahlreihe (U15, Ulas 2026-10-27): ab 768px stehen Modulname und Notiz jeder Kachel in einer
+Zeile mit Ellipse (der Link nennt den vollen Text), und die Spaltenzahl kommt aus derselben Rechnung
+wie die Hoehe (`--metric-cols`: breit alle Kacheln in einer Reihe, schmal zwei) statt aus der
+Breite - vorher stand eine 684px breite Reihe in drei Spalten und zwei Kachelreihen (308 statt
+120px), und vier Kacheln brachen ihre Texte um (150 statt 119px), beides im Anpassen-Modus
+abgeschnitten. Die Zahl tritt weiter per `fitMetricLeads` zurueck, auch wenn sie nur ins Polster
+liefe; unter 768px bleibt `auto-fit`, und Texte brechen. Den Abstand zwischen zwei
+Kacheln traegt der Rahmen (Aussenabstand unten, `--tile-gap-rows` Spuren). Vorher belegte eine
+Kachel so viele 132px-Zeilen, wie ihre Groesse sagte, und eine Zeile war so hoch wie ihre hoechste
+Kachel: gemessen mit allen Kacheln 19 % (1440px) bzw. 27 % (1920px) der Kachelflaeche leer.
 
-Sie loest das Loch nicht allein: dazu gehoert, dass eine Listen-Kachel ihre Zeilenzahl aus
-ihrer HOEHE nimmt statt aus einer Konstante, die fuer eine und fuer zwei Rasterzeilen
-dieselbe war. Ueber das Standard-Board gemessen bleiben 3px Leerraum pro Karte.
+**Das Raster hat im Normalmodus kein Loch und keine leere Spalte - und keine Kachel Hoehe ohne
+Inhalt, die kein Loch schliesst.** Gepackt wird dicht wie bisher (`packGrid`), mit EINER Abweichung:
+passt eine breite Kachel an mehreren Stellen fast gleich frueh (hoechstens ein Kachelabstand,
+`GRID_END_SLACK`, 20px), nimmt sie die mit dem kleinsten Loch darueber und behaelt diese Spalte
+(`--tile-col`). Was danach frei ist (`fillGridSpans`): rechts neben dem Wetter waechst zuerst das
+Wetter hinein und zeigt mehr Tage - keine Kachel wird breiter, nur weil Platz ist (DW-P2-6); ein
+Loch, unter dem noch eine Kachel steht, fuellt die Kachel darueber; was dann noch Loch ist, eine
+Kachel daneben in die Breite, nach rechts oder links. Ein Spaltenende bis zu einem Kachelabstand
+laeuft ruhig aus; ein laengeres ist ein Loch (F9): eine leere Spalte neben vollen liest als kaputt.
+Es nimmt eine Kachel daneben in die Breite, sonst die letzte Kachel der Spalte in die Hoehe. Alles
+ist Darstellung (`data-row-fill`/`data-col-fill`/`data-col-lock`), gespeichert bleibt die gewaehlte
+Groesse. Der Befund dazu (F9, p9): das Wetter setzte sich 8px frueher in Spalte 2-3, Kennzahlen
+und Notizen folgten, und Spalte 1 stand im Demo-Haushalt bei 1440px unter der Familie 536px leer,
+im Kinderkonto 588px; die alte Loch-Zaehlung sah das Spaltenende nicht. Gemessen nachher (Seed,
+Kind, alle Kacheln; 768-1920px, hell und dunkel): 0 Loecher, kein Spaltenende ueber 8px, das
+Wetter bei drei Spalten ueber die ganze Breite (`test:dashboard`, "U1 b", "F9").
 
-**Das Raster der Uebersicht hat im Normalmodus kein Loch - rechts, dann unten** (R10 L9, R21 D5).
-Nach der dichten Packung waechst jede Kachel erst nach rechts in den Rest ihrer Zeile
-(`rowFillSpans`), dann nach unten in freie Zellen, die von links niemand erreicht
-(`columnFillSpans`): eine 1x1-Kachel neben zwei hohen liess darunter 305x185px leer (1440px,
-vier Spalten) bzw. 319x201px (Kinderkonto, drei Spalten). Beides ist Darstellung
-(`data-row-fill`/`data-col-fill`), gespeichert bleibt die gewaehlte Groesse; im Anpassen-Modus
-waechst nichts. Die Kennzahlreihe (`align-self: start`) waechst nicht nach unten. Gemessen nachher:
-0 Loecher bei 2, 3 und 4 Spalten, Erwachsene und Kind (`test:dashboard`, „R21 D5").
+**Hoehe wird Inhalt** (U14, Ulas 2026-10-27; `docs/DECISIONS.md` Nr. 16). Bekommt eine
+Listenkachel beim Fuellen mehr Hoehe, als ihre Daten melden, zeigt sie darin weitere Zeilen, die
+sie schon geladen hat (der Server liefert den Vorrat fuer die groesste Fassung, die Groesse zeigt
+weniger) - ganze Zeilen oder keine, und "+N weitere" zaehlt herunter oder geht, wenn alles steht.
+Ohne Mehrdaten bleibt der Platz leer. Eine Mechanik fuer alle Listen: der Renderer traegt die
+Zeilen mit (`data-fill-row`, versteckt) und rechnet mit derselben Geometrie, wie viele Spuren er
+mit 1, 2 ... Zusatzzeilen braeuchte (`data-fill-steps`, `contentSpanRows`); `applyRowFill` zeigt
+nach der Packung so viele, wie in die zugeteilte Hoehe passen (`fillRowCount`). Keine
+Rueckkopplung: die Spanne bleibt die der gewaehlten Groesse, die Packung sieht die Zusatzzeilen
+nie, und gelesen wird kein Layout. Sie stehen im ersten Bild schon da (keine Einlaufbewegung);
+nach einem stillen Abgleich zieht eine nachrueckende Zeile ein wie jede neue (`expandIn`). Im
+Anpassen-Modus ist der Geist nur noch der Rest unter der letzten Zusatzzeile. Am Telefon wird
+nicht gestreckt, also auch nichts mitgetragen. Ohne Mehrdaten: Familie (sie zeigt in jeder
+Groesse bis zu sechs Mitglieder; ein siebtes ist nicht angeschlossen, weil die geteilte Terminzeile
+an den gezeigten Personen haengt), Einkauf (eigene Form, U11), Kennzahlen, Wetter, Uhr, Gesundheit, Zyklus,
+Fasten, Naehrwerte, Haushaltshilfe, Schnellzugriffe, Mahlzeiten. Gemessen 1440px, alle Kacheln:
+Budget hoch 79 -> 29px leer (zwei Kategorien mehr); Aufgaben 1x1 neben zwei hohen Kacheln 109 ->
+1px ("+9 weitere" -> "+7 weitere").
+
+**Anpassen zeigt das Raster, das danach steht** (DW-P2-9). Der Rahmen hat im Anpassen-Modus genau
+die Flaeche seiner Daten (`contain: size`), die Leiste schwebt mit dem Namen der Kachel ueber deren
+Kopf, die Kante des Rasters liegt ausserhalb (outline statt Polster). Die Hoehe, die eine Kachel nur
+zum Fuellen bekommt, steht dort als gestrichelter Schlitz unter dem Inhalt (Geist, dieselbe Form wie
+der Platz beim Ziehen). Fuer Breite gibt es keinen Geist: eine verbreiterte Kachel laesst ihren
+Inhalt ueber die ganze Breite laufen, ein Schlitz an ihrem Rand laege ueber Zeilen und Kennzahlen.
+Gemessen: Kachelrahmen im Anpassen-Modus = Normalmodus +-1px. Eine Geste packt und fuellt neu, ohne
+die Seite neu zu bauen; ein stiller Abgleich, der die Spanne einer Kachel aendert, laesst die Kacheln
+gleiten (FLIP, `--ease-out`; unter reduzierter Bewegung blenden sie).
 
 **Und eine Fusszeile ist eine Auskunft, kein Griff.** Die Tagesbilanz des Haushalts schliesst
 ihre Karte als hairline-getrennte Zeile ab, exakt wie der Fuss der Budgetkarte - ein
@@ -2752,6 +2823,24 @@ Zeile, deren Titel-Trefferflaeche die Polsterung mitrechnet (Aufgaben), `--tight
 die links ein BILD statt eines Bedienelements fuehrt (Kontakte). Mehr Stufen gibt es nicht:
 eine dritte Zahl in einem Modul-Stylesheet ist ein Nachbau, und ein Guard sagt das auch so
 („Abweichen ist erlaubt, wiederholen nicht").
+
+**Fuehrung und Endzone (Critique DW 2026-10-26, DW-P1-4).** Die geteilte Zeile hat zwei
+benannte Teile mehr: `.list-row__lead` - EIN Zeichen vor dem Namen, 32px im Quadrat (Avatar,
+Siegel oder Glyphe; ein Punkt oder Ring steht mittig darin), damit jeder Name an derselben Kante
+beginnt - und `.list-row__end` - EINE Angabe am Ende, Footnote halbfett mit gleich breiten
+Ziffern (Rolle in typography.css), ohne Flaeche: "wird 41" ist ein Satzteil, kein Etikett. Erster
+Nutzer sind die Listen-Kacheln der Uebersicht: Aufgaben, Termine, Geburtstage, Countdown, Vorrat,
+Schichtplan, Entsorgung, Familie, Belohnungen und Einkauf trugen neun Zeilen-Dialekte (Titel
+15/600 bis 17/600, Fuehrung 5 bis 40px, drei Trennerformen, kein Druckbild) und sind jetzt
+`.list-row` in der Kachel als ihrem EINEN Traeger (`widgetRows`: `.widget__rows.row-divided`).
+Die Abweichungen der Kachel stehen an EINER Stelle (dashboard.css, "EIN ZEILENGERUEST"): die
+Zeilen reichen bis an die Kartenkanten wie im Heute-Blatt (Einzug 16 = Kante des Kopf-Siegels),
+4px Polster und 52px Mindesthoehe statt 64 (eine Vorschau, keine Arbeitsliste), die Metazeile
+bricht nicht um ("Heute · 17:00 · Ort"). Druck und Hover nur, wo die Zeile ein Ziel ist; reine
+Auskunftszeilen (Familie, Belohnungsstand) bleiben still. Ausgenommen sind wie bisher Notizen,
+Mahlzeiten-Slots und das Heute-Blatt; am Telefon bleibt die Familie die Avatar-Reihe (R19).
+Guards: `test:typography` "R21 S5 + DW-P1-4", `test:frontend-audit` "row lists sit in exactly
+one carrier" und "D8".
 
 **Der Zeileneinzug (R22, D8).** Waagerecht steht eine Zeile auf `--space-3` (12px, `.list-row`),
 `--roomy` und Zeilen, die mit einem 16er Traeger fluchten (Dosis, Besuche), auf `--space-4`.
@@ -3047,10 +3136,10 @@ geschrieben nur, wo noch nichts steht (`test:child-start-permissions`, "R21 D6")
   Haarlinie laeuft ueber beide; bei ungerader Zahl spannt die letzte Zeile unter beiden
   (`.today-cockpit-card--span`). Die Einkaufszeile schliesst das SICHTBARE Programm und steht vor
   „+N weitere heute". Im Kindkonto steht die eigene Belohnungskachel oben (die Anfrage folgt dem
-  Ziel statt `margin-block-start: auto`). Was die Reihe der 1x1-Kachel ueber ihren Inhalt hinaus
-  gibt, fuellt der Verlauf (bis drei Zeilen) in einer Flaeche ohne eigene Hoehe: ganze Zeilen
-  oder keine (umbrechende Spalte, `.rewards-recent--fill`), in einer Reihe kurzer Kacheln bleibt
-  sie 0px (R22 S10; 1440: 206px Inhalt in 427px Kachel, jetzt drei Zeilen). Guards:
+  Ziel statt `margin-block-start: auto`). Was die Packung der 1x1-Kachel ueber ihren Inhalt hinaus
+  gibt, fuellt der Verlauf (bis drei Zeilen), ganze Zeilen oder keine - seit U14 ueber die eine
+  Mechanik aller Listen (Zusatzzeilen, siehe "Hoehe wird Inhalt"), nicht mehr ueber eine eigene
+  umbrechende Spalte (R22 S10; 1440: 206px Inhalt in 427px Kachel, jetzt drei Zeilen). Guards:
   `test:dashboard-today` ("R22 D16"), `test:dashboard-rewards` ("Groessen").
 - **Anpassen: Optionen am Chip (R22, D16):** ein ausgeblendetes Widget mit Optionen ist ein
   geteilter Knopf - links einblenden (ein Tipp), rechts am selben Pill der Pfeil ins Menue
@@ -4459,6 +4548,20 @@ ist GENAU EIN Element, und es traegt den Modulton zu 100 %. Die Kachelreihe
 (`metric-card--tile`) fuehrt dasselbe Siegel - zwei Siegel-Gesichter auf einem Board
 waeren zwei Wahrheiten.
 
+**Und die Kachelreihe ist aus demselben Material** (DW-P2-7, 2026-10-26). Sie trug das
+Material der Kennzahlkarte des Budgets (Radius 16, shadow-sm, Polster 12, Label 12/500
+sekundaer, Wert 28/700) und las mitten zwischen den Widgets als zweites Kartensystem. Jetzt:
+Flaeche, Radius 12 und shadow-md aus der einen Materialregel `.dashboard .widget`, Polster 16
+wie der Widget-Koerper, Luecke = Rasterluecke (`--dashboard-grid-gap`); der Kopf spricht den
+Widget-Dialekt (Siegel + Modulname in Label-Farbe, semibold, Headline-Dichtestufe 15px - eine
+Stufe unter dem 17px-Widget-Titel, weil die Kachel ein halbes Widget ist), der Wert Title 1
+semibold wie jede Kennzahl. Die Reihe ist der Container `metric-grid` (Wertstufen 28/22/20 nach ihrer Breite),
+`fitMetricLeads()` verkleinert, was auf der Stufe nicht passt, und per Subgrid teilen die
+Kacheln Kopf-, Wert- und Fusszeile - ein umbrechender Modulname verschiebt keinen Wert mehr.
+Seit U1 b meldet die Reihe ihre Hoehe wie jede Kachel (vier Kacheln je Reihe breit, zwei schmal),
+der Abstand zur naechsten Kachel ist die Rasterluecke (vorher 41 statt 20px). Das Caption-Label der
+Kennzahl-Regel unten gilt fuer die Kennzahl einer Flaeche; hier nennt das Label den Absender.
+
 **Hier stand `module-seal--vivid`, und die Klasse gibt es nicht mehr.** In Etappe 2 war sie
 die Ausnahme neben der 16-%-Toenung; Etappe 3 desselben Tages hat den Vollton zur Regel
 gemacht, er steht seither in der `.module-seal`-Basisregel, und die Variante ist mitsamt
@@ -4484,6 +4587,16 @@ Inhalt wie den naechsten Abfalltermin; der Zaehler-Badge ist neutral); das Siege
 `--active-module-accent` an dieser Stelle loeste auf dem Dashboard den Akzent der UEBERSICHT
 auf, also bekaemen alle Widgets dieselbe Farbe - ausgerechnet in dem Raster, in dem siebzehn
 Module nebeneinanderstehen.
+
+**Und eine Flaeche IN der Karte ist neutral** (DW p7). Die Mahlzeiten-Slots wurden mit
+`--module-accent` gewaschen - auf der Uebersicht deren eigenes Violett, unter einem orangefarbenen
+Siegel. Sie sind jetzt eine Mulde (`--color-fill-well`, ohne Kante) wie die Notizzettel daneben,
+den Ton traegt die Glyphe des Mahlzeit-Typs. Ebenso **EIN gefuellter Knopf je Schirm**: das ist
+das Anlegen (FAB bzw. Kopf-Pille, im Anpassen-Modus "Fertig"); "Fasten starten" in der Kachel ist
+sekundaer, und ihr Ring begleitet den Satz (hoechstens `--fasting-widget-dial`, 120px, ohne
+Stundenmarken) statt ihn in einer 224px-Scheibe zu tragen. Die Balken der Kacheln stehen, sie
+wachsen nicht: ihre Transitions liefen nie (Endwert im Markup) und sind gestrichen (DW-P3-10).
+Hover nur unter `@media (hover: hover)` (DW-P3-15, Guard `test:frontend-audit`).
 
 **`--seal-base` braucht der Kopf nicht mehr - und niemand sonst.** Die Mischgrund-Falle
 („Der Traeger entscheidet, welches Gesicht es zeigt") gehoerte zum getoenten Gesicht auf dem
@@ -4602,7 +4715,14 @@ Spannenbalken sind Farbe und Form, keine Bewegung. Guard-Ebene: Signatur (jede R
 eine Wetterflaeche animiert, muss unter einer Bewegungs-Bedingung stehen) - er fand
 denselben Befund im Bestand, den Ladekringel des Aktualisieren-Knopfs, und der bleibt als
 BENANNTE Ausnahme: eine Aktivitaetsanzeige muss auch unter reduzierter Bewegung erkennbar
-sein, und die Zusicherung belegt, dass sie fluechtig ist.
+sein, und die Zusicherung belegt, dass sie fluechtig ist. **Seit DW p7 (DW-P3-3)** ist der
+Knopf ein Kopf-Icon-Knopf der Shell (`btn btn--secondary btn--icon`) in der Endzone des
+Widget-Kopfes (`widgetHeader(..., { action })`), wo andere Kacheln "Alle" tragen - vorher ein
+grauer Well-Kreis, absolut in der Kartenecke und per z-index ueber den Kopf gehoben. Er waechst
+den Kopf nicht (negative Marge ins Kopfpolster), und sein Kringel ist die Statusdrehung der
+Knoepfe (`.btn--loading`) - die Klasse `--spinning` davor hatte keine Regel. Der Lichthauch
+hinter der Glyphe hat auf der Kohle-Buehne die halbe Staerke (`--weather-glow-strength`,
+DW-P3-8): die aufgehellten Lagen standen dort als grauer Fleck neben der Wolke.
 
 **DIE SPANNE DER WOCHE** macht aus der Verlaufszeile eine Auskunft. Unter jedem Wochentag
 standen zwei nackte Zahlen ohne Beziehung zueinander - welcher Tag der waermste ist, war
@@ -4708,8 +4828,45 @@ Ursache aus `unhandledErrorSentence` den Satz, dass der Rest weiterlaeuft, und b
 ist Region-Fokusziel ohne Rahmen (`.page-crash`, wie `.page-unreachable`).
 
 **Anpassen am Telefon** (unter 640px): Hoch und Runter liegen in EINER Kapsel auf
-`--color-fill-well` mit Haarlinie, Groesse, Optionen und Ausblenden stehen ohne Ring daneben;
-die Ziele bleiben 48px. Vorher vier umrandete Kreise je Zeile.
+`--color-fill-well` mit Haarlinie, Groesse, Optionen und Ausblenden stehen ohne Ring und ohne
+Luecke daneben, am Ende der schmale, zeilenhohe Griff; die Ziele bleiben 48px. Die Liste ist dort
+selbst das Zeichen des Modus, die gestrichelte Rasterkante faellt weg. Vorher vier umrandete
+Kreise je Zeile.
+
+**Jede Kachel hat ein Menue** (U7, WCAG 2.5.7). Am Zeiger stehen Hoch und Runter nicht in
+der Leiste; damit niemand ziehen muss, traegt jede Kachel im Anpassen-Modus ein Menue (der Kreis
+`.widget-edit-controls__options`, `popoverMenuHtml` mit `defer`) mit "Nach vorn" und "Nach
+hinten" - ein Platz in der Lesereihenfolge, ueber `placeWidget` wie Hoch/Runter, Ansage "Platz n
+von m", der Fokus bleibt am Ausloeser - und, wo vorhanden, den Optionen der Kachel. Am Rand ist
+der Eintrag gesperrt (Menue-Kanon), `syncCustomizeControls` haelt die Sperre auch im noch nicht
+geoeffneten Menue. **Das Menue steht nur am Zeiger (U10, Ulas 2026-10-27):** am Finger stehen
+Hoch und Runter in der Leiste, und die Optionen waren im Menue zwei Tipps entfernt. Dort steht
+statt des Menues wieder der direkte Optionen-Knopf (`.widget-edit-controls__options--direct`,
+`renderWidgetOptionsButton`, nur an Kacheln mit Optionen) - ein Tipp, derselbe Handler
+`[data-widget-options]`. Welcher Ausloeser steht, entscheidet `(pointer: coarse)`; nie beide.
+
+**Die Kacheln ziehen nach N3** (DW-P2-3, DW-P2-9). Jede Kachelleiste endet im Griff
+(`[data-widget-drag-handle]`), an dem `makeSortable` zieht - per Maus und per Finger (Halten
+120 ms), geladen erst im Anpassen-Modus. Der Platz ist der geteilte leere Schlitz
+`.sortable-ghost`, das Ziehbild die Kachel selbst, deckend auf `--color-surface-elevated` mit
+`--shadow-lg`; die Nachbarn weichen in `--duration-sm` + `--ease-out`. Ablegen, Hoch/Runter und
+die Pfeiltasten am Griff legen ueber denselben Weg (`placeWidget`: reorderWidgetConfig +
+patchCustomize). Kein `draggable` am Wrapper. Die Groesse waehlt das Shell-Segment `.segmented`
+mit den Namen der Groessen (Klein, Breit, Hoch, Quadrat; die Massangabe nur fuer den
+Screenreader), aussen so hoch wie die Kreise der Leiste. Im Kopf steht der Reichweiten-Satz in
+EINER Zeile, woher der Stand kommt hinter "Mehr dazu" (natives `<details>` wie `hintFoldHtml`).
+
+**Eine Anpassen-Geste aendert nur die Kachel, die sie trifft** (DW-P2-1, DW-P2-2, DW-P3-9,
+DW-P3-12). Verschieben, Groesse, Optionen, Aus und Ein patchen die Flaeche an Ort und Stelle
+(`patchCustomize`): die Kacheln werden umgehaengt (`moveBefore()`, ohne die Methode
+`insertBefore` und der Fokus zurueck), nur ein geaenderter Koerper wird neu gezeichnet, die
+Ablage bekommt oder verliert genau ihren Chip; Heute-Blatt und Kennzahlreihe rechnen nur bei
+geaenderter Sichtbarkeit (Kein-Echo). Die Nachbarn gleiten per FLIP auf `--ease-out` +
+`--duration-lg` wie das Raster beim Betreten - keine Feder (sie schoss 35/53px uebers Ziel);
+unter reduzierter Bewegung blendet, was sich bewegt haette, 0,4 -> 1 in `--duration-sm`.
+Ablage, Chips und Kachelleisten blenden per `@starting-style` in `--duration-md` ein. Der
+Lueckenhinweis schreibt erst nach dem naechsten Bild, das Raster gleitet dann an seine neue
+Oberkante. Neu gebaut wird nur beim Moduswechsel (Betreten, Speichern, Abbrechen).
 
 ### FAB (Signature Component)
 Getoente Glas-Kapsel: der App-Akzent mit 78 % Deckung
@@ -5324,8 +5481,8 @@ Angabe braeuchte einen zweiten Timer, nur damit sie sich selbst aktuell haelt.
   Ort (R23, D12), semibold:** in einer Seitenspalte Large Title 34 (`.metric-card--lead`, die
   Spalte meldet sich mit `--metric-rail: ;`), in einer Reihe und mobil in der Kurzzeile Title 1
   28 (`metricGlanceHtml({ lead: true })`, `.budget-glance--lead`, die Nebenwerte als EINE ruhige
-  Zeile darunter); in einer Reihe mit mehreren Karten treten die uebrigen eine Stufe zurueck und
-  verlieren das Fett (`.metric-grid--led`). **Kleiner nur bei Ueberlauf:** `fitMetricLeads()`
+  Zeile darunter); in einer Reihe mit mehreren Karten treten die uebrigen eine Groessenstufe
+  zurueck (`.metric-grid--led`; das Gewicht ist seit 2026-10-26 fuer jede Kennzahl semibold). **Kleiner nur bei Ueberlauf:** `fitMetricLeads()`
   (utils/metric-card.js) misst Karte bzw. Kurzzeile per ResizeObserver vor dem ersten Bild und
   setzt `data-fit` (Title 2, dann Title 3). Bis R23 waehlte die Zahl ihre Stufe nach ihrer
   Zeichenzahl (18-48px, sechs Groessen derselben Rolle). Ein Ziel ("von 90,00 €") steht in der

@@ -193,6 +193,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   113, Safari before 17.2, Firefox before 112) keep the previous entrance, and with reduced motion
   sheets still only fade. The sidebar's active pill glides on the same kind of spring, as far as
   before but settling sooner.
+- **Every tile on the overview is as tall as what it shows.** From tablet width up, a tile used to
+  take the height of its neighbours in the same row, so a list with two entries stood as tall as one
+  with five and the rest was blank card - with every tile shown, a fifth to a quarter of the card
+  area was empty. Now each tile reports its height from its own data: the rows it shows (at most as
+  many as its size allows, so the size you pick is the limit), the header and the padding, and an
+  empty tile is a single line. Tiles pack below one another without gaps, and no column stays empty
+  beside full ones; where a gap would still open up, a neighbour closes it, and in Customize extra
+  height shows as a dashed slot, so you see which height is content and which is space. Customize
+  now shows exactly the grid you get afterwards: the bar floats over the tile's header instead of
+  pushing the tile down. A tile changes its height smoothly when an entry is added or done, and the
+  weather tile is the first to grow into free width, where it shows more days. A 1920px screen now
+  has three wider columns instead of four narrow ones, so appointment details are no longer cut off.
+  Titles in the tiles' rows stay on one line from tablet width up; the full title is one tap away.
+  The same goes for the module name and the note under each key figure: up to four figures share
+  one row at any width, instead of wrapping into a second row that Customize cut off.
+- **A tile stretched to close a gap shows more of its list.** When a list tile on the overview gets
+  extra height to close a gap beside taller neighbours, it fills it with entries it already has
+  but did not show at its size - more tasks, appointments, birthdays, countdowns, expiring food,
+  shifts, waste pickups, notes, rewards or expense categories, whole rows only - and "+N more"
+  counts down, or goes once everything is shown. Without more entries the space stays as it was;
+  the tiles keep their places, and phones are unchanged. The overview now loads the eight nearest
+  birthdays and the five largest expense categories, so a stretched tall tile has rows to show. The
+  recent points in a child's small rewards tile come the same way and sit above "1 request
+  awaiting approval", as in the tall tile.
+- **Every list on the overview reads the same, and a phone shows more of it.** Tasks, appointments,
+  birthdays, countdowns, expiring food, shifts, waste pickups, family, rewards and shopping lists
+  now share one row: a mark at the front of the same size (a face, a symbol or a dot), the title in
+  the weight it has in its module, one line beneath it, and at most one detail at the end ("turns 41",
+  "2 days left", "30 points") - nine different row styles had made each tile a new thing to learn.
+  Every row you can tap now darkens as you press it. An appointment's line says "Today · 17:00 ·
+  Sportplatz West" instead of a badge that pushed the time to a line of its own on a phone, so
+  every appointment takes two lines at most, and the family tile's shared appointment uses the full
+  width instead of being cut short. "2 to approve" in the rewards tile is a row that leads to the
+  approvals rather than a grey bar that looked disabled. On a phone, tile headers and the space
+  above the first row are 16px slimmer, the header of the overview sits 28px higher, and the
+  "Today" sheet and the tiles below it are spaced like the tiles themselves. In Customize on a phone
+  or tablet, a tile with options has its options button back - one tap - while "Move forward" and
+  "Move back" stay in the menu for mouse and trackpad.
+- **"+ New" on the overview adds a task, an appointment or a note right where you are.** The
+  form opens over the overview - the same one as in the module - instead of switching to the
+  module first, and after saving the overview stays where you scrolled it: no loading placeholders,
+  and the new entry slides into its tile. Cancel or Esc returns focus to "+ New". A shopping item
+  still opens the shopping list, where items are typed into the line above the list.
+- **Tiles on the overview are dragged like every list in the app, by finger too.** In Customize,
+  each tile now has a grip at the end of its bar: hold it and drag, with the mouse or on a phone or
+  tablet. The tile you hold stays fully visible and lifted, the place it will land is an empty
+  dashed slot, and the neighbouring tiles make room as you move - as when reordering a shopping
+  list. Up and down buttons and the arrow keys on the grip still work as before. The tile size is
+  chosen with a labelled segment - Small, Wide, Tall, Square - instead of four unlabelled shapes,
+  and the note about who a change applies to is one line now, with "More about this" for the rest.
+- **Arranging the overview changes only the tile you touch.** In Customize, moving a tile,
+  changing its size or options, hiding it or bringing it back no longer redraws the whole overview:
+  the tile changes in place and responds noticeably faster, its neighbours glide to their new
+  places without overshooting, and the button you pressed keeps the focus. With reduced motion the
+  tiles that moved fade in where they land instead of jumping. When Customize opens, the shelf of
+  hidden tiles and the bar on each tile fade in instead of standing there in the first frame.
+- **The overview loads in its own shape and comes back sooner.** While it loads, the overview now
+  shows its header - date, greeting, buttons - and the "Today" sheet with its rows where they will
+  be, and the tiles in the order and widths you arranged; the quick-add button carries its plus from
+  the first frame. On the phone the tiles used to wait at the top of the screen and slide down
+  some 640px when the sheet arrived; now they start where they end up. Coming back to the overview
+  holds the screen for less time: tiles out of view are laid out when they come near, and the
+  page is laid out once instead of twice.
+- **The number tiles on the overview are made like the other tiles.** They had the corners, shadow
+  and padding of the budget's cards and stood between the tiles as a second kind of card; now they
+  share the tiles' surface, corners and shadow, sit as far apart as the tiles around them, and lead
+  with the module's seal and name in the weight of a tile header. Key figures across the app -
+  health, inventory, home help, split expenses, the budget tile's balance and the fasting timer -
+  are now semibold like the leading figures already were, and stand out by their size instead of
+  a heavier weight. On the overview the number steps down with the width of the row, so
+  "10 im Monat" no longer runs past the edge of its tile on a phone, and one that still does not
+  fit gets a size smaller. The numbers of a row stay on one line
+  when one module name wraps, and from 1024px the gap below the row is the grid's 20px instead of 41px.
+- **The overview's tiles speak one language, down to their empty and error states.** A tile with
+  nothing in it says so in one quiet line with its one action at the end - "No waste types yet ·
+  Add" - and the action no longer drops below the sentence on a phone or in a narrow tile; the same
+  line as in Health. A tile that could not load has the header of every other tile, with its seal
+  and as a heading for screen readers, and "Try again" at the end of its line. The weather's refresh
+  button sits in the tile header like the other header buttons and now visibly spins while it
+  loads. The fasting tile shows a small ring beside its sentence instead of a large dial around it,
+  and "Start fasting" is no longer a second filled button next to "+ New". Planned meals sit on a
+  neutral surface in light and dark, with the colour left to each meal's icon, "+17 more" in a
+  shopping list reads like every other "more" line, the weather's glow behind the icon is softer
+  in dark mode, hover highlights only appear with a mouse instead of sticking after a tap, and the
+  "+ New" menu on a phone closes faster than it opens. In Customize, each tile's "..." menu offers
+  "Move forward" and "Move back", so tiles can be rearranged with a mouse without dragging.
 - **The preferences API answers in English** (#1695). `/api/v1/preferences` and its holiday routes
   still sent most refusals in German ("timezone_hint_dismissed muss true oder false sein.",
   "Interner Fehler"); every `error` there is now an English sentence, with the same status codes.
@@ -281,6 +367,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scopes` stay optional for integrations that create tokens themselves.
 
 ### Fixed
+- **Customizing the overview no longer starts or ends a fast.** Like every other tile content
+  there, the fasting tile's start and finish button now rests while you arrange tiles; before,
+  it started a fast that the tile did not show until you left the overview.
+- **A key figure no longer runs to the edge of its card.** A figure that only ran into the card's
+  padding kept its full size - on an overview tile it stood 3px from the edge; it now steps down a
+  size like one that overflows the card, on the overview and in the modules alike.
 - **A subscription or loan payment booked to an account in another currency is in that account's
   currency** (#2302). An account in US dollars got its subscription payments and loan installments
   in the household currency, so its balance added dollars and euros as if they were one. A
@@ -418,6 +510,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rename field now has the same 80-character limit as the create field), an order that changed in
   the meantime (the current order is shown), and a calendar only an admin may delete because it is
   exported. The API keeps its `error` text, now in English, and adds a `reason` for each case.
+- **Editing an appointment from the overview shows the whole form again.** The colour choice,
+  the icon picker, the attachment and the spacing of the date rows were missing their styles when
+  the form opened over the overview instead of in the calendar - "Colour" stood there without a
+  single colour to pick.
 - **A CalDAV rate limit or outage no longer sends a moved shopping item back (#2137).** When a
   target reminder list responds with 429 or 5xx while a shopping item is being moved there, the move
   now waits instead of counting as a failure, so five such answers no longer return the item to

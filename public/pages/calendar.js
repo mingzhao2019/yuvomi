@@ -74,6 +74,7 @@ import {
   zonedDateKey,
   zonedTimeKey,
 } from '/utils/timezone.js';
+import { lendPageStyle } from '/utils/component-style.js';
 import { renderPageSearch, wirePageSearch } from '/utils/page-search.js';
 import { dayHeading, dayHeadingLabel } from '/utils/day-label.js';
 import { withTimeSuffix, clockText, timeSpanText, shiftTimeText, dateRangeText, dateText, dateTimeText } from '/utils/date-format.js';
@@ -8248,15 +8249,28 @@ function renderEventDetail(ev, reminders = []) {
  * Ein Vorkommen einer Serie kommt aus dem Tag (`date`), wie beim Deep-Link
  * des Kalenders (findDeepLinkedOccurrence): ohne es zeigte das Blatt den
  * Serienstart.
+ *
+ * DAS FORMULAR BRAUCHT SEIN SEITENBLATT (DW p7, Nachtrag zu U2). Farbwahl,
+ * Symbolwahl, Anhang und die Abstaende der Datumszeilen stehen in
+ * calendar.css, und der Router laedt es nur fuer die Kalenderseite: ueber
+ * der Uebersicht stand "Farbe" ohne einen einzigen Farbknopf (0px hoch).
+ * Geliehen wird es wie beim Anlegen (openNewEvent) fuer die Lebenszeit der
+ * Seite darunter (`signal`, lendPageStyle) - neben dem Oeffnen her, die
+ * Leseansicht wartet nicht darauf, das Formular schon (`ready`).
  * @param {string|number} id
  * @param {{ date?: string|null, anchor?: HTMLElement|null, user?: object|null,
  *           onChanged?: () => (void|Promise<void>),
- *           onRemoving?: (scope: object, removing: boolean) => void }} [options]
+ *           onRemoving?: (scope: object, removing: boolean) => void,
+ *           signal?: AbortSignal|null }} [options]
  */
-export async function openEventById(id, { date = null, anchor = null, user = null, onChanged = null, onRemoving = null } = {}) {
+export async function openEventById(id, { date = null, anchor = null, user = null, onChanged = null, onRemoving = null, signal = null } = {}) {
   // Steht die Kalenderseite, gehoert der Zustand ihr; sonst holt das Blatt
   // ihn selbst, und zwar sofort - parallel zum Termin.
-  const away = hostedHere() ? null : { onChanged, onRemoving, ready: loadAwayFormContext(user).catch(() => {}) };
+  const away = hostedHere() ? null : {
+    onChanged,
+    onRemoving,
+    ready: Promise.all([loadAwayFormContext(user), lendPageStyle('/styles/calendar.css', signal)]).catch(() => {}),
+  };
   const res = await api.get(`/calendar/${encodeURIComponent(String(id))}`);
   if (!res?.data) throw new Error(t('calendar.loadError'));
   const base = localizeBirthdayEvent(res.data);
@@ -8275,6 +8289,34 @@ export async function openEventById(id, { date = null, anchor = null, user = nul
   }
   _away = away;
   await openEventDetail(ev, anchor, { formReady: away?.ready });
+}
+
+/**
+ * EIN NEUER TERMIN UEBER EINER FREMDEN SEITE (DW, Ulas U2). "+ Neu > Termin"
+ * auf der Uebersicht wechselte hierher und klickte den FAB - die Uebersicht
+ * war weg, und nach dem Speichern stand man im Kalender. Jetzt geht dasselbe
+ * Formular wie am FAB ueber der aufrufenden Seite auf (der Weg von
+ * openEventById fuers Bearbeiten), und nach dem Speichern meldet es sich bei
+ * ihr (`onChanged`, notifyAwayChanged) statt eine Ansicht neu zu zeichnen,
+ * die nicht steht.
+ *
+ * Das Formular wird aus dem Zustand gebaut (Mitglieder, eigene Kalender,
+ * Praeferenzen), also wartet es auf loadAwayFormContext - und auf calendar.css
+ * (Farbwahl, Erinnerungszeilen), geliehen fuer die Lebenszeit der Seite
+ * darunter (`signal`, lendPageStyle). Der Tag ist heute im Haushalt: Ansicht
+ * und Cursor, nach denen der FAB hier waehlt (newEventDate), stehen nicht.
+ * Scheitert das Laden, wirft der Aufruf - der Aufrufer nimmt den Weg ins Modul.
+ * @param {{ user?: object|null, onChanged?: () => (void|Promise<void>), signal?: AbortSignal|null }} [options]
+ */
+export async function openNewEvent({ user = null, onChanged = null, signal = null } = {}) {
+  if (readOnly() || signal?.aborted) return;
+  await Promise.all([loadAwayFormContext(user), lendPageStyle('/styles/calendar.css', signal)]);
+  // DIE SEITE DARUNTER IST GEGANGEN, waehrend geladen wurde (Review p11): das
+  // Formular ginge sonst ueber der neuen Seite auf, und `_away` meldete das
+  // Speichern einer Seite, die nicht mehr steht.
+  if (signal?.aborted) return;
+  _away = { onChanged, onRemoving: null, ready: Promise.resolve() };
+  openEventModal({ mode: 'create', date: todayKey() });
 }
 
 /**

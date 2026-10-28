@@ -252,46 +252,60 @@ test('Ein einziges Mitglied: die eigene Zeile wird zur eigenen Sicht, eine fremd
 test('Groessen: die Kachel entscheidet, wie viel davon steht', () => {
   const recent = [1, 2, 3].map((n) => ({ delta: n, reason: `R${n}`, type: 'earn', created_at: '2026-09-01T08:00:00Z' }));
   const kid = (size) => renderRewardsWidget({ view: 'self', me: 7, standings: [emma(45)], catalog: [KINO], recent }, size);
-  const rowsOf = (html) => (html.match(/rewards-recent__row"/g) || []).length;
-  // R22 S10: 1x1 traegt den Weg zum Ziel - und den Verlauf nur als Fuellung
-  // dessen, was die Reihe der Kachel schenkt (`.rewards-recent--fill`, ohne
-  // eigene Hoehe). Breit und hoch steht er wie bisher in `.rewards-self__recent`.
-  const fillOf = (html) => html.match(/<ul class="rewards-recent rewards-recent--fill"[\s\S]*?<\/ul>/)?.[0] ?? '';
+  // Gezaehlt wird, was ohne Streckung steht.
+  const rowsOf = (html) => (html.match(/<li class="rewards-recent__row"[^>]*>/g) || []).filter((tag) => !tag.includes('data-fill-row')).length;
+  const fillRowsOf = (html) => (html.match(/<li class="rewards-recent__row" data-fill-row>/g) || []).length;
+  // R22 S10, seit U14 ueber die eine Mechanik aller Listen: 1x1 traegt den Weg
+  // zum Ziel - und den Verlauf nur als Zusatzzeilen (`data-fill-row`), die
+  // stehen, wenn die Packung der Kachel Hoehe zuteilt. Der Block samt
+  // Ueberschrift kommt mit der ersten (`data-fill-group`). Breit und hoch
+  // steht er wie bisher in `.rewards-self__recent`.
   const small = kid('1x1');
-  assert.doesNotMatch(small, /rewards-self__recent/, '1x1 hat keinen eigenen Verlaufsblock');
-  assert.equal(rowsOf(fillOf(small)), 3, 'der Verlauf fuellt hoechstens drei Zeilen');
-  assert.match(fillOf(small), /<li class="rewards-recent__row" data-recent-title="dashboard\.rewardsRecent">/, 'die erste Zeile traegt die Ueberschrift');
+  assert.equal(rowsOf(small), 0, '1x1 zeigt ohne Streckung keinen Verlauf');
+  assert.equal(fillRowsOf(small), 3, 'der Verlauf fuellt hoechstens drei Zeilen');
+  assert.match(small, /class="rewards-self__recent" data-fill-group/, 'die Ueberschrift kommt mit der ersten Zeile');
   assert.equal(rowsOf(kid('2x1')), 2);
+  assert.equal(fillRowsOf(kid('2x1')), 1, 'breit wartet die dritte');
   assert.equal(rowsOf(kid('1x2')), 3);
-  assert.equal(fillOf(kid('2x1')) + fillOf(kid('1x2')), '', 'breit und hoch keine Fuellung');
+  assert.equal(fillRowsOf(kid('1x2')), 0, 'hoch steht alles, was geladen ist');
   const css = readFileSync(new URL('../public/styles/dashboard.css', import.meta.url), 'utf8');
-  const rules = [...eachRule(css)];
-  const fill = rules.find((r) => r.selector.trim() === '.dashboard .rewards-widget--self > .rewards-recent--fill');
-  assert.match(fill?.body ?? '', /flex:\s*1 1 0/, 'die Fuellung hat keine eigene Hoehe');
-  assert.match(fill?.body ?? '', /flex-wrap:\s*wrap/, 'was nicht ganz passt, bricht aus der Flaeche');
-  assert.match(fill?.body ?? '', /overflow:\s*hidden/);
-  assert.match(fill?.body ?? '', /margin-block-start:\s*calc\(-1 \* var\(--space-3\)\)/, 'die leere Liste nimmt den Spaltenabstand zurueck (sonst +12px)');
-  assert.ok(rules.some((r) => r.selector.trim() === '.rewards-recent--fill::before' && /block-size:\s*0/.test(r.body)), 'ein leerer Halter fuer die erste Spalte');
+  assert.doesNotMatch(css, /rewards-recent--fill/, 'keine eigene Fuell-Liste mehr neben der Mechanik aller Listen');
   assert.equal(progressValue(kid('1x1')), 75, 'der Balken bleibt auf jeder Groesse');
 
   const kids = ['Anna', 'Ben', 'Carla'].map((name, i) => ({ id: 20 + i, display_name: name, balance: 10 }));
   const parent = (size) => renderRewardsWidget({ view: 'approver', me: 1, standings: kids, catalog: [KINO], pending: 1 }, size);
   const short = parent('1x1');
-  assert.equal((short.match(/class="rewards-member"/g) || []).length, 2);
+  const members = (html) => (html.match(/<li class="list-row rewards-member"[^>]*>/g) || []).filter((tag) => !tag.includes('data-fill-row')).length;
+  assert.equal(members(short), 2);
+  assert.equal((short.match(/<li class="list-row rewards-member" data-fill-row>/g) || []).length, 1, 'die dritte wartet als Zusatzzeile (U14)');
   assert.match(short, /dashboard\.shoppingMore\{"count":1\}/, 'wer nicht passt, wird gezaehlt');
   assert.doesNotMatch(short, /class="rewards-goal__label"/, 'die flache Kachel zeigt den Balken ohne Satz');
   assert.match(short, /aria-valuetext="rewards\.remainingToReward/, 'die Ansage behaelt den Satz');
   const tall = parent('1x2');
-  assert.equal((tall.match(/class="rewards-member"/g) || []).length, 3);
+  assert.equal(members(tall), 3);
   assert.match(tall, /class="rewards-goal__label"/);
+
+  // U1 b (DW-P1-3): die Kachel ist so hoch wie das, was in ihrer Groesse steht -
+  // und sagt fuer jede Groesse dieselbe Hoehe, die sie in dieser Groesse meldet
+  // (der Lueckenhinweis probiert Groessen, ohne neu zu zeichnen).
+  const spuren = (html) => Number(/data-span-rows="(\d+)"/.exec(html)?.[1]);
+  const jeGroesse = (html) => Object.fromEntries((/data-span-sizes="([^"]*)"/.exec(html)?.[1] ?? '').split(',').map((e) => e.split(':')).map(([k, v]) => [k, Number(v)]));
+  assert.ok(spuren(kid('1x2')) > spuren(kid('1x1')), 'hoch steht der Verlauf - die Kachel ist hoeher');
+  assert.ok(spuren(parent('1x2')) > spuren(parent('1x1')), 'hoch drei Mitglieder mit Satz, flach zwei ohne');
+  for (const view of [kid, parent]) {
+    const angesagt = jeGroesse(view('1x1'));
+    for (const size of ['1x1', '2x1', '1x2', '2x2']) assert.equal(angesagt[size], spuren(view(size)), `${size}: angesagt = gemeldet`);
+  }
 });
 
 test('Leerzustand: ein Kind bekommt keinen Knopf, den es nicht benutzen darf', () => {
   const kid = renderRewardsWidget({ view: 'self', me: 7, standings: [], catalog: [] }, '1x1');
   assert.match(kid, /dashboard\.noRewards/);
-  assert.doesNotMatch(kid, /rewards\.addReward/, 'Praemien anlegen ist Elternsache');
+  // Seit DW p7 traegt die Aktion der ruhigen Zeile nur das Verb ("Hinzufuegen"),
+  // der Satz daneben nennt das Objekt - erkannt wird sie an ihrem Ziel.
+  assert.doesNotMatch(kid, /card-empty-row__action/, 'Praemien anlegen ist Elternsache');
   const parent = renderRewardsWidget({ view: 'approver', me: 1, standings: [], catalog: [] }, '1x1');
-  assert.match(parent, /rewards\.addReward/);
+  assert.match(parent, /<button type="button" class="btn btn--secondary btn--sm card-empty-row__action"[^>]*data-route="\/rewards"/);
 });
 
 test('Kennzahlkachel: das Kind sieht den eigenen Stand, niemand einen Spitzenreiter', () => {

@@ -36,6 +36,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 import { eachRule } from './css-rules.js';
+import { withoutCommentsKeepingLines } from './source-text.js';
 
 const stylesDir = new URL('../public/styles/', import.meta.url);
 const indexHtml = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
@@ -2224,6 +2225,49 @@ test('R18: der Press-Baustein - vorhandene Zustandsflaeche, hinein 80ms, nie unt
   assert.doesNotMatch(press.body, /transform|scale|translate/);
 });
 
+// DW-P3-11: der Speed-Dial schloss so langsam, wie er aufging (250 ms beide
+// Wege, gemessen) - DESIGN.md Motion: "Austritt ist kuerzer". Die Regel des
+// geschlossenen Zustands fuehrt das Schliessen, die des offenen das Oeffnen.
+test('DW-P3-11: der Speed-Dial der Uebersicht schliesst schneller, als er aufgeht', () => {
+  const rules = [...eachRule(css('dashboard.css'))].filter((r) => !r.at.length);
+  const body = (sel) => rules.filter((r) => selectorList(r.selector).includes(sel)).map((r) => r.body).join(';');
+  const tokens = css('tokens.css');
+  const ms = (decl) => {
+    const name = /var\((--(?:duration|transition)-[\w-]+)\)/.exec(decl ?? '')?.[1];
+    assert.ok(name, `keine Token-Dauer in "${decl}"`);
+    const value = tokens.match(new RegExp(`${name}:\\s*([^;]+);`))?.[1].trim();
+    if (/^\d+ms$/.test(value)) return Number.parseInt(value, 10);
+    const inner = /var\((--duration-[\w-]+)\)/.exec(value)?.[1];
+    return Number.parseInt(tokens.match(new RegExp(`${inner}:\\s*(\\d+)ms`))?.[1], 10);
+  };
+  const exit = /transition:\s*([^;]+)/.exec(body('.fab-actions'))?.[1];
+  const enter = /transition:\s*([^;]+)/.exec(body('.fab-actions--visible'))?.[1];
+  assert.ok(exit && enter, 'beide Zustaende tragen ihre Transition');
+  assert.ok(ms(exit) <= 150, `der Austritt dauert ${ms(exit)}ms (Ziel <= 150)`);
+  assert.ok(ms(exit) < ms(enter), `Austritt ${ms(exit)}ms ist nicht kuerzer als Eintritt ${ms(enter)}ms`);
+  assert.match(exit, /var\(--ease-out\)/, 'ohne Ueberschwinger');
+});
+
+// DW-P3-10: sechs Balken der Uebersicht trugen eine Transition, die nie lief -
+// der Endwert steht im Markup, die Flaeche wird neu gezeichnet (ux.js,
+// growBars: "eine gebaute Bewegung, die nie zu sehen ist"). Ein Balken der
+// Uebersicht bewegt sich nur, wenn dashboard.js ihn ueber growBars waechst.
+test('DW-P3-10: kein Balken der Uebersicht traegt eine Transition, die nie laeuft', () => {
+  const page = publicSource('pages/dashboard.js');
+  const grows = /growBars\(/.test(page);
+  const bars = ['.shopping-widget-list__bar', '.budget-widget__share-saved', '.budget-widget__goal-fill', '.rewards-goal__fill', '.health-widget__bar-fill', '.cycle-widget__ring-arc', '.nutrition-widget__fill'];
+  const stray = [];
+  let seen = 0;
+  for (const rule of eachRule(css('dashboard.css'))) {
+    const hit = selectorList(rule.selector).some((sel) => bars.some((bar) => sel.trim().endsWith(bar)));
+    if (!hit) continue;
+    seen += 1;
+    if (/(?:^|;)\s*transition(?:-property)?\s*:/.test(rule.body) && !/transition\s*:\s*none/.test(rule.body)) stray.push(rule.selector.trim());
+  }
+  assert.ok(seen >= 6, `Reichweite: nur ${seen} Balken-Regeln gesehen`);
+  if (!grows) assert.deepEqual(stray, [], `tote Transition an einem Balken ohne growBars:\n${stray.join('\n')}`);
+});
+
 test('R18: die Zahl der ungeschuetzten :hover-Regeln steigt nicht (Ratchet)', () => {
   const open = hoverRules().filter((h) => !h.guarded);
   assert.ok(open.length <= UNGUARDED_HOVER_MAX,
@@ -2894,7 +2938,7 @@ test('R19: die Uebersicht blendet vom Skelett zum Inhalt ueber swapContent', () 
   // Seit DW-P1-2 kommt das Markup aus dashboardShellHtml() (der stille Abgleich
   // liest daraus voraus, welche Zeilen gehen) - gezeichnet wird es hier.
   assert.match(src, /const html = dashboardShellHtml\(cfg\);/);
-  assert.match(src, /swapContent\(shell, \(\) => \{\s*setHtml\(shell, html\);[\s\S]{0,800}?\}, \{ animate: fromSkeleton \}\);/);
+  assert.match(src, /swapContent\(shell, \(\) => \{\s*setHtml\(shell, html\);[\s\S]{0,1600}?\}, \{ animate: fromSkeleton \}\);/);
 });
 
 /* 12. GERICHTETER WECHSEL EINER REGION (R19, Critique 2026-10-16): der
@@ -3331,4 +3375,46 @@ test('easingToken reicht eine linear()-Kurve unveraendert durch', async () => {
     const { easingToken } = await import('../public/utils/ux.js');
     assert.equal(easingToken('--ease-sheet', 'ease-out'), value);
   } finally { globalThis.getComputedStyle = prev; restore(); }
+});
+
+// DW-P2-2 (PLAN p4): die Kacheln der Uebersicht liefen beim Ordnen auf der
+// Glasfeder (`motionTiming` las --ease-glass) und schossen 35/53 px uebers
+// Ziel. Die Feder gehoert dem Glas, das man greift - auf der Uebersicht nur
+// dem Eintritt eines Blatts (--sheet-in, sheet.css); Inhalt, der sich ordnet,
+// laeuft auf --ease-out. Gelesen wird der CODE, nicht die Kommentare, die
+// den Befund erzaehlen.
+test('DW-P2-2: dashboard.js liest keine Glasfeder - ausser dem Blatt-Eintritt', () => {
+  const src = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
+  const code = withoutCommentsKeepingLines(src);
+  const offenders = code.split('\n')
+    .map((line, i) => ({ line, at: i + 1 }))
+    .filter(({ line }) => /--ease-glass|--transition-glass/.test(line));
+  assert.deepEqual(offenders.map(({ at, line }) => `dashboard.js:${at}: ${line.trim()}`), [],
+    'Feder auf Inhalt - die Kacheln gleiten auf --ease-out (playTileFlip, playGridShift)');
+  // Und die Kacheln lesen ihre Kurve tatsaechlich aus --ease-out.
+  // Abgespielt wird in startTileFlip (playTileFlip = messen + abspielen).
+  const at = code.indexOf('function startTileFlip(');
+  assert.ok(at > -1, 'startTileFlip nicht gefunden');
+  const flip = code.slice(at, code.indexOf('\n}\n', at));
+  assert.match(flip, /easingToken\('--ease-out'/, 'die Kacheln lesen --ease-out');
+  assert.match(flip, /durationToken\('--duration-lg'/, 'die Kacheln laufen --duration-lg wie das Raster');
+  assert.match(flip, /durationToken\('--duration-sm'/, 'unter reduzierter Bewegung blendet es in --duration-sm');
+});
+
+// DW-P3-12: Ablage und Kachelleisten standen beim Betreten des Anpassen-Modus
+// im ersten Frame, waehrend das Raster glitt. Sie blenden per @starting-style
+// ein - nur Deckkraft, Dauer und Kurve aus Tokens.
+test('DW-P3-12: Ablage, Chips und Kachelleisten blenden per @starting-style ein', () => {
+  const rules = [...eachRule(css('dashboard.css'))];
+  // eachRule liest in @starting-style nicht hinein (wie die Guards darueber:
+  // per Block). Je Block die Selektorliste seiner Regel mit opacity: 0.
+  const starting = [...css('dashboard.css').matchAll(/@starting-style\s*\{\s*([^{}]+)\{([^}]*)\}/g)]
+    .filter((m) => /opacity:\s*0\s*;/.test(m[2]))
+    .map((m) => m[1].split(',').map((sel) => sel.trim()));
+  for (const sel of ['.widget-restore', '.widget-restore-chip-group', '.widget-restore__chips > .widget-restore-chip', '.widget-edit-controls']) {
+    assert.ok(starting.some((list) => list.includes(sel)), `${sel}: kein @starting-style mit opacity 0`);
+    const timed = rules.find((r) => !r.at.length && r.selector.split(',').map((s) => s.trim()).includes(sel)
+      && /transition[^;]*opacity var\(--duration-md\) var\(--ease-out\)/.test(r.body));
+    assert.ok(timed, `${sel}: blendet nicht in --duration-md auf --ease-out`);
+  }
 });

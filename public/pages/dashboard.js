@@ -37,14 +37,14 @@ import { setLeaveGuard } from '/utils/leave-guard.js';
 import { openModal, closeModal, confirmModal, refocusAfterRender } from '/components/modal.js';
 import { renderAvatarStack, sharedSurname } from '/components/user-multi-select.js';
 import { isSoloHousehold } from '/utils/household.js';
-import { toggleRegion, durationToken, easingToken } from '/utils/ux.js';
-import { swapContent } from '/utils/content-swap.js';
+import { toggleRegion, durationToken, easingToken, expandIn } from '/utils/ux.js';
+import { swapContent, SWAP_FROM_OPACITY } from '/utils/content-swap.js';
 import { brandMarkSvg } from '/utils/brand-mark.js';
 import { findSettingsLeaf } from '/settings/registry.js';
 import {
   WIDGET_SIZE_PRESETS, WIDGET_SIZE_OPTIONS,
   COCKPIT_COVERED_WIDGETS,
-  nearestPreset, sameWidgetConfig, suggestGridHoleFill, rowFillSpans, columnFillSpans,
+  nearestPreset, sameWidgetConfig, suggestGridHoleFill, fillGridSpans, contentSpanRows, fillRowCount, TILE_GEOMETRY,
   dashboardQuery, dashboardQueryFiltersCounts, dashboardRequest, normalizeShoppingListSelection,
   normalizeCalendarSelection,
   fetchPendingReminders, childDefaultWidgetConfig,
@@ -64,11 +64,13 @@ import { enterWallMode, exitWallMode, isWallActive, syncWallMode } from '/utils/
 import { mountZonePrompt } from '/utils/household-zone-hint.js';
 import { mountFirstSteps, startFirstSteps } from '/utils/first-steps.js';
 import { renderWallTimer, wireWallTimer } from '/components/wall-timer.js';
-import { rememberLayoutHint, layoutHintTiles, layoutHintQuery } from '/utils/dashboard-layout-hint.js';
-import { emptyHintHTML } from '/utils/empty-state.js';
+import { rememberLayoutHint, layoutHintTiles, layoutHintQuery, rememberHeadHint, headHint } from '/utils/dashboard-layout-hint.js';
+import { emptyHintHTML, cardEmptyRowHtml } from '/utils/empty-state.js';
 import { quickLinkHost } from '/utils/quick-link-url.js';
 import { hasIcon } from '/utils/lucide-icons.js';
 import { prefersInkText } from '/utils/contrast.js';
+import { fitMetricLeads } from '/utils/metric-card.js';
+import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { attachOverlay, pushOverlay, dropOverlay, isOverlayOpen } from '/utils/overlay-history.js';
 import { inertOutside } from '/utils/background-inert.js';
 import { mealTypeList, primeMealTypeNames } from '/utils/meal-types.js';
@@ -1163,7 +1165,7 @@ function formatPoints(value) {
  * weil kein Kopf ihn je fragte. Notizen trug hier weiter `pin`, waehrend die
  * Leiste daneben `sticky-note` zeichnete. Wer die Id uebergibt, kann diese
  * Abweichung gar nicht mehr schreiben. */
-function widgetHeader(widgetId, title, count, linkHref, linkLabel, sealSlug = null) {
+function widgetHeader(widgetId, title, count, linkHref, linkLabel, sealSlug = null, { action = '' } = {}) {
   const icon = widgetIcon(widgetId);
   // Ein eigenes Link-Label spricht auch im aria-Label mit eigener Stimme:
   // „Alle: Familienmitglieder" für einen „Verwalten"-Link wäre eine Lüge.
@@ -1233,19 +1235,30 @@ function widgetHeader(widgetId, title, count, linkHref, linkLabel, sealSlug = nu
         ${badge}
       </h3>
       ${countText}
-      ${link}
+      ${link}${action}
     </div>
   `;
 }
 
-// Dezente Aktivierungs-Affordance für Empty-States: verlinkt in den Modul-Flow,
-// damit ein Erststart-Nutzer nicht in einer beschreibenden Sackgasse landet.
-// Nutzt dasselbe [data-route]-System wie widget__link (wireLinks verkabelt es).
-function emptyStateCta(route, label) {
-  return `<button type="button" class="widget__empty-cta" data-route="${route}">
-    <i data-lucide="plus" aria-hidden="true"></i>
-    <span>${label}</span>
-  </button>`;
+/* DER LEERZUSTAND EINER KACHEL IST DIE RUHIGE ZEILE DER APP (DW-P2-11; R22
+ * D12, `cardEmptyRowHtml` aus utils/empty-state.js). Bis hierher trug jede
+ * leere Kachel eine Glyphe mit 60 % Deckkraft, einen Satz in Caption und einen
+ * Akzent-Textknopf, der bei knapper Breite UNTER den Satz brach - Entsorgung
+ * und Schnellzugriffe am Telefon, die Entsorgung auch bei 1440 und 1920. Das
+ * Siegel im Kopf nennt die Kachel schon; die Zeile sagt nur noch, was fehlt,
+ * und bietet am Ende den einen Weg dahin. `.widget__empty` bleibt die Klasse
+ * des Traegers (Polster der Kachel, Sonden der Browser-Suiten). */
+function widgetEmptyHtml(text, action = null, widgetId = '') {
+  return cardEmptyRowHtml(text, { action, className: 'widget__empty', id: action && widgetId ? `widget-empty-${widgetId}` : '' });
+}
+
+// Die Aktion einer leeren Kachel fuehrt in den Modul-Flow - dasselbe
+// [data-route]-System wie widget__link (wireLinks verkabelt es). Ihr Wort ist
+// das VERB ("Hinzufuegen"), wo der Satz das Objekt schon nennt ("Noch keine
+// Abfallarten"): "Ersten Schnellzugriff anlegen" nahm am Telefon 240px und liess
+// dem Satz 80. Den Bezug fuer den Screenreader stellt `aria-describedby` her.
+function emptyRouteAction(route, label) {
+  return { label, attrs: { 'data-route': route } };
 }
 
 function buildTodayHighlights(data) {
@@ -1565,40 +1578,56 @@ function skeletonWidget(lines = 3) {
 
 const TASK_STATUS_IN_PROGRESS = () => t('tasks.statusInProgress');
 
+/* EIN ZEILENGERUEST FUER ALLE LISTEN-KACHELN (Critique DW, DW-P1-4). Die
+ * Kachel ist der EINE Traeger ihrer Zeilen (Zeilenlisten-Regel, Fall "Liste IN
+ * einer Karte"): die Folge traegt nur `.row-divided`, jede Zeile ist die
+ * geteilte `.list-row` mit Fuehrung (`.list-row__lead`, 32px: Avatar, Siegel
+ * oder Glyphe), Textspalte (`.list-row__name` 16/500 + `.list-row__meta` 13)
+ * und hoechstens einer Endzone (`.list-row__end`). Vorher standen neun
+ * Zeilen-Dialekte in einem Raster (Titel 15/600 bis 17/600, Fuehrung 5 bis
+ * 40px, drei Trennerformen). Was die Liste kommentiert ("+N weitere"), steht
+ * ausserhalb - eine Fussnote ist kein Eintrag. */
+function widgetRows(rows, { tag = 'div', className = '' } = {}) {
+  return `<${tag} class="widget__rows row-divided${className ? ` ${className}` : ''}">${rows}</${tag}>`;
+}
+
+
 /* Die Zeilen folgen der Groesse wie bei jeder Liste (`listRowCap`, #2087):
  * der Server liefert die fuenf dringendsten fuer die hohe Fassung, eine
  * 1x1-Kachel zeigt davon drei. Ohne Groesse ist es die Vorgabe der Kachel. */
 function renderUrgentTasks(allTasks, openTotal = null, size = '1x2') {
-  const tasks = allTasks.slice(0, listRowCap(size));
+  const cap = listRowCap(size);
+  const fill = fillRows(allTasks.length, cap);
+  const tasks = allTasks.slice(0, cap + fill);
+  const span = tileSpanAttrs((s, k = 0) => ({ items: allTasks.length, total: listTotal(openTotal, allTasks.length), cap: listRowCap(s) + k }), size, fill);
   if (!tasks.length) {
-    return `<div class="widget widget--tasks">
+    return `<div class="widget widget--tasks"${span}>
       ${widgetHeader('tasks', t('nav.tasks'), 0, '/tasks')}
-      <div class="widget__empty">
-        <i data-lucide="check-circle" class="empty-state__icon" style="color:var(--color-success)" aria-hidden="true"></i>
-        <div>${t('dashboard.allDone')}</div>
-      </div>
+      ${widgetEmptyHtml(t('dashboard.allDone'))}
     </div>`;
   }
 
-  const items = tasks.map((t) => {
+  const items = tasks.map((t, index) => {
     const due = formatDueDate(t.due_date, t.due_time);
     // Begonnen traegt dasselbe Zeichen wie in der Aufgabenliste (#1251), keine
-    // eigene Bauart. Nur dort: eine offene Zeile bekommt keinen leeren Ring, sonst
-    // haette jede Zeile ein viertes Zeichen. Das Wort steht als sr-only daneben,
-    // weil die Zeile role="button" ist und ihre Kinder damit keine eigene Rolle
-    // mehr tragen - ein role="img" am Ring waere dort verloren.
-    const started = t.status === 'in_progress'
-      ? `<span class="task-status-btn task-status-btn--in_progress task-status-btn--static" aria-hidden="true"></span>
-        <span class="sr-only">${esc(TASK_STATUS_IN_PROGRESS())}</span>`
-      : '';
+    // eigene Bauart, und es steht in der Fuehrung der Zeile: dort, wo sonst der
+    // Prioritaetspunkt steht (DW-P1-4 - EIN Zeichen je Fuehrung). Das Wort steht
+    // als sr-only daneben, weil die Zeile role="button" ist und ihre Kinder damit
+    // keine eigene Rolle mehr tragen - ein role="img" am Ring waere dort verloren.
+    const started = t.status === 'in_progress';
+    const lead = started
+      ? '<span class="task-status-btn task-status-btn--in_progress task-status-btn--static" aria-hidden="true"></span>'
+      : t.priority !== 'none'
+        ? `<span class="task-item__priority task-item__priority--${t.priority}" title="${esc(PRIORITY_LABELS()[t.priority] ?? t.priority)}"></span>`
+        : '';
     return `
-      <div class="task-item" data-task-id="${t.id}" data-task-title="${esc(t.title)}" role="button" tabindex="0">
-        ${t.priority !== 'none' ? `<div class="task-item__priority task-item__priority--${t.priority}" title="${esc(PRIORITY_LABELS()[t.priority] ?? t.priority)}" aria-hidden="true"></div>` : ''}
+      <div class="list-row task-item" data-task-id="${t.id}" data-task-title="${esc(t.title)}" role="button" tabindex="0"${fillRowAttr(index, cap)}>
+        <span class="list-row__lead task-item__lead" aria-hidden="true">${lead}</span>
         <span class="sr-only">${PRIORITY_LABELS()[t.priority] ?? t.priority}</span>
-        ${started}
-        <div class="task-item__content">
-          <div class="task-item__title">${esc(t.title)}</div>
-          ${due ? `<div class="task-item__meta ${due.overdue ? 'task-item__meta--overdue' : ''} ${due.soon ? 'task-item__meta--soon' : ''}">${due.text}</div>` : ''}
+        ${started ? `<span class="sr-only">${esc(TASK_STATUS_IN_PROGRESS())}</span>` : ''}
+        <div class="list-row__main task-item__content">
+          <div class="list-row__name task-item__title">${esc(t.title)}</div>
+          ${due ? `<div class="list-row__meta task-item__meta${due.overdue ? ' task-item__meta--overdue' : ''}${due.soon ? ' task-item__meta--soon' : ''}">${due.text}</div>` : ''}
         </div>
         ${renderAvatarStack(t.assigned_users ?? [], { size: 28 })}
       </div>
@@ -1608,9 +1637,9 @@ function renderUrgentTasks(allTasks, openTotal = null, size = '1x2') {
   // `urgentTasks` sind die fuenf dringendsten, `openTaskCount` alle offenen
   // (siehe listTotal); die Fusszeile nennt, was nicht in DIESER Groesse steht.
   const total = listTotal(openTotal, allTasks.length);
-  return `<div class="widget widget--tasks">
+  return `<div class="widget widget--tasks"${span}>
     ${widgetHeader('tasks', t('nav.tasks'), total, '/tasks')}
-    <div class="widget__body">${items}${listMoreLine('dashboard.tasksMore', total - tasks.length)}</div>
+    <div class="widget__body widget__body--rows">${widgetRows(items)}${listMoreLine('dashboard.tasksMore', total - Math.min(tasks.length, cap), fill)}</div>
   </div>`;
 }
 
@@ -1644,7 +1673,7 @@ const ENDED_EVENTS_SHOWN = 2;
  * Anpassen-Modus steht bis zum Speichern die alte Antwort da, und wer von
  * zwoelf auf fuenf zurueckstellt, soll fuenf sehen und nicht zwoelf bis zum
  * naechsten Abruf. */
-function renderUpcomingEvents(allEvents, { now = new Date(), limit = EVENT_LIMIT_DEFAULT, rows = clampEventLimit(limit) } = {}) {
+function renderUpcomingEvents(allEvents, { now = new Date(), limit = EVENT_LIMIT_DEFAULT, rows = clampEventLimit(limit), span = '', fill = 0 } = {}) {
   const todayKey = zonedDateKey(now);
   const nowStamp = householdNowStamp(now);
   const endedToday = allEvents.filter((e) => overviewEventSpan(e, todayKey).day === todayKey && eventHasEnded(e, nowStamp));
@@ -1653,21 +1682,22 @@ function renderUpcomingEvents(allEvents, { now = new Date(), limit = EVENT_LIMIT
   const endedRoom = Math.min(ENDED_EVENTS_SHOWN, rows - ahead.length);
   const ended = endedRoom > 0 ? endedToday.slice(-endedRoom) : [];
   const folded = endedToday.length - ended.length;
-  const events = [...ended, ...ahead];
+  // Zusatzzeilen (U14): die naechsten Kommenden, hinter der Liste. Die
+  // Beendeten bleiben, wie die Groesse sie gewaehlt hat.
+  const extraAhead = aheadAll.slice(ahead.length, ahead.length + Math.max(0, fill));
+  const events = [...ended, ...ahead, ...extraAhead];
+  const firstExtra = ended.length + ahead.length;
   if (!events.length) {
-    return `<div class="widget widget--calendar">
+    return `<div class="widget widget--calendar"${span}>
       ${widgetHeader('calendar', t('nav.calendar'), 0, '/calendar')}
-      <div class="widget__empty">
-        <i data-lucide="calendar-check" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.noEvents')}</div>
-      </div>
+      ${widgetEmptyHtml(t('dashboard.noEvents'))}
     </div>`;
   }
 
   // Der Tagesvergleich ueber KEYS, nicht ueber `toDateString()`: das las die
   // Browser-Zone und machte „heute" zu einer Frage an das Geraet (#851).
   const today = todayKey;
-  const items = events.map((e) => {
+  const items = events.map((e, index) => {
     const span = overviewEventSpan(e, today);
     const dayKey = span.day;
     const isToday = dayKey === today;
@@ -1677,24 +1707,24 @@ function renderUpcomingEvents(allEvents, { now = new Date(), limit = EVENT_LIMIT
     const timeStr = span.until || span.allDay
       ? overviewEventTime(e, span)
       : `${formatTime(e.start_datetime)}${_suffix ? ' ' + _suffix : ''}`.trim();
-    const badge = isEnded
-      ? `<span class="event-time-badge">${esc(t('dashboard.eventEnded'))}</span>`
-      : `<span class="event-time-badge ${isToday ? 'event-time-badge--today' : ''}">${isToday ? t('common.today') : relativeDateLabel(dayKey)}</span>`;
+    // EINE METAZEILE: "Heute · 17:00 · Sportplatz West" (DW-P2-10). Das Etikett
+    // stand als Pille vor der Zeit und brach am Telefon in eine eigene Zeile
+    // (Termin dreizeilig); der Kalendername stand immer allein darunter. Jetzt
+    // ist der Tag das erste Wort der Zeile, der Zustand haengt weiter nicht an
+    // der Farbe allein ("Vorbei" statt "Heute").
+    const when = isEnded ? t('dashboard.eventEnded') : isToday ? t('common.today') : relativeDateLabel(dayKey);
+    const rest = [timeStr, e.location ? fmtLocation(e.location) : '', e.cal_name || ''].filter(Boolean).map((part) => esc(part));
+    const whenClass = isToday && !isEnded ? ' event-item__when--today' : '';
     return `
-      <div class="event-item${isEnded ? ' event-item--ended' : ''}${e.completed ? ' event-item--done' : ''}" data-route="${esc(calendarEventRoute(e))}" role="button" tabindex="0">
+      <div class="list-row event-item${isEnded ? ' event-item--ended' : ''}${e.completed ? ' event-item--done' : ''}" data-route="${esc(calendarEventRoute(e))}" role="button" tabindex="0"${fillRowAttr(index, firstExtra)}>
         <!-- Dieselbe Regel wie im Kalender, aus derselben Datei. Hier stand
              e.color || e.cal_color - dieselbe Frage ohne den Zweig fuer die
              zugewiesene Person, was seit #891 zwei verschiedene Antworten
              gegeben haette. -->
-        <div class="event-item__bar" style="background-color:${esc(resolveEventColor(e))}"></div>
-        <div class="event-item__content">
-          <div class="event-item__title">${e.completed ? `<span class="event-item__completion" title="${esc(t('calendar.completed'))}" aria-label="${esc(t('calendar.completed'))}"><i data-lucide="check" aria-hidden="true"></i></span>` : ''}${esc(e.title)}</div>
-          <div class="event-item__time">
-            ${badge}
-            ${timeStr}
-            ${e.location ? ` · ${esc(fmtLocation(e.location))}` : ''}
-            ${e.cal_name ? `<span class="event-item__cal">${esc(e.cal_name)}</span>` : ''}
-          </div>
+        <span class="list-row__lead event-item__lead" aria-hidden="true"><span class="event-item__bar" style="background-color:${esc(resolveEventColor(e))}"></span></span>
+        <div class="list-row__main event-item__content">
+          <div class="list-row__name event-item__title">${e.completed ? `<span class="event-item__completion" title="${esc(t('calendar.completed'))}" aria-label="${esc(t('calendar.completed'))}"><i data-lucide="check" aria-hidden="true"></i></span>` : ''}${esc(e.title)}</div>
+          <div class="list-row__meta event-item__time"><span class="event-item__when${whenClass}">${esc(when)}</span>${rest.map((part) => ` · ${part}`).join('')}</div>
         </div>
         ${renderAvatarStack(e.assigned_users ?? [], { size: 28 })}
       </div>
@@ -1719,12 +1749,14 @@ function renderUpcomingEvents(allEvents, { now = new Date(), limit = EVENT_LIMIT
   // weniger zeigt, als geladen ist (#2087): „+2 weitere" hiesse „fuenf geladen,
   // drei gezeigt" und laege bei dreissig kommenden Terminen. Sie steht an der
   // Stelle und in der Form des „+N weitere" der anderen Listen.
+  // Stehen alle Zusatzzeilen, ist nichts Kommendes mehr verborgen: die Zeile
+  // geht, oder sie behaelt die Faltzeile (`data-more-done`).
   const more = moreAhead
-    ? `<p class="widget-list-more">${esc([earlierText, t('dashboard.eventsMoreAhead')].filter(Boolean).join(' · '))}</p>`
+    ? `<p class="widget-list-more"${fillMoreAttrs(extraAhead.length, extraAhead.length, '', earlierText)}>${esc([earlierText, t('dashboard.eventsMoreAhead')].filter(Boolean).join(' · '))}</p>`
     : '';
-  return `<div class="widget widget--calendar">
+  return `<div class="widget widget--calendar"${span}>
     ${widgetHeader('calendar', t('nav.calendar'), null, '/calendar')}
-    <div class="widget__body">${earlier}${items}${more}</div>
+    <div class="widget__body widget__body--rows">${earlier}${widgetRows(items)}${more}</div>
   </div>`;
 }
 
@@ -1745,7 +1777,7 @@ function renderUpcomingEvents(allEvents, { now = new Date(), limit = EVENT_LIMIT
 const WEEKDAY_SHORT_KEYS = ['dayShortSunday', 'dayShortMonday', 'dayShortTuesday', 'dayShortWednesday', 'dayShortThursday', 'dayShortFriday', 'dayShortSaturday'];
 const WEEKDAY_LONG_KEYS = ['dayLongSunday', 'dayLongMonday', 'dayLongTuesday', 'dayLongWednesday', 'dayLongThursday', 'dayLongFriday', 'dayLongSaturday'];
 
-function renderWeekStrip(weekEvents) {
+function renderWeekStrip(weekEvents, span = '') {
   // Geburtstage tragen serverseitig einen sprachneutralen Titel (#524) - hier
   // und nicht im Ladepfad uebersetzt, weil der Titel nur im Tagesnamen steht.
   const events = (Array.isArray(weekEvents) ? weekEvents : []).map(localizeBirthdayEvent);
@@ -1776,7 +1808,7 @@ function renderWeekStrip(weekEvents) {
   const empty = strip.days.every((day) => day.count === 0)
     ? `<p class="week-strip__empty">${t('dashboard.weekStripEmpty')}</p>`
     : '';
-  return `<div class="widget widget--calendar widget--week">
+  return `<div class="widget widget--calendar widget--week"${span}>
     ${widgetHeader('calendar', t('dashboard.weekStripTitle'), null, '/calendar')}
     <div class="widget__body">
       <div class="week-strip">${days}${bands}</div>
@@ -1789,9 +1821,58 @@ function renderWeekStrip(weekEvents) {
  *  Die Stufe aus den Optionen (#1680) gilt nur der hohen Liste - die Woche
  *  zeigt sieben Tage, keine Zeilen, und 1x1 die Zeilen seiner Groesse. */
 function renderCalendarWidget(data, size, options = {}) {
+  const model = calendarTileModel(data, options);
+  const fill = model.fillFor(size ?? '1x2');
+  const span = tileSpanAttrs(model, size ?? '1x2', fill);
   return nearestPreset(size ?? '1x2') === '2x1'
-    ? renderWeekStrip(data?.weekEvents)
-    : renderUpcomingEvents(data?.upcomingEvents ?? [], { limit: options?.limit, rows: calendarRowCap(size, options?.limit) });
+    ? renderWeekStrip(data?.weekEvents, span)
+    : renderUpcomingEvents(data?.upcomingEvents ?? [], { limit: options?.limit, rows: calendarRowCap(size, options?.limit), span, fill });
+}
+
+/* Die Hoehe der Kalenderkachel in jeder Groesse (U1 b) - dieselbe Rechnung wie
+ * renderUpcomingEvents: wie viele Kommende, wie viele Beendete, und ob unter
+ * der Liste "+N weitere" oder ueber ihr die Faltzeile steht (beide eine
+ * Footnote-Zeile). 2x1 ist der Wochenstreifen: Kopfzeile, eine Spur je
+ * Mehrtagesband, die Punktzeile und ggf. der Satz "keine Termine". */
+function calendarTileModel(data, options = {}, now = new Date()) {
+  const limit = options?.limit;
+  const allEvents = data?.upcomingEvents ?? [];
+  const todayKey = zonedDateKey(now);
+  const nowStamp = householdNowStamp(now);
+  const endedToday = allEvents.filter((e) => overviewEventSpan(e, todayKey).day === todayKey && eventHasEnded(e, nowStamp));
+  const aheadAll = allEvents.length - endedToday.length;
+  let week = null;
+  const model = (s, k = 0) => {
+    if (nearestPreset(s) === '2x1') {
+      week ??= (() => {
+        const strip = buildWeekStrip((Array.isArray(data?.weekEvents) ? data.weekEvents : []).map(localizeBirthdayEvent), householdToday());
+        const empty = strip.days.every((day) => day.count === 0);
+        return { body: TILE_PARTS.weekBase + strip.laneCount * TILE_PARTS.weekLane + (empty ? TILE_PARTS.weekEmpty : 0) };
+      })();
+      return week;
+    }
+    const cap = calendarRowCap(s, limit);
+    const aheadN = Math.min(aheadAll, cap);
+    const endedN = Math.min(endedToday.length, Math.max(0, Math.min(ENDED_EVENTS_SHOWN, cap - aheadN)));
+    const moreAhead = cap < clampEventLimit(limit) && aheadAll > aheadN;
+    // Mit k Zusatzzeilen (U14) stehen k Kommende mehr da; sind es alle, geht
+    // "Weitere Termine", und die Faltzeile bleibt unten in seiner Form.
+    const extra = moreAhead ? Math.min(Math.max(0, k), aheadAll - aheadN) : 0;
+    const folded = endedToday.length > endedN;
+    const aux = moreAhead && aheadN + extra < aheadAll ? TILE_GEOMETRY.more
+      : moreAhead && extra && folded ? TILE_GEOMETRY.more
+        : moreAhead && extra ? 0
+          : moreAhead ? TILE_GEOMETRY.more : folded ? TILE_PARTS.earlier : 0;
+    return { items: aheadN + endedN + extra, extra: aux };
+  };
+  // Wie viele Kommende die Groesse geladen, aber nicht gezeigt hat - ohne
+  // "Weitere Termine" keine (die Liste zeigt dann schon alles).
+  model.fillFor = (s) => {
+    if (nearestPreset(s) === '2x1' || onPhoneStage()) return 0;
+    const cap = calendarRowCap(s, limit);
+    return cap < clampEventLimit(limit) ? Math.max(0, aheadAll - Math.min(aheadAll, cap)) : 0;
+  };
+  return model;
 }
 
 /**
@@ -1815,11 +1896,12 @@ function renderCalendarWidget(data, size, options = {}) {
  * Zeile mit ihrer hoechsten Kachel waechst (`grid-auto-rows: minmax(132px,
  * auto)`), stand bei den Nachbarn „+N weitere" ueber leerem Raum. Jetzt:
  *   - 1x1 zeigt drei Zeilen, auch Kalender und Aufgaben, plus Fusszeile.
- *   - Hoch zeigt fuenf; beim Kalender die Stufe aus seinen Optionen, und die
- *     Stufe bestimmt, wie viele Rasterzeilen die Kachel belegt (5/8/12 ->
- *     2/3/4, `calendarListRows` + dashboard.css). Eine laengere Liste ist eine
- *     hoehere Kachel, nicht eine hoehere Zeile der Nachbarn. Darstellung,
- *     keine gespeicherte Groesse.
+ *   - Hoch zeigt fuenf; beim Kalender die Stufe aus seinen Optionen. Eine
+ *     laengere Liste ist eine hoehere Kachel, nicht eine hoehere Zeile der
+ *     Nachbarn. Seit U1 b (DW-P1-3) ist das die Regel fuer JEDE Liste: die
+ *     Zahl hier ist die Obergrenze, die Hoehe kommt aus den gezeigten Zeilen
+ *     (`tileSpanAttrs` -> `contentSpanRows`). Darstellung, keine gespeicherte
+ *     Groesse.
  *   - Beendete Termine zaehlen innerhalb der Zeilen, nach dem Kommenden
  *     (`ENDED_EVENTS_SHOWN`).
  *   - Die Wand hat ihren eigenen Deckel (`WALL_ROW_CAP`) und liest weder
@@ -1865,28 +1947,199 @@ function calendarRowCap(size, limit) {
   return isTallSize(size ?? '1x2') ? clampEventLimit(limit) : listRowCap(size);
 }
 
-/* Wie viele Rasterzeilen eine hohe Kalenderliste belegt, sagt dashboard.css
- * (`[data-list-rows]` an den hohen Groessenklassen, ab 1024px). Das Attribut
- * traegt nur die Stufe, nicht die Spanne - die Groessenklasse entscheidet, ob
- * es greift. So liest `spansForSize` beim Probieren einer anderen Groesse
- * auch die richtige Spanne: an 1x1 passt keine Regel. Die Vorgabe fuenf ist
- * die normale hohe Kachel und braucht kein Attribut. */
-function calendarListRowsOf(w) {
-  if (w?.id !== 'calendar') return null;
-  const limit = clampEventLimit(w.options?.limit);
-  return limit === EVENT_LIMIT_DEFAULT ? null : limit;
+/* DIE KACHEL SAGT AUS IHREN DATEN, WIE HOCH SIE IST (DW-P1-3, U1 b).
+ *
+ * Jeder Renderer beschreibt seinen Inhalt als Funktion der Groesse
+ * (`model(size)` -> `contentSpanRows`, utils/dashboard-widgets.js): so viele
+ * Zeilen, wie die Daten hergeben und die Groesse erlaubt, oder die Hoehe seines
+ * festen Aufbaus. Daraus wird die Zahl der Rasterspuren, die er belegt -
+ * `data-span-rows` an seiner Wurzel, beim Zeichnen ausgerechnet, bevor das
+ * Raster ausgelegt wird. Fuer die anderen drei Groessen steht die Zahl gleich
+ * daneben (`data-span-sizes`): der Lueckenhinweis probiert Groessen aus und
+ * muss wissen, wie hoch die Kachel in jeder waere, ohne sie neu zu zeichnen.
+ *
+ * Der Rahmen (`renderWidgetWrapper`) hebt beides an sich und setzt
+ * `--tile-rows`; dashboard.css macht daraus die Spanne. Die Stufe der
+ * Kalenderliste (#2087, 5/8/12 Termine) war bis hierher ein eigenes Attribut
+ * mit eigenen Spannen - jetzt ist sie, was sie immer war: die Obergrenze einer
+ * Liste, deren Hoehe aus ihren Zeilen kommt. */
+const SPAN_SIZES = WIDGET_SIZE_PRESETS.map((p) => p.value);
+
+/* FESTE TEILE EINZELNER KACHELN in px, ab 768px (dashboard.css; gemessen
+ * 2026-10-27 bei 768, 1024, 1440 und 1920px, Grundschrift 16px). Was eine
+ * Liste aus Zeilen ist, rechnet TILE_GEOMETRY; hier steht, was eine Kachel
+ * ausser Zeilen traegt. Aendert sich eine dieser Regeln, aendert sich hier die
+ * Zahl - `test:dashboard` haelt die Liste vollstaendig. */
+const TILE_PARTS = Object.freeze({
+  // Kalender 2x1, der Wochenstreifen: Kopf- und Punktzeile, je Band eine Spur.
+  weekBase: 100.4,
+  weekLane: 10,
+  weekEmpty: 27,
+  // Die Faltzeile "N frueher" ueber der Terminliste (Footnote + 4px).
+  earlier: 23,
+  wasteWarning: 40,
+  // Koerper (unter dem Kopf) der Kacheln mit eigenem Aufbau, je Groesse.
+  weather: { '1x1': 102, '1x2': 234, '2x1': 125, '2x2': 142 },
+  clock: { '1x1': 109, '1x2': 133, '2x1': 111, '2x2': 135 },
+  // Koerper- plus Innenpolster der Kacheln Gesundheit, Zyklus, Haushaltshilfe.
+  statusPad: 60,
+  healthProgress: 26.5,
+  statusLine: 35.5,
+  statusChip: 46,
+  healthNone: 23.5,
+  cycleRing: 60,
+  cycleInfo: 44.6,
+  cycleDate: 21.1,
+  housekeepingStatus: 44.6,
+  // Fasten: Ring neben Satz und Knoepfen; schmal stehen die Knoepfe untereinander.
+  fasting: { wide: 148, narrow: 166.2 },
+  fastingActive: { wide: 243.9, narrow: 335.9 },
+  nutritionPad: 60,
+  nutritionRow: 22,
+  nutritionGap: 8,
+  nutritionCount: 31.1,
+  budgetPad: 32,
+  budgetHeadline: 68,
+  budgetSavings: 53,
+  budgetSavingsBare: 37,
+  budgetGoal: 52,
+  budgetFlow: 48.2,
+  budgetTopOne: 34,
+  budgetTopList: 46.2,
+  budgetTopRow: 25,
+  mealsPad: 28,
+  mealSlot: 69.2,
+  mealSlotTwoLines: 91.2,
+  mealGap: 8,
+  familyPad: 24,
+  familyMore: 27.1,
+  familyFooter: 28.7,
+  rewardsMember: 77.4,
+  rewardsMemberCompact: 54.5,
+  rewardsGap: 12,
+  rewardsFooter: 52,
+  rewardsMore: 19.1,
+  rewardsSelfPad: 28,
+  rewardsSelfGoal: 67.5,
+  rewardsRecentTitle: 30,
+  rewardsRecentRow: 28,
+  notesPad: 28,
+  notesGap: 12,
+  noteCard: 24,
+  noteTitle: 24.1,
+  noteContent: 41.5,
+  noteCategories: 26,
+  notesMore: 31.1,
+  shoppingList: 58,
+  shoppingItem: 19.5,
+  shoppingItemGap: 4,
+  shoppingMore: 31.1,
+  shoppingNothing: 23.5,
+  metricCard: 119,
+  metricGap: 20,
+  quickLinksPad: 12,
+  quickLinkTile: 100.3,
+  quickLinkGap: 8,
+});
+
+/** Die Spalten, die eine Groesse ab 768px belegt: 1 oder 2 (3x/4x auch 2+). */
+function tileColumns(size) {
+  return Number(String(size ?? '1x1').split('x')[0]) >= 2 ? 2 : 1;
 }
 
-/* Das Attribut aus einer Stufe - fuer das Raster und fuer das Skelett, das
- * sie aus dem Layout-Hinweis liest. Nur eine der Stufen wird zum Attribut:
- * der Hinweis liegt im localStorage und ist von der Seite aus beschreibbar. */
-function listRowsAttr(rows) {
-  const limit = Number(rows);
-  return limit !== EVENT_LIMIT_DEFAULT && clampEventLimit(limit) === limit ? ` data-list-rows="${limit}"` : '';
+/** Eine Kachel ohne Eintrag: Kopf und genau die Leerzeile, in jeder Groesse. */
+function emptySpanAttrs(size) {
+  return tileSpanAttrs(() => ({ items: 0 }), size ?? '1x1');
 }
 
-function calendarListRows(w) {
-  return listRowsAttr(calendarListRowsOf(w));
+/* `fill` (U14): so viele Zeilen hat die Kachel ueber das hinaus geladen, was
+ * ihre Groesse zeigt. `model(size, k)` beschreibt sie dann mit k Zusatzzeilen,
+ * und `data-fill-steps` sagt fuer k = 1 ... fill die Spuren, die sie dafuer
+ * braeuchte (`fillRowCount`, applyRowFill). Die Spanne selbst bleibt die ohne
+ * Zusatzzeilen - die Packung sieht sie nie. */
+function tileSpanAttrs(model, size, fill = 0) {
+  // Am Telefon steht jede Kachel in ihrer eigenen Hoehe untereinander (eine
+  // Spalte, kein Raster aus Spuren): dort wird nichts gerechnet. Ein Wechsel
+  // zur breiten Buehne baut die Uebersicht neu (createPhoneProgramFit).
+  if (onPhoneStage()) return '';
+  const rowsAt = (s, k = 0) => contentSpanRows(model(s, k) ?? {}).rows;
+  const sizes = [...new Set([...SPAN_SIZES, size].filter(Boolean))];
+  const steps = Array.from({ length: Math.max(0, fill | 0) }, (_, i) => rowsAt(size, i + 1));
+  return ` data-span-rows="${rowsAt(size)}" data-span-sizes="${sizes.map((s) => `${s}:${rowsAt(s)}`).join(',')}"`
+    + (steps.length ? ` data-fill-steps="${steps.join(',')}"` : '');
+}
+
+/** Die Spanne aus dem Markup eines Renderers (erstes `data-span-rows`). */
+function tileSpanOf(html) {
+  const rows = /\sdata-span-rows="(\d+)"/.exec(String(html ?? ''))?.[1];
+  const sizes = /\sdata-span-sizes="([0-9x:,]*)"/.exec(String(html ?? ''))?.[1];
+  const steps = /\sdata-fill-steps="([0-9,]*)"/.exec(String(html ?? ''))?.[1];
+  return rows ? { rows: Number(rows), sizes: sizes ?? '', steps: steps ?? '' } : null;
+}
+
+/** Die Attribute des Rahmens: Spanne und, als Wert fuer dashboard.css, `--tile-rows`. */
+function tileSpanWrapperAttrs(html) {
+  const span = tileSpanOf(html);
+  return span
+    ? ` data-span-rows="${span.rows}" data-span-sizes="${esc(span.sizes)}"${span.steps ? ` data-fill-steps="${esc(span.steps)}"` : ''} style="--tile-rows: ${span.rows}"`
+    : '';
+}
+
+/* DIE ZUSATZZEILEN (U14): wie viele Zeilen eine Liste ueber ihre Groesse hinaus
+ * mitbringt - die geladenen, die sie nicht zeigt, hoechstens sechs (die
+ * groesste gemessene Streckung, Familie bei zwei Spalten 359px, traegt keine
+ * sieben Zeilen; Entsorgung und Schichtplan liefern ungedeckelt). Am Telefon
+ * keine: dort wird nicht gestreckt. */
+const FILL_ROWS_MAX = 6;
+function fillRows(loaded, shown) {
+  return onPhoneStage() ? 0 : Math.min(FILL_ROWS_MAX, Math.max(0, (Number(loaded) || 0) - (Number(shown) || 0)));
+}
+
+/** Markiert die i-te Zeile einer Liste als Zusatzzeile, wenn sie hinter `cap` steht. */
+function fillRowAttr(index, cap) {
+  return index >= cap ? ' data-fill-row' : '';
+}
+
+/* "+N weitere" kennt seine Zusatzzeilen: applyRowFill zaehlt herunter
+ * (`data-more-key`, `data-more-rest`) und nimmt die Zeile weg, wenn alles
+ * steht - oder setzt dann `data-more-done` (der Kalender behaelt seine
+ * Faltzeile). */
+function fillMoreAttrs(fill, rest, key = '', done = '') {
+  if (!(fill > 0)) return '';
+  return ` data-fill-more data-more-rest="${rest}"${key ? ` data-more-key="${esc(key)}"` : ''}${done ? ` data-more-done="${esc(done)}"` : ''}`;
+}
+
+/* Die zuletzt gezeichnete Spanne je Kachel - fuer den Layout-Hinweis, der dem
+ * Skelett beim naechsten Laden dieselben Hoehen vorhersagt (DW-P2-5, U1 b). */
+const drawnSpanRows = new Map();
+function drawnSpanOf(w) {
+  return drawnSpanRows.get(w?.id) ?? null;
+}
+
+/** Ein neu gezeichneter Koerper bringt seine Spanne an den vorhandenen Rahmen (Geste, U1 b). */
+function setTileSpan(el, html) {
+  const span = tileSpanOf(html);
+  if (el.dataset?.widgetId) drawnSpanRows.set(el.dataset.widgetId, span?.rows ?? 0);
+  // Der neue Koerper zeigt noch keine Zusatzzeile (U14); applyRowFill setzt sie.
+  delete el.dataset.fillShown;
+  if (!span?.steps) delete el.dataset.fillSteps;
+  else el.dataset.fillSteps = span.steps;
+  if (!span) {
+    el.removeAttribute('data-span-rows');
+    el.removeAttribute('data-span-sizes');
+    el.style.removeProperty('--tile-rows');
+    return;
+  }
+  el.dataset.spanRows = String(span.rows);
+  el.dataset.spanSizes = span.sizes;
+  el.style.setProperty('--tile-rows', String(span.rows));
+}
+
+/** Spuren einer Kachel in einer anderen Groesse (aus `data-span-sizes`), sonst null. */
+function spanRowsForSize(el, size) {
+  const entry = String(el?.dataset?.spanSizes ?? '').split(',').find((part) => part.startsWith(`${size}:`));
+  const rows = Number(entry?.slice(size.length + 1));
+  return Number.isInteger(rows) && rows > 0 ? rows : null;
 }
 
 /*
@@ -1913,8 +2166,8 @@ function listTotal(total, loaded) {
   return Number.isFinite(n) ? Math.max(n, loaded) : loaded;
 }
 
-function listMoreLine(key, rest) {
-  return rest > 0 ? `<p class="widget-list-more">${esc(t(key, { count: rest }))}</p>` : '';
+function listMoreLine(key, rest, fill = 0) {
+  return rest > 0 ? `<p class="widget-list-more"${fillMoreAttrs(fill, rest, key)}>${esc(t(key, { count: rest }))}</p>` : '';
 }
 
 /* DATUM UND ABSTAND IN EINER ZEILE (#1454). Das Datum folgt der Stufung der
@@ -1933,18 +2186,18 @@ export function renderUpcomingBirthdays(allBirthdays, size, total = null) {
   // was davon erscheint, entscheidet die Kachel. Die Badge zaehlte hier die
   // gezeigten Zeilen und sagte damit „5" bei acht anstehenden Anlaessen - jetzt
   // nennt sie `birthdayTotal`, und der Rest steht als Fusszeile da (listTotal).
-  const birthdays = allBirthdays.slice(0, listRowCap(size));
+  const cap = listRowCap(size);
+  const fill = fillRows(allBirthdays.length, cap);
+  const birthdays = allBirthdays.slice(0, cap + fill);
+  const span = tileSpanAttrs((s, k = 0) => ({ items: allBirthdays.length, total: listTotal(total, allBirthdays.length), cap: listRowCap(s) + k }), size, fill);
   if (!birthdays.length) {
-    return `<div class="widget widget--birthdays">
+    return `<div class="widget widget--birthdays"${span}>
       ${widgetHeader('birthdays', t('nav.birthdays'), 0, '/birthdays')}
-      <div class="widget__empty">
-        <i data-lucide="cake" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.noBirthdays')}</div>
-      </div>
+      ${widgetEmptyHtml(t('dashboard.noBirthdays'))}
     </div>`;
   }
 
-  const items = birthdays.map((b) => {
+  const items = birthdays.map((b, index) => {
     // "in 9 Tagen" wie im Geburtstagsmodul (R23, D11), nicht "9 Tage".
     const daysLabel = daysFromTodayText(b.days_until);
     // Familien-Geburtstage tragen die Identitaetsfarbe des Mitglieds - dieselbe
@@ -1962,23 +2215,23 @@ export function renderUpcomingBirthdays(allBirthdays, size, total = null) {
         ? t('birthdays.turnsAge', { age: b.next_age })
         : '';
     return `
-      <div class="birthday-widget-item" data-route="${esc(b.id != null ? `/birthdays?open=${encodeURIComponent(String(b.id))}` : '/birthdays')}" role="button" tabindex="0">
-        <div class="birthday-widget-item__avatar"${avatarStyle}>
+      <div class="list-row birthday-widget-item" data-route="${esc(b.id != null ? `/birthdays?open=${encodeURIComponent(String(b.id))}` : '/birthdays')}" role="button" tabindex="0"${fillRowAttr(index, cap)}>
+        <div class="list-row__lead birthday-widget-item__avatar"${avatarStyle}>
           ${b.photo_data ? `<img src="${esc(b.photo_data)}" alt="" loading="lazy">` : `<span>${esc(initials(b.name))}</span>`}
         </div>
-        <div class="birthday-widget-item__body">
-          <div class="birthday-widget-item__name">${esc(b.name)}</div>
-          <div class="birthday-widget-item__meta">${dateAndCount(relativeDateLabel(b.next_date ?? b.next_birthday), daysLabel)}</div>
+        <div class="list-row__main birthday-widget-item__body">
+          <div class="list-row__name birthday-widget-item__name">${esc(b.name)}</div>
+          <div class="list-row__meta birthday-widget-item__meta">${dateAndCount(relativeDateLabel(b.next_date ?? b.next_birthday), daysLabel)}</div>
         </div>
-        ${occasionLabel ? `<div class="birthday-widget-item__age">${esc(occasionLabel)}</div>` : ''}
+        ${occasionLabel ? `<div class="list-row__end birthday-widget-item__age">${esc(occasionLabel)}</div>` : ''}
       </div>
     `;
   }).join('');
 
   const gesamt = listTotal(total, allBirthdays.length);
-  return `<div class="widget widget--birthdays">
+  return `<div class="widget widget--birthdays"${span}>
     ${widgetHeader('birthdays', t('nav.birthdays'), gesamt, '/birthdays')}
-    <div class="widget__body">${items}${listMoreLine('dashboard.birthdaysMore', gesamt - birthdays.length)}</div>
+    <div class="widget__body widget__body--rows">${widgetRows(items)}${listMoreLine('dashboard.birthdaysMore', gesamt - Math.min(birthdays.length, cap), fill)}</div>
   </div>`;
 }
 
@@ -1999,19 +2252,21 @@ export function renderUpcomingBirthdays(allBirthdays, size, total = null) {
  * Kachel nimmt die Liste, wie sie kommt (siehe services/countdowns.js). */
 function renderCountdowns(allItems, size, total = null) {
   const shown = visibleCountdowns(allItems);
-  const items = shown.slice(0, listRowCap(size));
+  const cap = listRowCap(size);
+  const fill = fillRows(shown.length, cap);
+  const items = shown.slice(0, cap + fill);
   // Kein Leerzustand: ohne Countdown ist die Kachel nicht leer, sondern nicht
   // vorhanden (isWidgetModuleEnabled). Diese Zeile ist der Notausgang für den
   // Fall, dass die Verfügbarkeit und die Daten auseinanderlaufen.
   if (!items.length) return '';
 
-  const rows = items.map((c) => {
+  const rows = items.map((c, index) => {
     const phrase = countdownPhrase(c.days_until);
     const label = phrase.count === undefined ? t(phrase.key) : t(phrase.key, { count: phrase.count });
     // Sagt der Zaehler rechts schon „Heute"/„Morgen", traegt die Zeile kein
     // zweites (#1454).
     const when = relativeDateLabel(c.date);
-    const meta = when && when !== label ? `<div class="countdown-item__meta">${esc(when)}</div>` : '';
+    const meta = when && when !== label ? `<div class="list-row__meta countdown-item__meta">${esc(when)}</div>` : '';
     // Die Farbe des Termins trägt die Zeile als schmale Marke - dieselbe
     // Zuordnung, die er im Kalender hat. Eine Aufgabe hat keine, sie bekommt
     // den Modulton.
@@ -2036,12 +2291,12 @@ function renderCountdowns(allItems, size, total = null) {
       : ` data-route="/calendar?open=${encodeURIComponent(String(c.id))}&date=${encodeURIComponent(c.date)}"`;
     const completedEvent = c.source === 'event' && c.completed;
     return `
-      <div class="countdown-item${completedEvent ? ' countdown-item--completed' : ''}" role="button" tabindex="0"${anchor}${accent}>
-        <span class="countdown-item__icon" aria-hidden="true">
+      <div class="list-row countdown-item${completedEvent ? ' countdown-item--completed' : ''}" role="button" tabindex="0"${anchor}${accent}${fillRowAttr(index, cap)}>
+        <span class="list-row__lead countdown-item__icon" aria-hidden="true">
           <i data-lucide="${esc(c.icon || 'calendar')}"></i>
         </span>
-        <div class="countdown-item__body">
-          <div class="countdown-item__title${completedEvent ? ' countdown-item__title--completed' : ''}">${esc(c.title)}</div>
+        <div class="list-row__main countdown-item__body">
+          <div class="list-row__name countdown-item__title${completedEvent ? ' countdown-item__title--completed' : ''}">${esc(c.title)}</div>
           ${meta}
           ${completedEvent ? `
           <div class="countdown-item__meta">
@@ -2052,7 +2307,7 @@ function renderCountdowns(allItems, size, total = null) {
           </div>
           ` : ''}
         </div>
-        <div class="countdown-item__days countdown-item__days--${countdownRank(c.days_until)}">${esc(label)}</div>
+        <div class="list-row__end countdown-item__days countdown-item__days--${countdownRank(c.days_until)}">${esc(label)}</div>
       </div>
     `;
   }).join('');
@@ -2078,18 +2333,19 @@ function renderCountdowns(allItems, size, total = null) {
    * ist. Fehlt sie (älterer Server, Fehlerpfad), fällt sie auf die geladene
    * Länge zurück - dann stimmt sie wenigstens für den Kachelschnitt. */
   const gesamt = Number.isFinite(Number(total)) ? Number(total) : shown.length;
-  const rest = Math.max(0, gesamt - items.length);
+  const rest = Math.max(0, gesamt - Math.min(items.length, cap));
   const more = rest > 0
-    ? `<p class="countdown-more">${esc(t('dashboard.countdownMore', { count: rest }))}</p>`
+    ? `<p class="countdown-more"${fillMoreAttrs(fill, rest, 'dashboard.countdownMore')}>${esc(t('dashboard.countdownMore', { count: rest }))}</p>`
     : '';
 
-  return `<div class="widget widget--countdown">
+  const span = tileSpanAttrs((s, k = 0) => ({ items: shown.length, total: gesamt, cap: listRowCap(s) + k }), size, fill);
+  return `<div class="widget widget--countdown"${span}>
     ${widgetHeader('countdown', t('dashboard.countdownTitle'), gesamt, null, null, 'dashboard')}
-    <div class="widget__body">${rows}${more}</div>
+    <div class="widget__body widget__body--rows">${widgetRows(rows)}${more}</div>
   </div>`;
 }
 
-function renderTodayMeals(meals, visibleMealTypes = MEAL_ORDER, users = []) {
+function renderTodayMeals(meals, visibleMealTypes = MEAL_ORDER, users = [], size = '2x1') {
   const mealLabels = MEAL_LABELS();
   const safeMeals = Array.isArray(meals) ? meals : [];
   const slots = normalizeVisibleMealTypes(visibleMealTypes).map((type) => {
@@ -2127,7 +2383,14 @@ function renderTodayMeals(meals, visibleMealTypes = MEAL_ORDER, users = []) {
     `;
   }).join('');
 
-  return `<div class="widget widget--meals">
+  // Zwei Slots je Zeile; der Gerichtname steht breit in einer, schmal in zwei
+  // Zeilen (dashboard.css, "MIT SPALTEN IST DIE ZEILE EIN TAKT").
+  const slotRows = Math.ceil(normalizeVisibleMealTypes(visibleMealTypes).length / 2);
+  const span = tileSpanAttrs((s) => {
+    const slot = tileColumns(s) >= 2 ? TILE_PARTS.mealSlot : TILE_PARTS.mealSlotTwoLines;
+    return { body: TILE_PARTS.mealsPad + slotRows * slot + Math.max(0, slotRows - 1) * TILE_PARTS.mealGap };
+  }, size);
+  return `<div class="widget widget--meals"${span}>
     ${widgetHeader('meals', t('dashboard.todayMeals'), null, '/meals', t('dashboard.weekLink'))}
     <div class="meals-widget">
       <div class="meal-slots">${slots}</div>
@@ -2144,14 +2407,33 @@ function renderPinnedNotes(allNotes, size, total = null) {
    * Notizen angepinnt hatte, sah drei davon und keinen Hinweis auf die
    * uebrigen (#928). Dieselbe Korrektur haben die Geburtstage schon bekommen;
    * die Notizen wurden dabei uebersehen. */
-  const notes = allNotes.slice(0, listRowCap(size));
+  const cap = listRowCap(size);
+  const fill = fillRows(allNotes.length, cap);
+  const notes = allNotes.slice(0, cap + fill);
+  /* Notizkarten in Reihen (U1 b): schmal eine Spalte, breit drei (dashboard.css
+   * "MIT SPALTEN"), jede Reihe so hoch wie ihre hoechste Karte - Titel und
+   * Kategorien sind Daten, die Vorschau steht in genau zwei Zeilen.
+   * KATEGORIEN NUR, WO SIE STEHEN (Review p11): dashboard.css blendet sie in
+   * jeder einspaltigen und jeder einzeiligen Groesse aus; mitgezaehlt standen
+   * fuenf Notizen in 1x2 auf 177 statt 145 Spuren, rund 128px leer. */
+  const notesTotal = listTotal(total, allNotes.length);
+  const span = tileSpanAttrs((s, k = 0) => {
+    const shown = allNotes.slice(0, listRowCap(s) + k);
+    if (!shown.length) return { items: 0 };
+    const cols = tileColumns(s) >= 2 ? 3 : 1;
+    const categoryRow = tileColumns(s) >= 2 && isTallSize(s) ? TILE_PARTS.noteCategories : 0;
+    const card = (n) => TILE_PARTS.noteCard + (n.title ? TILE_PARTS.noteTitle : 0) + TILE_PARTS.noteContent
+      + ((n.categories || []).length ? categoryRow : 0);
+    let body = TILE_PARTS.notesPad;
+    for (let i = 0; i < shown.length; i += cols) {
+      body += Math.max(...shown.slice(i, i + cols).map(card)) + (i ? TILE_PARTS.notesGap : 0);
+    }
+    return { body: body + (notesTotal > shown.length ? TILE_PARTS.notesMore : 0) };
+  }, size, fill);
   if (!notes.length) {
-    return `<div class="widget widget--notes">
+    return `<div class="widget widget--notes"${span}>
       ${widgetHeader('notes', t('nav.notes'), 0, '/notes')}
-      <div class="widget__empty">
-        <i data-lucide="sticky-note" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.noPinnedNotes')}</div>
-      </div>
+      ${widgetEmptyHtml(t('dashboard.noPinnedNotes'))}
     </div>`;
   }
 
@@ -2172,9 +2454,9 @@ function renderPinnedNotes(allNotes, size, total = null) {
   // damit das ganze color-mix ungueltig macht. Uebrig blieb der nackte
   // Traegergrund: drei graubeige Kaesten, die wie deaktiviert aussahen. Ohne die
   // Deklaration greift der Fallback im Stylesheet (der Notizen-Ton).
-  const items = notes.map((n) => `
+  const items = notes.map((n, index) => `
     <div class="note-item" data-route="${esc(`/notes?open=${encodeURIComponent(String(n.id))}`)}"
-         ${n.color ? `style="--note-color:${esc(n.color)};"` : ''}>
+         ${n.color ? `style="--note-color:${esc(n.color)};"` : ''}${fillRowAttr(index, cap)}>
       <div class="note-item__body" role="link" tabindex="0">
       ${n.title ? `<div class="note-item__title">${esc(n.title)}</div>` : ''}
       <div class="note-item__content">${renderMarkdownLight(excerpt(n.content))}</div>
@@ -2194,10 +2476,10 @@ function renderPinnedNotes(allNotes, size, total = null) {
   // gezaehlt wird deshalb die Menge, aus der sie schoepft (`notesTotal`, mit
   // demselben Kategoriefilter), nicht nur die angehefteten (listTotal).
   const gesamt = listTotal(total, allNotes.length);
-  return `<div class="widget widget--notes">
+  return `<div class="widget widget--notes"${span}>
     ${widgetHeader('notes', t('nav.notes'), gesamt, '/notes')}
     <div class="notes-grid-widget">${items}</div>
-    ${listMoreLine('dashboard.notesMore', gesamt - notes.length)}
+    ${listMoreLine('dashboard.notesMore', gesamt - Math.min(notes.length, cap), fill)}
   </div>`;
 }
 
@@ -2271,29 +2553,29 @@ function renderQuickLinkTile(s) {
   </a>`;
 }
 
-function renderQuickLinks(items) {
+function renderQuickLinks(items, size = '2x1') {
   const list = Array.isArray(items) ? items : [];
   const header = widgetHeader('quicklinks', t('dashboard.quickLinksTitle'), list.length, null, null, 'dashboard');
+  // Feste Spalten je Breite ab 768px (dashboard.css): drei schmal, sechs breit;
+  // dazu die Kachel "Verwalten".
+  const span = tileSpanAttrs((s) => {
+    if (!list.length) return { items: 0 };
+    const rows = Math.ceil((list.length + 1) / (tileColumns(s) >= 2 ? 6 : 3));
+    return { body: TILE_PARTS.quickLinksPad + rows * TILE_PARTS.quickLinkTile + (rows - 1) * TILE_PARTS.quickLinkGap };
+  }, size);
 
   if (!list.length) {
     // Der Leerzustand ist hier der WICHTIGSTE Zustand: das Widget kommt
     // ausgeblendet ins Haus, wer es holt, hat noch nichts angelegt, und es gibt
     // keine zweite Seite, auf der er anfangen könnte. Deshalb nicht der stumme
     // Hinweis der anderen Kacheln, sondern der Weg selbst.
-    return `<div class="widget widget--quicklinks">
+    return `<div class="widget widget--quicklinks"${span}>
       ${header}
-      <div class="widget__empty">
-        <i data-lucide="compass" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('quickLinks.emptyTitle')}</div>
-        <button type="button" class="widget__empty-cta" data-quick-links-manage>
-          <i data-lucide="plus" aria-hidden="true"></i>
-          <span>${esc(t('quickLinks.addFirst'))}</span>
-        </button>
-      </div>
+      ${widgetEmptyHtml(t('quickLinks.emptyTitle'), { label: t('common.add'), attrs: { 'data-quick-links-manage': '' } }, 'quicklinks')}
     </div>`;
   }
 
-  return `<div class="widget widget--quicklinks">
+  return `<div class="widget widget--quicklinks"${span}>
     ${header}
     <div class="quick-link-row">
       ${list.map(renderQuickLinkTile).join('')}
@@ -2390,7 +2672,7 @@ function familyManageHref(user) {
   return findSettingsLeaf(FAMILY_SETTINGS_LEAF, user)?.path ?? null;
 }
 
-function renderFamilyWidget(users, data, { manageHref = null } = {}) {
+function renderFamilyWidget(users, data, { manageHref = null, size = '1x2' } = {}) {
   // IM SOLO-HAUSHALT GIBT ES DIESES WIDGET NICHT - entschieden in
   // `isWidgetModuleEnabled`, damit es auch aus der „Anpassen"-Ablage faellt.
   // Es war das prominenteste Widget rechts oben und zeigte einer Solo-Nutzerin
@@ -2439,13 +2721,13 @@ function renderFamilyWidget(users, data, { manageHref = null } = {}) {
       ? t('dashboard.familyEveryone')
       : familyNameList(who.map((u) => u.display_name));
     sharedRow = `
-      <div class="family-member family-member--shared">
-        <span class="family-widget-avatar family-widget-avatar--group" aria-hidden="true">
+      <div class="list-row family-member family-member--shared">
+        <span class="list-row__lead family-widget-avatar family-widget-avatar--group" aria-hidden="true">
           <i data-lucide="users"></i>
         </span>
-        <span class="family-member__body">
-          <span class="family-member__name">${esc(label)}</span>
-          <span class="family-member__status">${familyEventLabel(sharedNext, todayKey)}</span>
+        <span class="list-row__main family-member__body">
+          <span class="list-row__name family-member__name">${esc(label)}</span>
+          <span class="list-row__meta family-member__status">${familyEventLabel(sharedNext, todayKey)}</span>
         </span>
       </div>`;
   }
@@ -2493,8 +2775,8 @@ function renderFamilyWidget(users, data, { manageHref = null } = {}) {
     // sind Malerei (`aria-hidden`), der Satz sagt dasselbe.
     const firstName = String(u.display_name || '').trim().split(/\s+/)[0] || '';
     return `
-      <div class="family-member">
-        <span class="family-member__face">
+      <div class="list-row family-member">
+        <span class="list-row__lead family-member__face">
           <span class="family-widget-avatar" style="background:${esc(u.avatar_color || AVATAR_FALLBACK_COLOR)};color:${getReadableTextColor(u.avatar_color || AVATAR_FALLBACK_COLOR)}">
             ${u.avatar_data ? `<img src="${esc(u.avatar_data)}" alt="" loading="lazy">` : esc(initials(u.display_name))}
           </span>
@@ -2505,9 +2787,9 @@ function renderFamilyWidget(users, data, { manageHref = null } = {}) {
           ${open > 0 ? `<span class="family-member__count" aria-hidden="true"><i data-lucide="${MODULE_ICON.tasks}" class="family-member__count-icon"></i>${esc(getNumberFormat().format(open))}</span>` : ''}
         </span>
         <span class="family-member__short" aria-hidden="true">${esc(firstName)}</span>
-        <span class="family-member__body">
-          <span class="family-member__name">${esc(u.display_name)}</span>
-          <span class="family-member__status${free ? ' family-member__status--free' : ''}">${status}</span>
+        <span class="list-row__main family-member__body">
+          <span class="list-row__name family-member__name">${esc(u.display_name)}</span>
+          <span class="list-row__meta family-member__status${free ? ' family-member__status--free' : ''}">${status}</span>
         </span>
       </div>`;
   }).join('');
@@ -2534,13 +2816,19 @@ function renderFamilyWidget(users, data, { manageHref = null } = {}) {
     ? esc(t('dashboard.familyDayTally', { open: openToday, done: doneToday }))
     : esc(t('dashboard.familyDayCalm'));
 
-  return `<div class="widget widget--family">
+  // Breit stehen Zeilen (am Telefon die Gesichterreihe, R19): die gemeinsame
+  // Zeile, eine je Mitglied, der Rest als Fussnote, darunter die Tagesbilanz.
+  const familyRows = (sharedRow ? 1 : 0) + shown.length;
+  const span = tileSpanAttrs(() => ({
+    body: TILE_PARTS.familyPad + familyRows * TILE_GEOMETRY.row + (moreCount > 0 ? TILE_PARTS.familyMore : 0) + TILE_PARTS.familyFooter,
+  }), size);
+  return `<div class="widget widget--family"${span}>
     ${/* EIN WORT FUER DEN KOPF-LINK (Critique 2026-10-16): jede Kachel fuehrt
          mit „Alle" zu ihrer Seite, nur die Familie sagte „Verwalten" - fuer
          denselben Weg, die ganze Liste. */ ''}
     ${widgetHeader('family', t('dashboard.familyTitle'), null, manageHref, null, 'contacts')}
     <div class="family-widget">
-      <div class="family-widget__list">
+      <div class="widget__rows row-divided family-widget__list">
         ${sharedRow}
         ${rows}
         ${moreCount > 0 ? `<div class="family-member family-member--more">${esc(t('dashboard.shoppingMore', { count: moreCount }))}</div>` : ''}
@@ -2609,11 +2897,22 @@ function renderBudgetSavings(budget, balance, income, savingsRate) {
  * DREI groessten Ausgabenkategorien statt einer - dieselbe Frage („wohin ging
  * das Geld?"), vollstaendiger beantwortet, und genau die Hoehe, die fehlte.
  * Die flache Kachel behaelt ihre eine Zeile; mehr trueg sie nicht. */
-function renderBudgetTopExpenses(budget, currency, size) {
+const BUDGET_TOP_TALL = 3;
+
+/* Die Zusatzzeilen der hohen Budget-Kachel (U14): weitere Kategorien, soweit
+ * geladen (der Server liefert fuenf). Die flache Kachel nennt eine Kategorie in
+ * einer Satzzeile - eine Liste wuerde sie erst durch Streckung, das ist kein
+ * Mehr an Zeilen, sondern eine andere Form. */
+function budgetTopFill(topCount, size) {
+  return listRowCap(size) === LIST_ROWS_TALL ? fillRows(topCount, BUDGET_TOP_TALL) : 0;
+}
+
+function renderBudgetTopExpenses(budget, currency, size, fill = 0) {
+  const cap = listRowCap(size) === LIST_ROWS_TALL ? BUDGET_TOP_TALL : 1;
   const rows = (Array.isArray(budget?.topExpenses) && budget.topExpenses.length
     ? budget.topExpenses
     : budget?.topExpenseCategory ? [{ category: budget.topExpenseCategory, amount: budget.topExpenseAmount }] : [])
-    .slice(0, listRowCap(size) === LIST_ROWS_TALL ? 3 : 1);
+    .slice(0, cap + (cap > 1 ? fill : 0));
   if (!rows.length) return '';
   if (rows.length === 1) {
     return `<div class="budget-widget__footer">${t('dashboard.topExpense')}: <strong>${esc(budgetCategoryLabel(rows[0].category))}</strong> · ${formatCurrency(rows[0].amount, currency)}</div>`;
@@ -2622,8 +2921,8 @@ function renderBudgetTopExpenses(budget, currency, size) {
     <div class="budget-widget__footer budget-widget__top">
       <p class="budget-widget__top-title">${esc(t('dashboard.topExpenses'))}</p>
       <ul class="budget-widget__top-list">
-        ${rows.map((row) => `
-        <li class="budget-widget__top-row">
+        ${rows.map((row, index) => `
+        <li class="budget-widget__top-row"${fillRowAttr(index, cap)}>
           <span>${esc(budgetCategoryLabel(row.category))}</span>
           <strong>${formatCurrency(row.amount, currency)}</strong>
         </li>`).join('')}
@@ -2646,19 +2945,25 @@ function renderBudgetWidget(budget, currency, size = '1x1') {
   const savingsRate = income > 0 ? Math.round((balance / income) * 100) : 0;
   const balanceTone = balance >= 0 ? 'positive' : 'negative';
   const hasData = (budget?.entryCount || 0) > 0;
+  const topCount = (Array.isArray(budget?.topExpenses) && budget.topExpenses.length
+    ? budget.topExpenses.length : budget?.topExpenseCategory ? 1 : 0);
+  const fill = hasData ? budgetTopFill(topCount, size) : 0;
+  const span = tileSpanAttrs((s, k = 0) => {
+    if (!hasData) return { items: 0 };
+    const n = Math.min(topCount, listRowCap(s) === LIST_ROWS_TALL ? BUDGET_TOP_TALL + k : 1);
+    const savings = budget?.savingsGoal > 0 ? TILE_PARTS.budgetGoal : income > 0 ? TILE_PARTS.budgetSavings : TILE_PARTS.budgetSavingsBare;
+    const top = n === 0 ? 0 : n === 1 ? TILE_PARTS.budgetTopOne : TILE_PARTS.budgetTopList + n * TILE_PARTS.budgetTopRow - 4;
+    return { body: TILE_PARTS.budgetPad + TILE_PARTS.budgetHeadline + savings + TILE_PARTS.budgetFlow + top };
+  }, size, fill);
 
   if (!hasData) {
-    return `<div class="widget widget--budget">
+    return `<div class="widget widget--budget"${span}>
       ${widgetHeader('budget', t('nav.budget'), null, BUDGET_MONTH_ROUTE)}
-      <div class="widget__empty">
-        <i data-lucide="wallet" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.noBudgetData')}</div>
-        ${emptyStateCta(BUDGET_MONTH_ROUTE, t('budget.addEntryLabel'))}
-      </div>
+      ${widgetEmptyHtml(t('dashboard.noBudgetData'), emptyRouteAction(BUDGET_MONTH_ROUTE, t('common.add')), 'budget')}
     </div>`;
   }
 
-  return `<div class="widget widget--budget">
+  return `<div class="widget widget--budget"${span}>
     ${widgetHeader('budget', t('nav.budget'), null, BUDGET_MONTH_ROUTE)}
     <div class="budget-widget">
       <div class="budget-widget__headline">
@@ -2676,7 +2981,7 @@ function renderBudgetWidget(budget, currency, size = '1x1') {
           <strong>${formatCurrency(expenses, currency)}</strong>
         </span>
       </div>
-      ${renderBudgetTopExpenses(budget, currency, size)}
+      ${renderBudgetTopExpenses(budget, currency, size, fill)}
     </div>
   </div>`;
 }
@@ -3039,9 +3344,21 @@ function selectMetricTiles(data, currency, shown = new Set(), sheetSpeaks = new 
 /* Die AUSWAHL steht getrennt von der DARSTELLUNG, damit die Zusage pruefbar ist,
  * ohne ein Dokument zu bauen: was die Reihe zeigt, ist die Aussage - dass sie es
  * in einem <a> zeigt, ist ihre Form. */
-function renderMetricTiles(data, currency, shown = new Set(), sheetSpeaks = new Set()) {
+function renderMetricTiles(data, currency, shown = new Set(), sheetSpeaks = new Set(), size = '2x1') {
   const tiles = selectMetricTiles(data, currency, shown, sheetSpeaks);
   if (!tiles.length) return '';
+  /* Keine Karte, kein Kopf: vier Kacheln je Reihe breit, zwei schmal (U1 b).
+   * SPALTEN UND HOEHE AUS EINER REGEL (U15, Review p11): das Stylesheet legte
+   * Spalten nach Breite an (auto-fit, 160px) - eine 684px breite Reihe stand
+   * in drei Spalten und zwei Kachelreihen, 308 statt 120px, im Anpassen-Modus
+   * abgeschnitten. Jetzt bekommt es die Spaltenzahl von hier (`--metric-cols`,
+   * dashboard.css ab 768px), und Name und Notiz stehen dort in einer Zeile:
+   * die Kachel ist 119px hoch, wie breit sie auch ist. */
+  const metricColumns = (s) => Math.min(tiles.length, tileColumns(s) >= 2 ? 4 : 2);
+  const span = tileSpanAttrs((s) => {
+    const rows = Math.ceil(tiles.length / metricColumns(s));
+    return { bare: true, body: rows * TILE_PARTS.metricCard + (rows - 1) * TILE_PARTS.metricGap };
+  }, size);
   // Die Reihe war das einzige Widget ohne Ueberschrift: per H-Taste sprang man
   // an ihr vorbei, und ihre vier Zahlen hingen unter der vorigen Kachel. Die
   // Ueberschrift ist sr-only, weil jede Kachel ihr Modul schon sichtbar nennt -
@@ -3049,7 +3366,7 @@ function renderMetricTiles(data, currency, shown = new Set(), sheetSpeaks = new 
   // nur Kopfhoehe. Sie steht VOR der Reihe, nicht in ihr: `.metric-tiles` ist
   // selbst das Raster der Kacheln.
   return `<h3 class="sr-only">${esc(t('dashboard.metrics'))}</h3>
-    <div class="metric-tiles">${tiles.map(renderMetricTile).join('')}</div>`;
+    <div class="metric-tiles"${span} style="--metric-cols: ${metricColumns(size)}">${tiles.map(renderMetricTile).join('')}</div>`;
 }
 
 // --------------------------------------------------------
@@ -3132,13 +3449,21 @@ function rewardAvatarHTML(m) {
   const inner = m.avatar_data
     ? `<img src="${esc(m.avatar_data)}" alt="" loading="lazy">`
     : esc(initials(m.display_name));
-  return `<span class="rewards-member__avatar" aria-hidden="true" style="background:${esc(color)};color:${getReadableTextColor(color)}">${inner}</span>`;
+  return `<span class="list-row__lead rewards-member__avatar" aria-hidden="true" style="background:${esc(color)};color:${getReadableTextColor(color)}">${inner}</span>`;
 }
 
+/* DIE FREIGABE IST EINE ZEILE, KEINE KAPSEL (DW-P3-6). "2 zu bestaetigen"
+ * stand als 44px-Mulde ueber die volle Breite und las sich wie ein
+ * abgeschalteter Knopf; DESIGN.md sagt seit R10: ein getoentes Well ist die
+ * Form der Handlungsaufforderung, nicht der Auskunft - und ein Knopf, der wie
+ * ausgegraut aussieht, ist keins von beidem. Jetzt steht sie im Zeilengeruest
+ * der Kachel: Zeichen vorn, der Satz als Titel, der Druck auf der ganzen
+ * Zeile, der Pfeil sagt "fuehrt weiter". */
 function rewardsFooterHTML(text) {
-  return `<a class="rewards-widget__footer" href="/rewards" data-route="/rewards">
-      <i data-lucide="clock" aria-hidden="true"></i>
-      <span>${esc(text)}</span>
+  return `<a class="list-row rewards-widget__footer" href="/rewards" data-route="/rewards">
+      <span class="list-row__lead rewards-widget__footer-icon" aria-hidden="true"><i data-lucide="clock"></i></span>
+      <span class="list-row__main"><span class="list-row__name">${esc(text)}</span></span>
+      <i data-lucide="chevron-right" class="rewards-widget__footer-chevron" aria-hidden="true"></i>
     </a>`;
 }
 
@@ -3157,18 +3482,35 @@ function earnedWhenLabel(value) {
   return dateText(value);
 }
 
-function renderRewardsSelf(me, rewards, spans) {
-  // Die kleine Kachel traegt nur den Weg zum Ziel: mit einer Verlaufszeile
-  // und dem Anfrage-Chip stand sie bei 275px gegen 183px der Nachbarn
-  // (gemessen 1440px). Breit steht der Verlauf daneben, hoch darunter.
-  const recentCap = spans.rows >= 2 ? 3 : spans.cols >= 2 ? 2 : 0;
-  const recent = (Array.isArray(rewards.recent) ? rewards.recent : []).slice(0, recentCap);
+/* Wie viele juengste Punkte die eigene Sicht in ihrer Groesse zeigt: die kleine
+ * Kachel traegt nur den Weg zum Ziel - mit einer Verlaufszeile und dem
+ * Anfrage-Chip stand sie bei 275px gegen 183px der Nachbarn (gemessen 1440px).
+ * Breit steht der Verlauf daneben, hoch darunter. */
+function rewardsRecentCap(spans) {
+  return spans.rows >= 2 ? 3 : spans.cols >= 2 ? 2 : 0;
+}
+
+/* Die Zusatzzeilen der Belohnungskachel (U14): die juengsten Punkte, die die
+ * eigene Sicht geladen, aber in ihrer Groesse nicht zeigt, bzw. die Mitglieder
+ * hinter dem Deckel der Familiensicht. */
+function rewardsFillRows(r, own, members, spans) {
+  if (!members.length) return 0;
+  if (own && members.length === 1) return fillRows((Array.isArray(r.recent) ? r.recent : []).length, rewardsRecentCap(spans));
+  return fillRows(members.length, spans.rows >= 2 ? REWARD_MEMBERS_TALL : REWARD_MEMBERS_SHORT);
+}
+
+function renderRewardsSelf(me, rewards, spans, fill = 0) {
+  // HOEHE WIRD INHALT (U14, vorher R22 S10 als eigene CSS-Fuell-Liste): was
+  // die Packung der Kachel an Hoehe zuteilt, fuellen weitere juengste Punkte -
+  // in der kleinen Kachel samt Ueberschrift, die dann mit der ersten Zeile kommt.
+  const recentCap = rewardsRecentCap(spans);
+  const recent = (Array.isArray(rewards.recent) ? rewards.recent : []).slice(0, recentCap + fill);
   const recentHTML = recent.length ? `
-      <div class="rewards-self__recent">
+      <div class="rewards-self__recent"${recentCap === 0 ? ' data-fill-group' : ''}>
         <p class="rewards-self__recent-title" aria-hidden="true">${esc(t('dashboard.rewardsRecent'))}</p>
         <ul class="rewards-recent" aria-label="${esc(t('dashboard.rewardsRecent'))}">
-          ${recent.map((row) => `
-            <li class="rewards-recent__row">
+          ${recent.map((row, index) => `
+            <li class="rewards-recent__row"${fillRowAttr(index, recentCap)}>
               <span class="rewards-recent__delta">+${esc(formatPoints(row.delta))}</span>
               <span class="rewards-recent__reason">${esc(row.reason || t(`rewards.ledgerType.${row.type}`))}</span>
               <span class="rewards-recent__when">${esc(earnedWhenLabel(row.created_at))}</span>
@@ -3178,24 +3520,6 @@ function renderRewardsSelf(me, rewards, spans) {
   // Praemien- und Geld-Anfragen (#1734) zusammen: der Server fuehrt sie
   // getrennt, die Kachel sagt, wie viele warten.
   const pending = (Number(rewards.pending) || 0) + (Number(rewards.moneyPending) || 0);
-  // DIE KLEINE KACHEL FUELLT NUR, WAS IHR DIE REIHE SCHENKT (R22 S10, aus S9).
-  // 1x1 neben Familie und Geburtstagen streckt die Reihe sie auf deren Hoehe,
-  // und unter Ziel und Anfrage stand leere Flaeche. Der Verlauf steht deshalb
-  // auch hier - aber in einer Flaeche ohne eigene Hoehe (dashboard.css,
-  // `.rewards-recent--fill`): er nimmt nur den Ueberschuss, ganze Zeilen oder
-  // keine. In einer Reihe kurzer Kacheln bleibt die Kachel so kurz wie bisher.
-  const fill = recentCap === 0
-    ? (Array.isArray(rewards.recent) ? rewards.recent : []).slice(0, 3)
-    : [];
-  const fillHTML = fill.length ? `
-      <ul class="rewards-recent rewards-recent--fill" aria-label="${esc(t('dashboard.rewardsRecent'))}">
-        ${fill.map((row, i) => `
-          <li class="rewards-recent__row"${i === 0 ? ` data-recent-title="${esc(t('dashboard.rewardsRecent'))}"` : ''}>
-            <span class="rewards-recent__delta">+${esc(formatPoints(row.delta))}</span>
-            <span class="rewards-recent__reason">${esc(row.reason || t(`rewards.ledgerType.${row.type}`))}</span>
-            <span class="rewards-recent__when">${esc(earnedWhenLabel(row.created_at))}</span>
-          </li>`).join('')}
-      </ul>` : '';
   return `
     <div class="widget__body rewards-widget rewards-widget--self">
       <div class="rewards-self">
@@ -3206,35 +3530,32 @@ function renderRewardsSelf(me, rewards, spans) {
         ${recentHTML}
       </div>
       ${pending > 0 ? rewardsFooterHTML(t('dashboard.rewardsOwnPending', { count: pending })) : ''}
-      ${fillHTML}
     </div>`;
 }
 
-function renderRewardsFamily(members, rewards, spans) {
+function renderRewardsFamily(members, rewards, spans, fill = 0) {
   // In der Haushaltsreihenfolge (#1644), nicht nach Punkten: eine Reihenfolge
   // nach Stand WAERE die Rangliste, nur ohne Ziffern. Der Server liefert die
   // Liste schon so; sortiert wird hier trotzdem, weil die Zusage dieser Kachel
   // ("nie nach Stand") nicht an der Abfrage einer anderen Datei haengen soll.
   const sorted = sortMembers(members);
   const cap = spans.rows >= 2 ? REWARD_MEMBERS_TALL : REWARD_MEMBERS_SHORT;
-  const shown = sorted.slice(0, cap);
-  const rows = shown.map((m) => `
-      <li class="rewards-member">
+  const shown = sorted.slice(0, cap + fill);
+  const rows = shown.map((m, index) => `
+      <li class="list-row rewards-member"${fillRowAttr(index, cap)}>
         ${rewardAvatarHTML(m)}
-        <span class="rewards-member__body">
-          <span class="rewards-member__head">
-            <span class="rewards-member__name">${esc(m.display_name)}</span>
-            <span class="rewards-member__points">${esc(t('dashboard.metricPoints', { count: Number(m.balance) || 0 }))}</span>
-          </span>
+        <span class="list-row__main rewards-member__body">
+          <span class="list-row__name rewards-member__name">${esc(m.display_name)}</span>
           ${rewardGoalHTML(m.balance, rewards.catalog, m.display_name, { compact: spans.rows < 2 })}
         </span>
+        <span class="list-row__end rewards-member__points">${esc(t('dashboard.metricPoints', { count: Number(m.balance) || 0 }))}</span>
       </li>`).join('');
-  const more = sorted.length - shown.length;
+  const more = sorted.length - Math.min(shown.length, cap);
   const pending = rewards.view === 'approver' ? (Number(rewards.pending) || 0) + (Number(rewards.moneyPending) || 0) : 0;
   return `
-    <div class="widget__body rewards-widget">
-      <ul class="rewards-widget__members">${rows}</ul>
-      ${more > 0 ? `<p class="rewards-widget__more">${esc(t('dashboard.shoppingMore', { count: more }))}</p>` : ''}
+    <div class="widget__body widget__body--rows rewards-widget">
+      ${widgetRows(rows, { tag: 'ul', className: 'rewards-widget__members' })}
+      ${more > 0 ? `<p class="rewards-widget__more"${fillMoreAttrs(fill, more, 'dashboard.shoppingMore')}>${esc(t('dashboard.shoppingMore', { count: more }))}</p>` : ''}
       ${pending > 0 ? rewardsFooterHTML(t('dashboard.rewardsPending', { count: pending })) : ''}
     </div>`;
 }
@@ -3246,20 +3567,18 @@ function renderRewardsWidget(rewards, size) {
   // Das Kind sieht NUR sich, auch wenn eine Antwort mehr mitbraechte.
   const members = r.view === 'self' ? (own ? [own] : []) : standings;
   const header = widgetHeader('rewards', t('nav.rewards'), null, '/rewards');
+  const fill = rewardsFillRows(r, own, members, sizeSpans(size));
+  const span = tileSpanAttrs((sz, k = 0) => rewardsTileModel(r, own, members, sizeSpans(sz), k), size, fill);
 
   if (!members.length) {
     // Praemien anlegen ist Elternsache: einem Kind einen Knopf zu zeigen, der
     // in eine Seite fuehrt, auf der es nichts anlegen darf, waere die leere
     // Zusage aus #700.
     const cta = r.view === 'approver' && navModuleAccess('rewards') === 'write'
-      ? emptyStateCta('/rewards', t('rewards.addReward')) : '';
-    return `<div class="widget widget--rewards">
+      ? emptyRouteAction('/rewards', t('common.add')) : null;
+    return `<div class="widget widget--rewards"${span}>
       ${header}
-      <div class="widget__empty">
-        <i data-lucide="award" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.noRewards')}</div>
-        ${cta}
-      </div>
+      ${widgetEmptyHtml(t('dashboard.noRewards'), cta, 'rewards')}
     </div>`;
   }
 
@@ -3268,27 +3587,52 @@ function renderRewardsWidget(rewards, size) {
   // Ein-Personen-Haushalt. Eine Uebersicht "je Kind" mit genau einer Zeile,
   // die man selbst ist, waere die Eltern-Sicht ohne Kinder.
   const body = own && members.length === 1
-    ? renderRewardsSelf(own, r, spans)
-    : renderRewardsFamily(members, r, spans);
-  return `<div class="widget widget--rewards">
+    ? renderRewardsSelf(own, r, spans, fill)
+    : renderRewardsFamily(members, r, spans, fill);
+  return `<div class="widget widget--rewards"${span}>
     ${header}
     ${body}
   </div>`;
+}
+
+/* Die Hoehe der Belohnungskachel aus denselben Zahlen wie ihre zwei Fassungen
+ * (U1 b): die eigene (Stand, Ziel, juengste Punkte, offene Freigaben) oder die
+ * der Familie (eine Zeile mit Balken je Mitglied, flach in 1x1). */
+function rewardsTileModel(r, own, members, spans, k = 0) {
+  if (!members.length) return { items: 0 };
+  const pendingAll = (Number(r.pending) || 0) + (Number(r.moneyPending) || 0);
+  const recentAll = Array.isArray(r.recent) ? r.recent : [];
+  if (own && members.length === 1) {
+    // Mit k Zusatzzeilen (U14) k juengste Punkte mehr - in der kleinen
+    // Kachel kommt mit der ersten auch die Ueberschrift.
+    const recent = recentAll.slice(0, rewardsRecentCap(spans) + Math.max(0, k)).length;
+    return {
+      body: TILE_PARTS.rewardsSelfPad + TILE_PARTS.rewardsSelfGoal
+        + (recent ? TILE_PARTS.rewardsGap + TILE_PARTS.rewardsRecentTitle + recent * TILE_PARTS.rewardsRecentRow : 0)
+        + (pendingAll > 0 ? TILE_PARTS.rewardsGap + TILE_PARTS.rewardsFooter : 0),
+    };
+  }
+  const cap = (spans.rows >= 2 ? REWARD_MEMBERS_TALL : REWARD_MEMBERS_SHORT) + Math.max(0, k);
+  const shown = Math.min(members.length, cap);
+  const pending = r.view === 'approver' ? pendingAll : 0;
+  const more = members.length > shown;
+  return {
+    items: shown,
+    row: spans.rows < 2 ? TILE_PARTS.rewardsMemberCompact : TILE_PARTS.rewardsMember,
+    more: false,
+    extra: (more ? TILE_PARTS.rewardsGap + TILE_PARTS.rewardsMore : 0) + (pending > 0 ? TILE_PARTS.rewardsGap + TILE_PARTS.rewardsFooter : 0),
+  };
 }
 
 // --------------------------------------------------------
 // Gesundheit-Widget (heutige Medikamenten-Dosen)
 // --------------------------------------------------------
 
-function renderHealthWidget(health) {
+function renderHealthWidget(health, size = '2x1') {
   if (!health?.hasMeds) {
-    return `<div class="widget widget--health">
+    return `<div class="widget widget--health"${emptySpanAttrs(size)}>
       ${widgetHeader('health', t('nav.health'), null, '/health')}
-      <div class="widget__empty">
-        <i data-lucide="heart-pulse" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.healthNoMeds')}</div>
-        ${emptyStateCta('/health', t('health.meds.add'))}
-      </div>
+      ${widgetEmptyHtml(t('dashboard.healthNoMeds'), emptyRouteAction('/health', t('common.add')), 'health')}
     </div>`;
   }
 
@@ -3328,7 +3672,13 @@ function renderHealthWidget(health) {
     `;
   }
 
-  return `<div class="widget widget--health">
+  // Fortschritt und Satz darunter, oder "heute nichts"; dazu ggf. der Chip.
+  const span = tileSpanAttrs(() => ({
+    body: TILE_PARTS.statusPad
+      + (total === 0 ? TILE_PARTS.healthNone : TILE_PARTS.healthProgress + (allTaken || health?.nextDose ? TILE_PARTS.statusLine : 0))
+      + (lowStock > 0 ? TILE_PARTS.statusChip : 0),
+  }), size);
+  return `<div class="widget widget--health"${span}>
     ${widgetHeader('health', t('nav.health'), null, '/health')}
     <div class="widget__body">
       <div class="health-widget">${main}${lowChip}</div>
@@ -3366,7 +3716,7 @@ function cycleWidgetCountdown(prediction) {
   return t('health.cycle.status.inDays', { count: d });
 }
 
-function renderCycleWidget(cycle) {
+function renderCycleWidget(cycle, size = '2x1') {
   // cycle: { periods, settings } (owner-only) | null (Ladefehler) | undefined (Kachel versteckt)
   const prediction = cycle
     ? predictCycle(cycle.periods || [], cycle.settings || {})
@@ -3374,13 +3724,9 @@ function renderCycleWidget(cycle) {
 
   // Ohne Historie: Onboarding-Empty statt Fehlerkachel — führt in den Zyklus-Flow.
   if (!prediction.hasData) {
-    return `<div class="widget widget--cycle">
+    return `<div class="widget widget--cycle"${emptySpanAttrs(size)}>
       ${widgetHeader('cycle', t('health.cycle.title'), null, '/health/cycle')}
-      <div class="widget__empty">
-        <i data-lucide="calendar-heart" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('health.cycle.emptyTitle')}</div>
-        ${emptyStateCta('/health/cycle', t('health.cycle.add'))}
-      </div>
+      ${widgetEmptyHtml(t('health.cycle.emptyTitle'), emptyRouteAction('/health/cycle', t('health.cycle.add')), 'cycle')}
     </div>`;
   }
 
@@ -3410,7 +3756,11 @@ function renderCycleWidget(cycle) {
       <text class="cycle-widget__ring-num" x="32" y="32" text-anchor="middle" dominant-baseline="central">${esc(prediction.cycleDay)}</text>
     </svg>`;
 
-  return `<div class="widget widget--cycle">
+  // Ring neben Phase, Countdown und ggf. Datum - die hoehere der beiden Spalten.
+  const span = tileSpanAttrs(() => ({
+    body: TILE_PARTS.statusPad + Math.max(TILE_PARTS.cycleRing, TILE_PARTS.cycleInfo + (cycleDate ? TILE_PARTS.cycleDate : 0)),
+  }), size);
+  return `<div class="widget widget--cycle"${span}>
     ${widgetHeader('cycle', t('health.cycle.title'), null, '/health/cycle')}
     <div class="widget__body">
       <div class="cycle-widget" data-phase="${esc(prediction.phase)}">
@@ -3428,32 +3778,56 @@ function renderCycleWidget(cycle) {
   </div>`;
 }
 
-function renderFastingWidget(fasting) {
+/* DAS ZIFFERBLATT BEGLEITET DEN SATZ, ES TRAEGT IHN NICHT (DW-P3-5). Der Ring
+ * der Gesundheitsseite stand hier in ganzer Groesse (224px) und trug Satz und
+ * Uhr in seiner Mitte - am Telefon 374px Kachel fuer "Bereit fuer deinen
+ * naechsten Fastenstart", und daneben ein zweiter GEFUELLTER Primaerknopf
+ * neben "+ Neu". Jetzt ein kleiner Ring (hoechstens 120px, ohne Stundenmarken)
+ * NEBEN dem Satz, wie ein Ring in den Health-Widgets; Uhr und Tag stehen als
+ * Text daneben, und "Fasten starten/beenden" ist sekundaer: der eine gefuellte
+ * Knopf des Schirms ist das Anlegen. Die Selektoren der Uhr (`data-fasting-*`)
+ * gelten fuer die ganze Kachel, nicht nur fuer den Ring. */
+function renderFastingWidget(fasting, size = '2x1') {
   if (!fasting) throw new Error('fasting widget slice failed to load');
   const active = fasting.active;
   const writable = moduleAccess('health') === 'write';
-  return `<div class="widget widget--fasting">${widgetHeader('fasting', t('health.fasting.title'), null, null, null, 'health')}
+  const span = tileSpanAttrs((s) => ({
+    body: (active ? TILE_PARTS.fastingActive : TILE_PARTS.fasting)[tileColumns(s) >= 2 ? 'wide' : 'narrow'],
+  }), size);
+  return `<div class="widget widget--fasting"${span}>${widgetHeader('fasting', t('health.fasting.title'), null, null, null, 'health')}
     <div class="fasting-widget">
-      <div class="fasting-dial fasting-dial--segmented" data-fasting-progress><div data-fasting-segments></div><div class="fasting-dial__content">
-        <span class="fasting-widget__meta" data-fasting-clock-label></span>
-        <strong class="fasting-widget__timer" data-fasting-timer>00:00:00</strong>
-        <span class="fasting-widget__meta" data-fasting-days></span>
-      </div></div>
-      <div class="fasting-widget__controls">${fastingClockSwitchHtml()}
+      <div class="fasting-dial fasting-dial--segmented" data-fasting-progress><div data-fasting-segments></div></div>
+      <div class="fasting-widget__controls">
+        <div class="fasting-widget__status">
+          <span class="fasting-widget__meta" data-fasting-clock-label></span>
+          <strong class="fasting-widget__timer" data-fasting-timer>00:00:00</strong>
+          <span class="fasting-widget__meta" data-fasting-days></span>
+        </div>
+        ${fastingClockSwitchHtml()}
         ${active ? '<span class="fasting-widget__remaining" data-fasting-remaining></span>' : ''}
         <p class="sr-only" role="status" aria-live="polite" data-fasting-announcement></p>
-        <div class="fasting-widget__actions">${writable ? `<button type="button" class="btn btn--primary btn--sm" data-fasting-widget-action>${esc(t(active ? 'health.fasting.finish' : 'health.fasting.start'))}</button>` : `<p class="form-hint">${esc(t('health.fasting.readOnly'))}</p>`}<a href="/health/fasting#history" class="btn btn--secondary btn--sm">${esc(t('health.fasting.history'))}</a></div>
+        <div class="fasting-widget__actions">${writable ? `<button type="button" class="btn btn--secondary btn--sm" data-fasting-widget-action>${esc(t(active ? 'health.fasting.finish' : 'health.fasting.start'))}</button>` : `<p class="form-hint">${esc(t('health.fasting.readOnly'))}</p>`}<a href="/health/fasting#history" class="btn btn--ghost btn--sm">${esc(t('health.fasting.history'))}</a></div>
       </div>
-      <p class="form-hint" role="alert" data-fasting-widget-error></p>
+      <p class="form-hint fasting-widget__error" role="alert" data-fasting-widget-error></p>
     </div></div>`;
 }
 
 // `refresh` ist der stille Abgleich der Seite: Starten und Beenden lassen die
 // Uebersicht stehen (DW-P1-2), statt sie ueber das Skelett neu aufzubauen.
-function wireFastingWidget(container, refresh, fasting, signal) {
+//
+// IM ANPASSEN-MODUS STARTET UND BEENDET DIE KACHEL NICHTS (Review p11, B5) -
+// wie jeder andere Kachelinhalt dort (wireLinks: "dort zieht man Kacheln, man
+// bearbeitet ihren Inhalt nicht"). Der Knopf war der eine, der weiter schrieb:
+// der Server fastete, aber der stille Abgleich schweigt waehrend des
+// Anpassens, und die Kachel bot nach "Starten" weiter "Fasten starten" an -
+// auch nach "Abbrechen", das aus den alten Daten neu baut. Er steht dort
+// gesperrt; die Uhr laeuft weiter.
+function wireFastingWidget(container, refresh, fasting, signal, { editing = false } = {}) {
   const root = container.querySelector('.fasting-widget');
   if (!root || !fasting) return () => {};
-  root.querySelector('[data-fasting-widget-action]')?.addEventListener('click', async (event) => {
+  const action = root.querySelector('[data-fasting-widget-action]');
+  if (editing && action) action.disabled = true;
+  if (!editing) action?.addEventListener('click', async (event) => {
     const button = event.currentTarget;
     button.disabled = true;
     try {
@@ -3485,19 +3859,15 @@ function wireFastingWidget(container, refresh, fasting, signal) {
  *   - ein Ziel von 0 (etwa Zucker) -> ein echtes Ziel, gegen das gemessen wird.
  *     `nutrientProgress()` haelt diesen Fall von "kein Ziel" getrennt.
  */
-function renderNutritionWidget(nutrition) {
+function renderNutritionWidget(nutrition, size = '2x1') {
   if (nutrition === null || nutrition === undefined) throw new Error('nutrition widget slice failed to load');
   const target = nutrition.target;
   const writable = moduleAccess('health') === 'write';
 
   if (!target) {
-    return `<div class="widget widget--nutrition">
+    return `<div class="widget widget--nutrition"${emptySpanAttrs(size)}>
       ${widgetHeader('nutrition', t('health.nutrition.title'), null, '/health/nutrition')}
-      <div class="widget__empty">
-        <i data-lucide="salad" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.nutritionNoTarget')}</div>
-        ${writable ? emptyStateCta('/health/nutrition', t('health.nutrition.targetSet')) : ''}
-      </div>
+      ${widgetEmptyHtml(t('dashboard.nutritionNoTarget'), writable ? emptyRouteAction('/health/nutrition', t('health.nutrition.targetSet')) : null, 'nutrition')}
     </div>`;
   }
 
@@ -3524,9 +3894,15 @@ function renderNutritionWidget(nutrition) {
 
   const body = rows.length
     ? `<ul class="nutrition-widget__rows">${rows.join('')}</ul>`
-    : `<div class="widget__empty"><div>${t('dashboard.nutritionNoTarget')}</div></div>`;
+    : cardEmptyRowHtml(t('dashboard.nutritionNoTarget'));
 
-  return `<div class="widget widget--nutrition">
+  // Eine Zeile je Naehrwert mit Ziel (Wort, Zahl, Balken darunter), dann die Zaehlzeile.
+  const span = tileSpanAttrs(() => ({
+    body: TILE_PARTS.nutritionPad + (rows.length
+      ? rows.length * TILE_PARTS.nutritionRow + (rows.length - 1) * TILE_PARTS.nutritionGap
+      : TILE_GEOMETRY.empty) + TILE_PARTS.nutritionCount,
+  }), size);
+  return `<div class="widget widget--nutrition"${span}>
     ${widgetHeader('nutrition', t('health.nutrition.title'), null, '/health/nutrition')}
     <div class="widget__body">
       <div class="nutrition-widget">
@@ -3570,22 +3946,22 @@ function renderScheduleWidget(schedule, users, size) {
   if (schedule === null) throw new Error('schedule widget slice failed to load');
   const entries = schedule?.entries ?? [];
   const hasTypes = Boolean(schedule?.hasTypes);
+  // Kein "+N weitere": die Kachel nennt die Zahl der Schichten im Kopf.
+  const cap = listRowCap(size);
+  const fill = hasTypes ? fillRows(entries.length, cap) : 0;
+  const span = tileSpanAttrs((s, k = 0) => ({ items: hasTypes ? entries.length : 0, cap: listRowCap(s) + k, more: false }), size, fill);
 
   if (!hasTypes) {
-    return `<div class="widget widget--schedule">
+    return `<div class="widget widget--schedule"${span}>
       ${widgetHeader('schedule', t('nav.schedule'), null, '/schedule')}
-      <div class="widget__empty">
-        <i data-lucide="calendar-clock" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.scheduleEmpty')}</div>
-        ${emptyStateCta('/schedule', t('schedule.createShiftType'))}
-      </div>
+      ${widgetEmptyHtml(t('dashboard.scheduleEmpty'), emptyRouteAction('/schedule', t('common.add')), 'schedule')}
     </div>`;
   }
 
   if (!entries.length) {
-    return `<div class="widget widget--schedule">
+    return `<div class="widget widget--schedule"${span}>
       ${widgetHeader('schedule', t('nav.schedule'), null, '/schedule/patterns')}
-      <div class="widget__body"><p class="u-meta schedule-widget-empty">${esc(t('schedule.empty'))}</p></div>
+      ${widgetEmptyHtml(t('schedule.empty'))}
     </div>`;
   }
 
@@ -3611,7 +3987,7 @@ function renderScheduleWidget(schedule, users, size) {
   // bestehender Plan von Hauspersonal traegt so einen Namen. Ohne Verzeichnis
   // bleibt es bei data.users.
   const directory = schedule?.people?.length ? schedule.people : users;
-  const rows = sorted.slice(0, listRowCap(size)).map((entry) => {
+  const rows = sorted.slice(0, cap + fill).map((entry, index) => {
     const user = directory.find((item) => Number(item.id) === Number(entry.user_id));
     const type = entry.shift_type;
     const accent = user?.avatar_color || AVATAR_FALLBACK_COLOR;
@@ -3630,18 +4006,18 @@ function renderScheduleWidget(schedule, users, size) {
     const icon = type?.icon ? `<i data-lucide="${esc(type.icon)}" class="schedule-widget-row__icon" aria-hidden="true"></i>` : '';
     const badge = entry.source === 'extra' ? `<i data-lucide="layers" class="schedule-widget-row__extra-badge" aria-label="${esc(t('schedule.extraBadgeLabel'))}"></i>` : '';
     return `
-      <div class="schedule-widget-row" data-route="/schedule/patterns" role="button" tabindex="0">
-        <span class="schedule-widget-row__avatar" style="background:${esc(accent)};color:${getReadableTextColor(accent)}">${avatarInner}</span>
-        <span class="schedule-widget-row__name">${esc(user?.display_name ?? '')}</span>
-        <span class="schedule-widget-row__shift">${icon}<span class="schedule-widget-row__dot" style="--schedule-color:${esc(swatchColor)}"></span>${shiftLabel}${badge}</span>
+      <div class="list-row schedule-widget-row" data-route="/schedule/patterns" role="button" tabindex="0"${fillRowAttr(index, cap)}>
+        <span class="list-row__lead schedule-widget-row__avatar" style="background:${esc(accent)};color:${getReadableTextColor(accent)}">${avatarInner}</span>
+        <span class="list-row__main">
+          <span class="list-row__name schedule-widget-row__name">${esc(user?.display_name ?? '')}</span>
+          <span class="list-row__meta schedule-widget-row__shift"><span class="schedule-widget-row__dot" style="--schedule-color:${esc(swatchColor)}"></span>${icon}${shiftLabel}${badge}</span>
+        </span>
       </div>`;
   }).join('');
 
-  return `<div class="widget widget--schedule">
+  return `<div class="widget widget--schedule"${span}>
     ${widgetHeader('schedule', t('nav.schedule'), onShift, '/schedule/patterns')}
-    <div class="widget__body">
-      <div class="schedule-widget">${rows}</div>
-    </div>
+    <div class="widget__body widget__body--rows">${widgetRows(rows, { className: 'schedule-widget' })}</div>
   </div>`;
 }
 
@@ -3681,19 +4057,20 @@ function renderPantryWidget(pantry, size) {
   if (pantry === null || pantry === undefined) throw new Error('pantry widget slice failed to load');
   const title = t('dashboard.pantryExpiringTitle');
   const items = Array.isArray(pantry.items) ? pantry.items : [];
+  const pantryTotal = Number.isFinite(Number(pantry.total)) ? Number(pantry.total) : items.length;
+  const cap = listRowCap(size);
+  const fill = fillRows(items.length, cap);
+  const span = tileSpanAttrs((s, k = 0) => ({ items: items.length, total: pantryTotal, cap: listRowCap(s) + k }), size, fill);
 
   if (!items.length) {
-    return `<div class="widget widget--pantry">
+    return `<div class="widget widget--pantry"${span}>
       ${widgetHeader('pantry', title, null, '/pantry')}
-      <div class="widget__empty">
-        <i data-lucide="archive" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${esc(t('dashboard.pantryExpiringEmpty', { count: EXPIRY_SOON_DAYS }))}</div>
-      </div>
+      ${widgetEmptyHtml(t('dashboard.pantryExpiringEmpty', { count: EXPIRY_SOON_DAYS }))}
     </div>`;
   }
 
-  const shown = items.slice(0, listRowCap(size));
-  const rows = shown.map((item) => {
+  const shown = items.slice(0, cap + fill);
+  const rows = shown.map((item, index) => {
     const days = Number(item.days_left);
     const tone = pantryExpiryTone(days);
     const phrase = pantryExpiryPhrase(days);
@@ -3703,13 +4080,13 @@ function renderPantryWidget(pantry, size) {
       .filter(Boolean).join(' · ');
     const filter = tone === 'expired' ? 'expired' : 'soon';
     return `
-      <div class="pantry-widget-row" data-route="/pantry?filter=${filter}" role="button" tabindex="0">
-        <span class="pantry-widget-row__icon" aria-hidden="true"><i data-lucide="${esc(icon)}"></i></span>
-        <div class="pantry-widget-row__body">
-          <div class="pantry-widget-row__name">${esc(item.name)}</div>
-          <div class="pantry-widget-row__meta">${esc(meta)}</div>
+      <div class="list-row pantry-widget-row" data-route="/pantry?filter=${filter}" role="button" tabindex="0"${fillRowAttr(index, cap)}>
+        <span class="list-row__lead pantry-widget-row__icon" aria-hidden="true"><i data-lucide="${esc(icon)}"></i></span>
+        <div class="list-row__main pantry-widget-row__body">
+          <div class="list-row__name pantry-widget-row__name">${esc(item.name)}</div>
+          <div class="list-row__meta pantry-widget-row__meta">${esc(meta)}</div>
         </div>
-        <div class="pantry-widget-row__days pantry-widget-row__days--${tone}">${esc(label)}</div>
+        <div class="list-row__end pantry-widget-row__days pantry-widget-row__days--${tone}">${esc(label)}</div>
       </div>`;
   }).join('');
 
@@ -3717,14 +4094,14 @@ function renderPantryWidget(pantry, size) {
   // und eine Fussnote aus der geladenen Laenge verschwiege genau diesen Schnitt
   // (dieselbe Lehre wie beim Countdown, #647).
   const total = Number.isFinite(Number(pantry.total)) ? Number(pantry.total) : items.length;
-  const rest = Math.max(0, total - shown.length);
+  const rest = Math.max(0, total - Math.min(shown.length, cap));
   const more = rest > 0
-    ? `<p class="pantry-widget-more">${esc(t('dashboard.pantryExpiringMore', { count: rest }))}</p>`
+    ? `<p class="pantry-widget-more"${fillMoreAttrs(fill, rest, 'dashboard.pantryExpiringMore')}>${esc(t('dashboard.pantryExpiringMore', { count: rest }))}</p>`
     : '';
 
-  return `<div class="widget widget--pantry">
+  return `<div class="widget widget--pantry"${span}>
     ${widgetHeader('pantry', title, total, '/pantry')}
-    <div class="widget__body">${rows}${more}</div>
+    <div class="widget__body widget__body--rows">${widgetRows(rows)}${more}</div>
   </div>`;
 }
 
@@ -3743,15 +4120,14 @@ function renderPantryWidget(pantry, size) {
 function renderWasteWidget(waste, size) {
   if (waste === null) throw new Error('waste widget slice failed to load');
   const items = waste?.items ?? [];
+  const cap = listRowCap(size);
+  const fill = fillRows(items.length, cap);
+  const span = tileSpanAttrs((s, k = 0) => ({ items: items.length, cap: listRowCap(s) + k, extra: waste?.needsRefresh ? TILE_PARTS.wasteWarning : 0 }), size, fill);
 
   if (!items.length) {
-    return `<div class="widget widget--waste">
+    return `<div class="widget widget--waste"${span}>
       ${widgetHeader('waste', t('nav.waste'), null, '/waste')}
-      <div class="widget__empty">
-        <i data-lucide="trash-2" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('waste.emptyTypesTitle')}</div>
-        ${emptyStateCta('/waste', t('waste.addType'))}
-      </div>
+      ${widgetEmptyHtml(t('waste.emptyTypesTitle'), emptyRouteAction('/waste', t('common.add')), 'waste')}
     </div>`;
   }
 
@@ -3769,8 +4145,8 @@ function renderWasteWidget(waste, size) {
   const earliestDate = sorted.find((e) => e.next)?.next.date_key ?? null;
   const upcomingCount = items.filter((e) => e.next).length;
 
-  const capped = sorted.slice(0, listRowCap(size));
-  const rows = capped.map((entry) => {
+  const capped = sorted.slice(0, cap + fill);
+  const rows = capped.map((entry, index) => {
     const type = entry.type;
     const next = entry.next;
     const accent = type.color || 'var(--color-border)';
@@ -3778,10 +4154,10 @@ function renderWasteWidget(waste, size) {
 
     if (!next) {
       return `
-        <div class="waste-widget-row" data-route="${esc(`/waste?type=${encodeURIComponent(String(type.id))}`)}" role="button" tabindex="0">
-          <span class="waste-widget-row__dot" style="--waste-color:${esc(accent)}"></span>
-          <span class="waste-widget-row__name">${icon}${esc(type.name)}</span>
-          <span class="waste-widget-row__date waste-widget-row__date--none">${esc(t('waste.noUpcomingPickup'))}</span>
+        <div class="list-row waste-widget-row" data-route="${esc(`/waste?type=${encodeURIComponent(String(type.id))}`)}" role="button" tabindex="0"${fillRowAttr(index, cap)}>
+          <span class="list-row__lead" aria-hidden="true"><span class="waste-widget-row__dot" style="--waste-color:${esc(accent)}"></span></span>
+          <span class="list-row__main"><span class="list-row__name waste-widget-row__name">${icon}${esc(type.name)}</span></span>
+          <span class="list-row__end waste-widget-row__date waste-widget-row__date--none">${esc(t('waste.noUpcomingPickup'))}</span>
         </div>`;
     }
 
@@ -3800,16 +4176,16 @@ function renderWasteWidget(waste, size) {
     const emphasize = next.date_key === earliestDate ? ' waste-widget-row__date--next' : '';
 
     return `
-      <div class="waste-widget-row" data-route="${esc(`/waste${next.deep_link}`)}" role="button" tabindex="0">
-        <span class="waste-widget-row__dot" style="--waste-color:${esc(accent)}"></span>
-        <span class="waste-widget-row__name">${icon}${esc(type.name)}${moved}${coalesced}</span>
-        <span class="waste-widget-row__date${emphasize}">${esc(relativeDateLabel(next.date_key))}</span>
+      <div class="list-row waste-widget-row" data-route="${esc(`/waste${next.deep_link}`)}" role="button" tabindex="0"${fillRowAttr(index, cap)}>
+        <span class="list-row__lead" aria-hidden="true"><span class="waste-widget-row__dot" style="--waste-color:${esc(accent)}"></span></span>
+        <span class="list-row__main"><span class="list-row__name waste-widget-row__name">${icon}${esc(type.name)}${moved}${coalesced}</span></span>
+        <span class="list-row__end waste-widget-row__date${emphasize}">${esc(relativeDateLabel(next.date_key))}</span>
       </div>`;
   }).join('');
 
-  const rest = Math.max(0, sorted.length - capped.length);
+  const rest = Math.max(0, sorted.length - Math.min(capped.length, cap));
   const more = rest > 0
-    ? `<p class="waste-widget-more">${esc(t('dashboard.wasteMore', { count: rest }))}</p>`
+    ? `<p class="waste-widget-more"${fillMoreAttrs(fill, rest, 'dashboard.wasteMore')}>${esc(t('dashboard.wasteMore', { count: rest }))}</p>`
     : '';
   // Quelle-braucht-Auffrischung (invariant #6) ist ein Source-, kein
   // Occurrence-Feld - eigener Fetch auf /waste/sources in ensureWasteSlice(),
@@ -3821,10 +4197,10 @@ function renderWasteWidget(waste, size) {
       </div>`
     : '';
 
-  return `<div class="widget widget--waste">
+  return `<div class="widget widget--waste"${span}>
     ${widgetHeader('waste', t('nav.waste'), upcomingCount, '/waste')}
-    <div class="widget__body">
-      <div class="waste-widget">${rows}${more}</div>
+    <div class="widget__body widget__body--rows">
+      ${widgetRows(rows, { className: 'waste-widget' })}${more}
       ${refreshWarning}
     </div>
   </div>`;
@@ -3834,15 +4210,11 @@ function renderWasteWidget(waste, size) {
 // Haushaltshilfe-Widget (Anwesenheit + offene Zahlung)
 // --------------------------------------------------------
 
-function renderHousekeepingWidget(hk, currency) {
+function renderHousekeepingWidget(hk, currency, size = '1x1') {
   if (!hk?.configured) {
-    return `<div class="widget widget--housekeeping">
+    return `<div class="widget widget--housekeeping"${emptySpanAttrs(size)}>
       ${widgetHeader('housekeeping', t('nav.housekeeping'), null, '/housekeeping')}
-      <div class="widget__empty">
-        <i data-lucide="paintbrush" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.housekeepingNone')}</div>
-        ${emptyStateCta('/housekeeping', t('housekeeping.addTask'))}
-      </div>
+      ${widgetEmptyHtml(t('dashboard.housekeepingNone'), emptyRouteAction('/housekeeping', t('common.add')), 'housekeeping')}
     </div>`;
   }
 
@@ -3870,7 +4242,10 @@ function renderHousekeepingWidget(hk, currency) {
     ? `<div class="housekeeping-widget__unpaid"><i data-lucide="banknote" aria-hidden="true"></i><span>${t('dashboard.housekeepingUnpaid', { amount: formatCurrency(unpaid, currency) })}</span></div>`
     : '';
 
-  return `<div class="widget widget--housekeeping">
+  const span = tileSpanAttrs(() => ({
+    body: TILE_PARTS.statusPad + TILE_PARTS.housekeepingStatus + (unpaid > 0 ? TILE_PARTS.statusChip : 0),
+  }), size);
+  return `<div class="widget widget--housekeeping"${span}>
     ${widgetHeader('housekeeping', t('nav.housekeeping'), null, '/housekeeping')}
     <div class="widget__body">
       <div class="housekeeping-widget">${statusBlock}${unpaidChip}</div>
@@ -4126,6 +4501,88 @@ function refitTodayStage(shell, render) {
   if (drawn && drawn !== todayStage()) replaceProgramSheet(shell, render());
 }
 
+/**
+ * Ersetzt nur die Zeichen, die noch Platzhalter sind. `createIcons` auf der
+ * ganzen Flaeche ersetzte jedes fertige SVG ein zweites Mal - `data-lucide`
+ * bleibt am SVG (lucide-scope.js) -, und jeder Ersatz legte die Flaeche neu
+ * aus (DW-P2-4).
+ */
+function createPendingIcons(root) {
+  const lucide = globalThis.window?.lucide;
+  if (!lucide || !root?.querySelectorAll) return;
+  // Frisch gezeichnet (noch kein fertiges Zeichen darin): ein Lauf ueber alles.
+  if (!root.querySelector('svg[data-lucide]')) {
+    lucide.createIcons({ el: root });
+    return;
+  }
+  for (const node of root.querySelectorAll('[data-lucide]:not(svg)')) lucide.createIcons({ el: node });
+}
+
+/* DIE HOEHE JEDER KACHEL AUS DEM LETZTEN BILD (DW-P2-4, PLAN H9). Kacheln
+ * ausser Sicht rechnet der Browser erst, wenn sie kommen (`content-visibility`,
+ * dashboard.css), und bis dahin steht ihr Platzhalter. `auto` merkt sich die
+ * echte Hoehe nur am selben Knoten - jeder Neuaufbau zeichnet neue. Darum
+ * merkt sich die Seite die Hoehen selbst (je Fensterbreite und Kachel) und
+ * gibt sie dem naechsten Aufbau mit, bevor er zum ersten Mal ausgelegt wird.
+ * Gelesen wird nur, was der ResizeObserver nach dem Layout ohnehin meldet. */
+const tileBlockSizes = new Map();
+// Die Fensterbreite wird gelesen, solange das Layout sauber ist (vor dem
+// Zeichnen bzw. im Rueckruf nach dem Layout) - `innerWidth` mitten im Aufbau
+// verlangte ein Layout der halbfertigen Flaeche.
+const tileSizeKey = (width, id) => `${width}:${id}`;
+
+/**
+ * DAS SKELETT SAGT DAS RASTER VORAUS, DAS GEZEICHNET WURDE (DW-P2-5). Gemerkt
+ * wurden die sichtbaren Kacheln der Anordnung - auch die, die das Raster gar
+ * nicht zeichnet (Modul abgeschaltet oder ohne Recht, Renderer ohne Inhalt).
+ * Jede davon stand im Skelett als Kachel und verschob beim Laden alles
+ * dahinter. Jetzt lernt der Hinweis aus derselben Liste, die das Raster
+ * gezeichnet hat (`drawn` in renderDashboardLayout).
+ */
+function rememberGridHint(drawn, cfg) {
+  rememberLayoutHint(drawn, dashboardQuery(cfg), drawnSpanOf);
+}
+
+/** Der Schluessel der Kopfhoehe (headHint): die Fenstergroesse. */
+function viewportKey() {
+  const win = globalThis.window;
+  return win ? `${win.innerWidth}x${win.innerHeight}` : '';
+}
+
+/** Merkt die gezeichnete Hoehe des Kopfbands fuer das naechste Skelett. */
+function watchHeadSize(shell) {
+  const band = shell?.querySelector?.(':scope > .dashboard-masthead');
+  if (!band || typeof ResizeObserver !== 'function') return null;
+  const observer = new ResizeObserver((entries) => {
+    const entry = entries[entries.length - 1];
+    const px = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect?.height ?? 0;
+    if (px > 0 && band.isConnected) rememberHeadHint(viewportKey(), px, Boolean(band.querySelector('.today-cockpit')));
+  });
+  observer.observe(band);
+  return observer;
+}
+
+function carryTileSizes(shell, width) {
+  for (const el of shell.querySelectorAll('#dashboard-widget-grid > .widget-wrapper[data-widget-id]')) {
+    const px = tileBlockSizes.get(tileSizeKey(width, el.dataset.widgetId));
+    if (px) el.style.setProperty('--tile-block-size', `${px}px`);
+  }
+}
+
+function watchTileSizes(grid) {
+  if (!grid || typeof ResizeObserver !== 'function') return null;
+  const observer = new ResizeObserver((entries) => {
+    const width = globalThis.window?.innerWidth ?? 0;
+    for (const entry of entries) {
+      const id = entry.target.dataset?.widgetId;
+      const px = Math.round(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect?.height ?? 0);
+      if (id && px > 0 && entry.target.isConnected) tileBlockSizes.set(tileSizeKey(width, id), px);
+    }
+  });
+  for (const el of grid.querySelectorAll(':scope > .widget-wrapper[data-widget-id]')) observer.observe(el);
+  return observer;
+}
+
 /** Tauscht das Heute-Blatt gegen eine neu gezeichnete Fassung (gleicher Platz). */
 function replaceProgramSheet(shell, html) {
   shell.querySelector('.today-cockpit')?.insertAdjacentHTML('afterend', html);
@@ -4148,7 +4605,14 @@ function createPhoneProgramFit(win, signal, rebuild) {
       // Die Buehne, fuer die das Blatt gezeichnet ist, gegen die gemessene:
       // Telefon, schmal oder breit (todayStage).
       const drawn = win.document?.querySelector?.('.today-cockpit')?.dataset?.todayStage;
-      rebuild(Boolean(drawn) && drawn !== todayStage());
+      /* UND DIE DER KACHELN, OHNE DAS BLATT (Review p11, B6). Das Blatt ist
+       * abwaehlbar; ohne es sah das Drehen vom Telefon zur breiten Buehne
+       * keinen Wechsel, und die Kacheln blieben ohne Spannen (tileSpanAttrs
+       * rechnet am Telefon nichts) - gemessen 390 -> 800px: Notizen 1x2
+       * 546px hoch, nach Daten 612, und die Listen kurz wie am Telefon. */
+      const tiles = win.document?.querySelector?.('#dashboard-widget-grid')?.dataset?.tileStage;
+      const tilesCrossed = Boolean(tiles) && tiles !== (onPhoneStage() ? 'phone' : 'wide');
+      rebuild((Boolean(drawn) && drawn !== todayStage()) || tilesCrossed);
     });
   }, { signal, passive: true });
   signal.addEventListener('abort', () => win.cancelAnimationFrame(frame), { once: true });
@@ -5633,10 +6097,25 @@ function renderCustomizeFootnote({ followsDefault = true, canPublish = false } =
   const actions = renderCustomizeScopeActions({ followsDefault, canPublish });
   return `
     <section class="dashboard-customize-footnote" aria-label="${esc(t('dashboard.customizeTitle'))}">
-      <p>${t('dashboard.customizeScopeHint')}</p>
-      ${followsDefault ? `<p class="dashboard-customize-scope__state">${t('dashboard.customizeFollowsDefault')}</p>` : ''}
+      ${renderCustomizeScopeHint(followsDefault)}
       ${actions.trim() ? `<div class="dashboard-customize-footnote__actions">${actions}</div>` : ''}
     </section>`;
+}
+
+/* DIE REICHWEITE IN EINER ZEILE, DER HINTERGRUND DAHINTER (DW-P2-9).
+ * Im Kopf standen zwei Saetze rechtsbuendig uebereinander, neben vier
+ * Knoepfen - der Kopf las sich wie eine Fussnote. Die Frage im Moment ist
+ * "trifft das die anderen?", und die beantwortet der erste Satz; woher der
+ * aktuelle Stand kommt (die Vorgabe des Haushalts), steht hinter "Mehr dazu" -
+ * dasselbe native `<details>` wie die Erklaerungen der Einstellungen
+ * (hintFoldHtml, R22 D13). Ohne Vorgabe gibt es nichts aufzuklappen. */
+function renderCustomizeScopeHint(followsDefault) {
+  const more = followsDefault ? `
+      <details class="dashboard-customize-scope__more">
+        <summary class="dashboard-customize-scope__summary">${esc(t('settings.hintMore'))}<i data-lucide="chevron-down" class="dashboard-customize-scope__icon" aria-hidden="true"></i></summary>
+        <p class="dashboard-customize-scope__state">${t('dashboard.customizeFollowsDefault')}</p>
+      </details>` : '';
+  return `<p class="dashboard-customize-scope__lead">${t('dashboard.customizeScopeHint')}</p>${more}`;
 }
 
 /* DER KOPF DER UEBERSICHT: Datumszeile mit Werkzeugen, darunter der Large
@@ -5690,8 +6169,7 @@ function renderDashboardOverview(user, editing = false, weather = null, scope = 
                2026-08-16). Ein Satz im Anpassen-Modus beantwortet sie im
                richtigen Moment. -->
           <div class="dashboard-customize-scope">
-            <p>${t('dashboard.customizeScopeHint')}</p>
-            ${followsDefault ? `<p class="dashboard-customize-scope__state">${t('dashboard.customizeFollowsDefault')}</p>` : ''}
+            ${renderCustomizeScopeHint(followsDefault)}
           </div>
           <!-- MOBIL EINE ZEILE: [Abbrechen] Titel [Fertig] (R9 M7, iOS-Muster).
                Der Titel ist nur dort sichtbar (dashboard.css); am Desktop steht
@@ -5869,6 +6347,51 @@ function rowFocusKeyOf(el) {
 /** Zeilen, die EIN Objekt nennen: Aufgabe, Termin, Notiz, Geburtstag. */
 const OBJECT_ROW_SELECTOR = '[data-task-id], [data-object-id], [data-route*="?open="]';
 
+/** Die sichtbaren Objektzeilen der Flaeche, je die aeusserste. */
+function shownObjectRows(shell) {
+  const hits = [...(shell?.querySelectorAll?.(OBJECT_ROW_SELECTOR) ?? [])];
+  return hits
+    .filter((el) => !hits.some((other) => other !== el && other.contains(el)))
+    .filter((el) => !el.hidden && el.getClientRects?.().length !== 0);
+}
+
+/**
+ * Die sichtbaren Objektzeilen der Kacheln, ohne das Heute-Blatt: das passt
+ * seine Zeilen nach jedem Aufbau neu ein (am Telefon auf den ersten Schirm,
+ * breit als Zeitleiste) - was dort nach dem Abgleich neu steht, ist meist
+ * nur nachgerueckt, nicht angekommen.
+ */
+function shownTileRows(shell) {
+  return shownObjectRows(shell).filter((row) => row.closest('.widget-wrapper[data-widget-id]'));
+}
+
+/** Die Schluessel (rowFocusKeyOf) der sichtbaren Kachelzeilen - fuer rowsArriving. */
+function shownRowKeys(shell) {
+  return new Set(shownTileRows(shell).map((row) => rowFocusKeyOf(row)?.selector).filter(Boolean));
+}
+
+/**
+ * Welche Kachelzeilen nach einem stillen Neuaufbau neu dazukamen (U2): die
+ * eben ueber der Uebersicht angelegte Aufgabe, der Termin, die angepinnte
+ * Notiz. Sie ziehen ein wie im Modul (`expandIn`, list-motion: "die
+ * eingefuegte klappt ein") - das Gegenstueck zu rowsLeaving. Hoechstens drei:
+ * mehr ist kein Ankommen, sondern ein neuer Stand (ein neuer Tag, ein anderes
+ * Geraet), und der steht still da wie bisher.
+ *
+ * @param {Element} shell      die Flaeche nach dem Neuaufbau
+ * @param {Set<string>} known  shownRowKeys(shell) davor
+ * @returns {Element[]}
+ */
+function rowsArriving(shell, known) {
+  if (!known?.size) return [];
+  const fresh = shownTileRows(shell).filter((row) => {
+    const key = rowFocusKeyOf(row)?.selector;
+    return Boolean(key) && !known.has(key);
+  });
+  return fresh.length <= ROWS_ARRIVING_MAX ? fresh : [];
+}
+const ROWS_ARRIVING_MAX = 3;
+
 /**
  * Welche sichtbaren Objektzeilen der Flaeche das naechste Markup nicht mehr
  * nennt (DW-P1-2) - die schliessen per `collapseRow`, bevor neu gezeichnet
@@ -5884,10 +6407,7 @@ const OBJECT_ROW_SELECTOR = '[data-task-id], [data-object-id], [data-route*="?op
  */
 function rowsLeaving(shell, nextHtml, doc = typeof document === 'undefined' ? null : document) {
   if (!shell?.querySelectorAll || typeof doc?.implementation?.createHTMLDocument !== 'function') return [];
-  const hits = [...shell.querySelectorAll(OBJECT_ROW_SELECTOR)];
-  const rows = hits
-    .filter((el) => !hits.some((other) => other !== el && other.contains(el)))
-    .filter((el) => !el.hidden && el.getClientRects?.().length !== 0);
+  const rows = shownObjectRows(shell);
   if (!rows.length) return [];
   const next = doc.implementation.createHTMLDocument('');
   next.body.insertAdjacentHTML('afterbegin', nextHtml);
@@ -5995,25 +6515,36 @@ function announceDashboard(message) {
 
 /* DIE KACHELN GLEITEN, STATT ZU SPRINGEN (FLIP, Critique 2026-09-26).
  *
- * Jede Anpassen-Geste baut die Flaeche per setHtml neu; bis hierher sprang das
+ * Eine Anpassen-Geste aendert die Lage von Kacheln; bis hierher sprang das
  * Raster dabei in einem Frame auf den neuen Stand - wer eine Kachel eine Stelle
- * hoch schob oder breiter machte, musste sie danach suchen. Jetzt: vor dem
- * Neuaufbau die Lage jeder Kachel merken (First), danach die neue messen (Last),
+ * hoch schob oder breiter machte, musste sie danach suchen. Jetzt: vor der
+ * Aenderung die Lage jeder Kachel merken (First), danach die neue messen (Last),
  * die Kachel per transform auf die alte Stelle zuruecksetzen (Invert) und per
  * Web Animations nach Hause laufen lassen (Play). Die Identitaet traegt die
- * Widget-Id - die Elemente selbst ueberleben den Neuaufbau nicht.
+ * Widget-Id; seit DW-P2-1 ueberleben die Knoten die Geste ohnehin
+ * (patchCustomize), aber ein Neuaufbau ersetzt sie weiter.
  *
  * Eine Kachel, die waechst, deckt ihre neue Flaeche per clip-path von der alten
  * Groesse aus auf; eine, die schrumpft, kann nicht ueber ihren Rand hinaus
  * zeigen und blendet ihren umgebrochenen Inhalt kurz auf. Eine wieder
- * eingeblendete Kachel kommt ohne Vorlage und blendet ein. Die Kachel ist ein
- * Glas-Element: Dauer und Kurve aus den Token (`--duration-lg`, `--ease-glass`).
- * Unter reduzierter Bewegung bleibt es beim Sprung.
+ * eingeblendete Kachel kommt ohne Vorlage und blendet ein.
+ *
+ * DIE KURVE IST `--ease-out`, NICHT DIE GLASFEDER (DW-P2-2). Die Kachel lief
+ * auf `--ease-glass` und schoss dabei 9 % ueber ihr Ziel (gemessen 35 px beim
+ * Verschieben, 53 px beim Aus-/Einblenden) - eine Feder gehoert dem Glas, das
+ * man greift (Blatt-Eintritt, Schalter), nicht dem Inhalt, der sich ordnet.
+ * Dauer `--duration-lg` wie das Raster beim Betreten (playGridShift).
+ *
+ * UNTER REDUZIERTER BEWEGUNG BLENDET, WAS SICH BEWEGT HAETTE (DW-P3-9): kein
+ * Weg, aber auch kein stummer Sprung - 0,4 -> 1 in `--duration-sm`, das Muster
+ * von swapContent. So sieht man, WELCHE Kacheln die Geste getroffen hat.
  *
  * Gemessen wird in Viewport-Koordinaten: scrollt der Fokus-Nachfolger die Seite
  * mit, ist genau das der Weg, den das Auge gesehen hat. Laeuft noch eine
- * Animation, liefert getBoundingClientRect ihre momentane Lage mit - die
- * naechste Geste setzt dort an, wo die Kachel gerade IST. */
+ * Animation, liefert die Vorher-Messung ihre momentane Lage - die naechste
+ * Geste setzt dort an, wo die Kachel gerade IST; die laufende wird vor der
+ * Nachher-Messung beendet, sonst laege ihr Versatz im Ziel. Erst alles lesen,
+ * dann alles schreiben: eine Auslegung fuer das ganze Raster. */
 const DASHBOARD_TILE_SELECTOR = '#dashboard-widget-grid > .widget-wrapper[data-widget-id]';
 
 function captureTileRects(root) {
@@ -6027,17 +6558,6 @@ function captureTileRects(root) {
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-function motionTiming() {
-  const styles = typeof document !== 'undefined' && typeof getComputedStyle === 'function'
-    ? getComputedStyle(document.documentElement) : null;
-  const raw = styles?.getPropertyValue('--duration-lg').trim() ?? '';
-  const ms = /ms$/.test(raw) ? parseFloat(raw) : /s$/.test(raw) ? parseFloat(raw) * 1000 : NaN;
-  return {
-    duration: Number.isFinite(ms) ? ms : 250,
-    easing: styles?.getPropertyValue('--ease-glass').trim() || 'ease-out',
-  };
 }
 
 /**
@@ -6060,40 +6580,206 @@ function playGridShift(root, topBefore, options = {}) {
   ], { duration: durationToken('--duration-lg', 250), easing: easingToken('--ease-out', 'ease-out') });
 }
 
+// Die laufende Gleitbewegung je Kachel - die naechste Geste beendet sie.
+const tileFlips = new WeakMap();
+
 function playTileFlip(root, before, options = {}) {
+  return startTileFlip(measureTileFlip(root, before, options));
+}
+
+/**
+ * Der lesende Teil des Gleitens: alte gegen neue Lage je Kachel. Getrennt vom
+ * Abspielen, damit ein Aufrufer (patchCustomize) weitere Lesungen an DIESELBE
+ * Auslegung haengen kann, bevor die Animationen den Stil wieder anfassen.
+ */
+function measureTileFlip(root, before, options = {}) {
   const reduced = options.reduced ?? prefersReducedMotion();
-  if (!before || reduced) return [];
-  const timing = { ...motionTiming(), ...options.timing };
-  const played = [];
-  root.querySelectorAll(DASHBOARD_TILE_SELECTOR).forEach((tile) => {
-    if (typeof tile.animate !== 'function') return;
+  if (!before) return null;
+  const tiles = [...root.querySelectorAll(DASHBOARD_TILE_SELECTOR)].filter((tile) => typeof tile.animate === 'function');
+  // Nur eine LAUFENDE beenden: ein cancel() auf einer fertigen verlangte
+  // trotzdem eine neue Stilrechnung, bevor gemessen werden kann.
+  for (const tile of tiles) {
+    const running = tileFlips.get(tile);
+    if (running && running.playState !== 'finished' && running.playState !== 'idle') running.cancel?.();
+  }
+  const plans = [];
+  for (const tile of tiles) {
     const from = before.get(tile.dataset.widgetId);
     if (!from) {
-      played.push(tile.animate([
-        { opacity: 0, transform: 'scale(0.96)' },
-        { opacity: 1, transform: 'none' },
-      ], timing));
-      return;
+      plans.push({ tile, enter: true });
+      continue;
     }
     const to = tile.getBoundingClientRect();
     const dx = from.left - to.left;
     const dy = from.top - to.top;
     const dw = to.width - from.width;
     const dh = to.height - from.height;
-    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(dw) < 1 && Math.abs(dh) < 1) return;
-    const first = { transform: `translate(${dx}px, ${dy}px)` };
-    const last = { transform: 'none' };
-    if (dw >= 1 || dh >= 1) {
-      const radius = typeof getComputedStyle === 'function' ? getComputedStyle(tile).borderTopLeftRadius || '0px' : '0px';
-      first.clipPath = `inset(0px ${Math.max(0, dw)}px ${Math.max(0, dh)}px 0px round ${radius})`;
-      last.clipPath = `inset(0px 0px 0px 0px round ${radius})`;
-    } else if (dw <= -1 || dh <= -1) {
-      first.opacity = 0.6;
-      last.opacity = 1;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(dw) < 1 && Math.abs(dh) < 1) continue;
+    const radius = !reduced && (dw >= 1 || dh >= 1) && typeof getComputedStyle === 'function'
+      ? getComputedStyle(tile).borderTopLeftRadius || '0px' : '0px';
+    plans.push({ tile, dx, dy, dw, dh, radius });
+  }
+  return { reduced, plans };
+}
+
+/** Der schreibende Teil: jede Kachel laeuft von der gemessenen Lage nach Hause. */
+function startTileFlip(measured) {
+  if (!measured) return [];
+  const { reduced, plans } = measured;
+  const timing = {
+    duration: reduced ? durationToken('--duration-sm', 150) : durationToken('--duration-lg', 250),
+    easing: easingToken('--ease-out', 'ease-out'),
+  };
+  return plans.map(({ tile, enter, dx, dy, dw, dh, radius }) => {
+    let keyframes;
+    if (reduced) {
+      keyframes = [{ opacity: SWAP_FROM_OPACITY }, { opacity: 1 }];
+    } else if (enter) {
+      keyframes = [{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'none' }];
+    } else {
+      const first = { transform: `translate(${dx}px, ${dy}px)` };
+      const last = { transform: 'none' };
+      if (dw >= 1 || dh >= 1) {
+        first.clipPath = `inset(0px ${Math.max(0, dw)}px ${Math.max(0, dh)}px 0px round ${radius})`;
+        last.clipPath = `inset(0px 0px 0px 0px round ${radius})`;
+      } else if (dw <= -1 || dh <= -1) {
+        first.opacity = 0.6;
+        last.opacity = 1;
+      }
+      keyframes = [first, last];
     }
-    played.push(tile.animate([first, last], timing));
+    const anim = tile.animate(keyframes, timing);
+    tileFlips.set(tile, anim);
+    return anim;
   });
-  return played;
+}
+
+/* EINE GESTE HAENGT KNOTEN UM, STATT SIE NEU ZU BAUEN (DW-P2-1).
+ *
+ * `moveBefore()` verschiebt einen Knoten, ohne ihn aus dem Baum zu nehmen:
+ * Fokus, laufende Animationen und offene Popover bleiben. Ohne die Methode
+ * (Safari) bleibt das klassische Entfernen-und-Einfuegen - den Fokus holt
+ * patchCustomize danach zurueck. Ein Knoten, der noch nicht im Dokument
+ * haengt (eine neu eingeblendete Kachel), geht immer den klassischen Weg:
+ * moveBefore nimmt ihn nicht an. */
+function placeBefore(parent, node, ref) {
+  if (node.isConnected && typeof parent.moveBefore === 'function') {
+    try {
+      parent.moveBefore(node, ref);
+      return;
+    } catch { /* anderer Wurzelbaum - dann der klassische Weg */ }
+  }
+  parent.insertBefore(node, ref);
+}
+
+/**
+ * Bringt die Kinder von `parent` in die Folge `nodes`: was fehlt, geht; was
+ * schon an seinem Platz steht, wird nicht angefasst. Ein Tausch zweier
+ * Nachbarn ist so EINE Bewegung, keine zweiundzwanzig.
+ */
+function arrangeChildren(parent, nodes) {
+  const keep = new Set(nodes);
+  for (const child of [...parent.children]) if (!keep.has(child)) child.remove();
+  nodes.forEach((node, index) => {
+    const at = parent.children[index] ?? null;
+    if (at !== node) placeBefore(parent, node, at);
+  });
+}
+
+/** Der erste bedienbare Kandidat (Selektoren in Reihenfolge) - nur gelesen, nicht fokussiert. */
+function focusTarget(root, candidates) {
+  for (const selector of candidates ?? []) {
+    const el = selector ? root.querySelector(selector) : null;
+    if (el && !el.disabled && el.getClientRects?.().length !== 0) return el;
+  }
+  return null;
+}
+
+/** Wie weit `scrollIntoView({ block: 'nearest' })` die Ansicht schoebe - ohne zu schieben. */
+function nearestScrollDelta(rect, view) {
+  if (rect.top < view.top) return rect.top - view.top;
+  if (rect.bottom > view.bottom) return Math.min(rect.bottom - view.bottom, rect.top - view.top);
+  return 0;
+}
+
+/** Elemente aus Markup, im Dokument der Seite geparst (nicht im Dokument eines <template>). */
+function elementsFromHtml(html) {
+  const holder = document.createElement('div');
+  holder.insertAdjacentHTML('afterbegin', html);
+  return [...holder.children];
+}
+
+/** Was eine Kachel neu zeichnen laesst: Groesse und Optionen. */
+function tileDrawKey(w) {
+  return `${w?.size}|${JSON.stringify(w?.options ?? null)}`;
+}
+
+/* EINE ERWEITERUNG ZEICHNET IHRE KACHEL SELBST (Review p11, B4). Ihr Koerper
+ * ist bei jeder Groesse und jeder Option derselbe Platzhalter, den erst
+ * mountExtensionWidgets mit { size, options } fuellt - der Vergleich des
+ * Markups sah darum nie eine Aenderung, und die Kachel zeigte nach einer
+ * Geste im Anpassen-Modus den alten Inhalt in der neuen Groesse. Gerufen nur,
+ * wenn sich Groesse oder Optionen geaendert haben (`tileDrawKey`). */
+function tileBodyChanged(w, body, drawn) {
+  return body !== drawn || isExtensionWidget(w?.id);
+}
+
+/**
+ * Was das Heute-Blatt und die Kennzahlreihe neu rechnen laesst: welche Kacheln
+ * sichtbar sind, ihre Optionen und das Kopfband - nicht Reihenfolge oder
+ * Groesse. Ein Verschieben rechnet so keines von beiden (Kein-Echo-Regel).
+ */
+function visibilityKey(cfg, glanceVisible) {
+  return [...cfg].map((w) => `${w.id}:${w.visible ? 1 : 0}:${JSON.stringify(w.options ?? null)}`).sort().join('|') + `|${glanceVisible ? 1 : 0}`;
+}
+
+/**
+ * Die Leiste einer Kachel folgt der Geste AN ORT UND STELLE: Hoch/Runter am
+ * Rand gesperrt, die aktive Groesse gedrueckt. Neu gezeichnet waere der
+ * Knopf, den man gerade gedrueckt hat, ein anderer - und der Fokus fort.
+ * Nur das mobile Groessen-Menue wechselt ganz, wenn sich die Breite geaendert
+ * hat (es bietet die Hoehen bei gleicher Breite an, renderWidgetSizeMenu) -
+ * die Breite waehlt man am Desktop, wo dieses Menue nicht steht.
+ * @returns {Element|null} das neu gezeichnete Menue (fuer seine Zeichen)
+ */
+function syncCustomizeControls(wrapper, w, index, total) {
+  const controls = wrapper.querySelector(':scope > [data-widget-controls]');
+  if (!controls) return null;
+  const moves = [
+    ...controls.querySelectorAll('[data-widget-move]'),
+    ...[...controls.querySelectorAll('.popover-menu > template')].flatMap((tpl) => [...tpl.content.querySelectorAll('[data-widget-move]')]),
+  ];
+  for (const btn of moves) {
+    const off = btn.dataset.widgetMove === 'up' ? index === 0 : index === total - 1;
+    if (btn.disabled !== off) btn.disabled = off;
+  }
+  const active = nearestPreset(w.size);
+  for (const btn of controls.querySelectorAll('.widget-edit-controls__size > [data-widget-size-preset]')) {
+    const on = btn.dataset.widgetSizePreset === active;
+    btn.classList.toggle('is-active', on);
+    if (btn.getAttribute('aria-pressed') !== String(on)) btn.setAttribute('aria-pressed', String(on));
+  }
+  const menu = controls.querySelector('.widget-edit-controls__size-menu');
+  if (!menu) return null;
+  const items = [...menu.querySelectorAll('[data-widget-size-preset]')];
+  if (!items.some((item) => item.dataset.widgetSizePreset === active)) {
+    const [next] = elementsFromHtml(renderWidgetSizeMenu(w.id, active));
+    menu.replaceWith(next);
+    return next;
+  }
+  for (const item of items) {
+    const on = item.dataset.widgetSizePreset === active;
+    if (item.getAttribute('aria-checked') === String(on)) continue;
+    item.setAttribute('aria-checked', String(on));
+    item.querySelector('.popover-menu__item-check')?.classList.toggle('popover-menu__item-check--hidden', !on);
+  }
+  const mini = menu.querySelector('.widget-edit-controls__size-trigger > .widget-size-mini');
+  if (mini && mini.dataset.size !== active) {
+    mini.replaceChildren();
+    mini.insertAdjacentHTML('afterbegin', renderSizeMiniGridCells(active));
+    mini.dataset.size = active;
+  }
+  return null;
 }
 
 function widgetSizeClass(size) {
@@ -6101,7 +6787,8 @@ function widgetSizeClass(size) {
 }
 
 function renderSizeMiniGrid(size) {
-  return `<span class="widget-size-mini" aria-hidden="true">${renderSizeMiniGridCells(size)}</span>`;
+  // `data-size`: woran syncCustomizeControls erkennt, ob die Form noch stimmt.
+  return `<span class="widget-size-mini" aria-hidden="true" data-size="${esc(size)}">${renderSizeMiniGridCells(size)}</span>`;
 }
 
 function renderSizeMiniGridCells(size) {
@@ -6479,59 +7166,143 @@ async function openWidgetOptions(id, current = {}, {
   });
 }
 
+/* DIE GROESSE GLEITET WIE JEDES SEGMENT (Kanon D1, utils/segment-indicator.js).
+ * Die Kapsel misst ihren Eintrag; je Kachel einmal Layout lesen, darum erst
+ * nach dem naechsten Bild - der Moduswechsel und die Geste stehen dann schon,
+ * und bis dahin traegt das aktive Segment seine eigene Flaeche (`.is-active`).
+ * Unter 768px ist das Segment aus (dort waehlt das Menue), also auch keine
+ * Kapsel. Eine Leiste, die mit ihrer Kachel geht, raeumt sich selbst ab. */
+function attachSizeIndicators(root, signal) {
+  if (!root || typeof requestAnimationFrame !== 'function') return;
+  if (!globalThis.matchMedia?.('(min-width: 768px)').matches) return;
+  requestAnimationFrame(() => setTimeout(() => {
+    if (signal?.aborted || !root.isConnected) return;
+    for (const bar of root.querySelectorAll('.widget-edit-controls__size:not(.has-seg-indicator)')) {
+      attachSegmentIndicator(bar);
+    }
+  }, 0));
+}
+
+/** Name und Massangabe einer Groesse: „Breit (2×1)" -> „Breit" + „(2×1)".
+ *  Jede Sprache fuehrt ihre Groessen so (test:dashboard-clarity haelt das
+ *  Format); ohne Klammer bleibt der ganze Text der Name. */
+function sizeLabelParts(label) {
+  const match = /^(.*\S)\s*(\([^()]*\))$/u.exec(label);
+  return match ? { name: match[1], dims: match[2] } : { name: label, dims: '' };
+}
+
 function renderWidgetCustomizeControls(w, index = 0, total = 1) {
   const isFirst = index === 0;
   const isLast = index === total - 1;
   const activeSize = nearestPreset(w.size);
 
-  // Segmentiertes Größen-Steuerelement: vier klickbare Mini-Grid-Presets ersetzen
-  // die frühere Kombination aus dekorativem Mini-Grid + „Größe"-Label + 132px-
-  // <select> (Critique P1: doppelte Kontrolle + Overflow auf 1×1-Kacheln). Jeder
-  // Button zeigt seine Form direkt und markiert die aktive Größe.
+  /* DIE GROESSE IST EIN BESCHRIFTETES SEGMENT (DW-P2-9). Vier Mini-Raster ohne
+   * Text verlangten, die Form zu deuten; man las die Wahl erst am Tooltip.
+   * Jetzt traegt jedes Segment den Namen der Groesse („Klein", „Breit",
+   * „Hoch", „Quadrat"), die Massangabe liest nur der Screenreader mit - der
+   * Name des Knopfs ist damit derselbe wie im Menue und in der Ansage, und
+   * der sichtbare Text steht an seinem Anfang (WCAG 2.5.3). Die Wahl zeigt
+   * die Kachel selbst; das Segment sagt nur, welche es ist. */
   const sizeButtons = WIDGET_SIZE_PRESETS.map((p) => {
     const active = p.value === activeSize;
-    return `<button type="button" class="widget-size-btn${active ? ' widget-size-btn--active' : ''}"
+    const { name, dims } = sizeLabelParts(t(p.labelKey));
+    return `<button type="button" class="segmented__item${active ? ' is-active' : ''}"
               data-widget-size-preset="${p.value}" data-widget-id="${esc(w.id)}"
-              aria-pressed="${active ? 'true' : 'false'}" aria-label="${esc(t(p.labelKey))}" title="${esc(t(p.labelKey))}">
-        ${renderSizeMiniGrid(p.value)}
-      </button>`;
+              aria-pressed="${active ? 'true' : 'false'}">${esc(name)}${dims ? `<span class="sr-only"> ${esc(dims)}</span>` : ''}</button>`;
   }).join('');
 
   // Die Leiste steht VOR der Ueberschrift der Kachel. Ohne eigenen Namen hoerte
   // man per Tab je Kachel denselben Griff und dieselben Groessen - welche Kachel
   // man anfasst, sagt erst die Gruppe.
+  //
+  // DER GRIFF STEHT AM ENDE (DW-P2-3), wie in jeder sortierbaren Zeile der App
+  // (Schnellzugriffe #2152, Mitglieder, Navigation): erst was die Kachel IST
+  // (Groesse, Optionen, Auge), dann woran man sie zieht. Er ist der Griff fuer
+  // SortableJS (makeSortable in wireDashboardEditMode) - per Maus und per
+  // Finger - und der Tastaturweg (Pfeil hoch/runter). Die Handlungen stehen
+  // als EINE Gruppe hinter dem Segment: reicht die Breite nicht, bricht die
+  // Gruppe als Ganzes in die zweite Zeile, statt den Griff allein zu lassen.
   return `
     <div class="widget-edit-controls" role="group" aria-label="${esc(widgetLabel(w.id))}" data-widget-controls>
       <span class="widget-edit-controls__caption" aria-hidden="true">${esc(widgetLabel(w.id))}</span>
-      <button type="button" class="widget-edit-controls__handle" data-widget-drag-handle
-              aria-label="${t('dashboard.customizeReorderHandle')}" aria-keyshortcuts="ArrowUp ArrowDown">
-        <i data-lucide="grip-vertical" aria-hidden="true"></i>
-      </button>
-      <div class="widget-edit-controls__move">
-        <button type="button" class="widget-edit-controls__move-btn" data-widget-move="up" data-widget-id="${esc(w.id)}"
-                ${isFirst ? 'disabled' : ''} aria-label="${t('dashboard.customizeMoveUp')}">
-          <i data-lucide="chevron-up" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="widget-edit-controls__move-btn" data-widget-move="down" data-widget-id="${esc(w.id)}"
-                ${isLast ? 'disabled' : ''} aria-label="${t('dashboard.customizeMoveDown')}">
-          <i data-lucide="chevron-down" aria-hidden="true"></i>
-        </button>
-      </div>
-      <div class="widget-edit-controls__size" role="group" aria-label="${esc(t('dashboard.customizeSizeFor', { widget: widgetLabel(w.id) }))}">
+      <div class="widget-edit-controls__size segmented" role="group" aria-label="${esc(t('dashboard.customizeSizeFor', { widget: widgetLabel(w.id) }))}">
         ${sizeButtons}
       </div>
-      ${renderWidgetSizeMenu(w.id, activeSize)}
-      ${widgetHasOptions(w.id) ? `
-      <button type="button" class="widget-edit-controls__options" data-widget-options="${esc(w.id)}"
-              aria-label="${esc(t('dashboard.optionsFor', { widget: widgetLabel(w.id) }))}"
-              title="${esc(t('dashboard.optionsFor', { widget: widgetLabel(w.id) }))}">
-        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
-      </button>` : ''}
-      <button type="button" class="widget-edit-controls__hide" data-widget-hide="${esc(w.id)}" aria-label="${esc(t('dashboard.customizeHide', { widget: widgetLabel(w.id) }))}">
-        <i data-lucide="eye-off" aria-hidden="true"></i>
-      </button>
+      <div class="widget-edit-controls__actions">
+        <div class="widget-edit-controls__move">
+          <button type="button" class="widget-edit-controls__move-btn" data-widget-move="up" data-widget-id="${esc(w.id)}"
+                  ${isFirst ? 'disabled' : ''} aria-label="${t('dashboard.customizeMoveUp')}">
+            <i data-lucide="chevron-up" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="widget-edit-controls__move-btn" data-widget-move="down" data-widget-id="${esc(w.id)}"
+                  ${isLast ? 'disabled' : ''} aria-label="${t('dashboard.customizeMoveDown')}">
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+        </div>
+        ${renderWidgetSizeMenu(w.id, activeSize)}
+        ${renderWidgetOptionsButton(w)}
+        ${renderWidgetTileMenu(w, index, total)}
+        <button type="button" class="widget-edit-controls__hide" data-widget-hide="${esc(w.id)}" aria-label="${esc(t('dashboard.customizeHide', { widget: widgetLabel(w.id) }))}">
+          <i data-lucide="eye-off" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="widget-edit-controls__handle" data-widget-drag-handle
+                aria-label="${t('dashboard.customizeReorderHandle')}" aria-keyshortcuts="ArrowUp ArrowDown">
+          <i data-lucide="grip-vertical" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
   `;
+}
+
+/* DAS OPTIONEN-MENUE DER KACHEL, AN JEDER KACHEL (U7, WCAG 2.5.7). Am Zeiger
+ * ordnete man eine Kachel nur per Ziehen am Griff oder per Pfeiltaste um -
+ * Hoch und Runter stehen nur am Finger (DW-P2-3). Wer die Maus fuehrt, aber
+ * nicht ziehen kann, hatte keinen Weg. Jetzt steht an jeder Kachel EIN Menue
+ * mit "Nach vorn" und "Nach hinten" (ein Platz in der Lesereihenfolge, wie
+ * Hoch/Runter) und, wo die Kachel welche hat, ihren Optionen - der Regler-Knopf,
+ * der dafuer allein stand, ist sein Ausloeser (dieselbe Form wie das Menue am
+ * Chip der Ablage, R22 D16). Am Rand ist der Eintrag gesperrt, nicht weg (Kanon
+ * des Menues, layout.css: "nach oben" an der ersten Kategorie). Die Eintraege
+ * entstehen erst beim Oeffnen (`defer`); `syncCustomizeControls` haelt ihre
+ * Sperre auch im ungeoeffneten Menue richtig. */
+/* AM FINGER IST DER OPTIONEN-KNOPF WIEDER EIN TIPP (U10, Ulas 2026-10-27).
+ * Mit U7 oeffnete der Regler-Knopf ein Menue, und die Optionen standen dort
+ * als dritter Eintrag: am Telefon zwei Tipps fuer die haeufigere Handlung,
+ * damit am Zeiger "Nach vorn"/"Nach hinten" einen Ort haben. Am Finger
+ * brauchen sie ihn nicht - dort stehen Hoch und Runter in der Leiste. Darum
+ * zwei Ausloeser, und die Zeigerart entscheidet, welcher steht (dashboard.css):
+ * am Finger dieser Knopf (nur an Kacheln mit Optionen), am Zeiger das Menue.
+ * Derselbe Handler (`[data-widget-options]`), dieselbe Form, derselbe Name
+ * wie der Eintrag im Menue. */
+function renderWidgetOptionsButton(w) {
+  if (!widgetHasOptions(w.id)) return '';
+  return `<button type="button" class="widget-edit-controls__options widget-edit-controls__options--direct" data-widget-options="${esc(w.id)}"
+            aria-label="${esc(t('dashboard.optionsFor', { widget: widgetLabel(w.id) }))}">
+      <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+    </button>`;
+}
+
+function renderWidgetTileMenu(w, index = 0, total = 1) {
+  const label = widgetLabel(w.id);
+  const hasOptions = widgetHasOptions(w.id);
+  const items = [
+    { action: 'widget-move', icon: 'chevron-up', label: t('dashboard.customizeMoveForward'), disabled: index === 0,
+      attrs: { 'data-widget-move': 'up', 'data-widget-id': w.id } },
+    { action: 'widget-move', icon: 'chevron-down', label: t('dashboard.customizeMoveBack'), disabled: index === total - 1,
+      attrs: { 'data-widget-move': 'down', 'data-widget-id': w.id } },
+    ...(hasOptions ? [
+      { separator: true },
+      { action: 'widget-options', icon: 'sliders-horizontal', label: t('dashboard.optionsFor', { widget: label }), attrs: { 'data-widget-options': w.id } },
+    ] : []),
+  ];
+  return `<div class="widget-edit-controls__menu">${popoverMenuHtml({
+    id: `widget-tile-menu-${w.id}`,
+    label: t('common.moreActionsNamed', { name: label }),
+    icon: 'ellipsis',
+    triggerClass: 'widget-edit-controls__options',
+    defer: true,
+    items,
+  })}</div>`;
 }
 
 /* EIN GROESSEN-MENUE MIT NUR WIRKSAMEN GROESSEN (R9 M7, A7 P1-2).
@@ -6632,32 +7403,36 @@ function renderHiddenWidgetsTray(cfg, glanceHidden = false) {
   `;
 }
 
-function renderDashboardLayout(cfg, data, weather, currency, { editing = false, visibleMealTypes = MEAL_ORDER, glanceHidden = false, familyManage = null } = {}) {
-  const widgetById = {
+/* DIE KACHELN EINZELN ZEICHENBAR (DW-P2-1). Das Raster zeichnet sie alle, eine
+ * Anpassen-Geste nur die, die sie aendert (patchCustomize in render()) - aus
+ * DENSELBEN drei Teilen, damit Geste und Aufbau nie zwei Fassungen einer Kachel
+ * zeichnen: die Renderer je Widget, der Koerper einer Kachel, ihr Rahmen. */
+function dashboardTileRenderers(cfg, data, weather, currency, { visibleMealTypes = MEAL_ORDER, glanceHidden = false, familyManage = null } = {}) {
+  return {
     tasks: (size) => renderUrgentTasks(data.urgentTasks ?? [], data.openTaskCount, size),
     calendar: (size, options) => renderCalendarWidget(data, size, options),
     birthdays: (size) => renderUpcomingBirthdays(data.birthdays ?? [], size, data.birthdayTotal),
     countdown: (size) => renderCountdowns(data.countdowns ?? [], size, data.countdownTotal),
     budget: (size) => renderBudgetWidget(data.budget ?? {}, currency, size),
     rewards: (size) => renderRewardsWidget(data.rewards ?? {}, size),
-    health: () => renderHealthWidget(data.health ?? {}),
-    cycle: () => renderCycleWidget(data.cycle),
-    fasting: () => renderFastingWidget(data.fasting),
-    nutrition: () => renderNutritionWidget(data.nutrition),
-    housekeeping: () => renderHousekeepingWidget(data.housekeeping ?? {}, currency),
+    health: (size) => renderHealthWidget(data.health ?? {}, size),
+    cycle: (size) => renderCycleWidget(data.cycle, size),
+    fasting: (size) => renderFastingWidget(data.fasting, size),
+    nutrition: (size) => renderNutritionWidget(data.nutrition, size),
+    housekeeping: (size) => renderHousekeepingWidget(data.housekeeping ?? {}, currency, size),
     schedule: (size) => renderScheduleWidget(data.schedule, data.users ?? [], size),
     waste: (size) => renderWasteWidget(data.waste, size),
     pantry: (size) => renderPantryWidget(data.pantryExpiring, size),
-    family: () => renderFamilyWidget(data.users ?? [], data, { manageHref: familyManage }),
-    meals: () => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes, data.users),
+    family: (size) => renderFamilyWidget(data.users ?? [], data, { manageHref: familyManage, size }),
+    meals: (size) => renderTodayMeals(data.todayMeals ?? [], visibleMealTypes, data.users, size),
     notes: (size) => renderPinnedNotes(data.pinnedNotes ?? [], size, data.notesTotal),
-    shopping: () => renderShoppingTile(data),
+    shopping: (size) => renderShoppingTile(data, size),
     assets: () => renderAssetsWidget(data.assets ?? {}, currency),
     // Hier ankommen heisst eingerichtet (`isWidgetModuleEnabled`); fehlt das
     // Wetter trotzdem, sagt die Kachel es, statt zu verschwinden.
-    weather: () => (weather ? renderWeatherWidget(weather) : renderWeatherUnavailable()),
-    clock: () => renderClockWidget(),
-    quicklinks: () => renderQuickLinks(data.quicklinks ?? []),
+    weather: (size) => (weather ? renderWeatherWidget(weather, size) : renderWeatherUnavailable(size)),
+    clock: (size) => renderClockWidget({ size }),
+    quicklinks: (size) => renderQuickLinks(data.quicklinks ?? [], size),
     // Die Kachelreihe braucht als einziges Widget zu wissen, wer sonst noch
     // dasteht - sie ist die einzige, die fremde Zahlen zeigt. Gerechnet aus
     // DERSELBEN Bedingung, nach der die Kacheln gleich gefiltert werden, damit
@@ -6666,33 +7441,58 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
     // Dazu, welche Zahl das Heute-Blatt schon nennt (offene Freigaben): die
     // Kein-Echo-Regel gilt auch zwischen Blatt und Kachel. Ein ausgeblendetes
     // Blatt nennt nichts.
-    metrics: () => renderMetricTiles(data, currency, new Set(
+    metrics: (size) => renderMetricTiles(data, currency, new Set(
       cfg.filter((w) => w.visible && w.id !== 'metrics' && isWidgetModuleEnabled(w.id)).map((w) => w.id),
-    ), glanceHidden ? new Set() : todaySheetSpeaks(data, cfg)),
+    ), glanceHidden ? new Set() : todaySheetSpeaks(data, cfg), size),
   };
+}
 
-  const tiles = cfg
-    .filter((w) => w.visible && isWidgetModuleEnabled(w.id) && (widgetById[w.id] || isExtensionWidget(w.id)))
-    .map((w, index, arr) => {
-      let html;
-      try {
-        if (isExtensionWidget(w.id)) {
-          html = `<div class="widget extension-widget-mount" data-extension-widget-mount="1">
-            <div class="widget__empty">${esc(t('common.loading'))}</div>
+/** Steht die Kachel im Raster? (Sichtbar, Modul an, ein Renderer da.) */
+function dashboardTileListed(w, renderers) {
+  return Boolean(w.visible && isWidgetModuleEnabled(w.id) && (renderers[w.id] || isExtensionWidget(w.id)));
+}
+
+/** Der Koerper einer Kachel; leer heisst: keine Kachel (der Renderer hat nichts). */
+function renderWidgetBody(w, renderers) {
+  try {
+    if (isExtensionWidget(w.id)) {
+      return `<div class="widget extension-widget-mount" data-extension-widget-mount="1">
+            ${widgetEmptyHtml(t('common.loading'))}
           </div>`;
-        } else {
-          html = widgetById[w.id](w.size, w.options);
-        }
-      } catch (err) {
-        console.error(`[dashboard] Widget "${w.id}" konnte nicht gerendert werden`, err);
-        html = renderWidgetError(w.id);
-      }
-      if (!html) return '';
-      return `<div class="widget-wrapper ${widgetSizeClass(w.size)} ${editing ? 'widget-wrapper--editing' : ''}"
-                   data-widget-id="${esc(w.id)}"${calendarListRows(w)} ${editing ? 'draggable="true"' : ''}>
-        ${editing ? renderWidgetCustomizeControls(w, index, arr.length) : ''}
+    }
+    return renderers[w.id](w.size, w.options);
+  } catch (err) {
+    console.error(`[dashboard] Widget "${w.id}" konnte nicht gerendert werden`, err);
+    return renderWidgetError(w.id);
+  }
+}
+
+/** Der Rahmen um den Koerper: Groesse, Id, im Anpassen-Modus die Leiste.
+ *  Kein `draggable="true"` (DW-P2-3): gezogen wird ueber SortableJS am Griff,
+ *  und das DOM-Attribut schaltete natives Ziehen ein, das ihm die Geste nimmt. */
+function renderWidgetWrapper(w, html, { editing = false, index = 0, total = 1 } = {}) {
+  return `<div class="widget-wrapper ${widgetSizeClass(w.size)} ${editing ? 'widget-wrapper--editing' : ''}"
+                   data-widget-id="${esc(w.id)}"${tileSpanWrapperAttrs(html)}>
+        ${editing ? renderWidgetCustomizeControls(w, index, total) : ''}
         ${html}
       </div>`;
+}
+
+function renderDashboardLayout(cfg, data, weather, currency, { editing = false, visibleMealTypes = MEAL_ORDER, glanceHidden = false, familyManage = null, drawn = null, bodies = null } = {}) {
+  const widgetById = dashboardTileRenderers(cfg, data, weather, currency, { visibleMealTypes, glanceHidden, familyManage });
+
+  const tiles = cfg
+    .filter((w) => dashboardTileListed(w, widgetById))
+    .map((w, index, arr) => {
+      const html = renderWidgetBody(w, widgetById);
+      if (!html) return '';
+      // Was wirklich im Raster steht - die Vorhersage des Skeletts (rememberGridHint),
+      // samt der Hoehe aus den Daten (U1 b).
+      drawn?.push(w);
+      drawnSpanRows.set(w.id, tileSpanOf(html)?.rows ?? 0);
+      // Und was die naechste Geste nicht neu zeichnen muss (patchCustomize).
+      bodies?.set(w.id, html);
+      return renderWidgetWrapper(w, html, { editing, index, total: arr.length });
     })
     .join('');
 
@@ -6710,7 +7510,10 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
    * gebraucht wird sie nur als Gliederungsebene. Das Wort ist dasselbe, das die
    * Anpassen-Leiste benutzt („Widgets anpassen", „Ausgeblendete Widgets"). */
   const heading = `<h2 class="sr-only" id="dashboard-widgets-title">${esc(t('dashboard.widgetsHeading'))}</h2>`;
+  // Fuer welche Buehne die Kacheln gezeichnet sind (createPhoneProgramFit):
+  // am Telefon ohne Spannen und mit kurzen Listen, breit mit beidem.
   const grid = `<div class="dashboard__grid ${editing ? 'dashboard__grid--editing' : ''}" id="dashboard-widget-grid"
+                    data-tile-stage="${onPhoneStage() ? 'phone' : 'wide'}"
                     role="region" aria-labelledby="dashboard-widgets-title">${gridInner}</div>`;
   // Im Bearbeiten-Modus steht die Wieder-Einblenden-Leiste UEBER dem Raster
   // (R14, A7 P2-2), wie die Widget-Galerie in iOS: mobil lag der Vorrat mit 14
@@ -6735,25 +7538,79 @@ function renderDashboardLayout(cfg, data, weather, currency, { editing = false, 
  * Er liegt in utils/dashboard-layout-hint.js, weil er seit #585 auch beim
  * Abmelden verworfen werden muss - die Begruendung steht dort. */
 
-function renderDashboardSkeleton() {
-  // Mit den Listenzeilen (#2087): eine hohe Kalenderkachel mit acht oder
-  // zwoelf Terminen belegt schon im Skelett ihre drei oder vier Zeilen.
-  const defaults = buildDefaultWidgetConfig().filter((w) => w.visible);
+function renderDashboardSkeleton(user = null, { head = null } = {}) {
+  // Mit den Hoehen aus den Daten (U1 b): jede Kachel steht schon im Skelett so
+  // hoch, wie sie beim letzten Zeichnen war - auch die Kalenderliste mit acht
+  // oder zwoelf Terminen (#2087).
+  const defaults = buildDefaultWidgetConfig().filter((w) => w.visible && isWidgetModuleEnabled(w.id));
   const hint = layoutHintTiles(defaults.map((w) => w.size));
   const tiles = hint.sizes
-    .map((size, i) => `<div class="widget-wrapper ${widgetSizeClass(size)}"${listRowsAttr(hint.listRows[i])}>${skeletonWidget(3)}</div>`)
+    .map((size, i) => `<div class="widget-wrapper ${widgetSizeClass(size)}"${hint.spans[i] ? ` style="--tile-rows: ${hint.spans[i]}"` : ''}>${skeletonWidget(3)}</div>`)
     .join('');
   return `
-    <section class="dashboard-overview">
-      <div class="dashboard-overview__header">
-        <div>
-          <div class="skeleton skeleton-line skeleton-line--short"></div>
-          <div class="skeleton skeleton-line skeleton-line--medium"></div>
-        </div>
-      </div>
-    </section>
+    ${renderMastheadSkeleton(user, head)}
     <div class="dashboard__grid">${tiles}</div>
   `;
+}
+
+/* DAS SKELETT HAT DIE FORM DER SEITE, NICHT NUR DIE DER KACHELN (DW-P2-5,
+ * R22 D4 "Skelette in Zielform"). Es zeichnete zwei Balken und darunter
+ * gleich das Raster: kein Gruss, kein Heute-Blatt. Am Telefon stand das
+ * Raster bei y 80 und der Inhalt bei y 720, am Desktop 72 gegen 572 - die
+ * ganze Seite sprang beim Laden um, und die Rangordnung (Blatt, dann
+ * Kacheln) stand im Skelett auf dem Kopf.
+ *
+ * Jetzt traegt es dieselben Klassen wie der echte Kopf: Datumszeile,
+ * Gruss und Werkzeuge in ihren Zeilenboxen (Platzhaltertext in
+ * `.skeleton-text`, die Hoehe kommt aus Schrift und Zeilenhoehe), darunter
+ * das Blatt mit Kopf und Zeilen - so viele, wie zuletzt in den ersten Schirm
+ * passten. Wie hoch das Band zuletzt WIRKLICH war (das Blatt haengt am Tag),
+ * weiss `headHint` je Fenstergroesse; mit dem Wert steht das Raster dort, wo
+ * es gleich steht. Ohne Wert gilt die Form allein. */
+function renderMastheadSkeleton(user, head) {
+  // Platzhaltertext, schon maskiert: der Gruss kommt aus greeting() (maskiert den Namen).
+  const bar = (html) => `<span class="skeleton skeleton-text">${html}</span>`;
+  const sheet = head ? head.sheet : true;
+  // Am Telefon so viele Zeilen, wie das Blatt hoechstens zeigt: das Band
+  // endet an der gemerkten Hoehe bzw. am Falz (dashboard.css), und was
+  // darueber hinausgeht, schneidet die Karte ab - wie das echte Blatt fuellt
+  // es den ersten Schirm. Breit: Kopf, Zeitleiste und die naechsten Zeilen,
+  // gemessen im Seed etwa fuenf Zeilenhoehen.
+  const rows = onPhoneStage() ? PROGRAM_ROW_CAP + 2 : 5;
+  const row = `
+        <div class="today-cockpit-card today-cockpit-card--skeleton">
+          <span class="module-seal today-cockpit-card__icon skeleton"></span>
+          <span class="today-cockpit-card__body">
+            <strong class="today-cockpit-card__value">${bar(esc(t('dashboard.todayTitle')))}</strong>
+            <span class="today-cockpit-card__sub">${bar(esc(t('common.loading')))}</span>
+          </span>
+        </div>`;
+  const sheetHtml = sheet ? `
+      <div class="today-cockpit today-cockpit--skeleton">
+        <div class="today-cockpit__grid">
+          <div class="today-cockpit__header">
+            <span class="module-seal today-cockpit__seal skeleton"></span>
+            <div class="today-cockpit__heading"><h2>${bar(esc(t('dashboard.todayTitle')))}</h2></div>
+          </div>
+          <div class="today-cockpit__rows">${row.repeat(Math.max(1, rows))}</div>
+        </div>
+      </div>` : '';
+  const size = head ? ` style="--skeleton-head-size: ${head.px}px"` : '';
+  return `
+    <section class="dashboard-masthead dashboard-masthead--skeleton${sheet ? '' : ' dashboard-masthead--slim'}" aria-hidden="true"${size}>
+      <div class="dashboard-overview">
+        <div class="dashboard-overview__header">
+          <span class="dashboard-overview__date">${bar(esc(mastheadDateLabel()))}</span>
+          <div class="dashboard-overview__title">${bar(greeting(user?.display_name ?? ''))}</div>
+          <div class="dashboard-overview__tools">
+            <span class="skeleton dashboard-skeleton-tool"></span>
+            <span class="skeleton dashboard-skeleton-tool"></span>
+            <span class="skeleton dashboard-skeleton-tool dashboard-skeleton-tool--wide"></span>
+            ${onDesktopStage() ? '<span class="skeleton dashboard-skeleton-tool dashboard-skeleton-tool--pill"></span>' : ''}
+          </div>
+        </div>
+      </div>${sheetHtml}
+    </section>`;
 }
 
 // Distinkter Fehlerzustand: verhindert, dass ein Ladefehler wie ein ruhiger,
@@ -6778,25 +7635,23 @@ function renderDashboardError(status = null) {
   `;
 }
 
-// Inline-Fehlerkachel für ein einzelnes Widget (siehe Fehler-Isolation in
-// renderDashboardLayout). Nutzt die vorhandene .widget/.widget__empty-Grammatik,
-// damit sie sich ruhig einreiht statt wie ein Systemfehler zu schreien.
+/* DIE FEHLERKACHEL SPRICHT DEN KOPF DER ANDEREN (DW-P3-2). Sie baute ihren
+ * eigenen: ein `<span>` als Titel und eine nackte Glyphe - kein Siegel, keine
+ * Ueberschrift. Der dritte Kopf-Dialekt der Uebersicht, und am Screenreader
+ * fehlte genau diese Kachel in der Ueberschriften-Navigation. Jetzt derselbe
+ * `widgetHeader` (h3, Vollton-Siegel ihres Moduls, ohne Link: wohin sie
+ * fuehrt, weiss sie im Fehlerfall nicht sicher), darunter die ruhige Zeile mit
+ * dem Wiederholen am Ende. Der Rand in Danger-Toenung bleibt das Zeichen
+ * "kaputt, nicht leer" (siehe Fehler-Isolation in renderDashboardLayout). */
+function widgetErrorSeal(id) {
+  return MODULE_FOR_WIDGET[id] ?? (id === 'family' ? 'contacts' : 'dashboard');
+}
+
 function renderWidgetError(id) {
-  return `<div class="widget widget--error" role="alert">
-    <div class="widget__header">
-      <span class="widget__title">
-        <i data-lucide="${widgetIcon(id)}" class="widget__title-icon" aria-hidden="true"></i>
-        ${esc(widgetLabel(id))}
-      </span>
-    </div>
-    <div class="widget__empty">
-      <i data-lucide="cloud-off" class="empty-state__icon" aria-hidden="true"></i>
-      <div>${t('dashboard.widgetError')}</div>
-      <button type="button" class="btn btn--secondary widget__retry" data-widget-retry="${esc(id)}">
-        <i data-lucide="refresh-cw" aria-hidden="true"></i>
-        ${t('common.retry')}
-      </button>
-    </div>
+  const title = esc(widgetLabel(id));
+  return `<div class="widget widget--error" role="alert"${emptySpanAttrs('1x1')}>
+    ${widgetHeader(id, title, null, null, null, widgetErrorSeal(id))}
+    ${widgetEmptyHtml(t('dashboard.widgetError'), { label: t('common.retry'), icon: 'refresh-cw', attrs: { 'data-widget-retry': id } }, id)}
   </div>`;
 }
 
@@ -6855,23 +7710,19 @@ function renderAssetsWidget(summary = {}, currency = 'EUR') {
  * Feld fehlt) gelten die Felder, die auch das Heute-Blatt und die Wand lesen.
  * Die Kachel ist der EINZIGE Leser von `shoppingTile`.
  */
-function renderShoppingTile(data) {
+function renderShoppingTile(data, size = '2x1') {
   const tile = data?.shoppingTile;
   if (tile && Array.isArray(tile.lists)) {
-    return renderShoppingLists(tile.lists, tile.openCount, tile.listCount);
+    return renderShoppingLists(tile.lists, tile.openCount, tile.listCount, size);
   }
-  return renderShoppingLists(data?.shoppingLists ?? [], data?.shoppingOpenCount, data?.shoppingOpenLists);
+  return renderShoppingLists(data?.shoppingLists ?? [], data?.shoppingOpenCount, data?.shoppingOpenLists, size);
 }
 
-function renderShoppingLists(lists, openTotal = null, listTotalCount = null) {
+function renderShoppingLists(lists, openTotal = null, listTotalCount = null, size = '2x1') {
   if (!lists.length) {
-    return `<div class="widget widget--shopping">
+    return `<div class="widget widget--shopping"${emptySpanAttrs(size)}>
       ${widgetHeader('shopping', t('nav.shopping'), 0, '/shopping')}
-      <div class="widget__empty">
-        <i data-lucide="shopping-cart" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.noShoppingLists')}</div>
-        ${emptyStateCta('/shopping', t('shopping.newListButton'))}
-      </div>
+      ${widgetEmptyHtml(t('dashboard.noShoppingLists'), emptyRouteAction('/shopping', t('common.add')), 'shopping')}
     </div>`;
   }
 
@@ -6894,7 +7745,6 @@ function renderShoppingLists(lists, openTotal = null, listTotalCount = null) {
 
     const itemsHtml = list.items.map((item) => `
       <div class="shopping-widget-item">
-        <span class="shopping-widget-item__dot"></span>
         <span class="shopping-widget-item__name">${esc(item.name)}</span>
         ${item.quantity ? `<span class="shopping-widget-item__qty">${esc(item.quantity)}</span>` : ''}
       </div>
@@ -6912,28 +7762,42 @@ function renderShoppingLists(lists, openTotal = null, listTotalCount = null) {
     const listRoute = `/shopping?list=${encodeURIComponent(String(list.id))}`;
 
     return `
-      <div class="shopping-widget-list" data-route="${esc(listRoute)}" role="button" tabindex="0">
+      <div class="list-row shopping-widget-list" data-route="${esc(listRoute)}" role="button" tabindex="0">
+        <span class="list-row__lead shopping-widget-list__icon" aria-hidden="true"><i data-lucide="${MODULE_ICON.shopping}"></i></span>
+        <div class="list-row__main">
         <div class="shopping-widget-list__header">
-          <span class="shopping-widget-list__name">${esc(list.name)}</span>
-          <span class="shopping-widget-list__count">${list.total_count - list.open_count}/${list.total_count}</span>
+          <span class="list-row__name shopping-widget-list__name">${esc(list.name)}</span>
+          <span class="list-row__end shopping-widget-list__count">${list.total_count - list.open_count}/${list.total_count}</span>
         </div>
         <div class="shopping-widget-list__progress">
           <div class="shopping-widget-list__bar" style="--progress-scale:${progress / 100}"></div>
         </div>
         <div class="shopping-widget-list__items">
           ${itemsHtml}
-          ${moreCount > 0 ? `<div class="shopping-widget-item shopping-widget-item--more">${t('dashboard.shoppingMore', { count: moreCount })}</div>` : ''}
+          ${listMoreLine('dashboard.shoppingMore', moreCount)}
           ${/* Eine AUSGEWAEHLTE Liste steht auch ohne Offenes da (#1818): die
                 Zeile bleibt der Weg zu ihr und sagt, warum sie leer ist. */ ''}
           ${list.open_count === 0 ? `<div class="shopping-widget-item shopping-widget-item--more">${esc(t('dashboard.shoppingListNothingOpen'))}</div>` : ''}
+        </div>
         </div>
       </div>
     `;
   }).join('');
 
-  return `<div class="widget widget--shopping">
+  /* Je Liste eine zusammengesetzte Zeile (U11): Name und Zahl, Balken, die
+   * Artikel in je einer Zeile, ggf. "+N weitere" bzw. "nichts offen". */
+  const listPx = (list) => {
+    const n = list.items.length;
+    return TILE_PARTS.shoppingList + n * TILE_PARTS.shoppingItem + Math.max(0, n - 1) * TILE_PARTS.shoppingItemGap
+      + (list.open_count - n > 0 ? TILE_PARTS.shoppingMore : 0) + (list.open_count === 0 ? TILE_PARTS.shoppingNothing : 0);
+  };
+  const listsPx = lists.reduce((sum, list, i) => sum + listPx(list) + (i ? 1 : 0), 0);
+  const span = tileSpanAttrs(() => ({
+    body: TILE_GEOMETRY.rowsPad + listsPx + (moreLists > 0 ? TILE_GEOMETRY.more : 0),
+  }), size);
+  return `<div class="widget widget--shopping"${span}>
     ${widgetHeader('shopping', t('nav.shopping'), totalOpen, '/shopping')}
-    <div class="widget__body">${listsHtml}${listMoreLine('dashboard.shoppingMoreLists', moreLists)}</div>
+    <div class="widget__body widget__body--rows">${widgetRows(listsHtml)}${listMoreLine('dashboard.shoppingMoreLists', moreLists)}</div>
   </div>`;
 }
 
@@ -7183,8 +8047,22 @@ function weatherSpanModel(forecast) {
   };
 }
 
-function renderWeatherWidget(weather) {
+/* DER AKTUALISIEREN-KNOPF STEHT IN DER ENDZONE DES KOPFES (DW-P3-3), wo jede
+ * andere Kachel ihren "Alle"-Link traegt - als Kopf-Icon-Knopf der Shell
+ * (`btn btn--secondary btn--icon`: Ring, Druckbild, Zeiger 40/Finger 48), nicht
+ * mehr als grauer Eigenbau-Kreis, der absolut ueber der Karte schwebte und dafuer
+ * dem Kopf per z-index das Treffen abringen musste. */
+function weatherRefreshButton() {
+  return `<button type="button" class="btn btn--secondary btn--icon weather-widget__refresh" id="weather-refresh-btn"
+            aria-label="${esc(t('dashboard.weatherRefresh'))}" title="${esc(t('dashboard.weatherRefreshTitle'))}">
+        <i data-lucide="refresh-cw" aria-hidden="true"></i>
+      </button>`;
+}
+
+function renderWeatherWidget(weather, size = '2x1') {
   if (!weather) return '';
+  // Jetzt-Block mit oder ohne Vorhersage daneben/darunter - eine Hoehe je Groesse.
+  const span = tileSpanAttrs((s) => ({ body: TILE_PARTS.weather[nearestPreset(s)] ?? TILE_PARTS.weather['2x1'] }), size);
 
   const { city, current, forecast, units } = weather;
 
@@ -7220,11 +8098,8 @@ function renderWeatherWidget(weather) {
   }).join('');
 
   return `
-    <div class="widget widget--weather weather-widget" id="weather-widget"${weatherToneAttr(current.icon)}${weatherMotionAttr(current.icon)}>
-      ${widgetHeader('weather', t('dashboard.weather'), null, null, null, 'dashboard')}
-      <button class="weather-widget__refresh" id="weather-refresh-btn" aria-label="${t('dashboard.weatherRefresh')}" title="${t('dashboard.weatherRefreshTitle')}">
-        <i data-lucide="refresh-cw" class="icon-md" aria-hidden="true"></i>
-      </button>
+    <div class="widget widget--weather weather-widget" id="weather-widget"${span}${weatherToneAttr(current.icon)}${weatherMotionAttr(current.icon)}>
+      ${widgetHeader('weather', t('dashboard.weather'), null, null, null, 'dashboard', { action: weatherRefreshButton() })}
       <div class="weather-widget__inner">
         <div class="weather-widget__main">
           <div class="weather-widget__left">
@@ -7249,17 +8124,11 @@ function renderWeatherWidget(weather) {
 // und nicht beheben muss, und er soll nicht bei jedem Aufbau vorgelesen werden.
 // Der Aktualisieren-Knopf bleibt - er ist der Weg zurueck, und
 // `wireWeatherRefresh` tauscht die Kachel bei Erfolg aus.
-function renderWeatherUnavailable() {
+function renderWeatherUnavailable(size = '2x1') {
   return `
-    <div class="widget widget--weather weather-widget weather-widget--unavailable" id="weather-widget">
-      ${widgetHeader('weather', t('dashboard.weather'), null, null, null, 'dashboard')}
-      <button class="weather-widget__refresh" id="weather-refresh-btn" aria-label="${t('dashboard.weatherRefresh')}" title="${t('dashboard.weatherRefreshTitle')}">
-        <i data-lucide="refresh-cw" class="icon-md" aria-hidden="true"></i>
-      </button>
-      <div class="widget__empty">
-        <i data-lucide="cloud-off" class="empty-state__icon" aria-hidden="true"></i>
-        <div>${t('dashboard.weatherUnavailable')}</div>
-      </div>
+    <div class="widget widget--weather weather-widget weather-widget--unavailable" id="weather-widget"${emptySpanAttrs(size)}>
+      ${widgetHeader('weather', t('dashboard.weather'), null, null, null, 'dashboard', { action: weatherRefreshButton() })}
+      ${widgetEmptyHtml(t('dashboard.weatherUnavailable'))}
     </div>`;
 }
 
@@ -7296,7 +8165,7 @@ function clockWidgetParts(now = new Date()) {
  *   Ihre IDs bleiben dieselben - der Minutentakt (`updateClockWidget`) findet
  *   sie so in beiden Zustaenden, statt ein zweites Mal geschrieben zu werden.
  */
-function renderClockWidget({ wall = false } = {}) {
+function renderClockWidget({ wall = false, size = '2x1' } = {}) {
   const { time, date, machineTime } = clockWidgetParts();
   const cls = wall ? 'clock-widget clock-widget--wall' : 'widget widget--clock clock-widget';
   // SPERRZONE FUER MELDUNGEN, NUR AN DER WAND (#1917): dort steht der Stapel
@@ -7316,8 +8185,10 @@ function renderClockWidget({ wall = false } = {}) {
   if (wall) {
     return `<div class="${cls}" id="clock-widget">${body}</div>`;
   }
+  // Die Ziffern wachsen mit der Hoehe der Groesse (dashboard.css, --clock-time-max).
+  const span = tileSpanAttrs((s) => ({ body: TILE_PARTS.clock[nearestPreset(s)] ?? TILE_PARTS.clock['2x1'] }), size);
   return `
-    <div class="${cls}" id="clock-widget">
+    <div class="${cls}" id="clock-widget"${span}>
       ${widgetHeader('clock', t('dashboard.clock'), null, null, null, 'dashboard')}
       <div class="widget__body clock-widget__body">${body}</div>
     </div>`;
@@ -8138,25 +9009,51 @@ function renderNewPill() {
         </div>`;
 }
 
-/** Die Menuepunkte der Pille: dieselben Wege wie der Speed-Dial (FAB_NEW_BTN). */
-function wireNewMenu(container, signal) {
+/** Die Menuepunkte der Pille: dieselben Wege wie der Speed-Dial (openNewTarget). */
+function wireNewMenu(container, signal, host = {}) {
   installPopoverMenus(container);
   container.addEventListener('click', async (event) => {
     const item = event.target.closest?.('[data-new-route]');
     if (!item) return;
     item.closest('[popover]')?.hidePopover?.();
-    await openNewTarget(item.dataset.newRoute);
+    await openNewTarget(item.dataset.newRoute, { ...host, signal });
   }, { signal });
 }
 
 /**
- * DER ANLEGEN-KNOPF DER ZIELSEITE, ALS ID. Pille und Speed-Dial wechseln ins
- * Modul und klicken dort seinen FAB. Bis DW-P1-1 stand hier ein Selektor je
- * Ziel, und `'#btn-new-task'` ueberlebte die Umbenennung in `fab-new-task`
- * (#1483): "+ Neu > Aufgabe" landete wortlos in der Liste. Eine Id fuer
- * `findPageFab()` statt eines Selektors - der FAB lebt nach `adoptPageFab()`
- * in der Shell-Layer, und dort sucht ihn nur diese eine Stelle. Dass jede Id
- * im Markup ihrer Zielseite steht, haelt `test:dashboard-clarity`.
+ * DAS ANLEGEN-BLATT DES MODULS UEBER DER UEBERSICHT (DW, Ulas U2), wie das
+ * Lesen seit R22 D3 (openTaskFromOverview, openEventFromOverview). Pille und
+ * Speed-Dial wechselten ins Modul und klickten dort dessen FAB: die
+ * Uebersicht war weg, und nach dem Speichern stand man in der Liste statt
+ * dort, wo man angefangen hatte. Jetzt geht dasselbe Formular wie am FAB des
+ * Moduls ueber ihr auf, und nach dem Speichern gleicht sie still ab
+ * (`refresh` = refreshDashboardData, DW-P1-2): die neue Zeile steht in ihrer
+ * Kachel, ohne Skelett und ohne Sprung.
+ *
+ * Nachgeladen beim Tipp, nicht mitgeladen: jedes Modul zieht sein Formular mit
+ * sich, und dessen Gewicht gehoert nicht in den Start der Startseite
+ * (test:startup-preload).
+ *
+ * EINKAUF BLEIBT DER WEG INS MODUL. Sein FAB oeffnet kein Formular, sondern
+ * die Eingabezeile ueber der Liste, in die sie schreibt (shopping.js,
+ * syncQuickAddDisclosure: "KEIN BOTTOM-SHEET"); ein Blatt dafuer gibt es nicht.
+ */
+const NEW_SHEETS = {
+  '/tasks':    async (opts) => (await import('/pages/tasks.js')).openNewTask(opts),
+  '/calendar': async (opts) => (await import('/pages/calendar.js')).openNewEvent(opts),
+  '/notes':    async (opts) => (await import('/pages/notes.js')).openNewNote(opts),
+};
+
+/**
+ * DER ANLEGEN-KNOPF DER ZIELSEITE, ALS ID - fuer Einkauf, und fuer jedes
+ * andere Ziel der Weg, wenn sein Blatt nicht laedt: ein Fehler soll das
+ * Anlegen nicht verschliessen (wie openEventFromOverview). Bis DW-P1-1 stand
+ * hier ein Selektor je Ziel, und `'#btn-new-task'` ueberlebte die Umbenennung
+ * in `fab-new-task` (#1483): "+ Neu > Aufgabe" landete wortlos in der Liste.
+ * Eine Id fuer `findPageFab()` statt eines Selektors - der FAB lebt nach
+ * `adoptPageFab()` in der Shell-Layer, und dort sucht ihn nur diese eine
+ * Stelle. Dass jede Id im Markup ihrer Zielseite steht, haelt
+ * `test:dashboard-clarity`.
  */
 const FAB_NEW_BTN = {
   '/tasks':    'fab-new-task',
@@ -8165,8 +9062,33 @@ const FAB_NEW_BTN = {
   '/notes':    'fab-new-note',
 };
 
-/** Ins Modul wechseln und sein Anlegen-Blatt oeffnen - der eine Weg fuer Pille und Speed-Dial. */
-async function openNewTarget(route) {
+/**
+ * Das Anlegen-Blatt eines Ziels oeffnen - der eine Weg fuer Pille und
+ * Speed-Dial. Ueber der Uebersicht, wo das Modul eins hat (NEW_SHEETS), sonst
+ * im Modul.
+ *
+ * DER FOKUS STEHT VORHER AUF "+ NEU". Das Blatt gibt ihn beim Schliessen an
+ * das Element zurueck, das ihn beim Oeffnen hielt - das waere der Menuepunkt,
+ * den Popover bzw. Speed-Dial gerade versteckt haben, und der Fokus fiele auf
+ * das Dokument. Abbrechen fuehrt so an den Knopf zurueck, von dem man kam.
+ * @param {string} route
+ * @param {{ user?: object|null, refresh?: () => Promise<void>, signal?: AbortSignal|null }} [host]
+ */
+async function openNewTarget(route, { user = null, refresh = null, signal = null } = {}) {
+  const sheet = NEW_SHEETS[route];
+  if (sheet) {
+    findPageFab('fab-main')?.focus({ preventScroll: true });
+    try {
+      await sheet({ user, onChanged: refresh ?? (() => {}), signal });
+      return;
+    } catch (err) {
+      console.error('[Dashboard] Anlegen-Blatt konnte nicht geöffnet werden:', err);
+    }
+    // Wer die Uebersicht inzwischen verlassen hat, steht schon woanders: der
+    // Weg ins Modul risse ihn von dort weg (Review p11). Das Blatt selbst
+    // prueft dasselbe Signal, bevor es aufgeht.
+    if (signal?.aborted) return;
+  }
   await window.yuvomi.navigate(route);
   const id = FAB_NEW_BTN[route];
   if (id) findPageFab(id)?.click();
@@ -8229,7 +9151,7 @@ function setCustomizeFabHidden(hidden) {
   fab.hidden = hidden;
 }
 
-function initFab(signal) {
+function initFab(signal, host = {}) {
   const fabMain     = findPageFab('fab-main');
   const fabGroup    = fabMain?.closest('.page-fab-group');
   const fabActions  = fabGroup?.querySelector('#fab-actions');
@@ -8263,7 +9185,7 @@ function initFab(signal) {
   fabActions.querySelectorAll('[data-route]').forEach((el) => {
     const go = async () => {
       toggleFab(false);
-      await openNewTarget(el.dataset.route);
+      await openNewTarget(el.dataset.route, { ...host, signal });
     };
     el.addEventListener('click', go);
     el.addEventListener('keydown', (e) => {
@@ -8363,7 +9285,7 @@ export function eventRowRemovedBy(link, scope) {
  * Scheitert das Laden, fuehrt die Zeile wie bisher in den Kalender - ein
  * Fehler soll den Weg nicht verschliessen.
  */
-async function openEventFromOverview(link, anchor, { container = null, refresh = null, user = null } = {}) {
+async function openEventFromOverview(link, anchor, { container = null, refresh = null, user = null, signal = null } = {}) {
   const onRemoving = (scope, removing) => {
     container?.querySelectorAll('[data-route]').forEach((row) => {
       if (eventRowRemovedBy(eventLinkOf(row.dataset.route), scope)) row.hidden = removing;
@@ -8371,7 +9293,9 @@ async function openEventFromOverview(link, anchor, { container = null, refresh =
   };
   try {
     const { openEventById } = await import('/pages/calendar.js');
-    await openEventById(link.id, { date: link.date, anchor, user, onChanged: refresh, onRemoving });
+    // `signal` ist die Lebenszeit der Uebersicht: so lange leiht das Blatt
+    // calendar.css fuer sein Formular (Farbwahl, Erinnerungszeilen).
+    await openEventById(link.id, { date: link.date, anchor, user, onChanged: refresh, onRemoving, signal });
   } catch (err) {
     console.error('[Dashboard] Termin konnte nicht geöffnet werden:', err);
     const params = new URLSearchParams({ open: link.id });
@@ -8384,7 +9308,7 @@ async function openEventFromOverview(link, anchor, { container = null, refresh =
 // Navigations-Links verdrahten
 // --------------------------------------------------------
 
-function wireLinks(container, refresh, { editing = false, user = null } = {}) {
+function wireLinks(container, refresh, { editing = false, user = null, signal = null } = {}) {
   wireTodayMore(container);
   wireTodayOverdue(container);
   wireTodayTimeline(container);
@@ -8409,7 +9333,7 @@ function wireLinks(container, refresh, { editing = false, user = null } = {}) {
     // Mittelklick auf einen Link behalten unten ihren neuen Tab.
     const eventLink = editing ? null : eventLinkOf(el.dataset.route);
     const go = eventLink
-      ? () => openEventFromOverview(eventLink, el, { container, refresh, user })
+      ? () => openEventFromOverview(eventLink, el, { container, refresh, user, signal })
       : () => window.yuvomi.navigate(el.dataset.route);
     if (el.tagName === 'A') {
       el.addEventListener('click', (e) => {
@@ -8470,35 +9394,6 @@ function reorderWidgetConfig(config, fromId, toId, placement = 'before') {
   return next.map((w, i) => ({ ...w, order: i }));
 }
 
-function closestWidgetDrop(grid, event, draggedId) {
-  const candidates = [...grid.querySelectorAll('.widget-wrapper[data-widget-id]')]
-    .filter((item) => item.dataset.widgetId !== draggedId);
-  if (!candidates.length) return null;
-
-  let nearest = null;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const item of candidates) {
-    const rect = item.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const dx = event.clientX - centerX;
-    const dy = event.clientY - centerY;
-    const distance = (dy * dy * 1.7) + (dx * dx);
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearest = { item, rect };
-    }
-  }
-  if (!nearest) return null;
-
-  const sameRow = event.clientY >= nearest.rect.top && event.clientY <= nearest.rect.bottom;
-  const placement = sameRow
-    ? (event.clientX > nearest.rect.left + nearest.rect.width / 2 ? 'after' : 'before')
-    : (event.clientY > nearest.rect.top + nearest.rect.height / 2 ? 'after' : 'before');
-
-  return { id: nearest.item.dataset.widgetId, placement, item: nearest.item };
-}
-
 /* DER LOCH-HINWEIS IM BEARBEITEN-MODUS (Critique 2026-09-23).
  *
  * Das Raster packt immer dicht; was dann noch leer bleibt, liegt an den
@@ -8519,15 +9414,36 @@ function gridSpans(el) {
   return { cols: span(cs.gridColumnStart, cs.gridColumnEnd), rows: span(cs.gridRowStart, cs.gridRowEnd) };
 }
 
+/* Die Spuren einer Groesse: die Breite aus dem Stylesheet (Klasse kurz
+ * tauschen, lesen, zurueck), die Hoehe aus den Daten der Kachel
+ * (`data-span-sizes`, U1 b) - plus der Abstand, den der Rahmen traegt
+ * (`--tile-gap-rows`, steckt in der gelesenen Spanne).
+ *
+ * GELESEN WIRD DIE GEWAEHLTE SPANNE, NICHT DIE GEFUELLTE. Seit der
+ * Anpassen-Modus fuellt wie die Ansicht (DW-P2-9), traegt eine Kachel dort
+ * schon die Spanne, mit der sie ein Loch schliesst (`data-col-fill`,
+ * `data-row-fill`, `data-col-lock`). Gelesen mit ihr, sah der Hinweis das Loch
+ * nie, das er beseitigen soll: gemessen 1440px, die Uhr zwischen Geburtstagen
+ * und Aufgaben stand mit 202px Geist ueber den Notizen, und kein Hinweis. Die
+ * Fuellung geht fuer die Probe mit der Klasse weg und kommt mit ihr zurueck. */
+const FILL_ATTRIBUTES = ['data-col-fill', 'data-row-fill', 'data-col-lock'];
+
 function spansForSize(el, size) {
   const current = [...el.classList].find((c) => c.startsWith('widget-size--'));
   const probe = widgetSizeClass(size);
-  if (!current || current === probe) return gridSpans(el);
-  el.classList.replace(current, probe);
+  const own = Number(el.dataset?.spanRows);
+  const content = spanRowsForSize(el, size);
+  const withContent = (spans) => (content && own ? { ...spans, rows: spans.rows - own + content } : spans);
+  const fills = FILL_ATTRIBUTES.filter((name) => el.hasAttribute(name));
+  const swap = current && current !== probe;
+  if (!swap && !fills.length) return withContent(gridSpans(el));
+  for (const name of fills) el.removeAttribute(name);
+  if (swap) el.classList.replace(current, probe);
   try {
-    return gridSpans(el);
+    return withContent(gridSpans(el));
   } finally {
-    el.classList.replace(probe, current);
+    if (swap) el.classList.replace(probe, current);
+    for (const name of fills) el.setAttribute(name, '');
   }
 }
 
@@ -8535,35 +9451,108 @@ function gridColumnCount(grid) {
   return getComputedStyle(grid).gridTemplateColumns.split(' ').filter((v) => v && v !== 'none').length;
 }
 
-function gridHoleSuggestion(grid) {
-  const columns = gridColumnCount(grid);
-  if (columns < 2) return null;
-  const items = [...grid.querySelectorAll(':scope > .widget-wrapper[data-widget-id]')].map((el) => ({
-    id: el.dataset.widgetId,
-    el,
-    size: [...el.classList].find((c) => c.startsWith('widget-size--'))?.slice('widget-size--'.length) ?? '1x1',
-    ...gridSpans(el),
-  }));
-  return suggestGridHoleFill(items, columns,
-    (item) => WIDGET_SIZE_PRESETS.map((p) => ({ size: p.value, ...spansForSize(item.el, p.value) })));
+/* DIE SPANNEN EINER GROESSE STEHEN IM STYLESHEET, NICHT IN DER KACHEL (DW-P2-1).
+ * Um zu wissen, welche Groesse ein Loch schliesst, probiert der Hinweis jede
+ * Groesse an jeder Kachel aus (spansForSize: Klasse tauschen, lesen, zurueck) -
+ * bei 22 Kacheln 66 Proben, und jede legte das Raster zur Auslegung frei: nach
+ * jeder Anpassen-Geste ein zweites volles Layout (gemessen 4x CPU ~25 ms).
+ * Was eine Probe misst, haengt nur an der Groessenklasse, den Spuren, die die
+ * Kachel in jeder Groesse belegt (`data-span-sizes`, U1 b), und den Spuren des
+ * Rasters - darum gilt sie je Spurbild, und nach der ersten Runde misst eine
+ * Geste nichts mehr nach. */
+const tileSpanMemo = new Map();
+function memoSpans(el, size, tracks) {
+  const key = `${tracks}|${size}|${el.dataset?.spanRows ?? ''}|${el.dataset?.spanSizes ?? ''}`;
+  let spans = tileSpanMemo.get(key);
+  if (!spans) {
+    spans = spansForSize(el, size);
+    if (tileSpanMemo.size > 200) tileSpanMemo.clear();
+    tileSpanMemo.set(key, spans);
+  }
+  return spans;
 }
 
+function gridHoleSuggestion(grid) {
+  const tracks = getComputedStyle(grid).gridTemplateColumns;
+  const columns = tracks.split(' ').filter((v) => v && v !== 'none').length;
+  if (columns < 2) return null;
+  const items = [...grid.querySelectorAll(':scope > .widget-wrapper[data-widget-id]')].map((el) => {
+    const size = [...el.classList].find((c) => c.startsWith('widget-size--'))?.slice('widget-size--'.length) ?? '1x1';
+    return { id: el.dataset.widgetId, el, size, ...memoSpans(el, size, tracks) };
+  });
+  return suggestGridHoleFill(items, columns,
+    (item) => WIDGET_SIZE_PRESETS.map((p) => ({ size: p.value, ...memoSpans(item.el, p.value, tracks) })));
+}
+
+/* WAS BREITE IN INHALT UMSETZT (DW-P2-6, U1 b): das Wetter zeigt in der
+ * Breite mehr Tage (4 ab 640px Kachelbreite, 5 ab 860px), in derselben Hoehe.
+ * Jede andere Kachel zeigte breiter nur dasselbe groesser. */
+const FILL_WIDE_WIDGETS = new Set(['weather']);
+
 /**
- * DAS RASTER HAT IM NORMALMODUS KEINE LOECHER (Re-Critique 2026-09-27, A7
- * P2-12 / R10 L9). Die Kachel vor einer freien Zelle waechst in den Rest ihrer
- * Zeile (`rowFillSpans`, utils/dashboard-widgets.js) - als Darstellung, nicht
- * als gespeicherte Groesse: `data-row-fill` plus `--widget-fill-span`
- * (dashboard.css). Im Anpassen-Modus waechst nichts; dort zeigt das Raster die
- * gewaehlten Groessen, und der Loch-Hinweis (`gridHoleSuggestion`) schlaegt die
- * dauerhafte Korrektur vor.
+ * DAS RASTER HAT KEIN LOCH - UND KEINE KACHEL HOEHE OHNE INHALT (R10 L9,
+ * R21 D5, neu gefasst mit U1 b). Nach der dichten Packung sind die Kacheln so
+ * hoch wie ihre Daten (`--tile-rows`); was dann noch frei ist:
+ *   - rechts neben dem Wetter waechst das Wetter hinein (`rowFillSpans`,
+ *     nur `wide`) und zeigt dort mehr Tage;
+ *   - ein Loch, unter dem noch eine Kachel steht, fuellt die Kachel darueber
+ *     (`columnFillSpans`);
+ *   - ein Spaltenende, laenger als ein Kachelabstand, ist auch ein Loch (F9):
+ *     eine Kachel daneben waechst in die Breite, sonst die letzte der Spalte
+ *     in die Hoehe. Ein kuerzeres laeuft ruhig aus.
+ * Beides ist Darstellung (`data-row-fill`/`data-col-fill`), gespeichert bleibt
+ * die gewaehlte Groesse.
  *
- * Gemessen wird mit abgenommenem Wachstum - die Spans kommen aus den
- * Groessenklassen, nicht aus der letzten Runde dieser Funktion.
+ * DER ANPASSEN-MODUS ZEIGT DASSELBE RASTER (DW-P2-9, WYSIWYG): er fuellte nicht,
+ * und der Lueckenhinweis schlug dann eine Korrektur fuer eine Luecke vor, die
+ * ausserhalb nie stand. Jetzt fuellt er wie der Normalmodus; die Hoehe, die
+ * eine Kachel nur zum Fuellen bekommt, steht dort als Geist
+ * (`--tile-ghost-rows`, dashboard.css) - man sieht, was Inhalt ist und was
+ * Platz.
+ *
+ * Gemessen wird mit abgenommenem Wachstum - die Spans kommen aus Groessenklasse
+ * und Daten, nicht aus der letzten Runde dieser Funktion.
  */
-function applyRowFill(grid, { editing = false } = {}) {
+const seenGridColumns = new WeakMap();
+
+function applyRowFill(grid, { editing = false, columns: knownColumns = null } = {}) {
   // Nur, was im Raster steht: ein verborgenes Kind belegt keine Zelle.
   const tiles = [...grid.children].filter((el) => getComputedStyle(el).display !== 'none');
+  /* ERST LESEN, DANN SCHREIBEN (DW-P2-4). Die Kacheln sind Container
+   * (`container: dashboard-widget`); ein `getComputedStyle` nach dem ersten
+   * gesetzten Fuell-Attribut verlangte darum Stil UND Layout der ganzen
+   * Flaeche noch einmal - gemessen 8 ms bei 4x CPU, mitten im Seitenwechsel.
+   * Ein frisch gezeichnetes Raster traegt noch keine Fuellung: dort wird
+   * alles vorab gelesen. Nur ein Raster, das schon gefuellt war (neue
+   * Spaltenzahl, eine Geste), muss erst zuruecksetzen, damit die Spannen die
+   * gewaehlten sind und nicht die gefuellten. */
+  const filled = tiles.some((el) => 'rowFill' in el.dataset || 'colFill' in el.dataset);
+  const read = () => {
+    const columns = knownColumns ?? gridColumnCount(grid);
+    seenGridColumns.set(grid, columns);
+    if (columns < 2) return { columns, items: [] };
+    return {
+      columns,
+      items: tiles.map((el, index) => {
+        const spans = gridSpans(el);
+        return {
+          id: el.dataset.widgetId || `#${index}`,
+          el,
+          ...spans,
+          wide: FILL_WIDE_WIDGETS.has(el.dataset.widgetId) && spans.cols >= 2,
+          // Die Kennzahlreihe waechst nicht (so hoch wie ihre Kacheln, `align-self: start`).
+          grow: !el.querySelector(':scope > .metric-tiles'),
+        };
+      }),
+    };
+  };
+  const early = filled ? null : read();
   for (const el of grid.children) {
+    if ('colLock' in el.dataset) {
+      delete el.dataset.colLock;
+      el.style.removeProperty('--tile-col');
+      el.style.removeProperty('--tile-span-cols');
+    }
     if ('rowFill' in el.dataset) {
       delete el.dataset.rowFill;
       el.style.removeProperty('--widget-fill-span');
@@ -8571,34 +9560,69 @@ function applyRowFill(grid, { editing = false } = {}) {
     if ('colFill' in el.dataset) {
       delete el.dataset.colFill;
       el.style.removeProperty('--widget-fill-rows');
+      el.style.removeProperty('--tile-ghost-rows');
+      delete el.dataset.ghostBlock;
     }
   }
-  if (editing) return;
-  const columns = gridColumnCount(grid);
-  if (columns < 2) return;
-  const items = tiles.map((el, index) => ({ id: el.dataset.widgetId || `#${index}`, el, ...gridSpans(el) }));
-  const grown = rowFillSpans(items, columns);
-  for (const item of items) {
-    const span = grown.get(item.id);
-    if (!span) continue;
-    item.el.dataset.rowFill = '';
-    item.el.style.setProperty('--widget-fill-span', String(span));
+  const { columns, items: read0 } = early ?? read();
+  if (columns < 2) {
+    // Einspaltig wird nichts gestreckt, also steht auch keine Zusatzzeile (U14).
+    for (const el of grid.children) if (el.dataset?.fillShown) showFillRows(el, 0);
+    return;
   }
-  /* UND WAS VON LINKS NIEMAND ERREICHT, FUELLT DIE KACHEL DARUEBER (R21, D5):
-   * `columnFillSpans`, utils/dashboard-widgets.js. Eine Kachel, die so hoch ist
-   * wie ihr Inhalt (`align-self: start`, die Kennzahlreihe), waechst nicht -
-   * gestreckt stuende die Leere nur in ihr. */
-  const widened = items.map((item) => ({
-    ...item,
-    cols: grown.get(item.id) ?? item.cols,
-    grow: getComputedStyle(item.el).alignSelf !== 'start',
-  }));
-  const taller = columnFillSpans(widened, columns);
-  for (const item of widened) {
-    const rows = taller.get(item.id);
-    if (!rows) continue;
-    item.el.dataset.colFill = '';
-    item.el.style.setProperty('--widget-fill-rows', String(rows));
+  // Packen und Fuellen: eine reine Rechnung (fillGridSpans, utils/dashboard-widgets.js).
+  const items = read0;
+  const spans = fillGridSpans(items, columns);
+  // Die Spalte breiter und gewachsener Kacheln steht fest: gleich frueh,
+  // weniger Loch (packGrid), und wer nach links waechst, beginnt dort (F9).
+  spans.forEach((item, i) => {
+    if (item.col === undefined) return;
+    items[i].el.dataset.colLock = '';
+    items[i].el.style.setProperty('--tile-col', String(item.col + 1));
+    items[i].el.style.setProperty('--tile-span-cols', String(Math.min(items[i].cols, columns)));
+  });
+  spans.forEach((item, i) => {
+    const own = items[i];
+    if (item.cols !== own.cols) {
+      item.el.dataset.rowFill = '';
+      item.el.style.setProperty('--widget-fill-span', String(item.cols));
+      // Kein Geist fuer Breite (F9): der Inhalt laeuft ueber die ganze Breite,
+      // ein Schlitz am Rand laege ueber ihm.
+    }
+    // HOEHE WIRD INHALT (U14): was die Packung einer Liste an Hoehe zuteilt,
+    // fuellen ihre geladenen Zeilen, soweit sie ganz hineinpassen. Gelesen
+    // wird nur, was der Renderer ausgerechnet hat (`data-fill-steps`).
+    const base = Number(item.el.dataset?.spanRows) || 0;
+    const steps = String(item.el.dataset?.fillSteps ?? '').split(',').map(Number).filter((n) => n > 0);
+    const extra = steps.length && base ? fillRowCount(steps, base + item.rows - own.rows) : 0;
+    if (steps.length || item.el.dataset?.fillShown) showFillRows(item.el, extra);
+    if (item.rows !== own.rows) {
+      item.el.dataset.colFill = '';
+      item.el.style.setProperty('--widget-fill-rows', String(item.rows));
+      // Im Anpassen-Modus steht als Geist nur, was danach noch Platz ist.
+      const ghost = item.rows - own.rows - (extra ? steps[extra - 1] - base : 0);
+      if (editing && ghost > 0) {
+        item.el.dataset.ghostBlock = '';
+        item.el.style.setProperty('--tile-ghost-rows', String(ghost));
+      }
+    }
+  });
+}
+
+/* Zeigt die ersten `k` Zusatzzeilen einer Kachel (U14) und zaehlt "+N weitere"
+ * herunter. Schreibt nur, was sich aendert; liest kein Layout. */
+function showFillRows(el, k) {
+  if ((Number(el.dataset.fillShown) || 0) === k) return;
+  if (k) el.dataset.fillShown = String(k);
+  else delete el.dataset.fillShown;
+  el.querySelectorAll('[data-fill-row]').forEach((row, i) => row.toggleAttribute('data-fill-on', i < k));
+  el.querySelectorAll('[data-fill-group]').forEach((group) => group.toggleAttribute('data-fill-on', k > 0));
+  for (const more of el.querySelectorAll('[data-fill-more]')) {
+    more.dataset.moreBase ??= more.textContent;
+    const rest = (Number(more.dataset.moreRest) || 0) - k;
+    const done = rest <= 0 ? more.dataset.moreDone ?? '' : '';
+    more.toggleAttribute('data-fill-gone', rest <= 0 && !done);
+    more.textContent = done || (rest > 0 && more.dataset.moreKey ? t(more.dataset.moreKey, { count: rest }) : more.dataset.moreBase);
   }
 }
 
@@ -8677,15 +9701,28 @@ export async function render(container, { user, signal: routeSignal = null } = {
     today: householdToday(),
   });
 
+  // Die zuletzt gezeichnete Hoehe des Kopfbands bei dieser Fenstergroesse.
+  const head = wallMode || memo ? null : headHint(viewportKey());
   setHtml(container, `
     <div class="dashboard app-page app-page--dashboard${wallMode ? ' dashboard--wall' : ''}" data-composition="dashboard">
       <h1 class="sr-only">${t('dashboard.title')}</h1>
       <div class="dashboard-shell" id="dashboard-shell">
-        ${wallMode ? renderWallSurface(null, null, { loading: true }) : memo ? '' : renderDashboardSkeleton()}
+        ${wallMode ? renderWallSurface(null, null, { loading: true }) : memo ? '' : renderDashboardSkeleton(user, { head })}
       </div>
     </div>
     ${wallMode ? '' : renderFab()}
   `);
+  if (!wallMode && !memo && globalThis.window?.matchMedia?.('(min-width: 768px)').matches) {
+    // Das Skelett-Raster packt wie das echte (applyRowFill): gleiche Spalten,
+    // gleiche Spannen. Erst ab zwei Spalten - einspaltig gibt es nichts zu
+    // fuellen, und das Lesen kostete am Telefon ein Layout der ganzen Shell
+    // vor dem ersten Bild (gemessen rund 50 ms bei 4x CPU).
+    const skeletonGrid = container.querySelector('#dashboard-shell > .dashboard__grid');
+    if (skeletonGrid) applyRowFill(skeletonGrid);
+  }
+  // Das Plus des Speed-Dials steht im ERSTEN Bild, nicht erst mit den Daten
+  // (DW-P2-5: eine violette Scheibe ohne Zeichen, solange das Skelett stand).
+  createPendingIcons(container.querySelector('#fab-group'));
 
   // Der Zonen-Hinweis fuer Bestandshaushalte (#1607): ein Admin, dessen Browser
   // in einer anderen Zone steht, als der Haushalt ohne eigene Einstellung
@@ -8869,7 +9906,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     savedGlanceVisible = glanceVisible;
     followsDefault = prefsRes.data?.dashboard_follows_default !== false;
     // Das Skelett des NAECHSTEN Aufrufs lernt hier seine Kachelform.
-    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), calendarListRowsOf);
+    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), drawnSpanOf);
     screensaverEnabled = Boolean(prefsRes.data?.screensaver_enabled);
     currency     = prefsRes.data?.currency ?? 'EUR';
     visibleMealTypes = normalizeVisibleMealTypes(prefsRes.data?.visible_meal_types);
@@ -9016,7 +10053,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // Ab jetzt liegt ein eigener Stand vor - die Vorgabe des Haushalts erreicht
     // mich erst wieder, wenn ich ihn loesche.
     followsDefault = false;
-    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), calendarListRowsOf);
+    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), drawnSpanOf);
     isCustomizing = false;
     // Wird die Zyklus-Kachel gerade erst eingeblendet, ihren owner-only Slice
     // nachladen — sonst zeigte sie fälschlich den Empty-State bis zum Reload.
@@ -9046,7 +10083,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
             await api.put('/preferences', { dashboard_widgets: widgetConfig, dashboard_today_glance: glanceVisible });
             savedWidgetConfig = widgetConfig.map((w) => ({ ...w }));
             savedGlanceVisible = glanceVisible;
-            rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), calendarListRowsOf);
+            rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), drawnSpanOf);
             if (wasteOptionsBeforeUndo !== JSON.stringify(widgetConfig.find((w) => w.id === 'waste')?.options ?? null)) data.waste = undefined;
             if (widgetConfig.some((w) => w.id === 'waste' && w.visible)) await ensureWasteSlice();
             await reloadAfterSave(() => reloadIfQueryChanged(queryBeforeUndo));
@@ -9156,7 +10193,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     savedWidgetConfig = widgetConfig.map((w) => ({ ...w }));
     savedGlanceVisible = glanceVisible;
     followsDefault = true;
-    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), calendarListRowsOf);
+    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), drawnSpanOf);
     isCustomizing = false;
     if (widgetConfig.some((w) => w.id === 'cycle' && w.visible)) await ensureCycleSlice();
     if (widgetConfig.some((w) => w.id === 'schedule' && w.visible)) await ensureScheduleSlice();
@@ -9183,7 +10220,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
         savedWidgetConfig = widgetConfig.map((w) => ({ ...w }));
         savedGlanceVisible = glanceVisible;
         followsDefault = false;
-        rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), calendarListRowsOf);
+        rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), drawnSpanOf);
         if (wasteOptionsBeforeUndo !== JSON.stringify(widgetConfig.find((w) => w.id === 'waste')?.options ?? null)) data.waste = undefined;
         if (widgetConfig.some((w) => w.id === 'waste' && w.visible)) await ensureWasteSlice();
         await reloadAfterSave(() => reloadIfQueryChanged(queryBeforeUndo));
@@ -9227,7 +10264,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     }
     savedWidgetConfig = widgetConfig.map((w) => ({ ...w }));
     savedGlanceVisible = glanceVisible;
-    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), calendarListRowsOf);
+    rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig), drawnSpanOf);
     isCustomizing = false;
     // Wie beim Speichern: haben sich mit den Optionen die Parameter der Abfrage
     // geaendert, steht noch die alte Antwort da. Ohne den Abruf zeigte die
@@ -9249,49 +10286,323 @@ export async function render(container, { user, signal: routeSignal = null } = {
   let rowFillObserver = null;
   signal.addEventListener('abort', () => rowFillObserver?.disconnect(), { once: true });
 
+  let tileSizeObserver = null;
+  let headSizeObserver = null;
+  signal.addEventListener('abort', () => { tileSizeObserver?.disconnect(); headSizeObserver?.disconnect(); }, { once: true });
+
   function wireRowFill() {
     rowFillObserver?.disconnect();
     rowFillObserver = null;
+    tileSizeObserver?.disconnect();
+    tileSizeObserver = null;
+    headSizeObserver?.disconnect();
+    headSizeObserver = null;
     const grid = container.querySelector('#dashboard-widget-grid');
     if (!grid) return;
+    if (!isCustomizing) {
+      rememberGridHint(drawnTiles, widgetConfig);
+      tileSizeObserver = watchTileSizes(grid);
+      headSizeObserver = watchHeadSize(container.querySelector('#dashboard-shell'));
+    }
     applyRowFill(grid, { editing: isCustomizing });
-    if (isCustomizing || typeof ResizeObserver !== 'function') return;
+    // Nach der Packung stehen die Breiten fest: eine Kennzahlkachel, deren Wert
+    // auch auf der Stufe ihrer Reihe nicht passt, tritt eine Stufe zurueck
+    // (DW-P2-7). Der ResizeObserver darin misst bei jeder Breitenaenderung neu.
+    fitMetricLeads(grid);
+    if (typeof ResizeObserver !== 'function') return;
     let shape = `${gridColumnCount(grid)}:${grid.childElementCount}`;
     rowFillObserver = new ResizeObserver(() => {
       const next = `${gridColumnCount(grid)}:${grid.childElementCount}`;
       if (next === shape) return;
       shape = next;
-      applyRowFill(grid);
+      applyRowFill(grid, { editing: isCustomizing });
     });
     rowFillObserver.observe(grid);
   }
 
-  function syncGridHint(grid) {
-    container.querySelector('.dashboard-grid-hint')?.remove();
+  /* DER LUECKENHINWEIS IN ZWEI SCHRITTEN (DW-P2-1): erst lesen, ob sich der
+   * Vorschlag aendert (planGridHint - liest nur, was das Gleiten ohnehin
+   * auslegen liess), dann schreiben (applyGridHint). Eine Geste schreibt ihn
+   * erst nach dem naechsten Bild: ein neuer oder anderer Hinweis veraendert
+   * die Hoehe ueber dem Raster, und im selben Task kostete das eine zweite
+   * Auslegung der ganzen Flaeche (gemessen 4x CPU ~20 ms je Geste). Das
+   * Raster gleitet dann an seine neue Oberkante (playGridShift). */
+  function planGridHint(grid) {
     const suggestion = gridHoleSuggestion(grid);
-    if (!suggestion) return;
+    const apply = container.querySelector('.dashboard-grid-hint [data-grid-hint-apply]');
+    if (!suggestion) return apply ? { suggestion: null } : null;
+    if (apply?.dataset.widgetId === suggestion.id && apply.dataset.size === suggestion.size) return null;
+    return { suggestion };
+  }
+
+  function applyGridHint(grid, plan) {
+    if (!plan) return;
+    const { suggestion } = plan;
+    const shown = container.querySelector('.dashboard-grid-hint');
+    if (!suggestion) {
+      shown?.remove();
+      return;
+    }
+    const apply = shown?.querySelector('[data-grid-hint-apply]');
+    if (apply) {
+      // Ein anderer Vorschlag wechselt nur seine Worte im selben Knoten.
+      const [next] = elementsFromHtml(renderGridHint(suggestion));
+      const text = shown.querySelector('.dashboard-grid-hint__text');
+      if (text) text.textContent = next.querySelector('.dashboard-grid-hint__text')?.textContent ?? '';
+      apply.dataset.widgetId = suggestion.id;
+      apply.dataset.size = suggestion.size;
+      return;
+    }
     // VOR dem Raster, nicht dahinter: das Loch steht oft oben, und ein Hinweis
     // unter zwanzig Kacheln waere einer, den man erst nach dem Scrollen findet.
     grid.insertAdjacentHTML('beforebegin', renderGridHint(suggestion));
-    container.querySelector('.dashboard-grid-hint [data-grid-hint-apply]')?.addEventListener('click', () => {
-      widgetConfig = updateWidgetConfig(widgetConfig, suggestion.id, { size: suggestion.size });
-      rebuildDashboard(widgetConfig);
+    container.querySelector('.dashboard-grid-hint [data-grid-hint-apply]')?.addEventListener('click', (event) => {
+      // Der Vorschlag steht am Knopf: er wechselt mit den Gesten (oben).
+      const { widgetId: id, size } = event.currentTarget.dataset;
+      widgetConfig = updateWidgetConfig(widgetConfig, id, { size });
+      patchCustomize();
+      // Der Hinweis geht nach dem naechsten Bild; der Fokus geht schon jetzt
+      // zur Groesse, die er gesetzt hat.
+      const tile = `.widget-wrapper[data-widget-id="${CSS.escape(id)}"]`;
+      restoreFocusAfterRebuild(container, [`${tile} [data-widget-size-preset="${CSS.escape(size)}"]`, `${tile} [data-widget-hide]`]);
     });
   }
+
+  function syncGridHint(grid) {
+    applyGridHint(grid, planGridHint(grid));
+  }
+
+  // Der juengste nachgereichte Hinweis gewinnt - eine schnelle zweite Geste
+  // ueberholt den der ersten.
+  let pendingHint = 0;
+  function applyGridHintAfterPaint(grid, plan) {
+    const token = ++pendingHint;
+    if (!plan) return;
+    requestAnimationFrame(() => setTimeout(() => {
+      if (token !== pendingHint || signal.aborted || !isCustomizing || !grid.isConnected) return;
+      const shell = container.querySelector('#dashboard-shell');
+      const top = grid.getBoundingClientRect().top;
+      // Der Vorschlag kann inzwischen ein anderer sein (Spalten, Fenster).
+      applyGridHint(grid, planGridHint(grid));
+      if (shell) playGridShift(shell, top);
+    }, 0));
+  }
+
+  /* DIE GESTE AENDERT, WAS SIE AENDERT (DW-P2-1).
+   *
+   * Bis hierher baute jede Anpassen-Geste die ganze Uebersicht neu: Kopf,
+   * Heute-Blatt, zweiundzwanzig Kacheln, alle Zeichen, alle Messungen - fuer
+   * EINE geaenderte Kachel. Gemessen bei 4x CPU 120-240 ms je Tipp, davon bis
+   * 170 ms erzwungenes Layout. Jetzt folgt die Flaeche dem neuen Stand an Ort
+   * und Stelle:
+   *   - Verschieben haengt die vorhandenen Kacheln um (arrangeChildren,
+   *     `moveBefore` wo vorhanden - der gedrueckte Knopf behaelt den Fokus);
+   *   - Groesse und Optionen tauschen die Klasse und zeichnen nur den Koerper
+   *     dieser einen Kachel, wenn sein Markup sich ueberhaupt aendert;
+   *   - Aus nimmt die Kachel heraus, Ein setzt sie an ihren Platz, und die
+   *     Ablage bekommt bzw. verliert genau ihren Chip;
+   *   - was von der Sichtbarkeit abhaengt, faellt mit: die Kennzahlreihe
+   *     (sie schweigt fuer sichtbare Domaenen), das Heute-Blatt (Kein-Echo) und
+   *     die Wetterzeile im Kopf - jeweils nur, wenn das neue Markup ein anderes ist.
+   * Die Leisten folgen per syncCustomizeControls, die Nachbarn gleiten
+   * (playTileFlip). Im Anpassen-Modus waechst nichts in den Zeilenrest
+   * (applyRowFill), und der Layout-Hinweis lernt erst beim Speichern - dort
+   * baut die Seite ohnehin neu, im Normalmodus.
+   * `focus`: wohin der Fokus geht, wenn sein Knopf mit der Geste gegangen ist. */
+  function patchCustomize({ focus = [] } = {}) {
+    if (signal.aborted || !isCustomizing || wallMode || loadFailed) return;
+    const shell = container.querySelector('#dashboard-shell');
+    const grid = shell?.querySelector('#dashboard-widget-grid');
+    if (!grid) return;
+    const before = captureTileRects(shell);
+    // Geht der gedrueckte Knopf mit der Geste (Aus, Ein), wechselt der Fokus
+    // VOR dem Umbau zum Nachfolger, wenn es ihn schon gibt (der Nachbar): ein
+    // fokussiertes Element zu entfernen zwang den Browser mitten im Umbau zu
+    // einer Stilrechnung der ganzen Flaeche (gemessen 4x CPU ~24 ms). Der
+    // Nachbar ruecht an den Platz des gegangenen - die Ansicht bleibt stehen.
+    const early = focus.length ? focusTarget(container, focus) : null;
+    if (early && early !== document.activeElement) early.focus({ preventScroll: true });
+    const active = document.activeElement;
+    const cfg = widgetConfig;
+    // Kein Echo: das Heute-Blatt spricht fuer die Domaenen ohne Kachel - und
+    // nur eine geaenderte Sichtbarkeit (oder Option) aendert, was es sagt.
+    // Gezeichnet VOR dem ersten Schreiben: es liest die Breite seiner Buehne
+    // (todayStage), und mitten im Umbau verlangte das eine Auslegung der
+    // halbfertigen Flaeche.
+    const visibility = visibilityKey(cfg, glanceVisible);
+    const visibilityChanged = visibility !== drawnVisibility;
+    drawnVisibility = visibility;
+    const cockpitHtml = visibilityChanged ? renderTodayCockpit(data, cfg, true) : drawnCockpit;
+    const renderers = dashboardTileRenderers(cfg, data, weather, currency, {
+      visibleMealTypes, glanceHidden: !glanceVisible, familyManage: familyManageHref(user),
+    });
+    const previous = new Map(drawnTiles.map((w) => [w.id, w]));
+    const present = new Map([...grid.querySelectorAll(':scope > .widget-wrapper[data-widget-id]')]
+      .map((el) => [el.dataset.widgetId, el]));
+    const listed = [];
+    const nodes = [];
+    // Was neues Markup bekam - es braucht Zeichen und seine Verdrahtung.
+    const fresh = [];
+    for (const w of cfg) {
+      if (!dashboardTileListed(w, renderers)) continue;
+      const old = present.get(w.id);
+      // Die Kennzahlreihe liest die Sichtbarkeit der anderen (renderMetricTiles).
+      const redraw = !old || tileDrawKey(previous.get(w.id)) !== tileDrawKey(w) || (w.id === 'metrics' && visibilityChanged);
+      const body = redraw ? renderWidgetBody(w, renderers) : drawnBodies.get(w.id);
+      if (!body) continue;
+      listed.push(w);
+      if (!old) {
+        const [el] = elementsFromHtml(renderWidgetWrapper(w, body, { editing: true }));
+        nodes.push(el);
+        fresh.push(el);
+      } else {
+        if (redraw) {
+          old.classList.remove(...[...old.classList].filter((name) => name.startsWith('widget-size--')));
+          old.classList.add(widgetSizeClass(w.size));
+          if (tileBodyChanged(w, body, drawnBodies.get(w.id))) {
+            // Der Koerper bringt seine Hoehe mit (U1 b): andere Groesse, andere Zeilenzahl.
+            setTileSpan(old, body);
+            for (const child of [...old.children]) if (!child.matches('[data-widget-controls]')) child.remove();
+            old.append(...elementsFromHtml(body));
+            fresh.push(old);
+          }
+        }
+        nodes.push(old);
+      }
+      drawnBodies.set(w.id, body);
+    }
+    drawnTiles = listed;
+    arrangeChildren(grid, nodes);
+    if (!nodes.length) grid.insertAdjacentHTML('afterbegin', emptyHintHTML(t('dashboard.allWidgetsHidden'), { icon: 'layout-dashboard' }));
+    nodes.forEach((el, index) => {
+      const menu = syncCustomizeControls(el, listed[index], index, nodes.length);
+      if (menu) fresh.push(menu);
+    });
+
+    // Die Ablage: genau der Chip, der kommt oder geht.
+    const trayHtml = renderHiddenWidgetsTray(cfg, !glanceVisible);
+    const tray = shell.querySelector('.widget-restore');
+    if (!trayHtml) {
+      tray?.remove();
+    } else if (!tray) {
+      const [el] = elementsFromHtml(trayHtml);
+      grid.before(el);
+      fresh.push(el);
+    } else {
+      const chipKey = (el) => (el.matches('[data-glance-show]') ? '' : el.querySelector(':scope > [data-widget-show]')?.dataset.widgetShow);
+      const list = tray.querySelector('.widget-restore__chips');
+      const have = new Map([...list.children].map((el) => [chipKey(el), el]));
+      const [next] = elementsFromHtml(trayHtml);
+      arrangeChildren(list, [...next.querySelector('.widget-restore__chips').children].map((el) => {
+        const kept = have.get(chipKey(el));
+        if (kept) return kept;
+        fresh.push(el);
+        return el;
+      }));
+    }
+
+    // Ohne Nachmessen: die Buehne las das Blatt oben am sauberen Layout, und
+    // eine Kachel aendert sie nicht; die Zeilenzahl am Telefon (measurePhoneProgram)
+    // zaehlt im Anpassen-Modus nicht - dort ist das Blatt auf seinen Kopf
+    // zusammengeklappt. Das Speichern baut ohnehin neu und misst.
+    let sheet = null;
+    if (cockpitHtml !== drawnCockpit) {
+      drawnCockpit = cockpitHtml;
+      replaceProgramSheet(shell, cockpitHtml);
+      sheet = shell.querySelector('.today-cockpit');
+      createPendingIcons(sheet);
+    }
+    // Die Wetterzeile im Kopf schweigt, solange die Karte im Raster steht.
+    const weatherCardShown = cfg.some((w) => w.id === 'weather' && w.visible) && isWidgetModuleEnabled('weather');
+    shell.querySelector('.dashboard-overview__weather')?.classList.toggle('dashboard-overview__weather--card', weatherCardShown);
+
+    for (const el of fresh) createPendingIcons(el);
+    wireFreshTiles(shell, fresh.filter((el) => el.matches('.widget-wrapper')));
+    // DASSELBE RASTER WIE AUSSERHALB (DW-P2-9, WYSIWYG): neu gefuellt nach den
+    // Spannen, die die Geste gesetzt hat - ohne Neuaufbau, und ohne Auslegung:
+    // die Spaltenzahl ist die der letzten (sie aendert keine Geste).
+    applyRowFill(grid, { editing: true, columns: seenGridColumns.get(grid) });
+    // Ab hier wird gelesen, alles an EINER Auslegung des neuen Stands, und erst
+    // danach geschrieben. Jede Animation und jeder Fokuswechsel vor einer
+    // Lesung verlangte eine neue Stilrechnung der ganzen Flaeche (gemessen
+    // 4x CPU 15-18 ms je Runde, bis zu drei Runden je Geste).
+    // Das neue Blatt zuerst: seine Zeitleiste setzt ihre Fahne nach gemessener
+    // Lage (placeTodayTimelineFlag) und schreibt nur an der Fahne.
+    if (sheet) wireLinks(sheet, refreshAfterSheet, { editing: true, user, signal });
+    // Ging der Knopf mit der Geste, geht der Fokus zum Nachfolger (`focus`).
+    const successor = active?.isConnected ? null : focusTarget(container, focus);
+    const flip = measureTileFlip(shell, before);
+    // Der Lueckenhinweis wird hier nur gelesen; geschrieben nach dem naechsten Bild.
+    const hintPlan = planGridHint(grid);
+    // Der Nachfolger steht meist daneben: nur so weit scrollen, wie er es
+    // braucht (wie `block: 'nearest'`) - `focus()` allein holte ihn in die
+    // Mitte, und die ganze Seite sprang unter dem Finger weg.
+    const scroller = successor ? shell.closest('.app-content') : null;
+    const scrollBy = scroller ? nearestScrollDelta(successor.getBoundingClientRect(), scroller.getBoundingClientRect()) : 0;
+    // Schreiben. Blieb der Knopf, bleibt der Fokus dort (ohne moveBefore nahm
+    // das Umhaengen ihn mit).
+    if (active?.isConnected) {
+      if (document.activeElement !== active && active !== document.body) active.focus({ preventScroll: true });
+    } else {
+      successor?.focus({ preventScroll: true });
+      if (scrollBy) scroller.scrollTop += scrollBy;
+    }
+    startTileFlip(flip);
+    applyGridHintAfterPaint(grid, hintPlan);
+  }
+
+  /** Was eine neu gezeichnete Kachel ausser Markup braucht (wie im Neuaufbau). */
+  function wireFreshTiles(shell, wrappers) {
+    if (!wrappers.length) return;
+    const ids = new Set(wrappers.map((el) => el.dataset.widgetId));
+    if (isCustomizing) attachSizeIndicators(shell.querySelector('#dashboard-widget-grid'), editWiring?.signal);
+    for (const el of wrappers) {
+      wireRecipeThumbs(el);
+      fitMetricLeads(el);
+      if (isExtensionWidget(el.dataset.widgetId)) void mountExtensionWidgets(el, widgetConfig, user);
+    }
+    if (ids.has('fasting')) {
+      disposeFastingClock();
+      disposeFastingClock = wireFastingWidget(container, refreshAfterSheet, data.fasting, signal, { editing: isCustomizing });
+    }
+    if (ids.has('notes')) {
+      disposeNoteCategories();
+      disposeNoteCategories = wireNoteCategoryOverflow(
+        shell,
+        (count) => getNumberFormat().format(count),
+        (count) => t('noteCategories.moreAction', { count }),
+      );
+    }
+    if (ids.has('weather')) {
+      wireWeatherRefresh(container, (updatedWeather) => {
+        weather = updatedWeather;
+        rebuildDashboard(widgetConfig);
+      }, signal);
+    }
+  }
+
+  // Die Verdrahtung des Anpassen-Modus haengt an Raster und Flaeche, die eine
+  // Geste ueberleben (patchCustomize): einmal je Aufbau, nicht je Knopf.
+  let editWiring = null;
+  signal.addEventListener('abort', () => editWiring?.abort(), { once: true });
 
   function wireDashboardEditMode() {
     gridHintObserver?.disconnect();
     gridHintObserver = null;
+    editWiring?.abort();
+    editWiring = null;
     if (!isCustomizing) return;
+    const shell = container.querySelector('#dashboard-shell');
     const grid = container.querySelector('#dashboard-widget-grid');
-    if (!grid) return;
+    if (!shell || !grid) return;
+    editWiring = new AbortController();
+    const wired = { signal: editWiring.signal };
     // Groessen-Menue (R9 M7): Position, Pfeiltasten, Schliessen - einmal an der
     // stabilen Seitenwurzel, idempotent ueber sein data-Attribut.
     installPopoverMenus(container);
-    let draggedId = '';
-    let currentDrop = null;
 
     syncGridHint(grid);
+    attachSizeIndicators(grid, editWiring.signal);
     if (typeof ResizeObserver === 'function') {
       let columns = gridColumnCount(grid);
       gridHintObserver = new ResizeObserver(() => {
@@ -9303,107 +10614,57 @@ export async function render(container, { user, signal: routeSignal = null } = {
       gridHintObserver.observe(grid);
     }
 
-    const clearDropHint = () => {
-      grid.querySelectorAll('.widget-wrapper--drop-before, .widget-wrapper--drop-after').forEach((el) => {
-        el.classList.remove('widget-wrapper--drop-before', 'widget-wrapper--drop-after');
-      });
+    const resize = (btn) => {
+      const size = btn.dataset.widgetSizePreset;
+      if (!WIDGET_SIZE_OPTIONS.includes(size)) return;
+      // Aus dem Groessen-Menue (R9 M7): der Fokus gehoert danach dem Knopf,
+      // der das Menue oeffnete - der Eintrag steht in einem geschlossenen
+      // Panel und naehme ihn nicht an.
+      const menu = btn.closest('.popover-menu');
+      if (menu) {
+        menu.hidePopover?.();
+        grid.querySelector(`[popovertarget="${CSS.escape(menu.id)}"]`)?.focus();
+      }
+      widgetConfig = updateWidgetConfig(widgetConfig, btn.dataset.widgetId, { size });
+      // Der Fokus bleibt auf demselben Knopf (die Leiste wird nicht neu
+      // gezeichnet), und der traegt jetzt aria-pressed - gesagt wird trotzdem,
+      // was sich geaendert hat: die Kachel ist gewachsen, nicht der Knopf.
+      patchCustomize();
+      const preset = WIDGET_SIZE_PRESETS.find((p) => p.value === size);
+      announceDashboard(t('dashboard.customizeSizeDone', {
+        widget: widgetLabel(btn.dataset.widgetId),
+        size: preset ? t(preset.labelKey) : size,
+      }));
     };
 
-    const updateDropHint = (event) => {
-      if (!draggedId) return null;
-      clearDropHint();
-      currentDrop = closestWidgetDrop(grid, event, draggedId);
-      if (currentDrop) {
-        currentDrop.item.classList.add(currentDrop.placement === 'after' ? 'widget-wrapper--drop-after' : 'widget-wrapper--drop-before');
+    const editOptions = async (btn) => {
+      const id = btn.dataset.widgetOptions;
+      // Aus einem Menue (Kachel, Chip der Ablage): der Dialog gibt den Fokus
+      // dem zurueck, der ihn beim Oeffnen hielt - das soll der Ausloeser sein,
+      // nicht der Eintrag im geschlossenen Menue.
+      const menu = btn.closest('.popover-menu');
+      if (menu) {
+        menu.hidePopover?.();
+        shell.querySelector(`[popovertarget="${CSS.escape(menu.id)}"]`)?.focus({ preventScroll: true });
       }
-      return currentDrop;
+      const current = widgetConfig.find((w) => w.id === id)?.options ?? {};
+      const next = await openWidgetOptions(id, current);
+      if (next === null || signal.aborted || !isCustomizing) return;
+      // Ein leeres Optionsobjekt wird zu „keine Optionen": so bleibt der
+      // gespeicherte Stand identisch mit dem eines Layouts, das den Dialog
+      // nie gesehen hat.
+      widgetConfig = updateWidgetConfig(widgetConfig, id,
+        Object.keys(next).length ? { options: next } : { options: undefined });
+      patchCustomize();
     };
-
-    grid.querySelectorAll('.widget-wrapper[data-widget-id]').forEach((wrapper) => {
-      wrapper.addEventListener('dragstart', (event) => {
-        draggedId = wrapper.dataset.widgetId;
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', draggedId);
-        wrapper.classList.add('widget-wrapper--dragging');
-      });
-      wrapper.addEventListener('dragend', () => {
-        draggedId = '';
-        wrapper.classList.remove('widget-wrapper--dragging');
-        currentDrop = null;
-        clearDropHint();
-      });
-    });
-
-    grid.addEventListener('dragover', (event) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'move';
-      updateDropHint(event);
-    });
-
-    grid.addEventListener('dragleave', (event) => {
-      if (!grid.contains(event.relatedTarget)) {
-        currentDrop = null;
-        clearDropHint();
-      }
-    });
-
-    grid.addEventListener('drop', (event) => {
-      event.preventDefault();
-      const fromId = event.dataTransfer.getData('text/plain') || draggedId;
-      const drop = currentDrop || updateDropHint(event);
-      if (fromId && drop) {
-        widgetConfig = reorderWidgetConfig(widgetConfig, fromId, drop.id, drop.placement);
-        rebuildDashboard(widgetConfig);
-      }
-    });
-
-    grid.querySelectorAll('[data-widget-size-preset]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const size = btn.dataset.widgetSizePreset;
-        if (!WIDGET_SIZE_OPTIONS.includes(size)) return;
-        // Aus dem Groessen-Menue (R9 M7): der Fokus gehoert danach dem Knopf,
-        // der das Menue oeffnete - der Eintrag steht nach dem Neuaufbau in
-        // einem geschlossenen Panel und naehme ihn nicht an.
-        const menu = btn.closest('.popover-menu');
-        if (menu) {
-          menu.hidePopover?.();
-          grid.querySelector(`[popovertarget="${CSS.escape(menu.id)}"]`)?.focus();
-        }
-        widgetConfig = updateWidgetConfig(widgetConfig, btn.dataset.widgetId, { size });
-        // Der Fokus bleibt auf demselben Knopf (rebuildDashboard traegt ihn
-        // hinueber), und der traegt jetzt aria-pressed - gesagt wird trotzdem,
-        // was sich geaendert hat: die Kachel ist gewachsen, nicht der Knopf.
-        rebuildDashboard(widgetConfig);
-        const preset = WIDGET_SIZE_PRESETS.find((p) => p.value === size);
-        announceDashboard(t('dashboard.customizeSizeDone', {
-          widget: widgetLabel(btn.dataset.widgetId),
-          size: preset ? t(preset.labelKey) : size,
-        }));
-      });
-    });
-
-    container.querySelectorAll('[data-widget-options]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.widgetOptions;
-        const current = widgetConfig.find((w) => w.id === id)?.options ?? {};
-        const next = await openWidgetOptions(id, current);
-        if (next === null) return;
-        // Ein leeres Optionsobjekt wird zu „keine Optionen": so bleibt der
-        // gespeicherte Stand identisch mit dem eines Layouts, das den Dialog
-        // nie gesehen hat.
-        widgetConfig = updateWidgetConfig(widgetConfig, id,
-          Object.keys(next).length ? { options: next } : { options: undefined });
-        rebuildDashboard(widgetConfig);
-      });
-    });
 
     /* WER AUSBLENDET, VERLIERT SEINEN KNOPF - UND DARF DESHALB NICHT DEN FOKUS
-     * VERLIEREN. Der Neuaufbau ersetzt das ganze Raster; der gedrueckte Knopf
-     * ist danach fort, und der Fokus fiel bis hierher auf <body> zurueck: wer
-     * per Tastatur drei Kacheln ausblenden wollte, stand nach der ersten wieder
-     * am Seitenanfang. Er geht deshalb zum gleichen Knopf der Nachbarkachel
-     * (so laesst sich eine Reihe nacheinander abraeumen), und wo es keine gibt,
-     * zum Chip, der sie zurueckholt. Beim Einblenden spiegelbildlich. */
+     * VERLIEREN. Die Kachel geht samt Knopf, und der Fokus fiel bis hierher auf
+     * <body> zurueck: wer per Tastatur drei Kacheln ausblenden wollte, stand
+     * nach der ersten wieder am Seitenanfang. Er geht deshalb zum gleichen
+     * Knopf der Nachbarkachel (so laesst sich eine Reihe nacheinander
+     * abraeumen), und wo es keine gibt, zum Chip, der sie zurueckholt. Beim
+     * Einblenden spiegelbildlich. */
     const neighbourIds = (el, selector, attr) => {
       const next = el?.nextElementSibling?.closest(selector) ? el.nextElementSibling : null;
       const prev = el?.previousElementSibling?.closest(selector) ? el.previousElementSibling : null;
@@ -9411,101 +10672,153 @@ export async function render(container, { user, signal: routeSignal = null } = {
         .filter(Boolean);
     };
 
-    grid.querySelectorAll('[data-widget-hide]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.widgetHide;
-        const wrapper = btn.closest('.widget-wrapper');
-        focusAfterRebuild = [
-          ...neighbourIds(wrapper, '.widget-wrapper', 'data-widget-id')
-            .map((n) => `.widget-wrapper[data-widget-id="${CSS.escape(n)}"] [data-widget-hide]`),
-          `[data-widget-show="${CSS.escape(id)}"]`,
-        ];
-        widgetConfig = updateWidgetConfig(widgetConfig, id, { visible: false });
-        rebuildDashboard(widgetConfig);
-        announceDashboard(t('dashboard.customizeHiddenDone', { widget: widgetLabel(id) }));
-      });
-    });
+    const hide = (btn) => {
+      const id = btn.dataset.widgetHide;
+      const wrapper = btn.closest('.widget-wrapper');
+      const focus = [
+        ...neighbourIds(wrapper, '.widget-wrapper', 'data-widget-id')
+          .map((n) => `.widget-wrapper[data-widget-id="${CSS.escape(n)}"] [data-widget-hide]`),
+        `[data-widget-show="${CSS.escape(id)}"]`,
+      ];
+      widgetConfig = updateWidgetConfig(widgetConfig, id, { visible: false });
+      patchCustomize({ focus });
+      announceDashboard(t('dashboard.customizeHiddenDone', { widget: widgetLabel(id) }));
+    };
 
-    // Wieder-Einblenden aus der Tray-Leiste (außerhalb des Grids, daher container-
-    // weit gesucht): der Gegenpart zum Ausblenden, macht den Inline-Editor komplett.
-    container.querySelectorAll('[data-widget-show]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.widgetShow;
-        focusAfterRebuild = [
-          ...neighbourIds(btn.closest('.widget-restore-chip-group') ?? btn, '.widget-restore-chip-group, [data-glance-show]', 'data-widget-show')
-            .map((n) => `[data-widget-show="${CSS.escape(n)}"]`),
-          `.widget-wrapper[data-widget-id="${CSS.escape(id)}"] [data-widget-hide]`,
-        ];
-        widgetConfig = updateWidgetConfig(widgetConfig, id, { visible: true });
-        rebuildDashboard(widgetConfig);
-        announceDashboard(t('dashboard.customizeShownDone', { widget: widgetLabel(id) }));
-      });
-    });
+    // Wieder-Einblenden aus der Ablage (ausserhalb des Rasters): der Gegenpart
+    // zum Ausblenden, macht den Inline-Editor komplett.
+    const show = (btn) => {
+      const id = btn.dataset.widgetShow;
+      const focus = [
+        ...neighbourIds(btn.closest('.widget-restore-chip-group') ?? btn, '.widget-restore-chip-group, [data-glance-show]', 'data-widget-show')
+          .map((n) => `[data-widget-show="${CSS.escape(n)}"]`),
+        `.widget-wrapper[data-widget-id="${CSS.escape(id)}"] [data-widget-hide]`,
+      ];
+      widgetConfig = updateWidgetConfig(widgetConfig, id, { visible: true });
+      patchCustomize({ focus });
+      announceDashboard(t('dashboard.customizeShownDone', { widget: widgetLabel(id) }));
+    };
 
-    // Kopfband: beide Knoepfe sitzen ausserhalb des Grids (der eine im Masthead,
-    // der andere in der Tray-Leiste), deshalb container-weit gesucht.
-    container.querySelector('[data-glance-hide]')?.addEventListener('click', () => {
-      glanceVisible = false;
-      focusAfterRebuild = ['[data-glance-show]'];
-      rebuildDashboard(widgetConfig);
-      announceDashboard(t('dashboard.customizeHiddenDone', { widget: t('dashboard.todayTitle') }));
-    });
-    container.querySelector('[data-glance-show]')?.addEventListener('click', () => {
-      glanceVisible = true;
-      focusAfterRebuild = ['[data-glance-hide]'];
-      rebuildDashboard(widgetConfig);
-      announceDashboard(t('dashboard.customizeShownDone', { widget: t('dashboard.todayTitle') }));
-    });
+    // Kopfband: beide Knoepfe sitzen ausserhalb des Rasters (der eine im
+    // Heute-Blatt, der andere in der Ablage).
+    const glance = (visible) => {
+      glanceVisible = visible;
+      patchCustomize({ focus: [visible ? '[data-glance-hide]' : '[data-glance-show]'] });
+      announceDashboard(t(visible ? 'dashboard.customizeShownDone' : 'dashboard.customizeHiddenDone', { widget: t('dashboard.todayTitle') }));
+    };
 
-    // Reorder ohne HTML5-DnD (das feuert nicht per Finger und ist nicht per
-    // Tastatur bedienbar). Ein Pfad für drei Auslöser: Touch-Up/Down-Buttons,
-    // Desktop-Grip-Pfeiltasten und (indirekt) das Modal — alle über den Nachbarn
-    // aus der gerenderten Grid-Reihenfolge und dasselbe reorderWidgetConfig.
+    /* EIN WEG FUER JEDES UMORDNEN. Hoch/Runter (Finger, Screenreader), die
+     * Pfeiltasten am Griff und das Ziehen (SortableJS, unten) legen eine Kachel
+     * neben eine andere - ueber dasselbe reorderWidgetConfig und denselben
+     * Patch (patchCustomize), nie ueber einen Neuaufbau. Gesagt wird der neue
+     * Platz: wohin sie gerutscht ist, sieht nur, wer hinsieht. */
+    const placeWidget = (id, targetId, placement) => {
+      widgetConfig = reorderWidgetConfig(widgetConfig, id, targetId, placement);
+      patchCustomize();
+      const order = [...grid.querySelectorAll(':scope > .widget-wrapper[data-widget-id]')]
+        .map((w) => w.dataset.widgetId);
+      announceDashboard(t('dashboard.customizeMovedTo', {
+        widget: widgetLabel(id), position: order.indexOf(id) + 1, total: order.length,
+      }));
+    };
+
     const moveWidget = (id, dir) => {
       const wrapper = grid.querySelector(`.widget-wrapper[data-widget-id="${CSS.escape(id)}"]`);
       const sibling = dir === 'up' ? wrapper?.previousElementSibling : wrapper?.nextElementSibling;
       const siblingId = sibling?.dataset?.widgetId;
       if (!id || !siblingId) return false;
-      widgetConfig = reorderWidgetConfig(widgetConfig, id, siblingId, dir === 'up' ? 'before' : 'after');
-      rebuildDashboard(widgetConfig);
-      // Der Fokus folgt der Kachel (die Aufrufer unten), aber wohin sie
-      // gerutscht ist, sieht nur, wer hinsieht: gesagt wird der neue Platz.
-      const order = [...container.querySelectorAll('#dashboard-widget-grid > .widget-wrapper[data-widget-id]')]
-        .map((w) => w.dataset.widgetId);
-      announceDashboard(t('dashboard.customizeMovedTo', {
-        widget: widgetLabel(id), position: order.indexOf(id) + 1, total: order.length,
-      }));
+      placeWidget(id, siblingId, dir === 'up' ? 'before' : 'after');
       return true;
     };
 
-    grid.querySelectorAll('[data-widget-move]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.widgetId;
-        const dir = btn.dataset.widgetMove;
-        if (!moveWidget(id, dir)) return;
-        // Fokus dem bewegten Widget nachführen (Tastatur-Kontinuität): gleiche
-        // Richtung, sonst die noch aktive Gegenrichtung.
-        const movedWrapper = container.querySelector(`.widget-wrapper[data-widget-id="${CSS.escape(id)}"]`);
-        const sameDir = movedWrapper?.querySelector(`[data-widget-move="${dir}"]:not([disabled])`);
-        const anyMove = movedWrapper?.querySelector('[data-widget-move]:not([disabled])');
-        (sameDir ?? anyMove)?.focus();
-      });
-    });
+    // Nach dem Ablegen steht die Kachel schon an ihrem Platz (SortableJS haengt
+    // sie selbst um); der Stand folgt dem Platz, den sie im Raster hat.
+    const dropWidget = (item) => {
+      const id = item?.dataset?.widgetId;
+      const nextId = item?.nextElementSibling?.dataset?.widgetId;
+      const prevId = item?.previousElementSibling?.dataset?.widgetId;
+      if (!id || !(nextId || prevId)) return;
+      placeWidget(id, nextId || prevId, nextId ? 'before' : 'after');
+    };
 
-    // Desktop-Tastatur: der Grip ist ein fokussierbarer Button — Pfeil hoch/runter
-    // ordnet um. Schließt die Inline-Reorder-Lücke für Tastatur-Nutzer, ohne die
-    // schmale Edit-Leiste mit zusätzlichen Buttons zu überladen (Drag bleibt Maus).
-    grid.querySelectorAll('[data-widget-drag-handle]').forEach((handle) => {
-      handle.addEventListener('keydown', (event) => {
-        const dir = event.key === 'ArrowUp' ? 'up' : event.key === 'ArrowDown' ? 'down' : null;
-        if (!dir) return;
-        event.preventDefault();
-        const id = handle.closest('.widget-wrapper[data-widget-id]')?.dataset.widgetId;
-        if (moveWidget(id, dir)) {
-          container.querySelector(`.widget-wrapper[data-widget-id="${CSS.escape(id)}"] [data-widget-drag-handle]`)?.focus();
-        }
-      });
-    });
+    const move = (btn) => {
+      const id = btn.dataset.widgetId;
+      const dir = btn.dataset.widgetMove;
+      if (!moveWidget(id, dir)) return;
+      // Am Rand ist der gedrueckte Knopf jetzt gesperrt: der Fokus geht zur
+      // Gegenrichtung derselben Kachel (Tastatur-Kontinuitaet).
+      if (!btn.disabled && document.activeElement === btn) return;
+      const movedWrapper = grid.querySelector(`.widget-wrapper[data-widget-id="${CSS.escape(id)}"]`);
+      const sameDir = movedWrapper?.querySelector(`[data-widget-move="${dir}"]:not([disabled])`);
+      const anyMove = movedWrapper?.querySelector('[data-widget-move]:not([disabled])');
+      (sameDir ?? anyMove)?.focus();
+    };
+
+    // AUS DEM MENUE DER KACHEL (U7): das Menue schliesst, der Fokus bleibt an
+    // seinem Ausloeser - der wandert mit der Kachel (arrangeChildren haengt
+    // sie um und gibt den Fokus zurueck), wie der Griff bei den Pfeiltasten.
+    // Gesagt wird der neue Platz wie bei Hoch/Runter (placeWidget).
+    const moveFromMenu = (item) => {
+      const menu = item.closest('.popover-menu');
+      menu?.hidePopover?.();
+      const trigger = menu ? shell.querySelector(`[popovertarget="${CSS.escape(menu.id)}"]`) : null;
+      trigger?.focus({ preventScroll: true });
+      if (moveWidget(item.dataset.widgetId, item.dataset.widgetMove) && trigger && document.activeElement !== trigger) {
+        trigger.focus({ preventScroll: true });
+      }
+    };
+
+    // EIN Zuhoerer fuer alle Knoepfe der Leisten und der Ablage: die Knoepfe
+    // kommen und gehen mit den Gesten, die Flaeche bleibt.
+    shell.addEventListener('click', (event) => {
+      const btn = event.target?.closest?.('[data-widget-move], [data-widget-size-preset], [data-widget-options], [data-widget-hide], [data-widget-show], [data-glance-hide], [data-glance-show]');
+      if (!btn || !shell.contains(btn) || btn.disabled) return;
+      if (btn.matches('.popover-menu [data-widget-move]')) moveFromMenu(btn);
+      else if (btn.matches('[data-widget-move]')) move(btn);
+      else if (btn.matches('[data-widget-size-preset]')) resize(btn);
+      else if (btn.matches('[data-widget-options]')) void editOptions(btn);
+      else if (btn.matches('[data-widget-hide]')) hide(btn);
+      else if (btn.matches('[data-widget-show]')) show(btn);
+      else glance(btn.matches('[data-glance-show]'));
+    }, wired);
+
+    // Tastatur: der Griff ist ein fokussierbarer Button - Pfeil hoch/runter
+    // ordnet um. Schliesst die Inline-Reorder-Luecke fuer Tastatur-Nutzer, ohne die
+    // schmale Edit-Leiste mit zusaetzlichen Buttons zu ueberladen.
+    grid.addEventListener('keydown', (event) => {
+      const handle = event.target?.closest?.('[data-widget-drag-handle]');
+      if (!handle) return;
+      const dir = event.key === 'ArrowUp' ? 'up' : event.key === 'ArrowDown' ? 'down' : null;
+      if (!dir) return;
+      event.preventDefault();
+      const id = handle.closest('.widget-wrapper[data-widget-id]')?.dataset.widgetId;
+      if (moveWidget(id, dir) && document.activeElement !== handle) handle.focus({ preventScroll: true });
+    }, wired);
+
+    /* ZIEHEN NACH N3 (DW-P2-3). Bis hier zog die Uebersicht als einzige Stelle
+     * der App per HTML5-Drag-and-Drop: die Quelle blieb als 45-%-Abbild stehen,
+     * der Browser malte sein eigenes durchscheinendes Ziehbild, das Ziel war
+     * eine 4-px-Linie, die Nachbarn standen still bis zum Loslassen - und per
+     * Finger ging es gar nicht. Jetzt derselbe Baustein wie jede Liste
+     * (utils/sortable.js): Ziehen am Griff, per Maus und per Finger (Halten
+     * 120 ms), der Platz ist der leere Schlitz `.sortable-ghost`, das Ziehbild
+     * die Kachel selbst, deckend, und die Nachbarn weichen in --duration-sm.
+     * Geladen erst hier: der Anpassen-Modus ist selten, der Startgraph der
+     * Uebersicht bleibt ohne sortable.js. Scheitert das Laden, bleiben Hoch,
+     * Runter und die Pfeiltasten. */
+    const ownWiring = editWiring;
+    void import('/utils/sortable.js')
+      .then(({ makeSortable }) => (ownWiring.signal.aborted ? null : makeSortable(grid, {
+        handle: '[data-widget-drag-handle]',
+        draggable: '.widget-wrapper[data-widget-id]',
+        onEnd: (evt) => dropWidget(evt.item),
+      })))
+      .then((sortable) => {
+        if (!sortable) return;
+        if (ownWiring.signal.aborted || !grid.isConnected) { sortable.destroy(); return; }
+        ownWiring.signal.addEventListener('abort', () => sortable.destroy(), { once: true });
+      })
+      .catch(() => { /* ohne SortableJS bleiben Hoch/Runter und die Pfeiltasten */ });
   }
 
   let disposeNoteCategories = () => {};
@@ -9529,6 +10842,13 @@ export async function render(container, { user, signal: routeSignal = null } = {
   let quietScrollTop = null;
   /** Das Markup der Flaeche aus dem aktuellen Stand - fuer den Aufbau und fuer
    *  den Blick voraus, welche Zeilen der stille Abgleich mitnimmt. */
+  // Die Kacheln des letzten Aufbaus, so wie sie im Raster stehen.
+  let drawnTiles = [];
+  // Und ihr Markup samt dem des Heute-Blatts: was eine Anpassen-Geste davon
+  // unveraendert laesst, zeichnet sie nicht neu (patchCustomize).
+  let drawnBodies = new Map();
+  let drawnCockpit = '';
+  let drawnVisibility = '';
   function dashboardShellHtml(cfg) {
     // Signature-„Heute"-Masthead: Begrüßung und Glance-Cockpit teilen sich EIN
     // erhöhtes Material-Band (statt zweier gestapelter gerahmter Kästen). Die
@@ -9537,6 +10857,8 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // kollabiert das Band per --slim auf eine schlanke Gruß-Leiste statt ein
     // großes leeres Rechteck zu zeigen (Critique R3 P1).
     const cockpitHtml = (glanceVisible || isCustomizing) ? renderTodayCockpit(data, cfg, isCustomizing) : '';
+    drawnCockpit = cockpitHtml;
+    drawnVisibility = visibilityKey(cfg, glanceVisible);
     const mastheadSlim = cockpitHtml ? '' : ' dashboard-masthead--slim';
     // Kein Wetter-Echo: die Masthead-Zeile spricht nur, wenn die Wetter-Karte
     // nicht ohnehin im Raster sichtbar ist (Opt-in fürs Wandtablet).
@@ -9548,7 +10870,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
         ${renderDashboardOverview(user, isCustomizing, weather, { followsDefault, canPublish, weatherCard: weatherCardShown })}
         ${cockpitHtml}
       </section>
-      ${renderDashboardLayout(cfg, data, weather, currency, { editing: isCustomizing, visibleMealTypes, glanceHidden: !glanceVisible, familyManage: familyManageHref(user) })}
+      ${renderDashboardLayout(cfg, data, weather, currency, { editing: isCustomizing, visibleMealTypes, glanceHidden: !glanceVisible, familyManage: familyManageHref(user), drawn: (drawnTiles = []), bodies: (drawnBodies = new Map()) })}
       ${isCustomizing ? renderCustomizeFootnote({ followsDefault, canPublish }) : ''}
     `;
   }
@@ -9579,15 +10901,26 @@ export async function render(container, { user, signal: routeSignal = null } = {
       return;
     }
     const html = dashboardShellHtml(cfg);
+    // Vor dem Zeichnen, solange nichts Neues auszulegen ist (carryTileSizes).
+    const viewportWidth = window.innerWidth;
     // Wer hatte den Fokus? Nach dem setHtml gibt es sein Element nicht mehr
     // (captureRebuildFocus / restoreFocusAfterRebuild).
     const { key: keepFocus, had: hadFocus } = captureRebuildFocus(shell, document.activeElement, document.body);
     const todayFallback = hadFocus ? todayFocusFallbacks(document.activeElement) : [];
     const modeChanged = renderedCustomizing !== null && renderedCustomizing !== isCustomizing;
-    // Nur eine Geste IM Anpassen-Modus gleitet (playTileFlip): beim Betreten
-    // und Verlassen wachsen und schwinden die Bearbeiten-Leisten aller Kacheln,
-    // da waere jede Bewegung nur Unruhe.
-    const tileRectsBefore = isCustomizing && renderedCustomizing === true ? captureTileRects(shell) : null;
+    // Nur ein Neuaufbau IM Anpassen-Modus gleitet (playTileFlip; die Gesten
+    // selbst patchen, patchCustomize): beim Betreten und Verlassen wachsen und
+    // schwinden die Bearbeiten-Leisten aller Kacheln, da waere jede Bewegung
+    // nur Unruhe.
+    /* UND EIN STILLER ABGLEICH GLEITET (U1 b): seit die Kachel so hoch ist wie
+     * ihre Daten, aendert ein Erledigen, ein neuer Termin oder ein neuer
+     * Wetterbericht ihre Spanne - und alles darunter rueckte von einem Bild
+     * aufs naechste. Jetzt gleiten die Kacheln von ihrer alten Lage an die
+     * neue (FLIP, `--ease-out`, unter reduzierter Bewegung blenden sie). Nicht
+     * aus dem Skelett und nicht beim ersten Bild einer Rueckkehr (dort steht
+     * noch keine Kachel). */
+    const quietRebuild = !isCustomizing && !modeChanged && !shell.querySelector('.widget-skeleton');
+    const tileRectsBefore = (isCustomizing && renderedCustomizing === true) || quietRebuild ? captureTileRects(shell) : null;
     // BETRETEN UND VERLASSEN: das Raster gleitet ALS GANZES an seine neue Lage
     // (R16, Bewegung). Der Gruss bricht um, die Ablage schiebt sich davor - das
     // Raster sprang beim Betreten um mehrere hundert Pixel (gemessen 486 ->
@@ -9621,28 +10954,40 @@ export async function render(container, { user, signal: routeSignal = null } = {
     quietScrollTop = null;
     swapContent(shell, () => {
       setHtml(shell, html);
+      carryTileSizes(shell, viewportWidth);
+      // DIE ZEICHEN VOR DEM ERSTEN MESSEN (DW-P2-4): kamen sie erst nach den
+      // Messungen, legte der Browser die Flaeche zweimal aus - einmal ohne,
+      // einmal mit rund 600 Zeichen-Knoten (gemessen 19 ms bei 4x CPU im
+      // Seitenwechsel). Und das Blatt misst so die Zeilen, die man sieht.
+      createPendingIcons(shell);
       // Telefon: das Blatt fuellt den ersten Schirm (D5). Gemessen im selben
       // Task wie das Zeichnen, also bevor der Browser ein Bild davon malt.
       const fitted = measurePhoneProgram(shell);
       if (fitted) {
         replaceProgramSheet(shell, renderTodayCockpit(data, cfg, isCustomizing, { cap: fitted }));
+        createPendingIcons(shell);
         // Zweiter Blick, nur nach unten: der Rest unter den Zeilen hat gewechselt.
         const tighter = measurePhoneProgram(shell, { shrinkOnly: true });
         if (tighter) replaceProgramSheet(shell, renderTodayCockpit(data, cfg, isCustomizing, { cap: tighter }));
       }
       refitTodayStage(shell, () => renderTodayCockpit(data, cfg, isCustomizing));
     }, { animate: fromSkeleton });
+    // Die Packung liest, solange das Layout vom Zeichnen noch sauber ist -
+    // nach den Verdrahtungen darunter (Kategorie-Ueberlauf der Notizen)
+    // verlangte ihr Lesen ein zweites Layout des Rasters (DW-P2-4).
+    wireRowFill();
     // Was ein Blatt UEBER der Uebersicht aendert (Erledigen, Bearbeiten,
     // Loeschen, Fasten), gleicht still ab: kein Skelett, Scroll und Fokus
     // bleiben (refreshDashboardData). Das volle render() gehoert dem Aufbau.
     // Ohne Argumente: was ein Blatt seinem `onChanged` mitgibt, ist keine Option.
-    wireLinks(container, refreshAfterSheet, { editing: isCustomizing, user });
-    disposeFastingClock = wireFastingWidget(container, refreshAfterSheet, data.fasting, signal);
+    wireLinks(container, refreshAfterSheet, { editing: isCustomizing, user, signal });
+    disposeFastingClock = wireFastingWidget(container, refreshAfterSheet, data.fasting, signal, { editing: isCustomizing });
     // Retry einer isolierten Widget-Fehlerkachel: da /dashboard aggregiert lädt,
     // ist „erneut versuchen" ein voller Neuaufbau (wie der Page-Level-Retry).
     container.querySelectorAll('[data-widget-retry]').forEach((btn) =>
       btn.addEventListener('click', rerender, { signal: signal }));
-    if (window.lucide) window.lucide.createIcons({ el: shell });
+    // Nur, was seit dem Zeichnen neu ist (ein neu gezeichnetes Blatt).
+    createPendingIcons(shell);
     // Vorschaubilder der Mahlzeitenkachel: Ruecksturz auf den Platzhalter per
     // Listener, weil ein `onerror` im Markup gegen die CSP liefe (#1059).
     wireRecipeThumbs(shell);
@@ -9703,13 +11048,12 @@ export async function render(container, { user, signal: routeSignal = null } = {
     container.querySelectorAll('[data-customize-reset]').forEach((btn) => btn.addEventListener('click', resetDashboardConfig, { signal: signal }));
     container.querySelectorAll('[data-customize-publish]').forEach((btn) => btn.addEventListener('click', publishHouseholdDefault, { signal: signal }));
     wireDashboardEditMode();
-    wireRowFill();
     void mountExtensionWidgets(shell, cfg, user);
 
-    /* DER FOKUS UEBERLEBT DEN NEUAUFBAU. Jede Geste im Anpassen-Modus baut die
-     * Flaeche neu - und bis hierher fiel der Fokus danach auf <body>: wer per
-     * Tastatur „Anpassen" drueckte, eine Groesse waehlte oder speicherte, stand
-     * wieder am Seitenanfang. Reihenfolge der Kandidaten: dasselbe Element
+    /* DER FOKUS UEBERLEBT DEN NEUAUFBAU. Ein Moduswechsel baut die Flaeche neu
+     * (die Gesten darin patchen seit DW-P2-1 und behalten ihre Knoten) - und
+     * bis hierher fiel der Fokus danach auf <body>: wer per Tastatur
+     * „Anpassen" drueckte oder speicherte, stand wieder am Seitenanfang. Reihenfolge der Kandidaten: dasselbe Element
      * (gleiche Id bzw. gleiches data-Attribut), dann das, was die Geste selbst
      * als Nachfolger nennt (Ausblenden -> Nachbarkachel), und wenn die Geste den
      * Modus gewechselt hat (Speichern, Abbrechen), der Anpassen-Knopf, der ihn
@@ -9722,9 +11066,11 @@ export async function render(container, { user, signal: routeSignal = null } = {
       ...todayFallback,
     ]);
     focusAfterRebuild = null;
-    playTileFlip(shell, tileRectsBefore);
-    playGridShift(shell, gridTopBefore);
+    // Erst die Lage zurueck, dann gleiten: sonst stuende der Scroll-Versatz der
+    // Verankerung mit in der Bewegung.
     if (scroller && scroller.scrollTop !== keptScroll) scroller.scrollTop = keptScroll;
+    if (tileRectsBefore?.size) playTileFlip(shell, tileRectsBefore);
+    playGridShift(shell, gridTopBefore);
   }
 
   rebuildDashboard(widgetConfig);
@@ -9746,8 +11092,9 @@ export async function render(container, { user, signal: routeSignal = null } = {
     // test-frontend-audit.js).
     findPageFab('fab-main')?.closest('.page-fab-group')?.remove();
   } else {
-    initFab(signal);
-    wireNewMenu(container, signal);
+    // "+ Neu" legt ueber der Uebersicht an und gleicht danach still ab (U2).
+    initFab(signal, { user, refresh: refreshAfterSheet });
+    wireNewMenu(container, signal, { user, refresh: refreshAfterSheet });
   }
 
   // SELBSTHEILUNG STATT RETRY-KNOPF. Am Wandtablet drueckt niemand auf
@@ -9858,7 +11205,9 @@ export async function render(container, { user, signal: routeSignal = null } = {
       // eigene Aufbau den neuen Stand schon gezeichnet.
       if (signal.aborted || isCustomizing) return;
       quietScrollTop = scrollTop;
+      const known = shownRowKeys(container.querySelector('#dashboard-shell'));
       rebuildDashboard(widgetConfig);
+      rowsArriving(container.querySelector('#dashboard-shell'), known).forEach((row) => expandIn(row));
     } catch { /* Hintergrund-Refresh: bewusst still */ }
     finally {
       refreshInFlight = null;
@@ -10105,7 +11454,10 @@ function wireWeatherRefresh(container, onUpdated = null, signal) {
   if (!refreshBtn) return;
   const doWeatherRefresh = async () => {
     refreshBtn.disabled = true;
-    refreshBtn.classList.add('weather-widget__refresh--spinning');
+    // Die Statusdrehung der Knoepfe (`.btn--loading`, layout.css): die Klasse
+    // `--spinning`, die hier stand, hatte keine einzige Regel - der Kringel
+    // drehte nie (DW-P3-3, mit dem Knopf aus der Shell).
+    refreshBtn.classList.add('btn--loading');
     try {
       const res = await api.get(`/weather?lang=${encodeURIComponent(getLocale())}`).catch(() => ({ data: null }));
       if (signal.aborted) return;
@@ -10133,7 +11485,7 @@ function wireWeatherRefresh(container, onUpdated = null, signal) {
       // Immer aufräumen, damit der Button nach jedem Ausgang wieder bedienbar
       // ist (bei Erfolg wird das Widget ohnehin frisch gerendert).
       refreshBtn.disabled = false;
-      refreshBtn.classList.remove('weather-widget__refresh--spinning');
+      refreshBtn.classList.remove('btn--loading');
     }
   };
   refreshBtn.addEventListener('click', doWeatherRefresh, { signal: signal });
@@ -10163,6 +11515,12 @@ Object.assign(__test, { renderUpcomingEvents, renderShoppingLists, renderShoppin
 
 // Test-Tor fuer die Uebersichts-Bugs vom 2026-09-29 (#1449, #1451-#1457).
 Object.assign(__test, { renderBudgetWidget });
+// Review p11: der Weg zum Anlegen-Blatt, wenn die Seite waehrenddessen geht.
+Object.assign(__test, { openNewTarget });
+// Review p11 (B4): wann eine Kachel im Anpassen-Modus neu gezeichnet und verdrahtet wird.
+Object.assign(__test, { tileBodyChanged });
+// Review p11 (B5): die Fasten-Kachel im Anpassen-Modus.
+Object.assign(__test, { wireFastingWidget });
 
 // Test-Tor fuer die Kalender-Auswahl der Kalender-Kachel (#2062).
 Object.assign(__test, { loadCalendarSources });

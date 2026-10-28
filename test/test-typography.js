@@ -614,7 +614,8 @@ test('lange Inhalts- und interaktive Texte verwenden mindestens die Sekundärrol
 
   for (const selector of [
     '.widget__link',
-    '.event-item__time',
+    // `.event-item__time` ist seit DW-P1-4 die Metazeile der Terminzeile
+    // (`.list-row__meta`, Footnote 13 - R21 D4); gehalten von "R21 S5 + DW-P1-4".
     '.meal-slot__title',
     '.shopping-widget-item',
     '.note-item__content',
@@ -973,10 +974,20 @@ test('R19: die Titelregel - Zeilentitel hoechstens zwei Zeilen, kein Modul weich
   // Kein Modulblatt setzt am Zeilentitel eine eigene Fassung: einzeilig,
   // eine andere Zeilenzahl oder eine Anzeige, die die Kappung aufhebt.
   const TITLE_RE = /\.(?:list-row__name|task-card__title|contact-item__name|subscription-card__name|rw-standing__name|birthday-item__name|budget-entry__title)$|\.agenda-event__title(?:\s*>\s*span)?$/;
+  // EINE benannte Ausnahme (U1 b, DW-P1-3, 2026-10-27): die Zeilen der
+  // Listen-Kacheln der Uebersicht stehen ab 768px in EINER Zeile. Die Kachel
+  // ist dort so hoch wie ihre Zeilen (`contentSpanRows`), und das geht nur,
+  // wenn eine Zeile eine Hoehe HAT - ein Name, der in einer 330px-Spalte
+  // umbricht, machte sie 71 statt 54px hoch. Die Kachel ist eine Vorschau
+  // (wie ein Apple-Widget); die Zeile oeffnet ihr Objekt, dort gilt die Regel.
+  const widgetRowsWide = (name, rule) => name === 'dashboard.css'
+    && /^\.widget__rows > \.list-row:not\(/.test(rule.selector.trim())
+    && rule.at.some((a) => /min-width:\s*768px/.test(a));
   const funde = [];
   for (const name of cssFiles.filter((n) => n !== 'typography.css')) {
     for (const rule of eachRule(readFileSync(new URL(name, STYLES_DIR), 'utf8'))) {
       if (!sels(rule).some((sel) => TITLE_RE.test(sel))) continue;
+      if (widgetRowsWide(name, rule)) continue;
       if (/white-space:\s*nowrap/.test(rule.body)) funde.push(`${name}: ${rule.selector.trim()} nowrap`);
       const clamp = rule.body.match(/line-clamp:\s*(\d+)/);
       if (clamp && clamp[1] !== '2') funde.push(`${name}: ${rule.selector.trim()} line-clamp ${clamp[1]}`);
@@ -1136,6 +1147,73 @@ test('R21 S5: die Uebersicht traegt 14 und 12 nur an Bedienelementen, Badges, Av
   }
 });
 
+// R21 S5 + DW-P1-4 (Critique DW 2026-10-26): DIE ZEILEN DER LISTEN-KACHELN
+// STEHEN IN DEN D4-ROLLEN. Gemessen standen in einem Raster neun Zeilen-
+// Dialekte: Titel 15/600, 16/600, 16/500, 17/600, 15/400; Endangaben als Pille,
+// 15/700, 12/500. Jede Listenzeile der Uebersicht ist jetzt die geteilte Zeile:
+// ihr Titel nimmt `.list-row__name` (16/500), ihre Metazeile `.list-row__meta`
+// (13), ihre Endangabe `.list-row__end` (13/600), ihr Zeichen `.list-row__lead`
+// (32px). Der Guard liest das MARKUP (jede Klasse der Zeile traegt ihre Rolle
+// mit) und das STYLESHEET (kein Subjekt setzt dort eine eigene Groesse oder
+// ein eigenes Gewicht). Eine neue Listen-Kachel, die ihre Zeile selbst baut,
+// faellt hier auf - und eine bestehende, die zurueckfaellt, ebenso.
+test('R21 S5 + DW-P1-4: die Zeilen der Listen-Kacheln stehen in den Rollen der geteilten Zeile', () => {
+  const src = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('dashboard.css', STYLES_DIR), 'utf8');
+  const ROLES = {
+    'list-row': ['task-item', 'event-item', 'birthday-widget-item', 'countdown-item', 'pantry-widget-row', 'schedule-widget-row',
+      'waste-widget-row', 'family-member', 'rewards-member', 'shopping-widget-list'],
+    'list-row__lead': ['task-item__lead', 'event-item__lead', 'birthday-widget-item__avatar', 'countdown-item__icon', 'pantry-widget-row__icon',
+      'schedule-widget-row__avatar', 'family-member__face', 'rewards-member__avatar', 'shopping-widget-list__icon'],
+    'list-row__name': ['task-item__title', 'event-item__title', 'birthday-widget-item__name', 'countdown-item__title', 'pantry-widget-row__name',
+      'schedule-widget-row__name', 'waste-widget-row__name', 'family-member__name', 'rewards-member__name', 'shopping-widget-list__name'],
+    'list-row__meta': ['task-item__meta', 'event-item__time', 'birthday-widget-item__meta', 'countdown-item__meta', 'pantry-widget-row__meta',
+      'schedule-widget-row__shift', 'family-member__status'],
+    'list-row__end': ['birthday-widget-item__age', 'countdown-item__days', 'pantry-widget-row__days', 'waste-widget-row__date',
+      'rewards-member__points', 'shopping-widget-list__count'],
+  };
+  // Die Mehr-Zelle der Familie ist eine Fussnote, kein Eintrag.
+  const NOT_A_ROW = new Set(['family-member--more']);
+  const classAttrs = [...src.matchAll(/class="([^"]*)"/g)].map((m) => m[1].split(/\s+/).map((c) => c.split('$')[0]).filter(Boolean));
+  const missing = [];
+  let seen = 0;
+  for (const [role, subjects] of Object.entries(ROLES)) {
+    for (const subject of subjects) {
+      const uses = classAttrs.filter((cls) => cls.includes(subject) && !cls.some((c) => NOT_A_ROW.has(c)));
+      if (!uses.length) missing.push(`${subject}: steht nicht mehr im Markup - Liste nachziehen`);
+      seen += uses.length;
+      for (const cls of uses) if (!cls.includes(role)) missing.push(`${subject} ohne ${role} (class="${cls.join(' ')}")`);
+    }
+  }
+  assert.ok(seen >= 40, `nur ${seen} Zeilenklassen gefunden - liest der Guard noch?`);
+  assert.deepEqual(missing, [], 'eine Zeile der Uebersicht baut ihre Rolle selbst');
+
+  // Kein Subjekt setzt in dashboard.css eine eigene Groesse oder ein eigenes
+  // Gewicht: das tun die Rollen (typography.css). Benannte Ausnahme mit Grund.
+  const AUSNAHMEN = new Map([
+    ['.family-member--shared .family-member__name', 'Telefon: die Namensliste des gemeinsamen Termins unter der Avatar-Reihe (R19) ist Absender in Footnote, kein Zeilentitel'],
+  ]);
+  const subjects = new Set([...ROLES['list-row__name'], ...ROLES['list-row__meta'], ...ROLES['list-row__end']]);
+  const dialekt = [];
+  for (const rule of eachRule(css)) {
+    if (!/(?:^|;)\s*font-(?:size|weight):/.test(rule.body)) continue;
+    for (const sel of rule.selector.split(',').map((x) => x.trim().replace(/\s+/g, ' '))) {
+      const last = sel.split(/\s*[\s>+~]\s*/).pop();
+      const hit = [...subjects].find((sub) => new RegExp(`\\.${sub}(?![\\w-])`).test(last));
+      if (hit && !AUSNAHMEN.has(sel)) dialekt.push(`${sel} { ${/font-(?:size|weight):[^;]+/.exec(rule.body)[0]} }`);
+    }
+  }
+  assert.deepEqual(dialekt, [], 'eine Zeile der Uebersicht setzt eine eigene Groesse oder ein eigenes Gewicht - die Rolle ist die Quelle');
+
+  // Die Rollen selbst: Endzone Footnote halbfett mit gleich breiten Ziffern.
+  const typo = [...eachRule(readFileSync(new URL('typography.css', STYLES_DIR), 'utf8'))];
+  const end = typo.find((r) => !r.at.length && r.selector.split(',').map((x) => x.trim()).includes('.list-row__end'));
+  assert.ok(end, 'typography.css registriert die Endzone (`.list-row__end`)');
+  assert.match(end.body, /font-size:\s*var\(--type-caption\)/);
+  assert.match(end.body, /font-weight:\s*var\(--font-weight-semibold\)/);
+  assert.match(end.body, /font-variant-numeric:\s*tabular-nums/);
+});
+
 // R21 (D4): SEKUNDAERTEXT IST SUBHEADLINE 15. Die Erklaerung eines Leerzustands,
 // die Beschreibung einer Dokumentkarte, der Untertitel eines Kontaktkopfs
 // standen bei 14 - der Stufe der Bedienelemente. Die Rolle steht in
@@ -1288,4 +1366,32 @@ test('R21 Inge: am Tablet keine Lesezeile unter 13, Nav-Label 12; R23: Monatstit
     const base = budget.find((r) => !r.at.length && r.selector.trim() === sel && /font-size/.test(r.body));
     assert.match(base?.body ?? '', /font-size:\s*var\(--type-caption\)/, `${sel}: Footnote 13 statt 12`);
   }
+});
+
+/* EINE ROLLE, EIN GEWICHT: TITLE 1 IST SEMIBOLD (DW-P2-7 Nachtrag p6b,
+ * Entscheidung Ulas 2026-10-26). Die Leitzahl und die ruhigen Werte einer
+ * gefuehrten Reihe standen seit R23 D12 auf semibold, die Kachelreihe der
+ * Uebersicht seit p6 - die uebrigen Kennzahlen (Gesundheit, Inventar,
+ * Haushaltshilfe, Abos, Aufteilung) und die anderen Nutzer der Rolle
+ * (Kontosaldo der Budget-Kachel, Fasten-Timer) weiter auf 700: dieselbe Rolle
+ * in zwei Gewichten. Gefragt wird jede Regel, die eine Groesse der Rolle setzt
+ * oder den Wert der Kennzahlkarte trifft - keine Dateiliste. Gegen den Stand
+ * davor rot gelaufen (Dateikopie). */
+test('Title 1 traegt semibold: keine Kennzahl und kein Wert der Rolle steht in 700', () => {
+  const title1 = /font-size:\s*var\(--(?:text-3xl|metric-value-size\s*,\s*var\(--text-3xl\))\)/;
+  const bold = [];
+  let base = null;
+  for (const file of cssFiles) {
+    const css = readFileSync(new URL(file, STYLES_DIR), 'utf8');
+    for (const { selector, body, at } of eachRule(css)) {
+      const weight = lastDeclaration(body, 'font-weight');
+      const valueRule = /\.metric-card__value\b/.test(selector);
+      if (file === 'panel.css' && at.length === 0 && selector.trim() === '.metric-card__value' && title1.test(body)) base = weight;
+      if (!weight || !(valueRule || title1.test(body))) continue;
+      if (/--font-weight-(?:bold|heavy|black)\b|\b[789]00\b/.test(weight)) bold.push(`${file}: ${[...at, selector.trim().replace(/\s+/g, ' ')].join(' | ')}`);
+    }
+  }
+  assert.ok(base !== null, 'die Grundregel `.metric-card__value` in panel.css muss es geben - sonst prueft dieser Guard nichts');
+  assert.equal(base, 'var(--font-weight-semibold)', 'die Kennzahl der geteilten Karte steht semibold');
+  assert.deepEqual(bold, [], 'diese Regeln setzen eine Title-1-Groesse oder den Kennzahlwert in Fett');
 });

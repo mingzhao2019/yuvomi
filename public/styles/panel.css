@@ -282,18 +282,15 @@
  *
  * Der Druckzustand steigt eine Sprosse der Toenungsskala statt den eigenen
  * Inhalt per opacity abzudunkeln. */
-/* MITTIG, NICHT OBEN UND NICHT AUSEINANDERGEZOGEN. Die Kachel fuellt ihre
- * Rasterzelle, und die ist auf dem Desktop rund 137px hoch bei ~70px Inhalt.
- * Oben ausgerichtet blieb das Label allein am Kartenrand haengen; mit einem
- * `margin-block-start:auto` am Wert klaffte dazwischen ein 60px-Loch. Zentriert
- * liest sich derselbe Block auf beiden Groessen als eine Einheit, und zwei
- * Kacheln nebeneinander zeigen ihre Werte weiter auf einer Linie, solange die
- * Labels gleich viele Zeilen brauchen. */
+/* DIE ANORDNUNG IN DER KACHEL STEHT IN dashboard.css (`.metric-tiles`, DW-P2-7):
+ * die Kacheln einer Reihe teilen dort per Subgrid ihre Kopf-, Wert- und
+ * Fusszeile, damit die Werte auch bei umbrechendem Modulnamen auf einer Linie
+ * stehen - das leistete das Zentrieren hier nur, solange alle Labels gleich
+ * viele Zeilen brauchten. */
 .metric-card--tile {
   text-decoration: none;
   color: var(--color-text-primary);
   gap: var(--space-1);
-  justify-content: center;
   transition: background-color var(--transition-fast), transform var(--duration-xs) var(--ease-out);
 }
 
@@ -376,12 +373,19 @@
  * Der Wert bleibt in der schmalsten Spalte lesbar, weil er nicht umbrechen
  * DARF: `--text-3xl` mit dem Tracking von Title 1, und lange Beträge klemmen
  * sich über die Container-Query weiter unten auf Title 2 herunter statt in
- * zwei Zeilen zu fallen. Ein Betrag über zwei Zeilen ist keine Kennzahl mehr. */
+ * zwei Zeilen zu fallen. Ein Betrag über zwei Zeilen ist keine Kennzahl mehr.
+ *
+ * SEMIBOLD, NICHT FETT (Entscheidung 2026-10-26, DW-P2-7 Nachtrag). Seit R23
+ * D12 standen Leitzahl und ruhige Werte auf 600, alle anderen Kennzahlen auf
+ * 700 - eine Rolle in zwei Gewichten, je nachdem, ob die Reihe fuehrt. Die
+ * Kennzahl hebt sich durch ihre GROESSE ab, wie bei Apple (Health, Wallet);
+ * ein Betrag in einer Zeile ist ebenfalls semibold und eine Stufe kleiner.
+ * Guard: test:typography "Title 1 traegt semibold". */
 .metric-card__value {
   /* `--metric-value-size` ist die Zusage einer SEITENSPALTE (siehe unten,
    * "Eine Karte je Zeile traegt Title 1"); ohne sie gilt die Stufenleiter. */
   font-size: var(--metric-value-size, var(--text-3xl));
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   letter-spacing: var(--tracking-tight);
   font-variant-numeric: tabular-nums;
@@ -442,7 +446,8 @@
  * Geld-Bildschirms das Wort "Budget". Je Reiter traegt jetzt EINE Karte
  * `.metric-card--lead` (Saldo, Nettovermoegen, Restschuld, Monatskosten), und
  * ihre Reihe `.metric-grid--led`: in einer REIHE treten die uebrigen eine Stufe
- * zurueck und verlieren das Fett - die Fuehrung entsteht durch Ruhe daneben.
+ * zurueck (eine Groessenstufe; das Gewicht ist seit 2026-10-26 ohnehin fuer
+ * jede Kennzahl semibold) - die Fuehrung entsteht durch Ruhe daneben.
  *
  * EINE FESTE STUFE JE ORT (R23, D12). Bis R23 waehlte die Leitzahl ihre Stufe
  * nach ihrer LAENGE (`leadStep`, 13/11/9cqi, 18-48px) - der Saldo stand in

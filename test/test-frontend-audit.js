@@ -1159,9 +1159,11 @@ test('jede Bewegung des Wetter-Widgets steht unter einer Bewegungs-Bedingung', (
   // Die Ausnahme oben gilt nur, solange sie fluechtig IST: die Klasse wird um
   // die Anfrage herum gesetzt und wieder entfernt. Bliebe sie stehen, waere
   // aus der Rueckmeldung eine Dauerbewegung ohne Ausschalter geworden.
-  assert.match(page, /classList\.add\('weather-widget__refresh--spinning'\)/,
+  // Seit DW-P3-3 die Statusdrehung der Knoepfe (`.btn--loading`): die Klasse
+  // `weather-widget__refresh--spinning` hatte keine Regel, der Kringel drehte nie.
+  assert.match(page, /classList\.add\('btn--loading'\)/,
     'der Ladekringel muss beim Anstossen gesetzt werden');
-  assert.match(page, /classList\.remove\('weather-widget__refresh--spinning'\)/,
+  assert.match(page, /classList\.remove\('btn--loading'\)/,
     'der Ladekringel muss wieder entfernt werden - sonst ist er keine Rueckmeldung, sondern Dauerbewegung');
 });
 
@@ -2179,8 +2181,10 @@ test('die Widget-Optionen sind auch am ausgeblendeten Widget erreichbar (#814)',
     'die Ablage bietet keine Optionen an - am ausgeblendeten Widget waeren sie unerreichbar');
 
   // Und sie werden auch verdrahtet: die Ablage liegt AUSSERHALB des Grids, ein
-  // `grid.querySelectorAll` faende sie nicht.
-  assert.match(source, /container\.querySelectorAll\('\[data-widget-options\]'\)/,
+  // Zuhoerer am Raster erreichte sie nicht. Seit DW-P2-1 haengt EIN Zuhoerer
+  // an der Flaeche (`shell`), die Raster UND Ablage traegt - die Knoepfe
+  // kommen und gehen mit den Gesten.
+  assert.match(source, /shell\.addEventListener\('click', \(event\) => \{\s*const btn = event\.target\?\.closest\?\.\('[^']*\[data-widget-options\]/,
     'die Optionen-Knoepfe der Ablage bekommen keinen Listener');
 });
 
@@ -11479,10 +11483,11 @@ test('dashboard and task progress bars animate with transforms instead of widths
   const tasksPage = read('../public/pages/tasks.js');
   const tasksCss = read('../public/styles/tasks.css');
 
-  assert.match(
-    dashboardCss,
-    /\.shopping-widget-list__bar\s*\{[\s\S]*transform-origin:\s*left[\s\S]*transform:\s*scaleX\(var\(--progress-scale,\s*0\)\)[\s\S]*transition:\s*transform/,
-  );
+  // Die Breite kommt ueber transform. Eine Transition traegt der Balken der
+  // Uebersicht seit DW-P3-10 nicht mehr: sie lief nie (Endwert im Markup,
+  // Neuzeichnen statt Fortschreiben) - test:motion "DW-P3-10".
+  assert.match(cssRuleBody(dashboardCss, '.shopping-widget-list__bar'),
+    /transform-origin:\s*left[\s\S]*transform:\s*scaleX\(var\(--progress-scale,\s*0\)\)/);
   assert.doesNotMatch(cssRuleBody(dashboardCss, '.shopping-widget-list__bar'), /transition:\s*width/);
   assert.match(dashboardPage, /style="--progress-scale:\$\{progress\s*\/\s*100\}"/);
   assert.doesNotMatch(dashboardPage, /shopping-widget-list__bar" style="width:/);
@@ -12040,7 +12045,13 @@ test('D8: eine Hoehe je Kopfzeile - Reiter, Listen-Kapseln, Kalender-Lupe und St
 // galt auch waagerecht) und Agenda (eigene Polsterung rundum).
 const ROW_CLASSES = ['list-row', 'agenda-event', 'task-card__main', 'shopping-item', 'recipe-row', 'pantry-row',
   'contact-item', 'birthday-item', 'budget-entry', 'document-row', 'documents-folder-item', 'rw-standing',
-  'rw-ledger-row', 'health-dose', 'health-area-row', 'housekeeping-visit-row'];
+  'rw-ledger-row', 'health-dose', 'health-area-row', 'housekeeping-visit-row',
+  // Die Listen-Kacheln der Uebersicht (DW-P1-4): ihre Zeilen standen auf
+  // 0 (Aufgaben, Termine, Geburtstage) oder 8px (Countdown, Vorrat, Schichtplan,
+  // Entsorgung) und lehnten sich an das Polster der Kachel; jetzt fluchten sie
+  // mit dem 16er Traeger (`.widget__rows > .list-row`, --space-4).
+  'task-item', 'event-item', 'birthday-widget-item', 'countdown-item', 'pantry-widget-row', 'schedule-widget-row',
+  'waste-widget-row', 'shopping-widget-list', 'rewards-member'];
 test('D8: keine Zeilenliste steht waagerecht unter dem Einzug der geteilten Zeile', () => {
   const narrow = /var\(--space-(?:0h|1|1h|2)\)|\b0\b|\d+px/;
   const leaf = new RegExp(`\\.(?:${ROW_CLASSES.join('|')})(?![\\w-])[^\\s>+~]*$`);
@@ -13715,12 +13726,10 @@ test('row lists sit in exactly one carrier', () => {
   // der Guard nicht mehr trifft, ist eine Ausnahme ohne Gegenstand und faellt
   // unten als veraltet auf. Der Schluessel traegt den WERT - ein anderer
   // Radius an derselben Zeile ist wieder ein Befund.
-  const EXEMPT = new Map([
-    ['dashboard.css .countdown-item border-radius: var(--radius-sm)',
-      'Radius fuer Fokusring und Hover-Flaeche, keine Flaeche und kein Schatten im Ruhezustand '
-      + '(Begruendung am Selektor). Ob ein solcher Radius an einer flachen Zeile als Kartenmerkmal '
-      + 'zaehlt, ist offen (#1456) - `.list-row` traegt keinen.'],
-  ]);
+  // (Hier stand `.countdown-item border-radius: var(--radius-sm)` - die Zeile ist
+  // seit DW-P1-4 die geteilte `.list-row` und traegt keinen Radius mehr; #1456
+  // ist damit fuer die Uebersicht beantwortet: der Fokusring rueckt nach innen.)
+  const EXEMPT = new Map();
   const exemptSeen = new Set();
   let rowCount = 0;
 
@@ -13759,6 +13768,51 @@ test('row lists sit in exactly one carrier', () => {
           }
         }
       }
+    }
+  }
+
+  // DIE LISTEN-KACHELN DER UEBERSICHT (Critique DW 2026-10-26, DW-P1-4). Ihre
+  // Zeilen trennten sich auf drei Arten: Haarlinie per `border-bottom` samt
+  // `:last-child`-Ausnahme und Radius (Aufgaben, Termine - die Linie bog an
+  // beiden Enden hoch, DW-P3-1), eigene `X + X`-Linie (Geburtstage, Vorrat,
+  // Countdown, Einkauf), oder gar nicht (Schichtplan, Entsorgung). Der Traeger
+  // ist die Kachel: die Folge traegt `.row-divided` (`widgetRows`), die Zeile
+  // ist die geteilte `.list-row` und zeichnet weder Linie noch Karte selbst.
+  const dash = [...eachRule(read('../public/styles/dashboard.css'))];
+  const DASH_ROWS = ['task-item', 'event-item', 'birthday-widget-item', 'countdown-item', 'pantry-widget-row',
+    'schedule-widget-row', 'waste-widget-row', 'shopping-widget-list', 'rewards-member', 'family-member'];
+  const lastBorderNone = new Set(dash.filter((r) => /(?:^|;)\s*border-bottom:\s*(?:none|0)/.test(r.body))
+    .flatMap((r) => r.selector.split(',').map((x) => x.trim()))
+    .map((x) => x.match(/^(\.[\w-]+):last-child$/)?.[1]).filter(Boolean));
+  for (const rule of dash) {
+    for (const part of rule.selector.split(',').map((x) => x.trim())) {
+      if (lastBorderNone.has(part) && /(?:^|;)\s*border-bottom:\s*1px/.test(rule.body)) {
+        offenders.push(`dashboard.css ${part} trennt per border-bottom + :last-child - die Linie gehoert dem Traeger (+-Kombinator)`);
+      }
+      const leaf = part.split(/\s*[\s>+~]\s*/).pop();
+      const row = DASH_ROWS.find((cls) => new RegExp(`^\\.${cls}(?![\\w-])(?::[\\w-]+(?:\\([^)]*\\))?)*$`).test(leaf));
+      if (!row) continue;
+      for (const prop of ['border-top', 'border-bottom']) {
+        for (const value of declared(rule.body, prop)) {
+          if (!/^(?:0|none)$/.test(value)) offenders.push(`dashboard.css ${part} zeichnet ${prop}: ${value} selbst - die Haarlinie zieht der Traeger (.row-divided)`);
+        }
+      }
+      for (const marker of CARD_MARKERS) {
+        for (const value of declared(rule.body, marker.prop)) {
+          if (marker.isCard(value)) offenders.push(`dashboard.css ${part} traegt ${marker.prop}: ${value} - eine Zeile in einer Kachel ist keine Karte`);
+        }
+      }
+    }
+  }
+  const page = read('../public/pages/dashboard.js');
+  assert.match(page, /function widgetRows\([^)]*\) \{\s*return `<\$\{tag\} class="widget__rows row-divided/,
+    'die Zeilenfolge einer Kachel traegt `.row-divided`: die Kachel ist ihr EINER Traeger');
+  for (const row of DASH_ROWS) {
+    const uses = [...page.matchAll(new RegExp(`class="([^"]*\\b${row}\\b(?![\\w-])[^"]*)"`, 'g'))].map((m) => m[1]);
+    assert.ok(uses.length, `${row}: steht nicht mehr im Markup`);
+    for (const cls of uses) {
+      if (/--more\b/.test(cls)) continue;
+      assert.match(cls, /(?:^|\s)list-row(?:\s|$)/, `${row} ist die geteilte Zeile (class="${cls}")`);
     }
   }
 
@@ -23120,6 +23174,48 @@ test('Esc in Combobox und Logo-Picker des Abo-Formulars schliesst nur das Widget
  * Parameter nicht. Fuenf Stellen im Anpassen-Modus und in der Fehlerkachel
  * setzten ihn roh ins Markup, zwei Zeilen darueber stand er in `esc()`.
  */
+/* DW-P3-15: auf Touch klebt `:hover` nach dem Tipp an der Kachelzeile, bis
+ * woanders getippt wird. In dashboard.css standen 20 Hover-Regeln ausserhalb
+ * von `@media (hover: hover)` (a2, gemessen) - die Uebersicht ist die Seite,
+ * die am Telefon am meisten angetippt wird. Jetzt keine. (Der app-weite
+ * Ratchet in test:motion zaehlt nur; hier gilt fuer EIN Blatt: null.) */
+test('DW-P3-15: dashboard.css traegt kein :hover ausserhalb von @media (hover: hover)', () => {
+  const stray = [];
+  let seen = 0;
+  for (const rule of eachRule(read('../public/styles/dashboard.css'))) {
+    if (!/:hover/.test(rule.selector)) continue;
+    seen += 1;
+    if (!rule.at.some((at) => /\(hover:\s*hover\)/.test(at))) stray.push(rule.selector.replace(/\s+/g, ' ').trim());
+  }
+  // 20 -> 15: mit DW-P1-4 gingen die eigenen Hover der Widget-Zeilen (Aufgaben,
+  // Termine, Countdown, Vorrat, Schichtplan, Entsorgung, Einkauf) in die eine
+  // Regel der geteilten Zeile (list-row.css) auf.
+  assert.ok(seen >= 15, `Reichweite: nur ${seen} Hover-Regeln gesehen`);
+  assert.deepEqual(stray, [], `Hover ohne (hover: hover) - auf Touch klebt er:\n${stray.join('\n')}`);
+});
+
+/* DW-P2-11: die ruhige Zeile eines leeren Abschnitts ist EIN Baustein
+ * (`.card-empty-row`, layout.css) - die Aktion bricht nie unter den Satz, der
+ * Satz gibt nach. Die Uebersicht traegt keinen eigenen Zeilen-Dialekt mehr. */
+test('DW-P2-11: die ruhige Zeile haelt die Aktion am Ende, und die Uebersicht hat keine zweite Fassung', () => {
+  const layout = read('../public/styles/layout.css');
+  const rule = (css, sel) => [...eachRule(css)].filter((r) => !r.at.length && r.selector.trim() === sel).map((r) => r.body).join(';');
+  assert.match(rule(layout, '.card-empty-row'), /display:\s*flex/);
+  assert.doesNotMatch(rule(layout, '.card-empty-row'), /flex-wrap:\s*wrap/, 'die Aktion bricht nicht unter den Satz');
+  assert.match(rule(layout, '.card-empty-row__text'), /flex:\s*1 1 auto[\s\S]*min-inline-size:\s*0/, 'der Satz gibt nach');
+  assert.match(rule(layout, '.card-empty-row__action'), /flex:\s*none[\s\S]*white-space:\s*nowrap/, 'der Knopf behaelt seine Breite');
+  const dash = read('../public/styles/dashboard.css');
+  for (const r of eachRule(dash)) {
+    if (!/\.widget__empty\b/.test(r.selector)) continue;
+    assert.doesNotMatch(r.body, /display|flex|font-size|color/, `dashboard.css ${r.selector.trim()}: der Traeger hat nur sein Polster`);
+  }
+  assert.doesNotMatch(dash, /\.widget__empty-cta|\.widget__retry/, 'die eigenen Leerzustands-Knoepfe sind weg');
+  const page = read('../public/pages/dashboard.js');
+  assert.doesNotMatch(page, /class="widget__empty"/, 'jede leere Kachel geht ueber widgetEmptyHtml/cardEmptyRowHtml');
+  assert.match(read('../public/pages/health.js'), /import \{[^}]*cardEmptyRowHtml[^}]*\} from '\/utils\/empty-state\.js';/, 'die Gesundheit nimmt dieselbe Zeile');
+  assert.doesNotMatch(read('../public/pages/health.js'), /function cardEmptyRowHtml\(/, 'keine zweite Fassung in health.js');
+});
+
 test('Dashboard: der Kachelname steht im Markup immer in esc()', () => {
   const lines = read('../public/pages/dashboard.js').split('\n');
   const offenders = [];
@@ -23644,6 +23740,40 @@ test('R21 S8: kein :has() vor einem Universalselektor oder ::placeholder (ganzer
   assert.deepEqual(bad, [], `Ganzer-Teilbaum-Rest hinter :has():\n${bad.join('\n')}`);
 });
 
+/*
+ * DW-P2-4 (PLAN H9): DIE KACHELN DER UEBERSICHT AB DER ZWEITEN REIHE RECHNET
+ * DER BROWSER ERST, WENN SIE KOMMEN. Die Rueckkehr zur Uebersicht legte im
+ * Seitenwechsel jede Kachel aus, auch die unter der Falz (am Telefon alle -
+ * das Heute-Blatt fuellt den ersten Schirm). Die erste Reihe bleibt sichtbar
+ * gerechnet (je Spaltenzahl), der Anpassen-Modus ganz (Leisten und Menues
+ * ragen ueber die Kachel). Die Platzhalterhoehe kommt aus dem letzten Bild
+ * (`--tile-block-size`, dashboard.js) - ohne sie stand nach dem Zurueck der
+ * wiederhergestellte Scrollstand gemessen 387px neben der Kachel von vorher.
+ * Und die Fuell-Werte der Packung erben nicht: ein geerbter Wert an der
+ * Kachel verlangte den Stil jedes Knotens darin neu.
+ */
+test('DW-P2-4: Uebersicht-Kacheln ausser Sicht aufgeschoben, Hoehe aus dem letzten Bild, Fuellwerte ohne Vererbung', () => {
+  const rules = [...eachRule(read('../public/styles/dashboard.css'))];
+  const sel = '.dashboard__grid:not(.dashboard__grid--editing) > .widget-wrapper';
+  const lazy = rules.find((r) => r.selector.trim() === `${sel}:nth-child(n+2)`
+    && r.at.some((at) => at.includes('@supports (content-visibility: auto) and (contain-intrinsic-size: auto none auto 1px)')));
+  assert.ok(lazy, 'keine aufgeschobene Kachel ab der zweiten unter @supports');
+  assert.match(lazy.body, /content-visibility:\s*auto/);
+  assert.match(lazy.body, /contain-intrinsic-size:\s*auto none auto var\(--tile-block-size, var\(--dashboard-tile-estimate\)\)/,
+    'die Hoehe aus dem letzten Bild, sonst der Schaetzwert');
+  assert.match(lazy.body, /overflow-clip-margin:\s*var\(--space-\d\)/, 'der Kartenschatten wuerde an der Kante abgeschnitten');
+  for (const [nth, media] of [[2, 'min-width: 768px'], [3, 'min-width: 1024px']]) {
+    const first = rules.find((r) => r.selector.trim() === `${sel}:nth-child(${nth})` && r.at.some((at) => at.includes(media)));
+    assert.match(first?.body ?? '', /content-visibility:\s*visible/, `die ${nth}. Kachel steht ab ${media} in der ersten Reihe`);
+  }
+  for (const prop of ['--widget-fill-span', '--widget-fill-rows']) {
+    const reg = rules.find((r) => r.selector.trim() === `@property ${prop}`);
+    assert.match(reg?.body ?? '', /inherits:\s*false/, `${prop} erbt nicht`);
+  }
+  const page = read('../public/pages/dashboard.js');
+  assert.match(page, /el\.style\.setProperty\('--tile-block-size', `\$\{px\}px`\)/, 'der Aufbau gibt die gemerkte Hoehe mit');
+});
+
 /**
  * R21 S8 (Critique a6 "lange Listen"): DIESELBE REGEL UEBER AUFGABEN HINAUS.
  * Die Agenda ist die laengste Liste der App (Seed: 26 Tage, ~800 Knoten unter
@@ -23853,4 +23983,36 @@ test('F4.8: in der schmalen Listenbahn traegt der Aufgaben-Platzhalter die zweiz
   assert.equal(p, 101, 'Platzhalter neben der Detailspalte: 100,6px gemessen, nicht 80');
   assert.equal(i, p, 'contain-intrinsic-size und Platzhalter muessen dieselbe Content-Box tragen');
   assert.ok(intrinsic.at.some((a) => /@supports \(content-visibility: auto\)/.test(a)), 'ohne @supports greift contain-intrinsic-size auch ohne content-visibility');
+});
+
+/*
+ * DW-P2-3 (Polish Dashboard-Widgets, p5): EINE ZIEHGRAMMATIK. Die Uebersicht
+ * zog als einzige Stelle der App per HTML5-Drag-and-Drop: `draggable="true"`
+ * am Wrapper, die Quelle als `opacity: 0.45`-Abbild, ein Browser-Geisterbild,
+ * eine 4-px-Linie als Ziel, die Nachbarn standen still - und per Finger ging
+ * es nicht. Seit N3 (R23) zieht jede Liste ueber utils/sortable.js: der Platz
+ * ist der geteilte Schlitz `.sortable-ghost` (layout.css), das Ziehbild deckend
+ * (`liftDragImage`). Das DOM-Attribut `draggable` schaltete natives Ziehen ein
+ * und naehme SortableJS die Geste (Lehre draggable/SortableJS). Eine Zieh-
+ * Regel der Uebersicht, die selbst Deckkraft setzt, waere das 45-%-Abbild
+ * zurueck - Deckkraft beim Ziehen gehoert dem geteilten Baustein.
+ */
+test('DW-P2-3: die Uebersicht zieht ueber den geteilten Baustein - kein natives draggable, keine eigene Zieh-Deckkraft', () => {
+  const js = withoutBlockComments(read('../public/pages/dashboard.js'));
+  assert.doesNotMatch(js, /draggable="true"/, 'kein natives draggable am Kachel-Wrapper');
+  for (const type of ['dragstart', 'dragover', 'dragleave', 'dragend', 'drop']) {
+    assert.doesNotMatch(js, new RegExp(`addEventListener\\('${type}'`), `kein HTML5-Zuhoerer "${type}" mehr`);
+  }
+  assert.match(js, /import\('\/utils\/sortable\.js'\)/, 'gezogen wird ueber utils/sortable.js');
+
+  const offenders = [];
+  let dragRules = 0;
+  for (const { selector, body } of eachRule(read('../public/styles/dashboard.css'))) {
+    if (/\[draggable/.test(selector)) offenders.push(`${selector.trim()}: Selektor auf das DOM-Attribut draggable`);
+    if (!/drag|drop-(?:before|after)|sortable-/.test(selector)) continue;
+    dragRules += 1;
+    if (/(?:^|[;{\s])opacity\s*:/.test(body)) offenders.push(`${selector.trim()}: setzt opacity`);
+  }
+  assert.ok(dragRules >= 2, `Reichweite: nur ${dragRules} Zieh-Regeln in dashboard.css gesehen`);
+  assert.deepEqual(offenders, [], `Zieh-Regeln der Uebersicht mit eigener Deckkraft oder draggable-Selektor:\n  ${offenders.join('\n  ')}`);
 });
