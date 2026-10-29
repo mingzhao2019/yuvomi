@@ -29,6 +29,7 @@
     "test:node-runtime": "node --test test/test-node-runtime.js",
     "test:instance-lock": "node --experimental-sqlite --test test/test-instance-lock.js",
     "test:after-response-jobs": "node --test test/test-after-response-jobs.js",
+    "test:file-secrets": "node --test test/test-file-secrets.js",
     "test:db-newer-schema": "node --experimental-sqlite --test test/test-db-newer-schema.js",
     "test:cookie-secure-flag": "node --experimental-sqlite --test test/test-cookie-secure-flag.js",
     "test:calendar-event-reminders": "node --experimental-sqlite --test test/test-calendar-event-reminders.js",

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Secrets can come from files.** Supported `<NAME>_FILE` variables load secret values without putting them directly in environment configuration; conflicting, missing, or empty values still fail safely.
+
 ### Security
 - **A member colour can only be a colour.** Your profile, member management and the
   housekeeper form accepted any text as a member colour, and that text ended up in the
