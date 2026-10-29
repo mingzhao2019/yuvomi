@@ -115,6 +115,7 @@
     "test:birthday-import-rights": "node --experimental-sqlite --test test/test-birthday-import-rights.js",
     "test:birthday-localization": "node --loader ./test/test-browser-loader.mjs --experimental-sqlite --test test/test-birthday-localization.js test/test-birthday-name-day-ui.js test/test-birthday-reminder-amount-ui.js test/test-birthday-import-selection.js test/test-dashboard-name-days.js",
     "test:calendar-inherited-color": "node --experimental-sqlite --test test/test-calendar-inherited-color.js",
+    "test:sidebar-pinned": "node --test test/test-sidebar-pinned.js",
     "test:calendar-local-calendars": "node --loader ./test/test-browser-loader.mjs --test test/test-calendar-local-calendars-ui.js && node --experimental-sqlite --test test/test-calendar-local-calendars.js",
     "test:calendar": "node --loader ./test/test-browser-loader.mjs --experimental-sqlite test/test-calendar.js && node --test test/test-calendar-delete.js && node --test test/test-overlap-lanes.js",
     "test:calendar-toolbar-browser": "node --test --test-concurrency=1 test/test-calendar-toolbar-browser.js",

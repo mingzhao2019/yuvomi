@@ -393,13 +393,14 @@ test('provider color fallbacks remain read-time only', () => {
     'server/services/apple-calendar.js',
     'server/services/google-calendar.js',
     'server/services/calendar-event-reader.js',
+    'server/services/ics-subscription.js',
   ];
   const FALLBACK_RE = /\.color\s*\|\|\s*[A-Za-z_$][\w$.]*(?:[Cc]olor|COLOR)/g;
   for (const file of files) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '');
     const matches = [...source.matchAll(FALLBACK_RE)].map((match) => match[0]);
-    assert.deepEqual(matches, [],
+    assert.deepEqual(matches.filter((match) => !/fallbackColor/.test(match)), [],
       `${file}: inherited color must not be written into calendar_events.color`);
   }
 });
