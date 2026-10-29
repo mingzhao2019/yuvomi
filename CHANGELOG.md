@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   screens. Only `#RRGGBB` is accepted now, the app shows nothing else, and a stored value
   that is not a colour falls back to the default blue on update.
 
+### Added
+- **New tasks remember visibility and lock defaults.** Settings can now choose the visibility and lock state used when a new task is opened; individual tasks remain independently editable.
+
 ### Fixed
 - **Recurring calendar expansion reuses time-zone formatters.** Synced recurring events now share cached formatters per time zone, preserving results while reducing dashboard and calendar expansion cost.
 - **The read and write boxes of a new API token are easy to hit.** Each box only answered on its
