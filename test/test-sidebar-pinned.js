@@ -123,6 +123,6 @@ test('rebuildNavigation und renderAppShell setzen die Seitenleiste ueber den Hel
   assert.doesNotMatch(rebuild, /navSidebarItems\.replaceChildren\(/,
     'rebuildNavigation() fuellt den Scroller selbst und legt die Einstellungen hinein (#2324)');
   const shell = /function renderAppShell\([\s\S]*?\n\}/.exec(router)?.[0] ?? '';
-  assert.match(shell, /splitPinnedNavItems\(\s*sidebarNavItems\(\)\s*\)/,
+  assert.match(shell, /splitPinnedNavItems\(\s*sidebarNavItems(?:WithSearch)?\(\)\s*\)/,
     'renderAppShell() teilt die Elemente nicht mehr ueber splitPinnedNavItems()');
 });

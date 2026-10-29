@@ -27,8 +27,6 @@ import { dateTimeText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { captureModalContext, closeModal, confirmModal, openModal, refocusAfterRender, reportFieldErrors, constraintErrors } from '/components/modal.js';
 import { settingRowHtml, settingSwitchRowHtml, toggleRowHtml, fileDropzoneHtml, wireFileDropzone } from '/settings/components.js';
-import { colorPickerHtml, setColorPickerValue, wireColorPicker } from '/utils/color-picker.js';
-import { USER_COLOR_DEFAULT } from '/utils/color.js';
 import { assigneeIdsOf, buildAssigneeMenu } from '/settings/assignee-menu.js';
 import { formRowHtml, formRowsHtml } from '/utils/form-row.js';
 import { rowActionEl } from '/utils/row-action.js';
@@ -455,7 +453,7 @@ function bindCalendarImport(container, calendars = []) {
   const syncNewCalendarVisibility = () => {
     if (newCalendarGroup) newCalendarGroup.hidden = calendarSelect?.value !== '__new';
     const targetColor = importTargetColor(importedCalendars, calendarSelect?.value);
-    if (targetColor && colorInput) setColorPickerValue(colorInput, targetColor);
+    if (targetColor && colorInput) colorInput.value = targetColor;
   };
   calendarSelect?.addEventListener('change', syncNewCalendarVisibility);
   syncNewCalendarVisibility();
