@@ -68,6 +68,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   match the app, and the language picker on phones is only as wide as the language it shows.
 - **No more long dashes in the installer's texts.** All 27 languages of the web and command-line
   installer use a plain hyphen, also for ranges and negative numbers.
+- **Emptying a field when you run the installer again removes the setting.** A pre-filled value you
+  clear (for example the weather city or the sender name) used to come back from the old `.env`; it is
+  now removed, and the review page lists it under "Will be removed from .env". Fields you leave
+  alone, passwords and keys are never removed this way.
+- **The installer asks for a second click only when it replaces something.** A first installation
+  saves and starts with one click; with an existing `.env` or a running container the confirmation
+  stays, and a line above the button now says what you confirm - the old `.env` is replaced after a
+  backup, the running container restarts, or both.
+- **The advanced setup also starts with your home-network address.** Like the simple setup it fills
+  in this computer's address on the home network instead of `localhost`, and the review page says
+  calmly when an address is reachable only on this device.
+- **Backup schedules the scheduler would never run are refused.** A day that no chosen month has
+  (`0 3 31 2 *`, February 31) used to pass and switched backups off at startup. The message now also
+  names the six-field form with seconds and shorthands such as `@daily`.
+- **Copying in the installer says when it did not work.** If the clipboard refuses, the value is
+  selected for manual copying and the note says so, instead of claiming "Copied".
+- **Browsers no longer offer saved passwords in the installer's secret fields.** Calendar, sign-on
+  and app-password fields are marked as new secrets, so a password manager does not fill in an
+  unrelated login.
+- **The installer's last screen leads with the success.** One check mark says Yuvomi is ready, and
+  saving the key file is a quiet checklist row that ticks itself off after the download, instead of
+  a warning banner, a second logo and a download button above "Open Yuvomi". The note that the
+  installer shuts down soon stays as a small line until the file is saved.
+- **Skipped steps look skipped in the installer's step list.** Weather, calendar, email, storage and
+  advanced steps you leave empty show a dash instead of a green check mark.
+- **Installer fields match the app's.** Fields are 48 pixels high on the app's field background, the
+  show-password and copy buttons are full-size touch targets, the Yuvomi mark in the header looks
+  the same as in the app in dark mode, and hovering the advanced option no longer pulls harder than
+  the recommended one.
+- **Clearer installer messages.** A missing field in the admin step is named and focused instead of
+  "All fields are required", a server's own error text appears as a separate "Details" line, the
+  example values in the address and name fields are in your language, the start screen says that a
+  first run usually takes 1-3 minutes and counts in minutes, and technical terms like "session
+  secret", "SSRF protection" and "Compose file" follow a plain description instead of leading it.
+- **Installer hints read at a calmer line length.** Explanations under fields wrap at about 80
+  characters instead of 90, spacing follows the app's scale, a failed copy shows its note on its own
+  line instead of breaking around the button, and the "taking longer than usual" note no longer
+  touches the line above it.
 
 ## [2.83.0] - 2026-10-29
 
