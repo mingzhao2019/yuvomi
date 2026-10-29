@@ -93,9 +93,36 @@ function flattenIngredient(ing) {
   return { name, quantity, category };
 }
 
+/**
+ * Beschreibung und Zubereitungsschritte zu einem `notes`-Text (#2363).
+ * Yuvomi-Rezepte haben kein Schrittfeld; `notes` ist Klartext und wird im
+ * Frontend per textContent mit white-space: pre-wrap gezeigt - Markdown (etwa
+ * fette Titel) bliebe dort als Sternchen stehen. Deshalb: Beschreibung, eine
+ * Leerzeile, dann je Schritt "N. Titel: Text". Leere Schritte fallen raus und
+ * zählen nicht mit; nichts von beidem ergibt null wie bisher.
+ */
+function composeNotes(description, instructions) {
+  const steps = (Array.isArray(instructions) ? instructions : [])
+    .map((step) => {
+      const title = String(step?.title ?? '').trim();
+      const text = String(step?.text ?? '').trim();
+      return title && text ? `${title}: ${text}` : title || text;
+    })
+    .filter(Boolean)
+    .map((line, i) => `${i + 1}. ${line}`);
+  const parts = [String(description ?? '').trim(), steps.join('\n')].filter(Boolean);
+  return parts.length ? parts.join('\n\n') : null;
+}
+
 export class MealieAdapter {
   constructor(account) {
     this.provider = 'mealie';
+    // Stand der Abbildung getRecipe() -> recipes. Hochzaehlen, wenn getRecipe()
+    // ein Feld neu oder anders spiegelt: der Sync haengt die Zahl an
+    // provider_updated_at und holt so jedes schon gespiegelte Rezept einmal neu,
+    // auch wenn es sich bei Mealie nicht geaendert hat (recipe-provider-sync.js,
+    // syncStamp). 2 = Zubereitungsschritte in notes (#2363).
+    this.mirrorFormat = 2;
     this.base = String(account.base_url || '').replace(/\/+$/, '');
     this.token = account.api_token;
     // `base_url` muss vom Server aus erreichbar sein (z. B. ein Docker-internes
@@ -162,7 +189,7 @@ export class MealieAdapter {
       updatedAt: detail.updatedAt,
       slug: detail.slug,
       title: detail.name,
-      notes: detail.description || null,
+      notes: composeNotes(detail.description, detail.recipeInstructions),
       hasImage: Boolean(detail.image),
       ingredients: (detail.recipeIngredient || []).map(flattenIngredient),
     };

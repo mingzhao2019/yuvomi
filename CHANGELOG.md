@@ -28,6 +28,123 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SMTP none remains plain and weather search drops the postcode hint.** SMTP setting `none` no longer renders a password field, and weather search no longer treats a postcode suffix as part of the place name.
 - **Old daily recurring series appear in the calendar again.** Calendar readers now resume expansion near the requested window instead of exhausting the iteration limit from the original start date.
 - **Recurring calendar expansion reuses time-zone formatters.** Synced recurring events now share cached formatters per time zone, preserving results while reducing dashboard and calendar expansion cost.
+- **Recipes mirrored from Mealie bring their steps along** (#2363). The mirror took over title,
+  ingredients and image, but not the preparation steps. The notes of a mirrored recipe now show
+  Mealie's description followed by the steps as a numbered list, with a step's title in front of its
+  text. Empty steps are left out. Recipes that were mirrored before are fetched once more on the
+  next sync after the update, so they get their steps too.
+- **Recurring tasks keep their repeat on a CalDAV server** (#2350). A task that repeats in Yuvomi
+  went to the server as a one-off task: the outgoing VTODO carried title, due date and status but no
+  `RRULE`, so Tasks.org, Thunderbird or a Baikal-backed phone showed it once. The rule now goes along
+  on the first upload and on every later edit, and an end date is written the way RFC 5545 wants it
+  next to the due date - a plain date for a task without a time, the end of that day in UTC for one
+  with a time. A ticked-off occurrence goes up without the rule, because the next occurrence is its
+  own task on the server, and the series starts on the due date (`DTSTART`, which the standard
+  requires next to a rule). A series someone set up in another app keeps its rule even though Yuvomi
+  does not read it in; a rule Yuvomi added to such a task is marked, so switching the repeat off
+  here takes it away again unless the other app has changed it since. "Repeat from completion"
+  stays a Yuvomi setting: the standard has no way to say it.
+- **Switching a module on or off no longer doubles "Settings" in the sidebar** (#2324). After a
+  module was toggled under Settings > Active modules, the sidebar showed "Settings" twice until the
+  next reload. It now stays once, at its place at the bottom, however often the list is rebuilt.
+- **Imported calendars take their new colour** (#2303). Changing the colour of a calendar under
+  "Manage calendars" now also recolours the events that were imported into it from an ICS file in the
+  day, week, month and detail views. The import used to copy the colour into every event, which then
+  kept the old one. The colour field of the import now starts on the colour of the chosen calendar;
+  picking a different one still gives those events their own colour.
+- **Weights in grams and kilograms sit on the same line** (#2328). A weight sent over the API in
+  grams (95400 g) was drawn next to the kilogram readings as a spike at 95400, and the change card
+  showed +95,304.7. Readings of one kind are now converted to a single unit before the chart, the
+  average and the change are calculated - the unit most of your readings use, otherwise kilograms.
+  The same applies to height and head circumference (cm, m, mm, in), temperature (°C, °F) and blood
+  sugar (mg/dL, mmol/L). The stored readings stay as they were sent.
+- **SMTP with encryption "None" sends without encryption** (#2326). Until now Yuvomi still switched
+  to STARTTLS whenever the mail server offered it, so an internal relay on port 25 with a self-signed
+  certificate failed with "self-signed certificate". "None" now never upgrades the connection, both
+  from the settings page and from `EMAIL_SMTP_SECURE=none`. "STARTTLS" and "SSL/TLS" are unchanged.
+- **The weather place search no longer promises postcodes** (#2353). The field said "City or
+  postcode", but the place search at Open-Meteo only finds a postcode where its place data happens
+  to list one: 01099 (Dresden) found nothing, and 10115 (Berlin) even offered New York. The field
+  now asks for a city or town.
+- **Old daily series show up in the calendar again** (#2341). The calendar view counted every
+  repeating event from its very first day and gave up after 1000 steps, so a daily event that
+  started more than about three years ago was missing from the month entirely, and every page of
+  the calendar got slower as the household's series got older. The calendar, the overview and the
+  upcoming list now start each series just before the days they show.
+- **Amount fields accept comma or point decimals across devices.** (#2170) Budget entries,
+  transfers, confirmations, plans, subscriptions, shopping prices, inventory, housekeeping,
+  rewards and shared expenses preserve cents even when the keyboard and household number
+  formats differ. Existing amounts use the household's number format when edited. Currency
+  precision checks still apply; malformed amounts and ambiguous thousands grouping are
+  rejected before saving.
+- **The dashboard and calendar are fast again with synced recurring events** (#2226). Since the
+  fix for occurrences on the clock change day (#2034), every occurrence of a repeating event is
+  placed in its time zone with several lookups, and each lookup set up a fresh date formatter - the
+  slow part. With a few synced calendars the dashboard took over a second and a half on a fast
+  computer and several seconds on a small server, and it held up every other request in the
+  meantime. Each time zone now keeps one formatter, which makes placing an occurrence about ten
+  times faster. The results are unchanged.
+- **A colour is picked where you tap it.** In every colour row (events, notes, categories, accounts,
+  your own colour) the tap area of one colour reached into its neighbour's, so a tap just beside a
+  colour could pick the next one. The tap areas now meet without overlapping, each as large as a
+  touch target, and on phones the colours are a little larger.
+- **Switching views no longer nudges the page.** Opening Subscriptions in Budget, switching tasks from
+  the list to the board and arriving in Health on the desktop each moved content a few pixels after it
+  appeared. The "% of budget used - Most expensive first" note now sits above the subscriptions it
+  sorts, the board scrolls in the same place as the list, and Health's list of areas appears together
+  with its status lines. In Health's header the export button keeps its place on a computer - it used
+  to slide aside each time the add button appeared, on arrival and when moving between areas.
+- **Moving a waste type up or down always moves it.** A type without a schedule sits in the "No
+  schedule" line, and a card next to it could swap places with it invisibly; up and down now move a
+  card past the next card that is shown.
+- **Roles and members fit in one line on the phone.** The role and member chips in Roles and
+  permissions scroll sideways instead of filling three lines above the first permission.
+- **A meal's details have no purple ring.** Clicking a meal on the desktop drew a focus ring around the
+  whole details card; it now opens like an appointment's.
+- **A long appointment's name stays readable while you scroll the week.** The name stays at the top of
+  the block as before, and the time below it now slides under the name instead of running through it.
+- **The comment hint fits the phone.** The comment field's hint is shorter and no longer ends in "..."
+  on a phone, in every language.
+- **Tapping a column tab on the phone board opens that column.** Jumping two columns ahead stopped at
+  the column in between.
+- **The password eye sits inside the field in the settings too.** The WebDAV backup target and the
+  document storage showed a small eye next to the password field; it now sits inside the field like on
+  the sign-in pages, and the field is as wide as the others. The backup schedule shows "Daily at 02:00"
+  and keeps the cron expression behind "Learn more".
+- **Sign-up mistakes show at the field on every page.** Joining from an invitation showed a problem in
+  a box above the form with the field left grey, and first-time setup did not colour the field either;
+  now every sign-in page puts the message under the field, colours it red and moves the cursor there.
+  The optional display name on the invitation page says "(optional)", the pairing page drops its lone
+  required star, and setup drops its placeholder names.
+- **The welcome tour explains a control next to it.** The tour card stayed in the middle of the screen
+  while the highlighted sidebar, tab bar or + button was elsewhere; it now sits beside the control it
+  describes and moves with the highlight. After a tap the "Next" button no longer shows a focus ring.
+- **Installing on iPhone is explained in one sentence.** The install hint, the Device settings and the
+  note after "Install" now all say "Tap Share and choose “Add to Home Screen”", with the menu item in
+  proper quotation marks; before, the hint used straight quotes and an arrow, and the settings worded it
+  differently.
+- **The offline page looks like Yuvomi's own.** When the server cannot be reached at all, the page now
+  stands on the same lit stage with the app mark as the sign-in pages, and it is called "Connection
+  lost" like the same state inside the app, instead of a plain grey card titled "No connection".
+- **Sign-in and invitations say who helps and who invited you.** Without email password reset, a wrong
+  password now adds that your household's administrator can set a new one, instead of leaving you at
+  "Invalid credentials." The invitation page names the person who invited you and uses the app name
+  your household set, instead of "You have been invited to Yuvomi". The invitation preview of the API
+  carries this as `invited_by`.
+- **German settings say "Zurzeit:" for what applies now.** The hint under Language of stored entries,
+  Region, Time zone and Currency began with "Gerade Englisch.", which next to a German interface read
+  like "even English"; it now reads "Zurzeit: Englisch.".
+- **The settings search puts the setting you named first.** Searching "password" listed the Account and
+  Email (SMTP) pages before "Change password"; a hit whose name matches now comes first. A search without
+  hits shows the usual "No matches" with your term and "Reset search" instead of a bare sentence.
+- **Ticking something off confirms it at once, and only where you are.** The note "“Water the plants”
+  done" with Undo came up to 1.5 seconds after the tap, and if you switched to another module in the
+  meantime it appeared there instead. Tasks and the household help's chores, check-in and check-out now
+  confirm with the tap, and a confirmation that would only arrive after you left a module no longer
+  follows you. Undo still works while the change is on its way.
+- **Notes name what they are about.** The household help says which chore was done and which visit was
+  paid or deleted, and a deleted visit can be brought back with Undo instead of a question beforehand;
+  waste collection names the bin type it created, saved or deleted, and the schedule or pickup it saved.
 - **The read and write boxes of a new API token are easy to hit.** Each box only answered on its
   own 14 px square; now the whole cell of its column does, as tall as any other control.
 
