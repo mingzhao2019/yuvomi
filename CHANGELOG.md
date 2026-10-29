@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.83.0] - 2026-10-29
+
 ### Added
 - **Secrets can come from files.** Supported `<NAME>_FILE` variables load secret values without putting them directly in environment configuration; conflicting, missing, or empty values still fail safely.
 

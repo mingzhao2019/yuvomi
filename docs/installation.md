@@ -313,9 +313,9 @@ docker compose up -d
 Docker pulls `ghcr.io/ulsklyc/yuvomi:latest` automatically. No build step, no Node.js installation needed.
 
 > **Pinning a version.** Every release is also published under immutable tags:
-> `2.82.0` (exact version), `2.81` (latest patch of that minor), plus a moving `main`
+> `2.83.0` (exact version), `2.83` (latest patch of that minor), plus a moving `main`
 > tag for the current development state. To pin production to a known-good release,
-> set `image: ghcr.io/ulsklyc/yuvomi:2.82.0` in your compose file and bump it
+> set `image: ghcr.io/ulsklyc/yuvomi:2.83.0` in your compose file and bump it
 > deliberately; `latest` always points at the newest release.
 
 > **Verifying what you pull.** Every image the publish workflow builds is signed at build
@@ -324,7 +324,7 @@ Docker pulls `ghcr.io/ulsklyc/yuvomi:latest` automatically. No build step, no No
 > image you are about to run is one GitHub built from a release tag of this repository:
 >
 > ```bash
-> cosign verify ghcr.io/ulsklyc/yuvomi:2.82.0 \
+> cosign verify ghcr.io/ulsklyc/yuvomi:2.83.0 \
 >   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
 >   --certificate-identity-regexp '^https://github.com/ulsklyc/yuvomi/.github/workflows/docker-publish.yml@refs/tags/v'
 > ```
@@ -333,7 +333,7 @@ Docker pulls `ghcr.io/ulsklyc/yuvomi:latest` automatically. No build step, no No
 > anything else means the image is not one this repository released. The `main` tag is
 > signed too, under `refs/heads/main`, which the pattern above deliberately excludes. Tags
 > published before September 2026 carry no signature. Provenance and SBOM travel inside the
-> image: `docker buildx imagetools inspect ghcr.io/ulsklyc/yuvomi:2.82.0 --format '{{ json .Provenance }}'`.
+> image: `docker buildx imagetools inspect ghcr.io/ulsklyc/yuvomi:2.83.0 --format '{{ json .Provenance }}'`.
 
 Continue with [Step 4 — Verify](#4-verify-the-container-is-running).
 
@@ -378,7 +378,7 @@ docker compose logs -f
 You should see output like:
 
 ```
-yuvomi  | [Yuvomi] Server running on port 3000 | Version 2.82.0
+yuvomi  | [Yuvomi] Server running on port 3000 | Version 2.83.0
 yuvomi  | [Yuvomi] Environment: production
 yuvomi  | [Sync] Auto-sync active every 15 minutes.
 ```
@@ -580,6 +580,7 @@ secrets:
 - A missing, unreadable or empty file stops the start. There is no silent fallback, because for `DB_ENCRYPTION_KEY` that would start on a new, unencrypted database.
 - Line breaks at the end of the file are ignored; everything else, spaces included, belongs to the value. Keep a copy of the database key elsewhere: it cannot be recovered or changed on an existing database.
 - Remove the matching `<NAME>=` lines from `.env`.
+- This is for setups where you write the compose file yourself (Docker Compose, Podman, Quadlet). The TrueNAS, Umbrel, Unraid and Portainer templates always set `SESSION_SECRET` themselves, so adding `SESSION_SECRET_FILE` there stops the start.
 
 **File permissions.** The file is read by the user the app runs as, not by root: the image's entrypoint switches to `node` (uid 1000) before the server starts, and TrueNAS starts the container as uid 568 from the outset. This differs from the postgres image, which reads its secret files as root. A file that belongs to root with mode `600` therefore stops the start with `EACCES`. With Docker Compose the secret is a bind mount that keeps the owner and mode from the host, so create the file under `umask 077` and hand it to that uid:
 
@@ -682,7 +683,7 @@ makes exactly that field read-only in the settings UI; empty values fall back to
 |----------|-------------|---------|----------|
 | `EMAIL_SMTP_HOST` | SMTP server hostname. | - | No |
 | `EMAIL_SMTP_PORT` | SMTP server port. | `587` (`465` with `ssl`) | No |
-| `EMAIL_SMTP_SECURE` | Connection security: `ssl`, `starttls`, or `none`. | `starttls` | No |
+| `EMAIL_SMTP_SECURE` | Connection security: `ssl`, `starttls`, or `none`. `none` sends unencrypted and never switches to STARTTLS, even when the server offers it (for an internal relay on port 25). | `starttls` | No |
 | `EMAIL_SMTP_USER` | SMTP auth username. | - | No |
 | `EMAIL_SMTP_PASS` | SMTP auth password. | - | No |
 | `EMAIL_FROM_ADDRESS` | Sender email address. | - | No |
