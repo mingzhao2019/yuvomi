@@ -18,7 +18,7 @@ import { errorSentence } from '/utils/friendly-error.js';
 import { redrawList, collapseRow } from '/utils/list-motion.js';
 import { swapContent } from '/utils/content-swap.js';
 import { renderSkeletonList } from '/utils/skeleton.js';
-import { formatMoney, amountPlaceholder, toDecimalString, amountInputProblem, amountToInput, toStoredNumber } from '/utils/money.js';
+import { formatMoney, amountPlaceholder, toAmountDecimalString, amountInputProblem, amountToInput, toStoredNumber } from '/utils/money.js';
 // Der Satz zu einem Grund: derselbe Baustein wie in jedem Betragsfeld (D1).
 import { amountProblemText } from '/utils/amount-field.js';
 import { todayKey } from '/utils/date.js';
@@ -1985,7 +1985,7 @@ function updateSplitInputs(panel) {
  * Feld zeigt. Die Umschrift selbst steht in utils/money.js, der einen Quelle
  * für Geldformate.
  */
-const decimalString = toDecimalString;
+const decimalString = toAmountDecimalString;
 
 
 /**
@@ -2013,7 +2013,7 @@ const decimalString = toDecimalString;
  */
 function rejectSplitAmount(input, currency, { original = null, originalCurrency = null, required = false } = {}) {
   if (input == null) return false;
-  const problem = amountInputProblem(input.value, currency, { original, originalCurrency, required });
+  const problem = amountInputProblem(input.value, currency, { original, originalCurrency, required, decimalComma: true });
   if (!problem) return false;
   reportFieldError(input, amountProblemText(problem, currency));
   return true;
@@ -2035,7 +2035,7 @@ function rejectSplitAmount(input, currency, { original = null, originalCurrency 
  */
 function syncAmountReason(panel, currency, { reveal = false } = {}) {
   const input = panel.querySelector('[name="amount"]');
-  const problem = amountInputProblem(input?.value, currency);
+  const problem = amountInputProblem(input?.value, currency, { decimalComma: true });
   const blocking = Boolean(problem) && problem !== 'precision';
   const reason = panel.querySelector('#split-amount-reason');
   if (!input || !reason) return blocking;

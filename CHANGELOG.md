@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **New tasks remember visibility and lock defaults.** Settings can now choose the visibility and lock state used when a new task is opened; individual tasks remain independently editable.
+- **Amounts accept either decimal comma or point.** Budget, split and reward amount fields normalize both common decimal separators before validation and submission.
 
 ### Fixed
 - **Recurring calendar expansion reuses time-zone formatters.** Synced recurring events now share cached formatters per time zone, preserving results while reducing dashboard and calendar expansion cost.
