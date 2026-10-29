@@ -7,7 +7,7 @@
 import { esc } from '/utils/html.js';
 import { t } from '/i18n.js';
 import { getReadableTextColor, safeHexColor } from '/utils/color.js';
-import { initials, compactInitials } from '/utils/initials.js';
+import { initials, compactInitials, sharedSurname } from '/utils/initials.js';
 
 // Der Rand von `.avatar-stack__item` (user-multi-select.css). Er steht hier
 // als Zahl, weil die Scheibe ihre Groesse und Schrift ohnehin inline in px
@@ -69,24 +69,10 @@ export function renderAvatarStack(users, { size = 28, maxVisible = 3, minFont = 
   return `<span class="avatar-stack">${avatars.join('')}</span>`;
 }
 
-/**
- * DER GETEILTE NACHNAME STEHT NICHT IN JEDEM CHIP (R19, Critique 2026-10-16:
- * Termin-Dialog mobil 1,6 Bildschirme). "Alex Johnson, Emma Johnson, Leo
- * Johnson, Linda Johnson" brauchten bei 390px drei Chip-Zeilen, und das
- * vierfache "Johnson" unterscheidet niemanden. Tragen ALLE Personen der Wahl
- * denselben Nachnamen, zeigt der Chip den Vornamen; der volle Name bleibt sein
- * zugaenglicher Name (`.sr-only`). Ein Konto mit anderem Nachnamen (Hilfe,
- * Grosseltern) laesst alle Namen voll stehen - dann unterscheidet er.
- * @param {Array<{display_name?: string}>} users
- * @returns {string} der geteilte Nachname, sonst ''
- */
-export function sharedSurname(users) {
-  if (!Array.isArray(users) || users.length < 2) return '';
-  const lasts = users.map((u) => String(u?.display_name ?? '').trim().split(/\s+/))
-    .map((parts) => (parts.length >= 2 ? parts[parts.length - 1] : ''));
-  const [first] = lasts;
-  return first && lasts.every((l) => l === first) ? first : '';
-}
+// sharedSurname wohnt seit Critique R24 in utils/initials.js (die Personenzeile
+// der Filter nutzt sie, und utils/filter-sheet.js gehoert zur Shell - dieses
+// Modul nicht). Hier bleibt der Re-Export fuer die bisherigen Aufrufer.
+export { sharedSurname };
 
 function userChipName(displayName, surname) {
   const full = String(displayName ?? '').trim();

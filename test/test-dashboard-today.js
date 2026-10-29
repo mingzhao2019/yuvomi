@@ -2090,6 +2090,22 @@ test('D6: die Ueberschrift nur zwischen zwei Teilen - vor der Einkaufszeile, wen
   assert.match(cssRule('.today-cockpit__rows--more > .today-cockpit__also--row:first-child'), /border-top:\s*none/);
 }));
 
+// R24 (Uebergabe S1 zu G1-Uebersicht-P2-1): die Wand deckelte „offen zuerst"
+// ohne Leiste - dieselben Daten zeigten bei 1440 das Sportfest, bei 1024 nicht,
+// und offene Aufgaben drueckten die Termine des Abends hinaus. Sie rechnet jetzt
+// wie das Cockpit unter der breiten Buehne: erst die Leiste (Ganztaegiges vorn,
+// dann nach Uhrzeit), der Deckel kuerzt zuerst den Rest.
+test('R24: die Wand fuehrt mit der Leiste, wie das Cockpit', inBrowser(THU_1630_BERLIN, 'Europe/Berlin', () => {
+  const html = dash.renderWallSurface(rushHour(), null, { now: new Date() });
+  const titles = [...html.matchAll(/wall-row__title">([^<]*)</g)].map((m) => m[1]);
+  assert.deepEqual(titles.slice(0, 4), LEAD_TITLES.slice(0, 4), `Ganztaegiges, dann nach Uhrzeit: ${titles}`);
+  assert.ok(!titles.includes('Stromrechnung'), 'eine offene Aufgabe verdraengt keinen Termin des Tages');
+  const src = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
+  const calls = [...src.matchAll(/buildTodayCockpitModel\(data, \[\], \{[^}]*\}\)/g)].map((m) => m[0]);
+  assert.ok(calls.length >= 3 && calls.every((call) => call.includes('...wallTimelineOptions(data, now)')),
+    `jeder Aufruf der Wand rechnet mit der Leiste (Deckel, Leiter, Abgabe): ${calls.length}`);
+}));
+
 test('D6: breit bleibt alles, wie es war - keine Teile, keine zweite Ueberschrift', inBrowser(THU_1630_BERLIN, 'Europe/Berlin', () => {
   const wide = dash.renderTodayCockpit(rushHour(), [], false, { stage: 'wide' });
   assert.ok(!wide.includes('today-cockpit__also--row'), 'die Zeilen-Ueberschrift gibt es nur darunter');

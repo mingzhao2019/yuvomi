@@ -392,7 +392,7 @@ test('Belohnungen: nur der Katalog ist ein breiter Abschnitt, Uebersicht und Ver
     for (const [name, render] of [['renderOverview', rewardsPage.renderOverview], ['renderLedger', rewardsPage.renderLedger]]) {
       const el = markupEl();
       render(el);
-      assert.match(el.html, /class="rw-section"/, `${name}: der Abschnitt steht da`);
+      assert.match(el.html, /class="rw-section[" ]/, `${name}: der Abschnitt steht da`);
       assert.doesNotMatch(el.html, wide, `${name}: eine Zeilenliste ist kein breiter Abschnitt`);
     }
     const katalog = markupEl();
@@ -455,13 +455,15 @@ test('Belohnungen: Uebersicht und Verlauf stehen im Spaltenraster, die Seitenspa
       assert.doesNotMatch(el.html, /page-columns__rail/, `recentLedger=${JSON.stringify(leer)}: keine Seitenspalte`);
     }
 
-    // Verlauf: Buchungen links, Punktestaende in Kurzform rechts.
+    // Verlauf (R24, E8): eine Ebene unter "Punkte" - Rueckweg, Titel,
+    // Personen, Buchungen. Die Punktestaende als Seitenspalte waren genau die
+    // Spiegelung der Uebersicht, die E8 aufhebt.
     el = markupEl();
     rewardsPage.renderLedger(el);
-    const [lMain, lRail] = el.html.split('<div class="page-columns__rail">');
-    assert.match(lMain, /<ul class="rw-ledger row-carrier">/, 'die Buchungen stehen in der Listenspalte');
-    assert.match(lRail ?? '', /rw-standing--compact[\s\S]*Emma/, 'die Punktestaende stehen in der Seitenspalte');
-    assert.doesNotMatch(lRail ?? '', /rw-redeem-open|rw-progress__track/, 'Kurzform: kein Fortschritt, kein Einloesen');
+    assert.match(el.html, /<ul class="rw-ledger row-carrier">/, 'die Buchungen stehen da');
+    assert.doesNotMatch(el.html, /page-columns__rail|rw-standing/, 'keine Punktestaende-Spalte mehr im Verlauf');
+    assert.match(el.html, /<button type="button" class="rw-back" data-rw-back>[\s\S]*rewards\.tabPoints[\s\S]*<h2[^>]*>rewards\.tabLedger<\/h2>/,
+      'vorn der Rueckweg mit dem Namen der Ebene darueber, dann der Titel');
   } finally {
     Object.assign(s, vorher);
   }
@@ -532,7 +534,8 @@ test('Belohnungen: Verlaufs-Chips sind Kanon-Filterchips mit aria-pressed (Re-Cr
     s.ledgerFilter = 3;
     const el = markupEl();
     rewardsPage.renderLedger(el);
-    const chips = [...el.html.matchAll(/<button[^>]*data-filter="([^"]*)"[^>]*>/g)];
+    // Seit R24 die EINE Personenzeile: Achse `ledger-member`, Person im Wert.
+    const chips = [...el.html.matchAll(/<button[^>]*data-filter="ledger-member" data-value="([^"]*)"[^>]*>/g)];
     assert.equal(chips.length, 3, 'Alle + zwei Personen');
     for (const [tag, id] of chips) {
       assert.match(tag, /class="[^"]*\bfilter-chip\b/, `Chip ${id}: .filter-chip`);
@@ -771,7 +774,7 @@ function wiredEl() {
   return el;
 }
 
-test('Uebersicht: der Bonus ist der FAB auf "Punkte", im Kopf der Punktestaende bleibt das Mehr-Menue (#1787, R23 S10)', async () => {
+test('Uebersicht: der Bonus ist der FAB auf "Punkte", im Kopf der Punktestaende steht "Teilnehmer verwalten" als Knopf (#1787, R23 S10, R24)', async () => {
   // #1787: der Bonus war nur ueber den FAB im Reiter Verlauf zu erreichen;
   // Eltern suchen ihn dort, wo die Punktestaende stehen. Bis R23 stand er
   // deshalb als Abschnittsknopf dort - und im Verlauf als FAB: zwei Bauformen,
@@ -791,14 +794,17 @@ test('Uebersicht: der Bonus ist der FAB auf "Punkte", im Kopf der Punktestaende 
     const head = kopf(el.html);
     assert.ok(head, 'Vorbedingung: der Kopf der Punktestaende steht da');
     assert.doesNotMatch(head, /rw-grant-bonus|rewards\.grantBonus/, 'kein zweiter Bonus-Knopf neben dem FAB');
-    assert.match(head, /rw-section-tools\b/, 'das Mehr-Menue fuer Teilnehmende verwalten steht im Kopf');
-    assert.match(head, /data-action="manage-participants"/);
+    // R24 (G2-Belohnungen-P3-3): EINE Handlung im Kopf ist der direkte Knopf
+    // mit Wort (D5, S5-F1) - wie "Taschengeld einrichten" daneben, kein "..."
+    // mit genau einem Eintrag.
+    assert.doesNotMatch(head, /rw-section-tools\b|popover-menu__trigger/, 'kein Mehr-Menue mit einem einzigen Eintrag');
+    assert.match(head, /<button class="btn btn--secondary btn--sm" type="button" data-action="manage-participants"><i data-lucide="users-round"[^>]*><\/i>rewards\.manageParticipants<\/button>/);
   } finally {
     Object.assign(s, vorher);
   }
   const src = readFileSync(new URL('../public/pages/rewards.js', import.meta.url), 'utf8');
   const fab = src.slice(src.indexOf('function updateRewardsFab()'), src.indexOf('function renderShell('));
-  assert.match(fab, /\(state\.tab === 'ledger' \|\| \(state\.tab === 'overview' && balances\(\)\.length\)\) && isAdmin\(\)/,
+  assert.match(fab, /\(state\.tab === LEDGER \|\| \(state\.tab === 'overview' && balances\(\)\.length\)\) && isAdmin\(\)/,
     'der FAB "Bonus" steht auf Punkte (mit Teilnehmenden) und im Verlauf');
 });
 
@@ -1015,4 +1021,114 @@ test('R22: die eigene Punktekarte gibt dem Ziel die Breite, die Knoepfe ruecken 
   const narrow = rules.filter((r) => r.at.some((a) => /@container rw-own \(max-width: 48rem\)/.test(a)));
   assert.match(narrow.find((r) => r.selector.trim() === '.rw-own')?.body ?? '', /grid-template-columns:\s*auto minmax\(0, 1fr\)/);
   assert.match(narrow.find((r) => r.selector.trim() === '.rw-own__actions')?.body ?? '', /grid-column:\s*1 \/ -1/);
+});
+
+// --------------------------------------------------------
+// Critique R24 (2026-10-28): E8, G2-Belohnungen-P3-1, G2-Belohnungen-P3-3
+// --------------------------------------------------------
+
+test('R24 E8: zwei Reiter Punkte | Praemien, der Verlauf ist eine Ebene unter "Punkte"', () => {
+  assert.deepEqual(rewardsPage.TABS, ['overview', 'catalog'], 'kein dritter Reiter "Verlauf"');
+  const s = rewardsPage.state;
+  const vorher = s.tab;
+  try {
+    s.tab = 'ledger';
+    assert.match(rewardsPage.tabButton('overview', 'Punkte'), /aria-selected="true"/, 'im Verlauf bleibt "Punkte" der aktive Reiter');
+    assert.match(rewardsPage.tabButton('catalog', 'Praemien'), /aria-selected="false"/);
+  } finally {
+    s.tab = vorher;
+  }
+  const src = readFileSync(new URL('../public/pages/rewards.js', import.meta.url), 'utf8');
+  const shell = src.slice(src.indexOf('function renderShell('), src.indexOf('function content('));
+  assert.equal((shell.match(/\$\{tabButton\(/g) ?? []).length, 2, 'die Leiste baut genau zwei Reiter');
+  assert.doesNotMatch(shell, /tabButton\('ledger'/);
+});
+
+test('R24 P3-1: der Bonus ist Gutschrift ODER Abzug mit positiver Zahl, der Knopf nennt die Handlung', () => {
+  const s = rewardsPage.state;
+  const vorher = { user: s.user, overview: s.overview };
+  let opts = null;
+  globalThis.__openModal = (o) => { opts = o; };
+  try {
+    s.user = { id: 1, role: 'admin' };
+    s.overview = { me: 1, balances: [{ id: 2, display_name: 'Emma', balance: 30 }] };
+    rewardsPage.openBonusModal();
+  } finally {
+    delete globalThis.__openModal;
+    Object.assign(s, vorher);
+  }
+  assert.ok(opts, 'der Dialog oeffnet');
+  const html = String(opts.content);
+  assert.match(html, /class="segmented rw-bonus-kind" role="radiogroup"/, 'ein Segment sagt, was passiert');
+  assert.match(html, /data-tab-id="credit" aria-checked="true"[\s\S]*data-tab-id="debit" aria-checked="false"/, 'Gutschrift vorgewaehlt');
+  assert.match(html, /id="rw-bonus-points" type="number"[^>]*min="1"/, 'die Zahl ist ein Betrag, kein Vorzeichen');
+  assert.doesNotMatch(html, /pointsSigned/, 'kein "Punkte (+/-)" mit Erklaersatz mehr');
+  assert.match(html, /id="rw-bonus-submit">rewards\.bonusCredit</, 'der Primaerknopf nennt die Handlung, nicht "Speichern"');
+});
+
+test('R24 P3-3: Taschengeld bietet keine Elternrolle als Konto an, Mitglieder ohne Rolle bleiben waehlbar', () => {
+  const s = rewardsPage.state;
+  const vorher = s.money;
+  try {
+    s.money = { accounts: [], candidates: [
+      { id: 1, display_name: 'Alex', family_role: 'dad' },
+      { id: 2, display_name: 'Linda', family_role: 'mom' },
+      { id: 3, display_name: 'Oma', family_role: 'grandparent' },
+      { id: 4, display_name: 'Leo', family_role: 'child' },
+      { id: 5, display_name: 'Sam', family_role: 'other' },
+    ] };
+    assert.deepEqual(rewardsPage.moneyCandidates().map((m) => m.display_name), ['Leo', 'Sam']);
+    s.money.candidates = s.money.candidates.slice(0, 3);
+    s.user = { id: 1, role: 'admin' };
+    assert.doesNotMatch(rewardsPage.renderMoneySection(), /rw-money-setup/, 'nur Eltern uebrig: kein "Taschengeld einrichten"');
+  } finally {
+    s.money = vorher;
+  }
+});
+
+// R24 S8-F1 (Ulas 28.10.): der Verlauf ist ein Ort. Zurueck fuehrt auf
+// "Punkte", Neuladen und Link landen im Verlauf - wie die Bereiche der
+// Gesundheit (`/health/*`). Der Router laedt fuer beide Adressen dieselbe
+// Seite und wechselt per Soft-Navigation (update()).
+test('R24 S8-F1: der Verlauf hat die Adresse /rewards/history, der Router fuehrt sie als Teil der Belohnungen', () => {
+  const router = readFileSync(new URL('../public/router.js', import.meta.url), 'utf8');
+  assert.match(router, /\{ path: '\/rewards\/history',\s*page: '\/pages\/rewards\.js',\s*requiresAuth: true,\s*module: 'rewards'/,
+    'eigene Route, dieselbe Seite, dasselbe Modul (Rechte- und Modul-Gates gelten wie fuer /rewards)');
+  assert.match(router, /function topLevelSection\(path\) \{[\s\S]*?path === '\/rewards\/history'[\s\S]*?return '\/rewards'/,
+    'ein aktives Nav-Ziel: der Verlauf markiert "Belohnungen"');
+  const rewards = readFileSync(new URL('../public/pages/rewards.js', import.meta.url), 'utf8');
+  assert.match(rewards, /export async function update\(/, 'die Seite tauscht per Soft-Navigation');
+  assert.match(rewards, /if \(isHistoryPath\(location\.pathname\)\) state\.tab = LEDGER;/,
+    'Neuladen und Direktaufruf beginnen im Verlauf');
+  assert.ok(rewardsPage.isHistoryPath('/rewards/history'));
+  assert.equal(rewardsPage.isHistoryPath('/rewards'), false);
+});
+
+test('R24 S8-F1: hinein ueber die Adresse, zurueck ueber den Verlaufseintrag - ein Direktaufruf geht auf /rewards', () => {
+  const s = rewardsPage.state;
+  const vorher = s.tab;
+  const savedWin = globalThis.window;
+  const savedHistory = globalThis.history;
+  const calls = [];
+  globalThis.window = { ...(savedWin ?? {}), yuvomi: { navigate: (p) => calls.push(['navigate', p]) } };
+  globalThis.history = { back: () => calls.push(['back']) };
+  try {
+    s.tab = 'overview';
+    rewardsPage.openLedgerRoute();
+    assert.deepEqual(calls.at(-1), ['navigate', '/rewards/history'], '"Verlauf ›" schreibt einen Verlaufseintrag');
+    s.tab = 'ledger';
+    rewardsPage.closeLedgerRoute();
+    assert.deepEqual(calls.at(-1), ['back'], '"‹ Punkte" nach dem Hineingehen ist Browser-Zurueck: kein zweiter Eintrag');
+    // Direkt aufgerufen (Neuladen, Link): es gibt keinen Eintrag "Punkte" davor.
+    rewardsPage.closeLedgerRoute();
+    assert.deepEqual(calls.at(-1), ['navigate', '/rewards'], 'ohne Vorgaenger fuehrt der Rueckweg auf die Adresse der Seite');
+    const n = calls.length;
+    s.tab = 'catalog';
+    rewardsPage.closeLedgerRoute();
+    assert.equal(calls.length, n, 'ausserhalb des Verlaufs tut der Rueckweg nichts');
+  } finally {
+    s.tab = vorher;
+    globalThis.window = savedWin;
+    globalThis.history = savedHistory;
+  }
 });

@@ -27,6 +27,8 @@ import { dateTimeText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK } from '/utils/html.js';
 import { captureModalContext, closeModal, confirmModal, openModal, refocusAfterRender, reportFieldErrors, constraintErrors } from '/components/modal.js';
 import { settingRowHtml, settingSwitchRowHtml, toggleRowHtml, fileDropzoneHtml, wireFileDropzone } from '/settings/components.js';
+import { colorPickerHtml, wireColorPicker } from '/utils/color-picker.js';
+import { USER_COLOR_DEFAULT } from '/utils/color.js';
 import { assigneeIdsOf, buildAssigneeMenu } from '/settings/assignee-menu.js';
 import { formRowHtml, formRowsHtml } from '/utils/form-row.js';
 import { rowActionEl } from '/utils/row-action.js';
@@ -69,8 +71,8 @@ function renderPage(container) {
                 control: '<input class="form-input" type="text" id="ics-name" required maxlength="100" />',
               })}
               ${settingRowHtml({
-                label: t('settings.ics.form.color'), labelFor: 'ics-color',
-                control: '<input class="settings-color-button" type="color" id="ics-color" value="#6366f1" />',
+                label: t('settings.ics.form.color'), labelId: 'ics-color-label', stacked: true,
+                control: colorPickerHtml({ id: 'ics-color', value: USER_COLOR_DEFAULT, labelledBy: 'ics-color-label' }),
               })}
               ${settingRowHtml({
                 label: t('settings.sync.defaultAssignees'), labelFor: 'ics-assignee',
@@ -116,8 +118,8 @@ function renderPage(container) {
               control: '<input class="form-input" type="url" id="cal-import-url" aria-describedby="cal-import-url-hint" placeholder="https://..." />',
             })}
             ${settingRowHtml({
-              label: t('settings.calendarImport.colorLabel'), labelFor: 'cal-import-color',
-              control: '<input class="settings-color-button" type="color" id="cal-import-color" value="#007AFF" />',
+              label: t('settings.calendarImport.colorLabel'), labelId: 'cal-import-color-label', stacked: true,
+              control: colorPickerHtml({ id: 'cal-import-color', value: USER_COLOR_DEFAULT, labelledBy: 'cal-import-color-label' }),
             })}
             ${settingRowHtml({
               label: t('settings.calendarImport.assigneesLabel'), labelFor: 'cal-import-assignees',
@@ -283,8 +285,8 @@ function openIcsEditModal(container, sub, subs, user) {
             control: `<input class="form-input" type="text" id="ics-edit-name" value="${esc(sub.name)}" required maxlength="100" />`,
           }),
           formRowHtml({
-            label: t('settings.ics.form.color'), labelFor: 'ics-edit-color',
-            control: `<input class="settings-color-button" type="color" id="ics-edit-color" value="${esc(sub.color) || '#3b82f6'}" />`,
+            label: t('settings.ics.form.color'), labelId: 'ics-edit-color-label', stacked: true,
+            control: colorPickerHtml({ id: 'ics-edit-color', value: sub.color || USER_COLOR_DEFAULT, labelledBy: 'ics-edit-color-label' }),
           }),
           toggleRowHtml({
             control: 'switch',
@@ -306,6 +308,7 @@ function openIcsEditModal(container, sub, subs, user) {
       </form>
     `,
     onSave(panel) {
+      wireColorPicker(panel);
       // Die Personen laden im Knopf nach - der Dialog oeffnet sofort.
       const storedAssignees = storedAssigneeIds(sub);
       mountAssigneeField(panel.querySelector('#ics-edit-form'), 'ics-edit-assignee', storedAssignees);
@@ -343,6 +346,7 @@ function openIcsEditModal(container, sub, subs, user) {
 }
 
 function bindIcsEvents(container, subs, user) {
+  wireColorPicker(container);
   const addBtn = container.querySelector('#ics-add-btn');
   const formWrapper = container.querySelector('#ics-add-form-wrapper');
   const addForm = container.querySelector('#ics-add-form');
@@ -442,6 +446,7 @@ function importTargetColor(calendars, value) {
 }
 
 function bindCalendarImport(container, calendars = []) {
+  wireColorPicker(container);
   const form = container.querySelector('#cal-import-form');
   if (!form) return;
   const fileInput = container.querySelector('#cal-import-file');

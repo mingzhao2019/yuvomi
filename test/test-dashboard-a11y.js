@@ -1415,3 +1415,36 @@ test('DW-P2-11: die leeren Kacheln sprechen die eine ruhige Zeile - Satz, Aktion
   const pantry = __test.renderPantryWidget({ items: [] }, '1x1');
   assert.match(pantry, /<div class="card-empty-row widget__empty">\s*<span class="card-empty-row__text">/);
 });
+
+/* DIE RUNDGANG-KARTE STEHT AM ERKLAERTEN ELEMENT (Critique R24, G6-Rundgang-P3-1).
+ * Gemessen vorher (s2/bin/tour.mjs): 1440 Karte x 540 bei Ring x 2-234 (306 px
+ * daneben), 390 Karte y 64 bei Ring y 766 (Leiste) bzw. 774 (Plus). Nachher
+ * neben der Seitenleiste, ueber Leiste und Plus, unter dem Plus im Kopf. */
+test('R24: die Rundgang-Karte haengt an der Seite des Rings, die Platz hat', () => {
+  const { onboardingCardPlacement: place } = __test;
+  const card = { width: 360, height: 375 };
+  // Desktop, Seitenleiste (hoch): rechts daneben, senkrecht in der Mitte.
+  assert.deepEqual(place({ left: 2, top: 2, right: 234, bottom: 898 }, card, { width: 1440, height: 900 }),
+    { side: 'right', x: 250, y: 263 });
+  // Desktop, Plus im Kopf (breit): darunter, am rechten Rand gehalten.
+  assert.deepEqual(place({ left: 1319, top: 26, right: 1414, bottom: 78 }, card, { width: 1440, height: 900 }),
+    { side: 'below', x: 1064, y: 94 });
+  // Telefon, Leiste unten (breit): darueber, mittig.
+  const phone = { width: 320, height: 376 };
+  assert.deepEqual(place({ left: 2, top: 766, right: 388, bottom: 842 }, phone, { width: 390, height: 844 }),
+    { side: 'above', x: 35, y: 374 });
+  // Telefon, Plus unten rechts (quadratisch): darueber, im Fenster gehalten.
+  assert.deepEqual(place({ left: 320, top: 774, right: 380, bottom: 834 }, phone, { width: 390, height: 844 }),
+    { side: 'above', x: 54, y: 382 });
+  // Kein Platz an keiner Seite: die Karte bleibt, wo das Overlay sie stellt.
+  assert.equal(place({ left: 0, top: 200, right: 390, bottom: 600 }, phone, { width: 390, height: 844 }), null);
+});
+
+test('R24: der Rundgang setzt nach einem Tipp keinen Ring - der Titel nimmt den Fokus', () => {
+  const src = dashboardSource;
+  const fn = src.slice(src.indexOf('function focusStep(button)'), src.indexOf('let finished = false;'));
+  assert.match(fn, /if \(lastInputWasKeyboard\(\) && !touch\) \{ button\?\.focus\(\); return; \}/);
+  assert.match(fn, /querySelector\('\.onboarding-title'\)\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.doesNotMatch(src, /next\?\.focus\(\);/, 'kein Fokus an "Weiter" am Zeiger vorbei');
+  assert.match(src, /setTimeout\(\(\) => focusStep\(stepEl\.querySelector\('\.btn--primary'\)\), 50\);/);
+});

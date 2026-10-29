@@ -26,13 +26,28 @@ function scheduleValue(schedule) {
   const readable = formatCronSchedule(schedule);
   if (!readable) return { value: schedule, code: true };
 
+  // DER AUSDRUCK STEHT HINTER "MEHR DAZU" (Critique R24 G6-Einst-P3-4):
+  // unter "Taeglich um 02:00" stand "0 2 * * *" fuer jeden sichtbar - ein
+  // Beleg fuer wenige, Rauschen fuer alle. Ein natives <details> wie die
+  // Hinweise der Blaetter (hintFoldHtml).
   const wrapper = document.createElement('span');
   wrapper.className = 'settings-info-value__stack';
   const text = document.createElement('span');
   text.textContent = readable;
+  const more = document.createElement('details');
+  more.className = 'settings-hint-fold__more';
+  const summary = document.createElement('summary');
+  summary.className = 'settings-hint-fold__summary';
+  summary.textContent = t('settings.hintMore');
+  const chevron = document.createElement('i');
+  chevron.setAttribute('data-lucide', 'chevron-down');
+  chevron.className = 'settings-hint-fold__icon';
+  chevron.setAttribute('aria-hidden', 'true');
+  summary.append(chevron);
   const expression = document.createElement('code');
   expression.textContent = schedule;
-  wrapper.append(text, expression);
+  more.append(summary, expression);
+  wrapper.append(text, more);
   return { value: wrapper, code: false };
 }
 
@@ -133,15 +148,10 @@ function renderPage(container) {
             })}
             ${settingRowHtml({
               label: t('settings.backupWebdavPassword'), labelFor: 'webdav-password',
-              control: `<div class="settings-webdav-pw-wrap">
-                <input class="form-input" type="password" id="webdav-password" name="password"
+              // Das Auge sitzt IM Feld (wirePasswordToggle, Critique R24 G6-Einst-P3-4).
+              control: `<input class="form-input" type="password" id="webdav-password" name="password"
                   autocomplete="new-password"
-                  placeholder="${t('settings.backupWebdavPasswordPlaceholder')}" />
-                <button type="button" class="btn btn--icon btn--ghost settings-webdav-reveal-btn"
-                  data-reveal-target="webdav-password" aria-label="${t('common.togglePasswordVisibility')}">
-                  <i data-lucide="eye" class="icon-sm" aria-hidden="true"></i>
-                </button>
-              </div>`,
+                  placeholder="${t('settings.backupWebdavPasswordPlaceholder')}" />`,
             })}
             ${settingRowHtml({
               label: t('settings.backupWebdavPath'), labelFor: 'webdav-path',
@@ -551,19 +561,7 @@ function bindWebdavBackupEvents(container) {
 
   loadWebdavConfig(container);
 
-  form.querySelectorAll('[data-reveal-target]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const input = form.querySelector(`#${btn.dataset.revealTarget}`);
-      if (!input) return;
-      const isText = input.type === 'text';
-      input.type = isText ? 'password' : 'text';
-      const icon = btn.querySelector('[data-lucide]');
-      if (icon) {
-        icon.setAttribute('data-lucide', isText ? 'eye' : 'eye-off');
-        window.lucide?.createIcons({ el: btn });
-      }
-    });
-  });
+  wirePasswordToggle(form.querySelector('#webdav-password'), { show: t('login.showPassword'), hide: t('login.hidePassword') });
 
   testBtn?.addEventListener('click', async () => {
     testBtn.disabled = true;

@@ -2484,7 +2484,6 @@ test('POST expense: a database error is a 500 with a fixed sentence, never a 400
     db.exec('DROP TRIGGER IF EXISTS h_guard_broken');
   }
 });
-
 test('teardown: Server schließen', async () => {
   await new Promise((r) => server.close(r));
 });

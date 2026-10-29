@@ -39,6 +39,12 @@
 @media (min-width: 1024px) {
   .dashboard {
     padding: var(--space-6) var(--page-inline-pad);
+    /* DIE WERKZEUGE STEHEN AUF DER HOEHE JEDES MODULKOPFS (R24, Critique
+     * G0 Inv-1): oben 12px wie das Polster der Titelzeile (`.page-toolbar`),
+     * die Werkzeugzeile ein Ziel hoch (unten) - Suche, Wand, Anpassen und
+     * „+ Neu" stehen bei y14 wie jedes „+ Nomen". Vorher 24 + 8 Kopfband:
+     * y32, und beim Wechsel Uebersicht -> Modul sprang die Pille um 18px. */
+    padding-block-start: var(--space-3);
   }
 }
 
@@ -1600,20 +1606,14 @@
   margin-top: var(--space-1);
 }
 
+/* Kategorie und Rest-Knopf sind das geteilte Etikett (`.tag`, list-row.css,
+ * R24). */
 .note-item__category,
 .note-item__categories-more {
   flex: 0 0 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
-  background: var(--color-fill-well);
-  color: var(--color-text-secondary);
 }
 
 .note-item__categories-more {
-  border: 0;
   min-height: var(--space-6);
   min-width: var(--target-base);
   cursor: pointer;
@@ -2854,6 +2854,21 @@ svg.weather-forecast__icon {
   opacity: 1;
 }
 
+/* DIE KARTE AM ERKLAERTEN ELEMENT (Critique R24, G6-Rundgang-P3-1;
+ * dashboard.js onboardingCardPlacement): steht ein Ring, haengt die Karte an
+ * der Seite, die Platz hat - neben der Seitenleiste, ueber der Leiste und dem
+ * Plus-Knopf. Vorher blieb sie mittig, 306 px neben der Seitenleiste, die sie
+ * erklaerte. Der Ortswechsel gleitet in Dauer und Kurve des Rings (FLIP im
+ * Skript, die Werte an `.onboarding-card`). */
+.onboarding-overlay--anchored .onboarding-card {
+  position: fixed;
+  /* Physisch wie der Ring: die Werte sind Fensterkoordinaten
+   * (getBoundingClientRect), keine Leserichtung. */
+  left: var(--card-x);
+  top: var(--card-y);
+  margin: 0;
+}
+
 /* Die Bildmarke statt eines Lucide-Zeichens im ersten Schritt - dieselbe
  * Kachel wie auf der Anmeldeseite (.auth-hero__mark). */
 .onboarding-mark {
@@ -2892,6 +2907,10 @@ svg.weather-forecast__icon {
  * einem, `--glass-inset-elevated` die Lichtkante oben (glass.css, R18). Keine
  * eigene Linie mehr. */
 .onboarding-card {
+  /* Dauer und Kurve, mit denen die Karte dem Ring folgt (dashboard.js
+   * placeCard, FLIP) - dieselben wie die des Rings. */
+  --onboarding-move-ms: var(--duration-lg);
+  --onboarding-move-ease: var(--ease-glass);
   /* positioniert, damit die Tafel ueber dem Abdunkler des Lichtrings liegt
    * (.onboarding-spotlight ist fixed und malte sonst darueber). */
   position: relative;
@@ -2930,6 +2949,14 @@ svg.weather-forecast__icon {
   width: 48px;
   height: 48px;
   color: var(--color-accent);
+}
+
+/* Der Titel nimmt nach einem Tipp den Fokus (dashboard.js focusStep) - ohne
+ * Ring, wie der Dialogtitel (`.modal-panel__title[tabindex="-1"]:focus`): er
+ * ist kein Steuerelement, ein Ring verspraeche eine Bedienung. Mit Tastatur
+ * geht der Fokus an den Knopf und traegt dort seinen Ring. */
+.onboarding-title[tabindex="-1"]:focus {
+  outline: none;
 }
 
 .onboarding-title {
@@ -4363,7 +4390,9 @@ button.today-cockpit__more--link {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-2) 0 0;
+  /* Ohne eigenes Polster oben (R24, G0 Inv-1): die Seite traegt es, so steht
+   * der Kopf wie jeder Modulkopf. */
+  padding: 0;
 }
 
 /* Legacy-Zeitklassen bleiben als No-Op bestehen (router setzt sie weiter). */
@@ -4551,6 +4580,16 @@ button.today-cockpit__more--link {
   min-width: 0;
 }
 
+/* Am Desktop ist die Werkzeugzeile ein Ziel hoch und ihre Knoepfe stehen
+ * mittig darin - wie die Titelzeile eines Modulkopfs (R24, G0 Inv-1, siehe
+ * `.dashboard` oben): „+ Neu" bei y14 wie jedes „+ Nomen". */
+@media (min-width: 1024px) {
+  .dashboard-overview__tools {
+    min-block-size: var(--target-base);
+    align-items: center;
+  }
+}
+
 /* DAS ANPASSEN-MENUE (R19, Entscheidung Ulas 2026-10-16). Unter 768px stehen
  * Anpassen und Wand-Modus als Eintraege EINES Menues (settings-2), ab 768px als
  * die zwei Knoepfe wie bisher. Je Breite genau ein Weg; die Eintraege klicken
@@ -4571,14 +4610,11 @@ button.today-cockpit__more--link {
   }
 }
 
-/* DIE WETTERZEILE STEHT MOBIL AUCH NEBEN DER KARTE (R19): die Karte liegt dort
- * weit unten (390px: y 1438), die Zeile unterm Gruss sagt das Jetzt sofort.
- * Ab 768px schliessen sich beide aus wie bisher. */
-@media (min-width: 768px) {
-  .dashboard-overview__weather--card {
-    display: none;
-  }
-}
+/* DIE WETTERZEILE STEHT IN JEDER BREITE IM KOPF (R24, Entscheidung E7 a;
+ * Critique G1-Uebersicht-P3-5). Seit R19 stand sie mobil auch neben der Karte,
+ * ab 768px schlossen sich beide aus - am Desktop lag das Jetzt dann nur in der
+ * Karte unter der Falz (1440: y 952). Jetzt dieselbe Zeile an derselben Stelle
+ * in beiden Breiten; die Karte bleibt das Opt-in fuer die Vorhersage. */
 
 /* DIE KOPF-ICON-HAUT DER SHELL (D1, Critique 2026-10-16): Haut, Tinte und
  * Hover kommen aus `.btn.btn--secondary.btn--icon` im Markup, wie Lupe,
@@ -6884,6 +6920,9 @@ button.today-cockpit__more--link {
   .dashboard {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
+    /* KOPF WIE JEDER MODULKOPF (R24, Critique G0 P2-5): 8px bis zur
+     * Werkzeugzeile wie das Polster der Titelzeile, nicht 16 + 4. */
+    padding-top: var(--space-2);
   }
 
   /* EIN RHYTHMUS: zwischen Blatt und Raster derselbe Abstand wie zwischen
@@ -6911,7 +6950,7 @@ button.today-cockpit__more--link {
     border-left: 0;
     border-right: 0;
     gap: var(--space-3);
-    padding: var(--space-1) var(--space-3) 0;
+    padding: 0 var(--space-3);
   }
 
   /* DER KACHELKOPF MOBIL: 44 statt 52px, und die erste Zeile steht 4px
@@ -6939,9 +6978,14 @@ button.today-cockpit__more--link {
     align-items: stretch;
   }
 
+  /* DER ERSTE INHALT BEI Y <= 120 (R24, Critique G0 P2-5; R23 S-P3-5). Vom
+   * Gruss zum Blatt standen 16 (Luecke des Kopfbands) + 12 (dieses Polster)
+   * = 28px, dazu 20 ueber der Werkzeugzeile: das Blatt begann bei 390x844 auf
+   * y141 - 30 % Chrome gegen 17 % in den Listenmodulen. Den Abstand zum Blatt
+   * traegt jetzt allein die Luecke des Kopfbands (16): erster Inhalt y117. */
   .today-cockpit {
     gap: var(--space-2);
-    padding: var(--space-3) 0 0;
+    padding: 0;
   }
 
   .today-cockpit__header {
@@ -8116,17 +8160,24 @@ button.today-cockpit__more--link {
  * „unsichtbare, klickbare Bänder" führt; Ruhe entsteht durch Kontrast, nicht
  * durch Unsichtbarkeit. Die Beschriftung steht deshalb in Tertiärfarbe da, eine
  * Stufe unter dem Zeichen des Ausstiegs (Sekundär), ohne Kapsel. Dass der erste
- * Tipp auf eine schlafende Wand nur weckt, regelt wall-timer.js. */
+ * Tipp auf eine schlafende Wand nur weckt, regelt wall-timer.js.
+ *
+ * SEIT R24 EINE KAPSEL IN BODY-GROESSE (Critique G1-Wand-P3-1). Als 15px-Text
+ * ohne Rand waren „3 Min" ... „30 Min" aus zwei Metern kaum zu lesen und kaum
+ * als Ziel zu erkennen. Jetzt ruht jeder Startknopf als Kapsel mit Haarlinie
+ * (`--color-border`, kein gefuellter Grund - die Wand hat genau einen gefuellten
+ * Traeger), Body 17, Sekundaertinte; wach steht er auf der Flaeche in der
+ * Primaertinte wie bisher. */
 .wall__timer-preset {
   min-height: var(--target-lg);
   min-width: var(--target-lg);
-  padding: 0 var(--space-2);
-  border: 1px solid transparent;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   background: transparent;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
   font-family: inherit;
-  font-size: var(--type-secondary);
+  font-size: var(--type-body);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
@@ -8150,6 +8201,20 @@ button.today-cockpit__more--link {
 .wall__timer-preset:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* Die Telefon-Wand liest man aus der Hand, nicht aus zwei Metern: die fuenf
+ * Kapseln bleiben EINE Reihe (in 17px brach „30 Min" bei 390px in eine
+ * zweite, R24). Nach der Basisregel, sonst gewinnt sie per Quellreihenfolge. */
+@container wall (max-width: 559px) {
+  .wall__timer-presets {
+    column-gap: var(--space-1);
+  }
+
+  .wall__timer-preset {
+    padding-inline: var(--space-2);
+    font-size: var(--type-secondary);
+  }
 }
 
 /* ── Nachtabsenkung (22:00 bis 06:00) ──
@@ -8533,27 +8598,6 @@ button.today-cockpit__more--link {
 .quick-link-form__face-actions {
   display: flex;
   gap: var(--space-2);
-}
-
-.quick-link-swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.quick-link-swatch {
-  inline-size: 32px;
-  block-size: 32px;
-  border-radius: var(--radius-full);
-  border: 2px solid transparent;
-  background: var(--swatch);
-  cursor: pointer;
-  padding: 0;
-}
-
-.quick-link-swatch--active {
-  border-color: var(--color-text-primary);
-  box-shadow: var(--shadow-sm);
 }
 
 /* Vorschaubild in der Mahlzeitenkachel (#1059) - nur wo es eins gibt, siehe

@@ -21,19 +21,6 @@ export function safeHexColor(value, fallback = AVATAR_FALLBACK_COLOR) {
 }
 
 /**
- * Die Farben, die ein Objekt ohne Bild bekommt - Mitglieder seit jeher, und
- * seit #469 auch die Kacheln der Schnellzugriffe.
- *
- * SIE STEHT HIER UND NICHT MEHR IN admin-family.js, weil sie ab jetzt zwei
- * Aufrufer hat. Eine zweite Palette daneben hätte ausgesehen wie eine
- * Entscheidung und wäre eine Abschrift gewesen: eine Kachel neben einem
- * Mitgliedsbild spricht dieselbe Sprache oder sie fällt auf. Die Kalenderfarben
- * bleiben davon unberührt - sie beantworten eine andere Frage (#856) und teilen
- * mit dieser Liste bewusst keinen Wert.
- */
-export const AVATAR_COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#FF2D55'];
-
-/**
  * DIE EINE STARTPALETTE FUER NUTZERFARBEN (Re-Critique 2026-09-28, P9).
  *
  * Schichtplan-Presets, Abfallarten, der Haushaltshilfe-Default und neue
@@ -49,6 +36,10 @@ export const AVATAR_COLORS = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52
  *
  * NUR STARTWERTE: Bestandsdaten behalten ihre Farbe (keine Migration); ein
  * Farbwaehler zeigt eine fremde Bestandsfarbe als eigenen Swatch.
+ *
+ * Seit Critique R24 (E6) ist sie die Reihe des EINEN Farbwaehlers
+ * (utils/color-picker.js) - auch fuer Mitglieder und Schnellzugriffe, die bis
+ * dahin eine eigene Sechser-Palette (`AVATAR_COLORS`) fuehrten.
  * Reihenfolge = Reihenfolge im Raster; die Namen fuehrt jeder Aufrufer.
  */
 export const USER_COLORS = [

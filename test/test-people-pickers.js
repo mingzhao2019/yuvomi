@@ -416,9 +416,10 @@ test('documents: a stored grant for a non-member stays on offer and checked', as
   // ein Kaestchen, das fehlt, entzieht beim Speichern den Zugriff.
   await loadDocumentPeople();
   const html = documents.memberOptions([CLARA.id]);
-  const boxes = [...html.matchAll(/<input type="checkbox" value="(\d+)"\s*(checked)?/g)].map((m) => [Number(m[1]), Boolean(m[2])]);
+  // Seit R24 (D4 people-checkbox) Chips wie renderUserMultiSelect.
+  const boxes = [...html.matchAll(/<input type="checkbox" class="user-ms__checkbox" value="(\d+)" data-ms-input="document-members"\s*(checked)?/g)].map((m) => [Number(m[1]), Boolean(m[2])]);
   assert.deepEqual(boxes, [[ANNA.id, false], [CLARA.id, true]]);
-  assert.match(html, /<span>Clara<\/span>/, 'the grant is shown by name');
+  assert.match(html, /<span class="user-ms__name">Clara<\/span>/, 'the grant is shown by name');
 });
 
 test('budget: the responsible filter chip names a stored non-member responsible', () => {
@@ -716,4 +717,52 @@ test('settings: the calendar import proposes the colour of the chosen calendar (
   assert.equal(icsSettings.importTargetColor(calendars, '1'), '#007AFF');
   assert.equal(icsSettings.importTargetColor(calendars, '__new'), null, 'a new calendar takes the chosen colour itself');
   assert.equal(icsSettings.importTargetColor(calendars, '99'), null);
+});
+
+// --------------------------------------------------------------------------
+// EINE Personenzeile (Critique R24 G2-Quer-P2-1)
+// --------------------------------------------------------------------------
+// Der Personenfilter stand in drei Formen: Aufgaben-Verlauf als Umschalter
+// mit Avatar und Kuerzel (mobil ohne Namen, Desktop "Leo Joh..."), Belohnungen
+// als Chip mit vollem Namen ohne Scheibe, Kalender/Filterblatt als Chip mit
+// Scheibe und Vorname. Kanon ist die letzte, gebaut von personChipsHtml().
+
+test('personChipsHtml: Alle vorn als Text, je Person Scheibe + Vorname, der Nachname nur fuer die Vorlesehilfe', async () => {
+  const { sharedSurname } = await import('../public/components/user-multi-select.js');
+  globalThis.__sharedSurname = sharedSurname;
+  const { personChipsHtml } = await import('../public/utils/filter-sheet.js');
+  try {
+    const html = personChipsHtml({
+      filter: 'who', label: 'Person', className: 'page-chip-row',
+      people: [{ id: 1, display_name: 'Leo Johnson', avatar_color: '#3B82F6' }, { id: 2, display_name: 'Emma Johnson', color: '#EF4444' }],
+      isActive: (p) => p.id === 2,
+      all: { label: 'Alle', active: false },
+    });
+    assert.match(html, /^\s*<div class="page-chip-row" role="group" aria-label="Person" data-person-chips="who">/);
+    const chips = [...html.matchAll(/<button[^>]*data-value="([^"]*)" aria-pressed="(true|false)">([\s\S]*?)<\/button>/g)];
+    assert.deepEqual(chips.map((m) => m[1]), ['', '1', '2'], '"Alle" vorn, dann die Personen');
+    assert.deepEqual(chips.map((m) => m[2]), ['false', 'false', 'true']);
+    assert.doesNotMatch(chips[0][3], /filter-chip__swatch/, '"Alle" ist Text, keine Scheibe');
+    assert.match(chips[1][3], /class="filter-chip__swatch"[^>]*--swatch-color:#3B82F6[^>]*>LJ<\/span><span>Leo<span class="sr-only"> Johnson<\/span>/);
+    assert.match(chips[2][3], /--swatch-color:#EF4444/, 'auch die umbenannte Farbe (`color`) traegt');
+    assert.ok(chips.every((m) => /filter-chip filter-chip--sm/.test(m[0])), 'jeder Chip ist der Kanon-Chip');
+  } finally {
+    delete globalThis.__sharedSurname;
+  }
+});
+
+test('R24: Aufgaben-Verlauf, Filterblatt, Belohnungen und Kalender bauen ihre Personen mit personChipsHtml', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (f) => readFileSync(new URL(`../public/${f}`, import.meta.url), 'utf8');
+  const tasksSrc = read('pages/tasks.js');
+  assert.match(tasksSrc, /personChipsHtml\(\{\s*filter: 'history-user'[\s\S]{0,300}className: 'page-chip-row history-people'/, 'Verlauf');
+  assert.match(tasksSrc, /personChipsHtml\(\{\s*filter: 'assigned_to'/, 'Filterblatt');
+  assert.doesNotMatch(tasksSrc, /group-toggle history-people|history-people__mark|data-history-user/, 'kein Umschalter-Dialekt mehr im Verlauf');
+  assert.match(read('pages/rewards.js'), /personChipsHtml\(\{\s*filter: 'ledger-member'/, 'Belohnungen');
+  assert.match(read('pages/calendar.js'), /personChipsHtml\(\{\s*filter: 'person'/, 'Kalender');
+  // S10 (G4-Notizen-P3-2): der Verfasserfilter der Notizen war die vierte
+  // Form - Namen-Chips ohne Scheibe, von Hand gebaut.
+  const notesSrc = read('pages/notes.js');
+  assert.match(notesSrc, /personChipsHtml\(\{\s*filter: 'creator'[\s\S]{0,400}className: 'notes-filter-group'/, 'Notizen');
+  assert.doesNotMatch(notesSrc, /dataset\.creator|\[data-creator\]/, 'kein handgebauter Namen-Chip mehr');
 });

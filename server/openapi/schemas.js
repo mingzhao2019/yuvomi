@@ -2053,6 +2053,8 @@ export const schemas = {
                 valid: { type: 'boolean' },
                 display_name: { type: ['string', 'null'] },
                 username: { type: ['string', 'null'] },
+                invited_by: { type: ['string', 'null'], description: 'Display name of the member who created the invitation, or null when that account is gone.' },
+                password_required: { type: 'boolean' },
               },
               required: ['valid'],
             },

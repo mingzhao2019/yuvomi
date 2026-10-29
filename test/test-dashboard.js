@@ -775,6 +775,44 @@ test('"Heute frei"/"Fuer heute alles erledigt" entfaellt neben einer sichtbaren 
   }
 });
 
+// R24 (Critique G6 P2-2): ein neuer Haushalt ist nicht "frei", sondern leer.
+// Solange die Erste-Schritte-Karte laeuft und nichts kommt, sagt die Zeile
+// "Noch nichts geplant". Ein Ausblick (morgen faellig) oder ein Haushalt ohne
+// laufende Karte behaelt "Heute frei". Setzen und Zuruecksetzen des Speichers
+// stehen in EINEM synchronen Block: die Tests dieser Datei laufen verschraenkt.
+test('R24: ein neuer Haushalt sagt "Noch nichts geplant" statt "Heute frei"', async () => {
+  const { __test } = await import('../public/pages/dashboard.js');
+  const tomorrowStr = addLocalDays(toLocalDateKey(new Date()), 1);
+  const store = new Map([['yuvomi-first-steps', JSON.stringify({ active: true, dismissed: false, done: {} })]]);
+  const prevLs = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const prevWindow = global.window;
+  let fresh, withOutlook, dismissed, noCard;
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) },
+  });
+  global.window = { yuvomi: null };
+  try {
+    fresh = __test.renderTodayCockpit({}, []);
+    withOutlook = __test.renderTodayCockpit({ urgentTasks: [{ id: 5, title: 'Zettel abgeben', due_date: tomorrowStr, status: 'open' }] }, []);
+    store.set('yuvomi-first-steps', JSON.stringify({ active: false, dismissed: true, done: {} }));
+    dismissed = __test.renderTodayCockpit({}, []);
+    store.clear();
+    noCard = __test.renderTodayCockpit({}, []);
+  } finally {
+    if (prevLs) Object.defineProperty(globalThis, 'localStorage', prevLs);
+    else delete globalThis.localStorage;
+    global.window = prevWindow;
+  }
+  nodeAssert.match(fresh, /todayNothingPlanned/, 'der neue Haushalt sagt, dass noch nichts geplant ist');
+  nodeAssert.match(fresh, /todayNothingPlannedSub/, 'und was hier erscheinen wird');
+  nodeAssert.ok(!/todayFree/.test(fresh), 'kein "Heute frei" ueber einer leeren Uebersicht');
+  nodeAssert.match(withOutlook, /todayFree/, 'kommt etwas, ist heute frei');
+  nodeAssert.match(withOutlook, /todayNextUp/);
+  nodeAssert.match(dismissed, /todayFree/, 'weggeklickte Karte: wie jeder Haushalt');
+  nodeAssert.match(noCard, /todayFree/, 'ohne Karte: wie bisher');
+});
+
 // Review of #1099, finding 11: scheduleWidgetVisible read only widgetShown('schedule')
 // (the layout config's `visible` flag), never isModuleDisabled('schedule') -
 // unlike domainInCockpit() above it, which checks both. A household that

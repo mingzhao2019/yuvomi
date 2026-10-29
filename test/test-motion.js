@@ -1104,7 +1104,10 @@ const SHELL_PARENTS = {
   'list-bulkbar': ['bulk-pill-layer'],
   toast: ['toast-container'],
 };
-const TRANSIENT_GATE = /\.page-swapping\b/;
+// Namen, die nur fuer die Dauer EINES Wechsels stehen (Seitenwechsel, seit
+// R24 S12 auch das Ein-/Ausklappen der Seitenleiste): waehrenddessen steht das
+// Glas ohnehin als eigenes Bild.
+const TRANSIENT_GATE = /\.(?:page-swapping|sidebar-gliding)\b/;
 
 function splitTop(src, isSep) {
   const out = [];
@@ -1641,7 +1644,7 @@ test('Inhaltswechsel: Reiter, Zeitraeume und Bereiche tauschen ueber swapContent
     ['housekeeping', /swapPeriod\(content, towards, \(\) => renderReports\(content\)\)/, 'Berichtsmonat'],
     ['budget', /swapContent\(_container\.querySelector\('#budget-body'\), renderBody, \{ direction \}\)/, 'Reiterwechsel'],
     ['budget', /swapPeriod\(bodyEl\(\), dir,/, 'Monat/Berichtszeitraum'],
-    ['budget', /swapContent\(body, renderBody\)/, 'Aufloesung der Statistik'],
+    ['budget', /swapContent\((?:body|bodyEl\(\)), renderBody\)/, 'Aufloesung der Statistik (seit R24 am Zeitraum, changeStatsRange)'],
     ['calendar', /swapPeriod\(_container\?\.querySelector\('#cal-body'\), dir, renderView\)/, 'Blaettern per Pfeil und Kuerzel'],
     ['calendar', /swapPeriod\(_container\?\.querySelector\('#cal-body'\), towardsToday, renderView\)/, 'Heute'],
     ['meals', /swapPeriod\(_container\?\.querySelector\('#week-grid'\) \?\? null, step, renderWeekGrid\)/, 'Woche'],
@@ -1840,7 +1843,8 @@ test('Erststart: die Karte steht, der Schritt wechselt ueber swapContent mit fes
   const dash = pageSource('dashboard');
   const fn = dash.slice(dash.indexOf('function showOnboarding('), dash.indexOf('function maybeHintCustomize('));
   assert.doesNotMatch(fn, /overlay\.replaceChildren\(\)/, 'die Karte wird nicht mehr je Schritt neu gebaut');
-  assert.match(fn, /swapContent\(stepEl, \(\) => \{ next = fillStep\(\); \}, \{ direction: 1 \}\);\s*next\?\.focus\(\);/, 'Tausch, dann Fokus auf den neuen Hauptknopf');
+  // Seit R24 (G6-Rundgang-P3-1) ueber focusStep: Hauptknopf nach Tastatur, Titel nach Tipp.
+  assert.match(fn, /swapContent\(stepEl, \(\) => \{ next = fillStep\(\); \}, \{ direction: 1 \}\);\s*focusStep\(next\);/, 'Tausch, dann Fokus in den neuen Schritt');
   assert.match(fn, /function fitSteps\(\) \{[\s\S]{0,420}tallest = Math\.max\(tallest, stepEl\.offsetHeight\);[\s\S]{0,200}stepEl\.style\.minBlockSize = `\$\{tallest\}px`;/, 'die Hoehe ist die des hoechsten Schritts');
   assert.match(fn, /appContainer\.appendChild\(overlay\);[\s\S]{0,120}fitSteps\(\);/, 'gemessen wird im Baum');
   const step = ruleBodies('dashboard.css', '.onboarding-step').join(';');
@@ -2051,7 +2055,8 @@ test('R18: jeder Abhak-Handler quittiert selbst - die Zeilen-Auffrischung nicht'
 
   const tasks = pageSource('tasks');
   assert.match(tasks, /const settled = acknowledgeCheck\(target, \{ checked: nextStatus === 'done' \}\);/, 'Aufgabe: Quittung laeuft neben dem Roundtrip');
-  assert.match(tasks, /await toggleTaskStatus\(id, status\);\s*await settled;/, 'und das Neuzeichnen wartet auf sie');
+  // Seit R24 laeuft die Anfrage neben der Quittung (`pending`), das Neuzeichnen wartet auf beide.
+  assert.match(tasks, /const pending = toggleTaskStatus\(id, status\);[\s\S]{0,200}await pending;\s*await settled;/, 'und das Neuzeichnen wartet auf sie');
   assert.match(tasks, /const settled = acknowledgeCheck\(target, \{ checked: subtaskDone \}\);[\s\S]{0,200}await toggleSubtaskStatus\(id, target\.dataset\.status\);\s*await settled;/, 'Teilaufgabe ebenso');
   assert.match(pageSource('housekeeping'), /const settled = acknowledgeCheck\(button, \{ checked: true \}\);/);
   assert.match(pageSource('notes'), /paintCheck\(noteId, line, checked\);\s*acknowledgeCheck\(box, \{ checked \}\);/, 'Notiz-Checkliste: am angetippten Kasten, nicht an jeder Ansicht');
@@ -3417,4 +3422,43 @@ test('DW-P3-12: Ablage, Chips und Kachelleisten blenden per @starting-style ein'
       && /transition[^;]*opacity var\(--duration-md\) var\(--ease-out\)/.test(r.body));
     assert.ok(timed, `${sel}: blendet nicht in --duration-md auf --ease-out`);
   }
+});
+
+// R24 S12 (Critique G0-Shell-P3-7): die Seitenleiste klappte per 400 ms
+// `width` + `margin-left` - der ganze Inhalt wurde in jedem Frame neu ausgelegt
+// (gemessen 17 Breiten je Umschalten). Jetzt EIN Layout und eine View
+// Transition: Namen nur waehrend des Wechsels, Bilder nicht gestaucht, Dauer
+// und Kurve aus Tokens, reduzierte Bewegung ohne Transition.
+test('R24 S12: die Seitenleiste klappt in einem Layout, die Kanten gleiten per View Transition', async () => {
+  const css = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const appContent = rules.filter((r) => r.selector.split(',').some((x) => x.trim() === '.app-content'));
+  assert.ok(appContent.length > 0);
+  for (const r of appContent) assert.doesNotMatch(r.body, /transition:[^;]*margin/, 'kein Rand, der Frame fuer Frame laeuft');
+  const gliding = (sel) => rules.find((r) => r.selector.trim() === sel)?.body ?? '';
+  assert.match(gliding('html.sidebar-gliding .nav-sidebar'), /view-transition-name:\s*sidebar-panel/);
+  assert.match(gliding('html.sidebar-gliding .nav-sidebar'), /transition:\s*none/, 'die Breite springt im neuen Bild');
+  assert.match(gliding('html.sidebar-gliding #main-content'), /view-transition-name:\s*sidebar-content/);
+  const group = rules.find((r) => /::view-transition-group\(sidebar-panel\)/.test(r.selector) && /animation-duration/.test(r.body))?.body ?? '';
+  assert.match(group, /animation-duration:\s*var\(--duration-[a-z0-9]+\)/, 'Dauer aus Token');
+  assert.match(group, /animation-timing-function:\s*var\(--ease-out\)/, 'Kurve aus Token');
+  const images = rules.find((r) => /::view-transition-new\(sidebar-content\)/.test(r.selector))?.body ?? '';
+  assert.match(images, /object-fit:\s*none/, 'nichts wird gestaucht');
+
+  const { glideSidebar } = await import('../public/utils/sidebar-glide.js');
+  const classes = new Set();
+  const log = [];
+  const doc = (reduce) => ({
+    documentElement: { classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c) } },
+    defaultView: { matchMedia: () => ({ matches: reduce }) },
+    visibilityState: 'visible',
+    querySelector: () => ({ getClientRects: () => [1] }),
+    startViewTransition: (update) => { log.push(`vt:${classes.has('sidebar-gliding')}`); update(); return { ready: Promise.resolve(), finished: Promise.resolve() }; },
+  });
+  await glideSidebar(() => log.push('apply'), { doc: doc(false) });
+  assert.deepEqual(log, ['vt:true', 'apply'], 'die Namen stehen, bevor das alte Bild genommen wird');
+  assert.equal(classes.has('sidebar-gliding'), false, 'und gehen danach');
+  log.length = 0;
+  await glideSidebar(() => log.push('apply'), { doc: doc(true) });
+  assert.deepEqual(log, ['apply'], 'reduzierte Bewegung: der Wechsel steht');
 });

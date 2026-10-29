@@ -179,9 +179,15 @@
 }
 
 /* Die Icon-Variante (Aufgaben Liste/Brett, Dokumente Liste/Raster): ein
- * quadratisches Segment je Ansicht, der Name steht im aria-label und title. */
+ * quadratisches Segment je Ansicht, der Name steht im aria-label und title.
+ *
+ * MINDESTENS SO BREIT WIE HOCH (R24, Critique G0 P3-2 / P2-1). Mit 8px
+ * Polster um ein 16px-Zeichen mass das Segment 32px breit neben 40px-Knoepfen
+ * - unter der Zielgroesse, die jeder Kopfknopf haelt. Jetzt `--target-md` als
+ * Mindestbreite: am Zeiger 40x36, nie schmaler als ein Kopfknopf. */
 .segmented--icons .segmented__item {
   padding-inline: var(--space-2);
+  min-inline-size: var(--target-md);
 }
 
 /* --------------------------------------------------------
@@ -490,21 +496,20 @@
   font-size: var(--text-xl);
 }
 
+/* DIE NEBENZAHL: Headline 17, semibold, an jedem Ort (R24, Critique
+ * G4-Budget-P2-2). Neben der Leitzahl standen die uebrigen Werte je nach Ort
+ * in 22 (Seitenspalte, per `--metric-quiet-size` aus drei Modulblaettern), 20
+ * oder 18 (Container-Stufen der Reihe) - vier Grade fuer dieselbe Rolle, und
+ * in der Seitenspalte 22 unter 34: zwei Zahlen, die beide wie Kennzahlen
+ * aussahen. Jetzt fuehrt EINE Zahl (34 bzw. 28), und was neben ihr steht, ist
+ * eine Nebenzahl in Headline - dieselbe Stufe wie der Wert der mobilen
+ * Kurzzeile (`.budget-glance__value`). Eine feste Stufe braucht keine
+ * Container-Abfrage: 17px fassen "174.644,93 EUR" in jeder Karte, die eine
+ * Reihe hergibt. */
 .metric-grid--led > .metric-card:not(.metric-card--lead) > .metric-card__value {
-  font-size: var(--metric-quiet-size, var(--text-2xl));
+  font-size: var(--type-card-title);
   font-weight: var(--font-weight-semibold);
-}
-
-@container metric-grid (max-width: 600px) {
-  .metric-grid--led > .metric-card:not(.metric-card--lead) > .metric-card__value {
-    font-size: var(--metric-quiet-size, var(--text-xl));
-  }
-}
-
-@container metric-grid (max-width: 400px) {
-  .metric-grid--led > .metric-card:not(.metric-card--lead) > .metric-card__value {
-    font-size: var(--metric-quiet-size, var(--text-lg));
-  }
+  letter-spacing: var(--tracking-normal);
 }
 
 /* UND DIE REIHE BRICHT, STATT IHRE KARTEN ZU ZERQUETSCHEN.
@@ -978,11 +983,19 @@ svg.chart {
  *     Ohne Modulton (Karte ausserhalb eines Moduls) bleibt Sekundärtext.
  * Der Endpunkt trägt die Label-Farbe mit einem Ring in Kartenfläche: er
  * markiert den aktuellen Wert, nicht den Verlauf dorthin. */
+/* `fill: none` AM WURZELKNOTEN (R24 S15). Ein SVG ohne Fuellangabe fuellt
+ * schwarz (Anfangswert von `fill`); gemalt hat das nie, weil Flaeche, Linie
+ * und Endpunkt ihre Farbe selbst tragen - aber jede kuenftige Form ohne
+ * eigene Angabe kaeme schwarz, im Dark 1,68:1 auf der Kachel. Wie bei jedem
+ * Lucide-Zeichen sagt die Wurzel: hier fuellt nichts, die Tinte ist
+ * `currentColor`. Die Flaeche behaelt ihren Verlauf (Praesentationsattribut
+ * schlaegt Vererbung). */
 .metric-card__spark {
   width: 100%;
   height: 22px;
   display: block;
   overflow: visible;
+  fill: none;
   color: var(--module-accent, var(--color-text-secondary));
 }
 
@@ -1105,6 +1118,16 @@ svg.chart {
   display: none;
 }
 
+/* IN JEDER BREITE (Critique R24, E2; `metricGlanceHtml({ everywhere })`): die
+ * Kennzahl einer Flaeche ohne Seitenspalte steht als EINE Zeile oben in der
+ * Bahn - dieselbe Kurzzeile wie mobil, keine zweite Bauart fuer den Desktop.
+ * Den Abstand zur Liste darunter traegt die Spalte (`.page-columns__main`,
+ * gap), kein eigener Rand - mit beidem standen 32px zwischen Zahl und Liste. */
+.budget-glance.budget-glance--everywhere {
+  display: block;
+  margin-block-end: 0;
+}
+
 @media (max-width: 639px) {
   .budget-glance {
     display: block;
@@ -1175,7 +1198,9 @@ svg.chart {
  * Kennzahl-Karte: Title 3 waere groesser als der Titel „Transaktionen"
  * darunter. Die Toene sind die der Saldo-Karte (panel.css). */
 .budget-glance__value {
-  font-size: var(--text-lg);
+  /* Headline wie die Nebenzahl einer Reihe (R24); bis dahin 18px, eine Stufe
+   * ausserhalb der Skala. */
+  font-size: var(--type-card-title);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   font-variant-numeric: tabular-nums;

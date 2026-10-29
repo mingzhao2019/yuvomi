@@ -310,8 +310,10 @@ test('Termin aus der Zeile SEINER Abfallart speichern, die inzwischen geloescht 
 });
 
 for (const [name, reason, key, lauf] of [
+  // Beide Arten mit Termin: seit R24 S13 tauscht Hoch/Runter nur unter den
+  // Karten, die stehen - eine Art ohne Termin ist kein Nachbar.
   ['eine Abfallart verschieben, die es nicht mehr gibt', 'waste_type_not_found', 'waste.errorTypeGone',
-    () => waste.moveType(1, 'down')],
+    () => { waste.setStateForTest({ schedules: [SCHEDULE(), { ...SCHEDULE(), id: 8, type_id: 2 }] }); return waste.moveType(1, 'down'); }],
   ['eine Abholung aussetzen, deren Termin geloescht wurde', 'waste_schedule_not_found', 'waste.errorScheduleGone',
     () => waste.skipOccurrence('1:2026-01-12')],
   ['eine Abholung aussetzen, die nach einer Aenderung des Termins nicht mehr im Plan steht', 'waste_occurrence_not_found', 'waste.errorOccurrenceGone',
@@ -378,14 +380,17 @@ test('Ein scheiterndes Nachladen meldet sich nicht und loest kein weiteres aus',
 // -------------------------------------------------------------------------
 
 for (const [name, reason, erfolg, pfad, oeffne] of [
-  ['Abfallart (Dialog)', 'waste_type_not_found', 'waste.typeDeletedToast', '/waste/types/1',
+  // Der Satz nennt die Abfallart (R24, G2-Quer-P2-2).
+  ['Abfallart (Dialog)', 'waste_type_not_found', 'common.deletedNamed{"name":"Restmuell"}', '/waste/types/1',
     async () => (await dialog(() => waste.openTypeModal(TYPE()))).klick('#wtm-delete')],
-  ['Termin (Dialog)', 'waste_schedule_not_found', 'waste.scheduleDeletedToast', '/waste/schedules/7',
+  // Termin und Abholung nennen ihre Abfallart (R24, Uebergabe S2) - auch
+  // wenn die Art nach dem Nachladen fehlt: der Name steht VOR dem Loeschen fest.
+  ['Termin (Dialog)', 'waste_schedule_not_found', 'waste.scheduleDeletedNamed{"name":"Restmuell"}', '/waste/schedules/7',
     async () => (await terminDialog()).klick('#wsm-delete')],
-  ['Einzelabholung (Dialog)', 'waste_pickup_not_found', 'waste.pickupDeletedToast', '/waste/pickups/55',
+  ['Einzelabholung (Dialog)', 'waste_pickup_not_found', 'waste.pickupDeletedNamed{"name":"Restmuell"}', '/waste/pickups/55',
     async () => (await dialog(() => waste.openPickupModal({ id: 55, type_id: 1, date: '2026-03-01', note: null }))).klick('#wpm-delete')],
-  ['Einzelabholung (Zeile)', 'waste_pickup_not_found', 'waste.pickupDeletedToast', '/waste/pickups/55',
-    () => waste.deletePickup(55)],
+  ['Einzelabholung (Zeile)', 'waste_pickup_not_found', 'waste.pickupDeletedNamed{"name":"Restmuell"}', '/waste/pickups/55',
+    () => waste.deletePickup(55, 'Restmuell')],
   ['Quelle (Dialog)', 'waste_source_not_found', 'waste.sourceDeletedToast', '/waste/sources/4',
     async () => (await dialog(() => waste.openSourceModal(SOURCE()))).klick('#wsrc-delete')],
   ['verschobene Abholung zuruecksetzen', 'waste_override_not_found', 'waste.scheduleSavedToast', '/waste/schedules/7/overrides/2026-01-05',

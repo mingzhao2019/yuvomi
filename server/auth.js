@@ -2298,6 +2298,13 @@ export function buildInviteRoutes(targetRouter, {
     try {
       const invite = inviteService.verifyToken(String(req.query.token || ''));
       if (!invite) return res.json({ data: { valid: false } });
+      // WER EINLAEDT, STEHT AUF DER SEITE (Critique R24, G6-Zugang-P3-1): die
+      // Seite sagte nur "Du wurdest zu Yuvomi eingeladen" - ohne Haushalt, ohne
+      // Person. Der Anzeigename der einladenden Person ist alles, was der
+      // Inhaber eines gueltigen Links dafuer braucht, und nichts darueber hinaus
+      // (kein Benutzername, keine Rolle). Ein geloeschtes Konto nennt niemanden.
+      const inviter = invite.created_by == null ? null
+        : getDb().prepare('SELECT display_name FROM users WHERE id = ?').get(invite.created_by);
       res.json({
         // `password_required` sagt der /join-Seite, ob sie ueberhaupt nach einem
         // Passwort fragen soll (#847). Ohne die Angabe zeigte sie zwei
@@ -2307,6 +2314,7 @@ export function buildInviteRoutes(targetRouter, {
           valid: true,
           display_name: invite.display_name,
           username: invite.username,
+          invited_by: inviter?.display_name || null,
           password_required: isPasswordLoginEnabled(getDb()),
         },
       });

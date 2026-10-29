@@ -944,6 +944,15 @@ test('der Zeilentitel ist eine Rolle (R16)', () => {
   assert.ok(knopf);
   assert.doesNotMatch(knopf.body, /(?:^|[;\s])font:\s*inherit/, '`font: inherit` setzt das Gewicht der Rolle zurueck');
 
+  // R24 (Critique G6 P2-1): dieselbe Falle am Mitgliedsnamen der Familie - der
+  // Knopf stand auf 16/400, die Einladung darunter (kein Knopf) auf 17/600.
+  assert.ok(sels(rolle).includes('.settings-member__name'), '.settings-member__name nimmt die Rolle Zeilentitel');
+  assert.ok(!headline.flatMap(sels).includes('.settings-member__name'), '.settings-member__name steht nicht mehr in der Headline-Rolle');
+  const settingsCss = [...eachRule(readFileSync(new URL('settings.css', STYLES_DIR), 'utf8'))];
+  const mitglied = settingsCss.find((rule) => rule.selector.trim() === '.settings-member__open');
+  assert.ok(mitglied);
+  assert.doesNotMatch(mitglied.body, /(?:^|[;\s])font:\s*inherit/, '`font: inherit` am Mitgliedsnamen setzt die Rolle zurueck');
+
   // Die Aufgabenzeile traegt die Rolle, nicht mehr die Dichte-Variante der Headline.
   const tasks = readFileSync(new URL('../pages/tasks.js', STYLES_DIR), 'utf8');
   assert.match(tasks, /class="task-card__title u-row-title"/);
@@ -1399,4 +1408,65 @@ test('Title 1 traegt semibold: keine Kennzahl und kein Wert der Rolle steht in 7
   assert.ok(base !== null, 'die Grundregel `.metric-card__value` in panel.css muss es geben - sonst prueft dieser Guard nichts');
   assert.equal(base, 'var(--font-weight-semibold)', 'die Kennzahl der geteilten Karte steht semibold');
   assert.deepEqual(bold, [], 'diese Regeln setzen eine Title-1-Groesse oder den Kennzahlwert in Fett');
+});
+
+// R24 (Critique 2026-10-26, G0-Shell-P2-4 "Abschnittstitel in neun Groessen",
+// G5-Gesundheit-P2-2/P3-2, G1-Kalender-P3-3, G0-Inv-4, G4-Budget-P3-6): die
+// Titelleiter Gruppe 12 - Abschnitt 20 - Detailtitel 22 - Kartentitel 17 -
+// Zeilentitel 16, dazu EIN Blocktitel im Zeitraster und EINE Betragsform. Jede
+// Stelle unten stand vorher in einer Stufe ausserhalb der Rollen.
+test('R24: die Titelleiter - jede Ueberschrift nimmt eine Rolle, kein Modul setzt eine eigene Stufe', () => {
+  const css = (name) => readFileSync(new URL(name, STYLES_DIR), 'utf8');
+  const typo = [...eachRule(css('typography.css'))].filter((rule) => rule.at.length === 0);
+  const sels = (rule) => rule.selector.split(',').map((s) => s.trim());
+  const rolle = (sel) => typo.filter((rule) => sels(rule).includes(sel));
+  const body = (sel) => rolle(sel).map((rule) => rule.body).join(';');
+  const eigen = (file, sel, prop) => [...eachRule(css(file))]
+    .filter((rule) => sels(rule).includes(sel) && new RegExp(`(?:^|[;\\s])${prop}:`).test(rule.body))
+    .map((rule) => `${file}: ${[...rule.at, rule.selector.trim()].join(' | ')}`);
+
+  // Detailtitel: Title 2 semibold, an EINER Stelle.
+  assert.match(body('.split-view__detail-title'), /font-size:\s*var\(--text-2xl\)/, 'Detailtitel = 22');
+  assert.match(body('.split-view__detail-title'), /font-weight:\s*var\(--font-weight-semibold\)/);
+  assert.deepEqual([...eigen('layout.css', '.split-view__detail-title', 'font-size'), ...eigen('health.css', '.health-detail-head__title', 'font-size')], [],
+    'kein Modulblatt schreibt dem Detailtitel eine Groesse vor (vorher 18 in layout.css und health.css)');
+
+  // Abschnitt: der Kopf der Ordnerspalte wie "Alle Bereiche" der Gesundheit.
+  assert.match(body('.documents-folder-browser__title'), /font-size:\s*var\(--type-section-title\)/, 'Ordnerspalte: Abschnitt 20');
+  assert.deepEqual(eigen('documents.css', '.documents-folder-browser__title', 'font-(?:size|weight)'), [], 'documents.css setzt keine 14/600 mehr');
+
+  // Kartentitel: Untertitel der Gesundheit in Headline.
+  for (const [file, sel] of [['health.css', '.health-chart-section__title'], ['health.css', '.health-recent__title'], ['settings.css', '.settings-status-summary__title']]) {
+    assert.match(body(sel), /font-size:\s*var\(--type-card-title\)/, `${sel} = Headline 17`);
+    assert.deepEqual(eigen(file, sel, 'font-(?:size|weight)'), [], `${file} setzt ${sel} keine eigene Stufe`);
+  }
+
+  // Zeilentitel: die offene Anfrage der Belohnungen.
+  assert.ok(sels(typo.find((rule) => sels(rule).includes('.list-row__name'))).includes('.rw-pending__title'), '.rw-pending__title nimmt den Zeilentitel');
+  assert.deepEqual(eigen('rewards.css', '.rw-pending__title', 'font-weight'), [], 'kein Literal-Gewicht 600 an der Anfrage');
+
+  // Blocktitel im Zeitraster: Termin und Schicht, Woche und Tag in EINER Regel.
+  const block = typo.find((rule) => sels(rule).includes('.schedule-time-block__title'));
+  assert.ok(block, 'der Schichtblock nimmt die Rolle Blocktitel');
+  for (const sel of ['.week-event__title', '.day-event__title']) assert.ok(sels(block).includes(sel), `${sel} in derselben Rolle`);
+  assert.match(block.body, /font-size:\s*var\(--text-xs\)/);
+  assert.match(block.body, /font-weight:\s*var\(--font-weight-semibold\)/);
+  for (const sel of ['.week-event__title', '.day-event__title', '.schedule-time-block__title']) {
+    assert.deepEqual(eigen('calendar.css', sel, 'font-(?:size|weight)'), [], `calendar.css setzt ${sel} keine eigene Stufe`);
+  }
+  // Seit R24 E5 ist die Schicht ein Band: EINE Zeile (das Kurzetikett), keine
+  // Zeitzeile mehr - die Uhrzeit sagen Band-Laenge, Name und Detail.
+  const cal = [...eachRule(css('calendar.css'))];
+  assert.ok(!cal.some((rule) => /\.schedule-time-block__time/.test(rule.selector)), 'keine eigene Zeitzeile im Schichtband');
+
+  // Betrag: eine Groesse in der Zeile (16), ein Gewicht ueberall (semibold).
+  const budget = [...eachRule(css('budget.css'))].filter((rule) => rule.at.length === 0);
+  const b = (sel) => budget.filter((rule) => sels(rule).includes(sel)).map((rule) => rule.body).join(';');
+  assert.match(b('.budget-account__balance'), /font-size:\s*var\(--text-base\)/, 'Kontosaldo 16 wie die Buchung (vorher 18)');
+  assert.match(b('.budget-plan-row__amounts strong'), /font-size:\s*var\(--text-base\)/, 'Planwert 16 (vorher 14)');
+  assert.match(b('.budget-loan-card__amounts strong'), /font-weight:\s*var\(--font-weight-semibold\)/, 'die Rate ist kein Browser-Fett');
+  assert.match(b('.budget-bar-row__amount'), /font-weight:\s*var\(--font-weight-semibold\)/, 'Diagrammbetrag semibold (vorher medium)');
+  for (const sel of ['.subscription-card__cost > strong', '.subscriptions-chart-row > strong', '.subscriptions-chart__figure strong']) {
+    assert.match(b(sel), /font-weight:\s*var\(--font-weight-semibold\)/, `${sel}: kein Browser-Fett`);
+  }
 });

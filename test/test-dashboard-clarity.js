@@ -1576,7 +1576,7 @@ test('R21 S7 mobil: ab sechs Gesichtern liegt keine Marke auf dem Nachbarn, der 
   assert.doesNotMatch(status.body, /max-inline-size:\s*\d+%/, 'kein Prozentdeckel am Termin');
 });
 
-test('R19 mobil: die Wetterzeile steht im Masthead auch neben der Karte, breit schliessen sich beide aus', async () => {
+test('R24 E7: die Wetterzeile steht im Masthead auch neben der Karte, in jeder Breite', async () => {
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../public/pages/dashboard.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../public/styles/dashboard.css', import.meta.url), 'utf8');
@@ -1585,8 +1585,11 @@ test('R19 mobil: die Wetterzeile steht im Masthead auch neben der Karte, breit s
   const weather = { current: { temp: 18, desc: 'Sonnig', icon: '01d' }, units: 'metric' };
   const head = __test.renderDashboardOverview({ display_name: 'Linda' }, false, weather, { weatherCard: true });
   assert.match(head, /class="dashboard-overview__weather dashboard-overview__weather--card"/);
-  assert.match(css, /@media \(min-width: 768px\) \{\s*\.dashboard-overview__weather--card \{\s*display: none;/,
-    'ab 768px steht die Karte im Bild - dort nur sie');
+  // Bis R24 blendete ab 768px eine Regel die Zeile aus, sobald die Karte stand -
+  // am Desktop lag das Jetzt dann nur unter der Falz (Critique G1-Uebersicht-P3-5).
+  const { eachRule } = await import('./css-rules.js');
+  const hides = [...eachRule(css)].filter((r) => r.selector.includes('dashboard-overview__weather--card') && /display:\s*none/.test(r.body));
+  assert.deepEqual(hides.map((r) => r.selector), [], 'keine Breite blendet die Wetterzeile neben der Karte aus');
 });
 
 test('R19 mobil: der Wand-Modus steht im Anpassen-Menue, je Breite ein Weg', async () => {

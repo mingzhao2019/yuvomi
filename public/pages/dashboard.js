@@ -34,7 +34,7 @@ import { locationLabel } from '/utils/pantry-locations.js';
 import { pantryQuantityLabel } from '/utils/pantry-units.js';
 import { findPageFab } from '/utils/fab.js';
 import { setLeaveGuard } from '/utils/leave-guard.js';
-import { openModal, closeModal, confirmModal, refocusAfterRender } from '/components/modal.js';
+import { openModal, closeModal, confirmModal, refocusAfterRender, lastInputWasKeyboard } from '/components/modal.js';
 import { renderAvatarStack, sharedSurname } from '/components/user-multi-select.js';
 import { isSoloHousehold } from '/utils/household.js';
 import { toggleRegion, durationToken, easingToken, expandIn } from '/utils/ux.js';
@@ -62,7 +62,7 @@ import { whoMark } from '/utils/seal-pair.js';
 import { MODULE_ICON, moduleIconHTML } from '/nav-icons.js';
 import { enterWallMode, exitWallMode, isWallActive, syncWallMode } from '/utils/wall-mode.js';
 import { mountZonePrompt } from '/utils/household-zone-hint.js';
-import { mountFirstSteps, startFirstSteps } from '/utils/first-steps.js';
+import { firstStepsActive, mountFirstSteps, startFirstSteps } from '/utils/first-steps.js';
 import { renderWallTimer, wireWallTimer } from '/components/wall-timer.js';
 import { rememberLayoutHint, layoutHintTiles, layoutHintQuery, rememberHeadHint, headHint } from '/utils/dashboard-layout-hint.js';
 import { emptyHintHTML, cardEmptyRowHtml } from '/utils/empty-state.js';
@@ -564,7 +564,7 @@ function showOnboarding(appContainer, onDone) {
     const target = steps[current].target?.();
     const shown = isShownOnScreen(target);
     overlay.classList.toggle('onboarding-overlay--spot', shown);
-    if (!shown) return;
+    if (!shown) { placeCard(null); return; }
     const r = target.getBoundingClientRect();
     const radius = parseFloat(getComputedStyle(target).borderTopLeftRadius) || 0;
     const pad = ONBOARDING_SPOT_PAD;
@@ -573,6 +573,37 @@ function showOnboarding(appContainer, onDone) {
     spot.style.setProperty('--spot-w', `${Math.round(r.width + pad * 2)}px`);
     spot.style.setProperty('--spot-h', `${Math.round(r.height + pad * 2)}px`);
     spot.style.setProperty('--spot-r', `${Math.round(Math.min(radius + pad, (r.height + pad * 2) / 2))}px`);
+    placeCard({ left: r.left - pad, top: r.top - pad, right: r.right + pad, bottom: r.bottom + pad });
+  }
+
+  /* Die Karte an den Ring (onboardingCardPlacement). Der Ortswechsel gleitet
+   * wie der Ring (FLIP ueber transform, --duration-lg), unter reduzierter
+   * Bewegung springt er. Ohne Ziel steht sie wieder, wie das Overlay sie
+   * stellt (Mitte, mobil oben). */
+  function placeCard(spotRect) {
+    const before = card.getBoundingClientRect();
+    const place = spotRect && onboardingCardPlacement(
+      spotRect,
+      { width: card.offsetWidth, height: card.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight },
+    );
+    overlay.classList.toggle('onboarding-overlay--anchored', Boolean(place));
+    if (place) {
+      card.style.setProperty('--card-x', `${place.x}px`);
+      card.style.setProperty('--card-y', `${place.y}px`);
+    } else {
+      card.style.removeProperty('--card-x');
+      card.style.removeProperty('--card-y');
+    }
+    const after = card.getBoundingClientRect();
+    const dx = before.left - after.left;
+    const dy = before.top - after.top;
+    if ((Math.abs(dx) < 1 && Math.abs(dy) < 1) || !card.animate || !before.width) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    card.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], {
+      duration: parseFloat(getComputedStyle(card).getPropertyValue('--onboarding-move-ms')) || 400,
+      easing: getComputedStyle(card).getPropertyValue('--onboarding-move-ease').trim() || 'ease-out',
+    });
   }
   const onResize = () => placeSpotlight();
   window.addEventListener('resize', onResize);
@@ -612,6 +643,8 @@ function showOnboarding(appContainer, onDone) {
     const title = document.createElement('h2');
     title.className = 'onboarding-title';
     title.id = ONBOARDING_TITLE_ID;
+    // Fokusziel nach einem Tipp (focusStep), nicht in der Tab-Folge.
+    title.tabIndex = -1;
     title.textContent = step.title;
 
     const body = document.createElement('p');
@@ -653,7 +686,7 @@ function showOnboarding(appContainer, onDone) {
       // gegangen) - synchron nach dem Tausch, die Blende sperrt nichts.
       let next = null;
       swapContent(stepEl, () => { next = fillStep(); }, { direction: 1 });
-      next?.focus();
+      focusStep(next);
     });
 
     // EIN SCHRITT ZURUECK (R23 S10, Critique G6 P3 "Tour ohne Zurueck"): wer
@@ -668,7 +701,7 @@ function showOnboarding(appContainer, onDone) {
       current--;
       let next = null;
       swapContent(stepEl, () => { next = fillStep(); }, { direction: -1 });
-      next?.focus();
+      focusStep(next);
     });
 
     if (current > 0) actions.appendChild(backBtn);
@@ -684,6 +717,19 @@ function showOnboarding(appContainer, onDone) {
     if (window.lucide) window.lucide.createIcons({ el: stepEl });
     placeSpotlight();
     return nextBtn;
+  }
+
+  /* KEIN RING AM FINGER (Critique R24, G6-Rundgang-P3-1). Der Fokus ging nach
+   * jedem Schritt programmatisch an "Weiter", und der Knopf trug danach seinen
+   * Fokusring auch nach einem Tipp (gemessen 390, touch: `:focus-visible` in
+   * allen drei Schritten). Wie im Dialog (components/modal.js, Erstfokus):
+   * nach Tastatur der Hauptknopf mit Ring, nach Zeiger oder auf einem
+   * Touchgeraet ohne Eingabe der Titel des Schritts (`tabindex=-1`, ohne
+   * Ring) - der Fokus bleibt in der Karte, und Tab fuehrt zu den Knoepfen. */
+  function focusStep(button) {
+    const touch = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches === true;
+    if (lastInputWasKeyboard() && !touch) { button?.focus(); return; }
+    stepEl.querySelector('.onboarding-title')?.focus({ preventScroll: true });
   }
 
   let finished = false;
@@ -721,7 +767,7 @@ function showOnboarding(appContainer, onDone) {
   // Die Seite hinter dem Rundgang ist gesperrt, solange er laeuft
   // (utils/background-inert.js); finish() gibt sie vor dem Fokus frei.
   const releaseBackground = inertOutside(overlay);
-  setTimeout(() => stepEl.querySelector('.btn--primary')?.focus(), 50);
+  setTimeout(() => focusStep(stepEl.querySelector('.btn--primary')), 50);
   // Die Zurueck-Geste beendet die Einfuehrung, statt hinter ihr zu navigieren
   // (#871). `finish()` ist der EINE Weg hinaus und merkt sich das auch.
   attachOverlay(overlay, finish);
@@ -2517,8 +2563,8 @@ function renderPinnedNotes(allNotes, size, total = null) {
       <div class="note-item__content">${renderMarkdownLight(excerpt(n.content))}</div>
       </div>
       ${(n.categories || []).length ? `<div class="note-item__categories" role="group" aria-label="${esc(t('noteCategories.categories'))}">
-        ${n.categories.map((category) => `<span class="note-item__category u-badge">${esc(noteCategoryName(category))}<span class="sr-only"> (${esc(noteCategoryScope(category))})</span></span>`).join('')}
-        <button type="button" class="note-item__categories-more u-badge" aria-label="${esc(t('noteCategories.categories'))}" hidden></button>
+        ${n.categories.map((category) => `<span class="tag note-item__category">${esc(noteCategoryName(category))}<span class="sr-only"> (${esc(noteCategoryScope(category))})</span></span>`).join('')}
+        <button type="button" class="tag note-item__categories-more" aria-label="${esc(t('noteCategories.categories'))}" hidden></button>
       </div>` : ''}
     </div>
   `).join('');
@@ -4917,11 +4963,16 @@ function buildTodayCockpitModel(data, cfg = [], {
     // „Alles erledigt" sagt auch eine Quelle, deren Offenes heute geschafft
     // ist (alle Dosen genommen) - sonst hiesse derselbe Tag „Heute frei".
     const sayAllDone = (includeTasks && program.tasksDoneToday > 0) || contributed.settled;
+    // EIN NEUER HAUSHALT IST NICHT FREI, SONDERN LEER (R24, Critique G6 P2-2).
+    // Nach der Einrichtung stand "Heute frei" ueber einer Uebersicht ohne einen
+    // einzigen Eintrag. Solange die Erste-Schritte-Karte laeuft und nichts
+    // kommt, sagt die Zeile das: noch nichts geplant, und was hier erscheint.
+    const fresh = !sayAllDone && !outlook && firstStepsActive();
     if (sayAllDone || includeCalendar) {
       state = {
-        title: sayAllDone ? t('dashboard.todayAllDone') : t('dashboard.todayFree'),
-        sub: outlook?.sub ?? '',
-        icon: sayAllDone ? 'check-circle' : 'sparkles',
+        title: sayAllDone ? t('dashboard.todayAllDone') : t(fresh ? 'dashboard.todayNothingPlanned' : 'dashboard.todayFree'),
+        sub: fresh ? t('dashboard.todayNothingPlannedSub') : (outlook?.sub ?? ''),
+        icon: sayAllDone ? 'check-circle' : fresh ? 'calendar-plus' : 'sparkles',
         route: outlook?.route ?? null,
       };
     }
@@ -8077,11 +8128,9 @@ function weatherTempBand(temp, units) {
 function mastheadWeatherHtml(weather, { card = false } = {}) {
   if (!weather?.current) return '';
   const desc = weatherDescText(weather, weather.current.desc);
-  // MIT KARTE NUR MOBIL (R19, Entscheidung Ulas 2026-10-16): die Wetterkarte
-  // stand auf dem Telefon bei y 1438 - die Kurzzeile unterm Gruss sagt das
-  // Jetzt sofort, die Karte weiter unten behaelt die Vorhersage. Ab 768px,
-  // wo die Karte neben dem Kopf im Bild steht, schliessen sich beide weiter
-  // aus (`--card`, dashboard.css).
+  // AUCH NEBEN DER KARTE (R19 mobil, seit R24 E7 in jeder Breite): die
+  // Kurzzeile unterm Gruss sagt das Jetzt sofort, die Karte weiter unten
+  // behaelt die Vorhersage. `--card` markiert nur noch, dass die Karte steht.
   return `
     <p class="dashboard-overview__weather${card ? ' dashboard-overview__weather--card' : ''}"${weatherToneAttr(weather.current.icon)}>
       ${weatherIconHtml(weather, weather.current.icon, 'dashboard-overview__weather-icon', 18, desc)}

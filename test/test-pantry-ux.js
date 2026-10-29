@@ -34,6 +34,7 @@ function makeNode() {
     getAttribute(name) { return attrs.has(name) ? attrs.get(name) : null; },
     appendChild(child) { node.children.push(child); return child; },
     append(...kids) { node.children.push(...kids); },
+    prepend(...kids) { node.children.unshift(...kids); },
     replaceChildren() { node.children = []; },
     replaceWith() {},
     insertAdjacentHTML(_where, html) { node.html += html; },
@@ -459,7 +460,7 @@ test('renderList() laesst die Chipreihe als erstes Kind des Ports stehen', () =>
 });
 
 // --------------------------------------------------------
-// Nebenpanel „Braucht Aufmerksamkeit" (Re-Critique 2026-09-27, A4 P1 / R10 L4)
+// R24 E2: keine Seitenspalte, der Status steht in der Metazeile
 // --------------------------------------------------------
 
 // Am Desktop standen die Lagerort-Gruppen auf 252-972, rechts 436px leer. Das
@@ -566,9 +567,6 @@ test('das Panel steht nur ab 60rem Vorratsflaeche, die Liste auf dem Lesemass, d
   assert.match(wide('.pantry-body')?.body ?? '', /flex-direction:\s*row/);
   assert.match(wide('.pantry-body > .pantry-list')?.body ?? '', /--page-measure:\s*100%/,
     'die Gruppen kappen auf die Spalte, ueber dieselbe Variable wie ueberall');
-  // Critique R19: das Seitenpolster stand IN der 20rem-Basis des Panels - bei
-  // 1920 blieben 110px Inhalt. Es gehoert einmal an den Koerper; die Liste
-  // steht auf dem Lesemass, das Panel nimmt den Rest (Geometrie von .page-columns).
   assert.match(wide('.pantry-body')?.body ?? '', /padding-inline:\s*var\(--page-inline-pad\)/,
     'der Koerper zieht Liste und Panel auf die Inhaltsspalte');
   assert.doesNotMatch(wide('.pantry-watch:not([hidden])')?.body ?? '', /padding-inline/,
@@ -583,11 +581,43 @@ test('das Panel steht nur ab 60rem Vorratsflaeche, die Liste auf dem Lesemass, d
   assert.match(src, /watch\.addEventListener\('click', onWatchClick\)/, 'eine Panelzeile oeffnet ihren Artikel');
 });
 
+// Am Telefon stand der Status mal neben, mal unter dem Namen, am Desktop frei
+// schwebend - jetzt immer nach der Menge in der Metazeile.
+test('R24: der Status steht in der Metazeile nach der Menge, nicht neben dem Namen', () => {
+  resetPantry();
+  __test.state.todayKey = '2026-09-27';
+  const item = rice(1, { id: 7, name: 'Vollmilch', expires_on: '2026-09-29', min_quantity: 2, location_name: 'fridge' });
+  const wrap = __test.rowEl(item, { batch: false, total: null });
+  const li = byClass(wrap, 'pantry-row')[0] ?? wrap;
+  const headline = byClass(li, 'pantry-row__headline')[0];
+  assert.equal(byClass(headline, 'pantry-badge').length, 0, 'kein Etikett neben dem Namen');
+  const meta = byClass(li, 'pantry-row__meta')[0];
+  const kids = meta.children.map((c) => c.className);
+  assert.equal(kids[0], 'pantry-row__quantity', 'die Menge fuehrt');
+  assert.equal(kids[1], 'pantry-row__badges', 'der Status folgt ihr');
+  assert.equal(kids[2], 'pantry-row__where', 'MHD und Ort danach, als ein Knoten');
+  assert.deepEqual(byClass(meta, 'pantry-badge').map(textOf), ['pantry.badgeExpiresDays{"count":2}', 'pantry.badgeLow']);
+  const where = meta.children[2];
+  assert.equal(where.children[0].className, 'pantry-row__lead-sep', 'der Trenner vor dem MHD ist ein eigener Knoten');
+  assert.ok(!where.children[1].textContent.startsWith(' · '), 'das MHD beginnt nicht mit dem Trenner');
+});
+
+test('R24: am Telefon rueckt bei einem Status die zweite Haelfte in eine eigene Zeile, das MHD bleibt', async () => {
+  const { eachRule } = await import('./css-rules.js');
+  const css = readFileSync(new URL('../public/styles/pantry.css', import.meta.url), 'utf8');
+  const rules = [...eachRule(css)];
+  const narrow = (sel) => rules.find((r) => r.selector.trim() === sel && String(r.at).includes('list-rows (max-width: 26rem)'));
+  assert.match(narrow('.pantry-row__meta:has(.pantry-badge) > .pantry-row__where')?.body ?? '', /display:\s*block/);
+  assert.match(narrow('.pantry-row__meta:has(.pantry-badge) > .pantry-row__where > .pantry-row__lead-sep')?.body ?? '', /display:\s*none/);
+  assert.ok(!rules.some((r) => /pantry-row__expiry/.test(r.selector) && /display:\s*none/.test(r.body)),
+    'das MHD wird nirgends mehr weggelassen');
+});
+
 // Codex P2 zu R10 L4: das Panel zeichnete aus `withIntent`, der Klick holte den
 // Artikel aber aus dem nackten Serverstand. Stepper-Schritt, Zeile im Panel
 // oeffnen, anderes Feld speichern - und der PUT schrieb die alte Menge zurueck.
 // Gemessen am Feld, das der Dialog wirklich fuellt, fuer BEIDE Einstiege.
-test('der Bearbeiten-Dialog zeigt die Menge eines noch entprellten Schritts - aus Panel und Liste', () => {
+test('der Bearbeiten-Dialog zeigt die Menge eines noch entprellten Schritts', () => {
   resetPantry();
   __test.state.items = [rice(1, { id: 2, name: 'Milch' })];
   __test.intents.set(2, { quantity: 4, seq: 1, timer: null, flush: () => {} });
@@ -606,21 +636,16 @@ test('der Bearbeiten-Dialog zeigt die Menge eines noch entprellten Schritts - au
   const opened = [];
   globalThis.__openModal = (opts) => { opened.push(opts); };
   try {
-    const watchBtn = { dataset: { watchId: '2' } };
-    __test.onWatchClick({ target: { closest: (sel) => (sel === '[data-watch-id]' ? watchBtn : null) } });
-    assert.equal(opened.length, 1, 'die Panelzeile oeffnet den Dialog');
-    assert.equal(fieldsOf(opened[0])['#pantry-quantity'].value, '4', 'Panel: die Menge der Absicht, nicht der Serverstand 1');
-
     const row = { dataset: { id: '2' } };
     const editBtn = { dataset: { action: 'edit' }, closest: (sel) => (sel === '.pantry-row[data-id]' ? row : null) };
     __test.onListClick({ target: { closest: (sel) => (sel === '[data-action]' ? editBtn : null) } });
-    assert.equal(opened.length, 2, 'die Listenzeile oeffnet den Dialog');
-    assert.equal(fieldsOf(opened[1])['#pantry-quantity'].value, '4', 'Liste: dieselbe Menge wie die Zeile');
+    assert.equal(opened.length, 1, 'die Listenzeile oeffnet den Dialog');
+    assert.equal(fieldsOf(opened[0])['#pantry-quantity'].value, '4', 'die Menge der Absicht, nicht der Serverstand 1');
 
     // Gegenprobe ohne Absicht: der Serverstand.
     __test.intents.clear();
-    __test.onWatchClick({ target: { closest: (sel) => (sel === '[data-watch-id]' ? watchBtn : null) } });
-    assert.equal(fieldsOf(opened[2])['#pantry-quantity'].value, '1');
+    __test.onListClick({ target: { closest: (sel) => (sel === '[data-action]' ? editBtn : null) } });
+    assert.equal(fieldsOf(opened[1])['#pantry-quantity'].value, '1');
   } finally {
     delete globalThis.__openModal;
     resetPantry();

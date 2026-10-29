@@ -256,6 +256,7 @@ async function measureHead(page) {
       tools: box('.dashboard-overview__tools'),
       overview: box('.dashboard-overview'),
       updated: box('.dashboard-overview__updated'),
+      weather: box('.dashboard-overview__weather'),
       firstContent: first ? Math.round(first.getBoundingClientRect().top) : null,
     };
   });
@@ -327,8 +328,12 @@ test('Kopf desktop: nicht hoeher als vorher, Werkzeuge rechts auf Hoehe des Datu
   const m = await measureHead(page);
   await page.close();
   // Vorher 67px: Datum, Titel und darunter rechts der Stand-Anker unter den
-  // Knoepfen. Ohne den Anker sind es Datum plus Titel.
-  assert.ok(m.overview.height <= 67, `Der Kopf ist am Desktop ${m.overview.height}px hoch`);
+  // Knoepfen. Ohne den Anker sind es Datum plus Titel - und seit R24 (E7 a)
+  // die Wetterzeile darunter, in jeder Breite wie mobil. Sie ist die EINE Zeile,
+  // die der Kopf dafuer waechst (19px Text plus 4px Abstand).
+  const weatherLine = m.weather?.shown ? m.weather.height + 4 : 0;
+  assert.ok(m.overview.height <= 67 + weatherLine, `Der Kopf ist am Desktop ${m.overview.height}px hoch (Wetterzeile ${weatherLine}px)`);
+  assert.ok(weatherLine === 0 || m.weather.top >= m.title.bottom, 'die Wetterzeile steht unter dem Gruss');
   assert.equal(m.titleLines['Guten Morgen, Linda'], 1);
   assert.ok(Math.abs(m.tools.top - m.date.top) <= 2, 'Die Werkzeuge haengen oben, auf der Datumszeile');
   assert.ok(!m.updated?.shown, 'Kein Stand-Anker ausserhalb des Wand-Modus');
