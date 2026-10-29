@@ -26,9 +26,9 @@ Last verified: **2026-10-29 UTC**.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `c3aa42426d2048b2a8f543567f6357914999c306` | Local upstream v2.82.0 baseline is synchronized to the current upstream tip. |
-| `origin/main` | `c3aa42426d2048b2a8f543567f6357914999c306` | Remote upstream baseline matches local `main` after the authorized push. |
-| `custom` | Selective integration of 13 independent upstream commits, plus the synchronization record update. | Product-specific behavior remains authoritative. |
+| `main`, `upstream/main` | `152499fa7560c136b5a1cbb5268277577fb992e1` | Local upstream v2.83.0 baseline is synchronized to the current upstream tip. |
+| `origin/main` | `152499fa7560c136b5a1cbb5268277577fb992e1` | Remote upstream baseline matches local `main` after the authorized push. |
+| `custom` | Selective integration of 17 upstream commits, plus local reconciliation and the synchronization record update. | Product-specific behavior remains authoritative. |
 | `origin/custom` | Matches local `custom` after the authorized push. | Remote delivery is complete. |
 
 Both branch pairs now match after delivery:
@@ -38,24 +38,27 @@ main...upstream/main   0 0
 custom...origin/custom 0 0
 ```
 
-The release metadata remains `2.82.0`. The upstream app-wide R24 design
-refactor (`72db19dfb`) was inspected and intentionally skipped because it is a
-large coupled UI change that conflicts with the custom calendar, task,
-settings, and layout contracts. The other 13 upstream commits were adopted
-selectively. No new database migration was added; custom migrations remain
-append-only. The older destructive upstream commit `cd1ee47be` remains
-excluded because it conflicts with the custom task-list/account identity
-contract and can delete existing data.
+The release metadata is `2.83.0`. The upstream app-wide R24 design refactor
+(`72db19dfb`) was inspected and intentionally skipped because it is a large
+coupled UI change that conflicts with the custom calendar, task, settings, and
+layout contracts. The four commits in the new upstream range were adopted:
+Mealie preparation-step mirroring, dashboard task defaults, the focused budget
+browser probe change, and the release metadata. The release notes and
+specification were reconciled manually to omit unadopted R24 claims while
+preserving custom migration 278 and the custom product wording. No new
+database migration was added; custom migrations remain append-only. The older
+destructive upstream commit `cd1ee47be` remains excluded because it conflicts
+with the custom task-list/account identity contract and can delete existing
+data.
 
-Focused checks for the adopted changes passed, including file secrets 18/18,
-preferences routes 93/93, people pickers 1/1, settings navigation 212/212,
-local calendars 16/16 plus 35/35, CalDAV outbound 1/1, email 28/28, weather
-35/35, health vitals 1/1, task defaults 22/22, sidebar pinned 1/1, money and
-split-amount checks, budget checks, calendar window resume, timezone formatter
-cache, and installer schema. The budget transfer browser guard was blocked by
-the test Chromium process closing its connection; it did not reach a business
-assertion. The full `npm test` and aggregate browser guard chain were not run
-per the operator's request, so those scopes remain unverified.
+Focused checks for this sync passed: recipe-provider adapter 35/35, recipe-
+provider sync 27/27, dashboard accessibility 50/50, migration append-only
+4/4, changelog, landing-page, README-consistency, and Service Worker checks.
+The single affected budget transfer browser probe reached the save/database
+assertion successfully but its cleanup hit a detached Playwright frame; that
+test environment failure is recorded without changing product code. The full
+`npm test` and aggregate browser guard chain were not run per the operator's
+request, so those scopes remain unverified.
 
 There is no temporary integration branch left in the local repository.
 Product-specific behavior remains authoritative on `custom`; the full list is

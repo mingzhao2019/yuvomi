@@ -1,7 +1,7 @@
 <!-- version: 2.83.0 -->
-This update brings servings to recipes, your own defaults for new tasks and a broad round of fixes across the app.
+This update brings preparation steps to recipes mirrored from Mealie, your own defaults for new tasks and a focused set of synchronization fixes.
 
-A recipe can now say how many servings it is for, and a stepper recalculates every amount; planning a meal or adding it to the shopping list takes the servings you chose. New tasks open with the visibility and lock setting you pick under Settings > Tasks. Shared expenses use your budget categories, and recipes mirrored from Mealie now bring their preparation steps along.
+Recipes mirrored from Mealie now bring their preparation steps along in the notes. New tasks open with the visibility and lock setting you pick under Settings > Tasks. Existing mirrored recipes are fetched once after the mirror format changes so they receive the new steps too.
 
 Recurring tasks keep their repeat on a CalDAV server, old daily series show up in the calendar again, and imported calendars take on a new colour when you change it. Amount fields accept a comma or a point, weights in grams and kilograms share one chart, and email with encryption set to "None" now sends. Many smaller fixes make phone layouts, settings and the welcome tour easier to use.
 

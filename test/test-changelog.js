@@ -523,6 +523,9 @@ const RELEASED_SECTION_EDITS = {
   // Keep the exact hashes so later changes to the same released sections still fail.
   // v2.82.0 intentionally omits upstream's destructive cross-account deduplication
   // entry and keeps the custom branch's migration/account wording.
+  // v2.83.0 keeps the custom branch's selective-sync release text and omits the
+  // unadopted R24 app-wide design changes from upstream's release notes.
+  '2.83.0': '03fd0e2868bf',
   '2.82.0': '677ba309338c',
   '2.77.1': '50bb81d64389',
   '2.75.0': 'a7b765b32669',
