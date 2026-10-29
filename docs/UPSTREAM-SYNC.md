@@ -22,14 +22,14 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-10-28 UTC**.
+Last verified: **2026-10-29 UTC**.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `c77bc34d1be8030c88b154ffb6a85b3295077008` | Local upstream v2.82.0 baseline is synchronized through the latest two fixes. |
-| `origin/main` | `c77bc34d1be8030c88b154ffb6a85b3295077008` | Remote upstream baseline matches local `main`. |
-| `custom` | Local tip after the current selective integration. | Remote delivery is complete. |
-| `origin/custom` | Matches local `custom`. | Remote delivery is complete. |
+| `main`, `upstream/main` | `c3aa42426d2048b2a8f543567f6357914999c306` | Local upstream v2.82.0 baseline is synchronized to the current upstream tip. |
+| `origin/main` | `c3aa42426d2048b2a8f543567f6357914999c306` | Remote upstream baseline matches local `main` after the authorized push. |
+| `custom` | Selective integration of 13 independent upstream commits, plus the synchronization record update. | Product-specific behavior remains authoritative. |
+| `origin/custom` | Matches local `custom` after the authorized push. | Remote delivery is complete. |
 
 Both branch pairs now match after delivery:
 
@@ -38,21 +38,24 @@ main...upstream/main   0 0
 custom...origin/custom 0 0
 ```
 
-The release metadata is `2.82.0`. The destructive upstream commit
-`cd1ee47be` (cross-account duplicate-row deletion) remains intentionally
+The release metadata remains `2.82.0`. The upstream app-wide R24 design
+refactor (`72db19dfb`) was inspected and intentionally skipped because it is a
+large coupled UI change that conflicts with the custom calendar, task,
+settings, and layout contracts. The other 13 upstream commits were adopted
+selectively. No new database migration was added; custom migrations remain
+append-only. The older destructive upstream commit `cd1ee47be` remains
 excluded because it conflicts with the custom task-list/account identity
 contract and can delete existing data.
 
-The new upstream commits are `aec5cf0cb` (full-cell API-token scope targets)
-and `c77bc34d1` (member-colour validation and safe rendering). Both were
-adopted. The upstream migration 269 became custom migration 278 because
-custom already uses migration numbers 269–277; the upstream destructive
-migration 268 was not adopted.
-
-Focused checks pass: avatar colour 6/6, token scopes 16/16, dashboard 189/189,
-frontend audit 563/563, and migration append-only 4/4. The full `npm test`
-and the aggregate browser guard chain were not run per the operator's request;
-those scopes remain unverified.
+Focused checks for the adopted changes passed, including file secrets 18/18,
+preferences routes 93/93, people pickers 1/1, settings navigation 212/212,
+local calendars 16/16 plus 35/35, CalDAV outbound 1/1, email 28/28, weather
+35/35, health vitals 1/1, task defaults 22/22, sidebar pinned 1/1, money and
+split-amount checks, budget checks, calendar window resume, timezone formatter
+cache, and installer schema. The budget transfer browser guard was blocked by
+the test Chromium process closing its connection; it did not reach a business
+assertion. The full `npm test` and aggregate browser guard chain were not run
+per the operator's request, so those scopes remain unverified.
 
 There is no temporary integration branch left in the local repository.
 Product-specific behavior remains authoritative on `custom`; the full list is
