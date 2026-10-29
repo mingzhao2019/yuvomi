@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Amounts accept either decimal comma or point.** Budget, split and reward amount fields normalize both common decimal separators before validation and submission.
 
 ### Fixed
+- **Mixed vital units share one chart scale.** Health vital charts now normalize compatible unit values before plotting or comparing changes, instead of mixing magnitudes on one axis.
 - **SMTP none remains plain and weather search drops the postcode hint.** SMTP setting `none` no longer renders a password field, and weather search no longer treats a postcode suffix as part of the place name.
 - **Old daily recurring series appear in the calendar again.** Calendar readers now resume expansion near the requested window instead of exhausting the iteration limit from the original start date.
 - **Recurring calendar expansion reuses time-zone formatters.** Synced recurring events now share cached formatters per time zone, preserving results while reducing dashboard and calendar expansion cost.
