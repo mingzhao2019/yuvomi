@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that is not a colour falls back to the default blue on update.
 
 ### Fixed
+- **Recurring calendar expansion reuses time-zone formatters.** Synced recurring events now share cached formatters per time zone, preserving results while reducing dashboard and calendar expansion cost.
 - **The read and write boxes of a new API token are easy to hit.** Each box only answered on its
   own 14 px square; now the whole cell of its column does, as tall as any other control.
 
