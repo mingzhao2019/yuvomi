@@ -22,13 +22,13 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-10-29 UTC**.
+Last verified: **2026-10-30 UTC**.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `152499fa7560c136b5a1cbb5268277577fb992e1` | Local upstream v2.83.0 baseline is synchronized to the current upstream tip. |
-| `origin/main` | `152499fa7560c136b5a1cbb5268277577fb992e1` | Remote upstream baseline matches local `main` after the authorized push. |
-| `custom` | Selective integration of 17 upstream commits, plus local reconciliation and the synchronization record update. | Product-specific behavior remains authoritative. |
+| `main`, `upstream/main` | `ea98a02987def87871c9d85f78a1ab350d849b53` | Local upstream v2.83.0 baseline is synchronized to the current upstream tip. |
+| `origin/main` | `ea98a02987def87871c9d85f78a1ab350d849b53` | Remote upstream baseline matches local `main` after the authorized push. |
+| `custom` | Selective integration of 22 upstream commits, plus local reconciliation and the synchronization record update. | Product-specific behavior remains authoritative. |
 | `origin/custom` | Matches local `custom` after the authorized push. | Remote delivery is complete. |
 
 Both branch pairs now match after delivery:
@@ -38,27 +38,28 @@ main...upstream/main   0 0
 custom...origin/custom 0 0
 ```
 
-The release metadata is `2.83.0`. The upstream app-wide R24 design refactor
-(`72db19dfb`) was inspected and intentionally skipped because it is a large
-coupled UI change that conflicts with the custom calendar, task, settings, and
-layout contracts. The four commits in the new upstream range were adopted:
-Mealie preparation-step mirroring, dashboard task defaults, the focused budget
-browser probe change, and the release metadata. The release notes and
-specification were reconciled manually to omit unadopted R24 claims while
-preserving custom migration 278 and the custom product wording. No new
-database migration was added; custom migrations remain append-only. The older
-destructive upstream commit `cd1ee47be` remains excluded because it conflicts
-with the custom task-list/account identity contract and can delete existing
-data.
+The release metadata remains `2.83.0`. The upstream app-wide R24 design
+refactor (`72db19dfb`) was inspected and intentionally skipped because it is a
+large coupled UI change that conflicts with the custom calendar, task,
+settings, and layout contracts. The five commits after the previous upstream
+tip were adopted: installer rerun preservation and home-network setup,
+installer confirmation/clear/finish polish, the inset active-segment design
+token, the new problem-to-setup homepage and site assets, and Vietnamese
+singular-count handling. The earlier selectively adopted commits and the
+custom product wording remain intact. No new database migration was added;
+custom migrations remain append-only. The older destructive upstream commit
+`cd1ee47be` remains excluded because it conflicts with the custom task-list/
+account identity contract and can delete existing data.
 
-Focused checks for this sync passed: recipe-provider adapter 35/35, recipe-
-provider sync 27/27, dashboard accessibility 50/50, migration append-only
-4/4, changelog, landing-page, README-consistency, and Service Worker checks.
-The single affected budget transfer browser probe reached the save/database
-assertion successfully but its cleanup hit a detached Playwright frame; that
-test environment failure is recorded without changing product code. The full
-`npm test` and aggregate browser guard chain were not run per the operator's
-request, so those scopes remain unverified.
+Focused checks for this sync passed: the affected installer schema, environment,
+static, i18n, CLI, prerequisite, accessibility, rerun, LAN, and validation
+suites; Vietnamese plural handling; landing-page 148/148, README-consistency
+28/28, changelog 42/42, typography 33/33, migration append-only, and Service
+Worker checks. `test:i18n-translated` still reports 22 pre-existing app-locale
+baseline-equality failures; no new English-value failures were reported, and
+the stale unrelated baselines were not broadened. The full `npm test` and
+aggregate browser guard chain were not run per the operator's request, so
+those scopes remain unverified.
 
 There is no temporary integration branch left in the local repository.
 Product-specific behavior remains authoritative on `custom`; the full list is
