@@ -4501,7 +4501,14 @@
         "dropzoneTitleTouch": "Klepnutím vyberte soubor",
         "viewerPrevNamed": "Předchozí dokument: {{name}}",
         "viewerNextNamed": "Další dokument: {{name}}",
-        "emptyFolderTitle": "„{{name}}“ je prázdná"
+        "emptyFolderTitle": "„{{name}}“ je prázdná",
+        "viewerImageFallbackHint": "Tento obrázek se nepodařilo zobrazit. Stáhněte si jej a otevřete.",
+        "moreDetailsHint": "Popis a stav",
+        "subjectLabel": "Týká se",
+        "subjectHint": "Nemění, kdo dokument vidí.",
+        "subjectNoAccess": "{{name}} tento dokument nemůže otevřít a nedostane k němu připomenutí.",
+        "personFilterLabel": "Osoba",
+        "personFilterAll": "Všechny osoby"
     },
     "reminders": {
         "sectionTitle": "Připomínka",

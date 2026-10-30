@@ -11893,6 +11893,21 @@ const MIGRATIONS = [
        WHERE avatar_color NOT GLOB '#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]';
     `,
   },
+  {
+    version: 279,
+    description: 'Documents: optional household member the document is about (upstream v272)',
+    // The local migration history already uses v272-v278 for custom changes.
+    // Append this schema change instead of reusing an upstream version number.
+    // The subject is separate from visibility and is cleared when its account
+    // is deleted, so a document remains in the household.
+    up(database) {
+      const cols = database.prepare('PRAGMA table_info(family_documents)').all();
+      if (!cols.some((col) => col.name === 'subject_user_id')) {
+        database.exec('ALTER TABLE family_documents ADD COLUMN subject_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL');
+      }
+      database.exec('CREATE INDEX IF NOT EXISTS idx_family_documents_subject ON family_documents(subject_user_id)');
+    },
+  },
 ];
 
 /**

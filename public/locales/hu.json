@@ -4210,7 +4210,14 @@
         "dropzoneTitleTouch": "Koppintson egy fájl kiválasztásához",
         "viewerPrevNamed": "Előző dokumentum: {{name}}",
         "viewerNextNamed": "Következő dokumentum: {{name}}",
-        "emptyFolderTitle": "A(z) „{{name}}” mappa üres"
+        "emptyFolderTitle": "A(z) „{{name}}” mappa üres",
+        "viewerImageFallbackHint": "Ezt a képet nem sikerült megjeleníteni. Töltse le a megnyitáshoz.",
+        "moreDetailsHint": "Leírás és állapot",
+        "subjectLabel": "Érintett",
+        "subjectHint": "Nem változtat azon, hogy ki látja a dokumentumot.",
+        "subjectNoAccess": "{{name}} nem tudja megnyitni ezt a dokumentumot, és nem kap hozzá emlékeztetőt.",
+        "personFilterLabel": "Személy",
+        "personFilterAll": "Minden személy"
     },
     "housekeeping": {
         "title": "Háztartás",

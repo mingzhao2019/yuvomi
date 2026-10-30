@@ -4210,7 +4210,14 @@
         "dropzoneTitleTouch": "Ketuk untuk memilih file",
         "viewerPrevNamed": "Dokumen sebelumnya: {{name}}",
         "viewerNextNamed": "Dokumen berikutnya: {{name}}",
-        "emptyFolderTitle": "\"{{name}}\" kosong"
+        "emptyFolderTitle": "\"{{name}}\" kosong",
+        "viewerImageFallbackHint": "Gambar ini tidak dapat ditampilkan. Unduh untuk membukanya.",
+        "moreDetailsHint": "Deskripsi dan status",
+        "subjectLabel": "Tentang",
+        "subjectHint": "Tidak mengubah siapa yang dapat melihat dokumen.",
+        "subjectNoAccess": "{{name}} tidak dapat membuka dokumen ini dan tidak akan menerima pengingat.",
+        "personFilterLabel": "Orang",
+        "personFilterAll": "Semua orang"
     },
     "userMultiSelect": {
         "nobody": "Tidak ada",

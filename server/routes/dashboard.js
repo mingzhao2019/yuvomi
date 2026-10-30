@@ -13,7 +13,7 @@ import { decorateEventCompletions } from '../services/calendar-event-completions
 import { getEventsOverlappingDays, getUpcomingEvents } from '../services/calendar-event-reader.js';
 import { resolveCalendarSelection } from '../services/calendar-selection.js';
 import { taskScopeWhere, taskCategoryWhere, categoryBindings, normalizeCategoryFilter } from '../services/task-scope.js';
-import { getCountdowns } from '../services/countdowns.js';
+import { COUNTDOWN_MODULES, getCountdowns } from '../services/countdowns.js';
 import { listQuickLinksFor } from './quick-links.js';
 import {
   asksHouseholdAudience, householdAudienceAnswer, householdAudienceShows, householdVisibleWhere, noteVisibleWhere,
@@ -386,7 +386,7 @@ const router = express.Router();
  *   memberTodayTasks: {user_id, open_count}[], // Heute fällige/überfällige offene Aufgaben je Mitglied
  *   tasksDoneToday: number,            // Heute fällige, bereits erledigte Aufgaben
  *   wallTasks:      {user_id, open_count, done_count, open: {id,title,due_date}[], done: {id,title}[]}[], // Haushaltssichtbare Aufgaben von heute je Mitglied (#1817)
- *   countdowns:     Countdown[]        // Als Countdown markierte Termine + Aufgaben (#647)
+ *   countdowns:     Countdown[]        // Markierte Termine + Aufgaben, bald ablaufende Dokumente (#647, #1705)
  *   quicklinks:      QuickLink[]        // Haushaltslinks der Kachelreihe (#469)
  *   assets:          AssetSummary       // Sichtbare Inventar-Kennzahlen
  * }
@@ -563,8 +563,21 @@ router.get('/', (req, res) => {
   //
   // Dazu die Scopes eines API-Tokens: `dashboard:read` öffnet die Übersicht,
   // nicht die Module darin. Eine Kachel, deren Modul das Token nicht lesen darf,
-  // kommt in derselben leeren Fassung wie bei einer Rollensperre.
-  const denied = hiddenModulesFor(req, Object.keys(DENIED_PAYLOAD));
+  // kommt in derselben leeren Fassung wie bei einer Rollensperre. Die Quellen der
+  // Countdowns gehoeren dazu: Dokumente haben keine eigene Kachel in dieser Antwort.
+  const denied = hiddenModulesFor(req, [...Object.keys(DENIED_PAYLOAD), ...COUNTDOWN_MODULES]);
+  // Wand-Displays zeigen Mahlzeiten, Einkauf, Haushaltshilfe, Abfuhr und Vorrat
+  // (#1903): das Heute-Blatt auf der Wand braucht diese Quellen, aber das
+  // Display-Credential hat keinen Modulzugang. Die fuenf Schluessel werden VOR
+  // `modulesLeftOut` aus `denied` entfernt, NICHT danach aus `leftOut` - so
+  // wirkt der Haushaltsschalter weiter: hat ein Haushalt Mahlzeiten abgeschaltet,
+  // fuegt `modulesLeftOut` sie aus `householdDisabledModules` wieder hinzu.
+  const isDisplay = req.authMethod === 'display';
+  if (isDisplay && householdAudience) {
+    for (const key of ['meals', 'shopping', 'housekeeping', 'waste', 'pantry']) {
+      denied.delete(key);
+    }
+  }
   // UND DER HAUSHALTSSCHALTER (#1660, docs/DECISIONS.md 11). Bis dahin fragte
   // diese Stelle nur nach Rechten und Scopes: ein haushaltsweit abgeschaltetes
   // Modul lieferte seine Termine, Aufgaben, Buchungen und Medikamente weiter
@@ -1041,12 +1054,12 @@ router.get('/', (req, res) => {
     result.birthdaySoonCount = 0;
   }
 
-  // Countdowns (#647): Termine und Aufgaben, die jemand als Countdown markiert
-  // hat, in EINER nach Nähe sortierten Liste. `todayLocalKey` und nicht der
+  // Countdowns (#647): markierte Termine und Aufgaben und bald ablaufende
+  // Dokumente (#1705) in EINER nach Nähe sortierten Liste. `todayLocalKey` und nicht der
   // UTC-Tag: „noch 1 Tag" gegenüber „heute" entscheidet sich am Kalendertag des
   // Betrachters, und westlich von UTC ist der ein anderer.
   //
-  // DER EINZIGE TEIL DER ANTWORT, DER ZWEI MODULEN GEHÖRT, und deshalb steht
+  // DER EINZIGE TEIL DER ANTWORT, DER MEHREREN MODULEN GEHÖRT, und deshalb steht
   // seine Sperre nicht als Zeile in DENIED_PAYLOAD, sondern als Argument: wem
   // der Kalender entzogen ist, dem fallen die Termin-Countdowns heraus und die
   // Aufgaben-Countdowns bleiben. Ein Alles-oder-nichts hätte die Kachel schon
