@@ -1627,6 +1627,94 @@ test('notification routes separate personal and household channel ownership', as
 });
 
 /* ------------------------------------------------------------------ *
+ * Die Kanal-Routen halten Scope und Besitzer fest
+ *
+ * Persoenliche Kanaele hoeren auch private Erinnerungen ihrer Person. Deshalb
+ * darf ein Aufruf keinen fremden Besitzer setzen oder einen fremden Kanal
+ * umbiegen; Haushaltskanaele bleiben fuer Administratoren separat verwaltbar.
+ * ------------------------------------------------------------------ */
+
+function channelRouteHarness(store, db, buildRouter, { authRole = 'admin', authUserId = 1 } = {}) {
+  const router = buildRouter({ database: db, channelStore: store, notificationService: { providers: {} } });
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => { req.authUserId = authUserId; req.authRole = authRole; next(); });
+  app.use('/notifications', router);
+  return app;
+}
+
+const NTFY_CHANNEL = { provider: 'ntfy', name: 'Kanal', enabled: true, config: { baseUrl: 'https://ntfy.test', topic: 'family' }, secrets: {} };
+
+for (const [label, owner] of [
+  ['scope + userId', { scope: 'user', userId: 2 }],
+  ['scope + user_id', { scope: 'user', user_id: 2 }],
+]) {
+  test(`POST weist einen fremden persönlichen Besitzer mit ${label} zurück`, async () => {
+    const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+    const { buildRouter } = await import('../server/routes/notifications.js');
+    const db = makeDb();
+    const store = createNotificationChannelStore({ db });
+    const app = channelRouteHarness(store, db, buildRouter);
+
+    const rejected = await call(app, 'POST', '/notifications/channels', { ...NTFY_CHANNEL, ...owner });
+
+    assert.equal(rejected.status, 403);
+    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM notification_channels').get().c, 0);
+  });
+
+  test(`PUT haengt einen Haushaltskanal nicht um, auch nicht mit ${label} im Body`, async () => {
+    const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+    const { buildRouter } = await import('../server/routes/notifications.js');
+    const db = makeDb();
+    const store = createNotificationChannelStore({ db });
+    const app = channelRouteHarness(store, db, buildRouter);
+    const channel = store.createChannel(NTFY_CHANNEL);
+
+    const updated = await call(app, 'PUT', `/notifications/channels/${channel.id}`, { name: 'Neu', ...owner });
+
+    assert.equal(updated.status, 200);
+    assert.equal(updated.json.data.name, 'Neu', 'Der Rest des Bodys wirkt weiter.');
+    assert.equal(updated.json.data.scope, 'household');
+    assert.equal(updated.json.data.userId, null);
+  });
+}
+
+test('PUT aendert keinen persoenlichen Kanal: sein Ziel bleibt, wo es ist', async () => {
+  const { createNotificationChannelStore } = await import('../server/services/notification-channels.js');
+  const { buildRouter } = await import('../server/routes/notifications.js');
+  const db = makeDb();
+  const store = createNotificationChannelStore({ db });
+  const app = channelRouteHarness(store, db, buildRouter);
+  const channel = store.createChannel({
+    provider: 'webhook',
+    name: 'bobs',
+    scope: 'user',
+    userId: 2,
+    config: { baseUrl: 'https://hooks.test/bobs' },
+  });
+
+  const refused = await call(app, 'PUT', `/notifications/channels/${channel.id}`, {
+    config: { baseUrl: 'https://anderes-ziel.test' },
+    enabled: false,
+  });
+
+  assert.equal(refused.status, 403);
+  const stored = store.getChannel(channel.id);
+  assert.equal(stored.config.baseUrl, 'https://hooks.test/bobs');
+  assert.equal(stored.enabled, false);
+  assert.equal(stored.scope, 'user');
+  assert.equal(stored.userId, 2);
+
+  // Ein Admin darf den privaten Kanal eines anderen Mitglieds auch nicht löschen.
+  assert.equal((await call(app, 'DELETE', `/notifications/channels/${channel.id}`)).status, 403);
+  assert.equal((await call(
+    channelRouteHarness(store, db, buildRouter, { authRole: 'member', authUserId: 2 }),
+    'DELETE',
+    `/notifications/channels/${channel.id}`,
+  )).status, 200);
+});
+
+/* ------------------------------------------------------------------ *
  * E-Mail als vierter Kanal (#944)
  *
  * Der Kanal traegt NUR sein Ziel. Der SMTP-Zugang steht app-weit in

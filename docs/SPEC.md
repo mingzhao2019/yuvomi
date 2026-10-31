@@ -2780,7 +2780,7 @@ enabled or disabled without changing device subscriptions.
 | provider | TEXT | Provider ID such as `gotify`, `ntfy`, `webhook` or `email`, validated in the service layer |
 | name | TEXT | Admin-facing channel name, NOT NULL |
 | enabled | INTEGER | 0/1, default 0 |
-| scope | TEXT | `household` by default; future user-scoped channels can set `user` |
+| scope | TEXT | `household` by default; `user` is a channel of one member, which hears that member's private reminders too. Routes enforce the requested scope and owner: members can manage their own personal channels, administrators can manage household channels and their own personal channels, and cross-user personal-channel writes are rejected |
 | user_id | INTEGER | Optional FK → Users (CASCADE delete) |
 | config_json | TEXT | Non-secret provider configuration JSON, NOT NULL |
 | secret_json | TEXT | Write-only provider credentials JSON, NOT NULL |
