@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Syntax error: Unterminated quoted string` and the container stayed `unhealthy` although the app
   was running. The quotes are swapped - single quotes around the `node -e` argument, double quotes
   inside the JavaScript.
+- **The end of a long recipe list stays reachable on the iPhone.** The last recipes used to sit behind the
+  bottom menu and sprang back out of reach when you let go. The list now ends above the menu, and
+  the bounce at the end of a list no longer brings the search row back. The same holds for the other
+  kitchen lists.
 - **A meal stays on the wall until the next planned meal.** Since 2.83.0 "Today at a glance" dropped
   a meal the moment its slot began, so breakfast was gone at 08:00 and dinner at 18:30. A meal now
   stays until the next meal planned for today starts, and the last one until the end of the day.
