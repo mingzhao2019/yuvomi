@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   footer says "MIT-Lizenz" on the German pages.
 
 ### Fixed
+- **The Podman Quadlet health check passes.** The `HealthCmd` in `tools/quadlet/oikos.container`
+  reached Podman as a shell command with a missing closing quote, so every check failed with
+  `Syntax error: Unterminated quoted string` and the container stayed `unhealthy` although the app
+  was running. The quotes are swapped - single quotes around the `node -e` argument, double quotes
+  inside the JavaScript.
 - **Vietnamese counts show the real number.** In browsers with current language data, Vietnamese
   picks the singular wording for 0 as well as for 1, so eleven messages such as the active filter
   count said "1" when nothing was selected. They now show the actual count.
