@@ -309,6 +309,7 @@
     "test:region-presets": "node --test test/test-region-presets.js",
     "test:docker-publish": "node --test test/test-docker-publish.js",
     "test:runtime-deps": "node --test test/test-runtime-deps.js",
+    "test:entrypoint": "node --test test/test-entrypoint.js",
     "test:claude-review-workflow": "node --test test/test-claude-review-workflow.js",
     "test:review-proof": "node --test test/test-review-proof.js",
     "test:workflow-timeouts": "node --test test/test-workflow-timeouts.js",
