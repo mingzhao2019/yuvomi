@@ -33,7 +33,9 @@ test('ux.js: offerUndo ist der eine Baustein der Quittung mit Rueckweg', () => {
 test('Aufgaben: die Quittung liest den Titel VOR dem Neuladen und nennt offene Teilaufgaben', () => {
   const src = read('public/pages/tasks.js');
   // An beiden Gesten (Haken, Wisch) steht der Schnappschuss vor dem Statuswechsel.
-  const sites = [...src.matchAll(/const before = taskSnapshot\((\w+)\);\s*\n\s*try \{\s*\n\s*const response = await toggleTaskStatus/g)];
+  // Die Zeilen sind absichtlich explizit: kein `\\s*`-Kommentarblock darf bei einer
+  // fehlerhaften Datei über beliebig viele Zeilen zurücklaufen (#2408).
+  const sites = [...src.matchAll(/const before = taskSnapshot\((\w+)\);(?:[ \t]*\/\/[^\n]*(?=\n))*[ \t]*\n[ \t]*try \{[ \t]*\n[ \t]*const response = await toggleTaskStatus/g)];
   assert.equal(sites.length, 2, 'Haken und Wisch merken Titel und Teilaufgaben vor dem Wechsel');
   assert.equal((src.match(/acknowledgeStatusToggle\(container, \w+, nextStatus, response, before\)/g) ?? []).length, 2);
   const ack = body(src, 'function acknowledgeStatusToggle(');
