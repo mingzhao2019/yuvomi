@@ -6482,6 +6482,9 @@ function handleDayRowActivation(e, { keyboard = false } = {}) {
  * unkodiert, und die id ist eine Zahl. Haushaltshilfe-Besuche bekommen keine
  * - sie oeffnen ihr eigenes Modul, eine Vorwahl darf dorthin nicht fuehren.
  */
+/** Die gewaehlte Zeile der Agenda neben der Detailspalte (utils/master-detail.js). */
+const AGENDA_SELECTED_ROW = '[data-md-id][aria-current="true"], [data-md-id] [aria-current="true"]';
+
 function agendaMdId(ev, day) {
   if (ev?.housekeeping_visit_id) return null;
   return `${ev.id}.${day}`;
@@ -7765,6 +7768,8 @@ export const __test = {
   calendarSaveErrorMessage, occurrenceErrorMessage, eventGone, deleteUnlessGone,
   // #1909: die drei Loeschwege eines Termins, am echten Undo-Ablauf.
   deleteEvent, deleteThisAndFollowing, deleteSingleOccurrence,
+  // D#2330: der Reset eines ICS-Termins zeigt den Feed-Stand ohne Reload.
+  resetIcsEvent, AGENDA_SELECTED_ROW,
   hasCurrentAttachment,
   attachmentNode,
   fetchWindow,
@@ -8420,29 +8425,8 @@ async function openEventDetail(ev, anchor = null, { pane = null, formReady: form
       label: t('calendar.ics.reset'),
       variant: 'ghost',
       icon: 'rotate-ccw',
-      onClick: async ({ close }) => {
-        try {
-          await api.post(`/calendar/${ev.id}/reset`, {});
-          // Der Schreibvorgang ist durch - ohne force fragte der Dirty-Guard
-          // nach dem Verwerfen von Änderungen, die der Reset ohnehin
-          // zurückgenommen hat (#625).
-          await close({ force: true });
-          if (hostedHere()) await reloadAfterSave(() => reloadForView());
-          else await notifyAwayChanged();
-          window.yuvomi?.showToast(t('calendar.ics.resetToast'), 'success');
-        } catch (err) {
-          // Der Satz der App, nie der Text des Servers (#1909). Gibt es den
-          // Termin nicht mehr, schliesst die Ansicht und der Kalender laedt nach.
-          window.yuvomi?.showToast(errorSentence(err, 'calendar.saveError'), 'danger');
-          if (eventGone(err)) {
-            await close({ force: true });
-            if (await reloadEventsAfterGone()) {
-              renderView();
-              refocusAfterRender();
-            }
-          }
-        }
-      },
+      more: true,
+      onClick: ({ close }) => resetIcsEvent(ev, close),
     });
   }
 
@@ -10263,6 +10247,49 @@ async function reloadEventsAfterGone() {
   }
   await reloadAfterSave(() => reloadCalendarEventsOnly());
   return true;
+}
+
+/**
+ * Setzt einen lokal geaenderten ICS-Termin auf den Feed zurueck (D#2330). Der
+ * Reset aendert Termine, nicht den Zeitraum: reloadForView() laedt nur bei
+ * geaendertem Bereich, die Ansicht holt ihre Termine deshalb selbst frisch.
+ */
+async function resetIcsEvent(ev, close) {
+  try {
+    const res = await api.post(`/calendar/${ev.id}/reset`, {});
+    // Der Schreibvorgang ist durch - ohne force fragte der Dirty-Guard
+    // nach dem Verwerfen von Änderungen, die der Reset ohnehin
+    // zurückgenommen hat (#625).
+    await close({ force: true });
+    if (hostedHere()) {
+      await reloadAfterSave(() => reloadCalendarEventsOnly());
+      renderView();
+      refocusAfterRender();
+      // In der Detailspalte schliesst nichts, es gibt keinen Merker: der Fokus
+      // stand im Menue der Spalte, das der Neuaufbau mitgenommen hat.
+      if (document.activeElement === document.body) _container.querySelector(AGENDA_SELECTED_ROW)?.focus();
+    } else {
+      await notifyAwayChanged();
+    }
+    // D#2330: ohne gespeicherten Feed-Stand (Altbestand) stellt der Reset
+    // erst beim nächsten Abgleich den Originaltext her. Das sagt der Hinweis.
+    const pending = res?.data?.restored === false;
+    window.yuvomi?.showToast(
+      t(pending ? 'calendar.ics.resetPendingToast' : 'calendar.ics.resetToast'),
+      'success',
+    );
+  } catch (err) {
+    // Der Satz der App, nie der Text des Servers (#1909). Gibt es den
+    // Termin nicht mehr, schliesst die Ansicht und der Kalender laedt nach.
+    window.yuvomi?.showToast(errorSentence(err, 'calendar.saveError'), 'danger');
+    if (eventGone(err)) {
+      await close({ force: true });
+      if (await reloadEventsAfterGone()) {
+        renderView();
+        refocusAfterRender();
+      }
+    }
+  }
 }
 
 /** Ein Loeschen, das schon jemand anderes erledigt hat, ist kein Fehler (#1909). */

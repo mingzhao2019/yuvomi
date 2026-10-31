@@ -1081,7 +1081,8 @@
         "timeSuffix": "Uhr",
         "ics": {
             "reset": "Auf Original zurücksetzen",
-            "resetToast": "Änderungen zurückgesetzt."
+            "resetToast": "Änderungen zurückgesetzt.",
+            "resetPendingToast": "Zurückgesetzt. Der Originaltext kommt erst mit dem nächsten Abgleich zurück."
         },
         "iconLabel": "Icon",
         "iconSearchPlaceholder": "Icon suchen",

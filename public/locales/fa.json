@@ -1081,7 +1081,8 @@
         "timeSuffix": "",
         "ics": {
             "reset": "بازگرداندن به حالت اصلی",
-            "resetToast": "تغییرات بازنشانی شد."
+            "resetToast": "تغییرات بازنشانی شد.",
+            "resetPendingToast": "بازنشانی شد. متن اصلی با همگام‌سازی بعدی برمی‌گردد."
         },
         "iconLabel": "نماد",
         "iconSearchPlaceholder": "جستجوی نماد",
