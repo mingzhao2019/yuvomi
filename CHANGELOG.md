@@ -55,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   different household member controls.
 
 ### Fixed
+- **A new app name reaches installed apps.** After renaming the app in Settings, a browser that
+  had loaded the app before kept the old name for the installed app, even after uninstalling and
+  installing it again: the service worker answered `/manifest.webmanifest` from its cache and only
+  asked the server after the next release. It now asks the server first, like it already did for
+  `manifest.json`, and uses the cached copy only when the network is slow or offline.
 - **Vitals take the units Yuvomi can convert, and impossible values no longer slip past in them**
   (#2375). The API took any text as a unit, so 9,000,000 g went past the limits that stop 9,000 kg,
   and a typo like `kgs` was drawn unconverted next to kilograms. `POST` and `PATCH
