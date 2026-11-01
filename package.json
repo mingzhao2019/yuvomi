@@ -361,6 +361,7 @@
     "test:child-health-defaults-migration": "node --experimental-sqlite --test test/test-child-health-defaults-migration.js",
     "test:payment-task-backfill": "node --experimental-sqlite --test test/test-payment-task-backfill.js",
     "test:reminders": "node --experimental-sqlite test/test-reminders.js",
+    "test:reminders-upcoming": "node scripts/with-env.mjs TZ=Europe/Berlin node --experimental-sqlite --test test/test-reminders-upcoming.js && node scripts/with-env.mjs TZ=UTC node --experimental-sqlite --test test/test-reminders-upcoming.js",
     "test:multi-reminders": "node --test test/test-multi-reminders.js",
     "test:event-reminder-fanout": "node --experimental-sqlite --test test/test-event-reminder-fanout.js",
     "test:inbound-reminder-shift": "node --experimental-sqlite --test test/test-inbound-reminder-shift.js",
