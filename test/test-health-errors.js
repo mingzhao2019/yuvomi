@@ -219,7 +219,7 @@ async function dialog(oeffne, werte = {}) {
   const element = (selector) => {
     if (!elements.has(selector)) {
       elements.set(selector, {
-        value: '', checked: false, hidden: false, disabled: false, dataset: {}, files: [], html: null,
+        value: '', checked: false, hidden: false, disabled: false, dataset: {}, files: [], html: null, style: {},
         addEventListener(type, fn) { handlers.set(`${selector}:${type}`, fn); },
         focus() { fokus.push(selector); },
         replaceChildren() { this.html = ''; },
@@ -242,6 +242,11 @@ async function dialog(oeffne, werte = {}) {
       const fn = handlers.get(`${selector}:submit`);
       assert.equal(typeof fn, 'function', `${selector} hat einen Submit-Handler`);
       return fn({ preventDefault() {} });
+    },
+    klicken: (selector) => {
+      const fn = handlers.get(`${selector}:click`);
+      assert.equal(typeof fn, 'function', `${selector} hat einen Klick-Handler`);
+      return fn({ preventDefault() {}, currentTarget: element(selector) });
     },
   };
 }

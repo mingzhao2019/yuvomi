@@ -763,7 +763,9 @@ test('R14 P2: mobil deckelt das Blatt bei zwei Zeilen, die Sammelzeile zaehlt al
 test('R14 P2: die Sammelzeile ist verdrahtet, und der Wand-Aufruf sammelt nicht', () => {
   assert.equal(typeof __test.wireTodayOverdue, 'function');
   assert.match(dashboardSource, /function wireLinks\([^)]*\) \{[\s\S]{0,200}wireTodayOverdue\(container\)/);
-  assert.match(dashboardSource, /buildTodayCockpitModel\(data, \[\], \{ cap, now, groupOverdue: false, isDisplay \}\)/,
+  const wallModelCall = dashboardSource.match(/function renderWallSurface[\s\S]*?const model = failed \|\| loading \? null : buildTodayCockpitModel\(data, \[\], \{[\s\S]*?\n  \}\);/);
+  assert.ok(wallModelCall, 'die Wand baut ihr Modell aus dem Wand-Aufruf');
+  assert.match(wallModelCall[0], /groupOverdue:\s*false/,
     'die Wand ist eine Anzeige ohne Bedienung - dort klappt nichts auf');
 });
 

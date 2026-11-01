@@ -1337,7 +1337,7 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
 }
 
 .cal-event__archive:active {
-  transform: scale(0.92);
+  transform: scale(var(--press-scale-sm));
 }
 
 .cal-event__archive:disabled {
@@ -3353,7 +3353,7 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
 }
 
 .cal-task-chip__check:active {
-  transform: scale(0.92);
+  transform: scale(var(--press-scale-sm));
 }
 
 .cal-task-chip__check--done {

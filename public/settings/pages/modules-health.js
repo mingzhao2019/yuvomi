@@ -130,7 +130,6 @@ function reportError(err, modalContext) {
 
 function openTypeModal(type) {
   const isEdit = !!type;
-  const modalContext = captureModalContext();
   const val = (v) => (v == null ? '' : String(v));
   const interval = intervalMonthsToInput(type?.default_interval_months ?? null);
 
@@ -193,6 +192,9 @@ function openTypeModal(type) {
 
       panel.querySelector('[data-action="cancel"]')?.addEventListener('click', () => closeModal({ force: true }));
       panel.querySelector('[data-action="delete"]')?.addEventListener('click', async () => {
+        // VOR der Rueckfrage: geschlossen wird nur dieser Dialog, nicht einer,
+        // der waehrend der Anfrage aufgegangen ist (#1997).
+        const modalContext = captureModalContext();
         const confirmed = await confirmOverModal(t('settings.healthPreventionDeleteTypeConfirm'), {
           danger: true,
           confirmLabel: t('common.delete'),
@@ -241,6 +243,7 @@ function openTypeModal(type) {
         if (intervalMonths != null) body.default_interval_months = intervalMonths;
         else if (isEdit) body.default_interval_months = null;
 
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) {

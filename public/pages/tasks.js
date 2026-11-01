@@ -12,7 +12,7 @@ import { whenHistorySettled } from '/utils/overlay-history.js';
 import { beginRowFill, drawRowIcons, flushRowFill } from '/utils/row-fill.js';
 import { stagger, vibrate, scheduleUndoableDelete, offerUndo, acknowledgeCheck, collapseOut, expandIn, wireScrollFade, isImeComposing, drawIconsInSightOrder } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint, deferredRevealHtml } from '/utils/swipe-row.js';
-import { t, getLocale, formatDate, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
+import { t, getLocale, formatDayMonth, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput } from '/i18n.js';
 import { dateText } from '/utils/date-format.js';
 import { esc, REQUIRED_MARK, renderMarkdownLight } from '/utils/html.js';
 import { splitKeepingLineEndings } from '/utils/markdown-checklist.js';
@@ -2957,8 +2957,8 @@ function commentRowNode(comment, { onChanged }) {
   when.className = 'task-comment__when';
   const at = new Date(comment.updated_at || comment.created_at);
   when.textContent = comment.updated_at
-    ? t('tasks.commentEditedAt', { date: formatDate(at), time: formatTime(at) })
-    : `${formatDate(at)} ${formatTime(at)}`;
+    ? t('tasks.commentEditedAt', { date: dateText(at), time: formatTime(at) })
+    : `${dateText(at)} ${formatTime(at)}`;
 
   head.append(author, when);
 
@@ -3259,7 +3259,7 @@ function taskReminderSummary(reminders) {
     .map((r) => {
       if (!r?.remind_at) return '';
       const at = parseRemindAtAsUtc(r.remind_at);
-      return `${formatDate(at)} ${formatTime(at)}`.trim();
+      return `${dateText(at)} ${formatTime(at)}`.trim();
     })
     .filter(Boolean)
     .join(', ');
@@ -3272,13 +3272,13 @@ function renderTaskDetail(task, reminders = [], container = null) {
     { icon: 'circle-dot', label: t('tasks.statusLabel'), value: STATUS_LABELS()[task.status] ?? task.status },
     // Eigene Zeile statt eines Ersatzes für den Status: die Ablage sagt etwas
     // ANDERES als „offen/erledigt", nicht dasselbe anders (#688).
-    { icon: 'archive', label: t('tasks.archivedLabel'), value: isArchived(task) ? formatDate(task.archived_at) : '' },
+    { icon: 'archive', label: t('tasks.archivedLabel'), value: isArchived(task) ? dateText(task.archived_at) : '' },
     { icon: 'flag', label: t('tasks.priorityLabel'), node: priorityNode(task.priority) },
     // Nur wenn gesetzt - eine Zeile "nicht gesperrt" an jeder Aufgabe waere
     // Rauschen. Die leere `value` blendet die Zeile aus (#830).
     { icon: 'lock', label: t('tasks.lockedLabel'), value: task.locked ? t('tasks.lockedDetail') : '' },
     { icon: 'clock', label: t('tasks.dueDateLabel'), value: due?.label ?? '' },
-    { icon: 'calendar-clock', label: t('tasks.startDateLabel'), value: task.start_date ? formatDate(task.start_date) : '' },
+    { icon: 'calendar-clock', label: t('tasks.startDateLabel'), value: task.start_date ? dateText(task.start_date) : '' },
     recurrenceRow(task.recurrence_rule, { fromCompletion: !!task.recurrence_from_completion }),
     { icon: 'folder', label: t('tasks.categoryLabel'), value: task.category && task.category !== FALLBACK_CATEGORY ? catLabel(task.category) : '' },
     { icon: 'list', label: t('tasks.taskListLabel'), value: taskListLabel(taskListForTask(task)) },
@@ -6609,6 +6609,8 @@ function wireTaskListResizer(container) {
       setTaskListSidebarWidth(layout, event.key === 'End' ? TASK_LIST_SIDEBAR_MAX : TASK_LIST_SIDEBAR_MIN, { persist: true });
     }
   });
+}
+
 const GROUP_MODE_KEY = 'yuvomi-tasks-group';
 const GROUP_MODES = ['category', 'due'];
 

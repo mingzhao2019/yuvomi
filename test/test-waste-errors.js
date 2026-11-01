@@ -829,7 +829,7 @@ for (const [name, antwort, satz] of [
     const d = await urlDialog();
     const { closed } = await mit({ post: async () => antwort }, () => d.klick('#wurl-save'));
     assert.deepEqual(toasts, [[satz, 'danger']]);
-    assert.deepEqual(closed, [{ force: true }]);
+    assert.deepEqual(closed, [{ force: true, context: 'test-modal-context' }]);
   });
 }
 

@@ -147,6 +147,7 @@ const LOC_EXISTS = '`inventory_location_exists` (409, a location with this name 
 const LOC_GONE = '`inventory_location_not_found` (404, the location does not exist - deleted)';
 const CAT_EXISTS = '`category_exists` (409, a category with this name already exists)';
 const CAT_GONE = '`inventory_category_not_found` (404, the category does not exist - deleted)';
+const CAT_PROTECTED = '`category_protected` (400, the built-in `other` category cannot be deleted)';
 const NOT_OWNER = '`not_owner` (403, without the module\'s `*_edit_others` capability only items you created can be changed or deleted - R23)';
 const CASE_REASONS = {
   '/api/v1/inventory/locations': { post: LOC_EXISTS },
@@ -154,7 +155,7 @@ const CASE_REASONS = {
   '/api/v1/inventory/locations/{parentId}/subcategories': { post: `${LOC_GONE} (the parent location), ${LOC_EXISTS}` },
   '/api/v1/inventory/locations/{parentId}/subcategories/{id}': { put: `${LOC_GONE}, ${LOC_EXISTS}`, delete: LOC_GONE },
   '/api/v1/inventory/categories': { post: CAT_EXISTS },
-  '/api/v1/inventory/categories/{key}': { put: `${CAT_GONE}, ${CAT_EXISTS}`, delete: CAT_GONE },
+  '/api/v1/inventory/categories/{key}': { put: `${CAT_GONE}, ${CAT_EXISTS}`, delete: `${CAT_GONE}, ${CAT_PROTECTED}` },
   '/api/v1/inventory/items': { post: `${LOCATION_GONE}, ${BOOKING_GONE}` },
   '/api/v1/inventory/items/{id}': { get: ITEM_GONE, put: `${ITEM_GONE}, ${LOCATION_GONE}, ${NOT_OWNER}`, delete: `${ITEM_GONE}, ${NOT_OWNER}` },
   '/api/v1/inventory/items/{id}/entries': {

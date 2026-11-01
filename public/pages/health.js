@@ -2783,6 +2783,7 @@ function openVitalModal(opts = {}) {
           updatePlausibility();
           return;
         }
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) {
@@ -2793,7 +2794,7 @@ function openVitalModal(opts = {}) {
           } else {
             await api.post('/health/vitals', { ...body, ...ownerField(vitals.personId, vitals.meId) });
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.vitals.saved'), 'success');
           await reloadVitalsAfterSave(body.type);
           await opts.onSaved?.();
@@ -4311,6 +4312,7 @@ function openMedModal(med) {
           reportFieldError(panel.querySelector('#med-name'), t('health.meds.nameRequired'));
           return;
         }
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) await api.patch(`/health/medications/${med.id}`, body);
@@ -4321,7 +4323,7 @@ function openMedModal(med) {
           // Vorher kamen die Zeitfenster einzeln nach dem Medikament, und ein
           // Abbrechen nach einem gescheiterten Zeitfenster liess es stehen.
           else await api.post('/health/medications', { ...body, schedules: draft, ...ownerField(meds.personId, meds.meId) });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.meds.saved'), 'success');
           await reloadAfterSave(() => reloadMedViews());
           refocusAfterRender();
@@ -5051,6 +5053,7 @@ function openLabModal(report) {
           reportFieldError(panel.querySelector('#lab-date'), t('health.labs.dateRequired'));
           return;
         }
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) {
@@ -5061,7 +5064,7 @@ function openLabModal(report) {
             // beim zuvor gewählten Befund stehen bleibt.
             if (created?.data?.id != null) labs.selectedReportId = created.data.id;
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.labs.saved'), 'success');
           await reloadAfterSave(() => reloadLabs());
           refocusAfterRender();
@@ -5812,6 +5815,7 @@ function openActivityModal(row, opts = {}) {
           window.yuvomi?.showToast(t('health.activity.invalid'), 'danger');
           return;
         }
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) {
@@ -5820,7 +5824,7 @@ function openActivityModal(row, opts = {}) {
             await api.post('/health/activities', { ...body, ...ownerField(activity.personId, activity.meId) });
             activity.anchor = zonedDateKey(body.performed_at);
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.activity.saved'), 'success');
           await reloadAfterSave(() => reloadActivity());
           await opts.onSaved?.();
@@ -6280,6 +6284,7 @@ function openPreventionModal(row) {
           window.yuvomi?.showToast(t('health.prevention.invalid'), 'danger');
           return;
         }
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) {
@@ -6287,7 +6292,7 @@ function openPreventionModal(row) {
           } else {
             await api.post('/health/prevention/records', { ...body, ...ownerField(prevention.personId, prevention.meId) });
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.prevention.saved'), 'success');
           await reloadAfterSave(() => reloadPrevention());
           refocusAfterRender();
@@ -6708,10 +6713,11 @@ function openNutritionTargetModal() {
           window.yuvomi?.showToast(t('health.nutrition.invalid'), 'danger');
           return;
         }
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           await api.put('/health/nutrition/targets', { ...values, ...ownerField(nutrition.personId, nutrition.meId) });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.nutrition.targetSaved'), 'success');
           await reloadAfterSave(() => reloadNutrition());
           refocusAfterRender();
@@ -6806,6 +6812,7 @@ function openNutritionModal(row) {
           window.yuvomi?.showToast(t('health.nutrition.invalid'), 'danger');
           return;
         }
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) {
@@ -6813,7 +6820,7 @@ function openNutritionModal(row) {
           } else {
             await api.post('/health/nutrition/entries', { ...body, ...ownerField(nutrition.personId, nutrition.meId) });
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.nutrition.saved'), 'success');
           await reloadAfterSave(() => reloadNutrition());
           refocusAfterRender();
@@ -9723,11 +9730,12 @@ function openPeriodModal(period) {
           visibility: panel.querySelector('#cycle-visibility').value || 'private',
           note: panel.querySelector('#cycle-note').value.trim() || null,
         };
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           if (isEdit) await api.patch(`/health/cycle/periods/${period.id}`, body);
           else { await api.post('/health/cycle/periods', body); cycle.anchor = start; }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.cycle.saved'), 'success');
           await reloadAfterSave(() => reloadCycle());
           refocusAfterRender();
@@ -9807,10 +9815,11 @@ function openCycleImportModal() {
           !csv && [pasteInput, t('health.cycle.import.emptyError')],
         ])) return;
 
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           const { data } = await api.post('/health/cycle/import', { csv });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(
             t('health.cycle.import.resultToast', { imported: data.imported, skipped: data.skipped }),
             'success',
@@ -10123,10 +10132,11 @@ function openDayLogModal(dateKey) {
           visibility: panel.querySelector('#cycle-log-visibility').value || 'private',
           note: panel.querySelector('#cycle-log-note').value.trim() || null,
         };
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           await api.post('/health/cycle/logs', body);
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.cycle.saved'), 'success');
           await reloadAfterSave(() => reloadCycle());
           refocusAfterRender();
@@ -10389,10 +10399,11 @@ function openCycleSettingsModal() {
           // versehentliches Umschalten löscht die Eingabe dann nicht.
           pregnancy_due_date: due || null,
         };
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           cycle.settings = (await api.put('/health/cycle/settings', body)).data || body;
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('health.cycle.settings.saved'), 'success');
           renderCycleShell();
         } catch (err) {
@@ -10483,6 +10494,9 @@ export const __test = {
   deleteMed, deleteMedLog, deleteLabReport, deleteActivity, deletePeriod, deleteDayLog, deleteVitalWithUndo,
   cycleStartPeriodToday, cycleEndPeriodToday,
   openPreventionModal, openCycleImportModal,
+  // #1997: die uebrigen Dialoge, deren Erfolgsweg nach dem await schliesst.
+  openMedLogModal, openLabModal, openActivityModal, openNutritionTargetModal,
+  openNutritionModal, openPeriodModal, openCycleSettingsModal,
   // Codex an #1971: welche Messungen die Seite gerade zeigt (nur die Ids).
   vitalRowIdsForTest: () => vitals.rows.map((row) => row.id),
   /**

@@ -4718,6 +4718,24 @@ function todayDomainSpeaks(cfg, module) {
   return !window.yuvomi?.isModuleDisabled(module) && !widgetShown;
 }
 
+/**
+ * Die Wand rechnet wie das Cockpit unter der breiten Buehne (R24). Ohne
+ * Zeitleiste wuerde sie bei mehreren geplanten Mahlzeiten nur die eine
+ * Mahlzeit aus `buildTodayProgram` sehen; die Wand braucht dagegen dieselbe
+ * zeitliche Sicht wie das breite Heute-Blatt.
+ */
+function wallTimelineOptions(data, now = new Date()) {
+  if (!todayDomainSpeaks([], 'calendar')) return {};
+  return {
+    timeline: buildTodayTimeline(data, {
+      now,
+      includeMeals: todayDomainSpeaks([], 'meals'),
+      includeShifts: todayDomainSpeaks([], 'schedule'),
+    }),
+    timelineRows: true,
+  };
+}
+
 function buildTodayCockpitModel(data, cfg = [], {
   cap = onPhoneStage() ? phoneProgramCap() : PROGRAM_ROW_CAP,
   now = new Date(),
@@ -8608,7 +8626,12 @@ function fitWallWho(root, data, { now = new Date(), reset = false, isDisplay = f
   if (!reset && !overflows()) return 0;
 
   // `allRows` haengt nicht am Deckel, der Timer spielt hier also keine Rolle.
-  const model = buildTodayCockpitModel(data, [], { cap: WALL_ROW_CAP, now, groupOverdue: false });
+  const model = buildTodayCockpitModel(data, [], {
+    cap: WALL_ROW_CAP,
+    now,
+    groupOverdue: false,
+    ...wallTimelineOptions(data, now),
+  });
   const place = (step) => {
     const section = wall.querySelector('.wall__who');
     if (!section) return false;
@@ -8688,7 +8711,13 @@ function shedWallProgram(wall, data, overflows, { now = new Date(), isDisplay = 
   let shed = 0;
   while (rows > 2 && overflows()) {
     rows -= 1;
-    const model = buildTodayCockpitModel(data, [], { cap: rows, now, groupOverdue: false, isDisplay });
+    const model = buildTodayCockpitModel(data, [], {
+      cap: rows,
+      now,
+      groupOverdue: false,
+      isDisplay,
+      ...wallTimelineOptions(data, now),
+    });
     section.insertAdjacentHTML('afterend', renderWallProgram(model));
     const next = section.nextElementSibling;
     section.remove();
@@ -8850,7 +8879,13 @@ function renderWallSurface(data, weather, { failed = false, loading = false, upd
   // weniger, und „+N weitere" zaehlt sie mit. Der Start und das Ende rufen
   // ohnehin `rerender()` (wall-timer.js), der Deckel folgt also von selbst.
   const cap = timer.display ? WALL_ROW_CAP - 1 : WALL_ROW_CAP;
-  const model = failed || loading ? null : buildTodayCockpitModel(data, [], { cap, now, groupOverdue: false, isDisplay });
+  const model = failed || loading ? null : buildTodayCockpitModel(data, [], {
+    cap,
+    now,
+    groupOverdue: false,
+    isDisplay,
+    ...wallTimelineOptions(data, now),
+  });
 
   let main;
   if (failed) {

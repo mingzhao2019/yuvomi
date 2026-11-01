@@ -1712,7 +1712,7 @@ test('Listenbewegung R17: Notizen, Dokumente, Kontakte, Budget, Inventar, Abos, 
     ['contacts', /collapseRow\(row, \{ group: row\?\.closest\('\.contact-group'\), selector: CONTACT_ROW \}\)/, 'geloeschter Kontakt klappt aus, mit dem letzten die Gruppe'],
     ['budget', /redrawList\(body, renderBody, \{ selector: BUDGET_ENTRY, keyAttr: 'data-id' \}\)/, 'Buchungsliste'],
     ['budget', /summaryWith\(state\.summary, \[entry\], -1\);[\s\S]{0,260}collapseEntryThenRedraw\(id\);/, 'geloeschte Buchung klappt aus'],
-    ['budget', /closeModal\(\{ force: true \}\);\s*redrawEntries\(\);\s*window\.yuvomi\?\.showToast\(t\('budget\.addedToast'\)/, 'neue Buchung zieht auf'],
+    ['budget', /closeModal\(\{ force: true, context: modalContext \}\);\s*redrawEntries\(\);\s*window\.yuvomi\?\.showToast\(t\('budget\.addedToast'\)/, 'neue Buchung zieht auf'],
     ['inventory', /redrawList\(host, renderListBody, \{ selector: INVENTORY_ITEM_ROW, keyAttr: 'data-id' \}\)/, 'Gegenstaende'],
     ['inventory', /await collapseRow\(_container\?\.querySelector\(`#inventory-list \.list-row\[data-id="\$\{id\}"\]`\)/, 'geloeschter Gegenstand klappt aus'],
     ['subscriptions', /redrawList\(content, drawContent, \{ selector: SUBSCRIPTION_ROW, keyAttr: 'data-swipe-id' \}\)/, 'Abos'],
@@ -2163,11 +2163,11 @@ const SHARED_PRESSABLE = [
  * Hoechststand der `:hover`-Regeln ausserhalb von `@media (hover: hover)`.
  *
  * Upstream's R18 baseline was 240. Custom keeps additional module surfaces;
- * after the shared UI changes the measured custom line is 248 (down from 271
+ * after the shared UI changes the measured custom line is 223 (down from 248
  * before the integration). Keep this as a ratchet for the custom line rather
  * than comparing it with the smaller upstream stylesheet.
  */
-const UNGUARDED_HOVER_MAX = 248;
+const UNGUARDED_HOVER_MAX = 223;
 
 function hoverRules() {
   const out = [];

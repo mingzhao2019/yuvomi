@@ -144,8 +144,6 @@
   flex-wrap: wrap;
 }
 
-.asset-cost-theme-menu[hidden] { display: none; }
-
 .asset-cost-theme-menu button {
   padding: var(--space-1) var(--space-2);
   font-size: var(--text-xs);

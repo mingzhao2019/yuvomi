@@ -22,44 +22,50 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-10-30 UTC**.
+Last verified: **2026-11-01 UTC**; this integration was initiated on
+2026-10-31 UTC.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `ea98a02987def87871c9d85f78a1ab350d849b53` | Local upstream v2.83.0 baseline is synchronized to the current upstream tip. |
-| `origin/main` | `ea98a02987def87871c9d85f78a1ab350d849b53` | Remote upstream baseline matches local `main` after the authorized push. |
-| `custom` | Selective integration of 22 upstream commits, plus local reconciliation and the synchronization record update. | Product-specific behavior remains authoritative. |
-| `origin/custom` | Matches local `custom` after the authorized push. | Remote delivery is complete. |
+| `main`, `upstream/main`, `origin/main` | `93d2fec553b7bb013e9ebffd92a16b22b5dc9efa` | Local and remote upstream-compatible baselines are synchronized to the current upstream tip. |
+| `custom` | Selective integration of 31 upstream commits, plus local reconciliation and this synchronization record. | Product-specific behavior remains authoritative. |
+| `origin/custom` | Will match local `custom` after the explicitly authorized delivery push for this sync. | Remote delivery is part of this workflow. |
 
-Both branch pairs now match after delivery:
+After the authorized delivery push, both branch pairs are expected to match:
 
 ```text
 main...upstream/main   0 0
 custom...origin/custom 0 0
 ```
 
-The release metadata remains `2.83.0`. The upstream app-wide R24 design
-refactor (`72db19dfb`) was inspected and intentionally skipped because it is a
-large coupled UI change that conflicts with the custom calendar, task,
-settings, and layout contracts. The five commits after the previous upstream
-tip were adopted: installer rerun preservation and home-network setup,
-installer confirmation/clear/finish polish, the inset active-segment design
-token, the new problem-to-setup homepage and site assets, and Vietnamese
-singular-count handling. The earlier selectively adopted commits and the
-custom product wording remain intact. No new database migration was added;
-custom migrations remain append-only. The older destructive upstream commit
-`cd1ee47be` remains excluded because it conflicts with the custom task-list/
-account identity contract and can delete existing data.
+The release metadata remains `2.83.0`. All nine upstream commits after the
+previous synchronization point were incorporated on the temporary branch:
 
-Focused checks for this sync passed: the affected installer schema, environment,
-static, i18n, CLI, prerequisite, accessibility, rerun, LAN, and validation
-suites; Vietnamese plural handling; landing-page 148/148, README-consistency
-28/28, changelog 42/42, typography 33/33, migration append-only, and Service
-Worker checks. `test:i18n-translated` still reports 22 pre-existing app-locale
-baseline-equality failures; no new English-value failures were reported, and
-the stale unrelated baselines were not broadened. The full `npm test` and
-aggregate browser guard chain were not run per the operator's request, so
-those scopes remain unverified.
+1. `01292d50` — documents can name a person and expose key dates.
+2. `8e963706` — clarify self-update scope and add Proxmox bug-form guidance.
+3. `5583ef64` — quote the Quadlet health-check node command.
+4. `732c1d52` — keep a wall meal until the next planned meal starts.
+5. `a3bee52c` — keep the iPhone list tail above the menu.
+6. `6f3475e4` — prevent feedback undo-probe regex backtracking.
+7. `0e383175` — persist task grouping after reload.
+8. `dc611863` — keep sync snapshots out of calendar event responses.
+9. `9d3b5244` — restore ICS feed values when resetting a subscription.
+
+The integration preserved the custom contracts while reconciling the wall
+timeline with upstream R24, task sync/resizer behavior, calendar provider and
+Outlook contracts, the package test chain, Vietnamese locale duplicates, ICS
+migration lookup, task date formatting, translated-i18n baselines, OpenAPI
+reason codes, health and waste late-modal context for #1997, motion tokens and
+baselines, control-dialect thresholds, hidden-cascade rules, and the wall
+event-limit expectation. Documents remain at local migration v279 over
+upstream v272; ICS subscriptions remain at local migration v280 over upstream
+v273. Both migrations are append-only.
+
+Focused checks passed: i18n 82/82 and translated i18n 104/104, dashboard event
+limit 44/44, frontend audit 563/563, health errors 58/58, waste errors 114/114,
+ICS subscription 40/40, motion 110/110, control dialect 120/120, and hidden
+cascade 37/37. The explicitly requested complete `npm test` run exited `0`;
+the log contains no `not ok` entries or non-zero `# fail` summaries.
 
 There is no temporary integration branch left in the local repository.
 Product-specific behavior remains authoritative on `custom`; the full list is
@@ -128,11 +134,11 @@ side of a conflict.
    git diff --check
    git diff --stat custom...HEAD
    git log --oneline --decorate custom..HEAD
-   npm test
    ```
 
-   Also run focused tests for affected modules, check version consistency, and
-   explicitly confirm task lists, Microsoft To Do, Outlook/ICS calendars,
+   Run focused tests for affected modules by default. Run the full `npm test`
+   only when the operator explicitly requests it. Check version consistency,
+   and explicitly confirm task lists, Microsoft To Do, Outlook/ICS calendars,
    notification channels, assets, and dashboard widgets remain intact.
 
 7. After validation, fast-forward `custom` and remove the temporary branch:

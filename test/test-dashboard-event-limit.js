@@ -672,7 +672,12 @@ test('Wand: vier Zeilen, mit und ohne Telefon-Buehne dieselbe Flaeche (#2087)', 
     narrow = dash.renderWallSurface(data, null, { now: new Date() });
   }, { phone: true })();
   assert.match(wide, /wall__program/, 'Reichweite: die Wand ist gebaut');
-  assert.equal((wide.match(/Aufgabe \d/g) ?? []).length, dash.WALL_ROW_CAP, 'die Wand zeigt vier Zeilen, nicht drei und nicht fuenf');
+  // Seit R24 fuehrt auf der Wand die Leiste wie im Cockpit (wallTimelineOptions):
+  // die vier Zeilen sind die ersten Termine des Tages, die Aufgaben stehen
+  // dahinter in „+N weitere".
+  const rows = [...wide.matchAll(/<li class="wall-row wall-row--(\w+)"[\s\S]*?wall-row__title">([^<]*)</g)]
+    .filter(([, tone]) => tone !== 'shopping' && tone !== 'state').map(([, , title]) => title);
+  assert.deepEqual(rows, ['Heute 08', 'Heute 09', 'Heute 10', 'Heute 11'], 'die Wand zeigt vier Zeilen, nicht drei und nicht fuenf');
   assert.equal(narrow, wide, 'die Telefon-Buehne aendert an der Wand nichts');
 });
 

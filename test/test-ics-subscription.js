@@ -391,16 +391,16 @@ await (async () => {
       assert(row.title === 'Lokal', `lokale Änderung ging verloren: "${row.title}"`);
     });
 
-    // Migration 273: Altbestand bekommt ein leeres ETag und Last-Modified, damit
+    // Die Feed-Reset-Migration: Altbestand bekommt ein leeres ETag und Last-Modified, damit
     // der nächste Abruf den vollen Feed (200) statt 304 liefert.
-    await atest('Migration 273 leert ETag und Last-Modified der Abos', async () => {
-      const m = MIGRATIONS.find((x) => x.version === 273);
-      assert(m, 'Migration 273 fehlt');
+    await atest('Die Feed-Reset-Migration leert ETag und Last-Modified der Abos', async () => {
+      const m = MIGRATIONS.find((x) => x.description.includes('ICS subscriptions: feed values kept for reset'));
+      assert(m, 'Feed-Reset-Migration fehlt');
       const altId = syncDb.prepare(`
         INSERT INTO ics_subscriptions (name, url, color, created_by, etag, last_modified)
         VALUES ('Alt', 'https://x.com/alt.ics', '#000000', 1, '"abc"', 'Wed, 01 Jan 2026 00:00:00 GMT')
       `).run().lastInsertRowid;
-      m.up(syncDb);
+      if (typeof m.up === 'function') m.up(syncDb); else syncDb.exec(m.up);
       const r = syncDb.prepare('SELECT etag, last_modified FROM ics_subscriptions WHERE id = ?').get(altId);
       assert(r.etag === null && r.last_modified === null,
         `ETag blieb: ${JSON.stringify(r)}`);

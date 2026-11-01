@@ -232,12 +232,6 @@ body.task-list-resizing * {
   opacity: 0.8;
 }
 
-.task-list-nav__item-row.sortable-ghost,
-.task-list-nav__group.sortable-ghost,
-.task-list-nav__menu-row.sortable-ghost {
-  opacity: 0.35;
-}
-
 .task-list-nav__item-row.sortable-drag,
 .task-list-nav__group.sortable-drag,
 .task-list-nav__menu-row.sortable-drag {

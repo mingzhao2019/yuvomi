@@ -1236,9 +1236,10 @@ function openTypeModal(type = null) {
       });
 
       panel.querySelector('#wtm-archive')?.addEventListener('click', async () => {
+        const modalContext = captureModalContext();
         try {
           await api.put(`/waste/types/${type.id}`, { archived: !type.archived });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           window.yuvomi?.showToast(type.archived ? t('waste.typeRestoredToast') : t('waste.typeArchivedToast'), 'success');
@@ -1250,9 +1251,10 @@ function openTypeModal(type = null) {
       panel.querySelector('#wtm-delete')?.addEventListener('click', async () => {
         const ok = await confirmOverModal(t('waste.typeDeleteConfirm'), { danger: true, confirmLabel: t('common.delete'), detail: t('waste.typeDeleteConfirmDetail') });
         if (!ok) return;
+        const modalContext = captureModalContext();
         try {
           await deleteOrAlreadyGone(`/waste/types/${type.id}`, 'waste_type_not_found');
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAndRender();
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.typeDeletedToast'), 'success');
@@ -1272,10 +1274,11 @@ function openTypeModal(type = null) {
           // eine leere Farbe.
           color: activeSwatchColor(panel, selColor),
         };
+        const modalContext = captureModalContext();
         try {
           if (isEdit) await api.put(`/waste/types/${type.id}`, body);
           else await api.post('/waste/types', body);
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.typeSavedToast'), 'success');
@@ -1489,9 +1492,10 @@ function openScheduleModal(type, schedule = null) {
       panel.querySelector('#wsm-delete')?.addEventListener('click', async () => {
         const ok = await confirmOverModal(t('waste.scheduleDeleteConfirm'), { danger: true, confirmLabel: t('common.delete'), detail: t('waste.scheduleDeleteConfirmDetail') });
         if (!ok) return;
+        const modalContext = captureModalContext();
         try {
           await deleteOrAlreadyGone(`/waste/schedules/${schedule.id}`, 'waste_schedule_not_found');
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAndRender();
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.scheduleDeletedToast'), 'success');
@@ -1522,10 +1526,11 @@ function openScheduleModal(type, schedule = null) {
           body.month_day = lastDay ? -1 : Number(panel.querySelector('#wsm-month-day').value);
         }
 
+        const modalContext = captureModalContext();
         try {
           if (isEdit) await api.put(`/waste/schedules/${schedule.id}`, body);
           else await api.post('/waste/schedules', body);
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.scheduleSavedToast'), 'success');
@@ -1585,9 +1590,10 @@ function openPickupModal(pickup = null) {
       panel.querySelector('#wpm-delete')?.addEventListener('click', async () => {
         const ok = await confirmOverModal(t('waste.pickupDeleteConfirm'), { danger: true, confirmLabel: t('common.delete'), detail: t('waste.pickupDeleteConfirmDetail') });
         if (!ok) return;
+        const modalContext = captureModalContext();
         try {
           await deleteOrAlreadyGone(`/waste/pickups/${pickup.id}`, 'waste_pickup_not_found');
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAndRender();
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.pickupDeletedToast'), 'success');
@@ -1604,10 +1610,11 @@ function openPickupModal(pickup = null) {
           date: panel.querySelector('#wpm-date').value,
           note: panel.querySelector('#wpm-note').value.trim() || null,
         };
+        const modalContext = captureModalContext();
         try {
           if (isEdit) await api.put(`/waste/pickups/${pickup.id}`, body);
           else await api.post('/waste/pickups', body);
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.pickupSavedToast'), 'success');
@@ -1897,9 +1904,10 @@ function openImportWizard(source = null) {
 
         try {
           const endpoint = isReimport ? `/waste/sources/${source.id}/reimport/preview` : '/waste/import/preview';
+          const modalContext = captureModalContext();
           const res = await api.post(endpoint, isUrlSource ? {} : { ics: icsText });
           if (res.data.unchanged) {
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             window.yuvomi?.showToast(t('waste.sourceUnchangedToast'), 'default');
             return;
           }
@@ -1945,8 +1953,9 @@ function openImportWizard(source = null) {
 
         try {
           const endpoint = isReimport ? `/waste/sources/${source.id}/reimport/commit` : '/waste/import/commit';
+          const modalContext = captureModalContext();
           const res = await api.post(endpoint, body);
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           const { added, changed, removed } = res.data.diff;
@@ -2074,11 +2083,12 @@ function openMappingProfileImportModal(source) {
         panel.querySelector('#wmp-apply')?.addEventListener('click', async () => {
           const btn = panel.querySelector('#wmp-apply');
           const stopLoading = btnLoading(btn);
+          const modalContext = captureModalContext();
           try {
             await api.post(`/waste/sources/${source.id}/mapping-profile/import/commit`, {
               profile, profile_digest: preview.profile_digest,
             });
-            closeModal({ force: true });
+            closeModal({ force: true, context: modalContext });
             await reloadAfterSave(() => loadSourceAndOpen(source.id));
             refocusAfterRender();
             window.yuvomi?.showToast(t('waste.mappingProfileAppliedToast'), 'success');
@@ -2151,9 +2161,10 @@ function openSourceModal(source) {
       panel.querySelector('#wsrc-delete').addEventListener('click', async () => {
         const ok = await confirmOverModal(t('waste.sourceDeleteConfirm'), { danger: true, confirmLabel: t('common.delete'), detail: t('waste.sourceDeleteConfirmDetail') });
         if (!ok) return;
+        const modalContext = captureModalContext();
         try {
           await deleteOrAlreadyGone(`/waste/sources/${source.id}`, 'waste_source_not_found');
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAndRender();
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.sourceDeletedToast'), 'success');
@@ -2165,6 +2176,7 @@ function openSourceModal(source) {
       panel.querySelector('#wsrc-save').addEventListener('click', async () => {
         const name = panel.querySelector('#wsrc-name').value.trim();
         let failedMappingId = null;
+        const modalContext = captureModalContext();
         try {
           if (name && name !== source.name) await api.put(`/waste/sources/${source.id}`, { name });
           for (const row of panel.querySelectorAll('.waste-source-mapping-row')) {
@@ -2175,7 +2187,7 @@ function openSourceModal(source) {
             if (!mappingTypesChanged(mapping, typeIds)) continue;
             await api.put(`/waste/sources/${source.id}/mappings/${mappingId}`, typeIds.length ? { type_ids: typeIds } : { ignored: true });
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.sourceSavedToast'), 'success');
@@ -2335,9 +2347,10 @@ function openUrlSourceWizard() {
 
         const btn = panel.querySelector('#wurl-save');
         const stopLoading = btnLoading(btn);
+        const modalContext = captureModalContext();
         try {
           const res = await api.post('/waste/sources', { name, url, refresh_interval_minutes: refreshIntervalMinutes });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           if (res.data.outcome === 'committed') {
@@ -2418,6 +2431,7 @@ async function openReminderSettingsModal() {
       panel.querySelector('#rem-save')?.addEventListener('click', async () => {
         const btn = panel.querySelector('#rem-save');
         const stopLoading = btnLoading(btn);
+        const modalContext = captureModalContext();
         try {
           for (const row of panel.querySelectorAll('.waste-reminder-setting-row')) {
             const typeId = Number(row.dataset.typeId);
@@ -2428,7 +2442,7 @@ async function openReminderSettingsModal() {
             if (original.enabled === enabled && original.offset_days === offsetDays && original.delivery_time === deliveryTime) continue;
             await api.put(`/waste/reminder-settings/${typeId}`, { enabled, offset_days: offsetDays, delivery_time: deliveryTime });
           }
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('waste.reminderSettingsSavedToast'), 'success');
         } catch (err) {
           stopLoading();
@@ -2475,9 +2489,10 @@ async function moveOccurrence(occurrenceKey) {
       panel.querySelector('#wmm-cancel').addEventListener('click', () => closeModal());
       panel.querySelector('#wmm-save').addEventListener('click', async () => {
         const newDate = panel.querySelector('#wmm-date').value;
+        const modalContext = captureModalContext();
         try {
           await api.put(`/waste/schedules/${found.scheduleId}/overrides/${found.originalDate}`, { replacement_date: newDate });
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           await reloadAfterSave(() => reloadAndRender());
           refocusAfterRender();
           window.yuvomi?.showToast(t('waste.scheduleSavedToast'), 'success');
