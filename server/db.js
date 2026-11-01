@@ -11929,7 +11929,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 274,
+    version: 281,
     description: 'api_tokens: kind, platform, device_id for signed-in devices',
     // Ein Telefon mit nativem Client ist ein angemeldetes Geraet: eine Person mit
     // einem Device Credential. Es liegt in `api_tokens`, damit Widerruf beim

@@ -16,8 +16,8 @@
  *   5. Das Limit zaehlt, was der Aufrufer bekommt: eine Zeile eines abgeschalteten
  *      Moduls verdraengt keine sichtbare.
  *   6. Ein Device Credential liest die eigenen Zeilen, als Mitglied.
- *   7. Eine erledigte oder abgelegte Aufgabe fehlt, ihre Zeile bleibt. `/pending`
- *      laesst sie drin: was das Telefon spaeter feuert, fragt nicht mehr nach.
+ *   7. Eine erledigte oder abgelegte Aufgabe fehlt aus `/upcoming` und kommt beim
+ *      Wiederöffnen zurück; `/pending` behält die lokale Regel für fällige Toasts.
  *
  * WARUM DER ECHTE SERVER und nicht der Router auf einem Testport: das Gate fuer
  * Token-Scopes und das Device Credential stehen in server/index.js und

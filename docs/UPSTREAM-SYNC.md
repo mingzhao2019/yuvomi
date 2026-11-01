@@ -22,14 +22,17 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-11-01 UTC**; this integration was initiated on
-2026-10-31 UTC.
+Last verified: **2026-11-02 UTC**. This integration refreshed `main` to the
+current upstream tip and prepared the corresponding selective update for
+`custom` on `custom-upstream-selective-2026-11-02`.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main`, `origin/main` | `93d2fec553b7bb013e9ebffd92a16b22b5dc9efa` | Local and remote upstream-compatible baselines are synchronized to the current upstream tip. |
-| `custom` | Selective integration of 31 upstream commits, plus local reconciliation and this synchronization record. | Product-specific behavior remains authoritative. |
-| `origin/custom` | Will match local `custom` after the explicitly authorized delivery push for this sync. | Remote delivery is part of this workflow. |
+| `main`, `upstream/main` | `2dc9bfe7820e58fa947d20f82d5cf102065a1eb0` | Local upstream-compatible baselines match the current upstream tip. |
+| `origin/main` | `93d2fec553b7bb013e9ebffd92a16b22b5dc9efa` before delivery | The explicitly authorized delivery push advances it to the local `main` tip. |
+| `custom` | `208c411d46212b296ef0dc6d77f144bc126ded52` before delivery | The selective integration is fast-forwarded into this product branch after review. |
+| `origin/custom` | `208c411d46212b296ef0dc6d77f144bc126ded52` before delivery | The explicitly authorized delivery push advances it to the resulting local `custom` tip. |
+| temporary integration | `custom-upstream-selective-2026-11-02` | Contains the 16 upstream commits plus local reconciliations; it is removed after the fast-forward. |
 
 After the authorized delivery push, both branch pairs are expected to match:
 
@@ -38,38 +41,45 @@ main...upstream/main   0 0
 custom...origin/custom 0 0
 ```
 
-The release metadata remains `2.83.0`. All nine upstream commits after the
-previous synchronization point were incorporated on the temporary branch:
+The release metadata remains `2.83.0`. All 16 upstream commits after the
+previous synchronization point (`93d2fec553b7bb013e9ebffd92a16b22b5dc9efa`)
+were incorporated on the temporary branch:
 
-1. `01292d50` — documents can name a person and expose key dates.
-2. `8e963706` — clarify self-update scope and add Proxmox bug-form guidance.
-3. `5583ef64` — quote the Quadlet health-check node command.
-4. `732c1d52` — keep a wall meal until the next planned meal starts.
-5. `a3bee52c` — keep the iPhone list tail above the menu.
-6. `6f3475e4` — prevent feedback undo-probe regex backtracking.
-7. `0e383175` — persist task grouping after reload.
-8. `dc611863` — keep sync snapshots out of calendar event responses.
-9. `9d3b5244` — restore ICS feed values when resetting a subscription.
+1. `c3455255` — harden the Docker container with `no-new-privileges`.
+2. `7dda1ee9` — restrict notification channel routes to their owner/scope.
+3. `93f811f4` — accept convertible health units and read converted limits.
+4. `4b0ddb0d` — make the web app manifest network-first.
+5. `93c80c5d` — preserve sub-second precision when aligning calendar series.
+6. `b9094912` — preserve local time for repeating CalDAV tasks.
+7. `c4d4ba80` — keep task titles whole on phones below 390px.
+8. `a2343182` — keep the dashboard today summary within its card.
+9. `869e0291` — prevent settings toasts from exposing raw error text.
+10. `f7dbd295` — keep budget titles whole on phones below 390px.
+11. `6b8b0393` — deduplicate shared-event reminders per channel.
+12. `9052d4a8` — deduplicate waste-pickup reminders per channel.
+13. `ef1ef514` — document a native iOS client beside Yuvomi.
+14. `11d84a48` — name the product and client contract in `/version`.
+15. `789029b7` — add signed-in device credentials for native clients.
+16. `2dc9bfe7` — add upcoming reminders for native clients.
 
-The integration preserved the custom contracts while reconciling the wall
-timeline with upstream R24, task sync/resizer behavior, calendar provider and
-Outlook contracts, the package test chain, Vietnamese locale duplicates, ICS
-migration lookup, task date formatting, translated-i18n baselines, OpenAPI
-reason codes, health and waste late-modal context for #1997, motion tokens and
-baselines, control-dialect thresholds, hidden-cascade rules, and the wall
-event-limit expectation. Documents remain at local migration v279 over
-upstream v272; ICS subscriptions remain at local migration v280 over upstream
-v273. Both migrations are append-only.
+The integration preserved the custom contracts while reconciling notification
+ownership, locale/settings merges, mobile task and budget layout, health unit
+conversion, calendar/CalDAV precision, device credentials, and upcoming
+reminders. The custom `/pending` reminder route keeps its completed-task
+suppression while the new `/upcoming` route uses the upstream shared query.
+Because custom migrations already use v274 through v280, the device-credential
+migration was appended as v281; released migrations remain untouched.
 
-Focused checks passed: i18n 82/82 and translated i18n 104/104, dashboard event
-limit 44/44, frontend audit 563/563, health errors 58/58, waste errors 114/114,
-ICS subscription 40/40, motion 110/110, control dialect 120/120, and hidden
-cascade 37/37. The explicitly requested complete `npm test` run exited `0`;
-the log contains no `not ok` entries or non-zero `# fail` summaries.
+No automated tests were run by explicit user request. Static checks only:
+`git diff --check`; JSON parsing for package, lockfile, and locale files;
+`node --check` on changed production JavaScript files; strictly increasing,
+unique migration versions; and no unresolved conflict markers. Focused and full
+test results are unverified for this integration.
 
-There is no temporary integration branch left in the local repository.
-Product-specific behavior remains authoritative on `custom`; the full list is
-maintained in [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
+The temporary integration branch is fast-forwarded into `custom` only after
+the final local verification and is then removed. Product-specific behavior
+remains authoritative on `custom`; the full list is maintained in
+[`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
 
 ## Custom boundaries to preserve
 

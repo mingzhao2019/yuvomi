@@ -234,10 +234,10 @@ const OPEN_TASK_REMINDER_SQL = `
       )`;
 
 /**
- * Die Erinnerungen des Aufrufers in einem Zeitraum: EINE Abfrage fuer `/pending`
- * und `/upcoming`, damit die Riegel keine zweite Fassung bekommen. Herkunft,
+ * Die Erinnerungen des Aufrufers in einem Zeitraum fuer `/upcoming`; Herkunft,
  * Sichtbarkeit, Waisen, abgeschaltete Module, Titel und Haushaltsansicht stehen
- * nur hier; die Routen sagen nur noch, welchen Zeitraum sie wollen.
+ * nur hier. `/pending` behaelt die lokale Legacy-Regel, erledigte Aufgaben
+ * nicht erneut als fällige In-App-Erinnerung zu zeigen.
  *
  * `limit` greift NACH `withoutSwitchedOffModules()`, also nicht als SQL-`LIMIT`:
  * der Haushaltsschalter filtert in JavaScript, und eine Zeile eines abgeschalteten
