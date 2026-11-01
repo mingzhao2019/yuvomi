@@ -36,6 +36,7 @@
     "test:session-secret-guard": "node --experimental-sqlite --test test/test-session-secret-guard.js",
     "test:session-sliding": "node --experimental-sqlite --test test/test-session-sliding.js",
     "test:sign-out-other-sessions": "node --experimental-sqlite --test test/test-sign-out-other-sessions.js",
+    "test:signed-in-devices": "node --experimental-sqlite --test test/test-signed-in-devices.js",
     "test:upload-limit": "node --test test/test-upload-limit.js",
     "test:dashboard": "node --experimental-sqlite test/test-dashboard.js",
     "test:dashboard-fasting": "node --experimental-sqlite --test test/test-dashboard-fasting.js",
