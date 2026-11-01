@@ -23,16 +23,14 @@ than the seven-day retention window are removed during documentation cleanup.
 ## Current repository state
 
 Last verified: **2026-11-02 UTC**. This integration refreshed `main` to the
-current upstream tip and prepared the corresponding selective update for
-`custom` on `custom-upstream-selective-2026-11-02`.
+current upstream tip, selectively merged the update into `custom`, and pushed
+both branches to `origin`.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `2dc9bfe7820e58fa947d20f82d5cf102065a1eb0` | Local upstream-compatible baselines match the current upstream tip. |
-| `origin/main` | `93d2fec553b7bb013e9ebffd92a16b22b5dc9efa` before delivery | The explicitly authorized delivery push advances it to the local `main` tip. |
-| `custom` | `208c411d46212b296ef0dc6d77f144bc126ded52` before delivery | The selective integration is fast-forwarded into this product branch after review. |
-| `origin/custom` | `208c411d46212b296ef0dc6d77f144bc126ded52` before delivery | The explicitly authorized delivery push advances it to the resulting local `custom` tip. |
-| temporary integration | `custom-upstream-selective-2026-11-02` | Contains the 16 upstream commits plus local reconciliations; it is removed after the fast-forward. |
+| `main`, `upstream/main`, `origin/main` | `2dc9bfe7820e58fa947d20f82d5cf102065a1eb0` | Local and remote upstream-compatible baselines match the current upstream tip. |
+| `custom`, `origin/custom` | `d4eb7778106fc531422768fba7b324499eca8914` | Product-specific behavior and the selective upstream integration are delivered and aligned. |
+| temporary integration | removed after fast-forward | Its 16 upstream commits plus local reconciliations are retained in `custom` history. |
 
 After the authorized delivery push, both branch pairs are expected to match:
 
