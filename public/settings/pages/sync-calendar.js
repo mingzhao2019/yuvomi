@@ -29,7 +29,7 @@ import { loadFamilyUsers } from '/settings/family-users.js';
 import { renderReminderSyncSection } from './sync-reminders.js';
 import { buildAssigneeMenu } from '/settings/assignee-menu.js';
 import { reloadAfterSave } from '/utils/reload-after-save.js';
-import { errorSentence, loadErrorSentence } from '/utils/friendly-error.js';
+import { errorSentence, loadErrorSentence, errorSentenceWithDetail } from '/utils/friendly-error.js';
 
 // Seit R23 ein eigenes Blatt (registry.js, D14; R10-R22 ein Abschnitt im
 // Blatt Kalender). Neu laden heisst, das Blatt neu zu zeichnen - nicht ueber
@@ -551,7 +551,7 @@ function buildCalendarList(account, calendars) {
           );
         } catch (err) {
           checkbox.checked = !enabled;
-          showToast(err.message || t('common.errorGeneric'), 'danger');
+          showToast(errorSentence(err), 'danger');
         }
       });
     });
@@ -607,7 +607,7 @@ function renderCalDAVAccount(container, account, calendars, refresh, user) {
       showToast(t('settings.caldavSyncSuccess'), 'success');
       await reloadAfterSave(() => refresh());
     } catch (err) {
-      showToast(err.message || t('settings.caldavSyncFailed'), 'danger');
+      showToast(errorSentence(err, 'settings.caldavSyncFailed'), 'danger');
       syncBtn.disabled = false;
     }
   });
@@ -644,7 +644,7 @@ function renderCalDAVAccount(container, account, calendars, refresh, user) {
       showToast(t('settings.calendarsRefreshed'), 'success');
       await refresh();
     } catch (err) {
-      showToast(err.message || t('common.errorGeneric'), 'danger');
+      showToast(errorSentenceWithDetail(err, 'settings.connectionFailedDetail'), 'danger');
       refreshBtn.disabled = false;
     }
   });
@@ -698,7 +698,7 @@ function renderCalDAVAccount(container, account, calendars, refresh, user) {
         await refresh();
         refocusAfterRender();
       } catch (err) {
-        showToast(err.message || t('common.errorGeneric'), 'danger');
+        showToast(errorSentence(err), 'danger');
       }
     });
     actions.appendChild(deleteBtn);
@@ -1674,7 +1674,7 @@ function buildOutlookAutoSyncControls(account, calendars, selection) {
       showToast(t('settings.ics.updatedToast'), 'success');
     } catch (err) {
       selectEl.value = revertValue;
-      showToast(err.message || t('common.errorGeneric'), 'danger');
+      showToast(errorSentence(err), 'danger');
     } finally {
       selectEl.disabled = false;
     }
@@ -1839,7 +1839,7 @@ function buildOutlookAccountCard(account, refresh, user) {
       showToast(t('settings.syncSuccess', { provider: 'Outlook' }), 'success');
       await reloadAfterSave(() => refresh());
     } catch (err) {
-      showToast(err.message || t('common.errorGeneric'), 'danger');
+      showToast(errorSentenceWithDetail(err, 'settings.connectionFailedDetail'), 'danger');
       syncBtn.disabled = false;
     }
   });
@@ -1913,7 +1913,7 @@ function buildOutlookAccountCard(account, refresh, user) {
         showToast(t('settings.calendarsRefreshed'), 'success');
         await refresh();
       } catch (err) {
-        showToast(err.message || t('common.errorGeneric'), 'danger');
+        showToast(errorSentenceWithDetail(err, 'settings.connectionFailedDetail'), 'danger');
         refreshBtn.disabled = false;
       }
     });
@@ -1947,7 +1947,7 @@ function buildOutlookAccountCard(account, refresh, user) {
         await refresh();
         refocusAfterRender();
       } catch (err) {
-        showToast(err.message || t('common.errorGeneric'), 'danger');
+        showToast(errorSentence(err), 'danger');
       }
     });
     actions.appendChild(deleteBtn);
@@ -2065,7 +2065,7 @@ function buildAppleProvider(appleStatus, user) {
         await api.post('/calendar/apple/sync', {});
         showToast(t('settings.syncSuccess', { provider: 'Apple Calendar' }), 'success');
       } catch (err) {
-        showToast(err.message || t('common.errorGeneric'), 'danger');
+        showToast(errorSentenceWithDetail(err, 'settings.connectionFailedDetail'), 'danger');
       } finally {
         syncBtn.disabled = false;
         syncBtn.textContent = t('settings.syncNow');
@@ -2087,7 +2087,7 @@ function buildAppleProvider(appleStatus, user) {
           showToast(t('settings.disconnectedToast', { provider: 'Apple Calendar' }), 'default');
           window.yuvomi?.navigate(SYNC_CALENDAR_HREF);
         } catch (err) {
-          showToast(err.message || t('common.errorGeneric'), 'danger');
+          showToast(errorSentence(err), 'danger');
         }
       });
       actions.appendChild(disconnectBtn);

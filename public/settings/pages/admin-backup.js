@@ -3,6 +3,8 @@ import { t } from '/i18n.js';
 import { dateTimeText } from '/utils/date-format.js';
 import { confirmModal, whenModalClosed } from '/components/modal.js';
 import { formatCronSchedule } from '/settings/cron-label.js';
+import { wirePasswordToggle } from '/utils/auth-ui.js';
+import { errorSentenceWithDetail, errorSentence } from '/utils/friendly-error.js';
 import {
   backupKeyFieldHtml,
   encodeBackupKey,
@@ -261,7 +263,7 @@ async function loadBackupSchedulerStatus(container) {
           window.yuvomi?.showToast(t('settings.backupSchedulerTriggeredToast'), 'success');
           loadBackupSchedulerStatus(container);
         } catch (err) {
-          window.yuvomi?.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+          window.yuvomi?.showToast(errorSentence(err), 'danger');
           triggerBtn.disabled = false;
           triggerBtn.textContent = t('settings.backupSchedulerTrigger');
         }
@@ -322,7 +324,7 @@ function renderWebdavStatus(grid, container, d) {
         window.yuvomi?.showToast(t('settings.backupWebdavTriggeredToast'), 'success');
         loadWebdavConfig(container);
       } catch (err) {
-        window.yuvomi?.showToast(err.message ?? t('common.errorGeneric'), 'danger');
+        window.yuvomi?.showToast(errorSentenceWithDetail(err, 'settings.connectionFailedDetail'), 'danger');
         const icon = document.createElement('i');
         icon.dataset.lucide = 'upload-cloud';
         icon.setAttribute('aria-hidden', 'true');
@@ -399,12 +401,14 @@ async function loadWebdavConfig(container) {
 
 /**
  * Fehlermeldung einer WebDAV-Anfrage: `password_required` (neuer Server oder
- * Benutzer ohne neues Passwort) uebersetzt, sonst der Text des Servers.
+ * Benutzer ohne neues Passwort) und `url_invalid` uebersetzt, sonst der Satz
+ * der App (#1909). Nur Speichern: das Testen zeigt die Antwort des Servers.
  * Exportiert fuer test/test-settings-backup-key.js.
  */
 export function webdavErrorMessage(err) {
   if (err?.data?.errorCode === 'password_required') return t('settings.backupWebdavPasswordRequired');
-  return err?.message ?? t('common.errorGeneric');
+  if (err?.data?.errorCode === 'url_invalid') return t('settings.backupWebdavUrlInvalid');
+  return errorSentence(err);
 }
 
 function bindWebdavBackupEvents(container) {
@@ -454,7 +458,7 @@ function bindWebdavBackupEvents(container) {
       if (resultEl) {
         resultEl.textContent = err?.data?.errorCode === 'password_required'
           ? webdavErrorMessage(err)
-          : t('settings.backupWebdavTestFailed', { error: err.message });
+          : errorSentenceWithDetail(err, 'settings.backupWebdavTestFailed');
         resultEl.className = 'form-hint form-hint--danger';
       }
     } finally {

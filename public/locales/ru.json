@@ -822,7 +822,10 @@
         "checkAllSubtasks": "Отметить все",
         "subtasksAllDone": "«{{title}}» и все подзадачи выполнены.",
         "doneSubtasksOpen_few": "«{{title}}» выполнено - ещё открыты {{count}} подзадачи.",
-        "doneSubtasksOpen_many": "«{{title}}» выполнено - ещё открыто {{count}} подзадач."
+        "doneSubtasksOpen_many": "«{{title}}» выполнено - ещё открыто {{count}} подзадач.",
+        "seriesDoneNamed": "«{{title}}» выполнено - следующий раз: {{date}}",
+        "kanbanRestore": "Восстановить",
+        "errorTagGone": "Этого тега больше нет."
     },
     "shopping": {
         "importMealsPreviewMeals_few": "{{count}} приёма пищи",
@@ -3758,7 +3761,19 @@
         "tasksDefaultLockedHint": "Новые задачи открываются с заблокированным изменением. При создании блокировку можно снять.",
         "reminderListAssigneesTasksOnly": "Людей можно задать только для списков, которые идут в Задачи.",
         "syncAssigneeNotMember": "Здесь можно выбрать только членов семьи.",
-        "syncAssigneeUnknown": "Этого человека больше нет. Перезагрузите страницу."
+        "syncAssigneeUnknown": "Этого человека больше нет. Перезагрузите страницу.",
+        "permDetails": "Виджеты и другие права",
+        "connectionFailedDetail": "Не удалось подключиться: {{error}}",
+        "documentStorageChangeFailed": "Изменение не применено: {{error}}",
+        "apiTokenCopyFailed": "Не удалось скопировать. Выделите токен и скопируйте его вручную.",
+        "weatherLocateDenied": "Доступ к геолокации запрещён. Разрешите его в настройках браузера или введите место вручную.",
+        "weatherLocateFailed": "Не удалось определить местоположение. Введите место вручную.",
+        "outlookAutoSyncOverrides": "Outlook не может синхронизировать серии со связанными отдельными исключениями. Отключите их целевой календарь, чтобы они оставались доступными для редактирования здесь. Удалять исключения не нужно.",
+        "memberRemoveOwnAccount": "Нельзя удалить собственную учётную запись.",
+        "memberRemoveLastAdmin": "Должен остаться хотя бы один администратор.",
+        "memberRemoveLastSsoAdmin": "Это последний администратор, связанный с SSO. Сначала свяжите другого администратора.",
+        "backupWebdavUrlInvalid": "Адрес должен начинаться с http:// или https://.",
+        "icsSubscriptionGone": "Этой подписки больше нет."
     },
     "login": {
         "tagline": "С возвращением. Ваш дом - в одном месте.",

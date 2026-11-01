@@ -176,7 +176,10 @@ const REORDER_DENIED = '`reorder_not_allowed` (403, the caller lacks `tasks_reor
 const TODO_RECURRENCE_MANAGED = '`microsoft_todo_recurrence_managed` (409, Microsoft To Do owns the task recurrence; change it in Microsoft To Do)';
 const CAT_EXISTS = '`category_exists` (409, a category with this name already exists)';
 const CAT_DELETE = '`category_in_use` (409, tasks still use the category; `count` carries how many), `category_last` (409, the last category cannot be deleted)';
+const TAG_GONE = '`tasks_tag_not_found` (404, renamed or removed in the meantime)';
+
 const CASE_REASONS = {
+  '/api/v1/tasks/tags/{tag}': { put: TAG_GONE, delete: TAG_GONE },
   '/api/v1/tasks': { post: PARENT_GONE },
   '/api/v1/tasks/reorder': { patch: `${TASK_GONE}, ${REORDER_DENIED}` },
   '/api/v1/tasks/reorder/reset': { post: `${TASK_GONE}, ${REORDER_DENIED}` },

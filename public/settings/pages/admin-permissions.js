@@ -20,6 +20,7 @@ import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { createRetryState, hintFoldHtml } from '/settings/components.js';
 import { syncLeafEdits, trackLeafEdits } from '/settings/dirty-guard.js';
 import { resolveExtensionLabel } from '/utils/extension-i18n.js';
+import { errorSentence } from '/utils/friendly-error.js';
 import {
   effectiveCapabilityAccess as resolveCapabilityAccess,
   isPermissionDeviation,
@@ -655,7 +656,6 @@ async function save(container) {
   const url = state.mode === 'role'
     ? `/permissions/role/${encodeURIComponent(state.subjectId)}`
     : `/permissions/user/${encodeURIComponent(state.subjectId)}`;
-
   const saveBtn = container.querySelector('#perm-save');
   if (saveBtn) saveBtn.disabled = true;
   try {
@@ -672,7 +672,7 @@ async function save(container) {
     }
     window.yuvomi?.showToast(t('settings.permSaved', { name: title }), 'success');
   } catch (err) {
-    window.yuvomi?.showToast(err.message || t('common.errorGeneric'), 'danger');
+    window.yuvomi?.showToast(errorSentence(err), 'danger');
     if (saveBtn && generation === loadGeneration) saveBtn.disabled = false;
   }
 }
