@@ -23,15 +23,14 @@ than the seven-day retention window are removed during documentation cleanup.
 ## Current repository state
 
 Last verified: **2026-11-02 UTC**. This integration refreshed `main` to the
-`v2.84.0` upstream tip and prepared the corresponding selective update for
-`custom` on `custom-upstream-selective-2026-11-02`.
+`v2.84.0` upstream tip, selectively merged the update into `custom`, and
+pushed both branches to `origin`.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `e7e7dc0ef1b488006ccc0f2c5351bdb3679e3dbd` | Local upstream-compatible baselines match the current upstream tip. |
-| `origin/main` | `2dc9bfe7820e58fa947d20f82d5cf102065a1eb0` before delivery | The authorized delivery push advances it to the local `main` tip. |
-| `custom`, `origin/custom` | `4721087ec1c403cc2012a91a0caf909189881b94` before delivery | The selective integration is fast-forwarded into this product branch after review. |
-| temporary integration | `custom-upstream-selective-2026-11-02` | Contains the six upstream commits plus local reconciliations; it is removed after the fast-forward. |
+| `main`, `upstream/main`, `origin/main` | `e7e7dc0ef1b488006ccc0f2c5351bdb3679e3dbd` | Local and remote upstream-compatible baselines match the current upstream tip. |
+| `custom`, `origin/custom` | `138ebb6beae1b827d08ca8f31167cf5401343378` | Product-specific behavior and the selective upstream integration are delivered and aligned. |
+| temporary integration | removed after fast-forward | Its six upstream commits plus local reconciliation are retained in `custom` history. |
 
 After the authorized delivery push, both branch pairs are expected to match:
 
