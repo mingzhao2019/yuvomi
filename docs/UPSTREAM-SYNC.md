@@ -23,14 +23,15 @@ than the seven-day retention window are removed during documentation cleanup.
 ## Current repository state
 
 Last verified: **2026-11-02 UTC**. This integration refreshed `main` to the
-current upstream tip, selectively merged the update into `custom`, and pushed
-both branches to `origin`.
+`v2.84.0` upstream tip and prepared the corresponding selective update for
+`custom` on `custom-upstream-selective-2026-11-02`.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main`, `origin/main` | `2dc9bfe7820e58fa947d20f82d5cf102065a1eb0` | Local and remote upstream-compatible baselines match the current upstream tip. |
-| `custom`, `origin/custom` | `d4eb7778106fc531422768fba7b324499eca8914` | Product-specific behavior and the selective upstream integration are delivered and aligned. |
-| temporary integration | removed after fast-forward | Its 16 upstream commits plus local reconciliations are retained in `custom` history. |
+| `main`, `upstream/main` | `e7e7dc0ef1b488006ccc0f2c5351bdb3679e3dbd` | Local upstream-compatible baselines match the current upstream tip. |
+| `origin/main` | `2dc9bfe7820e58fa947d20f82d5cf102065a1eb0` before delivery | The authorized delivery push advances it to the local `main` tip. |
+| `custom`, `origin/custom` | `4721087ec1c403cc2012a91a0caf909189881b94` before delivery | The selective integration is fast-forwarded into this product branch after review. |
+| temporary integration | `custom-upstream-selective-2026-11-02` | Contains the six upstream commits plus local reconciliations; it is removed after the fast-forward. |
 
 After the authorized delivery push, both branch pairs are expected to match:
 
@@ -39,40 +40,33 @@ main...upstream/main   0 0
 custom...origin/custom 0 0
 ```
 
-The release metadata remains `2.83.0`. All 16 upstream commits after the
-previous synchronization point (`93d2fec553b7bb013e9ebffd92a16b22b5dc9efa`)
-were incorporated on the temporary branch:
+The release metadata is `2.84.0`. All six upstream commits after the previous
+synchronization point (`2dc9bfe7820e58fa947d20f82d5cf102065a1eb0`) were
+incorporated on the temporary branch:
 
-1. `c3455255` — harden the Docker container with `no-new-privileges`.
-2. `7dda1ee9` — restrict notification channel routes to their owner/scope.
-3. `93f811f4` — accept convertible health units and read converted limits.
-4. `4b0ddb0d` — make the web app manifest network-first.
-5. `93c80c5d` — preserve sub-second precision when aligning calendar series.
-6. `b9094912` — preserve local time for repeating CalDAV tasks.
-7. `c4d4ba80` — keep task titles whole on phones below 390px.
-8. `a2343182` — keep the dashboard today summary within its card.
-9. `869e0291` — prevent settings toasts from exposing raw error text.
-10. `f7dbd295` — keep budget titles whole on phones below 390px.
-11. `6b8b0393` — deduplicate shared-event reminders per channel.
-12. `9052d4a8` — deduplicate waste-pickup reminders per channel.
-13. `ef1ef514` — document a native iOS client beside Yuvomi.
-14. `11d84a48` — name the product and client contract in `/version`.
-15. `789029b7` — add signed-in device credentials for native clients.
-16. `2dc9bfe7` — add upcoming reminders for native clients.
+1. `0f7f0a05` — pair a signed-in device with a short code or QR code.
+2. `0c42bdac` — publish a typed OpenAPI contract for native-client operations.
+3. `6964f76c` — keep recurring-event reminders anchored to the series start.
+4. `ad1d29f7` — reject malformed writes and preserve seen reminders.
+5. `fbe6359b` — raise `client_api` to contract version 1.
+6. `e7e7dc0e` — release v2.84.0 and refresh current release metadata.
 
-The integration preserved the custom contracts while reconciling notification
-ownership, locale/settings merges, mobile task and budget layout, health unit
-conversion, calendar/CalDAV precision, device credentials, and upcoming
-reminders. The custom `/pending` reminder route keeps its completed-task
-suppression while the new `/upcoming` route uses the upstream shared query.
-Because custom migrations already use v274 through v280, the device-credential
-migration was appended as v281; released migrations remain untouched.
+The integration preserved custom task-list/Microsoft To Do behavior, provider
+calendar contracts, notification ownership, and mobile layout. It combined
+the typed OpenAPI paths with custom Task List paths, kept the Microsoft
+recurrence guard and household-day filter while adding input shape checks,
+and combined the calendar series anchor with the existing occurrence
+completion key and reminder-preservation logic. Device pairing was appended as
+migration v282 because custom history already uses v274 through v281; the ICS
+feed snapshot remains custom migration v280 (upstream v273). Released
+migrations remain untouched.
 
 No automated tests were run by explicit user request. Static checks only:
 `git diff --check`; JSON parsing for package, lockfile, and locale files;
-`node --check` on changed production JavaScript files; strictly increasing,
-unique migration versions; and no unresolved conflict markers. Focused and full
-test results are unverified for this integration.
+`node --check` on changed production JavaScript files; release-version
+consistency; strictly increasing, unique migration versions; and no unresolved
+conflict markers. Focused and full test results are unverified for this
+integration.
 
 The temporary integration branch is fast-forwarded into `custom` only after
 the final local verification and is then removed. Product-specific behavior
