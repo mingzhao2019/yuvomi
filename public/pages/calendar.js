@@ -8701,8 +8701,14 @@ function reminderTimesFromOffsets(offsets, anchorStart, event = null) {
  * Beginn, der Zeitpunkt bleibt. Jede andere Zeile rechnet wie bisher vom Beginn
  * aus. Doppelte fallen am ZEITPUNKT heraus, nicht am Vorlauf: eine
  * durchgereichte Zeile und eine gerechnete koennen denselben treffen.
+ *
+ * `untouched` nennt den Beginn, an dem die Vorlaeufe gelesen wurden, wenn er
+ * nicht der ist, von dem gerechnet wird (eine fremde Serie, deren Vorkommen
+ * offen ist): trifft eine Zeile von dort einen gespeicherten Zeitpunkt, hat sie
+ * niemand angefasst, und er bleibt. Vom Serienbeginn zu rechnen waere fuer eine
+ * NEUE Zeile falsch: er kann Jahre zurueckliegen, und sie wuerde sofort faellig.
  */
-function reminderTimesFromRows(rows, anchorStart, enabled = true, event = null) {
+function reminderTimesFromRows(rows, anchorStart, enabled = true, event = null, untouched = null) {
   if (!enabled) return [];
   const times = [];
   for (const row of rows) {
@@ -8712,7 +8718,10 @@ function reminderTimesFromRows(rows, anchorStart, enabled = true, event = null) 
     } else {
       const [offset] = canonicalReminderOffsets([row]);
       if (offset === undefined) continue;
-      [at] = reminderTimesFromOffsets([offset], anchorStart, event);
+      const [kept] = untouched ? reminderTimesFromOffsets([offset], untouched.anchorStart, event) : [];
+      [at] = untouched?.storedAts.includes(kept)
+        ? [kept]
+        : reminderTimesFromOffsets([offset], anchorStart, event);
     }
     if (!at || times.includes(at)) continue;
     times.push(at);
@@ -10555,6 +10564,7 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
     // Start, an dem die Erinnerungs-Offsets ausgerichtet werden. Für „ganze Serie"
     // wird das auf den (evtl. verschobenen) Master-Start umgestellt (#532).
     let reminderBaseStart = start_datetime;
+    let untouchedReminders = null;
     // Serien-Scopes ändern die Expansion (Split/EXDATE): danach den sichtbaren
     // Bereich neu laden, damit der Server korrekt expandiert (#532).
     let reloadAfter = false;
@@ -10646,6 +10656,14 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
           seriesBody = { ...body };
           delete seriesBody.start_datetime;
           delete seriesBody.end_datetime;
+          // Damit bleibt auch der Serienbeginn, wie er ist: eine unveraenderte
+          // Erinnerung darf nicht auf das geoeffnete Vorkommen rutschen.
+          if (event.reminder_anchor_start) {
+            untouchedReminders = {
+              anchorStart: event.reminder_anchor_start,
+              storedAts: reminderList(existingReminder).map((reminder) => naiveUtc(reminder.remind_at)),
+            };
+          }
         }
         const res = localRecurring
           ? await requestCalendarOccurrenceMutation({
@@ -10673,7 +10691,13 @@ async function saveEvent(overlay, mode, event, existingReminder = null, attachme
         ? existingReminder.length
         : (existingReminder ? 1 : 0);
       const reminderTouched = overlay.dataset.reminderTouched === '1';
-      const remindAts = reminderTimesFromRows(reminderForm.rows, reminderBaseStart, reminderForm.enabled, event);
+      const remindAts = reminderTimesFromRows(
+        reminderForm.rows,
+        reminderBaseStart,
+        reminderForm.enabled,
+        event,
+        untouchedReminders,
+      );
       if (remindAts.length) {
         await api.put(`/reminders?entity_type=event&entity_id=${savedEventId}`, { remind_ats: remindAts });
       } else if (initialReminderCount > 0 || reminderTouched) {
