@@ -29,7 +29,7 @@ pushed both branches to `origin`.
 | Reference | Commit | Meaning |
 | --- | --- | --- |
 | `main`, `upstream/main`, `origin/main` | `e7e7dc0ef1b488006ccc0f2c5351bdb3679e3dbd` | Local and remote upstream-compatible baselines match the current upstream tip. |
-| `custom`, `origin/custom` | `138ebb6beae1b827d08ca8f31167cf5401343378` | Product-specific behavior and the selective upstream integration are delivered and aligned. |
+| `custom`, `origin/custom` | `70462332ec0eb688b7fad6ca1ad70ac3d258eab4` | Product-specific behavior and the selective upstream integration are delivered and aligned. |
 | temporary integration | removed after fast-forward | Its six upstream commits plus local reconciliation are retained in `custom` history. |
 
 After the authorized delivery push, both branch pairs are expected to match:
