@@ -5,6 +5,7 @@ import { caldavTargetValue, microsoftTodoTargetValue, SYNC_TARGET_LOCAL } from '
 import { getPreferences, savePreferences } from '/settings/preferences-cache.js';
 import { createRetryState, settingRowHtml, settingSwitchRowHtml } from '/settings/components.js';
 import { errorSentence } from '/utils/friendly-error.js';
+import { hidesPrivacyControls } from '/utils/household.js';
 
 /**
  * Standardwerte, die nur für die eigenen neuen Aufgaben gelten (#695).
@@ -109,13 +110,13 @@ function visibilityFieldHtml(current) {
 }
 
 function lockedFieldHtml(checked) {
-  return settingSwitchRowHtml({
+  return `<div class="row-carrier settings-group">${settingSwitchRowHtml({
     label: t('settings.tasksDefaultLockedLabel'),
     description: t('settings.tasksDefaultLockedHint'),
     descriptionId: 'tasks-default-locked-hint',
     checked,
     attrs: { id: 'tasks-default-locked' },
-  });
+  })}</div>`;
 }
 
 function emptyStateHtml(user) {
@@ -158,8 +159,8 @@ function renderPage(container, preferences, lists, user) {
       <h2 class="settings-section__title">${t('settings.tasksDefaultsTitle')}</h2>
       <div class="settings-card">
         <p class="settings-card-description">${t('settings.tasksDefaultsDescription')}</p>
-        ${visibilityFieldHtml(defaultVisibility)}
-        ${lockedFieldHtml(defaultLocked)}
+        ${hidesPrivacyControls('tasks') ? '' : visibilityFieldHtml(defaultVisibility)}
+        ${hidesPrivacyControls('tasks') ? '' : lockedFieldHtml(defaultLocked)}
 ${targetBody}      </div>
     </section>
   `);
