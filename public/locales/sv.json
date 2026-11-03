@@ -5963,7 +5963,7 @@
         "errorVitalUnit": "Den här enheten passar inte till mätningen."
     },
     "waste": {
-        "title": "Avfallshämtning",
+        "title": "Avfall",
         "overlay": "Avfallshämtning",
         "upcomingSectionTitle": "Kommande hämtningar",
         "typesSectionTitle": "Typer och scheman",
