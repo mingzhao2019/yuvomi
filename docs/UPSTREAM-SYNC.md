@@ -76,9 +76,10 @@ the temporary branch:
 The integration preserved custom task-list/Microsoft To Do behavior, provider
 calendar contracts, notification ownership, mobile layout, device pairing,
 and split-guest boundaries. Pantry product minimums were combined with the
-custom migration-263 ownership history and attention panel. Task rotation was
-added with its upstream migration and UI while retaining custom task/reminder
-guards. Signed-in devices and split-guest auth were merged into the existing
+custom migration-263 ownership history and attention panel; its schema change
+is appended as migration v283. Task rotation was added with its upstream UI
+and its schema change was appended as migration v284 while retaining custom
+task/reminder guards. Signed-in devices and split-guest auth were merged into the existing
 pairing and authentication contracts. Release metadata was raised to 2.85.0;
 released migrations remain append-only and untouched.
 

@@ -12002,7 +12002,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 276,
+    version: 283,
     description: 'Pantry: the minimum moves to the product, low and out are read over its total (#1448)',
     // THE MINIMUM IS A STATEMENT ABOUT THE PRODUCT. Toothpaste with 1 in the
     // bathroom and 8 in the attic and a minimum of 3 on the bathroom row read
@@ -12036,7 +12036,7 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 277,
+    version: 284,
     description: 'tasks: rotation for recurring series',
     // Eine Serie "Muell rausbringen" haengt fuer immer an einer Person.
     // Rotation ist eine reine Zustellungs-Entscheidung an der Folgeinstanz

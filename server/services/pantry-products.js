@@ -150,7 +150,7 @@ function handOverMinimum(database, from, toId) {
  * its group (the household's latest wording), `created_by` and `created_at` from
  * the oldest batch (the product existed since then), and the highest minimum
  * its batches carry: an older version still writes the minimum on the batch,
- * and the highest warns early rather than late (the rule of migration 276).
+ * and the highest warns early rather than late (the rule of migration 283).
  * An existing product is joined as it is, its minimum included.
  *
  * MIGRATION 263 DOES NOT CALL THIS FUNCTION. It carries its own frozen copy of

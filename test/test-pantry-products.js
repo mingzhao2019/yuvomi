@@ -8,7 +8,7 @@
  *          every write path (create, full edit, partial PATCH, import from
  *          Shopping, demo seed) leaves no batch without a product; a renamed
  *          batch moves to another product and the old one stays.
- *          Part 3: migration 276 gives every product the highest minimum of
+ *          Part 3: migration 283 gives every product the highest minimum of
  *          its batches (frozen SQL), the adoption at start does the same for
  *          a product it creates, and the kitchen count reads low and out over
  *          the product, counting a product that needs attention once, and a
@@ -595,7 +595,7 @@ test('the demo seed gives every batch its product and wipes the products with th
 });
 
 // --------------------------------------------------------------------------
-// Migration 276: the minimum moves to the product (#1448, step 3)
+// Migration 283: the minimum moves to the product (#1448, step 3)
 // --------------------------------------------------------------------------
 
 /**
@@ -606,14 +606,14 @@ test('the demo seed gives every batch its product and wipes the products with th
 const MINIMUM_MIGRATION = dbmod.MIGRATIONS.find((m) => typeof m.up === 'string'
   && m.up.includes('ALTER TABLE pantry_products ADD COLUMN min_quantity REAL'));
 
-test('migration 276 is found by what it does, exactly once, after the products of step 1', () => {
+test('migration 283 is found by what it does, exactly once, after the products of step 1', () => {
   assert.ok(MINIMUM_MIGRATION, 'the migration that adds pantry_products.min_quantity');
   assert.equal(dbmod.MIGRATIONS.filter((m) => typeof m.up === 'string'
     && m.up.includes('ALTER TABLE pantry_products ADD COLUMN min_quantity')).length, 1);
   assert.ok(MINIMUM_MIGRATION.version > 253, 'after migration 253, which creates pantry_products');
 });
 
-/** A database just before migration 276, with products and batches written as step 1 left them. */
+/** A database just before migration 283, with products and batches written as step 1 left them. */
 function databaseWithMinimums() {
   const database = databaseAt(MINIMUM_MIGRATION.version - 1);
   const product = database.prepare(`
@@ -633,7 +633,7 @@ function databaseWithMinimums() {
   return database;
 }
 
-test('migration 276 gives every product the highest minimum of its batches, NULL without one', () => {
+test('migration 283 gives every product the highest minimum of its batches, NULL without one', () => {
   const database = databaseWithMinimums();
   dbmod.migrate(database, dbmod.MIGRATIONS);
   const mins = Object.fromEntries(database.prepare('SELECT id, min_quantity FROM pantry_products ORDER BY id').all().map((r) => [r.id, r.min_quantity]));
@@ -643,7 +643,7 @@ test('migration 276 gives every product the highest minimum of its batches, NULL
   assert.deepEqual(database.prepare("SELECT min_quantity AS m FROM pantry_items WHERE name = 'Milch' ORDER BY id").all().map((r) => r.m), [2, 5, null]);
 });
 
-test('migration 276 leaves updated_at of every product alone and puts the trigger back', () => {
+test('migration 283 leaves updated_at of every product alone and puts the trigger back', () => {
   const database = databaseWithMinimums();
   dbmod.migrate(database, dbmod.MIGRATIONS);
   assert.deepEqual(database.prepare('SELECT DISTINCT updated_at FROM pantry_products').all().map((r) => r.updated_at), ['2026-01-02T08:00:00Z']);
@@ -655,7 +655,7 @@ test('migration 276 leaves updated_at of every product alone and puts the trigge
     'an edit after the migration stamps again');
 });
 
-test('migration 276 is frozen SQL: no runtime code, nothing imported', () => {
+test('migration 283 is frozen SQL: no runtime code, nothing imported', () => {
   const entry = MINIMUM_MIGRATION;
   assert.equal(typeof entry.up, 'string', 'plain SQL');
   assert.equal(entry.afterUp, undefined, 'no JS step');
