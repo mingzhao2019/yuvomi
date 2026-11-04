@@ -22,15 +22,15 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-11-02 UTC**. This integration refreshed `main` to the
-`v2.84.0` upstream tip, selectively merged the update into `custom`, and
-pushed both branches to `origin`.
+Last verified: **2026-11-04 UTC**. This integration refreshed `main` to the
+`v2.85.0` upstream tip, selectively merged the update into `custom`, and
+delivered both branches to `origin` after the final verification.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main`, `origin/main` | `e7e7dc0ef1b488006ccc0f2c5351bdb3679e3dbd` | Local and remote upstream-compatible baselines match the current upstream tip. |
+| `main`, `upstream/main`, `origin/main` | `8d8f6237ba34fcb2a3f34acfa58af7c80e3be746` | Local and remote upstream-compatible baselines match the current upstream tip. |
 | `custom`, `origin/custom` | aligned at the verified delivery tip | Product-specific behavior and the selective upstream integration are delivered and aligned. |
-| temporary integration | removed after fast-forward | Its six upstream commits plus local reconciliation are retained in `custom` history. |
+| temporary integration | removed after fast-forward | All 29 upstream commits plus local reconciliation are retained in `custom` history. |
 
 After the authorized delivery push, both branch pairs are expected to match:
 
@@ -39,26 +39,48 @@ main...upstream/main   0 0
 custom...origin/custom 0 0
 ```
 
-The release metadata is `2.84.0`. All six upstream commits after the previous
-synchronization point (`2dc9bfe7820e58fa947d20f82d5cf102065a1eb0`) were
-incorporated on the temporary branch:
+The release metadata is `2.85.0`. All 29 upstream commits after the previous
+verified tip (`e7e7dc0ef1b488006ccc0f2c5351bdb3679e3dbd`) were incorporated on
+the temporary branch:
 
-1. `0f7f0a05` — pair a signed-in device with a short code or QR code.
-2. `0c42bdac` — publish a typed OpenAPI contract for native-client operations.
-3. `6964f76c` — keep recurring-event reminders anchored to the series start.
-4. `ad1d29f7` — reject malformed writes and preserve seen reminders.
-5. `fbe6359b` — raise `client_api` to contract version 1.
-6. `e7e7dc0e` — release v2.84.0 and refresh current release metadata.
+1. `86ccbebf` — Home Assistant app as an install path.
+2. `5e21ea48` — generate an install session secret and database key.
+3. `45e8d4a5` — make settings clipboard buttons truthful.
+4. `d90319e2` — preserve `_FILE` secrets on installer reruns.
+5. `b33ccca3` — bump the Claude action dependency.
+6. `de54a24e` — bump the Node dependency.
+7. `c314b26f` — bump production dependencies.
+8. `fcbc8717` — shut down cleanly on SIGTERM and SIGINT.
+9. `886e0869` — cascade shopping-category renames.
+10. `89f90689` — apply household privacy to task defaults.
+11. `424d2876` — add a separate dashboard arrangement for phones.
+12. `c6367c08` — fold search and tools into the narrow-phone menu.
+13. `e229512b` — add a Caddy automatic-HTTPS example.
+14. `58f2f4ae` — extend the CI test-job timeout to 45 minutes.
+15. `94af359e` — move pantry minimums to products.
+16. `91356e54` — skip reminders for a deleted first occurrence.
+17. `0baf9250` — rotate assignees through recurring task series.
+18. `12e44266` — add signed-in devices to the account page.
+19. `d42e74d2` — bump the Claude action dependency again.
+20. `9c92c2ea` — trim document slug dashes without a polynomial regex.
+21. `6b194e5a` — give the budget stepper its own row when needed.
+22. `7b7b1d5f` — handle weather without coordinates.
+23. `02f1c39b` — confine split-expense guests at the auth router.
+24. `eaca04bd` — keep a guest visible beside a token session.
+25. `076b5a22` — preserve birthday calendar colors.
+26. `3477e2a1` — release v2.85.0.
+27. `64988bb8` — document Home Assistant port 3880 and bug-form targets.
+28. `97993ff7` — extend auth coverage for reset, 2FA, and signed-in devices.
+29. `8d8f6237` — keep Playwright MCP output out of the repository.
 
 The integration preserved custom task-list/Microsoft To Do behavior, provider
-calendar contracts, notification ownership, and mobile layout. It combined
-the typed OpenAPI paths with custom Task List paths, kept the Microsoft
-recurrence guard and household-day filter while adding input shape checks,
-and combined the calendar series anchor with the existing occurrence
-completion key and reminder-preservation logic. Device pairing was appended as
-migration v282 because custom history already uses v274 through v281; the ICS
-feed snapshot remains custom migration v280 (upstream v273). Released
-migrations remain untouched.
+calendar contracts, notification ownership, mobile layout, device pairing,
+and split-guest boundaries. Pantry product minimums were combined with the
+custom migration-263 ownership history and attention panel. Task rotation was
+added with its upstream migration and UI while retaining custom task/reminder
+guards. Signed-in devices and split-guest auth were merged into the existing
+pairing and authentication contracts. Release metadata was raised to 2.85.0;
+released migrations remain append-only and untouched.
 
 No automated tests were run by explicit user request. Static checks only:
 `git diff --check`; JSON parsing for package, lockfile, and locale files;
