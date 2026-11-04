@@ -1318,6 +1318,109 @@ test('der Katalog beschreibt den Rumpf der Kopplung', async () => {
 });
 
 // --------------------------------------------------------
+// Wand-Parität (#1903): Mahlzeiten, Einkauf, Haushaltshilfe, Abfuhr, Vorrat
+// --------------------------------------------------------
+test('das Display-Dashboard liefert Mahlzeiten fuer die Wand, ohne sensible Felder (#1903)', async () => {
+  // Frisches Display: der geteilte displayToken ist nach dem Widerruf oben ungueltig.
+  const d = await admin('POST', '/displays', { display_name: 'WandParitaetMeals' });
+  const code = (await admin('POST', `/displays/${d.body.data.id}/pairing-code`, {})).body.data.code;
+  const wall = asDisplay((await pair(code)).token);
+
+  // Ohne Mahlzeit kann der Test nur belegen, dass das Gate oeffnet (leere Liste
+  // statt undefined). Mit einer Mahlzeit prueft er zusaetzlich, dass `notes` und
+  // `created_by` nicht durchkommen.
+  // UTC stellen: neue Date().toISOString().slice(0,10) und todayLocalKey muessen uebereinstimmen.
+  db.prepare("INSERT OR REPLACE INTO sync_config (key, value) VALUES ('household_timezone', 'UTC')").run();
+  const today = new Date().toISOString().slice(0, 10);
+  const meal = await admin('POST', '/meals', { date: today, meal_type: 'lunch', title: 'Testgericht', notes: 'Geheimes Rezept' });
+  assert.ok([200, 201].includes(meal.status), `Mahlzeit anlegen: ${meal.status} ${JSON.stringify(meal.body)}`);
+
+  const res = await wall('GET', '/dashboard?audience=household');
+  assert.equal(res.status, 200);
+  const meals = res.body.todayMeals;
+  assert.ok(Array.isArray(meals), 'todayMeals muss ein Array sein, nicht undefined');
+  assert.ok(meals.length > 0, 'die eben angelegte Mahlzeit muss erscheinen');
+  for (const m of meals) {
+    assert.ok(!('notes' in m), `notes darf kein Display erreichen (Mahlzeit ${m.id})`);
+    assert.ok(!('created_by' in m), `created_by darf kein Display erreichen (Mahlzeit ${m.id})`);
+    assert.ok('title' in m, 'title muss vorhanden sein');
+    assert.ok('meal_type' in m, 'meal_type muss vorhanden sein');
+  }
+});
+
+test('das Display-Dashboard liefert Einkauf, Haushaltshilfe, Abfuhr und Vorrat fuer die Wand (#1903)', async () => {
+  // Frisches Display: der geteilte displayToken ist nach dem Widerruf oben ungueltig.
+  const d = await admin('POST', '/displays', { display_name: 'WandParitaetData' });
+  const code = (await admin('POST', `/displays/${d.body.data.id}/pairing-code`, {})).body.data.code;
+  const wall = asDisplay((await pair(code)).token);
+
+  // EINKAUF: der Zaehler muss eine Zahl sein, nicht undefined.
+  const shopping = await admin('POST', '/shopping', { name: 'Wandliste' });
+  assert.ok([200, 201].includes(shopping.status), `Liste anlegen: ${shopping.status}`);
+  const listId = shopping.body.data?.id ?? shopping.body.id;
+  const item = await admin('POST', `/shopping/${listId}/items`, { name: 'Milch' });
+  assert.ok([200, 201].includes(item.status), `Artikel anlegen: ${item.status}`);
+
+  const res = await wall('GET', '/dashboard?audience=household');
+  assert.equal(res.status, 200);
+
+  assert.equal(typeof res.body.shoppingOpenCount, 'number', 'shoppingOpenCount muss eine Zahl sein');
+  assert.ok(res.body.shoppingOpenCount >= 1, 'mindestens ein offener Artikel');
+
+  // HAUSHALTSHILFE: alle Schluessel bleiben - householdAudienceAnswer nullt die
+  // Kennzahlen, entfernt sie aber nicht. Das haelt die Form der Antwort stabil.
+  assert.ok('housekeeping' in res.body, 'housekeeping muss vorhanden sein');
+  assert.equal(res.body.housekeeping.unpaidAmount, 0, 'unpaidAmount ist 0 (nullt, nicht fehlt)');
+  assert.equal(res.body.housekeeping.visitsThisMonth, 0, 'visitsThisMonth ist 0 (nullt, nicht fehlt)');
+  assert.ok('configured' in res.body.housekeeping, 'configured muss vorhanden sein');
+  assert.ok('present' in res.body.housekeeping, 'present muss vorhanden sein');
+
+  // ABFUHR: die Liste muss vorhanden sein (auch wenn sie heute leer ist).
+  assert.ok(Array.isArray(res.body.wastePickups), 'wastePickups muss ein Array sein');
+
+  // VORRAT: muss vorhanden sein (null oder Objekt, nie undefined).
+  assert.ok('pantryExpiring' in res.body, 'pantryExpiring muss vorhanden sein');
+});
+
+test('an admin manages this display’s night hours and screensaver without changing household preferences (#2436)', async () => {
+  const created = await admin('POST', '/displays', { display_name: 'Remote settings probe' });
+  const id = created.body.data.id;
+  const issued = await admin('POST', `/displays/${id}/pairing-code`, {});
+  const device = asDisplay((await pair(issued.body.data.code)).token);
+  const settings = { night_from:21, night_until:7, idle_seconds:60, show_clock:false, cover_photo:true };
+  assert.equal((await device('GET', '/preferences')).body.data.display_device_settings, null, 'existing local choices remain in use until configured');
+  assert.equal((await admin('PATCH', `/displays/${id}`, {device_settings:settings})).status, 200);
+  assert.deepEqual((await device('GET', '/preferences')).body.data.display_device_settings, settings);
+  assert.deepEqual((await admin('GET', '/displays')).body.data.find(d => d.id === id).device_settings, settings);
+  assert.equal((await admin('GET', '/preferences')).body.data.display_device_settings, undefined, 'a member gets no display override');
+  assert.equal((await device('PATCH', `/displays/${id}`, {device_settings:{...settings, idle_seconds:300}})).status, 403);
+  for (const invalid of [{...settings, night_from:7}, {...settings, night_until:24}, {...settings, idle_seconds:61}, {...settings, show_clock:'false'}, {...settings, cover_photo:1}, {night_from:21}, {...settings, unknown:true}, null]) {
+    const rejected = await admin('PATCH', `/displays/${id}`, {device_settings:invalid, show_screensaver:true});
+    assert.equal(rejected.status, 400, JSON.stringify(invalid));
+    assert.match(rejected.body.error, /device_settings/, 'the error names the invalid field');
+  }
+  const rejectedSwitch = await admin('PATCH', `/displays/${id}`, {device_settings:{...settings, idle_seconds:300}, show_screensaver:'false'});
+  assert.equal(rejectedSwitch.status, 400);
+  assert.match(rejectedSwitch.body.error, /show_screensaver/);
+  const listed = (await admin('GET', '/displays')).body.data.find(d => d.id === id);
+  assert.deepEqual(listed.device_settings, settings); assert.equal(listed.show_screensaver, false, 'invalid changes are atomic');
+  const other = (await admin('POST', '/displays', { display_name:'Other display' })).body.data;
+  assert.equal((await admin('GET', '/displays')).body.data.find(d => d.id === other.id).device_settings, null);
+});
+
+test('display-settings migration preserves existing displays and rejects invalid JSON (#2436)', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const legacy = new DatabaseSync(':memory:');
+  try {
+    legacy.exec("CREATE TABLE display_accounts (user_id INTEGER PRIMARY KEY, show_screensaver INTEGER NOT NULL DEFAULT 0); INSERT INTO display_accounts VALUES (7, 1)");
+    const migration = dbmod.MIGRATIONS.find(m => m.description === 'Wall displays: centrally managed night hours and screensaver options (#2436)');
+    legacy.exec(migration.up);
+    assert.deepEqual({...legacy.prepare('SELECT * FROM display_accounts').get()}, {user_id:7, show_screensaver:1, device_settings:null});
+    assert.throws(() => legacy.prepare('UPDATE display_accounts SET device_settings = ?').run('not json'));
+  } finally {legacy.close();}
+});
+
+// --------------------------------------------------------
 // Der Limiter - absichtlich zuletzt, weil er das Budget aufbraucht
 // --------------------------------------------------------
 test('geratene Kopplungscodes laufen in die Versuchsgrenze', async () => {
