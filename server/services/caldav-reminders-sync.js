@@ -20,6 +20,7 @@ import { setItemTags, setTags } from '../utils/task-tags.js';
 import { syncTaskCompletion, recordCompletion, revokeCompletion } from './task-completions.js';
 import * as todoOutbound from './caldav-todo-outbound.js';
 import { ensureCalDavTaskList } from './task-lists.js';
+import { isOwnUidOfRow } from '../utils/own-uid.js';
 import { createRefusalStop } from './calendar-outbound.js';
 import { runSerialized } from '../utils/sync-lock.js';
 import { calendarDisplayName } from '../utils/calendar-meta.js';
@@ -341,17 +342,25 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOpti
 
     const priority = mapVtodoPriority(todo.priority, existing?.priority);
     const status   = mapVtodoStatus(todo, existing?.status);
+    // DIE FREMDE SERIENREGEL (#2506), bei jedem Abruf neu: NULL ohne Regel, bei
+    // Yuvomis eigener Marke und an einem Objekt, das Yuvomi selbst angelegt hat
+    // (das fuehrt Yuvomi ganz, #2350). Solange sie steht, sperren die Routen das
+    // Abhaken - die besitzende App rueckt die Serie weiter, nicht Yuvomi.
+    const ownObject = existing && isOwnUidOfRow(todo.uid, 'task', existing.id);
+    const externalRrule = ownObject
+      ? null
+      : todoOutbound.foreignRecurrenceRule(todo.rrule ?? null, todo.yuvomiRrule ?? null);
 
     let taskId;
     if (existing) {
       const listClause = taskListId == null ? '' : ', task_list_id = ?';
       const params = taskListId == null
-        ? [todo.summary, todo.description, priority, date, time, objectUrl, existing.id]
-        : [todo.summary, todo.description, priority, date, time, objectUrl, taskListId, existing.id];
+        ? [todo.summary, todo.description, priority, date, time, objectUrl, externalRrule, existing.id]
+        : [todo.summary, todo.description, priority, date, time, objectUrl, externalRrule, taskListId, existing.id];
       d.prepare(`
         UPDATE tasks
         SET title = ?, description = ?, priority = ?, due_date = ?, due_time = ?,
-            external_object_url = COALESCE(?, external_object_url)${listClause}
+            external_object_url = COALESCE(?, external_object_url), external_rrule = ?${listClause}
         WHERE id = ?
       `).run(...params);
       taskId = existing.id;
@@ -361,12 +370,12 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOpti
       const listColumns = taskListId == null ? '' : ', task_list_id';
       const listValues = taskListId == null ? '' : ', ?';
       const params = taskListId == null
-        ? [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl]
-        : [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl, taskListId];
+        ? [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl, externalRrule]
+        : [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl, externalRrule, taskListId];
       const row = d.prepare(`
         INSERT INTO tasks
-          (title, description, priority, status, due_date, due_time, created_by, external_uid, external_source, external_account_id, external_object_url${listColumns})
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'caldav', ?, ?${listValues})
+          (title, description, priority, status, due_date, due_time, created_by, external_uid, external_source, external_account_id, external_object_url, external_rrule${listColumns})
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'caldav', ?, ?, ?${listValues})
       `).run(...params);
       taskId = row.lastInsertRowid;
       assignListDefault(d, Number(taskId), defaultAssignees);
