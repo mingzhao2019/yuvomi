@@ -1300,7 +1300,11 @@
         "errorSeriesNoOccurrence": "Ezzel az ismétléssel a kezdő dátumtól egyetlen esemény sem lenne.",
         "localCalendarUploadsHint": "Az ebben a naptárban lévő események az Apple Calendaron keresztül feltöltődnek az iCloudba.",
         "overlapOpenSchedule": "Műszakbeosztás megnyitása",
-        "syncTargetNoCalendarForPeople": "Egyik naptár alapértelmezett hozzárendelése sem pontosan ezek a személyek, ezért a hozzárendelés nem választ naptárt. Helyette: {{target}}."
+        "syncTargetNoCalendarForPeople": "Egyik naptár alapértelmezett hozzárendelése sem pontosan ezek a személyek, ezért a hozzárendelés nem választ naptárt. Helyette: {{target}}.",
+        "localCalendarEdit": "Naptár szerkesztése",
+        "localCalendarNew": "Új naptár",
+        "manageSubscriptionsLink": "Feliratkozások és szinkronizálás",
+        "cancelled": "Lemondva"
     },
     "noteCategories": {
         "categories": "Kategóriák",

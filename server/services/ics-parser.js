@@ -635,7 +635,7 @@ function expandRRULE(vevent, windowStart, windowEnd) {
         uid: `${vevent.uid}__${current}`, summary: vevent.summary,
         description: vevent.description, location: vevent.location,
         dtstart: occStart, dtend: occEnd, rrule: null, allDay: vevent.allDay,
-        color: vevent.color, alarms: vevent.alarms || [],
+        color: vevent.color, status: vevent.status ?? null, alarms: vevent.alarms || [],
       });
     }
     // startDate ist DTSTART und damit der Anker: ohne ihn schreibt eine
@@ -647,4 +647,17 @@ function expandRRULE(vevent, windowStart, windowEnd) {
   return results;
 }
 
-export { unfoldLines, unescapeICSText, parseICS, parseVTODO, parseCategories, MAX_CATEGORIES, MAX_CATEGORY_LEN, formatICSDate, tzLocalToUTC, applyDuration, expandRRULE, normalizeRecurrenceOverrides };
+/**
+ * Der Termin-Status des Anbieters (RFC 5545 §3.8.1.11) in der Form, die
+ * calendar_events.provider_status speichert (#2499): TENTATIVE, CONFIRMED oder
+ * CANCELLED, sonst null. Ein fremder Wert (etwa ein VTODO-Status in einem
+ * fehlerhaften Feed) zaehlt wie kein STATUS - er sagt nichts ab.
+ * @param {{ status?: string|null }} ev  Ergebnis von parseICS()
+ * @returns {'TENTATIVE'|'CONFIRMED'|'CANCELLED'|null}
+ */
+function providerStatusOf(ev) {
+  const s = ev?.status;
+  return s === 'TENTATIVE' || s === 'CONFIRMED' || s === 'CANCELLED' ? s : null;
+}
+
+export { providerStatusOf, unfoldLines, unescapeICSText, parseICS, parseVTODO, parseCategories, MAX_CATEGORIES, MAX_CATEGORY_LEN, formatICSDate, tzLocalToUTC, applyDuration, expandRRULE, normalizeRecurrenceOverrides };

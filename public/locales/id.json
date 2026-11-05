@@ -1318,7 +1318,11 @@
         "errorSeriesNoOccurrence": "Dengan pengulangan ini tidak akan ada satu acara pun sejak tanggal mulai.",
         "localCalendarUploadsHint": "Acara di kalender ini diunggah ke iCloud melalui Apple Calendar.",
         "overlapOpenSchedule": "Buka jadwal shift",
-        "syncTargetNoCalendarForPeople": "Tidak ada kalender yang penerima tugas default-nya tepat orang-orang ini, jadi penugasan tidak memilih kalender. Yang dipakai: {{target}}."
+        "syncTargetNoCalendarForPeople": "Tidak ada kalender yang penerima tugas default-nya tepat orang-orang ini, jadi penugasan tidak memilih kalender. Yang dipakai: {{target}}.",
+        "localCalendarEdit": "Edit kalender",
+        "localCalendarNew": "Kalender baru",
+        "manageSubscriptionsLink": "Langganan dan sinkronisasi",
+        "cancelled": "Dibatalkan"
     },
     "noteCategories": {
         "categories": "Kategori",

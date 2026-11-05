@@ -1304,7 +1304,11 @@
         "errorSeriesNoOccurrence": "With this repeat there would be no event at all from the start date.",
         "localCalendarUploadsHint": "Events in this calendar are uploaded to iCloud through Apple Calendar.",
         "overlapOpenSchedule": "Open schedule",
-        "syncTargetNoCalendarForPeople": "No calendar has exactly these people as its default assignees, so the assignment does not pick one. Used instead: {{target}}."
+        "syncTargetNoCalendarForPeople": "No calendar has exactly these people as its default assignees, so the assignment does not pick one. Used instead: {{target}}.",
+        "localCalendarEdit": "Edit calendar",
+        "localCalendarNew": "New calendar",
+        "manageSubscriptionsLink": "Subscriptions and sync",
+        "cancelled": "Cancelled"
     },
     "noteCategories": {
         "categories": "Categories",

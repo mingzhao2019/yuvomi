@@ -18,7 +18,7 @@ import { assignDefaultToEvent, settlePastInheritedReminders } from './sync-assig
 import { assigneeFields, readAllDefaultAssignees, readDefaultAssignees, writeDefaultAssignees } from './default-assignees.js';
 import { setEventAssignments } from '../routes/calendar/helpers.js';
 import { remindAtCompareKey } from '../utils/reminder-schedule.js';
-import { parseICS, expandRRULE, normalizeRecurrenceOverrides } from './ics-parser.js';
+import { parseICS, expandRRULE, normalizeRecurrenceOverrides, providerStatusOf } from './ics-parser.js';
 import {
   applyRemoteEventReminders,
   reminderAtsFromIcalAlarms,
@@ -199,8 +199,16 @@ async function syncOne(sub) {
       INSERT INTO calendar_events
         (title, description, start_datetime, end_datetime, all_day, location,
          color, external_calendar_id, external_source, subscription_id, recurrence_rule, user_modified, created_by,
-         feed_original)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ics', ?, ?, 0, ?, ?)
+         feed_original, provider_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ics', ?, ?, 0, ?, ?, ?)
+    `);
+
+    // #2499: die Absage des Anbieters. Wie der Feed-Stand auch an lokal
+    // geaenderten Terminen: sie ist kein Nutzerfeld, und eine Wiederzusage
+    // (CONFIRMED oder kein STATUS) muss sie wieder aufheben.
+    const updateProviderStatus = db.get().prepare(`
+      UPDATE calendar_events SET provider_status = ?
+      WHERE id = ? AND provider_status IS NOT ?
     `);
 
     // D#2330: der Feed-Stand (Reset-Vorlage). Jeder Sync schreibt ihn, auch an
@@ -272,13 +280,16 @@ async function syncOne(sub) {
             eventId = existing.id;
             changedEvents += updated;
             updateFeedOriginal.run(feedOriginal, existing.id, feedOriginal);
+            const providerStatus = providerStatusOf(ev);
+            changedEvents += updateProviderStatus.run(providerStatus, existing.id, providerStatus).changes;
             // Im Feed verschoben (#1377): die Erinnerungen ziehen mit. Nur wenn
             // das UPDATE griff - eine lokal bearbeitete Zeile (user_modified)
             // behaelt ihren Start und damit auch ihre Erinnerungen.
             if (updated) followInboundStartChange(db.get(), existing.id, existing.start_datetime, ev.dtstart);
           } else {
             const result = insertEvent.run(ev.summary, ev.description, ev.dtstart, ev.dtend,
-              ev.allDay ? 1 : 0, ev.location, color, ev.uid, sub.id, ev.rrule, createdBy, feedOriginal);
+              ev.allDay ? 1 : 0, ev.location, color, ev.uid, sub.id, ev.rrule, createdBy, feedOriginal,
+              providerStatusOf(ev));
             eventId = Number(result.lastInsertRowid);
             changedEvents++;
           }
@@ -520,6 +531,10 @@ async function importToLocal(userId, { ics, url, color, localCalendarId = null, 
   db.get().transaction(() => {
     for (const ev of rawEvents) {
       if (!ev.dtstart) { skipped++; continue; }
+      // Ein abgesagter Termin wird gar nicht erst uebernommen (#2499): ohne
+      // Sync gibt es keine Wiederzusage, die ihn spaeter zurueckholte, und die
+      // Kopie gehoert danach dem Nutzer - eine Absage darin waere tot.
+      if (providerStatusOf(ev) === 'CANCELLED') { skipped++; continue; }
       if (ev.uid && people.length) {
         const existing = existingAnyCalendar.get(userId, ev.uid);
         if (existing) {

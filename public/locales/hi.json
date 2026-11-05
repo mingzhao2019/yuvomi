@@ -1300,7 +1300,11 @@
         "errorSeriesNoOccurrence": "इस दोहराव से शुरुआती तारीख से एक भी घटना नहीं बनेगी।",
         "localCalendarUploadsHint": "इस कैलेंडर के इवेंट Apple Calendar के ज़रिए iCloud पर अपलोड होते हैं।",
         "overlapOpenSchedule": "शिफ़्ट शेड्यूल खोलें",
-        "syncTargetNoCalendarForPeople": "किसी कैलेंडर का डिफ़ॉल्ट असाइनमेंट ठीक ये लोग नहीं हैं, इसलिए असाइनमेंट कोई कैलेंडर नहीं चुनता। इसके बजाय: {{target}}।"
+        "syncTargetNoCalendarForPeople": "किसी कैलेंडर का डिफ़ॉल्ट असाइनमेंट ठीक ये लोग नहीं हैं, इसलिए असाइनमेंट कोई कैलेंडर नहीं चुनता। इसके बजाय: {{target}}।",
+        "localCalendarEdit": "कैलेंडर संपादित करें",
+        "localCalendarNew": "नया कैलेंडर",
+        "manageSubscriptionsLink": "सदस्यताएँ और सिंक",
+        "cancelled": "रद्द"
     },
     "noteCategories": {
         "categories": "श्रेणियाँ",

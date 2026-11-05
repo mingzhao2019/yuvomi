@@ -1300,7 +1300,11 @@
         "errorSeriesNoOccurrence": "Con questa ripetizione non ci sarebbe nessun evento a partire dalla data di inizio.",
         "localCalendarUploadsHint": "Gli eventi di questo calendario vengono caricati su iCloud tramite Apple Calendar.",
         "overlapOpenSchedule": "Apri turni",
-        "syncTargetNoCalendarForPeople": "Nessun calendario ha esattamente queste persone come assegnazione predefinita, quindi l’assegnazione non ne sceglie nessuno. Usato invece: {{target}}."
+        "syncTargetNoCalendarForPeople": "Nessun calendario ha esattamente queste persone come assegnazione predefinita, quindi l’assegnazione non ne sceglie nessuno. Usato invece: {{target}}.",
+        "localCalendarEdit": "Modifica calendario",
+        "localCalendarNew": "Nuovo calendario",
+        "manageSubscriptionsLink": "Abbonamenti e sincronizzazione",
+        "cancelled": "Annullato"
     },
     "noteCategories": {
         "categories": "Categorie",

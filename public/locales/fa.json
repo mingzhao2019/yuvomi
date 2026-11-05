@@ -1318,7 +1318,11 @@
         "errorSeriesNoOccurrence": "با این تکرار از تاریخ شروع به بعد هیچ رویدادی وجود نخواهد داشت.",
         "localCalendarUploadsHint": "رویدادهای این تقویم از طریق Apple Calendar در iCloud بارگذاری می‌شوند.",
         "overlapOpenSchedule": "باز کردن برنامه شیفت",
-        "syncTargetNoCalendarForPeople": "هیچ تقویمی دقیقاً این افراد را به‌عنوان واگذاری پیش‌فرض ندارد، پس واگذاری تقویمی انتخاب نمی‌کند. به‌جای آن: {{target}}."
+        "syncTargetNoCalendarForPeople": "هیچ تقویمی دقیقاً این افراد را به‌عنوان واگذاری پیش‌فرض ندارد، پس واگذاری تقویمی انتخاب نمی‌کند. به‌جای آن: {{target}}.",
+        "localCalendarEdit": "ویرایش تقویم",
+        "localCalendarNew": "تقویم جدید",
+        "manageSubscriptionsLink": "اشتراک‌ها و همگام‌سازی",
+        "cancelled": "لغو شد"
     },
     "noteCategories": {
         "categories": "دسته‌بندی‌ها",
