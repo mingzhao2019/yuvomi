@@ -11,7 +11,6 @@ import { errorSentence } from '/utils/friendly-error.js';
 import { prefersInkText } from '/utils/contrast.js';
 import { settingRowHtml } from '/settings/components.js';
 import { birthDateControlHtml, wireBirthDateField } from '/utils/birth-date.js';
-import { mediaPickerBadgeHtml } from '/utils/media-picker.js';
 import { bindSignedInDevices, signedInDevicesCardHtml } from '/settings/signed-in-devices.js';
 
 function avatarHtml(user, className = 'settings-avatar') {

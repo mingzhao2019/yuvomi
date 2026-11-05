@@ -18,7 +18,6 @@ import { openModal, closeModal, captureModalContext, captureOpenContext, isModal
 import { createRetryState, formSwitchRowHtml, settingSwitchRowHtml } from '/settings/components.js';
 import { formRowHtml, formRowsHtml } from '/utils/form-row.js';
 import { birthDateControlHtml, wireBirthDateField } from '/utils/birth-date.js';
-import { mediaPickerBadgeHtml } from '/utils/media-picker.js';
 import { errorSentence } from '/utils/friendly-error.js';
 import {
   renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect,
