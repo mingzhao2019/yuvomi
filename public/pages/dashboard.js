@@ -445,6 +445,52 @@ function isShownOnScreen(el) {
 
 /** Abstand des Lichtrings um das gezeigte Bedienelement, in px. */
 const ONBOARDING_SPOT_PAD = 6;
+/** Abstand der Karte zum Lichtring und zum Fensterrand, in px. */
+const ONBOARDING_CARD_GAP = 16;
+
+/**
+ * DIE KARTE STEHT AM ERKLAERTEN ELEMENT (Critique R24, G6-Rundgang-P3-1). Sie
+ * stand mittig, auch wenn der Schritt die Seitenleiste erklaerte - 306 px
+ * daneben am Desktop, mobil oben, waehrend der Ring unten um die Leiste lag.
+ * Jetzt an der Seite des Rings, die Platz hat: ueber oder unter einem breiten
+ * oder quadratischen Ziel (Leiste, Plus-Knopf), neben einem hohen
+ * (Seitenleiste); quer dazu an der Mitte des Ziels ausgerichtet, im Fenster
+ * gehalten. Passt sie nirgends daneben, bleibt sie in der Mitte (null).
+ *
+ * Rein: Rechteck des Rings, Groesse der Karte, Fenster -> linke obere Ecke.
+ *
+ * @param {{ left: number, top: number, right: number, bottom: number }} spot
+ * @param {{ width: number, height: number }} card
+ * @param {{ width: number, height: number }} view
+ * @param {number} [gap]
+ * @returns {{ x: number, y: number, side: string } | null}
+ */
+function onboardingCardPlacement(spot, card, view, gap = ONBOARDING_CARD_GAP) {
+  const spotW = spot.right - spot.left;
+  const spotH = spot.bottom - spot.top;
+  const clamp = (value, max) => Math.round(Math.max(gap, Math.min(value, max - gap)));
+  const room = {
+    above: spot.top - gap * 2 >= card.height,
+    below: view.height - spot.bottom - gap * 2 >= card.height,
+    right: view.width - spot.right - gap * 2 >= card.width,
+    left: spot.left - gap * 2 >= card.width,
+  };
+  const order = spotH > spotW ? ['right', 'left', 'below', 'above'] : ['above', 'below', 'right', 'left'];
+  const side = order.find((name) => room[name]);
+  if (!side) return null;
+  if (side === 'above' || side === 'below') {
+    return {
+      side,
+      x: clamp(spot.left + spotW / 2 - card.width / 2, view.width - card.width),
+      y: Math.round(side === 'above' ? spot.top - gap - card.height : spot.bottom + gap),
+    };
+  }
+  return {
+    side,
+    x: Math.round(side === 'right' ? spot.right + gap : spot.left - gap - card.width),
+    y: clamp(spot.top + spotH / 2 - card.height / 2, view.height - card.height),
+  };
+}
 
 function showOnboarding(appContainer, onDone) {
   const steps = getOnboardingSteps();
