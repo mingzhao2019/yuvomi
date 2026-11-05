@@ -12888,6 +12888,9 @@ function unreadableBackupError(encrypted, cause) {
         cause
       );
     }
+    // Ohne Grund (#1909): die Ursache steht nur im Stack, und den schreibt die
+    // Route nur fuer Fehler ohne `reason` ins Log - die Seite zeigt dazu den
+    // allgemeinen Satz, der auf das Server-Log zeigt.
     return new Error('Backup file is not a valid Yuvomi database.', { cause });
   }
   if (code === 'SQLITE_NOTADB') return undecryptableBackupError(cause);
@@ -13013,13 +13016,14 @@ function validateBackupFile(sourcePath) {
       WHERE type = 'table' AND name = 'schema_migrations'
     `).get();
     if (!row) {
-      throw new Error('Backup file is not a valid Yuvomi database.');
+      throw restoreError('Backup file is not a valid Yuvomi database.', 'backup_not_yuvomi');
     }
     const unknown = unknownMigrationVersions(candidate);
     if (unknown.length > 0) {
-      throw new Error(
-        `Backup was written by a newer Yuvomi (schema v${unknown[unknown.length - 1]}; this `
-        + `version knows up to v${latestKnownVersion()}). Update Yuvomi first, then restore.`
+      throw restoreError(
+        `Backup was written by a newer Yuvomi (schema v${unknown[unknown.length - 1]}; this ` +
+        `version knows up to v${latestKnownVersion()}). Update Yuvomi first, then restore.`,
+        'backup_newer_version'
       );
     }
     return candidate.prepare('SELECT MAX(version) AS version FROM schema_migrations').get()?.version ?? 0;
