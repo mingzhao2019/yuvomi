@@ -315,6 +315,65 @@ function assignListDefault(d, taskId, userIds) {
   for (const userId of userIds) ins.run(taskId, userId);
 }
 
+/**
+ * Die Zeile, die zu dieser UID gehört - über ALLE Konten (#1906, wie
+ * `rowForUid` bei Terminen, #1879). Dieselbe UID aus zwei Konten ist EINE
+ * Zeile, und das Konto, das sie zuerst geliefert hat, besitzt sie:
+ *   - eigene Zeile: wird aktualisiert;
+ *   - Zeile eines anderen Kontos: bleibt unberührt, und es entsteht keine
+ *     zweite (`{ foreign: true }`);
+ *   - Zeile ohne Konto (ihr Konto wurde gelöscht, #1885): wird übernommen.
+ * @returns {{row: object|null, foreign: boolean}}
+ */
+function rowForTodoUid(d, table, columns, uid, accountId) {
+  const rows = d.prepare(
+    `SELECT id, external_account_id, ${columns} FROM ${table}
+      WHERE external_uid = ? AND external_source = 'caldav' ORDER BY id`
+  ).all(uid);
+  const own = rows.find((r) => r.external_account_id === accountId);
+  if (own) return { row: own, foreign: false };
+  if (rows.some((r) => r.external_account_id != null)) return { row: null, foreign: true };
+  const free = rows[0];
+  if (!free) return { row: null, foreign: false };
+  d.prepare(`UPDATE ${table} SET external_account_id = ? WHERE id = ? AND external_account_id IS NULL`).run(accountId, free.id);
+  return { row: free, foreign: false };
+}
+
+/**
+ * Die Wiederholung, die eine fremde Regel in der Zeile setzt (#2506, #2515) -
+ * oder null, wenn der Abruf sie nicht anfasst.
+ *
+ * Abbildbar (`mappableForeignRule`), ohne einzeln ausgenommene oder
+ * hinzugefuegte Tage und mit passender Faelligkeit (`foreignRuleFitsDue`):
+ * eine Serie mit der
+ * Regel in Yuvomis Teilmenge, abhakbar wie in der besitzenden App. Sonst KEINE
+ * Serie hier: Yuvomi rechnete sie falsch weiter, das Abhaken bleibt dort
+ * (`task_foreign_series`) - und eine Regel, die jemand hier gesetzt hatte,
+ * gilt nicht mehr, sobald die andere App ihre eigene schreibt. Nimmt die
+ * andere App die Wiederholung einer Serie weg, die von ihr kam
+ * (`ruleRemoved`), ist es wieder eine einfache Aufgabe.
+ *
+ * Ohne fremde Regel (keine RRULE, Yuvomis eigene Marke, ein hier angelegtes
+ * Objekt) bleibt die Wiederholung, wie Yuvomi sie fuehrt (#2350).
+ *
+ * @returns {{isRecurring: 0|1, rule: string|null}|null}
+ */
+function foreignRecurrence(externalRrule, dueDate, dueTime, {
+  ruleRemoved = false, exceptions = false, foreignZone = false, startShifted = false,
+} = {}) {
+  if (!externalRrule) return ruleRemoved ? { isRecurring: 0, rule: null } : null;
+  // Mit EXDATE, RDATE oder geaenderten Einzelvorkommen beschreibt die Regel die
+  // Serie nicht allein (Review auf #2543): Yuvomi rueckte sonst auf einen Tag,
+  // den die andere App ausgenommen hat. Ebenso mit einem DTSTART an einem
+  // anderen Tag als DUE (der Rechner kennt nur DUE) und mit einer Uhrzeit in
+  // einer anderen Zone als der des Haushalts.
+  const unsure = exceptions || foreignZone || startShifted;
+  const mapped = unsure ? null : todoOutbound.mappableForeignRule(externalRrule);
+  return mapped && todoOutbound.foreignRuleFitsDue(mapped, dueDate, dueTime)
+    ? { isRecurring: 1, rule: mapped }
+    : { isRecurring: 0, rule: null };
+}
+
 // Die Objekt-URL (obj.url des Abrufs) wandert bei jedem Upsert mit: ohne sie ist
 // ein gespiegelter Eintrag für spätere Änderungen und Löschungen unerreichbar
 // (#617). COALESCE, weil ein Abruf ohne URL den gespeicherten Wert nicht
@@ -336,9 +395,9 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOpti
   // Zeile gehört nicht dazu: er wird zusammen mit seinem Erledigungseintrag in
   // applySyncedCompletions geschrieben (#1836, siehe unten).
   return d.transaction(() => {
-    const existing = d.prepare(
-      `SELECT id, priority, status FROM tasks WHERE external_uid = ? AND external_source = 'caldav' AND external_account_id = ?`
-    ).get(todo.uid, accountId);
+    const { row: existing, foreign } = rowForTodoUid(d, 'tasks', 'priority, status, external_rrule', todo.uid, accountId);
+    // Ein anderes Konto führt die Aufgabe schon (#1906): nichts anlegen, nichts ändern.
+    if (foreign) return null;
 
     const priority = mapVtodoPriority(todo.priority, existing?.priority);
     const status   = mapVtodoStatus(todo, existing?.status);
@@ -350,17 +409,30 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOpti
     const externalRrule = ownObject
       ? null
       : todoOutbound.foreignRecurrenceRule(todo.rrule ?? null, todo.yuvomiRrule ?? null);
+    const recurrence = foreignRecurrence(externalRrule, date, time, {
+      ruleRemoved: !ownObject && !todo.rrule && Boolean(existing?.external_rrule),
+      exceptions: Boolean(todo.seriesExceptions),
+      // Die Regel rechnet in der Zone ihres Ankers. Mit Uhrzeit liest Yuvomi DUE
+      // in die Zone des Haushalts um; weicht die ab, kippt ein BYDAY auf den
+      // Nachbartag (Review auf #2543). Nur schwebend oder in derselben Zone.
+      foreignZone: Boolean(time && todo.dueZone && todo.dueZone !== householdTimeZone(d)),
+      startShifted: Boolean(todo.startShifted),
+    });
 
     let taskId;
     if (existing) {
       const listClause = taskListId == null ? '' : ', task_list_id = ?';
       const params = taskListId == null
-        ? [todo.summary, todo.description, priority, date, time, objectUrl, externalRrule, existing.id]
-        : [todo.summary, todo.description, priority, date, time, objectUrl, externalRrule, taskListId, existing.id];
+        ? [todo.summary, todo.description, priority, date, time, objectUrl, externalRrule,
+          recurrence?.isRecurring ?? null, recurrence ? 1 : null, recurrence?.rule ?? null, existing.id]
+        : [todo.summary, todo.description, priority, date, time, objectUrl, externalRrule,
+          recurrence?.isRecurring ?? null, recurrence ? 1 : null, recurrence?.rule ?? null, taskListId, existing.id];
       d.prepare(`
         UPDATE tasks
         SET title = ?, description = ?, priority = ?, due_date = ?, due_time = ?,
-            external_object_url = COALESCE(?, external_object_url), external_rrule = ?${listClause}
+            external_object_url = COALESCE(?, external_object_url), external_rrule = ?,
+            is_recurring = COALESCE(?, is_recurring),
+            recurrence_rule = CASE WHEN ? IS NULL THEN recurrence_rule ELSE ? END${listClause}
         WHERE id = ?
       `).run(...params);
       taskId = existing.id;
@@ -370,12 +442,15 @@ function upsertTask(todo, accountId, createdBy, objectUrl = null, taskListOrOpti
       const listColumns = taskListId == null ? '' : ', task_list_id';
       const listValues = taskListId == null ? '' : ', ?';
       const params = taskListId == null
-        ? [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl, externalRrule]
-        : [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId, objectUrl, externalRrule, taskListId];
+        ? [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId,
+          objectUrl, externalRrule, recurrence?.isRecurring ?? 0, recurrence?.rule ?? null]
+        : [todo.summary, todo.description, priority, status, date, time, createdBy, todo.uid, accountId,
+          objectUrl, externalRrule, recurrence?.isRecurring ?? 0, recurrence?.rule ?? null, taskListId];
       const row = d.prepare(`
         INSERT INTO tasks
-          (title, description, priority, status, due_date, due_time, created_by, external_uid, external_source, external_account_id, external_object_url, external_rrule${listColumns})
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'caldav', ?, ?, ?${listValues})
+          (title, description, priority, status, due_date, due_time, created_by, external_uid, external_source, external_account_id, external_object_url, external_rrule,
+           is_recurring, recurrence_rule${listColumns})
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'caldav', ?, ?, ?, ?, ?${listValues})
       `).run(...params);
       taskId = row.lastInsertRowid;
       assignListDefault(d, Number(taskId), defaultAssignees);
