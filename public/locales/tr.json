@@ -5262,7 +5262,8 @@
                 "veryGood": "Çok iyi"
             },
             "unusualHigh": "Alışılmadık derecede yüksek. Değeri kontrol et; yine de kaydedebilirsin.",
-            "unusualLow": "Alışılmadık derecede düşük. Değeri kontrol et; yine de kaydedebilirsin."
+            "unusualLow": "Alışılmadık derecede düşük. Değeri kontrol et; yine de kaydedebilirsin.",
+            "barKey": "Çubuklar: üstte sistolik, altta diyastolik"
         },
         "meds": {
             "doseQty": "{{count}}×",
