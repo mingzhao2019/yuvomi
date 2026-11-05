@@ -21,6 +21,8 @@ ${sheets.map((href) => `<link rel="stylesheet" href="${href}">`).join('\n')}
 const MIME = { '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml' };
 let browser;
 let page;
+let calendarFixture = null;
+const displayWrites = [];
 
 before(async () => {
   browser = await launchBrowser(puppeteer, { headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -28,6 +30,20 @@ before(async () => {
   await page.setRequestInterception(true);
   page.on('request', (request) => {
     const pathname = new URL(request.url()).pathname;
+    if (calendarFixture && pathname === '/api/v1/calendar/calendars') {
+      return request.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(calendarFixture) });
+    }
+    if (calendarFixture && pathname === '/api/v1/calendar/source-display') {
+      const changes = JSON.parse(request.postData());
+      displayWrites.push(changes);
+      const source = calendarFixture.sources.find((item) => item.key === changes.key);
+      for (const field of ['name', 'color']) {
+        if (!Object.hasOwn(changes, field)) continue;
+        source[`custom_${field}`] = changes[field];
+        source[field] = changes[field] ?? source[`original_${field}`];
+      }
+      return request.respond({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: source }) });
+    }
     if (pathname === '/probe') return request.respond({ status: 200, contentType: 'text/html', body: HTML });
     const file = join(PUBLIC, pathname);
     if (!existsSync(file) || statSync(file).isDirectory()) return request.respond({ status: 404, body: '' });
@@ -38,6 +54,61 @@ before(async () => {
     localStorage.setItem('yuvomi-locale', 'zh');
     await (await import('/i18n.js')).initI18n();
   });
+});
+
+test('synced calendar display can be saved and reset in the real desktop and phone manager', async () => {
+  calendarFixture = { data: [{ id: 1, name: 'Yuvomi', color: '#007AFF', is_default: true }], sources: [
+    { key: 'cal:7', provider: 'google', name: '日历', color: '#99DDEE',
+      original_name: '日历', original_color: '#99DDEE', custom_name: null, custom_color: null },
+    { key: 'outlook:9', provider: 'outlook', name: 'Calendar', color: '#336699',
+      original_name: 'Calendar', original_color: '#336699', custom_name: null, custom_color: null },
+  ] };
+  try {
+    for (const width of [1440, 390]) {
+      await page.setViewport({ width, height: 900 });
+      await page.goto('http://calendar-toolbar.local/probe', { waitUntil: 'load' });
+      await page.evaluate(async () => {
+        await (await import('/i18n.js')).initI18n();
+        (await import('/permissions.js')).setPermissions({ admin: true, modules: { calendar: 'write' } });
+        const calendar = (await import('/pages/calendar.js')).__test;
+        calendar.setContainerForTest(document.getElementById('main-content'));
+        window.calendarDisplayToasts = [];
+        window.yuvomi = { showToast: (...args) => window.calendarDisplayToasts.push(args) };
+        calendar.state.events = [];
+        await calendar.openLocalCalendarsModal();
+      });
+      const row = '[data-source-key="cal:7"]';
+      await page.waitForSelector(`${row} .js-source-display-save`, { visible: true });
+      assert.match(await page.$eval(`${row} .cal-calendar-row__origin`, (el) => el.textContent), /Google.*日历/);
+      await page.$eval(`${row} .cal-calendar-row__name`, (input) => { input.value = '个人 Google'; });
+      await page.$eval(`${row} .cal-calendar-row__color`, (input) => { input.value = '#cc5500'; });
+      await page.click(`${row} .js-source-display-save`);
+      await page.waitForSelector(`${row} .js-source-display-reset`, { timeout: 3000 }).catch(async () => {
+        assert.fail(JSON.stringify({ writes: displayWrites, messages: await page.evaluate(() => window.calendarDisplayToasts) }));
+      });
+      assert.deepEqual(displayWrites.at(-1), { key: 'cal:7', name: '个人 Google', color: '#cc5500' });
+      assert.equal(await page.$eval(`${row} .cal-calendar-row__swatch`, (el) => getComputedStyle(el).backgroundColor), 'rgb(204, 85, 0)');
+      const layout = await page.$eval(row, (el) => {
+        const panel = el.closest('.modal-panel__body');
+        const bounds = panel.getBoundingClientRect();
+        return {
+          fits: panel.scrollWidth <= panel.clientWidth + 1,
+          controlsFit: [...el.querySelectorAll('input, button')].every((control) => {
+            const rect = control.getBoundingClientRect();
+            return rect.width > 0 && rect.left >= bounds.left && rect.right <= bounds.right;
+          }),
+        };
+      });
+      assert.ok(layout.fits && layout.controlsFit, `${width}px: ${JSON.stringify(layout)}`);
+      await page.click(`${row} .js-source-display-reset`);
+      await page.waitForFunction(() => document.querySelector('[data-source-key="cal:7"] .cal-calendar-row__name')?.value === '日历');
+      assert.deepEqual(displayWrites.at(-1), { key: 'cal:7', name: null, color: null });
+      await page.evaluate(async () => (await import('/components/modal.js')).closeModal({ force: true }));
+      await page.waitForSelector('#shared-modal-overlay', { hidden: true });
+    }
+  } finally {
+    calendarFixture = null;
+  }
 });
 
 after(async () => { await browser?.close(); });

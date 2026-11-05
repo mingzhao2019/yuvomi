@@ -4236,6 +4236,26 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
   gap: var(--space-2);
 }
 
+.cal-calendar-synced {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.cal-calendar-row--synced {
+  grid-template-columns: var(--space-4) minmax(0, 1fr) var(--space-12) auto;
+}
+
+.cal-calendar-row__identity {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.cal-calendar-row__origin {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 639px) {
   .cal-calendar-row {
     grid-template-columns: var(--space-4) minmax(0, 1fr) var(--space-12);

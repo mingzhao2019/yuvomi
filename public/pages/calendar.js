@@ -39,7 +39,7 @@ import {
   shiftSeriesStart,
 } from '/utils/recurrence-scope.js';
 import { getReadableTextColor } from '/utils/color.js';
-import { resolveEventColor } from '/utils/event-color.js';
+import { resolveEventColor as storedEventColor } from '/utils/event-color.js';
 import { EVENT_ICON_CATEGORIES, CUSTOM_EVENT_ICON_PATHS, eventIconName, hasEventIcon, eventIconHtml } from '/utils/event-icon.js';
 import { packLanes } from '/utils/week-strip.js';
 import { assignLanes, assignLanesByPerson, memberRank } from '/utils/overlap-lanes.js';
@@ -467,6 +467,13 @@ function openIconPickerDialog(selectedIcon, onSelect, onClose = () => {}) {
  * diagonal geteilte Füllung - die wirkte wie ein Render-Artefakt und blieb bei der
  * zweiten Farbe ungeprüft im Kontrast.
  */
+function resolveEventColor(ev) {
+  const source = state.calendarSourceCatalog?.find((item) => item.key === eventSourceKey(ev));
+  return storedEventColor(source && source.provider !== 'local'
+    ? { ...ev, source_calendar_display_color: source.custom_color ?? null }
+    : ev);
+}
+
 function resolveEventBackground(ev) {
   return resolveEventColor(ev);
 }
@@ -524,6 +531,7 @@ let state = {
   cursor:        null,     // aktuell angezeigte Referenz-Datum (YYYY-MM-DD)
   events:        [],
   localCalendars: [],
+  calendarSourceCatalog: null,
   localCalendarsError: null,
   tasks:         [],       // Aufgaben mit due_date für Kalender-Anzeige
   scheduleEntries: [],
@@ -1185,8 +1193,8 @@ function passesPersonFilters(item) {
  * Die Quelle eines Termins als Schluessel, oder null fuer einen eigenen (#1064).
  *
  * CalDAV-, Google- und Apple-Kalender haengen ueber `calendar_ref_id` an
- * `external_calendars`, ICS-Abos ueber `subscription_id`. Outlook schreibt nur
- * hinaus und bringt keine Termine mit, die eine Quelle haetten.
+ * `external_calendars`, ICS-Abos ueber `subscription_id`. Eingehende Outlook-
+ * Termine tragen den serverseitig aufgeloesten `source_calendar_key`.
  *
  * `source_calendar_ref_id` loest der Server auf: `calendar_ref_id`, sonst der
  * gewaehlte Zielkalender. Ein neuer Termin fuer einen ausgeblendeten Kalender
@@ -1194,6 +1202,7 @@ function passesPersonFilters(item) {
  * bis dahin stehen, bei scheiterndem Sync auf Dauer.
  */
 function eventSourceKey(ev) {
+  if (ev?.source_calendar_key) return ev.source_calendar_key;
   if (ev?.subscription_id) return `sub:${ev.subscription_id}`;
   const ref = ev?.source_calendar_ref_id ?? ev?.calendar_ref_id;
   if (ref) return `cal:${ref}`;
@@ -1210,10 +1219,8 @@ function passesSourceFilter(item) {
 /**
  * Die Kalender und Abos fuer das Filterblatt (#1064).
  *
- * Aus den geladenen Terminen, dazu jede ausgeblendete Quelle, auch ohne Termin
- * im Zeitraum - sonst liesse sich nur zurueckholen, was gerade zu sehen waere.
- * Die lokale Kalenderquelle wird separat geladen, weil sie eigene Kalender
- * verwaltet und nicht an eine externe Synchronisationsquelle gebunden ist.
+ * Use the persistent catalog, independent of the displayed date range. Event
+ * metadata remains a fallback for older servers and unavailable catalogs.
  */
 function calendarSources() {
   const quellen = new Map();
@@ -1223,6 +1230,9 @@ function calendarSources() {
       name: localCalendarDisplayName(calendar),
       color: calendar.color,
     });
+  }
+  for (const source of state.calendarSourceCatalog ?? []) {
+    quellen.set(source.key, { ...source });
   }
   for (const ev of state.events ?? []) {
     const key = eventSourceKey(ev);
@@ -1244,6 +1254,7 @@ function calendarSources() {
   for (const [key, merk] of state.hiddenSources ?? []) {
     const bekannt = quellen.get(key);
     if (!bekannt) {
+      if (state.calendarSourceCatalog) continue;
       quellen.set(key, { key, name: merk.name || '', color: merk.color || null });
     } else {
       bekannt.name ||= merk.name || '';
@@ -2069,10 +2080,12 @@ async function loadLocalCalendars() {
   try {
     const res = await api.get('/calendar/calendars');
     state.localCalendars = Array.isArray(res.data) ? res.data : [];
+    state.calendarSourceCatalog = Array.isArray(res.sources) ? res.sources : null;
     state.localCalendarsError = null;
   } catch (err) {
     console.warn('[Calendar] Local calendars fetch failed:', err);
     state.localCalendars = [];
+    state.calendarSourceCatalog = null;
     state.localCalendarsError = err;
   }
 }
@@ -6917,6 +6930,35 @@ function renderLocalCalendarRow(calendar) {
   `;
 }
 
+function calendarProviderLabel(provider) {
+  return { google: 'Google', outlook: 'Outlook', caldav: 'CalDAV', apple: 'iCloud', ics: 'ICS' }[provider] ?? '';
+}
+
+function renderSyncedCalendarRow(source) {
+  const writable = isPermAdmin() && moduleAccess('calendar') === 'write';
+  const color = source.color || '#8E8E93';
+  const info = [calendarProviderLabel(source.provider),
+    t('calendar.sourceOriginalName', { name: source.original_name || source.name })].filter(Boolean).join(' · ');
+  return `<div class="cal-calendar-row cal-calendar-row--synced" data-source-key="${esc(source.key)}">
+    <span class="cal-calendar-row__swatch" style="background-color:${esc(color)}" aria-hidden="true"></span>
+    <div class="cal-calendar-row__identity">
+      ${writable ? `<input class="form-input cal-calendar-row__name" maxlength="80" value="${esc(source.name)}" aria-label="${esc(t('calendar.localCalendarName'))}">` : `<span>${esc(source.name)}</span>`}
+      <small class="cal-calendar-row__origin">${esc(info)}</small>
+    </div>
+    ${writable ? `<input class="form-input cal-calendar-row__color" type="color" value="${esc(color)}" aria-label="${esc(t('calendar.localCalendarColor'))}">` : '<span></span>'}
+    <div class="cal-calendar-row__actions">
+      ${writable ? rowActionHtml({ icon: 'save', label: `${t('common.save')} · ${source.name}`, className: 'js-source-display-save' }) : ''}
+      ${writable && (source.custom_name || source.custom_color) ? rowActionHtml({ icon: 'rotate-ccw', label: t('calendar.sourceDisplayReset'), className: 'js-source-display-reset' }) : ''}
+    </div>
+  </div>`;
+}
+
+async function saveSourceDisplay(key, changes) {
+  if (!isPermAdmin() || moduleAccess('calendar') !== 'write') return false;
+  await api.put('/calendar/source-display', { key, ...changes });
+  return true;
+}
+
 function renderLocalCalendarsContent() {
   if (state.localCalendarsError) {
     return `<div class="cal-calendar-load-error" role="alert">
@@ -6925,6 +6967,7 @@ function renderLocalCalendarsContent() {
     </div>`;
   }
   const rows = state.localCalendars.map(renderLocalCalendarRow).join('');
+  const synced = (state.calendarSourceCatalog ?? []).filter((source) => !source.key.startsWith('local:'));
 
   return `
     <div class="cal-calendar-manager">
@@ -6942,6 +6985,11 @@ function renderLocalCalendarsContent() {
           compact: true,
         })}
       </div>
+      ${synced.length ? `<section class="cal-calendar-synced">
+        <h3 class="form-label">${t('calendar.syncedCalendars')}</h3>
+        <p class="form-hint">${t('calendar.sourceDisplayHint')}</p>
+        <div class="cal-calendar-list">${synced.map(renderSyncedCalendarRow).join('')}</div>
+      </section>` : ''}
     </div>
   `;
 }
@@ -7070,6 +7118,35 @@ async function openLocalCalendarsModal() {
       await refreshLocalCalendarsPanel(panel);
       return;
     }
+    const sourceRow = e.target.closest('[data-source-key]');
+    if (sourceRow) {
+      const button = e.target.closest('.js-source-display-save, .js-source-display-reset');
+      if (!button || button.disabled) return;
+      const source = state.calendarSourceCatalog?.find((item) => item.key === sourceRow.dataset.sourceKey);
+      if (!source) return;
+      const changes = {};
+      if (button.classList.contains('js-source-display-reset')) {
+        changes.name = null;
+        changes.color = null;
+      } else {
+        const name = sourceRow.querySelector('.cal-calendar-row__name')?.value.trim();
+        const color = sourceRow.querySelector('.cal-calendar-row__color')?.value;
+        if (name !== source.name) changes.name = name;
+        if (color?.toUpperCase() !== (source.color || '#8E8E93').toUpperCase()) changes.color = color;
+        if (!Object.keys(changes).length) return;
+      }
+      button.disabled = true;
+      try {
+        if (!await saveSourceDisplay(source.key, changes)) return;
+        window.yuvomi?.showToast(t('calendar.localCalendarSaved'), 'success');
+        await reloadAfterSave(() => refreshLocalCalendarsPanel(panel));
+      } catch (err) {
+        window.yuvomi?.showToast(localCalendarErrorSentence(err), 'danger');
+      } finally {
+        if (button.isConnected) button.disabled = false;
+      }
+      return;
+    }
     const row = e.target.closest('.cal-calendar-row');
     if (!row) return;
     const id = Number(row.dataset.calendarId);
@@ -7171,7 +7248,7 @@ function calendarFilterParts({ people = state.users ?? [], sources = calendarSou
   // tragen. Neben den Ebenen, nicht in ihnen: eine Ebene ist eine Sorte Eintrag,
   // eine Quelle ist, woher ein gewoehnlicher Termin kommt.
   const sourceRows = sources.map((s) => toggleRowHtml({
-    label: s.name || t('calendar.detailCalendar'),
+    label: [s.name || t('calendar.detailCalendar'), calendarProviderLabel(s.provider)].filter(Boolean).join(' · '),
     checked: !state.hiddenSources.has(s.key),
     swatchColor: s.color,
     control: 'switch',
@@ -7460,7 +7537,7 @@ function restoreHiddenSources(userId) {
   try { stored = JSON.parse(localStorage.getItem(schluessel) ?? '[]'); } catch { stored = []; }
   if (!Array.isArray(stored)) return quellen;
   for (const eintrag of stored) {
-    if (!eintrag || !/^(?:cal|sub|local):\d+$/.test(String(eintrag.key))) continue;
+    if (!eintrag || !/^(?:cal|sub|local|outlook):\d+$/.test(String(eintrag.key))) continue;
     // Die Farbe landet als Scheibe im Blatt; aus dem Speicher nur, was eine Farbe ist.
     const color = /^#[0-9a-f]{3,8}$/i.test(String(eintrag.color ?? '')) ? eintrag.color : null;
     quellen.set(eintrag.key, { name: String(eintrag.name ?? ''), color });
@@ -7473,11 +7550,13 @@ function localCalendarDisplayName(calendar) {
 }
 
 function eventLocalCalendarDisplayName(ev) {
+  const source = state.calendarSourceCatalog?.find((item) => item.key === eventSourceKey(ev));
+  if (source && !source.key.startsWith('local:')) return source.name;
   if (ev?.local_calendar_id && state.localCalendars.length <= 1) return '';
   const localCalendar = state.localCalendars.find((calendar) => Number(calendar.id) === Number(ev?.local_calendar_id));
   return localCalendar
     ? localCalendarDisplayName(localCalendar)
-    : (ev?.cal_name || ev?.local_calendar_name || '');
+    : (ev?.source_calendar_name || ev?.cal_name || ev?.local_calendar_name || '');
 }
 
 function persistHiddenSources() {
@@ -7794,7 +7873,7 @@ export const __test = {
   restorePeopleFilter,
   restoreAssignedToMe,
   restoreHiddenSources,
-  localCalendarDisplayName, eventLocalCalendarDisplayName, renderLocalCalendarRow, moveLocalCalendar, localCalendarUploadsToIcloud, syncLocalCalendarUploadHint, copyText, openLocalCalendarsModal, localCalendarState: state,
+  localCalendarDisplayName, eventLocalCalendarDisplayName, renderLocalCalendarRow, renderSyncedCalendarRow, saveSourceDisplay, loadLocalCalendars, moveLocalCalendar, localCalendarUploadsToIcloud, syncLocalCalendarUploadHint, copyText, openLocalCalendarsModal, localCalendarState: state,
   persistHiddenSources,
   activeFilterCount,
   UNASSIGNED,

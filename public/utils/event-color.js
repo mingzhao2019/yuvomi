@@ -3,7 +3,7 @@
  *
  * ICS subscriptions use their calendar colour by default. A manually changed
  * event colour remains authoritative. Other providers retain the existing
- * event -> assignee -> source hierarchy.
+ * event -> assignee -> source hierarchy unless a local calendar tint is set.
  */
 
 export const EVENT_FALLBACK_COLOR = '#8E8E93';
@@ -19,6 +19,11 @@ export function resolveEventColor(ev) {
 /** Resolve the same hierarchy without a final fallback color. */
 export function resolveEventColorOrNull(ev) {
   if (!ev) return null;
+  // A local calendar tint replaces provider/inherited colours. An explicitly
+  // edited event still keeps its own colour (including a deliberate reset).
+  if (ev.color_modified !== 1 && ev.source_calendar_display_color) {
+    return ev.source_calendar_display_color;
+  }
   // `subscription_id` is the durable source marker. Keep the legacy
   // external_source check as a fallback for old/API-shaped objects, but do not
   // require both fields: the calendar list and the countdown query do not have

@@ -3,7 +3,8 @@
 //
 // EIN KALENDER HAT HIER DEN SCHLUESSEL DES KALENDERMODULS: `local:<id>` fuer
 // einen eigenen Kalender, `cal:<id>` fuer einen synchronisierten (CalDAV,
-// Google - eine Zeile in `external_calendars`), `sub:<id>` fuer ein ICS-Abo.
+// Google - eine Zeile in `external_calendars`), `sub:<id>` fuer ein ICS-Abo,
+// `outlook:<id>` fuer einen eingehenden Outlook-Kalender.
 // Dieselbe Rangfolge wie `eventSourceKey` in public/pages/calendar.js: das Abo
 // zuerst, dann die aufgeloeste Quelle (`SOURCE_CALENDAR_JOIN`, auch fuer einen
 // noch nicht hochgeladenen Termin), dann der eigene Kalender. Ein Termin ohne
@@ -13,23 +14,25 @@
 //
 // WAS ES GIBT, SAGT EINE STELLE (`calendarSources`): der Katalog des
 // Optionen-Dialogs und die Pruefung der Auswahl in der Route lesen dieselbe
-// Liste. Ein synchronisierter Kalender zaehlt, solange er einen Termin traegt,
-// den die Person sehen darf (auch einen, der erst hochgeladen wird) - `external_calendars` wird beim Trennen eines
+// Liste. Mitglieder sehen Quellen mit einem fuer sie sichtbaren Termin, unabhaengig
+// vom angezeigten Zeitraum. Die Verwaltung kennt auch aktivierte leere Kalender.
+// `external_calendars` wird beim Trennen eines
 // Kontos nie geleert, nur seine Termine verschwinden. So faellt ein entfernter
 // Kalender still aus der Auswahl, ob lokal geloescht, Abo entfernt oder Konto
 // getrennt.
 // --------------------------------------------------------
 
-import { SOURCE_CALENDAR_JOIN } from './calendar-events.js';
+import { SOURCE_CALENDAR_JOIN, SOURCE_CALENDAR_KEY_SQL } from './calendar-events.js';
 import { localCalendarIdSql } from './local-calendars.js';
 import { visibilityWhere } from './visibility.js';
+import { calendarDisplaySettings } from './calendar-display.js';
 
-const KEY_RE = /^(local|cal|sub):([1-9]\d{0,14})$/;
+const KEY_RE = /^(local|cal|sub|outlook):([1-9]\d{0,14})$/;
 const MAX_SELECTION = 50;
 
 /**
  * `?events_calendar=` als Liste von Schluesseln: einzeln oder mehrfach
- * angegeben, nur `local:N`, `cal:N` oder `sub:N`, ohne Doppelte, hoechstens 50 -
+ * angegeben, `local:N`, `cal:N`, `sub:N`, `outlook:N`, ohne Doppelte, hoechstens 50 -
  * dieselbe Grenze wie die gespeicherten Optionen (preferences.js). Alles andere
  * faellt weg, nie ein Fehler.
  *
@@ -53,28 +56,76 @@ export function normalizeCalendarSelection(raw) {
  * @param {number|null} viewerId
  * @returns {{ key: string, name: string, color: string|null }[]}
  */
-export function calendarSources(d, viewerId) {
+export function calendarSources(d, viewerId, { includeConfigured = false } = {}) {
   const local = d.prepare(`
     SELECT id, name, color FROM local_calendars
     ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
-  `).all().map((row) => ({ key: `local:${row.id}`, name: row.name, color: row.color ?? null }));
+  `).all().map((row) => ({ key: `local:${row.id}`, name: row.name, color: row.color ?? null, provider: 'local' }));
   // Ueber dieselbe Aufloesung wie die Leser (`SOURCE_CALENDAR_JOIN`), nicht
   // nur ueber `calendar_ref_id`: ein neuer Termin fuer Google oder CalDAV traegt
   // die Kennung erst nach dem Hochladen (Codex-Review zu PR #2268). Waere er
   // der einzige des Kalenders, fehlte der Kalender sonst im Dialog, und eine
   // gespeicherte Auswahl fiele weg, waehrend die Leser ihn laengst zuordnen.
   const synced = d.prepare(`
-    SELECT DISTINCT src.id, src.name, src.color
+    SELECT DISTINCT src.id, src.name, src.color, src.source
     FROM calendar_events e
     ${SOURCE_CALENDAR_JOIN}
     WHERE src.id IS NOT NULL AND e.subscription_id IS NULL
       AND ${visibilityWhere('e', 'event_assignments', 'event_id', '@viewer')}
-  `).all({ viewer: viewerId }).map((row) => ({ key: `cal:${row.id}`, name: row.name, color: row.color ?? null }));
+  `).all({ viewer: viewerId });
+  // Account settings are admin-only. Keep configured empty calendars available
+  // there without exposing another member's private events to any reader.
+  if (includeConfigured) {
+    const configured = d.prepare(`
+      SELECT ec.id, ec.name, ec.color, ec.source FROM external_calendars ec
+      WHERE (ec.source = 'google' AND EXISTS (
+        SELECT 1 FROM google_calendar_selection gs WHERE gs.calendar_id = ec.external_id AND gs.enabled = 1
+      )) OR (ec.source = 'caldav' AND EXISTS (
+        SELECT 1 FROM caldav_calendar_selection cs WHERE cs.calendar_url = ec.external_id AND cs.enabled = 1
+      ))
+    `).all();
+    const known = new Set(synced.map((row) => row.id));
+    synced.push(...configured.filter((row) => !known.has(row.id)));
+  }
+  const external = synced.map((row) => ({ key: `cal:${row.id}`, name: row.name, color: row.color ?? null, provider: row.source }));
+  const outlook = d.prepare(`
+    SELECT os.id, os.calendar_name, os.calendar_color
+      FROM outlook_calendar_selection os
+     WHERE (@configured = 1 AND os.enabled = 1) OR EXISTS (
+       SELECT 1 FROM outlook_event_links ol JOIN calendar_events e ON e.id = ol.event_id
+       WHERE ol.account_id = os.account_id AND ol.outlook_calendar_id = os.calendar_id
+         AND e.external_source = 'outlook'
+         AND ${visibilityWhere('e', 'event_assignments', 'event_id', '@viewer')}
+     )
+  `).all({ configured: includeConfigured ? 1 : 0, viewer: viewerId })
+    .map((row) => ({ key: `outlook:${row.id}`, name: row.calendar_name, color: row.calendar_color ?? null, provider: 'outlook' }));
   const subscriptions = d.prepare(`
     SELECT id, name, color FROM ics_subscriptions WHERE shared = 1 OR created_by = ?
-  `).all(viewerId).map((row) => ({ key: `sub:${row.id}`, name: row.name, color: row.color ?? null }));
+  `).all(viewerId).map((row) => ({ key: `sub:${row.id}`, name: row.name, color: row.color ?? null, provider: 'ics' }));
+  const remote = [...external, ...outlook, ...subscriptions].map((source) => {
+    const display = calendarDisplaySettings(d, source.key);
+    return {
+      ...source, original_name: source.name, original_color: source.color,
+      name: display.name ?? source.name, color: display.color ?? source.color,
+      custom_name: display.name, custom_color: display.color,
+    };
+  });
   const byName = (a, b) => String(a.name).localeCompare(String(b.name));
-  return [...local, ...[...synced, ...subscriptions].sort(byName)];
+  return [...local, ...remote.sort(byName)];
+}
+
+/** Register empty selected calendars before the first successful provider run. */
+export function ensureConfiguredCalendarMetadata(d) {
+  d.prepare(`
+    INSERT OR IGNORE INTO external_calendars (source, external_id, name, color)
+    SELECT 'google', calendar_id, COALESCE(NULLIF(name, ''), calendar_id), color
+      FROM google_calendar_selection WHERE enabled = 1
+  `).run();
+  d.prepare(`
+    INSERT OR IGNORE INTO external_calendars (source, external_id, name, color)
+    SELECT 'caldav', calendar_url, COALESCE(NULLIF(calendar_name, ''), 'CalDAV'), calendar_color
+      FROM caldav_calendar_selection WHERE enabled = 1
+  `).run();
 }
 
 /**
@@ -90,7 +141,10 @@ export function calendarSources(d, viewerId) {
 export function resolveCalendarSelection(d, raw, viewerId) {
   const wanted = normalizeCalendarSelection(raw);
   if (!wanted.length) return null;
-  const available = new Set(calendarSources(d, viewerId).map((source) => source.key));
+  // The administrator's widget picker also offers enabled empty calendars.
+  // Keep such a selection empty instead of silently falling back to all events.
+  const includeConfigured = d.prepare("SELECT 1 FROM users WHERE id = ? AND role = 'admin'").get(viewerId) != null;
+  const available = new Set(calendarSources(d, viewerId, { includeConfigured }).map((source) => source.key));
   const kept = wanted.filter((key) => available.has(key));
   return kept.length ? kept : null;
 }
@@ -105,7 +159,7 @@ export function resolveCalendarSelection(d, raw, viewerId) {
  */
 export function calendarSelectionSql(keys) {
   if (!Array.isArray(keys) || !keys.length) return { sql: '', params: [] };
-  const key = `COALESCE('sub:' || e.subscription_id, 'cal:' || src.id, 'local:' || ${localCalendarIdSql('e')})`;
+  const key = `COALESCE(${SOURCE_CALENDAR_KEY_SQL}, 'local:' || ${localCalendarIdSql('e')})`;
   return {
     sql: `
     AND (${key} IS NULL OR ${key} IN (${keys.map(() => '?').join(', ')}))`,

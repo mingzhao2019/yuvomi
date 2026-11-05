@@ -9,6 +9,7 @@ const dbmod = await import('../server/db.js');
 const { default: calendarRouter } = await import('../server/routes/calendar.js');
 const { buildCalendarFeed } = await import('../server/services/ics-export.js');
 const { findCalendarByFeedToken, ensureDefaultCalendar, resolveLocalCalendarId } = await import('../server/services/local-calendars.js');
+const { resolveEventColor } = await import('../public/utils/event-color.js');
 
 const db = dbmod.get();
 const ADMIN = { id: 1, role: 'admin' };
@@ -66,6 +67,107 @@ async function createEvent(title, calendarId = undefined) {
   assert.equal(res.status, 201, JSON.stringify(res.body));
   return res.body.data;
 }
+
+test('synced source catalog keeps empty calendars, local aliases survive provider refresh, and reset follows the provider', async () => {
+  db.exec('SAVEPOINT calendar_source_display');
+  try {
+    db.prepare(`INSERT INTO google_calendar_selection (calendar_id, name, color, enabled)
+      VALUES ('display-google', '日历', '#99DDEE', 1), ('display-off', 'Disabled', '#222222', 0)`).run();
+    const accountId = Number(db.prepare(`INSERT INTO outlook_accounts
+      (name, email, access_token, refresh_token, owner_user_id)
+      VALUES ('Display test', 'display@example.test', 'fixture-access', 'fixture-refresh', 1)`).run().lastInsertRowid);
+    const selectionId = Number(db.prepare(`INSERT INTO outlook_calendar_selection
+      (account_id, calendar_id, calendar_name, calendar_color, enabled)
+      VALUES (?, 'display-outlook', 'Calendar', '#336699', 1)`).run(accountId).lastInsertRowid);
+    let sources = (await call('GET', '/calendars')).body.sources;
+    const google = sources.find((source) => source.provider === 'google' && source.name === '日历');
+    assert.ok(google, 'an enabled Google calendar with no event is registered and listed');
+    assert.ok(sources.some((source) => source.key === `outlook:${selectionId}`), 'empty Outlook calendar is also listed');
+    assert.ok(!sources.some((source) => source.name === 'Disabled'));
+    const { resolveCalendarSelection } = await import('../server/services/calendar-selection.js');
+    assert.deepEqual(resolveCalendarSelection(db, google.key, ADMIN.id), [google.key], 'an empty source remains a valid widget selection');
+    assert.deepEqual(resolveCalendarSelection(db, `outlook:${selectionId}`, ADMIN.id), [`outlook:${selectionId}`]);
+    const ref = Number(google.key.slice(4));
+    const eventId = Number(db.prepare(`INSERT INTO calendar_events
+      (title, start_datetime, end_datetime, external_source, calendar_ref_id, color, color_modified, created_by)
+      VALUES ('Display event', '2035-05-01T12:00', '2035-05-01T13:00', 'google', ?, '#99DDEE', 0, 1)`).run(ref).lastInsertRowid);
+    const before = db.prepare('SELECT * FROM calendar_events WHERE id = ?').get(eventId);
+    const saved = await call('PUT', '/source-display', { body: { key: google.key, name: 'Personal Google', color: '#cc5500' } });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.body.data.color, '#CC5500');
+    assert.deepEqual(db.prepare('SELECT * FROM calendar_events WHERE id = ?').get(eventId), before,
+      'display changes do not change event fields or mark an outbound edit');
+    assert.equal(db.prepare('SELECT name FROM external_calendars WHERE id = ?').get(ref).name, '日历');
+
+    // The same metadata update used by provider synchronization must not replace the alias.
+    const { upsertExternalCalendar } = await import('../server/services/external-calendars.js');
+    upsertExternalCalendar('google', 'display-google', 'New provider name', '#112233');
+    sources = (await call('GET', '/calendars')).body.sources;
+    const customized = sources.find((source) => source.key === google.key);
+    assert.equal(customized.name, 'Personal Google');
+    assert.equal(customized.original_name, 'New provider name');
+    assert.equal(customized.color, '#CC5500');
+    const event = (await call('GET', `/${eventId}`)).body.data;
+    assert.equal(event.source_calendar_key, google.key);
+    assert.equal(event.source_calendar_name, 'Personal Google');
+    assert.equal(resolveEventColor(event), '#CC5500');
+    assert.equal(resolveEventColor({ ...event, color_modified: 1, color: '#EE0000' }), '#EE0000',
+      'an explicit event color still takes precedence');
+    const range = await call('GET', '/api/v1/calendar?from=2035-05-01&to=2035-05-31');
+    assert.equal(range.status, 200);
+    assert.equal(range.body.data.find((row) => row.id === eventId).source_calendar_name, 'Personal Google');
+
+    const outlookKey = `outlook:${selectionId}`;
+    assert.equal((await call('PUT', '/source-display', { body: { key: outlookKey, name: 'Personal Outlook', color: '#6655AA' } })).status, 200);
+    const outlookEvent = Number(db.prepare(`INSERT INTO calendar_events
+      (title, start_datetime, external_source, external_calendar_id, created_by)
+      VALUES ('Outlook display', '2035-05-02T10:00', 'outlook', 'display-remote-event', 1)`).run().lastInsertRowid);
+    db.prepare(`INSERT INTO outlook_event_links (event_id, account_id, outlook_calendar_id, outlook_event_id)
+      VALUES (?, ?, 'display-outlook', 'display-remote-event')`).run(outlookEvent, accountId);
+    const imported = (await call('GET', `/${outlookEvent}`)).body.data;
+    assert.equal(imported.source_calendar_key, outlookKey);
+    assert.equal(imported.source_calendar_name, 'Personal Outlook');
+    assert.equal(resolveEventColor(imported), '#6655AA');
+    const { __test: outlook } = await import('../server/services/outlook-calendar.js');
+    await outlook.refreshCalendarSelection(accountId, 'fixture-access', async () => ({
+      ok: true, status: 200, json: async () => ({ value: [{ id: 'brand-new', name: 'New calendar' },
+        { id: 'display-outlook', name: 'Refreshed Outlook', hexColor: '#113355' }] }),
+    }));
+    assert.equal(db.prepare("SELECT id FROM outlook_calendar_selection WHERE account_id = ? AND calendar_id = 'display-outlook'").get(accountId).id, selectionId);
+    const refreshed = (await call('GET', '/calendars')).body.sources.find((source) => source.key === outlookKey);
+    assert.equal(refreshed.name, 'Personal Outlook');
+    assert.equal(refreshed.original_name, 'Refreshed Outlook');
+
+    const reset = await call('PUT', '/source-display', { body: { key: google.key, name: null, color: null } });
+    assert.equal(reset.status, 200);
+    assert.equal(reset.body.data.name, 'New provider name');
+    assert.equal(reset.body.data.color, '#112233');
+    assert.equal(db.prepare('SELECT value FROM sync_config WHERE key = ?').get(`calendar_display:${google.key}`), undefined);
+  } finally {
+    db.exec('ROLLBACK TO calendar_source_display; RELEASE calendar_source_display');
+  }
+});
+
+test('source display checks write access and validates every field before saving', async () => {
+  db.exec('SAVEPOINT calendar_source_display_rights');
+  try {
+    db.prepare("INSERT INTO google_calendar_selection (calendar_id, name, enabled) VALUES ('display-rights', 'Rights', 1)").run();
+    const key = (await call('GET', '/calendars')).body.sources.find((source) => source.name === 'Rights').key;
+    for (const body of [{ key, name: '' }, { key, name: 'x'.repeat(81) }, { key, name: 'Valid', color: 'red' },
+      { key: 'local:1', name: 'Invalid' }, { key }, { key: '../other', name: 'Invalid' }]) {
+      assert.equal((await call('PUT', '/source-display', { body })).status, 400);
+    }
+    assert.equal((await call('PUT', '/source-display', { body: { key: 'cal:999999999', name: 'Unknown' } })).status, 404);
+    assert.equal(db.prepare('SELECT value FROM sync_config WHERE key = ?').get(`calendar_display:${key}`), undefined);
+    actor = { id: ADMIN.id, role: 'member', access: 'write' };
+    assert.equal((await call('PUT', '/source-display', { body: { key, name: 'Forbidden' } })).status, 403);
+    actor = { ...ADMIN, access: 'read' };
+    assert.equal((await call('PUT', '/source-display', { body: { key, name: 'Forbidden' } })).status, 403);
+  } finally {
+    actor = ADMIN;
+    db.exec('ROLLBACK TO calendar_source_display_rights; RELEASE calendar_source_display_rights');
+  }
+});
 
 test('local calendars: default exists and calendars can be created', async () => {
   const before = await call('GET', '/calendars');

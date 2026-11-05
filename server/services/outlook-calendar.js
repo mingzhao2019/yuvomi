@@ -650,7 +650,7 @@ async function refreshCalendarSelection(accountId, accessToken, fetchImpl = fetc
     // Delta-Cursor zurücksetzen.
     const stateMap = new Map(
       conn.prepare(`
-        SELECT calendar_id, enabled, sync_start_date, sync_range_start,
+        SELECT id, calendar_id, enabled, sync_start_date, sync_range_start,
                sync_range_end, sync_cursor, last_inbound_sync, sync_error
           FROM outlook_calendar_selection WHERE account_id = ?
       `).all(accountId).map((r) => [r.calendar_id, r])
@@ -658,14 +658,15 @@ async function refreshCalendarSelection(accountId, accessToken, fetchImpl = fetc
     conn.prepare('DELETE FROM outlook_calendar_selection WHERE account_id = ?').run(accountId);
     const ins = conn.prepare(`
       INSERT INTO outlook_calendar_selection
-        (account_id, calendar_id, calendar_name, calendar_color, can_edit, enabled,
+        (id, account_id, calendar_id, calendar_name, calendar_color, can_edit, enabled,
          sync_start_date, sync_range_start, sync_range_end, sync_cursor,
          last_inbound_sync, sync_error)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const cal of calendars) {
       const old = stateMap.get(cal.id);
       ins.run(
+        old?.id ?? null,
         accountId,
         cal.id,
         cal.name || 'Calendar',

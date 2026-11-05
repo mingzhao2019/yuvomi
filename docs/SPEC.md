@@ -1349,6 +1349,24 @@ Configured in Settings → **Modules → Tasks** → Defaults for new tasks ("Fo
 ### External Calendars
 Display metadata (name, color) for synced Google/CalDAV calendars. Populated automatically during sync.
 
+**Local display customization:** `GET /calendar/calendars` returns a persistent `sources`
+catalog alongside local calendars. Sources use `local:N`, `cal:N`, `sub:N`, or `outlook:N`
+(the stable Outlook selection-row id). The calendar sidebar consumes this catalog rather
+than inferring sources from events in the displayed date window. Administrators can also
+see enabled calendars with no events; other readers retain event and subscription visibility.
+Missing metadata for selected Google/CalDAV calendars is registered locally without contacting
+the provider. Disconnected sources with retained visible events remain available.
+
+`PUT /calendar/source-display` requires admin and calendar write access and accepts
+`{ key, name?, color? }`. Names use the existing 80-character limit, colors use six-digit HEX,
+and `null` restores the corresponding provider value. Values are stored separately in
+`sync_config` under `calendar_display:<key>`; provider names, colors, event fields and outbound
+queues are unchanged. Responses include `provider`, `original_name`, `original_color`,
+`custom_name`, and `custom_color`. Event readers resolve the same names and expose
+`source_calendar_display_color`: this local tint takes precedence over inherited provider
+and assignee colors, while an explicitly edited event color still wins. Outlook list refreshes
+preserve selection ids so display settings and hidden-source filters survive a refresh.
+
 | Column | Type | Constraint |
 |--------|------|-----------|
 | source | TEXT | 'google' or 'caldav', NOT NULL (legacy 'apple' entries migrated to 'caldav' in v0.44.0) |

@@ -12,6 +12,7 @@ import {
 } from '../utils/timezone.js';
 import { legacyOccurrenceKeyFor } from './legacy-occurrence-key.js';
 import { personAvatarUrlSql } from './person-avatar.js';
+import { calendarDisplaySql } from './calendar-display.js';
 
 const DEFAULT_EXPANSION_ITERATIONS = 1000;
 export const MAX_EXPANSION_ITERATIONS = 100000;
@@ -58,10 +59,26 @@ export const SOURCE_CALENDAR_JOIN = `LEFT JOIN external_calendars src ON src.id 
     WHERE tc.source = 'caldav' AND tc.external_id = e.target_caldav_calendar_url)
 )`;
 
-/** Die Spalten zu SOURCE_CALENDAR_JOIN: ID, Name und Farbe der aufgeloesten Quelle. */
+// An imported Outlook event belongs to its inbound calendar; a local event
+// merely mirrored to Outlook keeps its local source. Do not duplicate it.
+export const OUTLOOK_SOURCE_ID_SQL = `(SELECT os.id FROM outlook_event_links ol
+  JOIN outlook_calendar_selection os
+    ON os.account_id = ol.account_id AND os.calendar_id = ol.outlook_calendar_id
+  WHERE e.external_source = 'outlook' AND ol.event_id = e.id
+  ORDER BY ol.account_id LIMIT 1)`;
+export const SOURCE_CALENDAR_KEY_SQL = `COALESCE('sub:' || e.subscription_id,
+  'cal:' || src.id, 'outlook:' || ${OUTLOOK_SOURCE_ID_SQL})`;
+const sourceNameSql = `COALESCE((SELECT name FROM ics_subscriptions WHERE id = e.subscription_id), src.name,
+  (SELECT calendar_name FROM outlook_calendar_selection WHERE id = ${OUTLOOK_SOURCE_ID_SQL}))`;
+const sourceColorSql = `COALESCE((SELECT color FROM ics_subscriptions WHERE id = e.subscription_id), src.color,
+  (SELECT calendar_color FROM outlook_calendar_selection WHERE id = ${OUTLOOK_SOURCE_ID_SQL}))`;
+
+/** Source identity and local presentation shared by range, detail and dashboard readers. */
 export const SOURCE_CALENDAR_COLUMNS = `src.id    AS source_calendar_ref_id,
-  src.name  AS source_calendar_name,
-  src.color AS source_calendar_color`;
+  ${SOURCE_CALENDAR_KEY_SQL} AS source_calendar_key,
+  COALESCE(${calendarDisplaySql('name', SOURCE_CALENDAR_KEY_SQL)}, ${sourceNameSql}) AS source_calendar_name,
+  COALESCE(${calendarDisplaySql('color', SOURCE_CALENDAR_KEY_SQL)}, ${sourceColorSql}) AS source_calendar_color,
+  ${calendarDisplaySql('color', SOURCE_CALENDAR_KEY_SQL)} AS source_calendar_display_color`;
 
 /** Ein Schluessel in alter Form oder ganztaegig: nur das Datum. */
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;

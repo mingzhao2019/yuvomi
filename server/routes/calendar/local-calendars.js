@@ -16,7 +16,9 @@ import {
   validateCalendarName,
 } from '../../services/local-calendars.js';
 import { uploadsLocalEvents } from '../../services/apple-calendar.js';
-import { calendarSources } from '../../services/calendar-selection.js';
+import { calendarSources, ensureConfiguredCalendarMetadata } from '../../services/calendar-selection.js';
+import { saveCalendarDisplay } from '../../services/calendar-display.js';
+import { integrationDetailsVisible } from '../../scopes.js';
 import { createLogger } from '../../logger.js';
 import { feedUrl, getUserId, isAdminUser } from './helpers.js';
 
@@ -53,7 +55,10 @@ function loadCalendars(database, viewerId) {
 
 router.get('/calendars', (req, res) => {
   try {
-    const rows = loadCalendars(db.get(), getUserId(req));
+    const database = db.get();
+    const includeConfigured = isAdminUser(req) && integrationDetailsVisible(req);
+    if (includeConfigured) ensureConfiguredCalendarMetadata(database);
+    const rows = loadCalendars(database, getUserId(req));
     // Nur der Standardkalender geht mit der alten Apple-Verbindung zu iCloud
     // hinauf. Die Rückfrage vor dem Löschen eines anderen Kalenders nennt das,
     // weil dessen Termine dorthin fallen. Ein Ja oder Nein, keine Zugangsdaten.
@@ -69,10 +74,43 @@ router.get('/calendars', (req, res) => {
         event_count: row.event_count ?? 0,
         uploads_to_icloud: icloudUpload && !!row.is_default,
       })),
-      sources: calendarSources(db.get(), getUserId(req)),
+      sources: calendarSources(database, getUserId(req), { includeConfigured }),
     });
   } catch (err) {
     log.error('GET /calendars', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.put('/source-display', requireAdmin, (req, res) => {
+  if (!mayWriteModule(req, 'calendar')) {
+    return res.status(403).json({ error: 'Write access to the calendar is required.', code: 403, reason: 'cross_module_access' });
+  }
+  try {
+    const { key, name, color } = req.body ?? {};
+    if (typeof key !== 'string' || !/^(cal|sub|outlook):[1-9]\d{0,14}$/.test(key)) {
+      return res.status(400).json({ error: 'Choose a valid calendar source.', code: 400 });
+    }
+    const changes = {};
+    if (name !== undefined) {
+      const result = name === null ? { value: null } : validateCalendarName(name);
+      if (result.error) return sendValidationErrors(res, [result]);
+      changes.name = result.value;
+    }
+    if (color !== undefined) {
+      const result = color === null ? { value: null } : validateCalendarColor(color);
+      if (result.error) return sendValidationErrors(res, [result]);
+      changes.color = result.value;
+    }
+    if (!Object.keys(changes).length) return res.status(400).json({ error: 'No display setting provided.', code: 400 });
+    const database = db.get();
+    // Only known, visible sources; a private ICS subscription remains private.
+    const options = { includeConfigured: integrationDetailsVisible(req) };
+    if (!calendarSources(database, getUserId(req), options).some((source) => source.key === key)) return sendCalendarGone(res);
+    saveCalendarDisplay(database, key, changes);
+    res.json({ data: calendarSources(database, getUserId(req), options).find((source) => source.key === key) });
+  } catch (err) {
+    log.error('PUT /source-display', err);
     res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });

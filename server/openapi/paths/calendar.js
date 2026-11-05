@@ -120,6 +120,9 @@ export function calendarPaths() {
     },
     '/api/v1/calendar/search': { get: op({ summary: 'Search events by title, location, or notes', tag: 'Calendar', description: 'Diacritic-insensitive full-text search across all family-visible calendar events (`q`, min 2 chars). Returns `{ data: Event[], total }` sorted chronologically; recurring matches resolve to their next occurrence. Backs the calendar toolbar search (#471).' }) },
     '/api/v1/calendar/holidays': { get: op({ summary: 'List public & school holidays in a date range', tag: 'Calendar', description: 'Reads cached OpenHolidays entries that overlap `from`/`to` (both `YYYY-MM-DD`, required). Returns `{ data: [{ id, type (`public`|`school`), start_date, end_date, name, color }] }`. Empty when no holiday country is configured.' }) },
+    '/api/v1/calendar/source-display': {
+      put: op({ summary: 'Customize a synced calendar locally', tag: 'Calendar', admin: true, stateChanging: true, requestBody: jsonBody(null), description: 'Requires calendar write access. Body: { key, name?, color? }, with a source key from GET /calendar/calendars (cal:N, sub:N or outlook:N). Name is at most 80 characters, color is six-digit HEX; null restores the provider value. Changes only Yuvomi presentation and never writes to a provider.' }),
+    },
     '/api/v1/calendar/google/auth': { get: op({ summary: 'Start Google Calendar OAuth', tag: 'Calendar', admin: true }) },
     '/api/v1/calendar/google/callback': { get: op({ summary: 'Google Calendar OAuth callback', tag: 'Calendar' }) },
     '/api/v1/calendar/google/sync': { post: op({ summary: 'Run Google Calendar sync', tag: 'Calendar', admin: true, stateChanging: true, description: 'When Google no longer accepts the stored sign-in (`invalid_grant`), the answer is `409` with reason `google_reauth_required`, and syncing pauses until the account is connected again (#2019).' }) },

@@ -825,7 +825,7 @@ export function normalizeShoppingListSelection(value) {
 
 /**
  * Die gespeicherte Kalender-Auswahl der Kalender-Kachel als Schluessel (#2062):
- * `local:N`, `cal:N` oder `sub:N` (die Schluessel des Kalendermoduls), ohne
+ * `local:N`, `cal:N`, `sub:N` oder `outlook:N` (die Schluessel des Kalendermoduls), ohne
  * Doppelte. Was sonst im Layout steht, faellt weg - dieselbe Form, die die
  * Route aus `?events_calendar=` liest (server/services/calendar-selection.js).
  *
@@ -834,7 +834,7 @@ export function normalizeShoppingListSelection(value) {
  */
 export function normalizeCalendarSelection(value) {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter((key) => typeof key === 'string' && /^(local|cal|sub):[1-9]\d{0,14}$/.test(key)))];
+  return [...new Set(value.filter((key) => typeof key === 'string' && /^(local|cal|sub|outlook):[1-9]\d{0,14}$/.test(key)))];
 }
 
 export function dashboardQuery(config) {

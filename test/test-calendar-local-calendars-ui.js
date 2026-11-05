@@ -11,6 +11,63 @@ test('the default local calendar displays its saved name', () => {
   );
 });
 
+test('the persistent catalog keeps empty sources in every date range and applies local names and colors', async () => {
+  const state = calendar.localCalendarState;
+  const previous = { localCalendars: state.localCalendars, calendarSourceCatalog: state.calendarSourceCatalog,
+    events: state.events, hiddenSources: state.hiddenSources };
+  const apiStub = globalThis.__apiStub;
+  const source = { key: 'cal:41', provider: 'google', name: 'Personal Google', color: '#CC5500',
+    original_name: '日历', original_color: '#99DDEE', custom_name: 'Personal Google', custom_color: '#CC5500' };
+  try {
+    globalThis.__apiStub = { get: async () => ({ data: [], sources: [source] }) };
+    await calendar.loadLocalCalendars();
+    state.hiddenSources = new Map();
+    state.events = [];
+    assert.deepEqual(calendar.calendarSources(), [source], 'no event is required');
+    const parts = calendar.calendarFilterParts({ people: [] });
+    assert.match(parts.sourceRows, /Personal Google · Google/);
+    const event = { source_calendar_key: source.key, cal_name: '日历', color: '#99DDEE', color_modified: 0 };
+    assert.equal(calendar.eventLocalCalendarDisplayName(event), 'Personal Google');
+    assert.equal(calendar.resolveEventColor(event), '#CC5500');
+    assert.equal(calendar.resolveEventColor({ ...event, color_modified: 1, color: '#FF0000' }), '#FF0000');
+    state.events = [{ ...event, start_datetime: '2035-01-01' }];
+    assert.deepEqual(calendar.calendarSources(), [source]);
+    assert.equal(calendar.eventSourceKey({ external_source: 'outlook', source_calendar_key: 'outlook:17' }), 'outlook:17');
+    state.hiddenSources = new Map([['outlook:17', { name: 'Gone', color: '#333333' }]]);
+    assert.ok(!calendar.calendarSources().some((item) => item.key === 'outlook:17'), 'removed sources do not linger in the loaded catalog');
+  } finally {
+    Object.assign(state, previous);
+    if (apiStub === undefined) delete globalThis.__apiStub; else globalThis.__apiStub = apiStub;
+  }
+});
+
+test('synced calendar management escapes names, marks providers, and saves only local presentation', async () => {
+  const permissions = getPermissions();
+  const apiStub = globalThis.__apiStub;
+  const calls = [];
+  const source = { key: 'cal:41', provider: 'google', name: '<Personal>', color: '#CC5500',
+    original_name: '<Original>', custom_name: '<Personal>' };
+  try {
+    setPermissions({ admin: true, modules: { calendar: 'write' } });
+    const html = calendar.renderSyncedCalendarRow(source);
+    assert.match(html, /Google/);
+    assert.match(html, /&lt;Personal&gt;/);
+    assert.match(html, /&lt;Original&gt;/);
+    assert.match(html, /js-source-display-reset/);
+    assert.match(html, /js-source-display-save/);
+    globalThis.__apiStub = { put: async (...args) => { calls.push(args); return { data: source }; } };
+    assert.equal(await calendar.saveSourceDisplay(source.key, { name: 'Work', color: '#445566' }), true);
+    assert.deepEqual(calls, [['/calendar/source-display', { key: source.key, name: 'Work', color: '#445566' }]]);
+    setPermissions({ admin: false, modules: { calendar: 'write' } });
+    assert.doesNotMatch(calendar.renderSyncedCalendarRow(source), /js-source-display-save|<input/);
+    assert.equal(await calendar.saveSourceDisplay(source.key, { name: 'Forbidden' }), false);
+    assert.equal(calls.length, 1);
+  } finally {
+    setPermissions(permissions);
+    if (apiStub === undefined) delete globalThis.__apiStub; else globalThis.__apiStub = apiStub;
+  }
+});
+
 test('renamed and additional calendars display their saved names', () => {
   assert.equal(
     calendar.localCalendarDisplayName({ id: 1, name: 'Renamed default', is_default: true }),
