@@ -18,7 +18,8 @@ import { openModal, closeModal, captureModalContext, captureOpenContext, isModal
 import { createRetryState, formSwitchRowHtml, settingSwitchRowHtml } from '/settings/components.js';
 import { formRowHtml, formRowsHtml } from '/utils/form-row.js';
 import { birthDateControlHtml, wireBirthDateField } from '/utils/birth-date.js';
-import { errorSentence } from '/utils/friendly-error.js';
+import { mediaPickerBadgeHtml } from '/utils/media-picker.js';
+import { errorSentence, isGone, loadErrorSentence } from '/utils/friendly-error.js';
 import {
   renderUserMultiSelect, getSelectedUserIds, bindUserMultiSelect,
 } from '/components/user-multi-select.js';
@@ -289,7 +290,7 @@ function addMemberFormHtml() {
             }),
             formRowHtml({
               label: t('settings.displayNameLabel'), labelFor: 'new-display-name', labelExtra: REQUIRED_MARK, field: true,
-              control: '<input class="form-input" type="text" id="new-display-name" required />',
+              control: '<input class="form-input" type="text" id="new-display-name" required maxlength="128" />',
             }),
             formRowHtml({
               label: t('settings.colorLabel'), labelFor: 'new-avatar-color',
@@ -310,11 +311,11 @@ function addMemberFormHtml() {
             }),
             formRowHtml({
               label: t('settings.memberPhoneLabel'), labelFor: 'new-member-phone', field: true,
-              control: '<input class="form-input" type="tel" id="new-member-phone" autocomplete="tel" />',
+              control: '<input class="form-input" type="tel" id="new-member-phone" maxlength="100" autocomplete="tel" />',
             }),
             formRowHtml({
               label: t('settings.memberEmailLabel'), labelFor: 'new-member-email', field: true,
-              control: '<input class="form-input" type="email" id="new-member-email" autocomplete="email" />',
+              control: '<input class="form-input" type="email" id="new-member-email" maxlength="200" autocomplete="email" />',
             }),
             formRowHtml({
               label: t('settings.memberBirthDateLabel'), labelFor: 'new-member-birth-date',
@@ -886,7 +887,8 @@ function bindInviteEvents(container, initialInvites) {
             outputValue.select();
             window.yuvomi?.showToast(t('settings.invites.created'), 'success');
           } catch (err) {
-            showError(errorEl, err.message);
+            // Der Fall des Servers (#1909): Benutzername ungueltig oder vergeben.
+            showError(errorEl, errorSentence(err));
           } finally {
             btn.disabled = false;
           }
@@ -935,7 +937,7 @@ async function loadInvites(container) {
     invites = res.data?.invites ?? [];
   } catch (err) {
     list.replaceChildren(listNotice(createRetryState({
-      message: err.message || t('common.errorGeneric'),
+      message: loadErrorSentence(err) ?? t('common.errorGeneric'),
       onRetry: () => loadInvites(container),
     })));
     return;
@@ -1062,11 +1064,11 @@ async function openEditMemberModal(member, currentUser, users, container) {
           }),
           formRowHtml({
             label: t('settings.memberPhoneLabel'), labelFor: 'edit-member-phone', field: true,
-            control: `<input class="form-input" type="tel" id="edit-member-phone" value="${esc(member.phone || '')}" autocomplete="tel" />`,
+            control: `<input class="form-input" type="tel" id="edit-member-phone" value="${esc(member.phone || '')}" maxlength="100" autocomplete="tel" />`,
           }),
           formRowHtml({
             label: t('settings.memberEmailLabel'), labelFor: 'edit-member-email', field: true,
-            control: `<input class="form-input" type="email" id="edit-member-email" value="${esc(member.email || '')}" autocomplete="email" />`,
+            control: `<input class="form-input" type="email" id="edit-member-email" value="${esc(member.email || '')}" maxlength="200" autocomplete="email" />`,
           }),
           formRowHtml({
             label: t('settings.memberBirthDateLabel'), labelFor: 'edit-member-birth-date', labelId: 'edit-member-birth-date-label',
@@ -1123,7 +1125,8 @@ async function openEditMemberModal(member, currentUser, users, container) {
             avatar_data: avatarData,
           });
         } catch (err) {
-          showError(errorEl, err.message ?? t('common.errorGeneric'));
+          // Die Pruefung des Bildes sagt ihren eigenen, uebersetzten Satz.
+          showError(errorEl, err?.name === 'ImageProblem' && err.sentence ? err.sentence : t('common.errorGeneric'));
         }
       });
 
@@ -1207,7 +1210,17 @@ async function openEditMemberModal(member, currentUser, users, container) {
           window.yuvomi?.showToast(t('settings.memberUpdatedToast', { name: res.user.display_name }), 'success');
           repaintMembers(container, currentUser, users);
         } catch (err) {
-          showError(errorEl, err.message ?? t('common.errorGeneric'));
+          // Ein anderer Admin hat das Mitglied inzwischen entfernt (#1909): der
+          // Dialog hat nichts mehr zu speichern, die Liste zeigt den Stand.
+          if (isGone(err)) {
+            const idx = users.findIndex((u) => u.id === member.id);
+            if (idx !== -1) users.splice(idx, 1);
+            closeModal({ force: true, context: modalContext });
+            window.yuvomi?.showToast(errorSentence(err), 'danger');
+            repaintMembers(container, currentUser, users);
+            return;
+          }
+          showError(errorEl, errorSentence(err));
         } finally {
           submitBtn.disabled = false;
         }
@@ -1294,7 +1307,7 @@ function openAddMemberModal(container, currentUser, users) {
           closeModal({ force: true });
           window.yuvomi?.showToast(t('settings.memberAddedToast', { name: res.user.display_name }), 'success');
         } catch (err) {
-          showError(errorEl, err.message);
+          showError(errorEl, errorSentence(err));
         } finally {
           btn.disabled = false;
         }
@@ -1326,7 +1339,7 @@ async function loadMembers(container, currentUser) {
     users = res.data ?? [];
   } catch (err) {
     list.replaceChildren(listNotice(createRetryState({
-      message: err.message || t('common.errorGeneric'),
+      message: loadErrorSentence(err) ?? t('common.errorGeneric'),
       onRetry: reload,
     })));
     return;
@@ -1361,7 +1374,7 @@ async function loadTwoFactorHousehold(container) {
   } catch (err) {
     // Kein Admin (403) heisst: die Karte geht diesen Nutzer nichts an.
     card.remove();
-    if (err?.status !== 403) showError(error, err?.message || t('settings.loadError'));
+    if (err?.status !== 403) showError(error, loadErrorSentence(err) ?? t('settings.loadError'));
     return;
   }
 
@@ -1389,7 +1402,7 @@ async function loadTwoFactorHousehold(container) {
       await api.put('/auth/2fa/require', { required: next });
     } catch (err) {
       toggle.checked = !next;
-      showError(error, err?.message || t('settings.loadError'));
+      showError(error, errorSentence(err));
     } finally {
       toggle.disabled = false;
     }

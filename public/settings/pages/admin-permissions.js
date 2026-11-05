@@ -20,7 +20,7 @@ import { attachSegmentIndicator } from '/utils/segment-indicator.js';
 import { createRetryState, hintFoldHtml } from '/settings/components.js';
 import { syncLeafEdits, trackLeafEdits } from '/settings/dirty-guard.js';
 import { resolveExtensionLabel } from '/utils/extension-i18n.js';
-import { errorSentence } from '/utils/friendly-error.js';
+import { errorSentence, loadErrorSentence } from '/utils/friendly-error.js';
 import {
   effectiveCapabilityAccess as resolveCapabilityAccess,
   isPermissionDeviation,
@@ -812,7 +812,7 @@ export async function render(container, { user } = {}) {
     catalog = res.data;
   } catch (err) {
     container.querySelector('#perm-matrix')?.replaceChildren(createRetryState({
-      message: err.message || t('common.errorGeneric'),
+      message: loadErrorSentence(err) ?? t('common.errorGeneric'),
       onRetry: () => render(container, { user }),
     }));
     return;
