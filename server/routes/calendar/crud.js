@@ -28,7 +28,8 @@ import {
   stageDocumentUpload,
 } from '../../services/document-storage.js';
 import * as outlookCalendar from '../../services/outlook-calendar.js';
-import { queueEventDeletion, markEventOutbound, flushOutbound } from '../../services/calendar-outbound.js';
+import { queueEventDeletion, markEventOutbound, flushOutbound, waitsForUpload } from '../../services/calendar-outbound.js';
+import { uploadsLocalEvents } from '../../services/apple-calendar.js';
 import { runExternalJob } from '../../utils/restore-state.js';
 import { ensureDefaultEventReminders, clearReminderSuppression } from '../../services/calendar-event-reminders.js';
 import {
@@ -742,6 +743,16 @@ router.post('/', async (req, res) => {
       isAdmin: isAdminUser(req),
       master: event,
     }) });
+
+    // Ein neuer Termin mit Sync-Ziel geht sofort hinauf (#2565), nicht erst mit
+    // dem nächsten Lauf - wie eine Änderung: antworten, danach best effort.
+    // Scheitert der Versuch, wartet der Termin weiter auf den Lauf. Die
+    // iCloud-Einzelkonto-Verbindung lädt jeden lokalen Termin hoch, daher die
+    // zweite Bedingung.
+    if (waitsForUpload(event) || uploadsLocalEvents()) {
+      flushOutbound()
+        .catch((e) => log.warn('Neuer Termin angelegt, Sofortversuch fehlgeschlagen:', e.message));
+    }
   } catch (err) {
     if (err instanceof StorageError && !stagedUpload) {
       log.error('POST / storage error:', err);
@@ -1470,9 +1481,11 @@ router.put('/:id', async (req, res) => {
       master: resolved,
     }) });
 
-    if (pending) {
+    // Ein lokaler Termin, der erst jetzt ein Sync-Ziel bekam oder noch auf
+    // seinen Upload wartet, geht ebenfalls sofort hinauf (#2565).
+    if (pending || waitsForUpload(updated)) {
       runExternalJob(() => Promise.all([
-        genericPending ? flushOutbound() : null,
+        (genericPending || waitsForUpload(updated)) ? flushOutbound() : null,
         outlookPending ? outlookCalendar.flushOutbound() : null,
       ]))
         .catch((e) => log.warn('Änderung vorgemerkt, Sofortversuch fehlgeschlagen:', e.message));
