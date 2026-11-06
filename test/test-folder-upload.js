@@ -439,7 +439,7 @@ test('a failed folder blocks only its branch while a sibling still uploads', asy
   assert.deepEqual(
     result.failed.map(({ kind, item, reason }) => [kind, item.key || item.relativePath, reason]),
     [
-      ['folder', 'House/Broken', 'storage unavailable'],
+      ['folder', 'House/Broken', 'request-failed'],
       ['folder', 'House/Broken/Child', 'parent-failed'],
       ['file', 'House/Broken/Child/no.pdf', 'parent-failed'],
     ],
@@ -560,7 +560,10 @@ test('does not retry errors other than rate limiting', async () => {
   });
 
   assert.equal(attempts, 1);
-  assert.deepEqual(result.failed.map((failure) => failure.reason), ['storage unavailable']);
+  // #1909: der Code des Falls, nie der Text des Fehlers; der Fehler selbst
+  // reist mit, damit die Seite den Satz der App sagt.
+  assert.deepEqual(result.failed.map((failure) => failure.reason), ['request-failed']);
+  assert.equal(result.failed[0].error.status, 503);
 });
 
 test('reports cancelled and partial upload outcomes without success semantics', () => {
@@ -639,7 +642,7 @@ test('#1995: without the predicate a "gone" answer stays a failure per entry, as
   });
   assert.equal(result.folderGone, undefined);
   assert.deepEqual(result.failed.map(({ kind, reason }) => [kind, reason]), [
-    ['folder', 'Parent folder not found.'],
+    ['folder', 'request-failed'],
     ['file', 'parent-failed'],
   ]);
 });
