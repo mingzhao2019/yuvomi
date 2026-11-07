@@ -22,70 +22,79 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-11-04 UTC**. This integration refreshed `main` to the
-`v2.85.0` upstream tip, selectively merged the update into `custom`, and
-delivered both branches to `origin` after the final verification.
+Last verified: **2026-11-07 UTC**. Local `main` and `upstream/main`
+are both at the `v2.86.0` upstream tip. The selective integration is complete on
+`custom-upstream-selective-2026-11-07`; it is ready for a fast-forward into
+`custom`. The `origin/main` and `origin/custom` tracking refs still point
+to the pre-sync delivery until an explicitly authorized push.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main`, `origin/main` | `8d8f6237ba34fcb2a3f34acfa58af7c80e3be746` | Local and remote upstream-compatible baselines match the current upstream tip. |
-| `custom`, `origin/custom` | aligned at the verified delivery tip | Product-specific behavior and the selective upstream integration are delivered and aligned. |
-| temporary integration | removed after fast-forward | All 29 upstream commits plus local reconciliation are retained in `custom` history. |
+| `main`, `upstream/main` | `9ae0bdc4f5e9dc76f065ee7ea89dfb1ee317ea75` | Local upstream-compatible baselines match the current upstream tip. |
+| `origin/main` | `8d8f6237ba34fcb2a3f34acfa58af7c80e3be746` | Remote baseline before this synchronization; not pushed yet. |
+| `custom` | `3d6390366d15febebf389ed905f15151e6edbfea` | Product branch before this synchronization; the integration branch is ready to fast-forward it. |
+| `custom-upstream-selective-2026-11-07` | current integration HEAD | All 39 upstream commits after `8d8f6237` plus manual reconciliation are incorporated. |
 
-After the authorized delivery push, both branch pairs are expected to match:
+All 39 upstream commits after the previous verified tip were incorporated in
+order; none was skipped:
 
-```text
-main...upstream/main   0 0
-custom...origin/custom 0 0
-```
-
-The release metadata is `2.85.0`. All 29 upstream commits after the previous
-verified tip (`e7e7dc0ef1b488006ccc0f2c5351bdb3679e3dbd`) were incorporated on
-the temporary branch:
-
-1. `86ccbebf` — Home Assistant app as an install path.
-2. `5e21ea48` — generate an install session secret and database key.
-3. `45e8d4a5` — make settings clipboard buttons truthful.
-4. `d90319e2` — preserve `_FILE` secrets on installer reruns.
-5. `b33ccca3` — bump the Claude action dependency.
-6. `de54a24e` — bump the Node dependency.
-7. `c314b26f` — bump production dependencies.
-8. `fcbc8717` — shut down cleanly on SIGTERM and SIGINT.
-9. `886e0869` — cascade shopping-category renames.
-10. `89f90689` — apply household privacy to task defaults.
-11. `424d2876` — add a separate dashboard arrangement for phones.
-12. `c6367c08` — fold search and tools into the narrow-phone menu.
-13. `e229512b` — add a Caddy automatic-HTTPS example.
-14. `58f2f4ae` — extend the CI test-job timeout to 45 minutes.
-15. `94af359e` — move pantry minimums to products.
-16. `91356e54` — skip reminders for a deleted first occurrence.
-17. `0baf9250` — rotate assignees through recurring task series.
-18. `12e44266` — add signed-in devices to the account page.
-19. `d42e74d2` — bump the Claude action dependency again.
-20. `9c92c2ea` — trim document slug dashes without a polynomial regex.
-21. `6b194e5a` — give the budget stepper its own row when needed.
-22. `7b7b1d5f` — handle weather without coordinates.
-23. `02f1c39b` — confine split-expense guests at the auth router.
-24. `eaca04bd` — keep a guest visible beside a token session.
-25. `076b5a22` — preserve birthday calendar colors.
-26. `3477e2a1` — release v2.85.0.
-27. `64988bb8` — document Home Assistant port 3880 and bug-form targets.
-28. `97993ff7` — extend auth coverage for reset, 2FA, and signed-in devices.
-29. `8d8f6237` — keep Playwright MCP output out of the repository.
+1. `030defba` — display night hours and screensaver settings.
+2. `816e3056` — require the OpenAPI client contract to grow only.
+3. `a97dd978` — keep foreign CalDAV recurrence rules from being ended.
+4. `5ad12929` — record shopping purchase price history.
+5. `464cf6d4` — keep foreign recurring series running when ticked off.
+6. `7c61ea98` — let an installed iOS app reach the bottom edge.
+7. `97bb4592` — keep CardDAV cards with empty/shared numbers separate.
+8. `c1ac7d5b` — stop reminders for provider-cancelled calendar events.
+9. `284dfeca` — rate-limit administrator backup downloads.
+10. `c44704b6` — localize family-member settings errors.
+11. `438dc07a` — prevent series names from covering health bars.
+12. `10e5236c` — use the household week start in date pickers.
+13. `db14bde7` — make date pickers follow the stored week start.
+14. `351af1ac` — decay late reward completions without dropping below one point.
+15. `8130f425` — explain sign-in and account-form failures.
+16. `921f037c` — explain wall-display settings failures.
+17. `817e6b66` — move kitchen search into the mobile tab bar.
+18. `bfce4ca7` — explain calendar/contact sync-form failures.
+19. `0ed564a6` — pin the compact kitchen search test contract.
+20. `5e3dd30a` — explain backup, system, and API settings failures.
+21. `d9774d04` — report when an ICS subscription delivers no event.
+22. `0bae2507` — upload a newly targeted local event immediately after save.
+23. `6663b0cc` — detect locale values whose characters were lost.
+24. `32bf6e74` — make deployment secrets optional in every descriptor.
+25. `1c0f5757` — mirror Mealie steps as plain text and provider servings.
+26. `32994b3c` — discard damaged backups instead of handing them out.
+27. `5409824c` — document YunoHost and the Proxmox install helper.
+28. `6045d053` — use full-width question marks in Chinese and Japanese.
+29. `02465e2f` — preserve the left margin of social/OG assets.
+30. `20bb3ada` — keep option letters only in the step-by-step install list.
+31. `a270e61c` — localize category-manager and settings errors.
+32. `1d2ee2b4` — keep the pantry product suite alive across a blocked loop.
+33. `523cf63a` — require real translations for new locale values.
+34. `0e00f635` — accept long CardDAV app passwords without trimming them.
+35. `751ecfec` — preserve the primary assignee on partial task PUTs.
+36. `f535e558` — keep the database on the Docker `/data` volume.
+37. `67ca3d82` — update the notes probe for the translated rename conflict.
+38. `52baadf9` — cover the end edge of the mobile kitchen search zone.
+39. `9ae0bdc4` — release metadata for v2.86.0.
 
 The integration preserved custom task-list/Microsoft To Do behavior, provider
 calendar contracts, notification ownership, mobile layout, device pairing,
-and split-guest boundaries. Pantry product minimums were combined with the
-custom migration-263 ownership history and attention panel; its schema change
-is appended as migration v283. Task rotation was added with its upstream UI
-and its schema change was appended as migration v284 while retaining custom
-task/reminder guards. Signed-in devices and split-guest auth were merged into the existing
-pairing and authentication contracts. Release metadata was raised to 2.85.0;
-released migrations remain append-only and untouched.
+and split-guest boundaries. Conflicts were merged semantically: the custom
+CalDAV task-list mapping, Microsoft To Do path, reminder handling, and Outlook
+flush path remain; the upstream shared immediate-upload helpers are used for
+Google/CalDAV/Apple. Upstream schema additions remain append-only as custom
+migrations v285–v289: display settings (upstream v278), foreign task recurrence
+(upstream v279), shopping purchases (upstream v280), provider cancellation
+status (upstream v281), and late-reward audit fields (upstream v282). Recipe
+documentation retains the custom planning note while adding the upstream plain
+text/servings behavior. Locale and release-document conflicts retain existing
+custom translations and copy while adding all upstream keys and v2.86.0
+metadata. No upstream commit was skipped.
 
-No automated tests were run by explicit user request. Static checks only:
-`git diff --check`; JSON parsing for package, lockfile, and locale files;
-`node --check` on changed production JavaScript files; release-version
+No automated tests were run because the user explicitly requested no Test.
+Static checks only: `git diff --check`; JSON parsing for package, lockfile,
+and all locale files; `node --check` on changed JavaScript; release-version
 consistency; strictly increasing, unique migration versions; and no unresolved
 conflict markers. Focused and full test results are unverified for this
 integration.
