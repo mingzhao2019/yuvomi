@@ -23,17 +23,14 @@ than the seven-day retention window are removed during documentation cleanup.
 ## Current repository state
 
 Last verified: **2026-11-07 UTC**. Local `main` and `upstream/main`
-are both at the `v2.86.0` upstream tip. The selective integration is complete on
-`custom-upstream-selective-2026-11-07`; it is ready for a fast-forward into
-`custom`. The `origin/main` and `origin/custom` tracking refs still point
-to the pre-sync delivery until an explicitly authorized push.
+are both at the `v2.86.0` upstream tip. The selective integration is complete
+and has been fast-forwarded into `custom` and delivered to `origin`.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `9ae0bdc4f5e9dc76f065ee7ea89dfb1ee317ea75` | Local upstream-compatible baselines match the current upstream tip. |
-| `origin/main` | `8d8f6237ba34fcb2a3f34acfa58af7c80e3be746` | Remote baseline before this synchronization; not pushed yet. |
-| `custom` | `3d6390366d15febebf389ed905f15151e6edbfea` | Product branch before this synchronization; the integration branch is ready to fast-forward it. |
-| `custom-upstream-selective-2026-11-07` | current integration HEAD | All 39 upstream commits after `8d8f6237` plus manual reconciliation are incorporated. |
+| `main`, `upstream/main`, `origin/main` | `9ae0bdc4f5e9dc76f065ee7ea89dfb1ee317ea75` | Local and remote upstream-compatible baselines match the current upstream tip. |
+| `custom`, `origin/custom` | `e16064683c4ad8fab61315af13f4282767d484b0` | Product branch and remote delivery contain all 39 upstream commits plus manual reconciliation. |
+| temporary integration | removed after fast-forward | The selective branch was merged into `custom` and deleted locally. |
 
 All 39 upstream commits after the previous verified tip were incorporated in
 order; none was skipped:
