@@ -35,6 +35,7 @@ import {
   DEFAULT_EVENT_REMINDER_OFFSET,
   VALID_EVENT_REMINDER_OFFSETS,
 } from '../services/calendar-event-reminders.js';
+import { remoteFailure } from '../utils/http.js';
 
 const log = createLogger('Preferences');
 
@@ -1841,7 +1842,11 @@ router.post('/holidays/sync', async (req, res) => {
     res.json({ data: { last_sync: cfgGet('holiday_last_sync') ?? null } });
   } catch (err) {
     log.error('POST /holidays/sync', err);
-    res.status(502).json({ error: 'Holiday sync failed: ' + err.message, code: 502 });
+    // Phase 0 section H: the class of the failure, never the text of the
+    // holiday service or of the network stack.
+    const failure = remoteFailure(err);
+    if (failure) return res.status(502).json({ error: 'Holiday sync failed.', code: 502, ...failure });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
