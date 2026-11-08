@@ -118,7 +118,6 @@ const ALLOWED = new Map([
   ['server/routes/subscriptions.js -> POST /logo-search', [1, "gated on err.code === logo_search_refused, the logo search's own sentences (subscription-logo.js logoRefusal)"]],
   ['server/routes/waste/sources.js -> icsTextForReimport', [1, 'only for the classes classifyFetchFailure() names from own errors (WasteFetchError status/size, BlockedAddressError); unreachable gets a fixed sentence']],
   ['server/routes/waste/sources.js -> emptyFeedResponse', [1, 'emptyFeedAsFetchFailure() only returns its own fixed WasteFetchError behind instanceof WasteValidationError + reason']],
-  ['server/routes/backup.js -> POST /webdav/test', [1, 'gated on err.code === webdav_config_incomplete, the WebDAV service\'s own sentence']],
   ['server/routes/document-storage-google-drive.js -> sendStorageError', [1, 'only for a misconfiguration (400/409, storage codes of the service); a failure of the store gets a fixed sentence']],
   ['server/routes/documents.js -> sendStorageError', [1, 'instanceof StorageError, and only for a misconfiguration (400/409) with configText; a failure of the store gets a fixed sentence']],
   ['server/routes/modules.js -> GET /assets/:id/{*assetPath}', [1, 'only for resolveAssetPath\'s own 4xx (status < 500); a raw filesystem error gets a fixed sentence']],
