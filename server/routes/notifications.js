@@ -19,6 +19,22 @@ function parseId(value) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+/**
+ * Validation and the database used to share one catch that sent every message
+ * as a 400 - SQLite's included (Phase 0 section H). The channel checks mark
+ * their own sentences (`notification_channel_invalid`); everything else is a
+ * fixed 500 and goes into the log.
+ */
+function sendChannelWriteFailure(res, err) {
+  // Keep the custom personal-channel ownership boundary visible to the caller.
+  // It is an application-level refusal, not a database or provider failure.
+  if (Number.isInteger(err?.statusCode) && err.statusCode < 500) {
+    return res.status(err.statusCode).json({ error: err.message || 'Permission denied.', code: err.statusCode });
+  }
+  if (err?.code === 'notification_channel_invalid') return res.status(400).json({ error: err.message, code: 400 });
+  log.error('Error writing notification channel:', err);
+  return res.status(500).json({ error: 'Internal error.', code: 500 });
+}
 export function buildRouter({
   database,
   channelStore,
@@ -53,7 +69,9 @@ export function buildRouter({
       ? (isAdmin(req) ? 'household' : 'user')
       : String(input.scope).trim();
     if (!['household', 'user'].includes(requested)) {
-      throw new Error('Invalid notification channel scope.');
+      const error = new Error('Invalid notification channel scope.');
+      error.code = 'notification_channel_invalid';
+      throw error;
     }
     if (!isAdmin(req) && requested !== 'user') {
       throw permissionError('Only administrators can create household notification channels.');
@@ -131,7 +149,7 @@ export function buildRouter({
       const channel = store.createChannel(channelInputForCreate(req, req.body || {}));
       res.status(201).json({ data: channel });
     } catch (err) {
-      sendError(res, err, 'Invalid notification channel.');
+      sendChannelWriteFailure(res, err);
     }
   });
 
@@ -144,7 +162,7 @@ export function buildRouter({
       const channel = store.updateChannel(id, channelInputForUpdate(req, req.body || {}, existing));
       res.json({ data: channel });
     } catch (err) {
-      sendError(res, err, 'Invalid notification channel.');
+      sendChannelWriteFailure(res, err);
     }
   });
 
