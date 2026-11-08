@@ -23,16 +23,16 @@ than the seven-day retention window are removed during documentation cleanup.
 ## Current repository state
 
 Last verified: **2026-11-08 UTC**. Local `main` was fast-forwarded to
-the current `upstream/main` tip. The selective integration branch contains the
-eight upstream commits after the previous verified tip; it is ready to be
-fast-forwarded into `custom` after the final commit and authorized push.
+the current `upstream/main` tip. The selective integration branch containing
+the eight upstream commits was fast-forwarded into `custom`, pushed, and
+removed after validation.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
 | `main`, `upstream/main` | `a17ff0884241b46de25c931b31ecbc0c995e7ef0` | Local upstream-compatible baseline matches the current upstream tip. |
-| `origin/main` | `9ae0bdc4f5e9dc76f065ee7ea89dfb1ee317ea75` before delivery | Remote main is updated by the authorized push at the end of this run. |
-| `custom`, `origin/custom` | `5a0216395ea04a8d053559b67f10e5cb08877c65` before delivery | Product branch starts from the previous delivered custom tip; the selective integration is fast-forwarded into it after validation. |
-| temporary integration | `custom-upstream-selective-2026-11-08` | Contains the eight cherry-picks and manual reconciliations; remove after the fast-forward. |
+| `origin/main` | `a17ff0884241b46de25c931b31ecbc0c995e7ef0` | Remote main matches the local upstream-compatible baseline. |
+| `custom`, `origin/custom` | current branch tip (`2b0778de7` before this record update) | Product branch and remote delivery contain the selective integration and manual reconciliation. |
+| temporary integration | removed after fast-forward | The dated selective branch was merged into `custom` and deleted locally. |
 
 The eight upstream commits were incorporated in order:
 
@@ -83,8 +83,8 @@ existing outbound move/retry assertions; the new error-response cases pass).
 These are recorded rather than expanded into unrelated earlier feature
 backports.
 
-The temporary integration branch is fast-forwarded into `custom` only after
-the final local verification and is then removed. Product-specific behavior
+The temporary integration branch was fast-forwarded into `custom` only after
+the final local verification and was then removed. Product-specific behavior
 remains authoritative on `custom`; the full list is maintained in
 [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
 
