@@ -541,6 +541,7 @@ export async function fanOutNotification({
   channelStore,
   providers = defaultProviders,
   fetchImpl = guardedFetch,
+  includeHouseholdChannels = true,
 } = {}) {
   const activeDb = database || dbModule.get();
   const store = channelStore || createNotificationChannelStore({ db: activeDb });
@@ -558,7 +559,8 @@ export async function fanOutNotification({
     log.error(`Web Push delivery failed for user ${userId}:`, safeError(err));
   }
 
-  const channels = store.listEnabledChannelsForUser(userId);
+  const channels = store.listEnabledChannelsForUser(userId, { includeHousehold: includeHouseholdChannels })
+    .filter((channel) => includeHouseholdChannels || channel.scope === 'user');
   const timeZone = householdTimeZone(activeDb);
   let localMessagePusherPayload = null;
   for (const channel of channels) {

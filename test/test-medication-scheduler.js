@@ -560,13 +560,15 @@ test('ein eigener Kanal (scope user) bekommt die Erinnerung, der Haushaltskanal 
   const other = seedUser(db, 'ben');
   seedSchedule(db, seedMed(db, user, { name: 'Vitamin D', visibility: 'family' }), { time: '08:00' });
   const store = createNotificationChannelStore({ db });
-  const config = { baseUrl: 'https://ntfy.test', topic: 't' };
-  store.createChannel({ provider: 'ntfy', name: 'Familie', enabled: true, config, secrets: {} });
-  const own = store.createChannel({ provider: 'ntfy', name: 'Alice', enabled: true, scope: 'user', userId: user, config, secrets: {} });
-  store.createChannel({ provider: 'ntfy', name: 'Ben', enabled: true, scope: 'user', userId: other, config, secrets: {} });
+  const householdConfig = { baseUrl: 'https://ntfy.test', topic: 't' };
+  const config = { baseUrl: 'https://hooks.test' };
+  store.createChannel({ provider: 'ntfy', name: 'Familie', enabled: true, config: householdConfig, secrets: {} });
+  const own = store.createChannel({ provider: 'webhook', name: 'Alice', enabled: true, scope: 'user', userId: user, config, secrets: {} });
+  store.createChannel({ provider: 'webhook', name: 'Ben', enabled: true, scope: 'user', userId: other, config, secrets: {} });
   const { pushService, providers, channelSent } = makeMocks();
+  providers.webhook = providers.gotify;
 
-  await processDueMedications({ database: db, now: MONDAY_0900, pushService, providers: { ntfy: providers.gotify } });
+  await processDueMedications({ database: db, now: MONDAY_0900, pushService, providers: { ntfy: providers.gotify, webhook: providers.webhook } });
 
   assert.deepEqual(channelSent.map((s) => [s.channel.name, s.payload.body]), [['Alice', 'Vitamin D']]);
   assert.equal(channelSent[0].channel.id, own.id);
@@ -582,15 +584,17 @@ test('ein entfernter Betreuer bekommt nichts mehr, weder per Push noch ueber ein
   // deaktiviert, nicht geloescht - der schwerere Fall, die users-Zeile bleibt.
   db.prepare("INSERT INTO tasks (title, created_by) VALUES ('Einkauf', ?)").run(parent);
   const store = createNotificationChannelStore({ db });
-  const config = { baseUrl: 'https://ntfy.test', topic: 't' };
-  store.createChannel({ provider: 'ntfy', name: 'Familie', enabled: true, config, secrets: {} });
-  store.createChannel({ provider: 'ntfy', name: 'Dominik', enabled: true, scope: 'user', userId: parent, config, secrets: {} });
+  const householdConfig = { baseUrl: 'https://ntfy.test', topic: 't' };
+  const config = { baseUrl: 'https://hooks.test' };
+  store.createChannel({ provider: 'ntfy', name: 'Familie', enabled: true, config: householdConfig, secrets: {} });
+  store.createChannel({ provider: 'webhook', name: 'Dominik', enabled: true, scope: 'user', userId: parent, config, secrets: {} });
   // Die Tabelle legt sonst der Session-Store in server/auth.js an; das Entfernen beendet die Sitzungen.
   db.exec('CREATE TABLE IF NOT EXISTS sessions (sid TEXT PRIMARY KEY, sess TEXT NOT NULL, expired_at INTEGER NOT NULL)');
   assert.equal(removeUser(db, parent).outcome, 'deactivated');
   const { pushService, providers, channelSent, pushed } = makeMocks();
+  providers.webhook = providers.gotify;
 
-  await processDueMedications({ database: db, now: MONDAY_0900, pushService, providers: { ntfy: providers.gotify } });
+  await processDueMedications({ database: db, now: MONDAY_0900, pushService, providers: { ntfy: providers.gotify, webhook: providers.webhook } });
 
   assert.deepEqual({
     push: pushed.map((p) => [p.userId, p.payload.body]),

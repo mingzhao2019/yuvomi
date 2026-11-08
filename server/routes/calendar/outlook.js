@@ -40,6 +40,19 @@ function sendOutlookFailure(res, err, sentence) {
   return res.status(500).json({ error: sentence, code: 500 });
 }
 
+function sendOutlookConflictFailure(res, err) {
+  if (err?.message === 'Pending Outlook conflict not found.') {
+    return res.status(404).json({ error: 'Pending Outlook conflict not found.', code: 404 });
+  }
+  if (err?.message === 'Outlook conflict link not found.') {
+    return res.status(404).json({ error: 'Outlook conflict link not found.', code: 404 });
+  }
+  if (err?.message === 'resolution must be local or remote.') {
+    return res.status(400).json({ error: 'resolution must be local or remote.', code: 400 });
+  }
+  return sendOutlookFailure(res, err, 'Failed to resolve Outlook conflict.');
+}
+
 /**
  * GET /api/v1/calendar/outlook/auth
  * Admin only. Leitet zum Microsoft-Consent-Screen weiter (persönliche Konten).
@@ -231,7 +244,7 @@ router.get('/outlook/conflicts', requireAdmin, (req, res) => {
     res.json({ data: outlookCalendar.listConflicts({ status }) });
   } catch (err) {
     log.error('Outlook conflict list failed:', err);
-    res.status(500).json({ error: err.message || 'Failed to list Outlook conflicts.', code: 500 });
+    res.status(500).json({ error: 'Failed to list Outlook conflicts.', code: 500 });
   }
 });
 
@@ -252,11 +265,7 @@ router.post('/outlook/conflicts/:id/resolve', requireAdmin, async (req, res) => 
     res.json({ data: { ...result, sync } });
   } catch (err) {
     log.error('Outlook conflict resolution failed:', err);
-    const notFound = /not found/i.test(err.message || '');
-    res.status(notFound ? 404 : 400).json({
-      error: err.message || 'Failed to resolve Outlook conflict.',
-      code: notFound ? 404 : 400,
-    });
+    sendOutlookConflictFailure(res, err);
   }
 });
 
@@ -275,7 +284,7 @@ router.get('/outlook/accounts/:id/todo-lists', requireAdmin, refuseWhileRestorin
     res.json({ data: lists });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: err.message || 'Failed to fetch Microsoft To Do lists.', code: 500 });
+    sendOutlookFailure(res, err, 'Failed to fetch Microsoft To Do lists.');
   }
 });
 
@@ -298,7 +307,7 @@ router.patch('/outlook/accounts/:id/todo-lists', requireAdmin, (req, res) => {
     res.json({ data: result });
   } catch (err) {
     log.error('Microsoft To Do list selection update failed:', err);
-    res.status(500).json({ error: err.message || 'Failed to update Microsoft To Do list.', code: 500 });
+    res.status(500).json({ error: 'Failed to update Microsoft To Do list.', code: 500 });
   }
 });
 
@@ -333,7 +342,7 @@ router.put('/outlook/accounts/:id/selections', requireAdmin, (req, res) => {
     res.json({ data: { success: true } });
   } catch (err) {
     log.error('Outlook selection update failed:', err);
-    res.status(400).json({ error: err.message || 'Failed to save Outlook selections.', code: 400 });
+    res.status(400).json({ error: 'Failed to save Outlook selections.', code: 400 });
   }
 });
 
@@ -348,7 +357,7 @@ router.post('/outlook/todo/sync', requireAdmin, async (req, res) => {
     res.json({ data: result });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: err.message || 'Microsoft To Do sync failed.', code: 500 });
+    sendOutlookFailure(res, err, 'Microsoft To Do sync failed.');
   }
 });
 

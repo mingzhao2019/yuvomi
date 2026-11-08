@@ -455,13 +455,20 @@ export function createNotificationChannelStore({ db } = {}) {
     return getChannel(id);
   }
 
-  function listEnabledChannelsForUser(userId) {
-    return getDb().prepare(`
-      SELECT * FROM notification_channels
-      WHERE enabled = 1
-        AND (scope = 'household' OR user_id = ?)
-      ORDER BY provider, name, id
-    `).all(userId).map((row) => dbRowToChannel(row, { includeSecrets: true }));
+  function listEnabledChannelsForUser(userId, { includeHousehold = true } = {}) {
+    const rows = includeHousehold
+      ? getDb().prepare(`
+          SELECT * FROM notification_channels
+          WHERE enabled = 1
+            AND (scope = 'household' OR user_id = ?)
+          ORDER BY provider, name, id
+        `).all(userId)
+      : getDb().prepare(`
+          SELECT * FROM notification_channels
+          WHERE enabled = 1 AND scope = 'user' AND user_id = ?
+          ORDER BY provider, name, id
+        `).all(userId);
+    return rows.map((row) => dbRowToChannel(row, { includeSecrets: true }));
   }
 
   return {

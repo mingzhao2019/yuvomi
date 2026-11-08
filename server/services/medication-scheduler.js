@@ -239,6 +239,7 @@ async function processDueMedicationsUntracked({
         channelStore: store,
         providers,
         fetchImpl,
+        includeHouseholdChannels: false,
       });
       counters.sent += fanout.sent;
       counters.failed += fanout.failed;

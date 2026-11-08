@@ -118,7 +118,8 @@ export function buildRouter({
 
   function sendError(res, error, fallback, defaultStatus = 400) {
     const status = Number.isInteger(error?.statusCode) ? error.statusCode : defaultStatus;
-    res.status(status).json({ error: error?.message || fallback, code: status });
+    const message = status < 500 ? (error?.message || fallback) : fallback;
+    res.status(status).json({ error: message, code: status });
   }
 
   router.get('/providers', (req, res) => {
@@ -239,6 +240,9 @@ export function buildRouter({
       const id = parseId(req.params.id);
       if (id && channel && channelIsManageable(req, channel)) {
         store.markChannelTestResult(id, { ok: false, error: storedTestError(err) });
+      }
+      if (Number.isInteger(err?.statusCode) && err.statusCode < 500) {
+        return res.status(err.statusCode).json({ error: err.message || 'Permission denied.', code: err.statusCode });
       }
       res.status(500).json({ error: 'Internal error.', code: 500 });
     }

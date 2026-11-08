@@ -122,9 +122,11 @@ const ALLOWED = new Map([
   ['server/routes/document-storage-google-drive.js -> sendStorageError', [1, 'only for a misconfiguration (400/409, storage codes of the service); a failure of the store gets a fixed sentence']],
   ['server/routes/documents.js -> sendStorageError', [1, 'instanceof StorageError, and only for a misconfiguration (400/409) with configText; a failure of the store gets a fixed sentence']],
   ['server/routes/modules.js -> GET /assets/:id/{*assetPath}', [1, 'only for resolveAssetPath\'s own 4xx (status < 500); a raw filesystem error gets a fixed sentence']],
-  ['server/routes/notifications.js -> sendChannelWriteFailure', [1, 'gated on err.code === notification_channel_invalid, set by the channel checks (checkedInput)']],
+  ['server/routes/notifications.js -> sendChannelWriteFailure', [2, 'gated on notification_channel_invalid or the custom statusCode below 500; database and provider errors use a fixed 500']],
+  ['server/routes/notifications.js -> sendError', [1, 'only preserves an application-owned status below 500; default 500 responses use the fixed fallback']],
   ['server/routes/shopping.js -> POST /:listId/send', [1, 'gated on err.code === nothing_open, set by buildShoppingListMail']],
   ['server/routes/split-expenses.js -> sendWriteFailure', [1, 'gated on err.name === SplitInputError, the split rules\' own input errors']],
+  ['server/routes/tasks.js -> DELETE /lists/:id', [1, 'instanceof TaskListDeleteError, the task-list service\'s own refusal sentence']],
   ['server/services/document-deletion-lock.js -> sendDocumentDeletionConflict', [1, 'instanceof DocumentDeletionInProgressError']],
   ['server/services/document-links.js -> sendDocumentLinkRefusal', [1, 'instanceof DocumentLinkRefusedError']],
 ]);

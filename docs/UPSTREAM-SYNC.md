@@ -22,79 +22,66 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-11-07 UTC**. Local `main` and `upstream/main`
-are both at the `v2.86.0` upstream tip. The selective integration is complete
-and has been fast-forwarded into `custom` and delivered to `origin`.
+Last verified: **2026-11-08 UTC**. Local `main` was fast-forwarded to
+the current `upstream/main` tip. The selective integration branch contains the
+eight upstream commits after the previous verified tip; it is ready to be
+fast-forwarded into `custom` after the final commit and authorized push.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main`, `origin/main` | `9ae0bdc4f5e9dc76f065ee7ea89dfb1ee317ea75` | Local and remote upstream-compatible baselines match the current upstream tip. |
-| `custom`, `origin/custom` | `e16064683c4ad8fab61315af13f4282767d484b0` | Product branch and remote delivery contain all 39 upstream commits plus manual reconciliation. |
-| temporary integration | removed after fast-forward | The selective branch was merged into `custom` and deleted locally. |
+| `main`, `upstream/main` | `a17ff0884241b46de25c931b31ecbc0c995e7ef0` | Local upstream-compatible baseline matches the current upstream tip. |
+| `origin/main` | `9ae0bdc4f5e9dc76f065ee7ea89dfb1ee317ea75` before delivery | Remote main is updated by the authorized push at the end of this run. |
+| `custom`, `origin/custom` | `5a0216395ea04a8d053559b67f10e5cb08877c65` before delivery | Product branch starts from the previous delivered custom tip; the selective integration is fast-forwarded into it after validation. |
+| temporary integration | `custom-upstream-selective-2026-11-08` | Contains the eight cherry-picks and manual reconciliations; remove after the fast-forward. |
 
-All 39 upstream commits after the previous verified tip were incorporated in
-order; none was skipped:
+The eight upstream commits were incorporated in order:
 
-1. `030defba` — display night hours and screensaver settings.
-2. `816e3056` — require the OpenAPI client contract to grow only.
-3. `a97dd978` — keep foreign CalDAV recurrence rules from being ended.
-4. `5ad12929` — record shopping purchase price history.
-5. `464cf6d4` — keep foreign recurring series running when ticked off.
-6. `7c61ea98` — let an installed iOS app reach the bottom edge.
-7. `97bb4592` — keep CardDAV cards with empty/shared numbers separate.
-8. `c1ac7d5b` — stop reminders for provider-cancelled calendar events.
-9. `284dfeca` — rate-limit administrator backup downloads.
-10. `c44704b6` — localize family-member settings errors.
-11. `438dc07a` — prevent series names from covering health bars.
-12. `10e5236c` — use the household week start in date pickers.
-13. `db14bde7` — make date pickers follow the stored week start.
-14. `351af1ac` — decay late reward completions without dropping below one point.
-15. `8130f425` — explain sign-in and account-form failures.
-16. `921f037c` — explain wall-display settings failures.
-17. `817e6b66` — move kitchen search into the mobile tab bar.
-18. `bfce4ca7` — explain calendar/contact sync-form failures.
-19. `0ed564a6` — pin the compact kitchen search test contract.
-20. `5e3dd30a` — explain backup, system, and API settings failures.
-21. `d9774d04` — report when an ICS subscription delivers no event.
-22. `0bae2507` — upload a newly targeted local event immediately after save.
-23. `6663b0cc` — detect locale values whose characters were lost.
-24. `32bf6e74` — make deployment secrets optional in every descriptor.
-25. `1c0f5757` — mirror Mealie steps as plain text and provider servings.
-26. `32994b3c` — discard damaged backups instead of handing them out.
-27. `5409824c` — document YunoHost and the Proxmox install helper.
-28. `6045d053` — use full-width question marks in Chinese and Japanese.
-29. `02465e2f` — preserve the left margin of social/OG assets.
-30. `20bb3ada` — keep option letters only in the step-by-step install list.
-31. `a270e61c` — localize category-manager and settings errors.
-32. `1d2ee2b4` — keep the pantry product suite alive across a blocked loop.
-33. `523cf63a` — require real translations for new locale values.
-34. `0e00f635` — accept long CardDAV app passwords without trimming them.
-35. `751ecfec` — preserve the primary assignee on partial task PUTs.
-36. `f535e558` — keep the database on the Docker `/data` volume.
-37. `67ca3d82` — update the notes probe for the translated rename conflict.
-38. `52baadf9` — cover the end edge of the mobile kitchen search zone.
-39. `9ae0bdc4` — release metadata for v2.86.0.
+1. `e359fad0` — read the member role from the database for every auth request.
+2. `e49f6b44` — keep Health medication reminders away from members without Health.
+3. `1c64964c` — keep feeds empty when the member lacks the module.
+4. `8d769ff4` — guard client responses against raw exception text.
+5. `6bbcd820` — classify DAV server errors for the browser.
+6. `c6542ed7` — classify calendar sync and lookup failures.
+7. `c8ccb6dc` — classify backup, document, and expense failures.
+8. `a17ff088` — prevent stored and indirect error results from carrying raw text.
 
-The integration preserved custom task-list/Microsoft To Do behavior, provider
-calendar contracts, notification ownership, mobile layout, device pairing,
-and split-guest boundaries. Conflicts were merged semantically: the custom
-CalDAV task-list mapping, Microsoft To Do path, reminder handling, and Outlook
-flush path remain; the upstream shared immediate-upload helpers are used for
-Google/CalDAV/Apple. Upstream schema additions remain append-only as custom
-migrations v285–v289: display settings (upstream v278), foreign task recurrence
-(upstream v279), shopping purchases (upstream v280), provider cancellation
-status (upstream v281), and late-reward audit fields (upstream v282). Recipe
-documentation retains the custom planning note while adding the upstream plain
-text/servings behavior. Locale and release-document conflicts retain existing
-custom translations and copy while adding all upstream keys and v2.86.0
-metadata. No upstream commit was skipped.
+The integration preserves the custom task-list and Microsoft To Do paths,
+bidirectional Outlook behavior, Google/CalDAV/ICS provider contracts, local
+calendar display customization, notification ownership, mobile layout, device
+pairing, and split-guest boundaries. Health medication fan-out keeps the
+upstream module permission check while explicitly selecting only the
+recipient's personal channels; household channels never receive Health
+reminders. Notification, Outlook, split-expense, and document error paths
+retain custom permission/ownership semantics while using fixed client-facing
+500 responses for unexpected failures.
 
-No automated tests were run because the user explicitly requested no Test.
-Static checks only: `git diff --check`; JSON parsing for package, lockfile,
-and all locale files; `node --check` on changed JavaScript; release-version
-consistency; strictly increasing, unique migration versions; and no unresolved
-conflict markers. Focused and full test results are unverified for this
-integration.
+The upstream background-sender guard was adapted to the custom shared
+fan-out architecture: medication and task routes select recipients, while
+`notifications.js` is the actual provider-sending bottleneck. The upstream
+`budget_category` test block was not retained because its required earlier
+schema/route feature is absent from this selective custom baseline; the
+current expense error-response guard remains and passes. A pre-existing
+duplicate OpenAPI fragment in `server/openapi/paths/preferences.js` was
+removed after it blocked module loading; it was not an upstream feature
+change. No upstream correctness/security commit was skipped.
+
+Focused tests were run as requested; the full `npm test` suite was not run.
+Passing groups include auth (4), medication (23), module-feed/error guards
+(25/6), module install (96), backup routes (31), split-expense routes (128),
+backup scheduler/WebDAV (10 with 1 skip/19), documents/storage (3/87), DMS
+Papra (14), email/HTTP/modules (28/28/44), notifications (64), recipe
+adapters (41/20), calendar routes (188), subscriptions (42), sync forms (10),
+waste routes (88), CalDAV account password (6), Google Calendar (57), Outlook
+Calendar (48), and Outlook event targets (6). Static checks also passed:
+`git diff --check`, JSON parsing for changed JSON, and `node --check` for
+changed JavaScript.
+
+Two focused suites retain known custom-baseline failures unrelated to this
+sync's error-classification changes: recipe-provider-sync (21 failures because
+the custom schema lacks `recipes.servings`) and caldav-http-refusals (9
+existing outbound move/retry assertions; the new error-response cases pass).
+These are recorded rather than expanded into unrelated earlier feature
+backports.
 
 The temporary integration branch is fast-forwarded into `custom` only after
 the final local verification and is then removed. Product-specific behavior

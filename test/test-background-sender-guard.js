@@ -9,11 +9,10 @@
  *          listed file that no longer sends is red too (the list may only
  *          shrink); a listed file whose check is gone is red.
  *
- * WHY: the medication scheduler (#2602) sent on its own, outside the
- * filtered delivery path in notifications.js, and never asked whether the
- * recipient still had Health - nor whether the channel was the household's
- * (#2598). The regular path had both filters for months. A comment listing the
- * senders would not have stopped the next one; this guard does.
+ * WHY: the shared notification fan-out is the single channel-sending path.
+ * It drops rows whose module is denied to the recipient and gives non-public
+ * rows only to channels the recipient owns. Dedicated scheduler and route
+ * tests cover recipient selection before it enters that path.
  *
  * A TEXT READER WITH AN EXPIRY DATE: phase 1b of the architecture roadmap
  * replaces it with a dependency-cruiser rule ("only these files import
@@ -23,9 +22,8 @@
  * counts as a sender nor satisfies a check.
  *
  * Counterproof: a copy of a file that calls `sendPushToUser(` dropped into
- * `server/` turns the first case red with its path; against `main` before
- * #2602 the scheduler's missing `recipientDeniedModules(` turns the third case
- * red.
+ * `server/` turns the first case red with its path. A direct provider send
+ * outside notifications.js likewise becomes an unlisted sender.
  * Run: node --test test/test-background-sender-guard.js
  */
 import test from 'node:test';
@@ -60,16 +58,6 @@ const SENDERS = {
       + '(#1289) and gives a non-public row only to channels the recipient owns (GHSA-r3q8-gh3w-5qvw); '
       + 'testChannel() sends an admin-composed test message without household data.',
     checks: ['withoutModulesDeniedToRecipient(', "channel.scope === 'user'"],
-  },
-  'server/services/medication-scheduler.js': {
-    why: 'recipients with Health denied are skipped (#2602), and only channels the recipient owns '
-      + 'get a dose - never a household channel (#2598).',
-    checks: ['recipientDeniedModules(', "channel.scope === 'user'"],
-  },
-  'server/routes/tasks.js': {
-    why: 'the @-mention push asks for each mentioned member whether they can see the task and '
-      + 'whether Tasks is denied to them (resolvePermissions, own spelling; moves to authorize() in phase 2).',
-    checks: ['findVisibleTask(', "modules?.tasks === 'none'"],
   },
   'server/routes/push.js': {
     why: 'the test push goes to the requester themself, with the text they sent.',
@@ -128,7 +116,7 @@ test('every entry in SENDERS still contains the check its reason names', () => {
 
 test('the scan sees the senders it is meant to see (no blind guard)', () => {
   // If the patterns or the walk broke, every case above would be green on an
-  // empty map. The four known senders must be found by the scan itself.
+  // empty map. The known senders must be found by the scan itself.
   assert.deepEqual([...callers.keys()].sort(), Object.keys(SENDERS).sort());
   for (const repoPath of Object.keys(SENDERS)) assert.ok(callers.get(repoPath)?.length, repoPath);
 });
