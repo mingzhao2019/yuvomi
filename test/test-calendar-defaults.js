@@ -4,7 +4,7 @@
  *        Validierung),全天 reminder time und calendar_default_assign_me. Prüft
  *        den ersten Default [15], explizites [] als Opt-out, 30 Minuten,
  *        ungültige Werte und Per-User-Isolation.
- * Ausführen: node --experimental-sqlite --test test/test-calendar-defaults.js
+ * Ausführen: node --test test/test-calendar-defaults.js
  */
 
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret';
