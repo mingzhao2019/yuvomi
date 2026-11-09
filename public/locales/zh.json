@@ -110,7 +110,17 @@
         "errorNotOwner": "这是其他人创建的，你可以查看，但不能修改。",
         "foreignReadOnlyHint": "由 {{name}} 创建，你可以查看，但不能修改。",
         "deletedNamed": "“{{name}}”已删除。",
-        "sortMode": "调整顺序"
+        "sortMode": "调整顺序",
+        "createdNamed": "“{{name}}”已创建。",
+        "savedNamed": "“{{name}}”已保存。",
+        "everyNDays": "每 {{count}} 天",
+        "everyNDays_one": "每 {{count}} 天",
+        "everyNWeeks": "每 {{count}} 周一次",
+        "everyNWeeks_one": "每 {{count}} 周一次",
+        "everyNMonths": "每 {{count}} 个月一次",
+        "everyNMonths_one": "每 {{count}} 个月一次",
+        "everyNYears": "每 {{count}} 年一次",
+        "everyNYears_one": "每 {{count}} 年一次"
     },
     "kitchen": {
         "noShoppingLists": "还没有购物清单。",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "已结束",
         "todayTimelineRunning": "进行中",
         "todayTimelineNext": "下一个",
-        "todayAlsoTitle": "今天还有"
+        "todayAlsoTitle": "今天还有",
+        "todayNothingPlanned": "尚无任何安排",
+        "todayNothingPlannedSub": "今天的约会、任务和餐食会显示在这里。"
     },
     "tasks": {
         "resetOrder": "自动排序",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "“{{item}}”已回到“{{back}}”：服务器不接受将它放入“{{target}}”。",
             "waited": "“{{item}}”未移到“{{target}}”：“{{back}}”的同步已关闭超过一周。开启该清单后，项目会重新出现在“{{back}}”。"
-        }
+        },
+        "moreDetailsHint": "价格、商店、链接、备注",
+        "toPantryAllToPlaceholder": "选择位置 …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} 种食材",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "打开{{title}}的食谱",
         "viewRecipeNamed": "查看{{title}}的食谱",
         "recipeIngredientsLabel": "食谱中的食材",
-        "recipeIngredientsEdit": "调整"
+        "recipeIngredientsEdit": "调整",
+        "moreDetailsHint": "食谱、备注、链接"
     },
     "calendar": {
         "searchOpen": "搜索日程",
@@ -1981,7 +1996,11 @@
         "ledgerAccountsAll": "所有账户",
         "showAccountTransactions": "查看交易",
         "summaryTransfersIn": "转入",
-        "summaryTransfersOut": "转出"
+        "summaryTransfersOut": "转出",
+        "transferDefaultTitle": "转账 {{from}} → {{to}}",
+        "transferMoreDetailsHint": "类别与重复",
+        "loanMoreDetailsHint": "标题、账户、货币和备注",
+        "entryMoreDetailsHint": "重复、负责人和收据"
     },
     "settings": {
         "healthCycleEnableLabel": "在家庭中提供周期",
@@ -3257,7 +3276,9 @@
             "presetHintRoleLimited": "角色“{{role}}”锁定：{{modules}}。",
             "presetHintUnavailable": "目前无法显示确切效果。模板仍然生效。",
             "presetHintRoleChild": "角色“{{role}}”不屏蔽任何模块。另外适用上方的儿童初始权限。",
-            "presetHintChildExtra": "另外适用上方的儿童初始权限。"
+            "presetHintChildExtra": "另外适用上方的儿童初始权限。",
+            "done": "完成",
+            "untitled": "待处理的邀请"
         },
         "healthCaregiversLabel": "可以记录健康数据",
         "healthCaregiversHint": "这些人可以为该成员记录体征、用药、化验结果和活动，并在此过程中看到其私密记录。经期日记不在此列。",
@@ -3654,7 +3675,9 @@
         "remoteErrorAuthFailed": "服务器拒绝了登录。请检查用户名和密码。",
         "remoteErrorStatus": "服务器返回的状态为 {{status}}。",
         "remoteErrorUnreachable": "无法连接到服务器。请检查地址以及服务器是否正在运行。",
-        "remoteErrorFailed": "对服务器的请求失败。"
+        "remoteErrorFailed": "对服务器的请求失败。",
+        "modulesInMyNavigation": "在我的导航中显示{{module}}",
+        "modulesKitchenInMyNavigation": "在我的导航中显示厨房"
     },
     "login": {
         "tagline": "欢迎回来。您的家，尽在一处。",
@@ -3689,7 +3712,8 @@
         "twoFactorCancel": "取消",
         "ssoOnlyHint": "登录此家庭仅通过 SSO 进行。",
         "guestPasswordLogin": "以访客身份用密码登录",
-        "accountCannotSignIn": "此账户无法登录，请联系您家庭的管理员。"
+        "accountCannotSignIn": "此账户无法登录，请联系您家庭的管理员。",
+        "invalidCredentialsAskAdmin": "用户名或密码错误。忘记密码了吗？家庭管理员可以为你设置新密码。"
     },
     "setup": {
         "title": "欢迎使用 Yuvomi",
@@ -3832,7 +3856,18 @@
         "ingredientMatchEmpty": "库存还是空的。",
         "ingredientMatchSaved": "已保存关联。",
         "ingredientMatchCleared": "已取消关联。",
-        "ingredientMatchLoadError": "无法加载库存。"
+        "ingredientMatchLoadError": "无法加载库存。",
+        "errorIngredientsChanged": "这个食谱在此期间已被修改。请检查食材后再添加一次。",
+        "servingsLabel": "份数",
+        "servingsMultipleLabel": "份量",
+        "servingsFewer": "减少份数",
+        "servingsMore": "增加份数",
+        "servingsLess": "减少份量",
+        "servingsMoreMultiple": "增加份量",
+        "servingsHint": "这些用量是几人份。不确定就留空。",
+        "servingsInvalid": "1 到 99 之间的整数。",
+        "moreDetailsHint": "备注、图片、链接",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "输入即可跳转到某个模块或新建内容。输入 2 个字符起还能搜索你的条目，词的一部分也能找到。",
@@ -3989,7 +4024,8 @@
         "staleData": "离线 - 数据截至：{{time}}",
         "pageTitle": "你已离线",
         "pageDescription": "此页面需要网络连接。设备恢复在线后会自动加载。",
-        "snapshot": "无法连接到服务器 - 已保存的数据，只读"
+        "snapshot": "无法连接到服务器 - 已保存的数据，只读",
+        "unreachableBody": "Yuvomi 暂时无法访问。请检查设备是否联网以及服务器是否在运行，然后重试。"
     },
     "emptyHint": {
         "recipes": "食谱可以直接进入用餐计划或购物清单。",
@@ -4524,7 +4560,17 @@
         "checkedOutNamed": "{{name}}已签退。",
         "visitToday": "今日在岗：{{from}} - {{to}}",
         "checkInAgain": "再次签到",
-        "checkedInNamed": "{{name}}已签到。"
+        "checkedInNamed": "{{name}}已签到。",
+        "taskDoneNamed": "“{{name}}”已完成。",
+        "visitDeletedNamed": "{{date}} 的上门记录已删除。",
+        "visitPaidNamed": "{{date}} 的上门记录已付款。",
+        "visitUnpaidNamed": "{{date}} 的上门记录付款已撤销。",
+        "workerMoreHint": "联系方式、生日、颜色、备注",
+        "markPaidNamed": "将 {{date}} 的到访标记为已付款",
+        "paymentsMonthWithOpen": "{{month}}：{{total}}，其中 {{pending}} 未付",
+        "paymentsMonthAllPaid": "{{month}}：{{total}}，已全部付清",
+        "taskTemplatesHint": "轻点即可添加。",
+        "markPaidShort": "已付款"
     },
     "userMultiSelect": {
         "moreUsers": "更多",
@@ -4722,7 +4768,10 @@
         "paidLabel": "已付",
         "totalsByCategory": "按类别",
         "categoryFilter": "按类别筛选支出",
-        "noExpensesInCategory": "此类别没有支出。"
+        "noExpensesInCategory": "此类别没有支出。",
+        "noCategory": "无类别",
+        "participantsRequired": "请至少选择一人。",
+        "moreDetailsHint": "备注与收据"
     },
     "wmo": {
         "0": "晴天",
@@ -5073,7 +5122,8 @@
         "accountArchivedMeta": "{{name}} 已归档 - 不带账户记账",
         "visibilityHint_private": "只有你能看到这个订阅及其付款。",
         "visibilityHint_shared": "家庭中的每个人都能看到这个订阅及其付款。",
-        "errorAccountGone": "所选账户已不存在。"
+        "errorAccountGone": "所选账户已不存在。",
+        "moreDetailsHint": "类别、付款方式、颜色和备注"
     },
     "health": {
         "fasting": {
@@ -5205,7 +5255,8 @@
                 "notStarted": "尚无记录"
             },
             "vitals": {
-                "title": "最新生命体征"
+                "title": "最新生命体征",
+                "recentTitle": "最近测量"
             },
             "quick": {
                 "title": "快速记录",
@@ -5504,7 +5555,8 @@
                 "title": "趋势",
                 "analyte": "指标",
                 "tooFew": "至少需要两份报告才能显示趋势。",
-                "unit": "单位：{{unit}}"
+                "unit": "单位：{{unit}}",
+                "showFor": "显示 {{name}} 的趋势"
             },
             "field": {
                 "reportDate": "报告日期",
@@ -6282,7 +6334,16 @@
         "colorPink": "粉色",
         "colorCurrent": "当前颜色",
         "intervalDecrease": "缩短间隔",
-        "intervalIncrease": "延长间隔"
+        "intervalIncrease": "延长间隔",
+        "scheduleSavedNamed": "“{{name}}”的计划已保存。",
+        "pickupSavedNamed": "“{{name}}”的收运已保存。",
+        "intervalLabel": "间隔",
+        "scheduleDeletedNamed": "“{{name}}”的计划已删除。",
+        "pickupDeletedNamed": "“{{name}}”的收运已删除。",
+        "typeArchivedNamed": "“{{name}}”已归档。",
+        "typeRestoredNamed": "“{{name}}”已恢复。",
+        "typesWithoutSchedule": "无计划",
+        "putOutToday": "今天放出去"
     },
     "rewards": {
         "title": "奖励",
@@ -6437,7 +6498,15 @@
         "ownLedger": "你的记录",
         "toastApprovedNamed": "已为{{name}}批准“{{reward}}”。",
         "toastRejectedNamed": "已为{{name}}拒绝“{{reward}}”。",
-        "toastCancelledNamed": "“{{reward}}”已撤回。"
+        "toastCancelledNamed": "“{{reward}}”已撤回。",
+        "ledgerFilterLabel": "按成员筛选",
+        "bonusKindCredit": "增加",
+        "bonusKindDebit": "扣除",
+        "bonusKindLabel": "增加或扣除",
+        "bonusCredit": "增加",
+        "bonusDebit": "扣除",
+        "notEnoughPoints": "积分不足，无法兑换此奖品。",
+        "bonusPoints": "积分"
     },
     "datepicker": {
         "openCalendar": "打开日历",
@@ -6538,7 +6607,6 @@
             "bag_one": "袋",
             "bag_other": "袋"
         },
-        "moreDetailsHint": "最低库存、备注",
         "moreDetailsHint": "最低库存、备注",
         "errorLocationGone": "该存放位置已不存在。",
         "errorLocationExists": "已有同名存放位置。请换一个名称。",
@@ -6710,7 +6778,8 @@
         "openAction": "打开 {{name}}",
         "limitReached": "最多 {{count}} 份文档。",
         "limitReached_one": "最多 {{count}} 份文档。",
-        "lockedPrivate": "有附件（私密）"
+        "lockedPrivate": "有附件（私密）",
+        "pickNone": "请至少选择一份文件。"
     },
     "join": {
         "title": "设置你的账户",
@@ -6732,7 +6801,8 @@
         "displayNameTooLong": "显示名称最多 128 个字符。",
         "previewFailed": "目前无法检查该邀请，请稍后重新加载页面。",
         "invalidTitle": "邀请无效",
-        "toLogin": "前往登录"
+        "toLogin": "前往登录",
+        "introNamed": "{{name}} 邀请你加入 {{app}}。请在此设置登录信息。"
     },
     "newLabel": {
         "tasks": "任务",
@@ -6767,7 +6837,8 @@
         "rewards": "奖品",
         "rewardsBonus": "奖励",
         "scheduleShiftType": "班次类型",
-        "schedulePlan": "排班周期"
+        "schedulePlan": "排班周期",
+        "healthOverview": "记录"
     },
     "iconPicker": {
         "title": "选择图标",
@@ -6863,7 +6934,7 @@
         "overlapWarning": "{{user}} 在 {{date}} 有重叠的排班周期；显示较新的周期。",
         "overlapWarningShort": "排班周期重叠",
         "patternWinsBadge": "优先显示",
-        "patternOverlapConfirmTitle": "要替换{{user}}当前的排班吗？",
+        "patternOverlapConfirmTitle": "要替换{{user}}当前的排班吗?",
         "patternOverlapConfirmDetail": "新排班在两者重叠的范围内优先生效。“{{name}}”仍会保留,但在重叠期间不再显示。",
         "patternOverlapConfirmAction": "替换",
         "editOverride": "编辑例外",
@@ -6938,10 +7009,6 @@
         "entryDetailTitle": "班次详情",
         "fullBlocksHint": "关闭时,班次在周视图和日视图中显示为紧凑的全天标签。",
         "presetShared": "通用",
-        "patternWinsBadge": "优先显示",
-        "patternOverlapConfirmTitle": "要替换{{user}}当前的排班吗?",
-        "patternOverlapConfirmDetail": "新排班在两者重叠的范围内优先生效。“{{name}}”仍会保留,但在重叠期间不再显示。",
-        "patternOverlapConfirmAction": "替换",
         "reminderCustomOffset": "自定义…",
         "customReminderOffsetPrompt": "自定义提前时间(分钟)",
         "overtimeTrackingToggle": "记录加班",
@@ -7010,5 +7077,27 @@
         "install": "应用, 主屏幕, 程序坞",
         "push": "提醒, 通知, 铃声",
         "wallMode": "信息亭, 平板, 墙面显示, 全屏"
+    },
+    "colorPicker": {
+        "gray": "灰色",
+        "blue": "蓝色",
+        "green": "绿色",
+        "ocher": "赭色",
+        "emerald": "翠绿色",
+        "fuchsia": "紫红色",
+        "red": "红色",
+        "cyan": "青色",
+        "orange": "橙色",
+        "pink": "粉色",
+        "custom": "自定义颜色",
+        "chooseCustom": "选择自定义颜色",
+        "standard": "默认颜色"
+    },
+    "browserTooOld": {
+        "pageTitle": "浏览器版本过旧",
+        "title": "此浏览器版本过旧，无法运行 Yuvomi",
+        "body": "Yuvomi 需要一些此浏览器尚不支持的功能。你的数据不受影响。",
+        "versions": "Yuvomi 支持 Chrome 和 Edge {{chrome}}、Firefox {{firefox}} 和 Safari {{safari}} 及以上版本，iPhone 和 iPad 需 iOS {{ios}} 及以上。",
+        "action": "请更新浏览器或设备后重试。如果无法更新，请在其他浏览器中打开 Yuvomi。"
     }
 }

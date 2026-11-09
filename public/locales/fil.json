@@ -110,7 +110,17 @@
         "errorNotOwner": "Iba ang gumawa nito - makikita mo ito pero hindi mo mababago.",
         "foreignReadOnlyHint": "Ginawa ni {{name}} - makikita mo ito pero hindi mo mababago.",
         "deletedNamed": "Nabura ang \"{{name}}\".",
-        "sortMode": "Baguhin ang pagkakasunod"
+        "sortMode": "Baguhin ang pagkakasunod",
+        "createdNamed": "Nagawa ang \"{{name}}\".",
+        "savedNamed": "Na-save ang \"{{name}}\".",
+        "everyNDays": "Tuwing {{count}} araw",
+        "everyNDays_one": "Tuwing {{count}} araw",
+        "everyNWeeks": "Bawat {{count}} linggo",
+        "everyNWeeks_one": "Bawat {{count}} linggo",
+        "everyNMonths": "Bawat {{count}} buwan",
+        "everyNMonths_one": "Bawat {{count}} buwan",
+        "everyNYears": "Bawat {{count}} taon",
+        "everyNYears_one": "Bawat {{count}} taon"
     },
     "kitchen": {
         "noShoppingLists": "Wala pang listahan ng pamimili.",
@@ -472,7 +482,9 @@
         "todayTimelinePast": "tapos na",
         "todayTimelineRunning": "kasalukuyang nagaganap",
         "todayTimelineNext": "susunod",
-        "todayAlsoTitle": "Ngayong araw din"
+        "todayAlsoTitle": "Ngayong araw din",
+        "todayNothingPlanned": "Wala pang nakaplano",
+        "todayNothingPlannedSub": "Lalabas dito ang mga appointment, gawain at pagkain ngayong araw."
     },
     "tasks": {
         "resetOrder": "Awtomatikong ayusin",
@@ -889,7 +901,9 @@
         "moveReturned": {
             "refused": "Bumalik ang \"{{item}}\" sa \"{{back}}\": hindi ito tinanggap ng server sa \"{{target}}\".",
             "waited": "Hindi nailipat ang \"{{item}}\" sa \"{{target}}\": mahigit isang linggo nang naka-off ang pag-sync ng \"{{back}}\". Lalabas ulit ang item sa \"{{back}}\" kapag binuksan ang listahang iyon."
-        }
+        },
+        "moreDetailsHint": "Presyo, tindahan, link, tala",
+        "toPantryAllToPlaceholder": "Pumili ng lugar …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} sangkap",
@@ -987,7 +1001,8 @@
         "openRecipeNamed": "Buksan ang resipe ng {{title}}",
         "viewRecipeNamed": "Tingnan ang resipe ng {{title}}",
         "recipeIngredientsLabel": "Mga sangkap mula sa recipe",
-        "recipeIngredientsEdit": "I-adjust"
+        "recipeIngredientsEdit": "I-adjust",
+        "moreDetailsHint": "Recipe, mga tala, link"
     },
     "calendar": {
         "searchOpen": "Maghanap ng kaganapan",
@@ -1995,7 +2010,11 @@
         "ledgerAccountsAll": "Lahat ng account",
         "showAccountTransactions": "Ipakita ang mga transaksyon",
         "summaryTransfersIn": "Papasok",
-        "summaryTransfersOut": "Palabas"
+        "summaryTransfersOut": "Palabas",
+        "transferDefaultTitle": "Paglipat {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategorya at pag-ulit",
+        "loanMoreDetailsHint": "Pamagat, account, pera at mga tala",
+        "entryMoreDetailsHint": "Pag-ulit, mga responsable at resibo"
     },
     "settings": {
         "healthCycleEnableLabel": "Ialok ang cycle sa sambahayan",
@@ -3271,7 +3290,9 @@
             "presetHintRoleLimited": "Nila-lock ng papel na {{role}} ang: {{modules}}.",
             "presetHintUnavailable": "Hindi maipakita ngayon ang eksaktong epekto. Gumagana pa rin ang template.",
             "presetHintRoleChild": "Walang hinaharang na module ang papel na {{role}}. Dagdag na nalalapat ang panimulang pahintulot para sa mga bata sa itaas.",
-            "presetHintChildExtra": "Dagdag na nalalapat ang panimulang pahintulot para sa mga bata sa itaas."
+            "presetHintChildExtra": "Dagdag na nalalapat ang panimulang pahintulot para sa mga bata sa itaas.",
+            "done": "Tapos na",
+            "untitled": "Bukas na imbitasyon"
         },
         "healthCaregiversLabel": "Puwedeng magtala ng datos ng kalusugan",
         "healthCaregiversHint": "Puwedeng magtala ang mga taong ito ng vitals, gamot, resulta ng lab at aktibidad para sa miyembrong ito, at makikita rin nila ang mga pribadong tala nito. Hindi kasama ang talaarawan ng siklo.",
@@ -3668,7 +3689,9 @@
         "remoteErrorAuthFailed": "Tinanggihan ng server ang pag-sign in. Suriin ang username at password.",
         "remoteErrorStatus": "Sumagot ang server ng status na {{status}}.",
         "remoteErrorUnreachable": "Hindi maabot ang server. Suriin ang address at kung tumatakbo ang server.",
-        "remoteErrorFailed": "Nabigo ang kahilingan sa server."
+        "remoteErrorFailed": "Nabigo ang kahilingan sa server.",
+        "modulesInMyNavigation": "{{module}} sa aking nabigasyon",
+        "modulesKitchenInMyNavigation": "Kusina sa aking nabigasyon"
     },
     "login": {
         "tagline": "Maligayang pagbabalik. Ang iyong tahanan sa iisang lugar.",
@@ -3703,7 +3726,8 @@
         "twoFactorCancel": "Kanselahin",
         "ssoOnlyHint": "Ang pag-sign in sa sambahayang ito ay eksklusibong sa pamamagitan ng SSO.",
         "guestPasswordLogin": "Pag-sign in ng bisita gamit ang password",
-        "accountCannotSignIn": "Hindi makakapag-sign in ang account na ito. Makipag-ugnayan sa administrador ng iyong sambahayan."
+        "accountCannotSignIn": "Hindi makakapag-sign in ang account na ito. Makipag-ugnayan sa administrador ng iyong sambahayan.",
+        "invalidCredentialsAskAdmin": "Hindi wastong kredensyal. Nakalimutan ang password? Makakapagtakda ng bago ang administrator ng inyong sambahayan."
     },
     "setup": {
         "title": "Maligayang pagdating sa Yuvomi",
@@ -3964,7 +3988,18 @@
         "ingredientMatchEmpty": "Wala pa ring laman ang iyong paminggalan.",
         "ingredientMatchSaved": "Na-save ang pagtutugma.",
         "ingredientMatchCleared": "Inalis ang pagtutugma.",
-        "ingredientMatchLoadError": "Hindi ma-load ang paminggalan."
+        "ingredientMatchLoadError": "Hindi ma-load ang paminggalan.",
+        "errorIngredientsChanged": "Nabago na ang recipe samantala. Suriin ang mga sangkap at idagdag muli.",
+        "servingsLabel": "Mga serving",
+        "servingsMultipleLabel": "Dami",
+        "servingsFewer": "Mas kaunting serving",
+        "servingsMore": "Mas maraming serving",
+        "servingsLess": "Bawasan ang dami",
+        "servingsMoreMultiple": "Dagdagan ang dami",
+        "servingsHint": "Ilang serving ang saklaw ng mga dami. Iwanang blangko kung hindi alam.",
+        "servingsInvalid": "Buong numero mula 1 hanggang 99.",
+        "moreDetailsHint": "Mga tala, larawan, link",
+        "servingsTimes": "× {{value}}"
     },
     "onboarding": {
         "step1Title": "Maligayang pagdating sa {{name}}",
@@ -3985,7 +4020,8 @@
         "staleData": "Offline - noong: {{time}}",
         "pageTitle": "Offline ka",
         "pageDescription": "Kailangan ng koneksyon ang pahinang ito. Kapag online na ulit ang device mo, kusa itong maglo-load.",
-        "snapshot": "Walang koneksyon sa server - naka-save na data, pagbasa lang"
+        "snapshot": "Walang koneksyon sa server - naka-save na data, pagbasa lang",
+        "unreachableBody": "Hindi maabot ang Yuvomi sa ngayon. Tingnan kung online ang device mo at tumatakbo ang server, saka subukang muli."
     },
     "emptyHint": {
         "tasks": "I-tap ang + para gawin ang iyong unang gawain. I-swipe pakaliwa ang isang card para tapusin, pakanan para tingnan.",
@@ -4524,7 +4560,17 @@
         "checkedOutNamed": "Naka-check out na si {{name}}.",
         "visitToday": "Narito ngayon: {{from}} - {{to}}",
         "checkInAgain": "Mag-check in ulit",
-        "checkedInNamed": "Naka-check in na si {{name}}."
+        "checkedInNamed": "Naka-check in na si {{name}}.",
+        "taskDoneNamed": "Tapos na ang \"{{name}}\".",
+        "visitDeletedNamed": "Natanggal ang pagbisita noong {{date}}.",
+        "visitPaidNamed": "Bayad na ang pagbisita noong {{date}}.",
+        "visitUnpaidNamed": "Binawi ang bayad sa pagbisita noong {{date}}.",
+        "workerMoreHint": "Contact, kaarawan, kulay, tala",
+        "markPaidNamed": "Markahan bilang bayad ang pagbisita noong {{date}}",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, {{pending}} dito ang hindi pa bayad",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, bayad na lahat",
+        "taskTemplatesHint": "I-tap para idagdag.",
+        "markPaidShort": "Bayad na"
     },
     "splitExpenses": {
         "title": "Mga hinating gastos",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Binayaran",
         "totalsByCategory": "Ayon sa kategorya",
         "categoryFilter": "I-filter ang mga gastos ayon sa kategorya",
-        "noExpensesInCategory": "Walang gastos sa kategoryang ito."
+        "noExpensesInCategory": "Walang gastos sa kategoryang ito.",
+        "noCategory": "Walang kategorya",
+        "participantsRequired": "Pumili ng kahit isang tao.",
+        "moreDetailsHint": "Mga tala at resibo"
     },
     "wmo": {
         "0": "Maaliwalas na langit",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} naka-archive - itinatala nang walang account",
         "visibilityHint_private": "Ikaw lang ang nakakakita ng subscription na ito at ng mga bayad nito.",
         "visibilityHint_shared": "Nakikita ng lahat sa sambahayan ang subscription na ito at ang mga bayad nito.",
-        "errorAccountGone": "Wala na ang napiling account."
+        "errorAccountGone": "Wala na ang napiling account.",
+        "moreDetailsHint": "Kategorya, paraan ng pagbabayad, kulay at mga tala"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Wala pang naitala"
             },
             "vitals": {
-                "title": "Pinakabagong palatandaan"
+                "title": "Pinakabagong palatandaan",
+                "recentTitle": "Huling nasukat"
             },
             "quick": {
                 "title": "Mabilisang pagdagdag",
@@ -5500,7 +5551,8 @@
                 "title": "Takbo",
                 "analyte": "Analyte",
                 "tooFew": "Kailangan ng kahit dalawang ulat para magpakita ng takbo.",
-                "unit": "Yunit: {{unit}}"
+                "unit": "Yunit: {{unit}}",
+                "showFor": "Ipakita ang takbo ng {{name}}"
             },
             "field": {
                 "reportDate": "Petsa ng ulat",
@@ -6278,7 +6330,16 @@
         "colorPink": "Rosas",
         "colorCurrent": "Kasalukuyang kulay",
         "intervalDecrease": "Bawasan ang pagitan",
-        "intervalIncrease": "Dagdagan ang pagitan"
+        "intervalIncrease": "Dagdagan ang pagitan",
+        "scheduleSavedNamed": "Na-save ang iskedyul ng \"{{name}}\".",
+        "pickupSavedNamed": "Na-save ang kolekta ng \"{{name}}\".",
+        "intervalLabel": "Pagitan",
+        "scheduleDeletedNamed": "Nabura ang iskedyul ng \"{{name}}\".",
+        "pickupDeletedNamed": "Nabura ang kolekta ng \"{{name}}\".",
+        "typeArchivedNamed": "Na-archive ang \"{{name}}\".",
+        "typeRestoredNamed": "Na-restore ang \"{{name}}\".",
+        "typesWithoutSchedule": "Walang iskedyul",
+        "putOutToday": "Ilabas ngayon"
     },
     "rewards": {
         "title": "Mga Gantimpala",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Iyong mga entry",
         "toastApprovedNamed": "Inaprubahan ang \"{{reward}}\" para kay {{name}}.",
         "toastRejectedNamed": "Tinanggihan ang \"{{reward}}\" para kay {{name}}.",
-        "toastCancelledNamed": "Binawi ang \"{{reward}}\"."
+        "toastCancelledNamed": "Binawi ang \"{{reward}}\".",
+        "ledgerFilterLabel": "Salain ayon sa tao",
+        "bonusKindCredit": "Dagdag",
+        "bonusKindDebit": "Bawas",
+        "bonusKindLabel": "Dagdag o bawas",
+        "bonusCredit": "Idagdag",
+        "bonusDebit": "Ibawas",
+        "notEnoughPoints": "Kulang ang puntos para sa gantimpalang ito.",
+        "bonusPoints": "Mga Puntos"
     },
     "datepicker": {
         "openCalendar": "Buksan ang kalendaryo",
@@ -6534,7 +6603,6 @@
             "bag_one": "supot",
             "bag_other": "supot"
         },
-        "moreDetailsHint": "Pinakamababang stock, mga tala",
         "moreDetailsHint": "Pinakamababang stock, mga tala",
         "errorLocationGone": "Wala na ang lugar ng imbakang ito.",
         "errorLocationExists": "Umiiral na ang lugar ng imbakang ito. Pumili ng ibang pangalan.",
@@ -6706,7 +6774,8 @@
         "openAction": "Buksan ang {{name}}",
         "limitReached": "Hanggang {{count}} dokumento lang.",
         "limitReached_one": "Hanggang {{count}} dokumento lang.",
-        "lockedPrivate": "May attachment (pribado)"
+        "lockedPrivate": "May attachment (pribado)",
+        "pickNone": "Pumili ng kahit isang dokumento."
     },
     "join": {
         "title": "I-set up ang iyong account",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "Dapat hindi hihigit sa 128 karakter ang pangalang ipapakita.",
         "previewFailed": "Hindi masuri ang imbitasyon sa ngayon. Pakireload ang pahina maya-maya.",
         "invalidTitle": "Hindi wastong imbitasyon",
-        "toLogin": "Pumunta sa pag-log in"
+        "toLogin": "Pumunta sa pag-log in",
+        "introNamed": "Inimbitahan ka ni {{name}} sa {{app}}. Piliin dito ang iyong mga detalye sa pag-sign in."
     },
     "newLabel": {
         "tasks": "Gawain",
@@ -6763,7 +6833,8 @@
         "rewards": "Gantimpala",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Uri ng shift",
-        "schedulePlan": "Pattern ng shift"
+        "schedulePlan": "Pattern ng shift",
+        "healthOverview": "Itala"
     },
     "iconPicker": {
         "title": "Pumili ng icon",
@@ -7002,5 +7073,27 @@
         "install": "app, home screen, dock",
         "push": "alerto, abiso, paalala, kampana",
         "wallMode": "kiosk, tablet, display sa dingding, buong screen"
+    },
+    "colorPicker": {
+        "gray": "Abo",
+        "blue": "Asul",
+        "green": "Berde",
+        "ocher": "Okre",
+        "emerald": "Esmeralda",
+        "fuchsia": "Fuchsia",
+        "red": "Pula",
+        "cyan": "Cyan",
+        "orange": "Kahel",
+        "pink": "Rosas",
+        "custom": "Sariling kulay",
+        "chooseCustom": "Pumili ng sariling kulay",
+        "standard": "Default na kulay"
+    },
+    "browserTooOld": {
+        "pageTitle": "Masyadong luma ang browser",
+        "title": "Masyadong luma ang browser na ito para sa Yuvomi",
+        "body": "Kailangan ng Yuvomi ang ilang feature na hindi pa kilala ng browser na ito. Hindi apektado ang data mo.",
+        "versions": "Gumagana ang Yuvomi mula Chrome at Edge {{chrome}}, Firefox {{firefox}} at Safari {{safari}}, at sa iPhone at iPad mula iOS {{ios}}.",
+        "action": "I-update ang browser o ang device, saka subukang muli. Kung hindi ito posible, buksan ang Yuvomi sa ibang browser."
     }
 }

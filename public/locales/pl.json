@@ -112,7 +112,25 @@
         "errorNotOwner": "Utworzył to ktoś inny - możesz to oglądać, ale nie zmieniać.",
         "foreignReadOnlyHint": "Utworzone przez {{name}} - możesz to oglądać, ale nie zmieniać.",
         "deletedNamed": "„{{name}}” usunięte.",
-        "sortMode": "Zmień kolejność"
+        "sortMode": "Zmień kolejność",
+        "createdNamed": "„{{name}}” utworzone.",
+        "savedNamed": "„{{name}}” zapisane.",
+        "everyNDays": "Co {{count}} dnia",
+        "everyNDays_one": "Co {{count}} dzień",
+        "everyNDays_few": "Co {{count}} dni",
+        "everyNDays_many": "Co {{count}} dni",
+        "everyNWeeks": "Co {{count}} tygodnia",
+        "everyNWeeks_one": "Co {{count}} tydzień",
+        "everyNWeeks_few": "Co {{count}} tygodnie",
+        "everyNWeeks_many": "Co {{count}} tygodni",
+        "everyNMonths": "Co {{count}} miesiąca",
+        "everyNMonths_one": "Co {{count}} miesiąc",
+        "everyNMonths_few": "Co {{count}} miesiące",
+        "everyNMonths_many": "Co {{count}} miesięcy",
+        "everyNYears": "Co {{count}} roku",
+        "everyNYears_one": "Co {{count}} rok",
+        "everyNYears_few": "Co {{count}} lata",
+        "everyNYears_many": "Co {{count}} lat"
     },
     "kitchen": {
         "noShoppingLists": "Nie ma jeszcze listy zakupów.",
@@ -558,7 +576,9 @@
         "todayTimelinePast": "zakończone",
         "todayTimelineRunning": "w toku",
         "todayTimelineNext": "następne",
-        "todayAlsoTitle": "Dziś także"
+        "todayAlsoTitle": "Dziś także",
+        "todayNothingPlanned": "Jeszcze nic nie zaplanowano",
+        "todayNothingPlannedSub": "Dzisiejsze terminy, zadania i posiłki pojawią się tutaj."
     },
     "tasks": {
         "resetOrder": "Sortuj automatycznie",
@@ -1023,7 +1043,9 @@
         "moveReturned": {
             "refused": "„{{item}}” wrócił na listę „{{back}}”: serwer nie przyjął go na liście „{{target}}”.",
             "waited": "„{{item}}” nie został przeniesiony na listę „{{target}}”: synchronizacja listy „{{back}}” jest wyłączona od ponad tygodnia. Produkt pojawi się znowu na liście „{{back}}”, gdy ją włączysz."
-        }
+        },
+        "moreDetailsHint": "Cena, sklep, link, notatka",
+        "toPantryAllToPlaceholder": "Wybierz miejsce …"
     },
     "meals": {
         "randomizeSuccess_few": "Zaplanowano {{count}} posiłki.",
@@ -1131,7 +1153,8 @@
         "openRecipeNamed": "Otwórz przepis na {{title}}",
         "viewRecipeNamed": "Zobacz przepis na {{title}}",
         "recipeIngredientsLabel": "Składniki z przepisu",
-        "recipeIngredientsEdit": "Dostosuj"
+        "recipeIngredientsEdit": "Dostosuj",
+        "moreDetailsHint": "Przepis, notatki, link"
     },
     "calendar": {
         "searchOpen": "Szukaj wydarzeń",
@@ -2165,7 +2188,11 @@
         "ledgerAccountsAll": "Wszystkie konta",
         "showAccountTransactions": "Pokaż operacje konta",
         "summaryTransfersIn": "Przychodzące",
-        "summaryTransfersOut": "Wychodzące"
+        "summaryTransfersOut": "Wychodzące",
+        "transferDefaultTitle": "Przelew {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategoria i powtarzanie",
+        "loanMoreDetailsHint": "Tytuł, konto, waluta i notatki",
+        "entryMoreDetailsHint": "Powtarzanie, odpowiedzialni i paragony"
     },
     "settings": {
         "healthCycleEnableLabel": "Udostępnij cykl w gospodarstwie",
@@ -3463,7 +3490,9 @@
             "presetHintRoleLimited": "Rola {{role}} blokuje: {{modules}}.",
             "presetHintUnavailable": "Dokładnego działania nie da się teraz pokazać. Szablon i tak obowiązuje.",
             "presetHintRoleChild": "Rola {{role}} nie blokuje żadnego modułu. Dochodzą do tego uprawnienia początkowe dla dzieci powyżej.",
-            "presetHintChildExtra": "Dochodzą do tego uprawnienia początkowe dla dzieci powyżej."
+            "presetHintChildExtra": "Dochodzą do tego uprawnienia początkowe dla dzieci powyżej.",
+            "done": "Gotowe",
+            "untitled": "Oczekujące zaproszenie"
         },
         "healthCaregiversLabel": "Może wprowadzać dane zdrowotne",
         "healthCaregiversHint": "Te osoby mogą wprowadzać parametry życiowe, leki, wyniki badań i aktywności dla tego członka rodziny oraz widzieć przy tym jego prywatne wpisy. Dziennik cyklu pozostaje wyłączony.",
@@ -3888,7 +3917,9 @@
         "remoteErrorAuthFailed": "Serwer odrzucił logowanie. Sprawdź nazwę użytkownika i hasło.",
         "remoteErrorStatus": "Serwer odpowiedział statusem {{status}}.",
         "remoteErrorUnreachable": "Serwer jest nieosiągalny. Sprawdź adres i czy serwer działa.",
-        "remoteErrorFailed": "Żądanie do serwera nie powiodło się."
+        "remoteErrorFailed": "Żądanie do serwera nie powiodło się.",
+        "modulesInMyNavigation": "{{module}} w mojej nawigacji",
+        "modulesKitchenInMyNavigation": "Kuchnia w mojej nawigacji"
     },
     "login": {
         "tagline": "Witaj ponownie. Twój dom w jednym miejscu.",
@@ -3923,7 +3954,8 @@
         "twoFactorCancel": "Anuluj",
         "ssoOnlyHint": "Logowanie do tego gospodarstwa domowego odbywa się wyłącznie przez SSO.",
         "guestPasswordLogin": "Logowanie gościa hasłem",
-        "accountCannotSignIn": "To konto nie może się zalogować. Skontaktuj się z administratorem swojego gospodarstwa domowego."
+        "accountCannotSignIn": "To konto nie może się zalogować. Skontaktuj się z administratorem swojego gospodarstwa domowego.",
+        "invalidCredentialsAskAdmin": "Nieprawidłowe dane logowania. Nie pamiętasz hasła? Administrator gospodarstwa domowego może ustawić nowe."
     },
     "setup": {
         "title": "Witamy w Yuvomi",
@@ -4190,7 +4222,18 @@
         "ingredientMatchEmpty": "Spiżarnia jest jeszcze pusta.",
         "ingredientMatchSaved": "Przypisanie zapisane.",
         "ingredientMatchCleared": "Przypisanie usunięte.",
-        "ingredientMatchLoadError": "Nie udało się wczytać spiżarni."
+        "ingredientMatchLoadError": "Nie udało się wczytać spiżarni.",
+        "errorIngredientsChanged": "Przepis został w międzyczasie zmieniony. Sprawdź składniki i dodaj je ponownie.",
+        "servingsLabel": "Porcje",
+        "servingsMultipleLabel": "Ilość",
+        "servingsFewer": "Mniej porcji",
+        "servingsMore": "Więcej porcji",
+        "servingsLess": "Zmniejsz ilość",
+        "servingsMoreMultiple": "Zwiększ ilość",
+        "servingsHint": "Na ile porcji są podane ilości. Zostaw puste, jeśli nie wiesz.",
+        "servingsInvalid": "Liczba całkowita od 1 do 99.",
+        "moreDetailsHint": "Notatki, obraz, link",
+        "servingsTimes": "× {{value}}"
     },
     "onboarding": {
         "step1Title": "Witaj w {{name}}",
@@ -4211,7 +4254,8 @@
         "staleData": "Offline - stan z: {{time}}",
         "pageTitle": "Jesteś offline",
         "pageDescription": "Ta strona wymaga połączenia. Gdy tylko urządzenie znów będzie online, załaduje się sama.",
-        "snapshot": "Brak połączenia z serwerem - zapisane dane, tylko do odczytu"
+        "snapshot": "Brak połączenia z serwerem - zapisane dane, tylko do odczytu",
+        "unreachableBody": "Yuvomi jest teraz niedostępne. Sprawdź, czy urządzenie jest w sieci i czy serwer działa, i spróbuj ponownie."
     },
     "emptyHint": {
         "tasks": "Stuknij +, aby utworzyć pierwsze zadanie. Przesuń kartę w lewo, aby oznaczyć jako ukończone, w prawo, aby wyświetlić.",
@@ -4768,7 +4812,17 @@
         "checkedOutNamed": "{{name}} - wymeldowano.",
         "visitToday": "Dziś obecność: {{from}} - {{to}}",
         "checkInAgain": "Zamelduj ponownie",
-        "checkedInNamed": "{{name}} - zameldowano."
+        "checkedInNamed": "{{name}} - zameldowano.",
+        "taskDoneNamed": "„{{name}}” zrobione.",
+        "visitDeletedNamed": "Wizyta z {{date}} usunięta.",
+        "visitPaidNamed": "Wizyta z {{date}} opłacona.",
+        "visitUnpaidNamed": "Płatność za wizytę z {{date}} cofnięta.",
+        "workerMoreHint": "Kontakt, urodziny, kolory, notatki",
+        "markPaidNamed": "Oznacz wizytę z {{date}} jako opłaconą",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, w tym {{pending}} do zapłaty",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, wszystko opłacone",
+        "taskTemplatesHint": "Dotknij, aby dodać.",
+        "markPaidShort": "Zapłacono"
     },
     "splitExpenses": {
         "title": "Wspólne wydatki",
@@ -4970,7 +5024,10 @@
         "paidLabel": "Zapłacono",
         "totalsByCategory": "Według kategorii",
         "categoryFilter": "Filtruj wydatki według kategorii",
-        "noExpensesInCategory": "Brak wydatków w tej kategorii."
+        "noExpensesInCategory": "Brak wydatków w tej kategorii.",
+        "noCategory": "Bez kategorii",
+        "participantsRequired": "Wybierz co najmniej jedną osobę.",
+        "moreDetailsHint": "Notatki i paragony"
     },
     "wmo": {
         "0": "Bezchmurnie",
@@ -5333,7 +5390,8 @@
         "accountArchivedMeta": "{{name}} zarchiwizowane - księguje bez konta",
         "visibilityHint_private": "Tylko Ty widzisz tę subskrypcję i jej płatności.",
         "visibilityHint_shared": "Całe gospodarstwo widzi tę subskrypcję i jej płatności.",
-        "errorAccountGone": "Wybrane konto już nie istnieje."
+        "errorAccountGone": "Wybrane konto już nie istnieje.",
+        "moreDetailsHint": "Kategoria, metoda płatności, kolor i notatki"
     },
     "health": {
         "fasting": {
@@ -5467,7 +5525,8 @@
                 "notStarted": "Nic jeszcze nie zarejestrowano"
             },
             "vitals": {
-                "title": "Ostatnie parametry życiowe"
+                "title": "Ostatnie parametry życiowe",
+                "recentTitle": "Ostatnie pomiary"
             },
             "quick": {
                 "title": "Szybki zapis",
@@ -5770,7 +5829,8 @@
                 "title": "Przebieg",
                 "analyte": "Analit",
                 "tooFew": "Do pokazania przebiegu potrzebne są co najmniej dwa wyniki.",
-                "unit": "Jednostka: {{unit}}"
+                "unit": "Jednostka: {{unit}}",
+                "showFor": "Pokaż przebieg: {{name}}"
             },
             "field": {
                 "reportDate": "Data wyniku",
@@ -6568,7 +6628,16 @@
         "mappingProfileApplicableCount_few": "Zostaną zastosowane {{count}} mapowania.",
         "mappingProfileApplicableCount_many": "Zostanie zastosowanych {{count}} mapowań.",
         "intervalDecrease": "Zmniejsz odstęp",
-        "intervalIncrease": "Zwiększ odstęp"
+        "intervalIncrease": "Zwiększ odstęp",
+        "scheduleSavedNamed": "Harmonogram „{{name}}” zapisany.",
+        "pickupSavedNamed": "Odbiór „{{name}}” zapisany.",
+        "intervalLabel": "Odstęp",
+        "scheduleDeletedNamed": "Harmonogram „{{name}}” usunięty.",
+        "pickupDeletedNamed": "Odbiór „{{name}}” usunięty.",
+        "typeArchivedNamed": "„{{name}}” zarchiwizowane.",
+        "typeRestoredNamed": "„{{name}}” przywrócone.",
+        "typesWithoutSchedule": "Bez harmonogramu",
+        "putOutToday": "Wystaw dziś"
     },
     "rewards": {
         "title": "Nagrody",
@@ -6725,7 +6794,15 @@
         "ownLedger": "Twoje wpisy",
         "toastApprovedNamed": "„{{reward}}” zatwierdzone dla: {{name}}.",
         "toastRejectedNamed": "„{{reward}}” odrzucone dla: {{name}}.",
-        "toastCancelledNamed": "„{{reward}}” wycofane."
+        "toastCancelledNamed": "„{{reward}}” wycofane.",
+        "ledgerFilterLabel": "Filtruj według osoby",
+        "bonusKindCredit": "Dodanie",
+        "bonusKindDebit": "Odjęcie",
+        "bonusKindLabel": "Dodanie lub odjęcie",
+        "bonusCredit": "Dodaj",
+        "bonusDebit": "Odejmij",
+        "notEnoughPoints": "Za mało punktów na tę nagrodę.",
+        "bonusPoints": "Punkty"
     },
     "datepicker": {
         "openCalendar": "Otwórz kalendarz",
@@ -6852,7 +6929,6 @@
             "bag_many": "torebek",
             "bag_other": "torebki"
         },
-        "moreDetailsHint": "Minimalny zapas, notatki",
         "moreDetailsHint": "Minimalny zapas, notatki",
         "errorLocationGone": "To miejsce przechowywania już nie istnieje.",
         "errorLocationExists": "To miejsce przechowywania już istnieje. Wybierz inną nazwę.",
@@ -7036,7 +7112,8 @@
         "limitReached_one": "Maksymalnie dokumentów: {{count}}.",
         "limitReached_few": "Maksymalnie dokumentów: {{count}}.",
         "limitReached_many": "Maksymalnie dokumentów: {{count}}.",
-        "lockedPrivate": "Załącznik istnieje (prywatny)"
+        "lockedPrivate": "Załącznik istnieje (prywatny)",
+        "pickNone": "Wybierz co najmniej jeden dokument."
     },
     "join": {
         "title": "Skonfiguruj konto",
@@ -7058,7 +7135,8 @@
         "displayNameTooLong": "Nazwa wyświetlana może mieć najwyżej 128 znaków.",
         "previewFailed": "Nie udało się teraz sprawdzić zaproszenia. Odśwież stronę za chwilę.",
         "invalidTitle": "Nieprawidłowe zaproszenie",
-        "toLogin": "Przejdź do logowania"
+        "toLogin": "Przejdź do logowania",
+        "introNamed": "{{name}} zaprasza cię do {{app}}. Ustaw tutaj swoje dane logowania."
     },
     "newLabel": {
         "tasks": "Zadanie",
@@ -7093,7 +7171,8 @@
         "rewards": "Nagroda",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Rodzaj zmiany",
-        "schedulePlan": "Cykl zmian"
+        "schedulePlan": "Cykl zmian",
+        "healthOverview": "Zapisz"
     },
     "iconPicker": {
         "title": "Wybierz ikonę",
@@ -7340,5 +7419,27 @@
         "install": "aplikacja, ekran główny, Dock",
         "push": "alerty, powiadomienia, przypomnienia, dzwonek",
         "wallMode": "kiosk, tablet, wyświetlacz ścienny, pełny ekran"
+    },
+    "colorPicker": {
+        "gray": "Szary",
+        "blue": "Niebieski",
+        "green": "Zielony",
+        "ocher": "Ochra",
+        "emerald": "Szmaragdowy",
+        "fuchsia": "Fuksja",
+        "red": "Czerwony",
+        "cyan": "Cyjan",
+        "orange": "Pomarańczowy",
+        "pink": "Różowy",
+        "custom": "Własny kolor",
+        "chooseCustom": "Wybierz własny kolor",
+        "standard": "Kolor domyślny"
+    },
+    "browserTooOld": {
+        "pageTitle": "Przeglądarka jest za stara",
+        "title": "Ta przeglądarka jest za stara dla Yuvomi",
+        "body": "Yuvomi potrzebuje kilku funkcji, których ta przeglądarka jeszcze nie zna. Twoje dane nie są tym objęte.",
+        "versions": "Yuvomi działa od Chrome i Edge {{chrome}}, Firefox {{firefox}} i Safari {{safari}}, a na iPhonie i iPadzie od iOS {{ios}}.",
+        "action": "Zaktualizuj przeglądarkę lub urządzenie i spróbuj ponownie. Jeśli to niemożliwe, otwórz Yuvomi w innej przeglądarce."
     }
 }

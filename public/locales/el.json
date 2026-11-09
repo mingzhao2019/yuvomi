@@ -110,7 +110,17 @@
         "errorNotOwner": "Αυτό το δημιούργησε κάποιος άλλος - μπορείτε να το δείτε αλλά όχι να το αλλάξετε.",
         "foreignReadOnlyHint": "Δημιουργήθηκε από {{name}} - μπορείτε να το δείτε αλλά όχι να το αλλάξετε.",
         "deletedNamed": "«{{name}}» διαγράφηκε.",
-        "sortMode": "Αλλαγή σειράς"
+        "sortMode": "Αλλαγή σειράς",
+        "createdNamed": "«{{name}}» δημιουργήθηκε.",
+        "savedNamed": "«{{name}}» αποθηκεύτηκε.",
+        "everyNDays": "Κάθε {{count}} ημέρες",
+        "everyNDays_one": "Κάθε {{count}} ημέρα",
+        "everyNWeeks": "Κάθε {{count}} εβδομάδες",
+        "everyNWeeks_one": "Κάθε {{count}} εβδομάδα",
+        "everyNMonths": "Κάθε {{count}} μήνες",
+        "everyNMonths_one": "Κάθε {{count}} μήνα",
+        "everyNYears": "Κάθε {{count}} χρόνια",
+        "everyNYears_one": "Κάθε {{count}} χρόνο"
     },
     "kitchen": {
         "noShoppingLists": "Δεν υπάρχει ακόμη λίστα αγορών.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "ολοκληρώθηκε",
         "todayTimelineRunning": "σε εξέλιξη",
         "todayTimelineNext": "επόμενο",
-        "todayAlsoTitle": "Επίσης σήμερα"
+        "todayAlsoTitle": "Επίσης σήμερα",
+        "todayNothingPlanned": "Τίποτα προγραμματισμένο ακόμα",
+        "todayNothingPlannedSub": "Τα σημερινά ραντεβού, οι εργασίες και τα γεύματα θα εμφανίζονται εδώ."
     },
     "tasks": {
         "resetOrder": "Αυτόματη ταξινόμηση",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "Το «{{item}}» επέστρεψε στη λίστα «{{back}}»: ο διακομιστής δεν το δέχτηκε στη λίστα «{{target}}».",
             "waited": "Το «{{item}}» δεν μεταφέρθηκε στη λίστα «{{target}}»: ο συγχρονισμός της λίστας «{{back}}» είναι απενεργοποιημένος πάνω από μία εβδομάδα. Το είδος θα εμφανιστεί ξανά στη λίστα «{{back}}» μόλις την ενεργοποιήσετε."
-        }
+        },
+        "moreDetailsHint": "Τιμή, κατάστημα, σύνδεσμος, σημείωση",
+        "toPantryAllToPlaceholder": "Επιλέξτε θέση …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} υλικό",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "Άνοιγμα συνταγής για «{{title}}»",
         "viewRecipeNamed": "Προβολή συνταγής για «{{title}}»",
         "recipeIngredientsLabel": "Υλικά από τη συνταγή",
-        "recipeIngredientsEdit": "Προσαρμογή"
+        "recipeIngredientsEdit": "Προσαρμογή",
+        "moreDetailsHint": "Συνταγή, σημειώσεις, σύνδεσμος"
     },
     "calendar": {
         "searchOpen": "Αναζήτηση εκδηλώσεων",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "Όλοι οι λογαριασμοί",
         "showAccountTransactions": "Εμφάνιση κινήσεων",
         "summaryTransfersIn": "Εισερχόμενες",
-        "summaryTransfersOut": "Εξερχόμενες"
+        "summaryTransfersOut": "Εξερχόμενες",
+        "transferDefaultTitle": "Μεταφορά {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Κατηγορία και επανάληψη",
+        "loanMoreDetailsHint": "Τίτλος, λογαριασμός, νόμισμα και σημειώσεις",
+        "entryMoreDetailsHint": "Επανάληψη, υπεύθυνοι και αποδείξεις"
     },
     "settings": {
         "healthCycleEnableLabel": "Διάθεση του κύκλου στο νοικοκυριό",
@@ -3253,7 +3272,9 @@
             "presetHintRoleLimited": "Ο ρόλος {{role}} κλειδώνει: {{modules}}.",
             "presetHintUnavailable": "Η ακριβής επίδραση δεν μπορεί να εμφανιστεί τώρα. Το πρότυπο ισχύει ούτως ή άλλως.",
             "presetHintRoleChild": "Ο ρόλος {{role}} δεν μπλοκάρει καμία ενότητα. Ισχύουν επιπλέον τα αρχικά δικαιώματα για παιδιά παραπάνω.",
-            "presetHintChildExtra": "Ισχύουν επιπλέον τα αρχικά δικαιώματα για παιδιά παραπάνω."
+            "presetHintChildExtra": "Ισχύουν επιπλέον τα αρχικά δικαιώματα για παιδιά παραπάνω.",
+            "done": "Έτοιμο",
+            "untitled": "Εκκρεμής πρόσκληση"
         },
         "healthCaregiversLabel": "Μπορεί να καταχωρεί δεδομένα υγείας",
         "healthCaregiversHint": "Αυτά τα άτομα μπορούν να καταχωρούν ζωτικά σημεία, φάρμακα, εργαστηριακά αποτελέσματα και δραστηριότητες για αυτό το μέλος και βλέπουν παράλληλα τις ιδιωτικές του καταχωρήσεις. Το ημερολόγιο κύκλου εξαιρείται.",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "Ο διακομιστής απέρριψε τη σύνδεση. Ελέγξτε το όνομα χρήστη και τον κωδικό πρόσβασης.",
         "remoteErrorStatus": "Ο διακομιστής απάντησε με κατάσταση {{status}}.",
         "remoteErrorUnreachable": "Ο διακομιστής δεν είναι προσβάσιμος. Ελέγξτε τη διεύθυνση και αν ο διακομιστής λειτουργεί.",
-        "remoteErrorFailed": "Το αίτημα προς τον διακομιστή απέτυχε."
+        "remoteErrorFailed": "Το αίτημα προς τον διακομιστή απέτυχε.",
+        "modulesInMyNavigation": "{{module}} στην πλοήγησή μου",
+        "modulesKitchenInMyNavigation": "Κουζίνα στην πλοήγησή μου"
     },
     "login": {
         "tagline": "Καλώς ήρθατε ξανά. Το σπίτι σας σε ένα μέρος.",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "Ακύρωση",
         "ssoOnlyHint": "Η σύνδεση σε αυτό το νοικοκυριό γίνεται αποκλειστικά μέσω SSO.",
         "guestPasswordLogin": "Σύνδεση επισκέπτη με κωδικό",
-        "accountCannotSignIn": "Αυτός ο λογαριασμός δεν μπορεί να συνδεθεί. Απευθυνθείτε στον διαχειριστή του νοικοκυριού σας."
+        "accountCannotSignIn": "Αυτός ο λογαριασμός δεν μπορεί να συνδεθεί. Απευθυνθείτε στον διαχειριστή του νοικοκυριού σας.",
+        "invalidCredentialsAskAdmin": "Λανθασμένα στοιχεία σύνδεσης. Ξέχασες τον κωδικό; Ο διαχειριστής του νοικοκυριού μπορεί να ορίσει νέο."
     },
     "setup": {
         "title": "Καλώς ορίσατε στο Yuvomi",
@@ -3828,7 +3852,18 @@
         "ingredientMatchEmpty": "Το απόθεμα είναι ακόμη άδειο.",
         "ingredientMatchSaved": "Η αντιστοίχιση αποθηκεύτηκε.",
         "ingredientMatchCleared": "Η αντιστοίχιση καταργήθηκε.",
-        "ingredientMatchLoadError": "Δεν ήταν δυνατή η φόρτωση του αποθέματος."
+        "ingredientMatchLoadError": "Δεν ήταν δυνατή η φόρτωση του αποθέματος.",
+        "errorIngredientsChanged": "Η συνταγή άλλαξε στο μεταξύ. Έλεγξε τα υλικά και πρόσθεσέ τα ξανά.",
+        "servingsLabel": "Μερίδες",
+        "servingsMultipleLabel": "Ποσότητα",
+        "servingsFewer": "Λιγότερες μερίδες",
+        "servingsMore": "Περισσότερες μερίδες",
+        "servingsLess": "Μείωση ποσότητας",
+        "servingsMoreMultiple": "Αύξηση ποσότητας",
+        "servingsHint": "Για πόσες μερίδες ισχύουν οι ποσότητες. Αφήστε κενό αν δεν το ξέρετε.",
+        "servingsInvalid": "Ακέραιος αριθμός από 1 έως 99.",
+        "moreDetailsHint": "Σημειώσεις, εικόνα, σύνδεσμος",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Πληκτρολόγησε για να μεταβείς σε μια ενότητα ή να δημιουργήσεις κάτι. Από 2 χαρακτήρες βρίσκεις και τις καταχωρίσεις σου, ακόμη και με μέρος λέξης.",
@@ -3985,7 +4020,8 @@
         "staleData": "Εκτός σύνδεσης - τελευταία ενημέρωση: {{time}}",
         "pageTitle": "Είστε εκτός σύνδεσης",
         "pageDescription": "Αυτή η σελίδα χρειάζεται σύνδεση. Μόλις η συσκευή σας συνδεθεί ξανά, θα φορτώσει μόνη της.",
-        "snapshot": "Χωρίς σύνδεση με τον διακομιστή - αποθηκευμένα δεδομένα, μόνο ανάγνωση"
+        "snapshot": "Χωρίς σύνδεση με τον διακομιστή - αποθηκευμένα δεδομένα, μόνο ανάγνωση",
+        "unreachableBody": "Το Yuvomi δεν είναι προσβάσιμο αυτή τη στιγμή. Ελέγξτε ότι η συσκευή σας είναι συνδεδεμένη και ότι ο διακομιστής λειτουργεί, και δοκιμάστε ξανά."
     },
     "emptyHint": {
         "recipes": "Μια συνταγή πηγαίνει απευθείας στο πρόγραμμα γευμάτων ή στη λίστα αγορών.",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "Αναχώρηση: {{name}}.",
         "visitToday": "Σήμερα εδώ: {{from}} - {{to}}",
         "checkInAgain": "Νέα άφιξη",
-        "checkedInNamed": "Άφιξη: {{name}}."
+        "checkedInNamed": "Άφιξη: {{name}}.",
+        "taskDoneNamed": "«{{name}}» ολοκληρώθηκε.",
+        "visitDeletedNamed": "Η επίσκεψη της {{date}} διαγράφηκε.",
+        "visitPaidNamed": "Η επίσκεψη της {{date}} πληρώθηκε.",
+        "visitUnpaidNamed": "Η πληρωμή της επίσκεψης της {{date}} αναιρέθηκε.",
+        "workerMoreHint": "Επικοινωνία, γενέθλια, χρώματα, σημειώσεις",
+        "markPaidNamed": "Σήμανση της επίσκεψης της {{date}} ως πληρωμένης",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, από τα οποία {{pending}} σε εκκρεμότητα",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, όλα πληρωμένα",
+        "taskTemplatesHint": "Πατήστε για προσθήκη.",
+        "markPaidShort": "Πληρώθηκε"
     },
     "userMultiSelect": {
         "moreUsers": "ακόμη",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Πληρώθηκε",
         "totalsByCategory": "Ανά κατηγορία",
         "categoryFilter": "Φιλτράρισμα εξόδων ανά κατηγορία",
-        "noExpensesInCategory": "Δεν υπάρχουν έξοδα σε αυτή την κατηγορία."
+        "noExpensesInCategory": "Δεν υπάρχουν έξοδα σε αυτή την κατηγορία.",
+        "noCategory": "Χωρίς κατηγορία",
+        "participantsRequired": "Επίλεξε τουλάχιστον ένα άτομο.",
+        "moreDetailsHint": "Σημειώσεις και αποδείξεις"
     },
     "wmo": {
         "0": "Αίθριος καιρός",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} αρχειοθετημένος - καταχώριση χωρίς λογαριασμό",
         "visibilityHint_private": "Μόνο εσύ βλέπεις αυτήν τη συνδρομή και τις πληρωμές της.",
         "visibilityHint_shared": "Όλο το νοικοκυριό βλέπει αυτήν τη συνδρομή και τις πληρωμές της.",
-        "errorAccountGone": "Ο επιλεγμένος λογαριασμός δεν υπάρχει πλέον."
+        "errorAccountGone": "Ο επιλεγμένος λογαριασμός δεν υπάρχει πλέον.",
+        "moreDetailsHint": "Κατηγορία, τρόπος πληρωμής, χρώμα και σημειώσεις"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Δεν έχει καταγραφεί τίποτα ακόμη"
             },
             "vitals": {
-                "title": "Πρόσφατα ζωτικά σημεία"
+                "title": "Πρόσφατα ζωτικά σημεία",
+                "recentTitle": "Τελευταίες μετρήσεις"
             },
             "quick": {
                 "title": "Γρήγορη καταχώριση",
@@ -5500,7 +5551,8 @@
                 "title": "Πορεία",
                 "analyte": "Αναλυτής",
                 "tooFew": "Χρειάζονται τουλάχιστον δύο αποτελέσματα για την προβολή πορείας.",
-                "unit": "Μονάδα: {{unit}}"
+                "unit": "Μονάδα: {{unit}}",
+                "showFor": "Εμφάνιση εξέλιξης: {{name}}"
             },
             "field": {
                 "reportDate": "Ημερομηνία αποτελέσματος",
@@ -6278,7 +6330,16 @@
         "colorPink": "Ροζ",
         "colorCurrent": "Τρέχον χρώμα",
         "intervalDecrease": "Μείωση διαστήματος",
-        "intervalIncrease": "Αύξηση διαστήματος"
+        "intervalIncrease": "Αύξηση διαστήματος",
+        "scheduleSavedNamed": "Το πρόγραμμα για «{{name}}» αποθηκεύτηκε.",
+        "pickupSavedNamed": "Η αποκομιδή για «{{name}}» αποθηκεύτηκε.",
+        "intervalLabel": "Διάστημα",
+        "scheduleDeletedNamed": "Το πρόγραμμα για «{{name}}» διαγράφηκε.",
+        "pickupDeletedNamed": "Η αποκομιδή για «{{name}}» διαγράφηκε.",
+        "typeArchivedNamed": "Το «{{name}}» αρχειοθετήθηκε.",
+        "typeRestoredNamed": "Το «{{name}}» επαναφέρθηκε.",
+        "typesWithoutSchedule": "Χωρίς πρόγραμμα",
+        "putOutToday": "Βγάλτε τον σήμερα"
     },
     "rewards": {
         "title": "Επιβραβεύσεις",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Οι κινήσεις σου",
         "toastApprovedNamed": "«{{reward}}» εγκρίθηκε για {{name}}.",
         "toastRejectedNamed": "«{{reward}}» απορρίφθηκε για {{name}}.",
-        "toastCancelledNamed": "«{{reward}}» αποσύρθηκε."
+        "toastCancelledNamed": "«{{reward}}» αποσύρθηκε.",
+        "ledgerFilterLabel": "Φιλτράρισμα κατά άτομο",
+        "bonusKindCredit": "Πίστωση",
+        "bonusKindDebit": "Αφαίρεση",
+        "bonusKindLabel": "Πίστωση ή αφαίρεση",
+        "bonusCredit": "Πίστωση",
+        "bonusDebit": "Αφαίρεση",
+        "notEnoughPoints": "Δεν υπάρχουν αρκετοί πόντοι για αυτό το βραβείο.",
+        "bonusPoints": "Πόντοι"
     },
     "datepicker": {
         "openCalendar": "Άνοιγμα ημερολογίου",
@@ -6534,7 +6603,6 @@
             "bag_one": "σακούλα",
             "bag_other": "σακούλες"
         },
-        "moreDetailsHint": "Ελάχιστο απόθεμα, σημειώσεις",
         "moreDetailsHint": "Ελάχιστο απόθεμα, σημειώσεις",
         "errorLocationGone": "Αυτή η θέση αποθήκευσης δεν υπάρχει πλέον.",
         "errorLocationExists": "Αυτή η θέση αποθήκευσης υπάρχει ήδη. Επιλέξτε άλλο όνομα.",
@@ -6706,7 +6774,8 @@
         "openAction": "Άνοιγμα {{name}}",
         "limitReached": "Το πολύ {{count}} έγγραφα.",
         "limitReached_one": "Το πολύ {{count}} έγγραφο.",
-        "lockedPrivate": "Υπάρχει συνημμένο (ιδιωτικό)"
+        "lockedPrivate": "Υπάρχει συνημμένο (ιδιωτικό)",
+        "pickNone": "Επίλεξε τουλάχιστον ένα έγγραφο."
     },
     "join": {
         "title": "Ρύθμιση λογαριασμού",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "Το εμφανιζόμενο όνομα μπορεί να έχει έως 128 χαρακτήρες.",
         "previewFailed": "Δεν ήταν δυνατός ο έλεγχος της πρόσκλησης αυτή τη στιγμή. Φόρτωσε ξανά τη σελίδα σε λίγο.",
         "invalidTitle": "Μη έγκυρη πρόσκληση",
-        "toLogin": "Μετάβαση στη σύνδεση"
+        "toLogin": "Μετάβαση στη σύνδεση",
+        "introNamed": "Ο/Η {{name}} σε προσκάλεσε στο {{app}}. Όρισε εδώ τα στοιχεία σύνδεσής σου."
     },
     "newLabel": {
         "tasks": "Εργασία",
@@ -6763,7 +6833,8 @@
         "rewards": "Βραβείο",
         "rewardsBonus": "Μπόνους",
         "scheduleShiftType": "Τύπος βάρδιας",
-        "schedulePlan": "Κύκλος βαρδιών"
+        "schedulePlan": "Κύκλος βαρδιών",
+        "healthOverview": "Καταχώριση"
     },
     "iconPicker": {
         "title": "Επιλογή εικονιδίου",
@@ -7002,5 +7073,27 @@
         "install": "εφαρμογή, αρχική οθόνη, Dock",
         "push": "ειδοποιήσεις, υπενθυμίσεις, καμπανάκι",
         "wallMode": "περίπτερο, tablet, οθόνη τοίχου, πλήρης οθόνη"
+    },
+    "colorPicker": {
+        "gray": "Γκρι",
+        "blue": "Μπλε",
+        "green": "Πράσινο",
+        "ocher": "Ώχρα",
+        "emerald": "Σμαραγδί",
+        "fuchsia": "Φούξια",
+        "red": "Κόκκινο",
+        "cyan": "Κυανό",
+        "orange": "Πορτοκαλί",
+        "pink": "Ροζ",
+        "custom": "Προσαρμοσμένο χρώμα",
+        "chooseCustom": "Επιλογή προσαρμοσμένου χρώματος",
+        "standard": "Προεπιλεγμένο χρώμα"
+    },
+    "browserTooOld": {
+        "pageTitle": "Πολύ παλιό πρόγραμμα περιήγησης",
+        "title": "Αυτό το πρόγραμμα περιήγησης είναι πολύ παλιό για το Yuvomi",
+        "body": "Το Yuvomi χρειάζεται μερικές λειτουργίες που αυτό το πρόγραμμα περιήγησης δεν έχει ακόμη. Τα δεδομένα σας δεν επηρεάζονται.",
+        "versions": "Το Yuvomi λειτουργεί από Chrome και Edge {{chrome}}, Firefox {{firefox}} και Safari {{safari}}, και σε iPhone και iPad από iOS {{ios}}.",
+        "action": "Ενημερώστε το πρόγραμμα περιήγησης ή τη συσκευή και δοκιμάστε ξανά. Αν αυτό δεν είναι δυνατό, ανοίξτε το Yuvomi σε άλλο πρόγραμμα περιήγησης."
     }
 }

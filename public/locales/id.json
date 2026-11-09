@@ -110,7 +110,17 @@
         "errorNotOwner": "Ini dibuat orang lain - kamu bisa melihatnya, tetapi tidak bisa mengubahnya.",
         "foreignReadOnlyHint": "Dibuat oleh {{name}} - kamu bisa melihatnya, tetapi tidak bisa mengubahnya.",
         "deletedNamed": "\"{{name}}\" dihapus.",
-        "sortMode": "Ubah urutan"
+        "sortMode": "Ubah urutan",
+        "createdNamed": "\"{{name}}\" dibuat.",
+        "savedNamed": "\"{{name}}\" disimpan.",
+        "everyNDays": "Setiap {{count}} hari",
+        "everyNDays_one": "Setiap {{count}} hari",
+        "everyNWeeks": "Setiap {{count}} minggu",
+        "everyNWeeks_one": "Setiap {{count}} minggu",
+        "everyNMonths": "Setiap {{count}} bulan",
+        "everyNMonths_one": "Setiap {{count}} bulan",
+        "everyNYears": "Setiap {{count}} tahun",
+        "everyNYears_one": "Setiap {{count}} tahun"
     },
     "kitchen": {
         "noShoppingLists": "Belum ada daftar belanja.",
@@ -472,7 +482,9 @@
         "todayTimelinePast": "selesai",
         "todayTimelineRunning": "sedang berlangsung",
         "todayTimelineNext": "berikutnya",
-        "todayAlsoTitle": "Juga hari ini"
+        "todayAlsoTitle": "Juga hari ini",
+        "todayNothingPlanned": "Belum ada rencana",
+        "todayNothingPlannedSub": "Janji, tugas, dan makanan hari ini akan muncul di sini."
     },
     "tasks": {
         "resetOrder": "Urutkan otomatis",
@@ -889,7 +901,9 @@
         "moveReturned": {
             "refused": "\"{{item}}\" kembali ke \"{{back}}\": server tidak menerimanya di \"{{target}}\".",
             "waited": "\"{{item}}\" tidak dipindahkan ke \"{{target}}\": sinkronisasi \"{{back}}\" sudah lebih dari seminggu nonaktif. Item akan muncul lagi di \"{{back}}\" setelah daftar itu diaktifkan."
-        }
+        },
+        "moreDetailsHint": "Harga, toko, tautan, catatan",
+        "toPantryAllToPlaceholder": "Pilih tempat …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} bahan",
@@ -987,7 +1001,8 @@
         "openRecipeNamed": "Buka resep {{title}}",
         "viewRecipeNamed": "Lihat resep {{title}}",
         "recipeIngredientsLabel": "Bahan dari resep",
-        "recipeIngredientsEdit": "Sesuaikan"
+        "recipeIngredientsEdit": "Sesuaikan",
+        "moreDetailsHint": "Resep, catatan, tautan"
     },
     "calendar": {
         "searchOpen": "Cari acara",
@@ -1995,7 +2010,11 @@
         "ledgerAccountsAll": "Semua akun",
         "showAccountTransactions": "Tampilkan transaksi",
         "summaryTransfersIn": "Masuk",
-        "summaryTransfersOut": "Keluar"
+        "summaryTransfersOut": "Keluar",
+        "transferDefaultTitle": "Pemindahan dana {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategori dan pengulangan",
+        "loanMoreDetailsHint": "Judul, akun, mata uang, dan catatan",
+        "entryMoreDetailsHint": "Pengulangan, penanggung jawab, dan struk"
     },
     "settings": {
         "healthCycleEnableLabel": "Sediakan siklus untuk rumah tangga",
@@ -3271,7 +3290,9 @@
             "presetHintRoleLimited": "Peran {{role}} mengunci: {{modules}}.",
             "presetHintUnavailable": "Efek persisnya tidak dapat ditampilkan sekarang. Templat tetap berlaku.",
             "presetHintRoleChild": "Peran {{role}} tidak memblokir modul apa pun. Izin awal untuk anak di atas tetap berlaku.",
-            "presetHintChildExtra": "Izin awal untuk anak di atas tetap berlaku."
+            "presetHintChildExtra": "Izin awal untuk anak di atas tetap berlaku.",
+            "done": "Selesai",
+            "untitled": "Undangan terbuka"
         },
         "healthCaregiversLabel": "Boleh mencatat data kesehatan",
         "healthCaregiversHint": "Orang-orang ini boleh mencatat tanda vital, obat, hasil lab, dan aktivitas untuk anggota ini, dan sekaligus melihat catatan pribadinya. Buku harian siklus tetap dikecualikan.",
@@ -3668,7 +3689,9 @@
         "remoteErrorAuthFailed": "Server menolak proses masuk. Periksa nama pengguna dan kata sandi.",
         "remoteErrorStatus": "Server menjawab dengan status {{status}}.",
         "remoteErrorUnreachable": "Server tidak dapat dijangkau. Periksa alamat dan apakah server sedang berjalan.",
-        "remoteErrorFailed": "Permintaan ke server gagal."
+        "remoteErrorFailed": "Permintaan ke server gagal.",
+        "modulesInMyNavigation": "{{module}} di navigasi saya",
+        "modulesKitchenInMyNavigation": "Dapur di navigasi saya"
     },
     "login": {
         "tagline": "Selamat datang kembali. Rumah Anda dalam satu tempat.",
@@ -3703,7 +3726,8 @@
         "twoFactorCancel": "Batal",
         "ssoOnlyHint": "Masuk ke rumah tangga ini hanya melalui SSO.",
         "guestPasswordLogin": "Masuk tamu dengan kata sandi",
-        "accountCannotSignIn": "Akun ini tidak dapat masuk. Silakan hubungi administrator rumah tangga Anda."
+        "accountCannotSignIn": "Akun ini tidak dapat masuk. Silakan hubungi administrator rumah tangga Anda.",
+        "invalidCredentialsAskAdmin": "Kredensial tidak valid. Lupa kata sandi? Administrator rumah tangga Anda dapat menetapkan yang baru."
     },
     "setup": {
         "title": "Selamat datang di Yuvomi",
@@ -3964,7 +3988,18 @@
         "ingredientMatchEmpty": "Persediaan masih kosong.",
         "ingredientMatchSaved": "Pencocokan disimpan.",
         "ingredientMatchCleared": "Pencocokan dihapus.",
-        "ingredientMatchLoadError": "Persediaan tidak dapat dimuat."
+        "ingredientMatchLoadError": "Persediaan tidak dapat dimuat.",
+        "errorIngredientsChanged": "Resep ini sudah berubah sementara itu. Periksa bahan-bahannya lalu tambahkan lagi.",
+        "servingsLabel": "Porsi",
+        "servingsMultipleLabel": "Jumlah",
+        "servingsFewer": "Lebih sedikit porsi",
+        "servingsMore": "Lebih banyak porsi",
+        "servingsLess": "Kurangi jumlah",
+        "servingsMoreMultiple": "Tambah jumlah",
+        "servingsHint": "Untuk berapa porsi jumlah bahan ini. Biarkan kosong jika tidak tahu.",
+        "servingsInvalid": "Bilangan bulat dari 1 sampai 99.",
+        "moreDetailsHint": "Catatan, gambar, tautan",
+        "servingsTimes": "× {{value}}"
     },
     "onboarding": {
         "step1Title": "Selamat datang di {{name}}",
@@ -3985,7 +4020,8 @@
         "staleData": "Offline - per: {{time}}",
         "pageTitle": "Kamu sedang offline",
         "pageDescription": "Halaman ini memerlukan koneksi. Begitu perangkatmu online lagi, halaman dimuat dengan sendirinya.",
-        "snapshot": "Tidak ada koneksi ke server - data tersimpan, hanya baca"
+        "snapshot": "Tidak ada koneksi ke server - data tersimpan, hanya baca",
+        "unreachableBody": "Yuvomi sedang tidak dapat dijangkau. Periksa apakah perangkatmu terhubung ke jaringan dan server sedang berjalan, lalu coba lagi."
     },
     "emptyHint": {
         "tasks": "Ketuk + untuk membuat tugas pertama Anda. Geser kartu ke kiri untuk menyelesaikan, ke kanan untuk melihat.",
@@ -4524,7 +4560,17 @@
         "checkedOutNamed": "{{name}} sudah check-out.",
         "visitToday": "Hadir hari ini: {{from}} - {{to}}",
         "checkInAgain": "Check-in lagi",
-        "checkedInNamed": "{{name}} sudah check-in."
+        "checkedInNamed": "{{name}} sudah check-in.",
+        "taskDoneNamed": "\"{{name}}\" selesai.",
+        "visitDeletedNamed": "Kunjungan {{date}} dihapus.",
+        "visitPaidNamed": "Kunjungan {{date}} dibayar.",
+        "visitUnpaidNamed": "Pembayaran kunjungan {{date}} dibatalkan.",
+        "workerMoreHint": "Kontak, ulang tahun, warna, catatan",
+        "markPaidNamed": "Tandai kunjungan {{date}} sebagai lunas",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, {{pending}} di antaranya belum dibayar",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, semua lunas",
+        "taskTemplatesHint": "Ketuk untuk menambahkan.",
+        "markPaidShort": "Terbayar"
     },
     "splitExpenses": {
         "title": "Pengeluaran Bersama",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Dibayar",
         "totalsByCategory": "Menurut kategori",
         "categoryFilter": "Saring pengeluaran menurut kategori",
-        "noExpensesInCategory": "Tidak ada pengeluaran dalam kategori ini."
+        "noExpensesInCategory": "Tidak ada pengeluaran dalam kategori ini.",
+        "noCategory": "Tanpa kategori",
+        "participantsRequired": "Pilih setidaknya satu orang.",
+        "moreDetailsHint": "Catatan dan struk"
     },
     "wmo": {
         "0": "Langit cerah",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} diarsipkan - dicatat tanpa akun",
         "visibilityHint_private": "Hanya kamu yang melihat langganan ini dan pembayarannya.",
         "visibilityHint_shared": "Semua orang di rumah tangga melihat langganan ini dan pembayarannya.",
-        "errorAccountGone": "Akun yang dipilih sudah tidak ada."
+        "errorAccountGone": "Akun yang dipilih sudah tidak ada.",
+        "moreDetailsHint": "Kategori, metode pembayaran, warna, dan catatan"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Belum ada yang dicatat"
             },
             "vitals": {
-                "title": "Tanda vital terakhir"
+                "title": "Tanda vital terakhir",
+                "recentTitle": "Terakhir diukur"
             },
             "quick": {
                 "title": "Catat cepat",
@@ -5500,7 +5551,8 @@
                 "title": "Tren",
                 "analyte": "Analit",
                 "tooFew": "Diperlukan setidaknya dua hasil untuk menampilkan tren.",
-                "unit": "Satuan: {{unit}}"
+                "unit": "Satuan: {{unit}}",
+                "showFor": "Tampilkan tren {{name}}"
             },
             "field": {
                 "reportDate": "Tanggal hasil",
@@ -6278,7 +6330,16 @@
         "colorPink": "Merah muda",
         "colorCurrent": "Warna saat ini",
         "intervalDecrease": "Kurangi interval",
-        "intervalIncrease": "Tambah interval"
+        "intervalIncrease": "Tambah interval",
+        "scheduleSavedNamed": "Jadwal \"{{name}}\" disimpan.",
+        "pickupSavedNamed": "Pengambilan \"{{name}}\" disimpan.",
+        "intervalLabel": "Interval",
+        "scheduleDeletedNamed": "Jadwal \"{{name}}\" dihapus.",
+        "pickupDeletedNamed": "Pengambilan \"{{name}}\" dihapus.",
+        "typeArchivedNamed": "\"{{name}}\" diarsipkan.",
+        "typeRestoredNamed": "\"{{name}}\" dipulihkan.",
+        "typesWithoutSchedule": "Tanpa jadwal",
+        "putOutToday": "Taruh di luar hari ini"
     },
     "rewards": {
         "title": "Hadiah",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Catatanmu",
         "toastApprovedNamed": "\"{{reward}}\" disetujui untuk {{name}}.",
         "toastRejectedNamed": "\"{{reward}}\" ditolak untuk {{name}}.",
-        "toastCancelledNamed": "\"{{reward}}\" ditarik."
+        "toastCancelledNamed": "\"{{reward}}\" ditarik.",
+        "ledgerFilterLabel": "Saring menurut orang",
+        "bonusKindCredit": "Tambah",
+        "bonusKindDebit": "Kurangi",
+        "bonusKindLabel": "Tambah atau kurangi",
+        "bonusCredit": "Tambahkan",
+        "bonusDebit": "Kurangi",
+        "notEnoughPoints": "Poin tidak cukup untuk hadiah ini.",
+        "bonusPoints": "Poin"
     },
     "datepicker": {
         "openCalendar": "Buka kalender",
@@ -6534,7 +6603,6 @@
             "bag_one": "kantong",
             "bag_other": "kantong"
         },
-        "moreDetailsHint": "Stok minimum, catatan",
         "moreDetailsHint": "Stok minimum, catatan",
         "errorLocationGone": "Tempat penyimpanan ini sudah tidak ada.",
         "errorLocationExists": "Tempat penyimpanan ini sudah ada. Pilih nama lain.",
@@ -6706,7 +6774,8 @@
         "openAction": "Buka {{name}}",
         "limitReached": "Maksimal {{count}} dokumen.",
         "limitReached_one": "Maksimal {{count}} dokumen.",
-        "lockedPrivate": "Ada lampiran (pribadi)"
+        "lockedPrivate": "Ada lampiran (pribadi)",
+        "pickNone": "Pilih setidaknya satu dokumen."
     },
     "join": {
         "title": "Siapkan akun Anda",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "Nama tampilan paling banyak 128 karakter.",
         "previewFailed": "Undangan tidak dapat diperiksa saat ini. Silakan muat ulang halaman sebentar lagi.",
         "invalidTitle": "Undangan tidak valid",
-        "toLogin": "Ke halaman masuk"
+        "toLogin": "Ke halaman masuk",
+        "introNamed": "{{name}} mengundang Anda ke {{app}}. Tentukan data masuk Anda di sini."
     },
     "newLabel": {
         "tasks": "Tugas",
@@ -6763,7 +6833,8 @@
         "rewards": "Hadiah",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Jenis shift",
-        "schedulePlan": "Pola shift"
+        "schedulePlan": "Pola shift",
+        "healthOverview": "Catat"
     },
     "iconPicker": {
         "title": "Pilih ikon",
@@ -7002,5 +7073,27 @@
         "install": "aplikasi, layar utama, Dock",
         "push": "peringatan, notifikasi, pengingat, lonceng",
         "wallMode": "kios, tablet, layar dinding, layar penuh"
+    },
+    "colorPicker": {
+        "gray": "Abu-abu",
+        "blue": "Biru",
+        "green": "Hijau",
+        "ocher": "Oker",
+        "emerald": "Zamrud",
+        "fuchsia": "Fuchsia",
+        "red": "Merah",
+        "cyan": "Sian",
+        "orange": "Oranye",
+        "pink": "Merah muda",
+        "custom": "Warna sendiri",
+        "chooseCustom": "Pilih warna sendiri",
+        "standard": "Warna bawaan"
+    },
+    "browserTooOld": {
+        "pageTitle": "Browser terlalu lama",
+        "title": "Browser ini terlalu lama untuk Yuvomi",
+        "body": "Yuvomi memerlukan beberapa fitur yang belum dikenal browser ini. Datamu tidak terpengaruh.",
+        "versions": "Yuvomi berjalan mulai Chrome dan Edge {{chrome}}, Firefox {{firefox}}, dan Safari {{safari}}, serta di iPhone dan iPad mulai iOS {{ios}}.",
+        "action": "Perbarui browser atau perangkat, lalu coba lagi. Jika tidak bisa, buka Yuvomi di browser lain."
     }
 }

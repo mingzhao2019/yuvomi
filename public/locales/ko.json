@@ -110,7 +110,17 @@
         "errorNotOwner": "다른 사람이 만든 항목입니다. 볼 수는 있지만 바꿀 수는 없습니다.",
         "foreignReadOnlyHint": "{{name}}님이 만듦 - 볼 수는 있지만 바꿀 수는 없습니다.",
         "deletedNamed": "'{{name}}' 삭제했습니다.",
-        "sortMode": "순서 변경"
+        "sortMode": "순서 변경",
+        "createdNamed": "'{{name}}' 만들었습니다.",
+        "savedNamed": "'{{name}}' 저장했습니다.",
+        "everyNDays": "{{count}}일마다",
+        "everyNDays_one": "{{count}}일마다",
+        "everyNWeeks": "{{count}}주마다",
+        "everyNWeeks_one": "{{count}}주마다",
+        "everyNMonths": "{{count}}개월마다",
+        "everyNMonths_one": "{{count}}개월마다",
+        "everyNYears": "{{count}}년마다",
+        "everyNYears_one": "{{count}}년마다"
     },
     "kitchen": {
         "noShoppingLists": "아직 장보기 목록이 없습니다.",
@@ -472,7 +482,9 @@
         "todayTimelinePast": "종료됨",
         "todayTimelineRunning": "진행 중",
         "todayTimelineNext": "다음 일정",
-        "todayAlsoTitle": "오늘의 다른 일"
+        "todayAlsoTitle": "오늘의 다른 일",
+        "todayNothingPlanned": "아직 계획된 일정이 없습니다",
+        "todayNothingPlannedSub": "오늘의 일정, 할 일, 식사가 여기에 표시됩니다."
     },
     "tasks": {
         "resetOrder": "자동으로 정렬",
@@ -889,7 +901,9 @@
         "moveReturned": {
             "refused": "“{{item}}” 항목이 “{{back}}” 목록으로 돌아갔습니다. 서버가 “{{target}}” 목록에서 받아들이지 않았습니다.",
             "waited": "“{{item}}” 항목이 “{{target}}” 목록으로 옮겨지지 않았습니다. “{{back}}” 목록의 동기화가 일주일 넘게 꺼져 있습니다. 목록을 켜면 “{{back}}”에 다시 나타납니다."
-        }
+        },
+        "moreDetailsHint": "가격, 매장, 링크, 메모",
+        "toPantryAllToPlaceholder": "장소 선택 …"
     },
     "meals": {
         "ingredientCount_one": "재료 {{count}}개",
@@ -987,7 +1001,8 @@
         "openRecipeNamed": "{{title}} 레시피 열기",
         "viewRecipeNamed": "{{title}} 레시피 보기",
         "recipeIngredientsLabel": "레시피 재료",
-        "recipeIngredientsEdit": "조정"
+        "recipeIngredientsEdit": "조정",
+        "moreDetailsHint": "레시피, 메모, 링크"
     },
     "calendar": {
         "searchOpen": "일정 검색",
@@ -1995,7 +2010,11 @@
         "ledgerAccountsAll": "모든 계좌",
         "showAccountTransactions": "거래 내역 보기",
         "summaryTransfersIn": "입금",
-        "summaryTransfersOut": "출금"
+        "summaryTransfersOut": "출금",
+        "transferDefaultTitle": "이체 {{from}} → {{to}}",
+        "transferMoreDetailsHint": "카테고리와 반복",
+        "loanMoreDetailsHint": "제목, 계좌, 통화 및 메모",
+        "entryMoreDetailsHint": "반복, 담당자 및 영수증"
     },
     "settings": {
         "healthCycleEnableLabel": "가구에 주기 제공",
@@ -3271,7 +3290,9 @@
             "presetHintRoleLimited": "{{role}} 역할이 잠그는 항목: {{modules}}.",
             "presetHintUnavailable": "지금은 정확한 효과를 표시할 수 없습니다. 템플릿은 그대로 적용됩니다.",
             "presetHintRoleChild": "{{role}} 역할은 어떤 모듈도 막지 않습니다. 위의 자녀 시작 권한이 추가로 적용됩니다.",
-            "presetHintChildExtra": "위의 자녀 시작 권한이 추가로 적용됩니다."
+            "presetHintChildExtra": "위의 자녀 시작 권한이 추가로 적용됩니다.",
+            "done": "완료",
+            "untitled": "대기 중인 초대"
         },
         "healthCaregiversLabel": "건강 데이터를 기록할 수 있음",
         "healthCaregiversHint": "이 사람들은 이 구성원의 활력징후, 약, 검사 결과, 활동을 기록할 수 있으며 그 과정에서 비공개 기록도 볼 수 있습니다. 주기 일기는 제외됩니다.",
@@ -3668,7 +3689,9 @@
         "remoteErrorAuthFailed": "서버가 로그인을 거부했습니다. 사용자 이름과 비밀번호를 확인하세요.",
         "remoteErrorStatus": "서버가 상태 {{status}}(으)로 응답했습니다.",
         "remoteErrorUnreachable": "서버에 연결할 수 없습니다. 주소와 서버가 실행 중인지 확인하세요.",
-        "remoteErrorFailed": "서버 요청이 실패했습니다."
+        "remoteErrorFailed": "서버 요청이 실패했습니다.",
+        "modulesInMyNavigation": "내 탐색에 {{module}} 표시",
+        "modulesKitchenInMyNavigation": "내 탐색에 주방 표시"
     },
     "login": {
         "tagline": "다시 오신 것을 환영합니다. 우리 집의 모든 일을 한곳에서.",
@@ -3703,7 +3726,8 @@
         "twoFactorCancel": "취소",
         "ssoOnlyHint": "이 가정의 로그인은 SSO로만 이루어집니다.",
         "guestPasswordLogin": "비밀번호로 게스트 로그인",
-        "accountCannotSignIn": "이 계정은 로그인할 수 없습니다. 가정의 관리자에게 문의해 주세요."
+        "accountCannotSignIn": "이 계정은 로그인할 수 없습니다. 가정의 관리자에게 문의해 주세요.",
+        "invalidCredentialsAskAdmin": "잘못된 로그인 정보입니다. 비밀번호를 잊으셨나요? 가정의 관리자가 새 비밀번호를 설정할 수 있습니다."
     },
     "setup": {
         "title": "Yuvomi에 오신 것을 환영합니다",
@@ -3964,7 +3988,18 @@
         "ingredientMatchEmpty": "재고가 아직 비어 있습니다.",
         "ingredientMatchSaved": "연결을 저장했습니다.",
         "ingredientMatchCleared": "연결을 해제했습니다.",
-        "ingredientMatchLoadError": "재고를 불러오지 못했습니다."
+        "ingredientMatchLoadError": "재고를 불러오지 못했습니다.",
+        "errorIngredientsChanged": "그사이 레시피가 변경되었습니다. 재료를 확인하고 다시 추가하세요.",
+        "servingsLabel": "인분",
+        "servingsMultipleLabel": "분량",
+        "servingsFewer": "인분 줄이기",
+        "servingsMore": "인분 늘리기",
+        "servingsLess": "분량 줄이기",
+        "servingsMoreMultiple": "분량 늘리기",
+        "servingsHint": "재료 양이 몇 인분 기준인지 적습니다. 모르면 비워 두세요.",
+        "servingsInvalid": "1부터 99까지의 정수입니다.",
+        "moreDetailsHint": "메모, 이미지, 링크",
+        "servingsTimes": "× {{value}}"
     },
     "onboarding": {
         "step1Title": "{{name}}에 오신 것을 환영합니다",
@@ -3985,7 +4020,8 @@
         "staleData": "오프라인 - 기준: {{time}}",
         "pageTitle": "오프라인 상태입니다",
         "pageDescription": "이 페이지는 연결이 필요합니다. 기기가 다시 온라인이 되면 자동으로 불러옵니다.",
-        "snapshot": "서버에 연결할 수 없음 - 저장된 데이터, 읽기 전용"
+        "snapshot": "서버에 연결할 수 없음 - 저장된 데이터, 읽기 전용",
+        "unreachableBody": "지금은 Yuvomi에 연결할 수 없습니다. 기기가 네트워크에 연결되어 있고 서버가 실행 중인지 확인한 뒤 다시 시도하세요."
     },
     "emptyHint": {
         "tasks": "+ 를 탭하여 첫 할 일을 만드세요. 카드를 왼쪽으로 밀면 완료, 오른쪽으로 밀면 보기가 열립니다.",
@@ -4524,7 +4560,17 @@
         "checkedOutNamed": "{{name}} 님이 체크아웃했습니다.",
         "visitToday": "오늘 근무: {{from}} - {{to}}",
         "checkInAgain": "다시 체크인",
-        "checkedInNamed": "{{name}} 님이 체크인했습니다."
+        "checkedInNamed": "{{name}} 님이 체크인했습니다.",
+        "taskDoneNamed": "'{{name}}' 완료했습니다.",
+        "visitDeletedNamed": "{{date}} 방문을 삭제했습니다.",
+        "visitPaidNamed": "{{date}} 방문을 지급 완료했습니다.",
+        "visitUnpaidNamed": "{{date}} 방문의 지급을 취소했습니다.",
+        "workerMoreHint": "연락처, 생일, 색상, 메모",
+        "markPaidNamed": "{{date}} 방문을 지급 완료로 표시",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, 그중 {{pending}} 미지급",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, 모두 지급됨",
+        "taskTemplatesHint": "탭하면 추가됩니다.",
+        "markPaidShort": "지급 완료"
     },
     "splitExpenses": {
         "title": "공동 지출",
@@ -4718,7 +4764,10 @@
         "paidLabel": "결제액",
         "totalsByCategory": "카테고리별",
         "categoryFilter": "카테고리로 지출 필터링",
-        "noExpensesInCategory": "이 카테고리에는 지출이 없습니다."
+        "noExpensesInCategory": "이 카테고리에는 지출이 없습니다.",
+        "noCategory": "카테고리 없음",
+        "participantsRequired": "한 명 이상 선택하세요.",
+        "moreDetailsHint": "메모와 영수증"
     },
     "wmo": {
         "0": "맑음",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} 보관됨 - 계좌 없이 기록",
         "visibilityHint_private": "이 구독과 결제 내역은 나만 볼 수 있습니다.",
         "visibilityHint_shared": "가구의 모든 구성원이 이 구독과 결제 내역을 볼 수 있습니다.",
-        "errorAccountGone": "선택한 계좌가 더 이상 존재하지 않습니다."
+        "errorAccountGone": "선택한 계좌가 더 이상 존재하지 않습니다.",
+        "moreDetailsHint": "카테고리, 결제 수단, 색상 및 메모"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "아직 기록된 내용이 없습니다"
             },
             "vitals": {
-                "title": "최근 생체 신호"
+                "title": "최근 생체 신호",
+                "recentTitle": "최근 측정"
             },
             "quick": {
                 "title": "빠른 기록",
@@ -5500,7 +5551,8 @@
                 "title": "추이",
                 "analyte": "분석물질",
                 "tooFew": "추이를 표시하려면 최소 두 개의 소견이 필요합니다.",
-                "unit": "단위: {{unit}}"
+                "unit": "단위: {{unit}}",
+                "showFor": "{{name}} 추이 보기"
             },
             "field": {
                 "reportDate": "소견 날짜",
@@ -6278,7 +6330,16 @@
         "colorPink": "분홍",
         "colorCurrent": "현재 색상",
         "intervalDecrease": "간격 줄이기",
-        "intervalIncrease": "간격 늘리기"
+        "intervalIncrease": "간격 늘리기",
+        "scheduleSavedNamed": "'{{name}}' 일정을 저장했습니다.",
+        "pickupSavedNamed": "'{{name}}' 수거를 저장했습니다.",
+        "intervalLabel": "간격",
+        "scheduleDeletedNamed": "'{{name}}' 일정을 삭제했습니다.",
+        "pickupDeletedNamed": "'{{name}}' 수거를 삭제했습니다.",
+        "typeArchivedNamed": "'{{name}}' 보관했습니다.",
+        "typeRestoredNamed": "'{{name}}' 복원했습니다.",
+        "typesWithoutSchedule": "일정 없음",
+        "putOutToday": "오늘 내놓기"
     },
     "rewards": {
         "title": "보상",
@@ -6433,7 +6494,15 @@
         "ownLedger": "내 내역",
         "toastApprovedNamed": "{{name}} 님의 '{{reward}}'을 승인했습니다.",
         "toastRejectedNamed": "{{name}} 님의 '{{reward}}'을 거절했습니다.",
-        "toastCancelledNamed": "'{{reward}}' 요청을 취소했습니다."
+        "toastCancelledNamed": "'{{reward}}' 요청을 취소했습니다.",
+        "ledgerFilterLabel": "사람별 필터",
+        "bonusKindCredit": "적립",
+        "bonusKindDebit": "차감",
+        "bonusKindLabel": "적립 또는 차감",
+        "bonusCredit": "적립",
+        "bonusDebit": "차감",
+        "notEnoughPoints": "이 상품에 필요한 포인트가 부족합니다.",
+        "bonusPoints": "포인트"
     },
     "datepicker": {
         "openCalendar": "캘린더 열기",
@@ -6534,7 +6603,6 @@
             "bag_one": "봉지",
             "bag_other": "봉지"
         },
-        "moreDetailsHint": "최소 재고, 메모",
         "moreDetailsHint": "최소 재고, 메모",
         "errorLocationGone": "이 보관 장소는 더 이상 없습니다.",
         "errorLocationExists": "이 보관 장소는 이미 있습니다. 다른 이름을 선택하세요.",
@@ -6706,7 +6774,8 @@
         "openAction": "{{name}} 열기",
         "limitReached": "문서는 최대 {{count}}개입니다.",
         "limitReached_one": "문서는 최대 {{count}}개입니다.",
-        "lockedPrivate": "첨부 파일 있음(비공개)"
+        "lockedPrivate": "첨부 파일 있음(비공개)",
+        "pickNone": "문서를 하나 이상 선택하세요."
     },
     "join": {
         "title": "계정 설정",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "표시 이름은 최대 128자까지 가능합니다.",
         "previewFailed": "지금은 초대를 확인할 수 없습니다. 잠시 후 페이지를 새로 고쳐 주세요.",
         "invalidTitle": "유효하지 않은 초대",
-        "toLogin": "로그인으로 이동"
+        "toLogin": "로그인으로 이동",
+        "introNamed": "{{name}}님이 {{app}}에 초대했습니다. 여기에서 로그인 정보를 설정하세요."
     },
     "newLabel": {
         "tasks": "할 일",
@@ -6763,7 +6833,8 @@
         "rewards": "상품",
         "rewardsBonus": "보너스",
         "scheduleShiftType": "근무 유형",
-        "schedulePlan": "근무 패턴"
+        "schedulePlan": "근무 패턴",
+        "healthOverview": "기록"
     },
     "iconPicker": {
         "title": "아이콘 선택",
@@ -7002,5 +7073,27 @@
         "install": "앱, 홈 화면, Dock",
         "push": "알림, 경고, 미리 알림, 벨",
         "wallMode": "키오스크, 태블릿, 벽걸이 화면, 전체 화면"
+    },
+    "colorPicker": {
+        "gray": "회색",
+        "blue": "파랑",
+        "green": "초록",
+        "ocher": "황토색",
+        "emerald": "에메랄드",
+        "fuchsia": "푸크시아",
+        "red": "빨강",
+        "cyan": "시안",
+        "orange": "주황",
+        "pink": "분홍",
+        "custom": "사용자 지정 색상",
+        "chooseCustom": "사용자 지정 색상 선택",
+        "standard": "기본 색상"
+    },
+    "browserTooOld": {
+        "pageTitle": "브라우저가 너무 오래되었습니다",
+        "title": "이 브라우저는 Yuvomi를 쓰기에 너무 오래되었습니다",
+        "body": "Yuvomi에는 이 브라우저가 아직 지원하지 않는 기능이 필요합니다. 데이터에는 영향이 없습니다.",
+        "versions": "Yuvomi는 Chrome 및 Edge {{chrome}}, Firefox {{firefox}}, Safari {{safari}} 이상, iPhone과 iPad에서는 iOS {{ios}} 이상에서 작동합니다.",
+        "action": "브라우저나 기기를 업데이트한 뒤 다시 시도하세요. 업데이트할 수 없다면 다른 브라우저에서 Yuvomi를 여세요."
     }
 }

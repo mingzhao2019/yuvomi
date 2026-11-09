@@ -110,7 +110,17 @@
         "errorNotOwner": "Lo creó otra persona: puedes verlo, pero no cambiarlo.",
         "foreignReadOnlyHint": "Creado por {{name}}: puedes verlo, pero no cambiarlo.",
         "deletedNamed": "«{{name}}» eliminado.",
-        "sortMode": "Cambiar orden"
+        "sortMode": "Cambiar orden",
+        "createdNamed": "«{{name}}» creado.",
+        "savedNamed": "«{{name}}» guardado.",
+        "everyNDays": "Cada {{count}} días",
+        "everyNDays_one": "Cada {{count}} día",
+        "everyNWeeks": "Cada {{count}} semanas",
+        "everyNWeeks_one": "Cada {{count}} semana",
+        "everyNMonths": "Cada {{count}} meses",
+        "everyNMonths_one": "Cada {{count}} mes",
+        "everyNYears": "Cada {{count}} años",
+        "everyNYears_one": "Cada {{count}} año"
     },
     "kitchen": {
         "noShoppingLists": "Todavía no hay lista de la compra.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "terminado",
         "todayTimelineRunning": "en curso",
         "todayTimelineNext": "lo siguiente",
-        "todayAlsoTitle": "También hoy"
+        "todayAlsoTitle": "También hoy",
+        "todayNothingPlanned": "Nada planificado todavía",
+        "todayNothingPlannedSub": "Las citas, tareas y comidas de hoy aparecerán aquí."
     },
     "tasks": {
         "resetOrder": "Ordenar automáticamente",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "«{{item}}» ha vuelto a «{{back}}»: el servidor no lo aceptó en «{{target}}».",
             "waited": "«{{item}}» no se ha movido a «{{target}}»: la sincronización de «{{back}}» lleva más de una semana desactivada. El artículo volverá a aparecer en «{{back}}» en cuanto actives esa lista."
-        }
+        },
+        "moreDetailsHint": "Precio, tienda, enlace, nota",
+        "toPantryAllToPlaceholder": "Elige un lugar …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} ingrediente",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "Abrir la receta de {{title}}",
         "viewRecipeNamed": "Ver la receta de {{title}}",
         "recipeIngredientsLabel": "Ingredientes de la receta",
-        "recipeIngredientsEdit": "Ajustar"
+        "recipeIngredientsEdit": "Ajustar",
+        "moreDetailsHint": "Receta, notas, enlace"
     },
     "calendar": {
         "searchOpen": "Buscar eventos",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "Todas las cuentas",
         "showAccountTransactions": "Ver movimientos",
         "summaryTransfersIn": "Entrantes",
-        "summaryTransfersOut": "Salientes"
+        "summaryTransfersOut": "Salientes",
+        "transferDefaultTitle": "Transferencia {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Categoría y repetición",
+        "loanMoreDetailsHint": "Título, cuenta, moneda y notas",
+        "entryMoreDetailsHint": "Repetición, responsables y recibos"
     },
     "settings": {
         "healthCycleEnableLabel": "Ofrecer el ciclo en el hogar",
@@ -3253,7 +3272,9 @@
             "presetHintRoleLimited": "El rol {{role}} bloquea: {{modules}}.",
             "presetHintUnavailable": "Ahora mismo no se puede mostrar el efecto exacto. La plantilla se aplica igualmente.",
             "presetHintRoleChild": "El rol {{role}} no bloquea ningún módulo. Se suman los permisos iniciales para niños de arriba.",
-            "presetHintChildExtra": "Se suman los permisos iniciales para niños de arriba."
+            "presetHintChildExtra": "Se suman los permisos iniciales para niños de arriba.",
+            "done": "Hecho",
+            "untitled": "Invitación pendiente"
         },
         "healthCaregiversLabel": "Puede registrar datos de salud",
         "healthCaregiversHint": "Estas personas pueden registrar constantes, medicamentos, resultados de laboratorio y actividades para este miembro, y ver sus entradas privadas al hacerlo. El diario del ciclo queda excluido.",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "El servidor rechazó el inicio de sesión. Comprueba el nombre de usuario y la contraseña.",
         "remoteErrorStatus": "El servidor respondió con el estado {{status}}.",
         "remoteErrorUnreachable": "No se puede acceder al servidor. Comprueba la dirección y si el servidor está en marcha.",
-        "remoteErrorFailed": "La solicitud al servidor ha fallado."
+        "remoteErrorFailed": "La solicitud al servidor ha fallado.",
+        "modulesInMyNavigation": "{{module}} en mi navegación",
+        "modulesKitchenInMyNavigation": "Cocina en mi navegación"
     },
     "login": {
         "tagline": "Bienvenido de nuevo. Tu hogar en un solo lugar.",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "Cancelar",
         "ssoOnlyHint": "El acceso a este hogar se realiza exclusivamente mediante SSO.",
         "guestPasswordLogin": "Acceso de invitado con contraseña",
-        "accountCannotSignIn": "Esta cuenta no puede iniciar sesión. Ponte en contacto con la administración de tu hogar."
+        "accountCannotSignIn": "Esta cuenta no puede iniciar sesión. Ponte en contacto con la administración de tu hogar.",
+        "invalidCredentialsAskAdmin": "Credenciales incorrectas. ¿Olvidaste la contraseña? La administración de tu hogar puede asignarte una nueva."
     },
     "setup": {
         "title": "Bienvenido a Yuvomi",
@@ -3828,7 +3852,18 @@
         "ingredientMatchEmpty": "La despensa aún está vacía.",
         "ingredientMatchSaved": "Asignación guardada.",
         "ingredientMatchCleared": "Asignación eliminada.",
-        "ingredientMatchLoadError": "No se pudo cargar la despensa."
+        "ingredientMatchLoadError": "No se pudo cargar la despensa.",
+        "errorIngredientsChanged": "La receta ha cambiado mientras tanto. Revisa los ingredientes y vuelve a añadirlos.",
+        "servingsLabel": "Raciones",
+        "servingsMultipleLabel": "Cantidad",
+        "servingsFewer": "Menos raciones",
+        "servingsMore": "Más raciones",
+        "servingsLess": "Reducir cantidad",
+        "servingsMoreMultiple": "Aumentar cantidad",
+        "servingsHint": "Para cuántas raciones son las cantidades. Déjalo vacío si no lo sabes.",
+        "servingsInvalid": "Un número entero del 1 al 99.",
+        "moreDetailsHint": "Notas, imagen, enlace",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Escribe para ir a una sección o crear algo. Desde 2 caracteres también encuentras tus entradas, incluso por partes de palabras.",
@@ -3985,7 +4020,8 @@
         "staleData": "Sin conexión: datos del {{time}}",
         "pageTitle": "Estás sin conexión",
         "pageDescription": "Esta página necesita conexión. En cuanto tu dispositivo vuelva a estar en línea, se cargará sola.",
-        "snapshot": "Sin conexión con el servidor - datos guardados, solo lectura"
+        "snapshot": "Sin conexión con el servidor - datos guardados, solo lectura",
+        "unreachableBody": "Yuvomi no está disponible en este momento. Comprueba que tu dispositivo tenga conexión y que el servidor esté funcionando, y vuelve a intentarlo."
     },
     "emptyHint": {
         "recipes": "Una receta pasa directamente al plan de comidas o a la lista de la compra.",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "Salida de {{name}} registrada.",
         "visitToday": "Hoy aquí: {{from}} - {{to}}",
         "checkInAgain": "Registrar entrada de nuevo",
-        "checkedInNamed": "Entrada de {{name}} registrada."
+        "checkedInNamed": "Entrada de {{name}} registrada.",
+        "taskDoneNamed": "«{{name}}» hecho.",
+        "visitDeletedNamed": "Servicio del {{date}} eliminado.",
+        "visitPaidNamed": "Servicio del {{date}} pagado.",
+        "visitUnpaidNamed": "Pago del servicio del {{date}} deshecho.",
+        "workerMoreHint": "Contacto, cumpleaños, colores, notas",
+        "markPaidNamed": "Marcar la visita del {{date}} como pagada",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, de los cuales {{pending}} pendientes",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, todo pagado",
+        "taskTemplatesHint": "Toca una para añadirla.",
+        "markPaidShort": "Pagado"
     },
     "userMultiSelect": {
         "moreUsers": "más",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Pagado",
         "totalsByCategory": "Por categoría",
         "categoryFilter": "Filtrar gastos por categoría",
-        "noExpensesInCategory": "No hay gastos en esta categoría."
+        "noExpensesInCategory": "No hay gastos en esta categoría.",
+        "noCategory": "Sin categoría",
+        "participantsRequired": "Elige al menos una persona.",
+        "moreDetailsHint": "Notas y recibos"
     },
     "wmo": {
         "0": "Cielo despejado",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} archivada - se registra sin cuenta",
         "visibilityHint_private": "Solo tú ves esta suscripción y sus pagos.",
         "visibilityHint_shared": "Todo el hogar ve esta suscripción y sus pagos.",
-        "errorAccountGone": "La cuenta seleccionada ya no existe."
+        "errorAccountGone": "La cuenta seleccionada ya no existe.",
+        "moreDetailsHint": "Categoría, método de pago, color y notas"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Aún no hay registros"
             },
             "vitals": {
-                "title": "Últimas constantes"
+                "title": "Últimas constantes",
+                "recentTitle": "Última medición"
             },
             "quick": {
                 "title": "Registro rápido",
@@ -5500,7 +5551,8 @@
                 "title": "Evolución",
                 "analyte": "Parámetro",
                 "tooFew": "Se necesitan al menos dos informes para mostrar una evolución.",
-                "unit": "Unidad: {{unit}}"
+                "unit": "Unidad: {{unit}}",
+                "showFor": "Mostrar evolución de {{name}}"
             },
             "field": {
                 "reportDate": "Fecha del informe",
@@ -6278,7 +6330,16 @@
         "colorPink": "Rosa",
         "colorCurrent": "Color actual",
         "intervalDecrease": "Reducir intervalo",
-        "intervalIncrease": "Aumentar intervalo"
+        "intervalIncrease": "Aumentar intervalo",
+        "scheduleSavedNamed": "Horario de «{{name}}» guardado.",
+        "pickupSavedNamed": "Recogida de «{{name}}» guardada.",
+        "intervalLabel": "Intervalo",
+        "scheduleDeletedNamed": "Horario de «{{name}}» eliminado.",
+        "pickupDeletedNamed": "Recogida de «{{name}}» eliminada.",
+        "typeArchivedNamed": "«{{name}}» archivado.",
+        "typeRestoredNamed": "«{{name}}» restaurado.",
+        "typesWithoutSchedule": "Sin horario",
+        "putOutToday": "Sacar hoy"
     },
     "rewards": {
         "title": "Recompensas",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Tus movimientos",
         "toastApprovedNamed": "«{{reward}}» aprobado para {{name}}.",
         "toastRejectedNamed": "«{{reward}}» rechazado para {{name}}.",
-        "toastCancelledNamed": "«{{reward}}» retirado."
+        "toastCancelledNamed": "«{{reward}}» retirado.",
+        "ledgerFilterLabel": "Filtrar por persona",
+        "bonusKindCredit": "Abono",
+        "bonusKindDebit": "Descuento",
+        "bonusKindLabel": "Abono o descuento",
+        "bonusCredit": "Abonar",
+        "bonusDebit": "Descontar",
+        "notEnoughPoints": "No hay puntos suficientes para este premio.",
+        "bonusPoints": "Puntos"
     },
     "datepicker": {
         "openCalendar": "Abrir calendario",
@@ -6534,7 +6603,6 @@
             "bag_one": "bolsa",
             "bag_other": "bolsas"
         },
-        "moreDetailsHint": "Existencias mínimas, notas",
         "moreDetailsHint": "Existencias mínimas, notas",
         "errorLocationGone": "Este lugar de almacenamiento ya no existe.",
         "errorLocationExists": "Este lugar de almacenamiento ya existe. Elige otro nombre.",
@@ -6706,7 +6774,8 @@
         "openAction": "Abrir {{name}}",
         "limitReached": "Como máximo {{count}} documentos.",
         "limitReached_one": "Como máximo {{count}} documento.",
-        "lockedPrivate": "Adjunto presente (privado)"
+        "lockedPrivate": "Adjunto presente (privado)",
+        "pickNone": "Elige al menos un documento."
     },
     "join": {
         "title": "Configura tu cuenta",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "El nombre visible puede tener como máximo 128 caracteres.",
         "previewFailed": "No se ha podido comprobar la invitación en este momento. Vuelve a cargar la página en unos instantes.",
         "invalidTitle": "Invitación no válida",
-        "toLogin": "Ir al inicio de sesión"
+        "toLogin": "Ir al inicio de sesión",
+        "introNamed": "{{name}} te ha invitado a {{app}}. Define aquí tus datos de acceso."
     },
     "newLabel": {
         "tasks": "Tarea",
@@ -6763,7 +6833,8 @@
         "rewards": "Premio",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Tipo de turno",
-        "schedulePlan": "Rotación"
+        "schedulePlan": "Rotación",
+        "healthOverview": "Registrar"
     },
     "iconPicker": {
         "title": "Elegir icono",
@@ -7002,5 +7073,27 @@
         "install": "app, pantalla de inicio, Dock",
         "push": "avisos, notificaciones, recordatorios, campana",
         "wallMode": "quiosco, tableta, pantalla de pared, pantalla completa"
+    },
+    "colorPicker": {
+        "gray": "Gris",
+        "blue": "Azul",
+        "green": "Verde",
+        "ocher": "Ocre",
+        "emerald": "Esmeralda",
+        "fuchsia": "Fucsia",
+        "red": "Rojo",
+        "cyan": "Cian",
+        "orange": "Naranja",
+        "pink": "Rosa",
+        "custom": "Color personalizado",
+        "chooseCustom": "Elegir un color personalizado",
+        "standard": "Color predeterminado"
+    },
+    "browserTooOld": {
+        "pageTitle": "Navegador demasiado antiguo",
+        "title": "Este navegador es demasiado antiguo para Yuvomi",
+        "body": "Yuvomi necesita algunas funciones que este navegador aún no tiene. Tus datos no se ven afectados.",
+        "versions": "Yuvomi funciona desde Chrome y Edge {{chrome}}, Firefox {{firefox}} y Safari {{safari}}, y en iPhone y iPad desde iOS {{ios}}.",
+        "action": "Actualiza el navegador o el dispositivo y vuelve a intentarlo. Si no es posible, abre Yuvomi en otro navegador."
     }
 }

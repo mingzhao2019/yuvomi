@@ -111,7 +111,21 @@
         "errorNotOwner": "Tohle vytvořil někdo jiný - můžete to zobrazit, ale ne změnit.",
         "foreignReadOnlyHint": "Vytvořil(a) {{name}} - můžete to zobrazit, ale ne změnit.",
         "deletedNamed": "„{{name}}“ smazáno.",
-        "sortMode": "Změnit pořadí"
+        "sortMode": "Změnit pořadí",
+        "createdNamed": "„{{name}}“ vytvořeno.",
+        "savedNamed": "„{{name}}“ uloženo.",
+        "everyNDays": "Jednou za {{count}} dní",
+        "everyNDays_one": "Jednou za {{count}} den",
+        "everyNDays_few": "Jednou za {{count}} dny",
+        "everyNWeeks": "Jednou za {{count}} týdnů",
+        "everyNWeeks_one": "Jednou za {{count}} týden",
+        "everyNWeeks_few": "Jednou za {{count}} týdny",
+        "everyNMonths": "Jednou za {{count}} měsíců",
+        "everyNMonths_one": "Jednou za {{count}} měsíc",
+        "everyNMonths_few": "Jednou za {{count}} měsíce",
+        "everyNYears": "Jednou za {{count}} let",
+        "everyNYears_one": "Jednou za {{count}} rok",
+        "everyNYears_few": "Jednou za {{count}} roky"
     },
     "kitchen": {
         "noShoppingLists": "Nákupní seznam ještě neexistuje.",
@@ -499,7 +513,9 @@
         "todayTimelinePast": "skončilo",
         "todayTimelineRunning": "právě probíhá",
         "todayTimelineNext": "jako další",
-        "todayAlsoTitle": "Dnes také"
+        "todayAlsoTitle": "Dnes také",
+        "todayNothingPlanned": "Zatím nic naplánováno",
+        "todayNothingPlannedSub": "Dnešní události, úkoly a jídla se objeví tady."
     },
     "tasks": {
         "resetOrder": "Řadit automaticky",
@@ -941,7 +957,9 @@
         "moveReturned": {
             "refused": "Položka „{{item}}“ je zpět v seznamu „{{back}}“: server ji v seznamu „{{target}}“ nepřijal.",
             "waited": "Položka „{{item}}“ nebyla přesunuta do seznamu „{{target}}“: synchronizace seznamu „{{back}}“ je přes týden vypnutá. Položka se v seznamu „{{back}}“ znovu objeví, jakmile ho zapnete."
-        }
+        },
+        "moreDetailsHint": "Cena, obchod, odkaz, poznámka",
+        "toPantryAllToPlaceholder": "Vyberte místo …"
     },
     "meals": {
         "randomizeSuccess_few": "Naplánována {{count}} jídla.",
@@ -1044,7 +1062,8 @@
         "openRecipeNamed": "Otevřít recept: {{title}}",
         "viewRecipeNamed": "Zobrazit recept: {{title}}",
         "recipeIngredientsLabel": "Suroviny z receptu",
-        "recipeIngredientsEdit": "Upravit"
+        "recipeIngredientsEdit": "Upravit",
+        "moreDetailsHint": "Recept, poznámky, odkaz"
     },
     "calendar": {
         "searchOpen": "Hledat události",
@@ -2065,7 +2084,11 @@
         "ledgerAccountsAll": "Všechny účty",
         "showAccountTransactions": "Zobrazit pohyby účtu",
         "summaryTransfersIn": "Příchozí",
-        "summaryTransfersOut": "Odchozí"
+        "summaryTransfersOut": "Odchozí",
+        "transferDefaultTitle": "Převod {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategorie a opakování",
+        "loanMoreDetailsHint": "Název, účet, měna a poznámky",
+        "entryMoreDetailsHint": "Opakování, odpovědní a účtenky"
     },
     "settings": {
         "healthCycleEnableLabel": "Nabídnout cyklus v domácnosti",
@@ -3352,7 +3375,9 @@
             "presetHintRoleLimited": "Role {{role}} zamyká: {{modules}}.",
             "presetHintUnavailable": "Přesný účinek teď nelze zobrazit. Šablona přesto platí.",
             "presetHintRoleChild": "Role {{role}} neblokuje žádný modul. Navíc platí počáteční oprávnění pro děti výše.",
-            "presetHintChildExtra": "Navíc platí počáteční oprávnění pro děti výše."
+            "presetHintChildExtra": "Navíc platí počáteční oprávnění pro děti výše.",
+            "done": "Hotovo",
+            "untitled": "Otevřená pozvánka"
         },
         "healthCaregiversLabel": "Může zadávat zdravotní údaje",
         "healthCaregiversHint": "Tyto osoby mohou za tohoto člena zadávat vitální hodnoty, léky, laboratorní výsledky a aktivity a přitom vidí i jeho soukromé záznamy. Deník cyklu zůstává vyňat.",
@@ -3765,7 +3790,9 @@
         "remoteErrorAuthFailed": "Server odmítl přihlášení. Zkontrolujte uživatelské jméno a heslo.",
         "remoteErrorStatus": "Server odpověděl stavem {{status}}.",
         "remoteErrorUnreachable": "Server není dostupný. Zkontrolujte adresu a zda server běží.",
-        "remoteErrorFailed": "Požadavek na server selhal."
+        "remoteErrorFailed": "Požadavek na server selhal.",
+        "modulesInMyNavigation": "{{module}} v mé navigaci",
+        "modulesKitchenInMyNavigation": "Kuchyně v mé navigaci"
     },
     "login": {
         "tagline": "Vítejte zpět. Váš domov na jednom místě.",
@@ -3800,7 +3827,8 @@
         "twoFactorCancel": "Zrušit",
         "ssoOnlyHint": "Přihlášení do této domácnosti probíhá výhradně přes SSO.",
         "guestPasswordLogin": "Přihlášení hosta heslem",
-        "accountCannotSignIn": "Tento účet se nemůže přihlásit. Obraťte se na správce vaší domácnosti."
+        "accountCannotSignIn": "Tento účet se nemůže přihlásit. Obraťte se na správce vaší domácnosti.",
+        "invalidCredentialsAskAdmin": "Neplatné přihlašovací údaje. Zapomněl jsi heslo? Nové ti nastaví správce domácnosti."
     },
     "setup": {
         "title": "Vítejte v Yuvomi",
@@ -3935,7 +3963,8 @@
         "staleData": "Offline - stav: {{time}}",
         "pageTitle": "Jsi offline",
         "pageDescription": "Tato stránka potřebuje připojení. Jakmile bude zařízení opět online, načte se sama.",
-        "snapshot": "Bez připojení k serveru - uložený stav, jen pro čtení"
+        "snapshot": "Bez připojení k serveru - uložený stav, jen pro čtení",
+        "unreachableBody": "Yuvomi teď není dostupné. Zkontroluj, že je zařízení online a server běží, a zkus to znovu."
     },
     "onboarding": {
         "step1Title": "Vítejte v {{name}}",
@@ -4143,7 +4172,17 @@
         "checkedOutNamed": "{{name}} - odhlášeno.",
         "visitToday": "Dnes přítomnost: {{from}} - {{to}}",
         "checkInAgain": "Znovu přihlásit",
-        "checkedInNamed": "{{name}} - přihlášeno."
+        "checkedInNamed": "{{name}} - přihlášeno.",
+        "taskDoneNamed": "„{{name}}“ hotovo.",
+        "visitDeletedNamed": "Návštěva z {{date}} smazána.",
+        "visitPaidNamed": "Návštěva z {{date}} zaplacena.",
+        "visitUnpaidNamed": "Zaplacení návštěvy z {{date}} zrušeno.",
+        "workerMoreHint": "Kontakt, narozeniny, barvy, poznámky",
+        "markPaidNamed": "Označit návštěvu z {{date}} jako zaplacenou",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, z toho {{pending}} nezaplaceno",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, vše zaplaceno",
+        "taskTemplatesHint": "Klepnutím ji přidáte.",
+        "markPaidShort": "Zaplaceno"
     },
     "splitExpenses": {
         "title": "Společné výdaje",
@@ -4341,7 +4380,10 @@
         "paidLabel": "Zaplaceno",
         "totalsByCategory": "Podle kategorie",
         "categoryFilter": "Filtrovat výdaje podle kategorie",
-        "noExpensesInCategory": "V této kategorii nejsou žádné výdaje."
+        "noExpensesInCategory": "V této kategorii nejsou žádné výdaje.",
+        "noCategory": "Bez kategorie",
+        "participantsRequired": "Vyber alespoň jednu osobu.",
+        "moreDetailsHint": "Poznámky a účtenky"
     },
     "documents": {
         "title": "Dokumenty",
@@ -4850,7 +4892,18 @@
         "ingredientMatchEmpty": "Spíž je zatím prázdná.",
         "ingredientMatchSaved": "Přiřazení uloženo.",
         "ingredientMatchCleared": "Přiřazení zrušeno.",
-        "ingredientMatchLoadError": "Spíž se nepodařilo načíst."
+        "ingredientMatchLoadError": "Spíž se nepodařilo načíst.",
+        "errorIngredientsChanged": "Recept se mezitím změnil. Zkontroluj suroviny a přidej je znovu.",
+        "servingsLabel": "Porce",
+        "servingsMultipleLabel": "Množství",
+        "servingsFewer": "Méně porcí",
+        "servingsMore": "Více porcí",
+        "servingsLess": "Snížit množství",
+        "servingsMoreMultiple": "Zvýšit množství",
+        "servingsHint": "Pro kolik porcí platí množství. Nechte prázdné, pokud nevíte.",
+        "servingsInvalid": "Celé číslo od 1 do 99.",
+        "moreDetailsHint": "Poznámky, obrázek, odkaz",
+        "servingsTimes": "× {{value}}"
     },
     "wmo": {
         "0": "Jasno",
@@ -5207,7 +5260,8 @@
         "accountArchivedMeta": "{{name}} archivováno - účtuje se bez účtu",
         "visibilityHint_private": "Toto předplatné a jeho platby vidíš jen ty.",
         "visibilityHint_shared": "Celá domácnost vidí toto předplatné a jeho platby.",
-        "errorAccountGone": "Vybraný účet už neexistuje."
+        "errorAccountGone": "Vybraný účet už neexistuje.",
+        "moreDetailsHint": "Kategorie, způsob platby, barva a poznámky"
     },
     "health": {
         "fasting": {
@@ -5340,7 +5394,8 @@
                 "notStarted": "Zatím nic nezaznamenáno"
             },
             "vitals": {
-                "title": "Poslední vitální hodnoty"
+                "title": "Poslední vitální hodnoty",
+                "recentTitle": "Naposledy změřeno"
             },
             "quick": {
                 "title": "Rychlé zadání",
@@ -5641,7 +5696,8 @@
                 "title": "Průběh",
                 "analyte": "Analyt",
                 "tooFew": "K zobrazení průběhu jsou potřeba alespoň dva nálezy.",
-                "unit": "Jednotka: {{unit}}"
+                "unit": "Jednotka: {{unit}}",
+                "showFor": "Zobrazit vývoj: {{name}}"
             },
             "field": {
                 "reportDate": "Datum nálezu",
@@ -6429,7 +6485,16 @@
         "importDiagnosticDuplicateInstance_few": "{{count}} duplicitní termíny svozu (stejná identita) byly sloučeny do jednoho.",
         "mappingProfileApplicableCount_few": "Budou použita {{count}} přiřazení.",
         "intervalDecrease": "Zkrátit interval",
-        "intervalIncrease": "Prodloužit interval"
+        "intervalIncrease": "Prodloužit interval",
+        "scheduleSavedNamed": "Rozvrh pro „{{name}}“ uložen.",
+        "pickupSavedNamed": "Svoz „{{name}}“ uložen.",
+        "intervalLabel": "Interval",
+        "scheduleDeletedNamed": "Rozvrh pro „{{name}}“ smazán.",
+        "pickupDeletedNamed": "Svoz „{{name}}“ smazán.",
+        "typeArchivedNamed": "„{{name}}“ archivováno.",
+        "typeRestoredNamed": "„{{name}}“ obnoveno.",
+        "typesWithoutSchedule": "Bez rozvrhu",
+        "putOutToday": "Vystavit dnes"
     },
     "rewards": {
         "title": "Odměny",
@@ -6586,7 +6651,15 @@
         "ownLedger": "Tvoje záznamy",
         "toastApprovedNamed": "„{{reward}}“ schváleno pro: {{name}}.",
         "toastRejectedNamed": "„{{reward}}“ zamítnuto pro: {{name}}.",
-        "toastCancelledNamed": "„{{reward}}“ staženo."
+        "toastCancelledNamed": "„{{reward}}“ staženo.",
+        "ledgerFilterLabel": "Filtrovat podle osoby",
+        "bonusKindCredit": "Připsání",
+        "bonusKindDebit": "Odečtení",
+        "bonusKindLabel": "Připsání nebo odečtení",
+        "bonusCredit": "Připsat",
+        "bonusDebit": "Odečíst",
+        "notEnoughPoints": "Na tuto odměnu není dost bodů.",
+        "bonusPoints": "Body"
     },
     "datepicker": {
         "openCalendar": "Otevřít kalendář",
@@ -6704,7 +6777,6 @@
             "bag_many": "sáčku",
             "bag_other": "sáčků"
         },
-        "moreDetailsHint": "Minimální zásoba, poznámky",
         "moreDetailsHint": "Minimální zásoba, poznámky",
         "errorLocationGone": "Toto místo uložení už neexistuje.",
         "errorLocationExists": "Toto místo uložení již existuje. Zvolte jiný název.",
@@ -6882,7 +6954,8 @@
         "limitReached": "Nejvýše dokumentů: {{count}}.",
         "limitReached_one": "Nejvýše dokumentů: {{count}}.",
         "limitReached_few": "Nejvýše dokumentů: {{count}}.",
-        "lockedPrivate": "Příloha existuje (soukromá)"
+        "lockedPrivate": "Příloha existuje (soukromá)",
+        "pickNone": "Vyber alespoň jeden dokument."
     },
     "join": {
         "title": "Nastavení účtu",
@@ -6904,7 +6977,8 @@
         "displayNameTooLong": "Zobrazované jméno může mít nejvýše 128 znaků.",
         "previewFailed": "Pozvánku se teď nepodařilo ověřit. Za chvíli stránku načti znovu.",
         "invalidTitle": "Neplatná pozvánka",
-        "toLogin": "Přejít na přihlášení"
+        "toLogin": "Přejít na přihlášení",
+        "introNamed": "{{name}} tě pozval(a) do {{app}}. Nastav si zde přihlašovací údaje."
     },
     "newLabel": {
         "tasks": "Úkol",
@@ -6939,7 +7013,8 @@
         "rewards": "Odměna",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Typ směny",
-        "schedulePlan": "Cyklus směn"
+        "schedulePlan": "Cyklus směn",
+        "healthOverview": "Zadat"
     },
     "iconPicker": {
         "title": "Vybrat ikonu",
@@ -7182,5 +7257,27 @@
         "install": "aplikace, plocha, domovská obrazovka, Dock",
         "push": "upozornění, oznámení, připomínky, zvonek",
         "wallMode": "kiosek, tablet, nástěnný displej, celá obrazovka"
+    },
+    "colorPicker": {
+        "gray": "Šedá",
+        "blue": "Modrá",
+        "green": "Zelená",
+        "ocher": "Okrová",
+        "emerald": "Smaragdová",
+        "fuchsia": "Fuchsiová",
+        "red": "Červená",
+        "cyan": "Azurová",
+        "orange": "Oranžová",
+        "pink": "Růžová",
+        "custom": "Vlastní barva",
+        "chooseCustom": "Vybrat vlastní barvu",
+        "standard": "Výchozí barva"
+    },
+    "browserTooOld": {
+        "pageTitle": "Prohlížeč je příliš starý",
+        "title": "Tento prohlížeč je pro Yuvomi příliš starý",
+        "body": "Yuvomi potřebuje několik funkcí, které tento prohlížeč zatím nezná. Tvých dat se to netýká.",
+        "versions": "Yuvomi funguje od Chrome a Edge {{chrome}}, Firefox {{firefox}} a Safari {{safari}}, na iPhonu a iPadu od iOS {{ios}}.",
+        "action": "Aktualizuj prohlížeč nebo zařízení a zkus to znovu. Pokud to nejde, otevři Yuvomi v jiném prohlížeči."
     }
 }

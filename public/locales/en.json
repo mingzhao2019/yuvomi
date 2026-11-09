@@ -110,7 +110,17 @@
         "errorNotOwner": "Someone else created this - you can view it but not change it.",
         "foreignReadOnlyHint": "Created by {{name}} - you can view it but not change it.",
         "deletedNamed": "“{{name}}” deleted.",
-        "sortMode": "Reorder"
+        "sortMode": "Reorder",
+        "createdNamed": "“{{name}}” created.",
+        "savedNamed": "“{{name}}” saved.",
+        "everyNDays": "Every {{count}} days",
+        "everyNDays_one": "Every {{count}} day",
+        "everyNWeeks": "Every {{count}} weeks",
+        "everyNWeeks_one": "Every {{count}} week",
+        "everyNMonths": "Every {{count}} months",
+        "everyNMonths_one": "Every {{count}} month",
+        "everyNYears": "Every {{count}} years",
+        "everyNYears_one": "Every {{count}} year"
     },
     "kitchen": {
         "noShoppingLists": "There is no shopping list yet.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "over",
         "todayTimelineRunning": "in progress",
         "todayTimelineNext": "up next",
-        "todayAlsoTitle": "Also today"
+        "todayAlsoTitle": "Also today",
+        "todayNothingPlanned": "Nothing planned yet",
+        "todayNothingPlannedSub": "Today's appointments, tasks and meals will show up here."
     },
     "tasks": {
         "resetOrder": "Sort automatically",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "\"{{item}}\" is back on \"{{back}}\": the server did not accept it in \"{{target}}\".",
             "waited": "\"{{item}}\" was not moved to \"{{target}}\": syncing for \"{{back}}\" has been off for over a week. The item will show up on \"{{back}}\" again once that list is switched on."
-        }
+        },
+        "moreDetailsHint": "Price, store, link, note",
+        "toPantryAllToPlaceholder": "Choose a place …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} ingredient",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "Open recipe for {{title}}",
         "viewRecipeNamed": "View recipe for {{title}}",
         "recipeIngredientsLabel": "Ingredients from the recipe",
-        "recipeIngredientsEdit": "Adjust"
+        "recipeIngredientsEdit": "Adjust",
+        "moreDetailsHint": "Recipe, notes, link"
     },
     "calendar": {
         "searchOpen": "Search events",
@@ -1981,7 +1996,11 @@
         "ledgerAccountsAll": "All accounts",
         "showAccountTransactions": "Show transactions",
         "summaryTransfersIn": "Incoming",
-        "summaryTransfersOut": "Outgoing"
+        "summaryTransfersOut": "Outgoing",
+        "transferDefaultTitle": "Transfer {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Category and repeat",
+        "loanMoreDetailsHint": "Title, account, currency and notes",
+        "entryMoreDetailsHint": "Repeat, responsible and receipts"
     },
     "settings": {
         "healthCycleEnableLabel": "Offer the cycle in the household",
@@ -3302,7 +3321,9 @@
             "presetHintRoleLimited": "The {{role}} role locks: {{modules}}.",
             "presetHintUnavailable": "The exact effect cannot be shown right now. The template still applies.",
             "presetHintRoleChild": "The role {{role}} blocks no module. The starting permissions for children above apply on top.",
-            "presetHintChildExtra": "The starting permissions for children above apply on top."
+            "presetHintChildExtra": "The starting permissions for children above apply on top.",
+            "done": "Done",
+            "untitled": "Open invitation"
         },
         "healthCaregiversLabel": "May record health data",
         "healthCaregiversHint": "These people may record vitals, medications, lab results and activities for this member, and see their private entries while doing so. The cycle diary stays excluded.",
@@ -3654,7 +3675,9 @@
         "remoteErrorAuthFailed": "The server rejected the sign-in. Check the username and password.",
         "remoteErrorStatus": "The server answered with status {{status}}.",
         "remoteErrorUnreachable": "The server cannot be reached. Check the address and whether the server is running.",
-        "remoteErrorFailed": "The request to the server failed."
+        "remoteErrorFailed": "The request to the server failed.",
+        "modulesInMyNavigation": "{{module}} in my navigation",
+        "modulesKitchenInMyNavigation": "Kitchen in my navigation"
     },
     "login": {
         "tagline": "Welcome back. Your home in one place.",
@@ -3689,7 +3712,8 @@
         "twoFactorCancel": "Cancel",
         "ssoOnlyHint": "Signing in to this household works exclusively through single sign-on.",
         "guestPasswordLogin": "Guest sign-in with password",
-        "accountCannotSignIn": "This account cannot sign in. Please contact your household's administrator."
+        "accountCannotSignIn": "This account cannot sign in. Please contact your household's administrator.",
+        "invalidCredentialsAskAdmin": "Invalid credentials. Forgot your password? Your household's administrator can set a new one."
     },
     "setup": {
         "title": "Welcome to Yuvomi",
@@ -3950,7 +3974,18 @@
         "ingredientMatchEmpty": "Your pantry is still empty.",
         "ingredientMatchSaved": "Match saved.",
         "ingredientMatchCleared": "Match removed.",
-        "ingredientMatchLoadError": "The pantry could not be loaded."
+        "ingredientMatchLoadError": "The pantry could not be loaded.",
+        "errorIngredientsChanged": "This recipe has changed in the meantime. Check the ingredients and add them again.",
+        "servingsLabel": "Servings",
+        "servingsMultipleLabel": "Amount",
+        "servingsFewer": "Fewer servings",
+        "servingsMore": "More servings",
+        "servingsLess": "Decrease amount",
+        "servingsMoreMultiple": "Increase amount",
+        "servingsHint": "How many servings the amounts are for. Leave empty if unknown.",
+        "servingsInvalid": "A whole number from 1 to 99.",
+        "moreDetailsHint": "Notes, image, link",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Type to jump to an area or create something. From 2 characters you also find your entries, even by parts of words.",
@@ -3989,7 +4024,8 @@
         "staleData": "Offline - as of: {{time}}",
         "pageTitle": "You are offline",
         "pageDescription": "This page needs a connection. As soon as your device is back online, it loads by itself.",
-        "snapshot": "No connection to the server - saved data, read-only"
+        "snapshot": "No connection to the server - saved data, read-only",
+        "unreachableBody": "Yuvomi cannot be reached right now. Check that your device is online and the server is running, then try again."
     },
     "shortcuts": {
         "search": "Open search",
@@ -4524,7 +4560,17 @@
         "checkedOutNamed": "{{name}} checked out.",
         "visitToday": "Here today: {{from}} - {{to}}",
         "checkInAgain": "Check in again",
-        "checkedInNamed": "{{name}} checked in."
+        "checkedInNamed": "{{name}} checked in.",
+        "taskDoneNamed": "“{{name}}” done.",
+        "visitDeletedNamed": "Visit on {{date}} deleted.",
+        "visitPaidNamed": "Visit on {{date}} paid.",
+        "visitUnpaidNamed": "Payment for the visit on {{date}} undone.",
+        "workerMoreHint": "Contact, birthday, colors, notes",
+        "markPaidNamed": "Mark visit on {{date}} as paid",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, {{pending}} of it pending",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, all paid",
+        "taskTemplatesHint": "Tap one to add it.",
+        "markPaidShort": "Mark paid"
     },
     "userMultiSelect": {
         "moreUsers": "more",
@@ -4722,7 +4768,10 @@
         "paidLabel": "Paid",
         "totalsByCategory": "By category",
         "categoryFilter": "Filter expenses by category",
-        "noExpensesInCategory": "No expenses in this category."
+        "noExpensesInCategory": "No expenses in this category.",
+        "noCategory": "No category",
+        "participantsRequired": "Choose at least one person.",
+        "moreDetailsHint": "Notes and receipts"
     },
     "wmo": {
         "0": "Clear sky",
@@ -5073,7 +5122,8 @@
         "accountArchivedMeta": "{{name}} archived - books without an account",
         "visibilityHint_private": "Only you see this subscription and its payments.",
         "visibilityHint_shared": "Everyone in the household sees this subscription and its payments.",
-        "errorAccountGone": "The selected account no longer exists."
+        "errorAccountGone": "The selected account no longer exists.",
+        "moreDetailsHint": "Category, payment method, colour and notes"
     },
     "health": {
         "fasting": {
@@ -5205,7 +5255,8 @@
                 "notStarted": "Nothing logged yet"
             },
             "vitals": {
-                "title": "Latest vitals"
+                "title": "Latest vitals",
+                "recentTitle": "Last measured"
             },
             "quick": {
                 "title": "Quick add",
@@ -5504,7 +5555,8 @@
                 "title": "Trend",
                 "analyte": "Analyte",
                 "tooFew": "At least two reports are needed to show a trend.",
-                "unit": "Unit: {{unit}}"
+                "unit": "Unit: {{unit}}",
+                "showFor": "Show trend for {{name}}"
             },
             "field": {
                 "reportDate": "Report date",
@@ -6282,7 +6334,16 @@
         "colorPink": "Pink",
         "colorCurrent": "Current color",
         "intervalDecrease": "Decrease interval",
-        "intervalIncrease": "Increase interval"
+        "intervalIncrease": "Increase interval",
+        "scheduleSavedNamed": "Schedule for “{{name}}” saved.",
+        "pickupSavedNamed": "Pickup for “{{name}}” saved.",
+        "intervalLabel": "Interval",
+        "scheduleDeletedNamed": "Schedule for “{{name}}” deleted.",
+        "pickupDeletedNamed": "Pickup for “{{name}}” deleted.",
+        "typeArchivedNamed": "“{{name}}” archived.",
+        "typeRestoredNamed": "“{{name}}” restored.",
+        "typesWithoutSchedule": "No schedule",
+        "putOutToday": "Put out today"
     },
     "rewards": {
         "title": "Rewards",
@@ -6437,7 +6498,15 @@
         "ownLedger": "Your entries",
         "toastApprovedNamed": "“{{reward}}” approved for {{name}}.",
         "toastRejectedNamed": "“{{reward}}” rejected for {{name}}.",
-        "toastCancelledNamed": "“{{reward}}” withdrawn."
+        "toastCancelledNamed": "“{{reward}}” withdrawn.",
+        "ledgerFilterLabel": "Filter by person",
+        "bonusKindCredit": "Credit",
+        "bonusKindDebit": "Deduction",
+        "bonusKindLabel": "Credit or deduction",
+        "bonusCredit": "Credit",
+        "bonusDebit": "Deduct",
+        "notEnoughPoints": "Not enough points for this reward.",
+        "bonusPoints": "Points"
     },
     "datepicker": {
         "openCalendar": "Open calendar",
@@ -6538,7 +6607,6 @@
             "bag_one": "bag",
             "bag_other": "bags"
         },
-        "moreDetailsHint": "Minimum stock, notes",
         "moreDetailsHint": "Minimum stock, notes",
         "errorLocationGone": "This storage location no longer exists.",
         "errorLocationExists": "This storage location already exists. Choose a different name.",
@@ -6710,7 +6778,8 @@
         "openAction": "Open {{name}}",
         "limitReached": "At most {{count}} documents.",
         "limitReached_one": "At most {{count}} document.",
-        "lockedPrivate": "Attachment present (private)"
+        "lockedPrivate": "Attachment present (private)",
+        "pickNone": "Choose at least one document."
     },
     "join": {
         "title": "Set up your account",
@@ -6732,7 +6801,8 @@
         "displayNameTooLong": "The display name may be at most 128 characters long.",
         "previewFailed": "The invitation could not be checked right now. Please reload the page in a moment.",
         "invalidTitle": "Invitation not valid",
-        "toLogin": "Go to login"
+        "toLogin": "Go to login",
+        "introNamed": "{{name}} invited you to {{app}}. Choose your sign-in details here."
     },
     "newLabel": {
         "tasks": "Task",
@@ -6767,7 +6837,8 @@
         "rewards": "Reward",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Shift type",
-        "schedulePlan": "Schedule"
+        "schedulePlan": "Schedule",
+        "healthOverview": "Record"
     },
     "iconPicker": {
         "title": "Choose icon",
@@ -7006,5 +7077,27 @@
         "install": "app, home screen, dock, desktop app",
         "push": "alerts, notifications, reminders, bell",
         "wallMode": "kiosk, tablet, wall display, full screen"
+    },
+    "colorPicker": {
+        "gray": "Gray",
+        "blue": "Blue",
+        "green": "Green",
+        "ocher": "Ochre",
+        "emerald": "Emerald",
+        "fuchsia": "Fuchsia",
+        "red": "Red",
+        "cyan": "Cyan",
+        "orange": "Orange",
+        "pink": "Pink",
+        "custom": "Custom color",
+        "chooseCustom": "Choose a custom color",
+        "standard": "Default color"
+    },
+    "browserTooOld": {
+        "pageTitle": "Browser too old",
+        "title": "This browser is too old for Yuvomi",
+        "body": "Yuvomi needs a few features this browser does not have yet. Your data is not affected.",
+        "versions": "Yuvomi runs on Chrome and Edge {{chrome}}, Firefox {{firefox}} and Safari {{safari}} or newer, and on iPhone and iPad from iOS {{ios}}.",
+        "action": "Update the browser or the device, then try again. If that is not possible, open Yuvomi in another browser."
     }
 }

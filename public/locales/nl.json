@@ -110,7 +110,17 @@
         "errorNotOwner": "Iemand anders heeft dit gemaakt - je kunt het bekijken, maar niet wijzigen.",
         "foreignReadOnlyHint": "Gemaakt door {{name}} - je kunt het bekijken, maar niet wijzigen.",
         "deletedNamed": "‘{{name}}’ verwijderd.",
-        "sortMode": "Volgorde wijzigen"
+        "sortMode": "Volgorde wijzigen",
+        "createdNamed": "‘{{name}}’ aangemaakt.",
+        "savedNamed": "‘{{name}}’ opgeslagen.",
+        "everyNDays": "Elke {{count}} dagen",
+        "everyNDays_one": "Elke {{count}} dag",
+        "everyNWeeks": "Elke {{count}} weken",
+        "everyNWeeks_one": "Elke {{count}} week",
+        "everyNMonths": "Elke {{count}} maanden",
+        "everyNMonths_one": "Elke {{count}} maand",
+        "everyNYears": "Elke {{count}} jaar",
+        "everyNYears_one": "Elke {{count}} jaar"
     },
     "kitchen": {
         "noShoppingLists": "Er is nog geen boodschappenlijst.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "afgelopen",
         "todayTimelineRunning": "bezig",
         "todayTimelineNext": "hierna",
-        "todayAlsoTitle": "Verder vandaag"
+        "todayAlsoTitle": "Verder vandaag",
+        "todayNothingPlanned": "Nog niets gepland",
+        "todayNothingPlannedSub": "Afspraken, taken en maaltijden van vandaag verschijnen hier."
     },
     "tasks": {
         "resetOrder": "Automatisch sorteren",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "„{{item}}” staat weer op „{{back}}”: de server heeft het niet geaccepteerd in „{{target}}”.",
             "waited": "„{{item}}” is niet verplaatst naar „{{target}}”: de synchronisatie van „{{back}}” staat al meer dan een week uit. Het artikel verschijnt weer op „{{back}}” zodra die lijst wordt ingeschakeld."
-        }
+        },
+        "moreDetailsHint": "Prijs, winkel, link, notitie",
+        "toPantryAllToPlaceholder": "Kies een plek …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} ingrediënt",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "Recept voor {{title}} openen",
         "viewRecipeNamed": "Recept voor {{title}} bekijken",
         "recipeIngredientsLabel": "Ingrediënten uit het recept",
-        "recipeIngredientsEdit": "Aanpassen"
+        "recipeIngredientsEdit": "Aanpassen",
+        "moreDetailsHint": "Recept, notities, link"
     },
     "calendar": {
         "searchOpen": "Afspraken zoeken",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "Alle rekeningen",
         "showAccountTransactions": "Boekingen tonen",
         "summaryTransfersIn": "Inkomend",
-        "summaryTransfersOut": "Uitgaand"
+        "summaryTransfersOut": "Uitgaand",
+        "transferDefaultTitle": "Overboeking {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Categorie en herhaling",
+        "loanMoreDetailsHint": "Titel, rekening, valuta en notities",
+        "entryMoreDetailsHint": "Herhaling, verantwoordelijken en bonnen"
     },
     "settings": {
         "healthCycleEnableLabel": "Cyclus aanbieden in het huishouden",
@@ -3253,7 +3272,9 @@
             "presetHintRoleLimited": "De rol {{role}} vergrendelt: {{modules}}.",
             "presetHintUnavailable": "De exacte werking is nu niet te tonen. Het sjabloon geldt toch.",
             "presetHintRoleChild": "De rol {{role}} blokkeert geen enkele module. De startrechten voor kinderen hierboven komen erbij.",
-            "presetHintChildExtra": "De startrechten voor kinderen hierboven komen erbij."
+            "presetHintChildExtra": "De startrechten voor kinderen hierboven komen erbij.",
+            "done": "Klaar",
+            "untitled": "Openstaande uitnodiging"
         },
         "healthCaregiversLabel": "Mag gezondheidsgegevens invoeren",
         "healthCaregiversHint": "Deze personen mogen vitale waarden, medicijnen, labuitslagen en activiteiten voor dit lid invoeren en zien daarbij ook diens privé-invoer. Het cyclusdagboek blijft uitgesloten.",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "De server heeft de aanmelding geweigerd. Controleer gebruikersnaam en wachtwoord.",
         "remoteErrorStatus": "De server antwoordde met status {{status}}.",
         "remoteErrorUnreachable": "De server is niet bereikbaar. Controleer het adres en of de server draait.",
-        "remoteErrorFailed": "Het verzoek aan de server is mislukt."
+        "remoteErrorFailed": "Het verzoek aan de server is mislukt.",
+        "modulesInMyNavigation": "{{module}} in mijn navigatie",
+        "modulesKitchenInMyNavigation": "Keuken in mijn navigatie"
     },
     "login": {
         "tagline": "Welkom terug. Je huishouden op één plek.",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "Annuleren",
         "ssoOnlyHint": "Aanmelden bij dit huishouden gaat uitsluitend via SSO.",
         "guestPasswordLogin": "Gastaanmelding met wachtwoord",
-        "accountCannotSignIn": "Dit account kan zich niet aanmelden. Neem contact op met de beheerder van je huishouden."
+        "accountCannotSignIn": "Dit account kan zich niet aanmelden. Neem contact op met de beheerder van je huishouden.",
+        "invalidCredentialsAskAdmin": "Ongeldige inloggegevens. Wachtwoord vergeten? De beheerder van je huishouden kan een nieuw instellen."
     },
     "setup": {
         "title": "Welkom bij Yuvomi",
@@ -3946,7 +3970,18 @@
         "ingredientMatchEmpty": "De voorraad is nog leeg.",
         "ingredientMatchSaved": "Koppeling opgeslagen.",
         "ingredientMatchCleared": "Koppeling verwijderd.",
-        "ingredientMatchLoadError": "De voorraad kon niet worden geladen."
+        "ingredientMatchLoadError": "De voorraad kon niet worden geladen.",
+        "errorIngredientsChanged": "Het recept is intussen gewijzigd. Controleer de ingrediënten en voeg ze opnieuw toe.",
+        "servingsLabel": "Porties",
+        "servingsMultipleLabel": "Hoeveelheid",
+        "servingsFewer": "Minder porties",
+        "servingsMore": "Meer porties",
+        "servingsLess": "Hoeveelheid verlagen",
+        "servingsMoreMultiple": "Hoeveelheid verhogen",
+        "servingsHint": "Voor hoeveel porties de hoeveelheden gelden. Laat leeg als je het niet weet.",
+        "servingsInvalid": "Een geheel getal van 1 tot 99.",
+        "moreDetailsHint": "Notities, afbeelding, link",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Typ om naar een onderdeel te gaan of iets aan te maken. Vanaf 2 tekens vind je ook je items, zelfs op delen van woorden.",
@@ -3985,7 +4020,8 @@
         "staleData": "Offline - stand: {{time}}",
         "pageTitle": "Je bent offline",
         "pageDescription": "Deze pagina heeft een verbinding nodig. Zodra je apparaat weer online is, laadt ze vanzelf.",
-        "snapshot": "Geen verbinding met de server - opgeslagen gegevens, alleen-lezen"
+        "snapshot": "Geen verbinding met de server - opgeslagen gegevens, alleen-lezen",
+        "unreachableBody": "Yuvomi is nu niet bereikbaar. Controleer of je apparaat online is en de server draait, en probeer het opnieuw."
     },
     "shortcuts": {
         "search": "Zoeken openen",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "{{name}} uitgecheckt.",
         "visitToday": "Vandaag hier: {{from}} - {{to}}",
         "checkInAgain": "Opnieuw inchecken",
-        "checkedInNamed": "{{name}} ingecheckt."
+        "checkedInNamed": "{{name}} ingecheckt.",
+        "taskDoneNamed": "‘{{name}}’ gedaan.",
+        "visitDeletedNamed": "Bezoek van {{date}} verwijderd.",
+        "visitPaidNamed": "Bezoek van {{date}} betaald.",
+        "visitUnpaidNamed": "Betaling voor het bezoek van {{date}} teruggedraaid.",
+        "workerMoreHint": "Contact, verjaardag, kleuren, notities",
+        "markPaidNamed": "Bezoek van {{date}} als betaald markeren",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, waarvan {{pending}} openstaand",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, alles betaald",
+        "taskTemplatesHint": "Tik erop om hem toe te voegen.",
+        "markPaidShort": "Betaald"
     },
     "userMultiSelect": {
         "moreUsers": "meer",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Betaald",
         "totalsByCategory": "Per categorie",
         "categoryFilter": "Uitgaven filteren op categorie",
-        "noExpensesInCategory": "Geen uitgaven in deze categorie."
+        "noExpensesInCategory": "Geen uitgaven in deze categorie.",
+        "noCategory": "Zonder categorie",
+        "participantsRequired": "Kies minstens één persoon.",
+        "moreDetailsHint": "Notities en bonnen"
     },
     "wmo": {
         "0": "Heldere lucht",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} gearchiveerd - boekt zonder rekening",
         "visibilityHint_private": "Alleen jij ziet dit abonnement en de betalingen ervan.",
         "visibilityHint_shared": "Iedereen in het huishouden ziet dit abonnement en de betalingen ervan.",
-        "errorAccountGone": "De gekozen rekening bestaat niet meer."
+        "errorAccountGone": "De gekozen rekening bestaat niet meer.",
+        "moreDetailsHint": "Categorie, betaalmethode, kleur en notities"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Nog niets geregistreerd"
             },
             "vitals": {
-                "title": "Laatste vitale waarden"
+                "title": "Laatste vitale waarden",
+                "recentTitle": "Laatst gemeten"
             },
             "quick": {
                 "title": "Snel vastleggen",
@@ -5500,7 +5551,8 @@
                 "title": "Verloop",
                 "analyte": "Analyt",
                 "tooFew": "Er zijn minstens twee uitslagen nodig om een verloop te tonen.",
-                "unit": "Eenheid: {{unit}}"
+                "unit": "Eenheid: {{unit}}",
+                "showFor": "Verloop van {{name}} tonen"
             },
             "field": {
                 "reportDate": "Uitslagdatum",
@@ -6278,7 +6330,16 @@
         "colorPink": "Roze",
         "colorCurrent": "Huidige kleur",
         "intervalDecrease": "Interval verkleinen",
-        "intervalIncrease": "Interval vergroten"
+        "intervalIncrease": "Interval vergroten",
+        "scheduleSavedNamed": "Schema voor ‘{{name}}’ opgeslagen.",
+        "pickupSavedNamed": "Ophaling voor ‘{{name}}’ opgeslagen.",
+        "intervalLabel": "Interval",
+        "scheduleDeletedNamed": "Schema voor ‘{{name}}’ verwijderd.",
+        "pickupDeletedNamed": "Ophaling voor ‘{{name}}’ verwijderd.",
+        "typeArchivedNamed": "‘{{name}}’ gearchiveerd.",
+        "typeRestoredNamed": "‘{{name}}’ hersteld.",
+        "typesWithoutSchedule": "Zonder schema",
+        "putOutToday": "Vandaag buitenzetten"
     },
     "rewards": {
         "title": "Beloningen",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Jouw boekingen",
         "toastApprovedNamed": "‘{{reward}}’ goedgekeurd voor {{name}}.",
         "toastRejectedNamed": "‘{{reward}}’ afgewezen voor {{name}}.",
-        "toastCancelledNamed": "‘{{reward}}’ ingetrokken."
+        "toastCancelledNamed": "‘{{reward}}’ ingetrokken.",
+        "ledgerFilterLabel": "Filteren op persoon",
+        "bonusKindCredit": "Bijschrijving",
+        "bonusKindDebit": "Aftrek",
+        "bonusKindLabel": "Bijschrijving of aftrek",
+        "bonusCredit": "Bijschrijven",
+        "bonusDebit": "Aftrekken",
+        "notEnoughPoints": "Niet genoeg punten voor deze beloning.",
+        "bonusPoints": "Punten"
     },
     "datepicker": {
         "openCalendar": "Kalender openen",
@@ -6534,7 +6603,6 @@
             "bag_one": "zak",
             "bag_other": "zakken"
         },
-        "moreDetailsHint": "Minimumvoorraad, notities",
         "moreDetailsHint": "Minimumvoorraad, notities",
         "errorLocationGone": "Deze bewaarplaats bestaat niet meer.",
         "errorLocationExists": "Deze bewaarplaats bestaat al. Kies een andere naam.",
@@ -6706,7 +6774,8 @@
         "openAction": "{{name}} openen",
         "limitReached": "Maximaal {{count}} documenten.",
         "limitReached_one": "Maximaal {{count}} document.",
-        "lockedPrivate": "Bijlage aanwezig (privé)"
+        "lockedPrivate": "Bijlage aanwezig (privé)",
+        "pickNone": "Kies minstens één document."
     },
     "join": {
         "title": "Account instellen",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "De weergavenaam mag maximaal 128 tekens lang zijn.",
         "previewFailed": "De uitnodiging kon nu niet worden gecontroleerd. Laad de pagina zo meteen opnieuw.",
         "invalidTitle": "Uitnodiging ongeldig",
-        "toLogin": "Naar inloggen"
+        "toLogin": "Naar inloggen",
+        "introNamed": "{{name}} heeft je uitgenodigd voor {{app}}. Stel hier je inloggegevens in."
     },
     "newLabel": {
         "tasks": "Taak",
@@ -6763,7 +6833,8 @@
         "rewards": "Beloning",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Diensttype",
-        "schedulePlan": "Roosterpatroon"
+        "schedulePlan": "Roosterpatroon",
+        "healthOverview": "Vastleggen"
     },
     "iconPicker": {
         "title": "Pictogram kiezen",
@@ -7002,5 +7073,27 @@
         "install": "app, beginscherm, Dock",
         "push": "meldingen, notificaties, herinneringen, bel",
         "wallMode": "kiosk, tablet, wandscherm, volledig scherm"
+    },
+    "colorPicker": {
+        "gray": "Grijs",
+        "blue": "Blauw",
+        "green": "Groen",
+        "ocher": "Oker",
+        "emerald": "Smaragd",
+        "fuchsia": "Fuchsia",
+        "red": "Rood",
+        "cyan": "Cyaan",
+        "orange": "Oranje",
+        "pink": "Roze",
+        "custom": "Eigen kleur",
+        "chooseCustom": "Eigen kleur kiezen",
+        "standard": "Standaardkleur"
+    },
+    "browserTooOld": {
+        "pageTitle": "Browser te oud",
+        "title": "Deze browser is te oud voor Yuvomi",
+        "body": "Yuvomi heeft een paar functies nodig die deze browser nog niet kent. Je gegevens blijven daarbuiten.",
+        "versions": "Yuvomi werkt vanaf Chrome en Edge {{chrome}}, Firefox {{firefox}} en Safari {{safari}}, en op iPhone en iPad vanaf iOS {{ios}}.",
+        "action": "Werk de browser of het apparaat bij en probeer het dan opnieuw. Lukt dat niet, open Yuvomi dan in een andere browser."
     }
 }

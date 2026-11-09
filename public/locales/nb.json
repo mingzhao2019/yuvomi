@@ -110,7 +110,17 @@
         "errorNotOwner": "Dette har noen andre laget - du kan se det, men ikke endre det.",
         "foreignReadOnlyHint": "Laget av {{name}} - du kan se det, men ikke endre det.",
         "deletedNamed": "«{{name}}» slettet.",
-        "sortMode": "Endre rekkefølge"
+        "sortMode": "Endre rekkefølge",
+        "createdNamed": "«{{name}}» opprettet.",
+        "savedNamed": "«{{name}}» lagret.",
+        "everyNDays": "Hver {{count}} dager",
+        "everyNDays_one": "Hver {{count}} dag",
+        "everyNWeeks": "Hver {{count}}. uke",
+        "everyNWeeks_one": "Hver {{count}}. uke",
+        "everyNMonths": "Hver {{count}}. måned",
+        "everyNMonths_one": "Hver {{count}}. måned",
+        "everyNYears": "Hver {{count}}. år",
+        "everyNYears_one": "Hver {{count}}. år"
     },
     "kitchen": {
         "noShoppingLists": "Det finnes ingen handleliste ennå.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "over",
         "todayTimelineRunning": "pågår nå",
         "todayTimelineNext": "neste",
-        "todayAlsoTitle": "Også i dag"
+        "todayAlsoTitle": "Også i dag",
+        "todayNothingPlanned": "Ingenting planlagt ennå",
+        "todayNothingPlannedSub": "Dagens avtaler, oppgaver og måltider vises her."
     },
     "tasks": {
         "resetOrder": "Sorter automatisk",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "«{{item}}» er tilbake på «{{back}}»: serveren godtok den ikke i «{{target}}».",
             "waited": "«{{item}}» ble ikke flyttet til «{{target}}»: synkroniseringen av «{{back}}» har vært slått av i over en uke. Varen dukker opp igjen på «{{back}}» når listen slås på."
-        }
+        },
+        "moreDetailsHint": "Pris, butikk, lenke, notat",
+        "toPantryAllToPlaceholder": "Velg et sted …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} ingrediens",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "Åpne oppskrift for {{title}}",
         "viewRecipeNamed": "Vis oppskrift for {{title}}",
         "recipeIngredientsLabel": "Ingredienser fra oppskriften",
-        "recipeIngredientsEdit": "Tilpass"
+        "recipeIngredientsEdit": "Tilpass",
+        "moreDetailsHint": "Oppskrift, notater, lenke"
     },
     "calendar": {
         "searchOpen": "Søk etter hendelser",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "Alle kontoer",
         "showAccountTransactions": "Vis transaksjoner",
         "summaryTransfersIn": "Inngående",
-        "summaryTransfersOut": "Utgående"
+        "summaryTransfersOut": "Utgående",
+        "transferDefaultTitle": "Overføring {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategori og gjentakelse",
+        "loanMoreDetailsHint": "Tittel, konto, valuta og notater",
+        "entryMoreDetailsHint": "Gjentakelse, ansvarlige og kvitteringer"
     },
     "settings": {
         "healthCycleEnableLabel": "Tilby syklusen i husstanden",
@@ -3277,7 +3296,9 @@
             "presetHintRoleLimited": "Rollen {{role}} låser: {{modules}}.",
             "presetHintUnavailable": "Den nøyaktige effekten kan ikke vises akkurat nå. Malen gjelder fortsatt.",
             "presetHintRoleChild": "Rollen {{role}} sperrer ingen moduler. Startrettighetene for barn ovenfor kommer i tillegg.",
-            "presetHintChildExtra": "Startrettighetene for barn ovenfor kommer i tillegg."
+            "presetHintChildExtra": "Startrettighetene for barn ovenfor kommer i tillegg.",
+            "done": "Ferdig",
+            "untitled": "Åpen invitasjon"
         },
         "healthCaregiversLabel": "Kan registrere helsedata",
         "healthCaregiversHint": "Disse personene kan registrere vitale tegn, medisiner, laboratorieresultater og aktiviteter for dette medlemmet, og se deres private oppføringer mens de gjør det. Syklusdagboken forblir ekskludert.",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "Serveren avviste påloggingen. Sjekk brukernavn og passord.",
         "remoteErrorStatus": "Serveren svarte med status {{status}}.",
         "remoteErrorUnreachable": "Serveren kan ikke nås. Sjekk adressen og om serveren kjører.",
-        "remoteErrorFailed": "Forespørselen til serveren mislyktes."
+        "remoteErrorFailed": "Forespørselen til serveren mislyktes.",
+        "modulesInMyNavigation": "{{module}} i min navigasjon",
+        "modulesKitchenInMyNavigation": "Kjøkken i min navigasjon"
     },
     "login": {
         "tagline": "Velkommen tilbake. Hjemmet ditt samlet på ett sted.",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "Avbryt",
         "ssoOnlyHint": "Innlogging til denne husholdningen skjer utelukkende via felles pålogging.",
         "guestPasswordLogin": "Gjestinnlogging med passord",
-        "accountCannotSignIn": "Denne kontoen kan ikke logge inn. Vennligst kontakt administratoren for husholdningen din."
+        "accountCannotSignIn": "Denne kontoen kan ikke logge inn. Vennligst kontakt administratoren for husholdningen din.",
+        "invalidCredentialsAskAdmin": "Ugyldige påloggingsdetaljer. Glemt passordet? Administratoren for husholdningen kan sette et nytt."
     },
     "setup": {
         "title": "Velkommen til Yuvomi",
@@ -3946,7 +3970,18 @@
         "ingredientMatchEmpty": "Skapet ditt er fortsatt tomt.",
         "ingredientMatchSaved": "Kobling lagret.",
         "ingredientMatchCleared": "Kobling fjernet.",
-        "ingredientMatchLoadError": "Skapet kunne ikke lastes."
+        "ingredientMatchLoadError": "Skapet kunne ikke lastes.",
+        "errorIngredientsChanged": "Oppskriften er endret i mellomtiden. Sjekk ingrediensene og legg dem til på nytt.",
+        "servingsLabel": "Porsjoner",
+        "servingsMultipleLabel": "Mengde",
+        "servingsFewer": "Færre porsjoner",
+        "servingsMore": "Flere porsjoner",
+        "servingsLess": "Reduser mengden",
+        "servingsMoreMultiple": "Øk mengden",
+        "servingsHint": "Hvor mange porsjoner mengdene gjelder for. La stå tomt hvis du ikke vet.",
+        "servingsInvalid": "Et heltall fra 1 til 99.",
+        "moreDetailsHint": "Notater, bilde, lenke",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Skriv minst 2 tegn for å søke i alle områder, inkludert deler av ord.",
@@ -3985,7 +4020,8 @@
         "staleData": "Uten nett - per: {{time}}",
         "pageTitle": "Du er frakoblet",
         "pageDescription": "Denne siden trenger tilkobling. Så snart enheten er tilkoblet igjen, lastes den av seg selv.",
-        "snapshot": "Ingen forbindelse til serveren - lagrede data, kun lesing"
+        "snapshot": "Ingen forbindelse til serveren - lagrede data, kun lesing",
+        "unreachableBody": "Yuvomi kan ikke nås akkurat nå. Sjekk at enheten er tilkoblet og at serveren kjører, og prøv igjen."
     },
     "shortcuts": {
         "search": "Åpne søk",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "{{name}} sjekket ut.",
         "visitToday": "Her i dag: {{from}} - {{to}}",
         "checkInAgain": "Sjekk inn igjen",
-        "checkedInNamed": "{{name}} sjekket inn."
+        "checkedInNamed": "{{name}} sjekket inn.",
+        "taskDoneNamed": "«{{name}}» fullført.",
+        "visitDeletedNamed": "Besøket {{date}} slettet.",
+        "visitPaidNamed": "Besøket {{date}} betalt.",
+        "visitUnpaidNamed": "Betalingen for besøket {{date}} angret.",
+        "workerMoreHint": "Kontakt, bursdag, farger, notater",
+        "markPaidNamed": "Merk besøket {{date}} som betalt",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, hvorav {{pending}} ubetalt",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, alt betalt",
+        "taskTemplatesHint": "Trykk for å legge til.",
+        "markPaidShort": "Betalt"
     },
     "userMultiSelect": {
         "moreUsers": "mer",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Betalt",
         "totalsByCategory": "Etter kategori",
         "categoryFilter": "Filtrer utgifter etter kategori",
-        "noExpensesInCategory": "Ingen utgifter i denne kategorien."
+        "noExpensesInCategory": "Ingen utgifter i denne kategorien.",
+        "noCategory": "Uten kategori",
+        "participantsRequired": "Velg minst én person.",
+        "moreDetailsHint": "Notater og kvitteringer"
     },
     "wmo": {
         "0": "Skyfri",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} arkivert - bokføres uten konto",
         "visibilityHint_private": "Bare du ser dette abonnementet og betalingene.",
         "visibilityHint_shared": "Alle i husholdningen ser dette abonnementet og betalingene.",
-        "errorAccountGone": "Den valgte kontoen finnes ikke lenger."
+        "errorAccountGone": "Den valgte kontoen finnes ikke lenger.",
+        "moreDetailsHint": "Kategori, betalingsmåte, farge og notater"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Ingenting logget ennå"
             },
             "vitals": {
-                "title": "Siste vitale tegn"
+                "title": "Siste vitale tegn",
+                "recentTitle": "Sist målt"
             },
             "quick": {
                 "title": "Raskt tillegg",
@@ -5500,7 +5551,8 @@
                 "title": "Trend",
                 "analyte": "Analytt",
                 "tooFew": "Det kreves minst to rapporter for å vise en trend.",
-                "unit": "Enhet: {{unit}}"
+                "unit": "Enhet: {{unit}}",
+                "showFor": "Vis utvikling for {{name}}"
             },
             "field": {
                 "reportDate": "Rapporteringsdato",
@@ -6278,7 +6330,16 @@
         "icsPickupSummary": "Henting av {{name}}",
         "addTypeFirstHint": "Legg til en type først.",
         "intervalDecrease": "Reduser intervallet",
-        "intervalIncrease": "Øk intervallet"
+        "intervalIncrease": "Øk intervallet",
+        "scheduleSavedNamed": "Tidsplan for «{{name}}» lagret.",
+        "pickupSavedNamed": "Henting av «{{name}}» lagret.",
+        "intervalLabel": "Intervall",
+        "scheduleDeletedNamed": "Tidsplan for «{{name}}» slettet.",
+        "pickupDeletedNamed": "Henting av «{{name}}» slettet.",
+        "typeArchivedNamed": "«{{name}}» arkivert.",
+        "typeRestoredNamed": "«{{name}}» gjenopprettet.",
+        "typesWithoutSchedule": "Uten tidsplan",
+        "putOutToday": "Sett ut i dag"
     },
     "rewards": {
         "title": "Belønninger",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Dine posteringer",
         "toastApprovedNamed": "«{{reward}}» godkjent for {{name}}.",
         "toastRejectedNamed": "«{{reward}}» avvist for {{name}}.",
-        "toastCancelledNamed": "«{{reward}}» trukket tilbake."
+        "toastCancelledNamed": "«{{reward}}» trukket tilbake.",
+        "ledgerFilterLabel": "Filtrer etter person",
+        "bonusKindCredit": "Tillegg",
+        "bonusKindDebit": "Trekk",
+        "bonusKindLabel": "Tillegg eller trekk",
+        "bonusCredit": "Legg til",
+        "bonusDebit": "Trekk fra",
+        "notEnoughPoints": "Ikke nok poeng til denne belønningen.",
+        "bonusPoints": "Poeng"
     },
     "datepicker": {
         "openCalendar": "Åpne kalender",
@@ -6534,7 +6603,6 @@
             "bag_one": "pose",
             "bag_other": "poser"
         },
-        "moreDetailsHint": "Minimumsbeholdning, notater",
         "moreDetailsHint": "Minimumsbeholdning, notater",
         "errorLocationGone": "Dette lagringsstedet eksisterer ikke lenger.",
         "errorLocationExists": "Dette lagringsstedet finnes allerede. Velg et annet navn.",
@@ -6706,7 +6774,8 @@
         "openAction": "Åpne {{name}}",
         "limitReached": "Minst {{count}} dokumenter.",
         "limitReached_one": "Minst {{count}} dokument.",
-        "lockedPrivate": "Vedlegg til stede (privat)"
+        "lockedPrivate": "Vedlegg til stede (privat)",
+        "pickNone": "Velg minst ett dokument."
     },
     "join": {
         "title": "Opprett konto",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "Visningsnavnet kan være maksimalt 128 tegn langt.",
         "previewFailed": "Invitasjonen kunne ikke kontrolleres akkurat nå. Vennligst last inn siden på nytt om et øyeblikk.",
         "invalidTitle": "Ugyldig invitasjon",
-        "toLogin": "Gå til pålogging"
+        "toLogin": "Gå til pålogging",
+        "introNamed": "{{name}} har invitert deg til {{app}}. Velg innloggingsdetaljer her."
     },
     "newLabel": {
         "tasks": "Oppgave",
@@ -6763,7 +6833,8 @@
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Vakttype",
         "assetCost": "Eiendel",
-        "schedulePlan": "Vaktplan"
+        "schedulePlan": "Vaktplan",
+        "healthOverview": "Registrer"
     },
     "iconPicker": {
         "title": "Velg ikon",
@@ -7002,5 +7073,27 @@
         "install": "app, hjemskjerm, Dock",
         "push": "varsler, påminnelser, bjelle",
         "wallMode": "kiosk, nettbrett, veggskjerm, fullskjerm"
+    },
+    "colorPicker": {
+        "gray": "Grå",
+        "blue": "Blå",
+        "green": "Grønn",
+        "ocher": "Oker",
+        "emerald": "Smaragd",
+        "fuchsia": "Fuksia",
+        "red": "Rød",
+        "cyan": "Cyan",
+        "orange": "Oransje",
+        "pink": "Rosa",
+        "custom": "Egen farge",
+        "chooseCustom": "Velg egen farge",
+        "standard": "Standardfarge"
+    },
+    "browserTooOld": {
+        "pageTitle": "Nettleseren er for gammel",
+        "title": "Denne nettleseren er for gammel for Yuvomi",
+        "body": "Yuvomi trenger noen funksjoner som denne nettleseren ikke har ennå. Dataene dine berøres ikke.",
+        "versions": "Yuvomi fungerer fra Chrome og Edge {{chrome}}, Firefox {{firefox}} og Safari {{safari}}, og på iPhone og iPad fra iOS {{ios}}.",
+        "action": "Oppdater nettleseren eller enheten, og prøv igjen. Går ikke det, åpner du Yuvomi i en annen nettleser."
     }
 }

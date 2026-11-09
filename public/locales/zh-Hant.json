@@ -110,7 +110,17 @@
         "errorNotOwner": "這是其他人建立的，你可以檢視，但不能修改。",
         "foreignReadOnlyHint": "由 {{name}} 建立，你可以檢視，但不能修改。",
         "deletedNamed": "「{{name}}」已刪除。",
-        "sortMode": "調整順序"
+        "sortMode": "調整順序",
+        "createdNamed": "「{{name}}」已建立。",
+        "savedNamed": "「{{name}}」已儲存。",
+        "everyNDays": "每 {{count}} 天",
+        "everyNDays_one": "每 {{count}} 天",
+        "everyNWeeks": "每 {{count}} 週一次",
+        "everyNWeeks_one": "每 {{count}} 週一次",
+        "everyNMonths": "每 {{count}} 個月一次",
+        "everyNMonths_one": "每 {{count}} 個月一次",
+        "everyNYears": "每 {{count}} 年一次",
+        "everyNYears_one": "每 {{count}} 年一次"
     },
     "kitchen": {
         "noShoppingLists": "還沒有購物清單。",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "已結束",
         "todayTimelineRunning": "進行中",
         "todayTimelineNext": "下一個",
-        "todayAlsoTitle": "今天還有"
+        "todayAlsoTitle": "今天還有",
+        "todayNothingPlanned": "尚無任何安排",
+        "todayNothingPlannedSub": "今天的約會、任務和餐點會顯示在這裡。"
     },
     "tasks": {
         "resetOrder": "自動排序",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "「{{item}}」已回到「{{back}}」：伺服器不接受將它放入「{{target}}」。",
             "waited": "「{{item}}」未移到「{{target}}」：「{{back}}」的同步已關閉超過一週。開啟該清單後，項目會重新出現在「{{back}}」。"
-        }
+        },
+        "moreDetailsHint": "價格、商店、連結、備註",
+        "toPantryAllToPlaceholder": "選擇位置 …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} 種食材",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "開啟{{title}}的食譜",
         "viewRecipeNamed": "檢視{{title}}的食譜",
         "recipeIngredientsLabel": "食譜中的食材",
-        "recipeIngredientsEdit": "調整"
+        "recipeIngredientsEdit": "調整",
+        "moreDetailsHint": "食譜、備註、連結"
     },
     "calendar": {
         "searchOpen": "搜尋日程",
@@ -1981,7 +1996,11 @@
         "showAccountTransactions": "檢視交易",
         "loansSummary": "{{count}} 笔进行中 · 剩余 {{amount}}",
         "summaryTransfersIn": "轉入",
-        "summaryTransfersOut": "轉出"
+        "summaryTransfersOut": "轉出",
+        "transferDefaultTitle": "轉帳 {{from}} → {{to}}",
+        "transferMoreDetailsHint": "類別與重複",
+        "loanMoreDetailsHint": "標題、帳戶、貨幣與備註",
+        "entryMoreDetailsHint": "重複、負責人與收據"
     },
     "settings": {
         "healthCycleEnableLabel": "在家庭中提供週期",
@@ -3279,7 +3298,9 @@
             "presetHintRoleLimited": "角色「{{role}}」鎖定：{{modules}}。",
             "presetHintUnavailable": "目前無法顯示確切效果。模板仍然生效。",
             "presetHintRoleChild": "角色「{{role}}」不封鎖任何模組。另外適用上方的兒童初始權限。",
-            "presetHintChildExtra": "另外適用上方的兒童初始權限。"
+            "presetHintChildExtra": "另外適用上方的兒童初始權限。",
+            "done": "完成",
+            "untitled": "待處理的邀請"
         },
         "healthCaregiversLabel": "可以記錄健康資料",
         "healthCaregiversHint": "這些人可以為該成員記錄體徵、用藥、化驗結果和活動，並在此過程中看到其私密記錄。經期日記不在此列。",
@@ -3654,7 +3675,9 @@
         "remoteErrorAuthFailed": "伺服器拒絕了登入。請檢查使用者名稱和密碼。",
         "remoteErrorStatus": "伺服器回應的狀態為 {{status}}。",
         "remoteErrorUnreachable": "無法連線到伺服器。請檢查位址以及伺服器是否正在執行。",
-        "remoteErrorFailed": "對伺服器的請求失敗。"
+        "remoteErrorFailed": "對伺服器的請求失敗。",
+        "modulesInMyNavigation": "在我的導航中顯示{{module}}",
+        "modulesKitchenInMyNavigation": "在我的導航中顯示廚房"
     },
     "login": {
         "tagline": "歡迎回來。你的家，盡在一處。",
@@ -3689,7 +3712,8 @@
         "twoFactorCancel": "取消",
         "ssoOnlyHint": "登入此家庭僅透過 SSO 進行。",
         "guestPasswordLogin": "以訪客身份用密碼登入",
-        "accountCannotSignIn": "此帳戶無法登入，請聯絡您家庭的管理員。"
+        "accountCannotSignIn": "此帳戶無法登入，請聯絡您家庭的管理員。",
+        "invalidCredentialsAskAdmin": "使用者名稱或密碼錯誤。忘記密碼了嗎？家庭管理員可以為你設定新密碼。"
     },
     "setup": {
         "title": "歡迎使用 Yuvomi",
@@ -3832,7 +3856,18 @@
         "ingredientMatchEmpty": "庫存還是空的。",
         "ingredientMatchSaved": "已儲存關聯。",
         "ingredientMatchCleared": "已取消關聯。",
-        "ingredientMatchLoadError": "無法載入庫存。"
+        "ingredientMatchLoadError": "無法載入庫存。",
+        "errorIngredientsChanged": "這個食譜在此期間已被修改。請檢查食材後再加入一次。",
+        "servingsLabel": "份數",
+        "servingsMultipleLabel": "份量",
+        "servingsFewer": "減少份數",
+        "servingsMore": "增加份數",
+        "servingsLess": "減少份量",
+        "servingsMoreMultiple": "增加份量",
+        "servingsHint": "這些用量是幾人份。不確定就留空。",
+        "servingsInvalid": "1 到 99 之間的整數。",
+        "moreDetailsHint": "備註、圖片、連結",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "輸入文字即可前往某個模組或新建內容。輸入至少 2 個字元時也能搜尋你的條目，只輸入部分字詞也找得到。",
@@ -3989,7 +4024,8 @@
         "staleData": "離線 - 資料截至：{{time}}",
         "pageTitle": "你已離線",
         "pageDescription": "此頁面需要網路連線。裝置恢復連線後會自動載入。",
-        "snapshot": "無法連線到伺服器 - 已儲存的資料，唯讀"
+        "snapshot": "無法連線到伺服器 - 已儲存的資料，唯讀",
+        "unreachableBody": "Yuvomi 目前無法連線。請檢查裝置是否連上網路以及伺服器是否在執行，然後重試。"
     },
     "emptyHint": {
         "recipes": "食譜可以直接進入用餐計劃或購物清單。",
@@ -4524,7 +4560,17 @@
         "checkedOutNamed": "{{name}}已簽退。",
         "visitToday": "今日在場：{{from}} - {{to}}",
         "checkInAgain": "再次簽到",
-        "checkedInNamed": "{{name}}已簽到。"
+        "checkedInNamed": "{{name}}已簽到。",
+        "taskDoneNamed": "「{{name}}」已完成。",
+        "visitDeletedNamed": "{{date}} 的上門記錄已刪除。",
+        "visitPaidNamed": "{{date}} 的上門記錄已付款。",
+        "visitUnpaidNamed": "{{date}} 的上門記錄付款已撤銷。",
+        "workerMoreHint": "聯絡方式、生日、顏色、備註",
+        "markPaidNamed": "將 {{date}} 的到訪標記為已付款",
+        "paymentsMonthWithOpen": "{{month}}：{{total}}，其中 {{pending}} 未付",
+        "paymentsMonthAllPaid": "{{month}}：{{total}}，已全部付清",
+        "taskTemplatesHint": "輕點即可新增。",
+        "markPaidShort": "已付款"
     },
     "userMultiSelect": {
         "moreUsers": "更多",
@@ -4722,7 +4768,10 @@
         "paidLabel": "已付",
         "totalsByCategory": "依類別",
         "categoryFilter": "依類別篩選支出",
-        "noExpensesInCategory": "此類別沒有支出。"
+        "noExpensesInCategory": "此類別沒有支出。",
+        "noCategory": "無類別",
+        "participantsRequired": "請至少選擇一人。",
+        "moreDetailsHint": "備註與收據"
     },
     "wmo": {
         "0": "晴天",
@@ -5073,7 +5122,8 @@
         "accountArchivedMeta": "{{name}} 已歸檔 - 不帶帳戶記帳",
         "visibilityHint_private": "只有你能看到這個訂閱及其付款。",
         "visibilityHint_shared": "家庭中的每個人都能看到這個訂閱及其付款。",
-        "errorAccountGone": "所選帳戶已不存在。"
+        "errorAccountGone": "所選帳戶已不存在。",
+        "moreDetailsHint": "類別、付款方式、顏色與備註"
     },
     "health": {
         "fasting": {
@@ -5205,7 +5255,8 @@
                 "notStarted": "尚無記錄"
             },
             "vitals": {
-                "title": "最新生命體徵"
+                "title": "最新生命體徵",
+                "recentTitle": "最近量測"
             },
             "quick": {
                 "title": "快速記錄",
@@ -5504,7 +5555,8 @@
                 "title": "趨勢",
                 "analyte": "指標",
                 "tooFew": "至少需要兩份報告才能顯示趨勢。",
-                "unit": "單位：{{unit}}"
+                "unit": "單位：{{unit}}",
+                "showFor": "顯示 {{name}} 的趨勢"
             },
             "field": {
                 "reportDate": "報告日期",
@@ -6282,7 +6334,16 @@
         "icsPickupSummary": "收運：{{name}}",
         "intervalDecrease": "縮短間隔",
         "intervalIncrease": "延長間隔",
-        "addTypeFirstHint": "请先添加一个类型。"
+        "addTypeFirstHint": "请先添加一个类型。",
+        "scheduleSavedNamed": "「{{name}}」的計劃已儲存。",
+        "pickupSavedNamed": "「{{name}}」的收運已儲存。",
+        "intervalLabel": "間隔",
+        "scheduleDeletedNamed": "「{{name}}」的計劃已刪除。",
+        "pickupDeletedNamed": "「{{name}}」的收運已刪除。",
+        "typeArchivedNamed": "「{{name}}」已歸檔。",
+        "typeRestoredNamed": "「{{name}}」已恢復。",
+        "typesWithoutSchedule": "無計劃",
+        "putOutToday": "今天放出去"
     },
     "rewards": {
         "title": "獎勵",
@@ -6437,7 +6498,15 @@
         "ownLedger": "你的紀錄",
         "toastApprovedNamed": "已為{{name}}批准「{{reward}}」。",
         "toastRejectedNamed": "已為{{name}}拒絕「{{reward}}」。",
-        "toastCancelledNamed": "「{{reward}}」已撤回。"
+        "toastCancelledNamed": "「{{reward}}」已撤回。",
+        "ledgerFilterLabel": "按成員篩選",
+        "bonusKindCredit": "增加",
+        "bonusKindDebit": "扣除",
+        "bonusKindLabel": "增加或扣除",
+        "bonusCredit": "增加",
+        "bonusDebit": "扣除",
+        "notEnoughPoints": "積分不足，無法兌換此獎品。",
+        "bonusPoints": "積分"
     },
     "datepicker": {
         "openCalendar": "開啟日曆",
@@ -6538,7 +6607,6 @@
             "bag_one": "袋",
             "bag_other": "袋"
         },
-        "moreDetailsHint": "最低庫存、備註",
         "moreDetailsHint": "最低庫存、備註",
         "errorLocationGone": "該存放位置已不存在。",
         "errorLocationExists": "已有同名存放位置。請換一個名稱。",
@@ -6710,7 +6778,8 @@
         "openAction": "開啟 {{name}}",
         "limitReached": "最多 {{count}} 份文件。",
         "limitReached_one": "最多 {{count}} 份文件。",
-        "lockedPrivate": "有附件（私密）"
+        "lockedPrivate": "有附件（私密）",
+        "pickNone": "請至少選擇一份文件。"
     },
     "join": {
         "title": "設定你的帳戶",
@@ -6732,7 +6801,8 @@
         "displayNameTooLong": "顯示名稱最多 128 個字元。",
         "previewFailed": "目前無法檢查該邀請，請稍後重新載入頁面。",
         "invalidTitle": "邀請無效",
-        "toLogin": "前往登入"
+        "toLogin": "前往登入",
+        "introNamed": "{{name}} 邀請你加入 {{app}}。請在此設定登入資訊。"
     },
     "newLabel": {
         "tasks": "任務",
@@ -6767,7 +6837,8 @@
         "rewardsBonus": "獎勵",
         "scheduleShiftType": "班次類型",
         "assetCost": "资产",
-        "schedulePlan": "排班週期"
+        "schedulePlan": "排班週期",
+        "healthOverview": "記錄"
     },
     "iconPicker": {
         "title": "選擇圖示",
@@ -7006,5 +7077,27 @@
         "install": "App, 主畫面, Dock",
         "push": "提醒, 通知, 鈴聲",
         "wallMode": "資訊站, 平板, 牆面顯示, 全螢幕"
+    },
+    "colorPicker": {
+        "gray": "灰色",
+        "blue": "藍色",
+        "green": "綠色",
+        "ocher": "赭色",
+        "emerald": "翠綠色",
+        "fuchsia": "紫紅色",
+        "red": "紅色",
+        "cyan": "青色",
+        "orange": "橙色",
+        "pink": "粉紅色",
+        "custom": "自訂顏色",
+        "chooseCustom": "選擇自訂顏色",
+        "standard": "預設顏色"
+    },
+    "browserTooOld": {
+        "pageTitle": "瀏覽器版本過舊",
+        "title": "此瀏覽器版本過舊，無法執行 Yuvomi",
+        "body": "Yuvomi 需要一些此瀏覽器尚未支援的功能。你的資料不受影響。",
+        "versions": "Yuvomi 支援 Chrome 和 Edge {{chrome}}、Firefox {{firefox}} 和 Safari {{safari}} 以上版本，iPhone 和 iPad 需 iOS {{ios}} 以上。",
+        "action": "請更新瀏覽器或裝置後重試。如果無法更新，請在其他瀏覽器中開啟 Yuvomi。"
     }
 }

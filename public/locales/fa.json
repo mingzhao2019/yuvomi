@@ -110,7 +110,17 @@
         "errorNotOwner": "این را شخص دیگری ساخته است - می‌توانید آن را ببینید اما نه تغییر دهید.",
         "foreignReadOnlyHint": "ساخته‌شده توسط {{name}} - می‌توانید آن را ببینید اما نه تغییر دهید.",
         "deletedNamed": "«{{name}}» حذف شد.",
-        "sortMode": "تغییر ترتیب"
+        "sortMode": "تغییر ترتیب",
+        "createdNamed": "«{{name}}» ایجاد شد.",
+        "savedNamed": "«{{name}}» ذخیره شد.",
+        "everyNDays": "هر {{count}} روز",
+        "everyNDays_one": "هر {{count}} روز",
+        "everyNWeeks": "هر {{count}} هفته",
+        "everyNWeeks_one": "هر {{count}} هفته",
+        "everyNMonths": "هر {{count}} ماه",
+        "everyNMonths_one": "هر {{count}} ماه",
+        "everyNYears": "هر {{count}} سال",
+        "everyNYears_one": "هر {{count}} سال"
     },
     "kitchen": {
         "noShoppingLists": "هنوز فهرست خریدی وجود ندارد.",
@@ -472,7 +482,9 @@
         "todayTimelinePast": "تمام‌شده",
         "todayTimelineRunning": "در جریان",
         "todayTimelineNext": "بعدی",
-        "todayAlsoTitle": "همچنین امروز"
+        "todayAlsoTitle": "همچنین امروز",
+        "todayNothingPlanned": "هنوز چیزی برنامه‌ریزی نشده",
+        "todayNothingPlannedSub": "قرارها، کارها و وعده‌های غذایی امروز اینجا نمایش داده می‌شوند."
     },
     "tasks": {
         "resetOrder": "مرتب‌سازی خودکار",
@@ -889,7 +901,9 @@
         "moveReturned": {
             "refused": "«{{item}}» به «{{back}}» برگشت: سرور آن را در «{{target}}» نپذیرفت.",
             "waited": "«{{item}}» به «{{target}}» منتقل نشد: همگام‌سازی «{{back}}» بیش از یک هفته است که خاموش است. مورد به محض روشن شدن این فهرست دوباره در «{{back}}» نمایش داده می‌شود."
-        }
+        },
+        "moreDetailsHint": "قیمت، فروشگاه، پیوند، یادداشت",
+        "toPantryAllToPlaceholder": "یک مکان انتخاب کنید …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} مادهٔ لازم",
@@ -987,7 +1001,8 @@
         "openRecipeNamed": "باز کردن دستور غذای {{title}}",
         "viewRecipeNamed": "مشاهده دستور غذای {{title}}",
         "recipeIngredientsLabel": "مواد از دستور پخت",
-        "recipeIngredientsEdit": "تنظیم"
+        "recipeIngredientsEdit": "تنظیم",
+        "moreDetailsHint": "دستور پخت، یادداشت، پیوند"
     },
     "calendar": {
         "searchOpen": "جستجوی رویدادها",
@@ -1995,7 +2010,11 @@
         "ledgerAccountsAll": "همه حساب‌ها",
         "showAccountTransactions": "نمایش تراکنش‌ها",
         "summaryTransfersIn": "ورودی",
-        "summaryTransfersOut": "خروجی"
+        "summaryTransfersOut": "خروجی",
+        "transferDefaultTitle": "انتقال {{from}} ← {{to}}",
+        "transferMoreDetailsHint": "دسته و تکرار",
+        "loanMoreDetailsHint": "عنوان، حساب، ارز و یادداشت‌ها",
+        "entryMoreDetailsHint": "تکرار، مسئولان و رسیدها"
     },
     "settings": {
         "healthCycleEnableLabel": "ارائهٔ چرخه در خانوار",
@@ -3271,7 +3290,9 @@
             "presetHintRoleLimited": "نقش {{role}} این‌ها را قفل می‌کند: {{modules}}.",
             "presetHintUnavailable": "اثر دقیق در حال حاضر قابل نمایش نیست. الگو با این حال اعمال می‌شود.",
             "presetHintRoleChild": "نقش {{role}} هیچ بخشی را مسدود نمی‌کند. دسترسی‌های آغازین کودکان در بالا هم اعمال می‌شوند.",
-            "presetHintChildExtra": "دسترسی‌های آغازین کودکان در بالا هم اعمال می‌شوند."
+            "presetHintChildExtra": "دسترسی‌های آغازین کودکان در بالا هم اعمال می‌شوند.",
+            "done": "انجام شد",
+            "untitled": "دعوت باز"
         },
         "healthCaregiversLabel": "می‌تواند داده‌های سلامت ثبت کند",
         "healthCaregiversHint": "این افراد می‌توانند علائم حیاتی، داروها، نتایج آزمایش و فعالیت‌ها را برای این عضو ثبت کنند و در این حین ورودی‌های خصوصی او را نیز ببینند. دفترچه چرخه مستثنا می‌ماند.",
@@ -3668,7 +3689,9 @@
         "remoteErrorAuthFailed": "سرور ورود را رد کرد. نام کاربری و رمز عبور را بررسی کنید.",
         "remoteErrorStatus": "سرور با وضعیت {{status}} پاسخ داد.",
         "remoteErrorUnreachable": "سرور در دسترس نیست. نشانی را بررسی کنید و اینکه سرور در حال اجراست.",
-        "remoteErrorFailed": "درخواست به سرور ناموفق بود."
+        "remoteErrorFailed": "درخواست به سرور ناموفق بود.",
+        "modulesInMyNavigation": "{{module}} در ناوبری من",
+        "modulesKitchenInMyNavigation": "آشپزخانه در ناوبری من"
     },
     "login": {
         "tagline": "دوباره خوش آمدید. خانهٔ شما در یک جا.",
@@ -3703,7 +3726,8 @@
         "twoFactorCancel": "لغو",
         "ssoOnlyHint": "ورود به این خانوار فقط از طریق SSO انجام می‌شود.",
         "guestPasswordLogin": "ورود مهمان با رمز عبور",
-        "accountCannotSignIn": "این حساب نمی‌تواند وارد شود. لطفاً با مدیر خانوار خود تماس بگیرید."
+        "accountCannotSignIn": "این حساب نمی‌تواند وارد شود. لطفاً با مدیر خانوار خود تماس بگیرید.",
+        "invalidCredentialsAskAdmin": "اطلاعات ورود نامعتبر است. رمز عبور را فراموش کرده‌اید؟ مدیر خانوار می‌تواند رمز جدیدی تعیین کند."
     },
     "setup": {
         "title": "به Yuvomi خوش آمدید",
@@ -3964,7 +3988,18 @@
         "ingredientMatchEmpty": "انبار هنوز خالی است.",
         "ingredientMatchSaved": "اختصاص ذخیره شد.",
         "ingredientMatchCleared": "اختصاص برداشته شد.",
-        "ingredientMatchLoadError": "انبار بارگذاری نشد."
+        "ingredientMatchLoadError": "انبار بارگذاری نشد.",
+        "errorIngredientsChanged": "این دستور پخت در این فاصله تغییر کرده است. مواد را بررسی کن و دوباره اضافه کن.",
+        "servingsLabel": "تعداد پرس",
+        "servingsMultipleLabel": "مقدار",
+        "servingsFewer": "پرس کمتر",
+        "servingsMore": "پرس بیشتر",
+        "servingsLess": "کاهش مقدار",
+        "servingsMoreMultiple": "افزایش مقدار",
+        "servingsHint": "مقدارها برای چند پرس است. اگر نمی‌دانید خالی بگذارید.",
+        "servingsInvalid": "عددی صحیح از 1 تا 99.",
+        "moreDetailsHint": "یادداشت، تصویر، پیوند",
+        "servingsTimes": "× {{value}}"
     },
     "onboarding": {
         "step1Title": "به {{name}} خوش آمدید",
@@ -3985,7 +4020,8 @@
         "staleData": "آفلاین - وضعیت: {{time}}",
         "pageTitle": "آفلاین هستید",
         "pageDescription": "این صفحه به اتصال نیاز دارد. به‌محض آنلاین شدن دوباره دستگاه، خودش بارگیری می‌شود.",
-        "snapshot": "اتصال به سرور برقرار نیست - داده‌های ذخیره‌شده، فقط خواندنی"
+        "snapshot": "اتصال به سرور برقرار نیست - داده‌های ذخیره‌شده، فقط خواندنی",
+        "unreachableBody": "Yuvomi در حال حاضر در دسترس نیست. بررسی کنید دستگاهتان به شبکه وصل است و سرور در حال اجراست، سپس دوباره تلاش کنید."
     },
     "emptyHint": {
         "tasks": "برای ساخت اولین کار خود روی + بزنید. یک کارت را برای انجام‌شدن به چپ و برای مشاهده به راست بکشید.",
@@ -4524,7 +4560,17 @@
         "checkedOutNamed": "خروج {{name}} ثبت شد.",
         "visitToday": "حضور امروز: {{from}} - {{to}}",
         "checkInAgain": "ورود دوباره",
-        "checkedInNamed": "ورود {{name}} ثبت شد."
+        "checkedInNamed": "ورود {{name}} ثبت شد.",
+        "taskDoneNamed": "«{{name}}» انجام شد.",
+        "visitDeletedNamed": "بازدید {{date}} حذف شد.",
+        "visitPaidNamed": "هزینه بازدید {{date}} پرداخت شد.",
+        "visitUnpaidNamed": "پرداخت بازدید {{date}} لغو شد.",
+        "workerMoreHint": "تماس، تولد، رنگ‌ها، یادداشت‌ها",
+        "markPaidNamed": "علامت‌گذاری بازدید {{date}} به‌عنوان پرداخت‌شده",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}، که {{pending}} از آن پرداخت‌نشده است",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}، همه پرداخت شده",
+        "taskTemplatesHint": "برای افزودن ضربه بزنید.",
+        "markPaidShort": "پرداخت‌شده"
     },
     "splitExpenses": {
         "title": "هزینه‌های مشترک",
@@ -4718,7 +4764,10 @@
         "paidLabel": "پرداخت‌شده",
         "totalsByCategory": "بر اساس دسته",
         "categoryFilter": "فیلتر هزینه‌ها بر اساس دسته",
-        "noExpensesInCategory": "هیچ هزینه‌ای در این دسته نیست."
+        "noExpensesInCategory": "هیچ هزینه‌ای در این دسته نیست.",
+        "noCategory": "بدون دسته",
+        "participantsRequired": "دست‌کم یک نفر را انتخاب کن.",
+        "moreDetailsHint": "یادداشت‌ها و رسیدها"
     },
     "wmo": {
         "0": "آسمان صاف",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} بایگانی‌شده - بدون حساب ثبت می‌شود",
         "visibilityHint_private": "فقط شما این اشتراک و پرداخت‌های آن را می‌بینید.",
         "visibilityHint_shared": "همه اعضای خانوار این اشتراک و پرداخت‌های آن را می‌بینند.",
-        "errorAccountGone": "حساب انتخاب‌شده دیگر وجود ندارد."
+        "errorAccountGone": "حساب انتخاب‌شده دیگر وجود ندارد.",
+        "moreDetailsHint": "دسته، روش پرداخت، رنگ و یادداشت‌ها"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "هنوز چیزی ثبت نشده است"
             },
             "vitals": {
-                "title": "آخرین علائم حیاتی"
+                "title": "آخرین علائم حیاتی",
+                "recentTitle": "آخرین اندازه‌گیری"
             },
             "quick": {
                 "title": "ثبت سریع",
@@ -5500,7 +5551,8 @@
                 "title": "روند",
                 "analyte": "آنالیت",
                 "tooFew": "برای نمایش روند حداقل به دو نتیجه نیاز است.",
-                "unit": "واحد: {{unit}}"
+                "unit": "واحد: {{unit}}",
+                "showFor": "نمایش روند {{name}}"
             },
             "field": {
                 "reportDate": "تاریخ نتیجه",
@@ -6278,7 +6330,16 @@
         "colorPink": "صورتی",
         "colorCurrent": "رنگ فعلی",
         "intervalDecrease": "کاهش فاصله",
-        "intervalIncrease": "افزایش فاصله"
+        "intervalIncrease": "افزایش فاصله",
+        "scheduleSavedNamed": "برنامه «{{name}}» ذخیره شد.",
+        "pickupSavedNamed": "جمع‌آوری «{{name}}» ذخیره شد.",
+        "intervalLabel": "فاصله",
+        "scheduleDeletedNamed": "برنامه «{{name}}» حذف شد.",
+        "pickupDeletedNamed": "جمع‌آوری «{{name}}» حذف شد.",
+        "typeArchivedNamed": "«{{name}}» بایگانی شد.",
+        "typeRestoredNamed": "«{{name}}» بازیابی شد.",
+        "typesWithoutSchedule": "بدون برنامه",
+        "putOutToday": "امروز بیرون بگذارید"
     },
     "rewards": {
         "title": "پاداش‌ها",
@@ -6433,7 +6494,15 @@
         "ownLedger": "تراکنش‌های تو",
         "toastApprovedNamed": "«{{reward}}» برای {{name}} تأیید شد.",
         "toastRejectedNamed": "«{{reward}}» برای {{name}} رد شد.",
-        "toastCancelledNamed": "«{{reward}}» پس گرفته شد."
+        "toastCancelledNamed": "«{{reward}}» پس گرفته شد.",
+        "ledgerFilterLabel": "فیلتر بر اساس شخص",
+        "bonusKindCredit": "افزایش",
+        "bonusKindDebit": "کسر",
+        "bonusKindLabel": "افزایش یا کسر",
+        "bonusCredit": "افزودن",
+        "bonusDebit": "کسر کردن",
+        "notEnoughPoints": "امتیاز کافی برای این جایزه وجود ندارد.",
+        "bonusPoints": "امتیازها"
     },
     "datepicker": {
         "openCalendar": "باز کردن تقویم",
@@ -6534,7 +6603,6 @@
             "bag_one": "کیسه",
             "bag_other": "کیسه"
         },
-        "moreDetailsHint": "حداقل موجودی، یادداشت",
         "moreDetailsHint": "حداقل موجودی، یادداشت",
         "errorLocationGone": "این محل نگهداری دیگر وجود ندارد.",
         "errorLocationExists": "این محل نگهداری از قبل وجود دارد. نام دیگری انتخاب کنید.",
@@ -6706,7 +6774,8 @@
         "openAction": "باز کردن {{name}}",
         "limitReached": "حداکثر {{count}} سند.",
         "limitReached_one": "حداکثر {{count}} سند.",
-        "lockedPrivate": "پیوست موجود است (خصوصی)"
+        "lockedPrivate": "پیوست موجود است (خصوصی)",
+        "pickNone": "دست‌کم یک سند را انتخاب کن."
     },
     "join": {
         "title": "راه‌اندازی حساب",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "نام نمایشی حداکثر می‌تواند ۱۲۸ نویسه باشد.",
         "previewFailed": "در حال حاضر بررسی دعوت ممکن نشد. لطفاً کمی بعد صفحه را دوباره بارگذاری کنید.",
         "invalidTitle": "دعوت نامعتبر",
-        "toLogin": "رفتن به ورود"
+        "toLogin": "رفتن به ورود",
+        "introNamed": "{{name}} شما را به {{app}} دعوت کرده است. اطلاعات ورود خود را اینجا تعیین کنید."
     },
     "newLabel": {
         "tasks": "کار",
@@ -6763,7 +6833,8 @@
         "rewards": "جایزه",
         "rewardsBonus": "پاداش",
         "scheduleShiftType": "نوع شیفت",
-        "schedulePlan": "چرخه شیفت"
+        "schedulePlan": "چرخه شیفت",
+        "healthOverview": "ثبت"
     },
     "iconPicker": {
         "title": "انتخاب آیکون",
@@ -7002,5 +7073,27 @@
         "install": "برنامه، صفحه اصلی، Dock",
         "push": "هشدارها، اعلان‌ها، یادآوری‌ها، زنگ",
         "wallMode": "کیوسک، تبلت، نمایشگر دیواری، تمام‌صفحه"
+    },
+    "colorPicker": {
+        "gray": "خاکستری",
+        "blue": "آبی",
+        "green": "سبز",
+        "ocher": "خاکی",
+        "emerald": "زمردی",
+        "fuchsia": "فوشیا",
+        "red": "قرمز",
+        "cyan": "سیان",
+        "orange": "نارنجی",
+        "pink": "صورتی",
+        "custom": "رنگ دلخواه",
+        "chooseCustom": "انتخاب رنگ دلخواه",
+        "standard": "رنگ پیش‌فرض"
+    },
+    "browserTooOld": {
+        "pageTitle": "مرورگر خیلی قدیمی است",
+        "title": "این مرورگر برای Yuvomi خیلی قدیمی است",
+        "body": "Yuvomi به چند قابلیت نیاز دارد که این مرورگر هنوز ندارد. داده‌های شما تحت تأثیر قرار نمی‌گیرند.",
+        "versions": "Yuvomi از Chrome و Edge {{chrome}}، Firefox {{firefox}} و Safari {{safari}} و روی iPhone و iPad از iOS {{ios}} به بعد کار می‌کند.",
+        "action": "مرورگر یا دستگاه را به‌روز کنید و دوباره تلاش کنید. اگر ممکن نیست، Yuvomi را در مرورگر دیگری باز کنید."
     }
 }

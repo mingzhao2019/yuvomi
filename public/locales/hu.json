@@ -110,7 +110,17 @@
         "errorNotOwner": "Ezt valaki más hozta létre - megnézheted, de nem módosíthatod.",
         "foreignReadOnlyHint": "Létrehozta: {{name}} - megnézheted, de nem módosíthatod.",
         "deletedNamed": "„{{name}}” törölve.",
-        "sortMode": "Sorrend módosítása"
+        "sortMode": "Sorrend módosítása",
+        "createdNamed": "„{{name}}” létrehozva.",
+        "savedNamed": "„{{name}}” mentve.",
+        "everyNDays": "Minden {{count}} nap",
+        "everyNDays_one": "Minden {{count}} nap",
+        "everyNWeeks": "Minden {{count}}. héten",
+        "everyNWeeks_one": "Minden {{count}}. héten",
+        "everyNMonths": "Minden {{count}}. hónapban",
+        "everyNMonths_one": "Minden {{count}}. hónapban",
+        "everyNYears": "Minden {{count}}. évben",
+        "everyNYears_one": "Minden {{count}}. évben"
     },
     "kitchen": {
         "noShoppingLists": "Még nincs bevásárlólista.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "véget ért",
         "todayTimelineRunning": "folyamatban",
         "todayTimelineNext": "következik",
-        "todayAlsoTitle": "Ma még"
+        "todayAlsoTitle": "Ma még",
+        "todayNothingPlanned": "Még nincs semmi tervezve",
+        "todayNothingPlannedSub": "A mai időpontok, feladatok és étkezések itt jelennek meg."
     },
     "tasks": {
         "resetOrder": "Automatikus rendezés",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "„{{item}}” visszakerült ide: „{{back}}”. A szerver nem fogadta el itt: „{{target}}”.",
             "waited": "„{{item}}” nem került át ide: „{{target}}”. A(z) „{{back}}” szinkronizálása több mint egy hete ki van kapcsolva. A tétel újra megjelenik itt: „{{back}}”, amint bekapcsolod a listát."
-        }
+        },
+        "moreDetailsHint": "Ár, bolt, hivatkozás, jegyzet",
+        "toPantryAllToPlaceholder": "Válassz helyet …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} hozzávaló",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "{{title}} receptjének megnyitása",
         "viewRecipeNamed": "{{title}} receptjének megtekintése",
         "recipeIngredientsLabel": "Hozzávalók a receptből",
-        "recipeIngredientsEdit": "Módosítás"
+        "recipeIngredientsEdit": "Módosítás",
+        "moreDetailsHint": "Recept, jegyzetek, hivatkozás"
     },
     "calendar": {
         "searchOpen": "Események keresése",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "Minden számla",
         "showAccountTransactions": "Tételek megjelenítése",
         "summaryTransfersIn": "Bejövő",
-        "summaryTransfersOut": "Kimenő"
+        "summaryTransfersOut": "Kimenő",
+        "transferDefaultTitle": "Átvezetés {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategória és ismétlés",
+        "loanMoreDetailsHint": "Cím, számla, pénznem és jegyzetek",
+        "entryMoreDetailsHint": "Ismétlés, felelősök és nyugták"
     },
     "settings": {
         "healthCycleEnableLabel": "Ciklus felajánlása a háztartásban",
@@ -3253,7 +3272,9 @@
             "presetHintRoleLimited": "A(z) {{role}} szerep zárolja: {{modules}}.",
             "presetHintUnavailable": "A pontos hatás most nem jeleníthető meg. A sablon ettől még érvényes.",
             "presetHintRoleChild": "A(z) {{role}} szerep egyetlen modult sem tilt. Ehhez jönnek még a fenti gyerek kezdő jogosultságok.",
-            "presetHintChildExtra": "Ehhez jönnek még a fenti gyerek kezdő jogosultságok."
+            "presetHintChildExtra": "Ehhez jönnek még a fenti gyerek kezdő jogosultságok.",
+            "done": "Kész",
+            "untitled": "Függőben lévő meghívó"
         },
         "healthCaregiversLabel": "Rögzíthet egészségügyi adatokat",
         "healthCaregiversHint": "Ezek a személyek rögzíthetnek életjeleket, gyógyszereket, laboreredményeket és tevékenységeket ehhez a taghoz, és eközben a privát bejegyzéseit is látják. A ciklusnapló kivétel marad.",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "A szerver elutasította a bejelentkezést. Ellenőrizd a felhasználónevet és a jelszót.",
         "remoteErrorStatus": "A szerver {{status}} állapottal válaszolt.",
         "remoteErrorUnreachable": "A szerver nem érhető el. Ellenőrizd a címet, és hogy fut-e a szerver.",
-        "remoteErrorFailed": "A szerverhez intézett kérés sikertelen."
+        "remoteErrorFailed": "A szerverhez intézett kérés sikertelen.",
+        "modulesInMyNavigation": "{{module}} a navigációmban",
+        "modulesKitchenInMyNavigation": "Konyha a navigációmban"
     },
     "login": {
         "tagline": "Üdv újra! Az otthon ügyei egy helyen.",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "Mégse",
         "ssoOnlyHint": "Az ebbe a háztartásba való belépés kizárólag SSO-val történik.",
         "guestPasswordLogin": "Vendég bejelentkezés jelszóval",
-        "accountCannotSignIn": "Ez a fiók nem tud bejelentkezni. Kérjük, forduljon a háztartás rendszergazdájához."
+        "accountCannotSignIn": "Ez a fiók nem tud bejelentkezni. Kérjük, forduljon a háztartás rendszergazdájához.",
+        "invalidCredentialsAskAdmin": "Érvénytelen hitelesítő adatok. Elfelejtetted a jelszót? A háztartás rendszergazdája újat állíthat be."
     },
     "setup": {
         "title": "Üdvözöljük a Yuvomi-ban",
@@ -3946,7 +3970,18 @@
         "ingredientMatchEmpty": "A készlet még üres.",
         "ingredientMatchSaved": "Hozzárendelés mentve.",
         "ingredientMatchCleared": "Hozzárendelés megszüntetve.",
-        "ingredientMatchLoadError": "A készletet nem sikerült betölteni."
+        "ingredientMatchLoadError": "A készletet nem sikerült betölteni.",
+        "errorIngredientsChanged": "A recept időközben megváltozott. Nézd át a hozzávalókat, és add hozzá őket újra.",
+        "servingsLabel": "Adag",
+        "servingsMultipleLabel": "Mennyiség",
+        "servingsFewer": "Kevesebb adag",
+        "servingsMore": "Több adag",
+        "servingsLess": "Mennyiség csökkentése",
+        "servingsMoreMultiple": "Mennyiség növelése",
+        "servingsHint": "Hány adagra szólnak a mennyiségek. Hagyd üresen, ha nem tudod.",
+        "servingsInvalid": "Egész szám 1 és 99 között.",
+        "moreDetailsHint": "Jegyzetek, kép, hivatkozás",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Gépelj, hogy egy területre ugorj vagy létrehozz valamit. 2 karaktertől a bejegyzéseidet is megtalálod, akár szórészlettel is.",
@@ -3985,7 +4020,8 @@
         "staleData": "Offline - állapot: {{time}}",
         "pageTitle": "Offline vagy",
         "pageDescription": "Ehhez az oldalhoz kapcsolat kell. Amint az eszközöd újra online, magától betöltődik.",
-        "snapshot": "Nincs kapcsolat a szerverrel - mentett állapot, csak olvasható"
+        "snapshot": "Nincs kapcsolat a szerverrel - mentett állapot, csak olvasható",
+        "unreachableBody": "A Yuvomi most nem érhető el. Ellenőrizd, hogy az eszközöd csatlakozik-e a hálózathoz, és fut-e a szerver, majd próbáld újra."
     },
     "shortcuts": {
         "search": "Keresés megnyitása",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "{{name}} kijelentkezett.",
         "visitToday": "Ma itt: {{from}} - {{to}}",
         "checkInAgain": "Újra bejelentkezés",
-        "checkedInNamed": "{{name}} bejelentkezett."
+        "checkedInNamed": "{{name}} bejelentkezett.",
+        "taskDoneNamed": "„{{name}}” kész.",
+        "visitDeletedNamed": "A(z) {{date}} látogatás törölve.",
+        "visitPaidNamed": "A(z) {{date}} látogatás kifizetve.",
+        "visitUnpaidNamed": "A(z) {{date}} látogatás fizetése visszavonva.",
+        "workerMoreHint": "Elérhetőség, születésnap, színek, jegyzetek",
+        "markPaidNamed": "A {{date}} látogatás megjelölése fizetettként",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, ebből {{pending}} függőben",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, minden kifizetve",
+        "taskTemplatesHint": "Koppints rá a hozzáadáshoz.",
+        "markPaidShort": "Fizetve"
     },
     "userMultiSelect": {
         "moreUsers": "továbbiak",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Fizetve",
         "totalsByCategory": "Kategória szerint",
         "categoryFilter": "Kiadások szűrése kategória szerint",
-        "noExpensesInCategory": "Ebben a kategóriában nincs kiadás."
+        "noExpensesInCategory": "Ebben a kategóriában nincs kiadás.",
+        "noCategory": "Kategória nélkül",
+        "participantsRequired": "Válassz legalább egy személyt.",
+        "moreDetailsHint": "Jegyzetek és nyugták"
     },
     "wmo": {
         "0": "Tiszta égbolt",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} archivált - számla nélkül könyvel",
         "visibilityHint_private": "Ezt az előfizetést és a fizetéseit csak te látod.",
         "visibilityHint_shared": "A háztartás minden tagja látja ezt az előfizetést és a fizetéseit.",
-        "errorAccountGone": "A kiválasztott számla már nem létezik."
+        "errorAccountGone": "A kiválasztott számla már nem létezik.",
+        "moreDetailsHint": "Kategória, fizetési mód, szín és jegyzetek"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Még nincs semmi rögzítve"
             },
             "vitals": {
-                "title": "Legutóbbi vitális értékek"
+                "title": "Legutóbbi vitális értékek",
+                "recentTitle": "Legutóbb mért"
             },
             "quick": {
                 "title": "Gyors rögzítés",
@@ -5500,7 +5551,8 @@
                 "title": "Alakulás",
                 "analyte": "Paraméter",
                 "tooFew": "Legalább két lelet szükséges az alakulás megjelenítéséhez.",
-                "unit": "Mértékegység: {{unit}}"
+                "unit": "Mértékegység: {{unit}}",
+                "showFor": "{{name}} alakulásának megjelenítése"
             },
             "field": {
                 "reportDate": "Lelet dátuma",
@@ -6278,7 +6330,16 @@
         "colorPink": "Rózsaszín",
         "colorCurrent": "Jelenlegi szín",
         "intervalDecrease": "Időköz csökkentése",
-        "intervalIncrease": "Időköz növelése"
+        "intervalIncrease": "Időköz növelése",
+        "scheduleSavedNamed": "„{{name}}” ütemezése mentve.",
+        "pickupSavedNamed": "„{{name}}” elszállítása mentve.",
+        "intervalLabel": "Gyakoriság",
+        "scheduleDeletedNamed": "„{{name}}” ütemezése törölve.",
+        "pickupDeletedNamed": "„{{name}}” elszállítása törölve.",
+        "typeArchivedNamed": "„{{name}}” archiválva.",
+        "typeRestoredNamed": "„{{name}}” visszaállítva.",
+        "typesWithoutSchedule": "Ütemezés nélkül",
+        "putOutToday": "Ma kell kitenni"
     },
     "rewards": {
         "title": "Jutalmak",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Saját tételeid",
         "toastApprovedNamed": "„{{reward}}” jóváhagyva neki: {{name}}.",
         "toastRejectedNamed": "„{{reward}}” elutasítva neki: {{name}}.",
-        "toastCancelledNamed": "„{{reward}}” visszavonva."
+        "toastCancelledNamed": "„{{reward}}” visszavonva.",
+        "ledgerFilterLabel": "Szűrés személy szerint",
+        "bonusKindCredit": "Jóváírás",
+        "bonusKindDebit": "Levonás",
+        "bonusKindLabel": "Jóváírás vagy levonás",
+        "bonusCredit": "Jóváír",
+        "bonusDebit": "Levon",
+        "notEnoughPoints": "Nincs elég pont ehhez a jutalomhoz.",
+        "bonusPoints": "Pontok"
     },
     "datepicker": {
         "openCalendar": "Naptár megnyitása",
@@ -6534,7 +6603,6 @@
             "bag_one": "tasak",
             "bag_other": "tasak"
         },
-        "moreDetailsHint": "Minimális készlet, jegyzetek",
         "moreDetailsHint": "Minimális készlet, jegyzetek",
         "errorLocationGone": "Ez a tárolási hely már nem létezik.",
         "errorLocationExists": "Ez a tárolási hely már létezik. Válassz másik nevet.",
@@ -6706,7 +6774,8 @@
         "openAction": "{{name}} megnyitása",
         "limitReached": "Legfeljebb {{count}} dokumentum.",
         "limitReached_one": "Legfeljebb {{count}} dokumentum.",
-        "lockedPrivate": "Van melléklet (privát)"
+        "lockedPrivate": "Van melléklet (privát)",
+        "pickNone": "Válassz legalább egy dokumentumot."
     },
     "join": {
         "title": "Fiók beállítása",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "A megjelenő név legfeljebb 128 karakter lehet.",
         "previewFailed": "A meghívót most nem sikerült ellenőrizni. Töltsd újra az oldalt egy pillanat múlva.",
         "invalidTitle": "Érvénytelen meghívó",
-        "toLogin": "Tovább a bejelentkezéshez"
+        "toLogin": "Tovább a bejelentkezéshez",
+        "introNamed": "{{name}} meghívott ide: {{app}}. Itt add meg a belépési adataidat."
     },
     "newLabel": {
         "tasks": "Feladat",
@@ -6763,7 +6833,8 @@
         "rewards": "Jutalom",
         "rewardsBonus": "Bónusz",
         "scheduleShiftType": "Műszaktípus",
-        "schedulePlan": "Műszakciklus"
+        "schedulePlan": "Műszakciklus",
+        "healthOverview": "Rögzítés"
     },
     "iconPicker": {
         "title": "Ikon választása",
@@ -7002,5 +7073,27 @@
         "install": "alkalmazás, kezdőképernyő, Dock",
         "push": "értesítések, figyelmeztetések, emlékeztetők, csengő",
         "wallMode": "kioszk, tablet, fali kijelző, teljes képernyő"
+    },
+    "colorPicker": {
+        "gray": "Szürke",
+        "blue": "Kék",
+        "green": "Zöld",
+        "ocher": "Okker",
+        "emerald": "Smaragd",
+        "fuchsia": "Fukszia",
+        "red": "Piros",
+        "cyan": "Cián",
+        "orange": "Narancs",
+        "pink": "Rózsaszín",
+        "custom": "Saját szín",
+        "chooseCustom": "Saját szín választása",
+        "standard": "Alapértelmezett szín"
+    },
+    "browserTooOld": {
+        "pageTitle": "Túl régi böngésző",
+        "title": "Ez a böngésző túl régi a Yuvomihoz",
+        "body": "A Yuvominak szüksége van néhány funkcióra, amelyet ez a böngésző még nem ismer. Az adataidat ez nem érinti.",
+        "versions": "A Yuvomi Chrome és Edge {{chrome}}, Firefox {{firefox}} és Safari {{safari}} verziótól fut, iPhone-on és iPaden iOS {{ios}} verziótól.",
+        "action": "Frissítsd a böngészőt vagy az eszközt, majd próbáld újra. Ha ez nem lehetséges, nyisd meg a Yuvomit egy másik böngészőben."
     }
 }

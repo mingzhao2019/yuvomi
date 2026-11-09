@@ -112,7 +112,25 @@
         "errorNotOwner": "Це створив хтось інший - ви можете переглядати, але не змінювати.",
         "foreignReadOnlyHint": "Створив(ла) {{name}} - ви можете переглядати, але не змінювати.",
         "deletedNamed": "«{{name}}» видалено.",
-        "sortMode": "Змінити порядок"
+        "sortMode": "Змінити порядок",
+        "createdNamed": "«{{name}}» створено.",
+        "savedNamed": "«{{name}}» збережено.",
+        "everyNDays": "Раз на {{count}} дня",
+        "everyNDays_one": "Раз на {{count}} день",
+        "everyNDays_few": "Раз на {{count}} дні",
+        "everyNDays_many": "Раз на {{count}} днів",
+        "everyNWeeks": "Раз на {{count}} тижня",
+        "everyNWeeks_one": "Раз на {{count}} тиждень",
+        "everyNWeeks_few": "Раз на {{count}} тижні",
+        "everyNWeeks_many": "Раз на {{count}} тижнів",
+        "everyNMonths": "Раз на {{count}} місяця",
+        "everyNMonths_one": "Раз на {{count}} місяць",
+        "everyNMonths_few": "Раз на {{count}} місяці",
+        "everyNMonths_many": "Раз на {{count}} місяців",
+        "everyNYears": "Раз на {{count}} року",
+        "everyNYears_one": "Раз на {{count}} рік",
+        "everyNYears_few": "Раз на {{count}} роки",
+        "everyNYears_many": "Раз на {{count}} років"
     },
     "kitchen": {
         "noShoppingLists": "Списку покупок ще немає.",
@@ -540,7 +558,9 @@
         "todayTimelinePast": "завершено",
         "todayTimelineRunning": "триває",
         "todayTimelineNext": "далі",
-        "todayAlsoTitle": "Також сьогодні"
+        "todayAlsoTitle": "Також сьогодні",
+        "todayNothingPlanned": "Поки нічого не заплановано",
+        "todayNothingPlannedSub": "Тут з'являться сьогоднішні зустрічі, завдання та страви."
     },
     "tasks": {
         "resetOrder": "Сортувати автоматично",
@@ -1005,7 +1025,9 @@
         "moveReturned": {
             "refused": "«{{item}}» знову у списку «{{back}}»: сервер не прийняв його у списку «{{target}}».",
             "waited": "«{{item}}» не переміщено до списку «{{target}}»: синхронізація списку «{{back}}» вимкнена понад тиждень. Товар знову з’явиться у списку «{{back}}», щойно ви його увімкнете."
-        }
+        },
+        "moreDetailsHint": "Ціна, магазин, посилання, нотатка",
+        "toPantryAllToPlaceholder": "Виберіть місце …"
     },
     "meals": {
         "randomizeSuccess_few": "Заплановано {{count}} прийоми їжі.",
@@ -1113,7 +1135,8 @@
         "openRecipeNamed": "Відкрити рецепт {{title}}",
         "viewRecipeNamed": "Переглянути рецепт {{title}}",
         "recipeIngredientsLabel": "Інгредієнти з рецепта",
-        "recipeIngredientsEdit": "Змінити"
+        "recipeIngredientsEdit": "Змінити",
+        "moreDetailsHint": "Рецепт, нотатки, посилання"
     },
     "calendar": {
         "searchOpen": "Пошук подій",
@@ -2147,7 +2170,11 @@
         "ledgerAccountsAll": "Усі рахунки",
         "showAccountTransactions": "Показати операції рахунку",
         "summaryTransfersIn": "Вхідні",
-        "summaryTransfersOut": "Вихідні"
+        "summaryTransfersOut": "Вихідні",
+        "transferDefaultTitle": "Переказ {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Категорія та повторення",
+        "loanMoreDetailsHint": "Назва, рахунок, валюта та нотатки",
+        "entryMoreDetailsHint": "Повторення, відповідальні та чеки"
     },
     "settings": {
         "healthCycleEnableLabel": "Пропонувати цикл у родині",
@@ -3445,7 +3472,9 @@
             "presetHintRoleLimited": "Роль {{role}} закриває: {{modules}}.",
             "presetHintUnavailable": "Точну дію зараз показати не вдається. Шаблон усе одно застосовується.",
             "presetHintRoleChild": "Роль «{{role}}» не блокує жодного модуля. Додатково діють стартові права для дітей вище.",
-            "presetHintChildExtra": "Додатково діють стартові права для дітей вище."
+            "presetHintChildExtra": "Додатково діють стартові права для дітей вище.",
+            "done": "Готово",
+            "untitled": "Відкрите запрошення"
         },
         "healthCaregiversLabel": "Може вносити дані про здоров’я",
         "healthCaregiversHint": "Ці люди можуть вносити показники, ліки, результати аналізів та активність за цього учасника й бачити при цьому його приватні записи. Щоденник циклу лишається закритим.",
@@ -3870,7 +3899,9 @@
         "remoteErrorAuthFailed": "Сервер відхилив вхід. Перевірте ім’я користувача та пароль.",
         "remoteErrorStatus": "Сервер відповів зі статусом {{status}}.",
         "remoteErrorUnreachable": "Сервер недоступний. Перевірте адресу та чи працює сервер.",
-        "remoteErrorFailed": "Запит до сервера не вдався."
+        "remoteErrorFailed": "Запит до сервера не вдався.",
+        "modulesInMyNavigation": "{{module}} у моїй навігації",
+        "modulesKitchenInMyNavigation": "Кухня в моїй навігації"
     },
     "login": {
         "tagline": "З поверненням. Ваш дім - в одному місці.",
@@ -3905,7 +3936,8 @@
         "twoFactorCancel": "Скасувати",
         "ssoOnlyHint": "Вхід до цього домогосподарства відбувається виключно через SSO.",
         "guestPasswordLogin": "Вхід гостя за паролем",
-        "accountCannotSignIn": "Цей обліковий запис не може увійти. Зверніться до адміністратора вашого домогосподарства."
+        "accountCannotSignIn": "Цей обліковий запис не може увійти. Зверніться до адміністратора вашого домогосподарства.",
+        "invalidCredentialsAskAdmin": "Невірні облікові дані. Забули пароль? Адміністратор домогосподарства може задати новий."
     },
     "setup": {
         "title": "Ласкаво просимо до Yuvomi",
@@ -4096,7 +4128,18 @@
         "ingredientMatchEmpty": "Запаси поки що порожні.",
         "ingredientMatchSaved": "Зіставлення збережено.",
         "ingredientMatchCleared": "Зіставлення знято.",
-        "ingredientMatchLoadError": "Не вдалося завантажити запаси."
+        "ingredientMatchLoadError": "Не вдалося завантажити запаси.",
+        "errorIngredientsChanged": "Рецепт тим часом змінився. Перевір інгредієнти й додай їх ще раз.",
+        "servingsLabel": "Порції",
+        "servingsMultipleLabel": "Кількість",
+        "servingsFewer": "Менше порцій",
+        "servingsMore": "Більше порцій",
+        "servingsLess": "Зменшити кількість",
+        "servingsMoreMultiple": "Збільшити кількість",
+        "servingsHint": "На скільки порцій розраховано кількості. Залиште порожнім, якщо не знаєте.",
+        "servingsInvalid": "Ціле число від 1 до 99.",
+        "moreDetailsHint": "Нотатки, зображення, посилання",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Друкуйте, щоб перейти до розділу або щось створити. Від 2 символів знаходяться й ваші записи, навіть за частиною слова.",
@@ -4211,7 +4254,8 @@
         "staleData": "Офлайн - станом на: {{time}}",
         "pageTitle": "Ти офлайн",
         "pageDescription": "Цій сторінці потрібне з’єднання. Щойно пристрій знову буде онлайн, вона завантажиться сама.",
-        "snapshot": "Немає з’єднання із сервером - збережені дані, лише перегляд"
+        "snapshot": "Немає з’єднання із сервером - збережені дані, лише перегляд",
+        "unreachableBody": "Yuvomi зараз недоступний. Перевірте, чи пристрій підключено до мережі і чи працює сервер, і спробуйте ще раз."
     },
     "emptyHint": {
         "tasks": "Натисніть +, щоб створити перше завдання. Проведіть картку вліво, щоб позначити виконаною, вправо - щоб переглянути.",
@@ -4764,7 +4808,17 @@
         "checkedOutNamed": "{{name}}: виїзд зареєстровано.",
         "visitToday": "Сьогодні: {{from}} - {{to}}",
         "checkInAgain": "Зареєструвати заїзд знову",
-        "checkedInNamed": "{{name}}: прибуття зареєстровано."
+        "checkedInNamed": "{{name}}: прибуття зареєстровано.",
+        "taskDoneNamed": "«{{name}}» виконано.",
+        "visitDeletedNamed": "Відвідування {{date}} видалено.",
+        "visitPaidNamed": "Відвідування {{date}} оплачено.",
+        "visitUnpaidNamed": "Оплату відвідування {{date}} скасовано.",
+        "workerMoreHint": "Контакти, день народження, кольори, нотатки",
+        "markPaidNamed": "Позначити візит {{date}} як оплачений",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, з них {{pending}} не оплачено",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, усе оплачено",
+        "taskTemplatesHint": "Торкніться, щоб додати.",
+        "markPaidShort": "Платний"
     },
     "userMultiSelect": {
         "moreUsers": "інші",
@@ -4970,7 +5024,10 @@
         "paidLabel": "Сплачено",
         "totalsByCategory": "За категоріями",
         "categoryFilter": "Фільтрувати витрати за категорією",
-        "noExpensesInCategory": "У цій категорії немає витрат."
+        "noExpensesInCategory": "У цій категорії немає витрат.",
+        "noCategory": "Без категорії",
+        "participantsRequired": "Обери щонайменше одну людину.",
+        "moreDetailsHint": "Нотатки та чеки"
     },
     "wmo": {
         "0": "Ясне небо",
@@ -5333,7 +5390,8 @@
         "accountArchivedMeta": "{{name}} в архіві - записується без рахунку",
         "visibilityHint_private": "Цю підписку та її платежі бачите тільки ви.",
         "visibilityHint_shared": "Усі вдома бачать цю підписку та її платежі.",
-        "errorAccountGone": "Вибраного рахунку більше немає."
+        "errorAccountGone": "Вибраного рахунку більше немає.",
+        "moreDetailsHint": "Категорія, спосіб оплати, колір і нотатки"
     },
     "health": {
         "fasting": {
@@ -5467,7 +5525,8 @@
                 "notStarted": "Ще нічого не зафіксовано"
             },
             "vitals": {
-                "title": "Останні показники"
+                "title": "Останні показники",
+                "recentTitle": "Останні вимірювання"
             },
             "quick": {
                 "title": "Швидке введення",
@@ -5770,7 +5829,8 @@
                 "title": "Динаміка",
                 "analyte": "Показник",
                 "tooFew": "Для відображення динаміки потрібно щонайменше два результати.",
-                "unit": "Одиниця: {{unit}}"
+                "unit": "Одиниця: {{unit}}",
+                "showFor": "Показати динаміку: {{name}}"
             },
             "field": {
                 "reportDate": "Дата результату",
@@ -6568,7 +6628,16 @@
         "mappingProfileApplicableCount_few": "Буде застосовано {{count}} зіставлення.",
         "mappingProfileApplicableCount_many": "Буде застосовано {{count}} зіставлень.",
         "intervalDecrease": "Зменшити інтервал",
-        "intervalIncrease": "Збільшити інтервал"
+        "intervalIncrease": "Збільшити інтервал",
+        "scheduleSavedNamed": "Графік «{{name}}» збережено.",
+        "pickupSavedNamed": "Вивезення «{{name}}» збережено.",
+        "intervalLabel": "Інтервал",
+        "scheduleDeletedNamed": "Графік «{{name}}» видалено.",
+        "pickupDeletedNamed": "Вивезення «{{name}}» видалено.",
+        "typeArchivedNamed": "«{{name}}» заархівовано.",
+        "typeRestoredNamed": "«{{name}}» відновлено.",
+        "typesWithoutSchedule": "Без графіка",
+        "putOutToday": "Виставити сьогодні"
     },
     "rewards": {
         "title": "Нагороди",
@@ -6725,7 +6794,15 @@
         "ownLedger": "Твої записи",
         "toastApprovedNamed": "«{{reward}}» схвалено для: {{name}}.",
         "toastRejectedNamed": "«{{reward}}» відхилено для: {{name}}.",
-        "toastCancelledNamed": "«{{reward}}» відкликано."
+        "toastCancelledNamed": "«{{reward}}» відкликано.",
+        "ledgerFilterLabel": "Фільтр за учасником",
+        "bonusKindCredit": "Нарахування",
+        "bonusKindDebit": "Списання",
+        "bonusKindLabel": "Нарахування або списання",
+        "bonusCredit": "Нарахувати",
+        "bonusDebit": "Списати",
+        "notEnoughPoints": "Недостатньо балів для цієї нагороди.",
+        "bonusPoints": "Бали"
     },
     "datepicker": {
         "openCalendar": "Відкрити календар",
@@ -6852,7 +6929,6 @@
             "bag_many": "пакетів",
             "bag_other": "пакета"
         },
-        "moreDetailsHint": "Мінімальний запас, нотатки",
         "moreDetailsHint": "Мінімальний запас, нотатки",
         "errorLocationGone": "Цього місця зберігання більше немає.",
         "errorLocationExists": "Таке місце зберігання вже є. Виберіть іншу назву.",
@@ -7036,7 +7112,8 @@
         "limitReached_one": "Не більше ніж {{count}} документ.",
         "limitReached_few": "Не більше ніж {{count}} документи.",
         "limitReached_many": "Не більше ніж {{count}} документів.",
-        "lockedPrivate": "Є вкладення (приватне)"
+        "lockedPrivate": "Є вкладення (приватне)",
+        "pickNone": "Обери щонайменше один документ."
     },
     "join": {
         "title": "Налаштування облікового запису",
@@ -7058,7 +7135,8 @@
         "displayNameTooLong": "Відображуване ім’я може містити щонайбільше 128 символів.",
         "previewFailed": "Зараз не вдалося перевірити запрошення. Оновіть сторінку за мить.",
         "invalidTitle": "Запрошення недійсне",
-        "toLogin": "Перейти до входу"
+        "toLogin": "Перейти до входу",
+        "introNamed": "{{name}} запрошує вас до {{app}}. Задайте тут дані для входу."
     },
     "newLabel": {
         "tasks": "Завдання",
@@ -7093,7 +7171,8 @@
         "rewards": "Нагорода",
         "rewardsBonus": "Бонус",
         "scheduleShiftType": "Тип зміни",
-        "schedulePlan": "Цикл змін"
+        "schedulePlan": "Цикл змін",
+        "healthOverview": "Додати"
     },
     "iconPicker": {
         "title": "Вибрати піктограму",
@@ -7340,5 +7419,27 @@
         "install": "застосунок, головний екран, Dock",
         "push": "сповіщення, нагадування, дзвіночок",
         "wallMode": "кіоск, планшет, настінний екран, повний екран"
+    },
+    "colorPicker": {
+        "gray": "Сірий",
+        "blue": "Синій",
+        "green": "Зелений",
+        "ocher": "Вохра",
+        "emerald": "Смарагдовий",
+        "fuchsia": "Фуксія",
+        "red": "Червоний",
+        "cyan": "Блакитний",
+        "orange": "Помаранчевий",
+        "pink": "Рожевий",
+        "custom": "Власний колір",
+        "chooseCustom": "Вибрати власний колір",
+        "standard": "Колір за замовчуванням"
+    },
+    "browserTooOld": {
+        "pageTitle": "Браузер застарів",
+        "title": "Цей браузер застарий для Yuvomi",
+        "body": "Yuvomi потрібні функції, яких цей браузер ще не має. Ваші дані це не зачіпає.",
+        "versions": "Yuvomi працює починаючи з Chrome і Edge {{chrome}}, Firefox {{firefox}} і Safari {{safari}}, а на iPhone і iPad починаючи з iOS {{ios}}.",
+        "action": "Оновіть браузер або пристрій і спробуйте ще раз. Якщо це неможливо, відкрийте Yuvomi в іншому браузері."
     }
 }

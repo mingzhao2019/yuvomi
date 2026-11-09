@@ -110,7 +110,17 @@
         "errorNotOwner": "Någon annan har skapat det här - du kan se det men inte ändra det.",
         "foreignReadOnlyHint": "Skapad av {{name}} - du kan se det men inte ändra det.",
         "deletedNamed": "”{{name}}” raderad.",
-        "sortMode": "Ändra ordning"
+        "sortMode": "Ändra ordning",
+        "createdNamed": "”{{name}}” skapad.",
+        "savedNamed": "”{{name}}” sparad.",
+        "everyNDays": "Var {{count}} dag",
+        "everyNDays_one": "Var {{count}} dag",
+        "everyNWeeks": "Var {{count}}:e vecka",
+        "everyNWeeks_one": "Var {{count}}:e vecka",
+        "everyNMonths": "Var {{count}}:e månad",
+        "everyNMonths_one": "Var {{count}}:e månad",
+        "everyNYears": "Var {{count}}:e år",
+        "everyNYears_one": "Var {{count}}:e år"
     },
     "kitchen": {
         "noShoppingLists": "Det finns ingen inköpslista än.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "slut",
         "todayTimelineRunning": "pågår",
         "todayTimelineNext": "härnäst",
-        "todayAlsoTitle": "Även i dag"
+        "todayAlsoTitle": "Även i dag",
+        "todayNothingPlanned": "Inget planerat än",
+        "todayNothingPlannedSub": "Dagens möten, uppgifter och måltider visas här."
     },
     "tasks": {
         "resetOrder": "Sortera automatiskt",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "”{{item}}” är tillbaka på ”{{back}}”: servern tog inte emot den i ”{{target}}”.",
             "waited": "”{{item}}” flyttades inte till ”{{target}}”: synkroniseringen av ”{{back}}” har varit avstängd i över en vecka. Varan dyker upp på ”{{back}}” igen när listan slås på."
-        }
+        },
+        "moreDetailsHint": "Pris, butik, länk, anteckning",
+        "toPantryAllToPlaceholder": "Välj en plats …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} ingrediens",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "Öppna receptet för {{title}}",
         "viewRecipeNamed": "Visa receptet för {{title}}",
         "recipeIngredientsLabel": "Ingredienser från receptet",
-        "recipeIngredientsEdit": "Anpassa"
+        "recipeIngredientsEdit": "Anpassa",
+        "moreDetailsHint": "Recept, anteckningar, länk"
     },
     "calendar": {
         "searchOpen": "Sök händelser",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "Alla konton",
         "showAccountTransactions": "Visa transaktioner",
         "summaryTransfersIn": "Inkommande",
-        "summaryTransfersOut": "Utgående"
+        "summaryTransfersOut": "Utgående",
+        "transferDefaultTitle": "Överföring {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategori och upprepning",
+        "loanMoreDetailsHint": "Titel, konto, valuta och anteckningar",
+        "entryMoreDetailsHint": "Upprepning, ansvariga och kvitton"
     },
     "settings": {
         "healthCycleEnableLabel": "Erbjud cykeln i hushållet",
@@ -3253,7 +3272,9 @@
             "presetHintRoleLimited": "Rollen {{role}} låser: {{modules}}.",
             "presetHintUnavailable": "Den exakta effekten kan inte visas just nu. Mallen gäller ändå.",
             "presetHintRoleChild": "Rollen {{role}} spärrar ingen modul. Startbehörigheterna för barn ovan tillkommer.",
-            "presetHintChildExtra": "Startbehörigheterna för barn ovan tillkommer."
+            "presetHintChildExtra": "Startbehörigheterna för barn ovan tillkommer.",
+            "done": "Klar",
+            "untitled": "Öppen inbjudan"
         },
         "healthCaregiversLabel": "Får registrera hälsodata",
         "healthCaregiversHint": "Dessa personer får registrera vitalvärden, mediciner, provsvar och aktiviteter åt den här medlemmen och ser då även dennes privata poster. Cykeldagboken förblir undantagen.",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "Servern avvisade inloggningen. Kontrollera användarnamn och lösenord.",
         "remoteErrorStatus": "Servern svarade med status {{status}}.",
         "remoteErrorUnreachable": "Servern kan inte nås. Kontrollera adressen och att servern är igång.",
-        "remoteErrorFailed": "Begäran till servern misslyckades."
+        "remoteErrorFailed": "Begäran till servern misslyckades.",
+        "modulesInMyNavigation": "{{module}} i min navigering",
+        "modulesKitchenInMyNavigation": "Kök i min navigering"
     },
     "login": {
         "tagline": "Välkommen tillbaka. Ditt hem samlat på ett ställe.",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "Avbryt",
         "ssoOnlyHint": "Inloggning till det här hushållet sker uteslutande via SSO.",
         "guestPasswordLogin": "Gästinloggning med lösenord",
-        "accountCannotSignIn": "Det här kontot kan inte logga in. Kontakta administratören för ditt hushåll."
+        "accountCannotSignIn": "Det här kontot kan inte logga in. Kontakta administratören för ditt hushåll.",
+        "invalidCredentialsAskAdmin": "Ogiltiga användaruppgifter. Glömt lösenordet? Hushållets administratör kan ange ett nytt."
     },
     "setup": {
         "title": "Välkommen till Yuvomi",
@@ -3828,7 +3852,18 @@
         "ingredientMatchEmpty": "Skafferiet är fortfarande tomt.",
         "ingredientMatchSaved": "Kopplingen sparades.",
         "ingredientMatchCleared": "Kopplingen togs bort.",
-        "ingredientMatchLoadError": "Skafferiet kunde inte läsas in."
+        "ingredientMatchLoadError": "Skafferiet kunde inte läsas in.",
+        "errorIngredientsChanged": "Receptet har ändrats under tiden. Kontrollera ingredienserna och lägg till dem igen.",
+        "servingsLabel": "Portioner",
+        "servingsMultipleLabel": "Mängd",
+        "servingsFewer": "Färre portioner",
+        "servingsMore": "Fler portioner",
+        "servingsLess": "Minska mängden",
+        "servingsMoreMultiple": "Öka mängden",
+        "servingsHint": "Hur många portioner mängderna gäller för. Lämna tomt om du inte vet.",
+        "servingsInvalid": "Ett heltal från 1 till 99.",
+        "moreDetailsHint": "Anteckningar, bild, länk",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Skriv för att gå till en del eller skapa något. Från 2 tecken hittar du även dina poster, också på delar av ord.",
@@ -3985,7 +4020,8 @@
         "staleData": "Offline - senast uppdaterad: {{time}}",
         "pageTitle": "Du är offline",
         "pageDescription": "Den här sidan behöver en anslutning. Så fort enheten är online igen laddas den av sig själv.",
-        "snapshot": "Ingen anslutning till servern - sparade data, endast läsning"
+        "snapshot": "Ingen anslutning till servern - sparade data, endast läsning",
+        "unreachableBody": "Yuvomi går inte att nå just nu. Kontrollera att enheten är ansluten och att servern körs, och försök igen."
     },
     "emptyHint": {
         "recipes": "Ett recept går direkt till måltidsplanen eller till inköpslistan.",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "{{name}} utcheckad.",
         "visitToday": "Här i dag: {{from}} - {{to}}",
         "checkInAgain": "Checka in igen",
-        "checkedInNamed": "{{name}} incheckad."
+        "checkedInNamed": "{{name}} incheckad.",
+        "taskDoneNamed": "”{{name}}” klar.",
+        "visitDeletedNamed": "Besöket {{date}} raderat.",
+        "visitPaidNamed": "Besöket {{date}} betalt.",
+        "visitUnpaidNamed": "Betalningen för besöket {{date}} har ångrats.",
+        "workerMoreHint": "Kontakt, födelsedag, färger, anteckningar",
+        "markPaidNamed": "Markera besöket {{date}} som betalt",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, varav {{pending}} obetalt",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, allt betalt",
+        "taskTemplatesHint": "Tryck för att lägga till.",
+        "markPaidShort": "Betalt"
     },
     "userMultiSelect": {
         "moreUsers": "mer",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Betalt",
         "totalsByCategory": "Per kategori",
         "categoryFilter": "Filtrera utgifter efter kategori",
-        "noExpensesInCategory": "Inga utgifter i den här kategorin."
+        "noExpensesInCategory": "Inga utgifter i den här kategorin.",
+        "noCategory": "Utan kategori",
+        "participantsRequired": "Välj minst en person.",
+        "moreDetailsHint": "Anteckningar och kvitton"
     },
     "wmo": {
         "0": "Klart",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} arkiverat - bokförs utan konto",
         "visibilityHint_private": "Bara du ser den här prenumerationen och dess betalningar.",
         "visibilityHint_shared": "Alla i hushållet ser den här prenumerationen och dess betalningar.",
-        "errorAccountGone": "Det valda kontot finns inte längre."
+        "errorAccountGone": "Det valda kontot finns inte längre.",
+        "moreDetailsHint": "Kategori, betalsätt, färg och anteckningar"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Inget loggat ännu"
             },
             "vitals": {
-                "title": "Senaste vitalvärden"
+                "title": "Senaste vitalvärden",
+                "recentTitle": "Senast uppmätt"
             },
             "quick": {
                 "title": "Snabbregistrering",
@@ -5500,7 +5551,8 @@
                 "title": "Förlopp",
                 "analyte": "Analyt",
                 "tooFew": "Minst två provsvar krävs för att visa ett förlopp.",
-                "unit": "Enhet: {{unit}}"
+                "unit": "Enhet: {{unit}}",
+                "showFor": "Visa förlopp för {{name}}"
             },
             "field": {
                 "reportDate": "Provsvarsdatum",
@@ -6278,7 +6330,16 @@
         "colorPink": "Rosa",
         "colorCurrent": "Nuvarande färg",
         "intervalDecrease": "Minska intervallet",
-        "intervalIncrease": "Öka intervallet"
+        "intervalIncrease": "Öka intervallet",
+        "scheduleSavedNamed": "Schema för ”{{name}}” sparat.",
+        "pickupSavedNamed": "Hämtning av ”{{name}}” sparad.",
+        "intervalLabel": "Intervall",
+        "scheduleDeletedNamed": "Schema för ”{{name}}” raderat.",
+        "pickupDeletedNamed": "Hämtning av ”{{name}}” raderad.",
+        "typeArchivedNamed": "”{{name}}” arkiverad.",
+        "typeRestoredNamed": "”{{name}}” återställd.",
+        "typesWithoutSchedule": "Utan schema",
+        "putOutToday": "Ställ ut i dag"
     },
     "rewards": {
         "title": "Belöningar",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Dina poster",
         "toastApprovedNamed": "”{{reward}}” godkänd för {{name}}.",
         "toastRejectedNamed": "”{{reward}}” avslagen för {{name}}.",
-        "toastCancelledNamed": "”{{reward}}” återkallad."
+        "toastCancelledNamed": "”{{reward}}” återkallad.",
+        "ledgerFilterLabel": "Filtrera efter person",
+        "bonusKindCredit": "Tillägg",
+        "bonusKindDebit": "Avdrag",
+        "bonusKindLabel": "Tillägg eller avdrag",
+        "bonusCredit": "Lägg till",
+        "bonusDebit": "Dra av",
+        "notEnoughPoints": "Inte tillräckligt med poäng för den här belöningen.",
+        "bonusPoints": "Poäng"
     },
     "datepicker": {
         "openCalendar": "Öppna kalender",
@@ -6534,7 +6603,6 @@
             "bag_one": "påse",
             "bag_other": "påsar"
         },
-        "moreDetailsHint": "Minsta lager, anteckningar",
         "moreDetailsHint": "Minsta lager, anteckningar",
         "errorLocationGone": "Förvaringsplatsen finns inte längre.",
         "errorLocationExists": "Den här förvaringsplatsen finns redan. Välj ett annat namn.",
@@ -6706,7 +6774,8 @@
         "openAction": "Öppna {{name}}",
         "limitReached": "Högst {{count}} dokument.",
         "limitReached_one": "Högst {{count}} dokument.",
-        "lockedPrivate": "Bilaga finns (privat)"
+        "lockedPrivate": "Bilaga finns (privat)",
+        "pickNone": "Välj minst ett dokument."
     },
     "join": {
         "title": "Skapa ditt konto",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "Visningsnamnet får vara högst 128 tecken långt.",
         "previewFailed": "Inbjudan kunde inte kontrolleras just nu. Ladda om sidan om en stund.",
         "invalidTitle": "Ogiltig inbjudan",
-        "toLogin": "Till inloggningen"
+        "toLogin": "Till inloggningen",
+        "introNamed": "{{name}} har bjudit in dig till {{app}}. Ange dina inloggningsuppgifter här."
     },
     "newLabel": {
         "tasks": "Uppgift",
@@ -6763,7 +6833,8 @@
         "rewards": "Belöning",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Skifttyp",
-        "schedulePlan": "Skiftcykel"
+        "schedulePlan": "Skiftcykel",
+        "healthOverview": "Registrera"
     },
     "iconPicker": {
         "title": "Välj ikon",
@@ -7002,5 +7073,27 @@
         "install": "app, hemskärm, Dock",
         "push": "aviseringar, notiser, påminnelser, klocka",
         "wallMode": "kiosk, surfplatta, väggskärm, helskärm"
+    },
+    "colorPicker": {
+        "gray": "Grå",
+        "blue": "Blå",
+        "green": "Grön",
+        "ocher": "Ockra",
+        "emerald": "Smaragd",
+        "fuchsia": "Fuchsia",
+        "red": "Röd",
+        "cyan": "Cyan",
+        "orange": "Orange",
+        "pink": "Rosa",
+        "custom": "Egen färg",
+        "chooseCustom": "Välj egen färg",
+        "standard": "Standardfärg"
+    },
+    "browserTooOld": {
+        "pageTitle": "Webbläsaren är för gammal",
+        "title": "Den här webbläsaren är för gammal för Yuvomi",
+        "body": "Yuvomi behöver några funktioner som den här webbläsaren inte har ännu. Dina data påverkas inte.",
+        "versions": "Yuvomi fungerar från Chrome och Edge {{chrome}}, Firefox {{firefox}} och Safari {{safari}}, och på iPhone och iPad från iOS {{ios}}.",
+        "action": "Uppdatera webbläsaren eller enheten och försök sedan igen. Går det inte, öppna Yuvomi i en annan webbläsare."
     }
 }

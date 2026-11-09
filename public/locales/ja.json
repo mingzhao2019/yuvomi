@@ -110,7 +110,17 @@
         "errorNotOwner": "これは他の人が作成しました。表示はできますが、変更はできません。",
         "foreignReadOnlyHint": "{{name}} が作成 - 表示はできますが、変更はできません。",
         "deletedNamed": "「{{name}}」を削除しました。",
-        "sortMode": "並べ替え"
+        "sortMode": "並べ替え",
+        "createdNamed": "「{{name}}」を作成しました。",
+        "savedNamed": "「{{name}}」を保存しました。",
+        "everyNDays": "{{count}} 日ごと",
+        "everyNDays_one": "{{count}} 日ごと",
+        "everyNWeeks": "{{count}}週間ごと",
+        "everyNWeeks_one": "{{count}}週間ごと",
+        "everyNMonths": "{{count}}か月ごと",
+        "everyNMonths_one": "{{count}}か月ごと",
+        "everyNYears": "{{count}}年ごと",
+        "everyNYears_one": "{{count}}年ごと"
     },
     "kitchen": {
         "noShoppingLists": "買い物リストがまだありません。",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "終了",
         "todayTimelineRunning": "進行中",
         "todayTimelineNext": "次の予定",
-        "todayAlsoTitle": "今日のほかの予定"
+        "todayAlsoTitle": "今日のほかの予定",
+        "todayNothingPlanned": "まだ予定はありません",
+        "todayNothingPlannedSub": "今日の予定、タスク、食事がここに表示されます。"
     },
     "tasks": {
         "resetOrder": "自動で並べ替え",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "「{{item}}」は「{{back}}」に戻りました。サーバーが「{{target}}」への追加を受け付けませんでした。",
             "waited": "「{{item}}」は「{{target}}」に移動されませんでした。「{{back}}」の同期が1週間以上オフになっています。リストをオンにすると、「{{back}}」に再び表示されます。"
-        }
+        },
+        "moreDetailsHint": "価格・店舗・リンク・メモ",
+        "toPantryAllToPlaceholder": "場所を選択 …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} 品の材料",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "{{title}}のレシピを開く",
         "viewRecipeNamed": "{{title}}のレシピを表示",
         "recipeIngredientsLabel": "レシピの材料",
-        "recipeIngredientsEdit": "調整"
+        "recipeIngredientsEdit": "調整",
+        "moreDetailsHint": "レシピ・メモ・リンク"
     },
     "calendar": {
         "searchOpen": "予定を検索",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "すべての口座",
         "showAccountTransactions": "記録を表示",
         "summaryTransfersIn": "入金",
-        "summaryTransfersOut": "出金"
+        "summaryTransfersOut": "出金",
+        "transferDefaultTitle": "振替 {{from}} → {{to}}",
+        "transferMoreDetailsHint": "カテゴリと繰り返し",
+        "loanMoreDetailsHint": "タイトル、口座、通貨、メモ",
+        "entryMoreDetailsHint": "繰り返し、担当者、領収書"
     },
     "settings": {
         "healthCycleEnableLabel": "世帯で周期を利用できるようにする",
@@ -3253,7 +3272,9 @@
             "presetHintRoleLimited": "役割「{{role}}」がロックするもの: {{modules}}。",
             "presetHintUnavailable": "正確な効果は現在表示できません。テンプレートは適用されます。",
             "presetHintRoleChild": "役割「{{role}}」はどのモジュールもブロックしません。上の子ども用初期権限が加わります。",
-            "presetHintChildExtra": "上の子ども用初期権限が加わります。"
+            "presetHintChildExtra": "上の子ども用初期権限が加わります。",
+            "done": "完了",
+            "untitled": "保留中の招待"
         },
         "healthCaregiversLabel": "健康データを記録できる",
         "healthCaregiversHint": "これらの人はこのメンバーのバイタル、薬、検査結果、アクティビティを記録でき、その際に非公開の記録も見えます。周期の記録は対象外です。",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "サーバーがサインインを拒否しました。ユーザー名とパスワードを確認してください。",
         "remoteErrorStatus": "サーバーはステータス {{status}} で応答しました。",
         "remoteErrorUnreachable": "サーバーに接続できません。アドレスとサーバーが稼働しているかを確認してください。",
-        "remoteErrorFailed": "サーバーへのリクエストに失敗しました。"
+        "remoteErrorFailed": "サーバーへのリクエストに失敗しました。",
+        "modulesInMyNavigation": "自分のナビゲーションに{{module}}を表示",
+        "modulesKitchenInMyNavigation": "自分のナビゲーションにキッチンを表示"
     },
     "login": {
         "tagline": "おかえりなさい。暮らしのことを一か所に。",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "キャンセル",
         "ssoOnlyHint": "この世帯へのサインインは SSO のみです。",
         "guestPasswordLogin": "ゲストとしてパスワードでサインイン",
-        "accountCannotSignIn": "このアカウントはサインインできません。世帯の管理者にお問い合わせください。"
+        "accountCannotSignIn": "このアカウントはサインインできません。世帯の管理者にお問い合わせください。",
+        "invalidCredentialsAskAdmin": "ユーザー名またはパスワードが正しくありません。パスワードを忘れた場合は、世帯の管理者が新しいパスワードを設定できます。"
     },
     "setup": {
         "title": "Yuvomi へようこそ",
@@ -3828,7 +3852,18 @@
         "ingredientMatchEmpty": "在庫はまだ空です。",
         "ingredientMatchSaved": "対応づけを保存しました。",
         "ingredientMatchCleared": "対応づけを解除しました。",
-        "ingredientMatchLoadError": "在庫を読み込めませんでした。"
+        "ingredientMatchLoadError": "在庫を読み込めませんでした。",
+        "errorIngredientsChanged": "このレシピはその間に変更されました。材料を確認して、もう一度追加してください。",
+        "servingsLabel": "人数",
+        "servingsMultipleLabel": "分量",
+        "servingsFewer": "人数を減らす",
+        "servingsMore": "人数を増やす",
+        "servingsLess": "分量を減らす",
+        "servingsMoreMultiple": "分量を増やす",
+        "servingsHint": "分量が何人分か。分からなければ空欄のままにします。",
+        "servingsInvalid": "1から99までの整数。",
+        "moreDetailsHint": "メモ・画像・リンク",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "入力すると項目へ移動したり、新しく作成したりできます。2文字以上で登録内容も検索でき、単語の一部でも見つかります。",
@@ -3985,7 +4020,8 @@
         "staleData": "オフライン - 最終更新: {{time}}",
         "pageTitle": "オフラインです",
         "pageDescription": "このページには接続が必要です。端末がオンラインに戻ると自動で読み込まれます。",
-        "snapshot": "サーバーに接続できません - 保存済みのデータ（閲覧のみ）"
+        "snapshot": "サーバーに接続できません - 保存済みのデータ（閲覧のみ）",
+        "unreachableBody": "現在 Yuvomi に接続できません。端末がネットワークにつながっているか、サーバーが動いているかを確認して、もう一度お試しください。"
     },
     "emptyHint": {
         "recipes": "レシピは献立にも買い物リストにも直接送れます。",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "{{name}}さんがチェックアウトしました。",
         "visitToday": "本日の在室: {{from}} - {{to}}",
         "checkInAgain": "もう一度チェックイン",
-        "checkedInNamed": "{{name}}さんがチェックインしました。"
+        "checkedInNamed": "{{name}}さんがチェックインしました。",
+        "taskDoneNamed": "「{{name}}」を完了しました。",
+        "visitDeletedNamed": "{{date}}の訪問を削除しました。",
+        "visitPaidNamed": "{{date}}の訪問を支払い済みにしました。",
+        "visitUnpaidNamed": "{{date}}の訪問の支払いを取り消しました。",
+        "workerMoreHint": "連絡先、誕生日、色、メモ",
+        "markPaidNamed": "{{date}}の訪問を支払い済みにする",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}（うち未払い {{pending}}）",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}（すべて支払い済み）",
+        "taskTemplatesHint": "タップすると追加されます。",
+        "markPaidShort": "支払い済み"
     },
     "userMultiSelect": {
         "moreUsers": "他",
@@ -4718,7 +4764,10 @@
         "paidLabel": "支払額",
         "totalsByCategory": "カテゴリ別",
         "categoryFilter": "カテゴリで支出を絞り込む",
-        "noExpensesInCategory": "このカテゴリの支出はありません。"
+        "noExpensesInCategory": "このカテゴリの支出はありません。",
+        "noCategory": "カテゴリなし",
+        "participantsRequired": "少なくとも1人を選んでください。",
+        "moreDetailsHint": "メモと領収書"
     },
     "wmo": {
         "0": "快晴",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} はアーカイブ済み - 口座なしで記録",
         "visibilityHint_private": "このサブスクリプションとその支払いはあなただけが見られます。",
         "visibilityHint_shared": "世帯の全員がこのサブスクリプションとその支払いを見られます。",
-        "errorAccountGone": "選択した口座はもう存在しません。"
+        "errorAccountGone": "選択した口座はもう存在しません。",
+        "moreDetailsHint": "カテゴリ、支払い方法、色、メモ"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "まだ記録がありません"
             },
             "vitals": {
-                "title": "最新のバイタル"
+                "title": "最新のバイタル",
+                "recentTitle": "最近の測定"
             },
             "quick": {
                 "title": "クイック記録",
@@ -5500,7 +5551,8 @@
                 "title": "推移",
                 "analyte": "項目",
                 "tooFew": "推移を表示するには少なくとも2件の検査結果が必要です。",
-                "unit": "単位: {{unit}}"
+                "unit": "単位: {{unit}}",
+                "showFor": "{{name}}の推移を表示"
             },
             "field": {
                 "reportDate": "検査日",
@@ -6278,7 +6330,16 @@
         "colorPink": "ピンク",
         "colorCurrent": "現在の色",
         "intervalDecrease": "間隔を短くする",
-        "intervalIncrease": "間隔を長くする"
+        "intervalIncrease": "間隔を長くする",
+        "scheduleSavedNamed": "「{{name}}」のスケジュールを保存しました。",
+        "pickupSavedNamed": "「{{name}}」の収集を保存しました。",
+        "intervalLabel": "間隔",
+        "scheduleDeletedNamed": "「{{name}}」のスケジュールを削除しました。",
+        "pickupDeletedNamed": "「{{name}}」の収集を削除しました。",
+        "typeArchivedNamed": "「{{name}}」をアーカイブしました。",
+        "typeRestoredNamed": "「{{name}}」を復元しました。",
+        "typesWithoutSchedule": "スケジュールなし",
+        "putOutToday": "今日出す"
     },
     "rewards": {
         "title": "ごほうび",
@@ -6433,7 +6494,15 @@
         "ownLedger": "自分の記録",
         "toastApprovedNamed": "{{name}}さんの「{{reward}}」を承認しました。",
         "toastRejectedNamed": "{{name}}さんの「{{reward}}」を却下しました。",
-        "toastCancelledNamed": "「{{reward}}」を取り下げました。"
+        "toastCancelledNamed": "「{{reward}}」を取り下げました。",
+        "ledgerFilterLabel": "人で絞り込む",
+        "bonusKindCredit": "加算",
+        "bonusKindDebit": "減算",
+        "bonusKindLabel": "加算または減算",
+        "bonusCredit": "加算する",
+        "bonusDebit": "減算する",
+        "notEnoughPoints": "この景品にはポイントが足りません。",
+        "bonusPoints": "ポイント"
     },
     "datepicker": {
         "openCalendar": "カレンダーを開く",
@@ -6534,7 +6603,6 @@
             "bag_one": "袋",
             "bag_other": "袋"
         },
-        "moreDetailsHint": "最低在庫・メモ",
         "moreDetailsHint": "最低在庫・メモ",
         "errorLocationGone": "この保管場所はもう存在しません。",
         "errorLocationExists": "この保管場所はすでにあります。別の名前を選んでください。",
@@ -6706,7 +6774,8 @@
         "openAction": "{{name}} を開く",
         "limitReached": "書類は最大 {{count}} 件までです。",
         "limitReached_one": "書類は最大 {{count}} 件までです。",
-        "lockedPrivate": "添付ファイルあり（非公開）"
+        "lockedPrivate": "添付ファイルあり（非公開）",
+        "pickNone": "少なくとも1つの書類を選んでください。"
     },
     "join": {
         "title": "アカウントの設定",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "表示名は128文字までです。",
         "previewFailed": "招待をいま確認できませんでした。しばらくしてからページを再読み込みしてください。",
         "invalidTitle": "招待が無効です",
-        "toLogin": "ログインへ"
+        "toLogin": "ログインへ",
+        "introNamed": "{{name}}さんから{{app}}に招待されました。ここでログイン情報を設定してください。"
     },
     "newLabel": {
         "tasks": "タスク",
@@ -6763,7 +6833,8 @@
         "rewards": "景品",
         "rewardsBonus": "ボーナス",
         "scheduleShiftType": "シフトの種類",
-        "schedulePlan": "シフトパターン"
+        "schedulePlan": "シフトパターン",
+        "healthOverview": "記録"
     },
     "iconPicker": {
         "title": "アイコンを選ぶ",
@@ -6859,7 +6930,7 @@
         "overlapWarning": "{{date}} の {{user}} にシフトパターンの重なりがあります。新しいほうを表示しています。",
         "overlapWarningShort": "シフトパターンの重なり",
         "patternWinsBadge": "優先されます",
-        "patternOverlapConfirmTitle": "{{user}}の現在のスケジュールを置き換えますか？",
+        "patternOverlapConfirmTitle": "{{user}}の現在のスケジュールを置き換えますか?",
         "patternOverlapConfirmDetail": "新しいプランは重なる範囲で優先されます。「{{name}}」は保存されたままですが、重なっている間は表示されなくなります。",
         "patternOverlapConfirmAction": "置き換える",
         "editOverride": "例外を編集",
@@ -6934,10 +7005,6 @@
         "entryDetailTitle": "シフトの詳細",
         "fullBlocksHint": "オフの場合、週表示と日表示でシフトはコンパクトな終日チップとして表示されます。",
         "presetShared": "共通",
-        "patternWinsBadge": "優先されます",
-        "patternOverlapConfirmTitle": "{{user}}の現在のスケジュールを置き換えますか?",
-        "patternOverlapConfirmDetail": "新しいプランは重なる範囲で優先されます。「{{name}}」は保存されたままですが、重なっている間は表示されなくなります。",
-        "patternOverlapConfirmAction": "置き換える",
         "reminderCustomOffset": "カスタム…",
         "customReminderOffsetPrompt": "カスタムのリード時間(分)",
         "overtimeTrackingToggle": "残業を記録する",
@@ -7006,5 +7073,27 @@
         "install": "アプリ, ホーム画面, Dock",
         "push": "通知, アラート, リマインダー, ベル",
         "wallMode": "キオスク, タブレット, 壁掛け表示, 全画面"
+    },
+    "colorPicker": {
+        "gray": "グレー",
+        "blue": "青",
+        "green": "緑",
+        "ocher": "オーカー",
+        "emerald": "エメラルド",
+        "fuchsia": "フクシア",
+        "red": "赤",
+        "cyan": "シアン",
+        "orange": "オレンジ",
+        "pink": "ピンク",
+        "custom": "カスタムカラー",
+        "chooseCustom": "カスタムカラーを選択",
+        "standard": "既定の色"
+    },
+    "browserTooOld": {
+        "pageTitle": "ブラウザが古すぎます",
+        "title": "このブラウザは Yuvomi には古すぎます",
+        "body": "Yuvomi には、このブラウザがまだ対応していない機能が必要です。データには影響ありません。",
+        "versions": "Yuvomi は Chrome と Edge {{chrome}}、Firefox {{firefox}}、Safari {{safari}} 以降、iPhone と iPad では iOS {{ios}} 以降で動作します。",
+        "action": "ブラウザまたは端末をアップデートしてから、もう一度お試しください。それができない場合は、別のブラウザで Yuvomi を開いてください。"
     }
 }

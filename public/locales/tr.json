@@ -110,7 +110,17 @@
         "errorNotOwner": "Bunu başka biri oluşturdu - görebilirsin ama değiştiremezsin.",
         "foreignReadOnlyHint": "{{name}} oluşturdu - görebilirsin ama değiştiremezsin.",
         "deletedNamed": "\"{{name}}\" silindi.",
-        "sortMode": "Sırayı değiştir"
+        "sortMode": "Sırayı değiştir",
+        "createdNamed": "\"{{name}}\" oluşturuldu.",
+        "savedNamed": "\"{{name}}\" kaydedildi.",
+        "everyNDays": "Her {{count}} günde bir",
+        "everyNDays_one": "Her {{count}} günde bir",
+        "everyNWeeks": "Her {{count}} haftada bir",
+        "everyNWeeks_one": "Her {{count}} haftada bir",
+        "everyNMonths": "Her {{count}} ayda bir",
+        "everyNMonths_one": "Her {{count}} ayda bir",
+        "everyNYears": "Her {{count}} yılda bir",
+        "everyNYears_one": "Her {{count}} yılda bir"
     },
     "kitchen": {
         "noShoppingLists": "Henüz alışveriş listesi yok.",
@@ -454,7 +464,9 @@
         "todayTimelinePast": "bitti",
         "todayTimelineRunning": "sürüyor",
         "todayTimelineNext": "sıradaki",
-        "todayAlsoTitle": "Bugün ayrıca"
+        "todayAlsoTitle": "Bugün ayrıca",
+        "todayNothingPlanned": "Henüz bir şey planlanmadı",
+        "todayNothingPlannedSub": "Bugünün randevuları, görevleri ve öğünleri burada görünecek."
     },
     "tasks": {
         "resetOrder": "Otomatik sırala",
@@ -871,7 +883,9 @@
         "moveReturned": {
             "refused": "„{{item}}” yeniden „{{back}}” listesinde: sunucu onu „{{target}}” listesinde kabul etmedi.",
             "waited": "„{{item}}”, „{{target}}” listesine taşınmadı: „{{back}}” listesinin eşitlemesi bir haftadan uzun süredir kapalı. Liste açıldığında ürün „{{back}}” listesinde yeniden görünecek."
-        }
+        },
+        "moreDetailsHint": "Fiyat, mağaza, bağlantı, not",
+        "toPantryAllToPlaceholder": "Bir yer seç …"
     },
     "meals": {
         "ingredientCount_one": "{{count}} malzeme",
@@ -969,7 +983,8 @@
         "openRecipeNamed": "{{title}} tarifini aç",
         "viewRecipeNamed": "{{title}} tarifini görüntüle",
         "recipeIngredientsLabel": "Tariften malzemeler",
-        "recipeIngredientsEdit": "Düzenle"
+        "recipeIngredientsEdit": "Düzenle",
+        "moreDetailsHint": "Tarif, notlar, bağlantı"
     },
     "calendar": {
         "searchOpen": "Etkinlik ara",
@@ -1977,7 +1992,11 @@
         "ledgerAccountsAll": "Tüm hesaplar",
         "showAccountTransactions": "Hareketleri göster",
         "summaryTransfersIn": "Gelen",
-        "summaryTransfersOut": "Giden"
+        "summaryTransfersOut": "Giden",
+        "transferDefaultTitle": "Virman {{from}} → {{to}}",
+        "transferMoreDetailsHint": "Kategori ve tekrar",
+        "loanMoreDetailsHint": "Başlık, hesap, para birimi ve notlar",
+        "entryMoreDetailsHint": "Tekrar, sorumlular ve fişler"
     },
     "settings": {
         "healthCycleEnableLabel": "Döngüyü evde sun",
@@ -3253,7 +3272,9 @@
             "presetHintRoleLimited": "{{role}} rolü şunları kilitler: {{modules}}.",
             "presetHintUnavailable": "Tam etkisi şu anda gösterilemiyor. Şablon yine de geçerli.",
             "presetHintRoleChild": "{{role}} rolü hiçbir modülü engellemez. Yukarıdaki çocuk başlangıç izinleri de eklenir.",
-            "presetHintChildExtra": "Yukarıdaki çocuk başlangıç izinleri de eklenir."
+            "presetHintChildExtra": "Yukarıdaki çocuk başlangıç izinleri de eklenir.",
+            "done": "Bitti",
+            "untitled": "Bekleyen davet"
         },
         "healthCaregiversLabel": "Sağlık verisi girebilir",
         "healthCaregiversHint": "Bu kişiler bu üye için yaşamsal değerler, ilaçlar, laboratuvar sonuçları ve aktiviteler girebilir ve bunu yaparken özel kayıtlarını da görür. Döngü günlüğü hariç kalır.",
@@ -3650,7 +3671,9 @@
         "remoteErrorAuthFailed": "Sunucu oturum açmayı reddetti. Kullanıcı adını ve parolayı kontrol edin.",
         "remoteErrorStatus": "Sunucu {{status}} durumuyla yanıt verdi.",
         "remoteErrorUnreachable": "Sunucuya ulaşılamıyor. Adresi ve sunucunun çalışıp çalışmadığını kontrol edin.",
-        "remoteErrorFailed": "Sunucuya yapılan istek başarısız oldu."
+        "remoteErrorFailed": "Sunucuya yapılan istek başarısız oldu.",
+        "modulesInMyNavigation": "{{module}} gezinmemde",
+        "modulesKitchenInMyNavigation": "Mutfak gezinmemde"
     },
     "login": {
         "tagline": "Tekrar hoş geldin. Evin tek bir yerde.",
@@ -3685,7 +3708,8 @@
         "twoFactorCancel": "İptal",
         "ssoOnlyHint": "Bu haneye giriş yalnızca SSO ile yapılır.",
         "guestPasswordLogin": "Şifreyle misafir girişi",
-        "accountCannotSignIn": "Bu hesap giriş yapamaz. Lütfen hane yöneticinizle iletişime geçin."
+        "accountCannotSignIn": "Bu hesap giriş yapamaz. Lütfen hane yöneticinizle iletişime geçin.",
+        "invalidCredentialsAskAdmin": "Geçersiz kimlik bilgileri. Şifreni mi unuttun? Hane yöneticin yeni bir şifre belirleyebilir."
     },
     "setup": {
         "title": "Yuvomi’a hoş geldiniz",
@@ -3828,7 +3852,18 @@
         "ingredientMatchEmpty": "Kiler henüz boş.",
         "ingredientMatchSaved": "Eşleştirme kaydedildi.",
         "ingredientMatchCleared": "Eşleştirme kaldırıldı.",
-        "ingredientMatchLoadError": "Kiler yüklenemedi."
+        "ingredientMatchLoadError": "Kiler yüklenemedi.",
+        "errorIngredientsChanged": "Tarif bu arada değişti. Malzemeleri kontrol et ve yeniden ekle.",
+        "servingsLabel": "Porsiyon",
+        "servingsMultipleLabel": "Miktar",
+        "servingsFewer": "Daha az porsiyon",
+        "servingsMore": "Daha fazla porsiyon",
+        "servingsLess": "Miktarı azalt",
+        "servingsMoreMultiple": "Miktarı artır",
+        "servingsHint": "Miktarların kaç porsiyon için olduğu. Bilmiyorsan boş bırak.",
+        "servingsInvalid": "1 ile 99 arasında bir tam sayı.",
+        "moreDetailsHint": "Notlar, görsel, bağlantı",
+        "servingsTimes": "× {{value}}"
     },
     "search": {
         "emptyHint": "Bir bölüme gitmek ya da yeni bir şey oluşturmak için yaz. 2 karakterden itibaren kayıtlarını da bulursun, kelimenin bir kısmıyla bile.",
@@ -3985,7 +4020,8 @@
         "staleData": "Çevrimdışı - son güncelleme: {{time}}",
         "pageTitle": "Çevrimdışısın",
         "pageDescription": "Bu sayfanın bağlantıya ihtiyacı var. Cihazın yeniden çevrimiçi olunca kendiliğinden yüklenir.",
-        "snapshot": "Sunucuya bağlantı yok - kayıtlı veriler, salt okunur"
+        "snapshot": "Sunucuya bağlantı yok - kayıtlı veriler, salt okunur",
+        "unreachableBody": "Yuvomi şu anda erişilemiyor. Cihazının ağa bağlı olduğunu ve sunucunun çalıştığını kontrol et, sonra tekrar dene."
     },
     "emptyHint": {
         "recipes": "Bir tarif doğrudan öğün planına ya da alışveriş listesine gider.",
@@ -4520,7 +4556,17 @@
         "checkedOutNamed": "{{name}} çıkış yaptı.",
         "visitToday": "Bugün burada: {{from}} - {{to}}",
         "checkInAgain": "Yeniden giriş yap",
-        "checkedInNamed": "{{name}} giriş yaptı."
+        "checkedInNamed": "{{name}} giriş yaptı.",
+        "taskDoneNamed": "\"{{name}}\" tamamlandı.",
+        "visitDeletedNamed": "{{date}} ziyareti silindi.",
+        "visitPaidNamed": "{{date}} ziyareti ödendi.",
+        "visitUnpaidNamed": "{{date}} ziyaretinin ödemesi geri alındı.",
+        "workerMoreHint": "İletişim, doğum günü, renkler, notlar",
+        "markPaidNamed": "{{date}} ziyaretini ödendi olarak işaretle",
+        "paymentsMonthWithOpen": "{{month}}: {{total}}, bunun {{pending}} kadarı bekliyor",
+        "paymentsMonthAllPaid": "{{month}}: {{total}}, tamamı ödendi",
+        "taskTemplatesHint": "Eklemek için dokunun.",
+        "markPaidShort": "Ödendi"
     },
     "userMultiSelect": {
         "moreUsers": "daha",
@@ -4718,7 +4764,10 @@
         "paidLabel": "Ödenen",
         "totalsByCategory": "Kategoriye göre",
         "categoryFilter": "Harcamaları kategoriye göre filtrele",
-        "noExpensesInCategory": "Bu kategoride harcama yok."
+        "noExpensesInCategory": "Bu kategoride harcama yok.",
+        "noCategory": "Kategorisiz",
+        "participantsRequired": "En az bir kişi seç.",
+        "moreDetailsHint": "Notlar ve fişler"
     },
     "wmo": {
         "0": "Açık",
@@ -5069,7 +5118,8 @@
         "accountArchivedMeta": "{{name}} arşivlendi - hesapsız işlenir",
         "visibilityHint_private": "Bu aboneliği ve ödemelerini yalnızca sen görürsün.",
         "visibilityHint_shared": "Ev halkındaki herkes bu aboneliği ve ödemelerini görür.",
-        "errorAccountGone": "Seçilen hesap artık mevcut değil."
+        "errorAccountGone": "Seçilen hesap artık mevcut değil.",
+        "moreDetailsHint": "Kategori, ödeme yöntemi, renk ve notlar"
     },
     "health": {
         "fasting": {
@@ -5201,7 +5251,8 @@
                 "notStarted": "Henüz kayıt yok"
             },
             "vitals": {
-                "title": "Son yaşamsal değerler"
+                "title": "Son yaşamsal değerler",
+                "recentTitle": "Son ölçümler"
             },
             "quick": {
                 "title": "Hızlı kayıt",
@@ -5500,7 +5551,8 @@
                 "title": "Seyir",
                 "analyte": "Parametre",
                 "tooFew": "Seyir göstermek için en az iki sonuç gerekir.",
-                "unit": "Birim: {{unit}}"
+                "unit": "Birim: {{unit}}",
+                "showFor": "{{name}} seyrini göster"
             },
             "field": {
                 "reportDate": "Sonuç tarihi",
@@ -6278,7 +6330,16 @@
         "colorPink": "Pembe",
         "colorCurrent": "Geçerli renk",
         "intervalDecrease": "Aralığı azalt",
-        "intervalIncrease": "Aralığı artır"
+        "intervalIncrease": "Aralığı artır",
+        "scheduleSavedNamed": "\"{{name}}\" programı kaydedildi.",
+        "pickupSavedNamed": "\"{{name}}\" alımı kaydedildi.",
+        "intervalLabel": "Aralık",
+        "scheduleDeletedNamed": "\"{{name}}\" programı silindi.",
+        "pickupDeletedNamed": "\"{{name}}\" alımı silindi.",
+        "typeArchivedNamed": "\"{{name}}\" arşivlendi.",
+        "typeRestoredNamed": "\"{{name}}\" geri yüklendi.",
+        "typesWithoutSchedule": "Programı yok",
+        "putOutToday": "Bugün dışarı çıkar"
     },
     "rewards": {
         "title": "Ödüller",
@@ -6433,7 +6494,15 @@
         "ownLedger": "Hareketlerin",
         "toastApprovedNamed": "\"{{reward}}\", {{name}} için onaylandı.",
         "toastRejectedNamed": "\"{{reward}}\", {{name}} için reddedildi.",
-        "toastCancelledNamed": "\"{{reward}}\" geri çekildi."
+        "toastCancelledNamed": "\"{{reward}}\" geri çekildi.",
+        "ledgerFilterLabel": "Kişiye göre filtrele",
+        "bonusKindCredit": "Ekleme",
+        "bonusKindDebit": "Kesinti",
+        "bonusKindLabel": "Ekleme veya kesinti",
+        "bonusCredit": "Ekle",
+        "bonusDebit": "Düş",
+        "notEnoughPoints": "Bu ödül için yeterli puan yok.",
+        "bonusPoints": "Puanlar"
     },
     "datepicker": {
         "openCalendar": "Takvimi aç",
@@ -6534,7 +6603,6 @@
             "bag_one": "poşet",
             "bag_other": "poşet"
         },
-        "moreDetailsHint": "Asgari stok, notlar",
         "moreDetailsHint": "Asgari stok, notlar",
         "errorLocationGone": "Bu saklama yeri artık yok.",
         "errorLocationExists": "Bu saklama yeri zaten var. Başka bir ad seçin.",
@@ -6706,7 +6774,8 @@
         "openAction": "{{name}} ögesini aç",
         "limitReached": "En fazla {{count}} belge.",
         "limitReached_one": "En fazla {{count}} belge.",
-        "lockedPrivate": "Ek mevcut (özel)"
+        "lockedPrivate": "Ek mevcut (özel)",
+        "pickNone": "En az bir belge seç."
     },
     "join": {
         "title": "Hesabını oluştur",
@@ -6728,7 +6797,8 @@
         "displayNameTooLong": "Görünen ad en fazla 128 karakter olabilir.",
         "previewFailed": "Davet şu anda denetlenemedi. Lütfen birazdan sayfayı yeniden yükle.",
         "invalidTitle": "Geçersiz davet",
-        "toLogin": "Girişe git"
+        "toLogin": "Girişe git",
+        "introNamed": "{{name}} seni {{app}} uygulamasına davet etti. Giriş bilgilerini burada belirle."
     },
     "newLabel": {
         "tasks": "Görev",
@@ -6763,7 +6833,8 @@
         "rewards": "Ödül",
         "rewardsBonus": "Bonus",
         "scheduleShiftType": "Vardiya türü",
-        "schedulePlan": "Vardiya düzeni"
+        "schedulePlan": "Vardiya düzeni",
+        "healthOverview": "Kaydet"
     },
     "iconPicker": {
         "title": "Simge seç",
@@ -7002,5 +7073,27 @@
         "install": "uygulama, ana ekran, Dock",
         "push": "uyarılar, bildirimler, hatırlatıcılar, zil",
         "wallMode": "kiosk, tablet, duvar ekranı, tam ekran"
+    },
+    "colorPicker": {
+        "gray": "Gri",
+        "blue": "Mavi",
+        "green": "Yeşil",
+        "ocher": "Koyu sarı",
+        "emerald": "Zümrüt",
+        "fuchsia": "Fuşya",
+        "red": "Kırmızı",
+        "cyan": "Camgöbeği",
+        "orange": "Turuncu",
+        "pink": "Pembe",
+        "custom": "Özel renk",
+        "chooseCustom": "Özel renk seç",
+        "standard": "Varsayılan renk"
+    },
+    "browserTooOld": {
+        "pageTitle": "Tarayıcı çok eski",
+        "title": "Bu tarayıcı Yuvomi için çok eski",
+        "body": "Yuvomi, bu tarayıcının henüz bilmediği bazı özelliklere ihtiyaç duyuyor. Verilerin bundan etkilenmez.",
+        "versions": "Yuvomi; Chrome ve Edge {{chrome}}, Firefox {{firefox}} ve Safari {{safari}} sürümünden itibaren, iPhone ve iPad'de iOS {{ios}} sürümünden itibaren çalışır.",
+        "action": "Tarayıcıyı veya cihazı güncelle, ardından tekrar dene. Bu mümkün değilse Yuvomi'yi başka bir tarayıcıda aç."
     }
 }

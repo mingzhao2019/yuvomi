@@ -1,12 +1,16 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#F5F3ED" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#191816" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
-  <title>Keine Verbindung - Yuvomi</title>
+  <title>Connection interrupted - Yuvomi</title>
+  <!-- Zuerst die Browser-Untergrenze (browser-floor.js): ein zu alter Browser
+       bekommt ohne Netz die Hinweisseite aus dem Precache statt dieser Huelle,
+       deren Knopf ihn nur in eine App fuehrte, die er nicht laden kann. -->
+  <script src="/browser-floor.js"></script>
   <!-- Dieselbe Theme-Entscheidung wie in der App: der gespeicherte Wunsch
        (`yuvomi-theme`) schlaegt die Systemeinstellung und setzt `data-theme` auf
        <html>. Das Skript ist dasselbe, das index.html im Kopf laedt, und es
@@ -17,6 +21,16 @@
        das erste Bild, die Module dieselbe Datei (utils/night-hours.js). -->
   <script src="/night-hours.js"></script>
   <script src="/theme-init.js"></script>
+  <!-- DEUTSCH UND ENGLISCH FEST IN DER SEITE (Ticket 14), wie auf
+       browser-too-old.html: lang-init.js setzt <html lang> (gespeicherte
+       Sprache vor navigator.language), das Stylesheet zeigt den Block dazu,
+       Englisch fuer jede andere Sprache; static-page-title.js zieht den
+       <title> nach. Hier laeuft kein Modul und damit kein t() - die
+       dokumentierte Ausnahme fuer genau diese zwei Seiten. Jeder Text ist der
+       Wert seines Schluessels (`data-key`) in de.json bzw. en.json, und
+       test:browser-floor-page haelt das. Bis 2026-11 stand die Seite fest auf
+       Deutsch. -->
+  <script src="/lang-init.js"></script>
   <style>
     /* Lokale Spiegel der App-Tokens (styles/tokens.css).
      *
@@ -72,11 +86,16 @@
         --color-text:           #F5F3ED;
         --color-text-secondary: #B4AEA5;
         /* Spiegelt --_color-accent aus tokens.css. Hier traegt der Wert nur
-         * Flaeche (Retry-Knopf) und Fokusring, nie Text: #191816 darauf 6,50,
-         * Ring gegen #191816 6,50. Eine Notiz, die stattdessen eine Textrolle
+         * Flaeche (Retry-Knopf) und Fokusring, nie Text: die Tinte #0A0A0C
+         * darauf 7,27, Ring gegen den Grund #191816 6,50. Eine Notiz, die stattdessen eine Textrolle
          * nennt, gilt fuer diese Datei nicht - sie hat keine. */
         --color-accent:         #A78BFA;
-        --color-ink-on-vivid:   #191816;
+        --color-ink-on-vivid:   #0A0A0C;
+        --brand-field-opacity:  0.26;
+        --glass-bg-elevated:    rgba(45, 42, 39, 0.88);
+        --glass-border:         rgba(255, 255, 255, 0.12);
+        --glass-shadow-lg:      0 10px 44px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        --shadow-md:            0 4px 14px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.06);
       }
     }
     :root[data-theme="dark"] {
@@ -87,8 +106,28 @@
       --color-text:           #F5F3ED;
       --color-text-secondary: #B4AEA5;
       --color-accent:         #A78BFA;
-      --color-ink-on-vivid:   #191816;
+      --color-ink-on-vivid:   #0A0A0C;
+      --brand-field-opacity:  0.26;
+      --glass-bg-elevated:    rgba(45, 42, 39, 0.88);
+      --glass-border:         rgba(255, 255, 255, 0.12);
+      --glass-shadow-lg:      0 10px 44px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      --shadow-md:            0 4px 14px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.06);
     }
+
+    /* Wer Transparenz oder mehr Kontrast verlangt, bekommt die opake Tafel
+     * ohne Feld - dieselbe Weiche wie tokens.css. */
+    @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+      :root {
+        --brand-field-opacity: 0;
+        --glass-bg-elevated:   var(--color-surface);
+      }
+    }
+
+    /* Die Sprache: sichtbar ist der Block zu <html lang>, Englisch sonst. */
+    .copy { display: none; }
+    .copy[lang="en"] { display: block; }
+    :root:lang(de) .copy[lang="en"] { display: none; }
+    :root:lang(de) .copy[lang="de"] { display: block; }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -170,20 +209,30 @@
        war die einzige der sechs anonymen Seiten ohne Landmarke - ohne sie
        findet ein Screenreader keinen Einstieg und muss von oben durchlaufen
        (Audit 2026-08-08, P3-4). -->
-  <main class="card">
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-      <line x1="1" y1="1" x2="23" y2="23"/>
-      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
-      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
-      <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
-      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
-      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-      <line x1="12" y1="20" x2="12.01" y2="20"/>
-    </svg>
-    <h1>Keine Verbindung</h1>
+  <main class="stage">
+    <div class="sender">
+      <!-- Die Bildmarke (utils/brand-mark.js, docs/logo.svg): Verlauf, Radius
+           36 auf 160, drei Kreise. Dekorativ - der Name steht daneben. -->
+      <svg class="mark" viewBox="0 0 160 160" fill="none" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="offline-mark" x1="0" y1="0" x2="160" y2="160" gradientUnits="userSpaceOnUse">
+            <stop class="mark__from" offset="0%"/>
+            <stop class="mark__to" offset="100%"/>
+          </linearGradient>
+        </defs>
+        <rect width="160" height="160" rx="36" fill="url(#offline-mark)"/>
+        <g class="mark__circles">
+          <circle cx="64" cy="72" r="27"/>
+          <circle cx="100" cy="78" r="25"/>
+          <circle cx="80" cy="106" r="24"/>
+        </g>
+      </svg>
+      <p class="sender__name">Yuvomi</p>
+    </div>
+    <!-- Derselbe Titel wie der Zustand in der App (`page-unreachable`,
+         common.sessionUnreachableTitle): ein Zustand, ein Wort dafuer. -->
     <!-- R23 S10 (clarify): Yuvomi laeuft zu Hause, nicht im Internet - der Satz
          nennt beide Ursachen, die es sein koennen (wie login.networkError). -->
-    <p>Yuvomi ist gerade nicht erreichbar. Prüfe, ob dein Gerät im Netz ist und der Server läuft, und versuche es erneut.</p>
     <!-- EIN LINK AUF DIE EIGENE ADRESSE, KEIN `onclick`.
          Der Knopf trug `onclick="location.reload()"` und tat damit NICHTS: die
          CSP dieses Servers setzt `script-src 'self'` ohne `unsafe-inline`, und
@@ -194,13 +243,29 @@
          beim Service-Worker-Fallback die urspruenglich gewuenschte Seite
          (`respondWith`, kein Redirect). Der Versuch geht also dorthin zurueck,
          wo der Nutzer hinwollte, nicht auf die Wurzel. Ohne eine Zeile JS. -->
-    <a class="retry" href="">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <polyline points="23 4 23 10 17 10"/>
-        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-      </svg>
-      Erneut versuchen
-    </a>
+    <div class="copy" lang="de" data-title="Verbindung unterbrochen - Yuvomi" dir="ltr">
+      <h1 data-key="common.sessionUnreachableTitle">Verbindung unterbrochen</h1>
+      <p data-key="offline.unreachableBody">Yuvomi ist gerade nicht erreichbar. Prüfe, ob dein Gerät im Netz ist und der Server läuft, und versuche es erneut.</p>
+      <a class="retry" href="" data-key="common.retry">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Erneut versuchen
+      </a>
+    </div>
+    <div class="copy" lang="en" data-title="Connection interrupted - Yuvomi" dir="ltr">
+      <h1 data-key="common.sessionUnreachableTitle">Connection interrupted</h1>
+      <p data-key="offline.unreachableBody">Yuvomi cannot be reached right now. Check that your device is online and the server is running, then try again.</p>
+      <a class="retry" href="" data-key="common.retry">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Try again
+      </a>
+    </div>
   </main>
+  <script src="/static-page-title.js"></script>
 </body>
 </html>
