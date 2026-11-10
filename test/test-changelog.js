@@ -546,6 +546,8 @@ const RELEASED_SECTION_EDITS = {
   '2.51.1': '3c8c1667f162',
   '2.51.0': '11eda210afc0',
   '2.50.4': 'bfa6b6c3ebc2',
+  // 'x.y.z': '<hash aus der Fehlermeldung>', // #Issue: warum der Abschnitt nachtraeglich geaendert wurde
+  '2.87.0': '7c05e9db8ec6', // RELEASING.md Schritt 7: ein Fundament-Release wird ein Release vorher angekuendigt (Rubrik "Upcoming")
 };
 
 const sectionHash = (section) => createHash('sha256').update(section).digest('hex').slice(0, 12);
