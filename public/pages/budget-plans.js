@@ -407,4 +407,4 @@ async function deletePlan(category) {
  * Messflaeche fuer die Nur-lesen-Regel (#1265 P7): die drei Renderer sind reine
  * Funktionen ueber `view`, das der Test mit `ctx` fuellt.
  */
-export const __test = { readOnly, renderSavingsCard, renderRows, view, openAddPlan, toneForRatio };
+export const __test = { readOnly, renderSavingsCard, renderRows, view, openAddPlan, openPlanEditor, toneForRatio };

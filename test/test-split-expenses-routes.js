@@ -2261,9 +2261,9 @@ test('#1941: PUT ohne `category` laesst die Kategorie stehen, eine unbekannte fa
 });
 
 // --------------------------------------------------------------------------
-// Budget-Kategorien in der Aufteilung (R24, E12): Migration 271 + Routen
+// Budget-Kategorien in der Aufteilung (R24, E12): Migration 291 (upstream v271) + Routen
 // --------------------------------------------------------------------------
-test('Migration 271: eine frische Datenbank traegt budget_category an Ausgaben und Serien, NULL als Standard', () => {
+test('Migration 291: eine frische Datenbank traegt budget_category an Ausgaben und Serien, NULL als Standard', () => {
   for (const table of ['expenses', 'recurring_expenses']) {
     const col = db.prepare(`PRAGMA table_info(${table})`).all().find((c) => c.name === 'budget_category');
     assert.ok(col, `${table}.budget_category vorhanden`);
@@ -2272,10 +2272,10 @@ test('Migration 271: eine frische Datenbank traegt budget_category an Ausgaben u
   }
 });
 
-test('Migration 271: eine Bestandsdatenbank mit altem Schema behaelt ihre Ausgaben, die Kategorie wird uebertragen', async () => {
+test('Migration 291: eine Bestandsdatenbank mit altem Schema behaelt ihre Ausgaben, die Kategorie wird uebertragen', async () => {
   const { default: Database } = await import('better-sqlite3-multiple-ciphers');
   const old = new Database(':memory:');
-  // Das Schema vor 271: Ausgaben und Serien mit der eigenen Kategorie-Liste,
+  // Das Schema vor der append-only Migration 291: Ausgaben und Serien mit der eigenen Kategorie-Liste,
   // dazu die Budget-Kategorien aus Migration 16 (eine davon hat der Haushalt
   // geloescht: 'education').
   old.exec(`
@@ -2296,8 +2296,8 @@ test('Migration 271: eine Bestandsdatenbank mit altem Schema behaelt ihre Ausgab
       (1, 'Hefte', 500, 'EUR', 1, 'school'), (1, 'Sonstwas', 100, 'EUR', 1, 'general');
     INSERT INTO recurring_expenses (group_id, title, amount_minor, currency, payer_id, category) VALUES (1, 'Strom', 7800, 'EUR', 1, 'utilities');
   `);
-  const migration = dbmod.MIGRATIONS.find((m) => m.version === 271);
-  assert.ok(migration, 'Migration 271 vorhanden');
+  const migration = dbmod.MIGRATIONS.find((m) => m.version === 291);
+  assert.ok(migration, 'Migration 291 vorhanden');
   migration.up(old);
   assert.deepEqual(
     old.prepare('SELECT title, amount_minor, category, budget_category FROM expenses ORDER BY id').all().map((r) => ({ ...r })),
@@ -2430,7 +2430,7 @@ test('eine Budget-Kategorie, die nur Aufteilungs-Ausgaben oder Serien tragen, is
   }
 });
 
-// Altbestand: geloescht vor der Sperre, oder per Migration 271 gemappt und
+// Altbestand: geloescht vor der Sperre, oder per Migration 291 gemappt und
 // spaeter geloescht. Der Editor schickt den Schluessel unveraendert mit - das
 // darf das Speichern nicht brechen; eine NEUE Wahl bleibt streng.
 test('ein unveraenderter, inzwischen geloeschter Kategorie-Schluessel bricht das Speichern einer Ausgabe oder Serie nicht', async () => {
@@ -2443,7 +2443,7 @@ test('ein unveraenderter, inzwischen geloeschter Kategorie-Schluessel bricht das
   const seriesBase = { title: 'Abo', amount: '9.00', currency: 'EUR', frequency: 'monthly', next_run_date: '2099-01-01', payer_id: OWNER, participants: [OWNER] };
   const series = await call('POST', `/groups/${gid}/recurring`, { actor: OWNER_A, body: { ...seriesBase, budget_category: 'split_gone' } });
   assert.equal(series.status, 201, JSON.stringify(series.body));
-  // Wie vor der Sperre (oder nach Migration 271): die Kategorie ist weg, die Ausgaben tragen sie noch.
+  // Wie vor der Sperre (oder nach Migration 291): die Kategorie ist weg, die Ausgaben tragen sie noch.
   db.prepare("DELETE FROM budget_categories WHERE key = 'split_gone'").run();
 
   const edited = await call('PUT', `/expenses/${expense.body.data.id}`, { actor: OWNER_A, body: { ...base, amount: '4.00', budget_category: 'split_gone' } });

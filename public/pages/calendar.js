@@ -10111,6 +10111,9 @@ function buildEventModalContent({ mode, event, date, reminder = null, time = nul
     ? localTime(event.end_datetime)
     : derivedEnd.time;
   const selectedIcon = eventIconName(isEdit ? event.icon : 'calendar');
+  const selectedColor = isEdit && !usesInheritedSubscriptionColor(event)
+    ? (event?.color || COLOR_INHERIT)
+    : COLOR_INHERIT;
 
   // Neue Termine: optional den aktuellen Nutzer vorbelegen (#498).
   const selectedUserIds = isEdit

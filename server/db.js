@@ -12160,7 +12160,7 @@ const MIGRATIONS = [
     },
   },
   /* Upstream v270/v271 are represented below with append-only local numbers.
-    version: 270,
+    upstream v270,
     description: 'recipes: servings count',
     // Fuer wie viele Portionen die Mengen eines Rezepts gelten (R24, E12).
     // NULL heisst "nicht angegeben" - ein Bestandsrezept behauptet keine Zahl,
@@ -12176,7 +12176,7 @@ const MIGRATIONS = [
     },
   },
   {
-    version: 271,
+    upstream v271,
     description: 'split expenses: budget category',
     // Die Aufteilung nimmt die Kategorien des Budgets (R24, E12; Critique
     // G4-Aufteilung-P2-6). Bis hier fuehrte sie eine eigene Liste von zwoelf

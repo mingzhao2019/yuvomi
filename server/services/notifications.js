@@ -8,6 +8,7 @@ import * as dbModule from '../db.js';
 import { activeAccountSql } from './account-state.js';
 import { pushService as defaultPushService } from './push.js';
 import { createNotificationChannelStore } from './notification-channels.js';
+import { guardedFetch } from './notification-providers/guarded-fetch.js';
 import { defaultProviders, sendToChannel } from './channel-delivery.js';
 import { syncAllBirthdayReminders } from './birthdays.js';
 import { resolveHouseholdFormats, formatDateKey, translate } from '../utils/i18n.js';

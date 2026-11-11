@@ -2765,40 +2765,6 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
  * Calendar-Modal Content-Styles (Overlay/Panel via shared modal.js)
  * -------------------------------------------------------- */
 
-/* Calendar modal color controls. */
-/* Farbauswahl */
-.color-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.color-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast);
-  position: relative;
-}
-
-.color-swatch::before {
-  content: '';
-  position: absolute;
-  inset: -10px;
-  border-radius: var(--radius-full);
-}
-
-.color-swatch:hover {
-  transform: scale(1.15);
-}
-
-.color-swatch--active {
-  border-color: var(--color-text-primary);
-  transform: scale(1.1);
-}
-
 /* The event has no own color and inherits it from its assignee or calendar. */
 /* Shared picker documentation continues below. */
 /* Farbauswahl: der geteilte Baustein steht in layout.css (utils/color-picker.js,
