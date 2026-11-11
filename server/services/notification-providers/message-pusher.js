@@ -7,7 +7,7 @@
  * error message or log line.
  */
 
-import { renderTextTemplate } from './webhook.js';
+import { renderTextTemplate } from './webhook-template.js';
 import { guardedFetch } from './guarded-fetch.js';
 
 const METHODS = new Set(['GET', 'POST']);

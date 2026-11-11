@@ -10,7 +10,7 @@
  *          #584, D#1041) - each of them only while Health is not denied to
  *          them (#2602), and never through a channel the household shares
  *          (#2598).
- * Dependencies: server/db.js, push.js, notification-channels.js, notifications.js,
+ * Dependencies: server/db.js, push.js, notification-channels.js, channel-delivery.js,
  *               household-modules.js, reminder-origins.js, utils/timezone.js.
  */
 import { runExternalJob } from '../utils/restore-state.js';
@@ -18,7 +18,7 @@ import { createLogger } from '../logger.js';
 import * as dbModule from '../db.js';
 import { pushService as defaultPushService } from './push.js';
 import { createNotificationChannelStore } from './notification-channels.js';
-import { defaultProviders, fanOutNotification } from './notifications.js';
+import { defaultProviders, sendToChannel } from './channel-delivery.js';
 import { householdDisabledModules } from './household-modules.js';
 import { recipientDeniedModules } from './reminder-origins.js';
 import { resolveHouseholdLocale, translate } from '../utils/i18n.js';
@@ -85,9 +85,9 @@ function mayHearAboutHealth(database, userId) {
 }
 
 /**
- * Verarbeitet fällige Medikamenten-Dosen: legt fehlende pending-Logs an und
- * fan-outet je neuer Dosis eine Erinnerung an Web Push + aktive Kanäle des
- * Medikament-Eigentümers und seiner eingetragenen Betreuer.
+ * Processes due medication doses: creates missing pending logs and fans out
+ * one reminder per new dose to Web Push and to the recipient's OWN channels,
+ * for the medication's owner and for their caregivers.
  *
  * @param {Object} [opts]
  * @param {import('better-sqlite3-multiple-ciphers').Database} [opts.database]
@@ -138,8 +138,7 @@ async function processDueMedicationsUntracked({
   const { dateKey, time: nowTime } = householdWallClock(activeDb, now);
 
   const schedules = activeDb.prepare(`
-    SELECT s.*, m.user_id AS owner_id, m.name AS med_name,
-           COALESCE(NULLIF(u.display_name, ''), u.username) AS owner_name
+    SELECT s.*, m.user_id AS owner_id, m.name AS med_name, u.display_name AS owner_name
     FROM medication_schedules s
     JOIN medications m ON m.id = s.medication_id
     JOIN users u ON u.id = m.user_id
@@ -174,11 +173,8 @@ async function processDueMedicationsUntracked({
     insertLog.run(s.medication_id, s.id, scheduledAt, 'pending', s.dose_qty ?? null);
     counters.created += 1;
     newlyDue.push({
-      ownerId: s.owner_id,
-      ownerName: s.owner_name,
-      medName: s.med_name,
-      medicationId: s.medication_id,
-      scheduledAt,
+      ownerId: s.owner_id, ownerName: s.owner_name, medName: s.med_name,
+      medicationId: s.medication_id, scheduledAt,
     });
   }
 
@@ -211,7 +207,7 @@ async function processDueMedicationsUntracked({
     const medBody = dose.medName || FALLBACK_BODY;
     const recipients = [{ userId: dose.ownerId, body: medBody }];
     for (const { caregiver_id: caregiverId } of caregiversOf.all(dose.ownerId)) {
-      if (Number(caregiverId) === Number(dose.ownerId)) continue;
+      if (caregiverId === dose.ownerId) continue;
       recipients.push({ userId: caregiverId, body: `${dose.ownerName}: ${medBody}` });
     }
     return { dose, recipients: recipients.filter(({ userId }) => recipientMayHear(userId)) };
@@ -231,18 +227,38 @@ async function processDueMedicationsUntracked({
         tag: `medication-${dose.medicationId}-${dose.scheduledAt}`,
         priority: 'default',
       };
-      const fanout = await fanOutNotification({
-        userId: recipient.userId,
-        payload,
-        database: activeDb,
-        pushService,
-        channelStore: store,
-        providers,
-        fetchImpl,
-        includeHouseholdChannels: false,
-      });
-      counters.sent += fanout.sent;
-      counters.failed += fanout.failed;
+
+      try {
+        const sent = await pushService.sendPushToUser(recipient.userId, payload);
+        if (sent > 0) counters.sent += 1;
+      } catch (err) {
+        counters.failed += 1;
+        log.error(`Web Push failed for medication ${dose.medicationId}:`, err?.message || err);
+      }
+
+      // ONLY THE RECIPIENT'S OWN CHANNELS, NEVER ONE THE HOUSEHOLD SHARES (#2598).
+      // Every Health origin is `'personal'` for household channels
+      // (HOUSEHOLD_CHANNEL_POLICY in reminder-targets.js), and SECURITY.md
+      // promises that a channel shared by the household never receives a
+      // health reminder. A medication's row visibility does not change that:
+      // a family-visible one still goes out by push and to the person's own
+      // channels only. Allowlist, as in processDueNotifications(): a channel
+      // without or with an unknown `scope` counts as a household channel.
+      // Until then this loop handed every dose - private ones included, plus
+      // one copy per caregiver with the person's name - to the household's
+      // ntfy/Gotify/webhook/e-mail channel.
+      const channels = store.listEnabledChannelsForUser(recipient.userId)
+        .filter((channel) => channel.scope === 'user');
+      for (const channel of channels) {
+        if (!providers[channel.provider]) continue;
+        try {
+          await sendToChannel({ channel, payload, fetchImpl, providers });
+          counters.sent += 1;
+        } catch (err) {
+          counters.failed += 1;
+          log.error(`Channel delivery failed for medication ${dose.medicationId}:`, err?.message || err);
+        }
+      }
     }
   }
 
@@ -258,3 +274,4 @@ export function startScheduler() {
   setInterval(run, 60_000).unref();
   log.info('Medication scheduler active (every 60s).');
 }
+
