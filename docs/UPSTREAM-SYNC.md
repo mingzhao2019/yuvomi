@@ -22,71 +22,47 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-11-08 UTC**. Local `main` was fast-forwarded to
-the current `upstream/main` tip. The selective integration branch containing
-the eight upstream commits was fast-forwarded into `custom`, pushed, and
-removed after validation.
+Last verified: **2026-11-11 UTC**. Local `main` is fast-forwarded to
+`upstream/main` at `b9626ff17369686be778b1abb8cc20af9218b35b`. The selective
+integration branch was validated and fast-forwarded into `custom` at
+`51ca6c824`; the final remote push is performed only after the explicit
+operator authorization required by the sync skill.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `a17ff0884241b46de25c931b31ecbc0c995e7ef0` | Local upstream-compatible baseline matches the current upstream tip. |
-| `origin/main` | `a17ff0884241b46de25c931b31ecbc0c995e7ef0` | Remote main matches the local upstream-compatible baseline. |
-| `custom`, `origin/custom` | current branch tip (`2b0778de7` before this record update) | Product branch and remote delivery contain the selective integration and manual reconciliation. |
-| temporary integration | removed after fast-forward | The dated selective branch was merged into `custom` and deleted locally. |
+| `main`, `upstream/main` | `b9626ff17369686be778b1abb8cc20af9218b35b` | Local upstream-compatible baseline matches the current upstream tip. |
+| `custom` | `51ca6c824` | Product branch after semantic upstream integration and focused validation. |
+| `origin/main`, `origin/custom` | verified before this push | Remote refs are updated together after explicit authorization. |
+| temporary integration | `custom-upstream-selective-2026-11-11` | Already fast-forwarded into `custom`; remove after the final push verification. |
 
-The eight upstream commits were incorporated in order:
+The integration includes upstream through `b9626ff`, including the large
+app-wide polish commit `72db19dfb`, while preserving the custom task-list and
+Microsoft To Do paths, bidirectional Outlook behavior, Google/CalDAV/ICS
+provider contracts, local calendar display customization, notification
+ownership, mobile layout, device pairing, and split-guest boundaries. The
+background sender keeps the custom shared fan-out architecture and now uses
+the upstream guarded fetch at the actual provider bottleneck.
 
-1. `e359fad0` — read the member role from the database for every auth request.
-2. `e49f6b44` — keep Health medication reminders away from members without Health.
-3. `1c64964c` — keep feeds empty when the member lacks the module.
-4. `8d769ff4` — guard client responses against raw exception text.
-5. `6bbcd820` — classify DAV server errors for the browser.
-6. `c6542ed7` — classify calendar sync and lookup failures.
-7. `c8ccb6dc` — classify backup, document, and expense failures.
-8. `a17ff088` — prevent stored and indirect error results from carrying raw text.
+The upstream recipes and split-expense migration definitions were appended as
+local migrations 290 and 291; released custom migrations remain in their
+original positions. The budget-category routes and tests, calendar color
+picker, account labels, complete locale key set, Pantry product semantics, and
+the notification fetch guard were all reconciled and validated.
 
-The integration preserves the custom task-list and Microsoft To Do paths,
-bidirectional Outlook behavior, Google/CalDAV/ICS provider contracts, local
-calendar display customization, notification ownership, mobile layout, device
-pairing, and split-guest boundaries. Health medication fan-out keeps the
-upstream module permission check while explicitly selecting only the
-recipient's personal channels; household channels never receive Health
-reminders. Notification, Outlook, split-expense, and document error paths
-retain custom permission/ownership semantics while using fixed client-facing
-500 responses for unexpected failures.
+Focused validation was run as requested; the full `npm test` suite was not
+run. Passing groups include build, task routes (94), permissions (29 server +
+14 UI), medication scheduler (24), readiness (8 plus one expected skip),
+system diagnostics (10), split-expense routes (135), calendar, local calendar
+management (37), color picker (10), Pantry UX (47), auth pages (21), budget UI
+(264), budget read-only UI (69), i18n (87), migration append-only (4), and
+dashboard calendar selection (18). `git diff --check`, JSON parsing,
+JavaScript syntax checks, and conflict-marker scans also passed.
 
-The upstream background-sender guard was adapted to the custom shared
-fan-out architecture: medication and task routes select recipients, while
-`notifications.js` is the actual provider-sending bottleneck. The upstream
-`budget_category` test block was not retained because its required earlier
-schema/route feature is absent from this selective custom baseline; the
-current expense error-response guard remains and passes. A pre-existing
-duplicate OpenAPI fragment in `server/openapi/paths/preferences.js` was
-removed after it blocked module loading; it was not an upstream feature
-change. No upstream correctness/security commit was skipped.
-
-Focused tests were run as requested; the full `npm test` suite was not run.
-Passing groups include auth (4), medication (23), module-feed/error guards
-(25/6), module install (96), backup routes (31), split-expense routes (128),
-backup scheduler/WebDAV (10 with 1 skip/19), documents/storage (3/87), DMS
-Papra (14), email/HTTP/modules (28/28/44), notifications (64), recipe
-adapters (41/20), calendar routes (188), subscriptions (42), sync forms (10),
-waste routes (88), CalDAV account password (6), Google Calendar (57), Outlook
-Calendar (48), and Outlook event targets (6). Static checks also passed:
-`git diff --check`, JSON parsing for changed JSON, and `node --check` for
-changed JavaScript.
-
-Two focused suites retain known custom-baseline failures unrelated to this
-sync's error-classification changes: recipe-provider-sync (21 failures because
-the custom schema lacks `recipes.servings`) and caldav-http-refusals (9
-existing outbound move/retry assertions; the new error-response cases pass).
-These are recorded rather than expanded into unrelated earlier feature
-backports.
-
-The temporary integration branch was fast-forwarded into `custom` only after
-the final local verification and was then removed. Product-specific behavior
-remains authoritative on `custom`; the full list is maintained in
-[`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
+The standalone browser toolbar suite remains environment-blocked because the
+bundled Chrome cannot load `libglib-2.0.so.0`; the frontend-audit suite was
+stopped after running without output for an unreasonable duration. Neither
+was reported as a code pass. Product-specific behavior remains authoritative
+on `custom`; the full list is maintained in [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
 
 ## Custom boundaries to preserve
 
