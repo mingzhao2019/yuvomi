@@ -283,4 +283,3 @@ export function startScheduler() {
   setInterval(run, 60_000).unref();
   log.info('Medication scheduler active (every 60s).');
 }
-
