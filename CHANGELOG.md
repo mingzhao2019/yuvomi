@@ -106,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The way back stays open.** The release does not change the database, so pinning the image
   tag `2.88.1` returns to this version with your data untouched (installation guide, "Pinning a
   version"). That way is tried once before the release is tagged.
+
 ## [2.88.0] - 2026-11-10
 
 ### Foundation
