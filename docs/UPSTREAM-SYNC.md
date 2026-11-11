@@ -25,14 +25,14 @@ than the seven-day retention window are removed during documentation cleanup.
 Last verified: **2026-11-11 UTC**. Local `main` is fast-forwarded to
 `upstream/main` at `b9626ff17369686be778b1abb8cc20af9218b35b`. The selective
 integration branch was validated and fast-forwarded into `custom` at
-`51ca6c824`; the final remote push is performed only after the explicit
-operator authorization required by the sync skill.
+`51ca6c824`; both branches were then pushed and verified on `origin` after the
+explicit operator authorization required by the sync skill.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
 | `main`, `upstream/main` | `b9626ff17369686be778b1abb8cc20af9218b35b` | Local upstream-compatible baseline matches the current upstream tip. |
 | `custom` | `51ca6c824` | Product branch after semantic upstream integration and focused validation. |
-| `origin/main`, `origin/custom` | verified before this push | Remote refs are updated together after explicit authorization. |
+| `origin/main`, `origin/custom` | verified after the final push | Remote refs match the local `main` and `custom` branches. |
 | temporary integration | `custom-upstream-selective-2026-11-11` | Already fast-forwarded into `custom`; remove after the final push verification. |
 
 The integration includes upstream through `b9626ff`, including the large
