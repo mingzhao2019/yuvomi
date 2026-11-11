@@ -56,6 +56,8 @@ test('custom image publish is isolated to custom', () => {
     /repository_owner\s*\/\s*oikos/,
     'The custom workflow must not publish the upstream legacy image'
   );
+});
+
 test('a release image is built without the layer cache, main keeps it (#2635)', () => {
   // Der gha-Cache ist je Repository geteilt: ein Tag-Build konnte Layer aus einem
   // frueheren main-Build uebernehmen, npm ci und der Vite-Build der Build-Stage
