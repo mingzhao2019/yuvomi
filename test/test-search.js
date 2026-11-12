@@ -44,11 +44,23 @@ db.exec(MIGRATIONS_SQL[204]); // linked occurrence overrides
 db.exec(MIGRATIONS_SQL[65]);
 // Migration 66: FTS triggers + backfill for medications and health activities.
 db.exec(MIGRATIONS_SQL[66]);
-// Migration 207: waste_types (only the table search reads from).
+// Migration 130: care grants - the health search asks the rule of the health lists.
+db.exec(MIGRATIONS_SQL[130]);
+// Migration 174: name-day event identity used by birthday search results.
+db.exec(MIGRATIONS_SQL[174]);
+// Migration 197: waste_types (the upstream search fixture needs this table).
+db.exec(MIGRATIONS_SQL[197]);
+// Migration 206: FTS triggers + backfill for waste_types.
+db.exec(MIGRATIONS_SQL[206]);
+// Custom migrations 207 and 216 provide the equivalent waste schema/FTS
+// additions in the append-only custom history.
 db.exec(MIGRATIONS_SQL[207]);
-// Migration 216: FTS triggers + backfill for waste_types.
 db.exec(MIGRATIONS_SQL[216]);
-db.exec(MIGRATIONS_SQL[272]); // Notes visibility for search (#1514).
+// Migration 254: unknown birth years used by birthday search.
+db.exec(MIGRATIONS_SQL[254]);
+// Migration 262: note visibility used by note search.
+db.exec(MIGRATIONS_SQL[262]);
+db.exec(MIGRATIONS_SQL[272]); // Custom notes visibility/search follow-up.
 
 console.log('\n[Search-Test] FTS5-Volltextsuche\n');
 
