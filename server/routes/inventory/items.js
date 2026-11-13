@@ -3,19 +3,20 @@
  * Zweck: CRUD + Liste + Dokument-/Buchungsverknuepfung (Stufen 1-3). Keine
  *        Abo-Verknuepfung, die kommt in einer spaeteren Stufe.
  *
- * Familienobjekte werden von Admins verwaltet; persoenliche Objekte von ihrer
- * Erstellerin bzw. ihrem Ersteller. Sichtbarkeit und Freigaben entsprechen dem
- * Aufgaben-/Kalender-Modell, werden aber fuer jeden Lesepfad serverseitig
- * durchgesetzt. Inventar ist ausserdem Haushaltseigentum; created_by bleibt der
- * Herkunftsnachweis und ist seit R23 die Grundlage fuer die Fremdobjekt-Regel.
- * Ohne inventory_edit_others aendert ein Konto nur freigegebene eigene
- * Gegenstaende; ohne inventory_view_prices fehlen Kaufpreis und Waehrung.
+ * Inventar ist Haushaltseigentum wie der Vorrat; created_by bleibt der
+ * Herkunftsnachweis (nullable, ON DELETE SET NULL) und ist seit R23 (D5) auch
+ * die Grundlage fuer die Fremdobjekt-Regel: ohne `inventory_edit_others`
+ * aendert ein Konto nur eigene Gegenstaende bzw. freigegebene eigene Objekte.
+ * Sichtbarkeit und Freigaben entsprechen dem Aufgaben-/Kalender-Modell und
+ * werden fuer jeden Lesepfad serverseitig durchgesetzt. Ohne
+ * `inventory_view_prices` fehlen Kaufpreis und Waehrung in jeder Antwort;
+ * diese Regeln leben in `server/authorize/`.
  */
 
 import express from 'express';
 import * as db from '../../db.js';
 import { createLogger } from '../../logger.js';
-import { mayChangeRecord, requestHasCapability, sendNotOwner } from '../../permissions.js';
+import { mayChangeRecord, requestHasCapability, sendNotOwner } from '../../authorize/index.ts';
 import {
   str, oneOf, num, date, id as idParam, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT,
 } from '../../middleware/validate.js';

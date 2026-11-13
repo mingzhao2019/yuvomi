@@ -20,7 +20,7 @@ import {
   visibilityWhere,
 } from '../services/visibility.js';
 import { resolveBudgetMode } from '../services/budget-visibility.js';
-import { hiddenModulesFor, requestHasCapability } from '../permissions.js';
+import { hiddenModulesFor, requestHasCapability } from '../authorize/index.ts';
 import { daysBetweenDateKeys, householdTimeZone, utcToWall, todayKey, shiftDateKey } from '../utils/timezone.js';
 import { inventoryVisibilityWhere } from './inventory/access.js';
 import { birthdaysSwitchedOff, modulesLeftOut } from '../services/household-modules.js';

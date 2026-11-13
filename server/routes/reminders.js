@@ -15,7 +15,7 @@ import * as calendarOutbound from '../services/calendar-outbound.js';
 import * as outlookCalendar from '../services/outlook-calendar.js';
 import { runExternalJob } from '../utils/restore-state.js';
 import { recordManualOwnerReminderChange } from '../services/calendar-event-reminders.js';
-import { deniedModules } from '../permissions.js';
+import { deniedModules } from '../authorize/index.ts';
 import { tokenAllows } from '../scopes.js';
 import { ORIGIN_MODULE, withoutSwitchedOffModules } from '../services/reminder-origins.js';
 import { reminderTargetVisible, reminderTargetVisibleSql } from '../services/reminder-targets.js';
