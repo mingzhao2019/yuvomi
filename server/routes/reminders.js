@@ -15,13 +15,16 @@ import * as calendarOutbound from '../services/calendar-outbound.js';
 import * as outlookCalendar from '../services/outlook-calendar.js';
 import { runExternalJob } from '../utils/restore-state.js';
 import { recordManualOwnerReminderChange } from '../services/calendar-event-reminders.js';
-import { deniedModules } from '../authorize/index.ts';
+import {
+  deniedModules,
+  reminderTargetVisible,
+  asksHouseholdAudience,
+  visibleWhere,
+} from '../authorize/index.ts';
 import { tokenAllows } from '../scopes.js';
 import { ORIGIN_MODULE, withoutSwitchedOffModules } from '../services/reminder-origins.js';
-import { reminderTargetVisible, reminderTargetVisibleSql } from '../services/reminder-targets.js';
 import { withoutGoneEvents } from '../services/reminder-deleted-occurrence.js';
 import { remindAtCompareKey, remindAtUtcSql } from '../utils/reminder-schedule.js';
-import { asksHouseholdAudience } from '../services/visibility.js';
 import { moveNoticeFields } from '../services/shopping-move-notices.js';
 
 const log    = createLogger('Reminders');
@@ -205,7 +208,7 @@ function derivedTypeError(entityType) {
  * Aufgabe sieht. Bis hierher fragte das kein Schreibweg: eine Erinnerung liess
  * sich auf eine geratene Kennung setzen, auch auf eine, die es nicht gibt, und
  * `/pending` nannte danach den Titel. Die Regel selbst steht in
- * services/reminder-targets.js und ist die des jeweiligen Moduls.
+ * authorize/rows/reminders.ts und ist die des jeweiligen Moduls.
  *
  * 404 FUER BEIDES, "gibt es nicht" und "siehst du nicht": der Unterschied
  * zwischen den Antworten waere die Auskunft, die die Sichtbarkeit verweigert.
@@ -322,7 +325,7 @@ function callerReminders(req, {
       -- sieht (services/reminder-targets.js). Das Modulrecht darueber sagt
       -- nichts ueber die einzelne Aufgabe, und die Sichtbarkeit aendert sich
       -- nach dem Anlegen. Uebersprungen, nicht geloescht.
-      AND ${reminderTargetVisibleSql(db.get(), 'r')}
+      AND ${visibleWhere('reminders', 'r', 'r.created_by', { database: db.get() })}
       -- Eine 'cycle_period'/'cycle_log_nudge'-Zeile, deren Anker bereits
       -- geloescht wurde (Eigentuemer geloescht, Einstellung geaendert, o.ae.),
       -- aber deren periodischer Sync noch nicht wieder gelaufen ist, darf
@@ -670,7 +673,7 @@ router.get('/all', (req, res) => {
     const rows = db.get().prepare(`
       SELECT r.* FROM reminders r
       WHERE r.entity_type = ? AND r.entity_id = ? AND r.created_by = ? AND r.dismissed = 0
-        AND ${reminderTargetVisibleSql(db.get(), 'r')}
+        AND ${visibleWhere('reminders', 'r', 'r.created_by', { database: db.get() })}
       ORDER BY r.remind_at ASC
     `).all(entityType, entityId, userId);
 
@@ -702,7 +705,7 @@ router.get('/', (req, res) => {
     const row = db.get().prepare(`
       SELECT r.* FROM reminders r
       WHERE r.entity_type = ? AND r.entity_id = ? AND r.created_by = ? AND r.dismissed = 0
-        AND ${reminderTargetVisibleSql(db.get(), 'r')}
+        AND ${visibleWhere('reminders', 'r', 'r.created_by', { database: db.get() })}
       ORDER BY r.created_at DESC LIMIT 1
     `).get(entityType, entityId, userId);
 

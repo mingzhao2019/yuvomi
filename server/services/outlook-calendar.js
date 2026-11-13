@@ -19,7 +19,6 @@ import crypto from 'node:crypto';
 import * as db from '../db.js';
 import { parseRRule } from './recurrence.js';
 import { outboundEvent } from './outbound-dtstart.js';
-import { visibilityWhere } from './visibility.js';
 import {
   householdTimeZone,
   isValidTimeZone,
@@ -34,6 +33,7 @@ import {
   ownerEventReminderAts,
   primaryProviderReminderOffset,
 } from './calendar-event-reminders.js';
+import { visibleWhere } from '../authorize/index.ts';
 import { newNonMembers, nonMemberMessage } from './household-members.js';
 
 // /consumers statt /common: die Entra-App ist für "Personal Microsoft accounts
@@ -1224,7 +1224,7 @@ function collectCandidates(conn, account) {
       FROM calendar_events e
       WHERE e.external_source = 'local'
         AND e.recurrence_parent_id IS NULL
-        AND ${visibilityWhere('e', 'event_assignments', 'event_id')}
+        AND ${visibleWhere('events', 'e', '?')}
     `).all(account.owner_user_id, account.owner_user_id);
     for (const event of rows) {
       candidates.set(event.id, { event, calendarId: account.auto_sync_calendar_id });

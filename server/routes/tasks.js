@@ -5,10 +5,14 @@
  */
 
 import { createLogger } from '../logger.js';
-import { mayWriteModule, requestHasCapability } from '../authorize/index.ts';
+import {
+  mayWriteModule,
+  requestHasCapability,
+  normalizeVisibility,
+  visibleWhere,
+} from '../authorize/index.ts';
 import express from 'express';
 import * as db from '../db.js';
-import { documentVisibleSql } from '../services/document-access.js';
 import { sendDocumentDeletionConflict } from '../services/document-deletion-lock.js';
 import { assertDocumentLinkTargetsAvailable, documentViewer, sendDocumentLinkRefusal } from '../services/document-links.js';
 import { nextDueAfterCompletion } from '../services/recurrence.js';
@@ -20,7 +24,6 @@ import {
 import { activeAccountSql } from '../services/account-state.js';
 import { completionFeed, seriesHistory, syncTaskCompletion } from '../services/task-completions.js';
 import { normalizeCategoryFilter, taskCategoryWhere, taskScopeNeedsToday, taskScopeWhere } from '../services/task-scope.js';
-import { normalizeVisibility, visibilityWhere } from '../services/visibility.js';
 import {
   flushOutbound as flushTodoOutbound, markTodoOutbound, queueTodoDeletion, recurrenceFollowupTarget,
   continuesForeignSeries, handOverForeignSeries, takeBackForeignSeries,
@@ -781,7 +784,7 @@ function loadSubtasks(taskId, me) {
     LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
     LEFT JOIN outlook_accounts tlo ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
     WHERE t.parent_task_id = ?
-      AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
+      AND ${visibleWhere('tasks', 't', '@me')}
     ORDER BY t.created_at ASC
   `).all(taskId, { me }).map(addAssignedUsers).map(attachTaskList);
   // Unteraufgaben sind Aufgaben und können Tags tragen - über den CalDAV-Spiegel
@@ -1235,7 +1238,7 @@ function visibleTaskIds(ids, me) {
   return db.get().prepare(`
     SELECT t.id AS id FROM tasks t
     WHERE t.id IN (${placeholders})
-      AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
+      AND ${visibleWhere('tasks', 't', '@me')}
   `).all(...ids, { me }).map((r) => r.id);
 }
 
@@ -1621,12 +1624,12 @@ router.get('/', (req, res) => {
         -- dieselbe Regel fehlte hier. Ohne den Filter zeigt die Zeile fremde
         -- private Titel und bietet Aktionen darauf an.
         (SELECT COUNT(*) FROM tasks s WHERE s.parent_task_id = t.id
-           AND ${visibilityWhere('s', 'task_assignments', 'task_id')})                         AS subtask_total,
+           AND ${visibleWhere('tasks', 's', '?')})                         AS subtask_total,
         (SELECT COUNT(*) FROM tasks s WHERE s.parent_task_id = t.id AND s.status = 'done'
-           AND ${visibilityWhere('s', 'task_assignments', 'task_id')})                         AS subtask_done,
+           AND ${visibleWhere('tasks', 's', '?')})                         AS subtask_done,
         (SELECT json_group_array(json_object('id', s.id, 'title', s.title, 'status', s.status))
            FROM (SELECT s.id, s.title, s.status FROM tasks s WHERE s.parent_task_id = t.id
-                   AND ${visibilityWhere('s', 'task_assignments', 'task_id')}
+                   AND ${visibleWhere('tasks', 's', '?')}
                  ORDER BY s.created_at ASC) s) AS subtasks
       FROM tasks t
       LEFT JOIN users u ON t.assigned_to = u.id
@@ -1736,7 +1739,7 @@ router.get('/', (req, res) => {
 
     // Sichtbarkeit (#474): eigene + für alle sichtbare + zugewiesene-sichtbare.
     const me = req.authUserId || req.session.userId;
-    sql += ` AND ${visibilityWhere('t', 'task_assignments', 'task_id')}`;
+    sql += ` AND ${visibleWhere('tasks', 't', '?')}`;
     params.push(me, me);
 
     // Die Reminder- und Unteraufgaben-Subqueries oben stehen in der
@@ -1782,7 +1785,7 @@ router.get('/:id', (req, res) => {
       LEFT JOIN caldav_accounts tla ON tla.id = tl.external_account_id AND tl.provider = 'caldav'
       LEFT JOIN outlook_accounts tlo ON tlo.id = tl.external_account_id AND tl.provider = 'microsoft_todo'
       WHERE t.id = ? AND t.parent_task_id IS NULL
-        AND ${visibilityWhere('t', 'task_assignments', 'task_id')}
+        AND ${visibleWhere('tasks', 't', '?')}
     `).get(req.params.id, me, me);
 
     if (!task) return res.status(404).json({ error: 'Task not found.', code: 404, reason: 'tasks_task_not_found' });
@@ -3156,13 +3159,13 @@ router.delete('/:id', (req, res) => {
 // --------------------------------------------------------
 
 // Sichtbarkeits-Fragment für ein Dokument (Alias `d`, benannter Bind @me).
-const DOC_VISIBLE_SQL = documentVisibleSql('d', 'me');
+const DOC_VISIBLE_SQL = visibleWhere('documents', 'd', '@me');
 
 /** Aufgabe nur zurückgeben, wenn sie für die betrachtende Person sichtbar ist. */
 function findVisibleTask(id, me) {
   return db.get().prepare(`
     SELECT t.id, t.locked, t.created_by, t.parent_task_id FROM tasks t
-    WHERE t.id = ? AND ${visibilityWhere('t', 'task_assignments', 'task_id')}
+    WHERE t.id = ? AND ${visibleWhere('tasks', 't', '?')}
   `).get(id, me, me);
 }
 
@@ -3394,7 +3397,7 @@ router.post('/:id/comments', (req, res) => {
     const me = req.authUserId || req.session.userId;
     const task = db.get().prepare(`
       SELECT t.id, t.title FROM tasks t
-      WHERE t.id = ? AND ${visibilityWhere('t', 'task_assignments', 'task_id')}
+      WHERE t.id = ? AND ${visibleWhere('tasks', 't', '?')}
     `).get(req.params.id, me, me);
     if (!task) return res.status(404).json({ error: 'Task not found.', code: 404, reason: 'tasks_task_not_found' });
 

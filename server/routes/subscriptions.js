@@ -21,7 +21,13 @@ import {
 } from '../services/subscription-budget-projection.js';
 import { refuseWhileRestoring } from '../middleware/restore-gate.js';
 import { findLogoOptions } from '../services/subscription-logo.js';
-import { normalizeObjectVisibility, budgetVisibilityWhere, budgetDetailsVisibleWhere, canEditEntry, resolveBudgetMode } from '../services/budget-visibility.js';
+import {
+  normalizeObjectVisibility,
+  budgetDetailsVisibleWhere,
+  canEditEntry,
+  resolveBudgetMode,
+  visibleWhere,
+} from '../authorize/index.ts';
 import { dataUrlContentMatches } from '../utils/file-signature.js';
 import { budgetFilter, budgetAccountCurrency, listAccounts, validateAccountRef } from './budget/helpers.js';
 import { remoteFailure } from '../utils/http.js';
@@ -897,7 +903,7 @@ router.get('/', refuseWhileRestoring, async (req, res) => {
     }
     // Sichtbarkeit (#476/#505): im personal-Modus nur geteilte + eigene Abos.
     if (budgetMode() === 'personal') {
-      clauses.push(budgetVisibilityWhere('s', '?', { mode: 'personal' }));
+      clauses.push(visibleWhere('budget', 's', '?', { mode: 'personal' }));
       params.push(actorId(req));
     }
     const rows = db.get().prepare(`

@@ -24,7 +24,7 @@
 
 import { SOURCE_CALENDAR_JOIN, SOURCE_CALENDAR_KEY_SQL } from './calendar-events.js';
 import { localCalendarIdSql } from './local-calendars.js';
-import { visibilityWhere } from './visibility.js';
+import { visibleWhere } from '../authorize/index.ts';
 import { calendarDisplaySettings } from './calendar-display.js';
 
 const KEY_RE = /^(local|cal|sub|outlook):([1-9]\d{0,14})$/;
@@ -71,7 +71,7 @@ export function calendarSources(d, viewerId, { includeConfigured = false } = {})
     FROM calendar_events e
     ${SOURCE_CALENDAR_JOIN}
     WHERE src.id IS NOT NULL AND e.subscription_id IS NULL
-      AND ${visibilityWhere('e', 'event_assignments', 'event_id', '@viewer')}
+      AND ${visibleWhere('events', 'e', '@viewer')}
   `).all({ viewer: viewerId });
   // Account settings are admin-only. Keep configured empty calendars available
   // there without exposing another member's private events to any reader.
@@ -95,7 +95,7 @@ export function calendarSources(d, viewerId, { includeConfigured = false } = {})
        SELECT 1 FROM outlook_event_links ol JOIN calendar_events e ON e.id = ol.event_id
        WHERE ol.account_id = os.account_id AND ol.outlook_calendar_id = os.calendar_id
          AND e.external_source = 'outlook'
-         AND ${visibilityWhere('e', 'event_assignments', 'event_id', '@viewer')}
+         AND ${visibleWhere('events', 'e', '@viewer')}
      )
   `).all({ configured: includeConfigured ? 1 : 0, viewer: viewerId })
     .map((row) => ({ key: `outlook:${row.id}`, name: row.calendar_name, color: row.calendar_color ?? null, provider: 'outlook' }));
