@@ -40,7 +40,7 @@ import { ensureCalDavTaskList, taskListsTableExists } from '../services/task-lis
 import {
   actorForUser, authorize, householdVisible, rowVisible, taskReader, taskRowVisible, taskVisibleWhere,
 } from '../authorize/index.ts';
-import { isAdminRequest } from '../middleware/require-admin.js';
+import { isAdminRequest, refuseAdmin } from '../middleware/require-admin.js';
 import { householdMemberSql, isHouseholdMember, memberOrderSql, memberPositionSql, newNonMembers, nonMemberMessage } from '../services/household-members.js';
 import { displayActingPerson, isDisplayRequest } from '../services/display-acting.js';
 import { pushService } from '../services/push.js';
@@ -2077,7 +2077,7 @@ router.put('/:id', (req, res) => {
       return res.status(409).json(FOREIGN_SERIES_ERROR);
     }
     if (reopensSettledVisit(db.get(), task.id, task.status, status) && !isAdminRequest(req)) {
-      return res.status(403).json({ error: 'Permission denied.', code: 403 });
+      return refuseAdmin(req, res);
     }
 
     // Primaerperson zuerst, dann in Eintragungsreihenfolge (#2569). Ohne
@@ -2903,7 +2903,7 @@ router.patch('/:id/status', (req, res) => {
     if (completesForeignSeries(prev, status)) return res.status(409).json(FOREIGN_SERIES_ERROR);
 
     if (reopensSettledVisit(db.get(), prev.id, prev.status, status) && !isAdminRequest(req)) {
-      return res.status(403).json({ error: 'Permission denied.', code: 403 });
+      return refuseAdmin(req, res);
     }
 
     // Benannt werden koennen nur Haushaltsmitglieder (#1207, DECISIONS 4) -
@@ -3531,7 +3531,7 @@ router.get('/meta/options', (req, res) => {
 router.get('/points/affected', (req, res) => {
   try {
     if (!isAdminRequest(req)) {
-      return res.status(403).json({ error: 'Admin access required.', code: 403 });
+      return refuseAdmin(req, res);
     }
     const points = Number(req.query.points);
     if (!Number.isInteger(points) || points < 0 || points > MAX_POINTS) {
@@ -3553,7 +3553,7 @@ router.get('/points/affected', (req, res) => {
 router.post('/points/rebase', (req, res) => {
   try {
     if (!isAdminRequest(req)) {
-      return res.status(403).json({ error: 'Admin access required.', code: 403 });
+      return refuseAdmin(req, res);
     }
     const from = Number(req.body.from);
     const to   = Number(req.body.to);

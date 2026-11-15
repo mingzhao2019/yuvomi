@@ -722,6 +722,27 @@ test('403 ohne lesbaren Rumpf: kein Urteil ueber Rechte', async () => {
   );
 });
 
+// Phase 2, C2: jedes reine Admin-Gate antwortet mit EINER Absage, und die
+// traegt `reason: 'admin_required'`. Ohne Eintrag in REFUSAL_MESSAGES griffe
+// keiner der beiden Zweige in api.js, und die Seite zeigte den englischen Satz.
+test("403 mit reason 'admin_required': der allgemeine Satz in message UND data.error", async () => {
+  setup();
+  const body = { error: 'Admin access required.', code: 403, reason: 'admin_required' };
+  _mockFetch = () => mockResponse(403, body);
+  await assert.rejects(
+    () => api.get('/backup/status'),
+    (err) => {
+      assert.ok(err instanceof ApiError);
+      assert.equal(err.status, 403);
+      assert.equal(err.message, 'common.errorNoPermission', 'message');
+      assert.equal(err.data.error, 'common.errorNoPermission', 'data.error');
+      assert.equal(err.data.reason, 'admin_required', 'der Grund bleibt im Rumpf');
+      assert.equal(err.data.code, 403);
+      return true;
+    },
+  );
+});
+
 test('andere Statuscodes ohne reason behalten ihren Servertext', async () => {
   for (const [status, serverText] of [
     [400, 'Title is required.'], [404, 'Task not found.'], [409, 'Category already exists.'], [500, 'Internal server error.'],
@@ -868,9 +889,6 @@ const REASONS_WITHOUT_SENTENCE = new Set([
   // Fremde Terminserie (Einzelausnahme): der Grund reist als `reason: error.code`
   // durch eine Variable und fehlte dem Leser bis #1669. Der Servertext ist deutsch.
   'not_authorized',
-  // Haushaltsreihenfolge (#1644): das Blatt, das sie setzt, erreicht nur ein
-  // Administrator, und es zeigt bei jedem Scheitern seinen eigenen Satz.
-  'admin_required',
   // Listenloeschung: der Servertext erklaert, dass einzelne Aufgaben nicht
   // gemeinsam geloescht werden duerfen; die Seite hat keinen eigenen Satz.
   'task_list_tasks_not_deletable',
@@ -942,7 +960,7 @@ const REASONS_PASSED_THROUGH = new Map([
   // Testmail. Beides reist an einer festen 400 bzw. in einer 200, nie an 403.
   ['routes/email.js: refusal.reason', { sites: 1, at403: [], why: 'emailConfigRefusal: feste 400' }],
   ['services/email.js: smtpFailureReason(err)', { sites: 1, at403: [], why: 'sendTest: in der 200-Antwort von POST /email/test' }],
-  ['routes/family.js: problem.reason', { sites: 1, at403: [], why: 'memberOrderProblem: feste 400; die 403 daneben traegt ein Literal' }],
+  ['routes/family.js: problem.reason', { sites: 1, at403: [], why: 'memberOrderProblem: feste 400; die 403 daneben sendet refuseAdmin' }],
   ['routes/tasks.js: err.reason', { sites: 1, at403: [['task_list_tasks_not_deletable', 'routes/tasks.js']],
     why: 'TaskListDeleteError: nur die fehlende Loeschbarkeit aller Aufgaben ist 403; die anderen Gruende sind 404/409' }],
   // parseDataUrl (#1909): der Fall einer gewaehlten Datei (Typ, Inhalt, leer).
@@ -1223,7 +1241,9 @@ test('jeder 403-Satz ohne reason sagt nur, dass die Berechtigung fehlt', () => {
       if (!PLAIN_REFUSALS.has(text)) unclassified.push(`${file}:${index + 1}: ${text}`);
     });
   }
-  assert.ok(found.length > 80, `zu wenige Absagen gelesen (${found.length}) - das Muster greift nicht mehr`);
+  // Phase 2, C2: die reinen Admin-Gates (rund 45 Zeilen) senden seither die
+  // eine Absage mit `reason` und zaehlen hier nicht mehr; gemessen 54 danach.
+  assert.ok(found.length > 45, `zu wenige Absagen gelesen (${found.length}) - das Muster greift nicht mehr`);
   assert.deepEqual(
     unclassified, [],
     'eine 403 ohne reason, deren Satz nicht als allgemein gefuehrt ist: entweder traegt sie eine Auskunft '

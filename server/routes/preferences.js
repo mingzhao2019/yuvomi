@@ -10,7 +10,7 @@ import express from 'express';
 import * as db from '../db.js';
 import * as holidays from '../services/holidays.js';
 import { str, MAX_SHORT } from '../middleware/validate.js';
-import { isAdminRequest } from '../middleware/require-admin.js';
+import { isAdminRequest, refuseAdmin } from '../middleware/require-admin.js';
 import { getSupportedLocales, isRegionTag, isSupportedLocale, resolveHouseholdLocale, supportedLocaleFor } from '../utils/i18n.js';
 import { householdTimeZone, isValidTimeZone } from '../utils/timezone.js';
 import { retitleBirthdayEvents } from '../services/birthdays.js';
@@ -868,7 +868,7 @@ router.put('/', (req, res) => {
     // zurueck; der Check bleibt oben stehen, weil er nichts kostet.
     if (schedule_hidden_templates !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (!Array.isArray(schedule_hidden_templates)) {
         return res.status(400).json({ error: 'schedule_hidden_templates must be an array.', code: 400 });
@@ -879,7 +879,7 @@ router.put('/', (req, res) => {
     // und erst weiter unten geschrieben.
     if (timezone_hint_dismissed !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (typeof timezone_hint_dismissed !== 'boolean') {
         return res.status(400).json({ error: 'timezone_hint_dismissed must be true or false.', code: 400 });
@@ -957,7 +957,7 @@ router.put('/', (req, res) => {
     // Budget-Modus — haushaltweite Grundsatzentscheidung, nur Admin (#476/#505).
     if (budget_mode !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (!VALID_BUDGET_MODES.includes(budget_mode)) {
         return res.status(400).json({ error: `Invalid budget mode. Allowed: ${VALID_BUDGET_MODES.join(', ')}`, code: 400 });
@@ -976,7 +976,7 @@ router.put('/', (req, res) => {
     // behandelte die Region ohnehin immer als Admin-Feld, nur die Route nicht.
     if (region !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (region !== null && !isValidRegionValue(region)) {
         return res.status(400).json({ error: 'Invalid region.', code: 400 });
@@ -994,7 +994,7 @@ router.put('/', (req, res) => {
     // hinausgehen. Ein Mitglied darf ihn deshalb nicht fuer alle umstellen.
     if (timezone !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (timezone !== null && timezone !== '' && !isValidTimeZone(timezone)) {
         return res.status(400).json({
@@ -1031,7 +1031,7 @@ router.put('/', (req, res) => {
     // deshalb nur Admin. null/'' stellt auf "automatisch" zurück (aus der Region).
     if (language !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (language !== null && language !== '' && !isSupportedLocale(language)) {
         return res.status(400).json({ error: `Invalid language. Allowed: ${VALID_LANGUAGES.join(', ')}`, code: 400 });
@@ -1123,7 +1123,7 @@ router.put('/', (req, res) => {
     // der je eine Kachel verschoben hat.
     if (dashboard_widgets_default !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (dashboard_widgets_default === null) {
         cfgDelete('dashboard_widgets_default');
@@ -1140,7 +1140,7 @@ router.put('/', (req, res) => {
 
     if (dashboard_today_glance_default !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (dashboard_today_glance_default === null) {
         cfgDelete('dashboard_today_glance_default');
@@ -1153,7 +1153,7 @@ router.put('/', (req, res) => {
 
     if (disabled_modules !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (!Array.isArray(disabled_modules)) {
         return res.status(400).json({ error: 'disabled_modules must be an array.', code: 400 });
@@ -1329,7 +1329,7 @@ router.put('/', (req, res) => {
     // Haushaltweite Modul-Feature-Schalter — nur Admins.
     if (health_cycle_enabled !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (typeof health_cycle_enabled !== 'boolean') {
         return res.status(400).json({ error: 'health_cycle_enabled must be a boolean', code: 400 });
@@ -1363,7 +1363,7 @@ router.put('/', (req, res) => {
 
     if (rewards_require_approval !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (typeof rewards_require_approval !== 'boolean') {
         return res.status(400).json({ error: 'rewards_require_approval must be a boolean', code: 400 });
@@ -1373,7 +1373,7 @@ router.put('/', (req, res) => {
 
     if (tasks_subtasks_expanded !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (typeof tasks_subtasks_expanded !== 'boolean') {
         return res.status(400).json({ error: 'tasks_subtasks_expanded must be a boolean', code: 400 });
@@ -1384,7 +1384,7 @@ router.put('/', (req, res) => {
     // Standard-Punktwert für neue Aufgaben (#578). 0 schaltet den Standard ab.
     if (tasks_default_points !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       const points = Number(tasks_default_points);
       if (!Number.isInteger(points) || points < 0 || points > MAX_TASK_POINTS) {
@@ -1398,7 +1398,7 @@ router.put('/', (req, res) => {
     // Haushalte buchen unveraendert weiter, bis jemand es einschaltet.
     if (tasks_late_decay_enabled !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (typeof tasks_late_decay_enabled !== 'boolean') {
         return res.status(400).json({ error: 'tasks_late_decay_enabled must be a boolean', code: 400 });
@@ -1409,7 +1409,7 @@ router.put('/', (req, res) => {
     // Nachfrist für abgelaufene Countdowns (#969). 0 = keine Nachfrist.
     if (countdown_grace_days !== undefined) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       const days = Number(countdown_grace_days);
       if (!Number.isInteger(days) || days < 0 || days > MAX_COUNTDOWN_GRACE_DAYS) {
@@ -1428,7 +1428,7 @@ router.put('/', (req, res) => {
       weather_auto_locate !== undefined
     ) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (weather_provider !== undefined) {
         if (weather_provider !== null && !VALID_WEATHER_PROVIDERS.includes(weather_provider)) {
@@ -1544,7 +1544,7 @@ router.put('/', (req, res) => {
       holiday_school_color !== undefined
     ) {
       if (!isAdminRequest(req)) {
-        return res.status(403).json({ error: 'Admin access required.', code: 403 });
+        return refuseAdmin(req, res);
       }
       if (holiday_country !== undefined) {
         if (holiday_country !== null && !COUNTRY_ISO_RE.test(holiday_country)) {
@@ -1835,7 +1835,7 @@ router.get('/holidays/groups/:countryCode/:subdivisionCode', async (req, res) =>
 // POST /api/v1/preferences/holidays/sync  (admin only)
 router.post('/holidays/sync', async (req, res) => {
   if (!isAdminRequest(req)) {
-    return res.status(403).json({ error: 'Admin access required.', code: 403 });
+    return refuseAdmin(req, res);
   }
   try {
     await holidays.sync(true);
