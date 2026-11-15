@@ -24,7 +24,7 @@
 
 import { SOURCE_CALENDAR_JOIN, SOURCE_CALENDAR_KEY_SQL } from './calendar-events.js';
 import { localCalendarIdSql } from './local-calendars.js';
-import { visibleWhere } from '../authorize/index.ts';
+import { personReader, readerVisibleWhere } from '../authorize/index.ts';
 import { calendarDisplaySettings } from './calendar-display.js';
 
 const KEY_RE = /^(local|cal|sub|outlook):([1-9]\d{0,14})$/;
@@ -52,11 +52,19 @@ export function normalizeCalendarSelection(raw) {
  * eigenes - dieselbe Regel wie `GET /calendar/subscriptions`). Eigene zuerst
  * in der Reihenfolge der Verwaltung, danach die uebrigen nach Namen.
  *
+ * A paired display names only the synced calendars with an event the whole household
+ * sees (`reader`, rowReader in server/authorize); without it the person rule for
+ * `viewerId` applies. The dashboard selection (resolveCalendarSelection) asks
+ * without it on purpose: a selection is a filter, not a disclosure, and a key the
+ * wall rule dropped would turn the tile back to "all calendars".
+ *
  * @param {object} d better-sqlite3-Connection
  * @param {number|null} viewerId
+ * @param {{ reader?: import('../authorize/index.ts').RowReader | null }} [options]
  * @returns {{ key: string, name: string, color: string|null }[]}
  */
-export function calendarSources(d, viewerId, { includeConfigured = false } = {}) {
+export function calendarSources(d, viewerId, { includeConfigured = false, reader = null } = {}) {
+  const eventReader = reader ?? personReader(viewerId);
   const local = d.prepare(`
     SELECT id, name, color FROM local_calendars
     ORDER BY sort_order ASC, name COLLATE NOCASE ASC, id ASC
@@ -71,7 +79,7 @@ export function calendarSources(d, viewerId, { includeConfigured = false } = {})
     FROM calendar_events e
     ${SOURCE_CALENDAR_JOIN}
     WHERE src.id IS NOT NULL AND e.subscription_id IS NULL
-      AND ${visibleWhere('events', 'e', '@viewer')}
+      AND ${readerVisibleWhere(eventReader, 'events', 'e', '@viewer')}
   `).all({ viewer: viewerId });
   // Account settings are admin-only. Keep configured empty calendars available
   // there without exposing another member's private events to any reader.
@@ -95,7 +103,7 @@ export function calendarSources(d, viewerId, { includeConfigured = false } = {})
        SELECT 1 FROM outlook_event_links ol JOIN calendar_events e ON e.id = ol.event_id
        WHERE ol.account_id = os.account_id AND ol.outlook_calendar_id = os.calendar_id
          AND e.external_source = 'outlook'
-         AND ${visibleWhere('events', 'e', '@viewer')}
+         AND ${readerVisibleWhere(eventReader, 'events', 'e', '@viewer')}
      )
   `).all({ configured: includeConfigured ? 1 : 0, viewer: viewerId })
     .map((row) => ({ key: `outlook:${row.id}`, name: row.calendar_name, color: row.calendar_color ?? null, provider: 'outlook' }));
