@@ -36,6 +36,17 @@ test('Docker publish treats the remote build cache as an optional optimization',
 });
 
 test('custom image publish is isolated to custom', () => {
+  const trigger = featureWorkflow.slice(featureWorkflow.indexOf('\non:'), featureWorkflow.indexOf('\npermissions:'));
+  assert.match(
+    trigger,
+    /\n  push:\n    branches:\n      - custom\n  workflow_dispatch:/,
+    'The custom image workflow must load its automatic custom push trigger',
+  );
+  assert.doesNotMatch(
+    trigger,
+    /paths-ignore:/,
+    'Every custom push, including documentation-only updates, must rebuild the image',
+  );
   assert.match(
     featureWorkflow,
     /branches:\s*\n\s*- custom/,
