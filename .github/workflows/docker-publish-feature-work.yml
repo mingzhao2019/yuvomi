@@ -2,8 +2,8 @@ name: Docker Publish (custom)
 
 on:
   push:
-      branches:
-        - custom
+    branches:
+      - custom
   workflow_dispatch:
 
 permissions:
