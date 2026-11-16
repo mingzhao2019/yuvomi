@@ -2,11 +2,8 @@ name: Docker Publish (custom)
 
 on:
   push:
-    branches:
-      - custom
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
+      branches:
+        - custom
   workflow_dispatch:
 
 permissions:
