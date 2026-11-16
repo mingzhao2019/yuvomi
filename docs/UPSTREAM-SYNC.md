@@ -22,26 +22,30 @@ than the seven-day retention window are removed during documentation cleanup.
 
 ## Current repository state
 
-Last verified: **2026-11-11 UTC**. Local `main` is fast-forwarded to
-`upstream/main` at `b9626ff17369686be778b1abb8cc20af9218b35b`. The selective
-integration branch was validated and fast-forwarded into `custom` at
-`51ca6c824`; both branches were then pushed and verified on `origin` after the
-explicit operator authorization required by the sync skill.
+Last verified: **2026-11-16 UTC**. Local `main` is fast-forwarded to
+`upstream/main` at `8f6e254412bc8291a5c2a5626eb1576d74a30356`. The selective
+integration branch has incorporated all 49 upstream commits since the previous
+checkpoint and was validated at integration commit `28ae2da6b`; it is ready to
+fast-forward into `custom` and push after the explicit operator authorization
+required by the sync skill.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
-| `main`, `upstream/main` | `b9626ff17369686be778b1abb8cc20af9218b35b` | Local upstream-compatible baseline matches the current upstream tip. |
-| `custom` | `51ca6c824` | Product branch after semantic upstream integration and focused validation. |
-| `origin/main`, `origin/custom` | verified after the final push | Remote refs match the local `main` and `custom` branches. |
-| temporary integration | `custom-upstream-selective-2026-11-11` | Already fast-forwarded into `custom`; remove after the final push verification. |
+| `main`, `upstream/main` | `8f6e254412bc8291a5c2a5626eb1576d74a30356` | Local upstream-compatible baseline matches the current upstream tip. |
+| `custom` | `28ae2da6b` plus this synchronization record commit | Product branch after semantic upstream integration and focused validation. |
+| `origin/main`, `origin/custom` | verify after the final push | Remote refs must match the local `main` and `custom` branches. |
+| temporary integration | `custom-upstream-selective-2026-11-16` | Validated; fast-forward into `custom`, then remove after push verification. |
 
-The integration includes upstream through `b9626ff`, including the large
-app-wide polish commit `72db19dfb`, while preserving the custom task-list and
-Microsoft To Do paths, bidirectional Outlook behavior, Google/CalDAV/ICS
-provider contracts, local calendar display customization, notification
-ownership, mobile layout, device pairing, and split-guest boundaries. The
-background sender keeps the custom shared fan-out architecture and now uses
-the upstream guarded fetch at the actual provider bottleneck.
+The integration includes every upstream commit through `8f6e254`, including
+the permission/authorization registry, search visibility, backup settings,
+display-device and calendar read rules, release `v2.91.0`, and localization
+fixes. It preserves the custom task-list and Microsoft To Do paths,
+bidirectional Outlook behavior, Google/CalDAV/ICS provider contracts, local
+calendar display customization, notification ownership, inventory/assets,
+dashboard widgets, device pairing, and split-guest boundaries. The conflict
+repairs also retain the custom EXDATE creator/admin boundary, restore shared
+reminder/countdown authorization plumbing, and keep reduced dashboard fixtures
+valid for the upstream Outlook source projection.
 
 The upstream recipes and split-expense migration definitions were appended as
 local migrations 290 and 291; released custom migrations remain in their
@@ -50,19 +54,15 @@ picker, account labels, complete locale key set, Pantry product semantics, and
 the notification fetch guard were all reconciled and validated.
 
 Focused validation was run as requested; the full `npm test` suite was not
-run. Passing groups include build, task routes (94), permissions (29 server +
-14 UI), medication scheduler (24), readiness (8 plus one expected skip),
-system diagnostics (10), split-expense routes (135), calendar, local calendar
-management (37), color picker (10), Pantry UX (47), auth pages (21), budget UI
-(264), budget read-only UI (69), i18n (87), migration append-only (4), and
-dashboard calendar selection (18). `git diff --check`, JSON parsing,
-JavaScript syntax checks, and conflict-marker scans also passed.
-
-The standalone browser toolbar suite remains environment-blocked because the
-bundled Chrome cannot load `libglib-2.0.so.0`; the frontend-audit suite was
-stopped after running without output for an unreasonable duration. Neither
-was reported as a code pass. Product-specific behavior remains authoritative
-on `custom`; the full list is maintained in [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
+run. Passing groups include preferences routes (93), settings registry (448),
+calendar routes (188), reminders routes (36), reminder-target visibility (34),
+visibility matrix (108), authorization rows (35), admin gates (163),
+dashboard (191), local calendars (37), calendar exceptions (9), authorization
+actor/modules/care (26/15/20), settings admin gate (4), migration append-only
+(1), schema mirror (1), and OpenAPI structure/coverage (1/1). `git diff --check`,
+JSON parsing, JavaScript syntax checks, and version consistency also passed.
+Product-specific behavior remains authoritative on `custom`; the full list is
+maintained in [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
 
 ## Custom boundaries to preserve
 
