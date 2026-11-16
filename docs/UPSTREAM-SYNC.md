@@ -24,17 +24,17 @@ than the seven-day retention window are removed during documentation cleanup.
 
 Last verified: **2026-11-16 UTC**. Local `main` is fast-forwarded to
 `upstream/main` at `8f6e254412bc8291a5c2a5626eb1576d74a30356`. The selective
-integration branch has incorporated all 49 upstream commits since the previous
-checkpoint and was validated at integration commit `28ae2da6b`; it is ready to
-fast-forward into `custom` and push after the explicit operator authorization
-required by the sync skill.
+integration incorporated all 49 upstream commits since the previous checkpoint
+and was validated at integration commit `28ae2da6b`, then fast-forwarded into
+`custom` and pushed after the explicit operator authorization required by the
+sync skill.
 
 | Reference | Commit | Meaning |
 | --- | --- | --- |
 | `main`, `upstream/main` | `8f6e254412bc8291a5c2a5626eb1576d74a30356` | Local upstream-compatible baseline matches the current upstream tip. |
-| `custom` | `28ae2da6b` plus this synchronization record commit | Product branch after semantic upstream integration and focused validation. |
-| `origin/main`, `origin/custom` | verify after the final push | Remote refs must match the local `main` and `custom` branches. |
-| temporary integration | `custom-upstream-selective-2026-11-16` | Validated; fast-forward into `custom`, then remove after push verification. |
+| `custom` | `b853fbae6` integration tip plus this state-note commit | Product branch after semantic upstream integration and focused validation. |
+| `origin/main`, `origin/custom` | `8f6e254412bc8291a5c2a5626eb1576d74a30356` / `b853fbae6738e0bad40f66b8b9dfda6491d04b79` | Verified after the final push; remote refs match the delivered branches. |
+| temporary integration | removed | Fast-forwarded into `custom` and removed after push verification. |
 
 The integration includes every upstream commit through `8f6e254`, including
 the permission/authorization registry, search visibility, backup settings,
