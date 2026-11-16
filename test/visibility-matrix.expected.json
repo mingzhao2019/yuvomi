@@ -5153,12 +5153,25 @@
             "series.member.private.unlinked"
           ],
           "note": "Reaches only loadVisibleEvent and refuseForeignEvent; isEligibleLocalSeries here only supplies a reason, so this cell is no evidence for rowVisible(database, 'events', ...) on the series.",
-          "ok": [
-            "series.admin.all",
-            "series.child.all",
-            "series.child.assignees",
-            "series.member.all"
-          ]
+          "ok": [],
+          "refused": {
+            "series.admin.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.child.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.child.assignees": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.member.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            }
+          }
         },
         "linked_delete": {
           "not_found": {
@@ -5326,13 +5339,19 @@
           "ok": [
             "series.child.all",
             "series.child.assignees",
-            "series.child.private",
-            "series.member.all",
-            "series.member.assignees"
+            "series.child.private"
           ],
           "refused": {
             "series.admin.all": {
               "reason": "not_owner",
+              "status": 403
+            },
+            "series.member.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.member.assignees": {
+              "reason": "Not authorized.",
               "status": 403
             }
           }
@@ -5631,15 +5650,29 @@
           ],
           "note": "Reaches only loadVisibleEvent and refuseForeignEvent; isEligibleLocalSeries here only supplies a reason, so this cell is no evidence for rowVisible(database, 'events', ...) on the series.",
           "ok": [
-            "series.admin.all",
-            "series.admin.assignees",
-            "series.admin.assignees.unlinked",
-            "series.child.all",
             "series.member.all",
             "series.member.assignees",
             "series.member.private",
             "series.member.private.unlinked"
-          ]
+          ],
+          "refused": {
+            "series.admin.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.admin.assignees": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.admin.assignees.unlinked": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.child.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            }
+          }
         },
         "linked_delete": {
           "not_found": {
@@ -6054,15 +6087,29 @@
           ],
           "note": "Reaches only loadVisibleEvent and refuseForeignEvent; isEligibleLocalSeries here only supplies a reason, so this cell is no evidence for rowVisible(database, 'events', ...) on the series.",
           "ok": [
-            "series.admin.all",
-            "series.admin.assignees",
-            "series.admin.assignees.unlinked",
-            "series.child.all",
             "series.member.all",
             "series.member.assignees",
             "series.member.private",
             "series.member.private.unlinked"
-          ]
+          ],
+          "refused": {
+            "series.admin.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.admin.assignees": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.admin.assignees.unlinked": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.child.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            }
+          }
         },
         "linked_delete": {
           "not_found": {
@@ -6244,15 +6291,29 @@
           ],
           "note": "Reaches only loadVisibleEvent and refuseForeignEvent; isEligibleLocalSeries here only supplies a reason, so this cell is no evidence for rowVisible(database, 'events', ...) on the series.",
           "ok": [
-            "series.admin.all",
-            "series.admin.assignees",
-            "series.admin.assignees.unlinked",
-            "series.child.all",
             "series.member.all",
             "series.member.assignees",
             "series.member.private",
             "series.member.private.unlinked"
-          ]
+          ],
+          "refused": {
+            "series.admin.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.admin.assignees": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.admin.assignees.unlinked": {
+              "reason": "Not authorized.",
+              "status": 403
+            },
+            "series.child.all": {
+              "reason": "Not authorized.",
+              "status": 403
+            }
+          }
         },
         "linked_delete": {
           "not_found": {

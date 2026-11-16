@@ -17,6 +17,7 @@ import { runExternalJob } from '../utils/restore-state.js';
 import { recordManualOwnerReminderChange } from '../services/calendar-event-reminders.js';
 import {
   deniedModules,
+  reminderTargetVisibleSql,
   reminderTargetVisible,
   asksHouseholdAudience,
   visibleWhere,

@@ -2100,7 +2100,7 @@ router.post('/:id/exceptions', (req, res) => {
     }
 
     const userId = getUserId(req);
-    const isAdmin = isAdminUser(req);
+    const isAdmin = isAdminRequest(req);
     if (!isAdmin && Number(event.created_by) !== Number(userId)) {
       return res.status(403).json({ error: 'Not authorized.', code: 403 });
     }

@@ -1777,8 +1777,10 @@ const MIGRATIONS_SQL = {
     ALTER TABLE notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0
       CHECK (locked IN (0, 1));
   `,
-  278: `ALTER TABLE display_accounts ADD COLUMN device_settings TEXT CHECK(device_settings IS NULL OR json_valid(device_settings));`,
-  279: `ALTER TABLE tasks ADD COLUMN external_rrule TEXT;`,
+  // Upstream v278/v279 are appended as v285/v286 on custom, which already
+  // uses the earlier numbers for released product migrations.
+  285: `ALTER TABLE display_accounts ADD COLUMN device_settings TEXT CHECK(device_settings IS NULL OR json_valid(device_settings));`,
+  286: `ALTER TABLE tasks ADD COLUMN external_rrule TEXT;`,
   288: `ALTER TABLE calendar_events ADD COLUMN provider_status TEXT CHECK(provider_status IS NULL OR provider_status IN ('TENTATIVE', 'CONFIRMED', 'CANCELLED'));`,
 };
 

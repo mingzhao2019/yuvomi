@@ -157,6 +157,7 @@ export const ROWS = [
   ...middlewareRows('server/routes/calendar/local-calendars.js', '/api/v1/calendar', ADMIN_REQUIRED, [
     ['POST', '/calendars/:id/feed/regenerate', `/calendars/${NO_ID}/feed/regenerate`, {}],
     ['DELETE', '/calendars/:id/feed', `/calendars/${NO_ID}/feed`],
+    ['PUT', '/source-display', '/source-display', { key: 'local:1', name: 'Member cannot change this' }],
   ]),
   ...middlewareRows('server/routes/calendar/outlook.js', '/api/v1/calendar', ADMIN_REQUIRED, [
     ['GET', '/outlook/auth'],
@@ -165,7 +166,19 @@ export const ROWS = [
     ['DELETE', '/outlook/accounts/:id', `/outlook/accounts/${NO_ID}`],
     ['GET', '/outlook/accounts/:id/calendars', `/outlook/accounts/${NO_ID}/calendars`],
     ['PATCH', '/outlook/accounts/:id/calendars', `/outlook/accounts/${NO_ID}/calendars`, {}],
+    ['GET', '/outlook/conflicts'],
+    ['POST', '/outlook/conflicts/:id/resolve', `/outlook/conflicts/${NO_ID}/resolve`, { resolution: 'local' }],
+    ['GET', '/outlook/accounts/:id/todo-lists', `/outlook/accounts/${NO_ID}/todo-lists`],
+    ['PATCH', '/outlook/accounts/:id/todo-lists', `/outlook/accounts/${NO_ID}/todo-lists`, { listId: 'missing', enabled: true }],
+    ['PUT', '/outlook/accounts/:id/selections', `/outlook/accounts/${NO_ID}/selections`, { calendarIds: [], todoListIds: [] }],
+    ['POST', '/outlook/todo/sync', '/outlook/todo/sync', {}],
     ['POST', '/outlook/sync', '/outlook/sync', {}],
+  ]),
+  ...middlewareRows('server/routes/inventory/categories.js', '/api/v1/inventory/categories', ADMIN_REQUIRED, [
+    ['POST', '/', '/', { name: 'Member cannot create this' }],
+    ['PUT', '/:key', '/other', { name: 'Member cannot change this' }],
+    ['DELETE', '/:key', '/other'],
+    ['PATCH', '/reorder', '/reorder', { order: ['other'] }],
   ]),
   // --- routers behind router.use(requireAdmin) ------------------------------
   ...middlewareRows('server/routes/cardav.js', '/api/v1/contacts/cardav', ADMIN_REQUIRED, [
@@ -211,9 +224,6 @@ export const ROWS = [
     ['PUT', '/config', '/config', { smtp_port: 'x' }],
     ['POST', '/test', '/test', {}],
   ]),
-  ...middlewareRows('server/routes/notifications.js', '/api/v1/notifications', ADMIN_REQUIRED, [
-    ['USE', '', '/providers'],
-  ]).map(useRow),
   ...middlewareRows('server/routes/rewards.js', '/api/v1/rewards', ADMIN_REQUIRED, [
     ['GET', '/participants'],
     ['PUT', '/participants/:userId', `/participants/${NO_ID}`, {}],
@@ -349,6 +359,8 @@ export const EXCEPTIONS = [];
 export const MIXED = [
   { form: 'inline', file: 'server/routes/calendar/crud.js', key: 'POST /:id/reset',
     reason: 'creator, subscription owner or admin may reset an ICS event (test:calendar-routes)' },
+  { form: 'inline', file: 'server/routes/calendar/crud.js', key: 'POST /:id/exceptions',
+    reason: 'the series creator or an admin may exclude an occurrence (test:calendar-routes)' },
   { form: 'inline', file: 'server/routes/calendar/subscriptions.js', key: 'POST /subscriptions/:id/sync',
     reason: 'owner or admin may sync a subscription (test:calendar-routes)' },
   { form: 'inline', file: 'server/routes/rewards.js', key: 'PATCH /redemptions/:id',

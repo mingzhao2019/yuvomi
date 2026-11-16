@@ -292,7 +292,13 @@ export function getCountdowns(d, {
   const graceDays = overdueGraceDays(d);
   const items = COUNTDOWN_SOURCES
     .filter((source) => !hidden.has(source.module))
-    .flatMap((source) => source.read(d, { userId, todayKey, graceDays, hidden, reader: reader ?? personReader(userId) }));
+    .flatMap((source) => source.read(d, {
+      userId,
+      todayKey,
+      graceDays,
+      hidden,
+      reader: reader ?? personReader(userId),
+    }));
 
   const sorted = items
     // Nächstes zuerst - überfällige also ganz oben, weil ihre Tageszahl negativ
@@ -319,7 +325,7 @@ export function getCountdowns(d, {
  * @param {{ todayKey: string, graceDays: number, hidden: Set<string>,
  *           reader: import('../authorize/index.ts').RowReader }} opts
  */
-function eventCountdowns(d, { todayKey, graceDays, hidden, reader }) {
+function eventCountdowns(d, { userId, todayKey, graceDays, hidden, reader }) {
   // Ein Geburtstagstermin kann als Countdown markiert sein. Er steht in
   // `calendar_events`, gehoert aber dem Schalter `birthdays` (#1660).
   const withBirthdays = !hidden.has('birthdays');

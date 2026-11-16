@@ -69,6 +69,26 @@ db.exec(`
   CREATE TABLE housekeeping_work_sessions (id INTEGER PRIMARY KEY, calendar_event_id INTEGER);
 `);
 db.exec(MIGRATIONS_SQL[255]); // local calendars
+// The shared event projection includes the Outlook source subquery even when
+// this fixture has no Outlook events. Keep the provider tables needed to make
+// that read path valid without pulling the full provider migration into this
+// focused dashboard fixture.
+db.exec(`
+  CREATE TABLE outlook_calendar_selection (
+    id            INTEGER PRIMARY KEY,
+    account_id    INTEGER,
+    calendar_id   TEXT NOT NULL,
+    calendar_name TEXT NOT NULL,
+    calendar_color TEXT
+  );
+  CREATE TABLE outlook_event_links (
+    event_id            INTEGER NOT NULL,
+    account_id          INTEGER NOT NULL,
+    outlook_calendar_id TEXT NOT NULL,
+    outlook_event_id    TEXT NOT NULL,
+    PRIMARY KEY (event_id, account_id)
+  );
+`);
 // Migration 256 (#1935) is functional code and has no SQL mirror entry.
 db.exec('ALTER TABLE calendar_events ADD COLUMN series_authored INTEGER NOT NULL DEFAULT 0 CHECK(series_authored IN (0, 1));');
 
@@ -2162,6 +2182,30 @@ cdb.exec(`
   CREATE TABLE housekeeping_work_sessions (id INTEGER PRIMARY KEY, calendar_event_id INTEGER);
 `);
 cdb.exec(MIGRATIONS_SQL[255]); // local calendars
+// getUpcomingEvents uses the same shared projection as the production route,
+// including its Outlook source lookup. This reduced calendar database has no
+// provider rows, but it still needs the lookup tables to compile the query.
+cdb.exec(`
+  CREATE TABLE sync_config (
+    key        TEXT PRIMARY KEY,
+    value      TEXT,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+  );
+  CREATE TABLE outlook_calendar_selection (
+    id            INTEGER PRIMARY KEY,
+    account_id    INTEGER,
+    calendar_id   TEXT NOT NULL,
+    calendar_name TEXT NOT NULL,
+    calendar_color TEXT
+  );
+  CREATE TABLE outlook_event_links (
+    event_id            INTEGER NOT NULL,
+    account_id          INTEGER NOT NULL,
+    outlook_calendar_id TEXT NOT NULL,
+    outlook_event_id    TEXT NOT NULL,
+    PRIMARY KEY (event_id, account_id)
+  );
+`);
 // Migration 256 (#1935) is functional code and has no SQL mirror entry.
 cdb.exec('ALTER TABLE calendar_events ADD COLUMN series_authored INTEGER NOT NULL DEFAULT 0 CHECK(series_authored IN (0, 1));');
 

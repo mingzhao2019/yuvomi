@@ -102,6 +102,7 @@ export {
 export {
   HOUSEHOLD_CHANNEL_POLICY,
   reminderTargetPublicSql,
+  reminderTargetVisibleSql,
   reminderTargetVisible,
   TARGET_ENTITY_TYPES,
 } from './rows/reminders.ts';
