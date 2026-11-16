@@ -883,8 +883,8 @@ router.get('/lists', (req, res) => {
   try {
     if (!taskListsTableExists()) return res.json({ data: [] });
 
-    const me = req.authUserId || req.session.userId;
-    const visible = visibilityWhere('t', 'task_assignments', 'task_id', '@me');
+    const reader = taskReader(req);
+    const visible = taskVisibleWhere(reader, 't');
     const lists = db.get().prepare(`
       SELECT tl.id,
              tl.name,
@@ -922,15 +922,15 @@ router.get('/lists', (req, res) => {
        GROUP BY tl.id
        ORDER BY CASE WHEN tl.provider = 'local' THEN 0 ELSE 1 END,
                 COALESCE(tla.name, tlo.name, ''), tl.name COLLATE NOCASE, tl.id
-    `).all({ me });
+    `).all({ me: reader.userId });
 
     const local = db.get().prepare(`
       SELECT COUNT(*) AS task_count
         FROM tasks t
        WHERE t.task_list_id IS NULL
          AND t.parent_task_id IS NULL
-         AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
-    `).get({ me });
+         AND ${visible}
+    `).get({ me: reader.userId });
 
     if (local.task_count > 0) {
       lists.unshift({
@@ -1068,7 +1068,7 @@ router.delete('/lists/:id', (req, res) => {
       const tasks = loadTaskListTaskRows(database, listId);
       const me = req.authUserId || req.session.userId;
       const hasForbiddenTask = tasks.some((task) =>
-        !mayAccessTask(task, me) || !mayEditTaskDefinition(task, req));
+        !rowVisible(database, 'tasks', task, me) || !mayEditTaskDefinition(task, req));
       if (hasForbiddenTask) {
         throw new TaskListDeleteError(
           403,

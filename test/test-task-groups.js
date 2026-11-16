@@ -16,6 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { installMiniDom } from './mini-dom.js';
 
 // /pages/tasks.js zieht zwei Web Components mit (Kategorie- und Tag-Verwalter),
 // die zur Ladezeit von HTMLElement ableiten. Node kennt das Global nicht; ein
@@ -147,6 +148,68 @@ test('Task-Listen sortieren nach dem Namen statt nach einem führenden Emoji', (
     lists.sort(tasks.taskListNameComparator('en')).map((list) => list.name),
     ['💡 Academic Idea', '📥 Inbox', '♻️ Loop', 'Tasks', '⏳ TBD', '✨ Wishlist'],
   );
+});
+
+test('a failed task-list catalog stays an error and preserves the selected source', async () => {
+  const restoreDom = installMiniDom();
+  const createElement = document.createElement;
+  let retry;
+  document.createElement = (tag) => {
+    const element = createElement(tag);
+    if (tag === 'button') {
+      element.addEventListener = (type, handler) => { if (type === 'click') retry = handler; };
+    }
+    return element;
+  };
+  const previous = {
+    taskLists: tasks.state.taskLists,
+    taskListsError: tasks.state.taskListsError,
+    taskListOrder: tasks.state.taskListOrder,
+    activeTaskListId: tasks.state.activeTaskListId,
+    tasks: tasks.state.tasks,
+  };
+  const previousApi = globalThis.__apiStub;
+  const error = Object.assign(new Error('Catalog unavailable'), { status: 500 });
+  const list = { id: 42, name: 'Loop', provider: 'microsoft_todo', enabled: 1, task_count: 1 };
+  const taskRows = [task({ task_list_id: 42, task_list: list })];
+  const nav = document.createElement('nav');
+  const container = { querySelector: (selector) => selector === '#task-lists-nav' ? nav : null };
+  Object.assign(tasks.state, { taskLists: [list], taskListsError: null, activeTaskListId: '42', tasks: taskRows });
+  globalThis.__apiStub = { get: async () => { throw error; } };
+  try {
+    await assert.rejects(tasks.loadTaskLists(container), (err) => err === error);
+    assert.equal(tasks.state.taskListsError, error);
+    assert.equal(tasks.state.activeTaskListId, '42');
+    assert.deepEqual(tasks.state.taskLists, [list]);
+    assert.equal(tasks.state.tasks, taskRows);
+    assert.match(nav.innerHTML, /role="alert"/);
+    assert.match(nav.innerHTML, /common\.retry/);
+    assert.doesNotMatch(nav.innerHTML, /task-list-nav__desktop/);
+    assert.equal(typeof retry, 'function');
+    await assert.doesNotReject(() => retry());
+    assert.equal(tasks.state.activeTaskListId, '42');
+    assert.match(nav.innerHTML, /role="alert"/);
+
+    const calls = [];
+    globalThis.__apiStub = { get: async (path) => {
+      calls.push(path);
+      return { data: [list], order: { sources: ['microsoft_todo', 'local'] } };
+    } };
+    await tasks.loadTaskLists({ querySelector: () => null });
+    assert.deepEqual(calls, ['/tasks/lists']);
+    assert.equal(tasks.state.taskListsError, null);
+    const source = tasks.taskListSourceGroups().find((group) => group.key === 'microsoft_todo');
+    assert.equal(source.name, 'Microsoft To Do');
+    assert.equal(source.lists[0].name, 'Loop');
+    assert.equal(tasks.taskListMatches(taskRows[0]), true);
+    tasks.state.activeTaskListId = 'source:microsoft_todo';
+    assert.equal(tasks.taskListMatches(taskRows[0]), true);
+    assert.equal(tasks.taskListMatches(task({ task_list_id: null })), false);
+  } finally {
+    Object.assign(tasks.state, previous);
+    globalThis.__apiStub = previousApi;
+    restoreDom();
+  }
 });
 
 test('die Breite der Task-Listen-Seitenleiste folgt nur der Ziehstrecke', () => {

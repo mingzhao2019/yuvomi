@@ -1742,6 +1742,7 @@ let state = {
   users:           [],
   categories:      [],
   taskLists:       [],       // first-class source/local Task Lists (#163)
+  taskListsError:  null,
   taskListOrder:   { sources: [], lists: {}, alphabetical: {} },
   allTags:         [],       // [{ tag, count }] für Filterleiste und Vorschläge (#586)
   /** Welche Referenzlisten sind gerade NICHT nachweislich frisch?
@@ -2036,10 +2037,17 @@ async function reloadWithRowMotion(container, taskId, { holdUntil = 0 } = {}) {
 }
 
 async function loadTaskLists(container) {
-  const data = await api.get('/tasks/lists');
-  state.taskLists = data.data ?? [];
-  state.taskListOrder = normalizeTaskListOrder(data.order);
-  renderTaskLists(container);
+  try {
+    const data = await api.get('/tasks/lists');
+    state.taskLists = data.data ?? [];
+    state.taskListOrder = normalizeTaskListOrder(data.order);
+    state.taskListsError = null;
+    renderTaskLists(container);
+  } catch (error) {
+    state.taskListsError = error;
+    renderTaskLists(container);
+    throw error;
+  }
 }
 
 /**
@@ -6739,8 +6747,20 @@ function renderTaskLists(container) {
   if (!nav) return;
   closeTaskListDropdowns();
   destroyTaskListSortables();
-  normalizeActiveTaskList();
   nav.replaceChildren();
+  if (state.taskListsError) {
+    mountLoadError(nav, {
+      title: t('tasks.taskListLabel'),
+      error: state.taskListsError,
+      retryLabel: t('common.retry'),
+      onRetry: async () => {
+        try { await loadTaskLists(container); } catch { return; }
+        renderTaskList(container);
+      },
+    });
+    return;
+  }
+  normalizeActiveTaskList();
 
   const title = document.createElement('h2');
   title.className = 'task-lists-sidebar__title';
@@ -9230,9 +9250,9 @@ export async function render(container, { user, signal } = {}) {
       // Reine Anzeigepräferenz: ein Fehler hier darf die Aufgabenliste nicht
       // mit in den Ladefehler ziehen, deshalb eigener Fallback.
       api.get('/preferences').catch(() => ({ data: {} })),
-      // Task Lists are additive to the existing task response. A server without
-      // the new endpoint can still render and edit the ordinary task list.
-      api.get('/tasks/lists').catch(() => ({ data: [] })),
+      // Keep tasks usable if their navigation fails, but expose the error
+      // instead of silently presenting every provider as missing.
+      api.get('/tasks/lists').catch((error) => ({ data: [], error })),
       // WER AN DIESEM TABLETT ABHAKEN DARF (#1209) - und warum nicht die Liste
       // aus `/tasks/meta/options`, die daneben schon geladen wird: die traegt
       // jedes Haushaltsmitglied, auch eines ohne Schreibrecht auf Aufgaben.
@@ -9258,6 +9278,7 @@ export async function render(container, { user, signal } = {}) {
     state.displayPeople = (displayPeople.data ?? []).filter((p) => p.can_tick_off);
     state.categories = meta.categories ?? [];
     state.taskLists = taskListsData.data ?? [];
+    state.taskListsError = taskListsData.error ?? null;
     state.taskListOrder = normalizeTaskListOrder(taskListsData.order);
     state.allTags = meta.tags ?? [];
     state.defaultPoints = Number(meta.default_points) || 0;
@@ -9277,6 +9298,7 @@ export async function render(container, { user, signal } = {}) {
     state.displayPeople = [];
     state.categories = [];
     state.taskLists = [];
+    state.taskListsError = err;
     state.taskListOrder = { sources: [], lists: {}, alphabetical: {} };
     state.allTags = [];
     state.metaStale = { users: false, categories: false, tags: false };
@@ -9336,6 +9358,7 @@ export const __test = {
   taskListAlphabeticalKey,
   taskListNameComparator,
   taskListSidebarWidthFromDrag,
+  loadTaskLists, renderTaskLists, taskListSourceGroups, taskListMatches,
   // Critique R21 (D15): der Satz eines zurueckgerollten Hakens.
   toggleFailedSentence,
   // E13: am Desktop haengen die Filter als Popover am Knopf (utils/filter-sheet.js).

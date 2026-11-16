@@ -74,6 +74,7 @@ app.use((req, _res, next) => {
   req.authUserId = actor.id;
   req.authRole = actor.role;
   req.session = { userId: actor.id, role: actor.role };
+  req.authMethod = actor.authMethod;
   next();
 });
 app.use('/api/v1/tasks', tasksRouter);
@@ -788,6 +789,10 @@ test('Task Lists werden als Navigationsbereiche angezeigt und abgefragt', async 
 
   const byFirst = await call('GET', `/?task_list_id=${first.id}`, { as: admin });
   assert.ok(byFirst.body.data.some((task) => task.title === 'Reifen wechseln'));
+  const firstTask = byFirst.body.data.find((task) => task.title === 'Reifen wechseln');
+  assert.equal(firstTask.task_list.provider, 'caldav');
+  assert.equal(firstTask.task_list.id, listed.id);
+  assert.equal(firstTask.task_list.name, listed.name);
   assert.ok(!byFirst.body.data.some((task) => task.title === 'Zweite Liste'));
 
   const byBoth = await call('GET', `/?task_list_id=${first.id}&task_list_id=${secondListId}`, { as: admin });
@@ -832,6 +837,42 @@ test('Deaktivierte Microsoft-To-Do-Listen bleiben fuer die lokale Verwaltung sic
     body: { title: 'Disabled target', sync_target: `microsoft_todo:${accountId}|disabled-list` },
   });
   assert.equal(created.status, 400);
+});
+
+test('GET /lists: visible task counts follow person and display rules', async () => {
+  const target = seedDisabledCaldavTaskList('Visible source catalog');
+  insertListTask({ listId: target.listId, title: 'Shared list task' });
+  insertListTask({ listId: target.listId, title: 'Alice private', visibility: 'private' });
+  insertListTask({ listId: target.listId, title: 'Bob private', visibility: 'private', createdBy: BOB });
+  const assigned = insertListTask({ listId: target.listId, title: 'Assigned to Bob', visibility: 'assignees' });
+  db.prepare('INSERT INTO task_assignments (task_id, user_id) VALUES (?, ?)').run(assigned, BOB);
+
+  const previousActor = actor;
+  try {
+    for (const [as, count] of [
+      [{ id: ALICE, role: 'admin' }, 3],
+      [{ id: BOB, role: 'member' }, 3],
+      [{ id: ALICE, role: 'admin', authMethod: 'display' }, 1],
+    ]) {
+      const result = await call('GET', '/lists', { as });
+      assert.equal(result.status, 200);
+      const listed = result.body.data.find((list) => list.id === target.listId);
+      assert.equal(listed.provider, 'caldav');
+      assert.equal(listed.name, 'Visible source catalog');
+      assert.equal(listed.task_count, count);
+    }
+
+    const display = { id: ALICE, role: 'admin', authMethod: 'display' };
+    const before = await call('GET', '/lists', { as: display });
+    const localCount = before.body.data.find((list) => list.id == null)?.task_count ?? 0;
+    insertListTask({ listId: null, title: 'Local public task' });
+    insertListTask({ listId: null, title: 'Local private task', visibility: 'private' });
+    const after = await call('GET', '/lists', { as: display });
+    assert.equal(after.status, 200);
+    assert.equal(after.body.data.find((list) => list.id == null).task_count, localCount + 1);
+  } finally {
+    actor = previousActor;
+  }
 });
 
 function seedDisabledCaldavTaskList(name = 'Delete me') {
