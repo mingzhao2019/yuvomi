@@ -20,7 +20,7 @@ import { createLogger } from '../logger.js';
 import { resolveHouseholdFormats, translate } from '../utils/i18n.js';
 import { escapeICSText, foldLine, emptyFeed } from './ics-export.js';
 import { warrantyEndDate } from './inventory-deadlines.js';
-import { visibilityWhere } from './visibility.js';
+import { visibilityWhere } from '../authorize/index.ts';
 import { activeAccountSql } from './account-state.js';
 
 const log = createLogger('InventoryDeadlinesICS');

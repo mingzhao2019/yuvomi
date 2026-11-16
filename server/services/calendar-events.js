@@ -5,7 +5,6 @@
  */
 
 import { nextOccurrence, parseRRule, matchesRRuleByday, resumeKeyFor, untilInstantMs } from './recurrence.js';
-import { visibilityWhere } from './visibility.js';
 import {
   hasExplicitZone, householdTimeZone, localToUTCOccurrence, shiftDateKey,
   storedToInstantIso, utcToWall,

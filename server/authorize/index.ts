@@ -52,7 +52,7 @@ export {
 // rowVisible (B8b) is the same rule for one row a caller has already loaded.
 export { filterVisible, rowVisible, visibleWhere } from './rows/index.ts';
 export { canEditQuickLink } from './rows/quick-links.ts';
-export { normalizeVisibility, VISIBILITY_VALUES } from './rows/assignees.ts';
+export { normalizeVisibility, VISIBILITY_VALUES, visibilityWhere } from './rows/assignees.ts';
 export { categoryVisibleTo } from './rows/notes.ts';
 export { icsSubscriptionSharedWhere } from './rows/ics-subscriptions.ts';
 export {

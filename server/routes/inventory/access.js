@@ -6,7 +6,7 @@
  * gain edit/delete rights.
  */
 import * as db from '../../db.js';
-import { normalizeVisibility, visibilityWhere } from '../../services/visibility.js';
+import { normalizeVisibility, visibilityWhere } from '../../authorize/index.ts';
 import { isAdminRequest } from '../../middleware/require-admin.js';
 
 export const ASSET_SCOPES = Object.freeze(['family', 'personal']);

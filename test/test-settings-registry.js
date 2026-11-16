@@ -62,8 +62,57 @@ import { startTestServer, cookieHeader } from './server-ready.js';
 import { tempDir } from './tmp-dir.js';
 import EXPECTED_JSON from './settings-registry-expected.json' with { type: 'json' };
 
-/** @type {any} Recorded answers, read by case name and role. */
+// The upstream registry test predates the custom calendar/asset preferences.
+// Keep its checked-in upstream fixture readable and extend it here with the
+// project fields that are now entries in the same registry. The route tests
+// below still exercise their full custom validation and permission matrix.
 const EXPECTED = EXPECTED_JSON;
+const CUSTOM_PREFERENCE_DEFAULTS = Object.freeze({
+  calendar_default_all_day_reminder_time: '09:00',
+  calendar_show_lunar: false,
+  asset_default_scope: 'personal',
+  asset_default_visibility: 'private',
+  asset_default_assignee_ids: [],
+  asset_cost_metric: 'current',
+  asset_summary_theme: 'aurora',
+});
+
+function addCustomPreferenceFields(data) {
+  const out = {};
+  for (const [field, value] of Object.entries(data)) {
+    out[field] = field === 'calendar_default_reminders' && Array.isArray(value) && value.length === 0
+      ? [15] : value;
+    if (field === 'calendar_default_reminders') {
+      out.calendar_default_all_day_reminder_time = CUSTOM_PREFERENCE_DEFAULTS.calendar_default_all_day_reminder_time;
+    }
+    if (field === 'calendar_default_target') {
+      out.calendar_show_lunar = CUSTOM_PREFERENCE_DEFAULTS.calendar_show_lunar;
+    }
+    if (field === 'holiday_last_sync') {
+      Object.assign(out, CUSTOM_PREFERENCE_DEFAULTS, { asset_default_assignee_ids: [] });
+    }
+  }
+  return out;
+}
+
+for (const byRole of Object.values(EXPECTED.get)) {
+  for (const role of ['admin', 'member']) {
+    byRole[role].body.data = addCustomPreferenceFields(byRole[role].body.data);
+  }
+}
+for (const role of ['admin', 'member']) {
+  EXPECTED.putBaseline[role] = addCustomPreferenceFields(EXPECTED.putBaseline[role]);
+}
+
+function updateExpectedStrings(value) {
+  if (typeof value === 'string') return value.replace('0, 15, 60, 1440', '0, 15, 30, 60, 1440');
+  if (Array.isArray(value)) return value.map(updateExpectedStrings);
+  if (value && typeof value === 'object') {
+    for (const [key, item] of Object.entries(value)) value[key] = updateExpectedStrings(item);
+  }
+  return value;
+}
+updateExpectedStrings(EXPECTED.put);
 
 const { baseUrl: BASE } = await startTestServer({
   name: 'settings-registry',
@@ -714,6 +763,83 @@ const PUT_CASES = [
   { name: 'mixed: all member fields at once', body: { visible_meal_types: ['lunch'], meal_type_names: { lunch: 'Z' }, currency: 'USD', date_format: 'mdy', time_format: '12h', week_start: 'saturday', app_name: 'X', housekeeping_payment_tasks: true, calendar_default_duration: 30 } },
 ];
 
+PUT_CASES.push(
+  { name: 'calendar_default_all_day_reminder_time valid', body: { calendar_default_all_day_reminder_time: '08:45' } },
+  { name: 'calendar_default_all_day_reminder_time invalid', body: { calendar_default_all_day_reminder_time: '24:00' } },
+  { name: 'calendar_show_lunar true', body: { calendar_show_lunar: true } },
+  { name: 'calendar_show_lunar invalid', body: { calendar_show_lunar: 'yes' } },
+  { name: 'asset_default_scope personal', body: { asset_default_scope: 'personal' } },
+  { name: 'asset_default_scope invalid', body: { asset_default_scope: 'house' } },
+  { name: 'asset_default_visibility valid', body: { asset_default_visibility: 'assignees' } },
+  { name: 'asset_default_visibility invalid', body: { asset_default_visibility: 'nobody' } },
+  { name: 'asset_default_assignee_ids valid', body: { asset_default_assignee_ids: [1, 1] } },
+  { name: 'asset_default_assignee_ids invalid', body: { asset_default_assignee_ids: '1' } },
+  { name: 'asset_cost_metric valid', body: { asset_cost_metric: 'target' } },
+  { name: 'asset_cost_metric invalid', body: { asset_cost_metric: 'unsupported' } },
+  { name: 'asset_summary_theme valid', body: { asset_summary_theme: 'ocean' } },
+  { name: 'asset_summary_theme invalid', body: { asset_summary_theme: 'unsupported' } },
+);
+
+const CUSTOM_PUT_EXPECTED = {
+  'calendar_default_all_day_reminder_time valid': {
+    admin: { status: 200, rows: { 'calendar_default_all_day_reminder_time:user:admin': '08:45' }, changed: { calendar_default_all_day_reminder_time: '08:45' } },
+    member: { status: 200, rows: { 'calendar_default_all_day_reminder_time:user:member': '08:45' }, changed: { calendar_default_all_day_reminder_time: '08:45' } },
+  },
+  'calendar_default_all_day_reminder_time invalid': {
+    admin: { status: 400, rows: {}, body: { error: 'calendar_default_all_day_reminder_time must be a time in HH:MM format.', code: 400 } },
+    member: { status: 400, rows: {}, body: { error: 'calendar_default_all_day_reminder_time must be a time in HH:MM format.', code: 400 } },
+  },
+  'calendar_show_lunar true': {
+    admin: { status: 200, rows: { 'calendar_show_lunar:user:admin': '1' }, changed: { calendar_show_lunar: true } },
+    member: { status: 200, rows: { 'calendar_show_lunar:user:member': '1' }, changed: { calendar_show_lunar: true } },
+  },
+  'calendar_show_lunar invalid': {
+    admin: { status: 400, rows: {}, body: { error: 'calendar_show_lunar must be a boolean.', code: 400 } },
+    member: { status: 400, rows: {}, body: { error: 'calendar_show_lunar must be a boolean.', code: 400 } },
+  },
+  'asset_default_scope personal': {
+    admin: { status: 200, rows: { 'asset_default_scope:user:admin': 'personal' }, changed: { asset_default_scope: 'personal' } },
+    member: { status: 200, rows: { 'asset_default_scope:user:member': 'personal' }, changed: { asset_default_scope: 'personal' } },
+  },
+  'asset_default_scope invalid': {
+    admin: { status: 400, rows: {}, body: { error: 'Invalid default asset type.', code: 400 } },
+    member: { status: 400, rows: {}, body: { error: 'Invalid default asset type.', code: 400 } },
+  },
+  'asset_default_visibility valid': {
+    admin: { status: 200, rows: { 'asset_default_visibility:user:admin': 'assignees' }, changed: { asset_default_visibility: 'assignees' } },
+    member: { status: 200, rows: { 'asset_default_visibility:user:member': 'assignees' }, changed: { asset_default_visibility: 'assignees' } },
+  },
+  'asset_default_visibility invalid': {
+    admin: { status: 400, rows: {}, body: { error: 'Invalid default visibility.', code: 400 } },
+    member: { status: 400, rows: {}, body: { error: 'Invalid default visibility.', code: 400 } },
+  },
+  'asset_default_assignee_ids valid': {
+    admin: { status: 200, rows: { 'asset_default_assignee_ids:user:admin': '[1]' }, changed: { asset_default_assignee_ids: [1] } },
+    member: { status: 200, rows: { 'asset_default_assignee_ids:user:member': '[1]' }, changed: { asset_default_assignee_ids: [1] } },
+  },
+  'asset_default_assignee_ids invalid': {
+    admin: { status: 400, rows: {}, body: { error: 'assigned_user_ids must be an array.', code: 400 } },
+    member: { status: 400, rows: {}, body: { error: 'assigned_user_ids must be an array.', code: 400 } },
+  },
+  'asset_cost_metric valid': {
+    admin: { status: 200, rows: { 'asset_cost_metric:user:admin': 'target' }, changed: { asset_cost_metric: 'target' } },
+    member: { status: 200, rows: { 'asset_cost_metric:user:member': 'target' }, changed: { asset_cost_metric: 'target' } },
+  },
+  'asset_cost_metric invalid': {
+    admin: { status: 400, rows: {}, body: { error: 'Invalid cost metric.', code: 400 } },
+    member: { status: 400, rows: {}, body: { error: 'Invalid cost metric.', code: 400 } },
+  },
+  'asset_summary_theme valid': {
+    admin: { status: 200, rows: { 'asset_summary_theme:user:admin': 'ocean' }, changed: { asset_summary_theme: 'ocean' } },
+    member: { status: 200, rows: { 'asset_summary_theme:user:member': 'ocean' }, changed: { asset_summary_theme: 'ocean' } },
+  },
+  'asset_summary_theme invalid': {
+    admin: { status: 400, rows: {}, body: { error: 'Invalid summary theme.', code: 400 } },
+    member: { status: 400, rows: {}, body: { error: 'Invalid summary theme.', code: 400 } },
+  },
+};
+Object.assign(EXPECTED.put, CUSTOM_PUT_EXPECTED);
+
 for (const { name, body, seed = {} } of PUT_CASES) {
   for (const role of ['admin', 'member']) {
     test(`PUT ${name} as ${role}`, async () => {
@@ -1054,8 +1180,8 @@ const SINGLE_FIELD_CASES = Object.groupBy(
 
 const catalogByField = () => new Map(settingsCatalog().map((entry) => [entry.field, entry]));
 
-test('registry: the measured fields are what this suite expects (52 PUT fields, the route views)', () => {
-  assert.equal(PUT_FIELDS.length, 52, PUT_FIELDS.join(', '));
+test('registry: the measured fields are what this suite expects (59 PUT fields, the route views)', () => {
+  assert.equal(PUT_FIELDS.length, 59, PUT_FIELDS.join(', '));
   for (const field of PUT_FIELDS) assert.ok(SINGLE_FIELD_CASES[field]?.length, `a single-field case for ${field}`);
   for (const view of ROUTE_VIEWS) assert.ok(GET_FIELDS.includes(view), view);
 });
