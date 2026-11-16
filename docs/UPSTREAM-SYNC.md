@@ -32,8 +32,8 @@ sync skill.
 | Reference | Commit | Meaning |
 | --- | --- | --- |
 | `main`, `upstream/main` | `8f6e254412bc8291a5c2a5626eb1576d74a30356` | Local upstream-compatible baseline matches the current upstream tip. |
-| `custom` | `b853fbae6` integration tip plus this state-note commit | Product branch after semantic upstream integration and focused validation. |
-| `origin/main`, `origin/custom` | `8f6e254412bc8291a5c2a5626eb1576d74a30356` / `b853fbae6738e0bad40f66b8b9dfda6491d04b79` | Verified after the final push; remote refs match the delivered branches. |
+| `custom` | `2acd324c0` plus this delivery-status note | Product branch after integration and the automatic image-trigger fix. |
+| `origin/main`, `origin/custom` before image recovery | `8f6e254412bc8291a5c2a5626eb1576d74a30356` / `2acd324c0761027e74d547e4f5871371a44dfdbf` | Verified with Git over SSH before the maintainer restored workflow execution. |
 | temporary integration | removed | Fast-forwarded into `custom` and removed after push verification. |
 
 The integration includes every upstream commit through `8f6e254`, including
@@ -63,6 +63,24 @@ actor/modules/care (26/15/20), settings admin gate (4), migration append-only
 JSON parsing, JavaScript syntax checks, and version consistency also passed.
 Product-specific behavior remains authoritative on `custom`; the full list is
 maintained in [`CUSTOMIZATIONS.md`](CUSTOMIZATIONS.md).
+
+## Image publication and verification
+
+Verified on 2026-11-16: Git pushes to `origin/custom` succeed, and the image
+workflow listens to every `custom` push without a path filter. The
+[repository Actions page](https://github.com/mingzhao2019/yuvomi/actions)
+reported that workflows on this fork were suspended because of the scale of
+GitHub Actions usage. No workflow run was created for `2acd324c0`, even though
+the workflow API reported `active`. The maintainer subsequently re-enabled
+workflows, and a fresh read of the Actions page confirmed that the suspension
+notice had disappeared.
+
+After each authorized delivery, verify that a new image workflow run has
+event `push`, branch `custom`, and the exact pushed commit SHA. A successful
+Git push or an `active` workflow alone does not prove that the image was
+rebuilt; image publication is successful only when that run completes with
+conclusion `success`. If this platform suspension recurs, a maintainer must
+restore workflow execution; repeated pushes or YAML edits cannot lift it.
 
 ## Custom boundaries to preserve
 
