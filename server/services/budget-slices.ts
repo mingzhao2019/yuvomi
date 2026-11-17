@@ -33,8 +33,17 @@
  */
 
 import type { Database, RowReader } from '../authorize/index.ts';
-import { resolveBudgetMode } from '../authorize/index.ts';
+import { budgetDetailsVisibleWhere, resolveBudgetMode } from '../authorize/index.ts';
+import type { SearchActor, SearchRow, TableSearchQuery } from './search-text.ts';
+import { SEARCH_LIMIT, firstMatches, pick } from './search-text.ts';
 import type { OverviewContext, SliceGuard } from './tasks-slices.ts';
+import * as splitExpenses from './split-expenses.js';
+
+// The JS reader infers its option types from its defaults; this is the shape the
+// overview calls it with. Same function, same call.
+const openBalancesForUser = splitExpenses.openBalancesForUser as unknown as (
+  db: Database, userId: number | null, options: Readonly<{ householdCurrency: string }>,
+) => SplitBalance;
 
 /** Query options of the overview that act on the budget block. */
 export type BudgetOverviewOptions = Readonly<{
@@ -179,4 +188,95 @@ export function budgetOverviewSlice(
       },
     };
   }, budgetBlockFailed(currentMonth));
+}
+
+/** The options of the request that act on the split balance. */
+export type SplitBalanceOverviewOptions = Readonly<{
+  /** The viewer (`req.authUserId || req.session.userId`): their open balances. */
+  userId: number | null;
+}>;
+
+/** The viewer's net per currency (minor units and the decimal string). */
+type SplitNet = { currency: string; netMinor: number; amount: string };
+
+/** One open debt the viewer takes part in, as the settlement view of its group shows it. */
+type SplitPosition = {
+  direction: 'owe' | 'owed';
+  userId: number;
+  name: string;
+  groupId: number;
+  groupName: string;
+  currency: string;
+  amountMinor: number;
+  amount: string;
+};
+
+type SplitBalance = { net: SplitNet[]; positions: SplitPosition[] };
+
+export type SplitBalanceOverview = { splitBalance: SplitBalance };
+
+/**
+ * The empty form of the split balance: a denied or switched-off budget module
+ * (DENIED_PAYLOAD in the route, after emptyBudgetOverview(month)) and the
+ * failure value of the block.
+ */
+export function emptySplitBalanceOverview(): SplitBalanceOverview {
+  return { splitBalance: { net: [], positions: [] } };
+}
+
+/**
+ * Shared expenses: what the viewer has open (the "settlement open" figure). No
+ * query of its own - the balances come from the same function as the settlement
+ * view of the module, so overview and module never show two figures for the same
+ * debt (and a fix like #1445 heals both). A split guest never reaches /dashboard
+ * (gate in server/index.js).
+ *
+ * The household currency is read INSIDE the guard, as the route did: its failure
+ * empties only this block. The guard carries the old name `split balance` and the
+ * old failure value (the empty form). Without a guard a failure throws.
+ *
+ * @param db      the connection of the request
+ * @param _actor  the row reader of the request (balances are read for `options.userId`)
+ * @param _ctx    today, zone and now of the request (the balance has no day)
+ * @param options the viewer
+ * @param guard   the route's runSlice(); without it a failing read throws
+ */
+export function splitBalanceOverviewSlice(
+  db: Database,
+  _actor: RowReader,
+  _ctx: OverviewContext,
+  options: SplitBalanceOverviewOptions,
+  guard: SliceGuard = passThrough,
+): SplitBalanceOverview {
+  const { userId } = options;
+  return guard('split balance', (): SplitBalanceOverview => {
+    const householdCurrency = (db.prepare("SELECT value FROM sync_config WHERE key = 'currency'").get() as { value?: string } | undefined)?.value || 'EUR';
+    return { splitBalance: openBalancesForUser(db, userId, { householdCurrency }) };
+  }, emptySplitBalanceOverview());
+}
+
+/**
+ * The budget hits of the global search (services/search.js runTableSearch, bucket
+ * `budget`). No FTS index: the rows come in the SQL order and the first
+ * SEARCH_LIMIT that match stay. The row rule comes from authorize
+ * (budgetDetailsVisibleWhere, bound to `actor.userId` as `@userId` in personal
+ * mode, as before). The SQL is the search's, word for word.
+ */
+export function budgetSearchSlice(db: Database, actor: SearchActor, query: TableSearchQuery): SearchRow[] {
+  const { matches } = query;
+  const userId = actor.userId;
+  const limit = SEARCH_LIMIT;
+  // Budget: gesucht wird im TITEL, also nur dort, wo der Betrachter den Titel
+  // sieht - budgetDetailsVisibleWhere, nicht budgetVisibilityWhere. Eine
+  // 'shared_amount'-Zeile eines anderen zeigt ihm Datum und Betrag, aber nicht
+  // den Zweck (#659); fand die Suche sie ueber den Zweck, verriete schon der
+  // Treffer, was die Stufe verschweigt. Neueste zuerst.
+  const mode = resolveBudgetMode(db);
+  return firstMatches(db.prepare(`
+      SELECT b.id, b.title, b.amount, b.date
+      FROM budget_entries b
+      WHERE ${budgetDetailsVisibleWhere('b', '@userId', { mode })}
+      ORDER BY b.date DESC, b.id DESC
+    `).all(mode === 'personal' ? { userId } : {}) as SearchRow[], matches, (b) => [b.title], limit)
+    .map((b) => pick(b, ['id', 'title', 'amount', 'date']));
 }
