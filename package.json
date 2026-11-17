@@ -330,6 +330,7 @@
     "test:tasks-slices": "node --test test/test-tasks-slices.js",
     "test:kitchen-slices": "node --test test/test-kitchen-slices.js",
     "test:notes-birthdays-slices": "node --test test/test-notes-birthdays-slices.js",
+    "test:money-slices": "node --test test/test-money-slices.js",
     "test:admin-gates": "node --test test/test-admin-gates.js",
     "test:settings-registry": "node --test test/test-settings-registry.js",
     "test:modules": "node --test test/test-modules.js",
