@@ -12,10 +12,12 @@
  * failing mode read still empties only this block; in personal mode the reader's
  * own id is the owner bind.
  *
- * NOT HERE: the split balance (`splitBalance`). It reads the split tables of the
- * shared expenses (expense_groups, expense_group_members, expense_ledger_entries)
- * through services/split-expenses.js, none of the budget's own tables, and stays
- * in the route for its own cut.
+ * THE SPLIT BALANCE IS A SECOND SLICE OF THIS FILE (splitBalanceOverviewSlice
+ * below): the shared expenses belong to the budget module (server/scopes.js
+ * gates `split-expenses` as the second prefix of `budget`, table-owners.ts gives
+ * expense_groups, expense_group_members and expense_ledger_entries to `budget`),
+ * so one module, one file. Its own slice and not a key of budgetOverviewSlice,
+ * because it fails alone under its own name with its own failure value.
  *
  * ONE FAILURE, AS BEFORE: the three reads used to share one try/catch in the
  * route; `guard` (the route's runSlice()) carries that under the old name `budget`
@@ -29,7 +31,8 @@
  * every Math.abs are the route's. The golden master (test:overview-golden) holds
  * the answers.
  *
- * Dependencies: server/authorize/index.ts (budget mode). Erasable TS syntax only.
+ * Dependencies: server/authorize/index.ts (budget mode), services/split-expenses.js
+ * (open balances). Erasable TS syntax only.
  */
 
 import type { Database, RowReader } from '../authorize/index.ts';
@@ -254,7 +257,6 @@ export function splitBalanceOverviewSlice(
     return { splitBalance: openBalancesForUser(db, userId, { householdCurrency }) };
   }, emptySplitBalanceOverview());
 }
-
 /**
  * The budget hits of the global search (services/search.js runTableSearch, bucket
  * `budget`). No FTS index: the rows come in the SQL order and the first

@@ -87,7 +87,6 @@ export function wasteOverviewSlice(
   }, []);
   return { wastePickups };
 }
-
 /**
  * The waste type hits of the global search (services/search.js runSearch, bucket
  * `waste`). Household property: no row rule, the actor is unused. The SQL is the
