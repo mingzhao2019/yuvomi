@@ -328,6 +328,7 @@
     "test:visibility-matrix": "node --test test/test-visibility-matrix.js",
     "test:overview-golden": "node --test test/test-overview-golden.js",
     "test:tasks-slices": "node --test test/test-tasks-slices.js",
+    "test:kitchen-slices": "node --test test/test-kitchen-slices.js",
     "test:admin-gates": "node --test test/test-admin-gates.js",
     "test:settings-registry": "node --test test/test-settings-registry.js",
     "test:modules": "node --test test/test-modules.js",
