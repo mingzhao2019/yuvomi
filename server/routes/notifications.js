@@ -8,6 +8,7 @@ import express from 'express';
 import * as db from '../db.js';
 import { createLogger } from '../logger.js';
 import { isAdminRequest } from '../middleware/require-admin.js';
+import { validateRequest } from '../api/validate-request.ts';
 import { createNotificationChannelStore, NOTIFICATION_PROVIDERS } from '../services/notification-channels.js';
 import { notificationService as defaultNotificationService, formatNotificationWallTime } from '../services/notifications.js';
 import { NotificationProviderError } from '../services/notification-providers/provider-error.js';
@@ -122,7 +123,7 @@ export function buildRouter({
     res.status(status).json({ error: message, code: status });
   }
 
-  router.get('/providers', (req, res) => {
+  router.get('/providers', validateRequest(), (req, res) => {
     try {
       void req;
       const available = NOTIFICATION_PROVIDERS
@@ -145,7 +146,7 @@ export function buildRouter({
     }
   });
 
-  router.get('/channels', (req, res) => {
+  router.get('/channels', validateRequest(), (req, res) => {
     try {
       const currentUserId = userId(req);
       if (!currentUserId) throw permissionError('Authenticated user is required.');
@@ -158,7 +159,7 @@ export function buildRouter({
     }
   });
 
-  router.post('/channels', (req, res) => {
+  router.post('/channels', validateRequest(), (req, res) => {
     try {
       const channel = store.createChannel(channelInputForCreate(req, req.body || {}));
       res.status(201).json({ data: channel });
@@ -167,7 +168,7 @@ export function buildRouter({
     }
   });
 
-  router.put('/channels/:id', (req, res) => {
+  router.put('/channels/:id', validateRequest(), (req, res) => {
     try {
       const id = parseId(req.params.id);
       if (!id) return res.status(400).json({ error: 'Invalid channel id.', code: 400 });
@@ -180,7 +181,7 @@ export function buildRouter({
     }
   });
 
-  router.delete('/channels/:id', (req, res) => {
+  router.delete('/channels/:id', validateRequest(), (req, res) => {
     try {
       const id = parseId(req.params.id);
       if (!id) return res.status(400).json({ error: 'Invalid channel id.', code: 400 });
@@ -196,7 +197,7 @@ export function buildRouter({
     }
   });
 
-  router.post('/channels/:id/test', async (req, res) => {
+  router.post('/channels/:id/test', validateRequest(), async (req, res) => {
     let channel = null;
     try {
       const id = parseId(req.params.id);

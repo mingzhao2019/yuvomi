@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import express from 'express';
+import { createErrorHandler } from '../server/middleware/error-handler.js';
 import { MIGRATIONS } from '../server/db.js';
 
 function notificationMigration() {
@@ -542,16 +543,17 @@ test('die OpenAPI-Provider-Liste kennt jeden angebotenen Kanal (#692)', async ()
   // Als Regel formuliert, nicht als Liste - der naechste Provider faellt sonst
   // in dieselbe Luecke.
   const { NOTIFICATION_PROVIDERS } = await import('../server/services/notification-channels.js');
-  const source = readFileSync(new URL('../server/openapi/schemas.js', import.meta.url), 'utf8');
-  // Nur die beiden Notification-Schemata: `provider` gibt es auch im DMS-Schema,
-  // und das kennt paperless/papra, nicht gotify.
-  const enums = ['NotificationChannel', 'NotificationChannelInput'].map((name) => {
-    const at = source.indexOf(`        ${name}: {`);
-    assert.ok(at !== -1, `Schema ${name} muss es geben`);
-    const block = source.slice(at, at + 2000);
-    const m = /provider: \{ type: 'string', enum: \[([^\]]+)\] \}/.exec(block);
-    assert.ok(m, `${name} muss ein provider-Enum tragen`);
-    return m[1].split(',').map((s) => s.trim().replace(/'/g, ''));
+  const { buildOpenApiSpec } = await import('../server/openapi.js');
+  /** @type {Record<string, any>} */
+  const schemas = buildOpenApiSpec(null, '0.0.0').components.schemas;
+  // Only the notification schemas: the DMS schema has a `provider` too, with
+  // paperless/papra, not gotify. Since #2810 create and update each have an
+  // input schema of their own; read from the built document, not the source.
+  const enums = ['NotificationChannel', 'NotificationChannelInput', 'NotificationChannelUpdateInput'].map((name) => {
+    assert.ok(schemas[name], `Schema ${name} muss es geben`);
+    const values = schemas[name].properties?.provider?.enum;
+    assert.ok(Array.isArray(values), `${name} muss ein provider-Enum tragen`);
+    return values;
   });
   for (const values of enums) {
     for (const { id } of NOTIFICATION_PROVIDERS) {
@@ -1568,18 +1570,21 @@ test('notification routes separate personal and household channel ownership', as
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => { req.authUserId = authUserId; req.authRole = authRole; next(); });
-    app.use('/notifications', router);
+    // At its real prefix, with the central error handler: validateRequest() finds
+    // its operation by the mount and hands its 400 on (#2810).
+    app.use('/api/v1/notifications', router);
+    app.use(createErrorHandler({ warn: () => {}, error: () => {} }));
     return app;
   };
 
-  const providers = await call(makeApp('member', 2), 'GET', '/notifications/providers');
+  const providers = await call(makeApp('member', 2), 'GET', '/api/v1/notifications/providers');
   assert.equal(providers.status, 200);
   assert.deepEqual(providers.json.data.map((p) => p.id), ['gotify', 'ntfy', 'webhook', 'message_pusher']);
-  const emptyMemberList = await call(makeApp('member', 2), 'GET', '/notifications/channels');
+  const emptyMemberList = await call(makeApp('member', 2), 'GET', '/api/v1/notifications/channels');
   assert.equal(emptyMemberList.status, 200);
   assert.deepEqual(emptyMemberList.json.data, []);
 
-  const created = await call(makeApp(), 'POST', '/notifications/channels', {
+  const created = await call(makeApp(), 'POST', '/api/v1/notifications/channels', {
     provider: 'gotify',
     name: 'Gotify',
     enabled: true,
@@ -1592,7 +1597,7 @@ test('notification routes separate personal and household channel ownership', as
   assert.equal(created.json.data.scope, 'household');
   assert.equal(created.json.data.userId, null);
 
-  const adminPersonal = await call(makeApp(), 'POST', '/notifications/channels', {
+  const adminPersonal = await call(makeApp(), 'POST', '/api/v1/notifications/channels', {
     provider: 'webhook',
     scope: 'user',
     name: 'Alice personal hook',
@@ -1603,7 +1608,7 @@ test('notification routes separate personal and household channel ownership', as
   assert.equal(adminPersonal.json.data.scope, 'user');
   assert.equal(adminPersonal.json.data.userId, 1);
 
-  const memberPersonal = await call(makeApp('member', 2), 'POST', '/notifications/channels', {
+  const memberPersonal = await call(makeApp('member', 2), 'POST', '/api/v1/notifications/channels', {
     provider: 'message_pusher',
     name: 'Bob personal pusher',
     enabled: true,
@@ -1614,7 +1619,7 @@ test('notification routes separate personal and household channel ownership', as
   assert.equal(memberPersonal.json.data.scope, 'user');
   assert.equal(memberPersonal.json.data.userId, 2);
 
-  const adminChannels = await call(makeApp(), 'GET', '/notifications/channels');
+  const adminChannels = await call(makeApp(), 'GET', '/api/v1/notifications/channels');
   assert.equal(adminChannels.status, 200);
   assert.deepEqual(adminChannels.json.data.map((channel) => channel.id).sort((a, b) => a - b), [
     created.json.data.id,
@@ -1622,11 +1627,11 @@ test('notification routes separate personal and household channel ownership', as
   ].sort((a, b) => a - b));
   assert.equal(adminChannels.json.data.some((channel) => channel.id === memberPersonal.json.data.id), false);
 
-  const memberChannels = await call(makeApp('member', 2), 'GET', '/notifications/channels');
+  const memberChannels = await call(makeApp('member', 2), 'GET', '/api/v1/notifications/channels');
   assert.equal(memberChannels.status, 200);
   assert.deepEqual(memberChannels.json.data.map((channel) => channel.id), [memberPersonal.json.data.id]);
 
-  const memberHouseholdCreate = await call(makeApp('member', 2), 'POST', '/notifications/channels', {
+  const memberHouseholdCreate = await call(makeApp('member', 2), 'POST', '/api/v1/notifications/channels', {
     provider: 'gotify',
     scope: 'household',
     name: 'Not allowed',
@@ -1635,7 +1640,7 @@ test('notification routes separate personal and household channel ownership', as
   });
   assert.equal(memberHouseholdCreate.status, 403);
 
-  const updated = await call(makeApp(), 'PUT', `/notifications/channels/${created.json.data.id}`, {
+  const updated = await call(makeApp(), 'PUT', `/api/v1/notifications/channels/${created.json.data.id}`, {
     name: 'Gotify renamed',
     config: { priority: 7 },
   });
@@ -1643,12 +1648,12 @@ test('notification routes separate personal and household channel ownership', as
   assert.equal(updated.json.data.config.priority, 7);
   assert.equal(JSON.parse(db.prepare('SELECT secret_json FROM notification_channels WHERE id = ?').get(created.json.data.id).secret_json).appToken, 'secret');
 
-  const memberHouseholdUpdate = await call(makeApp('member', 2), 'PUT', `/notifications/channels/${created.json.data.id}`, {
+  const memberHouseholdUpdate = await call(makeApp('member', 2), 'PUT', `/api/v1/notifications/channels/${created.json.data.id}`, {
     name: 'Should stay household',
   });
   assert.equal(memberHouseholdUpdate.status, 403);
 
-  const testSend = await call(makeApp(), 'POST', `/notifications/channels/${created.json.data.id}/test`, {});
+  const testSend = await call(makeApp(), 'POST', `/api/v1/notifications/channels/${created.json.data.id}/test`, {});
   assert.equal(testSend.status, 200);
   assert.equal(sent.length, 1);
   assert.match(sent[0].body, /Yuvomi/);
@@ -1658,25 +1663,25 @@ test('notification routes separate personal and household channel ownership', as
   assert.equal(sent[0].taskPriority, 'high');
   assert.match(sent[0].details, /priority: high/);
 
-  const memberHouseholdTest = await call(makeApp('member', 2), 'POST', `/notifications/channels/${created.json.data.id}/test`, {});
+  const memberHouseholdTest = await call(makeApp('member', 2), 'POST', `/api/v1/notifications/channels/${created.json.data.id}/test`, {});
   assert.equal(memberHouseholdTest.status, 403);
 
-  const memberPersonalUpdate = await call(makeApp('member', 2), 'PUT', `/notifications/channels/${memberPersonal.json.data.id}`, {
+  const memberPersonalUpdate = await call(makeApp('member', 2), 'PUT', `/api/v1/notifications/channels/${memberPersonal.json.data.id}`, {
     config: { messageTemplate: '{{title}} — {{description}}' },
   });
   assert.equal(memberPersonalUpdate.status, 200);
   assert.equal(memberPersonalUpdate.json.data.config.messageTemplate, '{{title}} — {{description}}');
 
-  const memberPersonalTest = await call(makeApp('member', 2), 'POST', `/notifications/channels/${memberPersonal.json.data.id}/test`, {});
+  const memberPersonalTest = await call(makeApp('member', 2), 'POST', `/api/v1/notifications/channels/${memberPersonal.json.data.id}/test`, {});
   assert.equal(memberPersonalTest.status, 200);
 
-  const memberHouseholdDelete = await call(makeApp('member', 2), 'DELETE', `/notifications/channels/${created.json.data.id}`);
+  const memberHouseholdDelete = await call(makeApp('member', 2), 'DELETE', `/api/v1/notifications/channels/${created.json.data.id}`);
   assert.equal(memberHouseholdDelete.status, 403);
 
-  const memberPersonalDelete = await call(makeApp('member', 2), 'DELETE', `/notifications/channels/${memberPersonal.json.data.id}`);
+  const memberPersonalDelete = await call(makeApp('member', 2), 'DELETE', `/api/v1/notifications/channels/${memberPersonal.json.data.id}`);
   assert.equal(memberPersonalDelete.status, 200);
 
-  const deleted = await call(makeApp(), 'DELETE', `/notifications/channels/${created.json.data.id}`);
+  const deleted = await call(makeApp(), 'DELETE', `/api/v1/notifications/channels/${created.json.data.id}`);
   assert.equal(deleted.status, 200);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM notification_channels').get().c, 1);
   assert.equal(db.prepare('SELECT id FROM notification_channels').get().id, adminPersonal.json.data.id);
@@ -1695,7 +1700,10 @@ function channelRouteHarness(store, db, buildRouter, { authRole = 'admin', authU
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => { req.authUserId = authUserId; req.authRole = authRole; next(); });
-  app.use('/notifications', router);
+  // At its real prefix, with the central error handler: validateRequest() finds
+  // its operation by the mount and hands its 400 on (#2810).
+  app.use('/api/v1/notifications', router);
+  app.use(createErrorHandler({ warn: () => {}, error: () => {} }));
   return app;
 }
 
@@ -1712,7 +1720,7 @@ for (const [label, owner] of [
     const store = createNotificationChannelStore({ db });
     const app = channelRouteHarness(store, db, buildRouter);
 
-    const rejected = await call(app, 'POST', '/notifications/channels', { ...NTFY_CHANNEL, ...owner });
+    const rejected = await call(app, 'POST', '/api/v1/notifications/channels', { ...NTFY_CHANNEL, ...owner });
 
     assert.equal(rejected.status, 403);
     assert.equal(db.prepare('SELECT COUNT(*) AS c FROM notification_channels').get().c, 0);
@@ -1726,7 +1734,7 @@ for (const [label, owner] of [
     const app = channelRouteHarness(store, db, buildRouter);
     const channel = store.createChannel(NTFY_CHANNEL);
 
-    const updated = await call(app, 'PUT', `/notifications/channels/${channel.id}`, { name: 'Neu', ...owner });
+    const updated = await call(app, 'PUT', `/api/v1/notifications/channels/${channel.id}`, { name: 'Neu', ...owner });
 
     assert.equal(updated.status, 200);
     assert.equal(updated.json.data.name, 'Neu', 'Der Rest des Bodys wirkt weiter.');
@@ -1749,7 +1757,7 @@ test('PUT aendert keinen persoenlichen Kanal: sein Ziel bleibt, wo es ist', asyn
     config: { baseUrl: 'https://hooks.test/bobs' },
   });
 
-  const refused = await call(app, 'PUT', `/notifications/channels/${channel.id}`, {
+  const refused = await call(app, 'PUT', `/api/v1/notifications/channels/${channel.id}`, {
     config: { baseUrl: 'https://anderes-ziel.test' },
     enabled: false,
   });
@@ -1762,11 +1770,11 @@ test('PUT aendert keinen persoenlichen Kanal: sein Ziel bleibt, wo es ist', asyn
   assert.equal(stored.userId, 2);
 
   // Ein Admin darf den privaten Kanal eines anderen Mitglieds auch nicht löschen.
-  assert.equal((await call(app, 'DELETE', `/notifications/channels/${channel.id}`)).status, 403);
+  assert.equal((await call(app, 'DELETE', `/api/v1/notifications/channels/${channel.id}`)).status, 403);
   assert.equal((await call(
     channelRouteHarness(store, db, buildRouter, { authRole: 'member', authUserId: 2 }),
     'DELETE',
-    `/notifications/channels/${channel.id}`,
+    `/api/v1/notifications/channels/${channel.id}`,
   )).status, 200);
 });
 
@@ -2017,9 +2025,12 @@ test('die Kanalliste meldet einen Anbieter als nicht einsatzbereit, bevor ein Te
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => { req.authUserId = 1; req.authRole = 'admin'; next(); });
-  app.use('/notifications', router);
+  // At its real prefix, with the central error handler: validateRequest() finds
+  // its operation by the mount and hands its 400 on (#2810).
+  app.use('/api/v1/notifications', router);
+  app.use(createErrorHandler({ warn: () => {}, error: () => {} }));
 
-  const res = await call(app, 'GET', '/notifications/providers');
+  const res = await call(app, 'GET', '/api/v1/notifications/providers');
   assert.equal(res.status, 200);
   const byId = Object.fromEntries(res.json.data.map((p) => [p.id, p]));
   assert.equal(byId.email.ready, false, 'Mail ohne SMTP ist nicht einsatzbereit');
@@ -2083,13 +2094,13 @@ test('Kanal anlegen: Pruefung bleibt 400 mit Satz, ein Datenbankfehler wird 500 
   const store = createNotificationChannelStore({ db });
   const app = channelRouteHarness(store, db, buildRouter);
 
-  const invalid = await call(app, 'POST', '/notifications/channels', { ...NTFY_CHANNEL, config: { baseUrl: 'https://ntfy.test', topic: '' } });
+  const invalid = await call(app, 'POST', '/api/v1/notifications/channels', { ...NTFY_CHANNEL, config: { baseUrl: 'https://ntfy.test', topic: '' } });
   assert.equal(invalid.status, 400);
   assert.equal(invalid.json.error, 'ntfy topic is required.');
 
   db.exec(`CREATE TRIGGER h_guard_channels AFTER INSERT ON notification_channels
     BEGIN INSERT INTO h_guard_missing_channels (x) VALUES (1); END`);
-  const broken = await call(app, 'POST', '/notifications/channels', NTFY_CHANNEL);
+  const broken = await call(app, 'POST', '/api/v1/notifications/channels', NTFY_CHANNEL);
   assert.equal(broken.status, 500, JSON.stringify(broken.json));
   assert.equal(broken.json.error, 'Internal error.');
   assert.doesNotMatch(JSON.stringify(broken.json), /h_guard_missing_channels|no such table/);
@@ -2108,22 +2119,25 @@ test('Kanaltest: ein Netzfehler wird als Code gespeichert, ein eigener Satz blei
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => { req.authUserId = 1; req.authRole = 'admin'; next(); });
-  app.use('/notifications', router);
+  // At its real prefix, with the central error handler: validateRequest() finds
+  // its operation by the mount and hands its 400 on (#2810).
+  app.use('/api/v1/notifications', router);
+  app.use(createErrorHandler({ warn: () => {}, error: () => {} }));
   const channel = store.createChannel(NTFY_CHANNEL);
 
   thrown = new TypeError('fetch failed', { cause: Object.assign(new Error('connect ECONNREFUSED 10.0.0.9:8080'), { code: 'ECONNREFUSED' }) });
-  assert.equal((await call(app, 'POST', `/notifications/channels/${channel.id}/test`)).status, 500);
+  assert.equal((await call(app, 'POST', `/api/v1/notifications/channels/${channel.id}/test`)).status, 500);
   assert.equal(db.prepare('SELECT last_error FROM notification_channels WHERE id = ?').get(channel.id).last_error, 'ECONNREFUSED');
 
   const lastError = () => db.prepare('SELECT last_error FROM notification_channels WHERE id = ?').get(channel.id).last_error;
   const { NotificationProviderError } = await import('../server/services/notification-providers/provider-error.js');
   thrown = new NotificationProviderError('Webhook authentication failed.');
-  await call(app, 'POST', `/notifications/channels/${channel.id}/test`);
+  await call(app, 'POST', `/api/v1/notifications/channels/${channel.id}/test`);
   assert.equal(lastError(), 'Webhook authentication failed.');
 
   // nodemailer: its own code in `code`, the socket's in `originalCode`.
   thrown = Object.assign(new Error('connect ECONNREFUSED 10.0.0.9:587'), { code: 'ESOCKET', originalCode: 'ECONNREFUSED' });
-  await call(app, 'POST', `/notifications/channels/${channel.id}/test`);
+  await call(app, 'POST', `/api/v1/notifications/channels/${channel.id}/test`);
   assert.equal(lastError(), 'ECONNREFUSED');
 
   // A refused SMTP login carries the server's reply; anything without a class
@@ -2134,7 +2148,7 @@ test('Kanaltest: ein Netzfehler wird als Code gespeichert, ein eigener Satz blei
     new TypeError("Cannot read properties of undefined (reading 'host')"),
   ]) {
     thrown = other;
-    await call(app, 'POST', `/notifications/channels/${channel.id}/test`);
+    await call(app, 'POST', `/api/v1/notifications/channels/${channel.id}/test`);
     assert.equal(lastError(), 'The test notification could not be delivered.', other.message);
   }
 });
@@ -2171,9 +2185,12 @@ test('Kanal anlegen: ein kaputter Rumpf ist kein 400 mit Engine-Text, sondern ei
   const store = createNotificationChannelStore({ db });
   const app = channelRouteHarness(store, db, buildRouter);
 
-  const broken = await call(app, 'POST', '/notifications/channels', { ...NTFY_CHANNEL, clearSecrets: 5 });
-  assert.equal(broken.status, 500, JSON.stringify(broken.json));
-  assert.equal(broken.json.error, 'Internal error.');
+  // Since #2810 the schema of the operation refuses this body before the
+  // store sees it: a 400 that names the field, still without the engine's text.
+  // The fixed 500 for an unmarked error stays held by the database cases.
+  const broken = await call(app, 'POST', '/api/v1/notifications/channels', { ...NTFY_CHANNEL, clearSecrets: 5 });
+  assert.equal(broken.status, 400, JSON.stringify(broken.json));
+  assert.deepEqual(broken.json.fields, [{ path: 'body/clearSecrets', rule: 'type' }]);
   assert.doesNotMatch(JSON.stringify(broken.json), /iterable|TypeError/);
   assert.equal(db.prepare('SELECT COUNT(*) c FROM notification_channels').get().c, 0);
 });
@@ -2187,17 +2204,18 @@ test('Kanal aendern: Pruefung bleibt 400 mit Satz, Datenbank und kaputter Rumpf 
   const app = channelRouteHarness(store, db, buildRouter);
   const channel = store.createChannel(NTFY_CHANNEL);
 
-  const invalid = await call(app, 'PUT', `/notifications/channels/${channel.id}`, { config: { topic: '' } });
+  const invalid = await call(app, 'PUT', `/api/v1/notifications/channels/${channel.id}`, { config: { topic: '' } });
   assert.equal(invalid.status, 400, JSON.stringify(invalid.json));
   assert.equal(invalid.json.error, 'ntfy topic is required.');
 
-  const malformed = await call(app, 'PUT', `/notifications/channels/${channel.id}`, { clearSecrets: 5 });
-  assert.equal(malformed.status, 500, JSON.stringify(malformed.json));
-  assert.equal(malformed.json.error, 'Internal error.');
+  // Since #2810 a malformed body is the schema's 400, before the store (see above).
+  const malformed = await call(app, 'PUT', `/api/v1/notifications/channels/${channel.id}`, { clearSecrets: 5 });
+  assert.equal(malformed.status, 400, JSON.stringify(malformed.json));
+  assert.deepEqual(malformed.json.fields, [{ path: 'body/clearSecrets', rule: 'type' }]);
 
   db.exec(`CREATE TRIGGER h_guard_channels_update AFTER UPDATE ON notification_channels
     BEGIN INSERT INTO h_guard_missing_update (x) VALUES (1); END`);
-  const failing = await call(app, 'PUT', `/notifications/channels/${channel.id}`, { name: 'Neu' });
+  const failing = await call(app, 'PUT', `/api/v1/notifications/channels/${channel.id}`, { name: 'Neu' });
   assert.equal(failing.status, 500, JSON.stringify(failing.json));
   assert.equal(failing.json.error, 'Internal error.');
   assert.doesNotMatch(JSON.stringify(failing.json), /h_guard_missing_update|no such table/);

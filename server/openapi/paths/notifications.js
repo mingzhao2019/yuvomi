@@ -1,4 +1,4 @@
-import { op, jsonBody, idParam } from '../helpers.js';
+import { op, jsonBody, idParam, withValidationRefusal } from '../helpers.js';
 
 export function notificationsPaths() {
   return {
@@ -47,7 +47,7 @@ export function notificationsPaths() {
         description: 'A member can update their own personal channel. An administrator can update household channels and their own personal channels. The channel scope and owner cannot be changed through this operation.',
         stateChanging: true,
         params: [idParam()],
-        requestBody: jsonBody('#/components/schemas/NotificationChannelInput'),
+        requestBody: jsonBody('#/components/schemas/NotificationChannelUpdateInput'),
         responses: {
           200: {
             description: 'Notification channel updated',
@@ -59,7 +59,7 @@ export function notificationsPaths() {
           500: { $ref: '#/components/responses/InternalServerError' },
         },
       }),
-      delete: op({
+      delete: withValidationRefusal(op({
         summary: 'Delete an owned notification channel',
         tag: 'Notifications',
         description: 'A member can delete their own personal channel. An administrator can delete household channels and their own personal channels.',
@@ -74,10 +74,10 @@ export function notificationsPaths() {
           404: { description: 'Notification channel not found' },
           500: { $ref: '#/components/responses/InternalServerError' },
         },
-      }),
+      })),
     },
     '/api/v1/notifications/channels/{id}/test': {
-      post: op({
+      post: withValidationRefusal(op({
         summary: 'Send a test notification through a channel',
         tag: 'Notifications',
         description: 'The same ownership rules as update and delete apply. The test payload contains the full template field set, with empty date fields.',
@@ -92,7 +92,7 @@ export function notificationsPaths() {
           404: { description: 'Notification channel not found' },
           500: { $ref: '#/components/responses/InternalServerError' },
         },
-      }),
+      })),
     },
 
     // --- Health module ---

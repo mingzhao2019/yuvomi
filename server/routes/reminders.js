@@ -8,6 +8,7 @@ import { createLogger } from '../logger.js';
 import express from 'express';
 import * as db from '../db.js';
 import * as v from '../middleware/validate.js';
+import { validateRequest } from '../api/validate-request.ts';
 import { syncAllBirthdayReminders } from '../services/birthdays.js';
 import { markTaskReminderOutbound } from '../services/microsoft-todo.js';
 import { fanOutEventReminders, eventAuthorId } from '../services/event-reminder-fanout.js';
@@ -420,7 +421,7 @@ function callerReminders(req, {
 // auch aus der Sitzung dieser Person. Dieselbe Erkennung wie in GET /dashboard
 // (`asksHouseholdAudience`); Glocke und Toast fragen ohne ihn.
 // --------------------------------------------------------
-router.get('/pending', (req, res) => {
+router.get('/pending', validateRequest(), (req, res) => {
   try {
     if (asksHouseholdAudience(req.query)) return res.json({ data: [] });
     const userId = req.authUserId || req.session.userId;
@@ -613,7 +614,7 @@ function originFilter(value) {
 // `fires_at` kommt nur hier dazu, `/pending` bleibt, wie es war.
 // Response: { data: UpcomingReminder[] }
 // --------------------------------------------------------
-router.get('/upcoming', (req, res) => {
+router.get('/upcoming', validateRequest(), (req, res) => {
   try {
     const from  = windowEdge(req.query.from, 'from');
     const to    = windowEdge(req.query.to, 'to');
@@ -658,7 +659,7 @@ router.get('/upcoming', (req, res) => {
 // nutzen weiterhin den Single-Endpoint (GET /).
 // Response: { data: Reminder[] }
 // --------------------------------------------------------
-router.get('/all', (req, res) => {
+router.get('/all', validateRequest(), (req, res) => {
   try {
     const userId     = req.authUserId || req.session.userId;
     const entityType = req.query.entity_type;
@@ -690,7 +691,7 @@ router.get('/all', (req, res) => {
 // Gibt die Erinnerung für eine spezifische Entität zurück (oder null).
 // Response: { data: Reminder | null }
 // --------------------------------------------------------
-router.get('/', (req, res) => {
+router.get('/', validateRequest(), (req, res) => {
   try {
     const userId      = req.authUserId || req.session.userId;
     const entityType  = req.query.entity_type;
@@ -723,7 +724,7 @@ router.get('/', (req, res) => {
 // Body: { entity_type, entity_id, remind_at }
 // Response: { data: Reminder }
 // --------------------------------------------------------
-router.post('/', (req, res) => {
+router.post('/', validateRequest(), (req, res) => {
   try {
     const userId = req.authUserId || req.session.userId;
     const { entity_type, entity_id, remind_at } = req.body;
@@ -789,7 +790,7 @@ router.post('/', (req, res) => {
 // Body: { remind_ats: string[] } (dedupliziert, max. MAX_REMINDERS_PER_ENTITY)
 // Response: { data: Reminder[] }
 // --------------------------------------------------------
-router.put('/', (req, res) => {
+router.put('/', validateRequest(), (req, res) => {
   try {
     const userId     = req.authUserId || req.session.userId;
     const entityType = req.query.entity_type;
@@ -885,7 +886,7 @@ router.put('/', (req, res) => {
 // Markiert eine Erinnerung als verworfen.
 // Response: { data: { id } }
 // --------------------------------------------------------
-router.patch('/:id/dismiss', (req, res) => {
+router.patch('/:id/dismiss', validateRequest(), (req, res) => {
   try {
     const userId     = req.authUserId || req.session.userId;
     const reminderId = parseInt(req.params.id, 10);
@@ -921,7 +922,7 @@ router.patch('/:id/dismiss', (req, res) => {
 // Löscht eine Erinnerung dauerhaft.
 // Response: 204 No Content
 // --------------------------------------------------------
-router.delete('/:id', (req, res) => {
+router.delete('/:id', validateRequest(), (req, res) => {
   try {
     const userId     = req.authUserId || req.session.userId;
     const reminderId = parseInt(req.params.id, 10);
@@ -969,7 +970,7 @@ router.delete('/:id', (req, res) => {
 // Löscht alle Erinnerungen für eine Entität (z.B. bei Task-Löschung).
 // Response: 204 No Content
 // --------------------------------------------------------
-router.delete('/', (req, res) => {
+router.delete('/', validateRequest(), (req, res) => {
   try {
     const userId     = req.authUserId || req.session.userId;
     const entityType = req.query.entity_type;
