@@ -36,8 +36,9 @@ function storedTestError(err) {
 /**
  * Validation and the database used to share one catch that sent every message
  * as a 400 - SQLite's included (Phase 0 section H). The channel checks mark
- * their own sentences (`notification_channel_invalid`); everything else is a
- * fixed 500 and goes into the log.
+ * their own sentences (`notification_channel_invalid`); everything else goes
+ * on to the central error handler, which logs it and answers 500 with its fixed
+ * sentence (#2810).
  */
 function sendChannelWriteFailure(res, err) {
   // Keep the custom personal-channel ownership boundary visible to the caller.
@@ -46,8 +47,7 @@ function sendChannelWriteFailure(res, err) {
     return res.status(err.statusCode).json({ error: err.message || 'Permission denied.', code: err.statusCode });
   }
   if (err?.code === 'notification_channel_invalid') return res.status(400).json({ error: err.message, code: 400 });
-  log.error('Error writing notification channel:', err);
-  return res.status(500).json({ error: 'Internal error.', code: 500 });
+  throw err;
 }
 export function buildRouter({
   database,
@@ -117,46 +117,37 @@ export function buildRouter({
     };
   }
 
-  function sendError(res, error, fallback, defaultStatus = 400) {
-    const status = Number.isInteger(error?.statusCode) ? error.statusCode : defaultStatus;
-    const message = status < 500 ? (error?.message || fallback) : fallback;
-    res.status(status).json({ error: message, code: status });
-  }
-
+  // A route answers only what it expects (a refused input, not found, a
+  // personal channel); an unexpected error goes on to the central error
+  // handler: 500 with its fixed sentence, logged with method and route (#2810).
   router.get('/providers', validateRequest(), (req, res) => {
-    try {
-      void req;
-      const available = NOTIFICATION_PROVIDERS
-        .filter((provider) => notificationService.providers?.[provider.id])
-        .map((provider) => {
-          const adapter = notificationService.providers[provider.id];
-          if (typeof adapter.isAvailable !== 'function') return provider;
-          let ready = false;
-          try {
-            ready = adapter.isAvailable() === true;
-          } catch (err) {
-            log.warn(`Provider ${provider.id} availability check failed:`, err.message);
-          }
-          return { ...provider, ready };
-        });
-      res.json({ data: available });
-    } catch (err) {
-      log.error('Error reading notification providers:', err.message);
-      res.status(500).json({ error: 'Internal error.', code: 500 });
-    }
+    void req;
+    // `available` heisst „der Server kennt diesen Adapter", nicht „er kann
+    // senden". Ein Provider, der eine Voraussetzung ausserhalb seines Kanals
+    // hat - Mail braucht den app-weiten SMTP-Zugang -, sagt das ueber
+    // `isAvailable()`. Wer keine hat, gilt unveraendert als bereit.
+    const available = NOTIFICATION_PROVIDERS
+      .filter((provider) => notificationService.providers?.[provider.id])
+      .map((provider) => {
+        const adapter = notificationService.providers[provider.id];
+        if (typeof adapter.isAvailable !== 'function') return provider;
+        let ready = false;
+        try {
+          ready = adapter.isAvailable() === true;
+        } catch (err) {
+          log.warn(`Provider ${provider.id} availability check failed:`, err.message);
+        }
+        return { ...provider, ready };
+      });
+    res.json({ data: available });
   });
 
   router.get('/channels', validateRequest(), (req, res) => {
-    try {
-      const currentUserId = userId(req);
-      if (!currentUserId) throw permissionError('Authenticated user is required.');
-      res.json({
-        data: store.listChannelsForUser(currentUserId, { includeHousehold: isAdmin(req) }),
-      });
-    } catch (err) {
-      log.error('Error reading notification channels:', err.message);
-      sendError(res, err, 'Internal error.', 500);
-    }
+    const currentUserId = userId(req);
+    if (!currentUserId) return res.status(403).json({ error: 'Authenticated user is required.', code: 403 });
+    res.json({
+      data: store.listChannelsForUser(currentUserId, { includeHousehold: isAdmin(req) }),
+    });
   });
 
   router.post('/channels', validateRequest(), (req, res) => {
@@ -182,19 +173,14 @@ export function buildRouter({
   });
 
   router.delete('/channels/:id', validateRequest(), (req, res) => {
-    try {
-      const id = parseId(req.params.id);
-      if (!id) return res.status(400).json({ error: 'Invalid channel id.', code: 400 });
-      const existing = store.getChannel(id);
-      if (!existing) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
-      if (!channelIsManageable(req, existing)) throw permissionError();
-      const deleted = store.deleteChannel(id);
-      if (!deleted) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
-      res.json({ data: { deleted: true } });
-    } catch (err) {
-      log.error('Error deleting notification channel:', err.message);
-      sendError(res, err, 'Internal error.', 500);
-    }
+    const id = parseId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid channel id.', code: 400 });
+    const existing = store.getChannel(id);
+    if (!existing) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
+    if (!channelIsManageable(req, existing)) return res.status(403).json({ error: 'Permission denied.', code: 403 });
+    const deleted = store.deleteChannel(id);
+    if (!deleted) return res.status(404).json({ error: 'Notification channel not found.', code: 404 });
+    res.json({ data: { deleted: true } });
   });
 
   router.post('/channels/:id/test', validateRequest(), async (req, res) => {
@@ -237,7 +223,6 @@ export function buildRouter({
       store.markChannelTestResult(id, { ok: true });
       res.json({ data: result });
     } catch (err) {
-      log.error('Error testing notification channel:', err.message);
       const id = parseId(req.params.id);
       if (id && channel && channelIsManageable(req, channel)) {
         store.markChannelTestResult(id, { ok: false, error: storedTestError(err) });
@@ -245,7 +230,7 @@ export function buildRouter({
       if (Number.isInteger(err?.statusCode) && err.statusCode < 500) {
         return res.status(err.statusCode).json({ error: err.message || 'Permission denied.', code: err.statusCode });
       }
-      res.status(500).json({ error: 'Internal error.', code: 500 });
+      throw err;
     }
   });
 
