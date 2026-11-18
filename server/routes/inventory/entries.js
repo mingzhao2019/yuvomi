@@ -9,23 +9,23 @@
 
 import express from 'express';
 import * as db from '../../db.js';
-import { createLogger } from '../../logger.js';
 import { id as idParam } from '../../middleware/validate.js';
 import { budgetViewer, visibleEntry } from './entry-links.js';
 import { isAdmin, inventoryVisibilityWhere } from './access.js';
 import { validateRequest } from '../../api/validate-request.ts';
 
-const log = createLogger('Inventory');
 const router = express.Router();
+
+// Kein try/catch: ein unerwarteter Fehler (SQLite) geht an den zentralen
+// Fehlerhandler (server/middleware/error-handler.js).
 
 // --------------------------------------------------------
 // GET /api/v1/inventory/entries/:entryId/items
 // --------------------------------------------------------
 router.get('/:entryId/items', validateRequest(), (req, res) => {
-  try {
-    const vEntryId = idParam(req.params.entryId, 'entryId');
-    if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
-    const budget = budgetViewer(req);
+  const vEntryId = idParam(req.params.entryId, 'entryId');
+  if (vEntryId.error) return res.status(400).json({ error: vEntryId.error, code: 400 });
+  const budget = budgetViewer(req);
     const userId = budget.userId;
     const entry = visibleEntry(vEntryId.value, budget);
     if (!entry) return res.status(404).json({ error: 'Booking not found.', code: 404 });
@@ -39,11 +39,7 @@ router.get('/:entryId/items', validateRequest(), (req, res) => {
       ORDER BY ii.name COLLATE NOCASE ASC
     `).all({ entryId: vEntryId.value, me: userId });
 
-    res.json({ data: items });
-  } catch (err) {
-    log.error('GET /:entryId/items error:', err);
-    res.status(500).json({ error: 'Internal server error.', code: 500 });
-  }
+  res.json({ data: items });
 });
 
 export default router;
