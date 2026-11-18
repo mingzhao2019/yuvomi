@@ -20,6 +20,9 @@ import express from 'express';
 const dbmod = await import('../server/db.js');
 const deadlinesIcs = await import('../server/services/inventory-deadlines-ics.js');
 const { default: deadlinesFeedRouter } = await import('../server/routes/inventory/deadlines-feed.js');
+const { default: itemsRouter } = await import('../server/routes/inventory/items.js');
+const { defaultEmptyBody } = await import('../server/middleware/empty-body.js');
+const { createErrorHandler } = await import('../server/middleware/error-handler.js');
 const db = dbmod.get();
 
 // Der ICS-Text folgt der Datensprache des Haushalts (sync_config.language),
@@ -107,6 +110,51 @@ test('buildInventoryDeadlinesFeed erzeugt für einen Gegenstand ohne Garantie nu
   assert.match(ics, /SUMMARY:Wartung: Fahrrad/);
 });
 
+test('ein vorgerolltes Datum ("Erledigt" mit interval_months) behaelt seine UID und bewegt nur sein DTSTART', async () => {
+  db.exec('DELETE FROM inventory_items');
+  const owner = db.prepare("INSERT INTO users (username, display_name, password_hash, role) VALUES ('c','C','x','member')").run().lastInsertRowid;
+
+  const itemsApp = express();
+  itemsApp.use(express.json());
+  itemsApp.use(defaultEmptyBody);
+  itemsApp.use((req, _res, next) => { req.authUserId = owner; req.session = { userId: owner }; next(); });
+  // At its real prefix: validateRequest() reads the operation from the mount (#2810).
+  itemsApp.use((/** @type {any} */ req, /** @type {any} */ _res, /** @type {() => void} */ next) => { if (/^\/items(\/|\?|$)/.test(req.url)) req.url = `/api/v1/inventory${req.url}`; next(); });
+  itemsApp.use('/api/v1/inventory/items', itemsRouter);
+  itemsApp.use(createErrorHandler({ warn: () => {}, error: () => {} }));
+  const itemsServer = itemsApp.listen(0, '127.0.0.1');
+  const itemsBaseUrl = await new Promise((r) => itemsServer.on('listening', () => r(`http://127.0.0.1:${itemsServer.address().port}`)));
+
+  try {
+    const created = await (await fetch(`${itemsBaseUrl}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Auto', category: 'vehicles',
+        tracked_dates: [{ label: 'HU/TÜV', date: '2027-03-01', interval_months: 24 }],
+      }),
+    })).json();
+    const itemId = created.data.id;
+    const dateId = created.data.tracked_dates[0].id;
+
+    const before = deadlinesIcs.buildInventoryDeadlinesFeed(db);
+    assert.match(before, new RegExp(`UID:inventory-tracked-date-${dateId}@yuvomi`));
+    assert.match(before, /DTSTART;VALUE=DATE:20270301/);
+
+    await fetch(`${itemsBaseUrl}/items/${itemId}/dates/${dateId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ performed_on: '2027-02-28' }),
+    });
+
+    const after = deadlinesIcs.buildInventoryDeadlinesFeed(db);
+    assert.match(after, new RegExp(`UID:inventory-tracked-date-${dateId}@yuvomi`), 'gleiche UID wie vorher');
+    assert.match(after, /DTSTART;VALUE=DATE:20290301/, '24 Monate nach dem 2027-03-01');
+    assert.equal((after.match(new RegExp(`UID:inventory-tracked-date-${dateId}@yuvomi`, 'g')) || []).length, 1, 'kein zweites VEVENT fuer dieselbe Frist');
+  } finally {
+    itemsServer.close();
+  }
+});
 // --------------------------------------------------------
 // Migration 144: Token-Spalte auf users
 // --------------------------------------------------------
@@ -212,8 +260,12 @@ test('Kalender- und Inventar-Token sind getrennte Instanzen desselben Musters', 
 let actorId = alice;
 const app = express();
 app.use(express.json());
+app.use(defaultEmptyBody);
 app.use((req, _res, next) => { req.authUserId = actorId; next(); });
-app.use('/inventory/deadlines-feed', deadlinesFeedRouter);
+// At its real prefix: validateRequest() reads the operation from the mount (#2810).
+app.use((/** @type {any} */ req, /** @type {any} */ _res, /** @type {() => void} */ next) => { if (/^\/inventory\//.test(req.url)) req.url = `/api/v1${req.url}`; next(); });
+app.use('/api/v1/inventory/deadlines-feed', deadlinesFeedRouter);
+app.use(createErrorHandler({ warn: () => {}, error: () => {} }));
 const server = app.listen(0, '127.0.0.1');
 const baseUrl = await new Promise((r) => server.on('listening', () => r(`http://127.0.0.1:${server.address().port}`)));
 test.after(() => server.close());
