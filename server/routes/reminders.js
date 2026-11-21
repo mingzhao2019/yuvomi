@@ -536,7 +536,10 @@ router.get('/pending', validateRequest(), (req, res) => {
     // der Haushalt abgeschaltet hat, gibt es hier nicht - auch nicht als
     // Toast (#1279). Übersprungen, nicht gelöscht: siehe
     // withoutSwitchedOffModules() für den Grund.
-    const rows = withoutSwitchedOffModules(db.get(), dueRows);
+    const rows = withoutGoneEvents(
+      db.get(),
+      withoutSwitchedOffModules(db.get(), dueRows),
+    );
 
     // Nur für die tatsächlichen Partner-Zeilen geholt (rar) - siehe Kommentar
     // an cycle_anchor_kind oben. Bleibt bei jeder anderen Zeile `undefined`
@@ -923,6 +926,7 @@ router.delete('/:id', validateRequest(), (req, res) => {
   }
 
   db.get().prepare('DELETE FROM reminders WHERE id = ?').run(reminderId);
+  if (reminder.entity_type === 'task') markTaskReminderOutbound(reminder.entity_id, userId, db.get());
   syncEventFanout(reminder.entity_type, reminder.entity_id, userId);
   res.status(204).end();
 });
@@ -957,6 +961,7 @@ router.delete('/', validateRequest(), (req, res) => {
     DELETE FROM reminders
     WHERE entity_type = ? AND entity_id = ? AND created_by = ?
   `).run(entityType, entityId, userId);
+  if (entityType === 'task') markTaskReminderOutbound(entityId, userId, db.get());
   syncEventFanout(entityType, entityId, userId);
 
   res.status(204).end();

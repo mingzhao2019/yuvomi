@@ -52,6 +52,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -65,8 +66,14 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "completion_key": "single",
+        "completed": false,
+        "completed_at": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 2,
@@ -116,6 +123,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -129,8 +137,14 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "completion_key": "single",
+        "completed": false,
+        "completed_at": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -180,6 +194,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -193,8 +208,14 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "completion_key": "single",
+        "completed": false,
+        "completed_at": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -244,6 +265,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -257,8 +279,14 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "completion_key": "single",
+        "completed": false,
+        "completed_at": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 4,
@@ -308,6 +336,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -321,8 +350,14 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "completion_key": "single",
+        "completed": false,
+        "completed_at": null,
+        "outlook_source": null,
         "assigned_users": [],
         "attachment_locked": false,
         "attachment_data": null,
@@ -494,6 +529,7 @@
         "target_caldav_list_url": null,
         "countdown": 0,
         "locked": 0,
+        "task_list_id": null,
         "recurrence_series_id": null,
         "sort_order": null,
         "seen_on_server": 0,
@@ -556,6 +592,7 @@
         "target_caldav_list_url": null,
         "countdown": 0,
         "locked": 0,
+        "task_list_id": null,
         "recurrence_series_id": null,
         "sort_order": null,
         "seen_on_server": 0,
@@ -606,6 +643,7 @@
         "target_caldav_list_url": null,
         "countdown": 0,
         "locked": 0,
+        "task_list_id": null,
         "recurrence_series_id": null,
         "sort_order": null,
         "seen_on_server": 0,
@@ -656,6 +694,7 @@
         "target_caldav_list_url": null,
         "countdown": 0,
         "locked": 0,
+        "task_list_id": null,
         "recurrence_series_id": null,
         "sort_order": null,
         "seen_on_server": 0,
@@ -706,6 +745,7 @@
         "target_caldav_list_url": null,
         "countdown": 0,
         "locked": 0,
+        "task_list_id": null,
         "recurrence_series_id": null,
         "sort_order": null,
         "seen_on_server": 0,
@@ -922,6 +962,19 @@
         ]
       }
     ],
+    "assets": {
+      "total": 9,
+      "active": 8,
+      "retired": 0,
+      "sold": 1,
+      "currencies": [
+        {
+          "currency": "EUR",
+          "purchaseTotal": 0,
+          "currentDailyCost": 0
+        }
+      ]
+    },
     "users": [
       {
         "id": 1,
@@ -1002,6 +1055,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1015,8 +1069,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 4,
@@ -1066,6 +1123,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1079,8 +1137,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 4,
@@ -1130,6 +1191,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1143,8 +1205,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -1194,6 +1259,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1207,8 +1273,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -1258,6 +1327,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1271,8 +1341,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 2,
@@ -1322,6 +1395,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1335,8 +1409,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -1386,6 +1463,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1399,8 +1477,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -1450,6 +1531,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1463,8 +1545,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -1514,6 +1599,7 @@
         "outbound_attempts": 0,
         "outbound_move_to": null,
         "external_object_url": null,
+        "reminder_suppressed": 0,
         "target_outlook_account_id": null,
         "target_outlook_calendar_id": null,
         "color_modified": 0,
@@ -1527,8 +1613,11 @@
         "local_calendar_name": "Yuvomi",
         "local_calendar_color": null,
         "source_calendar_ref_id": null,
+        "source_calendar_key": null,
         "source_calendar_name": null,
         "source_calendar_color": null,
+        "source_calendar_display_color": null,
+        "outlook_source": null,
         "assigned_users": [
           {
             "id": 3,
@@ -1784,7 +1873,8 @@
         "days_until": 2,
         "icon": "calendar",
         "color": "#D97706",
-        "recurring": false
+        "recurring": false,
+        "completed": false
       },
       {
         "source": "document",

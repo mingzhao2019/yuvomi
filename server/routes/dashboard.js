@@ -171,7 +171,6 @@ export function summarizeAssets(rows = [], today = '', defaultCurrency = 'EUR') 
   summary.currencies = [...byCurrency.values()].sort((a, b) => a.currency.localeCompare(b.currency));
   return summary;
 }
-/**
 // Re-exported for the callers that import it from this route (test:dashboard-shopping-selection).
 export { normalizeShoppingListFilter } from '../services/overview-query.ts';
 

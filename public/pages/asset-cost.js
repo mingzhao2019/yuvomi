@@ -721,7 +721,7 @@ async function chooseImage(result, setPhoto, resultButton, closeSearch, isClosed
       window.yuvomi?.showToast(tr('photoSelected'), 'success');
     }
   } catch (err) {
-    if (!isClosed()) window.yuvomi?.showToast(err.message || tr('loadError'), 'danger');
+    if (!isClosed()) window.yuvomi?.showToast(errorSentence(err), 'danger');
   } finally {
     resultButton.disabled = false;
   }
@@ -928,7 +928,7 @@ function openAssetModal(item = null) {
           const cropped = await cropFile(file);
           if (cropped !== undefined) setPhoto(cropped);
         } catch (err) {
-          window.yuvomi?.showToast(err.message, 'danger');
+          window.yuvomi?.showToast(errorSentence(err), 'danger');
         }
       });
       const updateImageSearchStatus = () => {

@@ -40,6 +40,7 @@ export const COPY_LIST: readonly CopyEntry[] = [
   { path: 'robots.txt', precache: false, why: 'for crawlers, not for the app' },
   { path: 'locales/de.json', precache: true, why: 'DEFAULT_LOCALE of i18n.js: the fallback language must be there offline' },
   { path: 'locales/*.json', precache: false, why: 'fetched by i18n.js; the worker caches the device language on demand (CACHE_LOCALE)' },
+  { path: 'asset-cost-locales/*.json', precache: false, why: 'fetched by pages/asset-cost.js; the optional asset-cost page does not need these locales in the offline precache' },
   { path: 'styles/', precache: true, why: 'linked from index.html (vite-ignore keeps the cascade order) or attached by the router per page' },
   { path: 'vendor/sortablejs/sortable.esm.min.js', precache: true, why: 'hand copy, imported by utils/sortable.js at runtime (external)' },
   { path: 'vendor/libphonenumber/core.min.mjs', precache: true, why: 'hand copy, imported by utils/phone.js at runtime, offline phone formatting' },

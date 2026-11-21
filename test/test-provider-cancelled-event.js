@@ -121,6 +121,10 @@ beforeEach(() => {
   for (const [key, value] of [['household_timezone', 'UTC'], ['disabled_modules', '[]']]) {
     db.prepare('INSERT OR REPLACE INTO sync_config (key, value) VALUES (?, ?)').run(key, value);
   }
+  // This suite inserts its own reminder rows. Keep the personal default policy
+  // out of the fixture; it is covered separately by calendar-event-reminders.
+  db.prepare('INSERT OR REPLACE INTO sync_config (key, value) VALUES (?, ?)')
+    .run(`calendar_default_reminders:user:${OWNER}`, '[]');
 });
 
 // --------------------------------------------------------------------------

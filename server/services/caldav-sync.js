@@ -1718,6 +1718,15 @@ async function runSync({ createClient } = {}) {
         });
         if (deletions.sent) log.info(`${deletions.sent} pending deletion(s) applied on the server.`);
         reportWaitingDeletions(account);
+        const pushed = await processPendingUpdates(
+          client,
+          'caldav',
+          objectIndex,
+          calendarsByUrl,
+          uploadGate,
+          { accountId: account.id, fullRun: true, stop },
+        );
+        if (pushed) log.info(`${pushed} local change(s) pushed to the server.`);
       } catch (err) {
         log.error(`Outbound changes failed for account ${account.id}:`, err.message);
       }

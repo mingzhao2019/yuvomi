@@ -1421,7 +1421,7 @@ test('display-settings migration preserves existing displays and rejects invalid
   const legacy = new DatabaseSync(':memory:');
   try {
     legacy.exec("CREATE TABLE display_accounts (user_id INTEGER PRIMARY KEY, show_screensaver INTEGER NOT NULL DEFAULT 0); INSERT INTO display_accounts VALUES (7, 1)");
-    const migration = dbmod.MIGRATIONS.find(m => m.description === 'Wall displays: centrally managed night hours and screensaver options (#2436)');
+    const migration = dbmod.MIGRATIONS.find(m => m.description.startsWith('Wall displays: centrally managed night hours and screensaver options (#2436'));
     legacy.exec(migration.up);
     assert.deepEqual({...legacy.prepare('SELECT * FROM display_accounts').get()}, {user_id:7, show_screensaver:1, device_settings:null});
     assert.throws(() => legacy.prepare('UPDATE display_accounts SET device_settings = ?').run('not json'));

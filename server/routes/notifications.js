@@ -144,7 +144,7 @@ export function buildRouter({
 
   router.get('/channels', validateRequest(), (req, res) => {
     const currentUserId = userId(req);
-    if (!currentUserId) return res.status(403).json({ error: 'Authenticated user is required.', code: 403 });
+    if (!currentUserId) return res.status(403).json({ error: 'Permission denied.', code: 403 });
     res.json({
       data: store.listChannelsForUser(currentUserId, { includeHousehold: isAdmin(req) }),
     });

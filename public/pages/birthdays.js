@@ -947,7 +947,7 @@ const CONTACT_CHOICE_REFUSALS = new Set(['birthdays_contact_linked', 'birthdays_
 
 function mayLinkContacts(birthday) {
   if (birthday?.family_user_id) return false;
-  return moduleAccess('contacts') !== 'none' && !window.yuvomi?.isModuleDisabled?.('contacts');
+  return moduleAccess('contacts') !== 'none' && !globalThis.window?.yuvomi?.isModuleDisabled?.('contacts');
 }
 
 /**
@@ -1665,9 +1665,11 @@ function birthdayPaneSections(birthday, { onLinked = null } = {}) {
  * `countdownLabel`), keine neuen Texte.
  */
 function birthdayDetailHead(birthday) {
-  const media = document.createElement('div');
-  media.className = 'birthday-pane__photo';
-  media.insertAdjacentHTML('beforeend', photoAvatar(birthday, 'birthday-avatar--pane'));
+  const media = globalThis.document?.createElement?.('div') ?? null;
+  if (media) {
+    media.className = 'birthday-pane__photo';
+    media.insertAdjacentHTML('beforeend', photoAvatar(birthday, 'birthday-avatar--pane'));
+  }
   const days = birthday.days_until;
   return {
     media,

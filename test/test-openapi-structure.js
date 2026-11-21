@@ -616,7 +616,7 @@ test('#2062 GET /calendar/calendars beschreibt sources neben data', () => {
   assert.deepEqual(schema.required, ['data', 'sources']);
   const item = schema.properties?.sources?.items;
   assert.ok(item, 'sources ohne items');
-  assert.deepEqual(item.required, ['key', 'name', 'color']);
+  assert.deepEqual(item.required, ['key', 'name', 'color', 'provider']);
   assert.equal(item.properties.key.pattern, '^(local|cal|sub):[1-9][0-9]{0,14}$');
   assert.match(get.description, /`sources`/);
 });

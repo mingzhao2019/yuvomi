@@ -20,6 +20,7 @@ import {
   normalizeHostname,
 } from '../../utils/ssrf.js';
 import { MAX_UPLOAD_BYTES } from '../../utils/upload-limit.js';
+import { validateRequest } from '../../api/validate-request.ts';
 
 const log = createLogger('InventoryImageSearch');
 const router = express.Router();
@@ -334,7 +335,7 @@ async function searchAll(query) {
   return data;
 }
 
-router.get('/', async (req, res) => {
+router.get('/', validateRequest(), async (req, res) => {
   const query = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, MAX_QUERY_LENGTH) : '';
   if (!query) return res.status(400).json({ error: 'Search query is required.', code: 400 });
   try {
@@ -349,7 +350,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/preview', async (req, res) => {
+router.get('/preview', validateRequest(), async (req, res) => {
   const target = safePublicHttpUrl(req.query.url);
   if (!target) return res.status(400).json({ error: 'A public HTTP(S) image URL is required.', code: 400 });
 

@@ -132,6 +132,13 @@
       "unpaidAmount": 0,
       "lastVisit": null
     },
+    "assets": {
+      "total": 0,
+      "active": 0,
+      "retired": 0,
+      "sold": 0,
+      "currencies": []
+    },
     "wastePickups": [],
     "myShiftsToday": [],
     "pantryExpiring": {

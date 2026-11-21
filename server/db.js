@@ -12249,6 +12249,73 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    version: 292,
+    description: 'CalDAV: one task or shopping row per UID across accounts, and a deleted account releases its rows (#1906, #1885)',
+    // EINE ZEILE JE UID (#1906): dieselbe Erinnerung aus zwei Konten bleibt
+    // eine lokale Zeile. Die ältere Zeile bleibt, ihre Anhänge und
+    // Unteraufgaben werden übernommen; das Konto, das sie zuerst lieferte,
+    // bleibt Eigentümer.
+    //
+    // KONTO WEG, ZEILE BLEIBT (#1885): die Spiegelzeile verliert nur ihr
+    // Konto. Das nächste Konto, das die UID liefert, kann sie übernehmen.
+    // Ein Trigger deckt auch Löschpfade außerhalb des CalDAV-Service ab.
+    up(db) {
+      const groups = (table) => db.prepare(`
+        SELECT external_uid AS uid, MIN(id) AS keep FROM ${table}
+         WHERE external_source = 'caldav' AND external_uid IS NOT NULL
+         GROUP BY external_uid HAVING COUNT(*) > 1
+      `).all();
+      const youngerOf = (table, uid, keep) => db.prepare(`
+        SELECT id FROM ${table} WHERE external_source = 'caldav' AND external_uid = ? AND id <> ?
+      `).all(uid, keep).map((r) => r.id);
+
+      for (const { uid, keep } of groups('tasks')) {
+        for (const drop of youngerOf('tasks', uid, keep)) {
+          db.prepare('UPDATE tasks SET parent_task_id = ? WHERE parent_task_id = ?').run(keep, drop);
+          db.prepare('UPDATE tasks SET recurrence_origin_id = ? WHERE recurrence_origin_id = ?').run(keep, drop);
+          db.prepare('UPDATE task_comments SET task_id = ? WHERE task_id = ?').run(keep, drop);
+          db.prepare('UPDATE OR IGNORE task_documents SET task_id = ? WHERE task_id = ?').run(keep, drop);
+          db.prepare('UPDATE OR IGNORE task_assignments SET task_id = ? WHERE task_id = ?').run(keep, drop);
+          db.prepare('UPDATE housekeeping_work_sessions SET payment_task_id = ? WHERE payment_task_id = ?').run(keep, drop);
+          db.prepare("DELETE FROM caldav_upload_attempts WHERE kind = 'task' AND row_id = ?").run(drop);
+          db.prepare('DELETE FROM tasks WHERE id = ?').run(drop);
+        }
+      }
+      for (const { uid, keep } of groups('shopping_items')) {
+        for (const drop of youngerOf('shopping_items', uid, keep)) {
+          db.prepare('UPDATE housekeeping_supply_requests SET shopping_item_id = ? WHERE shopping_item_id = ?').run(keep, drop);
+          db.prepare("DELETE FROM caldav_upload_attempts WHERE kind = 'item' AND row_id = ?").run(drop);
+          db.prepare('DELETE FROM shopping_items WHERE id = ?').run(drop);
+        }
+      }
+
+      db.exec(`
+        UPDATE tasks SET external_account_id = NULL
+         WHERE external_account_id IS NOT NULL AND external_account_id NOT IN (SELECT id FROM caldav_accounts);
+        UPDATE shopping_items SET external_account_id = NULL
+         WHERE external_account_id IS NOT NULL AND external_account_id NOT IN (SELECT id FROM caldav_accounts);
+
+        CREATE TRIGGER trg_caldav_accounts_release_rows
+          AFTER DELETE ON caldav_accounts FOR EACH ROW
+          BEGIN
+            UPDATE tasks
+               SET external_account_id = NULL, outbound_dirty = 0, outbound_attempts = 0
+             WHERE external_account_id = OLD.id;
+            UPDATE tasks
+               SET target_caldav_account_id = NULL, target_caldav_list_url = NULL
+             WHERE target_caldav_account_id = OLD.id;
+            UPDATE shopping_items
+               SET external_account_id = NULL, outbound_dirty = 0, outbound_attempts = 0,
+                   outbound_move = 0, outbound_move_attempts = 0, outbound_move_since = NULL, outbound_move_by = NULL
+             WHERE external_account_id = OLD.id;
+            UPDATE calendar_events
+               SET target_caldav_account_id = NULL, target_caldav_calendar_url = NULL
+             WHERE target_caldav_account_id = OLD.id;
+          END;
+      `);
+    },
+  },
 ];
 
 /**

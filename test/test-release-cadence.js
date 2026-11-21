@@ -23,7 +23,10 @@ const SCRIPT = fileURLToPath(new URL('../scripts/check-release-cadence.mjs', imp
 const OLD_DATE = '2026-01-07T12:00:00+0100';
 
 // Git must see only the fixture: a hook or a parent process can export these.
-const env = { ...process.env };
+// Keep Node's local date and Git's tagger date in the same zone.  The guard
+// compares both, and a host timezone ahead of UTC otherwise makes the tag
+// created below look like it belongs to tomorrow.
+const env = { ...process.env, TZ: 'UTC' };
 for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY']) {
   delete env[key];
 }

@@ -3771,7 +3771,7 @@ export const __test = {
   setStatisticsEntries: (entries) => { statistics = { ...statistics, entries }; },
   availableTypeFields, shiftTypeFieldsEditor, syncTypeFieldPicker, editorAction, shiftTypeRow,
   patternRow, patternDaysEditorHtml, patternSaveOrder, initialOverviewSelection, renderOverview,
-  renderToday, overviewLaneHeader, planningPanel, scheduleFabIntent, renderStatistics, patternFields,
+  overviewLaneHeader, planningPanel, scheduleFabIntent, renderStatistics, patternFields,
   formField, shiftFields, reminderOffsetField, emptyShiftTypesState, emptyPatternState,
   emptyOverrideState, emptyExtraShiftsState, emptyCustomFieldsState, customFieldsSection,
   scheduleState: () => state, userOptions, setOwnerContext, overrideGroups, extraGroups,
@@ -3782,7 +3782,7 @@ export const __test = {
   setShiftIconButtonIcon, overtimeInfo, sameFieldValues, overlayMeta, buildOverviewLanes,
   normalizeOverviewSelection, setOverviewForTest: (next) => { overview = { ...overview, ...next }; },
   isOvernightEntry, overviewEntryBlock,
-  alignOverviewToNow, syncOverviewDock, pinnedTitleShift, pinOverviewTitles, overviewFetchRange,
+  alignOverviewToNow, overviewFetchRange,
   patternDaysExceedingCycleLength, scheduleErrorMessage, cycleDayNextDate, cycleDayHeaderLabel,
   windowsOverlap, findOverlappingActivePattern, resolveWinningPatternId, scheduleEntryMatchKey,
 };

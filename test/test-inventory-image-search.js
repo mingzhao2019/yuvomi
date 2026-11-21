@@ -22,7 +22,7 @@ app.use((req, _res, next) => {
   req.session = { userId: 1 };
   next();
 });
-app.use('/', imageSearchRouter);
+app.use('/api/v1/inventory/image-search', imageSearchRouter);
 const server = app.listen(0, '127.0.0.1');
 const baseUrl = await new Promise((resolve) => {
   server.on('listening', () => resolve(`http://127.0.0.1:${server.address().port}`));
@@ -31,7 +31,7 @@ const baseUrl = await new Promise((resolve) => {
 test.after(() => server.close());
 
 test('GET / image search requires a query', async () => {
-  const response = await fetch(`${baseUrl}/`);
+  const response = await fetch(`${baseUrl}/api/v1/inventory/image-search/`);
   assert.equal(response.status, 400);
 });
 
@@ -77,14 +77,14 @@ test('GET /preview rejects non-public and non-HTTP URLs before network access', 
     'http://[::1]/image.png',
     'http://[::ffff:192.168.1.10]/image.png',
   ]) {
-    const response = await fetch(`${baseUrl}/preview?url=${encodeURIComponent(url)}`);
+    const response = await fetch(`${baseUrl}/api/v1/inventory/image-search/preview?url=${encodeURIComponent(url)}`);
     assert.equal(response.status, 400, url);
   }
 });
 
 test('GET /preview rejects credentials and unsupported ports', async () => {
   for (const url of ['https://user:pass@example.com/image.png', 'https://example.com:8443/image.png']) {
-    const response = await fetch(`${baseUrl}/preview?url=${encodeURIComponent(url)}`);
+    const response = await fetch(`${baseUrl}/api/v1/inventory/image-search/preview?url=${encodeURIComponent(url)}`);
     assert.equal(response.status, 400, url);
   }
 });

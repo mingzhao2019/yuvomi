@@ -1,5 +1,7 @@
 # Test-Suiten
 
+npm run test:settings-navigation  # Settings-IA, Blattaufteilung, alte Adressumleitungen, Rechtegrenzen und Fehler-Wiederholung.
+
 Vollständige, annotierte Liste aller `npm run test:*`-Suiten - welche Suite deckt welche Invariante ab.
 
 `npm run test:calendar-toolbar-browser` prüft den echten chinesischen Wochenkopf sowie

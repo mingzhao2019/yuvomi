@@ -130,7 +130,6 @@ example module; the manifest and entry above are the example.
 ```js
 import { api } from '/api.js';
 import { esc } from '/utils/html.js';
-import { renderAppPage, renderPageHeader, renderPageTitle, renderPageBody } from '/utils/page-layout.js';
 
 export async function render(container, context) {
   // `container` already is your page root: the app has wrapped it in the
@@ -139,15 +138,15 @@ export async function render(container, context) {
   // app's classes; do not add a second page root.
   const me = await api.get('/auth/me');
   container.replaceChildren();
-  container.insertAdjacentHTML('beforeend', renderAppPage({
-    mode: 'reading',
-    header: renderPageHeader({
-      title: renderPageTitle('Example Module'),
-    }),
-    body: renderPageBody({
-      content: `<section class="page-section"><p>Hello, ${esc(me.user.display_name)}</p></section>`,
-    }),
-  }));
+  container.insertAdjacentHTML('beforeend', `
+    <div class="page-toolbar page-toolbar--narrow">
+      <h1 class="page-toolbar__title">Example Module</h1>
+    </div>
+    <div class="app-page__body">
+      <section class="page-section page-measure">
+        <p>Hello, ${esc(me.user.display_name)}</p>
+      </section>
+    </div>`);
 }
 ```
 

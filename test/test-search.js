@@ -46,21 +46,17 @@ db.exec(MIGRATIONS_SQL[65]);
 db.exec(MIGRATIONS_SQL[66]);
 // Migration 130: care grants - the health search asks the rule of the health lists.
 db.exec(MIGRATIONS_SQL[130]);
-// Migration 174: name-day event identity used by birthday search results.
-db.exec(MIGRATIONS_SQL[174]);
-// Migration 197: waste_types (the upstream search fixture needs this table).
-db.exec(MIGRATIONS_SQL[197]);
-// Migration 206: FTS triggers + backfill for waste_types.
-db.exec(MIGRATIONS_SQL[206]);
-// Custom migrations 207 and 216 provide the equivalent waste schema/FTS
-// additions in the append-only custom history.
+// The upstream name-day migration is v174, but custom already uses that
+// version for Microsoft To Do. The mirrored append-only schema keeps the
+// equivalent birthday migration at v179.
+db.exec(MIGRATIONS_SQL[179]);
+// Custom migrations 207 and 216 provide the waste schema/FTS additions in the
+// append-only custom history; upstream called these v197 and v206.
 db.exec(MIGRATIONS_SQL[207]);
 db.exec(MIGRATIONS_SQL[216]);
-// Migration 254: unknown birth years used by birthday search.
-db.exec(MIGRATIONS_SQL[254]);
-// Migration 262: note visibility used by note search.
-db.exec(MIGRATIONS_SQL[262]);
-db.exec(MIGRATIONS_SQL[272]); // Custom notes visibility/search follow-up.
+// Upstream v254 (unknown birth years) is appended as custom v264.
+db.exec(MIGRATIONS_SQL[264]);
+db.exec(MIGRATIONS_SQL[272]); // Custom notes visibility used by note search.
 
 console.log('\n[Search-Test] FTS5-Volltextsuche\n');
 

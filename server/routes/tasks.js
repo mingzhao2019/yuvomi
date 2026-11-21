@@ -2227,6 +2227,10 @@ router.put('/:id', (req, res) => {
              // Aufgabe steht (wie im Einkauf, shopping.js).
              category,
              req.params.id);
+      // Derselbe Übergang, ein zweiter Vorgang: der Verlauf hält fest, DASS
+      // abgehakt wurde (#791). Der Aufruf bleibt direkt beim Status-Schreiber,
+      // damit jeder Schreibweg den Übergang sichtbar durch dieselbe Stelle führt.
+      syncTaskCompletion(db.get(), task.id, task.status, status, req.authUserId || req.session.userId);
       setAssignments(db.get(), task.id, userIds);
       // Rotation nur bei ausdruecklichem Feld schreiben (#647: nicht
       // mitgeschickt heisst nicht angefasst); null loescht Modus und Pool.
@@ -2270,11 +2274,6 @@ router.put('/:id', (req, res) => {
       syncHousekeepingPaymentStatus(db.get(), req.params.id, status);
       // Punkte erst nach setAssignments: die Zuständigen werden daraus abgeleitet.
       syncTaskRewards(db.get(), task.id, task.status, status, req.authUserId || req.session.userId);
-      // Derselbe Übergang, ein zweiter Vorgang: der Verlauf hält fest, DASS
-      // abgehakt wurde (#791). Bewusst neben der Punktevergabe statt in ihr -
-      // Punkte gehen an die Zuständigen und nur bei eingeschaltetem Modul, ein
-      // Verlaufseintrag gilt für jede Aufgabe und nennt die handelnde Person.
-      syncTaskCompletion(db.get(), task.id, task.status, status, req.authUserId || req.session.userId);
 
       // Auch über das Bearbeiten-Formular lässt sich ein Abhaken zurücknehmen -
       // die Folgeinstanz muss dann genauso verschwinden wie beim Klick auf die

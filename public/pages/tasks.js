@@ -3726,7 +3726,7 @@ function openTaskDetail(options = {}, legacyContainer = null) {
   const actions = canEdit ? [{
     id: 'task-detail-delete',
     label: t('common.delete'),
-    variant: 'danger-ghost',
+    variant: 'danger-outline',
     icon: 'trash-2',
     align: 'start',
     // Siehe closeDetailView: nach dem Löschen gibt es nichts mehr zu verwerfen,

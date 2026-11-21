@@ -924,8 +924,10 @@ test('Migration 270: eine Bestandsdatenbank mit altem Schema behaelt ihre Rezept
     INSERT INTO recipes (title, notes, created_by, meal_types) VALUES ('Alt-Curry', 'scharf', 1, 'dinner');
     INSERT INTO recipe_ingredients (recipe_id, name, quantity, category) VALUES (1, 'Reis', '300 g', 'Sonstiges');
   `);
-  const migration = dbmod.MIGRATIONS.find((m) => m.version === 270);
-  assert.ok(migration, 'Migration 270 vorhanden');
+  // custom already used local version 270, so the upstream v270 change is
+  // appended under its descriptive identity rather than rewriting history.
+  const migration = dbmod.MIGRATIONS.find((m) => m.description.startsWith('recipes: servings count'));
+  assert.ok(migration, 'Migration servings count vorhanden');
   migration.up(old);
   migration.up(old); // ein zweiter Lauf (gedriftete Datenbank) scheitert nicht
   assert.deepEqual(

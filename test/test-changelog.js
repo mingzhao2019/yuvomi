@@ -584,7 +584,10 @@ const RELEASED_SECTION_EDITS = {
   // entry and keeps the custom branch's migration/account wording.
   // v2.83.0 keeps the custom branch's selective-sync release text and omits the
   // unadopted R24 app-wide design changes from upstream's release notes.
-  '2.83.0': '03fd0e2868bf',
+  // The upstream sync also carries its intentional post-release wording updates
+  // in the 2.84.0 and 2.83.0 sections.
+  '2.84.0': '64eac7136501',
+  '2.83.0': '2a8551483c6f',
   '2.82.0': '677ba309338c',
   '2.77.1': '50bb81d64389',
   '2.75.0': 'a7b765b32669',

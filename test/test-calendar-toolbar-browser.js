@@ -83,8 +83,12 @@ test('synced calendar display can be saved and reset in the real desktop and pho
       await page.$eval(`${row} .cal-calendar-row__name`, (input) => { input.value = '个人 Google'; });
       await page.$eval(`${row} .cal-calendar-row__color`, (input) => { input.value = '#cc5500'; });
       await page.click(`${row} .js-source-display-save`);
-      await page.waitForSelector(`${row} .js-source-display-reset`, { timeout: 3000 }).catch(async () => {
-        assert.fail(JSON.stringify({ writes: displayWrites, messages: await page.evaluate(() => window.calendarDisplayToasts) }));
+      await page.waitForSelector(`${row} .popover-menu__trigger`, { visible: true, timeout: 3000 }).catch(async () => {
+        assert.fail(JSON.stringify({
+          writes: displayWrites,
+          row: await page.$eval(row, (el) => el.outerHTML),
+          messages: await page.evaluate(() => window.calendarDisplayToasts),
+        }));
       });
       assert.deepEqual(displayWrites.at(-1), { key: 'cal:7', name: '个人 Google', color: '#cc5500' });
       assert.equal(await page.$eval(`${row} .cal-calendar-row__swatch`, (el) => getComputedStyle(el).backgroundColor), 'rgb(204, 85, 0)');
@@ -93,14 +97,18 @@ test('synced calendar display can be saved and reset in the real desktop and pho
         const bounds = panel.getBoundingClientRect();
         return {
           fits: panel.scrollWidth <= panel.clientWidth + 1,
-          controlsFit: [...el.querySelectorAll('input, button')].every((control) => {
+          controlsFit: [...el.querySelectorAll('input, button')].filter((control) => control.getClientRects().length).every((control) => {
             const rect = control.getBoundingClientRect();
             return rect.width > 0 && rect.left >= bounds.left && rect.right <= bounds.right;
           }),
         };
       });
       assert.ok(layout.fits && layout.controlsFit, `${width}px: ${JSON.stringify(layout)}`);
-      await page.click(`${row} .js-source-display-reset`);
+      await page.click(`${row} .popover-menu__trigger`);
+      await page.waitForSelector(`${row} [data-source-display-reset]`, { visible: true, timeout: 3000 }).catch(async () => {
+        assert.fail(JSON.stringify({ writes: displayWrites, messages: await page.evaluate(() => window.calendarDisplayToasts) }));
+      });
+      await page.click(`${row} [data-source-display-reset]`);
       await page.waitForFunction(() => document.querySelector('[data-source-key="cal:7"] .cal-calendar-row__name')?.value === '日历');
       assert.deepEqual(displayWrites.at(-1), { key: 'cal:7', name: null, color: null });
       await page.evaluate(async () => (await import('/components/modal.js')).closeModal({ force: true }));

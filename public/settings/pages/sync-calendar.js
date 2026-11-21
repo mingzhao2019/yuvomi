@@ -134,7 +134,7 @@ function buildOutlookTodoLists(account, lists, selection) {
       showToast(t('settings.outlookTodoRefreshed'), 'success');
       window.yuvomi?.navigate('/settings/modules/calendar?section=sync-calendar');
     } catch (err) {
-      showToast(err.message || t('common.errorGeneric'), 'danger');
+      showToast(errorSentence(err), 'danger');
       refreshBtn.disabled = false;
     }
   });
@@ -1636,7 +1636,7 @@ function buildOutlookConflicts(account, conflicts) {
             if (!list.children.length) wrap.remove();
             showToast(t('settings.outlookConflictResolved'), 'success');
           } catch (err) {
-            showToast(err.message || t('common.errorGeneric'), 'danger');
+            showToast(errorSentence(err), 'danger');
           }
         });
       });
@@ -1766,7 +1766,6 @@ function createOutlookSelection(account) {
     },
     updateSaveButton() {
       if (!selection.saveButton) return;
-      selection.saveButton.disabled = !selection.dirty || selection.saving;
       selection.saveButton.textContent = t('common.save');
     },
     markDirty() {
@@ -1790,7 +1789,7 @@ function createOutlookSelection(account) {
         selection.statusElement?.setAttribute('aria-label', t('settings.outlookSelectionSavedShort'));
         showToast(t('settings.outlookSelectionSaved'), 'success');
       } catch (err) {
-        const message = err.message || t('common.errorGeneric');
+        const message = errorSentence(err);
         selection.saved = false;
         selection.setStatus(message, 'danger');
         showToast(message, 'danger');
@@ -1889,7 +1888,7 @@ function buildOutlookAccountCard(account, refresh, user) {
           const conflicts = buildOutlookConflicts(account, conflictRes.data || []);
           if (conflicts) card.appendChild(conflicts);
         } catch (conflictErr) {
-          card.appendChild(createInlineError(conflictErr.message || t('common.errorGeneric')));
+          card.appendChild(createInlineError(errorSentence(conflictErr)));
         }
       }
       if (user?.role === 'admin') {
@@ -1900,7 +1899,7 @@ function buildOutlookAccountCard(account, refresh, user) {
           card.appendChild(buildOutlookTodoLists(account, selection.todoLists, selection));
           card.appendChild(buildOutlookSelectionActions(selection));
         } catch (todoErr) {
-          card.appendChild(createInlineError(todoErr.message || t('common.errorGeneric')));
+          card.appendChild(createInlineError(errorSentence(todoErr)));
         }
       }
       window.lucide?.createIcons({ el: card });

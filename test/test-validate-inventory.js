@@ -297,7 +297,7 @@ test('categories: name and icon are text, the key stays text, `other` stays prot
   }
   // 400 before 404.
   assertRefused(await call('PUT', '/categories/nope', { json: {} }), [{ path: 'body/name', rule: 'required' }]);
-  assertHandlerRefused(await call('DELETE', '/categories/other'));
+  assertHandlerRefused(await call('DELETE', '/categories/other'), 'category_protected');
   assertPassed(await call('POST', '/categories', { json: { name: 'Werkzeug' } }), 201);
 });
 
@@ -428,7 +428,7 @@ test('items: the defaults and none-values the routes lived with still pass', asy
   assert.equal(res.body.data.currency, 'EUR');
   // A child without the price right sends no price; the replace keeps the stored one.
   const priced = await newItem({ purchase_price: 99 });
-  db.prepare('UPDATE inventory_items SET created_by = ? WHERE id = ?').run(CHILD, priced.id);
+  db.prepare("UPDATE inventory_items SET created_by = ?, asset_scope = 'personal' WHERE id = ?").run(CHILD, priced.id);
   assertPassed(await call('PUT', `/items/${priced.id}`, { json: { name: 'Ding' }, actor: 'child' }), 200);
   assert.equal(db.prepare('SELECT purchase_price FROM inventory_items WHERE id = ?').get(priced.id).purchase_price, 99);
 });
@@ -835,7 +835,7 @@ test('the document: real success codes, the 400 on every operation with a parame
       assert.ok(!JSON.stringify(operation).includes('x-reason'), `${key} carries no x-reason`);
     }
   }
-  assert.equal(operations, 31);
+  assert.equal(operations, 33);
 });
 
 // ── 500 GONE ────────────────────────────────────────────────────────────────

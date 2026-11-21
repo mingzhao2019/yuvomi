@@ -284,9 +284,18 @@ async function newChannel() {
   return res.body.data.id;
 }
 
-test('notifications: a member gets 403 for an invalid request, never the field names', async () => {
-  assertForbidden(await call('POST', '/notifications/channels', { json: { provider: 5 }, member: true }));
-  assertForbidden(await call('PUT', '/notifications/channels/12abc', { json: [], member: true }));
+test('notifications: a member validates personal-channel requests before the handler', async () => {
+  // Custom keeps personal notification channels available to members. The
+  // upstream admin-only gate must therefore not be copied over this route;
+  // malformed personal-channel requests still stop at the schema boundary.
+  assertRefused(
+    await call('POST', '/notifications/channels', { json: { ...NTFY, provider: 5 }, member: true }),
+    [{ path: 'body/provider', rule: 'type' }],
+  );
+  assertRefused(
+    await call('PUT', '/notifications/channels/12abc', { json: { enabled: true }, member: true }),
+    [{ path: 'path/id', rule: 'type' }],
+  );
 });
 
 test('notifications: create refuses a provider that is not exactly known, non-text, non-boolean and non-object fields', async () => {

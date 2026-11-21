@@ -284,7 +284,7 @@ const LATE_MODAL_BESTAND = {
     'pages/split-expenses.js': 0,
     'pages/tasks.js': 0,
     'pages/waste.js': 0,
-    'settings/pages/admin-family.js': 2,
+    'settings/pages/admin-family.js': 0,
     'settings/pages/modules-health.js': 0,
     'settings/pages/modules-kitchen.js': 0,
     'settings/pages/personal-calendar-subscriptions.js': 0,
@@ -21176,7 +21176,7 @@ test('Familie: Mitglied und Einladung oeffnen einen Dialog, der Knopf bleibt Fok
   assert.match(src, /addMemberBtn\.addEventListener\('click', \(\) => openAddMemberModal\(/);
   assert.doesNotMatch(src, /addMemberBtn\.hidden = true|addBtn\.hidden = true/, 'der Knopf verschwindet nicht - er ist das Ziel der Fokus-Rueckgabe');
   const submit = src.slice(src.indexOf('function openAddMemberModal('), src.indexOf('function bindEvents('));
-  assert.match(submit, /closeModal\(\{ force: true \}\)/, 'nach dem Anlegen schliesst der Dialog und gibt den Fokus zurueck');
+  assert.match(submit, /closeModal\(\{ force: true, context: modalContext \}\)/, 'nach dem Anlegen schliesst der Dialog und gibt den Fokus zurueck');
 });
 
 /* Lucide ersetzt `<i data-lucide>` durch ein `<svg>` - eine Regel auf `… i`

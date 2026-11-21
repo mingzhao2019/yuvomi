@@ -1194,6 +1194,9 @@ async function openEditMemberModal(member, currentUser, users, container) {
           return;
         }
         const newPassword = panel.querySelector('#edit-member-password')?.value || '';
+        // Geschlossen wird nur dieser Dialog, nicht einer, der waehrend der
+        // Anfrage aufgegangen ist (#1997).
+        const modalContext = captureModalContext();
         submitBtn.disabled = true;
         try {
           const res = await auth.updateUser(member.id, {
@@ -1220,7 +1223,7 @@ async function openEditMemberModal(member, currentUser, users, container) {
           const idx = users.findIndex((u) => u.id === member.id);
           if (idx !== -1) users[idx] = res.user;
           if (currentUser?.id === member.id) Object.assign(currentUser, res.user);
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('settings.memberUpdatedToast', { name: res.user.display_name }), 'success');
           repaintMembers(container, currentUser, users);
         } catch (err) {
@@ -1312,6 +1315,9 @@ function openAddMemberModal(container, currentUser, users) {
         };
 
         const btn = panel.querySelector('[type=submit]');
+        // Geschlossen wird nur dieser Dialog, nicht einer, der waehrend der
+        // Anfrage aufgegangen ist (#1997).
+        const modalContext = captureModalContext();
         btn.disabled = true;
         try {
           const res = await auth.createUser(data);
@@ -1319,7 +1325,7 @@ function openAddMemberModal(container, currentUser, users) {
           repaintMembers(container, currentUser, users);
           // Der Dialog gibt den Fokus beim Schliessen an "Mitglied hinzufuegen"
           // zurueck (modal.js) - kein Fall auf BODY wie beim Inline-Formular.
-          closeModal({ force: true });
+          closeModal({ force: true, context: modalContext });
           window.yuvomi?.showToast(t('settings.memberAddedToast', { name: res.user.display_name }), 'success');
         } catch (err) {
           showError(errorEl, errorSentence(err));

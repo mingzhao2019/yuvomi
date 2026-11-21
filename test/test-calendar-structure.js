@@ -106,6 +106,7 @@ const EXPECTED = [
   'DELETE /calendars/:id',
   'POST /calendars/:id/feed/regenerate',
   'DELETE /calendars/:id/feed',
+  'PUT /source-display',
   // sync-targets (Auswahlliste des Event-Modals, #618)
   'GET /sync-targets',
   // crud (/:id-Familie)

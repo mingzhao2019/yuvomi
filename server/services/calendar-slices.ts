@@ -42,6 +42,7 @@ import type { Database, RowReader } from '../authorize/index.ts';
 import type { OverviewContext, SliceGuard } from './tasks-slices.ts';
 import { visibleWhere } from '../authorize/index.ts';
 import * as eventReader from './calendar-event-reader.js';
+import { decorateEventCompletions } from './calendar-event-completions.js';
 import { notBirthdayEventSql } from './household-modules.js';
 import type { IndexSearchQuery, SearchActor, SearchRow, TableSearchQuery } from './search-text.ts';
 import { SEARCH_LIMIT, firstMatches, pick, withExcerpt } from './search-text.ts';
@@ -183,10 +184,13 @@ export function calendarOverviewSlice(
   // (#1449); ended events of today come along outside it - the tile shows them
   // stepped back, the today sheet leaves them out. Which ones have ended the
   // browser decides at the clock: an event also ends between two fetches.
-  const upcomingEvents = guard('upcomingEvents', (): SerializedEvent[] => serialize(getUpcomingEvents(db, {
-    userId, limit, fromToday: true, assignedTo, includeBirthdays,
-    keepEndedToday: ENDED_TODAY_POOL, household, calendars, reader: actor, now: ctx.now,
-  })), []);
+  const upcomingEvents = guard('upcomingEvents', (): SerializedEvent[] => {
+    const events = getUpcomingEvents(db, {
+      userId, limit, fromToday: true, assignedTo, includeBirthdays,
+      keepEndedToday: ENDED_TODAY_POOL, household, calendars, reader: actor, now: ctx.now,
+    });
+    return serialize(decorateEventCompletions(db, events, userId));
+  }, []);
 
   /* THE WEEK FOR THE STRIP of the calendar widget (2x1). A question of its own
    * next to the list above: there "what begins next", here "what takes place on

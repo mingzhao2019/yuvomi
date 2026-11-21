@@ -2795,8 +2795,8 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
 }
 
 /* Show the actual inherited ICS subscription colour in the editor. */
-.color-swatch--inherit[data-inherited-color]::after {
-  background: var(--inherit-color);
+.color-swatch--inherit[style*='--swatch']::after {
+  background: var(--swatch);
 }
 
 .reminder-section__group {
@@ -4276,6 +4276,10 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
 .cal-calendar-row__origin {
   color: var(--color-text-secondary);
   overflow-wrap: anywhere;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 4 4;
+  -webkit-hyphenate-limit-before: 4;
+  -webkit-hyphenate-limit-after: 4;
 }
 
 @media (max-width: 639px) {
@@ -4413,11 +4417,6 @@ html[dir="rtl"] .cal-toolbar__stepper > .period-stepper__next::before {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.schedule-time-block__time {
-  opacity: .85;
-  font-variant-numeric: tabular-nums;
 }
 
 .schedule-time-block__title .schedule-entry__extra-badge {

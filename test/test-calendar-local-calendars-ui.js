@@ -53,7 +53,7 @@ test('synced calendar management escapes names, marks providers, and saves only 
     assert.match(html, /Google/);
     assert.match(html, /&lt;Personal&gt;/);
     assert.match(html, /&lt;Original&gt;/);
-    assert.match(html, /js-source-display-reset/);
+    assert.match(html, /data-source-display-reset/);
     assert.match(html, /js-source-display-save/);
     globalThis.__apiStub = { put: async (...args) => { calls.push(args); return { data: source }; } };
     assert.equal(await calendar.saveSourceDisplay(source.key, { name: 'Work', color: '#445566' }), true);

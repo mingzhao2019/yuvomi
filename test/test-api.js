@@ -868,7 +868,6 @@ const REASONS_WITHOUT_SENTENCE = new Set([
   // Custom-Asset-Einstellungen und Kategorieverwaltung liefern nur das
   // allgemeine Admin-Gate; der reason dient der Einordnung, nicht einer
   // eigenen Nutzerzeile.
-  'admin_required', 'asset_default_scope_forbidden',
   // Anmeldung und Einrichtung: die Seiten sagen ihren eigenen Satz nach dem Status.
   'account_cannot_sign_in', 'setup_completed', 'required',
   'browser_session_required',

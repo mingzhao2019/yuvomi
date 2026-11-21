@@ -17,6 +17,7 @@ import { createErrorHandler } from '../server/middleware/error-handler.js';
 import {
   recordingLog, withTableGone, withWriteRefused, requestLogged, assertFixed500, REFUSED_WRITE_TEXT,
 } from './helpers/forced-db-error.js';
+import { resolveRequestModuleAccess } from '../server/authorize/index.ts';
 
 const dbmod = await import('../server/db.js');
 const { default: categoriesRouter } = await import('../server/routes/inventory/categories.js');
@@ -29,6 +30,7 @@ app.use(defaultEmptyBody);
 app.use((req, _res, next) => {
   req.authUserId = 1;
   req.authRole = req.headers['x-test-role'] || 'admin';
+  req.sessionModuleAccess = resolveRequestModuleAccess(db, req);
   next();
 });
 // At its real prefix: validateRequest() reads the operation from the mount (#2810).

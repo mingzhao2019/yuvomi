@@ -6972,16 +6972,26 @@ function renderSyncedCalendarRow(source) {
   const color = source.color || '#8E8E93';
   const info = [calendarProviderLabel(source.provider),
     t('calendar.sourceOriginalName', { name: source.original_name || source.name })].filter(Boolean).join(' · ');
+  const displayMenu = writable && (source.custom_name || source.custom_color) ? rowMenuHtml({
+    id: `synced-calendar-actions-${String(source.key).replace(/[^\w-]+/g, '-')}`,
+    label: t('common.moreActionsNamed', { name: source.name }),
+    items: [{
+      action: 'calendar-source-display-reset',
+      icon: 'rotate-ccw',
+      label: t('calendar.sourceDisplayReset'),
+      attrs: { 'data-source-display-reset': '' },
+    }],
+  }) : '';
   return `<div class="cal-calendar-row cal-calendar-row--synced" data-source-key="${esc(source.key)}">
     <span class="cal-calendar-row__swatch" style="background-color:${esc(color)}" aria-hidden="true"></span>
     <div class="cal-calendar-row__identity">
       ${writable ? `<input class="form-input cal-calendar-row__name" maxlength="80" value="${esc(source.name)}" aria-label="${esc(t('calendar.localCalendarName'))}">` : `<span>${esc(source.name)}</span>`}
       <small class="cal-calendar-row__origin">${esc(info)}</small>
     </div>
-    ${writable ? `<input class="form-input cal-calendar-row__color" type="color" value="${esc(color)}" aria-label="${esc(t('calendar.localCalendarColor'))}">` : '<span></span>'}
+    ${writable ? colorPickerHtml({ value: color, label: t('calendar.localCalendarColor'), inputClass: 'cal-calendar-row__color', className: 'cal-calendar-row__color-picker' }) : '<span></span>'}
     <div class="cal-calendar-row__actions">
       ${writable ? rowActionHtml({ icon: 'save', label: `${t('common.save')} · ${source.name}`, className: 'js-source-display-save' }) : ''}
-      ${writable && (source.custom_name || source.custom_color) ? rowActionHtml({ icon: 'rotate-ccw', label: t('calendar.sourceDisplayReset'), className: 'js-source-display-reset' }) : ''}
+      ${displayMenu}
     </div>
   </div>`;
 }
@@ -7124,6 +7134,7 @@ async function refreshLocalCalendarsPanel(panel) {
     body.replaceChildren();
     body.insertAdjacentHTML('beforeend', renderLocalCalendarsContent());
     window.lucide?.createIcons({ el: body });
+    wireColorPicker(body);
   }
   renderView();
 }
@@ -7186,21 +7197,23 @@ async function openLocalCalendarsModal() {
   const panel = document.querySelector('#shared-modal-overlay .modal-panel');
   if (!panel) return;
   window.lucide?.createIcons({ el: panel });
+  wireColorPicker(panel);
   installPopoverMenus(panel);
 
   panel.addEventListener('click', async (e) => {
+    const modalContext = captureModalContext();
     if (e.target.closest('.js-calendar-retry-load')) {
       await refreshLocalCalendarsPanel(panel);
       return;
     }
     const sourceRow = e.target.closest('[data-source-key]');
     if (sourceRow) {
-      const button = e.target.closest('.js-source-display-save, .js-source-display-reset');
+      const button = e.target.closest('.js-source-display-save, [data-source-display-reset]');
       if (!button || button.disabled) return;
       const source = state.calendarSourceCatalog?.find((item) => item.key === sourceRow.dataset.sourceKey);
       if (!source) return;
       const changes = {};
-      if (button.classList.contains('js-source-display-reset')) {
+      if (button.hasAttribute('data-source-display-reset')) {
         changes.name = null;
         changes.color = null;
       } else {
@@ -7224,7 +7237,7 @@ async function openLocalCalendarsModal() {
     const link = e.target.closest('.cal-calendar-manager__link');
     if (link) {
       e.preventDefault();
-      await closeModal();
+      await closeModal({ force: true, context: modalContext });
       window.yuvomi?.navigate?.(link.getAttribute('href'));
       return;
     }

@@ -754,6 +754,15 @@ async function runSync({ makeClient } = {}) {
     outbound.dropDeletionsOfMissingCalendars('apple', { listedUrls: calendars.map((cal) => cal.url) });
     const removed = await processPendingDeletions(client, 'apple', objectIndex, ownCalendarUrls, { stop });
     if (removed) log.info(`${removed} pending deletion(s) applied in iCloud.`);
+    const pushed = await processPendingUpdates(
+      client,
+      'apple',
+      objectIndex,
+      calendarsByUrl,
+      uploadGate,
+      { stop },
+    );
+    if (pushed) log.info(`${pushed} local change(s) pushed to iCloud.`);
   } catch (err) {
     log.error('Outbound changes failed:', err.message);
   }

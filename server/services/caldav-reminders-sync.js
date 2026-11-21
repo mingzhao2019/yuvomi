@@ -621,6 +621,8 @@ function applyTaskRelations(seen) {
   const update = db.get().prepare('UPDATE tasks SET parent_task_id = ? WHERE id = ? AND parent_task_id IS NOT ?');
   const changed = new Set();
   for (const [uid, entry] of seen) {
+    // Eine Aufgabe eines anderen Kontos (#1906) ist hier nur Elternteil.
+    if (entry.foreign) continue;
     const rootUid = parentUidOf.has(uid) ? rootOf(uid) : null;
     const parentId = rootUid ? idByUid.get(rootUid) ?? null : null;
     // Auch der NULL-Fall muss geschrieben werden: wer auf dem Server aus der
@@ -634,9 +636,11 @@ function upsertShoppingItem(sel, todo, accountId, objectUrl = null) {
   const listId    = ensureShoppingList(sel);
   const isChecked = todo.completed ? 1 : 0;
 
-  const existing = db.get().prepare(
-    `SELECT id, outbound_move FROM shopping_items WHERE external_uid = ? AND external_source = 'caldav' AND external_account_id = ?`
-  ).get(todo.uid, accountId);
+  // Über alle Konten (#1906): die Liste des Kontos, das den Artikel zuerst
+  // geliefert hat, gilt - auch wenn ein zweites dieselbe Server-Liste einer
+  // anderen lokalen Liste zuordnet.
+  const { row: existing, foreign } = rowForTodoUid(db.get(), 'shopping_items', 'outbound_move', todo.uid, accountId);
+  if (foreign) return;
 
   // DER ARTIKEL IST HIER UMGEZOGEN, SEIN OBJEKT NOCH NICHT (#1700). Der Abruf
   // liest es am alten Platz und stellte die Zeile sonst dorthin zurück - der
@@ -1069,6 +1073,18 @@ async function runSync({ createClient: makeClient } = {}) {
                   taskListId,
                   { completions: completionTransitions, defaultAssignees: listAssignees.get(sel.id) },
                 );
+                // Die Aufgabe gehört einem anderen Konto (#1906): dessen
+                // Abruf verdrahtet IHRE Hierarchie. Als Elternteil eigener
+                // Kinder bleibt sie auffindbar (Review), geändert wird sie
+                // hier nicht (`foreign`).
+                if (taskId == null) {
+                  const owned = db.get().prepare(
+                    "SELECT id FROM tasks WHERE external_uid = ? AND external_source = 'caldav' ORDER BY id LIMIT 1"
+                  ).get(todo.uid);
+                  if (owned) taskRelations.set(todo.uid, { taskId: owned.id, parentUid: null, childUids: todo.childUids || [], foreign: true });
+                  totalItems++;
+                  continue;
+                }
                 taskRelations.set(todo.uid, {
                   taskId,
                   parentUid: todo.parentUid || null,

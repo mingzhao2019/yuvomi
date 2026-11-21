@@ -127,6 +127,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the own schedule settings answered this way already.
 
 ### Fixed
+- **Installing on iPhone is explained in one sentence.** The install hint, the Device settings and the
+  note after "Install" now all say "Tap Share and choose “Add to Home Screen”", with the menu item in
+  proper quotation marks; before, the hint used straight quotes and an arrow, and the settings worded it
+  differently.
 - **A shared expense converted into a currency with other decimal places reports the converted
   amount correctly.** `converted_amount` in the expense answers was written with the decimal
   places of `currency` instead of `converted_currency`: 1500 JPY converted from USD read

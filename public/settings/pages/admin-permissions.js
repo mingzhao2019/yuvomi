@@ -655,7 +655,7 @@ function persist(onFail) {
       return true;
     } catch (err) {
       onFail?.();
-      window.yuvomi?.showToast(err.message || t('common.errorGeneric'), 'danger');
+      window.yuvomi?.showToast(errorSentence(err), 'danger');
       return false;
     }
   };

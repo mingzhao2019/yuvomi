@@ -2168,11 +2168,11 @@ const SHARED_PRESSABLE = [
  * Hoechststand der `:hover`-Regeln ausserhalb von `@media (hover: hover)`.
  *
  * Upstream's R18 baseline was 240. Custom keeps additional module surfaces;
- * after the shared UI changes the measured custom line is 223 (down from 248
+ * after the shared UI changes the measured custom line is 214 (down from 248
  * before the integration). Keep this as a ratchet for the custom line rather
  * than comparing it with the smaller upstream stylesheet.
  */
-const UNGUARDED_HOVER_MAX = 223;
+const UNGUARDED_HOVER_MAX = 214;
 
 function hoverRules() {
   const out = [];
